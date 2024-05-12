@@ -94,6 +94,8 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		
 		// iterate through the array and transfer the nft with tokenID to player
 		// unlock the token and transfer it to basic nftOwner FLIP balance
+		// TODO: account for airdropped tokens, the FLIP in these cases should be sent
+		// to the airdrop account
 		for _, t := range bTokenIDs {
 			basicTidString := strconv.FormatInt(t, 10)
 			flipBasicOwner := GetOwnerOfBasicNFT(basicTidString)

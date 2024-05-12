@@ -262,3 +262,71 @@ func GetAllUnlockedNFTs() int {
 	totalUnlocked := int(tokenCount) - lockedNFTs
 	return int(totalUnlocked)
 }
+
+func AirdropBasicFlipNFT(airdropAccount, 
+	toPlayer std.Address,
+	 airdropName string, 
+	 gameType string, 
+	 gameLevel string,
+	 svgData string) (string, string) {
+	// - airdropAccount is the airdrop account, it will receive the lockedNFTs tokens when
+	//	someone solves a composite NFT - the initial NFT is  to this account, then transferred
+	//	to toPlayer
+	// - toPlayer is the user receiving the NFT
+	// - generates a GRC721 token with the airdropped board SVG as a tokenURI
+	// - returns token metadata as string, to be used in client
+	result := ""
+	nftError := ""
+	
+	count := flipBasicNFT.TokenCount()
+	basicNFTtokenIDCounter = count + 1
+	tidString := strconv.FormatUint(basicNFTtokenIDCounter, 10)
+	tid := grc721.TokenID(tidString)
+	mintResultError := flipBasicNFT.Mint(airdropAccount, tid)
+	if mintResultError == nil {
+		flipBasicNFTMetaData := &basicNFTMetaData{
+			tokenID: tidString,
+			name: "Flippando - the Game",
+			version: "1.0.0",
+			gameId: "airdrop/hackerville/1", // airdrop name + airdrop edition
+			gameType: gameType,
+			gameLevel: gameLevel,
+			svgData: svgData,
+		}
+		flipBasicNFTMetaDataJSON, err := flipBasicNFTMetaData.MarshalJSON()
+		if err != nil {
+			panic("error in marhasling flipBasicNFTMetaData");
+		}
+		flipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flipBasicNFTMetaDataJSON))
+		// set approval for the realm owner so we can later transfer the NFT
+		flipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
+		// mint fungible FLIP token
+		MintLocked(airdropAccount, tidString, uint64(1))
+		// add NFT to the lockedNFTs avl.Tree
+		var flipAmount uint64
+		if gameLevel == "16" {
+			flipAmount = 1
+		} else if gameLevel == "64" {
+			flipAmount = 4
+		}
+
+		lockedNFTs.Set(tidString, flipAmount)
+		result = string(flipBasicNFTMetaDataJSON)
+	}
+	// transfer the minted NFT to toPlayer
+	err := flipBasicNFT.TransferFrom(airdropAccount, toPlayer, tid)
+	if err != nil {
+		panic("error in transferring to toPLayer")
+	}
+	return nil
+	res := &nftResult{
+		result: result,
+		nftError: nftError,
+	}
+	
+	createNFTResult, err := res.MarshalJSON()
+	if(err != nil){
+		panic("error in minting")
+	}
+	return result, nftError
+}
