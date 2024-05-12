@@ -20,7 +20,7 @@ type UserProfile struct {
 	ModificationHistory map[string][]string
 }
 
-var profiles *avl.Tree // address -> UserProfile
+var profiles *avl.Tree      // address -> UserProfile
 var usernameIndex *avl.Tree // username -> address
 
 func init() {
@@ -60,6 +60,7 @@ func CreateProfile(username, avatarurl, age, gender, website, country, city stri
 	// Add the username to the index
 	if username != "" {
 		usernameIndex.Set(username, caller.String())
+		std.Emit("UserProfileCreated", "username", username, "address", caller.String())
 	}
 }
 
@@ -242,7 +243,7 @@ func DisplayCity(address std.Address, username string) string {
 			}
 		}
 	}
-	
+
 	panic("address or username not found")
 }
 
