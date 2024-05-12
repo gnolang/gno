@@ -50,7 +50,11 @@ jobs:
     strategy:
       matrix:
         target:
-          [gnoland-slim, gnokey-slim, gno-slim, gnofaucet-slim, gnoweb-slim]
+          - gnoland-slim
+          - gnokey-slim
+          - gno-slim
+          - gnofaucet-slim
+          - gnoweb-slim
     steps:
       - name: Checkout
         uses: actions/checkout@v4
