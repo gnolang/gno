@@ -52,10 +52,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout
+      - name: "Checkout"
         uses: actions/checkout@v4
 
-      - name: Setup the images
+      - name: "Setup the images"
         run: |
           cd misc/loop
 
@@ -63,7 +63,7 @@ jobs:
           docker compose pull
           docker compose up -d
 
-      - name: Test1. Portal loop start gnoland
+      - name: "Test1 - Portal loop start gnoland"
         run: |
           while
             block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
@@ -75,13 +75,12 @@ jobs:
 
           curl -s localhost:26657/status | jq
 
-      - name: Buid new gnolang/gno image
+      - name: "Buid new gnolang/gno image"
         run: |
           docker build -t ghcr.io/gnolang/gno .
 
-      - name: Wait for new docker image
+      - name: "Wait for new docker image"
         run: |
-
           ip_addr=$(cat misc/loop/traefik/gno.yml | grep -o "http://.*:26657")
           while
             new_ip_addr=$(cat misc/loop/traefik/gno.yml | grep -o "http://.*:26657")
@@ -91,7 +90,7 @@ jobs:
             sleep 5
           done
 
-      - name: Test2. Wait portalloop start new image
+      - name: "Test2 - Wait portal-loop start new image"
         run: |
           while
             block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
