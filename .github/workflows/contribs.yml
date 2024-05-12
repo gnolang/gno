@@ -20,11 +20,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        goversion: # two latest versions
+        goversion:
           - "1.22.x"
         program:
           - "gnomd"
           - "gnodev"
+          - "gnofaucet"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -32,5 +33,43 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
-      - run: make install ${{ matrix.program }}
+      - run: make install.${{ matrix.program }}
         working-directory: contribs
+
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        goversion: # two latest versions
+          - "1.21.x"
+          - "1.22.x"
+        program:
+          - "gnodev"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.goversion }}
+      - run: make test.${{ matrix.program }}
+        working-directory: contribs
+
+  lint:
+    strategy:
+      fail-fast: false
+      matrix:
+        goversion:
+          - "1.22.x"
+        program:
+          - "gnodev"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.goversion }}
+      - run: make lint.${{ matrix.program }}
+        working-directory: contribs
+

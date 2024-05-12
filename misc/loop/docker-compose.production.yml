@@ -51,7 +51,7 @@ services:
       - gnoweb
       - --bind=0.0.0.0:8888
       - --remote=traefik:26657
-      - --faucet-url=https://faucet-api.portal.gnoteam.com
+      - --faucet-url=https://faucet-api.portal.gno.land
       - --captcha-site=$CAPTCHA_SITE_KEY
       - --with-analytics
       - --help-chainid=portal-loop
@@ -62,7 +62,7 @@ services:
       com.centurylinklabs.watchtower.enable: "true"
       traefik.enable: "true"
       traefik.http.routers.gnoweb.entrypoints: "web,websecure"
-      traefik.http.routers.gnoweb.rule: "Host(`gno.land`) || Host(`portal.gnoteam.com`)"
+      traefik.http.routers.gnoweb.rule: "Host(`gno.land`)"
       traefik.http.routers.gnoweb.tls: "true"
       traefik.http.routers.gnoweb.tls.certresolver: "le"
 
@@ -87,16 +87,14 @@ services:
       com.centurylinklabs.watchtower.enable: "true"
       traefik.enable: "true"
       traefik.http.routers.gnofaucet-api.entrypoints: "websecure"
-      # traefik.http.routers.gnofaucet-api.rule: "Host(`faucet-api.gno.land`) || Host(`faucet-api.portal.gnoteam.com`)"
-      traefik.http.routers.gnofaucet-api.rule: "Host(`faucet-api.portal.gnoteam.com`)"
+      traefik.http.routers.gnofaucet-api.rule: "Host(`faucet-api.gno.land`)"
       traefik.http.routers.gnofaucet-api.tls: "true"
       traefik.http.routers.gnofaucet-api.tls.certresolver: "le"
       traefik.http.middlewares.gnofaucet-ratelimit.ratelimit.average: "6"
       traefik.http.middlewares.gnofaucet-ratelimit.ratelimit.period: "1m"
 
   portalloopd:
-    # image: ghcr.io/gnolang/gno/portalloopd
-    image: ghcr.io/albttx/gno/portalloopd
+    image: ghcr.io/gnolang/gno/portalloopd
     restart: unless-stopped
     volumes:
       - ./scripts:/scripts
@@ -124,6 +122,8 @@ services:
     env_file: ".env"
     command:
       - "start"
+      - "--chain-id=portal-loop"
+      - "--interval=15m"
       - "--mnemonic=${COUNTER_MNEMONIC}"
       - "--rpc=http://traefik:26657"
     networks:

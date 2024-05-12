@@ -13,6 +13,19 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+var errInvalidTxFile = errors.New("invalid transaction file")
+
+type signOpts struct {
+	chainID         string
+	accountSequence uint64
+	accountNumber   uint64
+}
+
+type keyOpts struct {
+	keyName     string
+	decryptPass string
+}
+
 type SignCfg struct {
 	RootCfg *BaseCfg
 
@@ -20,10 +33,7 @@ type SignCfg struct {
 	ChainID       string
 	AccountNumber uint64
 	Sequence      uint64
-	ShowSignBytes bool
 	NameOrBech32  string
-	TxJSON        []byte
-	Pass          string
 }
 
 func NewSignCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -35,7 +45,7 @@ func NewSignCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "sign",
 			ShortUsage: "sign [flags] <key-name or address>",
-			ShortHelp:  "signs the document",
+			ShortHelp:  "signs the given tx document and saves it to disk",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -47,161 +57,186 @@ func NewSignCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 func (c *SignCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.TxPath,
-		"txpath",
-		"-",
-		"path to file of tx to sign",
+		"tx-path",
+		"",
+		"path to the Amino JSON-encoded tx (file) to sign",
 	)
 
 	fs.StringVar(
 		&c.ChainID,
 		"chainid",
 		"dev",
-		"chainid to sign for",
+		"the ID of the chain",
 	)
 
 	fs.Uint64Var(
 		&c.AccountNumber,
-		"number",
+		"account-number",
 		0,
-		"account number to sign with (required)",
+		"account number to sign with",
 	)
 
 	fs.Uint64Var(
 		&c.Sequence,
-		"sequence",
+		"account-sequence",
 		0,
-		"sequence to sign with (required)",
-	)
-
-	fs.BoolVar(
-		&c.ShowSignBytes,
-		"show-signbytes",
-		false,
-		"show sign bytes and quit",
+		"account sequence to sign with",
 	)
 }
 
 func execSign(cfg *SignCfg, args []string, io commands.IO) error {
-	var err error
-
+	// Make sure the key name is provided
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
 
-	cfg.NameOrBech32 = args[0]
-
-	// read tx to sign
-	txpath := cfg.TxPath
-	if txpath == "-" { // from stdin.
-		txjsonstr, err := io.GetString(
-			"Enter tx to sign, terminated by a newline.",
-		)
+	// saveTx saves the given transaction to the given path (Amino-encoded JSON)
+	saveTx := func(tx *std.Tx, path string) error {
+		// Encode the transaction
+		encodedTx, err := amino.MarshalJSON(tx)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable ot marshal tx to JSON, %w", err)
 		}
-		cfg.TxJSON = []byte(txjsonstr)
-	} else { // from file
-		cfg.TxJSON, err = os.ReadFile(txpath)
-		if err != nil {
-			return err
+
+		// Save the transaction
+		if err := os.WriteFile(path, encodedTx, 0o644); err != nil {
+			return fmt.Errorf("unable to write tx to %s, %w", path, err)
 		}
+
+		io.Printf("\nTx successfully signed and saved to %s\n", path)
+
+		return nil
 	}
 
-	if cfg.RootCfg.Quiet {
-		cfg.Pass, err = io.GetPassword(
-			"",
-			cfg.RootCfg.InsecurePasswordStdin,
-		)
-	} else {
-		cfg.Pass, err = io.GetPassword(
-			"Enter password.",
-			cfg.RootCfg.InsecurePasswordStdin,
-		)
-	}
-	if err != nil {
-		return err
-	}
-
-	signedTx, err := SignHandler(cfg)
-	if err != nil {
-		return err
-	}
-
-	signedJSON, err := amino.MarshalJSON(signedTx)
-	if err != nil {
-		return err
-	}
-	io.Println(string(signedJSON))
-
-	return nil
-}
-
-func SignHandler(cfg *SignCfg) (*std.Tx, error) {
-	var err error
-	var tx std.Tx
-
-	if cfg.TxJSON == nil {
-		return nil, errors.New("invalid tx content")
-	}
-
+	// Load the keybase
 	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("unable to load keybase, %w", err)
 	}
 
-	err = amino.UnmarshalJSON(cfg.TxJSON, &tx)
+	// Fetch the key info from the keybase
+	info, err := kb.GetByNameOrAddress(args[0])
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("unable to get key from keybase, %w", err)
 	}
 
-	// fill tx signatures.
-	signers := tx.GetSigners()
-	if tx.Signatures == nil {
-		for range signers {
-			tx.Signatures = append(tx.Signatures, std.Signature{
-				PubKey:    nil, // zero signature
-				Signature: nil, // zero signature
-			})
+	// Get the transaction bytes
+	txRaw, err := os.ReadFile(cfg.TxPath)
+	if err != nil {
+		return fmt.Errorf("unable to read transaction file")
+	}
+
+	// Make sure there is something to actually sign
+	if len(txRaw) == 0 {
+		return errInvalidTxFile
+	}
+
+	// Make sure the tx is valid Amino JSON
+	var tx std.Tx
+	if err := amino.UnmarshalJSON(txRaw, &tx); err != nil {
+		return fmt.Errorf("unable to unmarshal transaction, %w", err)
+	}
+
+	var password string
+
+	// Check if we need to get a decryption password.
+	// This is only required for local keys
+	if info.GetType() != keys.TypeLedger {
+		// Get the keybase decryption password
+		prompt := "Enter password to decrypt key"
+		if cfg.RootCfg.Quiet {
+			prompt = "" // No prompt
 		}
-	}
 
-	// validate document to sign.
-	err = tx.ValidateBasic()
-	if err != nil {
-		return nil, err
-	}
-
-	// derive sign doc bytes.
-	chainID := cfg.ChainID
-	accountNumber := cfg.AccountNumber
-	sequence := cfg.Sequence
-	signbz := tx.GetSignBytes(chainID, accountNumber, sequence)
-	if cfg.ShowSignBytes {
-		fmt.Printf("sign bytes: %X\n", signbz)
-		return nil, nil
-	}
-
-	sig, pub, err := kb.Sign(cfg.NameOrBech32, cfg.Pass, signbz)
-	if err != nil {
-		return nil, err
-	}
-	addr := pub.Address()
-	found := false
-	for i := range tx.Signatures {
-		// override signature for matching slot.
-		if signers[i] == addr {
-			found = true
-			tx.Signatures[i] = std.Signature{
-				PubKey:    pub,
-				Signature: sig,
-			}
-		}
-	}
-	if !found {
-		return nil, errors.New(
-			fmt.Sprintf("addr %v (%s) not in signer set", addr, cfg.NameOrBech32),
+		password, err = io.GetPassword(
+			prompt,
+			cfg.RootCfg.InsecurePasswordStdin,
 		)
+		if err != nil {
+			return fmt.Errorf("unable to get decryption key, %w", err)
+		}
 	}
 
-	return &tx, nil
+	// Prepare the signature ops
+	sOpts := signOpts{
+		chainID:         cfg.ChainID,
+		accountSequence: cfg.Sequence,
+		accountNumber:   cfg.AccountNumber,
+	}
+
+	kOpts := keyOpts{
+		keyName:     args[0],
+		decryptPass: password,
+	}
+
+	// Sign the transaction
+	if err := signTx(&tx, kb, sOpts, kOpts); err != nil {
+		return fmt.Errorf("unable to sign transaction, %w", err)
+	}
+
+	return saveTx(&tx, cfg.TxPath)
+}
+
+// signTx generates the transaction signature,
+// and saves it to the given transaction
+func signTx(
+	tx *std.Tx,
+	kb keys.Keybase,
+	signOpts signOpts,
+	keyOpts keyOpts,
+) error {
+	signBytes, err := tx.GetSignBytes(
+		signOpts.chainID,
+		signOpts.accountNumber,
+		signOpts.accountSequence,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to get signature bytes, %w", err)
+	}
+
+	// Sign the transaction data
+	sig, pub, err := kb.Sign(
+		keyOpts.keyName,
+		keyOpts.decryptPass,
+		signBytes,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to sign transaction bytes, %w", err)
+	}
+
+	// Save the signature
+	if tx.Signatures == nil {
+		tx.Signatures = make([]std.Signature, 0, 1)
+	}
+
+	// Check if the signature needs to be overwritten
+	for index, signature := range tx.Signatures {
+		if !signature.PubKey.Equals(pub) {
+			continue
+		}
+
+		// Save the signature
+		tx.Signatures[index] = std.Signature{
+			PubKey:    pub,
+			Signature: sig,
+		}
+
+		return nil
+	}
+
+	// Append the signature, since it wasn't
+	// present before
+	tx.Signatures = append(
+		tx.Signatures, std.Signature{
+			PubKey:    pub,
+			Signature: sig,
+		},
+	)
+
+	// Validate the tx after signing
+	if err := tx.ValidateBasic(); err != nil {
+		return fmt.Errorf("unable to validate transaction, %w", err)
+	}
+
+	return nil
 }

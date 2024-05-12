@@ -24,8 +24,17 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap/zapcore"
 )
+
+var startGraphic = strings.ReplaceAll(`
+                    __             __
+  ___ ____  ___    / /__ ____  ___/ /
+ / _ '/ _ \/ _ \_ / / _ '/ _ \/ _  /
+ \_, /_//_/\___(_)_/\_,_/_//_/\_,_/
+/___/
+`, "'", "`")
 
 type startCfg struct {
 	gnoRootDir            string
@@ -33,6 +42,7 @@ type startCfg struct {
 	skipStart             bool
 	genesisBalancesFile   string
 	genesisTxsFile        string
+	genesisFile           string
 	chainID               string
 	genesisRemote         string
 	dataDir               string
@@ -97,6 +107,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
+		&c.genesisFile,
+		"genesis",
+		"genesis.json",
+		"the path to the genesis.json",
+	)
+
+	fs.StringVar(
 		&c.chainID,
 		"chainid",
 		"dev",
@@ -110,12 +127,11 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"the root directory of the gno repository",
 	)
 
-	// XXX: Use home directory for this
 	fs.StringVar(
 		&c.dataDir,
 		"data-dir",
-		"testdir",
-		"directory for config and data",
+		"gnoland-data",
+		"the path to the node's data directory",
 	)
 
 	fs.StringVar(
@@ -182,18 +198,20 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		log.ConsoleFormat.String(),
 		"log format for the gnoland node",
 	)
-
-	// XXX(deprecated): use data-dir instead
-	fs.StringVar(
-		&c.dataDir,
-		"root-dir",
-		"testdir",
-		"deprecated: use data-dir instead - directory for config and data",
-	)
 }
 
 func execStart(c *startCfg, io commands.IO) error {
-	dataDir := c.dataDir
+	// Get the absolute path to the node's data directory
+	nodeDir, err := filepath.Abs(c.dataDir)
+	if err != nil {
+		return fmt.Errorf("unable to get absolute path for data directory, %w", err)
+	}
+
+	// Get the absolute path to the node's genesis.json
+	genesisPath, err := filepath.Abs(c.genesisFile)
+	if err != nil {
+		return fmt.Errorf("unable to get absolute path for the genesis.json, %w", err)
+	}
 
 	var (
 		cfg        *config.Config
@@ -207,7 +225,7 @@ func execStart(c *startCfg, io commands.IO) error {
 		cfg, loadCfgErr = config.LoadConfigFile(c.nodeConfigPath)
 	} else {
 		// Load the default node configuration
-		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(dataDir)
+		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(nodeDir)
 	}
 
 	if loadCfgErr != nil {
@@ -229,10 +247,13 @@ func execStart(c *startCfg, io commands.IO) error {
 	// Wrap the zap logger
 	logger := log.ZapLoggerToSlog(zapLogger)
 
-	// Write genesis file if missing.
-	genesisFilePath := filepath.Join(dataDir, cfg.Genesis)
+	// Initialize telemetry
+	telemetry.Init(*cfg.Telemetry)
 
-	if !osm.FileExists(genesisFilePath) {
+	// Write genesis file if missing.
+	// NOTE: this will be dropped in a PR that resolves issue #1886:
+	// https://github.com/gnolang/gno/issues/1886
+	if !osm.FileExists(genesisPath) {
 		// Create priv validator first.
 		// Need it to generate genesis.json
 		newPrivValKey := cfg.PrivValidatorKeyFile()
@@ -241,7 +262,7 @@ func execStart(c *startCfg, io commands.IO) error {
 		pk := priv.GetPubKey()
 
 		// Generate genesis.json file
-		if err := generateGenesisFile(genesisFilePath, pk, c); err != nil {
+		if err := generateGenesisFile(genesisPath, pk, c); err != nil {
 			return fmt.Errorf("unable to generate genesis file: %w", err)
 		}
 	}
@@ -254,18 +275,20 @@ func execStart(c *startCfg, io commands.IO) error {
 	cfg.TxEventStore = txEventStoreCfg
 
 	// Create application and node.
-	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
+	gnoApp, err := gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
 	cfg.LocalApp = gnoApp
 
-	gnoNode, err := node.DefaultNewNode(cfg, logger)
+	if logFormat != log.JSONFormat {
+		io.Println(startGraphic)
+	}
+
+	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
-
-	fmt.Fprintln(io.Err(), "Node created.")
 
 	if c.skipStart {
 		io.ErrPrintln("'--skip-start' is set. Exiting.")

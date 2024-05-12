@@ -26,6 +26,8 @@ type Frame struct {
 	Defers      []Defer       // deferred calls
 	LastPackage *PackageValue // previous package context
 	LastRealm   *Realm        // previous realm context
+
+	Popped bool // true if frame has been popped
 }
 
 func (fr Frame) String() string {
@@ -84,4 +86,9 @@ type Defer struct {
 	Args   []TypedValue // arguments
 	Source *DeferStmt   // source
 	Parent *Block
+
+	// PanicScope is set to the value of the Machine's PanicScope when the
+	// defer is created. The PanicScope of the Machine is incremented each time
+	// a panic occurs and is decremented each time a panic is recovered.
+	PanicScope uint
 }
