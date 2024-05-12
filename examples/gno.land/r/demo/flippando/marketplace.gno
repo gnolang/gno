@@ -2,6 +2,7 @@ package flippando
 
 import (
     "std"
+    "errors"
 	"strconv"
 	"strings"
     "gno.land/p/demo/avl"
@@ -47,14 +48,14 @@ func (m *Marketplace) RemoveListing(compositeTokenID grc721.TokenID, seller std.
     // Retrieve the listing
     rawListing, exists := m.listings.Get(string(compositeTokenID))
     if !exists {
-        return error("listing does not exist")
+        return errors.New("listing does not exist")
     }
 
     listing := rawListing.(Listing)
 
     // Verify that the caller is the seller
     if listing.Seller != seller {
-        return error("unauthorized - caller is not the seller")
+        return errors.New("unauthorized - caller is not the seller")
     }
 
     // Remove the listing from the marketplace
@@ -96,7 +97,7 @@ func (m *Marketplace) GetListings() string {
 func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721.TokenID) error {
     listingRaw, exists := m.listings.Get(string(compositeTokenID))
     if !exists {
-        return error("listing does not exist")
+        return errors.New("listing does not exist")
     }
     listing := listingRaw.(Listing)
 
