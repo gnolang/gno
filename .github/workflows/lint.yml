@@ -22,7 +22,7 @@ jobs:
           go-version: 1.22.x
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v6
         env:
           # Don't attempt to compile/resolve C packages (grocksdb, cleveldb).
           CGO_ENABLED: 0
