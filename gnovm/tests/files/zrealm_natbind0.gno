@@ -13,18 +13,14 @@ func init() {
 
 func main() {
 	// NOTE: this test uses GetHeight, which are "pure"
-	// natively bound functions (ie. not indirections through a wrapper fn,
+	// natively bound function (ie. not indirections through a wrapper fn,
 	// to convert the types to builtin go/gno identifiers).
 	f := node.(func() int64)
 	println(f())
-	// node = std.CurrentRealm
-	// g := node.(func() Realm)
-	// println(g())
 }
 
 // Output:
 // 123
-// gno.land/r/test
 
 // Realm:
 // switchrealm["gno.land/r/test"]
@@ -145,8 +141,8 @@ func main() {
 //                 },
 //                 "FileName": "native.gno",
 //                 "IsMethod": false,
-//                 "Name": "CurrentRealmPath",
-//                 "NativeName": "CurrentRealmPath",
+//                 "Name": "GetHeight",
+//                 "NativeName": "GetHeight",
 //                 "NativePkg": "std",
 //                 "PkgPath": "std",
 //                 "Source": {
