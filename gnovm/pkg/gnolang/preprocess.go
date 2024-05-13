@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
-	"strings"
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -15,17 +14,14 @@ import (
 // Anything predefined or preprocessed here get skipped during the Preprocess
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
-	fmt.Println("---predefine fileset, fset: ", fset)
 	defer func() {
-		fmt.Println("---defer in predefine fileSet")
-		// Check for cyclic declGraph
+		// Check for cyclic
 		if len(declGraph) != 0 {
-			fmt.Println("---graph no empty, start checking cycle... ")
 			dumpGraph()
 			assertNoCycle()
-			fmt.Println("No cyclic dependency detected.")
-		} else {
-			fmt.Println("---do nothing")
+		}
+		if err := recover(); err != nil {
+			panic(err)
 		}
 	}()
 	// First, initialize all file nodes and connect to package node.
@@ -49,7 +45,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					// (e.g. through recursion for a
 					// dependent)
 				} else {
-					// recursively predefine declGraph.
+					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
 				}
@@ -67,7 +63,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					// (e.g. through recursion for a
 					// dependent)
 				} else {
-					// recursively predefine declGraph.
+					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
 				}
@@ -85,7 +81,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					// (e.g. through recursion for a
 					// dependent)
 				} else {
-					// recursively predefine declGraph.
+					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
 				}
@@ -101,7 +97,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				// skip declarations already predefined (e.g.
 				// through recursion for a dependent)
 			} else {
-				// recursively predefine declGraph.
+				// recursively predefine dependencies.
 				d2, _ := predefineNow(store, fn, d)
 				fn.Decls[i] = d2
 			}
@@ -137,8 +133,6 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
-	//fmt.Println("---preprocess, ctx: ", ctx)
-	//fmt.Println("---preprocess, n: ", n)
 	// Increment preprocessing counter while preprocessing.
 	preprocessing.Add(1)
 	defer preprocessing.Add(-1)
@@ -198,7 +192,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		if debug {
 			debug.Printf("Preprocess %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
-		//fmt.Printf("Preprocess %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 
 		switch stage {
 		// ----------------------------------------
@@ -241,7 +234,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// skip declarations already predefined
 					// (e.g. through recursion for a dependent)
 				} else {
-					// recursively predefine declGraph.
+					// recursively predefine dependencies.
 					d2, ppd := predefineNow(store, last, n.(Decl))
 					if ppd {
 						return d2, TRANS_SKIP
@@ -521,7 +514,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 			// TRANS_BLOCK -----------------------
 			case *FileNode:
-				//fmt.Println("---trans_block, fileNode, n :", n)
 				// only for imports.
 				pushInitBlock(n, &last, &stack)
 				{
@@ -541,7 +533,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// recursion for a dependent)
 							} else {
 								// recursively predefine
-								// declGraph.
+								// dependencies.
 								d2, _ := predefineNow(store, n, d)
 								n.Decls[i] = d2
 							}
@@ -558,7 +550,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// recursion for a dependent)
 							} else {
 								// recursively predefine
-								// declGraph.
+								// dependencies.
 								d2, _ := predefineNow(store, n, d)
 								n.Decls[i] = d2
 							}
@@ -575,7 +567,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// recursion for a dependent)
 							} else {
 								// recursively predefine
-								// declGraph.
+								// dependencies.
 								d2, _ := predefineNow(store, n, d)
 								n.Decls[i] = d2
 							}
@@ -591,7 +583,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// recursion for a dependent)
 						} else {
 							// recursively predefine
-							// declGraph.
+							// dependencies.
 							d2, _ := predefineNow(store, n, d)
 							n.Decls[i] = d2
 						}
@@ -1949,7 +1941,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// during *TypeDecl:ENTER.  Then, copy over the
 				// values, completing the recursion.
 				tmp := evalStaticType(store, last, n.Type)
+				fmt.Println("---tmp: ", tmp)
 				dst := last.GetValueRef(store, n.Name).GetType()
+				fmt.Println("---dst: ", dst)
 				switch dst := dst.(type) {
 				case *FuncType:
 					*dst = *(tmp.(*FuncType))
@@ -1972,29 +1966,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						maybeRecursive := false
 						names := make([]Name, 0)
 						for _, f := range st.Fields {
-							fmt.Println("---f.Name: ", f.Name)
-							fmt.Println("---f.Type, type of type: ", f.Type, reflect.TypeOf(f.Type))
 							if fdt, ok := f.Type.(*DeclaredType); ok { // indirect does not count
-								fmt.Println("---st.PkgPath: ", st.PkgPath)
-								fmt.Println("---fdt.PkgPath: ", fdt.PkgPath)
-								fmt.Println("---fdt.Name:", fdt.Name)
-								fmt.Println("---fdt.PkgPath:", fdt.PkgPath)
-
 								if st.PkgPath == fdt.PkgPath { // not cross pkg
-									fmt.Println("---match pkg path!")
 									maybeRecursive = true
 									names = append(names, fdt.Name)
-								} else {
-									fmt.Println("---pkg path no match!")
 								}
 							}
-
-							//if pt, ok := f.Type.(*PointerType); ok { // indirect does not count
-							//	fmt.Println("---it is pointer type, pt: ", pt)
-							//}
 						}
 						if maybeRecursive {
-							fmt.Println("---names: ", names)
 							for _, name := range names {
 								line := n.GetLine()
 								insertDeclNode(dst.Name, line, last.GetLocation(), name)
@@ -3012,21 +2991,18 @@ func checkIntegerType(xt Type) {
 //
 // First, tryPredefine(), which first predefines with placeholder
 // values/types to support recursive types, then returns yet
-// un-predefined declGraph.
+// un-predefined dependencies.
 //
 // Second, which immediately preprocesses type/value declarations
-// after declGraph have first been predefined, or partially
+// after dependencies have first been predefined, or partially
 // preprocesses function declarations (which may not be completely
 // preprocess-able before other file-level declarations are
 // preprocessed).
 func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
-	fmt.Println("---predefine now, d", d)
 	//fmt.Println("---predefine now, d.line", d.GetLine())
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("---defer predefine now, d: ", d)
 			// before re-throwing the error, append location information to message.
-			fmt.Println("---nline: ", d.GetLine())
 			loc := last.GetLocation()
 			if nline := d.GetLine(); nline > 0 {
 				loc.Line = nline
@@ -3035,7 +3011,6 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 				// NOTE: gotuna/gorilla expects error exceptions.
 				panic(errors.Wrap(rerr, loc.String()))
 			} else {
-				fmt.Println("---defer predefine now ,loc: ", loc.String())
 				// NOTE: gotuna/gorilla expects error exceptions.
 				panic(fmt.Errorf("%s: %v", loc.String(), r))
 			}
@@ -3048,14 +3023,15 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (Decl, bool) {
 	pkg := packageOf(last)
 	// pre-register d.GetName() to detect circular definition.
-	for _, dn := range d.GetDeclNames() {
+	for i, dn := range d.GetDeclNames() {
+		fmt.Printf("---dn[%d] is %v \n ", i, dn)
 		if isUverseName(dn) {
 			panic(fmt.Sprintf(
 				"builtin identifiers cannot be shadowed: %s", dn))
 		}
 		m[dn] = struct{}{}
 	}
-	// recursively predefine declGraph.
+	// recursively predefine dependencies.
 	for {
 		un := tryPredefine(store, last, d)
 		if un != "" {
@@ -3162,10 +3138,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 	case *ValueDecl:
 		return Preprocess(store, last, cd).(Decl), true
 	case *TypeDecl:
-		fmt.Println("---predefine now 2, type decl: ", d)
-		fmt.Println("---line", d.GetLine())
-		fmt.Println("---name", cd.Name)
-		fmt.Println("---nx.line", cd.NameExpr.GetLine())
 		return Preprocess(store, last, cd).(Decl), true
 	default:
 		return d, false
@@ -3241,7 +3213,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			}
 		}
 	case *TypeDecl:
-		// before looking for declGraph, predefine empty type.
+		// before looking for dependencies, predefine empty type.
 		last2 := skipFile(last)
 		_, ok := last2.GetLocalIndex(d.Name)
 		if !ok {
@@ -3817,133 +3789,4 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 		}
 		return n, TRANS_CONTINUE
 	})
-}
-
-// DeclNode represents a node in the dependency graph
-// used to detect cycle definition of struct in `PredefineFileSet`.
-type DeclNode struct {
-	Name
-	Line         int
-	Loc          Location // file info
-	Dependencies []*DeclNode
-}
-
-// insertDeclNode inserts a new dependency into the graph
-func insertDeclNode(name Name, line int, loc Location, deps ...Name) {
-	fmt.Println("---insertDeclNode, name, deps: ", name, deps)
-	fmt.Println("---insertDeclNode, loc: ", loc)
-	var dep *DeclNode
-	for _, d := range declGraph {
-		if d.Name == name {
-			dep = d
-			dep.Line = line
-			dep.Loc = loc
-			break
-		}
-	}
-	fmt.Println("---dep 1: ", dep)
-	if dep == nil {
-		dep = &DeclNode{Name: name, Line: line, Loc: loc}
-		declGraph = append(declGraph, dep)
-	}
-	fmt.Println("---dep 2: ", dep)
-	for _, depName := range deps {
-		println("---depName: ", depName)
-		var child *DeclNode
-		for _, d := range declGraph {
-			if d.Name == depName {
-				child = d
-				break
-			}
-		}
-		fmt.Println("---child 1: ", child)
-		if child == nil {
-			child = &DeclNode{Name: depName}
-			declGraph = append(declGraph, child)
-		}
-		fmt.Println("---child 2: ", child)
-		dep.Dependencies = append(dep.Dependencies, child)
-	}
-}
-
-// dumpGraph prints the current declGraph
-func dumpGraph() {
-	fmt.Println("-----------------------dump declGraph begin-------------------------")
-	fmt.Println("---len of declGraph: ", len(declGraph))
-	for _, node := range declGraph {
-		fmt.Printf("%s, %d -> ", node.Name, node.Line)
-		for _, d := range node.Dependencies {
-			fmt.Printf("%s, %d ", d.Name, d.Line)
-		}
-		fmt.Println()
-	}
-	fmt.Println("-----------------------dump declGraph done-------------------------")
-}
-
-// assertNoCycle checks if there is a cycle in the declGraph graph
-func assertNoCycle() {
-	defer func() {
-		declGraph = nil
-	}()
-	visited := make(map[Name]bool)
-	reStack := make(map[Name]bool)
-	var cycle []*DeclNode
-
-	for _, dep := range declGraph {
-		if detectCycle(dep, visited, reStack, &cycle) {
-			fmt.Println("cycle: ", cycle)
-			cycleNames := make([]string, len(cycle))
-			for i, c := range cycle {
-				cycleNames[i] = fmt.Sprintf("%s(File: %s, Line: %d)", c.Name, c.Loc.File, c.Line)
-			}
-			cycleMsg := strings.Join(cycleNames, " -> ")
-			panic(fmt.Sprintf("Cyclic dependency detected: %s", cycleMsg))
-		}
-	}
-}
-
-// detectCycle detects cycle using DFS traversal
-func detectCycle(node *DeclNode, visited, recStack map[Name]bool, cycle *[]*DeclNode) bool {
-	fmt.Printf("Traversing node: %s (Line: %d)\n", node.Name, node.Line)
-	fmt.Println("len of node.Dependencies: ", len(node.Dependencies))
-
-	if visited[node.Name] { // existing visited node are not in cycle, otherwise it wil be elided
-		fmt.Println("---skip node: ", node.Name)
-		return false
-	}
-	visited[node.Name] = true
-	recStack[node.Name] = true
-	*cycle = append(*cycle, node)
-
-	fmt.Println("Visited map:", visited)
-	fmt.Println("Recursion stack:", recStack)
-
-	for _, d := range node.Dependencies {
-		fmt.Println("---loop on d: ", d.Name)
-		// check if d is in recStack to form a cycle
-		if recStack[d.Name] {
-			for _, n := range *cycle {
-				if n == d {
-					startIndex := 0
-					for ; (*cycle)[startIndex] != d; startIndex++ {
-					}
-					*cycle = append((*cycle)[startIndex:], d)
-				}
-			}
-			return true
-		} else {
-			if detectCycle(d, visited, recStack, cycle) {
-				return true
-			}
-		}
-	}
-
-	fmt.Println("---nothing found, delete recStack, name: ", node.Name)
-	delete(recStack, node.Name)
-	// Backtrack: Remove the last node from the cycle slice and mark as not in recStack
-	fmt.Println("---len of cycle before shrink: ", len(*cycle))
-	*cycle = (*cycle)[:len(*cycle)-1]
-	fmt.Println("---len of cycle after shrink: ", len(*cycle))
-
-	return false
 }

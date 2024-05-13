@@ -167,3 +167,125 @@ func DerivePkgAddr(pkgPath string) crypto.Address {
 	// NOTE: must not collide with pubkey addrs.
 	return crypto.AddressFromPreimage([]byte("pkgPath:" + pkgPath))
 }
+
+// circular detection
+// DeclNode represents a node in the dependency graph
+// used to detect cycle definition of struct in `PredefineFileSet`.
+type DeclNode struct {
+	Name
+	Line         int
+	Loc          Location // file info
+	Dependencies []*DeclNode
+}
+
+// insertDeclNode inserts a new dependency into the graph
+func insertDeclNode(name Name, line int, loc Location, deps ...Name) {
+	var dep *DeclNode
+	for _, d := range declGraph {
+		if d.Name == name {
+			dep = d
+			dep.Line = line
+			dep.Loc = loc
+			break
+		}
+	}
+	if dep == nil {
+		dep = &DeclNode{Name: name, Line: line, Loc: loc}
+		declGraph = append(declGraph, dep)
+	}
+	for _, depName := range deps {
+		var child *DeclNode
+		for _, d := range declGraph {
+			if d.Name == depName {
+				child = d
+				break
+			}
+		}
+		if child == nil {
+			child = &DeclNode{Name: depName}
+			declGraph = append(declGraph, child)
+		}
+		dep.Dependencies = append(dep.Dependencies, child)
+	}
+}
+
+// dumpGraph prints the current declGraph
+func dumpGraph() {
+	fmt.Println("-----------------------dump declGraph begin-------------------------")
+	fmt.Println("---len of declGraph: ", len(declGraph))
+	for _, node := range declGraph {
+		fmt.Printf("%s, %d -> ", node.Name, node.Line)
+		for _, d := range node.Dependencies {
+			fmt.Printf("%s, %d ", d.Name, d.Line)
+		}
+		fmt.Println()
+	}
+	fmt.Println("-----------------------dump declGraph done-------------------------")
+}
+
+// assertNoCycle checks if there is a cycle in the declGraph graph
+func assertNoCycle() {
+	defer func() {
+		declGraph = nil
+	}()
+	visited := make(map[Name]bool)
+	reStack := make(map[Name]bool)
+	var cycle []*DeclNode
+
+	for _, dep := range declGraph {
+		if detectCycle(dep, visited, reStack, &cycle) {
+			cycleNames := make([]string, len(cycle))
+			for i, c := range cycle {
+				cycleNames[i] = fmt.Sprintf("%s(File: %s, Line: %d)", c.Name, c.Loc.File, c.Line)
+			}
+			cycleMsg := strings.Join(cycleNames, " -> ")
+			panic(fmt.Sprintf("Cyclic dependency detected: %s", cycleMsg))
+		}
+	}
+}
+
+// detectCycle detects cycle using DFS traversal
+func detectCycle(node *DeclNode, visited, recStack map[Name]bool, cycle *[]*DeclNode) bool {
+	fmt.Printf("Traversing node: %s (Line: %d)\n", node.Name, node.Line)
+	fmt.Println("len of node.Dependencies: ", len(node.Dependencies))
+
+	if visited[node.Name] { // existing visited node are not in cycle, otherwise it wil be elided
+		fmt.Println("---skip node: ", node.Name)
+		return false
+	}
+	visited[node.Name] = true
+	recStack[node.Name] = true
+	*cycle = append(*cycle, node)
+
+	fmt.Println("Visited map:", visited)
+	fmt.Println("Recursion stack:", recStack)
+
+	for _, d := range node.Dependencies {
+		fmt.Println("---loop on d: ", d.Name)
+		// check if d is in recStack to form a cycle
+		if recStack[d.Name] {
+			for _, n := range *cycle {
+				if n == d {
+					startIndex := 0
+					for ; (*cycle)[startIndex] != d; startIndex++ {
+					}
+					*cycle = append((*cycle)[startIndex:], d)
+				}
+			}
+			return true
+		} else {
+			if detectCycle(d, visited, recStack, cycle) {
+				return true
+			}
+		}
+	}
+
+	fmt.Println("---nothing found, delete recStack, name: ", node.Name)
+	delete(recStack, node.Name)
+	// Backtrack: Remove the last node from the cycle slice and mark as not in recStack
+	fmt.Println("---len of cycle before shrink: ", len(*cycle))
+	*cycle = (*cycle)[:len(*cycle)-1]
+	fmt.Println("---len of cycle after shrink: ", len(*cycle))
+
+	return false
+}
