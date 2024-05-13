@@ -15,7 +15,7 @@ import (
 // and the odd index items are corresponding package values.
 func gonativeTestStore(args ...interface{}) Store {
 	store := NewStore(nil, nil, nil)
-	store.SetPackageGetter(func(pkgPath string) (*PackageNode, *PackageValue) {
+	store.SetPackageGetter(func(pkgPath string, _ Store) (*PackageNode, *PackageValue) {
 		for i := 0; i < len(args)/2; i++ {
 			pn := args[i*2].(*PackageNode)
 			pv := args[i*2+1].(*PackageValue)
@@ -90,11 +90,12 @@ func main() {
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()
+	// weird `+` is used to place a space, without having editors strip it away.
 	assert.Equal(t, `A: 1
 B: 0
 C: 0
-D: 
-`, out.String())
+D: `+`
+`, string(out.Bytes()))
 }
 
 func TestGoNativeDefine3(t *testing.T) {
@@ -132,7 +133,7 @@ func main() {
 	assert.Equal(t, `A: 1
 B: 0
 C: 0
-D: 
+D: `+`
 `, out.String())
 }
 
