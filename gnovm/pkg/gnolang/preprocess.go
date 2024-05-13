@@ -2837,6 +2837,7 @@ func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
 		}
 
 		for _, b := range s.Clauses {
+			b := b
 			un = findUndefinedStmt(store, last, &b, t)
 
 			if un != "" {
