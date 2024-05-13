@@ -1,0 +1,27 @@
+loadpkg gno.land/r/foobar/bar $WORK/bar
+
+## start a new node
+gnoland start
+
+# execute Render
+gnokey maketx call -pkgpath gno.land/r/foobar/bar -func Render -args X -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout '(" orig=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 prev=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" string)'
+stdout 'OK!'
+
+-- bar/bar.gno --
+package bar
+
+import "std"
+
+var orig = std.Address("orig")
+var prev = std.Address("prev")
+
+func init() {
+    orig = std.GetOrigCaller()
+    prev = std.PrevRealm().Addr()
+}
+
+func Render(addr string) string {
+ 	return " orig="+orig.String()+" prev="+prev.String()
+}
