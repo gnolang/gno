@@ -41,7 +41,10 @@ services:
     networks:
       - gnoland-net
   supernova:
-    image: ghcr.io/gnolang/supernova
+    build:
+      dockerfile: supernova.Dockerfile
+      args:
+        supernova_version: v1.2.1
     command: >
       -sub-accounts 10 -transactions 200 -url http://gnoland:26657
       -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
