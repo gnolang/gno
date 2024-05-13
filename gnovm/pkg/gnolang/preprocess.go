@@ -2825,6 +2825,40 @@ func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name 
 
 func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
 	switch s := stmt.(type) {
+	case *IncDecStmt:
+		un := findUndefined2SkipLocals(store, last, s.X, t)
+
+		if un != "" {
+			return un
+		}
+	case *PanicStmt:
+		un := findUndefined2SkipLocals(store, last, s.Exception, t)
+
+		if un != "" {
+			return un
+		}
+	case *BlockStmt:
+		for _, rh := range s.Body {
+			un := findUndefinedStmt(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *DeferStmt:
+		un := findUndefined2SkipLocals(store, last, s.Call.Func, t)
+
+		if un != "" {
+			return un
+		}
+
+		for _, rh := range s.Call.Args {
+			un = findUndefined2SkipLocals(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
 	case *SwitchStmt:
 		un := findUndefined2SkipLocals(store, last, s.X, t)
 		if un != "" {
