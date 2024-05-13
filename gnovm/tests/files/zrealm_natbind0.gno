@@ -145,16 +145,16 @@ func main() {
 //                 },
 //                 "FileName": "native.gno",
 //                 "IsMethod": false,
-//                 "Name": "CurrentRealmPath",
-//                 "NativeName": "CurrentRealmPath",
-//                 "NativePkg": "std",
+//                 "Name": "CurrentRealm",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "std",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "native.gno",
-//                         "Line": "5",
+//                         "Line": "21",
 //                         "Nonce": "0",
 //                         "PkgPath": "std"
 //                     }
@@ -168,8 +168,8 @@ func main() {
 //                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
-//                                 "@type": "/gno.PrimitiveType",
-//                                 "value": "16"
+//                                 "@type": "/gno.RefType",
+//                                 "value": "std.Realm"
 //                             }
 //                         }
 //                     ]
