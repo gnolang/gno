@@ -91,7 +91,7 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 
 func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	remote := cfg.RootCfg.Remote
-	if remote == "" || remote == "y" {
+	if remote == "" {
 		return nil, errors.New("missing remote url")
 	}
 
