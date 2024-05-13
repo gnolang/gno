@@ -16,10 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
-
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 const (
@@ -121,44 +118,6 @@ func GetTranspileFilenameAndTags(gnoFilePath string) (targetFilename, tags strin
 		targetFilename = nameNoExtension + ".gno.gen.go"
 	}
 	return
-}
-
-func TranspileAndCheckMempkg(mempkg *std.MemPackage) error {
-	gofmt := "gofmt"
-
-	tmpDir, err := os.MkdirTemp("", mempkg.Name)
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpDir) //nolint: errcheck
-
-	var errs error
-	for _, mfile := range mempkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
-			continue // skip spurious file.
-		}
-		res, err := Transpile(mfile.Body, "gno,tmp", mfile.Name)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-		tmpFile := filepath.Join(tmpDir, mfile.Name)
-		err = os.WriteFile(tmpFile, []byte(res.Translated), 0o644)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-		err = TranspileVerifyFile(tmpFile, gofmt)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-	}
-
-	if errs != nil {
-		return fmt.Errorf("transpile package: %w", errs)
-	}
-	return nil
 }
 
 func Transpile(source string, tags string, filename string) (*transpileResult, error) {
