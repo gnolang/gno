@@ -86,7 +86,7 @@ func TestAddPkgDeliverTxFailed(t *testing.T) {
 	gasDeliver := gctx.GasMeter().GasConsumed()
 
 	assert.False(t, res.IsOK())
-	assert.Equal(t, int64(17989), gasDeliver)
+	assert.Equal(t, int64(2231), gasDeliver)
 }
 
 // Not enough gas for a failed transaction.
@@ -98,7 +98,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 
 	ctx = ctx.WithMode(sdk.RunTxModeDeliver)
 	simulate = false
-	tx.Fee.GasWanted = 17988
+	tx.Fee.GasWanted = 2230
 	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
 
 	var res sdk.Result
@@ -116,7 +116,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 			assert.True(t, abort)
 			assert.False(t, res.IsOK())
 			gasCheck := gctx.GasMeter().GasConsumed()
-			assert.Equal(t, int64(17989), gasCheck)
+			assert.Equal(t, int64(2231), gasCheck)
 		} else {
 			t.Errorf("should panic")
 		}
