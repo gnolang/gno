@@ -3,6 +3,7 @@ package gnofundme
 import (
 	"std"
 	"strconv"
+	"strings"
 	"time"
 
 	"gno.land/p/demo/avl"
@@ -17,7 +18,7 @@ type Campaign struct {
 	deadline     time.Time
 	owner        *User
 	beneficiary  *User
-	contributors *avl.Tree
+	contributors []*Contributor
 }
 
 func NewCampaign(title string, description string, goal uint, begin time.Time, deadline time.Time, owner *User, beneficiary *User) *Campaign {
@@ -30,7 +31,7 @@ func NewCampaign(title string, description string, goal uint, begin time.Time, d
 		deadline:     deadline,
 		owner:        owner,
 		beneficiary:  beneficiary,
-		contributors: avl.NewTree(),
+		contributors: make([]*Contributor, 0),
 	}
 }
 
@@ -68,21 +69,56 @@ func (c Campaign) GetBeneficiary() *User {
 
 func (c *Campaign) AddContributor(user *User, amount uint, display bool) {
 	c.current += amount
-	key := c.contributors.Size()
 	contributor := &Contributor{
 		user:    user,
 		date:    time.Now(),
 		amount:  amount,
 		display: display,
 	}
-	c.contributors.Set(strconv.Itoa(key), contributor)
+	c.contributors = append(c.contributors, contributor)
 }
 
 func (c Campaign) GetContributors() []*Contributor {
-	contributors := make([]*Contributor, 0, c.contributors.Size())
-	c.contributors.Iterate("", "", func(key string, value interface{}) bool {
-		contributors = append(contributors, value.(*Contributor))
-		return false
-	})
-	return contributors
+	return c.contributors
+}
+
+// CampaignsToJSONString converts a slice of Campaigns structs into a JSON string
+func CampaignsToJSONString(campaigns []*Campaign) string {
+	var sb strings.Builder
+	sb.WriteString("[")
+
+	for i, campaign := range campaigns {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+
+		sb.WriteString(CampaignToJSONString(campaign))
+	}
+	sb.WriteString("]")
+
+	return sb.String()
+}
+
+// CampaignToJSONString returns a Campaign formatted as a JSON string
+func CampaignToJSONString(campaign *Campaign) string {
+	var sb strings.Builder
+
+	sb.WriteString("{")
+	sb.WriteString(`"title":"` + campaign.title + `",`)
+	sb.WriteString(`"description":"` + escapeString(campaign.description) + `",`)
+	sb.WriteString(`"goal":"` + strconv.Itoa(int(campaign.goal)) + `",`)
+	sb.WriteString(`"current":"` + strconv.Itoa(int(campaign.current)) + `",`)
+	sb.WriteString(`"begin":"` + strconv.Itoa(int((campaign.begin).Unix())) + `",`)
+	sb.WriteString(`"deadline":"` + strconv.Itoa(int(campaign.deadline.Unix())) + `",`)
+	sb.WriteString(`"owner":"` + campaign.owner.GetAddress().String() + `",`)
+	sb.WriteString(`"beneficiary":"` + campaign.beneficiary.GetAddress().String() + `",`)
+	sb.WriteString(`"contributors":"` + strconv.Itoa(len(campaign.contributors)) + `"`)
+	sb.WriteString("}")
+
+	return sb.String()
+}
+
+// escapeString escapes quotes in a string for JSON compatibility.
+func escapeString(s string) string {
+	return strings.ReplaceAll(s, `"`, `\"`)
 }
