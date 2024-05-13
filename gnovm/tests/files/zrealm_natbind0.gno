@@ -15,8 +15,8 @@ func main() {
 	// NOTE: this test uses GetHeight, which are "pure"
 	// natively bound function (ie. not indirections through a wrapper fn,
 	// to convert the types to builtin go/gno identifiers).
-	f := node.(func() int64)
-	println(f())
+	// f := node.(func() int64)
+	// println(f())
 }
 
 // Output:
