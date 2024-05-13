@@ -601,7 +601,12 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 		if err != nil {
 			return tv, err
 		}
-		// TODO: handle selector on package.
+		if pv, ok := x.V.(*PackageValue); ok {
+			if i, ok := pv.Block.(*Block).Source.GetLocalIndex(Name(n.Sel.Name)); ok {
+				return pv.Block.(*Block).Values[i], nil
+			}
+			return tv, fmt.Errorf("invalid selector: %s", n.Sel.Name)
+		}
 		tr, _, _, _, _ := findEmbeddedFieldType(x.T.GetPkgPath(), x.T, Name(n.Sel.Name), nil)
 		if len(tr) == 0 {
 			return tv, fmt.Errorf("invalid selector: %s", n.Sel.Name)
@@ -691,6 +696,10 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 				return b.Values[i], true
 			}
 		}
+	}
+	// Fallback: search a global value.
+	if v := sblocks[0].Source.GetValueRef(m.Store, Name(name)); v != nil {
+		return *v, true
 	}
 	return tv, false
 }

@@ -137,6 +137,12 @@ func TestDebug(t *testing.T) {
 		{in: "l\n", out: "unknown source file"},
 		{in: "b 5\n", out: "unknown source file"},
 	})
+
+	runDebugTest(t, "../../tests/integ/debugger/sample2.gno", []dtest{
+		{in: "s\np tests\n", out: "(package(tests gno.land/p/demo/tests) package{})"},
+		{in: "s\np tests.World\n", out: `("world" <untyped> string)`},
+		{in: "s\np tests.xxx\n", out: "Command failed: invalid selector: xxx"},
+	})
 }
 
 const debugAddress = "localhost:17358"
