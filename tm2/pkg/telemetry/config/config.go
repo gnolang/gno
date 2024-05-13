@@ -8,7 +8,7 @@ var errEndpointNotSet = errors.New("telemetry exporter endpoint not set")
 
 // Config is the configuration struct for the tm2 telemetry package
 type Config struct {
-	MetricsEnabled   bool   `toml:"metrics_enabled"`
+	MetricsEnabled   bool   `toml:"enabled"`
 	MeterName        string `toml:"meter_name"`
 	ServiceName      string `toml:"service_name"`
 	ExporterEndpoint string `toml:"exporter_endpoint" comment:"the endpoint to export metrics to, like a local OpenTelemetry collector"`
