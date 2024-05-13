@@ -160,6 +160,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
+	// Validate Gno syntax and type check.
+	if err := gno.TypeCheckMemPackage(memPkg, gnostore); err != nil {
+		return ErrTypeCheck(err)
+	}
+
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 
@@ -186,6 +191,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
+		EventLogger:   ctx.EventLogger(),
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
@@ -275,6 +281,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
+		EventLogger:   ctx.EventLogger(),
 	}
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
@@ -334,6 +341,11 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		return "", ErrInvalidPkgPath(err.Error())
 	}
 
+	// Validate Gno syntax and type check.
+	if err = gno.TypeCheckMemPackage(memPkg, gnostore); err != nil {
+		return "", ErrTypeCheck(err)
+	}
+
 	// Send send-coins to pkg from caller.
 	err = vm.bank.SendCoins(ctx, caller, pkgAddr, send)
 	if err != nil {
@@ -351,6 +363,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
+		EventLogger:   ctx.EventLogger(),
 	}
 	// Parse and run the files, construct *PV.
 	buf := new(bytes.Buffer)
@@ -500,6 +513,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		// OrigSendSpent: nil,
 		OrigPkgAddr: pkgAddr.Bech32(),
 		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		EventLogger: ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -566,6 +580,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		// OrigSendSpent: nil,
 		OrigPkgAddr: pkgAddr.Bech32(),
 		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		EventLogger: ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -611,6 +626,9 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		return memFile.Body, nil
 	} else {
 		memPkg := store.GetMemPackage(dirpath)
+		if memPkg == nil {
+			return "", fmt.Errorf("package %q is not available", dirpath) // TODO: XSS protection
+		}
 		for i, memfile := range memPkg.Files {
 			if i > 0 {
 				res += "\n"

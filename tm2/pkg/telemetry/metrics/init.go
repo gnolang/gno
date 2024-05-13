@@ -3,8 +3,8 @@ package metrics
 import (
 	"context"
 
+	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/exporter"
-	"github.com/gnolang/gno/tm2/pkg/telemetry/options"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/metric"
@@ -19,7 +19,7 @@ var (
 	BuildBlockTimer  metric.Int64Histogram
 )
 
-func Init(config options.Config) error {
+func Init(config config.Config) error {
 	if config.ExporterEndpoint == "" {
 		return exporter.ErrEndpointNotSet
 	}

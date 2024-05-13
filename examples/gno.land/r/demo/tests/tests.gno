@@ -20,6 +20,12 @@ func CurrentRealmPath() string {
 	return std.CurrentRealmPath()
 }
 
+var initOrigCaller = std.GetOrigCaller()
+
+func InitOrigCaller() std.Address {
+	return initOrigCaller
+}
+
 func AssertOriginCall() {
 	std.AssertOriginCall()
 }
