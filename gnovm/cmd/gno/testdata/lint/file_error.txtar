@@ -16,7 +16,7 @@ func TestIHaveSomeError() {
 }
 
 -- gno.mod --
-module gno.land/p/hello
+module gno.land/p/test
 
 -- stdout.golden --
 -- stderr.golden --

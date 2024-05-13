@@ -52,6 +52,31 @@ func (c *lintCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.IntVar(&c.setExitStatus, "set-exit-status", 1, "set exit status to 1 if any issues are found")
 }
 
+type lintCode int
+
+const (
+	lintUnknown lintCode = iota
+	lintGnoMod
+	lintGnoError
+	lintParserError
+	lintTypeCheckError
+
+	// TODO: add new linter codes here.
+)
+
+type lintIssue struct {
+	Code       lintCode
+	Msg        string
+	Confidence float64 // 1 is 100%
+	Location   string  // file:line, or equivalent
+	// TODO: consider writing fix suggestions
+}
+
+func (i lintIssue) String() string {
+	// TODO: consider crafting a doc URL based on Code.
+	return fmt.Sprintf("%s: %s (code=%d).", i.Location, i.Msg, i.Code)
+}
+
 func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
@@ -73,12 +98,12 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	hasError := false
 	addIssue := func(issue lintIssue) {
 		hasError = true
-		fmt.Fprint(io.Err(), issue.String()+"\n")
+		io.ErrPrintln(issue.String())
 	}
 
 	for _, pkgPath := range pkgPaths {
 		if verbose {
-			fmt.Fprintf(io.Err(), "%s\n", pkgPath)
+			io.ErrPrintln(pkgPath)
 		}
 
 		info, err := os.Stat(pkgPath)
@@ -139,12 +164,12 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 								Location:   err.Pos.String(),
 							})
 						default:
-							fmt.Fprintf(os.Stderr, "unexpected error type: %T\n", err)
+							io.ErrPrintfln("unexpected error type: %T", err)
 						}
 					}
 				}
 			} else if verbose {
-				fmt.Fprintf(stderr, "%s: module is draft, skipping type check\n", pkgPath)
+				io.ErrPrintfln("%s: module is draft, skipping type check\n", pkgPath)
 			}
 
 			tm := tests.TestMachine(testStore, stdout, memPkg.Name)
@@ -247,29 +272,4 @@ func catchRuntimeError(pkgPath string, addIssue func(issue lintIssue), action fu
 	}()
 
 	action()
-}
-
-type lintCode int
-
-const (
-	lintUnknown lintCode = 0
-	lintGnoMod  lintCode = iota
-	lintGnoError
-	lintParserError
-	lintTypeCheckError
-
-	// TODO: add new linter codes here.
-)
-
-type lintIssue struct {
-	Code       lintCode
-	Msg        string
-	Confidence float64 // 1 is 100%
-	Location   string  // file:line, or equivalent
-	// TODO: consider writing fix suggestions
-}
-
-func (i lintIssue) String() string {
-	// TODO: consider crafting a doc URL based on Code.
-	return fmt.Sprintf("%s: %s (code=%d).", i.Location, i.Msg, i.Code)
 }
