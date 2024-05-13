@@ -130,8 +130,8 @@ func main() {
 //                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
-//                             "@type": "/gno.PrimitiveType",
-//                             "value": "16"
+//                             "@type": "/gno.ReqType",
+//                             "ID": "std.Realm"
 //                         }
 //                     }
 //                 ]
@@ -169,7 +169,7 @@ func main() {
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.RefType",
-//                                 "value": "std.Realm"
+//                                 "ID": "std.Realm"
 //                             }
 //                         }
 //                     ]
