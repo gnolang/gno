@@ -12,14 +12,14 @@ func init() {
 }
 
 func main() {
-	// NOTE: this test uses GetHeight and CurrentRealmPath, which are "pure"
+	// NOTE: this test uses GetHeight and CurrentRealm, which are "pure"
 	// natively bound functions (ie. not indirections through a wrapper fn,
 	// to convert the types to builtin go/gno identifiers).
 	f := node.(func() int64)
 	println(f())
-	node = std.TestCurrentRealmPath
-	g := node.(func() string)
-	println(g())
+	node = std.CurrentRealm
+	g := node.(func() std.Realm)
+	println(g().PkgPath())
 }
 
 // Output:
