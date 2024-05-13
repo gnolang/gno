@@ -492,7 +492,7 @@ The goal is usually to store the admin address or a list of addresses
 owners. These helper functions should check if the caller of a function is
 whitelisted or not.
 
-Lets deep dive into the different access control mechanisms we can use:
+Let's deep dive into the different access control mechanisms we can use:
 
 One strategy is to look at the caller with `std.PrevRealm()`, which could be the
 EOA (Externally Owned Account), or the preceding realm in the call stack.
