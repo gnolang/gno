@@ -283,6 +283,7 @@ label > img {
 
 code {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 /*** COMPOSITION ***/
 .container {
