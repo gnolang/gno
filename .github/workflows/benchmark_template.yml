@@ -8,6 +8,10 @@ on:
       test-flags:
         required: true
         type: string
+
+env:
+  CGO_ENABLED: 0
+
 jobs:
   benchmarks:
     if: ${{ github.repository == 'gnolang/gno' }}
