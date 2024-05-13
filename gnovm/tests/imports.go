@@ -63,7 +63,7 @@ const (
 
 // NOTE: this isn't safe, should only be used for testing.
 func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (store gno.Store) {
-	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
+	getPackage := func(pkgPath string, newStore gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
@@ -84,7 +84,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					PkgPath: "test",
 					Output:  stdout,
-					Store:   store,
+					Store:   newStore,
 					Context: ctx,
 				})
 				// pkg := gno.NewPackageNode(gno.Name(memPkg.Name), memPkg.Path, nil)
@@ -97,7 +97,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		// if stdlibs package is preferred , try to load it first.
 		if mode == ImportModeStdlibsOnly ||
 			mode == ImportModeStdlibsPreferred {
-			pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
+			pn, pv = loadStdlib(rootDir, pkgPath, newStore, stdout)
 			if pn != nil {
 				return
 			}
@@ -381,7 +381,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 
 		// if native package is preferred, try to load stdlibs/* as backup.
 		if mode == ImportModeNativePreferred {
-			pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
+			pn, pv = loadStdlib(rootDir, pkgPath, newStore, stdout)
 			if pn != nil {
 				return
 			}
@@ -400,7 +400,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  stdout,
-				Store:   store,
+				Store:   newStore,
 				Context: ctx,
 			})
 			pn, pv = m2.RunMemPackage(memPkg, true)
