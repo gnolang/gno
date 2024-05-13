@@ -6,7 +6,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-// TestNextID vérifie la génération correcte des IDs Snowflake.
+// TestNextID verifies the correct generation of Snowflake IDs.
 func TestNextID(t *testing.T) {
 	SetMachineID(1)
 
@@ -29,7 +29,7 @@ func TestNextID(t *testing.T) {
 	}
 }
 
-// TestInvalidMachineID teste la gestion des IDs de machine non valides.
+// TestInvalidMachineID tests the handling of invalid machine IDs.
 func TestInvalidMachineID(t *testing.T) {
 	defer func() {
 		if r := recover(); r == nil {
@@ -37,6 +37,5 @@ func TestInvalidMachineID(t *testing.T) {
 		}
 	}()
 
-	// Définit un ID de machine supérieur à la limite maximale.
 	SetMachineID(MaxMachineID + 1)
 }

@@ -28,7 +28,6 @@ var (
 	sequence      uint16 = 0
 	StartTime            = time.Date(2008, 11, 10, 23, 0, 0, 0, time.UTC)
 	LastTimestamp int64  = 0
-	LastSequence  uint32 = 0
 )
 
 // ID use ID to generate snowflake id, and it will ignore error. if you want error info, you need use NextID method.
