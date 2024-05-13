@@ -2805,6 +2805,15 @@ func findUndefined(store Store, last BlockNode, x Expr) (un Name) {
 	return findUndefined2(store, last, x, nil)
 }
 
+func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
+	switch s := stmt.(type) {
+	case *ExprStmt:
+		return findUndefined2(store, last, s.X, t)
+	default:
+		panic(fmt.Sprintf("findUndefinedStmt: %T not supported", s))
+	}
+}
+
 func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 	if x == nil {
 		return
@@ -2917,6 +2926,13 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 				ct.String()))
 		}
 	case *FuncLitExpr:
+		for _, stmt := range cx.Body {
+			un = findUndefinedStmt(store, last, stmt, t)
+
+			if un != "" {
+				return
+			}
+		}
 		return findUndefined(store, last, &cx.Type)
 	case *FieldTypeExpr:
 		return findUndefined(store, last, cx.Type)
