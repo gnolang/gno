@@ -12,5 +12,21 @@ var myVar1 = func() {
 
 var myDep1 string
 
-// Output:
-// 123
+var myVar2 = func() {
+	aaa := ""
+
+	switch myDep {
+	case aaa:
+		println(myDep2)
+	}
+}
+
+var myDep2 string
+
+var myVar3 = func() {
+	for _, c := range myDep3 {
+		println(c)
+	}
+}
+
+var myDep3 string
