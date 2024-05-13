@@ -605,7 +605,6 @@ func toSimp(fs *token.FileSet, gos ast.Stmt) Stmt {
 }
 
 func toDecl(fs *token.FileSet, god ast.Decl) Decl {
-	fmt.Println("---toDecl..., god: ", god)
 	gnod := Go2Gno(fs, god)
 	if gnod == nil {
 		return nil
@@ -615,8 +614,6 @@ func toDecl(fs *token.FileSet, god ast.Decl) Decl {
 }
 
 func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
-	fmt.Println("---toDecls..., gd: ", gd)
-
 	ds = make([]Decl, 0, len(gd.Specs))
 	/*
 		Within a parenthesized const declaration list the

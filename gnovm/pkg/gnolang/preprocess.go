@@ -17,7 +17,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	defer func() {
 		// Check for cyclic
 		if len(declGraph) != 0 {
-			dumpGraph()
+			//dumpGraph()
 			assertNoCycle()
 		}
 		if err := recover(); err != nil {
@@ -1935,15 +1935,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *TypeDecl:
-				fmt.Println("---trans_leave, type decl")
 				// Construct new Type, where any recursive
 				// references refer to the old Type declared
 				// during *TypeDecl:ENTER.  Then, copy over the
 				// values, completing the recursion.
 				tmp := evalStaticType(store, last, n.Type)
-				fmt.Println("---tmp: ", tmp)
 				dst := last.GetValueRef(store, n.Name).GetType()
-				fmt.Println("---dst: ", dst)
 				switch dst := dst.(type) {
 				case *FuncType:
 					*dst = *(tmp.(*FuncType))
@@ -1960,7 +1957,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case *StructType:
 					*dst = *(tmp.(*StructType))
 				case *DeclaredType:
-					fmt.Println("---type decl, n, n.Type: ", n, n.Type)
 					if st, ok := tmp.(*StructType); ok {
 						// check if fields contains declaredType
 						maybeRecursive := false
@@ -3023,8 +3019,7 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (Decl, bool) {
 	pkg := packageOf(last)
 	// pre-register d.GetName() to detect circular definition.
-	for i, dn := range d.GetDeclNames() {
-		fmt.Printf("---dn[%d] is %v \n ", i, dn)
+	for _, dn := range d.GetDeclNames() {
 		if isUverseName(dn) {
 			panic(fmt.Sprintf(
 				"builtin identifiers cannot be shadowed: %s", dn))
@@ -3707,7 +3702,6 @@ func findDependentNames(n Node, dst map[Name]struct{}) {
 			"unexpected node: %v (%v)",
 			n, reflect.TypeOf(n)))
 	}
-	return
 }
 
 // ----------------------------------------

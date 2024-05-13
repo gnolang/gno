@@ -212,7 +212,6 @@ func insertDeclNode(name Name, line int, loc Location, deps ...Name) {
 // dumpGraph prints the current declGraph
 func dumpGraph() {
 	fmt.Println("-----------------------dump declGraph begin-------------------------")
-	fmt.Println("---len of declGraph: ", len(declGraph))
 	for _, node := range declGraph {
 		fmt.Printf("%s, %d -> ", node.Name, node.Line)
 		for _, d := range node.Dependencies {
@@ -246,22 +245,14 @@ func assertNoCycle() {
 
 // detectCycle detects cycle using DFS traversal
 func detectCycle(node *DeclNode, visited, recStack map[Name]bool, cycle *[]*DeclNode) bool {
-	fmt.Printf("Traversing node: %s (Line: %d)\n", node.Name, node.Line)
-	fmt.Println("len of node.Dependencies: ", len(node.Dependencies))
-
 	if visited[node.Name] { // existing visited node are not in cycle, otherwise it wil be elided
-		fmt.Println("---skip node: ", node.Name)
 		return false
 	}
 	visited[node.Name] = true
 	recStack[node.Name] = true
 	*cycle = append(*cycle, node)
 
-	fmt.Println("Visited map:", visited)
-	fmt.Println("Recursion stack:", recStack)
-
 	for _, d := range node.Dependencies {
-		fmt.Println("---loop on d: ", d.Name)
 		// check if d is in recStack to form a cycle
 		if recStack[d.Name] {
 			for _, n := range *cycle {
@@ -280,12 +271,9 @@ func detectCycle(node *DeclNode, visited, recStack map[Name]bool, cycle *[]*Decl
 		}
 	}
 
-	fmt.Println("---nothing found, delete recStack, name: ", node.Name)
 	delete(recStack, node.Name)
 	// Backtrack: Remove the last node from the cycle slice and mark as not in recStack
-	fmt.Println("---len of cycle before shrink: ", len(*cycle))
 	*cycle = (*cycle)[:len(*cycle)-1]
-	fmt.Println("---len of cycle after shrink: ", len(*cycle))
 
 	return false
 }
