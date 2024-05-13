@@ -52,13 +52,13 @@ var nativeFuncs = [...]nativeFunc{
 	},
 	{
 		"std",
-		"TestCurrentRealm",
+		"TestCurrentRealmPath",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
 		func(m *gno.Machine) {
-			r0 := testlibs_std.TestCurrentRealm(
+			r0 := testlibs_std.TestCurrentRealmPath(
 				m,
 			)
 

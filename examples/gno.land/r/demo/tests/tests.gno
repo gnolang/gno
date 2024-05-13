@@ -17,7 +17,7 @@ func Counter() int {
 }
 
 func CurrentRealmPath() string {
-	return std.CurrentRealmPath()
+	return std.CurrentRealm().PkgPath()
 }
 
 var initOrigCaller = std.GetOrigCaller()

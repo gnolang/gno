@@ -16,11 +16,6 @@ func Hash(bz []byte) (hash [20]byte) {
 	return
 }
 
-func CurrentRealmPath() string {
-	panic(shimWarn)
-	return ""
-}
-
 func GetChainID() string {
 	panic(shimWarn)
 	return ""

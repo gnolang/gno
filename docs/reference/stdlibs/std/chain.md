@@ -26,19 +26,6 @@ Panics if caller of function is not an EOA.
 ```go
 std.AssertOriginCall()
 ```
----
-
-## CurrentRealmPath
-```go
-func CurrentRealmPath() string
-```
-Returns the path of the realm it is called in.
-
-#### Usage
-```go
-realmPath := std.CurrentRealmPath() // gno.land/r/demo/users
-```
----
 
 ## GetChainID
 ```go

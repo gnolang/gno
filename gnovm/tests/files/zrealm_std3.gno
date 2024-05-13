@@ -6,11 +6,11 @@ import (
 )
 
 func foo() {
-	println("foo", std.CurrentRealmPath())
+	println("foo", std.TestCurrentRealmPath())
 }
 
 func main() {
-	println("main", std.CurrentRealmPath())
+	println("main", std.TestCurrentRealmPath())
 	foo()
 }
 

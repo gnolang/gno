@@ -39,7 +39,7 @@ func IsOriginCall(m *gno.Machine) bool {
 	panic("unable to determine if test is a _test or a _filetest")
 }
 
-func TestCurrentRealm(m *gno.Machine) string {
+func TestCurrentRealmPath(m *gno.Machine) string {
 	return m.Realm.Path
 }
 

@@ -1,10 +1,12 @@
 package std
 
-func AssertOriginCall()        // injected
-func IsOriginCall() bool       // injected
+func AssertOriginCall()  // injected
+func IsOriginCall() bool // injected
+func GetChainID() string // injected
+func GetHeight() int64   // injected
+
+// Deprecated : use CurrentRealm().PkgPath() instead
 func CurrentRealmPath() string // injected
-func GetChainID() string       // injected
-func GetHeight() int64         // injected
 
 func GetOrigSend() Coins {
 	den, amt := origSend()

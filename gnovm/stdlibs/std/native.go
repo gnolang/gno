@@ -17,13 +17,6 @@ func IsOriginCall(m *gno.Machine) bool {
 	return len(m.Frames) == 2
 }
 
-func CurrentRealmPath(m *gno.Machine) string {
-	if m.Realm != nil {
-		return m.Realm.Path
-	}
-	return ""
-}
-
 func GetChainID(m *gno.Machine) string {
 	return m.Context.(ExecContext).ChainID
 }

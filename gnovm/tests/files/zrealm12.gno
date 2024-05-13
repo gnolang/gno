@@ -8,23 +8,23 @@ import (
 )
 
 func main() {
-	if std.TestCurrentRealm() != "gno.land/r/test" {
+	if std.TestCurrentRealmPath() != "gno.land/r/test" {
 		panic("should not happen")
 	}
 	tests.InitTestNodes()
-	if std.TestCurrentRealm() != "gno.land/r/test" {
+	if std.TestCurrentRealmPath() != "gno.land/r/test" {
 		panic("should not happen")
 	}
 	tests.ModTestNodes()
-	if std.TestCurrentRealm() != "gno.land/r/test" {
+	if std.TestCurrentRealmPath() != "gno.land/r/test" {
 		panic("should not happen")
 	}
 	std.ClearStoreCache()
-	if std.TestCurrentRealm() != "gno.land/r/test" {
+	if std.TestCurrentRealmPath() != "gno.land/r/test" {
 		panic("should not happen")
 	}
 	tests.PrintTestNodes()
-	if std.TestCurrentRealm() != "gno.land/r/test" {
+	if std.TestCurrentRealmPath() != "gno.land/r/test" {
 		panic("should not happen")
 	}
 }
