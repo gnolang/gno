@@ -15,7 +15,9 @@ import (
 // PackageGetter specifies how the store may retrieve packages which are not
 // already in its cache. PackageGetter should return nil when the requested
 // package does not exist. store should be used to run the machine, or otherwise
-// call any methods which may call store.GetPackage, to avoid import cycles.
+// call any methods which may call store.GetPackage; avoid using any "global"
+// store as the one passed to the PackageGetter may be a fork of that (ie.
+// the original is not meant to be written to).
 type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValue)
 
 // inject natives into a new or loaded package (value and node)
@@ -82,7 +84,8 @@ type defaultStore struct {
 	go2gnoStrict     bool                  // if true, native->gno type conversion must be registered.
 
 	// transient
-	opslog []StoreOp // for debugging and testing.
+	opslog  []StoreOp // for debugging and testing.
+	current []string
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -109,29 +112,17 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 	ds.pkgGetter = pg
 }
 
-type importerStore struct {
-	*defaultStore
-	importChain []string
-}
-
-func (is importerStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
-	if !isImport {
-		// if not an import, match behaviour to the defaultStore
-		return is.defaultStore.GetPackage(pkgPath, isImport)
-	}
-	// it is an import -- detect cyclic imports
-	if slices.Contains(is.importChain, pkgPath) {
-		panic(fmt.Sprintf("import cycle detected: %q (through %v)", pkgPath, is.importChain))
-	}
-	return is.getPackage(pkgPath, is)
-}
-
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
-	return ds.getPackage(pkgPath, importerStore{})
-}
-
-func (ds *defaultStore) getPackage(pkgPath string, impStore importerStore) *PackageValue {
+	if isImport {
+		if slices.Contains(ds.current, pkgPath) {
+			panic(fmt.Sprintf("import cycle detected: %q (through %v)", pkgPath, ds.current))
+		}
+		ds.current = append(ds.current, pkgPath)
+		defer func() {
+			ds.current = ds.current[:len(ds.current)-1]
+		}()
+	}
 	// first, check cache.
 	oid := ObjectIDFromPkgPath(pkgPath)
 	if oo, exists := ds.cacheObjects[oid]; exists {
@@ -175,12 +166,7 @@ func (ds *defaultStore) getPackage(pkgPath string, impStore importerStore) *Pack
 	}
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
-		if impStore.defaultStore == nil {
-			// pre-allocate 16 entries to likely avoid further slice allocations.
-			impStore = importerStore{defaultStore: ds, importChain: make([]string, 0, 16)}
-		}
-		impStore.importChain = append(impStore.importChain, pkgPath)
-		if pn, pv := ds.pkgGetter(pkgPath, impStore); pv != nil {
+		if pn, pv := ds.pkgGetter(pkgPath, ds); pv != nil {
 			// e.g. tests/imports_tests loads example/gno.land/r/... realms.
 			// if pv.IsRealm() {
 			// 	panic("realm packages cannot be gotten from pkgGetter")
