@@ -57,11 +57,9 @@ func CreateProfile(username, avatarurl, age, gender, website, country, city stri
 
 	profiles.Set(caller.String(), profile)
 
-	// Add the username to the index
-	if username != "" {
-		usernameIndex.Set(username, caller.String())
-		std.Emit("UserProfileCreated", "username", username, "address", caller.String())
-	}
+	
+	usernameIndex.Set(username, caller.String())
+	std.Emit("UserProfileCreated", "username", username, "address", caller.String())
 }
 
 func UpdateProfile(username, avatarurl, age, gender, website, country, city string) {
