@@ -2805,6 +2805,7 @@ func findUndefined(store Store, last BlockNode, x Expr) (un Name) {
 	return findUndefined2(store, last, x, nil)
 }
 
+// finds the next undefined identifier and returns it if it is global
 func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name {
 	pkg := packageOf(last)
 	name := findUndefined2(store, last, x, t)
@@ -2824,6 +2825,32 @@ func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name 
 
 func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
 	switch s := stmt.(type) {
+	case *SwitchStmt:
+		un := findUndefined2SkipLocals(store, last, s.X, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefinedStmt(store, last, s.Init, t)
+		if un != "" {
+			return un
+		}
+
+		for _, b := range s.Clauses {
+			un = findUndefinedStmt(store, last, &b, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *SwitchClauseStmt:
+		for _, rh := range s.Cases {
+			un := findUndefined2SkipLocals(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
 	case *ExprStmt:
 		return findUndefined2SkipLocals(store, last, s.X, t)
 	case *AssignStmt:
@@ -2876,6 +2903,8 @@ func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
 				return un
 			}
 		}
+	case nil:
+		return ""
 	default:
 		panic(fmt.Sprintf("findUndefinedStmt: %T not supported", s))
 	}
