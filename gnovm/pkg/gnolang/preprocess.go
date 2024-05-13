@@ -2805,13 +2805,81 @@ func findUndefined(store Store, last BlockNode, x Expr) (un Name) {
 	return findUndefined2(store, last, x, nil)
 }
 
+func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name {
+	pkg := packageOf(last)
+	name := findUndefined2(store, last, x, t)
+
+	if name == "" {
+		return ""
+	}
+
+	_, _, ok := pkg.FileSet.GetDeclForSafe(name)
+
+	// skip it if it's a local identifier
+	if !ok {
+		return ""
+	}
+	return name
+}
+
 func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
 	switch s := stmt.(type) {
 	case *ExprStmt:
-		return findUndefined2(store, last, s.X, t)
+		return findUndefined2SkipLocals(store, last, s.X, t)
+	case *AssignStmt:
+		for _, rh := range s.Rhs {
+			un := findUndefined2SkipLocals(store, last, rh, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *IfStmt:
+		un := findUndefined2SkipLocals(store, last, s.Cond, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefinedStmt(store, last, &s.Else, t)
+		if un != "" {
+			return un
+		}
+
+		un = findUndefinedStmt(store, last, &s.Then, t)
+		if un != "" {
+			return un
+		}
+	case *IfCaseStmt:
+		for _, b := range s.Body {
+			un := findUndefinedStmt(store, last, b, t)
+
+			if un != "" {
+				return un
+			}
+		}
+	case *ReturnStmt:
+		for _, b := range s.Results {
+			un := findUndefined2SkipLocals(store, last, b, t)
+			if un != "" {
+				return un
+			}
+		}
+	case *RangeStmt:
+		un := findUndefined2SkipLocals(store, last, s.X, t)
+		if un != "" {
+			return un
+		}
+
+		for _, b := range s.Body {
+			un := findUndefinedStmt(store, last, b, t)
+			if un != "" {
+				return un
+			}
+		}
 	default:
 		panic(fmt.Sprintf("findUndefinedStmt: %T not supported", s))
 	}
+	return ""
 }
 
 func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {

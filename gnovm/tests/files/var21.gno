@@ -1,17 +1,16 @@
 package main
 
-func main() {
-	myDep = "123"
-	myVar()
-}
-
-func hello(s string) {
-	println(s)
-}
+func main() {}
 
 var myVar = func() { hello(myDep) }
 
 var myDep string
+
+var myVar1 = func() {
+	a := myDep1
+}
+
+var myDep1 string
 
 // Output:
 // 123
