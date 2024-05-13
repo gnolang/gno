@@ -132,7 +132,7 @@ loop:
 					continue loop
 				}
 			default:
-				for _, b := range m.breakpoints {
+				for _, b := range m.Debugger.breakpoints {
 					if b == m.Debugger.loc && m.Debugger.loc != m.Debugger.prevLoc {
 						m.Debugger.state = DebugAtCmd
 						m.Debugger.prevLoc = m.Debugger.loc
@@ -262,8 +262,8 @@ func debugBreak(m *Machine, arg string) error {
 	if err != nil {
 		return err
 	}
-	m.breakpoints = append(m.breakpoints, loc)
-	printBreakpoint(m, len(m.breakpoints)-1)
+	m.Debugger.breakpoints = append(m.Debugger.breakpoints, loc)
+	printBreakpoint(m, len(m.Debugger.breakpoints)-1)
 	return nil
 }
 
@@ -318,7 +318,7 @@ const (
 )
 
 func debugBreakpoints(m *Machine, arg string) error {
-	for i := range m.breakpoints {
+	for i := range m.Debugger.breakpoints {
 		printBreakpoint(m, i)
 	}
 	return nil
@@ -333,13 +333,13 @@ const (
 func debugClear(m *Machine, arg string) error {
 	if arg != "" {
 		id, err := strconv.Atoi(arg)
-		if err != nil || id < 0 || id >= len(m.breakpoints) {
+		if err != nil || id < 0 || id >= len(m.Debugger.breakpoints) {
 			return fmt.Errorf("invalid breakpoint id: %v", arg)
 		}
-		m.breakpoints = append(m.breakpoints[:id], m.breakpoints[id+1:]...)
+		m.Debugger.breakpoints = append(m.Debugger.breakpoints[:id], m.Debugger.breakpoints[id+1:]...)
 		return nil
 	}
-	m.breakpoints = nil
+	m.Debugger.breakpoints = nil
 	return nil
 }
 
@@ -406,7 +406,7 @@ const (
 	exitShort = `Exit the debugger and program.`
 )
 
-func debugExit(m *Machine, arg string) error { m.state = DebugAtExit; return nil }
+func debugExit(m *Machine, arg string) error { m.Debugger.state = DebugAtExit; return nil }
 
 // ---------------------------------------
 const (

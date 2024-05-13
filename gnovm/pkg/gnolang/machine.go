@@ -51,7 +51,7 @@ type Machine struct {
 	NumResults int   // number of results returned
 	Cycles     int64 // number of "cpu" cycles
 
-	Debugger
+	Debugger Debugger
 
 	// Configuration
 	CheckTypes bool // not yet used
