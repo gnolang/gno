@@ -91,7 +91,7 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 
 func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	remote := cfg.RootCfg.Remote
-	if remote == "" || remote == "y" {
+	if remote == "" {
 		return nil, errors.New("missing remote url")
 	}
 
@@ -100,7 +100,11 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
-	cli := client.NewHTTP(remote, "/websocket")
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return nil, errors.Wrap(err, "new http client")
+	}
+
 	qres, err := cli.ABCIQueryWithOptions(
 		cfg.Path, data, opts2)
 	if err != nil {

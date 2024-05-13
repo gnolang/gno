@@ -96,7 +96,10 @@ func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error) {
 	}
 
 	// Derive sign doc bytes.
-	signbz := tx.GetSignBytes(chainID, accountNumber, sequenceNumber)
+	signbz, err := tx.GetSignBytes(chainID, accountNumber, sequenceNumber)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get tx signature payload, %w", err)
+	}
 
 	sig, pub, err := s.Keybase.Sign(account, password, signbz)
 	if err != nil {

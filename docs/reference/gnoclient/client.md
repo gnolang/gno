@@ -25,6 +25,30 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.Resul
 
 `AddPackage` executes one or more [AddPackage](#type-msgaddpackage) calls on the blockchain.
 
+### func \(\*Client\) [Block](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_queries.go#L131>)
+
+```go
+func (c *Client) Block(height int64) (*ctypes.ResultBlock, error)
+```
+
+`Block` gets the latest block at height, if any. Height must be larger than 0.
+
+### func \(\*Client\) [BlockResult](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_queries.go#L150>)
+
+```go
+func (c *Client) BlockResult(height int64) (*ctypes.ResultBlockResults, error)
+```
+
+`BlockResult` gets the block results at height, if any. Height must be larger than 0.
+
+### func \(\*Client\) [LatestBlockHeight](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_queries.go#L168>)
+
+```go
+func (c *Client) LatestBlockHeight() (int64, error)
+```
+
+`LatestBlockHeight` gets the latest block height on the chain.
+
 ### func \(\*Client\) [Call](<https://github.com/gnolang/gno/blob/master/gno.land/pkg/gnoclient/client_txs.go#L62>)
 
 ```go

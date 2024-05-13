@@ -16,13 +16,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
+	telemetry "github.com/gnolang/gno/tm2/pkg/telemetry/config"
 )
 
 var (
 	errInvalidMoniker                    = errors.New("moniker not set")
 	errInvalidDBBackend                  = errors.New("invalid DB backend")
 	errInvalidDBPath                     = errors.New("invalid DB path")
-	errInvalidGenesisPath                = errors.New("invalid genesis path")
 	errInvalidPrivValidatorKeyPath       = errors.New("invalid private validator key path")
 	errInvalidPrivValidatorStatePath     = errors.New("invalid private validator state file path")
 	errInvalidABCIMechanism              = errors.New("invalid ABCI mechanism")
@@ -52,6 +52,7 @@ type Config struct {
 	Mempool      *mem.MempoolConfig   `toml:"mempool" comment:"##### mempool configuration options #####"`
 	Consensus    *cns.ConsensusConfig `toml:"consensus" comment:"##### consensus configuration options #####"`
 	TxEventStore *eventstore.Config   `toml:"tx_event_store" comment:"##### event store #####"`
+	Telemetry    *telemetry.Config    `toml:"telemetry" comment:"##### node telemetry #####"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -63,6 +64,7 @@ func DefaultConfig() *Config {
 		Mempool:      mem.DefaultMempoolConfig(),
 		Consensus:    cns.DefaultConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
+		Telemetry:    telemetry.DefaultTelemetryConfig(),
 	}
 }
 
@@ -139,6 +141,7 @@ func TestConfig() *Config {
 		Mempool:      mem.TestMempoolConfig(),
 		Consensus:    cns.TestConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
+		Telemetry:    telemetry.TestTelemetryConfig(),
 	}
 }
 
@@ -205,7 +208,6 @@ var (
 	defaultSecretsDir = "secrets"
 
 	defaultConfigFileName   = "config.toml"
-	defaultGenesisJSONName  = "genesis.json"
 	defaultNodeKeyName      = "node_key.json"
 	defaultPrivValKeyName   = "priv_validator_key.json"
 	defaultPrivValStateName = "priv_validator_state.json"
@@ -271,9 +273,6 @@ type BaseConfig struct {
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`
 
-	// Path to the JSON file containing the initial validator set and other meta data
-	Genesis string `toml:"genesis_file" comment:"Path to the JSON file containing the initial validator set and other meta data"`
-
 	// Path to the JSON file containing the private key to use as a validator in the consensus protocol
 	PrivValidatorKey string `toml:"priv_validator_key_file" comment:"Path to the JSON file containing the private key to use as a validator in the consensus protocol"`
 
@@ -301,7 +300,6 @@ type BaseConfig struct {
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
 func DefaultBaseConfig() BaseConfig {
 	return BaseConfig{
-		Genesis:            defaultGenesisJSONName,
 		PrivValidatorKey:   defaultPrivValKeyPath,
 		PrivValidatorState: defaultPrivValStatePath,
 		NodeKey:            defaultNodeKeyPath,
@@ -380,11 +378,6 @@ func (cfg BaseConfig) ValidateBasic() error {
 	// Verify the DB path is set
 	if cfg.DBPath == "" {
 		return errInvalidDBPath
-	}
-
-	// Verify the genesis path is set
-	if cfg.Genesis == "" {
-		return errInvalidGenesisPath
 	}
 
 	// Verify the validator private key path is set

@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pmezard/go-difflib/difflib"
 )
@@ -34,6 +35,18 @@ func TestMachine(store gno.Store, stdout io.Writer, pkgPath string) *gno.Machine
 }
 
 func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAlloc int64, send std.Coins) *gno.Machine {
+	ctx := testContext(pkgPath, send)
+	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath:       "", // set later.
+		Output:        stdout,
+		Store:         store,
+		Context:       ctx,
+		MaxAllocBytes: maxAlloc,
+	})
+	return m
+}
+
+func testContext(pkgPath string, send std.Coins) stdlibs.ExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr("user1.gno")
@@ -50,15 +63,9 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 		OrigSend:      send,
 		OrigSendSpent: new(std.Coins),
 		Banker:        banker,
+		EventLogger:   sdk.NewEventLogger(),
 	}
-	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath:       "", // set later.
-		Output:        stdout,
-		Store:         store,
-		Context:       ctx,
-		MaxAllocBytes: maxAlloc,
-	})
-	return m
+	return ctx
 }
 
 type runFileTestOptions struct {
