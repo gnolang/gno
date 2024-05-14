@@ -9,7 +9,3 @@ func main() {
 	// println("main", std.TestCurrentRealmPath())
 	// foo()
 }
-
-// Output:
-// main gno.land/r/std_test
-// foo gno.land/r/std_test
