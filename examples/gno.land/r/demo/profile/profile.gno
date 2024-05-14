@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/mux"
 	"std"
 	"time"
 )
@@ -22,10 +23,16 @@ type UserProfile struct {
 
 var profiles *avl.Tree      // address -> UserProfile
 var usernameIndex *avl.Tree // username -> address
+var router *mux.Router
 
 func init() {
 	profiles = avl.NewTree()
 	usernameIndex = avl.NewTree()
+	router = mux.NewRouter()
+
+	router.HandleFunc("", homeHandler)
+	router.HandleFunc("info/{username}", profileHandler)
+	router.HandleFunc("history/{username}", historyHandler)
 }
 
 func CreateProfile(username, avatarurl, age, gender, website, country, city string) {
@@ -115,6 +122,8 @@ func DisplayProfileByAddress(address std.Address) UserProfile {
 
 	panic("profile not found")
 }
+
+
 
 // Get complete profile by username
 func DisplayProfileByUsername(username string) UserProfile {
@@ -279,45 +288,60 @@ func DisplayModificationHistory(address std.Address, username, field string) str
     return b.String()
 }
 
-func Render(path string) string {
-	if path == "" {
-		return renderHome()
-	}
-
-	return "unknown path"
+func homeHandler(res *mux.ResponseWriter, req *mux.Request) {
+	var b bytes.Buffer
+	b.WriteString("<html><body>")
+	res.Write("<h1>Profiles List</h1><br>")
+	usernameIndex.Iterate("", "", func(key string, value interface{}) bool {
+		username := key
+		res.Write("<p>Username: " + username + " [<a href='/r/demo/profile:info/" + username + "'>" + "View Profile</a>]</p>")
+		return true
+	})
+	b.WriteString("</body></html>")
+	res.Write(b.String())
 }
 
-func renderHome() string {
+func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
+	username := req.GetVar("username")
+	profile := DisplayProfileByUsername(username)
+
 	var b bytes.Buffer
 
-	profiles.Iterate("", "", func(key string, value interface{}) bool {
-		profile := value.(UserProfile)
-		b.WriteString(ufmt.Sprintf("Username: %s\n\n", profile.Username))
-		b.WriteString(ufmt.Sprintf("Address: %s\n\n", profile.Address))
-		b.WriteString(ufmt.Sprintf("AvatarURL: %s\n\n", profile.AvatarURL))
-		b.WriteString(ufmt.Sprintf("Age: %s\n\n", profile.Age))
-		b.WriteString(ufmt.Sprintf("Gender: %s\n\n", profile.Gender))
-		b.WriteString(ufmt.Sprintf("Website: %s\n\n", profile.Website))
-		b.WriteString(ufmt.Sprintf("Country: %s\n\n", profile.Country))
-		b.WriteString(ufmt.Sprintf("City: %s\n\n", profile.City))
+	b.WriteString("<html><body>")
+	b.WriteString("<h1>Profile of " + profile.Username + "</h1>")
+	b.WriteString("<p>Username: " + profile.Username + "</p>")
+	b.WriteString("<p>Address: " + profile.Address.String() + "</p>")
+	b.WriteString("<p>Avatar URL: <img src='" + profile.AvatarURL + "' /></p>")
+	b.WriteString("<p>[<a href='/r/demo/profile:history/" + username + "'>View Modification History</a>]</p>")
+	b.WriteString("</body></html>")
 
-		// Properly iterate over the modification history map
-		if profile.ModificationHistory != nil {
-			b.WriteString("ModificationHistory:\n\n")
-			for key, changes := range profile.ModificationHistory {
-				b.WriteString(ufmt.Sprintf("%s:\n", key))
-				for _, change := range changes {
-					b.WriteString(ufmt.Sprintf("  %s | \n", change))
-				}
+	res.Write(b.String())
+}
+
+func historyHandler(res *mux.ResponseWriter, req *mux.Request) {
+	username := req.GetVar("username")
+	profile := DisplayProfileByUsername(username)
+	
+	var b bytes.Buffer
+	
+	b.WriteString("<html><body>")
+	b.WriteString("<h1>Modification History for " + profile.Username + "</h1>")
+	
+	if profile.ModificationHistory != nil && len(profile.ModificationHistory) > 0 {
+		for field, changes := range profile.ModificationHistory {
+			b.WriteString("<h2>" + field + "</h2>")
+			for _, change := range changes {
+				b.WriteString("<p>" + change + "</p>")
 			}
-		} else {
-			b.WriteString("No modifications recorded.\n")
 		}
+	} else {
+		b.WriteString("<p>No modifications recorded.</p>")
+	}
+	
+	b.WriteString("</body></html>")
+	res.Write(b.String())
+}
 
-		b.WriteString("\n")
-
-		return false
-	})
-
-	return b.String()
+func Render(path string) string {
+	return router.Render(path)
 }
