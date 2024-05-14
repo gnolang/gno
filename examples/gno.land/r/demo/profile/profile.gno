@@ -247,35 +247,36 @@ func DisplayCity(address std.Address, username string) string {
 
 // Display modification history specific to a field from address or username
 func DisplayModificationHistory(address std.Address, username, field string) string {
-	if address != "" {
-		if value, exists := profiles.Get(address.String()); exists {
-			if value.(UserProfile).ModificationHistory != nil {
-				if changes, exists := value.(UserProfile).ModificationHistory[field]; exists {
-					var b bytes.Buffer
-					for _, change := range changes {
-						b.WriteString(ufmt.Sprintf("%s\n", change))
-					}
-					return b.String()
-				}
-			}
-		}
-	} else if username != "" {
-		if addr, exists := usernameIndex.Get(username); exists {
-			if value, exists := profiles.Get(addr.(string)); exists {
-				if value.(UserProfile).ModificationHistory != nil {
-					if changes, exists := value.(UserProfile).ModificationHistory[field]; exists {
-						var b bytes.Buffer
-						for _, change := range changes {
-							b.WriteString(ufmt.Sprintf("%s\n", change))
-						}
-						return b.String()
-					}
-				}
-			}
-		}
-	}
+    var value interface{}
+    var exists bool
 
-	panic("address or username not found or no modifications recorded for the field")
+    if address != "" {
+        value, exists = profiles.Get(address.String())
+    } else if username != "" {
+        if addr, ok := usernameIndex.Get(username); ok {
+            value, exists = profiles.Get(addr.(string))
+        }
+    }
+
+    if !exists {
+        panic("address or username not found")
+    }
+
+    profile, ok := value.(UserProfile)
+    if !ok || profile.ModificationHistory == nil {
+        panic("no modification history available")
+    }
+
+    changes, found := profile.ModificationHistory[field]
+    if !found {
+        panic("no modifications recorded for the field")
+    }
+
+    var b bytes.Buffer
+    for _, change := range changes {
+        b.WriteString(ufmt.Sprintf("%s\n", change))
+    }
+    return b.String()
 }
 
 func Render(path string) string {
