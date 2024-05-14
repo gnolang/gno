@@ -10,17 +10,18 @@ import (
 )
 
 type app struct {
-	Name string `json:"name"`
-	Code string `json:"code"`
+	Code      string `json:"code"`
+	IsPackage bool   `json:"is_package"`
 }
 
 type appCall struct {
-	Name string `json:"name"`
-	Func string `json:"func"`
-	Args string `json:"args"`
+	Name      string `json:"name"`
+	IsPackage bool   `json:"is_package"`
+	Func      string `json:"func"`
+	Args      string `json:"args"`
 }
 
-func installApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
+func createApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 	enableCors(&resp)
 
 	var gnoApp app
@@ -31,8 +32,7 @@ func installApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 		return
 	}
 
-	addPkg := gno.NewMsgAddPackage(gnoApp.Name, gnoApp.Code)
-	if err := vm.AddPackage(req.Context(), addPkg); err != nil {
+	if err := vm.Create(req.Context(), gnoApp.Code, gnoApp.IsPackage); err != nil {
 		fmt.Println(err, "error adding package")
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
 		return
@@ -44,21 +44,20 @@ func installApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 func callApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 	enableCors(&resp)
 
-	var gnoAppCall appCall
+	var call appCall
 	dec := json.NewDecoder(req.Body)
 	defer req.Body.Close()
-	if err := dec.Decode(&gnoAppCall); err != nil {
+	if err := dec.Decode(&call); err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusBadRequest)
 		return
 	}
 
 	var args []string
-	if len(gnoAppCall.Args) > 0 {
-		args = strings.Split(gnoAppCall.Args, ",")
+	if len(call.Args) > 0 {
+		args = strings.Split(call.Args, ",")
 	}
 
-	msgCall := gno.NewMsgCall(gnoAppCall.Name, gnoAppCall.Func, args)
-	res, err := vm.Call(req.Context(), msgCall)
+	res, err := vm.Call(req.Context(), call.Name, call.IsPackage, call.Func, args...)
 	if err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
 		return
@@ -79,8 +78,7 @@ func run(resp gohttp.ResponseWriter, req *gohttp.Request) {
 		return
 	}
 
-	msgRun := gno.MsgRun{Package: gno.NewMemPkg(gnoApp.Name, gnoApp.Code)}
-	res, err := vm.Run(req.Context(), msgRun)
+	res, err := vm.Run(req.Context(), gnoApp.Code)
 	if err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
 		return
@@ -98,8 +96,20 @@ func renderApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 		return
 	}
 
-	msgCall := gno.NewMsgCall(path, "Render", []string{""})
-	res, err := vm.Call(req.Context(), msgCall)
+	isPackage := strings.HasPrefix(path, gno.PkgPrefix)
+	renderPathIdx := strings.LastIndex(path, ":")
+	var renderPath string
+	if renderPathIdx != -1 {
+		if renderPathIdx != len(path)-1 {
+			renderPath = path[renderPathIdx+1:]
+		}
+		path = path[:renderPathIdx]
+	}
+
+	var appName string
+	parts := strings.Split(path, "/")
+	appName = parts[len(parts)-1]
+	res, err := vm.Call(req.Context(), appName, isPackage, "Render", renderPath)
 	if err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
 		return

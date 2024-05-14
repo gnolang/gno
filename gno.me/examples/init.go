@@ -1,4 +1,4 @@
-package ui
+package examples
 
 import (
 	"context"
@@ -7,13 +7,12 @@ import (
 	"github.com/gnolang/gno/gno.me/gno"
 )
 
-func AddInstallerRealm(vm gno.VM) error {
-	realm := fmt.Sprintf(realmDefinition, "`"+renderContents+"`")
-	addPkg := gno.NewMsgAddPackage("installer", realm)
-	return vm.AddPackage(context.Background(), addPkg)
+func CreateInstallerApp(vm gno.VM) error {
+	appCode := fmt.Sprintf(appDefinition, "`"+renderContents+"`")
+	return vm.Create(context.Background(), appCode, false)
 }
 
-const realmDefinition = `
+const appDefinition = `
 package installer
 
 func Render(_ string) string {
@@ -28,15 +27,14 @@ const renderContents = `
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Simple Form</title>
+	<title>Create App</title>
 	<script>
 		function submitForm() {
 			var formData = {
-				name: document.getElementById("name").value,
 				code: document.getElementById("code").value
 			};
 
-			fetch('http://localhost:4591/system/install', {
+			fetch('http://localhost:4591/system/create', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -55,12 +53,10 @@ const renderContents = `
 </head>
 
 <body>
-	<h2>Submit Form</h2>
+	<h2>Create App</h2>
 	<form id="myForm">
-		<label for="name">Name:</label><br>
-		<input type="text" id="name" name="name"><br>
 		<label for="code">Code:</label><br>
-		<textarea id="code" name="code" rows="4" cols="50"></textarea><br><br>
+		<textarea id="code" name="code" rows="50" cols="150"></textarea><br><br>
 		<input type="button" value="Submit" onclick="submitForm()">
 	</form>
 </body>
