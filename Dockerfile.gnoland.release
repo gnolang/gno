@@ -1,0 +1,5 @@
+FROM scratch
+COPY . /
+EXPOSE 26657 36657
+ENTRYPOINT [ "/gnoland" ]
+CMD [ "" ]

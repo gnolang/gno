@@ -1,0 +1,445 @@
+project_name: gno
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: gno
+    main: ./gnovm/cmd/gno
+    binary: gno
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 6
+      - 7
+  - id: gnoland
+    main: ./gno.land/cmd/gnoland
+    binary: gnoland
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 6
+      - 7
+  - id: gnokey
+    main: ./gno.land/cmd/gnokey
+    binary: gnokey
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 6
+      - 7
+  - id: gnoweb
+    main: ./gno.land/cmd/gnoweb
+    binary: gnoweb
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 6
+      - 7
+gomod:
+  proxy: true
+
+archives:
+   # https://goreleaser.com/customization/archive/
+  - files:
+      # Standard Release Files
+      - LICENSE.md
+      - README.md
+
+signs:
+  - cmd: cosign
+    env:
+      - COSIGN_EXPERIMENTAL=1
+    certificate: '${artifact}.pem'
+    args:
+      - sign-blob
+      - '--output-certificate=${certificate}'
+      - '--output-signature=${signature}'
+      - '${artifact}'
+      - "--yes" # needed on cosign 2.0.0+
+    artifacts: checksum
+    output: true
+
+dockers:
+  # https://goreleaser.com/customization/docker/
+  
+    # gno
+  - use: buildx
+    dockerfile: Dockerfile.gno.release
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:latest-amd64"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gno
+  - use: buildx
+    dockerfile: Dockerfile.gno.release
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:latest-arm64v8"
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gno
+  - use: buildx
+    dockerfile: Dockerfile.gno.release
+    goos: linux
+    goarch: arm
+    goarm: 6
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:latest-armv6"
+    build_flag_templates:
+      - "--platform=linux/arm/v6"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gno
+  - use: buildx
+    dockerfile: Dockerfile.gno.release
+    goos: linux
+    goarch: arm
+    goarm: 7
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:latest-armv7"
+    build_flag_templates:
+      - "--platform=linux/arm/v7"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gno
+
+  # gnoland
+  - use: buildx
+    dockerfile: Dockerfile.gnoland.release
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-amd64"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnoland"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnoland
+  - use: buildx
+    dockerfile: Dockerfile.gnoland.release
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-arm64v8"
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnoland"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnoland
+  - use: buildx
+    dockerfile: Dockerfile.gnoland.release
+    goos: linux
+    goarch: arm
+    goarm: 6
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-armv6"
+    build_flag_templates:
+      - "--platform=linux/arm/v6"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnoland"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnoland
+  - use: buildx
+    dockerfile: Dockerfile.gnoland.release
+    goos: linux
+    goarch: arm
+    goarm: 7
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-armv7"
+    build_flag_templates:
+      - "--platform=linux/arm/v7"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnoland"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnoland
+  # gnokey
+  - use: buildx
+    dockerfile: Dockerfile.gnokey.release
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-amd64"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnokey"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnokey
+  - use: buildx
+    dockerfile: Dockerfile.gnokey.release
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-arm64v8"
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnokey"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnokey
+  - use: buildx
+    dockerfile: Dockerfile.gnokey.release
+    goos: linux
+    goarch: arm
+    goarm: 6
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-armv6"
+    build_flag_templates:
+      - "--platform=linux/arm/v6"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnokey"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnokey
+  - use: buildx
+    dockerfile: Dockerfile.gnokey.release
+    goos: linux
+    goarch: arm
+    goarm: 7
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-armv7"
+    build_flag_templates:
+      - "--platform=linux/arm/v7"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnokey"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnokey
+
+  # gnoweb
+  - use: buildx
+    dockerfile: Dockerfile.gnoweb.release
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-amd64"
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnoweb"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnoweb
+  - use: buildx
+    dockerfile: Dockerfile.gnoweb.release
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-arm64v8"
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnoweb"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnoweb
+  - use: buildx
+    dockerfile: Dockerfile.gnoweb.release
+    goos: linux
+    goarch: arm
+    goarm: 6
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-armv6"
+    build_flag_templates:
+      - "--platform=linux/arm/v6"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnoweb"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnoweb
+  - use: buildx
+    dockerfile: Dockerfile.gnoweb.release
+    goos: linux
+    goarch: arm
+    goarm: 7
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-armv7"
+    build_flag_templates:
+      - "--platform=linux/arm/v7"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnoweb"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnoweb
+
+docker_manifests:
+  # https://goreleaser.com/customization/docker_manifest/
+
+  # gno
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv7
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}:latest
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}:latest-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}:latest-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}:latest-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}:latest-armv7
+  
+  # gnoland
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv7
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-armv7
+  
+  # gnokey
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv7
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-armv7
+      
+  # gnoweb
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv7
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-armv7
+
+docker_signs:
+  - cmd: cosign
+    env:
+      - COSIGN_EXPERIMENTAL=1
+    artifacts: images
+    output: true
+    args:
+      - 'sign'
+      - '${artifact}'
+      - "--yes" # needed on cosign 2.0.0+
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+
+source:
+  enabled: true
+
+sboms:
+  - artifacts: archive
+  - id: source # Two different sbom configurations need two different IDs
+    artifacts: source
+
+release:
+  draft: true
+  replace_existing_draft: true
+  prerelease: auto
+  mode: append
+  footer: |
+    ### Container Images
+
+    You can find all docker images at:
+
+    https://github.com/orgs/gnolang/packages?repo_name={{ .ProjectName }}
+

@@ -1,0 +1,5 @@
+FROM scratch
+COPY . /
+EXPOSE 8888
+ENTRYPOINT [ "/gnoweb" ]
+CMD [ "" ]
