@@ -70,6 +70,36 @@ func DefaultConfig() *Config {
 
 type Option func(cfg *Config)
 
+// LoadConfig loads the node configuration from disk
+func LoadConfig(root string) (*Config, error) {
+	// Initialize the config as default
+	var (
+		cfg        = DefaultConfig()
+		configPath = filepath.Join(root, defaultConfigPath)
+	)
+
+	if !osm.FileExists(configPath) {
+		return nil, fmt.Errorf("config file at %q does not exist", configPath)
+	}
+
+	// Load the configuration
+	loadedCfg, loadErr := LoadConfigFile(configPath)
+	if loadErr != nil {
+		return nil, loadErr
+	}
+
+	// Merge the loaded config with the default values.
+	// This is done in case the loaded config is missing values
+	if err := mergo.Merge(loadedCfg, cfg); err != nil {
+		return nil, err
+	}
+
+	// Set the root directory
+	loadedCfg.SetRootDir(root)
+
+	return loadedCfg, nil
+}
+
 // LoadOrMakeConfigWithOptions loads the configuration located in the given
 // root directory, at [defaultConfigFilePath].
 //
