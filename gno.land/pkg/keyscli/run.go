@@ -30,7 +30,7 @@ func NewMakeRunCmd(rootCfg *client.MakeTxCfg, cmdio commands.IO) *commands.Comma
 		commands.Metadata{
 			Name:       "run",
 			ShortUsage: "run [flags] <key-name or address> <file or - or dir>",
-			ShortHelp:  "Runs Gno code by invoking main() in a package",
+			ShortHelp:  "runs Gno code by invoking main() in a package",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -108,11 +108,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	if memPkg.IsEmpty() {
 		panic(fmt.Sprintf("found an empty package %q", memPkg.Path))
 	}
-	// precompile and validate syntax
-	err = gno.PrecompileAndCheckMempkg(memPkg)
-	if err != nil {
-		panic(err)
-	}
+
 	memPkg.Name = "main"
 	// Set to empty; this will be automatically set by the VM keeper.
 	memPkg.Path = ""

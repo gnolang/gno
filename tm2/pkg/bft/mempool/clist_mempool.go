@@ -12,13 +12,12 @@ import (
 
 	auto "github.com/gnolang/gno/tm2/pkg/autofile"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
-	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/clist"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/maths"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
@@ -33,7 +32,7 @@ type CListMempool struct {
 	config *cfg.MempoolConfig
 
 	mtx          sync.Mutex
-	proxyAppConn proxy.AppConnMempool
+	proxyAppConn appconn.Mempool
 	txs          *clist.CList // concurrent linked-list of good txs
 	preCheck     PreCheckFunc
 	height       int64 // the last block Update()'d to
@@ -75,7 +74,7 @@ type CListMempoolOption func(*CListMempool)
 // NewCListMempool returns a new mempool with the given configuration and connection to an application.
 func NewCListMempool(
 	config *cfg.MempoolConfig,
-	proxyAppConn proxy.AppConnMempool,
+	proxyAppConn appconn.Mempool,
 	height int64,
 	maxTxBytes int64,
 	options ...CListMempoolOption,
@@ -461,7 +460,7 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxDataBytes, maxGas int64) types.Tx
 	var totalGas int64
 	// TODO: we will get a performance boost if we have a good estimate of avg
 	// size per tx, and set the initial capacity based off of that.
-	// txs := make([]types.Tx, 0, maths.MinInt(mem.txs.Len(), max/mem.avgTxSize))
+	// txs := make([]types.Tx, 0, min(mem.txs.Len(), max/mem.avgTxSize))
 	txs := make([]types.Tx, 0, mem.txs.Len())
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
@@ -497,7 +496,7 @@ func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
 		time.Sleep(time.Millisecond * 10)
 	}
 
-	txs := make([]types.Tx, 0, maths.MinInt(mem.txs.Len(), max))
+	txs := make([]types.Tx, 0, min(mem.txs.Len(), max))
 	for e := mem.txs.Front(); e != nil && len(txs) <= max; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
 		txs = append(txs, memTx.tx)

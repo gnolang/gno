@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFixOldDefaultGnoHome(t *testing.T) {

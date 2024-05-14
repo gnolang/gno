@@ -18,10 +18,6 @@ type BaseCfg struct {
 	BaseOptions
 }
 
-func NewRootCmd(io commands.IO) *commands.Command {
-	return NewRootCmdWithBaseConfig(io, DefaultBaseOptions)
-}
-
 func NewRootCmdWithBaseConfig(io commands.IO, base BaseOptions) *commands.Command {
 	cfg := &BaseCfg{
 		BaseOptions: base,

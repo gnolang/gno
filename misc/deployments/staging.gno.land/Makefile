@@ -11,7 +11,7 @@ logs:
 down:
 	docker compose down
 	docker volume rm -f staginggnoland_gnonode
-	docker compose run gnoland rm -rf /opt/gno/src/gno.land/testdir/data /opt/gno/src/gno.land/testdir/config
+	docker compose run gnoland rm -rf /opt/gno/src/gno.land/gnoland-data/data /opt/gno/src/gno.land/gnoland-data/config
 
 pull:
 	git pull
