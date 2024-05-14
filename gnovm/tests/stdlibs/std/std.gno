@@ -1,10 +1,9 @@
 package std
 
-func AssertOriginCall()            // injected
-func IsOriginCall() bool           // injected
-func TestCurrentRealmPath() string // injected
-func TestSkipHeights(count int64)  // injected
-func ClearStoreCache()             // injected
+func AssertOriginCall()           // injected
+func IsOriginCall() bool          // injected
+func TestSkipHeights(count int64) // injected
+func ClearStoreCache()            // injected
 
 func TestSetOrigCaller(addr Address)  { testSetOrigCaller(string(addr)) }
 func TestSetOrigPkgAddr(addr Address) { testSetOrigPkgAddr(string(addr)) }

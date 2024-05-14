@@ -39,10 +39,6 @@ func IsOriginCall(m *gno.Machine) bool {
 	panic("unable to determine if test is a _test or a _filetest")
 }
 
-func TestCurrentRealmPath(m *gno.Machine) string {
-	return m.Realm.Path
-}
-
 func TestSkipHeights(m *gno.Machine, count int64) {
 	ctx := m.Context.(std.ExecContext)
 	ctx.Height += count
@@ -117,4 +113,10 @@ func X_testIssueCoins(m *gno.Machine, addr string, denom []string, amt []int64) 
 	for i := range denom {
 		banker.IssueCoin(crypto.Bech32Address(addr), denom[i], amt[i])
 	}
+}
+
+func X_testCurrentRealm(m *gno.Machine) {
+	ctx := m.Context.(std.ExecContext)
+	ctx.OrigPkgAddr = crypto.Bech32Address(addr)
+	m.Context = ctx
 }
