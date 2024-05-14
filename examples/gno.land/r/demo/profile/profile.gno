@@ -324,6 +324,8 @@ func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 	var b bytes.Buffer
 
 	b.WriteString("<html><body>")
+	// Reteturn home link
+	b.WriteString("<p>[<a href='/r/demo/profile'>Home</a>]</p>")
 	b.WriteString("<h1>Profile of " + profile.Username + "</h1>")
 	b.WriteString("<p>Username: " + profile.Username + "</p>")
 	b.WriteString("<p>Address: " + profile.Address.String() + "</p>")
@@ -341,6 +343,8 @@ func historyHandler(res *mux.ResponseWriter, req *mux.Request) {
 	var b bytes.Buffer
 	
 	b.WriteString("<html><body>")
+	
+	b.WriteString("<p>[<a href='/r/demo/profile'>Home</a>] | [<a href='/r/demo/profile:info/" + username + "'>Profile " + username + "</a>]</p>")
 	b.WriteString("<h1>Modification History for " + profile.Username + "</h1>")
 	
 	if profile.ModificationHistory != nil && len(profile.ModificationHistory) > 0 {
