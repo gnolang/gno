@@ -277,9 +277,11 @@ Your new Gno node (chain) should be up and running:
 
 ### Changing the chain ID
 
-:::info Changing the Gno chain ID has several implications
+:::info Changing the Gno chain ID
 
-- It affects how the Gno node communicates with other Gno nodes / chains
+Below are some implications to consider when changing the chain ID:
+
+- it affects how the Gno node communicates with other Gno nodes / chains
 - Gno clients that communicate through JSON-RPC need to match this value
 
 It's important to configure your node properly before launching it in a distributed network.
