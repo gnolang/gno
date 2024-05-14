@@ -114,6 +114,62 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 	return c.signAndBroadcastTxCommit(tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
+// CallTxSync executes one or more MsgCall calls on the blockchain synchronously
+func (c *Client) CallTxSync(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx, error) {
+	// Validate required client fields.
+	if err := c.validateSigner(); err != nil {
+		return nil, err
+	}
+	if err := c.validateRPCClient(); err != nil {
+		return nil, err
+	}
+
+	// Validate base transaction config
+	if err := cfg.validateBaseTxConfig(); err != nil {
+		return nil, err
+	}
+
+	// Parse MsgCall slice
+	vmMsgs := make([]std.Msg, 0, len(msgs))
+	for _, msg := range msgs {
+		// Validate MsgCall fields
+		if err := msg.validateMsgCall(); err != nil {
+			return nil, err
+		}
+
+		// Parse send coins
+		send, err := std.ParseCoins(msg.Send)
+		if err != nil {
+			return nil, err
+		}
+
+		// Unwrap syntax sugar to vm.MsgCall slice
+		vmMsgs = append(vmMsgs, std.Msg(vm.MsgCall{
+			Caller:  c.Signer.Info().GetAddress(),
+			PkgPath: msg.PkgPath,
+			Func:    msg.FuncName,
+			Args:    msg.Args,
+			Send:    send,
+		}))
+	}
+
+	// Parse gas fee
+	gasFeeCoins, err := std.ParseCoin(cfg.GasFee)
+	if err != nil {
+		return nil, err
+	}
+
+	// Pack transaction
+	tx := std.Tx{
+		Msgs:       vmMsgs,
+		Fee:        std.NewFee(cfg.GasWanted, gasFeeCoins),
+		Signatures: nil,
+		Memo:       cfg.Memo,
+	}
+
+	return c.signAndBroadcastTxSync(tx, cfg.AccountNumber, cfg.SequenceNumber)
+}
+
 // Run executes one or more MsgRun calls on the blockchain
 func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
@@ -297,7 +353,7 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.Resul
 func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
 	caller := c.Signer.Info().GetAddress()
 
-	if sequenceNumber == 0 || accountNumber == 0 {
+	if sequenceNumber == 0 && accountNumber == 0 { // needs to be AND condition, if OR condition ≈ one of value will ignored
 		account, _, err := c.QueryAccount(caller)
 		if err != nil {
 			return nil, errors.Wrap(err, "query account")
@@ -331,6 +387,45 @@ func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumb
 	}
 	if bres.DeliverTx.IsErr() {
 		return bres, errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
+	}
+
+	return bres, nil
+}
+
+func (c *Client) signAndBroadcastTxSync(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTx, error) {
+	caller := c.Signer.Info().GetAddress()
+
+	if sequenceNumber == 0 && accountNumber == 0 {
+		account, _, err := c.QueryAccount(caller)
+		if err != nil {
+			return nil, errors.Wrap(err, "query account")
+		}
+		accountNumber = account.AccountNumber
+		sequenceNumber = account.Sequence
+	}
+
+	signCfg := SignCfg{
+		UnsignedTX:     tx,
+		SequenceNumber: sequenceNumber,
+		AccountNumber:  accountNumber,
+	}
+	signedTx, err := c.Signer.Sign(signCfg)
+	if err != nil {
+		return nil, errors.Wrap(err, "sign")
+	}
+
+	bz, err := amino.Marshal(signedTx)
+	if err != nil {
+		return nil, errors.Wrap(err, "marshaling tx binary bytes")
+	}
+
+	bres, err := c.RPCClient.BroadcastTxSync(bz)
+	if err != nil {
+		return nil, errors.Wrap(err, "broadcasting bytes")
+	}
+
+	if bres.Error != nil {
+		return bres, errors.Wrap(bres.Error, "broadcast transaction failed: log:%s", bres.Log)
 	}
 
 	return bres, nil
