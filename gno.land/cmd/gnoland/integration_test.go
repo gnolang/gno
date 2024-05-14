@@ -9,3 +9,7 @@ import (
 func TestTestdata(t *testing.T) {
 	integration.RunGnolandTestscripts(t, "testdata")
 }
+
+func TestTestdataChallenges(t *testing.T) {
+	integration.RunGnolandTestscripts(t, "testdata/challenges")
+}
