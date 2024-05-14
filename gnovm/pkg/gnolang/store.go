@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"maps"
 	"reflect"
 	"slices"
 	"strconv"
@@ -622,11 +621,16 @@ func (ds *defaultStore) Fork() Store {
 	ds2 := &defaultStore{
 		alloc: ds.alloc.Fork().Reset(),
 
-		// copy the cache so it's not shared with the parent store.
-		cacheObjects:     make(map[ObjectID]Object), // new cache.
-		cacheTypes:       maps.Clone(ds.cacheTypes),
-		cacheNodes:       maps.Clone(ds.cacheNodes),
-		cacheNativeTypes: maps.Clone(ds.cacheNativeTypes),
+		// reset cache.
+		cacheObjects: make(map[ObjectID]Object),
+		cacheTypes:   make(map[TypeID]Type),
+		// XXX: This is bad to say the least (ds.cacheNodes is shared with a
+		// child Store); however, cacheNodes is _not_ a cache, but a proper
+		// data store instead. SetBlockNode does not write anything to
+		// the underlying baseStore, and cloning this map makes everything run
+		// 4x slower, so here we are.
+		cacheNodes:       ds.cacheNodes,
+		cacheNativeTypes: make(map[reflect.Type]Type),
 
 		// baseStore and iavlStore should generally be changed using SwapStores.
 		baseStore: ds.baseStore,
@@ -642,7 +646,7 @@ func (ds *defaultStore) Fork() Store {
 		opslog:  nil,
 		current: nil,
 	}
-	ds2.SetCachePackage(Uverse())
+	InitStoreCaches(ds2)
 	return ds2
 }
 
