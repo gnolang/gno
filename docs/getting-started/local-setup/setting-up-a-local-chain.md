@@ -19,7 +19,7 @@ You can start a Gno blockchain node with the default configuration by navigating
 running the following command:
 
 ```bash
-gnoland start
+gnoland start --lazy
 ```
 
 The command will trigger a chain initialization process (if you haven't run the node before), and start the Gno node,
@@ -29,7 +29,7 @@ which is ready to accept transactions and interact with other Gno nodes.
 
 :::info Lazy init
 
-Starting a Gno blockchain node using just the `gnoland start` command implies a few things:
+Starting a Gno blockchain node using just the `gnoland start --lazy` command implies a few things:
 
 - the default configuration will be used, and generated on disk in the `gnoland-data` directory
 - random secrets data will be generated (node private keys, networking keys...)
@@ -48,8 +48,6 @@ Let's break down the most important default settings:
 
 - `chainid` - the ID of the Gno chain. This is used for Gno clients, and distinguishing the chain from other Gno
   chains (ex. through IBC)
-- `config` - the custom node configuration file
-  for more details on utilizing this file
 - `genesis-balances-file` - the initial premine balances file, which contains initial native currency allocations for
   the chain. By default, the genesis balances file is located in `gno.land/genesis/genesis_balances.txt`, this is also
   the
@@ -60,7 +58,7 @@ Let's break down the most important default settings:
 
 As mentioned, the working directory for the node is located in `data-dir`. To reset the chain, you need
 to delete this directory and start the node up again. If you are using the default node configuration, you can run
-`make fclean` from the `gno.land` sub-folder to delete the `tempdir` working directory.
+`make fclean` from the `gno.land` sub-folder to delete the `gnoland-data` working directory.
 
 :::
 
@@ -73,12 +71,18 @@ and involves the following steps:
 - generating the `genesis.json`, and populating it
 - starting the node with the generated data
 
-### 1. Generate the node directory
+### 1. Generate the node directory (secrets + config)
 
-You can generate the default node directory using the following command:
+You can generate the default node directory secrets using the following command:
 
 ```shell
-gnoland init
+gnoland secrets init
+```
+
+And generate the default node config using the following command:
+
+```shell
+gnoland config init
 ```
 
 This will initialize the following directory structure:
@@ -96,11 +100,11 @@ This will initialize the following directory structure:
 
 A couple of things to note:
 
-- `gnoland init` initializes a default configuration
-- `gnoland init` initializes new node secrets (validator key, node p2p key)
+- `gnoland config init` initializes a default configuration
+- `gnoland secrets init` initializes new node secrets (validator key, node p2p key)
 
-Essentially, `gnoland init` is simply a combination of `gnoland secrets generate` and `gnoland config generate`, with
-the default options enabled.
+Essentially, `gnoland start --lazy` is simply a combination of `gnoland secrets generate` and `gnoland config generate`,
+with the default options enabled.
 
 #### Changing the node configuration
 
