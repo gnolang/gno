@@ -114,9 +114,3 @@ func X_testIssueCoins(m *gno.Machine, addr string, denom []string, amt []int64) 
 		banker.IssueCoin(crypto.Bech32Address(addr), denom[i], amt[i])
 	}
 }
-
-func X_testCurrentRealm(m *gno.Machine) {
-	ctx := m.Context.(std.ExecContext)
-	ctx.OrigPkgAddr = crypto.Bech32Address(addr)
-	m.Context = ctx
-}
