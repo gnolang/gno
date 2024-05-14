@@ -131,7 +131,7 @@ func main() {
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.PrimitiveType",
-//                             "ID": "std.Realm"
+//                             "value": "16"
 //                         }
 //                     }
 //                 ]
@@ -146,8 +146,8 @@ func main() {
 //                 "FileName": "native.gno",
 //                 "IsMethod": false,
 //                 "Name": "GetChainID",
-//                 "NativeName": "",
-//                 "NativePkg": "",
+//                 "NativeName": "GetChainID",
+//                 "NativePkg": "std",
 //                 "PkgPath": "std",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -168,8 +168,8 @@ func main() {
 //                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
-//                                 "@type": "/gno.RefType",
-//                                 "ID": "std.Realm"
+//                                 "@type": "/gno.PrimitiveType",
+//                                 "value": "16"
 //                             }
 //                         }
 //                     ]
