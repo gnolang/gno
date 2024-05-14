@@ -46,9 +46,9 @@ func (cz Coins) AmountOf(denom string) int64 {
 	return 0
 }
 
-func (a Coins) Add(b Coins) Coins {
+func (cz Coins) Add(b Coins) Coins {
 	c := Coins{}
-	for _, ac := range a {
+	for _, ac := range cz {
 		bc := b.AmountOf(ac.Denom)
 		ac.Amount += bc
 		c = append(c, ac)
