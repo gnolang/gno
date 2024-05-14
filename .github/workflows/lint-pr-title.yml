@@ -1,4 +1,4 @@
-name: "lint-pr"
+name: "lint-pr-title"
 
 on:
   pull_request_target:
