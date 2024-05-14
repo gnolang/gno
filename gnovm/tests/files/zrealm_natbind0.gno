@@ -18,7 +18,7 @@ func main() {
 	f := node.(func() int64)
 	println(f())
 	node = std.GetChainID
-	g := node.(func() std.Realm)
+	g := node.(func() string)
 	println(g())
 }
 
