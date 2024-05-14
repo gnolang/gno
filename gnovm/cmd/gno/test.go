@@ -512,6 +512,8 @@ func runTestFiles(
 	n := gno.MustParseFile("main_test.gno", testmain)
 	m.RunFiles(n)
 
+	printedEvents := 0
+
 	for _, test := range testFuncs.Tests {
 		testFuncStr := fmt.Sprintf("%q", test.Name)
 
@@ -522,7 +524,8 @@ func runTestFiles(
 			ctx := m.Context.(stdlibs.ExecContext)
 
 			events := ctx.EventLogger.Events()
-			for _, ev := range events {
+			for _, ev := range events[printedEvents:] {
+				printedEvents++
 				// XXX: print events with better formatting (e.g. JSON)
 				strEv := fmt.Sprint(ev)
 				io.ErrPrintfln("---       event: %s", colors.ColoredBytesOnlyAscii([]byte(strEv), colors.Magenta))
