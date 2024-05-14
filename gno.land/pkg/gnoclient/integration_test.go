@@ -3,6 +3,7 @@ package gnoclient
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 
@@ -114,7 +115,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-func TestCallMultipleWithEvent_Integration(t *testing.T) {
+func TestCall_SingleTx_MultipleMsg_MultipleEvent_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
@@ -170,6 +171,123 @@ func TestCallMultipleWithEvent_Integration(t *testing.T) {
 
 	event1 := fmt.Sprintf("%v", blockRes.Results.DeliverTxs[0].Events[1])
 	assert.Equal(t, event1, "{1 gno.land/r/demo/event Emit TAG [{key second_value}]}")
+}
+
+func TestCall_MultipleTx_MultipleMsg_MultipleEvent_Integration(t *testing.T) {
+	// Set up in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+
+	// make node slower (same as current master branch)
+	config.TMConfig.Consensus.TimeoutCommit = 5 * time.Second
+	config.TMConfig.Consensus.SkipTimeoutCommit = false
+	config.TMConfig.Consensus.CreateEmptyBlocks = true
+	config.TMConfig.Consensus.CreateEmptyBlocksInterval = 0 * time.Second
+
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+
+	// Init Signer & RPCClient
+	signer := newInMemorySigner(t, "tendermint_test")
+	assert.Equal(t, signer.Account, "test1")
+
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
+
+	// Setup Client
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+	assert.Equal(t, int64(1), client.latestHeight())
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         "10000ugnot",
+		GasWanted:      8000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+	}
+
+	msg1 := MsgCall{
+		PkgPath:  "gno.land/r/demo/event",
+		FuncName: "Emit",
+		Args:     []string{"test1_1stTx_1stEvent"},
+		Send:     "",
+	}
+
+	msg2 := MsgCall{
+		PkgPath:  "gno.land/r/demo/event",
+		FuncName: "Emit",
+		Args:     []string{"test1_1stTx_2ndEvent"},
+		Send:     "",
+	}
+	_, err = client.CallTxSync(baseCfg, msg1, msg2)
+	assert.Nil(t, err)
+	assert.Equal(t, int64(1), client.latestHeight())
+
+	msg3 := MsgCall{
+		PkgPath:  "gno.land/r/demo/event",
+		FuncName: "Emit",
+		Args:     []string{"test1_2ndTx_1stEvent"},
+		Send:     "",
+	}
+
+	msg4 := MsgCall{
+		PkgPath:  "gno.land/r/demo/event",
+		FuncName: "Emit",
+		Args:     []string{"test1_2ndTx_2ndEvent"},
+		Send:     "",
+	}
+
+	baseCfg.SequenceNumber += 1
+	_, err = client.CallTxSync(baseCfg, msg3, msg4)
+	assert.Nil(t, err)
+	assert.Equal(t, int64(1), client.latestHeight())
+
+	// need this dummy ??
+	toAddres, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
+	amount := 10
+	msg5 := MsgSend{
+		ToAddress: toAddres,
+		Send:      std.Coin{"ugnot", int64(amount)}.String(),
+	}
+	baseCfg.SequenceNumber += 1
+	res, err := client.Send(baseCfg, msg5)
+	assert.Nil(t, err)
+
+	assert.Equal(t, int64(2), res.Height)
+	assert.Equal(t, int64(2), client.latestHeight())
+
+	latestRes, _ := client.BlockResult(res.Height)
+	assert.Equal(t, int(3), len(latestRes.Results.DeliverTxs))
+
+	beforeRes, _ := client.BlockResult(res.Height - 1)
+	assert.Equal(t, int(0), len(beforeRes.Results.DeliverTxs))
+
+	// 1st TX
+	tx0 := latestRes.Results.DeliverTxs[0]
+	assert.Equal(t, int(2), len(tx0.Events))
+
+	tx0evt0 := fmt.Sprint(tx0.Events[0])
+	assert.Equal(t, "{0 gno.land/r/demo/event Emit TAG [{key test1_1stTx_1stEvent}]}", tx0evt0)
+
+	tx0evt1 := fmt.Sprint(tx0.Events[1])
+	assert.Equal(t, "{1 gno.land/r/demo/event Emit TAG [{key test1_1stTx_2ndEvent}]}", tx0evt1)
+
+	// 2nd TX
+	tx1 := latestRes.Results.DeliverTxs[1]
+	assert.Equal(t, int(2), len(tx1.Events))
+
+	tx1evt0 := fmt.Sprint(tx1.Events[0])
+	assert.Equal(t, "{0 gno.land/r/demo/event Emit TAG [{key test1_2ndTx_1stEvent}]}", tx1evt0)
+
+	tx1evt1 := fmt.Sprint(tx1.Events[1])
+	assert.Equal(t, "{1 gno.land/r/demo/event Emit TAG [{key test1_2ndTx_2ndEvent}]}", tx1evt1)
+
+	// 3rd TX == no event
+	tx2 := latestRes.Results.DeliverTxs[2]
+	assert.Equal(t, int(0), len(tx2.Events))
 }
 
 func TestSendSingle_Integration(t *testing.T) {
@@ -613,4 +731,9 @@ func newInMemorySigner(t *testing.T, chainid string) *SignerFromKeybase {
 		Password: "",      // Password for encryption
 		ChainID:  chainid, // Chain ID for transaction signing
 	}
+}
+
+func (c *Client) latestHeight() int64 {
+	height, _ := c.LatestBlockHeight()
+	return height
 }
