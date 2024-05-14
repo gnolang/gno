@@ -53,7 +53,6 @@ jobs:
         run: |
           export LOG_PATH_DIR=${{ runner.temp }}/logs
           mkdir -p $LOG_PATH_DIR
-
           echo "LOG_LEVEL=debug" >> $GITHUB_ENV
           echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
       - run: go install -v ./gnovm/cmd/gno
