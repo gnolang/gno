@@ -5,6 +5,9 @@ func IsOriginCall() bool // injected
 func GetChainID() string // injected
 func GetHeight() int64   // injected
 
+// Deprecated : use CurrentRealm().PkgPath() instead
+func CurrentRealmPath() string
+
 func GetOrigSend() Coins {
 	den, amt := origSend()
 	coins := make(Coins, len(den))
