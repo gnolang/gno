@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 	"slices"
 	"strconv"
@@ -619,18 +620,27 @@ func (ds *defaultStore) ClearObjectCache() {
 // This function is used to handle queries and checktx transactions.
 func (ds *defaultStore) Fork() Store {
 	ds2 := &defaultStore{
-		alloc:            ds.alloc.Fork().Reset(),
-		pkgGetter:        ds.pkgGetter,
+		alloc: ds.alloc.Fork().Reset(),
+
+		// copy the cache so it's not shared with the parent store.
 		cacheObjects:     make(map[ObjectID]Object), // new cache.
-		cacheTypes:       ds.cacheTypes,
-		cacheNodes:       ds.cacheNodes,
-		cacheNativeTypes: ds.cacheNativeTypes,
-		baseStore:        ds.baseStore,
-		iavlStore:        ds.iavlStore,
-		pkgInjector:      ds.pkgInjector,
-		nativeStore:      ds.nativeStore,
-		go2gnoStrict:     ds.go2gnoStrict,
-		opslog:           nil, // new ops log.
+		cacheTypes:       maps.Clone(ds.cacheTypes),
+		cacheNodes:       maps.Clone(ds.cacheNodes),
+		cacheNativeTypes: maps.Clone(ds.cacheNativeTypes),
+
+		// baseStore and iavlStore should generally be changed using SwapStores.
+		baseStore: ds.baseStore,
+		iavlStore: ds.iavlStore,
+
+		// native injections / store "config"
+		pkgGetter:    ds.pkgGetter,
+		pkgInjector:  ds.pkgInjector,
+		nativeStore:  ds.nativeStore,
+		go2gnoStrict: ds.go2gnoStrict,
+
+		// reset opslog and current.
+		opslog:  nil,
+		current: nil,
 	}
 	ds2.SetCachePackage(Uverse())
 	return ds2
