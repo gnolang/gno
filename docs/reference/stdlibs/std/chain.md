@@ -39,6 +39,7 @@ arguments acting as key-value pairs to be included in the emitted event.
 ```go
 std.Emit("MyEvent", "myKey1", "myValue1", "myKey2", "myValue2")
 ```
+---
 
 ## GetChainID
 ```go
