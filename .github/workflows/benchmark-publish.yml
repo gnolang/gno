@@ -6,7 +6,7 @@ on:
     - cron:  '0 0 * * *' # run on default branch every day
 jobs:
   publish:
-    uses: ./.github/workflows/benchmark.yml
+    uses: ./.github/workflows/benchmark_template.yml
     secrets: inherit
     with:
       publish: true
