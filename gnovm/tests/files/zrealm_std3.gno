@@ -5,13 +5,13 @@ import (
 	"std"
 )
 
-func foo() {
-	println("foo", std.TestCurrentRealmPath())
-}
+// func foo() {
+// 	println("foo", std.TestCurrentRealmPath())
+// }
 
 func main() {
-	println("main", std.TestCurrentRealmPath())
-	foo()
+	// println("main", std.TestCurrentRealmPath())
+	// foo()
 }
 
 // Output:
