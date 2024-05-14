@@ -8,10 +8,26 @@ function renderUsernames(raw) {
 }
 
 function parseContent(source) {
-  marked.setOptions({ gfm: true });
+  const { markedHighlight } = globalThis.markedHighlight;
+  const { Marked } = globalThis.marked;
+  const markedInstance = new Marked(
+    markedHighlight({
+      langPrefix: 'language-',
+      highlight(code, lang, info) {
+        if (lang === "json") {
+          try {
+            code = JSON.stringify(JSON.parse(code), null, 2);
+          } catch {}
+        }
+        const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+        return hljs.highlight(code, { language }).value;
+      }
+    })
+  );
+  markedInstance.setOptions({ gfm: true });
   const doc = new DOMParser().parseFromString(source, "text/html");
   const contents = doc.documentElement.textContent;
-  return marked.parse(contents);
+  return markedInstance.parse(contents);
 }
 
 /*
