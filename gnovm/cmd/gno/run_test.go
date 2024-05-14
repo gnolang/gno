@@ -72,8 +72,8 @@ func TestRunApp(t *testing.T) {
 			stdoutShouldContain: "Welcome to the Gnovm debugger",
 		},
 		{
-			args:                 []string{"run", "-debug-addr", "invalidhost:17538", "../../tests/integ/debugger/sample.gno"},
-			recoverShouldContain: "listen tcp: lookup invalidhost",
+			args:             []string{"run", "-debug-addr", "invalidhost:17538", "../../tests/integ/debugger/sample.gno"},
+			errShouldContain: "listen tcp: lookup invalidhost",
 		},
 		// TODO: a test file
 		// TODO: args
