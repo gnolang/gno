@@ -79,6 +79,22 @@ func UpdateProfile(username, avatarurl, age, gender, website, country, city stri
 	// Retrieve the existing profile
 	existingProfile := value.(UserProfile)
 
+	// update the username and manage index if changed
+	if username != "" && username != existingProfile.Username {
+		_, exists := usernameIndex.Get(username)
+		if exists {
+			panic("Username is already taken")
+		}
+
+		// remove the old username from the index
+		if existingProfile.Username != "" {
+			usernameIndex.Remove(existingProfile.Username)
+		}
+
+		// set the new username in the index
+		usernameIndex.Set(username, caller.String())
+	}
+
 	// Initialize the ModificationHistory map if it's nil
 	if existingProfile.ModificationHistory == nil {
 		existingProfile.ModificationHistory = make(map[string][]string)
@@ -109,9 +125,9 @@ func UpdateProfile(username, avatarurl, age, gender, website, country, city stri
 	profiles.Set(caller.String(), existingProfile)
 
 	// Update the username index if the username is changed
-	if username != existingProfile.Username {
+	/*if username != existingProfile.Username {
 		usernameIndex.Set(username, caller.String())
-	}
+	}*/
 }
 
 // Display complete Profile by Address
