@@ -130,7 +130,7 @@ func main() {
 //                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
-//                             "@type": "/gno.RefType",
+//                             "@type": "/gno.ReqType",
 //                             "ID": "std.Realm"
 //                         }
 //                     }
