@@ -12,19 +12,19 @@ func init() {
 }
 
 func main() {
-	// NOTE: this test uses GetHeight and CurrentRealm, which are "pure"
+	// NOTE: this test uses GetHeight and GetChainID, which are "pure"
 	// natively bound functions (ie. not indirections through a wrapper fn,
 	// to convert the types to builtin go/gno identifiers).
 	f := node.(func() int64)
 	println(f())
-	node = std.CurrentRealm
+	node = std.GetChainID
 	g := node.(func() std.Realm)
-	println(g().PkgPath())
+	println(g())
 }
 
 // Output:
 // 123
-// gno.land/r/test
+// test
 
 // Realm:
 // switchrealm["gno.land/r/test"]
@@ -130,7 +130,7 @@ func main() {
 //                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
-//                             "@type": "/gno.RefType",
+//                             "@type": "/gno.PrimitiveType",
 //                             "ID": "std.Realm"
 //                         }
 //                     }
@@ -145,7 +145,7 @@ func main() {
 //                 },
 //                 "FileName": "native.gno",
 //                 "IsMethod": false,
-//                 "Name": "CurrentRealm",
+//                 "Name": "GetChainID",
 //                 "NativeName": "",
 //                 "NativePkg": "",
 //                 "PkgPath": "std",
@@ -154,7 +154,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "native.gno",
-//                         "Line": "21",
+//                         "Line": "5",
 //                         "Nonce": "0",
 //                         "PkgPath": "std"
 //                     }
