@@ -7,13 +7,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-type service struct {
-	// TODO(albttx): put getter on it with RMutex
-	portalLoop *snapshotter
-
-	portalLoopURL string
-}
-
 func main() {
 	cliIO := commands.NewDefaultIO()
 
