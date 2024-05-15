@@ -63,6 +63,21 @@ func (c Coin) IsZero() bool {
 	return c.Amount == 0
 }
 
+func NewCoins(val ...interface{}) Coins {
+	if len(val)%2 != 0 {
+		panic("invalid number of arguments")
+	}
+
+	cz := Coins{}
+	for i := 0; i < len(val)-1; i++ {
+		denom := val[i].(string)
+		amt := val[i+1].(int64)
+		cz = append(cz, NewCoin(denom, amt))
+	}
+
+	return cz
+}
+
 // Coins is a set of Coin, one per currency
 type Coins []Coin
 
