@@ -186,7 +186,6 @@ func (tva *wrapperTypedValue) unmarshalValue(rv reflect.Value, visited map[uintp
 	default:
 		panic(fmt.Sprintf("unexpected type %v with base %v", tva.T, gnolang.BaseOf(tva.T)))
 	}
-
 }
 
 func gno2GoType(t gnolang.Type, visited map[uintptr]struct{}) reflect.Type {

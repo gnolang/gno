@@ -78,7 +78,6 @@ func TestTypedValueMarshal_Primitive(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tc.ArgRep, string(raw))
 			})
-
 		})
 	}
 }
@@ -132,7 +131,6 @@ func TestTypedValueMarshal_Array(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tc.ArgRep, string(raw))
 			})
-
 		})
 	}
 }
@@ -180,24 +178,33 @@ func TestTypedValueMarshal_Struct(t *testing.T) {
 		Expected     string // string representation
 	}{
 		// Struct with various field values.
-		{"Simple",
+		{
+			"Simple",
 			`{}`,
-			`{"A":"0","B":"","C":false}`}, // empty struct
-		{"Simple",
 			`{"A":"0","B":"","C":false}`,
-			`{"A":"0","B":"","C":false}`}, // empty value
-		{"Simple",
+		}, // empty struct
+		{
+			"Simple",
+			`{"A":"0","B":"","C":false}`,
+			`{"A":"0","B":"","C":false}`,
+		}, // empty value
+		{
+			"Simple",
 			`{"A":"42","B":"hello gno","C":true}`,
-			`{"A":"42","B":"hello gno","C":true}`}, // filled values
-		{"Tags",
+			`{"A":"42","B":"hello gno","C":true}`,
+		}, // filled values
+		{
+			"Tags",
 			`{"valueA":"42","valueB":"hello gno","valueC":true}`,
-			`{"valueA":"42","valueB":"hello gno","valueC":true}`}, // filled values
+			`{"valueA":"42","valueB":"hello gno","valueC":true}`,
+		}, // filled values
 
 		// Struct with unexported field
 		{"Unexported", `{"A":"42"}`, `{"A":"42"}`},
 
 		// Struct with nested struct
-		{"Nested",
+		{
+			"Nested",
 			`{"A":"43","B":{"A":"42","B":"hello gno","C":true}}`,
 			`{"A":"43","B":{"A":"42","B":"hello gno","C":true}}`,
 		},
@@ -237,7 +244,6 @@ func TestTypedValueMarshal_Struct(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, tc.Expected, string(raw))
 			})
-
 		})
 	}
 }
