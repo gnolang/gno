@@ -2,8 +2,8 @@
 package test
 
 import (
-	"github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl"
-	"github.com/gnolang/gno/_test/timtadh/data-structures/types"
+	"github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl"
+	"github.com/gnolang/gno/_test/timtadh/data_structures/types"
 )
 
 var tree *avl.AvlNode
@@ -28,7 +28,7 @@ func main() {
 //         {
 //             "T": {
 //                 "@type": "/gno.RefType",
-//                 "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/types.String"
+//                 "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/types.String"
 //             },
 //             "V": {
 //                 "@type": "/gno.StringValue",
@@ -57,7 +57,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
+//                     "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
 //                 }
 //             }
 //         },
@@ -66,7 +66,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
+//                     "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
 //                 }
 //             }
 //         }
@@ -83,7 +83,7 @@ func main() {
 //         {
 //             "T": {
 //                 "@type": "/gno.RefType",
-//                 "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/types.String"
+//                 "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/types.String"
 //             },
 //             "V": {
 //                 "@type": "/gno.StringValue",
@@ -112,7 +112,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
+//                     "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
 //                 }
 //             }
 //         },
@@ -121,7 +121,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
+//                     "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
 //                 }
 //             },
 //             "V": {
@@ -131,11 +131,11 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.RefType",
-//                         "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
+//                         "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "55e56c78d2a901aaab1efe57d29e0f30e3b8cf72",
+//                         "Hash": "1a4158d473290431f9d4f9c5a85a3b6697640f2a",
 //                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
 //                     }
 //                 }
@@ -246,7 +246,7 @@ func main() {
 //                 "@type": "/gno.PointerType",
 //                 "Elt": {
 //                     "@type": "/gno.RefType",
-//                     "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
+//                     "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
 //                 }
 //             },
 //             "V": {
@@ -256,11 +256,11 @@ func main() {
 //                 "TV": {
 //                     "T": {
 //                         "@type": "/gno.RefType",
-//                         "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
+//                         "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
 //                     },
 //                     "V": {
 //                         "@type": "/gno.RefValue",
-//                         "Hash": "ce2f1ef3316fb6092409cfa03ee5af4950c071a6",
+//                         "Hash": "011a2960ff92aedda8acd122b9f4d251902e0cd8",
 //                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
 //                     }
 //                 }

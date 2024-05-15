@@ -9,10 +9,11 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/internal"
 )
 
 func BenchmarkRandomReadsWrites2(b *testing.B) {
@@ -38,8 +39,8 @@ func BenchmarkRandomReadsWrites2(b *testing.B) {
 			idx := (int64(rand.Int()) % numItems)
 			mrand[idx]++
 			val := mrand[idx]
-			idxBytes := int642Bytes(int64(idx))
-			valBytes := int642Bytes(int64(val))
+			idxBytes := int642Bytes(idx)
+			valBytes := int642Bytes(val)
 			// fmt.Printf("Set %X -> %X\n", idxBytes, valBytes)
 			db.Set(
 				idxBytes,
@@ -50,7 +51,7 @@ func BenchmarkRandomReadsWrites2(b *testing.B) {
 		{
 			idx := (int64(rand.Int()) % numItems)
 			val := mrand[idx]
-			idxBytes := int642Bytes(int64(idx))
+			idxBytes := int642Bytes(idx)
 			valBytes := db.Get(idxBytes)
 			// fmt.Printf("Get %X -> %X\n", idxBytes, valBytes)
 			if val == 0 {
