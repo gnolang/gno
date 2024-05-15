@@ -20,7 +20,25 @@ type MakeTxCfg struct {
 	Memo      string
 
 	Broadcast bool
-	ChainID   string
+	// Valid options are SimulateTest, SimulateSkip or SimulateOnly.
+	Simulate string
+	ChainID  string
+}
+
+// These are the valid options for MakeTxConfig.Simulate.
+const (
+	SimulateTest = "test"
+	SimulateSkip = "skip"
+	SimulateOnly = "only"
+)
+
+func (c *MakeTxCfg) Validate() error {
+	switch c.Simulate {
+	case SimulateTest, SimulateSkip, SimulateOnly:
+	default:
+		return fmt.Errorf("invalid simulate option: %q", c.Simulate)
+	}
+	return nil
 }
 
 func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -32,7 +50,7 @@ func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "maketx",
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			ShortHelp:  "Composes a tx document to sign",
+			ShortHelp:  "composes a tx document to sign",
 		},
 		cfg,
 		commands.HelpExec,
@@ -71,14 +89,24 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.Broadcast,
 		"broadcast",
 		false,
-		"sign and broadcast",
+		"sign, simulate and broadcast",
+	)
+
+	fs.StringVar(
+		&c.Simulate,
+		"simulate",
+		"test",
+		`select how to simulate the transaction (only useful with --broadcast); valid options are
+		- test: attempts simulating the transaction, and if successful performs broadcasting (default)
+		- skip: avoids performing transaction simulation
+		- only: avoids broadcasting transaction (ie. dry run)`,
 	)
 
 	fs.StringVar(
 		&c.ChainID,
 		"chainid",
 		"dev",
-		"chainid to sign for (only useful if --broadcast)",
+		"chainid to sign for (only useful with --broadcast)",
 	)
 }
 
@@ -119,25 +147,29 @@ func SignAndBroadcastHandler(
 	// sign tx
 	accountNumber := qret.BaseAccount.AccountNumber
 	sequence := qret.BaseAccount.Sequence
-	sopts := &SignCfg{
-		Pass:          pass,
-		RootCfg:       baseopts,
-		Sequence:      sequence,
-		AccountNumber: accountNumber,
-		ChainID:       txopts.ChainID,
-		NameOrBech32:  nameOrBech32,
-		TxJSON:        amino.MustMarshalJSON(tx),
+
+	sOpts := signOpts{
+		chainID:         txopts.ChainID,
+		accountSequence: sequence,
+		accountNumber:   accountNumber,
 	}
 
-	signedTx, err := SignHandler(sopts)
-	if err != nil {
-		return nil, errors.Wrap(err, "sign tx")
+	kOpts := keyOpts{
+		keyName:     nameOrBech32,
+		decryptPass: pass,
+	}
+
+	if err := signTx(&tx, kb, sOpts, kOpts); err != nil {
+		return nil, fmt.Errorf("unable to sign transaction, %w", err)
 	}
 
 	// broadcast signed tx
 	bopts := &BroadcastCfg{
 		RootCfg: baseopts,
-		tx:      signedTx,
+		tx:      &tx,
+
+		DryRun:       cfg.Simulate == SimulateOnly,
+		testSimulate: cfg.Simulate == SimulateTest,
 	}
 
 	return BroadcastHandler(bopts)
@@ -149,6 +181,10 @@ func ExecSignAndBroadcast(
 	tx std.Tx,
 	io commands.IO,
 ) error {
+	if err := cfg.Validate(); err != nil {
+		return err
+	}
+
 	baseopts := cfg.RootCfg
 
 	// query account
@@ -181,6 +217,8 @@ func ExecSignAndBroadcast(
 	io.Println("OK!")
 	io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
+	io.Println("HEIGHT:    ", bres.Height)
+	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
 
 	return nil
 }

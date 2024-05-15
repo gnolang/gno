@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/gnolang/gno/tm2/pkg/maths"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
@@ -122,8 +121,8 @@ func (bA *BitArray) Or(o *BitArray) *BitArray {
 	}
 	bA.mtx.Lock()
 	o.mtx.Lock()
-	c := bA.copyBits(maths.MaxInt(bA.Bits, o.Bits))
-	smaller := maths.MinInt(len(bA.Elems), len(o.Elems))
+	c := bA.copyBits(max(bA.Bits, o.Bits))
+	smaller := min(len(bA.Elems), len(o.Elems))
 	for i := 0; i < smaller; i++ {
 		c.Elems[i] |= o.Elems[i]
 	}
@@ -149,7 +148,7 @@ func (bA *BitArray) And(o *BitArray) *BitArray {
 }
 
 func (bA *BitArray) and(o *BitArray) *BitArray {
-	c := bA.copyBits(maths.MinInt(bA.Bits, o.Bits))
+	c := bA.copyBits(min(bA.Bits, o.Bits))
 	for i := 0; i < len(c.Elems); i++ {
 		c.Elems[i] &= o.Elems[i]
 	}
@@ -191,7 +190,7 @@ func (bA *BitArray) Sub(o *BitArray) *BitArray {
 	// If o is longer, those bits are ignored.
 	// If bA is longer, then skipping those iterations is equivalent
 	// to right padding with 0's
-	smaller := maths.MinInt(len(bA.Elems), len(o.Elems))
+	smaller := min(len(bA.Elems), len(o.Elems))
 	for i := 0; i < smaller; i++ {
 		// &^ is and not in golang
 		c.Elems[i] &^= o.Elems[i]

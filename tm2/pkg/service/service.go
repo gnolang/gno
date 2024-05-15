@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -49,7 +50,7 @@ type Service interface {
 	String() string
 
 	// SetLogger sets a logger.
-	SetLogger(log.Logger)
+	SetLogger(*slog.Logger)
 }
 
 /*
@@ -95,7 +96,7 @@ Typical usage:
 	}
 */
 type BaseService struct {
-	Logger  log.Logger
+	Logger  *slog.Logger
 	name    string
 	started uint32 // atomic
 	stopped uint32 // atomic
@@ -106,9 +107,9 @@ type BaseService struct {
 }
 
 // NewBaseService creates a new BaseService.
-func NewBaseService(logger log.Logger, name string, impl Service) *BaseService {
+func NewBaseService(logger *slog.Logger, name string, impl Service) *BaseService {
 	if logger == nil {
-		logger = log.NewNopLogger()
+		logger = log.NewNoopLogger()
 	}
 
 	return &BaseService{
@@ -120,7 +121,7 @@ func NewBaseService(logger log.Logger, name string, impl Service) *BaseService {
 }
 
 // SetLogger implements Service by setting a logger.
-func (bs *BaseService) SetLogger(l log.Logger) {
+func (bs *BaseService) SetLogger(l *slog.Logger) {
 	bs.Logger = l
 }
 

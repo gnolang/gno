@@ -25,7 +25,7 @@ gnokey add {KEY_NAME}
 #### **Options**
 
 | Name        | Type       | Description                                                                            |
-| ----------- | ---------- | -------------------------------------------------------------------------------------- |
+|-------------|------------|----------------------------------------------------------------------------------------|
 | `account`   | UInt       | Account number for HD derivation.                                                      |
 | `dryrun`    | Boolean    | Performs action, but doesn't add key to local keystore.                                |
 | `index`     | UInt       | Address index number for HD derivation.                                                |
@@ -38,6 +38,17 @@ gnokey add {KEY_NAME}
 | `threshold` | Int        | K out of N required signatures. For use in conjunction with --multisig (default: `1`). |
 
 > **Test Seed Phrase:** source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast
+
+### Using a ledger device
+
+You can add a ledger device using the following command
+
+> [!NOTE]
+> Before running this command make sure your ledger device is connected, with the cosmos app installed and open in it.
+
+```bash
+gnokey add {LEDGER_KEY_NAME} --ledger
+```
 
 ## List all Known Keys
 
@@ -58,7 +69,7 @@ gnokey delete {KEY_NAME}
 #### **Options**
 
 | Name    | Type    | Description                  |
-| ------- | ------- | ---------------------------- |
+|---------|---------|------------------------------|
 | `yes`   | Boolean | Skips confirmation prompt.   |
 | `force` | Boolean | Removes key unconditionally. |
 
@@ -74,7 +85,7 @@ gnokey export
 #### **Options**
 
 | Name          | Type   | Description                                 |
-| ------------- | ------ | ------------------------------------------- |
+|---------------|--------|---------------------------------------------|
 | `key`         | String | Name or Bech32 address of the private key   |
 | `output-path` | String | The desired output path for the armor file  |
 | `unsafe`      | Bool   | Export the private key armor as unencrypted |
@@ -91,7 +102,7 @@ gnokey import
 #### **Options**
 
 | Name         | Type   | Description                                 |
-| ------------ | ------ | ------------------------------------------- |
+|--------------|--------|---------------------------------------------|
 | `armor-path` | String | The path to the encrypted armor file.       |
 | `name`       | String | The name of the private key.                |
 | `unsafe`     | Bool   | Import the private key armor as unencrypted |
@@ -107,21 +118,21 @@ gnokey query {QUERY_PATH}
 
 #### **Query**
 
-| Query Path                | Description                                                        | Example                                                                                  |
-| ------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Query Path                | Description                                                        | Example                                                                                |
+|---------------------------|--------------------------------------------------------------------|----------------------------------------------------------------------------------------|
 | `auth/accounts/{ADDRESS}` | Returns information about an account.                              | `gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`                  |
 | `bank/balances/{ADDRESS}` | Returns balances of an account.                                    | `gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`                  |
 | `vm/qfuncs`               | Returns public facing function signatures as JSON.                 | `gnokey query vm/qfuncs --data "gno.land/r/demo/boards"`                               |
 | `vm/qfile`                | Returns the file bytes, or list of files if directory.             | `gnokey query vm/qfile --data "gno.land/r/demo/boards"`                                |
-| `vm/qrender`              | Calls .Render(path) in readonly mode.                           | `gnokey query vm/qrender --data "gno.land/r/demo/boards"`                              |
+| `vm/qrender`              | Calls .Render(path) in readonly mode.                              | `gnokey query vm/qrender --data "gno.land/r/demo/boards"`                              |
 | `vm/qeval`                | Evaluates any expression in readonly mode and returns the results. | `gnokey query vm/qeval --data "gno.land/r/demo/boards GetBoardIDFromName("my_board")"` |
-| `vm/store`                | (not yet supported) Fetches items from the store.                  | -                                                                                        |
-| `vm/package`              | (not yet supported) Fetches a package's files.                     | -                                                                                        |
+| `vm/store`                | (not yet supported) Fetches items from the store.                  | -                                                                                      |
+| `vm/package`              | (not yet supported) Fetches a package's files.                     | -                                                                                      |
 
 #### **Options**
 
 | Name     | Type      | Description                              |
-| -------- | --------- | ---------------------------------------- |
+|----------|-----------|------------------------------------------|
 | `data`   | UInt8 \[] | Queries data bytes.                      |
 | `height` | Int64     | (not yet supported) Queries height.      |
 | `prove`  | Boolean   | (not yet supported) Proves query result. |
@@ -138,7 +149,7 @@ gnokey maketx {SUB_COMMAND} {ADDRESS or KeyName}
 #### **Subcommands**
 
 | Name     | Description                  |
-| -------- | ---------------------------- |
+|----------|------------------------------|
 | `addpkg` | Uploads a new package.       |
 | `call`   | Calls a public function.     |
 | `send`   | The amount of coins to send. |
@@ -160,22 +171,22 @@ gnokey maketx addpkg \
 
 #### **SignBroadcast Options**
 
-| Name         | Type    | Description                                                              |
-| ------------ | ------- | ------------------------------------------------------------------------ |
-| `gas-wanted` | Int64   | The maximum amount of gas to use for the transaction.                    |
-| `gas-fee`    | String  | The gas fee to pay for the transaction.                                  |
-| `memo`       | String  | Any descriptive text.                                                    |
-| `broadcast`  | Boolean | Broadcasts the transaction.                                              |
-| `chainid`    | String  | Defines the chainid to sign for (should only be used with `--broadcast`) |
+| Name         | Type    | Description                                                                            |
+|--------------|---------|----------------------------------------------------------------------------------------|
+| `gas-wanted` | Int64   | The maximum amount of gas to use for the transaction.                                  |
+| `gas-fee`    | String  | The gas fee to pay for the transaction.                                                |
+| `memo`       | String  | Any descriptive text.                                                                  |
+| `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
+| `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
+| `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
 
-#### **makeAddPackageTx Options**
+#### **makeTx AddPackage Options**
 
 | Name      | Type   | Description                           |
-| --------- | ------ | ------------------------------------- |
+|-----------|--------|---------------------------------------|
 | `pkgpath` | String | The package path (required).          |
 | `pkgdir`  | String | The path to package files (required). |
 | `deposit` | String | The amount of coins to send.          |
-
 
 ### `call`
 
@@ -198,15 +209,16 @@ gnokey maketx call \
 
 #### **SignBroadcast Options**
 
-| Name         | Type    | Description                                                      |
-| ------------ | ------- | ---------------------------------------------------------------- |
-| `gas-wanted` | Int64   | The maximum amount of gas to use for the transaction.            |
-| `gas-fee`    | String  | The gas fee to pay for the transaction.                          |
-| `memo`       | String  | Any descriptive text.                                            |
-| `broadcast`  | Boolean | Broadcasts the transaction.                                      |
-| `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`) |
+| Name         | Type    | Description                                                                            |
+|--------------|---------|----------------------------------------------------------------------------------------|
+| `gas-wanted` | Int64   | The maximum amount of gas to use for the transaction.                                  |
+| `gas-fee`    | String  | The gas fee to pay for the transaction.                                                |
+| `memo`       | String  | Any descriptive text.                                                                  |
+| `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
+| `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
+| `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
 
-#### **makeCallTx Options**
+#### **makeTx Call Options**
 
 | Name      | Type   | Description                                                                                                                                          |
 |-----------|--------|------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -236,18 +248,19 @@ gnokey maketx send \
 
 #### **SignBroadcast Options**
 
-| Name         | Type    | Description                                           |
-| ------------ | ------- | ----------------------------------------------------- |
-| `gas-wanted` | Int64   | The maximum amount of gas to use for the transaction. |
-| `gas-fee`    | String  | The gas fee to pay for the transaction.               |
-| `memo`       | String  | Any descriptive text.                                 |
-| `broadcast`  | Boolean | Broadcasts the transaction.                           |
-| `chainid`    | String  | The chainid to sign for (implies `--broadcast`)       |
+| Name         | Type    | Description                                                                            |
+|--------------|---------|----------------------------------------------------------------------------------------|
+| `gas-wanted` | Int64   | The maximum amount of gas to use for the transaction.                                  |
+| `gas-fee`    | String  | The gas fee to pay for the transaction.                                                |
+| `memo`       | String  | Any descriptive text.                                                                  |
+| `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
+| `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
+| `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
 
-#### **makeSendTx Options**
+#### **makeTx Send Options**
 
 | Name   | Type   | Description              |
-| ------ | ------ | ------------------------ |
+|--------|--------|--------------------------|
 | `send` | String | Amount of coins to send. |
 | `to`   | String | The destination address. |
 
@@ -263,7 +276,7 @@ gnokey sign
 #### **Options**
 
 | Name             | Type    | Description                                                |
-| ---------------- | ------- | ---------------------------------------------------------- |
+|------------------|---------|------------------------------------------------------------|
 | `txpath`         | String  | The path to file of tx to sign (default: `-`).             |
 | `chainid`        | String  | The chainid to sign for (default: `dev`).                  |
 | `number`         | UInt    | The account number of the account to sign with (required)  |
@@ -282,7 +295,7 @@ gnokey verify
 #### **Options**
 
 | Name      | Type   | Description                              |
-| --------- | ------ | ---------------------------------------- |
+|-----------|--------|------------------------------------------|
 | `docpath` | String | The path of the document file to verify. |
 
 ## Broadcast a Signed Document
@@ -292,3 +305,7 @@ Broadcast a signed document with the following command.
 ```bash
 gnokey broadcast {signed transaction file document}
 ```
+
+[^1]: `only` simulates the transaction as a "dry run" (ie. without committing to
+  the chain), `test` performs simulation and, if successful, commits the
+  transaction, `skip` skips simulation entirely and commits directly.
