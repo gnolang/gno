@@ -39,6 +39,15 @@ func TestMemPackage_Validate(t *testing.T) {
 			},
 			`duplicate file name "a.gno"`,
 		},
+		{
+			"InvalidPathLength",
+			&MemPackage{
+				Name:  "hey",
+				Path:  "gno.land/r/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/long/path",
+				Files: []*MemFile{{Name: "a.gno"}},
+			},
+			`invalid length of package/realm path`,
+		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
@@ -190,29 +199,12 @@ func TestRePkgOrRlmPath(t *testing.T) {
 			expected: false,
 		},
 	}
-	testLengthTable := []struct{
-		desc, in string
-		expected bool
-	}{
-		{
-		desc:     "Longer Than Limit",
-		in:       "gno.land/r/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very",
-		expected: false,
-		},
-	}
 	for _, tc := range testTable {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
 
 			assert.Equal(t, tc.expected, rePkgOrRlmPath.MatchString(tc.in))
-		})
-	}
-	for _, tc := range testLengthTable {
-		tc := tc
-		t.Run(tc.desc, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tc.expected, isValidLength(tc.in, rePkgOrRlmLenLimit))
 		})
 	}
 }

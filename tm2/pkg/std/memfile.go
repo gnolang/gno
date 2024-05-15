@@ -36,18 +36,17 @@ func (mempkg *MemPackage) GetFile(name string) *MemFile {
 func (mempkg *MemPackage) IsEmpty() bool {
 	return len(mempkg.Files) == 0
 }
-
+const pathLengthLimit = 256
 var (
 	rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	/*
 		in case we use RE2 external lib (e.g. dlclark/regexp2), we can do this
 		^(?=.{0,256}$)gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$
 		with lookahead operation to limit the length
-		but for now we just check it with rePkgOrRlmLenLimit.
+		but for now we just check it with const pathLengthLimit in bytes.
 	*/
 	rePkgOrRlmPath     = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
 	reFileName         = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
-	rePkgOrRlmLenLimit = 256
 )
 
 // path must not contain any dots after the first domain component.
@@ -62,11 +61,11 @@ func (mempkg *MemPackage) Validate() error {
 	if !rePkgName.MatchString(mempkg.Name) {
 		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
 	}
+	if len([]byte(mempkg.Path)) > pathLengthLimit {
+		return fmt.Errorf("invalid length of package/realm path: %d which limitation is %d", len(mempkg.Path), pathLengthLimit)
+	}
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
-	}
-	if !isValidLength(mempkg.Path, rePkgOrRlmLenLimit) {
-		return fmt.Errorf("invalid length of package/realm path: %v which limitation is %v", len(mempkg.Path), rePkgOrRlmLenLimit)
 	}
 	// enforce sorting files based on Go conventions for predictability
 	sorted := sort.SliceIsSorted(
@@ -107,8 +106,4 @@ func SplitFilepath(filepath string) (dirpath string, filename string) {
 	} else {
 		return strings.Join(parts, "/"), ""
 	}
-}
-
-func isValidLength(pkgPath string, limitation int) bool {
-	return len(pkgPath) <= limitation
 }
