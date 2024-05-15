@@ -107,6 +107,7 @@ func TestTypedValueMarshal_Array(t *testing.T) {
 		tc := tc
 		t.Run(tc.ArgRep, func(t *testing.T) {
 			m := gnolang.NewMachine("testdata", nil)
+			defer m.Release()
 
 			nn := gnolang.MustParseFile("testdata.gno",
 				fmt.Sprintf(`package testdata; var Value = %s`, tc.ValueRep))
@@ -136,29 +137,35 @@ func TestTypedValueMarshal_Array(t *testing.T) {
 	}
 }
 
-const StructsFile = `package testdata
+const StructsFile = `
+package testdata
+
 // Simple struct
 type Simple struct {
 	A int
 	B string
 	C bool
 }
-// Simple struct
+
+// Simple struct with tags
 type Tags struct {
 	A int ` + "`json:\"valueA\"`" + `
 	B string ` + "`json:\"valueB\"`" + `
 	C bool ` + "`json:\"valueC\"`" + `
 }
+
 // Struct with unexported field
 type Unexported struct {
 	A int
 	b string
 }
+
 // Nested struct
 type Nested struct {
 	A int
 	B *Simple
 }
+
 // Struct with an interface field
 type Interface struct {
 	A int
@@ -235,16 +242,17 @@ func TestTypedValueMarshal_Struct(t *testing.T) {
 	}
 }
 
-const RecursiveValueFile = `package testdata
+const RecursiveValueFile = `
+package testdata
 
 type Recursive struct {
 	Nested *Recursive
 }
 
-var RecursiveVar = &Recursive{}
+var RecursiveStruct = &Recursive{}
 
 func init() {
-	RecursiveVar.Nested = RecursiveVar
+	RecursiveStruct.Nested = RecursiveStruct
 }
 `
 
@@ -257,7 +265,7 @@ func TestTypedValueMarshal_RecursiveMarshalPanic(t *testing.T) {
 	m.RunFiles(nn)
 	m.RunDeclaration(gnolang.ImportD("testdata", pkgpath))
 
-	tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "RecursiveVar"))
+	tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "RecursiveStruct"))
 	require.Len(t, tps, 1)
 	gv := tps[0]
 
@@ -265,5 +273,8 @@ func TestTypedValueMarshal_RecursiveMarshalPanic(t *testing.T) {
 	tvm := NewTypedValueMarshaler(nil)
 	mv := tvm.Wrap(&gv)
 
-	require.PanicsWithError(t, func() { amino.MarshalJSON(mv) })
+	require.PanicsWithError(t,
+		ErrRecursivePointer.Error(),
+		func() { amino.MarshalJSON(mv) },
+	)
 }

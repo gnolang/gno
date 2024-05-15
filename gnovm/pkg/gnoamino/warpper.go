@@ -8,11 +8,17 @@
 package gnoamino
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"unicode"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+)
+
+var (
+	ErrRecursivePointer = errors.New("recusive pointer aren't supported")
+	ErrUnsuportedType   = errors.New("unsuported type")
 )
 
 // Not thread safe
@@ -72,7 +78,7 @@ func (tva *wrapperTypedValue) newWith(tv *gnolang.TypedValue) *wrapperTypedValue
 func (tva *wrapperTypedValue) unmarshalValue(rv reflect.Value, visited map[uintptr]struct{}) {
 	if addr, ok := isPointer(rv); ok {
 		if _, ok := visited[addr]; ok {
-			panic("recusive pointer aren't supported")
+			panic(ErrRecursivePointer)
 		}
 		visited[addr] = struct{}{}
 		defer func() { delete(visited, addr) }()
@@ -173,25 +179,9 @@ func (tva *wrapperTypedValue) unmarshalValue(rv reflect.Value, visited map[uintp
 		}
 		tva.V = tva.Allocator.NewStruct(fs)
 
-	case *gnolang.MapType:
-		// kt := gno2GoType(ct.Key)
-		// vt := gno2GoType(ct.Value)
-		// return reflect.MapOf(kt, vt)
-		panic("unsupported Gno type: MapType")
-
-	case *gnolang.InterfaceType:
-		panic("unsuported Gno type: InterfaceType")
-
-	case *gnolang.TypeType:
-		panic("unsupported Gno type: TypeType")
-
-	case *gnolang.DeclaredType:
-		panic("unsupported Gno type: DeclaredType")
-	case *gnolang.FuncType:
-		panic("unsupported Gno type: FuncType")
-
-	case *gnolang.PackageType:
-		panic("unsupported Gno type: PackageType")
+	case *gnolang.MapType, *gnolang.InterfaceType, *gnolang.PackageType,
+		*gnolang.FuncType, *gnolang.DeclaredType, *gnolang.TypeType:
+		panic(fmt.Errorf("%w: %s", ErrUnsuportedType, ct.TypeID()))
 
 	default:
 		panic(fmt.Sprintf("unexpected type %v with base %v", tva.T, gnolang.BaseOf(tva.T)))
@@ -202,7 +192,7 @@ func (tva *wrapperTypedValue) unmarshalValue(rv reflect.Value, visited map[uintp
 func gno2GoType(t gnolang.Type, visited map[uintptr]struct{}) reflect.Type {
 	if addr, ok := isPointer(reflect.ValueOf(t)); ok {
 		if _, ok := visited[addr]; ok {
-			panic("recusive pointer aren't supported")
+			panic(ErrRecursivePointer)
 		}
 		visited[addr] = struct{}{}
 		defer func() { delete(visited, addr) }()
@@ -296,24 +286,12 @@ func gno2GoType(t gnolang.Type, visited map[uintptr]struct{}) reflect.Type {
 		vt := gno2GoType(ct.Value, visited)
 		return reflect.MapOf(kt, vt)
 
-	case *gnolang.InterfaceType:
-		panic("unsupported Gno type: InterfaceType")
-
-	case *gnolang.FuncType:
-		panic("unsupported Gno type: FuncType")
-
-	case *gnolang.TypeType:
-		panic("unsupported Gno type: TypeType")
-
-	case *gnolang.DeclaredType:
-		// We switch on baseOf(t).
-		panic("unsupported Gno type: DeclaredType")
-
-	case *gnolang.PackageType:
-		panic("unsupported Gno type: PackageType")
-
 	case *gnolang.NativeType: // XXX(FIXME): remove me (?)
 		return ct.Type
+
+	case *gnolang.PackageType, *gnolang.InterfaceType, *gnolang.DeclaredType,
+		*gnolang.TypeType, *gnolang.FuncType:
+		panic(fmt.Errorf("%w: %s", ErrUnsuportedType, ct.TypeID()))
 
 	default:
 		panic(fmt.Sprintf("unexpected type %v with base %v", t, gnolang.BaseOf(t)))
@@ -456,10 +434,6 @@ func gno2GoValue(tva *gnolang.TypedValue, rv reflect.Value) (ret reflect.Value) 
 			if !isUpper(string(ct.Fields[i].Name)) {
 				continue
 			}
-			// Skip unexported fields.
-			// if !rt.Field(i).IsExported() {
-			// 	continue
-			// }
 
 			gno2GoValue(ftv, rv.Field(i))
 		}
@@ -498,17 +472,15 @@ func gno2GoValue(tva *gnolang.TypedValue, rv reflect.Value) (ret reflect.Value) 
 		// General case.
 		rv.Set(tva.V.(*gnolang.NativeValue).Value)
 
-	case *gnolang.DeclaredType:
-		// See corresponding note on gno2GoType().
-		panic("unsuported Gno type: DeclaredType")
-
-	case *gnolang.FuncType:
+	case *gnolang.FuncType, *gnolang.DeclaredType:
 		// TODO: if tv.V.(*NativeValue), just return.
 		// TODO: otherwise, set rv to wrapper.
-		panic("unsuported Gno type: FuncType")
+		panic(fmt.Errorf("%w: %s", ErrUnsuportedType, ct.TypeID()))
+
 	default:
 		panic(fmt.Sprintf("unexpected type %s", tva.T.String()))
 	}
+
 	return
 }
 
