@@ -20,19 +20,13 @@ func CurrentRealmPath() string {
 	return std.CurrentRealmPath()
 }
 
-<<<<<<< HEAD
-func CallAssertOriginCall() {
-||||||| 90f29c44
-func AssertOriginCall() {
-=======
 var initOrigCaller = std.GetOrigCaller()
 
 func InitOrigCaller() std.Address {
 	return initOrigCaller
 }
 
-func AssertOriginCall() {
->>>>>>> master
+func CallAssertOriginCall() {
 	std.AssertOriginCall()
 }
 
