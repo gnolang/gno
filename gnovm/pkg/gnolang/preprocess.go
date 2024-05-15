@@ -2478,6 +2478,7 @@ func findLastFn(last BlockNode) Name {
 	}
 	panic("no func decl exists!")
 }
+
 func findBranchLabel(last BlockNode, label Name) (
 	bn BlockNode, depth uint8, bodyIdx int,
 ) {
