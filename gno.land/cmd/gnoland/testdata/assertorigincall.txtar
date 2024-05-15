@@ -29,7 +29,7 @@
 gnoland start
 
 ## deploy myrlm
-gnokey maketx addpkg -pkgdir $WORK/r/myrlm -pkgpath gno.land/r/myrlm -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/r/myrlm -pkgpath gno.land/r/myrlm -gas-fee 1000000ugnot -gas-wanted 2100000 -broadcast -chainid=tendermint_test test1
 stdout 'OK!'
 
 ## deploy r/foo

@@ -14,8 +14,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 		ctx  = ExecContext{
 			OrigCaller: user,
 		}
-		msgCallFrame = gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "main"}}
-		msgRunFrame  = gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/user-realm"}}
+		msgCallFrame = &gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "main"}}
+		msgRunFrame  = &gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/user-realm"}}
 	)
 	tests := []struct {
 		name                 string
@@ -27,7 +27,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			name: "no frames",
 			machine: &gno.Machine{
 				Context: ctx,
-				Frames:  []gno.Frame{},
+				Frames:  []*gno.Frame{},
 			},
 			expectedRealm: Realm{
 				addr:    user,
@@ -39,7 +39,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			name: "one frame w/o LastPackage",
 			machine: &gno.Machine{
 				Context: ctx,
-				Frames: []gno.Frame{
+				Frames: []*gno.Frame{
 					{LastPackage: nil},
 				},
 			},
@@ -53,7 +53,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			name: "one package frame",
 			machine: &gno.Machine{
 				Context: ctx,
-				Frames: []gno.Frame{
+				Frames: []*gno.Frame{
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/p/xxx"}},
 				},
 			},
@@ -67,7 +67,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			name: "one realm frame",
 			machine: &gno.Machine{
 				Context: ctx,
-				Frames: []gno.Frame{
+				Frames: []*gno.Frame{
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
 				},
 			},
@@ -81,7 +81,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			name: "one msgCall frame",
 			machine: &gno.Machine{
 				Context: ctx,
-				Frames: []gno.Frame{
+				Frames: []*gno.Frame{
 					msgCallFrame,
 				},
 			},
@@ -95,7 +95,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			name: "one msgRun frame",
 			machine: &gno.Machine{
 				Context: ctx,
-				Frames: []gno.Frame{
+				Frames: []*gno.Frame{
 					msgRunFrame,
 				},
 			},
@@ -109,7 +109,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			name: "one package frame and one msgCall frame",
 			machine: &gno.Machine{
 				Context: ctx,
-				Frames: []gno.Frame{
+				Frames: []*gno.Frame{
 					msgCallFrame,
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/p/xxx"}},
 				},
@@ -124,7 +124,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			name: "one realm frame and one msgCall frame",
 			machine: &gno.Machine{
 				Context: ctx,
-				Frames: []gno.Frame{
+				Frames: []*gno.Frame{
 					msgCallFrame,
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
 				},
@@ -139,7 +139,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			name: "one package frame and one msgRun frame",
 			machine: &gno.Machine{
 				Context: ctx,
-				Frames: []gno.Frame{
+				Frames: []*gno.Frame{
 					msgRunFrame,
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/p/xxx"}},
 				},
@@ -154,7 +154,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			name: "one realm frame and one msgRun frame",
 			machine: &gno.Machine{
 				Context: ctx,
-				Frames: []gno.Frame{
+				Frames: []*gno.Frame{
 					msgRunFrame,
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
 				},
@@ -169,7 +169,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			name: "multiple frames with one realm",
 			machine: &gno.Machine{
 				Context: ctx,
-				Frames: []gno.Frame{
+				Frames: []*gno.Frame{
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/p/xxx"}},
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/p/xxx"}},
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
@@ -185,7 +185,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			name: "multiple frames with multiple realms",
 			machine: &gno.Machine{
 				Context: ctx,
-				Frames: []gno.Frame{
+				Frames: []*gno.Frame{
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/zzz"}},
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/zzz"}},
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/yyy"}},
