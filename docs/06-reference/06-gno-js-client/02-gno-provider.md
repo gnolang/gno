@@ -5,7 +5,7 @@ id: gno-js-provider
 # Gno Provider
 
 The `Gno Provider` is an extension on the `tm2-js-client` `Provider`,
-outlined [here](../tm2-js-client/Provider/provider.md). Both JSON-RPC and WS providers are included with the package.
+outlined [here](../05-tm2-js-client/03-Provider/provider.md). Both JSON-RPC and WS providers are included with the package.
 
 ## Realm Methods
 

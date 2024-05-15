@@ -478,7 +478,7 @@ of block #43 will contain the following data:
 }
 ```
 
-Read more about events [here](./stdlibs/events.md).
+Read more about events [here](04-stdlibs/events.md).
 
 ### Contract-level access control
 
@@ -679,7 +679,7 @@ For example, if you're creating a coin for cross-chain transfers, Coins
 are your best bet. They're IBC-ready and their strict rules offer top-notch
 security.
 
-Read about how to use the Banker module [here](stdlibs/banker).
+Read about how to use the Banker module [here](04-stdlibs/banker).
 
 #### GRC20 tokens
 
