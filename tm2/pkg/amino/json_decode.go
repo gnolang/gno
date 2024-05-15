@@ -55,10 +55,7 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 
 		// Try to get TypeInfo if TypeDescription is provided
 		if info.HasTypeDescription {
-			// XXX: put this in its own method (?)
-			uwrm := rv.Addr().MethodByName("TypeDesc")
-			uwouts := uwrm.Call([]reflect.Value{})
-			rt := uwouts[0].Interface().(reflect.Type)
+			rt := typeDescription(rv)
 
 			// Use type description as type representation
 			rinfo, err = cdc.getTypeInfoWLock(rt)
@@ -147,7 +144,6 @@ func invokeStdlibJSONUnmarshal(bz []byte, rv reflect.Value, fopts FieldOptions) 
 	if !rv.CanAddr() && rv.Kind() != reflect.Ptr {
 		panic("rv not addressable nor pointer")
 	}
-
 	rrv := rv
 	if rv.Kind() != reflect.Ptr {
 		rrv = reflect.New(rv.Type())
@@ -190,35 +186,9 @@ func (cdc *Codec) decodeReflectJSONInterface(bz []byte, iinfo *TypeInfo, rv refl
 
 	var value json.RawMessage
 	var cinfo *TypeInfo
-	fmt.Printf("%+v\n\n", iinfo.HasTypeDescription)
 	if iinfo.HasTypeDescription {
-		// First, decode repr instance from bytes.
-		// rrv := reflect.New(info.ReprType.Type).Elem()
-		// rinfo := info.ReprType
-		// err = cdc.decodeReflectJSON(bz, rinfo, rrv, fopts)
-		// if err != nil {
-		// 	return
-		// }
-
-		// Then, decode from repr instance.
-		uwrm := rv.Addr().MethodByName("TypeDesc")
-		uwouts := uwrm.Call([]reflect.Value{})
-		erri := uwouts[1].Interface()
-		if erri != nil {
-			return fmt.Errorf("TypeDesc call error: %w", erri.(error))
-		}
-
-		rt, ok := uwouts[0].Interface().(reflect.Type)
-		if !ok {
-			return nil
-		}
-
+		rt := typeDescription(rv)
 		cinfo, err = cdc.getTypeInfoWLock(rt)
-		if erri != nil {
-			return fmt.Errorf("unknown call error: %w", erri.(error))
-		}
-
-		return
 	} else {
 		// Extract type_url.
 		var typeURL string

@@ -62,11 +62,7 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 
 		var rinfo *TypeInfo
 		if info.HasTypeDescription {
-			// XXX: put this in its own method
-			uwrm := rv.Addr().MethodByName("TypeDesc")
-			uwouts := uwrm.Call([]reflect.Value{})
-
-			rt := uwouts[0].Interface().(reflect.Type)
+			rt := typeDescription(rv)
 			rrv = rrv.Elem().Convert(rt)
 
 			// rrv = reflect.New(info.ReprType.Type).Elem()

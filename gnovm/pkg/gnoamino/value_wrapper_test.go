@@ -16,7 +16,7 @@ const (
 )
 
 // TestTypedValueMarshal_Primitive tests marshaling of primitive types.
-func TestTypedValueMarshal_Primitive(t *testing.T) {
+func TestTypedValueMarshalJSON_Primitive(t *testing.T) {
 	cases := []struct {
 		ValueRep string // Go representation
 		ArgRep   string // string representation
@@ -83,7 +83,7 @@ func TestTypedValueMarshal_Primitive(t *testing.T) {
 }
 
 // TestTypedValueMarshal_Array tests marshaling of array types.
-func TestTypedValueMarshal_Array(t *testing.T) {
+func TestTypedValueMarshalJSON_Array(t *testing.T) {
 	cases := []struct {
 		ValueRep string // Go representation
 		ArgRep   string // string representation
@@ -171,7 +171,7 @@ type Interface struct {
 }
 `
 
-func TestTypedValueMarshal_Struct(t *testing.T) {
+func TestTypedValueMarshalJSON_Struct(t *testing.T) {
 	cases := []struct {
 		ValueRepName string // Go representation
 		ArgRep       string // string representation
@@ -230,7 +230,6 @@ func TestTypedValueMarshal_Struct(t *testing.T) {
 			require.Len(t, tps, 1)
 			gt := tps[0].V.(gnolang.TypeValue).Type
 
-			// Create Marshaling type
 			mv := tvm.From(gt)
 
 			t.Run("Unmarshal", func(t *testing.T) {
@@ -239,8 +238,7 @@ func TestTypedValueMarshal_Struct(t *testing.T) {
 			})
 
 			t.Run("Marshal", func(t *testing.T) {
-				raw, err := amino.MarshalJSONAny(mv)
-				t.Logf("raw: %s\n", string(raw))
+				raw, err := amino.MarshalJSON(mv)
 				require.NoError(t, err)
 				assert.Equal(t, tc.Expected, string(raw))
 			})

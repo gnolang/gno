@@ -57,13 +57,22 @@ func (cdc *Codec) decodeReflectBinary(bz []byte, info *TypeInfo,
 
 	// Handle override if a pointer to rv implements UnmarshalAmino.
 	if info.IsAminoMarshaler {
-		// First, decode repr instance from bytes.
-		rrv := reflect.New(info.ReprType.Type).Elem()
+		var rrv reflect.Value
 		var rinfo *TypeInfo
-		rinfo, err = cdc.getTypeInfoWLock(info.ReprType.Type)
-		if err != nil {
-			return
+
+		// Try to get TypeInfo if TypeDescription is provided
+		if info.HasTypeDescription {
+			rt := typeDescription(rv)
+
+			// Use type description as type representation
+			rinfo, err = cdc.getTypeInfoWLock(rt)
+			rrv = reflect.New(rt).Elem()
+		} else {
+			// Fallback on type repr
+			rinfo = info.ReprType
+			rrv = reflect.New(rinfo.Type).Elem()
 		}
+
 		_n, err = cdc.decodeReflectBinary(bz, rinfo, rrv, fopts, bare, options)
 		if slide(&bz, &n, _n) && err != nil {
 			return
