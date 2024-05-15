@@ -31,8 +31,6 @@ func TestVMKeeperAddPackage(t *testing.T) {
 			Name: "test.gno",
 			Body: `package test
 
-import "std"
-
 func Echo() string {
 	return "hello world"
 }`,
@@ -94,7 +92,7 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, `("echo:hello world" string)`, res)
+	assert.Equal(t, `("echo:hello world" string)`+"\n\n", res)
 	// t.Log("result:", res)
 }
 
@@ -237,7 +235,7 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, `("echo:hello world" string)`, res)
+	assert.Equal(t, `("echo:hello world" string)`+"\n\n", res)
 }
 
 // Sending too much realm package coins fails.
@@ -333,7 +331,7 @@ func GetAdmin() string {
 	coins := std.MustParseCoins("")
 	msg2 := NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
 	res, err := env.vmk.Call(ctx, msg2)
-	addrString := fmt.Sprintf("(\"%s\" string)", addr.String())
+	addrString := fmt.Sprintf("(\"%s\" string)\n\n", addr.String())
 	assert.NoError(t, err)
 	assert.Equal(t, addrString, res)
 }
@@ -412,8 +410,6 @@ func TestNumberOfArgsError(t *testing.T) {
 		{
 			Name: "test.gno",
 			Body: `package test
-
-import "std"
 
 func Echo(msg string) string {
 	return "echo:"+msg

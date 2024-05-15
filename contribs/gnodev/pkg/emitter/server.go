@@ -60,14 +60,16 @@ func (s *Server) Emit(evt events.Event) {
 	go s.emit(evt)
 }
 
-func (s *Server) emit(evt events.Event) {
-	s.muClients.RLock()
-	defer s.muClients.RUnlock()
+type eventJSON struct {
+	Type events.Type `json:"type"`
+	Data any         `json:"data"`
+}
 
-	jsonEvt := struct {
-		Type events.Type `json:"type"`
-		Data any         `json:"data"`
-	}{evt.Type(), evt}
+func (s *Server) emit(evt events.Event) {
+	s.muClients.Lock()
+	defer s.muClients.Unlock()
+
+	jsonEvt := eventJSON{evt.Type(), evt}
 
 	s.logger.Info("sending event to clients",
 		"clients", len(s.clients),
@@ -82,4 +84,15 @@ func (s *Server) emit(evt events.Event) {
 			delete(s.clients, conn)
 		}
 	}
+}
+
+func (s *Server) conns() []*websocket.Conn {
+	s.muClients.RLock()
+	conns := make([]*websocket.Conn, 0, len(s.clients))
+	for conn := range s.clients {
+		conns = append(conns, conn)
+	}
+	s.muClients.RUnlock()
+
+	return conns
 }

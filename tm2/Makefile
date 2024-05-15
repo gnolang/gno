@@ -20,7 +20,7 @@ GOFMT_FLAGS ?= -w
 # flags for `make imports`.
 GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
 # test suite flags.
-GOTEST_FLAGS ?= -v -p 1 -timeout=30m
+GOTEST_FLAGS ?= -v -p 1 -timeout=30m -tags='ledger_suite'
 
 ########################################
 # Dev tools
@@ -62,6 +62,4 @@ _test.flappy:
 _test.pkg.others:;  go test $(GOTEST_FLAGS) `go list ./pkg/... | grep -Ev 'pkg/(amino|bft|db|iavl/benchmarks)(/|$$)'`
 _test.pkg.amino:;   go test $(GOTEST_FLAGS) ./pkg/amino/...
 _test.pkg.bft:;     go test $(GOTEST_FLAGS) ./pkg/bft/...
-
-_test.pkg.db:
-	CGO_ENABLED=$(CGO_ENABLED) go test $(GOTEST_FLAGS) ./pkg/db/... ./pkg/iavl/benchmarks/...
+_test.pkg.db:;      go test $(GOTEST_FLAGS) ./pkg/db/... ./pkg/iavl/benchmarks/...
