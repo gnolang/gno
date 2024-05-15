@@ -141,7 +141,7 @@ func main() {
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:7"
+//                     "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:8"
 //                 },
 //                 "FileName": "native.gno",
 //                 "IsMethod": false,
