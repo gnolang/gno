@@ -1,23 +1,25 @@
 # test for add package
 
+# load hello.gno package located in $WORK directory as gno.land/r/hello
+loadpkg gno.land/r/hello $WORK
+
 ## start a new node
 gnoland start
 
-## add bar.gno package located in $WORK directory as gno.land/r/foobar/bar
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/foobar/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+## execute SayHello
+gnokey maketx call -pkgpath gno.land/r/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 
-## execute Render
-gnokey maketx call -pkgpath gno.land/r/foobar/bar -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
-
-## compare render
-stdout '("hello from foo" string)'
-stdout 'OK!'
+## compare SayHello
+stdout '\("hello world!" string\)'
+stdout OK!
 stdout 'GAS WANTED: 2000000'
-stdout 'GAS USED:   [0-9]+'
+stdout 'GAS USED:   \d+'
+stdout 'HEIGHT:     \d+'
+stdout 'EVENTS:     \[\]'
 
--- bar.gno --
-package bar
+-- hello.gno --
+package hello
 
-func Render(path string) string {
- 	return "hello from foo"
+func SayHello() string {
+ 	return "hello world!"
 }

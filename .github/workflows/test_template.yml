@@ -1,0 +1,49 @@
+on:
+    workflow_call:
+        inputs:
+            modulepath:
+              required: true
+              type: string
+            tests-timeout:
+                required: true
+                type: string
+            go-version:
+                required: true
+                type: string
+        secrets:
+           codecov-token:
+             required: true
+
+jobs:
+    test:
+        runs-on: ubuntu-latest
+        steps:
+        - name: Install Go
+          uses: actions/setup-go@v5
+          with:
+              go-version: ${{ inputs.go-version }}
+        - name: Checkout code
+          uses: actions/checkout@v4
+        - name: Go test
+          run: go test -coverprofile coverage.out -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./...
+          working-directory:  ${{ inputs.modulepath }}
+        - name: Upload coverage to Codecov
+          uses: codecov/codecov-action@v4
+          with:
+              token: ${{ secrets.codecov-token }}
+              verbose: true
+              fail_ci_if_error: true
+              flags: ${{ inputs.modulepath }}
+    # TODO: We have to fix race conditions before running this job
+    # test-with-race:
+    #     runs-on: ubuntu-latest
+    #     steps:
+    #     - name: Install Go
+    #       uses: actions/setup-go@v5
+    #       with:
+    #           go-version: ${{ inputs.go-version }}
+    #     - name: Checkout code
+    #       uses: actions/checkout@v4
+    #     - name: Go race test
+    #       run: go test -race -timeout ${{ inputs.tests-timeout }} ./...
+    #       working-directory:  ${{ inputs.modulepath }}

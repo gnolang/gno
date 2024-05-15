@@ -1,0 +1,64 @@
+# load the package from $WORK directory
+loadpkg gno.land/r/demo/edcl $WORK
+
+# start a new node
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/edcl -func Main -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   [0-9]+'
+stdout 'HEIGHT:     [0-9]+'
+stdout 'EVENTS:     \[{\"type\":\"ForLoopEvent\",\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"\",\"attrs\":\[{\"key\":\"iteration\",\"value\":\"0\"},{\"key\":\"key\",\"value\":\"value\"}\]},{\"type\":\"ForLoopEvent\",\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"\",\"attrs\":\[{\"key\":\"iteration\",\"value\":\"1\"},{\"key\":\"key\",\"value\":\"value\"}\]},{\"type\":\"ForLoopEvent\",\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"\",\"attrs\":\[{\"key\":\"iteration\",\"value\":\"2\"},{\"key\":\"key\",\"value\":\"value\"}\]},{\"type\":\"ForLoopCompletionEvent\",\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"forLoopEmitExample\",\"attrs\":\[{\"key\":\"count\",\"value\":\"3\"}\]},{\"type\":\"CallbackEvent\",\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"\",\"attrs\":\[{\"key\":\"key1\",\"value\":\"value1\"},{\"key\":\"key2\",\"value\":\"value2\"}\]},{\"type\":\"CallbackCompletionEvent\",\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"callbackEmitExample\",\"attrs\":\[{\"key\":\"key\",\"value\":\"value\"}\]},{\"type\":\"DeferEvent\",\"pkg_path\":\"gno.land\/r\/demo\/edcl\",\"func\":\"deferEmitExample\",\"attrs\":\[{\"key\":\"key1\",\"value\":\"value1\"},{\"key\":\"key2\",\"value\":\"value2\"}\]}\]'
+
+-- edcl.gno --
+
+package edcl
+
+import (
+	"std"
+    "strconv"
+)
+
+func Main() {
+	deferEmitExample()
+}
+
+func deferEmitExample() {
+	defer func() {
+		std.Emit("DeferEvent", "key1", "value1", "key2", "value2")
+		println("Defer emit executed")
+	}()
+
+	forLoopEmitExample(3, func(i int) {
+		std.Emit("ForLoopEvent", "iteration", strconv.Itoa(i), "key", "value")
+	    println("For loop emit executed: iteration ", i)
+	})
+
+	callbackEmitExample(func() {
+		std.Emit("CallbackEvent", "key1", "value1", "key2", "value2")
+		println("Callback emit executed")
+	})
+
+	println("deferEmitExample completed")
+}
+
+func forLoopEmitExample(count int, callback func(int)) {
+	defer func() {
+		std.Emit("ForLoopCompletionEvent", "count", strconv.Itoa(count))
+		println("For loop completion emit executed ", count)
+	}()
+
+	for i := 0; i < count; i++ {
+		callback(i)
+	}
+}
+
+func callbackEmitExample(callback func()) {
+	defer func() {
+		std.Emit("CallbackCompletionEvent", "key", "value")
+		println("Callback completion emit executed")
+	}()
+
+	callback()
+}

@@ -87,9 +87,11 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 		"/partners":       "/r/gnoland/pages:p/partners",
 		"/testnets":       "/r/gnoland/pages:p/testnets",
 		"/start":          "/r/gnoland/pages:p/start",
+		"/license":        "/r/gnoland/pages:p/license",
 		"/game-of-realms": "/r/gnoland/pages:p/gor",    // XXX: replace with gor realm
 		"/events":         "/r/gnoland/pages:p/events", // XXX: replace with events realm
 	}
+
 	for from, to := range aliases {
 		app.Router.Handle(from, handlerRealmAlias(logger, app, &cfg, to))
 	}
@@ -421,7 +423,11 @@ func makeRequest(log *slog.Logger, cfg *Config, qpath string, data []byte) (res 
 		// Prove: false, XXX
 	}
 	remote := cfg.RemoteAddr
-	cli := client.NewHTTP(remote, "/websocket")
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create HTTP client, %w", err)
+	}
+
 	qres, err := cli.ABCIQueryWithOptions(
 		qpath, data, opts2)
 	if err != nil {

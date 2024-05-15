@@ -1,10 +1,14 @@
 package config
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	// allows the default config to have a valid DB
+	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 )
 
 func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
@@ -15,7 +19,7 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 
 		// Provide an empty directory
 		cfgDir := t.TempDir()
-		cfgPath := join(cfgDir, defaultConfigFilePath)
+		cfgPath := filepath.Join(cfgDir, defaultConfigPath)
 
 		// Create a default config
 		cfg := DefaultConfig()
@@ -42,7 +46,7 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 
 		// Provide an empty directory
 		cfgDir := t.TempDir()
-		cfgPath := join(cfgDir, defaultConfigFilePath)
+		cfgPath := filepath.Join(cfgDir, defaultConfigPath)
 
 		cfg, err := LoadOrMakeConfigWithOptions(cfgDir)
 		require.NoError(t, err)
@@ -69,7 +73,7 @@ func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {
 
 		// Provide an empty directory
 		cfgDir := t.TempDir()
-		cfgPath := join(cfgDir, defaultConfigFilePath)
+		cfgPath := filepath.Join(cfgDir, defaultConfigPath)
 
 		cfg, err := LoadOrMakeConfigWithOptions(
 			cfgDir,
@@ -125,15 +129,6 @@ func TestConfig_ValidateBaseConfig(t *testing.T) {
 		c.DBPath = ""
 
 		assert.ErrorIs(t, c.BaseConfig.ValidateBasic(), errInvalidDBPath)
-	})
-
-	t.Run("genesis path not set", func(t *testing.T) {
-		t.Parallel()
-
-		c := DefaultConfig()
-		c.Genesis = ""
-
-		assert.ErrorIs(t, c.BaseConfig.ValidateBasic(), errInvalidGenesisPath)
 	})
 
 	t.Run("priv validator key path not set", func(t *testing.T) {
