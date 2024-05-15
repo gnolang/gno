@@ -238,7 +238,7 @@ func TestTypedValueMarshalJSON_Struct(t *testing.T) {
 			})
 
 			t.Run("Marshal", func(t *testing.T) {
-				raw, err := amino.MarshalJSON(mv)
+				raw, err := amino.MarshalJSONAny(mv)
 				require.NoError(t, err)
 				assert.Equal(t, tc.Expected, string(raw))
 			})

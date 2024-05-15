@@ -1,10 +1,10 @@
-// Most of the methods here are inspired by `gnonative.go` but are now included here for specific reasons:
+// Most of the methods here are inspired or copied from `gnonative.go`. They are exported here for several reasons:
 //   - Methods in `gnonative` are meant for general use and may be removed later, while here they are focused
 //     on marshaling and unmarshaling only.
 //   - These methods should be simpler as they don't require the full support of reflection, enabling a more
 //     detailed implementation.
-//   - We expect familiarity with the TypedValue type, making its handling easier.
-//   - We will probably implement Gas comsumtion within those methods.
+//   - We assume prior knowledge of the type of the ﻿TypedValue, simplifying its management.
+//   - We will likely implement gas consumption calculations within those methods.
 package gnoamino
 
 import (

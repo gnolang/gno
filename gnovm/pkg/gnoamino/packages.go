@@ -7,5 +7,5 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	"gno",
 	amino.GetCallersDirname(),
 ).WithDependencies().WithTypes(
-	&TypedValueWrapper{}, "gno_value",
+	&TypedValueWrapper{}, "t_value",
 ))
