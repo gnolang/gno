@@ -189,6 +189,11 @@ func TestRePkgOrRlmPath(t *testing.T) {
 			in:       "gno.land/r/very/very/very//long/path/",
 			expected: false,
 		},
+		{
+			desc:     "Longer Than Limit",
+			in:       "gno.land/r/very/very/very/very/very/very",
+			expected: false,
+		},
 	}
 
 	for _, tc := range testTable {
