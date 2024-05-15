@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/test
 package test
 
+import (
+	"std"
+)
+
 func main() {
 	tests.InitTestNodes()
 	if std.CurrentRealm().PkgPath() != "gno.land/r/test" {

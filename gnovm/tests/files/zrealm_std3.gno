@@ -1,6 +1,10 @@
 // PKGPATH: gno.land/r/std_test
 package std_test
 
+import (
+	"std"
+)
+
 func foo() {
 	println("foo", std.CurrentRealm().PkgPath())
 }
