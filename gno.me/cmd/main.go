@@ -3,15 +3,15 @@ package main
 import (
 	"fmt"
 
+	"github.com/gnolang/gno/gno.me/examples"
 	"github.com/gnolang/gno/gno.me/gno"
 	"github.com/gnolang/gno/gno.me/http"
-	"github.com/gnolang/gno/gno.me/ui"
 )
 
 func main() {
 	vm := gno.NewVM()
 	fmt.Println("VM created")
-	if err := ui.AddInstallerRealm(vm); err != nil {
+	if err := examples.CreateInstallerApp(vm); err != nil {
 		panic("could not add installer realm: " + err.Error())
 	}
 

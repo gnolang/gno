@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"path/filepath"
+	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/db/boltdb"
@@ -27,16 +28,23 @@ const (
 
 type VM interface {
 	Create(ctx context.Context, code string, isPackage bool) error
-	Call(ctx context.Context, appName string, isPackage bool, functionName string, args ...string) (res string, err error)
+	Call(
+		ctx context.Context,
+		appName string,
+		isPackage bool,
+		functionName string,
+		args ...string,
+	) (res string, events []Event, err error)
 	Run(ctx context.Context, code string) (res string, err error)
 }
 
 type VMKeeper struct {
+	sync.Mutex
 	instance *vm.VMKeeper
 	store    types.CommitMultiStore
 }
 
-func NewVM() VMKeeper {
+func NewVM() *VMKeeper {
 	// db := memdb.NewMemDB()
 	// DMB: make this actually persist to disk
 	db, err := boltdb.New("gno.me", "./gno.me")
@@ -58,7 +66,10 @@ func NewVM() VMKeeper {
 	vmk := vm.NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir, 10_000_000)
 
 	vmk.Initialize(ms)
-	return VMKeeper{instance: vmk, store: ms}
+	newVM := &VMKeeper{instance: vmk, store: ms}
+	newVM.initEventStore()
+
+	return newVM
 }
 
 func getPackagename(code string) (string, error) {

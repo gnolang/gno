@@ -57,7 +57,7 @@ func callApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 		args = strings.Split(call.Args, ",")
 	}
 
-	res, err := vm.Call(req.Context(), call.Name, call.IsPackage, call.Func, args...)
+	res, _, err := vm.Call(req.Context(), call.Name, call.IsPackage, call.Func, args...)
 	if err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
 		return
@@ -88,6 +88,8 @@ func run(resp gohttp.ResponseWriter, req *gohttp.Request) {
 	resp.Write([]byte(res))
 }
 
+// TODO: this should call qrender so it doesn't change state accidentally,
+// especially when interacting with remote apps.
 func renderApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 	enableCors(&resp)
 
@@ -109,7 +111,7 @@ func renderApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 	var appName string
 	parts := strings.Split(path, "/")
 	appName = parts[len(parts)-1]
-	res, err := vm.Call(req.Context(), appName, isPackage, "Render", renderPath)
+	res, _, err := vm.Call(req.Context(), appName, isPackage, "Render", renderPath)
 	if err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
 		return

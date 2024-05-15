@@ -11,7 +11,9 @@ import (
 
 var ErrPackageNotMain = errors.New("run method code must have a package name of main")
 
-func (v VMKeeper) Run(ctx context.Context, code string) (string, error) {
+func (v *VMKeeper) Run(ctx context.Context, code string) (string, error) {
+	v.Lock()
+	defer v.Unlock()
 	packageName, err := getPackagename(code)
 	if err != nil {
 		return "", err

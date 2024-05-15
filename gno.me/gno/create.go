@@ -8,7 +8,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-func (v VMKeeper) Create(ctx context.Context, code string, isPackage bool) error {
+func (v *VMKeeper) Create(ctx context.Context, code string, isPackage bool) error {
+	v.Lock()
+	defer v.Unlock()
 	defer v.store.Commit()
 
 	packageName, err := getPackagename(code)
