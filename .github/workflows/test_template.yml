@@ -24,8 +24,6 @@ jobs:
               go-version: ${{ inputs.go-version }}
         - name: Checkout code
           uses: actions/checkout@v4
-        - name: Install database dependencies
-          run: sudo apt-get install -y libleveldb-dev librocksdb-dev
         - name: Go test
           run: go test -coverprofile coverage.out -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./...
           working-directory:  ${{ inputs.modulepath }}

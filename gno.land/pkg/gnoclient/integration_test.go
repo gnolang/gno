@@ -54,7 +54,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	// Execute call
 	res, err := client.Call(baseCfg, msg)
 
-	expected := "(\"hi test argument\" string)"
+	expected := "(\"hi test argument\" string)\n\n"
 	got := string(res.DeliverTx.Data)
 
 	assert.Nil(t, err)
@@ -103,7 +103,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 		Send:     "",
 	}
 
-	expected := "(\"it works!\" string)(\"hi test argument\" string)"
+	expected := "(\"it works!\" string)\n\n(\"hi test argument\" string)\n\n"
 
 	// Execute call
 	res, err := client.Call(baseCfg, msg1, msg2)
