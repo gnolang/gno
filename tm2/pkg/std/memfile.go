@@ -42,8 +42,8 @@ var (
 	/*
 		in case we use RE2 external lib (e.g. dlclark/regexp2), we can do this
 		^(?=.{0,256}$)gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$
-		with lookahead operation to limit lenght
-		but for now we just check the pkgPath's len instead of.
+		with lookahead operation to limit the length
+		but for now we just check it with rePkgOrRlmLenLimit.
 	*/
 	rePkgOrRlmPath     = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
 	reFileName         = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
