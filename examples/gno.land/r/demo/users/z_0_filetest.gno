@@ -13,4 +13,4 @@ func main() {
 }
 
 // Error:
-// invalid coin denominations: dontcare
+// comparing different denominations: dontcare, ugnot
