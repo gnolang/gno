@@ -65,15 +65,8 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 			// XXX: put this in its own method
 			uwrm := rv.Addr().MethodByName("TypeDesc")
 			uwouts := uwrm.Call([]reflect.Value{})
-			erri := uwouts[1].Interface()
-			if erri != nil {
-				err = erri.(error)
-				return
-			}
 
 			rt := uwouts[0].Interface().(reflect.Type)
-			fmt.Printf("[MARSHAL] amino type: %+v\n", rt.String())
-			fmt.Printf("[MARSHAL] rinfo type: %+v\n", info.ReprType.Type.String())
 			rrv = rrv.Elem().Convert(rt)
 
 			// rrv = reflect.New(info.ReprType.Type).Elem()

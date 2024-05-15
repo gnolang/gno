@@ -617,7 +617,7 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 	// Check if this type implement `TypeDesc` so it can descript is own type
 	var reflectType = reflect.TypeOf(new(reflect.Type)).Elem()
 	if rm, ok := rt.MethodByName("TypeDesc"); ok {
-		if rm.Type.NumOut() != 2 {
+		if rm.Type.NumOut() != 1 {
 			panic(fmt.Sprintf("TypeDesc should have 2 output parameters; got %v", rm.Type))
 		}
 

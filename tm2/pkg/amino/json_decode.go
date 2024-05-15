@@ -50,30 +50,32 @@ func (cdc *Codec) decodeReflectJSON(bz []byte, info *TypeInfo, rv reflect.Value,
 
 	// Handle override if a pointer to rv implements UnmarshalAmino.
 	if info.IsAminoMarshaler {
-
 		var rrv reflect.Value
 		var rinfo *TypeInfo
+
+		// Try to get TypeInfo if TypeDescription is provided
 		if info.HasTypeDescription {
-			// XXX: put this in its own method
+			// XXX: put this in its own method (?)
 			uwrm := rv.Addr().MethodByName("TypeDesc")
 			uwouts := uwrm.Call([]reflect.Value{})
 			rt := uwouts[0].Interface().(reflect.Type)
 
-			// rrv = reflect.New(info.ReprType.Type).Elem()
-			rrv = reflect.New(rt).Elem()
+			// Use type description as type representation
 			rinfo, err = cdc.getTypeInfoWLock(rt)
+			rrv = reflect.New(rt).Elem()
 		} else {
-			// First, decode repr instance from bytes.
-			rrv = reflect.New(info.ReprType.Type).Elem()
+			// Fallback on type repr
 			rinfo = info.ReprType
+			rrv = reflect.New(rinfo.Type).Elem()
 		}
 
+		// Decode repr instance from bytes using type info
 		err = cdc.decodeReflectJSON(bz, rinfo, rrv, fopts)
 		if err != nil {
 			return
 		}
 
-		// Then, decode from repr instance.
+		// Then call Unmarshal
 		uwrm := rv.Addr().MethodByName("UnmarshalAmino")
 		uwouts := uwrm.Call([]reflect.Value{rrv})
 		erri := uwouts[0].Interface()
