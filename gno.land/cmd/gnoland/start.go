@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -145,7 +144,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Int64Var(
 		&c.genesisMaxVMCycles,
 		"genesis-max-vm-cycles",
-		10_000_000,
+		100_000_000,
 		"set maximum allowed vm cycles per operation. Zero means no limit.",
 	)
 
@@ -219,12 +218,6 @@ func execStart(c *startCfg, io commands.IO) error {
 		loadCfgErr error
 	)
 
-	// Attempt to initialize telemetry. If the environment variables required to initialize
-	// telemetry are not set, then the initialization will do nothing.
-	if err := initTelemetry(); err != nil {
-		return fmt.Errorf("error initializing telemetry: %w", err)
-	}
-
 	// Set the node configuration
 	if c.nodeConfigPath != "" {
 		// Load the node configuration
@@ -253,6 +246,9 @@ func execStart(c *startCfg, io commands.IO) error {
 
 	// Wrap the zap logger
 	logger := log.ZapLoggerToSlog(zapLogger)
+
+	// Initialize telemetry
+	telemetry.Init(*cfg.Telemetry)
 
 	// Write genesis file if missing.
 	// NOTE: this will be dropped in a PR that resolves issue #1886:
@@ -323,10 +319,10 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 	gen.ConsensusParams = abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			// TODO: update limits.
-			MaxTxBytes:   1_000_000,  // 1MB,
-			MaxDataBytes: 2_000_000,  // 2MB,
-			MaxGas:       10_0000_00, // 10M gas
-			TimeIotaMS:   100,        // 100ms
+			MaxTxBytes:   1_000_000,   // 1MB,
+			MaxDataBytes: 2_000_000,   // 2MB,
+			MaxGas:       100_000_000, // 100M gas
+			TimeIotaMS:   100,         // 100ms
 		},
 	}
 
@@ -398,20 +394,4 @@ func getTxEventStoreConfig(c *startCfg) (*eventstorecfg.Config, error) {
 	}
 
 	return cfg, nil
-}
-
-func initTelemetry() error {
-	var options []telemetry.Option
-
-	if os.Getenv("TELEM_METRICS_ENABLED") == "true" {
-		options = append(options, telemetry.WithOptionMetricsEnabled())
-	}
-
-	// The string options can be added by default. Their absence would yield the same result
-	// as if the option were excluded altogether.
-	options = append(options, telemetry.WithOptionMeterName(os.Getenv("TELEM_METER_NAME")))
-	options = append(options, telemetry.WithOptionExporterEndpoint(os.Getenv("TELEM_EXPORTER_ENDPOINT")))
-	options = append(options, telemetry.WithOptionServiceName(os.Getenv("TELEM_SERVICE_NAME")))
-
-	return telemetry.Init(options...)
 }
