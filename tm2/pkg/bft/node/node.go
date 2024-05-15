@@ -67,10 +67,10 @@ func DefaultDBProvider(ctx *DBContext) (dbm.DB, error) {
 type GenesisDocProvider func() (*types.GenesisDoc, error)
 
 // DefaultGenesisDocProviderFunc returns a GenesisDocProvider that loads
-// the GenesisDoc from the config.GenesisFile() on the filesystem.
-func DefaultGenesisDocProviderFunc(config *cfg.Config) GenesisDocProvider {
+// the GenesisDoc from the genesis path on the filesystem.
+func DefaultGenesisDocProviderFunc(genesisFile string) GenesisDocProvider {
 	return func() (*types.GenesisDoc, error) {
-		return types.GenesisDocFromFile(config.GenesisFile())
+		return types.GenesisDocFromFile(genesisFile)
 	}
 }
 
@@ -80,7 +80,7 @@ type NodeProvider func(*cfg.Config, *slog.Logger) (*Node, error)
 // DefaultNewNode returns a Tendermint node with default settings for the
 // PrivValidator, ClientCreator, GenesisDoc, and DBProvider.
 // It implements NodeProvider.
-func DefaultNewNode(config *cfg.Config, logger *slog.Logger) (*Node, error) {
+func DefaultNewNode(config *cfg.Config, genesisFile string, logger *slog.Logger) (*Node, error) {
 	// Generate node PrivKey
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile())
 	if err != nil {
@@ -103,7 +103,7 @@ func DefaultNewNode(config *cfg.Config, logger *slog.Logger) (*Node, error) {
 		privval.LoadOrGenFilePV(newPrivValKey, newPrivValState),
 		nodeKey,
 		appClientCreator,
-		DefaultGenesisDocProviderFunc(config),
+		DefaultGenesisDocProviderFunc(genesisFile),
 		DefaultDBProvider,
 		logger,
 	)

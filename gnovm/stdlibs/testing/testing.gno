@@ -30,12 +30,18 @@ func (s skipErr) Error() string {
 // (and Skip* functions).
 //
 // NOTE: Recover() is likely to be removed.
-func Recover() interface{} {
+func Recover(result Setter) {
 	r := recover()
-	if _, ok := r.(skipErr); ok {
-		panic(r)
+	if _, ok := r.(skipErr); !ok {
+		result.Set(r)
+		return
 	}
-	return r
+
+	panic(r)
+}
+
+type Setter interface {
+	Set(v interface{})
 }
 
 func Short() bool {

@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/stdlibs"
+
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -85,7 +87,7 @@ func X_callerAt(m *gno.Machine, n int) string {
 		ctx := m.Context.(std.ExecContext)
 		return string(ctx.OrigCaller)
 	}
-	return string(m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
 func X_testSetOrigCaller(m *gno.Machine, addr string) {
@@ -97,6 +99,21 @@ func X_testSetOrigCaller(m *gno.Machine, addr string) {
 func X_testSetOrigPkgAddr(m *gno.Machine, addr string) {
 	ctx := m.Context.(std.ExecContext)
 	ctx.OrigPkgAddr = crypto.Bech32Address(addr)
+	m.Context = ctx
+}
+
+func X_testSetPrevRealm(m *gno.Machine, pkgPath string) {
+	m.Frames[m.NumFrames()-2].LastPackage = &gno.PackageValue{PkgPath: pkgPath}
+}
+
+func X_testSetPrevAddr(m *gno.Machine, addr string) {
+	// clear all frames to return mocked origin caller
+	for i := m.NumFrames() - 1; i > 0; i-- {
+		m.Frames[i].LastPackage = nil
+	}
+
+	ctx := m.Context.(stdlibs.ExecContext)
+	ctx.OrigCaller = crypto.Bech32Address(addr)
 	m.Context = ctx
 }
 

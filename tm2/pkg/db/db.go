@@ -35,30 +35,18 @@ func (b BackendType) String() string {
 //		db.NewDB("mydb", db.BackendType(userProvidedBackend), "./data")
 //	}
 const (
-	// GoLevelDBBackend represents goleveldb (github.com/gnolang/goleveldb - most
+	// GoLevelDBBackend represents goleveldb (github.com/syndtr/goleveldb - most
 	// popular implementation)
 	//   - stable
 	GoLevelDBBackend BackendType = "goleveldb"
-	// CLevelDBBackend represents cleveldb (uses levigo wrapper)
-	//   - fast
-	//   - requires gcc
-	CLevelDBBackend BackendType = "cleveldb"
 	// MemDBBackend represents in-memory key value store, which is mostly used
 	// for testing.
 	MemDBBackend BackendType = "memdb"
-	// FSDBBackend represents filesystem database
-	//   - EXPERIMENTAL
-	//   - slow
-	FSDBBackend BackendType = "fsdb"
 	// BoltDBBackend represents bolt (uses etcd's fork of bolt -
 	// go.etcd.io/bbolt)
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
 	BoltDBBackend BackendType = "boltdb"
-	// RocksDBBackend represents rocksdb (uses github.com/linuxGnu/grocksdb)
-	//   - EXPERIMENTAL
-	//   - requires gcc
-	RocksDBBackend BackendType = "rocksdb"
 )
 
 type dbCreator func(name string, dir string) (DB, error)

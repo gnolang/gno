@@ -32,6 +32,37 @@ func GetHeight(m *gno.Machine) int64 {
 	return m.Context.(ExecContext).Height
 }
 
+// getPrevFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
+func getPrevFunctionNameFromTarget(m *gno.Machine, targetFunc string) string {
+	targetIndex := findTargetFuncIndex(m, targetFunc)
+	if targetIndex == -1 {
+		return ""
+	}
+	return findPrevFuncName(m, targetIndex)
+}
+
+// findTargetFuncIndex finds and returns the index of the target function in the call stack.
+func findTargetFuncIndex(m *gno.Machine, targetFunc string) int {
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		currFunc := m.Frames[i].Func
+		if currFunc != nil && currFunc.Name == gno.Name(targetFunc) {
+			return i
+		}
+	}
+	return -1
+}
+
+// findPrevFuncName returns the function name before the given index in the call stack.
+func findPrevFuncName(m *gno.Machine, targetIndex int) string {
+	for i := targetIndex - 1; i >= 0; i-- {
+		currFunc := m.Frames[i].Func
+		if currFunc != nil {
+			return string(currFunc.Name)
+		}
+	}
+	panic("function name not found")
+}
+
 func X_origSend(m *gno.Machine) (denoms []string, amounts []int64) {
 	os := m.Context.(ExecContext).OrigSend
 	return ExpandCoins(os)
@@ -64,7 +95,7 @@ func X_callerAt(m *gno.Machine, n int) string {
 		ctx := m.Context.(ExecContext)
 		return string(ctx.OrigCaller)
 	}
-	return string(m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
+	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
 func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
