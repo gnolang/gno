@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 	"slices"
 	"strconv"
@@ -619,18 +620,32 @@ func (ds *defaultStore) ClearObjectCache() {
 // This function is used to handle queries and checktx transactions.
 func (ds *defaultStore) Fork() Store {
 	ds2 := &defaultStore{
-		alloc:            ds.alloc.Fork().Reset(),
-		pkgGetter:        ds.pkgGetter,
-		cacheObjects:     make(map[ObjectID]Object), // new cache.
-		cacheTypes:       ds.cacheTypes,
+		alloc: ds.alloc.Fork().Reset(),
+
+		// Re-initialize caches. Some are cloned for speed.
+		cacheObjects: make(map[ObjectID]Object),
+		cacheTypes:   maps.Clone(ds.cacheTypes),
+		// XXX: This is bad to say the least (ds.cacheNodes is shared with a
+		// child Store); however, cacheNodes is _not_ a cache, but a proper
+		// data store instead. SetBlockNode does not write anything to
+		// the underlying baseStore, and cloning this map makes everything run
+		// 4x slower, so here we are, copying the reference.
 		cacheNodes:       ds.cacheNodes,
-		cacheNativeTypes: ds.cacheNativeTypes,
-		baseStore:        ds.baseStore,
-		iavlStore:        ds.iavlStore,
-		pkgInjector:      ds.pkgInjector,
-		nativeStore:      ds.nativeStore,
-		go2gnoStrict:     ds.go2gnoStrict,
-		opslog:           nil, // new ops log.
+		cacheNativeTypes: maps.Clone(ds.cacheNativeTypes),
+
+		// baseStore and iavlStore should generally be changed using SwapStores.
+		baseStore: ds.baseStore,
+		iavlStore: ds.iavlStore,
+
+		// native injections / store "config"
+		pkgGetter:    ds.pkgGetter,
+		pkgInjector:  ds.pkgInjector,
+		nativeStore:  ds.nativeStore,
+		go2gnoStrict: ds.go2gnoStrict,
+
+		// reset opslog and current.
+		opslog:  nil,
+		current: nil,
 	}
 	ds2.SetCachePackage(Uverse())
 	return ds2
