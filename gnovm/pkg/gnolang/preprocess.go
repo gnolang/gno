@@ -14,6 +14,7 @@ import (
 // Anything predefined or preprocessed here get skipped during the Preprocess
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
+	// First, initialize all file nodes and connect to package node
 	for _, fn := range fset.Files {
 		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
 		fn.InitStaticBlock(fn, pn)
@@ -130,7 +131,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 	// if n is file node, set node locations recursively.
 	if fn, ok := n.(*FileNode); ok {
-		//fmt.Println("---is file node, fn: ", fn)
 		pkgPath := ctx.(*PackageNode).PkgPath
 		fileName := string(fn.Name)
 		SetNodeLocations(pkgPath, fileName, fn)

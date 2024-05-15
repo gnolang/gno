@@ -566,15 +566,15 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 				}
 			}
 		}
+		// get fileblock of fn.
+		// fb := pv.GetFileBlock(nil, fn.Name)
+		// get dependencies of decl, struct decl as a special case.
 		if isStructDecl {
 			// find dependent name in same pkg
 			findStructDeclDependentNames(m.Store, fn, decl, deps, pn.PkgPath)
 		} else {
 			findDependentNames(decl, deps)
 		}
-		// get fileblock of fn.
-		// fb := pv.GetFileBlock(nil, fn.Name)
-		// get dependencies of decl.
 		for dep := range deps {
 			// if dep already defined as import, skip.
 			if _, ok := fn.GetLocalIndex(dep); ok {
