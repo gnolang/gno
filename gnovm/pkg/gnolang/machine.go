@@ -51,6 +51,8 @@ type Machine struct {
 	NumResults int   // number of results returned
 	Cycles     int64 // number of "cpu" cycles
 
+	Debugger Debugger
+
 	// Configuration
 	CheckTypes bool // not yet used
 	ReadOnly   bool
@@ -91,6 +93,9 @@ type MachineOptions struct {
 	PkgPath       string
 	CheckTypes    bool // not yet used
 	ReadOnly      bool
+	Debug         bool
+	DebugAddr     string    // debugger io stream address (stdin/stdout if empty)
+	Input         io.Reader // used for default debugger input only
 	Output        io.Writer // default os.Stdout
 	Store         Store     // default NewStore(Alloc, nil, nil)
 	Context       interface{}
@@ -159,6 +164,9 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Store = store
 	mm.Context = context
 	mm.GasMeter = vmGasMeter
+	mm.Debugger.enabled = opts.Debug
+	mm.Debugger.in = opts.Input
+	mm.Debugger.out = output
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -1118,6 +1126,9 @@ const (
 
 func (m *Machine) Run() {
 	for {
+		if m.Debugger.enabled {
+			m.Debug()
+		}
 		op := m.PopOp()
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
