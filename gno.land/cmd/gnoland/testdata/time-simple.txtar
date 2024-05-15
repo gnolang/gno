@@ -1,7 +1,5 @@
-# Run this test in ../../gnoland with:
-# go test -v . --run TestTestdataChallenges/time-simple
-# The addpkg fails due to changes in PR https://github.com/gnolang/gno/pull/1702
-# To show that this test should pass, you can revert that PR and run again.
+# Originally, the addpkg fails due to changes in PR https://github.com/gnolang/gno/pull/1702 .
+# This bug was fixed with https://github.com/gnolang/gno/pull/2105 .
 
 gnoland start
 
