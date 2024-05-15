@@ -555,11 +555,26 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 	// recursive function for var declarations.
 	var runDeclarationFor func(fn *FileNode, decl Decl)
 	runDeclarationFor = func(fn *FileNode, decl Decl) {
+		deps := make(map[Name]struct{})
+
+		isStructDecl := false
+		if td, ok := decl.(*TypeDecl); ok {
+			tdt := evalStaticType(m.Store, fn, td.Type)
+			if dt, ok := tdt.(*DeclaredType); ok {
+				if _, ok := dt.Base.(*StructType); ok {
+					isStructDecl = true
+				}
+			}
+		}
+		if isStructDecl {
+			// find dependent name in same pkg
+			findStructDeclDependentNames(m.Store, fn, decl, deps, pn.PkgPath)
+		} else {
+			findDependentNames(decl, deps)
+		}
 		// get fileblock of fn.
 		// fb := pv.GetFileBlock(nil, fn.Name)
 		// get dependencies of decl.
-		deps := make(map[Name]struct{})
-		findDependentNames(decl, deps)
 		for dep := range deps {
 			// if dep already defined as import, skip.
 			if _, ok := fn.GetLocalIndex(dep); ok {

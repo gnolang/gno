@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// Cyclic dependency detected: S(File: files/recursive1.gno, Line: 3) -> S(File: files/recursive1.gno, Line: 3)
+// loop in variable initialization: dependency trail [S] circularly depends on S
