@@ -189,19 +189,30 @@ func TestRePkgOrRlmPath(t *testing.T) {
 			in:       "gno.land/r/very/very/very//long/path/",
 			expected: false,
 		},
+	}
+	testLengthTable := []struct{
+		desc, in string
+		expected bool
+	}{
 		{
-			desc:     "Longer Than Limit",
-			in:       "gno.land/r/very/very/very/very/very/very",
-			expected: false,
+		desc:     "Longer Than Limit",
+		in:       "gno.land/r/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very",
+		expected: false,
 		},
 	}
-
 	for _, tc := range testTable {
 		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Parallel()
 
 			assert.Equal(t, tc.expected, rePkgOrRlmPath.MatchString(tc.in))
+		})
+	}
+	for _, tc := range testLengthTable {
+		tc := tc
+		t.Run(tc.desc, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, isValidLength(tc.in, rePkgOrRlmLenLimit))
 		})
 	}
 }

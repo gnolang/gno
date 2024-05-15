@@ -65,7 +65,7 @@ func (mempkg *MemPackage) Validate() error {
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
 	}
-	if len(mempkg.Path) > rePkgOrRlmLenLimit {
+	if !isValidLength(mempkg.Path, rePkgOrRlmLenLimit) {
 		return fmt.Errorf("invalid length of package/realm path: %v which limitation is %v", len(mempkg.Path), rePkgOrRlmLenLimit)
 	}
 	// enforce sorting files based on Go conventions for predictability
@@ -107,4 +107,8 @@ func SplitFilepath(filepath string) (dirpath string, filename string) {
 	} else {
 		return strings.Join(parts, "/"), ""
 	}
+}
+
+func isValidLength(pkgPath string, limitation int) bool {
+	return len(pkgPath) <= limitation
 }
