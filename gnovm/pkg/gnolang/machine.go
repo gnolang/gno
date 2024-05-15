@@ -568,7 +568,9 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		}
 		// get fileblock of fn.
 		// fb := pv.GetFileBlock(nil, fn.Name)
-		// get dependencies of decl, struct decl as a special case.
+		// Obtain dependencies of the declaration. For struct declarations,
+		// this is treated as a special case where we need to search the fields
+		// to identify cyclic references.
 		if isStructDecl {
 			// find dependent name in same pkg
 			findStructDeclDependentNames(m.Store, fn, decl, deps, pn.PkgPath)
