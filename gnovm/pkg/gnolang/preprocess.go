@@ -2807,19 +2807,17 @@ func findUndefined(store Store, last BlockNode, x Expr) (un Name) {
 
 // finds the next undefined identifier and returns it if it is global
 func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name {
-	pkg := packageOf(last)
 	name := findUndefined2(store, last, x, t)
 
-	if name == "" {
-		return ""
+	if name != "" {
+		pkg := packageOf(last)
+
+		if _, _, ok := pkg.FileSet.GetDeclForSafe(name); !ok {
+			// skip it if it's a local identifier
+			return ""
+		}
 	}
 
-	_, _, ok := pkg.FileSet.GetDeclForSafe(name)
-
-	// skip it if it's a local identifier
-	if !ok {
-		return ""
-	}
 	return name
 }
 
