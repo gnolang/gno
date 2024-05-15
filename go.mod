@@ -18,9 +18,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.1
 	github.com/gotuna/gotuna v0.6.0
-	github.com/jmhodges/levigo v1.0.0
 	github.com/libp2p/go-buffer-pool v0.1.0
-	github.com/linxGnu/grocksdb v1.6.20
 	github.com/mattn/go-runewidth v0.0.15
 	github.com/pelletier/go-toml v1.9.5
 	github.com/peterbourgon/ff/v3 v3.4.0
@@ -66,7 +64,6 @@ require (
 	github.com/zondax/ledger-go v0.14.3 // indirect
 	go.opentelemetry.io/otel/trace v1.25.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.1.0 // indirect
-	golang.org/x/sync v0.7.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240227224415-6ceb2ff114de // indirect
