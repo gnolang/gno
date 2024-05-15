@@ -22,7 +22,7 @@ var (
 )
 
 // Not thread safe
-type wrapperTypedValue struct {
+type TypedValueWrapper struct {
 	*gnolang.TypedValue
 
 	Allocator *gnolang.Allocator
@@ -32,7 +32,7 @@ type wrapperTypedValue struct {
 var tInterface = reflect.TypeOf(new(interface{})).Elem()
 
 // NOTE: tv.TypedValue.T need to be filled in order to be able guess the type
-func (tva wrapperTypedValue) TypeDesc() reflect.Type {
+func (tva TypedValueWrapper) TypeDesc() reflect.Type {
 	if tva.T == nil { // Unable to guess Go Type
 		return tInterface
 	}
@@ -40,32 +40,32 @@ func (tva wrapperTypedValue) TypeDesc() reflect.Type {
 	return tva.GoType()
 }
 
-func (tva wrapperTypedValue) GnoValue() *gnolang.TypedValue {
+func (tva TypedValueWrapper) GnoValue() *gnolang.TypedValue {
 	return tva.TypedValue
 }
 
-func (tva wrapperTypedValue) MarshalAmino() (interface{}, error) {
+func (tva TypedValueWrapper) MarshalAmino() (interface{}, error) {
 	return tva.GoValue().Interface(), nil
 }
 
-func (tva *wrapperTypedValue) UnmarshalAmino(i interface{}) error {
+func (tva *TypedValueWrapper) UnmarshalAmino(i interface{}) error {
 	visited := map[uintptr]struct{}{} // keep track of visited ptraddr
 	rv := reflect.ValueOf(i)
 	tva.unmarshalValue(rv, visited)
 	return nil
 }
 
-func (tva *wrapperTypedValue) GoValue() (ret reflect.Value) {
+func (tva *TypedValueWrapper) GoValue() (ret reflect.Value) {
 	return gno2GoValue(tva.TypedValue, reflect.Value{})
 }
 
-func (tva *wrapperTypedValue) GoType() reflect.Type {
+func (tva *TypedValueWrapper) GoType() reflect.Type {
 	visited := map[uintptr]struct{}{} // keep track of visited ptraddr
 	return gno2GoType(tva.T, visited)
 }
 
-func (tva *wrapperTypedValue) newWith(tv *gnolang.TypedValue) *wrapperTypedValue {
-	return &wrapperTypedValue{
+func (tva *TypedValueWrapper) newWith(tv *gnolang.TypedValue) *TypedValueWrapper {
+	return &TypedValueWrapper{
 		TypedValue: tv,
 		Allocator:  tva.Allocator,
 		// Store:      tva.Store,
@@ -75,7 +75,7 @@ func (tva *wrapperTypedValue) newWith(tv *gnolang.TypedValue) *wrapperTypedValue
 // ----------------------------------------
 // Gno to Go conversion
 
-func (tva *wrapperTypedValue) unmarshalValue(rv reflect.Value, visited map[uintptr]struct{}) {
+func (tva *TypedValueWrapper) unmarshalValue(rv reflect.Value, visited map[uintptr]struct{}) {
 	if addr, ok := isPointer(rv); ok {
 		if _, ok := visited[addr]; ok {
 			panic(ErrRecursivePointer)

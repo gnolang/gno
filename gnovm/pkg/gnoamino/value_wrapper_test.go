@@ -177,27 +177,26 @@ func TestTypedValueMarshal_Struct(t *testing.T) {
 		ArgRep       string // string representation
 		Expected     string // string representation
 	}{
-		// Struct with various field values.
 		{
 			"Simple",
 			`{}`,
 			`{"A":"0","B":"","C":false}`,
-		}, // empty struct
+		},
 		{
 			"Simple",
 			`{"A":"0","B":"","C":false}`,
 			`{"A":"0","B":"","C":false}`,
-		}, // empty value
+		},
 		{
 			"Simple",
 			`{"A":"42","B":"hello gno","C":true}`,
 			`{"A":"42","B":"hello gno","C":true}`,
-		}, // filled values
+		},
 		{
 			"Tags",
 			`{"valueA":"42","valueB":"hello gno","valueC":true}`,
 			`{"valueA":"42","valueB":"hello gno","valueC":true}`,
-		}, // filled values
+		},
 
 		// Struct with unexported field
 		{"Unexported", `{"A":"42"}`, `{"A":"42"}`},
@@ -240,7 +239,8 @@ func TestTypedValueMarshal_Struct(t *testing.T) {
 			})
 
 			t.Run("Marshal", func(t *testing.T) {
-				raw, err := amino.MarshalJSON(mv)
+				raw, err := amino.MarshalJSONAny(mv)
+				t.Logf("raw: %s\n", string(raw))
 				require.NoError(t, err)
 				assert.Equal(t, tc.Expected, string(raw))
 			})

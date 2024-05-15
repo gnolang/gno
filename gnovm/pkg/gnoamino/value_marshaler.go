@@ -28,7 +28,7 @@ func NewTypedValueMarshaler(alloc *gnolang.Allocator /* , store gnolang.Store */
 }
 
 func (tm *TypedValueMarshaler) Wrap(tv *gnolang.TypedValue) Marshaler {
-	return &wrapperTypedValue{
+	return &TypedValueWrapper{
 		TypedValue: tv,
 		Allocator:  tm.Allocator,
 		// Store:      tm.Store,
@@ -37,7 +37,7 @@ func (tm *TypedValueMarshaler) Wrap(tv *gnolang.TypedValue) Marshaler {
 
 func (tm *TypedValueMarshaler) From(t gnolang.Type) Marshaler {
 	tv := &gnolang.TypedValue{T: t}
-	return &wrapperTypedValue{
+	return &TypedValueWrapper{
 		TypedValue: tv,
 		Allocator:  tm.Allocator,
 		// Store:      tm.Store,
