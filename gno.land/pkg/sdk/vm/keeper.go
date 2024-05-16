@@ -160,6 +160,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
+	// Validate Gno syntax and type check.
+	if err := gno.TypeCheckMemPackage(memPkg, gnostore); err != nil {
+		return ErrTypeCheck(err)
+	}
+
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 
@@ -310,6 +315,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			res += "\n"
 		}
 	}
+	res += "\n\n" // use `\n\n` as separator to separate results for single tx with multi msgs
 	return res, nil
 	// TODO pay for gas? TODO see context?
 }
@@ -334,6 +340,11 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 	if err := msg.Package.Validate(); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
+	}
+
+	// Validate Gno syntax and type check.
+	if err = gno.TypeCheckMemPackage(memPkg, gnostore); err != nil {
+		return "", ErrTypeCheck(err)
 	}
 
 	// Send send-coins to pkg from caller.
@@ -616,6 +627,9 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		return memFile.Body, nil
 	} else {
 		memPkg := store.GetMemPackage(dirpath)
+		if memPkg == nil {
+			return "", fmt.Errorf("package %q is not available", dirpath) // TODO: XSS protection
+		}
 		for i, memfile := range memPkg.Files {
 			if i > 0 {
 				res += "\n"
