@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -111,6 +112,65 @@ func TestCallMultiple_Integration(t *testing.T) {
 	got := string(res.DeliverTx.Data)
 	assert.Nil(t, err)
 	assert.Equal(t, expected, got)
+}
+
+func TestCallMultipleEvent_Integration(t *testing.T) {
+	// Set up in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+
+	// Init Signer & RPCClient
+	signer := newInMemorySigner(t, "tendermint_test")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
+
+	// Setup Client
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         "10000ugnot",
+		GasWanted:      8000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+	}
+
+	// Make Msg configs
+	msg1 := MsgCall{
+		PkgPath:  "gno.land/r/demo/event",
+		FuncName: "Emit",
+		Args:     []string{"first_value"},
+		Send:     "",
+	}
+
+	// Same call, different argument
+	msg2 := MsgCall{
+		PkgPath:  "gno.land/r/demo/event",
+		FuncName: "Emit",
+		Args:     []string{"second_value"},
+		Send:     "",
+	}
+
+	// Execute call
+	res, err := client.Call(baseCfg, msg1, msg2)
+	assert.Nil(t, err)
+
+	// check response from block_results to get event
+	blockRes, err := client.BlockResult(res.Height)
+	assert.Nil(t, err)
+
+	// XXX: better comparison ?
+	event0 := fmt.Sprintf("%v", blockRes.Results.DeliverTxs[0].Events[0])
+	assert.Equal(t, event0, "{TAG gno.land/r/demo/event Emit [{key first_value}]}")
+
+	event1 := fmt.Sprintf("%v", blockRes.Results.DeliverTxs[0].Events[1])
+	assert.Equal(t, event1, "{TAG gno.land/r/demo/event Emit [{key second_value}]}")
+
 }
 
 func TestSendSingle_Integration(t *testing.T) {
