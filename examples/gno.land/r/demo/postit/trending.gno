@@ -1,9 +1,5 @@
 package postit
 
-import (
-	"sort"
-)
-
 type Trending struct {
 	Tag   string
 	Count uint64
