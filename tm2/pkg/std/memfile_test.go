@@ -8,8 +8,8 @@ import (
 
 func TestMemPackage_Validate(t *testing.T) {
 	tt := []struct {
-		name        string
-		mpkg        *MemPackage
+		name           string
+		mpkg           *MemPackage
 		errMayContains string
 	}{
 		{
@@ -51,8 +51,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"valid p",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/p/path/path",
+				Name:  "hey",
+				Path:  "gno.land/p/path/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"",
@@ -60,8 +60,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"valid r",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/r/path/path",
+				Name:  "hey",
+				Path:  "gno.land/r/path/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"",
@@ -69,8 +69,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Leading underscore",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/r/path/_path",
+				Name:  "hey",
+				Path:  "gno.land/r/path/_path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"",
@@ -78,8 +78,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Trailing underscore",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/r/path/path_",
+				Name:  "hey",
+				Path:  "gno.land/r/path/path_",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"",
@@ -87,8 +87,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Between underscore",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/r/path/p_ath",
+				Name:  "hey",
+				Path:  "gno.land/r/path/p_ath",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"",
@@ -96,8 +96,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid underscore",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/r/path/_",
+				Name:  "hey",
+				Path:  "gno.land/r/path/_",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -105,8 +105,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid underscore 2",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/r/path/_/_",
+				Name:  "hey",
+				Path:  "gno.land/r/path/_/_",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -114,8 +114,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid underscore 3",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/r/path/__/path",
+				Name:  "hey",
+				Path:  "gno.land/r/path/__/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -123,8 +123,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid hyphen",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/r/path/pa-th",
+				Name:  "hey",
+				Path:  "gno.land/r/path/pa-th",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -132,8 +132,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid x",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/x/path/path",
+				Name:  "hey",
+				Path:  "gno.land/x/path/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -141,8 +141,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid missing path 1",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/p",
+				Name:  "hey",
+				Path:  "gno.land/p",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -150,8 +150,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid missing path 2",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/p/",
+				Name:  "hey",
+				Path:  "gno.land/p/",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -159,8 +159,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid path",
 			&MemPackage{
-				Name: "hey",
-				Path: "github.com/p/path/path",
+				Name:  "hey",
+				Path:  "github.com/p/path/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -168,8 +168,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Special character",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/p/p@th/abc/def",
+				Name:  "hey",
+				Path:  "gno.land/p/p@th/abc/def",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -177,8 +177,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Special character 2",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/p/p&th/abc/def",
+				Name:  "hey",
+				Path:  "gno.land/p/p&th/abc/def",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -186,8 +186,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid number",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/p/1Path/abc/def",
+				Name:  "hey",
+				Path:  "gno.land/p/1Path/abc/def",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -195,8 +195,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid uppercase",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/p/PaTh/abc/def",
+				Name:  "hey",
+				Path:  "gno.land/p/PaTh/abc/def",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -204,8 +204,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid empty path",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/p/path//def",
+				Name:  "hey",
+				Path:  "gno.land/p/path//def",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -213,8 +213,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid trailing slash",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/p/path/abc/def/",
+				Name:  "hey",
+				Path:  "gno.land/p/path/abc/def/",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -222,8 +222,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"valid long path",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/r/very/very/very/long/path",
+				Name:  "hey",
+				Path:  "gno.land/r/very/very/very/long/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"",
@@ -231,8 +231,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid long path with special character",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/r/very/very/very/long/p@th",
+				Name:  "hey",
+				Path:  "gno.land/r/very/very/very/long/p@th",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -240,8 +240,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid long path with trailing slash",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/r/very/very/very/long/path/",
+				Name:  "hey",
+				Path:  "gno.land/r/very/very/very/long/path/",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
@@ -249,8 +249,8 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Invalid long path with empty",
 			&MemPackage{
-				Name: "hey",
-				Path: "gno.land/r/very/very/very//long/path/",
+				Name:  "hey",
+				Path:  "gno.land/r/very/very/very//long/path/",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"error",
