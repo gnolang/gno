@@ -1,5 +1,5 @@
 ---
-id: faucet
+id: setting-up-a-faucet
 ---
 
 # Setting up a faucet for your Gno network
@@ -70,7 +70,7 @@ We are now ready to configure & run the faucet.
 
 ## Configuring the faucet
 
-By running the `generate` command in the faucet binary, you will be able to generate
+By running the `generate` command from the faucet binary, you will be able to generate
 a `config.toml` file.
 
 ```bash
@@ -85,7 +85,7 @@ In the `config.toml` file, you will be able to configure a few parameters:
 - The maximum drip amount for the faucet
 - CORS configuration of the faucet
 
-The config file 
+The default config file looks like this:
 ```yaml
 chain_id = "dev"
 listen_address = "0.0.0.0:8545"
