@@ -36,7 +36,9 @@ func (mempkg *MemPackage) GetFile(name string) *MemFile {
 func (mempkg *MemPackage) IsEmpty() bool {
 	return len(mempkg.Files) == 0
 }
+
 const pathLengthLimit = 256
+
 var (
 	rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	/*
@@ -45,8 +47,8 @@ var (
 		with lookahead operation to limit the length
 		but for now we just check it with const pathLengthLimit in bytes.
 	*/
-	rePkgOrRlmPath     = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
-	reFileName         = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
+	rePkgOrRlmPath = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
+	reFileName     = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
 )
 
 // path must not contain any dots after the first domain component.
