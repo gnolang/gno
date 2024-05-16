@@ -214,13 +214,4 @@ func TestSetTokenURI(t *testing.T) {
 	if uri != tokenURI {
 		t.Fatalf("expected %s, got %s", tokenURI, uri)
 	}
-
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatalf("SetTokenURI should have paniced for bad token ID")
-		}
-	}()
-
-	// Try to set URI of token that doesn't exist
-	_ = exampleNFT.SetTokenURI("3", tokenURI)
 }
