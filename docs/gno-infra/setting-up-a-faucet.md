@@ -144,18 +144,3 @@ That's it 🎉
 
 You have successfully set up a GNOT faucet on for a local Gno.land chain!
 Read more about the faucet on the [`faucet`](https://github.com/gnolang/faucet) repo.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
