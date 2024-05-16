@@ -868,10 +868,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// maybe initialized by other places, or not
 						loopInfos = getLoopInfos()
 
-						lastFn := findLastFn(n)
-						// global loop infos recorded. fileNode-wise.
-						// will be handled while trans_leave FileNode.
-						loopInfos[lastFn] = append(loopInfos[lastFn], loop)
+						lastFn, err := findLastFn(n)
+						if err == nil {
+							// global loop infos recorded. fileNode-wise.
+							// will be handled while trans_leave FileNode.
+							loopInfos[lastFn] = append(loopInfos[lastFn], loop)
+						}
 					}
 				}
 				return n, TRANS_CONTINUE
@@ -1827,8 +1829,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										}
 
 										loopInfos = getLoopInfos()
-										lastFn := findLastFn(last) // the host Fn
-										loopInfos[lastFn] = append(loopInfos[lastFn], loop)
+										lastFn, err := findLastFn(last) // the host Fn
+										if err == nil {
+											loopInfos[lastFn] = append(loopInfos[lastFn], loop)
+										}
 										break
 									}
 								}
@@ -2467,16 +2471,16 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 	}
 }
 
-func findLastFn(last BlockNode) Name {
+// findLastFn searches for the last function declaration in a chain of block nodes.
+// It returns the name of the function if found, or an error if no function declaration exists.
+func findLastFn(last BlockNode) (Name, error) {
 	for last != nil {
-		switch n := last.(type) {
-		case *FuncDecl:
-			return n.Name
-		default:
-			last = last.GetParentNode(nil)
+		if n, ok := last.(*FuncDecl); ok {
+			return n.Name, nil
 		}
+		last = last.GetParentNode(nil)
 	}
-	panic("no func decl exists!")
+	return "", fmt.Errorf("no function declaration found")
 }
 
 func findBranchLabel(last BlockNode, label Name) (
