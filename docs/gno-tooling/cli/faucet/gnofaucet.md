@@ -2,13 +2,12 @@
 id: gno-tooling-gnofaucet
 ---
 
-# gnofaucet
+# TM2 Faucet
 
-`gnofaucet` is a server for distributing GNOT, the gas currency of Gnoland, to specific addresses in a local chain.
-Interact with the `gnofaucet` from an address with an empty balance in your locally built testnet to fuel it with GNOT
-to pay for transactions.
+TM2 Faucet is a versatile command-line interface (CLI) tool designed to 
+effortlessly deploy a faucet server for Gno Tendermint 2 networks. 
 
-## Run `gnofaucet` Commands
+## Run `faucet` Commands
 
 Enable the faucet using the following command.
 
