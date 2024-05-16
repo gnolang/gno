@@ -9,7 +9,7 @@ This mechanism emphasizes values and expertise to carry out important tasks like
 
 Meta issue: [#918](https://github.com/gnolang/gno/issues/918).
 
-Presentation: https://github.com/gnolang/workshops/tree/main/presentations/2023-06-06--buidl-asia--manfred.
+Presentation: https://github.com/gnolang/workshops/tree/main/presentations/2023-06-06--buidl-asia--manfred
 
 ## Main Concepts
 
