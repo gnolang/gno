@@ -170,7 +170,6 @@ func TestCallMultipleEvent_Integration(t *testing.T) {
 
 	event1 := fmt.Sprintf("%v", blockRes.Results.DeliverTxs[0].Events[1])
 	assert.Equal(t, event1, "{TAG gno.land/r/demo/event Emit [{key second_value}]}")
-
 }
 
 func TestSendSingle_Integration(t *testing.T) {
