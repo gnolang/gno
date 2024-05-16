@@ -20,6 +20,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 
 	// Only goleveldb is supported for now.
+	_ "github.com/gnolang/gno/tm2/pkg/db/_tags"
 	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
