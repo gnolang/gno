@@ -10,8 +10,6 @@ locally, so you can get up and running writing Gno code. You will download and
 install all the necessary tooling, and validate that it is correctly configured
 to run on your machine.
 
-https://github.com/asdasda/asdasdas
-
 ## Prerequisites
 - **Git**
 - **`make` (for running Makefiles)**
