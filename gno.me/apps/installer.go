@@ -1,4 +1,4 @@
-package examples
+package apps
 
 import (
 	"context"
@@ -7,20 +7,23 @@ import (
 	"github.com/gnolang/gno/gno.me/gno"
 )
 
-func CreateRemoteInstallerApp(vm gno.VM) error {
-	appCode := fmt.Sprintf(remoteAppDefinition, "`"+remoteRenderContents+"`")
+func CreateInstaller(vm gno.VM) error {
+	renderContents := fmt.Sprintf("`%s` + port.Number() + `%s`", prePortContents, postPortContents)
+	appCode := fmt.Sprintf(appDefinition, renderContents)
 	return vm.Create(context.Background(), appCode, false)
 }
 
-const remoteAppDefinition = `
-package remoteinstaller
+const appDefinition = `
+package installer
+
+import "gno.land/r/port"
 
 func Render(_ string) string {
 	return %s
 }
 `
 
-const remoteRenderContents = `
+const prePortContents = `
 <!DOCTYPE html>
 <html lang="en">
 
@@ -31,11 +34,12 @@ const remoteRenderContents = `
 	<script>
 		function submitForm() {
 			var formData = {
-				name: document.getElementById("name").value,
-				address: document.getElementById("address").value
+				code: document.getElementById("code").value
 			};
 
-			fetch('http://localhost:4591/system/create', {
+			fetch('http://localhost:`
+
+const postPortContents = `/system/create', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json',
@@ -54,12 +58,10 @@ const remoteRenderContents = `
 </head>
 
 <body>
-	<h2>Install Remote App</h2>
+	<h2>Create App</h2>
 	<form id="myForm">
-		<label for="address">Address:</label><br>
-		<input type="text" id="address" name="address"><br><br>
-		<label for="name">Name:</label><br>
-		<input type="text" id="name" name="name"><br><br>
+		<label for="code">Code:</label><br>
+		<textarea id="code" name="code" rows="50" cols="150"></textarea><br><br>
 		<input type="button" value="Submit" onclick="submitForm()">
 	</form>
 </body>

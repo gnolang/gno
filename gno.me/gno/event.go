@@ -43,7 +43,7 @@ func (v *VMKeeper) initEventStore() error {
 }
 
 const eventStorageRealm string = `
-package main
+package events
 
 import (
 	"errors"

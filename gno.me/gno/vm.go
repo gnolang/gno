@@ -6,7 +6,6 @@ import (
 	"go/parser"
 	"go/token"
 	"sync"
-	"time"
 
 	readme "github.com/gnolang/gno"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -52,13 +51,18 @@ type VMKeeper struct {
 	store    types.CommitMultiStore
 }
 
-func NewVM() *VMKeeper {
+func NewVM() (*VMKeeper, bool) {
 	// db := memdb.NewMemDB()
 	// DMB: make this actually persist to disk
 	// db, err := boltdb.New("gno.me", "./gno.me")
 	db, err := goleveldb.NewGoLevelDB("gno.me", "./gno.me")
 	if err != nil {
 		panic("could not ascertain storage: " + err.Error())
+	}
+
+	firstStartup := !db.Has([]byte("vminit"))
+	if firstStartup {
+		db.Set([]byte("vminit"), []byte("true"))
 	}
 
 	baseCapKey := store.NewStoreKey("baseCapKey")
@@ -77,17 +81,19 @@ func NewVM() *VMKeeper {
 	newVM := &VMKeeper{instance: vmk, store: ms}
 	newVM.store.Commit()
 
-	fmt.Println("Installing example packages...")
-	if err := newVM.installExamplePackages(); err != nil {
-		panic("could not install example packages: " + err.Error())
+	if firstStartup {
+		fmt.Println("Installing example packages...")
+		if err := newVM.installExamplePackages(); err != nil {
+			panic("could not install example packages: " + err.Error())
+		}
+
+		fmt.Println("Initializing event store...")
+		if err := newVM.initEventStore(); err != nil {
+			panic("could not initialize event store: " + err.Error())
+		}
 	}
 
-	// fmt.Println("Initializing event store...")
-	// if err := newVM.initEventStore(); err != nil {
-	// 	panic("could not initialize event store: " + err.Error())
-	// }
-
-	return newVM
+	return newVM, firstStartup
 }
 
 func getPackagename(code string) (string, error) {
@@ -113,13 +119,11 @@ func (v *VMKeeper) installExamplePackages() error {
 
 	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
 	for _, pkg := range nonDraftPkgs {
-		start := time.Now()
 		memPkg := gnolang.ReadMemPackageFS(readme.Examples, pkg.Dir, pkg.Name)
 		if err := memPkg.Validate(); err != nil {
 			return err
 		}
 
-		fmt.Println("Creating package", memPkg.Name, "...")
 		msg := vm.MsgAddPackage{
 			Package: memPkg,
 		}
@@ -129,7 +133,6 @@ func (v *VMKeeper) installExamplePackages() error {
 		}
 
 		v.store.Commit()
-		fmt.Println("Package", memPkg.Name, "created in", time.Since(start))
 	}
 
 	return nil

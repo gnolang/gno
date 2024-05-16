@@ -62,7 +62,9 @@ func (v *VMKeeper) Call(
 		panic("unable to obtain sequence: cannot proceed without persisting event: " + err.Error())
 	}
 
+	fmt.Println(seqResult)
 	sequenceString := seqResult[1:strings.Index(seqResult, " ")]
+	fmt.Println(sequenceString)
 	msg = vm.MsgCall{
 		PkgPath: prefix + "events",
 		Func:    "Store",

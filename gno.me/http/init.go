@@ -31,7 +31,7 @@ func NewServer(gnoVM gno.VM) *gohttp.Server {
 	}
 }
 
-func NewServerWithRemoteSupport(gnoVM gno.VM, manager *ws.Manager) *gohttp.Server {
+func NewServerWithRemoteSupport(gnoVM gno.VM, manager *ws.Manager, httpPort string) *gohttp.Server {
 	vm = gnoVM
 	eventListenerManager = manager
 	mux := newMux()
@@ -39,7 +39,7 @@ func NewServerWithRemoteSupport(gnoVM gno.VM, manager *ws.Manager) *gohttp.Serve
 	mux.HandleFunc("/system/get-app", getApp)
 
 	return &gohttp.Server{
-		Addr:    ":4591",
+		Addr:    ":" + httpPort,
 		Handler: mux,
 	}
 }

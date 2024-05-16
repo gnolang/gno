@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gnolang/gno/gno.me/examples"
+	"github.com/gnolang/gno/gno.me/apps"
 	"github.com/gnolang/gno/gno.me/gno"
 	gnohttp "github.com/gnolang/gno/gno.me/http"
 	"github.com/gnolang/gno/gno.me/ws"
@@ -23,9 +23,9 @@ type Instance struct {
 	shutdown            bool
 }
 
-func Start() *Instance {
+func Start(httpPort string) *Instance {
 	fmt.Println("Initializing VM...")
-	vm := gno.NewVM()
+	vm, isFirstStartup := gno.NewVM()
 	eventCh := make(chan *gno.Event, 128)
 	stopEventProcessing := make(chan struct{})
 	eventProcessingDone := make(chan struct{})
@@ -35,7 +35,7 @@ func Start() *Instance {
 	wsManager := ws.NewManager(eventCh, managerDone)
 
 	fmt.Println("Initializing HTTP server...")
-	httpServer := gnohttp.NewServerWithRemoteSupport(vm, wsManager)
+	httpServer := gnohttp.NewServerWithRemoteSupport(vm, wsManager, httpPort)
 
 	// Get the list of remote apps from the VM and initiate all remote event listeners.
 	fmt.Println("Initializing remote app event listeners...")
@@ -54,9 +54,19 @@ func Start() *Instance {
 		}
 	}
 
-	fmt.Println("Creating installer apps...")
-	examples.CreateInstallerApp(vm)
-	examples.CreateRemoteInstallerApp(vm)
+	if isFirstStartup {
+		fmt.Println("Creating installer apps...")
+		if err := apps.CreatePort(vm); err != nil {
+			panic(err.Error())
+		}
+		apps.CreateInstaller(vm)
+		apps.CreateRemoteInstaller(vm)
+	}
+
+	// Overwrite the existing port number on each startup.
+	if _, _, err := vm.Call(context.Background(), "port", false, "Set", httpPort); err != nil {
+		panic("error setting port: " + err.Error())
+	}
 
 	go func() {
 		fmt.Println("Starting HTTP server...")
