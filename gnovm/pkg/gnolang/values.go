@@ -41,6 +41,19 @@ func (*PackageValue) assertValue()     {}
 func (*NativeValue) assertValue()      {}
 func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
+func (bv IntValue) assertValue()       {}
+func (bv Int8Value) assertValue()      {}
+func (bv Int16Value) assertValue()     {}
+func (bv Int32Value) assertValue()     {}
+func (bv Int64Value) assertValue()     {}
+func (bv Intu8Value) assertValue()     {}
+func (bv Intu16Value) assertValue()    {}
+func (bv Intu32Value) assertValue()    {}
+func (bv Intu64Value) assertValue()    {}
+func (bv BoolValue) assertValue()      {}
+func (bv UIntValue) assertValue()      {}
+func (bv Float32Value) assertValue()   {}
+func (bv Float64Value) assertValue()   {}
 
 const (
 	nilStr       = "nil"
@@ -64,7 +77,345 @@ var (
 	_ Value = &NativeValue{}
 	_ Value = &Block{}
 	_ Value = RefValue{}
+	_ Value = Int8Value(0)
+	_ Value = Int16Value(0)
+	_ Value = Int32Value(0)
+	_ Value = Int64Value(0)
+	_ Value = Intu8Value(0)
+	_ Value = Intu16Value(0)
+	_ Value = Intu32Value(0)
+	_ Value = Intu64Value(0)
+	_ Value = BoolValue(false)
+	_ Value = UIntValue(0)
+	_ Value = Float32Value(0)
+	_ Value = Float64Value(0)
 )
+
+type Numeric interface {
+	clear()
+}
+
+type BoolValue bool
+
+func (bv *BoolValue) clear() {
+	*bv = false
+}
+
+func (bv BoolValue) String() string {
+	if bv {
+		return "true"
+	}
+	return "false"
+}
+
+func (bv BoolValue) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%+v", bv), nil
+}
+
+func (bv *BoolValue) UnmarshalAmino(s string) error {
+	*bv = s == "true"
+	return nil
+}
+
+type UIntValue uint
+
+func (bv *UIntValue) clear() {
+	*bv = UIntValue(0)
+}
+
+func (bv UIntValue) String() string {
+	return fmt.Sprintf("%v", uint(bv))
+}
+
+func (bv UIntValue) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%+v", bv), nil
+}
+
+func (bv *UIntValue) UnmarshalAmino(s string) error {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return err
+	}
+
+	*bv = UIntValue(i)
+
+	return nil
+}
+
+type Intu8Value uint8
+
+func (bv *Intu8Value) clear() {
+	*bv = Intu8Value(0)
+}
+
+func (bv Intu8Value) String() string {
+	return fmt.Sprintf("%v", uint8(bv))
+}
+
+func (bv Intu8Value) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%+v", bv), nil
+}
+
+func (bv *Intu8Value) UnmarshalAmino(s string) error {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return err
+	}
+
+	*bv = Intu8Value(i)
+
+	return nil
+}
+
+type Intu16Value uint16
+
+func (bv *Intu16Value) clear() {
+	*bv = Intu16Value(0)
+}
+
+func (bv Intu16Value) String() string {
+	return fmt.Sprintf("%v", uint16(bv))
+}
+
+func (bv Intu16Value) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%+v", bv), nil
+}
+
+func (bv *Intu16Value) UnmarshalAmino(s string) error {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return err
+	}
+
+	*bv = Intu16Value(i)
+
+	return nil
+}
+
+type Intu32Value uint32
+
+func (bv *Intu32Value) clear() {
+	*bv = Intu32Value(0)
+}
+
+func (bv Intu32Value) String() string {
+	return fmt.Sprintf("%v", uint32(bv))
+}
+
+func (bv Intu32Value) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%+v", bv), nil
+}
+
+func (bv *Intu32Value) UnmarshalAmino(s string) error {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return err
+	}
+
+	*bv = Intu32Value(i)
+
+	return nil
+}
+
+type Float64Value float64
+
+func (bv *Float64Value) clear() {
+	*bv = Float64Value(0)
+}
+
+func (bv Float64Value) String() string {
+	return fmt.Sprintf("%v", float64(bv))
+}
+
+func (bv Float64Value) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%+v", bv), nil
+}
+
+func (bv *Float64Value) UnmarshalAmino(s string) error {
+	i, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return err
+	}
+
+	*bv = Float64Value(i)
+
+	return nil
+}
+
+type Float32Value float32
+
+func (bv *Float32Value) clear() {
+	*bv = Float32Value(0)
+}
+
+func (bv Float32Value) String() string {
+	return fmt.Sprintf("%v", float32(bv))
+}
+
+func (bv Float32Value) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%+v", bv), nil
+}
+
+func (bv *Float32Value) UnmarshalAmino(s string) error {
+	i, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return err
+	}
+
+	*bv = Float32Value(i)
+
+	return nil
+}
+
+type Intu64Value uint64
+
+func (bv *Intu64Value) clear() {
+	*bv = Intu64Value(0)
+}
+
+func (bv Intu64Value) String() string {
+	return fmt.Sprintf("%v", uint64(bv))
+}
+
+func (bv Intu64Value) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%+v", bv), nil
+}
+
+func (bv *Intu64Value) UnmarshalAmino(s string) error {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return err
+	}
+
+	*bv = Intu64Value(i)
+
+	return nil
+}
+
+type Int64Value int64
+
+func (bv *Int64Value) clear() {
+	*bv = Int64Value(0)
+}
+
+func (bv Int64Value) String() string {
+	return fmt.Sprintf("%v", int64(bv))
+}
+
+func (bv Int64Value) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%+v", bv), nil
+}
+
+func (bv *Int64Value) UnmarshalAmino(s string) error {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return err
+	}
+
+	*bv = Int64Value(i)
+
+	return nil
+}
+
+type Int32Value int32
+
+func (bv *Int32Value) clear() {
+	*bv = Int32Value(0)
+}
+
+func (bv Int32Value) String() string {
+	return fmt.Sprintf("%v", int32(bv))
+}
+
+func (bv Int32Value) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%+v", bv), nil
+}
+
+func (bv *Int32Value) UnmarshalAmino(s string) error {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return err
+	}
+
+	*bv = Int32Value(i)
+
+	return nil
+}
+
+type Int16Value int16
+
+func (bv *Int16Value) clear() {
+	*bv = Int16Value(0)
+}
+
+func (bv Int16Value) String() string {
+	return fmt.Sprintf("%v", int16(bv))
+}
+
+func (bv Int16Value) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%+v", bv), nil
+}
+
+func (bv *Int16Value) UnmarshalAmino(s string) error {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return err
+	}
+
+	*bv = Int16Value(i)
+
+	return nil
+}
+
+type Int8Value int8
+
+func (bv *Int8Value) clear() {
+	*bv = Int8Value(0)
+}
+
+func (bv Int8Value) String() string {
+	return fmt.Sprintf("%v", int8(bv))
+}
+
+func (bv Int8Value) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%+v", bv), nil
+}
+
+func (bv *Int8Value) UnmarshalAmino(s string) error {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return err
+	}
+
+	*bv = Int8Value(i)
+
+	return nil
+}
+
+type IntValue int
+
+func (bv *IntValue) clear() {
+	*bv = IntValue(0)
+}
+
+func (bv IntValue) String() string {
+	return fmt.Sprintf("%v", int(bv))
+}
+
+func (bv IntValue) MarshalAmino() (string, error) {
+	return fmt.Sprintf("%+v", bv), nil
+}
+
+func (bv *IntValue) UnmarshalAmino(s string) error {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		return err
+	}
+
+	*bv = IntValue(i)
+
+	return nil
+}
 
 // ----------------------------------------
 // StringValue
@@ -939,9 +1290,8 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
-	T Type    `json:",omitempty"` // never nil
-	V Value   `json:",omitempty"` // an untyped value
-	N [8]byte `json:",omitempty"` // numeric bytes
+	T Type  `json:",omitempty"` // never nil
+	V Value `json:",omitempty"` // an untyped value
 }
 
 func (tv *TypedValue) IsDefined() bool {
@@ -956,7 +1306,7 @@ func (tv *TypedValue) IsUndefined() bool {
 	}
 	if tv.T == nil {
 		if debug {
-			if tv.V != nil || tv.N != [8]byte{} {
+			if tv.V != nil {
 				panic(fmt.Sprintf(
 					"corrupted TypeValue (nil T)"))
 			}
@@ -970,12 +1320,6 @@ func (tv *TypedValue) IsNilInterface() bool {
 	if tv.T != nil && tv.T.Kind() == InterfaceKind {
 		if tv.V == nil {
 			return true
-		}
-		if debug {
-			if tv.N != [8]byte{} {
-				panic(fmt.Sprintf(
-					"corrupted TypeValue (nil interface)"))
-			}
 		}
 		return false
 	}
@@ -995,17 +1339,16 @@ func (tv *TypedValue) DebugHasValue() bool {
 	if !debug {
 		panic("should not happen")
 	}
-	if tv.V != nil {
-		return true
-	}
-	if tv.N != [8]byte{} {
-		return true
-	}
-	return false
+	return tv.V != nil
 }
 
 func (tv *TypedValue) ClearNum() {
-	*(*uint64)(unsafe.Pointer(&tv.N)) = uint64(0)
+	v, ok := tv.V.(Numeric)
+
+	if !ok {
+		panic("should not happen")
+	}
+	v.clear()
 }
 
 func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
@@ -1129,7 +1472,7 @@ func (tv *TypedValue) SetBool(b bool) {
 				tv.T.String()))
 		}
 	}
-	*(*bool)(unsafe.Pointer(&tv.N)) = b
+	tv.V = BoolValue(b)
 }
 
 func (tv *TypedValue) GetBool() bool {
@@ -1140,7 +1483,12 @@ func (tv *TypedValue) GetBool() bool {
 				tv.T.String()))
 		}
 	}
-	return *(*bool)(unsafe.Pointer(&tv.N))
+
+	bv, ok := tv.V.(BoolValue)
+	if !ok {
+		panic("should not happen")
+	}
+	return bool(bv)
 }
 
 func (tv *TypedValue) SetString(s StringValue) {
@@ -1179,7 +1527,7 @@ func (tv *TypedValue) SetInt(n int) {
 	// XXX probably should be coerced into int64 for determinism.
 	// XXX otherwise, all nodes must run in 64bit.
 	// XXX alternatively, require 64bit.
-	*(*int)(unsafe.Pointer(&tv.N)) = n
+	tv.V = IntValue(n)
 }
 
 func (tv *TypedValue) ConvertGetInt() int {
@@ -1196,7 +1544,12 @@ func (tv *TypedValue) GetInt() int {
 				tv.T.String()))
 		}
 	}
-	return *(*int)(unsafe.Pointer(&tv.N))
+	v, ok := tv.V.(IntValue)
+
+	if !ok {
+		panic("should not happen")
+	}
+	return int(v)
 }
 
 func (tv *TypedValue) SetInt8(n int8) {
@@ -1207,7 +1560,7 @@ func (tv *TypedValue) SetInt8(n int8) {
 				tv.T.String()))
 		}
 	}
-	*(*int8)(unsafe.Pointer(&tv.N)) = n
+	tv.V = Int8Value(n)
 }
 
 func (tv *TypedValue) GetInt8() int8 {
@@ -1218,7 +1571,12 @@ func (tv *TypedValue) GetInt8() int8 {
 				tv.T.String()))
 		}
 	}
-	return *(*int8)(unsafe.Pointer(&tv.N))
+	v, ok := tv.V.(Int8Value)
+
+	if !ok {
+		panic("should not happen")
+	}
+	return int8(v)
 }
 
 func (tv *TypedValue) SetInt16(n int16) {
@@ -1229,7 +1587,7 @@ func (tv *TypedValue) SetInt16(n int16) {
 				tv.T.String()))
 		}
 	}
-	*(*int16)(unsafe.Pointer(&tv.N)) = n
+	tv.V = Int16Value(n)
 }
 
 func (tv *TypedValue) GetInt16() int16 {
@@ -1240,7 +1598,12 @@ func (tv *TypedValue) GetInt16() int16 {
 				tv.T.String()))
 		}
 	}
-	return *(*int16)(unsafe.Pointer(&tv.N))
+	v, ok := tv.V.(Int16Value)
+
+	if !ok {
+		panic("should not happen")
+	}
+	return int16(v)
 }
 
 func (tv *TypedValue) SetInt32(n int32) {
@@ -1251,7 +1614,7 @@ func (tv *TypedValue) SetInt32(n int32) {
 				tv.T.String()))
 		}
 	}
-	*(*int32)(unsafe.Pointer(&tv.N)) = n
+	tv.V = Int32Value(n)
 }
 
 func (tv *TypedValue) GetInt32() int32 {
@@ -1262,7 +1625,12 @@ func (tv *TypedValue) GetInt32() int32 {
 				tv.T.String()))
 		}
 	}
-	return *(*int32)(unsafe.Pointer(&tv.N))
+	v, ok := tv.V.(Int32Value)
+
+	if !ok {
+		panic("should not happen")
+	}
+	return int32(v)
 }
 
 func (tv *TypedValue) SetInt64(n int64) {
@@ -1273,7 +1641,7 @@ func (tv *TypedValue) SetInt64(n int64) {
 				tv.T.String()))
 		}
 	}
-	*(*int64)(unsafe.Pointer(&tv.N)) = n
+	tv.V = Int64Value(n)
 }
 
 func (tv *TypedValue) GetInt64() int64 {
@@ -1284,7 +1652,12 @@ func (tv *TypedValue) GetInt64() int64 {
 				tv.T.String()))
 		}
 	}
-	return *(*int64)(unsafe.Pointer(&tv.N))
+	v, ok := tv.V.(Int64Value)
+
+	if !ok {
+		panic("should not happen")
+	}
+	return int64(v)
 }
 
 func (tv *TypedValue) SetUint(n uint) {
@@ -1295,7 +1668,7 @@ func (tv *TypedValue) SetUint(n uint) {
 				tv.T.String()))
 		}
 	}
-	*(*uint)(unsafe.Pointer(&tv.N)) = n
+	tv.V = UIntValue(n)
 }
 
 func (tv *TypedValue) GetUint() uint {
@@ -1306,7 +1679,12 @@ func (tv *TypedValue) GetUint() uint {
 				tv.T.String()))
 		}
 	}
-	return *(*uint)(unsafe.Pointer(&tv.N))
+	v, ok := tv.V.(UIntValue)
+
+	if !ok {
+		panic("should not happen")
+	}
+	return uint(v)
 }
 
 func (tv *TypedValue) SetUint8(n uint8) {
@@ -1320,7 +1698,7 @@ func (tv *TypedValue) SetUint8(n uint8) {
 			panic("DataByteType should call SetDataByte")
 		}
 	}
-	*(*uint8)(unsafe.Pointer(&tv.N)) = n
+	tv.V = Intu8Value(n)
 }
 
 func (tv *TypedValue) GetUint8() uint8 {
@@ -1334,7 +1712,12 @@ func (tv *TypedValue) GetUint8() uint8 {
 			panic("DataByteType should call GetDataByte or GetUint8OrDataByte")
 		}
 	}
-	return *(*uint8)(unsafe.Pointer(&tv.N))
+	v, ok := tv.V.(Intu8Value)
+
+	if !ok {
+		panic("should not happen")
+	}
+	return uint8(v)
 }
 
 func (tv *TypedValue) SetDataByte(n uint8) {
@@ -1369,7 +1752,7 @@ func (tv *TypedValue) SetUint16(n uint16) {
 				tv.T.String()))
 		}
 	}
-	*(*uint16)(unsafe.Pointer(&tv.N)) = n
+	tv.V = Intu16Value(n)
 }
 
 func (tv *TypedValue) GetUint16() uint16 {
@@ -1380,7 +1763,12 @@ func (tv *TypedValue) GetUint16() uint16 {
 				tv.T.String()))
 		}
 	}
-	return *(*uint16)(unsafe.Pointer(&tv.N))
+	v, ok := tv.V.(Intu16Value)
+
+	if !ok {
+		panic("should not happen")
+	}
+	return uint16(v)
 }
 
 func (tv *TypedValue) SetUint32(n uint32) {
@@ -1391,7 +1779,7 @@ func (tv *TypedValue) SetUint32(n uint32) {
 				tv.T.String()))
 		}
 	}
-	*(*uint32)(unsafe.Pointer(&tv.N)) = n
+	tv.V = Intu32Value(n)
 }
 
 func (tv *TypedValue) GetUint32() uint32 {
@@ -1402,7 +1790,12 @@ func (tv *TypedValue) GetUint32() uint32 {
 				tv.T.String()))
 		}
 	}
-	return *(*uint32)(unsafe.Pointer(&tv.N))
+	v, ok := tv.V.(Intu32Value)
+
+	if !ok {
+		panic("should not happen")
+	}
+	return uint32(v)
 }
 
 func (tv *TypedValue) SetUint64(n uint64) {
@@ -1413,7 +1806,7 @@ func (tv *TypedValue) SetUint64(n uint64) {
 				tv.T.String()))
 		}
 	}
-	*(*uint64)(unsafe.Pointer(&tv.N)) = n
+	tv.V = Intu64Value(n)
 }
 
 func (tv *TypedValue) GetUint64() uint64 {
@@ -1424,7 +1817,12 @@ func (tv *TypedValue) GetUint64() uint64 {
 				tv.T.String()))
 		}
 	}
-	return *(*uint64)(unsafe.Pointer(&tv.N))
+	v, ok := tv.V.(Intu64Value)
+
+	if !ok {
+		panic("should not happen")
+	}
+	return uint64(v)
 }
 
 func (tv *TypedValue) SetFloat32(n float32) {
@@ -1435,7 +1833,7 @@ func (tv *TypedValue) SetFloat32(n float32) {
 				tv.T.String()))
 		}
 	}
-	*(*float32)(unsafe.Pointer(&tv.N)) = n
+	tv.V = Float32Value(n)
 }
 
 func (tv *TypedValue) GetFloat32() float32 {
@@ -1446,7 +1844,12 @@ func (tv *TypedValue) GetFloat32() float32 {
 				tv.T.String()))
 		}
 	}
-	return *(*float32)(unsafe.Pointer(&tv.N))
+	v, ok := tv.V.(Float32Value)
+
+	if !ok {
+		panic("should not happen")
+	}
+	return float32(v)
 }
 
 func (tv *TypedValue) SetFloat64(n float64) {
@@ -1457,7 +1860,7 @@ func (tv *TypedValue) SetFloat64(n float64) {
 				tv.T.String()))
 		}
 	}
-	*(*float64)(unsafe.Pointer(&tv.N)) = n
+	tv.V = Float64Value(n)
 }
 
 func (tv *TypedValue) GetFloat64() float64 {
@@ -1468,7 +1871,12 @@ func (tv *TypedValue) GetFloat64() float64 {
 				tv.T.String()))
 		}
 	}
-	return *(*float64)(unsafe.Pointer(&tv.N))
+	v, ok := tv.V.(Float64Value)
+
+	if !ok {
+		panic("should not happen")
+	}
+	return float64(v)
 }
 
 func (tv *TypedValue) GetBigInt() *big.Int {
@@ -1673,7 +2081,6 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		dtv = &TypedValue{ // In case method is called on converted type, like ((*othertype)x).Method().
 			T: tv.T.Elem(),
 			V: dtv2.V,
-			N: dtv2.N,
 		}
 		isPtr = true
 		path.Type = VPValMethod
