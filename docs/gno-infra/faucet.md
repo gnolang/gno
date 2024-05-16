@@ -66,15 +66,48 @@ After going into the cloned folder, you can build out the faucet binary:
 make build
 ```
 
-We are now ready to run the faucet.
+We are now ready to configure & run the faucet.
+
+## Configuring the faucet
+
+By running the `generate` command in the faucet binary, you will be able to generate
+a `config.toml` file.
+
+```bash
+./build/faucet generate
+```
+
+In the `config.toml` file, you will be able to configure a few parameters:
+- ChainID of the node to connect to
+- Faucet listener address
+- Mnemonic phrase to use for generating the account(s) to serve funds from
+- The number of accounts to generate from the mnemonic
+- The maximum drip amount for the faucet
+- CORS configuration of the faucet
+
+The config file 
+```yaml
+chain_id = "dev"
+listen_address = "0.0.0.0:8545"
+mnemonic = "<your_mnemonic_phrase>"
+num_accounts = 1
+send_amount = "1000000ugnot"
+
+[cors_config]
+  cors_allowed_headers = ["Origin", "Accept", "Content-Type", "X-Requested-With", "X-Server-Time"]
+  cors_allowed_methods = ["HEAD", "GET", "POST", "OPTIONS"]
+  cors_allowed_origins = ["*"]
+``` 
+
+After inputting the mnemonic phrase from which your faucet address is derived 
+from, you are ready to run the faucet.
 
 ## Running the faucet
 
-To run the faucet, you will need to use the mnemonic phrase from which your 
-faucet address is derived from. Then, simply run the following command:
+To run the faucet, simply run the following command: 
 
 ```bash
-> ./build/faucet --mnemonic "<faucet_account_mnemonic>"
+> ./build/faucet serve --faucet-config <path_to_config.toml>
 
 time=2024-05-16T11:25:36.012+02:00 level=INFO msg="faucet started at [::]:8545"
 ```
@@ -83,9 +116,6 @@ The faucet should be running on `localhost:8545`, and is connected to the locall
 running `gnoland` instance. By default, `gnoland`'s rpc listener address is matched
 in the `--remote` flag in the faucet. If your node is listening on a separate
 address, make sure to match it accordingly when running the faucet.
-
-For further configuration options, such as the maximum drip amount for the faucet,
-check out the [faucet reference page](../gno-tooling/cli/faucet/faucet.md).
 
 ## Making faucet requests
 
