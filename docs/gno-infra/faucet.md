@@ -103,10 +103,17 @@ You can test this out buy running the following `curl` command:
 curl --location --request POST 'http://localhost:8545' --header 'Content-Type: application/json' --data '{"To": "g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"}'
 ```
 
+If the request is successful, you should get an output similar to the following:
+```bash
+{"result":"successfully executed faucet transfer"}
+```
+
 ## Conclusion
 
-Congratulations, you've successfully set up a faucet for your Gno.land network.
+That's it 🎉
 
+You have successfully set up a GNOT faucet on for a local Gno.land chain!
+Read more about the faucet on the [`faucet`](https://github.com/gnolang/faucet) repo.
 
 
 
