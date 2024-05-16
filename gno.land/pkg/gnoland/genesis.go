@@ -20,11 +20,16 @@ import (
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
 func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 	var content []byte
+	var err error
 	if path == "" {
 		slog.Warn("genesis file not specified, using embedded defaults")
 		content = genesis.DefaultGenesisBalances
 	} else {
-		content = osm.MustReadFile(path)
+		content, err = osm.ReadFile(path)
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
@@ -71,11 +76,16 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 // XXX: Improve the way we generate and load this file
 func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]std.Tx, error) {
 	var txsBz []byte
+	var err error
 	if path == "" {
 		slog.Warn("genesis transactions file not specified, using embedded defaults")
 		txsBz = genesis.DefaultGenesisTxs
 	} else {
-		txsBz = osm.MustReadFile(path)
+		txsBz, err = osm.ReadFile(path)
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	txsLines := strings.Split(string(txsBz), "\n")
