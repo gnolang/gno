@@ -93,8 +93,20 @@ The faucet takes in standard HTTP post requests with JSON data. The basic reques
 format is the following:
 
 ```json
-{"To": "g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"}
+{
+  "To": "g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"
+}
 ```
+
+You can test this out buy running the following `curl` command:
+```bash
+curl --location --request POST 'http://localhost:8545' --header 'Content-Type: application/json' --data '{"To": "g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"}'
+```
+
+## Conclusion
+
+Congratulations, you've successfully set up a faucet for your Gno.land network.
+
 
 
 
