@@ -1,5 +1,5 @@
 ---
-id: gno-tooling-faucet
+id: gno-tooling-tm2-faucet
 ---
 
 # TM2 Faucet
