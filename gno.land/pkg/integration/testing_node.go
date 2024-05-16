@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -12,7 +14,6 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -123,9 +124,7 @@ func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []std
 
 // LoadDefaultGenesisBalanceFile loads the default genesis balance file for testing.
 func LoadDefaultGenesisBalanceFile(t TestingTS, gnoroot string) []gnoland.Balance {
-	balanceFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
-
-	genesisBalances, err := gnoland.LoadGenesisBalancesFile(balanceFile)
+	genesisBalances, err := gnoland.LoadGenesisBalancesFile("")
 	require.NoError(t, err)
 
 	return genesisBalances

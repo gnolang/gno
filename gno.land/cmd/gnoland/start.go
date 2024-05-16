@@ -5,9 +5,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"go.uber.org/zap/zapcore"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/log"
@@ -25,7 +28,6 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
-	"go.uber.org/zap/zapcore"
 )
 
 var startGraphic = strings.ReplaceAll(`
@@ -75,8 +77,6 @@ func newStartCmd(io commands.IO) *commands.Command {
 
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	gnoroot := gnoenv.RootDir()
-	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
-	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
 
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
@@ -95,14 +95,14 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.genesisBalancesFile,
 		"genesis-balances-file",
-		defaultGenesisBalancesFile,
+		"",
 		"initial distribution file",
 	)
 
 	fs.StringVar(
 		&c.genesisTxsFile,
 		"genesis-txs-file",
-		defaultGenesisTxsFile,
+		"",
 		"initial txs to replay",
 	)
 
@@ -241,11 +241,17 @@ func execStart(c *startCfg, io commands.IO) error {
 	// Initialize the log format
 	logFormat := log.Format(strings.ToLower(c.logFormat))
 
+	if logFormat != log.JSONFormat {
+		io.Println(startGraphic)
+	}
+
 	// Initialize the zap logger
 	zapLogger := log.GetZapLoggerFn(logFormat)(io.Out(), logLevel)
 
 	// Wrap the zap logger
 	logger := log.ZapLoggerToSlog(zapLogger)
+
+	slog.SetDefault(logger)
 
 	// Initialize telemetry
 	telemetry.Init(*cfg.Telemetry)
@@ -281,17 +287,13 @@ func execStart(c *startCfg, io commands.IO) error {
 	}
 	cfg.LocalApp = gnoApp
 
-	if logFormat != log.JSONFormat {
-		io.Println(startGraphic)
-	}
-
 	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
 
 	if c.skipStart {
-		io.ErrPrintln("'--skip-start' is set. Exiting.")
+		io.ErrPrintln("'-skip-start' is set. Exiting.")
 		return nil
 	}
 

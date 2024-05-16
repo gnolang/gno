@@ -3,8 +3,10 @@ package gnoland
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/genesis"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -17,8 +19,15 @@ import (
 
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
 func LoadGenesisBalancesFile(path string) ([]Balance, error) {
+	var content []byte
+	if path == "" {
+		slog.Warn("genesis file not specified, using embedded defaults")
+		content = genesis.DefaultGenesisBalances
+	} else {
+		content = osm.MustReadFile(path)
+	}
+
 	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
-	content := osm.MustReadFile(path)
 	lines := strings.Split(string(content), "\n")
 
 	balances := make([]Balance, 0, len(lines))
@@ -61,9 +70,17 @@ func LoadGenesisBalancesFile(path string) ([]Balance, error) {
 // LoadGenesisTxsFile loads genesis transactions from the provided file path.
 // XXX: Improve the way we generate and load this file
 func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]std.Tx, error) {
-	txs := []std.Tx{}
-	txsBz := osm.MustReadFile(path)
+	var txsBz []byte
+	if path == "" {
+		slog.Warn("genesis transactions file not specified, using embedded defaults")
+		txsBz = genesis.DefaultGenesisTxs
+	} else {
+		txsBz = osm.MustReadFile(path)
+	}
+
 	txsLines := strings.Split(string(txsBz), "\n")
+
+	txs := []std.Tx{}
 	for _, txLine := range txsLines {
 		if txLine == "" {
 			continue // Skip empty line.
