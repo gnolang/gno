@@ -1915,9 +1915,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				}
-			// TODO make note of constance in static block for
-			// future use, or consider "const paths".  set as
-			// preprocessed.
+				// TODO make note of constance in static block for
+				// future use, or consider "const paths".  set as
+				// preprocessed.
 
 			// TRANS_LEAVE -----------------------
 			case *TypeDecl:
@@ -3547,8 +3547,8 @@ func findStructDeclDependentNames(store Store, last BlockNode, n Node, dst map[N
 			for _, f := range st.Fields {
 				ft := evalStaticType(store, last, f.Type)
 				if dt, ok := ft.(*DeclaredType); ok {
-					if _, ok := dt.Base.(*StructType); ok {
-						if dt.PkgPath == pkgPath {
+					if dt.PkgPath == pkgPath {
+						if _, ok := dt.Base.(*StructType); ok {
 							dst[dt.Name] = struct{}{}
 						}
 					}
