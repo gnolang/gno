@@ -40,14 +40,16 @@ func (nm *NonceManager) GetNonce(owner std.Address) uint64 {
 func (nm *NonceManager) UseNonce(owner std.Address) uint64 {
 	key := owner.String()
 
-	currentNonce, found := nm.nonces.Get(key)
+	val, found := nm.nonces.Get(key)
 	if !found {
 		panic("invalid address")
 	}
 
+	currentNonce := val.(uint64)
+
 	nm.nonces.Set(key, currentNonce+1)
 
-	return currentNonce.(uint64)
+	return currentNonce
 }
 
 // UseCheckedNonce consumes a nonce if it matches the expected value, otherwise returns an error
