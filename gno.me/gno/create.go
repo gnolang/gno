@@ -37,3 +37,15 @@ func (v *VMKeeper) Create(ctx context.Context, code string, isPackage bool) erro
 	}
 	return v.instance.AddPackage(sdk.Context{}.WithContext(ctx), msg)
 }
+
+func (v *VMKeeper) CreateMemPackage(ctx context.Context, memPackage *std.MemPackage) error {
+	v.Lock()
+	defer v.Unlock()
+	defer v.store.Commit()
+
+	msg := vm.MsgAddPackage{
+		Package: memPackage,
+	}
+
+	return v.instance.AddPackage(sdk.Context{}.WithContext(ctx), msg)
+}

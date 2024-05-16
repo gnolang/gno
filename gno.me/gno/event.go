@@ -3,6 +3,11 @@ package gno
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
+
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
 const maxEventsRequestable uint64 = 100
@@ -132,3 +137,45 @@ func Get(pkgPath string, start, end uint64) string {
 	return sb.String()
 }
 `
+
+// ApplyEvent does two things: runs the event all and updates the event store.
+func (v *VMKeeper) ApplyEvent(ctx context.Context, event *Event) error {
+	v.Lock()
+	defer v.Unlock()
+	defer v.store.Commit()
+
+	pkgPath := AppPrefix + event.AppName
+	msg := vm.MsgCall{
+		PkgPath: PkgPrefix + "events",
+		Func:    "Store",
+		Args: []string{
+			pkgPath,
+			strconv.FormatUint(event.Sequence, 10),
+			event.Func,
+			encodeArgs(event.Args),
+		},
+	}
+
+	// TODO: parse error and return a special "out of order" error that is a struct
+	// that specifies what the next messages should be.
+	_, err := v.instance.Call(sdk.Context{}.WithContext(ctx), msg)
+	if err != nil {
+		return fmt.Errorf("error applying event: %w", err)
+	}
+
+	// The event was persisted using the given sequence number -- good!
+	// Now run the event call to update the application state.
+	msg = vm.MsgCall{
+		PkgPath: AppPrefix + event.AppName,
+		Func:    event.Func,
+		Args:    event.Args,
+	}
+
+	if _, err := v.instance.Call(sdk.Context{}.WithContext(ctx), msg); err != nil {
+		return fmt.Errorf("error applying event: %w", err)
+	}
+
+	// TODO: rollback the event store if the event call fails.
+
+	return nil
+}

@@ -47,7 +47,7 @@ func (v *VMKeeper) Call(
 		return "", nil, err
 	}
 
-	if isPackage {
+	if isPackage || functionName == "Render" {
 		return result, nil, nil
 	}
 

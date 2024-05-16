@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/gnovm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -20,11 +21,24 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 		// otherwise, built-in package value.
 		// first, load from filepath.
 		stdlibPath := filepath.Join(vm.stdlibsDir, pkgPath)
-		if !osm.DirExists(stdlibPath) {
-			// does not exist.
-			return nil, nil
+		checkStdlibs := !osm.DirExists(stdlibPath)
+		if checkStdlibs {
+			newPath := filepath.Join("stdlibs", pkgPath)
+			if _, err := gnovm.StdLibsFS.ReadDir(newPath); err != nil {
+				// no gno files are present, skip this package
+				return nil, nil
+			}
+
+			stdlibPath = newPath
 		}
-		memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
+
+		var memPkg *std.MemPackage
+		if checkStdlibs {
+			memPkg = gno.ReadMemPackageFS(gnovm.StdLibsFS, stdlibPath, pkgPath)
+		} else {
+			memPkg = gno.ReadMemPackage(stdlibPath, pkgPath)
+		}
+
 		if memPkg.IsEmpty() {
 			// no gno files are present, skip this package
 			return nil, nil

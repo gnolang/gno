@@ -7,11 +7,21 @@ import (
 	"strings"
 
 	gno "github.com/gnolang/gno/gno.me/gno"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type app struct {
 	Code      string `json:"code"`
 	IsPackage bool   `json:"is_package"`
+}
+
+type remoteApp struct {
+	Name    string `json:"name"`
+	Address string `json:"address"`
+}
+
+type getAppName struct {
+	Name string `json:"name"`
 }
 
 type appCall struct {
@@ -39,6 +49,88 @@ func createApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 	}
 
 	resp.WriteHeader(gohttp.StatusCreated)
+}
+
+func installRemoteApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
+	enableCors(&resp)
+
+	var installRemote remoteApp
+	dec := json.NewDecoder(req.Body)
+	defer req.Body.Close()
+	if err := dec.Decode(&installRemote); err != nil {
+		gohttp.Error(resp, err.Error(), gohttp.StatusBadRequest)
+		return
+	}
+
+	remoteBody, err := json.Marshal(getAppName{Name: installRemote.Name})
+	if err != nil {
+		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
+		return
+	}
+
+	getAppReq, err := gohttp.NewRequest("POST", installRemote.Address+"/system/get-app", strings.NewReader(string(remoteBody)))
+	if err != nil {
+		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
+		return
+	}
+
+	getAppReq.Header.Set("Content-Type", "application/json")
+	getAppResp, err := gohttp.DefaultClient.Do(getAppReq)
+	if err != nil {
+		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
+		return
+	}
+
+	if getAppResp.StatusCode != gohttp.StatusOK {
+		gohttp.Error(resp, "could not get app", getAppResp.StatusCode)
+		return
+	}
+
+	var memPackage std.MemPackage
+	dec = json.NewDecoder(getAppResp.Body)
+	defer getAppResp.Body.Close()
+
+	if err := dec.Decode(&memPackage); err != nil {
+		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
+		return
+	}
+
+	memPackage.Address = installRemote.Address
+	if err := vm.CreateMemPackage(req.Context(), &memPackage); err != nil {
+		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
+		return
+	}
+
+	eventListenerManager.ListenOnPackage(installRemote.Address, memPackage.Path)
+
+	resp.WriteHeader(gohttp.StatusCreated)
+}
+
+func getApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
+	enableCors(&resp)
+
+	var gnoAppName getAppName
+	dec := json.NewDecoder(req.Body)
+	defer req.Body.Close()
+	if err := dec.Decode(&gnoAppName); err != nil {
+		gohttp.Error(resp, err.Error(), gohttp.StatusBadRequest)
+		return
+	}
+
+	memPackage := vm.QueryMemPackage(req.Context(), "installer")
+	if memPackage == nil {
+		resp.WriteHeader(gohttp.StatusNotFound)
+		return
+	}
+
+	resp.WriteHeader(gohttp.StatusOK)
+	result, err := json.Marshal(memPackage)
+	if err != nil {
+		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
+		return
+	}
+
+	resp.Write(result)
 }
 
 func callApp(resp gohttp.ResponseWriter, req *gohttp.Request) {

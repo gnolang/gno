@@ -210,7 +210,7 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 // NOTE: package paths not beginning with gno.land will be allowed to override,
 // to support cases of stdlibs processed through [RunMemPackagesWithOverrides].
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
-	ch := m.Store.IterMemPackage()
+	ch := m.Store.IterMemPackage(false)
 	for memPkg := range ch {
 		fset := ParseMemPackage(memPkg)
 		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)

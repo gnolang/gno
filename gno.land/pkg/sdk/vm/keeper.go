@@ -629,3 +629,13 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		return res, nil
 	}
 }
+
+func (vm *VMKeeper) QueryMemPackage(ctx sdk.Context, pkgPath string) *std.MemPackage {
+	store := vm.getGnoStore(ctx)
+	return store.GetMemPackage(pkgPath)
+}
+
+func (vm *VMKeeper) QueryRemoteMemPackages(ctx sdk.Context) <-chan *std.MemPackage {
+	store := vm.getGnoStore(ctx)
+	return store.IterMemPackage(true)
+}
