@@ -619,7 +619,7 @@ code {
   height: 0.133rem;
   margin-bottom: 0.333rem;
   position: relative;
-  background: var(--text-color, #000);
+  background: var(--header-forground, #ffffff);
   z-index: 1;
   transform-origin: 50% 50%;
   /* transition: transform 0.5s cubic-bezier(0.77, 0.2, 0.05, 1), background 0.5s cubic-bezier(0.77, 0.2, 0.05, 1), opacity 0.55s ease; */
