@@ -49,6 +49,7 @@ html[data-theme="light"] {
   --quote-2-background: #aaa4;
   --code-background: #d7d9db;
   --header-background: #6b6d73;
+  --header-forground: #ffffff;
 
   --realm-help-background-color: #d7d9db9e;
   --realm-help-odd-background-color: #d7d9db45;
@@ -85,6 +86,7 @@ html[data-theme="dark"] {
   --quote-2-background: #555555;
   --code-background: #606060;
   --header-background: #6b6d73;
+  --header-forground: #ffffff;
 
   --realm-help-background-color: #45454545;
   --realm-help-odd-background-color: #4545459e;
@@ -108,13 +110,13 @@ html[data-theme="dark"] {
   --highlight-addition: #76c490;
 }
 
-.logo-wording path {fill: #ffffff; }
-.logo-beard { fill: #ffffff; }
+.logo-wording path {fill: var(--header-forground, #ffffff); }
+.logo-beard { fill: var(--header-forground, #ffffff); }
 
 #theme-toggle {
   display: inline-block;
   padding: 0;
-  color: #ffffff;
+  color: var(--header-forground, #ffffff);
 }
 
 html[data-theme="dark"] #theme-toggle-moon,
@@ -504,7 +506,6 @@ code {
     height: 100%;
 }
 
-
 #logo_path a {
   text-decoration: none;
 }
@@ -682,7 +683,7 @@ code {
 }
 
 #menu-toggle > .navigation a {
-    color: white;
+    color: var(--header-forground, #ffffff);
 }
 
 #menu-toggle input:checked ~ .navigation {
