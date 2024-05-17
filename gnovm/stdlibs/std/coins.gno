@@ -186,22 +186,6 @@ func (cz Coins) Add(b Coins) Coins {
 	return c
 }
 
-// removeZeroCoins removes all zero coins from the given coin set in-place.
-func removeZeroCoins(coins Coins) Coins {
-	i, l := 0, len(coins)
-	for i < l {
-		if coins[i].IsZero() {
-			// remove coin
-			coins = append(coins[:i], coins[i+1:]...)
-			l--
-		} else {
-			i++
-		}
-	}
-
-	return coins[:i]
-}
-
 // expand for usage within natively bound functions.
 func (cz Coins) expandNative() (denoms []string, amounts []int64) {
 	denoms = make([]string, len(cz))
