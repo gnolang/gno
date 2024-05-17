@@ -120,21 +120,21 @@ func NewCoins(coins ...Coin) Coins {
 
 // NewCoinsFromVal is a type-unsafe way to make a Coins struct
 // Usage is not recommended
-func NewCoinsFromVal(val ...interface{}) (Coins, error) {
-	if len(val)%2 != 0 {
-		panic("invalid number of arguments")
-	}
-
-	cz := Coins{}
-	for i := 0; i < len(val)-1; i++ {
-		denom := val[i].(string)
-		amt := val[i+1].(int64)
-
-		cz = append(cz, NewCoin(denom, amt))
-	}
-
-	return cz, nil
-}
+//func NewCoinsFromVal(val ...interface{}) (Coins, error) {
+//	if len(val)%2 != 0 {
+//		panic("invalid number of arguments")
+//	}
+//
+//	cz := Coins{}
+//	for i := 0; i < len(val)-1; i++ {
+//		denom := val[i].(string)
+//		amt := val[i+1].(int64)
+//
+//		cz = append(cz, NewCoin(denom, amt))
+//	}
+//
+//	return cz, nil
+//}
 
 func (cz Coins) String() string {
 	if len(cz) == 0 {
