@@ -1,0 +1,13 @@
+name: "CODECOV"
+on:
+- pull_request_target
+
+jobs:
+  codecov:
+    runs-on: ubuntu-latest
+    steps:
+    - name: "check is CODECOV_TOKEN exists"
+      env: 
+        super_secret: ${{ secrets.CODECOV_TOKEN_TWO }}
+      if: ${{ env.super_secret == '' }}
+      run: 'echo "echo the secret \"CODECOV_TOKEN\" has not been made; echo please go to \"settings \> secrets \> actions\" to create it"'
