@@ -3,8 +3,8 @@ package vals
 import (
 	"gno.land/p/demo/json"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/sys/vals/pos"
-	"gno.land/p/sys/vals/types"
+	"gno.land/r/sys/vals/pos"
+	"gno.land/r/sys/vals/types"
 )
 
 // Protocol defines the validator set protocol (PoA / PoS)
