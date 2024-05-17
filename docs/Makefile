@@ -9,4 +9,4 @@ lint:
 	../misc/docs-linter/build/linter -path .
 
 clean:
-	rm -f ../misc/docs-linter/linter
+	rm -rf ../misc/docs-linter/build
