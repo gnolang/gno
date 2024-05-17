@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 type Server struct {
@@ -25,7 +26,7 @@ func NewServer(creator Creator, applier Applier, done chan struct{}) *Server {
 }
 
 // TODO: need some type of monitoring for if this fails
-func (s Server) Start(port string) {
+func (s *Server) Start(port string) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/events", handleEvents)
 	srv := &http.Server{
@@ -44,5 +45,7 @@ func (s Server) Start(port string) {
 
 func (s Server) Stop() {
 	// TODO: should finish all current requests before shutting down.
-	s.server.Shutdown(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	s.server.Shutdown(ctx)
 }
