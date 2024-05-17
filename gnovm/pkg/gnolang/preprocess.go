@@ -1702,7 +1702,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
 				// Cond consts become bool *ConstExprs.
-				//checkOrConvertType(store, last, &n.Cond, BoolType, false)
+				checkWithoutConvertType(store, last, &n.Cond, BoolType, false)
 
 			// TRANS_LEAVE -----------------------
 			case *IfStmt:
@@ -2459,6 +2459,42 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 			cx := Expr(Call(constType(nil, t), *x))
 			cx = Preprocess(store, last, cx).(Expr)
 			*x = cx
+		}
+	}
+}
+
+func checkWithoutConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) {
+	if cx, ok := (*x).(*ConstExpr); ok {
+		convertConst(store, last, cx, t)
+	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
+		// "push" expected type into shift binary's left operand.
+		checkOrConvertType(store, last, &bx.Left, t, autoNative)
+	} else if *x != nil { // XXX if x != nil && t != nil {
+		xt := evalStaticTypeOf(store, last, *x)
+		if t != nil {
+			checkType(xt, t, autoNative)
+		}
+		if isUntyped(xt) {
+			if t == nil {
+				t = defaultTypeOf(xt)
+			}
+			// Push type into expr if qualifying binary expr.
+			if bx, ok := (*x).(*BinaryExpr); ok {
+				switch bx.Op {
+				case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
+					BAND_NOT, LAND, LOR:
+					// push t into bx.Left and bx.Right
+					checkOrConvertType(store, last, &bx.Left, t, autoNative)
+					checkOrConvertType(store, last, &bx.Right, t, autoNative)
+					return
+				case SHL, SHR:
+					// push t into bx.Left
+					checkOrConvertType(store, last, &bx.Left, t, autoNative)
+					return
+					// case EQL, LSS, GTR, NEQ, LEQ, GEQ:
+					// default:
+				}
+			}
 		}
 	}
 }
