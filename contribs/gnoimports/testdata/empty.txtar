@@ -1,0 +1,9 @@
+gnoimport noimport.gno
+cmp stdout stdout.golden.gno
+cmp stderr stderr.golden
+
+-- noimport.gno --
+package hello
+-- stdout.golden.gno --
+package hello
+-- stderr.golden --

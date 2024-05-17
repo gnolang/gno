@@ -1,0 +1,439 @@
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/printer"
+	"go/token"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/tm2/pkg/std"
+	"golang.org/x/tools/go/ast/astutil"
+	"golang.org/x/tools/imports"
+)
+
+// Package contains the memory package and directory path
+type Package struct {
+	std.MemPackage
+	Dir string
+}
+
+// processPackageFiles processes Gno package files and collects top-level declarations.
+func processPackageFiles(fset *token.FileSet, root string, filesNode map[string]*ast.File) (map[string]bool, error) {
+	declmap := make(map[string]bool)
+
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return fmt.Errorf("unable to walk on %q: %w", path, err)
+		}
+
+		if info.IsDir() {
+			if path == root {
+				return nil
+			}
+
+			return filepath.SkipDir
+		}
+
+		filename := info.Name()
+		if strings.HasPrefix(filename, ".") || filepath.Ext(path) != ".gno" {
+			return nil
+		}
+
+		node, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+		if err != nil {
+			return fmt.Errorf("unable to process files: %w", err)
+		}
+
+		topDecls := make(map[*ast.Object]ast.Decl)
+		for _, decl := range node.Decls {
+			switch d := decl.(type) {
+			case *ast.GenDecl:
+				for _, spec := range d.Specs {
+					switch s := spec.(type) {
+					case *ast.TypeSpec:
+						topDecls[s.Name.Obj] = d
+					case *ast.ValueSpec:
+						for _, name := range s.Names {
+							topDecls[name.Obj] = d
+						}
+					}
+				}
+			case *ast.FuncDecl:
+				if d.Recv == nil && d.Name != nil { // Check if it's a top-level functio
+					declmap[d.Name.Name] = true
+				}
+			}
+		}
+
+		for obj := range topDecls {
+			declmap[obj.Name] = true
+		}
+		filesNode[filename] = node
+		return nil
+	})
+
+	return declmap, err
+}
+
+// listGnoModules lists and validates Gno modules.
+func listGnoModules(path string, mpkgs map[string][]*Package) error {
+	mods, err := gnomod.ListPkgs(path)
+	if err != nil {
+		return fmt.Errorf("unable to resolve example folder: %w", err)
+	}
+
+	sorted, err := mods.Sort()
+	if err != nil {
+		return fmt.Errorf("unable to sort pkgs: %w", err)
+	}
+
+	for _, modPkg := range sorted.GetNonDraftPkgs() {
+		memPkg := gnolang.ReadMemPackage(modPkg.Dir, modPkg.Name)
+		if memPkg.Validate() != nil {
+			continue
+		}
+		mpkgs[memPkg.Name] = append(mpkgs[memPkg.Name], &Package{
+			MemPackage: *memPkg,
+			Dir:        modPkg.Dir,
+		})
+	}
+	return nil
+}
+
+// loadStdlibsPackages loads standard library packages.
+func loadStdlibsPackages(gnoroot string, mpkgs map[string][]*Package) error {
+	stdlibs := filepath.Join(gnoroot, "gnovm", "stdlibs")
+	return filepath.Walk(stdlibs, func(path string, info os.FileInfo, err error) error {
+		if err != nil || !info.IsDir() {
+			return nil
+		}
+		files, err := os.ReadDir(path)
+		if err != nil {
+			return nil
+		}
+
+		var gnofiles []string
+		for _, file := range files {
+			if filepath.Ext(file.Name()) == ".gno" {
+				gnofiles = append(gnofiles, filepath.Join(path, file.Name()))
+			}
+		}
+		if len(gnofiles) == 0 {
+			return nil
+		}
+
+		pkgname, ok := strings.CutPrefix(path, stdlibs)
+		if !ok {
+			return nil
+		}
+		memPkg := gnolang.ReadMemPackageFromList(gnofiles, strings.TrimPrefix(pkgname, "/"))
+		mpkgs[memPkg.Name] = append(mpkgs[memPkg.Name], &Package{
+			MemPackage: *memPkg,
+			Dir:        path,
+		})
+		return nil
+	})
+}
+
+// processGnoFile processes a single Gno file and adds necessary imports.
+func processGnoFile(filep string) ([]byte, error) {
+	fset := token.NewFileSet()
+
+	pkgDecls := make(map[string]*ast.File)
+	_, err := processPackageFiles(fset, filepath.Dir(filep), pkgDecls)
+	if err != nil {
+		return nil, fmt.Errorf("unable to process package: %w", err)
+	}
+
+	node, ok := pkgDecls[filepath.Base(filep)]
+	if !ok {
+		return nil, fmt.Errorf("not a valid gno file: %s", filep)
+	}
+
+	gnoroot := gnoenv.RootDir()
+	examples := filepath.Join(gnoroot, "examples")
+
+	mpkgs := make(map[string][]*Package)
+	if err := listGnoModules(examples, mpkgs); err != nil {
+		return nil, fmt.Errorf("unable to list gno modules: %w", err)
+	}
+
+	spkgs := make(map[string][]*Package)
+	if err := loadStdlibsPackages(gnoroot, spkgs); err != nil {
+		return nil, fmt.Errorf("unable to load stdlibs: %w", err)
+	}
+
+	topDecls := collectTopDecls(pkgDecls)
+	resolveImports(fset, node, topDecls, spkgs, mpkgs)
+
+	var buf bytes.Buffer
+
+	if err := printer.Fprint(&buf, fset, node); err != nil {
+		return nil, fmt.Errorf("unable to format file: %w", err)
+	}
+
+	ret, err := imports.Process(filep, buf.Bytes(), &imports.Options{
+		TabWidth:   8,
+		Comments:   true,
+		TabIndent:  true,
+		FormatOnly: true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to format import: %w", err)
+	}
+
+	return ret, nil
+}
+
+// collectTopDecls collects top-level declarations from package files.
+func collectTopDecls(pkgDecls map[string]*ast.File) map[*ast.Object]ast.Decl {
+	topDecls := make(map[*ast.Object]ast.Decl)
+	for _, file := range pkgDecls {
+		for _, decl := range file.Decls {
+			if d, ok := decl.(*ast.GenDecl); ok {
+				for _, spec := range d.Specs {
+					switch s := spec.(type) {
+					case *ast.TypeSpec:
+						topDecls[s.Name.Obj] = d
+					case *ast.ValueSpec:
+						for _, name := range s.Names {
+							topDecls[name.Obj] = d
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return topDecls
+}
+
+// resolveImports resolves and collects unresolved imports.
+func resolveImports(
+	fset *token.FileSet,
+	node *ast.File,
+	topDecls map[*ast.Object]ast.Decl,
+	spkgs, mpkgs map[string][]*Package,
+) {
+	unresolved := collectUnresolved(node, topDecls)
+	cleanupPreviousImports(fset, node, topDecls, unresolved)
+	resolve(fset, node, unresolved, spkgs)
+	resolve(fset, node, unresolved, mpkgs)
+}
+
+// collectUnresolved collects unresolved identifiers and declarations.
+func collectUnresolved(node *ast.File, topDecls map[*ast.Object]ast.Decl) map[string]map[string]bool {
+	typMethods := make(map[string][]ast.Decl)
+	_, unresolved := findDeclsAndUnresolved(node, topDecls, typMethods)
+	for n := range unresolved {
+		if isPredeclared(n) {
+			delete(unresolved, n)
+		}
+	}
+
+	return unresolved
+}
+
+// cleanupPreviousImports removes resolved imports from the unresolved list.
+func cleanupPreviousImports(fset *token.FileSet, node *ast.File, topDecls map[*ast.Object]ast.Decl, unresolved map[string]map[string]bool) {
+	imports := astutil.Imports(fset, node)
+
+	for _, imps := range imports {
+		for _, imp := range imps {
+			pkgpath := imp.Path.Value[1 : len(imp.Path.Value)-1] // unquote the value
+			name := filepath.Base(pkgpath)
+			isNamedImport := imp.Name != nil
+			if isNamedImport {
+				name = imp.Name.Name
+			}
+
+			if _, ok := unresolved[name]; ok {
+				delete(unresolved, name)
+				continue
+			}
+
+			if isNamedImport {
+				astutil.DeleteNamedImport(fset, node, name, pkgpath)
+			} else {
+				astutil.DeleteImport(fset, node, pkgpath)
+			}
+		}
+	}
+
+	for obj := range topDecls {
+		delete(unresolved, obj.Name)
+	}
+}
+
+// resolve try to resolve unresolved package based on a list of pkgs
+func resolve(
+	fset *token.FileSet,
+	node *ast.File,
+	unresolved map[string]map[string]bool,
+	pkgs map[string][]*Package,
+) {
+	for decl, sels := range unresolved {
+		if listPkgs, ok := pkgs[decl]; ok {
+			for _, pkg := range listPkgs {
+				if !hasDeclExposed(fset, sels, pkg.Dir) {
+					continue
+				}
+
+				astutil.AddImport(fset, node, pkg.Path)
+				delete(unresolved, decl)
+				break
+			}
+		}
+	}
+}
+
+// hasDeclExposed checks if declarations are exposed in the specified path.
+func hasDeclExposed(fset *token.FileSet, decls map[string]bool, path string) bool {
+	filesNode := make(map[string]*ast.File)
+	exposed, err := processPackageFiles(fset, path, filesNode)
+	if err != nil {
+		return false
+	}
+
+	for decl := range decls {
+		if exposed[decl] {
+			return true
+		}
+	}
+	return false
+}
+
+// findDeclsAndUnresolved returns all top-level declarations and a set of unresolved symbols.
+func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, typMethods map[string][]ast.Decl) ([]ast.Decl, map[string]map[string]bool) {
+	unresolved := make(map[string]map[string]bool)
+	var depDecls []ast.Decl
+	usedDecls := make(map[ast.Decl]bool)
+	usedObjs := make(map[*ast.Object]bool)
+
+	var inspectFunc func(ast.Node) bool
+	inspectFunc = func(n ast.Node) bool {
+		switch e := n.(type) {
+		case *ast.Ident:
+			if e.Obj == nil && e.Name != "_" {
+				if _, ok := unresolved[e.Name]; !ok {
+					unresolved[e.Name] = map[string]bool{}
+				}
+			} else if d := topDecls[e.Obj]; d != nil {
+				usedObjs[e.Obj] = true
+				if !usedDecls[d] {
+					usedDecls[d] = true
+					depDecls = append(depDecls, d)
+				}
+			}
+			return true
+		case *ast.SelectorExpr:
+			// Handle the Selector expression case by inspecting the X part
+			if ident, ok := e.X.(*ast.Ident); ok {
+				name := ident.Name
+				if unresolved[name] == nil {
+					unresolved[name] = map[string]bool{}
+				}
+				unresolved[name][e.Sel.Name] = true
+			}
+			ast.Inspect(e.X, inspectFunc)
+			return false
+		case *ast.KeyValueExpr:
+			ast.Inspect(e.Value, inspectFunc)
+			return false
+		}
+		return true
+	}
+
+	inspectFieldList := func(fl *ast.FieldList) {
+		if fl != nil {
+			for _, f := range fl.List {
+				ast.Inspect(f.Type, inspectFunc)
+			}
+		}
+	}
+
+	ast.Inspect(body, inspectFunc)
+	for i := 0; i < len(depDecls); i++ {
+		switch d := depDecls[i].(type) {
+		case *ast.FuncDecl:
+			inspectFieldList(d.Type.TypeParams)
+			inspectFieldList(d.Type.Params)
+			inspectFieldList(d.Type.Results)
+			if d.Body != nil {
+				ast.Inspect(d.Body, inspectFunc)
+			}
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				switch s := spec.(type) {
+				case *ast.TypeSpec:
+					inspectFieldList(s.TypeParams)
+					ast.Inspect(s.Type, inspectFunc)
+					depDecls = append(depDecls, typMethods[s.Name.Name]...)
+				case *ast.ValueSpec:
+					if s.Type != nil {
+						ast.Inspect(s.Type, inspectFunc)
+					}
+				}
+			}
+		}
+	}
+
+	var ds []ast.Decl
+	for _, d := range depDecls {
+		switch d := d.(type) {
+		case *ast.FuncDecl:
+			ds = append(ds, d)
+		case *ast.GenDecl:
+			var specs []ast.Spec
+			containsIota := false
+			for _, s := range d.Specs {
+				switch s := s.(type) {
+				case *ast.TypeSpec:
+					if usedObjs[s.Name.Obj] {
+						specs = append(specs, s)
+					}
+				case *ast.ValueSpec:
+					if !containsIota {
+						containsIota = hasIota(s)
+					}
+					ns := *s
+					ns.Names = nil
+					ns.Values = nil
+					for i, n := range s.Names {
+						if usedObjs[n.Obj] {
+							ns.Names = append(ns.Names, n)
+							if s.Values != nil {
+								ns.Values = append(ns.Values, s.Values[i])
+							}
+						}
+					}
+					if len(ns.Names) > 0 {
+						specs = append(specs, &ns)
+					}
+				}
+			}
+			if len(specs) > 0 {
+				if d.Tok == token.CONST && containsIota {
+					ds = append(ds, d)
+				} else {
+					nd := *d
+					nd.Specs = specs
+					if len(specs) == 1 {
+						nd.Lparen = 0
+					}
+					ds = append(ds, &nd)
+				}
+			}
+		}
+	}
+
+	return ds, unresolved
+}
