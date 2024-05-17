@@ -2,45 +2,103 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"golang.org/x/sync/errgroup"
 	"os"
+	"strings"
+	"sync"
 )
 
+type cfg struct {
+	docsPath string
+}
+
 func main() {
-	io := commands.NewDefaultIO()
-	cmd := newRootCmd(io)
+	cfg := &cfg{}
+
+	cmd := commands.NewCommand(
+		commands.Metadata{
+			Name:       "docs-linter",
+			ShortUsage: "docs-linter [flags]",
+			ShortHelp:  "Finds broken 404 links in the .md files in the given folder & subfolders",
+		},
+		cfg,
+		func(ctx context.Context, args []string) error {
+			return execLint(cfg, ctx)
+		})
 
 	cmd.Execute(context.Background(), os.Args[1:])
 }
 
-func newRootCmd(io commands.IO) *commands.Command {
-	cmd := commands.NewCommand(
-		commands.Metadata{
-			ShortUsage: "<subcommand> [flags] [<arg>...]",
-			LongHelp:   "The CLI for easy use of the r/blog realm",
-		},
-		commands.NewEmptyConfig(),
-		commands.HelpExec,
+func (c *cfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.docsPath,
+		"path",
+		"./",
+		"path to dir to walk for .md files",
 	)
+}
 
-	// Make Post command
-	return commands.NewCommand(
-		commands.Metadata{
-			Name:       "post",
-			ShortUsage: "post <FILE OR FILES_DIR> [flags]",
-			LongHelp:   `Post one or more files. Passing in a file will post that single file, while passing in a directory will search for all README.md files and batch post them.`,
-		},
-		cfg,
-		func(_ context.Context, args []string) error {
-			return execPost(io, args, cfg)
-		},
-	)
+func execLint(cfg *cfg, ctx context.Context) error {
+	mdFiles, err := findFilePaths(cfg.docsPath)
+	if err != nil {
+		return fmt.Errorf("error reading .md files: %w", err)
+	}
 
-	cmd.Execute()
+	urlFileMap := make(map[string]string)
+	for _, filePath := range mdFiles {
+		// Step 2: Extract URLs from each file
+		urls, err := extractUrls(filePath)
+		if err != nil {
+			fmt.Println("Error extracting URLs from file:", filePath, err)
+			continue
+		}
 
-	cmd.AddSubCommands(
-		newPostCommand(io),
-	)
+		for url, file := range urls {
+			urlFileMap[url] = file
+			//fmt.Printf("%s >>> %s\n", url, file)
+		}
 
-	return cmd
+	}
+
+	// Filter links by prefix & ignore localhost
+	var validUrls []string
+	for url := range urlFileMap {
+		if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+			if !strings.Contains(url, "localhost") && !strings.Contains(url, "127.0.0.1") {
+				validUrls = append(validUrls, url)
+			}
+		}
+	}
+
+	var lock sync.Mutex
+	var notFoundUrls []string
+	g, ctx := errgroup.WithContext(ctx)
+
+	for _, url := range validUrls {
+		url := url
+
+		g.Go(func() error {
+			checkUrl(&lock, url, urlFileMap[url], &notFoundUrls)
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	//Print out the URLs that returned a 404 along with the file names
+	if len(notFoundUrls) > 0 {
+		fmt.Println("The following URLs are broken or returned a 404 status:")
+		for _, result := range notFoundUrls {
+			fmt.Println(result)
+		}
+	} else {
+		fmt.Println("No URLs returned a 404 status.")
+	}
+
+	return nil
 }
