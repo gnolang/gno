@@ -635,7 +635,7 @@ func (vm *VMKeeper) QueryMemPackage(ctx sdk.Context, pkgPath string) *std.MemPac
 	return store.GetMemPackage(pkgPath)
 }
 
-func (vm *VMKeeper) QueryRemoteMemPackages(ctx sdk.Context) <-chan *std.MemPackage {
+func (vm *VMKeeper) QueryMemPackages(ctx sdk.Context) <-chan *std.MemPackage {
 	store := vm.getGnoStore(ctx)
-	return store.IterMemPackage(true)
+	return store.IterMemPackage()
 }

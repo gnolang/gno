@@ -3,10 +3,10 @@ package gno
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gno.me/state"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
@@ -14,32 +14,37 @@ const maxEventsRequestable uint64 = 100
 
 var errEndingSequence = errors.New("ending sequence is less than starting sequence")
 
-type Event struct {
-	MsgCall
-	Sequence uint64 `json:"sequence"`
-}
-
 type EventRequest struct {
-	StartingSequence uint64 `json:"start"`
-	EndingSequence   uint64 `json:"end"`
+	StartingSequence string `json:"start"`
+	EndingSequence   string `json:"end"`
 	AppName          string `json:"app_name"`
 }
 
 func (r EventRequest) SequenceRange() (uint64, uint64, error) {
-	if r.EndingSequence < r.StartingSequence && r.EndingSequence != 0 {
+	start, err := strconv.ParseUint(r.StartingSequence, 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	end, err := strconv.ParseUint(r.EndingSequence, 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	if end < start && end != 0 {
 		return 0, 0, errEndingSequence
 	}
 
-	end := r.EndingSequence
-	if maxEnd := r.StartingSequence + maxEventsRequestable - 1; maxEnd > r.EndingSequence {
+	if maxEnd := start + maxEventsRequestable - 1; maxEnd > end {
 		end = maxEnd
 	}
 
-	return r.StartingSequence, end, nil
+	return start, end, nil
 }
 
 func (v *VMKeeper) initEventStore() error {
-	return v.Create(context.Background(), eventStorageRealm, false)
+	_, err := v.Create(context.Background(), eventStorageRealm, false, false)
+	return err
 }
 
 const eventStorageRealm string = `
@@ -72,10 +77,10 @@ func NextSequence(pkgPath string) uint64 {
 	return uint64(eventTree.(*uintavl.Tree).Size() + 1)
 }
 
-func Store(pkgPath string, sequence uint64, funcName, args string) (uint64, error) {
+func Store(pkgPath string, sequence uint64, funcName, args string) uint64 {
 	nextSequence := NextSequence(pkgPath)
 	if sequence != nextSequence {
-		return 0, errors.New("expected sequence " + strconv.FormatUint(nextSequence, 10) + " but got " + strconv.FormatUint(sequence, 10))
+		panic("sequence out of order: expected " + strconv.FormatUint(nextSequence, 10) + " but got " + strconv.FormatUint(sequence, 10))
 	}
 
 	eventTree := uintavl.NewTree()
@@ -98,7 +103,7 @@ func Store(pkgPath string, sequence uint64, funcName, args string) (uint64, erro
 		store.Set(pkgPath, eventTree)
 	}
 
-	return sequence, nil
+	return sequence
 }
 
 func Get(pkgPath string, start, end uint64) string {
@@ -139,18 +144,18 @@ func Get(pkgPath string, start, end uint64) string {
 `
 
 // ApplyEvent does two things: runs the event all and updates the event store.
-func (v *VMKeeper) ApplyEvent(ctx context.Context, event *Event) error {
+func (v *VMKeeper) ApplyEvent(ctx context.Context, event *state.Event) error {
 	v.Lock()
 	defer v.Unlock()
 	defer v.store.Commit()
 
 	pkgPath := AppPrefix + event.AppName
 	msg := vm.MsgCall{
-		PkgPath: PkgPrefix + "events",
+		PkgPath: AppPrefix + "events",
 		Func:    "Store",
 		Args: []string{
 			pkgPath,
-			strconv.FormatUint(event.Sequence, 10),
+			event.Sequence,
 			event.Func,
 			encodeArgs(event.Args),
 		},
@@ -160,19 +165,19 @@ func (v *VMKeeper) ApplyEvent(ctx context.Context, event *Event) error {
 	// that specifies what the next messages should be.
 	_, err := v.instance.Call(sdk.Context{}.WithContext(ctx), msg)
 	if err != nil {
-		return fmt.Errorf("error applying event: %w", err)
+		return err
 	}
 
 	// The event was persisted using the given sequence number -- good!
 	// Now run the event call to update the application state.
 	msg = vm.MsgCall{
-		PkgPath: AppPrefix + event.AppName,
+		PkgPath: pkgPath,
 		Func:    event.Func,
 		Args:    event.Args,
 	}
 
 	if _, err := v.instance.Call(sdk.Context{}.WithContext(ctx), msg); err != nil {
-		return fmt.Errorf("error applying event: %w", err)
+		return err
 	}
 
 	// TODO: rollback the event store if the event call fails.

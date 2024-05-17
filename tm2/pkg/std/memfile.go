@@ -23,7 +23,8 @@ type MemPackage struct {
 	Path  string     `json:"path"` // import path
 	Files []*MemFile `json:"files"`
 	// IsRemote bool       `json:"is_remote"`
-	Address string `json:"address"`
+	Address  string `json:"address"`
+	Syncable bool   `json:"syncable"`
 }
 
 func (mempkg *MemPackage) GetFile(name string) *MemFile {

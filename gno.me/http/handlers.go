@@ -3,16 +3,21 @@ package http
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	gohttp "net/http"
+	"net/url"
 	"strings"
 
+	"github.com/gnolang/gno/gno.me/event/subscription"
 	gno "github.com/gnolang/gno/gno.me/gno"
+	"github.com/gnolang/gno/gno.me/state"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type app struct {
 	Code      string `json:"code"`
 	IsPackage bool   `json:"is_package"`
+	Syncable  bool   `json:"syncable"`
 }
 
 type remoteApp struct {
@@ -25,10 +30,10 @@ type getAppName struct {
 }
 
 type appCall struct {
-	Name      string `json:"name"`
-	IsPackage bool   `json:"is_package"`
-	Func      string `json:"func"`
-	Args      string `json:"args"`
+	Name      string   `json:"name"`
+	IsPackage bool     `json:"is_package"`
+	Func      string   `json:"func"`
+	Args      []string `json:"args"`
 }
 
 func createApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
@@ -42,10 +47,16 @@ func createApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 		return
 	}
 
-	if err := vm.Create(req.Context(), gnoApp.Code, gnoApp.IsPackage); err != nil {
+	appName, err := vm.Create(req.Context(), gnoApp.Code, gnoApp.IsPackage, gnoApp.Syncable)
+	if err != nil {
 		fmt.Println(err, "error adding package")
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
 		return
+	}
+
+	// Make this app available to others install remotely and sync.
+	if gnoApp.Syncable {
+		subscription.AddChannel(appName)
 	}
 
 	resp.WriteHeader(gohttp.StatusCreated)
@@ -63,6 +74,16 @@ func installRemoteApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 		return
 	}
 
+	remoteAddress := installRemote.Address
+	if strings.HasPrefix(remoteAddress, "https://") {
+		gohttp.Error(resp, "https not supported", gohttp.StatusBadRequest)
+		return
+	}
+
+	if !strings.HasPrefix(remoteAddress, "http://") {
+		remoteAddress = "http://" + remoteAddress
+	}
+
 	remoteBody, err := json.Marshal(getAppName{Name: installRemote.Name})
 	if err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
@@ -70,7 +91,7 @@ func installRemoteApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 		return
 	}
 
-	getAppReq, err := gohttp.NewRequest("POST", installRemote.Address+"/system/get-app", strings.NewReader(string(remoteBody)))
+	getAppReq, err := gohttp.NewRequest("POST", remoteAddress+"/system/get-app", strings.NewReader(string(remoteBody)))
 	if err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
 		fmt.Println(76, err)
@@ -101,7 +122,18 @@ func installRemoteApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 		return
 	}
 
-	memPackage.Address = installRemote.Address
+	hostURL, err := url.Parse(remoteAddress)
+	if err != nil {
+		gohttp.Error(resp, err.Error()+": unable to parse url", gohttp.StatusInternalServerError)
+		fmt.Println(106, err)
+		return
+	}
+
+	wsHost := "ws://" + strings.Split(hostURL.Host, ":")[0] + memPackage.Address // <-- This is the port
+	if memPackage.Syncable {
+		memPackage.Address = wsHost
+	}
+
 	if err := vm.CreateMemPackage(req.Context(), &memPackage); err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
 		fmt.Println(107, err)
@@ -109,7 +141,10 @@ func installRemoteApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 		return
 	}
 
-	eventListenerManager.ListenOnPackage(installRemote.Address, memPackage.Path)
+	if memPackage.Syncable {
+		gno.RemoteApps.Add(memPackage.Name)
+		eventListenerManager.SubscribeToPackageEvents(memPackage.Address, memPackage.Name)
+	}
 
 	resp.WriteHeader(gohttp.StatusCreated)
 }
@@ -131,6 +166,7 @@ func getApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 		return
 	}
 
+	memPackage.Address = ":" + wsPort
 	resp.WriteHeader(gohttp.StatusOK)
 	result, err := json.Marshal(memPackage)
 	if err != nil {
@@ -152,15 +188,46 @@ func callApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 		return
 	}
 
-	var args []string
-	if len(call.Args) > 0 {
-		args = strings.Split(call.Args, ",")
+	// If we are calling an app which was installed from a remote source, we
+	// can't call locally. Instead we send it on the same event listener connection
+	// and let the remote app execute the function. It will emit the resulting events with the
+	// sequence and we can apply them to the local state.
+	if gno.RemoteApps.Has(call.Name) {
+		fmt.Println("call to remote app", call.Name)
+		if err := eventListenerManager.SubmitEvent(
+			&state.Event{
+				AppName: call.Name,
+				Func:    call.Func,
+				Args:    call.Args,
+			},
+		); err != nil {
+			gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
+		}
+
+		resp.WriteHeader(http.StatusOK)
+		return
 	}
 
-	res, _, err := vm.Call(req.Context(), call.Name, call.IsPackage, call.Func, args...)
+	res, events, err := vm.Call(req.Context(), call.Name, call.IsPackage, call.Func, call.Args...)
 	if err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
 		return
+	}
+
+	// Broadcast events to all subscribers.
+	if channel := subscription.GetChannel(call.Name); channel != nil {
+		for _, event := range events {
+			failedSubscribers, err := channel.Broadcast(event)
+			if err != nil {
+				fmt.Println("error broadcasting event:", err)
+				gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
+				return
+			}
+
+			if len(failedSubscribers) > 0 {
+				channel.RemoveSubscribers(failedSubscribers)
+			}
+		}
 	}
 
 	resp.WriteHeader(gohttp.StatusOK)
@@ -219,7 +286,13 @@ func renderApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 
 	// Strip out gno type information and characters that are not nice when
 	// rendered in a browser.
-	res = res[2 : strings.LastIndex(res, "string")-2]
+	strIndex := strings.LastIndex(res, "string")
+	if strIndex-2 < 2 {
+		resp.Write(nil)
+		return
+	}
+
+	res = res[2 : strIndex-2]
 	res = strings.ReplaceAll(res, "\\n", "")
 	res = strings.ReplaceAll(res, "\\t", "")
 	res = strings.ReplaceAll(res, "\\\"", "\"")

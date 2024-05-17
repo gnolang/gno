@@ -2,20 +2,21 @@ package gno
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-func (v *VMKeeper) Create(ctx context.Context, code string, isPackage bool) error {
+func (v *VMKeeper) Create(ctx context.Context, code string, isPackage, syncable bool) (string, error) {
 	v.Lock()
 	defer v.Unlock()
 	defer v.store.Commit()
 
 	packageName, err := getPackagename(code)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	prefix := AppPrefix
@@ -23,6 +24,7 @@ func (v *VMKeeper) Create(ctx context.Context, code string, isPackage bool) erro
 		prefix = PkgPrefix
 	}
 
+	fmt.Println(prefix + packageName)
 	msg := vm.MsgAddPackage{
 		Package: &std.MemPackage{
 			Name: packageName,
@@ -33,9 +35,10 @@ func (v *VMKeeper) Create(ctx context.Context, code string, isPackage bool) erro
 					Body: code,
 				},
 			},
+			Syncable: syncable,
 		},
 	}
-	return v.instance.AddPackage(sdk.Context{}.WithContext(ctx), msg)
+	return packageName, v.instance.AddPackage(sdk.Context{}.WithContext(ctx), msg)
 }
 
 func (v *VMKeeper) CreateMemPackage(ctx context.Context, memPackage *std.MemPackage) error {

@@ -2,9 +2,10 @@ package ws
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
-	"github.com/gnolang/gno/gno.me/gno"
+	"github.com/gnolang/gno/gno.me/state"
 )
 
 var (
@@ -13,16 +14,16 @@ var (
 )
 
 type Manager struct {
-	sync.Mutex
+	sync.RWMutex
 	done           chan struct{}
 	conns          map[string]*connection
 	connectionDone chan *connection
-	eventCh        chan *gno.Event
+	eventCh        chan *state.Event
 	stopCh         chan struct{}
 	shuttingDown   bool
 }
 
-func NewManager(eventCh chan *gno.Event, done chan struct{}) *Manager {
+func NewManager(eventCh chan *state.Event, done chan struct{}) *Manager {
 	manager := Manager{
 		done:           done,
 		conns:          make(map[string]*connection),
@@ -42,7 +43,7 @@ func (m *Manager) Manage() {
 		case conn := <-m.connectionDone:
 			m.Lock()
 			if !m.shuttingDown {
-				newConnection(conn.address, conn.pkgPath, m.eventCh, m.connectionDone)
+				newConnection(conn.address, conn.appName, m.eventCh, m.connectionDone)
 			}
 			m.Unlock()
 		case <-m.stopCh:
@@ -55,7 +56,7 @@ func (m *Manager) Manage() {
 	}
 }
 
-func (m *Manager) ListenOnPackage(address, pkgPath string) error {
+func (m *Manager) SubscribeToPackageEvents(address, appName string) error {
 	m.Lock()
 	defer m.Unlock()
 
@@ -63,18 +64,32 @@ func (m *Manager) ListenOnPackage(address, pkgPath string) error {
 		return ErrShuttingDown
 	}
 
-	if _, ok := m.conns[pkgPath]; ok {
+	if _, ok := m.conns[appName]; ok {
 		return ErrConnectionAlreadyExists
 	}
 
-	if err := newConnection(address, pkgPath, m.eventCh, m.connectionDone); err != nil {
+	conn, err := newConnection(address, appName, m.eventCh, m.connectionDone)
+	if err != nil {
 		return err
 	}
 
-	m.conns[pkgPath] = &connection{address: address, pkgPath: pkgPath}
+	m.conns[appName] = conn
 	return nil
 }
 
 func (m *Manager) Stop() {
 	close(m.stopCh)
+}
+
+func (m *Manager) SubmitEvent(event *state.Event) error {
+	m.RLock()
+	defer m.RUnlock()
+
+	conn, ok := m.conns[event.AppName]
+	if !ok {
+		fmt.Println("could not find connection for app", event.AppName)
+		return nil
+	}
+
+	return conn.submitRemote(event)
 }

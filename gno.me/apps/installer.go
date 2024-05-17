@@ -10,7 +10,8 @@ import (
 func CreateInstaller(vm gno.VM) error {
 	renderContents := fmt.Sprintf("`%s` + port.Number() + `%s`", prePortContents, postPortContents)
 	appCode := fmt.Sprintf(appDefinition, renderContents)
-	return vm.Create(context.Background(), appCode, false)
+	_, err := vm.Create(context.Background(), appCode, false, false)
+	return err
 }
 
 const appDefinition = `

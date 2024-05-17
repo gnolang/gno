@@ -9,6 +9,7 @@ import (
 
 	readme "github.com/gnolang/gno"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gno.me/state"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/db/goleveldb"
@@ -30,7 +31,7 @@ const (
 )
 
 type VM interface {
-	Create(ctx context.Context, code string, isPackage bool) error
+	Create(ctx context.Context, code string, isPackage, syncable bool) (string, error)
 	CreateMemPackage(ctx context.Context, memPackage *std.MemPackage) error
 	Call(
 		ctx context.Context,
@@ -38,10 +39,10 @@ type VM interface {
 		isPackage bool,
 		functionName string,
 		args ...string,
-	) (res string, events []Event, err error)
+	) (res string, events []*state.Event, err error)
 	Run(ctx context.Context, code string) (res string, err error)
-	ApplyEvent(ctx context.Context, event *Event) error
-	QueryRemoteMemPackages(ctx context.Context) <-chan *std.MemPackage
+	ApplyEvent(ctx context.Context, event *state.Event) error
+	QueryMemPackages(ctx context.Context) <-chan *std.MemPackage
 	QueryMemPackage(ctx context.Context, appName string) *std.MemPackage
 }
 
@@ -52,9 +53,6 @@ type VMKeeper struct {
 }
 
 func NewVM() (*VMKeeper, bool) {
-	// db := memdb.NewMemDB()
-	// DMB: make this actually persist to disk
-	// db, err := boltdb.New("gno.me", "./gno.me")
 	db, err := goleveldb.NewGoLevelDB("gno.me", "./gno.me")
 	if err != nil {
 		panic("could not ascertain storage: " + err.Error())
@@ -82,7 +80,7 @@ func NewVM() (*VMKeeper, bool) {
 	newVM.store.Commit()
 
 	if firstStartup {
-		fmt.Println("Installing example packages...")
+		fmt.Println("Installing bundled gno packages...")
 		if err := newVM.installExamplePackages(); err != nil {
 			panic("could not install example packages: " + err.Error())
 		}

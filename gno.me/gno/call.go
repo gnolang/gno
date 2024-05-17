@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gno.me/state"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 )
 
@@ -25,10 +25,12 @@ func (v *VMKeeper) Call(
 	isPackage bool,
 	functionName string,
 	args ...string,
-) (string, []Event, error) {
+) (string, []*state.Event, error) {
 	v.Lock()
 	defer v.Unlock()
 	defer v.store.Commit()
+
+	fmt.Println("Call", appName, isPackage, functionName, args)
 
 	prefix := AppPrefix
 	if isPackage {
@@ -62,15 +64,13 @@ func (v *VMKeeper) Call(
 		panic("unable to obtain sequence: cannot proceed without persisting event: " + err.Error())
 	}
 
-	fmt.Println(seqResult)
-	sequenceString := seqResult[1:strings.Index(seqResult, " ")]
-	fmt.Println(sequenceString)
+	sequence := seqResult[1:strings.Index(seqResult, " ")]
 	msg = vm.MsgCall{
 		PkgPath: prefix + "events",
 		Func:    "Store",
 		Args: []string{
 			pkgPath,
-			sequenceString,
+			sequence,
 			functionName,
 			encodeArgs(args),
 		},
@@ -81,21 +81,14 @@ func (v *VMKeeper) Call(
 		panic("unable to store event: cannot proceed without persisting event: " + err.Error())
 	}
 
-	sequence, err := strconv.ParseUint(sequenceString, 10, 64)
-	if err != nil {
-		panic("unable to parse sequence: cannot proceed without persisting event: " + err.Error())
-	}
-
-	event := Event{
+	event := state.Event{
 		Sequence: sequence,
-		MsgCall: MsgCall{
-			AppName: appName,
-			Func:    functionName,
-			Args:    args,
-		},
+		AppName:  appName,
+		Func:     functionName,
+		Args:     args,
 	}
 
-	return result, []Event{event}, nil
+	return result, []*state.Event{&event}, nil
 }
 
 func encodeArgs(args []string) string {

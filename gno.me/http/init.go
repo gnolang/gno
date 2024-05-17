@@ -10,6 +10,7 @@ import (
 var (
 	vm                   gno.VM
 	eventListenerManager *ws.Manager
+	wsPort               string
 )
 
 func newMux() *gohttp.ServeMux {
@@ -31,9 +32,11 @@ func NewServer(gnoVM gno.VM) *gohttp.Server {
 	}
 }
 
-func NewServerWithRemoteSupport(gnoVM gno.VM, manager *ws.Manager, httpPort string) *gohttp.Server {
+func NewServerWithRemoteSupport(gnoVM gno.VM, manager *ws.Manager, httpPort string, socketPort string) *gohttp.Server {
 	vm = gnoVM
 	eventListenerManager = manager
+	wsPort = socketPort
+
 	mux := newMux()
 	mux.HandleFunc("/system/install-remote", installRemoteApp)
 	mux.HandleFunc("/system/get-app", getApp)

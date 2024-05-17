@@ -8,8 +8,8 @@ import (
 )
 
 // Do not use after initialization -- may not be thread-safe.
-func (v *VMKeeper) QueryRemoteMemPackages(ctx context.Context) <-chan *std.MemPackage {
-	return v.instance.QueryRemoteMemPackages(sdk.Context{}.WithContext(ctx))
+func (v *VMKeeper) QueryMemPackages(ctx context.Context) <-chan *std.MemPackage {
+	return v.instance.QueryMemPackages(sdk.Context{}.WithContext(ctx))
 }
 
 func (v *VMKeeper) QueryMemPackage(ctx context.Context, appName string) *std.MemPackage {

@@ -49,7 +49,7 @@ type Store interface {
 	AddMemPackage(memPkg *std.MemPackage)
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
-	IterMemPackage(remoteOnly bool) <-chan *std.MemPackage
+	IterMemPackage() <-chan *std.MemPackage
 	ClearObjectCache()                                    // for each delivertx.
 	Fork() Store                                          // for checktx, simulate, and queries.
 	SwapStores(baseStore, iavlStore store.Store)          // for gas wrappers.
@@ -550,7 +550,7 @@ func (ds *defaultStore) GetMemFile(path string, name string) *std.MemFile {
 	return memFile
 }
 
-func (ds *defaultStore) IterMemPackage(remoteOnly bool) <-chan *std.MemPackage {
+func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
@@ -571,10 +571,6 @@ func (ds *defaultStore) IterMemPackage(remoteOnly bool) <-chan *std.MemPackage {
 						"missing package index %d", i))
 				}
 				memPkg := ds.GetMemPackage(string(path))
-				if remoteOnly && memPkg.Address == "" {
-					continue
-				}
-
 				ch <- memPkg
 			}
 			close(ch)

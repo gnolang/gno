@@ -10,7 +10,8 @@ import (
 func CreateRemoteInstaller(vm gno.VM) error {
 	renderContents := fmt.Sprintf("`%s` + port.Number() + `%s`", remotePrePortContents, remotePostPortContents)
 	appCode := fmt.Sprintf(remoteAppDefinition, renderContents)
-	return vm.Create(context.Background(), appCode, false)
+	_, err := vm.Create(context.Background(), appCode, false, false)
+	return err
 }
 
 const remoteAppDefinition = `

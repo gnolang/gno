@@ -7,7 +7,8 @@ import (
 )
 
 func CreatePort(vm gno.VM) error {
-	return vm.Create(context.Background(), portAppDefinition, false)
+	_, err := vm.Create(context.Background(), portAppDefinition, false, false)
+	return err
 }
 
 const portAppDefinition = `

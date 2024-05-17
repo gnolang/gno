@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.me/apps"
+	"github.com/gnolang/gno/gno.me/event"
+	"github.com/gnolang/gno/gno.me/event/subscription"
 	"github.com/gnolang/gno/gno.me/gno"
 	gnohttp "github.com/gnolang/gno/gno.me/http"
+	"github.com/gnolang/gno/gno.me/state"
 	"github.com/gnolang/gno/gno.me/ws"
 )
 
@@ -16,43 +19,52 @@ type Instance struct {
 	vm                  gno.VM
 	wsManager           *ws.Manager
 	httpServer          *http.Server
-	eventCh             chan *gno.Event
-	stopEventProcessing chan struct{}
+	eventCh             chan *state.Event
 	eventProcessingDone chan struct{}
 	managerDone         chan struct{}
+	wsServer            *event.Server
+	wsServerDone        chan struct{}
 	shutdown            bool
 }
 
-func Start(httpPort string) *Instance {
+func Start(httpPort, wsPort string) *Instance {
 	fmt.Println("Initializing VM...")
 	vm, isFirstStartup := gno.NewVM()
-	eventCh := make(chan *gno.Event, 128)
-	stopEventProcessing := make(chan struct{})
+	eventCh := make(chan *state.Event, 128)
 	eventProcessingDone := make(chan struct{})
 	managerDone := make(chan struct{})
+	wsServerDone := make(chan struct{})
 
-	fmt.Println("Initializing incoming events manager...")
-	wsManager := ws.NewManager(eventCh, managerDone)
+	var wsManager *ws.Manager
+	if wsPort != "" {
+		fmt.Println("Initializing incoming events manager...")
+		wsManager = ws.NewManager(eventCh, managerDone)
 
-	fmt.Println("Initializing HTTP server...")
-	httpServer := gnohttp.NewServerWithRemoteSupport(vm, wsManager, httpPort)
+		fmt.Println("Initializing event listeners and subscription channels...")
+		memPackages := vm.QueryMemPackages(context.Background())
+		if memPackages != nil {
+			for memPackage := range memPackages {
 
-	// Get the list of remote apps from the VM and initiate all remote event listeners.
-	fmt.Println("Initializing remote app event listeners...")
-	memPackages := vm.QueryRemoteMemPackages(context.Background())
-	if memPackages != nil {
-		for memPackage := range memPackages {
-			fmt.Println(memPackage.Name)
-			if memPackage.Address == "" {
-				continue
-			}
+				// Initialize the event listeners for syncable packages installed from remote sources.
+				if memPackage.Address != "" && memPackage.Syncable {
+					gno.RemoteApps.Add(memPackage.Name)
 
-			// TODO: handle this error.
-			if err := wsManager.ListenOnPackage(memPackage.Address, memPackage.Path); err != nil {
-				fmt.Printf("error listening on package %s at address %s: %v\n", memPackage.Path, memPackage.Address, err)
+					// TODO: handle this error.
+					if err := wsManager.SubscribeToPackageEvents(memPackage.Address, memPackage.Name); err != nil {
+						fmt.Printf("error listening on package %s at address %s: %v\n", memPackage.Name, memPackage.Address, err)
+					}
+				}
+
+				// If the package was created by this app, create the channel for subscribers.
+				if memPackage.Syncable {
+					subscription.AddChannel(memPackage.Name)
+				}
 			}
 		}
 	}
+
+	fmt.Println("Initializing HTTP server...")
+	httpServer := gnohttp.NewServerWithRemoteSupport(vm, wsManager, httpPort, wsPort)
 
 	if isFirstStartup {
 		fmt.Println("Creating installer apps...")
@@ -68,24 +80,36 @@ func Start(httpPort string) *Instance {
 		panic("error setting port: " + err.Error())
 	}
 
-	go func() {
-		fmt.Println("Starting HTTP server...")
-		httpServer.ListenAndServe()
-	}()
+	fmt.Println("Starting HTTP server...")
+	go httpServer.ListenAndServe()
+
+	var eventServer *event.Server
+	if wsPort != "" {
+		fmt.Println("Starting event processing...")
+		eventProcessor := event.NewProcessor(vm, eventCh, eventProcessingDone)
+		go eventProcessor.Process()
+
+		fmt.Println("Starting WS server for remote app requests and event broadcasting...")
+		eventServer = event.NewServer(eventCreator{vm: vm}, vm, wsServerDone)
+		eventServer.Start(wsPort)
+	} else {
+		close(eventProcessingDone)
+		close(managerDone)
+		close(wsServerDone)
+	}
 
 	instance := &Instance{
 		vm:                  vm,
 		wsManager:           wsManager,
 		httpServer:          httpServer,
 		eventCh:             eventCh,
-		stopEventProcessing: stopEventProcessing,
 		eventProcessingDone: eventProcessingDone,
 		managerDone:         managerDone,
+		wsServer:            eventServer,
+		wsServerDone:        wsServerDone,
 	}
 
-	fmt.Println("Starting event processing...")
-	go instance.processEvents()
-
+	fmt.Println("READY :)")
 	return instance
 }
 
@@ -98,44 +122,16 @@ func (i *Instance) Stop() {
 	defer cancel()
 
 	i.httpServer.Shutdown(ctx)
-	i.wsManager.Stop()
 
-	i.stopEventProcessing <- struct{}{}
+	if i.wsServer != nil {
+		i.wsServer.Stop()
+		i.wsManager.Stop()
+	}
+
+	<-i.wsServerDone
 	<-i.managerDone
 	close(i.eventCh)
 	<-i.eventProcessingDone
-	close(i.stopEventProcessing)
 
 	i.shutdown = true
-}
-
-func (i *Instance) processEvents() {
-LOOP:
-	for {
-		select {
-		case <-i.stopEventProcessing:
-			break LOOP
-		case event := <-i.eventCh:
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-			// TODO: handle these errors better. If this fails do to the event being out of order, then it should
-			// initiate requests to get the necessary previous events.
-			if err := i.vm.ApplyEvent(ctx, event); err != nil {
-				fmt.Println("error applying event:", err)
-			}
-
-			cancel()
-		}
-	}
-
-	// Finish processing events.
-	for event := range i.eventCh {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		if err := i.vm.ApplyEvent(ctx, event); err != nil {
-			fmt.Println("error applying event:", err)
-		}
-
-		cancel()
-	}
-
-	close(i.eventProcessingDone)
 }
