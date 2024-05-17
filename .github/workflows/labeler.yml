@@ -11,3 +11,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: actions/labeler@v5
+    - name: "check is CODECOV_TOKEN exists"
+      env: 
+        super_secret: ${{ secrets.CODECOV_TOKEN_TWO }}
+      if: ${{ env.super_secret == '' }}
+      run: 'echo "echo the secret \"CODECOV_TOKEN\" has not been made; echo please go to \"settings \> secrets \> actions\" to create it"'

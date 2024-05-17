@@ -18,3 +18,4 @@ jobs:
       modulepath: "tm2"
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
+  
