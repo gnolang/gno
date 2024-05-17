@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"sync"
 	"testing"
@@ -761,4 +762,49 @@ func newPersistentKVStore() abci.Application {
 
 func newPersistentKVStoreWithPath(dbDir string) abci.Application {
 	return kvstore.NewPersistentKVStoreApplication(dbDir)
+}
+
+// ------------------------------------
+
+func ensureDrainedChannels(t *testing.T, channels ...any) {
+	t.Helper()
+
+	r := recover()
+	if r == nil {
+		return
+	}
+
+	t.Logf("checking for drained channel")
+	leaks := make(map[string]int)
+	for _, ch := range channels {
+		chVal := reflect.ValueOf(ch)
+		if chVal.Kind() != reflect.Chan {
+			panic(chVal.Type().Name() + " not a channel")
+		}
+
+		maxExp := time.After(time.Second * 5)
+
+		// Use a select statement with reflection
+		cases := []reflect.SelectCase{
+			{Dir: reflect.SelectRecv, Chan: chVal},
+			{Dir: reflect.SelectRecv, Chan: reflect.ValueOf(maxExp)},
+			{Dir: reflect.SelectDefault},
+		}
+
+		for {
+			chosen, recv, recvOK := reflect.Select(cases)
+			if chosen != 0 || !recvOK {
+				break
+			}
+
+			leaks[reflect.TypeOf(recv.Interface()).String()]++
+			time.Sleep(time.Millisecond * 500)
+		}
+	}
+
+	for leak, count := range leaks {
+		t.Logf("channel %q: %d events left\n", leak, count)
+	}
+
+	panic(r)
 }
