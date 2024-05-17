@@ -49,24 +49,24 @@ func execLint(cfg *cfg, ctx context.Context) error {
 
 	urlFileMap := make(map[string]string)
 	for _, filePath := range mdFiles {
-		// Step 2: Extract URLs from each file
+		// Extract URLs from each file
 		urls, err := extractUrls(filePath)
 		if err != nil {
 			fmt.Println("Error extracting URLs from file:", filePath, err)
 			continue
 		}
-
+		// For each url, save what file it was found in
 		for url, file := range urls {
 			urlFileMap[url] = file
-			//fmt.Printf("%s >>> %s\n", url, file)
 		}
-
 	}
 
 	// Filter links by prefix & ignore localhost
 	var validUrls []string
 	for url := range urlFileMap {
+		// Look for http & https only
 		if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+			// Ignore localhost
 			if !strings.Contains(url, "localhost") && !strings.Contains(url, "127.0.0.1") {
 				validUrls = append(validUrls, url)
 			}
