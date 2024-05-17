@@ -1,14 +1,12 @@
-# Default target named all
 all: build run
 
-# Build the Go program
+# Build the linter
 build:
 	cd linter && go build -o linter
 
-# Run the Go program
+# Run the linter for the docs/ folder
 run:
 	./linter/linter -path .
 
-# Clean up binary
 clean:
 	rm -f ./linter/linter
