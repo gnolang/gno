@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -9,6 +10,10 @@ import (
 	"os"
 	"strings"
 	"sync"
+)
+
+var (
+	ErrEmptyPath = errors.New("you need to pass in a path to scan")
 )
 
 type cfg struct {
@@ -42,9 +47,13 @@ func (c *cfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execLint(cfg *cfg, ctx context.Context) error {
+	if cfg.docsPath == "" {
+		return ErrEmptyPath
+	}
+
 	mdFiles, err := findFilePaths(cfg.docsPath)
 	if err != nil {
-		return fmt.Errorf("error reading .md files: %w", err)
+		return fmt.Errorf("error finding .md files: %w", err)
 	}
 
 	urlFileMap := make(map[string]string)
@@ -73,6 +82,7 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		}
 	}
 
+	// Setup parallel checking for links
 	var lock sync.Mutex
 	var notFoundUrls []string
 	g, ctx := errgroup.WithContext(ctx)
@@ -81,7 +91,11 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		url := url
 
 		g.Go(func() error {
-			checkUrl(&lock, url, urlFileMap[url], &notFoundUrls)
+			err := checkUrl(&lock, url, urlFileMap[url], &notFoundUrls)
+			if err != nil {
+				return err
+			}
+
 			return nil
 		})
 	}

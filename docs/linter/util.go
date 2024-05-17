@@ -82,7 +82,7 @@ func extractUrls(filePath string) (map[string]string, error) {
 }
 
 // checkUrl checks if a URL is a 404
-func checkUrl(lock *sync.Mutex, url string, filePath string, results *[]string) {
+func checkUrl(lock *sync.Mutex, url string, filePath string, results *[]string) error {
 	// Attempt to retrieve the HTTP header
 	resp, err := http.Get(url)
 	if err != nil || resp.StatusCode == http.StatusNotFound {
@@ -90,14 +90,18 @@ func checkUrl(lock *sync.Mutex, url string, filePath string, results *[]string) 
 		lock.Lock()
 		*results = append(*results, fmt.Sprintf("%s (found in file: %s)", url, filePath))
 		lock.Unlock()
-		return
+
+		return nil
 	}
 
 	// Ensure the response body is closed properly
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-			fmt.Printf("could not close response properly: %v", err)
+	cleanup := func(Body io.ReadCloser) error {
+		if err := Body.Close(); err != nil {
+			return fmt.Errorf("could not close response properly: %w", err)
 		}
-	}(resp.Body)
+
+		return nil
+	}
+
+	return cleanup(resp.Body)
 }

@@ -1,12 +1,12 @@
-all: build run
+all: build lint
 
 # Build the linter
 build:
-	cd linter && go build -o linter
+	cd linter && go build -o ./build/linter
 
 # Run the linter for the docs/ folder
-run:
-	./linter/linter -path .
+lint:
+	./linter/build/linter -path .
 
 clean:
 	rm -f ./linter/linter
