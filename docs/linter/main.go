@@ -104,7 +104,7 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		return err
 	}
 
-	//Print out the URLs that returned a 404 along with the file names
+	// Print out the URLs that returned a 404 along with the file names
 	if len(notFoundUrls) > 0 {
 		fmt.Println("The following URLs are broken or returned a 404 status:")
 		for _, result := range notFoundUrls {
