@@ -44,18 +44,14 @@ func (c Coin) IsGTE(other Coin) bool {
 // IsLT returns true if they are the same type and the receiver is
 // a smaller value
 func (c Coin) IsLT(other Coin) bool {
-	if c.Denom != other.Denom {
-		panic("comparing different denominations: " + c.Denom + ", " + other.Denom)
-	}
+	mustMatchDenominations(c.Denom, other.Denom)
 
 	return c.Amount < other.Amount
 }
 
 // IsEqual returns true if the two sets of Coins have the same value
 func (c Coin) IsEqual(other Coin) bool {
-	if c.Denom != other.Denom {
-		panic("comparing different denominations: " + c.Denom + ", " + other.Denom)
-	}
+	mustMatchDenominations(c.Denom, other.Denom)
 
 	return c.Amount == other.Amount
 }
@@ -70,9 +66,7 @@ func (c Coin) Add(coinB Coin) Coin {
 }
 
 func (c Coin) AddUnsafe(coinB Coin) Coin {
-	if c.Denom != coinB.Denom {
-		panic("incompatible coin denominations: " + c.Denom + ", " + coinB.Denom)
-	}
+	mustMatchDenominations(c.Denom, coinB.Denom)
 
 	sum, ok := overflow.Add64(c.Amount, coinB.Amount)
 	if !ok {
@@ -92,9 +86,8 @@ func (c Coin) Sub(coinB Coin) Coin {
 }
 
 func (c Coin) SubUnsafe(coinB Coin) Coin {
-	if c.Denom != coinB.Denom {
-		panic("incompatible coin denominations: " + c.Denom + ", " + coinB.Denom)
-	}
+	mustMatchDenominations(c.Denom, coinB.Denom)
+
 	dff, ok := overflow.Sub64(c.Amount, coinB.Amount)
 	if !ok {
 		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " + " + strconv.Itoa(int(coinB.Amount)))
@@ -115,6 +108,12 @@ func (c Coin) IsNegative() bool {
 // IsZero returns if this represents no money
 func (c Coin) IsZero() bool {
 	return c.Amount == 0
+}
+
+func mustMatchDenominations(denomA, denomB string) {
+	if denomA != denomB {
+		panic("incompatible coin denominations: " + denomA + ", " + denomB)
+	}
 }
 
 // Coins is a set of Coin, one per currency
