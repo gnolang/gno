@@ -26,16 +26,18 @@ type PoS struct {
 	// validators holds the current validator set.
 	// This slice can never practically grow more than ~150 elements,
 	// due to Tendermint's quadratic network complexity
-	validators              []types.Validator
+	validators              []*types.Validator
 	addressToValidatorIndex map[std.Address]int      // address -> index
 	addressToStakedAmount   map[std.Address]std.Coin // address -> staked amount
+
+	totalStake uint64 // the total staked amount
 }
 
 // NewPoS creates a new empty Proof of Stake validator set
 func NewPoS(opts ...Option) *PoS {
 	// Create the empty set
 	p := &PoS{
-		validators:              make([]types.Validator, 0),
+		validators:              make([]*types.Validator, 0),
 		addressToValidatorIndex: make(map[std.Address]int),
 		addressToStakedAmount:   make(map[std.Address]std.Coin),
 	}
@@ -55,7 +57,7 @@ func NewPoS(opts ...Option) *PoS {
 // - caller is not already a validator
 // - caller has staked funds >= the current staking threshold
 // - the validator set is less than the maximum size
-func (p *PoS) AddValidator(address std.Address, pubKey string, votingPower uint64) {
+func (p *PoS) AddValidator(address std.Address, pubKey string) {
 	// Check if the caller is a user account
 	if !std.IsOriginCall() {
 		panic("caller not user account")
@@ -77,7 +79,7 @@ func (p *PoS) AddValidator(address std.Address, pubKey string, votingPower uint6
 	)
 
 	// Check if the caller is supplying their own address
-	if address != caller.String() {
+	if address != caller {
 		panic("validator address is not origin")
 	}
 
@@ -90,6 +92,7 @@ func (p *PoS) AddValidator(address std.Address, pubKey string, votingPower uint6
 	// Save the staked amount
 	addressStake.Amount += stakedAmount
 	p.addressToStakedAmount[caller] = addressStake
+	p.totalStake += uint64(stakedAmount)
 
 	// Emit the event that the user staked funds
 	std.Emit(
@@ -104,10 +107,10 @@ func (p *PoS) AddValidator(address std.Address, pubKey string, votingPower uint6
 	}
 
 	// Add the caller to the validator set
-	v := types.Validator{
+	v := &types.Validator{
 		Address:     caller,
-		PubKey:      pubKey,      // TODO check public key?
-		VotingPower: votingPower, // TODO validate voting power?
+		PubKey:      pubKey,
+		VotingPower: uint64(addressStake.Amount) / p.totalStake, // voting power is proportional to the stake
 	}
 
 	p.addressToValidatorIndex[caller] = len(p.validators)
@@ -118,6 +121,14 @@ func (p *PoS) AddValidator(address std.Address, pubKey string, votingPower uint6
 		types.ValidatorAddedEvent,
 		"address", address.String(),
 	)
+}
+
+// rebalanceVotingPower rebalances the voting power of the validator set
+func (p *PoS) rebalanceVotingPower() {
+	for _, v := range p.validators {
+		stakedAmount := p.addressToStakedAmount[v.Address]
+		v.VotingPower = uint64(stakedAmount.Amount) / p.totalStake
+	}
 }
 
 // canBecomeValidator checks if the address fulfills all criteria for
@@ -210,6 +221,6 @@ func (p *PoS) IsValidator(address std.Address) bool {
 }
 
 // GetValidators returns the current staked validator set
-func (p *PoS) GetValidators() []types.Validator {
+func (p *PoS) GetValidators() []*types.Validator {
 	return p.validators
 }

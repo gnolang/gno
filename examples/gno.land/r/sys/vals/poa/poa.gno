@@ -22,7 +22,7 @@ type PoA struct {
 	// validators holds the current validator set.
 	// This slice can never practically grow more than ~150 elements,
 	// due to Tendermint's quadratic network complexity
-	validators              []types.Validator
+	validators              []*types.Validator
 	addressToValidatorIndex map[std.Address]int // address -> index
 	votes                   *votingSystem       // system that keeps track of votes
 
@@ -34,7 +34,7 @@ type PoA struct {
 func NewPoA(opts ...Option) *PoA {
 	// Create the empty set
 	p := &PoA{
-		validators:              make([]types.Validator, 0),
+		validators:              make([]*types.Validator, 0),
 		addressToValidatorIndex: make(map[std.Address]int),
 		votes:                   newVotingSystem(),
 	}
@@ -54,7 +54,7 @@ func NewPoA(opts ...Option) *PoA {
 // - caller is a validator
 // - the proposed address is not a validator
 // - a 2/3+ majority of the set have voted to add
-func (p *PoA) AddValidator(address std.Address, pubKey string, _ uint64) {
+func (p *PoA) AddValidator(address std.Address, pubKey string) {
 	caller := std.GetOrigCaller()
 
 	// Validate that the operation is a valid call
@@ -84,7 +84,7 @@ func (p *PoA) AddValidator(address std.Address, pubKey string, _ uint64) {
 	}
 
 	// Execute the decision
-	v := types.Validator{
+	v := &types.Validator{
 		Address:     address,
 		PubKey:      pubKey, // TODO: in the future, verify the public key
 		VotingPower: 1,      // in this PoA system, everyone has the same voting power
@@ -112,7 +112,7 @@ func (p *PoA) validateAdd(caller, address std.Address) {
 }
 
 // addValidator adds the given validator to the PoA validator set
-func (p *PoA) addValidator(v types.Validator) {
+func (p *PoA) addValidator(v *types.Validator) {
 	// Add the validator to the set
 	p.addressToValidatorIndex[v.Address] = len(p.validators)
 	p.validators = append(p.validators, v)
@@ -234,6 +234,6 @@ func (p *PoA) IsValidator(address std.Address) bool {
 }
 
 // GetValidators returns the current staked validator set
-func (p *PoA) GetValidators() []types.Validator {
+func (p *PoA) GetValidators() []*types.Validator {
 	return p.validators
 }

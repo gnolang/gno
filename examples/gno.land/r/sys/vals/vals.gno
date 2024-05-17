@@ -17,7 +17,7 @@ type Protocol interface {
 	// TODO: This API is not ideal -- the address should be derived from
 	// the public key, and not be passed in as such, but currently Gno
 	// does not support crypto address derivation
-	AddValidator(address std.Address, pubKey string, votingPower uint64)
+	AddValidator(address std.Address, pubKey string)
 
 	// RemoveValidator removes the given validator from the set.
 	// If the validator is not present in the set, the method should error out
@@ -31,7 +31,7 @@ type Protocol interface {
 	// The reason for returning JSON, and not a `[]Validator`,
 	// is because Gno does not yet support an ABI-like functionality
 	// for clients interacting with the Realm / Package methods
-	GetValidators() []types.Validator
+	GetValidators() []*types.Validator
 }
 
 // p is the underlying validator set protocol (PoA / PoS)
@@ -39,8 +39,8 @@ var p Protocol = pos.NewPoS()
 
 // AddValidator adds a new validator to the validator set.
 // If the validator is already present, the method errors out
-func AddValidator(address, pubKey string, votingPower uint64) {
-	p.AddValidator(std.Address(address), pubKey, votingPower)
+func AddValidator(address, pubKey string) {
+	p.AddValidator(std.Address(address), pubKey)
 }
 
 // RemoveValidator removes the given validator from the set.
@@ -66,7 +66,7 @@ func GetValidators() string {
 }
 
 // prepareForJSON prepares the validator set for JSON encoding
-func prepareForJSON(vals []types.Validator) *json.Node {
+func prepareForJSON(vals []*types.Validator) *json.Node {
 	nodes := make([]*json.Node, 0, len(vals))
 
 	for _, v := range vals {
