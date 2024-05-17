@@ -152,6 +152,19 @@ also valid:
 ]
 ```
 
+Sending this to the faucet will receive the following response:
+
+```json
+[
+    {
+        "result": "successfully executed faucet transfer"
+    },
+    {
+        "result": "successfully executed faucet transfer"
+    }
+]
+```
+
 ## Conclusion
 
 That's it 🎉
