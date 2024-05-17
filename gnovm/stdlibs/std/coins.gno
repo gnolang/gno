@@ -1,8 +1,6 @@
 package std
 
 import (
-	"errors"
-	"regexp"
 	"strconv"
 )
 
@@ -89,27 +87,27 @@ func (c Coin) IsZero() bool {
 	return c.Amount == 0
 }
 
-// IsValid returns true if the Coin has a non-negative amount and the denom is valid.
-func (c Coin) IsValid() bool {
-	if err := validate(c.Denom, c.Amount); err != nil {
-		return false
-	}
-	return true
-}
+//// IsValid returns true if the Coin has a non-negative amount and the denom is valid.
+//func (c Coin) IsValid() bool {
+//	if err := validate(c.Denom, c.Amount); err != nil {
+//		return false
+//	}
+//	return true
+//}
 
-// validate returns an error if the Coin has a negative amount or if
-// the denom is invalid.
-func validate(denom string, amount int64) error {
-	if err := validateDenom(denom); err != nil {
-		return err
-	}
-
-	if amount < 0 {
-		return errors.New("negative coin amount: " + strconv.Itoa(int(amount)))
-	}
-
-	return nil
-}
+//// validate returns an error if the Coin has a negative amount or if
+//// the denom is invalid.
+//func validate(denom string, amount int64) error {
+//	if err := validateDenom(denom); err != nil {
+//		return err
+//	}
+//
+//	if amount < 0 {
+//		return errors.New("negative coin amount: " + strconv.Itoa(int(amount)))
+//	}
+//
+//	return nil
+//}
 
 // Coins is a set of Coin, one per currency
 type Coins []Coin
@@ -209,15 +207,15 @@ func (cz Coins) expandNative() (denoms []string, amounts []int64) {
 }
 
 // parsing
-var (
-	reDnmString = `[a-z\/][a-z0-9_.:\/]{2,}`
-	reDnm       = regexp.MustCompile("^" + reDnmString + "$")
-)
-
-func validateDenom(denom string) error {
-	if !reDnm.MatchString(denom) {
-		return errors.New("invalid denom: " + denom)
-	}
-
-	return nil
-}
+//var (
+//	reDnmString = `[a-z\/][a-z0-9_.:\/]{2,}`
+//	reDnm       = regexp.MustCompile("^" + reDnmString + "$")
+//)
+//
+//func validateDenom(denom string) error {
+//	if !reDnm.MatchString(denom) {
+//		return errors.New("invalid denom: " + denom)
+//	}
+//
+//	return nil
+//}
