@@ -138,6 +138,20 @@ If the request is successful, you should get an output similar to the following:
 {"result":"successfully executed faucet transfer"}
 ```
 
+The faucet also supports batch requests, so a request such as the following is 
+also valid:
+
+```json
+ [
+  {
+    "To": "g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"
+  },
+  {
+    "To": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
+  }
+]
+```
+
 ## Conclusion
 
 That's it 🎉
