@@ -89,8 +89,34 @@ func (c Coin) IsZero() bool {
 	return c.Amount == 0
 }
 
+// IsValid returns true if the Coin has a non-negative amount and the denom is valid.
+func (c Coin) IsValid() bool {
+	if err := validate(c.Denom, c.Amount); err != nil {
+		return false
+	}
+	return true
+}
+
+// validate returns an error if the Coin has a negative amount or if
+// the denom is invalid.
+func validate(denom string, amount int64) error {
+	if err := validateDenom(denom); err != nil {
+		return err
+	}
+
+	if amount < 0 {
+		return errors.New("negative coin amount: " + strconv.Itoa(int(amount)))
+	}
+
+	return nil
+}
+
 // Coins is a set of Coin, one per currency
 type Coins []Coin
+
+func NewCoins(coins ...Coin) Coins {
+	return coins
+}
 
 // NewCoinsFromVal is a type-unsafe way to make a Coins struct
 // Usage is not recommended
@@ -102,7 +128,8 @@ func NewCoinsFromVal(val ...interface{}) (Coins, error) {
 	cz := Coins{}
 	for i := 0; i < len(val)-1; i++ {
 		denom := val[i].(string)
-		amt := val[i+1].(int64)1
+		amt := val[i+1].(int64)
+
 		cz = append(cz, NewCoin(denom, amt))
 	}
 
