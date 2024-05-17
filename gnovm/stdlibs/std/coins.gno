@@ -1,6 +1,8 @@
 package std
 
 import (
+	"errors"
+	"regexp"
 	"strconv"
 )
 
@@ -14,11 +16,15 @@ type Coin struct {
 }
 
 // NewCoin returns a new coin with a denomination and amount
-func NewCoin(denom string, amount int64) Coin {
+func NewCoin(denom string, amount int64) (Coin, error) {
+	if err := validate(denom, amount); err != nil {
+		return Coin{}, err
+	}
+
 	return Coin{
 		Denom:  denom,
 		Amount: amount,
-	}
+	}, nil
 }
 
 // String provides a human-readable representation of a coin
@@ -36,6 +42,7 @@ func (c Coin) IsGTE(other Coin) bool {
 	if c.Denom != other.Denom {
 		panic("comparing different denominations: " + c.Denom + ", " + other.Denom)
 	}
+
 	return c.Amount >= other.Amount
 }
 
@@ -45,6 +52,7 @@ func (c Coin) IsLT(other Coin) bool {
 	if c.Denom != other.Denom {
 		panic("comparing different denominations: " + c.Denom + ", " + other.Denom)
 	}
+
 	return c.Amount < other.Amount
 }
 
@@ -53,15 +61,66 @@ func (c Coin) IsEqual(other Coin) bool {
 	if c.Denom != other.Denom {
 		panic("comparing different denominations: " + c.Denom + ", " + other.Denom)
 	}
+
 	return c.Amount == other.Amount
 }
+
+//// Adds amounts of two coins with same denom.
+//// If the coins differ in denom then it panics.
+//// An overflow or underflow panics.
+//// An invalid result panics.
+//func (c Coin) Add(coinB Coin) Coin {
+//	res := c.AddUnsafe(coinB)
+//	if !res.IsValid() {
+//		panic(fmt.Sprintf("invalid result: %v + %v = %v", c, coinB, res))
+//	}
+//	return res
+//}
+//
+//func (c Coin) AddUnsafe(coinB Coin) Coin {
+//	if c.Denom != coinB.Denom {
+//		panic(fmt.Sprintf("invalid coin denominations; %s, %s", c.Denom, coinB.Denom))
+//	}
+//	sum, ok := overflow.Add64(c.Amount, coinB.Amount)
+//	if !ok {
+//		panic(fmt.Sprintf("coin add overflow/underflow: %v, %v", c, coinB))
+//	}
+//	return Coin{c.Denom, sum}
+//}
 
 // IsZero returns if this represents no money
 func (c Coin) IsZero() bool {
 	return c.Amount == 0
 }
 
-func NewCoins(val ...interface{}) Coins {
+// IsValid returns true if the Coin has a non-negative amount and the denom is valid.
+func (c Coin) IsValid() bool {
+	if err := validate(c.Denom, c.Amount); err != nil {
+		return false
+	}
+	return true
+}
+
+// validate returns an error if the Coin has a negative amount or if
+// the denom is invalid.
+func validate(denom string, amount int64) error {
+	if err := validateDenom(denom); err != nil {
+		return err
+	}
+
+	if amount < 0 {
+		return errors.New("negative coin amount: " + strconv.Itoa(int(amount)))
+	}
+
+	return nil
+}
+
+// Coins is a set of Coin, one per currency
+type Coins []Coin
+
+// NewCoinsFromVal is a type-unsafe way to make a Coins struct
+// Usage is not recommended
+func NewCoinsFromVal(val ...interface{}) (Coins, error) {
 	if len(val)%2 != 0 {
 		panic("invalid number of arguments")
 	}
@@ -70,14 +129,16 @@ func NewCoins(val ...interface{}) Coins {
 	for i := 0; i < len(val)-1; i++ {
 		denom := val[i].(string)
 		amt := val[i+1].(int64)
-		cz = append(cz, NewCoin(denom, amt))
+		c, err := NewCoin(denom, amt)
+		if err != nil {
+			return Coins{}, err
+		}
+
+		cz = append(cz, c)
 	}
 
-	return cz
+	return cz, nil
 }
-
-// Coins is a set of Coin, one per currency
-type Coins []Coin
 
 func (cz Coins) String() string {
 	if len(cz) == 0 {
@@ -91,6 +152,7 @@ func (cz Coins) String() string {
 		}
 		res += c.String()
 	}
+
 	return res
 }
 
@@ -100,6 +162,7 @@ func (cz Coins) AmountOf(denom string) int64 {
 			return c.Amount
 		}
 	}
+
 	return 0
 }
 
@@ -110,13 +173,31 @@ func (cz Coins) Add(b Coins) Coins {
 		ac.Amount += bc
 		c = append(c, ac)
 	}
+
 	for _, bc := range b {
 		cc := c.AmountOf(bc.Denom)
 		if cc == 0 {
 			c = append(c, bc)
 		}
 	}
+
 	return c
+}
+
+// removeZeroCoins removes all zero coins from the given coin set in-place.
+func removeZeroCoins(coins Coins) Coins {
+	i, l := 0, len(coins)
+	for i < l {
+		if coins[i].IsZero() {
+			// remove coin
+			coins = append(coins[:i], coins[i+1:]...)
+			l--
+		} else {
+			i++
+		}
+	}
+
+	return coins[:i]
 }
 
 // expand for usage within natively bound functions.
@@ -127,5 +208,20 @@ func (cz Coins) expandNative() (denoms []string, amounts []int64) {
 		denoms[i] = coin.Denom
 		amounts[i] = coin.Amount
 	}
+
 	return denoms, amounts
+}
+
+// parsing
+var (
+	reDnmString = `[a-z\/][a-z0-9_.:\/]{2,}`
+	reDnm       = regexp.MustCompile("^" + reDnmString + "$")
+)
+
+func validateDenom(denom string) error {
+	if !reDnm.MatchString(denom) {
+		return errors.New("invalid denom: " + denom)
+	}
+
+	return nil
 }
