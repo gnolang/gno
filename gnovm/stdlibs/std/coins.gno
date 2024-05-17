@@ -1,8 +1,7 @@
 package std
 
 import (
-	"errors"
-	"regexp"
+	"math/overflow"
 	"strconv"
 )
 
@@ -61,28 +60,57 @@ func (c Coin) IsEqual(other Coin) bool {
 	return c.Amount == other.Amount
 }
 
-//// Adds amounts of two coins with same denom.
-//// If the coins differ in denom then it panics.
-//// An overflow or underflow panics.
-//// An invalid result panics.
-//func (c Coin) Add(coinB Coin) Coin {
-//	res := c.AddUnsafe(coinB)
-//	if !res.IsValid() {
-//		panic(fmt.Sprintf("invalid result: %v + %v = %v", c, coinB, res))
-//	}
-//	return res
-//}
-//
-//func (c Coin) AddUnsafe(coinB Coin) Coin {
-//	if c.Denom != coinB.Denom {
-//		panic(fmt.Sprintf("invalid coin denominations; %s, %s", c.Denom, coinB.Denom))
-//	}
-//	sum, ok := overflow.Add64(c.Amount, coinB.Amount)
-//	if !ok {
-//		panic(fmt.Sprintf("coin add overflow/underflow: %v, %v", c, coinB))
-//	}
-//	return Coin{c.Denom, sum}
-//}
+// Adds amounts of two coins with same denom.
+// If the coins differ in denom then it panics.
+// An overflow or underflow panics.
+// An invalid result panics.
+func (c Coin) Add(coinB Coin) Coin {
+	res := c.AddUnsafe(coinB)
+	return res
+}
+
+func (c Coin) AddUnsafe(coinB Coin) Coin {
+	if c.Denom != coinB.Denom {
+		panic("incompatible coin denominations: " + c.Denom + ", " + coinB.Denom)
+	}
+
+	sum, ok := overflow.Add64(c.Amount, coinB.Amount)
+	if !ok {
+		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " + " + strconv.Itoa(int(coinB.Amount)))
+	}
+
+	return Coin{c.Denom, sum}
+}
+
+// Subtracts amounts of two coins with same denom.
+// If the coins differ in denom then it panics.
+// An overflow or underflow panics.
+// An invalid result panics.
+func (c Coin) Sub(coinB Coin) Coin {
+	res := c.SubUnsafe(coinB)
+	return res
+}
+
+func (c Coin) SubUnsafe(coinB Coin) Coin {
+	if c.Denom != coinB.Denom {
+		panic("incompatible coin denominations: " + c.Denom + ", " + coinB.Denom)
+	}
+	dff, ok := overflow.Sub64(c.Amount, coinB.Amount)
+	if !ok {
+		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " + " + strconv.Itoa(int(coinB.Amount)))
+	}
+	return Coin{c.Denom, dff}
+}
+
+// IsPositive returns true if coin amount is positive.
+func (c Coin) IsPositive() bool {
+	return c.Amount > 0
+}
+
+// IsNegative returns true if the coin amount is negative and false otherwise.
+func (c Coin) IsNegative() bool {
+	return c.Amount < 0
+}
 
 // IsZero returns if this represents no money
 func (c Coin) IsZero() bool {
@@ -98,21 +126,21 @@ func NewCoins(coins ...Coin) Coins {
 
 // NewCoinsFromVal is a type-unsafe way to make a Coins struct
 // Usage is not recommended
-//func NewCoinsFromVal(val ...interface{}) (Coins, error) {
-//	if len(val)%2 != 0 {
-//		panic("invalid number of arguments")
-//	}
-//
-//	cz := Coins{}
-//	for i := 0; i < len(val)-1; i++ {
-//		denom := val[i].(string)
-//		amt := val[i+1].(int64)
-//
-//		cz = append(cz, NewCoin(denom, amt))
-//	}
-//
-//	return cz, nil
-//}
+func NewCoinsFromVal(val ...interface{}) Coins {
+	if len(val)%2 != 0 {
+		panic("invalid number of arguments")
+	}
+
+	cz := Coins{}
+	for i := 0; i < len(val)-1; i += 2 {
+		denom := val[i].(string)
+		amt := val[i+1].(int64)
+
+		cz = append(cz, NewCoin(denom, amt))
+	}
+
+	return cz
+}
 
 func (cz Coins) String() string {
 	if len(cz) == 0 {
@@ -184,17 +212,4 @@ func (cz Coins) expandNative() (denoms []string, amounts []int64) {
 	}
 
 	return denoms, amounts
-}
-
-var (
-	reDnmString = `[a-z\/][a-z0-9_.:\/]{2,}`
-	reDnm       = regexp.MustCompile("^" + reDnmString + "$")
-)
-
-func validateDenom(denom string) error {
-	if !reDnm.MatchString(denom) {
-		return errors.New("invalid denom: " + denom)
-	}
-
-	return nil
 }
