@@ -4,9 +4,7 @@ import (
 	"strconv"
 )
 
-// NOTE: this is selectly copied over from pkgs/std/coin.go
-// TODO: import all functionality(?).
-// TODO: implement Coin/Coins constructors.
+// NOTE: this is selectively copied over from tm2/pkgs/std/coin.go
 
 // Coin hold some amount of one currency.
 // A negative amount is invalid.
@@ -26,7 +24,7 @@ func NewCoin(denom string, amount int64) Coin {
 // String provides a human-readable representation of a coin
 func (c Coin) String() string {
 	if c.IsZero() {
-		return ""
+		return "0" + c.Denom
 	}
 
 	return strconv.Itoa(int(c.Amount)) + c.Denom
