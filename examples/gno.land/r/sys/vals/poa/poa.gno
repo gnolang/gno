@@ -1,0 +1,239 @@
+package poa
+
+import (
+	"std"
+
+	"gno.land/r/sys/vals/types"
+)
+
+// voteWipeThreshold is the interval in which
+// all active votes are wiped (proposal reset every X blocks)
+const voteWipeThreshold = 500 // blocks
+
+const (
+	UserVotedAddEvent    = "UserVotedAdd"    // emitted when someone votes to add a validator
+	UserVotedRemoveEvent = "UserVotedRemove" // emitted when someone votes to remove a validator
+)
+
+// PoA specifies the Proof of Authority validator set.
+// In order to become part of the set, users to be voted into
+// the validator set by the majority of the existing set
+type PoA struct {
+	// validators holds the current validator set.
+	// This slice can never practically grow more than ~150 elements,
+	// due to Tendermint's quadratic network complexity
+	validators              []types.Validator
+	addressToValidatorIndex map[std.Address]int // address -> index
+	votes                   *votingSystem       // system that keeps track of votes
+
+	totalVotingPower uint64 // cached value for quick lookups
+	majorityPower    uint64 // cached value for quick lookups
+}
+
+// NewPoA creates a new empty Proof of Authority validator set
+func NewPoA(opts ...Option) *PoA {
+	// Create the empty set
+	p := &PoA{
+		validators:              make([]types.Validator, 0),
+		addressToValidatorIndex: make(map[std.Address]int),
+		votes:                   newVotingSystem(),
+	}
+
+	// Apply the options
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return p
+}
+
+// AddValidator adds a vote to add a new validator to the validator set.
+//
+// Criteria for being added:
+// - caller is a user account
+// - caller is a validator
+// - the proposed address is not a validator
+// - a 2/3+ majority of the set have voted to add
+func (p *PoA) AddValidator(address std.Address, pubKey string, _ uint64) {
+	caller := std.GetOrigCaller()
+
+	// Validate that the operation is a valid call
+	p.validateAdd(caller, address)
+
+	// Attempt to wipe the votes, if needed
+	p.attemptVoteReset()
+
+	// Cast the vote
+	p.votes.castVote(caller, address, true)
+
+	// Emit the vote event
+	std.Emit(
+		UserVotedAddEvent,
+		"address", address.String(),
+		"voter", caller.String(),
+	)
+
+	// Calculate the votes
+	addCount, _ := p.votes.getTally(address)
+
+	// Check if there is a majority
+	// to apply the action
+	if addCount <= p.majorityPower {
+		// No super majority to add
+		return
+	}
+
+	// Execute the decision
+	v := types.Validator{
+		Address:     address,
+		PubKey:      pubKey, // TODO: in the future, verify the public key
+		VotingPower: 1,      // in this PoA system, everyone has the same voting power
+	}
+
+	p.addValidator(v)
+}
+
+// validateAdd validates a validator add call
+func (p *PoA) validateAdd(caller, address std.Address) {
+	// Check if the caller is a user account
+	if !std.IsOriginCall() {
+		panic("caller not user account")
+	}
+
+	// Check if the caller is in the set
+	if !p.IsValidator(caller) {
+		panic("validator already exists")
+	}
+
+	// Check if the validator is already in the set
+	if p.IsValidator(address) {
+		panic("validator already exists")
+	}
+}
+
+// addValidator adds the given validator to the PoA validator set
+func (p *PoA) addValidator(v types.Validator) {
+	// Add the validator to the set
+	p.addressToValidatorIndex[v.Address] = len(p.validators)
+	p.validators = append(p.validators, v)
+
+	// Update the total voting power
+	p.totalVotingPower += v.VotingPower
+	p.majorityPower = (2 * p.totalVotingPower) / 3
+
+	// Emit the validator set change
+	std.Emit(
+		types.ValidatorAddedEvent,
+		"address", v.Address.String(),
+	)
+
+	// Remove the candidate from the voting system
+	p.votes.resetCandidate(v.Address)
+}
+
+// RemoveValidator adds a vote to remove a validator from the validator set.
+//
+// Criteria for being added:
+// - caller is a user account
+// - caller is a validator
+// - the proposed address is a validator
+// - a 2/3+ majority of the set have voted to remove
+func (p *PoA) RemoveValidator(address std.Address) {
+	caller := std.GetOrigCaller()
+
+	// Validate that the operation is a valid call
+	p.validateRemove(caller, address)
+
+	// Attempt to wipe the votes, if needed
+	p.attemptVoteReset()
+
+	// Cast the vote
+	p.votes.castVote(caller, address, false)
+
+	// Emit the vote event
+	std.Emit(
+		UserVotedRemoveEvent,
+		"address", address.String(),
+		"voter", caller.String(),
+	)
+
+	// Calculate the votes
+	_, removeCount := p.votes.getTally(address)
+
+	// Check if there is a majority
+	// to apply the action
+	if removeCount <= p.majorityPower {
+		// No super majority to remove
+		return
+	}
+
+	// Execute the decision
+	p.removeValidator(address)
+}
+
+// validateRemove validates a validator remove call
+func (p *PoA) validateRemove(caller, address std.Address) {
+	// Check if the caller is a user account
+	if !std.IsOriginCall() {
+		panic("caller not user account")
+	}
+
+	// Check if this request came from a validator
+	if !p.IsValidator(caller) {
+		panic("user is not validator")
+	}
+
+	// Check if the address is a validator
+	if p.IsValidator(address) {
+		panic("address is not a validator")
+	}
+}
+
+// removeValidator removes the given address from the PoA validator set
+func (p *PoA) removeValidator(address std.Address) {
+	// Fetch the validator index
+	index := p.addressToValidatorIndex[address]
+
+	// Remove the validator from the set
+	validator := p.validators[index]
+	p.validators = append(p.validators[:index], p.validators[index+1:]...)
+
+	delete(p.addressToValidatorIndex, address)
+
+	// Update the total voting power
+	p.totalVotingPower -= validator.VotingPower
+	p.majorityPower = (2 * p.totalVotingPower) / 3
+
+	// Emit the validator set change
+	std.Emit(
+		types.ValidatorRemovedEvent,
+		"address", address.String(),
+	)
+
+	// Remove the candidate from the voting system
+	p.votes.resetCandidate(address)
+}
+
+// attemptVoteReset resets the votes if the wipe threshold
+// has been reached
+func (p *PoA) attemptVoteReset() {
+	if std.GetHeight()%voteWipeThreshold != 0 {
+		return
+	}
+
+	// Wipe the current votes
+	p.votes.reset()
+}
+
+// IsValidator returns a flag indicating if the address
+// is part of the staked validator set
+func (p *PoA) IsValidator(address std.Address) bool {
+	_, exists := p.addressToValidatorIndex[address]
+
+	return exists
+}
+
+// GetValidators returns the current staked validator set
+func (p *PoA) GetValidators() []types.Validator {
+	return p.validators
+}

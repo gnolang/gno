@@ -55,7 +55,7 @@ func NewPoS(opts ...Option) *PoS {
 // - caller is not already a validator
 // - caller has staked funds >= the current staking threshold
 // - the validator set is less than the maximum size
-func (p *PoS) AddValidator(address, pubKey string, votingPower uint64) {
+func (p *PoS) AddValidator(address std.Address, pubKey string, votingPower uint64) {
 	// Check if the caller is a user account
 	if !std.IsOriginCall() {
 		panic("caller not user account")
@@ -94,8 +94,8 @@ func (p *PoS) AddValidator(address, pubKey string, votingPower uint64) {
 	// Emit the event that the user staked funds
 	std.Emit(
 		UserStakedEvent,
-		"address", address,
-		"stake", ufmt.Sprintf("%d", stakedAmount.Amount),
+		"address", address.String(),
+		"stake", ufmt.Sprintf("%d", addressStake.Amount),
 	)
 
 	// Check if the caller can become a validator
@@ -116,7 +116,7 @@ func (p *PoS) AddValidator(address, pubKey string, votingPower uint64) {
 	// Emit the validator set change
 	std.Emit(
 		types.ValidatorAddedEvent,
-		"address", address,
+		"address", address.String(),
 	)
 }
 
@@ -127,7 +127,7 @@ func (p *PoS) AddValidator(address, pubKey string, votingPower uint64) {
 func (p *PoS) canBecomeValidator(address std.Address) bool {
 	stake, _ := p.addressToStakedAmount[address]
 
-	return !p.IsValidator(address.String()) && stake.IsAllGTE(stakeThreshold)
+	return !p.IsValidator(address) && stake.IsGTE(stakeThreshold)
 }
 
 // RemoveValidator removes a validator from the validator set.
@@ -137,7 +137,7 @@ func (p *PoS) canBecomeValidator(address std.Address) bool {
 // - caller is a user account
 // - caller is a validator
 // - the validator set is more than the minimum size
-func (p *PoS) RemoveValidator(address string) {
+func (p *PoS) RemoveValidator(address std.Address) {
 	// Check if the caller is a user account
 	if !std.IsOriginCall() {
 		panic("caller not user account")
@@ -164,7 +164,7 @@ func (p *PoS) RemoveValidator(address string) {
 	}
 
 	// Check if the validator is in the set
-	index := addressToValidatorIndex[caller]
+	index := p.addressToValidatorIndex[caller]
 
 	// Remove the validator from the set
 	p.validators = append(p.validators[:index], p.validators[index+1:]...)
@@ -178,13 +178,13 @@ func (p *PoS) RemoveValidator(address string) {
 	// Emit the validator set change
 	std.Emit(
 		types.ValidatorRemovedEvent,
-		"address", address,
+		"address", address.String(),
 	)
 
 	// Emit the unstake event
 	std.Emit(
 		UserUnstakedEvent,
-		"address", address,
+		"address", address.String(),
 		"stake", ufmt.Sprintf("%d", addressStake.Amount),
 	)
 }
@@ -192,7 +192,7 @@ func (p *PoS) RemoveValidator(address string) {
 // returnStake returns the specified stake to the given address
 func returnStake(address std.Address, amount std.Coin) {
 	// Derive the current package address
-	from := std.DerivePkgAddr(std.CurrentRealm())
+	from := std.DerivePkgAddr(std.CurrentRealm().Addr().String())
 
 	// Fetch the banker
 	banker := std.GetBanker(std.BankerTypeRealmSend)
@@ -203,7 +203,7 @@ func returnStake(address std.Address, amount std.Coin) {
 
 // IsValidator returns a flag indicating if the address
 // is part of the staked validator set
-func (p *PoS) IsValidator(address string) bool {
+func (p *PoS) IsValidator(address std.Address) bool {
 	_, exists := p.addressToValidatorIndex[std.Address(address)]
 
 	return exists
