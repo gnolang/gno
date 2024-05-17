@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// 5:2: fallthrough statement out of place
+// fallthrough statement out of place

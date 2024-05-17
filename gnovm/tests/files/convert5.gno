@@ -6,4 +6,4 @@ func main() {
 	println(ints)
 }
 
-// error: cannot convert (undefined) to int
+// Error: cannot convert (undefined) to int
