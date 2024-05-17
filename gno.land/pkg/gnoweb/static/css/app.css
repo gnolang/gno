@@ -48,7 +48,7 @@ html[data-theme="light"] {
   --quote-background: #ddd;
   --quote-2-background: #aaa4;
   --code-background: #d7d9db;
-  --header-background: #d7d9db;
+  --header-background: #6b6d73;
 
   --realm-help-background-color: #d7d9db9e;
   --realm-help-odd-background-color: #d7d9db45;
@@ -84,7 +84,7 @@ html[data-theme="dark"] {
   --quote-background: #404040;
   --quote-2-background: #555555;
   --code-background: #606060;
-  --header-background: #606060;
+  --header-background: #6b6d73;
 
   --realm-help-background-color: #45454545;
   --realm-help-odd-background-color: #4545459e;
@@ -108,14 +108,13 @@ html[data-theme="dark"] {
   --highlight-addition: #76c490;
 }
 
-html[data-theme="dark"] #header img,
-html[data-theme="dark"] .footer img {
-  filter: invert(1);
-}
+.logo-wording path {fill: #ffffff; }
+.logo-beard { fill: #ffffff; }
 
 #theme-toggle {
   display: inline-block;
   padding: 0;
+  color: #ffffff;
 }
 
 html[data-theme="dark"] #theme-toggle-moon,
@@ -147,8 +146,8 @@ html,
 body {
   padding: 0;
   margin: 0;
-  font-family: "Roboto Mono", "Courier New", "sans-serif";
-  background-color: var(--background-color, #eee);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+  "Segoe UI Symbol", "Noto Color Emoji";  background-color: var(--background-color, #eee);
   color: var(--text-color, #000);
   font-size: 15px;
   transition: 0.25s all ease;
@@ -159,8 +158,7 @@ h2,
 h3,
 h4,
 nav {
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-    "Segoe UI Symbol", "Noto Color Emoji";
+
   font-weight: 600;
   letter-spacing: 0.08rem;
 }
@@ -248,7 +246,6 @@ li > * {
 }
 
 input {
-  font-family: "Roboto Mono", "Monaco", monospace;
   background-color: var(--input-background-color, #eee);
   border: 1px solid var(--border-color);
   color: var(--text-color, #000);
@@ -266,6 +263,9 @@ blockquote blockquote {
   background-color: var(--quote-2-background, #aaa4);
 }
 
+pre, code {
+    font-family: "Roboto Mono", "Courier New", "sans-serif";
+}
 pre {
   background-color: var(--code-background, #d7d9db);
   margin: 0;
@@ -338,13 +338,16 @@ code {
 }
 
 .footer {
+  text-align: center;
   margin-block-start: 2rem;
   background-color: var(--header-background, #d7d9db);
   border-top: 1px solid var(--border-color);
 }
-.footer > img {
+
+.footer > .logo {
   display: block;
-  margin: 1rem auto;
+  margin: 1rem;
+  height: 1.2rem;
 }
 
 /** 51.2rem **/
@@ -488,14 +491,19 @@ code {
   flex-grow: 2;
 }
 
-#logo {
+#header .logo {
   display: flex;
   align-items: center;
   color: var(--link-color, #25172a);
   position: absolute;
-  height: 3rem;
+  height: 2.4rem;
   z-index: 2;
 }
+
+.logo > svg {
+    height: 100%;
+}
+
 
 #logo_path a {
   text-decoration: none;
@@ -670,6 +678,11 @@ code {
   display: flex;
   flex-direction: column;
   margin-bottom: 2rem;
+  margin-top: .8rem;
+}
+
+#menu-toggle > .navigation a {
+    color: white;
 }
 
 #menu-toggle input:checked ~ .navigation {

@@ -8,7 +8,7 @@
   <body onload="main()">
     <div id="root">
       <div id="data" data-realm-path="{{ .Data.RealmPath }}" data-remote="{{ .Data.Config.HelpRemote }}" data-chainid="{{ .Data.Config.HelpChainID }}" />
-      <div id="header">{{ template "header_logo" }} {{ template "header_buttons" }}</div>
+      <div id="header">{{ template "logo" }} {{ template "header_buttons" }}</div>
       <div class="inline-list">
         <span id="logo_path"> <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>?help </span>
       </div>
