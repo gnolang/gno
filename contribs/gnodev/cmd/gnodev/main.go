@@ -52,13 +52,14 @@ type devCfg struct {
 	txsFile         string
 
 	// Node Configuration
-	minimal    bool
-	verbose    bool
-	noWatch    bool
-	noReplay   bool
-	maxGas     int64
-	chainId    string
-	serverMode bool
+	minimal       bool
+	verbose       bool
+	noWatch       bool
+	noReplay      bool
+	maxGas        int64
+	chainId       string
+	serverMode    bool
+	webHelpRemote string
 }
 
 var defaultDevOptions = &devCfg{
@@ -115,6 +116,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"web-listener",
 		defaultDevOptions.webListenerAddr,
 		"web server listening address",
+	)
+
+	fs.StringVar(
+		&c.webHelpRemote,
+		"web-help-remote",
+		defaultDevOptions.nodeRPCListenerAddr,
+		"web server help page's remote addr",
 	)
 
 	fs.StringVar(

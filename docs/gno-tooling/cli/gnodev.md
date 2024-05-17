@@ -136,3 +136,4 @@ While `gnodev` is running, the following shortcuts are available:
 | --server-mode       | disable interaction, and adjust logging for server use.    |
 | --verbose           | enable verbose output for development                      |
 | --web-listener      | web server listening address                               |
+| --web-help-remote   | web server help page's remote addr                         |
