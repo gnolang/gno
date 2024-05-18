@@ -24,10 +24,6 @@ func NewCoin(denom string, amount int64) Coin {
 
 // String provides a human-readable representation of a coin
 func (c Coin) String() string {
-	if c.IsZero() {
-		return "0" + c.Denom
-	}
-
 	return strconv.Itoa(int(c.Amount)) + c.Denom
 }
 
