@@ -51,7 +51,7 @@ package path and network for deployment.
 ![default_deploy](../assets/getting-started/playground/default_deploy.png)
 
 After inputting your desired package path, you can select the network you would 
-like to deploy to, such as [Portal Loop](../concepts/portal-loop.md) or local,
+like to deploy to, such as [Portal Loop](../04-concepts/11-portal-loop.md) or local,
 and click deploy.
 
 :::info
@@ -85,7 +85,7 @@ View the code [here](https://play.gno.land/p/nBq2W8drjMy).
 The **Test** feature will look for `_test.gno` files in your playground and run 
 the`gno test -v` command on them. Testing your code will open a terminal that
 will show you the output of the test. Read more about how Gno tests work
-[here](../concepts/gno-test.md).
+[here](../04-concepts/13-gno-test.md).
 
 ### REPL (experimental)
 
@@ -96,9 +96,9 @@ It provides a command-line interface for hands-on learning, iterative testing, a
 
 If you're new here, don't worry—content is regularly produced to breakdown
 Gno.land to explain its features. Dive into the essentials of Gno.land by 
-exploring the [Concepts](../concepts/concepts.md) section.
+exploring the [Concepts](../04-concepts/concepts.md) section.
 
 To get started writing Gno code, check out the
-[How-to](../how-to-guides/how-to-guides.md) section, the `examples/` folder on
+[How-to](../03-how-to-guides/how-to-guides.md) section, the `examples/` folder on
 the [Gno monorepo](https://github.com/gnolang/gno), or one of many community projects and tutorials found in the 
 [awesome-gno](https://github.com/gnolang/awesome-gno/blob/main/README.md) repo on GitHub.

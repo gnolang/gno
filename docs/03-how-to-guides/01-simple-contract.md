@@ -6,10 +6,10 @@ id: simple-contract
 
 ## Overview
 
-This guide shows you how to write a simple **Counter** Smart Contract, or rather a [realm](../concepts/realms.md),
-in [Gno](../concepts/gno-language.md). 
+This guide shows you how to write a simple **Counter** Smart Contract, or rather a [realm](../04-concepts/01-realms.md),
+in [Gno](../04-concepts/06-gno-language.md). 
 
-For actually deploying the Realm, please see the [deployment](deploy.md) guide.
+For actually deploying the Realm, please see the [deployment](04-deploy.md) guide.
 
 Our **Counter** realm will have the following functionality:
 
@@ -43,7 +43,7 @@ To get started with a local setup, simply create a new empty folder.
 mkdir counter-app
 ```
 
-Gno realms can be typically written anywhere, under any structure, just like
+Gno 01-realms can be typically written anywhere, under any structure, just like
 regular Go code. However, Gno developers have adopted a standard of organizing
 Gno logic under a specific directory hierarchy, which we
 will explore in this section.
@@ -56,9 +56,9 @@ cd counter-app
 mkdir r
 ```
 
-Alternatively, if we were writing a [Gno package](../concepts/packages.md), we
+Alternatively, if we were writing a [Gno package](../04-concepts/02-packages.md), we
 would denote this directory name as `p` (for `package`). You can learn more about 
-Packages in our [Package development guide](simple-library.md).
+Packages in our [Package development guide](02-simple-library.md).
 
 Additionally, we will create another sub-folder that will house our realm code, named `counter`:
 
@@ -140,7 +140,7 @@ There are a few things happening here, so let's dissect them:
 - `Increment` and `Decrement` are public Realm methods, and as such are callable by users.
 - `Increment` and `Decrement` directly modify the `count` value by making it go up or down (change state).
 - Calling the `Render` method would return the `count` value as a formatted string. Learn more about the `Render`
-  method and how it's used [here](../concepts/realms.md).
+  method and how it's used [here](../04-concepts/01-realms.md).
 
 You can view the code on [this Playground link](https://play.gno.land/p/ONBa9eUEPKJ).
 

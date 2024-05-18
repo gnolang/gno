@@ -82,7 +82,7 @@ Go developers "Don't panic.", in Gno, we actually embrace `panic`.
 
 Panic in Gno is not just for critical errors or programming mistakes as it is in
 Go. Instead, it's used as a control flow mechanism to stop the execution of a
-[realm](realms.md) when something goes wrong. This could be due to an invalid input, a
+[realm](01-realms.md) when something goes wrong. This could be due to an invalid input, a
 failed precondition, or any other situation where it's not possible or desirable
 to continue executing the contract.
 
@@ -478,7 +478,7 @@ of block #43 will contain the following data:
 }
 ```
 
-Read more about events [here](04-stdlibs/events.md).
+Read more about events [here](04-stdlibs/03-events.md).
 
 ### Contract-level access control
 
@@ -679,7 +679,7 @@ For example, if you're creating a coin for cross-chain transfers, Coins
 are your best bet. They're IBC-ready and their strict rules offer top-notch
 security.
 
-Read about how to use the Banker module [here](04-stdlibs/banker).
+Read about how to use the Banker module [here](04-stdlibs/01-banker.md).
 
 #### GRC20 tokens
 

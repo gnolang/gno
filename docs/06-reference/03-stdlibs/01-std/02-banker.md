@@ -3,7 +3,7 @@ id: banker
 ---
 
 # Banker
-View concept page [here](../../../concepts/stdlibs/banker.md).
+View concept page [here](../../../04-concepts/04-stdlibs/01-banker.md).
 
 ```go
 type BankerType uint8

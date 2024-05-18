@@ -4,7 +4,7 @@ id: rpc-endpoints
 
 # Gno RPC Endpoints
 
-For network configurations, view the [network configuration page](./network-config.md).
+For network configurations, view the [network configuration page](./02-network-config.md).
 ## Common Parameters
 
 #### Response

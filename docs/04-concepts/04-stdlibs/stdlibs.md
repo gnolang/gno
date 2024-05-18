@@ -9,12 +9,12 @@ Gno comes with a set of standard libraries which are included to ease developmen
 - a special `std` package, which contains types, interfaces, and APIs created to handle blockchain-related functionality.
 
 Standard libraries differ from on-chain packages in terms of their import path structure.
-Unlike on-chain [packages](../packages.md), standard libraries do not incorporate a domain-like format at the beginning
+Unlike on-chain [packages](../02-packages.md), standard libraries do not incorporate a domain-like format at the beginning
 of their import path. For example:
 - `import "encoding/binary"` refers to a standard library
 - `import "gno.land/p/demo/avl"` refers to an on-chain package.
 
-To see concrete implementation details & API references, see the [reference](../../reference/stdlibs/stdlibs.md) section.
+To see concrete implementation details & API references, see the [reference](../../06-reference/03-stdlibs/stdlibs.md) section.
 
 ## Accessing documentation
 

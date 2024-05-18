@@ -5,7 +5,7 @@ id: connect-from-go
 # How to connect a Go app to Gno.land 
 
 This guide will show you how to connect to a Gno.land network from your Go application,
-using the [gnoclient](../reference/gnoclient/gnoclient.md) package.
+using the [gnoclient](../06-reference/07-gnoclient/01-gnoclient.md) package.
 
 For this guide, we will build a small Go app that will:
 
@@ -15,7 +15,7 @@ For this guide, we will build a small Go app that will:
 
 ## Prerequisites
 - A local Gno.land keypair generated using
-[gnokey](../getting-started/local-setup/working-with-key-pairs.md)
+[gnokey](../02-getting-started/03-local-setup/02-working-with-key-pairs.md)
 
 ## Setup
 
@@ -102,7 +102,7 @@ A few things to note:
 - You can view keys in your local keybase by running `gnokey list`.  
 - You can get the password from a user input using the IO package.
 - `Signer` can also be initialized in-memory from a BIP39 mnemonic, using the 
-[`SignerFromBip39`](../reference/gnoclient/signer.md#func-signerfrombip39) function.
+[`SignerFromBip39`](../06-reference/07-gnoclient/02-signer.md#func-signerfrombip39) function.
 
 ## Initialize the RPC connection & Client
 
@@ -113,7 +113,7 @@ rpc := rpcclient.NewHTTPClient("<gno_chain_endpoint>")
 ```
 
 A list of Gno.land network endpoints & chain IDs can be found in the [Gno RPC 
-endpoints](../reference/rpc-endpoints.md#network-configurations) page. 
+endpoints](../06-reference/02-network-config.md) page. 
 
 With this, we can initialize the `gnoclient.Client` struct: 
 
@@ -255,7 +255,7 @@ fmt.Println(qevalRes)
 ```
 
 To see all functionality the `gnoclient` package provides, see the gnoclient
-[reference page](../reference/gnoclient/gnoclient.md).
+[reference page](../06-reference/07-gnoclient/01-gnoclient.md).
 
 ## Conclusion
 

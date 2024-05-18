@@ -12,13 +12,13 @@ testing techniques that involve data mocking.
 
 ## Prerequisites
 
-- **`gno` set up. Reference the [Installation](../getting-started/local-setup/local-setup.md#3-installing-other-gno-tools) guide
+- **`gno` set up. Reference the [Installation](../02-getting-started/03-local-setup/01-installation.md#2-installing-the-required-tools-) guide
   for steps**
 
 ## Example Realm
 
 For the purpose of this guide, we will be testing the simple *Counter* Realm created in
-the [How to write a simple Gno Smart Contract (Realm)](simple-contract.md) guide.
+the [How to write a simple Gno Smart Contract (Realm)](01-simple-contract.md) guide.
 
 [embedmd]:# (../assets/how-to-guides/testing-gno/counter-1.gno go)
 ```go
@@ -177,7 +177,7 @@ Luckily, the Gno standard library provides ample support for functionality such 
 time, such as the request caller address, or the calling package address.
 
 You can learn more about these methods, that are importable using the `std` import declaration,
-in the [Standard Library](../concepts/stdlibs/stdlibs.md) reference section.
+in the [Standard Library](../06-reference/03-stdlibs/stdlibs.md) reference section.
 
 ## Conclusion
 

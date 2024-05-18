@@ -34,8 +34,8 @@ git clone https://github.com/gnolang/gno.git
 
 There are three tools that should be used for getting started with Gno development:
 - `gno` - the GnoVM binary
-- `gnodev` - the Gno [development helper](../../gno-tooling/cli/gnodev.md)
-- `gnokey` - the Gno [keypair manager](working-with-key-pairs.md)
+- `gnodev` - the Gno [development helper](../../05-gno-tooling/cli/03-gnodev.md)
+- `gnokey` - the Gno [keypair manager](02-working-with-key-pairs.md)
 
 To install all three  tools, simply run the following in the root of the repo:
 ```bash
@@ -47,7 +47,7 @@ make install
 ### `gno`
 `gno` provides ample functionality to the user, among which is running,
 transpiling, testing and building `.gno` files. Read more
-about `gnokey` [here](../../gno-tooling/cli/gno.md).
+about `gnokey` [here](../../05-gno-tooling/cli/01-gno.md).
 
 To verify the `gno` binary is installed system-wide, you can run:
 
@@ -71,7 +71,7 @@ go run ./cmd/gno --help
 `gnodev` is the go-to Gno development helper tool - it comes with a built in 
 Gno.land node, a `gnoweb` server to display the state of your smart contracts 
 (realms), and a watcher system to actively track changes in your code. Read more
-about `gnodev` [here](../../gno-tooling/cli/gnodev.md).
+about `gnodev` [here](../../05-gno-tooling/cli/03-gnodev.md).
 
 To verify that the `gnodev` binary is installed system-wide, you can run:
 
@@ -87,7 +87,7 @@ You should get the following output:
 
 `gnokey` is the Gno.land keypair management CLI tool. It allows you to create
 keypairs, sign transactions, and broadcast them to Gno.land chains. Read more
-about `gnokey` [here](../../gno-tooling/cli/gnokey.md).
+about `gnokey` [here](../../05-gno-tooling/cli/02-gnokey.md).
 
 To verify that the `gnokey` binary is installed system-wide, you can run:
 

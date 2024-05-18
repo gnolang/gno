@@ -19,8 +19,8 @@ Here's a breakdown of the structure of a package path:
 
 - Domain: The domain of the blockchain where the package is deployed. Currently, only `gno.land/` is supported.
 - Type: Defines the type of package.
-    - `p/`: [Package](packages.md)
-    - `r/`: [Realm](realms.md)
+    - `p/`: [Package](02-packages.md)
+    - `r/`: [Realm](01-realms.md)
 - Namespace: A namespace can be included after the type (e.g., user or organization name). Namespaces are a way to group related packages or realms, but currently ownership cannot be claimed. (see [Issue #1107](https://github.com/gnolang/gno/issues/1107) for more info)
 - Remaining Path: The remaining part of the path.
     - Can only contain alphanumeric characters (letters and numbers) and underscores.

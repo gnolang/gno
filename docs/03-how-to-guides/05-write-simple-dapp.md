@@ -115,7 +115,7 @@ functionality in the [Gno monorepo](https://github.com/gnolang/gno), under the `
 
 :::info
 After testing the `Poll` package, we need to deploy it in order to use it in our realm.
-Check out the [deployment](deploy.md) guide to learn how to do this.
+Check out the [deployment](04-deploy.md) guide to learn how to do this.
 :::
 
 ### Poll Factory Realm
@@ -213,7 +213,7 @@ import path in the realm code.
 :::
 
 With that we have written the core functionality of the realm, and all that is left is
-the [Render function](../concepts/realms.md).
+the [Render function](../04-concepts/01-realms.md).
 Its purpose is to help us display the state of the realm in Markdown, by formatting the state into a string buffer:
 
 
@@ -297,7 +297,7 @@ func Render(path string) string {
 
 View this code in the Playground [here](https://play.gno.land/p/5jgHw29sGq4).
 
-To see how to deploy this app, visit the [Deployment guide](./deploy.md). 
+To see how to deploy this app, visit the [Deployment guide](./04-deploy.md). 
 
 ## Conclusion
 

@@ -8,7 +8,7 @@ id: simple-library
 
 This guide shows you how to write a simple library (Package) in Gno, which can be used by other Packages and Realms.
 Packages are _stateless_, meaning they do not hold state like regular Realms (Smart Contracts). To learn more about the
-intricacies of Packages, please see the [Packages concept page](../concepts/packages.md).
+intricacies of Packages, please see the [Packages concept page](../04-concepts/02-packages.md).
 
 The Package we will be writing today will be a simple library for suggesting a random tapas dish.
 We will define a set list of tapas, and define a method that randomly selects a dish from the list.
@@ -34,7 +34,7 @@ and [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=har
 :::
 
 We discussed Gno folder structures more in detail in
-the [simple Smart Contract guide](simple-contract.md#1-setting-up-the-work-directory).
+the [simple Smart Contract guide](01-simple-contract.md#local-setup).
 For now, we will just follow some rules outlined there.
 
 Create the main working directory for our Package:
@@ -141,7 +141,7 @@ There are a few things happening here, so let's dissect them:
 
 - We defined the logic of our library into a package called `tapas`.
 - The package imports `std`, which
-is the [Gno standard library](../concepts/stdlibs/stdlibs.md)
+is the [Gno standard library](../04-concepts/04-stdlibs/stdlibs.md)
 - We use the imported package inside of `GetTapaSuggestion` to generate a
 random index value for a tapa
 

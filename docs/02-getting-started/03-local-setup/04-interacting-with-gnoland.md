@@ -11,15 +11,15 @@ and packages, send native coins, and more.
 
 ## Prerequisites
 - **`gnokey` installed.** Reference the
-[Local Setup](installation.md#3-installing-other-gno-tools) guide for steps
+[Local Setup](01-installation.md#2-installing-the-required-tools-) guide for steps
 - **A keypair in `gnokey`.** Reference the 
-[Working with Key Pairs](working-with-key-pairs.md#adding-a-private-key-using-a-mnemonic) guide for steps
+[Working with Key Pairs](02-working-with-key-pairs.md#adding-a-private-key-using-a-mnemonic) guide for steps
 
 ## 1. Get testnet GNOTs
 For interacting with any Gno.land chain, you will need a certain amount of GNOTs
 to pay gas fees with. 
 
-For this example, we will use the [Portal Loop](../../concepts/testnets.md#portal-loop) 
+For this example, we will use the [Portal Loop](../../04-concepts/07-testnets.md#portal-loop) 
 testnet. We can access the Portal Loop faucet through the
 [Gno Faucet Hub](https://faucet.gno.land), or by accessing the faucet directly at
 [gno.land/faucet](https://gno.land/faucet). 
@@ -57,7 +57,7 @@ height at which they have signed up.
 
 > Note: block heights are not correct because of the way the Portal Loop testnet 
 > works.
-> Read more [here](../../concepts/portal-loop.md). 
+> Read more [here](../../04-concepts/11-portal-loop.md). 
 
 To see what functions are available to call on the Userbook realm, click
 the `[help]` button. 
@@ -83,7 +83,7 @@ MyKeypair
 ```
 
 To see what each option and flag in this command does, read the `gnokey` 
-[reference page](../../gno-tooling/cli/gnokey.md). 
+[reference page](../../05-gno-tooling/cli/02-gnokey.md). 
 
 ## Conclusion
 
@@ -93,5 +93,5 @@ If the previous transaction was successful, you should be able
 to see your address on the main page of the Userbook realm. 
 
 This concludes the "Local Setup" tutorial. For next steps, see the 
-[How-to guides section](../../how-to-guides/how-to-guides.md), where you will 
+[How-to guides section](../../03-how-to-guides/how-to-guides.md), where you will 
 learn how to write your first realm, package, and much more.

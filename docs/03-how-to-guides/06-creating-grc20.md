@@ -6,8 +6,8 @@ id: creating-grc20
 ## Overview
 
 This guide shows you how to write a simple **GRC20**
-a [Realm](../concepts/realms.md), in [Gno](../concepts/gno-language.md). For actually deploying the Realm, please see the
-[deployment](deploy.md) guide.
+a [Realm](../04-concepts/01-realms.md), in [Gno](../04-concepts/06-gno-language.md). For actually deploying the Realm, please see the
+[deployment](04-deploy.md) guide.
 
 Our **GRC20** Realm will have the following functionality:
 

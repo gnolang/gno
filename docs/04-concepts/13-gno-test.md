@@ -7,7 +7,7 @@ id: gno-test
 There are two methods for testing a realm or package during the development phase:
 
 1. Calling the realm/package after deploying it on a local network (or testnet).
-2. Using the `test` option within the [`gno`](../gno-tooling/cli/gno.md) CLI.
+2. Using the `test` option within the [`gno`](../05-gno-tooling/cli/01-gno.md) CLI.
 
 While the first method is recommended for its accuracy and similarity to the actual deployment environment, it is more efficient to initially utilize the second method for composing test cases and then proceed to the first method if no errors are detected.
 
@@ -88,4 +88,4 @@ Internally, a GnoVM instance is initialized to run the test, and, at that moment
 a blockchain-related context is injected into the GnoVM. Utilizing this context, the transaction sender, 
 coins, block height, etc. can be mocked.
 
-For detailed information on these functions, refer to their [reference page](../reference/stdlibs/std/testing.md).
+For detailed information on these functions, refer to their [reference page](../06-reference/03-stdlibs/01-std/05-testing.md).

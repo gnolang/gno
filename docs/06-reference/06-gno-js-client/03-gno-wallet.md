@@ -4,7 +4,7 @@ id: gno-js-wallet
 
 # Gno Wallet
 
-The `Gno Wallet` is an extension on the `tm2-js-client` `Wallet`, outlined [here](../05-tm2-js-client/wallet.md).
+The `Gno Wallet` is an extension on the `tm2-js-client` `Wallet`, outlined [here](../05-tm2-js-client/02-wallet.md).
 
 ## Account Methods
 
