@@ -16,6 +16,10 @@ func New() *Ownable {
 	}
 }
 
+func NewWithAddress(addr std.Address) *Ownable {
+	return &Ownable{owner: addr}
+}
+
 // TransferOwnership transfers ownership of the Ownable struct to a new address
 func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 	err := o.CallerIsOwner()
@@ -45,13 +49,19 @@ func (o *Ownable) DropOwnership() error {
 }
 
 // CallerIsOwner checks if the caller of the function is the Realm's owner
-func (o *Ownable) CallerIsOwner() error {
+func (o Ownable) CallerIsOwner() error {
 	if std.GetOrigCaller() == o.owner {
 		return nil
 	}
 	return ErrUnauthorized
 }
 
-func (o *Ownable) Owner() std.Address {
+func (o Ownable) Owner() std.Address {
 	return o.owner
+}
+
+func (o Ownable) AssertCallerIsOwner() {
+	if std.GetOrigCaller() != o.owner {
+		panic(ErrUnauthorized)
+	}
 }
