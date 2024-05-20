@@ -212,8 +212,8 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	next := mv.List.Head
 	for next != nil {
 		ss = append(ss,
-			next.Key.String()+":"+
-				next.Value.String())
+			next.Key.ProtectedString(seen)+":"+
+				next.Value.ProtectedString(seen))
 		next = next.Next
 	}
 	return "map{" + strings.Join(ss, ",") + "}"

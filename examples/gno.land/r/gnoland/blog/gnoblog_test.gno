@@ -165,6 +165,21 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 		assertMDEquals(t, got, expected)
 	}
 
+	{ // Test remove functionality
+		ModAddPost("testSlug1", "testTitle1", "body1", "2022-05-22T13:17:22Z", "moul", "tag1,tag2")
+
+		got := Render("p/testSlug1")
+
+		if got == "404" {
+			t.Errorf("did not expect 404")
+		}
+
+		ModRemovePost("testSlug1")
+		got = Render("p/testSlug1")
+
+		assertMDEquals(t, got, "404")
+	}
+
 	// TODO: pagination.
 	// TODO: ?format=...
 

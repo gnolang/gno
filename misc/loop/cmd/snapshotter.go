@@ -95,7 +95,7 @@ func (s snapshotter) switchTraefikMode(replaceStr string) error {
 	regex := regexp.MustCompile(`middlewares: \[.*\]`)
 	output := regex.ReplaceAllLiteral(input, []byte(replaceStr))
 
-	return ioutil.WriteFile(s.cfg.traefikGnoFile, output, 0655)
+	return os.WriteFile(s.cfg.traefikGnoFile, output, 0o655)
 }
 
 func (s snapshotter) switchTraefikPortalLoop(url string) error {
@@ -107,7 +107,7 @@ func (s snapshotter) switchTraefikPortalLoop(url string) error {
 	regex := regexp.MustCompile(`http://.*:[0-9]+`)
 	output := regex.ReplaceAllLiteral(input, []byte(url))
 
-	return ioutil.WriteFile(s.cfg.traefikGnoFile, output, 0655)
+	return os.WriteFile(s.cfg.traefikGnoFile, output, 0o655)
 }
 
 func (s snapshotter) getPortalLoopContainers(ctx context.Context) ([]types.Container, error) {
@@ -162,7 +162,7 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 		Binds: []string{
 			fmt.Sprintf("%s/scripts:/scripts", s.cfg.hostPWD),
 			fmt.Sprintf("%s/backups:/backups", s.cfg.hostPWD),
-			fmt.Sprintf("%s:/opt/gno/src/testdir", s.containerName),
+			fmt.Sprintf("%s:/opt/gno/src/gnoland-data", s.containerName),
 		},
 	}, nil, nil, s.containerName)
 	if err != nil {
@@ -226,7 +226,7 @@ func (s snapshotter) backupTXs(ctx context.Context, rpcURL string) error {
 	}
 
 	// Append to backup file
-	backupFile, err := os.OpenFile(s.backupFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	backupFile, err := os.OpenFile(s.backupFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o644)
 	if err != nil {
 		return fmt.Errorf("unable to open file %s, %w", s.backupFile, err)
 	}

@@ -163,3 +163,12 @@ func (cfg RPCConfig) CertFile() string {
 func (cfg RPCConfig) IsTLSEnabled() bool {
 	return cfg.TLSCertFile != "" && cfg.TLSKeyFile != ""
 }
+
+// helper function to make config creation independent of root dir
+func join(root, path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+
+	return filepath.Join(root, path)
+}

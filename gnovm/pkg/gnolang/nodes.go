@@ -158,23 +158,6 @@ type Attributes struct {
 	data  map[interface{}]interface{} // not persisted
 }
 
-func (attr *Attributes) Copy() Attributes {
-	if attr == nil {
-		return Attributes{}
-	}
-
-	data := make(map[interface{}]interface{})
-	for k, v := range attr.data {
-		data[k] = v
-	}
-
-	return Attributes{
-		Line:  attr.Line,
-		Label: attr.Label,
-		data:  data,
-	}
-}
-
 func (attr *Attributes) GetLine() int {
 	return attr.Line
 }
@@ -1631,7 +1614,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 			bp = bp.GetParentNode(store)
 			gen++
 			if 0xff < gen {
-				panic("GetPathForName: value path depth overflow")
+				panic("value path depth overflow")
 			}
 		}
 	}

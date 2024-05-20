@@ -100,6 +100,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		// this can happen for map items just prior to assignment.
 		return
 	}
+
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
 		panic("allocation limit exceeded")

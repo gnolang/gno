@@ -16,7 +16,7 @@ func Example_withDisk() {
 	}
 
 	remote := "127.0.0.1:26657"
-	rpcClient := rpcclient.NewHTTP(remote, "/websocket")
+	rpcClient, _ := rpcclient.NewHTTPClient(remote)
 
 	client := gnoclient.Client{
 		Signer:    signer,
@@ -35,7 +35,7 @@ func Example_withInMemCrypto() {
 	signer, _ := gnoclient.SignerFromBip39(mnemo, chainID, bip39Passphrase, account, index)
 
 	remote := "127.0.0.1:26657"
-	rpcClient := rpcclient.NewHTTP(remote, "/websocket")
+	rpcClient, _ := rpcclient.NewHTTPClient(remote)
 
 	client := gnoclient.Client{
 		Signer:    signer,
@@ -47,7 +47,7 @@ func Example_withInMemCrypto() {
 // Example_readOnly demonstrates how to initialize a read-only gnoclient, which can only query.
 func Example_readOnly() {
 	remote := "127.0.0.1:26657"
-	rpcClient := rpcclient.NewHTTP(remote, "/websocket")
+	rpcClient, _ := rpcclient.NewHTTPClient(remote)
 
 	client := gnoclient.Client{
 		RPCClient: rpcClient,

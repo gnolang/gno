@@ -195,6 +195,17 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	return nil
 }
 
+func (b *Blog) RemovePost(slug string) {
+	_, exists := b.Posts.Get(slug)
+	if !exists {
+		panic("post with specified slug does not exist")
+	}
+
+	_, _ = b.Posts.Remove(slug)
+	_, _ = b.PostsAlphabetical.Remove(slug)
+	_, _ = b.PostsPublished.Remove(slug)
+}
+
 func (b *Blog) GetPost(slug string) *Post {
 	post, found := b.Posts.Get(slug)
 	if !found {

@@ -9,7 +9,6 @@
 ## Commands
 
 * `gno run` - run a Gno file
-* `gno build` - build a gno package
 * `gno transpile` - transpile .gno to .go
 * `gno test` - test a gno package
 * `gno mod` - manages dependencies
