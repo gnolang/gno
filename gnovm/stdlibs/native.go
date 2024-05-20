@@ -484,6 +484,25 @@ var nativeFuncs = [...]nativeFunc{
 	},
 	{
 		"std",
+		"GasUsed",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("int64")},
+		},
+		func(m *gno.Machine) {
+			r0 := libs_std.GasUsed(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
 		"origSend",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
