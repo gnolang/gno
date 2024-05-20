@@ -1116,7 +1116,12 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 		".gno",
 	}
 	list := make([]string, 0, len(files))
+	isRealm := strings.HasPrefix(pkgPath, "gno.land/r/")
 	for _, file := range files {
+		if isRealm && file.IsDir() {
+			// currently realm packages does not support subpackages https://github.com/gnolang/gno/issues/1041
+			panic("not supported yet")
+		}
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
 			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) {
