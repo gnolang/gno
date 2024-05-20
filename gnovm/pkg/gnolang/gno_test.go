@@ -724,3 +724,86 @@ func TestCallFieldLHS(t *testing.T) {
 	assert.Equal(t, 2, x.X)
 	assert.Equal(t, 3, y)
 }
+
+// check nameExpr in if cond
+func TestNameExprIfCond(t *testing.T) {
+	t.Parallel()
+
+	m := NewMachine("test", nil)
+	c := `package test
+func main() {
+	v := T
+	if v {
+		println("X")
+	}
+}
+
+type C bool
+
+const (
+	F C = false
+	T C = true
+)`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.RunMain()
+}
+
+// check nameExpr in for cond
+func TestNameExprForCond(t *testing.T) {
+	t.Parallel()
+
+	m := NewMachine("test", nil)
+	c := `package test
+func main() {
+	v := T
+	i := 0
+	for v {
+		println("X")
+		if i > 3 {
+			break
+		}
+		i++
+	}
+}
+
+type C bool
+
+const (
+	F C = false
+	T C = true
+)`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.RunMain()
+}
+
+func TestPanic(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		if r := recover(); r != nil {
+			assert.Error(t, r.(error), "cannot use bool as test.C without explicit conversion")
+		}
+	}()
+
+	m := NewMachine("test", nil)
+	c := `package test
+func main() {
+	b := true
+	var v C = b
+	fmt.Println(v)
+}
+
+type C bool
+
+const (
+	F C = false
+	T C = true
+)
+	`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.RunMain()
+	assert.True(t, false) // Should not be reached because should panic
+}
