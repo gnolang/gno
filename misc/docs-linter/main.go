@@ -8,6 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"golang.org/x/sync/errgroup"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -50,6 +51,13 @@ func execLint(cfg *cfg, ctx context.Context) error {
 	if cfg.docsPath == "" {
 		return ErrEmptyPath
 	}
+
+	abs, err := filepath.Abs(cfg.docsPath)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Linting %s...\n", abs)
 
 	mdFiles, err := findFilePaths(cfg.docsPath)
 	if err != nil {

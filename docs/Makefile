@@ -2,7 +2,7 @@ all: build lint
 
 # Build the linter
 build:
-	cd ../misc/docs-linter && go build -o ../misc/linter/build/linter
+	cd ../misc/docs-linter && go build -o ./build/
 
 # Run the linter for the docs/ folder
 lint:
