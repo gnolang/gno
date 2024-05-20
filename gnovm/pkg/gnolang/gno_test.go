@@ -778,7 +778,7 @@ const (
 	m.RunMain()
 }
 
-func TestPanic(t *testing.T) {
+func TestInvalidAssignment(t *testing.T) {
 	t.Parallel()
 
 	defer func() {
