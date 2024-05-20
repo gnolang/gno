@@ -175,8 +175,8 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	post.Blog = b
 	post.UpdatedAt = time.Now()
 
-	trimmedTitleKey := strings.Replace(post.Title, " ", "", -1)
-	pubDateKey := post.CreatedAt.Format(time.RFC3339)
+	trimmedTitleKey := getTitleKey(post.Title)
+	pubDateKey := getPublishedKey(post.CreatedAt)
 
 	// Cannot have two posts with same title key
 	if _, found := b.PostsAlphabetical.Get(trimmedTitleKey); found {
@@ -196,14 +196,19 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 }
 
 func (b *Blog) RemovePost(slug string) {
-	_, exists := b.Posts.Get(slug)
+	p, exists := b.Posts.Get(slug)
 	if !exists {
-		panic("post with specified slug does not exist")
+		panic("post with specified slug doesn't exist")
 	}
 
+	post := p.(*Post)
+
+	titleKey := getTitleKey(post.Title)
+	publishedKey := getPublishedKey(post.CreatedAt)
+
 	_, _ = b.Posts.Remove(slug)
-	_, _ = b.PostsAlphabetical.Remove(slug)
-	_, _ = b.PostsPublished.Remove(slug)
+	_, _ = b.PostsAlphabetical.Remove(titleKey)
+	_, _ = b.PostsPublished.Remove(publishedKey)
 }
 
 func (b *Blog) GetPost(slug string) *Post {

@@ -166,18 +166,32 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 	}
 
 	{ // Test remove functionality
-		ModAddPost("testSlug1", "testTitle1", "body1", "2022-05-22T13:17:22Z", "moul", "tag1,tag2")
+		title := "example title"
+		slug := "testSlug1"
+		ModAddPost(slug, title, "body1", "2022-05-25T13:17:22Z", "moul", "tag1,tag2")
 
-		got := Render("p/testSlug1")
+		got := Render("")
 
-		if got == "404" {
-			t.Errorf("did not expect 404")
+		if !strings.Contains(got, title) {
+			t.Errorf("post was not added properly")
 		}
 
-		ModRemovePost("testSlug1")
-		got = Render("p/testSlug1")
+		postRender := Render("p/" + slug)
 
-		assertMDEquals(t, got, "404")
+		if !strings.Contains(postRender, title) {
+			t.Errorf("post not rendered properly")
+		}
+
+		ModRemovePost(slug)
+		got = Render("")
+
+		if strings.Contains(got, title) {
+			t.Errorf("post was not removed")
+		}
+
+		postRender = Render("p/" + slug)
+
+		assertMDEquals(t, postRender, "404")
 	}
 
 	// TODO: pagination.
