@@ -25,6 +25,8 @@ type Exception struct {
 	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
 	// currently executing deferred function is able to recover from the panic.
 	Frame *Frame
+
+	Stack *Stack
 }
 
 func (e Exception) Sprint(m *Machine) string {
@@ -47,6 +49,7 @@ type Machine struct {
 	Package    *PackageValue // active package
 	Realm      *Realm        // active realm
 	Alloc      *Allocator    // memory allocations
+	Stack      *Stack        // stack of expressions
 	Exceptions []Exception
 	NumResults int   // number of results returned
 	Cycles     int64 // number of "cpu" cycles
@@ -164,6 +167,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Store = store
 	mm.Context = context
 	mm.GasMeter = vmGasMeter
+	mm.Stack = NewStack()
 	mm.Debugger.enabled = opts.Debug
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
@@ -678,7 +682,7 @@ func (m *Machine) RunFunc(fn Name) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("Machine.RunFunc(%q) panic: %v\n%s\n",
-				fn, r, m.String())
+				fn, r, m.Stacktrace())
 			panic(r)
 		}
 	}()
@@ -689,7 +693,7 @@ func (m *Machine) RunMain() {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("Machine.RunMain() panic: %v\n%s\n",
-				r, m.String())
+				r, m.Stacktrace())
 			panic(r)
 		}
 	}()
@@ -1539,12 +1543,13 @@ func (m *Machine) PopStmt() Stmt {
 		m.Printf("-s %v\n", s)
 	}
 	if bs, ok := s.(*bodyStmt); ok {
-		return bs.PopActiveStmt()
+		s = bs.PopActiveStmt()
 	} else {
-		// general case.
 		m.Stmts = m.Stmts[:numStmts-1]
-		return s
 	}
+
+	m.Stack.onStmtPopped(s)
+	return s
 }
 
 func (m *Machine) ForcePopStmt() (s Stmt) {
@@ -1740,6 +1745,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if rlm != nil && m.Realm != rlm {
 		m.Realm = rlm // enter new realm
 	}
+	m.Stack.OnFramePushed(fr)
 }
 
 func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
@@ -1774,6 +1780,7 @@ func (m *Machine) PopFrame() Frame {
 		m.Printf("-F %#v\n", f)
 	}
 	m.Frames = m.Frames[:numFrames-1]
+	m.Stack.OnFramePopped(f)
 	return *f
 }
 
@@ -2004,6 +2011,7 @@ func (m *Machine) Panic(ex TypedValue) {
 		Exception{
 			Value: ex,
 			Frame: m.MustLastCallFrame(1),
+			Stack: m.Stack.Copy(),
 		},
 	)
 
@@ -2143,6 +2151,22 @@ func (m *Machine) String() string {
 
 	for _, ex := range m.Exceptions {
 		builder.WriteString(fmt.Sprintf("      %s\n", ex.Sprint(m)))
+	}
+
+	return builder.String()
+}
+
+func (m *Machine) Stacktrace() string {
+	var builder strings.Builder
+	builder.WriteString("Stacktrace:\n")
+	for i, ex := range m.Exceptions {
+		builder.WriteString(fmt.Sprintf("    Exception %d: \n ", i))
+
+		for i := len(ex.Stack.Execs) - 1; i >= 0; i-- {
+			exec := ex.Stack.Execs[i]
+			builder.WriteString(fmt.Sprintf("        %v\n", exec.Stmt))
+			builder.WriteString(fmt.Sprintf("            %s/%s:%d\n", exec.Fun.PkgPath, exec.Fun.FileName, exec.Stmt.GetLine()))
+		}
 	}
 
 	return builder.String()
