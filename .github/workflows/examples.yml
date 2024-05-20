@@ -4,10 +4,8 @@ on:
   pull_request:
     paths:
       - "go.sum"
-      - "gnovm/**.go"
-      - "gnovm/**.gno"
-      - "gnovm/**/go.sum"
-      - "examples/**.gno"
+      - "gnovm/**"
+      - "examples/**"
       - ".github/workflows/examples.yml"
   push:
     branches: [ "master" ]
