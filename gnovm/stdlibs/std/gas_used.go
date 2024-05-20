@@ -14,7 +14,7 @@ var (
 		Consider where to save this config
 		gasCostDefault = store.DefaultGasConfig()
 	*/
-	defaultInvokerGasUsedCost = int64(10)
+	defaultInvokerGasUsedCost = int64(3)
 )
 
 // DefaultCost will be consumed whenever GasUsed is called, now set it ReadCostPerByte
