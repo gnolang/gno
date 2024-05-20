@@ -3,8 +3,6 @@ package tests
 import (
 	"std"
 	"testing"
-
-	"gno.land/p/demo/testutils"
 )
 
 func TestAssertOriginCall(t *testing.T) {

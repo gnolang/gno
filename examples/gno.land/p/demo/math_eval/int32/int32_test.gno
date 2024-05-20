@@ -1,10 +1,7 @@
 package int32
 
 import (
-	"std"
 	"testing"
-
-	"gno.land/p/demo/ufmt"
 )
 
 func TestOne(t *testing.T) {

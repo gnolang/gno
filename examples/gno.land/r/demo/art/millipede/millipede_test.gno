@@ -1,7 +1,6 @@
 package millipede
 
 import (
-	"fmt"
 	"testing"
 )
 

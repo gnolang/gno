@@ -4,8 +4,6 @@ package boards_test
 // SEND: 200000000ugnot
 
 import (
-	"strconv"
-
 	"gno.land/r/demo/boards"
 	"gno.land/r/demo/users"
 )

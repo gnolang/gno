@@ -1,7 +1,6 @@
 package mux
 
 import (
-	"strings"
 	"testing"
 )
 

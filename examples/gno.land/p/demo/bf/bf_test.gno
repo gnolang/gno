@@ -1,7 +1,6 @@
 package bf
 
 import (
-	"bytes"
 	"testing"
 )
 

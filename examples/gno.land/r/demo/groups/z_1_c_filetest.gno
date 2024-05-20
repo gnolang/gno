@@ -5,11 +5,9 @@ package groups_test
 
 import (
 	"std"
-	"strconv"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
-	"gno.land/r/demo/users"
 )
 
 var gid groups.GroupID
