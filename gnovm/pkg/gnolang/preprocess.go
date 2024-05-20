@@ -1701,13 +1701,23 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
-				// Cond consts become bool *ConstExprs.
-				checkOrConvertType(store, last, &n.Cond, BoolType, false)
+				if nx, ok := (n.Cond).(*NameExpr); ok {
+					// Cond is named type, check if bool
+					checkNameExprType(store, last, nx, BoolType)
+				} else {
+					// Cond consts become bool *ConstExprs.
+					checkOrConvertType(store, last, &n.Cond, BoolType, false)
+				}
 
 			// TRANS_LEAVE -----------------------
 			case *IfStmt:
-				// Cond consts become bool *ConstExprs.
-				checkOrConvertType(store, last, &n.Cond, BoolType, false)
+				if nx, ok := (n.Cond).(*NameExpr); ok {
+					// Cond is named type, check if bool
+					checkNameExprType(store, last, nx, BoolType)
+				} else {
+					// Cond consts become bool *ConstExprs.
+					checkOrConvertType(store, last, &n.Cond, BoolType, false)
+				}
 
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
@@ -2711,6 +2721,16 @@ func checkType(xt Type, dt Type, autoNative bool) {
 		"cannot use %s as %s",
 		xt.String(),
 		dt.String()))
+}
+
+// Checks type of NameExpr
+func checkNameExprType(store Store, last BlockNode, nx *NameExpr, t Type) {
+	xt := evalStaticTypeOf(store, last, Expr(nx))
+	if dxt, ok := xt.(*DeclaredType); ok {
+		checkType(dxt.Base, t, false)
+	} else {
+		panic("cannot assign named type to primitive, or primitive to named type without conversion")
+	}
 }
 
 // Returns any names not yet defined nor predefined in expr.  These happen
