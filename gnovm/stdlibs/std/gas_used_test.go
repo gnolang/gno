@@ -12,6 +12,7 @@ import (
 func TestGasUsed(t *testing.T) {
 	t.Parallel()
 	m := gno.NewMachine("gasToConsume", nil)
+	gasCostConfig := store.DefaultGasConfig().ReadCostFlat
 	testTable := []struct {
 		tcName          string
 		gasToConsume    int64
@@ -19,9 +20,9 @@ func TestGasUsed(t *testing.T) {
 		expectPastLimit bool
 		invokeCost      int64
 	}{
-		{"Test GasUsed Get", 10, 100, false, defaultInvokerGasUsedCost},
-		{"Test GasUsed Invoke Cost", 4, 4 + defaultInvokerGasUsedCost, false, defaultInvokerGasUsedCost},
-		{"Test GasUsed Past Limit", 4, 4, true, defaultInvokerGasUsedCost},
+		{"Test GasUsed Get", 10, 100000, false, gasCostConfig},
+		{"Test GasUsed Invoke Cost", 4, 4 + gasCostConfig, false, gasCostConfig},
+		{"Test GasUsed Past Limit", 4, 4, true, gasCostConfig},
 		// this case is OutOfGas's behavior
 		// {"Test GasUsed Get When Out Of Gas", 40, 4, true, cf.ReadCostPerByte},
 	}

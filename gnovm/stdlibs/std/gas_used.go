@@ -6,19 +6,21 @@ package std
 */
 import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
 var (
 	gasUsedInvoked = "GasUsedCalled"
 	/*
 		Consider where to save this config
-		gasCostDefault = store.DefaultGasConfig()
+		defaultGasConfig = store.DefaultGasConfig()
 	*/
-	defaultInvokerGasUsedCost = int64(3)
+	// defaultGasConfig = int64(1000)
+	defaultInvokeCost = store.DefaultGasConfig().ReadCostFlat
 )
 
 // DefaultCost will be consumed whenever GasUsed is called, now set it ReadCostPerByte
 func GasUsed(m *gno.Machine) int64 {
-	m.GasMeter.ConsumeGas(int64(defaultInvokerGasUsedCost), gasUsedInvoked)
+	m.GasMeter.ConsumeGas(defaultInvokeCost, gasUsedInvoked)
 	return m.GasMeter.GasConsumedToLimit()
 }
