@@ -171,13 +171,14 @@ gnokey maketx addpkg \
 
 #### **SignBroadcast Options**
 
-| Name         | Type    | Description                                                              |
-|--------------|---------|--------------------------------------------------------------------------|
-| `gas-wanted` | Int64   | The maximum amount of gas to use for the transaction.                    |
-| `gas-fee`    | String  | The gas fee to pay for the transaction.                                  |
-| `memo`       | String  | Any descriptive text.                                                    |
-| `broadcast`  | Boolean | Broadcasts the transaction.                                              |
-| `chainid`    | String  | Defines the chainid to sign for (should only be used with `--broadcast`) |
+| Name         | Type    | Description                                                                            |
+|--------------|---------|----------------------------------------------------------------------------------------|
+| `gas-wanted` | Int64   | The maximum amount of gas to use for the transaction.                                  |
+| `gas-fee`    | String  | The gas fee to pay for the transaction.                                                |
+| `memo`       | String  | Any descriptive text.                                                                  |
+| `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
+| `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
+| `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
 
 #### **makeTx AddPackage Options**
 
@@ -208,13 +209,14 @@ gnokey maketx call \
 
 #### **SignBroadcast Options**
 
-| Name         | Type    | Description                                                      |
-|--------------|---------|------------------------------------------------------------------|
-| `gas-wanted` | Int64   | The maximum amount of gas to use for the transaction.            |
-| `gas-fee`    | String  | The gas fee to pay for the transaction.                          |
-| `memo`       | String  | Any descriptive text.                                            |
-| `broadcast`  | Boolean | Broadcasts the transaction.                                      |
-| `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`) |
+| Name         | Type    | Description                                                                            |
+|--------------|---------|----------------------------------------------------------------------------------------|
+| `gas-wanted` | Int64   | The maximum amount of gas to use for the transaction.                                  |
+| `gas-fee`    | String  | The gas fee to pay for the transaction.                                                |
+| `memo`       | String  | Any descriptive text.                                                                  |
+| `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
+| `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
+| `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
 
 #### **makeTx Call Options**
 
@@ -246,13 +248,14 @@ gnokey maketx send \
 
 #### **SignBroadcast Options**
 
-| Name         | Type    | Description                                           |
-|--------------|---------|-------------------------------------------------------|
-| `gas-wanted` | Int64   | The maximum amount of gas to use for the transaction. |
-| `gas-fee`    | String  | The gas fee to pay for the transaction.               |
-| `memo`       | String  | Any descriptive text.                                 |
-| `broadcast`  | Boolean | Broadcasts the transaction.                           |
-| `chainid`    | String  | The chainid to sign for (implies `--broadcast`)       |
+| Name         | Type    | Description                                                                            |
+|--------------|---------|----------------------------------------------------------------------------------------|
+| `gas-wanted` | Int64   | The maximum amount of gas to use for the transaction.                                  |
+| `gas-fee`    | String  | The gas fee to pay for the transaction.                                                |
+| `memo`       | String  | Any descriptive text.                                                                  |
+| `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
+| `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
+| `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
 
 #### **makeTx Send Options**
 
@@ -302,3 +305,7 @@ Broadcast a signed document with the following command.
 ```bash
 gnokey broadcast {signed transaction file document}
 ```
+
+[^1]: `only` simulates the transaction as a "dry run" (ie. without committing to
+  the chain), `test` performs simulation and, if successful, commits the
+  transaction, `skip` skips simulation entirely and commits directly.

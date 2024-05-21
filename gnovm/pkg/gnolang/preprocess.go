@@ -9,6 +9,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
+const blankIdentifer string = "_"
+
 // In the case of a *FileSet, some declaration steps have to happen
 // in a restricted parallel way across all the files.
 // Anything predefined or preprocessed here get skipped during the Preprocess
@@ -1237,8 +1239,33 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if n.Type == nil {
 					panic("should not happen")
 				}
+
+				// Type assertions on the blank identifier are illegal.
+				if nx, ok := n.X.(*NameExpr); ok && string(nx.Name) == blankIdentifer {
+					panic("cannot use _ as value or type")
+				}
+
 				// ExprStmt of form `x.(<type>)`,
 				// or special case form `c, ok := x.(<type>)`.
+				t := evalStaticTypeOf(store, last, n.X)
+				baseType := baseOf(t) // The base type of the asserted value must be an interface.
+				switch bt := baseType.(type) {
+				case *InterfaceType:
+					break
+				case *NativeType:
+					if bt.Type.Kind() == reflect.Interface {
+						break
+					}
+				default:
+					panic(
+						fmt.Sprintf(
+							"invalid operation: %s (variable of type %s) is not an interface",
+							n.X.String(),
+							t.String(),
+						),
+					)
+				}
+
 				evalStaticType(store, last, n.Type)
 
 			// TRANS_LEAVE -----------------------
@@ -2472,6 +2499,9 @@ func convertIfConst(store Store, last BlockNode, x Expr) {
 
 func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 	if t != nil && t.Kind() == InterfaceKind {
+		if cx.T != nil {
+			checkType(cx.T, t, false)
+		}
 		t = nil // signifies to convert to default type.
 	}
 	if isUntyped(cx.T) {
