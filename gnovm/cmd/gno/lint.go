@@ -90,7 +90,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		}
 
 		// Handle runtime errors
-		hasError = hasError || catchRuntimeError(pkgPath, io.Err(), func() {
+		hasError = catchRuntimeError(pkgPath, io.Err(), func() {
 			stdout, stdin, stderr := io.Out(), io.In(), io.Err()
 			testStore := tests.TestStore(
 				rootDir, "",
@@ -130,7 +130,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			}
 
 			tm.RunFiles(testfiles.Files...)
-		})
+		}) || hasError
 
 		// TODO: Add more checkers
 	}
@@ -175,15 +175,15 @@ func catchRuntimeError(pkgPath string, stderr io.WriteCloser, action func()) (ha
 		switch verr := r.(type) {
 		case *gno.PreprocessError:
 			err := verr.Unwrap()
-			fmt.Fprint(stderr, issueWithError(pkgPath, err).String()+"\n")
+			fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
 		case scanner.ErrorList:
 			for _, err := range verr {
-				fmt.Fprint(stderr, issueWithError(pkgPath, err).String()+"\n")
+				fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
 			}
 		case error:
-			fmt.Fprint(stderr, issueWithError(pkgPath, verr).String()+"\n")
+			fmt.Fprint(stderr, issueFromError(pkgPath, verr).String()+"\n")
 		case string:
-			fmt.Fprint(stderr, issueWithError(pkgPath, errors.New(verr)).String()+"\n")
+			fmt.Fprint(stderr, issueFromError(pkgPath, errors.New(verr)).String()+"\n")
 		default:
 			panic(r)
 		}
@@ -216,7 +216,7 @@ func (i lintIssue) String() string {
 	return fmt.Sprintf("%s: %s (code=%d).", i.Location, i.Msg, i.Code)
 }
 
-func issueWithError(pkgPath string, err error) lintIssue {
+func issueFromError(pkgPath string, err error) lintIssue {
 	var issue lintIssue
 	issue.Confidence = 1
 	issue.Code = lintGnoError

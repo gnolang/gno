@@ -1,4 +1,3 @@
-// a.gno example
 package main
 
 func main() {
