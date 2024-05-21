@@ -12,6 +12,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
+const gnoExt = ".gno"
+
 type importsCfg struct {
 	write   bool
 	verbose bool
@@ -79,12 +81,11 @@ func execGnoImports(cfg *importsCfg, args []string, io commands.IO) (err error) 
 
 			if !cfg.write {
 				io.Println(string(data))
-				os.Exit(1)
+				continue
 			}
 
 			perms = fi.Mode() & os.ModePerm
-			err = os.WriteFile(file, data, perms)
-			if err != nil {
+			if err = os.WriteFile(file, data, perms); err != nil {
 				return err
 			}
 		}
@@ -111,7 +112,7 @@ func expandsGnoFiles(path string) ([]string, error) {
 
 	directories, err := expandWildcard(path)
 	if err != nil {
-		return nil, fmt.Errorf("error expanding pattern %q: %v\n", abs, err)
+		return nil, fmt.Errorf("error expanding pattern %q: %w", abs, err)
 	}
 
 	// Collect .xft files
@@ -122,7 +123,7 @@ func expandsGnoFiles(path string) ([]string, error) {
 				return err
 			}
 
-			if !info.IsDir() && filepath.Ext(path) == ".gno" {
+			if !info.IsDir() && filepath.Ext(path) == gnoExt {
 				files = append(files, path)
 			}
 			return nil

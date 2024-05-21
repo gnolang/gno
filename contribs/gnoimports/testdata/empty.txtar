@@ -6,4 +6,5 @@ cmp stderr stderr.golden
 package hello
 -- stdout.golden.gno --
 package hello
+
 -- stderr.golden --

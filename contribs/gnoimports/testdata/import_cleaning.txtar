@@ -26,4 +26,5 @@ var rand = &S{}
 package testdata
 
 var yes = rand.Val
+
 -- stderr.golden --
