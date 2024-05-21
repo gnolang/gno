@@ -12,7 +12,9 @@ var stakeThreshold = std.Coin{"ugnot", int64(100000000)} // 100 GNOTs
 const (
 	errCallerNotUserAccount  = "caller not user account"
 	errValidatorExists       = "validator already exists"
+	errValidatorMissing      = "validator doesn't exists"
 	errMaximumValidatorCount = "maximum validator count reached"
+	errMinimumValidatorCount = "minimum validator count reached"
 	errValidatorNotOrigin    = "validator address is not origin"
 )
 
@@ -157,18 +159,18 @@ func (p *PoS) canBecomeValidator(address std.Address) bool {
 // - the validator set is more than the minimum size
 func (p *PoS) RemoveValidator(address std.Address) {
 	// Check if the caller is a user account
-	if !std.IsOriginCall() {
-		panic("caller not user account")
+	if !std.PrevRealm().IsUser() {
+		panic(errCallerNotUserAccount)
 	}
 
 	// Check if this request came from a validator
-	if !p.IsValidator(std.GetOrigCaller()) {
-		panic("user is not validator")
+	if !p.IsValidator(address) {
+		panic(errValidatorMissing)
 	}
 
 	// Check if the limit is reached
 	if len(p.validators) == minValidatorCount {
-		panic("minimum validator count reached")
+		panic(errMinimumValidatorCount)
 	}
 
 	var (
@@ -178,7 +180,7 @@ func (p *PoS) RemoveValidator(address std.Address) {
 
 	// Check if the caller is supplying their own address
 	if address != caller.String() {
-		panic("validator address is not origin")
+		panic(errValidatorNotOrigin)
 	}
 
 	// Check if the validator is in the set

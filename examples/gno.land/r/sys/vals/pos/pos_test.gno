@@ -246,3 +246,71 @@ func TestPoS_GetValidators(t *testing.T) {
 		}
 	})
 }
+
+func TestPoS_RemoveValidator_Invalid(t *testing.T) {
+	t.Parallel()
+
+	t.Run("validator not in set", func(t *testing.T) {
+		t.Parallel()
+
+		callerAddress := std.Address("caller")
+
+		// Create the protocol with an initial set
+		p := NewPoS()
+
+		// Set the origin caller
+		std.TestSetOrigCaller(callerAddress)
+
+		// Attempt to remove the validator
+		testing.PanicsWithError(t, errValidatorMissing, func() {
+			p.RemoveValidator(callerAddress)
+		})
+	})
+
+	t.Run("validator set at minimum", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			callerAddress = std.Address("caller")
+			callerKey     = "public-key"
+
+			initialSet = generateTestValidators(minValidatorCount)
+		)
+
+		initialSet[0].Address = callerAddress
+		initialSet[0].PubKey = callerKey
+
+		// Create the protocol with an initial set
+		p := NewPoS(WithInitialSet(initialSet))
+
+		// Set the origin caller
+		std.TestSetOrigCaller(callerAddress)
+
+		// Attempt to remove the validator
+		testing.PanicsWithError(t, errMinimumValidatorCount, func() {
+			p.RemoveValidator(callerAddress)
+		})
+	})
+
+	t.Run("validator address is not the origin", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			callerAddress = std.Address("caller")
+			callerKey     = "public-key"
+
+			initialSet = generateTestValidators(10)
+		)
+
+		// Create the protocol with an initial set
+		p := NewPoS(WithInitialSet(initialSet))
+
+		// Set the origin caller
+		std.TestSetOrigCaller(callerAddress)
+
+		// Attempt to remove the validator
+		testing.PanicsWithError(t, errValidatorNotOrigin, func() {
+			p.RemoveValidator(initialSet[0].Address)
+		})
+	})
+}
