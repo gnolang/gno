@@ -2,7 +2,7 @@ package gnolang
 
 type execution struct {
 	Stmt Stmt
-	Fun  *FuncValue
+	Func *FuncValue
 }
 type Stack struct {
 	Execs []execution
@@ -21,13 +21,13 @@ func (s *Stack) onStmtPopped(stmt Stmt) {
 }
 
 func (s *Stack) OnFramePushed(frame *Frame) {
-	if frame.Func != nil {
-		s.Execs = append(s.Execs, execution{Fun: frame.Func})
+	if frame != nil && frame.Func != nil {
+		s.Execs = append(s.Execs, execution{Func: frame.Func})
 	}
 }
 
 func (s *Stack) OnFramePopped(frame *Frame) {
-	if frame.Func != nil {
+	if frame != nil && frame.Func != nil {
 		s.Execs = s.Execs[:len(s.Execs)-1]
 	}
 }

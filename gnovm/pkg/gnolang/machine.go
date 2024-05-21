@@ -2164,8 +2164,10 @@ func (m *Machine) Stacktrace() string {
 
 		for i := len(ex.Stack.Execs) - 1; i >= 0; i-- {
 			exec := ex.Stack.Execs[i]
-			builder.WriteString(fmt.Sprintf("        %v\n", exec.Stmt))
-			builder.WriteString(fmt.Sprintf("            %s/%s:%d\n", exec.Fun.PkgPath, exec.Fun.FileName, exec.Stmt.GetLine()))
+			if exec.Stmt != nil {
+				builder.WriteString(fmt.Sprintf("        %v\n", exec.Stmt))
+				builder.WriteString(fmt.Sprintf("            %s/%s:%d\n", exec.Func.PkgPath, exec.Func.FileName, exec.Stmt.GetLine()))
+			}
 		}
 	}
 
