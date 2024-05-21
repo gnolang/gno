@@ -11,7 +11,6 @@ require (
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
 	github.com/gorilla/websocket v1.5.1
 	github.com/muesli/termenv v0.15.2
-	github.com/rogpeppe/go-internal v1.12.0
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/term v0.18.0
@@ -48,6 +47,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
+	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/rs/cors v1.10.1 // indirect
 	github.com/rs/xid v1.5.0 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
