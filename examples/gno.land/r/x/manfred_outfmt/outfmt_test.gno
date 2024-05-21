@@ -7,7 +7,7 @@ import (
 func TestRender(t *testing.T) {
 	// home
 	{
-		got := outfmt.Render("")
+		got := Render("")
 		expected := `* [?fmt=stringer](/r/x/manfred_outfmt:?fmt=stringer)
 * [?fmt=json](/r/x/manfred_outfmt:?fmt=json)
 * [?fmt=jsonp](/r/x/manfred_outfmt:?fmt=jsonp)
@@ -19,7 +19,7 @@ func TestRender(t *testing.T) {
 
 	// stringer
 	{
-		got := outfmt.Render("?fmt=stringer")
+		got := Render("?fmt=stringer")
 		expected := `Text: Hello Gnomes!
 Number: 957
 Numbers: 3 54 32 88
@@ -31,7 +31,7 @@ Numbers: 3 54 32 88
 
 	// stringer again (different seed)
 	{
-		got := outfmt.Render("?fmt=stringer")
+		got := Render("?fmt=stringer")
 		expected := `Text: Hello Gnomes!
 Number: 141
 Numbers: 98 27
@@ -43,7 +43,7 @@ Numbers: 98 27
 
 	// json
 	{
-		got := outfmt.Render("?fmt=json")
+		got := Render("?fmt=json")
 		expected := `{"Number":801,"Text":"Hello Gnomes!","Numbers":[5,78,51,78,91,41]}`
 		if got != expected {
 			t.Fatalf("expected %q, got %q.", expected, got)
@@ -52,7 +52,7 @@ Numbers: 98 27
 
 	// jsonp
 	{
-		got := outfmt.Render("?fmt=jsonp")
+		got := Render("?fmt=jsonp")
 		expected := `callback({"Number":63,"Text":"Hello Gnomes!","Numbers":[2,66,50,73,81]})`
 		if got != expected {
 			t.Fatalf("expected %q, got %q.", expected, got)
