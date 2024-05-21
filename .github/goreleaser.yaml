@@ -108,6 +108,10 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
       - gno
+    extra_files:
+      - examples
+      - gnovm/stdlibs
+      - gnovm/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.gno.release
     goos: linux
@@ -123,6 +127,10 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
       - gno
+    extra_files:
+      - examples
+      - gnovm/stdlibs
+      - gnovm/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.gno.release
     goos: linux
@@ -139,6 +147,10 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
       - gno
+    extra_files:
+      - examples
+      - gnovm/stdlibs
+      - gnovm/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.gno.release
     goos: linux
@@ -155,6 +167,10 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
       - gno
+    extra_files:
+      - examples
+      - gnovm/stdlibs
+      - gnovm/tests/stdlibs
 
   # gnoland
   - use: buildx
@@ -172,6 +188,11 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
       - gnoland
+    extra_files:
+      - gno.land/genesis/genesis_balances.txt
+      - gno.land/genesis/genesis_txs.jsonl
+      - examples
+      - gnovm/stdlibs
   - use: buildx
     dockerfile: Dockerfile.gnoland.release
     goos: linux
@@ -187,6 +208,11 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
       - gnoland
+    extra_files:
+      - gno.land/genesis/genesis_balances.txt
+      - gno.land/genesis/genesis_txs.jsonl
+      - examples
+      - gnovm/stdlibs
   - use: buildx
     dockerfile: Dockerfile.gnoland.release
     goos: linux
@@ -203,6 +229,11 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
       - gnoland
+    extra_files:
+      - gno.land/genesis/genesis_balances.txt
+      - gno.land/genesis/genesis_txs.jsonl
+      - examples
+      - gnovm/stdlibs
   - use: buildx
     dockerfile: Dockerfile.gnoland.release
     goos: linux
@@ -219,6 +250,11 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
       - gnoland
+    extra_files:
+      - gno.land/genesis/genesis_balances.txt
+      - gno.land/genesis/genesis_txs.jsonl
+      - examples
+      - gnovm/stdlibs
   # gnokey
   - use: buildx
     dockerfile: Dockerfile.gnokey.release
@@ -282,7 +318,7 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
       - gnokey
-
+    
   # gnoweb
   - use: buildx
     dockerfile: Dockerfile.gnoweb.release

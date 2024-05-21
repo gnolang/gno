@@ -1,5 +1,13 @@
-FROM scratch
-COPY . /
+FROM busybox
+
+COPY ./gnoland /gnoland
+COPY ./examples /gnoroot/examples/
+COPY ./gnovm/stdlibs /gnoroot/gnovm/stdlibs/
+COPY ./gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+COPY ./gno.land/genesis/genesis_txs.jsonl /gnoroot/gno.land/genesis/genesis_txs.jsonl
+
+ENV GNOROOT="/gnoroot/"
+
 EXPOSE 26657 36657
 ENTRYPOINT [ "/gnoland" ]
 CMD [ "" ]
