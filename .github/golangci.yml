@@ -37,7 +37,7 @@ linters:
     - gofumpt # Stricter gofmt
     - unused # Checks Go code for unused constants, variables, functions and types
     - gomodguard # Enforces an allow and block list for direct Go module dependencies
-
+    - makezero # Finds slice declarations with non-zero initial length
 linters-settings:
   gofmt:
     simplify: true
