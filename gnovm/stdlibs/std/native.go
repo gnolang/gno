@@ -59,7 +59,8 @@ func findPrevFuncName(m *gno.Machine, targetIndex int) string {
 			return string(currFunc.Name)
 		}
 	}
-	panic("function name not found")
+
+	return ""
 }
 
 func X_origSend(m *gno.Machine) (denoms []string, amounts []int64) {

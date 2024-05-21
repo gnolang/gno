@@ -19,13 +19,12 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 
 	_, pkgPath := currentRealm(m)
 	fnIdent := getPrevFunctionNameFromTarget(m, "Emit")
+	prevFunc := getPrevFunctionNameFromTarget(m, fnIdent) // get the previous function name of the function that called Emit
 
 	prevAddr, prevPath := X_getRealm(m, 1)
-	prevFunc := getPrevFunctionNameFromTarget(m, fnIdent) // get the previous function name of the function that called Emit
 	prev := prevStack{
 		PrevPkgPath: prevPath,
 		PrevPkgAddr: prevAddr,
-		PrevFunc:    prevFunc,
 	}
 
 	ctx := m.Context.(ExecContext)
@@ -33,6 +32,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	evt := gnoEvent{
 		OrigCaller: string(ctx.OrigCaller),
 		Prev:       prev,
+		PrevFunc:   prevFunc,
 		PkgPath:    pkgPath,
 		Func:       fnIdent,
 		Type:       typ,
@@ -60,6 +60,7 @@ func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
 type gnoEvent struct {
 	OrigCaller string              `json:"orig_caller"`
 	Prev       prevStack           `json:"prev"`
+	PrevFunc   string              `json:"prev_func"`
 	PkgPath    string              `json:"pkg_path"`
 	Func       string              `json:"func"`
 	Type       string              `json:"type"`
@@ -69,7 +70,6 @@ type gnoEvent struct {
 type prevStack struct {
 	PrevPkgPath string `json:"prev_pkg_path"`
 	PrevPkgAddr string `json:"prev_pkg_addr"`
-	PrevFunc    string `json:"prev_func"`
 }
 
 func (e gnoEvent) AssertABCIEvent() {}
