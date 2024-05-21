@@ -1014,7 +1014,7 @@ type ValueDecl struct {
 func (x *ValueDecl) GetDeclNames() []Name {
 	ns := make([]Name, 0, len(x.NameExprs))
 	for _, nx := range x.NameExprs {
-		if nx.Name == "_" {
+		if nx.Name == blankNameIdentifer {
 			// ignore
 		} else {
 			ns = append(ns, nx.Name)
@@ -1031,7 +1031,7 @@ type TypeDecl struct {
 }
 
 func (x *TypeDecl) GetDeclNames() []Name {
-	if x.NameExpr.Name == "_" {
+	if x.NameExpr.Name == blankNameIdentifer {
 		return nil // ignore
 	} else {
 		return []Name{x.NameExpr.Name}
@@ -1588,8 +1588,8 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
-	if n == "_" {
-		return NewValuePathBlock(0, 0, "_")
+	if n == blankNameIdentifer {
+		return NewValuePathBlock(0, 0, blankNameIdentifer)
 	}
 	// Check local.
 	gen := 1
@@ -1780,7 +1780,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	if tv.T == nil && tv.V != nil {
 		panic("StaticBlock.Define2() requires .T if .V is set")
 	}
-	if n == "_" {
+	if n == blankNameIdentifer {
 		return // ignore
 	}
 	idx, exists := sb.GetLocalIndex(n)
@@ -1976,7 +1976,7 @@ func (vp ValuePath) Validate() {
 			panic("uverse value path must have depth 0")
 		}
 	case VPBlock:
-		// 0 ok ("_" blank)
+		// 0 ok (blankIdentifier blank)
 	case VPField:
 		if vp.Depth > 1 {
 			panic("field value path must have depth 0 or 1")

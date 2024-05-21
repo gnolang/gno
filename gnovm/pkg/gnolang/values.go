@@ -163,7 +163,7 @@ func (dbv DataByteValue) SetByte(b byte) {
 // value after a block var escapes "to the heap".
 // *(PointerValue.TypedValue) must have already become
 // initialized, namely T set if a typed-nil.
-// Index is -1 for the shared "_" block var,
+// Index is -1 for the shared blankIdentifier block var,
 // and -2 for (gno and native) map items.
 //
 // Allocation for PointerValue is not immediate,
@@ -179,7 +179,7 @@ type PointerValue struct {
 }
 
 const (
-	PointerIndexBlockBlank = -1 // for the "_" identifier in blocks
+	PointerIndexBlockBlank = -1 // for the blankIdentifier identifier in blocks
 	PointerIndexMap        = -2 // Base is Map, use Key.
 	PointerIndexNative     = -3 // Base is *NativeValue.
 )
@@ -2257,7 +2257,7 @@ type Block struct {
 	Source     BlockNode
 	Values     []TypedValue
 	Parent     Value
-	Blank      TypedValue // captures "_" // XXX remove and replace with global instance.
+	Blank      TypedValue // captures blankIdentifier // XXX remove and replace with global instance.
 	bodyStmt   bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
 
@@ -2343,7 +2343,7 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if path.IsBlockBlankPath() {
 		if debug {
-			if path.Name != "_" {
+			if path.Name != blankNameIdentifer {
 				panic(fmt.Sprintf(
 					"zero value path is reserved for \"_\", but got %s",
 					path.Name))
@@ -2365,7 +2365,7 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	return b.GetPointerToInt(store, int(path.Index))
 }
 
-// Result is used has lhs for any assignments to "_".
+// Result is used has lhs for any assignments to blankIdentifier.
 func (b *Block) GetBlankRef() *TypedValue {
 	return &b.Blank
 }
