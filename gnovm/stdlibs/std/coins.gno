@@ -30,9 +30,7 @@ func (c Coin) String() string {
 // IsGTE returns true if they are the same type and the receiver is
 // an equal or greater value
 func (c Coin) IsGTE(other Coin) bool {
-	if c.Denom != other.Denom {
-		panic("comparing different denominations: " + c.Denom + ", " + other.Denom)
-	}
+	mustMatchDenominations(c.Denom, other.Denom)
 
 	return c.Amount >= other.Amount
 }
@@ -117,24 +115,6 @@ type Coins []Coin
 
 func NewCoins(coins ...Coin) Coins {
 	return coins
-}
-
-// NewCoinsFromVal is a type-unsafe way to make a Coins struct
-// Usage is not recommended
-func NewCoinsFromVal(val ...interface{}) Coins {
-	if len(val)%2 != 0 {
-		panic("invalid number of arguments")
-	}
-
-	cz := Coins{}
-	for i := 0; i < len(val)-1; i += 2 {
-		denom := val[i].(string)
-		amt := val[i+1].(int64)
-
-		cz = append(cz, NewCoin(denom, amt))
-	}
-
-	return cz
 }
 
 func (cz Coins) String() string {
