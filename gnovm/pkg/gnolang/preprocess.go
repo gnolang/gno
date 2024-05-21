@@ -16,21 +16,11 @@ const blankIdentifer string = "_"
 // Anything predefined or preprocessed here get skipped during the Preprocess
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
-	for _, fn := range fset.Files {
-		decls, err := sortValueDeps(fn.Decls)
-		if err != nil {
-			panic(err)
-		}
-
-		fn.Decls = decls
-	}
-
 	// First, initialize all file nodes and connect to package node.
 	for _, fn := range fset.Files {
 		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
 		fn.InitStaticBlock(fn, pn)
 	}
-
 	// NOTE: much of what follows is duplicated for a single *FileNode
 	// in the main Preprocess translation function.  Keep synced.
 
@@ -42,7 +32,11 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *ImportDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) != true {
+				if d.GetAttribute(ATTR_PREDEFINED) == true {
+					// skip declarations already predefined
+					// (e.g. through recursion for a
+					// dependent)
+				} else {
 					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
@@ -50,14 +44,17 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
-
 	// Predefine all type decls decls.
 	for _, fn := range fset.Files {
 		for i := 0; i < len(fn.Decls); i++ {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *TypeDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) != true {
+				if d.GetAttribute(ATTR_PREDEFINED) == true {
+					// skip declarations already predefined
+					// (e.g. through recursion for a
+					// dependent)
+				} else {
 					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
@@ -71,7 +68,11 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *FuncDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) != true {
+				if d.GetAttribute(ATTR_PREDEFINED) == true {
+					// skip declarations already predefined
+					// (e.g. through recursion for a
+					// dependent)
+				} else {
 					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
@@ -79,13 +80,15 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
-
 	// Finally, predefine other decls and
 	// preprocess ValueDecls..
 	for _, fn := range fset.Files {
 		for i := 0; i < len(fn.Decls); i++ {
 			d := fn.Decls[i]
-			if d.GetAttribute(ATTR_PREDEFINED) != true {
+			if d.GetAttribute(ATTR_PREDEFINED) == true {
+				// skip declarations already predefined (e.g.
+				// through recursion for a dependent)
+			} else {
 				// recursively predefine dependencies.
 				d2, _ := predefineNow(store, fn, d)
 				fn.Decls[i] = d2
@@ -1634,9 +1637,20 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					}
-				} else { // ASSIGN.
+				} else { // ASSIGN, or assignment operation (+=, -=, <<=, etc.)
+					// If this is an assignment operation, ensure there's only 1
+					// expr on lhs/rhs.
+					if n.Op != ASSIGN &&
+						(len(n.Lhs) != 1 || len(n.Rhs) != 1) {
+						panic("assignment operator " + n.Op.TokenString() +
+							" requires only one expression on lhs and rhs")
+					}
+
 					// NOTE: Keep in sync with DEFINE above.
-					if len(n.Lhs) > len(n.Rhs) {
+					if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
+						// Special case if shift assign <<= or >>=.
+						checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
+					} else if len(n.Lhs) > len(n.Rhs) {
 						// TODO dry code w/ above.
 						// Unpack n.Rhs[0] to n.Lhs[:]
 						if len(n.Rhs) != 1 {
@@ -1668,12 +1682,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						default:
 							panic("should not happen")
 						}
-					} else if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
-						if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
-							panic("should not happen")
-						}
-						// Special case if shift assign <<= or >>=.
-						checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
 					} else {
 						// General case: a, b = x, y.
 						for i, lx := range n.Lhs {
@@ -2491,6 +2499,9 @@ func convertIfConst(store Store, last BlockNode, x Expr) {
 
 func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 	if t != nil && t.Kind() == InterfaceKind {
+		if cx.T != nil {
+			checkType(cx.T, t, false)
+		}
 		t = nil // signifies to convert to default type.
 	}
 	if isUntyped(cx.T) {

@@ -17,7 +17,7 @@ services:
       - --chainid=staging
       - --genesis-remote=staging.gno.land:36657
     volumes:
-      - "./data/gnoland:/opt/gno/src/gno.land/testdir"
+      - "./data/gnoland:/opt/gno/src/gno.land/gnoland-data"
     ports:
       - 36656:36656
       - 36657:36657

@@ -99,11 +99,18 @@ func (tx Tx) GetMemo() string { return tx.Memo }
 // .Empty().
 func (tx Tx) GetSignatures() []Signature { return tx.Signatures }
 
-func (tx Tx) GetSignBytes(chainID string, accountNumber uint64, sequence uint64) []byte {
-	return SignBytes(chainID, accountNumber, sequence, tx.Fee, tx.Msgs, tx.Memo)
+func (tx Tx) GetSignBytes(chainID string, accountNumber uint64, sequence uint64) ([]byte, error) {
+	return GetSignaturePayload(SignDoc{
+		ChainID:       chainID,
+		AccountNumber: accountNumber,
+		Sequence:      sequence,
+		Fee:           tx.Fee,
+		Msgs:          tx.Msgs,
+		Memo:          tx.Memo,
+	})
 }
 
-//__________________________________________________________
+// __________________________________________________________
 
 // Fee includes the amount of coins paid in fees and the maximum
 // gas to be used by the transaction. The ratio yields an effective "gasprice",

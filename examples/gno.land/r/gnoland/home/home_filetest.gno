@@ -111,11 +111,11 @@ func main() {
 //- [r/gnoland/home](r/gnoland/home)
 //- [r/gnoland/pages](r/gnoland/pages)
 //
-//#### [r/system](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/system)
+//#### [r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)
 //
-//- [r/system/names](r/system/names)
-//- [r/system/rewards](r/system/rewards)
-//- [r/system/validators](r/system/validators)
+//- [r/sys/names](r/sys/names)
+//- [r/sys/rewards](r/sys/rewards)
+//- [r/sys/validators](r/sys/validators)
 //
 //</div><!-- /column-->
 //<div class="column">

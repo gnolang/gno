@@ -185,16 +185,6 @@ func TestConfig_Set_Base(t *testing.T) {
 			},
 		},
 		{
-			"genesis path updated",
-			[]string{
-				"genesis_file",
-				"example path",
-			},
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, value, loadedCfg.Genesis)
-			},
-		},
-		{
 			"validator key updated",
 			[]string{
 				"priv_validator_key_file",

@@ -11,7 +11,7 @@ import (
 func colorFromString(s string, saturation, lightness float64) lipgloss.Color {
 	hue := float64(hash32a(s) % 360)
 
-	r, g, b := hslToRGB(float64(hue), saturation, lightness)
+	r, g, b := hslToRGB(hue, saturation, lightness)
 	hex := rgbToHex(r, g, b)
 	return lipgloss.Color(hex)
 }

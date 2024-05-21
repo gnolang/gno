@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/telemetry"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -26,17 +24,17 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap/zapcore"
 )
 
-var startGraphic = fmt.Sprintf(`
-                      __                __
-   ____ _____  ____  / /___ _____  ____/ /
-  / __ %c/ __ \/ __ \/ / __ %c/ __ \/ __  / 
- / /_/ / / / / /_/ / / /_/ / / / / /_/ /  
- \__, /_/ /_/\____/_/\__,_/_/ /_/\__,_/   
-/____/                                    
-`, '`', '`')
+var startGraphic = strings.ReplaceAll(`
+                    __             __
+  ___ ____  ___    / /__ ____  ___/ /
+ / _ '/ _ \/ _ \_ / / _ '/ _ \/ _  /
+ \_, /_//_/\___(_)_/\_,_/_//_/\_,_/
+/___/
+`, "'", "`")
 
 type startCfg struct {
 	gnoRootDir            string
@@ -44,6 +42,7 @@ type startCfg struct {
 	skipStart             bool
 	genesisBalancesFile   string
 	genesisTxsFile        string
+	genesisFile           string
 	chainID               string
 	genesisRemote         string
 	dataDir               string
@@ -108,6 +107,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
+		&c.genesisFile,
+		"genesis",
+		"genesis.json",
+		"the path to the genesis.json",
+	)
+
+	fs.StringVar(
 		&c.chainID,
 		"chainid",
 		"dev",
@@ -121,12 +127,11 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"the root directory of the gno repository",
 	)
 
-	// XXX: Use home directory for this
 	fs.StringVar(
 		&c.dataDir,
 		"data-dir",
-		"testdir",
-		"directory for config and data",
+		"gnoland-data",
+		"the path to the node's data directory",
 	)
 
 	fs.StringVar(
@@ -139,7 +144,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Int64Var(
 		&c.genesisMaxVMCycles,
 		"genesis-max-vm-cycles",
-		10_000_000,
+		100_000_000,
 		"set maximum allowed vm cycles per operation. Zero means no limit.",
 	)
 
@@ -193,29 +198,25 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		log.ConsoleFormat.String(),
 		"log format for the gnoland node",
 	)
-
-	// XXX(deprecated): use data-dir instead
-	fs.StringVar(
-		&c.dataDir,
-		"root-dir",
-		"testdir",
-		"deprecated: use data-dir instead - directory for config and data",
-	)
 }
 
 func execStart(c *startCfg, io commands.IO) error {
-	dataDir := c.dataDir
+	// Get the absolute path to the node's data directory
+	nodeDir, err := filepath.Abs(c.dataDir)
+	if err != nil {
+		return fmt.Errorf("unable to get absolute path for data directory, %w", err)
+	}
+
+	// Get the absolute path to the node's genesis.json
+	genesisPath, err := filepath.Abs(c.genesisFile)
+	if err != nil {
+		return fmt.Errorf("unable to get absolute path for the genesis.json, %w", err)
+	}
 
 	var (
 		cfg        *config.Config
 		loadCfgErr error
 	)
-
-	// Attempt to initialize telemetry. If the environment variables required to initialize
-	// telemetry are not set, then the initialization will do nothing.
-	if err := initTelemetry(); err != nil {
-		return fmt.Errorf("error initializing telemetry: %w", err)
-	}
 
 	// Set the node configuration
 	if c.nodeConfigPath != "" {
@@ -224,7 +225,7 @@ func execStart(c *startCfg, io commands.IO) error {
 		cfg, loadCfgErr = config.LoadConfigFile(c.nodeConfigPath)
 	} else {
 		// Load the default node configuration
-		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(dataDir)
+		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(nodeDir)
 	}
 
 	if loadCfgErr != nil {
@@ -246,10 +247,13 @@ func execStart(c *startCfg, io commands.IO) error {
 	// Wrap the zap logger
 	logger := log.ZapLoggerToSlog(zapLogger)
 
-	// Write genesis file if missing.
-	genesisFilePath := filepath.Join(dataDir, cfg.Genesis)
+	// Initialize telemetry
+	telemetry.Init(*cfg.Telemetry)
 
-	if !osm.FileExists(genesisFilePath) {
+	// Write genesis file if missing.
+	// NOTE: this will be dropped in a PR that resolves issue #1886:
+	// https://github.com/gnolang/gno/issues/1886
+	if !osm.FileExists(genesisPath) {
 		// Create priv validator first.
 		// Need it to generate genesis.json
 		newPrivValKey := cfg.PrivValidatorKeyFile()
@@ -258,7 +262,7 @@ func execStart(c *startCfg, io commands.IO) error {
 		pk := priv.GetPubKey()
 
 		// Generate genesis.json file
-		if err := generateGenesisFile(genesisFilePath, pk, c); err != nil {
+		if err := generateGenesisFile(genesisPath, pk, c); err != nil {
 			return fmt.Errorf("unable to generate genesis file: %w", err)
 		}
 	}
@@ -271,7 +275,7 @@ func execStart(c *startCfg, io commands.IO) error {
 	cfg.TxEventStore = txEventStoreCfg
 
 	// Create application and node.
-	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
+	gnoApp, err := gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
 		return fmt.Errorf("error in creating new app: %w", err)
 	}
@@ -281,7 +285,7 @@ func execStart(c *startCfg, io commands.IO) error {
 		io.Println(startGraphic)
 	}
 
-	gnoNode, err := node.DefaultNewNode(cfg, logger)
+	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, logger)
 	if err != nil {
 		return fmt.Errorf("error in creating node: %w", err)
 	}
@@ -315,10 +319,10 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 	gen.ConsensusParams = abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			// TODO: update limits.
-			MaxTxBytes:   1_000_000,  // 1MB,
-			MaxDataBytes: 2_000_000,  // 2MB,
-			MaxGas:       10_0000_00, // 10M gas
-			TimeIotaMS:   100,        // 100ms
+			MaxTxBytes:   1_000_000,   // 1MB,
+			MaxDataBytes: 2_000_000,   // 2MB,
+			MaxGas:       100_000_000, // 100M gas
+			TimeIotaMS:   100,         // 100ms
 		},
 	}
 
@@ -390,20 +394,4 @@ func getTxEventStoreConfig(c *startCfg) (*eventstorecfg.Config, error) {
 	}
 
 	return cfg, nil
-}
-
-func initTelemetry() error {
-	var options []telemetry.Option
-
-	if os.Getenv("TELEM_METRICS_ENABLED") == "true" {
-		options = append(options, telemetry.WithOptionMetricsEnabled())
-	}
-
-	// The string options can be added by default. Their absence would yield the same result
-	// as if the option were excluded altogether.
-	options = append(options, telemetry.WithOptionMeterName(os.Getenv("TELEM_METER_NAME")))
-	options = append(options, telemetry.WithOptionExporterEndpoint(os.Getenv("TELEM_EXPORTER_ENDPOINT")))
-	options = append(options, telemetry.WithOptionServiceName(os.Getenv("TELEM_SERVICE_NAME")))
-
-	return telemetry.Init(options...)
 }

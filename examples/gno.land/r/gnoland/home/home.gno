@@ -177,11 +177,11 @@ func packageStaffPicks() ui.Element {
 						ui.Link{URL: "r/gnoland/home"},
 						ui.Link{URL: "r/gnoland/pages"},
 					},
-					ui.H4("[r/system](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/system)"),
+					ui.H4("[r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)"),
 					ui.BulletList{
-						ui.Link{URL: "r/system/names"},
-						ui.Link{URL: "r/system/rewards"},
-						ui.Link{URL: "r/system/validators"},
+						ui.Link{URL: "r/sys/names"},
+						ui.Link{URL: "r/sys/rewards"},
+						ui.Link{URL: "r/sys/validators"},
 					},
 				}, {
 					ui.H4("[r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)"),
