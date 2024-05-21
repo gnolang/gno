@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"go.uber.org/multierr"
 )
 
@@ -134,39 +135,11 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 
 			memPkg := gno.ReadMemPackage(pkgPath, pkgPath)
 
+			// Run type checking
 			if gmFile == nil || !gmFile.Draft {
-				tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
-				if tcErr != nil {
-					errs := multierr.Errors(tcErr)
-					for _, err := range errs {
-						switch err := err.(type) {
-						case types.Error:
-							addIssue(lintIssue{
-								Code:       lintTypeCheckError,
-								Msg:        err.Msg,
-								Confidence: 1,
-								Location:   err.Fset.Position(err.Pos).String(),
-							})
-						case scanner.ErrorList:
-							for _, scErr := range err {
-								addIssue(lintIssue{
-									Code:       lintParserError,
-									Msg:        scErr.Msg,
-									Confidence: 1,
-									Location:   scErr.Pos.String(),
-								})
-							}
-						case scanner.Error:
-							addIssue(lintIssue{
-								Code:       lintParserError,
-								Msg:        err.Msg,
-								Confidence: 1,
-								Location:   err.Pos.String(),
-							})
-						default:
-							io.ErrPrintfln("unexpected error type: %T", err)
-						}
-					}
+				err := lintTypeCheck(addIssue, memPkg, testStore)
+				if err != nil {
+					io.ErrPrintln(err)
 				}
 			} else if verbose {
 				io.ErrPrintfln("%s: module is draft, skipping type check\n", pkgPath)
@@ -178,28 +151,10 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			tm.RunMemPackage(memPkg, true)
 
 			// Check test files
-			testfiles := &gno.FileSet{}
-			for _, mfile := range memPkg.Files {
-				if !strings.HasSuffix(mfile.Name, ".gno") {
-					continue // Skip non-GNO files
-				}
+			testFiles := lintTestFiles(memPkg)
 
-				n, _ := gno.ParseFile(mfile.Name, mfile.Body)
-				if n == nil {
-					continue // Skip empty files
-				}
-
-				// XXX: package ending with `_test` is not supported yet
-				if strings.HasSuffix(mfile.Name, "_test.gno") && !strings.HasSuffix(string(n.PkgName), "_test") {
-					// Keep only test files
-					testfiles.AddFiles(n)
-				}
-			}
-
-			tm.RunFiles(testfiles.Files...)
+			tm.RunFiles(testFiles.Files...)
 		})
-
-		// TODO: Add more checkers
 	}
 
 	if hasError && cfg.setExitStatus != 0 {
@@ -207,6 +162,66 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	}
 
 	return nil
+}
+
+func lintTypeCheck(addIssue func(lintIssue), memPkg *std.MemPackage, testStore gno.Store) error {
+	tcErr := gno.TypeCheckMemPackageTest(memPkg, testStore)
+	if tcErr == nil {
+		return nil
+	}
+
+	errs := multierr.Errors(tcErr)
+	for _, err := range errs {
+		switch err := err.(type) {
+		case types.Error:
+			addIssue(lintIssue{
+				Code:       lintTypeCheckError,
+				Msg:        err.Msg,
+				Confidence: 1,
+				Location:   err.Fset.Position(err.Pos).String(),
+			})
+		case scanner.ErrorList:
+			for _, scErr := range err {
+				addIssue(lintIssue{
+					Code:       lintParserError,
+					Msg:        scErr.Msg,
+					Confidence: 1,
+					Location:   scErr.Pos.String(),
+				})
+			}
+		case scanner.Error:
+			addIssue(lintIssue{
+				Code:       lintParserError,
+				Msg:        err.Msg,
+				Confidence: 1,
+				Location:   err.Pos.String(),
+			})
+		default:
+			return fmt.Errorf("unexpected error type: %T", err)
+		}
+	}
+	return nil
+}
+
+func lintTestFiles(memPkg *std.MemPackage) *gno.FileSet {
+	testfiles := &gno.FileSet{}
+	for _, mfile := range memPkg.Files {
+		if !strings.HasSuffix(mfile.Name, ".gno") {
+			continue // Skip non-GNO files
+		}
+
+		n, _ := gno.ParseFile(mfile.Name, mfile.Body)
+		if n == nil {
+			continue // Skip empty files
+		}
+
+		// XXX: package ending with `_test` is not supported yet
+		if strings.HasSuffix(mfile.Name, "_test.gno") && !strings.HasSuffix(string(n.PkgName), "_test") {
+			// Keep only test files
+			testfiles.AddFiles(n)
+		}
+	}
+	return testfiles
 }
 
 func guessSourcePath(pkg, source string) string {

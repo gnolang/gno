@@ -513,7 +513,7 @@ func typeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter, testin
 				errs = multierr.Append(errs, err)
 			},
 		},
-		testing: testing,
+		allowRedefinitions: testing,
 	}
 	imp.cfg.Importer = imp
 
@@ -536,8 +536,8 @@ type gnoImporter struct {
 	cache  map[string]gnoImporterResult
 	cfg    *types.Config
 
-	// if true, allows re-definitions
-	testing bool
+	// allow symbol redefinitions? (test standard libraries)
+	allowRedefinitions bool
 }
 
 // Unused, but satisfies the Importer interface.
@@ -572,7 +572,7 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package
 	// This map links each function identifier with a closure to remove its
 	// associated declaration.
 	var delFunc map[string]func()
-	if g.testing {
+	if g.allowRedefinitions {
 		delFunc = make(map[string]func())
 	}
 
@@ -615,8 +615,7 @@ func deleteOldIdents(idents map[string]func(), f *ast.File) {
 		if !ok || fd.Recv != nil { // ignore methods
 			continue
 		}
-		del := idents[fd.Name.Name]
-		if del != nil {
+		if del := idents[fd.Name.Name]; del != nil {
 			del()
 		}
 		decl := decl
