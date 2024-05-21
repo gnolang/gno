@@ -10,6 +10,13 @@ import (
 var stakeThreshold = std.Coin{"ugnot", int64(100000000)} // 100 GNOTs
 
 const (
+	errCallerNotUserAccount  = "caller not user account"
+	errValidatorExists       = "validator already exists"
+	errMaximumValidatorCount = "maximum validator count reached"
+	errValidatorNotOrigin    = "validator address is not origin"
+)
+
+const (
 	minValidatorCount = 4   // the absolute minimum number of validators in the set
 	maxValidatorCount = 150 // the practical maximum number of validators in the set
 )
@@ -59,18 +66,18 @@ func NewPoS(opts ...Option) *PoS {
 // - the validator set is less than the maximum size
 func (p *PoS) AddValidator(address std.Address, pubKey string) {
 	// Check if the caller is a user account
-	if !std.IsOriginCall() {
-		panic("caller not user account")
+	if !std.PrevRealm().IsUser() {
+		panic(errCallerNotUserAccount)
 	}
 
 	// Check if the validator is already in the set
 	if p.IsValidator(address) {
-		panic("validator already exists")
+		panic(errValidatorExists)
 	}
 
 	// Check if the limit is reached
-	if len(p.validators) <= maxValidatorCount {
-		panic("maximum validator count reached")
+	if len(p.validators) == maxValidatorCount {
+		panic(errMaximumValidatorCount)
 	}
 
 	var (
@@ -80,7 +87,7 @@ func (p *PoS) AddValidator(address std.Address, pubKey string) {
 
 	// Check if the caller is supplying their own address
 	if address != caller {
-		panic("validator address is not origin")
+		panic(errValidatorNotOrigin)
 	}
 
 	// Fetch the already staked amount
