@@ -8,6 +8,7 @@ import (
 	"gno.land/r/sys/vals/types"
 )
 
+// generateTestValidators generates a dummy validator set
 func generateTestValidators(count int) []*types.Validator {
 	vals := make([]*types.Validator, 0, count)
 
@@ -166,6 +167,82 @@ func TestPoS_AddValidator(t *testing.T) {
 		// Make sure the user became a validator
 		if !p.IsValidator(callerAddress) {
 			t.Fatalf("should be a validator")
+		}
+	})
+}
+
+func TestPoS_IsValidator(t *testing.T) {
+	t.Parallel()
+
+	t.Run("address is not in the set", func(t *testing.T) {
+		t.Parallel()
+
+		// Empty PoS set
+		p := NewPoS()
+
+		if p.IsValidator(std.Address("random address")) {
+			t.Fatal("should not be a validator")
+		}
+	})
+
+	t.Run("address is in the set", func(t *testing.T) {
+		t.Parallel()
+
+		initialSet := generateTestValidators(10)
+
+		// Existing PoS set
+		p := NewPoS(WithInitialSet(initialSet))
+
+		if !p.IsValidator(initialSet[0].Address) {
+			t.Fatal("should be a validator")
+		}
+	})
+}
+
+func TestPoS_GetValidators(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty set", func(t *testing.T) {
+		t.Parallel()
+
+		// Empty PoS set
+		p := NewPoS()
+
+		if len(p.GetValidators()) != 0 {
+			t.Fatal("should be empty set")
+		}
+	})
+
+	t.Run("existing set", func(t *testing.T) {
+		t.Parallel()
+
+		initialSet := generateTestValidators(10)
+
+		// Existing PoS set
+		p := NewPoS(WithInitialSet(initialSet))
+
+		vals := p.GetValidators()
+
+		// Make sure the set has a valid length
+		if len(vals) != len(initialSet) {
+			t.Fatal("invalid set length")
+		}
+
+		// Make sure each validator is valid
+		for i, val := range vals {
+			ref := initialSet[i]
+
+			if val.Address != ref.Address {
+				t.Fatal("address mismatch")
+			}
+
+			if val.PubKey != ref.PubKey {
+				t.Fatal("address mismatch")
+			}
+
+			if val.VotingPower != 0 {
+				t.Fatal("invalid voting power")
+			}
 		}
 	})
 }
