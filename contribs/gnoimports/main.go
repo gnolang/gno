@@ -31,6 +31,8 @@ func main() {
 		commands.Metadata{
 			Name:       "gnoimports",
 			ShortUsage: "gnoimports [flags] [path ...]",
+			ShortHelp:  "Run Gno imports cleanup.",
+			LongHelp:   "The gnoimports tool processes and cleans up Gno source files by specifying paths and using various flags for output control.",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
