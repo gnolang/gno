@@ -1,7 +1,7 @@
 package gnolang
 
 import (
-	"bytes"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -9,58 +9,52 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestPrepocessBinaryExpressionPrimaryAndNative(t *testing.T) {
-	t.Parallel()
+func TestPreprocess_BinaryExpressionOneNative(t *testing.T) {
+	pn := NewPackageNode("time", "time", nil)
+	pn.DefineGoNativeValue("Millisecond", time.Millisecond)
+	pn.DefineGoNativeValue("Second", time.Second)
+	pn.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
+	pv := pn.NewPackage()
+	store := gonativeTestStore(pn, pv)
+	store.SetBlockNode(pn)
 
-	out := new(bytes.Buffer)
-	pkg := NewPackageNode("time", "time", nil)
-	pkg.DefineGoNativeValue("Millisecond", time.Millisecond)
-	pkg.DefineGoNativeValue("Second", time.Second)
-	pkg.DefineGoNativeType(reflect.TypeOf(time.Duration(0)))
-	pv := pkg.NewPackage()
-	store := gonativeTestStore(pkg, pv)
-
-	m := NewMachineWithOptions(MachineOptions{
-		PkgPath: "main",
-		Output:  out,
-		Store:   store,
-	})
-
-	c := `package main
+	const src = `package main
 	import "time"
 func main() {
 	var a int64 = 2
 	println(time.Second * a)
-	
+
 }`
-	n := MustParseFile("main.go", c)
-	assert.Panics(t, func() { m.RunFiles(n) })
+	n := MustParseFile("main.go", src)
+
+	defer func() {
+		err := recover()
+		assert.Contains(t, fmt.Sprint(err), "incompatible types in binary expression")
+	}()
+	Preprocess(store, pn, n)
 }
 
-func TestPrepocessBinaryExpressionNativeAndNative(t *testing.T) {
-	t.Parallel()
+func TestPreprocess_BinaryExpressionBothNative(t *testing.T) {
+	pn := NewPackageNode("time", "time", nil)
+	pn.DefineGoNativeValue("March", time.March)
+	pn.DefineGoNativeValue("Wednesday", time.Wednesday)
+	pn.DefineGoNativeType(reflect.TypeOf(time.Month(0)))
+	pn.DefineGoNativeType(reflect.TypeOf(time.Weekday(0)))
+	pv := pn.NewPackage()
+	store := gonativeTestStore(pn, pv)
+	store.SetBlockNode(pn)
 
-	out := new(bytes.Buffer)
-	pkg := NewPackageNode("time", "time", nil)
-	pkg.DefineGoNativeValue("March", time.March)
-	pkg.DefineGoNativeValue("Wednesday", time.Wednesday)
-	pkg.DefineGoNativeType(reflect.TypeOf(time.Month(0)))
-	pkg.DefineGoNativeType(reflect.TypeOf(time.Weekday(0)))
-	pv := pkg.NewPackage()
-	store := gonativeTestStore(pkg, pv)
-
-	m := NewMachineWithOptions(MachineOptions{
-		PkgPath: "main",
-		Output:  out,
-		Store:   store,
-	})
-
-	c := `package main
+	const src = `package main
 	import "time"
 func main() {
 	println(time.March * time.Wednesday)
-	
+
 }`
-	n := MustParseFile("main.go", c)
-	assert.Panics(t, func() { m.RunFiles(n) })
+	n := MustParseFile("main.go", src)
+
+	defer func() {
+		err := recover()
+		assert.Contains(t, fmt.Sprint(err), "incompatible types in binary expression")
+	}()
+	Preprocess(store, pn, n)
 }
