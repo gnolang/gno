@@ -67,7 +67,8 @@ func (c Coin) AddUnsafe(coinB Coin) Coin {
 		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " + " + strconv.Itoa(int(coinB.Amount)))
 	}
 
-	return Coin{c.Denom, sum}
+	c.Amount = sum
+	return c
 }
 
 // Subtracts amounts of two coins with same denom.
@@ -86,7 +87,9 @@ func (c Coin) SubUnsafe(coinB Coin) Coin {
 	if !ok {
 		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " + " + strconv.Itoa(int(coinB.Amount)))
 	}
-	return Coin{c.Denom, dff}
+	c.Amount = dff
+
+	return c
 }
 
 // IsPositive returns true if coin amount is positive.
