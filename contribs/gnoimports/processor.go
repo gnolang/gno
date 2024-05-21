@@ -25,6 +25,8 @@ type Package struct {
 	Dir string
 }
 
+type ParseError error
+
 // processPackageFiles processes Gno package files and collects top-level declarations.
 func processPackageFiles(fset *token.FileSet, root string, filesNode map[string]*ast.File) (map[string]bool, error) {
 	declmap := make(map[string]bool)
@@ -47,9 +49,9 @@ func processPackageFiles(fset *token.FileSet, root string, filesNode map[string]
 			return nil
 		}
 
-		node, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
+		node, err := parser.ParseFile(fset, path, nil, parser.ParseComments|parser.AllErrors)
 		if err != nil {
-			return fmt.Errorf("unable to process files: %w", err)
+			return fmt.Errorf("unable to process file %q: %w", path, ParseError(err))
 		}
 
 		topDecls := make(map[*ast.Object]ast.Decl)

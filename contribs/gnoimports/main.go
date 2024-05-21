@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"go/scanner"
 	"log"
 	"os"
 	"path/filepath"
@@ -75,7 +77,8 @@ func execGnoImports(cfg *importsCfg, args []string, io commands.IO) (err error) 
 
 			data, err := processGnoFile(file)
 			if err != nil {
-				io.ErrPrintfln("unable to process %q: %s", file, err.Error())
+				printScannerError(err, io)
+				// io.ErrPrintfln("unable to process %q: %s", file, err.Error())
 				os.Exit(1)
 			}
 
@@ -161,4 +164,28 @@ func expandWildcard(path string) ([]string, error) {
 	}
 
 	return directories, nil
+}
+
+func printScannerError(err error, io commands.IO) {
+	for ; err != nil; err = errors.Unwrap(err) {
+		perr, ok := err.(ParseError)
+		if !ok {
+			continue
+		}
+
+		// get underlayin parse error
+		err = errors.Unwrap(errors.Unwrap(perr))
+		if scanErrors, ok := err.(scanner.ErrorList); ok {
+			for _, e := range scanErrors {
+				io.ErrPrintln(e)
+			}
+
+			return
+		}
+
+		io.ErrPrintln(err)
+		return
+	}
+
+	io.ErrPrintln(err)
 }
