@@ -197,6 +197,7 @@ func lintTypeCheck(addIssue func(lintIssue), memPkg *std.MemPackage, testStore g
 				Location:   err.Pos.String(),
 			})
 		default:
+			//nolint
 			return fmt.Errorf("unexpected error type: %T", err)
 		}
 	}
