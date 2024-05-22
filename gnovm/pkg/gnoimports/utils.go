@@ -1,4 +1,4 @@
-package fmt
+package gnoimports
 
 import "go/ast"
 

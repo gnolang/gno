@@ -1,6 +1,6 @@
 # two files with with one declaration on the side
 
-gnoimport cleaning.gno
+gno fmt cleaning.gno
 cmp stdout stdout.golden
 cmp stderr stderr.golden
 

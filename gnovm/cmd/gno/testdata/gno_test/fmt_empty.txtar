@@ -1,4 +1,4 @@
-gnoimport noimport.gno
+gno fmt noimport.gno
 cmp stdout stdout.golden.gno
 cmp stderr stderr.golden
 

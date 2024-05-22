@@ -1,4 +1,4 @@
-package fmt
+package gnoimports
 
 import (
 	"bytes"
@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -19,13 +18,130 @@ import (
 	"golang.org/x/tools/imports"
 )
 
+type ParseError error
+
 // Package contains the memory package and directory path
 type Package struct {
 	std.MemPackage
 	Dir string
 }
 
-type ParseError error
+type Processor struct {
+	stdlibs map[string][]*Package
+	extlibs map[string][]*Package
+}
+
+func NewProcessor() *Processor {
+	return &Processor{
+		stdlibs: map[string][]*Package{},
+		extlibs: map[string][]*Package{},
+	}
+}
+
+func (p *Processor) LoadStdPackages(root string) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil || !info.IsDir() {
+			return nil
+		}
+		files, err := os.ReadDir(path)
+		if err != nil {
+			return nil
+		}
+
+		var gnofiles []string
+		for _, file := range files {
+			if filepath.Ext(file.Name()) == ".gno" {
+				gnofiles = append(gnofiles, filepath.Join(path, file.Name()))
+			}
+		}
+		if len(gnofiles) == 0 {
+			return nil
+		}
+
+		pkgname, ok := strings.CutPrefix(path, root)
+		if !ok {
+			return nil
+		}
+		memPkg := gnolang.ReadMemPackageFromList(gnofiles, strings.TrimPrefix(pkgname, "/"))
+
+		p.stdlibs[memPkg.Name] = append(p.stdlibs[memPkg.Name], &Package{
+			MemPackage: *memPkg,
+			Dir:        path,
+		})
+		return nil
+	})
+}
+
+func (p *Processor) LoadPackages(root string) error {
+	mods, err := gnomod.ListPkgs(root)
+	if err != nil {
+		return fmt.Errorf("unable to resolve example folder: %w", err)
+	}
+
+	sorted, err := mods.Sort()
+	if err != nil {
+		return fmt.Errorf("unable to sort pkgs: %w", err)
+	}
+
+	for _, modPkg := range sorted.GetNonDraftPkgs() {
+		memPkg := gnolang.ReadMemPackage(modPkg.Dir, modPkg.Name)
+		if memPkg.Validate() != nil {
+			continue
+		}
+
+		p.extlibs[memPkg.Name] = append(p.extlibs[memPkg.Name], &Package{
+			MemPackage: *memPkg,
+			Dir:        modPkg.Dir,
+		})
+	}
+
+	return nil
+}
+
+// FormatImports processes a single Gno file and adds necessary imports.
+func (p *Processor) FormatImports(filep string) ([]byte, error) {
+	fset := token.NewFileSet()
+
+	pkgDecls := make(map[string]*ast.File)
+	_, err := processPackageFiles(fset, filepath.Dir(filep), pkgDecls)
+	if err != nil {
+		return nil, fmt.Errorf("unable to process package: %w", err)
+	}
+
+	node, ok := pkgDecls[filepath.Base(filep)]
+	if !ok {
+		return nil, fmt.Errorf("not a valid gno file: %s", filep)
+	}
+
+	topDecls := collectTopDecls(pkgDecls)
+	p.resolveAndUpdateImports(fset, node, topDecls)
+
+	var buf bytes.Buffer
+	if err := printer.Fprint(&buf, fset, node); err != nil {
+		return nil, fmt.Errorf("unable to format file: %w", err)
+	}
+
+	// We let `go/imports` managing the sort of the imports
+	ret, err := imports.Process(filep, buf.Bytes(), &imports.Options{
+		TabWidth:   8,
+		Comments:   true,
+		TabIndent:  true,
+		FormatOnly: true,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to format import: %w", err)
+	}
+
+	return ret, nil
+}
+
+// resolveAndUpdateImports resolves and collects unresolved imports.
+func (p *Processor) resolveAndUpdateImports(fset *token.FileSet, node *ast.File, topDecls map[*ast.Object]ast.Decl) {
+	unresolved := collectUnresolved(node, topDecls)
+	cleanupPreviousImports(fset, node, topDecls, unresolved)
+	resolve(fset, node, unresolved, p.stdlibs)
+	resolve(fset, node, unresolved, p.extlibs)
+}
 
 // processPackageFiles processes Gno package files and collects top-level declarations.
 func processPackageFiles(fset *token.FileSet, root string, filesNode map[string]*ast.File) (map[string]bool, error) {
@@ -85,116 +201,6 @@ func processPackageFiles(fset *token.FileSet, root string, filesNode map[string]
 	return declmap, err
 }
 
-// listGnoModules lists and validates Gno modules.
-func listGnoModules(path string, mpkgs map[string][]*Package) error {
-	mods, err := gnomod.ListPkgs(path)
-	if err != nil {
-		return fmt.Errorf("unable to resolve example folder: %w", err)
-	}
-
-	sorted, err := mods.Sort()
-	if err != nil {
-		return fmt.Errorf("unable to sort pkgs: %w", err)
-	}
-
-	for _, modPkg := range sorted.GetNonDraftPkgs() {
-		memPkg := gnolang.ReadMemPackage(modPkg.Dir, modPkg.Name)
-		if memPkg.Validate() != nil {
-			continue
-		}
-		mpkgs[memPkg.Name] = append(mpkgs[memPkg.Name], &Package{
-			MemPackage: *memPkg,
-			Dir:        modPkg.Dir,
-		})
-	}
-	return nil
-}
-
-// loadStdlibsPackages loads standard library packages.
-func loadStdlibsPackages(gnoroot string, mpkgs map[string][]*Package) error {
-	stdlibs := filepath.Join(gnoroot, "gnovm", "stdlibs")
-	return filepath.Walk(stdlibs, func(path string, info os.FileInfo, err error) error {
-		if err != nil || !info.IsDir() {
-			return nil
-		}
-		files, err := os.ReadDir(path)
-		if err != nil {
-			return nil
-		}
-
-		var gnofiles []string
-		for _, file := range files {
-			if filepath.Ext(file.Name()) == ".gno" {
-				gnofiles = append(gnofiles, filepath.Join(path, file.Name()))
-			}
-		}
-		if len(gnofiles) == 0 {
-			return nil
-		}
-
-		pkgname, ok := strings.CutPrefix(path, stdlibs)
-		if !ok {
-			return nil
-		}
-		memPkg := gnolang.ReadMemPackageFromList(gnofiles, strings.TrimPrefix(pkgname, "/"))
-		mpkgs[memPkg.Name] = append(mpkgs[memPkg.Name], &Package{
-			MemPackage: *memPkg,
-			Dir:        path,
-		})
-		return nil
-	})
-}
-
-// processGnoFile processes a single Gno file and adds necessary imports.
-func processGnoFile(filep string) ([]byte, error) {
-	fset := token.NewFileSet()
-
-	pkgDecls := make(map[string]*ast.File)
-	_, err := processPackageFiles(fset, filepath.Dir(filep), pkgDecls)
-	if err != nil {
-		return nil, fmt.Errorf("unable to process package: %w", err)
-	}
-
-	node, ok := pkgDecls[filepath.Base(filep)]
-	if !ok {
-		return nil, fmt.Errorf("not a valid gno file: %s", filep)
-	}
-
-	gnoroot := gnoenv.RootDir()
-	examples := filepath.Join(gnoroot, "examples")
-
-	mpkgs := make(map[string][]*Package)
-	if err := listGnoModules(examples, mpkgs); err != nil {
-		return nil, fmt.Errorf("unable to list gno modules: %w", err)
-	}
-
-	spkgs := make(map[string][]*Package)
-	if err := loadStdlibsPackages(gnoroot, spkgs); err != nil {
-		return nil, fmt.Errorf("unable to load stdlibs: %w", err)
-	}
-
-	topDecls := collectTopDecls(pkgDecls)
-	resolveImports(fset, node, topDecls, spkgs, mpkgs)
-
-	var buf bytes.Buffer
-
-	if err := printer.Fprint(&buf, fset, node); err != nil {
-		return nil, fmt.Errorf("unable to format file: %w", err)
-	}
-
-	ret, err := imports.Process(filep, buf.Bytes(), &imports.Options{
-		TabWidth:   8,
-		Comments:   true,
-		TabIndent:  true,
-		FormatOnly: true,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("unable to format import: %w", err)
-	}
-
-	return ret, nil
-}
-
 // collectTopDecls collects top-level declarations from package files.
 func collectTopDecls(pkgDecls map[string]*ast.File) map[*ast.Object]ast.Decl {
 	topDecls := make(map[*ast.Object]ast.Decl)
@@ -216,19 +222,6 @@ func collectTopDecls(pkgDecls map[string]*ast.File) map[*ast.Object]ast.Decl {
 	}
 
 	return topDecls
-}
-
-// resolveImports resolves and collects unresolved imports.
-func resolveImports(
-	fset *token.FileSet,
-	node *ast.File,
-	topDecls map[*ast.Object]ast.Decl,
-	spkgs, mpkgs map[string][]*Package,
-) {
-	unresolved := collectUnresolved(node, topDecls)
-	cleanupPreviousImports(fset, node, topDecls, unresolved)
-	resolve(fset, node, unresolved, spkgs)
-	resolve(fset, node, unresolved, mpkgs)
 }
 
 // collectUnresolved collects unresolved identifiers and declarations.
