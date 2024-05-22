@@ -66,7 +66,10 @@ func testContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		Banker:        banker,
 		EventLogger:   sdk.NewEventLogger(),
 	}
-	return &teststd.TestExecContext{ExecContext: ctx}
+	return &teststd.TestExecContext{
+		ExecContext: ctx,
+		RealmFrames: make(map[*gno.Frame]teststd.RealmOverride),
+	}
 }
 
 type runFileTestOptions struct {

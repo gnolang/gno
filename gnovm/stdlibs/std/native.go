@@ -109,7 +109,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 		changes int
 	)
 
-	for i := m.NumFrames() - 1; i > 0; i-- {
+	for i := m.NumFrames() - 1; i >= 0; i-- {
 		fr := m.Frames[i]
 		if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
 			continue

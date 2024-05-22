@@ -8,9 +8,14 @@ func ClearStoreCache()            // injected
 
 func TestSetOrigCaller(addr Address)  { testSetOrigCaller(string(addr)) }
 func TestSetOrigPkgAddr(addr Address) { testSetOrigPkgAddr(string(addr)) }
+
+// TestSetRealm sets the realm for the current frame.
+// After calling TestSetRealm, calling CurrentRealm() will yield the value of
+// rlm, while if a realm function is called, using PrevRealm() will yield rlm.
 func TestSetRealm(rlm Realm) {
 	testSetRealm(string(rlm.addr), rlm.pkgPath)
 }
+
 func TestSetOrigSend(sent, spent Coins) {
 	sentDenom, sentAmt := sent.expandNative()
 	spentDenom, spentAmt := spent.expandNative()

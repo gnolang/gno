@@ -14,10 +14,15 @@ import (
 type TestExecContext struct {
 	std.ExecContext
 
-	// These are used to set up the result of PrevRealm().
-	RealmFrame   *gno.Frame
-	RealmAddr    crypto.Bech32Address
-	RealmPkgPath string
+	// These are used to set up the result of CurrentRealm() and PrevRealm().
+	RealmFrames map[*gno.Frame]RealmOverride
+}
+
+var _ std.ExecContexter = &TestExecContext{}
+
+type RealmOverride struct {
+	Addr    crypto.Bech32Address
+	PkgPath string
 }
 
 func AssertOriginCall(m *gno.Machine) {
@@ -126,9 +131,10 @@ func X_testSetRealm(m *gno.Machine, addr, pkgPath string) {
 	}
 
 	ctx := m.Context.(*TestExecContext)
-	ctx.RealmFrame = frame
-	ctx.RealmAddr = crypto.Bech32Address(addr)
-	ctx.RealmPkgPath = pkgPath
+	ctx.RealmFrames[frame] = RealmOverride{
+		Addr:    crypto.Bech32Address(addr),
+		PkgPath: pkgPath,
+	}
 }
 
 func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
@@ -142,22 +148,18 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 		changes int
 	)
 
-	for i := m.NumFrames() - 1; i > 0; i-- {
+	for i := m.NumFrames() - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		if fr != ctx.RealmFrame &&
+		override, overridden := ctx.RealmFrames[m.Frames[max(i-1, 0)]]
+		if !overridden &&
 			(fr.LastPackage == nil || !fr.LastPackage.IsRealm()) {
 			continue
 		}
 
 		// LastPackage is a realm. Get caller and pkgPath, and compare against
-		// current* values.
-		var (
-			caller  crypto.Bech32Address
-			pkgPath string
-		)
-		if fr == ctx.RealmFrame {
-			caller, pkgPath = ctx.RealmAddr, ctx.RealmPkgPath
-		} else {
+		// currentCaller.
+		caller, pkgPath := override.Addr, override.PkgPath
+		if !overridden {
 			caller = fr.LastPackage.GetPkgAddr().Bech32()
 			pkgPath = fr.LastPackage.PkgPath
 		}
