@@ -48,8 +48,10 @@ html[data-theme="light"] {
   --quote-background: #ddd;
   --quote-2-background: #aaa4;
   --code-background: #d7d9db;
-  --header-background: #6b6d73;
+  --header-background: #373737;
   --header-forground: #ffffff;
+  --logo-hat: #ffffff;
+  --logo-beard: #808080;
 
   --realm-help-background-color: #d7d9db9e;
   --realm-help-odd-background-color: #d7d9db45;
@@ -85,8 +87,10 @@ html[data-theme="dark"] {
   --quote-background: #404040;
   --quote-2-background: #555555;
   --code-background: #606060;
-  --header-background: #6b6d73;
+  --header-background: #373737;
   --header-forground: #ffffff;
+  --logo-hat: #ffffff;
+  --logo-beard: #808080;
 
   --realm-help-background-color: #45454545;
   --realm-help-odd-background-color: #4545459e;
@@ -111,7 +115,8 @@ html[data-theme="dark"] {
 }
 
 .logo-wording path {fill: var(--header-forground, #ffffff); }
-.logo-beard { fill: var(--header-forground, #ffffff); }
+.logo-beard { fill: var(--logo-beard, #808080); }
+.logo-hat {fill: var(--logo-hat, #ffffff); }
 
 #theme-toggle {
   display: inline-block;
