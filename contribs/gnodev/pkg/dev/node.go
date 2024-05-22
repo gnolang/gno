@@ -541,6 +541,6 @@ func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesi
 		PrivValidator:      pv,
 		TMConfig:           tmc,
 		Genesis:            genesis,
-		GenesisMaxVMCycles: 10_000_000,
+		GenesisMaxVMCycles: 100_000_000,
 	}
 }
