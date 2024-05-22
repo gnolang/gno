@@ -39,7 +39,6 @@ import (
 	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -187,7 +186,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 						d := arg0.GetInt64()
 						sec := d / int64(time.Second)
 						nano := d % int64(time.Second)
-						ctx := stdlibs.GetContext(m)
+						ctx := m.Context.(*TestExecContext)
 						ctx.Timestamp += sec
 						ctx.TimestampNano += nano
 						if ctx.TimestampNano >= int64(time.Second) {

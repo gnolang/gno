@@ -59,7 +59,7 @@ func TestCurrentRealm(m *gno.Machine) string {
 }
 
 func TestSkipHeights(m *gno.Machine, count int64) {
-	ctx := std.GetContext(m)
+	ctx := m.Context.(*TestExecContext)
 	ctx.Height += count
 	m.Context = ctx
 }
@@ -97,20 +97,20 @@ func X_callerAt(m *gno.Machine, n int) string {
 	}
 	if n == m.NumFrames()-1 {
 		// This makes it consistent with GetOrigCaller and TestSetOrigCaller.
-		ctx := std.GetContext(m)
+		ctx := m.Context.(*TestExecContext)
 		return string(ctx.OrigCaller)
 	}
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
 func X_testSetOrigCaller(m *gno.Machine, addr string) {
-	ctx := std.GetContext(m)
+	ctx := m.Context.(*TestExecContext)
 	ctx.OrigCaller = crypto.Bech32Address(addr)
 	m.Context = ctx
 }
 
 func X_testSetOrigPkgAddr(m *gno.Machine, addr string) {
-	ctx := std.GetContext(m)
+	ctx := m.Context.(*TestExecContext)
 	ctx.OrigPkgAddr = crypto.Bech32Address(addr)
 	m.Context = ctx
 }
@@ -180,7 +180,7 @@ func X_testSetOrigSend(m *gno.Machine,
 	sentDenom []string, sentAmt []int64,
 	spentDenom []string, spentAmt []int64,
 ) {
-	ctx := std.GetContext(m)
+	ctx := m.Context.(*TestExecContext)
 	ctx.OrigSend = std.CompactCoins(sentDenom, sentAmt)
 	spent := std.CompactCoins(spentDenom, spentAmt)
 	ctx.OrigSendSpent = &spent
@@ -188,7 +188,7 @@ func X_testSetOrigSend(m *gno.Machine,
 }
 
 func X_testIssueCoins(m *gno.Machine, addr string, denom []string, amt []int64) {
-	ctx := std.GetContext(m)
+	ctx := m.Context.(*TestExecContext)
 	banker := ctx.Banker
 	for i := range denom {
 		banker.IssueCoin(crypto.Bech32Address(addr), denom[i], amt[i])
