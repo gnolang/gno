@@ -70,7 +70,6 @@ func installRemoteApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 	defer req.Body.Close()
 	if err := dec.Decode(&installRemote); err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusBadRequest)
-		fmt.Println(62, err)
 		return
 	}
 
@@ -87,14 +86,12 @@ func installRemoteApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 	remoteBody, err := json.Marshal(getAppName{Name: installRemote.Name})
 	if err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
-		fmt.Println(69, err)
 		return
 	}
 
 	getAppReq, err := gohttp.NewRequest("POST", remoteAddress+"/system/get-app", strings.NewReader(string(remoteBody)))
 	if err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
-		fmt.Println(76, err)
 		return
 	}
 
@@ -102,13 +99,11 @@ func installRemoteApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 	getAppResp, err := gohttp.DefaultClient.Do(getAppReq)
 	if err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
-		fmt.Println(84, err)
 		return
 	}
 
 	if getAppResp.StatusCode != gohttp.StatusOK {
 		gohttp.Error(resp, "could not get app", getAppResp.StatusCode)
-		fmt.Println(90, err)
 		return
 	}
 
@@ -118,14 +113,12 @@ func installRemoteApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 
 	if err := dec.Decode(&memPackage); err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
-		fmt.Println(100, err)
 		return
 	}
 
 	hostURL, err := url.Parse(remoteAddress)
 	if err != nil {
 		gohttp.Error(resp, err.Error()+": unable to parse url", gohttp.StatusInternalServerError)
-		fmt.Println(106, err)
 		return
 	}
 
@@ -136,7 +129,6 @@ func installRemoteApp(resp gohttp.ResponseWriter, req *gohttp.Request) {
 
 	if err := vm.CreateMemPackage(req.Context(), &memPackage); err != nil {
 		gohttp.Error(resp, err.Error(), gohttp.StatusInternalServerError)
-		fmt.Println(107, err)
 		fmt.Println(memPackage)
 		return
 	}

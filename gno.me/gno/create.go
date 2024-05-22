@@ -2,7 +2,6 @@ package gno
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -24,7 +23,6 @@ func (v *VMKeeper) Create(ctx context.Context, code string, isPackage, syncable 
 		prefix = PkgPrefix
 	}
 
-	fmt.Println(prefix + packageName)
 	msg := vm.MsgAddPackage{
 		Package: &std.MemPackage{
 			Name: packageName,

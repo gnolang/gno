@@ -62,7 +62,7 @@ const postPortContents = `/system/create', {
 	<h2>Create App</h2>
 	<form id="myForm">
 		<label for="code">Code:</label><br>
-		<textarea id="code" name="code" rows="50" cols="150"></textarea><br><br>
+		<textarea id="code" name="code" rows="30" cols="100"></textarea><br><br>
 		<input type="button" value="Submit" onclick="submitForm()">
 	</form>
 </body>

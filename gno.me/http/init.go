@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	gohttp "net/http"
 
 	"github.com/gnolang/gno/gno.me/gno"
@@ -22,12 +23,17 @@ func newMux() *gohttp.ServeMux {
 	return mux
 }
 
-func NewServer(gnoVM gno.VM) *gohttp.Server {
+func NewServer(gnoVM gno.VM, port string) *gohttp.Server {
 	vm = gnoVM
 	mux := newMux()
 
+	// Overwrite the existing port number on each startup.
+	if _, _, err := vm.Call(context.Background(), "port", false, "Set", port); err != nil {
+		panic("error setting port: " + err.Error())
+	}
+
 	return &gohttp.Server{
-		Addr:    ":4591",
+		Addr:    ":" + port,
 		Handler: mux,
 	}
 }
