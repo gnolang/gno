@@ -15,6 +15,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -46,7 +47,7 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 	return m
 }
 
-func testContext(pkgPath string, send std.Coins) stdlibs.ExecContext {
+func testContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr("user1.gno")
@@ -65,7 +66,7 @@ func testContext(pkgPath string, send std.Coins) stdlibs.ExecContext {
 		Banker:        banker,
 		EventLogger:   sdk.NewEventLogger(),
 	}
-	return ctx
+	return &teststd.TestExecContext{ExecContext: ctx}
 }
 
 type runFileTestOptions struct {
