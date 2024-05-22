@@ -29,7 +29,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -331,11 +330,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			case "math/big":
 				pkg := gno.NewPackageNode("big", pkgPath, nil)
 				pkg.DefineGoNativeValue("NewInt", big.NewInt)
-				return pkg, pkg.NewPackage()
-			case "sort":
-				pkg := gno.NewPackageNode("sort", pkgPath, nil)
-				pkg.DefineGoNativeValue("Strings", sort.Strings)
-				// pkg.DefineGoNativeValue("Sort", sort.Sort)
 				return pkg, pkg.NewPackage()
 			case "flag":
 				pkg := gno.NewPackageNode("flag", pkgPath, nil)
