@@ -17,7 +17,7 @@ We’re looking to connect with developers and like-minded thinkers who can cont
 
 <div class="column">
 
-### Golang Serbia Meetup
+### Gno @ Golang Serbia
 
 - Join the meetup
 - Belgrade, May 23, 2024
