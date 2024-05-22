@@ -336,6 +336,8 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		m.Cycles,
 	)
 
+	res += "\n\n" // use `\n\n` as separator to separate results for single tx with multi msgs
+
 	return res, nil
 	// TODO pay for gas? TODO see context?
 }
