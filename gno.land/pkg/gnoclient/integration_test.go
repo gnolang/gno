@@ -164,6 +164,12 @@ func TestCallMultipleEvent_Integration(t *testing.T) {
 	blockRes, err := client.BlockResult(res.Height)
 	assert.Nil(t, err)
 
+	// only one tx in the block
+	assert.Len(t, blockRes.Results.DeliverTxs, 1)
+
+	// only two event in the tx
+	assert.Len(t, blockRes.Results.DeliverTxs[0].Events, 2)
+
 	// XXX: better comparison ?
 	event0 := fmt.Sprintf("%v", blockRes.Results.DeliverTxs[0].Events[0])
 	assert.Equal(t, event0, "{TAG gno.land/r/demo/event Emit [{key first_value}]}")
@@ -264,12 +270,12 @@ func TestSendMultiple_Integration(t *testing.T) {
 
 	// Execute send
 	res, err := client.Send(baseCfg, msg1, msg2)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "", string(res.DeliverTx.Data))
 
 	// Get the new account balance
 	account, _, err := client.QueryAccount(toAddress)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	expected := std.Coins{{"ugnot", int64(amount1 + amount2)}}
 	got := account.GetCoins()
