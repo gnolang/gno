@@ -43,7 +43,7 @@ func TestMultipleAddresses(t *testing.T) {
 		t.Errorf("expected final nonce to be 0, got %d", nonce)
 	}
 
-	if nonce := nm.GetNonce(address1); nonce != 0 {
+	if nonce := nm.GetNonce(address2); nonce != 0 {
 		t.Errorf("expected final nonce to be 0, got %d", nonce)
 	}
 
@@ -66,8 +66,8 @@ func TestConcurrentUse(t *testing.T) {
 		t.Parallel()
 
 		nm.UseNonce(address)
-		if nonce := nm.GetNonce(address); nonce != uint64(i) {
-			t.Errorf("expected used nonce to be %d, got %d", i, nonce)
+		if nonce := nm.GetNonce(address); nonce != uint64(i+1) {
+			t.Errorf("expected used nonce to be %d, got %d", i+1, nonce)
 		}
 	}
 }

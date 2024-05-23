@@ -23,7 +23,7 @@ func (m *Manager) GetNonce(addr std.Address) uint64 {
 
 	nonce, found := m.nonces.Get(key)
 	if !found {
-		m.nonces.Set(key, 0)
+		m.nonces.Set(key, uint64(0))
 		return 0
 	}
 
