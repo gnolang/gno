@@ -17,6 +17,17 @@ We’re looking to connect with developers and like-minded thinkers who can cont
 
 <div class="column">
 
+### Gno @ Golang Serbia
+
+- Join the meetup
+- Belgrade, May 23, 2024
+
+[Learn more](https://www.meetup.com/golang-serbia/events/300975006/)
+
+</div><!-- end column-->
+
+<div class="column">
+
 ### GopherCon EU
 - Come Meet Us at our Booth
 - Berlin, June 17 - 20, 2024
@@ -43,6 +54,12 @@ We’re looking to connect with developers and like-minded thinkers who can cont
 [Learn More](https://nebular.builders/)
 </div><!-- end column-->
 
+<div class="column">
+
+</div><!-- end column-->
+<div class="column">
+
+</div><!-- end column-->
 </div><!-- end columns-3-->
 
 ---

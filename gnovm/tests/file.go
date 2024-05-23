@@ -258,6 +258,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					default:
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
+
 					if errstr != errWanted {
 						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
 					}
