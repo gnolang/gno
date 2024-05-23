@@ -23,7 +23,7 @@ services:
       - "./data/gnoland:/opt/gno/src/testdir"
       - "./overlay:/overlay:ro"
     ports:
-      - 36656:36656
+      - 26656:26656
       - 26657:26657
     restart: on-failure
     logging:

@@ -19,7 +19,7 @@ services:
     volumes:
       - "./data/gnoland:/opt/gno/src/gno.land/gnoland-data"
     ports:
-      - 36656:36656
+      - 26656:26656
       - 26657:26657
     restart: on-failure
     logging:
