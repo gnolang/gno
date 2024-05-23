@@ -37,7 +37,7 @@ func (nm *NonceManager) GetNonce(owner std.Address) uint64 {
 }
 
 // UseNonce consumes a nonce and returns the current value, then increments the nonce
-func (nm *NonceManager) UseNonce(owner std.Address) uint64 {
+func (nm *NonceManager) UseNonce(addr std.Address) uint64 {
 	key := owner.String()
 
 	val, found := nm.nonces.Get(key)
