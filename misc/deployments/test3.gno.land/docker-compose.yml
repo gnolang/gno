@@ -27,6 +27,7 @@ services:
     ports:
       - 26656:26656
       - 26657:26657
+      - 36657:26657
     restart: on-failure
     logging:
       driver: "json-file"
