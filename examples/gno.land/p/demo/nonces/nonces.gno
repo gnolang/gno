@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-type NonceManager struct {
+type Manager struct {
 	nonces *avl.Tree
 }
 
