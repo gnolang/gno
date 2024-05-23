@@ -42,4 +42,4 @@ jobs:
           args: release --clean --config ./.github/goreleaser.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GORELEASER_KEY: ${{ secrets.GORELEASER_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
