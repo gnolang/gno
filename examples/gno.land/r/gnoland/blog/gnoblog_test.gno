@@ -165,6 +165,35 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 		assertMDEquals(t, got, expected)
 	}
 
+	{ // Test remove functionality
+		title := "example title"
+		slug := "testSlug1"
+		ModAddPost(slug, title, "body1", "2022-05-25T13:17:22Z", "moul", "tag1,tag2")
+
+		got := Render("")
+
+		if !strings.Contains(got, title) {
+			t.Errorf("post was not added properly")
+		}
+
+		postRender := Render("p/" + slug)
+
+		if !strings.Contains(postRender, title) {
+			t.Errorf("post not rendered properly")
+		}
+
+		ModRemovePost(slug)
+		got = Render("")
+
+		if strings.Contains(got, title) {
+			t.Errorf("post was not removed")
+		}
+
+		postRender = Render("p/" + slug)
+
+		assertMDEquals(t, postRender, "404")
+	}
+
 	// TODO: pagination.
 	// TODO: ?format=...
 
