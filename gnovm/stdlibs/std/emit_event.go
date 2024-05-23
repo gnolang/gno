@@ -17,7 +17,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 		m.Panic(typedString(err.Error()))
 	}
 
-	_, pkgPath := X_getRealm(m, 0)
+	_, pkgPath := currentRealm(m)
 	fnIdent := getPrevFunctionNameFromTarget(m, "Emit")
 
 	evt := gnoEvent{

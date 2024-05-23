@@ -91,7 +91,7 @@ func X_callerAt(m *gno.Machine, n int) string {
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
-func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
+func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	var (
 		ctx           = m.Context.(ExecContext)
 		currentCaller crypto.Bech32Address
@@ -121,6 +121,12 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 	// Fallback case: return OrigCaller.
 	return string(ctx.OrigCaller), ""
+}
+
+// currentRealm retrieves the current realm's address and pkgPath.
+// It's not a native binding; but is used within this package to clarify usage.
+func currentRealm(m *gno.Machine) (address, pkgPath string) {
+	return X_getRealm(m, 0)
 }
 
 func X_derivePkgAddr(pkgPath string) string {
