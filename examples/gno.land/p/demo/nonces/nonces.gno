@@ -1,4 +1,4 @@
-package nonces
+package nonce
 
 import (
 	"std"
