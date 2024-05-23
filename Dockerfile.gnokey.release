@@ -1,0 +1,6 @@
+FROM busybox
+
+COPY . /
+
+ENTRYPOINT [ "/gnokey" ]
+CMD [ "" ]
