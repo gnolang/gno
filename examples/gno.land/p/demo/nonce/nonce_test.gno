@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/ufmt"
 )
 
 // TestNonceManager tests the Manager functions
