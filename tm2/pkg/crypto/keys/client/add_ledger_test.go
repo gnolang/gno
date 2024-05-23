@@ -18,6 +18,8 @@ func TestAdd_Ledger(t *testing.T) {
 	t.Cleanup(func() { ledger.Discover = ledger.DiscoverDefault })
 
 	t.Run("valid ledger reference added", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			kbHome      = t.TempDir()
 			baseOptions = BaseOptions{
@@ -58,6 +60,8 @@ func TestAdd_Ledger(t *testing.T) {
 	})
 
 	t.Run("valid ledger reference added, overwrite", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			kbHome      = t.TempDir()
 			baseOptions = BaseOptions{
@@ -109,6 +113,8 @@ func TestAdd_Ledger(t *testing.T) {
 	})
 
 	t.Run("valid ledger reference added, no overwrite permission", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			kbHome      = t.TempDir()
 			baseOptions = BaseOptions{
