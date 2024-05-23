@@ -11,7 +11,7 @@ type Manager struct {
 	nonces *avl.Tree
 }
 
-// New creates a new instance of NonceManager
+// New creates a new instance of Manager
 func New() *Manager {
 	return &Manager{
 		nonces: avl.NewTree(),
