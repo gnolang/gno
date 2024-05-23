@@ -31,7 +31,7 @@ jobs:
           git tag -a $TAG -m "$TAG: nightly build"
           git push origin $TAG
       - name: 'Clean up nightly releases'
-        uses: dev-drprasad/delete-older-releases@v0.3.3
+        uses: dev-drprasad/delete-older-releases@v0.3.4
         with:
           keep_latest: 5
           delete_tags: true
@@ -39,7 +39,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Delete nightly containers older than a week'
-        uses: snok/container-retention-policy@v2.1.2
+        uses: snok/container-retention-policy@v2.2.1
         with:
           image-names: gnolang/gno*
           cut-off: 1 week ago UTC
