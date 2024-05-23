@@ -40,11 +40,11 @@ func TestMultipleAddresses(t *testing.T) {
 	// Test UseNonce with multiple addresses
 
 	if nonce := nm.GetNonce(address1); nonce != 0 {
-		t.Errorf("expected final nonce to be 0, got %d", finalNonce)
+		t.Errorf("expected final nonce to be 0, got %d", nonce)
 	}
 
 	if nonce := nm.GetNonce(address1); nonce != 0 {
-		t.Errorf("expected final nonce to be 0, got %d", finalNonce)
+		t.Errorf("expected final nonce to be 0, got %d", nonce)
 	}
 
 	nm.UseNonce(address1)
