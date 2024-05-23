@@ -1,7 +1,7 @@
 FROM busybox
 
-COPY . /
+COPY ./gnoweb /usr/bin/gnoweb
 
 EXPOSE 8888
-ENTRYPOINT [ "/gnoweb" ]
+ENTRYPOINT [ "/usr/bin/gnoweb" ]
 CMD [ "" ]

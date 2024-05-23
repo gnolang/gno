@@ -1,11 +1,14 @@
 FROM busybox
 
-COPY ./gno /gno
+COPY ./gno /usr/bin/gno
 COPY ./examples /gnoroot/examples/
 COPY ./gnovm/stdlibs /gnoroot/gnovm/stdlibs/
 COPY ./gnovm/tests/stdlibs /gnoroot/gnovm/tests/stdlibs/
 
 ENV GNOROOT="/gnoroot/"
 
-ENTRYPOINT [ "/gno" ]
+WORKDIR /gnoroot/
+
+ENTRYPOINT [ "/usr/bin/gno" ]
+
 CMD [ "" ]
