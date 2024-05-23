@@ -29,8 +29,9 @@ services:
       - ./letsencrypt:/letsencrypt
 
   gnoland:
-    image: ghcr.io/gnolang/gno
+    image: ghcr.io/gnolang/gno/gnoland
     restart: on-failure
+    working_dir: /gnoroot
     command: /entrypoint.sh
     environment:
       CHAIN_ID: staging
