@@ -48,12 +48,12 @@ func TestMultipleAddresses(t *testing.T) {
 	}
 
 	nm.UseNonce(address1)
-	if nonce := nm.UseNonce(address1); nonce != 1 {
+	if nonce := nm.GetNonce(address1); nonce != 1 {
 		t.Errorf("expected used nonce to be 1 for address1, got %d", nonce)
 	}
 
 	nm.UseNonce(address2)
-	if nonce := nm.UseNonce(address2); nonce != 1 {
+	if nonce := nm.GetNonce(address2); nonce != 1 {
 		t.Errorf("expected used nonce to be 1 for address2, got %d", nonce)
 	}
 }
