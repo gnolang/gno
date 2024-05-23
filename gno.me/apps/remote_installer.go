@@ -50,10 +50,17 @@ const remotePostPortContents = `/system/install-remote', {
 				body: JSON.stringify(formData)
 			})
 				.then(response => {
-					console.log(response);
+					if (response.status == 201) {
+						console.log(response);
+						alert("Success!");
+					} else {
+						console.error('Error:', response);
+						alert("Failure: " + response.statusText);
+					}
 				})
 				.catch(error => {
 					console.error('Error:', error);
+					alert("Failure: " + error);
 				});
 		}
 	</script>
