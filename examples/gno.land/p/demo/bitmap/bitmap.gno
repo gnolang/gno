@@ -1,5 +1,9 @@
 package bitmap
 
+import (
+	"gno.land/p/demo/ufmt"
+)
+
 // A simple implementation of Bitmap
 
 // Bitmap represents a bitmap using a slice of bytes
@@ -15,8 +19,22 @@ func New(size uint64) *Bitmap {
 	}
 }
 
+// MustSet sets the bit at the given index (0-based) and returns an error if out of bounds
+func (b *Bitmap) Set(index uint64) error {
+	if index >= uint64(len(b.data))*8 {
+		return ufmt.Errorf("Index out of bounds")
+	}
+
+	byteIndex := index / 8
+	bitIndex := index % 8
+
+	b.data[byteIndex] |= 1 << uint(bitIndex) // Set the corresponding bit using bitwise OR
+
+	return nil
+}
+
 // Set sets the bit at the given index (0-based)
-func (b *Bitmap) Set(index uint64) {
+func (b *Bitmap) MustSet(index uint64) {
 	if index >= uint64(len(b.data))*8 {
 		panic("Index out of bounds")
 	}
