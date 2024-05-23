@@ -19,7 +19,7 @@ func New() *NonceManager {
 }
 
 // SetNonce sets the initial nonce for an address if it hasn't been set before
-func (nm *NonceManager) SetNonce(owner std.Address, nonce uint64) {
+func (nm *NonceManager) SetNonce(addr std.Address, nonce uint64) {
 	found := nm.nonces.Has(owner.String())
 	if !found {
 		nm.nonces.Set(owner.String(), nonce)
