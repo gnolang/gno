@@ -99,7 +99,7 @@ dockers:
     goarch: amd64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-amd64"
-      - "ghcr.io/gnolang/{{ .ProjectName }}:master-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:nightly-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -118,7 +118,7 @@ dockers:
     goarch: arm64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-arm64v8"
-      - "ghcr.io/gnolang/{{ .ProjectName }}:master-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:nightly-arm64v8"
     build_flag_templates:
       - "--platform=linux/arm64/v8"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -138,7 +138,7 @@ dockers:
     goarm: 6
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv6"
-      - "ghcr.io/gnolang/{{ .ProjectName }}:master-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:nightly-armv6"
     build_flag_templates:
       - "--platform=linux/arm/v6"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -158,7 +158,7 @@ dockers:
     goarm: 7
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv7"
-      - "ghcr.io/gnolang/{{ .ProjectName }}:master-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:nightly-armv7"
     build_flag_templates:
       - "--platform=linux/arm/v7"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -179,7 +179,7 @@ dockers:
     goarch: amd64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-amd64"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:nightly-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -199,7 +199,7 @@ dockers:
     goarch: arm64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-arm64v8"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:nightly-arm64v8"
     build_flag_templates:
       - "--platform=linux/arm64/v8"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -220,7 +220,7 @@ dockers:
     goarm: 6
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv6"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:nightly-armv6"
     build_flag_templates:
       - "--platform=linux/arm/v6"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -241,7 +241,7 @@ dockers:
     goarm: 7
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv7"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:nightly-armv7"
     build_flag_templates:
       - "--platform=linux/arm/v7"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -262,7 +262,7 @@ dockers:
     goarch: amd64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-amd64"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:nightly-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -277,7 +277,7 @@ dockers:
     goarch: arm64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-arm64v8"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:nightly-arm64v8"
     build_flag_templates:
       - "--platform=linux/arm64/v8"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -293,7 +293,7 @@ dockers:
     goarm: 6
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv6"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:nightly-armv6"
     build_flag_templates:
       - "--platform=linux/arm/v6"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -309,7 +309,7 @@ dockers:
     goarm: 7
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv7"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:nightly-armv7"
     build_flag_templates:
       - "--platform=linux/arm/v7"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -326,7 +326,7 @@ dockers:
     goarch: amd64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-amd64"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:nightly-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -341,7 +341,7 @@ dockers:
     goarch: arm64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-arm64v8"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:nightly-arm64v8"
     build_flag_templates:
       - "--platform=linux/arm64/v8"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -357,7 +357,7 @@ dockers:
     goarm: 6
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv6"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:nightly-armv6"
     build_flag_templates:
       - "--platform=linux/arm/v6"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -373,7 +373,7 @@ dockers:
     goarm: 7
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv7"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:nightly-armv7"
     build_flag_templates:
       - "--platform=linux/arm/v7"
       - "--label=org.opencontainers.image.created={{.Date}}"
@@ -393,12 +393,12 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv7
-  - name_template: ghcr.io/gnolang/{{ .ProjectName }}:master
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}:nightly
     image_templates:
-      - ghcr.io/gnolang/{{ .ProjectName }}:master-amd64
-      - ghcr.io/gnolang/{{ .ProjectName }}:master-arm64v8
-      - ghcr.io/gnolang/{{ .ProjectName }}:master-armv6
-      - ghcr.io/gnolang/{{ .ProjectName }}:master-armv7
+      - ghcr.io/gnolang/{{ .ProjectName }}:nightly-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}:nightly-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}:nightly-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}:nightly-armv7
   
   # gnoland
   - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}
@@ -407,12 +407,12 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv7
-  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoland:nightly
     image_templates:
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-amd64
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-arm64v8
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-armv6
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-armv7
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:nightly-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:nightly-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:nightly-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:nightly-armv7
   
   # gnokey
   - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}
@@ -421,12 +421,12 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv7
-  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnokey:nightly
     image_templates:
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-amd64
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-arm64v8
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-armv6
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-armv7
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:nightly-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:nightly-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:nightly-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:nightly-armv7
       
   # gnoweb
   - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}
@@ -435,12 +435,12 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv7
-  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:nightly
     image_templates:
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-amd64
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-arm64v8
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-armv6
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-armv7
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:nightly-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:nightly-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:nightly-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:nightly-armv7
 
 docker_signs:
   - cmd: cosign
