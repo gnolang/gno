@@ -425,8 +425,8 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
 			assertAssignableTo(pt.Elt, cdt.Elt, false)
+			return nil
 		}
-		return nil
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
 			if at.Len != cdt.Len {
@@ -449,19 +449,11 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 			assertAssignableTo(mt.Value, cdt.Value, false)
 			return nil
 		}
-	case *FuncType:
-		if xt.TypeID() == cdt.TypeID() {
-			return nil // ok
-		}
 	case *InterfaceType:
 		return errors.New("should not happen")
 	case *DeclaredType:
 		panic("should not happen")
-	case *StructType, *PackageType, *ChanType:
-		if xt.TypeID() == cdt.TypeID() {
-			return nil // ok
-		}
-	case *TypeType:
+	case *FuncType, *StructType, *PackageType, *ChanType, *TypeType:
 		if xt.TypeID() == cdt.TypeID() {
 			return nil // ok
 		}
