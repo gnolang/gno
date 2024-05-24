@@ -35,6 +35,7 @@ install: install.gnokey install.gno install.gnodev
 .PHONY: install.gnokey
 install.gnokey:
 	$(MAKE) --no-print-directory -C ./gno.land	install.gnokey
+	# \033[0;32m ... \033[0m is ansi for green text.
 	@echo -e "\033[0;32m[+] 'gnokey' has been installed. Read more in ./gno.land/\033[0m"
 .PHONY: install.gno
 install.gno:
