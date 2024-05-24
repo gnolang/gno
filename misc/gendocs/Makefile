@@ -11,3 +11,6 @@ clean:
 
 kill_zombies:
 	kill -9 `lsof -t -i tcp:8080 -s TCP:LISTEN` || true
+
+gif:
+	TAPES_DIR=$(PWD)/../../docs $(MAKE) -C ../gno-vhs gif.docker
