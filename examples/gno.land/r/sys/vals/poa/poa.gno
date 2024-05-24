@@ -15,6 +15,8 @@ const (
 	UserVotedRemoveEvent = "UserVotedRemove" // emitted when someone votes to remove a validator
 )
 
+var errCallerNotValidator = "caller is not validator"
+
 // PoA specifies the Proof of Authority validator set.
 // In order to become part of the set, users to be voted into
 // the validator set by the majority of the existing set
@@ -60,9 +62,6 @@ func (p *PoA) AddValidator(address std.Address, pubKey string) {
 	// Validate that the operation is a valid call
 	p.validateAdd(caller, address)
 
-	// Attempt to wipe the votes, if needed
-	p.attemptVoteReset()
-
 	// Cast the vote
 	p.votes.castVote(caller, address, true)
 
@@ -96,18 +95,18 @@ func (p *PoA) AddValidator(address std.Address, pubKey string) {
 // validateAdd validates a validator add call
 func (p *PoA) validateAdd(caller, address std.Address) {
 	// Check if the caller is a user account
-	if !std.IsOriginCall() {
-		panic("caller not user account")
+	if !std.PrevRealm().IsUser() {
+		panic(types.ErrCallerNotUserAccount)
 	}
 
 	// Check if the caller is in the set
 	if !p.IsValidator(caller) {
-		panic("validator already exists")
+		panic(types.ErrValidatorMissing)
 	}
 
 	// Check if the validator is already in the set
 	if p.IsValidator(address) {
-		panic("validator already exists")
+		panic(types.ErrValidatorExists)
 	}
 }
 
@@ -144,9 +143,6 @@ func (p *PoA) RemoveValidator(address std.Address) {
 	// Validate that the operation is a valid call
 	p.validateRemove(caller, address)
 
-	// Attempt to wipe the votes, if needed
-	p.attemptVoteReset()
-
 	// Cast the vote
 	p.votes.castVote(caller, address, false)
 
@@ -174,18 +170,18 @@ func (p *PoA) RemoveValidator(address std.Address) {
 // validateRemove validates a validator remove call
 func (p *PoA) validateRemove(caller, address std.Address) {
 	// Check if the caller is a user account
-	if !std.IsOriginCall() {
-		panic("caller not user account")
+	if !std.PrevRealm().IsUser() {
+		panic(types.ErrCallerNotUserAccount)
 	}
 
 	// Check if this request came from a validator
 	if !p.IsValidator(caller) {
-		panic("user is not validator")
+		panic(errCallerNotValidator)
 	}
 
 	// Check if the address is a validator
-	if p.IsValidator(address) {
-		panic("address is not a validator")
+	if !p.IsValidator(address) {
+		panic(types.ErrValidatorMissing)
 	}
 }
 
@@ -212,17 +208,6 @@ func (p *PoA) removeValidator(address std.Address) {
 
 	// Remove the candidate from the voting system
 	p.votes.resetCandidate(address)
-}
-
-// attemptVoteReset resets the votes if the wipe threshold
-// has been reached
-func (p *PoA) attemptVoteReset() {
-	if std.GetHeight()%voteWipeThreshold != 0 {
-		return
-	}
-
-	// Wipe the current votes
-	p.votes.reset()
 }
 
 // IsValidator returns a flag indicating if the address

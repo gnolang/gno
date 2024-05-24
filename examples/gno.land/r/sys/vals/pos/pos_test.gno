@@ -48,7 +48,7 @@ func TestPoS_AddValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(callerAddress)
 
 		// Attempt to add the validator
-		testing.PanicsWithError(t, errValidatorExists, func() {
+		testing.PanicsWithError(t, types.ErrValidatorExists, func() {
 			p.AddValidator(callerAddress, callerKey)
 		})
 	})
@@ -92,7 +92,7 @@ func TestPoS_AddValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(std.Address("random address"))
 
 		// Attempt to add the validator
-		testing.PanicsWithError(t, errValidatorNotOrigin, func() {
+		testing.PanicsWithError(t, types.ErrValidatorNotOrigin, func() {
 			p.AddValidator(callerAddress, callerKey)
 		})
 	})
@@ -262,7 +262,7 @@ func TestPoS_RemoveValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(callerAddress)
 
 		// Attempt to remove the validator
-		testing.PanicsWithError(t, errValidatorMissing, func() {
+		testing.PanicsWithError(t, types.ErrValidatorMissing, func() {
 			p.RemoveValidator(callerAddress)
 		})
 	})
@@ -309,7 +309,7 @@ func TestPoS_RemoveValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(callerAddress)
 
 		// Attempt to remove the validator
-		testing.PanicsWithError(t, errValidatorNotOrigin, func() {
+		testing.PanicsWithError(t, types.ErrValidatorNotOrigin, func() {
 			p.RemoveValidator(initialSet[0].Address)
 		})
 	})

@@ -7,16 +7,12 @@ import (
 	"gno.land/r/sys/vals/types"
 )
 
-var stakeThreshold = std.Coin{"ugnot", int64(100000000)} // 100 GNOTs
-
-const (
-	errCallerNotUserAccount  = "caller not user account"
-	errValidatorExists       = "validator already exists"
-	errValidatorMissing      = "validator doesn't exists"
+var (
 	errMaximumValidatorCount = "maximum validator count reached"
 	errMinimumValidatorCount = "minimum validator count reached"
-	errValidatorNotOrigin    = "validator address is not origin"
 )
+
+var stakeThreshold = std.Coin{"ugnot", int64(100000000)} // 100 GNOTs
 
 const (
 	minValidatorCount = 4   // the absolute minimum number of validators in the set
@@ -67,30 +63,13 @@ func NewPoS(opts ...Option) *PoS {
 // - caller has staked funds >= the current staking threshold
 // - the validator set is less than the maximum size
 func (p *PoS) AddValidator(address std.Address, pubKey string) {
-	// Check if the caller is a user account
-	if !std.PrevRealm().IsUser() {
-		panic(errCallerNotUserAccount)
-	}
+	caller := std.GetOrigCaller()
 
-	// Check if the validator is already in the set
-	if p.IsValidator(address) {
-		panic(errValidatorExists)
-	}
+	// Validate the addition
+	p.validateAdd(caller, address)
 
-	// Check if the limit is reached
-	if len(p.validators) == maxValidatorCount {
-		panic(errMaximumValidatorCount)
-	}
-
-	var (
-		caller       = std.GetOrigCaller()
-		stakedAmount = std.GetOrigSend().AmountOf("ugnot")
-	)
-
-	// Check if the caller is supplying their own address
-	if address != caller {
-		panic(errValidatorNotOrigin)
-	}
+	// Extract the sent amount with the call
+	stakedAmount := std.GetOrigSend().AmountOf("ugnot")
 
 	// Fetch the already staked amount
 	addressStake, exists := p.addressToStakedAmount[caller]
@@ -132,6 +111,29 @@ func (p *PoS) AddValidator(address std.Address, pubKey string) {
 	)
 }
 
+// validateAdd validates a validator add call
+func (p *PoS) validateAdd(caller, address std.Address) {
+	// Check if the caller is a user account
+	if !std.PrevRealm().IsUser() {
+		panic(types.ErrCallerNotUserAccount)
+	}
+
+	// Check if the validator is already in the set
+	if p.IsValidator(address) {
+		panic(types.ErrValidatorExists)
+	}
+
+	// Check if the limit is reached
+	if len(p.validators) == maxValidatorCount {
+		panic(errMaximumValidatorCount)
+	}
+
+	// Check if the caller is supplying their own address
+	if address != caller {
+		panic(types.ErrValidatorNotOrigin)
+	}
+}
+
 // rebalanceVotingPower rebalances the voting power of the validator set
 func (p *PoS) rebalanceVotingPower() {
 	for _, v := range p.validators {
@@ -160,12 +162,12 @@ func (p *PoS) canBecomeValidator(address std.Address) bool {
 func (p *PoS) RemoveValidator(address std.Address) {
 	// Check if the caller is a user account
 	if !std.PrevRealm().IsUser() {
-		panic(errCallerNotUserAccount)
+		panic(types.ErrCallerNotUserAccount)
 	}
 
 	// Check if this request came from a validator
 	if !p.IsValidator(address) {
-		panic(errValidatorMissing)
+		panic(types.ErrValidatorMissing)
 	}
 
 	// Check if the limit is reached
@@ -180,7 +182,7 @@ func (p *PoS) RemoveValidator(address std.Address) {
 
 	// Check if the caller is supplying their own address
 	if address != caller.String() {
-		panic(errValidatorNotOrigin)
+		panic(types.ErrValidatorNotOrigin)
 	}
 
 	// Check if the validator is in the set

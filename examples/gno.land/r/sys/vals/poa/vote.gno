@@ -8,15 +8,17 @@ import (
 )
 
 type (
-	tallyMap     map[std.Address]tally
-	haveVotedMap map[string]struct{}
+	tallyMap     map[std.Address]tally // address -> current tally
+	haveVotedMap map[string]struct{}   // quick lookup map
 )
 
+// tally keeps track of active for / against votes
 type tally struct {
 	toAdd    uint64
 	toRemove uint64
 }
 
+// votingSystem wraps the validator voting
 type votingSystem struct {
 	tallyMap     tallyMap
 	haveVotedMap haveVotedMap
@@ -73,12 +75,6 @@ func (v *votingSystem) getTally(candidate std.Address) (uint64, uint64) {
 	}
 
 	return t.toAdd, t.toRemove
-}
-
-// reset removes all candidates from the voting system
-func (v *votingSystem) reset() {
-	v.tallyMap = make(tallyMap)
-	v.haveVotedMap = make(haveVotedMap)
 }
 
 // resetCandidate removes a candidate from the voting system
