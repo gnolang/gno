@@ -71,7 +71,7 @@ func NewSnapshotter(dockerClient *client.Client, cfg config) (*snapshotter, erro
 
 // pullLatestImage get latest version of the docker image
 func (s snapshotter) pullLatestImage(ctx context.Context) (bool, error) {
-	reader, err := s.dockerClient.ImagePull(ctx, "ghcr.io/gnolang/gno", types.ImagePullOptions{})
+	reader, err := s.dockerClient.ImagePull(ctx, "ghcr.io/gnolang/gno/gnoland", types.ImagePullOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -139,15 +139,16 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 
 	// Run Docker container
 	container, err := s.dockerClient.ContainerCreate(ctx, &container.Config{
-		Image: "ghcr.io/gnolang/gno",
+		Image: "ghcr.io/gnolang/gno/gnoland",
 		Labels: map[string]string{
 			"the-portal-loop": s.containerName,
 		},
+		WorkingDir: "/gnoroot",
 		Env: []string{
 			"MONIKER=the-portal-loop",
 			"GENESIS_BACKUP_FILE=/backups/backup.jsonl",
 		},
-		Cmd: []string{"/scripts/start.sh"},
+		Entrypoint: []string{"/scripts/start.sh"},
 		ExposedPorts: nat.PortSet{
 			"26656/tcp": struct{}{},
 			"26657/tcp": struct{}{},
