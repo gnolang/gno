@@ -313,11 +313,37 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 	usedDecls := make(map[ast.Decl]bool)
 	usedObjs := make(map[*ast.Object]bool)
 
+	var currentFuncParams map[string]bool
+	markNameFunc := func(fields []*ast.Field) {
+		for _, field := range fields {
+			for _, name := range field.Names {
+				currentFuncParams[name.Name] = true
+			}
+		}
+	}
+
 	var inspectFunc func(ast.Node) bool
 	inspectFunc = func(n ast.Node) bool {
 		switch e := n.(type) {
+		case *ast.FuncDecl:
+			// When entering a function, register its parameters to
+			// avoid marking them as unresolved.
+			currentFuncParams = make(map[string]bool)
+			if e.Recv != nil {
+				markNameFunc(e.Recv.List)
+			}
+			if e.Type.Params != nil {
+				markNameFunc(e.Type.Params.List)
+			}
+
+			if e.Type.Results != nil {
+				markNameFunc(e.Type.Results.List)
+			}
+
+			ast.Inspect(e.Body, inspectFunc)
+			return true
 		case *ast.Ident:
-			if e.Obj == nil && e.Name != "_" {
+			if e.Obj == nil && e.Name != "_" && !currentFuncParams[e.Name] {
 				if _, ok := unresolved[e.Name]; !ok {
 					unresolved[e.Name] = map[string]bool{}
 				}
@@ -331,7 +357,7 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 			return true
 		case *ast.SelectorExpr:
 			// Handle the Selector expression case by inspecting the X part
-			if ident, ok := e.X.(*ast.Ident); ok {
+			if ident, ok := e.X.(*ast.Ident); ok && !currentFuncParams[ident.Name] {
 				name := ident.Name
 				if unresolved[name] == nil {
 					unresolved[name] = map[string]bool{}
