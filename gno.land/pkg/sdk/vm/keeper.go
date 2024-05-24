@@ -4,6 +4,7 @@ package vm
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -16,6 +17,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 const (
@@ -215,6 +220,17 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		}
 	}()
 	m2.RunMemPackage(memPkg, true)
+
+	// Log the telemetry
+	logTelemetry(
+		m2.GasMeter.GasConsumed(),
+		m2.Cycles,
+		attribute.KeyValue{
+			Key:   "operation",
+			Value: attribute.StringValue("m_addpkg"),
+		},
+	)
+
 	return nil
 }
 
@@ -312,7 +328,19 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			res += "\n"
 		}
 	}
+
+	// Log the telemetry
+	logTelemetry(
+		m.GasMeter.GasConsumed(),
+		m.Cycles,
+		attribute.KeyValue{
+			Key:   "operation",
+			Value: attribute.StringValue("m_call"),
+		},
+	)
+
 	res += "\n\n" // use `\n\n` as separator to separate results for single tx with multi msgs
+
 	return res, nil
 	// TODO pay for gas? TODO see context?
 }
@@ -418,6 +446,17 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}()
 	m2.RunMain()
 	res = buf.String()
+
+	// Log the telemetry
+	logTelemetry(
+		m2.GasMeter.GasConsumed(),
+		m2.Cycles,
+		attribute.KeyValue{
+			Key:   "operation",
+			Value: attribute.StringValue("m_run"),
+		},
+	)
+
 	return res, nil
 }
 
@@ -635,4 +674,36 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		}
 		return res, nil
 	}
+}
+
+// logTelemetry logs the VM processing telemetry
+func logTelemetry(
+	gasUsed int64,
+	cpuCycles int64,
+	attributes ...attribute.KeyValue,
+) {
+	if !telemetry.MetricsEnabled() {
+		return
+	}
+
+	// Record the operation frequency
+	metrics.VMExecMsgFrequency.Add(
+		context.Background(),
+		1,
+		metric.WithAttributes(attributes...),
+	)
+
+	// Record the CPU cycles
+	metrics.VMCPUCycles.Record(
+		context.Background(),
+		cpuCycles,
+		metric.WithAttributes(attributes...),
+	)
+
+	// Record the gas used
+	metrics.VMGasUsed.Record(
+		context.Background(),
+		gasUsed,
+		metric.WithAttributes(attributes...),
+	)
 }
