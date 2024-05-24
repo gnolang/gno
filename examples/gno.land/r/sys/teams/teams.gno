@@ -39,17 +39,16 @@ func SetMembers(attrs ...string) {
 	}
 
 	prev := std.PrevRealm()
-	println("aaa", prev.IsUser(), prev.PkgPath(), prev.Addr())
-	return
 	if prev.IsUser() {
 		panic(ErrNotHomeCaller)
 	}
 
-	parts := strings.Split(prev.PkgPath(), "/")
-	if len(parts) != 3 || parts[0] != "r" || parts[2] != "home" {
+	prevPath := prev.PkgPath()
+	parts := strings.Split(prevPath, "/")
+	if len(parts) != 4 || !strings.HasPrefix(prevPath, "gno.land/r/") || !strings.HasSuffix(prevPath, "/home") {
 		panic(ErrNotHomeCaller)
 	}
-	teamName := parts[1]
+	teamName := parts[2]
 
 	team := Team{
 		Admins:  []std.Address{},
@@ -57,7 +56,7 @@ func SetMembers(attrs ...string) {
 	}
 	for i := 0; i < attrsLen-1; i += 2 {
 		addr := std.Address(attrs[i])
-		role := attrs[i]
+		role := attrs[i+1]
 		if role == RoleAdmin {
 			team.Admins = append(team.Admins, addr)
 		}
