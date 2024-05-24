@@ -370,8 +370,8 @@ func buildTranspiledPackage(fileOrPkg, goBinary string) error {
 }
 
 var (
-	errorRe   = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
-	commentRe = regexp.MustCompile(`(?m)^#.*$`)
+	reGoBuildError   = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
+	reGoBuildComment = regexp.MustCompile(`(?m)^#.*$`)
 )
 
 // parseGoBuildErrors returns a scanner.ErrorList filled with all errors found
@@ -381,7 +381,7 @@ var (
 // See https://github.com/golang/go/issues/62067
 func parseGoBuildErrors(out string) error {
 	var errList scanner.ErrorList
-	matches := errorRe.FindAllStringSubmatch(out, -1)
+	matches := reGoBuildError.FindAllStringSubmatch(out, -1)
 	for _, match := range matches {
 		filename := match[1]
 		line, err := strconv.Atoi(match[2])
@@ -401,8 +401,8 @@ func parseGoBuildErrors(out string) error {
 		}, msg)
 	}
 
-	replaced := errorRe.ReplaceAllLiteralString(out, "")
-	replaced = commentRe.ReplaceAllString(replaced, "")
+	replaced := reGoBuildError.ReplaceAllLiteralString(out, "")
+	replaced = reGoBuildComment.ReplaceAllString(replaced, "")
 	replaced = strings.TrimSpace(replaced)
 	if replaced != "" {
 		errList.Add(token.Position{}, "Additional go build errors:\n"+replaced)

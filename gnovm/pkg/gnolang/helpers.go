@@ -14,10 +14,16 @@ import (
 // be realms and as such to have their state persisted. This is used by [IsRealmPath].
 const RealmPathPrefix = "gno.land/r/"
 
+// ReGnoRunPath is the path used for realms executed in maketx run.
+// These are not considered realms, as an exception to the RealmPathPrefix rule.
+var ReGnoRunPath = regexp.MustCompile(`gno\.land/r/g[a-z0-9]+/run`)
+
 // IsRealmPath determines whether the given pkgpath is for a realm, and as such
 // should persist the global state.
 func IsRealmPath(pkgPath string) bool {
-	return strings.HasPrefix(pkgPath, RealmPathPrefix)
+	return strings.HasPrefix(pkgPath, RealmPathPrefix) &&
+		// MsgRun pkgPath aren't realms
+		!ReGnoRunPath.MatchString(pkgPath)
 }
 
 // IsStdlib determines whether s is a pkgpath for a standard library.
