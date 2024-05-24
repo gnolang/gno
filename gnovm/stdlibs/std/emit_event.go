@@ -26,7 +26,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 		Func:       fnIdent,
 		Attributes: eventAttrs,
 	}
-	ctx := m.Context.(ExecContext)
+	ctx := GetContext(m)
 	ctx.EventLogger.EmitEvent(evt)
 }
 
