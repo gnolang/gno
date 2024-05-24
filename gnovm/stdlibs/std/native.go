@@ -17,13 +17,6 @@ func IsOriginCall(m *gno.Machine) bool {
 	return len(m.Frames) == 2
 }
 
-func CurrentRealmPath(m *gno.Machine) string {
-	if m.Realm != nil {
-		return m.Realm.Path
-	}
-	return ""
-}
-
 func GetChainID(m *gno.Machine) string {
 	return GetContext(m).ChainID
 }
@@ -98,7 +91,7 @@ func X_callerAt(m *gno.Machine, n int) string {
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
-func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
+func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	// NOTE: keep in sync with test/stdlibs/std.getRealm
 
 	var (
@@ -130,6 +123,12 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 	// Fallback case: return OrigCaller.
 	return string(ctx.OrigCaller), ""
+}
+
+// currentRealm retrieves the current realm's address and pkgPath.
+// It's not a native binding; but is used within this package to clarify usage.
+func currentRealm(m *gno.Machine) (address, pkgPath string) {
+	return X_getRealm(m, 0)
 }
 
 func X_derivePkgAddr(pkgPath string) string {

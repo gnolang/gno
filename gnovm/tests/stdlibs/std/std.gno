@@ -2,7 +2,6 @@ package std
 
 func AssertOriginCall()           // injected
 func IsOriginCall() bool          // injected
-func TestCurrentRealm() string    // injected
 func TestSkipHeights(count int64) // injected
 func ClearStoreCache()            // injected
 
@@ -21,6 +20,7 @@ func TestSetOrigSend(sent, spent Coins) {
 	spentDenom, spentAmt := spent.expandNative()
 	testSetOrigSend(sentDenom, sentAmt, spentDenom, spentAmt)
 }
+
 func TestIssueCoins(addr Address, coins Coins) {
 	denom, amt := coins.expandNative()
 	testIssueCoins(string(addr), denom, amt)

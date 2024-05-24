@@ -52,25 +52,6 @@ var nativeFuncs = [...]nativeFunc{
 	},
 	{
 		"std",
-		"TestCurrentRealm",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("string")},
-		},
-		func(m *gno.Machine) {
-			r0 := testlibs_std.TestCurrentRealm(
-				m,
-			)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"std",
 		"TestSkipHeights",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("int64")},
