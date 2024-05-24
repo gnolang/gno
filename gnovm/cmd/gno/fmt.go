@@ -37,7 +37,7 @@ func newFmtCmd(io commands.IO) *commands.Command {
 			Name:       "fmt",
 			ShortUsage: "gno fmt [flags] [path ...]",
 			ShortHelp:  "Run gno file formater",
-			LongHelp:   "The `gno fmt` tool processes, formats, and cleans up `gno` source files by specifying paths and using various flags to control the output.",
+			LongHelp:   "The `gno fmt` tool processes, formats, and cleans up `gno` source files.",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
