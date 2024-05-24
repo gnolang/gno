@@ -247,8 +247,10 @@ func execStart(c *startCfg, io commands.IO) error {
 	// Wrap the zap logger
 	logger := log.ZapLoggerToSlog(zapLogger)
 
-	// Initialize telemetry
-	telemetry.Init(*cfg.Telemetry)
+	// Initialize the telemetry
+	if err := telemetry.Init(*cfg.Telemetry); err != nil {
+		return fmt.Errorf("unable to initialize telemetry, %w", err)
+	}
 
 	// Write genesis file if missing.
 	// NOTE: this will be dropped in a PR that resolves issue #1886:
