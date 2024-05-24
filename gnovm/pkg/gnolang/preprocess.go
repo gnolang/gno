@@ -2464,20 +2464,6 @@ func convertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) 
 			if debug {
 				debug.Printf("default type of t: %v \n", t)
 			}
-			// Push type into expr if qualifying binary expr.
-			if bx, ok := (*x).(*BinaryExpr); ok {
-				switch bx.Op {
-				case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
-					BAND_NOT, LAND, LOR:
-					// push t into bx.Left and bx.Right, recursively
-					convertType(store, last, &bx.Left, t, autoNative)
-					convertType(store, last, &bx.Right, t, autoNative)
-					return
-				default:
-					// do nothing
-				}
-			}
-			// general case
 			cx := Expr(Call(constType(nil, t), *x))
 			cx = Preprocess(store, last, cx).(Expr)
 			*x = cx
