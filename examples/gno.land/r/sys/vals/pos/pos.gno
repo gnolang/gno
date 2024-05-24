@@ -7,17 +7,9 @@ import (
 	"gno.land/r/sys/vals/types"
 )
 
-var (
-	errMaximumValidatorCount = "maximum validator count reached"
-	errMinimumValidatorCount = "minimum validator count reached"
-)
+var errValidatorNotOrigin = "validator address is not origin"
 
 var stakeThreshold = std.Coin{"ugnot", int64(100000000)} // 100 GNOTs
-
-const (
-	minValidatorCount = 4   // the absolute minimum number of validators in the set
-	maxValidatorCount = 150 // the practical maximum number of validators in the set
-)
 
 const (
 	UserStakedEvent   = "UserStaked"   // emitted when a user stakes funds
@@ -61,7 +53,6 @@ func NewPoS(opts ...Option) *PoS {
 // - caller is a user account
 // - caller is not already a validator
 // - caller has staked funds >= the current staking threshold
-// - the validator set is less than the maximum size
 func (p *PoS) AddValidator(address std.Address, pubKey string) {
 	caller := std.GetOrigCaller()
 
@@ -123,14 +114,9 @@ func (p *PoS) validateAdd(caller, address std.Address) {
 		panic(types.ErrValidatorExists)
 	}
 
-	// Check if the limit is reached
-	if len(p.validators) == maxValidatorCount {
-		panic(errMaximumValidatorCount)
-	}
-
 	// Check if the caller is supplying their own address
 	if address != caller {
-		panic(types.ErrValidatorNotOrigin)
+		panic(errValidatorNotOrigin)
 	}
 }
 
@@ -158,7 +144,6 @@ func (p *PoS) canBecomeValidator(address std.Address) bool {
 // Criteria for being removed:
 // - caller is a user account
 // - caller is a validator
-// - the validator set is more than the minimum size
 func (p *PoS) RemoveValidator(address std.Address) {
 	// Check if the caller is a user account
 	if !std.PrevRealm().IsUser() {
@@ -170,11 +155,6 @@ func (p *PoS) RemoveValidator(address std.Address) {
 		panic(types.ErrValidatorMissing)
 	}
 
-	// Check if the limit is reached
-	if len(p.validators) == minValidatorCount {
-		panic(errMinimumValidatorCount)
-	}
-
 	var (
 		caller       = std.GetOrigCaller()
 		addressStake = p.addressToStakedAmount[caller]
@@ -182,7 +162,7 @@ func (p *PoS) RemoveValidator(address std.Address) {
 
 	// Check if the caller is supplying their own address
 	if address != caller.String() {
-		panic(types.ErrValidatorNotOrigin)
+		panic(errValidatorNotOrigin)
 	}
 
 	// Check if the validator is in the set

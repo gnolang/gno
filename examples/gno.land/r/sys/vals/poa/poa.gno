@@ -6,10 +6,6 @@ import (
 	"gno.land/r/sys/vals/types"
 )
 
-// voteWipeThreshold is the interval in which
-// all active votes are wiped (proposal reset every X blocks)
-const voteWipeThreshold = 500 // blocks
-
 const (
 	UserVotedAddEvent    = "UserVotedAdd"    // emitted when someone votes to add a validator
 	UserVotedRemoveEvent = "UserVotedRemove" // emitted when someone votes to remove a validator
@@ -86,7 +82,7 @@ func (p *PoA) AddValidator(address std.Address, pubKey string) {
 	v := &types.Validator{
 		Address:     address,
 		PubKey:      pubKey, // TODO: in the future, verify the public key
-		VotingPower: 1,      // in this PoA system, everyone has the same voting power
+		VotingPower: 1,      // in this PoA system, all new validators have the same voting power
 	}
 
 	p.addValidator(v)

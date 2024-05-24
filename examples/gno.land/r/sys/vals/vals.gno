@@ -5,7 +5,7 @@ import (
 
 	"gno.land/p/demo/json"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/sys/vals/pos"
+	"gno.land/r/sys/poa"
 	"gno.land/r/sys/vals/types"
 )
 
@@ -35,7 +35,7 @@ type Protocol interface {
 }
 
 // p is the underlying validator set protocol (PoA / PoS)
-var p Protocol = pos.NewPoS()
+var p Protocol = poa.NewPoA()
 
 // AddValidator adds a new validator to the validator set.
 // If the validator is already present, the method errors out

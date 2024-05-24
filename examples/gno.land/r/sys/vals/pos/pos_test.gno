@@ -53,28 +53,6 @@ func TestPoS_AddValidator_Invalid(t *testing.T) {
 		})
 	})
 
-	t.Run("validator set full", func(t *testing.T) {
-		t.Parallel()
-
-		var (
-			callerAddress = std.Address("caller")
-			callerKey     = "public-key"
-
-			initialSet = generateTestValidators(maxValidatorCount)
-		)
-
-		// Create the protocol with an initial set
-		p := NewPoS(WithInitialSet(initialSet))
-
-		// Set the origin caller
-		std.TestSetOrigCaller(callerAddress)
-
-		// Attempt to add the validator
-		testing.PanicsWithError(t, errMaximumValidatorCount, func() {
-			p.AddValidator(callerAddress, callerKey)
-		})
-	})
-
 	t.Run("validator address is not the origin", func(t *testing.T) {
 		t.Parallel()
 
@@ -92,7 +70,7 @@ func TestPoS_AddValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(std.Address("random address"))
 
 		// Attempt to add the validator
-		testing.PanicsWithError(t, types.ErrValidatorNotOrigin, func() {
+		testing.PanicsWithError(t, errValidatorNotOrigin, func() {
 			p.AddValidator(callerAddress, callerKey)
 		})
 	})
@@ -267,31 +245,6 @@ func TestPoS_RemoveValidator_Invalid(t *testing.T) {
 		})
 	})
 
-	t.Run("validator set at minimum", func(t *testing.T) {
-		t.Parallel()
-
-		var (
-			callerAddress = std.Address("caller")
-			callerKey     = "public-key"
-
-			initialSet = generateTestValidators(minValidatorCount)
-		)
-
-		initialSet[0].Address = callerAddress
-		initialSet[0].PubKey = callerKey
-
-		// Create the protocol with an initial set
-		p := NewPoS(WithInitialSet(initialSet))
-
-		// Set the origin caller
-		std.TestSetOrigCaller(callerAddress)
-
-		// Attempt to remove the validator
-		testing.PanicsWithError(t, errMinimumValidatorCount, func() {
-			p.RemoveValidator(callerAddress)
-		})
-	})
-
 	t.Run("validator address is not the origin", func(t *testing.T) {
 		t.Parallel()
 
@@ -309,7 +262,7 @@ func TestPoS_RemoveValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(callerAddress)
 
 		// Attempt to remove the validator
-		testing.PanicsWithError(t, types.ErrValidatorNotOrigin, func() {
+		testing.PanicsWithError(t, errValidatorNotOrigin, func() {
 			p.RemoveValidator(initialSet[0].Address)
 		})
 	})
