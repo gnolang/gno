@@ -2,15 +2,19 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,6 +32,44 @@ func TestIntegration_gasSponsorship(t *testing.T) {
 	fmt.Println(signer1)
 	fmt.Println(signer2)
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
+
+	tx := std.Tx{
+		Fee: std.Fee{
+			GasWanted: 10,
+			GasFee: std.Coin{
+				Amount: 10,
+				Denom:  "ugnot",
+			},
+		},
+		Signatures: nil, // no sigs
+	}
+
+	tx.Msgs = []std.Msg{
+		bank.MsgSend{FromAddress: signer1.Info().GetAddress()}, // XXX: replace with NoopMsg
+		bank.MsgSend{FromAddress: signer2.Info().GetAddress()},
+	}
+
+	signbz1, err := tx.GetSignBytes(integrationChainID, 1, 0)
+
+	sig1, pubkey1, err := signer1.Keybase.Sign(signer1.Account, signer1.Password, signbz1)
+	require.NoError(t, err)
+
+	tx.Signatures = []std.Signature{
+		{
+			PubKey:    pubkey1,
+			Signature: sig1,
+		},
+	}
+
+	txFile, err := os.CreateTemp("", "")
+	require.NoError(t, err)
+
+	encodedTx, err := amino.MarshalJSON(tx)
+	require.NoError(t, err)
+	fmt.Println(string(encodedTx))
+
+	_, err = txFile.Write(encodedTx)
 	require.NoError(t, err)
 
 	_ = rpcClient
