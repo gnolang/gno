@@ -5,7 +5,7 @@ import (
 
 	"gno.land/p/demo/json"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/sys/poa"
+	"gno.land/r/sys/vals/poa"
 	"gno.land/r/sys/vals/types"
 )
 

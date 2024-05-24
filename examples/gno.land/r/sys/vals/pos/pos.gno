@@ -161,7 +161,7 @@ func (p *PoS) RemoveValidator(address std.Address) {
 	)
 
 	// Check if the caller is supplying their own address
-	if address != caller.String() {
+	if address != caller {
 		panic(errValidatorNotOrigin)
 	}
 
