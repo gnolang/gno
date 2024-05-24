@@ -250,7 +250,10 @@ func transpileFile(srcPath string, opts *transpileOptions) error {
 	if !flags.skipImports {
 		importPaths := getPathsFromImportSpec(transpileRes.Imports)
 		for _, path := range importPaths {
-			transpilePkg(path, opts)
+			err := transpilePkg(path, opts)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
