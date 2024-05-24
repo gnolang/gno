@@ -39,6 +39,8 @@ func SetMembers(attrs ...string) {
 	}
 
 	prev := std.PrevRealm()
+	println("aaa", prev.IsUser(), prev.PkgPath(), prev.Addr())
+	return
 	if prev.IsUser() {
 		panic(ErrNotHomeCaller)
 	}
@@ -53,7 +55,6 @@ func SetMembers(attrs ...string) {
 		Admins:  []std.Address{},
 		Editors: []std.Address{},
 	}
-
 	for i := 0; i < attrsLen-1; i += 2 {
 		addr := std.Address(attrs[i])
 		role := attrs[i]
@@ -74,7 +75,7 @@ func GetAdmins(teamName string) []std.Address {
 		return nil
 	}
 	team := t.(*Team)
-	return append(team.Admins, team.Editors...)
+	return team.Admins
 }
 
 func GetEditors(teamName string) []std.Address {
