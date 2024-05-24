@@ -78,7 +78,7 @@ jobs:
 
       - name: "Buid new gnolang/gno image"
         run: |
-          docker build -t ghcr.io/gnolang/gno .
+          docker build -t ghcr.io/gnolang/gno -f Dockerfile.gnoland.release .
 
       - name: "Wait for new docker image"
         run: |
