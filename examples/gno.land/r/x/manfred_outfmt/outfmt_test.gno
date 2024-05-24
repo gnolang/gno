@@ -1,8 +1,6 @@
 package outfmt
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestRender(t *testing.T) {
 	// home

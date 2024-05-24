@@ -1,8 +1,6 @@
 package millipede
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestRender(t *testing.T) {
 	cases := []struct {

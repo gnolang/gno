@@ -1,8 +1,6 @@
 package int32
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestOne(t *testing.T) {
 	ttt := []struct {

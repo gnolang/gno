@@ -1,8 +1,6 @@
 package json
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestParseStringLiteral(t *testing.T) {
 	tests := []struct {
