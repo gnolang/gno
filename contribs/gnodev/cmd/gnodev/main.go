@@ -84,9 +84,7 @@ func main() {
 			Name:       "gnodev",
 			ShortUsage: "gnodev [flags] [path ...]",
 			ShortHelp:  "runs an in-memory node and gno.land web server for development purposes.",
-			LongHelp: `The gnodev command starts an in-memory node and a gno.land web interface
-primarily for realm package development. It automatically loads the 'examples' directory and any
-additional specified paths.`,
+			LongHelp:   `The gnodev command starts an in-memory node and a gno.land web interface primarily for realm package development. It automatically loads the 'examples' directory and any additional specified paths.`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
