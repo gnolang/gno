@@ -868,8 +868,6 @@ GNO_CASE:
 				"cannot convert %s to %s",
 				tv.T.String(), k.String()))
 		}
-	case BigintKind:
-		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	default:
 		panic(fmt.Sprintf(
 			"cannot convert %s to %s",

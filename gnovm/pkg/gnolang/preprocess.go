@@ -2422,6 +2422,23 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		if t != nil {
 			assertAssignableTo(xt, t, autoNative)
 		}
+		// Push type into expr if qualifying binary expr.
+		if bx, ok := (*x).(*BinaryExpr); ok {
+			switch bx.Op {
+			case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
+				BAND_NOT, LAND, LOR:
+				// push t into bx.Left and bx.Right
+				checkOrConvertType(store, last, &bx.Left, t, autoNative)
+				checkOrConvertType(store, last, &bx.Right, t, autoNative)
+				return
+			case SHL, SHR:
+				// push t into bx.Left
+				checkOrConvertType(store, last, &bx.Left, t, autoNative)
+				return
+				// case EQL, LSS, GTR, NEQ, LEQ, GEQ:
+				// default:
+			}
+		}
 	}
 	convertType(store, last, x, t, autoNative)
 }
