@@ -1,9 +1,6 @@
 package std
 
-import (
-	"math/overflow"
-	"strconv"
-)
+import "strconv"
 
 // NOTE: this is selectively copied over from tm2/pkgs/std/coin.go
 
@@ -62,10 +59,7 @@ func (c Coin) Add(coinB Coin) Coin {
 func (c Coin) AddUnsafe(coinB Coin) Coin {
 	mustMatchDenominations(c.Denom, coinB.Denom)
 
-	sum, ok := overflow.Add64(c.Amount, coinB.Amount)
-	if !ok {
-		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " + " + strconv.Itoa(int(coinB.Amount)))
-	}
+	sum := c.Amount + coinB.Amount
 
 	c.Amount = sum
 	return c
@@ -83,10 +77,7 @@ func (c Coin) Sub(coinB Coin) Coin {
 func (c Coin) SubUnsafe(coinB Coin) Coin {
 	mustMatchDenominations(c.Denom, coinB.Denom)
 
-	dff, ok := overflow.Sub64(c.Amount, coinB.Amount)
-	if !ok {
-		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " + " + strconv.Itoa(int(coinB.Amount)))
-	}
+	dff := c.Amount - coinB.Amount
 	c.Amount = dff
 
 	return c
