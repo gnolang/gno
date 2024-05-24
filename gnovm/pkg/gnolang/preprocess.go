@@ -2493,9 +2493,6 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 func checkWithoutConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) {
 	if cx, ok := (*x).(*ConstExpr); ok {
 		convertConst(store, last, cx, t)
-	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
-		// "push" expected type into shift binary's left operand.
-		checkWithoutConvertType(store, last, &bx.Left, t, autoNative)
 	} else if *x != nil { // XXX if x != nil && t != nil {
 		xt := evalStaticTypeOf(store, last, *x)
 		if t != nil {
