@@ -1,18 +1,31 @@
 # load the package from $WORK directory
 loadpkg gno.land/r/demo/simple_event $WORK/event
 
+# start a new node
+gnoland start
+
+## test1 account should be available on default
+gnokey query auth/accounts/${USER_ADDR_test1}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",'
+stdout '    "coins": "[0-9]*ugnot",' # dynamic
+stdout '    "public_key": null,'
+stdout '    "account_number": "0",'
+stdout '    "sequence": "0"'
+stdout '  }'
+stdout '}'
+! stderr '.+' # empty
+
+
 ## sign
 gnokey sign -tx-path $WORK/multi/multi_msg.tx -chainid=tendermint_test -account-number 0 -account-sequence 0 test1
 stdout 'Tx successfully signed and saved to '
 
-
-# start a new node
-gnoland start
-
-
 ## broadcast
 gnokey broadcast $WORK/multi/multi_msg.tx -quiet=false
-stdout OK!
+
 
 -- event/simple_event.gno --
 package simple_event
