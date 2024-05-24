@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 	"github.com/gorilla/websocket"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -28,6 +30,29 @@ import (
 // RegisterRPCFuncs adds a route for each function in the funcMap, as well as general jsonrpc and websocket handlers for all functions.
 // "result" is the interface on which the result objects are registered, and is populated with every RPCResponse
 func RegisterRPCFuncs(mux *http.ServeMux, funcMap map[string]*RPCFunc, logger *slog.Logger) {
+	// Check if metrics are enabled
+	if telemetry.MetricsEnabled() {
+		// HTTP endpoints
+		for funcName, rpcFunc := range funcMap {
+			mux.HandleFunc(
+				"/"+funcName,
+				telemetryMiddleware(
+					makeHTTPHandler(rpcFunc, logger),
+				),
+			)
+		}
+
+		// JSONRPC endpoints
+		mux.HandleFunc(
+			"/",
+			telemetryMiddleware(
+				handleInvalidJSONRPCPaths(makeJSONRPCHandler(funcMap, logger)),
+			),
+		)
+
+		return
+	}
+
 	// HTTP endpoints
 	for funcName, rpcFunc := range funcMap {
 		mux.HandleFunc("/"+funcName, makeHTTPHandler(rpcFunc, logger))
@@ -185,6 +210,21 @@ func handleInvalidJSONRPCPaths(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// telemetryMiddleware is the telemetry middleware handler
+func telemetryMiddleware(next http.Handler) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		next.ServeHTTP(w, r)
+
+		// Log the response time
+		metrics.HTTPRequestTime.Record(
+			context.Background(),
+			time.Since(start).Milliseconds(),
+		)
+	}
+}
+
 func mapParamsToArgs(rpcFunc *RPCFunc, params map[string]json.RawMessage, argsOffset int) ([]reflect.Value, error) {
 	values := make([]reflect.Value, len(rpcFunc.argNames))
 	for i, argName := range rpcFunc.argNames {
@@ -258,7 +298,7 @@ func jsonParamsToArgs(rpcFunc *RPCFunc, raw []byte) ([]reflect.Value, error) {
 // rpc.http
 
 // convert from a function name to the http handler
-func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) func(http.ResponseWriter, *http.Request) {
+func makeHTTPHandler(rpcFunc *RPCFunc, logger *slog.Logger) http.HandlerFunc {
 	// Exception for websocket endpoints
 	if rpcFunc.ws {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -626,6 +666,8 @@ func (wsc *wsConnection) readRoutine() {
 		return wsc.baseConn.SetReadDeadline(time.Now().Add(wsc.readWait))
 	})
 
+	telemetryEnabled := telemetry.MetricsEnabled()
+
 	for {
 		select {
 		case <-wsc.Quit():
@@ -646,6 +688,9 @@ func (wsc *wsConnection) readRoutine() {
 				wsc.Stop()
 				return
 			}
+
+			// Log the request response start time
+			responseStart := time.Now()
 
 			// first try to unmarshal the incoming request as an array of RPC requests
 			var (
@@ -720,6 +765,14 @@ func (wsc *wsConnection) readRoutine() {
 
 				if len(responses) > 0 {
 					wsc.WriteRPCResponses(responses)
+
+					// Log telemetry
+					if telemetryEnabled {
+						metrics.WSRequestTime.Record(
+							context.Background(),
+							time.Since(responseStart).Milliseconds(),
+						)
+					}
 				}
 			}
 		}
