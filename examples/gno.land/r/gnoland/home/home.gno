@@ -12,9 +12,11 @@ import (
 func init() {
 	teams.SetMembers(
 		"g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq", teams.AdminRole, // @manfred
-		// ...
+		// TODO: add more people in the init
 	)
 }
+
+// TODO: add helpers to manage the team set from a DAO
 
 // XXX: p/demo/ui API is crappy, we need to make it more idiomatic
 // XXX: use an updatable block system to update content from a DAO
