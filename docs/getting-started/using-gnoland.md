@@ -5,8 +5,10 @@ id: using-gnoland
 ## Using `gnoland`
 
 ## Overview
-In this tutorial, you will learn how to use the `gnoland` tool, which helps you
-start a local gno.land node.
+In this tutorial, you will learn how to spin up & configure a local gno.land 
+node by using the `gnoland` tool, which is the Gno.land blockchain client binary.
+`gnoland` is capable of managing node working files, as well as starting the
+blockchain client itself.
 
 ## Prerequisites
 - **Git**
@@ -65,7 +67,7 @@ And finally, run it with `./build gnoland`.
 
 ## Starting a local node
 
-By using the `gnoland start` command, you can start a local a gno.land node.
+You can start a local a gno.land node by using the `gnoland start` command, 
 This subcommand will make sure two main things happen:
 - A default data directory is created under `gnoland-data/`,
 - A genesis file for the node will is under `genesis.json`.
@@ -88,7 +90,7 @@ gnoland config init
 ```
 
 By default, a `config.toml` file will be created in the default directory,
-which can be configured by using the following flag:
+which can be configured by using the `-config-path` flag:
 
 ```bash
 gnoland config init -config-path ./config.toml
@@ -103,7 +105,14 @@ in your config file by using the `set` subcommand:
 gnoland config set <key> <value>
 ```
 
-For example, we can change  
+See the full list of keys [here](../gno-tooling/cli/gnoland.md). 
+
+For example, to change the RPC listener address of the node, which is part of the
+`rpc` config subset, you can use the following command:
+
+```bash
+gnoland config set rpc.laddr <your_new_rpc_address>
+```
 
 ### Reading a config value
 
@@ -117,8 +126,7 @@ gnoland config get <key>
 ## Generating node secrets
 
 By using the `secrets` subcommand, you can initialize your validator keypair,
-as well as a file which will store 
-
+ 
 
 
 
