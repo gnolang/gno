@@ -188,7 +188,6 @@ func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
 		io.ErrPrintfln("format error: %s", err.Error())
 		return nil
 	}, nil
-
 }
 
 func fmtFormatFile(file string, io commands.IO) []byte {
