@@ -41,7 +41,7 @@ func TestPoS_AddValidator_Invalid(t *testing.T) {
 		initialSet[0].Address = callerAddress
 		initialSet[0].PubKey = callerKey
 
-		// Create the protocol with an initial set
+		// Create the protocol with no initial set
 		p := NewPoS(WithInitialSet(initialSet))
 
 		// Set the origin caller
@@ -113,7 +113,7 @@ func TestPoS_AddValidator(t *testing.T) {
 			value = std.Coins{{"ugnot", stakeThreshold.Amount / numTries}}
 		)
 
-		// Create the protocol with an initial set
+		// Create the protocol with no initial set
 		p := NewPoS()
 
 		// Set the origin caller
@@ -255,7 +255,7 @@ func TestPoS_RemoveValidator_Invalid(t *testing.T) {
 
 		callerAddress := std.Address("caller")
 
-		// Create the protocol with an initial set
+		// Create the protocol with no initial set
 		p := NewPoS()
 
 		// Set the origin caller
@@ -313,4 +313,57 @@ func TestPoS_RemoveValidator_Invalid(t *testing.T) {
 			p.RemoveValidator(initialSet[0].Address)
 		})
 	})
+}
+
+func TestPoS_RemoveValidator(t *testing.T) {
+	t.Parallel()
+
+	var (
+		callerAddress = std.Address("caller")
+		callerKey     = "public-key"
+
+		value = std.Coins{{"ugnot", stakeThreshold.Amount}}
+	)
+
+	// Create an initial PoS protocol with no set
+	p := NewPoS()
+
+	// Set the origin caller
+	std.TestSetOrigCaller(callerAddress)
+	std.TestSetOrigSend(value, std.Coins{})
+
+	// Make sure the caller is not a validator
+	if p.IsValidator(callerAddress) {
+		t.Fatalf("should not be a validator")
+	}
+
+	// Attempt to add the validator
+	testing.NotPanics(t, func() {
+		p.AddValidator(callerAddress, callerKey)
+	})
+
+	// Make sure the user became a validator
+	if !p.IsValidator(callerAddress) {
+		t.Fatalf("should be a validator")
+	}
+
+	// Attempt to remove the validator
+	testing.NotPanics(t, func() {
+		p.RemoveValidator(callerAddress)
+	})
+
+	// Make sure the validator is removed
+	if p.IsValidator(callerAddress) {
+		t.Fatalf("should not be a validator")
+	}
+
+	// Make sure the balance is updated
+	var (
+		banker  = std.GetBanker(std.BankerTypeReadonly)
+		balance = banker.GetCoins(callerAddress).AmountOf("ugnot")
+	)
+
+	if balance != stakeThreshold.Amount {
+		t.Fatalf("returned balance mismatch")
+	}
 }

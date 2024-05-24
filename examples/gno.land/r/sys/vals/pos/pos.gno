@@ -211,8 +211,8 @@ func (p *PoS) RemoveValidator(address std.Address) {
 
 // returnStake returns the specified stake to the given address
 func returnStake(address std.Address, amount std.Coin) {
-	// Derive the current package address
-	from := std.DerivePkgAddr(std.CurrentRealm().Addr().String())
+	// Get the current package address
+	from := std.CurrentRealm().Addr()
 
 	// Fetch the banker
 	banker := std.GetBanker(std.BankerTypeRealmSend)
