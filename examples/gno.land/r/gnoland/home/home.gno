@@ -6,7 +6,15 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
 	blog "gno.land/r/gnoland/blog"
+	"gno.land/r/sys/teams"
 )
+
+func init() {
+	teams.SetMembers(
+		"g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq", teams.AdminRole, // @manfred
+		// ...
+	)
+}
 
 // XXX: p/demo/ui API is crappy, we need to make it more idiomatic
 // XXX: use an updatable block system to update content from a DAO
