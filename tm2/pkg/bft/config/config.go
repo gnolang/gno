@@ -142,7 +142,7 @@ func TestConfig() *Config {
 		Mempool:      mem.TestMempoolConfig(),
 		Consensus:    cns.TestConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
-		Telemetry:    telemetry.TestTelemetryConfig(),
+		Telemetry:    telemetry.DefaultTelemetryConfig(),
 	}
 }
 
