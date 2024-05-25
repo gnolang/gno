@@ -11,10 +11,10 @@ GENESIS_BACKUP_FILE=${GENESIS_BACKUP_FILE:-""}
 SEEDS=${SEEDS:-""}
 PERSISTENT_PEERS=${PERSISTENT_PEERS:-""}
 
-echo "" >> /opt/gno/src/gno.land/genesis/genesis_txs.jsonl
-cat ${GENESIS_BACKUP_FILE} >> /opt/gno/src/gno.land/genesis/genesis_txs.jsonl
+echo "" >> /gnoroot/gno.land/genesis/genesis_txs.jsonl
+cat ${GENESIS_BACKUP_FILE} >> /gnoroot/gno.land/genesis/genesis_txs.jsonl
 
-gnoland start \
+/gnoland start \
     --chainid="${CHAIN_ID}" \
     --skip-start=true \
     --skip-failing-genesis-txs
@@ -26,4 +26,4 @@ sed -i "s#laddr = \".*:26657\"#laddr = \"${RPC_LADDR}\"#" ./gnoland-data/config/
 sed -i "s#seeds = \".*\"#seeds = \"${SEEDS}\"#" ./gnoland-data/config/config.toml
 sed -i "s#persistent_peers = \".*\"#persistent_peers = \"${PERSISTENT_PEERS}\"#" ./gnoland-data/config/config.toml
 
-exec gnoland start --skip-failing-genesis-txs
+exec /gnoland start --skip-failing-genesis-txs
