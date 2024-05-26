@@ -191,29 +191,27 @@ func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.F
 		}
 	}
 
-	// custom handler
 	node := astutil.Apply(f,
 		// pre
 		func(c *astutil.Cursor) bool {
-			node := c.Node()
-			// is function declaration without body?
-			// -> delete (native binding)
-			if fd, ok := node.(*ast.FuncDecl); ok && fd.Body == nil {
-				c.Delete()
-				return false // don't attempt to traverse children
+			switch node := c.Node().(type) {
+			case *ast.FuncDecl:
+				// is function declaration without body?
+				// -> delete (native binding)
+				if node.Body == nil {
+					c.Delete()
+					return false
+				}
+			case *ast.CallExpr:
+				// is function call to a native function?
+				// -> rename if unexported, apply `nil,` for the first arg if necessary
+				return ctx.transformCallExpr(c, node)
 			}
-
-			// is function call to a native function?
-			// -> rename if unexported, apply `nil,` for the first arg if necessary
-			if ce, ok := node.(*ast.CallExpr); ok {
-				return ctx.transformCallExpr(c, ce)
-			}
-
 			return true
 		},
 
 		// post
-		func(c *astutil.Cursor) bool {
+		func(_ *astutil.Cursor) bool {
 			return true
 		},
 	)
