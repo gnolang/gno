@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/helper"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/seqid"
 )
@@ -160,8 +161,8 @@ func (m *Memeland) RemovePost(id string) string {
 		panic("id cannot be empty")
 	}
 
-	if err := m.CallerIsOwner(); err != nil {
-		panic(err)
+	if !helper.PrevRealmIsOwner(m.Owner()) {
+		panic(ErrUnauthorized)
 	}
 
 	for i, post := range m.Posts {

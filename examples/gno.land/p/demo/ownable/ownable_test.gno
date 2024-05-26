@@ -3,6 +3,8 @@ package ownable
 import (
 	"std"
 	"testing"
+
+	"gno.land/p/demo/helper"
 )
 
 var (
@@ -54,8 +56,7 @@ func TestCallerIsOwner(t *testing.T) {
 
 	std.TestSetOrigCaller(unauthorizedCaller)
 
-	err := o.CallerIsOwner()
-	if err == nil {
+	if helper.PrevRealmIsOwner(o.owner) {
 		t.Fatalf("Expected %s to not be owner\n", unauthorizedCaller)
 	}
 }
