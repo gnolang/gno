@@ -64,7 +64,7 @@ func (mempkg *MemPackage) Validate() error {
 		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
 	}
 	if len(mempkg.Path) > pathLengthLimit {
-		return fmt.Errorf("invalid length of package/realm path: %d which limitation is %d", len(mempkg.Path), pathLengthLimit)
+		return fmt.Errorf("path length %d exceeds limit %d", len(mempkg.Path), pathLengthLimit)
 	}
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
