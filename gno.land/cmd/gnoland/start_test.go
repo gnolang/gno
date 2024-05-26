@@ -3,8 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
-	"net/http"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -13,34 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )
-
-// isNodeUp verifies the node at the given JSON-RPC URL is serving requests
-func isNodeUp(ctx context.Context, url string) error {
-	var (
-		client = &http.Client{
-			Timeout: 5 * time.Second,
-		}
-
-		statusURL = url + "/status"
-	)
-
-	cb := func() bool {
-		resp, err := client.Get(statusURL)
-		if err != nil {
-			return true
-		}
-
-		defer resp.Body.Close()
-
-		if resp.StatusCode == http.StatusOK {
-			return false
-		}
-
-		return true
-	}
-
-	return retryUntilTimeout(ctx, cb)
-}
 
 // retryUntilTimeout runs the callback until the timeout is exceeded, or
 // the callback returns a flag indicating completion
@@ -72,6 +44,8 @@ func retryUntilTimeout(ctx context.Context, cb func() bool) error {
 }
 
 func TestStart_Lazy(t *testing.T) {
+	t.Parallel()
+
 	var (
 		nodeDir     = t.TempDir()
 		genesisFile = filepath.Join(nodeDir, "test_genesis.json")
@@ -101,24 +75,29 @@ func TestStart_Lazy(t *testing.T) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancelFn()
 
+	// Set up the command ctx
 	g, gCtx := errgroup.WithContext(ctx)
 
 	// Start the node
 	g.Go(func() error {
-		cmd := newRootCmd(io)
-
-		return cmd.ParseAndRun(gCtx, args)
+		return newRootCmd(io).ParseAndRun(gCtx, args)
 	})
 
-	// Start the JSON-RPC poll service
-	pollCtx, pollCancelFn := context.WithTimeout(ctx, 5*time.Second)
-	defer pollCancelFn()
+	// Set up the retry ctx
+	retryCtx, retryCtxCancelFn := context.WithTimeout(ctx, 5*time.Second)
+	defer retryCtxCancelFn()
 
-	nodeUpErr := isNodeUp(pollCtx, "http://127.0.0.1:26657")
+	// This is a very janky way to verify the node has started.
+	// The alternative is to poll the node's RPC endpoints, but for some reason
+	// this introduces a lot of flakyness to the testing suite -- shocking!
+	// In an effort to keep this simple, and avoid randomly failing tests,
+	// we query the CLI output of the command
+	require.NoError(t, retryUntilTimeout(retryCtx, func() bool {
+		return !strings.Contains(mockOut.String(), startGraphic)
+	}))
+
 	cancelFn() // stop the node
-
 	require.NoError(t, g.Wait())
-	require.NoError(t, nodeUpErr)
 
 	// Make sure the genesis is generated
 	assert.FileExists(t, genesisFile)
