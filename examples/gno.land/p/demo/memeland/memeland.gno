@@ -26,7 +26,7 @@ type Post struct {
 }
 
 type Memeland struct {
-	*ownable.Ownable
+	*ownable.DefaultOwnable
 	Posts       []*Post
 	MemeCounter seqid.ID
 }

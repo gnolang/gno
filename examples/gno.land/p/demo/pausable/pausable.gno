@@ -3,7 +3,7 @@ package pausable
 import "gno.land/p/demo/ownable"
 
 type Pausable struct {
-	*ownable.Ownable
+	*ownable.DefaultOwnable
 	paused bool
 }
 
@@ -16,7 +16,7 @@ func New() *Pausable {
 }
 
 // NewFromOwnable is the same as New, but with a pre-existing top-level ownable
-func NewFromOwnable(ownable *ownable.Ownable) *Pausable {
+func NewFromOwnable(ownable *ownable.DefaultOwnable) *Pausable {
 	return &Pausable{
 		Ownable: ownable,
 		paused:  false,
