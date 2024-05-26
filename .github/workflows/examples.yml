@@ -79,7 +79,6 @@ jobs:
       fail-fast: false
       matrix:
         goversion: [ "1.22.x" ]
-        # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -90,7 +89,7 @@ jobs:
       - run: |
           make fmt -C ./examples
           # Check if there are changes after running make fmt
-          git diff --exit-code || (echo "Some gno files are formated, please run 'make fmt'." && exit 1)
+          git diff --exit-code || (echo "Some gno files are not formatted, please run 'make fmt'." && exit 1)
   mod-tidy:
     strategy:
       fail-fast: false

@@ -59,11 +59,6 @@ GNOFMT_FLAGS ?= -w
 fmt:
 	go run ../gnovm/cmd/gno fmt $(GNOFMT_FLAGS) ./...
 
-.PHONY: imports
-GOIMPORTS_FLAGS ?= -w
-imports:
-	$(rundep) golang.org/x/tools/cmd/goimports $(GOIMPORTS_FLAGS) .
-
 .PHONY: tidy
 tidy:
 	find . -name "gno.mod" -execdir go run github.com/gnolang/gno/gnovm/cmd/gno mod tidy \;
