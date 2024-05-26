@@ -170,25 +170,34 @@ func catchRuntimeError(pkgPath string, stderr io.WriteCloser, action func()) (ha
 			return
 		}
 		hasError = true
-		switch verr := r.(type) {
-		case *gno.PreprocessError:
-			err := verr.Unwrap()
-			fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
-		case scanner.ErrorList:
-			for _, err := range verr {
-				fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
-			}
-		case error:
-			fmt.Fprint(stderr, issueFromError(pkgPath, verr).String()+"\n")
-		case string:
-			fmt.Fprint(stderr, issueFromError(pkgPath, errors.New(verr)).String()+"\n")
-		default:
-			panic(r)
-		}
+		printRuntimeError(r, pkgPath, stderr)
 	}()
 
 	action()
 	return
+}
+
+func printRuntimeError(r interface{}, pkgPath string, stderr io.WriteCloser) {
+	switch verr := r.(type) {
+	case *gno.PreprocessError:
+		err := verr.Unwrap()
+		fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
+	case scanner.ErrorList:
+		for _, err := range verr {
+			fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
+		}
+	case error:
+		fmt.Fprint(stderr, issueFromError(pkgPath, verr).String()+"\n")
+	case []error:
+		for _, err := range verr {
+			// recursive call to handle specifically each error type ex: scanner.ErrorList
+			printRuntimeError(err, pkgPath, stderr)
+		}
+	case string:
+		fmt.Fprint(stderr, issueFromError(pkgPath, errors.New(verr)).String()+"\n")
+	default:
+		panic(r)
+	}
 }
 
 type lintCode int
