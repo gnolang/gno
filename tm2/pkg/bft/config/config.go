@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 
 	"dario.cat/mergo"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -171,7 +172,7 @@ func TestConfig() *Config {
 		Mempool:      mem.TestMempoolConfig(),
 		Consensus:    cns.TestConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
-		Telemetry:    telemetry.TestTelemetryConfig(),
+		Telemetry:    telemetry.DefaultTelemetryConfig(),
 	}
 }
 
@@ -286,19 +287,15 @@ type BaseConfig struct {
 	// and verifying their commits
 	FastSyncMode bool `toml:"fast_sync" comment:"If this node is many blocks behind the tip of the chain, FastSync\n allows them to catchup quickly by downloading blocks in parallel\n and verifying their commits"`
 
-	// Database backend: goleveldb | cleveldb | boltdb
+	// Database backend: goleveldb | boltdb
 	// * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
 	//   - pure go
 	//   - stable
-	// * cleveldb (uses levigo wrapper)
-	//   - fast
-	//   - requires gcc
-	//   - use cleveldb build tag (go build -tags cleveldb)
 	// * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
 	//   - use boltdb build tag (go build -tags boltdb)
-	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | cleveldb | boltdb\n * goleveldb (github.com/syndtr/goleveldb - most popular implementation)\n  - pure go\n  - stable\n * cleveldb (uses levigo wrapper)\n  - fast\n  - requires gcc\n  - use cleveldb build tag (go build -tags cleveldb)\n * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
+	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | boltdb\n * goleveldb (github.com/syndtr/goleveldb - most popular implementation)\n  - pure go\n  - stable\n* boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
 
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`
@@ -399,9 +396,10 @@ func (cfg BaseConfig) ValidateBasic() error {
 	}
 
 	// Verify the DB backend
-	if cfg.DBBackend != db.GoLevelDBBackend.String() &&
-		cfg.DBBackend != db.CLevelDBBackend.String() &&
-		cfg.DBBackend != db.BoltDBBackend.String() {
+	// This will reject also any databases that haven't been added with build tags.
+	// always reject memdb, as it shouldn't be used as a real-life database.
+	if cfg.DBBackend == "memdb" ||
+		!slices.Contains(db.BackendList(), db.BackendType(cfg.DBBackend)) {
 		return errInvalidDBBackend
 	}
 
