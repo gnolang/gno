@@ -9,9 +9,9 @@ on:
       - "!**.md"
   push:
     branches:
-      - master
-  tags:
-    - "v*"
+      - "master"
+    tags:
+      - "v*"
 
 # concurrency:
 #   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
