@@ -43,26 +43,70 @@ func retryUntilTimeout(ctx context.Context, cb func() bool) error {
 	return <-ch
 }
 
+// prepareNodeRPC sets the RPC listen address for the node to be an arbitrary
+// free address. Setting the listen port to a free port on the machine avoids
+// node collisions between different testing suites
+func prepareNodeRPC(t *testing.T, nodeDir string) {
+	t.Helper()
+
+	path := constructConfigPath(nodeDir)
+	args := []string{
+		"config",
+		"init",
+		"--config-path",
+		path,
+	}
+
+	// Prepare the IO
+	mockOut := new(bytes.Buffer)
+	mockErr := new(bytes.Buffer)
+	io := commands.NewTestIO()
+	io.SetOut(commands.WriteNopCloser(mockOut))
+	io.SetErr(commands.WriteNopCloser(mockErr))
+
+	// Prepare the cmd context
+	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFn()
+
+	// Run config init
+	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
+
+	args = []string{
+		"config",
+		"set",
+		"--config-path",
+		path,
+		"rpc.laddr",
+		"tcp://0.0.0.0:0",
+	}
+
+	// Run config set
+	require.NoError(t, newRootCmd(io).ParseAndRun(ctx, args))
+}
+
 func TestStart_Lazy(t *testing.T) {
 	t.Parallel()
 
 	var (
 		nodeDir     = t.TempDir()
 		genesisFile = filepath.Join(nodeDir, "test_genesis.json")
-
-		args = []string{
-			"start",
-			"--lazy",
-			"--skip-failing-genesis-txs",
-
-			// These two flags are tested together as they would otherwise
-			// pollute this directory (cmd/gnoland) if not set.
-			"--data-dir",
-			nodeDir,
-			"--genesis",
-			genesisFile,
-		}
 	)
+
+	// Prepare the config
+	prepareNodeRPC(t, nodeDir)
+
+	args := []string{
+		"start",
+		"--lazy",
+		"--skip-failing-genesis-txs",
+
+		// These two flags are tested together as they would otherwise
+		// pollute this directory (cmd/gnoland) if not set.
+		"--data-dir",
+		nodeDir,
+		"--genesis",
+		genesisFile,
+	}
 
 	// Prepare the IO
 	mockOut := new(bytes.Buffer)
