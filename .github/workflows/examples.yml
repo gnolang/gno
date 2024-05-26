@@ -74,6 +74,23 @@ jobs:
       - run: make lint -C ./examples
       # TODO: consider running lint on every other directories, maybe in "warning" mode?
     # TODO: track coverage
+  fmt:
+    strategy:
+      fail-fast: false
+      matrix:
+        goversion: [ "1.22.x" ]
+        # unittests: TODO: matrix with contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.goversion }}
+      - run: |
+          make fmt -C ./examples
+          # Check if there are changes after running make fmt
+          git diff --exit-code || (echo "Some gno files are formated, please run 'make fmt'." && exit 1)
   mod-tidy:
     strategy:
       fail-fast: false

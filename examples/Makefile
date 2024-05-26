@@ -55,9 +55,9 @@ clean:
 	find . \( -name "*.gno.gen.go" -or -name ".*.gno.gen_test.go" \) -delete
 
 .PHONY: fmt
-GOFMT_FLAGS ?= -w
+GNOFMT_FLAGS ?= -w
 fmt:
-	go run -modfile ../misc/devdeps/go.mod mvdan.cc/gofumpt $(GOFMT_FLAGS) `find . -name "*.gno"`
+	go run ../gnovm/cmd/gno fmt $(GNOFMT_FLAGS) ./...
 
 .PHONY: imports
 GOIMPORTS_FLAGS ?= -w
