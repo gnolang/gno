@@ -1,6 +1,6 @@
 # Run gno transpile with gno files with whitelist errors
 
-! gno transpile .
+! gno transpile ./...
 
 ! stdout .+
 stderr '^main.gno:5:2: import "xxx" is not in the whitelist$'

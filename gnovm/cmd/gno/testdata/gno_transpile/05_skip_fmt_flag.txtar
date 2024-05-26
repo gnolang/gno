@@ -2,7 +2,7 @@
 # NOTE(tb): this flag doesn't actually prevent the code format, because
 # `gnolang.Transpile()` calls `format.Node()`.
 
-gno transpile -skip-fmt .
+gno transpile -skip-fmt ./...
 
 ! stdout .+
 ! stderr .+
