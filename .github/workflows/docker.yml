@@ -61,7 +61,6 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          target: ${{ matrix.target }}
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           cache-from: type=gha
