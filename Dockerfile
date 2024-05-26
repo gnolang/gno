@@ -29,7 +29,7 @@ ENTRYPOINT  ["/usr/bin/gno"]
 
 FROM        runtime-base AS gnoland-alpine
 COPY        --from=build-gno /go/bin/gnoland /usr/bin/
-EXPOSE      26657 26657
+EXPOSE      26656 26657
 ENTRYPOINT  ["/usr/bin/gnoland"]
 
 FROM        runtime-base AS gnokey-alpine
