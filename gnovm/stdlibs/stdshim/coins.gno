@@ -1,10 +1,13 @@
 package std
 
-import "strconv"
+import (
+	"math/overflow"
+	"strconv"
+)
 
 // NOTE: this is selectively copied over from tm2/pkgs/std/coin.go
 
-// Coin hold some amount of one currency.
+// Coin holds some amount of one currency.
 // A negative amount is invalid.
 type Coin struct {
 	Denom  string `json:"denom"`
@@ -47,37 +50,33 @@ func (c Coin) IsEqual(other Coin) bool {
 	return c.Amount == other.Amount
 }
 
-// Adds amounts of two coins with same denom.
+// Add adds amounts of two coins with same denom.
 // If the coins differ in denom then it panics.
 // An overflow or underflow panics.
 // An invalid result panics.
-func (c Coin) Add(coinB Coin) Coin {
-	res := c.AddUnsafe(coinB)
-	return res
-}
+func (c Coin) Add(other Coin) Coin {
+	mustMatchDenominations(c.Denom, other.Denom)
 
-func (c Coin) AddUnsafe(coinB Coin) Coin {
-	mustMatchDenominations(c.Denom, coinB.Denom)
-
-	sum := c.Amount + coinB.Amount
+	sum, ok := overflow.Add64(c.Amount, other.Amount)
+	if !ok {
+		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " +/- " + strconv.Itoa(int(other.Amount)))
+	}
 
 	c.Amount = sum
 	return c
 }
 
-// Subtracts amounts of two coins with same denom.
+// Sub subtracts amounts of two coins with same denom.
 // If the coins differ in denom then it panics.
 // An overflow or underflow panics.
 // An invalid result panics.
-func (c Coin) Sub(coinB Coin) Coin {
-	res := c.SubUnsafe(coinB)
-	return res
-}
+func (c Coin) Sub(other Coin) Coin {
+	mustMatchDenominations(c.Denom, other.Denom)
 
-func (c Coin) SubUnsafe(coinB Coin) Coin {
-	mustMatchDenominations(c.Denom, coinB.Denom)
-
-	dff := c.Amount - coinB.Amount
+	dff, ok := overflow.Sub64(c.Amount, other.Amount)
+	if !ok {
+		panic("coin sub overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " +/- " + strconv.Itoa(int(other.Amount)))
+	}
 	c.Amount = dff
 
 	return c
@@ -107,10 +106,31 @@ func mustMatchDenominations(denomA, denomB string) {
 // Coins is a set of Coin, one per currency
 type Coins []Coin
 
+// NewCoins returns a new set of Coins given one or more Coins
+// Consolidates any denom duplicates into one, keeping the properties of a mathematical set
 func NewCoins(coins ...Coin) Coins {
-	return coins
+	coinMap := make(map[string]int64)
+
+	for _, coin := range coins {
+		if currentAmount, exists := coinMap[coin.Denom]; exists {
+			var ok bool
+			if coinMap[coin.Denom], ok = overflow.Add64(currentAmount, coin.Amount); !ok {
+				panic("coin sub overflow/underflow: " + strconv.Itoa(int(currentAmount)) + " +/- " + strconv.Itoa(int(coin.Amount)))
+			}
+		} else {
+			coinMap[coin.Denom] = coin.Amount
+		}
+	}
+
+	var setCoins Coins
+	for denom, amount := range coinMap {
+		setCoins = append(setCoins, NewCoin(denom, amount))
+	}
+
+	return setCoins
 }
 
+// String returns the string representation of Coins
 func (cz Coins) String() string {
 	if len(cz) == 0 {
 		return ""
@@ -127,6 +147,7 @@ func (cz Coins) String() string {
 	return res
 }
 
+// AmountOf returns the amount of a specific coin from the Coins set
 func (cz Coins) AmountOf(denom string) int64 {
 	for _, c := range cz {
 		if c.Denom == denom {
@@ -137,6 +158,7 @@ func (cz Coins) AmountOf(denom string) int64 {
 	return 0
 }
 
+// Add adds a Coin to the Coins set
 func (cz Coins) Add(b Coins) Coins {
 	c := Coins{}
 	for _, ac := range cz {
@@ -155,7 +177,7 @@ func (cz Coins) Add(b Coins) Coins {
 	return c
 }
 
-// expand for usage within natively bound functions.
+// expandNative expands for usage within natively bound functions.
 func (cz Coins) expandNative() (denoms []string, amounts []int64) {
 	denoms = make([]string, len(cz))
 	amounts = make([]int64, len(cz))
