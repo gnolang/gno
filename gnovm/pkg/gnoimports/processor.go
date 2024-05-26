@@ -326,6 +326,10 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
 	inspectFunc = func(n ast.Node) bool {
 		switch e := n.(type) {
 		case *ast.FuncDecl:
+			if e.Body == nil { // skip injected method
+				return false
+			}
+
 			// When entering a function, register its parameters to
 			// avoid marking them as unresolved.
 			currentFuncParams = make(map[string]bool)
