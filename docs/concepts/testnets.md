@@ -40,7 +40,8 @@ state - they are refreshed with every new commit to the `master` branch.
 monorepo
 
 For more information on the Portal Loop, and how it can be best utilized, 
-check out the [Portal Loop concept page](./portal-loop.md).
+check out the [Portal Loop concept page](./portal-loop.md). Also, you can find
+the Portal Loop faucet on [`gno.land/faucet`](https://gno.land/faucet).
 
 ## Staging
 Staging is a testnet that is reset once every 60 minutes.
