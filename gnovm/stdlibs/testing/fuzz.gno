@@ -1,9 +1,7 @@
 package testing
 
 import (
-	"math"
 	"strings"
-	"time"
 )
 
 type Fuzzer interface {

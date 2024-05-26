@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/microblog"
 	"gno.land/p/demo/testutils"
 )
 

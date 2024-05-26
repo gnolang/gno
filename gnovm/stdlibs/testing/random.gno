@@ -2,7 +2,6 @@ package testing
 
 import (
 	"math"
-	"time"
 )
 
 // Internal state for the random number generator.

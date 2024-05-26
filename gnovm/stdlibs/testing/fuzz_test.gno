@@ -1,9 +1,7 @@
 package testing
 
 import (
-	"encoding/binary"
 	"strings"
-	"time"
 )
 
 func TestMutate(t *T) {
