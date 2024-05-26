@@ -1863,7 +1863,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				tvs := make([]TypedValue, numNames)
 				if numNames > 1 && len(n.Values) == 1 {
 					// special case if `var a, b, c T? = f()` form.
-					cx := n.Values[0].(*CallExpr)
+					cx, ok := n.Values[0].(*CallExpr)
+					if !ok {
+						panic("should not happen")
+					}
 					tt := evalStaticTypeOfRaw(store, last, cx).(*tupleType)
 					if len(tt.Elts) != numNames {
 						panic("should not happen")
