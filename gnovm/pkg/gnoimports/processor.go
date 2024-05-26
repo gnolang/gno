@@ -225,12 +225,50 @@ func collectTopDecls(pkgDecls map[string]*ast.File) map[*ast.Object]ast.Decl {
 }
 
 // collectUnresolved collects unresolved identifiers and declarations.
-func collectUnresolved(node *ast.File, topDecls map[*ast.Object]ast.Decl) map[string]map[string]bool {
-	typMethods := make(map[string][]ast.Decl)
-	_, unresolved := findDeclsAndUnresolved(node, topDecls, typMethods)
-	for n := range unresolved {
-		if isPredeclared(n) {
-			delete(unresolved, n)
+func collectUnresolved(file *ast.File, topDecls map[*ast.Object]ast.Decl) map[string]map[string]bool {
+
+	unresolved := make(map[string]map[string]bool)
+	unresolvedList := make([]*ast.Ident, 0)
+	for _, u := range file.Unresolved {
+		if _, ok := unresolved[u.Name]; ok {
+			continue
+		}
+
+		if isPredeclared(u.Name) {
+			continue
+		}
+
+		unresolved[u.Name] = map[string]bool{}
+		unresolvedList = append(unresolvedList, u)
+	}
+
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch e := n.(type) {
+		case *ast.Ident:
+			if d := topDecls[e.Obj]; d != nil {
+				delete(unresolved, e.Name)
+			}
+
+			return true
+		case *ast.SelectorExpr:
+			for _, u := range unresolvedList {
+				if u == e.X {
+					ident := e.X.(*ast.Ident)
+					unresolved[ident.Name][e.Sel.Name] = true
+					break
+				}
+			}
+
+			return true
+		}
+
+		return true
+	})
+
+	// Delete unresolved without any selector
+	for u, v := range unresolved {
+		if len(v) == 0 { // no selector
+			delete(unresolved, u)
 		}
 	}
 
@@ -304,161 +342,4 @@ func hasDeclExposed(fset *token.FileSet, decls map[string]bool, path string) boo
 		}
 	}
 	return false
-}
-
-// findDeclsAndUnresolved returns all top-level declarations and a set of unresolved symbols.
-func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, typMethods map[string][]ast.Decl) ([]ast.Decl, map[string]map[string]bool) {
-	unresolved := make(map[string]map[string]bool)
-	var depDecls []ast.Decl
-	usedDecls := make(map[ast.Decl]bool)
-	usedObjs := make(map[*ast.Object]bool)
-
-	var currentFuncParams map[string]bool
-	markNameFunc := func(fields []*ast.Field) {
-		for _, field := range fields {
-			for _, name := range field.Names {
-				currentFuncParams[name.Name] = true
-			}
-		}
-	}
-
-	var inspectFunc func(ast.Node) bool
-	inspectFunc = func(n ast.Node) bool {
-		switch e := n.(type) {
-		case *ast.FuncDecl:
-			if e.Body == nil { // skip injected method
-				return false
-			}
-
-			// When entering a function, register its parameters to
-			// avoid marking them as unresolved.
-			currentFuncParams = make(map[string]bool)
-			if e.Recv != nil {
-				markNameFunc(e.Recv.List)
-			}
-			if e.Type.Params != nil {
-				markNameFunc(e.Type.Params.List)
-			}
-
-			if e.Type.Results != nil {
-				markNameFunc(e.Type.Results.List)
-			}
-
-			ast.Inspect(e.Body, inspectFunc)
-			return true
-		case *ast.Ident:
-			if e.Obj == nil && e.Name != "_" && !currentFuncParams[e.Name] {
-				if _, ok := unresolved[e.Name]; !ok {
-					unresolved[e.Name] = map[string]bool{}
-				}
-			} else if d := topDecls[e.Obj]; d != nil {
-				usedObjs[e.Obj] = true
-				if !usedDecls[d] {
-					usedDecls[d] = true
-					depDecls = append(depDecls, d)
-				}
-			}
-			return true
-		case *ast.SelectorExpr:
-			// Handle the Selector expression case by inspecting the X part
-			if ident, ok := e.X.(*ast.Ident); ok && !currentFuncParams[ident.Name] {
-				name := ident.Name
-				if unresolved[name] == nil {
-					unresolved[name] = map[string]bool{}
-				}
-				unresolved[name][e.Sel.Name] = true
-			}
-			ast.Inspect(e.X, inspectFunc)
-			return false
-		case *ast.KeyValueExpr:
-			ast.Inspect(e.Value, inspectFunc)
-			return false
-		}
-		return true
-	}
-
-	inspectFieldList := func(fl *ast.FieldList) {
-		if fl != nil {
-			for _, f := range fl.List {
-				ast.Inspect(f.Type, inspectFunc)
-			}
-		}
-	}
-
-	ast.Inspect(body, inspectFunc)
-	for i := 0; i < len(depDecls); i++ {
-		switch d := depDecls[i].(type) {
-		case *ast.FuncDecl:
-			inspectFieldList(d.Type.TypeParams)
-			inspectFieldList(d.Type.Params)
-			inspectFieldList(d.Type.Results)
-			if d.Body != nil {
-				ast.Inspect(d.Body, inspectFunc)
-			}
-		case *ast.GenDecl:
-			for _, spec := range d.Specs {
-				switch s := spec.(type) {
-				case *ast.TypeSpec:
-					inspectFieldList(s.TypeParams)
-					ast.Inspect(s.Type, inspectFunc)
-					depDecls = append(depDecls, typMethods[s.Name.Name]...)
-				case *ast.ValueSpec:
-					if s.Type != nil {
-						ast.Inspect(s.Type, inspectFunc)
-					}
-				}
-			}
-		}
-	}
-
-	var ds []ast.Decl
-	for _, d := range depDecls {
-		switch d := d.(type) {
-		case *ast.FuncDecl:
-			ds = append(ds, d)
-		case *ast.GenDecl:
-			var specs []ast.Spec
-			containsIota := false
-			for _, s := range d.Specs {
-				switch s := s.(type) {
-				case *ast.TypeSpec:
-					if usedObjs[s.Name.Obj] {
-						specs = append(specs, s)
-					}
-				case *ast.ValueSpec:
-					if !containsIota {
-						containsIota = hasIota(s)
-					}
-					ns := *s
-					ns.Names = nil
-					ns.Values = nil
-					for i, n := range s.Names {
-						if usedObjs[n.Obj] {
-							ns.Names = append(ns.Names, n)
-							if s.Values != nil {
-								ns.Values = append(ns.Values, s.Values[i])
-							}
-						}
-					}
-					if len(ns.Names) > 0 {
-						specs = append(specs, &ns)
-					}
-				}
-			}
-			if len(specs) > 0 {
-				if d.Tok == token.CONST && containsIota {
-					ds = append(ds, d)
-				} else {
-					nd := *d
-					nd.Specs = specs
-					if len(specs) == 1 {
-						nd.Lparen = 0
-					}
-					ds = append(ds, &nd)
-				}
-			}
-		}
-	}
-
-	return ds, unresolved
 }
