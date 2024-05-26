@@ -1,13 +1,10 @@
 package std
 
-import (
-	"math/overflow"
-	"strconv"
-)
+import "strconv"
 
 // NOTE: this is selectively copied over from tm2/pkgs/std/coin.go
 
-// Coin holds some amount of one currency.
+// Coin hold some amount of one currency.
 // A negative amount is invalid.
 type Coin struct {
 	Denom  string `json:"denom"`
@@ -54,29 +51,23 @@ func (c Coin) IsEqual(other Coin) bool {
 // If the coins differ in denom then it panics.
 // An overflow or underflow panics.
 // An invalid result panics.
-func (c Coin) Add(other Coin) Coin {
-	mustMatchDenominations(c.Denom, other.Denom)
+func (c Coin) Add(coinB Coin) Coin {
+	mustMatchDenominations(c.Denom, coinB.Denom)
 
-	sum, ok := overflow.Add64(c.Amount, other.Amount)
-	if !ok {
-		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " +/- " + strconv.Itoa(int(other.Amount)))
-	}
+	sum := c.Amount + coinB.Amount
 
 	c.Amount = sum
-	return c
+	return sum
 }
 
 // Sub subtracts amounts of two coins with same denom.
 // If the coins differ in denom then it panics.
 // An overflow or underflow panics.
 // An invalid result panics.
-func (c Coin) Sub(other Coin) Coin {
-	mustMatchDenominations(c.Denom, other.Denom)
+func (c Coin) Sub(coinB Coin) Coin {
+	mustMatchDenominations(c.Denom, coinB.Denom)
 
-	dff, ok := overflow.Sub64(c.Amount, other.Amount)
-	if !ok {
-		panic("coin sub overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " +/- " + strconv.Itoa(int(other.Amount)))
-	}
+	dff := c.Amount - coinB.Amount
 	c.Amount = dff
 
 	return c
@@ -112,14 +103,7 @@ func NewCoins(coins ...Coin) Coins {
 	coinMap := make(map[string]int64)
 
 	for _, coin := range coins {
-		if currentAmount, exists := coinMap[coin.Denom]; exists {
-			var ok bool
-			if coinMap[coin.Denom], ok = overflow.Add64(currentAmount, coin.Amount); !ok {
-				panic("coin sub overflow/underflow: " + strconv.Itoa(int(currentAmount)) + " +/- " + strconv.Itoa(int(coin.Amount)))
-			}
-		} else {
-			coinMap[coin.Denom] = coin.Amount
-		}
+		coinMap[coin.Denom] = coin.Amount
 	}
 
 	var setCoins Coins
