@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Initialize the node data directories
-gnoland start --skip-start
+# Initialize the node config
+gnoland config init --config-path /opt/gno/src/gnoland-data/config/config.toml
 
 # Set the block time to 1s
 gnoland config set --config-path /opt/gno/src/gnoland-data/config/config.toml consensus.timeout_commit 1s
@@ -15,5 +15,5 @@ gnoland config set --config-path /opt/gno/src/gnoland-data/config/config.toml te
 # Set the metrics exporter endpoint
 gnoland config set --config-path /opt/gno/src/gnoland-data/config/config.toml telemetry.exporter_endpoint collector:4317
 
-# Start the Gnoland node
-gnoland start
+# Start the Gnoland node (lazy will init the genesis.json and secrets)
+gnoland start --lazy
