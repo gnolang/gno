@@ -27,15 +27,15 @@ type Post struct {
 }
 
 type Memeland struct {
-	ownable.Ownable
+	ownable.TransferrableOwnership
 	Posts       []*Post
 	MemeCounter seqid.ID
 }
 
 func NewMemeland() *Memeland {
 	return &Memeland{
-		Ownable: ownable.New(),
-		Posts:   make([]*Post, 0),
+		TransferrableOwnership: ownable.New(),
+		Posts:                  make([]*Post, 0),
 	}
 }
 
