@@ -717,5 +717,29 @@ func (sw *Switch) addPeer(p Peer) error {
 
 	sw.Logger.Info("Added peer", "peer", p)
 
+	// Update the telemetry data
+	sw.logTelemetry()
+
 	return nil
+}
+
+// logTelemetry logs the switch telemetry data
+// to global metrics funnels
+func (sw *Switch) logTelemetry() {
+	// Update the telemetry data
+	if !telemetry.MetricsEnabled() {
+		return
+	}
+
+	// Fetch the number of peers
+	outbound, inbound, dialing := sw.NumPeers()
+
+	// Log the outbound peer count
+	metrics.OutboundPeers.Record(context.Background(), int64(outbound))
+
+	// Log the inbound peer count
+	metrics.InboundPeers.Record(context.Background(), int64(inbound))
+
+	// Log the dialing peer count
+	metrics.DialingPeers.Record(context.Background(), int64(dialing))
 }
