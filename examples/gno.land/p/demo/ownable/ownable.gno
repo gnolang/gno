@@ -4,20 +4,33 @@ import (
 	"std"
 )
 
-// Ownable is meant to be used as a top-level object to make your contract ownable OR
-// being embedded in a Gno object to manage per-object ownership.
-type Ownable struct {
+// Ownable defines an interface that requires a method to get the owner's address
+type Ownable interface {
+	Owner() std.Address
+}
+
+// Transferrable embeds Ownable, indicating that an object can transfer ownership
+type Transferrable interface {
+	Ownable
+
+	TransferOwnership(newOwner std.Address) error
+}
+
+// DefaultOwnable provides a basic implementation of ownership functionality
+// It can be used as a top-level object to make a contract ownable or embedded within
+// another object to manage per-object ownership.
+type DefaultOwnable struct {
 	owner std.Address
 }
 
-func New() *Ownable {
-	return &Ownable{
+func New() *DefaultOwnable {
+	return &DefaultOwnable{
 		owner: std.GetOrigCaller(),
 	}
 }
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
-func (o *Ownable) TransferOwnership(newOwner std.Address) error {
+func (o *DefaultOwnable) TransferOwnership(newOwner std.Address) error {
 	err := o.CallerIsOwner()
 	if err != nil {
 		return err
@@ -34,7 +47,7 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 // DropOwnership removes the owner, effectively disabling any owner-related actions
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
-func (o *Ownable) DropOwnership() error {
+func (o *DefaultOwnable) DropOwnership() error {
 	err := o.CallerIsOwner()
 	if err != nil {
 		return err
@@ -45,13 +58,13 @@ func (o *Ownable) DropOwnership() error {
 }
 
 // CallerIsOwner checks if the caller of the function is the Realm's owner
-func (o *Ownable) CallerIsOwner() error {
+func (o *DefaultOwnable) CallerIsOwner() error {
 	if std.GetOrigCaller() == o.owner {
 		return nil
 	}
 	return ErrUnauthorized
 }
 
-func (o *Ownable) Owner() std.Address {
+func (o *DefaultOwnable) Owner() std.Address {
 	return o.owner
 }
