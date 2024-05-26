@@ -8,6 +8,19 @@ primarily through the use of their interface through stdin and stdout.
 
 ---
 
+## Current Development
+
+A list of things being done to make this MVP.
+
+- **Transpiler works at the package level instead of file level** \
+	Allows to have the transpiler understand import paths and be able to change
+	import paths of realms to `main`.
+	- Make importer work (#2201)
+- **Transpiler generates a rudimentary command using the sogno runtime** \
+	Like the one in `./cmd_test`
+- **Support for calling functions**
+- **Support for restoring and exporting state variables**
+
 ## Notes
 
 - Changing the value of an exported package should be forbidden.

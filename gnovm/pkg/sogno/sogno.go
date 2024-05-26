@@ -32,15 +32,17 @@ type Context struct {
 // The main program of a Sogno binary is a text-based, newline-separated
 // interface to the realm, for ease of use by humans and machines.
 // The supported commands are the following:
+// (TODO, this is a lie, see the code for what is true)
 //
-//	debug
-//		show debug information:
-//		- import path of the realm
-//		- state variables
+//	load <identifier> <value>
 //	read <identifier>
 //		read the value of the state variable with the given identifier, encoded
 //		as binary then hex.
-//	run <function> [<args...>]
+//	call <function_name> [<args...>]
+//	debug context
+//		show the current value of the context:
+//		- import path
+//		- state variables
 func (c *Context) Main() {
 	const (
 		bufSize = 4 << 10
