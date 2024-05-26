@@ -17,10 +17,12 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/rogpeppe/go-internal/diff"
 )
 
 type fmtCfg struct {
 	write   bool
+	diff    bool
 	verbose bool
 	imports bool
 	include fmtIncludes
@@ -72,11 +74,23 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 		"i",
 		"specify additional directories containing packages to resolve",
 	)
+
+	// NOTE: This flag is mainly use for debug, in most case the use of diff
+	// command is sufisant
+	fs.BoolVar(
+		&c.diff,
+		"diff",
+		defaultFmtOptions.diff,
+		"print and make the command fail if any diff, has no effect with `w`",
+	)
+
 }
 
 type fmtProcessFile func(file string, io commands.IO) []byte
 
 func execFmt(cfg *fmtCfg, args []string, io commands.IO) (err error) {
+	cfg.write = !cfg.diff && cfg.write // `diff` cannot be enable with `write`
+
 	paths, err := targetsFromPatterns(args)
 	if err != nil {
 		return fmt.Errorf("unable to get targets paths from paterns: %w", err)
@@ -112,6 +126,23 @@ func execFmt(cfg *fmtCfg, args []string, io commands.IO) (err error) {
 		data := processFile(file, io)
 		if data == nil {
 			errCount++
+			continue
+		}
+
+		if cfg.diff {
+			oldFile, err := os.ReadFile(file)
+			if err != nil {
+				io.ErrPrintfln("unable to read %q for diffing: %s", err.Error())
+				errCount++
+				continue
+			}
+
+			if d := diff.Diff(file, oldFile, file+".formated", data); d != nil {
+				io.ErrPrintln(string(d))
+				errCount++
+				continue
+			}
+
 			continue
 		}
 
