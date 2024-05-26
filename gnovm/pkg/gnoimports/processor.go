@@ -226,7 +226,6 @@ func collectTopDecls(pkgDecls map[string]*ast.File) map[*ast.Object]ast.Decl {
 
 // collectUnresolved collects unresolved identifiers and declarations.
 func collectUnresolved(file *ast.File, topDecls map[*ast.Object]ast.Decl) map[string]map[string]bool {
-
 	unresolved := make(map[string]map[string]bool)
 	unresolvedList := make([]*ast.Ident, 0)
 	for _, u := range file.Unresolved {

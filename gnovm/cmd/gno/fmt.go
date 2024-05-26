@@ -83,7 +83,6 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultFmtOptions.diff,
 		"print and make the command fail if any diff, has no effect with `w`",
 	)
-
 }
 
 type fmtProcessFile func(file string, io commands.IO) []byte

@@ -17,6 +17,7 @@ CGO_ENABLED ?= 0
 export CGO_ENABLED
 # flags for `make fmt`. -w will write the result to the destination files.
 GOFMT_FLAGS ?= -w
+GNOFMT_FLAGS ?= -w
 # flags for `make imports`.
 GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
 # test suite flags.
@@ -51,7 +52,7 @@ lint:
 .PHONY: fmt
 fmt:
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
-	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) `find stdlibs -name "*.gno"`
+	go run ./cmd/gno fmt $(GNOFMT_FLAGS) ./stdlibs/...
 
 .PHONY: imports
 imports:
