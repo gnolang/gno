@@ -50,16 +50,11 @@ func (c Coin) IsEqual(other Coin) bool {
 	return c.Amount == other.Amount
 }
 
-// Adds amounts of two coins with same denom.
+// Add adds amounts of two coins with same denom.
 // If the coins differ in denom then it panics.
 // An overflow or underflow panics.
 // An invalid result panics.
 func (c Coin) Add(coinB Coin) Coin {
-	res := c.AddUnsafe(coinB)
-	return res
-}
-
-func (c Coin) AddUnsafe(coinB Coin) Coin {
 	mustMatchDenominations(c.Denom, coinB.Denom)
 
 	sum, ok := overflow.Add64(c.Amount, coinB.Amount)
@@ -71,16 +66,11 @@ func (c Coin) AddUnsafe(coinB Coin) Coin {
 	return c
 }
 
-// Subtracts amounts of two coins with same denom.
+// Sub subtracts amounts of two coins with same denom.
 // If the coins differ in denom then it panics.
 // An overflow or underflow panics.
 // An invalid result panics.
 func (c Coin) Sub(coinB Coin) Coin {
-	res := c.SubUnsafe(coinB)
-	return res
-}
-
-func (c Coin) SubUnsafe(coinB Coin) Coin {
 	mustMatchDenominations(c.Denom, coinB.Denom)
 
 	dff, ok := overflow.Sub64(c.Amount, coinB.Amount)
@@ -120,6 +110,7 @@ func NewCoins(coins ...Coin) Coins {
 	return coins
 }
 
+// String returns the string representation of Coins
 func (cz Coins) String() string {
 	if len(cz) == 0 {
 		return ""
@@ -136,6 +127,7 @@ func (cz Coins) String() string {
 	return res
 }
 
+// AmountOf returns the amount of a specific coin from the Coins set
 func (cz Coins) AmountOf(denom string) int64 {
 	for _, c := range cz {
 		if c.Denom == denom {
@@ -146,6 +138,7 @@ func (cz Coins) AmountOf(denom string) int64 {
 	return 0
 }
 
+// Add adds a Coin to the Coins set
 func (cz Coins) Add(b Coins) Coins {
 	c := Coins{}
 	for _, ac := range cz {
@@ -164,7 +157,7 @@ func (cz Coins) Add(b Coins) Coins {
 	return c
 }
 
-// expand for usage within natively bound functions.
+// expandNative expands for usage within natively bound functions.
 func (cz Coins) expandNative() (denoms []string, amounts []int64) {
 	denoms = make([]string, len(cz))
 	amounts = make([]int64, len(cz))
