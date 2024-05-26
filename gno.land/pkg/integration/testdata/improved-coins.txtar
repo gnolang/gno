@@ -3,7 +3,7 @@ loadpkg gno.land/r/demo/coins $WORK
 gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/demo/coins -func "MakeNewCoins" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout '(123 int64)'
+stdout '(300 int64)'
 stdout '(321 int64)'
 stdout '("ugnot" string)'
 stdout '("example" string)'
@@ -40,8 +40,10 @@ import "std"
 func MakeNewCoins() std.Coins {
 	coin1 := std.NewCoin("ugnot", 123)
 	coin2 := std.NewCoin("example", 321)
+	coin3 := std.NewCoin("ugnot", 177)
 
-	return std.NewCoins(coin1, coin2)
+
+	return std.NewCoins(coin1, coin2, coin3)
 }
 
 func AddCoin() std.Coin {

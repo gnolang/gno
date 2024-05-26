@@ -7,7 +7,7 @@ import (
 
 // NOTE: this is selectively copied over from tm2/pkgs/std/coin.go
 
-// Coin hold some amount of one currency.
+// Coin holds some amount of one currency.
 // A negative amount is invalid.
 type Coin struct {
 	Denom  string `json:"denom"`
@@ -54,12 +54,12 @@ func (c Coin) IsEqual(other Coin) bool {
 // If the coins differ in denom then it panics.
 // An overflow or underflow panics.
 // An invalid result panics.
-func (c Coin) Add(coinB Coin) Coin {
-	mustMatchDenominations(c.Denom, coinB.Denom)
+func (c Coin) Add(other Coin) Coin {
+	mustMatchDenominations(c.Denom, other.Denom)
 
-	sum, ok := overflow.Add64(c.Amount, coinB.Amount)
+	sum, ok := overflow.Add64(c.Amount, other.Amount)
 	if !ok {
-		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " + " + strconv.Itoa(int(coinB.Amount)))
+		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " +/- " + strconv.Itoa(int(other.Amount)))
 	}
 
 	c.Amount = sum
@@ -70,12 +70,12 @@ func (c Coin) Add(coinB Coin) Coin {
 // If the coins differ in denom then it panics.
 // An overflow or underflow panics.
 // An invalid result panics.
-func (c Coin) Sub(coinB Coin) Coin {
-	mustMatchDenominations(c.Denom, coinB.Denom)
+func (c Coin) Sub(other Coin) Coin {
+	mustMatchDenominations(c.Denom, other.Denom)
 
-	dff, ok := overflow.Sub64(c.Amount, coinB.Amount)
+	dff, ok := overflow.Sub64(c.Amount, other.Amount)
 	if !ok {
-		panic("coin add overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " + " + strconv.Itoa(int(coinB.Amount)))
+		panic("coin sub overflow/underflow: " + strconv.Itoa(int(c.Amount)) + " +/- " + strconv.Itoa(int(other.Amount)))
 	}
 	c.Amount = dff
 
@@ -106,8 +106,28 @@ func mustMatchDenominations(denomA, denomB string) {
 // Coins is a set of Coin, one per currency
 type Coins []Coin
 
+// NewCoins returns a new set of Coins given one or more Coins
+// Consolidates any denom duplicates into one, keeping the properties of a mathematical set
 func NewCoins(coins ...Coin) Coins {
-	return coins
+	coinMap := make(map[string]int64)
+
+	for _, coin := range coins {
+		if currentAmount, exists := coinMap[coin.Denom]; exists {
+			var ok bool
+			if coinMap[coin.Denom], ok = overflow.Add64(currentAmount, coin.Amount); !ok {
+				panic("coin sub overflow/underflow: " + strconv.Itoa(int(currentAmount)) + " +/- " + strconv.Itoa(int(coin.Amount)))
+			}
+		} else {
+			coinMap[coin.Denom] = coin.Amount
+		}
+	}
+
+	var setCoins Coins
+	for denom, amount := range coinMap {
+		setCoins = append(setCoins, NewCoin(denom, amount))
+	}
+
+	return setCoins
 }
 
 // String returns the string representation of Coins
