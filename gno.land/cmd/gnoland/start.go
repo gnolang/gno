@@ -192,6 +192,11 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		return fmt.Errorf("unable to initialize zap logger, %w", err)
 	}
 
+	defer func() {
+		// Sync the logger before exiting
+		_ = zapLogger.Sync()
+	}()
+
 	// Wrap the zap logger
 	logger := log.ZapLoggerToSlog(zapLogger)
 
@@ -264,14 +269,14 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	// Wait for the exit signal
 	<-nodeCtx.Done()
 
-	if gnoNode.IsRunning() {
-		if err := gnoNode.Stop(); err != nil {
-			logger.Warn("unable to gracefully stop the Gnoland node", "err", err)
-		}
+	if !gnoNode.IsRunning() {
+		return nil
 	}
 
-	// Sync the logger before exiting
-	_ = zapLogger.Sync()
+	// Gracefully stop the gno node
+	if err := gnoNode.Stop(); err != nil {
+		return fmt.Errorf("unable to gracefully stop the Gnoland node, %w", err)
+	}
 
 	return nil
 }
