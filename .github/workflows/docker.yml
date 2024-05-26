@@ -10,7 +10,6 @@ on:
   push:
     branches:
       - master
-      - ci/docker
   tags:
     - "v*"
 
