@@ -6,8 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -67,8 +70,8 @@ func newStartCmd(io commands.IO) *commands.Command {
 			LongHelp:   "Starts the Gnoland blockchain node, with accompanying setup",
 		},
 		cfg,
-		func(_ context.Context, _ []string) error {
-			return execStart(cfg, io)
+		func(ctx context.Context, _ []string) error {
+			return execStart(ctx, cfg, io)
 		},
 	)
 }
@@ -170,7 +173,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execStart(c *startCfg, io commands.IO) error {
+func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	// Get the absolute path to the node's data directory
 	nodeDir, err := filepath.Abs(c.dataDir)
 	if err != nil {
@@ -244,24 +247,33 @@ func execStart(c *startCfg, io commands.IO) error {
 		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}
 
-	// Start the node
+	// Start the node (async)
 	if err := gnoNode.Start(); err != nil {
 		return fmt.Errorf("unable to start the Gnoland node, %w", err)
 	}
 
-	osm.TrapSignal(func() {
-		if gnoNode.IsRunning() {
-			if err := gnoNode.Stop(); err != nil {
-				logger.Warn("unable to gracefully stop the Gnoland node", "err", err)
-			}
+	// Set up the wait context
+	nodeCtx, _ := signal.NotifyContext(
+		ctx,
+		os.Interrupt,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+
+	// Wait for the exit signal
+	<-nodeCtx.Done()
+
+	if gnoNode.IsRunning() {
+		if err := gnoNode.Stop(); err != nil {
+			logger.Warn("unable to gracefully stop the Gnoland node", "err", err)
 		}
+	}
 
-		// Sync the logger before exiting
-		_ = zapLogger.Sync()
-	})
+	// Sync the logger before exiting
+	_ = zapLogger.Sync()
 
-	// Run forever
-	select {}
+	return nil
 }
 
 // lazyInitNodeDir initializes new secrets, and a default configuration
