@@ -15,7 +15,8 @@ have ample funds to interact with the chain and facilitate contract deployments.
   
 ## Prerequisites
 
-- **`gnoland` and `gnokey` set up. Reference the [Installation](../getting-started/local-setup/local-setup.md#3-installing-other-gno-tools) guide
+- **`gnoland` set up. Reference the [Setting up a local chain](setting-up-a-local-chain.md#installation) guide for steps**
+- **`gnokey` set up. Reference the [Installation](../getting-started/local-setup/installation.md#2-installing-the-required-tools-) guide
   for steps**
 
 ## 1. Clean chain data
