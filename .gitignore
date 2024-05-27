@@ -9,6 +9,7 @@ genesis.json
 
 # Build leftovers
 build
+dist
 
 # Legacy .gitignore
 data/*
