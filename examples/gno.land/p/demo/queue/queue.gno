@@ -1,18 +1,23 @@
 package queue
 
+import (
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
+)
+
 // Queue is a queue data structure that stores elements of any type.
 type Queue struct {
-	begin uint64                 // Index of the front element
-	end   uint64                 // Index after the last element
-	data  map[uint64]interface{} // Storage for queue elements
+	begin seqid.ID  // Index of the front element
+	end   seqid.ID  // Index after the last element
+	data  *avl.Tree // Storage for queue elements
 }
 
 // NewQueue creates and initializes a new queue.
 func NewQueue() *Queue {
 	return &Queue{
-		begin: 0,
-		end:   0,
-		data:  make(map[uint64]interface{}),
+		begin: seqid.ID(0),
+		end:   seqid.ID(0),
+		data:  avl.NewTree(),
 	}
 }
 
@@ -23,7 +28,8 @@ func (q *Queue) PushBack(value interface{}) error {
 		return ErrResourceError
 	}
 
-	q.data[q.end] = value
+	q.data.Set(q.end.String(), value)
+
 	q.end++
 
 	return nil
@@ -37,8 +43,12 @@ func (q *Queue) PopBack() (interface{}, error) {
 	}
 
 	q.end--
-	value := q.data[q.end]
-	delete(q.data, q.end)
+	value, ok := q.data.Get(q.end.String())
+	if !ok {
+		return nil, ErrNonExistedValue
+	}
+
+	q.data.Remove(q.end.String())
 
 	return value, nil
 }
@@ -51,7 +61,7 @@ func (q *Queue) PushFront(value interface{}) error {
 	}
 
 	q.begin--
-	q.data[q.begin] = value
+	q.data.Set(q.begin.String(), value)
 
 	return nil
 }
@@ -63,8 +73,13 @@ func (q *Queue) PopFront() (interface{}, error) {
 		return nil, ErrEmptyArrayPop
 	}
 
-	value := q.data[q.begin]
-	delete(q.data, q.begin)
+	value, ok := q.data.Get(q.begin.String())
+	if !ok {
+		return nil, ErrNonExistedValue
+	}
+
+	q.data.Remove(q.begin.String())
+
 	q.begin++
 
 	return value, nil
@@ -77,7 +92,14 @@ func (q *Queue) Front() (interface{}, error) {
 		return nil, ErrArrayOutOfBounds
 	}
 
-	return q.data[q.begin], nil
+	id := q.begin
+
+	value, ok := q.data.Get(id.String())
+	if !ok {
+		return nil, ErrNonExistedValue
+	}
+
+	return value, nil
 }
 
 // Back returns the element at the end of the queue without removing it.
@@ -87,7 +109,14 @@ func (q *Queue) Back() (interface{}, error) {
 		return nil, ErrArrayOutOfBounds
 	}
 
-	return q.data[q.end-1], nil
+	id := q.end - 1
+
+	value, ok := q.data.Get(id.String())
+	if !ok {
+		return nil, ErrNonExistedValue
+	}
+
+	return value, nil
 }
 
 // At returns the element at the specified index in the queue.
@@ -97,19 +126,26 @@ func (q *Queue) At(index uint64) (interface{}, error) {
 		return nil, ErrArrayOutOfBounds
 	}
 
-	return q.data[q.begin+index], nil
+	id := q.begin + seqid.ID(index)
+
+	value, ok := q.data.Get(id.String())
+	if !ok {
+		return nil, ErrNonExistedValue
+	}
+
+	return value, nil
 }
 
 // Clear removes all elements from the queue.
 func (q *Queue) Clear() {
 	q.begin = 0
 	q.end = 0
-	q.data = make(map[uint64]interface{})
+	q.data = avl.NewTree()
 }
 
 // Length returns the number of elements in the queue.
 func (q *Queue) Length() uint64 {
-	return q.end - q.begin
+	return uint64(q.end - q.begin)
 }
 
 // Empty returns true if the queue is empty, false otherwise.
