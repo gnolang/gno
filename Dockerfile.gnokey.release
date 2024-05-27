@@ -1,6 +1,0 @@
-FROM busybox
-
-COPY ./gnokey /usr/bin/gnokey
-
-ENTRYPOINT [ "/usr/bin/gnokey" ]
-CMD [ "" ]
