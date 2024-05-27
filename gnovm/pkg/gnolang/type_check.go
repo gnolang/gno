@@ -424,8 +424,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 		}
 	case *PointerType: // case 4 from here on
 		if pt, ok := xt.(*PointerType); ok {
-			assertAssignableTo(pt.Elt, cdt.Elt, false)
-			return nil
+			return checkAssignableTo(pt.Elt, cdt.Elt, false)
 		}
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
@@ -435,19 +434,20 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 					at.String(),
 					cdt.String())
 			}
-			assertAssignableTo(at.Elt, cdt.Elt, false)
-			return nil
+			return checkAssignableTo(at.Elt, cdt.Elt, false)
 		}
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
-			assertAssignableTo(st.Elt, cdt.Elt, false)
-			return nil
+			return checkAssignableTo(st.Elt, cdt.Elt, false)
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
-			assertAssignableTo(mt.Key, cdt.Key, false)
-			assertAssignableTo(mt.Value, cdt.Value, false)
-			return nil
+			err := checkAssignableTo(mt.Key, cdt.Key, false)
+			if err != nil {
+				return err
+			} else {
+				return checkAssignableTo(mt.Value, cdt.Value, false)
+			}
 		}
 	case *InterfaceType:
 		return errors.New("should not happen")
