@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
 func TestPrevRealmIsOrigin(t *testing.T) {
@@ -20,7 +21,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 	tests := []struct {
 		name                 string
 		machine              *gno.Machine
-		expectedRealm        Realm
+		expectedAddr         crypto.Bech32Address
+		expectedPkgPath      string
 		expectedIsOriginCall bool
 	}{
 		{
@@ -29,10 +31,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 				Context: ctx,
 				Frames:  []*gno.Frame{},
 			},
-			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
-			},
+			expectedAddr:         user,
+			expectedPkgPath:      "",
 			expectedIsOriginCall: false,
 		},
 		{
@@ -43,10 +43,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 					{LastPackage: nil},
 				},
 			},
-			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
-			},
+			expectedAddr:         user,
+			expectedPkgPath:      "",
 			expectedIsOriginCall: false,
 		},
 		{
@@ -57,10 +55,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/p/xxx"}},
 				},
 			},
-			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
-			},
+			expectedAddr:         user,
+			expectedPkgPath:      "",
 			expectedIsOriginCall: false,
 		},
 		{
@@ -71,10 +67,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
 				},
 			},
-			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
-			},
+			expectedAddr:         user,
+			expectedPkgPath:      "",
 			expectedIsOriginCall: false,
 		},
 		{
@@ -85,10 +79,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 					msgCallFrame,
 				},
 			},
-			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
-			},
+			expectedAddr:         user,
+			expectedPkgPath:      "",
 			expectedIsOriginCall: true,
 		},
 		{
@@ -99,10 +91,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 					msgRunFrame,
 				},
 			},
-			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
-			},
+			expectedAddr:         user,
+			expectedPkgPath:      "",
 			expectedIsOriginCall: false,
 		},
 		{
@@ -114,10 +104,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/p/xxx"}},
 				},
 			},
-			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
-			},
+			expectedAddr:         user,
+			expectedPkgPath:      "",
 			expectedIsOriginCall: true,
 		},
 		{
@@ -129,10 +117,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
 				},
 			},
-			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
-			},
+			expectedAddr:         user,
+			expectedPkgPath:      "",
 			expectedIsOriginCall: true,
 		},
 		{
@@ -144,10 +130,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/p/xxx"}},
 				},
 			},
-			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
-			},
+			expectedAddr:         user,
+			expectedPkgPath:      "",
 			expectedIsOriginCall: false,
 		},
 		{
@@ -159,10 +143,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
 				},
 			},
-			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
-			},
+			expectedAddr:         user,
+			expectedPkgPath:      "",
 			expectedIsOriginCall: false,
 		},
 		{
@@ -175,10 +157,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
 				},
 			},
-			expectedRealm: Realm{
-				addr:    user,
-				pkgPath: "",
-			},
+			expectedAddr:         user,
+			expectedPkgPath:      "",
 			expectedIsOriginCall: false,
 		},
 		{
@@ -194,10 +174,8 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 					{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/xxx"}},
 				},
 			},
-			expectedRealm: Realm{
-				addr:    gno.DerivePkgAddr("gno.land/r/yyy").Bech32(),
-				pkgPath: "gno.land/r/yyy",
-			},
+			expectedAddr:         gno.DerivePkgAddr("gno.land/r/yyy").Bech32(),
+			expectedPkgPath:      "gno.land/r/yyy",
 			expectedIsOriginCall: false,
 		},
 	}
@@ -205,10 +183,11 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			assert := assert.New(t)
 
-			realm := PrevRealm(tt.machine)
+			addr, pkgPath := X_getRealm(tt.machine, 1)
 			isOrigin := IsOriginCall(tt.machine)
 
-			assert.Equal(tt.expectedRealm, realm)
+			assert.Equal(string(tt.expectedAddr), addr)
+			assert.Equal(tt.expectedPkgPath, pkgPath)
 			assert.Equal(tt.expectedIsOriginCall, isOrigin)
 		})
 	}
