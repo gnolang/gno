@@ -29,6 +29,8 @@ ENTRYPOINT  ["/usr/bin/gno"]
 
 FROM        runtime-base AS gnoland-alpine
 COPY        --from=build-gno /go/bin/gnoland /usr/bin/
+COPY        --from=build-gno /gnoroot/examples /gnoroot/examples
+COPY        --from=build-gno /gnoroot/gno.land /gnoroot/gno.land
 EXPOSE      26656 26657
 ENTRYPOINT  ["/usr/bin/gnoland"]
 
@@ -43,7 +45,6 @@ ENTRYPOINT  ["/usr/bin/gnofaucet"]
 
 FROM        runtime-base AS gnoweb-alpine
 COPY        --from=build-gno /go/bin/gnoweb /usr/bin/
-COPY        --from=build-gno /gnoroot/gno.land/cmd/gnoweb /gnoroot/src/gnoweb
 EXPOSE      8888
 ENTRYPOINT  ["/usr/bin/gnoweb"]
 
@@ -53,7 +54,6 @@ COPY        --from=build-gno /go/bin/gno     /usr/bin/
 COPY        --from=build-gno /go/bin/gnoland /usr/bin/
 COPY        --from=build-gno /go/bin/gnokey  /usr/bin/
 COPY        --from=build-gno /go/bin/gnoweb  /usr/bin/
-# COPY        --from=build-gno /gnoroot/gno.land/cmd/gnoweb /gnoroot/src/gnoweb
 
 COPY        --from=build-gno /gnoroot/examples /gnoroot/examples
 COPY        --from=build-gno /gnoroot/gno.land /gnoroot/gno.land
