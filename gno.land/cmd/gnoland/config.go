@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"strings"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -39,8 +41,18 @@ func (c *configCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.configPath,
 		"config-path",
-		"./config.toml",
+		constructConfigPath(defaultNodeDir),
 		"the path for the config.toml",
+	)
+}
+
+// constructConfigPath constructs the default config path, using
+// the given node directory
+func constructConfigPath(nodeDir string) string {
+	return filepath.Join(
+		nodeDir,
+		config.DefaultConfigDir,
+		config.DefaultConfigFileName,
 	)
 }
 
