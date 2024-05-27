@@ -139,12 +139,10 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					fmt.Printf("OUTPUT:\n%s\n", stdout.String())
 					pnc = r
 					err := strings.TrimSpace(fmt.Sprintf("%v", pnc))
-					fmt.Printf("ERROR:\n%s\n", err)
 					// print stack if unexpected error.
-					if errWanted == "" {
-						rtdb.PrintStack()
-					}
-					if !strings.Contains(err, errWanted) {
+					if errWanted == "" ||
+						!strings.Contains(err, errWanted) {
+						fmt.Printf("ERROR:\n%s\n", err)
 						// error didn't match: print stack
 						// NOTE: will fail testcase later.
 						rtdb.PrintStack()
