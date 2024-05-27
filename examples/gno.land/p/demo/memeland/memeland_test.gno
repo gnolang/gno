@@ -130,8 +130,8 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 	m.Upvote(id1)
 	m.Upvote(id2)
 
-	// Change caller so avoid double upvote panic
-	std.TestSetOrigCaller(testutils.TestAddress("alice"))
+	// Change prevAddr so avoid double upvote panic
+	std.TestSetPrevAddr(testutils.TestAddress("alice"))
 	m.Upvote(id1)
 
 	// Final upvote count:
@@ -260,21 +260,21 @@ func TestUpvote(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	std.TestSetOrigCaller(alice)
+	std.TestSetPrevAddr(alice)
 
 	// Alice is admin
 	m := NewMemeland()
 
 	// Set caller to Bob
 	bob := testutils.TestAddress("bob")
-	std.TestSetOrigCaller(bob)
+	std.TestSetPrevAddr(bob)
 
 	// Bob adds post to Memeland
 	now := time.Now()
 	postID := m.PostMeme("Meme #1", now.Unix())
 
 	// Alice removes Bob's post
-	std.TestSetOrigCaller(alice)
+	std.TestSetPrevAddr(alice)
 
 	id := m.RemovePost(postID)
 	if id != postID {

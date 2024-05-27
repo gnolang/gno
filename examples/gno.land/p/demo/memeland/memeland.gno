@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/helper"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/seqid"
 )
@@ -27,15 +26,15 @@ type Post struct {
 }
 
 type Memeland struct {
-	ownable.Transferrable
+	ownable.Ownable
 	Posts       []*Post
 	MemeCounter seqid.ID
 }
 
 func NewMemeland() *Memeland {
 	return &Memeland{
-		Transferrable: ownable.New(),
-		Posts:         make([]*Post, 0),
+		Ownable: ownable.New(),
+		Posts:   make([]*Post, 0),
 	}
 }
 
@@ -161,8 +160,8 @@ func (m *Memeland) RemovePost(id string) string {
 		panic("id cannot be empty")
 	}
 
-	if !helper.PrevRealmIsOwner(m.Owner()) {
-		panic(ErrUnauthorized)
+	if !prevRealmIsOwner(m.Owner()) {
+		panic("unauthorized; address is not owner")
 	}
 
 	for i, post := range m.Posts {
