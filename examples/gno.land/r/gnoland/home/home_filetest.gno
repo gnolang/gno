@@ -43,6 +43,7 @@ func main() {
 //- [Visit the official documentation](https://docs.gno.land)
 //- [Gno by Example](https://gno-by-example.com/)
 //- [Efficient local development for Gno](https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev)
+//- [Get testnet GNOTs](https://faucet.gno.land)
 //
 //</div><!-- end column-->
 //<div class="column">
