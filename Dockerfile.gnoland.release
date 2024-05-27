@@ -8,6 +8,6 @@ COPY ./gno.land/genesis/genesis_txs.jsonl /gnoroot/gno.land/genesis/genesis_txs.
 
 ENV GNOROOT="/gnoroot/"
 
-EXPOSE 26657 26657
+EXPOSE 26656 26657
 ENTRYPOINT [ "/gnoland" ]
 CMD [ "" ]
