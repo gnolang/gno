@@ -55,6 +55,7 @@ COPY        --from=build-gno /go/bin/gnokey  /usr/bin/
 COPY        --from=build-gno /go/bin/gnoweb  /usr/bin/
 # COPY        --from=build-gno /gnoroot/gno.land/cmd/gnoweb /gnoroot/src/gnoweb
 
-COPY        --from=build-gno /gnoroot /gnoroot
+COPY        --from=build-gno /gnoroot/examples /gnoroot/examples
+COPY        --from=build-gno /gnoroot/gno.land /gnoroot/gno.land
 # gofmt is required by `gnokey maketx addpkg`
-COPY        --from=build-gno /usr/local/go/bin/gofmt /usr/bin
+COPY        --from=build-gno /usr/local/go/bin/gofmt /usr/bin/
