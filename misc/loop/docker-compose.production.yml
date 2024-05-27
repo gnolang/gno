@@ -117,7 +117,7 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
 
   autocounterd:
-    image: ghcr.io/albttx/gno/autocounterd
+    image: ghcr.io/gnolang/gno/autocounterd
     restart: unless-stopped
     env_file: ".env"
     command:
