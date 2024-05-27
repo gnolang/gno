@@ -274,6 +274,13 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	// Setup gnoweb
 	webhandler := setupGnoWebServer(logger.WithGroup(WebLogName), cfg, devNode)
 
+	mux.HandleFunc("/reset", func(res http.ResponseWriter, req *http.Request) {
+		if err := devNode.Reset(req.Context()); err != nil {
+			logger.Error("failed to reset", slog.Any("err", err))
+			res.WriteHeader(http.StatusInternalServerError)
+		}
+	})
+
 	// Setup HotReload if needed
 	if !cfg.noWatch {
 		evtstarget := fmt.Sprintf("%s/_events", server.Addr)
