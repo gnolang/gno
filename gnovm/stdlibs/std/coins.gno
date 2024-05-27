@@ -92,7 +92,7 @@ func (c Coin) IsNegative() bool {
 	return c.Amount < 0
 }
 
-// IsZero returns if this represents no money
+// IsZero returns true if the amount of given coin is zero
 func (c Coin) IsZero() bool {
 	return c.Amount == 0
 }
