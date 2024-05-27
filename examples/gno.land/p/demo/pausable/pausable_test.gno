@@ -8,12 +8,12 @@ import (
 )
 
 var (
-	firstCaller  = std.Address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
-	secondCaller = std.Address("g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa")
+	firstAddr  = std.Address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
+	secondAddr = std.Address("g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa")
 )
 
 func TestNew(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetOrigCaller(firstAddr)
 
 	result := New()
 
@@ -21,25 +21,25 @@ func TestNew(t *testing.T) {
 		t.Fatalf("Expected result to be unpaused, got %t\n", result.paused)
 	}
 
-	if result.Owner() != firstCaller {
-		t.Fatalf("Expected %s, got %s\n", firstCaller, result.Owner())
+	if result.Owner() != firstAddr {
+		t.Fatalf("Expected %s, got %s\n", firstAddr, result.Owner())
 	}
 }
 
 func TestNewFromOwnable(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetOrigCaller(firstAddr)
 	o := ownable.New()
 
-	std.TestSetOrigCaller(secondCaller)
+	std.TestSetOrigCaller(secondAddr)
 	result := NewFromOwnable(o)
 
-	if result.Owner() != firstCaller {
-		t.Fatalf("Expected %s, got %s\n", firstCaller, result.Owner())
+	if result.Owner() != firstAddr {
+		t.Fatalf("Expected %s, got %s\n", firstAddr, result.Owner())
 	}
 }
 
 func TestSetUnpaused(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetOrigCaller(firstAddr)
 
 	result := New()
 	result.Unpause()
@@ -50,7 +50,7 @@ func TestSetUnpaused(t *testing.T) {
 }
 
 func TestSetPaused(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetOrigCaller(firstAddr)
 
 	result := New()
 	result.Pause()
@@ -61,7 +61,7 @@ func TestSetPaused(t *testing.T) {
 }
 
 func TestIsPaused(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetOrigCaller(firstAddr)
 
 	result := New()
 

@@ -3,66 +3,64 @@ package ownable
 import (
 	"std"
 	"testing"
-
-	"gno.land/p/demo/helper"
 )
 
 var (
-	firstCaller  = std.Address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
-	secondCaller = std.Address("g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa")
+	firstAddr  = std.Address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
+	secondAddr = std.Address("g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa")
 )
 
 func TestNew(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetPrevAddr(firstAddr)
 
 	result := New()
-	if firstCaller != result.owner {
-		t.Fatalf("Expected %s, got: %s\n", firstCaller, result.owner)
+	if firstAddr != result.owner {
+		t.Fatalf("Expected %s, got: %s\n", firstAddr, result.owner)
 	}
 }
 
 func TestOwner(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetPrevAddr(firstAddr)
 
 	result := New()
 	resultOwner := result.Owner()
 
-	expected := firstCaller
+	expected := firstAddr
 	if resultOwner != expected {
 		t.Fatalf("Expected %s, got: %s\n", expected, result)
 	}
 }
 
 func TestTransferOwnership(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetPrevAddr(firstAddr)
 	o := New()
 
-	err := o.TransferOwnership(secondCaller)
+	err := o.TransferOwnership(secondAddr)
 	if err != nil {
 		t.Fatalf("TransferOwnership failed, %v", err)
 	}
 
 	result := o.Owner()
-	if secondCaller != result {
-		t.Fatalf("Expected: %s, got: %s\n", secondCaller, result)
+	if secondAddr != result {
+		t.Fatalf("Expected: %s, got: %s\n", secondAddr, result)
 	}
 }
 
 func TestCallerIsOwner(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetPrevAddr(firstAddr)
 
 	o := New()
-	unauthorizedCaller := secondCaller
+	unauthorizedCaller := secondAddr
 
-	std.TestSetOrigCaller(unauthorizedCaller)
+	std.TestSetPrevAddr(unauthorizedCaller)
 
-	if helper.PrevRealmIsOwner(o.owner) {
+	if prevRealmIsOwner(o.owner) {
 		t.Fatalf("Expected %s to not be owner\n", unauthorizedCaller)
 	}
 }
 
 func TestDropOwnership(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetPrevAddr(firstAddr)
 
 	o := New()
 
@@ -80,13 +78,13 @@ func TestDropOwnership(t *testing.T) {
 // Errors
 
 func TestErrUnauthorized(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetPrevAddr(firstAddr)
 
 	o := New()
 
-	std.TestSetOrigCaller(secondCaller)
+	std.TestSetPrevAddr(secondAddr)
 
-	err := o.TransferOwnership(firstCaller)
+	err := o.TransferOwnership(firstAddr)
 	if err != ErrUnauthorized {
 		t.Fatalf("Should've been ErrUnauthorized, was %v", err)
 	}
@@ -98,7 +96,7 @@ func TestErrUnauthorized(t *testing.T) {
 }
 
 func TestErrInvalidAddress(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetPrevAddr(firstAddr)
 
 	o := New()
 

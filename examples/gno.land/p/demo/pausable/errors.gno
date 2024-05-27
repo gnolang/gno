@@ -2,4 +2,4 @@ package pausable
 
 import "errors"
 
-var ErrUnauthorized = errors.New("unauthorized; caller is not owner")
+var ErrUnauthorized = errors.New("unauthorized; address is not owner")

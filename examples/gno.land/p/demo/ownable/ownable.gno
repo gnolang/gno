@@ -2,8 +2,6 @@ package ownable
 
 import (
 	"std"
-
-	"gno.land/p/demo/helper"
 )
 
 // Ownable defines an interface that requires a method to get the owner's address
@@ -34,13 +32,13 @@ var (
 
 func New() *TransferrableOwnership {
 	return &TransferrableOwnership{
-		owner: std.GetOrigCaller(),
+		owner: std.PrevRealm().Addr(),
 	}
 }
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
 func (o *TransferrableOwnership) TransferOwnership(newOwner std.Address) error {
-	if !helper.PrevRealmIsOwner(o.owner) {
+	if !prevRealmIsOwner(o.owner) {
 		return ErrUnauthorized
 	}
 
@@ -56,7 +54,7 @@ func (o *TransferrableOwnership) TransferOwnership(newOwner std.Address) error {
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
 func (o *TransferrableOwnership) DropOwnership() error {
-	if !helper.PrevRealmIsOwner(o.owner) {
+	if !prevRealmIsOwner(o.owner) {
 		return ErrUnauthorized
 	}
 
