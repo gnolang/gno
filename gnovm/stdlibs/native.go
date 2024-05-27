@@ -484,6 +484,94 @@ var nativeFuncs = [...]nativeFunc{
 	},
 	{
 		"std",
+		"GetCurrAllocatedMem",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("int64")},
+		},
+		func(m *gno.Machine) {
+			r0 := libs_std.GetCurrAllocatedMem(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"GetAllocMaxSize",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("int64")},
+		},
+		func(m *gno.Machine) {
+			r0 := libs_std.GetAllocMaxSize(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"GetAllocStatus",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("int64")},
+			{Name: gno.N("r1"), Type: gno.X("int64")},
+		},
+		func(m *gno.Machine) {
+			r0, r1 := libs_std.GetAllocStatus(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"std",
+		"GetMemGasUsage",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("int64")},
+			{Name: gno.N("r1"), Type: gno.X("float64")},
+		},
+		func(m *gno.Machine) {
+			r0, r1 := libs_std.GetMemGasUsage(
+				m,
+			)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
+		"std",
 		"origSend",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
