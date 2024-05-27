@@ -3,7 +3,7 @@ loadpkg gno.land/p/demo/ufmt
 # start a new node
 gnoland start
 
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/append -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # Call Append 1
@@ -68,6 +68,11 @@ stdout OK!
 gnokey maketx call -pkgpath gno.land/r/append -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args 'd' -broadcast -chainid=tendermint_test test1
 stdout '("1-" string)'
 stdout OK!
+
+-- gno.mod --
+module gno.land/r/append
+
+require gno.land/p/demo/ufmt v0.0.0-latest
 
 -- append.gno --
 package append

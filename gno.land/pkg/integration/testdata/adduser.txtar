@@ -3,8 +3,8 @@ adduser test8
 ## start a new node
 gnoland start
 
-## add bar.gno package located in $WORK directory as gno.land/r/foobar/bar
-gnokey maketx addpkg -pkgdir $WORK/bar -pkgpath gno.land/r/foobar/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test8
+## add `bar` package located in $WORK directory
+gnokey maketx addpkg -pkgdir $WORK/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test8
 
 ## execute Render
 gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test8 $WORK/script/script.gno
@@ -18,6 +18,9 @@ stdout 'GAS USED: '
 # should fail if user is added after node is started
 ! adduser test5
 stderr '"adduser" error: adduser must be used before starting node'
+
+-- bar/gno.mod --
+module gno.land/r/foobar/bar
 
 -- bar/bar.gno --
 package bar

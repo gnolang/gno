@@ -7,10 +7,10 @@ adduser test2
 gnoland start
 
 ## add realm_banker
-gnokey maketx addpkg -pkgdir $WORK/short -pkgpath gno.land/r/test/realm_banker -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/short -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 
 ## add realm_banker with long package_name
-gnokey maketx addpkg -pkgdir $WORK/long -pkgpath gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK/long -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
 
 ## test2 spend all balance
 gnokey maketx send -send "9999999ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test2
@@ -52,6 +52,9 @@ gnokey maketx call -pkgpath gno.land/r/test/package89_123456789_123456789_123456
 gnokey query bank/balances/g1cq2ecdq3eyn5qa0fzznpurg87zq3k77g63q6u7
 stdout '"100/gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890:ugnot"'
 
+-- short/gno.mod --
+module gno.land/r/test/realm_banker
+
 -- short/realm_banker.gno --
 package realm_banker
 
@@ -68,6 +71,9 @@ func Burn(addr std.Address, denom string, amount int64) {
   banker := std.GetBanker(std.BankerTypeRealmIssue)
   banker.RemoveCoin(addr, denom, amount)
 }
+
+-- long/gno.mod --
+module gno.land/r/test/package89_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789_1234567890
 
 -- long/realm_banker.gno --
 // package name is 130 characters long

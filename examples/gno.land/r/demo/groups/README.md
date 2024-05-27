@@ -4,7 +4,7 @@
 
 ### - add pkg
 
-    ./build/gnokey maketx addpkg -pkgdir "examples/gno.land/r/demo/groups" -deposit 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid dev -remote 0.0.0.0:26657 -pkgpath "gno.land/r/demo/groups" test1 
+    ./build/gnokey maketx addpkg -pkgdir "examples/gno.land/r/demo/groups" -deposit 100000000ugnot -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid dev -remote 0.0.0.0:26657 test1 
 
 ### - create group
 

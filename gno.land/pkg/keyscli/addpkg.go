@@ -4,9 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"path/filepath"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -18,7 +20,6 @@ import (
 type MakeAddPkgCfg struct {
 	RootCfg *client.MakeTxCfg
 
-	PkgPath string
 	PkgDir  string
 	Deposit string
 }
@@ -43,13 +44,6 @@ func NewMakeAddPkgCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Comma
 
 func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.PkgPath,
-		"pkgpath",
-		"",
-		"package path (required)",
-	)
-
-	fs.StringVar(
 		&c.PkgDir,
 		"pkgdir",
 		"",
@@ -65,9 +59,6 @@ func (c *MakeAddPkgCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
-	if cfg.PkgPath == "" {
-		return errors.New("pkgpath not specified")
-	}
 	if cfg.PkgDir == "" {
 		return errors.New("pkgdir not specified")
 	}
@@ -95,10 +86,17 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		panic(err)
 	}
 
+	// read and parse gno.mod
+	gm, err := gnomod.ParseGnoMod(filepath.Join(cfg.PkgDir, "gno.mod"))
+	if err != nil {
+		panic(err)
+	}
+
+	pkgPath := gm.Module.Mod.Path
 	// open files in directory as MemPackage.
-	memPkg := gno.ReadMemPackage(cfg.PkgDir, cfg.PkgPath)
+	memPkg := gno.ReadMemPackage(cfg.PkgDir, pkgPath)
 	if memPkg.IsEmpty() {
-		panic(fmt.Sprintf("found an empty package %q", cfg.PkgPath))
+		panic(fmt.Sprintf("found an empty package %q", pkgPath))
 	}
 
 	// parse gas wanted & fee.
