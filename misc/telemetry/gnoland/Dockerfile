@@ -8,4 +8,6 @@ COPY ./setup.sh .
 RUN chmod +x ./setup.sh
 
 # Run the setup
+ENTRYPOINT ["sh"]
+
 CMD ["./setup.sh"]
