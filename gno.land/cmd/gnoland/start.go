@@ -236,7 +236,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	}
 
 	// Create application and node
-	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
+	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, logger)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)
 	}

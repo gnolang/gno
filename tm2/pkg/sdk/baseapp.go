@@ -209,14 +209,6 @@ func (app *BaseApp) setMinGasPrices(gasPrices []GasPrice) {
 	app.minGasPrices = gasPrices
 }
 
-func (app *BaseApp) setHaltHeight(haltHeight uint64) {
-	app.haltHeight = haltHeight
-}
-
-func (app *BaseApp) setHaltTime(haltTime uint64) {
-	app.haltTime = haltTime
-}
-
 // Returns a read-only (cache) MultiStore.
 // This may be used by keepers for initialization upon restart.
 func (app *BaseApp) GetCacheMultiStore() store.MultiStore {

@@ -56,7 +56,7 @@ func (c *AppOptions) validate() error {
 	return nil
 }
 
-// NewApp creates the GnoLand application.
+// NewAppWithOptions creates the GnoLand application with specified options
 func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
@@ -126,7 +126,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 }
 
 // NewApp creates the GnoLand application.
-func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger, maxCycles int64) (abci.Application, error) {
+func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger) (abci.Application, error) {
 	var err error
 
 	cfg := NewAppOptions()
@@ -155,7 +155,12 @@ func PanicOnFailingTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
 }
 
 // InitChainer returns a function that can initialize the chain with genesis.
-func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, resHandler GenesisTxHandler) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
+func InitChainer(
+	baseApp *sdk.BaseApp,
+	acctKpr auth.AccountKeeperI,
+	bankKpr bank.BankKeeperI,
+	resHandler GenesisTxHandler,
+) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		if req.AppState != nil {
 			// Get genesis state

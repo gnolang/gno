@@ -523,7 +523,7 @@ func buildNode(logger *slog.Logger, emitter emitter.Emitter, cfg *gnoland.InMemo
 func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
-	genesis := gnoland.NewDefaultGenesisConfig(pv.GetPubKey(), chainid)
+	genesis := gnoland.NewDefaultGenesisConfig(chainid)
 	genesis.AppState = appstate
 
 	// Add self as validator
