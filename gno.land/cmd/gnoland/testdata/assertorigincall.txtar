@@ -25,20 +25,11 @@
 # | 20  | MsgRun   | wallet direct       | std.AssertOriginCall() | PANIC  |
 
 # Init
-## start a new node
+## set up and start a new node
+loadpkg gno.land/r/myrlm $WORK/r/myrlm
+loadpkg gno.land/r/foo $WORK/r/foo
+loadpkg gno.land/p/demo/bar $WORK/p/demo/bar
 gnoland start
-
-## deploy myrlm
-gnokey maketx addpkg -pkgdir $WORK/r/myrlm -pkgpath gno.land/r/myrlm -gas-fee 1000000ugnot -gas-wanted 2100000 -broadcast -chainid=tendermint_test test1
-stdout 'OK!'
-
-## deploy r/foo
-gnokey maketx addpkg -pkgdir $WORK/r/foo -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout 'OK!'
-
-## deploy p/demo/bar
-gnokey maketx addpkg -pkgdir $WORK/p/demo/bar -pkgpath gno.land/p/demo/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout 'OK!'
 
 # Test cases
 ## 1. MsgCall -> myrlm.A: PANIC
