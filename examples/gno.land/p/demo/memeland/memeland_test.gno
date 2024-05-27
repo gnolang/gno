@@ -130,7 +130,7 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 	m.Upvote(id1)
 	m.Upvote(id2)
 
-	// Change prevAddr so avoid double upvote panic
+	// Change caller so avoid double upvote panic
 	std.TestSetPrevAddr(testutils.TestAddress("alice"))
 	m.Upvote(id1)
 
