@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"maps"
 	"reflect"
 	"strconv"
 	"strings"
@@ -370,7 +371,7 @@ func (ds *defaultStore) DelObject(oo Object) {
 func (ds *defaultStore) GetType(tid TypeID) Type {
 	tt := ds.GetTypeSafe(tid)
 	if tt == nil {
-		ds.Print()
+		// ds.Print()
 		panic(fmt.Sprintf("unexpected type with id %s", tid.String()))
 	}
 	return tt
@@ -594,12 +595,18 @@ func (ds *defaultStore) ClearObjectCache() {
 // This function is used to handle queries and checktx transactions.
 func (ds *defaultStore) Fork() Store {
 	ds2 := &defaultStore{
-		alloc:            ds.alloc.Fork().Reset(),
-		pkgGetter:        ds.pkgGetter,
-		cacheObjects:     make(map[ObjectID]Object), // new cache.
-		cacheTypes:       ds.cacheTypes,
+		alloc:     ds.alloc.Fork().Reset(),
+		pkgGetter: ds.pkgGetter,
+		// Re-initialize caches. Some are cloned for speed.
+		cacheObjects: make(map[ObjectID]Object),
+		cacheTypes:   maps.Clone(ds.cacheTypes),
+		// XXX: This is bad to say the least (ds.cacheNodes is shared with a
+		// child Store); however, cacheNodes is _not_ a cache, but a proper
+		// data store instead. SetBlockNode does not write anything to
+		// the underlying baseStore, and cloning this map makes everything run
+		// 4x slower, so here we are, copying the reference.
 		cacheNodes:       ds.cacheNodes,
-		cacheNativeTypes: ds.cacheNativeTypes,
+		cacheNativeTypes: maps.Clone(ds.cacheNativeTypes),
 		baseStore:        ds.baseStore,
 		iavlStore:        ds.iavlStore,
 		pkgInjector:      ds.pkgInjector,

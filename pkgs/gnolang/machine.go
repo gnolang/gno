@@ -138,28 +138,48 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 	ch := m.Store.IterMemPackage()
 	for memPkg := range ch {
-		fset := ParseMemPackage(memPkg)
-		pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
-		m.Store.SetBlockNode(pn)
-		PredefineFileSet(m.Store, pn, fset)
-		for _, fn := range fset.Files {
-			// Save Types to m.Store (while preprocessing).
-			fn = Preprocess(m.Store, pn, fn).(*FileNode)
-			// Save BlockNodes to m.Store.
-			SaveBlockNodes(m.Store, fn)
+		// XXX(morgan): test3 specific, there is a bug with the transactions and
+		// the way test3 runs.
+		// The theory is as follows:
+		//     Take a look at defaultStore.SetType
+		//     When p/leon/avl was called, a type with the same TypeID was found in the cache, but it was different than the ones passed, so the function returned
+		//     But the type was never in the store
+		//     The reason this can happen is that up until this recent commit
+		//     https://github.com/gnolang/gno/commit/8afb1a42e138014a3025ef4817aff67b6f4f7ded
+		//     The store caches were shared with all child stores, even the ones that are eventually rolled back (due to, like, a failing transaction)
+		//     So, in the running node, in a first addpkg, the type was saved in the cache, but then there was a bug in the code so the transaction failed
+		//     The type is now in cacheTypes, but not in the database
+		//     Afterwards, it was re-uploaded. SetType is called, it detects an existing type in cacheType, but the types are different; so SetType returns without storing it in the database
+		switch memPkg.Path {
+		case "gno.land/p/leon/avl":
+			m.RunMemPackage(memPkg, true)
+			continue
 		}
-		// Normally, the fileset would be added onto the
-		// package node only after runFiles(), but we cannot
-		// run files upon restart (only preprocess them).
-		// So, add them here instead.
-		// TODO: is this right?
-		if pn.FileSet == nil {
-			pn.FileSet = fset
-		} else {
-			// This happens for non-realm file tests.
-			// TODO ensure the files are the same.
-		}
+		m.preprocessMemPackageSaveBlockNodes(memPkg)
+	}
+}
 
+func (m *Machine) preprocessMemPackageSaveBlockNodes(memPkg *std.MemPackage) {
+	fset := ParseMemPackage(memPkg)
+	pn := NewPackageNode(Name(memPkg.Name), memPkg.Path, fset)
+	m.Store.SetBlockNode(pn)
+	PredefineFileSet(m.Store, pn, fset)
+	for _, fn := range fset.Files {
+		// Save Types to m.Store (while preprocessing).
+		fn = Preprocess(m.Store, pn, fn).(*FileNode)
+		// Save BlockNodes to m.Store.
+		SaveBlockNodes(m.Store, fn)
+	}
+	// Normally, the fileset would be added onto the
+	// package node only after runFiles(), but we cannot
+	// run files upon restart (only preprocess them).
+	// So, add them here instead.
+	// TODO: is this right?
+	if pn.FileSet == nil {
+		pn.FileSet = fset
+	} else {
+		// This happens for non-realm file tests.
+		// TODO ensure the files are the same.
 	}
 }
 
