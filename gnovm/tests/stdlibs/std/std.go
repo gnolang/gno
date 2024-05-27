@@ -41,10 +41,6 @@ func IsOriginCall(m *gno.Machine) bool {
 	panic("unable to determine if test is a _test or a _filetest")
 }
 
-func TestCurrentRealm(m *gno.Machine) string {
-	return m.Realm.Path
-}
-
 func TestSkipHeights(m *gno.Machine, count int64) {
 	ctx := m.Context.(std.ExecContext)
 	ctx.Height += count
