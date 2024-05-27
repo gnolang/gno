@@ -802,6 +802,13 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				reflect.TypeOf(s)))
 		}
 	}
+
+	if fs != nil {
+		for _, d := range ds {
+			setLoc(fs, gd.Pos(), d)
+		}
+	}
+
 	return ds
 }
 
