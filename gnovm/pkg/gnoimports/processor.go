@@ -20,7 +20,7 @@ import (
 
 type ParseError error
 
-// Package contains the memory package and directory path
+// Package contains the memory package and directory path.
 type Package struct {
 	std.MemPackage
 	Dir string
@@ -113,7 +113,8 @@ func (p *Processor) FormatImports(filep string) ([]byte, error) {
 		return nil, fmt.Errorf("not a valid gno file: %s", filep)
 	}
 
-	topDecls := collectTopDecls(pkgDecls)
+	topDecls := make(map[*ast.Object]ast.Decl)
+	collectTopDeclarations(pkgDecls, topDecls)
 	p.resolveAndUpdateImports(fset, node, topDecls)
 
 	var buf bytes.Buffer
@@ -121,7 +122,7 @@ func (p *Processor) FormatImports(filep string) ([]byte, error) {
 		return nil, fmt.Errorf("unable to format file: %w", err)
 	}
 
-	// We let `go/imports` managing the sort of the imports
+	// we let `go/imports` managing the sort of the imports
 	ret, err := imports.Process(filep, buf.Bytes(), &imports.Options{
 		TabWidth:   8,
 		Comments:   true,
@@ -135,7 +136,7 @@ func (p *Processor) FormatImports(filep string) ([]byte, error) {
 	return ret, nil
 }
 
-// resolveAndUpdateImports resolves and collects unresolved imports.
+// resolveAndUpdateImports resolves and updates imports.
 func (p *Processor) resolveAndUpdateImports(fset *token.FileSet, node *ast.File, topDecls map[*ast.Object]ast.Decl) {
 	unresolved := collectUnresolved(node, topDecls)
 	cleanupPreviousImports(fset, node, topDecls, unresolved)
@@ -144,10 +145,9 @@ func (p *Processor) resolveAndUpdateImports(fset *token.FileSet, node *ast.File,
 }
 
 // processPackageFiles processes Gno package files and collects top-level declarations.
-func processPackageFiles(fset *token.FileSet, root string, filesNode map[string]*ast.File) (map[string]bool, error) {
-	declmap := make(map[string]bool)
-
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+func processPackageFiles(fset *token.FileSet, root string, filesNode map[string]*ast.File) (map[*ast.Object]ast.Decl, error) {
+	declmap := make(map[*ast.Object]ast.Decl)
+	return declmap, filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("unable to walk on %q: %w", path, err)
 		}
@@ -165,69 +165,51 @@ func processPackageFiles(fset *token.FileSet, root string, filesNode map[string]
 			return nil
 		}
 
-		node, err := parser.ParseFile(fset, path, nil, parser.ParseComments|parser.AllErrors)
+		file, err := parser.ParseFile(fset, path, nil, parser.ParseComments|parser.AllErrors)
 		if err != nil {
 			return fmt.Errorf("unable to process file %q: %w", path, ParseError(err))
 		}
 
-		topDecls := make(map[*ast.Object]ast.Decl)
-		for _, decl := range node.Decls {
-			switch d := decl.(type) {
-			case *ast.GenDecl:
-				for _, spec := range d.Specs {
-					switch s := spec.(type) {
-					case *ast.TypeSpec:
-						topDecls[s.Name.Obj] = d
-					case *ast.ValueSpec:
-						for _, name := range s.Names {
-							topDecls[name.Obj] = d
-						}
-					}
-				}
-			case *ast.FuncDecl:
-				if d.Recv == nil && d.Name != nil { // Check if it's a top-level functio
-					declmap[d.Name.Name] = true
-				}
-			}
-		}
-
-		for obj := range topDecls {
-			declmap[obj.Name] = true
-		}
-		filesNode[filename] = node
+		collectTopDeclaration(file, declmap)
+		filesNode[filename] = file
 		return nil
 	})
-
-	return declmap, err
 }
 
-// collectTopDecls collects top-level declarations from package files.
-func collectTopDecls(pkgDecls map[string]*ast.File) map[*ast.Object]ast.Decl {
-	topDecls := make(map[*ast.Object]ast.Decl)
+// collectTopDeclarations collects top-level declarations from package files.
+func collectTopDeclarations(pkgDecls map[string]*ast.File, topDecls map[*ast.Object]ast.Decl) {
 	for _, file := range pkgDecls {
-		for _, decl := range file.Decls {
-			if d, ok := decl.(*ast.GenDecl); ok {
-				for _, spec := range d.Specs {
-					switch s := spec.(type) {
-					case *ast.TypeSpec:
-						topDecls[s.Name.Obj] = d
-					case *ast.ValueSpec:
-						for _, name := range s.Names {
-							topDecls[name.Obj] = d
-						}
+		collectTopDeclaration(file, topDecls)
+	}
+}
+
+// collectTopDeclaration collects top-level declarations from a single file.
+func collectTopDeclaration(file *ast.File, topDecls map[*ast.Object]ast.Decl) {
+	for _, decl := range file.Decls {
+		switch d := decl.(type) {
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				switch s := spec.(type) {
+				case *ast.TypeSpec:
+					topDecls[s.Name.Obj] = d
+				case *ast.ValueSpec:
+					for _, name := range s.Names {
+						topDecls[name.Obj] = d
 					}
 				}
+			}
+		case *ast.FuncDecl:
+			if d.Recv == nil && d.Name != nil && d.Name.Obj != nil { // Check if it's a top-level function
+				topDecls[d.Name.Obj] = d
 			}
 		}
 	}
-
-	return topDecls
 }
 
 // collectUnresolved collects unresolved identifiers and declarations.
 func collectUnresolved(file *ast.File, topDecls map[*ast.Object]ast.Decl) map[string]map[string]bool {
-	unresolved := make(map[string]map[string]bool)
-	unresolvedList := make([]*ast.Ident, 0)
+	unresolved := map[string]map[string]bool{}
+	unresolvedList := []*ast.Ident{}
 	for _, u := range file.Unresolved {
 		if _, ok := unresolved[u.Name]; ok {
 			continue
@@ -264,7 +246,7 @@ func collectUnresolved(file *ast.File, topDecls map[*ast.Object]ast.Decl) map[st
 		return true
 	})
 
-	// Delete unresolved without any selector
+	// Delete unresolved identifier without any selector
 	for u, v := range unresolved {
 		if len(v) == 0 { // no selector
 			delete(unresolved, u)
@@ -305,7 +287,7 @@ func cleanupPreviousImports(fset *token.FileSet, node *ast.File, topDecls map[*a
 	}
 }
 
-// resolve try to resolve unresolved package based on a list of pkgs
+// resolve tries to resolve unresolved package based on a list of pkgs.
 func resolve(
 	fset *token.FileSet,
 	node *ast.File,
@@ -335,10 +317,15 @@ func hasDeclExposed(fset *token.FileSet, decls map[string]bool, path string) boo
 		return false
 	}
 
-	for decl := range decls {
-		if exposed[decl] {
+	for obj := range exposed {
+		if !ast.IsExported(obj.Name) {
+			continue
+		}
+
+		if decls[obj.Name] {
 			return true
 		}
 	}
+
 	return false
 }

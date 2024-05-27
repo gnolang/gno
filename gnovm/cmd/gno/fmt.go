@@ -38,7 +38,7 @@ func newFmtCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "fmt",
 			ShortUsage: "gno fmt [flags] [path ...]",
-			ShortHelp:  "Run gno file formater",
+			ShortHelp:  "Run gno file formatter.",
 			LongHelp:   "The `gno fmt` tool processes, formats, and cleans up `gno` source files.",
 		},
 		cfg,
@@ -75,87 +75,35 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 		"specify additional directories containing packages to resolve",
 	)
 
-	// NOTE: This flag is mainly use for debug, in most case the use of diff
-	// command is sufisant
 	fs.BoolVar(
 		&c.diff,
 		"diff",
 		defaultFmtOptions.diff,
-		"print and make the command fail if any diff, has no effect with `w`",
+		"print and make the command fail if any diff is found and write is disabled",
 	)
 }
 
 type fmtProcessFile func(file string, io commands.IO) []byte
 
-func execFmt(cfg *fmtCfg, args []string, io commands.IO) (err error) {
-	cfg.write = !cfg.diff && cfg.write // `diff` cannot be enable with `write`
+func execFmt(cfg *fmtCfg, args []string, io commands.IO) error {
+	cfg.write = !cfg.diff && cfg.write
 
 	paths, err := targetsFromPatterns(args)
 	if err != nil {
-		return fmt.Errorf("unable to get targets paths from paterns: %w", err)
+		return fmt.Errorf("unable to get targets paths from patterns: %v", err)
 	}
 
 	files, err := gnoFilesFromArgs(paths)
 	if err != nil {
-		return fmt.Errorf("unable to gather gno files: %w ", err)
+		return fmt.Errorf("unable to gather gno files: %v", err)
 	}
 
-	var processFile fmtProcessFile = fmtFormatFile
-	if cfg.imports {
-		if processFile, err = fmtFormatFileImports(cfg); err != nil {
-			return err
-		}
+	processFile, err := fmtGetProcessFile(cfg)
+	if err != nil {
+		return err
 	}
 
-	// Process files sequentially
-	errCount := 0
-	for _, file := range files {
-		if cfg.verbose {
-			io.Printfln("processing %q", file)
-		}
-
-		var perms os.FileMode
-		fi, err := os.Stat(file)
-		if err != nil {
-			errCount++
-			io.ErrPrintfln("unable to stats %q: %w", file, err.Error())
-			continue
-		}
-
-		data := processFile(file, io)
-		if data == nil {
-			errCount++
-			continue
-		}
-
-		if cfg.diff {
-			oldFile, err := os.ReadFile(file)
-			if err != nil {
-				io.ErrPrintfln("unable to read %q for diffing: %s", err.Error())
-				errCount++
-				continue
-			}
-
-			if d := diff.Diff(file, oldFile, file+".formated", data); d != nil {
-				io.ErrPrintln(string(d))
-				errCount++
-				continue
-			}
-
-			continue
-		}
-
-		if !cfg.write {
-			io.Println(string(data))
-			continue
-		}
-
-		perms = fi.Mode() & os.ModePerm // copy permission
-		if err = os.WriteFile(file, data, perms); err != nil {
-			errCount++
-			io.ErrPrintfln("unable to write %q: %w", file, err.Error())
-		}
-	}
+	errCount := fmtProcessFiles(cfg, files, processFile, io)
 
 	if errCount > 0 {
 		if !cfg.verbose {
@@ -166,6 +114,76 @@ func execFmt(cfg *fmtCfg, args []string, io commands.IO) (err error) {
 	}
 
 	return nil
+}
+
+func fmtGetProcessFile(cfg *fmtCfg) (fmtProcessFile, error) {
+	if cfg.imports {
+		return fmtFormatFileImports(cfg)
+	}
+	return fmtFormatFile, nil
+}
+
+func fmtProcessFiles(cfg *fmtCfg, files []string, processFile fmtProcessFile, io commands.IO) int {
+	errCount := 0
+	for _, file := range files {
+		if !processSingleFile(cfg, file, processFile, io) {
+			errCount++
+		}
+	}
+	return errCount
+}
+
+func processSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFile, io commands.IO) bool {
+	if cfg.verbose {
+		io.Printfln("processing %q", file)
+	}
+
+	fi, err := os.Stat(file)
+	if err != nil {
+		io.ErrPrintfln("unable to stat %q: %v", file, err)
+		return false
+	}
+
+	data := processFile(file, io)
+	if data == nil {
+		return false
+	}
+
+	if cfg.diff {
+		if !fmtProcessDiff(cfg, file, data, io) {
+			return false
+		}
+	}
+
+	if !cfg.write {
+		if !cfg.diff {
+			io.Println(string(data))
+		}
+		return true
+	}
+
+	perms := fi.Mode() & os.ModePerm
+	if err = os.WriteFile(file, data, perms); err != nil {
+		io.ErrPrintfln("unable to write %q: %v", file, err)
+		return false
+	}
+
+	return true
+}
+
+func fmtProcessDiff(cfg *fmtCfg, file string, data []byte, io commands.IO) bool {
+	oldFile, err := os.ReadFile(file)
+	if err != nil {
+		io.ErrPrintfln("unable to read %q for diffing: %v", file, err)
+		return true
+	}
+
+	if d := diff.Diff(file, oldFile, file+".formatted", data); d != nil {
+		io.ErrPrintln(string(d))
+		return true
+	}
+
+	return false
 }
 
 func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
@@ -185,7 +203,7 @@ func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
 		return nil, fmt.Errorf("unable to load %q: %w", examples, err)
 	}
 
-	// Ultimatly load any additional packages supply by the user
+	// Ultimately load any additional packages supplied by the user
 	for _, include := range cfg.include {
 		absp, err := filepath.Abs(include)
 		if err != nil {
@@ -238,7 +256,7 @@ func fmtFormatFile(file string, io commands.IO) []byte {
 }
 
 func fmtPrintScannerError(err error, io commands.IO) {
-	// get underlayin parse error
+	// Get underlying parse error
 	if scanErrors, ok := err.(scanner.ErrorList); ok {
 		for _, e := range scanErrors {
 			io.ErrPrintln(e)

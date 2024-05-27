@@ -1,20 +1,5 @@
 package gnoimports
 
-import "go/ast"
-
-// hasIota checks if a spec contains the built-in "iota" identifier.
-func hasIota(s ast.Spec) bool {
-	has := false
-	ast.Inspect(s, func(n ast.Node) bool {
-		if id, ok := n.(*ast.Ident); ok && id.Name == "iota" && id.Obj == nil {
-			has = true
-			return false
-		}
-		return true
-	})
-	return has
-}
-
 // isPredeclared reports whether an identifier is predeclared.
 func isPredeclared(s string) bool {
 	return predeclaredTypes[s] || predeclaredFuncs[s] || predeclaredConstants[s]
