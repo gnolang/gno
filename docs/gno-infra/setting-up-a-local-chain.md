@@ -11,7 +11,7 @@ Additionally, you will see the different options you can use to make your Gno in
 
 ## Prerequisites
 
-- [`gnoland` installed](local-setup.md#3-installing-other-gno-tools).
+- [`gnoland` installed](../getting-started/local-setup/local-setup.md#3-installing-other-gno-tools).
 
 ## Starting a local node (lazy init)
 
@@ -25,7 +25,7 @@ gnoland start --lazy
 The command will trigger a chain initialization process (if you haven't run the node before), and start the Gno node,
 which is ready to accept transactions and interact with other Gno nodes.
 
-![gnoland start](../../assets/getting-started/local-setup/setting-up-a-local-chain/gnoland-start.gif)
+![gnoland start](../assets/getting-started/local-setup/setting-up-a-local-chain/gnoland-start.gif)
 
 :::info Lazy init
 
@@ -271,7 +271,7 @@ That's it! 🎉
 
 Your new Gno node (chain) should be up and running:
 
-![gnoland start](../../assets/getting-started/local-setup/setting-up-a-local-chain/gnoland-start-manual.gif)
+![gnoland start](../assets/getting-started/local-setup/setting-up-a-local-chain/gnoland-start-manual.gif)
 
 ## Chain runtime options
 
