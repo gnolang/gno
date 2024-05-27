@@ -2,9 +2,9 @@ package std
 
 func AssertOriginCall()        // injected
 func IsOriginCall() bool       // injected
-func CurrentRealmPath() string // injected
 func GetChainID() string       // injected
 func GetHeight() int64         // injected
+
 func GetCurrAllocatedMem() int64 //injected
 func GetAllocMaxSize() int64	//injected
 func GetAllocStatus() (int64, int64)
