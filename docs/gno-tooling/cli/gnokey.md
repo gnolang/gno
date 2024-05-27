@@ -207,7 +207,7 @@ gnokey maketx call \
     > unsigned.tx
 ```
 
-:::warn `call` is a state-changing message  
+:::warning `call` is a state-changing message  
 
 All exported functions, including `Render()`, can be called in two main ways:
 `call` and [`query vm/qeval`](#query).
