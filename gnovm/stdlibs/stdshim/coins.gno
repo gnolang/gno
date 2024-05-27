@@ -57,7 +57,7 @@ func (c Coin) Add(coinB Coin) Coin {
 	sum := c.Amount + coinB.Amount
 
 	c.Amount = sum
-	return sum
+	return c
 }
 
 // Sub subtracts amounts of two coins with same denom.
