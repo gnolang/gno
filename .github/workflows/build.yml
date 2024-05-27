@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        goversion: ["1.18.x", "1.19.x"]
+        goversion: ["1.21.x", "1.22.x"]
         goarch: ["amd64"]
         goos: ["linux"]
         program: ["genproto", "gnofaucet", "gnokey", "gnoland", "gnotxport", "goscan", "gnodev", "gnoweb"]
