@@ -16,11 +16,11 @@ type Store struct {
 }
 
 // New returns a reference to a new GasStore.
-func New(parent types.Store, gasMeter types.GasMeter, gasConfig types.GasConfig) *Store {
+func New(parent types.Store) *Store {
 	kvs := &Store{
-		gasMeter:  gasMeter,
-		gasConfig: gasConfig,
-		parent:    parent,
+		// gasMeter:  gasMeter,
+		// gasConfig: gasConfig,
+		parent: parent,
 	}
 	return kvs
 }

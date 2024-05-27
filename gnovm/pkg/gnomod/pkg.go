@@ -1,6 +1,7 @@
 package gnomod
 
 import (
+	"embed"
 	"fmt"
 	"io/fs"
 	"os"
@@ -82,11 +83,15 @@ func visitPackage(pkg Pkg, pkgs []Pkg, visited, onStack map[string]bool, sortedP
 	return nil
 }
 
-// ListPkgs lists all gno packages in the given root directory.
-func ListPkgs(root string) (PkgList, error) {
-	var pkgs []Pkg
+type directoryWalker struct {
+	walk fs.WalkDirFunc
+	pkgs []Pkg
+	fsys *embed.FS
+}
 
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+func newDirectoryWalker() *directoryWalker {
+	var dw directoryWalker
+	dw.walk = func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -94,7 +99,13 @@ func ListPkgs(root string) (PkgList, error) {
 			return nil
 		}
 		gnoModPath := filepath.Join(path, "gno.mod")
-		data, err := os.ReadFile(gnoModPath)
+		var data []byte
+		if dw.fsys != nil {
+			data, err = dw.fsys.ReadFile(gnoModPath)
+		} else {
+			data, err = os.ReadFile(gnoModPath)
+		}
+
 		if os.IsNotExist(err) {
 			return nil
 		}
@@ -111,7 +122,7 @@ func ListPkgs(root string) (PkgList, error) {
 			return fmt.Errorf("validate: %w", err)
 		}
 
-		pkgs = append(pkgs, Pkg{
+		dw.pkgs = append(dw.pkgs, Pkg{
 			Dir:   path,
 			Name:  gnoMod.Module.Mod.Path,
 			Draft: gnoMod.Draft,
@@ -124,12 +135,30 @@ func ListPkgs(root string) (PkgList, error) {
 			}(),
 		})
 		return nil
-	})
+	}
+
+	return &dw
+}
+
+// ListPkgs lists all gno packages in the given root directory.
+func ListPkgs(root string) (PkgList, error) {
+	walker := newDirectoryWalker()
+	err := filepath.WalkDir(root, walker.walk)
 	if err != nil {
 		return nil, err
 	}
 
-	return pkgs, nil
+	return walker.pkgs, nil
+}
+
+func ListPkgsWithFS(fsys embed.FS) (PkgList, error) {
+	walker := newDirectoryWalker()
+	walker.fsys = &fsys
+	if err := fs.WalkDir(fsys, "examples", walker.walk); err != nil {
+		return nil, err
+	}
+
+	return walker.pkgs, nil
 }
 
 // GetNonDraftPkgs returns packages that are not draft

@@ -582,13 +582,14 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
 	if ctrbz == nil {
+		fmt.Println("can't iter")
 		return nil
 	} else {
 		ctr, err := strconv.Atoi(string(ctrbz))
 		if err != nil {
 			panic(err)
 		}
-		ch := make(chan *std.MemPackage, 0)
+		ch := make(chan *std.MemPackage, 10)
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
 				idxkey := []byte(backendPackageIndexKey(i))

@@ -8,8 +8,8 @@ import (
 )
 
 type MemFile struct {
-	Name string
-	Body string
+	Name string `json:"name"`
+	Body string `json:"body"`
 }
 
 // MemPackage represents the information and files of a package which will be
@@ -19,9 +19,12 @@ type MemFile struct {
 // NOTE: in the future, a MemPackage may represent
 // updates/additional-files for an existing package.
 type MemPackage struct {
-	Name  string // package name as declared by `package`
-	Path  string // import path
-	Files []*MemFile
+	Name  string     `json:"name"` // package name as declared by `package`
+	Path  string     `json:"path"` // import path
+	Files []*MemFile `json:"files"`
+	// IsRemote bool       `json:"is_remote"`
+	Address  string `json:"address"`
+	Syncable bool   `json:"syncable"`
 }
 
 func (mempkg *MemPackage) GetFile(name string) *MemFile {
@@ -55,6 +58,8 @@ func (mempkg *MemPackage) Validate() error {
 	if !rePkgName.MatchString(mempkg.Name) {
 		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
 	}
+
+	// DMB: remove dependency on this.
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
 	}

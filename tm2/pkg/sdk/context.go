@@ -182,7 +182,7 @@ func (c Context) Value(key interface{}) interface{} {
 
 // Store fetches a Store from the MultiStore, but wrapped for gas calculation.
 func (c Context) Store(key store.StoreKey) store.Store {
-	return gas.New(c.MultiStore().GetStore(key), c.GasMeter(), store.DefaultGasConfig())
+	return gas.New(c.MultiStore().GetStore(key))
 }
 
 // CacheContext returns a new Context with the multi-store cached and a new

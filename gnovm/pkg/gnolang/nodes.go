@@ -1,9 +1,11 @@
 package gnolang
 
 import (
+	"embed"
 	"fmt"
 	"go/parser"
 	"go/token"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1107,6 +1109,20 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	if err != nil {
 		panic(err)
 	}
+
+	return readMemPackage(nil, dir, pkgPath, files)
+}
+
+func ReadMemPackageFS(fsys embed.FS, dir, pkgPath string) *std.MemPackage {
+	files, err := fsys.ReadDir(dir)
+	if err != nil {
+		panic(err)
+	}
+
+	return readMemPackage(&fsys, dir, pkgPath, files)
+}
+
+func readMemPackage(fsys *embed.FS, dir, pkgPath string, files []fs.DirEntry) *std.MemPackage {
 	allowedFiles := []string{ // make case insensitive?
 		"gno.mod",
 		"LICENSE",
@@ -1124,21 +1140,24 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
 	}
-	return ReadMemPackageFromList(list, pkgPath)
+	return readMemPackageFromList(fsys, list, pkgPath)
 }
 
-// ReadMemPackageFromList creates a new [std.MemPackage] with the specified pkgPath,
-// containing the contents of all the files provided in the list slice.
-// No parsing or validation is done on the filenames.
-//
-// NOTE: panics if package name is invalid (characters must be alphanumeric or _,
-// lowercase, and must start with a letter).
-func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
+func readMemPackageFromList(fsys *embed.FS, list []string, pkgPath string) *std.MemPackage {
 	memPkg := &std.MemPackage{Path: pkgPath}
 	var pkgName Name
 	for _, fpath := range list {
 		fname := filepath.Base(fpath)
-		bz, err := os.ReadFile(fpath)
+		var (
+			bz  []byte
+			err error
+		)
+
+		if fsys != nil {
+			bz, err = fsys.ReadFile(fpath)
+		} else {
+			bz, err = os.ReadFile(fpath)
+		}
 		if err != nil {
 			panic(err)
 		}
@@ -1163,6 +1182,16 @@ func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
 	}
 
 	return memPkg
+}
+
+// ReadMemPackageFromList creates a new [std.MemPackage] with the specified pkgPath,
+// containing the contents of all the files provided in the list slice.
+// No parsing or validation is done on the filenames.
+//
+// NOTE: panics if package name is invalid (characters must be alphanumeric or _,
+// lowercase, and must start with a letter).
+func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
+	return readMemPackageFromList(nil, list, pkgPath)
 }
 
 // ParseMemPackage executes [ParseFile] on each file of the memPkg, excluding
