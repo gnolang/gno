@@ -23,13 +23,13 @@ func TestCleanApp(t *testing.T) {
 		},
 		{
 			args:                 []string{"clean"},
-			testDir:              "../../tests/integ/empty-dir",
+			testDir:              "../../tests/integ/empty_dir",
 			simulateExternalRepo: true,
 			errShouldBe:          "not a gno module: gno.mod file not found in current or any parent directory",
 		},
 		{
 			args:                 []string{"clean"},
-			testDir:              "../../tests/integ/minimalist-gnomod",
+			testDir:              "../../tests/integ/minimalist_gnomod",
 			simulateExternalRepo: true,
 		},
 	}

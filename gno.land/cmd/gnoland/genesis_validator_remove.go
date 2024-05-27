@@ -18,7 +18,7 @@ func newValidatorRemoveCmd(rootCfg *validatorCfg, io commands.IO) *commands.Comm
 		commands.Metadata{
 			Name:       "remove",
 			ShortUsage: "validator remove [flags]",
-			LongHelp:   "Removes a validator from the genesis.json",
+			ShortHelp:  "removes a validator from the genesis.json",
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, _ []string) error {

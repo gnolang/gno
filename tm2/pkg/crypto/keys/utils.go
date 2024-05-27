@@ -5,11 +5,14 @@ import (
 	"path/filepath"
 )
 
-const defaultKeyDBName = "keys"
+const (
+	defaultKeyDBName = "keys"
+	defaultKeyDBDir  = "data"
+)
 
 // NewKeyBaseFromDir initializes a keybase at a particular dir.
 func NewKeyBaseFromDir(rootDir string) (Keybase, error) {
-	return NewLazyDBKeybase(defaultKeyDBName, filepath.Join(rootDir, "data")), nil
+	return NewLazyDBKeybase(defaultKeyDBName, filepath.Join(rootDir, defaultKeyDBDir)), nil
 }
 
 func ValidateMultisigThreshold(k, nKeys int) error {

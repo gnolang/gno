@@ -17,7 +17,13 @@ func Counter() int {
 }
 
 func CurrentRealmPath() string {
-	return std.CurrentRealmPath()
+	return std.CurrentRealm().PkgPath()
+}
+
+var initOrigCaller = std.GetOrigCaller()
+
+func InitOrigCaller() std.Address {
+	return initOrigCaller
 }
 
 func AssertOriginCall() {

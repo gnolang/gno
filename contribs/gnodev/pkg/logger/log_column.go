@@ -141,7 +141,7 @@ func (cl *columnWriter) Write(buf []byte) (n int, err error) {
 		buf = buf[todo:]
 
 		if cl.inline = i < 0; !cl.inline {
-			if _, err = cl.writer.Write([]byte(lf)); err != nil {
+			if _, err = cl.writer.Write(lf); err != nil {
 				return n, err
 			}
 			n++

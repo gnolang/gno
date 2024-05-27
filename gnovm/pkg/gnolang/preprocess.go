@@ -9,6 +9,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
+const blankIdentifer string = "_"
+
 // In the case of a *FileSet, some declaration steps have to happen
 // in a restricted parallel way across all the files.
 // Anything predefined or preprocessed here get skipped during the Preprocess
@@ -882,17 +884,22 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// Left not const, Right not const ------------------
 					if n.Op == EQL || n.Op == NEQ {
 						// If == or !=, no conversions.
-					} else if lnt, ok := lt.(*NativeType); ok {
+					} else if lnt, ok := lt.(*NativeType); ok && isNative(rt) {
 						if debug {
 							if !isShift {
 								assertSameTypes(lt, rt)
 							}
 						}
-						// If left and right are native type,
+						// If left and right are native type, and same type
 						// convert left and right to gno, then
 						// convert result back to native.
 						//
 						// get concrete native base type.
+						if lt.TypeID() != rt.TypeID() {
+							panic(fmt.Sprintf(
+								"incompatible types in binary expression: %v %v %v",
+								lt.TypeID(), n.Op, rt.TypeID()))
+						}
 						pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
 						// convert n.Left to (gno) pt type,
 						ln := Expr(Call(pt.String(), n.Left))
@@ -930,7 +937,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								if lt.TypeID() != rt.TypeID() {
 									panic(fmt.Sprintf(
 										"incompatible types in binary expression: %v %v %v",
-										n.Left, n.Op, n.Right))
+										lt.TypeID(), n.Op, rt.TypeID()))
 								}
 							} else {
 								checkOrConvertType(store, last, &n.Left, rt, false)
@@ -943,7 +950,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								if lt.TypeID() != rt.TypeID() {
 									panic(fmt.Sprintf(
 										"incompatible types in binary expression: %v %v %v",
-										n.Left, n.Op, n.Right))
+										lt.TypeID(), n.Op, rt.TypeID()))
 								}
 							}
 						}
@@ -1237,8 +1244,33 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if n.Type == nil {
 					panic("should not happen")
 				}
+
+				// Type assertions on the blank identifier are illegal.
+				if nx, ok := n.X.(*NameExpr); ok && string(nx.Name) == blankIdentifer {
+					panic("cannot use _ as value or type")
+				}
+
 				// ExprStmt of form `x.(<type>)`,
 				// or special case form `c, ok := x.(<type>)`.
+				t := evalStaticTypeOf(store, last, n.X)
+				baseType := baseOf(t) // The base type of the asserted value must be an interface.
+				switch bt := baseType.(type) {
+				case *InterfaceType:
+					break
+				case *NativeType:
+					if bt.Type.Kind() == reflect.Interface {
+						break
+					}
+				default:
+					panic(
+						fmt.Sprintf(
+							"invalid operation: %s (variable of type %s) is not an interface",
+							n.X.String(),
+							t.String(),
+						),
+					)
+				}
+
 				evalStaticType(store, last, n.Type)
 
 			// TRANS_LEAVE -----------------------
@@ -2472,6 +2504,9 @@ func convertIfConst(store Store, last BlockNode, x Expr) {
 
 func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 	if t != nil && t.Kind() == InterfaceKind {
+		if cx.T != nil {
+			checkType(cx.T, t, false)
+		}
 		t = nil // signifies to convert to default type.
 	}
 	if isUntyped(cx.T) {

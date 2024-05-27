@@ -9,7 +9,7 @@ services:
       - LOG_LEVEL=4
     command: [ "gnoland", "start" ]
     volumes:
-      - "gnonode:/opt/gno/src/testdir"
+      - "gnonode:/opt/gno/src/gnoland-data"
     networks:
       - gnonode
     restart: on-failure

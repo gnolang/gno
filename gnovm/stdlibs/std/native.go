@@ -17,19 +17,43 @@ func IsOriginCall(m *gno.Machine) bool {
 	return len(m.Frames) == 2
 }
 
-func CurrentRealmPath(m *gno.Machine) string {
-	if m.Realm != nil {
-		return m.Realm.Path
-	}
-	return ""
-}
-
 func GetChainID(m *gno.Machine) string {
 	return m.Context.(ExecContext).ChainID
 }
 
 func GetHeight(m *gno.Machine) int64 {
 	return m.Context.(ExecContext).Height
+}
+
+// getPrevFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
+func getPrevFunctionNameFromTarget(m *gno.Machine, targetFunc string) string {
+	targetIndex := findTargetFuncIndex(m, targetFunc)
+	if targetIndex == -1 {
+		return ""
+	}
+	return findPrevFuncName(m, targetIndex)
+}
+
+// findTargetFuncIndex finds and returns the index of the target function in the call stack.
+func findTargetFuncIndex(m *gno.Machine, targetFunc string) int {
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		currFunc := m.Frames[i].Func
+		if currFunc != nil && currFunc.Name == gno.Name(targetFunc) {
+			return i
+		}
+	}
+	return -1
+}
+
+// findPrevFuncName returns the function name before the given index in the call stack.
+func findPrevFuncName(m *gno.Machine, targetIndex int) string {
+	for i := targetIndex - 1; i >= 0; i-- {
+		currFunc := m.Frames[i].Func
+		if currFunc != nil {
+			return string(currFunc.Name)
+		}
+	}
+	panic("function name not found")
 }
 
 func X_origSend(m *gno.Machine) (denoms []string, amounts []int64) {
@@ -67,7 +91,7 @@ func X_callerAt(m *gno.Machine, n int) string {
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
-func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
+func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	var (
 		ctx           = m.Context.(ExecContext)
 		currentCaller crypto.Bech32Address
@@ -97,6 +121,12 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 	// Fallback case: return OrigCaller.
 	return string(ctx.OrigCaller), ""
+}
+
+// currentRealm retrieves the current realm's address and pkgPath.
+// It's not a native binding; but is used within this package to clarify usage.
+func currentRealm(m *gno.Machine) (address, pkgPath string) {
+	return X_getRealm(m, 0)
 }
 
 func X_derivePkgAddr(pkgPath string) string {

@@ -3,104 +3,33 @@
 name: misc
 
 on:
-  pull_request:
-    paths:
-      # XXX: for now keep the paths for gnovm, tm2, gnoland and misc the same,
-      # so that coverage information is uploaded for all of them together.
-      # This could be removed in the future.
-      - "gnovm/**"
-      - "tm2/**"
-      - "gno.land/**"
-      - "misc/**"
-      - "examples/**"
-      - ".github/workflows/**"
-      # XXX: end copied part, below is the "ideal" paths on which this workflow should run
-      - "misc/genstd/**.go"
-      - "misc/Makefile"
-      - ".github/workflows/misc.yml"
   push:
-    branches: [ "master" ]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+    branches:
+      - master
+  workflow_dispatch:
+  pull_request: 
+    paths:
+      - "misc/**"
+      - ".github/**"
 
 jobs:
-  build:
+  main:
     strategy:
-      fail-fast: false
-      matrix:
-        goversion:
-          - "1.22.x"
-        program:
-          - "genstd"
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.goversion }}
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: go install
-        working-directory: misc
-        run: go install ./${{ matrix.program }}
-
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        goversion:
-          - "1.22.x"
-        args:
-          - _test.genstd
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.goversion }}
-
-      - name: Set environment variables for debug mode
-        if: env.ACTIONS_STEP_DEBUG == 'true'
-        run: |
-          export LOG_PATH_DIR=${{ runner.temp }}/logs
-          mkdir -p $LOG_PATH_DIR
-
-          echo "LOG_LEVEL=debug" >> $GITHUB_ENV
-          echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
-
-      - name: Test
-        working-directory: misc
-        run: |
-          export GOPATH=$HOME/go
-          export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
-          make ${{ matrix.args }}
-
-      - uses: actions/upload-artifact@v4
-        if: ${{ runner.os == 'Linux' && matrix.goversion == '1.22.x' }}
-        with:
-          name: ${{runner.os}}-coverage-misc-${{matrix.args}}-${{matrix.goversion}}
-          path: ./misc/coverage.out
-
-  upload-coverage:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Download all previous coverage artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ${{ runner.temp }}/coverage
-      - name: Upload combined coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          directory: ${{ runner.temp }}/coverage
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
+        fail-fast: false
+        matrix:
+          # fixed list because we have some non go programs on that misc folder
+          program:
+            - autocounterd
+            # - devdeps
+            - docker-integration
+            - genproto
+            - genstd
+            - goscan
+            - logos
+            - loop
+    name: Run Main
+    uses: ./.github/workflows/main_template.yml
+    with:
+      modulepath: misc/${{ matrix.program }}
+    secrets:
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}
