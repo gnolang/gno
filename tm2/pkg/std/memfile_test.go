@@ -7,10 +7,12 @@ import (
 )
 
 func TestMemPackage_Validate(t *testing.T) {
+	t.Parallel()
 	tt := []struct {
-		name           string
-		mpkg           *MemPackage
+		name          string
+		mpkg          *MemPackage
 		shouldHaveErr bool
+		errContains		string
 	}{
 		{
 			"Correct",
@@ -20,6 +22,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			false,
+			"",
 		},
 		{
 			"Unsorted",
@@ -29,6 +32,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "b.gno"}, {Name: "a.gno"}},
 			},
 			true,
+			"unsorted",
 		},
 		{
 			"Duplicate",
@@ -38,6 +42,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}, {Name: "a.gno"}},
 			},
 			true,
+			"duplicate",
 		},
 		{
 			"InvalidPathLength",
@@ -47,6 +52,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"path length",
 		},
 		{
 			"valid p",
@@ -56,6 +62,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			false,
+			"",
 		},
 		{
 			"valid r",
@@ -65,6 +72,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			false,
+			"",
 		},
 		{
 			"Leading underscore",
@@ -74,6 +82,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			false,
+			"",
 		},
 		{
 			"Trailing underscore",
@@ -83,6 +92,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			false,
+			"",
 		},
 		{
 			"Between underscore",
@@ -92,6 +102,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			false,
+			"",
 		},
 		{
 			"Invalid underscore",
@@ -101,6 +112,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Invalid underscore 2",
@@ -110,6 +122,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Invalid underscore 3",
@@ -119,6 +132,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Invalid hyphen",
@@ -128,6 +142,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Invalid x",
@@ -137,6 +152,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Invalid missing path 1",
@@ -146,6 +162,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Invalid missing path 2",
@@ -155,6 +172,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Invalid path",
@@ -164,6 +182,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Special character",
@@ -173,6 +192,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Special character 2",
@@ -182,6 +202,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Invalid number",
@@ -191,6 +212,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Invalid uppercase",
@@ -200,6 +222,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Invalid empty path",
@@ -209,6 +232,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Invalid trailing slash",
@@ -218,6 +242,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"valid long path",
@@ -227,6 +252,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			false,
+			"",
 		},
 		{
 			"Invalid long path with special character",
@@ -236,6 +262,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Invalid long path with trailing slash",
@@ -245,6 +272,7 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 		{
 			"Invalid long path with empty",
@@ -254,13 +282,17 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			true,
+			"invalid package/realm path",
 		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
+
+			t.Parallel()
+
 			err := tc.mpkg.Validate()
 			if tc.shouldHaveErr {
-				assert.NotNil(t, err)
+				assert.ErrorContains(t, err, tc.errContains)
 			} else {
 				assert.NoError(t, err)
 			}

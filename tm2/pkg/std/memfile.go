@@ -41,12 +41,6 @@ const pathLengthLimit = 256
 
 var (
 	rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
-	/*
-		in case we use RE2 external lib (e.g. dlclark/regexp2), we can do this
-		^(?=.{0,256}$)gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$
-		with lookahead operation to limit the length
-		but for now we just check it with const pathLengthLimit in bytes.
-	*/
 	rePkgOrRlmPath = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
 	reFileName     = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
 )
@@ -60,12 +54,14 @@ func (mempkg *MemPackage) Validate() error {
 		return fmt.Errorf("no files found within package %q", mempkg.Name)
 	}
 
-	if !rePkgName.MatchString(mempkg.Name) {
-		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
-	}
 	if len(mempkg.Path) > pathLengthLimit {
 		return fmt.Errorf("path length %d exceeds limit %d", len(mempkg.Path), pathLengthLimit)
 	}
+
+	if !rePkgName.MatchString(mempkg.Name) {
+		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
+	}
+	
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
 	}
