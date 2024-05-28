@@ -63,6 +63,7 @@ make build.gnoland
 ```
 
 And finally, run it with `./build gnoland`.
+
 ## Starting a local node (lazy init)
 
 You can start a Gno blockchain node with the default configuration by navigating to the `gno.land` sub-folder and
