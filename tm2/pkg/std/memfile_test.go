@@ -12,7 +12,7 @@ func TestMemPackage_Validate(t *testing.T) {
 		name          string
 		mpkg          *MemPackage
 		shouldHaveErr bool
-		errContains		string
+		errContains   string
 	}{
 		{
 			"Correct",

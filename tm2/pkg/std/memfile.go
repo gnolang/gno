@@ -40,7 +40,7 @@ func (mempkg *MemPackage) IsEmpty() bool {
 const pathLengthLimit = 256
 
 var (
-	rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+	rePkgName      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	rePkgOrRlmPath = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
 	reFileName     = regexp.MustCompile(`^([a-zA-Z0-9_]*\.[a-z0-9_\.]*|LICENSE|README)$`)
 )
@@ -61,7 +61,7 @@ func (mempkg *MemPackage) Validate() error {
 	if !rePkgName.MatchString(mempkg.Name) {
 		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
 	}
-	
+
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
 	}
