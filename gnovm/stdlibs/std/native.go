@@ -14,7 +14,13 @@ func AssertOriginCall(m *gno.Machine) {
 }
 
 func IsOriginCall(m *gno.Machine) bool {
-	return len(m.Frames) == 2
+	n := m.NumFrames()
+	if n == 0 {
+		return false
+	}
+	firstPkg := m.Frames[0].LastPackage
+	isMsgCall := firstPkg != nil && firstPkg.PkgPath == "main"
+	return n <= 2 && isMsgCall
 }
 
 func GetChainID(m *gno.Machine) string {
