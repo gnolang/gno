@@ -5,11 +5,17 @@ import (
 	"strings"
 )
 
+type KindType string
+const (
+	PageKind    KindType = "page"
+	SectionKind KindType = "section"
+)
+
 type DOM struct {
 	// metadata
 	Prefix       string
 	Title        string
-    Kind         string
+    Kind         KindType
 	WithComments bool
 
 	// elements
@@ -19,10 +25,17 @@ type DOM struct {
 }
 
 func (dom DOM) String() string {
+       switch dom.Kind {
+        case PageKind, SectionKind:
+        default:
+            panic("invalid kind")
+    }
+
+
 	output := ""
 
     if dom.Kind != ""  {
-		output += "<main class='gno-tmpl-" + dom.Kind + "'>" + "\n\n"
+		output += "<main class='gno-tmpl-" + string(dom.Kind) + "'>" + "\n\n"
 	}
 
 	if dom.Title != "" {
