@@ -10,7 +10,7 @@ version of the Go programming language called Gno."
 ## What is Gno.land?
 
 Gno.land is a Layer 1 blockchain platform that enables the execution of Smart Contracts using an interpreted
-version of the Go programming language called Gno (Gno for short).
+version of the Go programming language called Gno.
 
 ### Key Features and Technology
 
