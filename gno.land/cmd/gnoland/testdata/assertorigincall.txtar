@@ -1,0 +1,245 @@
+# This test ensures the consistency of the std.AssertOriginCall function, in
+# the following situations:
+#
+# | Num | Msg Type |      Call from      | Entry Point            | Result |
+# |-----|:--------:|:-------------------:|:----------------------:|:------:|
+# | 1   | MsgCall  | wallet direct       | myrealm.A()            | PANIC  |
+# | 2   |          |                     | myrealm.B()            | pass   |
+# | 3   |          |                     | myrealm.C()            | pass   |
+# | 4   |          | through /r/foo      | myrealm.A()            | PANIC  |
+# | 5   |          |                     | myrealm.B()            | pass   |
+# | 6   |          |                     | myrealm.C()            | PANIC  |
+# | 7   |          | through /p/demo/bar | myrealm.A()            | PANIC  |
+# | 8   |          |                     | myrealm.B()            | pass   |
+# | 9   |          |                     | myrealm.C()            | PANIC  |
+# | 10  | MsgRun   | wallet direct       | myrealm.A()            | PANIC  |
+# | 11  |          |                     | myrealm.B()            | pass   |
+# | 12  |          |                     | myrealm.C()            | PANIC  |
+# | 13  |          | through /r/foo      | myrealm.A()            | PANIC  |
+# | 14  |          |                     | myrealm.B()            | pass   |
+# | 15  |          |                     | myrealm.C()            | PANIC  |
+# | 16  |          | through /p/demo/bar | myrealm.A()            | PANIC  |
+# | 17  |          |                     | myrealm.B()            | pass   |
+# | 18  |          |                     | myrealm.C()            | PANIC  |
+# | 19  | MsgCall  | wallet direct       | std.AssertOriginCall() | pass   |
+# | 20  | MsgRun   | wallet direct       | std.AssertOriginCall() | PANIC  |
+
+# Init
+## set up and start a new node
+loadpkg gno.land/r/myrlm $WORK/r/myrlm
+loadpkg gno.land/r/foo $WORK/r/foo
+loadpkg gno.land/p/demo/bar $WORK/p/demo/bar
+gnoland start
+
+# Test cases
+## 1. MsgCall -> myrlm.A: PANIC
+! gnokey maketx call -pkgpath gno.land/r/myrlm -func A -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## 2. MsgCall -> myrlm.B: PASS
+gnokey maketx call -pkgpath gno.land/r/myrlm -func B -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+stdout 'OK!'
+
+## 3. MsgCall -> myrlm.C: PASS
+gnokey maketx call -pkgpath gno.land/r/myrlm -func C -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+stdout 'OK!'
+
+## 4. MsgCall -> r/foo.A -> myrlm.A: PANIC
+! gnokey maketx call -pkgpath gno.land/r/foo -func A -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## 5. MsgCall -> r/foo.B -> myrlm.B: PASS
+gnokey maketx call -pkgpath gno.land/r/foo -func B -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+stdout 'OK!'
+
+## 6. MsgCall -> r/foo.C -> myrlm.C: PANIC
+! gnokey maketx call -pkgpath gno.land/r/foo -func C -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## 7. MsgCall -> p/demo/bar.A -> myrlm.A: PANIC
+! gnokey maketx call -pkgpath gno.land/p/demo/bar -func A -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## 8. MsgCall -> p/demo/bar.B -> myrlm.B: PASS
+gnokey maketx call -pkgpath gno.land/p/demo/bar -func B -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+stdout 'OK!'
+
+## 9. MsgCall -> p/demo/bar.C -> myrlm.C: PANIC
+! gnokey maketx call -pkgpath gno.land/p/demo/bar -func C -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+stderr 'invalid non-origin call'
+
+## 10. MsgRun -> run.main -> myrlm.A: PANIC
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlmA.gno
+stderr 'invalid non-origin call'
+
+## 11. MsgRun -> run.main -> myrlm.B: PASS
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlmB.gno
+stdout 'OK!'
+
+## 12. MsgRun -> run.main -> myrlm.C: PANIC
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlmC.gno
+stderr 'invalid non-origin call'
+
+## 13. MsgRun -> run.main -> foo.A: PANIC
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/fooA.gno
+stderr 'invalid non-origin call'
+
+## 14. MsgRun -> run.main -> foo.B: PASS
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/fooB.gno
+stdout 'OK!'
+
+## 15. MsgRun -> run.main -> foo.C: PANIC
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/fooC.gno
+stderr 'invalid non-origin call'
+
+## 16. MsgRun -> run.main -> bar.A: PANIC
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/barA.gno
+stderr 'invalid non-origin call'
+
+## 17. MsgRun -> run.main -> bar.B: PASS
+gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/barB.gno
+stdout 'OK!'
+
+## 18. MsgRun -> run.main -> bar.C: PANIC
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/barC.gno
+stderr 'invalid non-origin call'
+
+## 19. MsgCall -> std.AssertOriginCall: pass
+gnokey maketx call -pkgpath std -func AssertOriginCall -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+stdout 'OK!'
+
+## 20. MsgRun -> std.AssertOriginCall: PANIC
+! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/baz.gno
+stderr 'invalid non-origin call'
+
+
+-- r/myrlm/rlm.gno --
+package myrlm
+
+import "std"
+
+func A() {
+	C()
+}
+
+func B() {
+	if false {
+		C()
+	}
+}
+
+func C() {
+	std.AssertOriginCall()
+}
+-- r/foo/foo.gno --
+package foo
+
+import "gno.land/r/myrlm"
+
+func A() {
+	myrlm.A()
+}
+
+func B() {
+	myrlm.B()
+}
+
+func C() {
+	myrlm.C()
+}
+-- p/demo/bar/bar.gno --
+package bar
+
+import "gno.land/r/myrlm"
+
+func A() {
+	myrlm.A()
+}
+
+func B() {
+	myrlm.B()
+}
+
+func C() {
+	myrlm.C()
+}
+-- run/myrlmA.gno --
+package main
+
+import myrlm "gno.land/r/myrlm"
+
+func main() {
+	myrlm.A()
+}
+-- run/myrlmB.gno --
+package main
+
+import "gno.land/r/myrlm"
+
+func main() {
+	myrlm.B()
+}
+-- run/myrlmC.gno --
+package main
+
+import "gno.land/r/myrlm"
+
+func main() {
+	myrlm.C()
+}
+-- run/fooA.gno --
+package main
+
+import "gno.land/r/foo"
+
+func main() {
+	foo.A()
+}
+-- run/fooB.gno --
+package main
+
+import "gno.land/r/foo"
+
+func main() {
+	foo.B()
+}
+-- run/fooC.gno --
+package main
+
+import "gno.land/r/foo"
+
+func main() {
+	foo.C()
+}
+-- run/barA.gno --
+package main
+
+import "gno.land/p/demo/bar"
+
+func main() {
+	bar.A()
+}
+-- run/barB.gno --
+package main
+
+import "gno.land/p/demo/bar"
+
+func main() {
+	bar.B()
+}
+-- run/barC.gno --
+package main
+
+import "gno.land/p/demo/bar"
+
+func main() {
+	bar.C()
+}
+-- run/baz.gno --
+package main
+
+import "std"
+
+func main() {
+	std.AssertOriginCall()
+}
