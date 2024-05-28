@@ -10,8 +10,7 @@ import (
 )
 
 const (
-	blankIdentifier    string = "_"
-	blankNameIdentifer Name   = "_"
+	blankIdentifier = "_"
 )
 
 // In the case of a *FileSet, some declaration steps have to happen
@@ -194,7 +193,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					var defined bool
 					for _, lx := range n.Lhs {
 						ln := lx.(*NameExpr).Name
-						if ln == blankNameIdentifer {
+						if ln == blankIdentifier {
 							// ignore.
 						} else {
 							_, ok := last.GetLocalIndex(ln)
@@ -238,7 +237,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *FuncTypeExpr:
 				for i := range n.Params {
 					p := &n.Params[i]
-					if p.Name == "" || p.Name == blankNameIdentifer {
+					if p.Name == "" || p.Name == blankIdentifier {
 						// create a hidden var with leading dot.
 						// NOTE: document somewhere.
 						pn := fmt.Sprintf(".arg_%d", i)
@@ -247,7 +246,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 				for i := range n.Results {
 					r := &n.Results[i]
-					if r.Name == blankNameIdentifer {
+					if r.Name == blankIdentifier {
 						// create a hidden var with leading dot.
 						// NOTE: document somewhere.
 						rn := fmt.Sprintf(".res_%d", i)
@@ -686,8 +685,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 				// specific and general cases
 				switch n.Name {
-				case blankNameIdentifer:
-					n.Path = NewValuePathBlock(0, 0, blankNameIdentifer)
+				case blankIdentifier:
+					n.Path = NewValuePathBlock(0, 0, blankIdentifier)
 					return n, TRANS_CONTINUE
 				case "iota":
 					pd := lastDecl(ns)
@@ -1927,8 +1926,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					pn := fn.GetParentNode(nil).(*PackageNode)
 					for i := 0; i < numNames; i++ {
 						nx := &n.NameExprs[i]
-						if nx.Name == blankNameIdentifer {
-							nx.Path = NewValuePathBlock(0, 0, blankNameIdentifer)
+						if nx.Name == blankIdentifier {
+							nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
 						} else {
 							pn.Define2(n.Const, nx.Name, sts[i], tvs[i])
 							nx.Path = last.GetPathForName(nil, nx.Name)
@@ -1937,8 +1936,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				} else {
 					for i := 0; i < numNames; i++ {
 						nx := &n.NameExprs[i]
-						if nx.Name == blankNameIdentifer {
-							nx.Path = NewValuePathBlock(0, 0, blankNameIdentifer)
+						if nx.Name == blankIdentifier {
+							nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
 						} else {
 							last.Define2(n.Const, nx.Name, sts[i], tvs[i])
 							nx.Path = last.GetPathForName(nil, nx.Name)
@@ -3052,7 +3051,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 		// NOTE: unlike the *ValueDecl case, this case doesn't
 		// preprocess d itself (only d.Type).
 		if cd.IsMethod {
-			if cd.Recv.Name == "" || cd.Recv.Name == blankNameIdentifer {
+			if cd.Recv.Name == "" || cd.Recv.Name == blankIdentifier {
 				// create a hidden var with leading dot.
 				// NOTE: document somewhere.
 				cd.Recv.Name = ".recv"
@@ -3171,7 +3170,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 		}
 		if d.Name == "" { // use default
 			d.Name = pv.PkgName
-		} else if d.Name == blankNameIdentifer { // no definition
+		} else if d.Name == blankIdentifier { // no definition
 			return
 		} else if d.Name == "." { // dot import
 			panic("dot imports not allowed in Gno")
@@ -3198,8 +3197,8 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 		}
 		for i := 0; i < len(d.NameExprs); i++ {
 			nx := &d.NameExprs[i]
-			if nx.Name == blankNameIdentifer {
-				nx.Path.Name = blankNameIdentifer
+			if nx.Name == blankIdentifier {
+				nx.Path.Name = blankIdentifier
 			} else {
 				last2 := skipFile(last)
 				last2.Predefine(d.Const, nx.Name)
@@ -3379,7 +3378,7 @@ func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
 }
 
 func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
-	if nx.Name == blankNameIdentifer {
+	if nx.Name == blankIdentifier {
 		// Blank name has no path; caller error.
 		panic("should not happen")
 	}

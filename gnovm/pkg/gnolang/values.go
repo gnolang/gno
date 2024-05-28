@@ -2343,7 +2343,7 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if path.IsBlockBlankPath() {
 		if debug {
-			if path.Name != blankNameIdentifer {
+			if path.Name != blankIdentifier {
 				panic(fmt.Sprintf(
 					"zero value path is reserved for \"_\", but got %s",
 					path.Name))
