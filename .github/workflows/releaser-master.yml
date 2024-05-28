@@ -40,7 +40,7 @@ jobs:
         with:
           distribution: goreleaser-pro
           version: v1.26.2-pro
-          args: release --clean --config ./.github/goreleaser-master.yaml
+          args: release --clean --nightly --config ./.github/goreleaser-master.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
