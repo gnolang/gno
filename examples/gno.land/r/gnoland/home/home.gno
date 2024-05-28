@@ -15,6 +15,7 @@ import (
 func Render(_ string) string {
 	dom := ui.DOM{Prefix: "r/gnoland/home:"}
 	dom.Title = "Welcome to Gno.land"
+    dom.Kind = "section"
 
 	// body
 	dom.Body.Append(introSection()...)
@@ -53,6 +54,8 @@ func Render(_ string) string {
 
 	return dom.String()
 }
+
+
 
 func lastBlogposts(limit int) ui.Element {
 	posts := blog.RenderLastPostsWidget(limit)

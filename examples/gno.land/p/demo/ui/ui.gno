@@ -9,6 +9,7 @@ type DOM struct {
 	// metadata
 	Prefix       string
 	Title        string
+    Kind         string
 	WithComments bool
 
 	// elements
@@ -19,6 +20,10 @@ type DOM struct {
 
 func (dom DOM) String() string {
 	output := ""
+
+    if dom.Kind != ""  {
+		output += "<main class='gno-tmpl-" + dom.Kind + "'>" + "\n\n"
+	}
 
 	if dom.Title != "" {
 		output += H1(dom.Title).String(dom) + "\n"
@@ -43,6 +48,7 @@ func (dom DOM) String() string {
 			output += "<!-- /body -->"
 		}
 	}
+ 
 
 	if footer := dom.Footer.String(dom); footer != "" {
 		if dom.WithComments {
@@ -52,6 +58,10 @@ func (dom DOM) String() string {
 		if dom.WithComments {
 			output += "<!-- /footer -->"
 		}
+	}
+
+    if dom.Kind != ""  {
+		output += "</main>"
 	}
 
 	// TODO: cleanup double new-lines.
