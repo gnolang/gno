@@ -1976,7 +1976,7 @@ func (vp ValuePath) Validate() {
 			panic("uverse value path must have depth 0")
 		}
 	case VPBlock:
-		// 0 ok (blankIdentifier blank)
+		// 0 ok ("_" blank)
 	case VPField:
 		if vp.Depth > 1 {
 			panic("field value path must have depth 0 or 1")
