@@ -424,11 +424,11 @@ data: [
 
 #### `vm/qfile`
 
-With the `vm/qfile` query, we can fetch file found on a specific package path.
+With the `vm/qfile` query, we can fetch files found on a specific package path.
 To specify the path we want to query, we can use the `-data` flag:
 
 ```bash
-gnokey query vm/qfile --data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
+gnokey query vm/qfile -data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
 ```
 
 The output is a JSON-formatted string containing all exported functions for the
@@ -442,13 +442,37 @@ z0_filetest.gno
 ```
 
 #### `vm/qeval`
+
+`vm/qeval` allows us to evaluate a call to an exported function without using gas,
+in read-only mode. For example:
+
+```bash
+gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/demo/wugnot
+BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")" 
+```
+
+This command will return the `wugnot` balance of the above address without using gas.
+Properly escaping quotation marks, and inputting the newline for the function
+is currently required.
+
 #### `vm/qrender`
 
+`vm/qrender` is an alias for executing `vm/qeval` on the `Render("")` function.
+We can use it like this:
 
+```bash
+gnokey query vm/qrender -remote https://rpc.gno.land:443 -data "gno.land/r/demo/wugnot"
+// not working?
+```
 
+#### `vm/qrender`
 
+`vm/qrender` is an alias for executing `vm/qeval` on the `Render("")` function.
+We can use it like this:
 
-
-
+```bash
+gnokey query vm/qrender -remote https://rpc.gno.land:443 -data "gno.land/r/demo/wugnot"
+// not working?
+```
 
 
