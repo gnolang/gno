@@ -1,9 +1,9 @@
-name: Trigger nightly build
+name: Trigger nightly (latest) build
 
 on:
-  schedule:
-    - cron:  '0 0 * * 2-6'
-  workflow_dispatch:
+  push:
+    branches:
+      - "master"
 
 permissions:
   contents: write # needed to write releases
@@ -34,7 +34,7 @@ jobs:
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-        
+
       - uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser-pro
