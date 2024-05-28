@@ -1,17 +1,16 @@
-//go:build ledger_suite
-// +build ledger_suite
-
 package keys
 
 import (
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/crypto/internal/ledger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCreateLedgerUnsupportedAlgo(t *testing.T) {
-	t.Parallel()
+	ledger.Discover = ledger.DiscoverMock
+	t.Cleanup(func() { ledger.Discover = ledger.DiscoverDefault })
 
 	kb := NewInMemory()
 	_, err := kb.CreateLedger("some_account", Ed25519, "cosmos", 0, 1)
@@ -20,7 +19,8 @@ func TestCreateLedgerUnsupportedAlgo(t *testing.T) {
 }
 
 func TestCreateLedger(t *testing.T) {
-	t.Parallel()
+	ledger.Discover = ledger.DiscoverMock
+	t.Cleanup(func() { ledger.Discover = ledger.DiscoverDefault })
 
 	kb := NewInMemory()
 

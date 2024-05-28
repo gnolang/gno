@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"os"
 	"runtime"
-	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -152,15 +151,8 @@ type benchmark struct {
 	keyLen, dataLen     int
 }
 
-func backendList() []db.BackendType {
-	return slices.DeleteFunc(db.BackendList(), func(s db.BackendType) bool {
-		// fsdb doesn't support batch ops, and it's slow anyways, so let's skip.
-		return s == db.FSDBBackend
-	})
-}
-
 func BenchmarkSmall(b *testing.B) {
-	ls := backendList()
+	ls := db.BackendList()
 	bs := make([]benchmark, 0, len(ls))
 	for _, backend := range ls {
 		bs = append(bs, benchmark{backend, 1_000, 100, 16, 40})
@@ -169,7 +161,7 @@ func BenchmarkSmall(b *testing.B) {
 }
 
 func BenchmarkMedium(b *testing.B) {
-	ls := backendList()
+	ls := db.BackendList()
 	bs := make([]benchmark, 0, len(ls))
 	for _, backend := range ls {
 		bs = append(bs, benchmark{backend, 100_000, 100, 16, 40})
@@ -178,7 +170,7 @@ func BenchmarkMedium(b *testing.B) {
 }
 
 func BenchmarkLarge(b *testing.B) {
-	ls := backendList()
+	ls := db.BackendList()
 	bs := make([]benchmark, 0, len(ls))
 	for _, backend := range ls {
 		bs = append(bs, benchmark{backend, 1_000_000, 100, 16, 40})

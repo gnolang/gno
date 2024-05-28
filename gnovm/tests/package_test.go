@@ -7,21 +7,22 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
-	// "go/build"
+	"github.com/stretchr/testify/require"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/stretchr/testify/require"
 )
 
-func TestPackages(t *testing.T) {
+func TestStdlibs(t *testing.T) {
+	// NOTE: this test only works using _test.gno files;
+	// filetests are not meant to be used for testing standard libraries.
+	// The examples directory is tested directly using `gno test`.
+
 	// find all packages with *_test.gno files.
 	rootDirs := []string{
 		filepath.Join("..", "stdlibs"),
-		filepath.Join("..", "..", "examples"),
 	}
 	testDirs := map[string]string{} // aggregate here, pkgPath -> dir
 	pkgPaths := []string{}
@@ -46,8 +47,6 @@ func TestPackages(t *testing.T) {
 			return nil
 		})
 	}
-	// Sort pkgPaths for determinism.
-	sort.Strings(pkgPaths)
 	// For each package with testfiles (in testDirs), call Machine.TestMemPackage.
 	for _, pkgPath := range pkgPaths {
 		testDir := testDirs[pkgPath]

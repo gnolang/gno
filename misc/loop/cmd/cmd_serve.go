@@ -20,15 +20,6 @@ type serveCfg struct {
 	hostPWD        string
 }
 
-type serveService struct {
-	cfg serveCfg
-
-	// TODO(albttx): put getter on it with RMutex
-	portalLoop *snapshotter
-
-	portalLoopURL string
-}
-
 func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 	if os.Getenv("HOST_PWD") == "" {
 		os.Setenv("HOST_PWD", os.Getenv("PWD"))
@@ -92,7 +83,7 @@ func execServe(ctx context.Context, cfg *serveCfg, args []string) error {
 		go s.recordMetrics()
 
 		http.Handle("/metrics", promhttp.Handler())
-		http.ListenAndServe(os.Getenv("PROM_ADDR"), nil)
+		http.ListenAndServe(os.Getenv("PROM_ADDR"), nil) //nolint:all
 	}()
 
 	// the loop

@@ -136,14 +136,13 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 			defer func() {
 				if r := recover(); r != nil {
 					// print output.
-					fmt.Println("OUTPUT:\n", stdout.String())
-					// print stack if unexpected error.
+					fmt.Printf("OUTPUT:\n%s\n", stdout.String())
 					pnc = r
-					if errWanted == "" {
-						rtdb.PrintStack()
-					}
 					err := strings.TrimSpace(fmt.Sprintf("%v", pnc))
-					if !strings.Contains(err, errWanted) {
+					// print stack if unexpected error.
+					if errWanted == "" ||
+						!strings.Contains(err, errWanted) {
+						fmt.Printf("ERROR:\n%s\n", err)
 						// error didn't match: print stack
 						// NOTE: will fail testcase later.
 						rtdb.PrintStack()
@@ -258,6 +257,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					default:
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
+
 					if errstr != errWanted {
 						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
 					}
