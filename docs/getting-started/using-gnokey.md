@@ -1,6 +1,6 @@
----
+--
 id: using-gnokey
----
+--
 
 # Using `gnokey`
 
@@ -130,7 +130,7 @@ Accounts    ┃ I default address imported name=test1 addr=g1jg8mtutu9khhfwc4nxm
 Node        ┃ I pkgs loaded path="[{<your_monorepo_path> g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 }]"
 Node        ┃ I node started lisn=tcp://127.0.0.1:36657 chainID=dev
 GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
---- READY   ┃ I for commands and help, press `h`
+-- READY   ┃ I for commands and help, press `h`
 ```
 
 Now we have a local Gno node listening on `127.0.0.1:36657` with chain ID `dev`,
@@ -141,14 +141,14 @@ folder, the command will look like this:
 
 ```bash
 gnokey maketx addpkg \                                                                                                                                                                                          
---pkgpath "gno.land/p/<your_namespace>/hello_world" \
---pkgdir "." \
---send "" \
---gas-fee 10000000ugnot \
---gas-wanted 8000000 \
---broadcast \
---chainid dev \
---remote "127.0.0.1:26657" \
+-pkgpath "gno.land/p/<your_namespace>/hello_world" \
+-pkgdir "." \
+-send "" \
+-gas-fee 10000000ugnot \
+-gas-wanted 8000000 \
+-broadcast \
+-chainid dev \
+-remote "127.0.0.1:26657" \
 ```
 
 Once we have added a desired namespace to upload the package to, we can specify
@@ -156,14 +156,14 @@ a keypair name to use to execute the transaction:
 
 ```bash
 gnokey maketx addpkg \                                                                                                                                                                                          
---pkgpath "gno.land/p/leon/hello_world" \
---pkgdir "." \
---send "" \
---gas-fee 10000000ugnot \
---gas-wanted 200000 \
---broadcast \
---chainid dev \
---remote "127.0.0.1:26657" \
+-pkgpath "gno.land/p/leon/hello_world" \
+-pkgdir "." \
+-send "" \
+-gas-fee 10000000ugnot \
+-gas-wanted 200000 \
+-broadcast \
+-chainid dev \
+-remote "127.0.0.1:26657" \
 dev
 ```
 
@@ -212,14 +212,14 @@ subcommand:
 
 ```bash
 gnokey maketx call \
---pkgpath "gno.land/r/demo/wugnot" \
---func "Deposit" \
---send "1000ugnot" \
---gas-fee 10000000ugnot \
---gas-wanted 2000000 \
---broadcast \
---chainid portal-loop \
---remote "https://rpc.gno.land:443"" \
+-pkgpath "gno.land/r/demo/wugnot" \
+-func "Deposit" \
+-send "1000ugnot" \
+-gas-fee 10000000ugnot \
+-gas-wanted 2000000 \
+-broadcast \
+-chainid portal-loop \
+-remote "https://rpc.gno.land:443"" \
 main
 ```
 
@@ -239,14 +239,14 @@ can call the `BalanceOf()` function in the same realm:
 
 ```bash
 gnokey maketx call \
---pkgpath "gno.land/r/demo/wugnot" \
---func "BalanceOf" \
---args "<your_address>" \
---gas-fee 10000000ugnot \
---gas-wanted 2000000 \
---broadcast \
---chainid portal-loop \
---remote "https://rpc.gno.land:443" \
+-pkgpath "gno.land/r/demo/wugnot" \
+-func "BalanceOf" \
+-args "<your_address>" \
+-gas-fee 10000000ugnot \
+-gas-wanted 2000000 \
+-broadcast \
+-chainid portal-loop \
+-remote "https://rpc.gno.land:443" \
 dev
 ```
 
@@ -286,13 +286,13 @@ For this example, let's transfer some GNOTs. Just like before, we can configure
 our `maketx send` subcommand:
 ```bash
 gnokey maketx send \
---to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 \
---send 100ugnot \
---gas-fee 10000000ugnot \
---gas-wanted 2000000 \
---broadcast \
---chainid dev \
---remote "127.0.0.1:26657" \
+-to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 \
+-send 100ugnot \
+-gas-fee 10000000ugnot \
+-gas-wanted 2000000 \
+-broadcast \
+-chainid dev \
+-remote "127.0.0.1:26657" \
 dev
 ```
 
@@ -334,7 +334,7 @@ We can obtain information on a specific address using this subquery. To call it,
 we can run the following command:
 
 ```bash
-gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 --remote https://rpc.gno.land:443
+gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
 ```
 
 With this, we are asking the Portal Loop network to deliver information about the
@@ -375,7 +375,7 @@ With this query, we can fetch balances of a specfic account. To call it, we can
 run the following command:
 
 ```bash
-gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 --remote https://rpc.gno.land:443
+gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
 ```
 
 If everything went correctly, we should get the following
@@ -386,10 +386,61 @@ height: 0
 data: "227984898927ugnot"
 ```
 
-The data field will contain the coins the address owns
+The data field will contain the coins the address owns.
 
 #### `vm/qfuncs`
+
+Using the `vm/qfuncs` query, we can fetch exported functions from a specific package
+path. To specify the path we want to query, we can use the `-data` flag:
+
+```bash
+gnokey query vm/qfuncs --data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
+```
+
+The output is a JSON-formatted string containing all exported functions for the
+`wugnot` realm:
+
+```json
+data: [
+  {
+    "FuncName": "Deposit",
+    "Params": null,
+    "Results": null
+  },
+  {
+    "FuncName": "Withdraw",
+    "Params": [
+      {
+        "Name": "amount",
+        "Type": "uint64",
+        "Value": ""
+      }
+    ],
+    "Results": null
+  },
+  // other functions
+]
+```
+
 #### `vm/qfile`
+
+With the `vm/qfile` query, we can fetch file found on a specific package path.
+To specify the path we want to query, we can use the `-data` flag:
+
+```bash
+gnokey query vm/qfile --data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
+```
+
+The output is a JSON-formatted string containing all exported functions for the
+`wugnot` realm:
+
+```bash
+height: 0
+data: gno.mod
+wugnot.gno
+z0_filetest.gno
+```
+
 #### `vm/qeval`
 #### `vm/qrender`
 
