@@ -62,7 +62,7 @@ func SignUp() string {
 	}
 
 	signups = append(signups, signup)
-	std.Emit(signUpEvent, "SignedUpAccunt", signup.account)
+	std.Emit(signUpEvent, "SignedUpAccount", signup.account)
 
 	return ufmt.Sprintf("%s added to userbook up at block #%d!", signup.account, signup.height)
 }
