@@ -11,9 +11,6 @@ making it trivial to verify the contract or fork it into an improved version. Wi
 libraries on-chain, Gno.land serves as the “GitHub” of the ecosystem, with realms built using fully transparent, 
 auditable code that anyone can inspect and reuse.
 
-- test 1
-- test 2
-
 Gno.land addresses many pressing issues in the blockchain space, starting with the ease of use and intuitiveness of
 smart contract platforms. Developers can write smart contracts without having to learn a new language that’s exclusive 
 to a single ecosystem or limited by design. Go developers can easily port their existing web apps to Gno.land or build
