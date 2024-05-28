@@ -99,12 +99,17 @@ correct flags for the `addpkg` subcommand.
 The `addpkg` subcommmand uses the following flags and arguments:
 - `-pkgpath` - on-chain path where your code will be uploaded to
 - `-pkgdir` - local path where your is located
-- `-gas-wanted` - the upper limit for units of gas for the execution of the
-transaction
-- `-gas-fee` - amount of GNOTs to pay per gas unit 
 - `-broadcast` - enables broadcasting the transaction to the chain
+- `-gas-wanted` - the upper limit for units of gas for the execution of the
+  transaction
+- `-gas-fee` - amount of GNOTs to pay per gas unit 
 - `-chain-id` - id of the chain to connect to
 - `-remote` - specifies the remote node RPC listener address
+
+The `-pkgpath` and `-pkgdir` flags are unique to the `addpkg` subcommand, while
+`-gas-wanted`, `-gas-fee`, `-chain-id`, and `-remote` are used for setting the
+base transaction configuration. These flags will be repeated throughout the 
+tutorial.
 
 For this demonstration, we will run a local Gno node using `gnodev`. First, simply
 start `gnodev`:
@@ -148,7 +153,7 @@ gnokey maketx addpkg \
 --pkgpath "gno.land/p/leon/hello_world" \
 --pkgdir "." \
 --gas-fee 10000000ugnot \
---gas-wanted 8000000 \
+--gas-wanted 200000 \
 --broadcast \
 --chainid dev \
 --remote "127.0.0.1:36657" \
@@ -159,11 +164,17 @@ If the transaction was successful, you will get the following output from `gnoke
 
 ```
 OK!
-GAS WANTED: 8000000
+GAS WANTED: 200000
 GAS USED:   117564
 HEIGHT:     3990
 EVENTS:     []
 ```
+
+Let's analyze the output:
+- `GAS WANTED: 8000000` - the original amount of gas specified for the transaction
+- `GAS USED:   117564` - the gas used to execute the transaction
+- `HEIGHT:     3990` - the block number at which the transaction was executed at
+- `EVENTS:     []` - events emitted by the transaction, in this case, none
 
 Congratulations! You have just uploaded a pure package to the chain.
 
@@ -183,6 +194,26 @@ does not modify on-chain state. If you are calling such a function, you can use
 the [`query` functionality](#query) for a read-only call which does not use gas.
 
 :::
+
+For this example, we will call the [`Userbook` realm](https://gno.land/r/demo/userbook),
+deployed on the [Portal Loop](../concepts/portal-loop.md) testnet. This realm
+simply registers the fact that a user has interacted with it. To do this, you can
+call its `SignUp()` function. As with , we will configure the `maketx call`
+subcommand:
+
+```bash
+gnokey maketx call \                                                                                                                                                                                          
+--pkgpath "gno.land/r/demo/userbook" \
+--func "SignUp"
+--gas-fee 10000000ugnot \
+--gas-wanted 200000 \
+--broadcast \
+--chainid portal-loop \
+--remote https://rpc.gno.land:433 \
+dev
+```
+
+In this case, we have specified
 
 
 
