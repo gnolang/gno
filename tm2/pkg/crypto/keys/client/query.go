@@ -13,10 +13,7 @@ import (
 type QueryCfg struct {
 	RootCfg *BaseCfg
 
-	Data   string
-	Height int64
-	Prove  bool
-
+	Data string
 	Path string
 }
 
@@ -44,20 +41,6 @@ func (c *QueryCfg) RegisterFlags(fs *flag.FlagSet) {
 		"data",
 		"",
 		"query data bytes",
-	)
-
-	fs.Int64Var(
-		&c.Height,
-		"height",
-		0,
-		"query height (not yet supported)",
-	)
-
-	fs.BoolVar(
-		&c.Prove,
-		"prove",
-		false,
-		"prove query result (not yet supported)",
 	)
 }
 
@@ -96,10 +79,7 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	}
 
 	data := []byte(cfg.Data)
-	opts2 := client.ABCIQueryOptions{
-		// Height: height, XXX
-		// Prove: false, XXX
-	}
+	opts2 := client.ABCIQueryOptions{}
 	cli, err := client.NewHTTPClient(remote)
 	if err != nil {
 		return nil, errors.Wrap(err, "new http client")
