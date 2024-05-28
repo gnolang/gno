@@ -9,10 +9,9 @@ import (
 func TestMemPackage_Validate(t *testing.T) {
 	t.Parallel()
 	tt := []struct {
-		name          string
-		mpkg          *MemPackage
-		shouldHaveErr bool
-		errContains   string
+		name        string
+		mpkg        *MemPackage
+		errContains string
 	}{
 		{
 			"Correct",
@@ -21,7 +20,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/demo/hey",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			false,
 			"",
 		},
 		{
@@ -31,7 +29,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/demo/hey",
 				Files: []*MemFile{{Name: "b.gno"}, {Name: "a.gno"}},
 			},
-			true,
 			"unsorted",
 		},
 		{
@@ -41,7 +38,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/demo/hey",
 				Files: []*MemFile{{Name: "a.gno"}, {Name: "a.gno"}},
 			},
-			true,
 			"duplicate",
 		},
 		{
@@ -51,7 +47,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/very/long/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"path length",
 		},
 		{
@@ -61,7 +56,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/p/path/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			false,
 			"",
 		},
 		{
@@ -71,7 +65,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/path/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			false,
 			"",
 		},
 		{
@@ -81,7 +74,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/path/_path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			false,
 			"",
 		},
 		{
@@ -91,7 +83,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/path/path_",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			false,
 			"",
 		},
 		{
@@ -101,7 +92,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/path/p_ath",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			false,
 			"",
 		},
 		{
@@ -111,7 +101,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/path/_",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -121,7 +110,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/path/_/_",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -131,7 +119,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/path/__/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -141,7 +128,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/path/pa-th",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -151,7 +137,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/x/path/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -161,7 +146,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/p",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -171,7 +155,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/p/",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -181,7 +164,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "github.com/p/path/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -191,7 +173,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/p/p@th/abc/def",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -201,7 +182,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/p/p&th/abc/def",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -211,7 +191,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/p/1Path/abc/def",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -221,7 +200,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/p/PaTh/abc/def",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -231,7 +209,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/p/path//def",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -241,7 +218,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/p/path/abc/def/",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -251,7 +227,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/very/very/very/long/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			false,
 			"",
 		},
 		{
@@ -261,7 +236,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/very/very/very/long/p@th",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -271,7 +245,6 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/very/very/very/long/path/",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 		{
@@ -281,17 +254,15 @@ func TestMemPackage_Validate(t *testing.T) {
 				Path:  "gno.land/r/very/very/very//long/path/",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			true,
 			"invalid package/realm path",
 		},
 	}
 	for _, tc := range tt {
 		t.Run(tc.name, func(t *testing.T) {
-
 			t.Parallel()
 
 			err := tc.mpkg.Validate()
-			if tc.shouldHaveErr {
+			if tc.errContains != "" {
 				assert.ErrorContains(t, err, tc.errContains)
 			} else {
 				assert.NoError(t, err)
