@@ -315,7 +315,7 @@ func checkDuplicates(fset *FileSet) bool {
 				name = d.Name
 			case *ValueDecl:
 				for _, nx := range d.NameExprs {
-					if nx.Name == "_" {
+					if nx.Name == blankIdentifier {
 						continue
 					}
 					if _, ok := defined[nx.Name]; ok {
@@ -327,7 +327,7 @@ func checkDuplicates(fset *FileSet) bool {
 			default:
 				continue
 			}
-			if name == "_" {
+			if name == blankIdentifier {
 				continue
 			}
 			if _, ok := defined[name]; ok {
