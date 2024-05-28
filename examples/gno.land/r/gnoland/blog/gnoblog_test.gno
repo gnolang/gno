@@ -137,7 +137,8 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 	{
 		ModEditPost("slug2", "title2++", "body2++", "2009-11-10T23:00:00Z", "manfred", "tag1,tag4")
 		got := Render("p/slug2")
-		expected := `
+		expected := `<main class='gno-tmpl-page'>
+
 # title2++
 
 body2++
@@ -166,6 +167,7 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 ---
 
 </details>
+</main>
 	`
 		assertMDEquals(t, got, expected)
 	}
