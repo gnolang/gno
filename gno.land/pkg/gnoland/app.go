@@ -10,6 +10,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
@@ -32,6 +33,7 @@ type AppOptions struct {
 	GnoRootDir       string
 	GenesisTxHandler GenesisTxHandler
 	Logger           *slog.Logger
+	EventSwitch      events.EventSwitch
 	MaxCycles        int64
 }
 
@@ -41,6 +43,7 @@ func NewAppOptions() *AppOptions {
 		Logger:           log.NewNoopLogger(),
 		DB:               memdb.NewMemDB(),
 		GnoRootDir:       gnoenv.RootDir(),
+		EventSwitch:      events.NilEventSwitch(),
 	}
 }
 
@@ -106,8 +109,14 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		},
 	)
 
+	// Set up the event collector
+	c := newCollector[abci.ValidatorUpdate](
+		cfg.EventSwitch,      // global event switch filled by the node
+		validatorEventFilter, // filter fn that keeps the collector valid
+	)
+
 	// Set EndBlocker
-	baseApp.SetEndBlocker(EndBlocker(vmKpr))
+	baseApp.SetEndBlocker(EndBlocker(c))
 
 	// Set a handler Route.
 	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
@@ -126,7 +135,12 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 }
 
 // NewApp creates the GnoLand application.
-func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger) (abci.Application, error) {
+func NewApp(
+	dataRootDir string,
+	skipFailingGenesisTxs bool,
+	logger *slog.Logger,
+	evsw events.EventSwitch,
+) (abci.Application, error) {
 	var err error
 
 	cfg := NewAppOptions()
@@ -141,14 +155,16 @@ func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger)
 	}
 
 	cfg.Logger = logger
+	cfg.EventSwitch = evsw
+
 	return NewAppWithOptions(cfg)
 }
 
 type GenesisTxHandler func(ctx sdk.Context, tx std.Tx, res sdk.Result)
 
-func NoopGenesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {}
+func NoopGenesisTxHandler(_ sdk.Context, _ std.Tx, _ sdk.Result) {}
 
-func PanicOnFailingTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
+func PanicOnFailingTxHandler(_ sdk.Context, _ std.Tx, res sdk.Result) {
 	if res.IsErr() {
 		panic(res.Log)
 	}
@@ -199,9 +215,13 @@ func InitChainer(
 	}
 }
 
-// XXX not used yet.
-func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-		return abci.ResponseEndBlock{}
+// EndBlocker defines the logic executed after every block.
+// Currently, it parses events that happened during execution to calculate
+// validator set changes
+func EndBlocker(collector *collector[abci.ValidatorUpdate]) func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+	return func(_ sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
+		return abci.ResponseEndBlock{
+			ValidatorUpdates: collector.getEvents(),
+		}
 	}
 }

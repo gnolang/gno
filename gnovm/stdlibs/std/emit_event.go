@@ -20,24 +20,25 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	_, pkgPath := currentRealm(m)
 	fnIdent := getPrevFunctionNameFromTarget(m, "Emit")
 
-	evt := gnoEvent{
+	evt := GnoEvent{
 		Type:       typ,
 		PkgPath:    pkgPath,
 		Func:       fnIdent,
 		Attributes: eventAttrs,
 	}
+
 	ctx := m.Context.(ExecContext)
 	ctx.EventLogger.EmitEvent(evt)
 }
 
-func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
+func attrKeysAndValues(attrs []string) ([]GnoEventAttribute, error) {
 	attrLen := len(attrs)
 	if attrLen%2 != 0 {
 		return nil, errInvalidGnoEventAttrs
 	}
-	eventAttrs := make([]gnoEventAttribute, attrLen/2)
+	eventAttrs := make([]GnoEventAttribute, attrLen/2)
 	for i := 0; i < attrLen-1; i += 2 {
-		eventAttrs[i/2] = gnoEventAttribute{
+		eventAttrs[i/2] = GnoEventAttribute{
 			Key:   attrs[i],
 			Value: attrs[i+1],
 		}
@@ -45,16 +46,16 @@ func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
 	return eventAttrs, nil
 }
 
-type gnoEvent struct {
+type GnoEvent struct {
 	Type       string              `json:"type"`
 	PkgPath    string              `json:"pkg_path"`
 	Func       string              `json:"func"`
-	Attributes []gnoEventAttribute `json:"attrs"`
+	Attributes []GnoEventAttribute `json:"attrs"`
 }
 
-func (e gnoEvent) AssertABCIEvent() {}
+func (e GnoEvent) AssertABCIEvent() {}
 
-type gnoEventAttribute struct {
+type GnoEventAttribute struct {
 	Key   string `json:"key"`
 	Value string `json:"value"`
 }
