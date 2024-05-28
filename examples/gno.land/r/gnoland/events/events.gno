@@ -11,18 +11,17 @@ import (
 func Render(_ string) string {
 	dom := ui.DOM{Prefix: "r/gnoland/events:"}
 	dom.Title = "Gno.land Core Team Attends Industry Events & Meetups"
-    dom.Kind = "section"
+	dom.Classes = []string{"gno-tmpl-section"}
 
 	// body
 	dom.Body.Append(introSection()...)
-    dom.Body.Append(ui.HR{})
+	dom.Body.Append(ui.HR{})
 	dom.Body.Append(upcomingEvents()...)
-    dom.Body.Append(ui.HR{})
+	dom.Body.Append(ui.HR{})
 	dom.Body.Append(pastEvents()...)
 
 	return dom.String()
 }
-
 
 func introSection() ui.Element {
 	return ui.Element{
@@ -30,10 +29,9 @@ func introSection() ui.Element {
 	}
 }
 
-
 func upcomingEvents() ui.Element {
 	return ui.Element{
-        ui.H2("Upcoming Events"),
+		ui.H2("Upcoming Events"),
 		ui.Text(`<div class="columns-3">
 <div class="column">
 
@@ -80,12 +78,12 @@ func upcomingEvents() ui.Element {
 <div class="column">
 
 </div><!-- end column-->
-</div><!-- end columns-3-->`),	}
+</div><!-- end columns-3-->`)}
 }
 
 func pastEvents() ui.Element {
 	return ui.Element{
-        ui.H2("Past Events"),
+		ui.H2("Past Events"),
 		ui.Text(`<div class="columns-3">
 <div class="column">
 
@@ -213,5 +211,5 @@ func pastEvents() ui.Element {
 [Watch the talk](https://www.youtube.com/watch?v=hCLErPgnavI)
 
 </div><!-- end column-->
-</div><!-- end columns-3-->`),	}
+</div><!-- end columns-3-->`)}
 }

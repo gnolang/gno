@@ -5,18 +5,12 @@ import (
 	"strings"
 )
 
-type KindType string
-const (
-	PageKind    KindType = "page"
-	SectionKind KindType = "section"
-)
-
 type DOM struct {
 	// metadata
 	Prefix       string
 	Title        string
-    Kind         KindType
 	WithComments bool
+	Classes      []string
 
 	// elements
 	Header Element
@@ -25,17 +19,12 @@ type DOM struct {
 }
 
 func (dom DOM) String() string {
-       switch dom.Kind {
-        case PageKind, SectionKind:
-        default:
-            panic("invalid kind")
-    }
-
+	classes := strings.Join(dom.Classes, " ")
 
 	output := ""
 
-    if dom.Kind != ""  {
-		output += "<main class='gno-tmpl-" + string(dom.Kind) + "'>" + "\n\n"
+	if classes != "" {
+		output += "<main class='" + classes + "'>" + "\n\n"
 	}
 
 	if dom.Title != "" {
@@ -61,7 +50,6 @@ func (dom DOM) String() string {
 			output += "<!-- /body -->"
 		}
 	}
- 
 
 	if footer := dom.Footer.String(dom); footer != "" {
 		if dom.WithComments {
@@ -73,7 +61,7 @@ func (dom DOM) String() string {
 		}
 	}
 
-    if dom.Kind != ""  {
+	if classes != "" {
 		output += "</main>"
 	}
 
