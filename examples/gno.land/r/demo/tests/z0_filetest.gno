@@ -5,24 +5,24 @@ import (
 )
 
 func main() {
-	println("IsOriginCall:", tests.IsOriginCall())
-	tests.AssertOriginCall()
-	println("AssertOriginCall doesn't panic when called directly")
+	println("tests.CallIsOriginCall:", tests.CallIsOriginCall())
+	tests.CallAssertOriginCall()
+	println("tests.CallAssertOriginCall doesn't panic when called directly")
 
-	func() {
-		// if called inside a function literal, this is no longer an origin call
-		// because there's one additional frame (the function literal).
-		println("IsOriginCall:", tests.IsOriginCall())
+	{
+		// if called inside a block, this is no longer an origin call because
+		// there's one additional frame (the block).
+		println("tests.CallIsOriginCall:", tests.CallIsOriginCall())
 		defer func() {
 			r := recover()
-			println("AssertOriginCall panics if when called inside a function literal:", r)
+			println("tests.AssertOriginCall panics if when called inside a function literal:", r)
 		}()
-		tests.AssertOriginCall()
-	}()
+		tests.CallAssertOriginCall()
+	}
 }
 
 // Output:
-// IsOriginCall: true
-// AssertOriginCall doesn't panic when called directly
-// IsOriginCall: false
-// AssertOriginCall panics if when called inside a function literal: invalid non-origin call
+// tests.CallIsOriginCall: true
+// tests.CallAssertOriginCall doesn't panic when called directly
+// tests.CallIsOriginCall: true
+// tests.AssertOriginCall panics if when called inside a function literal: undefined
