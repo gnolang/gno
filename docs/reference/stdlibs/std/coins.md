@@ -41,7 +41,7 @@ coins.String() // 100ugnot,150foo,200bar
 ---
 
 ### AmountOf
-Returns **int64** amount of specified coin within the `Coins` set it was called upon. Returns `0` if coin specified coin does not exist in the set. 
+Returns **int64** amount of specified coin within the `Coins` set it was called upon. Returns `0` if the specified coin does not exist in the set. 
 
 ### Parameters
 - `denom` **string** denomination of specified coin
