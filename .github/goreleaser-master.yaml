@@ -484,8 +484,10 @@ sboms:
     artifacts: source
 
 release:
-  draft: false
+  draft: true
+  replace_existing_draft: true
   prerelease: auto
+  make_latest: false
   mode: append
   footer: |
     ### Container Images
@@ -493,3 +495,8 @@ release:
     You can find all docker images at:
 
     https://github.com/orgs/gnolang/packages?repo_name={{ .ProjectName }}
+
+nightly:
+  tag_name: master
+  publish_release: true
+  keep_single_release: true
