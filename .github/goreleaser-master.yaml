@@ -485,7 +485,6 @@ sboms:
 
 release:
   draft: false
-  replace_existing_draft: true
   prerelease: auto
   mode: append
   footer: |
