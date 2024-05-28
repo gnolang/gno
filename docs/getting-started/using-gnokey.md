@@ -14,7 +14,7 @@ mnemonics are, how they are used, and how you can make interaction seamless with
 Gno.
 
 ## Prerequisites
-- **`gno` & `gnokey` installed.** Reference the
+- **`gno`, `gnokey`, and `gnodev` installed.** Reference the
   [Local Setup](local-setup/installation.md#2-installing-the-required-tools-) guide for steps
 
 ## Keypairs
@@ -31,7 +31,7 @@ There are multiple ways anyone can interact with the chain:
 Both transactions and ABCI queries can be used via `gnokey`'s subcommands,
 `maketx` and `query`.
 
-## State-changing calls
+## State-changing calls (transactions)
 
 In Gno, there are three types of messages that can change on-chain state:
 - `AddPackage` - adds code to the chain
@@ -59,33 +59,141 @@ following command:
 gnokey maketx addpkg
 ```
 
-To understand how to use this subcommand better, let's create a folder with some
-example code. First create an empty directory somewhere on disk:
+To understand how to use this subcommand better, let's write a simple "Hello world"
+[pure package](../concepts/packages.md). First create a folder which will store 
+our example code.
 
+```bash
+└── example/
+```
 
+Then, let's create a `hello_world.gno` file under the `p/` folder:
 
-The `addpkg` subcommmand takes the following parameters:
-- `--pkgpath` - on-chain path where your code will be uploaded to
-- `--pkgdir` - local path where your is located
-- `--gas-wanted` - the upper limit for units of gas for the execution of the
+```bash
+cd example
+mkdir p/ && cd p
+touch hello_world.gno
+```
+
+Now, we should have the following folder structure:
+
+```bash
+└── example/
+│   └── p/
+│       └── hello_world.gno
+```
+
+In the `hello_world.gno` file, add define the following code:
+
+```go
+package hello_world
+
+func Hello() string {
+	return "Hello, world!"
+}
+```
+
+We are now ready to upload this packge to the chain. To do this, we must set the
+correct flags for the `addpkg` subcommand.
+
+The `addpkg` subcommmand uses the following flags and arguments:
+- `-pkgpath` - on-chain path where your code will be uploaded to
+- `-pkgdir` - local path where your is located
+- `-gas-wanted` - the upper limit for units of gas for the execution of the
 transaction
-- `--gas-fee` - similar to Solidity's `gas-price`
-- `--broadcast` - broadcast the transaction on-chain
-- `--chain-id` - id of the chain to connect to, in our case the local node, `dev`
-- `--remote` - specify node endpoint, in our case it's our local node
-- `Dev` - the keypair to use for the transaction
+- `-gas-fee` - amount of GNOTs to pay per gas unit 
+- `-broadcast` - enables broadcasting the transaction to the chain
+- `-chain-id` - id of the chain to connect to
+- `-remote` - specifies the remote node RPC listener address
 
+For this demonstration, we will run a local Gno node using `gnodev`. First, simply
+start `gnodev`:
 
+```bash
+gnodev
+```
 
+If everything went well, you should see the following output:
+```bash
+❯ gnodev
+Accounts    ┃ I default address imported name=test1 addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+Node        ┃ I pkgs loaded path="[{<your_monorepo_path> g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 }]"
+Node        ┃ I node started lisn=tcp://127.0.0.1:36657 chainID=dev
+GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
+--- READY   ┃ I for commands and help, press `h`
+```
+
+Now we have a local Gno node listening on `127.0.0.1:36657` with chain ID `dev`,
+which we can use to upload our code to.
+
+Next, let's configure the `addpkg` subcommand. Assuming we are in the `example/p` 
+folder, the command will look like this:
+
+```bash
 gnokey maketx addpkg \                                                                                                                                                                                          
---pkgpath "gno.land/r/leon/v5/memeland" \
+--pkgpath "gno.land/p/<your_namespace>/hello_world" \
 --pkgdir "." \
 --gas-fee 10000000ugnot \
 --gas-wanted 8000000 \
 --broadcast \
---chainid portal-loop \
---remote https://rpc.gno.land:443 \
-mykey
+--chainid dev \
+--remote "127.0.0.1:36657" \
+```
+
+Once we have added a desired namespace to upload the package to, we can specify
+a keypair name to use to execute the transaction:
+
+```bash
+gnokey maketx addpkg \                                                                                                                                                                                          
+--pkgpath "gno.land/p/leon/hello_world" \
+--pkgdir "." \
+--gas-fee 10000000ugnot \
+--gas-wanted 8000000 \
+--broadcast \
+--chainid dev \
+--remote "127.0.0.1:36657" \
+dev
+```
+
+If the transaction was successful, you will get the following output from `gnokey`:
+
+```
+OK!
+GAS WANTED: 8000000
+GAS USED:   117564
+HEIGHT:     3990
+EVENTS:     []
+```
+
+Congratulations! You have just uploaded a pure package to the chain.
+
+### `Call`
+
+You can call any exported function on the chain using the `call` message type. 
+You can send a `Call` transaction with `gnokey` using the following command:
+
+```bash
+gnokey maketx call
+```
+
+:::info `call` uses gas
+
+Using `call` to call an exported function will use up gas, even if the function
+does not modify on-chain state. If you are calling such a function, you can use
+the [`query` functionality](#query) for a read-only call which does not use gas.
+
+:::
+
+
+
+
+### ABCI queries
+
+## `query`
+
+
+
+
 
 
 
