@@ -47,6 +47,9 @@ Currently, `gnokey` supports single-message transactions, while multiple-message
 transactions can be created in Go programs, supported by the
 [gnoclient](../reference/gnoclient/gnoclient.md) package.
 
+We will need some testnet GNOTs for each state-changing call. Visit the [Faucet
+Hub](https://faucet.gno.land) to get GNOTs for the currently live Gno testnets.
+
 Let's delve deeper into each of these messages.
 
 ### `AddPackage`
@@ -100,6 +103,7 @@ The `addpkg` subcommmand uses the following flags and arguments:
 - `-pkgpath` - on-chain path where your code will be uploaded to
 - `-pkgdir` - local path where your is located
 - `-broadcast` - enables broadcasting the transaction to the chain
+- `-send` - a deposit amount of GNOT to send along with the transaction
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
   transaction
 - `-gas-fee` - amount of GNOTs to pay per gas unit 
@@ -107,9 +111,9 @@ The `addpkg` subcommmand uses the following flags and arguments:
 - `-remote` - specifies the remote node RPC listener address
 
 The `-pkgpath` and `-pkgdir` flags are unique to the `addpkg` subcommand, while
-`-gas-wanted`, `-gas-fee`, `-chain-id`, and `-remote` are used for setting the
-base transaction configuration. These flags will be repeated throughout the 
-tutorial.
+`-broadcast`,`-send`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and `-remote` are 
+used for setting the base transaction configuration. These flags will be repeated
+throughout the tutorial.
 
 For this demonstration, we will run a local Gno node using `gnodev`. First, simply
 start `gnodev`:
@@ -138,6 +142,7 @@ folder, the command will look like this:
 gnokey maketx addpkg \                                                                                                                                                                                          
 --pkgpath "gno.land/p/<your_namespace>/hello_world" \
 --pkgdir "." \
+--send "" \
 --gas-fee 10000000ugnot \
 --gas-wanted 8000000 \
 --broadcast \
@@ -152,6 +157,7 @@ a keypair name to use to execute the transaction:
 gnokey maketx addpkg \                                                                                                                                                                                          
 --pkgpath "gno.land/p/leon/hello_world" \
 --pkgdir "." \
+--send "" \
 --gas-fee 10000000ugnot \
 --gas-wanted 200000 \
 --broadcast \
@@ -170,8 +176,8 @@ HEIGHT:     3990
 EVENTS:     []
 ```
 
-Let's analyze the output:
-- `GAS WANTED: 8000000` - the original amount of gas specified for the transaction
+Let's analyze the output, which is standard for any `gnokey` transaction:
+- `GAS WANTED: 200000` - the original amount of gas specified for the transaction
 - `GAS USED:   117564` - the gas used to execute the transaction
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
 - `EVENTS:     []` - events emitted by the transaction, in this case, none
@@ -195,28 +201,33 @@ the [`query` functionality](#query) for a read-only call which does not use gas.
 
 :::
 
-For this example, we will call the [`Userbook` realm](https://gno.land/r/demo/userbook),
-deployed on the [Portal Loop](../concepts/portal-loop.md) testnet. This realm
-simply registers the fact that a user has interacted with it. To do this, you can
-call its `SignUp()` function. As with , we will configure the `maketx call`
+For this example, we will call the `wugnot` realm, which wraps GNOTs to a 
+GRC20-compatible token called `wugnot`. We can find this realm deployed on the 
+ [Portal Loop](../concepts/portal-loop.md) testnet, under the `gno.land/r/demo/wugnot` 
+
+We will wrap `100ugnot` into the equivalent in `wugnot`. To do this, we can call
+the `Deposit()` function. As previously, we will configure the `maketx call`
 subcommand:
 
 ```bash
-gnokey maketx call \                                                                                                                                                                                          
---pkgpath "gno.land/r/demo/userbook" \
---func "SignUp"
+gnokey maketx call \
+--pkgpath "gno.land/r/demo/wugnot" \
+--func "Deposit" \
+--send "1000ugnot" \
 --gas-fee 10000000ugnot \
---gas-wanted 200000 \
+--gas-wanted 2000000 \
 --broadcast \
 --chainid portal-loop \
---remote https://rpc.gno.land:433 \
+--remote https://rpc.gno.land:443 \
 dev
 ```
 
-In this case, we have specified
+In this command, we have specified three main things:
+- The path where the realm lives on-chain with the `-pkgpath` flag
+- The function  that we want to call on the realm with the `-func` flag
+- The amount of `ugnot` we want to deposit to wrap using the `-send` flag
 
-
-
+Apart from this, we have also specified 
 
 ### ABCI queries
 
