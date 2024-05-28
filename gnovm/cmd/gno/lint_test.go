@@ -17,6 +17,9 @@ func TestLintApp(t *testing.T) {
 			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/package_not_declared/main.gno"},
 			stderrShouldContain: "main.gno:4: name fmt not declared (code=2).",
 		}, {
+			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/several-lint-errors/main.gno"},
+			stderrShouldContain: "../../tests/integ/several-lint-errors/main.gno:5: expected ';', found example (code=2).\n../../tests/integ/several-lint-errors/main.gno:6",
+		}, {
 			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/run_main/"},
 			stderrShouldContain: "./../../tests/integ/run_main: missing 'gno.mod' file (code=1).",
 		}, {
