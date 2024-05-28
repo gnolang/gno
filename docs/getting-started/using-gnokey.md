@@ -36,6 +36,7 @@ Both transactions and ABCI queries can be used via `gnokey`'s subcommands,
 In Gno, there are three types of messages that can change on-chain state:
 - `AddPackage` - adds code to the chain
 - `Call` - calls a specific path and function on the chain
+- `Send` - sends coins from one address to another
 - `Run` - executes a Gno script against on-chain code
 
 A Gno.land transaction contains two main things: 
@@ -147,7 +148,7 @@ gnokey maketx addpkg \
 --gas-wanted 8000000 \
 --broadcast \
 --chainid dev \
---remote "127.0.0.1:36657" \
+--remote "127.0.0.1:26657" \
 ```
 
 Once we have added a desired namespace to upload the package to, we can specify
@@ -162,7 +163,7 @@ gnokey maketx addpkg \
 --gas-wanted 200000 \
 --broadcast \
 --chainid dev \
---remote "127.0.0.1:36657" \
+--remote "127.0.0.1:26657" \
 dev
 ```
 
@@ -205,7 +206,7 @@ For this example, we will call the `wugnot` realm, which wraps GNOTs to a
 GRC20-compatible token called `wugnot`. We can find this realm deployed on the 
  [Portal Loop](../concepts/portal-loop.md) testnet, under the `gno.land/r/demo/wugnot` 
 
-We will wrap `100ugnot` into the equivalent in `wugnot`. To do this, we can call
+We will wrap `1000ugnot` into the equivalent in `wugnot`. To do this, we can call
 the `Deposit()` function. As previously, we will configure the `maketx call`
 subcommand:
 
@@ -218,8 +219,8 @@ gnokey maketx call \
 --gas-wanted 2000000 \
 --broadcast \
 --chainid portal-loop \
---remote https://rpc.gno.land:443 \
-dev
+--remote "https://rpc.gno.land:443"" \
+main
 ```
 
 In this command, we have specified three main things:
@@ -227,13 +228,170 @@ In this command, we have specified three main things:
 - The function  that we want to call on the realm with the `-func` flag
 - The amount of `ugnot` we want to deposit to wrap using the `-send` flag
 
-Apart from this, we have also specified 
+Apart from this, we have also specified the Portal Loop chain ID, `portal-loop`,
+as well as the Portal Loop remote, `https://rpc.gno.land:443`.
 
-### ABCI queries
+Chain IDs and remote addresses can be found in the 
+[Network Configuration](../reference/network-config.md) page.
 
-## `query`
+To check if we actually have the `wugnot` amount that we wanted to receive, we
+can call the `BalanceOf()` function in the same realm:
+
+```bash
+gnokey maketx call \
+--pkgpath "gno.land/r/demo/wugnot" \
+--func "BalanceOf" \
+--args "<your_address>" \
+--gas-fee 10000000ugnot \
+--gas-wanted 2000000 \
+--broadcast \
+--chainid portal-loop \
+--remote "https://rpc.gno.land:443" \
+dev
+```
+
+If everything was successful, we should get the following output:
+
+```
+(1000 uint64)
+
+OK!
+GAS WANTED: 2000000
+GAS USED:   396457
+HEIGHT:     64839
+EVENTS:     []
+```
+
+At the top, you will see the output of the transaction, specifying the value and
+type of the return argument.
+
+In this case, we used `maketx call` to call a read-only function, which simply
+checks the `wugnot` balance of a specific address. This is discouraged, as 
+`maketx call` actually uses gas. To call a read-only function without spending gas,
+check out the `vm/qeval` query in the [ABCI queries section](#vmqeval).
+
+### `Send`
+
+We can use the `Send` message type to access the TM2 banker directly and transfer
+coins from one Gno address to another. 
+
+Coins, such as GNOTs, are always formatted in the following way: 
+
+```
+<amount><denom>
+100ugnot
+```
+
+For this example, let's transfer some GNOTs. Just like before, we can configure
+our `maketx send` subcommand:
+```bash
+gnokey maketx send \
+--to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 \
+--send 100ugnot \
+--gas-fee 10000000ugnot \
+--gas-wanted 2000000 \
+--broadcast \
+--chainid dev \
+--remote "127.0.0.1:26657" \
+dev
+```
+
+Here, we have set the `-to` & `-send` flags to match the recipient, in this case
+the publicly-known `test1` address, and `100ugnot` for the coins we want to send,
+respectively.
+
+To check the balance of a specific address, check out the `bank/balances` query
+in the [ABCI queries section](#bankbalances).
+
+### `Run`
 
 
+
+## ABCI queries
+
+ABCI queries are available on Gno.land chains. todo add more info
+
+for all queries, we can specify a remote address to ask for information.
+
+### `query`
+
+The query subcommand allows us to send different types of queries to a Gno.land
+network.
+
+Below is a list of queries a user can make with `gnokey`:
+- `auth/accounts/{ADDRESS}` - returns information about an account
+- `bank/balances/{ADDRESS}` - returns balances of an account
+- `vm/qfuncs` - returns the exported functions for a given pkgpath
+- `vm/qfile` - returns the list of files for a given pkgpath
+- `vm/qeval` - evaluates an expression in read-only mode on and returns the results 
+- `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
+
+Let's see how we can use them.
+
+#### `auth/accounts`
+
+We can obtain information on a specific address using this subquery. To call it,
+we can run the following command:
+
+```bash
+gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 --remote https://rpc.gno.land:443
+```
+
+With this, we are asking the Portal Loop network to deliver information about the
+specified address. If everything went correctly, we should get the following 
+output:
+
+```bash
+height: 0
+data: {
+  "BaseAccount": {
+    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
+    "coins": "227984898927ugnot",
+    "public_key": {
+      "@type": "/tm.PubKeySecp256k1",
+      "value": "A+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y"
+    },
+    "account_number": "0",
+    "sequence": "12"
+  }
+}
+```
+
+The return data will contain the following fields:
+- `height` - the height at which the query was executed. This is currently not supported.
+- `data` - contains the result of the query.
+
+The `data` field returns a `BaseAccount`, which is the main struct used in TM2 to
+hold account data. It contains the following information:
+- `address` - the address of the account
+- `coins` - the list of coins the account owns
+- `public_key` - the TM2 public key of the account, which the address is derived from
+- `account_number` - a unique identifier for the account on the Gno.land chain
+- `sequence` - a nonce, used for protection against replay attacks
+
+#### `bank/balances`
+
+With this query, we can fetch balances of a specfic account. To call it, we can
+run the following command:
+
+```bash
+gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 --remote https://rpc.gno.land:443
+```
+
+If everything went correctly, we should get the following
+output:
+
+```bash
+height: 0
+data: "227984898927ugnot"
+```
+
+The data field will contain the coins the address owns
+
+#### `vm/qfuncs`
+#### `vm/qfile`
+#### `vm/qeval`
+#### `vm/qrender`
 
 
 
