@@ -9,13 +9,15 @@ func main() {
 // Output:
 //# Welcome to Gno.land
 //
-//### We’re building Gno.land, the first open-source smart contract system, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts.
+//### Gno.land is the first open-source smart contract system using Gno, an interpreted and fully deterministic variation of the Go programming language designed for succinct and composable smart contracts (called realms).
 //
 //
-//With transparent and timeless code, Gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse.
+//Gno.land sets a new standard for smart contract platforms, focussing on transparent and timeless code. Acting as the ecosystem's collaborative development hub (similar to GitHub), it features realms built with fully transparent, auditable code that anyone can inspect and reuse.
 //
 //
-//Intuitive and easy to use, Gno.land lowers the barrier to web3 and makes censorship-resistant platforms accessible to everyone. If you want to help lay the foundations of a fairer and freer world, join us today.
+//Intuitive and easy to use, Gno.land aims to eliminate the barrier to web3, making censorship-resistant platforms accessible to everyone. 
+//
+//Join us today to help lay the foundations for a fairer and freer world.
 //
 //<div class="jumbotron">
 //
