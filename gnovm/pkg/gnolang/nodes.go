@@ -1179,7 +1179,7 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
-			panic(errors.Wrap(err, "parsing file "+mfile.Name))
+			panic(err)
 		}
 		if memPkg.Name != string(n.PkgName) {
 			panic(fmt.Sprintf(
