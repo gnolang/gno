@@ -4,9 +4,6 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/bitmap"
-	"gno.land/p/demo/nonce"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/testutils"
 )
 
