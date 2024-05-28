@@ -886,17 +886,22 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// Left not const, Right not const ------------------
 					if n.Op == EQL || n.Op == NEQ {
 						// If == or !=, no conversions.
-					} else if lnt, ok := lt.(*NativeType); ok {
+					} else if lnt, ok := lt.(*NativeType); ok && isNative(rt) {
 						if debug {
 							if !isShift {
 								assertSameTypes(lt, rt)
 							}
 						}
-						// If left and right are native type,
+						// If left and right are native type, and same type
 						// convert left and right to gno, then
 						// convert result back to native.
 						//
 						// get concrete native base type.
+						if lt.TypeID() != rt.TypeID() {
+							panic(fmt.Sprintf(
+								"incompatible types in binary expression: %v %v %v",
+								lt.TypeID(), n.Op, rt.TypeID()))
+						}
 						pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
 						// convert n.Left to (gno) pt type,
 						ln := Expr(Call(pt.String(), n.Left))
@@ -934,7 +939,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								if lt.TypeID() != rt.TypeID() {
 									panic(fmt.Sprintf(
 										"incompatible types in binary expression: %v %v %v",
-										n.Left, n.Op, n.Right))
+										lt.TypeID(), n.Op, rt.TypeID()))
 								}
 							} else {
 								checkOrConvertType(store, last, &n.Left, rt, false)
@@ -947,7 +952,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								if lt.TypeID() != rt.TypeID() {
 									panic(fmt.Sprintf(
 										"incompatible types in binary expression: %v %v %v",
-										n.Left, n.Op, n.Right))
+										lt.TypeID(), n.Op, rt.TypeID()))
 								}
 							}
 						}

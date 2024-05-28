@@ -817,6 +817,7 @@ type PackageValue struct {
 	fBlocksMap map[Name]*Block
 }
 
+// IsRealm returns true if pv represents a realm.
 func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
