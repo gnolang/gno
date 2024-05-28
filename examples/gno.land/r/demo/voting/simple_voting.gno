@@ -134,6 +134,42 @@ func Vote(proposalID, voterID string) error {
 	return nil
 }
 
+func CloseProposal(proposalID string) error {
+	// Get the caller's address
+	caller := std.PrevRealm().Addr()
+
+	// Get the proposal
+	proposal, exists := proposals.Get(proposalID)
+	if !exists {
+		// Proposal does not exist
+		return errors.New("proposal not found")
+	}
+
+	prop := proposal.(*Proposal)
+
+	if caller != prop.owner {
+		return errors.New("unauthorized")
+	}
+
+	prop.isClosed = true
+
+	return nil
+}
+
+func GetOwner(proposalID string) (string, error) {
+	// Get the proposal
+	proposal, exists := proposals.Get(proposalID)
+	if !exists {
+		// Proposal does not exist
+		return "", errors.New("proposal not found")
+	}
+
+	prop := proposal.(*Proposal)
+
+	// Return the vote count
+	return prop.owner.String(), nil
+}
+
 // GetVotes returns the current vote count for a proposal identified by proposalID
 func GetVotes(proposalID string) (uint64, error) {
 	// Get the proposal
@@ -147,4 +183,9 @@ func GetVotes(proposalID string) (uint64, error) {
 
 	// Return the vote count
 	return prop.votes, nil
+}
+
+func Render(path string) string {
+	// do something here
+	return ""
 }

@@ -15,6 +15,9 @@ func TestCreateProposal(t *testing.T) {
 	numParticipants := uint64(100)
 	maxVotesPerUser := uint64(5)
 
+	owner := testutils.TestAddress("owner")
+	std.TestSetPrevAddr(owner)
+
 	proposalID := CreateProposal(title, numParticipants, maxVotesPerUser)
 
 	if proposalID == "" {
@@ -35,9 +38,9 @@ func TestCreateProposal(t *testing.T) {
 		t.Errorf("Expected maxVotesPerUser %d, got %d", maxVotesPerUser, prop.maxVotesPerUser)
 	}
 
-	// if prop.voters.Size() != numParticipants {
-	// 	t.Errorf("Expected total voters %d, got %d", numParticipants, prop.voters.Size())
-	// }
+	if prop.owner != owner {
+		t.Errorf("Expected owner %s, got %s", owner.String(), prop.owner.String())
+	}
 
 	if uint64(proposalIndex) != 1 {
 		t.Errorf("Expected proposalIndex %d, got %d", 1, uint64(proposalIndex))
@@ -48,7 +51,7 @@ func TestCreateProposal(t *testing.T) {
 func TestRegisterVoter(t *testing.T) {
 	Init()
 
-	address := testutils.TestAddress("dummy")
+	address := testutils.TestAddress("owner")
 	std.TestSetPrevAddr(address)
 
 	voterID := RegisterVoter()
@@ -132,3 +135,5 @@ func TestVoteLimit(t *testing.T) {
 		t.Errorf("Expected vote limit error, got nil")
 	}
 }
+
+// Todo : add more unit tests
