@@ -2,7 +2,6 @@ package gnoclient
 
 import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -145,11 +144,6 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 
 		caller := c.Signer.Info().GetAddress()
 
-		// Transpile and validate Gno syntax
-		if err = transpiler.TranspileAndCheckMempkg(msg.Package); err != nil {
-			return nil, err
-		}
-
 		msg.Package.Name = "main"
 		msg.Package.Path = ""
 
@@ -262,11 +256,6 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.Resul
 		}
 
 		caller := c.Signer.Info().GetAddress()
-
-		// Transpile and validate Gno syntax
-		if err = transpiler.TranspileAndCheckMempkg(msg.Package); err != nil {
-			return nil, err
-		}
 
 		// Unwrap syntax sugar to vm.MsgCall slice
 		vmMsgs = append(vmMsgs, std.Msg(vm.MsgAddPackage{

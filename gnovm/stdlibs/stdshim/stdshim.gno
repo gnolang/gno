@@ -16,11 +16,6 @@ func Hash(bz []byte) (hash [20]byte) {
 	return
 }
 
-func CurrentRealmPath() string {
-	panic(shimWarn)
-	return ""
-}
-
 func GetChainID() string {
 	panic(shimWarn)
 	return ""
@@ -82,5 +77,9 @@ func DecodeBech32(addr Address) (prefix string, bytes [20]byte, ok bool) {
 }
 
 func DerivePkgAddr(pkgPath string) (addr Address) {
+	panic(shimWarn)
+}
+
+func Emit(tag, key, value string) {
 	panic(shimWarn)
 }

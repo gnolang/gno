@@ -71,7 +71,7 @@ func NewSnapshotter(dockerClient *client.Client, cfg config) (*snapshotter, erro
 
 // pullLatestImage get latest version of the docker image
 func (s snapshotter) pullLatestImage(ctx context.Context) (bool, error) {
-	reader, err := s.dockerClient.ImagePull(ctx, "ghcr.io/gnolang/gno", types.ImagePullOptions{})
+	reader, err := s.dockerClient.ImagePull(ctx, "ghcr.io/gnolang/gno/gnoland:master", types.ImagePullOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -95,7 +95,7 @@ func (s snapshotter) switchTraefikMode(replaceStr string) error {
 	regex := regexp.MustCompile(`middlewares: \[.*\]`)
 	output := regex.ReplaceAllLiteral(input, []byte(replaceStr))
 
-	return ioutil.WriteFile(s.cfg.traefikGnoFile, output, 0655)
+	return os.WriteFile(s.cfg.traefikGnoFile, output, 0o655)
 }
 
 func (s snapshotter) switchTraefikPortalLoop(url string) error {
@@ -107,7 +107,7 @@ func (s snapshotter) switchTraefikPortalLoop(url string) error {
 	regex := regexp.MustCompile(`http://.*:[0-9]+`)
 	output := regex.ReplaceAllLiteral(input, []byte(url))
 
-	return ioutil.WriteFile(s.cfg.traefikGnoFile, output, 0655)
+	return os.WriteFile(s.cfg.traefikGnoFile, output, 0o655)
 }
 
 func (s snapshotter) getPortalLoopContainers(ctx context.Context) ([]types.Container, error) {
@@ -139,15 +139,16 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 
 	// Run Docker container
 	container, err := s.dockerClient.ContainerCreate(ctx, &container.Config{
-		Image: "ghcr.io/gnolang/gno",
+		Image: "ghcr.io/gnolang/gno/gnoland:master",
 		Labels: map[string]string{
 			"the-portal-loop": s.containerName,
 		},
+		WorkingDir: "/gnoroot",
 		Env: []string{
 			"MONIKER=the-portal-loop",
 			"GENESIS_BACKUP_FILE=/backups/backup.jsonl",
 		},
-		Cmd: []string{"/scripts/start.sh"},
+		Entrypoint: []string{"/scripts/start.sh"},
 		ExposedPorts: nat.PortSet{
 			"26656/tcp": struct{}{},
 			"26657/tcp": struct{}{},
@@ -162,7 +163,7 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 		Binds: []string{
 			fmt.Sprintf("%s/scripts:/scripts", s.cfg.hostPWD),
 			fmt.Sprintf("%s/backups:/backups", s.cfg.hostPWD),
-			fmt.Sprintf("%s:/opt/gno/src/gnoland-data", s.containerName),
+			fmt.Sprintf("%s:/gnoroot/gnoland-data", s.containerName),
 		},
 	}, nil, nil, s.containerName)
 	if err != nil {
@@ -226,7 +227,7 @@ func (s snapshotter) backupTXs(ctx context.Context, rpcURL string) error {
 	}
 
 	// Append to backup file
-	backupFile, err := os.OpenFile(s.backupFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+	backupFile, err := os.OpenFile(s.backupFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o644)
 	if err != nil {
 		return fmt.Errorf("unable to open file %s, %w", s.backupFile, err)
 	}
