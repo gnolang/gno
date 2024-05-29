@@ -27,7 +27,9 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 		Attributes: eventAttrs,
 	}
 	ctx := m.Context.(ExecContext)
-	ctx.EventLogger.EmitEvent(evt)
+	if logger, ok := ctx.(ExecContextLogger); ok {
+		logger.EventLogger().EmitEvent(evt)
+	}
 }
 
 func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {

@@ -14,7 +14,8 @@ import (
 func TestEmit(t *testing.T) {
 	m := gno.NewMachine("emit", nil)
 
-	m.Context = ExecContext{}
+	var ctx DefaultContext
+	m.Context = ctx
 
 	_, pkgPath := X_getRealm(m, 0)
 	tests := []struct {
@@ -103,7 +104,7 @@ func TestEmit(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			elgs := sdk.NewEventLogger()
-			m.Context = ExecContext{EventLogger: elgs}
+			m.Context = NewDefaultContext("", 0, nil, elgs)
 
 			if tt.expectPanic {
 				assert.Panics(t, func() {
@@ -134,7 +135,8 @@ func TestEmit_MultipleEvents(t *testing.T) {
 	m := gno.NewMachine("emit", nil)
 
 	elgs := sdk.NewEventLogger()
-	m.Context = ExecContext{EventLogger: elgs}
+
+	m.Context = NewDefaultContext("", 0, nil, elgs)
 
 	attrs1 := []string{"key1", "value1", "key2", "value2"}
 	attrs2 := []string{"key3", "value3", "key4", "value4"}
@@ -196,7 +198,7 @@ func TestEmit_ContractInteraction(t *testing.T) {
 	t.Parallel()
 	m := gno.NewMachine("emit", nil)
 	elgs := sdk.NewEventLogger()
-	m.Context = ExecContext{EventLogger: elgs}
+	m.Context = NewDefaultContext("", 0, nil, elgs)
 
 	baz := func(m *gno.Machine) {
 		X_emit(m, testFoo, []string{"k1", "v1", "k2", "v2"})
@@ -235,7 +237,7 @@ func TestEmit_Iteration(t *testing.T) {
 	m := gno.NewMachine("emit", nil)
 
 	elgs := sdk.NewEventLogger()
-	m.Context = ExecContext{EventLogger: elgs}
+	m.Context = NewDefaultContext("", 0, nil, elgs)
 
 	iterEvent := func(m *gno.Machine) {
 		for i := 0; i < 10; i++ {
@@ -300,7 +302,7 @@ func TestEmit_ComplexInteraction(t *testing.T) {
 	m := gno.NewMachine("emit", nil)
 
 	elgs := sdk.NewEventLogger()
-	m.Context = ExecContext{EventLogger: elgs}
+	m.Context = NewDefaultContext("", 0, nil, elgs)
 
 	complexInteraction(m)
 

@@ -42,8 +42,8 @@ func IsOriginCall(m *gno.Machine) bool {
 }
 
 func TestSkipHeights(m *gno.Machine, count int64) {
-	ctx := m.Context.(std.ExecContext)
-	ctx.Height += count
+	ctx := m.Context.(std.ExecContextChain)
+	ctx.SetHeight(ctx.Height() + count)
 	m.Context = ctx
 }
 
@@ -80,21 +80,21 @@ func X_callerAt(m *gno.Machine, n int) string {
 	}
 	if n == m.NumFrames()-1 {
 		// This makes it consistent with GetOrigCaller and TestSetOrigCaller.
-		ctx := m.Context.(std.ExecContext)
-		return string(ctx.OrigCaller)
+		ctx := m.Context.(std.ExecContextChain)
+		return string(ctx.OrigCaller())
 	}
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
 func X_testSetOrigCaller(m *gno.Machine, addr string) {
-	ctx := m.Context.(std.ExecContext)
-	ctx.OrigCaller = crypto.Bech32Address(addr)
+	ctx := m.Context.(std.ExecContextChain)
+	ctx.SetOrigCaller(crypto.Bech32Address(addr))
 	m.Context = ctx
 }
 
 func X_testSetOrigPkgAddr(m *gno.Machine, addr string) {
-	ctx := m.Context.(std.ExecContext)
-	ctx.OrigPkgAddr = crypto.Bech32Address(addr)
+	ctx := m.Context.(std.ExecContextChain)
+	ctx.SetOrigPkgAddr(crypto.Bech32Address(addr))
 	m.Context = ctx
 }
 
@@ -108,8 +108,8 @@ func X_testSetPrevAddr(m *gno.Machine, addr string) {
 		m.Frames[i].LastPackage = nil
 	}
 
-	ctx := m.Context.(stdlibs.ExecContext)
-	ctx.OrigCaller = crypto.Bech32Address(addr)
+	ctx := m.Context.(stdlibs.ExecContextChain)
+	ctx.SetOrigCaller(crypto.Bech32Address(addr))
 	m.Context = ctx
 }
 
@@ -117,16 +117,16 @@ func X_testSetOrigSend(m *gno.Machine,
 	sentDenom []string, sentAmt []int64,
 	spentDenom []string, spentAmt []int64,
 ) {
-	ctx := m.Context.(std.ExecContext)
-	ctx.OrigSend = std.CompactCoins(sentDenom, sentAmt)
+	ctx := m.Context.(std.ExecContextChain)
+	ctx.SetOrigSend(std.CompactCoins(sentDenom, sentAmt))
 	spent := std.CompactCoins(spentDenom, spentAmt)
-	ctx.OrigSendSpent = &spent
+	ctx.SetOrigSendSpent(&spent)
 	m.Context = ctx
 }
 
 func X_testIssueCoins(m *gno.Machine, addr string, denom []string, amt []int64) {
-	ctx := m.Context.(std.ExecContext)
-	banker := ctx.Banker
+	ctx := m.Context.(std.ExecContextChain)
+	banker := ctx.Banker()
 	for i := range denom {
 		banker.IssueCoin(crypto.Bech32Address(addr), denom[i], amt[i])
 	}

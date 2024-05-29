@@ -8,6 +8,9 @@ import (
 )
 
 type ExecContext = libsstd.ExecContext
+type ExecContextChain = libsstd.ExecContextChain
+type ExecContextTimer = libsstd.ExecContextTimer
+type DefaultContext = libsstd.DefaultContext
 
 func NativeStore(pkgPath string, name gno.Name) func(*gno.Machine) {
 	for _, nf := range nativeFuncs {

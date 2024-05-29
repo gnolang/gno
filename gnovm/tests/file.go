@@ -3,6 +3,7 @@ package tests
 import (
 	"bytes"
 	"fmt"
+	std2 "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -53,19 +54,14 @@ func testContext(pkgPath string, send std.Coins) stdlibs.ExecContext {
 
 	pkgCoins := std.MustParseCoins("200000000ugnot").Add(send) // >= send.
 	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
-	ctx := stdlibs.ExecContext{
-		ChainID:       "dev",
-		Height:        123,
-		Timestamp:     1234567890,
-		Msg:           nil,
-		OrigCaller:    caller.Bech32(),
-		OrigPkgAddr:   pkgAddr.Bech32(),
-		OrigSend:      send,
-		OrigSendSpent: new(std.Coins),
-		Banker:        banker,
-		EventLogger:   sdk.NewEventLogger(),
-	}
-	return ctx
+	ctxx := std2.NewDefaultContext("dev", 123, banker, sdk.NewEventLogger())
+	ctxx.SetTimestamp(1234567890)
+	ctxx.SetOrigCaller(caller.Bech32())
+	ctxx.SetOrigPkgAddr(pkgAddr.Bech32())
+	ctxx.SetOrigSend(send)
+	ctxx.SetOrigSendSpent(new(std.Coins))
+
+	return ctxx
 }
 
 type runFileTestOptions struct {

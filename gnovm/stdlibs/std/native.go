@@ -18,11 +18,11 @@ func IsOriginCall(m *gno.Machine) bool {
 }
 
 func GetChainID(m *gno.Machine) string {
-	return m.Context.(ExecContext).ChainID
+	return m.Context.(ExecContextChain).ChainID()
 }
 
 func GetHeight(m *gno.Machine) int64 {
-	return m.Context.(ExecContext).Height
+	return m.Context.(ExecContextChain).Height()
 }
 
 // getPrevFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
@@ -57,16 +57,16 @@ func findPrevFuncName(m *gno.Machine, targetIndex int) string {
 }
 
 func X_origSend(m *gno.Machine) (denoms []string, amounts []int64) {
-	os := m.Context.(ExecContext).OrigSend
+	os := m.Context.(ExecContextChain).OrigSend()
 	return ExpandCoins(os)
 }
 
 func X_origCaller(m *gno.Machine) string {
-	return string(m.Context.(ExecContext).OrigCaller)
+	return string(m.Context.(ExecContextChain).OrigCaller())
 }
 
 func X_origPkgAddr(m *gno.Machine) string {
-	return string(m.Context.(ExecContext).OrigPkgAddr)
+	return string(m.Context.(ExecContextChain).OrigPkgAddr())
 }
 
 func X_callerAt(m *gno.Machine, n int) string {
@@ -86,7 +86,12 @@ func X_callerAt(m *gno.Machine, n int) string {
 	if n == m.NumFrames() {
 		// This makes it consistent with GetOrigCaller.
 		ctx := m.Context.(ExecContext)
-		return string(ctx.OrigCaller)
+
+		if bc, ok := ctx.(ExecContextChain); ok {
+			return string(bc.OrigCaller())
+		}
+
+		return ""
 	}
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
@@ -120,7 +125,11 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 	}
 
 	// Fallback case: return OrigCaller.
-	return string(ctx.OrigCaller), ""
+	if bc, ok := ctx.(ExecContextChain); ok {
+		return string(bc.OrigCaller()), ""
+	}
+
+	return "", ""
 }
 
 // currentRealm retrieves the current realm's address and pkgPath.
