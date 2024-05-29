@@ -44,7 +44,7 @@ services:
       - ./traefik/letsencrypt:/letsencrypt
 
   gnoweb:
-    image: ghcr.io/gnolang/gno/gnoweb-slim
+    image: ghcr.io/gnolang/gno/gnoweb:master
     restart: unless-stopped
     env_file: ".env"
     entrypoint:
