@@ -29,11 +29,11 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata autcounterd
+      - name: Docker metadata autocounterd
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}/autcounterd
+          images: ghcr.io/${{ github.repository }}/autocounterd
           tags: |
             type=raw,value=latest
             type=semver,pattern=v{{version}}
