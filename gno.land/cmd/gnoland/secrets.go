@@ -3,7 +3,9 @@ package main
 import (
 	"errors"
 	"flag"
+	"path/filepath"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -13,7 +15,6 @@ var (
 )
 
 const (
-	defaultSecretsDir         = "./secrets"
 	defaultValidatorKeyName   = "priv_validator_key.json"
 	defaultNodeKeyName        = "node_key.json"
 	defaultValidatorStateName = "priv_validator_state.json"
@@ -58,7 +59,16 @@ func (c *commonAllCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.dataDir,
 		"data-dir",
-		defaultSecretsDir,
+		constructSecretsPath(defaultNodeDir),
 		"the secrets output directory",
+	)
+}
+
+// constructSecretsPath constructs the default secrets path, using
+// the given node directory
+func constructSecretsPath(nodeDir string) string {
+	return filepath.Join(
+		nodeDir,
+		config.DefaultSecretsDir,
 	)
 }
