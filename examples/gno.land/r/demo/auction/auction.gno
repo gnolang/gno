@@ -101,7 +101,7 @@ func renderHomepage() string {
 		b.WriteString("### Owner: " + auc.GetOwner().String() + "\n")
 		b.WriteString("### Description: " + auc.GetDescription() + "\n\n")
 		b.WriteString("This auction starts on: " + auc.GetBegin().String() + " and ends on: " + auc.GetEnd().String() + "\n\n")
-		b.WriteString(ufmt.Sprintf("### First-Price: %d \n", auc.GetPrice()))
+		b.WriteString(ufmt.Sprintf("### Bids %d \n", auc.GetPrice()))
 		b.WriteString("## Bids\n")
 		bids := auc.GetBids()
 		for _, bid := range bids {

@@ -23,6 +23,10 @@ type Bid struct {
 	Bidder std.Address
 	Amount uint64
 }
+type EventEnd struct {
+	Winner std.Address
+	Amount uint64
+}
 
 func NewAuction(
 	title string,
@@ -32,7 +36,7 @@ func NewAuction(
 	end time.Time,
 	minPrice uint64,
 ) *Auction {
-	return &Auction{
+	auction := &Auction{
 		Title:       title,
 		Description: description,
 		Owner:       owner,
@@ -41,6 +45,8 @@ func NewAuction(
 		End:         end,
 		Price:       minPrice,
 	}
+	std.Emit("AuctionCreated", "title", title, "owner", owner.String(), "description", description, "begin", begin.String(), "end", end.String(), "minPrice", strconv.FormatUint(minPrice, 10))
+	return auction
 }
 
 func (A Auction) GetTitle() string {
@@ -88,10 +94,14 @@ func NewBid(bidder std.Address, amount uint64) *Bid {
 }
 
 func (A *Auction) AddBid(bidder std.Address, amount uint64) {
+	if amount <= A.Price {
+		panic("bid amount must be higher than current highest bid")
+	}
 	key := strconv.Itoa(A.Bids.Size())
 	bid := NewBid(bidder, amount)
 	A.Bids.Set(key, bid)
 	A.Price = amount
+	std.Emit("BidPlaced", "bidder", bidder.String(), "amount", strconv.FormatUint(amount, 10))
 }
 
 func (B Bid) GetBidder() std.Address {
@@ -100,4 +110,16 @@ func (B Bid) GetBidder() std.Address {
 
 func (B Bid) GetAmount() uint64 {
 	return B.Amount
+}
+
+func (A *Auction) EndAuction() {
+	if time.Now().Before(A.End) {
+		panic("Auction cannot end before the end time")
+	}
+	if A.Bids.Size() == 0 {
+		panic("No bids placed")
+	}
+	highestBid := A.GetPrice()
+	winner := A.GetBids()[A.Bids.Size()-1].Bidder
+	std.Emit("AuctionEnded", "winner", winner.String(), "amount", strconv.FormatUint(highestBid, 10))
 }

@@ -62,3 +62,49 @@ func TestAuction_new(t *testing.T) {
 		t.Fatalf("invalid owner check")
 	}
 }
+
+// TestAuction_AddBid verifies that bids can be added to an auction correctly
+func TestAuction_AddBid(t *testing.T) {
+	var (
+		title       = "auction title"
+		owner       = testutils.TestAddress("owner")
+		bidder1     = testutils.TestAddress("bidder1")
+		bidder2     = testutils.TestAddress("bidder2")
+		description = "description"
+		begin       = time.Now()
+		end         = begin.Add(time.Hour * 24)
+		minPrice    = uint64(100)
+	)
+
+	// Create a new Auction instance
+	A := NewAuction(title, owner, description, begin, end, minPrice)
+
+	// to do Simulate time to be after auction start
+	//  std.TestSetTime(begin.Add(time.Second))
+
+	// Place first bid
+	std.TestSetOrigCaller(bidder1)
+	A.AddBid(bidder1, 200)
+	if A.GetPrice() != 200 {
+		t.Fatalf("First bid failed")
+	}
+
+	// Place second bid
+	std.TestSetOrigCaller(bidder2)
+	A.AddBid(bidder2, 300)
+	if A.GetPrice() != 300 {
+		t.Fatalf("Second bid failed")
+	}
+
+	// Verify bids
+	bids := A.GetBids()
+	if len(bids) != 2 {
+		t.Fatalf("Expected 2 bids, got %d", len(bids))
+	}
+	if bids[0].GetBidder() != bidder1 || bids[0].GetAmount() != 200 {
+		t.Fatalf("First bid incorrect")
+	}
+	if bids[1].GetBidder() != bidder2 || bids[1].GetAmount() != 300 {
+		t.Fatalf("Second bid incorrect")
+	}
+}
