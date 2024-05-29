@@ -8,8 +8,8 @@ import (
 )
 
 type MemFile struct {
-	Name string `json:"name"`
-	Body string `json:"body"`
+	Name string `json:"name" yaml:"name"`
+	Body string `json:"body" yaml:"body"`
 }
 
 // MemPackage represents the information and files of a package which will be

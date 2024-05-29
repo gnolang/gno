@@ -10,6 +10,7 @@ import (
 )
 
 func TestJSONSnakeCase(t *testing.T) {
+	t.Parallel()
 	for _, typ := range Package.Types {
 		assertJSONSnakeCase(t, typ.Type)
 	}
