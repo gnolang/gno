@@ -79,7 +79,10 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	}
 
 	data := []byte(cfg.Data)
-	opts2 := client.ABCIQueryOptions{}
+	opts2 := client.ABCIQueryOptions{
+		// Height: height, XXX
+		// Prove: false, XXX
+	}
 	cli, err := client.NewHTTPClient(remote)
 	if err != nil {
 		return nil, errors.Wrap(err, "new http client")
