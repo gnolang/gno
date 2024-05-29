@@ -1,20 +1,38 @@
-package gnopages
+package events
 
-func init() {
-	var (
-		path  = "events"
-		title = "Gno.land Core Team Attends Industry Events & Meetups"
-		// XXX: description = "If you’re interested in learning more about Gno.land, you can join us at major blockchain industry events throughout the year either in person or virtually."
-		body = `
-If you’re interested in building web3 with us, catch up with Gno.land in person at one of our industry events.
-We’re looking to connect with developers and like-minded thinkers who can contribute to the growth of our platform.
+import (
+	"gno.land/p/demo/ui"
+)
 
----
+// XXX: p/demo/ui API is crappy, we need to make it more idiomatic
+// XXX: use an updatable block system to update content from a DAO
+// XXX: var blocks avl.Tree
 
-## Upcoming Events
+func Render(_ string) string {
+	dom := ui.DOM{Prefix: "r/gnoland/events:"}
+	dom.Title = "Gno.land Core Team Attends Industry Events & Meetups"
+	dom.Classes = []string{"gno-tmpl-section"}
 
-<div class="columns-3">
+	// body
+	dom.Body.Append(introSection()...)
+	dom.Body.Append(ui.HR{})
+	dom.Body.Append(upcomingEvents()...)
+	dom.Body.Append(ui.HR{})
+	dom.Body.Append(pastEvents()...)
 
+	return dom.String()
+}
+
+func introSection() ui.Element {
+	return ui.Element{
+		ui.Paragraph("If you’re interested in building web3 with us, catch up with Gno.land in person at one of our industry events. We’re looking to connect with developers and like-minded thinkers who can contribute to the growth of our platform."),
+	}
+}
+
+func upcomingEvents() ui.Element {
+	return ui.Element{
+		ui.H2("Upcoming Events"),
+		ui.Text(`<div class="columns-3">
 <div class="column">
 
 ### Gno @ Golang Serbia
@@ -60,13 +78,13 @@ We’re looking to connect with developers and like-minded thinkers who can cont
 <div class="column">
 
 </div><!-- end column-->
-</div><!-- end columns-3-->
+</div><!-- end columns-3-->`)}
+}
 
----
-
-## Past Events
-
-<div class="columns-3">
+func pastEvents() ui.Element {
+	return ui.Element{
+		ui.H2("Past Events"),
+		ui.Text(`<div class="columns-3">
 <div class="column">
 
 ### GopherCon US
@@ -193,7 +211,5 @@ We’re looking to connect with developers and like-minded thinkers who can cont
 [Watch the talk](https://www.youtube.com/watch?v=hCLErPgnavI)
 
 </div><!-- end column-->
-</div><!-- end columns-3-->`
-	)
-	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:24Z", nil, nil)
+</div><!-- end columns-3-->`)}
 }
