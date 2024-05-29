@@ -41,11 +41,11 @@ func NewAuction(
 		Description: description,
 		Owner:       owner,
 		Bids:        avl.NewTree(),
-		Begin:       begin,
+		Start:       startTime,
 		End:         end,
 		Price:       minPrice,
 	}
-	std.Emit("AuctionCreated", "title", title, "owner", owner.String(), "description", description, "begin", begin.String(), "end", end.String(), "minPrice", strconv.FormatUint(minPrice, 10))
+	std.Emit("AuctionStart", "title", title, "time", startTime.String())
 	return auction
 }
 
@@ -62,7 +62,7 @@ func (A Auction) GetOwner() std.Address {
 }
 
 func (A Auction) GetBegin() time.Time {
-	return A.Begin
+	return A.Start
 }
 
 func (A Auction) GetEnd() time.Time {
