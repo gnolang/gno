@@ -1,6 +1,6 @@
 # Run gno transpile with gno files with parse errors
 
-! gno transpile .
+! gno transpile ./...
 
 ! stdout .+
 stderr '^main.gno:3:1: expected declaration, found invalid$'

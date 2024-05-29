@@ -16,4 +16,4 @@ func main() {
 
 -- stdout.golden --
 -- stderr.golden --
-./.: missing 'gno.mod' file (code=1).
+.: missing 'gno.mod' file (code=1).

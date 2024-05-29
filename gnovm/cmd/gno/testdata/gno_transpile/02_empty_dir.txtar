@@ -1,6 +1,6 @@
 # Run gno transpile on an empty dir
 
-gno transpile .
+! gno transpile .
 
 ! stdout .+
-! stderr .+
+stderr 'no valid gno files'

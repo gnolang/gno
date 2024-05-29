@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/gnolang/gno/gnovm/pkg/importer"
 	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -128,7 +129,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	}
 
 	// transpile .gno files.
-	paths, err := gnoFilesFromArgs(args)
+	paths, err := importer.Match(args, importer.MatchFiles())
 	if err != nil {
 		return fmt.Errorf("list paths: %w", err)
 	}
@@ -147,7 +148,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	}
 
 	if errlist.Len() == 0 && cfg.gobuild {
-		paths, err := gnoPackagesFromArgs(args)
+		paths, err := importer.Match(args)
 		if err != nil {
 			return fmt.Errorf("list packages: %w", err)
 		}
@@ -180,7 +181,7 @@ func transpilePkg(pkgPath importPath, opts *transpileOptions) error {
 	}
 	opts.markAsTranspiled(pkgPath)
 
-	files, err := filepath.Glob(filepath.Join(string(pkgPath), "*.gno"))
+	files, err := importer.Match([]string{string(pkgPath)}, importer.MatchFiles())
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -7,11 +7,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/importer"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -137,52 +136,22 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 }
 
 func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
-	files := make([]*gno.FileNode, 0, len(fnames))
-	var hasError bool
-	for _, fname := range fnames {
-		if s, err := os.Stat(fname); err == nil && s.IsDir() {
-			subFns, err := listNonTestFiles(fname)
-			if err != nil {
-				return nil, err
-			}
-			subFiles, err := parseFiles(subFns, stderr)
-			if err != nil {
-				return nil, err
-			}
-			files = append(files, subFiles...)
-			continue
-		} else if err != nil {
-			// either not found or some other kind of error --
-			// in either case not a file we can parse.
-			return nil, err
-		}
-
-		hasError = catchRuntimeError(fname, stderr, func() {
-			files = append(files, gno.MustReadFile(fname))
-		})
+	gnoFnames, err := importer.Match(fnames, importer.MatchFiles("!*_test.gno", "!*_filetest.gno"))
+	if err != nil {
+		return nil, err
 	}
 
+	var hasError bool
+	files := make([]*gno.FileNode, 0, len(gnoFnames))
+	for _, fname := range gnoFnames {
+		hasError = catchRuntimeError(fname, stderr, func() {
+			files = append(files, gno.MustReadFile(fname))
+		}) || hasError
+	}
 	if hasError {
 		os.Exit(1)
 	}
 	return files, nil
-}
-
-func listNonTestFiles(dir string) ([]string, error) {
-	fs, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-	fn := make([]string, 0, len(fs))
-	for _, f := range fs {
-		n := f.Name()
-		if isGnoFile(f) &&
-			!strings.HasSuffix(n, "_test.gno") &&
-			!strings.HasSuffix(n, "_filetest.gno") {
-			fn = append(fn, filepath.Join(dir, n))
-		}
-	}
-	return fn, nil
 }
 
 func runExpr(m *gno.Machine, expr string) {
