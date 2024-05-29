@@ -12,6 +12,6 @@ func X_now(m *gno.Machine) (sec int64, nsec int32, mono int64) {
 		return 0, 0, 0
 	}
 
-	ctx := m.Context.(std.ExecContext)
+	ctx := std.GetContext(m)
 	return ctx.Timestamp, int32(ctx.TimestampNano), ctx.Timestamp*int64(time.Second) + ctx.TimestampNano
 }
