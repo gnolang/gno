@@ -1,5 +1,5 @@
 # Use the existing gno image as the base image
-FROM ghcr.io/gnolang/gno/gnoland:latest AS base
+FROM ghcr.io/gnolang/gno/gnoland:master AS base
 
 # Copy the setup script into the container
 COPY ./setup.sh .
