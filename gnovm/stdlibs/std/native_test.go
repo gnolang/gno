@@ -16,7 +16,7 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			OrigCaller: user,
 		}
 		msgCallFrame = &gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "main"}}
-		msgRunFrame  = &gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/user-realm"}}
+		msgRunFrame  = &gno.Frame{LastPackage: &gno.PackageValue{PkgPath: "gno.land/r/g1337/run"}}
 	)
 	tests := []struct {
 		name                 string
