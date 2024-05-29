@@ -767,6 +767,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Const:     true,
 				}
 				cd.SetAttribute(ATTR_IOTA, si)
+				setLoc(fs, s.Pos(), cd)
 				ds = append(ds, cd)
 			} else {
 				var names []NameExpr
@@ -785,6 +786,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Values:    values,
 					Const:     false,
 				}
+				setLoc(fs, s.Pos(), vd)
 				ds = append(ds, vd)
 			}
 		case *ast.ImportSpec:
@@ -792,20 +794,16 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			if err != nil {
 				panic("unexpected import spec path type")
 			}
-			ds = append(ds, &ImportDecl{
+			im := &ImportDecl{
 				NameExpr: *Nx(toName(s.Name)),
 				PkgPath:  path,
-			})
+			}
+			setLoc(fs, s.Pos(), im)
+			ds = append(ds, im)
 		default:
 			panic(fmt.Sprintf(
 				"unexpected decl spec %v",
 				reflect.TypeOf(s)))
-		}
-	}
-
-	if fs != nil {
-		for _, d := range ds {
-			setLoc(fs, gd.Pos(), d)
 		}
 	}
 
