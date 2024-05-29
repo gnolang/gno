@@ -87,9 +87,11 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 		"/partners":       "/r/gnoland/pages:p/partners",
 		"/testnets":       "/r/gnoland/pages:p/testnets",
 		"/start":          "/r/gnoland/pages:p/start",
-		"/game-of-realms": "/r/gnoland/pages:p/gor",    // XXX: replace with gor realm
-		"/events":         "/r/gnoland/pages:p/events", // XXX: replace with events realm
+		"/license":        "/r/gnoland/pages:p/license",
+		"/game-of-realms": "/r/gnoland/pages:p/gor", // XXX: replace with gor realm
+		"/events":         "/r/gnoland/events",
 	}
+
 	for from, to := range aliases {
 		app.Router.Handle(from, handlerRealmAlias(logger, app, &cfg, to))
 	}

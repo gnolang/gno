@@ -1,9 +1,6 @@
 package testing
 
-import (
-	"math"
-	"time"
-)
+import "math"
 
 // Internal state for the random number generator.
 var x uint64 = 42
