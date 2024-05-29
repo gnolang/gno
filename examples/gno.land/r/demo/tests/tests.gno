@@ -26,12 +26,20 @@ func InitOrigCaller() std.Address {
 	return initOrigCaller
 }
 
-func AssertOriginCall() {
+func CallAssertOriginCall() {
 	std.AssertOriginCall()
 }
 
-func IsOriginCall() bool {
+func CallIsOriginCall() bool {
 	return std.IsOriginCall()
+}
+
+func CallSubtestsAssertOriginCall() {
+	rsubtests.CallAssertOriginCall()
+}
+
+func CallSubtestsIsOriginCall() bool {
+	return rsubtests.CallIsOriginCall()
 }
 
 //----------------------------------------
