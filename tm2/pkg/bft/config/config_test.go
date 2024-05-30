@@ -6,6 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	// allows the default config to have a valid DB
+	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 )
 
 func TestConfig_LoadOrMakeConfigWithOptions(t *testing.T) {

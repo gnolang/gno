@@ -51,6 +51,8 @@ type Machine struct {
 	NumResults int   // number of results returned
 	Cycles     int64 // number of "cpu" cycles
 
+	Debugger Debugger
+
 	// Configuration
 	CheckTypes bool // not yet used
 	ReadOnly   bool
@@ -91,6 +93,9 @@ type MachineOptions struct {
 	PkgPath       string
 	CheckTypes    bool // not yet used
 	ReadOnly      bool
+	Debug         bool
+	DebugAddr     string    // debugger io stream address (stdin/stdout if empty)
+	Input         io.Reader // used for default debugger input only
 	Output        io.Writer // default os.Stdout
 	Store         Store     // default NewStore(Alloc, nil, nil)
 	Context       interface{}
@@ -159,6 +164,9 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Store = store
 	mm.Context = context
 	mm.GasMeter = vmGasMeter
+	mm.Debugger.enabled = opts.Debug
+	mm.Debugger.in = opts.Input
+	mm.Debugger.out = output
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -307,7 +315,7 @@ func checkDuplicates(fset *FileSet) bool {
 				name = d.Name
 			case *ValueDecl:
 				for _, nx := range d.NameExprs {
-					if nx.Name == "_" {
+					if nx.Name == blankIdentifier {
 						continue
 					}
 					if _, ok := defined[nx.Name]; ok {
@@ -319,7 +327,7 @@ func checkDuplicates(fset *FileSet) bool {
 			default:
 				continue
 			}
-			if name == "_" {
+			if name == blankIdentifier {
 				continue
 			}
 			if _, ok := defined[name]; ok {
@@ -1118,6 +1126,9 @@ const (
 
 func (m *Machine) Run() {
 	for {
+		if m.Debugger.enabled {
+			m.Debug()
+		}
 		op := m.PopOp()
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
@@ -2047,13 +2058,19 @@ func (m *Machine) String() string {
 		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Values[i]))
 	}
 
+	builder.WriteString("    Exprs:\n")
+
 	for i := len(m.Exprs) - 1; i >= 0; i-- {
 		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Exprs[i]))
 	}
 
+	builder.WriteString("    Stmts:\n")
+
 	for i := len(m.Stmts) - 1; i >= 0; i-- {
 		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Stmts[i]))
 	}
+
+	builder.WriteString("    Blocks:\n")
 
 	for b := m.LastBlock(); b != nil; {
 		gen := builder.Len()/3 + 1
@@ -2090,6 +2107,8 @@ func (m *Machine) String() string {
 		}
 	}
 
+	builder.WriteString("    Blocks (other):\n")
+
 	for i := len(m.Blocks) - 2; i >= 0; i-- {
 		b := m.Blocks[i]
 
@@ -2100,15 +2119,17 @@ func (m *Machine) String() string {
 		if _, ok := b.Source.(*PackageNode); ok {
 			break // done, skip *PackageNode.
 		} else {
-			builder.WriteString(fmt.Sprintf("          #%d %s", i,
+			builder.WriteString(fmt.Sprintf("          #%d %s\n", i,
 				b.StringIndented("            ")))
 			if b.Source != nil {
 				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				builder.WriteString(fmt.Sprintf(" (static) #%d %s", i,
+				builder.WriteString(fmt.Sprintf(" (static) #%d %s\n", i,
 					sb.StringIndented("            ")))
 			}
 		}
 	}
+
+	builder.WriteString("    Frames:\n")
 
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		builder.WriteString(fmt.Sprintf("          #%d %s\n", i, m.Frames[i]))
@@ -2117,6 +2138,8 @@ func (m *Machine) String() string {
 	if m.Realm != nil {
 		builder.WriteString(fmt.Sprintf("    Realm:\n      %s\n", m.Realm.Path))
 	}
+
+	builder.WriteString("    Exceptions:\n")
 
 	for _, ex := range m.Exceptions {
 		builder.WriteString(fmt.Sprintf("      %s\n", ex.Sprint(m)))

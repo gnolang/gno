@@ -490,7 +490,7 @@ func (m *Machine) doOpStaticTypeOf() {
 		} else if _, ok := xt.(*TypeType); ok {
 			m.PushValue(asValue(gTypeType))
 		} else {
-			panic("should not happen")
+			panic("unexpected star expression")
 		}
 	case *RefExpr:
 		start := m.NumValues
