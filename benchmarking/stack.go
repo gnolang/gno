@@ -9,17 +9,17 @@ var (
 
 func InitStack() {
 	measurementStack = make([]*measurement, initStackSize)
+	stackSize = 0
 }
 
 func StartMeasurement(code Code) {
 	if stackSize != 0 {
 		measurementStack[stackSize-1].pause()
-	}
-
-	if stackSize == len(measurementStack) {
-		newStack := make([]*measurement, stackSize*2)
-		copy(newStack, measurementStack)
-		measurementStack = newStack
+		if stackSize == len(measurementStack) {
+			newStack := make([]*measurement, stackSize*2)
+			copy(newStack, measurementStack)
+			measurementStack = newStack
+		}
 	}
 
 	measurementStack[stackSize] = startNewMeasurement(code)
