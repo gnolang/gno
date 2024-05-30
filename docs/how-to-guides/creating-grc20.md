@@ -142,7 +142,7 @@ func TransferFrom(sender, recipient std.Address, amount uint64) {
 		panic("transfer amount must be greater than zero")
 	}
 
-	if err := mytoken.TransferFrom(caller, from, to, amount); err != nil {
+	if err := mytoken.TransferFrom(caller, sender, recipient, amount); err != nil {
 		panic(err)
 	}
 }
@@ -219,7 +219,7 @@ func Render(path string) string {
 Calling the `Render` method returns a general render of the GRC20 realm, or
 if given a specific address, the user's `balance` as a formatted string.
 
-You can view the full code on [this Playground link](https://play.gno.land/p/km7Ja6WDQoL).
+You can view the full code on [this Playground link](https://play.gno.land/p/km7Ja6WDQoL). If you want to deploy it, do so on the `Portal Loop`.
 
 ## Conclusion
 That's it 🎉
