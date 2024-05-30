@@ -1,6 +1,9 @@
 package std
 
-import "strconv"
+import (
+	"strconv"
+	"strings"
+)
 
 // Realm functions can call std.GetBanker(options) to get
 // a banker instance. Banker objects cannot be persisted,
@@ -63,6 +66,10 @@ func (b BankerType) String() string {
 // GetBanker returns a new Banker, with its capabilities matching the given
 // [BankerType].
 func GetBanker(bt BankerType) Banker {
+	const realmPathPrefix = "gno.land/p/"
+	if strings.HasPrefix(CurrentRealm().PkgPath(), realmPathPrefix) {
+		panic("pure packages cannot instantiate a banker")
+	}
 	if bt >= maxBanker {
 		panic("invalid banker type")
 	}
