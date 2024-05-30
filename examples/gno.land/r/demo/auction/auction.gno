@@ -11,11 +11,22 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-var auctionTree *avl.Tree
+var (
+	auctionTree *avl.Tree
+	currentTime time.Time
+)
 
 // Initialize the realm with auction tree
 func init() {
 	auctionTree = avl.NewTree()
+}
+
+// Mockable function to get current time
+func now() time.Time {
+	if !currentTime.IsZero() {
+		return currentTime
+	}
+	return time.Now()
 }
 
 // NewAuction creates a new auction in the realm
@@ -24,21 +35,21 @@ func NewAuction(
 	description string,
 	begin int64,
 	end int64,
-	minPrice uint64,
-) string {
+	price uint64,
+) *auctionp.Auction {
 	txSender := std.GetOrigCaller()
 
-	if begin < time.Now().Unix() {
+	if begin < now().Unix() {
 		panic("begin has to be in the future")
 	}
-	if end <= time.Now().Unix() {
+	if end <= now().Unix() {
 		panic("end has to be in the future")
 	}
 	if end <= begin {
 		panic("end has to be after begin")
 	}
-	if minPrice <= 0 {
-		panic("minPrice has to be positive")
+	if price <= 0 {
+		panic("price has to be positive")
 	}
 
 	auc := auctionp.NewAuction(
@@ -47,11 +58,11 @@ func NewAuction(
 		description,
 		time.Unix(begin, 0),
 		time.Unix(end, 0),
-		minPrice,
+		price,
 	)
 	id := strconv.Itoa(auctionTree.Size())
 	auctionTree.Set(id, auc)
-	return "auction created"
+	return auc
 }
 
 // AddBid places a bid in the auction
@@ -62,10 +73,10 @@ func AddBid(auctionID string, price uint64) string {
 		panic("auction does not exist")
 	}
 	auction := auc.(*auctionp.Auction)
-	if auction.GetBegin().After(time.Now()) {
+	if auction.GetBegin().After(now()) {
 		panic("auction is not open yet")
 	}
-	if auction.GetEnd().Before(time.Now()) {
+	if auction.GetEnd().Before(now()) {
 		panic("auction is closed")
 	}
 	if auction.IsOwner(bidder) {
@@ -110,4 +121,14 @@ func renderHomepage() string {
 		return false
 	})
 	return b.String()
+}
+
+// Helper function to set the mock current time
+func setcurrentTime(t time.Time) {
+	currentTime = t
+}
+
+// Helper function to reset the mock current time
+func resetcurrentTime() {
+	currentTime = time.Time{}
 }
