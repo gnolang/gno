@@ -332,7 +332,7 @@ func gnoTestPkg(
 		})
 
 		if hasError {
-			os.Exit(1)
+			return commands.ExitCodeError(1)
 		}
 		testPkgName := getPkgNameFromFileset(ifiles)
 
