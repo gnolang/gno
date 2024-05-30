@@ -2,9 +2,9 @@ package boards
 
 import (
 	"std"
-	"strconv"
 	"strings"
 
+	"gno.land/p/demo/boards"
 	"gno.land/r/demo/users"
 )
 
@@ -12,44 +12,36 @@ import (
 // private utility methods
 // XXX ensure these cannot be called from public.
 
-func getBoard(bid BoardID) *Board {
-	bidkey := boardIDKey(bid)
+func getBoard(bid boards.BoardID) *boards.Board {
+	bidkey := boards.BoardIDKey(bid)
 	board_, exists := gBoards.Get(bidkey)
 	if !exists {
 		return nil
 	}
-	board := board_.(*Board)
+	board := board_.(*boards.Board)
 	return board
 }
 
-func incGetBoardID() BoardID {
+func incGetBoardID() boards.BoardID {
 	gBoardsCtr++
-	return BoardID(gBoardsCtr)
+	return boards.BoardID(gBoardsCtr)
 }
 
-func padLeft(str string, length int) string {
-	if len(str) >= length {
-		return str
+func displayAddressMD(addr std.Address) string {
+	user := users.GetUserByAddress(addr)
+	if user == nil {
+		return "[" + addr.String() + "](/r/demo/users:" + addr.String() + ")"
 	} else {
-		return strings.Repeat(" ", length-len(str)) + str
+		return "[@" + user.Name + "](/r/demo/users:" + user.Name + ")"
 	}
 }
 
-func padZero(u64 uint64, length int) string {
-	str := strconv.Itoa(int(u64))
-	if len(str) >= length {
-		return str
-	} else {
-		return strings.Repeat("0", length-len(str)) + str
+func usernameOf(addr std.Address) string {
+	user := users.GetUserByAddress(addr)
+	if user == nil {
+		return ""
 	}
-}
-
-func boardIDKey(bid BoardID) string {
-	return padZero(uint64(bid), 10)
-}
-
-func postIDKey(pid PostID) string {
-	return padZero(uint64(pid), 10)
+	return user.Name
 }
 
 func indentBody(indent string, body string) string {
@@ -75,21 +67,4 @@ func summaryOf(str string, length int) string {
 		line = line + "..."
 	}
 	return line
-}
-
-func displayAddressMD(addr std.Address) string {
-	user := users.GetUserByAddress(addr)
-	if user == nil {
-		return "[" + addr.String() + "](/r/demo/users:" + addr.String() + ")"
-	} else {
-		return "[@" + user.Name + "](/r/demo/users:" + user.Name + ")"
-	}
-}
-
-func usernameOf(addr std.Address) string {
-	user := users.GetUserByAddress(addr)
-	if user == nil {
-		return ""
-	}
-	return user.Name
 }

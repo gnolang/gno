@@ -2,10 +2,11 @@
 package boards_test
 
 import (
+	pboards "gno.land/p/demo/boards"
 	"gno.land/r/demo/boards"
 )
 
-var bid boards.BoardID
+var bid pboards.BoardID
 
 func init() {
 	bid = boards.CreateBoard("test_board")
