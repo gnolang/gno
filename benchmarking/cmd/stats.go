@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/binary"
 	"fmt"
-	"log"
 	"math"
 	"os"
 	"sort"
@@ -34,13 +33,7 @@ func stats(binFile string) {
 	if err != nil {
 		panic("could not create benchmark file: " + err.Error())
 	}
-	defer func() {
-		in.Close()
-		err := os.Remove(tmpFile)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
+	defer in.Close()
 
 	inputCh := make(chan []byte, 10000)
 	outputCh := make(chan codeRecord, 10000)

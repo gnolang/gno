@@ -24,7 +24,7 @@ It gives us a complete picture of the node perform.
 
   `go build -tags "benchmarkingstorage benchmarkingops" gno.land/cmd/gnoland`
 
-  2. Run the node in the production environment. It will dump benchmark data to a benchmark.bin file.
+  2. Run the node in the production environment. It will dump benchmark data to a benchmarks.bin file.
 
   3. call the realm contracts at `gno.land/r/x/benchmark/opcodes` and `gno.land/r/x/benchmark/storage`
 
@@ -32,7 +32,7 @@ It gives us a complete picture of the node perform.
 
   5. Run the following command to convert the binary dump:
 
-  `gnobench -bin path_to_benchmark_bin`
+  `gnobench -bin path_to_benchmarks.bin`
 
     it converts the binary dump to results.csv and results_stats.csv.
 
