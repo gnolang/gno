@@ -1,0 +1,30 @@
+syntax = "proto3";
+package vm;
+
+option go_package = "github.com/gnolang/gno/gno.land/pkg/sdk/vm/pb";
+
+// imports
+import "github.com/gnolang/gno/tm2/pkg/std/std.proto";
+
+// messages
+message m_call {
+	string caller = 1;
+	string pkg_path = 2;
+	string func = 3;
+	repeated string args = 4;
+}
+
+message m_addpkg {
+	string creator = 1;
+	std.MemPackage package = 2;
+	string deposit = 3;
+}
+
+message InvalidPkgPathError {
+}
+
+message InvalidStmtError {
+}
+
+message InvalidExprError {
+}
