@@ -10,22 +10,23 @@ import (
 
 // Main struct
 type Auction struct {
-	Title       string
-	Owner       std.Address
-	Description string
-	Begin       time.Time
-	End         time.Time
-	Price       uint64
-	Bids        *avl.Tree // key: std.Address, value: Bid
+	title       string
+	owner       std.Address
+	description string
+	begin       time.Time
+	end         time.Time
+	price       uint64
+	bids        *avl.Tree // key: std.Address, value: Bid
 }
 
 type Bid struct {
-	Bidder std.Address
-	Amount uint64
+	bidder std.Address
+	amount uint64
 }
+
 type EventEnd struct {
-	Winner std.Address
-	Amount uint64
+	winner std.Address
+	amount uint64
 }
 
 func NewAuction(
@@ -37,89 +38,89 @@ func NewAuction(
 	minPrice uint64,
 ) *Auction {
 	auction := &Auction{
-		Title:       title,
-		Description: description,
-		Owner:       owner,
-		Bids:        avl.NewTree(),
-		Start:       startTime,
-		End:         end,
-		Price:       minPrice,
+		title:       title,
+		description: description,
+		owner:       owner,
+		bids:        avl.NewTree(),
+		begin:       begin,
+		end:         end,
+		price:       minPrice,
 	}
-	std.Emit("AuctionStart", "title", title, "time", startTime.String())
+	std.Emit("AuctionStart", "title", title, "time", begin.String())
 	return auction
 }
 
-func (A Auction) GetTitle() string {
-	return A.Title
+func (a Auction) GetTitle() string {
+	return a.title
 }
 
-func (A Auction) GetDescription() string {
-	return A.Description
+func (a Auction) GetDescription() string {
+	return a.description
 }
 
-func (A Auction) GetOwner() std.Address {
-	return A.Owner
+func (a Auction) GetOwner() std.Address {
+	return a.owner
 }
 
-func (A Auction) GetBegin() time.Time {
-	return A.Start
+func (a Auction) GetBegin() time.Time {
+	return a.begin
 }
 
-func (A Auction) GetEnd() time.Time {
-	return A.End
+func (a Auction) GetEnd() time.Time {
+	return a.end
 }
 
-func (A Auction) GetPrice() uint64 {
-	return A.Price
+func (a Auction) GetPrice() uint64 {
+	return a.price
 }
 
-func (A Auction) GetBids() []*Bid {
-	bids := make([]*Bid, 0, A.Bids.Size())
-	A.Bids.Iterate("", "", func(key string, value interface{}) bool {
+func (a Auction) GetBids() []*Bid {
+	bids := make([]*Bid, 0, a.bids.Size())
+	a.bids.Iterate("", "", func(key string, value interface{}) bool {
 		bids = append(bids, value.(*Bid))
 		return false
 	})
 	return bids
 }
 
-func (A Auction) IsOwner(address std.Address) bool {
-	return address == A.GetOwner()
+func (a Auction) IsOwner(address std.Address) bool {
+	return address == a.GetOwner()
 }
 
 func NewBid(bidder std.Address, amount uint64) *Bid {
 	return &Bid{
-		Bidder: bidder,
-		Amount: amount,
+		bidder: bidder,
+		amount: amount,
 	}
 }
 
-func (A *Auction) AddBid(bidder std.Address, amount uint64) {
-	if amount <= A.Price {
+func (a *Auction) AddBid(bidder std.Address, amount uint64) {
+	if amount <= a.price {
 		panic("bid amount must be higher than current highest bid")
 	}
-	key := strconv.Itoa(A.Bids.Size())
+	key := strconv.Itoa(a.bids.Size())
 	bid := NewBid(bidder, amount)
-	A.Bids.Set(key, bid)
-	A.Price = amount
+	a.bids.Set(key, bid)
+	a.price = amount
 	std.Emit("BidPlaced", "bidder", bidder.String(), "amount", strconv.FormatUint(amount, 10))
 }
 
-func (B Bid) GetBidder() std.Address {
-	return B.Bidder
+func (b Bid) GetBidder() std.Address {
+	return b.bidder
 }
 
-func (B Bid) GetAmount() uint64 {
-	return B.Amount
+func (b Bid) GetAmount() uint64 {
+	return b.amount
 }
 
-func (A *Auction) EndAuction() {
-	if time.Now().Before(A.End) {
+func (a *Auction) EndAuction() {
+	if time.Now().Before(a.end) {
 		panic("Auction cannot end before the end time")
 	}
-	if A.Bids.Size() == 0 {
+	if a.bids.Size() == 0 {
 		panic("No bids placed")
 	}
-	highestBid := A.GetPrice()
-	winner := A.GetBids()[A.Bids.Size()-1].Bidder
+	highestBid := a.GetPrice()
+	winner := a.GetBids()[a.bids.Size()-1].GetBidder()
 	std.Emit("AuctionEnded", "winner", winner.String(), "amount", strconv.FormatUint(highestBid, 10))
 }
