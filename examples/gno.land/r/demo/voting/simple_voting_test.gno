@@ -7,6 +7,11 @@ import (
 	"gno.land/p/demo/testutils"
 )
 
+var (
+	addr1 = std.Address("g1damkuetjta047h6lta047h6lta047h6lwwxf76")
+	addr2 = std.Address("g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02")
+)
+
 // TestCreateProposal tests the creation of a proposal
 func TestCreateProposal(t *testing.T) {
 	Init()
@@ -15,8 +20,7 @@ func TestCreateProposal(t *testing.T) {
 	numParticipants := uint64(100)
 	maxVotesPerUser := uint64(5)
 
-	owner := testutils.TestAddress("owner")
-	std.TestSetPrevAddr(owner)
+	std.TestSetRealm(std.NewUserRealm(addr1))
 
 	proposalID := CreateProposal(title, numParticipants, maxVotesPerUser)
 
@@ -38,8 +42,8 @@ func TestCreateProposal(t *testing.T) {
 		t.Errorf("Expected maxVotesPerUser %d, got %d", maxVotesPerUser, prop.maxVotesPerUser)
 	}
 
-	if prop.owner != owner {
-		t.Errorf("Expected owner %s, got %s", owner.String(), prop.owner.String())
+	if prop.owner != addr1 {
+		t.Errorf("Expected owner %s, got %s", addr1.String(), prop.owner.String())
 	}
 
 	if uint64(proposalIndex) != 1 {
@@ -51,15 +55,14 @@ func TestCreateProposal(t *testing.T) {
 func TestRegisterVoter(t *testing.T) {
 	Init()
 
-	address := testutils.TestAddress("owner")
-	std.TestSetPrevAddr(address)
+	std.TestSetRealm(std.NewUserRealm(addr1))
 
 	voterID := RegisterVoter()
 	if voterID == "" {
 		t.Errorf("Expected voterID, got empty string")
 	}
 
-	voter, exists := registeredVoters.Get(address.String())
+	voter, exists := registeredVoters.Get(addr1.String())
 	if !exists {
 		t.Errorf("Voter not found")
 	}
@@ -77,13 +80,11 @@ func TestVote(t *testing.T) {
 	numParticipants := uint64(100)
 	maxVotesPerUser := uint64(5)
 
-	owner := testutils.TestAddress("owner")
-	std.TestSetPrevAddr(owner)
+	std.TestSetRealm(std.NewUserRealm(addr1))
 
 	proposalID := CreateProposal(title, numParticipants, maxVotesPerUser)
 
-	voter := testutils.TestAddress("voter")
-	std.TestSetPrevAddr(voter)
+	std.TestSetRealm(std.NewUserRealm(addr2))
 
 	voterID := RegisterVoter()
 
@@ -109,14 +110,11 @@ func TestVoteLimit(t *testing.T) {
 	numParticipants := uint64(100)
 	maxVotesPerUser := uint64(2)
 
-	owner := testutils.TestAddress("owner")
-	std.TestSetPrevAddr(owner)
+	std.TestSetRealm(std.NewUserRealm(addr1))
 
 	proposalID := CreateProposal(title, numParticipants, maxVotesPerUser)
 
-	voter := testutils.TestAddress("voter")
-
-	std.TestSetPrevAddr(voter)
+	std.TestSetRealm(std.NewUserRealm(addr2))
 
 	voterID := RegisterVoter()
 
