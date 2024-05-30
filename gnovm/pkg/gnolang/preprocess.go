@@ -1583,14 +1583,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							lhs1 := n.Lhs[1].(*NameExpr).Name
 
 							var mt *MapType
-							st := evalStaticTypeOf(store, last, cx.X)
-							if dt, ok := st.(*DeclaredType); ok {
-								if mt, ok = dt.Base.(*MapType); !ok {
-									s := fmt.Sprintf("the base of the %s is invalid, it should be MapType", dt.Name)
-									panic(s)
-								}
-							} else if mt, ok = st.(*MapType); !ok {
-								panic("invalid index expression on MapType")
+							dt := evalStaticTypeOf(store, last, cx.X)
+							mt, ok := baseOf(dt).(*MapType)
+							if !ok {
+								panic(fmt.Sprintf("invalid index expression on %T", dt))
 							}
 							// re-definitions
 							last.Define(lhs0, anyValue(mt.Value))
@@ -2416,11 +2412,11 @@ func convertType(store Store, last BlockNode, x *Expr, t Type) {
 // xt is the result of an expression type.
 //
 // In a few special cases, we should not perform the conversion:
-//    case 1: the LHS is an interface, which is unnamed, so we should not
-//    convert to that even if right is a named type.
-//    case 2: isNamedConversion is called within evaluating make() or new()
-//    (uverse functions). It returns TypType (generic) which does have IsNamed appropriate
-
+//
+//	case 1: the LHS is an interface, which is unnamed, so we should not
+//	convert to that even if right is a named type.
+//	case 2: isNamedConversion is called within evaluating make() or new()
+//	(uverse functions). It returns TypType (generic) which does have IsNamed appropriate
 func isNamedConversion(xt, t Type) bool {
 	if t == nil {
 		t = xt
