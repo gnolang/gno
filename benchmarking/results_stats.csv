@@ -1,0 +1,8 @@
+op,avg_time,avg_size,time_stddev,count
+StoreAddMemPackage,34625,6589,13132,3
+StoreDeleteObject,3520,0,50771,5600
+StoreGetObject,2722,0,167,3
+StoreGetType,3770,0,6361,8
+StoreSetObject,26281,1563,112376,7323
+StoreSetPackageRealm,9034,76,14395,104
+StoreSetType,114833,3316,159420,8

@@ -12,6 +12,7 @@ import (
 	"sync"
 	"testing"
 
+	bm "github.com/gnolang/gno/benchmarking"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -253,6 +254,9 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	if bm.OpsEnabled || bm.StorageEnabled {
+		bm.InitStack()
+	}
 	return m.runMemPackage(memPkg, save, false)
 }
 
@@ -705,6 +709,10 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if debug {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
+	if bm.OpsEnabled {
+		// reset the benchmark stack
+		bm.InitStack()
+	}
 	// X must not have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
 		panic(fmt.Sprintf(
@@ -1130,11 +1138,17 @@ func (m *Machine) Run() {
 			m.Debug()
 		}
 		op := m.PopOp()
+		if bm.OpsEnabled {
+			bm.StartMeasurement(bm.VMOpCode(byte(op)))
+		}
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
+			if bm.OpsEnabled {
+				bm.StopMeasurement(0)
+			}
 			return
 		case OpNoop:
 			m.incrCPU(OpCPUNoop)
@@ -1452,6 +1466,9 @@ func (m *Machine) Run() {
 			m.doOpReturnCallDefers()
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
+		}
+		if bm.OpsEnabled {
+			bm.StopMeasurement(0)
 		}
 	}
 }

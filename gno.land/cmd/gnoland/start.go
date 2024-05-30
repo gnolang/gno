@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	bm "github.com/gnolang/gno/benchmarking"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -60,6 +61,9 @@ type startCfg struct {
 }
 
 func newStartCmd(io commands.IO) *commands.Command {
+	if bm.OpsEnabled || bm.StorageEnabled {
+		bm.Init("benchmarks.bin")
+	}
 	cfg := &startCfg{}
 
 	return commands.NewCommand(
