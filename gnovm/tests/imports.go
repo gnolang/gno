@@ -79,7 +79,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				baseDir := filepath.Join(filesPath, "extern", pkgPath[len(testPath):])
 				memPkg := gno.ReadMemPackage(baseDir, pkgPath)
 				send := std.Coins{}
-				ctx := testContext(pkgPath, send)
+				ctx := TestContext(pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					PkgPath: "test",
 					Output:  stdout,
@@ -390,7 +390,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			}
 
 			send := std.Coins{}
-			ctx := testContext(pkgPath, send)
+			ctx := TestContext(pkgPath, send)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  stdout,
