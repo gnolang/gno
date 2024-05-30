@@ -16,7 +16,7 @@ This mode is the best for benchmarking each major release and/or changes in GnoV
 ### Production mode
 
 It benchmarks the node in the production environment with minimum overhead.
-We can only benchmark with standardize the contract but also capture the live usage in production environment.
+We can not only benchmark with standardize the contract but also capture the live usage in production environment.
 It gives us a complete picture of the node perform.
 
 
