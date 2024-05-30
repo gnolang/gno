@@ -4,4 +4,4 @@ func main() {
 	println(int(nil))
 }
 
-// error: cannot convert (undefined) to int
+// Error: cannot convert (undefined) to int
