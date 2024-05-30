@@ -6,12 +6,12 @@ import (
 )
 
 var (
-	firstAddr  = std.Address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
-	secondAddr = std.Address("g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa")
+	firstAddr  = std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm")
+	secondAddr = std.Address("g1r0mlnkc05z0fv49km99z60qnp95tengyqfdr02")
 )
 
 func TestNew(t *testing.T) {
-	std.TestSetPrevAddr(firstAddr)
+	std.TestSetRealm(std.NewUserRealm(firstAddr))
 
 	result := New()
 	if firstAddr != result.owner {
@@ -20,7 +20,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestOwner(t *testing.T) {
-	std.TestSetPrevAddr(firstAddr)
+	std.TestSetRealm(std.NewUserRealm(firstAddr))
 
 	result := New()
 	resultOwner := result.Owner()
@@ -32,7 +32,7 @@ func TestOwner(t *testing.T) {
 }
 
 func TestTransferOwnership(t *testing.T) {
-	std.TestSetPrevAddr(firstAddr)
+	std.TestSetRealm(std.NewUserRealm(firstAddr))
 	o := New()
 
 	err := o.TransferOwnership(secondAddr)
@@ -47,12 +47,13 @@ func TestTransferOwnership(t *testing.T) {
 }
 
 func TestCallerIsOwner(t *testing.T) {
-	std.TestSetPrevAddr(firstAddr)
+	std.TestSetOrigCaller(firstAddr)
 
 	o := New()
+
 	unauthorizedCaller := secondAddr
 
-	std.TestSetPrevAddr(unauthorizedCaller)
+	std.TestSetOrigCaller(unauthorizedCaller)
 
 	if prevRealmIsOwner(o.owner) {
 		t.Fatalf("Expected %s to not be owner\n", unauthorizedCaller)
@@ -60,7 +61,7 @@ func TestCallerIsOwner(t *testing.T) {
 }
 
 func TestDropOwnership(t *testing.T) {
-	std.TestSetPrevAddr(firstAddr)
+	std.TestSetRealm(std.NewUserRealm(firstAddr))
 
 	o := New()
 
@@ -78,11 +79,11 @@ func TestDropOwnership(t *testing.T) {
 // Errors
 
 func TestErrUnauthorized(t *testing.T) {
-	std.TestSetPrevAddr(firstAddr)
+	std.TestSetOrigCaller(firstAddr)
 
 	o := New()
 
-	std.TestSetPrevAddr(secondAddr)
+	std.TestSetOrigCaller(secondAddr)
 
 	err := o.TransferOwnership(firstAddr)
 	if err != ErrUnauthorized {
@@ -96,7 +97,7 @@ func TestErrUnauthorized(t *testing.T) {
 }
 
 func TestErrInvalidAddress(t *testing.T) {
-	std.TestSetPrevAddr(firstAddr)
+	std.TestSetRealm(std.NewUserRealm(firstAddr))
 
 	o := New()
 
