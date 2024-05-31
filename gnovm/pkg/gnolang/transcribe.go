@@ -210,7 +210,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		}
 	case *StarExpr:
 		cnn.X = transcribe(t, nns, TRANS_STAR_X, 0, cnn.X, &c).(Expr)
-		cnn.IsLHS = ftype == TRANS_ASSIGN_LHS
 		if isStopOrSkip(nc, c) {
 			return
 		}
