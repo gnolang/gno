@@ -1701,23 +1701,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
-				if nx, ok := (n.Cond).(*NameExpr); ok {
-					// Cond is named type, check if bool
-					checkNameExprType(store, last, nx, BoolType)
-				} else {
-					// Cond consts become bool *ConstExprs.
-					checkOrConvertType(store, last, &n.Cond, BoolType, false)
-				}
+				checkOrConvertBoolType(store, last, n.Cond)
 
 			// TRANS_LEAVE -----------------------
 			case *IfStmt:
-				if nx, ok := (n.Cond).(*NameExpr); ok {
-					// Cond is named type, check if bool
-					checkNameExprType(store, last, nx, BoolType)
-				} else {
-					// Cond consts become bool *ConstExprs.
-					checkOrConvertType(store, last, &n.Cond, BoolType, false)
-				}
+				checkOrConvertBoolType(store, last, n.Cond)
 
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
@@ -2723,16 +2711,6 @@ func checkType(xt Type, dt Type, autoNative bool) {
 		dt.String()))
 }
 
-// Checks type of NameExpr
-func checkNameExprType(store Store, last BlockNode, nx *NameExpr, t Type) {
-	xt := evalStaticTypeOf(store, last, Expr(nx))
-	if dxt, ok := xt.(*DeclaredType); ok {
-		checkType(dxt.Base, t, false)
-	} else {
-		panic("cannot assign named type to primitive, or primitive to named type without conversion")
-	}
-}
-
 // Returns any names not yet defined nor predefined in expr.  These happen
 // upon transcribe:enter from the top, so value paths cannot be used.  If no
 // names are un and x is TypeExpr, evalStaticType(store,last, x) must not
@@ -2965,6 +2943,31 @@ func checkIntegerType(xt Type) {
 	default:
 		panic(fmt.Sprintf(
 			"expected integer type, but got %v",
+			xt.Kind()))
+	}
+}
+
+// like checkOrConvertType() but for bool type.
+func checkOrConvertBoolType(store Store, last BlockNode, x Expr) {
+	if cx, ok := x.(*ConstExpr); ok {
+		convertConst(store, last, cx, BoolType)
+	} else if nx, ok := (x).(*NameExpr); ok {
+		xt := evalStaticTypeOf(store, last, Expr(nx))
+		if dxt, ok := xt.(*DeclaredType); ok {
+			checkType(dxt.Base, BoolType, false)
+		} else {
+			panic(fmt.Sprintf("expected declared type, but got %v", xt.Kind()))
+		}
+	} else if x != nil {
+		xt := evalStaticTypeOf(store, last, x)
+		checkBoolType(xt)
+	}
+}
+
+func checkBoolType(xt Type) {
+	if xt.Kind() != BoolKind {
+		panic(fmt.Sprintf(
+			"expected bool type, but got %v",
 			xt.Kind()))
 	}
 }
