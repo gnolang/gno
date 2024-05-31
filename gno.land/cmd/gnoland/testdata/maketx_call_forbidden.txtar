@@ -1,12 +1,12 @@
 # load the package
-loadpkg gno.land/p/call_forbidden $WORK/forbidden
-loadpkg gno.land/r/call_normal $WORK/normal_rlm_call
+loadpkg gno.land/p/foo/call_forbidden $WORK/forbidden
+loadpkg gno.land/r/foo/call_normal $WORK/normal_rlm_call
 
 # start a new node
 gnoland start
 
 # 1. call to package ERROR
-! gnokey maketx call -pkgpath gno.land/p/demo/call_forbidden -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+! gnokey maketx call -pkgpath gno.land/p/foo/call_forbidden -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stderr '"gnokey" error: --= Error =--\nData: forbidden/bad package called'
 
 # 2. call to stdlibs ERROR
@@ -14,7 +14,7 @@ stderr '"gnokey" error: --= Error =--\nData: forbidden/bad package called'
 stderr '"gnokey" error: --= Error =--\nData: forbidden/bad package called'
 
 # 3. normal call to realm PASS
-gnokey maketx call -pkgpath gno.land/r/demo/call_normal -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo/call_normal -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 -- forbidden/forbidden.gno --
