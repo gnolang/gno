@@ -9,26 +9,20 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
+const (
+	blankIdentifier = "_"
+)
+
 // In the case of a *FileSet, some declaration steps have to happen
 // in a restricted parallel way across all the files.
 // Anything predefined or preprocessed here get skipped during the Preprocess
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
-	for _, fn := range fset.Files {
-		decls, err := sortValueDeps(fn.Decls)
-		if err != nil {
-			panic(err)
-		}
-
-		fn.Decls = decls
-	}
-
 	// First, initialize all file nodes and connect to package node.
 	for _, fn := range fset.Files {
 		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
 		fn.InitStaticBlock(fn, pn)
 	}
-
 	// NOTE: much of what follows is duplicated for a single *FileNode
 	// in the main Preprocess translation function.  Keep synced.
 
@@ -40,7 +34,11 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *ImportDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) != true {
+				if d.GetAttribute(ATTR_PREDEFINED) == true {
+					// skip declarations already predefined
+					// (e.g. through recursion for a
+					// dependent)
+				} else {
 					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
@@ -48,14 +46,17 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
-
 	// Predefine all type decls decls.
 	for _, fn := range fset.Files {
 		for i := 0; i < len(fn.Decls); i++ {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *TypeDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) != true {
+				if d.GetAttribute(ATTR_PREDEFINED) == true {
+					// skip declarations already predefined
+					// (e.g. through recursion for a
+					// dependent)
+				} else {
 					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
@@ -69,7 +70,11 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *FuncDecl:
-				if d.GetAttribute(ATTR_PREDEFINED) != true {
+				if d.GetAttribute(ATTR_PREDEFINED) == true {
+					// skip declarations already predefined
+					// (e.g. through recursion for a
+					// dependent)
+				} else {
 					// recursively predefine dependencies.
 					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
@@ -77,13 +82,15 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
-
 	// Finally, predefine other decls and
 	// preprocess ValueDecls..
 	for _, fn := range fset.Files {
 		for i := 0; i < len(fn.Decls); i++ {
 			d := fn.Decls[i]
-			if d.GetAttribute(ATTR_PREDEFINED) != true {
+			if d.GetAttribute(ATTR_PREDEFINED) == true {
+				// skip declarations already predefined (e.g.
+				// through recursion for a dependent)
+			} else {
 				// recursively predefine dependencies.
 				d2, _ := predefineNow(store, fn, d)
 				fn.Decls[i] = d2
@@ -186,7 +193,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					var defined bool
 					for _, lx := range n.Lhs {
 						ln := lx.(*NameExpr).Name
-						if ln == "_" {
+						if ln == blankIdentifier {
 							// ignore.
 						} else {
 							_, ok := last.GetLocalIndex(ln)
@@ -230,7 +237,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *FuncTypeExpr:
 				for i := range n.Params {
 					p := &n.Params[i]
-					if p.Name == "" || p.Name == "_" {
+					if p.Name == "" || p.Name == blankIdentifier {
 						// create a hidden var with leading dot.
 						// NOTE: document somewhere.
 						pn := fmt.Sprintf(".arg_%d", i)
@@ -239,7 +246,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 				for i := range n.Results {
 					r := &n.Results[i]
-					if r.Name == "_" {
+					if r.Name == blankIdentifier {
 						// create a hidden var with leading dot.
 						// NOTE: document somewhere.
 						rn := fmt.Sprintf(".res_%d", i)
@@ -678,8 +685,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 				// specific and general cases
 				switch n.Name {
-				case "_":
-					n.Path = NewValuePathBlock(0, 0, "_")
+				case blankIdentifier:
+					n.Path = NewValuePathBlock(0, 0, blankIdentifier)
 					return n, TRANS_CONTINUE
 				case "iota":
 					pd := lastDecl(ns)
@@ -879,17 +886,22 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// Left not const, Right not const ------------------
 					if n.Op == EQL || n.Op == NEQ {
 						// If == or !=, no conversions.
-					} else if lnt, ok := lt.(*NativeType); ok {
+					} else if lnt, ok := lt.(*NativeType); ok && isNative(rt) {
 						if debug {
 							if !isShift {
 								assertSameTypes(lt, rt)
 							}
 						}
-						// If left and right are native type,
+						// If left and right are native type, and same type
 						// convert left and right to gno, then
 						// convert result back to native.
 						//
 						// get concrete native base type.
+						if lt.TypeID() != rt.TypeID() {
+							panic(fmt.Sprintf(
+								"incompatible types in binary expression: %v %v %v",
+								lt.TypeID(), n.Op, rt.TypeID()))
+						}
 						pt := go2GnoBaseType(lnt.Type).(PrimitiveType)
 						// convert n.Left to (gno) pt type,
 						ln := Expr(Call(pt.String(), n.Left))
@@ -927,7 +939,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								if lt.TypeID() != rt.TypeID() {
 									panic(fmt.Sprintf(
 										"incompatible types in binary expression: %v %v %v",
-										n.Left, n.Op, n.Right))
+										lt.TypeID(), n.Op, rt.TypeID()))
 								}
 							} else {
 								checkOrConvertType(store, last, &n.Left, rt, false)
@@ -940,7 +952,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								if lt.TypeID() != rt.TypeID() {
 									panic(fmt.Sprintf(
 										"incompatible types in binary expression: %v %v %v",
-										n.Left, n.Op, n.Right))
+										lt.TypeID(), n.Op, rt.TypeID()))
 								}
 							}
 						}
@@ -1234,8 +1246,33 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if n.Type == nil {
 					panic("should not happen")
 				}
+
+				// Type assertions on the blank identifier are illegal.
+				if nx, ok := n.X.(*NameExpr); ok && string(nx.Name) == blankIdentifier {
+					panic("cannot use _ as value or type")
+				}
+
 				// ExprStmt of form `x.(<type>)`,
 				// or special case form `c, ok := x.(<type>)`.
+				t := evalStaticTypeOf(store, last, n.X)
+				baseType := baseOf(t) // The base type of the asserted value must be an interface.
+				switch bt := baseType.(type) {
+				case *InterfaceType:
+					break
+				case *NativeType:
+					if bt.Type.Kind() == reflect.Interface {
+						break
+					}
+				default:
+					panic(
+						fmt.Sprintf(
+							"invalid operation: %s (variable of type %s) is not an interface",
+							n.X.String(),
+							t.String(),
+						),
+					)
+				}
+
 				evalStaticType(store, last, n.Type)
 
 			// TRANS_LEAVE -----------------------
@@ -1607,9 +1644,20 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					}
-				} else { // ASSIGN.
+				} else { // ASSIGN, or assignment operation (+=, -=, <<=, etc.)
+					// If this is an assignment operation, ensure there's only 1
+					// expr on lhs/rhs.
+					if n.Op != ASSIGN &&
+						(len(n.Lhs) != 1 || len(n.Rhs) != 1) {
+						panic("assignment operator " + n.Op.TokenString() +
+							" requires only one expression on lhs and rhs")
+					}
+
 					// NOTE: Keep in sync with DEFINE above.
-					if len(n.Lhs) > len(n.Rhs) {
+					if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
+						// Special case if shift assign <<= or >>=.
+						checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
+					} else if len(n.Lhs) > len(n.Rhs) {
 						// TODO dry code w/ above.
 						// Unpack n.Rhs[0] to n.Lhs[:]
 						if len(n.Rhs) != 1 {
@@ -1641,12 +1689,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						default:
 							panic("should not happen")
 						}
-					} else if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
-						if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
-							panic("should not happen")
-						}
-						// Special case if shift assign <<= or >>=.
-						checkOrConvertType(store, last, &n.Rhs[0], UintType, false)
 					} else {
 						// General case: a, b = x, y.
 						for i, lx := range n.Lhs {
@@ -1889,8 +1931,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					pn := fn.GetParentNode(nil).(*PackageNode)
 					for i := 0; i < numNames; i++ {
 						nx := &n.NameExprs[i]
-						if nx.Name == "_" {
-							nx.Path = NewValuePathBlock(0, 0, "_")
+						if nx.Name == blankIdentifier {
+							nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
 						} else {
 							pn.Define2(n.Const, nx.Name, sts[i], tvs[i])
 							nx.Path = last.GetPathForName(nil, nx.Name)
@@ -1899,8 +1941,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				} else {
 					for i := 0; i < numNames; i++ {
 						nx := &n.NameExprs[i]
-						if nx.Name == "_" {
-							nx.Path = NewValuePathBlock(0, 0, "_")
+						if nx.Name == blankIdentifier {
+							nx.Path = NewValuePathBlock(0, 0, blankIdentifier)
 						} else {
 							last.Define2(n.Const, nx.Name, sts[i], tvs[i])
 							nx.Path = last.GetPathForName(nil, nx.Name)
@@ -2464,6 +2506,9 @@ func convertIfConst(store Store, last BlockNode, x Expr) {
 
 func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 	if t != nil && t.Kind() == InterfaceKind {
+		if cx.T != nil {
+			checkType(cx.T, t, false)
+		}
 		t = nil // signifies to convert to default type.
 	}
 	if isUntyped(cx.T) {
@@ -3011,7 +3056,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 		// NOTE: unlike the *ValueDecl case, this case doesn't
 		// preprocess d itself (only d.Type).
 		if cd.IsMethod {
-			if cd.Recv.Name == "" || cd.Recv.Name == "_" {
+			if cd.Recv.Name == "" || cd.Recv.Name == blankIdentifier {
 				// create a hidden var with leading dot.
 				// NOTE: document somewhere.
 				cd.Recv.Name = ".recv"
@@ -3130,7 +3175,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 		}
 		if d.Name == "" { // use default
 			d.Name = pv.PkgName
-		} else if d.Name == "_" { // no definition
+		} else if d.Name == blankIdentifier { // no definition
 			return
 		} else if d.Name == "." { // dot import
 			panic("dot imports not allowed in Gno")
@@ -3157,8 +3202,8 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 		}
 		for i := 0; i < len(d.NameExprs); i++ {
 			nx := &d.NameExprs[i]
-			if nx.Name == "_" {
-				nx.Path.Name = "_"
+			if nx.Name == blankIdentifier {
+				nx.Path.Name = blankIdentifier
 			} else {
 				last2 := skipFile(last)
 				last2.Predefine(d.Const, nx.Name)
@@ -3338,7 +3383,7 @@ func constUntypedBigint(source Expr, i64 int64) *ConstExpr {
 }
 
 func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
-	if nx.Name == "_" {
+	if nx.Name == blankIdentifier {
 		// Blank name has no path; caller error.
 		panic("should not happen")
 	}

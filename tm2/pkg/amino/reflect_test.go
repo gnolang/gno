@@ -10,8 +10,8 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	fuzz "github.com/google/gofuzz"
-	"github.com/jaekwon/testify/assert"
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	proto "google.golang.org/protobuf/proto"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -140,7 +140,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 		require.NoError(t, err,
 			"failed to unmarshal bytes %X (%s): %v\nptr: %v\n",
 			bz, bz, err, spw(ptr))
-		require.Equal(t, ptr2, ptr,
+		require.Equal(t, ptr, ptr2,
 			"end to end failed.\nstart: %v\nend: %v\nbytes: %X\nstring(bytes): %s\n",
 			spw(ptr), spw(ptr2), bz, bz)
 
@@ -160,14 +160,14 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 			ptr3 := rv3.Interface()
 			err = ptr3.(amino.PBMessager).FromPBMessage(cdc, pbo)
 			require.NoError(t, err)
-			require.Equal(t, ptr3, ptr,
+			require.Equal(t, ptr, ptr3,
 				"end to end through pbo failed.\nstart(goo): %v\nend(goo): %v\nmid(pbo): %v\n",
 				spw(ptr), spw(ptr3), spw(pbo))
 
 			// Marshal pbo and check for equality of bz and b3. (go -> p3go -> bz vs go -> bz)
 			bz3, err := proto.Marshal(pbo)
 			require.NoError(t, err)
-			require.Equal(t, bz3, bz,
+			require.Equal(t, bz, bz3,
 				"pbo serialization check failed.\nbz(go): %X\nbz(pb-go): %X\nstart(goo): %v\nend(pbo): %v\n",
 				bz, bz3, spw(ptr), spw(pbo))
 
@@ -179,7 +179,7 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 			ptr4 := rv4.Interface()
 			err = ptr4.(amino.PBMessager).FromPBMessage(cdc, pbo2)
 			require.NoError(t, err)
-			require.Equal(t, ptr4, ptr,
+			require.Equal(t, ptr, ptr4,
 				"end to end through bytes and pbo failed.\nbz(go): %X\nstart(goo): %v\nend(goo): %v\nmid(pbo): %v\n",
 				bz, spw(ptr), spw(ptr3), spw(pbo))
 		}
@@ -210,7 +210,7 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 
 		ptr2 := amino.DeepCopy(ptr)
 
-		require.Equal(t, ptr2, ptr,
+		require.Equal(t, ptr, ptr2,
 			"end to end failed.\nstart: %v\nend: %v\nbytes: %X\nstring(bytes): %s\n",
 			spw(ptr), spw(ptr2))
 	}
@@ -237,13 +237,14 @@ func TestCodecMarshalPassesOnRegistered(t *testing.T) {
 
 	bz, err := cdc.Marshal(struct{ tests.Interface1 }{tests.Concrete1{}})
 	assert.NoError(t, err, "correctly registered")
-	assert.Equal(t, bz,
+	assert.Equal(t,
 		//     0x0a --> field #1 Typ3ByteLength (anonymous struct)
 		//           0x12 --> length prefix (18 bytes)
 		//                 0x0a --> field #1 Typ3ByteLength (Any)
 		//                       0x10 --> length prefix (12 bytes)
 		//                             0x2f, ... 0x31 --> "/tests.Concrete1"
 		[]byte{0x0a, 0x12, 0x0a, 0x10, 0x2f, 0x74, 0x65, 0x73, 0x74, 0x73, 0x2e, 0x43, 0x6f, 0x6e, 0x63, 0x72, 0x65, 0x74, 0x65, 0x31},
+		bz,
 		"bytes did not match")
 }
 
@@ -257,26 +258,28 @@ func TestCodecRegisterAndMarshalMultipleConcrete(t *testing.T) {
 	{ // test tests.Concrete1, no conflict.
 		bz, err := cdc.Marshal(struct{ tests.Interface1 }{tests.Concrete1{}})
 		assert.NoError(t, err, "correctly registered")
-		assert.Equal(t, bz,
+		assert.Equal(t,
 			//     0x0a --> field #1 Typ3ByteLength (anonymous struct)
 			//           0x12 --> length prefix (18 bytes)
 			//                 0x0a --> field #1 Typ3ByteLength (Any)
 			//                       0x10 --> length prefix (12 bytes)
 			//                             0x2f, ... 0x31 --> "/tests.Concrete1"
 			[]byte{0x0a, 0x12, 0x0a, 0x10, 0x2f, 0x74, 0x65, 0x73, 0x74, 0x73, 0x2e, 0x43, 0x6f, 0x6e, 0x63, 0x72, 0x65, 0x74, 0x65, 0x31},
+			bz,
 			"bytes did not match")
 	}
 
 	{ // test tests.Concrete2, no conflict
 		bz, err := cdc.Marshal(struct{ tests.Interface1 }{tests.Concrete2{}})
 		assert.NoError(t, err, "correctly registered")
-		assert.Equal(t, bz,
+		assert.Equal(t,
 			//     0x0a --> field #1 Typ3ByteLength (anonymous struct)
 			//           0x12 --> length prefix (18 bytes)
 			//                 0x0a --> field #1 Typ3ByteLength (Any TypeURL)
 			//                       0x10 --> length prefix (12 bytes)
 			//                             0x2f, ... 0x31 --> "/tests.Concrete2"
 			[]byte{0x0a, 0x12, 0x0a, 0x10, 0x2f, 0x74, 0x65, 0x73, 0x74, 0x73, 0x2e, 0x43, 0x6f, 0x6e, 0x63, 0x72, 0x65, 0x74, 0x65, 0x32},
+			bz,
 			"bytes did not match")
 	}
 }
@@ -293,7 +296,7 @@ func TestCodecRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 
 	bz, err := cdc.Marshal(struct{ tests.Interface1 }{c3})
 	assert.Nil(t, err)
-	assert.Equal(t, bz,
+	assert.Equal(t,
 		//     0x0a --> field #1 Typ3ByteLength (anonymous struct)
 		//           0x20 --> length prefix (32 bytes)
 		//                 0x0a --> field #1 Typ3ByteLength (Any TypeURL)
@@ -307,6 +310,7 @@ func TestCodecRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 			//                     0x04 --> length prefix (4 bytes)
 			/**/ 0x12, 0x06, 0x0a, 0x04, 0x30, 0x31, 0x32, 0x33,
 		},
+		bz,
 		"ConcreteTypeDef incorrectly serialized")
 
 	var i1 tests.Interface1
@@ -328,7 +332,7 @@ func TestCodecRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 	// bz, err = cdc.Marshal(&i1c3)
 	bz, err = cdc.Marshal(anyc3)
 	assert.Nil(t, err)
-	assert.Equal(t, bz,
+	assert.Equal(t,
 		//     0x0a --> field #1 Typ3ByteLength (Any TypeURL)
 		//           0x16 --> length prefix (22 bytes)
 		//                 0x2f, ... 0x33 --> "/tests.ConcreteTypeDef"
@@ -340,6 +344,7 @@ func TestCodecRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 			//                     0x04 --> length prefix (4 bytes)
 			/**/ 0x12, 0x06, 0x0a, 0x04, 0x30, 0x31, 0x32, 0x33,
 		},
+		bz,
 		"ConcreteTypeDef incorrectly serialized")
 
 	// This time it should work.
@@ -365,7 +370,7 @@ func TestCodecRoundtripNonNilRegisteredWrappedValue(t *testing.T) {
 
 	bz, err := cdc.MarshalAny(c3)
 	assert.Nil(t, err)
-	assert.Equal(t, bz,
+	assert.Equal(t,
 		//     0x0a --> field #1 Typ3ByteLength (Any TypeURL)
 		//           0x1b --> length prefix (27 bytes)
 		//                 0x2f, ... 0x33 --> "/tests.ConcreteWrappedBytes"
@@ -377,6 +382,7 @@ func TestCodecRoundtripNonNilRegisteredWrappedValue(t *testing.T) {
 			//                     0x04 --> length prefix (4 bytes)
 			/**/ 0x12, 0x06, 0x0a, 0x04, 0x30, 0x31, 0x32, 0x33,
 		},
+		bz,
 		"ConcreteWrappedBytes incorrectly serialized")
 
 	var i1 tests.Interface1
@@ -416,8 +422,8 @@ func TestCodecJSONRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 
 	bz, err := cdc.MarshalJSONAny(c3)
 	assert.Nil(t, err)
-	assert.Equal(t, string(bz),
-		`{"@type":"/tests.ConcreteTypeDef","value":"MDEyMw=="}`,
+	assert.Equal(t,
+		`{"@type":"/tests.ConcreteTypeDef","value":"MDEyMw=="}`, string(bz),
 		"ConcreteTypeDef incorrectly serialized")
 
 	var i1 tests.Interface1
@@ -438,7 +444,7 @@ func TestCodecRoundtripMarshalOnConcreteNonNilRegisteredTypeDef(t *testing.T) {
 
 	bz, err := cdc.MarshalAny(c3)
 	assert.Nil(t, err)
-	assert.Equal(t, bz,
+	assert.Equal(t,
 		//     0x0a --> field #1 Typ3ByteLength (Any TypeURL)
 		//           0x16 --> length prefix (18 bytes)
 		//                 0x2f, ... 0x31 --> "/tests.ConcreteTypeDef"
@@ -450,6 +456,7 @@ func TestCodecRoundtripMarshalOnConcreteNonNilRegisteredTypeDef(t *testing.T) {
 			//                     0x04 --> length prefix (4 bytes)
 			/**/ 0x12, 0x06, 0x0a, 0x04, 0x30, 0x31, 0x32, 0x33,
 		},
+		bz,
 		"ConcreteTypeDef incorrectly serialized")
 
 	var i1 tests.Interface1
@@ -470,8 +477,8 @@ func TestCodecRoundtripUnmarshalOnConcreteNonNilRegisteredTypeDef(t *testing.T) 
 
 	bz, err := cdc.Marshal(c3a)
 	assert.Nil(t, err)
-	assert.Equal(t, bz,
-		[]byte{0xa, 0x4, 0x30, 0x31, 0x32, 0x33},
+	assert.Equal(t,
+		[]byte{0xa, 0x4, 0x30, 0x31, 0x32, 0x33}, bz,
 		"ConcreteTypeDef incorrectly serialized")
 
 	var c3b tests.ConcreteTypeDef
@@ -494,7 +501,7 @@ func TestCodecBinaryStructFieldNilInterface(t *testing.T) {
 	err = cdc.UnmarshalSized(bz, i2)
 
 	assert.NoError(t, err)
-	require.Equal(t, i2, i1, "i1 and i2 should be the same after decoding")
+	require.Equal(t, i1, i2, "i1 and i2 should be the same after decoding")
 }
 
 // ----------------------------------------

@@ -42,7 +42,7 @@ func NewDefaultGenesisConfig(pk crypto.PubKey, chainid string) *bft.GenesisDoc {
 			Block: &abci.BlockParams{
 				MaxTxBytes:   1_000_000,   // 1MB,
 				MaxDataBytes: 2_000_000,   // 2MB,
-				MaxGas:       100_000_000, // 10M gas
+				MaxGas:       100_000_000, // 100M gas
 				TimeIotaMS:   100,         // 100ms
 			},
 		},
@@ -57,34 +57,6 @@ func NewDefaultTMConfig(rootdir string) *tmcfg.Config {
 	// We use `TestConfig` here otherwise ChainID will be empty, and
 	// there is no other way to update it than using a config file
 	return tmcfg.TestConfig().SetRootDir(rootdir)
-}
-
-// NewInMemoryNodeConfig creates a default configuration for an in-memory node.
-func NewDefaultInMemoryNodeConfig(rootdir string) *InMemoryNodeConfig {
-	tm := NewDefaultTMConfig(rootdir)
-
-	// Create Mocked Identity
-	pv := NewMockedPrivValidator()
-	genesis := NewDefaultGenesisConfig(pv.GetPubKey(), tm.ChainID())
-
-	// Add self as validator
-	self := pv.GetPubKey()
-	genesis.Validators = []bft.GenesisValidator{
-		{
-			Address: self.Address(),
-			PubKey:  self,
-			Power:   10,
-			Name:    "self",
-		},
-	}
-
-	return &InMemoryNodeConfig{
-		PrivValidator:      pv,
-		TMConfig:           tm,
-		Genesis:            genesis,
-		GenesisTxHandler:   PanicOnFailingTxHandler,
-		GenesisMaxVMCycles: 10_000_000,
-	}
 }
 
 func (cfg *InMemoryNodeConfig) validate() error {

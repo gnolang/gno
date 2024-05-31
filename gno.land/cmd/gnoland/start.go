@@ -5,54 +5,55 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/telemetry"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/file"
-	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/null"
-	eventstorecfg "github.com/gnolang/gno/tm2/pkg/bft/state/eventstore/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-var startGraphic = fmt.Sprintf(`
-                      __                __
-   ____ _____  ____  / /___ _____  ____/ /
-  / __ %c/ __ \/ __ \/ / __ %c/ __ \/ __  / 
- / /_/ / / / / /_/ / / /_/ / / / / /_/ /  
- \__, /_/ /_/\____/_/\__,_/_/ /_/\__,_/   
-/____/                                    
-`, '`', '`')
+const defaultNodeDir = "gnoland-data"
+
+var errMissingGenesis = errors.New("missing genesis.json")
+
+var startGraphic = strings.ReplaceAll(`
+                    __             __
+  ___ ____  ___    / /__ ____  ___/ /
+ / _ '/ _ \/ _ \_ / / _ '/ _ \/ _  /
+ \_, /_//_/\___(_)_/\_,_/_//_/\_,_/
+/___/
+`, "'", "`")
 
 type startCfg struct {
-	gnoRootDir            string
-	skipFailingGenesisTxs bool
-	skipStart             bool
-	genesisBalancesFile   string
-	genesisTxsFile        string
+	gnoRootDir            string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	skipFailingGenesisTxs bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisBalancesFile   string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisTxsFile        string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisRemote         string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisFile           string
 	chainID               string
-	genesisRemote         string
 	dataDir               string
 	genesisMaxVMCycles    int64
 	config                string
-
-	txEventStoreType string
-	txEventStorePath string
-	nodeConfigPath   string
+	lazyInit              bool
 
 	logLevel  string
 	logFormat string
@@ -65,11 +66,12 @@ func newStartCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "start",
 			ShortUsage: "start [flags]",
-			ShortHelp:  "run the full node",
+			ShortHelp:  "starts the Gnoland blockchain node",
+			LongHelp:   "Starts the Gnoland blockchain node, with accompanying setup",
 		},
 		cfg,
-		func(_ context.Context, _ []string) error {
-			return execStart(cfg, io)
+		func(ctx context.Context, _ []string) error {
+			return execStart(ctx, cfg, io)
 		},
 	)
 }
@@ -84,13 +86,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"skip-failing-genesis-txs",
 		false,
 		"don't panic when replaying invalid genesis txs",
-	)
-
-	fs.BoolVar(
-		&c.skipStart,
-		"skip-start",
-		false,
-		"quit after initialization, don't start the node",
 	)
 
 	fs.StringVar(
@@ -108,6 +103,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
+		&c.genesisFile,
+		"genesis",
+		"genesis.json",
+		"the path to the genesis.json",
+	)
+
+	fs.StringVar(
 		&c.chainID,
 		"chainid",
 		"dev",
@@ -121,12 +123,11 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"the root directory of the gno repository",
 	)
 
-	// XXX: Use home directory for this
 	fs.StringVar(
 		&c.dataDir,
 		"data-dir",
-		"testdir",
-		"directory for config and data",
+		defaultNodeDir,
+		"the path to the node's data directory",
 	)
 
 	fs.StringVar(
@@ -139,7 +140,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Int64Var(
 		&c.genesisMaxVMCycles,
 		"genesis-max-vm-cycles",
-		10_000_000,
+		100_000_000,
 		"set maximum allowed vm cycles per operation. Zero means no limit.",
 	)
 
@@ -148,36 +149,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		flagConfigFlag,
 		"",
 		"the flag config file (optional)",
-	)
-
-	fs.StringVar(
-		&c.nodeConfigPath,
-		"config-path",
-		"",
-		"the node TOML config file path (optional)",
-	)
-
-	fs.StringVar(
-		&c.txEventStoreType,
-		"tx-event-store-type",
-		null.EventStoreType,
-		fmt.Sprintf(
-			"type of transaction event store [%s]",
-			strings.Join(
-				[]string{
-					null.EventStoreType,
-					file.EventStoreType,
-				},
-				", ",
-			),
-		),
-	)
-
-	fs.StringVar(
-		&c.txEventStorePath,
-		"tx-event-store-path",
-		"",
-		fmt.Sprintf("path for the file tx event store (required if event store is '%s')", file.EventStoreType),
 	)
 
 	fs.StringVar(
@@ -194,118 +165,209 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"log format for the gnoland node",
 	)
 
-	// XXX(deprecated): use data-dir instead
-	fs.StringVar(
-		&c.dataDir,
-		"root-dir",
-		"testdir",
-		"deprecated: use data-dir instead - directory for config and data",
+	fs.BoolVar(
+		&c.lazyInit,
+		"lazy",
+		false,
+		"flag indicating if lazy init is enabled. Generates the node secrets, configuration, and genesis.json",
 	)
 }
 
-func execStart(c *startCfg, io commands.IO) error {
-	dataDir := c.dataDir
-
-	var (
-		cfg        *config.Config
-		loadCfgErr error
-	)
-
-	// Attempt to initialize telemetry. If the environment variables required to initialize
-	// telemetry are not set, then the initialization will do nothing.
-	if err := initTelemetry(); err != nil {
-		return fmt.Errorf("error initializing telemetry: %w", err)
-	}
-
-	// Set the node configuration
-	if c.nodeConfigPath != "" {
-		// Load the node configuration
-		// from the specified path
-		cfg, loadCfgErr = config.LoadConfigFile(c.nodeConfigPath)
-	} else {
-		// Load the default node configuration
-		cfg, loadCfgErr = config.LoadOrMakeConfigWithOptions(dataDir)
-	}
-
-	if loadCfgErr != nil {
-		return fmt.Errorf("unable to load node configuration, %w", loadCfgErr)
-	}
-
-	// Initialize the log level
-	logLevel, err := zapcore.ParseLevel(c.logLevel)
+func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
+	// Get the absolute path to the node's data directory
+	nodeDir, err := filepath.Abs(c.dataDir)
 	if err != nil {
-		return fmt.Errorf("unable to parse log level, %w", err)
+		return fmt.Errorf("unable to get absolute path for data directory, %w", err)
 	}
 
-	// Initialize the log format
-	logFormat := log.Format(strings.ToLower(c.logFormat))
+	// Get the absolute path to the node's genesis.json
+	genesisPath, err := filepath.Abs(c.genesisFile)
+	if err != nil {
+		return fmt.Errorf("unable to get absolute path for the genesis.json, %w", err)
+	}
 
-	// Initialize the zap logger
-	zapLogger := log.GetZapLoggerFn(logFormat)(io.Out(), logLevel)
+	// Initialize the logger
+	zapLogger, err := initializeLogger(io.Out(), c.logLevel, c.logFormat)
+	if err != nil {
+		return fmt.Errorf("unable to initialize zap logger, %w", err)
+	}
+
+	defer func() {
+		// Sync the logger before exiting
+		_ = zapLogger.Sync()
+	}()
 
 	// Wrap the zap logger
 	logger := log.ZapLoggerToSlog(zapLogger)
 
-	// Write genesis file if missing.
-	genesisFilePath := filepath.Join(dataDir, cfg.Genesis)
-
-	if !osm.FileExists(genesisFilePath) {
-		// Create priv validator first.
-		// Need it to generate genesis.json
-		newPrivValKey := cfg.PrivValidatorKeyFile()
-		newPrivValState := cfg.PrivValidatorStateFile()
-		priv := privval.LoadOrGenFilePV(newPrivValKey, newPrivValState)
-		pk := priv.GetPubKey()
-
-		// Generate genesis.json file
-		if err := generateGenesisFile(genesisFilePath, pk, c); err != nil {
-			return fmt.Errorf("unable to generate genesis file: %w", err)
+	if c.lazyInit {
+		if err := lazyInitNodeDir(io, nodeDir); err != nil {
+			return fmt.Errorf("unable to lazy-init the node directory, %w", err)
 		}
 	}
 
-	// Initialize the indexer config
-	txEventStoreCfg, err := getTxEventStoreConfig(c)
+	// Load the configuration
+	cfg, err := config.LoadConfig(nodeDir)
 	if err != nil {
-		return fmt.Errorf("unable to parse indexer config, %w", err)
+		return fmt.Errorf("unable to load config, %w", err)
 	}
-	cfg.TxEventStore = txEventStoreCfg
 
-	// Create application and node.
-	gnoApp, err := gnoland.NewApp(dataDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
+	// Check if the genesis.json exists
+	if !osm.FileExists(genesisPath) {
+		if !c.lazyInit {
+			return errMissingGenesis
+		}
+
+		// Load the private validator secrets
+		privateKey := privval.LoadFilePV(
+			cfg.PrivValidatorKeyFile(),
+			cfg.PrivValidatorStateFile(),
+		)
+
+		// Init a new genesis.json
+		if err := lazyInitGenesis(io, c, genesisPath, privateKey.GetPubKey()); err != nil {
+			return fmt.Errorf("unable to initialize genesis.json, %w", err)
+		}
+	}
+
+	// Initialize telemetry
+	if err := telemetry.Init(*cfg.Telemetry); err != nil {
+		return fmt.Errorf("unable to initialize telemetry, %w", err)
+	}
+
+	// Create application and node
+	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
-		return fmt.Errorf("error in creating new app: %w", err)
+		return fmt.Errorf("unable to create the Gnoland app, %w", err)
 	}
-	cfg.LocalApp = gnoApp
 
-	if logFormat != log.JSONFormat {
+	// Print the starting graphic
+	if c.logFormat != string(log.JSONFormat) {
 		io.Println(startGraphic)
 	}
 
-	gnoNode, err := node.DefaultNewNode(cfg, logger)
+	// Create a default node, with the given setup
+	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, logger)
 	if err != nil {
-		return fmt.Errorf("error in creating node: %w", err)
+		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}
 
-	if c.skipStart {
-		io.ErrPrintln("'--skip-start' is set. Exiting.")
+	// Start the node (async)
+	if err := gnoNode.Start(); err != nil {
+		return fmt.Errorf("unable to start the Gnoland node, %w", err)
+	}
+
+	// Set up the wait context
+	nodeCtx, _ := signal.NotifyContext(
+		ctx,
+		os.Interrupt,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+
+	// Wait for the exit signal
+	<-nodeCtx.Done()
+
+	if !gnoNode.IsRunning() {
 		return nil
 	}
 
-	if err := gnoNode.Start(); err != nil {
-		return fmt.Errorf("error in start node: %w", err)
+	// Gracefully stop the gno node
+	if err := gnoNode.Stop(); err != nil {
+		return fmt.Errorf("unable to gracefully stop the Gnoland node, %w", err)
 	}
 
-	osm.TrapSignal(func() {
-		if gnoNode.IsRunning() {
-			_ = gnoNode.Stop()
+	return nil
+}
+
+// lazyInitNodeDir initializes new secrets, and a default configuration
+// in the given node directory, if not present
+func lazyInitNodeDir(io commands.IO, nodeDir string) error {
+	var (
+		configPath  = constructConfigPath(nodeDir)
+		secretsPath = constructSecretsPath(nodeDir)
+	)
+
+	// Check if the configuration already exists
+	if !osm.FileExists(configPath) {
+		// Create the gnoland config options
+		cfg := &configInitCfg{
+			configCfg: configCfg{
+				configPath: constructConfigPath(nodeDir),
+			},
 		}
 
-		// Sync the logger before exiting
-		_ = zapLogger.Sync()
-	})
+		// Run gnoland config init
+		if err := execConfigInit(cfg, io); err != nil {
+			return fmt.Errorf("unable to initialize config, %w", err)
+		}
 
-	// Run forever
-	select {}
+		io.Printfln("WARN: Initialized default node config at %q", filepath.Dir(cfg.configPath))
+		io.Println()
+	}
+
+	// Create the gnoland secrets options
+	secrets := &secretsInitCfg{
+		commonAllCfg: commonAllCfg{
+			dataDir: secretsPath,
+		},
+		forceOverwrite: false, // existing secrets shouldn't be pruned
+	}
+
+	// Run gnoland secrets init
+	err := execSecretsInit(secrets, []string{}, io)
+	if err == nil {
+		io.Printfln("WARN: Initialized default node secrets at %q", secrets.dataDir)
+
+		return nil
+	}
+
+	// Check if the error is valid
+	if errors.Is(err, errOverwriteNotEnabled) {
+		// No new secrets were generated
+		return nil
+	}
+
+	return fmt.Errorf("unable to initialize secrets, %w", err)
+}
+
+// lazyInitGenesis a new genesis.json file, with a signle validator
+func lazyInitGenesis(
+	io commands.IO,
+	c *startCfg,
+	genesisPath string,
+	publicKey crypto.PubKey,
+) error {
+	// Check if the genesis.json is present
+	if osm.FileExists(genesisPath) {
+		return nil
+	}
+
+	// Generate the new genesis.json file
+	if err := generateGenesisFile(genesisPath, publicKey, c); err != nil {
+		return fmt.Errorf("unable to generate genesis file, %w", err)
+	}
+
+	io.Printfln("WARN: Initialized genesis.json at %q", genesisPath)
+
+	return nil
+}
+
+// initializeLogger initializes the zap logger using the given format and log level,
+// outputting to the given IO
+func initializeLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logger, error) {
+	// Initialize the log level
+	level, err := zapcore.ParseLevel(logLevel)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse log level, %w", err)
+	}
+
+	// Initialize the log format
+	format := log.Format(strings.ToLower(logFormat))
+
+	// Initialize the zap logger
+	return log.GetZapLoggerFn(format)(io, level), nil
 }
 
 func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) error {
@@ -315,10 +377,10 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 	gen.ConsensusParams = abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			// TODO: update limits.
-			MaxTxBytes:   1_000_000,  // 1MB,
-			MaxDataBytes: 2_000_000,  // 2MB,
-			MaxGas:       10_0000_00, // 10M gas
-			TimeIotaMS:   100,        // 100ms
+			MaxTxBytes:   1_000_000,   // 1MB,
+			MaxDataBytes: 2_000_000,   // 2MB,
+			MaxGas:       100_000_000, // 100M gas
+			TimeIotaMS:   100,         // 100ms
 		},
 	}
 
@@ -366,44 +428,4 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 	}
 
 	return nil
-}
-
-// getTxEventStoreConfig constructs an event store config from provided user options
-func getTxEventStoreConfig(c *startCfg) (*eventstorecfg.Config, error) {
-	var cfg *eventstorecfg.Config
-
-	switch c.txEventStoreType {
-	case file.EventStoreType:
-		if c.txEventStorePath == "" {
-			return nil, errors.New("unspecified file transaction indexer path")
-		}
-
-		// Fill out the configuration
-		cfg = &eventstorecfg.Config{
-			EventStoreType: file.EventStoreType,
-			Params: map[string]any{
-				file.Path: c.txEventStorePath,
-			},
-		}
-	default:
-		cfg = eventstorecfg.DefaultEventStoreConfig()
-	}
-
-	return cfg, nil
-}
-
-func initTelemetry() error {
-	var options []telemetry.Option
-
-	if os.Getenv("TELEM_METRICS_ENABLED") == "true" {
-		options = append(options, telemetry.WithOptionMetricsEnabled())
-	}
-
-	// The string options can be added by default. Their absence would yield the same result
-	// as if the option were excluded altogether.
-	options = append(options, telemetry.WithOptionMeterName(os.Getenv("TELEM_METER_NAME")))
-	options = append(options, telemetry.WithOptionExporterEndpoint(os.Getenv("TELEM_EXPORTER_ENDPOINT")))
-	options = append(options, telemetry.WithOptionServiceName(os.Getenv("TELEM_SERVICE_NAME")))
-
-	return telemetry.Init(options...)
 }

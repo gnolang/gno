@@ -3,9 +3,9 @@ package integration
 import (
 	"errors"
 
-	"github.com/jaekwon/testify/assert"
-	"github.com/jaekwon/testify/require"
 	"github.com/rogpeppe/go-internal/testscript"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // This error is from testscript.Fatalf and is needed to correctly

@@ -8,6 +8,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -19,6 +20,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 
 	// Only goleveldb is supported for now.
+	_ "github.com/gnolang/gno/tm2/pkg/db/_tags"
 	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
@@ -65,6 +67,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseKey := store.NewStoreKey("base")
 
 	// Create BaseApp.
+	// TODO: Add a consensus based min gas prices for the node, by default it does not check
 	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
 	baseApp.SetAppVersion("dev")
 
@@ -132,13 +135,12 @@ func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger,
 	}
 
 	// Get main DB.
-	cfg.DB, err = dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(dataRootDir, "data"))
+	cfg.DB, err = dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(dataRootDir, config.DefaultDBDir))
 	if err != nil {
 		return nil, fmt.Errorf("error initializing database %q using path %q: %w", dbm.GoLevelDBBackend, dataRootDir, err)
 	}
 
 	cfg.Logger = logger
-
 	return NewAppWithOptions(cfg)
 }
 
@@ -155,31 +157,34 @@ func PanicOnFailingTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
 // InitChainer returns a function that can initialize the chain with genesis.
 func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, resHandler GenesisTxHandler) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
-		// Get genesis state.
-		genState := req.AppState.(GnoGenesisState)
-		// Parse and set genesis state balances.
-		for _, bal := range genState.Balances {
-			acc := acctKpr.NewAccountWithAddress(ctx, bal.Address)
-			acctKpr.SetAccount(ctx, acc)
-			err := bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
-			if err != nil {
-				panic(err)
-			}
-		}
+		if req.AppState != nil {
+			// Get genesis state
+			genState := req.AppState.(GnoGenesisState)
 
-		// Run genesis txs.
-		for _, tx := range genState.Txs {
-			res := baseApp.Deliver(tx)
-			if res.IsErr() {
-				ctx.Logger().Error(
-					"Unable to deliver genesis tx",
-					"log", res.Log,
-					"error", res.Error,
-					"gas-used", res.GasUsed,
-				)
+			// Parse and set genesis state balances
+			for _, bal := range genState.Balances {
+				acc := acctKpr.NewAccountWithAddress(ctx, bal.Address)
+				acctKpr.SetAccount(ctx, acc)
+				err := bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
+				if err != nil {
+					panic(err)
+				}
 			}
 
-			resHandler(ctx, tx, res)
+			// Run genesis txs
+			for _, tx := range genState.Txs {
+				res := baseApp.Deliver(tx)
+				if res.IsErr() {
+					ctx.Logger().Error(
+						"Unable to deliver genesis tx",
+						"log", res.Log,
+						"error", res.Error,
+						"gas-used", res.GasUsed,
+					)
+				}
+
+				resHandler(ctx, tx, res)
+			}
 		}
 
 		// Done!
