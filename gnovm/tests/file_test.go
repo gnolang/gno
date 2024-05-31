@@ -75,6 +75,9 @@ func readFiles(t *testing.T, dir string) ([]testFile, error) {
 		if err != nil {
 			return err
 		}
+		if de.IsDir() && de.Name() == "extern" {
+			return filepath.SkipDir
+		}
 		f := testFile{path: path, DirEntry: de}
 
 		files = append(files, f)
