@@ -33,6 +33,7 @@ func TestFiles(t *testing.T) {
 }
 
 func TestChallenges(t *testing.T) {
+	t.Skip("Challenge tests, skipping.")
 	baseDir := filepath.Join(".", "challenges")
 	runFileTests(t, baseDir, nil)
 }

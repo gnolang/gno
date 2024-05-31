@@ -717,7 +717,7 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 		}
 	case *NativeType:
 		npt := &NativeType{
-			Type: reflect.PtrTo(cet.Type),
+			Type: reflect.PointerTo(cet.Type),
 		}
 		return npt.FindEmbeddedFieldType(n, m)
 	default:

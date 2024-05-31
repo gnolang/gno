@@ -12,7 +12,7 @@ Additionally, you will understand how to query the account balance after you pre
 Premining balance is the process of making sure some accounts (addresses) have specific funds when the chain initially
 launches. In the context of local chain deployments, premine balances are used to ensure the user accounts (developers)
 have ample funds to interact with the chain and facilitate contract deployments.
-
+  
 ## Prerequisites
 
 - **`gnoland` and `gnokey` set up. Reference the [Installation](local-setup.md#3-installing-other-gno-tools) guide
@@ -24,7 +24,7 @@ In order for us to premine funds on a fresh chain, we need to make sure we do no
 from previous chain runs.
 
 The blockchain node, when it runs, works with an embedded DB locally on disk to store execution data (such as
-configuration files, or the state DB). For Gno blockchain nodes, this working directory is labeled as `testdir` by
+configuration files, or the state DB). For Gno blockchain nodes, this working directory is labeled as `gnoland-data` by
 default.
 
 To clean out old blockchain data, navigate to the `gno.land` folder and run the appropriate make command:

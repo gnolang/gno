@@ -88,4 +88,4 @@ Internally, a GnoVM instance is initialized to run the test, and, at that moment
 a blockchain-related context is injected into the GnoVM. Utilizing this context, the transaction sender, 
 coins, block height, etc. can be mocked.
 
-For detailed information on these functions, refer to their [reference page](../reference/standard-library/std/testing.md).
+For detailed information on these functions, refer to their [reference page](../reference/stdlibs/std/testing.md).

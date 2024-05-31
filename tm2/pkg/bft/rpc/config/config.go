@@ -111,8 +111,8 @@ func DefaultRPCConfig() *RPCConfig {
 // TestRPCConfig returns a configuration for testing the RPC server
 func TestRPCConfig() *RPCConfig {
 	cfg := DefaultRPCConfig()
-	cfg.ListenAddress = "tcp://0.0.0.0:36657"
-	cfg.GRPCListenAddress = "tcp://0.0.0.0:36658"
+	cfg.ListenAddress = "tcp://0.0.0.0:26657"
+	cfg.GRPCListenAddress = "tcp://0.0.0.0:26658"
 	cfg.Unsafe = true
 	return cfg
 }
@@ -162,4 +162,13 @@ func (cfg RPCConfig) CertFile() string {
 
 func (cfg RPCConfig) IsTLSEnabled() bool {
 	return cfg.TLSCertFile != "" && cfg.TLSKeyFile != ""
+}
+
+// helper function to make config creation independent of root dir
+func join(root, path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+
+	return filepath.Join(root, path)
 }

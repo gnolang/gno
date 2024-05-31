@@ -12,7 +12,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -71,9 +71,10 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 	genesis := DefaultTestingGenesisConfig(t, gnoroot, pv.GetPubKey(), tmconfig)
 
 	return &gnoland.InMemoryNodeConfig{
-		PrivValidator: pv,
-		Genesis:       genesis,
-		TMConfig:      tmconfig,
+		PrivValidator:    pv,
+		Genesis:          genesis,
+		TMConfig:         tmconfig,
+		GenesisTxHandler: gnoland.PanicOnFailingTxHandler,
 	}
 }
 
@@ -85,7 +86,7 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 			Block: &abci.BlockParams{
 				MaxTxBytes:   1_000_000,   // 1MB,
 				MaxDataBytes: 2_000_000,   // 2MB,
-				MaxGas:       10_0000_000, // 10M gas
+				MaxGas:       100_000_000, // 100M gas
 				TimeIotaMS:   100,         // 100ms
 			},
 		},

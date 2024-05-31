@@ -1,13 +1,17 @@
 package vm
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
-	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type vmHandler struct {
@@ -37,15 +41,7 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 
 // Handle MsgAddPackage.
 func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.Result {
-	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
-	if err != nil {
-		return abciResult(err)
-	}
-	err = vh.vm.bank.SendCoins(ctx, msg.Creator, auth.FeeCollectorAddress(), amount)
-	if err != nil {
-		return abciResult(err)
-	}
-	err = vh.vm.AddPackage(ctx, msg)
+	err := vh.vm.AddPackage(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}
@@ -54,43 +50,17 @@ func (vh vmHandler) handleMsgAddPackage(ctx sdk.Context, msg MsgAddPackage) sdk.
 
 // Handle MsgCall.
 func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result) {
-	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
-	if err != nil {
-		return abciResult(err)
-	}
-	err = vh.vm.bank.SendCoins(ctx, msg.Caller, auth.FeeCollectorAddress(), amount)
-	if err != nil {
-		return abciResult(err)
-	}
-	resstr := ""
-	resstr, err = vh.vm.Call(ctx, msg)
+	resstr, err := vh.vm.Call(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}
 	res.Data = []byte(resstr)
 	return
-	/* TODO handle events.
-	ctx.EventManager().EmitEvent(
-		sdk.NewEvent(
-			sdk.EventTypeMessage,
-			sdk.NewAttribute(sdk.AttributeKeyXXX, types.AttributeValueXXX),
-		),
-	)
-	*/
 }
 
 // Handle MsgRun.
 func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
-	amount, err := std.ParseCoins("1000000ugnot") // XXX calculate
-	if err != nil {
-		return abciResult(err)
-	}
-	err = vh.vm.bank.SendCoins(ctx, msg.Caller, auth.FeeCollectorAddress(), amount)
-	if err != nil {
-		return abciResult(err)
-	}
-	resstr := ""
-	resstr, err = vh.vm.Run(ctx, msg)
+	resstr, err := vh.vm.Run(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}
@@ -98,7 +68,7 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Query
 
 // query paths
@@ -111,26 +81,57 @@ const (
 	QueryFile    = "qfile"
 )
 
-func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	switch secondPart(req.Path) {
+func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
+	var (
+		res  abci.ResponseQuery
+		path = secondPart(req.Path)
+	)
+
+	switch path {
 	case QueryPackage:
-		return vh.queryPackage(ctx, req)
+		res = vh.queryPackage(ctx, req)
 	case QueryStore:
-		return vh.queryStore(ctx, req)
+		res = vh.queryStore(ctx, req)
 	case QueryRender:
-		return vh.queryRender(ctx, req)
+		res = vh.queryRender(ctx, req)
 	case QueryFuncs:
-		return vh.queryFuncs(ctx, req)
+		res = vh.queryFuncs(ctx, req)
 	case QueryEval:
-		return vh.queryEval(ctx, req)
+		res = vh.queryEval(ctx, req)
 	case QueryFile:
-		return vh.queryFile(ctx, req)
+		res = vh.queryFile(ctx, req)
 	default:
-		res = sdk.ABCIResponseQueryFromError(
+		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
 				"unknown vm query endpoint %s in %s",
 				secondPart(req.Path), req.Path)))
+	}
+
+	// Log the telemetry
+	logQueryTelemetry(path, res.IsErr())
+
+	return res
+}
+
+// logQueryTelemetry logs the relevant VM query telemetry
+func logQueryTelemetry(path string, isErr bool) {
+	if !telemetry.MetricsEnabled() {
 		return
+	}
+
+	metrics.VMQueryCalls.Add(
+		context.Background(),
+		1,
+		metric.WithAttributes(
+			attribute.KeyValue{
+				Key:   "path",
+				Value: attribute.StringValue(path),
+			},
+		),
+	)
+
+	if isErr {
+		metrics.VMQueryErrors.Add(context.Background(), 1)
 	}
 }
 
@@ -214,7 +215,7 @@ func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // misc
 
 func abciResult(err error) sdk.Result {
