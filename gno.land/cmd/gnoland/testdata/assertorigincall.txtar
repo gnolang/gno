@@ -105,9 +105,10 @@ stdout 'OK!'
 ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/barC.gno
 stderr 'invalid non-origin call'
 
+## remove testcase 19 due to maketx call forced to call a realm
 ## 19. MsgCall -> std.AssertOriginCall: pass
-gnokey maketx call -pkgpath std -func AssertOriginCall -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
-stdout 'OK!'
+## gnokey maketx call -pkgpath std -func AssertOriginCall -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+## stdout 'OK!'
 
 ## 20. MsgRun -> std.AssertOriginCall: PANIC
 ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/baz.gno

@@ -1,6 +1,6 @@
 # load the package
-loadpkg gno.land/p/demo/call_forbidden $WORK
-loadpkg gno.land/r/demo/call_normal $WORK
+loadpkg gno.land/p/call_forbidden $WORK/forbidden
+loadpkg gno.land/r/call_normal $WORK/normal_rlm_call
 
 # start a new node
 gnoland start
@@ -17,14 +17,14 @@ stderr `forbidden/bad package called`
 gnokey maketx call -pkgpath gno.land/r/demo/call_normal -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout `OK!`
 
--- call_forbidden.gno --
+-- forbidden/forbidden.gno --
 package call_forbidden
 
 func Render() string {
  	return "notok"
 }
 
--- call_normal.gno --
+-- normal_rlm_call/normal_call.gno --
 package call_normal
 
 func Render() string {
