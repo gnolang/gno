@@ -2,8 +2,11 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
+	"fmt"
 
+	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -56,20 +59,46 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 		return err
 	}
 
-	if qres.Response.Error != nil {
-		io.Printf("Log: %s\n",
-			qres.Response.Log)
-		return qres.Response.Error
+	output := formatQueryResponse(qres.Response)
+	io.Printf(output)
+
+	return qres.Response.Error
+}
+
+func formatQueryResponse(res abci.ResponseQuery) string {
+	if res.Error != nil {
+		// If there is an error in the response, return the log message
+		return fmt.Sprintf("Log: %s\n", res.Log)
 	}
 
-	resdata := qres.Response.Data
-	// XXX in general, how do we know what to show?
-	// proof := qres.Response.Proof
-	height := qres.Response.Height
-	io.Printf("height: %d\ndata: %s\n",
-		height,
-		string(resdata))
-	return nil
+	// Default response string in case unmarshalling or marshalling fails
+	defaultResponse := fmt.Sprintf("height: %d\ndata: %s\n", res.Height, string(res.Data))
+
+	// Unmarshal the original response data into a json.RawMessage
+	// This allows us to handle arbitrary JSON structures without knowing their schema
+	var data json.RawMessage
+	err := json.Unmarshal(res.Data, &data)
+	if err != nil {
+		return defaultResponse
+	}
+
+	// Create a struct to hold the final JSON structure with ordered fields
+	formattedData := struct {
+		Height int64           `json:"height"`
+		Data   json.RawMessage `json:"data"`
+	}{
+		Height: res.Height,
+		Data:   data,
+	}
+
+	// Marshal the final struct into an indented JSON string for readability
+	formattedResponse, err := json.MarshalIndent(formattedData, "", "  ")
+	if err != nil {
+		return defaultResponse
+	}
+
+	// Return the formatted JSON string
+	return string(formattedResponse)
 }
 
 func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
