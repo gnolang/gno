@@ -157,31 +157,34 @@ func PanicOnFailingTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
 // InitChainer returns a function that can initialize the chain with genesis.
 func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, resHandler GenesisTxHandler) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
-		// Get genesis state.
-		genState := req.AppState.(GnoGenesisState)
-		// Parse and set genesis state balances.
-		for _, bal := range genState.Balances {
-			acc := acctKpr.NewAccountWithAddress(ctx, bal.Address)
-			acctKpr.SetAccount(ctx, acc)
-			err := bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
-			if err != nil {
-				panic(err)
-			}
-		}
+		if req.AppState != nil {
+			// Get genesis state
+			genState := req.AppState.(GnoGenesisState)
 
-		// Run genesis txs.
-		for _, tx := range genState.Txs {
-			res := baseApp.Deliver(tx)
-			if res.IsErr() {
-				ctx.Logger().Error(
-					"Unable to deliver genesis tx",
-					"log", res.Log,
-					"error", res.Error,
-					"gas-used", res.GasUsed,
-				)
+			// Parse and set genesis state balances
+			for _, bal := range genState.Balances {
+				acc := acctKpr.NewAccountWithAddress(ctx, bal.Address)
+				acctKpr.SetAccount(ctx, acc)
+				err := bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
+				if err != nil {
+					panic(err)
+				}
 			}
 
-			resHandler(ctx, tx, res)
+			// Run genesis txs
+			for _, tx := range genState.Txs {
+				res := baseApp.Deliver(tx)
+				if res.IsErr() {
+					ctx.Logger().Error(
+						"Unable to deliver genesis tx",
+						"log", res.Log,
+						"error", res.Error,
+						"gas-used", res.GasUsed,
+					)
+				}
+
+				resHandler(ctx, tx, res)
+			}
 		}
 
 		// Done!
