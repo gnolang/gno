@@ -11,7 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-const tryConfigInit = "unable to load config; try running `gnoland config init`"
+const tryConfigInit = "unable to load config; try running `gnoland config init` or use the -lazy flag"
 
 type configCfg struct {
 	configPath string
