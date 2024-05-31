@@ -1,0 +1,32 @@
+# load the package
+loadpkg gno.land/p/demo/call_forbidden $WORK
+loadpkg gno.land/r/demo/call_normal $WORK
+
+# start a new node
+gnoland start
+
+# 1. call to package ERROR
+! gnokey maketx call -pkgpath gno.land/p/demo/call_forbidden -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stderr `forbidden/bad package called`
+
+# 2. call to stdlibs ERROR
+! gnokey maketx call -pkgpath strconv -func Itoa -args 11 -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stderr `forbidden/bad package called`
+
+# 3. normal call to realm PASS
+gnokey maketx call -pkgpath gno.land/r/demo/call_normal -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout `OK!`
+
+-- call_forbidden.gno --
+package call_forbidden
+
+func Render() string {
+ 	return "notok"
+}
+
+-- call_normal.gno --
+package call_normal
+
+func Render() string {
+ 	return "ok"
+}

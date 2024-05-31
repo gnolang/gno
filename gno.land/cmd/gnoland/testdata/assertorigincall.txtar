@@ -56,17 +56,18 @@ stdout 'OK!'
 ! gnokey maketx call -pkgpath gno.land/r/foo -func C -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 stderr 'invalid non-origin call'
 
+## remove due to update to maketx call can only call realm (case 7,8,9)
 ## 7. MsgCall -> p/demo/bar.A -> myrlm.A: PANIC
-! gnokey maketx call -pkgpath gno.land/p/demo/bar -func A -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
-stderr 'invalid non-origin call'
+## ! gnokey maketx call -pkgpath gno.land/p/demo/bar -func A -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+## stderr 'invalid non-origin call'
 
 ## 8. MsgCall -> p/demo/bar.B -> myrlm.B: PASS
-gnokey maketx call -pkgpath gno.land/p/demo/bar -func B -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
-stdout 'OK!'
+## gnokey maketx call -pkgpath gno.land/p/demo/bar -func B -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+## stdout 'OK!'
 
 ## 9. MsgCall -> p/demo/bar.C -> myrlm.C: PANIC
-! gnokey maketx call -pkgpath gno.land/p/demo/bar -func C -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
-stderr 'invalid non-origin call'
+## ! gnokey maketx call -pkgpath gno.land/p/demo/bar -func C -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+## stderr 'invalid non-origin call'
 
 ## 10. MsgRun -> run.main -> myrlm.A: PANIC
 ! gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlmA.gno
