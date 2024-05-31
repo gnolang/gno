@@ -65,3 +65,4 @@ func getRealm(height int) (address string, pkgPath string)
 func derivePkgAddr(pkgPath string) string
 func encodeBech32(prefix string, bz [20]byte) string
 func decodeBech32(addr string) (prefix string, bz [20]byte, ok bool)
+func assertCallerIsRealm()

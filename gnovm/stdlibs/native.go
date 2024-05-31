@@ -722,6 +722,17 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 	{
+		"std",
+		"assertCallerIsRealm",
+		[]gno.FieldTypeExpr{},
+		[]gno.FieldTypeExpr{},
+		func(m *gno.Machine) {
+			libs_std.X_assertCallerIsRealm(
+				m,
+			)
+		},
+	},
+	{
 		"strconv",
 		"Itoa",
 		[]gno.FieldTypeExpr{
