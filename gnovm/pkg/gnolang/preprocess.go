@@ -3044,8 +3044,6 @@ func checkOrConvertBoolType(store Store, last BlockNode, x Expr) {
 	} else if x != nil {
 		t := evalStaticTypeOf(store, last, x)
 		checkType(baseOf(t), BoolType, false)
-	} else {
-		panic("expr is nil")
 	}
 }
 
