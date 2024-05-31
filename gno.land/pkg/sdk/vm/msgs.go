@@ -113,11 +113,11 @@ func (msg MsgCall) ValidateBasic() error {
 	if msg.Caller.IsZero() {
 		return std.ErrInvalidAddress("missing caller address")
 	}
-	if msg.PkgPath == "" { // XXX
+	if msg.PkgPath == "" {
 		return ErrInvalidPkgPath("missing package path")
 	}
 	if !gno.IsRealmPath(msg.PkgPath) {
-		return ErrForbiddenPkgCall("pkgpath must be a realm")
+		return ErrInvalidPkgPath("pkgpath must be of a realm")
 	}
 	if msg.Func == "" { // XXX
 		return ErrInvalidExpr("missing function to call")
