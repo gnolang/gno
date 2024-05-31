@@ -99,7 +99,7 @@ func TestDebug(t *testing.T) {
 		{in: "help b\n", out: "Set a breakpoint."},
 		{in: "help zzz\n", out: "command not available"},
 		{in: "list " + debugTarget + ":1\n", out: "1: // This is a sample target"},
-		{in: "l 55\n", out: "42: }"},
+		{in: "l 55\n", out: "46: }"},
 		{in: "l xxx:0\n", out: "xxx: no such file or directory"},
 		{in: "l :xxx\n", out: `"xxx": invalid syntax`},
 		{in: brk, out: "Breakpoint 0 at main "},
@@ -147,6 +147,7 @@ func TestDebug(t *testing.T) {
 		{in: "b 37\nc\np b\n", out: "(3 int)"},
 		{in: "b 27\nc\np b\n", out: `("!zero" string)`},
 		{in: "b 22\nc\np t.A[3]\n", out: "Command failed: slice index out of bounds: 3 (len=3)"},
+		{in: "b 43\nc\nc\np i\nd\n", out: "(1 int)"},
 	})
 
 	runDebugTest(t, "../../tests/files/a1.gno", []dtest{
