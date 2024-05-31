@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGenesis_Packages_Add(t *testing.T) {
+func TestGenesis_Txs_Generate(t *testing.T) {
 	t.Parallel()
 
 	t.Run("invalid genesis", func(t *testing.T) {
@@ -24,8 +24,8 @@ func TestGenesis_Packages_Add(t *testing.T) {
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"genesis",
-			"packages",
-			"add",
+			"txs",
+			"generate",
 			"./",
 			"--genesis-path",
 			"dummy-path",
@@ -43,8 +43,8 @@ func TestGenesis_Packages_Add(t *testing.T) {
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"genesis",
-			"packages",
-			"add",
+			"txs",
+			"generate",
 			"--genesis-path",
 			"dummy-path",
 		}
@@ -67,8 +67,8 @@ func TestGenesis_Packages_Add(t *testing.T) {
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"genesis",
-			"packages",
-			"add",
+			"txs",
+			"generate",
 			"invalid",
 			"--genesis-path",
 			tempGenesis.Name(),
@@ -92,8 +92,8 @@ func TestGenesis_Packages_Add(t *testing.T) {
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"genesis",
-			"packages",
-			"add",
+			"txs",
+			"generate",
 			"../../../examples/gno.land/p/demo/avl",
 			"--genesis-path",
 			tempGenesis.Name(),

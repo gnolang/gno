@@ -69,26 +69,10 @@ func execTxsAdd(
 		parsedTxs = append(parsedTxs, txs...)
 	}
 
-	// Initialize the app state if it's not present
-	if genesis.AppState == nil {
-		genesis.AppState = gnoland.GnoGenesisState{}
-	}
-
-	state := genesis.AppState.(gnoland.GnoGenesisState)
-
-	// Left merge the transactions
-	fileTxStore := txStore(parsedTxs)
-	genesisTxStore := txStore(state.Txs)
-
-	// The genesis transactions have preference with the order
-	// in the genesis.json
-	if err := genesisTxStore.leftMerge(fileTxStore); err != nil {
+	// append file txs to genesis
+	if err := appendTxs(genesis, parsedTxs); err != nil {
 		return err
 	}
-
-	// Save the state
-	state.Txs = genesisTxStore
-	genesis.AppState = state
 
 	// Save the updated genesis
 	if err := genesis.SaveAs(cfg.genesisPath); err != nil {
@@ -99,6 +83,32 @@ func execTxsAdd(
 		"Saved %d transactions to genesis.json",
 		len(parsedTxs),
 	)
+
+	return nil
+}
+
+// appendTxs appends the txs to GenesisDoc
+func appendTxs(genesis *types.GenesisDoc, txs []std.Tx) error {
+	// Initialize the app state if it's not present
+	if genesis.AppState == nil {
+		genesis.AppState = gnoland.GnoGenesisState{}
+	}
+
+	state := genesis.AppState.(gnoland.GnoGenesisState)
+
+	// Left merge the transactions
+	inTxStore := txStore(txs)
+	genesisTxStore := txStore(state.Txs)
+
+	// The genesis transactions have preference with the order
+	// in the genesis.json
+	if err := genesisTxStore.leftMerge(inTxStore); err != nil {
+		return err
+	}
+
+	// Save the state
+	state.Txs = genesisTxStore
+	genesis.AppState = state
 
 	return nil
 }
