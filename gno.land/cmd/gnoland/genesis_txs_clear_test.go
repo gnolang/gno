@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestGenesis_Packages_Clear(t *testing.T) {
+func TestGenesis_Txs_Clear(t *testing.T) {
 	t.Parallel()
 
 	t.Run("invalid genesis", func(t *testing.T) {
@@ -24,7 +24,7 @@ func TestGenesis_Packages_Clear(t *testing.T) {
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"genesis",
-			"packages",
+			"txs",
 			"clear",
 			"--genesis-path",
 			"dummy-path",
@@ -42,7 +42,7 @@ func TestGenesis_Packages_Clear(t *testing.T) {
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"genesis",
-			"packages",
+			"txs",
 			"clear",
 			"arg",
 			"--genesis-path",
@@ -85,7 +85,7 @@ func TestGenesis_Packages_Clear(t *testing.T) {
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"genesis",
-			"packages",
+			"txs",
 			"clear",
 			"--genesis-path",
 			tempGenesis.Name(),

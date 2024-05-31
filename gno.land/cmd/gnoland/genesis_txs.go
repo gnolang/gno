@@ -29,6 +29,7 @@ func newTxsCmd(io commands.IO) *commands.Command {
 		newTxsAddCmd(cfg, io),
 		newTxsGenerateCmd(cfg, io),
 		newTxsRemoveCmd(cfg, io),
+		newTxsClearCmd(cfg, io),
 		newTxsExportCmd(cfg, io),
 	)
 
