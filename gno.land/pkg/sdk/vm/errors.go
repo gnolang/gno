@@ -22,6 +22,7 @@ type (
 		abciError
 		Errors []string
 	}
+	ForbiddenPkgCall struct{ abciError }
 )
 
 func (e InvalidPkgPathError) Error() string { return "invalid package path" }
@@ -33,6 +34,7 @@ func (e TypeCheckError) Error() string {
 	bld.WriteString(strings.Join(e.Errors, "\n"))
 	return bld.String()
 }
+func (e ForbiddenPkgCall) Error() string { return "forbidden/bad package called" }
 
 func ErrInvalidPkgPath(msg string) error {
 	return errors.Wrap(InvalidPkgPathError{}, msg)
@@ -53,4 +55,8 @@ func ErrTypeCheck(err error) error {
 		tce.Errors = append(tce.Errors, err.Error())
 	}
 	return errors.NewWithData(tce).Stacktrace()
+}
+
+func ErrForbiddenPkgCall(msg string) error {
+	return errors.Wrap(ForbiddenPkgCall{}, msg)
 }

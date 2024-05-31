@@ -237,9 +237,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 // Call calls a public Gno function (for delivertx).
 func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pkgPath := msg.PkgPath // to import
-	if !gno.IsRealmPath(pkgPath) {
-		return "", errors.New("pkgpath must be a realm")
-	}
 	fnc := msg.Func
 	gnostore := vm.getGnoStore(ctx)
 	// Get the package and function type.

@@ -116,6 +116,9 @@ func (msg MsgCall) ValidateBasic() error {
 	if msg.PkgPath == "" { // XXX
 		return ErrInvalidPkgPath("missing package path")
 	}
+	if !gno.IsRealmPath(msg.PkgPath) {
+		return ErrForbiddenPkgCall("pkgpath must be a realm")
+	}
 	if msg.Func == "" { // XXX
 		return ErrInvalidExpr("missing function to call")
 	}
