@@ -2951,24 +2951,11 @@ func checkIntegerType(xt Type) {
 func checkOrConvertBoolType(store Store, last BlockNode, x Expr) {
 	if cx, ok := x.(*ConstExpr); ok {
 		convertConst(store, last, cx, BoolType)
-	} else if nx, ok := (x).(*NameExpr); ok {
-		xt := evalStaticTypeOf(store, last, Expr(nx))
-		if dxt, ok := xt.(*DeclaredType); ok {
-			checkType(dxt.Base, BoolType, false)
-		} else {
-			panic(fmt.Sprintf("expected declared type, but got %v", xt.Kind()))
-		}
 	} else if x != nil {
-		xt := evalStaticTypeOf(store, last, x)
-		checkBoolType(xt)
-	}
-}
-
-func checkBoolType(xt Type) {
-	if xt.Kind() != BoolKind {
-		panic(fmt.Sprintf(
-			"expected bool type, but got %v",
-			xt.Kind()))
+		t := evalStaticTypeOf(store, last, x)
+		checkType(baseOf(t), BoolType, false)
+	} else {
+		panic("expr is nil")
 	}
 }
 
