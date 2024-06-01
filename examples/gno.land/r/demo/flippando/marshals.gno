@@ -85,7 +85,7 @@ type inTransit struct {
 }
 
 
-func (g Game) MarshalJSON() (_ []byte, err error) {
+func (g Game) MarshalJSON() ([]byte,  error) {
 	var b bytes.Buffer
 
 	b.WriteByte('{')
@@ -119,7 +119,7 @@ func (g Game) MarshalJSON() (_ []byte, err error) {
 	return b.Bytes(), nil
 }
 
-func (gb GameBoard) MarshalJSON() (_ []byte, err error) {
+func (gb GameBoard) MarshalJSON() ([]byte,  error) {
 	var b bytes.Buffer
 
 	b.WriteByte('{')
@@ -163,7 +163,7 @@ func (ugr UserGamesResult) MarshalJSON() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (fbn basicNFTMetaData) MarshalJSON() (_ []byte, err error) {
+func (fbn basicNFTMetaData) MarshalJSON() ([]byte,  error) {
 	
 	var b bytes.Buffer
 
@@ -203,7 +203,7 @@ func (fbn basicNFTMetaData) MarshalJSON() (_ []byte, err error) {
 	
 }
 
-func (cbn compositeNFTMetaData) MarshalJSON() (_ []byte, err error) {
+func (cbn compositeNFTMetaData) MarshalJSON() ([]byte,  error) {
 	
 	var b bytes.Buffer
 
@@ -239,7 +239,7 @@ func (cbn compositeNFTMetaData) MarshalJSON() (_ []byte, err error) {
 	
 }
 
-func (lr listingResult)MarshalJSON() (_ []byte, err error){
+func (lr listingResult)MarshalJSON() ([]byte,  error){
 
 	var b bytes.Buffer
 
@@ -282,15 +282,15 @@ func (ml marketplaceListings) MarshalJSON() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (n nftResult)MarshalJSON() (_ []byte, err error) {
+func (n nftResult)MarshalJSON() ([]byte,  error) {
 	
 	var b bytes.Buffer
 
 	b.WriteByte('{')
 
-	b.WriteString(`"result":"`)
+	b.WriteString(`"result":`)
 	b.WriteString(n.result)
-	b.WriteString(`"`)
+	//b.WriteString(`"`)
 
 	b.WriteByte('}')
 
@@ -298,7 +298,7 @@ func (n nftResult)MarshalJSON() (_ []byte, err error) {
 
 }
 
-func (t userNFTs)MarshalJSON() (_ []byte, err error) {
+func (t userNFTs)MarshalJSON() ([]byte,  error) {
 	
 	var b bytes.Buffer
 
@@ -318,7 +318,7 @@ func (t userNFTs)MarshalJSON() (_ []byte, err error) {
 
 }
 
-func (u userFLIPBalances)MarshalJSON() (_ []byte, err error) {
+func (u userFLIPBalances)MarshalJSON() ([]byte,  error) {
 	
 	var b bytes.Buffer
 
