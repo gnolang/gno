@@ -67,6 +67,12 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 		return err
 	}
 
+	// If there is an error in the response, return the log message
+	if qres.Response.Error != nil {
+		io.Printf("Log: %s\n", qres.Response.Log)
+		return qres.Response.Error
+	}
+
 	switch cfg.Output {
 	case "text":
 		io.Printf("height: %d\ndata: %s\n", qres.Response.Height, string(qres.Response.Data))
@@ -76,15 +82,10 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 		return errors.New("Invalid output format")
 	}
 
-	return qres.Response.Error
+	return nil
 }
 
 func formatQueryResponse(res abci.ResponseQuery) string {
-	// If there is an error in the response, return the log message
-	if res.Error != nil {
-		return fmt.Sprintf("Log: %s\n", res.Log)
-	}
-
 	data := json.RawMessage(res.Data)
 
 	// Create a struct to hold the final JSON structure with ordered fields
