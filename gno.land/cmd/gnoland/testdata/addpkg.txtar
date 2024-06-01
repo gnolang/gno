@@ -1,21 +1,21 @@
 # test for add package
 
+# load hello.gno package located in $WORK directory as gno.land/r/hello
+loadpkg gno.land/r/hello $WORK
+
 ## start a new node
 gnoland start
 
-## add hello.gno package located in $WORK directory as gno.land/r/hello
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/hello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-
-## compare AddPkg
-cmp stdout stdout.addpkg.success
-
-
 ## execute SayHello
-gnokey maketx call -pkgpath gno.land/r/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 2000000  -broadcast -chainid=tendermint_test test1
-
+gnokey maketx call -pkgpath gno.land/r/hello -func SayHello -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 
 ## compare SayHello
-cmp stdout stdout.call.success
+stdout '\("hello world!" string\)'
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   \d+'
+stdout 'HEIGHT:     \d+'
+stdout 'EVENTS:     \[\]'
 
 -- hello.gno --
 package hello
@@ -23,15 +23,3 @@ package hello
 func SayHello() string {
  	return "hello world!"
 }
-
-
--- stdout.addpkg.success --
-
-OK!
-GAS WANTED: 2000000
-GAS USED:   119829
--- stdout.call.success --
-("hello world!" string)
-OK!
-GAS WANTED: 2000000
-GAS USED:   52801

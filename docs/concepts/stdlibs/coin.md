@@ -30,7 +30,6 @@ The `Coins` slice can be included in a transaction made by a user addresses or a
 Coins in this set are then available for access by specific types of Bankers,
 which can manipulate them depending on access rights.
 
-[//]: # (TODO ADD LINK TO Effective GNO)
-Read more about coins in the [Effective Gno](https://docs.gno.land/concepts/effective-gno/#native-tokens) section. 
+Read more about coins in the [Effective Gno](../effective-gno.md#coins) section. 
 
 The Coin(s) API can be found in under the `std` package [reference](../../reference/stdlibs/std/coin.md).

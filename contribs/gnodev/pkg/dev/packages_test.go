@@ -35,28 +35,31 @@ func TestResolvePackagePathQuery(t *testing.T) {
 		{"/ambiguo/u//s/path///", PackagePath{
 			Path: "/ambiguo/u/s/path",
 		}, false},
-		{"/path/with/deployer?deployer=testAccount", PackagePath{
-			Path:    "/path/with/deployer",
+		{"/path/with/creator?creator=testAccount", PackagePath{
+			Path:    "/path/with/creator",
 			Creator: testingAddress,
 		}, false},
 		{"/path/with/deposit?deposit=100ugnot", PackagePath{
 			Path:    "/path/with/deposit",
 			Deposit: std.MustParseCoins("100ugnot"),
 		}, false},
-		{".?deployer=g1hr3dl82qdy84a5h3dmckh0suc7zgwm5rnns6na&deposit=100ugnot", PackagePath{
+		{".?creator=g1hr3dl82qdy84a5h3dmckh0suc7zgwm5rnns6na&deposit=100ugnot", PackagePath{
 			Path:    ".",
 			Creator: testingAddress,
 			Deposit: std.MustParseCoins("100ugnot"),
 		}, false},
 
 		// errors cases
-		{"/invalid/account?deployer=UnknownAccount", PackagePath{}, true},
-		{"/invalid/address?deployer=zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", PackagePath{}, true},
+		{"/invalid/account?creator=UnknownAccount", PackagePath{}, true},
+		{"/invalid/address?creator=zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", PackagePath{}, true},
 		{"/invalid/deposit?deposit=abcd", PackagePath{}, true},
 	}
 
 	for _, tc := range cases {
+		tc := tc
 		t.Run(tc.Path, func(t *testing.T) {
+			t.Parallel()
+
 			result, err := ResolvePackagePathQuery(book, tc.Path)
 			if tc.ShouldFail {
 				assert.Error(t, err)
