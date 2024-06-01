@@ -6,22 +6,20 @@ id: playground-start
 
 ## Overview
 
-The Gno Playground is an innovative web-based editor and sandbox that enables developers to 
-interactively work with the Gno language. It makes coding, testing,
-and deploying simple with its diverse set of tools and features. Users can
-share code, run tests, and deploy projects to Gno.land networks, 
+The Gno Playground is an innovative web-based editor and sandbox that enables
+developers to work interactively with the Gno language. It makes coding,
+testing, and deploying simple with its diverse set of tools and features.
+Users can share code, run tests, and deploy projects to Gno.land networks,
 making it the perfect tool to get started with Gno development.
 
 ## Prerequisites
 
 - **A Gno.land compatible wallet**
-  - Currently, [Adena](https://www.adena.app/) is the preferred wallet for
-Gno.land, with more wallets being introduced in the future.
+  - Currently, [Adena](https://www.adena.app/) is the preferred wallet for Gno.land.
 
 ## Playground Features
 
-To get started, visit the Playground at [play.gno.land](https://play.gno.land). You will be greeted with a
-simple `package.gno` file:
+To get started, visit the Playground at [play.gno.land](https://play.gno.land). You will be greeted with a simple `package.gno` file:
 
 ![default_playground](../assets/getting-started/playground/default_playground.png)
 
@@ -54,7 +52,7 @@ After inputting your desired package path, you can select the network you would
 like to deploy to, such as [Portal Loop](../concepts/portal-loop.md) or local,
 and click deploy.
 
-:::info
+::: info
 The Playground will automatically provide enough test tokens to cover the gas 
 cost at the time of deployment, removing the need for using a faucet.
 :::
@@ -94,8 +92,8 @@ It provides a command-line interface for hands-on learning, iterative testing, a
 
 ## Learning about Gno.land & writing Gno code
 
-If you're new here, don't worry—content is regularly produced to breakdown
-Gno.land to explain its features. Dive into the essentials of Gno.land by 
+If you're new here, don't worry&mdash;content is regularly produced to breakdown
+Gno.land and explain its features. Dive into the essentials of Gno.land by 
 exploring the [Concepts](../concepts/concepts.md) section.
 
 To get started writing Gno code, check out the

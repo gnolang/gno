@@ -2,23 +2,19 @@
 id: testing-gno
 ---
 
-# How to test Gno Code
+# How to test Gno code
 
 ## Overview
 
-In this guide, we will explore the available tooling in testing out the Gno Realms and Packages we write.
-We will go over different CLI tools available to developers, gno testing libraries as well as
-testing techniques that involve data mocking.
+This guide explores the available tooling for testing the Gno Realms and Packages we write. We cover various CLI tools available to developers, gno testing libraries, as well as testing techniques that involve data mocking.
 
 ## Prerequisites
 
-- **`gno` set up. Reference the [Installation](../getting-started/local-setup/local-setup.md#3-installing-other-gno-tools) guide
-  for steps**
+- **`gno` must be set up. Refer to the [Installation](../getting-started/local-setup/local-setup.md#3-installing-other-gno-tools) guide for instructions.**
 
 ## Example Realm
 
-For the purpose of this guide, we will be testing the simple *Counter* Realm created in
-the [How to write a simple Gno Smart Contract (Realm)](simple-contract.md) guide.
+This guide tests the simple *Counter* Realm created in the [How to write a simple Gno Smart Contract (Realm)](simple-contract.md) guide.
 
 [embedmd]:# (../assets/how-to-guides/testing-gno/counter-1.gno go)
 ```go
@@ -49,7 +45,7 @@ func Render(_ string) string {
 
 Gno tests are written in the same manner and format as regular Go tests, just in `_test.gno` files.
 
-We can place the Gno tests for the `Counter` Realm in the same directory as `counter.gno`:
+We place the Gno tests for the `Counter` Realm in the same directory as `counter.gno`:
 
 ```text
 counter-app/
@@ -64,8 +60,7 @@ cd counter
 touch counter_test.gno
 ```
 
-What should be tested in this _Counter_ Realm example?
-Mainly, we want to verify that:
+For this _Counter_ Realm example we want to verify that:
 
 - Increment increments the value.
 - Decrement decrements the value.
@@ -128,34 +123,29 @@ func TestCounter_Render(t *testing.T) {
 }
 ```
 
-:::warning Testing package-level variables
+::: warning Testing package-level variables
 
-In practice, it is not advisable to test and validate package level variables like this, as their value is mutated
-between test runs. For the sake of keeping this guide simple, we went ahead and reset the variable value for each test,
-however,
-you should employ more robust test strategies.
+In practice, it is not advisable to test and validate package level variables in this manner, as their value is mutated between test runs. However, for the sake of keeping this guide simple, we went ahead and reset the variable value for each test. You should employ more robust test strategies.
 
 :::
 
 ## 2. Running the Gno test
 
-To run the prepared Gno tests, we can utilize the `gno test` CLI tool.
+To run the prepared Gno tests, let's use the `gno test` CLI tool.
 
-Simply point it to the location containing our testing source code, and the tests will execute.
-For example, we can run the following command from the `counter-app/r/counter` directory:
+Point it to the location containing our testing source code, and the tests will execute. For example, let's run the following command from the `counter-app/r/counter` directory:
 
 ```bash
 gno test -v .
 ```
 
-Let's look into the different parts of this command:
+Let's examine the different parts of this command:
 
 - `-v` enables the verbose output.
 - `-root-dir` specifies the root directory to our cloned `gno` GitHub repository
-- `.` specifies the location containing our test files. Since we are already located in that directory, we specify
-  a `.`.
+- `.` specifies the location containing our test files. We specify `.` because we are already located in the directory.
 
-Running the test command should produce a successful output:
+Running the test command should produce this successful output:
 
 ```bash
 === RUN   TestCounter_Increment
@@ -169,19 +159,14 @@ ok      ./. 	1.00s
 
 ## Additional test support
 
-As we grow more familiar with Gno development, our Realm / Package logic can become more complex. As such, we need
-more robust testing support in the form of mocking values ahead of time that would normally be only available on a
-live (deployed) Realm / Package.
+As you grow more familiar with Gno development, your Realm / Package logic can become more complex. As a result, you will want more robust testing, such as mocking values ahead of time that would normally be only available on a live (deployed) Realm / Package.
 
-Luckily, the Gno standard library provides ample support for functionality such as setting predefined values ahead of
-time, such as the request caller address, or the calling package address.
+The Gno standard library provides a way for you to set predefined values ahead of time, such as the request caller address, or the calling package address.
 
-You can learn more about these methods, that are importable using the `std` import declaration,
-in the [Standard Library](../concepts/stdlibs/stdlibs.md) reference section.
+Learn more about these methods, which are importable using the `std` import declaration, in the [Standard Library](../concepts/stdlibs/stdlibs.md) reference section.
 
 ## Conclusion
 
 That's it 🎉
 
-You have successfully written and tested Gno code. Additionally, you have utilized the `gno test` tool, and understood
-how it can be configured to make the developer experience smooth.
+You have successfully written and tested Gno code. Additionally, you have used the `gno test` tool, and understood how it can be configured to make the developer experience smooth.

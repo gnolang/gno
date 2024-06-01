@@ -2,7 +2,7 @@
 
 This guide provides an overview of our testing practices and conventions. While most of our testing aligns with typical Go practices, there are exceptions and specifics you should be aware of.
 
-## Standard Package Testing
+## Standard package testing
 
 For most packages, tests are written and executed in the standard Go manner:
 
@@ -11,7 +11,7 @@ For most packages, tests are written and executed in the standard Go manner:
 
 However, as mentioned earlier, there are some exceptions. In the following sections, we will explore our specialized tests and how to work with them.
 
-## Gno Filetests
+## Gno filetests
 
 **Location:** `gnovm/test/files`
 
@@ -31,7 +31,7 @@ make _test.gnolang.native
 make _test.gnolang.stdlibs
 ```
 
-**Golden Files Update:** 
+**Golden files update:** 
 
 Golden files are references for expected outputs. Sometimes, after certain updates, these need to be synchronized. To do so:
 
@@ -45,16 +45,16 @@ make _test.gnolang.native.sync
 make _test.gnolang.stdlibs.sync
 ```
 
-## Integration Tests
+## Integration tests
 
 **Location:** `gno.land/**/testdata`
 
 From the gno.land directory, Integration tests are designed to ensure different parts of the project work cohesively. Specifically:
 
-1. **InMemory Node Integration Testing:**  
+1. **InMemory node integration testing:**  
    Found in `gno.land/cmd/gnoland/testdata`, these are dedicated to running integration tests against a genuine `gnoland` node.
 
-2. **Integration Features Testing:**  
+2. **Integration features testing:**  
    Located in `gno.land/pkg/integration/testdata`, these tests target integrations specific commands.
 
 These integration tests utilize the `testscript` package and follow the `txtar` file specifications. 
@@ -73,7 +73,7 @@ To run the integration tests (alongside other packages):
 make _test.pkgs
 ```
 
-**Golden Files Update within txtar:** 
+**Golden files update within txtar:** 
 
 For tests utilizing the `cmp` command inside `txtar` files, golden files can be synchronized using:
 
@@ -82,5 +82,3 @@ make _test.pkgs.sync
 ```
 
 ---
-
-As the project evolves, this guide might be updated. 
