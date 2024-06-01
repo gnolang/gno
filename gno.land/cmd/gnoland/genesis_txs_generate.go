@@ -9,6 +9,13 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
+
+var (
+	test1      = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	defaultFee = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
 )
 
 var errUnableToLoadPackages = errors.New("unable to load packages")
