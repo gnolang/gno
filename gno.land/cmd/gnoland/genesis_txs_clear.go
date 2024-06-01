@@ -12,7 +12,6 @@ import (
 
 // newTxsClearCmd creates the genesis txs clear subcommand
 func newTxsClearCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
-
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "clear",
