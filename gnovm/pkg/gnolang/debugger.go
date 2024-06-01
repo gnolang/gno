@@ -146,6 +146,7 @@ loop:
 			os.Exit(0)
 		}
 	}
+	m.Debugger.prevLoc = m.Debugger.loc
 	debugUpdateLocation(m)
 
 	// Keep track of exact locations when performing calls.
