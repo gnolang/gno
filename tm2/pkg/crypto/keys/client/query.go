@@ -85,28 +85,6 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func formatQueryResponse(res abci.ResponseQuery) string {
-	data := json.RawMessage(res.Data)
-
-	// Create a struct to hold the final JSON structure with ordered fields
-	formattedData := struct {
-		Height int64           `json:"height"`
-		Data   json.RawMessage `json:"data"`
-	}{
-		Height: res.Height,
-		Data:   data,
-	}
-
-	// Marshal the final struct into an indented JSON string for readability
-	formattedResponse, err := json.MarshalIndent(formattedData, "", "  ")
-	if err != nil {
-		return fmt.Sprintf("height: %d\ndata: %s\n", res.Height, string(res.Data))
-	}
-
-	// Return the formatted JSON string
-	return string(formattedResponse)
-}
-
 func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	remote := cfg.RootCfg.Remote
 	if remote == "" {
@@ -130,4 +108,26 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	}
 
 	return qres, nil
+}
+
+func formatQueryResponse(res abci.ResponseQuery) string {
+	data := json.RawMessage(res.Data)
+
+	// Create a struct to hold the final JSON structure with ordered fields
+	formattedData := struct {
+		Height int64           `json:"height"`
+		Data   json.RawMessage `json:"data"`
+	}{
+		Height: res.Height,
+		Data:   data,
+	}
+
+	// Marshal the final struct into an indented JSON string for readability
+	formattedResponse, err := json.MarshalIndent(formattedData, "", "  ")
+	if err != nil {
+		return fmt.Sprintf("height: %d\ndata: %s\n", res.Height, string(res.Data))
+	}
+
+	// Return the formatted JSON string
+	return string(formattedResponse)
 }

@@ -134,7 +134,7 @@ gnokey query {QUERY_PATH}
 | Name     | Type      | Description                                          |
 |----------|-----------|------------------------------------------------------|
 | `data`   | UInt8 \[] | Queries data bytes.                                  |
-| `output` | String    | Queries output format (default: text, options: json) |
+| `output` | String    | Output format (default: text, options: json) |
 
 
 ## Sign and Broadcast a Transaction
@@ -178,6 +178,7 @@ gnokey maketx addpkg \
 | `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
 | `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
 | `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
+| `output`     | String  | Output format (default: text, options: json)                                           |
 
 #### **makeTx AddPackage Options**
 
@@ -230,6 +231,7 @@ changes and does not cost gas, only evaluating the expression in read-only mode.
 | `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
 | `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
 | `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
+| `output`     | String  | Output format (default: text, options: json)                                           |
 
 #### **makeTx Call Options**
 
@@ -269,6 +271,7 @@ gnokey maketx send \
 | `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
 | `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
 | `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
+| `output`     | String  | Output format (default: text, options: json)                                           |
 
 #### **makeTx Send Options**
 
@@ -318,7 +321,11 @@ Broadcast a signed document with the following command.
 ```bash
 gnokey broadcast {signed transaction file document}
 ```
+#### **Options**
 
-[^1]: `only` simulates the transaction as a "dry run" (ie. without committing to
-  the chain), `test` performs simulation and, if successful, commits the
-  transaction, `skip` skips simulation entirely and commits directly.
+| Name       | Type    | Description                                                                     |
+|------------|---------|-------------------------------------------------------------------------------- |
+| `dry-run`  | String  | simulates the transaction as a "dry run" (ie. without committing to the chain)  |
+| `output`   | String  | Output format (default: text, options: json)                                    |
+
+
