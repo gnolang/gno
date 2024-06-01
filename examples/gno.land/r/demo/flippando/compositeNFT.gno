@@ -3,10 +3,8 @@ package flippando
 import (
 	"errors"
 	"strconv"
-	"strings"
 	"std"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/avl"
 )
@@ -24,7 +22,7 @@ var (
 func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, bTokenIDsArray string) (string, string) {
 	result := ""
 	nftError := ""
-	bTokenIDs, perr := ParseString(bTokenIDsArray)
+	bTokenIDs, _ := ParseString(bTokenIDsArray)
 
 	// add checks for cWidth, cHeight (enforce canvas size based on number of existing basicNFTs)
 	// 50 / 2 x 2 - 100 / 3 x 3 - 400 / 4 x 4 - 600 / 5 x 5 - 800 / 6 x 6 - 1000 / 7 x 7 - 1200 / 8 x 8 
@@ -118,7 +116,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 	if(err != nil){
 		panic("error in minting")
 	}
-	return result, nftError
+	return createNFTResult, nftError
 }
 
 // it is used in marketplace
@@ -148,7 +146,7 @@ func GetCompositeTokenURI(tokenID string) string {
 func GetChildrenOf(tokenID string) []int64 {
 	childrenOf, exists := children.Get(tokenID)
 	if exists {
-		return []int64(childrenOf);
+		return childrenOf.([]int64);
 	}
 	return nil
 }

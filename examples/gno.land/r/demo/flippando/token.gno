@@ -4,7 +4,6 @@ import (
 	"errors"
 	"strconv"
 	"time"
-	"strings"
 	"std"
 
 	"gno.land/p/demo/grc/grc20"

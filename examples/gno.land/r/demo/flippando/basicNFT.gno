@@ -1,11 +1,9 @@
 package flippando
 
 import (
-	"errors"
 	"strconv"
 	"std"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/avl"
 )
@@ -85,7 +83,7 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 	if(err != nil){
 		panic("error in minting")
 	}
-	return result, nftError
+	return createNFTResult, nftError
 }
 
 func GetBasicTokenURI(tokenID string) string {
@@ -100,7 +98,7 @@ func GetBasicTokenURI(tokenID string) string {
 func GetParentdOf(tokenId string) string {
 	parentTokenId, exists := childOf.Get(tokenId)
 	if exists {
-		return string(parentTokenId);
+		return parentTokenId.(string);
 	} 
 	return "" 
 }
@@ -157,7 +155,7 @@ func GetUserBasicFlipNFTs(addr std.Address, readyToUse string) string {
 		// check the owner is the addr
 		if owner == addr {
 			// if readyToUSe == "yes" we're returning only locked NFTs
-			lockedNFT, exists := lockedNFTs.Get(tidString)
+			_, exists := lockedNFTs.Get(tidString)
 			if readyToUse == "yes" {
 				if exists {
 					tokenURI := GetBasicTokenURI(tidString)
@@ -185,10 +183,10 @@ func GetUserBasicFlipNFTs(addr std.Address, readyToUse string) string {
 }
 
 func GetBasicNFTsByTokenId(bTokenIDs string) string {
-	tokenCount := flipBasicNFT.TokenCount()
+	//tokenCount := flipBasicNFT.TokenCount()
 	tokenURIs := []string{}
-	bTokenIDsArray, perr := ParseString(bTokenIDs)
-	userNFTsError := ""
+	bTokenIDsArray, _ := ParseString(bTokenIDs)
+	//userNFTsError := ""
 
 	// Assuming there's a function to get the token ID by index for the given address
 	for i := int64(0); i < int64(len(bTokenIDsArray)); i++ {		
@@ -231,7 +229,7 @@ func GetAllBasicFlipNFTs(forPlayer std.Address) string {
 		// return nfts not belonging to forPlayer
 		if owner != forPlayer {
 			// only locked nfts, unlocked can't be reused
-			lockedNFT, exists := lockedNFTs.Get(tidString)
+			_, exists := lockedNFTs.Get(tidString)
 			
 			if exists {
 				tokenURI := GetBasicTokenURI(tidString)
@@ -328,5 +326,5 @@ func AirdropBasicFlipNFT(airdropAccount,
 	if(err != nil){
 		panic("error in minting")
 	}
-	return result, nftError
+	return createNFTResult, nftError
 }

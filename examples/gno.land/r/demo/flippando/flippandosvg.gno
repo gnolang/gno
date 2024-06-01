@@ -1,9 +1,6 @@
 package flippando
 
 import (
-	"std"
-	"time"
-	"bytes"
 	"strings"
 	"strconv"
 	"errors"
@@ -326,4 +323,5 @@ func getColorFromKey(key int64, gridType string) (string, error) {
     default:
         panic("Invalid color key")
     }
+	return "", nil
 }

@@ -2,16 +2,7 @@ package flippando
 
 import (
 	"strconv"
-	"bytes"
-	"errors"
-	"std"
 	"strings"
-
-	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/grc/grc721"
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/flippandoserver"
 )
 
 // used in marshaling structs with arrays

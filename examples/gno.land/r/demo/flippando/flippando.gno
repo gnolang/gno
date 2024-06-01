@@ -3,11 +3,9 @@ package flippando
 import (
 	"time"
 	"strconv"
-	"errors"
 	"std"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/flippandoserver"
 )
@@ -49,7 +47,7 @@ func TileTest(solvedBoard string, size int) string {
 // creates game object and initializes board
 func StartGame(player std.Address, tileType string, boardSize int) string {
 	
-	games := GetUserGames(player)
+	//games := GetUserGames(player)
 	// Set up Game struct. Save in gameStore and user2games.
 	gameIDCounter++
 	board, gameTiles, boardSize := flippandoserver.CreateGameBoard(tileType, boardSize, time.Now().Unix())
@@ -149,7 +147,7 @@ func CreateCompositeNFT(player std.Address, cWidth string, cHeight string, bToke
     
 func GetUserGames(user std.Address) []*Game {
 	val, exist := user2Games.Get(user.String())
-	var games []*Game
+	//var games []*Game
 	if !exist {
 		return nil
 	}

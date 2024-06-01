@@ -3,8 +3,6 @@ package flippando
 import (
 	"strconv"
 	"bytes"
-	"errors"
-	"std"
 )
 
 type GameBoard struct {
