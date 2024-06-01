@@ -2,9 +2,7 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
-	"fmt"
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -60,7 +58,7 @@ func (c *BroadcastCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.Output,
 		"output",
-		"text",
+		TEXT_FORMAT,
 		"format of broadcast's output",
 	)
 }
@@ -93,14 +91,14 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
 	} else {
 		switch cfg.Output {
-		case "text":
+		case TEXT_FORMAT:
 			io.Println(string(res.DeliverTx.Data))
 			io.Println("OK!")
 			io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
 			io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 			io.Println("HEIGHT:    ", res.Height)
 			io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
-		case "json":
+		case JSON_FORMAT:
 			io.Printf(formatDeliverTxResponse(res.DeliverTx, res.Height))
 		default:
 			return errors.New("Invalid output format")
@@ -164,40 +162,4 @@ func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxComm
 	return &ctypes.ResultBroadcastTxCommit{
 		DeliverTx: result,
 	}, nil
-}
-
-func formatDeliverTxResponse(res abci.ResponseDeliverTx, height int64) string {
-	data := json.RawMessage(res.Data)
-	events := json.RawMessage(res.EncodeEvents())
-
-	// Create a struct to hold the final JSON structure with ordered fields
-	formattedData := struct {
-		Data      json.RawMessage `json:"DATA"`
-		Status    string          `json:"STATUS"`
-		GasWanted int64           `json:"GAS WANTED"`
-		GasUsed   int64           `json:"GAS USED"`
-		Height    int64           `json:"HEIGHT"`
-		Events    json.RawMessage `json:"EVENTS"`
-	}{
-		Data:      data,
-		Status:    "OK!",
-		GasWanted: res.GasWanted,
-		GasUsed:   res.GasUsed,
-		Height:    height,
-		Events:    events,
-	}
-
-	// Marshal the final struct into an indented JSON string for readability
-	formattedResponse, err := json.MarshalIndent(formattedData, "", "  ")
-	if err != nil {
-		return fmt.Sprintf("Data: %s\nOK!\nGAS WANTED: %d\nGAS USED: %d\nHEIGHT: %d\nEVENTS: %s\n",
-			string(res.Data),
-			res.GasWanted,
-			res.GasUsed,
-			height,
-			string(res.EncodeEvents()))
-	}
-
-	// Return the formatted JSON string
-	return string(formattedResponse)
 }

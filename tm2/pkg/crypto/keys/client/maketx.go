@@ -223,14 +223,14 @@ func ExecSignAndBroadcast(
 	}
 
 	switch cfg.Output {
-	case "text":
+	case TEXT_FORMAT:
 		io.Println(string(bres.DeliverTx.Data))
 		io.Println("OK!")
 		io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
 		io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 		io.Println("HEIGHT:    ", bres.Height)
 		io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
-	case "json":
+	case JSON_FORMAT:
 		io.Printf(formatDeliverTxResponse(bres.DeliverTx, bres.Height))
 	default:
 		return errors.New("Invalid output format")
