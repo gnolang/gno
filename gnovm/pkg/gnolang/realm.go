@@ -822,6 +822,7 @@ func getChildObjects(val Value, more []Value) []Value {
 	case DataByteValue:
 		panic("cannot get children from data byte objects")
 	case PointerValue:
+		// XXX
 		if cv.Base != nil {
 			more = getSelfOrChildObjects(cv.Base, more)
 		} else {
@@ -868,8 +869,13 @@ func getChildObjects(val Value, more []Value) []Value {
 		for _, ctv := range cv.Values {
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
+		// Generally the parent block must also be persisted.
+		// Otherwas NamePath may not resolve when referencing
+		// a parent block.
 		more = getSelfOrChildObjects(cv.Parent, more)
 		return more
+	case *HeapItemValue:
+		more = getSelfOrChildObjects(cv.Value.Value, more)
 	case *NativeValue:
 		panic("native values not supported")
 	default:
@@ -1205,6 +1211,8 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		return bl
 	case RefValue:
 		return cv
+	case *HeapItemValue:
+		XXX
 	case *NativeValue:
 		panic("native values not supported")
 	default:

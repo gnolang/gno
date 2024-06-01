@@ -1,0 +1,16 @@
+package main
+
+func main() {
+	rounds := 100000000
+	x := 1.0
+	pi := 1.0
+	rounds += 2 // do this outside the loop
+
+	for i := 2; i < rounds; i++ {
+		x *= -1
+		pi += x / float64(2*i-1)
+	}
+
+	pi *= 4
+	println(pi)
+}

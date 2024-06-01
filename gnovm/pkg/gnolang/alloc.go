@@ -62,6 +62,7 @@ const (
 	// allocPackge = 1
 	allocAmino     = _allocBase + _allocPointer + _allocAny
 	allocAminoByte = 10 // XXX
+	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
 )
 
 func NewAllocator(maxBytes int64) *Allocator {
@@ -179,6 +180,10 @@ func (alloc *Allocator) AllocateAmino(l int64) {
 	alloc.Allocate(allocAmino + allocAminoByte*l)
 }
 
+func (alloc *Allocator) AllocateHeap() {
+	alloc.Allocate(allocHeap)
+}
+
 //----------------------------------------
 // constructor utilities.
 
@@ -289,4 +294,9 @@ func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
 func (alloc *Allocator) NewType(t Type) Type {
 	alloc.AllocateType()
 	return t
+}
+
+func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
+	alloc.allocateHeapItem()
+	return &HeapItemValue{Value: tv}
 }

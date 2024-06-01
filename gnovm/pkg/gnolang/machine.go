@@ -1911,7 +1911,8 @@ func (m *Machine) PushForPointer(lx Expr) {
 		// helpful if the underlying pointer value dos not have a base;
 		// the base of the reference to the pointer value can be used instead,
 		// to properly mark the owning object as dirty.
-		m.PushExpr(&RefExpr{X: lx.X})
+		//m.PushExpr(&RefExpr{X: lx.X})
+		m.PushExpr(lx.X)
 		m.PushOp(OpEval)
 	case *CompositeLitExpr: // for *RefExpr e.g. &mystruct{}
 		// evaluate lx.
@@ -1939,25 +1940,28 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *StarExpr:
 		ptr := m.PopValue().V.(PointerValue)
 
-		// A star expression on the lefthand side of an assign statement is a bit of a
-		// special case and needs to be handled. The value pushed for it is always a
-		// reference to the actual value, so first dereference it by assigning it to
-		// valuePtr. If the pointer value has no base, use the base of its parent.
-		// Assigning a non-nil base ensures the parent gets marked as dirty and the
-		// updated value is persisted during realm finalization.
-		valuePtr := ptr.TV.V.(PointerValue)
-		if valuePtr.Base == nil {
-			valuePtr.Base = ptr.Base
-		}
-
-		ptr = valuePtr
+		/*
+			// A star expression on the lefthand side of an assign statement is a bit of a
+			// special case and needs to be handled. The value pushed for it is always a
+			// reference to the actual value, so first dereference it by assigning it to
+			// valuePtr. If the pointer value has no base, use the base of its parent.
+			// Assigning a non-nil base ensures the parent gets marked as dirty and the
+			// updated value is persisted during realm finalization.
+			valuePtr := ptr.TV.V.(PointerValue)
+			if valuePtr.Base == nil {
+				valuePtr.Base = ptr.Base
+			}
+			ptr = valuePtr
+		*/
 
 		return ptr
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
+		hv := m.Alloc.NewHeapItem(tv)
 		return PointerValue{
-			TV:   &tv, // heap alloc
-			Base: nil,
+			TV:    &hv.Value,
+			Base:  hv,
+			Index: 0,
 		}
 	default:
 		panic("should not happen")

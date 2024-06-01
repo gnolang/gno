@@ -41,6 +41,7 @@ func (*PackageValue) assertValue()     {}
 func (*NativeValue) assertValue()      {}
 func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
+func (*HeapItemValue) assertValue()    {}
 
 const (
 	nilStr       = "nil"
@@ -64,6 +65,7 @@ var (
 	_ Value = &NativeValue{}
 	_ Value = &Block{}
 	_ Value = RefValue{}
+	_ Value = &HeapItemValue{}
 )
 
 // ----------------------------------------
@@ -171,6 +173,9 @@ func (dbv DataByteValue) SetByte(b byte) {
 // or binary operations. When a pointer is to be
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
+//
+// Since PointerValue is used internally for assignment etc,
+// it MUST stay minimal for computational efficiency.
 type PointerValue struct {
 	TV    *TypedValue // escape val if pointer to var.
 	Base  Value       // array/struct/block.
@@ -2254,12 +2259,12 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 
 // TODO rename to BlockValue.
 type Block struct {
-	ObjectInfo // for closures
-	Source     BlockNode
-	Values     []TypedValue
-	Parent     Value
-	Blank      TypedValue // captures "_" // XXX remove and replace with global instance.
-	bodyStmt   bodyStmt   // XXX expose for persistence, not needed for MVP.
+	ObjectInfo
+	Source   BlockNode
+	Values   []TypedValue
+	Parent   Value
+	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
+	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
@@ -2417,6 +2422,14 @@ type RefValue struct {
 	Escaped  bool      `json:",omitempty"`
 	PkgPath  string    `json:",omitempty"`
 	Hash     ValueHash `json:",omitempty"`
+}
+
+// Base for a detached singleton (e.g. new(int) or &struct{})
+// Conceptually like a Block that holds one value.
+// NOTE: could be renamed to HeapItemBaseValue.
+type HeapItemValue struct {
+	ObjectInfo
+	Value TypedValue
 }
 
 // ----------------------------------------
