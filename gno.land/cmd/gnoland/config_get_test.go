@@ -27,7 +27,7 @@ func TestConfig_Get_Invalid(t *testing.T) {
 
 	// Run the command
 	cmdErr := cmd.ParseAndRun(context.Background(), args)
-	assert.ErrorContains(t, cmdErr, "unable to load config")
+	assert.ErrorContains(t, cmdErr, tryConfigInit)
 }
 
 // testSetCase outlines the single test case for config get
