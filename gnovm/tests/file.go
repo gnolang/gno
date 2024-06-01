@@ -36,7 +36,7 @@ func TestMachine(store gno.Store, stdout io.Writer, pkgPath string) *gno.Machine
 }
 
 func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAlloc int64, send std.Coins) *gno.Machine {
-	ctx := testContext(pkgPath, send)
+	ctx := TestContext(pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       "", // set later.
 		Output:        stdout,
@@ -47,7 +47,8 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 	return m
 }
 
-func testContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
+// TestContext returns a TestExecContext. Usable for test purpose only.
+func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr("user1.gno")
