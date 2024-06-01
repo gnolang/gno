@@ -16,8 +16,9 @@ import (
 type QueryCfg struct {
 	RootCfg *BaseCfg
 
-	Data string
-	Path string
+	Data   string
+	Path   string
+	Output string
 }
 
 func NewQueryCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -45,6 +46,13 @@ func (c *QueryCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"query data bytes",
 	)
+
+	fs.StringVar(
+		&c.Output,
+		"output",
+		"text",
+		"format of query's output",
+	)
 }
 
 func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
@@ -59,28 +67,25 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 		return err
 	}
 
-	output := formatQueryResponse(qres.Response)
-	io.Printf(output)
+	switch cfg.Output {
+	case "text":
+		io.Printf("height: %d\ndata: %s\n", qres.Response.Height, string(qres.Response.Data))
+	case "json":
+		io.Printf(formatQueryResponse(qres.Response))
+	default:
+		return errors.New("Invalid output format")
+	}
 
 	return qres.Response.Error
 }
 
 func formatQueryResponse(res abci.ResponseQuery) string {
+	// If there is an error in the response, return the log message
 	if res.Error != nil {
-		// If there is an error in the response, return the log message
 		return fmt.Sprintf("Log: %s\n", res.Log)
 	}
 
-	// Default response string in case unmarshalling or marshalling fails
-	defaultResponse := fmt.Sprintf("height: %d\ndata: %s\n", res.Height, string(res.Data))
-
-	// Unmarshal the original response data into a json.RawMessage
-	// This allows us to handle arbitrary JSON structures without knowing their schema
-	var data json.RawMessage
-	err := json.Unmarshal(res.Data, &data)
-	if err != nil {
-		return defaultResponse
-	}
+	data := json.RawMessage(res.Data)
 
 	// Create a struct to hold the final JSON structure with ordered fields
 	formattedData := struct {
@@ -94,7 +99,7 @@ func formatQueryResponse(res abci.ResponseQuery) string {
 	// Marshal the final struct into an indented JSON string for readability
 	formattedResponse, err := json.MarshalIndent(formattedData, "", "  ")
 	if err != nil {
-		return defaultResponse
+		return fmt.Sprintf("height: %d\ndata: %s\n", res.Height, string(res.Data))
 	}
 
 	// Return the formatted JSON string
