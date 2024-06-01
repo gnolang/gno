@@ -64,6 +64,10 @@ func (fr Frame) String() string {
 	}
 }
 
+func (fr *Frame) IsCall() bool {
+	return fr.Func != nil || fr.GoFunc != nil
+}
+
 func (fr *Frame) PushDefer(dfr Defer) {
 	fr.Defers = append(fr.Defers, dfr)
 }
