@@ -16,7 +16,7 @@ func newTxsClearCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "clear",
 			ShortUsage: "txs clear",
-			ShortHelp:  "clears all the transactions",
+			ShortHelp:  "clears all the transactions from the genesis.json",
 		},
 		commands.NewEmptyConfig(),
 		func(ctx context.Context, args []string) error {
