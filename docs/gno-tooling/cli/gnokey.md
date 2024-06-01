@@ -134,7 +134,7 @@ gnokey query {QUERY_PATH}
 | Name     | Type      | Description                                          |
 |----------|-----------|------------------------------------------------------|
 | `data`   | UInt8 \[] | Queries data bytes.                                  |
-| `output` | String    | Output format (default: text, options: json) |
+| `output` | String    | Output format (default: text, options: json)         |
 
 
 ## Sign and Broadcast a Transaction
