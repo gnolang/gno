@@ -131,9 +131,10 @@ gnokey query {QUERY_PATH}
 
 #### **Options**
 
-| Name     | Type      | Description                              |
-|----------|-----------|------------------------------------------|
-| `data`   | UInt8 \[] | Queries data bytes.                      |
+| Name     | Type      | Description                                          |
+|----------|-----------|------------------------------------------------------|
+| `data`   | UInt8 \[] | Queries data bytes.                                  |
+| `output` | String    | Queries output format (default: text, options: json) |
 
 
 ## Sign and Broadcast a Transaction
