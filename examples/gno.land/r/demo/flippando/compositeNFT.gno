@@ -116,7 +116,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 	if(err != nil){
 		panic("error in minting")
 	}
-	return createNFTResult.string(), nftError
+	return string(createNFTResult), nftError
 }
 
 // it is used in marketplace

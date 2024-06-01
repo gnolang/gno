@@ -83,7 +83,7 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 	if(err != nil){
 		panic("error in minting")
 	}
-	return createNFTResult.(string), nftError
+	return string(createNFTResult), nftError
 }
 
 func GetBasicTokenURI(tokenID string) string {
@@ -326,5 +326,5 @@ func AirdropBasicFlipNFT(airdropAccount,
 	if(err != nil){
 		panic("error in minting")
 	}
-	return createNFTResult.string(), nftError
+	return string(createNFTResult), nftError
 }
