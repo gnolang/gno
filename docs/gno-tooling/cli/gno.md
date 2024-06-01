@@ -25,9 +25,9 @@ To print a comprehensive list of `gno` commands and a brief description of each 
 | `run`              | Runs the specified `.gno` file(s).         | `gno run [flags] <file> [<file>...]`             |
 | `transpile`        | Transpiles a `.gno` file to a `.go` file.  | `gno transpile [flags] <package> [<package>...]` |
 | `repl`             | Starts a GnoVM REPL.                       | `gno repl`                                       |
-| `doc`              | Get documentation for the specified package or symbol (type, function, method, or variable/constant). |
-| `env`              | Prints Gno environment information.        |
-| `bug`              | Starts a bug report.                       |
+| `doc`              | Get documentation for the specified package or symbol (type, function, method, or variable/constant). | `gno doc <package/symbol>` |
+| `env`              | Prints Gno environment information.        | `gno env`                                        |
+| `bug`              | Starts a bug report in GitHub.             | `gno bug`                                        |
 
 ### `mod`
 
