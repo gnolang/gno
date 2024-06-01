@@ -1,14 +1,7 @@
 package flippandoserver
 
 import (
-	"time"
-	"math"
-	"std"
-	"bytes"
-	"strings"
-	"strconv"
-
-	"gno.land/p/demo/ufmt"
+	
 )
 
 type GameBoard struct {
