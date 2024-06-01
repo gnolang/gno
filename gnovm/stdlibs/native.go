@@ -726,6 +726,7 @@ var nativeFuncs = [...]NativeFunc{
 		"assertCallerIsRealm",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			libs_std.X_assertCallerIsRealm(
 				m,

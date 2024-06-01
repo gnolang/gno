@@ -1525,6 +1525,14 @@ func isUnsaved(oo Object) bool {
 	return oo.GetIsNewReal() || oo.GetIsDirty()
 }
 
+// pkgPathPrefix is the prefix used to identify pkgpaths which are meant to
+// be pure packages. This is used by [IsPkgPath].
+const pkgPathPrefix = "gno.land/p/"
+
+func IsPkgPath(pkgPath string) bool {
+	return strings.HasPrefix(pkgPath, pkgPathPrefix)
+}
+
 func prettyJSON(jstr []byte) []byte {
 	var c interface{}
 	err := json.Unmarshal(jstr, &c)

@@ -159,7 +159,7 @@ func X_decodeBech32(addr string) (prefix string, bytes [20]byte, ok bool) {
 
 func X_assertCallerIsRealm(m *gno.Machine) {
 	frame := m.Frames[m.NumFrames()-2]
-	if !frame.LastPackage.IsRealm() {
+	if frame.LastPackage.IsPkgPath() {
 		m.Panic(typedString("caller is not a realm"))
 	}
 }
