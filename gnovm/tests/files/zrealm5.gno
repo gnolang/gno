@@ -23,7 +23,7 @@ func main() {
 
 // Realm:
 // switchrealm["gno.land/r/test"]
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:7]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -72,13 +72,32 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7",
 //         "ModTime": "0",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //         "RefCount": "1"
 //     }
 // }
-// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]={
+// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:6]={
+//     "ObjectInfo": {
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
+//         "ModTime": "0",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
+//         "RefCount": "1"
+//     },
+//     "Value": {
+//         "T": {
+//             "@type": "/gno.RefType",
+//             "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
+//         },
+//         "V": {
+//             "@type": "/gno.RefValue",
+//             "Hash": "6871dab1758bc5376f44788cb34b9513c15619fe",
+//             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:7"
+//         }
+//     }
+// }
+// u[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -126,26 +145,20 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.PointerValue",
-//                 "Base": null,
+//                 "Base": {
+//                     "@type": "/gno.RefValue",
+//                     "Hash": "1cfcbc3f1160a3d976be0613f69fe7badbd52ec3",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
+//                 },
 //                 "Index": "0",
-//                 "TV": {
-//                     "T": {
-//                         "@type": "/gno.RefType",
-//                         "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
-//                     },
-//                     "V": {
-//                         "@type": "/gno.RefValue",
-//                         "Hash": "55e56c78d2a901aaab1efe57d29e0f30e3b8cf72",
-//                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
-//                     }
-//                 }
+//                 "TV": null
 //             }
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
-//         "ModTime": "4",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
+//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
+//         "ModTime": "5",
+//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
 //         "RefCount": "1"
 //     }
 // }
@@ -154,7 +167,7 @@ func main() {
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //         "IsEscaped": true,
-//         "ModTime": "4",
+//         "ModTime": "5",
 //         "RefCount": "2"
 //     },
 //     "Parent": null,
@@ -251,19 +264,13 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.PointerValue",
-//                 "Base": null,
+//                 "Base": {
+//                     "@type": "/gno.RefValue",
+//                     "Hash": "02fdddc469d267a1f4a28253ed1ec895b604ffb5",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
+//                 },
 //                 "Index": "0",
-//                 "TV": {
-//                     "T": {
-//                         "@type": "/gno.RefType",
-//                         "ID": "github.com/gnolang/gno/_test/timtadh/data-structures/tree/avl.AvlNode"
-//                     },
-//                     "V": {
-//                         "@type": "/gno.RefValue",
-//                         "Hash": "ce2f1ef3316fb6092409cfa03ee5af4950c071a6",
-//                         "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
-//                     }
-//                 }
+//                 "TV": null
 //             }
 //         }
 //     ]

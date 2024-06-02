@@ -147,13 +147,16 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if po.GetObjectID().PkgID != rlm.ID {
 		panic("cannot modify external-realm or non-realm object")
 	}
+
+	// XXX check if this boosts performance
+	// XXX with broad integration benchmarking.
+	// XXX if co == xo {
+	// XXX }
+
 	// From here on, po is real (not new-real).
 	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
 	// More appends happen during FinalizeRealmTransactions(). (second+ gen)
 	rlm.MarkDirty(po)
-
-	// XXX if co == xo {
-	// XXX }
 
 	if co != nil {
 		co.IncRefCount()
@@ -726,18 +729,6 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
-	/* XXX DELETE
-	// ensure all types were already saved (@ preprocessor).
-	if debug {
-		types := getUnsavedTypes(oo, nil)
-		for _, typ := range types {
-			tid := typ.TypeID()
-			if store.GetType(tid) == nil {
-				panic("missing type")
-			}
-		}
-	}
-	*/
 	// set hash to escape index.
 	if oo.GetIsNewEscaped() {
 		oo.SetIsNewEscaped(false)
@@ -825,12 +816,10 @@ func getChildObjects(val Value, more []Value) []Value {
 	case DataByteValue:
 		panic("cannot get children from data byte objects")
 	case PointerValue:
-		// XXX
-		if cv.Base != nil {
-			more = getSelfOrChildObjects(cv.Base, more)
-		} else {
-			more = getSelfOrChildObjects(cv.TV.V, more)
+		if cv.Base == nil {
+			panic("should not happen")
 		}
+		more = getSelfOrChildObjects(cv.Base, more)
 		return more
 	case *ArrayValue:
 		for _, ctv := range cv.List {
@@ -1077,27 +1066,19 @@ func copyValueWithRefs(val Value) Value {
 	case DataByteValue:
 		panic("cannot copy data byte value with references")
 	case PointerValue:
-		if cv.Base != nil {
-			return PointerValue{
-				/*
-					already represented in .Base[Index]:
-					TypedValue: &TypedValue{
-						T: cv.TypedValue.T,
-						V: copyValueWithRefs(cv.TypedValue.V),
-					},
-				*/
-				Base:  toRefValue(cv.Base),
-				Index: cv.Index,
-			}
-		} else {
-			etv := refOrCopyValue(*cv.TV)
-			return PointerValue{
-				TV: &etv,
-				/*
-					Base:  nil,
-					Index: 0,
-				*/
-			}
+		if cv.Base == nil {
+			panic("should not happen")
+		}
+		return PointerValue{
+			/*
+				already represented in .Base[Index]:
+				TypedValue: &TypedValue{
+					T: cv.TypedValue.T,
+					V: copyValueWithRefs(cv.TypedValue.V),
+				},
+			*/
+			Base:  toRefValue(cv.Base),
+			Index: cv.Index,
 		}
 	case *ArrayValue:
 		if cv.Data == nil {
