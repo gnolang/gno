@@ -305,6 +305,45 @@ in the [ABCI queries section](#bankbalances).
 
 ### `Run`
 
+With the `Run` message, you can write a snippet of Gno code and run it against
+code on the chain. For this example, we will use the [Userbook realm](https://gno.land/r/demo/userbook),
+which simply allows you to register the fact that you have interacted with it.
+It contains a simple `SignUp()` function, which we will call with `Run`.
+
+To understand how to use the `Run` message better, let's write a simple "script.gno"
+file. First create a folder which will store our script.
+
+```bash
+└── example/
+```
+
+Then, let's create a `script.gno` file:
+
+```bash
+cd example
+touch script.gno
+```
+
+Now, we should have the following folder structure:
+
+```bash
+└── example/
+│   └── script.gno
+```
+
+In the `script.gno` file, first import the Userbook realm. Then, we can define a 
+`main()` function which will be automatically detected and ran by `Run`. In it,
+we can call the `SingUp()` function:
+
+```go
+package script
+
+import "gno.land/r/demo/userbook"
+
+func main() string {
+	println(userbook.SignUp()) 
+}
+```
 
 
 ## ABCI queries
@@ -330,7 +369,7 @@ Let's see how we can use them.
 
 #### `auth/accounts`
 
-We can obtain information on a specific address using this subquery. To call it,
+We can obtain information about a specific address using this subquery. To call it,
 we can run the following command:
 
 ```bash
@@ -358,7 +397,8 @@ data: {
 ```
 
 The return data will contain the following fields:
-- `height` - the height at which the query was executed. This is currently not supported.
+- `height` - the height at which the query was executed. This is currently not
+supported and is `0` by default.
 - `data` - contains the result of the query.
 
 The `data` field returns a `BaseAccount`, which is the main struct used in TM2 to
@@ -471,8 +511,8 @@ gnokey query vm/qrender -remote https://rpc.gno.land:443 -data "gno.land/r/demo/
 We can use it like this:
 
 ```bash
-gnokey query vm/qrender -remote https://rpc.gno.land:443 -data "gno.land/r/demo/wugnot"
-// not working?
+gnokey query vm/qrender --data "gno.land/r/demo/userbook
+" -remote https://rpc.gno.land:443
 ```
 
 
