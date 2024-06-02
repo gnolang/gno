@@ -13,6 +13,8 @@ import (
 )
 
 func TestEmptyPathError(t *testing.T) {
+	t.Parallel()
+
 	cfg := &cfg{
 		docsPath: "",
 	}
@@ -25,6 +27,8 @@ func TestEmptyPathError(t *testing.T) {
 }
 
 func TestExtractLinks(t *testing.T) {
+	t.Parallel()
+
 	// Generate temporary source dir
 	sourceDir, err := os.MkdirTemp(".", "sourceDir")
 	require.NoError(t, err)
