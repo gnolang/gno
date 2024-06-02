@@ -18,8 +18,9 @@ import (
 )
 
 var (
-	errEmptyPath = errors.New("you need to pass in a path to scan")
-	err404Link   = errors.New("link returned a 404")
+	errEmptyPath  = errors.New("you need to pass in a path to scan")
+	err404Link    = errors.New("link returned a 404")
+	errNo404Links = errors.New("no links returned with 404")
 )
 
 type cfg struct {
@@ -107,10 +108,11 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		url := url
 
 		g.Go(func() error {
+			defer lock.Unlock()
+
 			if err := checkUrl(url); err != nil {
 				lock.Lock()
 				notFoundUrls = append(notFoundUrls, fmt.Sprintf("%s (found in file: %s)", url, urlFileMap[url]))
-				lock.Unlock()
 			}
 
 			return nil
@@ -127,11 +129,11 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		for _, result := range notFoundUrls {
 			fmt.Println(result)
 		}
-	} else {
-		fmt.Println("No URLs returned a 404 status.")
+
+		return nil
 	}
 
-	return nil
+	return errNo404Links
 }
 
 // findFilePaths gathers the file paths for specific file types
