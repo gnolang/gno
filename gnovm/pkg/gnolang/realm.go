@@ -862,7 +862,7 @@ func getChildObjects(val Value, more []Value) []Value {
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
 		// Generally the parent block must also be persisted.
-		// Otherwas NamePath may not resolve when referencing
+		// Otherwise NamePath may not resolve when referencing
 		// a parent block.
 		more = getSelfOrChildObjects(cv.Parent, more)
 		return more
