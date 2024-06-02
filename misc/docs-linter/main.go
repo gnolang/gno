@@ -102,17 +102,16 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		notFoundUrls []string
 	)
 
-	g, ctx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 
 	for _, url := range validUrls {
 		url := url
-
 		g.Go(func() error {
-			defer lock.Unlock()
 
 			if err := checkUrl(url); err != nil {
 				lock.Lock()
 				notFoundUrls = append(notFoundUrls, fmt.Sprintf("%s (found in file: %s)", url, urlFileMap[url]))
+				lock.Unlock()
 			}
 
 			return nil
