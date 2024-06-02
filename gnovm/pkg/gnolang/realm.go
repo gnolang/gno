@@ -1197,6 +1197,18 @@ func copyValueWithRefs(val Value) Value {
 	case RefValue:
 		return cv
 	case *HeapItemValue:
+		// NOTE: While this could be eliminated sometimes with some
+		// intelligence prior to persistence, to unwrap the
+		// HeapItemValue in case where the HeapItemValue only has
+		// refcount of 1,
+		//
+		//  1.  The HeapItemValue is necessary when the .Value is a
+		//    primitive non-object anyways, and
+		//  2. This would mean PointerValue.Base is nil, and we'd need
+		//    additional logic to re-wrap when necessary, and
+		//  3. And with the above point, it's not clear the result
+		//    would be any faster.  But this is something we could
+		//    explore after launch.
 		hiv := &HeapItemValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
 			Value:      refOrCopyValue(cv.Value),
