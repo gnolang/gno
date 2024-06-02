@@ -1863,13 +1863,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				tvs := make([]TypedValue, numNames)
 				if numNames > 1 && len(n.Values) == 1 {
 					// special case if `var a, b, c T? = f()` form.
-					cx, ok := n.Values[0].(*CallExpr)
-					if !ok {
-						panic("should not happen")
-					}
+					cx := n.Values[0].(*CallExpr)
 					tt := evalStaticTypeOfRaw(store, last, cx).(*tupleType)
-					if len(tt.Elts) != numNames {
-						panic("should not happen")
+					rLen := len(tt.Elts)
+					if rLen != numNames {
+						panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %s returns %d value(s)", numNames, cx.Func.String(), rLen))
 					}
 					if n.Type != nil {
 						// only a single type can be specified.
@@ -3042,6 +3040,18 @@ func checkIntegerType(xt Type) {
 	}
 }
 
+func checkAssignmentMismatch(d Decl) {
+	if cd, ok := d.(*ValueDecl); ok {
+		numNames := len(cd.NameExprs)
+		numValues := len(cd.Values)
+		if numValues > 0 && numValues != numNames {
+			if _, ok := cd.Values[0].(*CallExpr); !ok {
+				panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
+			}
+		}
+	}
+}
+
 // predefineNow() pre-defines (with empty placeholders) all
 // declaration names, and then preprocesses all type/value decls, and
 // partially processes func decls.
@@ -3074,6 +3084,7 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 			}
 		}
 	}()
+	checkAssignmentMismatch(d)
 	m := make(map[Name]struct{})
 	return predefineNow2(store, last, d, m)
 }

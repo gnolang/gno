@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/var19.gno:3: constant definition loop with a
+// main/files/var19.gno:4: assignment mismatch: 3 variable(s) but 2 value(s)
