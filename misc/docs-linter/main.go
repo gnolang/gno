@@ -96,8 +96,10 @@ func execLint(cfg *cfg, ctx context.Context) error {
 	}
 
 	// Setup parallel checking for links
-	var lock sync.Mutex
-	var notFoundUrls []string
+	var (
+		lock         sync.Mutex
+		notFoundUrls []string
+	)
 	g, ctx := errgroup.WithContext(ctx)
 
 	for _, url := range validUrls {
