@@ -333,13 +333,7 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		// something in it; in that case, ignore the base.  That will
 		// likely require maybe a preparation step in persistence
 		// ( or unlikely, a second type of ref-counting).
-		if cv.Base != nil {
-			return cv.Base.(Object)
-		} else {
-			// XXX why would this happen anymore?
-			panic("should not happen")
-			// return cv.TV.GetFirstObject(store)
-		}
+		return cv.Base.(Object)
 	case *ArrayValue:
 		return cv
 	case *SliceValue:
