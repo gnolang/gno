@@ -22,8 +22,7 @@ func TestEmptyPathError(t *testing.T) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancelFn()
 
-	err := execLint(cfg, ctx)
-	assert.ErrorIs(t, err, errEmptyPath)
+	assert.ErrorIs(t, execLint(cfg, ctx), errEmptyPath)
 }
 
 func TestExtractLinks(t *testing.T) {
@@ -122,7 +121,6 @@ func TestFindFilePaths(t *testing.T) {
 
 func removeDir(t *testing.T, dirPath string) func() {
 	return func() {
-		err := os.RemoveAll(dirPath)
-		require.NoError(t, err)
+		require.NoError(t, os.RemoveAll(dirPath))
 	}
 }
