@@ -69,7 +69,6 @@ func TestExtractLinks(t *testing.T) {
 			}
 		}
 	}
-
 }
 
 func TestFindFilePaths(t *testing.T) {

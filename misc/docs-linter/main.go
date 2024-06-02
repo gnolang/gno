@@ -19,6 +19,7 @@ import (
 
 var (
 	ErrEmptyPath = errors.New("you need to pass in a path to scan")
+	err404Link   = errors.New("link returned a 404")
 )
 
 type cfg struct {
@@ -103,9 +104,10 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		url := url
 
 		g.Go(func() error {
-			err := checkUrl(&lock, url, urlFileMap[url], &notFoundUrls)
-			if err != nil {
-				return err
+			if err := checkUrl(url); err != nil {
+				lock.Lock()
+				notFoundUrls = append(notFoundUrls, fmt.Sprintf("%s (found in file: %s)", url, urlFileMap[url]))
+				lock.Unlock()
 			}
 
 			return nil
@@ -199,16 +201,11 @@ func extractUrls(filePath string) (map[string]string, error) {
 }
 
 // checkUrl checks if a URL is a 404
-func checkUrl(lock *sync.Mutex, url string, filePath string, results *[]string) error {
+func checkUrl(url string) error {
 	// Attempt to retrieve the HTTP header
 	resp, err := http.Get(url)
 	if err != nil || resp.StatusCode == http.StatusNotFound {
-		// Lock the mutex before appending to results
-		lock.Lock()
-		*results = append(*results, fmt.Sprintf("%s (found in file: %s)", url, filePath))
-		lock.Unlock()
-
-		return nil
+		return err404Link
 	}
 
 	// Ensure the response body is closed properly
