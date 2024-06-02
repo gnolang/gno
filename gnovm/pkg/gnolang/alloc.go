@@ -180,8 +180,8 @@ func (alloc *Allocator) AllocateAmino(l int64) {
 	alloc.Allocate(allocAmino + allocAminoByte*l)
 }
 
-func (alloc *Allocator) AllocateHeap() {
-	alloc.Allocate(allocHeap)
+func (alloc *Allocator) AllocateHeapItem() {
+	alloc.Allocate(allocHeapItem)
 }
 
 //----------------------------------------
@@ -297,6 +297,6 @@ func (alloc *Allocator) NewType(t Type) Type {
 }
 
 func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
-	alloc.allocateHeapItem()
+	alloc.AllocateHeapItem()
 	return &HeapItemValue{Value: tv}
 }

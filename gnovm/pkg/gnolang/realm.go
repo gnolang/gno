@@ -152,6 +152,9 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	// More appends happen during FinalizeRealmTransactions(). (second+ gen)
 	rlm.MarkDirty(po)
 
+	// XXX if co == xo {
+	// XXX }
+
 	if co != nil {
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
@@ -875,7 +878,8 @@ func getChildObjects(val Value, more []Value) []Value {
 		more = getSelfOrChildObjects(cv.Parent, more)
 		return more
 	case *HeapItemValue:
-		more = getSelfOrChildObjects(cv.Value.Value, more)
+		more = getSelfOrChildObjects(cv.Value.V, more)
+		return more
 	case *NativeValue:
 		panic("native values not supported")
 	default:
@@ -941,7 +945,7 @@ func copyMethods(methods []TypedValue) []TypedValue {
 		// gets saved (e.g. from *Machine.savePackage()).
 		res[i] = TypedValue{
 			T: copyTypeWithRefs(mtv.T),
-			V: copyValueWithRefs(nil, mtv.V),
+			V: copyValueWithRefs(mtv.V),
 		}
 	}
 	return res
@@ -1060,7 +1064,7 @@ func copyTypeWithRefs(typ Type) Type {
 // persistence bytes serialization.
 // Also checks for integrity of immediate children -- they must already be
 // persistent (real), and not dirty, or else this function panics.
-func copyValueWithRefs(parent Object, val Value) Value {
+func copyValueWithRefs(val Value) Value {
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -1082,11 +1086,11 @@ func copyValueWithRefs(parent Object, val Value) Value {
 						V: copyValueWithRefs(cv.TypedValue.V),
 					},
 				*/
-				Base:  toRefValue(parent, cv.Base),
+				Base:  toRefValue(cv.Base),
 				Index: cv.Index,
 			}
 		} else {
-			etv := refOrCopyValue(parent, *cv.TV)
+			etv := refOrCopyValue(*cv.TV)
 			return PointerValue{
 				TV: &etv,
 				/*
@@ -1099,7 +1103,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		if cv.Data == nil {
 			list := make([]TypedValue, len(cv.List))
 			for i, etv := range cv.List {
-				list[i] = refOrCopyValue(cv, etv)
+				list[i] = refOrCopyValue(etv)
 			}
 			return &ArrayValue{
 				ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1113,7 +1117,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		}
 	case *SliceValue:
 		return &SliceValue{
-			Base:   toRefValue(parent, cv.Base),
+			Base:   toRefValue(cv.Base),
 			Offset: cv.Offset,
 			Length: cv.Length,
 			Maxcap: cv.Maxcap,
@@ -1121,7 +1125,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case *StructValue:
 		fields := make([]TypedValue, len(cv.Fields))
 		for i, ftv := range cv.Fields {
-			fields[i] = refOrCopyValue(cv, ftv)
+			fields[i] = refOrCopyValue(ftv)
 		}
 		return &StructValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1135,7 +1139,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		}
 		var closure Value
 		if cv.Closure != nil {
-			closure = toRefValue(parent, cv.Closure)
+			closure = toRefValue(cv.Closure)
 		}
 		// nativeBody funcs which don't come from NativeStore (and thus don't
 		// have NativePkg/Name) can't be persisted, and should not be able
@@ -1156,8 +1160,8 @@ func copyValueWithRefs(parent Object, val Value) Value {
 			NativeName: cv.NativeName,
 		}
 	case *BoundMethodValue:
-		fnc := copyValueWithRefs(cv, cv.Func).(*FuncValue)
-		rtv := refOrCopyValue(cv, cv.Receiver)
+		fnc := copyValueWithRefs(cv.Func).(*FuncValue)
+		rtv := refOrCopyValue(cv.Receiver)
 		return &BoundMethodValue{
 			ObjectInfo: cv.ObjectInfo.Copy(), // XXX ???
 			Func:       fnc,
@@ -1166,8 +1170,8 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case *MapValue:
 		list := &MapList{}
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
-			key2 := refOrCopyValue(cv, cur.Key)
-			val2 := refOrCopyValue(cv, cur.Value)
+			key2 := refOrCopyValue(cur.Key)
+			val2 := refOrCopyValue(cur.Value)
 			list.Append(nilAllocator, key2).Value = val2
 		}
 		return &MapValue{
@@ -1177,10 +1181,10 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case TypeValue:
 		return toTypeValue(copyTypeWithRefs(cv.Type))
 	case *PackageValue:
-		block := toRefValue(cv, cv.Block)
+		block := toRefValue(cv.Block)
 		fblocks := make([]Value, len(cv.FBlocks))
 		for i, fb := range cv.FBlocks {
-			fblocks[i] = toRefValue(cv, fb)
+			fblocks[i] = toRefValue(fb)
 		}
 		return &PackageValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1195,11 +1199,11 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		source := toRefNode(cv.Source)
 		vals := make([]TypedValue, len(cv.Values))
 		for i, tv := range cv.Values {
-			vals[i] = refOrCopyValue(cv, tv)
+			vals[i] = refOrCopyValue(tv)
 		}
 		var bparent Value
 		if cv.Parent != nil {
-			bparent = toRefValue(parent, cv.Parent)
+			bparent = toRefValue(cv.Parent)
 		}
 		bl := &Block{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1212,7 +1216,11 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case RefValue:
 		return cv
 	case *HeapItemValue:
-		XXX
+		hiv := &HeapItemValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Value:      refOrCopyValue(cv.Value),
+		}
+		return hiv
 	case *NativeValue:
 		panic("native values not supported")
 	default:
@@ -1384,6 +1392,9 @@ func fillTypesOfValue(store Store, val Value) Value {
 		panic("native values not supported")
 	case RefValue: // do nothing
 		return cv
+	case *HeapItemValue:
+		fillTypesTV(store, &cv.Value)
+		return cv
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -1431,7 +1442,7 @@ func toRefNode(bn BlockNode) RefNode {
 	}
 }
 
-func toRefValue(parent Object, val Value) RefValue {
+func toRefValue(val Value) RefValue {
 	// TODO use type switch stmt.
 	if ref, ok := val.(RefValue); ok {
 		return ref
@@ -1504,15 +1515,15 @@ func ensureUniq(oozz ...[]Object) {
 	}
 }
 
-func refOrCopyValue(parent Object, tv TypedValue) TypedValue {
+func refOrCopyValue(tv TypedValue) TypedValue {
 	if tv.T != nil {
 		tv.T = refOrCopyType(tv.T)
 	}
 	if obj, ok := tv.V.(Object); ok {
-		tv.V = toRefValue(parent, obj)
+		tv.V = toRefValue(obj)
 		return tv
 	} else {
-		tv.V = copyValueWithRefs(parent, tv.V)
+		tv.V = copyValueWithRefs(tv.V)
 		return tv
 	}
 }

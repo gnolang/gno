@@ -129,6 +129,7 @@ var (
 	_ Object = &BoundMethodValue{}
 	_ Object = &MapValue{}
 	_ Object = &Block{}
+	_ Object = &HeapItemValue{}
 )
 
 type ObjectInfo struct {
@@ -335,7 +336,9 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		if cv.Base != nil {
 			return cv.Base.(Object)
 		} else {
-			return cv.TV.GetFirstObject(store)
+			// XXX why would this happen anymore?
+			panic("should not happen")
+			// return cv.TV.GetFirstObject(store)
 		}
 	case *ArrayValue:
 		return cv
@@ -359,6 +362,9 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		oo := store.GetObject(cv.ObjectID)
 		tv.V = oo
 		return oo
+	case *HeapItemValue:
+		// should only appear in PointerValue.Base
+		panic("should not happen")
 	default:
 		return nil
 	}

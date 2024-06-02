@@ -2560,6 +2560,8 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			case *Block:
 				vpv := cb.GetPointerToInt(store, cv.Index)
 				cv.TV = vpv.TV // TODO optimize?
+			case *HeapItemValue:
+				cv.TV = &cb.Value
 			default:
 				panic("should not happen")
 			}

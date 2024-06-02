@@ -894,7 +894,7 @@ func UverseNode() *PackageNode {
 			tt := arg0.TV.GetType()
 			vv := defaultValue(m.Alloc, tt)
 			m.Alloc.AllocatePointer()
-			hi := m.NewHeapItem(TypedValue{
+			hi := m.Alloc.NewHeapItem(TypedValue{
 				T: tt,
 				V: vv,
 			})
