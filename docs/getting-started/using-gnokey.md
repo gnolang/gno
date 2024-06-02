@@ -16,17 +16,16 @@ Gno.
 ## Prerequisites
 - **`gno`, `gnokey`, and `gnodev` installed.** Reference the
   [Local Setup](local-setup/installation.md#2-installing-the-required-tools-) guide for steps
-
-## Keypairs
-
+- A Gno.land keypair set up. Reference the
+  [Working with Key Pairs](local-setup/working-with-key-pairs.md) guide for steps
 
 ## Interacting with a Gno.land chain
 
 `gnokey` allows you to interact with any Gno.land chain, such as the Portal Loop. 
 
 There are multiple ways anyone can interact with the chain:
-- Transactions - state-changing calls which use up gas
-- ABCI queries - read-only calls which do not use up gas
+- Transactions - state-changing calls which use gas
+- ABCI queries - read-only calls which do not use gas
 
 Both transactions and ABCI queries can be used via `gnokey`'s subcommands,
 `maketx` and `query`.
@@ -345,7 +344,6 @@ func main() string {
 }
 ```
 
-
 ## ABCI queries
 
 ABCI queries are available on Gno.land chains. todo add more info
@@ -514,5 +512,33 @@ We can use it like this:
 gnokey query vm/qrender --data "gno.land/r/demo/userbook
 " -remote https://rpc.gno.land:443
 ```
+
+Running this command will display the current `Render()` output of the Userbook
+realm, which is also displayed by default on the [realm's page](https://gno.land/r/demo/userbook):
+
+```bash
+height: 0
+data: # Welcome to UserBook!
+
+## UserBook - Page #1:
+
+#### User #0 - g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 - signed up at Block #0
+#### User #1 - g125em6arxsnj49vx35f0n0z34putv5ty3376fg5 - signed up at Block #0
+#### User #2 - g1urt7pdmwg2m6z3rsgu4e8peppm4027fvpwkmj8 - signed up at Block #0
+#### User #3 - g1uf8u5jf2m9l80g0zsfq7tufl3qufqc4393jtkl - signed up at Block #0
+#### User #4 - g1lafcru2z2qelxr33gm4znqshmpur6l9sl3g2aw - signed up at Block #0
+---
+
+#### Total users: 5
+#### Latest signup: User #4 at Block #0
+---
+
+You're viewing page #1
+```
+
+
+
+
+
 
 
