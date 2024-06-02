@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	ErrEmptyPath = errors.New("you need to pass in a path to scan")
+	errEmptyPath = errors.New("you need to pass in a path to scan")
 	err404Link   = errors.New("link returned a 404")
 )
 
@@ -54,7 +54,7 @@ func (c *cfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execLint(cfg *cfg, ctx context.Context) error {
 	if cfg.docsPath == "" {
-		return ErrEmptyPath
+		return errEmptyPath
 	}
 
 	abs, err := filepath.Abs(cfg.docsPath)
@@ -100,6 +100,7 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		lock         sync.Mutex
 		notFoundUrls []string
 	)
+
 	g, ctx := errgroup.WithContext(ctx)
 
 	for _, url := range validUrls {

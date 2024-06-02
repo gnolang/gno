@@ -23,7 +23,7 @@ func TestEmptyPathError(t *testing.T) {
 	defer cancelFn()
 
 	err := execLint(cfg, ctx)
-	assert.ErrorIs(t, err, ErrEmptyPath)
+	assert.ErrorIs(t, err, errEmptyPath)
 }
 
 func TestExtractLinks(t *testing.T) {
