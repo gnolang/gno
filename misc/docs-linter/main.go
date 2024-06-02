@@ -75,7 +75,7 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		// Extract URLs from each file
 		urls, err := extractUrls(filePath)
 		if err != nil {
-			fmt.Println("Error extracting URLs from file:", filePath, err)
+			fmt.Printf("Error extracting URLs from file: %s, %v", filePath, err)
 			continue
 		}
 		// For each url, save what file it was found in
