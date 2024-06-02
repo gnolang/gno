@@ -2427,6 +2427,7 @@ type RefValue struct {
 // Base for a detached singleton (e.g. new(int) or &struct{})
 // Conceptually like a Block that holds one value.
 // NOTE: could be renamed to HeapItemBaseValue.
+// See also note in realm.go about auto-unwrapping.
 type HeapItemValue struct {
 	ObjectInfo
 	Value TypedValue
