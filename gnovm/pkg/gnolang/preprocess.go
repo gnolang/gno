@@ -224,8 +224,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// skip declarations already predefined
 					// (e.g. through recursion for a dependent)
 				} else {
+					d := n.(Decl)
+					checkAssignmentMismatch(d)
 					// recursively predefine dependencies.
-					d2, ppd := predefineNow(store, last, n.(Decl))
+					d2, ppd := predefineNow(store, last, d)
 					if ppd {
 						return d2, TRANS_SKIP
 					} else {
@@ -3084,7 +3086,6 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 			}
 		}
 	}()
-	checkAssignmentMismatch(d)
 	m := make(map[Name]struct{})
 	return predefineNow2(store, last, d, m)
 }
