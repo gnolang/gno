@@ -37,7 +37,7 @@ ports:
 
   - name: "gnoland RPC"
     description: "the RPC server, managed by tendermint2"
-    port: 26657
+    port: 36657
     onOpen: notify
 
 github:

@@ -134,6 +134,8 @@ gnokey query {QUERY_PATH}
 | Name     | Type      | Description                              |
 |----------|-----------|------------------------------------------|
 | `data`   | UInt8 \[] | Queries data bytes.                      |
+| `height` | Int64     | (not yet supported) Queries height.      |
+| `prove`  | Boolean   | (not yet supported) Proves query result. |
 
 
 ## Sign and Broadcast a Transaction
@@ -188,7 +190,7 @@ gnokey maketx addpkg \
 
 ### `call`
 
-This subcommand lets you call any exported function.
+This subcommand lets you call a public function.
 
 ```bash
 # Register
@@ -204,20 +206,6 @@ gnokey maketx call \
     {ADDRESS} \
     > unsigned.tx
 ```
-
-:::warning `call` is a state-changing message  
-
-All exported functions, including `Render()`, can be called in two main ways:
-`call` and [`query vm/qeval`](#query).
-
-With `call`, any state change that happened in the function being called will be
-applied and persisted in on the blockchain, and the gas used for this call will
-be subtracted from the caller balance. 
-
-As opposed to this, an ABCI query, such as `vm/qeval` will not persist state 
-changes and does not cost gas, only evaluating the expression in read-only mode.
-
-:::
 
 #### **SignBroadcast Options**
 

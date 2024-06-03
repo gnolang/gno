@@ -10,7 +10,6 @@ type DOM struct {
 	Prefix       string
 	Title        string
 	WithComments bool
-	Classes      []string
 
 	// elements
 	Header Element
@@ -19,13 +18,7 @@ type DOM struct {
 }
 
 func (dom DOM) String() string {
-	classes := strings.Join(dom.Classes, " ")
-
 	output := ""
-
-	if classes != "" {
-		output += "<main class='" + classes + "'>" + "\n\n"
-	}
 
 	if dom.Title != "" {
 		output += H1(dom.Title).String(dom) + "\n"
@@ -59,10 +52,6 @@ func (dom DOM) String() string {
 		if dom.WithComments {
 			output += "<!-- /footer -->"
 		}
-	}
-
-	if classes != "" {
-		output += "</main>"
 	}
 
 	// TODO: cleanup double new-lines.

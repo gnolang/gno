@@ -12,6 +12,7 @@ package url
 
 import (
 	"errors"
+	"fmt"
 	"path"
 	"sort"
 	"strconv"
@@ -26,7 +27,7 @@ type Error struct {
 }
 
 func (e *Error) Unwrap() error { return e.Err }
-func (e *Error) Error() string { return e.Op + " \"" + e.URL + "\": " + e.Err.Error() } // "%s %q: %s"
+func (e *Error) Error() string { return fmt.Sprintf("%s %q: %s", e.Op, e.URL, e.Err) }
 
 func (e *Error) Timeout() bool {
 	t, ok := e.Err.(interface {
@@ -622,7 +623,7 @@ func parseHost(host string) (string, error) {
 		}
 		colonPort := host[i+1:]
 		if !validOptionalPort(colonPort) {
-			return "", errors.New("invalid port \"" + colonPort + "\" after host")
+			return "", fmt.Errorf("invalid port %q after host", colonPort)
 		}
 
 		// RFC 6874 defines that %25 (%-encoded percent) introduces
@@ -650,7 +651,7 @@ func parseHost(host string) (string, error) {
 	} else if i := strings.LastIndex(host, ":"); i != -1 {
 		colonPort := host[i:]
 		if !validOptionalPort(colonPort) {
-			return "", errors.New("invalid port \"" + colonPort + "\" after host")
+			return "", fmt.Errorf("invalid port %q after host", colonPort)
 		}
 	}
 
@@ -933,7 +934,7 @@ func parseQuery(m Values, query string) (err error) {
 		var key string
 		key, query, _ = strings.Cut(query, "&")
 		if strings.Contains(key, ";") {
-			err = errors.New("invalid semicolon separator in query")
+			err = fmt.Errorf("invalid semicolon separator in query")
 			continue
 		}
 		if key == "" {

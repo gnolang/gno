@@ -28,6 +28,11 @@ updates:
       everything-else:
         patterns:
           - "*"
+        exclude-patterns:
+          # NOTE: grocksdb should be updated manually, to match the version
+          # available on Ubuntu's latest LTS release; and updated in conjunction
+          # with the ubuntu version on .github/workflows/db-tests.yml
+          - "github.com/linxGnu/grocksdb"
     open-pull-requests-limit: 10
     pull-request-branch-name:
       separator: "-"

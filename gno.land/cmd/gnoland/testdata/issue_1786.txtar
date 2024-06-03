@@ -5,7 +5,7 @@ loadpkg gno.land/r/demo/wugnot
 gnoland start
 
 # add contract
-gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/proxywugnot -gas-fee 1000000ugnot -gas-wanted 6000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/proxywugnot -gas-fee 1000000ugnot -gas-wanted 4000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
 
 # approve wugnot to `proxywugnot ≈ g1fndyg0we60rdfchyy5dwxzkfmhl5u34j932rg3`

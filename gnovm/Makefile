@@ -71,7 +71,7 @@ _test.pkg:
 	go test ./pkg/... $(GOTEST_FLAGS)
 
 .PHONY: _test.gnolang
-_test.gnolang: _test.gnolang.native _test.gnolang.stdlibs _test.gnolang.realm _test.gnolang.pkg0 _test.gnolang.pkg1 _test.gnolang.pkg2 _test.gnolang.other
+_test.gnolang: _test.gnolang.types _test.gnolang.types.native _test.gnolang.native _test.gnolang.stdlibs _test.gnolang.realm _test.gnolang.pkg0 _test.gnolang.pkg1 _test.gnolang.pkg2 _test.gnolang.other
 _test.gnolang.other:;        go test tests/*.go -run "(TestFileStr|TestSelectors)" $(GOTEST_FLAGS)
 _test.gnolang.realm:;        go test tests/*.go -run "TestFiles/^zrealm" $(GOTEST_FLAGS)
 _test.gnolang.pkg0:;         go test tests/*.go -run "TestPackages/(bufio|crypto|encoding|errors|internal|io|math|sort|std|stdshim|strconv|strings|testing|unicode)" $(GOTEST_FLAGS)
@@ -81,6 +81,11 @@ _test.gnolang.native:;       go test tests/*.go -test.short -run "TestFilesNativ
 _test.gnolang.stdlibs:;      go test tests/*.go -test.short -run 'TestFiles$$/' $(GOTEST_FLAGS)
 _test.gnolang.native.sync:;  go test tests/*.go -test.short -run "TestFilesNative/" --update-golden-tests $(GOTEST_FLAGS)
 _test.gnolang.stdlibs.sync:; go test tests/*.go -test.short -run 'TestFiles$$/' --update-golden-tests $(GOTEST_FLAGS)
+# NOTE: challenges are current GnoVM bugs which are supposed to fail.
+# If any of these tests pass, it should be moved to a normal test.
+_test.gnolang.challenges:;      go test tests/*.go -test.short -run 'TestChallenges$$/' $(GOTEST_FLAGS)
+_test.gnolang.types:;      go test tests/*.go -test.short -run 'TestTypes$$/' $(GOTEST_FLAGS)
+_test.gnolang.types.native:;      go test tests/*.go -test.short -run 'TestTypesNative$$/' $(GOTEST_FLAGS)
 
 ########################################
 # Code gen

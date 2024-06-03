@@ -13,10 +13,7 @@ import (
 
 func TestEmit(t *testing.T) {
 	m := gno.NewMachine("emit", nil)
-
-	m.Context = ExecContext{}
-
-	_, pkgPath := X_getRealm(m, 0)
+	pkgPath := CurrentRealmPath(m)
 	tests := []struct {
 		name           string
 		eventType      string

@@ -29,7 +29,7 @@ gnokey maketx call \
     -gas-fee="1ugnot" \
     -gas-wanted="5000000" \
     -broadcast="true" \
-    -remote="staging.gno.land:26657" \
+    -remote="staging.gno.land:36657" \
     -chainid="test3" \
     -pkgpath="gno.land/r/demo/users" \
     -func="Register" \
@@ -48,13 +48,13 @@ gnokey maketx call \
 
 ```bash
 # Get account information
-gnokey query -remote="staging.gno.land:26657" "auth/accounts/{address}"
+gnokey query -remote="staging.gno.land:36657" "auth/accounts/{address}"
 
 # Get account balance
-gnokey query -remote="staging.gno.land:26657" "bank/balances/{address}"
+gnokey query -remote="staging.gno.land:36657" "bank/balances/{address}"
 
 # Get /r/demo/boards user information
-gnokey query -remote="staging.gno.land:26657" -data "gno.land/r/demo/users
+gnokey query -remote="staging.gno.land:36657" -data "gno.land/r/demo/users
 my_account" "vm/qrender"
 ```
 
@@ -68,7 +68,7 @@ gnokey maketx send \
     -gas-fee="1ugnot" \
     -gas-wanted="5000000" \
     -broadcast="true" \
-    -remote="staging.gno.land:26657" \
+    -remote="staging.gno.land:36657" \
     -chainid="test3" \
     -to="{address}" \ # g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
     -send="{amount}{denom}" \ # 1234ugnot
@@ -85,7 +85,7 @@ gnokey maketx call \
     -gas-fee="1ugnot" \
     -gas-wanted="5000000" \
     -broadcast="true" \
-    -remote "staging.gno.land:26657" \
+    -remote "staging.gno.land:36657" \
     -chainid="test3" \
     -pkgpath="gno.land/r/demo/boards" \
     -func="CreateBoard" \

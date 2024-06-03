@@ -47,8 +47,6 @@ No posts.
 	{
 		got := Render("p/slug2")
 		expected := `
-<main class='gno-tmpl-page'>
-
 # title2
 
 body2
@@ -65,7 +63,6 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 <details><summary>Comment section</summary>
 
 </details>
-</main>
 
 	`
 		assertMDEquals(t, got, expected)
@@ -98,8 +95,7 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 		AddComment("slug2", "comment4")
 		AddComment("slug1", "comment5")
 		got := Render("p/slug2")
-		expected := `<main class='gno-tmpl-page'>
-
+		expected := `
 # title2
 
 body2
@@ -128,7 +124,6 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 ---
 
 </details>
-</main>
 	`
 		assertMDEquals(t, got, expected)
 	}
@@ -137,8 +132,7 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 	{
 		ModEditPost("slug2", "title2++", "body2++", "2009-11-10T23:00:00Z", "manfred", "tag1,tag4")
 		got := Render("p/slug2")
-		expected := `<main class='gno-tmpl-page'>
-
+		expected := `
 # title2++
 
 body2++
@@ -167,38 +161,8 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 ---
 
 </details>
-</main>
 	`
 		assertMDEquals(t, got, expected)
-	}
-
-	{ // Test remove functionality
-		title := "example title"
-		slug := "testSlug1"
-		ModAddPost(slug, title, "body1", "2022-05-25T13:17:22Z", "moul", "tag1,tag2")
-
-		got := Render("")
-
-		if !strings.Contains(got, title) {
-			t.Errorf("post was not added properly")
-		}
-
-		postRender := Render("p/" + slug)
-
-		if !strings.Contains(postRender, title) {
-			t.Errorf("post not rendered properly")
-		}
-
-		ModRemovePost(slug)
-		got = Render("")
-
-		if strings.Contains(got, title) {
-			t.Errorf("post was not removed")
-		}
-
-		postRender = Render("p/" + slug)
-
-		assertMDEquals(t, postRender, "404")
 	}
 
 	// TODO: pagination.

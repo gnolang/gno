@@ -8,7 +8,7 @@ name ["gno.land/r/demo/boards"](https://gno.land/r/demo/boards/)
 ## Build `gnokey`, create your account, and interact with Gno.
 
 NOTE: Where you see `-remote localhost:26657` here, that flag can be replaced
-with `-remote test3.gno.land:26657` if you have $GNOT on the testnet.
+with `-remote test3.gno.land:36657` if you have $GNOT on the testnet.
 (To use the testnet, also replace `-chainid dev` with `-chainid test3` .)
 
 ### Build `gnokey` (and other tools).

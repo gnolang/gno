@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 
 	"dario.cat/mergo"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -70,36 +69,6 @@ func DefaultConfig() *Config {
 }
 
 type Option func(cfg *Config)
-
-// LoadConfig loads the node configuration from disk
-func LoadConfig(root string) (*Config, error) {
-	// Initialize the config as default
-	var (
-		cfg        = DefaultConfig()
-		configPath = filepath.Join(root, defaultConfigPath)
-	)
-
-	if !osm.FileExists(configPath) {
-		return nil, fmt.Errorf("config file at %q does not exist", configPath)
-	}
-
-	// Load the configuration
-	loadedCfg, loadErr := LoadConfigFile(configPath)
-	if loadErr != nil {
-		return nil, loadErr
-	}
-
-	// Merge the loaded config with the default values.
-	// This is done in case the loaded config is missing values
-	if err := mergo.Merge(loadedCfg, cfg); err != nil {
-		return nil, err
-	}
-
-	// Set the root directory
-	loadedCfg.SetRootDir(root)
-
-	return loadedCfg, nil
-}
 
 // LoadOrMakeConfigWithOptions loads the configuration located in the given
 // root directory, at [defaultConfigFilePath].
@@ -172,7 +141,7 @@ func TestConfig() *Config {
 		Mempool:      mem.TestMempoolConfig(),
 		Consensus:    cns.TestConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
-		Telemetry:    telemetry.DefaultTelemetryConfig(),
+		Telemetry:    telemetry.TestTelemetryConfig(),
 	}
 }
 
@@ -195,11 +164,11 @@ func (cfg *Config) EnsureDirs() error {
 		return fmt.Errorf("no root directory, %w", err)
 	}
 
-	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultConfigDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
 		return fmt.Errorf("no config directory, %w", err)
 	}
 
-	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultSecretsDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, defaultSecretsDir), DefaultDirPerm); err != nil {
 		return fmt.Errorf("no secrets directory, %w", err)
 	}
 
@@ -235,18 +204,18 @@ func (cfg *Config) ValidateBasic() error {
 
 var (
 	DefaultDBDir      = "db"
-	DefaultConfigDir  = "config"
-	DefaultSecretsDir = "secrets"
+	defaultConfigDir  = "config"
+	defaultSecretsDir = "secrets"
 
-	DefaultConfigFileName   = "config.toml"
+	defaultConfigFileName   = "config.toml"
 	defaultNodeKeyName      = "node_key.json"
 	defaultPrivValKeyName   = "priv_validator_key.json"
 	defaultPrivValStateName = "priv_validator_state.json"
 
-	defaultConfigPath       = filepath.Join(DefaultConfigDir, DefaultConfigFileName)
-	defaultPrivValKeyPath   = filepath.Join(DefaultSecretsDir, defaultPrivValKeyName)
-	defaultPrivValStatePath = filepath.Join(DefaultSecretsDir, defaultPrivValStateName)
-	defaultNodeKeyPath      = filepath.Join(DefaultSecretsDir, defaultNodeKeyName)
+	defaultConfigPath       = filepath.Join(defaultConfigDir, defaultConfigFileName)
+	defaultPrivValKeyPath   = filepath.Join(defaultSecretsDir, defaultPrivValKeyName)
+	defaultPrivValStatePath = filepath.Join(defaultSecretsDir, defaultPrivValStateName)
+	defaultNodeKeyPath      = filepath.Join(defaultSecretsDir, defaultNodeKeyName)
 )
 
 // BaseConfig defines the base configuration for a Tendermint node.
@@ -287,15 +256,19 @@ type BaseConfig struct {
 	// and verifying their commits
 	FastSyncMode bool `toml:"fast_sync" comment:"If this node is many blocks behind the tip of the chain, FastSync\n allows them to catchup quickly by downloading blocks in parallel\n and verifying their commits"`
 
-	// Database backend: goleveldb | boltdb
+	// Database backend: goleveldb | cleveldb | boltdb
 	// * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
 	//   - pure go
 	//   - stable
+	// * cleveldb (uses levigo wrapper)
+	//   - fast
+	//   - requires gcc
+	//   - use cleveldb build tag (go build -tags cleveldb)
 	// * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
 	//   - use boltdb build tag (go build -tags boltdb)
-	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | boltdb\n * goleveldb (github.com/syndtr/goleveldb - most popular implementation)\n  - pure go\n  - stable\n* boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
+	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | cleveldb | boltdb\n * goleveldb (github.com/syndtr/goleveldb - most popular implementation)\n  - pure go\n  - stable\n * cleveldb (uses levigo wrapper)\n  - fast\n  - requires gcc\n  - use cleveldb build tag (go build -tags cleveldb)\n * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
 
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`
@@ -396,10 +369,9 @@ func (cfg BaseConfig) ValidateBasic() error {
 	}
 
 	// Verify the DB backend
-	// This will reject also any databases that haven't been added with build tags.
-	// always reject memdb, as it shouldn't be used as a real-life database.
-	if cfg.DBBackend == "memdb" ||
-		!slices.Contains(db.BackendList(), db.BackendType(cfg.DBBackend)) {
+	if cfg.DBBackend != db.GoLevelDBBackend.String() &&
+		cfg.DBBackend != db.CLevelDBBackend.String() &&
+		cfg.DBBackend != db.BoltDBBackend.String() {
 		return errInvalidDBBackend
 	}
 

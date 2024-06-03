@@ -1,3 +1,6 @@
+//go:build ledger_suite
+// +build ledger_suite
+
 package client
 
 import (
@@ -7,17 +10,19 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/crypto/internal/ledger"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+// Make sure to run these tests with the following tag enabled:
+// -tags='ledger_suite'
 func TestAdd_Ledger(t *testing.T) {
-	ledger.Discover = ledger.DiscoverMock
-	t.Cleanup(func() { ledger.Discover = ledger.DiscoverDefault })
+	t.Parallel()
 
 	t.Run("valid ledger reference added", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			kbHome      = t.TempDir()
 			baseOptions = BaseOptions{
@@ -58,6 +63,8 @@ func TestAdd_Ledger(t *testing.T) {
 	})
 
 	t.Run("valid ledger reference added, overwrite", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			kbHome      = t.TempDir()
 			baseOptions = BaseOptions{
@@ -109,6 +116,8 @@ func TestAdd_Ledger(t *testing.T) {
 	})
 
 	t.Run("valid ledger reference added, no overwrite permission", func(t *testing.T) {
+		t.Parallel()
+
 		var (
 			kbHome      = t.TempDir()
 			baseOptions = BaseOptions{

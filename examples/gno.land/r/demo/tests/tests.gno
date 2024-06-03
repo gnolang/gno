@@ -17,7 +17,7 @@ func Counter() int {
 }
 
 func CurrentRealmPath() string {
-	return std.CurrentRealm().PkgPath()
+	return std.CurrentRealmPath()
 }
 
 var initOrigCaller = std.GetOrigCaller()
@@ -26,20 +26,12 @@ func InitOrigCaller() std.Address {
 	return initOrigCaller
 }
 
-func CallAssertOriginCall() {
+func AssertOriginCall() {
 	std.AssertOriginCall()
 }
 
-func CallIsOriginCall() bool {
+func IsOriginCall() bool {
 	return std.IsOriginCall()
-}
-
-func CallSubtestsAssertOriginCall() {
-	rsubtests.CallAssertOriginCall()
-}
-
-func CallSubtestsIsOriginCall() bool {
-	return rsubtests.CallIsOriginCall()
 }
 
 //----------------------------------------

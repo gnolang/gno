@@ -1,7 +1,10 @@
 codecov:
-  require_ci_to_pass: true
+  require_ci_to_pass: false
   notify:
     wait_for_ci: true
+
+ignore:
+  - misc
 
 comment:
   require_changes: false
@@ -22,7 +25,7 @@ coverage:
     patch:
       default:
         target: auto
-        threshold: 10 # Let's decrease this later.
+        threshold: 100 # Allows PRs without tests, overall stats count.
         base: auto
         if_no_uploads: error
         if_not_found: success
@@ -37,5 +40,18 @@ flag_management:
         target: auto
         threshold: 10 # Let's decrease this later.
       - type: patch
-        target: auto # Let's decrease this later.
-        threshold: 10
+        target: auto # Allows PRs without tests, overall stats count.
+        threshold: 100
+  individual_flags:
+    - name: tm2
+      paths:
+      - tm2
+    - name: gnovm
+      paths:
+      - gnovm
+    - name: gno.land
+      paths:
+      - gno.land
+    - name: misc
+      paths:
+      - misc

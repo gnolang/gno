@@ -5,6 +5,7 @@ id: testing
 # Testing
 
 ```go
+func TestCurrentRealm() string
 func TestSkipHeights(count int64)
 func TestSetOrigCaller(addr Address)
 func TestSetOrigPkgAddr(addr Address)
@@ -12,6 +13,16 @@ func TestSetOrigSend(sent, spent Coins)
 func TestIssueCoins(addr Address, coins Coins)
 ```
 
+## TestCurrentRealm
+```go
+func TestCurrentRealm() string
+```
+Returns the current realm path.
+
+#### Usage
+```go
+currentRealmPath := std.TestCurrentRealm()
+```
 ---
 
 ## TestSkipHeights

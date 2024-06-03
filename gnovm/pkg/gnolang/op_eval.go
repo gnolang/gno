@@ -47,7 +47,7 @@ func (m *Machine) doOpEval() {
 		m.PopExpr()
 		switch x.Kind {
 		case INT:
-			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
+			x.Value = strings.ReplaceAll(x.Value, "_", "")
 			// temporary optimization
 			bi := big.NewInt(0)
 			// TODO optimize.
@@ -84,7 +84,7 @@ func (m *Machine) doOpEval() {
 				V: BigintValue{V: bi},
 			})
 		case FLOAT:
-			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
+			x.Value = strings.ReplaceAll(x.Value, "_", "")
 
 			if reFloat.MatchString(x.Value) {
 				value := x.Value

@@ -37,8 +37,6 @@ func (mempkg *MemPackage) IsEmpty() bool {
 	return len(mempkg.Files) == 0
 }
 
-const pathLengthLimit = 256
-
 var (
 	rePkgName      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 	rePkgOrRlmPath = regexp.MustCompile(`^gno\.land\/(?:p|r)(?:\/_?[a-z]+[a-z0-9_]*)+$`)
@@ -54,14 +52,9 @@ func (mempkg *MemPackage) Validate() error {
 		return fmt.Errorf("no files found within package %q", mempkg.Name)
 	}
 
-	if len(mempkg.Path) > pathLengthLimit {
-		return fmt.Errorf("path length %d exceeds limit %d", len(mempkg.Path), pathLengthLimit)
-	}
-
 	if !rePkgName.MatchString(mempkg.Name) {
 		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
 	}
-
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
 	}

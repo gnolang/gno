@@ -29,6 +29,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,8 +39,8 @@ import (
 	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -79,7 +80,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				baseDir := filepath.Join(filesPath, "extern", pkgPath[len(testPath):])
 				memPkg := gno.ReadMemPackage(baseDir, pkgPath)
 				send := std.Coins{}
-				ctx := TestContext(pkgPath, send)
+				ctx := testContext(pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					PkgPath: "test",
 					Output:  stdout,
@@ -186,7 +187,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 						d := arg0.GetInt64()
 						sec := d / int64(time.Second)
 						nano := d % int64(time.Second)
-						ctx := m.Context.(*teststd.TestExecContext)
+						ctx := m.Context.(stdlibs.ExecContext)
 						ctx.Timestamp += sec
 						ctx.TimestampNano += nano
 						if ctx.TimestampNano >= int64(time.Second) {
@@ -257,17 +258,16 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("Pi", math.Pi)
 				pkg.DefineGoNativeValue("MaxFloat32", math.MaxFloat32)
 				pkg.DefineGoNativeValue("MaxFloat64", math.MaxFloat64)
-				pkg.DefineGoNativeValue("MaxUint32", uint32(math.MaxUint32))
+				pkg.DefineGoNativeValue("MaxUint32", math.MaxUint32)
 				pkg.DefineGoNativeValue("MaxUint64", uint64(math.MaxUint64))
-				println("---define min int8")
 				pkg.DefineGoNativeValue("MinInt8", math.MinInt8)
 				pkg.DefineGoNativeValue("MinInt16", math.MinInt16)
 				pkg.DefineGoNativeValue("MinInt32", math.MinInt32)
-				pkg.DefineGoNativeValue("MinInt64", int64(math.MinInt64))
+				pkg.DefineGoNativeValue("MinInt64", math.MinInt64)
 				pkg.DefineGoNativeValue("MaxInt8", math.MaxInt8)
 				pkg.DefineGoNativeValue("MaxInt16", math.MaxInt16)
 				pkg.DefineGoNativeValue("MaxInt32", math.MaxInt32)
-				pkg.DefineGoNativeValue("MaxInt64", int64(math.MaxInt64))
+				pkg.DefineGoNativeValue("MaxInt64", math.MaxInt64)
 				return pkg, pkg.NewPackage()
 			case "math/rand":
 				// XXX only expose for tests.
@@ -332,6 +332,11 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg := gno.NewPackageNode("big", pkgPath, nil)
 				pkg.DefineGoNativeValue("NewInt", big.NewInt)
 				return pkg, pkg.NewPackage()
+			case "sort":
+				pkg := gno.NewPackageNode("sort", pkgPath, nil)
+				pkg.DefineGoNativeValue("Strings", sort.Strings)
+				// pkg.DefineGoNativeValue("Sort", sort.Sort)
+				return pkg, pkg.NewPackage()
 			case "flag":
 				pkg := gno.NewPackageNode("flag", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(flag.Flag{}))
@@ -391,7 +396,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			}
 
 			send := std.Coins{}
-			ctx := TestContext(pkgPath, send)
+			ctx := testContext(pkgPath, send)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  stdout,

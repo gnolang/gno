@@ -32,7 +32,6 @@ func TestNewPage2(t *testing.T) {
 }
 
 func TestNewPageSprint(t *testing.T) {
-	t.Skip("test failing")
 	page := NewPage("this is a new string", 10, false, nil)
 	require.NotNil(t, page)
 	/*

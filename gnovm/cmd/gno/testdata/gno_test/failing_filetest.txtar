@@ -6,6 +6,14 @@ stdout 'Machine.RunMain\(\) panic: beep boop'
 stderr '=== RUN   file/failing_filetest.gno'
 stderr 'panic: fail on failing_filetest.gno: got unexpected error: beep boop'
 
+! gno test -v --transpile .
+
+stdout 'Machine.RunMain\(\) panic: beep boop'
+stderr '=== PREC  \.'
+stderr '=== BUILD \.'
+stderr '=== RUN   file/failing_filetest.gno'
+stderr 'panic: fail on failing_filetest.gno: got unexpected error: beep boop'
+
 -- failing.gno --
 package failing
 

@@ -11,7 +11,7 @@ networks:
 
 services:
   traefik:
-    image: "traefik:v2.11"
+    image: "traefik:v2.10"
     restart: unless-stopped
     command:
       - "--api.insecure=true"
@@ -31,7 +31,7 @@ services:
       - ./traefik:/etc/traefik/configs
 
   gnoweb:
-    image: ghcr.io/gnolang/gno/gnoweb:master
+    image: ghcr.io/gnolang/gno/gnoweb-slim
     restart: unless-stopped
     networks:
       - portal-loop

@@ -231,7 +231,7 @@ func TranspileBuildPackage(fileOrPkg, goBinary string) error {
 	return err
 }
 
-var reGoBuildError = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
+var errorRe = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
 
 // parseGoBuildErrors returns a scanner.ErrorList filled with all errors found
 // in out, which is supposed to be the output of the `go build` command.
@@ -240,7 +240,7 @@ var reGoBuildError = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
 // See https://github.com/golang/go/issues/62067
 func parseGoBuildErrors(out string) error {
 	var errList goscanner.ErrorList
-	matches := reGoBuildError.FindAllStringSubmatch(out, -1)
+	matches := errorRe.FindAllStringSubmatch(out, -1)
 	for _, match := range matches {
 		filename := match[1]
 		line, err := strconv.Atoi(match[2])

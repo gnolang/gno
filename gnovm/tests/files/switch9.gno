@@ -13,4 +13,4 @@ func main() {
 }
 
 // Error:
-// cannot fallthrough in type switch
+// 9:3: cannot fallthrough in type switch

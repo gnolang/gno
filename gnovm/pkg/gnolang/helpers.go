@@ -91,7 +91,7 @@ func Flds(args ...interface{}) FieldTypeExprs {
 
 func Recv(n, t interface{}) FieldTypeExpr {
 	if n == "" {
-		n = blankIdentifier
+		n = "_"
 	}
 	return FieldTypeExpr{
 		Name: N(n),

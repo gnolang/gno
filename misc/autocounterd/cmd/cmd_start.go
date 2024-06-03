@@ -52,12 +52,12 @@ func NewStartCmd(io commands.IO) *commands.Command {
 	)
 }
 
-func (cfg *startCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(&cfg.rpcURL, "rpc", "127.0.0.1:26657", "rpc url endpoint")
-	fs.StringVar(&cfg.chainID, "chain-id", "dev", "chain-id")
-	fs.StringVar(&cfg.mnemonic, "mnemonic", "", "mnemonic")
-	fs.StringVar(&cfg.realmPath, "realm", "gno.land/r/portal/counter", "realm path")
-	fs.DurationVar(&cfg.incrementInterval, "interval", 15*time.Second, "Increment counter interval")
+func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(&c.rpcURL, "rpc", "127.0.0.1:26657", "rpc url endpoint")
+	fs.StringVar(&c.chainID, "chain-id", "dev", "chain-id")
+	fs.StringVar(&c.mnemonic, "mnemonic", "", "mnemonic")
+	fs.StringVar(&c.realmPath, "realm", "gno.land/r/portal/counter", "realm path")
+	fs.DurationVar(&c.incrementInterval, "interval", 15*time.Second, "Increment counter interval")
 }
 
 func execStart(cfg *startCfg, args []string, io commands.IO) error {

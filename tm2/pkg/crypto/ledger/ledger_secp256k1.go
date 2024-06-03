@@ -12,12 +12,27 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
-	"github.com/gnolang/gno/tm2/pkg/crypto/internal/ledger"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 type (
+	// discoverLedgerFn defines a Ledger discovery function that returns a
+	// connected device or an error upon failure. Its allows a method to avoid CGO
+	// dependencies when Ledger support is potentially not enabled.
+	discoverLedgerFn func() (LedgerSECP256K1, error)
+
+	// LedgerSECP256K1 reflects an interface a Ledger API must implement for SECP256K1
+	LedgerSECP256K1 interface {
+		Close() error
+		// Returns an uncompressed pubkey
+		GetPublicKeySECP256K1([]uint32) ([]byte, error)
+		// Returns a compressed pubkey and bech32 address (requires user confirmation)
+		GetAddressPubKeySECP256K1([]uint32, string) ([]byte, string, error)
+		// Signs a message (requires user confirmation)
+		SignSECP256K1([]uint32, []byte, byte) ([]byte, error)
+	}
+
 	// PrivKeyLedgerSecp256k1 implements PrivKey, calling the ledger nano we
 	// cache the PubKey from the first call to use it later.
 	PrivKeyLedgerSecp256k1 struct {
@@ -176,8 +191,8 @@ func convertDERtoBER(signatureDER []byte) ([]byte, error) {
 	return sigBytes, nil
 }
 
-func getLedgerDevice() (ledger.SECP256K1, error) {
-	device, err := ledger.Discover()
+func getLedgerDevice() (LedgerSECP256K1, error) {
+	device, err := discoverLedger()
 	if err != nil {
 		return nil, errors.Wrap(err, "ledger nano S")
 	}
@@ -185,7 +200,7 @@ func getLedgerDevice() (ledger.SECP256K1, error) {
 	return device, nil
 }
 
-func validateKey(device ledger.SECP256K1, pkl PrivKeyLedgerSecp256k1) error {
+func validateKey(device LedgerSECP256K1, pkl PrivKeyLedgerSecp256k1) error {
 	pub, err := getPubKeyUnsafe(device, pkl.Path)
 	if err != nil {
 		return err
@@ -204,7 +219,7 @@ func validateKey(device ledger.SECP256K1, pkl PrivKeyLedgerSecp256k1) error {
 // Communication is checked on NewPrivKeyLedger and PrivKeyFromBytes, returning
 // an error, so this should only trigger if the private key is held in memory
 // for a while before use.
-func sign(device ledger.SECP256K1, pkl PrivKeyLedgerSecp256k1, msg []byte) ([]byte, error) {
+func sign(device LedgerSECP256K1, pkl PrivKeyLedgerSecp256k1, msg []byte) ([]byte, error) {
 	err := validateKey(device, pkl)
 	if err != nil {
 		return nil, err
@@ -225,7 +240,7 @@ func sign(device ledger.SECP256K1, pkl PrivKeyLedgerSecp256k1, msg []byte) ([]by
 //
 // since this involves IO, it may return an error, which is not exposed
 // in the PubKey interface, so this function allows better error handling
-func getPubKeyUnsafe(device ledger.SECP256K1, path hd.BIP44Params) (crypto.PubKey, error) {
+func getPubKeyUnsafe(device LedgerSECP256K1, path hd.BIP44Params) (crypto.PubKey, error) {
 	publicKey, err := device.GetPublicKeySECP256K1(path.DerivationPath())
 	if err != nil {
 		return nil, fmt.Errorf("please open Cosmos app on the Ledger device - error: %w", err)
@@ -249,7 +264,7 @@ func getPubKeyUnsafe(device ledger.SECP256K1, path hd.BIP44Params) (crypto.PubKe
 //
 // Since this involves IO, it may return an error, which is not exposed
 // in the PubKey interface, so this function allows better error handling.
-func getPubKeyAddrSafe(device ledger.SECP256K1, path hd.BIP44Params, hrp string) (crypto.PubKey, string, error) {
+func getPubKeyAddrSafe(device LedgerSECP256K1, path hd.BIP44Params, hrp string) (crypto.PubKey, string, error) {
 	publicKey, addr, err := device.GetAddressPubKeySECP256K1(path.DerivationPath(), hrp)
 	if err != nil {
 		return nil, "", fmt.Errorf("address %s rejected", addr)

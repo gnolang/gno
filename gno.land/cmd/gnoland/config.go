@@ -3,15 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
-
-const tryConfigInit = "unable to load config; try running `gnoland config init` or use the -lazy flag"
 
 type configCfg struct {
 	configPath string
@@ -43,18 +39,8 @@ func (c *configCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.configPath,
 		"config-path",
-		constructConfigPath(defaultNodeDir),
+		"./config.toml",
 		"the path for the config.toml",
-	)
-}
-
-// constructConfigPath constructs the default config path, using
-// the given node directory
-func constructConfigPath(nodeDir string) string {
-	return filepath.Join(
-		nodeDir,
-		config.DefaultConfigDir,
-		config.DefaultConfigFileName,
 	)
 }
 

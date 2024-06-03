@@ -91,7 +91,7 @@ func TestConfig_Set_Invalid(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, tryConfigInit)
+		assert.ErrorContains(t, cmdErr, "unable to load config")
 	})
 
 	t.Run("invalid config change", func(t *testing.T) {

@@ -13,7 +13,10 @@ import (
 type QueryCfg struct {
 	RootCfg *BaseCfg
 
-	Data string
+	Data   string
+	Height int64
+	Prove  bool
+
 	Path string
 }
 
@@ -41,6 +44,20 @@ func (c *QueryCfg) RegisterFlags(fs *flag.FlagSet) {
 		"data",
 		"",
 		"query data bytes",
+	)
+
+	fs.Int64Var(
+		&c.Height,
+		"height",
+		0,
+		"query height (not yet supported)",
+	)
+
+	fs.BoolVar(
+		&c.Prove,
+		"prove",
+		false,
+		"prove query result (not yet supported)",
 	)
 }
 

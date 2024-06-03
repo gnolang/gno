@@ -3,7 +3,6 @@ package mempool
 import (
 	"bytes"
 	"container/list"
-	"context"
 	"crypto/sha256"
 	"fmt"
 	"log/slog"
@@ -20,8 +19,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"github.com/gnolang/gno/tm2/pkg/telemetry"
-	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
 
 // --------------------------------------------------------------------------------
@@ -336,22 +333,6 @@ func (mem *CListMempool) addTx(memTx *mempoolTx) {
 	e := mem.txs.PushBack(memTx)
 	mem.txsMap.Store(txKey(memTx.tx), e)
 	atomic.AddInt64(&mem.txsBytes, int64(len(memTx.tx)))
-
-	// Update the telemetry
-	mem.logTelemetry()
-}
-
-// logTelemetry logs the mempool telemetry
-func (mem *CListMempool) logTelemetry() {
-	if !telemetry.MetricsEnabled() {
-		return
-	}
-
-	// Log the total number of mempool transactions
-	metrics.NumMempoolTxs.Record(context.Background(), int64(mem.txs.Len()))
-
-	// Log the total number of the mempool cache transactions
-	metrics.NumCachedTxs.Record(context.Background(), int64(mem.cache.Len()))
 }
 
 // Called from:
@@ -366,9 +347,6 @@ func (mem *CListMempool) removeTx(tx types.Tx, elem *clist.CElement, removeFromC
 	if removeFromCache {
 		mem.cache.Remove(tx)
 	}
-
-	// Update the telemetry
-	mem.logTelemetry()
 }
 
 // callback, which is called after the app checked the tx for the first time.
@@ -644,13 +622,12 @@ type txCache interface {
 	Reset()
 	Push(tx types.Tx) bool
 	Remove(tx types.Tx)
-	Len() int
 }
 
 // mapTxCache maintains a LRU cache of transactions. This only stores the hash
 // of the tx, due to memory concerns.
 type mapTxCache struct {
-	mtx  sync.RWMutex
+	mtx  sync.Mutex
 	size int
 	map_ map[[sha256.Size]byte]*list.Element
 	list *list.List
@@ -673,13 +650,6 @@ func (cache *mapTxCache) Reset() {
 	cache.map_ = make(map[[sha256.Size]byte]*list.Element, cache.size)
 	cache.list.Init()
 	cache.mtx.Unlock()
-}
-
-func (cache *mapTxCache) Len() int {
-	cache.mtx.RLock()
-	defer cache.mtx.RUnlock()
-
-	return cache.list.Len()
 }
 
 // Push adds the given tx to the cache and returns true. It returns
@@ -728,7 +698,6 @@ var _ txCache = (*nopTxCache)(nil)
 func (nopTxCache) Reset()             {}
 func (nopTxCache) Push(types.Tx) bool { return true }
 func (nopTxCache) Remove(types.Tx)    {}
-func (nopTxCache) Len() int           { return 0 }
 
 // --------------------------------------------------------------------------------
 

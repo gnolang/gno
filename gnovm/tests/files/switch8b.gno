@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// cannot fallthrough final case in switch
+// 10:3: cannot fallthrough final case in switch

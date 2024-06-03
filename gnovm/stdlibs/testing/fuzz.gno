@@ -1,6 +1,10 @@
 package testing
 
-import "strings"
+import (
+	"math"
+	"strings"
+	"time"
+)
 
 type Fuzzer interface {
 	InsertDeleteMutate(p float64) Fuzzer
@@ -238,7 +242,10 @@ func (f *F) evolve(generations int) {
 			newPopulation = append(newPopulation, population[i])
 		}
 
-		var bestFitness int
+		var (
+			bestFitness    int
+			bestIndividual string
+		)
 
 		for _, ind := range newPopulation {
 			if GenerateRandomBool(0.2) {
@@ -253,6 +260,7 @@ func (f *F) evolve(generations int) {
 
 			if ind.Fitness > bestFitness {
 				bestFitness = ind.Fitness
+				bestIndividual = ind.Fuzzer.String()
 			}
 		}
 

@@ -5,8 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"go/scanner"
-	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -20,8 +18,9 @@ import (
 )
 
 type lintCfg struct {
-	verbose bool
-	rootDir string
+	verbose       bool
+	rootDir       string
+	setExitStatus int
 	// min_confidence: minimum confidence of a problem to print it (default 0.8)
 	// auto-fix: apply suggested fixes automatically.
 }
@@ -47,6 +46,7 @@ func (c *lintCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.BoolVar(&c.verbose, "v", false, "verbose output when lintning")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
+	fs.IntVar(&c.setExitStatus, "set-exit-status", 1, "set exit status to 1 if any issues are found")
 }
 
 func execLint(cfg *lintCfg, args []string, io commands.IO) error {
@@ -68,6 +68,10 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	}
 
 	hasError := false
+	addIssue := func(issue lintIssue) {
+		hasError = true
+		fmt.Fprint(io.Err(), issue.String()+"\n")
+	}
 
 	for _, pkgPath := range pkgPaths {
 		if verbose {
@@ -77,18 +81,16 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		// Check if 'gno.mod' exists
 		gnoModPath := filepath.Join(pkgPath, "gno.mod")
 		if !osm.FileExists(gnoModPath) {
-			hasError = true
-			issue := lintIssue{
+			addIssue(lintIssue{
 				Code:       lintNoGnoMod,
 				Confidence: 1,
 				Location:   pkgPath,
 				Msg:        "missing 'gno.mod' file",
-			}
-			fmt.Fprint(io.Err(), issue.String()+"\n")
+			})
 		}
 
 		// Handle runtime errors
-		hasError = catchRuntimeError(pkgPath, io.Err(), func() {
+		catchRuntimeError(pkgPath, addIssue, func() {
 			stdout, stdin, stderr := io.Out(), io.In(), io.Err()
 			testStore := tests.TestStore(
 				rootDir, "",
@@ -128,13 +130,13 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 			}
 
 			tm.RunFiles(testfiles.Files...)
-		}) || hasError
+		})
 
 		// TODO: Add more checkers
 	}
 
-	if hasError {
-		return commands.ExitCodeError(1)
+	if hasError && cfg.setExitStatus != 0 {
+		os.Exit(cfg.setExitStatus)
 	}
 
 	return nil
@@ -162,33 +164,47 @@ func guessSourcePath(pkg, source string) string {
 // XXX: Ideally, error handling should encapsulate location details within a dedicated error type.
 var reParseRecover = regexp.MustCompile(`^([^:]+):(\d+)(?::\d+)?:? *(.*)$`)
 
-func catchRuntimeError(pkgPath string, stderr io.WriteCloser, action func()) (hasError bool) {
+func catchRuntimeError(pkgPath string, addIssue func(issue lintIssue), action func()) {
 	defer func() {
 		// Errors catched here mostly come from: gnovm/pkg/gnolang/preprocess.go
 		r := recover()
 		if r == nil {
 			return
 		}
-		hasError = true
+
+		var err error
 		switch verr := r.(type) {
 		case *gno.PreprocessError:
-			err := verr.Unwrap()
-			fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
-		case scanner.ErrorList:
-			for _, err := range verr {
-				fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
-			}
+			err = verr.Unwrap()
 		case error:
-			fmt.Fprint(stderr, issueFromError(pkgPath, verr).String()+"\n")
+			err = verr
 		case string:
-			fmt.Fprint(stderr, issueFromError(pkgPath, errors.New(verr)).String()+"\n")
+			err = errors.New(verr)
 		default:
 			panic(r)
 		}
+
+		var issue lintIssue
+		issue.Confidence = 1
+		issue.Code = lintGnoError
+
+		parsedError := strings.TrimSpace(err.Error())
+		parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
+
+		matches := reParseRecover.FindStringSubmatch(parsedError)
+		if len(matches) == 4 {
+			sourcepath := guessSourcePath(pkgPath, matches[1])
+			issue.Location = fmt.Sprintf("%s:%s", sourcepath, matches[2])
+			issue.Msg = strings.TrimSpace(matches[3])
+		} else {
+			issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
+			issue.Msg = err.Error()
+		}
+
+		addIssue(issue)
 	}()
 
 	action()
-	return
 }
 
 type lintCode int
@@ -212,24 +228,4 @@ type lintIssue struct {
 func (i lintIssue) String() string {
 	// TODO: consider crafting a doc URL based on Code.
 	return fmt.Sprintf("%s: %s (code=%d).", i.Location, i.Msg, i.Code)
-}
-
-func issueFromError(pkgPath string, err error) lintIssue {
-	var issue lintIssue
-	issue.Confidence = 1
-	issue.Code = lintGnoError
-
-	parsedError := strings.TrimSpace(err.Error())
-	parsedError = strings.TrimPrefix(parsedError, pkgPath+"/")
-
-	matches := reParseRecover.FindStringSubmatch(parsedError)
-	if len(matches) == 4 {
-		sourcepath := guessSourcePath(pkgPath, matches[1])
-		issue.Location = fmt.Sprintf("%s:%s", sourcepath, matches[2])
-		issue.Msg = strings.TrimSpace(matches[3])
-	} else {
-		issue.Location = fmt.Sprintf("%s:0", filepath.Clean(pkgPath))
-		issue.Msg = err.Error()
-	}
-	return issue
 }

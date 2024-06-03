@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// fallthrough statement out of place
+// 7:3: fallthrough statement out of place

@@ -61,17 +61,6 @@ func newBugCmd(io commands.IO) *commands.Command {
 			Name:       "bug",
 			ShortUsage: "bug",
 			ShortHelp:  "Start a bug report",
-			LongHelp: `opens https://github.com/gnolang/gno/issues in a browser. 
-
-The new issue body is prefilled for you with the following information:
-
-- Go version (example: go1.22.2)
-- OS and CPU architecture (example: linux/amd64)
-- Gno commit hash causing the issue (example: f24690e7ebf325bffcfaf9e328c3df8e6b21e50c)
-
-The rest of the report consists of markdown sections such as ### Steps to reproduce
-that you can edit.
-`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -85,7 +74,7 @@ func (c *bugCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.skipBrowser,
 		"skip-browser",
 		false,
-		"output a prefilled issue template on the cli instead",
+		"do not open the browser",
 	)
 }
 

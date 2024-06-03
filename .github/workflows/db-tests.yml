@@ -1,0 +1,54 @@
+name: db-tests
+
+on:
+  pull_request:
+    paths:
+      - "tm2/pkg/db/**.go"
+      - "go.sum"
+      - ".github/workflows/db-tests.yml"
+  push:
+    branches: [ "master" ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # NOTE: this job uses a specific version of ubuntu as the version of grocksb
+    # we use is related to the version of RocksDB in ubuntu's repositories.
+    # If updating this to a later ubuntu release, update the grocksdb version
+    # accordingly:
+    # https://github.com/linxGnu/grocksdb/releases
+    # https://pkgs.org/search/?q=rocksdb-dev
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        goversion:
+          - "1.21.x"
+          - "1.22.x"
+    steps:
+      - uses: actions/checkout@v4
+
+      # golang
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.goversion }}
+
+      - name: install database dependencies
+        run: sudo apt-get install -y libleveldb-dev librocksdb-dev
+
+      - name: Set environment variables for debug mode
+        if: env.ACTIONS_STEP_DEBUG == 'true'
+        run: |
+          export LOG_PATH_DIR=${{ runner.temp }}/logs
+          mkdir -p $LOG_PATH_DIR
+
+          echo "LOG_LEVEL=debug" >> $GITHUB_ENV
+          echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
+
+      # test ./pkgs/db
+      - name: test ./tm2/pkg/db
+        run: go test -v ./tm2/pkg/db/...

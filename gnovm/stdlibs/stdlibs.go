@@ -9,10 +9,6 @@ import (
 
 type ExecContext = libsstd.ExecContext
 
-func GetContext(m *gno.Machine) ExecContext {
-	return libsstd.GetContext(m)
-}
-
 func NativeStore(pkgPath string, name gno.Name) func(*gno.Machine) {
 	for _, nf := range nativeFuncs {
 		if nf.gnoPkg == pkgPath && name == nf.gnoFunc {

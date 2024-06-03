@@ -41,7 +41,7 @@ func execConfigEdit(cfg *configCfg, io commands.IO, args []string) error {
 	// Load the config
 	loadedCfg, err := config.LoadConfigFile(cfg.configPath)
 	if err != nil {
-		return fmt.Errorf("%s, %w", tryConfigInit, err)
+		return fmt.Errorf("unable to load config, %w", err)
 	}
 
 	// Make sure the edit arguments are valid

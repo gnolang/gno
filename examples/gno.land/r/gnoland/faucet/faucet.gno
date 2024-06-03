@@ -21,7 +21,7 @@ var (
 	gTotalTransfers   = uint(0)
 
 	// per request limit, 350 gnot
-	gLimit std.Coin = std.NewCoin("ugnot", 350000000)
+	gLimit std.Coin = std.Coin{"ugnot", 350000000}
 )
 
 func Transfer(to std.Address, send int64) string {
@@ -37,7 +37,7 @@ func Transfer(to std.Address, send int64) string {
 	if send > gLimit.Amount {
 		return errors.New("Per request limit " + gLimit.String() + " exceed").Error()
 	}
-	sendCoins := std.Coins{std.NewCoin("ugnot", send)}
+	sendCoins := std.Coins{std.Coin{Denom: "ugnot", Amount: send}}
 
 	gTotalTransferred = gTotalTransferred.Add(sendCoins)
 	gTotalTransfers++

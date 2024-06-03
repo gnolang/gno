@@ -8,40 +8,28 @@ import (
 )
 
 func TestAssertOriginCall(t *testing.T) {
-	// CallAssertOriginCall(): no panic
-	CallAssertOriginCall()
-	if !CallIsOriginCall() {
+	// No-panic case
+	AssertOriginCall()
+	if !IsOriginCall() {
 		t.Errorf("expected IsOriginCall=true but got false")
 	}
 
-	// CallAssertOriginCall() from a block: panic
+	// Panic case
 	expectedReason := "invalid non-origin call"
-	func() {
-		defer func() {
-			r := recover()
-			if r == nil || r.(string) != expectedReason {
-				t.Errorf("expected panic with '%v', got '%v'", expectedReason, r)
-			}
-		}()
-		// if called inside a function literal, this is no longer an origin call
-		// because there's one additional frame (the function literal block).
-		if CallIsOriginCall() {
-			t.Errorf("expected IsOriginCall=false but got true")
-		}
-		CallAssertOriginCall()
-	}()
-
-	// CallSubtestsAssertOriginCall(): panic
 	defer func() {
 		r := recover()
 		if r == nil || r.(string) != expectedReason {
 			t.Errorf("expected panic with '%v', got '%v'", expectedReason, r)
 		}
 	}()
-	if CallSubtestsIsOriginCall() {
-		t.Errorf("expected IsOriginCall=false but got true")
-	}
-	CallSubtestsAssertOriginCall()
+	func() {
+		// if called inside a function literal, this is no longer an origin call
+		// because there's one additional frame (the function literal).
+		if IsOriginCall() {
+			t.Errorf("expected IsOriginCall=false but got true")
+		}
+		AssertOriginCall()
+	}()
 }
 
 func TestPrevRealm(t *testing.T) {

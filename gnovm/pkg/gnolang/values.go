@@ -817,7 +817,6 @@ type PackageValue struct {
 	fBlocksMap map[Name]*Block
 }
 
-// IsRealm returns true if pv represents a realm.
 func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
@@ -2426,7 +2425,7 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if path.IsBlockBlankPath() {
 		if debug {
-			if path.Name != blankIdentifier {
+			if path.Name != "_" {
 				panic(fmt.Sprintf(
 					"zero value path is reserved for \"_\", but got %s",
 					path.Name))

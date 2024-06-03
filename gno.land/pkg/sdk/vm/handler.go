@@ -1,17 +1,12 @@
 package vm
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/tm2/pkg/telemetry"
-	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 )
 
 type vmHandler struct {
@@ -56,6 +51,14 @@ func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result)
 	}
 	res.Data = []byte(resstr)
 	return
+	/* TODO handle events.
+	ctx.EventManager().EmitEvent(
+		sdk.NewEvent(
+			sdk.EventTypeMessage,
+			sdk.NewAttribute(sdk.AttributeKeyXXX, types.AttributeValueXXX),
+		),
+	)
+	*/
 }
 
 // Handle MsgRun.
@@ -68,7 +71,7 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 	return
 }
 
-// ----------------------------------------
+//----------------------------------------
 // Query
 
 // query paths
@@ -81,57 +84,26 @@ const (
 	QueryFile    = "qfile"
 )
 
-func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
-	var (
-		res  abci.ResponseQuery
-		path = secondPart(req.Path)
-	)
-
-	switch path {
+func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	switch secondPart(req.Path) {
 	case QueryPackage:
-		res = vh.queryPackage(ctx, req)
+		return vh.queryPackage(ctx, req)
 	case QueryStore:
-		res = vh.queryStore(ctx, req)
+		return vh.queryStore(ctx, req)
 	case QueryRender:
-		res = vh.queryRender(ctx, req)
+		return vh.queryRender(ctx, req)
 	case QueryFuncs:
-		res = vh.queryFuncs(ctx, req)
+		return vh.queryFuncs(ctx, req)
 	case QueryEval:
-		res = vh.queryEval(ctx, req)
+		return vh.queryEval(ctx, req)
 	case QueryFile:
-		res = vh.queryFile(ctx, req)
+		return vh.queryFile(ctx, req)
 	default:
-		return sdk.ABCIResponseQueryFromError(
+		res = sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
 				"unknown vm query endpoint %s in %s",
 				secondPart(req.Path), req.Path)))
-	}
-
-	// Log the telemetry
-	logQueryTelemetry(path, res.IsErr())
-
-	return res
-}
-
-// logQueryTelemetry logs the relevant VM query telemetry
-func logQueryTelemetry(path string, isErr bool) {
-	if !telemetry.MetricsEnabled() {
 		return
-	}
-
-	metrics.VMQueryCalls.Add(
-		context.Background(),
-		1,
-		metric.WithAttributes(
-			attribute.KeyValue{
-				Key:   "path",
-				Value: attribute.StringValue(path),
-			},
-		),
-	)
-
-	if isErr {
-		metrics.VMQueryErrors.Add(context.Background(), 1)
 	}
 }
 
@@ -215,7 +187,7 @@ func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.
 	return
 }
 
-// ----------------------------------------
+//----------------------------------------
 // misc
 
 func abciResult(err error) sdk.Result {

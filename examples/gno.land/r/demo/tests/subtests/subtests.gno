@@ -15,11 +15,3 @@ func GetPrevRealm() std.Realm {
 func Exec(fn func()) {
 	fn()
 }
-
-func CallAssertOriginCall() {
-	std.AssertOriginCall()
-}
-
-func CallIsOriginCall() bool {
-	return std.IsOriginCall()
-}

@@ -7,10 +7,10 @@ import (
 )
 
 func main() {
-	std.TestSetOrigSend(std.Coins{std.NewCoin("dontcare", 1)}, nil)
+	std.TestSetOrigSend(std.Coins{{"dontcare", 1}}, nil)
 	users.Register("", "gnouser", "my profile")
 	println("done")
 }
 
 // Error:
-// incompatible coin denominations: dontcare, ugnot
+// invalid coin denominations: dontcare

@@ -19,6 +19,24 @@ const testCh = 0x01
 
 // ------------------------------------------------
 
+func AddPeerToSwitchPeerSet(sw *Switch, peer Peer) {
+	sw.peers.Add(peer)
+}
+
+func CreateRandomPeer(outbound bool) *peer {
+	addr, netAddr := CreateRoutableAddr()
+	p := &peer{
+		peerConn: peerConn{
+			outbound:   outbound,
+			socketAddr: netAddr,
+		},
+		nodeInfo: NodeInfo{NetAddress: netAddr},
+		mconn:    &conn.MConnection{},
+	}
+	p.SetLogger(log.NewNoopLogger().With("peer", addr))
+	return p
+}
+
 func CreateRoutableAddr() (addr string, netAddr *NetAddress) {
 	for {
 		id := ed25519.GenPrivKey().PubKey().Address().ID()

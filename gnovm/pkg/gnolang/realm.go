@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
 )
 
@@ -1518,14 +1517,10 @@ func isUnsaved(oo Object) bool {
 // be realms and as such to have their state persisted. This is used by [IsRealmPath].
 const realmPathPrefix = "gno.land/r/"
 
-var ReGnoRunPath = regexp.MustCompile(`^gno\.land/r/g[a-z0-9]+/run$`)
-
 // IsRealmPath determines whether the given pkgpath is for a realm, and as such
 // should persist the global state.
 func IsRealmPath(pkgPath string) bool {
-	return strings.HasPrefix(pkgPath, realmPathPrefix) &&
-		// MsgRun pkgPath aren't realms
-		!ReGnoRunPath.MatchString(pkgPath)
+	return strings.HasPrefix(pkgPath, realmPathPrefix)
 }
 
 func prettyJSON(jstr []byte) []byte {

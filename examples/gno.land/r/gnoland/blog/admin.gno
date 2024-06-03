@@ -68,12 +68,6 @@ func ModEditPost(slug, title, body, publicationDate, authors, tags string) {
 	checkErr(err)
 }
 
-func ModRemovePost(slug string) {
-	assertIsModerator()
-
-	b.RemovePost(slug)
-}
-
 func ModAddCommenter(addr std.Address) {
 	assertIsModerator()
 	commenterList.Set(addr.String(), true)

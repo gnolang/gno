@@ -44,7 +44,7 @@ services:
       - ./traefik/letsencrypt:/letsencrypt
 
   gnoweb:
-    image: ghcr.io/gnolang/gno/gnoweb:master
+    image: ghcr.io/gnolang/gno/gnoweb-slim
     restart: unless-stopped
     env_file: ".env"
     entrypoint:
@@ -62,7 +62,7 @@ services:
       com.centurylinklabs.watchtower.enable: "true"
       traefik.enable: "true"
       traefik.http.routers.gnoweb.entrypoints: "web,websecure"
-      traefik.http.routers.gnoweb.rule: "Host(`gno.land`) || Host(`www.gno.land`)"
+      traefik.http.routers.gnoweb.rule: "Host(`gno.land`)"
       traefik.http.routers.gnoweb.tls: "true"
       traefik.http.routers.gnoweb.tls.certresolver: "le"
 
@@ -117,7 +117,7 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
 
   autocounterd:
-    image: ghcr.io/gnolang/gno/autocounterd
+    image: ghcr.io/albttx/gno/autocounterd
     restart: unless-stopped
     env_file: ".env"
     command:

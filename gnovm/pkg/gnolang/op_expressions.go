@@ -204,41 +204,16 @@ func (m *Machine) doOpRef() {
 func (m *Machine) doOpTypeAssert1() {
 	m.PopExpr()
 	// pop type
-	t := m.PopValue().GetType() // type being asserted
-
+	t := m.PopValue().GetType()
 	// peek x for re-use
-	xv := m.PeekValue(1) // value result / value to assert
-	xt := xv.T           // underlying value's type
-
-	// xt may be nil, but we need to wait to return because the value of xt that is set
-	// will depend on whether we are trying to assert to an interface or concrete type.
-	// xt can be nil in the case where recover can't find a panic to recover from and
-	// returns a bare TypedValue{}.
+	xv := m.PeekValue(1)
+	xt := xv.T
 
 	if t.Kind() == InterfaceKind { // is interface assert
-		if xt == nil || xv.IsNilInterface() {
-			// TODO: default panic type?
-			ex := fmt.Sprintf("interface conversion: interface is nil, not %s", t.String())
-			m.Panic(typedString(ex))
-			return
-		}
-
 		if it, ok := baseOf(t).(*InterfaceType); ok {
-			// An interface type assertion on a value that doesn't have a concrete base
-			// type should always fail.
-			if _, ok := baseOf(xt).(*InterfaceType); ok {
-				// TODO: default panic type?
-				ex := fmt.Sprintf(
-					"non-concrete %s doesn't implement %s",
-					xt.String(),
-					it.String())
-				m.Panic(typedString(ex))
-				return
-			}
-
 			// t is Gno interface.
 			// assert that x implements type.
-			var impl bool
+			impl := false
 			impl = it.IsImplementedBy(xt)
 			if !impl {
 				// TODO: default panic type?
@@ -255,22 +230,16 @@ func (m *Machine) doOpTypeAssert1() {
 		} else if nt, ok := baseOf(t).(*NativeType); ok {
 			// t is Go interface.
 			// assert that x implements type.
-			errPrefix := "non-concrete "
-			var impl bool
+			impl := false
 			if nxt, ok := xt.(*NativeType); ok {
-				// If the underlying native type is reflect.Interface kind, then this has no
-				// concrete value and should fail.
-				if nxt.Type.Kind() != reflect.Interface {
-					impl = nxt.Type.Implements(nt.Type)
-					errPrefix = ""
-				}
+				impl = nxt.Type.Implements(nt.Type)
+			} else {
+				impl = false
 			}
-
 			if !impl {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
-					"%s%s doesn't implement %s",
-					errPrefix,
+					"%s doesn't implement %s",
 					xt.String(),
 					nt.String())
 				m.Panic(typedString(ex))
@@ -282,12 +251,6 @@ func (m *Machine) doOpTypeAssert1() {
 			panic("should not happen")
 		}
 	} else { // is concrete assert
-		if xt == nil {
-			ex := fmt.Sprintf("nil is not of type %s", t.String())
-			m.Panic(typedString(ex))
-			return
-		}
-
 		tid := t.TypeID()
 		xtid := xt.TypeID()
 		// assert that x is of type.
@@ -310,37 +273,17 @@ func (m *Machine) doOpTypeAssert1() {
 func (m *Machine) doOpTypeAssert2() {
 	m.PopExpr()
 	// peek type for re-use
-	tv := m.PeekValue(1) // boolean result
-	t := tv.GetType()    // type being asserted
-
+	tv := m.PeekValue(1)
+	t := tv.GetType()
 	// peek x for re-use
-	xv := m.PeekValue(2) // value result / value to assert
-	xt := xv.T           // underlying value's type
-
-	// xt may be nil, but we need to wait to return because the value of xt that is set
-	// will depend on whether we are trying to assert to an interface or concrete type.
-	// xt can be nil in the case where recover can't find a panic to recover from and
-	// returns a bare TypedValue{}.
+	xv := m.PeekValue(2)
+	xt := xv.T
 
 	if t.Kind() == InterfaceKind { // is interface assert
-		if xt == nil {
-			*xv = TypedValue{}
-			*tv = untypedBool(false)
-			return
-		}
-
 		if it, ok := baseOf(t).(*InterfaceType); ok {
-			// An interface type assertion on a value that doesn't have a concrete base
-			// type should always fail.
-			if _, ok := baseOf(xt).(*InterfaceType); ok {
-				*xv = TypedValue{}
-				*tv = untypedBool(false)
-				return
-			}
-
 			// t is Gno interface.
 			// assert that x implements type.
-			var impl bool
+			impl := false
 			impl = it.IsImplementedBy(xt)
 			if impl {
 				// *xv = *xv
@@ -352,18 +295,14 @@ func (m *Machine) doOpTypeAssert2() {
 				*tv = untypedBool(false)
 			}
 		} else if nt, ok := baseOf(t).(*NativeType); ok {
-			// If the value being asserted on is nil, it can't implement an interface.
 			// t is Go interface.
 			// assert that x implements type.
-			var impl bool
+			impl := false
 			if nxt, ok := xt.(*NativeType); ok {
-				// If the underlying native type is reflect.Interface kind, then this has no
-				// concrete value and should fail.
-				if nxt.Type.Kind() != reflect.Interface {
-					impl = nxt.Type.Implements(nt.Type)
-				}
+				impl = nxt.Type.Implements(nt.Type)
+			} else {
+				impl = false
 			}
-
 			if impl {
 				// *xv = *xv
 				*tv = untypedBool(true)
@@ -375,20 +314,10 @@ func (m *Machine) doOpTypeAssert2() {
 			panic("should not happen")
 		}
 	} else { // is concrete assert
-		if xt == nil {
-			*xv = TypedValue{
-				T: t,
-				V: defaultValue(m.Alloc, t),
-			}
-			*tv = untypedBool(false)
-			return
-		}
-
 		tid := t.TypeID()
 		xtid := xt.TypeID()
 		// assert that x is of type.
 		same := tid == xtid
-
 		if same {
 			// *xv = *xv
 			*tv = untypedBool(true)

@@ -18,7 +18,7 @@ func IncCounter() {
 }
 
 func CurrentRealmPath() string {
-	return std.CurrentRealm().PkgPath()
+	return std.CurrentRealmPath()
 }
 
 //----------------------------------------

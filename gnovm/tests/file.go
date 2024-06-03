@@ -15,7 +15,6 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
-	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -36,7 +35,7 @@ func TestMachine(store gno.Store, stdout io.Writer, pkgPath string) *gno.Machine
 }
 
 func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAlloc int64, send std.Coins) *gno.Machine {
-	ctx := TestContext(pkgPath, send)
+	ctx := testContext(pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       "", // set later.
 		Output:        stdout,
@@ -47,8 +46,7 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 	return m
 }
 
-// TestContext returns a TestExecContext. Usable for test purpose only.
-func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
+func testContext(pkgPath string, send std.Coins) stdlibs.ExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr("user1.gno")
@@ -67,10 +65,7 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		Banker:        banker,
 		EventLogger:   sdk.NewEventLogger(),
 	}
-	return &teststd.TestExecContext{
-		ExecContext: ctx,
-		RealmFrames: make(map[*gno.Frame]teststd.RealmOverride),
-	}
+	return ctx
 }
 
 type runFileTestOptions struct {
@@ -141,13 +136,14 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 			defer func() {
 				if r := recover(); r != nil {
 					// print output.
-					fmt.Printf("OUTPUT:\n%s\n", stdout.String())
-					pnc = r
-					err := strings.TrimSpace(fmt.Sprintf("%v", pnc))
+					fmt.Println("OUTPUT:\n", stdout.String())
 					// print stack if unexpected error.
-					if errWanted == "" ||
-						!strings.Contains(err, errWanted) {
-						fmt.Printf("ERROR:\n%s\n", err)
+					pnc = r
+					if errWanted == "" {
+						rtdb.PrintStack()
+					}
+					err := strings.TrimSpace(fmt.Sprintf("%v", pnc))
+					if !strings.Contains(err, errWanted) {
 						// error didn't match: print stack
 						// NOTE: will fail testcase later.
 						rtdb.PrintStack()

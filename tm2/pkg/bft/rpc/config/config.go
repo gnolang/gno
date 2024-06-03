@@ -111,8 +111,8 @@ func DefaultRPCConfig() *RPCConfig {
 // TestRPCConfig returns a configuration for testing the RPC server
 func TestRPCConfig() *RPCConfig {
 	cfg := DefaultRPCConfig()
-	cfg.ListenAddress = "tcp://0.0.0.0:26657"
-	cfg.GRPCListenAddress = "tcp://0.0.0.0:26658"
+	cfg.ListenAddress = "tcp://0.0.0.0:36657"
+	cfg.GRPCListenAddress = "tcp://0.0.0.0:36658"
 	cfg.Unsafe = true
 	return cfg
 }

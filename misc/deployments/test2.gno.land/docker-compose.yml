@@ -7,7 +7,7 @@ services:
     environment:
       - LOG_LEVEL=4
       - VIRTUAL_HOST=rpc.test2.gno.land
-      - VIRTUAL_PORT=26657
+      - VIRTUAL_PORT=36657
       - LETSENCRYPT_HOST=rpc.test2.gno.land
     command:
       - gnoland
@@ -16,15 +16,15 @@ services:
       - --chainid
       - test2
       - --genesis-remote
-      - test2.gno.land:26657
+      - test2.gno.land:36657
       - --genesis-balances-file
       - /overlay/balances.txt
     volumes:
       - "./data/gnoland:/opt/gno/src/testdir"
       - "./overlay:/overlay:ro"
     ports:
-      - 26656:26656
-      - 26657:26657
+      - 36656:36656
+      - 36657:36657
     restart: on-failure
     logging:
       driver: "json-file"
@@ -40,7 +40,7 @@ services:
       - --bind
       - 0.0.0.0:80
       - --remote
-      - gnoland:26657
+      - gnoland:36657
       - --captcha-site
       - $RECAPTCHA_SITE_KEY
       - --faucet-url
@@ -48,7 +48,7 @@ services:
       - --help-chainid
       - test2
       - --help-remote
-      - test2.gno.land:26657
+      - test2.gno.land:36657
       - --home-content
       - /overlay/HOME.md
     volumes:
@@ -75,7 +75,7 @@ services:
         mkdir -p /.gno &&
         expect -c \"set timeout -1; spawn gnokey add faucet --home /.gno/ --recover; expect \\\"Enter a passphrase\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect \\\"Repeat the passphrase\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect \\\"Enter your bip39 mnemonic\\\"; send \\\"$FAUCET_WORDS\\r\\\"; expect eof\" &&
         while true; do
-          expect -c \"set timeout -1; spawn gnofaucet serve faucet --is-behind-proxy --send 50000000ugnot --captcha-secret \\\"$RECAPTCHA_SECRET_KEY\\\" --remote gnoland:26657 --chain-id test2 --home /.gno/; expect \\\"Enter password.\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect eof\";
+          expect -c \"set timeout -1; spawn gnofaucet serve faucet --is-behind-proxy --send 50000000ugnot --captcha-secret \\\"$RECAPTCHA_SECRET_KEY\\\" --remote gnoland:36657 --chain-id test2 --home /.gno/; expect \\\"Enter password.\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect eof\";
           sleep 5;
         done
       "

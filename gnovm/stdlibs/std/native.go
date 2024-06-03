@@ -14,21 +14,22 @@ func AssertOriginCall(m *gno.Machine) {
 }
 
 func IsOriginCall(m *gno.Machine) bool {
-	n := m.NumFrames()
-	if n == 0 {
-		return false
+	return len(m.Frames) == 2
+}
+
+func CurrentRealmPath(m *gno.Machine) string {
+	if m.Realm != nil {
+		return m.Realm.Path
 	}
-	firstPkg := m.Frames[0].LastPackage
-	isMsgCall := firstPkg != nil && firstPkg.PkgPath == "main"
-	return n <= 2 && isMsgCall
+	return ""
 }
 
 func GetChainID(m *gno.Machine) string {
-	return GetContext(m).ChainID
+	return m.Context.(ExecContext).ChainID
 }
 
 func GetHeight(m *gno.Machine) int64 {
-	return GetContext(m).Height
+	return m.Context.(ExecContext).Height
 }
 
 // getPrevFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
@@ -63,16 +64,16 @@ func findPrevFuncName(m *gno.Machine, targetIndex int) string {
 }
 
 func X_origSend(m *gno.Machine) (denoms []string, amounts []int64) {
-	os := GetContext(m).OrigSend
+	os := m.Context.(ExecContext).OrigSend
 	return ExpandCoins(os)
 }
 
 func X_origCaller(m *gno.Machine) string {
-	return string(GetContext(m).OrigCaller)
+	return string(m.Context.(ExecContext).OrigCaller)
 }
 
 func X_origPkgAddr(m *gno.Machine) string {
-	return string(GetContext(m).OrigPkgAddr)
+	return string(m.Context.(ExecContext).OrigPkgAddr)
 }
 
 func X_callerAt(m *gno.Machine, n int) string {
@@ -91,24 +92,22 @@ func X_callerAt(m *gno.Machine, n int) string {
 	}
 	if n == m.NumFrames() {
 		// This makes it consistent with GetOrigCaller.
-		ctx := GetContext(m)
+		ctx := m.Context.(ExecContext)
 		return string(ctx.OrigCaller)
 	}
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
-func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
-	// NOTE: keep in sync with test/stdlibs/std.getRealm
-
+func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	var (
-		ctx           = GetContext(m)
+		ctx           = m.Context.(ExecContext)
 		currentCaller crypto.Bech32Address
 		// Keeps track of the number of times currentCaller
 		// has changed.
 		changes int
 	)
 
-	for i := m.NumFrames() - 1; i >= 0; i-- {
+	for i := m.NumFrames() - 1; i > 0; i-- {
 		fr := m.Frames[i]
 		if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
 			continue
@@ -129,12 +128,6 @@ func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
 
 	// Fallback case: return OrigCaller.
 	return string(ctx.OrigCaller), ""
-}
-
-// currentRealm retrieves the current realm's address and pkgPath.
-// It's not a native binding; but is used within this package to clarify usage.
-func currentRealm(m *gno.Machine) (address, pkgPath string) {
-	return X_getRealm(m, 0)
 }
 
 func X_derivePkgAddr(pkgPath string) string {

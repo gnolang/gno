@@ -33,6 +33,11 @@ type transpileOptions struct {
 	transpiled map[importPath]struct{}
 }
 
+var defaultTranspileCfg = &transpileCfg{
+	verbose:  false,
+	goBinary: "go",
+}
+
 func newTranspileOptions(cfg *transpileCfg) *transpileOptions {
 	return &transpileOptions{cfg, map[importPath]struct{}{}}
 }
@@ -245,9 +250,7 @@ func transpileFile(srcPath string, opts *transpileOptions) error {
 	if !flags.skipImports {
 		importPaths := getPathsFromImportSpec(transpileRes.Imports)
 		for _, path := range importPaths {
-			if err := transpilePkg(path, opts); err != nil {
-				return err
-			}
+			transpilePkg(path, opts)
 		}
 	}
 

@@ -44,6 +44,6 @@ func (c *validatorCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.address,
 		"address",
 		"",
-		"the gno bech32 address of the validator",
+		"the output path for the genesis.json",
 	)
 }

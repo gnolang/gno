@@ -5,4 +5,9 @@ gno test .
 ! stdout .+
 stderr '\?       \. 	\[no test files\]'
 
+! gno test --transpile .
+
+! stdout .+
+stderr 'expected ''package'', found ''EOF'''
+
 -- empty.gno --
