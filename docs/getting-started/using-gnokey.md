@@ -329,22 +329,34 @@ Now, we should have the following folder structure:
 │   └── script.gno
 ```
 
-In the `script.gno` file, first import the Userbook realm. Then, we can define a
-`main()` function which will be automatically detected and ran by `Run`. In it,
-we can call the `SingUp()` function:
+In the `script.gno` file, first define the package to be `main`. Then, we cam import
+the Userbook realm and define a `main()` function with no return values which will
+be automatically detected and ran by `Run`. In it, we can call the `SingUp()` function.
 
 ```go
-package script
+package main
 
 import "gno.land/r/demo/userbook"
 
-func main() string {
-	ret := userbook.SignUp())
-    println(ret)
-    
-    return ret
+func main() {
+  println(userbook.SignUp())
 }
 ```
+
+Now we will be able to provide this to the `maketx run` subcommand:
+```bash
+gnokey maketx run \
+-gas-fee 1000000ugnot \
+-gas-wanted 20000000 \
+-broadcast \
+-chainid portal-loop \
+-remote "https://rpc.gno.land:443" \
+dev ./script.gno
+```
+
+After running this command, the chain will execute the script and apply any state
+changes. Additionally, by using `println`, which is only available in the `Run`
+& testing context, we will be able to see the return value of the function called.
 
 ## ABCI queries
 
