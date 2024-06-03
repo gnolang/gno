@@ -18,7 +18,7 @@ Additionally, you will see the different options you can use to make your Gno in
 
 ## Installation
 
-To install the `gnoland` binary/tool, clone the Gno monorepo:
+To install the `gnoland` binary, clone the Gno monorepo:
 
 ```bash
 git clone https://github.com/gnolang/gno.git
