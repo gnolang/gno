@@ -46,7 +46,7 @@ func NewAuction(
 		end:         end,
 		price:       minPrice,
 	}
-	std.Emit("AuctionStart", "title", title, "time", begin.String())
+	std.Emit("title", title, "time", begin.String())
 	return auction
 }
 
