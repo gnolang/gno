@@ -52,7 +52,7 @@ func NewPoA(opts ...Option) *PoA {
 // - caller is a validator
 // - the proposed address is not a validator
 // - a 2/3+ majority of the set have voted to add
-func (p *PoA) AddValidator(address std.Address, pubKey string) {
+func (p *PoA) AddValidator(address std.Address, pubKey string) *types.Validator {
 	caller := std.GetOrigCaller()
 
 	// Validate that the operation is a valid call
@@ -62,11 +62,7 @@ func (p *PoA) AddValidator(address std.Address, pubKey string) {
 	p.votes.castVote(caller, address, true)
 
 	// Emit the vote event
-	std.Emit(
-		UserVotedAddEvent,
-		"address", address.String(),
-		"voter", caller.String(),
-	)
+	std.Emit(UserVotedAddEvent)
 
 	// Calculate the votes
 	addCount, _ := p.votes.getTally(address)
@@ -75,17 +71,11 @@ func (p *PoA) AddValidator(address std.Address, pubKey string) {
 	// to apply the action
 	if addCount <= p.majorityPower {
 		// No super majority to add
-		return
+		return nil
 	}
 
 	// Execute the decision
-	v := &types.Validator{
-		Address:     address,
-		PubKey:      pubKey, // TODO: in the future, verify the public key
-		VotingPower: 1,      // in this PoA system, all new validators have the same voting power
-	}
-
-	p.addValidator(v)
+	return p.addValidator(address, pubKey)
 }
 
 // validateAdd validates a validator add call
@@ -107,7 +97,13 @@ func (p *PoA) validateAdd(caller, address std.Address) {
 }
 
 // addValidator adds the given validator to the PoA validator set
-func (p *PoA) addValidator(v *types.Validator) {
+func (p *PoA) addValidator(address std.Address, pubKey string) *types.Validator {
+	v := &types.Validator{
+		Address:     address,
+		PubKey:      pubKey, // TODO: in the future, verify the public key
+		VotingPower: 1,      // in this PoA system, all new validators have the same voting power
+	}
+
 	// Add the validator to the set
 	p.addressToValidatorIndex[v.Address] = len(p.validators)
 	p.validators = append(p.validators, v)
@@ -117,13 +113,12 @@ func (p *PoA) addValidator(v *types.Validator) {
 	p.majorityPower = (2 * p.totalVotingPower) / 3
 
 	// Emit the validator set change
-	std.Emit(
-		types.ValidatorAddedEvent,
-		"address", v.Address.String(),
-	)
+	std.Emit(types.ValidatorAddedEvent)
 
 	// Remove the candidate from the voting system
 	p.votes.resetCandidate(v.Address)
+
+	return v
 }
 
 // RemoveValidator adds a vote to remove a validator from the validator set.
@@ -133,7 +128,7 @@ func (p *PoA) addValidator(v *types.Validator) {
 // - caller is a validator
 // - the proposed address is a validator
 // - a 2/3+ majority of the set have voted to remove
-func (p *PoA) RemoveValidator(address std.Address) {
+func (p *PoA) RemoveValidator(address std.Address) *types.Validator {
 	caller := std.GetOrigCaller()
 
 	// Validate that the operation is a valid call
@@ -143,11 +138,7 @@ func (p *PoA) RemoveValidator(address std.Address) {
 	p.votes.castVote(caller, address, false)
 
 	// Emit the vote event
-	std.Emit(
-		UserVotedRemoveEvent,
-		"address", address.String(),
-		"voter", caller.String(),
-	)
+	std.Emit(UserVotedRemoveEvent)
 
 	// Calculate the votes
 	_, removeCount := p.votes.getTally(address)
@@ -156,11 +147,11 @@ func (p *PoA) RemoveValidator(address std.Address) {
 	// to apply the action
 	if removeCount <= p.majorityPower {
 		// No super majority to remove
-		return
+		return nil
 	}
 
 	// Execute the decision
-	p.removeValidator(address)
+	return p.removeValidator(address)
 }
 
 // validateRemove validates a validator remove call
@@ -182,7 +173,7 @@ func (p *PoA) validateRemove(caller, address std.Address) {
 }
 
 // removeValidator removes the given address from the PoA validator set
-func (p *PoA) removeValidator(address std.Address) {
+func (p *PoA) removeValidator(address std.Address) *types.Validator {
 	// Fetch the validator index
 	index := p.addressToValidatorIndex[address]
 
@@ -197,13 +188,12 @@ func (p *PoA) removeValidator(address std.Address) {
 	p.majorityPower = (2 * p.totalVotingPower) / 3
 
 	// Emit the validator set change
-	std.Emit(
-		types.ValidatorRemovedEvent,
-		"address", address.String(),
-	)
+	std.Emit(types.ValidatorRemovedEvent)
 
 	// Remove the candidate from the voting system
 	p.votes.resetCandidate(address)
+
+	return validator
 }
 
 // IsValidator returns a flag indicating if the address

@@ -3,7 +3,6 @@ package pos
 import (
 	"std"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/r/sys/vals/types"
 )
 
@@ -53,7 +52,7 @@ func NewPoS(opts ...Option) *PoS {
 // - caller is a user account
 // - caller is not already a validator
 // - caller has staked funds >= the current staking threshold
-func (p *PoS) AddValidator(address std.Address, pubKey string) {
+func (p *PoS) AddValidator(address std.Address, pubKey string) *types.Validator {
 	caller := std.GetOrigCaller()
 
 	// Validate the addition
@@ -74,15 +73,11 @@ func (p *PoS) AddValidator(address std.Address, pubKey string) {
 	p.totalStake += uint64(stakedAmount)
 
 	// Emit the event that the user staked funds
-	std.Emit(
-		UserStakedEvent,
-		"address", address.String(),
-		"stake", ufmt.Sprintf("%d", addressStake.Amount),
-	)
+	std.Emit(UserStakedEvent)
 
 	// Check if the caller can become a validator
 	if !p.canBecomeValidator(caller) {
-		return
+		return nil
 	}
 
 	// Add the caller to the validator set
@@ -96,10 +91,9 @@ func (p *PoS) AddValidator(address std.Address, pubKey string) {
 	p.validators = append(p.validators, v)
 
 	// Emit the validator set change
-	std.Emit(
-		types.ValidatorAddedEvent,
-		"address", address.String(),
-	)
+	std.Emit(types.ValidatorAddedEvent)
+
+	return v
 }
 
 // validateAdd validates a validator add call
@@ -144,7 +138,7 @@ func (p *PoS) canBecomeValidator(address std.Address) bool {
 // Criteria for being removed:
 // - caller is a user account
 // - caller is a validator
-func (p *PoS) RemoveValidator(address std.Address) {
+func (p *PoS) RemoveValidator(address std.Address) *types.Validator {
 	// Check if the caller is a user account
 	if !std.PrevRealm().IsUser() {
 		panic(types.ErrCallerNotUserAccount)
@@ -165,8 +159,9 @@ func (p *PoS) RemoveValidator(address std.Address) {
 		panic(errValidatorNotOrigin)
 	}
 
-	// Check if the validator is in the set
+	// Get the validator index
 	index := p.addressToValidatorIndex[caller]
+	validator := p.validators[index]
 
 	// Remove the validator from the set
 	p.validators = append(p.validators[:index], p.validators[index+1:]...)
@@ -178,17 +173,12 @@ func (p *PoS) RemoveValidator(address std.Address) {
 	returnStake(caller, addressStake)
 
 	// Emit the validator set change
-	std.Emit(
-		types.ValidatorRemovedEvent,
-		"address", address.String(),
-	)
+	std.Emit(types.ValidatorRemovedEvent)
 
 	// Emit the unstake event
-	std.Emit(
-		UserUnstakedEvent,
-		"address", address.String(),
-		"stake", ufmt.Sprintf("%d", addressStake.Amount),
-	)
+	std.Emit(UserUnstakedEvent)
+
+	return validator
 }
 
 // returnStake returns the specified stake to the given address
