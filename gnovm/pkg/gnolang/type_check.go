@@ -496,7 +496,7 @@ func (x *BinaryExpr) checkShiftLhs(dt Type) {
 	}
 }
 
-// AssertCompatible works as a pre-check prior to checkOrConvertType()
+// AssertCompatible works as a pre-check prior to checkOrConvertType.
 // It checks against expressions to ensure the compatibility between operands and operators.
 // e.g. "a" << 1, the left hand operand is not compatible with <<, it will fail the check.
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
