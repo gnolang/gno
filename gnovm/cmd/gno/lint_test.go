@@ -24,17 +24,19 @@ func TestLintApp(t *testing.T) {
 			stderrShouldContain: "../../tests/integ/several-lint-errors/main.gno:5: expected ';', found example (code=2).\n../../tests/integ/several-lint-errors/main.gno:6",
 			errShouldBe:         "exit code: 1",
 		}, {
-			args: []string{"lint", "--set-exit-status=0", "../../tests/integ/minimalist_gnomod/"},
+			args: []string{"lint", "../../tests/integ/minimalist_gnomod/"},
 			// TODO: raise an error because there is a gno.mod, but no .gno files
 		}, {
 			args: []string{"lint", "../../tests/integ/invalid_module_name/"},
 			// TODO: raise an error because gno.mod is invalid
 		}, {
-			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/invalid_gno_file/"},
+			args:                []string{"lint", "../../tests/integ/invalid_gno_file/"},
 			stderrShouldContain: "../../tests/integ/invalid_gno_file/invalid.gno:1: expected 'package', found packag (code=2).",
+			errShouldBe:         "exit code: 1",
 		}, {
-			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/typecheck_missing_return/"},
+			args:                []string{"lint", "../../tests/integ/typecheck_missing_return/"},
 			stderrShouldContain: "../../tests/integ/typecheck_missing_return/main.gno:5:1: missing return (code=4).",
+			errShouldBe:         "exit code: 1",
 		},
 
 		// TODO: 'gno mod' is valid?
