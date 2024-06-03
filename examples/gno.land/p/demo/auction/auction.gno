@@ -46,6 +46,7 @@ func NewAuction(
 		end:         end,
 		price:       minPrice,
 	}
+	// Emit AuctionStart event
 	std.Emit("AuctionStart", "title", title, "time", begin.String())
 	return auction
 }
