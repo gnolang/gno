@@ -18,9 +18,9 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 	// or account for gas before operation.
 	// TODO: define criteria for inclusion, and solve gas calculations.
 	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
-		fmt.Println("!!!! getPackage in VMKeeper builtins.go", pkgPath)
+		fmt.Println("builtins/VMKeeper.initBuiltinPackagesAndTypes/getPackage", pkgPath)
 		defer func() {
-			fmt.Println("!!!! getPackage returned", pv)
+			fmt.Println("builtins/VMKeeper.initBuiltinPackagesAndTypes/getPackage returned nil?", pkgPath, pv == nil)
 		}()
 		// otherwise, built-in package value.
 		// first, load from filepath.
