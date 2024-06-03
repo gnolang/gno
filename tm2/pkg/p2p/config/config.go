@@ -107,7 +107,7 @@ func DefaultP2PConfig() *P2PConfig {
 // TestP2PConfig returns a configuration for testing the peer-to-peer layer
 func TestP2PConfig() *P2PConfig {
 	cfg := DefaultP2PConfig()
-	cfg.ListenAddress = "tcp://0.0.0.0:36656"
+	cfg.ListenAddress = "tcp://0.0.0.0:26656"
 	cfg.FlushThrottleTimeout = 10 * time.Millisecond
 	cfg.AllowDuplicateIP = true
 	return cfg

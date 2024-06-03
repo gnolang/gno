@@ -1100,6 +1100,27 @@ func _fields(args ...interface{}) *ast.FieldList {
 	}
 }
 
+const (
+	reDGTS = `(?:[0-9]+)`
+	reHExX = `(?:0[xX][0-9a-fA-F]+)`
+	rePSCI = `(?:[eE]+?[0-9]+)`
+	reNSCI = `(?:[eE]-[1-9][0-9]+)`
+	reASCI = `(?:[eE][-+]?[0-9]+)`
+)
+
+var (
+	reIsInt = regexp.MustCompile(
+		`^-?(?:` +
+			reDGTS + `|` +
+			reHExX + `)` + rePSCI + `?$`,
+	)
+	reIsFloat = regexp.MustCompile(
+		`^-?(?:` +
+			reDGTS + `\.` + reDGTS + reASCI + `?|` +
+			reDGTS + reNSCI + `)$`,
+	)
+)
+
 // Parses simple expressions (but not all).
 // Useful for parsing strings to ast nodes, like foo.bar["qwe"](),
 // new(bytes.Buffer), *bytes.Buffer, package.MyStruct{FieldA:1}, numeric
@@ -1282,22 +1303,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 		}
 	}
 	// Numeric int?  We do these before dots, because dots are legal in numbers.
-	const (
-		DGTS = `(?:[0-9]+)`
-		HExX = `(?:0[xX][0-9a-fA-F]+)`
-		PSCI = `(?:[eE]+?[0-9]+)`
-		NSCI = `(?:[eE]-[1-9][0-9]+)`
-		ASCI = `(?:[eE][-+]?[0-9]+)`
-	)
-	isInt, err := regexp.Match(
-		`^-?(?:`+
-			DGTS+`|`+
-			HExX+`)`+PSCI+`?$`,
-		[]byte(expr),
-	)
-	if err != nil {
-		panic("should not happen")
-	}
+	isInt := reIsInt.MatchString(expr)
 	if isInt {
 		return &ast.BasicLit{
 			Kind:  token.INT,
@@ -1305,15 +1311,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 		}
 	}
 	// Numeric float?  We do these before dots, because dots are legal in floats.
-	isFloat, err := regexp.Match(
-		`^-?(?:`+
-			DGTS+`\.`+DGTS+ASCI+`?|`+
-			DGTS+NSCI+`)$`,
-		[]byte(expr),
-	)
-	if err != nil {
-		panic("should not happen")
-	}
+	isFloat := reIsFloat.MatchString(expr)
 	if isFloat {
 		return &ast.BasicLit{
 			Kind:  token.FLOAT,
