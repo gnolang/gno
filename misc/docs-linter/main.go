@@ -97,17 +97,16 @@ func execLint(cfg *cfg, ctx context.Context) error {
 	}
 
 	// Setup parallel checking for links
+	g, _ := errgroup.WithContext(ctx)
+
 	var (
 		lock         sync.Mutex
 		notFoundUrls []string
 	)
 
-	g, _ := errgroup.WithContext(ctx)
-
 	for _, url := range validUrls {
 		url := url
 		g.Go(func() error {
-
 			if err := checkUrl(url); err != nil {
 				lock.Lock()
 				notFoundUrls = append(notFoundUrls, fmt.Sprintf("%s (found in file: %s)", url, urlFileMap[url]))
