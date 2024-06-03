@@ -16,7 +16,7 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 	// NOTE: native functions/methods added here must be quick operations,
 	// or account for gas before operation.
 	// TODO: define criteria for inclusion, and solve gas calculations.
-	getPackage := func(pkgPath string, newStore gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
+	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		// otherwise, built-in package value.
 		// first, load from filepath.
 		stdlibPath := filepath.Join(vm.stdlibsDir, pkgPath)
@@ -34,7 +34,7 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 			PkgPath: "gno.land/r/stdlibs/" + pkgPath,
 			// PkgPath: pkgPath,
 			Output: os.Stdout,
-			Store:  newStore,
+			Store:  store,
 		})
 		defer m2.Release()
 		return m2.RunMemPackage(memPkg, true)

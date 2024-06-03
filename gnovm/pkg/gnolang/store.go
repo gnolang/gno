@@ -15,11 +15,8 @@ import (
 
 // PackageGetter specifies how the store may retrieve packages which are not
 // already in its cache. PackageGetter should return nil when the requested
-// package does not exist. store should be used to run the machine, or otherwise
-// call any methods which may call store.GetPackage; avoid using any "global"
-// store as the one passed to the PackageGetter may be a fork of that (ie.
-// the original is not meant to be written to).
-type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValue)
+// package does not exist.
+type PackageGetter func(pkgPath string) (*PackageNode, *PackageValue)
 
 // inject natives into a new or loaded package (value and node)
 type PackageInjector func(store Store, pn *PackageNode)
@@ -86,7 +83,7 @@ type defaultStore struct {
 
 	// transient
 	opslog  []StoreOp // for debugging and testing.
-	current []string
+	current []string  // for detecting import cycles.
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -115,6 +112,7 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
+	// helper to detect circular imports
 	if isImport {
 		if slices.Contains(ds.current, pkgPath) {
 			panic(fmt.Sprintf("import cycle detected: %q (through %v)", pkgPath, ds.current))
@@ -167,7 +165,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	}
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
-		if pn, pv := ds.pkgGetter(pkgPath, ds); pv != nil {
+		if pn, pv := ds.pkgGetter(pkgPath); pv != nil {
 			// e.g. tests/imports_tests loads example/gno.land/r/... realms.
 			// if pv.IsRealm() {
 			// 	panic("realm packages cannot be gotten from pkgGetter")
@@ -613,6 +611,7 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
 	ds.opslog = nil                             // new ops log.
+	ds.current = nil
 	ds.SetCachePackage(Uverse())
 }
 
