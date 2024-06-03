@@ -538,6 +538,7 @@ func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
 	bz := amino.MustMarshal(memPkg)
 	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
 	pathkey := []byte(backendPackagePathKey(memPkg.Path))
+	fmt.Printf("defaultStore.AddMemPackage iavlStore %p %p\n", ds.iavlStore, len(bz))
 	ds.iavlStore.Set(pathkey, bz)
 }
 
@@ -550,6 +551,7 @@ func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
 func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
 	pathkey := []byte(backendPackagePathKey(path))
 	bz := ds.iavlStore.Get(pathkey)
+	fmt.Printf("defaultStore.getMemPackage iavlStore %p %p\n", ds.iavlStore, len(bz))
 	if bz == nil {
 		// If this is the first try, attempt using GetPackage to retrieve the
 		// package, first. GetPackage can leverage pkgGetter, which in most
