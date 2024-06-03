@@ -134,8 +134,6 @@ gnokey query {QUERY_PATH}
 | Name     | Type      | Description                              |
 |----------|-----------|------------------------------------------|
 | `data`   | UInt8 \[] | Queries data bytes.                      |
-| `height` | Int64     | (not yet supported) Queries height.      |
-| `prove`  | Boolean   | (not yet supported) Proves query result. |
 
 
 ## Sign and Broadcast a Transaction
@@ -207,7 +205,7 @@ gnokey maketx call \
     > unsigned.tx
 ```
 
-:::warn `call` is a state-changing message  
+:::warning `call` is a state-changing message  
 
 All exported functions, including `Render()`, can be called in two main ways:
 `call` and [`query vm/qeval`](#query).

@@ -14,7 +14,7 @@ import (
 	"golang.org/x/mod/module"
 )
 
-const testRemote string = "test3.gno.land:36657"
+const testRemote string = "test3.gno.land:26657"
 
 func TestFetchDeps(t *testing.T) {
 	for _, tc := range []struct {

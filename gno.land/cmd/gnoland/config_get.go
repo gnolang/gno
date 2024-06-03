@@ -38,7 +38,7 @@ func execConfigGet(cfg *configCfg, io commands.IO, args []string) error {
 	// Load the config
 	loadedCfg, err := config.LoadConfigFile(cfg.configPath)
 	if err != nil {
-		return fmt.Errorf("unable to load config, %w", err)
+		return fmt.Errorf("%s, %w", tryConfigInit, err)
 	}
 
 	// Make sure the edit arguments are valid

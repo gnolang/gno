@@ -1,8 +1,6 @@
 package testing
 
-import (
-	"strings"
-)
+import "strings"
 
 func TestMutate(t *T) {
 	originalValue := "Hello"
