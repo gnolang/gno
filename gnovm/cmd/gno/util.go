@@ -162,12 +162,6 @@ func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
 }
 
-// makeTestGoMod creates the temporary go.mod for test
-func makeTestGoMod(path string, packageName string, goversion string) error {
-	content := fmt.Sprintf("module %s\n\ngo %s\n", packageName, goversion)
-	return os.WriteFile(path, []byte(content), 0o644)
-}
-
 // ResolvePath determines the path where to place output files.
 // output is the output directory provided by the user.
 // dstPath is the desired output path by the gno program.

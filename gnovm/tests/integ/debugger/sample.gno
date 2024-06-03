@@ -38,5 +38,9 @@ func main() {
 	}
 	t := T{A: []int{1, 2, 3} }
 	println(t.get(1))
-	println("bye")
+	x := 0
+	for i := 0; i < 5; i++ {
+		x = i
+	}
+	println("bye", x)
 }

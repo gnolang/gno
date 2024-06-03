@@ -41,11 +41,6 @@ type transpileOptions struct {
 	skipped []string
 }
 
-var defaultTranspileCfg = &transpileCfg{
-	verbose:  false,
-	goBinary: "go",
-}
-
 func newTranspileOptions(cfg *transpileCfg) *transpileOptions {
 	return &transpileOptions{
 		cfg:        cfg,
