@@ -49,13 +49,14 @@ stdout ${RFOO_ADDR}
 gnokey maketx call -pkgpath gno.land/r/foo -func B -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
 stdout ${RFOO_ADDR}
 
+## remove due to update to maketx call can only call realm (case 5, 6, 13)
 ## 5. MsgCall -> p/demo/bar.A -> myrlm.A: user address
-gnokey maketx call -pkgpath gno.land/p/demo/bar -func A -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
-stdout ${USER_ADDR_test1}
+## gnokey maketx call -pkgpath gno.land/p/demo/bar -func A -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+## stdout ${USER_ADDR_test1}
 
 ## 6. MsgCall -> p/demo/bar.B -> myrlm.B -> r/foo.A: user address
-gnokey maketx call -pkgpath gno.land/p/demo/bar -func B -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
-stdout ${USER_ADDR_test1}
+## gnokey maketx call -pkgpath gno.land/p/demo/bar -func B -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+## stdout ${USER_ADDR_test1}
 
 ## 7. MsgRun -> myrlm.A: user address
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/myrlmA.gno
@@ -82,8 +83,8 @@ gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid t
 stdout ${USER_ADDR_test1}
 
 ## 13. MsgCall -> std.PrevRealm(): user address
-gnokey maketx call -pkgpath std -func PrevRealm -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
-stdout ${USER_ADDR_test1}
+## gnokey maketx call -pkgpath std -func PrevRealm -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1
+## stdout ${USER_ADDR_test1}
 
 ## 14. MsgRun -> std.PrevRealm(): user address
 gnokey maketx run -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test test1 $WORK/run/baz.gno

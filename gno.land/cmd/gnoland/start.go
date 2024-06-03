@@ -209,7 +209,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	// Load the configuration
 	cfg, err := config.LoadConfig(nodeDir)
 	if err != nil {
-		return fmt.Errorf("unable to load config, %w", err)
+		return fmt.Errorf("%s, %w", tryConfigInit, err)
 	}
 
 	// Check if the genesis.json exists

@@ -239,13 +239,22 @@ a[href="#"] {
   color: var(--muted-color, #757575);
 }
 
-ul {
+.gno-tmpl-section ul {
   padding: 0;
 }
 
-li {
+.gno-tmpl-section li ,
+#header li ,
+.footer li {
   list-style: none;
-  margin-bottom: 0.4rem;
+}
+
+.gno-tmpl-section blockquote {
+  margin-inline: 0;
+}
+
+li { 
+    margin-bottom: 0.4rem;
 }
 
 li > * {
@@ -302,6 +311,11 @@ code {
 
 .container p > img:only-child {
   max-width: 100%;
+}
+.gno-tmpl-page p img:only-child  {
+    margin-inline: auto;
+    display: block;
+    max-width: 100%;
 }
 
 .inline-list {
