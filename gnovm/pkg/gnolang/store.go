@@ -114,11 +114,14 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
 	// helper to detect circular imports
 	if isImport {
+		fmt.Println(">>>>>>>>>>> ? ", pkgPath)
 		if slices.Contains(ds.current, pkgPath) {
 			panic(fmt.Sprintf("import cycle detected: %q (through %v)", pkgPath, ds.current))
 		}
+		fmt.Println(">>>>>>>>>>> ADD", pkgPath)
 		ds.current = append(ds.current, pkgPath)
 		defer func() {
+			fmt.Println(">>>>>>>>>>> REMOVE", pkgPath)
 			ds.current = ds.current[:len(ds.current)-1]
 		}()
 	}
@@ -611,7 +614,7 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
 	ds.opslog = nil                             // new ops log.
-	ds.current = nil
+	//ds.current = nil
 	ds.SetCachePackage(Uverse())
 }
 
