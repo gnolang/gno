@@ -50,30 +50,37 @@ func NewAuction(
 	return auction
 }
 
+// GetTitle returns the title of the auction.
 func (a Auction) GetTitle() string {
 	return a.title
 }
 
+// GetDescription returns the description of the auction.
 func (a Auction) GetDescription() string {
 	return a.description
 }
 
+// GetOwner returns the address of the auction owner.
 func (a Auction) GetOwner() std.Address {
 	return a.owner
 }
 
+// GetBegin returns the start time of the auction.
 func (a Auction) GetBegin() time.Time {
 	return a.begin
 }
 
+// GetEnd returns the end time of the auction.
 func (a Auction) GetEnd() time.Time {
 	return a.end
 }
 
+// GetPrice returns the current highest bid amount.
 func (a Auction) GetPrice() uint64 {
 	return a.price
 }
 
+// GetBids returns an array of all the bids made in the auction.
 func (a Auction) GetBids() []*Bid {
 	bids := make([]*Bid, 0, a.bids.Size())
 	a.bids.Iterate("", "", func(key string, value interface{}) bool {
@@ -83,10 +90,12 @@ func (a Auction) GetBids() []*Bid {
 	return bids
 }
 
+// IsOwner checks if the given address is the owner of the auction.
 func (a Auction) IsOwner(address std.Address) bool {
 	return address == a.GetOwner()
 }
 
+// NewBid creates a new Bid instance.
 func NewBid(bidder std.Address, amount uint64) *Bid {
 	return &Bid{
 		bidder: bidder,
@@ -94,6 +103,7 @@ func NewBid(bidder std.Address, amount uint64) *Bid {
 	}
 }
 
+// AddBid adds a new bid to the auction.
 func (a *Auction) AddBid(bidder std.Address, amount uint64) {
 	if amount <= a.price {
 		panic("bid amount must be higher than current highest bid")
@@ -105,14 +115,17 @@ func (a *Auction) AddBid(bidder std.Address, amount uint64) {
 	std.Emit("BidPlaced", "bidder", bidder.String(), "amount", strconv.FormatUint(amount, 10))
 }
 
+// GetBidder returns the address of the bidder.
 func (b Bid) GetBidder() std.Address {
 	return b.bidder
 }
 
+// GetAmount returns the amount of the bid.
 func (b Bid) GetAmount() uint64 {
 	return b.amount
 }
 
+// EndAuction ends the auction and emits the AuctionEnded event.
 func (a *Auction) EndAuction() {
 	if time.Now().Before(a.end) {
 		panic("Auction cannot end before the end time")
