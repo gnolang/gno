@@ -61,7 +61,7 @@ gnokey maketx addpkg
 ```
 
 To understand how to use this subcommand better, let's write a simple "Hello world"
-[pure package](../concepts/packages.md). First, lets create a folder which will
+[pure package](../concepts/packages.md). First, let's create a folder which will
 store our example code.
 
 ```bash
@@ -94,7 +94,7 @@ func Hello() string {
 }
 ```
 
-We are now ready to upload this packge to the chain. To do this, we must set the
+We are now ready to upload this package to the chain. To do this, we must set the
 correct flags for the `addpkg` subcommand.
 
 The `addpkg` subcommmand uses the following flags and arguments:
@@ -309,7 +309,7 @@ which simply allows you to register the fact that you have interacted with it.
 It contains a simple `SignUp()` function, which we will call with `Run`.
 
 To understand how to use the `Run` message better, let's write a simple "script.gno"
-file. First create a folder which will store our script.
+file. First, create a folder which will store our script.
 
 ```bash
 └── example/
@@ -349,7 +349,7 @@ func main() string {
 ## ABCI queries
 
 Using ABCI queries you can query the state of the chain without spending any gas.
-All queries are need to be pointed towards a specific remote address from which
+All queries need to be pointed towards a specific remote address from which
 the state will be retrieved.
 
 ### `query`
@@ -411,7 +411,7 @@ hold account data. It contains the following information:
 
 #### `bank/balances`
 
-With this query, we can fetch balances of a specfic account. To call it, we can
+With this query, we can fetch balances of a specific account. To call it, we can
 run the following command:
 
 ```bash
@@ -492,7 +492,7 @@ BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
 ```
 
 This command will return the `wugnot` balance of the above address without using gas.
-Properly escaping quotation marks, and inputting the newline for the function
+Properly escaping quotation marks, and inputting a new line for the function
 is currently required.
 
 #### `vm/qrender`
