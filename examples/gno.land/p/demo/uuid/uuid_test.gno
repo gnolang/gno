@@ -39,3 +39,26 @@ func TestInvalidMachineID(t *testing.T) {
 
 	SetMachineID(MaxMachineID + 1)
 }
+
+// TestUUIDGeneration checks that the generated UUIDs are sequential.
+func TestUUIDGeneration(t *testing.T) {
+	// set machine ID
+	SetMachineID(1)
+
+	// Generate many UUIDs and check that they are sequential
+	prevID, err := NextID()
+	if err != nil {
+		t.Fatalf("Error generating first UUID: %v", err)
+	}
+
+	for i := 0; i < 10; i++ {
+		newID, err := NextID()
+		if err != nil {
+			t.Fatalf("Error generating UUID: %v", err)
+		}
+		if newID <= prevID {
+			t.Fatalf("UUIDs are not sequential: got %d after %d", newID, prevID)
+		}
+		prevID = newID
+	}
+}
