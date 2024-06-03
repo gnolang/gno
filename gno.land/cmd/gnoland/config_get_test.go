@@ -27,7 +27,7 @@ func TestConfig_Get_Invalid(t *testing.T) {
 
 	// Run the command
 	cmdErr := cmd.ParseAndRun(context.Background(), args)
-	assert.ErrorContains(t, cmdErr, "unable to load config")
+	assert.ErrorContains(t, cmdErr, tryConfigInit)
 }
 
 // testSetCase outlines the single test case for config get
@@ -127,13 +127,6 @@ func TestConfig_Get_Base(t *testing.T) {
 			"db_dir",
 			func(loadedCfg *config.Config, value string) {
 				assert.Equal(t, loadedCfg.DBPath, value)
-			},
-		},
-		{
-			"genesis path fetched",
-			"genesis_file",
-			func(loadedCfg *config.Config, value string) {
-				assert.Equal(t, loadedCfg.Genesis, value)
 			},
 		},
 		{

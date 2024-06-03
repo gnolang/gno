@@ -822,6 +822,7 @@ type PackageValue struct {
 	fBlocksMap map[Name]*Block
 }
 
+// IsRealm returns true if pv represents a realm.
 func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
@@ -1548,8 +1549,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		bz = append(bz, '{')
 		for i := 0; i < sl; i++ {
 			fv := fillValueTV(store, &sv.Fields[i])
-			ft := bt.Fields[i]
-			omitTypes := ft.Elem().Kind() != InterfaceKind
+			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
 			bz = append(bz, fv.ComputeMapKey(store, omitTypes)...)
 			if i != sl-1 {
 				bz = append(bz, ',')
@@ -2289,7 +2289,7 @@ func (b *Block) StringIndented(indent string) string {
 	if len(source) > 32 {
 		source = source[:32] + "..."
 	}
-	lines := []string{}
+	lines := make([]string, 0, 3)
 	lines = append(lines,
 		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
 			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
@@ -2349,7 +2349,7 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if path.IsBlockBlankPath() {
 		if debug {
-			if path.Name != "_" {
+			if path.Name != blankIdentifier {
 				panic(fmt.Sprintf(
 					"zero value path is reserved for \"_\", but got %s",
 					path.Name))

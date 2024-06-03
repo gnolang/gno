@@ -2,36 +2,32 @@ name: contribs
 
 on:
   push:
-    branches: [ "master" ]
-  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+  pull_request: 
     paths:
       - "contribs/**"
-      - ".github/workflows/contribs.yml"
-      - "gnovm/**.go"
-      - "gno.land/**.go"
-      - "tm2/**.go"
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+      - ".github/**"
 
 jobs:
-  install:
-    strategy:
-      fail-fast: false
-      matrix:
-        goversion:
-          - "1.22.x"
-        program:
-          - "gnomd"
-          - "gnodev"
-          - "gnofaucet"
+  setup:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    outputs:
+      programs: ${{ steps.set-matrix.outputs.programs }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.goversion }}
-      - run: make install ${{ matrix.program }}
-        working-directory: contribs
+      - id: set-matrix
+        run: echo "::set-output name=programs::$(ls -d contribs/*/ | cut -d/ -f2 | jq -R -s -c 'split("\n")[:-1]')"  
+  main:
+    needs: setup
+    strategy:
+        fail-fast: false
+        matrix:
+          program: ${{ fromJson(needs.setup.outputs.programs) }}
+    name: Run Main
+    uses: ./.github/workflows/main_template.yml
+    with:
+      modulepath: contribs/${{ matrix.program }}
+    secrets:
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}

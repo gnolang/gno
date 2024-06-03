@@ -48,7 +48,10 @@ html[data-theme="light"] {
   --quote-background: #ddd;
   --quote-2-background: #aaa4;
   --code-background: #d7d9db;
-  --header-background: #d7d9db;
+  --header-background: #373737;
+  --header-forground: #ffffff;
+  --logo-hat: #ffffff;
+  --logo-beard: #808080;
 
   --realm-help-background-color: #d7d9db9e;
   --realm-help-odd-background-color: #d7d9db45;
@@ -84,7 +87,10 @@ html[data-theme="dark"] {
   --quote-background: #404040;
   --quote-2-background: #555555;
   --code-background: #606060;
-  --header-background: #606060;
+  --header-background: #373737;
+  --header-forground: #ffffff;
+  --logo-hat: #ffffff;
+  --logo-beard: #808080;
 
   --realm-help-background-color: #45454545;
   --realm-help-odd-background-color: #4545459e;
@@ -108,14 +114,14 @@ html[data-theme="dark"] {
   --highlight-addition: #76c490;
 }
 
-html[data-theme="dark"] #header img,
-html[data-theme="dark"] .footer img {
-  filter: invert(1);
-}
+.logo-wording path {fill: var(--header-forground, #ffffff); }
+.logo-beard { fill: var(--logo-beard, #808080); }
+.logo-hat {fill: var(--logo-hat, #ffffff); }
 
 #theme-toggle {
   display: inline-block;
   padding: 0;
+  color: var(--header-forground, #ffffff);
 }
 
 html[data-theme="dark"] #theme-toggle-moon,
@@ -147,8 +153,8 @@ html,
 body {
   padding: 0;
   margin: 0;
-  font-family: "Roboto Mono", "Courier New", "sans-serif";
-  background-color: var(--background-color, #eee);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+  "Segoe UI Symbol", "Noto Color Emoji";  background-color: var(--background-color, #eee);
   color: var(--text-color, #000);
   font-size: 15px;
   transition: 0.25s all ease;
@@ -159,8 +165,7 @@ h2,
 h3,
 h4,
 nav {
-  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-    "Segoe UI Symbol", "Noto Color Emoji";
+
   font-weight: 600;
   letter-spacing: 0.08rem;
 }
@@ -234,13 +239,22 @@ a[href="#"] {
   color: var(--muted-color, #757575);
 }
 
-ul {
+.gno-tmpl-section ul {
   padding: 0;
 }
 
-li {
+.gno-tmpl-section li ,
+#header li ,
+.footer li {
   list-style: none;
-  margin-bottom: 0.4rem;
+}
+
+.gno-tmpl-section blockquote {
+  margin-inline: 0;
+}
+
+li { 
+    margin-bottom: 0.4rem;
 }
 
 li > * {
@@ -248,7 +262,6 @@ li > * {
 }
 
 input {
-  font-family: "Roboto Mono", "Monaco", monospace;
   background-color: var(--input-background-color, #eee);
   border: 1px solid var(--border-color);
   color: var(--text-color, #000);
@@ -266,6 +279,9 @@ blockquote blockquote {
   background-color: var(--quote-2-background, #aaa4);
 }
 
+pre, code {
+    font-family: "Roboto Mono", "Courier New", "sans-serif";
+}
 pre {
   background-color: var(--code-background, #d7d9db);
   margin: 0;
@@ -283,6 +299,7 @@ label > img {
 
 code {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 /*** COMPOSITION ***/
 .container {
@@ -294,6 +311,11 @@ code {
 
 .container p > img:only-child {
   max-width: 100%;
+}
+.gno-tmpl-page p img:only-child  {
+    margin-inline: auto;
+    display: block;
+    max-width: 100%;
 }
 
 .inline-list {
@@ -337,13 +359,16 @@ code {
 }
 
 .footer {
+  text-align: center;
   margin-block-start: 2rem;
   background-color: var(--header-background, #d7d9db);
   border-top: 1px solid var(--border-color);
 }
-.footer > img {
+
+.footer > .logo {
   display: block;
-  margin: 1rem auto;
+  margin: 1rem;
+  height: 1.2rem;
 }
 
 /** 51.2rem **/
@@ -487,13 +512,17 @@ code {
   flex-grow: 2;
 }
 
-#logo {
+#header .logo {
   display: flex;
   align-items: center;
   color: var(--link-color, #25172a);
   position: absolute;
-  height: 3rem;
+  height: 2.4rem;
   z-index: 2;
+}
+
+.logo > svg {
+    height: 100%;
 }
 
 #logo_path a {
@@ -609,7 +638,7 @@ code {
   height: 0.133rem;
   margin-bottom: 0.333rem;
   position: relative;
-  background: var(--text-color, #000);
+  background: var(--header-forground, #ffffff);
   z-index: 1;
   transform-origin: 50% 50%;
   /* transition: transform 0.5s cubic-bezier(0.77, 0.2, 0.05, 1), background 0.5s cubic-bezier(0.77, 0.2, 0.05, 1), opacity 0.55s ease; */
@@ -669,6 +698,11 @@ code {
   display: flex;
   flex-direction: column;
   margin-bottom: 2rem;
+  margin-top: .8rem;
+}
+
+#menu-toggle > .navigation a {
+    color: var(--header-forground, #ffffff);
 }
 
 #menu-toggle input:checked ~ .navigation {

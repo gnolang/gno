@@ -1,14 +1,8 @@
 package main
 
 func main() {
-	println(a)
-	println(b)
+	a, b, c := 1, 2
 }
 
-func r2() (int, int) { return 1, 2 }
-
-var a, b int = r2()
-
-// Output:
-// 1
-// 2
+// Error:
+// main/files/var18.gno:4: should not happen
