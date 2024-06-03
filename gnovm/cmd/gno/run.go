@@ -163,7 +163,7 @@ func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 	}
 
 	if hasError {
-		os.Exit(1)
+		return nil, commands.ExitCodeError(1)
 	}
 	return files, nil
 }
