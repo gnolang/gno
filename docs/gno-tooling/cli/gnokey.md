@@ -134,8 +134,6 @@ gnokey query {QUERY_PATH}
 | Name     | Type      | Description                              |
 |----------|-----------|------------------------------------------|
 | `data`   | UInt8 \[] | Queries data bytes.                      |
-| `height` | Int64     | (not yet supported) Queries height.      |
-| `prove`  | Boolean   | (not yet supported) Proves query result. |
 
 
 ## Sign and Broadcast a Transaction
