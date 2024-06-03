@@ -154,7 +154,7 @@ func assertComparable2(dt Type) {
 	case PrimitiveType:
 	case *ArrayType:
 		switch baseOf(cdt.Elem()).(type) {
-		case PrimitiveType, *PointerType, *InterfaceType, *NativeType, *ArrayType, *StructType:
+		case PrimitiveType, *PointerType, *InterfaceType, *NativeType, *ArrayType, *StructType, *ChanType:
 			assertComparable2(cdt.Elem())
 		default:
 			panic(fmt.Sprintf("%v is not comparable", dt))
@@ -182,7 +182,7 @@ func assertComparable2(dt Type) {
 
 func maybeNil(t Type) bool {
 	switch cxt := baseOf(t).(type) {
-	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
+	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType, *ChanType: //  we don't have unsafePointer
 		return true
 	case *NativeType:
 		switch nk := cxt.Type.Kind(); nk {

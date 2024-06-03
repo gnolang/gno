@@ -18,12 +18,13 @@ import (
 func TestStdlibs(t *testing.T) {
 	// NOTE: this test only works using _test.gno files;
 	// filetests are not meant to be used for testing standard libraries.
-	// The examples directory is tested directly using `gno test`.
+	// The examples directory is tested directly using `gno test`u
 
 	// find all packages with *_test.gno files.
 	rootDirs := []string{
 		filepath.Join("..", "stdlibs"),
 	}
+	fmt.Println("rootDirs: ", rootDirs)
 	testDirs := map[string]string{} // aggregate here, pkgPath -> dir
 	pkgPaths := []string{}
 	for _, rootDir := range rootDirs {
@@ -47,6 +48,7 @@ func TestStdlibs(t *testing.T) {
 			return nil
 		})
 	}
+	fmt.Println("---pkgPaths: ", pkgPaths)
 	// For each package with testfiles (in testDirs), call Machine.TestMemPackage.
 	for _, pkgPath := range pkgPaths {
 		testDir := testDirs[pkgPath]

@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/access4.gno:9: cannot access gno.land/p/demo/testutils.TestAccessStruct.privateField from main
+// main/files/access4_stdlibs.gno:9: cannot access gno.land/p/demo/testutils.TestAccessStruct.privateField from main
