@@ -33,11 +33,6 @@ type transpileOptions struct {
 	transpiled map[importPath]struct{}
 }
 
-var defaultTranspileCfg = &transpileCfg{
-	verbose:  false,
-	goBinary: "go",
-}
-
 func newTranspileOptions(cfg *transpileCfg) *transpileOptions {
 	return &transpileOptions{cfg, map[importPath]struct{}{}}
 }
