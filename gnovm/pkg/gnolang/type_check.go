@@ -137,7 +137,7 @@ func isNumericOrString(t Type) bool {
 // ===========================================================
 func assertComparable(xt, dt Type) {
 	switch baseOf(dt).(type) {
-	case *SliceType, *FuncType, *MapType:
+	case *SliceType, *FuncType, *MapType, *ChanType:
 		if xt != nil {
 			panic(fmt.Sprintf("%v can only be compared to nil", dt))
 		}
@@ -182,7 +182,7 @@ func assertComparable2(dt Type) {
 
 func maybeNil(t Type) bool {
 	switch cxt := baseOf(t).(type) {
-	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType: //  we don't have unsafePointer
+	case *SliceType, *FuncType, *MapType, *InterfaceType, *PointerType, *ChanType: //  we don't have unsafePointer
 		return true
 	case *NativeType:
 		switch nk := cxt.Type.Kind(); nk {

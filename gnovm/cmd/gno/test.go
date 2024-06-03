@@ -34,7 +34,6 @@ type testCfg struct {
 	rootDir             string
 	run                 string
 	timeout             time.Duration
-	transpile           bool // TODO: transpile should be the default, but it needs to automatically transpile dependencies in memory.
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	withNativeFallback  bool
@@ -111,13 +110,6 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
-		&c.transpile,
-		"transpile",
-		false,
-		"transpile gno to go before testing",
-	)
-
-	fs.BoolVar(
 		&c.updateGoldenTests,
 		"update-golden-tests",
 		false,
@@ -165,21 +157,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	verbose := cfg.verbose
-
-	tempdirRoot, err := os.MkdirTemp("", "gno-transpile")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(tempdirRoot)
-
-	// go.mod
-	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = makeTestGoMod(modPath, transpiler.ImportPrefix, "1.21")
-	if err != nil {
-		return fmt.Errorf("write .mod file: %w", err)
-	}
-
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
 		cfg.rootDir = gnoenv.RootDir()
@@ -209,43 +186,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	buildErrCount := 0
 	testErrCount := 0
 	for _, pkg := range subPkgs {
-		if cfg.transpile {
-			if verbose {
-				io.ErrPrintfln("=== PREC  %s", pkg.Dir)
-			}
-			transpileOpts := newTranspileOptions(&transpileCfg{
-				output: tempdirRoot,
-			})
-			err := transpilePkg(importPath(pkg.Dir), transpileOpts)
-			if err != nil {
-				io.ErrPrintln(err)
-				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkg.Dir)
-				io.ErrPrintln("FAIL")
-
-				buildErrCount++
-				continue
-			}
-
-			if verbose {
-				io.ErrPrintfln("=== BUILD %s", pkg.Dir)
-			}
-			tempDir, err := ResolvePath(tempdirRoot, importPath(pkg.Dir))
-			if err != nil {
-				return errors.New("cannot resolve build dir")
-			}
-			err = goBuildFileOrPkg(tempDir, defaultTranspileCfg)
-			if err != nil {
-				io.ErrPrintln(err)
-				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkg.Dir)
-				io.ErrPrintln("FAIL")
-
-				buildErrCount++
-				continue
-			}
-		}
-
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
 			continue
@@ -325,7 +265,15 @@ func gnoTestPkg(
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
-		tfiles, ifiles := parseMemPackageTests(memPkg)
+		var tfiles, ifiles *gno.FileSet
+
+		hasError := catchRuntimeError(gnoPkgPath, stderr, func() {
+			tfiles, ifiles = parseMemPackageTests(memPkg)
+		})
+
+		if hasError {
+			return commands.ExitCodeError(1)
+		}
 		testPkgName := getPkgNameFromFileset(ifiles)
 
 		// run test files in pkg
@@ -639,7 +587,7 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 		}
 		n, err := gno.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
-			panic(errors.Wrap(err, "parsing file "+mfile.Name))
+			panic(err)
 		}
 		if n == nil {
 			panic("should not happen")
