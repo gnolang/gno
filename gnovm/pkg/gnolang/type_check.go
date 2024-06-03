@@ -620,7 +620,7 @@ func (x *RangeStmt) AssertCompatible(store Store, last BlockNode) {
 		// both "_"
 		return
 	}
-	assertValidLeftValue(store, last, x.Key)
+	assertValidAssignLhs(store, last, x.Key)
 	// if is valid left value
 
 	kt := evalStaticTypeOf(store, last, x.Key)
@@ -681,7 +681,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 					// check assignable
 					for i, lx := range x.Lhs {
 						if !isBlankIdentifier(lx) {
-							assertValidLeftValue(store, last, lx)
+							assertValidAssignLhs(store, last, lx)
 							lxt := evalStaticTypeOf(store, last, lx)
 							assertAssignableTo(cft.Results[i].Type, lxt, false)
 						}
@@ -695,13 +695,13 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if x.Op == ASSIGN {
 					// check assignable to first value
 					if !isBlankIdentifier(x.Lhs[0]) { // see composite3.gno
-						assertValidLeftValue(store, last, x.Lhs[0])
+						assertValidAssignLhs(store, last, x.Lhs[0])
 						dt := evalStaticTypeOf(store, last, x.Lhs[0])
 						ift := evalStaticTypeOf(store, last, cx)
 						assertAssignableTo(ift, dt, false)
 					}
 					if !isBlankIdentifier(x.Lhs[1]) { // see composite3.gno
-						assertValidLeftValue(store, last, x.Lhs[1])
+						assertValidAssignLhs(store, last, x.Lhs[1])
 						dt := evalStaticTypeOf(store, last, x.Lhs[1])
 						if dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
@@ -715,7 +715,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				}
 				if x.Op == ASSIGN {
 					if !isBlankIdentifier(x.Lhs[0]) {
-						assertValidLeftValue(store, last, x.Lhs[0])
+						assertValidAssignLhs(store, last, x.Lhs[0])
 						lt := evalStaticTypeOf(store, last, x.Lhs[0])
 						if _, ok := cx.X.(*NameExpr); ok {
 							rt := evalStaticTypeOf(store, last, cx.X)
@@ -732,7 +732,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 						}
 					}
 					if !isBlankIdentifier(x.Lhs[1]) {
-						assertValidLeftValue(store, last, x.Lhs[1])
+						assertValidAssignLhs(store, last, x.Lhs[1])
 						dt := evalStaticTypeOf(store, last, x.Lhs[1])
 						if dt != nil && dt.Kind() != BoolKind { // typed, not bool
 							panic(fmt.Sprintf("want bool type got %v", dt))
@@ -747,7 +747,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 			if x.Op == ASSIGN {
 				// assert valid left value
 				for _, lx := range x.Lhs {
-					assertValidLeftValue(store, last, lx)
+					assertValidAssignLhs(store, last, lx)
 				}
 			}
 		}
@@ -787,7 +787,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 }
 
 // misc
-func assertValidLeftValue(store Store, last BlockNode, lx Expr) {
+func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	shouldPanic := true
 	switch clx := lx.(type) {
 	case *NameExpr, *StarExpr, *SelectorExpr:
@@ -827,6 +827,11 @@ func isComparison(op Word) bool {
 	}
 }
 
+// shouldSwapOnSpecificity determines the potential direction for
+// checkOrConvertType. it checks whether a swap is needed between two types
+// based on their specificity. If t2 has a lower specificity than t1, it returns
+// false, indicating no swap is needed. If t1 has a lower specificity than t2,
+// it returns true, indicating a swap is needed.
 func shouldSwapOnSpecificity(t1, t2 Type) bool {
 	// check nil
 	if t1 == nil { // see test file 0f46
