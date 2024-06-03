@@ -28,6 +28,7 @@ const (
 	defaultPageSize = 20
 	pathArgument    = "number"
 	subPath         = "page/{" + pathArgument + "}"
+	signUpEvent     = "SignUp"
 )
 
 func init() {
@@ -48,10 +49,12 @@ func SignUp() string {
 	caller := std.PrevRealm().Addr().String()
 	height := std.GetHeight()
 
+	// Check if the user is already signed up
 	if _, exists := tracker.Get(caller); exists {
 		panic(caller + " is already signed up!")
 	}
 
+	// Sign up the user
 	tracker.Set(caller, struct{}{})
 	signup := Signup{
 		caller,
@@ -59,6 +62,8 @@ func SignUp() string {
 	}
 
 	signups = append(signups, signup)
+	std.Emit(signUpEvent, "SignedUpAccount", signup.account)
+
 	return ufmt.Sprintf("%s added to userbook up at block #%d!", signup.account, signup.height)
 }
 

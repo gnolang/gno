@@ -26,4 +26,4 @@ http:
     gno-portal-loop:
       loadBalancer:
         servers:
-          - url: "http://172.42.0.5:26657"
+          - url: "http://172.42.0.2:26657"

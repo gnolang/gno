@@ -64,7 +64,7 @@ var defaultDevOptions = &devCfg{
 	chainId:             "dev",
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
-	nodeRPCListenerAddr: "127.0.0.1:36657",
+	nodeRPCListenerAddr: "127.0.0.1:26657",
 	deployKey:           DefaultDeployerAddress.String(),
 	home:                gnoenv.HomeDir(),
 	root:                gnoenv.RootDir(),

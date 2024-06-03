@@ -33,7 +33,7 @@ func CreateBoard(name string) BoardID {
 
 func checkAnonFee() bool {
 	sent := std.GetOrigSend()
-	anonFeeCoin := std.Coin{"ugnot", int64(gDefaultAnonFee)}
+	anonFeeCoin := std.NewCoin("ugnot", int64(gDefaultAnonFee))
 	if len(sent) == 1 && sent[0].IsGTE(anonFeeCoin) {
 		return true
 	}
