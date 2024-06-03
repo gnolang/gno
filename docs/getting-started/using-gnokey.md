@@ -1,17 +1,14 @@
---
+---
 id: using-gnokey
---
+---
 
 # Using `gnokey`
 
 ## Overview
-In this tutorial, you will learn how to use `gnokey`, a tool used for 
-
-
-which are
-required for interacting with the Gno.land blockchain. You will understand what
-mnemonics are, how they are used, and how you can make interaction seamless with
-Gno.
+In this tutorial, you will learn how to use the `gnokey` binary to interact with
+a Gno.land chain. You will learn how to create state-changing calls, run readonly
+queries without using gas, as well as create, sign, and broadcast airgapped
+transactions for full security.
 
 ## Prerequisites
 - **`gno`, `gnokey`, and `gnodev` installed.** Reference the
@@ -21,7 +18,8 @@ Gno.
 
 ## Interacting with a Gno.land chain
 
-`gnokey` allows you to interact with any Gno.land chain, such as the Portal Loop. 
+`gnokey` allows you to interact with any Gno.land network, such as the
+[Portal Loop](../concepts/portal-loop.md) testnet.
 
 There are multiple ways anyone can interact with the chain:
 - Transactions - state-changing calls which use gas
@@ -32,16 +30,16 @@ Both transactions and ABCI queries can be used via `gnokey`'s subcommands,
 
 ## State-changing calls (transactions)
 
-In Gno, there are three types of messages that can change on-chain state:
-- `AddPackage` - adds code to the chain
+In Gno, there are four types of messages that can change on-chain state:
+- `AddPackage` - adds new code to the chain
 - `Call` - calls a specific path and function on the chain
 - `Send` - sends coins from one address to another
 - `Run` - executes a Gno script against on-chain code
 
-A Gno.land transaction contains two main things: 
+A Gno.land transaction contains two main things:
 - A base configuration where variables such as `gas-fee`, `gas-wanted`, and others
-are defined
-- A list of messages to execute on the chain 
+  are defined
+- A list of messages to execute on the chain
 
 Currently, `gnokey` supports single-message transactions, while multiple-message
 transactions can be created in Go programs, supported by the
@@ -54,8 +52,8 @@ Let's delve deeper into each of these messages.
 
 ### `AddPackage`
 
-In case you want to upload new code to the chain, you can use the `AddPackage` 
-message type. You can send an `AddPackage` transaction with `gnokey` using the 
+In case you want to upload new code to the chain, you can use the `AddPackage`
+message type. You can send an `AddPackage` transaction with `gnokey` using the
 following command:
 
 ```bash
@@ -63,8 +61,8 @@ gnokey maketx addpkg
 ```
 
 To understand how to use this subcommand better, let's write a simple "Hello world"
-[pure package](../concepts/packages.md). First create a folder which will store 
-our example code.
+[pure package](../concepts/packages.md). First, lets create a folder which will
+store our example code.
 
 ```bash
 └── example/
@@ -106,17 +104,17 @@ The `addpkg` subcommmand uses the following flags and arguments:
 - `-send` - a deposit amount of GNOT to send along with the transaction
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
   transaction
-- `-gas-fee` - amount of GNOTs to pay per gas unit 
+- `-gas-fee` - amount of GNOTs to pay per gas unit
 - `-chain-id` - id of the chain to connect to
 - `-remote` - specifies the remote node RPC listener address
 
 The `-pkgpath` and `-pkgdir` flags are unique to the `addpkg` subcommand, while
-`-broadcast`,`-send`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and `-remote` are 
+`-broadcast`,`-send`, `-gas-wanted`, `-gas-fee`, `-chain-id`, and `-remote` are
 used for setting the base transaction configuration. These flags will be repeated
 throughout the tutorial.
 
-For this demonstration, we will run a local Gno node using `gnodev`. First, simply
-start `gnodev`:
+For this specific demonstration, we will run a local Gno node using `gnodev`.
+First, simply start `gnodev`:
 
 ```bash
 gnodev
@@ -127,15 +125,15 @@ If everything went well, you should see the following output:
 ❯ gnodev
 Accounts    ┃ I default address imported name=test1 addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 Node        ┃ I pkgs loaded path="[{<your_monorepo_path> g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 }]"
-Node        ┃ I node started lisn=tcp://127.0.0.1:36657 chainID=dev
+Node        ┃ I node started lisn=tcp://127.0.0.1:26657 chainID=dev
 GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
 -- READY   ┃ I for commands and help, press `h`
 ```
 
-Now we have a local Gno node listening on `127.0.0.1:36657` with chain ID `dev`,
+Now we have a local Gno node listening on `127.0.0.1:26657` with chain ID `dev`,
 which we can use to upload our code to.
 
-Next, let's configure the `addpkg` subcommand. Assuming we are in the `example/p` 
+Next, let's configure the `addpkg` subcommand. Assuming we are in the `example/p`
 folder, the command will look like this:
 
 ```bash
@@ -182,11 +180,15 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
 - `EVENTS:     []` - events emitted by the transaction, in this case, none
 
-Congratulations! You have just uploaded a pure package to the chain.
+Congratulations! You have just uploaded a pure package to your local chain.
+If you wish to upload the package to a remote testnet, make sure to switch out
+the `-chainid` & `-remote` values for the ones matching your desired testnet.
+Find a list of all networks in the [Network Configuration](../reference/network-config.md)
+section.
 
 ### `Call`
 
-You can call any exported function on the chain using the `call` message type. 
+You can call any exported function on the chain using the `call` message type.
 You can send a `Call` transaction with `gnokey` using the following command:
 
 ```bash
@@ -201,13 +203,13 @@ the [`query` functionality](#query) for a read-only call which does not use gas.
 
 :::
 
-For this example, we will call the `wugnot` realm, which wraps GNOTs to a 
-GRC20-compatible token called `wugnot`. We can find this realm deployed on the 
- [Portal Loop](../concepts/portal-loop.md) testnet, under the `gno.land/r/demo/wugnot` 
+For this example, we will call the `wugnot` realm, which wraps GNOTs to a
+GRC20-compatible token called `wugnot`. We can find this realm deployed on the
+[Portal Loop](../concepts/portal-loop.md) testnet, under the `gno.land/r/demo/wugnot`.
 
 We will wrap `1000ugnot` into the equivalent in `wugnot`. To do this, we can call
-the `Deposit()` function. As previously, we will configure the `maketx call`
-subcommand:
+the `Deposit()` function found in the `wugnot` realm. As previously, we will
+configure the `maketx call` subcommand:
 
 ```bash
 gnokey maketx call \
@@ -224,14 +226,11 @@ dev
 
 In this command, we have specified three main things:
 - The path where the realm lives on-chain with the `-pkgpath` flag
-- The function  that we want to call on the realm with the `-func` flag
+- The function that we want to call on the realm with the `-func` flag
 - The amount of `ugnot` we want to deposit to wrap using the `-send` flag
 
 Apart from this, we have also specified the Portal Loop chain ID, `portal-loop`,
-as well as the Portal Loop remote, `https://rpc.gno.land:443`.
-
-Chain IDs and remote addresses can be found in the 
-[Network Configuration](../reference/network-config.md) page.
+as well as the Portal Loop remote address, `https://rpc.gno.land:443`.
 
 To check if we actually have the `wugnot` amount that we wanted to receive, we
 can call the `BalanceOf()` function in the same realm:
@@ -265,16 +264,16 @@ At the top, you will see the output of the transaction, specifying the value and
 type of the return argument.
 
 In this case, we used `maketx call` to call a read-only function, which simply
-checks the `wugnot` balance of a specific address. This is discouraged, as 
+checks the `wugnot` balance of a specific address. This is discouraged, as
 `maketx call` actually uses gas. To call a read-only function without spending gas,
 check out the `vm/qeval` query in the [ABCI queries section](#vmqeval).
 
 ### `Send`
 
-We can use the `Send` message type to access the TM2 banker directly and transfer
-coins from one Gno address to another. 
+We can use the `Send` message type to access the TM2 [Banker](../concepts/stdlibs/banker.md)
+directly and transfer coins from one Gno address to another.
 
-Coins, such as GNOTs, are always formatted in the following way: 
+Coins, such as GNOTs, are always formatted in the following way:
 
 ```
 <amount><denom>
@@ -290,8 +289,8 @@ gnokey maketx send \
 -gas-fee 10000000ugnot \
 -gas-wanted 2000000 \
 -broadcast \
--chainid dev \
--remote "127.0.0.1:26657" \
+-chainid portal-loop \
+-remote "https://rpc.gno.land:443" \
 dev
 ```
 
@@ -330,7 +329,7 @@ Now, we should have the following folder structure:
 │   └── script.gno
 ```
 
-In the `script.gno` file, first import the Userbook realm. Then, we can define a 
+In the `script.gno` file, first import the Userbook realm. Then, we can define a
 `main()` function which will be automatically detected and ran by `Run`. In it,
 we can call the `SingUp()` function:
 
@@ -340,15 +339,18 @@ package script
 import "gno.land/r/demo/userbook"
 
 func main() string {
-	println(userbook.SignUp()) 
+	ret := userbook.SignUp())
+    println(ret)
+    
+    return ret
 }
 ```
 
 ## ABCI queries
 
-ABCI queries are available on Gno.land chains. 
-
-for all queries, we can specify a remote address to ask for information.
+Using ABCI queries you can query the state of the chain without spending any gas.
+All queries are need to be pointed towards a specific remote address from which
+the state will be retrieved.
 
 ### `query`
 
@@ -360,7 +362,7 @@ Below is a list of queries a user can make with `gnokey`:
 - `bank/balances/{ADDRESS}` - returns balances of an account
 - `vm/qfuncs` - returns the exported functions for a given pkgpath
 - `vm/qfile` - returns the list of files for a given pkgpath
-- `vm/qeval` - evaluates an expression in read-only mode on and returns the results 
+- `vm/qeval` - evaluates an expression in read-only mode on and returns the results
 - `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
 
 Let's see how we can use them.
@@ -375,7 +377,7 @@ gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote http
 ```
 
 With this, we are asking the Portal Loop network to deliver information about the
-specified address. If everything went correctly, we should get the following 
+specified address. If everything went correctly, we should get the following
 output:
 
 ```bash
@@ -396,7 +398,7 @@ data: {
 
 The return data will contain the following fields:
 - `height` - the height at which the query was executed. This is currently not
-supported and is `0` by default.
+  supported and is `0` by default.
 - `data` - contains the result of the query.
 
 The `data` field returns a `BaseAccount`, which is the main struct used in TM2 to
@@ -533,10 +535,10 @@ broadcast it to a chain in an airgapped manner. With this approach, while it is
 more complicated, users can get full control over the creation, signing and
 broadcasting process of transactions.
 
-Here are the steps taken in this process: 
+Here are the steps taken in this process:
 1. Fetching account information from the chain
 2. Creating an unsigned transaction locally
-3. Signing the transaction 
+3. Signing the transaction
 4. Broadcasting the transaction
 
 For this example, we will again use the Userbook realm on the Portal Loop testnet.
@@ -565,7 +567,7 @@ data: {
 }
 ```
 
-In this case, the account number is `468`, and the sequence (nonce) is `0`. We 
+In this case, the account number is `468`, and the sequence (nonce) is `0`. We
 will need these values to sign the transaction later.
 
 ### Creating an unsigned transaction locally
@@ -621,18 +623,3 @@ gnokey broadcast -remote "https://rpc.gno.land:443" userbook.tx
 
 In this case, we do not need to specify a keypair, as the transaction has already
 been signed in a previous step and `gnokey` is only sending it to the RPC endpoint.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
