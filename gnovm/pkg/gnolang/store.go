@@ -531,6 +531,7 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 }
 
 func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
+	fmt.Println("defaultStore.AddMemPackage", memPkg.Path)
 	memPkg.Validate() // NOTE: duplicate validation.
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))

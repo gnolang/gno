@@ -544,7 +544,7 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 	if mpkg == nil {
 		fmt.Println("gnoImporter.ImportFrom/was nil", path)
 		err := importNotFoundError(path)
-		g.cache[path] = gnoImporterResult{err: err}
+		// XXX g.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}
 	result, err := g.parseCheckMemPackage(mpkg)
