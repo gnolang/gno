@@ -36,7 +36,7 @@ To verify that you've installed the binary properly and that you are able to use
 it, run the `gnoland` command:
 
 ```bash
-gnoland
+gnoland --help
 ```
 
 If everything was successful, you should get the following output:
