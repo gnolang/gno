@@ -42,6 +42,7 @@ type NodeConfig struct {
 func DefaultNodeConfig(rootdir string) *NodeConfig {
 	tmc := gnoland.NewDefaultTMConfig(rootdir)
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
+	tmc.Consensus.WALDisabled = true
 
 	defaultDeployer := crypto.MustAddressFromString(integration.DefaultAccount_Address)
 	balances := []gnoland.Balance{

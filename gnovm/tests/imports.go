@@ -38,8 +38,8 @@ import (
 	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
+	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -79,7 +79,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				baseDir := filepath.Join(filesPath, "extern", pkgPath[len(testPath):])
 				memPkg := gno.ReadMemPackage(baseDir, pkgPath)
 				send := std.Coins{}
-				ctx := testContext(pkgPath, send)
+				ctx := TestContext(pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					PkgPath: "test",
 					Output:  stdout,
@@ -186,7 +186,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 						d := arg0.GetInt64()
 						sec := d / int64(time.Second)
 						nano := d % int64(time.Second)
-						ctx := m.Context.(stdlibs.ExecContext)
+						ctx := m.Context.(*teststd.TestExecContext)
 						ctx.Timestamp += sec
 						ctx.TimestampNano += nano
 						if ctx.TimestampNano >= int64(time.Second) {
@@ -390,7 +390,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			}
 
 			send := std.Coins{}
-			ctx := testContext(pkgPath, send)
+			ctx := TestContext(pkgPath, send)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  stdout,
