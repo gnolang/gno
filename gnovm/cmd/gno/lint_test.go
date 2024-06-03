@@ -9,7 +9,7 @@ func TestLintApp(t *testing.T) {
 			errShouldBe: "flag: help requested",
 		}, {
 			args:                []string{"lint", "../../tests/integ/run_main/"},
-			stderrShouldContain: "./../../tests/integ/run_main: missing 'gno.mod' file (code=1).",
+			stderrShouldContain: "./../../tests/integ/run_main: gno.mod file not found in current or any parent directory (code=1).",
 			errShouldBe:         "exit code: 1",
 		}, {
 			args:                []string{"lint", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},
@@ -24,22 +24,24 @@ func TestLintApp(t *testing.T) {
 			stderrShouldContain: "../../tests/integ/several-lint-errors/main.gno:5: expected ';', found example (code=2).\n../../tests/integ/several-lint-errors/main.gno:6",
 			errShouldBe:         "exit code: 1",
 		}, {
-			args:                []string{"lint", "../../tests/integ/run_main/"},
-			stderrShouldContain: "./../../tests/integ/run_main: missing 'gno.mod' file (code=1).",
-			errShouldBe:         "exit code: 1",
-		}, {
 			args: []string{"lint", "../../tests/integ/minimalist_gnomod/"},
 			// TODO: raise an error because there is a gno.mod, but no .gno files
 		}, {
 			args: []string{"lint", "../../tests/integ/invalid_module_name/"},
 			// TODO: raise an error because gno.mod is invalid
+		}, {
+			args:                []string{"lint", "../../tests/integ/invalid_gno_file/"},
+			stderrShouldContain: "../../tests/integ/invalid_gno_file/invalid.gno:1: expected 'package', found packag (code=2).",
+			errShouldBe:         "exit code: 1",
+		}, {
+			args:                []string{"lint", "../../tests/integ/typecheck_missing_return/"},
+			stderrShouldContain: "../../tests/integ/typecheck_missing_return/main.gno:5:1: missing return (code=4).",
+			errShouldBe:         "exit code: 1",
 		},
 
 		// TODO: 'gno mod' is valid?
-		// TODO: is gno source valid?
 		// TODO: are dependencies valid?
 		// TODO: is gno source using unsafe/discouraged features?
-		// TODO: consider making `gno transpile; go lint *gen.go`
 		// TODO: check for imports of native libs from non _test.gno files
 	}
 	testMainCaseRun(t, tc)
