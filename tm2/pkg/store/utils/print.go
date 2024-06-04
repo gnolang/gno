@@ -8,16 +8,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
-type Printer interface {
-	Print()
-}
-
 // TODO move to another file.
 func Print(store types.Store) {
 	fmt.Println(colors.Blue("//----------------------------------------"))
 	if store == nil {
 		fmt.Println("<nil store>")
-	} else if ps, ok := store.(Printer); ok {
+	} else if ps, ok := store.(types.Printer); ok {
 		ps.Print()
 	} else {
 		fmt.Println(colors.Blue(fmt.Sprintf("// store:%p %v", store, reflect.TypeOf(store))))
