@@ -84,7 +84,7 @@ Now, we should have the following folder structure:
 │       └── hello_world.gno
 ```
 
-In the `hello_world.gno` file, add define the following code:
+In the `hello_world.gno` file, add the following code:
 
 ```go
 package hello_world
@@ -188,7 +188,7 @@ section.
 
 ### `Call`
 
-You can call any exported function on the chain using the `call` message type.
+The `Call` message type is used to call any exported function on the chain.
 You can send a `Call` transaction with `gnokey` using the following command:
 
 ```bash
@@ -449,10 +449,10 @@ path. To specify the path we want to query, we can use the `-data` flag:
 gnokey query vm/qfuncs --data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
 ```
 
-The output is a JSON-formatted string containing all exported functions for the
-`wugnot` realm:
+The output is a string containing all exported functions for the `wugnot` realm:
 
 ```json
+height: 0
 data: [
   {
     "FuncName": "Deposit",
@@ -483,7 +483,7 @@ To specify the path we want to query, we can use the `-data` flag:
 gnokey query vm/qfile -data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
 ```
 
-The output is a JSON-formatted string containing all exported functions for the
+The output is a string containing all exported functions for the
 `wugnot` realm:
 
 ```bash
