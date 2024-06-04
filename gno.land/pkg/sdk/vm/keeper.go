@@ -17,7 +17,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
-	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 	"go.opentelemetry.io/otel/attribute"
@@ -98,11 +97,6 @@ func (vm *VMKeeper) Initialize(ms store.MultiStore) {
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
 	}
-	if false { // XXX
-		fmt.Println("AFTER INITIALIZE")
-		iavlSDKStore.(stypes.Printer).Print()
-		fmt.Println("AFTER INITIALIZE END")
-	}
 }
 
 func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
@@ -163,15 +157,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
 		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
-
-	// XXX
-	// gnostore.(stypes.ClearThrougher).ClearThrough()
-	if false {
-		fmt.Println("XXXXXXXXXXXXXXXXXXXX")
-		gnostore.Print()
-		fmt.Println("XXXXXXXXXXXXXXXXXXXX")
-	}
-
 	if gno.ReGnoRunPath.MatchString(pkgPath) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}

@@ -56,26 +56,19 @@ type Queryable interface {
 	Query(abci.RequestQuery) abci.ResponseQuery
 }
 
+// Useful for debugging.
 type Printer interface {
 	Print()
 }
 
-type WriteThrougher interface {
-	WriteThrough(int)
-}
-
-// Can be called to clear empty reads all caches.
-// NOTE: currently only works for *CacheStore
-type ClearThrougher interface {
-	ClearThrough()
-}
-
-// Can be called to write through all caches.
-// NOTE: currently only works for *CacheStore
+// Write through all caches.
+// You probably don't want this, rather write your program to Write() where
+// appropriate.  Not included in the main Store interface to discourage usage.
 type Flusher interface {
 	Flush()
 }
 
+// Write throgh
 type Writer interface {
 	Write()
 }

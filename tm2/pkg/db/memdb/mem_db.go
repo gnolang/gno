@@ -131,18 +131,6 @@ func (db *MemDB) Print() {
 		var keystr, valstr string
 		keystr = colors.ColoredBytes([]byte(strings.TrimN(string(key), 50)), colors.Green, colors.Blue)
 		valstr = colors.ColoredBytes([]byte(strings.TrimN(string(value), 50)), colors.Green, colors.Blue)
-		/*
-			if strings.IsASCIIText(key) {
-				keystr = key
-			} else {
-				keystr = fmt.Sprintf("0x%X", []byte(key))
-			}
-			if strings.IsASCIIText(string(value)) {
-				valstr = string(value)
-			} else {
-				valstr = fmt.Sprintf("0x%X", value)
-			}
-		*/
 		fmt.Printf("%s:\t%s\n", keystr, valstr)
 	}
 }

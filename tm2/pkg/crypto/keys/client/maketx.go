@@ -163,18 +163,6 @@ func SignAndBroadcastHandler(
 		return nil, fmt.Errorf("unable to sign transaction, %w", err)
 	}
 
-	/*
-		fmt.Println(colors.Green("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"))
-		fmt.Println(colors.Green("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"))
-		fmt.Println(colors.Green("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"))
-		fmt.Println(colors.Green("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"))
-		fmt.Println(string(qres.Response.Data))
-		fmt.Println(colors.Green("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"))
-		fmt.Println(colors.Green("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"))
-		fmt.Println(colors.Green("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"))
-		fmt.Println(colors.Green("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"))
-	*/
-
 	// broadcast signed tx
 	bopts := &BroadcastCfg{
 		RootCfg: baseopts,

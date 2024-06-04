@@ -19,8 +19,12 @@ import (
 
 // PackageGetter specifies how the store may retrieve packages which are not
 // already in its cache. PackageGetter should return nil when the requested
-// package does not exist.
-type PackageGetter func(pkgPath string) (*PackageNode, *PackageValue)
+// package does not exist. store should be used to run the machine, or otherwise
+// call any methods which may call store.GetPackage; avoid using any "global"
+// store as the one passed to the PackageGetter may be a fork of that (ie.
+// the original is not meant to be written to). Loading dependencies may
+// cause writes to happen to the store, such as MemPackages to iavlstore.
+type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValue)
 
 // inject natives into a new or loaded package (value and node)
 type PackageInjector func(store Store, pn *PackageNode)
@@ -120,14 +124,11 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
 	// helper to detect circular imports
 	if isImport {
-		// fmt.Println(">>>>>>>>>>> ? ", pkgPath)
 		if slices.Contains(ds.current, pkgPath) {
 			panic(fmt.Sprintf("import cycle detected: %q (through %v)", pkgPath, ds.current))
 		}
-		// fmt.Println(">>>>>>>>>>> ADD", pkgPath)
 		ds.current = append(ds.current, pkgPath)
 		defer func() {
-			// fmt.Println(">>>>>>>>>>> REMOVE", pkgPath)
 			ds.current = ds.current[:len(ds.current)-1]
 		}()
 	}
@@ -174,7 +175,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 	}
 	// otherwise, fetch from pkgGetter.
 	if ds.pkgGetter != nil {
-		if pn, pv := ds.pkgGetter(pkgPath); pv != nil {
+		if pn, pv := ds.pkgGetter(pkgPath, ds); pv != nil {
 			// e.g. tests/imports_tests loads example/gno.land/r/... realms.
 			// if pv.IsRealm() {
 			// 	panic("realm packages cannot be gotten from pkgGetter")
@@ -537,14 +538,12 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 }
 
 func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
-	// fmt.Println("defaultStore.AddMemPackage", memPkg.Path)
 	memPkg.Validate() // NOTE: duplicate validation.
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(memPkg)
 	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
 	pathkey := []byte(backendPackagePathKey(memPkg.Path))
-	// fmt.Printf("defaultStore.AddMemPackage iavlStore %p %p\n", ds.iavlStore, len(bz))
 	ds.iavlStore.Set(pathkey, bz)
 }
 
@@ -556,16 +555,7 @@ func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
 
 func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
 	pathkey := []byte(backendPackagePathKey(path))
-	if false { // XXX
-		fmt.Println("defaultStore.getMemPackage ========================0")
-		fmt.Println("defaultStore.getMemPackage", path, "isRetry", isRetry)
-		if ps, ok := ds.iavlStore.(types.Printer); ok {
-			ps.Print()
-		}
-		fmt.Println("defaultStore.getMemPackage ========================0 END")
-	}
 	bz := ds.iavlStore.Get(pathkey)
-	// fmt.Printf("defaultStore.getMemPackage iavlStore %p %d\n", ds.iavlStore, len(bz))
 	if bz == nil {
 		// If this is the first try, attempt using GetPackage to retrieve the
 		// package, first. GetPackage can leverage pkgGetter, which in most
@@ -574,46 +564,10 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 		// Some packages may never be persisted, thus why we only attempt this twice.
 		if !isRetry {
 			if pv := ds.GetPackage(path, false); pv != nil {
-				if false { // XXX
-					fmt.Println("defaultStore.getMemPackage============1 not retry")
-					if ps, ok := ds.iavlStore.(types.Printer); ok {
-						ps.Print()
-					}
-					fmt.Println("defaultStore.getMemPackage============1 not retry ENDPRINT")
-				}
-				// XXX XXX XXX hmmmmmmmm unauthorized error?
-				//ds.iavlStore.(types.WriteThrougher).WriteThrough(1)
-				//ds.baseStore.(types.WriteThrougher).WriteThrough(2)
-				// ds.Flush()
-				// XXX clear cache layers.
-				if cts, ok := ds.iavlStore.(types.ClearThrougher); ok {
-					cts.ClearThrough()
-				}
-				if cts, ok := ds.baseStore.(types.ClearThrougher); ok {
-					cts.ClearThrough()
-				}
-				if false { // XXX
-					fmt.Println("defaultStore.getMemPackage============2 not retry")
-					if ps, ok := ds.iavlStore.(types.Printer); ok {
-						ps.Print()
-					}
-					fmt.Println("defaultStore.getMemPackage============2 not retry ENDPRINT")
-				}
-				/*
-					if fs, ok := ds.iavlStore.(Forgetter); ok {
-						fmt.Println("FORGET")
-						fs.Forget(pathkey)
-					} else {
-						fmt.Println("NOTFORGET", reflect.TypeOf(ds.iavlStore))
-					}
-				*/
 				return ds.getMemPackage(path, true)
 			}
 		}
 		return nil
-	}
-	if false {
-		fmt.Println("defaultStore.getMemPackage ======================= ENDPRINT")
 	}
 	var memPkg *std.MemPackage
 	amino.MustUnmarshal(bz, &memPkg)
@@ -702,8 +656,6 @@ func (ds *defaultStore) Fork() Store {
 		opslog:  nil,
 		current: nil,
 	}
-	//fmt.Printf("defaultStore.Fork %p .iavlStore %p\n", ds, ds.iavlStore)
-	//dbm.PrintStack()
 	ds2.SetCachePackage(Uverse())
 	return ds2
 }

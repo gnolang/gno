@@ -61,8 +61,8 @@ const (
 )
 
 // NOTE: this isn't safe, should only be used for testing.
-func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (store gno.Store) {
-	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
+func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (resStore gno.Store) {
+	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
@@ -402,15 +402,15 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		}
 		return nil, nil
 	}
-	// NOTE: store is also used in closure above.
 	db := memdb.NewMemDB()
 	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
-	store = gno.NewStore(nil, baseStore, iavlStore)
-	store.SetPackageGetter(getPackage)
-	store.SetNativeStore(teststdlibs.NativeStore)
-	store.SetPackageInjector(testPackageInjector)
-	store.SetStrictGo2GnoMapping(false)
+	// make a new store
+	resStore = gno.NewStore(nil, baseStore, iavlStore)
+	resStore.SetPackageGetter(getPackage)
+	resStore.SetNativeStore(teststdlibs.NativeStore)
+	resStore.SetPackageInjector(testPackageInjector)
+	resStore.SetStrictGo2GnoMapping(false)
 	return
 }
 

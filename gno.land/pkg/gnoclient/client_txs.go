@@ -295,19 +295,6 @@ func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumb
 		sequenceNumber = account.Sequence
 	}
 
-	/*
-		panic("WTF")
-		fmt.Println(colors.Cyan("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"))
-		fmt.Println(colors.Cyan("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"))
-		fmt.Println(colors.Cyan("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"))
-		fmt.Println(colors.Cyan("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"))
-		fmt.Println(">>>", sequenceNumber, accountNumber)
-		fmt.Println(colors.Cyan("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"))
-		fmt.Println(colors.Cyan("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"))
-		fmt.Println(colors.Cyan("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"))
-		fmt.Println(colors.Cyan("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&"))
-	*/
-
 	signCfg := SignCfg{
 		UnsignedTX:     tx,
 		SequenceNumber: sequenceNumber,

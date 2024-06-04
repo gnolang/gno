@@ -223,6 +223,10 @@ func (app *BaseApp) GetCacheMultiStore() store.MultiStore {
 	return app.cms.MultiCacheWrap()
 }
 
+func (app *BaseApp) GetCMS() store.CommitMultiStore {
+	return app.cms
+}
+
 // Router returns the router of the BaseApp.
 func (app *BaseApp) Router() Router {
 	if app.sealed {
@@ -838,8 +842,6 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 	}
 
 	// only update state if all messages pass
-	// XXX
-	//if mode != RunTxModeSimulate && result.IsOK() {
 	if result.IsOK() {
 		msCache.MultiWrite()
 	}

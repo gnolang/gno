@@ -535,16 +535,14 @@ func (e importNotFoundError) Error() string { return "import not found: " + stri
 // ImportFrom returns the imported package for the given import
 // path when imported by a package file located in dir.
 func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Package, error) {
-	// fmt.Println("gnoImporter.ImportFrom", path)
 	if pkg, ok := g.cache[path]; ok {
 		return pkg.pkg, pkg.err
 	}
-	// fmt.Println("gnoImporter.ImportFrom/getter.GetMemPackage", path)
 	mpkg := g.getter.GetMemPackage(path)
 	if mpkg == nil {
 		// fmt.Println("gnoImporter.ImportFrom/was nil", path)
 		err := importNotFoundError(path)
-		// XXX g.cache[path] = gnoImporterResult{err: err}
+		g.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}
 	result, err := g.parseCheckMemPackage(mpkg)
