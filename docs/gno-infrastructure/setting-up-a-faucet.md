@@ -92,7 +92,7 @@ format is the following:
 }
 ```
 
-By default, this will send the maximum allwoed amount to the address, as specified 
+By default, this will send the maximum allowed amount to the address, as specified 
 in the `config.toml` file under the `send_amount` field. A request can also be made with a 
 specific amount of `ugnot`:
 
