@@ -163,6 +163,49 @@ When requesting a drip from the faucet, you can face the following errors:
 - If the amount requested is empty, not in the `<amount>ugnot` format, or is larger
 than `send_amount` defined in the faucet configuration
 
+## Extending the faucet
+
+This faucet can be used as a library and can be extended with middleware and other
+layers of security. To use the faucet in your project, run the following command:
+
+```
+go get github.com/gnolang/faucet
+```
+
+To then use the faucet in-code, you can set up your project the following way:
+
+```go
+package main
+
+import (
+	// ...
+	"context"
+
+	"github.com/gnolang/faucet/client/http"
+	"github.com/gnolang/faucet/estimate/static"
+)
+
+func main() {
+	// Create the faucet
+	f, err := NewFaucet(
+		static.New(...), // gas estimator
+		http.NewClient(...), // remote address 
+        )
+
+	// The faucet is controlled through a top-level context
+	ctx, cancelFn := context.WithCancel(context.Background())
+
+	// Start the faucet
+	go f.Serve(ctx)
+
+	// Close the faucet
+	cancelFn()
+}
+```
+
+To see an example of how the faucet can be extended, check out 
+[`gnofaucet`](https://github.com/gnolang/gno/tree/master/contribs/gnofaucet).
+
 ## Conclusion
 
 That's it 🎉
