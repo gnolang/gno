@@ -17,8 +17,8 @@ of testnet GNOTs.
 
 ## Premining funds to an address
 
-Before setting up the faucet, we need to make sure that the address will be used
-to serve the funds contain enough testnet funds. 
+Before setting up the faucet, we need to make sure that the address used to serve
+the funds contains enough testnet funds. 
 
 In your monorepo clone, visit the `genesis_balances.txt` file in the 
 `gno.land/genesis` folder. This file contains a list of addresses and their
