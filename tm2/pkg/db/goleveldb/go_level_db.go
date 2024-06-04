@@ -9,7 +9,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
-	"github.com/gnolang/gno/tm2/pkg/strings"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
@@ -117,9 +116,9 @@ func (db *GoLevelDB) Print() {
 
 	itr := db.db.NewIterator(nil, nil)
 	for itr.Next() {
-		key := colors.ColoredBytes([]byte(strings.TrimN(string(itr.Key()), 50)), colors.Blue, colors.Green)
-		value := colors.ColoredBytes([]byte(strings.TrimN(string(itr.Value()), 50)), colors.Blue, colors.Green)
-		fmt.Printf("%v:\t%v\n", key, value)
+		key := colors.DefaultColoredBytesN(itr.Key(), 50)
+		value := colors.DefaultColoredBytes(itr.Value(), 100)
+		fmt.Printf("%v: %v\n", key, value)
 	}
 }
 

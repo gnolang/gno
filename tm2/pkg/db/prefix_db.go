@@ -191,7 +191,7 @@ func (pdb *PrefixDB) Close() {
 // Implements DB.
 func (pdb *PrefixDB) Print() {
 	fmt.Println(colors.Blue("prefix ---------------------"))
-	fmt.Printf("prefix: %v\n", colors.ColoredBytes(pdb.prefix, colors.Green, colors.Blue))
+	fmt.Printf("prefix: %v\n", colors.DefaultColoredBytes(pdb.prefix))
 	pdb.db.Print()
 	fmt.Println(colors.Blue("prefix --------------------- end"))
 }

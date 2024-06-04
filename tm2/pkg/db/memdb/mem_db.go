@@ -8,7 +8,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
-	"github.com/gnolang/gno/tm2/pkg/strings"
 )
 
 func init() {
@@ -129,9 +128,9 @@ func (db *MemDB) Print() {
 
 	for key, value := range db.db {
 		var keystr, valstr string
-		keystr = colors.ColoredBytes([]byte(strings.TrimN(string(key), 50)), colors.Green, colors.Blue)
-		valstr = colors.ColoredBytes([]byte(strings.TrimN(string(value), 50)), colors.Green, colors.Blue)
-		fmt.Printf("%s:\t%s\n", keystr, valstr)
+		keystr = colors.DefaultColoredBytesN([]byte(key), 50)
+		valstr = colors.DefaultColoredBytesN(value, 100)
+		fmt.Printf("%s: %s\n", keystr, valstr)
 	}
 }
 

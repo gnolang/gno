@@ -11,7 +11,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/tm2/pkg/strings"
 
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
@@ -27,7 +26,7 @@ type cValue struct {
 
 func (cv cValue) String() string {
 	return fmt.Sprintf("cValue{%s,%v,%v}",
-		string(colors.ColoredBytes(cv.value, colors.Blue, colors.Green)),
+		colors.DefaultColoredBytes(cv.value),
 		cv.value, cv.deleted, cv.dirty)
 }
 
@@ -236,8 +235,9 @@ func (store *cacheStore) setCacheValue(key, value []byte, deleted bool, dirty bo
 func (store *cacheStore) Print() {
 	fmt.Println(colors.Cyan("cacheStore.Print"), fmt.Sprintf("%p", store))
 	for key, value := range store.cache {
-		fmt.Println(colors.Yellow(key),
-			string(colors.ColoredBytes([]byte(strings.TrimN(string(value.value), 200)), colors.Green, colors.Blue)),
+		fmt.Println(
+			colors.DefaultColoredBytesN([]byte(key), 50),
+			colors.DefaultColoredBytesN(value.value, 100),
 			"deleted", value.deleted,
 			"dirty", value.dirty,
 		)

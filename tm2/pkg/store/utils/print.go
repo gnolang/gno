@@ -15,7 +15,9 @@ type Printer interface {
 // TODO move to another file.
 func Print(store types.Store) {
 	fmt.Println(colors.Blue("//----------------------------------------"))
-	if ps, ok := store.(Printer); ok {
+	if store == nil {
+		fmt.Println("<nil store>")
+	} else if ps, ok := store.(Printer); ok {
 		ps.Print()
 	} else {
 		fmt.Println(colors.Blue(fmt.Sprintf("// store:%p %v", store, reflect.TypeOf(store))))
@@ -24,7 +26,7 @@ func Print(store types.Store) {
 		for ; itr.Valid(); itr.Next() {
 			key, value := itr.Key(), itr.Value()
 			var keystr, valuestr string
-			keystr = string(colors.ColoredBytes(key, colors.Green, colors.Blue))
+			keystr = colors.DefaultColoredBytesN(key, 100)
 			valuestr = fmt.Sprintf("(%d)", len(value))
 			/*
 				if true || strings.IsASCIIText(string(value)) {
