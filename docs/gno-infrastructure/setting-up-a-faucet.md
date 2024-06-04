@@ -13,44 +13,8 @@ of testnet GNOTs.
 - Go 1.21+
 - Make (for running Makefiles)
 - `gnoland` & `gnokey` installed
-- A Gno.land keypair generated using [`gnokey`](../gno-tooling/cli/gnokey.md)
-
-## Premining funds to an address
-
-Before setting up the faucet, we need to make sure that the address used to serve
-the funds contains enough testnet funds. 
-
-In your monorepo clone, visit the `genesis_balances.txt` file in the 
-`gno.land/genesis` folder. This file contains a list of addresses and their
-initial balances upon chain initialization. The file follows the pattern below
-for premining specific amounts of GNOT to an address.
-
-```
-g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=10000000000000ugnot # test1
-g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=10000000000000ugnot # test2
-```
-
-Add the address you plan to use for your faucet in the same format:
-
-```
-<address>=<amount>ugnot
-```
-
-After this, you can spin up your chain and run the following command to check
-that the address indeed contains the intended balances:
-
-```bash
-gnokey query bank/balances/<address> --remote <node_rpc_listener_address>
-```
-
-Running this command will output something like the following:
-
-```bash
-height: 0
-data: "10000000000000ugnot"
-```
-
-Now this address is ready to be used for the faucet.
+- A Gno.land keypair generated using [`gnokey`](../gno-tooling/cli/gnokey.md) 
+containing funds for the faucet to serve
 
 ## Cloning the repo
 
