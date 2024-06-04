@@ -223,10 +223,6 @@ func (app *BaseApp) GetCacheMultiStore() store.MultiStore {
 	return app.cms.MultiCacheWrap()
 }
 
-func (app *BaseApp) GetCMS() store.CommitMultiStore {
-	return app.cms
-}
-
 // Router returns the router of the BaseApp.
 func (app *BaseApp) Router() Router {
 	if app.sealed {

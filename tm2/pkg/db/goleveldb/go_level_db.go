@@ -117,7 +117,7 @@ func (db *GoLevelDB) Print() {
 	itr := db.db.NewIterator(nil, nil)
 	for itr.Next() {
 		key := colors.DefaultColoredBytesN(itr.Key(), 50)
-		value := colors.DefaultColoredBytes(itr.Value(), 100)
+		value := colors.DefaultColoredBytesN(itr.Value(), 100)
 		fmt.Printf("%v: %v\n", key, value)
 	}
 }
