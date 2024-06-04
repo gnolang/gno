@@ -92,26 +92,39 @@ format is the following:
 }
 ```
 
-You can test this out by running the following `curl` command:
-```bash
-curl --location --request POST 'http://localhost:8545' --header 'Content-Type: application/json' --data '{"To": "g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"}'
+By default, this will send the maximum allwoed amount to the address, as specified 
+in the `config.toml` file under the `send_amount`. A request can also be made with a 
+specific amount of `ugnot`:
+
+```json
+{
+  "To": "g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh",
+  "Amount": "100ugnot"
+}
 ```
 
-If the request is successful, you should get an output similar to the following:
+You can test the requests by running the following `curl` command, and inputting
+the request under the `--data` field:
+```bash
+curl --location --request POST 'http://localhost:8545' --header 'Content-Type: application/json' --data '{"To": "g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh","Amount": "100ugnot"}'
+```
+
+If the request is successful, you should get a response similar to the following:
 ```bash
 {"result":"successfully executed faucet transfer"}
 ```
 
 The faucet also supports batch requests, so a request such as the following is 
 also valid:
-
 ```json
- [
+[
   {
-    "To": "g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"
+    "To": "g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh",
+    "Amount": "100ugnot"
   },
   {
-    "To": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
+    "To": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj",
+    "Amount": "200ugnot"
   }
 ]
 ```
@@ -128,6 +141,27 @@ Sending this to the faucet will receive the following response:
     }
 ]
 ```
+
+## Faucet errors
+
+Below are errors you may run into when setting up or using the faucet.
+
+### During setup
+
+When setting up the faucet, you can run into the following errors:
+- If the faucet listen address is invalid or is taken - `invalid listen address`
+- If the chain ID the faucet connects to is invalid - `invalid chain ID`
+- If the send amount defined is invalid - `invalid send amount`
+- If the mnemonic used for the faucet is invalid - `invalid mnemonic`
+- If the number of accounts to derive from the mnemonic is less than zero -
+`invalid number of faucet accounts`
+
+### During requests
+
+When requesting a drip from the faucet, you can face the following errors:
+- If the address provided is empty or has an invalid checksum - `invalid beneficiary address`
+- If the amount requested is empty, not in the `<amount>ugnot` format, or is larger
+than `send_amount` defined in the faucet configuration
 
 ## Conclusion
 
