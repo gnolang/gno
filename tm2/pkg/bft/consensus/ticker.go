@@ -67,8 +67,13 @@ func (t *timeoutTicker) Chan() <-chan timeoutInfo {
 // ScheduleTimeout schedules a new timeout by sending on the internal tickChan.
 // The timeoutRoutine is always available to read from tickChan, so this won't block.
 // The scheduling may fail if the timeoutRoutine has already scheduled a timeout for a later height/round/step.
+// If the service has been closed, the timeout will be ignored.
 func (t *timeoutTicker) ScheduleTimeout(ti timeoutInfo) {
-	t.tickChan <- ti
+	select {
+	case t.tickChan <- ti:
+	case <-t.Quit():
+		t.Logger.Warn("Unable to schedule timeout as service has been closed")
+	}
 }
 
 // -------------------------------------------------------------
