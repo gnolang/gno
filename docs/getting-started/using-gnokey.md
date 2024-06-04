@@ -308,7 +308,7 @@ code on the chain. For this example, we will use the [Userbook realm](https://gn
 which simply allows you to register the fact that you have interacted with it.
 It contains a simple `SignUp()` function, which we will call with `Run`.
 
-To understand how to use the `Run` message better, let's write a simple "script.gno"
+To understand how to use the `Run` message better, let's write a simple `script.gno`
 file. First, create a folder which will store our script.
 
 ```bash
@@ -357,6 +357,127 @@ dev ./script.gno
 After running this command, the chain will execute the script and apply any state
 changes. Additionally, by using `println`, which is only available in the `Run`
 & testing context, we will be able to see the return value of the function called.
+
+#### The power of `Run`
+
+Specifically, the above example could have been replaced with a simple `maketx call`
+call. The full potential of run comes out in three specific cases:
+1. Calling realm functions multiple times in a loop
+2. Calling functions with non-primitive input arguments
+3. Calling functions with receiver objects
+
+Let's look at each of these cases in detail. To demonstrate, lets use the
+following example realm which we will call:
+
+```go
+package foo
+
+import "gno.land/p/demo/ufmt"
+
+var (
+	MainFoo *Foo
+	foos    []*Foo
+)
+
+type Foo struct {
+	bar string
+	baz int
+}
+
+func init() {
+	MainFoo = &Foo{bar: "mainBar", baz: 0}
+}
+
+func (f *Foo) String() string {
+	return ufmt.Sprintf("Foo - (bar: %s) - (baz: %d)\n\n", f.bar, f.baz)
+}
+
+func NewFoo(bar string, baz int) *Foo {
+	return &Foo{bar: bar, baz: baz}
+}
+
+func AddFoos(multipleFoos []*Foo) {
+	foos = append(foos, multipleFoos...)
+}
+
+func Render(_ string) string {
+	output := ""
+
+	for _, f := range foos {
+		output += f.String()
+	}
+
+	return output
+}
+```
+
+This realm is deployed to [`gno.land/r/leon/run/examples/foo`](https://gno.land/r/leon/run/examples/foo)
+on the Portal Loop testnet.
+
+1. Calling realm functions multiple times in a loop:
+```go
+package main
+
+import (
+  "gno.land/r/leon/run/examples/foo"
+)
+
+func main() {
+  for i := 0; i < 5; i++ {
+    println(foo.Render(""))
+  }
+}
+```
+
+2. Calling functions with non-primitive input arguments:
+
+Currently, `Call` only supports primitives for arguments. With `Run` these 
+limitations are removed - we can execute a function that takes in a struct, array,
+or even an array of structs.
+
+We are unable to call `AddFoos` with the `Call` message type, while with `Run`,
+we can:
+
+```go
+package main
+
+import (
+  "gno.land/r/leon/run/examples/foo"
+  "strconv"
+)
+
+func main() {
+  var multipleFoos []*foo.Foo
+
+  for i := 0; i < 5; i++ {
+    newFoo := foo.NewFoo(
+      "bar"+strconv.Itoa(i),
+      i,
+    )
+
+    multipleFoos = append(multipleFoos, newFoo)
+  }
+
+  foo.AddFoos(multipleFoos)
+}
+
+```
+
+3. Calling functions with receiver objects:
+
+```go
+package main
+
+import "gno.land/r/leon/run/examples/foo"
+
+func main() {
+	println(foo.MainFoo.String())
+}
+```
+
+Finally, we can call functions that are on top-level objects, which is not possible
+with the `Call` message.
+
 
 ## ABCI queries
 
