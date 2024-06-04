@@ -84,7 +84,6 @@ type Signer struct {
 
 func main() {
 	// verifier, node, broadcast, signer, opts
-
 	var (
 		verifier  = NewVerifier()
 		node      = NewNode()
@@ -139,7 +138,7 @@ func main() {
 
 	// ...
 
-	// Stop the at any time sequence by cancelling the context
+	// Stop the sequence at any time by cancelling the context
 	cancelFn()
 }
 
