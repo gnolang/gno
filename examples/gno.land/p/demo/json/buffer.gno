@@ -126,16 +126,7 @@ func (b *buffer) skipAny(endTokens map[byte]bool) error {
 		b.index++
 	}
 
-	// build error message
-	var tokens []string
-	for token := range endTokens {
-		tokens = append(tokens, string(token))
-	}
-
-	return ufmt.Errorf(
-		"EOF reached before encountering one of the expected tokens: %s",
-		strings.Join(tokens, ", "),
-	)
+	return io.EOF
 }
 
 // skipAndReturnIndex moves the buffer index forward by one and returns the new index.
@@ -371,4 +362,122 @@ func numberKind2f64(value interface{}) (result float64, err error) {
 	}
 
 	return
+}
+
+// numIndex holds a map of valid numeric characters
+var numIndex = map[byte]bool{
+	'0': true,
+	'1': true,
+	'2': true,
+	'3': true,
+	'4': true,
+	'5': true,
+	'6': true,
+	'7': true,
+	'8': true,
+	'9': true,
+	'.': true,
+	'e': true,
+	'E': true,
+}
+
+// pathToken checks if the current token is a valid JSON path token.
+func (b *buffer) pathToken() error {
+	var stack []byte
+
+	inToken := false
+	inNumber := false
+	first := b.index
+
+	for b.index < b.length {
+		c := b.data[b.index]
+
+		switch {
+		case c == singleQuote:
+			fallthrough
+
+		case c == doubleQuote:
+			inToken = true
+			if err := b.step(); err != nil {
+				return errors.New("error stepping through buffer")
+			}
+
+			if err := b.skip(c); err != nil {
+				return errors.New("unmatched quote in path")
+			}
+
+			if b.index >= b.length {
+				return errors.New("unmatched quote in path")
+			}
+
+		case c == bracketOpen || c == parenOpen:
+			inToken = true
+			stack = append(stack, c)
+
+		case c == bracketClose || c == parenClose:
+			inToken = true
+			if len(stack) == 0 || (c == bracketClose && stack[len(stack)-1] != bracketOpen) || (c == parenClose && stack[len(stack)-1] != parenOpen) {
+				return errors.New("mismatched bracket or parenthesis")
+			}
+
+			stack = stack[:len(stack)-1]
+
+		case pathStateContainsValidPathToken(c):
+			inToken = true
+
+		case c == plus || c == minus:
+			if inNumber || (b.index > 0 && numIndex[b.data[b.index-1]]) {
+				inToken = true
+			} else if !inToken && (b.index+1 < b.length && numIndex[b.data[b.index+1]]) {
+				inToken = true
+				inNumber = true
+			} else if !inToken {
+				return errors.New("unexpected operator at start of token")
+			}
+
+		default:
+			if len(stack) != 0 || inToken {
+				inToken = true
+			} else {
+				goto end
+			}
+		}
+
+		b.index++
+	}
+
+end:
+	if len(stack) != 0 {
+		return errors.New("unclosed bracket or parenthesis at end of path")
+	}
+
+	if first == b.index {
+		return errors.New("no token found")
+	}
+
+	if inNumber && !numIndex[b.data[b.index-1]] {
+		inNumber = false
+	}
+
+	return nil
+}
+
+func pathStateContainsValidPathToken(c byte) bool {
+	if _, ok := significantTokens[c]; ok {
+		return true
+	}
+
+	if _, ok := filterTokens[c]; ok {
+		return true
+	}
+
+	if _, ok := numIndex[c]; ok {
+		return true
+	}
+
+	if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' {
+		return true
+	}
+
+	return false
 }

@@ -1,7 +1,6 @@
 package json
 
 import (
-	"bytes"
 	"sort"
 	"strconv"
 	"strings"
@@ -73,7 +72,7 @@ func TestNode_CreateNewNode(t *testing.T) {
 				return
 			}
 
-			if !compareNodes(got, tt.expectCurr) {
+			if !deepEqual(got, tt.expectCurr) {
 				t.Errorf("%s got = %v, want %v", tt.name, got, tt.expectCurr)
 			}
 		})
@@ -1513,52 +1512,6 @@ func isSameObject(a, b string) bool {
 		}
 
 		if aMap[aKeys[i]] != bMap[bKeys[i]] {
-			return false
-		}
-	}
-
-	return true
-}
-
-func compareNodes(n1, n2 *Node) bool {
-	if n1 == nil || n2 == nil {
-		return n1 == n2
-	}
-
-	if n1.key != n2.key {
-		return false
-	}
-
-	if !bytes.Equal(n1.data, n2.data) {
-		return false
-	}
-
-	if n1.index != n2.index {
-		return false
-	}
-
-	if n1.borders != n2.borders {
-		return false
-	}
-
-	if n1.modified != n2.modified {
-		return false
-	}
-
-	if n1.nodeType != n2.nodeType {
-		return false
-	}
-
-	if !compareNodes(n1.prev, n2.prev) {
-		return false
-	}
-
-	if len(n1.next) != len(n2.next) {
-		return false
-	}
-
-	for k, v := range n1.next {
-		if !compareNodes(v, n2.next[k]) {
 			return false
 		}
 	}

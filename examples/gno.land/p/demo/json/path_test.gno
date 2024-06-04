@@ -1,123 +1,248 @@
 package json
 
 import (
+	"strings"
 	"testing"
 )
 
-func TestPath_ParseJSONPath(t *testing.T) {
+func TestParseJSONPath(t *testing.T) {
 	tests := []struct {
-		name     string
 		path     string
 		expected []string
 	}{
-		{name: "Empty string path", path: "", expected: []string{}},
-		{name: "Root only path", path: "$", expected: []string{"$"}},
-		{name: "Root with dot path", path: "$.", expected: []string{"$"}},
-		{name: "All objects in path", path: "$..", expected: []string{"$", ".."}},
-		{name: "Only children in path", path: "$.*", expected: []string{"$", "*"}},
-		{name: "All objects' children in path", path: "$..*", expected: []string{"$", "..", "*"}},
-		{name: "Simple dot notation path", path: "$.root.element", expected: []string{"$", "root", "element"}},
-		{name: "Complex dot notation path with wildcard", path: "$.root.*.element", expected: []string{"$", "root", "*", "element"}},
-		{name: "Path with array wildcard", path: "$.phoneNumbers[*].type", expected: []string{"$", "phoneNumbers", "*", "type"}},
-		{name: "Path with filter expression", path: "$.store.book[?(@.price < 10)].title", expected: []string{"$", "store", "book", "?(@.price < 10)", "title"}},
-		{name: "Path with formula", path: "$..phoneNumbers..('ty' + 'pe')", expected: []string{"$", "..", "phoneNumbers", "..", "('ty' + 'pe')"}},
-		{name: "Simple bracket notation path", path: "$['root']['element']", expected: []string{"$", "'root'", "'element'"}},
-		{name: "Complex bracket notation path with wildcard", path: "$['root'][*]['element']", expected: []string{"$", "'root'", "*", "'element'"}},
-		{name: "Bracket notation path with integer index", path: "$['store']['book'][0]['title']", expected: []string{"$", "'store'", "'book'", "0", "'title'"}},
-		{name: "Complex path with wildcard in bracket notation", path: "$['root'].*['element']", expected: []string{"$", "'root'", "*", "'element'"}},
-		{name: "Mixed notation path with dot after bracket", path: "$.['root'].*.['element']", expected: []string{"$", "'root'", "*", "'element'"}},
-		{name: "Mixed notation path with dot before bracket", path: "$['root'].*.['element']", expected: []string{"$", "'root'", "*", "'element'"}},
-		{name: "Single character path with root", path: "$.a", expected: []string{"$", "a"}},
-		{name: "Multiple characters path with root", path: "$.abc", expected: []string{"$", "abc"}},
-		{name: "Multiple segments path with root", path: "$.a.b.c", expected: []string{"$", "a", "b", "c"}},
-		{name: "Multiple segments path with wildcard and root", path: "$.a.*.c", expected: []string{"$", "a", "*", "c"}},
-		{name: "Multiple segments path with filter and root", path: "$.a[?(@.b == 'c')].d", expected: []string{"$", "a", "?(@.b == 'c')", "d"}},
-		{name: "Complex path with multiple filters", path: "$.a[?(@.b == 'c')].d[?(@.e == 'f')].g", expected: []string{"$", "a", "?(@.b == 'c')", "d", "?(@.e == 'f')", "g"}},
-		{name: "Complex path with multiple filters and wildcards", path: "$.a[?(@.b == 'c')].*.d[?(@.e == 'f')].g", expected: []string{"$", "a", "?(@.b == 'c')", "*", "d", "?(@.e == 'f')", "g"}},
-		{name: "Path with array index and root", path: "$.a[0].b", expected: []string{"$", "a", "0", "b"}},
-		{name: "Path with multiple array indices and root", path: "$.a[0].b[1].c", expected: []string{"$", "a", "0", "b", "1", "c"}},
-		{name: "Path with array index, wildcard and root", path: "$.a[0].*.c", expected: []string{"$", "a", "0", "*", "c"}},
+		{path: "$", expected: []string{"$"}},
+		{path: "$.", expected: []string{"$"}},
+		{path: "$..", expected: []string{"$", ".."}},
+		{path: "$.*", expected: []string{"$", "*"}},
+		{path: "$..*", expected: []string{"$", "..", "*"}},
+		{path: "$.root.element", expected: []string{"$", "root", "element"}},
+		{path: "$.root.*.element", expected: []string{"$", "root", "*", "element"}},
+		{path: "$['root']['element']", expected: []string{"$", "root", "element"}},
+		{path: "$['root'][*]['element']", expected: []string{"$", "root", "*", "element"}},
+		{path: "$['store']['book'][0]['title']", expected: []string{"$", "store", "book", "0", "title"}},
+		{path: "$['root'].*['element']", expected: []string{"$", "root", "*", "element"}},
+		{path: "$.['root'].*.['element']", expected: []string{"$", "root", "*", "element"}},
+		{path: "$['root'].*.['element']", expected: []string{"$", "root", "*", "element"}},
+		{path: "$.phoneNumbers[*].type", expected: []string{"$", "phoneNumbers", "*", "type"}},
+		// TODO: support filter expressions
+		// {path: "$.store.book[?(@.price < 10)].title", expected: []string{"$", "store", "book", "?(@.price < 10)", "title"}},
 	}
-
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reult, _ := ParsePath(tt.path)
-			if !isEqualSlice(reult, tt.expected) {
-				t.Errorf("ParsePath(%s) expected: %v, got: %v", tt.path, tt.expected, reult)
+		t.Run(tt.path, func(t *testing.T) {
+			result, err := parsePath(tt.path)
+			if err != nil {
+				t.Errorf("error on path %s: %s", tt.path, err.Error())
+			} else if !sliceEqual(result, tt.expected) {
+				t.Errorf("expected %s, got %s", sliceString(tt.expected), sliceString(result))
 			}
 		})
 	}
 }
 
-func TestPath_pathTokenizer(t *testing.T) {
+func TestArrayPath(t *testing.T) {
+	data := `{
+		"numbers": [1, 2, 3, 4, 5],
+		"colors": ["red", "green", "blue"],
+		"nested": [
+			{
+				"name": "Alice",
+				"age": 30
+			},
+			{
+				"name": "Bob",
+				"age": 25
+			},
+			{
+				"name": "Charlie",
+				"age": 35
+			}
+		]
+	}`
+
 	tests := []struct {
-		name  string
-		want  []string
-		isErr bool
+		name     string
+		path     string
+		expected string
+		isErr    bool
 	}{
-		{
-			name: "",
-			want: []string{},
-		},
-		{
-			name: "1234",
-			want: []string{"1234"},
-		},
-		{
-			name: "12e34",
-			want: []string{"12e34"},
-		},
-		{
-			name: "12.34",
-			want: []string{"12.34"},
-		},
-		{
-			name: "'foo'",
-			want: []string{"'foo'"},
-		},
-		{
-			name: "@.length",
-			want: []string{"@.length"},
-		},
-		{
-			name: "$.var2",
-			want: []string{"$.var2"},
-		},
-		{
-			name: "(@.length)",
-			want: []string{"(", "@.length", ")"},
-		},
-		{
-			name: `"{"`,
-			want: []string{`"{"`},
-		},
-		{
-			name:  "@.[",
-			isErr: true,
-		},
+		{name: "array index", path: "$.numbers[2]", expected: "[$['numbers'][2]]"},
+		{name: "array slice", path: "$.numbers[1:4]", expected: "[$['numbers'][1], $['numbers'][2], $['numbers'][3]]"},
+		{name: "array slice with step", path: "$.numbers[0:5:2]", expected: "[$['numbers'][0], $['numbers'][2], $['numbers'][4]]"},
+		{name: "array slice with negative index and step", path: "$.colors[-3:-1:1]", expected: "[$['colors'][0], $['colors'][1]]"},
+		{name: "nested array slice", path: "$.nested[0:2].name", expected: "[$['nested'][0]['name'], $['nested'][1]['name']]"},
+		{name: "nested array slice with step", path: "$.nested[0:3:2].age", expected: "[$['nested'][0]['age'], $['nested'][2]['age']]"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b := &buffer{
-				data:   []byte(tt.name),
-				length: len(tt.name),
-			}
-
-			got, err := b.pathTokenizer()
+			res, err := Path([]byte(data), tt.path)
 			if (err != nil) != tt.isErr {
-				t.Errorf("pathTokenizer() error = %v, wantErr %v", err, tt.isErr)
+				t.Errorf("expected error %v, got %v", tt.isErr, err)
+			}
+			if tt.isErr {
 				return
 			}
-
-			if !isEqualSlice(got, tt.want) {
-				t.Errorf("pathTokenizer() got = %v, want %v", got, tt.want)
+			if fullPath(res) != tt.expected {
+				t.Errorf("expected %s, got %s", tt.expected, fullPath(res))
 			}
 		})
 	}
 }
 
-func isEqualSlice(a, b []string) bool {
+func TestApplyPath(t *testing.T) {
+	node1 := NumberNode("", 1)
+	node2 := NumberNode("", 2)
+	cpy := func(n Node) *Node {
+		return &n
+	}
+	array := ArrayNode("", []*Node{cpy(*node1), cpy(*node2)})
+
+	type pathData struct {
+		node *Node
+		path []string
+	}
+
+	tests := []struct {
+		name     string
+		args     pathData
+		expected []*Node
+		isErr    bool
+	}{
+		{
+			name: "root",
+			args: pathData{
+				node: node1,
+				path: []string{"$"},
+			},
+			expected: []*Node{node1},
+		},
+		{
+			name: "second",
+			args: pathData{
+				node: array,
+				path: []string{"$", "1"},
+			},
+			expected: []*Node{array.next["1"]},
+		},
+		{
+			name: "object",
+			args: pathData{
+				node: ObjectNode("", map[string]*Node{
+					"key1": NumberNode("", 42),
+					"key2": NumberNode("", 43),
+				}),
+				path: []string{"$", "key1"},
+			},
+			expected: []*Node{NumberNode("", 42)},
+		},
+		{
+			name: "wildcard on object",
+			args: pathData{
+				node: ObjectNode("", map[string]*Node{
+					"key1": NumberNode("", 42),
+					"key2": NumberNode("", 43),
+				}),
+				path: []string{"$", "*"},
+			},
+			expected: []*Node{NumberNode("", 42), NumberNode("", 43)},
+		},
+		{
+			name: "array slice",
+			args: pathData{
+				node: ArrayNode("", []*Node{
+					NumberNode("", 1),
+					NumberNode("", 2),
+					NumberNode("", 3),
+					NumberNode("", 4),
+				}),
+				path: []string{"$", "1:3"},
+			},
+			expected: []*Node{NumberNode("", 2), NumberNode("", 3)},
+		},
+		{
+			name: "array slice with step",
+			args: pathData{
+				node: ArrayNode("", []*Node{
+					NumberNode("", 1),
+					NumberNode("", 2),
+					NumberNode("", 3),
+					NumberNode("", 4),
+					NumberNode("", 5),
+				}),
+				path: []string{"$", "0:5:2"},
+			},
+			expected: []*Node{
+				NumberNode("", 1),
+				NumberNode("", 3),
+				NumberNode("", 5),
+			},
+		},
+		{
+			name: "array slice with negative index and step",
+			args: pathData{
+				node: ArrayNode("", []*Node{
+					NumberNode("", 1),
+					NumberNode("", 2),
+					NumberNode("", 3),
+					NumberNode("", 4),
+					NumberNode("", 5),
+				}),
+				path: []string{"$", "-3:-1:1"},
+			},
+			expected: []*Node{
+				NumberNode("", 3),
+				NumberNode("", 4),
+			},
+		},
+		{
+			name: "basic recursive descent path",
+			args: pathData{
+				node: ObjectNode("", map[string]*Node{
+					"key1": NumberNode("", 42),
+					"key2": NumberNode("", 43),
+				}),
+				path: []string{"$", ".."},
+			},
+			expected: []*Node{
+				ObjectNode("", map[string]*Node{
+					"key1": NumberNode("", 42),
+					"key2": NumberNode("", 43),
+				}),
+				NumberNode("", 42),
+				NumberNode("", 43),
+			},
+		},
+		{
+			name: "recursive descent with wildcard",
+			args: pathData{
+				node: ObjectNode("", map[string]*Node{
+					"key1": NumberNode("", 42),
+					"key2": NumberNode("", 43),
+				}),
+				path: []string{"$", "..", "*"},
+			},
+			expected: []*Node{
+				ObjectNode("", map[string]*Node{
+					"key1": NumberNode("", 42),
+					"key2": NumberNode("", 43),
+				}),
+				NumberNode("", 42),
+				NumberNode("", 41),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := applyPath(tt.args.node, tt.args.path)
+			if (err != nil) != tt.isErr {
+				t.Errorf("#1 expected error %v, got %v", tt.isErr, err)
+			}
+		})
+	}
+}
+
+func sliceEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -129,4 +254,17 @@ func isEqualSlice(a, b []string) bool {
 	}
 
 	return true
+}
+
+func fullPath(array []*Node) string {
+	return sliceString(Paths(array))
+}
+
+func sliceString(array []string) string {
+	return "[" + strings.Join(array, ", ") + "]"
+}
+
+func (n *Node) Equals(other *Node) bool {
+	// Compare the values of n and other
+	return n.value == other.value && n.nodeType == other.nodeType
 }

@@ -1,7 +1,9 @@
 package json
 
 import (
+	"bytes"
 	"errors"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -1115,4 +1117,78 @@ func Must(root *Node, expect error) *Node {
 	}
 
 	return root
+}
+
+func (n *Node) Keys() []string {
+	if n == nil {
+		return nil
+	}
+	result := make([]string, 0, len(n.next))
+	for key := range n.next {
+		result = append(result, key)
+	}
+	return result
+}
+
+type nodeKeys []string
+
+func (keys nodeKeys) Len() int {
+	return len(keys)
+}
+
+func (keys nodeKeys) Less(i, j int) bool {
+	return keys[i] < keys[j]
+}
+
+func (keys nodeKeys) Swap(i, j int) {
+	keys[i], keys[j] = keys[j], keys[i]
+}
+
+func (n *Node) getSortedChildren() (result []*Node) {
+	if n == nil {
+		return nil
+	}
+
+	size := len(n.next)
+	if n.IsObject() {
+		result = make([]*Node, size)
+		keys := nodeKeys(n.Keys())
+		sort.Sort(keys)
+
+		for i, key := range keys {
+			result[i] = n.next[key]
+		}
+	} else if n.IsArray() {
+		result = make([]*Node, size)
+		for _, elem := range n.next {
+			result[*elem.index] = elem
+		}
+	}
+
+	return result
+}
+
+func deepEqual(n1, n2 *Node) bool {
+	if n1 == nil && n2 == nil {
+		return true
+	}
+	if n1 == nil || n2 == nil {
+		return false
+	}
+	if n1.nodeType != n2.nodeType {
+		return false
+	}
+	if n1.value != n2.value {
+		return false
+	}
+	if len(n1.next) != len(n2.next) {
+		return false
+	}
+	for key, child1 := range n1.next {
+		child2, ok := n2.next[key]
+		if !ok || !deepEqual(child1, child2) {
+			return false
+		}
+	}
+	return true
 }
