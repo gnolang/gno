@@ -3043,6 +3043,7 @@ func checkOrConvertBoolType(store Store, last BlockNode, x Expr) {
 		convertConst(store, last, cx, BoolType)
 	} else if x != nil {
 		t := evalStaticTypeOf(store, last, x)
+		// TODO: replace with assertAssignableTo after PR 1426 merges (github.com/gnolang/gno/pull/1426)
 		checkType(baseOf(t), BoolType, false)
 	}
 }
