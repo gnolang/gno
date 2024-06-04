@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/type31.gno:8: incompatible types in binary expression: x<VPBlock(1,0)> ADD y<VPBlock(1,1)>
+// main/files/type31.gno:8: incompatible types in binary expression: string ADD main.String

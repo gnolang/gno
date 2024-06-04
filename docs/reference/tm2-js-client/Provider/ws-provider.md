@@ -18,7 +18,7 @@ Creates a new instance of the WebSocket Provider
 #### Usage
 
 ```ts
-new WSProvider('ws://staging.gno.land:36657/ws');
+new WSProvider('ws://staging.gno.land:26657/ws');
 // provider with WS connection is created
 ```
 
@@ -30,7 +30,7 @@ with the WS provider
 #### Usage
 
 ```ts
-const wsProvider = new WSProvider('ws://staging.gno.land:36657/ws');
+const wsProvider = new WSProvider('ws://staging.gno.land:26657/ws');
 
 wsProvider.closeConnection();
 // WS connection is now closed
@@ -52,7 +52,7 @@ Returns **Promise<RPCResponse<Result\>>**
 ```ts
 const request: RPCRequest = // ...
 
-const wsProvider = new WSProvider('ws://staging.gno.land:36657/ws');
+const wsProvider = new WSProvider('ws://staging.gno.land:26657/ws');
 
 wsProvider.sendRequest<Result>(request);
 // request is sent over the open WS connection
@@ -73,7 +73,7 @@ Returns **Result**
 ```ts
 const response: RPCResponse = // ...
 
-const wsProvider = new WSProvider('ws://staging.gno.land:36657/ws');
+const wsProvider = new WSProvider('ws://staging.gno.land:26657/ws');
 
 wsProvider.parseResponse<Result>(response);
 // response is parsed
@@ -88,7 +88,7 @@ Returns **Promise<null\>**
 #### Usage
 
 ```ts
-const wsProvider = new WSProvider('ws://staging.gno.land:36657/ws');
+const wsProvider = new WSProvider('ws://staging.gno.land:26657/ws');
 
 await wsProvider.waitForOpenConnection()
 // status of the connection is: CONNECTED
