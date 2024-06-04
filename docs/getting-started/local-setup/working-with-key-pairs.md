@@ -34,24 +34,24 @@ USAGE
 Manages private keys for the node
 
 SUBCOMMANDS
-  add        Adds key to the keybase
-  delete     Deletes a key from the keybase
-  generate   Generates a bip39 mnemonic
-  export     Exports private key armor
-  import     Imports encrypted private key armor
-  list       Lists all keys in the keybase
-  sign       Signs the document
-  verify     Verifies the document signature
-  query      Makes an ABCI query
-  broadcast  Broadcasts a signed document
-  maketx     Composes a tx document to sign
+  add        adds key to the keybase
+  delete     deletes a key from the keybase
+  generate   generates a bip39 mnemonic
+  export     exports private key armor
+  import     imports encrypted private key armor
+  list       lists all keys in the keybase
+  sign       signs the given tx document and saves it to disk
+  verify     verifies the document signature
+  query      makes an ABCI query
+  broadcast  broadcasts a signed document
+  maketx     composes a tx document to sign
 
 FLAGS
-  -config ...                                          config file (optional)
-  -home $XDG_CONFIG/gno  home directory
-  -insecure-password-stdin=false                       WARNING! take password from stdin
-  -quiet=false                                         suppress output during execution
-  -remote 127.0.0.1:26657                              remote node URL
+  -config ...                     config file (optional)
+  -home $XDG_CONFIG/gno           home directory
+  -insecure-password-stdin=false  WARNING! take password from stdin
+  -quiet=false                    suppress output during execution
+  -remote 127.0.0.1:26657         remote node URL
 ```
 
 In this example, the directory where `gnokey` will store working data
