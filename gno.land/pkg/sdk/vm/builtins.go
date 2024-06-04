@@ -11,8 +11,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// NOTE: native functions/methods added here must be quick operations,
-// or account for gas before operation.
+// NOTE: this function may add loaded dependencies to store if they don't
+// already exist, including mem packages. If this happens during a transaction
+// with the tx context store, the transaction caller will pay for operations.
+// NOTE: native functions/methods added here must be quick operations, or
+// account for gas before operation.
 // TODO: define criteria for inclusion, and solve gas calculations(???).
 func (vm *VMKeeper) getPackage(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 	// otherwise, built-in package value.
