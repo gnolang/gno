@@ -10,6 +10,7 @@ import (
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 // setupDevNode initializes and returns a new DevNode.
@@ -20,13 +21,19 @@ func setupDevNode(
 	remitter emitter.Emitter,
 	balances gnoland.Balances,
 	pkgspath []gnodev.PackagePath,
+	txs []std.Tx,
 ) (*gnodev.Node, error) {
-	config := setupDevNodeConfig(cfg, balances, pkgspath)
+	config := setupDevNodeConfig(cfg, balances, pkgspath, txs)
 	return gnodev.NewDevNode(ctx, logger, remitter, config)
 }
 
 // setupDevNodeConfig creates and returns a new dev.NodeConfig.
-func setupDevNodeConfig(cfg *devCfg, balances gnoland.Balances, pkgspath []gnodev.PackagePath) *gnodev.NodeConfig {
+func setupDevNodeConfig(
+	cfg *devCfg,
+	balances gnoland.Balances,
+	pkgspath []gnodev.PackagePath,
+	txs []std.Tx,
+) *gnodev.NodeConfig {
 	config := gnodev.DefaultNodeConfig(cfg.root)
 	config.BalancesList = balances.List()
 	config.PackagesPathList = pkgspath
@@ -34,6 +41,7 @@ func setupDevNodeConfig(cfg *devCfg, balances gnoland.Balances, pkgspath []gnode
 	config.NoReplay = cfg.noReplay
 	config.MaxGasPerBlock = cfg.maxGas
 	config.ChainID = cfg.chainId
+	config.Txs = txs
 
 	// other listeners
 	config.TMConfig.P2P.ListenAddress = defaultDevOptions.nodeP2PListenerAddr
