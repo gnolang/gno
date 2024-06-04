@@ -157,6 +157,27 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				if err != nil {
 					return newCtx, res, true
 				}
+				/*
+					getCustomSignBytes = func(n uint64) []byte {
+						signBytes, err := GetSignBytes2(newCtx.ChainID(), tx, sacc, isGenesis, n)
+						if err != nil {
+							panic("should not happen")
+						}
+						return signBytes
+					}
+				*/
+
+				/*
+					fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+					fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+					fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+					fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+					fmt.Println("expected sequence", sacc.GetSequence())
+					fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+					fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+					fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+					fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+				*/
 
 				signerAccs[i], res = processSig(newCtx, sacc, stdSigs[i], signBytes, simulate, params, sigGasConsumer)
 				if !res.IsOK() {
@@ -248,6 +269,18 @@ func processSig(
 	if err := acc.SetSequence(acc.GetSequence() + 1); err != nil {
 		panic(err)
 	}
+
+	/*
+		fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+		fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+		fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+		fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+		fmt.Println("incremented sequence to", acc.GetSequence(), simulate)
+		fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+		fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+		fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+		fmt.Println(colors.Blue("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"))
+	*/
 
 	return acc, res
 }
@@ -445,6 +478,24 @@ func GetSignBytes(chainID string, tx std.Tx, acc std.Account, genesis bool) ([]b
 			ChainID:       chainID,
 			AccountNumber: accNum,
 			Sequence:      acc.GetSequence(),
+			Fee:           tx.Fee,
+			Msgs:          tx.Msgs,
+			Memo:          tx.Memo,
+		},
+	)
+}
+
+func GetSignBytes2(chainID string, tx std.Tx, acc std.Account, genesis bool, seq uint64) ([]byte, error) {
+	var accNum uint64
+	if !genesis {
+		accNum = acc.GetAccountNumber()
+	}
+
+	return std.GetSignaturePayload(
+		std.SignDoc{
+			ChainID:       chainID,
+			AccountNumber: accNum,
+			Sequence:      seq,
 			Fee:           tx.Fee,
 			Msgs:          tx.Msgs,
 			Memo:          tx.Memo,

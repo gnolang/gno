@@ -7,6 +7,7 @@ import (
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -18,10 +19,14 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 	// or account for gas before operation.
 	// TODO: define criteria for inclusion, and solve gas calculations.
 	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
-		fmt.Println("builtins/VMKeeper.initBuiltinPackagesAndTypes/getPackage", pkgPath)
-		defer func() {
-			fmt.Println("builtins/VMKeeper.initBuiltinPackagesAndTypes/getPackage returned nil?", pkgPath, pv == nil)
-		}()
+		/*
+			// fmt.Println("builtins/VMKeeper.initBuiltinPackagesAndTypes/getPackage", pkgPath)
+			defer func() {
+				// fmt.Println("builtins/VMKeeper.initBuiltinPackagesAndTypes/getPackage returned nil?", pkgPath, pv == nil)
+				// XXX
+				// store.Print()
+			}()
+		*/
 		// otherwise, built-in package value.
 		// first, load from filepath.
 		stdlibPath := filepath.Join(vm.stdlibsDir, pkgPath)
@@ -42,7 +47,15 @@ func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
 			Store:  store,
 		})
 		defer m2.Release()
-		return m2.RunMemPackage(memPkg, true)
+		pn, pv = m2.RunMemPackage(memPkg, true)
+		// XXX
+		if false {
+			fmt.Println(colors.Red("VMKeeper.init.getPackage ========================================= before wrote"))
+			store.Print()
+			fmt.Println(colors.Red("VMKeeper.init.getPackage ========================================= before wrote end"))
+		}
+		store.Write() // XXX XXX XXX or flush?
+		return
 	}
 	store.SetPackageGetter(getPackage)
 	store.SetNativeStore(stdlibs.NativeStore)

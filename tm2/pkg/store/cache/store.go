@@ -3,13 +3,18 @@ package cache
 import (
 	"bytes"
 	"container/list"
+	"fmt"
+	"reflect"
 	"sort"
 	"sync"
 
+	"github.com/gnolang/gno/tm2/pkg/colors"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/strings"
 
 	"github.com/gnolang/gno/tm2/pkg/store/types"
+	"github.com/gnolang/gno/tm2/pkg/store/utils"
 )
 
 // If value is nil but deleted is false, it means the parent doesn't have the
@@ -18,6 +23,12 @@ type cValue struct {
 	value   []byte
 	deleted bool
 	dirty   bool
+}
+
+func (cv cValue) String() string {
+	return fmt.Sprintf("cValue{%s,%v,%v}",
+		string(colors.ColoredBytes(cv.value, colors.Blue, colors.Green)),
+		cv.value, cv.deleted, cv.dirty)
 }
 
 // cacheStore wraps an in-memory cache around an underlying types.Store.
@@ -32,12 +43,17 @@ type cacheStore struct {
 var _ types.Store = (*cacheStore)(nil)
 
 func New(parent types.Store) *cacheStore {
-	return &cacheStore{
+	cs := &cacheStore{
 		cache:         make(map[string]*cValue),
 		unsortedCache: make(map[string]struct{}),
 		sortedCache:   list.New(),
 		parent:        parent,
 	}
+	// XXX
+	//fmt.Printf("======= NEW CACHESTORE ======= %p(%p)\n", cs, parent)
+	//debug.PrintStack()
+	//fmt.Printf("======= NEW CACHESTORE ======= %p(%p)\n", cs, parent)
+	return cs
 }
 
 // Implements types.Store.
@@ -112,9 +128,56 @@ func (store *cacheStore) Write() {
 	}
 
 	// Clear the cache
+	store.clear()
+}
+
+func (store *cacheStore) WriteThrough(n int) {
+	if n <= 0 {
+		panic("should not happen")
+	}
+	store.Write()
+	if n >= 2 {
+		store.parent.(types.WriteThrougher).WriteThrough(n - 1)
+	}
+}
+
+func (store *cacheStore) Flush() {
+	store.Write()
+	if fs, ok := store.parent.(types.Flusher); ok {
+		fs.Flush()
+	}
+}
+
+func (store *cacheStore) clear() {
 	store.cache = make(map[string]*cValue)
 	store.unsortedCache = make(map[string]struct{})
 	store.sortedCache = list.New()
+}
+
+func (store *cacheStore) clearClean() {
+	for key, cvalue := range store.cache {
+		if !cvalue.dirty {
+			delete(store.cache, key)
+			delete(store.unsortedCache, key)
+		}
+		// XXX delete from sortedCache too.
+	}
+}
+
+// Clears the cache. If true, clears parent recursively
+// for all cache wraps.
+func (store *cacheStore) ClearThrough() {
+	store.mtx.Lock()
+	defer store.mtx.Unlock()
+
+	// Clear the cache
+	// XXX clear vs clearClean
+	store.clearClean()
+
+	// Clear parents recursively.
+	if cts, ok := store.parent.(types.ClearThrougher); ok {
+		cts.ClearThrough()
+	}
 }
 
 // ----------------------------------------
@@ -208,4 +271,25 @@ func (store *cacheStore) setCacheValue(key, value []byte, deleted bool, dirty bo
 	if dirty {
 		store.unsortedCache[string(key)] = struct{}{}
 	}
+}
+
+func (store *cacheStore) Print() {
+	fmt.Println(colors.Cyan("cacheStore.Print"), fmt.Sprintf("%p", store))
+	for key, value := range store.cache {
+		fmt.Println(colors.Yellow(key),
+			string(colors.ColoredBytes([]byte(strings.TrimN(string(value.value), 550)), colors.Green, colors.Blue)),
+			"deleted", value.deleted,
+			"dirty", value.dirty,
+		)
+	}
+	fmt.Println(colors.Cyan("cacheStore.Print"), fmt.Sprintf("%p", store),
+		"print parent", fmt.Sprintf("%p", store.parent), reflect.TypeOf(store.parent))
+	if ps, ok := store.parent.(types.Printer); ok {
+		ps.Print()
+	} else {
+		utils.Print(store.parent)
+		//x := store.parent.Get([]byte("pkg:time"))
+		//fmt.Println("store.parent.Get('pkg:time') =", x)
+	}
+	fmt.Println(colors.Cyan("cacheStore.Print END"), fmt.Sprintf("%p", store))
 }

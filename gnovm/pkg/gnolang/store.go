@@ -9,8 +9,12 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
+	"github.com/gnolang/gno/tm2/pkg/store/utils"
+	stringz "github.com/gnolang/gno/tm2/pkg/strings"
 )
 
 // PackageGetter specifies how the store may retrieve packages which are not
@@ -65,6 +69,8 @@ type Store interface {
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
 	ClearCache()
 	Print()
+	Write()
+	Flush()
 }
 
 // Used to keep track of in-mem objects during tx.
@@ -114,14 +120,14 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
 	// helper to detect circular imports
 	if isImport {
-		fmt.Println(">>>>>>>>>>> ? ", pkgPath)
+		// fmt.Println(">>>>>>>>>>> ? ", pkgPath)
 		if slices.Contains(ds.current, pkgPath) {
 			panic(fmt.Sprintf("import cycle detected: %q (through %v)", pkgPath, ds.current))
 		}
-		fmt.Println(">>>>>>>>>>> ADD", pkgPath)
+		// fmt.Println(">>>>>>>>>>> ADD", pkgPath)
 		ds.current = append(ds.current, pkgPath)
 		defer func() {
-			fmt.Println(">>>>>>>>>>> REMOVE", pkgPath)
+			// fmt.Println(">>>>>>>>>>> REMOVE", pkgPath)
 			ds.current = ds.current[:len(ds.current)-1]
 		}()
 	}
@@ -531,14 +537,14 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 }
 
 func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
-	fmt.Println("defaultStore.AddMemPackage", memPkg.Path)
+	// fmt.Println("defaultStore.AddMemPackage", memPkg.Path)
 	memPkg.Validate() // NOTE: duplicate validation.
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
 	bz := amino.MustMarshal(memPkg)
 	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
 	pathkey := []byte(backendPackagePathKey(memPkg.Path))
-	fmt.Printf("defaultStore.AddMemPackage iavlStore %p %p\n", ds.iavlStore, len(bz))
+	// fmt.Printf("defaultStore.AddMemPackage iavlStore %p %p\n", ds.iavlStore, len(bz))
 	ds.iavlStore.Set(pathkey, bz)
 }
 
@@ -550,8 +556,16 @@ func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
 
 func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
 	pathkey := []byte(backendPackagePathKey(path))
+	if false { // XXX
+		fmt.Println("defaultStore.getMemPackage ========================0")
+		fmt.Println("defaultStore.getMemPackage", path, "isRetry", isRetry)
+		if ps, ok := ds.iavlStore.(types.Printer); ok {
+			ps.Print()
+		}
+		fmt.Println("defaultStore.getMemPackage ========================0 END")
+	}
 	bz := ds.iavlStore.Get(pathkey)
-	fmt.Printf("defaultStore.getMemPackage iavlStore %p %p\n", ds.iavlStore, len(bz))
+	// fmt.Printf("defaultStore.getMemPackage iavlStore %p %d\n", ds.iavlStore, len(bz))
 	if bz == nil {
 		// If this is the first try, attempt using GetPackage to retrieve the
 		// package, first. GetPackage can leverage pkgGetter, which in most
@@ -560,10 +574,46 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 		// Some packages may never be persisted, thus why we only attempt this twice.
 		if !isRetry {
 			if pv := ds.GetPackage(path, false); pv != nil {
+				if false { // XXX
+					fmt.Println("defaultStore.getMemPackage============1 not retry")
+					if ps, ok := ds.iavlStore.(types.Printer); ok {
+						ps.Print()
+					}
+					fmt.Println("defaultStore.getMemPackage============1 not retry ENDPRINT")
+				}
+				// XXX XXX XXX hmmmmmmmm unauthorized error?
+				//ds.iavlStore.(types.WriteThrougher).WriteThrough(1)
+				//ds.baseStore.(types.WriteThrougher).WriteThrough(2)
+				// ds.Flush()
+				// XXX clear cache layers.
+				if cts, ok := ds.iavlStore.(types.ClearThrougher); ok {
+					cts.ClearThrough()
+				}
+				if cts, ok := ds.baseStore.(types.ClearThrougher); ok {
+					cts.ClearThrough()
+				}
+				if false { // XXX
+					fmt.Println("defaultStore.getMemPackage============2 not retry")
+					if ps, ok := ds.iavlStore.(types.Printer); ok {
+						ps.Print()
+					}
+					fmt.Println("defaultStore.getMemPackage============2 not retry ENDPRINT")
+				}
+				/*
+					if fs, ok := ds.iavlStore.(Forgetter); ok {
+						fmt.Println("FORGET")
+						fs.Forget(pathkey)
+					} else {
+						fmt.Println("NOTFORGET", reflect.TypeOf(ds.iavlStore))
+					}
+				*/
 				return ds.getMemPackage(path, true)
 			}
 		}
 		return nil
+	}
+	if false {
+		fmt.Println("defaultStore.getMemPackage ======================= ENDPRINT")
 	}
 	var memPkg *std.MemPackage
 	amino.MustUnmarshal(bz, &memPkg)
@@ -652,6 +702,8 @@ func (ds *defaultStore) Fork() Store {
 		opslog:  nil,
 		current: nil,
 	}
+	//fmt.Printf("defaultStore.Fork %p .iavlStore %p\n", ds, ds.iavlStore)
+	//dbm.PrintStack()
 	ds2.SetCachePackage(Uverse())
 	return ds2
 }
@@ -677,8 +729,16 @@ func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
 	return nil
 }
 
+// Writes one level of cache to store.
+func (ds *defaultStore) Write() {
+	ds.baseStore.(types.Writer).Write()
+	ds.iavlStore.(types.Writer).Write()
+}
+
+// Flush cached writes to disk.
 func (ds *defaultStore) Flush() {
-	// XXX
+	ds.baseStore.(types.Flusher).Flush()
+	ds.iavlStore.(types.Flusher).Flush()
 }
 
 // ----------------------------------------
@@ -760,22 +820,25 @@ func (ds *defaultStore) ClearCache() {
 
 // for debugging
 func (ds *defaultStore) Print() {
-	fmt.Println("//----------------------------------------")
-	fmt.Println("defaultStore:baseStore...")
-	store.Print(ds.baseStore)
-	fmt.Println("//----------------------------------------")
-	fmt.Println("defaultStore:iavlStore...")
-	store.Print(ds.iavlStore)
-	fmt.Println("//----------------------------------------")
-	fmt.Println("defaultStore:cacheTypes...")
+	fmt.Println(colors.Yellow("//----------------------------------------"))
+	fmt.Println(colors.Green("defaultStore:baseStore..."))
+	utils.Print(ds.baseStore)
+	fmt.Println(colors.Yellow("//----------------------------------------"))
+	fmt.Println(colors.Green("defaultStore:iavlStore..."))
+	utils.Print(ds.iavlStore)
+	fmt.Println(colors.Yellow("//----------------------------------------"))
+	fmt.Println(colors.Green("defaultStore:cacheTypes..."))
 	for tid, typ := range ds.cacheTypes {
-		fmt.Printf("- %v: %v\n", tid, typ)
+		fmt.Printf("- %v: %v\n", tid,
+			stringz.TrimN(fmt.Sprintf("%v", typ), 50))
 	}
-	fmt.Println("//----------------------------------------")
-	fmt.Println("defaultStore:cacheNodes...")
+	fmt.Println(colors.Yellow("//----------------------------------------"))
+	fmt.Println(colors.Green("defaultStore:cacheNodes..."))
 	for loc, bn := range ds.cacheNodes {
-		fmt.Printf("- %v: %v\n", loc, bn)
+		fmt.Printf("- %v: %v\n", loc,
+			stringz.TrimN(fmt.Sprintf("%v", bn), 50))
 	}
+	fmt.Println(colors.Red("//----------------------------------------"))
 }
 
 // ----------------------------------------

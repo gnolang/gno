@@ -615,6 +615,9 @@ func (app *BaseApp) getContextForTx(mode RunTxMode, txBytes []byte) (ctx Context
 		WithVoteInfos(app.voteInfos).
 		WithConsensusParams(app.consensusParams)
 
+	// NOTE: This is especially required to simulate transactions because
+	// otherwise baseapp writes the antehandler mods (sequence and balance)
+	// to the underlying store for deliver and checktx.
 	if mode == RunTxModeSimulate {
 		ctx, _ = ctx.CacheContext()
 	}
@@ -835,6 +838,8 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 	}
 
 	// only update state if all messages pass
+	// XXX
+	//if mode != RunTxModeSimulate && result.IsOK() {
 	if result.IsOK() {
 		msCache.MultiWrite()
 	}

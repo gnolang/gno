@@ -226,6 +226,9 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					tsValidateError(ts, "gnokey", neg, err)
 				}
 
+				// fmt.Println("sleeping 10 seconds")
+				//time.Sleep(10 * time.Second)
+
 				// Setup IO command
 				io := commands.NewTestIO()
 				io.SetOut(commands.WriteNopCloser(ts.Stdout()))

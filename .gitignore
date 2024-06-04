@@ -30,3 +30,6 @@ pbbindings.go
 # Test coverage leftovers
 cover.out
 coverage.out
+
+*.swp
+*.swo

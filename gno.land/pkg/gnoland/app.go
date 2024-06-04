@@ -18,6 +18,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
+	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
 
 	// Only goleveldb is supported for now.
 	_ "github.com/gnolang/gno/tm2/pkg/db/_tags"
@@ -54,6 +55,10 @@ func (c *AppOptions) validate() error {
 	}
 
 	return nil
+}
+
+type Printer interface {
+	Print()
 }
 
 // NewApp creates the GnoLand application.
@@ -120,7 +125,20 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	}
 
 	// Initialize the VMKeeper.
-	vmKpr.Initialize(baseApp.GetCacheMultiStore())
+	ms := baseApp.GetCacheMultiStore()
+	vmKpr.Initialize(ms)
+	mainStore := ms.GetStore(mainKey)
+	baseStore := ms.GetStore(baseKey)
+	if false { // XXX
+		fmt.Println("========== INiTIALIZE")
+		if ps, ok := mainStore.(stypes.Printer); ok {
+			ps.Print()
+		}
+		if ps, ok := baseStore.(stypes.Printer); ok {
+			ps.Print()
+		}
+		fmt.Println("========== INiTIALIZE END")
+	}
 
 	return baseApp, nil
 }
@@ -196,6 +214,17 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 
 // XXX not used yet.
 func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
+	/*
+		fmt.Println(colors.Yellow("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"))
+		fmt.Println(colors.Yellow("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"))
+		fmt.Println(colors.Yellow("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"))
+		fmt.Println(colors.Yellow("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"))
+		fmt.Println(colors.Yellow("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"))
+		fmt.Println(colors.Yellow("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"))
+		fmt.Println(colors.Yellow("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"))
+		fmt.Println(colors.Yellow("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"))
+		fmt.Println(colors.Yellow("EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE"))
+	*/
 	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
 		return abci.ResponseEndBlock{}
 	}
