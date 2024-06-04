@@ -128,7 +128,7 @@ format is the following:
 }
 ```
 
-You can test this out buy running the following `curl` command:
+You can test this out by running the following `curl` command:
 ```bash
 curl --location --request POST 'http://localhost:8545' --header 'Content-Type: application/json' --data '{"To": "g1juz2yxmdsa6audkp6ep9vfv80c8p5u76e03vvh"}'
 ```
