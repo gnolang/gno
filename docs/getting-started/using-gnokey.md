@@ -195,9 +195,9 @@ You can send a `Call` transaction with `gnokey` using the following command:
 gnokey maketx call
 ```
 
-:::info `call` uses gas
+:::info `Call` uses gas
 
-Using `call` to call an exported function will use up gas, even if the function
+Using `Call` to call an exported function will use up gas, even if the function
 does not modify on-chain state. If you are calling such a function, you can use
 the [`query` functionality](#query) for a read-only call which does not use gas.
 
@@ -435,7 +435,7 @@ Currently, `Call` only supports primitives for arguments. With `Run` these
 limitations are removed - we can execute a function that takes in a struct, array,
 or even an array of structs.
 
-We are unable to call `AddFoos` with the `Call` message type, while with `Run`,
+We are unable to call `AddFoos()` with the `Call` message type, while with `Run`,
 we can:
 
 ```go
@@ -477,7 +477,6 @@ func main() {
 
 Finally, we can call functions that are on top-level objects, which is not possible
 with the `Call` message.
-
 
 ## ABCI queries
 
