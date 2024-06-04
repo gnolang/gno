@@ -2,61 +2,29 @@
 package test
 
 type S struct {
-	A int
+	A *int
 }
 
 var a, b *S
 
-func main() {
+func init() {
 	a = new(S)
-	a.A = 4
+	a.A = new(int)
+	*a.A = 4
+}
+
+func main() {
 	b = a
 }
 
 // Realm:
 // switchrealm["gno.land/r/test"]
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]={
-//     "Fields": [
-//         {
-//             "N": "BAAAAAAAAAA=",
-//             "T": {
-//                 "@type": "/gno.PrimitiveType",
-//                 "value": "32"
-//             }
-//         }
-//     ],
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5",
-//         "ModTime": "0",
-//         "OwnerID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
-//         "RefCount": "1"
-//     }
-// }
-// c[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]={
-//     "ObjectInfo": {
-//         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",
-//         "IsEscaped": true,
-//         "ModTime": "0",
-//         "RefCount": "2"
-//     },
-//     "Value": {
-//         "T": {
-//             "@type": "/gno.RefType",
-//             "ID": "gno.land/r/test.S"
-//         },
-//         "V": {
-//             "@type": "/gno.RefValue",
-//             "Hash": "8c001dde13b1f4dc01fc6d3a5bb4bc0cdfe2a50b",
-//             "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
-//         }
-//     }
-// }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]={
 //     "Blank": {},
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //         "IsEscaped": true,
-//         "ModTime": "3",
+//         "ModTime": "6",
 //         "RefCount": "2"
 //     },
 //     "Parent": null,
@@ -87,8 +55,11 @@ func main() {
 //                                 "Name": "A",
 //                                 "Tag": "",
 //                                 "Type": {
-//                                     "@type": "/gno.PrimitiveType",
-//                                     "value": "32"
+//                                     "@type": "/gno.PointerType",
+//                                     "Elt": {
+//                                         "@type": "/gno.PrimitiveType",
+//                                         "value": "32"
+//                                     }
 //                                 }
 //                             }
 //                         ],
@@ -97,6 +68,42 @@ func main() {
 //                     "Methods": [],
 //                     "Name": "S",
 //                     "PkgPath": "gno.land/r/test"
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": []
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
+//                 },
+//                 "FileName": "main.gno",
+//                 "IsMethod": false,
+//                 "Name": "init.1",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/test",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "File": "main.gno",
+//                         "Line": "10",
+//                         "Nonce": "0",
+//                         "PkgPath": "gno.land/r/test"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": []
 //                 }
 //             }
 //         },
@@ -124,7 +131,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "main.gno",
-//                         "Line": "10",
+//                         "Line": "16",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
