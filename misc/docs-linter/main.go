@@ -18,9 +18,9 @@ import (
 )
 
 var (
-	errEmptyPath    = errors.New("you need to pass in a path to scan")
-	err404Link      = errors.New("link returned a 404")
-	errSome404Links = errors.New("some links returned with 404")
+	errEmptyPath     = errors.New("you need to pass in a path to scan")
+	err404Link       = errors.New("link returned a 404")
+	errFound404Links = errors.New("found links resulting in a 404 response status")
 )
 
 type cfg struct {
@@ -63,7 +63,7 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		return err
 	}
 
-	fmt.Printf("Linting %s...\n", abs)
+	fmt.Printf("Linting %s...\n\n", abs)
 
 	mdFiles, err := findFilePaths(cfg.docsPath)
 	if err != nil {
@@ -109,7 +109,7 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		g.Go(func() error {
 			if err := checkUrl(url); err != nil {
 				lock.Lock()
-				notFoundUrls = append(notFoundUrls, fmt.Sprintf("%s (found in file: %s)", url, urlFileMap[url]))
+				notFoundUrls = append(notFoundUrls, fmt.Sprintf(">>> %s (found in file: %s)", url, urlFileMap[url]))
 				lock.Unlock()
 			}
 
@@ -128,7 +128,7 @@ func execLint(cfg *cfg, ctx context.Context) error {
 			fmt.Println(result)
 		}
 
-		return errSome404Links
+		return errFound404Links
 	}
 
 	return nil
