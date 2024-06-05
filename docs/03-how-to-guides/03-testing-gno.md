@@ -177,7 +177,7 @@ Luckily, the Gno standard library provides ample support for functionality such 
 time, such as the request caller address, or the calling package address.
 
 You can learn more about these methods, that are importable using the `std` import declaration,
-in the [Standard Library](../06-reference/03-stdlibs/stdlibs.md) reference section.
+in the [Standard Library](../07-reference/03-stdlibs/stdlibs.md) reference section.
 
 ## Conclusion
 

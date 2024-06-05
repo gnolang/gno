@@ -26,7 +26,7 @@ representing the type of event, and an even number of arguments after representi
 
 Read more about events & `Emit()` in 
 [Effective Gno](../08-effective-gno.md#emit-gno-events-to-make-life-off-chain-easier),
-and the `Emit()` reference [here](../../06-reference/03-stdlibs/01-std/05-chain.md#emit).
+and the `Emit()` reference [here](../../07-reference/03-stdlibs/01-std/05-chain.md#emit).
 
 ## Data contained in a Gno Event
 

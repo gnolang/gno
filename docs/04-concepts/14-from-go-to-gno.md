@@ -73,5 +73,5 @@ TODO
 
 ## See also
 
-- [go-gno-compatibility.md](../06-reference/04-go-gno-compatibility.md)
+- [go-gno-compatibility.md](../07-reference/04-go-gno-compatibility.md)
 - ["go -> gno" presentation by Zack Scholl](https://github.com/gnolang/workshops/tree/main/presentations/2023-06-26--go-to-gno--schollz)

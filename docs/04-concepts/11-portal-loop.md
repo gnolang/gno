@@ -57,7 +57,7 @@ After genesis has been replayed, the chain continues working as normal.
 
 The Portal Loop deployment can be found at [gno.land](https://gno.land), while
 the exposed RPC endpoints can be found on `https://rpc.gno.land:443`. The RPC endpoint
-list can be found in the [reference section](../06-reference/02-network-config.md).
+list can be found in the [reference section](../07-reference/02-network-config.md).
 
 ### A warning note
 

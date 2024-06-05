@@ -32,4 +32,4 @@ which can manipulate them depending on access rights.
 
 Read more about coins in the [Effective Gno](../08-effective-gno.md#coins) section. 
 
-The Coin(s) API can be found in under the `std` package [reference](../../06-reference/03-stdlibs/01-std/03-coin.md).
+The Coin(s) API can be found in under the `std` package [reference](../../07-reference/03-stdlibs/01-std/03-coin.md).

@@ -220,7 +220,7 @@ Calling the `Render` method returns a general render of the GRC20 realm, or
 if given a specific address, the user's `balance` as a formatted string.
 
 You can view the full code on [this Playground link](https://play.gno.land/p/km7Ja6WDQoL).
-If you want to deploy it, do so on the [Portal Loop](../concepts/portal-loop.md).
+If you want to deploy it, do so on the [Portal Loop](../04-concepts/11-portal-loop.md).
 
 ## Conclusion
 That's it 🎉

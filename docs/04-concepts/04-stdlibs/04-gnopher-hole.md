@@ -101,6 +101,6 @@ Some things to keep in mind:
   with `// XXX` comments as needed.
 
 If you intend to create a PR to add a new standard library, remember to update
-[Go<\>Gno compatibility](../../06-reference/04-go-gno-compatibility.md) accordingly.
+[Go<\>Gno compatibility](../../07-reference/04-go-gno-compatibility.md) accordingly.
 
 
