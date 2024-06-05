@@ -1,38 +1,37 @@
 package grc721
 
-import "std"
-
-type IGRC721 interface {
-	BalanceOf(owner std.Address) (uint64, error)
-	OwnerOf(tid TokenID) (std.Address, error)
-	SetTokenURI(tid TokenID, tURI TokenURI) (bool, error)
-	SafeTransferFrom(from, to std.Address, tid TokenID) error
-	TransferFrom(from, to std.Address, tid TokenID) error
-	Approve(approved std.Address, tid TokenID) error
-	SetApprovalForAll(operator std.Address, approved bool) error
-	GetApproved(tid TokenID) (std.Address, error)
-	IsApprovedForAll(owner, operator std.Address) bool
-}
-
-type (
-	TokenID  string
-	TokenURI string
+import (
+	"std"
 )
 
-type TransferEvent struct {
-	From    std.Address
-	To      std.Address
-	TokenID TokenID
-}
+type IGRC721 interface {
+	// BalanceOf returns the number of tokens in `owner`'s account
+	BalanceOf(owner std.Address) uint64
 
-type ApprovalEvent struct {
-	Owner    std.Address
-	Approved std.Address
-	TokenID  TokenID
-}
+	// OwnerOf returns the owner of the `tokenId` token
+	// tokenId must exist
+	OwnerOf(tokenId string) std.Address
 
-type ApprovalForAllEvent struct {
-	Owner    std.Address
-	Operator std.Address
-	Approved bool
+	// TransferFrom transfers `tokenId` token from `from` to `to`
+	TransferFrom(from, to std.Address, tokenId string)
+
+	// Approve gives permission to `to` to transfer `tokenId` token to another account
+	// The approval is cleared when the token is transferred
+	Approve(to std.Address, tokenId string)
+
+	// SetApprovalForAll approves or removes `operator` as an operator for the caller
+	// Operators can call TransferFrom for any token owned by the caller
+	SetApprovalForAll(operator std.Address, approved bool)
+
+	// GetApproved returns the account approved for `tokenId` token
+	GetApproved(tokenId string) std.Address
+
+	// IsApprovedForAll returns if the `operator` is allowed to manage all the assets of `owner`
+	IsApprovedForAll(owner, operator std.Address) bool
+
+	// TokenURI gets the tokenURI for matching `tokenId`
+	TokenURI(tokenId string) string
+
+	// SetTokenURI sets `tokenURI` as the tokenURI of `tokenId`
+	SetTokenURI(tokenId string, tokenURI string) string
 }
