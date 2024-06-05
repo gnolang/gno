@@ -6,26 +6,6 @@ id: gno-tooling-gnoland
 
 `gnoland` is the Gno.land blockchain client binary, which is capable of managing node working files, as well as starting the blockchain client itself.
 
-## Gno Command Syntax Guide
-
-### gnoland <subcommand> [flags] [<arg>...]
-
-#### Subcommand
-
-The gnoland command consists of various purpose-built subcommands.
-
-#### Flags
-
-Options of the subcommand.
-
-- `gnoland start [-chainid]` : Allows you to configure options of the start subcommand such as the Chain ID.
-
-#### Arg
-
-The argument of the flag .
-
-- `gnoland start -chainid [chain_id_value_here]` : The argument of the chainid flag.
-
 ### gnoland start [flags]
 
 Starts the Gnoland blockchain node, with accompanying setup.
