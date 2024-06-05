@@ -58,12 +58,7 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		return errEmptyPath
 	}
 
-	abs, err := filepath.Abs(cfg.docsPath)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Linting %s...\n\n", abs)
+	fmt.Println("Linting docs/...\n")
 
 	mdFiles, err := findFilePaths(cfg.docsPath)
 	if err != nil {
@@ -123,7 +118,6 @@ func execLint(cfg *cfg, ctx context.Context) error {
 
 	// Print out the URLs that returned a 404 along with the file names
 	if len(notFoundUrls) > 0 {
-		fmt.Println("The following URLs are broken or returned a 404 status:")
 		for _, result := range notFoundUrls {
 			fmt.Println(result)
 		}
