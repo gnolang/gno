@@ -1,4 +1,4 @@
-name: docs-404-checker
+name: "docs / 404 checker"
 
 on:
   push:
