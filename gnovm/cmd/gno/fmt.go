@@ -129,14 +129,14 @@ func fmtGetProcessFile(cfg *fmtCfg) (fmtProcessFile, error) {
 func fmtProcessFiles(cfg *fmtCfg, files []string, processFile fmtProcessFile, io commands.IO) int {
 	errCount := 0
 	for _, file := range files {
-		if !processSingleFile(cfg, file, processFile, io) {
+		if !fmtProcessSingleFile(cfg, file, processFile, io) {
 			errCount++
 		}
 	}
 	return errCount
 }
 
-func processSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFile, io commands.IO) bool {
+func fmtProcessSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFile, io commands.IO) bool {
 	if cfg.verbose {
 		io.Printfln("processing %q", file)
 	}
@@ -152,7 +152,7 @@ func processSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFile, io 
 		return false
 	}
 
-	if cfg.diff && !fmtProcessDiff(file, data, io) {
+	if cfg.diff && fmtProcessDiff(file, data, io) {
 		return false
 	}
 
@@ -190,17 +190,17 @@ func fmtProcessDiff(file string, data []byte, io commands.IO) bool {
 func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
 	gnoroot := gnoenv.RootDir()
 
-	p := gnoimports.NewProcessor()
+	r := gnoimports.NewFSResolver()
 
 	// Load stdlibs
 	stdlibs := filepath.Join(gnoroot, "gnovm", "stdlibs")
-	if err := p.LoadStdPackages(stdlibs); err != nil {
+	if err := r.LoadStdPackages(stdlibs); err != nil {
 		return nil, fmt.Errorf("unable to load %q: %w", stdlibs, err)
 	}
 
 	// Load examples directory
 	examples := filepath.Join(gnoroot, "examples")
-	if err := p.LoadPackages(examples); err != nil {
+	if err := r.LoadPackages(examples); err != nil {
 		return nil, fmt.Errorf("unable to load %q: %w", examples, err)
 	}
 
@@ -211,13 +211,13 @@ func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
 			return nil, fmt.Errorf("unable to determine absolute path of %q: %w", include, err)
 		}
 
-		if err := p.LoadPackages(absp); err != nil {
+		if err := r.LoadPackages(absp); err != nil {
 			return nil, fmt.Errorf("unable to load %q: %w", absp, err)
 		}
 	}
 
+	p := gnoimports.NewProcessor(r)
 	return func(file string, io commands.IO) []byte {
-
 		data, err := p.FormatImports(file)
 		if err == nil {
 			return data
