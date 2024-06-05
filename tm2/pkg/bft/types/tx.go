@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
@@ -115,4 +116,8 @@ type TxResult struct {
 	Index    uint32                 `json:"index"`
 	Tx       Tx                     `json:"tx"`
 	Response abci.ResponseDeliverTx `json:"response"`
+}
+
+func (tx *TxResult) Bytes() []byte {
+	return amino.MustMarshal(tx)
 }

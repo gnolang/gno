@@ -3,60 +3,87 @@
 # Primary repo maintainers.
 *                             @gnolang/tech-staff
 
-# Tendermint2 (Gno version).
-/tm2/*                        @gnolang/tech-staff
-/tm2/pkg                      @jaekwon @piux2 @moul @zivkovicmilos
-/tm2/pkg/crypto               @jaekwon @moul @gnolang/security
+# Tendermint2.
+/tm2/                         @jaekwon @moul @piux2 @zivkovicmilos
+/tm2/pkg/crypto/              @jaekwon @moul @gnolang/security
+/tm2/pkg/crypto/keys/client/  @jaekwon @gnolang/security
+/tm2/pkg/db/                  @ajnavarro
 # TODO: add per package exceptions
 # ...
 
 # Docs & Content.
-/docs/                        @gnolang/devrels
-/misc/docusaurus/             @gnolang/devrels
-/README.md                    @gnolang/devrels
+/docs/                        @moul
+/docs/**.md                   @gnolang/devrels
+/docs/**.gif                  @gnolang/devrels
+/docs/Makefile                @gnolang/devrels
+/README.md                    @moul @gnolang/devrels
+/**/README.md                 @gnolang/devrels
 /.gitpod.yml                  @gnolang/devrels
 
 # Gno examples and default contracts.
-/examples/                    @gnolang/tech-staff @gnolang/devrels
-/examples/gno.land/r/gnoland/ @moul
-/examples/gno.land/r/gov/     @moul
-/examples/gno.land/r/sys/     @moul
-/examples/gno.land/r/worx/    @moul
-/examples/gno.land/r/x        @gnolang/devrels
-# TODO: add people from the community here.
-/examples/gno.land/r/jaekwon/ @jaekwon
-/examples/gno.land/r/manfred/ @moul
+/examples/                            @gnolang/tech-staff @gnolang/devrels
+/examples/gno.land/p/demo/            @gnolang/tech-staff @gnolang/devrels
+/examples/gno.land/p/demo/avl/        @jaekwon
+/examples/gno.land/p/demo/bf/         @moul
+/examples/gno.land/p/demo/blog/       @gnolang/devrels
+/examples/gno.land/p/demo/cford32/    @thehowl
+/examples/gno.land/p/demo/memeland/   @leohhhn
+/examples/gno.land/p/demo/seqid/      @thehowl
+/examples/gno.land/p/demo/ownable/    @leohhhn
+/examples/gno.land/p/demo/pausable/   @leohhhn
+/examples/gno.land/p/demo/stack/      @harry-hov
+/examples/gno.land/p/demo/svg/        @moul
+/examples/gno.land/p/demo/tamagotchi/ @moul
+/examples/gno.land/p/demo/ui/         @moul
+/examples/gno.land/r/demo/            @gnolang/tech-staff @gnolang/devrels
+/examples/gno.land/r/demo/art/        @moul
+/examples/gno.land/r/demo/memeland/   @leohhhn
+/examples/gno.land/r/demo/tamagotchi/ @moul
+/examples/gno.land/r/demo/userbook/   @leohhhn
+/examples/gno.land/r/gnoland/         @moul
+/examples/gno.land/r/sys/             @moul
+/examples/gno.land/r/jaekwon/         @jaekwon
+/examples/gno.land/r/manfred/         @moul
 
 # Gno.land.
-/gno.land/                    @moul
-/gno.land/pkg/integration     @gfanton
+/gno.land/                    @moul @zivkovicmilos
+/gno.land/cmd/genesis/        @zivkovicmilos
+/gno.land/cmd/gnokey/         @jaekwon @moul @gfanton
+/gno.land/cmd/gnoland/        @zivkovicmilos @gnolang/devops
+/gno.land/cmd/gnoweb/         @gfanton @thehowl
+/gno.land/pkg/gnoclient/      @zivkovicmilos @leohhhn @gfanton
+/gno.land/pkg/gnoland/        @zivkovicmilos @gfanton
+/gno.land/pkg/keyscli/        @jaekwon @moul @gfanton
+/gno.land/pkg/log/            @zivkovicmilos @gfanton
+/gno.land/pkg/sdk/vm/         @moul @gfanton @thehowl
+/gno.land/pkg/integration/    @gfanton
+/gno.land/genesis/            @moul
 #...
 
 # GnoVM/Gnolang.
-/gnovm/                       @gnolang/tech-staff
-/gnovm/stdlibs                @jaekwon @thehowl
-/gnovm/tests                  @jaekwon @piux2 @thehowl @moul
-/gnovm/cmd/gno                @jaekwon @thehowl @harry-hov @moul
-/gnovm/pkg/gnolang            @jaekwon @piux2 @thehowl @moul
-/gnovm/pkg/doc                @thehowl
-/gnovm/pkg/gnomod             @harry-hov
-/gnovm/pkg/integration        @gfanton
-#/gnovm/pkg/gnoenv
-#/gnovm/pkg/repl
+/gnovm/                       @jaekwon @moul @piux2 @thehowl
+/gnovm/stdlibs/               @thehowl
+/gnovm/tests/                 @jaekwon @deelawn @thehowl @mvertes
+/gnovm/cmd/gno/               @moul @thehowl @harry-hov
+/gnovm/pkg/gnolang/           @jaekwon @moul @piux2 @deelawn
+/gnovm/pkg/doc/               @thehowl
+/gnovm/pkg/repl/              @mvertes @ajnavarro
+/gnovm/pkg/gnomod/            @harry-hov
+/gnovm/pkg/gnoenv/            @gfanton
+/gnovm/pkg/transpiler/        @thehowl
+/gnovm/pkg/integration/       @gfanton
 
 # Contribs
 /contribs/                    @gnolang/tech-staff
-/contribs/gnodev              @gfanton
-/contribs/gnokeykc            @moul
-/contribs/gnomd               @moul
-#...
+/contribs/gnodev/             @gfanton
+/contribs/gnokeykc/           @moul
+/contribs/gnomd/              @moul
 
 # Misc
 /misc/                        @gnolang/tech-staff
-/misc/loop                    @moul @gnolang/devops
-/misc/deployments             @moul @gnolang/devops
-/misc/genstd                  @thehowl
-#...
+/misc/loop/                   @moul @gnolang/devops
+/misc/deployments/            @moul @gnolang/devops
+/misc/genstd/                 @thehowl
 
 # Special files.
 /PLAN.md                      @jaekwon @moul
@@ -65,3 +92,4 @@
 /LICENSE.md                   @jaekwon
 /.github/                     @moul @gnolang/tech-staff
 /.github/CODEOWNERS           @jaekwon @moul
+/go.mod                       @gnolang/tech-staff # no unnecessary dependencies

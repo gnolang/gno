@@ -475,7 +475,13 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				rfv.GetClosure(store)
 		}
 	case PointerKind:
-		// TODO: assumes runtime instance normalization.
+		if lv.V != nil && rv.V != nil {
+			lpv := lv.V.(PointerValue)
+			rpv := rv.V.(PointerValue)
+			if lpv.TV.T == DataByteType && rpv.TV.T == DataByteType {
+				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
+			}
+		}
 		return lv.V == rv.V
 	default:
 		panic(fmt.Sprintf(

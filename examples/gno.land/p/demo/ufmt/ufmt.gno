@@ -52,24 +52,26 @@ func Println(args ...interface{}) {
 //	%t: formats a boolean value to "true" or "false".
 //	%%: outputs a literal %. Does not consume an argument.
 func Sprintf(format string, args ...interface{}) string {
-	end := len(format)
+	// we use runes to handle multi-byte characters
+	sTor := []rune(format)
+	end := len(sTor)
 	argNum := 0
 	argLen := len(args)
 	buf := ""
 
 	for i := 0; i < end; {
 		isLast := i == end-1
-		c := format[i]
+		c := string(sTor[i])
 
-		if isLast || c != '%' {
+		if isLast || c != "%" {
 			// we don't check for invalid format like a one ending with "%"
 			buf += string(c)
 			i++
 			continue
 		}
 
-		verb := format[i+1]
-		if verb == '%' {
+		verb := string(sTor[i+1])
+		if verb == "%" {
 			buf += "%"
 			i += 2
 			continue
@@ -82,7 +84,7 @@ func Sprintf(format string, args ...interface{}) string {
 		argNum++
 
 		switch verb {
-		case 's':
+		case "s":
 			switch v := arg.(type) {
 			case interface{ String() string }:
 				buf += v.String()
@@ -91,7 +93,7 @@ func Sprintf(format string, args ...interface{}) string {
 			default:
 				buf += "(unhandled)"
 			}
-		case 'd':
+		case "d":
 			switch v := arg.(type) {
 			case int:
 				buf += strconv.Itoa(v)
@@ -116,7 +118,7 @@ func Sprintf(format string, args ...interface{}) string {
 			default:
 				buf += "(unhandled)"
 			}
-		case 't':
+		case "t":
 			switch v := arg.(type) {
 			case bool:
 				if v {

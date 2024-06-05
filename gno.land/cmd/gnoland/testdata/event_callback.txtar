@@ -1,0 +1,51 @@
+# load the package from $WORK directory
+loadpkg gno.land/r/demo/cbee $WORK
+
+# start a new node
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/cbee -func Foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   [0-9]+'
+stdout 'HEIGHT:     [0-9]+'
+stdout 'EVENTS:     \[{\"type\":\"foo\",\"pkg_path\":\"gno\.land\/r\/demo\/cbee\",\"func\":\"subFoo\",\"attrs\":\[{\"key\":\"k1\",\"value\":\"v1\"},{\"key\":\"k2\",\"value\":\"v2\"}\]},{\"type\":\"bar\",\"pkg_path\":\"gno\.land\/r\/demo\/cbee\",\"func\":\"subBar\",\"attrs\":\[{\"key\":\"bar\",\"value\":\"baz\"}\]}\]'
+
+
+-- cbee.gno --
+package cbee
+
+import (
+    "std"
+)
+
+const (
+	foo = "foo"
+	bar = "bar"
+)
+
+type contractA struct{}
+
+func (c *contractA) foo(cb func()) {
+	subFoo()
+	cb()
+}
+
+func subFoo() {
+	std.Emit(foo, "k1", "v1", "k2", "v2")
+}
+
+type contractB struct{}
+
+func (c *contractB) subBar() {
+	std.Emit(bar, "bar", "baz")
+}
+
+func Foo() {
+    a := &contractA{}
+	b := &contractB{}
+
+	a.foo(func() {
+		b.subBar()
+	})
+}

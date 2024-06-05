@@ -18,6 +18,7 @@ const (
 	KeyCtrlR KeyPress = '\x12' // Ctrl+R
 	KeyCtrlT KeyPress = '\x14' // Ctrl+T
 
+	KeyA KeyPress = 'A'
 	KeyH KeyPress = 'H'
 	KeyR KeyPress = 'R'
 )
