@@ -9,7 +9,7 @@ id: network-config
 | Portal Loop | https://rpc.gno.land:443          | `portal-loop` |
 | Testnet 4   | upcoming                          | upcoming      |
 | Testnet 3   | https://rpc.test3.gno.land:443    | `test3`       |
-| Staging     | http://rpc.staging.gno.land:36657 | `staging`     |
+| Staging     | http://rpc.staging.gno.land:26657 | `staging`     |
 
 ### WebSocket endpoints
 All networks follow the same pattern for websocket connections: 
