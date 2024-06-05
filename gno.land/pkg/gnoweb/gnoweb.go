@@ -103,6 +103,7 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 		"/grants":                  "/partners",
 		"/language":                "/gnolang",
 		"/getting-started":         "/start",
+		"/gophercon24":             "https://docs.gno.land",
 	}
 	for from, to := range redirects {
 		app.Router.Handle(from, handlerRedirect(logger, app, &cfg, to))
