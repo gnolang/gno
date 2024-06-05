@@ -8,6 +8,7 @@ import (
 type Type string
 
 const (
+	EvtUnknown        Type = "UNKNOWN"
 	EvtReload         Type = "NODE_RELOAD"
 	EvtReset          Type = "NODE_RESET"
 	EvtPackagesUpdate Type = "PACKAGES_UPDATE"
@@ -19,6 +20,13 @@ type Event interface {
 
 	assertEvent()
 }
+
+// Reload Event
+
+type Unknown struct{}
+
+func (Unknown) Type() Type   { return EvtUnknown }
+func (Unknown) assertEvent() {}
 
 // Reload Event
 

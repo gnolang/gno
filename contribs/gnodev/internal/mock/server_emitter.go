@@ -23,6 +23,8 @@ func (m *ServerEmitter) Emit(evt events.Event) {
 }
 
 func (m *ServerEmitter) NextEvent() (evt events.Event) {
+	evt = &events.Unknown{}
+
 	m.muEvents.Lock()
 	defer m.muEvents.Unlock()
 
