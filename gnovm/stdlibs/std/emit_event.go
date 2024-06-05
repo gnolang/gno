@@ -27,7 +27,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 		PrevPkgAddr: prevAddr,
 	}
 
-	ctx := m.Context.(ExecContext)
+	ctx := GetContext(m)
 
 	evt := gnoEvent{
 		OrigCaller: ctx.OrigCaller.String(),
@@ -38,7 +38,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 		Type:       typ,
 		Attributes: eventAttrs,
 	}
-	ctx := GetContext(m)
+
 	ctx.EventLogger.EmitEvent(evt)
 }
 
