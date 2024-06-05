@@ -155,14 +155,14 @@ func Render(_ string) string { return "bar" }
 	require.NoError(t, err)
 
 	// Check reload event
-	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReload)
+	assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
 
 	// After a reload, render should succeed
 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foobar")
 	require.NoError(t, err)
 	require.Equal(t, render, "bar")
 
-	assert.Nil(t, emitter.NextEvent())
+	assert.Equal(t, mock.EvtNull, emitter.NextEvent().Type())
 }
 
 func TestNodeReset(t *testing.T) {
@@ -216,7 +216,7 @@ func Render(_ string) string { return str }
 	require.NoError(t, err)
 	require.Equal(t, render, "foo")
 
-	assert.Equal(t, emitter.NextEvent(), events.EvtUnknown)
+	assert.Equal(t, mock.EvtNull, emitter.NextEvent().Type())
 }
 
 func testingRenderRealm(t *testing.T, node *Node, rlmpath string) (string, error) {
