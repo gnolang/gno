@@ -140,7 +140,7 @@ func (p *Processor) FormatImports(filep string) ([]byte, error) {
 func (p *Processor) resolveAndUpdateImports(fset *token.FileSet, node *ast.File, topDecls map[*ast.Object]ast.Decl) {
 	unresolved := collectUnresolved(node, topDecls)
 	cleanupPreviousImports(fset, node, topDecls, unresolved)
-	resolve(fset, node, unresolved, p.stdlibs)
+	resolve(fset, node, unresolved, p.stdlibs) // first resolve stdlibs
 	resolve(fset, node, unresolved, p.extlibs)
 }
 

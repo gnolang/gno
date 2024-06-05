@@ -81,12 +81,16 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultFmtOptions.diff,
 		"print and make the command fail if any diff is found and write is disabled",
 	)
+
 }
 
 type fmtProcessFile func(file string, io commands.IO) []byte
 
 func execFmt(cfg *fmtCfg, args []string, io commands.IO) error {
 	cfg.write = !cfg.diff && cfg.write
+	if len(args) == 0 {
+		return flag.ErrHelp
+	}
 
 	paths, err := targetsFromPatterns(args)
 	if err != nil {
@@ -104,7 +108,6 @@ func execFmt(cfg *fmtCfg, args []string, io commands.IO) error {
 	}
 
 	errCount := fmtProcessFiles(cfg, files, processFile, io)
-
 	if errCount > 0 {
 		if !cfg.verbose {
 			os.Exit(1)
@@ -149,10 +152,8 @@ func processSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFile, io 
 		return false
 	}
 
-	if cfg.diff {
-		if !fmtProcessDiff(cfg, file, data, io) {
-			return false
-		}
+	if cfg.diff && !fmtProcessDiff(file, data, io) {
+		return false
 	}
 
 	if !cfg.write {
@@ -171,7 +172,7 @@ func processSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFile, io 
 	return true
 }
 
-func fmtProcessDiff(cfg *fmtCfg, file string, data []byte, io commands.IO) bool {
+func fmtProcessDiff(file string, data []byte, io commands.IO) bool {
 	oldFile, err := os.ReadFile(file)
 	if err != nil {
 		io.ErrPrintfln("unable to read %q for diffing: %v", file, err)
@@ -216,6 +217,7 @@ func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
 	}
 
 	return func(file string, io commands.IO) []byte {
+
 		data, err := p.FormatImports(file)
 		if err == nil {
 			return data
