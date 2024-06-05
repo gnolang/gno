@@ -81,7 +81,6 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultFmtOptions.diff,
 		"print and make the command fail if any diff is found and write is disabled",
 	)
-
 }
 
 type fmtProcessFile func(file string, io commands.IO) []byte
@@ -94,12 +93,12 @@ func execFmt(cfg *fmtCfg, args []string, io commands.IO) error {
 
 	paths, err := targetsFromPatterns(args)
 	if err != nil {
-		return fmt.Errorf("unable to get targets paths from patterns: %v", err)
+		return fmt.Errorf("unable to get targets paths from patterns: %w", err)
 	}
 
 	files, err := gnoFilesFromArgs(paths)
 	if err != nil {
-		return fmt.Errorf("unable to gather gno files: %v", err)
+		return fmt.Errorf("unable to gather gno files: %w", err)
 	}
 
 	processFile, err := fmtGetProcessFile(cfg)

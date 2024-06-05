@@ -128,7 +128,7 @@ func targetsFromPatterns(patterns []string) ([]string, error) {
 
 		info, err := os.Stat(dirToSearch)
 		if err != nil {
-			return nil, fmt.Errorf("invalid file or package path %q: %w", dirToSearch, err)
+			return nil, fmt.Errorf("invalid file or package path: %w", err)
 		}
 
 		// If the pattern is a file or a directory
