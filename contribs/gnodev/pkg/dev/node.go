@@ -85,10 +85,8 @@ type Node struct {
 	loadedPackages int
 
 	// state
-	muState           sync.RWMutex
-	state             []std.Tx
-	initialState      []std.Tx
-	currentStateIndex int
+	initialState, state []std.Tx
+	currentStateIndex   int
 }
 
 var DefaultFee = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
@@ -454,7 +452,6 @@ func (n *Node) handleEventTX(evt tm2events.Event) {
 		if err := amino.Unmarshal(data.Result.Tx, &resEvt.Tx); err != nil {
 			n.logger.Error("unable to unwarp tx result",
 				"error", err)
-
 		}
 
 		n.emitter.Emit(resEvt)

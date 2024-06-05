@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
-	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
@@ -246,7 +245,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	// XXX: find a good way to export or display node logs
 	nodeLogger := logger.WithGroup(NodeLogName)
 	nodeCfg := setupDevNodeConfig(cfg, logger, emitterServer, balances, pkgpaths)
-	devNode, err := dev.NewDevNode(ctx, nodeCfg)
+	devNode, err := gnodev.NewDevNode(ctx, nodeCfg)
 	if err != nil {
 		return err
 	}
@@ -321,13 +320,12 @@ func runEventLoop(
 	dnode *gnodev.Node,
 	watch *watcher.PackageWatcher,
 ) error {
-
 	// XXX: move this in above, but we need to have a proper struct first
 	// XXX: make this configurable
 	exported := 0
 	path, err := os.MkdirTemp("", "gnodev-export")
 	if err != nil {
-		return fmt.Errorf("unable to create `export` directory: ", err)
+		return fmt.Errorf("unable to create `export` directory: %w", err)
 	}
 
 	defer func() {
