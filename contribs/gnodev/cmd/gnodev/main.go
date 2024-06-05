@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
@@ -49,6 +50,7 @@ type devCfg struct {
 	root            string
 	premineAccounts varPremineAccounts
 	balancesFile    string
+	genesisFile     string
 
 	// Node Configuration
 	minimal    bool
@@ -171,6 +173,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"set node ChainID",
 	)
 
+	fs.StringVar(
+		&c.genesisFile,
+		"genesis-file",
+		defaultDevOptions.genesisFile,
+		"load the given genesis file",
+	)
+
 	fs.BoolVar(
 		&c.noWatch,
 		"no-watch",
@@ -236,7 +245,8 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
 	nodeLogger := logger.WithGroup(NodeLogName)
-	devNode, err := setupDevNode(ctx, nodeLogger, cfg, emitterServer, balances, pkgpaths)
+	nodeCfg := setupDevNodeConfig(cfg, logger, emitterServer, balances, pkgpaths)
+	devNode, err := dev.NewDevNode(ctx, nodeCfg)
 	if err != nil {
 		return err
 	}
@@ -292,11 +302,15 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 }
 
 var helper string = `
-A           Accounts - Display known accounts and balances
-H           Help - Display this message
-R           Reload - Reload all packages to take change into account.
-Ctrl+R      Reset - Reset application state.
-Ctrl+C      Exit - Exit the application
+P           Previous TX	 - Go to the previous tx
+N           Next TX	 - Go to the next tx
+E           Export	 - Export the current state as genesis doc
+A           Accounts	 - Display known accounts and balances
+H           Help	 - Display this message
+R           Reload	 - Reload all packages to take change into account.
+Ctrl+S      Save State	 - Save the current state
+Ctrl+R      Reset	 - Reset application to it's initial/save state.
+Ctrl+C      Exit	 - Exit the application
 `
 
 func runEventLoop(
@@ -380,7 +394,7 @@ func runEventLoop(
 						Error("unable to save node state", "err", err)
 				}
 
-			case rawterm.KeyCtrlE: // Export
+			case rawterm.KeyE:
 				logger.WithGroup(NodeLogName).Info("exporting state...")
 				doc, err := dnode.ExportStateAsGenesis(ctx)
 				if err != nil {
@@ -410,29 +424,6 @@ func runEventLoop(
 					logger.WithGroup(NodeLogName).
 						Error("unable to move backward", "err", err)
 				}
-
-			// case rawterm.KeyI: // Info
-			// 	index := dnode.CurrentTXIndex()
-			// 	var s strings.Builder
-			// 	tab := tabwriter.NewWriter(&s, 5, 0, 2, ':', 0)
-			// 	fmt.Fprintf(tab, "Index\t%d", index)
-			// 	tab.Flush()
-			// 	logger.WithGroup(NodeLogName).Info("node status", "state", s.String())
-			// 	// doc, err := dnode.ExportStateAsGenesis(ctx)
-			// if err != nil {
-			// 	logger.WithGroup(NodeLogName).
-			// 		Error("unable to export node state", "err", err)
-			// 	continue
-			// }
-
-			// docfile := filepath.Join(path, fmt.Sprintf("export_%d.jsonl", exported))
-			// if err := doc.SaveAs(docfile); err != nil {
-			// 	logger.WithGroup(NodeLogName).
-			// 		Error("unable to save genesis", "err", err)
-			// }
-			// exported++
-
-			// logger.WithGroup(NodeLogName).Info("", "index", docfile)
 
 			case rawterm.KeyCtrlC: // Exit
 				return nil

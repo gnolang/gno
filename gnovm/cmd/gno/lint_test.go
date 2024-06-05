@@ -8,7 +8,7 @@ func TestLintApp(t *testing.T) {
 			args:        []string{"lint"},
 			errShouldBe: "flag: help requested",
 		}, {
-			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/run_main/"},
+			args:                []string{"lint", "../../tests/integ/run_main/"},
 			stderrShouldContain: "./../../tests/integ/run_main: missing 'gno.mod' file (code=1).",
 		}, {
 			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},

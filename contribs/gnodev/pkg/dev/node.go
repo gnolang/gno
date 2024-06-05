@@ -29,9 +29,11 @@ import (
 )
 
 type NodeConfig struct {
+	Logger                *slog.Logger
 	DefaultDeployer       crypto.Address
 	BalancesList          []gnoland.Balance
 	PackagesPathList      []PackagePath
+	Emitter               emitter.Emitter
 	InitialTxs            []std.Tx
 	TMConfig              *tmcfg.Config
 	SkipFailingGenesisTxs bool
@@ -44,6 +46,7 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 	tmc := gnoland.NewDefaultTMConfig(rootdir)
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 	tmc.Consensus.WALDisabled = true
+	tmc.Consensus.CreateEmptyBlocks = false
 
 	defaultDeployer := crypto.MustAddressFromString(integration.DefaultAccount_Address)
 	balances := []gnoland.Balance{
@@ -54,6 +57,8 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 	}
 
 	return &NodeConfig{
+		Logger:                noopLogger,
+		Emitter:               &emitter.NoopServer{},
 		DefaultDeployer:       defaultDeployer,
 		BalancesList:          balances,
 		ChainID:               tmc.ChainID(),
@@ -80,14 +85,15 @@ type Node struct {
 	loadedPackages int
 
 	// state
-	initialState  []std.Tx
-	previousState []std.Tx
-	stateIndex    int
+	muState           sync.RWMutex
+	state             []std.Tx
+	initialState      []std.Tx
+	currentStateIndex int
 }
 
 var DefaultFee = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
 
-func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitter, cfg *NodeConfig) (*Node, error) {
+func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 	mpkgs, err := NewPackagesMap(cfg.PackagesPathList)
 	if err != nil {
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
@@ -97,24 +103,25 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitte
 	if err != nil {
 		return nil, fmt.Errorf("unable to load genesis packages: %w", err)
 	}
-	logger.Info("pkgs loaded", "path", cfg.PackagesPathList)
+	cfg.Logger.Info("pkgs loaded", "path", cfg.PackagesPathList)
 
 	devnode := &Node{
-		config:         cfg,
-		client:         client.NewLocal(),
-		emitter:        emitter,
-		pkgs:           mpkgs,
-		logger:         logger,
-		initialState:   cfg.InitialTxs,
-		loadedPackages: len(pkgsTxs),
-		stateIndex:     len(cfg.InitialTxs),
+		config:            cfg,
+		client:            client.NewLocal(),
+		emitter:           cfg.Emitter,
+		pkgs:              mpkgs,
+		logger:            cfg.Logger,
+		loadedPackages:    len(pkgsTxs),
+		state:             cfg.InitialTxs,
+		initialState:      cfg.InitialTxs,
+		currentStateIndex: len(cfg.InitialTxs),
 	}
 
-	// // generate genesis state
-	// genesis := gnoland.GnoGenesisState{
-	// 	Balances: cfg.BalancesList,
-	// 	Txs:      txs,
-	// }
+	// generate genesis state
+	genesis := gnoland.GnoGenesisState{
+		Balances: cfg.BalancesList,
+		Txs:      append(pkgsTxs, cfg.InitialTxs...),
+	}
 
 	if err := devnode.rebuildNode(ctx, genesis); err != nil {
 		return nil, fmt.Errorf("unable to initialize the node: %w", err)
@@ -266,7 +273,6 @@ func (n *Node) Reset(ctx context.Context) error {
 
 	// Append initialTxs
 	txs := append(pkgsTxs, n.initialState...)
-
 	genesis := gnoland.GnoGenesisState{
 		Balances: n.config.BalancesList,
 		Txs:      txs,
@@ -279,8 +285,7 @@ func (n *Node) Reset(ctx context.Context) error {
 	}
 
 	n.loadedPackages = len(pkgsTxs)
-	n.stateIndex = len(n.initialState)
-	n.previousState = nil
+	n.currentStateIndex = len(n.initialState)
 	n.emitter.Emit(&events.Reset{})
 	return nil
 }
@@ -424,6 +429,40 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	return nil
 }
 
+func (n *Node) handleEventTX(evt tm2events.Event) {
+	switch data := evt.(type) {
+	case bft.EventTx:
+		go func() {
+			// Use separate routine to avoid deadlock
+			n.muNode.Lock()
+			defer n.muNode.Unlock()
+
+			heigh := n.BlockStore().Height()
+			n.currentStateIndex++
+			n.state = nil // invalidate state
+
+			n.logger.Info("node state", "index", n.currentStateIndex, "height", heigh)
+		}()
+
+		resEvt := events.TxResult{
+			Height: data.Result.Height,
+			Index:  data.Result.Index,
+			// XXX: Update this to split error for stack
+			Response: data.Result.Response,
+		}
+
+		if err := amino.Unmarshal(data.Result.Tx, &resEvt.Tx); err != nil {
+			n.logger.Error("unable to unwarp tx result",
+				"error", err)
+
+		}
+
+		n.emitter.Emit(resEvt)
+	}
+}
+
+var noopLogger = log.NewNoopLogger()
+
 func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState) (err error) {
 	// Stop the node if it's currently running.
 	if err := n.stopIfRunning(); err != nil {
@@ -434,7 +473,6 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
 	nodeConfig.GenesisTxHandler = n.genesisTxHandler
 	nodeConfig.Genesis.ConsensusParams.Block.MaxGas = n.config.MaxGasPerBlock
-	nodeConfig.TMConfig.Consensus.CreateEmptyBlocks = false
 
 	// recoverFromError handles panics and converts them to errors.
 	recoverFromError := func() {
@@ -453,9 +491,16 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	// Execute node creation and handle any errors.
 	defer recoverFromError()
 
-	node, nodeErr := buildNode(n.logger, n.emitter, nodeConfig)
-	if nodeErr != nil { // Then for any node error
-		return fmt.Errorf("unable to build the node: %w", nodeErr)
+	// XXX(TODO): Redirect the node log somewhere else
+	node, nodeErr := gnoland.NewInMemoryNode(noopLogger, nodeConfig)
+	if nodeErr != nil {
+		return fmt.Errorf("unable to create a new node: %w", err)
+	}
+
+	node.EventSwitch().AddListener("dev-emitter", n.handleEventTX)
+
+	if startErr := node.Start(); startErr != nil {
+		return fmt.Errorf("unable to start the node: %w", startErr)
 	}
 
 	// Wait for the node to be ready
@@ -500,41 +545,6 @@ func (n *Node) genesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
 	n.logger.LogAttrs(context.Background(), slog.LevelError, "unable to deliver tx", attrs...)
 
 	return
-}
-
-var noopLogger = log.NewNoopLogger()
-
-func buildNode(logger *slog.Logger, emitter emitter.Emitter, cfg *gnoland.InMemoryNodeConfig) (*node.Node, error) {
-	// XXX(TODO): Redirect the node log somewhere else
-	node, err := gnoland.NewInMemoryNode(noopLogger, cfg)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create a new node: %w", err)
-	}
-
-	node.EventSwitch().AddListener("dev-emitter", func(evt tm2events.Event) {
-		switch data := evt.(type) {
-		case bft.EventTx:
-			resEvt := events.TxResult{
-				Height: data.Result.Height,
-				Index:  data.Result.Index,
-				// XXX: Update this to split error for stack
-				Response: data.Result.Response,
-			}
-
-			if err := amino.Unmarshal(data.Result.Tx, &resEvt.Tx); err != nil {
-				logger.Error("unable to unwarp tx result",
-					"error", err)
-			}
-
-			emitter.Emit(resEvt)
-		}
-	})
-
-	if startErr := node.Start(); startErr != nil {
-		return nil, fmt.Errorf("unable to start the node: %w", startErr)
-	}
-
-	return node, nil
 }
 
 func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {

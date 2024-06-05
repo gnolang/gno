@@ -20,6 +20,7 @@ const (
 	KeyCtrlT KeyPress = '\x14' // Ctrl+T
 
 	KeyA KeyPress = 'A'
+	KeyE KeyPress = 'E'
 	KeyH KeyPress = 'H'
 	KeyI KeyPress = 'I'
 	KeyN KeyPress = 'N'
