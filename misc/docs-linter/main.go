@@ -18,9 +18,9 @@ import (
 )
 
 var (
-	errEmptyPath  = errors.New("you need to pass in a path to scan")
-	err404Link    = errors.New("link returned a 404")
-	errNo404Links = errors.New("no links returned with 404")
+	errEmptyPath    = errors.New("you need to pass in a path to scan")
+	err404Link      = errors.New("link returned a 404")
+	errSome404Links = errors.New("some links returned with 404")
 )
 
 type cfg struct {
@@ -128,10 +128,10 @@ func execLint(cfg *cfg, ctx context.Context) error {
 			fmt.Println(result)
 		}
 
-		return nil
+		return errSome404Links
 	}
 
-	return errNo404Links
+	return nil
 }
 
 // findFilePaths gathers the file paths for specific file types
