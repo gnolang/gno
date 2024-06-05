@@ -1,11 +1,5 @@
 package main
 
-import (
-	"fmt"
-
-	"gno.land/r/x/manfred_upgrade_patterns/upgrade_d/v2"
-)
-
 func main() {
 	println("a", v1.Get("a"))
 	println("b", v1.Get("b"))
