@@ -31,6 +31,8 @@ func TestSkipHeights(count int64)
 ```
 Modifies the block height variable by skipping **count** blocks.
 
+It also increases block timestamp by 5 seconds for every single count
+
 #### Usage
 ```go
 std.TestSkipHeights(100)
