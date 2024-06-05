@@ -2,7 +2,7 @@
 # Source ../../config.tape
 
 # Output
-Output gnokey-generate.gif
+Output gnoland-start-lazy.gif
 
 # Requirement
 Require gnoland
@@ -14,10 +14,10 @@ Set Height 800
 
 ## Run
 
-Type "gnoland start"
+Type "gnoland start --lazy"
 Sleep 500ms
 Enter
 
 # Wait a bit and Exit
-Sleep 10s
+Sleep 5s
 Ctrl+c
