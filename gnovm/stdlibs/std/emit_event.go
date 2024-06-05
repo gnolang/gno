@@ -30,7 +30,7 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	ctx := m.Context.(ExecContext)
 
 	evt := gnoEvent{
-		OrigCaller: string(ctx.OrigCaller),
+		OrigCaller: ctx.OrigCaller.String(),
 		Prev:       prev,
 		PrevFunc:   prevFunc,
 		PkgPath:    pkgPath,
