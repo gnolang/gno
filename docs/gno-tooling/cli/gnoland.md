@@ -2,66 +2,74 @@
 id: gno-tooling-gnoland
 ---
 
-# `gnoland`
+# gnoland
 
-## Run a gno.land node
+## Overview
 
-`gnoland` is the Gno.land blockchain client binary. `gnoland` is capable of
-managing node working files, as well as starting the blockchain client itself.
+`gnoland` is the Gno.land blockchain client binary, which is capable of managing node working files, as well
+as starting the blockchain client itself.
 
-```bash
-gnoland
+## `gnoland init`
+
+`gnoland init` is supposed to initialize the node's working directory in the given path. The node's data directory is
+comprised initially from the node's secrets and config (default values).
+
+It is meant to be an initial step in starting the gno blockchain client, as the client itself cannot run without secrets
+data like private keys, and a configuration. When the blockchain client is started, it will initialize on its own
+relevant DB working directories inside the node directory.
+
+```shell
+gnoland init --help
+
+USAGE
+  init [flags]
+
+initializes the node directory containing the secrets and configuration files
+
+FLAGS
+  -data-dir gnoland-data  the path to the node's data directory
+  -force=false            overwrite existing data, if any
 ```
 
-### **Sub Commands**
-| Command   | Description                    |
-|-----------|--------------------------------|
-| `start`   | Run the full node              |
-| `secrets` | Gno secrets manipulation suite |
-| `config`  | Gno config manipulation suite  |
-| `genesis` | Gno genesis manipulation suite |
+### Example usage
 
-## `gnoland start`
+#### Generating fresh secrets / config
 
-Start the full blockchain node.
+To initialize the node secrets and configuration to `./example-node-data`, run the following command:
 
-### **Options**
+```shell
+gnoland init --data-dir ./example-node-data
+```
 
-| Name                       | Type    | Description                                                                 |
-|----------------------------|---------|-----------------------------------------------------------------------------|
-| `chainid`                  | String  | The ID of the chain                                                         |
-| `config-path`              | String  | The node TOML config file path (optional)                                   |
-| `data-dir`                 | String  | The path to the node's data directory                                       |
-| `flag-config-path`         | String  | The flag config file (optional)                                             |
-| `genesis`                  | String  | The path to the genesis.json                                                |
-| `genesis-balances-file`    | String  | Initial distribution file                                                   |
-| `genesis-max-vm-cycles`    | Integer | Set maximum allowed VM cycles per operation. Zero means no limit.           |
-| `genesis-remote`           | String  | Replacement for '%%REMOTE%%' in genesis                                     |
-| `genesis-txs-file`         | String  | Initial txs to replay                                                       |
-| `gnoroot-dir`              | String  | The root directory of the Gno repository                                    |
-| `log-format`               | String  | Log format for the gnoland node                                             |
-| `log-level`                | String  | Log level for the gnoland node                                              |
-| `skip-failing-genesis-txs` | Boolean | Don't panic when replaying invalid genesis txs                              |
-| `skip-start`               | Boolean | Quit after initialization, don't start the node                             |
-| `tx-event-store-path`      | String  | Path for the file tx event store (required if event store is 'file')        |
-| `tx-event-store-type`      | String  | Type of transaction event store                                             |
+This will initialize the following directory structure:
 
+```shell
+.
+└── example-node-data/
+    ├── secrets/
+    │   ├── priv_validator_state.json
+    │   ├── node_key.json
+    │   └── priv_validator_key.json
+    └── config/
+       └── config.toml
+```
 
-## `gnoland secrets`
+#### Overwriting the secrets / config
 
-Manages node secrets.
+In case there is an already existing node directory at the given path, you will need to provide an additional `--force`
+flag to enable data overwrite.
 
-### **Sub Commands**
-| Command  | Description                                            |
-|----------|--------------------------------------------------------|
-| `init`   | initializes required Gno secrets in a common directory |
-| `verify` | verifies all Gno secrets in a common directory         |
-| `get`    | shows all Gno secrets present in a common directory    |
+:::warning Back up any secrets
 
-### `gnoland secrets init`
+Running `gnoland init` will generate completely new node secrets (validator private key, node p2p key), so make sure
+you back up any existing secrets (located at `<node-dir>/secrets`) if you intend to overwrite them, in case you don't
+want to lose them.
 
+:::
 
+Following up from the previous example where our desired node directory is `example-node-data` - to
+initialize a completely new node data directory, with overwriting any existing data, run the following command:
 
-
-
-
+```shell
+gnoland init --data-dir ./example-node-data --force
+```
