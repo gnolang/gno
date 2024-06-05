@@ -216,7 +216,7 @@ func Render(_ string) string { return str }
 	require.NoError(t, err)
 	require.Equal(t, render, "foo")
 
-	assert.Nil(t, emitter.NextEvent())
+	assert.Equal(t, emitter.NextEvent(), events.EvtUnknown)
 }
 
 func testingRenderRealm(t *testing.T, node *Node, rlmpath string) (string, error) {
