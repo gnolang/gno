@@ -58,7 +58,7 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		return errEmptyPath
 	}
 
-	fmt.Println("Linting docs/...\n")
+	fmt.Println("Linting docs/")
 
 	mdFiles, err := findFilePaths(cfg.docsPath)
 	if err != nil {
