@@ -6,10 +6,9 @@ id: using-gnoland
 
 ## Overview
 
-In this tutorial, you will learn how to spin up & configure a local gno.land 
-node by using the `gnoland` tool, which is the Gno.land blockchain client binary.
-`gnoland` is capable of managing node working files, as well as starting the
-blockchain client itself.
+In this tutorial, you will learn how to use the `gnoland` binary. This guide covers
+various available subcommands and flags to help you configure, manage, and spin up
+a local gno.land node.
 
 ## Prerequisites
 
@@ -45,7 +44,7 @@ gnoland --help
 If everything was successful, you should get the following output:
 
 ```bash
-❯ gnoland
+❯ gnoland --help
 USAGE
   <subcommand> [flags] [<arg>...]
 
@@ -67,45 +66,9 @@ make build.gnoland
 
 And finally, run it with `./build gnoland`.
 
-## Starting a local node
-
-There are two ways to start a local node:
-- Using lazy initialization - easier and more simple
-- Initializing the node configuration yourself - more configuration options
-
-### Lazy initialization
-
-Lazy initialization provides a simple way to get a node up and running and ready
-for use. You can start a local a node by using the `gnoland start` command, with
-the included `--lazy` flag:
-
-```bash
-gnoland start --lazy
-```
-
-This subcommand in combination with the `--lazy` flag will make sure two main
-things happen:
-- A default data directory for the node is created under `gnoland-data/`,
-- A default genesis file for the node is created under `genesis.json`.
-
-![gnoland-start-lazy](../assets/getting-started/using-gnoland/gnoland-start-lazy.gif)
-
-By default, the node will start listening on `localhost:26657`. To test the 
-endpoint, we can run the following `curl` command, which will fetch the list of
-available endpoints:
-
-```bash
-curl --location --request GET 'localhost:26657' 
-```
-
-To see what each endpoint is used for, check out the
-[Gno RPC Endpoints page](../reference/rpc-endpoints.md).
+Let's dive deeper into each of the subcommands and see how we can use them.
 
 
 
-
-### Manual initialization
-
-Manual configuration provides a more customizable way to set up a gno.land node.
 
 
