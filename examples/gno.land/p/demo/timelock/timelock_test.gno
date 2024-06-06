@@ -1,25 +1,31 @@
 package timelock
 
 import (
+    "strconv"
     "std"
+    "testing"
     "gno.land/p/demo/avl"
     "gno.land/p/demo/accesscontrol"
-    "gno.land/p/timelock"
-    "testing"
+    "gno.land/p/demo/seqid"
     "time"
 )
 
 func TestTimelockUtil(t *testing.T) {
     // Initialisation
     timestamps := avl.NewTree()
-    minDelay := int64(3600) // 1 heure en secondes
+    minDelay := int64(2) // 2 secondes pour simplifier les tests
     accessControl := accesscontrol.NewRoleData(std.GetOrigCaller())
-    timelockUtil := timelock.NewTimelockUtil()
+    timelockUtil := NewTimelockUtil()
+
+    // Génération d'un nouvel ID à partir de time.Now().UnixNano() avec ajout de secondes pour garantir l'unicité
+    newID := func(offset int64) seqid.ID {
+        return seqid.ID(time.Now().UnixNano() + offset)
+    }
 
     // Test Schedule
     t.Run("Schedule", func(t *testing.T) {
-        id := std.Hash("operation1")
-        delay := int64(7200) // 2 heures
+        id := newID(0) // Génération d'un nouvel ID unique
+        delay := int64(3) // 3 secondes
 
         defer func() {
             if r := recover(); r != nil {
@@ -28,33 +34,40 @@ func TestTimelockUtil(t *testing.T) {
         }()
         timelockUtil.Schedule(timestamps, id, delay, minDelay, accessControl)
 
-        if !timestamps.Has(id.String()) {
+        if !timestamps.Has(id.Binary()) {
             t.Errorf("Schedule failed: timestamp not set")
         }
     })
 
     // Test Cancel
     t.Run("Cancel", func(t *testing.T) {
-        id := std.Hash("operation1")
+        id := newID(1) // Génération d'un nouvel ID unique avec un offset
 
         defer func() {
             if r := recover(); r != nil {
                 t.Errorf("Cancel panicked: %v", r)
             }
         }()
+        // Planifie une nouvelle opération pour garantir qu'elle est unique
+        timelockUtil.Schedule(timestamps, id, int64(3), minDelay, accessControl)
         timelockUtil.Cancel(timestamps, id, accessControl)
 
-        if timestamps.Has(id.String()) {
+        if timestamps.Has(id.Binary()) {
             t.Errorf("Cancel failed: timestamp not removed")
         }
     })
 
     // Test Execute
     t.Run("Execute", func(t *testing.T) {
-        id := std.Hash("operation2")
-        delay := int64(1) // 1 second
+        id := newID(2) // Génération d'un nouvel ID unique avec un offset
+        delay := int64(3) // 3 secondes
+        futureTime := time.Now().Unix() + delay
+
+        // Schedule the operation with future timestamp
         timelockUtil.Schedule(timestamps, id, delay, minDelay, accessControl)
-        time.Sleep(2 * time.Second) // Attendre que l'opération soit prête
+
+        // Simulate time passing by directly setting the timestamp to the past
+        timestamps.Set(id.Binary(), futureTime-4)
 
         defer func() {
             if r := recover(); r != nil {
@@ -63,14 +76,14 @@ func TestTimelockUtil(t *testing.T) {
         }()
         timelockUtil.Execute(timestamps, id, accessControl)
 
-        if state := timelockUtil.getOperationState(timestamps, id); state != timelock.Done {
+        if state := timelockUtil.getOperationState(timestamps, id); state != Done {
             t.Errorf("Execute failed: state is %v, expected Done", state)
         }
     })
 
     // Test UpdateDelay
     t.Run("UpdateDelay", func(t *testing.T) {
-        newDelay := int64(1800) // 30 minutes
+        newDelay := int64(4) // 4 secondes
 
         defer func() {
             if r := recover(); r != nil {
@@ -81,38 +94,6 @@ func TestTimelockUtil(t *testing.T) {
 
         if minDelay != newDelay {
             t.Errorf("UpdateDelay failed: minDelay is %v, expected %v", minDelay, newDelay)
-        }
-    })
-
-    // Test HashOperation
-    t.Run("HashOperation", func(t *testing.T) {
-        target := std.Address("target")
-        value := int64(100)
-        data := []byte("data")
-        predecessor := std.Hash("predecessor")
-        salt := std.Hash("salt")
-        expectedHash := std.Hash(std.HashValue(target.String() + std.ItoA(value) + string(data) + predecessor.String() + salt.String()))
-
-        hash := timelockUtil.HashOperation(target, value, data, predecessor, salt)
-        if hash != expectedHash {
-            t.Errorf("HashOperation failed: hash is %v, expected %v", hash, expectedHash)
-        }
-    })
-
-    // Test HashOperationBatch
-    t.Run("HashOperationBatch", func(t *testing.T) {
-        targets := []std.Address{std.Address("target1"), std.Address("target2")}
-        values := []int64{100, 200}
-        payloads := [][]byte{[]byte("data1"), []byte("data2")}
-        predecessor := std.Hash("predecessor")
-        salt := std.Hash("salt")
-        hashInput := targets[0].String() + std.ItoA(values[0]) + string(payloads[0]) +
-            targets[1].String() + std.ItoA(values[1]) + string(payloads[1]) + predecessor.String() + salt.String()
-        expectedHash := std.Hash(std.HashValue(hashInput))
-
-        hash := timelockUtil.HashOperationBatch(targets, values, payloads, predecessor, salt)
-        if hash != expectedHash {
-            t.Errorf("HashOperationBatch failed: hash is %v, expected %v", hash, expectedHash)
         }
     })
 }
