@@ -6,9 +6,11 @@ id: setting-up-a-faucet
 
 In this tutorial, we will cover how to run a local native currency faucet that 
 works seamlessly with a Gno node. Using the faucet, any address can get a hold
-of testnet GNOTs.
+of testnet GNOTs. The faucet used in this tutorial can be found in
+[this repository](https://github.com/gnolang/faucet).
 
 ## Prerequisites
+
 - Git
 - Go 1.21+
 - Make (for running Makefiles)
@@ -163,52 +165,95 @@ When requesting a drip from the faucet, you can face the following errors:
 - If the amount requested is empty, not in the `<amount>ugnot` format, or is larger
 than `send_amount` defined in the faucet configuration
 
-## Extending the faucet
+## `gnofaucet`
 
-This faucet can be used as a library and can be extended with middleware and other
-layers of security. To use the faucet in your project, run the following command:
+[`gnofaucet`](https://github.com/gnolang/gno/tree/master/contribs/gnofaucet) 
+is an extended version of the base faucet. It includes two main security features 
+as an extension to the base version:
+- IP Throttling using [X-Forwarded-For](https://en.wikipedia.org/wiki/X-Forwarded-For)
+- Integrated captcha check using [reCaptcha V2](https://developers.google.com/recaptcha/docs/display)
 
-```
-go get github.com/gnolang/faucet
-```
+Let's see how we can set it up.
 
-To then use the faucet in-code, you can set up your project the following way:
+## Cloning the repo
 
-```go
-package main
+To get started with setting up the `gnofaucet`, visit the
+[Gno monorepo](https://github.com/gnolang/gno) and clone it:
 
-import (
-	// ...
-	"context"
-
-	"github.com/gnolang/faucet/client/http"
-	"github.com/gnolang/faucet/estimate/static"
-)
-
-func main() {
-	// Create the faucet
-	f, err := NewFaucet(
-		static.New(...), // gas estimator
-		http.NewClient(...), // remote address 
-        )
-
-	// The faucet is controlled through a top-level context
-	ctx, cancelFn := context.WithCancel(context.Background())
-
-	// Start the faucet
-	go f.Serve(ctx)
-
-	// Close the faucet
-	cancelFn()
-}
+```bash
+git clone git@github.com:gnolang/gno.git
 ```
 
-To see an example of how the faucet can be extended, check out 
-[`gnofaucet`](https://github.com/gnolang/gno/tree/master/contribs/gnofaucet).
+After cloning, go into the `contribs/gnofaucet/` folder, where you will find
+the `gnofaucet` implementation. Then, run the following `make` command to build 
+out the binary:
+
+```bash
+make build
+```
+
+## Starting `gnofaucet`
+
+To start the faucet, we can use the `serve` subcommand. In the case of `gnofaucet`,
+we have a more minimalistic set of flags than in the base faucet, and we do not
+have access to a configuration file. Instead, we configure everything via flags.
+
+Running the following help command will print out the available flags:
+
+```bash
+./build gnofaucet serve --help
+```
+
+Below is the output of the command:
+
+```bash
+-captcha-secret ...             recaptcha secret key (if empty, captcha are disabled)
+-chain-id ...                   the chain ID associated with the remote Gno chain
+-is-behind-proxy=false          use X-Forwarded-For IP for throttling
+-listen-address 127.0.0.1:5050  the faucet server listen address
+-max-send-amount 10000000ugnot  the static max send amount (native currency)
+-mnemonic ...                   the mnemonic for faucet keys
+-num-accounts 1                 the number of faucet accounts, based on the mnemonic
+-remote http://127.0.0.1:26657  remote node URL
+```
+
+In this case, only two new flags exist:
+- `captcha-secret` - where you can provide your reCaptcha v2 secret key
+- `is-behind-proxy` - which enables or disables the IP throttling functionality.
+
+#### reCaptcha
+
+`gnofaucet` uses reCaptcha V2 for its bot protection. To get a captcha secret key,
+check out how to set up a captcha check on the official [reCaptcha V2 guide](https://developers.google.com/recaptcha/intro).
+
+After obtaining a captcha secret key, you can pass it in to `gnofaucet` via the
+`captcha-secret` flag.
+
+If the flag is empty, no captcha will be required for a request coming in.
+
+#### IP Throttling
+
+When `gnofaucet` has the `-is-behind-proxy` flag enabled, it allows a maximum of
+`5` requests per minute from a single IP address.
+
+### Requests and errors
+
+`gnofaucet` handles requests and errors the same way as the base faucet 
+implementation does. Check out the [Making faucet requests](#making-faucet-requests)
+and [Faucet errors](#faucet-errors) sections to learn more.
+
+## Faucet Hub
+
+If you are running your own gno.land faucet, you can propose its addition 
+to the [Gno Faucet Hub](https://faucet.gno.land).
+
+To see steps involved in this process, check out the 
+[Faucet Hub repository](https://github.com/gnolang/faucet-hub).
 
 ## Conclusion
 
 That's it 🎉
 
-You have successfully set up a GNOT faucet on for a local Gno.land chain!
-Read more about the faucet on the [`faucet`](https://github.com/gnolang/faucet) repo.
+You've learned how to set up a faucet for your Gno network enabling efficient
+distribution of testnet coins. With both basic and advanced configurations
+covered, you're now equipped to run a secure and functional faucet.
