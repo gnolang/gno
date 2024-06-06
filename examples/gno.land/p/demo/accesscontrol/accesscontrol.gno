@@ -36,9 +36,6 @@ func (roleData *RoleData) HasRole(account std.Address) bool {
 // Method to grant a role to an account
 func (roleData *RoleData) GrantRole(account std.Address) {
 	roleData.OnlyAdmin()
-    if roleData.HasRole(account) {
-		panic("accesscontrol: role already granted to the account")
-	}
 	roleData.Holder.Set(account.String(), true)
 	roleData.emitRoleGranted(account, std.GetOrigCaller())
 }
@@ -56,9 +53,6 @@ func (roleData *RoleData) RevokeRole(account std.Address) {
 // Method to renounce a role with caller confirmation
 func (roleData *RoleData) RenounceRole(callerConfirmation std.Address) {
 	caller := std.GetOrigCaller()
-	if callerConfirmation != caller {
-		panic("accesscontrol: caller confirmation does not match account")
-	}
 	roleData.Holder.Remove(caller.String())
 	roleData.emitRoleRevoked(caller, caller)
 }
