@@ -145,7 +145,7 @@ func (fee Fee) Bytes() []byte {
 	return bz
 }
 
-func LoadTxs(ctx context.Context, reader io.Reader) ([]Tx, error) {
+func ParseTxs(ctx context.Context, reader io.Reader) ([]Tx, error) {
 	var txs []Tx
 	scanner := bufio.NewScanner(reader)
 

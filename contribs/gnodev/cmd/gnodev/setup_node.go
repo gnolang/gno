@@ -21,8 +21,13 @@ func setupDevNode(
 	remitter emitter.Emitter,
 	balances gnoland.Balances,
 	pkgspath []gnodev.PackagePath,
-	txs []std.Tx,
 ) (*gnodev.Node, error) {
+	// Load transactions.
+	txs, err := parseTxs(cfg.txsFile)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load transactions: %w", err)
+	}
+
 	config := setupDevNodeConfig(cfg, balances, pkgspath, txs)
 	return gnodev.NewDevNode(ctx, logger, remitter, config)
 }

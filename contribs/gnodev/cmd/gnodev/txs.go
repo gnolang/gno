@@ -8,7 +8,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-func loadTxs(txFile string) ([]std.Tx, error) {
+func parseTxs(txFile string) ([]std.Tx, error) {
 	if txFile == "" {
 		return nil, nil
 	}
@@ -19,5 +19,5 @@ func loadTxs(txFile string) ([]std.Tx, error) {
 	}
 	defer file.Close()
 
-	return std.LoadTxs(context.Background(), file)
+	return std.ParseTxs(context.Background(), file)
 }

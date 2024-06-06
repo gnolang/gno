@@ -241,16 +241,10 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	}
 	logger.Debug("balances loaded", "list", balances.List())
 
-	// Load transactions.
-	txs, err := loadTxs(cfg.txsFile)
-	if err != nil {
-		return fmt.Errorf("unable to load transactions: %w", err)
-	}
-
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
 	nodeLogger := logger.WithGroup(NodeLogName)
-	devNode, err := setupDevNode(ctx, nodeLogger, cfg, emitterServer, balances, pkgpaths, txs)
+	devNode, err := setupDevNode(ctx, nodeLogger, cfg, emitterServer, balances, pkgpaths)
 	if err != nil {
 		return err
 	}

@@ -57,7 +57,7 @@ func execTxsAdd(
 			return fmt.Errorf("%w, %w", errInvalidTxsFile, loadErr)
 		}
 
-		txs, err := std.LoadTxs(ctx, file)
+		txs, err := std.ParseTxs(ctx, file)
 		if err != nil {
 			return fmt.Errorf("unable to read file, %w", err)
 		}
