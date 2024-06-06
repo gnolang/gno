@@ -139,7 +139,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.txsFile,
-		"tx-file",
+		"txs-file",
 		defaultDevOptions.txsFile,
 		"load the provided transactions file (refer to the documentation for format)",
 	)
