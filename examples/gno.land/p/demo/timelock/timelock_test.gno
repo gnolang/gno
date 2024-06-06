@@ -76,7 +76,7 @@ func TestTimelockUtil(t *testing.T) {
         }()
         timelockUtil.Execute(timestamps, id, accessControl)
 
-        if state := timelockUtil.getOperationState(timestamps, id); state != Done {
+        if state := timelockUtil.GetOperationState(timestamps, id); state != Done {
             t.Errorf("Execute failed: state is %v, expected Done", state)
         }
     })
