@@ -236,7 +236,9 @@ If the flag is empty, no captcha will be required for a request coming in.
 #### IP Throttling
 
 When `gnofaucet` has the `-is-behind-proxy` flag enabled, it allows a maximum of
-`5` requests per minute from a single IP address.
+`5` requests per minute from a single IP address. To configure this, change the
+hardcoded `maxRequestsPerMinute` value in the [`throttle.go`](https://github.com/gnolang/gno/blob/master/contribs/gnofaucet/throttle.go)
+file in the `gnofaucet` folder.
 
 ### Requests and errors
 
