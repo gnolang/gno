@@ -10,10 +10,6 @@ In this tutorial, you will learn how to start a local Gno node (and chain!).
 Additionally, you will see the different options you can use to make your Gno instance unique.
 
 ## Prerequisites
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
 - **Git**
 - **`make` (for running Makefiles)**
 - **Go 1.21+**
@@ -45,10 +41,7 @@ gnoland --help
 If everything was successful, you should get the following output:
 
 ```bash
-<<<<<<< Updated upstream
 ❯ gnoland
-=======
->>>>>>> Stashed changes
 USAGE
   <subcommand> [flags] [<arg>...]
 
@@ -154,11 +147,7 @@ This will initialize the following directory structure:
     └── config/
        └── config.toml
 ```
-<<<<<<< Updated upstream
 
-=======
-  
->>>>>>> Stashed changes
 A couple of things to note:
 
 - `gnoland config init` initializes a default configuration
