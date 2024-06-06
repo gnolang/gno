@@ -15,6 +15,7 @@ of testnet GNOTs. The faucet used in this tutorial can be found in
 - Go 1.21+
 - Make (for running Makefiles)
 - `gnoland` & `gnokey` installed
+- A `gnoland` node running
 - A Gno.land keypair generated using [`gnokey`](../gno-tooling/cli/gnokey.md) 
 containing funds for the faucet to serve
 
