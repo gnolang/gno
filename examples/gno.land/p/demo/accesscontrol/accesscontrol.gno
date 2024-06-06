@@ -2,7 +2,6 @@ package accesscontrol
 
 import (
 	"std"
-
 	"gno.land/p/demo/avl"
 )
 
@@ -37,24 +36,24 @@ func (roleData *RoleData) HasRole(account std.Address) bool {
 func (roleData *RoleData) GrantRole(account std.Address) {
 	roleData.OnlyAdmin()
 	roleData.Holder.Set(account.String(), true)
-	roleData.emitRoleGranted(account, std.GetOrigCaller())
+	std.Emit("RoleGranted", "role", roleData.AdminRole.String(), "account", account.String(), "sender", std.GetOrigCaller().String())
 }
 
 // Method to revoke a role from an account
 func (roleData *RoleData) RevokeRole(account std.Address) {
 	roleData.OnlyAdmin()
-    if !roleData.HasRole(account) {
-		panic("accesscontrol: role not found for the account")
-	}
 	roleData.Holder.Remove(account.String())
-	roleData.emitRoleRevoked(account, std.GetOrigCaller())
+	std.Emit("RoleRevoked", "role", roleData.AdminRole.String(), "account", account.String(), "sender", std.GetOrigCaller().String())
 }
 
 // Method to renounce a role with caller confirmation
 func (roleData *RoleData) RenounceRole(callerConfirmation std.Address) {
 	caller := std.GetOrigCaller()
+	if callerConfirmation != caller {
+		panic("accesscontrol: caller confirmation does not match account")
+	}
 	roleData.Holder.Remove(caller.String())
-	roleData.emitRoleRevoked(caller, caller)
+	std.Emit("RoleRevoked", "role", roleData.AdminRole.String(), "account", caller.String(), "sender", caller.String())
 }
 
 // Method to get the admin role of a specific role
@@ -67,20 +66,5 @@ func (roleData *RoleData) SetRoleAdmin(adminRole std.Address) {
 	roleData.OnlyAdmin()
 	previousAdminRole := roleData.AdminRole
 	roleData.AdminRole = adminRole
-	roleData.emitRoleAdminChanged(previousAdminRole, adminRole)
-}
-
-// Event for role granted
-func (roleData *RoleData) emitRoleGranted(account std.Address, sender std.Address) {
-	std.Emit("RoleGranted", "role", roleData.AdminRole.String(), "account", account.String(), "sender", sender.String())
-}
-
-// Event for role revoked
-func (roleData *RoleData) emitRoleRevoked(account std.Address, sender std.Address) {
-	std.Emit("RoleRevoked", "role", roleData.AdminRole.String(), "account", account.String(), "sender", sender.String())
-}
-
-// Event for role admin changed
-func (roleData *RoleData) emitRoleAdminChanged(previousAdminRole std.Address, newAdminRole std.Address) {
-	std.Emit("RoleAdminChanged", "previousAdminRole", previousAdminRole.String(), "newAdminRole", newAdminRole.String())
+	std.Emit("RoleAdminChanged", "previousAdminRole", previousAdminRole.String(), "newAdminRole", adminRole.String())
 }
