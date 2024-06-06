@@ -10,58 +10,8 @@ In this tutorial, you will learn how to start a local Gno node (and chain!).
 Additionally, you will see the different options you can use to make your Gno instance unique.
 
 ## Prerequisites
-- **Git**
-- **`make` (for running Makefiles)**
-- **Go 1.21+**
-- **Go Environment Setup**: Ensure you have Go set up as outlined in the [Go official installation documentation](https://go.dev/doc/install) for your environment
-
-## Installation
-
-To install the `gnoland` binary, clone the Gno monorepo:
-
-```bash
-git clone https://github.com/gnolang/gno.git
-```
-
-After cloning the repo, go into the `gno.land/` folder, and use the existing
-Makefile to install the `gnoland` binary:
-
-```bash
-cd gno.land
-make install.gnoland
-```
-
-To verify that you've installed the binary properly and that you are able to use
-it, run the `gnoland` command:
-
-```bash
-gnoland --help
-```
-
-If everything was successful, you should get the following output:
-
-```bash
-❯ gnoland
-USAGE
-  <subcommand> [flags] [<arg>...]
-
-starts the gnoland blockchain node.
-
-SUBCOMMANDS
-  start    run the full node
-  secrets  gno secrets manipulation suite
-  config   gno config manipulation suite
-  genesis  gno genesis manipulation suite
-```
-
-If you do not wish to install the binary globally, you can build and run it
-with the following command from the `gno.land/` folder:
-
-```bash
-make build.gnoland
-```
-
-And finally, run it with `./build gnoland`.
+- `gnoland` binary installed. Referene the [`Using gnoland`](../getting-started/using-gnoland.md#installation)
+guide for steps
 
 ## Starting a local node (lazy init)
 
