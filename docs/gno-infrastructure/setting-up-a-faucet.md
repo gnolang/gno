@@ -63,14 +63,7 @@ send_amount = "1000000ugnot"
   cors_allowed_headers = ["Origin", "Accept", "Content-Type", "X-Requested-With", "X-Server-Time"]
   cors_allowed_methods = ["HEAD", "GET", "POST", "OPTIONS"]
   cors_allowed_origins = ["*"]
-``` 
-
-In this case, you can configure the following:
-- the chain ID which the faucet is connected to,
-- the listener address of the faucet,
-- the mnemonic that you want to use for deriving the account(s) used to serve funds,
-- the number of accounts to derive from the mnemonic to be used for serving funds,
-- the CORS configuration of the faucet.
+```
 
 We will keep it simple and go with the basic configuration. After inputting the 
 mnemonic phrase from which your faucet address is derived from, you are ready to
