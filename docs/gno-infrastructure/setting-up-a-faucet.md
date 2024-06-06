@@ -65,7 +65,7 @@ send_amount = "1000000ugnot"
   cors_allowed_origins = ["*"]
 ``` 
 
-In this case, you can configure following:
+In this case, you can configure the following:
 - the chain ID which the faucet is connected to,
 - the listener address of the faucet,
 - the mnemonic that you want to use for deriving the account(s) used to serve funds,
