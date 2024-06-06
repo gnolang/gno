@@ -19,7 +19,7 @@ Things to take into account:
 - All benchmarks on a package will be shown on the same graph.
 - The value on `package` and `benchmarks` are regular expressions.
 - You have to explicitly add your new package here to make it appears on generated graphs.
-- If you have benchmarks on the same package that takes much more time pero op than the rest, you should divide it into a separate graph for visibility. In this example we can see how we separated tests from the gnolang package into the ones finishing with `Equality` and `LoopyMain`, because `LoopyMain` is taking an order of magnitude more time per operation than the other tests:
+- If you have benchmarks on the same package that takes much more time per op than the rest, you should divide it into a separate graph for visibility. In this example we can see how we separated tests from the gnolang package into the ones finishing with `Equality` and `LoopyMain`, because `LoopyMain` is taking an order of magnitude more time per operation than the other tests:
 ```yaml
       - name: Equality benchmarks (gnovm)
         benchmarks: [ '.Equality' ]
