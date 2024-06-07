@@ -49,6 +49,7 @@ type devCfg struct {
 	root            string
 	premineAccounts varPremineAccounts
 	balancesFile    string
+	txsFile         string
 
 	// Node Configuration
 	minimal    bool
@@ -134,6 +135,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"balance-file",
 		defaultDevOptions.balancesFile,
 		"load the provided balance file (refer to the documentation for format)",
+	)
+
+	fs.StringVar(
+		&c.txsFile,
+		"txs-file",
+		defaultDevOptions.txsFile,
+		"load the provided transactions file (refer to the documentation for format)",
 	)
 
 	fs.StringVar(
