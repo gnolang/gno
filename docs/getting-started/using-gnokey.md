@@ -13,7 +13,7 @@ transactions for full security.
 ## Prerequisites
 - **`gno`, `gnokey`, and `gnodev` installed.** Reference the
   [Local Setup](local-setup/installation.md#2-installing-the-required-tools-) guide for steps
-- A Gno.land keypair set up. Reference the
+- **A Gno.land keypair set up.** Reference the
   [Working with Key Pairs](local-setup/working-with-key-pairs.md) guide for steps
 
 ## Interacting with a Gno.land chain
@@ -161,7 +161,7 @@ gnokey maketx addpkg \
 -broadcast \
 -chainid dev \
 -remote "127.0.0.1:26657" \
-dev
+mykey
 ```
 
 If the transaction was successful, you will get the following output from `gnokey`:
@@ -221,7 +221,7 @@ gnokey maketx call \
 -broadcast \
 -chainid portal-loop \
 -remote "https://rpc.gno.land:443"" \
-dev
+demyv
 ```
 
 In this command, we have specified three main things:
@@ -245,7 +245,7 @@ gnokey maketx call \
 -broadcast \
 -chainid portal-loop \
 -remote "https://rpc.gno.land:443" \
-dev
+mykey
 ```
 
 If everything was successful, we should get the following output:
@@ -291,7 +291,7 @@ gnokey maketx send \
 -broadcast \
 -chainid portal-loop \
 -remote "https://rpc.gno.land:443" \
-dev
+mykey
 ```
 
 Here, we have set the `-to` & `-send` flags to match the recipient, in this case
@@ -351,7 +351,7 @@ gnokey maketx run \
 -broadcast \
 -chainid portal-loop \
 -remote "https://rpc.gno.land:443" \
-dev ./script.gno
+mykey ./script.gno
 ```
 
 After running this command, the chain will execute the script and apply any state
@@ -375,39 +375,39 @@ package foo
 import "gno.land/p/demo/ufmt"
 
 var (
-  MainFoo *Foo
-  foos    []*Foo
+	MainFoo *Foo
+	foos    []*Foo
 )
 
 type Foo struct {
-  bar string
-  baz int
+	bar string
+	baz int
 }
 
 func init() {
-  MainFoo = &Foo{bar: "mainBar", baz: 0}
+	MainFoo = &Foo{bar: "mainBar", baz: 0}
 }
 
 func (f *Foo) String() string {
-  return ufmt.Sprintf("Foo - (bar: %s) - (baz: %d)\n\n", f.bar, f.baz)
+	return ufmt.Sprintf("Foo - (bar: %s) - (baz: %d)\n\n", f.bar, f.baz)
 }
 
 func NewFoo(bar string, baz int) *Foo {
-  return &Foo{bar: bar, baz: baz}
+	return &Foo{bar: bar, baz: baz}
 }
 
 func AddFoos(multipleFoos []*Foo) {
-  foos = append(foos, multipleFoos...)
+	foos = append(foos, multipleFoos...)
 }
 
 func Render(_ string) string {
-  output := ""
+	output := ""
 
-  for _, f := range foos {
-    output += f.String()
-  }
+	for _, f := range foos {
+		output += f.String()
+	}
 
-  return output
+	return output
 }
 ```
 
@@ -471,7 +471,7 @@ package main
 import "gno.land/r/leon/run/examples/foo"
 
 func main() {
-  println(foo.MainFoo.String())
+	println(foo.MainFoo.String())
 }
 ```
 
@@ -574,23 +574,23 @@ The output is a string containing all exported functions for the `wugnot` realm:
 ```json
 height: 0
 data: [
-  {
-    "FuncName": "Deposit",
-    "Params": null,
-    "Results": null
-  },
-  {
-    "FuncName": "Withdraw",
-    "Params": [
-      {
-        "Name": "amount",
-        "Type": "uint64",
-        "Value": ""
-      }
-    ],
-    "Results": null
-  },
-  // other functions
+{
+"FuncName": "Deposit",
+"Params": null,
+"Results": null
+},
+{
+"FuncName": "Withdraw",
+"Params": [
+{
+"Name": "amount",
+"Type": "uint64",
+"Value": ""
+}
+],
+"Results": null
+},
+// other functions
 ]
 ```
 
@@ -713,7 +713,7 @@ gnokey maketx call \
 -func "SignUp" \
 -gas-fee 1000000ugnot \
 -gas-wanted 2000000 \
-dev > userbook.tx
+mykey > userbook.tx
 ```
 
 This will create a `userbook.tx` file, with the `signature` field null.
@@ -734,7 +734,7 @@ gnokey sign \
 -chainid "portal-loop" \
 -account-number 468 \
 -account-sequence 0 \
-dev
+mykey
 ```
 
 After inputting the correct values, `gnokey` will ask for the password to decrypt
@@ -756,3 +756,21 @@ gnokey broadcast -remote "https://rpc.gno.land:443" userbook.tx
 In this case, we do not need to specify a keypair, as the transaction has already
 been signed in a previous step and `gnokey` is only sending it to the RPC endpoint.
 
+## Verifying signature in a transaction
+
+To verify a transaction signature is correct, you can use the `gnokey verify`
+subcommand. We can provide the path to the transaction document using the `-docpath`
+flag, provide the key we signed the transaction with, and the signature itself:
+
+```bash
+gnokey verify -docpath userbook.tx mykey <signature>
+```
+
+## Conclusion
+
+That's it! 🎉
+
+In this tutorial, you've learned to use the `gnokey` binary for interacting with a
+Gno.land chain. By mastering state-changing calls, read-only queries, and airgapped
+transactions, you're now equipped to manage interactions within the Gno.land
+ecosystem securely and efficiently.
