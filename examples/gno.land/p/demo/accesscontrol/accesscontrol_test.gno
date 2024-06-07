@@ -14,7 +14,7 @@ func TestAccessControl(t *testing.T) {
 	user2 := testutils.TestAddress("user2")
 
 	// Create new RoleData
-	RoleData := NewRoleData(admin)
+	RoleData := NewRoleData("admin", admin)
 
 	// Check initial admin role
 	if RoleData.GetRoleAdmin() != admin {
