@@ -40,7 +40,6 @@ type NodeConfig struct {
 	NoReplay              bool
 	MaxGasPerBlock        int64
 	ChainID               string
-	Txs                   []std.Tx
 }
 
 func DefaultNodeConfig(rootdir string) *NodeConfig {
@@ -121,8 +120,6 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 		Balances: cfg.BalancesList,
 		Txs:      append(pkgsTxs, cfg.InitialTxs...),
 	}
-
-	genesis.Txs = append(genesis.Txs, cfg.Txs...)
 
 	if err := devnode.rebuildNode(ctx, genesis); err != nil {
 		return nil, fmt.Errorf("unable to initialize the node: %w", err)
