@@ -124,6 +124,15 @@ func TransferBasicNFTToBuyer(from, to std.Address, tid grc721.TokenID) error {
 	return nil
 }
 
+// it may be used in marketplace
+func BurnBasicNFTsAfterBuying(from, to std.Address, tid grc721.TokenID) error {
+	err := flipBasicNFT.Burn(from, tid)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func GetOwnerOfBasicNFT(tid string) std.Address {
 	tokenId := grc721.TokenID(tid)
 	owner, err := flipBasicNFT.OwnerOf(tokenId)

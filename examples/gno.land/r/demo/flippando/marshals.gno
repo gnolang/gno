@@ -67,7 +67,7 @@ type nftResult struct {
 
 type userNFTs struct {
 	tokenIDs	[]int64 `json:"tokenIDs"`
-	nftError	string	`json:"error"`
+	nftError	string	`json:"-"`
 }
 
 type userNFTsResult struct {

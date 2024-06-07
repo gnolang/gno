@@ -129,7 +129,8 @@ func TransferCompositeNFT(from, to std.Address, tid string) error {
 	bTokenIDs := GetChildrenOf(tid)
 	for _, t := range bTokenIDs {
 		basicTokenId := grc721.TokenID(strconv.FormatInt(t, 10))
-		TransferBasicNFTToBuyer(from, to, basicTokenId)
+		//TransferBasicNFTToBuyer(from, to, basicTokenId)
+		BurnBasicNFTsAfterBuying(from, basicTokenId)
 	}
 	return nil
 }
