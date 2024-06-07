@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -48,8 +49,11 @@ type devCfg struct {
 	home            string
 	root            string
 	premineAccounts varPremineAccounts
-	balancesFile    string
-	genesisFile     string
+
+	// Files
+	balancesFile string
+	genesisFile  string
+	txsFile      string
 
 	// Node Configuration
 	minimal    bool
@@ -59,6 +63,14 @@ type devCfg struct {
 	maxGas     int64
 	chainId    string
 	serverMode bool
+}
+
+func (cfg *devCfg) validateConfigFlags() error {
+	if (cfg.balancesFile != "" || cfg.txsFile != "") && cfg.genesisFile != "" {
+		return errors.New("cannot specify `balances-file` or `txs-file` along `genesis-file`")
+	}
+
+	return nil
 }
 
 var defaultDevOptions = &devCfg{
@@ -138,6 +150,20 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
+		&c.txsFile,
+		"txs-file",
+		defaultDevOptions.txsFile,
+		"load the provided transactions file (refer to the documentation for format)",
+	)
+
+	fs.StringVar(
+		&c.genesisFile,
+		"genesis-file",
+		defaultDevOptions.genesisFile,
+		"load the given genesis file",
+	)
+
+	fs.StringVar(
 		&c.deployKey,
 		"deploy-key",
 		defaultDevOptions.deployKey,
@@ -172,13 +198,6 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"set node ChainID",
 	)
 
-	fs.StringVar(
-		&c.genesisFile,
-		"genesis-file",
-		defaultDevOptions.genesisFile,
-		"load the given genesis file",
-	)
-
 	fs.BoolVar(
 		&c.noWatch,
 		"no-watch",
@@ -204,6 +223,10 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
+
+	if err := cfg.validateConfigFlags(); err != nil {
+		return fmt.Errorf("validate error: %w", err)
+	}
 
 	// Setup Raw Terminal
 	rt, restore, err := setupRawTerm(cfg, io)
@@ -245,7 +268,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	// XXX: find a good way to export or display node logs
 	nodeLogger := logger.WithGroup(NodeLogName)
 	nodeCfg := setupDevNodeConfig(cfg, logger, emitterServer, balances, pkgpaths)
-	devNode, err := gnodev.NewDevNode(ctx, nodeCfg)
+	devNode, err := setupDevNode(ctx, cfg, nodeCfg)
 	if err != nil {
 		return err
 	}
