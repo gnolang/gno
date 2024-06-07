@@ -42,7 +42,7 @@ func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execBroadcast(cfg, args, commands.NewDefaultIO())
+			return execBroadcast(cfg, args, io)
 		},
 	)
 }
