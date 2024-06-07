@@ -11,20 +11,20 @@ import (
 )
 
 func TestTimelockUtil(t *testing.T) {
-    // Initialisation
+    // Initialization
     timestamps := avl.NewTree()
     minDelay := int64(2) // 2 secondes pour simplifier les tests
-    accessControl := accesscontrol.NewRoleData(std.GetOrigCaller())
-    timelockUtil := NewTimelockUtil()
+    accessControl := accesscontrol.NewRoleData("admin", std.GetOrigCaller())
+    timelockUtil := NewTimelockUtil(timestamps, accessControl)
 
-    // Génération d'un nouvel ID à partir de time.Now().UnixNano() avec ajout de secondes pour garantir l'unicité
+    // Generate a new ID from time.Now().UnixNano() with seconds added to guarantee uniqueness
     newID := func(offset int64) seqid.ID {
         return seqid.ID(time.Now().UnixNano() + offset)
     }
 
     // Test Schedule
     t.Run("Schedule", func(t *testing.T) {
-        id := newID(0) // Génération d'un nouvel ID unique
+        id := newID(0)
         delay := int64(3) // 3 secondes
 
         defer func() {
@@ -32,7 +32,7 @@ func TestTimelockUtil(t *testing.T) {
                 t.Errorf("Schedule panicked: %v", r)
             }
         }()
-        timelockUtil.Schedule(timestamps, id, delay, minDelay, accessControl)
+        timelockUtil.Schedule(id, delay, minDelay)
 
         if !timestamps.Has(id.Binary()) {
             t.Errorf("Schedule failed: timestamp not set")
@@ -41,16 +41,16 @@ func TestTimelockUtil(t *testing.T) {
 
     // Test Cancel
     t.Run("Cancel", func(t *testing.T) {
-        id := newID(1) // Génération d'un nouvel ID unique avec un offset
+        id := newID(1)
 
         defer func() {
             if r := recover(); r != nil {
                 t.Errorf("Cancel panicked: %v", r)
             }
         }()
-        // Planifie une nouvelle opération pour garantir qu'elle est unique
-        timelockUtil.Schedule(timestamps, id, int64(3), minDelay, accessControl)
-        timelockUtil.Cancel(timestamps, id, accessControl)
+        // Plan a new operation to ensure it is unique
+        timelockUtil.Schedule(id, int64(3), minDelay)
+        timelockUtil.Cancel(id)
 
         if timestamps.Has(id.Binary()) {
             t.Errorf("Cancel failed: timestamp not removed")
@@ -59,14 +59,14 @@ func TestTimelockUtil(t *testing.T) {
 
     // Test Execute
     t.Run("Execute", func(t *testing.T) {
-        id := newID(2) // Génération d'un nouvel ID unique avec un offset
+        id := newID(2)
         delay := int64(3) // 3 secondes
         futureTime := time.Now().Unix() + delay
 
-        // Schedule the operation with future timestamp
-        timelockUtil.Schedule(timestamps, id, delay, minDelay, accessControl)
+        // Schedule the operation with a future timestamp
+        timelockUtil.Schedule(id, delay, minDelay)
 
-        // Simulate time passing by directly setting the timestamp to the past
+        // Simulates the passage of time by setting the timestamp directly in the past
         timestamps.Set(id.Binary(), futureTime-4)
 
         defer func() {
@@ -74,9 +74,9 @@ func TestTimelockUtil(t *testing.T) {
                 t.Errorf("Execute panicked: %v", r)
             }
         }()
-        timelockUtil.Execute(timestamps, id, accessControl)
+        timelockUtil.Execute(id)
 
-        if state := timelockUtil.GetOperationState(timestamps, id); state != Done {
+        if state := timelockUtil.GetOperationState(id); state != Done {
             t.Errorf("Execute failed: state is %v, expected Done", state)
         }
     })
@@ -90,7 +90,7 @@ func TestTimelockUtil(t *testing.T) {
                 t.Errorf("UpdateDelay panicked: %v", r)
             }
         }()
-        timelockUtil.UpdateDelay(&minDelay, newDelay, accessControl)
+        timelockUtil.UpdateDelay(&minDelay, newDelay)
 
         if minDelay != newDelay {
             t.Errorf("UpdateDelay failed: minDelay is %v, expected %v", minDelay, newDelay)

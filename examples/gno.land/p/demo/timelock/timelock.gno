@@ -22,67 +22,73 @@ const (
     Done
 )
 
-// Stock all methods for the Timelock contract
-type TimelockUtil struct{}
-
-// New instance of TimelockUtil
-func NewTimelockUtil() *TimelockUtil {
-    return &TimelockUtil{}
+// TimelockUtil stores the necessary parameters for the timelock operations
+type TimelockUtil struct {
+    timestamps    *avl.Tree
+    accessControl *accesscontrol.RoleData
 }
 
-// Planifie une opération à exécuter après un délai minimum
-func (tl *TimelockUtil) Schedule(timestamps *avl.Tree, id seqid.ID, delay int64, minDelay int64, accessControl *accesscontrol.RoleData) {
+// New instance of TimelockUtil
+func NewTimelockUtil(timestamps *avl.Tree, accessControl *accesscontrol.RoleData) *TimelockUtil {
+    return &TimelockUtil{
+        timestamps:    timestamps,
+        accessControl: accessControl,
+    }
+}
+
+// Schedules an operation to be carried out after a minimum delay
+func (tl *TimelockUtil) Schedule(id seqid.ID, delay int64, minDelay int64) {
     if delay < minDelay {
-        panic("timelockutil: schedule: insufficient delay")
+        panic("timelockutil: Schedule: insufficient delay")
     }
-    if timestamps.Has(id.Binary()) {
-        panic("timelockutil: schedule: operation already scheduled")
+    if tl.timestamps.Has(id.Binary()) {
+        panic("timelockutil: Schedule: operation already scheduled")
     }
-    timestamps.Set(id.Binary(), time.Now().Unix()+delay)
+    tl.timestamps.Set(id.Binary(), time.Now().Unix()+delay)
     std.Emit("CallScheduled", "id", id.String(), "delay", strconv.FormatInt(delay, 10))
 }
 
-// Annule une opération planifiée
-func (tl *TimelockUtil) Cancel(timestamps *avl.Tree, id seqid.ID, accessControl *accesscontrol.RoleData) {
-    if !tl.isOperationPending(timestamps, id) {
-        panic("timelock: cancel: operation not pending")
+// Cancels a planned operation
+func (tl *TimelockUtil) Cancel(id seqid.ID) {
+    if !tl.IsOperationPending(id) {
+        panic("timelock: Cancel: operation not pending")
     }
-    timestamps.Remove(id.Binary())
+    tl.timestamps.Remove(id.Binary())
     std.Emit("Cancelled", "id", id.String())
 }
 
-// Exécute une opération prête
-func (tl *TimelockUtil) Execute(timestamps *avl.Tree, id seqid.ID, accessControl *accesscontrol.RoleData) {
-    if !tl.isOperationReady(timestamps, id) {
-        panic("timelock: execute: operation not ready")
+// Executes a ready operation
+func (tl *TimelockUtil) Execute(id seqid.ID) {
+    if !tl.IsOperationReady(id) {
+        panic("timelock: Execute: operation not ready")
     }
-    timestamps.Set(id.Binary(), DONE_TIMESTAMP)
+    tl.timestamps.Set(id.Binary(), DONE_TIMESTAMP)
     std.Emit("CallExecuted", "id", id.String())
 }
 
-// Met à jour le délai minimum pour les opérations futures
-func (tl *TimelockUtil) UpdateDelay(minDelay *int64, newDelay int64, accessControl *accesscontrol.RoleData) {
-    if std.GetOrigCaller() != accessControl.GetRoleAdmin() {
-        panic("timelock: updatedelay: only admin can update delay")
+// Update the minimum lead time for future operations
+func (tl *TimelockUtil) UpdateDelay(minDelay *int64, newDelay int64) {
+    if std.GetOrigCaller() != tl.accessControl.GetRoleAdmin() {
+        panic("timelock: UpdateDelay: only admin can update delay")
     }
     std.Emit("MinDelayChange", "oldDelay", strconv.FormatInt(*minDelay, 10), "newDelay", strconv.FormatInt(newDelay, 10))
     *minDelay = newDelay
 }
 
-// Vérifie si une opération est en attente
-func (tl *TimelockUtil) isOperationPending(timestamps *avl.Tree, id seqid.ID) bool {
-    state := tl.GetOperationState(timestamps, id)
+// Checks if an operation is pending
+func (tl *TimelockUtil) IsOperationPending(id seqid.ID) bool {
+    state := tl.GetOperationState(id)
     return state == Waiting || state == Ready
 }
 
-// Vérifie si une opération est prête
-func (tl *TimelockUtil) isOperationReady(timestamps *avl.Tree, id seqid.ID) bool {
-    return tl.GetOperationState(timestamps, id) == Ready
+// Checks if an operation is ready
+func (tl *TimelockUtil) IsOperationReady(id seqid.ID) bool {
+    return tl.GetOperationState(id) == Ready
 }
 
-// Retourne l'état d'une opération
-func (tl *TimelockUtil) GetOperationState(timestamps *avl.Tree, id seqid.ID) OperationState {
-    timestamp := tl.getTimestamp(timestamps, id)
+// Returns the status of an operation
+func (tl *TimelockUtil) GetOperationState(id seqid.ID) OperationState {
+    timestamp := tl.GetTimestamp(id)
     if timestamp == 0 {
         return Unset
     } else if timestamp == DONE_TIMESTAMP {
@@ -94,9 +100,9 @@ func (tl *TimelockUtil) GetOperationState(timestamps *avl.Tree, id seqid.ID) Ope
     }
 }
 
-// Retourne le timestamp d'une opération
-func (tl *TimelockUtil) getTimestamp(timestamps *avl.Tree, id seqid.ID) int64 {
-    value, ok := timestamps.Get(id.Binary())
+// Returns the timestamp of an operation
+func (tl *TimelockUtil) GetTimestamp(id seqid.ID) int64 {
+    value, ok := tl.timestamps.Get(id.Binary())
     if !ok {
         return 0
     }
@@ -106,6 +112,6 @@ func (tl *TimelockUtil) getTimestamp(timestamps *avl.Tree, id seqid.ID) int64 {
     case int64:
         return v
     default:
-        panic("timelockutil: getTimestamp: unexpected type")
+        panic("timelockutil: GetTimestamp: unexpected type")
     }
 }
