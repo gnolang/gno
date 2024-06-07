@@ -66,21 +66,36 @@ func TestAccessControl(t *testing.T) {
 	RoleData.GrantRole(user2)
 }
 
-// TestCreateRole verifies the CreateRole method.
+// TestCreateRole tests the CreateRole method of the RoleData struct
 func TestCreateRole(t *testing.T) {
+	// Simulate the administrator as the current caller
 	admin := testutils.TestAddress("admin")
+	std.TestSetOrigCaller(admin)
+
+	// Create role data with the administrator
 	roleData := NewRoleData("admin", admin)
-	// Call CreateRole method
-	newRole := roleData.CreateRole("newRole", admin)
-	// Check if the new role is created correctly
-	if newRole.Name != "newRole" {
-		t.Fatalf("expected new role name to be 'newRole', got '%s'", newRole.Name)
+
+	// Create a new role with a new administrator address
+	newAdmin := testutils.TestAddress("newAdmin")
+	newRoleName := "newRole"
+	newRole := roleData.CreateRole(newRoleName, newAdmin)
+
+	// Check that the new role has been created correctly
+	if newRole.Name != newRoleName {
+		t.Fatalf("expected new role name to be '%s', got '%s'", newRoleName, newRole.Name)
 	}
-	if newRole.AdminRole != admin {
-		t.Fatalf("expected new role admin role to be %s, got %s", admin.String(), newRole.AdminRole.String())
+	if newRole.AdminRole != newAdmin {
+		t.Fatalf("expected new role admin role to be %s, got %s", newAdmin.String(), newRole.AdminRole.String())
 	}
-	// Check if the new role is added to the holder
-	if !roleData.HasRole(newRole.AdminRole) {
+
+	// Simulate newAdmin as the current caller
+	std.TestSetOrigCaller(newAdmin)
+
+	// Explicitly add the role to the new administrator to check functionality
+	newRole.GrantRole(newAdmin)
+
+	// Check if the new role has been added to the holder
+	if !newRole.HasRole(newAdmin) {
 		t.Fatalf("expected new role to be added to the holder")
 	}
 }
@@ -101,4 +116,106 @@ func TestOnlyAdmin(t *testing.T) {
 		}
 	}()
 	roleData.OnlyAdmin()
+}
+
+// Testing the RevokeRole Method for a Non-Admin
+func TestRevokeRoleNonAdmin(t *testing.T) {
+	admin := testutils.TestAddress("admin")
+	user1 := testutils.TestAddress("user1")
+	user2 := testutils.TestAddress("user2")
+
+	// Create role data with the administrator
+	roleData := NewRoleData("admin", admin)
+
+	// Grant role to user1
+	std.TestSetOrigCaller(admin)
+	roleData.GrantRole(user1)
+	if !roleData.HasRole(user1) {
+		t.Fatalf("expected user1 to have role")
+	}
+
+	// Simulate user2 as the current caller
+	std.TestSetOrigCaller(user2)
+
+	// Attempting to revoke user1's role as user2 (non-admin), should panic
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("expected panic when non-admin tries to revoke role")
+		}
+	}()
+	roleData.RevokeRole(user1)
+}
+
+// Testing the RenounceRole method with Invalid Confirmation
+func TestRenounceRoleInvalidConfirmation(t *testing.T) {
+	admin := testutils.TestAddress("admin")
+	user := testutils.TestAddress("user")
+
+	// Create role data with the administrator
+	roleData := NewRoleData("admin", admin)
+
+	// Grant role to user
+	std.TestSetOrigCaller(admin)
+	roleData.GrantRole(user)
+	if !roleData.HasRole(user) {
+		t.Fatalf("expected user to have role")
+	}
+
+	// Simulate user as current caller
+	std.TestSetOrigCaller(user)
+
+	// Attempting to relinquish the role with an invalid confirmation, should panic
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("expected panic when caller confirmation does not match")
+		}
+	}()
+	roleData.RenounceRole(admin) // Pass an invalid confirmation
+}
+
+// Testing the SetRoleAdmin method with a New Administrator Address
+func TestSetRoleAdmin(t *testing.T) {
+	admin := testutils.TestAddress("admin")
+	newAdmin := testutils.TestAddress("newAdmin")
+	user := testutils.TestAddress("user")
+
+	// Create role data with the administrator
+	roleData := NewRoleData("admin", admin)
+
+	// Check that the initial administrator is correct
+	if roleData.GetRoleAdmin() != admin {
+		t.Fatalf("expected initial admin to be %s, got %s", admin.String(), roleData.GetRoleAdmin().String())
+	}
+
+	// Simulate admin as current caller
+	std.TestSetOrigCaller(admin)
+
+	// Change administrator
+	roleData.SetRoleAdmin(newAdmin)
+
+	// Check that the new administrator is correct
+	if roleData.GetRoleAdmin() != newAdmin {
+		t.Fatalf("expected new admin to be %s, got %s", newAdmin.String(), roleData.GetRoleAdmin().String())
+	}
+
+	// Simulate newAdmin as the current caller
+	std.TestSetOrigCaller(newAdmin)
+	roleData.OnlyAdmin() // Should not panic
+
+	// Add a role to a user
+	roleData.GrantRole(user)
+	if !roleData.HasRole(user) {
+		t.Fatalf("expected user to have role")
+	}
+
+	// Simulate initial admin as current caller
+	std.TestSetOrigCaller(admin)
+
+	// Attempting to revoke a user's role by the former administrator should cause panic
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("expected panic when former admin tries to revoke role")
+		}
+	}()
+	roleData.RevokeRole(user)
 }
