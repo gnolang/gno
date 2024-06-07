@@ -10,7 +10,7 @@ In this tutorial, you will learn how to start a local Gno node (and chain!).
 Additionally, you will see the different options you can use to make your Gno instance unique.
 
 ## Prerequisites
-- `gnoland` binary installed. Referene the [`Using gnoland`](../getting-started/using-gnoland.md#installation)
+- `gnoland` binary installed. Reference the [`Using gnoland`](../getting-started/using-gnoland.md#installation)
 guide for steps
 
 ## Starting a local node (lazy init)

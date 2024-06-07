@@ -16,7 +16,6 @@ a local gno.land node.
 - **`make` (for running Makefiles)**
 - **Go 1.21+**
 - **Go Environment Setup**:
-    - Make sure `$GOPATH` is well-defined, and `$GOPATH/bin` is added to your `$PATH` variable.
 
 ## Installation
 
@@ -67,9 +66,56 @@ And finally, run it with `./build gnoland`.
 
 Let's dive deeper into each of the subcommands and see how we can use them.
 
+## Running a Local Node
+
+Using the `gnoland start` command allows you to run a local gno.land node.
+The node can be started in two main ways:
+- With `lazy` mode
+- [With manual configuration]
+
+Let's see how we can start the node lazily for the quickest setup.
+
+### Lazy Node Initialization
+
+The simplest way to spin up a local node is to use the following command:
+
+```bash
+gnoland start --lazy
+```
+
+![gnoland-start-lazy](../assets/getting-started/using-gnoland/gnoland-start-lazy.gif)
+
+This command will generate all necessary files for you, including the `genesis.json`
+file and node secrets, which include the validator & node private keys.
+By default, the node will start listening on `localhost:26657`.
+
+#### Flags
+- `-chainid dev` - the ID of the chain.
+- `-data-dir gnoland-data` - the path to the node's data directory.
+- `-flag-config-path ...` - the flag config file (optional).
+- `-genesis genesis.json` - the path to the `genesis.json`.
+- `-genesis-balances-file <path_to_genesis_balances_file>` - initial distribution file.
+- `-genesis-max-vm-cycles 100000000` - set maximum allowed VM cycles per operation. Zero means no limit.
+- `-genesis-remote localhost:26657` - replacement for '%%REMOTE%%' in genesis.
+- `-genesis-txs-file <path_to_genesis_txs_file>` - initial transactions to replay.
+- `-gnoroot-dir <path_to_your_repo_dir>` - the root directory of the gno repository.
+- `-lazy=false` - flag indicating if lazy init is enabled. Generates the node secrets, configuration, and `genesis.json`.
+- `-log-format console` - log format for the gnoland node.
+- `-log-level debug` - log level for the gnoland node.
+- `-skip-failing-genesis-txs=false` - don't panic when replaying invalid genesis transactions.
+
+### Manual configuration
+
+For manual configuration of the node, two main steps are required:
+- Setting up node secrets
+- Creating a genesis file
+
+To see how to create and set up these files, check out the sections below.
+
 ## Managing Node Secrets
 
-The `gnoland secrets` command suite helps your manage three node secrets:
+The node secrets can be managed using the `gnoland secrets` command suite.
+This command suite helps you control three node secrets:
 1. validator private key - `ValidatorPrivateKey`
 2. node p2p key - `NodeKey`
 3. validator's last sign state - `ValidatorState`
