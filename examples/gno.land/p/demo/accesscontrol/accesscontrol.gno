@@ -1,4 +1,36 @@
-package accesscontrol
+// Package accesscontrol provides a library for managing roles and
+// permissions within Gno. It allows for the creation,
+// assignment, and management of roles with specific admin privileges,
+// ensuring that only authorized accounts can perform certain actions.
+// This package utilizes an AVL tree data structure to efficiently track
+// and manage role holders.
+//
+// Example Usage:
+//
+//  import "gno.land/p/demo/accesscontrol"
+//
+//  Create a new role with a specific admin.
+//  adminRole := std.Address("admin-address")
+//  role := accesscontrol.NewRoleData("ExampleRole", adminRole)
+//
+//  Check if an account has a specific role.
+//  account := std.Address("user-address")
+//  hasRole := role.HasRole(account)
+//
+//  Grant a role to a specific account.
+//  role.GrantRole(account)
+//
+//  Revoke a role from a specific account.
+//  role.RevokeRole(account)
+//
+//  Renounce a role with caller confirmation.
+//  role.RenounceRole(std.GetOrigCaller())
+//
+//  Change the admin role for a specific role.
+//  newAdmin := std.Address("new-admin-address")
+//  role.SetRoleAdmin(newAdmin)
+
+package accesscontrol // import "gno.land/p/demo/accesscontrol"
 
 import (
 	"std"
