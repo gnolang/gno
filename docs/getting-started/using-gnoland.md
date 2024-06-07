@@ -108,8 +108,8 @@ Node key saved at gnoland-data/secrets/node_key.json
 
 ### Getting Secrets
 
-To access the public values of your gno.land node through the CLI, you can use the
-`secrets get` subcommand:
+To access the public values of your gno.land node secrets through the CLI, you
+can use the `secrets get` subcommand:
 
 ```bash
 gnoland secrets get [flags] [<key>]
@@ -159,12 +159,95 @@ unable to read node p2p key, unable to read data, open gnoland-data/secrets/node
 #### Flags
 - `-data-dir gnoland-data/secrets` - the directory from which to read the secrets
 
-
 ## Node Configuration
 
-The `gnoland config` command suite helps manage three node secrets:
-1. validator private key - `ValidatorPrivateKey`
-2. node p2p key - `NodeKey`
-3. validator's last sign state - `ValidatorState`
+The `gnoland config` command suite helps manage the gno.land node configuration.
+
+### Initializing Configuration
+
+To initialize the gno.land node configuration, you can use the following command:
+
+```bash
+gnoland config init [flags]
+```
+
+This command will initialize a configuration directory and file in the default
+path. The node is highly configurable. Some of the main configuration options
+which are available are listed below:
+- Database which is used for storing node data
+- Fast synchronization
+- Local paths for node secrets
+- Consensus configuration
+- Mempool configuration
+- Networking (P2P) configuration
+- RPC configuration
+- Telemetry
+
+To view the fully detailed configuration options, take a look at the generated
+`config.toml` file.
+
+#### Flags
+- `-data-dir gnoland-data/config` - the directory where the configuration file will be saved in
+
+### Getting Node Configuration
+
+The `config get` subcommand allows you to read specific configuration values
+from the `config.toml` file.
+
+```bash
+gnoland config get [flags] <key>
+```
+
+For example, fetching the RPC listener address of the
+node can be done the following way, considering that the listener address key is
+`laddr`, found under the `rpc` category:
+
+```bash
+gnoland config get rpc.laddr
+```
+
+A full configuration category, such as `consensus`, can also be read via this command:
+
+```bash
+gnoland config get rpc
+```
+
+For the RPC category, the default output for this subcommand will be a struct of
+all configuration fields inside it, similar to the following:
+
+```bash
+{ tcp://127.0.0.1:26657 [*] [HEAD GET POST OPTIONS] [Origin Accept Content-Type X-Requested-With X-Server-Time]  900 false 900 10s 1000000 1048576  }
+```
+
+#### Flags
+- `-data-dir gnoland-data/config` - the directory from which to read the configuration
+
+### Setting Node Configuration
+
+The `config set` subcommand allows you to set specific configuration values
+in the `config.toml` file via the CLI, instead of manually editing the file.
+
+```bash
+gnoland config set [flags] <key> <value>
+```
+
+For example, setting the node name to `my-node` using the `moniker` field can be 
+done with the following command:
+
+```bash
+gnoland config set moniker my-node
+```
+
+#### Flags
+- `-data-dir gnoland-data/config` - the directory in which to modify the configuration
+
+
+
+
+
+
+
+
+
 
 
