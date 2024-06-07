@@ -1,4 +1,37 @@
-package timelock
+// Package timelock provides a library for scheduling, cancelling, and
+// executing time-locked operations in Gno. It ensures that
+// operations are only carried out after a specified delay and offers
+// mechanisms for managing and verifying the status of these operations.
+// This package leverages an AVL tree for efficient management of timestamps
+// and integrates role-based access control for administrative tasks.
+//
+// Example Usage:
+//
+//  import "gno.land/p/demo/timelock"
+//  import "gno.land/p/demo/accesscontrol"
+//
+//  Initialize timelock utility with an AVL tree and access control.
+//  timestamps := avl.NewTree()
+//  adminRole := accesscontrol.NewRoleData("admin", std.Address("admin-address"))
+//  timelockUtil := timelock.NewTimelockUtil(timestamps, adminRole)
+//
+//  Schedule an operation with a delay of 60 seconds and a minimum delay of 30 seconds.
+//  id := seqid.ID()
+//  timelockUtil.Schedule(id, 60, 30)
+//
+//  Check if an operation is pending.
+//  isPending := timelockUtil.IsOperationPending(id)
+//
+//  Execute the operation when it is ready.
+//  if timelockUtil.IsOperationReady(id) {
+//      timelockUtil.Execute(id)
+//  }
+//
+//  Update the minimum delay for future operations.
+//  var minDelay int64 = 30
+//  timelockUtil.UpdateDelay(&minDelay, 45)
+
+package timelock // import "gno.land/p/demo/timelock"
 
 import (
     "strconv"
