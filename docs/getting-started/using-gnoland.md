@@ -123,7 +123,7 @@ This command suite helps you control three node secrets:
 3. validator's last sign state - `ValidatorState`
 
 The suite allows you to initialize and verify these secrets, and also read them
-via the CLI. Below are the available subcommands and their usage.
+via the CLI. Below are the available subcommands and their uses.
 
 ### Initializing Secrets
 
@@ -513,7 +513,7 @@ This will generate a `export.tx` file with the following contents:
 
 #### Removing Transactions
 
-To remove transactions from `genesis.json` file, you can use the following command,
+To remove transactions from the `genesis.json` file, you can use the following command,
 passing in the `hex` encoded transaction hash:
 
 ```bash
