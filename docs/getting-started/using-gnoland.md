@@ -71,7 +71,7 @@ Let's dive deeper into each of the subcommands and see how we can use them.
 Using the `gnoland start` command allows you to run a local gno.land node.
 The node can be started in two main ways:
 - With `lazy` mode
-- [With manual configuration]
+- With manual configuration
 
 Let's see how we can start the node lazily for the quickest setup.
 
@@ -110,7 +110,9 @@ For manual configuration of the node, two main steps are required:
 - Setting up node secrets
 - Creating a genesis file
 
-To see how to create and set up these files, check out the sections below.
+To see how to create and set up these files, check out the sections below. You
+can also check out the [Setting up a Local Chain](../gno-infrastructure/setting-up-a-local-chain.md)
+guide in the [Gno Infrastructure section](../gno-infrastructure/gno-infrastructure.md).
 
 ## Managing Node Secrets
 
