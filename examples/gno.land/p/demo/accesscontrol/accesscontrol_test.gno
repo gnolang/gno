@@ -65,3 +65,40 @@ func TestAccessControl(t *testing.T) {
 	}()
 	RoleData.GrantRole(user2)
 }
+
+// TestCreateRole verifies the CreateRole method.
+func TestCreateRole(t *testing.T) {
+	admin := testutils.TestAddress("admin")
+	roleData := NewRoleData("admin", admin)
+	// Call CreateRole method
+	newRole := roleData.CreateRole("newRole", admin)
+	// Check if the new role is created correctly
+	if newRole.Name != "newRole" {
+		t.Fatalf("expected new role name to be 'newRole', got '%s'", newRole.Name)
+	}
+	if newRole.AdminRole != admin {
+		t.Fatalf("expected new role admin role to be %s, got %s", admin.String(), newRole.AdminRole.String())
+	}
+	// Check if the new role is added to the holder
+	if !roleData.HasRole(newRole.AdminRole) {
+		t.Fatalf("expected new role to be added to the holder")
+	}
+}
+
+// TestOnlyAdmin verifies the OnlyAdmin method.
+func TestOnlyAdmin(t *testing.T) {
+	admin := testutils.TestAddress("admin")
+	user := testutils.TestAddress("user")
+	roleData := NewRoleData("admin", admin)
+	// Call OnlyAdmin method with admin caller
+	std.TestSetOrigCaller(admin)
+	roleData.OnlyAdmin() // Should not panic
+	// Call OnlyAdmin method with non-admin caller
+	std.TestSetOrigCaller(user)
+	defer func() {
+		if r := recover(); r == nil {
+			t.Fatalf("expected panic when non-admin calls OnlyAdmin")
+		}
+	}()
+	roleData.OnlyAdmin()
+}
