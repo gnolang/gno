@@ -67,7 +67,7 @@ type devCfg struct {
 
 func (cfg *devCfg) validateConfigFlags() error {
 	if (cfg.balancesFile != "" || cfg.txsFile != "") && cfg.genesisFile != "" {
-		return errors.New("cannot specify `balances-file` or `txs-file` along `genesis-file`")
+		return errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
 	}
 
 	return nil
