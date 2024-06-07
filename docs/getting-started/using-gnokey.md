@@ -90,7 +90,7 @@ In the `hello_world.gno` file, add the following code:
 package hello_world
 
 func Hello() string {
-	return "Hello, world!"
+  return "Hello, world!"
 }
 ```
 
@@ -375,39 +375,39 @@ package foo
 import "gno.land/p/demo/ufmt"
 
 var (
-	MainFoo *Foo
-	foos    []*Foo
+  MainFoo *Foo
+  foos    []*Foo
 )
 
 type Foo struct {
-	bar string
-	baz int
+  bar string
+  baz int
 }
 
 func init() {
-	MainFoo = &Foo{bar: "mainBar", baz: 0}
+  MainFoo = &Foo{bar: "mainBar", baz: 0}
 }
 
 func (f *Foo) String() string {
-	return ufmt.Sprintf("Foo - (bar: %s) - (baz: %d)\n\n", f.bar, f.baz)
+  return ufmt.Sprintf("Foo - (bar: %s) - (baz: %d)\n\n", f.bar, f.baz)
 }
 
 func NewFoo(bar string, baz int) *Foo {
-	return &Foo{bar: bar, baz: baz}
+  return &Foo{bar: bar, baz: baz}
 }
 
 func AddFoos(multipleFoos []*Foo) {
-	foos = append(foos, multipleFoos...)
+  foos = append(foos, multipleFoos...)
 }
 
 func Render(_ string) string {
-	output := ""
+  output := ""
 
-	for _, f := range foos {
-		output += f.String()
-	}
+  for _, f := range foos {
+    output += f.String()
+  }
 
-	return output
+  return output
 }
 ```
 
@@ -431,7 +431,7 @@ func main() {
 
 2. Calling functions with non-primitive input arguments:
 
-Currently, `Call` only supports primitives for arguments. With `Run` these 
+Currently, `Call` only supports primitives for arguments. With `Run` these
 limitations are removed - we can execute a function that takes in a struct, array,
 or even an array of structs.
 
@@ -471,7 +471,7 @@ package main
 import "gno.land/r/leon/run/examples/foo"
 
 func main() {
-	println(foo.MainFoo.String())
+  println(foo.MainFoo.String())
 }
 ```
 
@@ -484,9 +484,9 @@ Using ABCI queries you can query the state of the chain without spending any gas
 All queries need to be pointed towards a specific remote address from which
 the state will be retrieved.
 
-### `query`
-
-The query subcommand allows us to send different types of queries to a Gno.land
+To send ABCI queries, you can use the `gnokey query`
+subcommand, and provide it with the appropriate query.
+The `query` subcommand allows us to send different types of queries to a Gno.land
 network.
 
 Below is a list of queries a user can make with `gnokey`:
@@ -499,7 +499,7 @@ Below is a list of queries a user can make with `gnokey`:
 
 Let's see how we can use them.
 
-#### `auth/accounts`
+### `auth/accounts`
 
 We can obtain information about a specific address using this subquery. To call it,
 we can run the following command:
@@ -541,7 +541,7 @@ hold account data. It contains the following information:
 - `account_number` - a unique identifier for the account on the Gno.land chain
 - `sequence` - a nonce, used for protection against replay attacks
 
-#### `bank/balances`
+### `bank/balances`
 
 With this query, we can fetch balances of a specific account. To call it, we can
 run the following command:
@@ -560,7 +560,7 @@ data: "227984898927ugnot"
 
 The data field will contain the coins the address owns.
 
-#### `vm/qfuncs`
+### `vm/qfuncs`
 
 Using the `vm/qfuncs` query, we can fetch exported functions from a specific package
 path. To specify the path we want to query, we can use the `-data` flag:
@@ -594,7 +594,7 @@ data: [
 ]
 ```
 
-#### `vm/qfile`
+### `vm/qfile`
 
 With the `vm/qfile` query, we can fetch files found on a specific package path.
 To specify the path we want to query, we can use the `-data` flag:
@@ -613,7 +613,7 @@ wugnot.gno
 z0_filetest.gno
 ```
 
-#### `vm/qeval`
+### `vm/qeval`
 
 `vm/qeval` allows us to evaluate a call to an exported function without using gas,
 in read-only mode. For example:
@@ -627,7 +627,7 @@ This command will return the `wugnot` balance of the above address without using
 Properly escaping quotation marks, and inputting a new line for the function
 is currently required.
 
-#### `vm/qrender`
+### `vm/qrender`
 
 `vm/qrender` is an alias for executing `vm/qeval` on the `Render("")` function.
 We can use it like this:
