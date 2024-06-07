@@ -81,7 +81,9 @@ Let's break down this command:
 - **`bank/balances/g1qpymzwx4l4cy6cerdyajp9ksvjsf20rk5y9rtt`** - the ABCI query targets the `bank` module to find
   the `balances` for address `g1qpymzwx4l4cy6cerdyajp9ksvjsf20rk5y9rtt`. Replace the address with your desired address
   ![gnokey query](../assets/getting-started/local-setup/setting-up-funds/gnokey-query.gif)
+
 ## Conclusion
+
 That's it 🎉
 You have successfully premined a native currency balance on a locally-running Gno chain!
 Additionally, you have also learned how to query the native currency balance for an address, using built-in ABCI queries
