@@ -15,7 +15,7 @@ a local gno.land node.
 - **Git**
 - **`make` (for running Makefiles)**
 - **Go 1.21+**
-- **Go Environment Setup**:
+- **Go Environment Setup**: Ensure you have Go set up as outlined in the [Go official installation documentation](https://go.dev/doc/install) for your environment
 
 ## Installation
 
