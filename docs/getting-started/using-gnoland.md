@@ -67,11 +67,6 @@ And finally, run it with `./build gnoland`.
 
 Let's dive deeper into each of the subcommands and see how we can use them.
 
-
-## Starting a node
-
-
-
 ## Managing Node Secrets
 
 The `gnoland secrets` command suite helps your manage three node secrets:
@@ -241,6 +236,49 @@ gnoland config set moniker my-node
 #### Flags
 - `-data-dir gnoland-data/config` - the directory in which to modify the configuration
 
+## Configuring the Node Genesis
+
+The node genesis file contains the initial parameters with which to set up the node.
+It contains the following fields:
+- Genesis time
+- Chain ID
+- Consensus parameters
+- Genesis validator set
+- Genesis balances
+- Genesis transaction set
+
+### Generating a Genesis file
+
+To generate a genesis file, you can use the `genesis generate` subcommand:
+
+```bash
+gnoland genesis generate
+```
+
+This will initialize a default genesis file in the default path. The `genesis.json`
+file will have the following data:
+
+```json
+{
+  "genesis_time": "2024-06-07T13:46:01Z",
+  "chain_id": "dev",
+  "consensus_params": {
+    "Block": {
+      "MaxTxBytes": "1000000",
+      "MaxDataBytes": "2000000",
+      "MaxBlockBytes": "0",
+      "MaxGas": "100000000",
+      "TimeIotaMS": "100"
+    },
+    "Validator": {
+      "PubKeyTypeURLs": [
+        "/tm.PubKeyEd25519"
+      ]
+    }
+  },
+  "app_hash": null
+}
+```
 
 
 
