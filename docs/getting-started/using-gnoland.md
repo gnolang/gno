@@ -465,26 +465,27 @@ This will generate a `export.tx` file with the following contents:
 
 #### Removing Transactions
 
-To remove transactions from `genesis.json` file, use the following command:
+To remove transactions from `genesis.json` file, you can use the following command,
+passing in the `hex` encoded transaction hash:
 
 ```bash
-gnoland genesis txs remove <>
+gnoland genesis txs remove <tx-hash>
 ```
-
-For example, we can remove the previously added item with the following command:
-
-```bash
-gnoland genesis balances remove --address g1c56yp4k38dl2637zrwc7zqrzt95gtzj8q8d9q0
-```
-
-If the command was successful, the following output will be displayed:
-
-```bash
-Pre-mine information for address g1c56yp4k38dl2637zrwc7zqrzt95gtzj8q8d9q0 removed
-```
-
 
 ### Verifying a Genesis file
+
+Using the `genesis verify` subcommand you can verify that a `genesis.json` file
+exists and is not corrupted.
+
+```
+gnoland genesis verify [flags]
+```
+
+#### Flags
+
+- `-genesis-path` - the path to the `genesis.json` file to verify
+
+
 
 
 
