@@ -24,7 +24,7 @@ func newTxsRemoveCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "remove",
-			ShortUsage: "txs remove <tx-hash ...>",
+			ShortUsage: "txs remove [flags] <tx-hash ...>",
 			ShortHelp:  "removes the transactions from the genesis.json",
 			LongHelp:   "Removes the transactions using the transaction hash",
 		},
