@@ -247,16 +247,18 @@ It contains the following fields:
 - Genesis balances
 - Genesis transaction set
 
+Let's see how we can manipulate these values.
+
 ### Generating a Genesis file
 
 To generate a genesis file, you can use the `genesis generate` subcommand:
 
 ```bash
-gnoland genesis generate
+gnoland genesis generate [flags]
 ```
 
-This will initialize a default genesis file in the default path. The `genesis.json`
-file will have the following data:
+Without any flags, this command will initialize a default genesis file in the
+default path. The `genesis.json` file will contain the following data:
 
 ```json
 {
@@ -280,8 +282,80 @@ file will have the following data:
 }
 ```
 
+Below are the flags that we can use to customize the initial `genesis.json` file.
+
+#### Flags
+
+- `-block-max-data-bytes` - sets the max size of the block data, in bytes
+- `-block-max-gas` - sets the max gas limit for the block
+- `-block-max-tx-bytes` - sets the max size of the block transaction
+- `-block-time-iota` - sets the block time iota (in ms)
+- `-chain-id` - sets the ID of the chain
+- `-genesis-time` - sets the genesis creation time
+- `-output-path` - sets the output path for the genesis.json file
+
+### Manage the Genesis Validator Set
+
+You can manage the genesis validator set via the CLI by using the 
+`genesis validator add` and `genesis validator remove` subcommands.
+
+To add a new validator to genesis, the following parameters need to be configured:
+- `-address` - the gno bech32 address of the validator
+- `-name` - the name of the validator (must be unique)
+- `-power` - the voting power of the validator (must be > 0)
+- `-pub-key` - the bech32 string representation of the validator's public key
+
+An example command for adding a validator to the genesis set might look like this:
+
+```bash
+gnoland genesis validator add \
+-address g1c56yp4k38dl2637zrwc7zqrzt95gtzj8q8d9q0 \
+-pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpu2rqkx2sqq67d54psa77n2ksgmktzy8mhvscayjujchjwwcde3ls2trg7 \
+-name validator1 \
+-power 100
+```
+
+If the parameters are correct, the following confirmation output will be given:
+
+```bash
+Validator with address g1c56yp4k38dl2637zrwc7zqrzt95gtzj8q8d9q0 added to genesis file
+```
+
+To remove a specific validator from the genesis set, you can use the
+`genesis validator remove` subcommand:
+
+```bash
+gnoland genesis validator remove --address g1c56yp4k38dl2637zrwc7zqrzt95gtzj8q8d9q0
+```
+
+If a validator with the given address was found, it will be removed from the genesis:
+
+```bash
+Validator with address g1c56yp4k38dl2637zrwc7zqrzt95gtzj8q8d9q0 removed from genesis file
+```
+
+### Managing Genesis Balances
+
+By using the `genesis balances` subcommand you can control the initial balances
+of specific addresses. This subcommand allows you to add & remove new balances,
+as well as export the balances to a separate file.
+
+#### Adding New Balances
+
+To add new balances to the `genesis.json` file, use the following command:
+
+```bash
+gnoland genesis balances add [flags]
+```
+
+The flags for this subcommand give us multiple ways to manage the balance information:
+- `-balance-sheet` -  read balances from a separate file containing addresses in the format `<address>=<amount>ugnot`.
+- `-parse-export ...`: The path to the transaction export containing a list of transactions (JSONL).
+- `-single ...`: The direct balance addition in the format `<address>=<amount>ugnot`.
 
 
+
+### Verifying a Genesis file
 
 
 
