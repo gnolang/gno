@@ -760,7 +760,8 @@ been signed in a previous step and `gnokey` is only sending it to the RPC endpoi
 
 To verify a transaction signature is correct, you can use the `gnokey verify`
 subcommand. We can provide the path to the transaction document using the `-docpath`
-flag, provide the key we signed the transaction with, and the signature itself:
+flag, provide the key we signed the transaction with, and the signature itself.
+Make sure the signature is in the `hex` format.
 
 ```bash
 gnokey verify -docpath userbook.tx mykey <signature>
