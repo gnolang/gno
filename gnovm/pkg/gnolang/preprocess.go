@@ -1890,6 +1890,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				} else if len(n.Values) != 0 && numNames != len(n.Values) {
 					panic("should not happen")
 				} else { // general case
+					for _, v := range n.Values {
+						if cx, ok := v.(*CallExpr); ok {
+							tt, ok := evalStaticTypeOfRaw(store, last, cx).(*tupleType)
+							if ok && len(tt.Elts) != 1 {
+								panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
+							}
+						}
+					}
 					// evaluate types and convert consts.
 					if n.Type != nil {
 						// only a single type can be specified.
