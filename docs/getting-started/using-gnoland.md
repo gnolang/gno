@@ -349,9 +349,69 @@ gnoland genesis balances add [flags]
 ```
 
 The flags for this subcommand give us multiple ways to manage the balance information:
-- `-balance-sheet` -  read balances from a separate file containing addresses in the format `<address>=<amount>ugnot`.
-- `-parse-export ...`: The path to the transaction export containing a list of transactions (JSONL).
-- `-single ...`: The direct balance addition in the format `<address>=<amount>ugnot`.
+- `-balance-sheet` - read balances from a separate file containing addresses in the format `<address>=<amount>ugnot`
+- `-parse-export` - path to the transaction export containing a list of transactions (JSONL)
+- `-single` - directly add a new balance item with the format `<address>=<amount>ugnot`
+
+For example, you can add a single balance item with the following command:
+
+```bash
+gnoland genesis balances add --single g1c56yp4k38dl2637zrwc7zqrzt95gtzj8q8d9q0=1000ugnot
+```
+
+If the command was successful, the following output will be displayed:
+
+```bash
+1 pre-mines saved
+```
+
+#### Exporting Balances
+
+To export the balances from the `genesis.json` file, use the following command:
+
+```bash
+gnoland genesis balances export [flags] <output-path>
+```
+
+For example, we can export the previously added balance item(s) to a `balances.txt`
+file with the following command:
+
+```bash
+gnoland genesis balances export ./balances.txt
+```
+
+This will generate a `balances.txt` file with the following contents:
+
+```text
+g1c56yp4k38dl2637zrwc7zqrzt95gtzj8q8d9q0=1000ugnot
+```
+
+#### Removing Balances
+
+To remove the balance information of a specific account from the `genesis.json` 
+file, use the following command:
+
+```bash
+gnoland genesis balances remove [flags]
+```
+
+For example, we can remove the previously added item with the following command:
+
+```bash
+gnoland genesis balances remove --address g1c56yp4k38dl2637zrwc7zqrzt95gtzj8q8d9q0
+```
+
+If the command was successful, the following output will be displayed:
+
+```bash
+Pre-mine information for address g1c56yp4k38dl2637zrwc7zqrzt95gtzj8q8d9q0 removed
+```
+
+### Managing Genesis Transactions
+
+By using the `genesis txs` subcommand you can manipulate the transactions to be
+included in the `genesis.json` file. 
+
 
 
 
