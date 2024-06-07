@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/imports"
 )
@@ -22,13 +21,15 @@ type ParseError error
 
 // Package contains the memory package and directory path.
 type Package struct {
-	std.MemPackage
-	Dir string
+	Path string
+	Name string
+	Dir  string
 }
 
 type Processor struct {
-	resolver Resolver
-	fset     *token.FileSet
+	cachefile map[string]*ast.File
+	resolver  Resolver
+	fset      *token.FileSet
 }
 
 func NewProcessor(r Resolver) *Processor {
@@ -38,15 +39,15 @@ func NewProcessor(r Resolver) *Processor {
 	}
 }
 
-// FormatSource processes a single Gno file and adds necessary imports.
-// FormatSource parse and format the source from src. The type of the argument
+// FormatImportFromSource processes a single Gno file and adds necessary imports.
+// FormatImportFromSource parse and format the source from src. The type of the argument
 // for the src parameter must be string, []byte, or [io.Reader].
-func (p *Processor) FormatSource(filename string, src any) ([]byte, error) {
+func (p *Processor) FormatImportFromSource(filename string, src any) ([]byte, error) {
 	if src == nil {
 		return nil, fmt.Errorf("source input cannot be nil")
 	}
 
-	// Parse the source file.
+	// Parse the source file
 	node, err := parser.ParseFile(p.fset, filename, src, parser.ParseComments|parser.AllErrors)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse source: %w", ParseError(err))
@@ -54,11 +55,11 @@ func (p *Processor) FormatSource(filename string, src any) ([]byte, error) {
 
 	pkgDecls := make(map[string]*ast.File)
 	// Process and format the parsed node.
-	return p.processAndFormat(p.fset, node, filename, pkgDecls)
+	return p.processAndFormat(node, filename, pkgDecls)
 }
 
-// FormatImports processes a single Gno file, format it and adds necessary imports.
-func (p *Processor) FormatImports(filep string) ([]byte, error) {
+// FormatImportFromFile processes a single Gno file, format it and adds necessary imports.
+func (p *Processor) FormatImportFromFile(filep string) ([]byte, error) {
 	pkgDecls := make(map[string]*ast.File)
 
 	// Process package files.
@@ -74,21 +75,24 @@ func (p *Processor) FormatImports(filep string) ([]byte, error) {
 	}
 
 	// Process and format the parsed node.
-	return p.processAndFormat(p.fset, node, filep, pkgDecls)
+	return p.processAndFormat(node, filep, pkgDecls)
 }
 
 // Helper function to process and format a parsed AST node.
-func (p *Processor) processAndFormat(fset *token.FileSet, node *ast.File, filename string, pkgDecls map[string]*ast.File) ([]byte, error) {
+func (p *Processor) processAndFormat(file *ast.File, filename string, pkgDecls map[string]*ast.File) ([]byte, error) {
 	// Collect top declarations.
 	topDecls := make(map[*ast.Object]ast.Decl)
 	collectTopDeclarations(pkgDecls, topDecls)
 
-	// Resolve and update imports.
-	p.resolveAndUpdateImports(fset, node, topDecls)
+	// Collect unresolved
+	unresolved := collectUnresolved(file, topDecls)
+
+	p.cleanupPreviousImports(file, topDecls, unresolved)
+	p.resolve(file, unresolved)
 
 	// Buffer to store formatted output.
 	var buf bytes.Buffer
-	if err := printer.Fprint(&buf, fset, node); err != nil {
+	if err := printer.Fprint(&buf, p.fset, file); err != nil {
 		return nil, fmt.Errorf("unable to format file: %w", err)
 	}
 
@@ -104,13 +108,6 @@ func (p *Processor) processAndFormat(fset *token.FileSet, node *ast.File, filena
 	}
 
 	return ret, nil
-}
-
-// resolveAndUpdateImports resolves and updates imports.
-func (p *Processor) resolveAndUpdateImports(fset *token.FileSet, node *ast.File, topDecls map[*ast.Object]ast.Decl) {
-	unresolved := collectUnresolved(node, topDecls)
-	cleanupPreviousImports(fset, node, topDecls, unresolved)
-	resolve(p.resolver, fset, node, unresolved)
 }
 
 // processPackageFiles processes Gno package files and collects top-level declarations.
@@ -227,13 +224,17 @@ func collectUnresolved(file *ast.File, topDecls map[*ast.Object]ast.Decl) map[st
 }
 
 // cleanupPreviousImports removes resolved imports from the unresolved list.
-func cleanupPreviousImports(fset *token.FileSet, node *ast.File, topDecls map[*ast.Object]ast.Decl, unresolved map[string]map[string]bool) {
-	imports := astutil.Imports(fset, node)
-
+func (p *Processor) cleanupPreviousImports(node *ast.File, knownDecls map[*ast.Object]ast.Decl, unresolved map[string]map[string]bool) {
+	imports := astutil.Imports(p.fset, node)
 	for _, imps := range imports {
 		for _, imp := range imps {
 			pkgpath := imp.Path.Value[1 : len(imp.Path.Value)-1] // unquote the value
+
 			name := filepath.Base(pkgpath)
+			if pkg := p.resolver.ResolvePath(pkgpath); pkg != nil {
+				name = pkg.Name
+			}
+
 			isNamedImport := imp.Name != nil && imp.Name.Name != "_"
 			if isNamedImport {
 				name = imp.Name.Name
@@ -245,32 +246,31 @@ func cleanupPreviousImports(fset *token.FileSet, node *ast.File, topDecls map[*a
 			}
 
 			if isNamedImport {
-				astutil.DeleteNamedImport(fset, node, name, pkgpath)
+				astutil.DeleteNamedImport(p.fset, node, name, pkgpath)
 			} else {
-				astutil.DeleteImport(fset, node, pkgpath)
+				astutil.DeleteImport(p.fset, node, pkgpath)
 			}
 		}
 	}
 
-	for obj := range topDecls {
+	// Mark knownDecls as resolved
+	for obj := range knownDecls {
 		delete(unresolved, obj.Name)
 	}
 }
 
 // resolve tries to resolve unresolved package using `Resolver`
-func resolve(
-	resolver Resolver,
-	fset *token.FileSet,
+func (p *Processor) resolve(
 	node *ast.File,
 	unresolved map[string]map[string]bool,
 ) {
 	for decl, sels := range unresolved {
-		for _, pkg := range resolver.Resolve(decl) {
-			if !hasDeclExposed(fset, sels, pkg.Dir) {
+		for _, pkg := range p.resolver.ResolveName(decl) {
+			if !hasDeclExposed(p.fset, sels, pkg.Dir) {
 				continue
 			}
 
-			astutil.AddImport(fset, node, pkg.Path)
+			astutil.AddImport(p.fset, node, pkg.Path)
 			delete(unresolved, decl)
 			break
 		}

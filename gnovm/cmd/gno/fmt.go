@@ -188,8 +188,9 @@ func fmtProcessDiff(file string, data []byte, io commands.IO) bool {
 
 func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
 	gnoroot := gnoenv.RootDir()
-
-	r := gnoimports.NewFSResolver()
+	// Load examples directory
+	examples := filepath.Join(gnoroot, "examples")
+	r := gnoimports.NewFSResolver(gnoroot, "gno.land")
 
 	// Load stdlibs
 	stdlibs := filepath.Join(gnoroot, "gnovm", "stdlibs")
@@ -197,8 +198,6 @@ func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
 		return nil, fmt.Errorf("unable to load %q: %w", stdlibs, err)
 	}
 
-	// Load examples directory
-	examples := filepath.Join(gnoroot, "examples")
 	if err := r.LoadPackages(examples); err != nil {
 		return nil, fmt.Errorf("unable to load %q: %w", examples, err)
 	}
@@ -217,7 +216,7 @@ func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
 
 	p := gnoimports.NewProcessor(r)
 	return func(file string, io commands.IO) []byte {
-		data, err := p.FormatImports(file)
+		data, err := p.FormatImportFromFile(file)
 		if err == nil {
 			return data
 		}
