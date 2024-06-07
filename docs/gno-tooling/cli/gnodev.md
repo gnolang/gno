@@ -83,7 +83,7 @@ that will be applied when starting the in-memory node.
 {"msg":[{"@type":"/vm.m_call","caller":"g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq","send":"","pkg_path":"gno.land/r/gnoland/blog","func":"ModAddPost","args":["post2","Second post","Lorem Ipsum","2022-05-20T13:17:23Z","","tag1,tag3"]}],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":[{"pub_key":{"@type":"/tm.PubKeySecp256k1","value":"AnK+a6mcFDjY6b/v6p7r8QFW1M1PgIoQxBgrwOoyY7v3"},"signature":"sHjOGXZEi9wt2FSXFHmkDDoVQyepvFHKRDDU0zgedHYnCYPx5/YndyihsDD5Y2Z7/RgNYBh4JlJwDMGFNStzBQ=="}],"memo":""}
 ```
 
-#### Construction a transaction
+#### Construct the transaction
 `gnokey maketx ... >> "tx-file.json"`
 
 #### Signing the transaction
