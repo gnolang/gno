@@ -27,7 +27,6 @@ func setupDevNode(
 		if err != nil {
 			return nil, fmt.Errorf("unable to load transactions: %w", err)
 		}
-
 	} else if devCfg.genesisFile != "" { // Load genesis file
 		state, err := extractAppStateFromGenesisFile(devCfg.genesisFile)
 		if err != nil {

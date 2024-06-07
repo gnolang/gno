@@ -65,14 +65,6 @@ type devCfg struct {
 	serverMode bool
 }
 
-func (cfg *devCfg) validateConfigFlags() error {
-	if (cfg.balancesFile != "" || cfg.txsFile != "") && cfg.genesisFile != "" {
-		return errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
-	}
-
-	return nil
-}
-
 var defaultDevOptions = &devCfg{
 	chainId:             "dev",
 	maxGas:              10_000_000_000,
@@ -218,6 +210,14 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultDevOptions.maxGas,
 		"set the maximum gas per block",
 	)
+}
+
+func (c *devCfg) validateConfigFlags() error {
+	if (c.balancesFile != "" || c.txsFile != "") && c.genesisFile != "" {
+		return errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
+	}
+
+	return nil
 }
 
 func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
