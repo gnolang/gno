@@ -70,6 +70,7 @@ gnoland start
 This command will initialize the Gno node, generate the `genesis.json` with our newly added premine information, and
 start the chain.
 ![gnoland start](../assets/getting-started/local-setup/setting-up-funds/gnoland-start.gif)
+
 ## 3. Check the account balance
 To check the balance of any account (or the account we just premined), we can use the following ABCI query:
 ```bash
