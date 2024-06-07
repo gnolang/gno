@@ -538,6 +538,6 @@ gnoland genesis verify [flags]
 That's it 🎉
 
 This tutorial covered the essential steps to install, configure, and manage a
-Gno.land node using the `gnoland` binary. By using various subcommands and 
+gno.land node using the `gnoland` binary. By using various subcommands and 
 flags, you can effectively set up and maintain your gno.land node. 
 For more details, refer to the `--help` option with each subcommand.
