@@ -16,4 +16,4 @@ func main() {
 
 -- stdout.golden --
 -- stderr.golden --
-bad_file.gno:1: unknown import path python (code=2).
+bad_file.gno:3: unknown import path python (code=2).
