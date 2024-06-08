@@ -94,7 +94,7 @@ func (roleData *RoleData) RenounceRole(callerConfirmation std.Address) {
 		panic("accesscontrol: caller confirmation does not match account")
 	}
 	roleData.Holder.Remove(caller.String())
-	std.Emit("RoleRevoked", "roleName", roleData.Name, "account", caller.String(), "sender", caller.String())
+	std.Emit("RoleRenounced", "roleName", roleData.Name, "account", caller.String(), "sender", caller.String())
 }
 
 // Method to get the admin role of a specific role
