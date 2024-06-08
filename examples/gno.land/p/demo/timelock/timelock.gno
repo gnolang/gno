@@ -43,7 +43,7 @@ import (
 )
 
 // Marks operations completed
-const DONE_TIMESTAMP = 1
+const DoneTimestamp = 1
 
 // Represents the status of a planned operation
 type OperationState int
@@ -95,7 +95,7 @@ func (tl *TimelockUtil) Execute(id seqid.ID) {
     if !tl.IsOperationReady(id) {
         panic("timelock: Execute: operation not ready")
     }
-    tl.timestamps.Set(id.Binary(), DONE_TIMESTAMP)
+    tl.timestamps.Set(id.Binary(), DoneTimestamp)
     std.Emit("CallExecuted", "id", id.String())
 }
 
@@ -124,7 +124,7 @@ func (tl *TimelockUtil) GetOperationState(id seqid.ID) OperationState {
     timestamp := tl.GetTimestamp(id)
     if timestamp == 0 {
         return Unset
-    } else if timestamp == DONE_TIMESTAMP {
+    } else if timestamp == DoneTimestamp {
         return Done
     } else if timestamp > time.Now().Unix() {
         return Waiting
