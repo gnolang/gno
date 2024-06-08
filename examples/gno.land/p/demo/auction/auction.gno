@@ -92,7 +92,7 @@ func (a Auction) GetBids() []*Bid {
 }
 
 // IsOwner checks if the given address is the owner of the auction.
-func (a Auction) IsOwner(address std.Address) bool {
+func (a Auction) IsOwnedBy(address std.Address) bool {
 	return address == a.GetOwner()
 }
 
