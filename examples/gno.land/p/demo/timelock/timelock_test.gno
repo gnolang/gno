@@ -25,7 +25,7 @@ func TestTimelockUtil(t *testing.T) {
     // Test Schedule
     t.Run("Schedule", func(t *testing.T) {
         id := newID(0)
-        delay := int64(3) // 3 secondes
+        delay := int64(3) // 3 seconds
 
         defer func() {
             if r := recover(); r != nil {
