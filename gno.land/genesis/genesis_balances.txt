@@ -68,5 +68,3 @@ g1qpymzwx4l4cy6cerdyajp9ksvjsf20rk5y9rtt=10000000000ugnot # @zooma
 
 # NOTE: Thanks guys, no more keys through genesis this way though:
 # we now have a faucet.
-
-
