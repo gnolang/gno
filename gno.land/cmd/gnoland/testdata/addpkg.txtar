@@ -16,6 +16,7 @@ stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED:   \d+'
 stdout 'HEIGHT:     \d+'
 stdout 'EVENTS:     \[\]'
+stdout 'TX HASH:    \s+'
 
 -- hello.gno --
 package hello
