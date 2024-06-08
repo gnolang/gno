@@ -80,6 +80,6 @@ func DerivePkgAddr(pkgPath string) (addr Address) {
 	panic(shimWarn)
 }
 
-func Emit(tag, key, value string) {
+func Emit(typ string, attrs ...string) {
 	panic(shimWarn)
 }
