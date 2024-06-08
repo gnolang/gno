@@ -83,7 +83,7 @@ func TestTimelockUtil(t *testing.T) {
 
     // Test UpdateDelay
     t.Run("UpdateDelay", func(t *testing.T) {
-        newDelay := int64(4) // 4 secondes
+        newDelay := int64(4) // 4 seconds
 
         defer func() {
             if r := recover(); r != nil {
