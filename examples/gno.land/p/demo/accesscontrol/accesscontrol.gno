@@ -101,11 +101,6 @@ func (roleData *RoleData) RenounceRole(callerConfirmation std.Address) error {
 	return nil
 }
 
-// Method to get the admin role of a specific role
-func (roleData *RoleData) GetRoleAdmin() std.Address {
-	return roleData.AdminRole
-}
-
 // Method to set the admin role for a specific role
 func (roleData *RoleData) SetRoleAdmin(adminRole std.Address) {
 	roleData.AssertOrigCallerIsAdmin()
