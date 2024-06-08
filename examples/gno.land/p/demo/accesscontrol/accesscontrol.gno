@@ -35,6 +35,7 @@ package accesscontrol // import "gno.land/p/demo/accesscontrol"
 import (
 	"std"
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
 // RoleData struct to store role information
@@ -54,16 +55,18 @@ func NewRoleData(name string, adminRole std.Address) *RoleData {
 }
 
 // Method to check if the caller has the admin role
-func (roleData *RoleData) OnlyAdmin() {
+func (roleData *RoleData) AssertOrigCallerIsAdmin() error{
 	caller := std.GetOrigCaller()
 	if roleData.AdminRole != caller {
-		panic("accesscontrol: caller does not have the admin role")
+		ufmt.Errorf("accesscontrol: caller does not have the admin role")
 	}
+
+	return nil
 }
 
 // Method to create a new role within the realm
 func (roleData *RoleData) CreateRole(name string, adminRole std.Address) *RoleData {
-	roleData.OnlyAdmin()
+	roleData.AssertOrigCallerIsAdmin()
     std.Emit("RoleCreated", "roleName", name, "adminRole", adminRole.String(), "sender", std.GetOrigCaller().String())
     return NewRoleData(name, adminRole)
 }
@@ -75,26 +78,27 @@ func (roleData *RoleData) HasRole(account std.Address) bool {
 
 // Method to grant a role to an account
 func (roleData *RoleData) GrantRole(account std.Address) {
-	roleData.OnlyAdmin()
+	roleData.AssertOrigCallerIsAdmin()
 	roleData.Holder.Set(account.String(), true)
 	std.Emit("RoleGranted", "roleName", roleData.Name, "account", account.String(), "sender", std.GetOrigCaller().String())
 }
 
 // Method to revoke a role from an account
 func (roleData *RoleData) RevokeRole(account std.Address) {
-	roleData.OnlyAdmin()
+	roleData.AssertOrigCallerIsAdmin()
 	roleData.Holder.Remove(account.String())
 	std.Emit("RoleRevoked", "roleName", roleData.Name, "account", account.String(), "sender", std.GetOrigCaller().String())
 }
 
 // Method to renounce a role with caller confirmation
-func (roleData *RoleData) RenounceRole(callerConfirmation std.Address) {
+func (roleData *RoleData) RenounceRole(callerConfirmation std.Address) error {
 	caller := std.GetOrigCaller()
 	if callerConfirmation != caller {
-		panic("accesscontrol: caller confirmation does not match account")
+		ufmt.Errorf("accesscontrol: caller confirmation does not match account")
 	}
 	roleData.Holder.Remove(caller.String())
 	std.Emit("RoleRenounced", "roleName", roleData.Name, "account", caller.String(), "sender", caller.String())
+	return nil
 }
 
 // Method to get the admin role of a specific role
@@ -104,7 +108,7 @@ func (roleData *RoleData) GetRoleAdmin() std.Address {
 
 // Method to set the admin role for a specific role
 func (roleData *RoleData) SetRoleAdmin(adminRole std.Address) {
-	roleData.OnlyAdmin()
+	roleData.AssertOrigCallerIsAdmin()
 	previousAdminRole := roleData.AdminRole
 	roleData.AdminRole = adminRole
 	std.Emit("RoleAdminChanged", "roleName", roleData.Name, "previousAdminRole", previousAdminRole.String(), "newAdminRole", adminRole.String())
