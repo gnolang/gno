@@ -13,7 +13,7 @@ import (
 func TestTimelockUtil(t *testing.T) {
     // Initialization
     timestamps := avl.NewTree()
-    minDelay := int64(2) // 2 secondes pour simplifier les tests
+    minDelay := int64(2) // 2 seconds to simplify testing
     accessControl := accesscontrol.NewRoleData("admin", std.GetOrigCaller())
     timelockUtil := NewTimelockUtil(timestamps, accessControl)
 
