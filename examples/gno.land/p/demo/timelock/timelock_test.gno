@@ -60,7 +60,7 @@ func TestTimelockUtil(t *testing.T) {
     // Test Execute
     t.Run("Execute", func(t *testing.T) {
         id := newID(2)
-        delay := int64(3) // 3 secondes
+        delay := int64(3) // 3 seconds
         futureTime := time.Now().Unix() + delay
 
         // Schedule the operation with a future timestamp
