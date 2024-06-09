@@ -6,13 +6,14 @@ import (
 	"std"
 
 	"gno.land/p/demo/grc/grc721"
-	"gno.land/p/demo/avl"
+	//"gno.land/p/demo/avl"
 )
 
 var (
 	flipCompositeNFT	= grc721.NewBasicNFT("Flippando Composite NFT", "CFLP")
 	compositeNFTtokenIDCounter	uint64
-	children avl.Tree // compositeNFT tokenId -> []int64 basicNFTs tokenIds
+	//children avl.Tree // compositeNFT tokenId -> [string] basicNFTs tokenIds
+	children map[string]string
 )
 
 /** 
@@ -22,7 +23,12 @@ var (
 func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, bTokenIDsArray string) (string, string) {
 	result := ""
 	nftError := ""
+	// not used atm
 	bTokenIDs, _ := ParseString(bTokenIDsArray)
+	// Initialize the children map if it's nil
+	if children == nil {
+		children = make(map[string]string)
+	}
 
 	// add checks for cWidth, cHeight (enforce canvas size based on number of existing basicNFTs)
 	// 50 / 2 x 2 - 100 / 3 x 3 - 400 / 4 x 4 - 600 / 5 x 5 - 800 / 6 x 6 - 1000 / 7 x 7 - 1200 / 8 x 8 
@@ -102,7 +108,8 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		}
 		// set compositeNFT tokenURI
 		flipCompositeNFT.SetTokenURI(tid, grc721.TokenURI(flipCompositeNFTMetaDataJSON))
-		children.Set(tidString, bTokenIDs)
+		//children.Set(tidString, bTokenIDs)
+		children[tidString] = bTokenIDsArray
 		// set approval for the realm owner so we can later transfer the NFT
 		flipCompositeNFT.Approve(std.CurrentRealm().Addr(), tid)
 		result = string(flipCompositeNFTMetaDataJSON)
@@ -126,7 +133,8 @@ func TransferCompositeNFT(from, to std.Address, tid string) error {
 	if err != nil {
 		return errors.New("transfer composite NFT from error")
 	}
-	bTokenIDs := GetChildrenOf(tid)
+	bTokenIDArray, err := GetChildrenOf(tid)
+	bTokenIDs, _ := ParseString(bTokenIDArray)
 	for _, t := range bTokenIDs {
 		basicTokenId := grc721.TokenID(strconv.FormatInt(t, 10))
 		//TransferBasicNFTToBuyer(from, to, basicTokenId)
@@ -144,12 +152,13 @@ func GetCompositeTokenURI(tokenID string) string {
 	return string(tokenURI);
 }
 
-func GetChildrenOf(tokenID string) []int64 {
-	childrenOf, exists := children.Get(tokenID)
-	if exists {
-		return childrenOf.([]int64);
+func GetChildrenOf(tokenID string) (string, error) {
+	childrenOf, exists := children[tokenID]
+	//childrenOf, exists := children.Get(tokenID)
+	if !exists {
+		return "", errors.New("can't get children of this tokenId")
 	}
-	return nil
+	return childrenOf, nil
 }
 
 func GetUserCompositeFlipNFTs(addr std.Address) string {
