@@ -101,6 +101,11 @@ func (t *Token) Mint(account std.Address, amount uint64) {
 	t.update(emptyAddress, account, amount)
 }
 
+func (t *Token) Burn(account std.Address, amount uint64) {
+	mustBeValid(account)
+	t.update(account, emptyAddress, amount)
+}
+
 // Helpers
 func (t *Token) update(from, to std.Address, value uint64) {
 	// If new tokens are minted, check for overflow
