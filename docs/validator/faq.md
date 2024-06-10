@@ -38,7 +38,7 @@ Network transaction fees paid on the Gno.land in `GNOT` are collected, from whic
 
 1. **Tendermint ( Tendermint2 ) Key :** A unique key used for voting in consensus during creation of blocks. A Tendermint Key is also often called a Validator Key. It is automatically created when running the `gnoland secrets init` command. A validator may check their Tendermint Key by running the `gnoland secrets get ValidatorPrivateKey` command.
 
-2. **Application Key :** A key that is generated when a new account is created using the `gnokey` command. It is used to sign transactions.
+2. **User-owned keys :** A key that is generated when a new account is created using the `gnokey` command. It is used to sign transactions.
 
 ### What stage is the Gno.land project in?
 
