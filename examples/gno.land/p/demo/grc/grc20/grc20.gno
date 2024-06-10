@@ -1,12 +1,13 @@
 package grc20
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"math"
 	"math/bits"
 	"strconv"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
+	"std"
 )
 
 type Token struct {
@@ -135,15 +136,16 @@ func (t *Token) update(from, to std.Address, value uint64) {
 		// Overflow not possible: value <= totalSupply or value <= fromBalance <= totalSupply
 		t.totalSupply -= value
 	} else {
+		// Valid transfer
 		rawToBalance, found := t.balances.Get(to.String())
 		if !found {
-			err := ufmt.Sprintf("GRC20: Address %s not found", to)
-			panic(err)
+			// Initialize the balance the first time the address receives tokens
+			t.balances.Set(to.String(), value)
+		} else {
+			toBalance := rawToBalance.(uint64)
+			// Overflow not possible: balance + value is at most totalSupply, which we know fits into a uint64
+			t.balances.Set(to.String(), toBalance+value)
 		}
-
-		toBalance := rawToBalance.(uint64)
-		// Overflow not possible: balance + value is at most totalSupply, which we know fits into a uint64
-		t.balances.Set(to.String(), toBalance+value)
 	}
 
 	std.Emit(TransferEvent,

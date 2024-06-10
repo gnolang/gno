@@ -1,6 +1,6 @@
 package grc20
 
-import "github.com/gnolang/gno/gnovm/stdlibs/std"
+import "std"
 
 type IGRC20 interface {
 
