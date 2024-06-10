@@ -1,5 +1,5 @@
 ---
-id: faq
+id: validator-faq
 ---
 
 # FAQ
