@@ -9,14 +9,12 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
-	statelib "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	walm "github.com/gnolang/gno/tm2/pkg/bft/wal"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -308,11 +306,11 @@ func (h *Handshaker) ReplayBlocks(
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("got", len(res.TxResponses), "responses after init")
+
+		// save responses
 		abciResponse := sm.NewABCIResponsesFromNum(len(res.TxResponses))
 		copy(abciResponse.DeliverTxs, res.TxResponses)
-		statelib.SaveABCIResponses(h.stateDB, 0, abciResponse)
-		saveGenesisRes(h.stateDB, &res)
+		sm.SaveABCIResponses(h.stateDB, 0, abciResponse)
 
 		if stateBlockHeight == 0 { // we only update state when we are in initial state
 			// If the app returned validators or consensus params, update the state.
@@ -398,15 +396,6 @@ func (h *Handshaker) ReplayBlocks(
 
 	panic(fmt.Sprintf("uncovered case! appHeight: %d, storeHeight: %d, stateHeight: %d",
 		appBlockHeight, storeBlockHeight, stateBlockHeight))
-}
-
-// panics if failed to marshal the given genesis response
-func saveGenesisRes(db dbm.DB, res *abci.ResponseInitChain) {
-	b, err := amino.MarshalJSON(res)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to save genesis response due to marshaling error: %v", err))
-	}
-	db.SetSync([]byte("genesisRes"), b)
 }
 
 func (h *Handshaker) replayBlocks(state sm.State, proxyApp appconn.AppConns, appBlockHeight, storeBlockHeight int64, mutateState bool) ([]byte, error) {

@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"reflect"
 	"runtime"
 	"sort"
 	"testing"
@@ -1174,8 +1173,6 @@ func (ica *initChainApp) InitChain(req abci.RequestInitChain) abci.ResponseInitC
 	}
 }
 
-const numInitResponses = 3
-
 func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 	t.Parallel()
 
@@ -1188,8 +1185,6 @@ func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 
 	// now start the app using the handshake - it should sync
 	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
-	tt := reflect.TypeOf(genDoc.AppState)
-	fmt.Println("genDoc.AppState type", tt)
 	handshaker := NewHandshaker(stateDB, state, store, genDoc)
 	proxyApp := appconn.NewAppConns(clientCreator)
 	if err := proxyApp.Start(); err != nil {
@@ -1203,13 +1198,15 @@ func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 	// check that the genesis transaction results are saved
 	res, err := sm.LoadABCIResponses(stateDB, 0)
 	if err != nil {
-		t.Fatalf("Failed to load ABCI responses: %v", err)
+		t.Fatalf("Failed to load genesis ABCI responses: %v", err)
 	}
 
 	if len(res.DeliverTxs) != numInitResponses {
-		t.Fatalf("Expected %d responses, got %d", numInitResponses, len(res.DeliverTxs))
+		t.Fatalf("Expected %d genesis tx responses, got %d", numInitResponses, len(res.DeliverTxs))
 	}
 }
+
+const numInitResponses = 42
 
 type initTxsApp struct {
 	abci.BaseApplication

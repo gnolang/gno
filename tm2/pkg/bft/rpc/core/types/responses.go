@@ -21,8 +21,7 @@ type ResultBlockchainInfo struct {
 
 // Genesis file
 type ResultGenesis struct {
-	Genesis  *types.GenesisDoc       `json:"genesis"`
-	Response *abci.ResponseInitChain `json:"response"`
+	Genesis *types.GenesisDoc `json:"genesis"`
 }
 
 // Single block (with meta)
