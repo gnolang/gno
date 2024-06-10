@@ -26,7 +26,7 @@ The following minimum hardware requirements are recommended for running a valida
 - CPU: 2 cores (Recommended: 4 cores)
 - Disk: 100 GB SSD (Depends on the level of pruning)
 
-:::info
+:::warn
 
 These hardware requirements are currently approximate based on the Cosmos validator specifications. Final requirements will be determined following thorough testing and optimization experiments in Testnet 4.
 
