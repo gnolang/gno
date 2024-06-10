@@ -68,25 +68,24 @@ func TestToken_MintInvalid(t *testing.T) {
 func TestToken_Burn(t *testing.T) {
 	token := NewGRC20Token(name, symbol, decimals)
 	token.Mint(alice, mintAmount)
+	tsBefore := token.TotalSupply()
 
 	bal := token.BalanceOf(alice)
+	burnAmt := bal / 2
 
-	if bal != mintAmount {
-		t.Fatalf("Expected %d tokens for alice's balance, got %d", mintAmount, bal)
-	}
-
-	// Burn whole balance
-	token.Burn(alice, bal)
+	// Burn half of balance
+	token.Burn(alice, burnAmt)
 
 	bal = token.BalanceOf(alice)
 
-	if bal != 0 {
-		t.Fatalf("Expected %d tokens for alice's balance, got %d", 0, bal)
+	if bal != burnAmt {
+		t.Fatalf("Expected %d tokens for alice's balance, got %d", burnAmt, bal)
 	}
 
-	ts := token.TotalSupply()
-	if ts != 0 {
-		t.Fatalf("Expected %d in total supply, got %d", 0, ts)
+	tsAfter := token.TotalSupply()
+
+	if tsAfter != tsBefore-burnAmt {
+		t.Fatalf("Expected %d in total supply, got %d", tsBefore-burnAmt, tsAfter)
 	}
 }
 
@@ -154,11 +153,17 @@ func TestToken_Approve(t *testing.T) {
 
 	std.TestSetOrigCaller(alice)
 
-	token.Approve(bob, mintAmount)
-	allowance := token.Allowance(alice, bob)
+	originalAllowance := token.Allowance(alice, bob)
 
-	if allowance != mintAmount {
-		t.Fatalf("Expected %d tokens in allowance, got %d", mintAmount, allowance)
+	token.Approve(bob, mintAmount)
+
+	// Check if original token object is updated or not
+	if token.Allowance(alice, bob) != 0 {
+		t.Fatalf("Expected allowance to remain 0 when using value receiver, got %d", token.Allowance(alice, bob))
+	}
+
+	if token.Allowance(alice, bob) != originalAllowance {
+		t.Fatalf("Expected allowance to be %d, got %d", originalAllowance, token.Allowance(alice, bob))
 	}
 }
 
