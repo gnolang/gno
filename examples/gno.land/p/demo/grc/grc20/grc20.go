@@ -5,6 +5,7 @@ import (
 	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"math"
+	"math/bits"
 	"strconv"
 )
 
@@ -17,6 +18,7 @@ type Token struct {
 	allowances  *avl.Tree // "OwnerAddress:SpenderAddress" -> uint64 allowance
 }
 
+// Make sure Token implements IGRC20 interface
 var _ IGRC20 = (*Token)(nil)
 
 const (
@@ -97,7 +99,13 @@ func (t *Token) Allowance(owner, spender std.Address) (remaining uint64) {
 func (t *Token) update(from, to std.Address, value uint64) {
 	// If new tokens are minted, check for overflow
 	if from == emptyAddress {
-		t.totalSupply += value // FIXME: actual overflow check?
+		sum, carry := bits.Add64(t.totalSupply, value, 0)
+		if carry != 0 {
+			err := ufmt.Sprintf("GRC20: uint64 overflow: %d + %d", t.totalSupply, value)
+			panic(err)
+		}
+
+		t.totalSupply = sum
 	} else {
 		// Deduct `value` from `from`
 		rawFromBalance, found := t.balances.Get(from.String())
@@ -140,6 +148,12 @@ func (t *Token) update(from, to std.Address, value uint64) {
 	)
 }
 
+func (t *Token) transfer(from, to std.Address, value uint64) {
+	mustBeValid(from)
+	mustBeValid(to)
+	t.update(from, to, value)
+}
+
 func (t *Token) approve(owner, spender std.Address, value uint64, emit bool) {
 	mustBeValid(owner)
 	mustBeValid(spender)
@@ -170,10 +184,10 @@ func (t *Token) spendAllowance(owner, spender std.Address, value uint64) {
 
 		t.approve(owner, spender, currentAllowance-value, false)
 	}
-
 }
 
 // Util
+// mustBeValid checks if the given address is valid and panics otherwise
 func mustBeValid(address std.Address) {
 	if !address.IsValid() {
 		err := ufmt.Sprintf("GRC20: invalid address %s", address)
