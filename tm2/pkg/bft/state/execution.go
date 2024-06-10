@@ -109,6 +109,18 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 	// Save the results before we commit.
 	saveABCIResponses(blockExec.db, block.Height, abciResponses)
 
+	// Save the transaction results
+	for index, tx := range block.Txs {
+		saveTxResultIndex(
+			blockExec.db,
+			tx.Hash(),
+			TxResultIndex{
+				BlockNum: block.Height,
+				TxIndex:  uint32(index),
+			},
+		)
+	}
+
 	fail.Fail() // XXX
 
 	// validate the validator updates and convert to tendermint types

@@ -3,6 +3,8 @@ package gnoclient
 import (
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+
 	"github.com/gnolang/gno/tm2/pkg/std"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -23,7 +25,8 @@ func TestCallSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	// Setup Client
 	client := Client{
@@ -51,7 +54,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	// Execute call
 	res, err := client.Call(baseCfg, msg)
 
-	expected := "(\"hi test argument\" string)"
+	expected := "(\"hi test argument\" string)\n\n"
 	got := string(res.DeliverTx.Data)
 
 	assert.Nil(t, err)
@@ -66,7 +69,8 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	// Setup Client
 	client := Client{
@@ -99,7 +103,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 		Send:     "",
 	}
 
-	expected := "(\"it works!\" string)(\"hi test argument\" string)"
+	expected := "(\"it works!\" string)\n\n(\"hi test argument\" string)\n\n"
 
 	// Execute call
 	res, err := client.Call(baseCfg, msg1, msg2)
@@ -117,7 +121,8 @@ func TestSendSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	// Setup Client
 	client := Client{
@@ -165,7 +170,8 @@ func TestSendMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	// Setup Client
 	client := Client{
@@ -199,12 +205,12 @@ func TestSendMultiple_Integration(t *testing.T) {
 
 	// Execute send
 	res, err := client.Send(baseCfg, msg1, msg2)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "", string(res.DeliverTx.Data))
 
 	// Get the new account balance
 	account, _, err := client.QueryAccount(toAddress)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	expected := std.Coins{{"ugnot", int64(amount1 + amount2)}}
 	got := account.GetCoins()
@@ -221,7 +227,8 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	client := Client{
 		Signer:    signer,
@@ -239,7 +246,6 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	fileBody := `package main
 import (
-	"std"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/tests"
 )
@@ -279,7 +285,8 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	signer := newInMemorySigner(t, "tendermint_test")
-	rpcClient := rpcclient.NewHTTP(remoteAddr, "/websocket")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
 	client := Client{
 		Signer:    signer,
@@ -297,7 +304,6 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	fileBody1 := `package main
 import (
-	"std"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/tests"
 )
@@ -311,7 +317,6 @@ func main() {
 
 	fileBody2 := `package main
 import (
-	"std"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/deep/very/deep"
 )
@@ -349,6 +354,181 @@ func main() {
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	assert.Equal(t, expected, string(res.DeliverTx.Data))
+}
+
+func TestAddPackageSingle_Integration(t *testing.T) {
+	// Set up in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+
+	// Init Signer & RPCClient
+	signer := newInMemorySigner(t, "tendermint_test")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
+
+	// Setup Client
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         "10000ugnot",
+		GasWanted:      8000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+	}
+
+	body := `package echo
+
+func Echo(str string) string {
+	return str
+}`
+
+	fileName := "echo.gno"
+	deploymentPath := "gno.land/p/demo/integration/test/echo"
+	deposit := "100ugnot"
+
+	// Make Msg config
+	msg := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "echo",
+			Path: deploymentPath,
+			Files: []*std.MemFile{
+				{
+					Name: fileName,
+					Body: body,
+				},
+			},
+		},
+		Deposit: deposit,
+	}
+
+	// Execute AddPackage
+	_, err = client.AddPackage(baseCfg, msg)
+	assert.Nil(t, err)
+
+	// Check for deployed file on the node
+	query, err := client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, string(query.Response.Data), fileName)
+
+	// Query balance to validate deposit
+	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
+	require.NoError(t, err)
+	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+}
+
+func TestAddPackageMultiple_Integration(t *testing.T) {
+	// Set up in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
+
+	// Init Signer & RPCClient
+	signer := newInMemorySigner(t, "tendermint_test")
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
+
+	// Setup Client
+	client := Client{
+		Signer:    signer,
+		RPCClient: rpcClient,
+	}
+
+	// Make Tx config
+	baseCfg := BaseTxCfg{
+		GasFee:         "10000ugnot",
+		GasWanted:      8000000,
+		AccountNumber:  0,
+		SequenceNumber: 0,
+		Memo:           "",
+	}
+
+	deposit := "100ugnot"
+	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
+
+	body1 := `package echo
+
+func Echo(str string) string {
+	return str
+}`
+
+	deploymentPath2 := "gno.land/p/demo/integration/test/hello"
+	body2 := `package hello
+
+func Hello(str string) string {
+	return "Hello " + str + "!" 
+}`
+
+	msg1 := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "echo",
+			Path: deploymentPath1,
+			Files: []*std.MemFile{
+				{
+					Name: "echo.gno",
+					Body: body1,
+				},
+			},
+		},
+		Deposit: "",
+	}
+
+	msg2 := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "hello",
+			Path: deploymentPath2,
+			Files: []*std.MemFile{
+				{
+					Name: "gno.mod",
+					Body: "module gno.land/p/demo/integration/test/hello",
+				},
+				{
+					Name: "hello.gno",
+					Body: body2,
+				},
+			},
+		},
+		Deposit: deposit,
+	}
+
+	// Execute AddPackage
+	_, err = client.AddPackage(baseCfg, msg1, msg2)
+	assert.Nil(t, err)
+
+	// Check Package #1
+	query, err := client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath1),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, string(query.Response.Data), "echo.gno")
+
+	// Query balance to validate deposit
+	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath1))
+	require.NoError(t, err)
+	assert.Equal(t, baseAcc.GetCoins().String(), "")
+
+	// Check Package #2
+	query, err = client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath2),
+	})
+	require.NoError(t, err)
+	assert.Contains(t, string(query.Response.Data), "hello.gno")
+	assert.Contains(t, string(query.Response.Data), "gno.mod")
+
+	// Query balance to validate deposit
+	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
+	require.NoError(t, err)
+	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
 }
 
 // todo add more integration tests:

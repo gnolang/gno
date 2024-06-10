@@ -24,6 +24,7 @@ type Type interface {
 	String() string // for dev/debugging
 	Elem() Type     // for TODO... types
 	GetPkgPath() string
+	IsNamed() bool // named vs unname type. property as a method
 }
 
 type TypeID string
@@ -323,6 +324,10 @@ func (pt PrimitiveType) GetPkgPath() string {
 	return ""
 }
 
+func (pt PrimitiveType) IsNamed() bool {
+	return true
+}
+
 // ----------------------------------------
 // Field type (partial)
 
@@ -367,6 +372,10 @@ func (ft FieldType) Elem() Type {
 
 func (ft FieldType) GetPkgPath() string {
 	panic("FieldType is a pseudotype with no package path")
+}
+
+func (ft FieldType) IsNamed() bool {
+	panic("FieldType is a pseudotype with no property called named")
 }
 
 // ----------------------------------------
@@ -528,6 +537,10 @@ func (at *ArrayType) GetPkgPath() string {
 	return ""
 }
 
+func (at *ArrayType) IsNamed() bool {
+	return false
+}
+
 // ----------------------------------------
 // Slice type
 
@@ -574,6 +587,10 @@ func (st *SliceType) GetPkgPath() string {
 	return ""
 }
 
+func (st *SliceType) IsNamed() bool {
+	return false
+}
+
 // ----------------------------------------
 // Pointer type
 
@@ -610,6 +627,10 @@ func (pt *PointerType) Elem() Type {
 
 func (pt *PointerType) GetPkgPath() string {
 	return pt.Elt.GetPkgPath()
+}
+
+func (pt *PointerType) IsNamed() bool {
+	return false
 }
 
 func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
@@ -696,7 +717,7 @@ func (pt *PointerType) FindEmbeddedFieldType(callerPath string, n Name, m map[Ty
 		}
 	case *NativeType:
 		npt := &NativeType{
-			Type: reflect.PtrTo(cet.Type),
+			Type: reflect.PointerTo(cet.Type),
 		}
 		return npt.FindEmbeddedFieldType(n, m)
 	default:
@@ -745,6 +766,10 @@ func (st *StructType) Elem() Type {
 
 func (st *StructType) GetPkgPath() string {
 	return st.PkgPath
+}
+
+func (st *StructType) IsNamed() bool {
+	return false
 }
 
 // NOTE only works for exposed non-embedded fields.
@@ -867,6 +892,10 @@ func (pt *PackageType) GetPkgPath() string {
 	panic("package types has no package path (unlike package values)")
 }
 
+func (pt *PackageType) IsNamed() bool {
+	panic("package types have no property called named")
+}
+
 // ----------------------------------------
 // Interface type
 
@@ -924,6 +953,10 @@ func (it *InterfaceType) Elem() Type {
 
 func (it *InterfaceType) GetPkgPath() string {
 	return it.PkgPath
+}
+
+func (it *InterfaceType) IsNamed() bool {
+	return false
 }
 
 func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[Type]struct{}) (
@@ -1071,6 +1104,10 @@ func (ct *ChanType) Elem() Type {
 
 func (ct *ChanType) GetPkgPath() string {
 	return ""
+}
+
+func (ct *ChanType) IsNamed() bool {
+	return false
 }
 
 // ----------------------------------------
@@ -1280,6 +1317,10 @@ func (ft *FuncType) GetPkgPath() string {
 	panic("function types have no package path")
 }
 
+func (ft *FuncType) IsNamed() bool {
+	return false
+}
+
 func (ft *FuncType) HasVarg() bool {
 	if numParams := len(ft.Params); numParams == 0 {
 		return false
@@ -1338,6 +1379,10 @@ func (mt *MapType) GetPkgPath() string {
 	return ""
 }
 
+func (mt *MapType) IsNamed() bool {
+	return false
+}
+
 // ----------------------------------------
 // Type (typeval) type
 
@@ -1364,6 +1409,10 @@ func (tt *TypeType) Elem() Type {
 
 func (tt *TypeType) GetPkgPath() string {
 	panic("typeval types have no package path")
+}
+
+func (tt *TypeType) IsNamed() bool {
+	panic("typeval types have no property called 'named'")
 }
 
 // ----------------------------------------
@@ -1448,6 +1497,10 @@ func (dt *DeclaredType) Elem() Type {
 
 func (dt *DeclaredType) GetPkgPath() string {
 	return dt.PkgPath
+}
+
+func (dt *DeclaredType) IsNamed() bool {
+	return true
 }
 
 func (dt *DeclaredType) DefineMethod(fv *FuncValue) {
@@ -1767,6 +1820,14 @@ func (nt *NativeType) GetPkgPath() string {
 	return "go:" + nt.Type.PkgPath()
 }
 
+func (nt *NativeType) IsNamed() bool {
+	if nt.Type.Name() != "" {
+		return true
+	} else {
+		return false
+	}
+}
+
 func (nt *NativeType) GnoType(store Store) Type {
 	if nt.gnoType == nil {
 		nt.gnoType = store.Go2GnoType(nt.Type)
@@ -1895,6 +1956,10 @@ func (bt blockType) GetPkgPath() string {
 	panic("blockType has no package path")
 }
 
+func (bt blockType) IsNamed() bool {
+	panic("blockType has no property called named")
+}
+
 // ----------------------------------------
 // tupleType
 
@@ -1945,6 +2010,10 @@ func (tt *tupleType) GetPkgPath() string {
 	panic("typleType has no package path")
 }
 
+func (tt *tupleType) IsNamed() bool {
+	panic("typleType has no property called named")
+}
+
 // ----------------------------------------
 // RefType
 
@@ -1965,11 +2034,15 @@ func (rt RefType) String() string {
 }
 
 func (rt RefType) Elem() Type {
-	panic("should not happen")
+	panic("RefType has no elem type")
 }
 
 func (rt RefType) GetPkgPath() string {
-	panic("should not happen")
+	panic("RefType has no package path")
+}
+
+func (rt RefType) IsNamed() bool {
+	panic("RefType has no property called named")
 }
 
 // ----------------------------------------
@@ -2000,6 +2073,10 @@ func (mn MaybeNativeType) Elem() Type {
 
 func (mn MaybeNativeType) GetPkgPath() string {
 	return mn.Type.GetPkgPath()
+}
+
+func (mn MaybeNativeType) IsNamed() bool {
+	return mn.Type.IsNamed()
 }
 
 // ----------------------------------------

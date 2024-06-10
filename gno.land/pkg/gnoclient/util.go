@@ -20,6 +20,7 @@ func (msg MsgCall) validateMsgCall() error {
 	if msg.FuncName == "" {
 		return ErrEmptyFuncName
 	}
+
 	return nil
 }
 
@@ -31,13 +32,22 @@ func (msg MsgSend) validateMsgSend() error {
 	if err != nil {
 		return ErrInvalidSendAmount
 	}
+
 	return nil
 }
 
 func (msg MsgRun) validateMsgRun() error {
-	// todo replace with msg.ValidateBasic() after PR #1646 is merged.
 	if msg.Package == nil || len(msg.Package.Files) == 0 {
 		return ErrEmptyPackage
 	}
+
+	return nil
+}
+
+func (msg MsgAddPackage) validateMsgAddPackage() error {
+	if msg.Package == nil || len(msg.Package.Files) == 0 {
+		return ErrEmptyPackage
+	}
+
 	return nil
 }
