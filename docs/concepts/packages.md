@@ -41,12 +41,12 @@ The role of each function is as follows:
 
 Two types of contracts exist in`grc20`:
 
-1. `AdminToken`\
-   \- Implements the token factory with `Helper` functions.\
-   \- The underlying struct should not be exposed to users. However, it can be typecasted as UserToken using the `GRC20()` method.
-2. `UserToken`\
-   \- Implements the `IGRC20` interface.\
-   \- The underlying struct can be exposed to users. Created with the `GRC20()` method of `adminToken`.
+1. `AdminToken`
+   - Implements the token factory with `Helper` functions.
+   - The underlying struct should not be exposed to users. However, it can be typecasted as UserToken using the `GRC20()` method.
+2. `UserToken`
+   - Implements the `IGRC20` interface.
+   - The underlying struct can be exposed to users. Created with the `GRC20()` method of `adminToken`.
 
 ## `grc721`
 

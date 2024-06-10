@@ -158,23 +158,6 @@ type Attributes struct {
 	data  map[interface{}]interface{} // not persisted
 }
 
-func (attr *Attributes) Copy() Attributes {
-	if attr == nil {
-		return Attributes{}
-	}
-
-	data := make(map[interface{}]interface{})
-	for k, v := range attr.data {
-		data[k] = v
-	}
-
-	return Attributes{
-		Line:  attr.Line,
-		Label: attr.Label,
-		data:  data,
-	}
-}
-
 func (attr *Attributes) GetLine() int {
 	return attr.Line
 }
@@ -1031,7 +1014,7 @@ type ValueDecl struct {
 func (x *ValueDecl) GetDeclNames() []Name {
 	ns := make([]Name, 0, len(x.NameExprs))
 	for _, nx := range x.NameExprs {
-		if nx.Name == "_" {
+		if nx.Name == blankIdentifier {
 			// ignore
 		} else {
 			ns = append(ns, nx.Name)
@@ -1048,7 +1031,7 @@ type TypeDecl struct {
 }
 
 func (x *TypeDecl) GetDeclNames() []Name {
-	if x.NameExpr.Name == "_" {
+	if x.NameExpr.Name == blankIdentifier {
 		return nil // ignore
 	} else {
 		return []Name{x.NameExpr.Name}
@@ -1196,7 +1179,7 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
-			panic(errors.Wrap(err, "parsing file "+mfile.Name))
+			panic(err)
 		}
 		if memPkg.Name != string(n.PkgName) {
 			panic(fmt.Sprintf(
@@ -1605,8 +1588,8 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
-	if n == "_" {
-		return NewValuePathBlock(0, 0, "_")
+	if n == blankIdentifier {
+		return NewValuePathBlock(0, 0, blankIdentifier)
 	}
 	// Check local.
 	gen := 1
@@ -1631,7 +1614,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 			bp = bp.GetParentNode(store)
 			gen++
 			if 0xff < gen {
-				panic("GetPathForName: value path depth overflow")
+				panic("value path depth overflow")
 			}
 		}
 	}
@@ -1797,7 +1780,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	if tv.T == nil && tv.V != nil {
 		panic("StaticBlock.Define2() requires .T if .V is set")
 	}
-	if n == "_" {
+	if n == blankIdentifier {
 		return // ignore
 	}
 	idx, exists := sb.GetLocalIndex(n)

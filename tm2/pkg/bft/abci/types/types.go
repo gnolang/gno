@@ -1,6 +1,7 @@
 package abci
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -114,6 +115,17 @@ func (r ResponseBase) IsOK() bool {
 
 func (r ResponseBase) IsErr() bool {
 	return r.Error != nil
+}
+
+func (r ResponseBase) EncodeEvents() []byte {
+	if len(r.Events) == 0 {
+		return []byte("[]")
+	}
+	res, err := json.Marshal(r.Events)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }
 
 // nondeterministic

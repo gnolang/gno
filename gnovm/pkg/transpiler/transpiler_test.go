@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestTranspile(t *testing.T) {
@@ -98,7 +98,7 @@ func hello() string {
 			source: `
 package foo
 
-import "gno.land/r/users"
+import "gno.land/r/demo/users"
 
 func foo()  { _ = users.Register}
 `,
@@ -108,7 +108,7 @@ func foo()  { _ = users.Register}
 //line foo.gno:1:1
 package foo
 
-import "github.com/gnolang/gno/examples/gno.land/r/users"
+import "github.com/gnolang/gno/examples/gno.land/r/demo/users"
 
 func foo() { _ = users.Register }
 `,
@@ -117,9 +117,9 @@ func foo() { _ = users.Register }
 					Path: &ast.BasicLit{
 						ValuePos: 21,
 						Kind:     9,
-						Value:    `"github.com/gnolang/gno/examples/gno.land/r/users"`,
+						Value:    `"github.com/gnolang/gno/examples/gno.land/r/demo/users"`,
 					},
-					EndPos: 39,
+					EndPos: 44,
 				},
 			},
 		},
@@ -284,8 +284,8 @@ func foo() { _ = regexp.MatchString }
 			}
 			require.NoError(t, err)
 			expectedOutput := strings.TrimPrefix(c.expectedOutput, "\n")
-			assert.Equal(t, res.Translated, expectedOutput, "wrong output")
-			assert.Equal(t, res.Imports, c.expectedImports, "wrong imports")
+			assert.Equal(t, expectedOutput, res.Translated, "wrong output")
+			assert.Equal(t, c.expectedImports, res.Imports, "wrong imports")
 		})
 	}
 }
@@ -335,7 +335,7 @@ pkg/file.gno:60:20: ugly error`,
 		t.Run(tt.name, func(t *testing.T) {
 			err := parseGoBuildErrors(tt.output)
 
-			assert.Equal(t, err, tt.expectedError)
+			assert.Equal(t, tt.expectedError, err)
 		})
 	}
 }

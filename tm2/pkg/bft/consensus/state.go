@@ -11,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gnolang/gno/telemetry"
-	"github.com/gnolang/gno/telemetry/metrics"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
@@ -27,6 +25,8 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
 
 // -----------------------------------------------------------------------------
@@ -1392,6 +1392,9 @@ func (cs *ConsensusState) finalizeCommit(height int64) {
 	// * cs.Height has been increment to height+1
 	// * cs.Step is now cstypes.RoundStepNewHeight
 	// * cs.StartTime is set to when we will start round0.
+
+	// Log the telemetry
+	cs.logTelemetry(block)
 }
 
 // -----------------------------------------------------------------------------
@@ -1764,6 +1767,30 @@ func (cs *ConsensusState) signAddVote(type_ types.SignedMsgType, hash []byte, he
 	cs.Logger.Error("Error signing vote", "height", cs.Height, "round", cs.Round, "vote", vote, "err", err)
 	// }
 	return nil
+}
+
+// logTelemetry logs the consensus state telemetry
+func (cs *ConsensusState) logTelemetry(block *types.Block) {
+	if !telemetry.MetricsEnabled() {
+		return
+	}
+
+	// Log the validator telemetry
+	metrics.ValidatorsCount.Record(context.Background(), int64(cs.Validators.Size()))
+	metrics.ValidatorsVotingPower.Record(context.Background(), cs.Validators.TotalVotingPower())
+
+	// Log the block telemetry
+	if block.Height > 1 {
+		if lastBlockMeta := cs.blockStore.LoadBlockMeta(block.Height - 1); lastBlockMeta != nil {
+			metrics.BlockInterval.Record(
+				context.Background(),
+				int64(block.Time.Sub(lastBlockMeta.Header.Time).Seconds()),
+			)
+		}
+	}
+
+	metrics.BlockTxs.Record(context.Background(), block.TotalTxs)
+	metrics.BlockSizeBytes.Record(context.Background(), int64(block.Size()))
 }
 
 // ---------------------------------------------------------

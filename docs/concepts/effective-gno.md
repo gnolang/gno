@@ -413,6 +413,73 @@ actual logic. This way, `privateMethod` can only be called from within the
 realm, and it can use the caller's address for authentication or authorization
 checks.
 
+### Emit Gno events to make life off-chain easier
+
+Gno provides users the ability to log specific occurrences that happened in their 
+on-chain apps. An `event` log is stored in the ABCI results of each block, and
+these logs can be indexed, filtered, and searched by external services, allowing 
+them to monitor the behaviour of on-chain apps.
+
+It is good practice to emit events when any major action in your code is 
+triggered. For example, good times to emit an event is after a balance transfer,
+ownership change, profile created, etc. Alternatively, you can view event emission
+as a way to include data for monitoring purposes, given the indexable nature of 
+events.
+
+Events consist of a type and a slice of strings representing `key:value` pairs.
+They are emitted with the `Emit()` function, contained in the `std` package in 
+the Gno standard library:
+
+```go
+package events
+
+import (
+	"std"
+)
+
+var owner std.Address
+
+func init() {
+	owner = std.PrevRealm().Addr()
+}
+
+func ChangeOwner(newOwner std.Address) {
+	caller := std.PrevRealm().Addr()
+
+	if caller != owner {
+		panic("access denied")
+	}
+	
+	owner = newOwner
+	std.Emit("OwnershipChange", "newOwner", newOwner.String())
+}
+
+```
+If `ChangeOwner()` was called in, for example, block #43, getting the `BlockResults`
+of block #43 will contain the following data:
+
+```json
+{
+  "Events": [
+    {
+      "@type": "/tm.gnoEvent",
+      "type": "OwnershipChange",
+      "pkg_path": "gno.",
+      "func": "ChangeOwner",
+      "attrs": [
+        {
+          "key": "newOwner",
+          "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
+        }
+      ]
+    }
+    // other events
+  ]
+}
+```
+
+Read more about events [here](./stdlibs/events.md).
+
 ### Contract-level access control
 
 In Gno, it's a good practice to design your contract as an application with its
@@ -656,7 +723,7 @@ See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/wu
 
 <!-- TODO:
 
-- packages and realms versionning
+- packages and realms versioning
 - code generation
 - unit tests, fuzzing tests, example tests, txtar
 - shipping non-contract stuff with the realm: client, documentation, assets
