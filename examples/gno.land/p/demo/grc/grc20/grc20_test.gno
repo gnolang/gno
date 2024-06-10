@@ -7,11 +7,6 @@ import (
 	"gno.land/p/demo/testutils"
 )
 
-// Test Transfer
-// Test TransferFrom
-// Test Approve
-// Test Allowance
-
 const (
 	name       = "MyToken"
 	symbol     = "MT"
