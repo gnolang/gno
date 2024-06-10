@@ -20,7 +20,7 @@ Gno.land is a blockchain powered by the Gno tech stack, which consists of [the G
 
 ## Hardware Requirements
 
-The following hardware minimum requirements are recommended for running a validator node.
+The following minimum hardware requirements are recommended for running a validator node.
 
 - Memory: 16 GB RAM (Recommended: 32 GB)
 - CPU: 2 cores (Recommended: 4 cores)
