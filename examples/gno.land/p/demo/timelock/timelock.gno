@@ -20,10 +20,10 @@
 //  timeLockUtil.Schedule(id, 60)
 //
 //  Check if an operation is pending.
-//  isPending := timeLockUtil.IsOperationPending(id)
+//  isPending := timeLockUtil.IsPending(id)
 //
-//  Execute the operation when it is ready.
-//  if timeLockUtil.IsOperationReady(id) {
+//  Execute the operation when it is waiting.
+//  if timeLockUtil.IsWaiting(id) {
 //      timeLockUtil.Execute(id)
 //  }
 //
@@ -97,7 +97,7 @@ func (tl *TimeLockUtil) Remove(id seqid.ID) {
 
 // Cancels a planned operation
 func (tl *TimeLockUtil) Cancel(id seqid.ID) error {
-	if !tl.IsOperationPending(id) {
+	if !tl.IsPending(id) {
 		ufmt.Errorf("timelock: Cancel: operation not pending")
 	}
 	tl.timestamps.Remove(id.Binary())
@@ -105,9 +105,9 @@ func (tl *TimeLockUtil) Cancel(id seqid.ID) error {
 	return nil
 }
 
-// Executes a ready operation
+// Executes a waiting operation
 func (tl *TimeLockUtil) Execute(id seqid.ID) error {
-	if !tl.IsOperationReady(id) {
+	if !tl.IsWaiting(id) {
 		ufmt.Errorf("timelock: Execute: operation not ready")
 	}
 	tl.timestamps.Set(id.Binary(), DoneTimestamp)
@@ -126,7 +126,7 @@ func (tl *TimeLockUtil) UpdateDelay(newDelay uint64) error {
 }
 
 // Checks if an operation is pending
-func (tl *TimeLockUtil) IsOperationPending(id seqid.ID) bool {
+func (tl *TimeLockUtil) IsPending(id seqid.ID) bool {
 	state, err := tl.GetOperationState(id)
 	if err != nil {
 		// Handle the error appropriately; for now, we assume the operation is not pending if there's an error
@@ -136,8 +136,8 @@ func (tl *TimeLockUtil) IsOperationPending(id seqid.ID) bool {
 	return state == Waiting || state == Ready
 }
 
-// Checks if an operation is ready
-func (tl *TimeLockUtil) IsOperationReady(id seqid.ID) bool {
+// Checks if an operation is waiting
+func (tl *TimeLockUtil) IsWaiting (id seqid.ID) bool {
 	state, err := tl.GetOperationState(id)
 	if err != nil {
 		// Handle the error appropriately; for now, we assume the operation is not ready if there's an error
