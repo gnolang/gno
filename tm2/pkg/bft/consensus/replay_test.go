@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"testing"
@@ -1153,4 +1154,34 @@ func (ica *initChainApp) InitChain(req abci.RequestInitChain) abci.ResponseInitC
 	return abci.ResponseInitChain{
 		Validators: ica.vals,
 	}
+}
+
+func TestGenesisResults(t *testing.T) {
+	t.Parallel()
+
+	app := &initChainApp{}
+	clientCreator := proxy.NewLocalClientCreator(app)
+
+	config := ResetConfig("handshake_test_")
+	defer os.RemoveAll(config.RootDir)
+	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
+	stateDB, state, store := makeStateAndStore(config, privVal.GetPubKey(), "v0.0.0-test")
+
+	// now start the app using the handshake - it should sync
+	genDoc, _ := sm.MakeGenesisDocFromFile(config.GenesisFile())
+	tt := reflect.TypeOf(genDoc.AppState)
+	fmt.Println("genDoc.AppState type", tt)
+	handshaker := NewHandshaker(stateDB, state, store, genDoc)
+	proxyApp := appconn.NewAppConns(clientCreator)
+	if err := proxyApp.Start(); err != nil {
+		t.Fatalf("Error starting proxy app connections: %v", err)
+	}
+	defer proxyApp.Stop()
+	if err := handshaker.Handshake(proxyApp); err != nil {
+		t.Fatalf("Error on abci handshake: %v", err)
+	}
+
+	// reload the state, check the genesis transaction results are saved
+	state = sm.LoadState(stateDB)
+
 }

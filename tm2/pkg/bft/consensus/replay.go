@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
+	statelib "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	walm "github.com/gnolang/gno/tm2/pkg/bft/wal"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -307,6 +308,9 @@ func (h *Handshaker) ReplayBlocks(
 		if err != nil {
 			return nil, err
 		}
+		abciResponse := sm.NewABCIResponsesFromNum(len(res.TxResponses))
+		copy(abciResponse.DeliverTxs, res.TxResponses)
+		statelib.SaveABCIResponses(h.stateDB, 0, abciResponse)
 		saveGenesisRes(h.stateDB, &res)
 
 		if stateBlockHeight == 0 { // we only update state when we are in initial state

@@ -107,7 +107,7 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 	fail.Fail() // XXX
 
 	// Save the results before we commit.
-	saveABCIResponses(blockExec.db, block.Height, abciResponses)
+	SaveABCIResponses(blockExec.db, block.Height, abciResponses)
 
 	fail.Fail() // XXX
 
