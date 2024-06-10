@@ -24,7 +24,7 @@ The following hardware minimum requirements are recommended for running a valida
 
 - Memory: 16 GB RAM (Recommended: 32 GB)
 - CPU: 2 cores (Recommended: 4 cores)
-- Disk: 100 GB SSD
+- Disk: 100 GB SSD (Depends on the level of pruning)
 
 :::info
 

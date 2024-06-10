@@ -28,7 +28,7 @@ A full node fully validates transactions and blocks of a blockchain and keeps a 
 
 Out of many official Gno testnets, Testnet4 (`test4`) is the purpose-built network for testing the multi-node validator environment prior to mainnet launch. Testnet4 is scheduled to go live in Q2 2024 with genesis validators consisting of the Gno Core Team, partners, and external contributors.
 
-For more information about joining testnet4, visit (add link to the criteria issue/discussion). For more information about different testnets, visit the [Gno Testnet](https://docs.gno.land/concepts/testnets) section.
+For more information about joining testnet4, visit (add link to the criteria issue/discussion). For more information about different testnets, visit [the relevant issue](https://github.com/gnolang/hackerspace/issues/69).
 
 ### What are the incentives for running a validator?
 

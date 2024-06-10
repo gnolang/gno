@@ -121,7 +121,7 @@ Verifies a `genesis.json`.
 | -------------- | ------ | --------------------------------------------------------- |
 | `genesis-path` | String | The path to the `genesis.json`. (default: `genesis.json`) |
 
-#### gnoland genesis balances <subcommand> [flags] [<arg>…]
+### gnoland genesis balances <subcommand> [flags] [<arg>…]
 
 Manages `genesis.json` account balances.
 
