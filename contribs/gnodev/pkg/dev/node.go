@@ -32,7 +32,9 @@ type NodeConfig struct {
 	Logger                *slog.Logger
 	DefaultDeployer       crypto.Address
 	BalancesList          []gnoland.Balance
+	PackagesPathList      []PackagePath
 	Emitter               emitter.Emitter
+	InitialTxs            []std.Tx
 	TMConfig              *tmcfg.Config
 	SkipFailingGenesisTxs bool
 	NoReplay              bool
@@ -60,8 +62,6 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 		DefaultDeployer:       defaultDeployer,
 		BalancesList:          balances,
 		ChainID:               tmc.ChainID(),
-		PackagesPathList:      []PackagePath{},
-		InitialTxs:            []std.Tx{},
 		TMConfig:              tmc,
 		SkipFailingGenesisTxs: true,
 		MaxGasPerBlock:        10_000_000_000,
