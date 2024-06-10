@@ -3,6 +3,8 @@ help:
 	@echo "Available make commands:"
 	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
+programs=$(wildcard */)
+
 # command to run dependency utilities, like goimports.
 rundep=go run -modfile ../misc/devdeps/go.mod
 
@@ -25,15 +27,33 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 ########################################
 # Dev tools
 .PHONY: install
-install: install.gnomd install.gnodev install.gnofaucet
+install:
+	@echo 'To install a tool, go to the subdirectory, then run `make install`. To do a full installation, run `make install_all`.'
 
-install.gnomd:;  cd gnomd && go install .
-install.gnodev:; $(MAKE) -C ./gnodev install
-install.gnofaucet:; $(MAKE) -C ./gnofaucet install
+.PHONY: install_all
+install_all:
+	@set -e; for program in $(programs); do ( set -e; \
+	  echo "[+] make -C $$program install"; \
+	  $(MAKE) --no-print-directory -C $$program install; \
+	); done
 
-.PHONY: clean
-clean:
-	rm -rf build
+########################################
+# Test suite
+.PHONY: test
+test:
+	@set -e; for program in $(programs); do ( set -e; \
+	  echo "[+] make -C $$program test"; \
+	  $(MAKE) --no-print-directory -C $$program test; \
+	); done
+
+########################################
+# Lint
+.PHONY: lint
+lint:
+	@set -e; for program in $(programs); do ( set -e; \
+	  echo "[+] make -C $$program lint"; \
+	  $(MAKE) --no-print-directory -C $$program lint; \
+	); done
 
 ########################################
 # Dev tools
@@ -51,17 +71,3 @@ tidy:
 	  cd $$dir; \
 	  go mod tidy -v; \
 	); done
-
-########################################
-# Test suite
-.PHONY: test
-test: test.gnodev
-test.gnodev:
-	$(MAKE) -C ./gnodev test
-
-########################################
-# Lint
-.PHONY: test
-lint: lint.gnodev
-lint.gnodev:
-	$(MAKE) -C ./gnodev test
