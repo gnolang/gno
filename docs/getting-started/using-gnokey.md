@@ -574,23 +574,23 @@ The output is a string containing all exported functions for the `wugnot` realm:
 ```json
 height: 0
 data: [
-{
-"FuncName": "Deposit",
-"Params": null,
-"Results": null
-},
-{
-"FuncName": "Withdraw",
-"Params": [
-{
-"Name": "amount",
-"Type": "uint64",
-"Value": ""
-}
-],
-"Results": null
-},
-// other functions
+      {
+      "FuncName": "Deposit",
+      "Params": null,
+      "Results": null
+      },
+    {
+    "FuncName": "Withdraw",
+    "Params": [
+      {
+      "Name": "amount",
+      "Type": "uint64",
+      "Value": ""
+      }
+    ],
+    "Results": null
+    },
+    // other functions
 ]
 ```
 
