@@ -13,11 +13,11 @@
 //  Initialize timelock utility with an AVL tree and access control.
 //  timestamps := avl.NewTree()
 //  adminRole := accesscontrol.NewRoleData("admin", std.Address("admin-address"))
-//  timeLockUtil := timelock.NewTimeLockUtil(timestamps, adminRole)
+//  timeLockUtil := timelock.NewTimeLockUtil(timestamps, adminRole, 30)
 //
-//  Schedule an operation with a delay of 60 seconds and a minimum delay of 30 seconds.
+//  Schedule an operation with a delay of 60 seconds.
 //  id := seqid.ID()
-//  timeLockUtil.Schedule(id, 60, 30)
+//  timeLockUtil.Schedule(id, 60)
 //
 //  Check if an operation is pending.
 //  isPending := timeLockUtil.IsOperationPending(id)
@@ -28,8 +28,7 @@
 //  }
 //
 //  Update the minimum delay for future operations.
-//  var minDelay int64 = 30
-//  timeLockUtil.UpdateDelay(&minDelay, 45)
+//  timeLockUtil.UpdateDelay(45)
 
 package timelock // import "gno.land/p/demo/timelock"
 
@@ -61,22 +60,24 @@ const (
 type TimeLockUtil struct {
 	timestamps    *avl.Tree
 	accessControl *accesscontrol.RoleData
+	minDelay	  uint64
 }
 
 // New instance of TimeLockUtil
-func MustNewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.RoleData) (*TimeLockUtil, error) {
+func MustNewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.RoleData, minDelay uint64) (*TimeLockUtil, error) {
 	if timestamps == nil || accessControl == nil {
 		return nil, ufmt.Errorf("timestamps and accesscontrol values must be differtent to nil")
 	}
 	return &TimeLockUtil{
 		timestamps:    timestamps,
 		accessControl: accessControl,
+		minDelay:      minDelay
 	}, nil
 }
 
 // Schedules an operation to be carried out after a minimum delay
-func (tl *TimeLockUtil) Schedule(id seqid.ID, delay uint64, minDelay uint64) error {
-	if delay < minDelay {
+func (tl *TimeLockUtil) Schedule(id seqid.ID, delay uint64) error {
+	if delay < tl.minDelay {
 		return ufmt.Errorf("timelockutil: Schedule: insufficient delay")
 	}
 	if tl.timestamps.Has(id.Binary()) {
@@ -114,13 +115,13 @@ func (tl *TimeLockUtil) Execute(id seqid.ID) error {
 }
 
 // Update the minimum lead time for future operations
-func (tl *TimeLockUtil) UpdateDelay(minDelay *uint64, newDelay uint64) error {
-	if std.GetOrigCaller() != tl.accessControl.AdminRole {
-		ufmt.Errorf("timelock: UpdateDelay: only admin can update delay")
-	}
-	std.Emit("MinDelayChange", "oldDelay", strconv.FormatInt(*minDelay, 10), "newDelay", strconv.FormatInt(newDelay, 10))
-	*minDelay = newDelay
-	return nil
+func (tl *TimeLockUtil) UpdateDelay(newDelay uint64) error {
+    if std.GetOrigCaller() != tl.accessControl.AdminRole {
+        return ufmt.Errorf("timelock: UpdateDelay: only admin can update delay")
+    }
+    std.Emit("MinDelayChange", "oldDelay", strconv.FormatInt(int64(tl.minDelay), 10), "newDelay", strconv.FormatInt(int64(newDelay), 10))
+    tl.minDelay = newDelay
+    return nil
 }
 
 // Checks if an operation is pending
