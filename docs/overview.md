@@ -43,7 +43,7 @@ In comparison to Ethereum, Gno.land offers distinct advantages:
    human-readable source code. Smart contracts in Gno.land can be used as libraries with a simple import statement, making
    Gno.land a defacto source-code repository for the ecosystem.
 
-3. **General-Purpose Language**: Gno.land's Gno is a general-purpose language, similar to Go, extending its
+2. **General-Purpose Language**: Gno.land's Gno is a general-purpose language, similar to Go, extending its
    usability beyond the context of blockchain. In contrast, Solidity is designed specifically for Smart Contracts on the
    Ethereum platform.
 
