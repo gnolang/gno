@@ -28,7 +28,8 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 # Dev tools
 .PHONY: install
 install:
-	@echo 'To install a tool, go to the subdirectory, then run `make install`. To do a full installation, run `make install_all`.'
+	@echo 'To install a tool, go to the subdirectory, then run `make install`.'
+	@echo 'To do a full installation, run `make install_all`.'
 
 .PHONY: install_all
 install_all:
