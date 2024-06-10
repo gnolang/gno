@@ -345,7 +345,7 @@ func runEventLoop(
 ) error {
 	// XXX: move this in above, but we need to have a proper struct first
 	// XXX: make this configurable
-	exported := 0
+	var exported uint
 	path, err := os.MkdirTemp("", "gnodev-export")
 	if err != nil {
 		return fmt.Errorf("unable to create `export` directory: %w", err)
