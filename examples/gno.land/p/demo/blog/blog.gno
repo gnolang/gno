@@ -67,6 +67,8 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	}
 	p := post.(*Post)
 
+	res.Write("<main class='gno-tmpl-page'>" + "\n\n")
+
 	res.Write("# " + p.Title + "\n\n")
 	res.Write(p.Body + "\n\n")
 	res.Write("---\n\n")
@@ -86,6 +88,8 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	})
 
 	res.Write("</details>\n")
+	res.Write("</main>")
+
 }
 
 func (b Blog) RenderTag(res *mux.ResponseWriter, req *mux.Request) {
@@ -155,10 +159,10 @@ func (b *Blog) NewPost(publisher std.Address, slug, title, body, pubDate string,
 		CreatedAt: parsedTime,
 	}
 
-	return b.prepareAndSetPost(post)
+	return b.prepareAndSetPost(post, false)
 }
 
-func (b *Blog) prepareAndSetPost(post *Post) error {
+func (b *Blog) prepareAndSetPost(post *Post, edit bool) error {
 	post.Title = strings.TrimSpace(post.Title)
 	post.Body = strings.TrimSpace(post.Body)
 
@@ -175,16 +179,18 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	post.Blog = b
 	post.UpdatedAt = time.Now()
 
-	trimmedTitleKey := strings.Replace(post.Title, " ", "", -1)
-	pubDateKey := post.CreatedAt.Format(time.RFC3339)
+	trimmedTitleKey := getTitleKey(post.Title)
+	pubDateKey := getPublishedKey(post.CreatedAt)
 
-	// Cannot have two posts with same title key
-	if _, found := b.PostsAlphabetical.Get(trimmedTitleKey); found {
-		return ErrPostTitleExists
-	}
-	// Cannot have two posts with *exact* same timestamp
-	if _, found := b.PostsPublished.Get(pubDateKey); found {
-		return ErrPostPubDateExists
+	if !edit {
+		// Cannot have two posts with same title key
+		if _, found := b.PostsAlphabetical.Get(trimmedTitleKey); found {
+			return ErrPostTitleExists
+		}
+		// Cannot have two posts with *exact* same timestamp
+		if _, found := b.PostsPublished.Get(pubDateKey); found {
+			return ErrPostPubDateExists
+		}
 	}
 
 	// Store post under keys
@@ -193,6 +199,22 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	b.Posts.Set(post.Slug, post)
 
 	return nil
+}
+
+func (b *Blog) RemovePost(slug string) {
+	p, exists := b.Posts.Get(slug)
+	if !exists {
+		panic("post with specified slug doesn't exist")
+	}
+
+	post := p.(*Post)
+
+	titleKey := getTitleKey(post.Title)
+	publishedKey := getPublishedKey(post.CreatedAt)
+
+	_, _ = b.Posts.Remove(slug)
+	_, _ = b.PostsAlphabetical.Remove(titleKey)
+	_, _ = b.PostsPublished.Remove(publishedKey)
 }
 
 func (b *Blog) GetPost(slug string) *Post {
@@ -229,7 +251,7 @@ func (p *Post) Update(title, body, publicationDate string, authors, tags []strin
 	}
 
 	p.CreatedAt = parsedTime
-	return p.Blog.prepareAndSetPost(p)
+	return p.Blog.prepareAndSetPost(p, true)
 }
 
 func (p *Post) AddComment(author std.Address, comment string) error {
