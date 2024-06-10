@@ -4,6 +4,7 @@ import (
 	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
 	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"math"
 	"strconv"
 )
 
@@ -62,27 +63,37 @@ func (t *Token) BalanceOf(owner std.Address) (balance uint64) {
 }
 
 func (t *Token) Transfer(to std.Address, value uint64) (success bool) {
-	//TODO implement me
-	panic("implement me")
+	from := std.PrevRealm().Addr()
+	t.transfer(from, to, value)
+
+	return true
 }
 
 func (t *Token) TransferFrom(from, to std.Address, value uint64) (success bool) {
-	//TODO implement me
-	panic("implement me")
+	spender := std.PrevRealm().Addr()
+	t.spendAllowance(from, spender, value)
+	t.transfer(from, to, value)
+
+	return true
 }
 
 func (t *Token) Approve(spender std.Address, value uint64) (success bool) {
-	//TODO implement me
-	panic("implement me")
+	caller := std.PrevRealm().Addr()
+	t.approve(caller, spender, value, true)
+
+	return true
 }
 
 func (t *Token) Allowance(owner, spender std.Address) (remaining uint64) {
-	//TODO implement me
-	panic("implement me")
+	rawAllowance, found := t.allowances.Get(spenderKey(owner, spender))
+	if !found {
+		return 0
+	}
+
+	return rawAllowance.(uint64)
 }
 
 // Helpers
-
 func (t *Token) update(from, to std.Address, value uint64) {
 	// If new tokens are minted, check for overflow
 	if from == emptyAddress {
@@ -129,6 +140,40 @@ func (t *Token) update(from, to std.Address, value uint64) {
 	)
 }
 
+func (t *Token) approve(owner, spender std.Address, value uint64, emit bool) {
+	mustBeValid(owner)
+	mustBeValid(spender)
+
+	t.allowances.Set(spenderKey(owner, spender), value)
+
+	if emit {
+		std.Emit(ApprovalEvent,
+			"owner", owner.String(),
+			"spender", spender.String(),
+			"value", strconv.Itoa(int(value)),
+		)
+	}
+}
+
+// spendAllowance updates `owner`s allowance for `spender` based on spent `value`
+// Does not update the allowance value in case of infinite allowance
+// Panics if not enough allowance is available
+// Does not emit an Approval event
+func (t *Token) spendAllowance(owner, spender std.Address, value uint64) {
+	currentAllowance := t.Allowance(owner, spender)
+
+	if currentAllowance != math.MaxUint64 {
+		if currentAllowance < value {
+			err := ufmt.Sprintf("GRC20: insufficient allowance: %s, %s, %d", spender.String(), currentAllowance, value)
+			panic(err)
+		}
+
+		t.approve(owner, spender, currentAllowance-value, false)
+	}
+
+}
+
+// Util
 func mustBeValid(address std.Address) {
 	if !address.IsValid() {
 		err := ufmt.Sprintf("GRC20: invalid address %s", address)
