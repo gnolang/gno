@@ -106,10 +106,10 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	fail.Fail() // XXX
 
-	// Save the results before we commit.
+	// Save the results by height
 	SaveABCIResponses(blockExec.db, block.Height, abciResponses)
 
-	// Save the transaction results
+	// Save the results by tx hash
 	for index, tx := range block.Txs {
 		saveTxResultIndex(
 			blockExec.db,

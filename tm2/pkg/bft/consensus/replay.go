@@ -307,10 +307,12 @@ func (h *Handshaker) ReplayBlocks(
 			return nil, err
 		}
 
-		// save responses
+		// Save the results by height
 		abciResponse := sm.NewABCIResponsesFromNum(len(res.TxResponses))
 		copy(abciResponse.DeliverTxs, res.TxResponses)
 		sm.SaveABCIResponses(h.stateDB, 0, abciResponse)
+
+		// NOTE: we don't save results by tx hash since the transactions are in the AppState opaque type
 
 		if stateBlockHeight == 0 { // we only update state when we are in initial state
 			// If the app returned validators or consensus params, update the state.
