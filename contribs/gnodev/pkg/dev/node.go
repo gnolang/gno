@@ -448,7 +448,7 @@ func (n *Node) handleEventTX(evt tm2events.Event) {
 		}
 
 		if err := amino.Unmarshal(data.Result.Tx, &resEvt.Tx); err != nil {
-			n.logger.Error("unable to unwarp tx result",
+			n.logger.Error("unable to unwrap tx result",
 				"error", err)
 		}
 
