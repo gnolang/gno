@@ -43,7 +43,7 @@ func newBalancesAddCmd(rootCfg *balancesCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "add",
 			ShortUsage: "balances add [flags]",
-			LongHelp:   "Adds a new validator to the genesis.json",
+			ShortHelp:  "adds balances to the genesis.json",
 		},
 		cfg,
 		func(ctx context.Context, _ []string) error {

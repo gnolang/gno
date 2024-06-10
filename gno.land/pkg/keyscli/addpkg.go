@@ -7,7 +7,6 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -102,12 +101,6 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		panic(fmt.Sprintf("found an empty package %q", cfg.PkgPath))
 	}
 
-	// transpile and validate syntax
-	err = transpiler.TranspileAndCheckMempkg(memPkg)
-	if err != nil {
-		panic(err)
-	}
-
 	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted
 	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
@@ -133,7 +126,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 			return err
 		}
 	} else {
-		fmt.Println(string(amino.MustMarshalJSON(tx)))
+		io.Println(string(amino.MustMarshalJSON(tx)))
 	}
 	return nil
 }

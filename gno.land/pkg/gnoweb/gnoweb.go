@@ -87,9 +87,11 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 		"/partners":       "/r/gnoland/pages:p/partners",
 		"/testnets":       "/r/gnoland/pages:p/testnets",
 		"/start":          "/r/gnoland/pages:p/start",
-		"/game-of-realms": "/r/gnoland/pages:p/gor",    // XXX: replace with gor realm
-		"/events":         "/r/gnoland/pages:p/events", // XXX: replace with events realm
+		"/license":        "/r/gnoland/pages:p/license",
+		"/game-of-realms": "/r/gnoland/pages:p/gor", // XXX: replace with gor realm
+		"/events":         "/r/gnoland/events",
 	}
+
 	for from, to := range aliases {
 		app.Router.Handle(from, handlerRealmAlias(logger, app, &cfg, to))
 	}
@@ -101,13 +103,14 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 		"/grants":                  "/partners",
 		"/language":                "/gnolang",
 		"/getting-started":         "/start",
+		"/gophercon24":             "https://docs.gno.land",
 	}
 	for from, to := range redirects {
 		app.Router.Handle(from, handlerRedirect(logger, app, &cfg, to))
 	}
 	// realm routes
 	// NOTE: see rePathPart.
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt)$)?}", handlerRealmFile(logger, app, &cfg))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt|mod)$)?}", handlerRealmFile(logger, app, &cfg))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}", handlerRealmMain(logger, app, &cfg))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}:{querystr:.*}", handlerRealmRender(logger, app, &cfg))
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(logger, app, &cfg))
