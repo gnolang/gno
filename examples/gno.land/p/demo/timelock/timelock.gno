@@ -75,81 +75,99 @@ func MustNewTimelockUtil(timestamps *avl.Tree, accessControl *accesscontrol.Role
 }
 
 // Schedules an operation to be carried out after a minimum delay
-func (tl *TimelockUtil) Schedule(id seqid.ID, delay uint64, minDelay uint64) {
+func (tl *TimelockUtil) Schedule(id seqid.ID, delay uint64, minDelay uint64) error {
 	if delay < minDelay {
-		panic("timelockutil: Schedule: insufficient delay")
+		return ufmt.Errorf("timelockutil: Schedule: insufficient delay")
 	}
 	if tl.timestamps.Has(id.Binary()) {
-		panic("timelockutil: Schedule: operation already scheduled")
+		return ufmt.Errorf("timelockutil: Schedule: operation already scheduled")
 	}
 	tl.timestamps.Set(id.Binary(), time.Now().Unix()+delay)
 	std.Emit("CallScheduled", "id", id.String(), "delay", strconv.FormatInt(delay, 10))
+	return nil
 }
 
 // Cancels a planned operation
-func (tl *TimelockUtil) Cancel(id seqid.ID) {
+func (tl *TimelockUtil) Cancel(id seqid.ID) error {
 	if !tl.IsOperationPending(id) {
-		panic("timelock: Cancel: operation not pending")
+		ufmt.Errorf("timelock: Cancel: operation not pending")
 	}
 	tl.timestamps.Remove(id.Binary())
 	std.Emit("Cancelled", "id", id.String())
+	return nil
 }
 
 // Executes a ready operation
-func (tl *TimelockUtil) Execute(id seqid.ID) {
+func (tl *TimelockUtil) Execute(id seqid.ID) error {
 	if !tl.IsOperationReady(id) {
-		panic("timelock: Execute: operation not ready")
+		ufmt.Errorf("timelock: Execute: operation not ready")
 	}
 	tl.timestamps.Set(id.Binary(), DoneTimestamp)
 	std.Emit("CallExecuted", "id", id.String())
+	return nil
 }
 
 // Update the minimum lead time for future operations
-func (tl *TimelockUtil) UpdateDelay(minDelay *uint64, newDelay uint64) {
+func (tl *TimelockUtil) UpdateDelay(minDelay *uint64, newDelay uint64) error {
 	if std.GetOrigCaller() != tl.accessControl.AdminRole {
-		panic("timelock: UpdateDelay: only admin can update delay")
+		ufmt.Errorf("timelock: UpdateDelay: only admin can update delay")
 	}
 	std.Emit("MinDelayChange", "oldDelay", strconv.FormatInt(*minDelay, 10), "newDelay", strconv.FormatInt(newDelay, 10))
 	*minDelay = newDelay
+	return nil
 }
 
 // Checks if an operation is pending
 func (tl *TimelockUtil) IsOperationPending(id seqid.ID) bool {
-	state := tl.GetOperationState(id)
+	state, err := tl.GetOperationState(id)
+	if err != nil {
+		// Handle the error appropriately; for now, we assume the operation is not pending if there's an error
+		ufmt.Errorf("Error retrieving operation state: %v", err)
+		return false
+	}
 	return state == Waiting || state == Ready
 }
 
 // Checks if an operation is ready
 func (tl *TimelockUtil) IsOperationReady(id seqid.ID) bool {
-	return tl.GetOperationState(id) == Ready
+	state, err := tl.GetOperationState(id)
+	if err != nil {
+		// Handle the error appropriately; for now, we assume the operation is not ready if there's an error
+		ufmt.Errorf("Error retrieving operation state: %v", err)
+		return false
+	}
+	return state == Ready
 }
 
 // Returns the status of an operation
-func (tl *TimelockUtil) GetOperationState(id seqid.ID) OperationState {
-	timestamp := tl.GetTimestamp(id)
+func (tl *TimelockUtil) GetOperationState(id seqid.ID) (OperationState, error) {
+	timestamp, err := tl.GetTimestamp(id)
+	if err != nil {
+		return Unset, err
+	}
 	if timestamp == 0 {
-		return Unset
+		return Unset, nil
 	} else if timestamp == DoneTimestamp {
-		return Done
+		return Done, nil
 	} else if timestamp > time.Now().Unix() {
-		return Waiting
+		return Waiting, nil
 	} else {
-		return Ready
+		return Ready, nil
 	}
 }
 
 // Returns the timestamp of an operation
-func (tl *TimelockUtil) GetTimestamp(id seqid.ID) int64 {
+func (tl *TimelockUtil) GetTimestamp(id seqid.ID) (int64, error) {
 	value, ok := tl.timestamps.Get(id.Binary())
 	if !ok {
-		return 0
+		return 0, nil // Returning 0 as the timestamp and nil for no error
 	}
 	switch v := value.(type) {
 	case int:
-		return int64(v)
+		return int64(v), nil
 	case int64:
-		return v
+		return v, nil
 	default:
-		panic("timelockutil: GetTimestamp: unexpected type")
+		return 0, ufmt.Errorf("timelockutil: GetTimestamp: unexpected type")
 	}
 }
