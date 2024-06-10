@@ -87,6 +87,12 @@ func (tl *TimelockUtil) Schedule(id seqid.ID, delay uint64, minDelay uint64) err
 	return nil
 }
 
+// Remove operation
+func (tl *TimelockUtil) Remove(id seqid.ID) {
+    tl.timestamps.Remove(id.Binary())
+    std.Emit("Removed", "id", id.String())
+}
+
 // Cancels a planned operation
 func (tl *TimelockUtil) Cancel(id seqid.ID) error {
 	if !tl.IsOperationPending(id) {
