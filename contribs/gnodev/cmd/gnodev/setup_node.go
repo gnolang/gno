@@ -13,7 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
-// setupDevNodeConfig creates and returns a new dev.NodeConfig.
+// setupDevNode initializes and returns a new DevNode.
 func setupDevNode(
 	ctx context.Context,
 	devCfg *devCfg,
