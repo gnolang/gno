@@ -167,7 +167,7 @@ func TestMint(t *testing.T) {
 
 	defer func() {
 		if r := recover(); r == nil {
-			t.Fatalf("Mint should have paniced")
+			t.Fatalf("Mint should have panicked")
 		}
 	}()
 
@@ -195,7 +195,7 @@ func TestBurn(t *testing.T) {
 
 	defer func() {
 		if r := recover(); r == nil {
-			t.Fatalf("OwnerOf should have paniced after burn")
+			t.Fatalf("OwnerOf should have panicked after burn")
 		}
 	}()
 
