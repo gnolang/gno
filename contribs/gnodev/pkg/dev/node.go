@@ -32,9 +32,7 @@ type NodeConfig struct {
 	Logger                *slog.Logger
 	DefaultDeployer       crypto.Address
 	BalancesList          []gnoland.Balance
-	PackagesPathList      []PackagePath
 	Emitter               emitter.Emitter
-	InitialTxs            []std.Tx
 	TMConfig              *tmcfg.Config
 	SkipFailingGenesisTxs bool
 	NoReplay              bool
