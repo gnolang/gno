@@ -10,7 +10,7 @@ Gno.land is a blockchain powered by the Gno tech stack, which consists of [the G
 
 | **Blockchain**                       | Cosmos                  | Gno.land                    |
 | ------------------------------------ | ----------------------- | --------------------------- |
-| **Consensus Engine**                 | Comet BFT               | Tendermint2                 |
+| **Consensus Protocol**               | Comet BFT               | Tendermint2                 |
 | **Consensus Mechanism**              | Proof of Stake          | Proof of Contribution       |
 | **Requirement**                      | Delegation of Stake     | Contribution                |
 | **Voting Power Reward Distribution** | Capital-based           | Evenly-distributed          |

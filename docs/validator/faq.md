@@ -10,7 +10,7 @@ Gno.land is based on [Tendermint2](https://docs.gno.land/concepts/tendermint2) t
 
 ### What is Tendermint2?
 
-[Tendermint2](https://docs.gno.land/concepts/tendermint2) (TM2) is the consensus engine that powers Gno.land. TM2 is a successor of [Tendermint Core](https://github.com/tendermint/tendermint2), a de facto consensus framework for building Proof of Stake blockchains. The design philosophy of TM2 is to create “complete software” without any vulnerabilities with development focused on minimalism, dependency removal, and modularity.
+[Tendermint2](https://docs.gno.land/concepts/tendermint2) (TM2) is the consensus protocol that powers Gno.land. TM2 is a successor of [Tendermint Core](https://github.com/tendermint/tendermint2), a de facto consensus framework for building Proof of Stake blockchains. The design philosophy of TM2 is to create “complete software” without any vulnerabilities with development focused on minimalism, dependency removal, and modularity.
 
 ### What is Proof of Contribution?
 
