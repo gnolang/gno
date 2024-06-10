@@ -1,5 +1,5 @@
 ---
-id: running-a-validator
+id: validators-running-a-validator
 ---
 
 # Running a Validator

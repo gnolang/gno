@@ -1,5 +1,5 @@
 ---
-id: validator-overview
+id: validators-overview
 ---
 
 # Validator Overview
