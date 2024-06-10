@@ -36,7 +36,8 @@ import (
 	"std"
 	"strconv"
 	"time"
-	"ufmt"
+
+	"gno.land/p/demo/ufmt"
 
 	"gno.land/p/demo/accesscontrol"
 	"gno.land/p/demo/avl"
@@ -60,18 +61,18 @@ const (
 type TimeLockUtil struct {
 	timestamps    *avl.Tree
 	accessControl *accesscontrol.RoleData
-	minDelay	  uint64
+	minDelay      uint64
 }
 
 // New instance of TimeLockUtil
 func MustNewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.RoleData, minDelay uint64) (*TimeLockUtil, error) {
 	if timestamps == nil || accessControl == nil {
-		return nil, ufmt.Errorf("timestamps and accesscontrol values must be differtent to nil")
+		return nil, ufmt.Errorf("timestamps and accesscontrol values must be different from nil")
 	}
 	return &TimeLockUtil{
 		timestamps:    timestamps,
 		accessControl: accessControl,
-		minDelay:      minDelay
+		minDelay:      minDelay,
 	}, nil
 }
 
@@ -83,15 +84,15 @@ func (tl *TimeLockUtil) Schedule(id seqid.ID, delay uint64) error {
 	if tl.timestamps.Has(id.Binary()) {
 		return ufmt.Errorf("timelockutil: Schedule: operation already scheduled")
 	}
-	tl.timestamps.Set(id.Binary(), time.Now().Unix()+delay)
-	std.Emit("CallScheduled", "id", id.String(), "delay", strconv.FormatInt(delay, 10))
+	tl.timestamps.Set(id.Binary(), uint64(time.Now().Unix())+delay)
+	std.Emit("CallScheduled", "id", id.String(), "delay", strconv.FormatInt(int64(delay), 10))
 	return nil
 }
 
 // Remove operation
 func (tl *TimeLockUtil) Remove(id seqid.ID) {
-    tl.timestamps.Remove(id.Binary())
-    std.Emit("Removed", "id", id.String())
+	tl.timestamps.Remove(id.Binary())
+	std.Emit("Removed", "id", id.String())
 }
 
 // Cancels a planned operation
@@ -116,12 +117,12 @@ func (tl *TimeLockUtil) Execute(id seqid.ID) error {
 
 // Update the minimum lead time for future operations
 func (tl *TimeLockUtil) UpdateDelay(newDelay uint64) error {
-    if std.GetOrigCaller() != tl.accessControl.AdminRole {
-        return ufmt.Errorf("timelock: UpdateDelay: only admin can update delay")
-    }
-    std.Emit("MinDelayChange", "oldDelay", strconv.FormatInt(int64(tl.minDelay), 10), "newDelay", strconv.FormatInt(int64(newDelay), 10))
-    tl.minDelay = newDelay
-    return nil
+	if std.GetOrigCaller() != tl.accessControl.AdminRole {
+		return ufmt.Errorf("timelock: UpdateDelay: only admin can update delay")
+	}
+	std.Emit("MinDelayChange", "oldDelay", strconv.FormatInt(int64(tl.minDelay), 10), "newDelay", strconv.FormatInt(int64(newDelay), 10))
+	tl.minDelay = newDelay
+	return nil
 }
 
 // Checks if an operation is pending
