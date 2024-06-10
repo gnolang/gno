@@ -135,7 +135,7 @@ func NewABCIResponses(block *types.Block) *ABCIResponses {
 	return NewABCIResponsesFromNum(block.NumTxs)
 }
 
-// NewABCIResponses returns a new ABCIResponses
+// NewABCIResponsesFromNum returns a new ABCIResponses with a set number of txs
 func NewABCIResponsesFromNum[N constraints.Integer](numTxs N) *ABCIResponses {
 	resDeliverTxs := make([]abci.ResponseDeliverTx, numTxs)
 	if numTxs == 0 {
