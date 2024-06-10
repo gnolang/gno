@@ -66,7 +66,7 @@ type TimelockUtil struct {
 // New instance of TimelockUtil
 func MustNewTimelockUtil(timestamps *avl.Tree, accessControl *accesscontrol.RoleData) (*TimelockUtil, error) {
 	if timestamps == nil || accessControl == nil {
-		return nil, ufmt.Errorf("timestamps and accesscontrol must be differtent to nil")
+		return nil, ufmt.Errorf("timestamps and accesscontrol values must be differtent to nil")
 	}
 	return &TimelockUtil{
 		timestamps:    timestamps,
@@ -75,16 +75,15 @@ func MustNewTimelockUtil(timestamps *avl.Tree, accessControl *accesscontrol.Role
 }
 
 // Schedules an operation to be carried out after a minimum delay
-func (tl *TimelockUtil) Schedule(id seqid.ID, delay uint64, minDelay uint64) error {
+func (tl *TimelockUtil) Schedule(id seqid.ID, delay uint64, minDelay uint64) {
 	if delay < minDelay {
-		return ufmt.Errorf("timelockutil: Schedule: insufficient delay")
+		panic("timelockutil: Schedule: insufficient delay")
 	}
 	if tl.timestamps.Has(id.Binary()) {
-		return ufmt.Errorf("timelockutil: Schedule: operation already scheduled")
+		panic("timelockutil: Schedule: operation already scheduled")
 	}
 	tl.timestamps.Set(id.Binary(), time.Now().Unix()+delay)
 	std.Emit("CallScheduled", "id", id.String(), "delay", strconv.FormatInt(delay, 10))
-	return nil
 }
 
 // Cancels a planned operation
