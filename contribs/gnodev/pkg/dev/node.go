@@ -429,7 +429,9 @@ func (n *Node) handleEventTX(evt tm2events.Event) {
 	switch data := evt.(type) {
 	case bft.EventTx:
 		go func() {
-			// Use separate routine to avoid deadlock
+			// Use a separate goroutine in order to avoid a deadlock situation.
+			// This is needed because this callback may get called during node rebuilding while
+			// lock is held.
 			n.muNode.Lock()
 			defer n.muNode.Unlock()
 
