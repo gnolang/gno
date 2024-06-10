@@ -95,6 +95,11 @@ func (t *Token) Allowance(owner, spender std.Address) (remaining uint64) {
 	return rawAllowance.(uint64)
 }
 
+func (t *Token) Mint(account std.Address, amount uint64) {
+	mustBeValid(account)
+	t.update(emptyAddress, account, amount)
+}
+
 // Helpers
 func (t *Token) update(from, to std.Address, value uint64) {
 	// If new tokens are minted, check for overflow
