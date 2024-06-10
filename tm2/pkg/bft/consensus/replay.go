@@ -308,6 +308,7 @@ func (h *Handshaker) ReplayBlocks(
 		if err != nil {
 			return nil, err
 		}
+		fmt.Println("got", len(res.TxResponses), "responses after init")
 		abciResponse := sm.NewABCIResponsesFromNum(len(res.TxResponses))
 		copy(abciResponse.DeliverTxs, res.TxResponses)
 		statelib.SaveABCIResponses(h.stateDB, 0, abciResponse)

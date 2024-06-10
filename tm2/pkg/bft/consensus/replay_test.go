@@ -1174,19 +1174,20 @@ func (ica *initChainApp) InitChain(req abci.RequestInitChain) abci.ResponseInitC
 	}
 }
 
-func TestGenesisResults(t *testing.T) {
+const numInitResponses = 3
+
+func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 	t.Parallel()
 
-	app := &initChainApp{}
+	app := &initTxsApp{}
 	clientCreator := proxy.NewLocalClientCreator(app)
 
-	config := ResetConfig("handshake_test_")
+	config, genesisFile := ResetConfig("handshake_test_")
 	defer os.RemoveAll(config.RootDir)
-	privVal := privval.LoadFilePV(config.PrivValidatorKeyFile(), config.PrivValidatorStateFile())
-	stateDB, state, store := makeStateAndStore(config, privVal.GetPubKey(), "v0.0.0-test")
+	stateDB, state, store := makeStateAndStore(config, genesisFile, "v0.0.0-test")
 
 	// now start the app using the handshake - it should sync
-	genDoc, _ := sm.MakeGenesisDocFromFile(config.GenesisFile())
+	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
 	tt := reflect.TypeOf(genDoc.AppState)
 	fmt.Println("genDoc.AppState type", tt)
 	handshaker := NewHandshaker(stateDB, state, store, genDoc)
@@ -1199,7 +1200,23 @@ func TestGenesisResults(t *testing.T) {
 		t.Fatalf("Error on abci handshake: %v", err)
 	}
 
-	// reload the state, check the genesis transaction results are saved
-	state = sm.LoadState(stateDB)
+	// check that the genesis transaction results are saved
+	res, err := sm.LoadABCIResponses(stateDB, 0)
+	if err != nil {
+		t.Fatalf("Failed to load ABCI responses: %v", err)
+	}
 
+	if len(res.DeliverTxs) != numInitResponses {
+		t.Fatalf("Expected %d responses, got %d", numInitResponses, len(res.DeliverTxs))
+	}
+}
+
+type initTxsApp struct {
+	abci.BaseApplication
+}
+
+func (ica *initTxsApp) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
+	return abci.ResponseInitChain{
+		TxResponses: make([]abci.ResponseDeliverTx, numInitResponses),
+	}
 }
