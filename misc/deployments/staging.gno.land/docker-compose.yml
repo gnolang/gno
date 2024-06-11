@@ -1,6 +1,4 @@
 
-version: "3"
-
 services:
   traefik:
     image: "traefik:v2.10"
@@ -29,10 +27,10 @@ services:
       - ./letsencrypt:/letsencrypt
 
   gnoland:
-    image: ghcr.io/gnolang/gno/gnoland
+    image: ghcr.io/gnolang/gno/gnoland:master
     restart: on-failure
+    entrypoint: /entrypoint.sh
     working_dir: /gnoroot
-    command: /entrypoint.sh
     environment:
       CHAIN_ID: staging
       MONIKER: gno-staging
@@ -55,7 +53,7 @@ services:
       traefik.http.services.gnoland-rpc.loadbalancer.server.port: 26657
 
   gnoweb:
-    image: ghcr.io/gnolang/gno/gnoweb-slim
+    image: ghcr.io/gnolang/gno/gnoweb:master
     restart: unless-stopped
     env_file: ".env"
     entrypoint:

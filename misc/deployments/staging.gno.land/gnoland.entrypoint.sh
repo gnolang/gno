@@ -6,13 +6,14 @@ RPC_LADDR=${RPC_LADDR:-"tcp://0.0.0.0:26657"}
 
 CHAIN_ID=${CHAIN_ID:-"dev"}
 
-/gnoland start \
+gnoland secret init
+gnoland config int
+
+gnoland config set moniker "${MONIKER}"
+gnoland config set rpc.laddr "${RPC_LADDR}"
+gnoland config set p2p.laddr "${P2P_LADDR}"
+
+exec gnoland start \
+    --skip-failing-genesis-txs \
     --chainid="${CHAIN_ID}" \
-    --skip-start=true \
-    --skip-failing-genesis-txs
-
-sed -i "s#^moniker = \".*\"#moniker = \"${MONIKER}\"#" ./gnoland-data/config/config.toml
-sed -i "s#laddr = \".*:26656\"#laddr = \"${P2P_LADDR}\"#" ./gnoland-data/config/config.toml
-sed -i "s#laddr = \".*:26657\"#laddr = \"${RPC_LADDR}\"#" ./gnoland-data/config/config.toml
-
-exec /gnoland start --skip-failing-genesis-txs
+    --lazy
