@@ -527,8 +527,7 @@ func runTestFiles(
 			for _, ev := range events[printedEvents:] {
 				printedEvents++
 				// XXX: print events with better formatting (e.g. JSON)
-				strEv := fmt.Sprint(ev)
-				io.ErrPrintfln("---       event: %s", colors.ColoredBytesOnlyAscii([]byte(strEv), colors.Magenta))
+				io.ErrPrintfln("---       event: %s", colors.ColoredBytesOnlyAscii([]byte(fmt.Sprint(ev)), colors.Magenta))
 			}
 		}
 
