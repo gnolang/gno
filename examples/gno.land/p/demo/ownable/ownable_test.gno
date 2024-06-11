@@ -19,6 +19,13 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestNewWithAddress(t *testing.T) {
+	result := NewWithAddress(firstCaller)
+	if firstCaller != result.owner {
+		t.Fatalf("Expected %s, got: %s\n", firstCaller, result.owner)
+	}
+}
+
 func TestOwner(t *testing.T) {
 	std.TestSetOrigCaller(firstCaller)
 
