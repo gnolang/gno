@@ -1411,7 +1411,7 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 	}
 
 	fd := FuncD(n, ps, rs, nil)
-	fd = Preprocess(nil, x, fd).(*FuncDecl)
+	fd = Preprocess(nil, x, fd, PHASE_CORE).(*FuncDecl)
 	ft := evalStaticType(nil, x, &fd.Type).(*FuncType)
 	if debug {
 		if ft == nil {

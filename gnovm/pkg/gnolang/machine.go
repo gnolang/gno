@@ -228,7 +228,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 		PredefineFileSet(m.Store, pn, fset)
 		for _, fn := range fset.Files {
 			// Save Types to m.Store (while preprocessing).
-			fn = Preprocess(m.Store, pn, fn).(*FileNode)
+			fn = Preprocess(m.Store, pn, fn, PHASE_VARLOOP).(*FileNode)
 			// Save BlockNodes to m.Store.
 			SaveBlockNodes(m.Store, fn)
 		}
@@ -539,7 +539,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		// runtime package value via PrepareNewValues.  Then,
 		// non-constant var declarations and file-level imports
 		// are re-set in runDeclaration(,true).
-		fn = Preprocess(m.Store, pn, fn).(*FileNode)
+		fn = Preprocess(m.Store, pn, fn, PHASE_VARLOOP).(*FileNode)
 		if debug {
 			debug.Printf("PREPROCESSED FILE: %v\n", fn)
 		}
@@ -726,7 +726,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 		// x already creates its own scope.
 	}
 	// Preprocess x.
-	x = Preprocess(m.Store, last, x).(Expr)
+	x = Preprocess(m.Store, last, x, PHASE_CORE).(Expr)
 	// Evaluate x.
 	start := m.NumValues
 	m.PushOp(OpHalt)
@@ -798,7 +798,7 @@ func (m *Machine) EvalStaticTypeOf(last BlockNode, x Expr) Type {
 
 func (m *Machine) RunStatement(s Stmt) {
 	sn := m.LastBlock().GetSource(m.Store)
-	s = Preprocess(m.Store, sn, s).(Stmt)
+	s = Preprocess(m.Store, sn, s, PHASE_CORE).(Stmt)
 	m.PushOp(OpHalt)
 	m.PushStmt(s)
 	m.PushOp(OpExec)
@@ -815,7 +815,7 @@ func (m *Machine) RunDeclaration(d Decl) {
 	// Preprocess input using package block.  There should only
 	// be one block right now, and it's a *PackageNode.
 	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
-	d = Preprocess(m.Store, pn, d).(Decl)
+	d = Preprocess(m.Store, pn, d, PHASE_CORE).(Decl)
 	// do not SaveBlockNodes(m.Store, d).
 	pn.PrepareNewValues(m.Package)
 	m.runDeclaration(d)

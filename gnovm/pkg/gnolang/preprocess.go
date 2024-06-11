@@ -102,15 +102,6 @@ type LoopInfo struct {
 	label      Name
 }
 
-// record loop extern infos while preprocess.
-// loopInfo is aggregated according to their host funcDecl,
-// to make it convenient for the following up handling.
-var loopInfos map[Name][]*LoopInfo
-
-// flag of Reprocess
-// XXX, cumbersome, better way?
-var reProcessing bool
-
 // This counter ensures (during testing) that certain functions
 // (like ConvertUntypedTo() for bigints and strings)
 // are only called during the preprocessing stage.
@@ -135,7 +126,7 @@ var preprocessing atomic.Int32
 // List of what Preprocess() does:
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
-func Preprocess(store Store, ctx BlockNode, n Node) Node {
+func Preprocess(store Store, ctx BlockNode, n Node, phase PreprocessPhase) Node {
 	// Increment preprocessing counter while preprocessing.
 	preprocessing.Add(1)
 	defer preprocessing.Add(-1)
@@ -145,21 +136,39 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		// panic("Preprocess requires context")
 	}
 
-	// if n is file node, set node locations recursively.
-	if fn, ok := n.(*FileNode); ok {
-		pkgPath := ctx.(*PackageNode).PkgPath
-		fileName := string(fn.Name)
-		SetNodeLocations(pkgPath, fileName, fn)
-	}
-
 	// record closure infos
 	var closureStack []BlockNode = make([]BlockNode, 0, 32)
+
+	// record loop extern infos while preprocess.
+	// loopInfo is aggregated according to their host funcDecl,
+	// to make it convenient for the following up handling.
+	loopInfos := make(map[Name][]*LoopInfo)
+
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
 	lastpn := packageOf(last)
 	stack = append(stack, last)
 
+	// if n is file node, set node locations recursively.
+	if fn, ok := n.(*FileNode); ok {
+		pkgPath := ctx.(*PackageNode).PkgPath
+		fileName := string(fn.Name)
+		SetNodeLocations(pkgPath, fileName, fn)
+	}
+	// check varloop scenario file wise
+	nn := initialPreprocess(store, last, n, lastpn, stack, closureStack, phase, loopInfos)
+
+	if fn, ok := n.(*FileNode); ok {
+		if len(loopInfos) != 0 {
+			reprocess(store, fn, loopInfos)
+			loopInfos = nil
+		}
+	}
+	return nn
+}
+
+func initialPreprocess(store Store, last BlockNode, n Node, lastpn *PackageNode, stack []BlockNode, closureStack []BlockNode, phase PreprocessPhase, loopInfos map[Name][]*LoopInfo) Node {
 	// iterate over all nodes recursively and calculate
 	// BlockValuePath for each NameExpr.
 	nn := Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -309,7 +318,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// NOTE: preprocess it here, so type can
 				// be used to set n.IsMap/IsString and
 				// define key/value.
-				n.X = Preprocess(store, last, n.X).(Expr)
+				n.X = Preprocess(store, last, n.X, PHASE_CORE).(Expr)
 				xt := evalStaticTypeOf(store, last, n.X)
 				switch xt.Kind() {
 				case MapKind:
@@ -434,7 +443,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// evaluate case types.
 						for i, cx := range n.Cases {
 							cx = Preprocess(
-								store, last, cx).(Expr)
+								store, last, cx, PHASE_CORE).(Expr)
 							var ct Type
 							if cxx, ok := cx.(*ConstExpr); ok {
 								if !cxx.IsUndefined() {
@@ -470,7 +479,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// check or convert case types to tt.
 					for i, cx := range n.Cases {
 						cx = Preprocess(
-							store, last, cx).(Expr)
+							store, last, cx, PHASE_CORE).(Expr)
 						checkOrConvertType(store, last, &cx, tt, false) // #nosec G601
 						n.Cases[i] = cx
 					}
@@ -613,7 +622,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// NOTE: TRANS_BLOCK2 ensures after .Init.
 				// Preprocess and convert tag if const.
 				if n.X != nil {
-					n.X = Preprocess(store, last, n.X).(Expr)
+					n.X = Preprocess(store, last, n.X, PHASE_CORE).(Expr)
 					convertIfConst(store, last, n.X)
 				}
 			}
@@ -778,7 +787,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *FuncLitExpr:
 				// XXX, cumbersome, better way?
-				if !reProcessing {
+				if phase == PHASE_VARLOOP {
 					// Step 1: quick check to identify no closure
 					inLoop := isBlockNodeInLoop(store, n)
 					if !inLoop {
@@ -866,7 +875,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// loopInfo
 						loop := &LoopInfo{}
 						// maybe initialized by other places, or not
-						loopInfos = getLoopInfos()
 
 						lastFn, err := findLastFn(n)
 						if err == nil {
@@ -893,7 +901,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						Op:    n.Op,
 						Right: rn,
 					}
-					resn := Preprocess(store, last, n2)
+					resn := Preprocess(store, last, n2, PHASE_CORE)
 					return resn, TRANS_CONTINUE
 				}
 
@@ -952,7 +960,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								Right: rn,
 							}
 							resn := Node(Call(tx, n2))
-							resn = Preprocess(store, last, resn)
+							resn = Preprocess(store, last, resn, PHASE_CORE)
 							return resn, TRANS_CONTINUE
 							// NOTE: binary operations are always computed in
 							// gno, never with reflect.
@@ -998,7 +1006,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									Right: n.Right,
 								}
 								resn := Node(Call(tx, n2))
-								resn = Preprocess(store, last, resn)
+								resn = Preprocess(store, last, resn, PHASE_CORE)
 								return resn, TRANS_CONTINUE
 								// NOTE: binary operations are always computed in
 								// gno, never with reflect.
@@ -1048,7 +1056,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							Right: rn,
 						}
 						resn := Node(Call(tx, n2))
-						resn = Preprocess(store, last, resn)
+						resn = Preprocess(store, last, resn, PHASE_CORE)
 						return resn, TRANS_CONTINUE
 						// NOTE: binary operations are always
 						// computed in gno, never with
@@ -1161,7 +1169,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
 								bsx := constType(nil, gByteSliceType)
 								args1 = Call(bsx, args1)
-								args1 = Preprocess(nil, last, args1).(Expr)
+								args1 = Preprocess(nil, last, args1, PHASE_CORE).(Expr)
 								n.Args[1] = args1
 							}
 						} else {
@@ -1185,7 +1193,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								}
 								// Convert to the array type.
 								arg1 := Call(tx, arg)
-								n.Args[i+1] = Preprocess(nil, last, arg1).(Expr)
+								n.Args[i+1] = Preprocess(nil, last, arg1, PHASE_CORE).(Expr)
 							}
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
@@ -1196,7 +1204,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
 								bsx := constType(nil, gByteSliceType)
 								args1 = Call(bsx, args1)
-								args1 = Preprocess(nil, last, args1).(Expr)
+								args1 = Preprocess(nil, last, args1, PHASE_CORE).(Expr)
 								n.Args[1] = args1
 							}
 						}
@@ -1390,7 +1398,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						Op: n.Op,
 					}
 					resn := Node(Call(tx, n2))
-					resn = Preprocess(store, last, resn)
+					resn = Preprocess(store, last, resn, PHASE_CORE)
 					return resn, TRANS_CONTINUE
 					// NOTE: like binary operations, unary operations are
 					// always computed in gno, never with reflect.
@@ -1508,7 +1516,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 						// recursively preprocess new n.X.
-						n.X = Preprocess(store, last, nx2).(Expr)
+						n.X = Preprocess(store, last, nx2, PHASE_CORE).(Expr)
 					}
 					// nxt2 may not be xt anymore.
 					// (even the dereferenced of xt and nxt2 may not
@@ -1815,7 +1823,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					n.Depth = depth
 					n.BodyIndex = index
 					// identify closure pattern
-					if !reProcessing {
+					if phase == PHASE_VARLOOP {
 						gotoLine := n.GetLine()
 						if labelLine < gotoLine {
 							for i := len(closureStack) - 1; i >= 0; i-- { // outermost one
@@ -1828,7 +1836,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 											isGotoLoop: true,
 										}
 
-										loopInfos = getLoopInfos()
 										lastFn, err := findLastFn(last) // the host Fn
 										if err == nil {
 											loopInfos[lastFn] = append(loopInfos[lastFn], loop)
@@ -1859,7 +1866,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
-				if !reProcessing {
+				if phase == PHASE_VARLOOP {
 					lvs := n.LoopVars
 					if lvs != nil {
 						// inject i := i for loop extern
@@ -1888,7 +1895,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
 				// NOTE: k,v already defined @ TRANS_BLOCK.
-				if !reProcessing {
+				if phase == PHASE_VARLOOP {
 					lvs := n.LoopVars
 					if lvs != nil {
 						stmts := append(InjectStmts(lvs), n.Body...)
@@ -2165,12 +2172,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// otherwise methods would be un at runtime.
 				n.Type = constType(n.Type, dst)
 
-				// TRANS_LEAVE -----------------------
-			case *FileNode:
-				if len(loopInfos) != 0 {
-					reProcess(store, last, loopInfos)
-					loopInfos = nil
-				}
+				//	// TRANS_LEAVE -----------------------
+				//case *FileNode:
+				//	if len(loopInfos) != 0 {
+				//		reProcess(store, last, loopInfos)
+				//		loopInfos = nil
+				//	}
 			}
 			// end type switch statement
 			// END TRANS_LEAVE -----------------------
@@ -2664,7 +2671,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				}
 			}
 			cx := Expr(Call(constType(nil, t), *x))
-			cx = Preprocess(store, last, cx).(Expr)
+			cx = Preprocess(store, last, cx, PHASE_CORE).(Expr)
 			*x = cx
 		}
 	}
@@ -3014,7 +3021,7 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 			// way.  This cannot be done asynchronously, cuz undefined
 			// names ought to be returned immediately to let the caller
 			// predefine it.
-			cx.Type = Preprocess(store, last, cx.Type).(Expr) // recursive
+			cx.Type = Preprocess(store, last, cx.Type, PHASE_CORE).(Expr) // recursive
 			ct = evalStaticType(store, last, cx.Type)
 			// elide composite lit element (nested) composite types.
 			elideCompositeElements(cx, ct)
@@ -3234,8 +3241,8 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 				// NOTE: document somewhere.
 				cd.Recv.Name = ".recv"
 			}
-			cd.Recv = *Preprocess(store, last, &cd.Recv).(*FieldTypeExpr)
-			cd.Type = *Preprocess(store, last, &cd.Type).(*FuncTypeExpr)
+			cd.Recv = *Preprocess(store, last, &cd.Recv, PHASE_CORE).(*FieldTypeExpr)
+			cd.Type = *Preprocess(store, last, &cd.Type, PHASE_CORE).(*FuncTypeExpr)
 			rft := evalStaticType(store, last, &cd.Recv).(FieldType)
 			rt := rft.Type
 			ft := evalStaticType(store, last, &cd.Type).(*FuncType)
@@ -3287,7 +3294,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 		} else {
 			ftv := pkg.GetValueRef(store, cd.Name)
 			ft := ftv.T.(*FuncType)
-			cd.Type = *Preprocess(store, last, &cd.Type).(*FuncTypeExpr)
+			cd.Type = *Preprocess(store, last, &cd.Type, PHASE_CORE).(*FuncTypeExpr)
 			ft2 := evalStaticType(store, last, &cd.Type).(*FuncType)
 			if !ft.IsZero() {
 				// redefining function.
@@ -3307,9 +3314,9 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 		// Full type declaration/preprocessing already done in tryPredefine
 		return d, false
 	case *ValueDecl:
-		return Preprocess(store, last, cd).(Decl), true
+		return Preprocess(store, last, cd, PHASE_CORE).(Decl), true
 	case *TypeDecl:
-		return Preprocess(store, last, cd).(Decl), true
+		return Preprocess(store, last, cd, PHASE_CORE).(Decl), true
 	default:
 		return d, false
 	}
@@ -3975,12 +3982,7 @@ func checkAndRebuildBody(body Body, loops []*LoopInfo, loc Location) Body {
 // traverse from root node, find goto loop, rebuild body.
 // (for/range-loop body has already been rebuilt before)
 // finally get all work done on trans_leave funcDecl.
-func reProcess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
-	reProcessing = true
-	defer func() {
-		reProcessing = false
-	}()
-
+func reprocess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 	var (
 		loops    []*LoopInfo // per funcDecl
 		targetFn Name        // outer function that contains the loop node
@@ -4027,7 +4029,7 @@ func reProcess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 			switch cn := n.(type) {
 			case *FuncDecl: // all reProcess happens in the root funcDecl, for convenience
 				if cn.Name == targetFn {
-					cn = doReProcess(store, bn, cn).(*FuncDecl)
+					cn = wipeAndRepreocess(store, bn, cn).(*FuncDecl)
 				}
 				delete(loopInfos, targetFn)
 				if len(loopInfos) == 0 {
@@ -4045,17 +4047,10 @@ func reProcess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 	return
 }
 
-func doReProcess(store Store, last BlockNode, bn BlockNode) Node {
+func wipeAndRepreocess(store Store, last BlockNode, bn BlockNode) Node {
 	resetStaticBlock(bn)
-	nn := Preprocess(store, last, bn)
+	nn := Preprocess(store, last, bn, PHASE_CORE)
 	return nn
-}
-
-func getLoopInfos() map[Name][]*LoopInfo {
-	if loopInfos == nil {
-		loopInfos = make(map[Name][]*LoopInfo)
-	}
-	return loopInfos
 }
 
 // ----------------------------------------

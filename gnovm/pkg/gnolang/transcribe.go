@@ -11,6 +11,13 @@ type (
 	TransField uint8
 )
 
+type PreprocessPhase uint8
+
+const (
+	PHASE_VARLOOP PreprocessPhase = iota
+	PHASE_CORE
+)
+
 const (
 	TRANS_CONTINUE TransCtrl = iota
 	TRANS_SKIP
