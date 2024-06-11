@@ -107,7 +107,7 @@ $ gnoland genesis validator add \
 ## 10. Start the chain
 
 ```bash
-gnoland start
+gnoland start -data-dir ./gnoland-data -genesis ./genesis.json
 ```
 
 # Connect to an Existing Gno Chain
@@ -240,7 +240,7 @@ gnoland config set p2p.seeds "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:2
 ## 13. Start the second node
 
 ```bash
-gnoland chain start
+gnoland start -data-dir ./gnoland-data -genesis ./genesis.json
 ```
 
 ## Results After Starting the Chain and Two Nodes
