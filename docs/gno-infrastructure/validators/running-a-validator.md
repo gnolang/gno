@@ -220,7 +220,7 @@ $ curl ifconfig.me/ip
 Configure a list of nodes that your validators will always retain a connection with.
 
 ```bash
-$ gnoland config set p2p.persistent_peers "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd61.2.3.4:26656"
+$ gnoland config set p2p.persistent_peers "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:26656"
 ```
 
 ## 12. Configure the seeds
