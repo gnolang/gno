@@ -1,6 +1,8 @@
 package pausable
 
 import (
+	"std"
+
 	"gno.land/p/demo/ownable"
 )
 
@@ -32,7 +34,7 @@ func (p Pausable) IsPaused() bool {
 
 // Pause sets the state of Pausable to true, meaning all pausable functions are paused
 func (p *Pausable) Pause() error {
-	if !prevRealmIsOwner(p.Owner()) {
+	if !callerIsOwner(p.Owner()) {
 		return ErrUnauthorized
 	}
 
@@ -42,10 +44,14 @@ func (p *Pausable) Pause() error {
 
 // Unpause sets the state of Pausable to false, meaning all pausable functions are resumed
 func (p *Pausable) Unpause() error {
-	if !prevRealmIsOwner(p.Owner()) {
+	if !callerIsOwner(p.Owner()) {
 		return ErrUnauthorized
 	}
 
 	p.paused = false
 	return nil
+}
+
+func callerIsOwner(addr std.Address) bool {
+	return std.PrevRealm().Addr() == addr
 }
