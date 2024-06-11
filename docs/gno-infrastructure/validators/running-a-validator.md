@@ -73,7 +73,7 @@ The key file path is relative by default.
 gnoland config set node_key_file secrets/node_key.json
 ```
 
-## 8. Set the genesis file (required)
+## 8. Generate the genesis file (required)
 
 ```bash
 gnoland genesis generate
