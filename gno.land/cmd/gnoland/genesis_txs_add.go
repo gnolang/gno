@@ -5,16 +5,24 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 var (
+	errInvalidTxsPath     = errors.New("invalid transactions path")
 	errInvalidTxsFile     = errors.New("unable to open transactions file")
 	errNoTxsFileSpecified = errors.New("no txs file specified")
+)
+
+var (
+	genesisDeployAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
+	genesisDeployFee     = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
 )
 
 // newTxsAddCmd creates the genesis txs add subcommand
@@ -22,9 +30,9 @@ func newTxsAddCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "add",
-			ShortUsage: "txs add <tx-file ...>",
+			ShortUsage: "txs add <tx-path ...>",
 			ShortHelp:  "imports transactions into the genesis.json",
-			LongHelp:   "Imports the transactions from a tx-archive backup to the genesis.json",
+			LongHelp:   "Imports the transactions from a given transactions sheet, or package directory, to the genesis.json",
 		},
 		commands.NewEmptyConfig(),
 		func(ctx context.Context, args []string) error {
@@ -51,15 +59,31 @@ func execTxsAdd(
 	}
 
 	parsedTxs := make([]std.Tx, 0)
-	for _, file := range args {
-		file, loadErr := os.Open(file)
-		if loadErr != nil {
-			return fmt.Errorf("%w, %w", errInvalidTxsFile, loadErr)
+	for _, argPath := range args {
+		// Grab the absolute path
+		path, err := filepath.Abs(argPath)
+		if err != nil {
+			return fmt.Errorf("unable to get absolute path %s, %w", path, err)
 		}
 
-		txs, err := std.ParseTxs(ctx, file)
+		// Grab the file info
+		fileInfo, err := os.Stat(path)
 		if err != nil {
-			return fmt.Errorf("unable to read file, %w", err)
+			return fmt.Errorf("%w %s, %w", errInvalidTxsPath, path, err)
+		}
+
+		var txs []std.Tx
+
+		if fileInfo.IsDir() {
+			// Generate transactions from the packages
+			txs, err = loadTxFromDir(path)
+		} else {
+			// Load the transactions from the transaction sheet
+			txs, err = loadTxFromFile(ctx, path)
+		}
+
+		if err != nil {
+			return fmt.Errorf("unable to load transactions, %w", err)
 		}
 
 		parsedTxs = append(parsedTxs, txs...)
@@ -97,4 +121,29 @@ func execTxsAdd(
 	)
 
 	return nil
+}
+
+// loadTxFromFile loads the transactions from a transaction sheet
+func loadTxFromFile(ctx context.Context, path string) ([]std.Tx, error) {
+	file, loadErr := os.Open(path)
+	if loadErr != nil {
+		return nil, fmt.Errorf("%w, %w", errInvalidTxsFile, loadErr)
+	}
+
+	txs, err := std.ParseTxs(ctx, file)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read file, %w", err)
+	}
+
+	return txs, nil
+}
+
+// loadTxFromDir loads the transactions from the given packages directory, recursively
+func loadTxFromDir(path string) ([]std.Tx, error) {
+	txs, err := gnoland.LoadPackagesFromDir(path, genesisDeployAddress, genesisDeployFee)
+	if err != nil {
+		return nil, fmt.Errorf("unable to load txs from directory, %w", err)
+	}
+
+	return txs, nil
 }

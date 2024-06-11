@@ -3,10 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -105,7 +108,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errInvalidTxsFile.Error())
+		assert.ErrorContains(t, cmdErr, errInvalidTxsPath.Error())
 	})
 
 	t.Run("no txs file", func(t *testing.T) {
@@ -209,6 +212,73 @@ func TestGenesis_Txs_Add(t *testing.T) {
 		for index, tx := range state.Txs {
 			assert.Equal(t, txs[index], tx)
 		}
+	})
+
+	t.Run("valid package", func(t *testing.T) {
+		t.Parallel()
+
+		tempGenesis, cleanup := testutils.NewTestFile(t)
+		t.Cleanup(cleanup)
+
+		genesis := getDefaultGenesis()
+		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+
+		// Prepare the package
+		var (
+			packagePath = "gno.land/p/demo/cuttlas"
+			dir         = t.TempDir()
+		)
+
+		createFile := func(path, data string) {
+			file, err := os.Create(path)
+			require.NoError(t, err)
+
+			_, err = file.WriteString(data)
+			require.NoError(t, err)
+		}
+
+		// Create the gno.mod file
+		createFile(
+			filepath.Join(dir, "gno.mod"),
+			fmt.Sprintf("module %s\n", packagePath),
+		)
+
+		// Create a simple main.gno
+		createFile(
+			filepath.Join(dir, "main.gno"),
+			"package cuttlas\n\nfunc Example() string {\nreturn \"Manos arriba!\"\n}",
+		)
+
+		// Create the command
+		cmd := newRootCmd(commands.NewTestIO())
+		args := []string{
+			"genesis",
+			"txs",
+			"add",
+			"--genesis-path",
+			tempGenesis.Name(),
+			dir,
+		}
+
+		// Run the command
+		cmdErr := cmd.ParseAndRun(context.Background(), args)
+		require.NoError(t, cmdErr)
+
+		// Validate the transactions were written down
+		updatedGenesis, err := types.GenesisDocFromFile(tempGenesis.Name())
+		require.NoError(t, err)
+		require.NotNil(t, updatedGenesis.AppState)
+
+		// Fetch the state
+		state := updatedGenesis.AppState.(gnoland.GnoGenesisState)
+
+		require.Equal(t, 1, len(state.Txs))
+		require.Equal(t, 1, len(state.Txs[0].Msgs))
+
+		msgAddPkg, ok := state.Txs[0].Msgs[0].(vmm.MsgAddPackage)
+		require.True(t, ok)
+
+		assert.Equal(t, packagePath, msgAddPkg.Package.Path)
 	})
 
 	t.Run("existing genesis txs", func(t *testing.T) {
