@@ -78,7 +78,8 @@ func upcomingEvents() ui.Element {
 <div class="column">
 
 </div><!-- end column-->
-</div><!-- end columns-3-->`)}
+</div><!-- end columns-3-->`),
+	}
 }
 
 func pastEvents() ui.Element {
@@ -211,5 +212,6 @@ func pastEvents() ui.Element {
 [Watch the talk](https://www.youtube.com/watch?v=hCLErPgnavI)
 
 </div><!-- end column-->
-</div><!-- end columns-3-->`)}
+</div><!-- end columns-3-->`),
+	}
 }
