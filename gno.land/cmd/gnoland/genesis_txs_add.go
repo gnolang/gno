@@ -133,7 +133,7 @@ func loadTxFromFile(ctx context.Context, path string) ([]std.Tx, error) {
 
 	txs, err := std.ParseTxs(ctx, file)
 	if err != nil {
-		return nil, fmt.Errorf("unable to read file, %w", err)
+		return nil, fmt.Errorf("unable to parse file, %w", err)
 	}
 
 	return txs, nil
