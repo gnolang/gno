@@ -38,23 +38,23 @@ func NewGRC20Token(name, symbol string, decimals uint8) *Token {
 	}
 }
 
-func (t Token) Name() (name string) {
+func (t *Token) Name() (name string) {
 	return t.name
 }
 
-func (t Token) Symbol() (symbol string) {
+func (t *Token) Symbol() (symbol string) {
 	return t.symbol
 }
 
-func (t Token) Decimals() (decimals uint8) {
+func (t *Token) Decimals() (decimals uint8) {
 	return t.decimals
 }
 
-func (t Token) TotalSupply() (totalSupply uint64) {
+func (t *Token) TotalSupply() (totalSupply uint64) {
 	return t.totalSupply
 }
 
-func (t Token) BalanceOf(owner std.Address) (balance uint64) {
+func (t *Token) BalanceOf(owner std.Address) (balance uint64) {
 	mustBeValid(owner)
 
 	b, found := t.balances.Get(owner.String())
@@ -65,14 +65,14 @@ func (t Token) BalanceOf(owner std.Address) (balance uint64) {
 	return b.(uint64)
 }
 
-func (t Token) Transfer(to std.Address, value uint64) (success bool) {
+func (t *Token) Transfer(to std.Address, value uint64) (success bool) {
 	from := std.PrevRealm().Addr()
 	t.transfer(from, to, value)
 
 	return true
 }
 
-func (t Token) TransferFrom(from, to std.Address, value uint64) (success bool) {
+func (t *Token) TransferFrom(from, to std.Address, value uint64) (success bool) {
 	spender := std.PrevRealm().Addr()
 	t.spendAllowance(from, spender, value)
 	t.transfer(from, to, value)
@@ -87,7 +87,7 @@ func (t *Token) Approve(spender std.Address, value uint64) (success bool) {
 	return true
 }
 
-func (t Token) Allowance(owner, spender std.Address) (remaining uint64) {
+func (t *Token) Allowance(owner, spender std.Address) (remaining uint64) {
 	rawAllowance, found := t.allowances.Get(spenderKey(owner, spender))
 	if !found {
 		return 0
@@ -160,13 +160,13 @@ func (t *Token) update(from, to std.Address, value uint64) {
 	)
 }
 
-func (t Token) transfer(from, to std.Address, value uint64) {
+func (t *Token) transfer(from, to std.Address, value uint64) {
 	mustBeValid(from)
 	mustBeValid(to)
 	t.update(from, to, value)
 }
 
-func (t Token) approve(owner, spender std.Address, value uint64, emit bool) {
+func (t *Token) approve(owner, spender std.Address, value uint64, emit bool) {
 	mustBeValid(owner)
 	mustBeValid(spender)
 
@@ -185,7 +185,7 @@ func (t Token) approve(owner, spender std.Address, value uint64, emit bool) {
 // Does not update the allowance value in case of infinite allowance
 // Panics if not enough allowance is available
 // Does not emit an Approval event
-func (t Token) spendAllowance(owner, spender std.Address, value uint64) {
+func (t *Token) spendAllowance(owner, spender std.Address, value uint64) {
 	currentAllowance := t.Allowance(owner, spender)
 
 	if currentAllowance != math.MaxUint64 {

@@ -153,17 +153,10 @@ func TestToken_Approve(t *testing.T) {
 
 	std.TestSetOrigCaller(alice)
 
-	originalAllowance := token.Allowance(alice, bob)
-
 	token.Approve(bob, mintAmount)
 
-	// Check if original token object is updated or not
-	if token.Allowance(alice, bob) != 0 {
-		t.Fatalf("Expected allowance to remain 0 when using value receiver, got %d", token.Allowance(alice, bob))
-	}
-
-	if token.Allowance(alice, bob) != originalAllowance {
-		t.Fatalf("Expected allowance to be %d, got %d", originalAllowance, token.Allowance(alice, bob))
+	if token.Allowance(alice, bob) != mintAmount {
+		t.Fatalf("Expected allowance to be %d, got %d", mintAmount, token.Allowance(alice, bob))
 	}
 }
 
@@ -171,18 +164,35 @@ func TestToken_TransferFrom(t *testing.T) {
 	token := NewGRC20Token(name, symbol, decimals)
 	token.Mint(alice, mintAmount)
 
+	aliceBalanceBefore := token.BalanceOf(alice)
 	std.TestSetOrigCaller(alice)
 
-	token.Approve(bob, mintAmount)
+	// Approve full balance to bob
+	token.Approve(bob, aliceBalanceBefore)
 
 	std.TestSetOrigCaller(bob)
 
-	token.TransferFrom(alice, bob, mintAmount)
+	// Transfer full balance
+	token.TransferFrom(alice, bob, aliceBalanceBefore)
 
+	// Check allowance spend
 	allowance := token.Allowance(alice, bob)
 	if allowance != 0 {
-		t.Fatalf("Expected %d tokens in allowance after spending, got %d", mintAmount, allowance)
+		t.Fatalf("Expected %d tokens in allowance after spending, got %d", 0, allowance)
 	}
+
+	// Check balances
+	bobBalance := token.BalanceOf(bob)
+	aliceBalanceAfter := token.BalanceOf(alice)
+
+	if bobBalance != aliceBalanceBefore {
+		t.Fatalf("Expected %d tokens in bob's balance, got %d", aliceBalanceBefore, bobBalance)
+	}
+
+	if aliceBalanceAfter != aliceBalanceBefore-aliceBalanceBefore {
+		t.Fatalf("Expected %d tokens in bob's balance, got %d", aliceBalanceBefore-aliceBalanceBefore, aliceBalanceAfter)
+	}
+
 }
 
 func TestToken_TransferFromInvalid(t *testing.T) {
