@@ -18,27 +18,27 @@ type Transferrable interface {
 	DropOwnership() error
 }
 
-// transferrableOwnership provides a basic implementation of ownership functionality
+// TransferrableOwnership provides a basic implementation of ownership functionality
 // It can be used as a top-level object to make a contract ownable or embedded within
 // another object to manage per-object ownership.
-type transferrableOwnership struct {
+type TransferrableOwnership struct {
 	owner std.Address
 }
 
-// Ensure that transferrableOwnership implements the Ownable and Transferrable interfaces
+// Ensure that TransferrableOwnership implements the Ownable and Transferrable interfaces
 var (
-	_ Ownable       = (*transferrableOwnership)(nil)
-	_ Transferrable = (*transferrableOwnership)(nil)
+	_ Ownable       = (*TransferrableOwnership)(nil)
+	_ Transferrable = (*TransferrableOwnership)(nil)
 )
 
-func New() Ownable {
-	return &transferrableOwnership{
+func New() *TransferrableOwnership {
+	return &TransferrableOwnership{
 		owner: std.PrevRealm().Addr(),
 	}
 }
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
-func (o *transferrableOwnership) TransferOwnership(newOwner std.Address) error {
+func (o *TransferrableOwnership) TransferOwnership(newOwner std.Address) error {
 	if !callerIsOwner(o.owner) {
 		return ErrUnauthorized
 	}
@@ -54,7 +54,7 @@ func (o *transferrableOwnership) TransferOwnership(newOwner std.Address) error {
 // DropOwnership removes the owner, effectively disabling any owner-related actions
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
-func (o *transferrableOwnership) DropOwnership() error {
+func (o *TransferrableOwnership) DropOwnership() error {
 	if !callerIsOwner(o.owner) {
 		return ErrUnauthorized
 	}
@@ -63,7 +63,7 @@ func (o *transferrableOwnership) DropOwnership() error {
 	return nil
 }
 
-func (o *transferrableOwnership) Owner() std.Address {
+func (o *TransferrableOwnership) Owner() std.Address {
 	return o.owner
 }
 
