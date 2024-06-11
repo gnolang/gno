@@ -78,9 +78,9 @@ func summaryOf(str string, length int) string {
 func displayAddressMD(addr std.Address) string {
 	user := users.GetUserByAddress(addr)
 	if user == nil {
-		return "[" + addr.String() + "](/r/users:" + addr.String() + ")"
+		return "[" + addr.String() + "](/r/demo/users:" + addr.String() + ")"
 	}
-	return "[@" + user.Name + "](/r/users:" + user.Name + ")"
+	return "[@" + user.Name + "](/r/demo/users:" + user.Name + ")"
 }
 
 func usernameOf(addr std.Address) string {
