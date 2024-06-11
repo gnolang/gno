@@ -35,13 +35,18 @@ gnoland config init
 gnoland secrets init
 ```
 
-## 3. Set a moniker (optional)
+:::tip
+
+A moniker is a human-readable username of your validator node. You may customize 
+your moniker with the following command:
 
 ```bash
 gnoland config set moniker node01
 ```
 
-## 4. Set the rpc connection address (required for connecting with other nodes)
+:::
+
+## 3. Set the rpc connection address (required for connecting with other nodes)
 
 ```bash
 gnoland config set rpc.laddr "tcp://0.0.0.0:26657"
@@ -50,7 +55,7 @@ gnoland config set rpc.laddr "tcp://0.0.0.0:26657"
 # gaiad tx staking create-validator `--node string (default:tcp://localhost:26657)`
 ```
 
-## 5. Set the validator private key (optional)
+## 4. Set the validator private key (optional)
 
 :::tip
 
@@ -62,7 +67,7 @@ The key file path is relative by default.
 gnoland config set priv_validator_key_file secrets/priv_validator_key.json
 ```
 
-## 6. Set the validator state (optional)
+## 5. Set the validator state (optional)
 
 :::tip
 
@@ -74,7 +79,7 @@ The key file path is relative by default.
 gnoland config set priv_validator_state_file secrets/priv_validator_state.json
 ```
 
-## 7. Set the node key (optional)
+## 6. Set the node key (optional)
 
 :::tip
 
@@ -86,13 +91,13 @@ The key file path is relative by default.
 gnoland config set node_key_file secrets/node_key.json
 ```
 
-## 8. Generate the genesis file (required)
+## 7. Generate the genesis file (required)
 
 ```bash
 gnoland genesis generate
 ```
 
-## 9. Add a validator (required)
+## 8. Add a validator (required)
 
 ```bash
 # check the secrets file generated in step (2)
@@ -117,7 +122,7 @@ $ gnoland genesis validator add \
   -pub-key  pub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpleysamt23ar025757uepld60xztnw7ujc3gwtjuy4pwv6z9sh4g284h3q # public key of validator
 ```
 
-## 10. Start the chain
+## 9. Start the chain
 
 ```bash
 gnoland start -data-dir ./gnoland-data -genesis ./genesis.json
@@ -137,19 +142,23 @@ gnoland config init
 gnoland secrets init
 ```
 
-## 3. Set a moniker (optional)
+:::tip
+
+Set a new moniker to distinguish your new node from the existing one.
 
 ```bash
 gnoland config set moniker node02
 ```
 
-## 4. Set the rpc connection address (required for connecting with other nodes)
+:::
+
+## 3. Set the rpc connection address (required for connecting with other nodes)
 
 ```bash
 gnoland config set rpc.laddr "tcp://0.0.0.0:26657"
 ```
 
-## 5. Set the validator private key (required)
+## 4. Set the validator private key (required)
 
 :::tip
 
@@ -161,7 +170,7 @@ The key file path is relative by default.
 gnoland config set priv_validator_key_file secrets/priv_validator_key.json
 ```
 
-## 6. Set the validator state (required)
+## 5. Set the validator state (required)
 
 :::tip
 
@@ -173,7 +182,7 @@ The key file path is relative by default.
 gnoland config set priv_validator_state_file secrets/priv_validator_state.json
 ```
 
-## 7. Set the node key (required)
+## 6. Set the node key (required)
 
 :::tip
 
@@ -185,7 +194,7 @@ The key file path is relative by default.
 gnoland config set node_key_file secrets/node_key.json
 ```
 
-## 8. Obtain the genesis file of the chain to connect to
+## 7. Obtain the genesis file of the chain to connect to
 
 :::info
 
@@ -202,7 +211,7 @@ For now, obtain the file by
 ## TODO: Add link to download the file from GitHub
 ```
 
-## 9. Add the new validator to existing chain
+## 8. Add the new validator to existing chain
 
 ::: info
 
@@ -215,7 +224,7 @@ complete implementation of validator set injection with the `r/sys/val` realm.
 ## TODO: Add a new validator
 ```
 
-## 10. Confirm the validator information of the first node.
+## 9. Confirm the validator information of the first node.
 
 ```bash
 # Node ID
@@ -229,7 +238,7 @@ $ curl ifconfig.me/ip
 1.2.3.4 # USE YOUR OWN IP
 ```
 
-## 11. Configure the persistent_peers list
+## 10. Configure the persistent_peers list
 
 Configure a list of nodes that your validators will always retain a connection 
 with.
@@ -238,7 +247,7 @@ with.
 $ gnoland config set p2p.persistent_peers "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:26656"
 ```
 
-## 12. Configure the seeds
+## 11. Configure the seeds
 
 Configure the list of seed nodes. Seed nodes provide information about other 
 nodes for the validator to connect with the chain, enabling a fast and stable 
@@ -255,7 +264,7 @@ to activate the Seed Mode from the node is currently missing.
 gnoland config set p2p.seeds "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:26656"
 ```
 
-## 13. Start the second node
+## 12. Start the second node
 
 ```bash
 gnoland start -data-dir ./gnoland-data -genesis ./genesis.json
