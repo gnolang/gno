@@ -31,7 +31,7 @@ var (
 	_ Transferrable = (*transferrableOwnership)(nil)
 )
 
-func New() *transferrableOwnership {
+func New() Ownable {
 	return &transferrableOwnership{
 		owner: std.PrevRealm().Addr(),
 	}
