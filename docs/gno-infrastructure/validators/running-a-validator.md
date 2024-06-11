@@ -97,7 +97,7 @@ Round:   0
 Step:    0
 
 # add the validator to the genesis file using the address and the public key in the Validator Key Info section
-$ gnoland genesis validator add \ 
+$ gnoland genesis validator add \
   -address g1lnha5yem9dmj0yfzysfqsnvrm6j2ywshq83qdf \ # address of validator
   -name node01 \ # name of validator
   -power 10 \ # voting power of validator
@@ -109,12 +109,6 @@ $ gnoland genesis validator add \
 ```bash
 gnoland start
 ```
-
-:::warning
-
-Slashing policies for downtimes, double signing or any manipulation using the validator membership will be introduced in the near future.
-
-Setting up the Sentry Node Architecture minimizes the risks of DDoS targetting the validator node. Configuring the `unconditional_peer_ids` is essential. Refer to [this issue](https://github.com/gnolang/gno/issues/1923) for further information. :::
 
 # Connect to an Existing Gno Chain
 
