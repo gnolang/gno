@@ -3,8 +3,10 @@
 package valopers
 
 import (
+	"std"
+
 	"gno.land/p/demo/ownable"
-	"gno.land/r/gov/dao"
+	govdao "gno.land/r/gov/dao"
 )
 
 // Valoper represents a validator operator profile.
@@ -32,6 +34,6 @@ func Update( /* TBD */ ) {
 // TODO: Define a good API and implement it.
 func GovXXX() {
 	// Assert that the caller is a member of the governance DAO.
-	dao.AssertIsMember(std.PrevRealm().Addr())
+	govdao.AssertIsMember(std.PrevRealm().Addr())
 	panic("not implemented")
 }

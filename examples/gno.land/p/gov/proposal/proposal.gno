@@ -17,7 +17,7 @@ type executorImpl struct {
 }
 
 // execute runs the executor's callback function.
-func (exec *executorImpl) execute() error {
+func (exec *executorImpl) Execute() error {
 	if exec.done {
 		return ErrAlreadyDone
 	}

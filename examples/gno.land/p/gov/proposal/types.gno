@@ -6,7 +6,7 @@ import "errors"
 // Executor represents a minimal closure-oriented proposal design.
 // It is intended to be used by a govdao governance proposal (v1, v2, etc).
 type Executor interface {
-	execute() error
+	Execute() error
 	Done() bool
 	Success() bool // Done() && !err
 }

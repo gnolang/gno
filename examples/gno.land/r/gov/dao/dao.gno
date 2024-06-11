@@ -1,6 +1,10 @@
 package govdao
 
-import "std"
+import (
+	"std"
+
+	"gno.land/p/gov/proposal"
+)
 
 var proposals = make([]Proposal, 0)
 
@@ -11,7 +15,7 @@ type Proposal struct {
 	author   std.Address
 	idx      int
 	Comment  string
-	Callback func()
+	Executor proposal.Executor
 }
 
 // Propose is designed to be called by another contract or with
@@ -28,6 +32,7 @@ func Propose(proposal Proposal) int {
 }
 
 func VoteOnProposal(idx int, option string) {
+	caller := std.PrevRealm().Addr()
 	AssertIsMember(caller)
 	panic("not implemented")
 	// XXX: implement the voting (woudl be cool to have a generic p/)
@@ -39,7 +44,7 @@ func ExecuteProposal(idx int) {
 	// XXX: assert voting result is YES
 	// XXX: proposal was not already executed
 	proposal := proposals[idx]
-	proposal.Callback()
+	proposal.Executor.Execute()
 }
 
 func assertProposalExists(idx int) {
