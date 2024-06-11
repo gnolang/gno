@@ -97,7 +97,11 @@ Round:   0
 Step:    0
 
 # add the validator to the genesis file using the address and the public key in the Validator Key Info section
-$ gnoland genesis validator add -address g1lnha5yem9dmj0yfzysfqsnvrm6j2ywshq83qdf -name node01 -power 10 -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpleysamt23ar025757uepld60xztnw7ujc3gwtjuy4pwv6z9sh4g284h3q
+$ gnoland genesis validator add \ 
+  -address g1lnha5yem9dmj0yfzysfqsnvrm6j2ywshq83qdf \ # address of validator
+  -name node01 \ # name of validator
+  -power 10 \ # voting power of validator
+  -pub-key  pub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpleysamt23ar025757uepld60xztnw7ujc3gwtjuy4pwv6z9sh4g284h3q # public key of validator
 ```
 
 ## 10. Start the chain
