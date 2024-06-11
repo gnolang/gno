@@ -217,6 +217,49 @@ func Test_typesEqual(t *testing.T) {
 		{"[]int", "[1]int", "does not match"},
 		{"[1]int", "[]int", "does not match"},
 		{"[2]int", "[2]string", "does not match"},
+
+		{"map[string]int", "map[string]int", ""},
+		{"map[string][]byte", "map[string][]byte", ""},
+		{"map[string]map[string]int", "map[string]map[string]int", ""},
+		{"map[int]*struct{}", "map[int]*struct{}", ""},
+		{"map[string]int", "map[string]string", "does not match"},
+		{"map[int]string", "map[string]string", "does not match"},
+
+		{"struct{ M int }", "struct{ M int }", ""},
+		{"struct{ M int }", "struct{ M string }", "does not match"},
+		{"struct{ M int }", "struct{ N int }", "does not match"},
+		{"struct{ M int }", "struct{ M int; N int }", "does not match"},
+		{"struct{ M int }", "struct{}", "does not match"},
+
+		{"interface{}", "interface{}", ""},
+		{"interface{ M() }", "interface{ M() }", ""},
+		{"interface{ M() int }", "interface{ M() int }", ""},
+		{"interface{ M() int; N() string }", "interface{ M() int; N() string }", ""},
+		{"interface{ M() int }", "interface{ M() string }", "does not match"},
+		{"interface{ M() int }", "interface{ M() }", "does not match"},
+		{"interface{ M() int }", "interface{ N() int }", "does not match"},
+		{"interface{ M() int; N() string }", "interface{ M() int; N() int }", "does not match"},
+
+		{"func()", "func()", ""},
+		{"func() int", "func() int", ""},
+		{"func(s string)", "func(s string)", ""},
+		// parameter name doesn't matter. only type
+		{"func(s string)", "func(a string)", ""},
+		{"func(s string) int", "func(s string) int", ""},
+		{"func(s string) (int, int)", "func(s string) (int, int)", ""},
+		{"func(s string) (int, int)", "func(s string) (p1 int, p2 int)", ""},
+		{"func(s string) (int, int)", "func(s string) (p1, p2 int)", ""},
+		{"func(s, v string)", "func(s string, v string)", ""},
+		{"func() int", "func() string", "does not match"},
+		{"func(s string) int", "func(s string) string", "does not match"},
+		{"func(s string) int", "func(s string, i int) int", "does not match"},
+		{"func(s string) int", "func(s string) (int, error)", "does not match"},
+		{"func(s string)", "func(s string) (int, error)", "does not match"},
+
+		{"func(s ...int)", "func(s ...int)", ""},
+		{"func(s ...int)", "func(s ...float64)", "does not match"},
+		{"func(s ...int)", "func(s ...int, i int)", "does not match"},
+
 		// valid, but unsupported (only BasicLits)
 		{"[(11)]int", "[(11)]string", "does not match"},
 
@@ -243,15 +286,106 @@ func Test_typesEqual(t *testing.T) {
 	}
 }
 
+func Test_typesEqual_SelectorExpr(t *testing.T) {
+	tests := []struct {
+		name       string
+		gnoExpr    *ast.SelectorExpr
+		goExpr     *ast.SelectorExpr
+		gnoImports []*ast.ImportSpec
+		goImports  []*ast.ImportSpec
+		wantErr    bool
+	}{
+		{
+			name: "matching selector expressions with same import",
+			gnoExpr: &ast.SelectorExpr{
+				X:   &ast.Ident{Name: "time"},
+				Sel: &ast.Ident{Name: "Time"},
+			},
+			goExpr: &ast.SelectorExpr{
+				X:   &ast.Ident{Name: "time"},
+				Sel: &ast.Ident{Name: "Time"},
+			},
+			gnoImports: []*ast.ImportSpec{
+				{Path: &ast.BasicLit{Value: `"time"`}},
+			},
+			goImports: []*ast.ImportSpec{
+				{Path: &ast.BasicLit{Value: `"time"`}},
+			},
+		},
+		{
+			name: "non-matching selector expressions due to different selectors",
+			gnoExpr: &ast.SelectorExpr{
+				X:   &ast.Ident{Name: "time"},
+				Sel: &ast.Ident{Name: "Time"},
+			},
+			goExpr: &ast.SelectorExpr{
+				X:   &ast.Ident{Name: "time"},
+				Sel: &ast.Ident{Name: "Duration"},
+			},
+			gnoImports: []*ast.ImportSpec{
+				{Path: &ast.BasicLit{Value: `"time"`}},
+			},
+			goImports: []*ast.ImportSpec{
+				{Path: &ast.BasicLit{Value: `"time"`}},
+			},
+			wantErr: true,
+		},
+		{
+			name: "matching selector expressions with different package aliases",
+			gnoExpr: &ast.SelectorExpr{
+				X:   &ast.Ident{Name: "t"}, // import (t "time")
+				Sel: &ast.Ident{Name: "Time"},
+			},
+			goExpr: &ast.SelectorExpr{
+				X:   &ast.Ident{Name: "time"}, // import "time"
+				Sel: &ast.Ident{Name: "Time"},
+			},
+			gnoImports: []*ast.ImportSpec{
+				{Name: &ast.Ident{Name: "t"}, Path: &ast.BasicLit{Value: `"time"`}},
+			},
+			goImports: []*ast.ImportSpec{
+				{Path: &ast.BasicLit{Value: `"time"`}},
+			},
+		},
+		{
+			name: "non-matching selector expressions due to different packages",
+			gnoExpr: &ast.SelectorExpr{
+				X:   &ast.Ident{Name: "time"},
+				Sel: &ast.Ident{Name: "Time"},
+			},
+			goExpr: &ast.SelectorExpr{
+				X:   &ast.Ident{Name: "fmt"},
+				Sel: &ast.Ident{Name: "Stringer"},
+			},
+			gnoImports: []*ast.ImportSpec{
+				{Path: &ast.BasicLit{Value: `"time"`}},
+			},
+			goImports: []*ast.ImportSpec{
+				{Path: &ast.BasicLit{Value: `"fmt"`}},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := &mapping{
+				gnoImports: tt.gnoImports,
+				goImports:  tt.goImports,
+			}
+			err := m.typesEqual(tt.gnoExpr, tt.goExpr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("typesEqual() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func Test_typesEqual_panic(t *testing.T) {
 	tt := []struct {
 		gnoe, goe string
 		panic     string
 	}{
-		{"map[string]string", "map[string]string", "not implemented"},
-		{"func(s string)", "func(s string)", "not implemented"},
-		{"interface{}", "interface{}", "not implemented"},
-		{"struct{}", "struct{}", "not implemented"},
 		{"1 + 2", "1 + 2", "invalid expression"},
 	}
 
