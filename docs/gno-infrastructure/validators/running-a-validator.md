@@ -37,7 +37,7 @@ gnoland config set rpc.laddr "tcp://0.0.0.0:26657"
 # gaiad tx staking create-validator `--node string (default:tcp://localhost:26657)`
 ```
 
-## 5. Set the validator private key (required)
+## 5. Set the validator private key (optional)
 
 :::tip
 
@@ -49,7 +49,7 @@ The key file path is relative by default.
 gnoland config set priv_validator_key_file secrets/priv_validator_key.json
 ```
 
-## 6. Set the validator state (required)
+## 6. Set the validator state (optional)
 
 :::tip
 
@@ -61,7 +61,7 @@ The key file path is relative by default.
 gnoland config set priv_validator_state_file secrets/priv_validator_state.json
 ```
 
-## 7. Set the node key (required)
+## 7. Set the node key (optional)
 
 :::tip
 
