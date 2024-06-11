@@ -40,10 +40,13 @@ tokens delegated. This means that anyone with enough capital can join as a
 validator only to seek economic incentives without any alignment or technical 
 expertise. This system leads to an undesirable incentive structure in which 
 validators are rewarded purely based on the capital delegated, regardless of 
-the quality of their infrastructure or service. On the contrary, validators in 
-Gno.land are reviewed and verified to have made significant contributions, in 
-order to join the validator set. All validators are evenly rewarded to ensure 
-that the entire validator set is fairly incentivized.
+the quality of their infrastructure or service.
+
+On the contrary, validators in Gno.land must be reviewed and verified to have 
+made significant contributions in order to join the validator set. This property 
+resembles the validator selection mechanism in [Proof of Authority](https://openethereum.github.io/Proof-of-Authority-Chains). Furthermore, 
+all validators are evenly rewarded to ensure that the entire validator set is 
+fairly incentivized to ensure the sustainability of the network.
 
 ### What is a full node and a pruned node?
 
