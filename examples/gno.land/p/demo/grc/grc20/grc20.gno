@@ -1,3 +1,11 @@
+// Package grc20 is a port of the Ethereum ERC20 standard for fungible tokens.
+// It follows the interface defined in igrc20.gno, which is a by-spec implementation of the ERC20 standard.
+// This package uses panics for reverting in specific cases, as it is defined by the specification.
+// To use it, import it in your realm and instantiate a new top-level variable that will represent your token.
+// Make sure that this variable is not exported, as it would otherwise be a security issue, since exported functions on
+// exported top-level variables are callable.
+// For example usage, check out r/demo/foo20 & r/demo/wugnot.
+
 package grc20
 
 import (

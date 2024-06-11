@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/users"
 
@@ -12,25 +13,30 @@ import (
 )
 
 var (
-	foo   *grc20.AdminToken
-	admin std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // TODO: helper to change admin
+	foo grc20.Token
+	o   *ownable.Ownable
 )
 
 func init() {
-	foo = grc20.NewAdminToken("Foo", "FOO", 4)
-	foo.Mint(admin, 1000000*10000)                                    // @administrator (1M)
-	foo.Mint("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq", 10000*10000) // @manfred (10k)
+	// Instantiate ownable
+	o = ownable.New()
+	o.TransferOwnership("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
+
+	// Instantiate token
+	foo = grc20.NewGRC20Token("Foo", "FOO", 4)
+
+	// Mint 1M tokens to g125em6arxsnj49vx35f0n0z34putv5ty3376fg5
+	foo.Mint(o.Owner(), 1_000_000*10000)
 }
 
-// method proxies as public functions.
-//
+// Getters
 
-// getters.
-
+// TotalSupply returns the total supply of the token
 func TotalSupply() uint64 {
 	return foo.TotalSupply()
 }
 
+// BalanceOf returns the balance of a specific username or address
 func BalanceOf(owner pusers.AddressOrName) uint64 {
 	balance, err := foo.BalanceOf(users.Resolve(owner))
 	if err != nil {
@@ -39,6 +45,7 @@ func BalanceOf(owner pusers.AddressOrName) uint64 {
 	return balance
 }
 
+// Allowance returns the allowance of a spender for the owner's tokens
 func Allowance(owner, spender pusers.AddressOrName) uint64 {
 	allowance, err := foo.Allowance(users.Resolve(owner), users.Resolve(spender))
 	if err != nil {
@@ -47,30 +54,26 @@ func Allowance(owner, spender pusers.AddressOrName) uint64 {
 	return allowance
 }
 
-// setters.
+// Setters
 
+// Transfer transfers `value` amount of tokens to address `to`, and MUST fire the Transfer event
+// The function SHOULD throw if the message caller’s account balance does not have enough tokens to spend
 func Transfer(to pusers.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	err := foo.Transfer(caller, users.Resolve(to), amount)
-	if err != nil {
-		panic(err)
-	}
+	foo.Transfer(caller, users.Resolve(to), amount)
 }
 
+// Approve allows `spender` to withdraw from your account multiple times, up to the `value` amount
+// If this function is called again it overwrites the current allowance with value
 func Approve(spender pusers.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	err := foo.Approve(caller, users.Resolve(spender), amount)
-	if err != nil {
-		panic(err)
-	}
+	foo.Approve(caller, users.Resolve(spender), amount)
 }
 
+// TransferFrom transfers `value` amount of tokens from address `from` to address `to`, and MUST fire the Transfer event
 func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
-	err := foo.TransferFrom(caller, users.Resolve(from), users.Resolve(to), amount)
-	if err != nil {
-		panic(err)
-	}
+	foo.TransferFrom(caller, users.Resolve(from), users.Resolve(to), amount)
 }
 
 // faucet.
@@ -79,10 +82,7 @@ func Faucet() {
 	// FIXME: add limits?
 	// FIXME: add payment in gnot?
 	caller := std.PrevRealm().Addr()
-	err := foo.Mint(caller, 1000*10000) // 1k
-	if err != nil {
-		panic(err)
-	}
+	Mint(caller, 1000*10000) // 1k
 }
 
 // administration.
@@ -90,19 +90,13 @@ func Faucet() {
 func Mint(address pusers.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
-	err := foo.Mint(users.Resolve(address), amount)
-	if err != nil {
-		panic(err)
-	}
+	foo.Mint(users.Resolve(address), amount)
 }
 
 func Burn(address pusers.AddressOrName, amount uint64) {
 	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
-	err := foo.Burn(users.Resolve(address), amount)
-	if err != nil {
-		panic(err)
-	}
+	foo.Burn(users.Resolve(address), amount)
 }
 
 // render.
@@ -121,11 +115,5 @@ func Render(path string) string {
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"
-	}
-}
-
-func assertIsAdmin(address std.Address) {
-	if address != admin {
-		panic("restricted access")
 	}
 }
