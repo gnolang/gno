@@ -150,25 +150,25 @@ func Preprocess(store Store, ctx BlockNode, n Node, phase PreprocessPhase) Node 
 	lastpn := packageOf(last)
 	stack = append(stack, last)
 
+	// check varloop scenario file wise
+	nn := doPreprocess(store, last, n, lastpn, stack, closureStack, phase, loopInfos)
 	// if n is file node, set node locations recursively.
 	if fn, ok := n.(*FileNode); ok {
 		pkgPath := ctx.(*PackageNode).PkgPath
 		fileName := string(fn.Name)
 		SetNodeLocations(pkgPath, fileName, fn)
-	}
-	// check varloop scenario file wise
-	nn := initialPreprocess(store, last, n, lastpn, stack, closureStack, phase, loopInfos)
 
-	if fn, ok := n.(*FileNode); ok {
+		// var loop exists, reprocess
 		if len(loopInfos) != 0 {
 			reprocess(store, fn, loopInfos)
 			loopInfos = nil
 		}
 	}
+
 	return nn
 }
 
-func initialPreprocess(store Store, last BlockNode, n Node, lastpn *PackageNode, stack []BlockNode, closureStack []BlockNode, phase PreprocessPhase, loopInfos map[Name][]*LoopInfo) Node {
+func doPreprocess(store Store, last BlockNode, n Node, lastpn *PackageNode, stack []BlockNode, closureStack []BlockNode, phase PreprocessPhase, loopInfos map[Name][]*LoopInfo) Node {
 	// iterate over all nodes recursively and calculate
 	// BlockValuePath for each NameExpr.
 	nn := Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -4029,7 +4029,7 @@ func reprocess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 			switch cn := n.(type) {
 			case *FuncDecl: // all reProcess happens in the root funcDecl, for convenience
 				if cn.Name == targetFn {
-					cn = wipeAndRepreocess(store, bn, cn).(*FuncDecl)
+					cn = wipeAndReprocess(store, bn, cn).(*FuncDecl)
 				}
 				delete(loopInfos, targetFn)
 				if len(loopInfos) == 0 {
@@ -4047,7 +4047,7 @@ func reprocess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 	return
 }
 
-func wipeAndRepreocess(store Store, last BlockNode, bn BlockNode) Node {
+func wipeAndReprocess(store Store, last BlockNode, bn BlockNode) Node {
 	resetStaticBlock(bn)
 	nn := Preprocess(store, last, bn, PHASE_CORE)
 	return nn
