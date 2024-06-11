@@ -1131,7 +1131,15 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 
 	val, _ := types.RandValidator(true, 10)
 	vals := types.NewValidatorSet([]*types.Validator{val})
-	app := &initChainApp{vals: vals.ABCIValidatorUpdates()}
+	appVals := vals.ABCIValidatorUpdates()
+	// returns the vals on InitChain
+	app := &abci.MockApplication{
+		InitChainFn: func(req abci.RequestInitChain) abci.ResponseInitChain {
+			return abci.ResponseInitChain{
+				Validators: appVals,
+			}
+		},
+	}
 	clientCreator := proxy.NewLocalClientCreator(app)
 
 	config, genesisFile := ResetConfig("handshake_test_")
@@ -1161,22 +1169,18 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 	assert.Equal(t, newValAddr, expectValAddr)
 }
 
-// returns the vals on InitChain
-type initChainApp struct {
-	abci.BaseApplication
-	vals []abci.ValidatorUpdate
-}
-
-func (ica *initChainApp) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
-	return abci.ResponseInitChain{
-		Validators: ica.vals,
-	}
-}
-
 func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 	t.Parallel()
 
-	app := &initTxsApp{}
+	const numInitResponses = 42
+
+	app := &abci.MockApplication{
+		InitChainFn: func(req abci.RequestInitChain) abci.ResponseInitChain {
+			return abci.ResponseInitChain{
+				TxResponses: make([]abci.ResponseDeliverTx, numInitResponses),
+			}
+		},
+	}
 	clientCreator := proxy.NewLocalClientCreator(app)
 
 	config, genesisFile := ResetConfig("handshake_test_")
@@ -1203,17 +1207,5 @@ func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 
 	if len(res.DeliverTxs) != numInitResponses {
 		t.Fatalf("Expected %d genesis tx responses, got %d", numInitResponses, len(res.DeliverTxs))
-	}
-}
-
-const numInitResponses = 42
-
-type initTxsApp struct {
-	abci.BaseApplication
-}
-
-func (ica *initTxsApp) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
-	return abci.ResponseInitChain{
-		TxResponses: make([]abci.ResponseDeliverTx, numInitResponses),
 	}
 }
