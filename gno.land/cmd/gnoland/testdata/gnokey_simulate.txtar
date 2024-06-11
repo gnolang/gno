@@ -1,0 +1,93 @@
+# test for gnokey maketx -simulate options, and how they return any errors
+
+loadpkg gno.land/r/hello $WORK/hello
+
+# start a new node
+gnoland start
+
+# Initial state: assert that sequence == 0.
+gnokey query auth/accounts/$USER_ADDR_test1
+stdout '"sequence": "0"'
+
+# attempt adding the "test" package.
+# the package has a syntax error; simulation should catch this ahead of time and prevent the tx.
+# -simulate test
+! gnokey maketx addpkg -pkgdir $WORK/test -pkgpath gno.land/r/test -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate test test1
+gnokey query auth/accounts/$USER_ADDR_test1
+stdout '"sequence": "0"'
+# -simulate only
+! gnokey maketx addpkg -pkgdir $WORK/test -pkgpath gno.land/r/test -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate only test1
+gnokey query auth/accounts/$USER_ADDR_test1
+stdout '"sequence": "0"'
+# -simulate skip
+! gnokey maketx addpkg -pkgdir $WORK/test -pkgpath gno.land/r/test -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -simulate skip test1
+gnokey query auth/accounts/$USER_ADDR_test1
+stdout '"sequence": "1"'
+
+# attempt calling hello.SetName correctly.
+# -simulate test and skip should do it successfully, -simulate only should not.
+# -simulate test
+gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args John -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate test test1
+gnokey query auth/accounts/$USER_ADDR_test1
+stdout '"sequence": "2"'
+gnokey query vm/qeval --data "gno.land/r/hello\nHello()"
+stdout 'Hello, John!'
+# -simulate only
+gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args Paul -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
+gnokey query auth/accounts/$USER_ADDR_test1
+stdout '"sequence": "2"'
+gnokey query vm/qeval --data "gno.land/r/hello\nHello()"
+stdout 'Hello, John!'
+# -simulate skip
+gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args George -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate skip test1
+gnokey query auth/accounts/$USER_ADDR_test1
+stdout '"sequence": "3"'
+gnokey query vm/qeval --data "gno.land/r/hello\nHello()"
+stdout 'Hello, George!'
+
+# attempt calling hello.Grumpy (always panics).
+# all calls should fail, however -test skip should increase the account sequence.
+# none should change the name (ie. panic rollbacks).
+# -simulate test
+! gnokey maketx call -pkgpath gno.land/r/hello -func Grumpy -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate test test1
+gnokey query auth/accounts/$USER_ADDR_test1
+stdout '"sequence": "3"'
+gnokey query vm/qeval --data "gno.land/r/hello\nHello()"
+stdout 'Hello, George!'
+# -simulate only
+! gnokey maketx call -pkgpath gno.land/r/hello -func Grumpy -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
+gnokey query auth/accounts/$USER_ADDR_test1
+stdout '"sequence": "3"'
+gnokey query vm/qeval --data "gno.land/r/hello\nHello()"
+stdout 'Hello, George!'
+# -simulate skip
+! gnokey maketx call -pkgpath gno.land/r/hello -func Grumpy -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate skip test1
+gnokey query auth/accounts/$USER_ADDR_test1
+stdout '"sequence": "4"'
+gnokey query vm/qeval --data "gno.land/r/hello\nHello()"
+stdout 'Hello, George!'
+
+-- test/test.gno --
+package test
+
+func Render(path string) string {
+ 	return 89
+}
+
+-- hello/hello.gno --
+package hello
+
+var name = "Ringo"
+
+func SetName(newName string) {
+	name = newName
+}
+
+func Hello() string {
+	return "Hello, " + name + "!"
+}
+
+func Grumpy() string {
+	name = "SCOUNDREL"
+	panic("YOU MAY NOT GREET ME, " + name)
+}

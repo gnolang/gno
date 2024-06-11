@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 
 	"dario.cat/mergo"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -16,13 +17,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	p2p "github.com/gnolang/gno/tm2/pkg/p2p/config"
+	telemetry "github.com/gnolang/gno/tm2/pkg/telemetry/config"
 )
 
 var (
 	errInvalidMoniker                    = errors.New("moniker not set")
 	errInvalidDBBackend                  = errors.New("invalid DB backend")
 	errInvalidDBPath                     = errors.New("invalid DB path")
-	errInvalidGenesisPath                = errors.New("invalid genesis path")
 	errInvalidPrivValidatorKeyPath       = errors.New("invalid private validator key path")
 	errInvalidPrivValidatorStatePath     = errors.New("invalid private validator state file path")
 	errInvalidABCIMechanism              = errors.New("invalid ABCI mechanism")
@@ -52,6 +53,7 @@ type Config struct {
 	Mempool      *mem.MempoolConfig   `toml:"mempool" comment:"##### mempool configuration options #####"`
 	Consensus    *cns.ConsensusConfig `toml:"consensus" comment:"##### consensus configuration options #####"`
 	TxEventStore *eventstore.Config   `toml:"tx_event_store" comment:"##### event store #####"`
+	Telemetry    *telemetry.Config    `toml:"telemetry" comment:"##### node telemetry #####"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
@@ -63,10 +65,41 @@ func DefaultConfig() *Config {
 		Mempool:      mem.DefaultMempoolConfig(),
 		Consensus:    cns.DefaultConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
+		Telemetry:    telemetry.DefaultTelemetryConfig(),
 	}
 }
 
 type Option func(cfg *Config)
+
+// LoadConfig loads the node configuration from disk
+func LoadConfig(root string) (*Config, error) {
+	// Initialize the config as default
+	var (
+		cfg        = DefaultConfig()
+		configPath = filepath.Join(root, defaultConfigPath)
+	)
+
+	if !osm.FileExists(configPath) {
+		return nil, fmt.Errorf("config file at %q does not exist", configPath)
+	}
+
+	// Load the configuration
+	loadedCfg, loadErr := LoadConfigFile(configPath)
+	if loadErr != nil {
+		return nil, loadErr
+	}
+
+	// Merge the loaded config with the default values.
+	// This is done in case the loaded config is missing values
+	if err := mergo.Merge(loadedCfg, cfg); err != nil {
+		return nil, err
+	}
+
+	// Set the root directory
+	loadedCfg.SetRootDir(root)
+
+	return loadedCfg, nil
+}
 
 // LoadOrMakeConfigWithOptions loads the configuration located in the given
 // root directory, at [defaultConfigFilePath].
@@ -77,7 +110,7 @@ func LoadOrMakeConfigWithOptions(root string, opts ...Option) (*Config, error) {
 	// Initialize the config as default
 	var (
 		cfg        = DefaultConfig()
-		configPath = join(root, defaultConfigFilePath)
+		configPath = filepath.Join(root, defaultConfigPath)
 	)
 
 	// Config doesn't exist, create it
@@ -139,6 +172,7 @@ func TestConfig() *Config {
 		Mempool:      mem.TestMempoolConfig(),
 		Consensus:    cns.TestConsensusConfig(),
 		TxEventStore: eventstore.DefaultEventStoreConfig(),
+		Telemetry:    telemetry.DefaultTelemetryConfig(),
 	}
 }
 
@@ -161,12 +195,16 @@ func (cfg *Config) EnsureDirs() error {
 		return fmt.Errorf("no root directory, %w", err)
 	}
 
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultConfigDir), DefaultDirPerm); err != nil {
 		return fmt.Errorf("no config directory, %w", err)
 	}
 
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultDataDir), DefaultDirPerm); err != nil {
-		return fmt.Errorf("no data directory, %w", err)
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultSecretsDir), DefaultDirPerm); err != nil {
+		return fmt.Errorf("no secrets directory, %w", err)
+	}
+
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultDBDir), DefaultDirPerm); err != nil {
+		return fmt.Errorf("no DB directory, %w", err)
 	}
 
 	return nil
@@ -194,32 +232,43 @@ func (cfg *Config) ValidateBasic() error {
 }
 
 // -----------------------------------------------------------------------------
-// BaseConfig
 
 var (
-	defaultConfigDir = "config"
-	defaultDataDir   = "data"
+	DefaultDBDir      = "db"
+	DefaultConfigDir  = "config"
+	DefaultSecretsDir = "secrets"
 
-	defaultConfigFileName   = "config.toml"
-	defaultGenesisJSONName  = "genesis.json"
+	DefaultConfigFileName   = "config.toml"
 	defaultNodeKeyName      = "node_key.json"
 	defaultPrivValKeyName   = "priv_validator_key.json"
 	defaultPrivValStateName = "priv_validator_state.json"
 
-	defaultConfigFilePath   = filepath.Join(defaultConfigDir, defaultConfigFileName)
-	defaultGenesisJSONPath  = filepath.Join(defaultConfigDir, defaultGenesisJSONName)
-	defaultPrivValKeyPath   = filepath.Join(defaultConfigDir, defaultPrivValKeyName)
-	defaultPrivValStatePath = filepath.Join(defaultDataDir, defaultPrivValStateName)
-	defaultNodeKeyPath      = filepath.Join(defaultConfigDir, defaultNodeKeyName)
+	defaultConfigPath       = filepath.Join(DefaultConfigDir, DefaultConfigFileName)
+	defaultPrivValKeyPath   = filepath.Join(DefaultSecretsDir, defaultPrivValKeyName)
+	defaultPrivValStatePath = filepath.Join(DefaultSecretsDir, defaultPrivValStateName)
+	defaultNodeKeyPath      = filepath.Join(DefaultSecretsDir, defaultNodeKeyName)
 )
 
-// BaseConfig defines the base configuration for a Tendermint node
+// BaseConfig defines the base configuration for a Tendermint node.
 type BaseConfig struct {
 	// chainID is unexposed and immutable but here for convenience
 	chainID string
 
 	// The root directory for all data.
-	// This should be set in viper so it can unmarshal into this struct
+	// The node directory contains:
+	//
+	//	┌── db/
+	//	│   ├── blockstore.db (folder)
+	//	│   ├── gnolang.db (folder)
+	//	│   └── state.db (folder)
+	//	├── wal/
+	//	│   └── cs.wal (folder)
+	//	├── secrets/
+	//	│   ├── priv_validator_state.json
+	//	│   ├── node_key.json
+	//	│   └── priv_validator_key.json
+	//	└── config/
+	//	    └── config.toml (optional)
 	RootDir string `toml:"home"`
 
 	// TCP or UNIX socket address of the ABCI application,
@@ -238,25 +287,18 @@ type BaseConfig struct {
 	// and verifying their commits
 	FastSyncMode bool `toml:"fast_sync" comment:"If this node is many blocks behind the tip of the chain, FastSync\n allows them to catchup quickly by downloading blocks in parallel\n and verifying their commits"`
 
-	// Database backend: goleveldb | cleveldb | boltdb
+	// Database backend: goleveldb | boltdb
 	// * goleveldb (github.com/syndtr/goleveldb - most popular implementation)
 	//   - pure go
 	//   - stable
-	// * cleveldb (uses levigo wrapper)
-	//   - fast
-	//   - requires gcc
-	//   - use cleveldb build tag (go build -tags cleveldb)
 	// * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
 	//   - use boltdb build tag (go build -tags boltdb)
-	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | cleveldb | boltdb\n * goleveldb (github.com/syndtr/goleveldb - most popular implementation)\n  - pure go\n  - stable\n * cleveldb (uses levigo wrapper)\n  - fast\n  - requires gcc\n  - use cleveldb build tag (go build -tags cleveldb)\n * boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
+	DBBackend string `toml:"db_backend" comment:"Database backend: goleveldb | boltdb\n * goleveldb (github.com/syndtr/goleveldb - most popular implementation)\n  - pure go\n  - stable\n* boltdb (uses etcd's fork of bolt - go.etcd.io/bbolt)\n  - EXPERIMENTAL\n  - may be faster is some use-cases (random reads - indexer)\n  - use boltdb build tag (go build -tags boltdb)"`
 
 	// Database directory
 	DBPath string `toml:"db_dir" comment:"Database directory"`
-
-	// Path to the JSON file containing the initial validator set and other meta data
-	Genesis string `toml:"genesis_file" comment:"Path to the JSON file containing the initial validator set and other meta data"`
 
 	// Path to the JSON file containing the private key to use as a validator in the consensus protocol
 	PrivValidatorKey string `toml:"priv_validator_key_file" comment:"Path to the JSON file containing the private key to use as a validator in the consensus protocol"`
@@ -285,7 +327,6 @@ type BaseConfig struct {
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
 func DefaultBaseConfig() BaseConfig {
 	return BaseConfig{
-		Genesis:            defaultGenesisJSONPath,
 		PrivValidatorKey:   defaultPrivValKeyPath,
 		PrivValidatorState: defaultPrivValStatePath,
 		NodeKey:            defaultNodeKeyPath,
@@ -296,7 +337,7 @@ func DefaultBaseConfig() BaseConfig {
 		FastSyncMode:       true,
 		FilterPeers:        false,
 		DBBackend:          db.GoLevelDBBackend.String(),
-		DBPath:             "data",
+		DBPath:             DefaultDBDir,
 	}
 }
 
@@ -314,29 +355,24 @@ func (cfg BaseConfig) ChainID() string {
 	return cfg.chainID
 }
 
-// GenesisFile returns the full path to the genesis.json file
-func (cfg BaseConfig) GenesisFile() string {
-	return join(cfg.RootDir, cfg.Genesis)
-}
-
 // PrivValidatorKeyFile returns the full path to the priv_validator_key.json file
 func (cfg BaseConfig) PrivValidatorKeyFile() string {
-	return join(cfg.RootDir, cfg.PrivValidatorKey)
+	return filepath.Join(cfg.RootDir, cfg.PrivValidatorKey)
 }
 
-// PrivValidatorFile returns the full path to the priv_validator_state.json file
+// PrivValidatorStateFile returns the full path to the priv_validator_state.json file
 func (cfg BaseConfig) PrivValidatorStateFile() string {
-	return join(cfg.RootDir, cfg.PrivValidatorState)
+	return filepath.Join(cfg.RootDir, cfg.PrivValidatorState)
 }
 
 // NodeKeyFile returns the full path to the node_key.json file
 func (cfg BaseConfig) NodeKeyFile() string {
-	return join(cfg.RootDir, cfg.NodeKey)
+	return filepath.Join(cfg.RootDir, cfg.NodeKey)
 }
 
 // DBDir returns the full path to the database directory
 func (cfg BaseConfig) DBDir() string {
-	return join(cfg.RootDir, cfg.DBPath)
+	return filepath.Join(cfg.RootDir, cfg.DBPath)
 }
 
 var defaultMoniker = getDefaultMoniker()
@@ -360,20 +396,16 @@ func (cfg BaseConfig) ValidateBasic() error {
 	}
 
 	// Verify the DB backend
-	if cfg.DBBackend != db.GoLevelDBBackend.String() &&
-		cfg.DBBackend != db.CLevelDBBackend.String() &&
-		cfg.DBBackend != db.BoltDBBackend.String() {
+	// This will reject also any databases that haven't been added with build tags.
+	// always reject memdb, as it shouldn't be used as a real-life database.
+	if cfg.DBBackend == "memdb" ||
+		!slices.Contains(db.BackendList(), db.BackendType(cfg.DBBackend)) {
 		return errInvalidDBBackend
 	}
 
 	// Verify the DB path is set
 	if cfg.DBPath == "" {
 		return errInvalidDBPath
-	}
-
-	// Verify the genesis path is set
-	if cfg.Genesis == "" {
-		return errInvalidGenesisPath
 	}
 
 	// Verify the validator private key path is set
