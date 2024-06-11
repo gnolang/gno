@@ -1729,12 +1729,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
 				// Cond consts become bool *ConstExprs.
-				checkWithoutConvertType(store, last, &n.Cond, BoolType, false)
+				checkOrConvertBoolType(store, last, &n.Cond, BoolType, false)
 
 			// TRANS_LEAVE -----------------------
 			case *IfStmt:
 				// Cond consts become bool *ConstExprs.
-				checkWithoutConvertType(store, last, &n.Cond, BoolType, false)
+				checkOrConvertBoolType(store, last, &n.Cond, BoolType, false)
 
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
@@ -2490,18 +2490,14 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 	}
 }
 
-func checkWithoutConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) {
+// like checkOrConvertType() but for bools (ie. for and if).
+func checkOrConvertBoolType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) {
 	if cx, ok := (*x).(*ConstExpr); ok {
 		convertConst(store, last, cx, t)
 	} else if *x != nil { // XXX if x != nil && t != nil {
 		xt := evalStaticTypeOf(store, last, *x)
 		if t != nil {
 			checkType(xt, t, autoNative)
-		}
-		if isUntyped(xt) {
-			if t == nil {
-				t = defaultTypeOf(xt)
-			}
 		}
 	}
 }

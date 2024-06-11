@@ -245,7 +245,7 @@ func main() {
 	m.RunMain()
 }
 
-func BenchmarkForLoop(b *testing.B) {
+func BenchmarkPreprocessForLoop(b *testing.B) {
 	m := NewMachine("test", nil)
 	c := `package test
 func main() {
