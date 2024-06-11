@@ -137,7 +137,7 @@ func DisableFaucet() {
 	fauceted = false
 }
 
-// Render
+// Rendering
 
 func Render(path string) string {
 	parts := strings.Split(path, "/")

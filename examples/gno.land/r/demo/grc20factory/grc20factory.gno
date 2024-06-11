@@ -172,7 +172,7 @@ func Render(path string) string {
 		symbol := parts[0]
 		t := mustTokenBySymbol(symbol)
 		return t.token.RenderHome()
-	case c == 3 && parts[1] == "balance": // pkgpath:symbol/balance/address_or_username
+	case c == 3 && parts[1] == "balance": // pkgpath:symbol/balance/address
 		symbol := parts[0]
 
 		t := mustTokenBySymbol(symbol)
