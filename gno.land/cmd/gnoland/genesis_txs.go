@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -12,6 +13,8 @@ import (
 type txsCfg struct {
 	commonCfg
 }
+
+var errInvalidGenesisStateType = errors.New("invalid genesis state type")
 
 // newTxsCmd creates the genesis txs subcommand
 func newTxsCmd(io commands.IO) *commands.Command {
@@ -48,7 +51,11 @@ func appendGenesisTxs(genesis *types.GenesisDoc, txs []std.Tx) error {
 		genesis.AppState = gnoland.GnoGenesisState{}
 	}
 
-	state := genesis.AppState.(gnoland.GnoGenesisState)
+	// Make sure the app state is the Gno genesis state
+	state, ok := genesis.AppState.(gnoland.GnoGenesisState)
+	if !ok {
+		return errInvalidGenesisStateType
+	}
 
 	// Left merge the transactions
 	fileTxStore := txStore(txs)
