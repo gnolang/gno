@@ -26,15 +26,15 @@ type Post struct {
 }
 
 type Memeland struct {
-	ownable.Transferrable
+	ownable.Ownable
 	Posts       []*Post
 	MemeCounter seqid.ID
 }
 
 func NewMemeland() *Memeland {
 	return &Memeland{
-		Transferrable: ownable.New(),
-		Posts:         make([]*Post, 0),
+		Ownable: ownable.New(),
+		Posts:   make([]*Post, 0),
 	}
 }
 
@@ -160,8 +160,8 @@ func (m *Memeland) RemovePost(id string) string {
 		panic("id cannot be empty")
 	}
 
-	if !prevRealmIsOwner(m.Owner()) {
-		panic("unauthorized; address is not owner")
+	if !callerIsOwner(m.Owner()) {
+		panic("unauthorized; caller is not owner")
 	}
 
 	for i, post := range m.Posts {
@@ -237,4 +237,8 @@ func (p PostSorter) Swap(i, j int) {
 
 func (p PostSorter) Less(i, j int) bool {
 	return p.LessF(i, j)
+}
+
+func callerIsOwner(addr std.Address) bool {
+	return std.PrevRealm().Addr() == addr
 }
