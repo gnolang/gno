@@ -290,8 +290,13 @@ func TestDupNamesMustPanic(t *testing.T) {
 			amino.GetCallersDirname(),
 		)
 	}
-	// BUG currently following new test does NOT panic.
-	// Commenting out so it doesn't break for now.
+	makepkg().WithTypes(
+		tests.EmptyStruct{}, "A",
+		tests.PrimitivesStruct{}, "B",
+		tests.ShortArraysStruct{}, "C",
+	)
+	// BUG? currently following new test does NOT panic.
+	// Commenting out so it doesn't break.
 	//
 	// assert.Panics(t, func() {
 	// 	makepkg().WithTypes(
