@@ -225,7 +225,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// (e.g. through recursion for a dependent)
 				} else {
 					d := n.(Decl)
-					checkAssignmentMismatch(d)
+					if cd, ok := d.(*ValueDecl); ok {
+						checkAssignmentMismatch(cd)
+					}
 					// recursively predefine dependencies.
 					d2, ppd := predefineNow(store, last, d)
 					if ppd {
@@ -3050,14 +3052,12 @@ func checkIntegerType(xt Type) {
 	}
 }
 
-func checkAssignmentMismatch(d Decl) {
-	if cd, ok := d.(*ValueDecl); ok {
-		numNames := len(cd.NameExprs)
-		numValues := len(cd.Values)
-		if numValues > 0 && numValues != numNames {
-			if _, ok := cd.Values[0].(*CallExpr); !ok {
-				panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
-			}
+func checkAssignmentMismatch(cd *ValueDecl) {
+	numNames := len(cd.NameExprs)
+	numValues := len(cd.Values)
+	if numValues > 0 && numValues != numNames {
+		if _, ok := cd.Values[0].(*CallExpr); !ok {
+			panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
 		}
 	}
 }
