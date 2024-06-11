@@ -254,8 +254,15 @@ $ gnoland secrets get NodeKey
 Node ID:  g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6
 
 # The Public IP of the Node
-$ curl ifconfig.me/ip
-1.2.3.4 # USE YOUR OWN IP
+
+You need the IP information about the network interface that you wish to connect from external nodes.
+
+If you wish to only connect from nodes in the same network, using a private IP should suffice.
+
+However, if you wish to connect from all nodes without any specific limitations, use your public IP.
+
+$ curl ifconfig.me/ip # GET PUBLIC IP
+1.2.3.4 # USE YOUR OWN PUBLIC IP
 ```
 
 ## 10. Configure the persistent_peers list
