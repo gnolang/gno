@@ -40,6 +40,8 @@ Network transaction fees paid on the Gno.land in `GNOT` are collected, from whic
 
 2. **User-owned keys :** A key that is generated when a new account is created using the `gnokey` command. It is used to sign transactions.
 
+3. **Node Key :** A key used for communicating with other nodes. It is automatically created when running the `gnoland secrets init` command. A validator may check their Node Key by running the `gnoland secrets get NodeKey` command.
+
 ### What stage is the Gno.land project in?
 
 Gno.land is currently in Testnet 3, the single-node testnet stage. The next version, Testnet 4, is scheduled to go live in Q2 2024, which will include a validator set implementation for a multinode environment.
