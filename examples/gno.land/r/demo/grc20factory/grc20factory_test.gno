@@ -3,15 +3,19 @@ package grc20factory
 import (
 	"std"
 	"testing"
+
+	"gno.land/p/demo/testutils"
 )
 
 func TestReadOnlyPublicMethods(t *testing.T) {
-	admin := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
-	manfred := std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
-	unknown := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // valid but never used.
+
+	admin := testutils.TestAddress("admin")     // g1v9kxjcm9ta047h6lta047h6lta047h6lzd40gh
+	manfred := testutils.TestAddress("manfred") // g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+	unknown := testutils.TestAddress("unknown") // // valid but never used
+
 	NewTokenWithAdmin("Foo", "FOO", 4, 10000000000, admin)
 	NewTokenWithAdmin("Bar", "BAR", 4, 10000000, admin)
-	mustTokenBySymbol("FOO").adminToken.Mint(manfred, 100000000)
+	mustTokenBySymbol("FOO").token.Mint(manfred, 100000000)
 
 	type test struct {
 		name    string

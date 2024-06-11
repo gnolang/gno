@@ -22,23 +22,25 @@ type tokenWithAdmin struct {
 
 var tokens avl.Tree // symbol -> tokenWithAdmin
 
-func NewToken(name, symbol string, decimals uint, initialMint uint64) {
+func NewToken(name, symbol string, decimals uint8, initialMint uint64) {
 	admin := std.PrevRealm().Addr()
 	NewTokenWithAdmin(name, symbol, decimals, initialMint, admin)
 }
 
-func NewTokenWithAdmin(name, symbol string, decimals uint, initialMint uint64, admin std.Address) {
+func NewTokenWithAdmin(name, symbol string, decimals uint8, initialMint uint64, admin std.Address) {
 	exists := tokens.Has(symbol)
 	if exists {
-		panic("token already exists")
+		err := ufmt.Sprintf("token with symbol $%s already exists", symbol)
+		panic(err)
 	}
 
 	newToken := grc20.NewGRC20Token(name, symbol, decimals)
 	newToken.Mint(admin, initialMint)
 
 	t := tokenWithAdmin{
-		token: newToken,
-		admin: admin,
+		token:    newToken,
+		admin:    admin,
+		fauceted: false, // faucet disabled by default
 	}
 
 	tokens.Set(symbol, &t)
@@ -59,7 +61,7 @@ func BalanceOf(symbol string, owner std.Address) uint64 {
 
 func Allowance(symbol string, owner, spender std.Address) uint64 {
 	t := mustTokenBySymbol(symbol)
-	return t.adminToken.Allowance(owner, spender)
+	return t.token.Allowance(owner, spender)
 }
 
 // Setters
@@ -68,21 +70,19 @@ func Transfer(symbol string, to std.Address, amount uint64) {
 	t := mustTokenBySymbol(symbol)
 	caller := std.PrevRealm().Addr()
 
-	t.adminToken.Transfer(caller, to, amount)
+	t.token.Transfer(to, amount)
 }
 
 func Approve(symbol string, spender std.Address, amount uint64) {
 	t := mustTokenBySymbol(symbol)
 	caller := std.PrevRealm().Addr()
 
-	t.adminToken.Approve(caller, spender, amount)
+	t.token.Approve(spender, amount)
 }
 
 func TransferFrom(symbol string, from, to std.Address, amount uint64) {
 	t := mustTokenBySymbol(symbol)
-	caller := std.PrevRealm().Addr()
-
-	t.token.TransferFrom(caller, from, to, amount)
+	t.token.TransferFrom(from, to, amount)
 }
 
 // Faucet
@@ -96,7 +96,7 @@ func Faucet(symbol string) {
 
 	// Mint 1000 tokens to caller
 	caller := std.PrevRealm().Addr()
-	t.token.Mint(caller, 1000*t.token.Decimals())
+	t.token.Mint(caller, 1000*10*uint64(t.token.Decimals()))
 }
 
 // Administration
@@ -143,7 +143,7 @@ func renderList() string {
 
 	tokens.Iterate("", "", func(key string, value interface{}) bool {
 		t := value.(grc20.Token)
-		buf.Write(ufmt.Sprintf("Token: %s %s %d\n\n", t.Name(), t.Symbol(), t.Decimals()))
+		buf.WriteString(ufmt.Sprintf("[Token $%s](r/demo/grc20factory:%s)\n\n", t.Symbol()))
 
 		return false
 	})
@@ -190,10 +190,4 @@ func mustTokenBySymbol(symbol string) *tokenWithAdmin {
 	}
 
 	return t.(*tokenWithAdmin)
-}
-
-func checkErr(err error) {
-	if err != nil {
-		panic(err)
-	}
 }
