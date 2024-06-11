@@ -4,7 +4,8 @@ id: gno-tooling-gnoland
 
 # gnoland
 
-`gnoland` is the Gno.land blockchain client binary, which is capable of managing node working files, as well as starting the blockchain client itself.
+`gnoland` is the Gno.land blockchain client binary, which is capable of managing 
+node working files, as well as starting the blockchain client itself.
 
 ### gnoland start [flags]
 
@@ -178,7 +179,8 @@ Manages genesis transactions through input files.
 
 ### gnoland secrets <subcommand> [flags] [<arg>…]
 
-The gno secrets manipulation suite for managing the validator key, p2p key and validator state.
+The gno secrets manipulation suite for managing the validator key, p2p key and 
+validator state.
 
 #### SUBCOMMANDS
 
@@ -190,7 +192,8 @@ The gno secrets manipulation suite for managing the validator key, p2p key and v
 
 ### gnoland secrets init [flags] [<key>]
 
-Initializes the validator private key, the node p2p key and the validator's last sign state. If a key is provided, it initializes the specified key.
+Initializes the validator private key, the node p2p key and the validator's last 
+sign state. If a key is provided, it initializes the specified key.
 
 - Available keys
   - `ValidatorPrivateKey` : The private key of the validator, which is different from the private key of the wallet.
@@ -219,7 +222,8 @@ Node key saved at gnoland-data/secrets/node_key.json
 
 ### gnoland secrets verify [flags] [<key>]
 
-Verifies the validator private key, the node p2p key and the validator's last sign state. If a key is provided, it verifies the specified key value.
+Verifies the validator private key, the node p2p key and the validator's last 
+sign state. If a key is provided, it verifies the specified key value.
 
 - Available keys: [ValidatorPrivateKey, NodeKey, ValidatorState]
 
@@ -244,7 +248,8 @@ Node P2P key at gnoland-data/secrets/node_key.json is valid
 
 ### gnoland secrets get [flags] [<key>]
 
-Shows the validator private key, the node p2p key and the validator's last sign state. If a key is provided, it shows the specified key value.
+Shows the validator private key, the node p2p key and the validator's last sign 
+state. If a key is provided, it shows the specified key value.
 
 - Available keys: [`ValidatorPrivateKey`, `NodeKey`, `ValidatorState`]
 
@@ -297,7 +302,8 @@ The gno config manipulation suite for editing base and module configurations.
 
 ### gnoland config init [flags]
 
-Initializes the Gno node configuration locally with default values, which includes the base and module configurations.
+Initializes the Gno node configuration locally with default values, which 
+includes the base and module configurations.
 
 #### FLAGS
 
@@ -314,7 +320,8 @@ Default configuration initialized at gnoland-data/config/config.toml
 
 ### gnoland config set <key> <value>
 
-Edits the Gno node configuration at the given path by setting the option specified at `<key>` to the given `<value>`.
+Edits the Gno node configuration at the given path by setting the option 
+specified at `<key>` to the given `<value>`.
 
 #### FLAGS
 
@@ -322,11 +329,15 @@ Edits the Gno node configuration at the given path by setting the option specifi
 | ------------- | ------ | ---------------------------------------------------------------------------- |
 | `config-path` | String | The path for the `config.toml`. (default: `gnoland-data/config/config.toml`) |
 
-:::info The `config set` command replaces the complexity of manual editing of the `config.toml` file required in Cosmos chains. :::
+:::info
+The `config set` command replaces the complexity of manual editing of the 
+`config.toml` file required in Cosmos chains. 
+:::
 
 ### gnoland config get <key>
 
-Shows the Gno node configuration at the given path by fetching the option specified at `<key>`.
+Shows the Gno node configuration at the given path by fetching the option 
+specified at `<key>`.
 
 #### FLAGS
 

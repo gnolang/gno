@@ -6,7 +6,20 @@ id: validators-running-a-validator
 
 ## Becoming a Gno.land validator
 
-The Gno.land blockchain is powered by the [Tendermint2](https://docs.gno.land/concepts/tendermint2) (TM2) consensus, which involves committing of new blocks and broadcasting votes by multiple validators selected via governance in [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution) (PoC). While traditional Proof of Stake (PoS) blockchains such as the Cosmos Hub required validators to secure a delegation of staked tokens to join the validator set, no bonding of capital is involved in Gno.land. Rather, the validators on Gno.land are expected to demonstrate their technical expertise and alignment with the project by making continuous, meaningful contributions to the project. Furthermore, the voting power and the transaction fee rewards between validators are distributed evenly to achieve higher decentralization. From a technical perspective, the validator set implementation in Gno.land as its abstracted away into the `r/sys/val` realm ([work in progress](https://github.com/gnolang/gno/issues/1824)), as a form of smart-contract, for modularity, whereas existing blockchains include the validator management logic within the consensus layer.
+The Gno.land blockchain is powered by the [Tendermint2](https://docs.gno.land/concepts/tendermint2) (TM2) consensus, which 
+involves committing of new blocks and broadcasting votes by multiple validators 
+selected via governance in [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution) (PoC). While 
+traditional Proof of Stake (PoS) blockchains such as the Cosmos Hub required 
+validators to secure a delegation of staked tokens to join the validator set, 
+no bonding of capital is involved in Gno.land. Rather, the validators on Gno.land 
+are expected to demonstrate their technical expertise and alignment with the 
+project by making continuous, meaningful contributions to the project. 
+Furthermore, the voting power and the transaction fee rewards between validators
+ are distributed evenly to achieve higher decentralization. From a technical 
+ perspective, the validator set implementation in Gno.land as its abstracted away 
+ into the `r/sys/val` realm ([work in progress](https://github.com/gnolang/gno/issues/1824)), as a form of smart-contract, 
+ for modularity, whereas existing blockchains include the validator management 
+ logic within the consensus layer.
 
 # Start a New Gno Chain and a Validator
 
@@ -193,7 +206,8 @@ For now, obtain the file by
 
 ::: info
 
-This step is currently unavailable. It will be supported in the future after complete implementation of validator set injection with the `r/sys/val` realm.
+This step is currently unavailable. It will be supported in the future after 
+complete implementation of validator set injection with the `r/sys/val` realm.
 
 :::
 
@@ -217,7 +231,8 @@ $ curl ifconfig.me/ip
 
 ## 11. Configure the persistent_peers list
 
-Configure a list of nodes that your validators will always retain a connection with.
+Configure a list of nodes that your validators will always retain a connection 
+with.
 
 ```bash
 $ gnoland config set p2p.persistent_peers "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:26656"
@@ -225,11 +240,14 @@ $ gnoland config set p2p.persistent_peers "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66t
 
 ## 12. Configure the seeds
 
-Configure the list of seed nodes. Seed nodes provide information about other nodes for the validator to connect with the chain, enabling a fast and stable initial connection.
+Configure the list of seed nodes. Seed nodes provide information about other 
+nodes for the validator to connect with the chain, enabling a fast and stable 
+initial connection.
 
 :::info
 
-This is an option to configure the node set as the Seed Mode. However, the option to activate the Seed Mode from the node is currently missing.
+This is an option to configure the node set as the Seed Mode. However, the option 
+to activate the Seed Mode from the node is currently missing.
 
 :::
 
