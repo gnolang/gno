@@ -23,7 +23,7 @@ type Token struct {
 	symbol      string
 	totalSupply uint64
 	decimals    uint8
-	balances    *avl.Tree // std.Address > uint64 balance
+	balances    *avl.Tree // std.Address -> uint64 balance
 	allowances  *avl.Tree // "OwnerAddress:SpenderAddress" -> uint64 allowance
 }
 
@@ -120,7 +120,7 @@ func (t *Token) update(from, to std.Address, value uint64) {
 	if from == emptyAddress {
 		sum, carry := bits.Add64(t.totalSupply, value, 0)
 		if carry != 0 {
-			err := ufmt.Sprintf("GRC20: uint64 overflow: %d + %d", t.totalSupply, value)
+			err := ufmt.Sprintf("GRC20($%s): uint64 overflow: %d + %d", t.symbol, t.totalSupply, value)
 			panic(err)
 		}
 
@@ -129,14 +129,14 @@ func (t *Token) update(from, to std.Address, value uint64) {
 		// Deduct `value` from `from`
 		rawFromBalance, found := t.balances.Get(from.String())
 		if !found {
-			err := ufmt.Sprintf("GRC20: Address %s not found", from)
+			err := ufmt.Sprintf("GRC20($%s): Address %s not found", t.symbol, from)
 			panic(err)
 		}
 
 		fromBalance := rawFromBalance.(uint64)
 
 		if fromBalance < value {
-			err := ufmt.Sprintf("GRC20: Insufficient balance %s, %s, %s", fromBalance, from, value)
+			err := ufmt.Sprintf("GRC20($%s): Insufficient balance %s, %s, %s", t.symbol, fromBalance, from, value)
 			panic(err)
 		}
 
@@ -198,12 +198,25 @@ func (t *Token) spendAllowance(owner, spender std.Address, value uint64) {
 
 	if currentAllowance != math.MaxUint64 {
 		if currentAllowance < value {
-			err := ufmt.Sprintf("GRC20: insufficient allowance: %s, %s, %d", spender.String(), currentAllowance, value)
+			err := ufmt.Sprintf("GRC20($%s): insufficient allowance: %s, %s, %d", t.symbol, spender.String(), currentAllowance, value)
 			panic(err)
 		}
 
 		t.approve(owner, spender, currentAllowance-value, false)
 	}
+}
+
+// Rendering
+
+// RenderHome renders current values for the token instance
+func (t *Token) RenderHome() string {
+	str := ""
+	str += ufmt.Sprintf("# %s ($%s)\n\n", t.name, t.symbol)
+	str += ufmt.Sprintf("* **Decimals**: %d\n", t.decimals)
+	str += ufmt.Sprintf("* **Total supply**: %d\n", t.totalSupply)
+	str += ufmt.Sprintf("* **Known owners**: %d\n", t.balances.Size())
+
+	return str
 }
 
 // Util
