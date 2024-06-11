@@ -42,6 +42,10 @@ func TestRoutes(t *testing.T) {
 		{"/gor", found, "/game-of-realms"},
 		{"/blog", found, "/r/gnoland/blog"},
 		{"/404-not-found", notFound, "/404-not-found"},
+		{"/아스키문자가아닌경로", notFound, "/아스키문자가아닌경로"},
+		{"/%ED%85%8C%EC%8A%A4%ED%8A%B8", notFound, "/테스트"},
+		{"/グノー", notFound, "/グノー"},
+		{"/⚛️", notFound, "/⚛️"},
 	}
 
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
@@ -65,7 +69,6 @@ func TestRoutes(t *testing.T) {
 			assert.Equal(t, r.status, response.Code)
 
 			assert.Contains(t, response.Body.String(), r.substring)
-			// println(response.Body.String())
 		})
 	}
 }
