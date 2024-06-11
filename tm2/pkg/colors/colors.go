@@ -113,9 +113,11 @@ func ColoredBytesOnlyAscii(data []byte, textColor func(...interface{}) string) s
 	for _, b := range data {
 		if 0x21 <= b && b < 0x7F {
 			s += textColor(string(b))
-		} else {
-			s += string(b)
+			
+			continue
 		}
+		
+		s += string(b)
 	}
 	return s
 }
