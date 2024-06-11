@@ -15,6 +15,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -52,14 +53,14 @@ type devCfg struct {
 	txsFile         string
 
 	// Node Configuration
-	minimal       bool
-	verbose       bool
-	noWatch       bool
-	noReplay      bool
-	maxGas        int64
-	chainId       string
-	serverMode    bool
-	webHelpRemote string
+	minimal    bool
+	verbose    bool
+	noWatch    bool
+	noReplay   bool
+	maxGas     int64
+	chainId    string
+	serverMode bool
+	webConfig  gnoweb.Config
 }
 
 var defaultDevOptions = &devCfg{
@@ -78,7 +79,9 @@ var defaultDevOptions = &devCfg{
 }
 
 func main() {
-	cfg := &devCfg{}
+	cfg := &devCfg{
+		webConfig: gnoweb.NewDefaultConfig(),
+	}
 
 	stdio := commands.NewDefaultIO()
 	cmd := commands.NewCommand(
@@ -113,16 +116,16 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.webListenerAddr,
-		"web-listener",
+		"web-bind",
 		defaultDevOptions.webListenerAddr,
 		"web server listening address",
 	)
 
 	fs.StringVar(
-		&c.webHelpRemote,
+		&c.webConfig.HelpRemote,
 		"web-help-remote",
-		defaultDevOptions.nodeRPCListenerAddr,
-		"web server help page's remote addr",
+		"",
+		"web server help page's remote addr (default to <node-rpc-listener>)",
 	)
 
 	fs.StringVar(
