@@ -113,6 +113,10 @@ func (s *PreprocessState) needsReprocess() bool {
 	return false
 }
 
+func (s *PreprocessState) reset() {
+	s.loopInfos = make(map[Name][]*LoopInfo)
+}
+
 // This counter ensures (during testing) that certain functions
 // (like ConvertUntypedTo() for bigints and strings)
 // are only called during the preprocessing stage.
@@ -174,7 +178,7 @@ func Preprocess(store Store, ctx BlockNode, n Node, phase PreprocessPhase) Node 
 		// var loop exists, reprocess
 		if preprocessState.needsReprocess() {
 			reprocess(store, fn, preprocessState)
-			preprocessState = nil
+			preprocessState.reset()
 		}
 	}
 
