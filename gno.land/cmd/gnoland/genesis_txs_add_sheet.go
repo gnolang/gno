@@ -58,7 +58,11 @@ func execTxsAddSheet(
 
 		txs, err := std.ParseTxs(ctx, file)
 		if err != nil {
-			return fmt.Errorf("unable to read file, %w", err)
+			return fmt.Errorf("unable to parse file, %w", err)
+		}
+
+		if err = file.Close(); err != nil {
+			return fmt.Errorf("unable to gracefully close file, %w", err)
 		}
 
 		parsedTxs = append(parsedTxs, txs...)
