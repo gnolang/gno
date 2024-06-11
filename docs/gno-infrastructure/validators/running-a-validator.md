@@ -25,11 +25,17 @@ Furthermore, the voting power and the transaction fee rewards between validators
 
 ## 1. Initialize the configurations (required)
 
+- Initializes the Gno node configuration locally with default values, which includes the base and module configurations
+- A required step in order for the Gno.land node to function correctly.
+
 ```bash
 gnoland config init
 ```
 
 ## 2. Initialize the secrets (required)
+
+- initializes the validator private key, the node p2p key and the validator's last sign state
+- A required step which may otherwise prevent blocks from being produced.
 
 ```bash
 gnoland secrets init
@@ -48,6 +54,8 @@ gnoland config set moniker node01
 
 ## 3. Set the rpc connection address (required for connecting with other nodes)
 
+- A configuration to connect with the RPC service (port 26657) when an external client (i.e. a dApp like Adena Wallet) communicates with the chain (transaction request, block height check, etc.).
+
 ```bash
 gnoland config set rpc.laddr "tcp://0.0.0.0:26657"
 
@@ -56,6 +64,8 @@ gnoland config set rpc.laddr "tcp://0.0.0.0:26657"
 ```
 
 ## 4. Set the validator private key (optional)
+
+- Set path of the validator private key. A default value exists. When using a separate secrets folder, you must set the path to the respective location.
 
 :::tip
 
@@ -69,6 +79,8 @@ gnoland config set priv_validator_key_file secrets/priv_validator_key.json
 
 ## 5. Set the validator state (optional)
 
+- Set path of the validator state. A default value exists. When using a separate secrets folder, you must set the path to the respective location.
+
 :::tip
 
 The key file path is relative by default.
@@ -80,6 +92,8 @@ gnoland config set priv_validator_state_file secrets/priv_validator_state.json
 ```
 
 ## 6. Set the node key (optional)
+
+- Set path of the node key. A default path exists. When using a separate secrets folder, you must set the path to the respective location.
 
 :::tip
 
@@ -93,11 +107,15 @@ gnoland config set node_key_file secrets/node_key.json
 
 ## 7. Generate the genesis file (required)
 
+- When the chain starts, the first block will be produced after all of the content inside the genesis file is executed.
+
 ```bash
 gnoland genesis generate
 ```
 
 ## 8. Add a validator (required)
+
+- Add an initial validator. Blocks will not be produced if the chain is started without an active validator.
 
 ```bash
 # check the secrets file generated in step (2)
@@ -195,6 +213,8 @@ gnoland config set node_key_file secrets/node_key.json
 ```
 
 ## 7. Obtain the genesis file of the chain to connect to
+
+- The genesis file of target chain is required to communicate.
 
 :::info
 
