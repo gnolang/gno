@@ -45,8 +45,7 @@ This is experimental and subject to change.
 
 ## Amino in the Wild
 
-* Amino:binary spec in [Tendermint](
-https://github.com/tendermint/tendermint/blob/master/docs/spec/blockchain/encoding.md)
+* Amino:binary spec in [Tendermint](https://github.com/tendermint/tendermint/blob/main/spec/core/encoding.md)
 
 
 # Amino Spec
