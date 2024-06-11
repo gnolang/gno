@@ -3,7 +3,10 @@ package main
 import (
 	"flag"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type txsCfg struct {
@@ -36,4 +39,30 @@ func newTxsCmd(io commands.IO) *commands.Command {
 
 func (c *txsCfg) RegisterFlags(fs *flag.FlagSet) {
 	c.commonCfg.RegisterFlags(fs)
+}
+
+// appendGenesisTxs saves the given transactions to the genesis doc
+func appendGenesisTxs(genesis *types.GenesisDoc, txs []std.Tx) error {
+	// Initialize the app state if it's not present
+	if genesis.AppState == nil {
+		genesis.AppState = gnoland.GnoGenesisState{}
+	}
+
+	state := genesis.AppState.(gnoland.GnoGenesisState)
+
+	// Left merge the transactions
+	fileTxStore := txStore(txs)
+	genesisTxStore := txStore(state.Txs)
+
+	// The genesis transactions have preference with the order
+	// in the genesis.json
+	if err := genesisTxStore.leftMerge(fileTxStore); err != nil {
+		return err
+	}
+
+	// Save the state
+	state.Txs = genesisTxStore
+	genesis.AppState = state
+
+	return nil
 }
