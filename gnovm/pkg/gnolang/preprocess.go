@@ -102,6 +102,17 @@ type LoopInfo struct {
 	label      Name
 }
 
+type PreprocessState struct {
+	loopInfos map[Name][]*LoopInfo
+}
+
+func (s *PreprocessState) needsReprocess() bool {
+	if len(s.loopInfos) != 0 {
+		return true
+	}
+	return false
+}
+
 // This counter ensures (during testing) that certain functions
 // (like ConvertUntypedTo() for bigints and strings)
 // are only called during the preprocessing stage.
@@ -142,7 +153,9 @@ func Preprocess(store Store, ctx BlockNode, n Node, phase PreprocessPhase) Node 
 	// record loop extern infos while preprocess.
 	// loopInfo is aggregated according to their host funcDecl,
 	// to make it convenient for the following up handling.
-	loopInfos := make(map[Name][]*LoopInfo)
+	preprocessState := &PreprocessState{
+		loopInfos: make(map[Name][]*LoopInfo),
+	}
 
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -151,7 +164,7 @@ func Preprocess(store Store, ctx BlockNode, n Node, phase PreprocessPhase) Node 
 	stack = append(stack, last)
 
 	// check varloop scenario file wise
-	nn := doPreprocess(store, last, n, lastpn, stack, closureStack, phase, loopInfos)
+	nn := doPreprocess(store, last, n, lastpn, stack, closureStack, phase, preprocessState)
 	// if n is file node, set node locations recursively.
 	if fn, ok := n.(*FileNode); ok {
 		pkgPath := ctx.(*PackageNode).PkgPath
@@ -159,16 +172,16 @@ func Preprocess(store Store, ctx BlockNode, n Node, phase PreprocessPhase) Node 
 		SetNodeLocations(pkgPath, fileName, fn)
 
 		// var loop exists, reprocess
-		if len(loopInfos) != 0 {
-			reprocess(store, fn, loopInfos)
-			loopInfos = nil
+		if preprocessState.needsReprocess() {
+			reprocess(store, fn, preprocessState)
+			preprocessState = nil
 		}
 	}
 
 	return nn
 }
 
-func doPreprocess(store Store, last BlockNode, n Node, lastpn *PackageNode, stack []BlockNode, closureStack []BlockNode, phase PreprocessPhase, loopInfos map[Name][]*LoopInfo) Node {
+func doPreprocess(store Store, last BlockNode, n Node, lastpn *PackageNode, stack []BlockNode, closureStack []BlockNode, phase PreprocessPhase, preprocessState *PreprocessState) Node {
 	// iterate over all nodes recursively and calculate
 	// BlockValuePath for each NameExpr.
 	nn := Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
@@ -880,7 +893,7 @@ func doPreprocess(store Store, last BlockNode, n Node, lastpn *PackageNode, stac
 						if err == nil {
 							// global loop infos recorded. fileNode-wise.
 							// will be handled while trans_leave FileNode.
-							loopInfos[lastFn] = append(loopInfos[lastFn], loop)
+							preprocessState.loopInfos[lastFn] = append(preprocessState.loopInfos[lastFn], loop)
 						}
 					}
 				}
@@ -1838,7 +1851,7 @@ func doPreprocess(store Store, last BlockNode, n Node, lastpn *PackageNode, stac
 
 										lastFn, err := findLastFn(last) // the host Fn
 										if err == nil {
-											loopInfos[lastFn] = append(loopInfos[lastFn], loop)
+											preprocessState.loopInfos[lastFn] = append(preprocessState.loopInfos[lastFn], loop)
 										}
 										break
 									}
@@ -3982,7 +3995,7 @@ func checkAndRebuildBody(body Body, loops []*LoopInfo, loc Location) Body {
 // traverse from root node, find goto loop, rebuild body.
 // (for/range-loop body has already been rebuilt before)
 // finally get all work done on trans_leave funcDecl.
-func reprocess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
+func reprocess(store Store, bn BlockNode, preprocessState *PreprocessState) {
 	var (
 		loops    []*LoopInfo // per funcDecl
 		targetFn Name        // outer function that contains the loop node
@@ -3994,7 +4007,7 @@ func reprocess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 		case TRANS_ENTER: // find target goto loop, and rebuild body, for/range no need this stage.
 			switch cn := n.(type) {
 			case *FuncDecl:
-				for name, lfs := range loopInfos {
+				for name, lfs := range preprocessState.loopInfos {
 					if cn.Name == name {
 						loops = lfs
 						targetFn = name
@@ -4031,8 +4044,8 @@ func reprocess(store Store, bn BlockNode, loopInfos map[Name][]*LoopInfo) {
 				if cn.Name == targetFn {
 					cn = wipeAndReprocess(store, bn, cn).(*FuncDecl)
 				}
-				delete(loopInfos, targetFn)
-				if len(loopInfos) == 0 {
+				delete(preprocessState.loopInfos, targetFn)
+				if len(preprocessState.loopInfos) == 0 {
 					return cn, TRANS_EXIT
 				}
 				return cn, TRANS_CONTINUE
