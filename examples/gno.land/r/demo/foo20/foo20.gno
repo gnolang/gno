@@ -1,12 +1,14 @@
 package foo20
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/ownable"
-	"gno.land/r/demo/users"
+	"math"
 	"std"
 	"strings"
+
+	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/users"
 
 	pusers "gno.land/p/demo/users"
 )
@@ -27,6 +29,9 @@ func init() {
 
 	// Mint 1M tokens to g125em6arxsnj49vx35f0n0z34putv5ty3376fg5
 	foo.Mint(o.Owner(), 1_000_000*10000)
+
+	// Faucet for token is disabled upon deployment
+	fauceted = false
 }
 
 // Getters
@@ -47,26 +52,18 @@ func TotalSupply() uint64 {
 }
 
 // Decimals returns the decimals of the token
-func Decimals() uint64 {
+func Decimals() uint8 {
 	return foo.Decimals()
 }
 
 // BalanceOf returns the balance of a specific username or address
 func BalanceOf(owner pusers.AddressOrName) uint64 {
-	balance, err := foo.BalanceOf(users.Resolve(owner))
-	if err != nil {
-		panic(err)
-	}
-	return balance
+	return foo.BalanceOf(users.Resolve(owner))
 }
 
 // Allowance returns the allowance of a spender for the owner's tokens
 func Allowance(owner, spender pusers.AddressOrName) uint64 {
-	allowance, err := foo.Allowance(users.Resolve(owner), users.Resolve(spender))
-	if err != nil {
-		panic(err)
-	}
-	return allowance
+	return foo.Allowance(users.Resolve(owner), users.Resolve(spender))
 }
 
 // Fauceted returns if the faucet for foo20 is currently open
@@ -79,21 +76,18 @@ func Fauceted() bool {
 // Transfer transfers `value` amount of tokens to address `to`, and MUST fire the Transfer event
 // The function SHOULD throw if the message caller’s account balance does not have enough tokens to spend
 func Transfer(to pusers.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	foo.Transfer(caller, users.Resolve(to), amount)
+	foo.Transfer(users.Resolve(to), amount)
 }
 
 // Approve allows `spender` to withdraw from your account multiple times, up to the `value` amount
 // If this function is called again it overwrites the current allowance with value
 func Approve(spender pusers.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	foo.Approve(caller, users.Resolve(spender), amount)
+	foo.Approve(users.Resolve(spender), amount)
 }
 
 // TransferFrom transfers `value` amount of tokens from address `from` to address `to`, and MUST fire the Transfer event
 func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	foo.TransferFrom(caller, users.Resolve(from), users.Resolve(to), amount)
+	foo.TransferFrom(users.Resolve(from), users.Resolve(to), amount)
 }
 
 // Faucet
@@ -105,8 +99,8 @@ func Faucet() {
 	}
 
 	// Mint 1000 tokens to caller
-	caller := std.PrevRealm().Addr()
-	Mint(caller, 1000*Decimals())
+	caller := pusers.AddressOrName(std.PrevRealm().Addr().String())
+	Mint(caller, uint64(1000*math.Pow10(int(Decimals()))))
 }
 
 // Administration
@@ -154,8 +148,7 @@ func Render(path string) string {
 		return foo.RenderHome()
 	case c == 2 && parts[0] == "balance": // pkgpath:balance/address_or_username
 		owner := pusers.AddressOrName(parts[1])
-		balance, _ := foo.BalanceOf(users.Resolve(owner))
-		return ufmt.Sprintf("%d\n", balance)
+		return ufmt.Sprintf("%d\n", foo.BalanceOf(users.Resolve(owner)))
 	default:
 		return "404\n"
 	}

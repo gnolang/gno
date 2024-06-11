@@ -5,8 +5,8 @@ package grc20factory
 
 import (
 	"bytes"
+	"math"
 	"std"
-	"strconv"
 	"strings"
 
 	"gno.land/p/demo/avl"
@@ -64,18 +64,22 @@ func Allowance(symbol string, owner, spender std.Address) uint64 {
 	return t.token.Allowance(owner, spender)
 }
 
+// Decimals returns the decimals of the token
+func Decimals(symbol string) uint8 {
+	t := mustTokenBySymbol(symbol)
+	return t.token.Decimals()
+}
+
 // Setters
 
 func Transfer(symbol string, to std.Address, amount uint64) {
 	t := mustTokenBySymbol(symbol)
-	caller := std.PrevRealm().Addr()
 
 	t.token.Transfer(to, amount)
 }
 
 func Approve(symbol string, spender std.Address, amount uint64) {
 	t := mustTokenBySymbol(symbol)
-	caller := std.PrevRealm().Addr()
 
 	t.token.Approve(spender, amount)
 }
@@ -96,7 +100,7 @@ func Faucet(symbol string) {
 
 	// Mint 1000 tokens to caller
 	caller := std.PrevRealm().Addr()
-	t.token.Mint(caller, 1000*10*uint64(t.token.Decimals()))
+	t.token.Mint(caller, uint64(1000*math.Pow10(int(t.token.Decimals()))))
 }
 
 // Administration
@@ -137,13 +141,19 @@ func DisableFaucet(symbol string) {
 //
 
 func renderList() string {
+
 	var buf bytes.Buffer
 
 	buf.WriteString(ufmt.Sprintf("# GRC20 Token Factory\n\n"))
 
+	if tokens.Size() == 0 {
+		buf.WriteString("No tokens are currently registered.")
+		return buf.String()
+	}
+
 	tokens.Iterate("", "", func(key string, value interface{}) bool {
-		t := value.(grc20.Token)
-		buf.WriteString(ufmt.Sprintf("[Token $%s](r/demo/grc20factory:%s)\n\n", t.Symbol()))
+		t := value.(*tokenWithAdmin)
+		buf.WriteString(ufmt.Sprintf("#### [Token $%s](/r/demo/grc20factory:%s)\n\n", t.token.Symbol(), t.token.Symbol()))
 
 		return false
 	})
@@ -168,7 +178,8 @@ func Render(path string) string {
 		t := mustTokenBySymbol(symbol)
 		owner := std.Address(parts[2])
 
-		return strconv.FormatUint(t.token.BalanceOf(owner), 10)
+		bal := t.token.BalanceOf(owner)
+		return ufmt.Sprintf("%s has %d of $%s tokens.", owner.String(), bal, t.token.Symbol())
 	default:
 		return "404\n"
 	}
