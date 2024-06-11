@@ -873,17 +873,25 @@ func (cdc *Codec) MarshalJSONIndent(o interface{}, prefix, indent string) ([]byt
 // ----------------------------------------
 // Other
 
+// Given amino package `pi`, register it with the global codec.
 // NOTE: do not modify the result.
 func RegisterPackage(pi *pkg.Package) *Package {
 	gcdc.RegisterPackage(pi)
 	return pi
 }
 
+// Create an unregistered amino package with args:
+// - (gopkg string) The Go package path, e.g. "github.com/gnolang/gno/tm2/pkg/std"
+// - (p3pkg string) The (shorter) Proto3 package path (no slashes), e.g. "std"
+// - (dirname string) Package directory this is called from. Typical is to use `amino.GetCallersDirname()`
 func NewPackage(gopkg string, p3pkg string, dirname string) *Package {
 	return pkg.NewPackage(gopkg, p3pkg, dirname)
 }
 
-// NOTE: duplicated in pkg/pkg.go
+// Get caller's package directory.
+// Implementation uses `filepath.Dir(runtime.Caller(1))`.
+// NOTE: duplicated in pkg/pkg.go; given what it does and how,
+// both are probably needed.
 func GetCallersDirname() string {
 	dirname := "" // derive from caller.
 	_, filename, _, ok := runtime.Caller(1)
