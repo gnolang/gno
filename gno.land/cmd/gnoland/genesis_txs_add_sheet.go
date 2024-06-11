@@ -20,9 +20,9 @@ var (
 func newTxsAddSheetCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:       "sheet",
-			ShortUsage: "txs add sheet <tx-path ...>",
-			ShortHelp:  "imports transactions into the genesis.json",
+			Name:       "sheets",
+			ShortUsage: "txs add sheets <sheet-path ...>",
+			ShortHelp:  "imports transactions from the given sheets into the genesis.json",
 			LongHelp:   "Imports the transactions from a given transactions sheet to the genesis.json",
 		},
 		commands.NewEmptyConfig(),

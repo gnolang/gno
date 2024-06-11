@@ -62,7 +62,7 @@ func encodeDummyTxs(t *testing.T, txs []std.Tx) []string {
 	return encodedTxs
 }
 
-func TestGenesis_Txs_Add_Sheet(t *testing.T) {
+func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 	t.Parallel()
 
 	t.Run("invalid genesis file", func(t *testing.T) {
@@ -74,7 +74,7 @@ func TestGenesis_Txs_Add_Sheet(t *testing.T) {
 			"genesis",
 			"txs",
 			"add",
-			"sheet",
+			"sheets",
 			"--genesis-path",
 			"dummy-path",
 		}
@@ -99,7 +99,7 @@ func TestGenesis_Txs_Add_Sheet(t *testing.T) {
 			"genesis",
 			"txs",
 			"add",
-			"sheet",
+			"sheets",
 			"--genesis-path",
 			tempGenesis.Name(),
 			"dummy-tx-file",
@@ -125,7 +125,7 @@ func TestGenesis_Txs_Add_Sheet(t *testing.T) {
 			"genesis",
 			"txs",
 			"add",
-			"sheet",
+			"sheets",
 			"--genesis-path",
 			tempGenesis.Name(),
 		}
@@ -150,7 +150,7 @@ func TestGenesis_Txs_Add_Sheet(t *testing.T) {
 			"genesis",
 			"txs",
 			"add",
-			"sheet",
+			"sheets",
 			"--genesis-path",
 			tempGenesis.Name(),
 			tempGenesis.Name(), // invalid txs file
@@ -191,7 +191,7 @@ func TestGenesis_Txs_Add_Sheet(t *testing.T) {
 			"genesis",
 			"txs",
 			"add",
-			"sheet",
+			"sheets",
 			"--genesis-path",
 			tempGenesis.Name(),
 			txsFile.Name(),
@@ -251,7 +251,7 @@ func TestGenesis_Txs_Add_Sheet(t *testing.T) {
 			"genesis",
 			"txs",
 			"add",
-			"sheet",
+			"sheets",
 			"--genesis-path",
 			tempGenesis.Name(),
 			txsFile.Name(),
