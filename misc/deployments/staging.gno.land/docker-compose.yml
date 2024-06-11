@@ -1,9 +1,10 @@
 
 services:
   traefik:
-    image: "traefik:v2.10"
+    image: "traefik:v2.11"
     restart: unless-stopped
     command:
+      - "--api.insecure=true"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
@@ -60,7 +61,7 @@ services:
       - gnoweb
       - --bind=0.0.0.0:8888
       - --remote=http://traefik:26657
-      - --faucet-url=https://faucet-api.staging.gnoteam.com
+      - --faucet-url=https://faucet-api.staging.gno.land
       - --captcha-site=$CAPTCHA_SITE_KEY
       - --with-analytics
       - --help-chainid=staging
