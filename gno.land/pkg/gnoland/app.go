@@ -97,16 +97,6 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
-			// XXX: pseudo code
-			valsetRealm := cfg.GetGnoSDKCfg("valset-trusted-realm")
-			if evt:= subscribeRealmEvent(valsetRealm) ; evt != nil {
-				applyValsetChange(evt)
-			}
-			varsRealm := cfg.GetGnoSDKCfg("vars-trusted-realm")
-			if evt:= subscribeRealmEvent(varsRealm) ; evt != nil {
-				cfg.SetGnoSDKCfg(evt.Name, evt.Value)
-			}
-			
 			// Override auth params.
 			ctx = ctx.WithValue(
 				auth.AuthParamsContextKey{}, auth.DefaultParams())
@@ -115,8 +105,6 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			return
 		},
 	)
-
-	
 
 	// Set EndBlocker
 	baseApp.SetEndBlocker(EndBlocker(vmKpr))
@@ -151,12 +139,6 @@ func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger,
 	if err != nil {
 		return nil, fmt.Errorf("error initializing database %q using path %q: %w", dbm.GoLevelDBBackend, dataRootDir, err)
 	}
-
-	// XXX: default gno sdk config
-	cfg.SetGnoSDKCfg("valset-trusted-realm", "r/sys/vals")
-	cfg.SetGnoSDKCfg("cfg-trusted-realm", "r/sys/vars")
-	cfg.SetGnoSDKCfg("gnot-locked", true)
-	//
 
 	cfg.Logger = logger
 	return NewAppWithOptions(cfg)
