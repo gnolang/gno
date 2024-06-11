@@ -47,6 +47,8 @@ No posts.
 	{
 		got := Render("p/slug2")
 		expected := `
+<main class='gno-tmpl-page'>
+
 # title2
 
 body2
@@ -63,6 +65,7 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 <details><summary>Comment section</summary>
 
 </details>
+</main>
 
 	`
 		assertMDEquals(t, got, expected)
@@ -95,7 +98,8 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 		AddComment("slug2", "comment4")
 		AddComment("slug1", "comment5")
 		got := Render("p/slug2")
-		expected := `
+		expected := `<main class='gno-tmpl-page'>
+
 # title2
 
 body2
@@ -124,16 +128,21 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 ---
 
 </details>
+</main>
 	`
 		assertMDEquals(t, got, expected)
 	}
 
 	// edit post.
 	{
-		ModEditPost("slug2", "title2++", "body2++", "2009-11-10T23:00:00Z", "manfred", "tag1,tag4")
+		oldTitle := "title2"
+		oldDate := "2022-05-20T13:17:23Z"
+
+		ModEditPost("slug2", oldTitle, "body2++", oldDate, "manfred", "tag1,tag4")
 		got := Render("p/slug2")
-		expected := `
-# title2++
+		expected := `<main class='gno-tmpl-page'>
+
+# title2
 
 body2++
 
@@ -141,7 +150,7 @@ body2++
 
 Tags: [#tag1](/r/gnoland/blog:t/tag1) [#tag4](/r/gnoland/blog:t/tag4)
 
-Written by manfred on 10 Nov 2009
+Written by manfred on 20 May 2022
 
 Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 
@@ -161,8 +170,17 @@ Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Gnoland's Blog
 ---
 
 </details>
+</main>
 	`
 		assertMDEquals(t, got, expected)
+
+		home := Render("")
+
+		if strings.Count(home, oldTitle) != 1 {
+			t.Errorf("post not edited properly")
+		}
+		// Edits work everything except title, slug, and publicationDate
+		// Edits to the above will cause duplication on the blog home page
 	}
 
 	{ // Test remove functionality

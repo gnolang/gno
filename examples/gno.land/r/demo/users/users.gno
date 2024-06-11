@@ -35,7 +35,7 @@ func Register(inviter std.Address, name string, profile string) {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 	sentCoins := std.GetOrigSend()
-	minCoin := std.Coin{"ugnot", minFee}
+	minCoin := std.NewCoin("ugnot", minFee)
 	if inviter == "" {
 		// banker := std.GetBanker(std.BankerTypeOrigSend)
 		if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
