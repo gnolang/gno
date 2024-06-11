@@ -3,11 +3,11 @@ package grc20
 import (
 	"math"
 	"math/bits"
+	"std"
 	"strconv"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
-	"std"
 )
 
 type Token struct {
