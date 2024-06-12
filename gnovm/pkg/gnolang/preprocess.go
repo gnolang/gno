@@ -2910,6 +2910,15 @@ func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type, st *Symbo
 				return un
 			}
 		}
+
+		for _, b := range s.Body {
+			un := findUndefinedStmt(store, last, b, t, st)
+
+			if un != "" {
+				return un
+			}
+		}
+
 	case *ExprStmt:
 		return findUndefined2SkipLocals(store, last, s.X, t, st)
 	case *AssignStmt:

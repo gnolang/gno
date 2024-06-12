@@ -2,8 +2,6 @@ package main
 
 func main() {}
 
-var myVar = func() { hello(myDep) }
-
 var myDep string
 
 var myVar1 = func() {
