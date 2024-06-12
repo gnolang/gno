@@ -54,7 +54,6 @@ func assertProposalExists(idx int) {
 }
 
 func IsMember(addr std.Address) bool {
-	panic("not implemented")
 	// XXX: implement
 	return true
 }
