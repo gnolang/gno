@@ -758,7 +758,7 @@ been signed in a previous step and `gnokey` is only sending it to the RPC endpoi
 
 ## Verifying a transaction's signature
 
-To verify a transaction signature is correct, you can use the `gnokey verify`
+To verify a transaction's signature is correct, you can use the `gnokey verify`
 subcommand. We can provide the path to the transaction document using the `-docpath`
 flag, provide the key we signed the transaction with, and the signature itself.
 Make sure the signature is in the `hex` format.
