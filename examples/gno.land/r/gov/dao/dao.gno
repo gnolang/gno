@@ -100,7 +100,6 @@ func Render(path string) string {
 		return "404"
 	}
 
-	println("AAA", idx)
 	if !proposalExists(idx) {
 		return "404"
 	}

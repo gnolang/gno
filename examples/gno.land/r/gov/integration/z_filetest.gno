@@ -24,21 +24,18 @@ func main() {
 // --
 // - [/r/gov/dao:0](0) - manual valset changes proposal example (by g1tk0fscr3p5g8hnhxq6v93jxcpm5g3cstlxfxa3)
 // --
-// AAA 1
 // # Prop#1
 //
 // manual valset changes proposal example
 // Status: active
 // --
 // --
-// AAA 1
 // # Prop#1
 //
 // manual valset changes proposal example
 // Status: accepted
 // --
 // --
-// AAA 1
 // # Prop#1
 //
 // manual valset changes proposal example
