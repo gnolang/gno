@@ -50,3 +50,14 @@ var v3 = func() int {
 var v4 = func() int {
 	return v3
 }()
+
+var v4 = func() int {
+	v5 := 11
+	return func() int {
+		return v5
+	}()
+}()
+
+var v5 = func() int {
+	return v4
+}()
