@@ -624,7 +624,7 @@ BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")"
 ```
 
 This command will return the `wugnot` balance of the above address without using gas.
-Properly escaping quotation marks and separate the package path and the realm function with a new line character
+Properly escaping quotation marks and separating the package path and the realm function with a new line character
 is currently required.
 
 ### `vm/qrender`
