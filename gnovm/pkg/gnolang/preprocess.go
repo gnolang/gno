@@ -847,7 +847,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if isUntyped(rt) { // e.g. int(1) + 1<<x
 							checkOrConvertType(store, last, &n.Right, lt, false)
 						} else { // both typed, left typed const, right typed non-const
-							checkOrConvertType(store, last, &n.Left, rt, false) // see 0a1a0_filetest.gno
+							checkOrConvertType(store, last, &n.Left, rt, false) // see eql_0a1a0.gno
 						}
 					}
 				} else if ric { // right is const, left is not
