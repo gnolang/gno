@@ -1,10 +1,8 @@
-.PHONY: install
 install:
 	go install .
 
-.PHONY: build
-build:
-	go build -o build/gnofaucet .
+run:
+	go run .
 
 test:
 	@echo "XXX: add tests"

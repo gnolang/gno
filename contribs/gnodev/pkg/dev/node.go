@@ -138,8 +138,154 @@ func (n *Node) Client() client.Client {
 	return n.client
 }
 
-func (n *Node) GetRemoteAddress() string {
-	return n.Node.Config().RPC.ListenAddress
+func (d *Node) GetNodeReadiness() <-chan struct{} {
+	return gnoland.GetNodeReadiness(d.Node)
+}
+
+func (d *Node) GetRemoteAddress() string {
+	return d.Node.Config().RPC.ListenAddress
+}
+
+func (d *Node) UpdatePackages(paths ...string) error {
+	for _, path := range paths {
+		// list all packages from target path
+		pkgslist, err := gnomod.ListPkgs(path)
+		if err != nil {
+			return fmt.Errorf("failed to list gno packages for %q: %w", path, err)
+		}
+
+		for _, pkg := range pkgslist {
+			d.pkgs[pkg.Dir] = pkg
+		}
+	}
+
+	return nil
+}
+
+func (d *Node) Reset(ctx context.Context) error {
+	if d.Node.IsRunning() {
+		if err := d.Node.Stop(); err != nil {
+			return fmt.Errorf("unable to stop the node: %w", err)
+		}
+	}
+
+	// generate genesis
+	txs, err := d.pkgs.Load(DefaultCreator, DefaultFee, nil)
+	if err != nil {
+		return fmt.Errorf("unable to load pkgs: %w", err)
+	}
+
+	genesis := gnoland.GnoGenesisState{
+		Balances: DefaultBalance,
+		Txs:      txs,
+	}
+
+	return d.reset(ctx, genesis)
+}
+
+func (d *Node) ReloadAll(ctx context.Context) error {
+	pkgs := d.ListPkgs()
+	paths := make([]string, len(pkgs))
+	for i, pkg := range pkgs {
+		paths[i] = pkg.Dir
+	}
+
+	if err := d.UpdatePackages(paths...); err != nil {
+		return fmt.Errorf("unable to reload packages: %w", err)
+	}
+
+	return d.Reload(ctx)
+}
+
+func (d *Node) Reload(ctx context.Context) error {
+	// save current state
+	state, err := d.saveState(ctx)
+	if err != nil {
+		return fmt.Errorf("unable to save state: %s", err.Error())
+	}
+
+	// stop the node if not already stopped
+	if d.Node.IsRunning() {
+		if err := d.Node.Stop(); err != nil {
+			return fmt.Errorf("unable to stop the node: %w", err)
+		}
+	}
+
+	// generate genesis
+	txs, err := d.pkgs.Load(DefaultCreator, DefaultFee, nil)
+	if err != nil {
+		return fmt.Errorf("unable to load pkgs: %w", err)
+	}
+
+	genesis := gnoland.GnoGenesisState{
+		Balances: DefaultBalance,
+		Txs:      txs,
+	}
+
+	// try to reset the node
+	if err := d.reset(ctx, genesis); err != nil {
+		return fmt.Errorf("unable to reset the node: %w", err)
+	}
+
+	for _, tx := range state {
+		// skip empty transaction
+		if len(tx.Msgs) == 0 {
+			continue
+		}
+
+		if err := d.SendTransaction(&tx); err != nil {
+			return fmt.Errorf("unable to send transaction: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (d *Node) reset(ctx context.Context, genesis gnoland.GnoGenesisState) error {
+	var err error
+
+	recoverError := func() {
+		if r := recover(); r != nil {
+			panicErr, ok := r.(error)
+			if !ok {
+				panic(r)
+			}
+
+			err = panicErr
+		}
+	}
+
+	createNode := func() {
+		defer recoverError()
+
+		node, nodeErr := newNode(d.logger, genesis)
+		if nodeErr != nil {
+			err = fmt.Errorf("unable to create node: %w", nodeErr)
+			return
+		}
+
+		if startErr := node.Start(); startErr != nil {
+			err = fmt.Errorf("unable to start the node: %w", startErr)
+			return
+		}
+
+		d.Node = node
+	}
+
+	// create the node
+	createNode()
+	if err != nil {
+		return err
+	}
+
+	// wait for readiness
+	select {
+	case <-d.GetNodeReadiness(): // ok
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	return err
 }
 
 // GetBlockTransactions returns the transactions contained
