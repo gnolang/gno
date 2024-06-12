@@ -1,7 +1,6 @@
 package govdao
 
 import (
-	"errors"
 	"std"
 	"strconv"
 
