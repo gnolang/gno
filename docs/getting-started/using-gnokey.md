@@ -771,7 +771,7 @@ gnokey verify -docpath userbook.tx mykey <signature>
 
 That's it! 🎉
 
-In this tutorial, you've learned to use the `gnokey` binary for interacting with a
+In this tutorial, you've learned to use `gnokey` for interacting with a
 Gno.land chain. By mastering state-changing calls, read-only queries, and airgapped
 transactions, you're now equipped to manage interactions within the Gno.land
 ecosystem securely and efficiently.
