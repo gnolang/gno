@@ -51,13 +51,13 @@ var v4 = func() int {
 	return v3
 }()
 
-var v4 = func() int {
-	v5 := 11
+var v5 = func() int {
+	v6 := 11
 	return func() int {
-		return v5
+		return v6
 	}()
 }()
 
-var v5 = func() int {
-	return v4
+var v6 = func() int {
+	return v5
 }()
