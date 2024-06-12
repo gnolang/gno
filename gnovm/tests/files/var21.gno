@@ -39,3 +39,14 @@ var v1 = func() int {
 var v2 = func() int {
 	return v1
 }()
+
+var v3 = func() int {
+	return func() int {
+		v4 := 11
+		return v4
+	}()
+}()
+
+var v4 = func() int {
+	return v3
+}()
