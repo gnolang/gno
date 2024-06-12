@@ -24,3 +24,6 @@ func main() {
 		panic("should not happen")
 	}
 }
+
+// Output:
+// second's child
