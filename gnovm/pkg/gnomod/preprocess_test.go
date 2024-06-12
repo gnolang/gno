@@ -3,7 +3,7 @@ package gnomod
 import (
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
@@ -130,7 +130,7 @@ func TestRemoveRequireDups(t *testing.T) {
 			in := tc.in
 			removeRequireDups(&in)
 
-			assert.Equal(t, in, tc.expected)
+			assert.Equal(t, tc.expected, in)
 		})
 	}
 }
@@ -308,7 +308,7 @@ func TestRemoveReplaceDups(t *testing.T) {
 			in := tc.in
 			removeReplaceDups(&in)
 
-			assert.Equal(t, in, tc.expected)
+			assert.Equal(t, tc.expected, in)
 		})
 	}
 }

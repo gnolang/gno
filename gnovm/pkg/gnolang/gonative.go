@@ -129,7 +129,7 @@ func (ds *defaultStore) Go2GnoType(rt reflect.Type) (t Type) {
 					// for methods with ptr receivers,
 					// whereas gno methods are all
 					// declared on the *DeclaredType.
-					prt = reflect.PtrTo(rt)
+					prt = reflect.PointerTo(rt)
 				}
 				nm := prt.NumMethod()
 				mtvs = make([]TypedValue, nm)
@@ -825,7 +825,7 @@ func gno2GoType(t Type) reflect.Type {
 		}
 	case *PointerType:
 		et := gno2GoType(ct.Elem())
-		return reflect.PtrTo(et)
+		return reflect.PointerTo(et)
 	case *ArrayType:
 		ne := ct.Len
 		et := gno2GoType(ct.Elem())

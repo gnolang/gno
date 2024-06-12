@@ -16,17 +16,14 @@ import (
 	"strconv"
 	"strings"
 
-	"go.uber.org/multierr"
 	"golang.org/x/tools/go/ast/astutil"
-
-	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 const (
 	GnoRealmPkgsPrefixBefore = "gno.land/r/"
 	GnoRealmPkgsPrefixAfter  = "github.com/gnolang/gno/examples/gno.land/r/"
-	GnoPackagePrefixBefore   = "gno.land/p/demo/"
-	GnoPackagePrefixAfter    = "github.com/gnolang/gno/examples/gno.land/p/demo/"
+	GnoPurePkgsPrefixBefore  = "gno.land/p/"
+	GnoPurePkgsPrefixAfter   = "github.com/gnolang/gno/examples/gno.land/p/"
 	GnoStdPkgBefore          = "std"
 	GnoStdPkgAfter           = "github.com/gnolang/gno/gnovm/stdlibs/stdshim"
 )
@@ -121,44 +118,6 @@ func GetTranspileFilenameAndTags(gnoFilePath string) (targetFilename, tags strin
 		targetFilename = nameNoExtension + ".gno.gen.go"
 	}
 	return
-}
-
-func TranspileAndCheckMempkg(mempkg *std.MemPackage) error {
-	gofmt := "gofmt"
-
-	tmpDir, err := os.MkdirTemp("", mempkg.Name)
-	if err != nil {
-		return err
-	}
-	defer os.RemoveAll(tmpDir) //nolint: errcheck
-
-	var errs error
-	for _, mfile := range mempkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
-			continue // skip spurious file.
-		}
-		res, err := Transpile(mfile.Body, "gno,tmp", mfile.Name)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-		tmpFile := filepath.Join(tmpDir, mfile.Name)
-		err = os.WriteFile(tmpFile, []byte(res.Translated), 0o644)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-		err = TranspileVerifyFile(tmpFile, gofmt)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
-		}
-	}
-
-	if errs != nil {
-		return fmt.Errorf("transpile package: %w", errs)
-	}
-	return nil
 }
 
 func Transpile(source string, tags string, filename string) (*transpileResult, error) {
@@ -272,7 +231,7 @@ func TranspileBuildPackage(fileOrPkg, goBinary string) error {
 	return err
 }
 
-var errorRe = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
+var reGoBuildError = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
 
 // parseGoBuildErrors returns a scanner.ErrorList filled with all errors found
 // in out, which is supposed to be the output of the `go build` command.
@@ -281,7 +240,7 @@ var errorRe = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
 // See https://github.com/golang/go/issues/62067
 func parseGoBuildErrors(out string) error {
 	var errList goscanner.ErrorList
-	matches := errorRe.FindAllStringSubmatch(out, -1)
+	matches := reGoBuildError.FindAllStringSubmatch(out, -1)
 	for _, match := range matches {
 		filename := match[1]
 		line, err := strconv.Atoi(match[2])
@@ -318,7 +277,7 @@ func transpileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.No
 					continue
 				}
 
-				if strings.HasPrefix(importPath, GnoPackagePrefixBefore) {
+				if strings.HasPrefix(importPath, GnoPurePkgsPrefixBefore) {
 					continue
 				}
 
@@ -361,8 +320,8 @@ func transpileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.No
 			}
 
 			// p/pkg packages
-			if strings.HasPrefix(importPath, GnoPackagePrefixBefore) {
-				target := GnoPackagePrefixAfter + strings.TrimPrefix(importPath, GnoPackagePrefixBefore)
+			if strings.HasPrefix(importPath, GnoPurePkgsPrefixBefore) {
+				target := GnoPurePkgsPrefixAfter + strings.TrimPrefix(importPath, GnoPurePkgsPrefixBefore)
 
 				if !astutil.RewriteImport(fset, f, importPath, target) {
 					errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("failed to replace the %q package with %q", importPath, target))
