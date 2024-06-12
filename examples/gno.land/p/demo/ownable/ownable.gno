@@ -37,9 +37,15 @@ func New() *transferrable {
 	}
 }
 
+func NewWithAddress(addr std.Address) *transferrable {
+	return &transferrable{
+		owner: addr,
+	}
+}
+
 // TransferOwnership transfers ownership of the Ownable struct to a new address
 func (o *transferrable) TransferOwnership(newOwner std.Address) error {
-	if !callerIsOwner(o.owner) {
+	if err := o.CallerIsOwner(); err != nil {
 		return ErrUnauthorized
 	}
 
@@ -55,18 +61,29 @@ func (o *transferrable) TransferOwnership(newOwner std.Address) error {
 // Top-level usage: disables all only-owner actions/functions,
 // Embedded usage: behaves like a burn functionality, removing the owner from the struct
 func (o *transferrable) DropOwnership() error {
-	if !callerIsOwner(o.owner) {
-		return ErrUnauthorized
+	if err := o.CallerIsOwner(); err != nil {
+		return err
 	}
 
 	o.owner = ""
 	return nil
 }
 
-func (o *transferrable) Owner() std.Address {
+func (o transferrable) Owner() std.Address {
 	return o.owner
 }
 
-func callerIsOwner(addr std.Address) bool {
-	return std.PrevRealm().Addr() == addr
+// CallerIsOwner checks if the caller of the function is the Realm's owner
+func (o transferrable) CallerIsOwner() error {
+	if std.PrevRealm().Addr() == o.owner {
+		return nil
+	}
+
+	return ErrUnauthorized
+}
+
+func (o transferrable) AssertCallerIsOwner() {
+	if std.PrevRealm().Addr() != o.owner {
+		panic(ErrUnauthorized)
+	}
 }

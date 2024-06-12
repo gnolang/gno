@@ -34,8 +34,8 @@ func (p Pausable) IsPaused() bool {
 
 // Pause sets the state of Pausable to true, meaning all pausable functions are paused
 func (p *Pausable) Pause() error {
-	if !callerIsOwner(p.Owner()) {
-		return ErrUnauthorized
+	if err := p.CallerIsOwner(); err != nil {
+		return err
 	}
 
 	p.paused = true
@@ -44,14 +44,19 @@ func (p *Pausable) Pause() error {
 
 // Unpause sets the state of Pausable to false, meaning all pausable functions are resumed
 func (p *Pausable) Unpause() error {
-	if !callerIsOwner(p.Owner()) {
-		return ErrUnauthorized
+	if err := p.CallerIsOwner(); err != nil {
+		return err
 	}
 
 	p.paused = false
 	return nil
 }
 
-func callerIsOwner(addr std.Address) bool {
-	return std.PrevRealm().Addr() == addr
+// CallerIsOwner checks if the caller of the function is the Realm's owner
+func (p Pausable) CallerIsOwner() error {
+	if std.PrevRealm().Addr() == p.Owner() {
+		return nil
+	}
+
+	return ErrUnauthorized
 }
