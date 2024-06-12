@@ -282,7 +282,7 @@ func Test_verify(t *testing.T) {
 		assert.Error(t, cmdV.ParseAndRun(ctx, argsV))
 	})
 
-	t.Run("verify empty account number", func(t *testing.T) {
+	t.Run("verify wrong info", func(t *testing.T) {
 		t.Parallel()
 
 		var (
@@ -382,7 +382,24 @@ func Test_verify(t *testing.T) {
 		// initialize test options
 		sig := savedTx.Signatures[0].Signature
 		sigEncoded := hex.EncodeToString(sig)
-		argsV := []string{
+		argsWrongAN := []string{
+			"verify",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--docpath",
+			txFile.Name(),
+			"--chainid",
+			"id",
+			"--account-number",
+			"10",
+			"--account-sequence",
+			"0",
+			keyName,
+			sigEncoded,
+		}
+
+		argsWrongAS := []string{
 			"verify",
 			"--insecure-password-stdin",
 			"--home",
@@ -394,12 +411,33 @@ func Test_verify(t *testing.T) {
 			"--account-number",
 			"0",
 			"--account-sequence",
+			"10",
+			keyName,
+			sigEncoded,
+		}
+
+		argsWrongCID := []string{
+			"verify",
+			"--insecure-password-stdin",
+			"--home",
+			kbHome,
+			"--docpath",
+			txFile.Name(),
+			"--chainid",
+			"fakeid",
+			"--account-number",
+			"0",
+			"--account-sequence",
 			"0",
 			keyName,
 			sigEncoded,
 		}
-		cmdV := NewRootCmdWithBaseConfig(io, baseOptions)
-		assert.Error(t, cmdV.ParseAndRun(ctx, argsV))
+		cmdWrongAN := NewRootCmdWithBaseConfig(io, baseOptions)
+		assert.Error(t, cmdWrongAN.ParseAndRun(ctx, argsWrongAN))
+		cmdWrongAS := NewRootCmdWithBaseConfig(io, baseOptions)
+		assert.Error(t, cmdWrongAS.ParseAndRun(ctx, argsWrongAS))
+		cmdWrongCID := NewRootCmdWithBaseConfig(io, baseOptions)
+		assert.Error(t, cmdWrongCID.ParseAndRun(ctx, argsWrongCID))
 	})
 
 	t.Run("verify basic", func(t *testing.T) {
