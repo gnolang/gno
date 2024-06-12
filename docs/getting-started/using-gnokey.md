@@ -25,7 +25,7 @@ There are multiple ways anyone can interact with the chain:
 - Transactions - state-changing calls which use gas
 - ABCI queries - read-only calls which do not use gas
 
-Both transactions and ABCI queries can be used via `gnokey`'s subcommands,
+Both transactions and ABCI queries can be made via `gnokey`'s subcommands,
 `maketx` and `query`.
 
 ## State-changing calls (transactions)
