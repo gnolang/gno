@@ -232,7 +232,7 @@ In this command, we have specified three main things:
 Apart from this, we have also specified the Portal Loop chain ID, `portal-loop`,
 as well as the Portal Loop remote address, `https://rpc.gno.land:443`.
 
-To check if we actually have the `wugnot` amount that we wanted to receive, we
+After broadcasting the transaction, we can verify that we have the amount of `wugnot` we expect. We
 can call the `BalanceOf()` function in the same realm:
 
 ```bash
