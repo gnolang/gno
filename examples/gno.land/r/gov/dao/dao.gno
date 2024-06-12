@@ -5,27 +5,26 @@ import (
 	"strconv"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/gov/proposal"
+	pproposal "gno.land/p/gov/proposal"
 )
 
-var proposals = make([]*Proposal, 0)
+var proposals = make([]*proposal, 0)
 
 // XXX var members ...
 
-// Proposal represents a proposal in the governance system.
-// XXX: make it an interface with various proposal implementations
-type Proposal struct {
-	author   std.Address
+type proposal struct {
 	idx      int
-	Comment  string
-	Executor proposal.Executor
+	author   std.Address
+	comment  string
+	executor pproposal.Executor
+	// XXX: make "accepted" and "finished" managed by an interface that can have various voting implementations
 	accepted bool
 	finished bool
 }
 
-func (p Proposal) Status() Status {
-	if p.Executor.Done() {
-		return Status(p.Executor.Status())
+func (p proposal) Status() Status {
+	if p.executor.Done() {
+		return Status(p.executor.Status())
 	}
 	if p.accepted {
 		return Accepted
@@ -37,15 +36,23 @@ func (p Proposal) Status() Status {
 
 // Propose is designed to be called by another contract or with
 // `maketx run`, not by a `maketx call`.
-func Propose(proposal *Proposal) int {
+func Propose(comment string, executor pproposal.Executor) int {
 	// XXX: require payment?
-	// XXX: sanitize proposal or make dedicated constructor which is not the proposal itself
+	if executor == nil {
+		panic("missing proposal executor")
+	}
 	caller := std.PrevRealm().Addr()
 	AssertIsMember(caller)
-	proposal.author = caller
-	proposal.idx = len(proposals)
-	proposals = append(proposals, proposal)
-	return proposal.idx
+
+	prop := &proposal{
+		comment:  comment,
+		executor: executor,
+		author:   caller,
+		idx:      len(proposals),
+	}
+
+	proposals = append(proposals, prop)
+	return prop.idx
 }
 
 func VoteOnProposal(idx int, option string) {
@@ -71,7 +78,7 @@ func ExecuteProposal(idx int) {
 	if !prop.accepted {
 		panic("prop is not accepted, cannot execute.")
 	}
-	prop.Executor.Execute()
+	prop.executor.Execute()
 }
 
 func IsMember(addr std.Address) bool {
@@ -89,7 +96,7 @@ func Render(path string) string {
 	if path == "" {
 		output := ""
 		for idx, prop := range proposals {
-			output += ufmt.Sprintf("- [/r/gov/dao:%d](%d) - %s (by %s)", idx, idx, prop.Comment, prop.author)
+			output += ufmt.Sprintf("- [/r/gov/dao:%d](%d) - %s (by %s)", idx, idx, prop.comment, prop.author)
 		}
 		return output
 	}
@@ -105,15 +112,17 @@ func Render(path string) string {
 	}
 	prop := getProposal(idx)
 	output := ""
-	output += ufmt.Sprintf("# Prop#%d", idx) + "\n"
+	output += ufmt.Sprintf("# Prop#%d", prop.idx) + "\n"
 	output += "\n"
-	output += prop.Comment
+	output += prop.comment
 	output += "\n"
 	output += ufmt.Sprintf("Status: %s", string(prop.Status()))
+	output += "\n"
+	output += ufmt.Sprintf("Author: %s", string(prop.author))
 	return output
 }
 
-func getProposal(idx int) *Proposal {
+func getProposal(idx int) *proposal {
 	return proposals[idx-1]
 }
 

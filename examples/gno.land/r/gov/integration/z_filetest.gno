@@ -24,19 +24,22 @@ func main() {
 // --
 // - [/r/gov/dao:0](0) - manual valset changes proposal example (by g1tk0fscr3p5g8hnhxq6v93jxcpm5g3cstlxfxa3)
 // --
-// # Prop#1
+// # Prop#0
 //
 // manual valset changes proposal example
 // Status: active
+// Author: g1tk0fscr3p5g8hnhxq6v93jxcpm5g3cstlxfxa3
 // --
 // --
-// # Prop#1
+// # Prop#0
 //
 // manual valset changes proposal example
 // Status: accepted
+// Author: g1tk0fscr3p5g8hnhxq6v93jxcpm5g3cstlxfxa3
 // --
 // --
-// # Prop#1
+// # Prop#0
 //
 // manual valset changes proposal example
 // Status: success
+// Author: g1tk0fscr3p5g8hnhxq6v93jxcpm5g3cstlxfxa3
