@@ -39,7 +39,7 @@ func VoteOnProposal(idx int, option string) {
 
 	proposal := proposals[idx]
 	// XXX: implement the voting (would be cool to have a generic p/)
-	proposal.approved = option == "approved"
+	proposal.approved = option == "YES"
 }
 
 func ExecuteProposal(idx int) {
