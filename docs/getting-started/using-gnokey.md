@@ -221,7 +221,7 @@ gnokey maketx call \
 -broadcast \
 -chainid portal-loop \
 -remote "https://rpc.gno.land:443"" \
-demyv
+mykey
 ```
 
 In this command, we have specified three main things:
