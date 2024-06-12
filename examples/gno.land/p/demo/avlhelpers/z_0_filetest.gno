@@ -9,9 +9,6 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-func init() {
-}
-
 func main() {
 	tree := avl.Tree{}
 
