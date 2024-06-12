@@ -77,7 +77,7 @@ func TestErrConditions(t *testing.T) {
 func shouldPanicWithMsg(t *testing.T, f func(), expectedMsg string) {
 	defer func() {
 		if r := recover(); r == nil {
-			t.Fatalf("Expected a panic")
+			t.Fatalf("Expected a panic with msg: %s", expectedMsg)
 		}
 	}()
 	f()
