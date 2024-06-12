@@ -60,18 +60,20 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 		}
 		flipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flipBasicNFTMetaDataJSON))
 		// set approval for the realm owner so we can later transfer the NFT
-		flipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
-		// mint fungible FLIP token
-		MintLocked(player, tidString, uint64(1))
+		//flipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
+		flipBasicNFT.SetApprovalForAll(std.CurrentRealm().Addr(), true)
+		
 		// add NFT to the lockedNFTs avl.Tree
-		var flipAmount uint64
+		var flipAmount int64
 		if len(currentGame.SolvedGameBoard) == 16 {
-			flipAmount = 1
+			flipAmount = 1000 // 1000 uflip = 1 FLIP
 		} else if len(currentGame.SolvedGameBoard) == 64 {
-			flipAmount = 4
+			flipAmount = 4 // 4000 uflip = 4 FLIP
 		}
-
+		// mint fungible FLIP token
+		MintLocked(player, tidString, std.NewCoin("FLIP", flipAmount))
 		lockedNFTs.Set(tidString, flipAmount)
+
 		result = string(flipBasicNFTMetaDataJSON)
 	}
 	res := &nftResult{
@@ -117,6 +119,8 @@ func UnlockAndTransferNFT(from, to std.Address, tid string, parentTid string) er
 
 // it is used in marketplace
 func TransferBasicNFTToBuyer(from, to std.Address, tid grc721.TokenID) error {
+	flipBasicNFT.SetApprovalForAll(std.CurrentRealm().Addr(), true)
+	//flipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
 	err := flipBasicNFT.TransferFrom(from, to, tid)
 	if err != nil {
 		return err
@@ -124,8 +128,8 @@ func TransferBasicNFTToBuyer(from, to std.Address, tid grc721.TokenID) error {
 	return nil
 }
 
-// it may be used in marketplace
-func BurnBasicNFTsAfterBuying(tid grc721.TokenID) error {
+// it is used after minting a composite NFT
+func BurnBasicNFTsAfterMinting(tid grc721.TokenID) error {
 	err := flipBasicNFT.Burn(tid)
 	if err != nil {
 		return err
@@ -307,16 +311,16 @@ func AirdropBasicFlipNFT(airdropAccount,
 		flipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flipBasicNFTMetaDataJSON))
 		// set approval for the realm owner so we can later transfer the NFT
 		flipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
-		// mint fungible FLIP token
-		MintLocked(airdropAccount, tidString, uint64(1))
+		
 		// add NFT to the lockedNFTs avl.Tree
-		var flipAmount uint64
+		var flipAmount int64
 		if gameLevel == "16" {
 			flipAmount = 1
 		} else if gameLevel == "64" {
 			flipAmount = 4
 		}
-
+		// mint fungible FLIP token
+		MintLocked(toPlayer, tidString, std.NewCoin("FLIP", flipAmount))
 		lockedNFTs.Set(tidString, flipAmount)
 		result = string(flipBasicNFTMetaDataJSON)
 	}

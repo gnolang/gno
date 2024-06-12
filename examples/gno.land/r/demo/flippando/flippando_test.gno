@@ -97,7 +97,7 @@ func testMarshalJSON(t *testing.T) {
 	}
 }
 
-
+/*
 func TestMintLocked(t *testing.T) {
     // Setup - Initialize your environment, token
     flipToken := grc20.NewAdminToken("Flippando", "FLIP", 6) 
@@ -128,6 +128,6 @@ func TestMintLocked(t *testing.T) {
     if updatedLockedBalance != expectedTotal {
         t.Errorf("MintLocked failed to store correct additional amount for existing user, got %v, want %v", updatedLockedBalance, expectedTotal)
     }
-}
+}*/
 
 

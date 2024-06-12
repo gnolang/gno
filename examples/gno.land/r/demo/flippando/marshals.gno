@@ -65,6 +65,12 @@ type nftResult struct {
 	nftError	string	`json:"-"`
 }
 
+type buyNFTResult struct {
+	flipPaid	string `json:"flipPaid"`
+	flipBurned	string `json:"flipBurned"`
+	buyerror	string `json:"error"`
+}
+
 type userNFTs struct {
 	tokenIDs	[]int64 `json:"tokenIDs"`
 	nftError	string	`json:"-"`
@@ -296,6 +302,29 @@ func (n nftResult)MarshalJSON() ([]byte,  error) {
 
 	return b.Bytes(), nil
 
+}
+
+func (bn buyNFTResult)MarshalJSON() ([]byte, error){
+	
+	var b bytes.Buffer
+
+	b.WriteByte('{')
+
+	b.WriteString(`"flipPaid":"`)
+	b.WriteString(bn.flipPaid)
+	b.WriteString(`",`)
+
+	b.WriteString(`"flipBurned":"`)
+	b.WriteString(bn.flipBurned)
+	b.WriteString(`",`)
+
+	b.WriteString(`"error":"`)
+	b.WriteString(bn.buyerror)
+	b.WriteString(`"`)
+
+	b.WriteByte('}')
+
+	return b.Bytes(), nil
 }
 
 func (t userNFTs)MarshalJSON() ([]byte,  error) {

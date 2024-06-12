@@ -2,149 +2,148 @@ package flippando
 
 import (
 	"errors"
+	"std"
 	"strconv"
 	"time"
-	"std"
 
-	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/flippandoserver"
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/flippandoserver"
+	"gno.land/p/demo/grc/grc20"
 )
 
 type lockedVault struct {
-	tokenId string
-	lockedFlip uint64
+	tokenId   string
+	lockedFlip std.Coin
 }
 
 var (
-	flipToken = grc20.NewAdminToken("Flippando", "FLIP", 6)
-
-	totalLockedSupply uint64 = 0
-	totalSupply uint64 = 1000000000 // 1B per chain
-	
-	userFlipNFTs avl.Tree // onwer -> avl.Tree // []*lockedVault
+	flipToken          = grc20.NewAdminToken("Flippando", "FLIP", 12)
+    // 1000 uFLIP = 1 FLIP
+    // max denom 1,000,000,000 FLIP
+	totalLockedSupply  std.Coin = std.NewCoin("FLIP", 0)
+	userFlipNFTs       avl.Tree // onwer -> avl.Tree // []*lockedVault
 )
 
-func MintLocked(recipient std.Address, tokenId string, flipAmount uint64) error {
-    flipToken.Mint(recipient, flipAmount)
-    var userLockedBalances []*lockedVault
-    
-    v, exists := userFlipNFTs.Get(recipient.String())
+func MintLocked(recipient std.Address, tokenId string, flipAmount std.Coin) error {
+	if err := flipToken.Mint(recipient, uint64(flipAmount.Amount)); err != nil {
+		return err
+	}
 
-    if exists {
-        // Assert the type of v to []*lockedVault
-        var ok bool
-        userLockedBalances, ok = v.([]*lockedVault)
-        if !ok {
-            return errors.New("invalid type for user locked balances")
-        }
-    } 
+	var userLockedBalances []*lockedVault
 
-    lockingBalance := &lockedVault{
-        tokenId: tokenId,
-        lockedFlip: flipAmount,
-    }
+	v, exists := userFlipNFTs.Get(recipient.String())
+	if exists {
+		// Assert the type of v to []*lockedVault
+		var ok bool
+		userLockedBalances, ok = v.([]*lockedVault)
+		if !ok {
+			return errors.New("invalid type for user locked balances")
+		}
+	}
 
-    userLockedBalances = append([]*lockedVault{lockingBalance}, userLockedBalances...)
-    userFlipNFTs.Set(recipient.String(), userLockedBalances)
+	lockingBalance := &lockedVault{
+		tokenId:   tokenId,
+		lockedFlip: flipAmount,
+	}
 
-    totalLockedSupply += flipAmount
+	userLockedBalances = append([]*lockedVault{lockingBalance}, userLockedBalances...)
+	userFlipNFTs.Set(recipient.String(), userLockedBalances)
 
-    return nil
+	totalLockedSupply = totalLockedSupply.Add(flipAmount)
+
+	return nil
 }
-
 
 func UnlockAndTransferFLIP(recipient std.Address, tokenId string) error {
-    var userLockedBalances []*lockedVault
-    var flipAmount uint64
-    tokenFound := false
+	var userLockedBalances []*lockedVault
+	var flipAmount std.Coin
+	tokenFound := false
 
-    v, found := userFlipNFTs.Get(recipient.String())
-    if found {
-        // Assert the type of v to []*lockedVault
-        var ok bool
-        userLockedBalances, ok = v.([]*lockedVault)
-        if !ok {
-            return errors.New("invalid type for user locked balances")
-        }
+	v, found := userFlipNFTs.Get(recipient.String())
+	if found {
+		// Assert the type of v to []*lockedVault
+		var ok bool
+		userLockedBalances, ok = v.([]*lockedVault)
+		if !ok {
+			return errors.New("invalid type for user locked balances")
+		}
 
-        // Create a new slice for storing balances without the unlocked token
-        var newLockedBalances []*lockedVault
-        for _, lv := range userLockedBalances {
-            if lv.tokenId == tokenId {
-                // Record the amount and indicate the token was found
-                flipAmount = lv.lockedFlip
-                tokenFound = true
-            } else {
-                // Add to the new slice if it's not the token to unlock
-                newLockedBalances = append(newLockedBalances, lv)
-            }
-        }
+		// Create a new slice for storing balances without the unlocked token
+		var newLockedBalances []*lockedVault
+		for _, lv := range userLockedBalances {
+			if lv.tokenId == tokenId {
+				// Record the amount and indicate the token was found
+				flipAmount = lv.lockedFlip
+				tokenFound = true
+			} else {
+				// Add to the new slice if it's not the token to unlock
+				newLockedBalances = append(newLockedBalances, lv)
+			}
+		}
 
-        // Use the new slice if the token was found and removed
-        if tokenFound {
-            userLockedBalances = newLockedBalances
-        }
-    }
+		// Use the new slice if the token was found and removed
+		if tokenFound {
+			userLockedBalances = newLockedBalances
+		}
+	}
 
-    if !tokenFound {
-        return ErrInvalidTokenId // Ensure this error is defined
-    }
+	if !tokenFound {
+		return ErrInvalidTokenId // Ensure this error is defined
+	}
 
-    // Update the user's locked balances in userFlipNFTs
-    userFlipNFTs.Set(recipient.String(), userLockedBalances)
+	// Update the user's locked balances in userFlipNFTs
+	userFlipNFTs.Set(recipient.String(), userLockedBalances)
 
-    // Update the total locked supply
-    totalLockedSupply -= flipAmount
+	// Update the total locked supply
+	totalLockedSupply = totalLockedSupply.Sub(flipAmount)
 
-    return nil
+	return nil
 }
 
-
-
-// add a new Tranfer function, which will call the grc20.Transfer
-// only if the user has available tokens to spend
-
-func Transfer(from, recipient std.Address, fAmount uint64){
-	// who's calling? std.PrevRealm() = msg.sender?
-	
-	// check if we can bypass this function by calling the interface directly, I don't think so
-	
+func Transfer(from, recipient std.Address, fAmount std.Coin) error {
 	totalFLIPBalance, err := flipToken.BalanceOf(from)
 	if err != nil {
-		panic("BalanceOf should not happen")
+		return errors.New("balance query failed")
 	}
 
 	lockedFLIPBalance := getUserLockedBalances(from)
 
-	if (totalFLIPBalance - lockedFLIPBalance >= fAmount) {
-		flipToken.Transfer(from, recipient, fAmount)
+	if int64(totalFLIPBalance) >= fAmount.Amount && int64(totalFLIPBalance)-int64(lockedFLIPBalance.Amount) >= fAmount.Amount {
+		if err := flipToken.Transfer(from, recipient, uint64(fAmount.Amount)); err != nil {
+			return err
+		}
 	} else {
-		panic("not enough available balance")
+		return errors.New("not enough available balance")
 	}
+
+	return nil
 }
 
-// it is used in marketplace
-func TransferFLIPToSeller(from, recipient std.Address, fPrice uint64){
-	// seller approves the marketoplace contract owner to spend an amount equal with the total price
-	// some of it will be burned later
-	flipToken.Approve(from, std.CurrentRealm().Addr(), fPrice)
+func TransferFLIPToSeller(from, recipient std.Address, fPrice std.Coin) (flipPaid string, flipBurned string, err error) {
+	flipToken.Approve(from, std.CurrentRealm().Addr(), uint64(fPrice.Amount))
 	totalFLIPBalance, err := flipToken.BalanceOf(from)
 	if err != nil {
-		panic("BalanceOf should not happen")
+		return "", "", ErrFlipTokenBalanceOfFailed
 	}
 
 	lockedFLIPBalance := getUserLockedBalances(from)
 
-	// logic for burning a random amount from the fPrice
-	if (totalFLIPBalance - lockedFLIPBalance >= fPrice) {	
-		randomPercentage := flippandoserver.GenerateRandomNumbers(1, 1, 50, time.Now().Unix())
-		fUpdatedPrice := fPrice - uint64(randomPercentage[0])
-		flipToken.Transfer(from, recipient, fUpdatedPrice)
-		flipToBurn := fPrice - fUpdatedPrice
-		flipToken.Burn(from, flipToBurn)
+	if int64(totalFLIPBalance) >= fPrice.Amount && int64(totalFLIPBalance)-lockedFLIPBalance.Amount >= fPrice.Amount {
+		randomPercentage := flippandoserver.GenerateRandomNumbers(2, 1, 50, time.Now().Unix())
+		randomBurnAmount := fPrice.Amount * int64(randomPercentage[0]) / 100
+		fPaidPrice := fPrice.Amount - randomBurnAmount
+		flipToBurn := fPrice.Amount - fPaidPrice 
+
+		if err := flipToken.Transfer(from, recipient, uint64(fPaidPrice)); err != nil {
+			return "", "", err
+		}
+		if err := flipToken.Burn(from, uint64(flipToBurn)); err != nil {
+			return "", "", err
+		}
+
+		return strconv.FormatInt(fPaidPrice, 10), strconv.FormatInt(flipToBurn, 10), nil
 	} else {
-		panic("not enough available balance")
+		return "", "", ErrFlipTokenNotEnoughBalance
 	}
 }
 
@@ -155,41 +154,35 @@ func GetFLIPBalance(user std.Address) string {
 	}
 
 	lockedFLIPBalance := getUserLockedBalances(user)
-	availableFLIPBalance := totalFLIPBalance - lockedFLIPBalance
+	availableFLIPBalance := totalFLIPBalance - uint64(lockedFLIPBalance.Amount)
 
 	userBalances := &userFLIPBalances{
-		lockedBalance: strconv.FormatUint(lockedFLIPBalance, 10),
+		lockedBalance:   lockedFLIPBalance.String(),
 		availableBalance: strconv.FormatUint(availableFLIPBalance, 10),
 	}
 
-	userBalancesJSON, err := userBalances.MarshalJSON() 
-	if(err != nil){
+	userBalancesJSON, err := userBalances.MarshalJSON()
+	if err != nil {
 		panic("error in marshalling user FLIP balances")
 	}
 
 	return string(userBalancesJSON)
 }
 
-func getUserLockedBalances(user std.Address) uint64 {
-    lockedFLIPBalance := uint64(0)
+func getUserLockedBalances(user std.Address) std.Coin {
+	lockedFLIPBalance := std.NewCoin("FLIP", 0)
 
-    // Get the user's locked balances if they exist
-    v, exists := userFlipNFTs.Get(user.String())
-    if exists {
-        // Assert the type of v to []*lockedVault
-        userLockedBalances, ok := v.([]*lockedVault)
-        if !ok {
-            // Handle the type assertion failure as appropriate
-            // For example, you could log an error or return 0
-            return 0
-        }
+	v, exists := userFlipNFTs.Get(user.String())
+	if exists {
+		userLockedBalances, ok := v.([]*lockedVault)
+		if !ok {
+			return lockedFLIPBalance
+		}
 
-        // Iterate over the slice to sum up the locked balances
-        for _, lv := range userLockedBalances {
-            lockedFLIPBalance += lv.lockedFlip
-        }
-    }
+		for _, lv := range userLockedBalances {
+			lockedFLIPBalance = lockedFLIPBalance.Add(lv.lockedFlip)
+		}
+	}
 
-    return lockedFLIPBalance
+	return lockedFLIPBalance
 }
-

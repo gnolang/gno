@@ -196,11 +196,11 @@ func GetArtListings() string {
 	return marketplace.GetListings()
 }
 
-func ListMarketplaceNFT(compositeTokenID string, seller std.Address, price uint64) error {
+func ListMarketplaceNFT(compositeTokenID string, seller std.Address, price string) error {
 	return marketplace.ListNFT(grc721.TokenID(compositeTokenID), seller, price);
 }
 
-func BuyMarketplaceNFT(buyer std.Address, compositeTokenId string, ) error {
+func BuyMarketplaceNFT(buyer std.Address, compositeTokenId string, ) (buyNFTResult string) {
 	return marketplace.BuyNFT(buyer, grc721.TokenID(compositeTokenId)) 
 }
 

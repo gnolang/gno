@@ -24,11 +24,10 @@ type Listing struct {
 func NewMarketplace() *Marketplace {
 	return &Marketplace{
 		listings: make(map[string]Listing),
-		// listings: avl.Tree{},
 	}
 }
 
-func (m *Marketplace) ListNFT(compositeTokenID grc721.TokenID, seller std.Address, price uint64) error {
+func (m *Marketplace) ListNFT(compositeTokenID grc721.TokenID, seller std.Address, price string) error {
 	// get tokenURI of the composite NFT
     compositeTokenIDstr := string(compositeTokenID)
 	basicTokenIDArray, err := GetChildrenOf(compositeTokenIDstr)
@@ -36,12 +35,17 @@ func (m *Marketplace) ListNFT(compositeTokenID grc721.TokenID, seller std.Addres
         return err
     }
     basicTokenIDs, _ := ParseString(basicTokenIDArray)
+    // convert price into uflips, multiply by 1000
+    intPrice, ferr := convertPriceStringToUint64(price)
+	if ferr != nil {
+		return ferr
+	}
 	// Create a new listing
 	newListing := Listing{
 		CompositeTokenID: compositeTokenID,
 		BasicTokenIDs:    basicTokenIDs,
 		Seller:           seller,
-		Price:            price,
+		Price:            intPrice,
 	}
 
 	// Add the new listing to the marketplace
@@ -101,26 +105,100 @@ func (m *Marketplace) GetListings() string {
 	return string(marketplaceJSON)
 }
 
-func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721.TokenID) error {
-	listingRaw, exists := m.listings[string(compositeTokenID)]
+func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721.TokenID) (buyResult string) {
+	var buyError error
+    
+    flipPaid := ""
+    flipBurned := ""
+    listingRaw, exists := m.listings[string(compositeTokenID)]
 	// listingRaw, exists := m.listings.Get(string(compositeTokenID))
 	if !exists {
-		return errors.New("listing does not exist")
+		buyError = ErrMarketplaceListingDoesNotExist
 	}
 	listing := listingRaw
+    
 
-	// Use the specific function to transfer FLIP tokens
-	TransferFLIPToSeller(buyer, listing.Seller, listing.Price)
-
-	// Use the specific function to transfer the composite NFT
-	err := TransferCompositeNFT(listing.Seller, buyer, string(compositeTokenID))
-	if err != nil {
-		return err
+    // Use the specific function to transfer the composite NFT
+	tcerr := TransferCompositeNFT(listing.Seller, buyer, string(compositeTokenID))
+	if tcerr != nil {
+		buyError = tcerr
 	}
 
+    // transfer basic NFTs to buyer
+    for _, t := range listing.BasicTokenIDs {
+        basicTokenId := grc721.TokenID(t)
+        berr := TransferBasicNFTToBuyer(listing.Seller, buyer, basicTokenId)
+        if berr != nil {
+            buyError = berr
+        }
+    }
+
+	// Use the specific function to transfer FLIP tokens
+    if tcerr == nil {
+        fPricePaid, fPriceBurned, terr := TransferFLIPToSeller(buyer, listing.Seller, std.NewCoin("FLIP", int64(listing.Price)))
+        if terr != nil {
+            buyError = terr
+        }
+        flipPaid = fPricePaid
+        flipBurned = fPriceBurned
+    }
+
 	// Remove the listing after successful transfer
-	// todo: maybe use the function RemoveListing(), without the conversion to string of compositeTokenID
-	delete(m.listings, string(compositeTokenID))
-	// m.listings.Remove(string(compositeTokenID))
-	return nil
+    if buyError == nil {
+	    delete(m.listings, string(compositeTokenID))
+    }
+
+    var buyErrorString string
+    if buyError != nil {
+        buyErrorString = buyError.Error()
+    } else {
+        buyErrorString = ""
+    }
+
+    buyNFTResultObject := &buyNFTResult{
+        flipPaid: flipPaid,
+        flipBurned: flipBurned,
+        buyerror: buyErrorString,
+    }
+    buyResultJSON, merr := buyNFTResultObject.MarshalJSON() 
+
+    if merr != nil {
+        buyError = errors.New("Error in marshaling buyNFTResult")
+    }
+	return string(buyResultJSON)
+}
+
+
+// util
+
+func convertPriceStringToUint64(price string) (uint64, error) {
+	// Split the string at the decimal point
+	parts := strings.Split(price, ".")
+	
+	// Parse the integer part
+	integerPart, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, err
+	}
+	
+	// Parse the fractional part and ensure it has at least three digits
+	var fractionalPart int
+	if len(parts) > 1 {
+		fractionalPartStr := parts[1]
+		if len(fractionalPartStr) > 3 {
+			fractionalPartStr = fractionalPartStr[:3]
+		}
+		fractionalPart, err = strconv.Atoi(fractionalPartStr)
+		if err != nil {
+			return 0, err
+		}
+		for len(fractionalPartStr) < 3 {
+			fractionalPart *= 10
+			fractionalPartStr += "0"
+		}
+	}
+	
+	// Combine the integer and fractional parts
+	combined := uint64(integerPart * 1000 + fractionalPart)
+	return combined, nil
 }
