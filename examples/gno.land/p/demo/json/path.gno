@@ -10,7 +10,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-const (
+var (
 	errUnexpectedEOF          = errors.New("unexpected EOF")
 	errUnexpectedChar         = errors.New("unexpected character")
 	errStringNotClosed        = errors.New("string not closed")
@@ -463,8 +463,7 @@ func extractKeys(buf *buffer) ([]string, error) {
 
 func extractKey(buf *buffer) (string, error) {
 	from := buf.index
-	err := buf.pathToken()
-	if err != nil {
+	if err := buf.pathToken(); err != nil {
 		return "", err
 	}
 
@@ -490,20 +489,20 @@ func expectComma(buf *buffer) error {
 
 func processArrayKeys(node *Node, keys []string, result []*Node) ([]*Node, error) {
 	for _, key := range keys {
-		index, err := strconv.Atoi(key)
-		if err != nil {
-			return nil, err
-		}
+		switch key {
+		default:
+			index, err := strconv.Atoi(key)
+			if err == nil {
+				if index < 0 {
+					index = node.Size() + index
+				}
 
-		if index < 0 {
-			index = node.Size() + index
-		}
-
-		if value, ok := node.next[ufmt.Sprintf("%d", index)]; ok {
-			result = append(result, value)
+				if value, ok := node.next[strconv.Itoa(index)]; ok {
+					result = append(result, value)
+				}
+			}
 		}
 	}
-
 	return result, nil
 }
 

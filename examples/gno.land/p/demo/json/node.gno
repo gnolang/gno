@@ -1,9 +1,7 @@
 package json
 
 import (
-	"bytes"
 	"errors"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -1130,20 +1128,6 @@ func (n *Node) Keys() []string {
 	return result
 }
 
-type nodeKeys []string
-
-func (keys nodeKeys) Len() int {
-	return len(keys)
-}
-
-func (keys nodeKeys) Less(i, j int) bool {
-	return keys[i] < keys[j]
-}
-
-func (keys nodeKeys) Swap(i, j int) {
-	keys[i], keys[j] = keys[j], keys[i]
-}
-
 func (n *Node) getSortedChildren() (result []*Node) {
 	if n == nil {
 		return nil
@@ -1152,8 +1136,18 @@ func (n *Node) getSortedChildren() (result []*Node) {
 	size := len(n.next)
 	if n.IsObject() {
 		result = make([]*Node, size)
-		keys := nodeKeys(n.Keys())
-		sort.Sort(keys)
+		keys := n.Keys()
+
+		// sort keys in ascending order
+		for i := 1; i < len(keys); i++ {
+			key := keys[i]
+			j := i - 1
+			for j >= 0 && keys[j] > key {
+				keys[j+1] = keys[j]
+				j--
+			}
+			keys[j+1] = key
+		}
 
 		for i, key := range keys {
 			result[i] = n.next[key]

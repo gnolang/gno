@@ -3,7 +3,6 @@ package json
 import (
 	"errors"
 	"io"
-	"strings"
 
 	"gno.land/p/demo/ufmt"
 )
