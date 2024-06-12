@@ -136,7 +136,6 @@ func (tl *TimeLockUtil) IsPending(id seqid.ID) bool {
 	return state == Pending
 }
 
-
 // Checks if an operation is ready
 func (tl *TimeLockUtil) IsReady(id seqid.ID) bool {
 	state, err := tl.GetOperationState(id)
