@@ -2829,6 +2829,7 @@ func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type, st *S
 
 func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type, st *SymbolTable) Name {
 	switch s := stmt.(type) {
+	case *BranchStmt:
 	case *ValueDecl:
 		for _, rh := range s.Values {
 			un := findUndefined2SkipLocals(store, last, rh, t, st)
