@@ -1,6 +1,8 @@
 package json
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"io"
 	"math"
@@ -21,6 +23,15 @@ var (
 	errInvalidSliceStepValue  = errors.New("invalid slice step value")
 )
 
+// caching nodes to avoid unmarshalling the same JSON data multiple times
+var cacheNode = make(map[string]*Node)
+
+// generateCacheKey creates a hash of the data to be used as a cache key.
+func generateCacheKey(data []byte) string {
+	hash := sha256.Sum256(data)
+	return hex.EncodeToString(hash[:])
+}
+
 // Path returns the nodes that match the given JSON path.
 func Path(data []byte, path string) ([]*Node, error) {
 	commands, err := parsePath(path)
@@ -28,9 +39,17 @@ func Path(data []byte, path string) ([]*Node, error) {
 		return nil, ufmt.Errorf("failed to parse path: %v", err)
 	}
 
-	nodes, err := Unmarshal(data)
-	if err != nil {
-		return nil, ufmt.Errorf("failed to unmarshal JSON: %v", err)
+	dataKey := generateCacheKey(data)
+	nodes, ok := cacheNode[dataKey]
+
+	println("dataKey", dataKey, ok)
+
+	if !ok {
+		nodes, err = Unmarshal(data)
+		if err != nil {
+			return nil, ufmt.Errorf("failed to unmarshal JSON: %v", err)
+		}
+		cacheNode[dataKey] = nodes
 	}
 
 	return applyPath(nodes, commands)
