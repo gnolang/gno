@@ -108,3 +108,7 @@ func IsCallerSubPath() bool {
 func IsCallerParentPath() bool {
 	return nestedpkg.IsCallerParentPath()
 }
+
+func HasCallerSameNamespace() bool {
+	return nestedpkg.IsSameNamespace()
+}
