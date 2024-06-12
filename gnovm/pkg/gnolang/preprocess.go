@@ -2806,7 +2806,7 @@ func findUndefined(store Store, last BlockNode, x Expr) (un Name) {
 }
 
 // finds the next undefined identifier and returns it if it is global
-func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name {
+func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type, st *SymbolTable) Name {
 	name := findUndefined2(store, last, x, t)
 
 	if name != "" {
@@ -2816,61 +2816,87 @@ func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name 
 			// skip it if it's a local identifier
 			return ""
 		}
+
+		isLocal := st.IdentifierExists(string(name))
+
+		if isLocal {
+			return ""
+		}
 	}
 
 	return name
 }
 
-func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
+func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type, st *SymbolTable) Name {
 	switch s := stmt.(type) {
+	case *ValueDecl:
+		for _, rh := range s.Values {
+			un := findUndefined2SkipLocals(store, last, rh, t, st)
+
+			if un != "" {
+				return un
+			}
+		}
+
+		for _, rh := range s.NameExprs {
+			st.AddIdentifier(string(rh.Name))
+		}
+	case *DeclStmt:
+		for _, rh := range s.Body {
+			un := findUndefinedStmt(store, last, rh, t, st)
+
+			if un != "" {
+				return un
+			}
+		}
 	case *IncDecStmt:
-		un := findUndefined2SkipLocals(store, last, s.X, t)
+		un := findUndefined2SkipLocals(store, last, s.X, t, st)
 
 		if un != "" {
 			return un
 		}
 	case *PanicStmt:
-		un := findUndefined2SkipLocals(store, last, s.Exception, t)
+		un := findUndefined2SkipLocals(store, last, s.Exception, t, st)
 
 		if un != "" {
 			return un
 		}
 	case *BlockStmt:
 		for _, rh := range s.Body {
-			un := findUndefinedStmt(store, last, rh, t)
+			un := findUndefinedStmt(store, last, rh, t, st)
 
 			if un != "" {
 				return un
 			}
 		}
 	case *DeferStmt:
-		un := findUndefined2SkipLocals(store, last, s.Call.Func, t)
+		un := findUndefined2SkipLocals(store, last, s.Call.Func, t, st)
 
 		if un != "" {
 			return un
 		}
 
 		for _, rh := range s.Call.Args {
-			un = findUndefined2SkipLocals(store, last, rh, t)
+			un = findUndefined2SkipLocals(store, last, rh, t, st)
 
 			if un != "" {
 				return un
 			}
 		}
 	case *SwitchStmt:
-		un := findUndefined2SkipLocals(store, last, s.X, t)
+		un := findUndefined2SkipLocals(store, last, s.X, t, st)
 		if un != "" {
 			return un
 		}
 
-		un = findUndefinedStmt(store, last, s.Init, t)
+		un = findUndefinedStmt(store, last, s.Init, t, st)
 		if un != "" {
 			return un
 		}
 
 		for _, b := range s.Clauses {
 			b := b
-			un = findUndefinedStmt(store, last, &b, t)
+			un = findUndefinedStmt(store, last, &b, t, st)
 
 			if un != "" {
 				return un
@@ -2878,40 +2904,43 @@ func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
 		}
 	case *SwitchClauseStmt:
 		for _, rh := range s.Cases {
-			un := findUndefined2SkipLocals(store, last, rh, t)
+			un := findUndefined2SkipLocals(store, last, rh, t, st)
 
 			if un != "" {
 				return un
 			}
 		}
 	case *ExprStmt:
-		return findUndefined2SkipLocals(store, last, s.X, t)
+		return findUndefined2SkipLocals(store, last, s.X, t, st)
 	case *AssignStmt:
-		for _, rh := range s.Rhs {
-			un := findUndefined2SkipLocals(store, last, rh, t)
+		for i, rh := range s.Rhs {
+			if s.Op == DEFINE {
+				st.AddIdentifier(string(s.Lhs[i].(*NameExpr).Name))
+			}
+			un := findUndefined2SkipLocals(store, last, rh, t, st)
 
 			if un != "" {
 				return un
 			}
 		}
 	case *IfStmt:
-		un := findUndefined2SkipLocals(store, last, s.Cond, t)
+		un := findUndefined2SkipLocals(store, last, s.Cond, t, st)
 		if un != "" {
 			return un
 		}
 
-		un = findUndefinedStmt(store, last, &s.Else, t)
+		un = findUndefinedStmt(store, last, &s.Else, t, st)
 		if un != "" {
 			return un
 		}
 
-		un = findUndefinedStmt(store, last, &s.Then, t)
+		un = findUndefinedStmt(store, last, &s.Then, t, st)
 		if un != "" {
 			return un
 		}
 	case *IfCaseStmt:
 		for _, b := range s.Body {
-			un := findUndefinedStmt(store, last, b, t)
+			un := findUndefinedStmt(store, last, b, t, st)
 
 			if un != "" {
 				return un
@@ -2919,19 +2948,19 @@ func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
 		}
 	case *ReturnStmt:
 		for _, b := range s.Results {
-			un := findUndefined2SkipLocals(store, last, b, t)
+			un := findUndefined2SkipLocals(store, last, b, t, st)
 			if un != "" {
 				return un
 			}
 		}
 	case *RangeStmt:
-		un := findUndefined2SkipLocals(store, last, s.X, t)
+		un := findUndefined2SkipLocals(store, last, s.X, t, st)
 		if un != "" {
 			return un
 		}
 
 		for _, b := range s.Body {
-			un := findUndefinedStmt(store, last, b, t)
+			un := findUndefinedStmt(store, last, b, t, st)
 			if un != "" {
 				return un
 			}
@@ -3056,8 +3085,9 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 				ct.String()))
 		}
 	case *FuncLitExpr:
+		st := NewSymbolTable()
 		for _, stmt := range cx.Body {
-			un = findUndefinedStmt(store, last, stmt, t)
+			un = findUndefinedStmt(store, last, stmt, t, st)
 
 			if un != "" {
 				return

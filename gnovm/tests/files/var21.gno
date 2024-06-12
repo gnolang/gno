@@ -30,3 +30,12 @@ var myVar3 = func() {
 }
 
 var myDep3 string
+
+var v1 = func() int {
+	v2 := 11
+	return v2
+}()
+
+var v2 = func() int {
+	return v1
+}()
