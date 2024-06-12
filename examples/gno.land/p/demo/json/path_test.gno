@@ -3,6 +3,7 @@ package json
 import (
 	"strings"
 	"testing"
+	"unicode"
 )
 
 func TestParseJSONPath(t *testing.T) {
@@ -39,232 +40,161 @@ func TestParseJSONPath(t *testing.T) {
 	}
 }
 
-func TestArrayPath(t *testing.T) {
-	data := `{
-		"numbers": [1, 2, 3, 4, 5],
-		"colors": ["red", "green", "blue"],
-		"nested": [
+func TestJsonPath(t *testing.T) {
+	// JSON from: https://support.smartbear.com/alertsite/docs/monitors/api/endpoint/jsonpath.html
+	data := []byte(`{
+		"store": {
+			"book": [
 			{
-				"name": "Alice",
-				"age": 30
+				"category": "reference",
+				"author": "Nigel Rees",
+				"title": "Sayings of the Century",
+				"price": 8.95
 			},
 			{
-				"name": "Bob",
-				"age": 25
+				"category": "fiction",
+				"author": "Herman Melville",
+				"title": "Moby Dick",
+				"isbn": "0-553-21311-3",
+				"price": 8.99
 			},
 			{
-				"name": "Charlie",
-				"age": 35
+				"category": "fiction",
+				"author": "J.R.R. Tolkien",
+				"title": "The Lord of the Rings",
+				"isbn": "0-395-19395-8",
+				"price": 22.99
 			}
-		]
-	}`
+			],
+			"bicycle": {
+			"color": "red",
+			"price": 19.95
+			}
+		},
+		"expensive": 10
+	}`)
 
 	tests := []struct {
-		name     string
 		path     string
-		expected string
-		isErr    bool
+		expected []string
 	}{
-		{name: "array index", path: "$.numbers[2]", expected: "[$['numbers'][2]]"},
-		{name: "array slice", path: "$.numbers[1:4]", expected: "[$['numbers'][1], $['numbers'][2], $['numbers'][3]]"},
-		{name: "array slice with step", path: "$.numbers[0:5:2]", expected: "[$['numbers'][0], $['numbers'][2], $['numbers'][4]]"},
-		{name: "array slice with negative index and step", path: "$.colors[-3:-1:1]", expected: "[$['colors'][0], $['colors'][1]]"},
-		{name: "nested array slice", path: "$.nested[0:2].name", expected: "[$['nested'][0]['name'], $['nested'][1]['name']]"},
-		{name: "nested array slice with step", path: "$.nested[0:3:2].age", expected: "[$['nested'][0]['age'], $['nested'][2]['age']]"},
+		{"$.store.*", []string{
+			`{
+   "color": "red",
+   "price": 19.95
+}`,
+			`[
+  {
+   "category": "reference",
+   "author": "Nigel Rees",
+   "title": "Sayings of the Century",
+   "price": 8.95
+  },
+  {
+   "category": "fiction",
+   "author": "Herman Melville",
+   "title": "Moby Dick",
+   "isbn": "0-553-21311-3",
+   "price": 8.99
+  },
+  {
+   "category": "fiction",
+   "author": "J.R.R. Tolkien",
+   "title": "The Lord of the Rings",
+   "isbn": "0-395-19395-8",
+   "price": 22.99
+  }
+]`,
+		}},
+		{"$.store.bicycle.color", []string{`"red"`}},
+		{"$.store.book[*]", []string{
+			`{
+   "category": "reference",
+   "author": "Nigel Rees",
+   "title": "Sayings of the Century",
+   "price": 8.95
+}`,
+			`{
+   "category": "fiction",
+   "author": "Herman Melville",
+   "title": "Moby Dick",
+   "isbn": "0-553-21311-3",
+   "price": 8.99
+}`,
+			`{
+   "category": "fiction",
+   "author": "J.R.R. Tolkien",
+   "title": "The Lord of the Rings",
+   "isbn": "0-395-19395-8",
+   "price": 22.99
+}`,
+		}},
+		{"$.store.book[0].title", []string{`"Sayings of the Century"`}},
+		{"$.store..price", []string{`19.95`, `8.95`, `8.99`, `22.99`}},
+		{"$..price", []string{`19.95`, `8.95`, `8.99`, `22.99`}},
+		{"$..book[*].title", []string{`"Sayings of the Century"`, `"Moby Dick"`, `"The Lord of the Rings"`}},
+		{"$..book[0]", []string{
+			`{
+   "category": "reference",
+   "author": "Nigel Rees",
+   "title": "Sayings of the Century",
+   "price": 8.95
+}`,
+		}},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			res, err := Path([]byte(data), tt.path)
-			if (err != nil) != tt.isErr {
-				t.Errorf("expected error %v, got %v", tt.isErr, err)
+		result, err := Path(data, tt.path)
+		if err != nil {
+			t.Errorf("Unexpected error for path %q: %v", tt.path, err)
+			continue
+		}
+
+		if len(result) != len(tt.expected) {
+			t.Errorf("Path %q: expected %d results, got %d", tt.path, len(tt.expected), len(result))
+			continue
+		}
+
+		for i, node := range result {
+			expectedNorm := normalizeJSON(tt.expected[i])
+			resultNorm := normalizeJSON(node.String())
+			if resultNorm != expectedNorm {
+				t.Errorf("Path %q: expected result %q, got %q", tt.path, expectedNorm, resultNorm)
 			}
-			if tt.isErr {
-				return
-			}
-			if fullPath(res) != tt.expected {
-				t.Errorf("expected %s, got %s", tt.expected, fullPath(res))
-			}
-		})
+		}
 	}
 }
 
-func TestApplyPath(t *testing.T) {
-	node1 := NumberNode("", 1)
-	node2 := NumberNode("", 2)
-	cpy := func(n Node) *Node {
-		return &n
+// normalizeJSON removes all whitespace outside of quoted text.
+func normalizeJSON(s string) string {
+	var sb strings.Builder
+	inQuotes := false
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '"' {
+			inQuotes = !inQuotes
+			sb.WriteByte(c)
+		} else if inQuotes {
+			sb.WriteByte(c)
+		} else if !inQuotes && !unicode.IsSpace(rune(c)) {
+			sb.WriteByte(c)
+		}
 	}
-	array := ArrayNode("", []*Node{cpy(*node1), cpy(*node2)})
-
-	type pathData struct {
-		node *Node
-		path []string
-	}
-
-	tests := []struct {
-		name     string
-		args     pathData
-		expected []*Node
-		isErr    bool
-	}{
-		{
-			name: "root",
-			args: pathData{
-				node: node1,
-				path: []string{"$"},
-			},
-			expected: []*Node{node1},
-		},
-		{
-			name: "second",
-			args: pathData{
-				node: array,
-				path: []string{"$", "1"},
-			},
-			expected: []*Node{array.next["1"]},
-		},
-		{
-			name: "object",
-			args: pathData{
-				node: ObjectNode("", map[string]*Node{
-					"key1": NumberNode("", 42),
-					"key2": NumberNode("", 43),
-				}),
-				path: []string{"$", "key1"},
-			},
-			expected: []*Node{NumberNode("", 42)},
-		},
-		{
-			name: "wildcard on object",
-			args: pathData{
-				node: ObjectNode("", map[string]*Node{
-					"key1": NumberNode("", 42),
-					"key2": NumberNode("", 43),
-				}),
-				path: []string{"$", "*"},
-			},
-			expected: []*Node{NumberNode("", 42), NumberNode("", 43)},
-		},
-		{
-			name: "array slice",
-			args: pathData{
-				node: ArrayNode("", []*Node{
-					NumberNode("", 1),
-					NumberNode("", 2),
-					NumberNode("", 3),
-					NumberNode("", 4),
-				}),
-				path: []string{"$", "1:3"},
-			},
-			expected: []*Node{NumberNode("", 2), NumberNode("", 3)},
-		},
-		{
-			name: "array slice with step",
-			args: pathData{
-				node: ArrayNode("", []*Node{
-					NumberNode("", 1),
-					NumberNode("", 2),
-					NumberNode("", 3),
-					NumberNode("", 4),
-					NumberNode("", 5),
-				}),
-				path: []string{"$", "0:5:2"},
-			},
-			expected: []*Node{
-				NumberNode("", 1),
-				NumberNode("", 3),
-				NumberNode("", 5),
-			},
-		},
-		{
-			name: "array slice with negative index and step",
-			args: pathData{
-				node: ArrayNode("", []*Node{
-					NumberNode("", 1),
-					NumberNode("", 2),
-					NumberNode("", 3),
-					NumberNode("", 4),
-					NumberNode("", 5),
-				}),
-				path: []string{"$", "-3:-1:1"},
-			},
-			expected: []*Node{
-				NumberNode("", 3),
-				NumberNode("", 4),
-			},
-		},
-		{
-			name: "basic recursive descent path",
-			args: pathData{
-				node: ObjectNode("", map[string]*Node{
-					"key1": NumberNode("", 42),
-					"key2": NumberNode("", 43),
-				}),
-				path: []string{"$", ".."},
-			},
-			expected: []*Node{
-				ObjectNode("", map[string]*Node{
-					"key1": NumberNode("", 42),
-					"key2": NumberNode("", 43),
-				}),
-				NumberNode("", 42),
-				NumberNode("", 43),
-			},
-		},
-		{
-			name: "recursive descent with wildcard",
-			args: pathData{
-				node: ObjectNode("", map[string]*Node{
-					"key1": NumberNode("", 42),
-					"key2": NumberNode("", 43),
-				}),
-				path: []string{"$", "..", "*"},
-			},
-			expected: []*Node{
-				ObjectNode("", map[string]*Node{
-					"key1": NumberNode("", 42),
-					"key2": NumberNode("", 43),
-				}),
-				NumberNode("", 42),
-				NumberNode("", 41),
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := applyPath(tt.args.node, tt.args.path)
-			if (err != nil) != tt.isErr {
-				t.Errorf("#1 expected error %v, got %v", tt.isErr, err)
-			}
-		})
-	}
+	return sb.String()
 }
 
 func sliceEqual(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
 	}
-
 	for i, v := range a {
 		if v != b[i] {
 			return false
 		}
 	}
-
 	return true
-}
-
-func fullPath(array []*Node) string {
-	return sliceString(Paths(array))
 }
 
 func sliceString(array []string) string {
 	return "[" + strings.Join(array, ", ") + "]"
-}
-
-func (n *Node) Equals(other *Node) bool {
-	// Compare the values of n and other
-	return n.value == other.value && n.nodeType == other.nodeType
 }

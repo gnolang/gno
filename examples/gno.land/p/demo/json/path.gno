@@ -42,8 +42,6 @@ func Path(data []byte, path string) ([]*Node, error) {
 	dataKey := generateCacheKey(data)
 	nodes, ok := cacheNode[dataKey]
 
-	println("dataKey", dataKey, ok)
-
 	if !ok {
 		nodes, err = Unmarshal(data)
 		if err != nil {
