@@ -401,7 +401,7 @@ func AddFoos(multipleFoos []*Foo) {
 }
 
 func Render(_ string) string {
-	output := ""
+	var output string
 
 	for _, f := range foos {
 		output += f.String()
