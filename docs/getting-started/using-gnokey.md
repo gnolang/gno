@@ -227,7 +227,7 @@ mykey
 In this command, we have specified three main things:
 - The path where the realm lives on-chain with the `-pkgpath` flag
 - The function that we want to call on the realm with the `-func` flag
-- The amount of `ugnot` we want to deposit to wrap using the `-send` flag
+- The amount of `ugnot` we want to send to be wrapped, using the `-send` flag
 
 Apart from this, we have also specified the Portal Loop chain ID, `portal-loop`,
 as well as the Portal Loop remote address, `https://rpc.gno.land:443`.
