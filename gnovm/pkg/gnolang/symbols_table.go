@@ -20,16 +20,6 @@ func newScope() *Scope {
 	}
 }
 
-func (st *SymbolTable) EnterScope() {
-	st.scopes = append(st.scopes, newScope())
-}
-
-func (st *SymbolTable) ExitScope() {
-	if len(st.scopes) > 1 {
-		st.scopes = st.scopes[:len(st.scopes)-1]
-	}
-}
-
 func (st *SymbolTable) AddIdentifier(name string) {
 	if len(st.scopes) > 0 {
 		st.scopes[len(st.scopes)-1].symbols[name] = struct{}{}
