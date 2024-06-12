@@ -3,7 +3,7 @@ package v1impl
 import (
 	"errors"
 
-	"gno.land/r/x/manfred_upgrade_patterns/upgrade_e/home"
+	home "gno.land/r/x/manfred_upgrade_patterns/upgrade_e"
 )
 
 // init is for self-registration, but in practice, anything can register like a `maketx run` call by an admin.

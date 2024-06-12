@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gno.land/r/x/manfred_upgrade_patterns/upgrade_e/home"
+	home "gno.land/r/x/manfred_upgrade_patterns/upgrade_e"
 	_ "gno.land/r/x/manfred_upgrade_patterns/upgrade_e/v1impl"
 )
 

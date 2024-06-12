@@ -16,8 +16,10 @@ func IsCallerSubPath() bool {
 
 // AssertCallerIsSubPath panics when IsCallerSubPath is false.
 func AssertCallerIsSubPath() {
-	if !IsCallerSubPath() {
-		panic("call restricted to nested packages")
+	cur := std.CurrentRealm().PkgPath()
+	prev := std.PrevRealm().PkgPath()
+	if !strings.HasPrefix(prev, cur) {
+		panic("call restricted to nested packages. current realm is " + cur + ", prev realm is " + prev)
 	}
 }
 
@@ -29,10 +31,13 @@ func IsCallerParentPath() bool {
 }
 
 func AssertCallerIsParentPath() {
-	if !IsCallerParentPath() {
-		panic("call restricted to parent packages")
+	cur := std.CurrentRealm().PkgPath()
+	prev := std.PrevRealm().PkgPath()
+	if !strings.HasPrefix(cur, prev) {
+		panic("call restricted to parent packages. current realm is " + cur + ", prev realm is " + prev)
 	}
 }
 
 // XXX: consider adding IsCallerDirectlySubPath
 // XXX: consider adding IsCallerDirectlyParentPath
+// XXX: consider adding IsSameNamespace

@@ -3,6 +3,8 @@ package home
 import (
 	"std"
 	"strings"
+
+	"gno.land/p/demo/nestedpkg"
 )
 
 type myInterface interface {
@@ -13,10 +15,7 @@ type myInterface interface {
 var currentImpl myInterface
 
 func SetImpl(impl myInterface) {
-	// registration only accepts a nested package path
-	if !strings.HasPrefix(std.PrevRealm().PkgPath(), "gno.land/r/x/manfred_upgrade_patterns/upgrade_e/") {
-		panic("could only add implementation from a nested package")
-	}
+	nestedpkg.AssertCallerIsSubPath()
 	currentImpl = impl
 }
 
