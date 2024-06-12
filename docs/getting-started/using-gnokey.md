@@ -716,7 +716,7 @@ gnokey maketx call \
 mykey > userbook.tx
 ```
 
-This will create a `userbook.tx` file, with the `signature` field null.
+This will create a `userbook.tx` file with a null `signature` field.
 Now we are ready to sign the transaction.
 
 ### Signing the transaction
