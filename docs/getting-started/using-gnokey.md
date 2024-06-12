@@ -367,7 +367,7 @@ call. The full potential of run comes out in three specific cases:
 3. Calling functions with receiver objects
 
 Let's look at each of these cases in detail. To demonstrate, we'll make a call
-following example realm which we will call:
+to the following example realm:
 
 ```go
 package foo
