@@ -2,7 +2,7 @@ package client
 
 import (
 	"context"
-	"encoding/hex"
+	"encoding/base64"
 	"flag"
 	"os"
 
@@ -88,7 +88,7 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 		io.Println("HEIGHT:    ", res.Height)
 		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
-		io.Println("TX HASH:   ", hex.EncodeToString(res.Hash))
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 	}
 	return nil
 }

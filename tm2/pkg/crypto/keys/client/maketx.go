@@ -1,7 +1,7 @@
 package client
 
 import (
-	"encoding/hex"
+	"encoding/base64"
 	"flag"
 	"fmt"
 
@@ -220,7 +220,7 @@ func ExecSignAndBroadcast(
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", bres.Height)
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
-	io.Println("TX HASH:   ", hex.EncodeToString(bres.Hash))
+	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
 
 	return nil
 }
