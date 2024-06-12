@@ -664,7 +664,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 	if x.Op == ASSIGN || x.Op == DEFINE {
 		if len(x.Lhs) > len(x.Rhs) {
 			if len(x.Rhs) != 1 {
-				panic("length of Rhs should be 1")
+				panic(fmt.Sprintf("assignment mismatch: %d variables but %d values", len(x.Lhs), len(x.Rhs)))
 			}
 			switch cx := x.Rhs[0].(type) {
 			case *CallExpr:
