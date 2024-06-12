@@ -22,8 +22,8 @@
 //  Check if an operation is pending.
 //  isPending := timeLockUtil.IsPending(id)
 //
-//  Execute the operation when it is waiting.
-//  if timeLockUtil.IsWaiting(id) {
+//  Execute the operation when it is pending.
+//  if timeLockUtil.IsPending(id) {
 //      timeLockUtil.Execute(id)
 //  }
 //
@@ -105,10 +105,10 @@ func (tl *TimeLockUtil) Cancel(id seqid.ID) error {
 	return nil
 }
 
-// Executes a waiting operation
+// Executes a pending operation
 func (tl *TimeLockUtil) Execute(id seqid.ID) error {
 	if !tl.IsPending(id) {
-		ufmt.Errorf("timelock: Execute: operation not waiting")
+		ufmt.Errorf("timelock: Execute: operation not pending")
 	}
 	tl.timestamps.Set(id.Binary(), DoneTimestamp)
 	std.Emit("CallExecuted", "id", id.String())
@@ -141,7 +141,7 @@ func (tl *TimeLockUtil) IsPending(id seqid.ID) bool {
 func (tl *TimeLockUtil) IsReady(id seqid.ID) bool {
 	state, err := tl.GetOperationState(id)
 	if err != nil {
-		// Handle the error appropriately; for now, we assume the operation is not waiting if there's an error
+		// Handle the error appropriately; for now, we assume the operation is not pending if there's an error
 		ufmt.Errorf("Error retrieving operation state: %v", err)
 		return false
 	}
@@ -159,7 +159,7 @@ func (tl *TimeLockUtil) GetOperationState(id seqid.ID) (OperationState, error) {
 	} else if timestamp == DoneTimestamp {
 		return Done, nil
 	} else if timestamp > time.Now().Unix() {
-		return Waiting, nil
+		return Pending, nil
 	} else {
 		return Ready, nil
 	}
