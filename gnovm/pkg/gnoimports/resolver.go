@@ -30,13 +30,19 @@ type Resolver interface {
 }
 
 type FSResolver struct {
+	// When strict is enable resolve will fail on any error
+	strict bool
+
+	fset    *token.FileSet
 	pkgpath map[string]*Package   // pkg path-> pkg
 	stdlibs map[string][]*Package // pkg name -> []pkg
-	extlibs map[string][]*Package // pkg name -> []pkg
+	extlibs map[string][]*Package // pkg name -> []pkga
 }
 
-func NewFSResolver() *FSResolver {
+func NewFSResolver(strict bool) *FSResolver {
 	return &FSResolver{
+		strict:  strict,
+		fset:    token.NewFileSet(),
 		pkgpath: map[string]*Package{},
 		stdlibs: map[string][]*Package{},
 		extlibs: map[string][]*Package{},
@@ -54,18 +60,19 @@ func (p *FSResolver) ResolvePath(pkgpath string) *Package {
 
 // LoadStdPackages loads all standard packages from the root directory.
 // Std packages are not prefixed by the root directory.
-func (p *FSResolver) LoadStdPackages(root string) error {
+func (r *FSResolver) LoadStdPackages(root string) error {
 	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil || !info.IsDir() {
-			return nil
+			if debug {
+				fmt.Fprintf(os.Stderr, err.Error())
+			}
+
+			return err
 		}
 
 		files, err := os.ReadDir(path)
 		if err != nil {
-			if debug {
-				fmt.Fprintf(os.Stderr, "unable to read directory %q: %s", path, err)
-			}
-			return nil
+			return r.newStrictError("unable to read directory %q: %w", path, err)
 		}
 
 		var gnofiles []string
@@ -92,46 +99,22 @@ func (p *FSResolver) LoadStdPackages(root string) error {
 		}
 
 		// Check for conflict with previous import path
-		if oldPkg, ok := p.extlibs[memPkg.Path]; ok {
+		if oldPkg, ok := r.pkgpath[memPkg.Path]; ok {
 			// Stop on path conflict, has a package path should be uniq
-			return fmt.Errorf("conflict between %q and %q", oldPkg[0].Dir, newPkg.Dir)
+			return r.newStrictError("conflict between %q and %q", oldPkg.Dir, newPkg.Dir)
 		}
 
-		p.pkgpath[memPkg.Path] = newPkg
-		p.stdlibs[memPkg.Name] = append(p.stdlibs[memPkg.Name], newPkg)
+		r.pkgpath[memPkg.Path] = newPkg
+		r.stdlibs[memPkg.Name] = append(r.stdlibs[memPkg.Name], newPkg)
 		return nil
 	})
 }
 
-// LoadPackages loads all packages from the root directory.
-func (p *FSResolver) LoadPackages(root string) error {
-	pkgs, err := ListAllPkgsFromRoot(root)
-	if err != nil {
-		return fmt.Errorf("unable to resolve example folder: %w", err)
-	}
-
-	for _, pkg := range pkgs {
-		if oldPkg, ok := p.extlibs[pkg.Path]; ok {
-			return fmt.Errorf("conflict between %q and %q", oldPkg[0].Dir, pkg.Dir)
-		}
-
-		p.pkgpath[pkg.Path] = pkg
-		p.extlibs[pkg.Name] = append(p.extlibs[pkg.Name], pkg)
-	}
-
-	return nil
-}
-
-// ListAllPkgsFromRoot lists all packages in the directory (excluding those which can't be processed).
-func ListAllPkgsFromRoot(root string) ([]*Package, error) {
-	var pkgs []*Package
-	fset := token.NewFileSet()
+// listAllPkgsFromRoot lists all packages in the directory (excluding those which can't be processed).
+func (r *FSResolver) LoadPackages(root string) error {
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil // skip error
-		}
-		if err != nil {
-			return nil // skip error
+			return err // skip error
 		}
 
 		if !d.IsDir() || root == path {
@@ -142,35 +125,31 @@ func ListAllPkgsFromRoot(root string) ([]*Package, error) {
 			return filepath.SkipDir
 		}
 
-		pkg, err := ParsePackage(fset, root, path)
+		pkg, err := r.parsePackage(root, path)
 		if err != nil {
-			if debug {
-				fmt.Fprintf(os.Stderr, "unable to inspect package %q: %s\n", path, err)
-			}
-
-			return nil // Skip on error
+			return r.newStrictError("unable to inspect package %q: %w", path, err)
 		}
 
-		if pkg != nil {
-			pkgs = append(pkgs, pkg)
+		if pkg == nil {
+			// not a package
+			return nil
 		}
 
+		// Check for conflict with previous import path
+		if oldPkg, ok := r.pkgpath[pkg.Path]; ok {
+			// Stop on path conflict, has a package path should be uniq
+			return r.newStrictError("conflict between %q and %q", oldPkg.Dir, pkg.Dir)
+		}
+
+		r.pkgpath[pkg.Path] = pkg
+		r.extlibs[pkg.Name] = append(r.extlibs[pkg.Name], pkg)
 		return nil
 	})
 
-	return pkgs, err
+	return err
 }
 
-func isValidGnoFile(name string) bool {
-	return filepath.Ext(name) == ".gno" &&
-		// Ignore testfile
-		!strings.HasSuffix(name, "_filetest.gno") &&
-		!strings.HasSuffix(name, "_test.gno") &&
-		// Ignore dotfile
-		!strings.HasPrefix(name, ".")
-}
-
-func ParsePackage(fset *token.FileSet, root string, path string) (*Package, error) {
+func (r *FSResolver) parsePackage(root string, path string) (*Package, error) {
 	files, err := os.ReadDir(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read dir %q: %w", path, err)
@@ -185,7 +164,7 @@ func ParsePackage(fset *token.FileSet, root string, path string) (*Package, erro
 		}
 
 		filename := filepath.Join(path, name)
-		f, err := parser.ParseFile(fset, filename, nil, parser.PackageClauseOnly)
+		f, err := parser.ParseFile(r.fset, filename, nil, parser.PackageClauseOnly)
 		if err != nil {
 			return nil, fmt.Errorf("unable to parse file %q: %w", filename, err)
 		}
@@ -232,4 +211,26 @@ func ParsePackage(fset *token.FileSet, root string, path string) (*Package, erro
 		Name: pkgname,
 		Dir:  path,
 	}, nil
+}
+
+func (r *FSResolver) newStrictError(f string, args ...any) error {
+	err := fmt.Errorf(f, args...)
+	if r.strict {
+		return err
+	}
+
+	if debug {
+		fmt.Fprintf(os.Stderr, err.Error())
+	}
+
+	return nil
+}
+
+func isValidGnoFile(name string) bool {
+	return filepath.Ext(name) == ".gno" &&
+		// Ignore testfile
+		!strings.HasSuffix(name, "_filetest.gno") &&
+		!strings.HasSuffix(name, "_test.gno") &&
+		// Ignore dotfile
+		!strings.HasPrefix(name, ".")
 }

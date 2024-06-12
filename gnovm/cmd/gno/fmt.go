@@ -22,9 +22,11 @@ import (
 
 type fmtCfg struct {
 	write   bool
+	quiet   bool
 	diff    bool
 	verbose bool
 	imports bool
+	strict  bool
 	include fmtIncludes
 }
 
@@ -60,6 +62,20 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 		"v",
 		defaultFmtOptions.verbose,
 		"verbose mode",
+	)
+
+	fs.BoolVar(
+		&c.quiet,
+		"q",
+		defaultFmtOptions.verbose,
+		"quiet mode",
+	)
+
+	fs.BoolVar(
+		&c.strict,
+		"strict",
+		defaultFmtOptions.strict,
+		"when enabled, fail if any parse errors are encountered",
 	)
 
 	fs.BoolVar(
@@ -156,7 +172,7 @@ func fmtProcessSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFile, 
 	}
 
 	if !cfg.write {
-		if !cfg.diff {
+		if !cfg.diff && !cfg.quiet {
 			io.Println(string(data))
 		}
 		return true
@@ -187,7 +203,8 @@ func fmtProcessDiff(file string, data []byte, io commands.IO) bool {
 }
 
 func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
-	r := gnoimports.NewFSResolver()
+	r := gnoimports.NewFSResolver(cfg.strict)
+
 	gnoroot := gnoenv.RootDir()
 
 	// Load stdlibs
