@@ -52,7 +52,7 @@ type OperationState int
 
 const (
 	Unset OperationState = iota
-	Waiting
+	Pending
 	Ready
 	Done
 )
@@ -108,7 +108,7 @@ func (tl *TimeLockUtil) Cancel(id seqid.ID) error {
 // Executes a waiting operation
 func (tl *TimeLockUtil) Execute(id seqid.ID) error {
 	if !tl.IsWaiting(id) {
-		ufmt.Errorf("timelock: Execute: operation not ready")
+		ufmt.Errorf("timelock: Execute: operation not waiting")
 	}
 	tl.timestamps.Set(id.Binary(), DoneTimestamp)
 	std.Emit("CallExecuted", "id", id.String())
@@ -133,14 +133,15 @@ func (tl *TimeLockUtil) IsPending(id seqid.ID) bool {
 		ufmt.Errorf("Error retrieving operation state: %v", err)
 		return false
 	}
-	return state == Waiting || state == Ready
+	return state == Pending
 }
 
+
 // Checks if an operation is waiting
-func (tl *TimeLockUtil) IsWaiting (id seqid.ID) bool {
+func (tl *TimeLockUtil) IsReady (id seqid.ID) bool {
 	state, err := tl.GetOperationState(id)
 	if err != nil {
-		// Handle the error appropriately; for now, we assume the operation is not ready if there's an error
+		// Handle the error appropriately; for now, we assume the operation is not waiting if there's an error
 		ufmt.Errorf("Error retrieving operation state: %v", err)
 		return false
 	}
