@@ -1,7 +1,5 @@
 package v2impl
 
-import "errors"
-
 var impl = &Impl{}
 
 func Instance() *Impl {

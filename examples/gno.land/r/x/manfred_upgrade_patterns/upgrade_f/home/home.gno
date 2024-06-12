@@ -1,10 +1,5 @@
 package home
 
-import (
-	"std"
-	"strings"
-)
-
 type myInterface interface {
 	Render(path string) string
 	Foo() error
