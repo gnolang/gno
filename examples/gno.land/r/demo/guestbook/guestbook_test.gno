@@ -1,0 +1,125 @@
+package guestbook
+
+import (
+	"std"
+	"strings"
+	"testing"
+
+	"gno.land/p/demo/avl"
+)
+
+func TestSign(t *testing.T) {
+	guestbook = avl.Tree{}
+	hasSigned = avl.Tree{}
+
+	std.TestSetRealm(std.NewUserRealm("g1user"))
+	Sign("Hello!")
+
+	std.TestSetRealm(std.NewUserRealm("g1user2"))
+	Sign("Hello2!")
+
+	res := Render("")
+	t.Log(res)
+	if !strings.Contains(res, "> Hello!\n>\n> _Written by g1user ") {
+		t.Error("does not contain first user's message")
+	}
+	if !strings.Contains(res, "> Hello2!\n>\n> _Written by g1user2 ") {
+		t.Error("does not contain second user's message")
+	}
+	if guestbook.Size() != 2 {
+		t.Error("invalid guestbook size")
+	}
+}
+
+func TestSign_FromRealm(t *testing.T) {
+	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
+
+	defer func() {
+		rec := recover()
+		if rec == nil {
+			t.Fatal("expected panic")
+		}
+		recString, ok := rec.(string)
+		if !ok {
+			t.Fatal("not a string", rec)
+		} else if recString != errNotAUser {
+			t.Fatal("invalid error", recString)
+		}
+	}()
+	Sign("Hey!")
+}
+
+func TestSign_Double(t *testing.T) {
+	// Should not allow signing twice.
+	guestbook = avl.Tree{}
+	hasSigned = avl.Tree{}
+
+	std.TestSetRealm(std.NewUserRealm("g1user"))
+	Sign("Hello!")
+
+	defer func() {
+		rec := recover()
+		if rec == nil {
+			t.Fatal("expected panic")
+		}
+		recString, ok := rec.(string)
+		if !ok {
+			t.Error("type assertion failed", rec)
+		} else if recString != errAlreadySigned {
+			t.Error("invalid error message", recString)
+		}
+	}()
+
+	Sign("Hello again!")
+}
+
+func TestSign_InvalidMessage(t *testing.T) {
+	// Should not allow control characters in message.
+	guestbook = avl.Tree{}
+	hasSigned = avl.Tree{}
+
+	std.TestSetRealm(std.NewUserRealm("g1user"))
+
+	defer func() {
+		rec := recover()
+		if rec == nil {
+			t.Fatal("expected panic")
+		}
+		recString, ok := rec.(string)
+		if !ok {
+			t.Error("type assertion failed", rec)
+		} else if recString != errInvalidCharacterInMessage {
+			t.Error("invalid error message", recString)
+		}
+	}()
+	Sign("\x00Hello!")
+}
+
+func TestAdminDelete(t *testing.T) {
+	guestbook = avl.Tree{}
+	hasSigned = avl.Tree{}
+	adminAddr = "g1admin"
+	signatureID = 0
+
+	std.TestSetRealm(std.NewUserRealm("g1user"))
+
+	const bad = "Very Bad Message! Nyeh heh heh!"
+	Sign(bad)
+
+	if rnd := Render(""); !strings.Contains(rnd, bad) {
+		t.Fatal("render does not contain bad message", rnd)
+	}
+
+	std.TestSetRealm(std.NewUserRealm(adminAddr))
+	AdminDelete(signatureID.String())
+
+	if rnd := Render(""); strings.Contains(rnd, bad) {
+		t.Error("render contains bad message", rnd)
+	}
+	if guestbook.Size() != 0 {
+		t.Error("invalid guestbook size")
+	}
+	if hasSigned.Size() != 1 {
+		t.Error("invalid hasSigned size")
+	}
+}
