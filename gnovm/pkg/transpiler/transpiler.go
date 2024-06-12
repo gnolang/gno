@@ -22,8 +22,8 @@ import (
 const (
 	GnoRealmPkgsPrefixBefore = "gno.land/r/"
 	GnoRealmPkgsPrefixAfter  = "github.com/gnolang/gno/examples/gno.land/r/"
-	GnoPackagePrefixBefore   = "gno.land/p/demo/"
-	GnoPackagePrefixAfter    = "github.com/gnolang/gno/examples/gno.land/p/demo/"
+	GnoPurePkgsPrefixBefore  = "gno.land/p/"
+	GnoPurePkgsPrefixAfter   = "github.com/gnolang/gno/examples/gno.land/p/"
 	GnoStdPkgBefore          = "std"
 	GnoStdPkgAfter           = "github.com/gnolang/gno/gnovm/stdlibs/stdshim"
 )
@@ -277,7 +277,7 @@ func transpileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.No
 					continue
 				}
 
-				if strings.HasPrefix(importPath, GnoPackagePrefixBefore) {
+				if strings.HasPrefix(importPath, GnoPurePkgsPrefixBefore) {
 					continue
 				}
 
@@ -320,8 +320,8 @@ func transpileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.No
 			}
 
 			// p/pkg packages
-			if strings.HasPrefix(importPath, GnoPackagePrefixBefore) {
-				target := GnoPackagePrefixAfter + strings.TrimPrefix(importPath, GnoPackagePrefixBefore)
+			if strings.HasPrefix(importPath, GnoPurePkgsPrefixBefore) {
+				target := GnoPurePkgsPrefixAfter + strings.TrimPrefix(importPath, GnoPurePkgsPrefixBefore)
 
 				if !astutil.RewriteImport(fset, f, importPath, target) {
 					errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("failed to replace the %q package with %q", importPath, target))
