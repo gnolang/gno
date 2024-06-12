@@ -20,6 +20,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	abci_testing "github.com/gnolang/gno/tm2/pkg/bft/abci/types/testing"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
@@ -1133,7 +1134,7 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 	vals := types.NewValidatorSet([]*types.Validator{val})
 	appVals := vals.ABCIValidatorUpdates()
 	// returns the vals on InitChain
-	app := &abci.MockApplication{
+	app := &abci_testing.MockApplication{
 		InitChainFn: func(req abci.RequestInitChain) abci.ResponseInitChain {
 			return abci.ResponseInitChain{
 				Validators: appVals,
@@ -1172,7 +1173,7 @@ func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 
 	const numInitResponses = 42
 
-	app := &abci.MockApplication{
+	app := &abci_testing.MockApplication{
 		InitChainFn: func(req abci.RequestInitChain) abci.ResponseInitChain {
 			return abci.ResponseInitChain{
 				TxResponses: make([]abci.ResponseDeliverTx, numInitResponses),
