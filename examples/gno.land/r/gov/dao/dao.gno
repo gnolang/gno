@@ -23,16 +23,16 @@ type Proposal struct {
 	finished bool
 }
 
-func (p Proposal) Status() string {
+func (p Proposal) Status() Status {
 	if p.Executor.Done() {
-		return p.Executor.Status()
+		return Status(p.Executor.Status())
 	}
 	if p.accepted {
-		return "accepted"
+		return Accepted
 	}
 	// XXX: timeout
 	// XXX: not_accepted
-	return "active"
+	return Active
 }
 
 // Propose is designed to be called by another contract or with
@@ -109,7 +109,7 @@ func Render(path string) string {
 	output += "\n"
 	output += prop.Comment
 	output += "\n"
-	output += ufmt.Sprintf("Status: %s", prop.Status())
+	output += ufmt.Sprintf("Status: %s", string(prop.Status()))
 	return output
 }
 

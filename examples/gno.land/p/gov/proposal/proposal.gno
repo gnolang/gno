@@ -42,14 +42,14 @@ func (exec *executorImpl) Success() bool {
 	return exec.success
 }
 
-func (exec executorImpl) Status() string {
+func (exec executorImpl) Status() Status {
 	switch {
 	case exec.success:
-		return "success"
+		return Success
 	case exec.done:
-		return "failed"
+		return Failed
 	default:
-		return "not_executed"
+		return NotExecuted
 	}
 }
 

@@ -9,9 +9,18 @@ type Executor interface {
 	Execute() error
 	Done() bool
 	Success() bool  // Done() && !err
-	Status() string // human-readable execution status (not_executed, success, failed)
+	Status() Status // human-readable execution status
 }
 
 // ErrAlreadyDone is the error returned when trying to execute an already
 // executed proposal.
 var ErrAlreadyDone = errors.New("already executed")
+
+// Status enum.
+type Status string
+
+var (
+	NotExecuted Status = "not_executed"
+	Success     Status = "success"
+	Failed      Status = "failed"
+)
