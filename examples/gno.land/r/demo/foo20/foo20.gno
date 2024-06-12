@@ -22,13 +22,13 @@ var (
 func init() {
 	// Instantiate ownable
 	o = ownable.New()
-	o.TransferOwnership("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
+	o.TransferOwnership("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @admin
 
 	// Instantiate token
 	foo = grc20.NewGRC20Token("Foo", "FOO", 4)
 
-	// Mint 1M tokens to g125em6arxsnj49vx35f0n0z34putv5ty3376fg5
-	foo.Mint(o.Owner(), 1_000_000*10000)
+	// Mint 1M tokens to admin
+	foo.Mint(o.Owner(), uint64(1_000_000*math.Pow10(int(Decimals()))))
 
 	// Faucet for token is disabled upon deployment
 	fauceted = false
@@ -106,7 +106,7 @@ func Faucet() {
 // Administration
 
 func Mint(address pusers.AddressOrName, amount uint64) {
-	if err := o.CallerIsOwner(); err != nil {
+	if err := o.CallerIsOwner(); err != nil && !fauceted {
 		panic("only owner can mint tokens")
 	}
 
@@ -123,7 +123,7 @@ func Burn(address pusers.AddressOrName, amount uint64) {
 
 func EnableFaucet() {
 	if err := o.CallerIsOwner(); err != nil {
-		panic("only owner can mint tokens")
+		panic("only owner can enable the faucet")
 	}
 
 	fauceted = true
@@ -131,7 +131,7 @@ func EnableFaucet() {
 
 func DisableFaucet() {
 	if err := o.CallerIsOwner(); err != nil {
-		panic("only owner can mint tokens")
+		panic("only owner can disable the faucet")
 	}
 
 	fauceted = false
