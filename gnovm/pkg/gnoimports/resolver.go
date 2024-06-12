@@ -21,20 +21,22 @@ func init() {
 }
 
 type Resolver interface {
+	// ResolveName should resolve the given package name by returning a list
+	// of packages matching the given name
 	ResolveName(pkgname string) []*Package
+	// ResolvePath should resolve the given package path by returning a
+	// single package
 	ResolvePath(pkgpath string) *Package
 }
 
 type FSResolver struct {
-	root, prefix string
-	pkgpath      map[string]*Package   // pkg path-> pkg
-	stdlibs      map[string][]*Package // pkg name -> []pkg
-	extlibs      map[string][]*Package // pkg name -> []pkg
+	pkgpath map[string]*Package   // pkg path-> pkg
+	stdlibs map[string][]*Package // pkg name -> []pkg
+	extlibs map[string][]*Package // pkg name -> []pkg
 }
 
-func NewFSResolver(root, prefix string) *FSResolver {
+func NewFSResolver() *FSResolver {
 	return &FSResolver{
-		root: root, prefix: prefix,
 		pkgpath: map[string]*Package{},
 		stdlibs: map[string][]*Package{},
 		extlibs: map[string][]*Package{},
@@ -42,7 +44,7 @@ func NewFSResolver(root, prefix string) *FSResolver {
 }
 
 func (p *FSResolver) ResolveName(pkgname string) []*Package {
-	// first stdlibs, then external packages
+	// First stdlibs, then external packages
 	return append(p.stdlibs[pkgname], p.extlibs[pkgname]...)
 }
 
@@ -50,13 +52,19 @@ func (p *FSResolver) ResolvePath(pkgpath string) *Package {
 	return p.pkgpath[pkgpath]
 }
 
+// LoadStdPackages loads all standard packages from the root directory.
+// Std packages are not prefixed by the root directory.
 func (p *FSResolver) LoadStdPackages(root string) error {
 	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil || !info.IsDir() {
 			return nil
 		}
+
 		files, err := os.ReadDir(path)
 		if err != nil {
+			if debug {
+				fmt.Fprintf(os.Stderr, "unable to read directory %q: %s", path, err)
+			}
 			return nil
 		}
 
@@ -67,6 +75,7 @@ func (p *FSResolver) LoadStdPackages(root string) error {
 			}
 		}
 		if len(gnofiles) == 0 {
+			// skip as directory does not contain any gno files
 			return nil
 		}
 
@@ -82,7 +91,9 @@ func (p *FSResolver) LoadStdPackages(root string) error {
 			Dir:  path,
 		}
 
+		// Check for conflict with previous import path
 		if oldPkg, ok := p.extlibs[memPkg.Path]; ok {
+			// Stop on path conflict, has a package path should be uniq
 			return fmt.Errorf("conflict between %q and %q", oldPkg[0].Dir, newPkg.Dir)
 		}
 
@@ -92,8 +103,9 @@ func (p *FSResolver) LoadStdPackages(root string) error {
 	})
 }
 
+// LoadPackages loads all packages from the root directory.
 func (p *FSResolver) LoadPackages(root string) error {
-	pkgs, err := ListPkgs(root)
+	pkgs, err := ListAllPkgsFromRoot(root)
 	if err != nil {
 		return fmt.Errorf("unable to resolve example folder: %w", err)
 	}
@@ -110,12 +122,16 @@ func (p *FSResolver) LoadPackages(root string) error {
 	return nil
 }
 
-func ListPkgs(root string) ([]*Package, error) {
+// ListAllPkgsFromRoot lists all packages in the directory (excluding those which can't be processed).
+func ListAllPkgsFromRoot(root string) ([]*Package, error) {
 	var pkgs []*Package
 	fset := token.NewFileSet()
 	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			return nil // skip error
+		}
+		if err != nil {
+			return nil // skip error
 		}
 
 		if !d.IsDir() || root == path {
@@ -126,7 +142,7 @@ func ListPkgs(root string) ([]*Package, error) {
 			return filepath.SkipDir
 		}
 
-		pkg, err := inspectPackage(root, path, fset)
+		pkg, err := ParsePackage(fset, root, path)
 		if err != nil {
 			if debug {
 				fmt.Fprintf(os.Stderr, "unable to inspect package %q: %s\n", path, err)
@@ -154,7 +170,7 @@ func isValidGnoFile(name string) bool {
 		!strings.HasPrefix(name, ".")
 }
 
-func inspectPackage(root string, path string, fset *token.FileSet) (*Package, error) {
+func ParsePackage(fset *token.FileSet, root string, path string) (*Package, error) {
 	files, err := os.ReadDir(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read dir %q: %w", path, err)
@@ -183,15 +199,17 @@ func inspectPackage(root string, path string, fset *token.FileSet) (*Package, er
 	}
 
 	if pkgname == "" {
-		return nil, nil // not a package
+		return nil, nil // Not a package
 	}
 
 	var pkgpath string
 
+	// Check for a gno.mod, in which case it will define the module path
 	gnoModPath := filepath.Join(path, "gno.mod")
 	data, err := os.ReadFile(gnoModPath)
 	switch {
 	case os.IsNotExist(err):
+		// Fallback on dir path
 		pkgpath = strings.TrimPrefix(path, root+"/")
 	case err == nil:
 		gnoMod, err := gnomod.Parse(gnoModPath, data)

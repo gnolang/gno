@@ -19,7 +19,6 @@ const tabWidth = 8
 
 type ParseError error
 
-// Package contains the memory package and directory path.
 type Package struct {
 	Path string
 	Name string
@@ -27,15 +26,18 @@ type Package struct {
 }
 
 type Processor struct {
-	cachefile map[string]*ast.File
-	resolver  Resolver
-	fset      *token.FileSet
+	resolver Resolver
+	fset     *token.FileSet
+
+	// cache parsed file
+	fcache map[string]*ast.File
 }
 
 func NewProcessor(r Resolver) *Processor {
 	return &Processor{
 		resolver: r,
 		fset:     token.NewFileSet(),
+		fcache:   map[string]*ast.File{},
 	}
 }
 
@@ -48,7 +50,7 @@ func (p *Processor) FormatImportFromSource(filename string, src any) ([]byte, er
 	}
 
 	// Parse the source file
-	node, err := parser.ParseFile(p.fset, filename, src, parser.ParseComments|parser.AllErrors)
+	node, err := p.parseFile(filename, src)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse source: %w", ParseError(err))
 	}
@@ -63,7 +65,7 @@ func (p *Processor) FormatImportFromFile(filep string) ([]byte, error) {
 	pkgDecls := make(map[string]*ast.File)
 
 	// Process package files.
-	_, err := processPackageFiles(p.fset, filepath.Dir(filep), pkgDecls)
+	_, err := p.processPackageFiles(filepath.Dir(filep), pkgDecls)
 	if err != nil {
 		return nil, fmt.Errorf("unable to process package: %w", err)
 	}
@@ -76,6 +78,21 @@ func (p *Processor) FormatImportFromFile(filep string) ([]byte, error) {
 
 	// Process and format the parsed node.
 	return p.processAndFormat(node, filep, pkgDecls)
+}
+
+func (p *Processor) parseFile(filename string, src any) (file *ast.File, err error) {
+	var ok bool
+	if file, ok = p.fcache[filename]; !ok {
+		// Parse the source file
+		file, err = parser.ParseFile(p.fset, filename, src, parser.ParseComments|parser.AllErrors)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse file %q: %w", filename, ParseError(err))
+		}
+
+		p.fcache[filename] = file
+	}
+
+	return file, nil
 }
 
 // Helper function to process and format a parsed AST node.
@@ -111,7 +128,7 @@ func (p *Processor) processAndFormat(file *ast.File, filename string, pkgDecls m
 }
 
 // processPackageFiles processes Gno package files and collects top-level declarations.
-func processPackageFiles(fset *token.FileSet, root string, filesNode map[string]*ast.File) (map[*ast.Object]ast.Decl, error) {
+func (p *Processor) processPackageFiles(root string, filesNode map[string]*ast.File) (map[*ast.Object]ast.Decl, error) {
 	declmap := make(map[*ast.Object]ast.Decl)
 	return declmap, filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -131,9 +148,9 @@ func processPackageFiles(fset *token.FileSet, root string, filesNode map[string]
 			return nil
 		}
 
-		file, err := parser.ParseFile(fset, path, nil, parser.ParseComments|parser.AllErrors)
+		file, err := p.parseFile(path, nil)
 		if err != nil {
-			return fmt.Errorf("unable to process file %q: %w", path, ParseError(err))
+			return ParseError(err)
 		}
 
 		collectTopDeclaration(file, declmap)
@@ -266,7 +283,7 @@ func (p *Processor) resolve(
 ) {
 	for decl, sels := range unresolved {
 		for _, pkg := range p.resolver.ResolveName(decl) {
-			if !hasDeclExposed(p.fset, sels, pkg.Dir) {
+			if !hasDeclExposed(p, sels, pkg.Dir) {
 				continue
 			}
 
@@ -278,9 +295,9 @@ func (p *Processor) resolve(
 }
 
 // hasDeclExposed checks if declarations are exposed in the specified path.
-func hasDeclExposed(fset *token.FileSet, decls map[string]bool, path string) bool {
+func hasDeclExposed(p *Processor, decls map[string]bool, path string) bool {
 	filesNode := make(map[string]*ast.File)
-	exposed, err := processPackageFiles(fset, path, filesNode)
+	exposed, err := p.processPackageFiles(path, filesNode)
 	if err != nil {
 		return false
 	}
