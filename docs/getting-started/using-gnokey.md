@@ -329,7 +329,7 @@ Now, we should have the following folder structure:
 │   └── script.gno
 ```
 
-In the `script.gno` file, first define the package to be `main`. Then, we cam import
+In the `script.gno` file, first define the package to be `main`. Then we can import
 the Userbook realm and define a `main()` function with no return values which will
 be automatically detected and run. In it, we can call the `SignUp()` function.
 
