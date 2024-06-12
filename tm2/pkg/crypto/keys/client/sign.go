@@ -201,7 +201,7 @@ func signTx(
 		keyOpts.decryptPass,
 		signBytes,
 	)
-	//Currently expose this field for verify process
+	// Currently expose this field for verify process
 	fmt.Printf("**NOTICE**\nRemember this following phrase for verifying: %v\n", hex.EncodeToString(sig))
 	if err != nil {
 		return fmt.Errorf("unable to sign transaction bytes, %w", err)
