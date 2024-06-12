@@ -705,7 +705,7 @@ will need these values to sign the transaction later.
 ### Creating an unsigned transaction locally
 
 To create the transaction you want, you can use the aforementioned `call` API,
-without the `-broadcast` flag, while piping the output to a local file:
+without the `-broadcast` flag, while redirecting the output to a local file:
 
 ```bash
 gnokey maketx call \
