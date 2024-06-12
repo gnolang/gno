@@ -668,10 +668,10 @@ more complicated, users can get full control over the creation, signing and
 broadcasting process of transactions.
 
 Here are the steps taken in this process:
-1. Fetching account information from the chain
-2. Creating an unsigned transaction locally
-3. Signing the transaction
-4. Broadcasting the transaction
+1. Fetch account information from the chain
+2. Create an unsigned transaction locally
+3. Sign the transaction
+4. Broadcast the transaction
 
 For this example, we will again use the Userbook realm on the Portal Loop testnet.
 
