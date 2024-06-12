@@ -1,13 +1,9 @@
 package main
 
-import (
-	"std"
-
-	"gno.land/r/manfred/home"
-)
+import "gno.land/r/manfred/home"
 
 func main() {
-	std.TestSetOrigCaller("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+	std.TestSetOrigCaller(config.Addr())
 	home.AddNewTodo("aaa")
 	home.AddNewTodo("bbb")
 	home.AddNewTodo("ccc")
@@ -25,11 +21,7 @@ func main() {
 // ![](https://i.imgflip.com/7ze8dc.jpg)
 //
 // ## Status
-// Lorem Ipsum
+// Online
 //
 // ## Personal ToDo List
 // - [ ] fill this todo list...
-// - [ ] aaa
-// - [ ] bbb
-// - [ ] ddd
-// - [ ] eee

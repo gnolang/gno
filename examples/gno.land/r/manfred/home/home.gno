@@ -1,11 +1,15 @@
 package home
 
-import "gno.land/r/manfred/config"
+import (
+	"gno.land/p/demo/maintenance"
+	"gno.land/r/manfred/config"
+)
 
 var (
-	todos      []string
-	status     string
-	memeImgURL string
+	todos       []string
+	status      string
+	memeImgURL  string
+	Maintenance *maintenance.Config = maintenance.New(config.Owner)
 )
 
 func init() {
@@ -15,6 +19,7 @@ func init() {
 }
 
 func Render(path string) string {
+	Maintenance.AssertInMaintenance("cannot render")
 	content := "# Manfred's (gn)home Dashboard\n\n"
 
 	content += "## Meme\n"
@@ -36,12 +41,14 @@ func Render(path string) string {
 }
 
 func AddNewTodo(todo string) {
-	config.AssertIsAdmin()
+	Maintenance.AssertInMaintenance("cannot add a new todo")
+	config.Owner().AssertCallerIsOwner()
 	todos = append(todos, todo)
 }
 
 func DeleteTodo(todoIndex int) {
-	config.AssertIsAdmin()
+	Maintenance.AssertInMaintenance("cannot del a todo")
+	config.Owner().AssertCallerIsOwner()
 	if todoIndex >= 0 && todoIndex < len(todos) {
 		// Remove the todo from the list by merging slices from before and after the todo
 		todos = append(todos[:todoIndex], todos[todoIndex+1:]...)
@@ -51,6 +58,7 @@ func DeleteTodo(todoIndex int) {
 }
 
 func UpdateStatus(newStatus string) {
-	config.AssertIsAdmin()
+	Maintenance.AssertInMaintenance("cannot update a status")
+	config.Owner().AssertCallerIsOwner()
 	status = newStatus
 }

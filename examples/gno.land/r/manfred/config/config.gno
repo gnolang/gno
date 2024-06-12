@@ -1,20 +1,10 @@
 package config
 
-import "std"
+import (
+	"std"
 
-var addr = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+	"gno.land/p/demo/ownable"
+)
 
-func Addr() std.Address {
-	return addr
-}
-
-func UpdateAddr(newAddr std.Address) {
-	AssertIsAdmin()
-	addr = newAddr
-}
-
-func AssertIsAdmin() {
-	if std.GetOrigCaller() != addr {
-		panic("restricted area")
-	}
-}
+// Owner is an instance of the safe-object ownable.Owner
+var Owner = ownable.NewWithAddress(std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"))
