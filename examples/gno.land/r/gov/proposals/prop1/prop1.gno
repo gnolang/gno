@@ -27,7 +27,7 @@ func init() {
 
 	// Wraps changesFn to emit a certified event only if executed from a
 	// complete governance proposal process.
-	executor := validators.NewProposalExecutor(changesFn)
+	executor := validators.NewPropExecutor(changesFn)
 
 	// Create a proposal.
 	// XXX: payment
@@ -35,5 +35,5 @@ func init() {
 		Comment:  "manual valset changes proposal example",
 		Executor: executor,
 	}
-	govdao.Propose(proposal)
+	govdao.Propose(&proposal)
 }

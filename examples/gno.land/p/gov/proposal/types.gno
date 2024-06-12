@@ -8,7 +8,8 @@ import "errors"
 type Executor interface {
 	Execute() error
 	Done() bool
-	Success() bool // Done() && !err
+	Success() bool  // Done() && !err
+	Status() string // human-readable execution status (not_executed, success, failed)
 }
 
 // ErrAlreadyDone is the error returned when trying to execute an already
