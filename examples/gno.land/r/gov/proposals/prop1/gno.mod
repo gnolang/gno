@@ -1,4 +1,4 @@
-module prop1
+module gno.land/r/gov/proposals/prop1
 
 require (
 	gno.land/r/gov/dao v0.0.0-latest
