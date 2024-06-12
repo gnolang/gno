@@ -31,30 +31,27 @@ install:
 	@echo 'To install a tool, go to the subdirectory, then run `make install`.'
 	@echo 'To do a full installation, run `make install_all`.'
 
+install_all: $(addsuffix .install,$(programs))
+%.install:
+	@echo "[+] make -C $(basename $@) install"
+	$(MAKE) --no-print-directory -C $(basename $@) install
 .PHONY: install_all
-install_all:
-	@set -e; for program in $(programs); do ( set -e; \
-	  echo "[+] make -C $$program install"; \
-	  $(MAKE) --no-print-directory -C $$program install; \
-	); done
 
 ########################################
 # Test suite
-.PHONY: test
-test:
-	@set -e; for program in $(programs); do ( set -e; \
-	  echo "[+] make -C $$program test"; \
-	  $(MAKE) --no-print-directory -C $$program test; \
-	); done
+test: $(addsuffix .test,$(programs))
+%.test:
+	@echo "[+] make -C $(basename $@) install"
+	$(MAKE) --no-print-directory -C $(basename $@) test
+.PHONY: test 
 
 ########################################
 # Lint
 .PHONY: lint
-lint:
-	@set -e; for program in $(programs); do ( set -e; \
-	  echo "[+] make -C $$program lint"; \
-	  $(MAKE) --no-print-directory -C $$program lint; \
-	); done
+lint: $(addsuffix .lint,$(programs))
+%.lint:
+	@echo "[+] make -C $(basename $@) install"
+	$(MAKE) --no-print-directory -C $(basename $@) lint
 
 ########################################
 # Dev tools
@@ -66,9 +63,4 @@ fmt:
 
 .PHONY: tidy
 tidy:
-	@for gomod in `find . -name go.mod`; do ( \
-    dir=`dirname $$gomod`; \
-	  set -xe; \
-	  cd $$dir; \
-	  go mod tidy -v; \
-	); done
+	find . -name go.mod -execdir go mod tidy -v \;
