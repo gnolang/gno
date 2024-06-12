@@ -29,4 +29,10 @@
 
 ## `upgrade_e`
 
-TODO
+- `home` is the front-facing contract. It focuses on exposing a consistent API to users.
+- versions are implementing an interface that `home` is looking for and self-register themselves which instantly makes `home` using the new logic implementation for ongoing calls
+
+## `upgrade_f`
+
+- same as `upgrade_e`
+- replaces self registration with manual registration by an admin
