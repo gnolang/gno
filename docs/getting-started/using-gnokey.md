@@ -756,7 +756,7 @@ gnokey broadcast -remote "https://rpc.gno.land:443" userbook.tx
 In this case, we do not need to specify a keypair, as the transaction has already
 been signed in a previous step and `gnokey` is only sending it to the RPC endpoint.
 
-## Verifying signature in a transaction
+## Verifying a transaction's signature
 
 To verify a transaction signature is correct, you can use the `gnokey verify`
 subcommand. We can provide the path to the transaction document using the `-docpath`
