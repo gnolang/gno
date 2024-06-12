@@ -46,7 +46,7 @@ transactions can be created in Go programs, supported by the
 [gnoclient](../reference/gnoclient/gnoclient.md) package.
 
 We will need some testnet coins (GNOTs) for each state-changing call. Visit the [Faucet
-Hub](https://faucet.gno.land) to get GNOTs for the currently live Gno testnets.
+Hub](https://faucet.gno.land) to get GNOTs for the Gno testnets that are currently live.
 
 Let's delve deeper into each of these messages.
 
