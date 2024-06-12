@@ -24,7 +24,6 @@ func TestStdlibs(t *testing.T) {
 	rootDirs := []string{
 		filepath.Join("..", "stdlibs"),
 	}
-	fmt.Println("rootDirs: ", rootDirs)
 	testDirs := map[string]string{} // aggregate here, pkgPath -> dir
 	pkgPaths := []string{}
 	for _, rootDir := range rootDirs {
@@ -48,7 +47,6 @@ func TestStdlibs(t *testing.T) {
 			return nil
 		})
 	}
-	fmt.Println("---pkgPaths: ", pkgPaths)
 	// For each package with testfiles (in testDirs), call Machine.TestMemPackage.
 	for _, pkgPath := range pkgPaths {
 		testDir := testDirs[pkgPath]
