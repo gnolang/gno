@@ -331,7 +331,7 @@ Now, we should have the following folder structure:
 
 In the `script.gno` file, first define the package to be `main`. Then, we cam import
 the Userbook realm and define a `main()` function with no return values which will
-be automatically detected and ran by `Run`. In it, we can call the `SingUp()` function.
+be automatically detected and run. In it, we can call the `SignUp()` function.
 
 ```go
 package main
