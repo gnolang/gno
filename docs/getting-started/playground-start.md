@@ -96,9 +96,9 @@ It provides a command-line interface for hands-on learning, iterative testing, a
 
 If you're new here, don't worry—content is regularly produced to breakdown
 Gno.land to explain its features. Dive into the essentials of Gno.land by 
-exploring the [Concepts](../concepts/concepts.md) section.
+exploring the [Concepts](../concepts/README.md) section.
 
 To get started writing Gno code, check out the
-[How-to](../how-to-guides/how-to-guides.md) section, the `examples/` folder on
+[How-to](../how-to-guides/README.md) section, the `examples/` folder on
 the [Gno monorepo](https://github.com/gnolang/gno), or one of many community projects and tutorials found in the 
 [awesome-gno](https://github.com/gnolang/awesome-gno/blob/main/README.md) repo on GitHub.
