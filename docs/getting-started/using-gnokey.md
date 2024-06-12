@@ -366,7 +366,7 @@ call. The full potential of run comes out in three specific cases:
 2. Calling functions with non-primitive input arguments
 3. Calling functions with receiver objects
 
-Let's look at each of these cases in detail. To demonstrate, lets use the
+Let's look at each of these cases in detail. To demonstrate, we'll make a call
 following example realm which we will call:
 
 ```go
