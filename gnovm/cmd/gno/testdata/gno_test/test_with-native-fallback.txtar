@@ -1,12 +1,12 @@
 # Test native lib
 
-! gno test -verbose .
+! gno test -v .
 
 ! stdout .+
 stderr 'panic: unknown import path net \[recovered\]'
-stderr '	panic: gno.land/r/\w{8}/contract.gno:1: unknown import path net'
+stderr '	panic: gno.land/r/\w{8}/contract.gno:3: unknown import path net'
 
-gno test -verbose --with-native-fallback .
+gno test -v --with-native-fallback .
 
 ! stdout .+
 stderr '=== RUN   TestFoo'

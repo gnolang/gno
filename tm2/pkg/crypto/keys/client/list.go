@@ -13,7 +13,7 @@ func NewListCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "list",
 			ShortUsage: "list",
-			ShortHelp:  "Lists all keys in the keybase",
+			ShortHelp:  "lists all keys in the keybase",
 		},
 		nil,
 		func(_ context.Context, args []string) error {

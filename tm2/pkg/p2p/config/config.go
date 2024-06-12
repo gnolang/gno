@@ -21,56 +21,56 @@ type P2PConfig struct {
 	RootDir string `toml:"home"`
 
 	// Address to listen for incoming connections
-	ListenAddress string `toml:"laddr"`
+	ListenAddress string `toml:"laddr" comment:"Address to listen for incoming connections"`
 
 	// Address to advertise to peers for them to dial
-	ExternalAddress string `toml:"external_address"`
+	ExternalAddress string `toml:"external_address" comment:"Address to advertise to peers for them to dial\n If empty, will use the same port as the laddr,\n and will introspect on the listener or use UPnP\n to figure out the address."`
 
 	// Comma separated list of seed nodes to connect to
-	Seeds string `toml:"seeds"`
+	Seeds string `toml:"seeds" comment:"Comma separated list of seed nodes to connect to"`
 
 	// Comma separated list of nodes to keep persistent connections to
-	PersistentPeers string `toml:"persistent_peers"`
+	PersistentPeers string `toml:"persistent_peers" comment:"Comma separated list of nodes to keep persistent connections to"`
 
 	// UPNP port forwarding
-	UPNP bool `toml:"upnp"`
+	UPNP bool `toml:"upnp" comment:"UPNP port forwarding"`
 
 	// Maximum number of inbound peers
-	MaxNumInboundPeers int `toml:"max_num_inbound_peers"`
+	MaxNumInboundPeers int `toml:"max_num_inbound_peers" comment:"Maximum number of inbound peers"`
 
 	// Maximum number of outbound peers to connect to, excluding persistent peers
-	MaxNumOutboundPeers int `toml:"max_num_outbound_peers"`
+	MaxNumOutboundPeers int `toml:"max_num_outbound_peers" comment:"Maximum number of outbound peers to connect to, excluding persistent peers"`
 
 	// Time to wait before flushing messages out on the connection
-	FlushThrottleTimeout time.Duration `toml:"flush_throttle_timeout"`
+	FlushThrottleTimeout time.Duration `toml:"flush_throttle_timeout" comment:"Time to wait before flushing messages out on the connection"`
 
 	// Maximum size of a message packet payload, in bytes
-	MaxPacketMsgPayloadSize int `toml:"max_packet_msg_payload_size"`
+	MaxPacketMsgPayloadSize int `toml:"max_packet_msg_payload_size" comment:"Maximum size of a message packet payload, in bytes"`
 
 	// Rate at which packets can be sent, in bytes/second
-	SendRate int64 `toml:"send_rate"`
+	SendRate int64 `toml:"send_rate" comment:"Rate at which packets can be sent, in bytes/second"`
 
 	// Rate at which packets can be received, in bytes/second
-	RecvRate int64 `toml:"recv_rate"`
+	RecvRate int64 `toml:"recv_rate" comment:"Rate at which packets can be received, in bytes/second"`
 
 	// Set true to enable the peer-exchange reactor
-	PexReactor bool `toml:"pex"`
+	PexReactor bool `toml:"pex" comment:"Set true to enable the peer-exchange reactor"`
 
 	// Seed mode, in which node constantly crawls the network and looks for
 	// peers. If another node asks it for addresses, it responds and disconnects.
 	//
 	// Does not work if the peer-exchange reactor is disabled.
-	SeedMode bool `toml:"seed_mode"`
+	SeedMode bool `toml:"seed_mode" comment:"Seed mode, in which node constantly crawls the network and looks for\n peers. If another node asks it for addresses, it responds and disconnects.\n\n Does not work if the peer-exchange reactor is disabled."`
 
 	// Comma separated list of peer IDs to keep private (will not be gossiped to
 	// other peers)
-	PrivatePeerIDs string `toml:"private_peer_ids"`
+	PrivatePeerIDs string `toml:"private_peer_ids" comment:"Comma separated list of peer IDs to keep private (will not be gossiped to other peers)"`
 
 	// Toggle to disable guard against peers connecting from the same ip.
-	AllowDuplicateIP bool `toml:"allow_duplicate_ip"`
+	AllowDuplicateIP bool `toml:"allow_duplicate_ip" comment:"Toggle to disable guard against peers connecting from the same ip."`
 
 	// Peer connection configuration.
-	HandshakeTimeout time.Duration `toml:"handshake_timeout"`
+	HandshakeTimeout time.Duration `toml:"handshake_timeout" comment:"Peer connection configuration."`
 	DialTimeout      time.Duration `toml:"dial_timeout"`
 
 	// Testing params.
@@ -107,7 +107,7 @@ func DefaultP2PConfig() *P2PConfig {
 // TestP2PConfig returns a configuration for testing the peer-to-peer layer
 func TestP2PConfig() *P2PConfig {
 	cfg := DefaultP2PConfig()
-	cfg.ListenAddress = "tcp://0.0.0.0:36656"
+	cfg.ListenAddress = "tcp://0.0.0.0:26656"
 	cfg.FlushThrottleTimeout = 10 * time.Millisecond
 	cfg.AllowDuplicateIP = true
 	return cfg

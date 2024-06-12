@@ -3,7 +3,7 @@
 # by the '-update-golden-tests' flag. The Error is only updated when it is
 # empty.
 
-! gno test -verbose .
+! gno test -v .
 
 stdout 'Machine\.RunMain\(\) panic: oups'
 stderr '=== RUN   file/x_filetest.gno'

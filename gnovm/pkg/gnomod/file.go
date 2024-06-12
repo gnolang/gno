@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
@@ -184,12 +184,12 @@ func (f *File) FetchDeps(path string, remote string, verbose bool) error {
 				continue
 			}
 			// skip if `std`, special case.
-			if path == gnolang.GnoStdPkgAfter {
+			if path == transpiler.GnoStdPkgAfter {
 				continue
 			}
 
-			if strings.HasPrefix(path, gnolang.ImportPrefix) {
-				path = strings.TrimPrefix(path, gnolang.ImportPrefix+"/examples/")
+			if strings.HasPrefix(path, transpiler.ImportPrefix) {
+				path = strings.TrimPrefix(path, transpiler.ImportPrefix+"/examples/")
 				modFile.AddNewRequire(path, "v0.0.0-latest", true)
 			}
 		}

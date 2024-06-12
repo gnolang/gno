@@ -11,7 +11,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// QueryCfg contains configuration options for performing queries.
+var ErrInvalidBlockHeight = errors.New("invalid block height provided")
+
+// QueryCfg contains configuration options for performing ABCI queries.
 type QueryCfg struct {
 	Path                       string // Query path
 	Data                       []byte // Query data
@@ -19,7 +21,7 @@ type QueryCfg struct {
 }
 
 // Query performs a generic query on the blockchain.
-func (c Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
+func (c *Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}
@@ -36,7 +38,7 @@ func (c Client) Query(cfg QueryCfg) (*ctypes.ResultABCIQuery, error) {
 }
 
 // QueryAccount retrieves account information for a given address.
-func (c Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
+func (c *Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, nil, err
 	}
@@ -61,7 +63,8 @@ func (c Client) QueryAccount(addr crypto.Address) (*std.BaseAccount, *ctypes.Res
 	return &qret.BaseAccount, qres, nil
 }
 
-func (c Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error) {
+// QueryAppVersion retrieves information about the app version
+func (c *Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return "", nil, err
 	}
@@ -81,7 +84,7 @@ func (c Client) QueryAppVersion() (string, *ctypes.ResultABCIQuery, error) {
 // Render calls the Render function for pkgPath with optional args. The pkgPath should
 // include the prefix like "gno.land/". This is similar to using a browser URL
 // <testnet>/<pkgPath>:<args> where <pkgPath> doesn't have the prefix like "gno.land/".
-func (c Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCIQuery, error) {
+func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return "", nil, err
 	}
@@ -104,7 +107,7 @@ func (c Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCIQ
 // include the prefix like "gno.land/". The expression is usually a function call like
 // "GetBoardIDFromName(\"testboard\")". The return value is a typed expression like
 // "(1 gno.land/r/demo/boards.BoardID)\n(true bool)".
-func (c Client) QEval(pkgPath string, expression string) (string, *ctypes.ResultABCIQuery, error) {
+func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.ResultABCIQuery, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return "", nil, err
 	}
@@ -121,4 +124,56 @@ func (c Client) QEval(pkgPath string, expression string) (string, *ctypes.Result
 	}
 
 	return string(qres.Response.Data), qres, nil
+}
+
+// Block gets the latest block at height, if any
+// Height must be larger than 0
+func (c *Client) Block(height int64) (*ctypes.ResultBlock, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return nil, ErrMissingRPCClient
+	}
+
+	if height <= 0 {
+		return nil, ErrInvalidBlockHeight
+	}
+
+	block, err := c.RPCClient.Block(&height)
+	if err != nil {
+		return nil, fmt.Errorf("block query failed: %w", err)
+	}
+
+	return block, nil
+}
+
+// BlockResult gets the block results at height, if any
+// Height must be larger than 0
+func (c *Client) BlockResult(height int64) (*ctypes.ResultBlockResults, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return nil, ErrMissingRPCClient
+	}
+
+	if height <= 0 {
+		return nil, ErrInvalidBlockHeight
+	}
+
+	blockResults, err := c.RPCClient.BlockResults(&height)
+	if err != nil {
+		return nil, fmt.Errorf("block query failed: %w", err)
+	}
+
+	return blockResults, nil
+}
+
+// LatestBlockHeight gets the latest block height on the chain
+func (c *Client) LatestBlockHeight() (int64, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return 0, ErrMissingRPCClient
+	}
+
+	status, err := c.RPCClient.Status()
+	if err != nil {
+		return 0, fmt.Errorf("block number query failed: %w", err)
+	}
+
+	return status.SyncInfo.LatestBlockHeight, nil
 }

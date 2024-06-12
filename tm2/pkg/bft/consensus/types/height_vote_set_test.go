@@ -14,7 +14,7 @@ import (
 var config *cfg.Config // NOTE: must be reset for each _test.go file
 
 func TestMain(m *testing.M) {
-	config = cfg.ResetTestRoot("consensus_height_vote_set_test")
+	config, _ = cfg.ResetTestRoot("consensus_height_vote_set_test")
 	code := m.Run()
 	os.RemoveAll(config.RootDir)
 	os.Exit(code)

@@ -106,7 +106,9 @@ func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 		// skip non-source and test files.
 		ext := filepath.Ext(fpath)
 		noExt := fpath[:len(fpath)-len(ext)]
-		if (ext != ".go" && ext != ".gno") || strings.HasSuffix(noExt, "_test") {
+		if (ext != ".go" && ext != ".gno") ||
+			strings.HasSuffix(noExt, "_test") ||
+			strings.HasSuffix(fpath, ".gen.go") {
 			return nil
 		}
 

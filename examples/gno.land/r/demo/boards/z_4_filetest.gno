@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/boards_test
+// PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
 // SEND: 200000000ugnot
@@ -37,7 +37,7 @@ func main() {
 // # Second Post (title)
 //
 // Body of the second post. (body)
-// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2) \[[reply](/r/demo/boards?help&__func=CreateReply&bid=1&threadid=2&postid=2&body.type=textarea)] \[[x](/r/demo/boards?help&__func=DeletePost&bid=1&threadid=2&postid=2)]
+// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2) \[[reply](/r/demo/boards?help&__func=CreateReply&bid=1&threadid=2&postid=2&body.type=textarea)] \[[repost](/r/demo/boards?help&__func=CreateRepost&bid=1&postid=2&title.type=textarea&body.type=textarea&dstBoardID.type=textarea)] \[[x](/r/demo/boards?help&__func=DeletePost&bid=1&threadid=2&postid=2)]
 //
 // > Reply of the second post
 // > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/3) \[[reply](/r/demo/boards?help&__func=CreateReply&bid=1&threadid=2&postid=3&body.type=textarea)] \[[x](/r/demo/boards?help&__func=DeletePost&bid=1&threadid=2&postid=3)]
@@ -46,7 +46,6 @@ func main() {
 // > \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:test_board/2/4) \[[reply](/r/demo/boards?help&__func=CreateReply&bid=1&threadid=2&postid=4&body.type=textarea)] \[[x](/r/demo/boards?help&__func=DeletePost&bid=1&threadid=2&postid=4)]
 
 // Realm:
-// switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/boards"]
 // u[f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:101]={
@@ -374,7 +373,7 @@ func main() {
 //                     "Escaped": true,
 //                     "ObjectID": "336074805fc853987abe6f7fe3ad97a6a6f3077a:2"
 //                 },
-//                 "Index": "189",
+//                 "Index": "192",
 //                 "TV": null
 //             }
 //         }
@@ -541,7 +540,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "25ffc45509708ca0ae17271cb4c3a1dfb367b965",
+//                 "Hash": "1dd77a196db00a4d1a3471539279df79f6ae950e",
 //                 "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:115"
 //             }
 //         },
@@ -847,7 +846,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "a8e67b9881af89ca2ec2f05778bf7528a54a5833",
+//                 "Hash": "6e8ecb1c773e0e34ba560dcff1b2dee0bc2e5660",
 //                 "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:82"
 //             }
 //         },
@@ -865,7 +864,7 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "d8ae14a4620e3c6dedabd76cd0c5d7e3c205d647",
+//                 "Hash": "796da27e11e6d75db3e0e8f9d633f4559f1b1a82",
 //                 "ObjectID": "f6dbf411da22e67d74cd7ddba6a76cd7e14a4822:83"
 //             }
 //         },
@@ -962,11 +961,5 @@ func main() {
 // switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
-// switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/boards"]
-// switchrealm["gno.land/r/boards_test"]
+// switchrealm["gno.land/r/demo/boards_test"]

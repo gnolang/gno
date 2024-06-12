@@ -1,6 +1,6 @@
 # Test Realm instruction updated
 
-gno test -verbose . -update-golden-tests
+gno test -v . -update-golden-tests
 
 ! stdout .+ # stdout should be empty
 stderr '=== RUN   file/x_filetest.gno'

@@ -34,22 +34,22 @@ Presentation: https://github.com/gnolang/workshops/tree/main/presentations/2023-
     |                   gno.land/{p,r} contracts                    |              |              gno.land              |
     |                                                               |              |                                    |
     |  +-----------------------------+     +---------------------+  |              |                                    |
-    |  |                             |     |   r/system/valset   |  |              |                                    |
+    |  |                             |     |   r/sys/validators  |  |              |                                    |
     |  |                             |  +->|                     |--+------+       |  +-------------+                   |
     |  |           worxDAO           |  |  |    validator set    |  |      |       |  |             |                   |
     |  |                             |--+  +---------------------+  |      +-------+->|   Gno SDK   |----------+        |
-    |  |   the "Contributors DAO"    |  |  |  r/system/chaincfg  |  |      |       |  |             |          |        |
+    |  |   the "Contributors DAO"    |  |  |    r/sys/config     |  |      |       |  |             |          |        |
     |  |                             |  +->|                     |--+------+       |  +-------------+          |        |
     |  |                             |     | chain configuration |  |              |         |                 |        |
     |  +-----------------------------+     +---------------------+  |              |         |                 |        |
     |                 |                    +---------------------+  |              |         v                 v        |
-    |                 v                    |  r/system/rewards   |  |              |  +-------------+   +-------------+ |
-    |      +--------------------+          |                     |  |              |  |             |   |             | |
-    |      |   Evaluation DAO   |          |distribute rewards to|  |              |  |     TM2     |-->|    GnoVM    | |
-    |      |                    |          |  contributors and   |  |              |  |             |   |             | |
-    |      |Qualification system|          |     validators      |  |              |  +-------------+   +-------------+ |
-    |      |to distribute ^worx |          |       +------+      |  |              |         |                 |        |
-    |      +--------------------+          |       |Bucket|<- - -|- + -chain fees -|- - - - -                  |        |
+    |                 v                    |    r/sys/rewards    |  |              |  +-------------+   +-------------+ |
+    |      +----------------------+        |                     |  |              |  |             |   |             | |
+    |      |    Evaluation DAO    |        | distribute rewards  |  |              |  |     TM2     |-->|    GnoVM    | |
+    |      |                      |        | to contributors and |  |              |  |             |   |             | |
+    |      | Qualification system |        |     validators      |  |              |  +-------------+   +-------------+ |
+    |      | to distribute ^worx  |        |       +------+      |  |              |         |                 |        |
+    |      +----------------------+        |       |Bucket|<- - -|- + -chain fees -|- - - - -                  |        |
     |                                      +-------+------+------+  |              |                           |        |
     +---------------------------------------------------------------+              +---------------------------+--------+
                                     ^                                                                          |
@@ -67,11 +67,11 @@ contracts with the `GnoVM` and can self-configure from contracts using the
 ### `worxDAO`
 
 The governance entity consisting of contributors, responsible for governing the
-`r/system` realms, including `valset` and `chaincfg`.
+`r/sys` realms, including `validators` and `config`.
 
 Meta issue: [#872](https://github.com/gnolang/gno/issues/872).
 
-### `r/system/valset`
+### `r/sys/validators`
 
 A realm (smart contract) that enables the `worxDAO` to update the validator set.
 Similar to a PoA system, the authority is decentralized in a DAO.
@@ -79,7 +79,7 @@ Similar to a PoA system, the authority is decentralized in a DAO.
 Additionally, this contract is queried by `gno.land` to configure `TM2` when
 changes are made to the validator set.
 
-### `r/system/chaincfg`
+### `r/sys/config`
 
 A governance-backed smart contract that allows for chain configuration through
 governance.
@@ -88,7 +88,7 @@ It helps prevent unnecessary upgrade campaigns for minor updates.
 
 ### Evaluation DAO
 
-The system employed by the `worxDAO` to incentivize contributions with `^worx` tokens.
+The system employed by the `worxDAO` to incentivize contributions with `^worx` points.
 
             +---------------1. propose a contribution-------------+
             |                                                     v

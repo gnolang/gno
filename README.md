@@ -83,10 +83,9 @@ repository offers more resources to dig into. We are eager to see your first PR!
   Developer commands:
 
   * [gno](./gnovm/cmd/gno) - handy tool for developing gno packages & realms
-  * [gnotxsync](./gno.land/cmd/gnotxsync) - importing/exporting transactions from local blockchain node storage
   * [goscan](./misc/goscan) - dumps imports from specified file’s AST
   * [genproto](./misc/genproto) - helper for generating .proto implementations
-  * [gnofaucet](./gno.land/cmd/gnofaucet) - serves GNOT faucet
+  * [gnofaucet](./contribs/gnofaucet) - serves GNOT faucet
 </details>
 
 <details><summary>CI/CD/Tools badges and links</summary>

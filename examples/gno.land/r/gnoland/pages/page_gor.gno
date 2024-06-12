@@ -2,9 +2,9 @@ package gnopages
 
 func init() {
 	path := "gor"
-	title := "Game of Realms Content For The Best Contributors"
+	title := "Game of Realms - A Contest For The Best Contributors"
 	// XXX: description := "Game of Realms is the first high-stakes competition held in two phases to find the best contributors to the Gno.land platform with a 133,700 ATOM prize pool."
-	body := `# Game of Realms
+	body := `
 
 <div class="jumbotron">
 
@@ -217,5 +217,5 @@ Game of Realms participants and core contributors have made significant progress
 </div>
 <!-- /mailchimp -->
 `
-	_ = b.NewPost("", path, title, body, nil)
+	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:26Z", nil, nil)
 }

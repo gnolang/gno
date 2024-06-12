@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 )
 
 func isGnoFile(f fs.DirEntry) bool {
@@ -192,19 +192,13 @@ func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
 }
 
-// makeTestGoMod creates the temporary go.mod for test
-func makeTestGoMod(path string, packageName string, goversion string) error {
-	content := fmt.Sprintf("module %s\n\ngo %s\n", packageName, goversion)
-	return os.WriteFile(path, []byte(content), 0o644)
-}
-
 // getPathsFromImportSpec derive and returns ImportPaths
 // without ImportPrefix from *ast.ImportSpec
 func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []importPath) {
 	for _, i := range importSpec {
 		path := i.Path.Value[1 : len(i.Path.Value)-1] // trim leading and trailing `"`
-		if strings.HasPrefix(path, gno.ImportPrefix) {
-			res := strings.TrimPrefix(path, gno.ImportPrefix)
+		if strings.HasPrefix(path, transpiler.ImportPrefix) {
+			res := strings.TrimPrefix(path, transpiler.ImportPrefix)
 			importPaths = append(importPaths, importPath("."+res))
 		}
 	}
@@ -213,9 +207,9 @@ func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []importP
 
 // ResolvePath joins the output dir with relative pkg path
 // e.g
-// Output Dir: Temp/gno-precompile
+// Output Dir: Temp/gno-transpile
 // Pkg Path: ../example/gno.land/p/pkg
-// Returns -> Temp/gno-precompile/example/gno.land/p/pkg
+// Returns -> Temp/gno-transpile/example/gno.land/p/pkg
 func ResolvePath(output string, path importPath) (string, error) {
 	absOutput, err := filepath.Abs(output)
 	if err != nil {

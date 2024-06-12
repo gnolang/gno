@@ -28,7 +28,7 @@ func NewExportCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "export",
 			ShortUsage: "export [flags]",
-			ShortHelp:  "Exports private key armor",
+			ShortHelp:  "exports private key armor",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -42,21 +42,21 @@ func (c *ExportCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.NameOrBech32,
 		"key",
 		"",
-		"Name or Bech32 address of the private key",
+		"name or bech32 address of the private key",
 	)
 
 	fs.StringVar(
 		&c.OutputPath,
 		"output-path",
 		"",
-		"The desired output path for the armor file",
+		"the desired output path for the armor file",
 	)
 
 	fs.BoolVar(
 		&c.Unsafe,
 		"unsafe",
 		false,
-		"Export the private key armor as unencrypted",
+		"export the private key armor as unencrypted",
 	)
 }
 
@@ -99,6 +99,13 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 			cfg.NameOrBech32,
 			decryptPassword,
 		)
+
+		privk, err := kb.ExportPrivateKeyObject(cfg.NameOrBech32, decryptPassword)
+		if err != nil {
+			panic(err)
+		}
+
+		io.Printf("privk:\n%x\n", privk.Bytes())
 	} else {
 		// Get the armor encrypt password
 		encryptPassword, err := io.GetCheckPassword(

@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -17,7 +19,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gorilla/mux"
 	"github.com/gotuna/gotuna"
@@ -57,7 +58,7 @@ func NewDefaultConfig() Config {
 	}
 }
 
-func MakeApp(logger log.Logger, cfg Config) gotuna.App {
+func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 	var viewFiles fs.FS
 
 	// Get specific views directory if specified
@@ -87,9 +88,11 @@ func MakeApp(logger log.Logger, cfg Config) gotuna.App {
 		"/partners":       "/r/gnoland/pages:p/partners",
 		"/testnets":       "/r/gnoland/pages:p/testnets",
 		"/start":          "/r/gnoland/pages:p/start",
-		"/game-of-realms": "/r/gnoland/pages:p/gor",    // XXX: replace with gor realm
-		"/events":         "/r/gnoland/pages:p/events", // XXX: replace with events realm
+		"/license":        "/r/gnoland/pages:p/license",
+		"/game-of-realms": "/r/gnoland/pages:p/gor", // XXX: replace with gor realm
+		"/events":         "/r/gnoland/events",
 	}
+
 	for from, to := range aliases {
 		app.Router.Handle(from, handlerRealmAlias(logger, app, &cfg, to))
 	}
@@ -101,13 +104,14 @@ func MakeApp(logger log.Logger, cfg Config) gotuna.App {
 		"/grants":                  "/partners",
 		"/language":                "/gnolang",
 		"/getting-started":         "/start",
+		"/gophercon24":             "https://docs.gno.land",
 	}
 	for from, to := range redirects {
 		app.Router.Handle(from, handlerRedirect(logger, app, &cfg, to))
 	}
 	// realm routes
 	// NOTE: see rePathPart.
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt)$)?}", handlerRealmFile(logger, app, &cfg))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt|mod)$)?}", handlerRealmFile(logger, app, &cfg))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}", handlerRealmMain(logger, app, &cfg))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}:{querystr:.*}", handlerRealmRender(logger, app, &cfg))
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(logger, app, &cfg))
@@ -122,7 +126,7 @@ func MakeApp(logger log.Logger, cfg Config) gotuna.App {
 
 	app.Router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.RequestURI
-		handleNotFound(app, &cfg, path, w, r)
+		handleNotFound(logger, app, &cfg, path, w, r)
 	})
 	return app
 }
@@ -131,7 +135,7 @@ func MakeApp(logger log.Logger, cfg Config) gotuna.App {
 // url is intended to be shorter.
 // UX is intended to be more minimalistic.
 // A link to the realm realm is added.
-func handlerRealmAlias(logger log.Logger, app gotuna.App, cfg *Config, rlmpath string) http.Handler {
+func handlerRealmAlias(logger *slog.Logger, app gotuna.App, cfg *Config, rlmpath string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		rlmfullpath := "gno.land" + rlmpath
 		querystr := "" // XXX: "?gnoweb-alias=1"
@@ -176,7 +180,7 @@ func handlerRealmAlias(logger log.Logger, app gotuna.App, cfg *Config, rlmpath s
 	})
 }
 
-func handlerFaucet(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerFaucet(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		app.NewTemplatingEngine().
 			Set("Config", cfg).
@@ -184,7 +188,7 @@ func handlerFaucet(logger log.Logger, app gotuna.App, cfg *Config) http.Handler 
 	})
 }
 
-func handlerStatusJSON(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerStatusJSON(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handler {
 	startedAt := time.Now()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var ret struct {
@@ -235,7 +239,7 @@ func handlerStatusJSON(logger log.Logger, app gotuna.App, cfg *Config) http.Hand
 	})
 }
 
-func handlerRedirect(logger log.Logger, app gotuna.App, cfg *Config, to string) http.Handler {
+func handlerRedirect(logger *slog.Logger, app gotuna.App, cfg *Config, to string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, to, http.StatusFound)
 		tmpl := app.NewTemplatingEngine()
@@ -245,7 +249,7 @@ func handlerRedirect(logger log.Logger, app gotuna.App, cfg *Config, to string) 
 	})
 }
 
-func handlerRealmMain(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerRealmMain(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		rlmname := vars["rlmname"]
@@ -302,13 +306,13 @@ type pathLink struct {
 	Text string
 }
 
-func handlerRealmRender(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		handleRealmRender(logger, app, cfg, w, r)
 	})
 }
 
-func handleRealmRender(logger log.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request) {
+func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	rlmname := vars["rlmname"]
 	rlmpath := "gno.land/r/" + rlmname
@@ -353,7 +357,7 @@ func handleRealmRender(logger log.Logger, app gotuna.App, cfg *Config, w http.Re
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
 }
 
-func handlerRealmFile(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerRealmFile(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		diruri := "gno.land/r/" + vars["rlmname"]
@@ -362,7 +366,7 @@ func handlerRealmFile(logger log.Logger, app gotuna.App, cfg *Config) http.Handl
 	})
 }
 
-func handlerPackageFile(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerPackageFile(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		pkgpath := "gno.land/p/" + vars["filepath"]
@@ -376,7 +380,7 @@ func handlerPackageFile(logger log.Logger, app gotuna.App, cfg *Config) http.Han
 	})
 }
 
-func renderPackageFile(logger log.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
+func renderPackageFile(logger *slog.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request, diruri string, filename string) {
 	if filename == "" {
 		// Request is for a folder.
 		qpath := qFileStr
@@ -415,13 +419,17 @@ func renderPackageFile(logger log.Logger, app gotuna.App, cfg *Config, w http.Re
 	}
 }
 
-func makeRequest(log log.Logger, cfg *Config, qpath string, data []byte) (res *abci.ResponseQuery, err error) {
+func makeRequest(log *slog.Logger, cfg *Config, qpath string, data []byte) (res *abci.ResponseQuery, err error) {
 	opts2 := client.ABCIQueryOptions{
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
 	remote := cfg.RemoteAddr
-	cli := client.NewHTTP(remote, "/websocket")
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create HTTP client, %w", err)
+	}
+
 	qres, err := cli.ABCIQueryWithOptions(
 		qpath, data, opts2)
 	if err != nil {
@@ -435,7 +443,7 @@ func makeRequest(log log.Logger, cfg *Config, qpath string, data []byte) (res *a
 	return &qres.Response, nil
 }
 
-func handlerStaticFile(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerStaticFile(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handler {
 	fs := http.FS(app.Static)
 	fileapp := http.StripPrefix("/static", http.FileServer(fs))
 
@@ -444,12 +452,12 @@ func handlerStaticFile(logger log.Logger, app gotuna.App, cfg *Config) http.Hand
 		fpath := filepath.Clean(vars["path"])
 		f, err := fs.Open(fpath)
 		if os.IsNotExist(err) {
-			handleNotFound(app, cfg, fpath, w, r)
+			handleNotFound(logger, app, cfg, fpath, w, r)
 			return
 		}
 		stat, err := f.Stat()
 		if err != nil || stat.IsDir() {
-			handleNotFound(app, cfg, fpath, w, r)
+			handleNotFound(logger, app, cfg, fpath, w, r)
 			return
 		}
 
@@ -460,14 +468,14 @@ func handlerStaticFile(logger log.Logger, app gotuna.App, cfg *Config) http.Hand
 	})
 }
 
-func handlerFavicon(logger log.Logger, app gotuna.App, cfg *Config) http.Handler {
+func handlerFavicon(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handler {
 	fs := http.FS(app.Static)
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fpath := "img/favicon.ico"
 		f, err := fs.Open(fpath)
 		if os.IsNotExist(err) {
-			handleNotFound(app, cfg, fpath, w, r)
+			handleNotFound(logger, app, cfg, fpath, w, r)
 			return
 		}
 		w.Header().Set("Content-Type", "image/x-icon")
@@ -476,16 +484,22 @@ func handlerFavicon(logger log.Logger, app gotuna.App, cfg *Config) http.Handler
 	})
 }
 
-func handleNotFound(app gotuna.App, cfg *Config, path string, w http.ResponseWriter, r *http.Request) {
+func handleNotFound(logger *slog.Logger, app gotuna.App, cfg *Config, path string, w http.ResponseWriter, r *http.Request) {
+	// decode path for non-ascii characters
+	decodedPath, err := url.PathUnescape(path)
+	if err != nil {
+		logger.Error("failed to decode path", err)
+		decodedPath = path
+	}
 	w.WriteHeader(http.StatusNotFound)
 	app.NewTemplatingEngine().
 		Set("title", "Not found").
-		Set("path", path).
+		Set("path", decodedPath).
 		Set("Config", cfg).
 		Render(w, r, "404.html", "funcs.html")
 }
 
-func writeError(logger log.Logger, w http.ResponseWriter, err error) {
+func writeError(logger *slog.Logger, w http.ResponseWriter, err error) {
 	if details := errors.Unwrap(err); details != nil {
 		logger.Error("handler", "error", err, "details", details)
 	} else {
@@ -501,7 +515,7 @@ func pathOf(diruri string) string {
 	parts := strings.Split(diruri, "/")
 	if parts[0] == "gno.land" {
 		return "/" + strings.Join(parts[1:], "/")
-	} else {
-		panic(fmt.Sprintf("invalid dir-URI %q", diruri))
 	}
+
+	panic(fmt.Sprintf("invalid dir-URI %q", diruri))
 }

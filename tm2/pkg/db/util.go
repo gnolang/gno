@@ -2,7 +2,6 @@ package db
 
 import (
 	"bytes"
-	"os"
 )
 
 func cp(bz []byte) (ret []byte) {
@@ -43,9 +42,4 @@ func IsKeyInDomain(key, start, end []byte) bool {
 		return false
 	}
 	return true
-}
-
-func FileExists(filePath string) bool {
-	_, err := os.Stat(filePath)
-	return !os.IsNotExist(err)
 }

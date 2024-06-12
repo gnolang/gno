@@ -25,6 +25,7 @@ The gno command-line tool provides several commands to work with the gno.mod fil
 - **gno mod init**: small helper to initialize a new `gno.mod` file.
 - **gno mod download**: downloads the dependencies specified in the gno.mod file. This command fetches the required dependencies from chain and ensures they are available for local testing and development.
 - **gno mod tidy**: removes any unused dependency and adds any required but not yet listed in the file -- most of the maintenance you'll usually need to do!
+- **gno mod why**: explains why the specified package or module is being kept by `gno mod tidy`.
 
 ## Sample `gno.mod` file
 

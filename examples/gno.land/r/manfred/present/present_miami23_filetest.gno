@@ -1,6 +1,8 @@
 package main
 
-import "gno.land/r/manfred/present"
+import (
+	"gno.land/r/manfred/present"
+)
 
 func main() {
 	println(present.Render(""))
@@ -11,11 +13,12 @@ func main() {
 // Output:
 // <div class='columns-3'><div>
 //
-// ## [Portal Loop Demo (Miami 2023)](/r/manfred/present:p/miami23)
-// **[Learn More](/r/manfred/present:p/miami23)**
-//
+// ### [Portal Loop Demo (Miami 2023)](/r/manfred/present:p/miami23)
+//  15 Oct 2023
 // </div></div>
 // ------------------------------------
+// <main class='gno-tmpl-page'>
+//
 // # Portal Loop Demo (Miami 2023)
 //
 // Rendered by Gno.
@@ -52,6 +55,16 @@ func main() {
 // - Engage in workshops.
 // - Connect and have fun with colleagues.
 //
-// [#demo](/r/manfred/present:t/demo) [#portal-loop](/r/manfred/present:t/portal-loop) [#miami](/r/manfred/present:t/miami)
+// ---
 //
-// by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq on 2009-02-13 11:31pm UTC
+// Tags: [#demo](/r/manfred/present:t/demo) [#portal-loop](/r/manfred/present:t/portal-loop) [#miami](/r/manfred/present:t/miami)
+//
+// Written by moul on 15 Oct 2023
+//
+// Published by g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq to Manfred's Presentations
+//
+// ---
+// <details><summary>Comment section</summary>
+//
+// </details>
+// </main>

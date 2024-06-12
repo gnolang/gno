@@ -3,7 +3,6 @@ package keyscli
 import (
 	"context"
 	"flag"
-	"fmt"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -32,7 +31,7 @@ func NewMakeCallCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Command
 		commands.Metadata{
 			Name:       "call",
 			ShortUsage: "call [flags] <key-name or address>",
-			ShortHelp:  "Executes a Realm function call",
+			ShortHelp:  "executes a realm function call",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -137,7 +136,7 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 			return err
 		}
 	} else {
-		fmt.Println(string(amino.MustMarshalJSON(tx)))
+		io.Println(string(amino.MustMarshalJSON(tx)))
 	}
 	return nil
 }

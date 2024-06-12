@@ -6,9 +6,10 @@ func (a Address) String() string {
 	return string(a)
 }
 
-// IsValid checks if the address is of specific length. Doesn't check prefix or checksum for the address
+// IsValid checks if the address is valid bech32 encoded string
 func (a Address) IsValid() bool {
-	return len(a) == RawAddressSize*2 // hex length
+	_, _, ok := DecodeBech32(a)
+	return ok
 }
 
 const RawAddressSize = 20

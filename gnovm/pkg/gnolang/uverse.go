@@ -709,7 +709,24 @@ func UverseNode() *PackageNode {
 			switch cbt := baseOf(arg0.TV.T).(type) {
 			case *MapType:
 				mv := arg0.TV.V.(*MapValue)
+				val, ok := mv.GetValueForKey(m.Store, &itv)
+				if !ok {
+					return
+				}
+
+				// delete
 				mv.DeleteForKey(m.Store, &itv)
+
+				if m.Realm != nil {
+					// mark key as deleted
+					keyObj := itv.GetFirstObject(m.Store)
+					m.Realm.DidUpdate(mv, keyObj, nil)
+
+					// mark value as deleted
+					valObj := val.GetFirstObject(m.Store)
+					m.Realm.DidUpdate(mv, valObj, nil)
+				}
+
 				return
 			case *NativeType:
 				krv := reflect.New(cbt.Type.Key()).Elem()
@@ -972,9 +989,29 @@ func UverseNode() *PackageNode {
 				m.PushValue(TypedValue{})
 				return
 			}
-			// Just like in go, only the last exception is returned to recover.
-			m.PushValue(*m.Exceptions[len(m.Exceptions)-1])
-			// The remaining exceptions are removed
+
+			// If the exception is out of scope, this recover can't help; return nil.
+			if m.PanicScope <= m.DeferPanicScope {
+				m.PushValue(TypedValue{})
+				return
+			}
+
+			exception := &m.Exceptions[len(m.Exceptions)-1]
+
+			// If the frame the exception occurred in is not popped, it's possible that
+			// the exception is still in scope and can be recovered.
+			if !exception.Frame.Popped {
+				// If the frame is not the current frame, the exception is not in scope; return nil.
+				// This retrieves the second most recent call frame because the first most recent
+				// is the call to recover itself.
+				if frame := m.LastCallFrame(2); frame == nil || (frame != nil && frame != exception.Frame) {
+					m.PushValue(TypedValue{})
+					return
+				}
+			}
+
+			m.PushValue(exception.Value)
+			// Recover complete; remove exceptions.
 			m.Exceptions = nil
 		},
 	)

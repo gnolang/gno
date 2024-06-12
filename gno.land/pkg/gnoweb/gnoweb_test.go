@@ -32,7 +32,7 @@ func TestRoutes(t *testing.T) {
 		{"/r/gnoland/blog/admin.gno", ok, "func "},
 		{"/r/demo/users:administrator", ok, "address"},
 		{"/r/demo/users", ok, "manfred"},
-		{"/r/demo/users/types.gno", ok, "type "},
+		{"/r/demo/users/users.gno", ok, "// State"},
 		{"/r/demo/deep/very/deep", ok, "it works!"},
 		{"/r/demo/deep/very/deep:bob", ok, "hi bob"},
 		{"/r/demo/deep/very/deep?help", ok, "exposed"},
@@ -42,15 +42,19 @@ func TestRoutes(t *testing.T) {
 		{"/gor", found, "/game-of-realms"},
 		{"/blog", found, "/r/gnoland/blog"},
 		{"/404-not-found", notFound, "/404-not-found"},
+		{"/아스키문자가아닌경로", notFound, "/아스키문자가아닌경로"},
+		{"/%ED%85%8C%EC%8A%A4%ED%8A%B8", notFound, "/테스트"},
+		{"/グノー", notFound, "/グノー"},
+		{"/⚛️", notFound, "/⚛️"},
 	}
 
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
 	defer node.Stop()
 
 	cfg := NewDefaultConfig()
 
-	logger := log.TestingLogger()
+	logger := log.NewTestingLogger(t)
 
 	// set the `remoteAddr` of the client to the listening address of the
 	// node, which is randomly assigned.
@@ -65,7 +69,6 @@ func TestRoutes(t *testing.T) {
 			assert.Equal(t, r.status, response.Code)
 
 			assert.Contains(t, response.Body.String(), r.substring)
-			// println(response.Body.String())
 		})
 	}
 }
@@ -94,13 +97,13 @@ func TestAnalytics(t *testing.T) {
 	}
 
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNopLogger(), config)
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
 	defer node.Stop()
 
 	cfg := NewDefaultConfig()
 	cfg.RemoteAddr = remoteAddr
 
-	logger := log.TestingLogger()
+	logger := log.NewTestingLogger(t)
 
 	t.Run("with", func(t *testing.T) {
 		for _, route := range routes {

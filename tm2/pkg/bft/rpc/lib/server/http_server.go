@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"runtime/debug"
@@ -15,7 +16,6 @@ import (
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/log"
 )
 
 // Config is a RPC server configuration.
@@ -47,7 +47,7 @@ func DefaultConfig() *Config {
 // StartHTTPServer takes a listener and starts an HTTP server with the given handler.
 // It wraps handler with RecoverAndLogHandler.
 // NOTE: This function blocks - you may want to call it in a go-routine.
-func StartHTTPServer(listener net.Listener, handler http.Handler, logger log.Logger, config *Config) error {
+func StartHTTPServer(listener net.Listener, handler http.Handler, logger *slog.Logger, config *Config) error {
 	logger.Info(fmt.Sprintf("Starting RPC HTTP server on %s", listener.Addr()))
 	s := &http.Server{
 		Handler:           RecoverAndLogHandler(maxBytesHandler{h: handler, n: config.MaxBodyBytes}, logger),
@@ -68,7 +68,7 @@ func StartHTTPAndTLSServer(
 	listener net.Listener,
 	handler http.Handler,
 	certFile, keyFile string,
-	logger log.Logger,
+	logger *slog.Logger,
 	config *Config,
 ) error {
 	logger.Info(fmt.Sprintf("Starting RPC HTTPS server on %s (cert: %q, key: %q)",
@@ -118,7 +118,7 @@ func WriteRPCResponseHTTP(w http.ResponseWriter, res types.RPCResponse) {
 // WriteRPCResponseArrayHTTP will do the same as WriteRPCResponseHTTP, except it
 // can write arrays of responses for batched request/response interactions via
 // the JSON RPC.
-func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res []types.RPCResponse) {
+func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res types.RPCResponses) {
 	if len(res) == 1 {
 		WriteRPCResponseHTTP(w, res[0])
 	} else {
@@ -134,12 +134,12 @@ func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res []types.RPCResponse) {
 	}
 }
 
-//-----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 // RecoverAndLogHandler wraps an HTTP handler, adding error logging.
 // If the inner function panics, the outer function recovers, logs, sends an
 // HTTP 500 error response.
-func RecoverAndLogHandler(handler http.Handler, logger log.Logger) http.Handler {
+func RecoverAndLogHandler(handler http.Handler, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Wrap the ResponseWriter to remember the status
 		rww := &ResponseWriterWrapper{-1, w}

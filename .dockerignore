@@ -5,22 +5,36 @@ misc/
 docker-compose.yml
 tests/docker-integration/
 
-# gitignore
-*.sw[pon]
-cmd/foo.go
-unsorted.*
+# Copied from .gitignore
+
+# Editor Leftovers
 .DS_Store
+.vscode
+.idea
+
+# Default node data
+gnoland-data
+genesis.json
+
+# Build leftovers
+build
+
+# Legacy .gitignore
 data/*
-proto/*
-testdir/
-pkgs/sdk/vm/_testdata
-build/*
+testdir
+
+# Log + generation leftovers
 *.tx
 *.log.*
 *.log
 *.gno.gen.go
 *.gno.gen_test.go
-.vscode
-.idea
 *.pb.go
 pbbindings.go
+*~
+.#*
+*#
+
+# Test coverage leftovers
+cover.out
+coverage.out

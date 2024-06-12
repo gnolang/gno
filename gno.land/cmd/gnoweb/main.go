@@ -9,7 +9,8 @@ import (
 
 	// for static files
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
-	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/gno.land/pkg/log"
+	"go.uber.org/zap/zapcore"
 	// for error types
 	// "github.com/gnolang/gno/tm2/pkg/sdk"               // for baseapp (info, status)
 )
@@ -41,8 +42,8 @@ func runMain(args []string) error {
 		return err
 	}
 
-	logger := log.NewTMLogger(os.Stdout)
-	logger.SetLevel(log.LevelDebug)
+	zapLogger := log.NewZapConsoleLogger(os.Stdout, zapcore.DebugLevel)
+	logger := log.ZapLoggerToSlog(zapLogger)
 
 	logger.Info("Running", "listener", "http://"+bindAddress)
 	server := &http.Server{
@@ -54,5 +55,6 @@ func runMain(args []string) error {
 	if err := server.ListenAndServe(); err != nil {
 		logger.Error("HTTP server stopped", " error:", err)
 	}
-	return nil
+
+	return zapLogger.Sync()
 }

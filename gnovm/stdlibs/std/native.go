@@ -1,8 +1,6 @@
 package std
 
 import (
-	"reflect"
-
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -16,104 +14,74 @@ func AssertOriginCall(m *gno.Machine) {
 }
 
 func IsOriginCall(m *gno.Machine) bool {
-	return len(m.Frames) == 2
-}
-
-func CurrentRealmPath(m *gno.Machine) string {
-	if m.Realm != nil {
-		return m.Realm.Path
+	n := m.NumFrames()
+	if n == 0 {
+		return false
 	}
-	return ""
+	firstPkg := m.Frames[0].LastPackage
+	isMsgCall := firstPkg != nil && firstPkg.PkgPath == "main"
+	return n <= 2 && isMsgCall
 }
 
 func GetChainID(m *gno.Machine) string {
-	return m.Context.(ExecContext).ChainID
+	return GetContext(m).ChainID
 }
 
 func GetHeight(m *gno.Machine) int64 {
-	return m.Context.(ExecContext).Height
+	return GetContext(m).Height
 }
 
-func GetOrigSend(m *gno.Machine) std.Coins {
-	return m.Context.(ExecContext).OrigSend
+// getPrevFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
+func getPrevFunctionNameFromTarget(m *gno.Machine, targetFunc string) string {
+	targetIndex := findTargetFuncIndex(m, targetFunc)
+	if targetIndex == -1 {
+		return ""
+	}
+	return findPrevFuncName(m, targetIndex)
 }
 
-func GetOrigCaller(m *gno.Machine) crypto.Bech32Address {
-	return m.Context.(ExecContext).OrigCaller
-}
-
-func CurrentRealm(m *gno.Machine) Realm {
-	var (
-		ctx = m.Context.(ExecContext)
-		// Default lastCaller is OrigCaller, the signer of the tx
-		lastCaller  = ctx.OrigCaller
-		lastPkgPath = ""
-	)
-
-	for i := m.NumFrames() - 1; i > 0; i-- {
-		fr := m.Frames[i]
-		if fr.LastPackage != nil && fr.LastPackage.IsRealm() {
-			lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
-			lastPkgPath = fr.LastPackage.PkgPath
-			break
+// findTargetFuncIndex finds and returns the index of the target function in the call stack.
+func findTargetFuncIndex(m *gno.Machine, targetFunc string) int {
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		currFunc := m.Frames[i].Func
+		if currFunc != nil && currFunc.Name == gno.Name(targetFunc) {
+			return i
 		}
 	}
-
-	return Realm{
-		addr:    lastCaller,
-		pkgPath: lastPkgPath,
-	}
+	return -1
 }
 
-func PrevRealm(m *gno.Machine) Realm {
-	var (
-		ctx = m.Context.(ExecContext)
-		// Default lastCaller is OrigCaller, the signer of the tx
-		lastCaller  = ctx.OrigCaller
-		lastPkgPath = ""
-	)
-
-	for i := m.NumFrames() - 1; i > 0; i-- {
-		fr := m.Frames[i]
-		if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
-			// Ignore non-realm frame
-			continue
-		}
-		pkgPath := fr.LastPackage.PkgPath
-		// The first realm we encounter will be the one calling
-		// this function; to get the calling realm determine the first frame
-		// where fr.LastPackage changes.
-		if lastPkgPath == "" {
-			lastPkgPath = pkgPath
-		} else if lastPkgPath == pkgPath {
-			continue
-		} else {
-			lastCaller = fr.LastPackage.GetPkgAddr().Bech32()
-			lastPkgPath = pkgPath
-			break
+// findPrevFuncName returns the function name before the given index in the call stack.
+func findPrevFuncName(m *gno.Machine, targetIndex int) string {
+	for i := targetIndex - 1; i >= 0; i-- {
+		currFunc := m.Frames[i].Func
+		if currFunc != nil {
+			return string(currFunc.Name)
 		}
 	}
-
-	// Empty the pkgPath if we return a user
-	if ctx.OrigCaller == lastCaller {
-		lastPkgPath = ""
-	}
-
-	return Realm{
-		addr:    lastCaller,
-		pkgPath: lastPkgPath,
-	}
+	panic("function name not found")
 }
 
-func GetOrigPkgAddr(m *gno.Machine) crypto.Bech32Address {
-	return m.Context.(ExecContext).OrigPkgAddr
+func X_origSend(m *gno.Machine) (denoms []string, amounts []int64) {
+	os := GetContext(m).OrigSend
+	return ExpandCoins(os)
 }
 
-func GetCallerAt(m *gno.Machine, n int) crypto.Bech32Address {
+func X_origCaller(m *gno.Machine) string {
+	return string(GetContext(m).OrigCaller)
+}
+
+func X_origPkgAddr(m *gno.Machine) string {
+	return string(GetContext(m).OrigPkgAddr)
+}
+
+func X_callerAt(m *gno.Machine, n int) string {
 	if n <= 0 {
 		m.Panic(typedString("GetCallerAt requires positive arg"))
 		return ""
 	}
+	// Add 1 to n to account for the GetCallerAt (gno fn) frame.
+	n++
 	if n > m.NumFrames() {
 		// NOTE: the last frame's LastPackage
 		// is set to the original non-frame
@@ -123,63 +91,92 @@ func GetCallerAt(m *gno.Machine, n int) crypto.Bech32Address {
 	}
 	if n == m.NumFrames() {
 		// This makes it consistent with GetOrigCaller.
-		ctx := m.Context.(ExecContext)
-		return ctx.OrigCaller
+		ctx := GetContext(m)
+		return string(ctx.OrigCaller)
 	}
-	return m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32()
+	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
-func GetBanker(m *gno.Machine, bankerType BankerType) gno.TypedValue {
-	ctx := m.Context.(ExecContext)
-	banker := ctx.Banker
-	switch bankerType {
-	case BankerTypeReadonly:
-		banker = NewReadonlyBanker(banker)
-	case BankerTypeOrigSend:
-		banker = NewOrigSendBanker(banker, ctx.OrigPkgAddr, ctx.OrigSend, ctx.OrigSendSpent)
-	case BankerTypeRealmSend:
-		banker = NewRealmSendBanker(banker, ctx.OrigPkgAddr)
-	case BankerTypeRealmIssue:
-		banker = banker
-	default:
-		panic("should not happen") // defensive
+func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
+	// NOTE: keep in sync with test/stdlibs/std.getRealm
+
+	var (
+		ctx           = GetContext(m)
+		currentCaller crypto.Bech32Address
+		// Keeps track of the number of times currentCaller
+		// has changed.
+		changes int
+	)
+
+	for i := m.NumFrames() - 1; i >= 0; i-- {
+		fr := m.Frames[i]
+		if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
+			continue
+		}
+
+		// LastPackage is a realm. Get caller and pkgPath, and compare against
+		// current* values.
+		caller := fr.LastPackage.GetPkgAddr().Bech32()
+		pkgPath := fr.LastPackage.PkgPath
+		if caller != currentCaller {
+			if changes == height {
+				return string(caller), pkgPath
+			}
+			currentCaller = caller
+			changes++
+		}
 	}
-	m.Alloc.AllocateStruct()         // defensive; native space not allocated.
-	m.Alloc.AllocateStructFields(10) // defensive 10; native space not allocated.
 
-	// make gno bankAdapter{rv}
-	btv := gno.Go2GnoNativeValue(m.Alloc, reflect.ValueOf(banker))
-	bsv := m.Alloc.NewStructWithFields(btv)
-	bankAdapterType := m.Store.GetType(gno.DeclaredTypeID("std", "bankAdapter"))
-	res0 := gno.TypedValue{T: bankAdapterType, V: bsv}
-
-	return res0
+	// Fallback case: return OrigCaller.
+	return string(ctx.OrigCaller), ""
 }
 
-func EncodeBech32(prefix string, bytes [20]byte) crypto.Bech32Address {
+// currentRealm retrieves the current realm's address and pkgPath.
+// It's not a native binding; but is used within this package to clarify usage.
+func currentRealm(m *gno.Machine) (address, pkgPath string) {
+	return X_getRealm(m, 0)
+}
+
+func X_derivePkgAddr(pkgPath string) string {
+	return string(gno.DerivePkgAddr(pkgPath).Bech32())
+}
+
+func X_encodeBech32(prefix string, bytes [20]byte) string {
 	b32, err := bech32.ConvertAndEncode(prefix, bytes[:])
 	if err != nil {
 		panic(err) // should not happen
 	}
-	return crypto.Bech32Address(b32)
+	return b32
 }
 
-func DerivePkgAddr(pkgPath string) crypto.Bech32Address {
-	return gno.DerivePkgAddr(pkgPath).Bech32()
-}
-
-func DecodeBech32(addr crypto.Bech32Address) (prefix string, bytes [20]byte, ok bool) {
-	prefix, bz, err := bech32.Decode(string(addr))
+func X_decodeBech32(addr string) (prefix string, bytes [20]byte, ok bool) {
+	prefix, bz, err := bech32.Decode(addr)
 	if err != nil || len(bz) != 20 {
 		return "", [20]byte{}, false
 	}
-	// TODO: can be simplified when we switch to go1.20 in go mod to be a simple [20]byte(bz)
-	copy(bytes[:], bz)
-	return prefix, bytes, true
+	return prefix, [20]byte(bz), true
 }
 
-func typedString(s gno.StringValue) gno.TypedValue {
+func typedString(s string) gno.TypedValue {
 	tv := gno.TypedValue{T: gno.StringType}
-	tv.SetString(s)
+	tv.SetString(gno.StringValue(s))
 	return tv
+}
+
+func ExpandCoins(c std.Coins) (denoms []string, amounts []int64) {
+	denoms = make([]string, len(c))
+	amounts = make([]int64, len(c))
+	for i, coin := range c {
+		denoms[i] = coin.Denom
+		amounts[i] = coin.Amount
+	}
+	return denoms, amounts
+}
+
+func CompactCoins(denoms []string, amounts []int64) std.Coins {
+	coins := make(std.Coins, len(denoms))
+	for i := range coins {
+		coins[i] = std.Coin{Denom: denoms[i], Amount: amounts[i]}
+	}
+	return coins
 }
