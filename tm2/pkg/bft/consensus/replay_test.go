@@ -1153,11 +1153,9 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
 	handshaker := NewHandshaker(stateDB, state, store, genDoc)
 	proxyApp := appconn.NewAppConns(clientCreator)
-	err := proxyApp.Start()
-	require.NoError(t, err, "Error starting proxy app connections")
-	defer func() { err := proxyApp.Stop(); require.NoError(t, err) }()
-	err = handshaker.Handshake(proxyApp)
-	require.NoError(t, err, "Error on abci handshake")
+	require.NoError(t, proxyApp.Start(), "Error starting proxy app connections")
+	defer func() { require.NoError(t, proxyApp.Stop()) }()
+	require.NoError(t, handshaker.Handshake(proxyApp), "Error on abci handshake")
 
 	// reload the state, check the validator set was updated
 	state = sm.LoadState(stateDB)
@@ -1190,11 +1188,9 @@ func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
 	handshaker := NewHandshaker(stateDB, state, store, genDoc)
 	proxyApp := appconn.NewAppConns(clientCreator)
-	err := proxyApp.Start()
-	require.NoError(t, err, "Error starting proxy app connections")
-	defer func() { err := proxyApp.Stop(); require.NoError(t, err) }()
-	err = handshaker.Handshake(proxyApp)
-	require.NoError(t, err, "Error on abci handshake")
+	require.NoError(t, proxyApp.Start(), "Error starting proxy app connections")
+	defer func() { require.NoError(t, proxyApp.Stop()) }()
+	require.NoError(t, handshaker.Handshake(proxyApp), "Error on abci handshake")
 
 	// check that the genesis transaction results are saved
 	res, err := sm.LoadABCIResponses(stateDB, 0)
