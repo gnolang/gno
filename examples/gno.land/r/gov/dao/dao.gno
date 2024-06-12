@@ -16,6 +16,7 @@ type Proposal struct {
 	idx      int
 	Comment  string
 	Executor proposal.Executor
+	approved bool
 }
 
 // Propose is designed to be called by another contract or with
@@ -34,8 +35,11 @@ func Propose(proposal Proposal) int {
 func VoteOnProposal(idx int, option string) {
 	caller := std.PrevRealm().Addr()
 	AssertIsMember(caller)
-	panic("not implemented")
-	// XXX: implement the voting (woudl be cool to have a generic p/)
+	assertProposalExists(idx)
+
+	proposal := proposals[idx]
+	// XXX: implement the voting (would be cool to have a generic p/)
+	proposal.approved = option == "approved"
 }
 
 func ExecuteProposal(idx int) {
@@ -55,7 +59,7 @@ func assertProposalExists(idx int) {
 
 func IsMember(addr std.Address) bool {
 	// XXX: implement
-	return true
+	return true // in the meantime, everyone is a DAO member
 }
 
 func AssertIsMember(addr std.Address) {
