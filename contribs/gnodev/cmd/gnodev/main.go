@@ -15,7 +15,6 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
-	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -39,7 +38,6 @@ var (
 
 type devCfg struct {
 	// Listeners
-	webListenerAddr          string
 	nodeRPCListenerAddr      string
 	nodeP2PListenerAddr      string
 	nodeProxyAppListenerAddr string
@@ -52,6 +50,10 @@ type devCfg struct {
 	balancesFile    string
 	txsFile         string
 
+	// Web Configuration
+	webListenerAddr     string
+	webRemoteHelperAddr string
+
 	// Node Configuration
 	minimal    bool
 	verbose    bool
@@ -60,7 +62,6 @@ type devCfg struct {
 	maxGas     int64
 	chainId    string
 	serverMode bool
-	webConfig  gnoweb.Config
 }
 
 var defaultDevOptions = &devCfg{
@@ -79,9 +80,7 @@ var defaultDevOptions = &devCfg{
 }
 
 func main() {
-	cfg := &devCfg{
-		webConfig: gnoweb.NewDefaultConfig(),
-	}
+	cfg := &devCfg{}
 
 	stdio := commands.NewDefaultIO()
 	cmd := commands.NewCommand(
@@ -116,15 +115,15 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.webListenerAddr,
-		"web-bind",
+		"web-listener",
 		defaultDevOptions.webListenerAddr,
-		"web server listening address",
+		"web server listener address",
 	)
 
 	fs.StringVar(
-		&c.webConfig.HelpRemote,
+		&c.webRemoteHelperAddr,
 		"web-help-remote",
-		"",
+		defaultDevOptions.webRemoteHelperAddr,
 		"web server help page's remote addr (default to <node-rpc-listener>)",
 	)
 
