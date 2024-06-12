@@ -35,7 +35,7 @@ func (m *mockSigner) Info() (keys.Info, error) {
 	if m.info != nil {
 		return m.info()
 	}
-	return nil, errors.New("empty key info")
+	return nil, nil
 }
 
 func (m *mockSigner) Validate() error {
