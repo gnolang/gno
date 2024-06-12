@@ -4,7 +4,6 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/nestedpkg"
 	"gno.land/r/demo/tests"
 )
 
