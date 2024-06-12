@@ -432,7 +432,7 @@ func main() {
 2. Calling functions with non-primitive input arguments:
 
 Currently, `Call` only supports primitives for arguments. With `Run`, these
-limitations are removed - we can execute a function that takes in a struct, array,
+limitations are removed; we can execute a function that takes in a struct, array,
 or even an array of structs.
 
 We are unable to call `AddFoos()` with the `Call` message type, while with `Run`,
