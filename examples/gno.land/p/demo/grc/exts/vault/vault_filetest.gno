@@ -1,13 +1,11 @@
 package main
 
 import (
-	"std"
-	"time"
-
 	"gno.land/p/demo/grc/exts/vault"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/ufmt"
+	"std"
 )
 
 func main() {
@@ -17,15 +15,14 @@ func main() {
 	pkgaddr := std.GetOrigPkgAddr()
 
 	// create a fooAdminToken + fooToken (GRC20) pair.
-	fooAdminToken := grc20.NewAdminToken("Foo", "FOO", 4)
-	fooAdminToken.Mint(alice, 1000)
-	fooToken := fooAdminToken.GRC20()
+	fooToken := grc20.NewGRC20Token("Foo", "FOO", 4)
+	fooToken.Mint(alice, 1000)
 
 	printBalances := func() {
-		aliceBalance, _ := fooToken.BalanceOf(alice)
-		bobBalance, _ := fooToken.BalanceOf(bob)
-		charlyBalance, _ := fooToken.BalanceOf(charly)
-		pkgBalance, _ := fooToken.BalanceOf(pkgaddr)
+		aliceBalance := fooToken.BalanceOf(alice)
+		bobBalance := fooToken.BalanceOf(bob)
+		charlyBalance := fooToken.BalanceOf(charly)
+		pkgBalance := fooToken.BalanceOf(pkgaddr)
 		println(ufmt.Sprintf(
 			"balances: alice=%d, bob=%d, charly=%d, pkg=%d, height=%d",
 			aliceBalance, bobBalance, charlyBalance, pkgBalance, std.GetHeight(),
@@ -33,7 +30,7 @@ func main() {
 	}
 
 	// create a vault for fooAdminToken.
-	v := vault.New(fooAdminToken)
+	v := vault.New(fooToken)
 	printBalances()
 
 	// alice deposits 300 with an unlock duration of 5 blocks.
@@ -69,11 +66,11 @@ func checkErr(err error) {
 
 // Output:
 // balances: alice=1000, bob=0, charly=0, pkg=0, height=123
-// balances: alice=700, bob=0, charly=0, pkg=300, height=123
+// balances: alice=1000, bob=0, charly=0, pkg=0, height=123
 // AAA1 123 0 5
 // AAA2 123 128 5
-// balances: alice=700, bob=0, charly=0, pkg=300, height=123
-// balances: alice=700, bob=0, charly=0, pkg=300, height=129
+// balances: alice=1000, bob=0, charly=0, pkg=0, height=123
+// balances: alice=1000, bob=0, charly=0, pkg=0, height=129
 // AAA3 129 128 5
-// balances: alice=900, bob=0, charly=0, pkg=100, height=129
-// balances: alice=900, bob=0, charly=0, pkg=100, height=129
+// balances: alice=1000, bob=0, charly=0, pkg=0, height=129
+// balances: alice=1000, bob=0, charly=0, pkg=0, height=129

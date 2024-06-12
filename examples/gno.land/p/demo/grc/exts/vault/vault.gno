@@ -1,6 +1,7 @@
 package vault
 
 import (
+	"errors"
 	"std"
 
 	"gno.land/p/demo/avl"
@@ -18,7 +19,7 @@ type Vault interface {
 func New(token *grc20.Token) Vault {
 	return &impl{
 		token: token,
-		users: avl.NewTree(),
+		users: avl.Tree{},
 	}
 }
 
@@ -40,7 +41,6 @@ type userVault struct {
 
 func (v *impl) Deposit(amount uint, recover std.Address, lockDuration uint) error {
 	caller := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
 
 	uv := userVault{
 		lockDuration:    lockDuration,
@@ -50,7 +50,7 @@ func (v *impl) Deposit(amount uint, recover std.Address, lockDuration uint) erro
 	}
 
 	// deposit.
-	v.token.Transfer(pkgAddr, uint64(amount))
+	v.token.Transfer(caller, uint64(amount))
 	v.users.Set(caller.String(), &uv)
 
 	return nil
@@ -66,7 +66,7 @@ func (v *impl) Unvault(amount uint) error {
 	balance := v.token.BalanceOf(caller)
 
 	if balance < uint64(amount) {
-		return grc20.ErrInsufficientBalance
+		return errors.New("insufficient balance")
 	}
 
 	println("AAA1", std.GetHeight(), uv.redeemMinHeight, uv.lockDuration)
@@ -78,7 +78,6 @@ func (v *impl) Unvault(amount uint) error {
 }
 
 func (v *impl) Redeem() error {
-	pkgAddr := std.GetOrigPkgAddr()
 	caller := std.GetOrigCaller()
 	uv, err := v.getUserVault(caller)
 	if err != nil {
@@ -93,10 +92,7 @@ func (v *impl) Redeem() error {
 	// TODO: check height.
 
 	// transfer token.
-	err = v.token.Transfer(pkgAddr, caller, uint64(uv.unvaultedAmount))
-	if err != nil {
-		return err
-	}
+	v.token.Transfer(caller, uint64(uv.unvaultedAmount))
 
 	uv.unvaultedAmount = 0
 	// TODO: if balance == 0 -> destroy?
