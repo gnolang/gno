@@ -21,6 +21,15 @@ func TestNew(t *testing.T) {
 	}
 }
 
+func TestNewWithAddress(t *testing.T) {
+	o := NewWithAddress(firstCaller)
+
+	got := o.Owner()
+	if firstCaller != got {
+		t.Fatalf("Expected %s, got: %s", firstCaller, got)
+	}
+}
+
 func TestOwner(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(firstCaller))
 
