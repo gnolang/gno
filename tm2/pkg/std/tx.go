@@ -1,14 +1,22 @@
 package std
 
 import (
+	"bufio"
+	"context"
 	"fmt"
+	"io"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-var maxGasWanted = int64((1 << 60) - 1) // something smaller than math.MaxInt64
+var (
+	maxGasWanted = int64((1 << 60) - 1) // something smaller than math.MaxInt64
+
+	ErrTxsLoadingAborted = errors.New("transaction loading aborted")
+)
 
 // Tx is a standard way to wrap a Msg with Fee and Signatures.
 // NOTE: the first signature is the fee payer (Signatures must not be nil).
@@ -135,4 +143,37 @@ func (fee Fee) Bytes() []byte {
 		panic(err)
 	}
 	return bz
+}
+
+func ParseTxs(ctx context.Context, reader io.Reader) ([]Tx, error) {
+	var txs []Tx
+	scanner := bufio.NewScanner(reader)
+
+	for scanner.Scan() {
+		select {
+		case <-ctx.Done():
+			return nil, ErrTxsLoadingAborted
+		default:
+			// Parse the amino JSON
+			var tx Tx
+			if err := amino.UnmarshalJSON(scanner.Bytes(), &tx); err != nil {
+				return nil, fmt.Errorf(
+					"unable to unmarshal amino JSON, %w",
+					err,
+				)
+			}
+
+			txs = append(txs, tx)
+		}
+	}
+
+	// Check for scanning errors
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf(
+			"error encountered while reading file, %w",
+			err,
+		)
+	}
+
+	return txs, nil
 }
