@@ -76,7 +76,7 @@ func (c *balancesAddCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) error {
 	// Load the genesis
-	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.genesisPath)
+	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.homeDir.GenesisFilePath())
 	if loadErr != nil {
 		return fmt.Errorf("unable to load genesis, %w", loadErr)
 	}
@@ -155,7 +155,7 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 	genesis.AppState = state
 
 	// Save the updated genesis
-	if err := genesis.SaveAs(cfg.rootCfg.genesisPath); err != nil {
+	if err := genesis.SaveAs(cfg.rootCfg.homeDir.GenesisFilePath()); err != nil {
 		return fmt.Errorf("unable to save genesis.json, %w", err)
 	}
 

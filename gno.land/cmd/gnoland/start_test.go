@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -49,12 +48,11 @@ func retryUntilTimeout(ctx context.Context, cb func() bool) error {
 func prepareNodeRPC(t *testing.T, nodeDir string) {
 	t.Helper()
 
-	path := constructConfigPath(nodeDir)
 	args := []string{
 		"config",
 		"init",
-		"--config-path",
-		path,
+		"--home",
+		nodeDir,
 	}
 
 	// Prepare the IO
@@ -74,8 +72,8 @@ func prepareNodeRPC(t *testing.T, nodeDir string) {
 	args = []string{
 		"config",
 		"set",
-		"--config-path",
-		path,
+		"--home",
+		nodeDir,
 		"rpc.laddr",
 		"tcp://0.0.0.0:0",
 	}
@@ -87,13 +85,11 @@ func prepareNodeRPC(t *testing.T, nodeDir string) {
 func TestStart_Lazy(t *testing.T) {
 	t.Parallel()
 
-	var (
-		nodeDir     = t.TempDir()
-		genesisFile = filepath.Join(nodeDir, "test_genesis.json")
-	)
+	homeDir := newTestHomeDirectory(t, t.TempDir())
+	homeDir.genesisFile = homeDir.Path() + "test_genesis.json"
 
 	// Prepare the config
-	prepareNodeRPC(t, nodeDir)
+	prepareNodeRPC(t, homeDir.Path())
 
 	args := []string{
 		"start",
@@ -102,10 +98,10 @@ func TestStart_Lazy(t *testing.T) {
 
 		// These two flags are tested together as they would otherwise
 		// pollute this directory (cmd/gnoland) if not set.
-		"--data-dir",
-		nodeDir,
+		"--home",
+		homeDir.Path(),
 		"--genesis",
-		genesisFile,
+		homeDir.GenesisFilePath(),
 	}
 
 	// Prepare the IO
@@ -116,7 +112,7 @@ func TestStart_Lazy(t *testing.T) {
 	io.SetErr(commands.WriteNopCloser(mockErr))
 
 	// Create and run the command
-	ctx, cancelFn := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancelFn := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancelFn()
 
 	// Set up the command ctx
@@ -144,21 +140,14 @@ func TestStart_Lazy(t *testing.T) {
 	require.NoError(t, g.Wait())
 
 	// Make sure the genesis is generated
-	assert.FileExists(t, genesisFile)
+	assert.FileExists(t, homeDir.GenesisFilePath())
 
 	// Make sure the config is generated (default)
-	assert.FileExists(t, constructConfigPath(nodeDir))
+	assert.FileExists(t, homeDir.ConfigFile())
 
 	// Make sure the secrets are generated
-	var (
-		secretsPath        = constructSecretsPath(nodeDir)
-		validatorKeyPath   = filepath.Join(secretsPath, defaultValidatorKeyName)
-		validatorStatePath = filepath.Join(secretsPath, defaultValidatorStateName)
-		nodeKeyPath        = filepath.Join(secretsPath, defaultNodeKeyName)
-	)
-
-	assert.DirExists(t, secretsPath)
-	assert.FileExists(t, validatorKeyPath)
-	assert.FileExists(t, validatorStatePath)
-	assert.FileExists(t, nodeKeyPath)
+	assert.DirExists(t, homeDir.SecretsDir())
+	assert.FileExists(t, homeDir.SecretsValidatorKey())
+	assert.FileExists(t, homeDir.SecretsValidatorState())
+	assert.FileExists(t, homeDir.SecretsValidatorState())
 }

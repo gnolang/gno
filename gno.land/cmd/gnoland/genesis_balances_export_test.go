@@ -44,7 +44,7 @@ func TestGenesis_Balances_Export(t *testing.T) {
 			"genesis",
 			"balances",
 			"export",
-			"--genesis-path",
+			"--genesis",
 			"dummy-path",
 		}
 
@@ -69,7 +69,7 @@ func TestGenesis_Balances_Export(t *testing.T) {
 			"genesis",
 			"balances",
 			"export",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 		}
 
@@ -96,7 +96,7 @@ func TestGenesis_Balances_Export(t *testing.T) {
 			"genesis",
 			"balances",
 			"export",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 		}
 
@@ -130,7 +130,7 @@ func TestGenesis_Balances_Export(t *testing.T) {
 			"genesis",
 			"balances",
 			"export",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 			outputFile.Name(),
 		}

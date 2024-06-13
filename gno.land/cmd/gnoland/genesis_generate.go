@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -13,7 +15,8 @@ import (
 var defaultChainID = "dev"
 
 type generateCfg struct {
-	outputPath        string
+	commonCfg
+
 	chainID           string
 	genesisTime       int64
 	blockMaxTxBytes   int64
@@ -41,12 +44,7 @@ func newGenerateCmd(io commands.IO) *commands.Command {
 }
 
 func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.outputPath,
-		"output-path",
-		"./genesis.json",
-		"the output path for the genesis.json",
-	)
+	c.commonCfg.RegisterFlags(fs)
 
 	fs.Int64Var(
 		&c.genesisTime,
@@ -130,12 +128,16 @@ func execGenerate(cfg *generateCfg, io commands.IO) error {
 		return fmt.Errorf("unable to validate genesis, %w", validateErr)
 	}
 
+	if err := os.MkdirAll(filepath.Dir(cfg.homeDir.GenesisFilePath()), 0755); err != nil {
+		return fmt.Errorf("error creating dir: %w", err)
+	}
+
 	// Save the genesis file to disk
-	if saveErr := genesis.SaveAs(cfg.outputPath); saveErr != nil {
+	if saveErr := genesis.SaveAs(cfg.homeDir.GenesisFilePath()); saveErr != nil {
 		return fmt.Errorf("unable to save genesis, %w", saveErr)
 	}
 
-	io.Printfln("Genesis successfully generated at %s\n", cfg.outputPath)
+	io.Printfln("Genesis successfully generated at %s\n", cfg.homeDir.GenesisFilePath())
 
 	// Log the empty validator set warning
 	io.Printfln("WARN: Genesis is generated with an empty validator set")

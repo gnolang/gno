@@ -41,7 +41,7 @@ func (c *verifyCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execVerify(cfg *verifyCfg, io commands.IO) error {
 	// Load the genesis
-	genesis, loadErr := types.GenesisDocFromFile(cfg.genesisPath)
+	genesis, loadErr := types.GenesisDocFromFile(cfg.homeDir.GenesisFilePath())
 	if loadErr != nil {
 		return fmt.Errorf("unable to load genesis, %w", loadErr)
 	}
@@ -73,7 +73,7 @@ func execVerify(cfg *verifyCfg, io commands.IO) error {
 		}
 	}
 
-	io.Printfln("Genesis at %s is valid", cfg.genesisPath)
+	io.Printfln("Genesis at %s is valid", cfg.homeDir.GenesisFilePath())
 
 	return nil
 }

@@ -39,7 +39,7 @@ func newConfigSetCmd(io commands.IO) *commands.Command {
 
 func execConfigEdit(cfg *configCfg, io commands.IO, args []string) error {
 	// Load the config
-	loadedCfg, err := config.LoadConfigFile(cfg.configPath)
+	loadedCfg, err := config.LoadConfigFile(cfg.homeDir.ConfigFile())
 	if err != nil {
 		return fmt.Errorf("%s, %w", tryConfigInit, err)
 	}
@@ -69,11 +69,11 @@ func execConfigEdit(cfg *configCfg, io commands.IO, args []string) error {
 	}
 
 	// Save the config
-	if err := config.WriteConfigFile(cfg.configPath, loadedCfg); err != nil {
+	if err := config.WriteConfigFile(cfg.homeDir.ConfigFile(), loadedCfg); err != nil {
 		return fmt.Errorf("unable to save updated config, %w", err)
 	}
 
-	io.Printfln("Updated configuration saved at %s", cfg.configPath)
+	io.Printfln("Updated configuration saved at %s", cfg.homeDir.ConfigFile())
 
 	return nil
 }

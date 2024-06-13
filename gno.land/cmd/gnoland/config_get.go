@@ -52,7 +52,7 @@ func (c *configGetCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execConfigGet(cfg *configGetCfg, io commands.IO, args []string) error {
 	// Load the config
-	loadedCfg, err := config.LoadConfigFile(cfg.configPath)
+	loadedCfg, err := config.LoadConfigFile(cfg.homeDir.ConfigFile())
 	if err != nil {
 		return fmt.Errorf("%s, %w", tryConfigInit, err)
 	}

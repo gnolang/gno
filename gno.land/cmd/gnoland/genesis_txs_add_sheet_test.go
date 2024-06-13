@@ -75,7 +75,7 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 			"txs",
 			"add",
 			"sheets",
-			"--genesis-path",
+			"--genesis",
 			"dummy-path",
 		}
 
@@ -100,7 +100,7 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 			"txs",
 			"add",
 			"sheets",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 			"dummy-tx-file",
 		}
@@ -126,7 +126,7 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 			"txs",
 			"add",
 			"sheets",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 		}
 
@@ -151,7 +151,7 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 			"txs",
 			"add",
 			"sheets",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 			tempGenesis.Name(), // invalid txs file
 		}
@@ -192,7 +192,7 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 			"txs",
 			"add",
 			"sheets",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 			txsFile.Name(),
 		}
@@ -252,7 +252,7 @@ func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 			"txs",
 			"add",
 			"sheets",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 			txsFile.Name(),
 		}

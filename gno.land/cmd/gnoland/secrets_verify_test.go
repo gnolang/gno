@@ -16,57 +16,11 @@ import (
 func TestSecrets_Verify_All(t *testing.T) {
 	t.Parallel()
 
-	t.Run("invalid data directory", func(t *testing.T) {
-		t.Parallel()
-
-		// Create the command
-		cmd := newRootCmd(commands.NewTestIO())
-		args := []string{
-			"secrets",
-			"verify",
-			"--data-dir",
-			"",
-		}
-
-		// Run the command
-		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errInvalidDataDir.Error())
-	})
-
-	t.Run("invalid data directory", func(t *testing.T) {
-		t.Parallel()
-
-		dir := t.TempDir()
-		path := filepath.Join(dir, "example.json")
-
-		require.NoError(
-			t,
-			os.WriteFile(
-				path,
-				[]byte("hello"),
-				0o644,
-			),
-		)
-
-		// Create the command
-		cmd := newRootCmd(commands.NewTestIO())
-		args := []string{
-			"secrets",
-			"verify",
-			"--data-dir",
-			path,
-		}
-
-		// Run the command
-		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errInvalidDataDir.Error())
-	})
-
 	t.Run("signature mismatch", func(t *testing.T) {
 		t.Parallel()
 
 		// Create a temporary directory
-		tempDir := t.TempDir()
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -75,22 +29,21 @@ func TestSecrets_Verify_All(t *testing.T) {
 		initArgs := []string{
 			"secrets",
 			"init",
-			"--data-dir",
-			tempDir,
+			"--home",
+			homeDir.Path(),
 		}
 
 		// Run the init command
 		require.NoError(t, cmd.ParseAndRun(context.Background(), initArgs))
 
 		// Modify the signature
-		statePath := filepath.Join(tempDir, defaultValidatorStateName)
-		state, err := readSecretData[privval.FilePVLastSignState](statePath)
+		state, err := readSecretData[privval.FilePVLastSignState](homeDir.SecretsValidatorState())
 		require.NoError(t, err)
 
 		state.SignBytes = []byte("something totally random")
 		state.Signature = []byte("signature")
 
-		require.NoError(t, saveSecretData(state, statePath))
+		require.NoError(t, saveSecretData(state, homeDir.SecretsValidatorState()))
 
 		cmd = newRootCmd(commands.NewTestIO())
 
@@ -98,8 +51,8 @@ func TestSecrets_Verify_All(t *testing.T) {
 		verifyArgs := []string{
 			"secrets",
 			"verify",
-			"--data-dir",
-			tempDir,
+			"--home",
+			homeDir.Path(),
 		}
 
 		assert.ErrorContains(
@@ -122,7 +75,7 @@ func TestSecrets_Verify_All(t *testing.T) {
 		initArgs := []string{
 			"secrets",
 			"init",
-			"--data-dir",
+			"--home",
 			tempDir,
 		}
 
@@ -135,7 +88,7 @@ func TestSecrets_Verify_All(t *testing.T) {
 		verifyArgs := []string{
 			"secrets",
 			"verify",
-			"--data-dir",
+			"--home",
 			tempDir,
 		}
 
@@ -175,7 +128,7 @@ func TestSecrets_Verify_All_Missing(t *testing.T) {
 			t.Parallel()
 
 			// Create a temporary directory
-			tempDir := t.TempDir()
+			homeDir := newTestHomeDirectory(t, t.TempDir())
 
 			// Create the command
 			cmd := newRootCmd(commands.NewTestIO())
@@ -184,15 +137,15 @@ func TestSecrets_Verify_All_Missing(t *testing.T) {
 			initArgs := []string{
 				"secrets",
 				"init",
-				"--data-dir",
-				tempDir,
+				"--home",
+				homeDir.Path(),
 			}
 
 			// Run the init command
 			require.NoError(t, cmd.ParseAndRun(context.Background(), initArgs))
 
 			// Delete the validator key
-			require.NoError(t, os.Remove(filepath.Join(tempDir, testCase.fileName)))
+			require.NoError(t, os.Remove(filepath.Join(homeDir.SecretsDir(), testCase.fileName)))
 
 			cmd = newRootCmd(commands.NewTestIO())
 
@@ -200,8 +153,8 @@ func TestSecrets_Verify_All_Missing(t *testing.T) {
 			verifyArgs := []string{
 				"secrets",
 				"verify",
-				"--data-dir",
-				tempDir,
+				"--home",
+				homeDir.Path(),
 			}
 
 			assert.ErrorContains(
@@ -216,7 +169,7 @@ func TestSecrets_Verify_All_Missing(t *testing.T) {
 		t.Parallel()
 
 		// Create a temporary directory
-		tempDir := t.TempDir()
+		homeDir := newTestHomeDirectory(t, t.TempDir())
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -225,15 +178,15 @@ func TestSecrets_Verify_All_Missing(t *testing.T) {
 		initArgs := []string{
 			"secrets",
 			"init",
-			"--data-dir",
-			tempDir,
+			"--home",
+			homeDir.Path(),
 		}
 
 		// Run the init command
 		require.NoError(t, cmd.ParseAndRun(context.Background(), initArgs))
 
 		// Delete the validator key
-		require.NoError(t, os.Remove(filepath.Join(tempDir, defaultValidatorKeyName)))
+		require.NoError(t, os.Remove(homeDir.SecretsValidatorKey()))
 
 		cmd = newRootCmd(commands.NewTestIO())
 
@@ -241,8 +194,8 @@ func TestSecrets_Verify_All_Missing(t *testing.T) {
 		verifyArgs := []string{
 			"secrets",
 			"verify",
-			"--data-dir",
-			tempDir,
+			"--home",
+			homeDir.Path(),
 		}
 
 		assert.ErrorContains(
@@ -259,22 +212,22 @@ func TestSecrets_Verify_Single(t *testing.T) {
 	t.Run("invalid validator key", func(t *testing.T) {
 		t.Parallel()
 
-		dirPath := t.TempDir()
-		path := filepath.Join(dirPath, defaultValidatorKeyName)
+		// Create a temporary directory
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
 		invalidKey := &privval.FilePVKey{
 			PrivKey: nil, // invalid
 		}
 
-		require.NoError(t, saveSecretData(invalidKey, path))
+		require.NoError(t, saveSecretData(invalidKey, homeDir.SecretsValidatorKey()))
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"secrets",
 			"verify",
-			"--data-dir",
-			dirPath,
+			"--home",
+			homeDir.Path(),
 			validatorPrivateKeyKey,
 		}
 
@@ -286,22 +239,22 @@ func TestSecrets_Verify_Single(t *testing.T) {
 	t.Run("invalid validator state", func(t *testing.T) {
 		t.Parallel()
 
-		dirPath := t.TempDir()
-		path := filepath.Join(dirPath, defaultValidatorStateName)
+		// Create a temporary directory
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
 		invalidState := &privval.FilePVLastSignState{
 			Height: -1, // invalid
 		}
 
-		require.NoError(t, saveSecretData(invalidState, path))
+		require.NoError(t, saveSecretData(invalidState, homeDir.SecretsValidatorState()))
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"secrets",
 			"verify",
-			"--data-dir",
-			dirPath,
+			"--home",
+			homeDir.Path(),
 			validatorStateKey,
 		}
 
@@ -313,9 +266,8 @@ func TestSecrets_Verify_Single(t *testing.T) {
 	t.Run("invalid validator state signature", func(t *testing.T) {
 		t.Parallel()
 
-		dirPath := t.TempDir()
-		keyPath := filepath.Join(dirPath, defaultValidatorKeyName)
-		statePath := filepath.Join(dirPath, defaultValidatorStateName)
+		// Create a temporary directory
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
 		validKey := generateValidatorPrivateKey()
 		validState := generateLastSignValidatorState()
@@ -323,16 +275,16 @@ func TestSecrets_Verify_Single(t *testing.T) {
 		// Save an invalid signature
 		validState.Signature = []byte("totally valid signature")
 
-		require.NoError(t, saveSecretData(validKey, keyPath))
-		require.NoError(t, saveSecretData(validState, statePath))
+		require.NoError(t, saveSecretData(validKey, homeDir.SecretsValidatorKey()))
+		require.NoError(t, saveSecretData(validState, homeDir.SecretsValidatorState()))
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"secrets",
 			"verify",
-			"--data-dir",
-			dirPath,
+			"--home",
+			homeDir.Path(),
 			validatorStateKey,
 		}
 
@@ -344,22 +296,22 @@ func TestSecrets_Verify_Single(t *testing.T) {
 	t.Run("invalid node key", func(t *testing.T) {
 		t.Parallel()
 
-		dirPath := t.TempDir()
-		path := filepath.Join(dirPath, defaultNodeKeyName)
+		// Create a temporary directory
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
 		invalidNodeKey := &p2p.NodeKey{
 			PrivKey: nil, // invalid
 		}
 
-		require.NoError(t, saveSecretData(invalidNodeKey, path))
+		require.NoError(t, saveSecretData(invalidNodeKey, homeDir.SecretsNodeKey()))
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"secrets",
 			"verify",
-			"--data-dir",
-			dirPath,
+			"--home",
+			homeDir.Path(),
 			nodeIDKey,
 		}
 

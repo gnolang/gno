@@ -7,6 +7,8 @@ import (
 )
 
 func newGenesisCmd(io commands.IO) *commands.Command {
+	cfg := &commonCfg{}
+
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "genesis",
@@ -14,7 +16,7 @@ func newGenesisCmd(io commands.IO) *commands.Command {
 			ShortHelp:  "gno genesis manipulation suite",
 			LongHelp:   "Gno genesis.json manipulation suite, for managing genesis parameters",
 		},
-		commands.NewEmptyConfig(),
+		cfg,
 		commands.HelpExec,
 	)
 
@@ -33,14 +35,20 @@ func newGenesisCmd(io commands.IO) *commands.Command {
 // configuration for genesis commands
 // that require a genesis.json
 type commonCfg struct {
-	genesisPath string
+	rootCfg
 }
 
 func (c *commonCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.genesisPath,
-		"genesis-path",
-		"./genesis.json",
-		"the path to the genesis.json",
-	)
+	c.rootCfg.RegisterFlags(fs)
+
+	if genesisFile := fs.Lookup("genesis"); genesisFile == nil {
+		fs.StringVar(
+			&c.homeDir.genesisFile,
+			"genesis",
+			"",
+			"the path to the genesis.json",
+		)
+	} else {
+		c.homeDir.genesisFile = genesisFile.Value.(flag.Getter).Get().(string)
+	}
 }

@@ -2,21 +2,17 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
-var errInvalidConfigOutputPath = errors.New("invalid config output path provided")
-
 type configInitCfg struct {
-	configCfg
+	rootCfg
 
 	forceOverwrite bool
 }
@@ -43,7 +39,7 @@ func newConfigInitCmd(io commands.IO) *commands.Command {
 }
 
 func (c *configInitCfg) RegisterFlags(fs *flag.FlagSet) {
-	c.configCfg.RegisterFlags(fs)
+	c.rootCfg.RegisterFlags(fs)
 
 	fs.BoolVar(
 		&c.forceOverwrite,
@@ -54,13 +50,8 @@ func (c *configInitCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execConfigInit(cfg *configInitCfg, io commands.IO) error {
-	// Check the config output path
-	if cfg.configPath == "" {
-		return errInvalidConfigOutputPath
-	}
-
 	// Make sure overwriting the config is enabled
-	if osm.FileExists(cfg.configPath) && !cfg.forceOverwrite {
+	if osm.FileExists(cfg.homeDir.ConfigFile()) && !cfg.forceOverwrite {
 		return errOverwriteNotEnabled
 	}
 
@@ -68,16 +59,16 @@ func execConfigInit(cfg *configInitCfg, io commands.IO) error {
 	c := config.DefaultConfig()
 
 	// Make sure the path is created
-	if err := os.MkdirAll(filepath.Dir(cfg.configPath), 0o755); err != nil {
+	if err := os.MkdirAll(cfg.homeDir.ConfigDir(), 0o755); err != nil {
 		return fmt.Errorf("unable to create config dir, %w", err)
 	}
 
 	// Save the config to the path
-	if err := config.WriteConfigFile(cfg.configPath, c); err != nil {
+	if err := config.WriteConfigFile(cfg.homeDir.ConfigFile(), c); err != nil {
 		return fmt.Errorf("unable to initialize config, %w", err)
 	}
 
-	io.Printfln("Default configuration initialized at %s", cfg.configPath)
+	io.Printfln("Default configuration initialized at %s", cfg.homeDir.ConfigFile())
 
 	return nil
 }

@@ -29,7 +29,7 @@ func TestGenesis_Generate(t *testing.T) {
 		args := []string{
 			"genesis",
 			"generate",
-			"--output-path",
+			"--genesis",
 			genesisPath,
 		}
 
@@ -65,7 +65,7 @@ func TestGenesis_Generate(t *testing.T) {
 			"generate",
 			"--chain-id",
 			chainID,
-			"--output-path",
+			"--genesis",
 			genesisPath,
 		}
 
@@ -97,7 +97,7 @@ func TestGenesis_Generate(t *testing.T) {
 			"generate",
 			"--block-max-tx-bytes",
 			fmt.Sprintf("%d", blockMaxTxBytes),
-			"--output-path",
+			"--genesis",
 			genesisPath,
 		}
 
@@ -133,7 +133,7 @@ func TestGenesis_Generate(t *testing.T) {
 			"generate",
 			"--block-max-data-bytes",
 			fmt.Sprintf("%d", blockMaxDataBytes),
-			"--output-path",
+			"--genesis",
 			genesisPath,
 		}
 
@@ -169,7 +169,7 @@ func TestGenesis_Generate(t *testing.T) {
 			"generate",
 			"--block-max-gas",
 			fmt.Sprintf("%d", blockMaxGas),
-			"--output-path",
+			"--genesis",
 			genesisPath,
 		}
 
@@ -205,7 +205,7 @@ func TestGenesis_Generate(t *testing.T) {
 			"generate",
 			"--block-time-iota",
 			fmt.Sprintf("%d", blockTimeIota),
-			"--output-path",
+			"--genesis",
 			genesisPath,
 		}
 
@@ -241,7 +241,7 @@ func TestGenesis_Generate(t *testing.T) {
 			"generate",
 			"--chain-id",
 			invalidChainID,
-			"--output-path",
+			"--genesis",
 			genesisPath,
 		}
 

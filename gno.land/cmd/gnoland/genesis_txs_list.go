@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -14,8 +15,14 @@ import (
 
 var ErrWrongGenesisType = errors.New("genesis state is not using the correct Gno Genesis type")
 
+type txsListCfg struct {
+	rootCfg
+}
+
 // newTxsListCmd list all transactions on the specified genesis file
 func newTxsListCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
+	cfg := &txsListCfg{}
+
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "list",
@@ -23,7 +30,8 @@ func newTxsListCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 			ShortHelp:  "lists transactions existing on genesis.json",
 			LongHelp:   "Lists transactions existing on genesis.json",
 		},
-		commands.NewEmptyConfig(),
+		cfg,
+		// commands.NewEmptyConfig(),
 		func(ctx context.Context, args []string) error {
 			return execTxsListCmd(io, txsCfg)
 		},
@@ -32,8 +40,12 @@ func newTxsListCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 	return cmd
 }
 
+func (c *txsListCfg) RegisterFlags(fs *flag.FlagSet) {
+	c.rootCfg.RegisterFlags(fs)
+}
+
 func execTxsListCmd(io commands.IO, cfg *txsCfg) error {
-	genesis, err := types.GenesisDocFromFile(cfg.genesisPath)
+	genesis, err := types.GenesisDocFromFile(cfg.homeDir.GenesisFilePath())
 	if err != nil {
 		return fmt.Errorf("%w, %w", errUnableToLoadGenesis, err)
 	}

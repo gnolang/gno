@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -56,18 +55,13 @@ func (c *secretsGetCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
-	// Make sure the directory is there
-	if cfg.dataDir == "" || !isValidDirectory(cfg.dataDir) {
-		return errInvalidDataDir
-	}
-
-	// Make sure the get arguments are valid
-	if len(args) > 1 {
-		return errInvalidSecretsGetArgs
+	// Verify the secrets key
+	if err := verifySecretsKey(args); err != nil {
+		return err
 	}
 
 	// Load the secrets from the dir
-	loadedSecrets, err := loadSecrets(cfg.dataDir)
+	loadedSecrets, err := loadSecrets(cfg.homeDir)
 	if err != nil {
 		return err
 	}
@@ -81,49 +75,34 @@ func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
 }
 
 // loadSecrets loads the secrets from the specified data directory
-func loadSecrets(dirPath string) (*secrets, error) {
-	// Construct the file paths
+func loadSecrets(homeDir homeDirectory) (*secrets, error) {
 	var (
-		validatorKeyPath   = filepath.Join(dirPath, defaultValidatorKeyName)
-		validatorStatePath = filepath.Join(dirPath, defaultValidatorStateName)
-		nodeKeyPath        = filepath.Join(dirPath, defaultNodeKeyName)
-	)
-
-	var (
-		vkInfo *validatorKeyInfo
-		vsInfo *validatorStateInfo
-		niInfo *nodeIDInfo
-
+		s   *secrets
 		err error
 	)
 
-	// Load the secrets
-	if osm.FileExists(validatorKeyPath) {
-		vkInfo, err = readValidatorKey(validatorKeyPath)
+	if osm.FileExists(homeDir.SecretsValidatorKey()) {
+		s.ValidatorKeyInfo, err = readValidatorKey(homeDir.SecretsValidatorKey())
 		if err != nil {
 			return nil, fmt.Errorf("unable to load secrets, %w", err)
 		}
 	}
 
-	if osm.FileExists(validatorStatePath) {
-		vsInfo, err = readValidatorState(validatorStatePath)
+	if osm.FileExists(homeDir.SecretsValidatorState()) {
+		s.ValidatorStateInfo, err = readValidatorState(homeDir.SecretsValidatorState())
 		if err != nil {
 			return nil, fmt.Errorf("unable to load secrets, %w", err)
 		}
 	}
 
-	if osm.FileExists(nodeKeyPath) {
-		niInfo, err = readNodeID(nodeKeyPath)
+	if osm.FileExists(homeDir.SecretsNodeKey()) {
+		s.NodeIDInfo, err = readNodeID(homeDir)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load secrets, %w", err)
 		}
 	}
 
-	return &secrets{
-		ValidatorKeyInfo:   vkInfo,
-		ValidatorStateInfo: vsInfo,
-		NodeIDInfo:         niInfo,
-	}, nil
+	return s, nil
 }
 
 // readValidatorKey reads the validator key from the given path
@@ -156,24 +135,18 @@ func readValidatorState(path string) (*validatorStateInfo, error) {
 }
 
 // readNodeID reads the node p2p info from the given path
-func readNodeID(path string) (*nodeIDInfo, error) {
-	nodeKey, err := readSecretData[p2p.NodeKey](path)
+func readNodeID(homeDir homeDirectory) (*nodeIDInfo, error) {
+	var (
+		cfg = config.DefaultConfig()
+	)
+
+	nodeKey, err := readSecretData[p2p.NodeKey](homeDir.SecretsNodeKey())
 	if err != nil {
 		return nil, fmt.Errorf("unable to read node key, %w", err)
 	}
 
-	// Construct the config path
-	var (
-		nodeDir    = filepath.Join(filepath.Dir(path), "..")
-		configPath = constructConfigPath(nodeDir)
-
-		cfg = config.DefaultConfig()
-	)
-
-	// Check if there is an existing config file
-	if osm.FileExists(configPath) {
-		// Attempt to grab the config from disk
-		cfg, err = config.LoadConfig(nodeDir)
+	if osm.FileExists(homeDir.ConfigFile()) {
+		cfg, err = config.LoadConfig(homeDir.ConfigFile())
 		if err != nil {
 			return nil, fmt.Errorf("unable to load config file, %w", err)
 		}

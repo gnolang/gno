@@ -43,6 +43,8 @@ var startGraphic = strings.ReplaceAll(`
 `, "'", "`")
 
 type startCfg struct {
+	rootCfg
+
 	gnoRootDir            string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
 	skipFailingGenesisTxs bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
 	genesisBalancesFile   string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
@@ -77,6 +79,8 @@ func newStartCmd(io commands.IO) *commands.Command {
 }
 
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
+	c.rootCfg.RegisterFlags(fs)
+
 	gnoroot := gnoenv.RootDir()
 	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
 	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
@@ -103,9 +107,9 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.genesisFile,
+		&c.homeDir.genesisFile,
 		"genesis",
-		"genesis.json",
+		"",
 		"the path to the genesis.json",
 	)
 
@@ -124,13 +128,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.dataDir,
-		"data-dir",
-		defaultNodeDir,
-		"the path to the node's data directory",
-	)
-
-	fs.StringVar(
 		&c.genesisRemote,
 		"genesis-remote",
 		"localhost:26657",
@@ -142,13 +139,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"genesis-max-vm-cycles",
 		100_000_000,
 		"set maximum allowed vm cycles per operation. Zero means no limit.",
-	)
-
-	fs.StringVar(
-		&c.config,
-		flagConfigFlag,
-		"",
-		"the flag config file (optional)",
 	)
 
 	fs.StringVar(
@@ -174,18 +164,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
-	// Get the absolute path to the node's data directory
-	nodeDir, err := filepath.Abs(c.dataDir)
-	if err != nil {
-		return fmt.Errorf("unable to get absolute path for data directory, %w", err)
-	}
-
-	// Get the absolute path to the node's genesis.json
-	genesisPath, err := filepath.Abs(c.genesisFile)
-	if err != nil {
-		return fmt.Errorf("unable to get absolute path for the genesis.json, %w", err)
-	}
-
 	// Initialize the logger
 	zapLogger, err := initializeLogger(io.Out(), c.logLevel, c.logFormat)
 	if err != nil {
@@ -201,19 +179,19 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	logger := log.ZapLoggerToSlog(zapLogger)
 
 	if c.lazyInit {
-		if err := lazyInitNodeDir(io, nodeDir); err != nil {
+		if err := lazyInitNodeDir(io, c, c.homeDir.Path()); err != nil {
 			return fmt.Errorf("unable to lazy-init the node directory, %w", err)
 		}
 	}
 
 	// Load the configuration
-	cfg, err := config.LoadConfig(nodeDir)
+	cfg, err := config.LoadConfig(c.homeDir.Path())
 	if err != nil {
 		return fmt.Errorf("%s, %w", tryConfigInit, err)
 	}
 
 	// Check if the genesis.json exists
-	if !osm.FileExists(genesisPath) {
+	if !osm.FileExists(c.homeDir.GenesisFilePath()) {
 		if !c.lazyInit {
 			return errMissingGenesis
 		}
@@ -225,7 +203,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		)
 
 		// Init a new genesis.json
-		if err := lazyInitGenesis(io, c, genesisPath, privateKey.GetPubKey()); err != nil {
+		if err := lazyInitGenesis(io, c, c.homeDir.GenesisFilePath(), privateKey.GetPubKey()); err != nil {
 			return fmt.Errorf("unable to initialize genesis.json, %w", err)
 		}
 	}
@@ -233,6 +211,12 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	// Initialize telemetry
 	if err := telemetry.Init(*cfg.Telemetry); err != nil {
 		return fmt.Errorf("unable to initialize telemetry, %w", err)
+	}
+
+	// Create application and node
+	cfg.LocalApp, err = gnoland.NewApp(c.homeDir.Path(), c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
+	if err != nil {
+		return fmt.Errorf("unable to create the Gnoland app, %w", err)
 	}
 
 	// Print the starting graphic
@@ -250,7 +234,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	}
 
 	// Create a default node, with the given setup
-	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger)
+	gnoNode, err := node.DefaultNewNode(cfg, c.homeDir.GenesisFilePath(), logger)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}
@@ -286,19 +270,12 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 
 // lazyInitNodeDir initializes new secrets, and a default configuration
 // in the given node directory, if not present
-func lazyInitNodeDir(io commands.IO, nodeDir string) error {
-	var (
-		configPath  = constructConfigPath(nodeDir)
-		secretsPath = constructSecretsPath(nodeDir)
-	)
-
+func lazyInitNodeDir(io commands.IO, cfg *startCfg, nodeDir string) error {
 	// Check if the configuration already exists
-	if !osm.FileExists(configPath) {
+	if !osm.FileExists(cfg.homeDir.ConfigFile()) {
 		// Create the gnoland config options
 		cfg := &configInitCfg{
-			configCfg: configCfg{
-				configPath: constructConfigPath(nodeDir),
-			},
+			rootCfg: cfg.rootCfg,
 		}
 
 		// Run gnoland config init
@@ -306,14 +283,14 @@ func lazyInitNodeDir(io commands.IO, nodeDir string) error {
 			return fmt.Errorf("unable to initialize config, %w", err)
 		}
 
-		io.Printfln("WARN: Initialized default node config at %q", filepath.Dir(cfg.configPath))
+		io.Printfln("WARN: Initialized default node config at %q", filepath.Dir(cfg.homeDir.ConfigFile()))
 		io.Println()
 	}
 
 	// Create the gnoland secrets options
 	secrets := &secretsInitCfg{
 		commonAllCfg: commonAllCfg{
-			dataDir: secretsPath,
+			rootCfg: cfg.rootCfg,
 		},
 		forceOverwrite: false, // existing secrets shouldn't be pruned
 	}
@@ -321,7 +298,7 @@ func lazyInitNodeDir(io commands.IO, nodeDir string) error {
 	// Run gnoland secrets init
 	err := execSecretsInit(secrets, []string{}, io)
 	if err == nil {
-		io.Printfln("WARN: Initialized default node secrets at %q", secrets.dataDir)
+		io.Printfln("WARN: Initialized default node secrets at %q", cfg.homeDir.SecretsDir())
 
 		return nil
 	}
