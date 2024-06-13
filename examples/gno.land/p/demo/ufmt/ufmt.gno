@@ -167,7 +167,7 @@ func Sprintf(format string, args ...interface{}) string {
 				buf += "(unhandled)"
 			}
 		case "T":
-			switch v := arg.(type) {
+			switch arg.(type) {
 			case bool:
 				buf += "bool"
 			case int:
