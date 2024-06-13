@@ -504,15 +504,22 @@ func (x *BinaryExpr) checkShiftLhs(dt Type) {
 func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 	// native type will be converted to gno in latter logic,
 	// this check logic will be conduct again
-	if lnt, ok := lt.(*NativeType); ok {
-		_, ok := go2GnoBaseType(lnt.Type).(PrimitiveType)
-		if ok {
+	lnt, lin := lt.(*NativeType)
+	rnt, rin := rt.(*NativeType)
+	if lin && rin {
+		if lt.TypeID() != rt.TypeID() {
+			panic(fmt.Sprintf(
+				"incompatible types in binary expression: %v %v %v",
+				lt.TypeID(), x.Op, rt.TypeID()))
+		}
+	}
+	if lin {
+		if _, ok := go2GnoBaseType(lnt.Type).(PrimitiveType); ok {
 			return
 		}
 	}
-	if rnt, ok := rt.(*NativeType); ok {
-		_, ok := go2GnoBaseType(rnt.Type).(PrimitiveType)
-		if ok {
+	if rin {
+		if _, ok := go2GnoBaseType(rnt.Type).(PrimitiveType); ok {
 			return
 		}
 	}
@@ -559,6 +566,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 }
 
 func (x *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool, OpStr string) {
+	//fmt.Println("---checkCompatibility, dt: ", dt)
 	if !checker(dt) {
 		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(dt)))
 	}
