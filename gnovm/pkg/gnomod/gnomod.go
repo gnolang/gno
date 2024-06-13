@@ -99,7 +99,7 @@ func GnoToGoMod(f File) (*File, error) {
 	gnoModPath := GetGnoModPath()
 
 	if strings.HasPrefix(f.Module.Mod.Path, transpiler.GnoRealmPkgsPrefixBefore) ||
-		strings.HasPrefix(f.Module.Mod.Path, transpiler.GnoPackagePrefixBefore) {
+		strings.HasPrefix(f.Module.Mod.Path, transpiler.GnoPurePkgsPrefixBefore) {
 		f.AddModuleStmt(transpiler.ImportPrefix + "/examples/" + f.Module.Mod.Path)
 	}
 
@@ -112,7 +112,7 @@ func GnoToGoMod(f File) (*File, error) {
 		}
 		path := f.Require[i].Mod.Path
 		if strings.HasPrefix(f.Require[i].Mod.Path, transpiler.GnoRealmPkgsPrefixBefore) ||
-			strings.HasPrefix(f.Require[i].Mod.Path, transpiler.GnoPackagePrefixBefore) {
+			strings.HasPrefix(f.Require[i].Mod.Path, transpiler.GnoPurePkgsPrefixBefore) {
 			// Add dependency with a modified import path
 			f.AddRequire(transpiler.ImportPrefix+"/examples/"+f.Require[i].Mod.Path, f.Require[i].Mod.Version)
 		}
