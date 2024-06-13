@@ -309,8 +309,8 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 		if ddt, ok := dt.(*DeclaredType); ok {
 			// types must match exactly.
 			if !dxt.sealed && !ddt.sealed &&
-				dxt.PkgPath == ddt.PkgPath &&
-				dxt.Name == ddt.Name { // not yet sealed
+					dxt.PkgPath == ddt.PkgPath &&
+					dxt.Name == ddt.Name { // not yet sealed
 				return nil // ok
 			} else if dxt.TypeID() == ddt.TypeID() {
 				return nil // ok
@@ -566,7 +566,6 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 }
 
 func (x *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool, OpStr string) {
-	//fmt.Println("---checkCompatibility, dt: ", dt)
 	if !checker(dt) {
 		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(dt)))
 	}
@@ -682,7 +681,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if len(x.Lhs) != len(cft.Results) {
 					panic(fmt.Sprintf(
 						"assignment mismatch: "+
-							"%d variables but %s returns %d values",
+								"%d variables but %s returns %d values",
 						len(x.Lhs), cx.Func.String(), len(cft.Results)))
 				}
 				if x.Op == ASSIGN {
@@ -764,7 +763,7 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 		// expr on lhs/rhs.
 		if len(x.Lhs) != 1 || len(x.Rhs) != 1 {
 			panic("assignment operator " + x.Op.TokenString() +
-				" requires only one expression on lhs and rhs")
+					" requires only one expression on lhs and rhs")
 		}
 		for i, lx := range x.Lhs {
 			lt := evalStaticTypeOf(store, last, lx)
