@@ -37,9 +37,8 @@ services:
       MONIKER: gno-staging
     volumes:
       - ./gnoland.entrypoint.sh:/entrypoint.sh
-    ports:
-      - 26656:26656
-      - 36657:26657
+    #ports:
+    #  - 26656:26656
     labels:
       com.centurylinklabs.watchtower.enable: "true"
       traefik.enable: "true"
