@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -164,6 +165,11 @@ func SignAndBroadcastHandler(
 		return nil, fmt.Errorf("unable to sign transaction, %w", err)
 	}
 
+	cli, err := client.NewHTTPClient(baseopts.Remote)
+	if err != nil {
+		return nil, err
+	}
+
 	// broadcast signed tx
 	bopts := &BroadcastCfg{
 		RootCfg: baseopts,
@@ -171,6 +177,8 @@ func SignAndBroadcastHandler(
 
 		DryRun:       cfg.Simulate == SimulateOnly,
 		testSimulate: cfg.Simulate == SimulateTest,
+
+		cli: cli,
 	}
 
 	return BroadcastHandler(bopts)

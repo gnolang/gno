@@ -26,11 +26,19 @@ type BroadcastCfg struct {
 	// If true, simulation is attempted but not printed;
 	// the result is only returned in case of an error.
 	testSimulate bool
+
+	cli client.ABCIClient
 }
 
 func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cli, err := client.NewHTTPClient(rootCfg.Remote)
+	if err != nil {
+		panic(err)
+	}
+
 	cfg := &BroadcastCfg{
 		RootCfg: rootCfg,
+		cli:     cli,
 	}
 
 	return commands.NewCommand(
@@ -108,23 +116,18 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
 	}
 
-	cli, err := client.NewHTTPClient(remote)
-	if err != nil {
-		return nil, err
-	}
-
 	// Both for DryRun and testSimulate, we perform simulation.
 	// However, DryRun always returns here, while in case of success
 	// testSimulate continues onto broadcasting the transaction.
 	if cfg.DryRun || cfg.testSimulate {
-		res, err := SimulateTx(cli, bz)
+		res, err := SimulateTx(cfg.cli, bz)
 		hasError := err != nil || res.CheckTx.IsErr() || res.DeliverTx.IsErr()
 		if cfg.DryRun || hasError {
 			return res, err
 		}
 	}
 
-	bres, err := cli.BroadcastTxCommit(bz)
+	bres, err := cfg.cli.BroadcastTxCommit(bz)
 	if err != nil {
 		return nil, errors.Wrap(err, "broadcasting bytes")
 	}
