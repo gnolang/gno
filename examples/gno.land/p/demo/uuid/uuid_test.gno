@@ -2,63 +2,70 @@ package uuid
 
 import (
 	"testing"
+	"time"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/uuid"
 )
 
-// TestNextID verifies the correct generation of Snowflake IDs.
-func TestNextID(t *testing.T) {
-	SetMachineID(1)
+func TestID(t *testing.T) {
+	u := uuid.NewUUID()	
 
-	id1, err := NextID()
-	if err != nil {
-		ufmt.Sprintf("Error generating first ID : %s", err)
+	id1 := u.ID()
+	id2 := u.ID()
+	uuid1 := uuid.IDToUUID(id1)
+	uuid2 := uuid.IDToUUID(id2)
+
+	if uuid1 == uuid2 {
+		t.Errorf("The IDs generated are identical: %d", uuid1)
 	}
 
-	id2, err := NextID()
-	if err != nil {
-		ufmt.Sprintf("Error generating second ID : %s", err)
+	if uuid2 <= uuid1 {
+		t.Errorf("The second ID should be higher than the first; uuid1: %d	, uuid2: %d", uuid1, uuid2)
 	}
 
-	if id1 == id2 {
-		ufmt.Sprintf("The IDs generated are identical : %d", id1)
-	}
+	t.Logf("uuid1: %s , uuid2: %s", uuid1, uuid2)
 
-	if id2 <= id1 {
-		ufmt.Sprintf("The second ID should be higher than the first; id1: %d, id2: %d", id1, id2)
-	}
-}
 
-// TestInvalidMachineID tests the handling of invalid machine IDs.
-func TestInvalidMachineID(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			ufmt.Sprintf("Setting an invalid machine ID should cause a panic")
+	const numIDs = 11
+	idMap := make(map[uint64]bool)
+
+	for i := 0; i < numIDs; i++ {
+		id := u.ID()
+		if _, exists := idMap[id]; exists {
+			t.Errorf("Duplicate ID found: %d", id)
 		}
-	}()
-
-	SetMachineID(MaxMachineID + 1)
-}
-
-// TestUUIDGeneration checks that the generated UUIDs are sequential.
-func TestUUIDGeneration(t *testing.T) {
-	// set machine ID
-	SetMachineID(1)
-
-	// Generate many UUIDs and check that they are sequential
-	prevID, err := NextID()
-	if err != nil {
-		t.Fatalf("Error generating first UUID: %v", err)
+		idMap[id] = true
+		uuidStr := uuid.IDToUUID(id)
+		t.Logf("Generated UUID %d: %s", i, uuidStr)
 	}
 
+	t.Logf("setmachineID: %d", u.MachineID)
+	t.Logf("Counter: %d", u.counter)
+
+}
+
+func TestCounter(t *testing.T) {
+	u := uuid.NewUUID()
+	initialCounter := u.counter
+
+	
 	for i := 0; i < 10; i++ {
-		newID, err := NextID()
-		if err != nil {
-			t.Fatalf("Error generating UUID: %v", err)
-		}
-		if newID <= prevID {
-			t.Fatalf("UUIDs are not sequential: got %d after %d", newID, prevID)
-		}
-		prevID = newID
+		u.ID()
+	}
+
+	if u.counter != initialCounter+10 {
+		t.Errorf("Counter did not increment correctly: expected %d, got %d", initialCounter+10, u.counter)
+	} else {
+		t.Logf("Counter incremented correctly: expected %d, got %d", initialCounter+10, u.counter)
+	}
+
+	
+	u.counter = int64(uuid.MaxTimestamp) + 1
+	u.ID()
+	if u.counter != 0 {
+		t.Errorf("Counter did not reset correctly: expected %d, got %d", 0, u.counter)
+	} else {
+		t.Logf("Counter reset correctly: expected %d, got %d", 0, u.counter)
 	}
 }
