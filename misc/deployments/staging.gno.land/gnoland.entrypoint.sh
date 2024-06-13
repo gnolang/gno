@@ -8,6 +8,8 @@ RPC_LADDR=${RPC_LADDR:-"tcp://0.0.0.0:26657"}
 
 CHAIN_ID=${CHAIN_ID:-"staging"}
 
+rm -rfv ./gnoland-data genesis.json
+
 gnoland config  init
 gnoland secrets init
 

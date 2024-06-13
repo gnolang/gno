@@ -1,4 +1,4 @@
-
+name: "staging-gno-land"
 services:
   traefik:
     image: "traefik:v2.11"
@@ -105,3 +105,20 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       WATCHTOWER_HTTP_API_TOKEN: "mytoken"
+
+  restarter:
+    image: docker:cli
+    restart: unless-stopped
+    entrypoint: [ "/bin/sh", "-c" ]
+    working_dir: "/app"
+    volumes:
+      - ".:/app"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    command:
+      - |
+        while true; do
+          if [ "$$(date +'%H:%M')" = '22:00' ]; then
+            docker compose restart gnoland
+          fi
+          sleep 60
+        done
