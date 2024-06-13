@@ -1869,8 +1869,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// special case if `var a, b, c T? = f()` form.
 					cx := n.Values[0].(*CallExpr)
 					tt := evalStaticTypeOfRaw(store, last, cx).(*tupleType)
-					rLen := len(tt.Elts)
-					if rLen != numNames {
+					if rLen := len(tt.Elts); rLen != numNames {
 						panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %s returns %d value(s)", numNames, cx.Func.String(), rLen))
 					}
 					if n.Type != nil {
