@@ -3,23 +3,22 @@ import (
 	"strings"
 
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 )
 
 var (
-	mytoken *grc20.AdminToken
-	admin   std.Address
+	mytoken *grc20.Token // main token object
+	o       *ownable.Ownable // ownable to store admin of token
 )
 
-// init is called once at time of deployment
 func init() {
-	// Set deployer of Realm to admin
-	admin = std.PrevRealm().Addr()
+	// Instantiate ownable
+	o = ownable.New()
 
-	// Set token name, symbol and number of decimals
-	mytoken = grc20.NewAdminToken("My Token", "TKN", 4)
+	// Instantiate token
+	mytoken = grc20.NewGRC20Token("My Token", "MYT", 4)
 
-	// Mint 1 million tokens to admin
-	mytoken.Mint(admin, 1000000*10000)
+	// Mint 1M tokens to admin
+	mytoken.Mint(o.Owner(), uint64(1_000_000*10000))
 }
-
