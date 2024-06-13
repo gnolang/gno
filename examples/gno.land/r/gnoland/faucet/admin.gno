@@ -25,7 +25,7 @@ func AdminSetTransferLimit(amount int64) string {
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
-	gLimit = std.Coin{Denom: "ugnot", Amount: amount}
+	gLimit = std.NewCoin("ugnot", amount)
 	return ""
 }
 
