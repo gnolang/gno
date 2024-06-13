@@ -41,7 +41,7 @@
 //
 // The Uint64 encoding is most useful for generating string versions of Uint64
 // IDs. Practically, it allows you to retain sleek and compact IDs for your
-// applcation for the first 2^34 (>17 billion) entities, while seamlessly
+// application for the first 2^34 (>17 billion) entities, while seamlessly
 // rolling over to the full encoding should you exceed that. You are encouraged
 // to use it unless you have a requirement or preferences for IDs consistently
 // being always the same size.

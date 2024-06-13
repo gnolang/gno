@@ -37,11 +37,13 @@ type NodeConfig struct {
 	NoReplay              bool
 	MaxGasPerBlock        int64
 	ChainID               string
+	Txs                   []std.Tx
 }
 
 func DefaultNodeConfig(rootdir string) *NodeConfig {
 	tmc := gnoland.NewDefaultTMConfig(rootdir)
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
+	tmc.Consensus.WALDisabled = true
 
 	defaultDeployer := crypto.MustAddressFromString(integration.DefaultAccount_Address)
 	balances := []gnoland.Balance{
@@ -105,6 +107,8 @@ func NewDevNode(ctx context.Context, logger *slog.Logger, emitter emitter.Emitte
 		Balances: cfg.BalancesList,
 		Txs:      pkgsTxs,
 	}
+
+	genesis.Txs = append(genesis.Txs, cfg.Txs...)
 
 	if err := devnode.rebuildNode(ctx, genesis); err != nil {
 		return nil, fmt.Errorf("unable to initialize the node: %w", err)
@@ -541,6 +545,6 @@ func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesi
 		PrivValidator:      pv,
 		TMConfig:           tmc,
 		Genesis:            genesis,
-		GenesisMaxVMCycles: 10_000_000,
+		GenesisMaxVMCycles: 100_000_000,
 	}
 }
