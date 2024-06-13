@@ -71,7 +71,7 @@ func (u *UUID) incrementSequence() uint16 {
 
 func (u *UUID) incrementCounter() int64 {
 	u.counter++
-	if u.counter > MaxTimestamp {
+	if u.counter > int64(MaxTimestamp) {
 		u.counter = 0
 	}
 	return u.counter
