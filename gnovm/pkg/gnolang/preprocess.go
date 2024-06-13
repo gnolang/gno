@@ -3055,10 +3055,12 @@ func checkIntegerType(xt Type) {
 func checkAssignmentMismatch(cd *ValueDecl) {
 	numNames := len(cd.NameExprs)
 	numValues := len(cd.Values)
-	if numValues > 0 && numValues != numNames {
-		if _, ok := cd.Values[0].(*CallExpr); !ok {
-			panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
-		}
+	if numValues <= 0 || numValues == numNames {
+		return
+	}
+	
+	if _, ok := cd.Values[0].(*CallExpr); !ok {
+		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
 	}
 }
 
