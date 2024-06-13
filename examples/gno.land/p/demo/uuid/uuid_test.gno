@@ -5,16 +5,15 @@ import (
 	"time"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/uuid"
 )
 
 func TestID(t *testing.T) {
-	u := uuid.NewUUID()	
+	u := NewUUID()	
 
 	id1 := u.ID()
 	id2 := u.ID()
-	uuid1 := uuid.IDToUUID(id1)
-	uuid2 := uuid.IDToUUID(id2)
+	uuid1 := IDToUUID(id1)
+	uuid2 := IDToUUID(id2)
 
 	if uuid1 == uuid2 {
 		t.Errorf("The IDs generated are identical: %d", uuid1)
@@ -36,7 +35,7 @@ func TestID(t *testing.T) {
 			t.Errorf("Duplicate ID found: %d", id)
 		}
 		idMap[id] = true
-		uuidStr := uuid.IDToUUID(id)
+		uuidStr := IDToUUID(id)
 		t.Logf("Generated UUID %d: %s", i, uuidStr)
 	}
 
@@ -46,7 +45,7 @@ func TestID(t *testing.T) {
 }
 
 func TestCounter(t *testing.T) {
-	u := uuid.NewUUID()
+	u := NewUUID()
 	initialCounter := u.counter
 
 	
@@ -61,7 +60,7 @@ func TestCounter(t *testing.T) {
 	}
 
 	
-	u.counter = int64(uuid.MaxTimestamp) + 1
+	u.counter = int64(MaxTimestamp) + 1
 	u.ID()
 	if u.counter != 0 {
 		t.Errorf("Counter did not reset correctly: expected %d, got %d", 0, u.counter)
