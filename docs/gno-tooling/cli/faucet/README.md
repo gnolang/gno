@@ -13,7 +13,7 @@ haven't [premined a balance beforehand](../../../getting-started/local-setup/pre
 ## Prerequisites
 
 - **`gnoland`, `gnofaucet` and `gnoweb` set up. Reference
-  the [Installation](../../../getting-started/local-setup/local-setup.md#3-installing-other-gno-tools) guide for steps**
+  the [Installation](../../../getting-started/local-setup/README.md#3-installing-other-gno-tools) guide for steps**
 
 ## 1. Ensure a topped-up faucet address
 

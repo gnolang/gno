@@ -11,7 +11,7 @@ Additionally, you will see the different options you can use to make your Gno in
 
 ## Prerequisites
 
-- [`gnoland` installed](local-setup.md#3-installing-other-gno-tools).
+- [`gnoland` installed](README.md#3-installing-other-gno-tools).
 
 ## Starting a local node (lazy init)
 
