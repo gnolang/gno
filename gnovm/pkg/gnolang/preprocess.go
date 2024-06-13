@@ -95,6 +95,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	}
 }
 
+// attributes of `goto` block
 type LoopInfo struct {
 	isGotoLoop bool
 	labelLine  int
@@ -102,10 +103,15 @@ type LoopInfo struct {
 	label      Name
 }
 
+// intermediate state of preprocessing, can be
+// extended as the preprocessing is further
+// expanded and split
 type PreprocessState struct {
 	loopInfos map[Name][]*LoopInfo
 }
 
+// determine if reprocess is needed based on
+// the state of last preprocess phase
 func (s *PreprocessState) needsReprocess() bool {
 	if len(s.loopInfos) != 0 {
 		return true
@@ -169,13 +175,15 @@ func Preprocess(store Store, ctx BlockNode, n Node, phase PreprocessPhase) Node 
 
 	// check varloop scenario file wise
 	nn := doPreprocess(store, last, n, lastpn, stack, closureStack, phase, preprocessState)
+
 	// if n is file node, set node locations recursively.
 	if fn, ok := n.(*FileNode); ok {
 		pkgPath := ctx.(*PackageNode).PkgPath
 		fileName := string(fn.Name)
 		SetNodeLocations(pkgPath, fileName, fn)
 
-		// var loop exists, reprocess
+		// var loop exists, reprocess(find target var loop, inject code, wipe and reprocess)
+		// Handles each file node individually.
 		if preprocessState.needsReprocess() {
 			reprocess(store, fn, preprocessState)
 			preprocessState.reset()
@@ -3945,7 +3953,7 @@ func resetStaticBlock(bn BlockNode) {
 	})
 }
 
-// mostly for goto...
+// for goto...
 // wrap goto loop into block stmt.
 func rebuildBody(b Body, gloop *LoopInfo, loc Location) Body {
 	preBody := []Stmt{}
@@ -4006,7 +4014,7 @@ func reprocess(store Store, bn BlockNode, preprocessState *PreprocessState) {
 	)
 
 	Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-		// XXX, if there's no goto loop exist, no need for the trans_enter stage, TODO: optimize.
+		// TODO: optimize. if there's no goto loop exist, no need for the trans_enter stage.
 		switch stage {
 		case TRANS_ENTER: // find target goto loop, and rebuild body, for/range no need this stage.
 			switch cn := n.(type) {
