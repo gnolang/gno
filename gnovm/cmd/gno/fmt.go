@@ -213,13 +213,7 @@ func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
 		return nil, fmt.Errorf("unable to load %q: %w", stdlibs, err)
 	}
 
-	// Load examples directory
-	examples := filepath.Join(gnoroot, "examples")
-	if err := r.LoadPackages(examples); err != nil {
-		return nil, fmt.Errorf("unable to load %q: %w", examples, err)
-	}
-
-	// Ultimately load any additional packages supplied by the user
+	// Load any additional packages supplied by the user
 	for _, include := range cfg.include {
 		absp, err := filepath.Abs(include)
 		if err != nil {
@@ -229,6 +223,12 @@ func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
 		if err := r.LoadPackages(absp); err != nil {
 			return nil, fmt.Errorf("unable to load %q: %w", absp, err)
 		}
+	}
+
+	// Load examples directory
+	examples := filepath.Join(gnoroot, "examples")
+	if err := r.LoadPackages(examples); err != nil {
+		return nil, fmt.Errorf("unable to load %q: %w", examples, err)
 	}
 
 	p := gnoimports.NewProcessor(r)
