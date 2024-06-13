@@ -35,17 +35,6 @@ func upcomingEvents() ui.Element {
 		ui.Text(`<div class="columns-3">
 <div class="column">
 
-### Gno @ Golang Serbia
-
-- Join the meetup
-- Belgrade, May 23, 2024
-
-[Learn more](https://www.meetup.com/golang-serbia/events/300975006/)
-
-</div><!-- end column-->
-
-<div class="column">
-
 ### GopherCon EU
 - Come Meet Us at our Booth
 - Berlin, June 17 - 20, 2024
@@ -86,6 +75,40 @@ func pastEvents() ui.Element {
 	return ui.Element{
 		ui.H2("Past Events"),
 		ui.Text(`<div class="columns-3">
+
+<div class="column">
+
+### Gno @ Golang Serbia
+
+- **Join the meetup**
+- Belgrade, May 23, 2024
+
+[Learn more](https://gno.land/r/gnoland/blog:p/gnomes-in-serbia)
+
+</div><!-- end column-->
+
+<div class="column">
+
+### Intro to Gno Tokyo
+
+- **Join the meetup**
+- Tokyo, April 11, 2024
+
+[Learn more](https://gno.land/r/gnoland/blog:p/gno-tokyo)
+
+</div><!-- end column-->
+
+<div class="column">
+
+### Go to Gno Seoul
+
+- **Join the workshop**
+- Seoul, March 23, 2024
+
+[Learn more](https://medium.com/onbloc/go-to-gno-recap-intro-to-the-gno-stack-with-memeland-284a43d7f620)
+
+</div><!-- end column-->
+
 <div class="column">
 
 ### GopherCon US
