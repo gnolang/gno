@@ -109,8 +109,7 @@ A few things to note:
 You can initialize the RPC Client used to connect to the Gno.land network with
 the following line:
 ```go
-rpc, err := rpcclient.NewHTTPClient("gno.land/health")
-
+rpc, err := rpcclient.NewHTTPClient("<gno.land_remote_endpoint>")
 if err != nil {
     panic(err)
 }
@@ -143,7 +142,10 @@ func main() {
 	}
 
 	// Initialize the RPC client
-	rpc := rpcclient.NewHTTPClient("<gno.land_remote_endpoint>")
+	rpc, err := rpcclient.NewHTTPClient("<gno.land_remote_endpoint>")
+	if err != nil {
+		panic(err)
+	}
 	
 	// Initialize the gnoclient
 	client := gnoclient.Client{
