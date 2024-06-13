@@ -3052,8 +3052,10 @@ func checkIntegerType(xt Type) {
 }
 
 func checkAssignmentMismatch(cd *ValueDecl) {
-	numNames := len(cd.NameExprs)
-	numValues := len(cd.Values)
+var (
+	numNames = len(cd.NameExprs)
+	numValues = len(cd.Values)
+)
 	if numValues <= 0 || numValues == numNames {
 		return
 	}
