@@ -50,6 +50,12 @@ func Println(args ...interface{}) {
 //	%d: formats an integer value using package "strconv".
 //	    Currently supports only uint, uint64, int, int64.
 //	%t: formats a boolean value to "true" or "false".
+//	%x: formats an integer value as a hexadecimal string.
+//	    Currently supports only uint8, []uint8, [32]uint8.
+//	%c: formats a rune value as a string.
+//	    Currently supports only rune, int.
+//	%q: formats a string value as a quoted string.
+//	%T: formats the type of the value.
 //	%%: outputs a literal %. Does not consume an argument.
 func Sprintf(format string, args ...interface{}) string {
 	// we use runes to handle multi-byte characters
@@ -128,6 +134,70 @@ func Sprintf(format string, args ...interface{}) string {
 				}
 			default:
 				buf += "(unhandled)"
+			}
+		case "x":
+			switch v := arg.(type) {
+			case uint8:
+				buf += strconv.FormatUint(uint64(v), 16)
+			case []uint8:
+				for _, b := range v {
+					buf += strconv.FormatUint(uint64(b), 16)
+				}
+			case [32]uint8:
+				for _, b := range v {
+					buf += strconv.FormatUint(uint64(b), 16)
+				}
+			default:
+				buf += "(unhandled)"
+			}
+		case "c":
+			switch v := arg.(type) {
+			case rune:
+				buf += string(v)
+			case int:
+				buf += string(rune(v))
+			default:
+				buf += "(unhandled)"
+			}
+		case "q":
+			switch v := arg.(type) {
+			case string:
+				buf += strconv.Quote(v)
+			default:
+				buf += "(unhandled)"
+			}
+		case "T":
+			switch v := arg.(type) {
+			case bool:
+				buf += "bool"
+			case int:
+				buf += "int"
+			case int8:
+				buf += "int8"
+			case int16:
+				buf += "int16"
+			case int32:
+				buf += "int32"
+			case int64:
+				buf += "int64"
+			case uint:
+				buf += "uint"
+			case uint8:
+				buf += "uint8"
+			case uint16:
+				buf += "uint16"
+			case uint32:
+				buf += "uint32"
+			case uint64:
+				buf += "uint64"
+			case string:
+				buf += "string"
+			case []byte:
+				buf += "[]byte"
+			case []rune:
+				buf += "[]rune"
+			default:
+				buf += "unknown"
 			}
 		// % handled before, as it does not consume an argument
 		default:
