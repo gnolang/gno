@@ -34,6 +34,7 @@ package accesscontrol // import "gno.land/p/demo/accesscontrol"
 
 import (
 	"std"
+	"errors"
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 )
@@ -58,7 +59,7 @@ func NewRoleData(name string, adminRole std.Address) *RoleData {
 func (roleData *RoleData) AssertOrigCallerIsAdmin() error{
 	caller := std.GetOrigCaller()
 	if roleData.AdminRole != caller {
-		ufmt.Errorf("accesscontrol: caller does not have the admin role")
+		errors.New("accesscontrol: caller does not have the admin role")
 	}
 
 	return nil
@@ -94,7 +95,7 @@ func (roleData *RoleData) RevokeRole(account std.Address) {
 func (roleData *RoleData) RenounceRole(callerConfirmation std.Address) error {
 	caller := std.GetOrigCaller()
 	if callerConfirmation != caller {
-		ufmt.Errorf("accesscontrol: caller confirmation does not match account")
+		errors.New("accesscontrol: caller confirmation does not match account")
 	}
 	roleData.Holder.Remove(caller.String())
 	std.Emit("RoleRenounced", "roleName", roleData.Name, "account", caller.String(), "sender", caller.String())

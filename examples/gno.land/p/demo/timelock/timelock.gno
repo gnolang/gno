@@ -36,6 +36,7 @@ import (
 	"std"
 	"strconv"
 	"time"
+	"errors"
 
 	"gno.land/p/demo/ufmt"
 
@@ -67,7 +68,7 @@ type TimeLockUtil struct {
 // New instance of TimeLockUtil
 func MustNewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.RoleData, minDelay uint64) (*TimeLockUtil, error) {
 	if timestamps == nil || accessControl == nil {
-		return nil, ufmt.Errorf("timestamps and accesscontrol values must be different from nil")
+		return nil, errors.New("timestamps and accesscontrol values must be different from nil")
 	}
 	return &TimeLockUtil{
 		timestamps:    timestamps,
@@ -79,10 +80,10 @@ func MustNewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.Role
 // Schedules an operation to be carried out after a minimum delay
 func (tl *TimeLockUtil) Schedule(id seqid.ID, delay uint64) error {
 	if delay < tl.minDelay {
-		return ufmt.Errorf("timelockutil: Schedule: insufficient delay")
+		return errors.New("timelockutil: Schedule: insufficient delay")
 	}
 	if tl.timestamps.Has(id.Binary()) {
-		return ufmt.Errorf("timelockutil: Schedule: operation already scheduled")
+		return errors.New("timelockutil: Schedule: operation already scheduled")
 	}
 	tl.timestamps.Set(id.Binary(), uint64(time.Now().Unix())+delay)
 	std.Emit("CallScheduled", "id", id.String(), "delay", strconv.FormatInt(int64(delay), 10))
@@ -98,7 +99,7 @@ func (tl *TimeLockUtil) Remove(id seqid.ID) {
 // Cancels a planned operation
 func (tl *TimeLockUtil) Cancel(id seqid.ID) error {
 	if !tl.IsPending(id) {
-		ufmt.Errorf("timelock: Cancel: operation not pending")
+		errors.New("timelock: Cancel: operation not pending")
 	}
 	tl.timestamps.Remove(id.Binary())
 	std.Emit("Cancelled", "id", id.String())
@@ -108,7 +109,7 @@ func (tl *TimeLockUtil) Cancel(id seqid.ID) error {
 // Executes a pending operation
 func (tl *TimeLockUtil) Execute(id seqid.ID) error {
 	if !tl.IsPending(id) {
-		ufmt.Errorf("timelock: Execute: operation not pending")
+		errors.New("timelock: Execute: operation not pending")
 	}
 	tl.timestamps.Set(id.Binary(), DoneTimestamp)
 	std.Emit("CallExecuted", "id", id.String())
@@ -118,7 +119,7 @@ func (tl *TimeLockUtil) Execute(id seqid.ID) error {
 // Update the minimum lead time for future operations
 func (tl *TimeLockUtil) UpdateDelay(newDelay uint64) error {
 	if std.GetOrigCaller() != tl.accessControl.AdminRole {
-		return ufmt.Errorf("timelock: UpdateDelay: only admin can update delay")
+		return errors.New("timelock: UpdateDelay: only admin can update delay")
 	}
 	std.Emit("MinDelayChange", "oldDelay", strconv.FormatInt(int64(tl.minDelay), 10), "newDelay", strconv.FormatInt(int64(newDelay), 10))
 	tl.minDelay = newDelay
@@ -176,6 +177,6 @@ func (tl *TimeLockUtil) GetTimestamp(id seqid.ID) (int64, error) {
 	case int64:
 		return v, nil
 	default:
-		return 0, ufmt.Errorf("timelockutil: GetTimestamp: unexpected type")
+		return 0, errors.New("timelockutil: GetTimestamp: unexpected type")
 	}
 }
