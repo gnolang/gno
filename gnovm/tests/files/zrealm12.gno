@@ -2,6 +2,7 @@
 package test
 
 import (
+	"gno.land/r/demo/tests"
 	"std"
 )
 
@@ -23,3 +24,6 @@ func main() {
 		panic("should not happen")
 	}
 }
+
+// Output:
+// second's child
