@@ -50,11 +50,8 @@ type startCfg struct {
 	genesisBalancesFile   string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
 	genesisTxsFile        string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
 	genesisRemote         string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	genesisFile           string
 	chainID               string
-	dataDir               string
 	genesisMaxVMCycles    int64
-	config                string
 	lazyInit              bool
 
 	logLevel  string

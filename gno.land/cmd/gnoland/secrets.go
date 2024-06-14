@@ -7,10 +7,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-var (
-	errInvalidDataDir    = errors.New("invalid data directory provided")
-	errInvalidSecretsKey = errors.New("invalid number of secret key arguments")
-)
+var errInvalidSecretsKey = errors.New("invalid number of secret key arguments")
 
 const (
 	defaultValidatorKeyName   = "priv_validator_key.json"

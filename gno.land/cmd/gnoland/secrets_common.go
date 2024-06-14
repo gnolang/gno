@@ -42,17 +42,6 @@ func saveSecretData(data any, path string) error {
 	return nil
 }
 
-// isValidDirectory verifies the directory at the given path exists
-func isValidDirectory(dirPath string) bool {
-	fileInfo, err := os.Stat(dirPath)
-	if err != nil {
-		return false
-	}
-
-	// Check if the path is indeed a directory
-	return fileInfo.IsDir()
-}
-
 type secretData interface {
 	privval.FilePVKey | privval.FilePVLastSignState | p2p.NodeKey
 }

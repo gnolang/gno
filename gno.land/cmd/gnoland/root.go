@@ -25,7 +25,7 @@ func (c *rootCfg) RegisterFlags(fs *flag.FlagSet) {
 		fs.StringVar(
 			&c.homeDir.homeDir,
 			"home",
-			"./gnoland-data",
+			defaultNodeDir,
 			"Directory for config, secrets and data",
 		)
 	} else {
