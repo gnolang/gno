@@ -106,11 +106,6 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 		return nil, errors.New("invalid tx")
 	}
 
-	remote := cfg.RootCfg.Remote
-	if remote == "" {
-		return nil, errors.New("missing remote url")
-	}
-
 	bz, err := amino.Marshal(cfg.tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
