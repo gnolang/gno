@@ -170,10 +170,6 @@ func SignAndBroadcastHandler(
 		return nil, fmt.Errorf("unable to sign transaction, %w", err)
 	}
 
-	if cfg.cli == nil {
-		return nil, fmt.Errorf("rpcClient hasn't been initialized")
-	}
-
 	// broadcast signed tx
 	bopts := &BroadcastCfg{
 		RootCfg: baseopts,
@@ -200,6 +196,10 @@ func ExecSignAndBroadcast(
 
 	baseopts := cfg.RootCfg
 
+	if len(args) != 1 {
+		return flag.ErrHelp
+	}
+
 	// query account
 	nameOrBech32 := args[0]
 
@@ -213,6 +213,10 @@ func ExecSignAndBroadcast(
 
 	if err != nil {
 		return err
+	}
+
+	if cfg.cli == nil {
+		return fmt.Errorf("rpcClient hasn't been initialized")
 	}
 
 	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass)

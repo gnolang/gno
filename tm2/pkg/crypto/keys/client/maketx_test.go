@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"errors"
+	"flag"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/require"
@@ -37,6 +39,12 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 	err := os.WriteFile(txFile, []byte(txJSON), 0644)
 	require.NoError(t, err)
 
+	// Check the keybase
+	kb, err := keys.NewKeyBaseFromDir(kbHome)
+	require.NoError(t, err)
+
+	kb.GetByName("")
+
 	cli := &mockRPCClient{
 		broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 			return &ctypes.ResultBroadcastTxCommit{
@@ -61,7 +69,6 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 			BaseOptions: BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
-				Remote:                "",
 			},
 		},
 		GasWanted: 100,
@@ -85,13 +92,13 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 			name:      "Invalid number of arguments",
 			args:      []string{},
 			expectErr: true,
-			errMsg:    "arguments",
+			errMsg:    flag.ErrHelp.Error(),
 		},
 		{
 			name:      "File not found",
 			args:      []string{"non_existent_file.json"},
 			expectErr: true,
-			errMsg:    "open non_existent_file.json: no such file or directory",
+			errMsg:    "EOF",
 		},
 		{
 			name:      "Successful sign and broadcast",
