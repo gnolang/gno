@@ -36,7 +36,6 @@ import (
 	"std"
 	"errors"
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
 )
 
 // RoleData struct to store role information
@@ -56,10 +55,10 @@ func NewRoleData(name string, adminRole std.Address) *RoleData {
 }
 
 // Method to check if the caller has the admin role
-func (roleData *RoleData) AssertOrigCallerIsAdmin() error{
+func (roleData *RoleData) AssertOrigCallerIsAdmin() {
 	caller := std.GetOrigCaller()
 	if roleData.AdminRole != caller {
-		errors.New("accesscontrol: caller does not have the admin role")
+		panic("accesscontrol: caller does not have the admin role")
 	}
 
 	return nil
@@ -95,7 +94,7 @@ func (roleData *RoleData) RevokeRole(account std.Address) {
 func (roleData *RoleData) RenounceRole(callerConfirmation std.Address) error {
 	caller := std.GetOrigCaller()
 	if callerConfirmation != caller {
-		errors.New("accesscontrol: caller confirmation does not match account")
+		return errors.New("accesscontrol: caller confirmation does not match account")
 	}
 	roleData.Holder.Remove(caller.String())
 	std.Emit("RoleRenounced", "roleName", roleData.Name, "account", caller.String(), "sender", caller.String())
