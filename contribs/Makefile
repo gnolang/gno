@@ -3,6 +3,8 @@ help:
 	@echo "Available make commands:"
 	@cat Makefile | grep '^[a-z][^:]*:' | cut -d: -f1 | sort | sed 's/^/  /'
 
+programs=gnodev gnofaucet
+
 # command to run dependency utilities, like goimports.
 rundep=go run -modfile ../misc/devdeps/go.mod
 
@@ -25,14 +27,31 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 ########################################
 # Dev tools
 .PHONY: install
-install: install.gnomd install.gnodev
+install:
+	@echo 'To install a tool, go to the subdirectory, then run `make install`.'
+	@echo 'To do a full installation, run `make install_all`.'
 
-install.gnomd:;  cd gnomd && go install .
-install.gnodev:; $(MAKE) -C ./gnodev install
+install_all: $(addsuffix .install,$(programs))
+%.install:
+	@echo "[+] make -C $(basename $@) install"
+	$(MAKE) --no-print-directory -C $(basename $@) install
+.PHONY: install_all
 
-.PHONY: clean
-clean:
-	rm -rf build
+########################################
+# Test suite
+test: $(addsuffix .test,$(programs))
+%.test:
+	@echo "[+] make -C $(basename $@) install"
+	$(MAKE) --no-print-directory -C $(basename $@) test
+.PHONY: test 
+
+########################################
+# Lint
+.PHONY: lint
+lint: $(addsuffix .lint,$(programs))
+%.lint:
+	@echo "[+] make -C $(basename $@) install"
+	$(MAKE) --no-print-directory -C $(basename $@) lint
 
 ########################################
 # Dev tools
@@ -44,15 +63,4 @@ fmt:
 
 .PHONY: tidy
 tidy:
-	@for gomod in `find . -name go.mod`; do ( \
-    dir=`dirname $$gomod`; \
-	  set -xe; \
-	  cd $$dir; \
-	  go mod tidy -v; \
-	); done
-
-########################################
-# Test suite
-.PHONY: test
-test:
-	@echo "nothing to do."
+	find . -name go.mod -execdir go mod tidy -v \;

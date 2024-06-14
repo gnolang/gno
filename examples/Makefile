@@ -26,7 +26,8 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 OFFICIAL_PACKAGES = ./gno.land/p
 OFFICIAL_PACKAGES += ./gno.land/r/demo
 OFFICIAL_PACKAGES += ./gno.land/r/gnoland
-OFFICIAL_PACKAGES += ./gno.land/r/system
+OFFICIAL_PACKAGES += ./gno.land/r/sys
+OFFICIAL_PACKAGES += ./gno.land/r/gov
 
 ########################################
 # Dev tools

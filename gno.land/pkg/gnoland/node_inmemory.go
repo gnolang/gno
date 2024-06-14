@@ -21,10 +21,11 @@ import (
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator         bft.PrivValidator // identity of the validator
-	Genesis               *bft.GenesisDoc
-	TMConfig              *tmcfg.Config
-	SkipFailingGenesisTxs bool
+	PrivValidator      bft.PrivValidator // identity of the validator
+	Genesis            *bft.GenesisDoc
+	TMConfig           *tmcfg.Config
+	GenesisTxHandler   GenesisTxHandler
+	GenesisMaxVMCycles int64
 }
 
 // NewMockedPrivValidator generate a new key
@@ -41,7 +42,7 @@ func NewDefaultGenesisConfig(pk crypto.PubKey, chainid string) *bft.GenesisDoc {
 			Block: &abci.BlockParams{
 				MaxTxBytes:   1_000_000,   // 1MB,
 				MaxDataBytes: 2_000_000,   // 2MB,
-				MaxGas:       100_000_000, // 10M gas
+				MaxGas:       100_000_000, // 100M gas
 				TimeIotaMS:   100,         // 100ms
 			},
 		},
@@ -58,32 +59,6 @@ func NewDefaultTMConfig(rootdir string) *tmcfg.Config {
 	return tmcfg.TestConfig().SetRootDir(rootdir)
 }
 
-// NewInMemoryNodeConfig creates a default configuration for an in-memory node.
-func NewDefaultInMemoryNodeConfig(rootdir string) *InMemoryNodeConfig {
-	tm := NewDefaultTMConfig(rootdir)
-
-	// Create Mocked Identity
-	pv := NewMockedPrivValidator()
-	genesis := NewDefaultGenesisConfig(pv.GetPubKey(), tm.ChainID())
-
-	// Add self as validator
-	self := pv.GetPubKey()
-	genesis.Validators = []bft.GenesisValidator{
-		{
-			Address: self.Address(),
-			PubKey:  self,
-			Power:   10,
-			Name:    "self",
-		},
-	}
-
-	return &InMemoryNodeConfig{
-		PrivValidator: pv,
-		TMConfig:      tm,
-		Genesis:       genesis,
-	}
-}
-
 func (cfg *InMemoryNodeConfig) validate() error {
 	if cfg.PrivValidator == nil {
 		return fmt.Errorf("`PrivValidator` is required but not provided")
@@ -95,6 +70,10 @@ func (cfg *InMemoryNodeConfig) validate() error {
 
 	if cfg.TMConfig.RootDir == "" {
 		return fmt.Errorf("`TMConfig.RootDir` is required to locate `stdlibs` directory")
+	}
+
+	if cfg.GenesisTxHandler == nil {
+		return fmt.Errorf("`GenesisTxHandler` is required but not provided")
 	}
 
 	return nil
@@ -110,10 +89,11 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
-		Logger:                logger,
-		GnoRootDir:            cfg.TMConfig.RootDir,
-		SkipFailingGenesisTxs: cfg.SkipFailingGenesisTxs,
-		DB:                    memdb.NewMemDB(),
+		Logger:           logger,
+		GnoRootDir:       cfg.TMConfig.RootDir,
+		GenesisTxHandler: cfg.GenesisTxHandler,
+		MaxCycles:        cfg.GenesisMaxVMCycles,
+		DB:               memdb.NewMemDB(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)

@@ -926,7 +926,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	}
 	// general case
 	if t == nil {
-		t = defaultTypeOf(tv.T)
+		t = defaultTypeOf(tv.T, tv.V)
 	}
 	switch tv.T {
 	case UntypedBoolType:
@@ -939,17 +939,17 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	case UntypedRuneType:
 		ConvertUntypedRuneTo(tv, t)
 	case UntypedBigintType:
-		if preprocessing == 0 {
+		if preprocessing.Load() == 0 {
 			panic("untyped Bigint conversion should not happen during interpretation")
 		}
 		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	case UntypedBigdecType:
-		if preprocessing == 0 {
+		if preprocessing.Load() == 0 {
 			panic("untyped Bigdec conversion should not happen during interpretation")
 		}
 		ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
 	case UntypedStringType:
-		if preprocessing == 0 {
+		if preprocessing.Load() == 0 {
 			panic("untyped String conversion should not happen during interpretation")
 		}
 		if t.Kind() == StringKind {
