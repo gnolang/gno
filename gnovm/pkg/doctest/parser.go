@@ -78,7 +78,9 @@ func mapWithIndex[T, R any](f func(T, int, string) R, xs []T, body string) []R {
 	return result
 }
 
-func WriteCodeBlockToFile(c CodeBlock) error {
+// writeCodeBlockToFile writes a extracted code block to a temp file.
+// This generated file will be executed by gnovm.
+func writeCodeBlockToFile(c CodeBlock) error {
 	if c.T == "go" {
 		c.T = "gno"
 	}
@@ -97,3 +99,9 @@ func WriteCodeBlockToFile(c CodeBlock) error {
 
 	return nil
 }
+
+// 어차피 파일의 소스코드를 인코딩해서 해쉬로 저장 할 것이기 때문에 실행 종료 후 파일이 삭제되도 별 문제 없을거라 생각.
+
+// 근데 실행 결과를 어떻게 가져오지? 출력 버퍼에 접근해서 가져와야 하나?
+
+// 정적 분석을 도입해 실행할 수 없는 코드는 미리 걸러내는 것이 좋을 듯?

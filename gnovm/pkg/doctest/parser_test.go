@@ -92,7 +92,7 @@ func TestWriteCodeBlockToFile(t *testing.T) {
 		Index:   1,
 	}
 
-	err := WriteCodeBlockToFile(cb)
+	err := writeCodeBlockToFile(cb)
 	if err != nil {
 		t.Errorf("writeCodeBlockToFile failed: %v", err)
 	}
