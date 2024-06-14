@@ -48,7 +48,7 @@ func NewWithAddress(addr std.Address) *transferrable {
 // TransferOwnership transfers ownership of the Ownable struct to a new address
 func (o *transferrable) TransferOwnership(newOwner std.Address) error {
 	if err := o.CallerIsOwner(); err != nil {
-		return ErrUnauthorized
+		return err
 	}
 
 	if !newOwner.IsValid() {
