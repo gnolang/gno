@@ -25,6 +25,8 @@ type MakeTxCfg struct {
 	// Valid options are SimulateTest, SimulateSkip or SimulateOnly.
 	Simulate string
 	ChainID  string
+
+	cli client.ABCIClient
 }
 
 // These are the valid options for MakeTxConfig.Simulate.
@@ -44,8 +46,11 @@ func (c *MakeTxCfg) Validate() error {
 }
 
 func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cli, _ := client.NewHTTPClient(rootCfg.Remote)
+
 	cfg := &MakeTxCfg{
 		RootCfg: rootCfg,
+		cli:     cli,
 	}
 
 	cmd := commands.NewCommand(
@@ -165,9 +170,8 @@ func SignAndBroadcastHandler(
 		return nil, fmt.Errorf("unable to sign transaction, %w", err)
 	}
 
-	cli, err := client.NewHTTPClient(baseopts.Remote)
-	if err != nil {
-		return nil, err
+	if cfg.cli == nil {
+		return nil, fmt.Errorf("rpcClient hasn't been initialized")
 	}
 
 	// broadcast signed tx
@@ -178,7 +182,7 @@ func SignAndBroadcastHandler(
 		DryRun:       cfg.Simulate == SimulateOnly,
 		testSimulate: cfg.Simulate == SimulateTest,
 
-		cli: cli,
+		cli: cfg.cli,
 	}
 
 	return BroadcastHandler(bopts)

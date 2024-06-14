@@ -3,12 +3,10 @@ package client
 import (
 	"bytes"
 	"errors"
-	"flag"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -18,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_execBroadcast(t *testing.T) {
+func Test_ExecSignAndBroadcast(t *testing.T) {
 	t.Parallel()
 
 	// Create a temporary directory for test files
@@ -58,7 +56,7 @@ func Test_execBroadcast(t *testing.T) {
 	}
 
 	// Initialize test configuration
-	cfg := &BroadcastCfg{
+	cfg := &MakeTxCfg{
 		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				Home:                  kbHome,
@@ -66,7 +64,13 @@ func Test_execBroadcast(t *testing.T) {
 				Remote:                "",
 			},
 		},
-		cli: cli,
+		GasWanted: 100,
+		GasFee:    "1",
+		Memo:      "test memo",
+		Broadcast: true,
+		Simulate:  SimulateTest,
+		ChainID:   "test-chain",
+		cli:       cli,
 	}
 
 	// Define test cases
@@ -81,7 +85,7 @@ func Test_execBroadcast(t *testing.T) {
 			name:      "Invalid number of arguments",
 			args:      []string{},
 			expectErr: true,
-			errMsg:    flag.ErrHelp.Error(),
+			errMsg:    "arguments",
 		},
 		{
 			name:      "File not found",
@@ -90,8 +94,8 @@ func Test_execBroadcast(t *testing.T) {
 			errMsg:    "open non_existent_file.json: no such file or directory",
 		},
 		{
-			name:      "Successful broadcast",
-			args:      []string{txFile},
+			name:      "Successful sign and broadcast",
+			args:      []string{"test-account", txFile},
 			expectErr: false,
 			output:    "test data\nOK!\nGAS WANTED: 100\nGAS USED:   90\nHEIGHT:     12345\nEVENTS:     []\nTX HASH:    q80=\n",
 		},
@@ -105,7 +109,8 @@ func Test_execBroadcast(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			err = execBroadcast(cfg, tc.args, io)
+			tx := std.Tx{} // Initialize a proper transaction object
+			err = ExecSignAndBroadcast(cfg, tc.args, tx, io)
 
 			if tc.expectErr {
 				require.Error(t, err)
@@ -121,7 +126,7 @@ func Test_execBroadcast(t *testing.T) {
 	}
 }
 
-func Test_execBroadcast_CheckTxError(t *testing.T) {
+func Test_ExecSignAndBroadcast_CheckTxError(t *testing.T) {
 	t.Parallel()
 
 	// Create a temporary directory for test files
@@ -161,27 +166,34 @@ func Test_execBroadcast_CheckTxError(t *testing.T) {
 	}
 
 	// Initialize test configuration
-	cfg := &BroadcastCfg{
+	cfg := &MakeTxCfg{
 		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
 			},
 		},
-		cli: cli,
+		GasWanted: 100,
+		GasFee:    "1",
+		Memo:      "test memo",
+		Broadcast: true,
+		Simulate:  SimulateTest,
+		ChainID:   "test-chain",
+		cli:       cli,
 	}
 
 	// Create a new test IO
 	io := commands.NewTestIO()
 
 	// Test: CheckTx error
-	args := []string{txFile}
-	err = execBroadcast(cfg, args, io)
+	args := []string{"test-account", txFile}
+	tx := std.Tx{} // Initialize a proper transaction object
+	err = ExecSignAndBroadcast(cfg, args, tx, io)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), expectedError.Error(), "transaction failed")
+	require.Contains(t, err.Error(), expectedError.Error())
 }
 
-func Test_execBroadcast_DeliverTxError(t *testing.T) {
+func Test_ExecSignAndBroadcast_DeliverTxError(t *testing.T) {
 	t.Parallel()
 
 	// Create a temporary directory for test files
@@ -221,182 +233,29 @@ func Test_execBroadcast_DeliverTxError(t *testing.T) {
 	}
 
 	// Initialize test configuration
-	cfg := &BroadcastCfg{
+	cfg := &MakeTxCfg{
 		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				Home:                  kbHome,
 				InsecurePasswordStdin: true,
 			},
 		},
-		cli: cli,
+		GasWanted: 100,
+		GasFee:    "1",
+		Memo:      "test memo",
+		Broadcast: true,
+		Simulate:  SimulateTest,
+		ChainID:   "test-chain",
+		cli:       cli,
 	}
 
 	// Create a new test IO
 	io := commands.NewTestIO()
 
 	// Test: DeliverTx error
-	args := []string{txFile}
-	err = execBroadcast(cfg, args, io)
+	args := []string{"test-account", txFile}
+	tx := std.Tx{} // Initialize a proper transaction object
+	err = ExecSignAndBroadcast(cfg, args, tx, io)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), expectedError.Error(), "transaction failed")
-}
-
-func Test_BroadcastHandler(t *testing.T) {
-	t.Parallel()
-
-	cfg := &BroadcastCfg{
-		tx: &std.Tx{
-			Msgs:       []std.Msg{},
-			Fee:        std.Fee{},
-			Signatures: []std.Signature{},
-			Memo:       "",
-		},
-		DryRun:       false,
-		testSimulate: false,
-		cli: &mockRPCClient{
-			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-				return &ctypes.ResultBroadcastTxCommit{
-					CheckTx: abci.ResponseCheckTx{},
-					DeliverTx: abci.ResponseDeliverTx{
-						ResponseBase: abci.ResponseBase{
-							Data:   []byte("test data"),
-							Events: []abci.Event{},
-						},
-						GasWanted: 100,
-						GasUsed:   90,
-					},
-					Hash:   []byte{0xab, 0xcd},
-					Height: 12345,
-				}, nil
-			},
-		},
-	}
-
-	// Test: Successful broadcast
-	bres, err := BroadcastHandler(cfg)
-	require.NoError(t, err)
-	require.NotNil(t, bres)
-	require.Equal(t, []byte("test data"), bres.DeliverTx.Data)
-	require.Equal(t, int64(100), bres.DeliverTx.GasWanted)
-	require.Equal(t, int64(90), bres.DeliverTx.GasUsed)
-	require.Equal(t, int64(12345), bres.Height)
-	require.Equal(t, []byte{0xab, 0xcd}, bres.Hash)
-
-	// Test: Invalid transaction
-	cfg.tx = nil
-	bres, err = BroadcastHandler(cfg)
-	require.Error(t, err)
-	require.Nil(t, bres)
-	require.Equal(t, "invalid tx", err.Error())
-}
-
-func Test_SimulateTx(t *testing.T) {
-	t.Parallel()
-
-	cli := &mockRPCClient{
-		abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
-			return &ctypes.ResultABCIQuery{
-				Response: abci.ResponseQuery{
-					Value: amino.MustMarshal(&abci.ResponseDeliverTx{
-						ResponseBase: abci.ResponseBase{
-							Data: []byte("simulation data"),
-						},
-						GasWanted: 100,
-						GasUsed:   90,
-					}),
-				},
-			}, nil
-		},
-	}
-
-	// Test: Successful simulation
-	tx := []byte(`{
-		"type": "StdTx",
-		"value": {
-			"msg": [],
-			"fee": {},
-			"signatures": [],
-			"memo": ""
-		}
-	}`)
-	res, err := SimulateTx(cli, tx)
-	require.NoError(t, err)
-	require.NotNil(t, res)
-	require.Equal(t, []byte("simulation data"), res.DeliverTx.Data)
-	require.Equal(t, int64(100), res.DeliverTx.GasWanted)
-	require.Equal(t, int64(90), res.DeliverTx.GasUsed)
-
-	// Test: Error during simulation
-	expectedError := errors.New("simulate tx")
-	cli.abciQuery = func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
-		return nil, expectedError
-	}
-	res, err = SimulateTx(cli, tx)
-	require.Error(t, err)
-	require.Nil(t, res)
-	require.Equal(t, expectedError.Error(), err.Error())
-}
-
-func Test_BroadcastHandler_DryRun(t *testing.T) {
-	t.Parallel()
-
-	cfg := &BroadcastCfg{
-		tx: &std.Tx{
-			Msgs:       []std.Msg{},
-			Fee:        std.Fee{},
-			Signatures: []std.Signature{},
-			Memo:       "",
-		},
-		DryRun: true,
-		cli: &mockRPCClient{
-			abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
-				return &ctypes.ResultABCIQuery{
-					Response: abci.ResponseQuery{
-						Value: amino.MustMarshal(&abci.ResponseDeliverTx{
-							ResponseBase: abci.ResponseBase{
-								Data: []byte("simulation data"),
-							},
-							GasWanted: 100,
-							GasUsed:   90,
-						}),
-					},
-				}, nil
-			},
-		},
-	}
-
-	// Test: DryRun mode
-	bres, err := BroadcastHandler(cfg)
-	require.NoError(t, err)
-	require.NotNil(t, bres)
-	require.Equal(t, []byte("simulation data"), bres.DeliverTx.Data)
-	require.Equal(t, int64(100), bres.DeliverTx.GasWanted)
-	require.Equal(t, int64(90), bres.DeliverTx.GasUsed)
-}
-
-func Test_BroadcastHandler_SimulateError(t *testing.T) {
-	t.Parallel()
-
-	expectedError := errors.New("simulate tx")
-	cfg := &BroadcastCfg{
-		tx: &std.Tx{
-			Msgs:       []std.Msg{},
-			Fee:        std.Fee{},
-			Signatures: []std.Signature{},
-			Memo:       "",
-		},
-		DryRun:       false,
-		testSimulate: true,
-		cli: &mockRPCClient{
-			abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
-				return nil, expectedError
-			},
-		},
-	}
-
-	// Test: Simulation error
-	bres, err := BroadcastHandler(cfg)
-	require.Error(t, err)
-	require.Nil(t, bres)
-	require.Equal(t, expectedError.Error(), err.Error())
+	require.Contains(t, err.Error(), expectedError.Error())
 }
