@@ -66,7 +66,7 @@ type TimeLockUtil struct {
 }
 
 // New instance of TimeLockUtil
-func MustNewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.RoleData, minDelay uint64) (*TimeLockUtil, error) {
+func NewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.RoleData, minDelay uint64) (*TimeLockUtil, error) {
 	if timestamps == nil || accessControl == nil {
 		return nil, errors.New("timestamps and accesscontrol values must be different from nil")
 	}

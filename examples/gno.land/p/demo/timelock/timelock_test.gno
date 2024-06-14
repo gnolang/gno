@@ -16,7 +16,7 @@ func TestTimelockUtil(t *testing.T) {
 	timestamps := avl.NewTree()
 	minDelay := uint64(2) // 2 seconds to simplify testing
 	accessControl := accesscontrol.NewRoleData("admin", std.GetOrigCaller())
-	timelockUtil, err := MustNewTimeLockUtil(timestamps, accessControl, minDelay)
+	timelockUtil, err := NewTimeLockUtil(timestamps, accessControl, minDelay)
 
 	// Generate a new ID from time.Now().UnixNano() with seconds added to guarantee uniqueness
 	newID := func(offset int64) seqid.ID {
