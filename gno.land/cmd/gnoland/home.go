@@ -21,6 +21,7 @@ func (h homeDirectory) SecretsNodeKey() string { return h.SecretsDir() + "/" + d
 func (h homeDirectory) SecretsValidatorKey() string {
 	return h.SecretsDir() + "/" + defaultValidatorKeyName
 }
+
 func (h homeDirectory) SecretsValidatorState() string {
 	return h.SecretsDir() + "/" + defaultValidatorStateName
 }

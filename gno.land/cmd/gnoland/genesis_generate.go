@@ -128,7 +128,7 @@ func execGenerate(cfg *generateCfg, io commands.IO) error {
 		return fmt.Errorf("unable to validate genesis, %w", validateErr)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(cfg.homeDir.GenesisFilePath()), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(cfg.homeDir.GenesisFilePath()), 0o755); err != nil {
 		return fmt.Errorf("error creating dir: %w", err)
 	}
 

@@ -24,10 +24,10 @@ func newTestHomeDirectory(t *testing.T, home string, args ...int) homeDirectory 
 	for _, arg := range args {
 		switch arg {
 		case withConfig:
-			require.NoError(t, os.MkdirAll(homeDir.ConfigDir(), 0755))
+			require.NoError(t, os.MkdirAll(homeDir.ConfigDir(), 0o755))
 			require.NoError(t, config.WriteConfigFile(homeDir.ConfigFile(), config.DefaultConfig()))
 		case withSecrets:
-			require.NoError(t, os.MkdirAll(homeDir.SecretsDir(), 0700))
+			require.NoError(t, os.MkdirAll(homeDir.SecretsDir(), 0o700))
 		}
 	}
 
