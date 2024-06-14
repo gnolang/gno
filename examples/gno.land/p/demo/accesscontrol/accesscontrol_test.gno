@@ -59,7 +59,7 @@ func TestAccessControl(t *testing.T) {
 	// User1 (now not admin) tries to grant role to user2, should panic
 	std.TestSetOrigCaller(user1)
 	defer func() {
-		if r := recover(); r != nil {
+		if r := recover(); r == nil {
 			t.Fatalf("expected panic when non-admin tries to grant role")
 		}
 	}()
@@ -106,17 +106,21 @@ func TestAssertOrigCallerIsAdmin(t *testing.T) {
 	roleData := NewRoleData("ExampleRole", adminRole)
 	// Call AssertOrigCallerIsAdmin with admin caller
 	std.TestSetOrigCaller(adminRole)
-	err := roleData.AssertOrigCallerIsAdmin()
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
+	defer func () {
+		if r := recover(); r != nil {
+			t.Fatalf("expected no panic, got %v", r)
+		}
+	}() 
+	roleData.AssertOrigCallerIsAdmin()
 	// Call AssertOrigCallerIsAdmin with non-admin caller
 	user := testutils.TestAddress("user-address")
 	std.TestSetOrigCaller(user)
-	err = roleData.AssertOrigCallerIsAdmin()
-	if err != nil {
-		t.Fatalf("expected error, got nil")
-	}
+	defer func () {
+		if r := recover(); r == nil {
+			t.Fatalf("expected panic, got nil")
+		}
+	}()
+	roleData.AssertOrigCallerIsAdmin()
 }
 
 // Testing the RevokeRole Method for a Non-Admin
@@ -140,7 +144,7 @@ func TestRevokeRoleNonAdmin(t *testing.T) {
 
 	// Attempting to revoke user1's role as user2 (non-admin)
 	defer func() {
-		if r := recover(); r != nil {
+		if r := recover(); r == nil {
 			t.Fatalf("expected panic when non-admin tries to revoke role")
 		}
 	}()
@@ -190,12 +194,15 @@ func TestSetRoleAdmin(t *testing.T) {
 	// Change administrator
 	roleData.SetRoleAdmin(newAdmin)
 
-	// std.TestSetOrigCaller(newAdmin)
+	std.TestSetOrigCaller(newAdmin)
 
 	// Check that the new administrator is correct
-	if roleData.AssertOrigCallerIsAdmin() != nil {
-		t.Fatalf("expected new admin to be %s, got %s", newAdmin.String(), roleData.AdminRole.String())
-	}
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("expected no panic, got %v", r)
+		}
+	}()
+	roleData.AssertOrigCallerIsAdmin()
 
 	// Simulate newAdmin as the current caller
 	std.TestSetOrigCaller(newAdmin)
@@ -212,7 +219,7 @@ func TestSetRoleAdmin(t *testing.T) {
 
 	// Attempting to revoke a user's role by the former administrator should cause panic
 	defer func() {
-		if r := recover(); r != nil {
+		if r := recover(); r == nil {
 			t.Fatalf("expected panic when former admin tries to revoke role")
 		}
 	}()
