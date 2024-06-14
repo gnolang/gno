@@ -60,8 +60,6 @@ func (roleData *RoleData) AssertOrigCallerIsAdmin() {
 	if roleData.AdminRole != caller {
 		panic("accesscontrol: caller does not have the admin role")
 	}
-
-	return nil
 }
 
 // Method to create a new role within the realm
