@@ -34,7 +34,6 @@ func executeCodeBlock(c CodeBlock) error {
 	m.RunMain()
 	res := m.PopValue().V.String()
 
-
 	// ignore the whitespace in the source code
 	key := generateCacheKey([]byte(strings.ReplaceAll(c.Content, " ", "")))
 	codeResults[key] = res

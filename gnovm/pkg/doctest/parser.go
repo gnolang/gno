@@ -1,18 +1,21 @@
 package doctest
 
 import (
+	"context"
 	"fmt"
 	"os"
-	"regexp"
-	"strings"
+
+	sitter "github.com/smacker/go-tree-sitter"
+	markdown "github.com/smacker/go-tree-sitter/markdown/tree-sitter-markdown"
 )
 
+// CodeBlock represents a block of code extracted from the input text.
 type CodeBlock struct {
-	Content string
-	Start   int
-	End     int
-	T       string
-	Index   int
+	Content string // The content of the code block.
+	Start   uint32 // The start byte position of the code block in the input text.
+	End     uint32 // The end byte position of the code block in the input text.
+	T       string // The language type of the code block.
+	Index   int    // The index of the code block in the sequence of extracted blocks.
 }
 
 // ReadMarkdownFile reads a markdown file and returns its content
@@ -25,57 +28,94 @@ func ReadMarkdownFile(path string) (string, error) {
 	return string(content), nil
 }
 
-// getCodeBlocks extracts code blocks from the markdown file content
+// getCodeBlocks extracts all code blocks from the provided markdown text.
 func getCodeBlocks(body string) []CodeBlock {
-	blocksRegex := regexp.MustCompile("```\\w*[^`]+```*")
-	matches := blocksRegex.FindAllStringIndex(body, -1)
-
-	return mapWithIndex(extractCodeBlock, matches, body)
-}
-
-// extractCodeBlock extracts a single code block from the markdown content
-func extractCodeBlock(match []int, index int, body string) CodeBlock {
-	if len(match) < 2 {
-		return CodeBlock{}
+	parser := createParser()
+	tree, err := parseMarkdown(parser, body)
+	if err != nil {
+		fmt.Println("Error parsing:", err)
+		return nil
 	}
 
-	codeStr := body[match[0]:match[1]]
-	// Remove the backticks from the code block content
-	codeStr = strings.TrimPrefix(codeStr, "```")
-	codeStr = strings.TrimSuffix(codeStr, "```")
+	return extractCodeBlocks(tree.RootNode(), body)
+}
 
-	result := CodeBlock{
-		Content: codeStr,
-		Start:   match[0],
-		End:     match[1],
+// createParser creates and returns a new tree-sitter parser configured for Markdown.
+func createParser() *sitter.Parser {
+	parser := sitter.NewParser()
+	parser.SetLanguage(markdown.GetLanguage())
+	return parser
+}
+
+// parseMarkdown parses the input markdown text and returns the parse tree.
+func parseMarkdown(parser *sitter.Parser, body string) (*sitter.Tree, error) {
+	ctx := context.Background()
+	return parser.ParseCtx(ctx, nil, []byte(body))
+}
+
+// extractCodeBlocks traverses the parse tree and extracts code blocks.
+func extractCodeBlocks(rootNode *sitter.Node, body string) []CodeBlock {
+	codeBlocks := []CodeBlock{}
+	var index int
+
+	var extract func(node *sitter.Node)
+	extract = func(node *sitter.Node) {
+		if node == nil {
+			return
+		}
+
+		if node.Type() == "code_fence_content" {
+			codeBlock := createCodeBlock(node, body, index)
+			codeBlocks = append(codeBlocks, codeBlock)
+			index++
+		}
+
+		for i := 0; i < int(node.ChildCount()); i++ {
+			child := node.Child(i)
+			extract(child)
+		}
+	}
+
+	extract(rootNode)
+	return codeBlocks
+}
+
+// createCodeBlock creates a CodeBlock from a code fence content node.
+func createCodeBlock(node *sitter.Node, body string, index int) CodeBlock {
+	startByte := node.StartByte()
+	endByte := node.EndByte()
+	content := body[startByte:endByte]
+
+	language := detectLanguage(node, body)
+	content = removeTrailingBackticks(content)
+
+	return CodeBlock{
+		Content: content,
+		Start:   startByte,
+		End:     endByte,
+		T:       language,
 		Index:   index,
 	}
-
-	// extract the type (language) of the code block
-	lines := strings.Split(codeStr, "\n")
-	if len(lines) > 0 {
-		line1 := lines[0]
-		languageRegex := regexp.MustCompile(`^\w*`)
-		languageMatch := languageRegex.FindString(line1)
-		result.T = languageMatch
-		// Remove the language specifier from the code block content
-		result.Content = strings.TrimPrefix(result.Content, languageMatch)
-		result.Content = strings.TrimSpace(result.Content)
-	}
-	if result.T == "" {
-		result.T = "plain"
-	}
-
-	return result
 }
 
-// mapWithIndex applies a function to each element of a slice along with its index
-func mapWithIndex[T, R any](f func(T, int, string) R, xs []T, body string) []R {
-	result := make([]R, len(xs))
-	for i, x := range xs {
-		result[i] = f(x, i, body)
+// detectLanguage detects the language of a code block from its parent node.
+func detectLanguage(node *sitter.Node, body string) string {
+	codeFenceNode := node.Parent()
+	if codeFenceNode != nil && codeFenceNode.ChildCount() > 1 {
+		langNode := codeFenceNode.Child(1)
+		if langNode != nil && langNode.Type() == "info_string" {
+			return langNode.Content([]byte(body))
+		}
 	}
-	return result
+	return "plain"
+}
+
+// removeTrailingBackticks removes trailing backticks from the code content.
+func removeTrailingBackticks(content string) string {
+	if len(content) >= 3 && content[len(content)-3:] == "```" {
+		return content[:len(content)-3]
+	}
+	return content
 }
 
 // writeCodeBlockToFile writes a extracted code block to a temp file.
@@ -99,9 +139,3 @@ func writeCodeBlockToFile(c CodeBlock) error {
 
 	return nil
 }
-
-// 어차피 파일의 소스코드를 인코딩해서 해쉬로 저장 할 것이기 때문에 실행 종료 후 파일이 삭제되도 별 문제 없을거라 생각.
-
-// 근데 실행 결과를 어떻게 가져오지? 출력 버퍼에 접근해서 가져와야 하나?
-
-// 정적 분석을 도입해 실행할 수 없는 코드는 미리 걸러내는 것이 좋을 듯?
