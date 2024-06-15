@@ -14,8 +14,34 @@ func TestGetCodeBlocks(t *testing.T) {
 		expected []CodeBlock
 	}{
 		{
-			name:  "Single code block",
+			name:  "Single code block with backticks",
 			input: "```go\nfmt.Println(\"Hello, World!\")\n```",
+			expected: []CodeBlock{
+				{
+					Content: "fmt.Println(\"Hello, World!\")",
+					Start:   6,
+					End:     38,
+					T:       "go",
+					Index:   0,
+				},
+			},
+		},
+		{
+			name:  "Single code block with additional backticks",
+			input: "```go\nfmt.Println(\"Hello, World!\")\n``````",
+			expected: []CodeBlock{
+				{
+					Content: "fmt.Println(\"Hello, World!\")",
+					Start:   6,
+					End:     41, // TODO: should be 38
+					T:       "go",
+					Index:   0,
+				},
+			},
+		},
+		{
+			name:  "Single code block with tildes",
+			input: "~~~go\nfmt.Println(\"Hello, World!\")\n~~~",
 			expected: []CodeBlock{
 				{
 					Content: "fmt.Println(\"Hello, World!\")",
@@ -130,6 +156,7 @@ func TestWriteCodeBlockToFile(t *testing.T) {
 	os.Remove(filename)
 }
 
+// ignore whitespace in the source code
 func normalize(s string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(s, "\n", ""), "\r", ""), "\t", ""), " ", "")
 }

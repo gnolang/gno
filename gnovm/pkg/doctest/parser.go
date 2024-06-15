@@ -4,9 +4,26 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
 	markdown "github.com/smacker/go-tree-sitter/markdown/tree-sitter-markdown"
+)
+
+// tree-sitter node types for markdown code blocks.
+// https://github.com/smacker/go-tree-sitter/blob/0ac8d7d185ec65349d3d9e6a7a493b81ae05d198/markdown/tree-sitter-markdown/scanner.c#L9-L88
+const (
+	FENCED_CODE_BLOCK        = "fenced_code_block"
+	CODE_FENCE_CONTENT       = "code_fence_content"
+	CODE_FENCE_END           = "code_fence_end"
+	CODE_FENCE_END_BACKTICKS = "code_fence_end_backticks"
+	INFO_STRING              = "info_string"
+)
+
+// Code block markers.
+const (
+	Backticks = "```"
+	Tildes    = "~~~"
 )
 
 // CodeBlock represents a block of code extracted from the input text.
@@ -53,30 +70,26 @@ func parseMarkdown(parser *sitter.Parser, body string) (*sitter.Tree, error) {
 	return parser.ParseCtx(ctx, nil, []byte(body))
 }
 
-// extractCodeBlocks traverses the parse tree and extracts code blocks.
+// extractCodeBlocks traverses the parse tree and extracts code blocks using tree-sitter.
+// It takes the root node of the parse tree and the complete body string as input.
 func extractCodeBlocks(rootNode *sitter.Node, body string) []CodeBlock {
-	codeBlocks := []CodeBlock{}
-	var index int
+	codeBlocks := make([]CodeBlock, 0)
 
-	var extract func(node *sitter.Node)
-	extract = func(node *sitter.Node) {
-		if node == nil {
-			return
-		}
-
-		if node.Type() == "code_fence_content" {
-			codeBlock := createCodeBlock(node, body, index)
+	// define a recursive function to traverse the parse tree
+	var traverse func(node *sitter.Node)
+	traverse = func(node *sitter.Node) {
+		if node.Type() == CODE_FENCE_CONTENT {
+			codeBlock := createCodeBlock(node, body, len(codeBlocks))
 			codeBlocks = append(codeBlocks, codeBlock)
-			index++
 		}
 
 		for i := 0; i < int(node.ChildCount()); i++ {
 			child := node.Child(i)
-			extract(child)
+			traverse(child)
 		}
 	}
 
-	extract(rootNode)
+	traverse(rootNode)
 	return codeBlocks
 }
 
@@ -87,7 +100,7 @@ func createCodeBlock(node *sitter.Node, body string, index int) CodeBlock {
 	content := body[startByte:endByte]
 
 	language := detectLanguage(node, body)
-	content = removeTrailingBackticks(content)
+	startByte, endByte, content = adjustContentBoundaries(node, startByte, endByte, content, body)
 
 	return CodeBlock{
 		Content: content,
@@ -103,19 +116,67 @@ func detectLanguage(node *sitter.Node, body string) string {
 	codeFenceNode := node.Parent()
 	if codeFenceNode != nil && codeFenceNode.ChildCount() > 1 {
 		langNode := codeFenceNode.Child(1)
-		if langNode != nil && langNode.Type() == "info_string" {
+		if langNode != nil && langNode.Type() == INFO_STRING {
 			return langNode.Content([]byte(body))
 		}
 	}
+
+	// default to plain text if no language is specified
 	return "plain"
 }
 
 // removeTrailingBackticks removes trailing backticks from the code content.
 func removeTrailingBackticks(content string) string {
-	if len(content) >= 3 && content[len(content)-3:] == "```" {
-		return content[:len(content)-3]
+	// https://www.markdownguide.org/extended-syntax/#fenced-code-blocks
+	// a code block can have a closing fence with three or more backticks or tildes.
+	content = strings.TrimRight(content, "`~")
+	if len(content) >= 3 {
+		blockSuffix := content[len(content)-3:]
+		switch blockSuffix {
+		case Backticks, Tildes:
+			return content[:len(content)-3]
+		default:
+			return content
+		}
 	}
 	return content
+}
+
+// adjustContentBoundaries adjusts the content boundaries of a code block node.
+// The function checks the parent node type and adjusts the end byte position if it is a fenced code block.
+func adjustContentBoundaries(node *sitter.Node, startByte, endByte uint32, content, body string) (uint32, uint32, string) {
+	parentNode := node.Parent()
+	if parentNode == nil {
+		return startByte, endByte, removeTrailingBackticks(content)
+	}
+
+	// adjust the end byte based on the parent node type
+	if parentNode.Type() == FENCED_CODE_BLOCK {
+		// find the end marker node
+		endMarkerNode := findEndMarkerNode(parentNode)
+		if endMarkerNode != nil {
+			endByte = endMarkerNode.StartByte()
+			content = body[startByte:endByte]
+		}
+	}
+
+	return startByte, endByte, removeTrailingBackticks(content)
+}
+
+// findEndMarkerNode finds the end marker node of a fenced code block using tree-sitter.
+// It takes the parent node of the code block as input and iterates through its child nodes.
+func findEndMarkerNode(parentNode *sitter.Node) *sitter.Node {
+	for i := 0; i < int(parentNode.ChildCount()); i++ {
+		child := parentNode.Child(i)
+		switch child.Type() {
+		case CODE_FENCE_END, CODE_FENCE_END_BACKTICKS:
+			return child
+		default:
+			continue
+		}
+	}
+
+	return nil
 }
 
 // writeCodeBlockToFile writes a extracted code block to a temp file.
