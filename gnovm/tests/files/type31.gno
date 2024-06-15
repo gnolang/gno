@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/type31.gno:8: incompatible types in binary expression: string ADD main.String
+// main/files/type31.gno:8:10: incompatible types in binary expression: string ADD main.String

@@ -160,6 +160,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				loc := last.GetLocation()
 				if nline := n.GetLine(); nline > 0 {
 					loc.Line = nline
+					loc.Column = n.GetColumn()
 				}
 
 				var err error
@@ -3061,6 +3062,7 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 			loc := last.GetLocation()
 			if nline := d.GetLine(); nline > 0 {
 				loc.Line = nline
+				loc.Column = d.GetColumn()
 			}
 			if rerr, ok := r.(error); ok {
 				// NOTE: gotuna/gorilla expects error exceptions.
@@ -3776,26 +3778,17 @@ func SetNodeLocations(pkgPath string, fileName string, n Node) {
 	if pkgPath == "" || fileName == "" {
 		panic("missing package path or file name")
 	}
-	lastLine := 0
-	nextNonce := 0
 	Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		if stage != TRANS_ENTER {
 			return n, TRANS_CONTINUE
 		}
 		if bn, ok := n.(BlockNode); ok {
 			// ensure unique location of blocknode.
-			line := bn.GetLine()
-			if line == lastLine {
-				nextNonce += 1
-			} else {
-				lastLine = line
-				nextNonce = 0
-			}
 			loc := Location{
 				PkgPath: pkgPath,
 				File:    fileName,
-				Line:    line,
-				Nonce:   nextNonce,
+				Line:    bn.GetLine(),
+				Column:  bn.GetColumn(),
 			}
 			bn.SetLocation(loc)
 		}
@@ -3836,6 +3829,9 @@ func SaveBlockNodes(store Store, fn *FileNode) {
 			}
 			if loc.Line != bn.GetLine() {
 				panic("wrong line in block node location")
+			}
+			if loc.Column != bn.GetColumn() {
+				panic("wrong column in block node location")
 			}
 			// save blocknode.
 			store.SetBlockNode(bn)
