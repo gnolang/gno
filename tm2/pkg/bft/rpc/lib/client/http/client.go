@@ -17,8 +17,6 @@ import (
 const (
 	protoHTTP  = "http"
 	protoHTTPS = "https"
-	protoWSS   = "wss"
-	protoWS    = "ws"
 	protoTCP   = "tcp"
 )
 
@@ -173,12 +171,7 @@ func defaultHTTPClient(remoteAddr string) *http.Client {
 }
 
 func makeHTTPDialer(remoteAddr string) func(string, string) (net.Conn, error) {
-	protocol, address, err := parseRemoteAddr(remoteAddr)
-	if err != nil {
-		return func(_ string, _ string) (net.Conn, error) {
-			return nil, err
-		}
-	}
+	protocol, address := parseRemoteAddr(remoteAddr)
 
 	// net.Dial doesn't understand http/https, so change it to TCP
 	switch protocol {
@@ -192,18 +185,15 @@ func makeHTTPDialer(remoteAddr string) func(string, string) (net.Conn, error) {
 }
 
 // protocol - client's protocol (for example, "http", "https", "wss", "ws", "tcp")
-// trimmedS - rest of the address (for example, "192.0.2.1:25", "[2001:db8::1]:80") with "/" replaced with "."
-func toClientAddrAndParse(remoteAddr string) (string, string, error) {
-	protocol, address, err := parseRemoteAddr(remoteAddr)
-	if err != nil {
-		return "", "", err
-	}
+// trimmedS - expectedRest of the address (for example, "192.0.2.1:25", "[2001:db8::1]:80") with "/" replaced with "."
+func toClientAddrAndParse(remoteAddr string) (string, string) {
+	protocol, address := parseRemoteAddr(remoteAddr)
 
 	// protocol to use for http operations, to support both http and https
 	var clientProtocol string
 	// default to http for unknown protocols (ex. tcp)
 	switch protocol {
-	case protoHTTP, protoHTTPS, protoWS, protoWSS:
+	case protoHTTP, protoHTTPS:
 		clientProtocol = protocol
 	default:
 		clientProtocol = protoHTTP
@@ -212,23 +202,21 @@ func toClientAddrAndParse(remoteAddr string) (string, string, error) {
 	// replace / with . for http requests (kvstore domain)
 	trimmedAddress := strings.Replace(address, "/", ".", -1)
 
-	return clientProtocol, trimmedAddress, nil
+	return clientProtocol, trimmedAddress
 }
 
 func toClientAddress(remoteAddr string) (string, error) {
-	clientProtocol, trimmedAddress, err := toClientAddrAndParse(remoteAddr)
-	if err != nil {
-		return "", err
-	}
+	clientProtocol, trimmedAddress := toClientAddrAndParse(remoteAddr)
 
 	return clientProtocol + "://" + trimmedAddress, nil
 }
 
-// network - name of the network (for example, "tcp", "unix")
-// s - rest of the address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+// expectedNetwork - name of the expectedNetwork (for example, "tcp", "unix")
+// s - expectedRest of the address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
 // TODO: Deprecate support for IP:PORT or /path/to/socket
-func parseRemoteAddr(remoteAddr string) (network string, s string, err error) {
+func parseRemoteAddr(remoteAddr string) (string, string) {
 	parts := strings.SplitN(remoteAddr, "://", 2)
+
 	var protocol, address string
 	switch len(parts) {
 	case 1:
@@ -237,7 +225,18 @@ func parseRemoteAddr(remoteAddr string) (network string, s string, err error) {
 	case 2:
 		protocol, address = parts[0], parts[1]
 	}
-	return protocol, address, nil
+
+	// Append default ports if not specified
+	if !strings.Contains(address, ":") {
+		switch protocol {
+		case protoHTTPS:
+			address += ":443"
+		default:
+			address += ":80" // HTTP, TCP
+		}
+	}
+
+	return protocol, address
 }
 
 // isOKStatus returns a boolean indicating if the response
