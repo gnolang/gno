@@ -211,8 +211,8 @@ func toClientAddress(remoteAddr string) (string, error) {
 	return clientProtocol + "://" + trimmedAddress, nil
 }
 
-// expectedNetwork - name of the expectedNetwork (for example, "tcp", "unix")
-// s - expectedRest of the address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+// network - name of the network (for example, "tcp", "unix")
+// s - rest of the address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
 // TODO: Deprecate support for IP:PORT or /path/to/socket
 func parseRemoteAddr(remoteAddr string) (string, string) {
 	parts := strings.SplitN(remoteAddr, "://", 2)
