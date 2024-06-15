@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"path/filepath"
@@ -14,6 +15,8 @@ import (
 
 type secretsGetCfg struct {
 	commonAllCfg
+
+	json bool
 }
 
 // newSecretsGetCmd creates the secrets get command
@@ -42,6 +45,13 @@ func newSecretsGetCmd(io commands.IO) *commands.Command {
 
 func (c *secretsGetCfg) RegisterFlags(fs *flag.FlagSet) {
 	c.commonAllCfg.RegisterFlags(fs)
+
+	fs.BoolVar(
+		&c.json,
+		"json",
+		false,
+		"flag indicating if the secret output should be in JSON",
+	)
 }
 
 func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
@@ -68,50 +78,132 @@ func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
 		nodeKeyPath        = filepath.Join(cfg.dataDir, defaultNodeKeyName)
 	)
 
+	// Construct the display methods
+	var (
+		displayVK = wrapDisplayFn(io, outputTerminalVK)
+		displayVS = wrapDisplayFn(io, outputTerminalVS)
+		displayNK = wrapDisplayFn(io, outputTerminalNK)
+	)
+
+	if cfg.json {
+		displayVK = wrapDisplayFn(io, outputJSONCommon[validatorKeyInfo])
+		displayVS = wrapDisplayFn(io, outputJSONCommon[validatorStateInfo])
+		displayNK = wrapDisplayFn(io, outputJSONCommon[nodeKeyInfo])
+	}
+
 	switch key {
 	case validatorPrivateKeyKey:
 		// Show the validator's key info
-		return readAndShowValidatorKey(validatorKeyPath, io)
+		return readAndShowValidatorKey(validatorKeyPath, displayVK)
 	case validatorStateKey:
 		// Show the validator's last sign state
-		return readAndShowValidatorState(validatorStatePath, io)
+		return readAndShowValidatorState(validatorStatePath, displayVS)
 	case nodeKeyKey:
 		// Show the node's p2p info
-		return readAndShowNodeKey(nodeKeyPath, io)
+		return readAndShowNodeKey(nodeKeyPath, displayNK)
 	default:
 		// Show the node's p2p info
-		if err := readAndShowNodeKey(nodeKeyPath, io); err != nil {
+		if err := readAndShowNodeKey(nodeKeyPath, displayNK); err != nil {
 			return err
 		}
 
 		// Show the validator's key info
-		if err := readAndShowValidatorKey(validatorKeyPath, io); err != nil {
+		if err := readAndShowValidatorKey(validatorKeyPath, displayVK); err != nil {
 			return err
 		}
 
 		// Show the validator's last sign state
-		return readAndShowValidatorState(validatorStatePath, io)
+		return readAndShowValidatorState(validatorStatePath, displayVS)
+	}
+}
+
+type (
+	validatorKeyInfo struct {
+		Address string `json:"address"`
+		PubKey  string `json:"pub_key"`
+	}
+
+	validatorStateInfo struct {
+		Height int64 `json:"height"`
+		Round  int   `json:"round"`
+		Step   int8  `json:"step"`
+
+		Signature []byte `json:"signature"`
+		SignBytes []byte `json:"sign_bytes"`
+	}
+
+	nodeKeyInfo struct {
+		NodeID string `json:"node_id"`
+	}
+)
+
+func (v validatorStateInfo) MarshalJSON() ([]byte, error) {
+	type original validatorStateInfo
+
+	return json.Marshal(&struct {
+		Signature string `json:"signature,omitempty"`
+		SignBytes string `json:"sign_bytes,omitempty"`
+		original
+	}{
+		Signature: fmt.Sprintf("%X", v.Signature),
+		SignBytes: fmt.Sprintf("%X", v.SignBytes),
+		original:  (original)(v),
+	})
+}
+
+type (
+	secretDisplayType interface {
+		validatorKeyInfo | validatorStateInfo | nodeKeyInfo
+	}
+
+	displayFn[T secretDisplayType] func(input T) error
+	outputFn[T secretDisplayType]  func(input T, io commands.IO) error
+)
+
+// wrapDisplayFn wraps the display function to output to the specific IO
+func wrapDisplayFn[T secretDisplayType](
+	io commands.IO,
+	outputFn outputFn[T],
+) displayFn[T] {
+	return func(input T) error {
+		return outputFn(input, io)
 	}
 }
 
 // readAndShowValidatorKey reads and shows the validator key from the given path
-func readAndShowValidatorKey(path string, io commands.IO) error {
+func readAndShowValidatorKey(
+	path string,
+	displayFn displayFn[validatorKeyInfo],
+) error {
 	validatorKey, err := readSecretData[privval.FilePVKey](path)
 	if err != nil {
 		return fmt.Errorf("unable to read validator key, %w", err)
 	}
 
+	info := validatorKeyInfo{
+		Address: validatorKey.Address.String(),
+		PubKey:  validatorKey.PubKey.String(),
+	}
+
+	// Print the output
+	return displayFn(info)
+}
+
+// outputTerminalVK outputs the validator key info raw to the terminal.
+// TODO we should consider ditching this "structured" terminal output, and having
+// similar key-value output we have for 'gnoland config get'
+func outputTerminalVK(info validatorKeyInfo, io commands.IO) error {
 	w := tabwriter.NewWriter(io.Out(), 0, 0, 2, ' ', 0)
 
 	if _, err := fmt.Fprintf(w, "[Validator Key Info]\n\n"); err != nil {
 		return err
 	}
 
-	if _, err := fmt.Fprintf(w, "Address:\t%s\n", validatorKey.Address.String()); err != nil {
+	if _, err := fmt.Fprintf(w, "Address:\t%s\n", info.Address); err != nil {
 		return err
 	}
 
-	if _, err := fmt.Fprintf(w, "Public Key:\t%s\n", validatorKey.PubKey.String()); err != nil {
+	if _, err := fmt.Fprintf(w, "Public Key:\t%s\n", info.PubKey); err != nil {
 		return err
 	}
 
@@ -119,12 +211,28 @@ func readAndShowValidatorKey(path string, io commands.IO) error {
 }
 
 // readAndShowValidatorState reads and shows the validator state from the given path
-func readAndShowValidatorState(path string, io commands.IO) error {
+func readAndShowValidatorState(path string, displayFn displayFn[validatorStateInfo]) error {
 	validatorState, err := readSecretData[privval.FilePVLastSignState](path)
 	if err != nil {
 		return fmt.Errorf("unable to read validator state, %w", err)
 	}
 
+	info := validatorStateInfo{
+		Height:    validatorState.Height,
+		Round:     validatorState.Round,
+		Step:      validatorState.Step,
+		Signature: validatorState.Signature,
+		SignBytes: validatorState.SignBytes,
+	}
+
+	// Print the output
+	return displayFn(info)
+}
+
+// outputTerminalVS outputs the validator state info raw to the terminal
+// TODO we should consider ditching this "structured" terminal output, and having
+// similar key-value output we have for 'gnoland config get'
+func outputTerminalVS(info validatorStateInfo, io commands.IO) error {
 	w := tabwriter.NewWriter(io.Out(), 0, 0, 2, ' ', 0)
 
 	if _, err := fmt.Fprintf(w, "[Last Validator Sign State Info]\n\n"); err != nil {
@@ -134,7 +242,7 @@ func readAndShowValidatorState(path string, io commands.IO) error {
 	if _, err := fmt.Fprintf(
 		w,
 		"Height:\t%d\n",
-		validatorState.Height,
+		info.Height,
 	); err != nil {
 		return err
 	}
@@ -142,7 +250,7 @@ func readAndShowValidatorState(path string, io commands.IO) error {
 	if _, err := fmt.Fprintf(
 		w,
 		"Round:\t%d\n",
-		validatorState.Round,
+		info.Round,
 	); err != nil {
 		return err
 	}
@@ -150,26 +258,26 @@ func readAndShowValidatorState(path string, io commands.IO) error {
 	if _, err := fmt.Fprintf(
 		w,
 		"Step:\t%d\n",
-		validatorState.Step,
+		info.Step,
 	); err != nil {
 		return err
 	}
 
-	if validatorState.Signature != nil {
+	if info.Signature != nil {
 		if _, err := fmt.Fprintf(
 			w,
 			"Signature:\t%X\n",
-			validatorState.Signature,
+			info.Signature,
 		); err != nil {
 			return err
 		}
 	}
 
-	if validatorState.SignBytes != nil {
+	if info.SignBytes != nil {
 		if _, err := fmt.Fprintf(
 			w,
 			"Sign Bytes:\t%X\n",
-			validatorState.SignBytes,
+			info.SignBytes,
 		); err != nil {
 			return err
 		}
@@ -179,12 +287,24 @@ func readAndShowValidatorState(path string, io commands.IO) error {
 }
 
 // readAndShowNodeKey reads and shows the node p2p key from the given path
-func readAndShowNodeKey(path string, io commands.IO) error {
+func readAndShowNodeKey(path string, displayFn displayFn[nodeKeyInfo]) error {
 	nodeKey, err := readSecretData[p2p.NodeKey](path)
 	if err != nil {
 		return fmt.Errorf("unable to read node key, %w", err)
 	}
 
+	info := nodeKeyInfo{
+		NodeID: nodeKey.ID().String(),
+	}
+
+	// Print the output
+	return displayFn(info)
+}
+
+// outputTerminalNK outputs the node key info raw to the terminal
+// TODO we should consider ditching this "structured" terminal output, and having
+// similar key-value output we have for 'gnoland config get'
+func outputTerminalNK(info nodeKeyInfo, io commands.IO) error {
 	w := tabwriter.NewWriter(io.Out(), 0, 0, 2, ' ', 0)
 
 	if _, err := fmt.Fprintf(w, "[Node P2P Info]\n\n"); err != nil {
@@ -194,10 +314,25 @@ func readAndShowNodeKey(path string, io commands.IO) error {
 	if _, err := fmt.Fprintf(
 		w,
 		"Node ID:\t%s\n",
-		nodeKey.ID(),
+		info.NodeID,
 	); err != nil {
 		return err
 	}
 
 	return w.Flush()
+}
+
+// outputJSONCommon outputs the given secrets to JSON
+func outputJSONCommon[T secretDisplayType](
+	input T,
+	io commands.IO,
+) error {
+	encoded, err := json.Marshal(input)
+	if err != nil {
+		return fmt.Errorf("unable to marshal JSON, %w", err)
+	}
+
+	io.Println(string(encoded))
+
+	return nil
 }
