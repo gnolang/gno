@@ -7,8 +7,10 @@ import (
 	"path/filepath"
 	"text/tabwriter"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
@@ -185,12 +187,30 @@ func readAndShowNodeKey(path string, io commands.IO) error {
 		return fmt.Errorf("unable to read node key, %w", err)
 	}
 
+	// Construct the config path
+	var (
+		nodeDir    = filepath.Join(filepath.Dir(path), "..")
+		configPath = constructConfigPath(nodeDir)
+
+		cfg = config.DefaultConfig()
+	)
+
+	// Check if there is an existing config file
+	if osm.FileExists(configPath) {
+		// Attempt to grab the config from disk
+		cfg, err = config.LoadConfig(nodeDir)
+		if err != nil {
+			return fmt.Errorf("unable to load config file, %w", err)
+		}
+	}
+
 	w := tabwriter.NewWriter(io.Out(), 0, 0, 2, ' ', 0)
 
 	if _, err := fmt.Fprintf(w, "[Node P2P Info]\n\n"); err != nil {
 		return err
 	}
 
+	// Print the ID info
 	if _, err := fmt.Fprintf(
 		w,
 		"Node ID:\t%s\n",
@@ -199,5 +219,21 @@ func readAndShowNodeKey(path string, io commands.IO) error {
 		return err
 	}
 
+	// Print the P2P address info
+	if _, err := fmt.Fprintf(
+		w,
+		"P2P Address:\t%s\n",
+		constructP2PAddress(
+			nodeKey.ID(),
+			cfg.P2P.ListenAddress,
+		),
+	); err != nil {
+		return err
+	}
+
 	return w.Flush()
+}
+
+func constructP2PAddress(nodeID p2p.ID, listenAddress string) string {
+	return fmt.Sprintf("%s@%s", nodeID, listenAddress)
 }
