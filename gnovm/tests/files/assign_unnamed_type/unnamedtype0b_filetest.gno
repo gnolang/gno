@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// main/files/assign_unnamed_type/unnamedtype0b_filetest.gno:11: cannot use main.word as int without explicit conversion
+// main/files/assign_unnamed_type/unnamedtype0b_filetest.gno:11:2: cannot use main.word as int without explicit conversion
