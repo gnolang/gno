@@ -147,7 +147,7 @@ func TestDebug(t *testing.T) {
 		{in: "b 37\nc\np b\n", out: "(3 int)"},
 		{in: "b 27\nc\np b\n", out: `("!zero" string)`},
 		{in: "b 22\nc\np t.A[3]\n", out: "Command failed: slice index out of bounds: 3 (len=3)"},
-		{in: "b 43\nc\nc\np i\nd\n", out: "(1 int)"},
+		{in: "b 43\nc\nc\nc\np i\ndetach\n", out: "(1 int)"},
 	})
 
 	runDebugTest(t, "../../tests/files/a1.gno", []dtest{
@@ -196,7 +196,8 @@ func TestRemoteDebug(t *testing.T) {
 func TestRemoteError(t *testing.T) {
 	_, err := evalTest(":xxx", "", debugTarget)
 	t.Log("err:", err)
-	if !strings.Contains(err, "tcp/xxx: unknown port") {
+	if !strings.Contains(err, "tcp/xxx: unknown port") &&
+		!strings.Contains(err, "tcp/xxx: modename nor servname provided, or not known") {
 		t.Error(err)
 	}
 }

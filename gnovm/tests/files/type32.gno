@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// main/files/type32.gno:9#1: incompatible types in binary expression: string ADD main.S
+// main/files/type32.gno:9:11: incompatible types in binary expression: string ADD main.S
