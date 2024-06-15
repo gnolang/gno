@@ -185,7 +185,7 @@ func makeHTTPDialer(remoteAddr string) func(string, string) (net.Conn, error) {
 }
 
 // protocol - client's protocol (for example, "http", "https", "wss", "ws", "tcp")
-// trimmedS - expectedRest of the address (for example, "192.0.2.1:25", "[2001:db8::1]:80") with "/" replaced with "."
+// trimmedS - rest of the address (for example, "192.0.2.1:25", "[2001:db8::1]:80") with "/" replaced with "."
 func toClientAddrAndParse(remoteAddr string) (string, string) {
 	protocol, address := parseRemoteAddr(remoteAddr)
 
