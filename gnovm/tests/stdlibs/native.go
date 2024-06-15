@@ -52,25 +52,6 @@ var nativeFuncs = [...]nativeFunc{
 	},
 	{
 		"std",
-		"TestCurrentRealm",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("string")},
-		},
-		func(m *gno.Machine) {
-			r0 := testlibs_std.TestCurrentRealm(
-				m,
-			)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"std",
 		"TestSkipHeights",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("int64")},
@@ -174,9 +155,10 @@ var nativeFuncs = [...]nativeFunc{
 	},
 	{
 		"std",
-		"testSetPrevRealm",
+		"testSetRealm",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("string")},
 		},
 		[]gno.FieldTypeExpr{},
 		func(m *gno.Machine) {
@@ -184,34 +166,16 @@ var nativeFuncs = [...]nativeFunc{
 			var (
 				p0  string
 				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
-			testlibs_std.X_testSetPrevRealm(
+			testlibs_std.X_testSetRealm(
 				m,
-				p0)
-		},
-	},
-	{
-		"std",
-		"testSetPrevAddr",
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("string")},
-		},
-		[]gno.FieldTypeExpr{},
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  string
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-
-			testlibs_std.X_testSetPrevAddr(
-				m,
-				p0)
+				p0, p1)
 		},
 	},
 	{
@@ -274,6 +238,41 @@ var nativeFuncs = [...]nativeFunc{
 			testlibs_std.X_testIssueCoins(
 				m,
 				p0, p1, p2)
+		},
+	},
+	{
+		"std",
+		"getRealm",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("int")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("string")},
+			{Name: gno.N("r1"), Type: gno.X("string")},
+		},
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  int
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0, r1 := testlibs_std.X_getRealm(
+				m,
+				p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
 		},
 	},
 	{

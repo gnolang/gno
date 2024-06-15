@@ -5,7 +5,6 @@ id: testing
 # Testing
 
 ```go
-func TestCurrentRealm() string
 func TestSkipHeights(count int64)
 func TestSetOrigCaller(addr Address)
 func TestSetOrigPkgAddr(addr Address)
@@ -13,16 +12,6 @@ func TestSetOrigSend(sent, spent Coins)
 func TestIssueCoins(addr Address, coins Coins)
 ```
 
-## TestCurrentRealm
-```go
-func TestCurrentRealm() string
-```
-Returns the current realm path.
-
-#### Usage
-```go
-currentRealmPath := std.TestCurrentRealm()
-```
 ---
 
 ## TestSkipHeights
@@ -30,6 +19,8 @@ currentRealmPath := std.TestCurrentRealm()
 func TestSkipHeights(count int64)
 ```
 Modifies the block height variable by skipping **count** blocks.
+
+It also increases block timestamp by 5 seconds for every single count
 
 #### Usage
 ```go

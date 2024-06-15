@@ -15,6 +15,7 @@ import (
 func Render(_ string) string {
 	dom := ui.DOM{Prefix: "r/gnoland/home:"}
 	dom.Title = "Welcome to Gno.land"
+	dom.Classes = []string{"gno-tmpl-section"}
 
 	// body
 	dom.Body.Append(introSection()...)
@@ -245,6 +246,7 @@ func discoverLinks() ui.Element {
 - [Visit the official documentation](https://docs.gno.land)
 - [Gno by Example](https://gno-by-example.com/)
 - [Efficient local development for Gno](https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev)
+- [Get testnet GNOTs](https://faucet.gno.land)
 
 </div><!-- end column-->
 <div class="column">
@@ -253,7 +255,7 @@ func discoverLinks() ui.Element {
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
-- [Portal Loop](https://docs.gno.land/concepts/portal-loop) 
+- [Portal Loop](https://docs.gno.land/concepts/portal-loop)
 - Testnet 4 (upcoming)
 - [Testnet 3](https://test3.gno.land/) (archive)
 - [Testnet 2](https://test2.gno.land/) (archive)

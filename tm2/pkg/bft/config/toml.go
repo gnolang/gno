@@ -69,10 +69,10 @@ func ResetTestRoot(testName string) (*Config, string) {
 	}
 
 	// ensure config and data subdirs are created
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultConfigDir), DefaultDirPerm); err != nil {
 		panic(err)
 	}
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultSecretsDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultSecretsDir), DefaultDirPerm); err != nil {
 		panic(err)
 	}
 	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultDBDir), DefaultDirPerm); err != nil {
