@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// main/files/assign_unnamed_type/method/declaredType6b_filetest.gno:15: cannot use uint as main.word without explicit conversion
+// main/files/assign_unnamed_type/method/declaredType6b_filetest.gno:15:2: cannot use uint as main.word without explicit conversion
