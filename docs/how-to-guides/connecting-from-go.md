@@ -5,7 +5,7 @@ id: connect-from-go
 # How to connect a Go app to Gno.land 
 
 This guide will show you how to connect to a Gno.land network from your Go application,
-using the [gnoclient](../reference/gnoclient/gnoclient.md) package.
+using the [gnoclient](../reference/gnoclient/README.md) package.
 
 For this guide, we will build a small Go app that will:
 
@@ -255,7 +255,7 @@ fmt.Println(qevalRes)
 ```
 
 To see all functionality the `gnoclient` package provides, see the gnoclient
-[reference page](../reference/gnoclient/gnoclient.md).
+[reference page](../reference/gnoclient/README.md).
 
 ## Conclusion
 
