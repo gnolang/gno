@@ -1,9 +1,10 @@
 package std
 
-import "errors"
+import (
+	"errors"
 
-//----------------------------------------
-// AddressSet
+	"gno.land/p/demo/avl"
+)
 
 type AddressSet interface {
 	Size() int
@@ -11,37 +12,25 @@ type AddressSet interface {
 	HasAddress(Address) bool
 }
 
-//----------------------------------------
-// AddressList implements AddressSet.
-// TODO implement AddressTree with avl.
-
-type AddressList []Address
-
-func NewAddressList() *AddressList {
-	return &AddressList{}
+type AddressList struct {
+	list *avl.Tree
 }
 
-func (alist *AddressList) Size() int {
-	return len(*alist)
+func NewAddressList() *AddressList {
+	return &AddressList{list: avl.NewTree()}
+}
+
+func (alist AddressList) Size() int {
+	return alist.list.Size()
 }
 
 func (alist *AddressList) AddAddress(newAddr Address) error {
-	// TODO optimize with binary algorithm
-	for _, addr := range *alist {
-		if addr == newAddr {
-			return errors.New("address already exists")
-		}
+	if alist.list.Set(newAddr.String(), newAddr) {
+		return errors.New("address already exists")
 	}
-	*alist = append(*alist, newAddr)
 	return nil
 }
 
-func (alist *AddressList) HasAddress(newAddr Address) bool {
-	// TODO optimize with binary algorithm
-	for _, addr := range *alist {
-		if addr == newAddr {
-			return true
-		}
-	}
-	return false
+func (alist AddressList) HasAddress(newAddr Address) bool {
+	return alist.list.Has(newAddr.String())
 }
