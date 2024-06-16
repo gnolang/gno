@@ -1,6 +1,7 @@
 package doctest
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -20,7 +21,8 @@ package main
 func main() {
 	println("Hello, World!")
 }`,
-				T: "go",
+				T:       "go",
+				Package: "main",
 			},
 			expected: "Hello, World!\n",
 		},
@@ -34,7 +36,8 @@ func main() {
 	println("Hello");
 	println("World")
 }`,
-				T: "go",
+				T:       "go",
+				Package: "main",
 			},
 			expected: "Hello\nWorld\n",
 		},
@@ -49,7 +52,8 @@ func main() {
 	b := 20
 	println(a + b)
 }`,
-				T: "go",
+				T:       "go",
+				Package: "main",
 			},
 			expected: "30\n",
 		},
@@ -73,13 +77,22 @@ splay a t = rebuild $ path a t [(undefined,t)]`,
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			res, err := executeCodeBlock(tc.codeBlock)
+			// res, err := executeCodeBlock(tc.codeBlock)
+			res, err := ExecuteCodeBlock(tc.codeBlock)
 			if tc.isErr && err == nil {
 				t.Errorf("%s did not return an error", tc.name)
 			}
 
 			if res != tc.expected {
 				t.Errorf("%s = %v, want %v", tc.name, res, tc.expected)
+			}
+
+			if tc.codeBlock.T == "go" {
+				if tc.codeBlock.Package != "" {
+					if tc.codeBlock.Package != "main" {
+						t.Errorf("%s = %v, want %v", tc.name, tc.codeBlock.Package, "main")
+					}
+				}
 			}
 		})
 	}
@@ -106,7 +119,76 @@ func TestExecuteCodeBlock_ShouldPanic(t *testing.T) {
 					t.Errorf("%s did not panic", tc.name)
 				}
 			}()
-			_, _ = executeCodeBlock(tc.codeBlock)
+			_, _ = ExecuteCodeBlock(tc.codeBlock)
+		})
+	}
+}
+
+func TestExtractOptions(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []string
+	}{
+		{
+			name: "Ignore option",
+			input: `
+//gno: ignore
+package main
+
+func main() {
+	println("This code should be ignored")
+}
+`,
+			expected: []string{"ignore"},
+		},
+		{
+			name: "No run option",
+			input: `
+//gno: no_run
+package main
+
+func main() {
+	println("This code should not run")
+}
+`,
+			expected: []string{"no_run"},
+		},
+		{
+			name: "Should panic option",
+			input: `
+//gno: should_panic
+package main
+
+func main() {
+	panic("Expected panic")
+}
+`,
+			expected: []string{"should_panic"},
+		},
+		{
+			name: "No options",
+			input: `
+package main
+
+func main() {
+	println("No options")
+}
+`,
+			expected: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			codeBlock := CodeBlock{
+				Content: tt.input,
+				T:       "go",
+			}
+			options := extractOptions(codeBlock.Content)
+			if !reflect.DeepEqual(options, tt.expected) {
+				t.Errorf("got %v, want %v", options, tt.expected)
+			}
 		})
 	}
 }

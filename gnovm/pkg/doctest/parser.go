@@ -3,7 +3,8 @@ package doctest
 import (
 	"context"
 	"fmt"
-	"os"
+	"go/parser"
+	"go/token"
 	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -28,21 +29,13 @@ const (
 
 // CodeBlock represents a block of code extracted from the input text.
 type CodeBlock struct {
-	Content string // The content of the code block.
-	Start   uint32 // The start byte position of the code block in the input text.
-	End     uint32 // The end byte position of the code block in the input text.
-	T       string // The language type of the code block.
-	Index   int    // The index of the code block in the sequence of extracted blocks.
-}
-
-// ReadMarkdownFile reads a markdown file and returns its content
-func ReadMarkdownFile(path string) (string, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return "", fmt.Errorf("failed to read file: %w", err)
-	}
-
-	return string(content), nil
+	Content string   // The content of the code block.
+	Start   uint32   // The start byte position of the code block in the input text.
+	End     uint32   // The end byte position of the code block in the input text.
+	T       string   // The language type of the code block.
+	Index   int      // The index of the code block in the sequence of extracted blocks.
+	Package string   // The package name extracted from the code block.
+	Options []string // The execution options extracted from the code block comments.
 }
 
 // getCodeBlocks extracts all code blocks from the provided markdown text.
@@ -79,7 +72,7 @@ func extractCodeBlocks(rootNode *sitter.Node, body string) []CodeBlock {
 	var traverse func(node *sitter.Node)
 	traverse = func(node *sitter.Node) {
 		if node.Type() == CODE_FENCE_CONTENT {
-			codeBlock := createCodeBlock(node, body, len(codeBlocks))
+			codeBlock := CreateCodeBlock(node, body, len(codeBlocks))
 			codeBlocks = append(codeBlocks, codeBlock)
 		}
 
@@ -93,8 +86,8 @@ func extractCodeBlocks(rootNode *sitter.Node, body string) []CodeBlock {
 	return codeBlocks
 }
 
-// createCodeBlock creates a CodeBlock from a code fence content node.
-func createCodeBlock(node *sitter.Node, body string, index int) CodeBlock {
+// CreateCodeBlock creates a CodeBlock from a code fence content node.
+func CreateCodeBlock(node *sitter.Node, body string, index int) CodeBlock {
 	startByte := node.StartByte()
 	endByte := node.EndByte()
 	content := body[startByte:endByte]
@@ -102,12 +95,21 @@ func createCodeBlock(node *sitter.Node, body string, index int) CodeBlock {
 	language := detectLanguage(node, body)
 	startByte, endByte, content = adjustContentBoundaries(node, startByte, endByte, content, body)
 
+	pkgName := ""
+	if language == "go" {
+		pkgName = extractPackageName(content)
+	}
+
+	options := extractOptions(content)
+
 	return CodeBlock{
 		Content: content,
 		Start:   startByte,
 		End:     endByte,
 		T:       language,
 		Index:   index,
+		Package: pkgName,
+		Options: options,
 	}
 }
 
@@ -177,4 +179,50 @@ func findEndMarkerNode(parentNode *sitter.Node) *sitter.Node {
 	}
 
 	return nil
+}
+
+func extractPackageName(content string) string {
+	fset := token.NewFileSet()
+
+	node, err := parser.ParseFile(fset, "", content, parser.PackageClauseOnly)
+	if err != nil {
+		fmt.Println("Failed to parse package name:", err)
+		return ""
+	}
+
+	if node.Name != nil {
+		return node.Name.Name
+	}
+
+	return ""
+}
+
+func extractOptions(content string) []string {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, "", content, parser.ParseComments)
+	if err != nil {
+		fmt.Println("Failed to parse options:", err)
+		return nil
+	}
+
+	opts := make([]string, 0)
+	for _, commentGroup := range node.Comments {
+		for _, comment := range commentGroup.List {
+			if strings.HasPrefix(comment.Text, "//gno:") {
+				opt := strings.TrimPrefix(comment.Text, "//gno:")
+				opts = append(opts, strings.TrimSpace(opt))
+			}
+		}
+	}
+
+	return opts
+}
+
+func (c *CodeBlock) ContainsOptions(target string) bool {
+	for _, option := range c.Options {
+		if option == target {
+			return true
+		}
+	}
+	return false
 }
