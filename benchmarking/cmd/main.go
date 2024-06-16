@@ -51,5 +51,4 @@ func main() {
 	if err != nil {
 		log.Printf("Error removing tmp file: %v", err)
 	}
-
 }

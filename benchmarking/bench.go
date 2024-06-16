@@ -39,7 +39,6 @@ func InitStack() {
 	storeAccumSize = [256]int64{}
 	storeStartTime = [256]time.Time{}
 	curStoreCode = invalidCode
-
 }
 
 func StartOpCode(code byte) {
@@ -55,9 +54,7 @@ func StartOpCode(code byte) {
 		} else {
 			// regular check
 			panic("Can not start a non-stopped timer")
-
 		}
-
 	}
 	// OpCode, such as OpStaticTypeOf, are pushed on the stack since
 	// it invovles recurisve machine.Run()
@@ -71,14 +68,12 @@ func StartOpCode(code byte) {
 
 	isOpCodeStarted = true
 	curOpCode = code
-
 }
 
 // StopMeasurement ends the current measurement and resumes the previous one
 // if one exists. It accepts the number of bytes that were read/written to/from
 // the store. This value is zero if the operation is not a read or write.
 func StopOpCode() {
-
 	code := curOpCode
 
 	if opStartTime[code] == timeZero && code != opStaticTypeOf {
@@ -92,22 +87,18 @@ func StopOpCode() {
 		ResumeOpCode()
 	}
 	curOpCode = invalidCode
-
 }
 
 // push current op code on stack when an opcode executes recurisve machine.Run()
 func PushOp(curCode byte) {
-
 	if curCode == invalidCode {
 		panic("Should not put an invalidCode on the stack")
 	}
 	stack = append(stack, curCode)
-
 }
 
 // peek the top from stack
 func PeekOp() byte {
-
 	top := len(stack) - 1
 	if top >= 0 {
 		return stack[top]
@@ -118,7 +109,6 @@ func PeekOp() byte {
 
 // pop the top from stack and make it current
 func PopOp() {
-
 	top := len(stack) - 1
 	if top >= 0 {
 		code := stack[top]
@@ -160,25 +150,19 @@ func ResumeOpCode() {
 		panic("Should not resume a running timer")
 	}
 	opStartTime[code] = time.Now()
-
 }
 
 func StartStore(code byte) {
-
 	if storeStartTime[code] != timeZero {
-
 		panic("Can not start a non-stopped timer")
-
 	}
 	storeStartTime[code] = time.Now()
 	storeCounts[code]++
 	curStoreCode = code
-
 }
 
 // assume there is no recursive call for store.
 func StopStore(size int) {
-
 	code := curStoreCode
 
 	if storeStartTime[code] == timeZero {
@@ -191,5 +175,4 @@ func StopStore(size int) {
 	storeAccumSize[code] += int64(size)
 
 	curStoreCode = invalidCode
-
 }

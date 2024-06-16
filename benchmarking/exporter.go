@@ -56,6 +56,7 @@ func (e *exporter) close() {
 	e.file.Sync()
 	e.file.Close()
 }
+
 func FinishStore() {
 	for i := 0; i < 256; i++ {
 		count := storeCounts[i]
@@ -92,7 +93,6 @@ func FinishRun() {
 			} else { // regular check
 				panic("timer should have stopped before FinishRun")
 			}
-
 		}
 
 		code := [2]byte{byte(i), 0x00}
@@ -100,14 +100,12 @@ func FinishRun() {
 
 	}
 	ResetRun()
-
 }
 
 // It reset each machine Runs
 // We do not reset stack since there are recursive m.Run and
 // the timer on the stack.
 func ResetRun() {
-
 	opCounts = [256]int64{}
 	opAccumDur = [256]time.Duration{}
 	opStartTime = [256]time.Time{}
@@ -119,8 +117,8 @@ func ResetRun() {
 		ResumeOpCode()
 		isOpCodeStarted = true
 	}
-
 }
+
 func Finish() {
 	fileWriter.close()
 }
