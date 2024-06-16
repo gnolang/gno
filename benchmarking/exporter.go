@@ -2,7 +2,6 @@ package benchmarking
 
 import (
 	"encoding/binary"
-	"fmt"
 	"log"
 	"math"
 	"os"
@@ -57,8 +56,71 @@ func (e *exporter) close() {
 	e.file.Sync()
 	e.file.Close()
 }
+func FinishStore() {
+	for i := 0; i < 256; i++ {
+		count := storeCounts[i]
 
+		if count == 0 {
+			continue
+		}
+		// check unstopped timer
+		if storeStartTime[i] != timeZero {
+			panic("timer should have stopped before FinishRun")
+		}
+
+		code := [2]byte{0x00, byte(i)}
+
+		fileWriter.export(
+			code,
+			storeAccumDur[i]/time.Duration(count),
+			int(storeAccumSize[i]/count),
+		)
+	}
+}
+
+func FinishRun() {
+	for i := 0; i < 256; i++ {
+
+		if opCounts[i] == 0 {
+			continue
+		}
+		// check unstopped timer
+		if opStartTime[i] != timeZero {
+			if len(stack) > 0 && i == int(PeekOp()) { // exception
+				curOpCode = byte(i)
+				PauseOpCode()
+			} else { // regular check
+				panic("timer should have stopped before FinishRun")
+			}
+
+		}
+
+		code := [2]byte{byte(i), 0x00}
+		fileWriter.export(code, opAccumDur[i]/time.Duration(opCounts[i]), 0)
+
+	}
+	ResetRun()
+
+}
+
+// It reset each machine Runs
+// We do not reset stack since there are recursive m.Run and
+// the timer on the stack.
+func ResetRun() {
+
+	opCounts = [256]int64{}
+	opAccumDur = [256]time.Duration{}
+	opStartTime = [256]time.Time{}
+	curOpCode = invalidCode
+	isOpCodeStarted = false
+
+	if len(stack) > 0 {
+		curOpCode = PeekOp()
+		ResumeOpCode()
+		isOpCodeStarted = true
+	}
+
+}
 func Finish() {
-	fmt.Println("## Unprocessed items on Stack: ", stackSize)
 	fileWriter.close()
 }

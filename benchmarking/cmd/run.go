@@ -13,7 +13,7 @@ import (
 
 const (
 	opcodesPkgPath = "gno.land/r/x/benchmark/opcodes"
-	rounds         = 100
+	rounds         = 1000
 )
 
 func benchmarkOpCodes(bstore gno.Store, dir string) {

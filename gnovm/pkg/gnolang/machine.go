@@ -257,6 +257,9 @@ func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode
 	if bm.OpsEnabled || bm.StorageEnabled {
 		bm.InitStack()
 	}
+	if bm.StorageEnabled {
+		defer bm.FinishStore()
+	}
 	return m.runMemPackage(memPkg, save, false)
 }
 
@@ -709,9 +712,12 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if debug {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
-	if bm.OpsEnabled {
+	if bm.OpsEnabled || bm.StorageEnabled {
 		// reset the benchmark stack
 		bm.InitStack()
+	}
+	if bm.StorageEnabled {
+		defer bm.FinishStore()
 	}
 	// X must not have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
@@ -986,6 +992,7 @@ const (
 	OpRangeIterMap      Op = 0xD5
 	OpRangeIterArrayPtr Op = 0xD6
 	OpReturnCallDefers  Op = 0xD7 // TODO rename?
+	OpVoid              Op = 0xFF // For profiling simple operation
 )
 
 const GasFactorCPU int64 = 1
@@ -1133,13 +1140,25 @@ const (
 // main run loop.
 
 func (m *Machine) Run() {
+	if bm.OpsEnabled {
+		defer func() {
+			// output each machine run results to file
+			bm.FinishRun()
+		}()
+	}
 	for {
 		if m.Debugger.enabled {
 			m.Debug()
 		}
 		op := m.PopOp()
 		if bm.OpsEnabled {
-			bm.StartMeasurement(bm.VMOpCode(byte(op)))
+
+			// benchmark the operation.
+			bm.StartOpCode(byte(OpVoid))
+			bm.StopOpCode()
+
+			bm.StartOpCode(byte(op))
+
 		}
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
@@ -1147,7 +1166,7 @@ func (m *Machine) Run() {
 		case OpHalt:
 			m.incrCPU(OpCPUHalt)
 			if bm.OpsEnabled {
-				bm.StopMeasurement(0)
+				bm.StopOpCode()
 			}
 			return
 		case OpNoop:
@@ -1323,7 +1342,13 @@ func (m *Machine) Run() {
 			m.doOpTypeAssert2()
 		case OpStaticTypeOf:
 			m.incrCPU(OpCPUStaticTypeOf)
+			if bm.OpsEnabled {
+				bm.PushOp(byte(op))
+			}
 			m.doOpStaticTypeOf()
+			if bm.OpsEnabled {
+				bm.PopOp()
+			}
 		case OpCompositeLit:
 			m.incrCPU(OpCPUCompositeLit)
 			m.doOpCompositeLit()
@@ -1468,7 +1493,7 @@ func (m *Machine) Run() {
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
 		}
 		if bm.OpsEnabled {
-			bm.StopMeasurement(0)
+			bm.StopOpCode()
 		}
 	}
 }

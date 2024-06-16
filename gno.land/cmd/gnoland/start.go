@@ -61,9 +61,6 @@ type startCfg struct {
 }
 
 func newStartCmd(io commands.IO) *commands.Command {
-	if bm.OpsEnabled || bm.StorageEnabled {
-		bm.Init("benchmarks.bin")
-	}
 	cfg := &startCfg{}
 
 	return commands.NewCommand(
