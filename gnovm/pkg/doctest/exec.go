@@ -3,7 +3,6 @@ package doctest
 import (
 	"bytes"
 	"fmt"
-	_ "strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
@@ -21,6 +20,8 @@ func executeCodeBlock(c CodeBlock) (string, error) {
 	m.Output = &output
 
 	pkgContent := c.Content
+
+	// throw panic when parsing fails
 	parsedCode := gno.MustParseFile(fmt.Sprintf("%d.%s", c.Index, c.T), pkgContent)
 
 	m.RunFiles(parsedCode)

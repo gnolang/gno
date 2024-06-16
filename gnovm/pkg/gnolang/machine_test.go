@@ -26,7 +26,7 @@ func TestRunMemPackageWithOverrides_revertToOld(t *testing.T) {
 	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 	store := NewStore(nil, baseStore, iavlStore)
-	m := NewMachine("std", store)
+	m := NewMachine("main", store)
 	m.RunMemPackageWithOverrides(&std.MemPackage{
 		Name: "std",
 		Path: "std",

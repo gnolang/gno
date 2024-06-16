@@ -75,22 +75,22 @@ func parseMarkdown(parser *sitter.Parser, body string) (*sitter.Tree, error) {
 func extractCodeBlocks(rootNode *sitter.Node, body string) []CodeBlock {
 	codeBlocks := make([]CodeBlock, 0)
 
-    // define a recursive function to traverse the parse tree
-    var traverse func(node *sitter.Node)
-    traverse = func(node *sitter.Node) {
-        if node.Type() == CODE_FENCE_CONTENT {
-            codeBlock := createCodeBlock(node, body, len(codeBlocks))
-            codeBlocks = append(codeBlocks, codeBlock)
-        }
+	// define a recursive function to traverse the parse tree
+	var traverse func(node *sitter.Node)
+	traverse = func(node *sitter.Node) {
+		if node.Type() == CODE_FENCE_CONTENT {
+			codeBlock := createCodeBlock(node, body, len(codeBlocks))
+			codeBlocks = append(codeBlocks, codeBlock)
+		}
 
-        for i := 0; i < int(node.ChildCount()); i++ {
-            child := node.Child(i)
-            traverse(child)
-        }
-    }
+		for i := 0; i < int(node.ChildCount()); i++ {
+			child := node.Child(i)
+			traverse(child)
+		}
+	}
 
-    traverse(rootNode)
-    return codeBlocks
+	traverse(rootNode)
+	return codeBlocks
 }
 
 // createCodeBlock creates a CodeBlock from a code fence content node.
@@ -129,71 +129,51 @@ func detectLanguage(node *sitter.Node, body string) string {
 func removeTrailingBackticks(content string) string {
 	// https://www.markdownguide.org/extended-syntax/#fenced-code-blocks
 	// a code block can have a closing fence with three or more backticks or tildes.
-    content = strings.TrimRight(content, "`~")
-    if len(content) >= 3 {
+	content = strings.TrimRight(content, "`~")
+	if len(content) >= 3 {
 		blockSuffix := content[len(content)-3:]
 		switch blockSuffix {
-			case Backticks, Tildes:
-				return content[:len(content)-3]
-			default:
-				return content
-			}
-    }
-    return content
+		case Backticks, Tildes:
+			return content[:len(content)-3]
+		default:
+			return content
+		}
+	}
+	return content
 }
 
 // adjustContentBoundaries adjusts the content boundaries of a code block node.
 // The function checks the parent node type and adjusts the end byte position if it is a fenced code block.
 func adjustContentBoundaries(node *sitter.Node, startByte, endByte uint32, content, body string) (uint32, uint32, string) {
-    parentNode := node.Parent()
-    if parentNode == nil {
-        return startByte, endByte, removeTrailingBackticks(content)
-    }
+	parentNode := node.Parent()
+	if parentNode == nil {
+		return startByte, endByte, removeTrailingBackticks(content)
+	}
 
-    // adjust the end byte based on the parent node type
-    if parentNode.Type() == FENCED_CODE_BLOCK {
-        // find the end marker node
-        endMarkerNode := findEndMarkerNode(parentNode)
-        if endMarkerNode != nil {
-            endByte = endMarkerNode.StartByte()
-            content = body[startByte:endByte]
-        }
-    }
+	// adjust the end byte based on the parent node type
+	if parentNode.Type() == FENCED_CODE_BLOCK {
+		// find the end marker node
+		endMarkerNode := findEndMarkerNode(parentNode)
+		if endMarkerNode != nil {
+			endByte = endMarkerNode.StartByte()
+			content = body[startByte:endByte]
+		}
+	}
 
-    return startByte, endByte, removeTrailingBackticks(content)
+	return startByte, endByte, removeTrailingBackticks(content)
 }
 
 // findEndMarkerNode finds the end marker node of a fenced code block using tree-sitter.
 // It takes the parent node of the code block as input and iterates through its child nodes.
 func findEndMarkerNode(parentNode *sitter.Node) *sitter.Node {
-    for i := 0; i < int(parentNode.ChildCount()); i++ {
-        child := parentNode.Child(i)
+	for i := 0; i < int(parentNode.ChildCount()); i++ {
+		child := parentNode.Child(i)
 		switch child.Type() {
 		case CODE_FENCE_END, CODE_FENCE_END_BACKTICKS:
 			return child
 		default:
 			continue
 		}
-    }
-
-	return nil
-}
-
-// writeCodeBlockToFile writes a extracted code block to a temp file.
-// This generated file will be executed by gnovm.
-func writeCodeBlockToFile(c CodeBlock) error {
-	if c.T == "go" { c.T = "gno" }
-
-	fileName := fmt.Sprintf("%d.%s", c.Index, c.T)
-	file, err := os.Create(fileName) // TODO: use temp file
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	_, err = file.WriteString(c.Content)
-	if err != nil {
-		return err
 	}
 
 	return nil

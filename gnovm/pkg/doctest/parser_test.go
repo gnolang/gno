@@ -1,7 +1,6 @@
 package doctest
 
 import (
-	"os"
 	"strings"
 	"testing"
 )
@@ -123,37 +122,6 @@ func TestGetCodeBlocks(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestWriteCodeBlockToFile(t *testing.T) {
-	t.Parallel()
-	cb := CodeBlock{
-		Content: "package main\n\nfunc main() {\n\tprintln(\"Hello, World!\")\n}",
-		T:       "go",
-		Index:   1,
-	}
-
-	err := writeCodeBlockToFile(cb)
-	if err != nil {
-		t.Errorf("writeCodeBlockToFile failed: %v", err)
-	}
-
-	filename := "1.gno"
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		t.Errorf("file %s not created", filename)
-	}
-
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		t.Errorf("failed to read file %s: %v", filename, err)
-	}
-
-	expectedContent := cb.Content
-	if string(content) != expectedContent {
-		t.Errorf("file content mismatch\nexpected: %s\nactual: %s", expectedContent, string(content))
-	}
-
-	os.Remove(filename)
 }
 
 // ignore whitespace in the source code
