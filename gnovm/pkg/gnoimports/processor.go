@@ -7,7 +7,7 @@ import (
 	"go/parser"
 	"go/printer"
 	"go/token"
-	"os"
+	"io"
 	"path/filepath"
 
 	"golang.org/x/tools/go/ast/astutil"
@@ -18,88 +18,119 @@ const tabWidth = 8
 
 type ParseError error
 
-type Package struct {
-	Path string
-	Name string
-	Dir  string
+type parsedPackage struct {
+	error error
+	files map[string]*ast.File
+	decls map[*ast.Object]ast.Decl
 }
 
 type Processor struct {
 	resolver Resolver
 	fset     *token.FileSet
 
-	// cache parsed file
-	fcache map[string]*ast.File
+	// cache package parsing in `FormatFile` call
+	pkgdirCache map[string]Package // dir -> pkg cache package dir
+
+	// cache for global parsed package
+	parsedPackage map[string]*parsedPackage // pkgdir -> parsed package
 }
 
 func NewProcessor(r Resolver) *Processor {
 	return &Processor{
-		resolver: r,
-		fset:     token.NewFileSet(),
-		fcache:   map[string]*ast.File{},
+		resolver:      r,
+		fset:          token.NewFileSet(),
+		pkgdirCache:   make(map[string]Package),
+		parsedPackage: make(map[string]*parsedPackage),
 	}
 }
 
-// FormatImportFromSource processes a single Gno file and adds necessary imports.
 // FormatImportFromSource parse and format the source from src. The type of the argument
 // for the src parameter must be string, []byte, or [io.Reader].
 func (p *Processor) FormatImportFromSource(filename string, src any) ([]byte, error) {
-	if src == nil {
-		return nil, fmt.Errorf("source input cannot be nil")
-	}
-
 	// Parse the source file
-	node, err := p.parseFile(filename, src)
+	nodefile, err := p.parseFile(filename, src)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse source: %w", ParseError(err))
 	}
 
-	pkgDecls := make(map[string]*ast.File)
+	// Collect top level declarations within the source
+	pkgDecls := make(map[*ast.Object]ast.Decl)
+	collectTopDeclaration(nodefile, pkgDecls)
+
 	// Process and format the parsed node.
-	return p.processAndFormat(node, filename, pkgDecls)
+	return p.processAndFormat(nodefile, filename, pkgDecls)
 }
 
-// FormatImportFromFile processes a single Gno file, format it and adds necessary imports.
-func (p *Processor) FormatImportFromFile(filep string) ([]byte, error) {
-	pkgDecls := make(map[string]*ast.File)
+// FormatFile processes a single Gno file from the given Package and filename.
+func (p *Processor) FormatPackageFile(pkg Package, filename string) ([]byte, error) {
+	// Process package files.
+	pkgc := p.processPackageFiles(pkg.Path(), pkg)
+	if pkgc.error != nil {
+		return nil, fmt.Errorf("unable to process package: %w", pkgc.error)
+	}
+
+	// Retrieve the nodefile for the file.
+	nodefile, ok := pkgc.files[filename]
+	if !ok {
+		return nil, fmt.Errorf("not a valid gno file: %s", filename)
+	}
+
+	return p.processAndFormat(nodefile, filename, pkgc.decls)
+}
+
+// FormatFile processes a single Gno file from the given file path.
+func (p *Processor) FormatFile(file string) ([]byte, error) {
+	filename := filepath.Base(file)
+	dir := filepath.Dir(file)
+
+	pkg, ok := p.pkgdirCache[dir]
+	if !ok {
+		var err error
+		pkg, err = ParsePackage(p.fset, "", dir)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse package %q: %w", dir, err)
+		}
+		p.pkgdirCache[dir] = pkg
+	}
+
+	if pkg == nil {
+		// Fallback on src
+		return p.FormatImportFromSource(filename, nil)
+	}
+
+	path := pkg.Path()
+	if path == "" {
+		// Use dir as package path
+		path = dir
+	}
 
 	// Process package files.
-	_, err := p.processPackageFiles(filepath.Dir(filep), pkgDecls)
-	if err != nil {
-		return nil, fmt.Errorf("unable to process package: %w", err)
+	pkgc := p.processPackageFiles(dir, pkg)
+	if pkgc.error != nil {
+		return nil, fmt.Errorf("unable to process package: %w", pkgc.error)
 	}
 
-	// Retrieve the node for the file.
-	node, ok := pkgDecls[filepath.Base(filep)]
+	// Retrieve the nodefile for the file.
+	nodefile, ok := pkgc.files[filename]
 	if !ok {
-		return nil, fmt.Errorf("not a valid gno file: %s", filep)
+		return nil, fmt.Errorf("not a valid gno file: %s", filename)
 	}
 
-	// Process and format the parsed node.
-	return p.processAndFormat(node, filep, pkgDecls)
+	return p.processAndFormat(nodefile, filename, pkgc.decls)
 }
 
-func (p *Processor) parseFile(filename string, src any) (file *ast.File, err error) {
-	var ok bool
-	if file, ok = p.fcache[filename]; !ok {
-		// Parse the source file
-		file, err = parser.ParseFile(p.fset, filename, src, parser.ParseComments|parser.AllErrors)
-		if err != nil {
-			return nil, fmt.Errorf("unable to parse file %q: %w", filename, ParseError(err))
-		}
-
-		p.fcache[filename] = file
+func (p *Processor) parseFile(path string, src any) (file *ast.File, err error) {
+	// Parse the source file
+	file, err = parser.ParseFile(p.fset, path, src, parser.ParseComments|parser.AllErrors)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse file %q: %w", path, ParseError(err))
 	}
 
 	return file, nil
 }
 
 // Helper function to process and format a parsed AST node.
-func (p *Processor) processAndFormat(file *ast.File, filename string, pkgDecls map[string]*ast.File) ([]byte, error) {
-	// Collect top declarations.
-	topDecls := make(map[*ast.Object]ast.Decl)
-	collectTopDeclarations(pkgDecls, topDecls)
-
+func (p *Processor) processAndFormat(file *ast.File, filename string, topDecls map[*ast.Object]ast.Decl) ([]byte, error) {
 	// Collect unresolved
 	unresolved := collectUnresolved(file, topDecls)
 
@@ -127,35 +158,33 @@ func (p *Processor) processAndFormat(file *ast.File, filename string, pkgDecls m
 }
 
 // processPackageFiles processes Gno package files and collects top-level declarations.
-func (p *Processor) processPackageFiles(root string, filesNode map[string]*ast.File) (map[*ast.Object]ast.Decl, error) {
-	declmap := make(map[*ast.Object]ast.Decl)
-	return declmap, filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+func (p *Processor) processPackageFiles(path string, pkg Package) *parsedPackage {
+	pkgc, ok := p.parsedPackage[path]
+	if ok {
+		return pkgc
+	}
+
+	pkgc = &parsedPackage{
+		decls: make(map[*ast.Object]ast.Decl),
+		files: map[string]*ast.File{},
+	}
+	pkgc.error = ReadWalkPackage(pkg, func(filename string, r io.Reader, err error) error {
 		if err != nil {
-			return fmt.Errorf("unable to walk on %q: %w", path, err)
+			return fmt.Errorf("unable to read %q: %w", filename, err)
 		}
 
-		if info.IsDir() {
-			if path == root {
-				return nil
-			}
-
-			return filepath.SkipDir
-		}
-
-		filename := info.Name()
-		if !isGnoFile(filename) {
-			return nil
-		}
-
-		file, err := p.parseFile(path, nil)
+		file, err := p.parseFile(filename, r)
 		if err != nil {
 			return ParseError(err)
 		}
 
-		collectTopDeclaration(file, declmap)
-		filesNode[filename] = file
+		collectTopDeclaration(file, pkgc.decls)
+		pkgc.files[filename] = file
 		return nil
 	})
+	p.parsedPackage[path] = pkgc
+
+	return pkgc
 }
 
 // collectTopDeclarations collects top-level declarations from package files.
@@ -248,7 +277,7 @@ func (p *Processor) cleanupPreviousImports(node *ast.File, knownDecls map[*ast.O
 
 			name := filepath.Base(pkgpath)
 			if pkg := p.resolver.ResolvePath(pkgpath); pkg != nil {
-				name = pkg.Name
+				name = pkg.Name()
 			}
 
 			isNamedImport := imp.Name != nil && imp.Name.Name != "_"
@@ -282,15 +311,11 @@ func (p *Processor) resolve(
 ) {
 	for decl, sels := range unresolved {
 		for _, pkg := range p.resolver.ResolveName(decl) {
-			// If pkg dir is empty we cannot check for declaration.
-			// So we assume pkg declaration is correct
-			if pkg.Dir != "" {
-				if !hasDeclExposed(p, sels, pkg.Dir) {
-					continue
-				}
+			if !hasDeclExposed(p, sels, pkg) {
+				continue
 			}
 
-			astutil.AddImport(p.fset, node, pkg.Path)
+			astutil.AddImport(p.fset, node, pkg.Path())
 			delete(unresolved, decl)
 			break
 		}
@@ -298,14 +323,13 @@ func (p *Processor) resolve(
 }
 
 // hasDeclExposed checks if declarations are exposed in the specified path.
-func hasDeclExposed(p *Processor, decls map[string]bool, path string) bool {
-	filesNode := make(map[string]*ast.File)
-	exposed, err := p.processPackageFiles(path, filesNode)
-	if err != nil {
+func hasDeclExposed(p *Processor, decls map[string]bool, pkg Package) bool {
+	exposed := p.processPackageFiles(pkg.Path(), pkg)
+	if exposed.error != nil {
 		return false
 	}
 
-	for obj := range exposed {
+	for obj := range exposed.decls {
 		if !ast.IsExported(obj.Name) {
 			continue
 		}

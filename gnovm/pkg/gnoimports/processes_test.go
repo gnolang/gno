@@ -13,19 +13,30 @@ import (
 func TestFormatImportFromSource(t *testing.T) {
 	mockResolver := NewMockResolver()
 
-	// Add packages to the MockResolver
-	mockResolver.AddPackage(&Package{
-		Path: "example.com/mypkg",
-		Name: "mypkg",
-	})
+	mp := &MockPackage{
+		PkgPath: "example.com/mypkg",
+		PkgName: "mypkg",
+	}
 
-	processor := NewProcessor(mockResolver)
+	pkgcontent := `package mypkg
+
+func MyFunc(str string) string{
+	return "Hello: "+str
+}`
+	mp.AddFile("my.gno", []byte(pkgcontent))
+	mockResolver.AddPackage(mp)
+
 	sourceCode := `package main
 
 func main() {
 	str := "hello, world"
 	mypkg.MyFunc(str)
 }`
+
+	// Add packages to the MockResolver
+	processor := NewProcessor(mockResolver)
+	formatted, err := processor.FormatImportFromSource("main.go", sourceCode)
+	require.NoError(t, err)
 
 	expectedOutput := `package main
 
@@ -37,9 +48,6 @@ func main() {
 }
 `
 
-	formatted, err := processor.FormatImportFromSource("main.go", sourceCode)
-	require.NoError(t, err)
-
 	require.Equal(t, expectedOutput, string(formatted))
 }
 
@@ -47,10 +55,18 @@ func TestFormatImportFromFile(t *testing.T) {
 	mockResolver := NewMockResolver()
 
 	// Add packages to the MockResolver
-	mockResolver.AddPackage(&Package{
-		Path: "example.com/mypkg",
-		Name: "mypkg",
-	})
+	mp := &MockPackage{
+		PkgPath: "example.com/mypkg",
+		PkgName: "mypkg",
+	}
+
+	pkgcontent := `package mypkg
+
+func MyFunc(str string) string{
+	return "Hello: "+str
+}`
+	mp.AddFile("my.gno", []byte(pkgcontent))
+	mockResolver.AddPackage(mp)
 
 	processor := NewProcessor(mockResolver)
 	sourceFile := "main.gno"
@@ -58,7 +74,7 @@ func TestFormatImportFromFile(t *testing.T) {
 
 func main() {
 	str := "hello, world"
-	mypkg.MyFunc(str)
+	println(mypkg.MyFunc(str))
 }`
 
 	expectedOutput := `package main
@@ -67,7 +83,7 @@ import "example.com/mypkg"
 
 func main() {
 	str := "hello, world"
-	mypkg.MyFunc(str)
+	println(mypkg.MyFunc(str))
 }
 `
 	// Create a temporary directory and file
@@ -77,7 +93,7 @@ func main() {
 	err := os.WriteFile(filePath, []byte(sourceCode), 0o644)
 	require.NoError(t, err)
 
-	formatted, err := processor.FormatImportFromFile(filePath)
+	formatted, err := processor.FormatFile(filePath)
 	require.NoError(t, err)
 
 	require.Equal(t, expectedOutput, string(formatted))

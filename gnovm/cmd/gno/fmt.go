@@ -156,6 +156,7 @@ func fmtProcessFiles(cfg *fmtCfg, files []string, processFile fmtProcessFileFunc
 	return errCount
 }
 
+// fmtProcessSingleFile process a single file and return false if any error occured
 func fmtProcessSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFileFunc, io commands.IO) bool {
 	if cfg.verbose {
 		io.Printfln("processing %q", file)
@@ -167,24 +168,23 @@ func fmtProcessSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFileFu
 		return false
 	}
 
-	data := processFile(file, io)
-	if data == nil {
+	out := processFile(file, io)
+	if out == nil {
 		return false
 	}
 
-	if cfg.diff && fmtProcessDiff(file, data, io) {
+	if cfg.diff && fmtProcessDiff(file, out, io) {
 		return false
 	}
-
 	if !cfg.write {
 		if !cfg.diff && !cfg.quiet {
-			io.Println(string(data))
+			io.Println(string(out))
 		}
 		return true
 	}
 
 	perms := fi.Mode() & os.ModePerm
-	if err = os.WriteFile(file, data, perms); err != nil {
+	if err = os.WriteFile(file, out, perms); err != nil {
 		io.ErrPrintfln("unable to write %q: %v", file, err)
 		return false
 	}
@@ -226,7 +226,7 @@ func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFileFunc, error) {
 
 	// Load stdlibs
 	stdlibs := filepath.Join(gnoroot, "gnovm", "stdlibs")
-	if err := r.LoadStdPackages(stdlibs); err != nil {
+	if err := r.LoadPackages(stdlibs); err != nil {
 		return nil, fmt.Errorf("unable to load %q: %w", stdlibs, err)
 	}
 
@@ -238,20 +238,23 @@ func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFileFunc, error) {
 
 	p := gnoimports.NewProcessor(r)
 	return func(file string, io commands.IO) []byte {
-		data, err := p.FormatImportFromFile(file)
+		data, err := p.FormatFile(file)
 		if err == nil {
 			return data
 		}
 
-		// Print parsing errors
+		// If found, print parsing errors
 		for uerr := err; uerr != nil; uerr = errors.Unwrap(err) {
 			perr, ok := uerr.(gnoimports.ParseError)
 			if !ok {
 				continue
 			}
 
-			err = errors.Unwrap(errors.Unwrap(perr)) // get parser error
-			fmtPrintScannerError(err, io)
+			if fmtPrintScannerError(perr, io) {
+				return nil
+			}
+
+			io.ErrPrintln(perr)
 			return nil
 		}
 
@@ -277,17 +280,19 @@ func fmtFormatFile(file string, io commands.IO) []byte {
 	return buf.Bytes()
 }
 
-func fmtPrintScannerError(err error, io commands.IO) {
+func fmtPrintScannerError(err error, io commands.IO) bool {
 	// Get underlying parse error
-	if scanErrors, ok := err.(scanner.ErrorList); ok {
-		for _, e := range scanErrors {
-			io.ErrPrintln(e)
-		}
+	for ; err != nil; err = errors.Unwrap(err) {
+		if scanErrors, ok := err.(scanner.ErrorList); ok {
+			for _, e := range scanErrors {
+				io.ErrPrintln(e)
+			}
 
-		return
+			return true
+		}
 	}
 
-	io.ErrPrintln(err)
+	return false
 }
 
 type fmtIncludes []string
