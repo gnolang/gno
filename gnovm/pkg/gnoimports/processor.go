@@ -283,8 +283,12 @@ func (p *Processor) resolve(
 ) {
 	for decl, sels := range unresolved {
 		for _, pkg := range p.resolver.ResolveName(decl) {
-			if !hasDeclExposed(p, sels, pkg.Dir) {
-				continue
+			// If pkg dir is empty we cannot check for declaration.
+			// So we assume pkg declaration is correct
+			if pkg.Dir != "" {
+				if !hasDeclExposed(p, sels, pkg.Dir) {
+					continue
+				}
 			}
 
 			astutil.AddImport(p.fset, node, pkg.Path)

@@ -34,15 +34,17 @@ type FSResolver struct {
 	strict bool
 
 	fset    *token.FileSet
-	pkgpath map[string]*Package   // pkg path-> pkg
+	visited map[string]bool
+	pkgpath map[string]*Package   // pkg path -> pkg
 	stdlibs map[string][]*Package // pkg name -> []pkg
-	extlibs map[string][]*Package // pkg name -> []pkga
+	extlibs map[string][]*Package // pkg name -> []pkg
 }
 
 func NewFSResolver(strict bool) *FSResolver {
 	return &FSResolver{
 		strict:  strict,
 		fset:    token.NewFileSet(),
+		visited: map[string]bool{},
 		pkgpath: map[string]*Package{},
 		stdlibs: map[string][]*Package{},
 		extlibs: map[string][]*Package{},
@@ -61,14 +63,24 @@ func (p *FSResolver) ResolvePath(pkgpath string) *Package {
 // LoadStdPackages loads all standard packages from the root directory.
 // Std packages are not prefixed by the root directory.
 func (r *FSResolver) LoadStdPackages(root string) error {
-	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-		if err != nil || !info.IsDir() {
+	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
 			if debug {
 				fmt.Fprintf(os.Stderr, err.Error())
 			}
 
 			return err
 		}
+
+		if !d.IsDir() {
+			return nil
+		}
+
+		// Skip already visited dir
+		if r.visited[path] {
+			return filepath.SkipDir
+		}
+		r.visited[path] = true
 
 		files, err := os.ReadDir(path)
 		if err != nil {
@@ -82,7 +94,7 @@ func (r *FSResolver) LoadStdPackages(root string) error {
 			}
 		}
 		if len(gnofiles) == 0 {
-			// skip as directory does not contain any gno files
+			// Skip as directory does not contain any gno files
 			return nil
 		}
 
@@ -117,9 +129,15 @@ func (r *FSResolver) LoadPackages(root string) error {
 			return err // skip error
 		}
 
-		if !d.IsDir() || root == path {
+		if !d.IsDir() {
 			return nil
 		}
+
+		// Skip already visited dir
+		if r.visited[path] {
+			return filepath.SkipDir
+		}
+		r.visited[path] = true
 
 		if strings.HasPrefix(d.Name(), ".") {
 			return filepath.SkipDir
@@ -156,7 +174,6 @@ func (r *FSResolver) parsePackage(root string, path string) (*Package, error) {
 	}
 
 	var pkgname string
-
 	for _, file := range files {
 		name := file.Name()
 		if !isValidGnoFile(name) {
