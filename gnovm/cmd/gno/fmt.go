@@ -64,6 +64,12 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 		"verbose mode",
 	)
 
+	fs.Var(
+		&c.include,
+		"i",
+		"specify additional directories containing packages to resolve",
+	)
+
 	fs.BoolVar(
 		&c.quiet,
 		"q",
@@ -85,12 +91,6 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 		"attempt to format, resolve and sort file imports",
 	)
 
-	fs.Var(
-		&c.include,
-		"i",
-		"specify additional directories containing packages to resolve",
-	)
-
 	fs.BoolVar(
 		&c.diff,
 		"diff",
@@ -99,7 +99,7 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-type fmtProcessFile func(file string, io commands.IO) []byte
+type fmtProcessFileFunc func(file string, io commands.IO) []byte
 
 func execFmt(cfg *fmtCfg, args []string, io commands.IO) error {
 	cfg.write = !cfg.diff && cfg.write
@@ -117,12 +117,12 @@ func execFmt(cfg *fmtCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to gather gno files: %w", err)
 	}
 
-	processFile, err := fmtGetProcessFile(cfg)
+	processFileFunc, err := fmtGetProcessFileFunc(cfg)
 	if err != nil {
 		return err
 	}
 
-	errCount := fmtProcessFiles(cfg, files, processFile, io)
+	errCount := fmtProcessFiles(cfg, files, processFileFunc, io)
 	if errCount > 0 {
 		if !cfg.verbose {
 			os.Exit(1)
@@ -134,14 +134,14 @@ func execFmt(cfg *fmtCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func fmtGetProcessFile(cfg *fmtCfg) (fmtProcessFile, error) {
+func fmtGetProcessFileFunc(cfg *fmtCfg) (fmtProcessFileFunc, error) {
 	if cfg.imports {
 		return fmtFormatFileImports(cfg)
 	}
 	return fmtFormatFile, nil
 }
 
-func fmtProcessFiles(cfg *fmtCfg, files []string, processFile fmtProcessFile, io commands.IO) int {
+func fmtProcessFiles(cfg *fmtCfg, files []string, processFile fmtProcessFileFunc, io commands.IO) int {
 	errCount := 0
 	for _, file := range files {
 		if fmtProcessSingleFile(cfg, file, processFile, io) {
@@ -156,7 +156,7 @@ func fmtProcessFiles(cfg *fmtCfg, files []string, processFile fmtProcessFile, io
 	return errCount
 }
 
-func fmtProcessSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFile, io commands.IO) bool {
+func fmtProcessSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFileFunc, io commands.IO) bool {
 	if cfg.verbose {
 		io.Printfln("processing %q", file)
 	}
@@ -207,16 +207,10 @@ func fmtProcessDiff(file string, data []byte, io commands.IO) bool {
 	return false
 }
 
-func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
+func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFileFunc, error) {
 	r := gnoimports.NewFSResolver(cfg.strict)
 
 	gnoroot := gnoenv.RootDir()
-
-	// Load stdlibs
-	stdlibs := filepath.Join(gnoroot, "gnovm", "stdlibs")
-	if err := r.LoadStdPackages(stdlibs); err != nil {
-		return nil, fmt.Errorf("unable to load %q: %w", stdlibs, err)
-	}
 
 	// Load any additional packages supplied by the user
 	for _, include := range cfg.include {
@@ -228,6 +222,12 @@ func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFile, error) {
 		if err := r.LoadPackages(absp); err != nil {
 			return nil, fmt.Errorf("unable to load %q: %w", absp, err)
 		}
+	}
+
+	// Load stdlibs
+	stdlibs := filepath.Join(gnoroot, "gnovm", "stdlibs")
+	if err := r.LoadStdPackages(stdlibs); err != nil {
+		return nil, fmt.Errorf("unable to load %q: %w", stdlibs, err)
 	}
 
 	// Load examples directory

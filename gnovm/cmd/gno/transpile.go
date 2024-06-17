@@ -123,7 +123,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	}
 
 	// transpile .gno files.
-	paths, err := gnoFilesFromArgs(args)
+	paths, err := gnoFilesFromArgsRecursively(args)
 	if err != nil {
 		return fmt.Errorf("list paths: %w", err)
 	}
@@ -142,7 +142,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	}
 
 	if errlist.Len() == 0 && cfg.gobuild {
-		paths, err := gnoPackagesFromArgs(args)
+		paths, err := gnoPackagesFromArgsRecursively(args)
 		if err != nil {
 			return fmt.Errorf("list packages: %w", err)
 		}

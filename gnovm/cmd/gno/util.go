@@ -25,7 +25,7 @@ func isFileExist(path string) bool {
 	return err == nil
 }
 
-func gnoFilesFromArgs(args []string) ([]string, error) {
+func gnoFilesFromArgsRecursively(args []string) ([]string, error) {
 	paths := []string{}
 	for _, arg := range args {
 		info, err := os.Stat(arg)
@@ -55,7 +55,34 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 	return paths, nil
 }
 
-func gnoPackagesFromArgs(args []string) ([]string, error) {
+func gnoFilesFromArgs(args []string) ([]string, error) {
+	paths := []string{}
+	for _, arg := range args {
+		info, err := os.Stat(arg)
+		if err != nil {
+			return nil, fmt.Errorf("invalid file or package path: %w", err)
+		}
+
+		if !info.IsDir() {
+			curpath := arg
+			paths = append(paths, curpath)
+		} else {
+			files, err := os.ReadDir(arg)
+			if err != nil {
+				return nil, err
+			}
+			for _, f := range files {
+				if isGnoFile(f) {
+					curpath := filepath.Join(arg, f.Name())
+					paths = append(paths, curpath)
+				}
+			}
+		}
+	}
+	return paths, nil
+}
+
+func gnoPackagesFromArgsRecursively(args []string) ([]string, error) {
 	paths := []string{}
 	for _, arg := range args {
 		info, err := os.Stat(arg)
