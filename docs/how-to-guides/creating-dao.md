@@ -85,7 +85,7 @@ There is only one implementation currently, `gno.land/p/demo/dao_maker/dao_propo
 
 ### Message handlers
 
-Proposals actions are encoded as objects implementing `gno.land/p/demo/dao_maker/dao_interfaces.ExecutableMessage`.
+Proposal actions are encoded as objects implementing `ExecutableMessage` found under `gno.land/p/demo/dao_maker/dao_interfaces`.
 ```go
 type ExecutableMessage interface {
 	ToJSON() *json.Node
