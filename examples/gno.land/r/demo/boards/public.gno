@@ -17,7 +17,7 @@ func GetBoardIDFromName(name string) (BoardID, bool) {
 }
 
 func CreateBoard(name string) BoardID {
-	if !std.PrevRealm().IsUser() {
+	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")
 	}
 	bid := incGetBoardID()
@@ -43,7 +43,7 @@ func checkAnonFee() bool {
 }
 
 func CreateThread(bid BoardID, title string, body string) PostID {
-	if !std.PrevRealm().IsUser() {
+	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")
 	}
 	caller := std.GetOrigCaller()
@@ -61,7 +61,7 @@ func CreateThread(bid BoardID, title string, body string) PostID {
 }
 
 func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
-	if !std.PrevRealm().IsUser() {
+	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")
 	}
 	caller := std.GetOrigCaller()
@@ -91,7 +91,7 @@ func CreateReply(bid BoardID, threadid, postid PostID, body string) PostID {
 // If dstBoard is private, does not ping back.
 // If board specified by bid is private, panics.
 func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoardID BoardID) PostID {
-	if !std.PrevRealm().IsUser() {
+	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")
 	}
 	caller := std.GetOrigCaller()
@@ -121,7 +121,7 @@ func CreateRepost(bid BoardID, postid PostID, title string, body string, dstBoar
 }
 
 func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
-	if !std.PrevRealm().IsUser() {
+	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")
 	}
 	caller := std.GetOrigCaller()
@@ -153,7 +153,7 @@ func DeletePost(bid BoardID, threadid, postid PostID, reason string) {
 }
 
 func EditPost(bid BoardID, threadid, postid PostID, title, body string) {
-	if !std.PrevRealm().IsUser() {
+	if !(std.IsOriginCall() || std.PrevRealm().IsUser()) {
 		panic("invalid non-user call")
 	}
 	caller := std.GetOrigCaller()
