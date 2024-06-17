@@ -1689,9 +1689,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									break
 								}
 							}
-
 							if decompose == true {
-
 								// only enter this section if cft.Results to be converted to Lhs type for named type conversion.
 								// decompose a,b = x()
 								// .tmp1, .tmp2 := x()  assignment statemet expression (Op=DEFINE)
