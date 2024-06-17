@@ -6,7 +6,7 @@ id: creating-dao
 
 ## Overview
 
-This guide will show you how to write a simple [**DAO**](https://en.wikipedia.org/wiki/Decentralized_autonomous_organization) [realm](../concepts/realms.md) in [Gno](../concepts/gno-language.md). For actually deploying the Realm, please see the
+This guide will show you how to write a simple [**DAO**](https://en.wikipedia.org/wiki/Decentralized_autonomous_organization) [realm](../concepts/realms.md) in [Gno](../concepts/gno-language.md). For actually deploying the realm, please see the
 [deployment](deploy.md) guide.
 
 We'll cover the core components that make up a DAO, walk you through the process of creating your first DAO, and provide code examples to help you get started.
@@ -96,7 +96,7 @@ type ExecutableMessage interface {
 }
 ```
 
-They are deserialized and executed by message handlers implementing `gno.land/p/demo/dao_maker/dao_interfaces.MessageHandler`.
+They are unmarshalled and executed by message handlers implementing `gno.land/p/demo/dao_maker/dao_interfaces.MessageHandler`.
 ```go
 type MessageHandler interface {
 	Execute(message ExecutableMessage)
@@ -108,6 +108,7 @@ type MessageHandler interface {
 Message handlers are registered at core creation and new message handlers can be registered via proposals to extend the DAO capabilities.
 
 ## Practical Implementation
+In this section, we will showcase how to implement your own DAO using the `dao_maker` package suite.
 
 ### Setting Up Your Workspace
 
@@ -118,7 +119,7 @@ To setup your tooling, see [Getting Started: Local Setup](../getting-started/loc
 #### Create a new Gno module
 
 - Create a new directory and move into it: `mkdir my-gno-dao && cd my-gno-dao`
-- Initialize the gno module: `gno mod init gno.land/r/demo/my_dao`
+- Initialize the gno module: `gno mod init gno.land/r/<your_namespace>/my_dao`
 
 ### Creating the Voting Module
 
