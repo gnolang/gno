@@ -51,13 +51,13 @@ func NewFSResolver(strict bool) *FSResolver {
 	}
 }
 
-func (p *FSResolver) ResolveName(pkgname string) []*Package {
+func (r *FSResolver) ResolveName(pkgname string) []*Package {
 	// First stdlibs, then external packages
-	return append(p.stdlibs[pkgname], p.extlibs[pkgname]...)
+	return append(r.stdlibs[pkgname], r.extlibs[pkgname]...)
 }
 
-func (p *FSResolver) ResolvePath(pkgpath string) *Package {
-	return p.pkgpath[pkgpath]
+func (r *FSResolver) ResolvePath(pkgpath string) *Package {
+	return r.pkgpath[pkgpath]
 }
 
 // LoadStdPackages loads all standard packages from the root directory.
@@ -89,7 +89,7 @@ func (r *FSResolver) LoadStdPackages(root string) error {
 
 		var gnofiles []string
 		for _, file := range files {
-			if filepath.Ext(file.Name()) == ".gno" {
+			if isPublicGnoFile(file.Name()) {
 				gnofiles = append(gnofiles, filepath.Join(path, file.Name()))
 			}
 		}
@@ -176,7 +176,7 @@ func (r *FSResolver) parsePackage(root string, path string) (*Package, error) {
 	var pkgname string
 	for _, file := range files {
 		name := file.Name()
-		if !isValidGnoFile(name) {
+		if !isPublicGnoFile(name) {
 			continue
 		}
 
@@ -191,7 +191,6 @@ func (r *FSResolver) parsePackage(root string, path string) (*Package, error) {
 		}
 
 		pkgname = f.Name.Name
-
 	}
 
 	if pkgname == "" {
@@ -241,13 +240,4 @@ func (r *FSResolver) newStrictError(f string, args ...any) error {
 	}
 
 	return nil
-}
-
-func isValidGnoFile(name string) bool {
-	return filepath.Ext(name) == ".gno" &&
-		// Ignore testfile
-		!strings.HasSuffix(name, "_filetest.gno") &&
-		!strings.HasSuffix(name, "_test.gno") &&
-		// Ignore dotfile
-		!strings.HasPrefix(name, ".")
 }

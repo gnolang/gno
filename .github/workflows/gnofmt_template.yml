@@ -20,5 +20,5 @@ jobs:
         uses: actions/checkout@v4
       - name: Fmt
         env:
-          GNOFMT_PATH: ${{ inputs.pkgpath }}
+          GNOFMT_PATH: ${{ inputs.path }}
         run: go run ./gnovm/cmd/gno fmt -v -diff $GNOFMT_PATH

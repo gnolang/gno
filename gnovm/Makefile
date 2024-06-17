@@ -50,9 +50,9 @@ lint:
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 .PHONY: fmt
-fmt:
-	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
+fmt: 
 	go run ./cmd/gno fmt $(GNOFMT_FLAGS) ./stdlibs/...
+	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
 
 .PHONY: imports
 imports:

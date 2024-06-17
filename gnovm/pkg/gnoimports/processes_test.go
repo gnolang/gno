@@ -74,7 +74,7 @@ func main() {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, sourceFile)
 
-	err := os.WriteFile(filePath, []byte(sourceCode), 0644)
+	err := os.WriteFile(filePath, []byte(sourceCode), 0o644)
 	require.NoError(t, err)
 
 	formatted, err := processor.FormatImportFromFile(filePath)

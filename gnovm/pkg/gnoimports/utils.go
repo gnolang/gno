@@ -1,5 +1,22 @@
 package gnoimports
 
+import (
+	"path/filepath"
+	"strings"
+)
+
+func isGnoFile(name string) bool {
+	return filepath.Ext(name) == ".gno" && !strings.HasPrefix(name, ".")
+}
+
+// isPublicGnoFile is the same as `isGnoFile` except that it will also ignore tests files.
+func isPublicGnoFile(name string) bool {
+	return isGnoFile(name) &&
+		// Ignore testfile
+		!strings.HasSuffix(name, "_filetest.gno") &&
+		!strings.HasSuffix(name, "_test.gno")
+}
+
 // isPredeclared reports whether an identifier is predeclared.
 func isPredeclared(s string) bool {
 	return predeclaredTypes[s] || predeclaredFuncs[s] || predeclaredConstants[s]

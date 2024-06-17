@@ -42,7 +42,5 @@ func Test_Scripts(t *testing.T) {
 
 			testscript.Run(t, p)
 		})
-
 	}
-
 }

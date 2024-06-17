@@ -9,7 +9,6 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
 	"golang.org/x/tools/imports"
@@ -144,7 +143,7 @@ func (p *Processor) processPackageFiles(root string, filesNode map[string]*ast.F
 		}
 
 		filename := info.Name()
-		if strings.HasPrefix(filename, ".") || filepath.Ext(path) != ".gno" {
+		if !isGnoFile(filename) {
 			return nil
 		}
 
