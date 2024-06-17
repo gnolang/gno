@@ -97,8 +97,8 @@ func TestSetRealm(rlm Realm)
 ```
 
 Sets the realm for the current frame. After calling `TestSetRealm()`, calling 
-[`CurrentRealm()`](chain.md#currentrealm) in the same test function will yield the value of `rlm`, while 
-a function in the package being tested using `PrevRealm()` will yield rlm.
+[`CurrentRealm()`](chain.md#currentrealm) in the same test function will yield the value of `rlm`, and 
+any `PrevRealm()` called from a function used after TestSetRealm will yield `rlm`.
 
 Should be used in combination with [`NewUserRealm`](#newuserrealm) &
 [`NewCodeRealm`](#newcoderealm).
