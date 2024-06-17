@@ -62,7 +62,7 @@ func encodeDummyTxs(t *testing.T, txs []std.Tx) []string {
 	return encodedTxs
 }
 
-func TestGenesis_Txs_Add(t *testing.T) {
+func TestGenesis_Txs_Add_Sheets(t *testing.T) {
 	t.Parallel()
 
 	t.Run("invalid genesis file", func(t *testing.T) {
@@ -74,6 +74,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 			"genesis",
 			"txs",
 			"add",
+			"sheets",
 			"--genesis-path",
 			"dummy-path",
 		}
@@ -98,6 +99,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 			"genesis",
 			"txs",
 			"add",
+			"sheets",
 			"--genesis-path",
 			tempGenesis.Name(),
 			"dummy-tx-file",
@@ -123,6 +125,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 			"genesis",
 			"txs",
 			"add",
+			"sheets",
 			"--genesis-path",
 			tempGenesis.Name(),
 		}
@@ -147,6 +150,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 			"genesis",
 			"txs",
 			"add",
+			"sheets",
 			"--genesis-path",
 			tempGenesis.Name(),
 			tempGenesis.Name(), // invalid txs file
@@ -154,7 +158,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, "unable to read file")
+		assert.ErrorContains(t, cmdErr, "unable to parse file")
 	})
 
 	t.Run("valid txs file", func(t *testing.T) {
@@ -187,6 +191,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 			"genesis",
 			"txs",
 			"add",
+			"sheets",
 			"--genesis-path",
 			tempGenesis.Name(),
 			txsFile.Name(),
@@ -246,6 +251,7 @@ func TestGenesis_Txs_Add(t *testing.T) {
 			"genesis",
 			"txs",
 			"add",
+			"sheets",
 			"--genesis-path",
 			tempGenesis.Name(),
 			txsFile.Name(),
