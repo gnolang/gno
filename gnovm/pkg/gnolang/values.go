@@ -595,6 +595,15 @@ func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
 	return fv.body
 }
 
+func (fv *FuncValue) UpdateBodyFromSource() {
+	if fv.Source == nil {
+		panic(fmt.Sprintf(
+			"Source is missing  for FuncValue %s",
+			fv.Name))
+	}
+	fv.body = fv.Source.GetBody()
+}
+
 func (fv *FuncValue) GetSource(store Store) BlockNode {
 	if rn, ok := fv.Source.(RefNode); ok {
 		source := store.GetBlockNode(rn.GetLocation())

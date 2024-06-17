@@ -1678,6 +1678,81 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										"%d variables but %s returns %d values",
 									len(n.Lhs), cx.Func.String(), len(cft.Results)))
 							}
+
+							// check if we we need to decompose for named typed conversion in the function return results
+							decompose := false
+
+							for i, rhsType := range cft.Results {
+								lt := evalStaticTypeOf(store, last, n.Lhs[i])
+								if lt != nil && isNamedConversion(rhsType.Type, lt) {
+									decompose = true
+									break
+								}
+							}
+
+							if decompose == true {
+
+								// only enter this section if cft.Results to be converted to Lhs type for named type conversion.
+								// decompose a,b = x()
+								// tmp1, tmp2 := x()  assignment statemet expression (Op=DEFINE)
+								// a,b = tmp1, tmp2   assignment statemet expression ( Op=ASSIGN )
+								// add the new statement to last.Body
+
+								// step1:
+								// create a hidden var with leading _ the curBodyLen increase every time when there is an decompostion
+								// because there could be multiple decomposition happens
+								// we use both stmt index and resturn result number to differentiate the _tmp variables created in each assignment decompostion
+								// ex. _tmp_3_2: this variabl is created as the 3rd statement in the block, the 2nd parameter returned from x(),
+								// create _tmp_1_1, tmp_1_2 .... based on number of result from x()
+								var tmpExprs Exprs
+								for i := range cft.Results {
+									rn := fmt.Sprintf("_tmp_%d_%d", index, i)
+									tmpExprs = append(tmpExprs, Nx(rn))
+								}
+								// step2:
+								// tmp1, tmp2 := x()
+								dsx := &AssignStmt{
+									Lhs: tmpExprs,
+									Op:  DEFINE,
+									Rhs: n.Rhs,
+								}
+								dsx.SetLine(n.Line)
+								dsx = Preprocess(store, last, dsx).(*AssignStmt)
+
+								// step3:
+
+								// a,b = tmp1, tmp2
+								// assign stmt expression
+								// the right hand side will be converted to  call expr for nameed/unnamed covnerstion
+								// we make a copy of tmpExrs to prevent dsx.Lhs in the preview statement changing by the side effect
+								// when asx.Rhs is converted to const call expr during the preprocess of the next statement
+
+								asx := &AssignStmt{
+									Lhs: n.Lhs,
+									Op:  ASSIGN,
+									Rhs: copyExprs(tmpExprs),
+								}
+								asx.SetLine(n.Line)
+								asx = Preprocess(store, last, asx).(*AssignStmt)
+
+								// step4:
+								// replace the orignal stmt with two new stmts
+								body := last.GetBody()
+								// we need to do an in-place replacement while leaving the current node
+								n.Attributes = dsx.Attributes
+								n.Lhs = dsx.Lhs
+								n.Op = dsx.Op
+								n.Rhs = dsx.Rhs
+
+								//  insert a assignment statement a,b = tmp1,tmp2 AFTER the current statement in the last.Body.
+								body = append(body[:index+1], append(Body{asx}, body[index+1:]...)...)
+								last.SetBody(body)
+							} // end of the decomposition
+
+							// Last step: we need to insert the statements to FuncValue.body of PackageNopde.Values[i].V
+							// updating FuncValue.body=FuncValue.Source.Body in updates := pn.PrepareNewValues(pv) during preprocess.
+							// we updated FuncValue from source.
+
 						case *TypeAssertExpr:
 							// Type-assert case: a, ok := x.(type)
 							if len(n.Lhs) != 2 {
