@@ -13,11 +13,6 @@ func isTestFile(name string) bool {
 	return strings.HasSuffix(name, "_filetest.gno") || strings.HasSuffix(name, "_test.gno")
 }
 
-// isPublicGnoFile is the same as `isGnoFile` except that it will also ignore tests files.
-func isPublicGnoFile(name string) bool {
-	return isGnoFile(name) && !isTestFile(name)
-}
-
 // isPredeclared reports whether an identifier is predeclared.
 func isPredeclared(s string) bool {
 	return predeclaredTypes[s] || predeclaredFuncs[s] || predeclaredConstants[s]

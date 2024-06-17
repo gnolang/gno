@@ -190,13 +190,6 @@ func (p *Processor) processPackageFiles(path string, pkg Package) *parsedPackage
 	return pkgc
 }
 
-// collectTopDeclarations collects top-level declarations from package files.
-func collectTopDeclarations(pkgDecls map[string]*ast.File, topDecls map[*ast.Object]ast.Decl) {
-	for _, file := range pkgDecls {
-		collectTopDeclaration(file, topDecls)
-	}
-}
-
 // collectTopDeclaration collects top-level declarations from a single file.
 func collectTopDeclaration(file *ast.File, topDecls map[*ast.Object]ast.Decl) {
 	for _, decl := range file.Decls {

@@ -60,7 +60,8 @@ func ParsePackage(fset *token.FileSet, root string, dir string) (Package, error)
 	}
 
 	var pkgname string
-	var gnofiles []string
+
+	gnofiles := []string{}
 	for _, file := range files {
 		name := file.Name()
 		if !isGnoFile(name) {

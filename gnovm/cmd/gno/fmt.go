@@ -156,7 +156,7 @@ func fmtProcessFiles(cfg *fmtCfg, files []string, processFile fmtProcessFileFunc
 	return errCount
 }
 
-// fmtProcessSingleFile process a single file and return false if any error occured
+// fmtProcessSingleFile process a single file and return false if any error occurred
 func fmtProcessSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFileFunc, io commands.IO) bool {
 	if cfg.verbose {
 		io.Printfln("processing %q", file)
