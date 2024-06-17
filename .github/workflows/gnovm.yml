@@ -18,10 +18,9 @@ jobs:
       modulepath: "gnovm"
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
-    name: Fmt Stdlibs
+  fmt:
+    name: Run Gno Fmt
     uses: ./.github/workflows/gnofmt_template.yml
     with:
-      pkgspath: "gnovm/stdlibs/..."
+      path: "gnovm/stdlibs/..."
       go-version: "1.22.x"
-    secrets:
-      codecov-token: ${{ secrets.CODECOV_TOKEN }}
