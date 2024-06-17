@@ -14,15 +14,15 @@ var (
 	bob              = testutils.TestAddress("bob")
 )
 
-func TestNewGRC721Token(t *testing.T) {
-	exampleNFT := NewGRC721Token(exampleNFTName, exampleNFTSymbol)
+func TestNewGRC721Collection(t *testing.T) {
+	exampleNFT := NewGRC721Collection(exampleNFTName, exampleNFTSymbol)
 	if exampleNFT == nil {
 		t.Errorf("should not be nil")
 	}
 }
 
 func TestName(t *testing.T) {
-	exampleNFT := NewGRC721Token(exampleNFTName, exampleNFTSymbol)
+	exampleNFT := NewGRC721Collection(exampleNFTName, exampleNFTSymbol)
 	if exampleNFT == nil {
 		t.Errorf("should not be nil")
 	}
@@ -33,7 +33,7 @@ func TestName(t *testing.T) {
 }
 
 func TestSymbol(t *testing.T) {
-	exampleNFT := NewGRC721Token(exampleNFTName, exampleNFTSymbol)
+	exampleNFT := NewGRC721Collection(exampleNFTName, exampleNFTSymbol)
 	symbol := exampleNFT.Symbol()
 	if symbol != exampleNFTSymbol {
 		t.Errorf("expected: (%s), got: (%s)", exampleNFTSymbol, symbol)
@@ -41,7 +41,7 @@ func TestSymbol(t *testing.T) {
 }
 
 func TestBalanceOf(t *testing.T) {
-	exampleNFT := NewGRC721Token(exampleNFTName, exampleNFTSymbol)
+	exampleNFT := NewGRC721Collection(exampleNFTName, exampleNFTSymbol)
 
 	balanceAddr1 := exampleNFT.BalanceOf(alice)
 
@@ -65,7 +65,7 @@ func TestBalanceOf(t *testing.T) {
 }
 
 func TestOwnerOf(t *testing.T) {
-	exampleNFT := NewGRC721Token(exampleNFTName, exampleNFTSymbol)
+	exampleNFT := NewGRC721Collection(exampleNFTName, exampleNFTSymbol)
 
 	exampleNFT.Mint(alice, "1")
 	exampleNFT.Mint(bob, "2")
@@ -86,7 +86,7 @@ func TestOwnerOf(t *testing.T) {
 }
 
 func TestIsApprovedForAll(t *testing.T) {
-	exampleNFT := NewGRC721Token(exampleNFTName, exampleNFTSymbol)
+	exampleNFT := NewGRC721Collection(exampleNFTName, exampleNFTSymbol)
 
 	isApprovedForAll := exampleNFT.IsApprovedForAll(alice, bob)
 	if isApprovedForAll != false {
@@ -95,7 +95,7 @@ func TestIsApprovedForAll(t *testing.T) {
 }
 
 func TestSetApprovalForAll(t *testing.T) {
-	exampleNFT := NewGRC721Token(exampleNFTName, exampleNFTSymbol)
+	exampleNFT := NewGRC721Collection(exampleNFTName, exampleNFTSymbol)
 
 	caller := std.PrevRealm().Addr()
 
@@ -113,7 +113,7 @@ func TestSetApprovalForAll(t *testing.T) {
 }
 
 func TestApprove(t *testing.T) {
-	exampleNFT := NewGRC721Token(exampleNFTName, exampleNFTSymbol)
+	exampleNFT := NewGRC721Collection(exampleNFTName, exampleNFTSymbol)
 	if exampleNFT == nil {
 		t.Errorf("should not be nil")
 	}
@@ -131,7 +131,7 @@ func TestApprove(t *testing.T) {
 }
 
 func TestTransferFrom(t *testing.T) {
-	exampleNFT := NewGRC721Token(exampleNFTName, exampleNFTSymbol)
+	exampleNFT := NewGRC721Collection(exampleNFTName, exampleNFTSymbol)
 	caller := std.PrevRealm().Addr()
 
 	exampleNFT.Mint(caller, "1")
@@ -159,7 +159,7 @@ func TestTransferFrom(t *testing.T) {
 }
 
 func TestMint(t *testing.T) {
-	exampleNFT := NewGRC721Token(exampleNFTName, exampleNFTSymbol)
+	exampleNFT := NewGRC721Collection(exampleNFTName, exampleNFTSymbol)
 
 	exampleNFT.Mint(alice, "1")
 	exampleNFT.Mint(alice, "2")
@@ -188,7 +188,7 @@ func TestMint(t *testing.T) {
 }
 
 func TestBurn(t *testing.T) {
-	exampleNFT := NewGRC721Token(exampleNFTName, exampleNFTSymbol)
+	exampleNFT := NewGRC721Collection(exampleNFTName, exampleNFTSymbol)
 
 	exampleNFT.Mint(alice, "1")
 	exampleNFT.Burn("1")
@@ -204,7 +204,7 @@ func TestBurn(t *testing.T) {
 }
 
 func TestSetTokenURI(t *testing.T) {
-	exampleNFT := NewGRC721Token(exampleNFTName, exampleNFTSymbol)
+	exampleNFT := NewGRC721Collection(exampleNFTName, exampleNFTSymbol)
 
 	tokenURI := "https://example.com/token"
 	exampleNFT.Mint(alice, "1")
