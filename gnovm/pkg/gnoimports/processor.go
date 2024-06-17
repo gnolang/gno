@@ -134,16 +134,19 @@ func (p *Processor) processAndFormat(file *ast.File, filename string, topDecls m
 	// Collect unresolved
 	unresolved := collectUnresolved(file, topDecls)
 
+	// Cleanup and remove previous unused import
 	p.cleanupPreviousImports(file, topDecls, unresolved)
+
+	// Resolve unresolved declarations
 	p.resolve(file, unresolved)
 
-	// Buffer to store formatted output.
+	// Process output
 	var buf bytes.Buffer
 	if err := printer.Fprint(&buf, p.fset, file); err != nil {
 		return nil, fmt.Errorf("unable to format file: %w", err)
 	}
 
-	// Use go/imports for formating and managing import sorting.
+	// Use go/imports for formating and sort imports.
 	ret, err := imports.Process(filename, buf.Bytes(), &imports.Options{
 		TabWidth:   tabWidth,
 		Comments:   true,
