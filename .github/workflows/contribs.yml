@@ -31,4 +31,3 @@ jobs:
       modulepath: contribs/${{ matrix.program }}
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
-
