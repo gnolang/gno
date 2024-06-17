@@ -1,8 +1,6 @@
 package ownable
 
-import (
-	"std"
-)
+import "std"
 
 // Ownable is meant to be used as a top-level object to make your contract ownable OR
 // being embedded in a Gno object to manage per-object ownership.
@@ -10,14 +8,16 @@ type Ownable struct {
 	owner std.Address
 }
 
-func New() *Ownable {
+func NewOwnable() *Ownable {
 	return &Ownable{
 		owner: std.PrevRealm().Addr(),
 	}
 }
 
-func NewWithAddress(addr std.Address) *Ownable {
-	return &Ownable{owner: addr}
+func NewOwnableWithAddress(addr std.Address) *Ownable {
+	return &Ownable{
+		owner: addr,
+	}
 }
 
 // TransferOwnership transfers ownership of the Ownable struct to a new address
@@ -32,6 +32,7 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 	}
 
 	o.owner = newOwner
+
 	return nil
 }
 
@@ -48,6 +49,7 @@ func (o *Ownable) DropOwnership() error {
 	return nil
 }
 
+// Owner returns the owner address from Ownable
 func (o Ownable) Owner() std.Address {
 	return o.owner
 }
@@ -57,9 +59,11 @@ func (o Ownable) CallerIsOwner() error {
 	if std.PrevRealm().Addr() == o.owner {
 		return nil
 	}
+
 	return ErrUnauthorized
 }
 
+// AssertCallerIsOwner panics if the caller is not the owner
 func (o Ownable) AssertCallerIsOwner() {
 	if std.PrevRealm().Addr() != o.owner {
 		panic(ErrUnauthorized)
