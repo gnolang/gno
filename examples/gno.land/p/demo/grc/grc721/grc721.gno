@@ -16,6 +16,12 @@ type Token struct {
 	tokenURIs         *avl.Tree // tokenID > URI
 }
 
+type tokenData struct {
+	owner    std.Address
+	approval std.Address
+	uri      string
+}
+
 var _ IGRC721 = (*Token)(nil)
 
 const emptyAddress = std.Address("")
@@ -84,9 +90,17 @@ func (nft Token) SetApprovalForAll(operator std.Address, approved bool) {
 	nft.operatorApprovals.Set(operatorKey(caller, operator), approved)
 
 	if approved {
-		std.Emit("ApprovalForAll", "owner", caller.String(), "operator", operator.String(), "approved", "true")
+		std.Emit("ApprovalForAll",
+			"owner", caller.String(),
+			"operator", operator.String(),
+			"approved", "true",
+		)
 	} else {
-		std.Emit("ApprovalForAll", "owner", caller.String(), "operator", operator.String(), "approved", "false")
+		std.Emit("ApprovalForAll",
+			"owner", caller.String(),
+			"operator", operator.String(),
+			"approved", "false",
+		)
 	} // We do not support strconv.FormatBool yet
 }
 
@@ -227,7 +241,12 @@ func (nft Token) update(to std.Address, tokenId string, auth std.Address) std.Ad
 		}
 	}
 
-	std.Emit("Transfer", "from", from.String(), "to", to.String(), "tokenID", tokenId)
+	std.Emit("Transfer",
+		"from", from.String(),
+		"to", to.String(),
+		"tokenID", tokenId,
+	)
+
 	return from
 }
 
@@ -239,7 +258,11 @@ func (nft Token) approve(to std.Address, tokenId string, auth std.Address, emitE
 			panic("GRC721: invalid approver")
 		}
 		if emitEvent {
-			std.Emit("Approval", "owner", owner.String(), "approved", to.String(), "tokenID", tokenId)
+			std.Emit("Approval",
+				"owner", owner.String(),
+				"approved", to.String(),
+				"tokenID", tokenId,
+			)
 		}
 	}
 
