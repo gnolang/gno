@@ -144,8 +144,13 @@ func fmtGetProcessFile(cfg *fmtCfg) (fmtProcessFile, error) {
 func fmtProcessFiles(cfg *fmtCfg, files []string, processFile fmtProcessFile, io commands.IO) int {
 	errCount := 0
 	for _, file := range files {
-		if !fmtProcessSingleFile(cfg, file, processFile, io) {
-			errCount++
+		if fmtProcessSingleFile(cfg, file, processFile, io) {
+			continue // ok
+		}
+
+		errCount++
+		if cfg.strict {
+			break // stop here if in strict mode
 		}
 	}
 	return errCount
