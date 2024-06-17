@@ -751,7 +751,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *BinaryExpr:
-				// TODO: improve readability
 				lt := evalStaticTypeOf(store, last, n.Left)
 				rt := evalStaticTypeOf(store, last, n.Right)
 
@@ -2446,24 +2445,27 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		if t != nil {
 			assertAssignableTo(xt, t, autoNative)
 		}
-		// Push type into expr if qualifying binary expr.
-		if bx, ok := (*x).(*BinaryExpr); ok {
-			switch bx.Op {
-			case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
-				BAND_NOT, LAND, LOR:
-				// push t into bx.Left and bx.Right
-				checkOrConvertType(store, last, &bx.Left, t, autoNative)
-				checkOrConvertType(store, last, &bx.Right, t, autoNative)
-				return
-			case SHL, SHR:
-				// push t into bx.Left
-				checkOrConvertType(store, last, &bx.Left, t, autoNative)
-				return
-				// case EQL, LSS, GTR, NEQ, LEQ, GEQ:
-				// default:
+		if isUntyped(xt) {
+			// Push type into expr if qualifying binary expr.
+			if bx, ok := (*x).(*BinaryExpr); ok {
+				switch bx.Op {
+				case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
+					BAND_NOT, LAND, LOR:
+					// push t into bx.Left and bx.Right
+					checkOrConvertType(store, last, &bx.Left, t, autoNative)
+					checkOrConvertType(store, last, &bx.Right, t, autoNative)
+					return
+				case SHL, SHR:
+					// push t into bx.Left
+					checkOrConvertType(store, last, &bx.Left, t, autoNative)
+					return
+					// case EQL, LSS, GTR, NEQ, LEQ, GEQ:
+					// default:
+				}
 			}
 		}
 	}
+	// convert recursively
 	convertType(store, last, x, t)
 }
 
