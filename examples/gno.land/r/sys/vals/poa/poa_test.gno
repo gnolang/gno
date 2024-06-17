@@ -16,7 +16,7 @@ func generateTestValidators(count int) []*types.Validator {
 		val := &types.Validator{
 			Address:     std.Address(ufmt.Sprintf("%d", i)),
 			PubKey:      "public-key",
-			VotingPower: 0,
+			VotingPower: 1,
 		}
 
 		vals = append(vals, val)
@@ -41,7 +41,7 @@ func TestPoA_AddValidator_Invalid(t *testing.T) {
 		initialSet[0].Address = callerAddress
 		initialSet[0].PubKey = callerKey
 
-		// Create the protocol with no initial set
+		// Create the protocol with an initial set
 		p := NewPoA(WithInitialSet(initialSet))
 
 		// Set the origin caller
@@ -94,7 +94,7 @@ func TestPoA_AddValidator(t *testing.T) {
 		initialSet[0].PubKey = callerKey
 		initialSet[0].VotingPower = 1
 
-		// Create the protocol with no initial set
+		// Create the protocol with an initial set
 		p := NewPoA(WithInitialSet(initialSet))
 
 		// Set the origin caller
@@ -141,7 +141,7 @@ func TestPoA_AddValidator(t *testing.T) {
 			validator.VotingPower = 1
 		}
 
-		// Create the protocol with no initial set
+		// Create the protocol with an initial set
 		p := NewPoA(WithInitialSet(initialSet))
 
 		// Add in the votes
@@ -202,7 +202,7 @@ func TestPoA_RemoveValidator_Invalid(t *testing.T) {
 
 		initialSet[0].Address = callerAddress
 
-		// Create the protocol with no initial set
+		// Create the protocol with an initial set
 		p := NewPoA(WithInitialSet(initialSet))
 
 		// Set the origin caller
@@ -234,7 +234,7 @@ func TestPoA_RemoveValidator(t *testing.T) {
 
 		proposedAddress := initialSet[1].Address
 
-		// Create the protocol with no initial set
+		// Create the protocol with an initial set
 		p := NewPoA(WithInitialSet(initialSet))
 
 		// Set the origin caller
@@ -278,7 +278,7 @@ func TestPoA_RemoveValidator(t *testing.T) {
 			voters          = initialSet[:len(initialSet)-1]
 		)
 
-		// Create the protocol with no initial set
+		// Create the protocol with an initial set
 		p := NewPoA(WithInitialSet(initialSet))
 
 		// Add in the votes

@@ -5,7 +5,7 @@ import (
 
 	"gno.land/p/demo/json"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/sys/vals/poa"
+	"gno.land/r/sys/vals/poc"
 	"gno.land/r/sys/vals/types"
 )
 
@@ -39,7 +39,7 @@ type vals struct {
 
 // v holds the active on-chain validator set state
 var v = &vals{
-	p:       poa.NewPoA(),
+	p:       poc.NewPoC(), // PoC by default
 	changes: make([]types.Validator, 0),
 }
 

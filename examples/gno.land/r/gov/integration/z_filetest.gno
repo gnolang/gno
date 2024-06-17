@@ -1,7 +1,7 @@
 package main
 
 import (
-	govdao "gno.land/r/gov/dao"
+	govdao "github.com/gnolang/gno/examples/gno.land/r/gov/dao"
 	_ "gno.land/r/gov/proposals/prop1"
 )
 
