@@ -4,8 +4,8 @@ import (
 	"std"
 
 	"gno.land/p/gov/proposal"
-	"gno.land/p/sys/vals/poc"
-	"gno.land/p/sys/vals/types"
+	"gno.land/r/sys/vals/poc"
+	"gno.land/r/sys/vals/types"
 )
 
 const daoPkgPath = "gno.land/r/gov/dao"

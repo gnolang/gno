@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/sys/vals/types"
+	"gno.land/r/sys/vals/types"
 )
 
 // generateTestValidators generates a dummy validator set
@@ -230,7 +230,7 @@ func TestPoA_RemoveValidator(t *testing.T) {
 
 		initialSet[0].Address = callerAddress
 		initialSet[0].PubKey = callerKey
-		initialSet[0].VotingPower = 1
+		initialSet[0].VotingPower = 10
 
 		proposedAddress := initialSet[1].Address
 
@@ -247,16 +247,16 @@ func TestPoA_RemoveValidator(t *testing.T) {
 
 		// Make sure the validator is removed
 		if p.IsValidator(proposedAddress) {
-			t.Fatal("address is validator")
+			t.Fatal("address is still a validator")
 		}
 
 		// Make sure the total voting power is changed
-		if p.totalVotingPower != 1 {
+		if p.totalVotingPower != 10 {
 			t.Fatal("invalid total voting power")
 		}
 
 		// Make sure the majority voting power is changed
-		if p.majorityPower != 0 {
+		if p.majorityPower != 6 {
 			t.Fatal("invalid majority voting power")
 		}
 	})

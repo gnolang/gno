@@ -3,7 +3,7 @@ package poa
 import (
 	"std"
 
-	"gno.land/p/sys/vals/types"
+	"gno.land/r/sys/vals/types"
 )
 
 const (
@@ -59,7 +59,8 @@ func (p *PoA) AddValidator(address std.Address, pubKey string) *types.Validator 
 	p.validateAdd(caller, address)
 
 	// Cast the vote
-	p.votes.castVote(caller, address, true)
+	voterPower := p.validators[p.addressToValidatorIndex[caller]].VotingPower
+	p.votes.castVote(caller, address, voterPower, true)
 
 	// Emit the vote event
 	std.Emit(UserVotedAddEvent)
@@ -135,7 +136,8 @@ func (p *PoA) RemoveValidator(address std.Address) *types.Validator {
 	p.validateRemove(caller, address)
 
 	// Cast the vote
-	p.votes.castVote(caller, address, false)
+	voterPower := p.validators[p.addressToValidatorIndex[caller]].VotingPower
+	p.votes.castVote(caller, address, voterPower, false)
 
 	// Emit the vote event
 	std.Emit(UserVotedRemoveEvent)

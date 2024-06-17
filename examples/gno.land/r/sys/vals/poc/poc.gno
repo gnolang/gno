@@ -3,7 +3,7 @@ package poc
 import (
 	"std"
 
-	"gno.land/p/sys/vals/types"
+	"gno.land/r/sys/vals/types"
 )
 
 const govdaoRealm = "gno.land/r/gov/dao"

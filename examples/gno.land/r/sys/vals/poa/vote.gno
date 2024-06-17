@@ -33,7 +33,12 @@ func newVotingSystem() *votingSystem {
 }
 
 // castVote casts a new vote to the given candidate
-func (v *votingSystem) castVote(voter, candidate std.Address, toAdd bool) {
+func (v *votingSystem) castVote(
+	voter,
+	candidate std.Address,
+	voterPower uint64,
+	toAdd bool,
+) {
 	// Construct a unique proposal key (voterAddr_candidateAddr)
 	votedKey := ufmt.Sprintf(
 		"%s_%s",
@@ -57,9 +62,9 @@ func (v *votingSystem) castVote(voter, candidate std.Address, toAdd bool) {
 
 	// Update the tally
 	if toAdd {
-		t.toAdd++
+		t.toAdd += voterPower
 	} else {
-		t.toRemove++
+		t.toRemove += voterPower
 	}
 
 	// Save the tally

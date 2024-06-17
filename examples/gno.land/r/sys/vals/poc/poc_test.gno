@@ -6,7 +6,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/sys/vals/types"
+	"gno.land/r/sys/vals/types"
 )
 
 // generateTestValidators generates a dummy validator set
