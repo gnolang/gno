@@ -789,7 +789,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 
 				// general cases
-				n.AssertCompatible(lt, rt) // check compatibility against binaryExpr other ths shift expr
+				n.AssertCompatible(lt, rt) // check compatibility against binaryExprs other than shift expr
 				// General case.
 				if lic {
 					if ric {
@@ -806,7 +806,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// Then, evaluate the expression.
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
-					} else if isUntyped(lcx.T) { // left untyped const -> right not const
+					} else if isUntyped(lcx.T) {
+						// Left untyped const, Right not ----------------
 						if rnt, ok := rt.(*NativeType); ok { // untyped -> gno(native), e.g. 1*time.Second
 							if isShift { // RHS of shift should not be native
 								panic("should not happen")
@@ -844,21 +845,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// convert n.Left to typed-nil type.
 						checkOrConvertType(store, last, &n.Left, rt, false)
 					} else { // left is typed const, right not const
-						if isUntyped(rt) { // e.g. int(1) + 1<<x
-							checkOrConvertType(store, last, &n.Right, lt, false)
-						} else { // both typed, left typed const, right typed non-const
-							if !shouldSwapOnSpecificity(lt, rt) {
-								checkOrConvertType(store, last, &n.Left, rt, false)
-							} else {
-								checkOrConvertType(store, last, &n.Right, lt, false)
-							}
-							/*
-								if lt.TypeID() != rt.TypeID() {
-									panic(fmt.Sprintf(
-										"incompatible types in XXX binary expression: %v %v %v",
-										lt.TypeID(), n.Op, rt.TypeID()))
-								}
-							*/
+						if !shouldSwapOnSpecificity(lt, rt) {
+							assertAssignableTo(lt, rt, false)
+						} else {
+							assertAssignableTo(rt, lt, false)
 						}
 					}
 				} else if ric { // right is const, left is not
@@ -895,24 +885,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							checkOrConvertType(store, last, &n.Right, lt, false)
 						}
 					} else if rcx.T == nil { // RHS is nil
-						// refer to 0f20_filetest
+						// refer to tests/files/types/eql_0f20.gno
 						checkOrConvertType(store, last, &n.Right, lt, false)
 					} else { // left not const, right is typed const, both typed
-						if isUntyped(lt) {
-							checkOrConvertType(store, last, &n.Left, rt, false)
+						if !shouldSwapOnSpecificity(lt, rt) {
+							assertAssignableTo(lt, rt, false)
 						} else {
-							if !shouldSwapOnSpecificity(lt, rt) {
-								checkOrConvertType(store, last, &n.Left, rt, false)
-							} else {
-								checkOrConvertType(store, last, &n.Right, lt, false)
-							}
-							/*
-								if lt.TypeID() != rt.TypeID() {
-									panic(fmt.Sprintf(
-										"incompatible types in XXX binary expression: %v %v %v",
-										lt.TypeID(), n.Op, rt.TypeID()))
-								}
-							*/
+							assertAssignableTo(rt, lt, false)
 						}
 					}
 				} else { // ---both not const---
@@ -949,7 +928,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						} else { // rt not native
 							// convert n.Right to pt or uint type,
 							panic(fmt.Sprintf(
-								"incompatible types in binary expression: %v %v %v",
+								"incompatible operands in binary expression: %s %s %s",
 								lt.TypeID(), n.Op, rt.TypeID()))
 						}
 

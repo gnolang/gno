@@ -548,7 +548,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 	if lin && rin {
 		if lt.TypeID() != rt.TypeID() {
 			panic(fmt.Sprintf(
-				"incompatible types in binary expression: %v %v %v",
+				"incompatible operands in binary expression: %s %s %s",
 				lt.TypeID(), x.Op, rt.TypeID()))
 		}
 	}
