@@ -2856,7 +2856,7 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 			if rerr, ok := r.(error); ok {
 				// NOTE: gotuna/gorilla expects error exceptions.
 				panic(errors.Wrap(rerr, loc.String()))
-			} else if ex, ok := r.(OutOfGasException); ok {
+			} else if ex, ok := r.(types.OutOfGasException); ok {
 				// NOTE: baseapp.runTx() handles OutOfGasException
 				// which it then converts into ABCIError(std.ErrOutOfGas)
 				panic(ex)
