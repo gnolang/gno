@@ -54,7 +54,7 @@ Sets the call entry realm address to **addr**.
 
 #### Usage
 ```go
-std.TestSetOrigPkgAddr(std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec"_)
+std.TestSetOrigPkgAddr(std.Address("g1ecely4gjy0yl6s9kt409ll330q9hk2lj9ls3ec"))
 ```
 
 ---
