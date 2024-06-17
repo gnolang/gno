@@ -844,12 +844,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					} else if lcx.T == nil { // LHS is nil.
 						// convert n.Left to typed-nil type.
 						checkOrConvertType(store, last, &n.Left, rt, false)
-					} else { // left is typed const, right not const
-						if !shouldSwapOnSpecificity(lt, rt) {
-							assertAssignableTo(lt, rt, false)
-						} else {
-							assertAssignableTo(rt, lt, false)
-						}
 					}
 				} else if ric { // right is const, left is not
 					if isUntyped(rcx.T) {
@@ -887,14 +881,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					} else if rcx.T == nil { // RHS is nil
 						// refer to tests/files/types/eql_0f20.gno
 						checkOrConvertType(store, last, &n.Right, lt, false)
-					} else { // left not const, right is typed const, both typed
-						if !shouldSwapOnSpecificity(lt, rt) {
-							assertAssignableTo(lt, rt, false)
-						} else {
-							assertAssignableTo(rt, lt, false)
-						}
 					}
-				} else { // ---both not const---
+				} else {
+					// Left not const, Right not const ------------------
 					if lnt, ok := lt.(*NativeType); ok {
 						// If left and right are native type,
 						// convert left and right to gno, then
@@ -912,6 +901,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 						rn := n.Right
 						// e.g. native: time.Second + time.Second, convert both(or it will be converted recursively)
+						// see tests/files/types/time_native.gno
 						if rnt, ok := rt.(*NativeType); ok {
 							rpt, ok := go2GnoBaseType(rnt.Type).(PrimitiveType)
 							if !ok {
@@ -921,12 +911,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									rnt.String()))
 							}
 							// check assignable, if pass, convert right to gno first
-							// XXX, can we just check on native type?
-							assertSame(lpt, rpt, "in binary expression "+n.Op.String()) // both primitive types
+							assertAssignableTo(lpt, rpt, false) // both primitive types
 							rn = Expr(Call(rpt.String(), n.Right))
-							// checkOrCovertType should happen in future when both sides to be gno'd
 						} else { // rt not native
-							// convert n.Right to pt or uint type,
 							panic(fmt.Sprintf(
 								"incompatible operands in binary expression: %s %s %s",
 								lt.TypeID(), n.Op, rt.TypeID()))

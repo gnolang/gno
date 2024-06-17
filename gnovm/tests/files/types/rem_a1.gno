@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/rem_a1.gno:21: invalid operation: division by zero
+// main/files/types/rem_a1.gno:21: invalid operation: mismatched types main.Error1 and main.Error2

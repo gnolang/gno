@@ -149,7 +149,7 @@ func assertComparable(xt, dt Type) {
 // assert value with dt is comparable
 func assertComparable2(dt Type) {
 	if debug {
-		debug.Printf("---assertComparable2 dt: %v \n", dt)
+		debug.Printf("assertComparable2 dt: %v \n", dt)
 	}
 	switch cdt := baseOf(dt).(type) {
 	case PrimitiveType:
@@ -230,7 +230,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
 	// case0
-	if xt == nil { // see test/files/types/0f18
+	if xt == nil { // see test/files/types/eql_0f18
 		if !maybeNil(dt) {
 			panic(fmt.Sprintf("invalid operation, nil can not be compared to %v", dt))
 		}
@@ -542,7 +542,7 @@ func (x *BinaryExpr) checkShiftLhs(dt Type) {
 // checkOrConvertType() operation to optimize performance.
 func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 	// native type will be converted to gno in latter logic,
-	// this check logic will be conduct again
+	// this check logic will be conduct again from trans_leave *BinaryExpr.
 	lnt, lin := lt.(*NativeType)
 	rnt, rin := rt.(*NativeType)
 	if lin && rin {
@@ -564,7 +564,7 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 	}
 
 	xt, dt := lt, rt
-	if shouldSwapOnSpecificity(lt, rt) { // check potential direction of type conversion
+	if shouldSwapOnSpecificity(lt, rt) {
 		xt, dt = dt, xt
 	}
 
@@ -572,6 +572,9 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 		switch x.Op {
 		case EQL, NEQ:
 			assertComparable(xt, dt)
+			if !isUntyped(xt) && !isUntyped(dt) {
+				assertAssignableTo(xt, dt, false)
+			}
 		case LSS, LEQ, GTR, GEQ:
 			if checker, ok := binaryChecker[x.Op]; ok {
 				x.checkCompatibility(xt, dt, checker, x.Op.TokenString())
@@ -609,13 +612,11 @@ func (x *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool, 
 		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(dt)))
 	}
 
-	// e.g. int(1) % 1e9. 1e9 is untyped bigDec, that is not compatible with operator `%`,
-	// but it is assignable and convertible to int as it's an exact number,
-	// so this expression is compatible.
-	if !checker(xt) {
-		err := checkAssignableTo(xt, dt, false) // XXX, cache this?
+	// if both typed
+	if !isUntyped(xt) && !isUntyped(dt) {
+		err := checkAssignableTo(xt, dt, false)
 		if err != nil {
-			panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(xt)))
+			panic(fmt.Sprintf("invalid operation: mismatched types %v and %v", xt, dt))
 		}
 	}
 }
