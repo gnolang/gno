@@ -39,8 +39,8 @@ type CodeBlock struct {
 	Options []string // The execution options extracted from the code block comments.
 }
 
-// getCodeBlocks extracts all code blocks from the provided markdown text.
-func getCodeBlocks(body string) []CodeBlock {
+// GetCodeBlocks extracts all code blocks from the provided markdown text.
+func GetCodeBlocks(body string) []CodeBlock {
 	parser := createParser()
 	tree, err := parseMarkdown(parser, body)
 	if err != nil {

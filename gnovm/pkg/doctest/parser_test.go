@@ -94,7 +94,7 @@ func TestGetCodeBlocks(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			result := getCodeBlocks(tt.input)
+			result := GetCodeBlocks(tt.input)
 			if len(result) != len(tt.expected) {
 				t.Errorf("Failed %s: expected %d code blocks, got %d", tt.name, len(tt.expected), len(result))
 			}
