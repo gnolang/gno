@@ -13,8 +13,8 @@ func main() {
 	var n2 nat
 
 	_, n2 = x()
-	// _tmp1, _tmp_2  := x()
-	// _, u2 = _tmp1, _tmp_2
+	// .tmp1, .tmp_2  := x()
+	// _, u2 = .tmp1, .tmp_2
 
 	println(u1)
 	println(n2)

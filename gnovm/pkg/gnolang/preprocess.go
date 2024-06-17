@@ -1694,23 +1694,23 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 								// only enter this section if cft.Results to be converted to Lhs type for named type conversion.
 								// decompose a,b = x()
-								// tmp1, tmp2 := x()  assignment statemet expression (Op=DEFINE)
-								// a,b = tmp1, tmp2   assignment statemet expression ( Op=ASSIGN )
+								// .tmp1, .tmp2 := x()  assignment statemet expression (Op=DEFINE)
+								// a,b = .tmp1, .tmp2   assignment statemet expression ( Op=ASSIGN )
 								// add the new statement to last.Body
 
 								// step1:
-								// create a hidden var with leading _ the curBodyLen increase every time when there is an decompostion
+								// create a hidden var with leading . (dot) the curBodyLen increase every time when there is an decompostion
 								// because there could be multiple decomposition happens
-								// we use both stmt index and resturn result number to differentiate the _tmp variables created in each assignment decompostion
-								// ex. _tmp_3_2: this variabl is created as the 3rd statement in the block, the 2nd parameter returned from x(),
-								// create _tmp_1_1, tmp_1_2 .... based on number of result from x()
+								// we use both stmt index and resturn result number to differentiate the .tmp variables created in each assignment decompostion
+								// ex. .tmp_3_2: this variabl is created as the 3rd statement in the block, the 2nd parameter returned from x(),
+								// create .tmp_1_1, .tmp_1_2 .... based on number of result from x()
 								var tmpExprs Exprs
 								for i := range cft.Results {
-									rn := fmt.Sprintf("_tmp_%d_%d", index, i)
+									rn := fmt.Sprintf(".tmp_%d_%d", index, i)
 									tmpExprs = append(tmpExprs, Nx(rn))
 								}
 								// step2:
-								// tmp1, tmp2 := x()
+								// .tmp1, .tmp2 := x()
 								dsx := &AssignStmt{
 									Lhs: tmpExprs,
 									Op:  DEFINE,
@@ -1721,7 +1721,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 								// step3:
 
-								// a,b = tmp1, tmp2
+								// a,b = .tmp1, .tmp2
 								// assign stmt expression
 								// the right hand side will be converted to  call expr for nameed/unnamed covnerstion
 								// we make a copy of tmpExrs to prevent dsx.Lhs in the preview statement changing by the side effect
@@ -1744,7 +1744,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								n.Op = dsx.Op
 								n.Rhs = dsx.Rhs
 
-								//  insert a assignment statement a,b = tmp1,tmp2 AFTER the current statement in the last.Body.
+								//  insert a assignment statement a,b = .tmp1,.tmp2 AFTER the current statement in the last.Body.
 								body = append(body[:index+1], append(Body{asx}, body[index+1:]...)...)
 								last.SetBody(body)
 							} // end of the decomposition
