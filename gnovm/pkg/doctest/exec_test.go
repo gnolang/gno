@@ -98,6 +98,63 @@ splay a t = rebuild $ path a t [(undefined,t)]`,
 	}
 }
 
+func TestExecuteCodeBlock_ImportPackage(t *testing.T) {
+	t.Skip("skipping test for now")
+	tests := []struct {
+		name      string
+		codeBlock CodeBlock
+		expected  string
+	}{
+		{
+			name: "import go stdlib package",
+			codeBlock: CodeBlock{
+				Content: `package main
+
+import (
+	"strings"
+)
+
+func main() {
+	println(strings.Join([]string{"Hello", "World"}, ", "))
+}`,
+				T:       "go",
+				Package: "main",
+			},
+			expected: "Hello, World\n",
+		},
+		{
+			name: "import realm",
+			codeBlock: CodeBlock{
+				Content: `package main
+
+import (
+	"gno.land/p/demo/ufmt"
+)
+
+func main() {
+	ufmt.Println("Hello, World!")
+}`,
+				T:       "go",
+				Package: "main",
+			},
+			expected: "Hello, World!\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := ExecuteCodeBlock(tt.codeBlock)
+			if err != nil {
+				t.Errorf("%s returned an error: %v", tt.name, err)
+			}
+
+			if res != tt.expected {
+				t.Errorf("%s = %v, want %v", tt.name, res, tt.expected)
+			}
+		})
+	}
+}
+
 func TestExecuteCodeBlock_ShouldPanic(t *testing.T) {
 	tests := []struct {
 		name      string

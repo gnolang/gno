@@ -3,6 +3,7 @@ package doctest
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -33,15 +34,50 @@ func ExecuteCodeBlock(c CodeBlock) (string, error) {
 	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 	store := gno.NewStore(nil, baseStore, iavlStore)
+	store.SetStrictGo2GnoMapping(true)
 
 	m := gno.NewMachine("main", store)
-	m.RunMemPackageWithOverrides(&std.MemPackage{
+
+	importPaths := extractImportPaths(c.Content)
+	for _, path := range importPaths {
+		if !gno.IsRealmPath(path) {
+			pkgName := defaultPkgName(path)
+			pn := gno.NewPackageNode(pkgName, path, &gno.FileSet{})
+			pv := pn.NewPackage()
+			store.SetBlockNode(pn)
+			store.SetCachePackage(pv)
+			m.SetActivePackage(pv)
+		} else {
+			dir := "gnovm/stdlibs/" + path
+			memPkg := gno.ReadMemPackage(dir, path)
+			m.RunMemPackage(memPkg, true)
+		}
+	}
+
+	memPkg := &std.MemPackage{
 		Name: c.Package,
 		Path: c.Package,
 		Files: []*std.MemFile{
-			{Name: fmt.Sprintf("%d.%s", c.Index, c.T), Body: c.Content},
+			{
+				Name: fmt.Sprintf("%d.%s", c.Index, c.T),
+				Body: c.Content,
+			},
 		},
-	}, true)
+	}
+
+	if !gno.IsRealmPath(c.Package) {
+		pkgName := defaultPkgName(c.Package)
+		pn := gno.NewPackageNode(pkgName, c.Package, &gno.FileSet{})
+		pv := pn.NewPackage()
+		store.SetBlockNode(pn)
+		m.SetActivePackage(pv)
+		m.RunMemPackage(memPkg, true)
+	} else {
+		store.ClearCache()
+		m.PreprocessAllFilesAndSaveBlockNodes()
+		pv := store.GetPackage(c.Package, false)
+		m.SetActivePackage(pv)
+	}
 
 	// Capture output
 	var output bytes.Buffer
@@ -59,4 +95,13 @@ func ExecuteCodeBlock(c CodeBlock) (string, error) {
 	}
 
 	return result, nil
+}
+
+func defaultPkgName(gopkgPath string) gno.Name {
+	parts := strings.Split(gopkgPath, "/")
+	last := parts[len(parts)-1]
+	parts = strings.Split(last, "-")
+	name := parts[len(parts)-1]
+	name = strings.ToLower(name)
+	return gno.Name(name)
 }

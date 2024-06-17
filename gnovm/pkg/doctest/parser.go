@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
+	"strconv"
 	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -197,6 +198,22 @@ func extractPackageName(content string) string {
 	return ""
 }
 
+func extractImportPaths(code string) []string {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "", code, parser.ImportsOnly)
+	if err != nil {
+		panic(err)
+	}
+
+	importPaths := make([]string, 0)
+	for _, imp := range file.Imports {
+		path, _ := strconv.Unquote(imp.Path.Value)
+		importPaths = append(importPaths, path)
+	}
+
+	return importPaths
+}
+
 func extractOptions(content string) []string {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, "", content, parser.ParseComments)
@@ -208,6 +225,7 @@ func extractOptions(content string) []string {
 	opts := make([]string, 0)
 	for _, commentGroup := range node.Comments {
 		for _, comment := range commentGroup.List {
+			// TODO: ignore whitespace
 			if strings.HasPrefix(comment.Text, "//gno:") {
 				opt := strings.TrimPrefix(comment.Text, "//gno:")
 				opts = append(opts, strings.TrimSpace(opt))
