@@ -1,6 +1,10 @@
 // Package proposal provides a structure for executing proposals.
 package proposal
 
+import "std"
+
+const daoPkgPath = "gno.land/r/gov/dao" // XXX: make it configurable with r/sys/vars?
+
 // NewExecutor creates a new executor with the provided callback function.
 func NewExecutor(callback func() error) Executor {
 	return &executorImpl{
@@ -21,7 +25,7 @@ func (exec *executorImpl) Execute() error {
 	if exec.done {
 		return ErrAlreadyDone
 	}
-	// XXX: assertCalledByGovdao
+	assertCalledByGovdao()
 	err := exec.callback()
 	exec.done = true
 	exec.success = err == nil
@@ -36,4 +40,22 @@ func (exec *executorImpl) Done() bool {
 // Success returns whether the execution was successful.
 func (exec *executorImpl) Success() bool {
 	return exec.success
+}
+
+func (exec executorImpl) Status() Status {
+	switch {
+	case exec.success:
+		return Success
+	case exec.done:
+		return Failed
+	default:
+		return NotExecuted
+	}
+}
+
+func assertCalledByGovdao() {
+	caller := std.CurrentRealm().PkgPath()
+	if caller != daoPkgPath {
+		panic("only gov/dao can execute proposals")
+	}
 }
