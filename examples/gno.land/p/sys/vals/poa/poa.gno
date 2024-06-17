@@ -3,7 +3,7 @@ package poa
 import (
 	"std"
 
-	"gno.land/r/sys/vals/types"
+	"gno.land/p/sys/vals/types"
 )
 
 const (

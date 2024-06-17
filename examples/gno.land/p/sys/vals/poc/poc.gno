@@ -3,7 +3,7 @@ package poc
 import (
 	"std"
 
-	"gno.land/r/sys/vals/types"
+	"gno.land/p/sys/vals/types"
 )
 
 const govdaoRealm = "gno.land/r/gov/dao"
@@ -60,7 +60,6 @@ func (p *PoC) AddValidator(address std.Address, pubKey string) *types.Validator 
 // validateAdd validates a validator add call
 func (p *PoC) validateAdd(address std.Address) {
 	if std.PrevRealm().PkgPath() != govdaoRealm {
-		println(std.PrevRealm())
 		panic(errNotGovdao)
 	}
 

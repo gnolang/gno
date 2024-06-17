@@ -3,7 +3,7 @@ package pos
 import (
 	"std"
 
-	"gno.land/r/sys/vals/types"
+	"gno.land/p/sys/vals/types"
 )
 
 type Option func(*PoS)
