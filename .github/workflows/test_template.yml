@@ -29,22 +29,30 @@ jobs:
         - name: Go test
           working-directory:  ${{ inputs.modulepath }}
           env:
-            COVERDIR: /tmp/coverdir
+            TXTARCOVERDIR: /tmp/txtarcoverdir # txtar cover output
+            GOCOVERDIR: /tmp/gocoverdir # go cover output
+            COVERDIR: /tmp/coverdir # final output
           run: |
-            mkdir -p "$COVERDIR"
+            mkdir -p "$GOCOVERDIR" "$TXTARCOVERDIR" "$COVERDIR"
 
-            # XXX: simplify coverage of txtar - the current setup is a bit
+            # XXX: Simplify coverage of txtar - the current setup is a bit
             # confusing and meticulous. There will be some improvements in Go
             # 1.23 regarding coverage, so we can use this as a workaround until
             # then.
-            TXTARCOVERDIR=$COVERDIR \
-              go test -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./... -test.gocoverdir=$COVERDIR
+            go test -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./... -test.gocoverdir=$GOCOVERDIR
 
-            # print out coverage result
-            echo 'coverage results:'
+            # Print results
+            echo 'go coverage results:'
+            go tool covdata percent -i=$GOCOVERDIR
+            echo 'txtar coverage results:'
+            go tool covdata percent -i=$TXTARCOVERDIR
+
+            # Merge and print combined coverage results
+            go tool covdata merge -v 1 -i="$GOCOVERAGE,$TXTARCOVERDIR" -o $COVERDIR
+            echo 'final coverage results:'
             go tool covdata percent -i=$COVERDIR
 
-            # generate coverage output
+            # Generate final coverage output
             go tool covdata textfmt -v 1 -i=$COVERDIR -o coverage.out
 
         - name: Upload coverage to Codecov
