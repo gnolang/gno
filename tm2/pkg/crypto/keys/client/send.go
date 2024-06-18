@@ -110,7 +110,7 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 		ToAddress:   toAddr,
 		Amount:      send,
 	}
-	tx := std.Tx{
+	tx := &std.Tx{
 		Msgs:       []std.Msg{msg},
 		Fee:        std.NewFee(gaswanted, gasfee),
 		Signatures: nil,
