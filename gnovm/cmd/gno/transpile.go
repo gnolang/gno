@@ -8,7 +8,6 @@ import (
 	"go/ast"
 	"go/scanner"
 	"go/token"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -222,14 +221,14 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 	// Easier to skip for now.
 	files, err := listNonTestFiles(dirPath)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	if opts.cfg.verbose {
 		fmt.Fprintf(os.Stderr, "%s\n", filepath.Clean(dirPath))
 	}
 	for _, file := range files {
-		if err = transpileFile(file, opts); err != nil {
+		if err := transpileFile(file, opts); err != nil {
 			return fmt.Errorf("%s: %w", file, err)
 		}
 	}
@@ -357,10 +356,11 @@ func buildTranspiledPackage(fileOrPkg, goBinary string) error {
 	args = append(args, "-tags=gno", target)
 	cmd := exec.Command(goBinary, args...)
 	out, err := cmd.CombinedOutput()
-	if _, ok := err.(*exec.ExitError); ok {
-		// exit error
+	if errors.As(err, new(*exec.ExitError)) {
+		// there was a non-zero exit code; parse the go build errors
 		return parseGoBuildErrors(string(out))
 	}
+	// other kinds of errors; return
 	return err
 }
 
