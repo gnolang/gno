@@ -168,8 +168,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 				continue
 			}
 			if cfg.output != "." {
-				pkgPath, err = ResolvePath(cfg.output, pkgPath)
-				if err != nil {
+				if pkgPath, err = ResolvePath(cfg.output, pkgPath); err != nil {
 					return fmt.Errorf("resolve output path: %w", err)
 				}
 			}
