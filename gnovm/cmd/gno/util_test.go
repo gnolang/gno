@@ -297,6 +297,8 @@ func createGnoPackages(t *testing.T, tmpDir string) {
 }
 
 func TestResolvePath(t *testing.T) {
+	t.Parallel()
+
 	if os.PathSeparator != '/' {
 		t.Skip("ResolvePath test is only written of UNIX-like filesystems")
 	}

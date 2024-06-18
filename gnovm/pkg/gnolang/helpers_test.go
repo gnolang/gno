@@ -7,6 +7,7 @@ import (
 )
 
 func TestIsRealmPath(t *testing.T) {
+	t.Parallel()
 	tt := []struct {
 		input  string
 		result bool

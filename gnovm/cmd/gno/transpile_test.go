@@ -94,7 +94,6 @@ pkg/file.gno:60:20: ugly error`,
 			t.Parallel()
 
 			err := parseGoBuildErrors(tt.output)
-
 			assert.ErrorIs(t, err, tt.expectedError)
 		})
 	}
