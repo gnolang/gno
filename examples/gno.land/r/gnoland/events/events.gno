@@ -2,12 +2,12 @@ package events
 
 import (
 	"bytes"
+	"sort"
 	"std"
+	"strconv"
 	"time"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable/exts/authorizable"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -20,19 +20,23 @@ type Event struct {
 	// FIXME: add duration/endtime?
 }
 
+type eventsSlice []*Event
+
 var (
-	a         *authorizable.Authorizable
-	events    *avl.Tree
-	idCounter seqid.ID
+	a      *authorizable.Authorizable
+	events eventsSlice
 )
 
-const maxDescLength = 100
+const (
+	maxDescLength = 100
+	maxWidgetSize = 5
+)
 
 func init() {
 	su := std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
 	a = authorizable.NewAuthorizableWithAddress(su)
 
-	events = avl.NewTree()
+	events = make([]*Event, 10)
 }
 
 func AddEvent(name, description, link, location string, startTime int64) {
@@ -59,33 +63,35 @@ func AddEvent(name, description, link, location string, startTime int64) {
 		startTime:   time.Unix(startTime, 0), // given in unix seconds
 	}
 
-	_ = events.Set(genID(e.startTime), e)
+	events = append(events, e)
+	sort.Sort(events)
 }
 
 // RenderEventWidget shows up to amt of the latest events to a caller
-func RenderEventWidget(amt uint) string {
-	if events.Size() == 0 {
+func RenderEventWidget(amt int) string {
+	eventNum := len(events)
+	if eventNum == 0 {
 		return "No events."
 	}
 
 	if amt > 5 {
-		panic("maximum number of events in widget is 5")
+		panic("maximum number of events in widget is " + strconv.Itoa(maxWidgetSize))
 	}
 
-	var (
-		i      = 0
-		output = ""
-	)
+	if amt < 1 {
+		panic("amt needs to be more than 0")
+	}
 
-	events.ReverseIterate("", "", func(key string, value interface{}) bool {
-		e := value.(*Event)
-		if e.startTime.After(time.Now()) {
-			output += ufmt.Sprintf("[%s](%s)\n", e.name, e.link)
-			i++
-		} // only return upcoming events
+	if amt > eventNum {
+		amt = eventNum - 1
+	}
 
-		return i >= int(amt)
-	})
+	output := ""
+
+	for _, _ = range events[eventNum-amt:] {
+		//output += ufmt.Sprintf("- [%s](%s)\n", event.name, event.link)
+		output += "1"
+	}
 
 	return output
 }
@@ -93,29 +99,33 @@ func RenderEventWidget(amt uint) string {
 func renderHome() string {
 	output := "# Gno.land Events\n\n"
 
-	if events.Size() == 0 {
+	if len(events) == 0 {
 		output += "No upcoming or past events."
 		return output
 	}
 
-	output += "<div class='columns-3'>"
+	output += "Below is a list of all upcoming and past Gno.land events.\n\n"
+	output += "---\n\n"
 
-	events.ReverseIterate("", "", func(key string, value interface{}) bool {
-		e := value.(*Event)
-
-		if e.startTime.After(time.Now()) {
-			output += e.RenderListItem()
-		}
-		if e.startTime.Before(time.Now()) {
-			output += e.RenderListItem()
-		}
-
-		output += ufmt.Sprintf("<!-- EventID: %s -->", key)
-
-		return false
+	// Find position of latest past event
+	pos := sort.Search(len(events), func(i int) bool {
+		return events[i].startTime.After(time.Now())
 	})
 
-	output += "</div>"
+	// Add events
+	for i, e := range events {
+		output += "<div class='columns-3'>"
+		output += e.RenderListItem()
+		output += "</div>\n\n"
+
+		// Add separator if we are at the boundary between upcoming and past events
+		if i == pos-1 {
+			output += "---\n\n"
+		}
+	}
+
+	output += "---\n\n"
+	output += "##### *All times are local."
 
 	return output
 }
@@ -127,12 +137,13 @@ func (e Event) RenderListItem() string {
 	buf.WriteString(ufmt.Sprintf("### %s\n\n", e.name))
 	buf.WriteString(ufmt.Sprintf("%s\n\n", e.description))
 	buf.WriteString(ufmt.Sprintf("**Location:** %s\n\n", e.location))
-	buf.WriteString(ufmt.Sprintf("**Time & Date:** %s\n\n", e.startTime.Format("02 Jan 2006")))
-	buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
+	buf.WriteString(ufmt.Sprintf("**Time & Date:** %s\n\n", e.startTime.Format("02 Jan 2006, 15:04")))
 
 	if e.startTime.Before(time.Now()) {
 		buf.WriteString("*Event is over\n\n")
 	}
+
+	buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
 
 	buf.WriteString("\n</div>")
 
@@ -141,13 +152,6 @@ func (e Event) RenderListItem() string {
 
 func Render(path string) string {
 	return renderHome()
-}
-
-// genID generates a unique id for the event
-// By utilizing the AVL tree property which automatically sorts in lex order,
-// we can automatically have events sorted by event start time
-func genID(t time.Time) string {
-	return t.Format(time.RFC3339) + "-" + idCounter.Next().String()
 }
 
 func GetOwner() std.Address {
@@ -160,4 +164,19 @@ func AddModerator(mod std.Address) {
 	if err := a.AddToAuthList(mod); err != nil {
 		panic(err)
 	}
+}
+
+// Len returns the length of the slice
+func (m eventsSlice) Len() int {
+	return len(m)
+}
+
+// Less compares the startTime fields of two elements
+func (m eventsSlice) Less(i, j int) bool {
+	return m[i].startTime.Before(m[j].startTime)
+}
+
+// Swap swaps two elements in the slice
+func (m eventsSlice) Swap(i, j int) {
+	m[i], m[j] = m[j], m[i]
 }
