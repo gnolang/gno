@@ -5,73 +5,74 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/gnolang/gno/gnovm/pkg/doctest"
+	dt "github.com/gnolang/gno/gnovm/pkg/doctest"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 type doctestCfg struct {
-	path string
-	index int
+	markdownPath string
+	codeIndex    int
 }
 
-func newDoctestCmd() *commands.Command {
+func newDoctestCmd(io commands.IO) *commands.Command {
 	cfg := &doctestCfg{}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "doctest",
-			ShortUsage: "doctest [flags]",
-			ShortHelp:  "executes a code block from a markdown file",
+			ShortUsage: "doctest -path <markdown_file_path> -index <code_block_index>",
+			ShortHelp:  "executes a specific code block from a markdown file",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execDoctest(cfg, args)
+			return execDoctest(cfg, args, io)
 		},
 	)
 }
 
 func (c *doctestCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.path,
-		"markdown-path",
+		&c.markdownPath,
+		"path",
 		"",
 		"path to the markdown file",
 	)
 
 	fs.IntVar(
-		&c.index,
+		&c.codeIndex,
 		"index",
-		0,
+		-1,
 		"index of the code block to execute",
 	)
 }
 
-func execDoctest(cfg *doctestCfg, args []string) error {
-	if len(args) > 0 {
-		return flag.ErrHelp
+func execDoctest(cfg *doctestCfg, args []string, io commands.IO) error {
+	if cfg.markdownPath == "" {
+		return fmt.Errorf("markdown file path is required")
 	}
 
-	if cfg.path == "" {
-		return fmt.Errorf("missing markdown-path flag. Please provide a path to the markdown file")
+	if cfg.codeIndex < 0 {
+		return fmt.Errorf("code block index must be non-negative")
 	}
 
-	content, err := doctest.ReadMarkdownFile(cfg.path)
+	content, err := dt.ReadMarkdownFile(cfg.markdownPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read markdown file: %w", err)
 	}
 
-	codeBlocks := doctest.GetCodeBlocks(content)
-	if cfg.index >= len(codeBlocks) {
-		return fmt.Errorf("code block index out of range. max index: %d", len(codeBlocks)-1)
+	codeBlocks := dt.GetCodeBlocks(content)
+	if cfg.codeIndex >= len(codeBlocks) {
+		return fmt.Errorf("invalid code block index: %d", cfg.codeIndex)
 	}
 
-	codeblock := codeBlocks[cfg.index]
-	result, err := doctest.ExecuteCodeBlock(codeblock)
+	selectedCodeBlock := codeBlocks[cfg.codeIndex]
+	result, err := dt.ExecuteCodeBlock(selectedCodeBlock, dt.STDLIBS_DIR)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to execute code block: %w", err)
 	}
 
-	fmt.Println(result)
+	io.Println("Execution Result:")
+	io.Println(result)
 
 	return nil
 }

@@ -40,12 +40,12 @@ func TestGetCodeBlocks(t *testing.T) {
 		},
 		{
 			name:  "Single code block with tildes",
-			input: "~~~go\nfmt.Println(\"Hello, World!\")\n~~~",
+			input: "## Example\nprint hello world in go.\n~~~go\nfmt.Println(\"Hello, World!\")\n~~~",
 			expected: []CodeBlock{
 				{
 					Content: "fmt.Println(\"Hello, World!\")",
-					Start:   6,
-					End:     38,
+					Start:   42,
+					End:     74,
 					T:       "go",
 					Index:   0,
 				},

@@ -28,10 +28,11 @@ const (
 const STDLIBS_DIR = "../../stdlibs"
 
 // ExecuteCodeBlock executes a parsed code block and executes it in a gno VM.
-func ExecuteCodeBlock(c CodeBlock) (string, error) {
-	err := validateCodeBlock(c)
-	if err != nil {
-		return "", err
+func ExecuteCodeBlock(c CodeBlock, stdlibDir string) (string, error) {
+	if c.T == "go" {
+		c.T = "gno"
+	} else if c.T != "gno" {
+		return "", fmt.Errorf("unsupported language type: %s", c.T)
 	}
 
 	baseCapKey := store.NewStoreKey("baseCapKey")
@@ -42,8 +43,7 @@ func ExecuteCodeBlock(c CodeBlock) (string, error) {
 	acck := auth.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
 
-	vmk := vm.NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, STDLIBS_DIR, 100_000_000)
-
+	vmk := vm.NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibDir, 100_000_000)
 	vmk.Initialize(ms.MultiCacheWrap())
 
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -63,15 +63,6 @@ func ExecuteCodeBlock(c CodeBlock) (string, error) {
 	}
 
 	return res, nil
-}
-
-func validateCodeBlock(c CodeBlock) error {
-	if c.T == "go" {
-		c.T = "gno"
-	} else if c.T != "gno" {
-		return fmt.Errorf("unsupported language: %s", c.T)
-	}
-	return nil
 }
 
 func setupMultiStore(baseKey, iavlKey types.StoreKey) (types.CommitMultiStore, sdk.Context) {

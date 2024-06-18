@@ -95,12 +95,21 @@ func main() {
 			},
 			expected: "3.141592653589793\nHELLO, WORLD\n",
 		},
+		{
+			name: "test",
+			codeBlock: CodeBlock{
+				Content: "package main\n\nfunc main() {\nprintln(\"Hello, World!\")\n}",
+				T:       "gno",
+				Package: "main",
+			},
+			expected: "Hello, World!\n",
+		},
 	}
 
 	for _, tt := range tests {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := ExecuteCodeBlock(tt.codeBlock)
+			res, err := ExecuteCodeBlock(tt.codeBlock, STDLIBS_DIR)
 			if err != nil {
 				t.Errorf("%s returned an error: %v", tt.name, err)
 			}
