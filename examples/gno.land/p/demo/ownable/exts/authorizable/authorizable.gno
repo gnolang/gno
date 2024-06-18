@@ -8,33 +8,35 @@ package authorizable
 import (
 	"std"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/ufmt"
 )
 
 type Authorizable struct {
-	*ownable.Ownable // owner in ownable is superuser
-	authorized       map[std.Address]struct{}
+	*ownable.Ownable           // owner in ownable is superuser
+	authorized       *avl.Tree // std.Addr > struct{}{}
 }
 
 func NewAuthorizable() *Authorizable {
 	a := &Authorizable{
 		ownable.New(),
-		make(map[std.Address]struct{}),
+		avl.NewTree(),
 	}
 
 	// Add owner to auth list
-	a.authorized[a.Owner()] = struct{}{}
+	a.authorized.Set(a.Owner().String(), struct{}{})
 	return a
 }
 
 func NewAuthorizableWithAddress(addr std.Address) *Authorizable {
 	a := &Authorizable{
 		ownable.NewWithAddress(addr),
-		make(map[std.Address]struct{}),
+		avl.NewTree(),
 	}
 
 	// Add owner to auth list
-	a.authorized[addr] = struct{}{}
+	a.authorized.Set(a.Owner().String(), struct{}{})
 	return a
 }
 
@@ -43,38 +45,46 @@ func (a *Authorizable) AddToAuthList(addr std.Address) error {
 		return ErrNotSuperuser
 	}
 
-	if _, exists := a.authorized[addr]; exists {
+	if _, exists := a.authorized.Get(addr.String()); exists {
 		return ErrAlreadyInList
 	}
 
-	a.authorized[addr] = struct{}{}
+	a.authorized.Set(addr.String(), struct{}{})
+
+	return nil
+}
+
+func (a *Authorizable) DelFromAuthList(addr std.Address) error {
+	if err := a.CallerIsOwner(); err != nil {
+		return ErrNotSuperuser
+	}
+
+	if !a.authorized.Has(addr.String()) {
+		return ErrNotInAuthList
+	}
+
+	if _, removed := a.authorized.Remove(addr.String()); !removed {
+		str := ufmt.Sprintf("authorizable: could not remove %s from auth list", addr.String())
+		panic(str)
+	}
+
 	return nil
 }
 
 func (a Authorizable) CallerOnAuthList() error {
 	caller := std.PrevRealm().Addr()
-	if _, exists := a.authorized[caller]; !exists {
+
+	if !a.authorized.Has(caller.String()) {
 		return ErrNotInAuthList
 	}
 
 	return nil
 }
 
-func (a Authorizable) OnAuthListByAddr(addr std.Address) error {
-	caller := std.PrevRealm().Addr()
-	if _, exists := a.authorized[caller]; exists {
-		return nil
-	}
-
-	return ErrNotInAuthList
-}
-
 func (a Authorizable) AssertOnAuthList() {
 	caller := std.PrevRealm().Addr()
 
-	if _, exists := a.authorized[caller]; !exists {
+	if !a.authorized.Has(caller.String()) {
 		panic(ErrNotInAuthList)
 	}
 }
-
-// todo add remove from auth list
