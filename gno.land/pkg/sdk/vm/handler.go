@@ -180,19 +180,32 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 
 // queryEval evaluates any expression in readonly mode and returns the results.
 func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	reqData := string(req.Data)
-	dot := strings.IndexByte(reqData, '.')
-	if dot < 0 {
-		panic("expected <pkgpath>.<expression> syntax in query input data")
-	}
-
-	pkgPath, expr := reqData[:dot], reqData[dot+1:]
+	pkgPath, expr := parseQueryEvalData(string(req.Data))
 	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
 		return
 	}
 	res.Data = []byte(result)
+	return
+}
+
+// parseQueryEval parses the input string of vm/qeval. It takes the first dot
+// after the first slash (if any) to separe the pkgPath and the expr.
+// For instance, in gno.land/r/realm.MyFunction(), gno.land/r/realm is the
+// pkgPath,and MyFunction() is the expr.
+func parseQueryEvalData(data string) (pkgPath, expr string) {
+	slash := strings.IndexByte(data, '/')
+	if slash >= 0 {
+		pkgPath += data[:slash]
+		data = data[slash:]
+	}
+	dot := strings.IndexByte(data, '.')
+	if dot < 0 {
+		panic("expected <pkgpath>.<expression> syntax in query input data")
+	}
+	pkgPath += data[:dot]
+	expr = data[dot+1:]
 	return
 }
 
