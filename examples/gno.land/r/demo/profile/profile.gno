@@ -146,8 +146,8 @@ func UpdateProfile(username, avatarurl, age, gender, websiteName, websiteURL, co
     }
 }
 
-// Display complete Profile by Address
-func DisplayProfileByAddress(address std.Address) UserProfile {
+// Get complete Profile by Address
+func GetProfileByAddress(address std.Address) UserProfile {
 	if value, exists := profiles.Get(address.String()); exists {
 		return value.(UserProfile)
 	}
@@ -156,16 +156,16 @@ func DisplayProfileByAddress(address std.Address) UserProfile {
 }
 
 // Get complete profile by username
-func DisplayProfileByUsername(username string) UserProfile {
+func GetProfileByUsername(username string) UserProfile {
 	if addr, exists := usernameIndex.Get(username); exists {
-		return DisplayProfileByAddress(std.Address(addr.(string)))
+		return GetProfileByAddress(std.Address(addr.(string)))
 	}
 
 	panic("username not found")
 }
 
-// Display username
-func DisplayUsernameByAddress(address std.Address) string {
+// Get username
+func GetUsernameByAddress(address std.Address) string {
 	if value, exists := profiles.Get(address.String()); exists {
 		return value.(UserProfile).Username
 	}
@@ -173,8 +173,8 @@ func DisplayUsernameByAddress(address std.Address) string {
 	panic("address not found")
 }
 
-// Display address from username
-func DisplayAddressByUsername(username string) string {
+// Get address from username
+func GetAddressByUsername(username string) string {
 	if addr, exists := usernameIndex.Get(username); exists {
 		return addr.(string)
 	}
@@ -182,8 +182,8 @@ func DisplayAddressByUsername(username string) string {
 	panic("username not found")
 }
 
-// Display avatarurl from address or username
-func DisplayAvatarURL(address std.Address, username string) string {
+// Get avatarurl from address or username
+func GetAvatarURL(address std.Address, username string) string {
 	if address != "" {
 		if value, exists := profiles.Get(address.String()); exists {
 			return value.(UserProfile).AvatarURL
@@ -199,8 +199,8 @@ func DisplayAvatarURL(address std.Address, username string) string {
 	panic("address or username not found")
 }
 
-// Display age from address or username
-func DisplayAge(address std.Address, username string) string {
+// Get age from address or username
+func GetAge(address std.Address, username string) string {
 	if address != "" {
 		if value, exists := profiles.Get(address.String()); exists {
 			return value.(UserProfile).Age
@@ -216,8 +216,8 @@ func DisplayAge(address std.Address, username string) string {
 	panic("address or username not found")
 }
 
-// Display gender from address or username
-func DisplayGender(address std.Address, username string) string {
+// Get gender from address or username
+func GetGender(address std.Address, username string) string {
 	if address != "" {
 		if value, exists := profiles.Get(address.String()); exists {
 			return value.(UserProfile).Gender
@@ -233,8 +233,8 @@ func DisplayGender(address std.Address, username string) string {
 	panic("address or username not found")
 }
 
-// Display website from address or username
-func DisplayWebsite(address std.Address, username, websiteName string) string {
+// Get website from address or username
+func GetWebsite(address std.Address, username, websiteName string) string {
 	if address != "" {
 		if value, exists := profiles.Get(address.String()); exists {
 			profile := value.(UserProfile)
@@ -258,7 +258,8 @@ func DisplayWebsite(address std.Address, username, websiteName string) string {
 	panic("address or username not found")
 }
 
-func DisplayAllWebsites(address std.Address, username string) map[string]string {
+// Get all websites from address or username
+func GetAllWebsites(address std.Address, username string) map[string]string {
 	if address != "" {
 		if value, exists := profiles.Get(address.String()); exists {
 			profile := value.(UserProfile)
@@ -285,8 +286,8 @@ func DisplayAllWebsites(address std.Address, username string) map[string]string 
 	panic("address or username not found")
 }
 
-// Display country from address or username
-func DisplayCountry(address std.Address, username string) string {
+// Get country from address or username
+func GetCountry(address std.Address, username string) string {
 	if address != "" {
 		if value, exists := profiles.Get(address.String()); exists {
 			return value.(UserProfile).Country
@@ -302,8 +303,8 @@ func DisplayCountry(address std.Address, username string) string {
 	panic("address or username not found")
 }
 
-// Display city from address or username
-func DisplayCity(address std.Address, username string) string {
+// Get city from address or username
+func GetCity(address std.Address, username string) string {
 	if address != "" {
 		if value, exists := profiles.Get(address.String()); exists {
 			return value.(UserProfile).City
@@ -319,8 +320,8 @@ func DisplayCity(address std.Address, username string) string {
 	panic("address or username not found")
 }
 
-// Display modification history specific to a field from address or username
-func DisplayModificationHistory(address std.Address, username, field string) string {
+// Get modification history specific to a field from address or username
+func GetModificationHistory(address std.Address, username, field string) string {
 	var value interface{}
 	var exists bool
 
@@ -368,7 +369,7 @@ func homeHandler(res *mux.ResponseWriter, req *mux.Request) {
 
 func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 	username := req.GetVar("username")
-	profile := DisplayProfileByUsername(username)
+	profile := GetProfileByUsername(username)
 
 	var b bytes.Buffer
 
@@ -398,7 +399,7 @@ func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 
 func historyHandler(res *mux.ResponseWriter, req *mux.Request) {
 	username := req.GetVar("username")
-	profile := DisplayProfileByUsername(username)
+	profile := GetProfileByUsername(username)
 
 	var b bytes.Buffer
 
