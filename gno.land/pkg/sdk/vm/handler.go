@@ -150,12 +150,12 @@ func (vh vmHandler) queryStore(ctx sdk.Context, req abci.RequestQuery) (res abci
 // queryRender calls .Render(<path>) in readonly mode.
 func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	reqData := string(req.Data)
-	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 2 {
-		panic("expected two lines in query input data")
+	dot := strings.IndexByte(reqData, ':')
+	if dot < 0 {
+		panic("expected <pkgpath>:<path> syntax in query input data")
 	}
-	pkgPath := reqParts[0]
-	path := reqParts[1]
+
+	pkgPath, path := reqData[:dot], reqData[dot+1:]
 	expr := fmt.Sprintf("Render(%q)", path)
 	result, err := vh.vm.QueryEvalString(ctx, pkgPath, expr)
 	if err != nil {
@@ -168,12 +168,7 @@ func (vh vmHandler) queryRender(ctx sdk.Context, req abci.RequestQuery) (res abc
 
 // queryFuncs returns public facing function signatures as JSON.
 func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
-	reqData := string(req.Data)
-	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 1 {
-		panic("expected one line in query input data")
-	}
-	pkgPath := reqParts[0]
+	pkgPath := string(req.Data)
 	fsigs, err := vh.vm.QueryFuncs(ctx, pkgPath)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
@@ -186,12 +181,12 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 // queryEval evaluates any expression in readonly mode and returns the results.
 func (vh vmHandler) queryEval(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	reqData := string(req.Data)
-	reqParts := strings.Split(reqData, "\n")
-	if len(reqParts) != 2 {
-		panic("expected two lines in query input data")
+	dot := strings.IndexByte(reqData, '.')
+	if dot < 0 {
+		panic("expected <pkgpath>.<expression> syntax in query input data")
 	}
-	pkgPath := reqParts[0]
-	expr := reqParts[1]
+
+	pkgPath, expr := reqData[:dot], reqData[dot+1:]
 	result, err := vh.vm.QueryEval(ctx, pkgPath, expr)
 	if err != nil {
 		res = sdk.ABCIResponseQueryFromError(err)
