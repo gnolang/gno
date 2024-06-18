@@ -4,6 +4,7 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/sys/vals/types"
 )
@@ -48,7 +49,7 @@ func TestPoS_AddValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(callerAddress)
 
 		// Attempt to add the validator
-		testing.PanicsWithError(t, types.ErrValidatorExists, func() {
+		uassert.PanicsWithError(t, types.ErrValidatorExists, func() {
 			p.AddValidator(callerAddress, callerKey)
 		})
 	})
@@ -70,7 +71,7 @@ func TestPoS_AddValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(std.Address("random address"))
 
 		// Attempt to add the validator
-		testing.PanicsWithError(t, errValidatorNotOrigin, func() {
+		uassert.PanicsWithError(t, errValidatorNotOrigin, func() {
 			p.AddValidator(callerAddress, callerKey)
 		})
 	})
@@ -104,7 +105,7 @@ func TestPoS_AddValidator(t *testing.T) {
 			}
 
 			// Attempt to add the validator
-			testing.NotPanics(t, func() {
+			uassert.NotPanics(t, func() {
 				p.AddValidator(callerAddress, callerKey)
 			})
 		}
@@ -138,7 +139,7 @@ func TestPoS_AddValidator(t *testing.T) {
 		}
 
 		// Attempt to add the validator
-		testing.NotPanics(t, func() {
+		uassert.NotPanics(t, func() {
 			p.AddValidator(callerAddress, callerKey)
 		})
 
@@ -240,7 +241,7 @@ func TestPoS_RemoveValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(callerAddress)
 
 		// Attempt to remove the validator
-		testing.PanicsWithError(t, types.ErrValidatorMissing, func() {
+		uassert.PanicsWithError(t, types.ErrValidatorMissing, func() {
 			p.RemoveValidator(callerAddress)
 		})
 	})
@@ -262,7 +263,7 @@ func TestPoS_RemoveValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(callerAddress)
 
 		// Attempt to remove the validator
-		testing.PanicsWithError(t, errValidatorNotOrigin, func() {
+		uassert.PanicsWithError(t, errValidatorNotOrigin, func() {
 			p.RemoveValidator(initialSet[0].Address)
 		})
 	})
@@ -291,7 +292,7 @@ func TestPoS_RemoveValidator(t *testing.T) {
 	}
 
 	// Attempt to add the validator
-	testing.NotPanics(t, func() {
+	uassert.NotPanics(t, func() {
 		p.AddValidator(callerAddress, callerKey)
 	})
 
@@ -301,7 +302,7 @@ func TestPoS_RemoveValidator(t *testing.T) {
 	}
 
 	// Attempt to remove the validator
-	testing.NotPanics(t, func() {
+	uassert.NotPanics(t, func() {
 		p.RemoveValidator(callerAddress)
 	})
 

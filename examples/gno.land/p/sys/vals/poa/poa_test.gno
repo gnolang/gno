@@ -4,6 +4,7 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/sys/vals/types"
 )
@@ -48,7 +49,7 @@ func TestPoA_AddValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(callerAddress)
 
 		// Attempt to add the validator
-		testing.PanicsWithError(t, types.ErrValidatorExists, func() {
+		uassert.PanicsWithError(t, types.ErrValidatorExists, func() {
 			p.AddValidator(callerAddress, callerKey)
 		})
 	})
@@ -68,7 +69,7 @@ func TestPoA_AddValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(callerAddress)
 
 		// Attempt to add the validator
-		testing.PanicsWithError(t, types.ErrValidatorMissing, func() {
+		uassert.PanicsWithError(t, types.ErrValidatorMissing, func() {
 			p.AddValidator(callerAddress, callerKey)
 		})
 	})
@@ -101,7 +102,7 @@ func TestPoA_AddValidator(t *testing.T) {
 		std.TestSetOrigCaller(callerAddress)
 
 		// Attempt to add the validator
-		testing.NotPanics(t, func() {
+		uassert.NotPanics(t, func() {
 			p.AddValidator(proposedAddress, proposedKey)
 		})
 
@@ -150,7 +151,7 @@ func TestPoA_AddValidator(t *testing.T) {
 			std.TestSetOrigCaller(validator.Address)
 
 			// Attempt to add the validator
-			testing.NotPanics(t, func() {
+			uassert.NotPanics(t, func() {
 				p.AddValidator(proposedAddress, proposedKey)
 			})
 		}
@@ -187,7 +188,7 @@ func TestPoA_RemoveValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(callerAddress)
 
 		// Attempt to remove the validator
-		testing.PanicsWithError(t, errCallerNotValidator, func() {
+		uassert.PanicsWithError(t, errCallerNotValidator, func() {
 			p.RemoveValidator(callerAddress)
 		})
 	})
@@ -209,7 +210,7 @@ func TestPoA_RemoveValidator_Invalid(t *testing.T) {
 		std.TestSetOrigCaller(callerAddress)
 
 		// Attempt to remove the validator
-		testing.PanicsWithError(t, types.ErrValidatorMissing, func() {
+		uassert.PanicsWithError(t, types.ErrValidatorMissing, func() {
 			p.RemoveValidator(std.Address("totally random"))
 		})
 	})
@@ -241,7 +242,7 @@ func TestPoA_RemoveValidator(t *testing.T) {
 		std.TestSetOrigCaller(callerAddress)
 
 		// Attempt to remove the validator
-		testing.NotPanics(t, func() {
+		uassert.NotPanics(t, func() {
 			p.RemoveValidator(proposedAddress)
 		})
 
@@ -287,7 +288,7 @@ func TestPoA_RemoveValidator(t *testing.T) {
 			std.TestSetOrigCaller(validator.Address)
 
 			// Attempt to remove the validator
-			testing.NotPanics(t, func() {
+			uassert.NotPanics(t, func() {
 				p.RemoveValidator(proposedAddress)
 			})
 		}
