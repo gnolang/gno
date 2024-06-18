@@ -10,6 +10,7 @@ import (
 func TestPackage(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetOrigCaller(alice) // XXX: should not need this
 
 	balance, _ := Token.BalanceOf(alice)
 	expected := uint64(0)
@@ -17,8 +18,9 @@ func TestPackage(t *testing.T) {
 		t.Errorf("balance should be %d, got %d", expected, balance)
 	}
 
-	if ret := Faucet(); ret != "OK" {
-		t.Errorf("faucet should work, got %s", ret)
+	ret := Faucet()
+	if ret != "OK" {
+		t.Errorf("faucet should be OK, got %s", ret)
 	}
 
 	balance, _ = Token.BalanceOf(alice)
