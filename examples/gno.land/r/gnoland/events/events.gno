@@ -26,6 +26,8 @@ var (
 	idCounter seqid.ID
 )
 
+const maxDescLength = 100
+
 func init() {
 	su := std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
 	a = authorizable.NewAuthorizableWithAddress(su)
@@ -44,8 +46,9 @@ func AddEvent(name, description, link, location string, startTime int64) {
 		panic(errInvalidStartTime)
 	}
 
-	if len(description) > 80 {
-		panic(errDescTooLong)
+	if len(description) > maxDescLength {
+		str := ufmt.Sprintf("event description is %d chars, while it cannot be more than %d chars", len(description), maxDescLength)
+		panic(str)
 	}
 
 	e := &Event{
@@ -87,53 +90,57 @@ func RenderEventWidget(amt uint) string {
 	return output
 }
 
-func RenderHome() string {
+func renderHome() string {
+	output := "# Gno.land Events\n\n"
+
 	if events.Size() == 0 {
-		return "No upcoming or past events."
+		output += "No upcoming or past events."
+		return output
 	}
 
-	output := ""
+	output += "<div class='columns-3'>"
 
-	output = "<div>\n\n"
 	events.ReverseIterate("", "", func(key string, value interface{}) bool {
 		e := value.(*Event)
 
 		if e.startTime.After(time.Now()) {
-			output += e.RenderEvent()
+			output += e.RenderListItem()
 		}
 		if e.startTime.Before(time.Now()) {
-			output += e.RenderEvent()
+			output += e.RenderListItem()
 		}
+
+		output += ufmt.Sprintf("<!-- EventID: %s -->", key)
 
 		return false
 	})
 
-	output = "</div>\n\n"
+	output += "</div>"
 
 	return output
 }
 
-func (e Event) RenderEvent() string {
+func (e Event) RenderListItem() string {
 	var buf bytes.Buffer
 
-	buf.WriteString("<div class='columns-3'>")
-
-	buf.WriteString(ufmt.Sprintf("#### %s\n\n", e.name))
+	buf.WriteString("<div>\n\n")
+	buf.WriteString(ufmt.Sprintf("### %s\n\n", e.name))
 	buf.WriteString(ufmt.Sprintf("%s\n\n", e.description))
-	buf.WriteString(ufmt.Sprintf("%s\n\n", e.location))
-	buf.WriteString(ufmt.Sprintf("%s\n\n", e.startTime.Format("02 Jan 2006")))
+	buf.WriteString(ufmt.Sprintf("**Location:** %s\n\n", e.location))
+	buf.WriteString(ufmt.Sprintf("**Time & Date:** %s\n\n", e.startTime.Format("02 Jan 2006")))
+	buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
 
 	if e.startTime.Before(time.Now()) {
-		buf.WriteString("Finished\n\n")
+		buf.WriteString("*Event is over\n\n")
 	}
 
-	buf.WriteString("</div>")
+	buf.WriteString("\n</div>")
 
 	return buf.String()
 }
 
 func Render(path string) string {
-	return RenderHome()
+	return renderHome()
 }
 
 // genID generates a unique id for the event

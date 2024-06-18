@@ -10,7 +10,7 @@ type Pausable struct {
 // New returns a new Pausable struct with non-paused state as default
 func New() *Pausable {
 	return &Pausable{
-		Ownable: ownable.NewOwnable(),
+		Ownable: ownable.New(),
 		paused:  false,
 	}
 }
