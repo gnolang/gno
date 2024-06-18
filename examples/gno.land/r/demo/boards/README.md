@@ -97,7 +97,7 @@ Interactive documentation: https://test3.gno.land/r/demo/boards?help&__func=Crea
 Next, query for the permanent board ID by querying (you need this to create a new post):
 
 ```bash
-./build/gnokey query "vm/qeval" -data "gno.land/r/demo/boards.GetBoardIDFromName(\"BOARDNAME\")" -remote localhost:26657
+./build/gnokey query "vm/qeval" -data 'gno.land/r/demo/boards.GetBoardIDFromName("BOARDNAME")' -remote localhost:26657
 ```
 
 ### Create a post of a board with a smart contract call.
