@@ -16,6 +16,7 @@ type Event struct {
 	link        string    // link to a corresponding web2 sign up page, ie eventbrite/luma
 	location    string    // location of the event
 	startTime   time.Time // start time of the event
+	// add duration/endtime?
 }
 
 var (
@@ -33,7 +34,7 @@ func init() {
 	events = avl.NewTree()
 }
 
-func AddNewEvent(name, description, link, location string, startTime int64) {
+func AddEvent(name, description, link, location string, startTime int64) {
 	a.AssertOnAuthList()
 
 	if name == "" {
@@ -42,6 +43,10 @@ func AddNewEvent(name, description, link, location string, startTime int64) {
 
 	if startTime <= 0 {
 		panic(errInvalidStartTime)
+	}
+
+	if len(description) > 80 {
+		panic(errDescTooLong)
 	}
 
 	e := &Event{
@@ -69,7 +74,7 @@ func RenderEventWidget(amt int) string {
 	events.ReverseIterate("", "", func(key string, value interface{}) bool {
 		e := value.(*Event)
 		if e.startTime.After(time.Now()) {
-			output += ufmt.Sprintf("[%s](%s)", e.name, e.link)
+			output += ufmt.Sprintf("[%s](%s)\n", e.name, e.link)
 			i++
 		} // only return upcoming events
 
@@ -79,8 +84,24 @@ func RenderEventWidget(amt int) string {
 	return output
 }
 
-func (e Event) RenderEventList() string {
+func RenderHome() string {
+	if events.Size() == 0 {
+		return "No upcoming or past events."
+	}
 
+	output := ""
+
+	events.ReverseIterate("", "", func(key string, value interface{}) bool {
+		e := value.(*Event)
+		if e.startTime.After(time.Now()) {
+
+			i++
+		} // only return upcoming events
+
+		return i >= amt
+	})
+
+	return output
 }
 
 // genID generates a unique id for the event
