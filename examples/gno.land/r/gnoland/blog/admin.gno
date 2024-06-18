@@ -41,7 +41,7 @@ func AdminRemoveModerator(addr std.Address) {
 
 func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
 	println("@@@@@@@@@")
-	println(std.PrevRealm().PkgPath())
+	println(std.PrevRealm())
 	println("#########")
 	// assertIsModerator()
 

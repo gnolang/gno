@@ -70,7 +70,7 @@ func main() {
 // No posts.
 // --
 // @@@@@@@@@
-// gno.land/r/foo/prop02
+// (struct{("g1qzu77x7g9z0klhnavmewmhxcz4jcckflhl7sce" std.Address),("gno.land/r/foo/prop02" string)} std.Realm)
 // #########
 // --
 // # Prop#0
