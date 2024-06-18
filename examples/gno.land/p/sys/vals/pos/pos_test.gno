@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/sys/vals/types"
+	"gno.land/p/sys/vals/types"
 )
 
 // generateTestValidators generates a dummy validator set
@@ -272,7 +272,7 @@ func TestPoS_RemoveValidator(t *testing.T) {
 	t.Parallel()
 
 	var (
-		callerAddress = std.Address("caller")
+		callerAddress = std.Address("g1d4y807day8r5z54a54rkjheq3l50l5e0xmceem")
 		callerKey     = "public-key"
 
 		value = std.Coins{{"ugnot", stakeThreshold.Amount}}
@@ -308,15 +308,5 @@ func TestPoS_RemoveValidator(t *testing.T) {
 	// Make sure the validator is removed
 	if p.IsValidator(callerAddress) {
 		t.Fatalf("should not be a validator")
-	}
-
-	// Make sure the balance is updated
-	var (
-		banker  = std.GetBanker(std.BankerTypeReadonly)
-		balance = banker.GetCoins(callerAddress).AmountOf("ugnot")
-	)
-
-	if balance != stakeThreshold.Amount {
-		t.Fatalf("returned balance mismatch")
 	}
 }

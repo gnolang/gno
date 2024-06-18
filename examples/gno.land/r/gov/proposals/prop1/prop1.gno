@@ -12,9 +12,9 @@ package prop1
 import (
 	"std"
 
+	"gno.land/p/sys/vals/types"
 	govdao "gno.land/r/gov/dao"
 	"gno.land/r/sys/vals"
-	"gno.land/r/sys/vals/types"
 )
 
 func init() {

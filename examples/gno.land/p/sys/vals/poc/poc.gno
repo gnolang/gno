@@ -3,12 +3,8 @@ package poc
 import (
 	"std"
 
-	"gno.land/r/sys/vals/types"
+	"gno.land/p/sys/vals/types"
 )
-
-const govdaoRealm = "gno.land/r/gov/dao"
-
-const errNotGovdao = "call not executed by govdao"
 
 // PoC specifies the Proof of Contribution validator set.
 // In order to become part of the set, users to be voted into
@@ -51,18 +47,11 @@ func (p *PoC) AddValidator(address std.Address, pubKey string) *types.Validator 
 	p.addressToValidatorIndex[v.Address] = len(p.validators)
 	p.validators = append(p.validators, v)
 
-	// Emit the validator set change
-	std.Emit(types.ValidatorAddedEvent)
-
 	return v
 }
 
 // validateAdd validates a validator add call
 func (p *PoC) validateAdd(address std.Address) {
-	if std.PrevRealm().PkgPath() != govdaoRealm {
-		panic(errNotGovdao)
-	}
-
 	// Check if the validator is already in the set
 	if p.IsValidator(address) {
 		panic(types.ErrValidatorExists)
@@ -82,19 +71,11 @@ func (p *PoC) RemoveValidator(address std.Address) *types.Validator {
 
 	delete(p.addressToValidatorIndex, address)
 
-	// Emit the validator set change
-	std.Emit(types.ValidatorRemovedEvent)
-
 	return validator
 }
 
 // validateRemove validates a validator remove call
 func (p *PoC) validateRemove(address std.Address) {
-	// Check if the method call is from a proposal execution
-	if std.PrevRealm().PkgPath() != govdaoRealm {
-		panic(errNotGovdao)
-	}
-
 	// Check if the address is a validator
 	if !p.IsValidator(address) {
 		panic(types.ErrValidatorMissing)

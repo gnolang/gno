@@ -3,7 +3,7 @@ package poa
 import (
 	"std"
 
-	"gno.land/r/sys/vals/types"
+	"gno.land/p/sys/vals/types"
 )
 
 const (
@@ -113,9 +113,6 @@ func (p *PoA) addValidator(address std.Address, pubKey string) *types.Validator 
 	p.totalVotingPower += v.VotingPower
 	p.majorityPower = (2 * p.totalVotingPower) / 3
 
-	// Emit the validator set change
-	std.Emit(types.ValidatorAddedEvent)
-
 	// Remove the candidate from the voting system
 	p.votes.resetCandidate(v.Address)
 
@@ -188,9 +185,6 @@ func (p *PoA) removeValidator(address std.Address) *types.Validator {
 	// Update the total voting power
 	p.totalVotingPower -= validator.VotingPower
 	p.majorityPower = (2 * p.totalVotingPower) / 3
-
-	// Emit the validator set change
-	std.Emit(types.ValidatorRemovedEvent)
 
 	// Remove the candidate from the voting system
 	p.votes.resetCandidate(address)

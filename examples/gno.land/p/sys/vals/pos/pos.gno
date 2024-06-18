@@ -3,7 +3,7 @@ package pos
 import (
 	"std"
 
-	"gno.land/r/sys/vals/types"
+	"gno.land/p/sys/vals/types"
 )
 
 var errValidatorNotOrigin = "validator address is not origin"
@@ -89,6 +89,9 @@ func (p *PoS) AddValidator(address std.Address, pubKey string) *types.Validator 
 
 	p.addressToValidatorIndex[caller] = len(p.validators)
 	p.validators = append(p.validators, v)
+
+	// Rebalance the voting power
+	p.rebalanceVotingPower()
 
 	// Emit the validator set change
 	std.Emit(types.ValidatorAddedEvent)
@@ -177,6 +180,9 @@ func (p *PoS) RemoveValidator(address std.Address) *types.Validator {
 
 	// Emit the unstake event
 	std.Emit(UserUnstakedEvent)
+
+	// Rebalance the voting power
+	p.rebalanceVotingPower()
 
 	return validator
 }

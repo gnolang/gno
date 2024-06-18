@@ -6,7 +6,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/sys/vals/types"
+	"gno.land/p/sys/vals/types"
 )
 
 // generateTestValidators generates a dummy validator set
@@ -29,31 +29,8 @@ func generateTestValidators(count int) []*types.Validator {
 func TestPoC_AddValidator_Invalid(t *testing.T) {
 	t.Parallel()
 
-	t.Run("call from realm != govdao", func(t *testing.T) {
-		t.Parallel()
-
-		r := std.NewCodeRealm("gno.land/r/gov/randomdao")
-		std.TestSetRealm(r)
-
-		var (
-			proposalAddress = std.Address("caller")
-			proposalKey     = "public-key"
-		)
-
-		// Create the protocol with no initial set
-		p := NewPoC()
-
-		// Attempt to add the validator
-		testing.PanicsWithError(t, errNotGovdao, func() {
-			p.AddValidator(proposalAddress, proposalKey)
-		})
-	})
-
 	t.Run("validator already in set", func(t *testing.T) {
 		t.Parallel()
-
-		r := std.NewCodeRealm(govdaoRealm)
-		std.TestSetRealm(r)
 
 		var (
 			proposalAddress = std.Address("caller")
@@ -78,9 +55,6 @@ func TestPoC_AddValidator_Invalid(t *testing.T) {
 func TestPoC_AddValidator(t *testing.T) {
 	t.Parallel()
 
-	r := std.NewCodeRealm(govdaoRealm)
-	std.TestSetRealm(r)
-
 	var (
 		proposalAddress = std.Address("caller")
 		proposalKey     = "public-key"
@@ -103,28 +77,8 @@ func TestPoC_AddValidator(t *testing.T) {
 func TestPoC_RemoveValidator_Invalid(t *testing.T) {
 	t.Parallel()
 
-	t.Run("call from realm != govdao", func(t *testing.T) {
-		t.Parallel()
-
-		r := std.NewCodeRealm("gno.land/r/gov/randomdao")
-		std.TestSetRealm(r)
-
-		proposalAddress := std.Address("caller")
-
-		// Create the protocol with no initial set
-		p := NewPoC()
-
-		// Attempt to add the validator
-		testing.PanicsWithError(t, errNotGovdao, func() {
-			p.RemoveValidator(proposalAddress)
-		})
-	})
-
 	t.Run("proposed removal not in set", func(t *testing.T) {
 		t.Parallel()
-
-		r := std.NewCodeRealm(govdaoRealm)
-		std.TestSetRealm(r)
 
 		var (
 			proposalAddress = std.Address("caller")
@@ -145,9 +99,6 @@ func TestPoC_RemoveValidator_Invalid(t *testing.T) {
 
 func TestPoC_RemoveValidator(t *testing.T) {
 	t.Parallel()
-
-	r := std.NewCodeRealm(govdaoRealm)
-	std.TestSetRealm(r)
 
 	var (
 		proposalAddress = std.Address("caller")

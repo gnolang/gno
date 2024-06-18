@@ -3,8 +3,10 @@ package pos
 import (
 	"std"
 
-	"gno.land/r/sys/vals/types"
+	"gno.land/p/sys/vals/types"
 )
+
+var initialStake = std.Coin{"ugnot", 1000}
 
 type Option func(*PoS)
 
@@ -14,7 +16,7 @@ func WithInitialSet(validators []*types.Validator) Option {
 		for index, validator := range validators {
 			p.validators = append(p.validators, validator)
 			p.addressToValidatorIndex[validator.Address] = index
-			p.addressToStakedAmount[validator.Address] = std.Coin{"ugnot", 0} // no stake
+			p.addressToStakedAmount[validator.Address] = initialStake
 		}
 	}
 }
