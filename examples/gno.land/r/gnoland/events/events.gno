@@ -1,13 +1,14 @@
 package events
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
+	"bytes"
+	"std"
 	"time"
 
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable/exts/authorizable"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
 )
 
 type Event struct {
@@ -16,7 +17,7 @@ type Event struct {
 	link        string    // link to a corresponding web2 sign up page, ie eventbrite/luma
 	location    string    // location of the event
 	startTime   time.Time // start time of the event
-	// add duration/endtime?
+	// FIXME: add duration/endtime?
 }
 
 var (
@@ -26,10 +27,8 @@ var (
 )
 
 func init() {
-	su := std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @moul
-	a = authorizable.NewWithAddress(su)
-
-	a.AddToAuthList(std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")) // @leohhhn
+	su := std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @moul
+	a = authorizable.NewAuthorizableWithAddress(su)
 
 	events = avl.NewTree()
 }
@@ -61,9 +60,13 @@ func AddEvent(name, description, link, location string, startTime int64) {
 }
 
 // RenderEventWidget shows up to amt of the latest events to a caller
-func RenderEventWidget(amt int) string {
+func RenderEventWidget(amt uint) string {
 	if events.Size() == 0 {
 		return "No events."
+	}
+
+	if amt > 5 {
+		panic("maximum number of events in widget is 5")
 	}
 
 	var (
@@ -78,7 +81,7 @@ func RenderEventWidget(amt int) string {
 			i++
 		} // only return upcoming events
 
-		return i >= amt
+		return i >= int(amt)
 	})
 
 	return output
@@ -91,17 +94,46 @@ func RenderHome() string {
 
 	output := ""
 
+	output = "<div>\n\n"
 	events.ReverseIterate("", "", func(key string, value interface{}) bool {
 		e := value.(*Event)
+
 		if e.startTime.After(time.Now()) {
+			output += e.RenderEvent()
+		}
+		if e.startTime.Before(time.Now()) {
+			output += e.RenderEvent()
+		}
 
-			i++
-		} // only return upcoming events
-
-		return i >= amt
+		return false
 	})
 
+	output = "</div>\n\n"
+
 	return output
+}
+
+func (e Event) RenderEvent() string {
+	var buf bytes.Buffer
+
+	buf.WriteString("<div class='columns-3'>")
+
+	buf.WriteString(ufmt.Sprintf("#### %s\n\n", e.name))
+	buf.WriteString(ufmt.Sprintf("%s\n\n", e.description))
+	buf.WriteString(ufmt.Sprintf("%s\n\n", e.location))
+	buf.WriteString(ufmt.Sprintf("%s\n\n", e.startTime.Format("02 Jan 2006")))
+
+	if e.startTime.Before(time.Now()) {
+		buf.WriteString("Finished\n\n")
+	}
+
+	buf.WriteString("</div>")
+
+	return buf.String()
+}
+
+func Render(path string) string {
+	return RenderHome()
 }
 
 // genID generates a unique id for the event
@@ -109,4 +141,16 @@ func RenderHome() string {
 // we can automatically have events sorted by event start time
 func genID(t time.Time) string {
 	return t.Format(time.RFC3339) + "-" + idCounter.Next().String()
+}
+
+func GetOwner() std.Address {
+	return a.Owner()
+}
+
+func AddModerator(mod std.Address) {
+	a.AssertCallerIsOwner()
+
+	if err := a.AddToAuthList(mod); err != nil {
+		panic(err)
+	}
 }

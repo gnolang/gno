@@ -33,7 +33,7 @@ type Memeland struct {
 
 func NewMemeland() *Memeland {
 	return &Memeland{
-		Ownable: ownable.New(),
+		Ownable: ownable.NewOwnable(),
 		Posts:   make([]*Post, 0),
 	}
 }

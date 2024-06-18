@@ -12,8 +12,8 @@ import (
 )
 
 type Authorizable struct {
-	*ownable.Ownable
-	authorized map[std.Address]struct{}
+	*ownable.Ownable // owner in ownable is superuser
+	authorized       map[std.Address]struct{}
 }
 
 func NewAuthorizable() *Authorizable {
@@ -40,11 +40,11 @@ func NewAuthorizableWithAddress(addr std.Address) *Authorizable {
 
 func (a *Authorizable) AddToAuthList(addr std.Address) error {
 	if err := a.CallerIsOwner(); err != nil {
-		return ErrNotInAuthList
+		return errNotSuperuser
 	}
 
 	if _, exists := a.authorized[addr]; exists {
-		return ErrAlreadyInList
+		return errAlreadyInList
 	}
 
 	a.authorized[addr] = struct{}{}
@@ -53,18 +53,28 @@ func (a *Authorizable) AddToAuthList(addr std.Address) error {
 
 func (a Authorizable) OnAuthList() error {
 	caller := std.PrevRealm().Addr()
-
 	if _, exists := a.authorized[caller]; exists {
 		return nil
 	}
 
-	return ErrNotInAuthList
+	return errNotInAuthList
+}
+
+func (a Authorizable) OnAuthListByAddr(addr std.Address) error {
+	caller := std.PrevRealm().Addr()
+	if _, exists := a.authorized[caller]; exists {
+		return nil
+	}
+
+	return errNotInAuthList
 }
 
 func (a Authorizable) AssertOnAuthList() {
 	caller := std.PrevRealm().Addr()
 
 	if _, exists := a.authorized[caller]; !exists {
-		panic(ErrNotInAuthList)
+		panic(errNotInAuthList)
 	}
 }
+
+// todo add remove from auth list
