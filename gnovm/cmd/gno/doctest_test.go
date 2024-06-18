@@ -33,7 +33,7 @@ func TestDoctest(t *testing.T) {
 			errShouldBe: "flag: help requested",
 		},
 		{
-			args: []string{"doctest", "-path", mdFilePath, "-index", "0"},
+			args:                []string{"doctest", "-path", mdFilePath, "-index", "0"},
 			stdoutShouldContain: "Hello, World!\n",
 		},
 	}
