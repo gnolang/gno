@@ -607,6 +607,13 @@ func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
 	}
 }
 
+// Check compatibility of the destination type (dt) with the operator.
+// If both source type (xt) and destination type (dt) are typed:
+// Verify that xt is assignable to dt.
+// If xt is untyped:
+// The function checkOrConvertType will be invoked after this check.
+// NOTE: dt is established based on a specificity check between xt and dt,
+// confirming dt as the appropriate destination type for this context.
 func (x *BinaryExpr) checkCompatibility(xt, dt Type, checker func(t Type) bool, OpStr string) {
 	if !checker(dt) {
 		panic(fmt.Sprintf("operator %s not defined on: %v", OpStr, kindString(dt)))
