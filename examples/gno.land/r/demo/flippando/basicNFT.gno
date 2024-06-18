@@ -3,13 +3,15 @@ package flippando
 import (
 	"strconv"
 	"std"
+	"errors"
 
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
 var (
-	flipBasicNFT	= grc721.NewBasicNFT("Flippando Basic NFT", "BFLP")
+	FlipBasicNFT	= grc721.NewBasicNFT("Flippando Basic NFT", "BFLP")
 	basicNFTtokenIDCounter	uint64
 	lockedNFTs avl.Tree // tokenId -> flipAmount
 	childOf avl.Tree // tokenId -> parent (composite) tokenId
@@ -34,11 +36,11 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 		nftError = "{error: game is not finished}"
 	}
 	
-	count := flipBasicNFT.TokenCount()
+	count := FlipBasicNFT.TokenCount()
 	basicNFTtokenIDCounter = count + 1
 	tidString := strconv.FormatUint(basicNFTtokenIDCounter, 10)
 	tid := grc721.TokenID(tidString)
-	mintResultError := flipBasicNFT.Mint(player, tid)
+	mintResultError := FlipBasicNFT.Mint(player, tid)
 	if mintResultError == nil {
 		gameSVGData, errSVG := GenerateGrid(currentGame.SolvedGameBoard, currentGame.TileType)
 		if errSVG != nil {
@@ -58,10 +60,11 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 		if err != nil {
 			panic("error in marhasling flipBasicNFTMetaData");
 		}
-		flipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flipBasicNFTMetaDataJSON))
+		FlipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flipBasicNFTMetaDataJSON))
 		// set approval for the realm owner so we can later transfer the NFT
-		//flipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
-		flipBasicNFT.SetApprovalForAll(std.CurrentRealm().Addr(), true)
+		FlipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
+		//FlipBasicNFT.SetApprovalForAll(std.CurrentRealm().Addr(), true)
+		//FlipBasicNFT.SetApprovalForAll(std.PrevRealm().Addr(), true)
 		
 		// add NFT to the lockedNFTs avl.Tree
 		var flipAmount int64
@@ -90,7 +93,7 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 
 func GetBasicTokenURI(tokenID string) string {
 	tid := grc721.TokenID(tokenID)
-	tokenURI, err := flipBasicNFT.TokenURI(tid)
+	tokenURI, err := FlipBasicNFT.TokenURI(tid)
 	if err != nil {
 		return "error"
 	}
@@ -107,7 +110,7 @@ func GetParentdOf(tokenId string) string {
 
 func UnlockAndTransferNFT(from, to std.Address, tid string, parentTid string) error {
 	tokenId := grc721.TokenID(tid)
-	err := flipBasicNFT.TransferFrom(from, to, tokenId)
+	err := FlipBasicNFT.TransferFrom(from, to, tokenId)
 	if err != nil {
 		return err
 	}
@@ -119,18 +122,58 @@ func UnlockAndTransferNFT(from, to std.Address, tid string, parentTid string) er
 
 // it is used in marketplace
 func TransferBasicNFTToBuyer(from, to std.Address, tid grc721.TokenID) error {
-	flipBasicNFT.SetApprovalForAll(std.CurrentRealm().Addr(), true)
-	//flipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
-	err := flipBasicNFT.TransferFrom(from, to, tid)
+	var approveErr error
+	var transferErr error
+
+    // Check current approval status
+    approvedAddress, err := FlipBasicNFT.GetApproved(tid)
+    if err != nil {
+        approveErr = errors.New(ufmt.Sprintf("Failed to get approval status: %s", err.Error()))
+    } 
+
+    if approvedAddress != std.CurrentRealm().Addr() {
+        // Approve the marketplace to transfer the token on behalf of the owner
+        err = FlipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
+        if err != nil {
+            approveErr = errors.New(ufmt.Sprintf("Failed to approve NFT transfer: %s, approvedAddress: %s", err.Error(), approvedAddress))
+		}
+    }
+
+    // Perform the transfer
+    err = FlipBasicNFT.TransferFrom(from, to, tid)
+    if err != nil {
+        transferErr = errors.New(ufmt.Sprintf("Failed to transfer NFT: %s", err.Error()))
+    } 
+
+    // Combine errors if any
+    if approveErr != nil && transferErr != nil {
+        return errors.New(ufmt.Sprintf("%s; %s", approveErr.Error(), transferErr.Error()))
+    } else if approveErr != nil {
+        return approveErr
+    } else if transferErr != nil {
+        return transferErr
+    }
+
+    return nil
+}
+
+/*
+func TransferBasicNFTToBuyer(from, to std.Address, tid grc721.TokenID) error {
+	//FlipBasicNFT.SetApprovalForAll(std.PrevRealm().Addr(), true)
+	//FlipBasicNFT.SetApprovalForAll(std.CurrentRealm().Addr(), true)
+	//FlipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
+	//FlipBasicNFT.Approve(to, tid)
+	//FlipBasicNFT.Approve(from, tid)
+	err := FlipBasicNFT.TransferFrom(from, to, tid)
 	if err != nil {
 		return err
 	}
 	return nil
-}
+}*/
 
 // it is used after minting a composite NFT
 func BurnBasicNFTsAfterMinting(tid grc721.TokenID) error {
-	err := flipBasicNFT.Burn(tid)
+	err := FlipBasicNFT.Burn(tid)
 	if err != nil {
 		return err
 	}
@@ -139,7 +182,7 @@ func BurnBasicNFTsAfterMinting(tid grc721.TokenID) error {
 
 func GetOwnerOfBasicNFT(tid string) std.Address {
 	tokenId := grc721.TokenID(tid)
-	owner, err := flipBasicNFT.OwnerOf(tokenId)
+	owner, err := FlipBasicNFT.OwnerOf(tokenId)
 	if err != nil {
 		return "can't get owner"
 	}
@@ -147,13 +190,13 @@ func GetOwnerOfBasicNFT(tid string) std.Address {
 }
 
 func GetUserBasicFlipNFTs(addr std.Address, readyToUse string) string {
-	tokenCount := flipBasicNFT.TokenCount()
+	tokenCount := FlipBasicNFT.TokenCount()
 	tokenURIs := []string{}
 	userNFTsError := ""
 
 	for i := uint64(1); i < uint64(tokenCount+1); i++ {		
 		tidString := strconv.FormatUint(i, 10)
-		owner, err := flipBasicNFT.OwnerOf(grc721.TokenID(tidString))
+		owner, err := FlipBasicNFT.OwnerOf(grc721.TokenID(tidString))
 		// debug
 		if err != nil {
 			userNFTsError += err.Error()
@@ -196,7 +239,7 @@ func GetUserBasicFlipNFTs(addr std.Address, readyToUse string) string {
 }
 
 func GetBasicNFTsByTokenId(bTokenIDs string) string {
-	//tokenCount := flipBasicNFT.TokenCount()
+	//tokenCount := FlipBasicNFT.TokenCount()
 	tokenURIs := []string{}
 	bTokenIDsArray, _ := ParseString(bTokenIDs)
 	//userNFTsError := ""
@@ -222,14 +265,14 @@ func GetBasicNFTsByTokenId(bTokenIDs string) string {
 }
 
 func GetAllBasicFlipNFTs(forPlayer std.Address) string {
-	tokenCount := flipBasicNFT.TokenCount()
+	tokenCount := FlipBasicNFT.TokenCount()
 	tokenURIs := []string{}
 	userNFTsError := ""
 
 	// Assuming there's a function to get the token ID by index for the given address
 	for i := uint64(1); i < uint64(tokenCount+1); i++ {		
 		tidString := strconv.FormatUint(i, 10)
-		owner, err := flipBasicNFT.OwnerOf(grc721.TokenID(tidString))
+		owner, err := FlipBasicNFT.OwnerOf(grc721.TokenID(tidString))
 		// debug
 		if err != nil {
 			userNFTsError += err.Error()
@@ -268,7 +311,7 @@ func GetTotalAvailableBasicNFTs() int {
 }
 
 func GetAllUnlockedNFTs() int {
-	tokenCount := flipBasicNFT.TokenCount()
+	tokenCount := FlipBasicNFT.TokenCount()
 	lockedNFTs := lockedNFTs.Size()
 	totalUnlocked := int(tokenCount) - lockedNFTs
 	return int(totalUnlocked)
@@ -289,11 +332,11 @@ func AirdropBasicFlipNFT(airdropAccount,
 	result := ""
 	nftError := ""
 	
-	count := flipBasicNFT.TokenCount()
+	count := FlipBasicNFT.TokenCount()
 	basicNFTtokenIDCounter = count + 1
 	tidString := strconv.FormatUint(basicNFTtokenIDCounter, 10)
 	tid := grc721.TokenID(tidString)
-	mintResultError := flipBasicNFT.Mint(airdropAccount, tid)
+	mintResultError := FlipBasicNFT.Mint(airdropAccount, tid)
 	if mintResultError == nil {
 		flipBasicNFTMetaData := &basicNFTMetaData{
 			tokenID: tidString,
@@ -308,9 +351,9 @@ func AirdropBasicFlipNFT(airdropAccount,
 		if err != nil {
 			panic("error in marhasling flipBasicNFTMetaData");
 		}
-		flipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flipBasicNFTMetaDataJSON))
+		FlipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flipBasicNFTMetaDataJSON))
 		// set approval for the realm owner so we can later transfer the NFT
-		flipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
+		FlipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
 		
 		// add NFT to the lockedNFTs avl.Tree
 		var flipAmount int64
@@ -325,7 +368,7 @@ func AirdropBasicFlipNFT(airdropAccount,
 		result = string(flipBasicNFTMetaDataJSON)
 	}
 	// transfer the minted NFT to toPlayer
-	err := flipBasicNFT.TransferFrom(airdropAccount, toPlayer, tid)
+	err := FlipBasicNFT.TransferFrom(airdropAccount, toPlayer, tid)
 	if err != nil {
 		panic("error in transferring to toPLayer")
 	}

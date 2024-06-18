@@ -321,7 +321,7 @@ func getColorFromKey(key int64, gridType string) (string, error) {
 		}
         
     default:
-        panic("Invalid color key")
+        panic("Invalid color key " + intToString(key) + " " + gridType)
     }
 	return "", nil
 }
