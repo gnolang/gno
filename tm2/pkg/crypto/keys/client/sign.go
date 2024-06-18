@@ -157,6 +157,24 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 		}
 	}
 
+	// Check if accountNumber or sequence is zero to determine if account information needs to be fetched
+	if cfg.AccountNumber == 0 || cfg.Sequence == 0 {
+		accountAddr := info.GetAddress()
+
+		qopts := &QueryCfg{
+			RootCfg: cfg.RootCfg,
+			Path:    fmt.Sprintf("auth/accounts/%s", accountAddr),
+		}
+		qres, err := QueryHandler(qopts)
+		if err == nil {
+			var qret struct{ BaseAccount std.BaseAccount }
+			if err := amino.UnmarshalJSON(qres.Response.Data, &qret); err == nil {
+				cfg.AccountNumber = qret.BaseAccount.AccountNumber
+				cfg.Sequence = qret.BaseAccount.Sequence
+			}
+		}
+	}
+
 	// Prepare the signature ops
 	sOpts := signOpts{
 		chainID:         cfg.ChainID,
