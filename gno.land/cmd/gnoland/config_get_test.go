@@ -13,23 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestConfig_Get_Invalid(t *testing.T) {
-	t.Parallel()
-
-	// Create the command
-	cmd := newRootCmd(commands.NewTestIO())
-	args := []string{
-		"config",
-		"get",
-		"--config-path",
-		"",
-	}
-
-	// Run the command
-	cmdErr := cmd.ParseAndRun(context.Background(), args)
-	assert.ErrorContains(t, cmdErr, tryConfigInit)
-}
-
 // testSetCase outlines the single test case for config get
 type testGetCase struct {
 	name     string
@@ -49,12 +32,13 @@ func verifyGetTestTableCommon(t *testing.T, testTable []testGetCase) {
 			t.Parallel()
 
 			// Setup the test config
-			path := initializeTestConfig(t)
+			homeDir := newTestHomeDirectory(t, t.TempDir(), withConfig)
+
 			args := []string{
 				"config",
 				"get",
-				"--config-path",
-				path,
+				"--home",
+				homeDir.Path(),
 			}
 
 			// Create the command IO
@@ -72,7 +56,7 @@ func verifyGetTestTableCommon(t *testing.T, testTable []testGetCase) {
 			require.NoError(t, cmdErr)
 
 			// Make sure the config was fetched
-			loadedCfg, err := config.LoadConfigFile(path)
+			loadedCfg, err := config.LoadConfigFile(homeDir.ConfigFile())
 			require.NoError(t, err)
 
 			testCase.verifyFn(loadedCfg, mockOut.String())

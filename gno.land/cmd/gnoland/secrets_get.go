@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"path/filepath"
 	"text/tabwriter"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
@@ -45,11 +44,6 @@ func (c *secretsGetCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
-	// Make sure the directory is there
-	if cfg.dataDir == "" || !isValidDirectory(cfg.dataDir) {
-		return errInvalidDataDir
-	}
-
 	// Verify the secrets key
 	if err := verifySecretsKey(args); err != nil {
 		return err
@@ -61,36 +55,29 @@ func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
 		key = args[0]
 	}
 
-	// Construct the paths
-	var (
-		validatorKeyPath   = filepath.Join(cfg.dataDir, defaultValidatorKeyName)
-		validatorStatePath = filepath.Join(cfg.dataDir, defaultValidatorStateName)
-		nodeKeyPath        = filepath.Join(cfg.dataDir, defaultNodeKeyName)
-	)
-
 	switch key {
 	case validatorPrivateKeyKey:
 		// Show the validator's key info
-		return readAndShowValidatorKey(validatorKeyPath, io)
+		return readAndShowValidatorKey(cfg.homeDir.SecretsValidatorKey(), io)
 	case validatorStateKey:
 		// Show the validator's last sign state
-		return readAndShowValidatorState(validatorStatePath, io)
+		return readAndShowValidatorState(cfg.homeDir.SecretsValidatorState(), io)
 	case nodeKeyKey:
 		// Show the node's p2p info
-		return readAndShowNodeKey(nodeKeyPath, io)
+		return readAndShowNodeKey(cfg.homeDir.SecretsNodeKey(), io)
 	default:
 		// Show the node's p2p info
-		if err := readAndShowNodeKey(nodeKeyPath, io); err != nil {
+		if err := readAndShowNodeKey(cfg.homeDir.SecretsNodeKey(), io); err != nil {
 			return err
 		}
 
 		// Show the validator's key info
-		if err := readAndShowValidatorKey(validatorKeyPath, io); err != nil {
+		if err := readAndShowValidatorKey(cfg.homeDir.SecretsValidatorKey(), io); err != nil {
 			return err
 		}
 
 		// Show the validator's last sign state
-		return readAndShowValidatorState(validatorStatePath, io)
+		return readAndShowValidatorState(cfg.homeDir.SecretsValidatorState(), io)
 	}
 }
 

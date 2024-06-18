@@ -3,22 +3,22 @@ package main
 import (
 	"flag"
 	"fmt"
-	"path/filepath"
 	"reflect"
 	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 const tryConfigInit = "unable to load config; try running `gnoland config init` or use the -lazy flag"
 
 type configCfg struct {
-	configPath string
+	rootCfg
 }
 
 // newConfigCmd creates the config root command
 func newConfigCmd(io commands.IO) *commands.Command {
+	cfg := configCfg{}
+
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "config",
@@ -26,7 +26,8 @@ func newConfigCmd(io commands.IO) *commands.Command {
 			ShortHelp:  "gno config manipulation suite",
 			LongHelp:   "Gno config manipulation suite, for editing base and module configurations",
 		},
-		commands.NewEmptyConfig(),
+		// commands.NewEmptyConfig(),
+		&cfg,
 		commands.HelpExec,
 	)
 
@@ -40,22 +41,7 @@ func newConfigCmd(io commands.IO) *commands.Command {
 }
 
 func (c *configCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.StringVar(
-		&c.configPath,
-		"config-path",
-		constructConfigPath(defaultNodeDir),
-		"the path for the config.toml",
-	)
-}
-
-// constructConfigPath constructs the default config path, using
-// the given node directory
-func constructConfigPath(nodeDir string) string {
-	return filepath.Join(
-		nodeDir,
-		config.DefaultConfigDir,
-		config.DefaultConfigFileName,
-	)
+	c.rootCfg.RegisterFlags(fs)
 }
 
 // getFieldAtPath fetches the given field from the given path

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -18,28 +17,11 @@ import (
 func TestSecrets_Get_All(t *testing.T) {
 	t.Parallel()
 
-	t.Run("invalid data directory", func(t *testing.T) {
-		t.Parallel()
-
-		// Create the command
-		cmd := newRootCmd(commands.NewTestIO())
-		args := []string{
-			"secrets",
-			"get",
-			"--data-dir",
-			"",
-		}
-
-		// Run the command
-		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errInvalidDataDir.Error())
-	})
-
 	t.Run("all secrets shown", func(t *testing.T) {
 		t.Parallel()
 
 		// Create a temporary directory
-		tempDir := t.TempDir()
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -48,8 +30,8 @@ func TestSecrets_Get_All(t *testing.T) {
 		initArgs := []string{
 			"secrets",
 			"init",
-			"--data-dir",
-			tempDir,
+			"--home",
+			homeDir.Path(),
 		}
 
 		// Run the init command
@@ -62,26 +44,23 @@ func TestSecrets_Get_All(t *testing.T) {
 		cmd = newRootCmd(io)
 
 		// Get the node key
-		nodeKeyPath := filepath.Join(tempDir, defaultNodeKeyName)
-		nodeKey, err := readSecretData[p2p.NodeKey](nodeKeyPath)
+		nodeKey, err := readSecretData[p2p.NodeKey](homeDir.SecretsNodeKey())
 		require.NoError(t, err)
 
 		// Get the validator private key
-		validatorKeyPath := filepath.Join(tempDir, defaultValidatorKeyName)
-		validatorKey, err := readSecretData[privval.FilePVKey](validatorKeyPath)
+		validatorKey, err := readSecretData[privval.FilePVKey](homeDir.SecretsValidatorKey())
 		require.NoError(t, err)
 
 		// Get the validator state
-		validatorStatePath := filepath.Join(tempDir, defaultValidatorStateName)
-		state, err := readSecretData[privval.FilePVLastSignState](validatorStatePath)
+		state, err := readSecretData[privval.FilePVLastSignState](homeDir.SecretsValidatorState())
 		require.NoError(t, err)
 
 		// Run the show command
 		showArgs := []string{
 			"secrets",
 			"get",
-			"--data-dir",
-			tempDir,
+			"--home",
+			homeDir.Path(),
 		}
 
 		require.NoError(t, cmd.ParseAndRun(context.Background(), showArgs))
@@ -148,12 +127,12 @@ func TestSecrets_Get_Single(t *testing.T) {
 	t.Run("validator key shown", func(t *testing.T) {
 		t.Parallel()
 
-		dirPath := t.TempDir()
-		keyPath := filepath.Join(dirPath, defaultValidatorKeyName)
+		// Create a temporary directory
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
 		validKey := generateValidatorPrivateKey()
 
-		require.NoError(t, saveSecretData(validKey, keyPath))
+		require.NoError(t, saveSecretData(validKey, homeDir.SecretsValidatorKey()))
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -164,8 +143,8 @@ func TestSecrets_Get_Single(t *testing.T) {
 		args := []string{
 			"secrets",
 			"get",
-			"--data-dir",
-			dirPath,
+			"--home",
+			homeDir.Path(),
 			validatorPrivateKeyKey,
 		}
 
@@ -191,12 +170,12 @@ func TestSecrets_Get_Single(t *testing.T) {
 	t.Run("validator state shown", func(t *testing.T) {
 		t.Parallel()
 
-		dirPath := t.TempDir()
-		statePath := filepath.Join(dirPath, defaultValidatorStateName)
+		// Create a temporary directory
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
 		validState := generateLastSignValidatorState()
 
-		require.NoError(t, saveSecretData(validState, statePath))
+		require.NoError(t, saveSecretData(validState, homeDir.SecretsValidatorState()))
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -207,8 +186,8 @@ func TestSecrets_Get_Single(t *testing.T) {
 		args := []string{
 			"secrets",
 			"get",
-			"--data-dir",
-			dirPath,
+			"--home",
+			homeDir.Path(),
 			validatorStateKey,
 		}
 
@@ -240,12 +219,12 @@ func TestSecrets_Get_Single(t *testing.T) {
 	t.Run("node key shown", func(t *testing.T) {
 		t.Parallel()
 
-		dirPath := t.TempDir()
-		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
+		// Create a temporary directory
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
 		validNodeKey := generateNodeKey()
 
-		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+		require.NoError(t, saveSecretData(validNodeKey, homeDir.SecretsNodeKey()))
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -256,8 +235,8 @@ func TestSecrets_Get_Single(t *testing.T) {
 		args := []string{
 			"secrets",
 			"get",
-			"--data-dir",
-			dirPath,
+			"--home",
+			homeDir.Path(),
 			nodeKeyKey,
 		}
 

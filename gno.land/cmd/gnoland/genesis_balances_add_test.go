@@ -28,7 +28,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			"genesis",
 			"balances",
 			"add",
-			"--genesis-path",
+			"--genesis",
 			"dummy-path",
 		}
 
@@ -52,7 +52,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			"genesis",
 			"balances",
 			"add",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 		}
 
@@ -70,7 +70,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			"genesis",
 			"balances",
 			"add",
-			"--genesis-path",
+			"--genesis",
 			"dummy-path",
 		}
 
@@ -96,7 +96,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			"genesis",
 			"balances",
 			"add",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 		}
 
@@ -186,7 +186,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			"genesis",
 			"balances",
 			"add",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 			"--balance-sheet",
 			balanceSheet.Name(),
@@ -286,7 +286,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			"genesis",
 			"balances",
 			"add",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 			"--parse-export",
 			txsFile.Name(),
@@ -360,7 +360,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			"genesis",
 			"balances",
 			"add",
-			"--genesis-path",
+			"--genesis",
 			tempGenesis.Name(),
 		}
 

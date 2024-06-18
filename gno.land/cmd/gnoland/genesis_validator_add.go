@@ -71,7 +71,7 @@ func (c *validatorAddCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execValidatorAdd(cfg *validatorAddCfg, io commands.IO) error {
 	// Load the genesis
-	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.genesisPath)
+	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.homeDir.GenesisFilePath())
 	if loadErr != nil {
 		return fmt.Errorf("unable to load genesis, %w", loadErr)
 	}
@@ -124,7 +124,7 @@ func execValidatorAdd(cfg *validatorAddCfg, io commands.IO) error {
 	genesis.Validators = append(genesis.Validators, validator)
 
 	// Save the updated genesis
-	if err := genesis.SaveAs(cfg.rootCfg.genesisPath); err != nil {
+	if err := genesis.SaveAs(cfg.rootCfg.homeDir.GenesisFilePath()); err != nil {
 		return fmt.Errorf("unable to save genesis.json, %w", err)
 	}
 

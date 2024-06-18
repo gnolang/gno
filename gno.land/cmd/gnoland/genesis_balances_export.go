@@ -28,7 +28,7 @@ func newBalancesExportCmd(balancesCfg *balancesCfg, io commands.IO) *commands.Co
 
 func execBalancesExport(cfg *balancesCfg, io commands.IO, args []string) error {
 	// Load the genesis
-	genesis, loadErr := types.GenesisDocFromFile(cfg.genesisPath)
+	genesis, loadErr := types.GenesisDocFromFile(cfg.homeDir.GenesisFilePath())
 	if loadErr != nil {
 		return fmt.Errorf("unable to load genesis, %w", loadErr)
 	}

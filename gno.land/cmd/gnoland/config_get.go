@@ -36,7 +36,7 @@ func newConfigGetCmd(io commands.IO) *commands.Command {
 
 func execConfigGet(cfg *configCfg, io commands.IO, args []string) error {
 	// Load the config
-	loadedCfg, err := config.LoadConfigFile(cfg.configPath)
+	loadedCfg, err := config.LoadConfigFile(cfg.homeDir.ConfigFile())
 	if err != nil {
 		return fmt.Errorf("%s, %w", tryConfigInit, err)
 	}
