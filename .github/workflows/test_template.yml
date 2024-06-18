@@ -17,8 +17,6 @@ on:
 jobs:
     test:
         runs-on: ubuntu-latest
-        env:
-          COVERAGE_DIR: "/tmp/coverage"
         steps:
         - name: Install Go
           uses: actions/setup-go@v5
@@ -33,7 +31,7 @@ jobs:
             GOCOVERDIR: /tmp/gocoverdir # go cover output
             COVERDIR: /tmp/coverdir # final output
           run: |
-            set -x # print command
+            set -x # print commands
 
             mkdir -p "$GOCOVERDIR" "$TXTARCOVERDIR" "$COVERDIR"
 
@@ -54,8 +52,7 @@ jobs:
             go tool covdata percent -i=$COVERDIR
 
             # Generate final coverage output
-            touch coverage.out
-            go tool covdata textfmt -v 1 -i=$COVERDIR -o coverage.out
+            go tool covdata textfmt -v 1 -i=$COVERDIR -o coverage.out || touch coverage.out
 
         - name: Upload coverage to Codecov
           uses: codecov/codecov-action@v4
