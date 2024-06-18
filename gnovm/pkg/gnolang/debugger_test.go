@@ -31,9 +31,9 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 	stdout := writeNopCloser{bout}
 	stderr := writeNopCloser{berr}
 	debug := in != "" || debugAddr != ""
-	mode := tests.ImportModeNativePreferred
-	if strings.HasSuffix(file, "_stdlibs.gno") {
-		mode = tests.ImportModeStdlibsPreferred
+	mode := tests.ImportModeStdlibsPreferred
+	if strings.HasSuffix(file, "_native.gno") {
+		mode = tests.ImportModeNativePreferred
 	}
 
 	defer func() {
