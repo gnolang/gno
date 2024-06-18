@@ -31,27 +31,27 @@ install:
 	@echo 'To install a tool, go to the subdirectory, then run `make install`.'
 	@echo 'To do a full installation, run `make install_all`.'
 
-install_all: $(addsuffix .install,$(programs))
-%.install:
-	@echo "[+] make -C $(basename $@) install"
-	$(MAKE) --no-print-directory -C $(basename $@) install
+install_all: $(addprefix install.,$(programs))
+install.%:
+	@echo "[+] make -C $(subst install.,,$@) install"
+	$(MAKE) --no-print-directory -C $(subst install.,,$@) install
 .PHONY: install_all
 
 ########################################
 # Test suite
-test: $(addsuffix .test,$(programs))
-%.test:
-	@echo "[+] make -C $(basename $@) install"
-	$(MAKE) --no-print-directory -C $(basename $@) test
-.PHONY: test 
+test: $(addprefix test.,$(programs))
+test.%:
+	@echo "[+] make -C $(subst test.,,$@) install"
+	$(MAKE) --no-print-directory -C $(subst test.,,$@) test
+.PHONY: test
 
 ########################################
 # Lint
 .PHONY: lint
-lint: $(addsuffix .lint,$(programs))
-%.lint:
-	@echo "[+] make -C $(basename $@) install"
-	$(MAKE) --no-print-directory -C $(basename $@) lint
+lint: $(addprefix lint.,$(programs))
+lint.%:
+	@echo "[+] make -C $(subst lint.,,$@) install"
+	$(MAKE) --no-print-directory -C $(subst lint.,,$@) lint
 
 ########################################
 # Dev tools

@@ -13,7 +13,7 @@ to run on your machine.
 ## Prerequisites
 - **Git**
 - **`make` (for running Makefiles)**
-- **Go 1.19+**
+- **Go 1.21+**
 - **Go Environment Setup**:
   - Make sure `$GOPATH` is well-defined, and `$GOPATH/bin` is added to your `$PATH` variable.
   - To do this, you can add the following line to your `.bashrc`, `.zshrc` or other config file:

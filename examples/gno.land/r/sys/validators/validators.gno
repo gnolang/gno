@@ -15,10 +15,10 @@ type Change struct {
 	Power   int
 }
 
-// NewProposalExecutor creates a new executor that wraps a changes closure
+// NewPropExecutor creates a new executor that wraps a changes closure
 // proposal. It emits a typed object (subscribed by tm2) only if it passes
 // through a complete p/gov/proposal process.
-func NewProposalExecutor(changesFn func() []Change) proposal.Executor {
+func NewPropExecutor(changesFn func() []Change) proposal.Executor {
 	if changesFn == nil {
 		panic("changesFn should not be nil")
 	}
