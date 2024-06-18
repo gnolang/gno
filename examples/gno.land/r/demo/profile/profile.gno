@@ -3,11 +3,16 @@ package profile
 import (
 	"bytes"
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/mux"
+	"gno.land/p/demo/ufmt"
 	"std"
 	"time"
 )
+
+type WebsiteInfo struct {
+	Name string
+	URL  string
+}
 
 type UserProfile struct {
 	Username            string
@@ -15,7 +20,7 @@ type UserProfile struct {
 	AvatarURL           string
 	Age                 string
 	Gender              string
-	Website             string
+	Websites            *avl.Tree // Name -> URL
 	Country             string
 	City                string
 	ModificationHistory map[string][]string
@@ -35,7 +40,7 @@ func init() {
 	router.HandleFunc("history/{username}", historyHandler)
 }
 
-func CreateProfile(username, avatarurl, age, gender, website, country, city string) {
+func CreateProfile(username, avatarurl, age, gender, websiteName, websiteURL, country, city string) {
 	caller := std.GetOrigCaller()
 
 	// Check if a profile already exists for this address
@@ -51,25 +56,27 @@ func CreateProfile(username, avatarurl, age, gender, website, country, city stri
 		}
 	}
 
+	websites := avl.NewTree()
+	websites.Set(websiteName, websiteURL)
+
 	profile := UserProfile{
 		Username:  username,
 		Address:   caller,
 		AvatarURL: avatarurl,
 		Age:       age,
 		Gender:    gender,
-		Website:   website,
+		Websites:  websites,
 		Country:   country,
 		City:      city,
 	}
 
 	profiles.Set(caller.String(), profile)
 
-	
 	usernameIndex.Set(username, caller.String())
 	std.Emit("UserProfileCreated", "username", username, "address", caller.String())
 }
 
-func UpdateProfile(username, avatarurl, age, gender, website, country, city string) {
+func UpdateProfile(username, avatarurl, age, gender, websiteName, websiteURL, country, city string) {
 	caller := std.GetOrigCaller()
 	value, exists := profiles.Get(caller.String())
 	if !exists {
@@ -117,17 +124,18 @@ func UpdateProfile(username, avatarurl, age, gender, website, country, city stri
 	updateField(&existingProfile.AvatarURL, avatarurl, "AvatarURL", &existingProfile)
 	updateField(&existingProfile.Age, age, "Age", &existingProfile)
 	updateField(&existingProfile.Gender, gender, "Gender", &existingProfile)
-	updateField(&existingProfile.Website, website, "Website", &existingProfile)
 	updateField(&existingProfile.Country, country, "Country", &existingProfile)
 	updateField(&existingProfile.City, city, "City", &existingProfile)
 
+	// Update the website tree if a new website is provided
+	if websiteName != "" && websiteURL != "" {
+		existingProfile.Websites.Set(websiteName, websiteURL)
+		changeDescription := time.Now().Format(time.RFC3339) + ": Updated website " + websiteName + " to " + websiteURL
+		existingProfile.ModificationHistory["Websites"] = append(existingProfile.ModificationHistory["Websites"], changeDescription)
+	}
+
 	// Update the profile in the tree
 	profiles.Set(caller.String(), existingProfile)
-
-	// Update the username index if the username is changed
-	/*if username != existingProfile.Username {
-		usernameIndex.Set(username, caller.String())
-	}*/
 }
 
 // Display complete Profile by Address
@@ -138,8 +146,6 @@ func DisplayProfileByAddress(address std.Address) UserProfile {
 
 	panic("profile not found")
 }
-
-
 
 // Get complete profile by username
 func DisplayProfileByUsername(username string) UserProfile {
@@ -220,19 +226,54 @@ func DisplayGender(address std.Address, username string) string {
 }
 
 // Display website from address or username
-func DisplayWebsite(address std.Address, username string) string {
+func DisplayWebsite(address std.Address, username, websiteName string) string {
 	if address != "" {
 		if value, exists := profiles.Get(address.String()); exists {
-			return value.(UserProfile).Website
+			profile := value.(UserProfile)
+			if url, exists := profile.Websites.Get(websiteName); exists {
+				return url.(string)
+			}
+			panic("website not found")
 		}
 	} else if username != "" {
 		if addr, exists := usernameIndex.Get(username); exists {
 			if value, exists := profiles.Get(addr.(string)); exists {
-				return value.(UserProfile).Website
+				profile := value.(UserProfile)
+				if url, exists := profile.Websites.Get(websiteName); exists {
+					return url.(string)
+				}
+				panic("website not found")
 			}
 		}
 	}
 
+	panic("address or username not found")
+}
+
+func DisplayAllWebsites(address std.Address, username string) map[string]string {
+	if address != "" {
+		if value, exists := profiles.Get(address.String()); exists {
+			profile := value.(UserProfile)
+			websites := make(map[string]string)
+			profile.Websites.Iterate("", "", func(key string, value interface{}) bool {
+				websites[key] = value.(string)
+				return true
+			})
+			return websites
+		}
+	} else if username != "" {
+		if addr, exists := usernameIndex.Get(username); exists {
+			if value, exists := profiles.Get(addr.(string)); exists {
+				profile := value.(UserProfile)
+				websites := make(map[string]string)
+				profile.Websites.Iterate("", "", func(key string, value interface{}) bool {
+					websites[key] = value.(string)
+					return true
+				})
+				return websites
+			}
+		}
+	}
 	panic("address or username not found")
 }
 
@@ -272,36 +313,36 @@ func DisplayCity(address std.Address, username string) string {
 
 // Display modification history specific to a field from address or username
 func DisplayModificationHistory(address std.Address, username, field string) string {
-    var value interface{}
-    var exists bool
+	var value interface{}
+	var exists bool
 
-    if address != "" {
-        value, exists = profiles.Get(address.String())
-    } else if username != "" {
-        if addr, ok := usernameIndex.Get(username); ok {
-            value, exists = profiles.Get(addr.(string))
-        }
-    }
+	if address != "" {
+		value, exists = profiles.Get(address.String())
+	} else if username != "" {
+		if addr, ok := usernameIndex.Get(username); ok {
+			value, exists = profiles.Get(addr.(string))
+		}
+	}
 
-    if !exists {
-        panic("address or username not found")
-    }
+	if !exists {
+		panic("address or username not found")
+	}
 
-    profile, ok := value.(UserProfile)
-    if !ok || profile.ModificationHistory == nil {
-        panic("no modification history available")
-    }
+	profile, ok := value.(UserProfile)
+	if !ok || profile.ModificationHistory == nil {
+		panic("no modification history available")
+	}
 
-    changes, found := profile.ModificationHistory[field]
-    if !found {
-        panic("no modifications recorded for the field")
-    }
+	changes, found := profile.ModificationHistory[field]
+	if !found {
+		panic("no modifications recorded for the field")
+	}
 
-    var b bytes.Buffer
-    for _, change := range changes {
-        b.WriteString(ufmt.Sprintf("%s\n", change))
-    }
-    return b.String()
+	var b bytes.Buffer
+	for _, change := range changes {
+		b.WriteString(ufmt.Sprintf("%s\n", change))
+	}
+	return b.String()
 }
 
 func homeHandler(res *mux.ResponseWriter, req *mux.Request) {
@@ -330,6 +371,17 @@ func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 	b.WriteString("<p>Username: " + profile.Username + "</p>")
 	b.WriteString("<p>Address: " + profile.Address.String() + "</p>")
 	b.WriteString("<p>Avatar URL: <img src='" + profile.AvatarURL + "' /></p>")
+	b.WriteString("<p>Age: " + profile.Age + "</p>")
+	b.WriteString("<p>Gender: " + profile.Gender + "</p>")
+	b.WriteString("<p>Country: " + profile.Country + "</p>")
+	b.WriteString("<p>City: " + profile.City + "</p>")
+
+	b.WriteString("<h2>Websites:</h2>")
+	profile.Websites.Iterate("", "", func(key string, value interface{}) bool {
+		b.WriteString("<p>" + key + ": <a href='" + value.(string) + "'>" + value.(string) + "</a></p>")
+		return true
+	})
+
 	b.WriteString("<p>[<a href='/r/demo/profile:history/" + username + "'>View Modification History</a>]</p>")
 	b.WriteString("</body></html>")
 
@@ -339,14 +391,14 @@ func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 func historyHandler(res *mux.ResponseWriter, req *mux.Request) {
 	username := req.GetVar("username")
 	profile := DisplayProfileByUsername(username)
-	
+
 	var b bytes.Buffer
-	
+
 	b.WriteString("<html><body>")
-	
+
 	b.WriteString("<p>[<a href='/r/demo/profile'>Home</a>] | [<a href='/r/demo/profile:info/" + username + "'>Profile " + username + "</a>]</p>")
 	b.WriteString("<h1>Modification History for " + profile.Username + "</h1>")
-	
+
 	if profile.ModificationHistory != nil && len(profile.ModificationHistory) > 0 {
 		for field, changes := range profile.ModificationHistory {
 			b.WriteString("<h2>" + field + "</h2>")
@@ -357,7 +409,7 @@ func historyHandler(res *mux.ResponseWriter, req *mux.Request) {
 	} else {
 		b.WriteString("<p>No modifications recorded.</p>")
 	}
-	
+
 	b.WriteString("</body></html>")
 	res.Write(b.String())
 }
