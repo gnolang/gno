@@ -10,13 +10,13 @@ type Ownable struct {
 	owner std.Address
 }
 
-func NewOwnable() *Ownable {
+func New() *Ownable {
 	return &Ownable{
 		owner: std.PrevRealm().Addr(),
 	}
 }
 
-func NewOwnableWithAddress(addr std.Address) *Ownable {
+func NewWithAddress(addr std.Address) *Ownable {
 	return &Ownable{
 		owner: addr,
 	}

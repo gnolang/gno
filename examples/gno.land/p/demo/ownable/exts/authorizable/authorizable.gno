@@ -18,7 +18,7 @@ type Authorizable struct {
 
 func NewAuthorizable() *Authorizable {
 	a := &Authorizable{
-		ownable.NewOwnable(),
+		ownable.New(),
 		make(map[std.Address]struct{}),
 	}
 
@@ -29,7 +29,7 @@ func NewAuthorizable() *Authorizable {
 
 func NewAuthorizableWithAddress(addr std.Address) *Authorizable {
 	a := &Authorizable{
-		ownable.NewOwnableWithAddress(addr),
+		ownable.NewWithAddress(addr),
 		make(map[std.Address]struct{}),
 	}
 
@@ -40,11 +40,11 @@ func NewAuthorizableWithAddress(addr std.Address) *Authorizable {
 
 func (a *Authorizable) AddToAuthList(addr std.Address) error {
 	if err := a.CallerIsOwner(); err != nil {
-		return errNotSuperuser
+		return ErrNotSuperuser
 	}
 
 	if _, exists := a.authorized[addr]; exists {
-		return errAlreadyInList
+		return ErrAlreadyInList
 	}
 
 	a.authorized[addr] = struct{}{}
@@ -53,11 +53,11 @@ func (a *Authorizable) AddToAuthList(addr std.Address) error {
 
 func (a Authorizable) CallerOnAuthList() error {
 	caller := std.PrevRealm().Addr()
-	if _, exists := a.authorized[caller]; exists {
-		return nil
+	if _, exists := a.authorized[caller]; !exists {
+		return ErrNotInAuthList
 	}
 
-	return errNotInAuthList
+	return nil
 }
 
 func (a Authorizable) OnAuthListByAddr(addr std.Address) error {
@@ -66,14 +66,14 @@ func (a Authorizable) OnAuthListByAddr(addr std.Address) error {
 		return nil
 	}
 
-	return errNotInAuthList
+	return ErrNotInAuthList
 }
 
 func (a Authorizable) AssertOnAuthList() {
 	caller := std.PrevRealm().Addr()
 
 	if _, exists := a.authorized[caller]; !exists {
-		panic(errNotInAuthList)
+		panic(ErrNotInAuthList)
 	}
 }
 
