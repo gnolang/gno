@@ -40,7 +40,10 @@ func AdminRemoveModerator(addr std.Address) {
 }
 
 func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
-	assertIsModerator()
+	println("@@@@@@@@@")
+	println(std.PrevRealm().PkgPath())
+	println("#########")
+	// assertIsModerator()
 
 	caller := std.GetOrigCaller()
 

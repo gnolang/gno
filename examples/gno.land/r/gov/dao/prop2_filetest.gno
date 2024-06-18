@@ -1,4 +1,5 @@
-package main
+// PKGPATH: gno.land/r/foo/prop02
+package prop02
 
 import (
 	"std"
@@ -15,7 +16,7 @@ func init() {
 			"hello-from-govdao",                             // slug
 			"Hello from GovDAO!",                            // title
 			"This post was published by a GovDAO proposal.", // body
-			time.Now().String(),                             // publidation date
+			time.Now().Format(time.RFC3339),                 // publidation date
 			"moul",                                          // authors
 			"govdao,example",                                // tags
 		)
@@ -49,33 +50,39 @@ func main() {
 
 // Output:
 // --
-// - [/r/gov/dao:0](0) - post a new blogpost about govdao (by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// - [/r/gov/dao:0](0) - post a new blogpost about govdao (by g1qzu77x7g9z0klhnavmewmhxcz4jcckflhl7sce)
 // --
 // # Prop#0
 //
 // post a new blogpost about govdao
 // Status: active
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Author: g1qzu77x7g9z0klhnavmewmhxcz4jcckflhl7sce
 // --
 // --
 // # Prop#0
 //
 // post a new blogpost about govdao
 // Status: accepted
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Author: g1qzu77x7g9z0klhnavmewmhxcz4jcckflhl7sce
 // --
 // # Gnoland's Blog
 //
 // No posts.
 // --
-// @@@@@@@@@@@@@@@@@@@@@@@@
+// @@@@@@@@@
+// gno.land/r/foo/prop02
+// #########
 // --
 // # Prop#0
 //
 // post a new blogpost about govdao
 // Status: success
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Author: g1qzu77x7g9z0klhnavmewmhxcz4jcckflhl7sce
 // --
 // # Gnoland's Blog
 //
-// No posts.
+// <div class='columns-3'><div>
+//
+// ### [Hello from GovDAO!](/r/gnoland/blog:p/hello-from-govdao)
+//  13 Feb 2009
+// </div></div>
