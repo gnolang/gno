@@ -237,7 +237,8 @@ func (ctx *transpileCtx) transformCallExpr(_ *astutil.Cursor, ce *ast.CallExpr) 
 		if !ok {
 			break
 		}
-		if stdlibs.HasMachineParam(ip, gno.Name(fe.Sel.Name)) {
+		nat := stdlibs.FindNative(ip, gno.Name(fe.Sel.Name))
+		if nat != nil && nat.HasMachineParam() {
 			// Because it's an import, the symbol is always exported, so no need for the
 			// X_ prefix we add below.
 			ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
@@ -249,9 +250,9 @@ func (ctx *transpileCtx) transformCallExpr(_ *astutil.Cursor, ce *ast.CallExpr) 
 		// The logic here is not robust to be generic. It does not account for locally
 		// defined scope. However, because native bindings have a narrowly defined and
 		// controlled scope (standard libraries) this will work for our usecase.
-		if ctx.stdlibPath != "" &&
-			stdlibs.HasNativeBinding(ctx.stdlibPath, gno.Name(fe.Name)) {
-			if stdlibs.HasMachineParam(ctx.stdlibPath, gno.Name(fe.Name)) {
+		nat := stdlibs.FindNative(ctx.stdlibPath, gno.Name(fe.Name))
+		if ctx.stdlibPath != "" && nat != nil {
+			if nat.HasMachineParam() {
 				ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
 			}
 			if !fe.IsExported() {

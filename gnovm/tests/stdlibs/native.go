@@ -11,7 +11,9 @@ import (
 	testlibs_testing "github.com/gnolang/gno/gnovm/tests/stdlibs/testing"
 )
 
-type nativeFunc struct {
+// NativeFunc represents a function in the standard library which has a native
+// (go-based) implementation, commonly referred to as a "native binding".
+type NativeFunc struct {
 	gnoPkg     string
 	gnoFunc    gno.Name
 	params     []gno.FieldTypeExpr
@@ -20,7 +22,14 @@ type nativeFunc struct {
 	f          func(m *gno.Machine)
 }
 
-var nativeFuncs = [...]nativeFunc{
+// HasMachineParam returns whether the given native binding has a machine parameter.
+// This means that the Go version of this function expects a *gno.Machine
+// as its first parameter.
+func (n *NativeFunc) HasMachineParam() bool {
+	return n.hasMachine
+}
+
+var nativeFuncs = [...]NativeFunc{
 	{
 		"std",
 		"AssertOriginCall",
