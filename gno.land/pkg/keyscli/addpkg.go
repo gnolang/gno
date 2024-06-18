@@ -113,7 +113,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		Package: memPkg,
 		Deposit: deposit,
 	}
-	tx := std.Tx{
+	tx := &std.Tx{
 		Msgs:       []std.Msg{msg},
 		Fee:        std.NewFee(gaswanted, gasfee),
 		Signatures: nil,

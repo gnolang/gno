@@ -123,7 +123,7 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 		Func:    fnc,
 		Args:    cfg.Args,
 	}
-	tx := std.Tx{
+	tx := &std.Tx{
 		Msgs:       []std.Msg{msg},
 		Fee:        std.NewFee(gaswanted, gasfee),
 		Signatures: nil,

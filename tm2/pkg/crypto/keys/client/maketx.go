@@ -165,11 +165,7 @@ func SignHandler(
 	return nil
 }
 
-func ExecSign(cfg *MakeTxCfg,
-	args []string,
-	tx *std.Tx,
-	io commands.IO) error {
-
+func ExecSign(cfg *MakeTxCfg, args []string, tx *std.Tx, io commands.IO) error {
 	if err := cfg.Validate(); err != nil {
 		return err
 	}
