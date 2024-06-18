@@ -5,16 +5,18 @@ import (
 	"std"
 	"time"
 
+	"gno.land/p/demo/context"
 	"gno.land/p/gov/proposal"
 	gnoblog "gno.land/r/gnoland/blog"
 	govdao "gno.land/r/gov/dao"
 )
 
 func init() {
-	executor := proposal.NewExecutor(func() error {
-		gnoblog.ModAddPost(
-			"hello-from-govdao",                             // slug
-			"Hello from GovDAO!",                            // title
+	executor := proposal.NewCtxExecutor(func(ctx context.Context) error {
+		gnoblog.DaoAddPost(
+			ctx,
+			"hello-from-govdao",  // slug
+			"Hello from GovDAO!", // title
 			"This post was published by a GovDAO proposal.", // body
 			time.Now().Format(time.RFC3339),                 // publidation date
 			"moul",                                          // authors
@@ -69,9 +71,6 @@ func main() {
 //
 // No posts.
 // --
-// @@@@@@@@@
-// (struct{("g1qzu77x7g9z0klhnavmewmhxcz4jcckflhl7sce" std.Address),("gno.land/r/foo/prop02" string)} std.Realm)
-// #########
 // --
 // # Prop#0
 //

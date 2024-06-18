@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/context"
+	"gno.land/p/gov/proposal"
 )
 
 var (
@@ -39,14 +41,19 @@ func AdminRemoveModerator(addr std.Address) {
 	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
 }
 
+func DaoAddPost(ctx context.Context, slug, title, body, publicationDate, authors, tags string) {
+	proposal.AssertContextApprovedByGovDAO(ctx)
+	caller := std.DerivePkgAddr("gno.land/r/gov/dao")
+	addPost(caller, slug, title, body, publicationDate, authors, tags)
+}
+
 func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
-	println("@@@@@@@@@")
-	println(std.PrevRealm())
-	println("#########")
-	// assertIsModerator()
-
+	assertIsModerator()
 	caller := std.GetOrigCaller()
+	addPost(caller, slug, title, body, publicationDate, authors, tags)
+}
 
+func addPost(caller std.Address, slug, title, body, publicationDate, authors, tags string) {
 	var tagList []string
 	if tags != "" {
 		tagList = strings.Split(tags, ",")

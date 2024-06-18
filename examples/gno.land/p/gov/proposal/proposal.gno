@@ -1,7 +1,11 @@
 // Package proposal provides a structure for executing proposals.
 package proposal
 
-import "std"
+import (
+	"std"
+
+	"gno.land/p/demo/context"
+)
 
 const daoPkgPath = "gno.land/r/gov/dao" // XXX: make it configurable with r/sys/vars?
 
@@ -13,11 +17,20 @@ func NewExecutor(callback func() error) Executor {
 	}
 }
 
+// NewCtxExecutor creates a new executor with the provided callback function.
+func NewCtxExecutor(callback func(ctx context.Context) error) Executor {
+	return &executorImpl{
+		callbackCtx: callback,
+		done:        false,
+	}
+}
+
 // executorImpl is an implementation of the Executor interface.
 type executorImpl struct {
-	callback func() error
-	done     bool
-	success  bool
+	callback    func() error
+	callbackCtx func(ctx context.Context) error
+	done        bool
+	success     bool
 }
 
 // execute runs the executor's callback function.
@@ -26,7 +39,14 @@ func (exec *executorImpl) Execute() error {
 		return ErrAlreadyDone
 	}
 	assertCalledByGovdao()
-	err := exec.callback()
+
+	var err error
+	if exec.callback != nil {
+		err = exec.callback()
+	} else if exec.callbackCtx != nil {
+		ctx := context.WithValue(context.Empty(), statusContextKey, approvedStatus)
+		err = exec.callbackCtx(ctx)
+	}
 	exec.done = true
 	exec.success = err == nil
 	return err
@@ -53,9 +73,32 @@ func (exec executorImpl) Status() Status {
 	}
 }
 
+func IsApprovedByGovdaoContext(ctx context.Context) bool {
+	v := ctx.Value(statusContextKey)
+	if v == nil {
+		return false
+	}
+	return v.(string) == approvedStatus
+}
+
+func AssertContextApprovedByGovDAO(ctx context.Context) {
+	if !IsApprovedByGovdaoContext(ctx) {
+		panic("not approved by govdao")
+	}
+}
+
 func assertCalledByGovdao() {
 	caller := std.CurrentRealm().PkgPath()
 	if caller != daoPkgPath {
 		panic("only gov/dao can execute proposals")
 	}
 }
+
+type propContextKey string
+
+func (k propContextKey) String() string { return string(k) }
+
+const (
+	statusContextKey = propContextKey("govdao-prop-status")
+	approvedStatus   = "approved"
+)
