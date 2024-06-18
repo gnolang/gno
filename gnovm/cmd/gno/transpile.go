@@ -229,7 +229,7 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 		fmt.Fprintf(os.Stderr, "%s\n", filepath.Clean(dirPath))
 	}
 	for _, file := range files {
-		if err = transpileFile(file, opts); err != nil {
+		if err := transpileFile(file, opts); err != nil {
 			return fmt.Errorf("%s: %w", file, err)
 		}
 	}
