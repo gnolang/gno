@@ -119,6 +119,7 @@ html[data-theme="dark"] {
 .logo-hat {fill: var(--logo-hat, #ffffff); }
 
 #theme-toggle {
+  cursor: pointer;
   display: inline-block;
   padding: 0;
   color: var(--header-forground, #ffffff);
