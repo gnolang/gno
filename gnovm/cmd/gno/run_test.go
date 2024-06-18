@@ -75,6 +75,11 @@ func TestRunApp(t *testing.T) {
 			args:             []string{"run", "-debug-addr", "invalidhost:17538", "../../tests/integ/debugger/sample.gno"},
 			errShouldContain: "listen tcp: lookup invalidhost",
 		},
+		{
+			args:                []string{"run", "../../tests/integ/several-files-multiple-errors/"},
+			stderrShouldContain: "../../tests/integ/several-files-multiple-errors/file2.gno:3: expected 'IDENT', found '{' (code=2).\n../../tests/integ/several-files-multiple-errors/file2.gno:5: expected type, found '}' (code=2).\n../../tests/integ/several-files-multiple-errors/main.gno:5: expected ';', found example (code=2).\n../../tests/integ/several-files-multiple-errors/main.gno:6: expected '}', found 'EOF' (code=2).",
+			errShouldBe:         "exit code: 1",
+		},
 		// TODO: a test file
 		// TODO: args
 		// TODO: nativeLibs VS stdlibs
