@@ -1,16 +1,21 @@
 package doctest
 
 import (
-	"bytes"
 	"fmt"
-	"strings"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	bankm "github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
-	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 const (
@@ -19,89 +24,65 @@ const (
 	NO_RUN       = "no_run"
 )
 
+const LIBS_DIR = "../../stdlibs"
+
 func ExecuteCodeBlock(c CodeBlock) (string, error) {
 	if c.ContainsOptions(IGNORE) {
 		return "", nil
 	}
 
+	err := validateCodeBlock(c)
+	if err != nil {
+		return "", err
+	}
+
+	baseCapKey := store.NewStoreKey("baseCapKey")
+	iavlCapKey := store.NewStoreKey("iavlCapKey")
+
+	ms, ctx := setupMultiStore(baseCapKey, iavlCapKey)
+
+	acck := auth.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
+	bank := bankm.NewBankKeeper(acck)
+
+	vmk := vmm.NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, LIBS_DIR, 100_000_000)
+
+	vmk.Initialize(ms.MultiCacheWrap())
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := acck.NewAccountWithAddress(ctx, addr)
+	acck.SetAccount(ctx, acc)
+
+	files := []*std.MemFile{
+		{Name: fmt.Sprintf("%d.%s", c.Index, c.T), Body: c.Content},
+	}
+
+	coins := std.MustParseCoins("")
+	msg2 := vmm.NewMsgRun(addr, coins, files)
+	res, err := vmk.Run(ctx, msg2)
+	if err != nil {
+		return "", err
+	}
+
+	return res, nil
+}
+
+func validateCodeBlock(c CodeBlock) error {
 	if c.T == "go" {
 		c.T = "gno"
 	} else if c.T != "gno" {
-		return "", fmt.Errorf("unsupported language: %s", c.T)
+		return fmt.Errorf("unsupported language: %s", c.T)
 	}
-
-	db := memdb.NewMemDB()
-	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
-	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
-	store := gno.NewStore(nil, baseStore, iavlStore)
-	store.SetStrictGo2GnoMapping(true)
-
-	m := gno.NewMachine("main", store)
-
-	importPaths := extractImportPaths(c.Content)
-	for _, path := range importPaths {
-		if !gno.IsRealmPath(path) {
-			pkgName := defaultPkgName(path)
-			pn := gno.NewPackageNode(pkgName, path, &gno.FileSet{})
-			pv := pn.NewPackage()
-			store.SetBlockNode(pn)
-			store.SetCachePackage(pv)
-			m.SetActivePackage(pv)
-		} else {
-			dir := "gnovm/stdlibs/" + path
-			memPkg := gno.ReadMemPackage(dir, path)
-			m.RunMemPackage(memPkg, true)
-		}
-	}
-
-	memPkg := &std.MemPackage{
-		Name: c.Package,
-		Path: c.Package,
-		Files: []*std.MemFile{
-			{
-				Name: fmt.Sprintf("%d.%s", c.Index, c.T),
-				Body: c.Content,
-			},
-		},
-	}
-
-	if !gno.IsRealmPath(c.Package) {
-		pkgName := defaultPkgName(c.Package)
-		pn := gno.NewPackageNode(pkgName, c.Package, &gno.FileSet{})
-		pv := pn.NewPackage()
-		store.SetBlockNode(pn)
-		m.SetActivePackage(pv)
-		m.RunMemPackage(memPkg, true)
-	} else {
-		store.ClearCache()
-		m.PreprocessAllFilesAndSaveBlockNodes()
-		pv := store.GetPackage(c.Package, false)
-		m.SetActivePackage(pv)
-	}
-
-	// Capture output
-	var output bytes.Buffer
-	m.Output = &output
-
-	if c.ContainsOptions(NO_RUN) {
-		return "", nil
-	}
-
-	m.RunMain()
-
-	result := output.String()
-	if c.ContainsOptions(SHOULD_PANIC) {
-		return "", fmt.Errorf("expected panic, got %q", result)
-	}
-
-	return result, nil
+	return nil
 }
 
-func defaultPkgName(gopkgPath string) gno.Name {
-	parts := strings.Split(gopkgPath, "/")
-	last := parts[len(parts)-1]
-	parts = strings.Split(last, "-")
-	name := parts[len(parts)-1]
-	name = strings.ToLower(name)
-	return gno.Name(name)
+func setupMultiStore(baseKey, iavlKey types.StoreKey) (types.CommitMultiStore, sdk.Context) {
+	db := memdb.NewMemDB()
+
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlKey, iavl.StoreConstructor, db)
+	ms.LoadLatestVersion()
+
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "chain-id"}, log.NewNoopLogger())
+	return ms, ctx
 }
