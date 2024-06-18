@@ -77,65 +77,73 @@ func CreateProfile(username, avatarurl, age, gender, websiteName, websiteURL, co
 }
 
 func UpdateProfile(username, avatarurl, age, gender, websiteName, websiteURL, country, city string) {
-	caller := std.GetOrigCaller()
-	value, exists := profiles.Get(caller.String())
-	if !exists {
-		panic("Profile not found")
-	}
+    caller := std.GetOrigCaller()
+    value, exists := profiles.Get(caller.String())
+    if !exists {
+        panic("Profile not found")
+    }
 
-	// Retrieve the existing profile
-	existingProfile := value.(UserProfile)
+    // Retrieve the existing profile
+    existingProfile := value.(UserProfile)
+    changes := make(map[string]string)
 
-	// update the username and manage index if changed
-	if username != "" && username != existingProfile.Username {
-		_, exists := usernameIndex.Get(username)
-		if exists {
-			panic("Username is already taken")
-		}
+    // update the username and manage index if changed
+    if username != "" && username != existingProfile.Username {
+        _, exists := usernameIndex.Get(username)
+        if exists {
+            panic("Username is already taken")
+        }
 
-		// remove the old username from the index
-		if existingProfile.Username != "" {
-			usernameIndex.Remove(existingProfile.Username)
-		}
+        if existingProfile.Username != "" {
+            usernameIndex.Remove(existingProfile.Username)
+        }
+        usernameIndex.Set(username, caller.String())
 
-		// set the new username in the index
-		usernameIndex.Set(username, caller.String())
-	}
+        changes["Username"] = "Changed from " + existingProfile.Username + " to " + username
+        existingProfile.Username = username
+    }
 
-	// Initialize the ModificationHistory map if it's nil
-	if existingProfile.ModificationHistory == nil {
-		existingProfile.ModificationHistory = make(map[string][]string)
-	}
+    // Initialize the ModificationHistory map if it's nil
+    if existingProfile.ModificationHistory == nil {
+        existingProfile.ModificationHistory = make(map[string][]string)
+    }
 
-	// Function to update the profile field if changed
-	updateField := func(field *string, newValue, fieldName string, profile *UserProfile) {
-		if newValue != "" && *field != newValue {
-			changeDescription := time.Now().Format(time.RFC3339) + ": Changed from " + *field + " to " + newValue
-			if profile.ModificationHistory == nil {
-				profile.ModificationHistory = make(map[string][]string)
-			}
-			profile.ModificationHistory[fieldName] = append(profile.ModificationHistory[fieldName], changeDescription)
-			*field = newValue
-		}
-	}
+    // Function to update the profile field if changed
+    updateField := func(field *string, newValue, fieldName string, profile *UserProfile) {
+        if newValue != "" && *field != newValue {
+            changeDescription := "Changed from " + *field + " to " + newValue
+            profile.ModificationHistory[fieldName] = append(profile.ModificationHistory[fieldName], time.Now().Format(time.RFC3339)+": "+changeDescription)
+            changes[fieldName] = changeDescription
+            *field = newValue
+        }
+    }
 
-	// Update fields and log changes
-	updateField(&existingProfile.Username, username, "Username", &existingProfile)
-	updateField(&existingProfile.AvatarURL, avatarurl, "AvatarURL", &existingProfile)
-	updateField(&existingProfile.Age, age, "Age", &existingProfile)
-	updateField(&existingProfile.Gender, gender, "Gender", &existingProfile)
-	updateField(&existingProfile.Country, country, "Country", &existingProfile)
-	updateField(&existingProfile.City, city, "City", &existingProfile)
+    // Update fields and log changes
+    updateField(&existingProfile.AvatarURL, avatarurl, "AvatarURL", &existingProfile)
+    updateField(&existingProfile.Age, age, "Age", &existingProfile)
+    updateField(&existingProfile.Gender, gender, "Gender", &existingProfile)
+    updateField(&existingProfile.Country, country, "Country", &existingProfile)
+    updateField(&existingProfile.City, city, "City", &existingProfile)
 
-	// Update the website tree if a new website is provided
-	if websiteName != "" && websiteURL != "" {
-		existingProfile.Websites.Set(websiteName, websiteURL)
-		changeDescription := time.Now().Format(time.RFC3339) + ": Updated website " + websiteName + " to " + websiteURL
-		existingProfile.ModificationHistory["Websites"] = append(existingProfile.ModificationHistory["Websites"], changeDescription)
-	}
+    // Update the website tree if a new website is provided
+    if websiteName != "" && websiteURL != "" {
+        existingProfile.Websites.Set(websiteName, websiteURL)
+        changeDescription := "Updated website " + websiteName + " to " + websiteURL
+        existingProfile.ModificationHistory["Websites"] = append(existingProfile.ModificationHistory["Websites"], time.Now().Format(time.RFC3339)+": "+changeDescription)
+        changes["Website"] = changeDescription
+    }
 
-	// Update the profile in the tree
-	profiles.Set(caller.String(), existingProfile)
+    // Update the profile in the tree
+    profiles.Set(caller.String(), existingProfile)
+
+    // Emit the changes
+    if len(changes) > 0 {
+        emitArgs := []string{"address", caller.String()}
+        for key, value := range changes {
+            emitArgs = append(emitArgs, key, value)
+        }
+        std.Emit("UserProfileUpdated", emitArgs...)
+    }
 }
 
 // Display complete Profile by Address
