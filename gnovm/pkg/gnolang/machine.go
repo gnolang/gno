@@ -2034,104 +2034,185 @@ func (m *Machine) Printf(format string, args ...interface{}) {
 }
 
 func (m *Machine) String() string {
+	const (
+		maxSliceElements = 32
+		avgBlocksSize    = 1024
+		avgLineSize      = 32
+
+		// This is an approximation using the max slice elements we will process; it follows
+		// the calculation below: 5 slices sizes multiplied by 32 + 1024 + maxSliceElements again
+		// for exceptions.
+		maxBuilderBufferSize = 5*maxSliceElements*avgLineSize + avgBlocksSize + maxSliceElements
+	)
+
 	// Calculate some reasonable total length to avoid reallocation
 	// Assuming an average length of 32 characters per string
 	var (
-		vsLength         = m.NumValues * 32
-		ssLength         = len(m.Stmts) * 32
-		xsLength         = len(m.Exprs) * 32
-		bsLength         = 1024
-		obsLength        = len(m.Blocks) * 32
-		fsLength         = len(m.Frames) * 32
+		vsLength         = m.NumValues * avgLineSize
+		ssLength         = len(m.Stmts) * avgLineSize
+		xsLength         = len(m.Exprs) * avgLineSize
+		bsLength         = avgBlocksSize
+		obsLength        = len(m.Blocks) * avgLineSize
+		fsLength         = len(m.Frames) * avgLineSize
 		exceptionsLength = len(m.Exceptions)
 
 		totalLength = vsLength + ssLength + xsLength + bsLength + obsLength + fsLength + exceptionsLength
 	)
 
+	if totalLength > maxBuilderBufferSize {
+		totalLength = maxBuilderBufferSize
+	}
+
 	var builder strings.Builder
 	builder.Grow(totalLength)
 
-	builder.WriteString(fmt.Sprintf("Machine:\n    CheckTypes: %v\n    Op: %v\n    Values: (len: %d)\n", m.CheckTypes, m.Ops[:m.NumOps], m.NumValues))
+	builder.WriteString(fmt.Sprintf("Machine:\n    CheckTypes: %t\n", m.CheckTypes))
+	builder.WriteString("    Op: [")
 
-	for i := m.NumValues - 1; i >= 0; i-- {
+	var startOpIdx int
+	if m.NumOps > maxSliceElements {
+		// Only print the last maxSliceElements. Print the very first op as well.
+		startOpIdx = m.NumOps - maxSliceElements
+		builder.WriteString(fmt.Sprintf("%v ... ", m.Ops[0]))
+	}
+
+	for _, op := range m.Ops[startOpIdx:m.NumOps] {
+		builder.WriteString(fmt.Sprintf("%v ", op))
+	}
+	builder.WriteString("]\n")
+	builder.WriteString(fmt.Sprintf("    Values: (len: %d)\n", m.NumValues))
+
+	var i, count int
+	for i = m.NumValues - 1; i >= 0 && count < maxSliceElements; i-- {
 		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Values[i]))
+		count++
+	}
+
+	if i >= 0 { // loop exited due to count
+		builder.WriteString("          ...\n")
+		builder.WriteString(fmt.Sprintf("          #%d %v\n", 0, m.Values[0]))
 	}
 
 	builder.WriteString("    Exprs:\n")
 
-	for i := len(m.Exprs) - 1; i >= 0; i-- {
+	count, i = 0, 0
+	for i = len(m.Exprs) - 1; i >= 0 && count < maxSliceElements; i-- {
 		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Exprs[i]))
+		count++
+	}
+
+	if i >= 0 { // loop exited due to count
+		builder.WriteString("          ...\n")
+		builder.WriteString(fmt.Sprintf("          #%d %v\n", 0, m.Exprs[0]))
 	}
 
 	builder.WriteString("    Stmts:\n")
 
-	for i := len(m.Stmts) - 1; i >= 0; i-- {
+	count, i = 0, 0
+	for i = len(m.Stmts) - 1; i >= 0 && count < maxSliceElements; i-- {
 		builder.WriteString(fmt.Sprintf("          #%d %v\n", i, m.Stmts[i]))
+		count++
+	}
+
+	if i >= 0 { // loop exited due to count
+		builder.WriteString("          ...\n")
+		builder.WriteString(fmt.Sprintf("          #%d %v\n", 0, m.Stmts[0]))
 	}
 
 	builder.WriteString("    Blocks:\n")
 
-	for b := m.LastBlock(); b != nil; {
-		gen := builder.Len()/3 + 1
-		gens := "@" // strings.Repeat("@", gen)
+	count = 0
+	b := m.LastBlock()
+	printBlocks := func() {
+		for b != nil && count < maxSliceElements {
+			gen := builder.Len()/3 + 1
+			gens := "@" // strings.Repeat("@", gen)
 
-		if pv, ok := b.Source.(*PackageNode); ok {
-			// package blocks have too much, so just
-			// print the pkgpath.
-			builder.WriteString(fmt.Sprintf("          %s(%d) %s\n", gens, gen, pv.PkgPath))
-		} else {
-			bsi := b.StringIndented("            ")
-			builder.WriteString(fmt.Sprintf("          %s(%d) %s\n", gens, gen, bsi))
+			if pv, ok := b.Source.(*PackageNode); ok {
+				// package blocks have too much, so just
+				// print the pkgpath.
+				builder.WriteString(fmt.Sprintf("          %s(%d) %s\n", gens, gen, pv.PkgPath))
+			} else {
+				bsi := b.StringIndented("            ")
+				builder.WriteString(fmt.Sprintf("          %s(%d) %s\n", gens, gen, bsi))
 
-			if b.Source != nil {
-				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				builder.WriteString(fmt.Sprintf(" (s vals) %s(%d) %s\n", gens, gen, sb.StringIndented("            ")))
+				if b.Source != nil {
+					sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
+					builder.WriteString(fmt.Sprintf(" (s vals) %s(%d) %s\n", gens, gen, sb.StringIndented("            ")))
 
-				sts := b.GetSource(m.Store).GetStaticBlock().Types
-				builder.WriteString(fmt.Sprintf(" (s typs) %s(%d) %s\n", gens, gen, sts))
+					sts := b.GetSource(m.Store).GetStaticBlock().Types
+					builder.WriteString(fmt.Sprintf(" (s typs) %s(%d) %s\n", gens, gen, sts))
+				}
 			}
-		}
 
-		// Update b
-		switch bp := b.Parent.(type) {
-		case nil:
-			b = nil
-		case *Block:
-			b = bp
-		case RefValue:
-			builder.WriteString(fmt.Sprintf("            (block ref %v)\n", bp.ObjectID))
-			b = nil
-		default:
-			panic("should not happen")
+			// Update b
+			switch bp := b.Parent.(type) {
+			case nil:
+				b = nil
+			case *Block:
+				b = bp
+			case RefValue:
+				builder.WriteString(fmt.Sprintf("            (block ref %v)\n", bp.ObjectID))
+				b = nil
+			default:
+				panic(fmt.Sprintf("unexpected block parent type %T", bp))
+			}
+
+			count++
 		}
+	}
+
+	printBlocks()
+	if b != nil { // loop exited due to count
+		builder.WriteString("          ...\n")
+		b = m.Blocks[0]
+		printBlocks()
 	}
 
 	builder.WriteString("    Blocks (other):\n")
 
-	for i := len(m.Blocks) - 2; i >= 0; i-- {
-		b := m.Blocks[i]
+	printOtherBlock := func(idx int, skipPkgNode bool) {
+		b := m.Blocks[idx]
 
 		if b == nil || b.Source == nil {
-			continue
+			return
 		}
 
-		if _, ok := b.Source.(*PackageNode); ok {
-			break // done, skip *PackageNode.
+		if _, ok := b.Source.(*PackageNode); ok && skipPkgNode {
+			return // done, skip *PackageNode.
 		} else {
-			builder.WriteString(fmt.Sprintf("          #%d %s\n", i,
+			builder.WriteString(fmt.Sprintf("          #%d %s\n", idx,
 				b.StringIndented("            ")))
 			if b.Source != nil {
 				sb := b.GetSource(m.Store).GetStaticBlock().GetBlock()
-				builder.WriteString(fmt.Sprintf(" (static) #%d %s\n", i,
+				builder.WriteString(fmt.Sprintf(" (static) #%d %s\n", idx,
 					sb.StringIndented("            ")))
 			}
 		}
 	}
 
+	count, i = 0, 0
+	for i = len(m.Blocks) - 2; i >= 0 && count < maxSliceElements; i-- {
+		printOtherBlock(i, true)
+		count++
+	}
+
+	if i >= 0 { // loop exited due to count
+		builder.WriteString("          ...\n")
+		printOtherBlock(0, false)
+	}
+
 	builder.WriteString("    Frames:\n")
 
-	for i := len(m.Frames) - 1; i >= 0; i-- {
+	count, i = 0, 0
+	for i = len(m.Frames) - 1; i >= 0 && count < maxSliceElements; i-- {
 		builder.WriteString(fmt.Sprintf("          #%d %s\n", i, m.Frames[i]))
+		count++
+	}
+
+	if i >= 0 { // loop exited due to count
+		builder.WriteString("          ...\n")
+		builder.WriteString(fmt.Sprintf("          #%d %s\n", 0, m.Frames[0]))
 	}
 
 	if m.Realm != nil {
@@ -2140,8 +2221,15 @@ func (m *Machine) String() string {
 
 	builder.WriteString("    Exceptions:\n")
 
-	for _, ex := range m.Exceptions {
-		builder.WriteString(fmt.Sprintf("      %s\n", ex.Sprint(m)))
+	count, i = 0, 0
+	for i = len(m.Exceptions) - 1; i >= 0 && count < maxSliceElements; i-- {
+		builder.WriteString(fmt.Sprintf("      #%d %s\n", i, m.Exceptions[i].Sprint(m)))
+		count++
+	}
+
+	if i >= 0 { // loop exited due to count
+		builder.WriteString("      ...\n")
+		builder.WriteString(fmt.Sprintf("      #%d %s\n", 0, m.Exceptions[0].Sprint(m)))
 	}
 
 	return builder.String()
