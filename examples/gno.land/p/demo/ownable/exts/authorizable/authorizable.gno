@@ -51,7 +51,7 @@ func (a *Authorizable) AddToAuthList(addr std.Address) error {
 	return nil
 }
 
-func (a Authorizable) OnAuthList() error {
+func (a Authorizable) CallerOnAuthList() error {
 	caller := std.PrevRealm().Addr()
 	if _, exists := a.authorized[caller]; exists {
 		return nil
