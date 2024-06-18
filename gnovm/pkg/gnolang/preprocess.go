@@ -847,7 +847,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if isUntyped(rt) { // e.g. int(1) + 1<<x
 							checkOrConvertType(store, last, &n.Right, lt, false)
 						} else { // both typed, left typed const, right typed non-const
-							checkOrConvertType(store, last, &n.Left, rt, false) // see eql_0a1a0.gno
+							if lt.TypeID() != rt.TypeID() {
+								panic(fmt.Sprintf(
+									"incompatible types in binary expression: %v %v %v",
+									lt.TypeID(), n.Op, rt.TypeID()))
+							}
 						}
 					}
 				} else if ric { // right is const, left is not
@@ -890,7 +894,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if isUntyped(lt) {
 							checkOrConvertType(store, last, &n.Left, rt, false)
 						} else {
-							checkOrConvertType(store, last, &n.Right, lt, false)
+							if lt.TypeID() != rt.TypeID() {
+								panic(fmt.Sprintf(
+									"incompatible types in binary expression: %v %v %v",
+									lt.TypeID(), n.Op, rt.TypeID()))
+							}
 						}
 					}
 				} else { // ---both not const---
@@ -921,7 +929,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 							// check assignable, if pass, convert right to gno first
 							// XXX, can we just check on native type?
-							assertAssignableTo(lpt, rpt, false) // both primitive types
+							assertSame(lpt, rpt, "in binary expression "+n.Op.String()) // both primitive types
 							rn = Expr(Call(rpt.String(), n.Right))
 							// checkOrCovertType should happen in future when both sides to be gno'd
 						} else { // rt not native
@@ -994,10 +1002,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						} else if riu { // left typed, right untyped
 							checkOrConvertType(store, last, &n.Right, lt, false)
 						} else { // both typed, refer to 0a1g.gno
-							if !shouldSwapOnSpecificity(lt, rt) {
-								checkOrConvertType(store, last, &n.Left, rt, false)
+							if n.Op == EQL || n.Op == NEQ {
+								// nothing to do
 							} else {
-								checkOrConvertType(store, last, &n.Right, lt, false)
+								if !shouldSwapOnSpecificity(lt, rt) {
+									checkOrConvertType(store, last, &n.Left, rt, false)
+								} else {
+									checkOrConvertType(store, last, &n.Right, lt, false)
+								}
 							}
 						}
 					}

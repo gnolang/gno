@@ -1,9 +1,10 @@
 package gnolang
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
+
+	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 // here are a range of rules predefined for preprocessor to check the compatibility between operands and operators
@@ -196,6 +197,24 @@ func maybeNil(t Type) bool {
 	}
 }
 
+func assertSame(at, bt Type, msg string) {
+	err := checkSame(at, bt, msg)
+	if err != nil {
+		panic(err.Error())
+	}
+}
+
+func checkSame(at, bt Type, msg string) error {
+	if debug {
+		debug.Printf("checkSame, at: %v bt: %v \n", at, bt)
+	}
+	if at.TypeID() != bt.TypeID() {
+		return errors.New("incompatible types %v and %v %s",
+			at.TypeID(), bt.TypeID(), msg)
+	}
+	return nil
+}
+
 func assertAssignableTo(xt, dt Type, autoNative bool) {
 	err := checkAssignableTo(xt, dt, autoNative)
 	if err != nil {
@@ -208,7 +227,7 @@ func assertAssignableTo(xt, dt Type, autoNative bool) {
 // a target native dt type, if and only if dt is a native type.
 func checkAssignableTo(xt, dt Type, autoNative bool) error {
 	if debug {
-		debug.Printf("assertAssignableTo, xt: %v dt: %v \n", xt, dt)
+		debug.Printf("checkAssignableTo, xt: %v dt: %v \n", xt, dt)
 	}
 	// case0
 	if xt == nil { // see test/files/types/0f18
@@ -229,7 +248,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 				// if dt implements idt, ok.
 				return nil // ok
 			} else {
-				return fmt.Errorf(
+				return errors.New(
 					"%s does not implement %s",
 					xt.String(),
 					dt.String())
@@ -244,15 +263,15 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 				if nxt.Type.AssignableTo(nidt) {
 					return nil // ok
 				} else {
-					return fmt.Errorf(
+					return errors.New(
 						"cannot use %s as %s",
 						nxt.String(),
-						nidt.String())
+						nidt.String()).Stacktrace()
 				}
 			} else if pxt, ok := baseOf(xt).(*PointerType); ok {
 				nxt, ok := pxt.Elt.(*NativeType)
 				if !ok {
-					return fmt.Errorf(
+					return errors.New(
 						"pointer to non-native type cannot satisfy non-empty native interface; %s doesn't implement %s",
 						pxt.String(),
 						nidt.String())
@@ -261,17 +280,17 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 				if reflect.PtrTo(nxt.Type).AssignableTo(nidt) {
 					return nil // ok
 				} else {
-					return fmt.Errorf(
+					return errors.New(
 						"cannot use %s as %s",
 						pxt.String(),
-						nidt.String())
+						nidt.String()).Stacktrace()
 				}
 			} else if xdt, ok := xt.(*DeclaredType); ok {
 				if gno2GoTypeMatches(baseOf(xdt), ndt.Type) {
 					return nil
 				} // not check against native interface
 			} else {
-				return fmt.Errorf(
+				return errors.New(
 					"unexpected type pair: cannot use %s as %s",
 					xt.String(),
 					dt.String())
@@ -315,7 +334,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 			} else if dxt.TypeID() == ddt.TypeID() {
 				return nil // ok
 			} else {
-				return fmt.Errorf(
+				return errors.New(
 					"cannot use %s as %s without explicit conversion",
 					dxt.String(),
 					ddt.String())
@@ -324,7 +343,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 			// special case if implicitly named primitive type.
 			// TODO simplify with .IsNamedType().
 			if _, ok := dt.(PrimitiveType); ok {
-				return fmt.Errorf(
+				return errors.New(
 					"cannot use %s as %s without explicit conversion",
 					dxt.String(),
 					dt.String())
@@ -342,7 +361,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 			}
 			// this is special when dt is the declared type of x
 			if !isUntyped(xt) {
-				return fmt.Errorf(
+				return errors.New(
 					"cannot use %s as %s without explicit conversion",
 					xt.String(),
 					ddt.String())
@@ -363,7 +382,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 			if dt.Kind() == BoolKind {
 				return nil // ok
 			} else {
-				return fmt.Errorf(
+				return errors.New(
 					"cannot use untyped bool as %s",
 					dt.Kind())
 			}
@@ -371,7 +390,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 			if dt.Kind() == StringKind {
 				return nil // ok
 			} else {
-				return fmt.Errorf(
+				return errors.New(
 					"cannot use untyped string as %s",
 					dt.Kind())
 			}
@@ -398,7 +417,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 				Uint32Kind, Uint64Kind, BigintKind, BigdecKind, Float32Kind, Float64Kind: // see 0d0
 				return nil // ok
 			default:
-				return fmt.Errorf(
+				return errors.New(
 					"cannot use untyped Bigint as %s",
 					dt.Kind())
 			}
@@ -409,7 +428,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 				Uint32Kind, Uint64Kind, BigintKind, BigdecKind, Float32Kind, Float64Kind:
 				return nil // ok
 			default:
-				return fmt.Errorf(
+				return errors.New(
 					"cannot use untyped rune as %s",
 					dt.Kind())
 			}
@@ -429,25 +448,45 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 	case *ArrayType:
 		if at, ok := xt.(*ArrayType); ok {
 			if at.Len != cdt.Len {
-				return fmt.Errorf(
+				return errors.New(
 					"cannot use %s as %s",
 					at.String(),
 					cdt.String())
 			}
-			return checkAssignableTo(at.Elt, cdt.Elt, false)
+			err := checkSame(at.Elt, cdt.Elt, "")
+			if err != nil {
+				return errors.New(
+					"cannot use %s as %s",
+					at.String(),
+					cdt.String())
+			}
+			return nil
 		}
 	case *SliceType:
 		if st, ok := xt.(*SliceType); ok {
-			return checkAssignableTo(st.Elt, cdt.Elt, false)
+			if cdt.Vrd {
+				return checkAssignableTo(st.Elt, cdt.Elt, false)
+			} else {
+				err := checkSame(st.Elt, cdt.Elt, "")
+				if err != nil {
+					return errors.New(
+						"cannot use %s as %s",
+						st.String(),
+						cdt.String())
+				}
+				return nil
+			}
 		}
 	case *MapType:
 		if mt, ok := xt.(*MapType); ok {
-			err := checkAssignableTo(mt.Key, cdt.Key, false)
+			err := checkSame(mt.Key, cdt.Key, "")
 			if err != nil {
-				return err
-			} else {
-				return checkAssignableTo(mt.Value, cdt.Value, false)
+				return errors.New(
+					"cannot use %s as %s",
+					mt.String(),
+					cdt.String()).Stacktrace()
 			}
+			return nil
 		}
 	case *InterfaceType:
 		return errors.New("should not happen")
@@ -475,14 +514,14 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 			}
 		}
 	default:
-		return fmt.Errorf(
+		return errors.New(
 			"unexpected type %s",
 			dt.String())
 	}
-	return fmt.Errorf(
+	return errors.New(
 		"cannot use %s as %s",
 		xt.String(),
-		dt.String())
+		dt.String()).Stacktrace()
 }
 
 // ===========================================================

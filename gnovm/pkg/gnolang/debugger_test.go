@@ -196,7 +196,8 @@ func TestRemoteDebug(t *testing.T) {
 func TestRemoteError(t *testing.T) {
 	_, err := evalTest(":xxx", "", debugTarget)
 	t.Log("err:", err)
-	if !strings.Contains(err, "tcp/xxx: unknown port") {
+	if !strings.Contains(err, "tcp/xxx: unknown port") &&
+		!strings.Contains(err, "tcp/xxx: nodename nor servname provided, or not known") {
 		t.Error(err)
 	}
 }
