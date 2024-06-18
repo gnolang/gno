@@ -33,6 +33,8 @@ jobs:
             GOCOVERDIR: /tmp/gocoverdir # go cover output
             COVERDIR: /tmp/coverdir # final output
           run: |
+            set -x # print command
+
             mkdir -p "$GOCOVERDIR" "$TXTARCOVERDIR" "$COVERDIR"
 
             # XXX: Simplify coverage of txtar - the current setup is a bit
@@ -40,19 +42,19 @@ jobs:
             # 1.23 regarding coverage, so we can use this as a workaround until
             # then.
             go test -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./... -test.gocoverdir=$GOCOVERDIR
-
             # Print results
-            echo 'go coverage results:'
+            (set +x; echo 'go coverage results:')
             go tool covdata percent -i=$GOCOVERDIR
-            echo 'txtar coverage results:'
+            (set +x; echo 'txtar coverage results:')
             go tool covdata percent -i=$TXTARCOVERDIR
 
             # Merge and print combined coverage results
-            go tool covdata merge -v 1 -i="$GOCOVERAGE,$TXTARCOVERDIR" -o $COVERDIR
-            echo 'final coverage results:'
+            go tool covdata merge -v 1 -i="$GOCOVERDIR,$TXTARCOVERDIR" -o $COVERDIR
+            (set +x; echo 'final coverage results:')
             go tool covdata percent -i=$COVERDIR
 
             # Generate final coverage output
+            touch coverage.out
             go tool covdata textfmt -v 1 -i=$COVERDIR -o coverage.out
 
         - name: Upload coverage to Codecov
