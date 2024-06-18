@@ -2,6 +2,8 @@ package ownable
 
 import "std"
 
+const OwnershipTransferEvent = "OwnershipTransfer"
+
 // Ownable is meant to be used as a top-level object to make your contract ownable OR
 // being embedded in a Gno object to manage per-object ownership.
 type Ownable struct {
@@ -31,7 +33,13 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 		return ErrInvalidAddress
 	}
 
+	prevOwner := o.owner
 	o.owner = newOwner
+	std.Emit(
+		OwnershipTransferEvent,
+		"from", string(prevOwner),
+		"to", string(newOwner),
+	)
 
 	return nil
 }
@@ -45,7 +53,15 @@ func (o *Ownable) DropOwnership() error {
 		return err
 	}
 
+	prevOwner := o.owner
 	o.owner = ""
+
+	std.Emit(
+		OwnershipTransferEvent,
+		"from", string(prevOwner),
+		"to", "",
+	)
+
 	return nil
 }
 
