@@ -38,7 +38,6 @@ var (
 
 type devCfg struct {
 	// Listeners
-	webListenerAddr          string
 	nodeRPCListenerAddr      string
 	nodeP2PListenerAddr      string
 	nodeProxyAppListenerAddr string
@@ -49,6 +48,11 @@ type devCfg struct {
 	root            string
 	premineAccounts varPremineAccounts
 	balancesFile    string
+	txsFile         string
+
+	// Web Configuration
+	webListenerAddr     string
+	webRemoteHelperAddr string
 
 	// Node Configuration
 	minimal    bool
@@ -64,7 +68,7 @@ var defaultDevOptions = &devCfg{
 	chainId:             "dev",
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
-	nodeRPCListenerAddr: "127.0.0.1:36657",
+	nodeRPCListenerAddr: "127.0.0.1:26657",
 	deployKey:           DefaultDeployerAddress.String(),
 	home:                gnoenv.HomeDir(),
 	root:                gnoenv.RootDir(),
@@ -113,7 +117,14 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.webListenerAddr,
 		"web-listener",
 		defaultDevOptions.webListenerAddr,
-		"web server listening address",
+		"web server listener address",
+	)
+
+	fs.StringVar(
+		&c.webRemoteHelperAddr,
+		"web-help-remote",
+		defaultDevOptions.webRemoteHelperAddr,
+		"web server help page's remote addr (default to <node-rpc-listener>)",
 	)
 
 	fs.StringVar(
@@ -134,6 +145,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"balance-file",
 		defaultDevOptions.balancesFile,
 		"load the provided balance file (refer to the documentation for format)",
+	)
+
+	fs.StringVar(
+		&c.txsFile,
+		"txs-file",
+		defaultDevOptions.txsFile,
+		"load the provided transactions file (refer to the documentation for format)",
 	)
 
 	fs.StringVar(

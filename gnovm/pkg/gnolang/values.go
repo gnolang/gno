@@ -1594,7 +1594,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 	}
 	*tv = tv2.Copy(alloc)
 	if cu && isUntyped(tv.T) {
-		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
+		ConvertUntypedTo(tv, defaultTypeOf(tv.T, tv.V))
 	}
 }
 
@@ -2344,7 +2344,7 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if path.IsBlockBlankPath() {
 		if debug {
-			if path.Name != "_" {
+			if path.Name != blankIdentifier {
 				panic(fmt.Sprintf(
 					"zero value path is reserved for \"_\", but got %s",
 					path.Name))

@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// main/files/const9.gno:1: constant definition loop with b
+// main/files/const9.gno:5: constant definition loop with b

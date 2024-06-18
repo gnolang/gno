@@ -14,15 +14,21 @@ func AssertOriginCall(m *gno.Machine) {
 }
 
 func IsOriginCall(m *gno.Machine) bool {
-	return len(m.Frames) == 2
+	n := m.NumFrames()
+	if n == 0 {
+		return false
+	}
+	firstPkg := m.Frames[0].LastPackage
+	isMsgCall := firstPkg != nil && firstPkg.PkgPath == "main"
+	return n <= 2 && isMsgCall
 }
 
 func GetChainID(m *gno.Machine) string {
-	return m.Context.(ExecContext).ChainID
+	return GetContext(m).ChainID
 }
 
 func GetHeight(m *gno.Machine) int64 {
-	return m.Context.(ExecContext).Height
+	return GetContext(m).Height
 }
 
 // getPrevFunctionNameFromTarget returns the last called function name (identifier) from the call stack.
@@ -57,16 +63,16 @@ func findPrevFuncName(m *gno.Machine, targetIndex int) string {
 }
 
 func X_origSend(m *gno.Machine) (denoms []string, amounts []int64) {
-	os := m.Context.(ExecContext).OrigSend
+	os := GetContext(m).OrigSend
 	return ExpandCoins(os)
 }
 
 func X_origCaller(m *gno.Machine) string {
-	return string(m.Context.(ExecContext).OrigCaller)
+	return string(GetContext(m).OrigCaller)
 }
 
 func X_origPkgAddr(m *gno.Machine) string {
-	return string(m.Context.(ExecContext).OrigPkgAddr)
+	return string(GetContext(m).OrigPkgAddr)
 }
 
 func X_callerAt(m *gno.Machine, n int) string {
@@ -85,22 +91,24 @@ func X_callerAt(m *gno.Machine, n int) string {
 	}
 	if n == m.NumFrames() {
 		// This makes it consistent with GetOrigCaller.
-		ctx := m.Context.(ExecContext)
+		ctx := GetContext(m)
 		return string(ctx.OrigCaller)
 	}
 	return string(m.MustLastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
 }
 
 func X_getRealm(m *gno.Machine, height int) (address, pkgPath string) {
+	// NOTE: keep in sync with test/stdlibs/std.getRealm
+
 	var (
-		ctx           = m.Context.(ExecContext)
+		ctx           = GetContext(m)
 		currentCaller crypto.Bech32Address
 		// Keeps track of the number of times currentCaller
 		// has changed.
 		changes int
 	)
 
-	for i := m.NumFrames() - 1; i > 0; i-- {
+	for i := m.NumFrames() - 1; i >= 0; i-- {
 		fr := m.Frames[i]
 		if fr.LastPackage == nil || !fr.LastPackage.IsRealm() {
 			continue
