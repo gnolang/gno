@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
-	"strconv"
 	"strings"
 
 	sitter "github.com/smacker/go-tree-sitter"
@@ -101,8 +100,6 @@ func CreateCodeBlock(node *sitter.Node, body string, index int) CodeBlock {
 		pkgName = extractPackageName(content)
 	}
 
-	options := extractOptions(content)
-
 	return CodeBlock{
 		Content: content,
 		Start:   startByte,
@@ -110,7 +107,6 @@ func CreateCodeBlock(node *sitter.Node, body string, index int) CodeBlock {
 		T:       language,
 		Index:   index,
 		Package: pkgName,
-		Options: options,
 	}
 }
 
@@ -196,51 +192,4 @@ func extractPackageName(content string) string {
 	}
 
 	return ""
-}
-
-func extractImportPaths(code string) []string {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, "", code, parser.ImportsOnly)
-	if err != nil {
-		panic(err)
-	}
-
-	importPaths := make([]string, 0)
-	for _, imp := range file.Imports {
-		path, _ := strconv.Unquote(imp.Path.Value)
-		importPaths = append(importPaths, path)
-	}
-
-	return importPaths
-}
-
-func extractOptions(content string) []string {
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, "", content, parser.ParseComments)
-	if err != nil {
-		fmt.Println("Failed to parse options:", err)
-		return nil
-	}
-
-	opts := make([]string, 0)
-	for _, commentGroup := range node.Comments {
-		for _, comment := range commentGroup.List {
-			// TODO: ignore whitespace
-			if strings.HasPrefix(comment.Text, "//gno:") {
-				opt := strings.TrimPrefix(comment.Text, "//gno:")
-				opts = append(opts, strings.TrimSpace(opt))
-			}
-		}
-	}
-
-	return opts
-}
-
-func (c *CodeBlock) ContainsOptions(target string) bool {
-	for _, option := range c.Options {
-		if option == target {
-			return true
-		}
-	}
-	return false
 }

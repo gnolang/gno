@@ -32,7 +32,7 @@ func TestGetCodeBlocks(t *testing.T) {
 				{
 					Content: "fmt.Println(\"Hello, World!\")",
 					Start:   6,
-					End:     41, // TODO: should be 38
+					End:     41,
 					T:       "go",
 					Index:   0,
 				},
@@ -123,6 +123,93 @@ func TestGetCodeBlocks(t *testing.T) {
 		})
 	}
 }
+
+// func TestExtractOptions(t *testing.T) {
+// 	tests := []struct {
+// 		name     string
+// 		input    string
+// 		expected []string
+// 	}{
+// 		{
+// 			name: "Single option",
+// 			input: `
+// //gno: no_run
+// package main
+
+// func main() {
+//     println("This code should not run")
+// }
+// `,
+// 			expected: []string{"no_run"},
+// 		},
+// 		{
+// 			name: "Multiple options",
+// 			input: `
+// //gno: no_run, should_panic
+// package main
+
+// func main() {
+//     panic("Expected panic")
+// }
+// `,
+// 			expected: []string{"no_run", "should_panic"},
+// 		},
+// 		{
+// 			name: "Option with sub-command",
+// 			input: `
+// //gno: assert 1 2 3
+// package main
+
+// func main() {
+//     println(1)
+//     println(2)
+//     println(3)
+// }
+// `,
+// 			expected: []string{"assert 1 2 3\n"},
+// 		},
+// 		{
+// 			name: "Multiple options with sub-commands",
+// 			input: `
+// //gno: no_run, assert 1 2 3, custom_cmd sub_cmd
+// package main
+
+// func main() {
+//     println(1)
+//     println(2)
+//     println(3)
+// }
+// `,
+// 			expected: []string{"no_run", "assert 1 2 3", "custom_cmd sub_cmd"},
+// 		},
+// 		{
+// 			name: "No options",
+// 			input: `
+// package main
+
+// func main() {
+//     println("No options")
+// }
+// `,
+// 			expected: []string{},
+// 		},
+// 	}
+
+// 	for _, tt := range tests {
+// 		t.Run(tt.name, func(t *testing.T) {
+// 			result := extractOptions(tt.input)
+// 			if len(result) != len(tt.expected) {
+// 				t.Errorf("Failed %s: expected %d options, got %d", tt.name, len(tt.expected), len(result))
+// 			}
+
+// 			for i, res := range result {
+// 				if strings.EqualFold(res, tt.expected[i]) {
+// 					t.Errorf("Failed %s: expected option %s, got %s", tt.name, tt.expected[i], res)
+// 				}
+// 			}
+// 		})
+// 	}
+// }
 
 // ignore whitespace in the source code
 func normalize(s string) string {

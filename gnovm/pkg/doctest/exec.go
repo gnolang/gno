@@ -3,7 +3,7 @@ package doctest
 import (
 	"fmt"
 
-	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -18,19 +18,17 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
+// Option constants
 const (
-	IGNORE       = "ignore"
-	SHOULD_PANIC = "should_panic"
-	NO_RUN       = "no_run"
+	IGNORE       = "ignore"       // Do not run the code block
+	SHOULD_PANIC = "should_panic" // Expect a panic
+	ASSERT       = "assert"       // Assert the result and expected output are equal
 )
 
-const LIBS_DIR = "../../stdlibs"
+const STDLIBS_DIR = "../../stdlibs"
 
+// ExecuteCodeBlock executes a parsed code block and executes it in a gno VM.
 func ExecuteCodeBlock(c CodeBlock) (string, error) {
-	if c.ContainsOptions(IGNORE) {
-		return "", nil
-	}
-
 	err := validateCodeBlock(c)
 	if err != nil {
 		return "", err
@@ -44,7 +42,7 @@ func ExecuteCodeBlock(c CodeBlock) (string, error) {
 	acck := auth.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
 
-	vmk := vmm.NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, LIBS_DIR, 100_000_000)
+	vmk := vm.NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, STDLIBS_DIR, 100_000_000)
 
 	vmk.Initialize(ms.MultiCacheWrap())
 
@@ -57,7 +55,8 @@ func ExecuteCodeBlock(c CodeBlock) (string, error) {
 	}
 
 	coins := std.MustParseCoins("")
-	msg2 := vmm.NewMsgRun(addr, coins, files)
+	msg2 := vm.NewMsgRun(addr, coins, files)
+
 	res, err := vmk.Run(ctx, msg2)
 	if err != nil {
 		return "", err
