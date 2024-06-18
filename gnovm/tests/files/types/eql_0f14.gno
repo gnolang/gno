@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f14.gno:10: cannot use string as int
+// main/files/types/eql_0f14.gno:10: cannot use [2]string as [2]int

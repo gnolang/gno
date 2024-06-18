@@ -269,7 +269,12 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						errstr = parts[0]
 					}
 					if errstr != errWanted {
-						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
+						if f.syncWanted {
+							// write error to file
+							replaceWantedInPlace(path, "Error", errstr)
+						} else {
+							panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
+						}
 					}
 
 					// NOTE: ignores any gno.GetDebugErrors().
@@ -293,6 +298,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						ctl := errstr +
 							"\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, " +
 							"DELETE THIS LINE AND RUN TEST AGAIN ***"
+						// write error to file
 						replaceWantedInPlace(path, "Error", ctl)
 						panic(fmt.Sprintf("fail on %s: err recorded, check the message and run test again", path))
 					}
