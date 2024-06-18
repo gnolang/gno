@@ -17,6 +17,8 @@ on:
 jobs:
     test:
         runs-on: ubuntu-latest
+        env:
+          COVERAGE_DIR: "/tmp/coverage"
         steps:
         - name: Install Go
           uses: actions/setup-go@v5
@@ -25,8 +27,26 @@ jobs:
         - name: Checkout code
           uses: actions/checkout@v4
         - name: Go test
-          run: go test -coverprofile coverage.out -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./...
           working-directory:  ${{ inputs.modulepath }}
+          env:
+            COVERDIR: /tmp/coverdir
+          run: |
+            mkdir -p "$COVERDIR"
+
+            # XXX: simplify coverage of txtar - the current setup is a bit
+            # confusing and meticulous. There will be some improvements in Go
+            # 1.23 regarding coverage, so we can use this as a workaround until
+            # then.
+            TXTARCOVERDIR=$COVERDIR \
+              go test -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./... -test.gocoverdir=$COVERDIR
+
+            # print out coverage result
+            echo 'coverage results:'
+            go tool covdata percent -i=$COVERDIR
+
+            # generate coverage output
+            go tool covdata textfmt -v 1 -i=$COVERDIR -o coverage.out
+
         - name: Upload coverage to Codecov
           uses: codecov/codecov-action@v4
           with:
