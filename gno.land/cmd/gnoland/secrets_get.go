@@ -6,10 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
@@ -98,7 +101,7 @@ func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
 	case validatorStateKey:
 		// Show the validator's last sign state
 		return readAndShowValidatorState(validatorStatePath, displayVS)
-	case nodeKeyKey:
+	case nodeIDKey:
 		// Show the node's p2p info
 		return readAndShowNodeKey(nodeKeyPath, displayNK)
 	default:
@@ -133,7 +136,8 @@ type (
 	}
 
 	nodeKeyInfo struct {
-		NodeID string `json:"node_id"`
+		NodeID     string `json:"node_id"`
+		P2PAddress string `json:"p2p_address"`
 	}
 )
 
@@ -293,8 +297,26 @@ func readAndShowNodeKey(path string, displayFn displayFn[nodeKeyInfo]) error {
 		return fmt.Errorf("unable to read node key, %w", err)
 	}
 
+	// Construct the config path
+	var (
+		nodeDir    = filepath.Join(filepath.Dir(path), "..")
+		configPath = constructConfigPath(nodeDir)
+
+		cfg = config.DefaultConfig()
+	)
+
+	// Check if there is an existing config file
+	if osm.FileExists(configPath) {
+		// Attempt to grab the config from disk
+		cfg, err = config.LoadConfig(nodeDir)
+		if err != nil {
+			return fmt.Errorf("unable to load config file, %w", err)
+		}
+	}
+
 	info := nodeKeyInfo{
-		NodeID: nodeKey.ID().String(),
+		NodeID:     nodeKey.ID().String(),
+		P2PAddress: cfg.P2P.ListenAddress,
 	}
 
 	// Print the output
@@ -311,10 +333,23 @@ func outputTerminalNK(info nodeKeyInfo, io commands.IO) error {
 		return err
 	}
 
+	// Print the ID info
 	if _, err := fmt.Fprintf(
 		w,
 		"Node ID:\t%s\n",
 		info.NodeID,
+	); err != nil {
+		return err
+	}
+
+	// Print the P2P address info
+	if _, err := fmt.Fprintf(
+		w,
+		"P2P Address:\t%s\n",
+		constructP2PAddress(
+			info.NodeID,
+			info.P2PAddress,
+		),
 	); err != nil {
 		return err
 	}
@@ -335,4 +370,22 @@ func outputJSONCommon[T secretDisplayType](
 	io.Println(string(encoded))
 
 	return nil
+}
+
+// constructP2PAddress constructs the P2P address other nodes can use
+// to connect directly
+func constructP2PAddress(nodeID, listenAddress string) string {
+	var (
+		address string
+		parts   = strings.SplitN(listenAddress, "://", 2)
+	)
+
+	switch len(parts) {
+	case 2:
+		address = parts[1]
+	default:
+		address = listenAddress
+	}
+
+	return fmt.Sprintf("%s@%s", nodeID, address)
 }

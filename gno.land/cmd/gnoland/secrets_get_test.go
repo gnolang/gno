@@ -6,10 +6,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
@@ -95,6 +97,13 @@ func TestSecrets_Get_All(t *testing.T) {
 			t,
 			output,
 			nodeKey.ID().String(),
+		)
+
+		// Make sure the node p2p address is displayed
+		assert.Contains(
+			t,
+			output,
+			constructP2PAddress(nodeKey.ID().String(), config.DefaultConfig().P2P.ListenAddress),
 		)
 
 		// Make sure the private key info is displayed
@@ -406,8 +415,10 @@ func TestSecrets_Get_Single(t *testing.T) {
 		assert.Equal(t, validatorState.Round, validState.Round)
 	})
 
-	t.Run("node key shown", func(t *testing.T) {
+	t.Run("node key shown, default config", func(t *testing.T) {
 		t.Parallel()
+
+		cfg := config.DefaultConfig()
 
 		dirPath := t.TempDir()
 		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
@@ -427,7 +438,7 @@ func TestSecrets_Get_Single(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			nodeKeyKey,
+			nodeIDKey,
 		}
 
 		// Run the command
@@ -440,6 +451,70 @@ func TestSecrets_Get_Single(t *testing.T) {
 			t,
 			output,
 			validNodeKey.ID().String(),
+		)
+
+		// Make sure the default node p2p address is displayed
+		assert.Contains(
+			t,
+			output,
+			constructP2PAddress(validNodeKey.ID().String(), cfg.P2P.ListenAddress),
+		)
+	})
+
+	t.Run("node key shown, existing config", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			dirPath     = t.TempDir()
+			configPath  = constructConfigPath(dirPath)
+			secretsPath = constructSecretsPath(dirPath)
+			nodeKeyPath = filepath.Join(secretsPath, defaultNodeKeyName)
+		)
+
+		// Ensure the sub-dirs exist
+		require.NoError(t, os.MkdirAll(filepath.Dir(configPath), 0o755))
+		require.NoError(t, os.MkdirAll(secretsPath, 0o755))
+
+		// Set up the config
+		cfg := config.DefaultConfig()
+		cfg.P2P.ListenAddress = "tcp://127.0.0.1:2525"
+
+		require.NoError(t, config.WriteConfigFile(configPath, cfg))
+
+		validNodeKey := generateNodeKey()
+		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+
+		mockOutput := bytes.NewBufferString("")
+		io := commands.NewTestIO()
+		io.SetOut(commands.WriteNopCloser(mockOutput))
+
+		// Create the command
+		cmd := newRootCmd(io)
+		args := []string{
+			"secrets",
+			"get",
+			"--data-dir",
+			secretsPath,
+			nodeIDKey,
+		}
+
+		// Run the command
+		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
+
+		output := mockOutput.String()
+
+		// Make sure the node p2p key is displayed
+		assert.Contains(
+			t,
+			output,
+			validNodeKey.ID().String(),
+		)
+
+		// Make sure the custom node p2p address is displayed
+		assert.Contains(
+			t,
+			output,
+			constructP2PAddress(validNodeKey.ID().String(), cfg.P2P.ListenAddress),
 		)
 	})
 
@@ -464,7 +539,7 @@ func TestSecrets_Get_Single(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			nodeKeyKey,
+			nodeIDKey,
 			"--json",
 		}
 
