@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/ufmt"
 )
@@ -97,7 +98,7 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 
 	// Count the number of posts returned in the JSON string as a rudimentary check for correct pagination/filtering
 	postCount := strings.Count(jsonStr, `"id":"`)
-	if postCount != m.MemeCounter {
+	if seqid.ID(postCount) != m.MemeCounter {
 		t.Errorf("Expected %d posts in the JSON string, but found %d", m.MemeCounter, postCount)
 	}
 
@@ -160,7 +161,7 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 
 	// Count the number of posts returned in the JSON string as a rudimentary check for correct pagination/filtering
 	postCount := strings.Count(jsonStr, `"id":"`)
-	if postCount != m.MemeCounter {
+	if seqid.ID(postCount) != m.MemeCounter {
 		t.Errorf("Expected %d posts in the JSON string, but found %d", m.MemeCounter, postCount)
 	}
 
