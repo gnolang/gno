@@ -266,7 +266,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 					return errors.New(
 						"cannot use %s as %s",
 						nxt.String(),
-						nidt.String()).Stacktrace()
+						nidt.String())
 				}
 			} else if pxt, ok := baseOf(xt).(*PointerType); ok {
 				nxt, ok := pxt.Elt.(*NativeType)
@@ -283,7 +283,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 					return errors.New(
 						"cannot use %s as %s",
 						pxt.String(),
-						nidt.String()).Stacktrace()
+						nidt.String())
 				}
 			} else if xdt, ok := xt.(*DeclaredType); ok {
 				if gno2GoTypeMatches(baseOf(xdt), ndt.Type) {
