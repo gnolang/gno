@@ -3,9 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
-	"reflect"
-	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -13,9 +12,15 @@ import (
 
 var errInvalidConfigGetArgs = errors.New("invalid number of config get arguments provided")
 
+type configGetCfg struct {
+	configCfg
+
+	raw bool
+}
+
 // newConfigGetCmd creates the config get command
 func newConfigGetCmd(io commands.IO) *commands.Command {
-	cfg := &configCfg{}
+	cfg := &configGetCfg{}
 
 	cmd := commands.NewCommand(
 		commands.Metadata{
@@ -34,7 +39,18 @@ func newConfigGetCmd(io commands.IO) *commands.Command {
 	return cmd
 }
 
-func execConfigGet(cfg *configCfg, io commands.IO, args []string) error {
+func (c *configGetCfg) RegisterFlags(fs *flag.FlagSet) {
+	c.configCfg.RegisterFlags(fs)
+
+	fs.BoolVar(
+		&c.raw,
+		"r",
+		false,
+		"flag indicating if the single value JSON should be raw",
+	)
+}
+
+func execConfigGet(cfg *configGetCfg, io commands.IO, args []string) error {
 	// Load the config
 	loadedCfg, err := config.LoadConfigFile(cfg.configPath)
 	if err != nil {
@@ -46,31 +62,10 @@ func execConfigGet(cfg *configCfg, io commands.IO, args []string) error {
 		return errInvalidConfigGetArgs
 	}
 
-	if len(args) == 0 {
-		// Print the entire configuration
-		return outputJSONCommon(loadedCfg, io)
-	}
-
 	// Find and print the config field, if any
-	if err := printConfigField(loadedCfg, args[0], io); err != nil {
+	if err := printKeyValue(loadedCfg, cfg.raw, io, args...); err != nil {
 		return fmt.Errorf("unable to get config field, %w", err)
 	}
 
 	return nil
-}
-
-// printConfigField prints the value of the field at the given path
-func printConfigField(config *config.Config, key string, io commands.IO) error {
-	// Get the config value using reflect
-	configValue := reflect.ValueOf(config).Elem()
-
-	// Get the value path, with sections separated out by a period
-	path := strings.Split(key, ".")
-
-	field, err := getFieldAtPath(configValue, path)
-	if err != nil {
-		return err
-	}
-
-	return outputJSONCommon(field.Interface(), io)
 }

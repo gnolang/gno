@@ -77,30 +77,56 @@ func constructSecretsPath(nodeDir string) string {
 	)
 }
 
-// printSecretsValue prints the value of the secret field at the given path
-func printSecretsValue(secrets *secrets, key string, io commands.IO) error {
-	// Get the secret value using reflect
-	secretValue := reflect.ValueOf(secrets).Elem()
+// printKeyValue searches and prints the given key value in JSON
+func printKeyValue[T *secrets | *config.Config](
+	input T,
+	raw bool,
+	io commands.IO,
+	key ...string,
+) error {
+	// prepareOutput prepares the JSON output, taking into account raw mode
+	prepareOutput := func(input any) (string, error) {
+		encoded, err := json.MarshalIndent(input, "", "    ")
+		if err != nil {
+			return "", fmt.Errorf("unable to marshal JSON, %w", err)
+		}
+
+		output := string(encoded)
+
+		if raw && len(encoded) > 0 && encoded[0] == '"' {
+			output = strings.ReplaceAll(output, "\"", "")
+		}
+
+		return output, nil
+	}
+
+	if len(key) == 0 {
+		// Print the entire input
+		output, err := prepareOutput(input)
+		if err != nil {
+			return err
+		}
+
+		io.Println(output)
+
+		return nil
+	}
+
+	// Get the value using reflect
+	secretValue := reflect.ValueOf(input).Elem()
 
 	// Get the value path, with sections separated out by a period
-	path := strings.Split(key, ".")
-
-	field, err := getFieldAtPath(secretValue, path)
+	field, err := getFieldAtPath(secretValue, strings.Split(key[0], "."))
 	if err != nil {
 		return err
 	}
 
-	return outputJSONCommon(field.Interface(), io)
-}
-
-// outputJSONCommon outputs the given input to JSON
-func outputJSONCommon(input any, io commands.IO) error {
-	encoded, err := json.MarshalIndent(input, "", "    ")
+	output, err := prepareOutput(field.Interface())
 	if err != nil {
-		return fmt.Errorf("unable to marshal JSON, %w", err)
+		return err
 	}
 
-	io.Println(string(encoded))
+	io.Println(output)
 
 	return nil
 }

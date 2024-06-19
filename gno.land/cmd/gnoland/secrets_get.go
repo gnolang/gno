@@ -19,6 +19,8 @@ var errInvalidSecretsGetArgs = errors.New("invalid number of secrets get argumen
 
 type secretsGetCfg struct {
 	commonAllCfg
+
+	raw bool
 }
 
 // newSecretsGetCmd creates the secrets get command
@@ -44,6 +46,13 @@ func newSecretsGetCmd(io commands.IO) *commands.Command {
 
 func (c *secretsGetCfg) RegisterFlags(fs *flag.FlagSet) {
 	c.commonAllCfg.RegisterFlags(fs)
+
+	fs.BoolVar(
+		&c.raw,
+		"r",
+		false,
+		"flag indicating if the single value JSON should be raw",
+	)
 }
 
 func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
@@ -63,13 +72,8 @@ func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
 		return err
 	}
 
-	if len(args) == 0 {
-		// Print all secrets
-		return outputJSONCommon(loadedSecrets, io)
-	}
-
 	// Find and print the secrets value, if any
-	if err := printSecretsValue(loadedSecrets, args[0], io); err != nil {
+	if err := printKeyValue(loadedSecrets, cfg.raw, io, args...); err != nil {
 		return fmt.Errorf("unable to get secrets value, %w", err)
 	}
 
