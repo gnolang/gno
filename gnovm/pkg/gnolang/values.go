@@ -168,6 +168,9 @@ func (dbv DataByteValue) SetByte(b byte) {
 // Index is -1 for the shared "_" block var,
 // and -2 for (gno and native) map items.
 //
+// A pointer constructed via a &x{} composite lit expression or constructed via
+// new() or make() will have a virtual HeapItemValue as base.
+//
 // Allocation for PointerValue is not immediate,
 // as usually PointerValues are temporary for assignment
 // or binary operations. When a pointer is to be
@@ -178,7 +181,7 @@ func (dbv DataByteValue) SetByte(b byte) {
 // it MUST stay minimal for computational efficiency.
 type PointerValue struct {
 	TV    *TypedValue // escape val if pointer to var.
-	Base  Value       // array/struct/block.
+	Base  Value       // array/struct/block, or heapitem.
 	Index int         // list/fields/values index, or -1 or -2 (see below).
 	Key   *TypedValue `json:",omitempty"` // for maps.
 }
