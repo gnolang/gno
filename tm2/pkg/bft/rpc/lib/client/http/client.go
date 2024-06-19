@@ -231,8 +231,9 @@ func parseRemoteAddr(remoteAddr string) (string, string) {
 		switch protocol {
 		case protoHTTPS:
 			address += ":443"
-		default:
-			address += ":80" // HTTP, TCP
+		case protoHTTP, protoTCP:
+			address += ":80"
+		default: // noop
 		}
 	}
 
