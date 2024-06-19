@@ -138,6 +138,8 @@ func NewRepl(opts ...ReplOption) *Repl {
 	return r
 }
 
+// Process accepts any valid Gno source code and executes it if it
+// is an expression, or stores it for later use if they are declarations.
 // If the provided input is not valid Gno source code, an error is returned.
 // If the execution on the VM is not successful, the panic is recovered and
 // returned as an error.
