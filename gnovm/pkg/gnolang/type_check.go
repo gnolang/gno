@@ -197,13 +197,6 @@ func maybeNil(t Type) bool {
 	}
 }
 
-func assertSame(at, bt Type, msg string) {
-	err := checkSame(at, bt, msg)
-	if err != nil {
-		panic(err.Error())
-	}
-}
-
 func checkSame(at, bt Type, msg string) error {
 	if debug {
 		debug.Printf("checkSame, at: %v bt: %v \n", at, bt)
