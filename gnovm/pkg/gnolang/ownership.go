@@ -358,7 +358,7 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		return oo
 	case *HeapItemValue:
 		// should only appear in PointerValue.Base
-		panic("should not happen")
+		panic("heap item value should only appear as a pointer's base")
 	default:
 		return nil
 	}
