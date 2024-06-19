@@ -51,23 +51,21 @@ jobs:
             go tool covdata textfmt -v 1 -i=$TXTARCOVERDIR -o txtarcoverage.out
 
         - name: Upload go coverage to Codecov
-          working-directory:  ${{ inputs.modulepath }}
           uses: codecov/codecov-action@v4
           with:
             disable_search: true
             fail_ci_if_error: true
-            file: ./gocoverage.out
+            file: ${{ inputs.modulepath }}/gocoverage.out
             flags: ${{ inputs.modulepath }}
             token: ${{ secrets.codecov-token }}
             verbose: true
 
         - name: Upload txtar coverage to Codecov
-          working-directory:  ${{ inputs.modulepath }}
           uses: codecov/codecov-action@v4
           with:
             disable_search: true
             fail_ci_if_error: true
-            file: ./txtarcoverage.out
+            file: ${{ inputs.modulepath }}/txtarcoverage.out
             flags: ${{ inputs.modulepath }}/txtar
             token: ${{ secrets.codecov-token }}
             verbose: true
