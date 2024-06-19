@@ -41,14 +41,19 @@ func execConfigGet(cfg *configCfg, io commands.IO, args []string) error {
 		return fmt.Errorf("%s, %w", tryConfigInit, err)
 	}
 
-	// Make sure the edit arguments are valid
-	if len(args) != 1 {
+	// Make sure the get arguments are valid
+	if len(args) > 1 {
 		return errInvalidConfigGetArgs
+	}
+
+	if len(args) == 0 {
+		// Print the entire configuration
+		return outputJSONCommon(loadedCfg, io)
 	}
 
 	// Find and print the config field, if any
 	if err := printConfigField(loadedCfg, args[0], io); err != nil {
-		return fmt.Errorf("unable to update config field, %w", err)
+		return fmt.Errorf("unable to get config field, %w", err)
 	}
 
 	return nil
@@ -67,7 +72,5 @@ func printConfigField(config *config.Config, key string, io commands.IO) error {
 		return err
 	}
 
-	io.Printf("%v", field.Interface())
-
-	return nil
+	return outputJSONCommon(field.Interface(), io)
 }

@@ -175,7 +175,7 @@ func TestSecrets_Get_Single(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			validatorPrivateKeyKey,
+			"validator_key_info",
 		}
 
 		// Run the command
@@ -218,7 +218,7 @@ func TestSecrets_Get_Single(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			validatorStateKey,
+			"validator_state_info",
 		}
 
 		// Run the command
@@ -269,7 +269,7 @@ func TestSecrets_Get_Single(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			nodeIDKey,
+			"node_id_info",
 		}
 
 		// Run the command
@@ -326,7 +326,7 @@ func TestSecrets_Get_Single(t *testing.T) {
 			"get",
 			"--data-dir",
 			secretsPath,
-			nodeIDKey,
+			"node_id_info",
 		}
 
 		// Run the command
