@@ -19,6 +19,8 @@ import (
 )
 
 func TestPeerBasic(t *testing.T) {
+	t.Parallel()
+
 	assert, require := assert.New(t), require.New(t)
 
 	// simulate remote peer
@@ -26,7 +28,7 @@ func TestPeerBasic(t *testing.T) {
 	rp.Start()
 	defer rp.Stop()
 
-	p, err := createOutboundPeerAndPerformHandshake(rp.Addr(), cfg, conn.DefaultMConnConfig())
+	p, err := createOutboundPeerAndPerformHandshake(t, rp.Addr(), cfg, conn.DefaultMConnConfig())
 	require.Nil(err)
 
 	err = p.Start()
@@ -43,6 +45,8 @@ func TestPeerBasic(t *testing.T) {
 }
 
 func TestPeerSend(t *testing.T) {
+	t.Parallel()
+
 	assert, require := assert.New(t), require.New(t)
 
 	config := cfg
@@ -52,7 +56,7 @@ func TestPeerSend(t *testing.T) {
 	rp.Start()
 	defer rp.Stop()
 
-	p, err := createOutboundPeerAndPerformHandshake(rp.Addr(), config, conn.DefaultMConnConfig())
+	p, err := createOutboundPeerAndPerformHandshake(t, rp.Addr(), config, conn.DefaultMConnConfig())
 	require.Nil(err)
 
 	err = p.Start()
@@ -65,10 +69,13 @@ func TestPeerSend(t *testing.T) {
 }
 
 func createOutboundPeerAndPerformHandshake(
+	t *testing.T,
 	addr *NetAddress,
 	config *config.P2PConfig,
 	mConfig conn.MConnConfig,
 ) (*peer, error) {
+	t.Helper()
+
 	chDescs := []*conn.ChannelDescriptor{
 		{ID: testCh, Priority: 1},
 	}
@@ -86,7 +93,7 @@ func createOutboundPeerAndPerformHandshake(
 	}
 
 	p := newPeer(pc, mConfig, peerNodeInfo, reactorsByCh, chDescs, func(p Peer, r interface{}) {})
-	p.SetLogger(log.TestingLogger().With("peer", addr))
+	p.SetLogger(log.NewTestingLogger(t).With("peer", addr))
 	return p, nil
 }
 

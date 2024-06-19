@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/boards_test
+// PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
 // SEND: 200000000ugnot
@@ -34,4 +34,4 @@ func main() {
 // # First Post in (title)
 //
 // Body of the first post. (body)
-// \- [@gnouser](/r/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:second_board/1/1) \[[reply](/r/demo/boards?help&__func=CreateReply&bid=2&threadid=1&postid=1&body.type=textarea)] \[[x](/r/demo/boards?help&__func=DeletePost&bid=2&threadid=1&postid=1)]
+// \- [@gnouser](/r/demo/users:gnouser), [2009-02-13 11:31pm (UTC)](/r/demo/boards:second_board/1/1) \[[reply](/r/demo/boards?help&__func=CreateReply&bid=2&threadid=1&postid=1&body.type=textarea)] \[[x](/r/demo/boards?help&__func=DeletePost&bid=2&threadid=1&postid=1)]

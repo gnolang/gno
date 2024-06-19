@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
@@ -135,7 +136,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			panic("cannot attach a deleted object")
 		}
 		if po != nil && po.GetIsTransient() {
-			panic("should not happen")
+			panic("cannot attach to a transient object")
 		}
 		if po != nil && po.GetIsDeleted() {
 			panic("cannot attach to a deleted object")
@@ -151,6 +152,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
 	// More appends happen during FinalizeRealmTransactions(). (second+ gen)
 	rlm.MarkDirty(po)
+
 	if co != nil {
 		co.IncRefCount()
 		if co.GetRefCount() > 1 {
@@ -166,6 +168,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			rlm.MarkNewReal(co)
 		}
 	}
+
 	if xo != nil {
 		xo.DecRefCount()
 		if xo.GetRefCount() == 0 {
@@ -184,18 +187,18 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 		if pv, ok := oo.(*PackageValue); ok {
 			// packages should have no owner.
 			if pv.GetOwner() != nil {
-				panic("should not happen")
+				panic("cannot mark owned package as new real")
 			}
 			// packages should have ref-count 1.
 			if pv.GetRefCount() != 1 {
-				panic("should not happen")
+				panic("cannot mark non-singly referenced package as new real")
 			}
 		} else {
 			if oo.GetOwner() == nil {
-				panic("should not happen")
+				panic("cannot mark unowned object as new real")
 			}
 			if !oo.GetOwner().GetIsReal() {
-				panic("should not happen")
+				panic("cannot mark object as new real if owner is not real")
 			}
 		}
 	}
@@ -213,7 +216,7 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 func (rlm *Realm) MarkDirty(oo Object) {
 	if debug {
 		if !oo.GetIsReal() && !oo.GetIsNewReal() {
-			panic("should not happen")
+			panic("cannot mark unreal object as dirty")
 		}
 	}
 	if oo.GetIsDirty() {
@@ -233,10 +236,10 @@ func (rlm *Realm) MarkDirty(oo Object) {
 func (rlm *Realm) MarkNewDeleted(oo Object) {
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
-			panic("should not happen")
+			panic("cannot mark unreal object as new deleted")
 		}
 		if oo.GetIsDeleted() {
-			panic("should not happen")
+			panic("cannot mark deleted object as new deleted")
 		}
 	}
 	if oo.GetIsNewDeleted() {
@@ -253,13 +256,13 @@ func (rlm *Realm) MarkNewDeleted(oo Object) {
 func (rlm *Realm) MarkNewEscaped(oo Object) {
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
-			panic("should not happen")
+			panic("cannot mark unreal object as new escaped")
 		}
 		if oo.GetIsDeleted() {
-			panic("should not happen")
+			panic("cannot mark deleted object as new escaped")
 		}
 		if oo.GetIsEscaped() {
-			panic("should not happen")
+			panic("cannot mark escaped object as new escaped")
 		}
 	}
 	if oo.GetIsNewEscaped() {
@@ -304,7 +307,7 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 			rlm.created != nil ||
 			rlm.deleted != nil ||
 			rlm.escaped != nil {
-			panic("should not happen")
+			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
 	// log realm boundaries in opslog.
@@ -347,7 +350,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 	for _, oo := range rlm.newCreated {
 		if debug {
 			if oo.GetIsDirty() {
-				panic("should not happen")
+				panic("new created mark cannot be dirty")
 			}
 		}
 		if oo.GetRefCount() == 0 {
@@ -374,10 +377,10 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	if debug {
 		if oo.GetIsDirty() {
-			panic("should not happen")
+			panic("cannot increase reference of descendants of dirty objects")
 		}
 		if oo.GetRefCount() <= 0 {
-			panic("should not happen")
+			panic("cannot increase reference of descendants of unreferenced object")
 		}
 	}
 
@@ -398,7 +401,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		if _, ok := child.(*PackageValue); ok {
 			if debug {
 				if child.GetRefCount() < 1 {
-					panic("should not happen")
+					panic("cannot increase reference count of package descendant that is unreferenced")
 				}
 			}
 			// extern package values are skipped.
@@ -431,7 +434,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				rlm.MarkNewEscaped(child)
 			}
 		} else {
-			panic("should not happen")
+			panic("child reference count should be greater than zero after increasing")
 		}
 	}
 }
@@ -448,7 +451,7 @@ func (rlm *Realm) processNewDeletedMarks(store Store) {
 	for _, oo := range rlm.newDeleted {
 		if debug {
 			if oo.GetObjectID().IsZero() {
-				panic("should not happen")
+				panic("new deleted mark should have an object ID")
 			}
 		}
 		if oo.GetRefCount() > 0 {
@@ -465,10 +468,10 @@ func (rlm *Realm) processNewDeletedMarks(store Store) {
 func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 	if debug {
 		if oo.GetObjectID().IsZero() {
-			panic("should not happen")
+			panic("cannot decrement references of deleted descendants of object with no object ID")
 		}
 		if oo.GetRefCount() != 0 {
-			panic("should not happen")
+			panic("cannot decrement references of deleted descendants of object with references")
 		}
 	}
 
@@ -496,7 +499,7 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 		} else if rc > 0 {
 			// do nothing
 		} else {
-			panic("should not happen")
+			panic("deleted descendants should not have a reference count of less than zero")
 		}
 	}
 }
@@ -518,10 +521,10 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 	for _, eo := range rlm.newEscaped {
 		if debug {
 			if !eo.GetIsNewEscaped() {
-				panic("should not happen")
+				panic("new escaped mark not marked as new escaped")
 			}
 			if eo.GetIsEscaped() {
-				panic("should not happen")
+				panic("new escaped mark already escaped")
 			}
 		}
 		if eo.GetRefCount() <= 1 {
@@ -552,7 +555,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
-					panic("should not happen")
+					panic("new escaped mark has no object ID")
 				}
 				// escaped has no owner.
 				eo.SetOwner(nil)
@@ -583,16 +586,16 @@ func (rlm *Realm) markDirtyAncestors(store Store) {
 			rc := oo.GetRefCount()
 			if debug {
 				if rc == 0 {
-					panic("should not happen")
+					panic("ancestor should have a non-zero reference count to be marked as dirty")
 				}
 			}
 			if rc > 1 {
 				if debug {
 					if !oo.GetIsEscaped() && !oo.GetIsNewEscaped() {
-						panic("should not happen")
+						panic("ancestor should cannot be escaped or new escaped to be marked as dirty")
 					}
 					if !oo.GetOwnerID().IsZero() {
-						panic("should not happen")
+						panic("ancestor's owner ID cannot be zero to be marked as dirty")
 					}
 				}
 				// object is escaped, so
@@ -665,18 +668,18 @@ func (rlm *Realm) saveUnsavedObjects(store Store) {
 func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsDirty() {
-			panic("should not happen")
+			panic("cannot save new real or non-dirty objects")
 		}
 		// object id should have been assigned during processNewCreatedMarks.
 		if oo.GetObjectID().IsZero() {
-			panic("should not happen")
+			panic("cannot save object with no ID")
 		}
 		// deleted objects should not have gotten here.
 		if false ||
 			oo.GetRefCount() <= 0 ||
 			oo.GetIsNewDeleted() ||
 			oo.GetIsDeleted() {
-			panic("should not happen")
+			panic("cannot save deleted objects")
 		}
 	}
 	// first, save unsaved children.
@@ -693,7 +696,7 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		// save created object.
 		if debug {
 			if oo.GetIsDirty() {
-				panic("should not happen")
+				panic("cannot save dirty new real object")
 			}
 		}
 		rlm.saveObject(store, oo)
@@ -702,13 +705,13 @@ func (rlm *Realm) saveUnsavedObjectRecursively(store Store, oo Object) {
 		// update existing object.
 		if debug {
 			if !oo.GetIsDirty() {
-				panic("should not happen")
+				panic("cannot save non-dirty existing object")
 			}
 			if !oo.GetIsReal() {
-				panic("should not happen")
+				panic("cannot save unreal existing object")
 			}
 			if oo.GetIsNewReal() {
-				panic("should not happen")
+				panic("cannot save new real existing object")
 			}
 		}
 		rlm.saveObject(store, oo)
@@ -765,17 +768,17 @@ func (rlm *Realm) clearMarks() {
 	if debug {
 		for _, oo := range rlm.newDeleted {
 			if oo.GetIsNewDeleted() {
-				panic("should not happen")
+				panic("cannot clear marks if new deleted exist")
 			}
 		}
 		for _, oo := range rlm.newCreated {
 			if oo.GetIsNewReal() {
-				panic("should not happen")
+				panic("cannot clear marks if new created exist")
 			}
 		}
 		for _, oo := range rlm.newEscaped {
 			if oo.GetIsNewEscaped() {
-				panic("should not happen")
+				panic("cannot clear marks if new escaped exist")
 			}
 		}
 	}
@@ -818,7 +821,7 @@ func getChildObjects(val Value, more []Value) []Value {
 	case BigdecValue:
 		return more
 	case DataByteValue:
-		panic("should not happen")
+		panic("cannot get children from data byte objects")
 	case PointerValue:
 		if cv.Base != nil {
 			more = getSelfOrChildObjects(cv.Base, more)
@@ -916,7 +919,7 @@ func getUnsavedChildObjects(val Value) []Object {
 				unsaved = append(unsaved, obj)
 			}
 		} else {
-			panic("should not happen")
+			panic("unsaved child is not an object")
 		}
 	}
 	return unsaved
@@ -965,7 +968,7 @@ func copyFieldsWithRefs(fields []FieldType) []FieldType {
 func copyTypeWithRefs(typ Type) Type {
 	switch ct := typ.(type) {
 	case nil:
-		panic("should not happen")
+		panic("cannot copy nil types")
 	case PrimitiveType:
 		return ct
 	case *PointerType:
@@ -973,7 +976,7 @@ func copyTypeWithRefs(typ Type) Type {
 			Elt: refOrCopyType(ct.Elt),
 		}
 	case FieldType:
-		panic("should not happen")
+		panic("cannot copy field types")
 	case *ArrayType:
 		return &ArrayType{
 			Len: ct.Len,
@@ -1024,7 +1027,7 @@ func copyTypeWithRefs(typ Type) Type {
 			Elt: refOrCopyType(ct.Elt),
 		}
 	case *NativeType:
-		panic("should not happen")
+		panic("cannot copy native types")
 	case blockType:
 		return blockType{}
 	case *tupleType:
@@ -1063,7 +1066,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case BigdecValue:
 		return cv
 	case DataByteValue:
-		panic("should not happen")
+		panic("cannot copy data byte value with references")
 	case PointerValue:
 		if cv.Base != nil {
 			return PointerValue{
@@ -1121,22 +1124,31 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		}
 	case *FuncValue:
 		source := toRefNode(cv.Source)
+		if strings.HasSuffix(source.Location.File, "_test.gno") {
+			// Ignore _test files
+			return nil
+		}
 		var closure Value
 		if cv.Closure != nil {
 			closure = toRefValue(parent, cv.Closure)
 		}
-		if cv.nativeBody != nil {
-			panic("should not happen")
+		// nativeBody funcs which don't come from NativeStore (and thus don't
+		// have NativePkg/Name) can't be persisted, and should not be able
+		// to get here anyway.
+		if cv.nativeBody != nil && cv.NativePkg == "" {
+			panic("cannot copy function value with native body when there is no native package")
 		}
 		ft := copyTypeWithRefs(cv.Type)
 		return &FuncValue{
-			Type:     ft,
-			IsMethod: cv.IsMethod,
-			Source:   source,
-			Name:     cv.Name,
-			Closure:  closure,
-			FileName: cv.FileName,
-			PkgPath:  cv.PkgPath,
+			Type:       ft,
+			IsMethod:   cv.IsMethod,
+			Source:     source,
+			Name:       cv.Name,
+			Closure:    closure,
+			FileName:   cv.FileName,
+			PkgPath:    cv.PkgPath,
+			NativePkg:  cv.NativePkg,
+			NativeName: cv.NativeName,
 		}
 	case *BoundMethodValue:
 		fnc := copyValueWithRefs(cv, cv.Func).(*FuncValue)
@@ -1217,7 +1229,7 @@ func fillType(store Store, typ Type) Type {
 		ct.Elt = fillType(store, ct.Elt)
 		return ct
 	case FieldType:
-		panic("should not happen")
+		panic("cannot fill field types")
 	case *ArrayType:
 		ct.Elt = fillType(store, ct.Elt)
 		return ct
@@ -1274,7 +1286,7 @@ func fillType(store Store, typ Type) Type {
 		ct.Elt = fillType(store, ct.Elt)
 		return ct
 	case *NativeType:
-		panic("should not happen")
+		panic("cannot fill native types")
 	case blockType:
 		return ct // nothing to do
 	case *tupleType:
@@ -1345,6 +1357,8 @@ func fillTypesOfValue(store Store, val Value) Value {
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
 			fillTypesTV(store, &cur.Key)
 			fillTypesTV(store, &cur.Value)
+
+			cv.vmap[cur.Key.ComputeMapKey(store, false)] = cur
 		}
 		return cv
 	case TypeValue:
@@ -1375,10 +1389,10 @@ func fillTypesOfValue(store Store, val Value) Value {
 
 func (rlm *Realm) nextObjectID() ObjectID {
 	if rlm == nil {
-		panic("should not happen")
+		panic("cannot get next object ID of nil realm")
 	}
 	if rlm.ID.IsZero() {
-		panic("should not happen")
+		panic("cannot get next object ID of realm without an ID")
 	}
 	rlm.Time++
 	nxtid := ObjectID{
@@ -1439,7 +1453,7 @@ func toRefValue(parent Object, val Value) RefValue {
 		} else if oo.GetIsEscaped() {
 			if debug {
 				if !oo.GetOwnerID().IsZero() {
-					panic("should not happen")
+					panic("cannot convert escaped object to ref value without an owner ID")
 				}
 			}
 			return RefValue{
@@ -1450,10 +1464,10 @@ func toRefValue(parent Object, val Value) RefValue {
 		} else {
 			if debug {
 				if oo.GetRefCount() > 1 {
-					panic("should not happen")
+					panic("unexpected references when converting to ref value")
 				}
 				if oo.GetHash().IsZero() {
-					panic("should not happen")
+					panic("hash missing when converting to ref value")
 				}
 			}
 			return RefValue{
@@ -1462,7 +1476,7 @@ func toRefValue(parent Object, val Value) RefValue {
 			}
 		}
 	} else {
-		panic("should not happen")
+		panic("unexpected error converting to ref value")
 	}
 }
 
@@ -1500,13 +1514,18 @@ func isUnsaved(oo Object) bool {
 	return oo.GetIsNewReal() || oo.GetIsDirty()
 }
 
+// realmPathPrefix is the prefix used to identify pkgpaths which are meant to
+// be realms and as such to have their state persisted. This is used by [IsRealmPath].
+const realmPathPrefix = "gno.land/r/"
+
+var ReGnoRunPath = regexp.MustCompile(`^gno\.land/r/g[a-z0-9]+/run$`)
+
+// IsRealmPath determines whether the given pkgpath is for a realm, and as such
+// should persist the global state.
 func IsRealmPath(pkgPath string) bool {
-	// TODO: make it more distinct to distinguish from normal paths.
-	if strings.HasPrefix(pkgPath, "gno.land/r/") {
-		return true
-	} else {
-		return false
-	}
+	return strings.HasPrefix(pkgPath, realmPathPrefix) &&
+		// MsgRun pkgPath aren't realms
+		!ReGnoRunPath.MatchString(pkgPath)
 }
 
 func prettyJSON(jstr []byte) []byte {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/cockroachdb/apd"
+	"github.com/cockroachdb/apd/v3"
 )
 
 // ----------------------------------------
@@ -45,7 +45,7 @@ func (m *Machine) doOpLor() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -60,7 +60,7 @@ func (m *Machine) doOpLand() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -77,7 +77,7 @@ func (m *Machine) doOpEql() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertEqualityTypes(lv.T, rv.T)
+		debugAssertEqualityTypes(lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -94,7 +94,7 @@ func (m *Machine) doOpNeq() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertEqualityTypes(lv.T, rv.T)
+		debugAssertEqualityTypes(lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -111,7 +111,7 @@ func (m *Machine) doOpLss() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -128,7 +128,7 @@ func (m *Machine) doOpLeq() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -145,7 +145,7 @@ func (m *Machine) doOpGtr() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -162,7 +162,7 @@ func (m *Machine) doOpGeq() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -179,7 +179,7 @@ func (m *Machine) doOpAdd() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// add rv to lv.
@@ -193,7 +193,7 @@ func (m *Machine) doOpSub() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// sub rv from lv.
@@ -207,7 +207,7 @@ func (m *Machine) doOpBor() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv | rv
@@ -221,7 +221,7 @@ func (m *Machine) doOpXor() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv ^ rv
@@ -235,7 +235,7 @@ func (m *Machine) doOpMul() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv * rv
@@ -249,7 +249,7 @@ func (m *Machine) doOpQuo() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv / rv
@@ -263,7 +263,7 @@ func (m *Machine) doOpRem() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv % rv
@@ -309,7 +309,7 @@ func (m *Machine) doOpBand() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv & rv
@@ -323,7 +323,7 @@ func (m *Machine) doOpBandn() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv &^ rv
@@ -475,7 +475,13 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				rfv.GetClosure(store)
 		}
 	case PointerKind:
-		// TODO: assumes runtime instance normalization.
+		if lv.V != nil && rv.V != nil {
+			lpv := lv.V.(PointerValue)
+			rpv := rv.V.(PointerValue)
+			if lpv.TV.T == DataByteType && rpv.TV.T == DataByteType {
+				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
+			}
+		}
 		return lv.V == rv.V
 	default:
 		panic(fmt.Sprintf(
@@ -489,7 +495,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 func isLss(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.V.(StringValue) < rv.V.(StringValue))
+		return (lv.GetString() < rv.GetString())
 	case IntKind:
 		return (lv.GetInt() < rv.GetInt())
 	case Int8Kind:
@@ -533,7 +539,7 @@ func isLss(lv, rv *TypedValue) bool {
 func isLeq(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.V.(StringValue) <= rv.V.(StringValue))
+		return (lv.GetString() <= rv.GetString())
 	case IntKind:
 		return (lv.GetInt() <= rv.GetInt())
 	case Int8Kind:
@@ -577,7 +583,7 @@ func isLeq(lv, rv *TypedValue) bool {
 func isGtr(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.V.(StringValue) > rv.V.(StringValue))
+		return (lv.GetString() > rv.GetString())
 	case IntKind:
 		return (lv.GetInt() > rv.GetInt())
 	case Int8Kind:
@@ -621,7 +627,7 @@ func isGtr(lv, rv *TypedValue) bool {
 func isGeq(lv, rv *TypedValue) bool {
 	switch lv.T.Kind() {
 	case StringKind:
-		return (lv.V.(StringValue) >= rv.V.(StringValue))
+		return (lv.GetString() >= rv.GetString())
 	case IntKind:
 		return (lv.GetInt() >= rv.GetInt())
 	case Int8Kind:

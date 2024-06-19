@@ -541,7 +541,7 @@ EXEC_SWITCH:
 		m.PushForPointer(cs.X)
 	case *ReturnStmt:
 		m.PopStmt()
-		fr := m.LastCallFrame(1)
+		fr := m.MustLastCallFrame(1)
 		ft := fr.Func.GetType(m.Store)
 		hasDefers := 0 < len(fr.Defers)
 		hasResults := 0 < len(ft.Results)
@@ -957,7 +957,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 
 	// eval whether cv == tv.
 	if debug {
-		assertEqualityTypes(cv.T, tv.T)
+		debugAssertEqualityTypes(cv.T, tv.T)
 	}
 	match := isEql(m.Store, cv, tv)
 	if match {

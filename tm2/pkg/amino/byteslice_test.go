@@ -6,6 +6,8 @@ import (
 )
 
 func TestReadByteSliceEquality(t *testing.T) {
+	t.Parallel()
+
 	var encoded []byte
 	var err error
 	cdc := NewCodec()

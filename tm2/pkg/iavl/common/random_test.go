@@ -11,12 +11,16 @@ import (
 )
 
 func TestRandStr(t *testing.T) {
+	t.Parallel()
+
 	l := 243
 	s := RandStr(l)
 	assert.Equal(t, l, len(s))
 }
 
 func TestRandBytes(t *testing.T) {
+	t.Parallel()
+
 	l := 243
 	b := RandBytes(l)
 	assert.Equal(t, l, len(b))

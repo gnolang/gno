@@ -28,6 +28,8 @@ func randBitArray(bits int) (*BitArray, []byte) {
 }
 
 func TestAnd(t *testing.T) {
+	t.Parallel()
+
 	bA1, _ := randBitArray(51)
 	bA2, _ := randBitArray(31)
 	bA3 := bA1.And(bA2)
@@ -52,6 +54,8 @@ func TestAnd(t *testing.T) {
 }
 
 func TestOr(t *testing.T) {
+	t.Parallel()
+
 	bA1, _ := randBitArray(51)
 	bA2, _ := randBitArray(31)
 	bA3 := bA1.Or(bA2)
@@ -76,6 +80,8 @@ func TestOr(t *testing.T) {
 }
 
 func TestSub(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		initBA        string
 		subtractingBA string
@@ -107,6 +113,8 @@ func TestSub(t *testing.T) {
 }
 
 func TestPickRandom(t *testing.T) {
+	t.Parallel()
+
 	empty16Bits := "________________"
 	empty64Bits := empty16Bits + empty16Bits + empty16Bits + empty16Bits
 	testCases := []struct {
@@ -134,6 +142,8 @@ func TestPickRandom(t *testing.T) {
 }
 
 func TestBytes(t *testing.T) {
+	t.Parallel()
+
 	bA := NewBitArray(4)
 	bA.SetIndex(0, true)
 	check := func(bA *BitArray, bz []byte) {
@@ -163,6 +173,8 @@ func TestBytes(t *testing.T) {
 }
 
 func TestEmptyFull(t *testing.T) {
+	t.Parallel()
+
 	ns := []int{47, 123}
 	for _, n := range ns {
 		bA := NewBitArray(n)
@@ -179,6 +191,8 @@ func TestEmptyFull(t *testing.T) {
 }
 
 func TestUpdateNeverPanics(t *testing.T) {
+	t.Parallel()
+
 	newRandBitArray := func(n int) *BitArray {
 		ba, _ := randBitArray(n)
 		return ba
@@ -201,6 +215,8 @@ func TestUpdateNeverPanics(t *testing.T) {
 }
 
 func TestNewBitArrayNeverCrashesOnNegatives(t *testing.T) {
+	t.Parallel()
+
 	bitList := []int{-127, -128, -1 << 31}
 	for _, bits := range bitList {
 		_ = NewBitArray(bits)
@@ -208,6 +224,8 @@ func TestNewBitArrayNeverCrashesOnNegatives(t *testing.T) {
 }
 
 func TestJSONMarshalUnmarshal(t *testing.T) {
+	t.Parallel()
+
 	bA1 := NewBitArray(0)
 
 	bA2 := NewBitArray(1)
@@ -233,6 +251,8 @@ func TestJSONMarshalUnmarshal(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.bA.String(), func(t *testing.T) {
+			t.Parallel()
+
 			bz, err := json.Marshal(tc.bA)
 			require.NoError(t, err)
 

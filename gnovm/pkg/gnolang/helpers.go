@@ -91,7 +91,7 @@ func Flds(args ...interface{}) FieldTypeExprs {
 
 func Recv(n, t interface{}) FieldTypeExpr {
 	if n == "" {
-		n = "_"
+		n = blankIdentifier
 	}
 	return FieldTypeExpr{
 		Name: N(n),
@@ -105,6 +105,12 @@ func MaybeNativeT(tx interface{}) *MaybeNativeTypeExpr {
 	}
 }
 
+// FuncD creates a new function declaration.
+//
+// There is a difference between passing nil to body or passing []Stmt{}:
+// nil means that the curly brackets are missing in the source code, indicating
+// a declaration for an externally-defined function, while []Stmt{} is simply a
+// functions with no statements (func() {}).
 func FuncD(name interface{}, params, results FieldTypeExprs, body []Stmt) *FuncDecl {
 	return &FuncDecl{
 		NameExpr: *Nx(name),
@@ -439,18 +445,6 @@ var (
 	prec1 = strings.Split("||", sp)
 	precs = [][]string{prec1, prec2, prec3, prec4, prec5}
 )
-
-// 0 for prec1... -1 if no match.
-func lowestMatch(op string) int {
-	for i, prec := range precs {
-		for _, op2 := range prec {
-			if op == op2 {
-				return i
-			}
-		}
-	}
-	return -1
-}
 
 func Ss(b ...Stmt) []Stmt {
 	return b

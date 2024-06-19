@@ -1,12 +1,16 @@
 package ui
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 type DOM struct {
 	// metadata
 	Prefix       string
 	Title        string
 	WithComments bool
+	Classes      []string
 
 	// elements
 	Header Element
@@ -15,7 +19,13 @@ type DOM struct {
 }
 
 func (dom DOM) String() string {
+	classes := strings.Join(dom.Classes, " ")
+
 	output := ""
+
+	if classes != "" {
+		output += "<main class='" + classes + "'>" + "\n\n"
+	}
 
 	if dom.Title != "" {
 		output += H1(dom.Title).String(dom) + "\n"
@@ -51,8 +61,23 @@ func (dom DOM) String() string {
 		}
 	}
 
+	if classes != "" {
+		output += "</main>"
+	}
+
 	// TODO: cleanup double new-lines.
 
+	return output
+}
+
+type Jumbotron []DomStringer
+
+func (j Jumbotron) String(dom DOM) string {
+	output := `<div class="jumbotron">` + "\n\n"
+	for _, elem := range j {
+		output += elem.String(dom) + "\n"
+	}
+	output += `</div><!-- /jumbotron -->` + "\n"
 	return output
 }
 
@@ -88,6 +113,26 @@ func (b Breadcrumb) String(dom DOM) string {
 	return output
 }
 
+type Columns struct {
+	MaxWidth int
+	Columns  []Element
+}
+
+func (c *Columns) Append(elems ...Element) {
+	c.Columns = append(c.Columns, elems...)
+}
+
+func (c Columns) String(dom DOM) string {
+	output := `<div class="columns-` + strconv.Itoa(c.MaxWidth) + `">` + "\n"
+	for _, entry := range c.Columns {
+		output += `<div class="column">` + "\n\n"
+		output += entry.String(dom)
+		output += "</div><!-- /column-->\n"
+	}
+	output += "</div><!-- /columns-" + strconv.Itoa(c.MaxWidth) + " -->\n"
+	return output
+}
+
 type Link struct {
 	Text string
 	Path string
@@ -104,8 +149,14 @@ func (l Link) String(dom DOM) string {
 	case l.Path != "" && l.URL != "":
 		panic("a link should have a path or a URL, not both.")
 	case l.Path != "":
+		if l.Text == "" {
+			l.Text = l.Path
+		}
 		url = dom.Prefix + l.Path
 	case l.URL != "":
+		if l.Text == "" {
+			l.Text = l.URL
+		}
 		url = l.URL
 	}
 
@@ -151,6 +202,7 @@ type (
 	Italic    string
 	Code      string
 	Paragraph string
+	Quote     string
 	HR        struct{}
 )
 
@@ -160,6 +212,7 @@ func (text H3) String(_ DOM) string        { return "### " + string(text) + "\n"
 func (text H4) String(_ DOM) string        { return "#### " + string(text) + "\n" }
 func (text H5) String(_ DOM) string        { return "##### " + string(text) + "\n" }
 func (text H6) String(_ DOM) string        { return "###### " + string(text) + "\n" }
+func (text Quote) String(_ DOM) string     { return "> " + string(text) + "\n" }
 func (text Bold) String(_ DOM) string      { return "**" + string(text) + "**" }
 func (text Italic) String(_ DOM) string    { return "_" + string(text) + "_" }
 func (text Paragraph) String(_ DOM) string { return "\n" + string(text) + "\n" }

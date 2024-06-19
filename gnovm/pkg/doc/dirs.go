@@ -5,7 +5,6 @@
 package doc
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -52,7 +51,7 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 	}
 
 	for _, mdir := range modDirs {
-		gm, err := parseGnoMod(filepath.Join(mdir, "gno.mod"))
+		gm, err := gnomod.ParseGnoMod(filepath.Join(mdir, "gno.mod"))
 		if err != nil {
 			log.Printf("%v", err)
 			continue
@@ -66,31 +65,6 @@ func newDirs(dirs []string, modDirs []string) *bfsDirs {
 
 	go d.walk(roots)
 	return d
-}
-
-// tries to parse gno mod file given the filename, using Parse and Validate from
-// the gnomod package
-func parseGnoMod(fname string) (*gnomod.File, error) {
-	file, err := os.Stat(fname)
-	if err != nil {
-		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
-	}
-	if file.IsDir() {
-		return nil, fmt.Errorf("invalid gno.mod at %q: is a directory", fname)
-	}
-
-	b, err := os.ReadFile(fname)
-	if err != nil {
-		return nil, fmt.Errorf("could not read gno.mod file: %w", err)
-	}
-	gm, err := gnomod.Parse(fname, b)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing gno.mod file at %q: %w", fname, err)
-	}
-	if err := gm.Validate(); err != nil {
-		return nil, fmt.Errorf("error validating gno.mod file at %q: %w", fname, err)
-	}
-	return gm, nil
 }
 
 func getGnoModDirs(gm *gnomod.File) []bfsDir {

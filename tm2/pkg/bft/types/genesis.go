@@ -18,7 +18,17 @@ const (
 	MaxChainIDLen = 50
 )
 
-//------------------------------------------------------------
+var (
+	ErrEmptyChainID                = errors.New("chain ID is empty")
+	ErrLongChainID                 = fmt.Errorf("chain ID cannot be longer than %d chars", MaxChainIDLen)
+	ErrInvalidGenesisTime          = errors.New("invalid genesis time")
+	ErrNoValidators                = errors.New("no validators in set")
+	ErrInvalidValidatorVotingPower = errors.New("validator has no voting power")
+	ErrInvalidValidatorAddress     = errors.New("invalid validator address")
+	ErrValidatorPubKeyMismatch     = errors.New("validator public key and address mismatch")
+)
+
+// ------------------------------------------------------------
 // core types for a genesis definition
 // NOTE: any changes to the genesis definition should
 // be reflected in the documentation:
@@ -61,6 +71,54 @@ func (genDoc *GenesisDoc) ValidatorHash() []byte {
 	return vset.Hash()
 }
 
+// Validate validates the genesis doc
+func (genDoc *GenesisDoc) Validate() error {
+	// Make sure the chain ID is not empty
+	if genDoc.ChainID == "" {
+		return ErrEmptyChainID
+	}
+
+	// Make sure the chain ID is < max chain ID length
+	if len(genDoc.ChainID) > MaxChainIDLen {
+		return ErrLongChainID
+	}
+
+	// Make sure the genesis time is valid
+	if genDoc.GenesisTime.IsZero() {
+		return ErrInvalidGenesisTime
+	}
+
+	// Validate the consensus params
+	if consensusParamsErr := ValidateConsensusParams(genDoc.ConsensusParams); consensusParamsErr != nil {
+		return consensusParamsErr
+	}
+
+	// Make sure there are validators in the set
+	if len(genDoc.Validators) == 0 {
+		return ErrNoValidators
+	}
+
+	// Make sure the validators are valid
+	for _, v := range genDoc.Validators {
+		// Check the voting power
+		if v.Power == 0 {
+			return fmt.Errorf("%w, %s", ErrInvalidValidatorVotingPower, v.Name)
+		}
+
+		// Check the address
+		if v.Address.IsZero() {
+			return fmt.Errorf("%w, %s", ErrInvalidValidatorAddress, v.Name)
+		}
+
+		// Check the pub key -> address matching
+		if v.PubKey.Address() != v.Address {
+			return fmt.Errorf("%w, %s", ErrValidatorPubKeyMismatch, v.Name)
+		}
+	}
+
+	return nil
+}
+
 // ValidateAndComplete checks that all necessary fields are present
 // and fills in defaults for optional fields left empty
 func (genDoc *GenesisDoc) ValidateAndComplete() error {
@@ -95,7 +153,7 @@ func (genDoc *GenesisDoc) ValidateAndComplete() error {
 	return nil
 }
 
-//------------------------------------------------------------
+// ------------------------------------------------------------
 // Make genesis state from file
 
 // GenesisDocFromJSON unmarshalls JSON data into a GenesisDoc.
@@ -126,7 +184,7 @@ func GenesisDocFromFile(genDocFile string) (*GenesisDoc, error) {
 	return genDoc, nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Mock AppState (for testing)
 
 type MockAppState struct {

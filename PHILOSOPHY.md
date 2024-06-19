@@ -1,13 +1,15 @@
 # Philosophy
 
- * Simplicity of design.
+ * Simplicity of design - there should be one obvious way to do it.
  * The code is the spec.
+ * Readability is paramount - beautiful is better than fast.
  * Minimal code - keep total footprint small.
  * Minimal dependencies - all dependencies must get audited, and become part of the repo.
- * Modular dependencies - whereever reasonable, make components modular.
+ * Modular dependencies - wherever reasonable, make components modular.
  * Finished - software projects that don't become finished are projects that
    are forever vulnerable. One of the primary goals of the Gno language and
    related works is to become finished within a reasonable timeframe.
+ * Maintainable, debuggable, and future-proof codebase.
 
 ## Gno Philosophy
 
@@ -20,10 +22,22 @@
 
  * Each node can run on a commodity machine. Corollarily, for scaling we focus on sharding & forms of IBC.
 
-## Cli Philosophy
+## Performance Philosophy
+
+* Correct, debuggable software is more important than extreme performance.
+* Multicore concurrency makes Tendermint within the range of theoretical performance.
+* Go is chosen for faster development of modular components, not for maximum speed.
+* Real bottleneck is in the application layer, not in supporting large validator sets.
+* Focus on feature completeness, debuggability, and maintainability over extreme performance.
+
+## CLI Philosophy
 
  * No envs.
- * No short flags.
+ * No short flags, with the following exceptions:
+   * `-h` for showing help
+   * `-v` for being verbose
+   * mimicking the short flags of Go commands
+   * after software maturity
  * No /bin/ calls.
  * No process forks.
  * Struct-based command options.

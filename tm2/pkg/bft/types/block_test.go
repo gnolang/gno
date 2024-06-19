@@ -21,6 +21,8 @@ import (
 )
 
 func TestBlockValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	require.Error(t, (*Block)(nil).ValidateBasic())
 
 	txs := []Tx{Tx("foo"), Tx("bar")}
@@ -57,6 +59,8 @@ func TestBlockValidateBasic(t *testing.T) {
 		tc := tc
 		i := i
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			block := MakeBlock(h, txs, commit)
 			block.ProposerAddress = valSet.GetProposer().Address
 			tc.malleateBlock(block)
@@ -67,11 +71,15 @@ func TestBlockValidateBasic(t *testing.T) {
 }
 
 func TestBlockHash(t *testing.T) {
+	t.Parallel()
+
 	assert.Nil(t, (*Block)(nil).Hash())
 	assert.Nil(t, MakeBlock(int64(3), []Tx{Tx("Hello World")}, nil).Hash())
 }
 
 func TestBlockMakePartSet(t *testing.T) {
+	t.Parallel()
+
 	assert.Nil(t, (*Block)(nil).MakePartSet(2))
 
 	partSet := MakeBlock(int64(3), []Tx{Tx("Hello World")}, nil).MakePartSet(1024)
@@ -80,6 +88,8 @@ func TestBlockMakePartSet(t *testing.T) {
 }
 
 func TestBlockHashesTo(t *testing.T) {
+	t.Parallel()
+
 	assert.False(t, (*Block)(nil).HashesTo(nil))
 
 	lastID := makeBlockIDRandom()
@@ -96,6 +106,8 @@ func TestBlockHashesTo(t *testing.T) {
 }
 
 func TestBlockSize(t *testing.T) {
+	t.Parallel()
+
 	size := MakeBlock(int64(3), []Tx{Tx("Hello World")}, nil).Size()
 	if size <= 0 {
 		t.Fatal("Size of the block is zero or negative")
@@ -103,6 +115,8 @@ func TestBlockSize(t *testing.T) {
 }
 
 func TestBlockString(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "nil-Block", (*Block)(nil).String())
 	assert.Equal(t, "nil-Block", (*Block)(nil).StringIndented(""))
 	assert.Equal(t, "nil-Block", (*Block)(nil).StringShort())
@@ -135,16 +149,22 @@ func makeBlockID(hash []byte, partSetSize int, partSetHash []byte) BlockID {
 var nilBytes []byte
 
 func TestNilHeaderHashDoesntCrash(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, (*Header)(nil).Hash(), nilBytes)
 	assert.Equal(t, (new(Header)).Hash(), nilBytes)
 }
 
 func TestNilDataHashDoesntCrash(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, (*Data)(nil).Hash(), nilBytes)
 	assert.Equal(t, new(Data).Hash(), nilBytes)
 }
 
 func TestCommit(t *testing.T) {
+	t.Parallel()
+
 	lastID := makeBlockIDRandom()
 	h := int64(3)
 	voteSet, _, vals := randVoteSet(h-1, 1, PrecommitType, 10, 1)
@@ -166,6 +186,8 @@ func TestCommit(t *testing.T) {
 }
 
 func TestCommitValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		testName       string
 		malleateCommit func(*Commit)
@@ -181,6 +203,8 @@ func TestCommitValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			com := randCommit()
 			tc.malleateCommit(com)
 			assert.Equal(t, tc.expectErr, com.ValidateBasic() != nil, "Validate Basic had an unexpected result")
@@ -189,6 +213,8 @@ func TestCommitValidateBasic(t *testing.T) {
 }
 
 func TestHeaderByteSize(t *testing.T) {
+	t.Parallel()
+
 	// Construct a UTF-8 string of MaxChainIDLen length using the supplementary
 	// characters.
 	// Each supplementary character takes 4 bytes.
@@ -239,6 +265,8 @@ func randCommit() *Commit {
 }
 
 func TestCommitToVoteSet(t *testing.T) {
+	t.Parallel()
+
 	lastID := makeBlockIDRandom()
 	h := int64(3)
 
@@ -263,6 +291,8 @@ func TestCommitToVoteSet(t *testing.T) {
 }
 
 func TestCommitToVoteSetWithVotesForAnotherBlockOrNilBlock(t *testing.T) {
+	t.Parallel()
+
 	blockID := makeBlockID([]byte("blockhash"), 1000, []byte("partshash"))
 	blockID2 := makeBlockID([]byte("blockhash2"), 1000, []byte("partshash"))
 	blockID3 := makeBlockID([]byte("blockhash3"), 10000, []byte("partshash"))
@@ -320,6 +350,8 @@ func TestCommitToVoteSetWithVotesForAnotherBlockOrNilBlock(t *testing.T) {
 }
 
 func TestSignedHeaderValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	commit := randCommit()
 	chainID := "𠜎"
 	timestamp := time.Date(math.MaxInt64, 0, 0, 0, 0, 0, math.MaxInt64, time.UTC)
@@ -360,6 +392,8 @@ func TestSignedHeaderValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			sh := SignedHeader{
 				Header: tc.shHeader,
 				Commit: tc.shCommit,
@@ -370,6 +404,8 @@ func TestSignedHeaderValidateBasic(t *testing.T) {
 }
 
 func TestBlockIDValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	validBlockID := BlockID{
 		Hash: []byte{},
 		PartsHeader: PartSetHeader{
@@ -400,6 +436,8 @@ func TestBlockIDValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			blockID := BlockID{
 				Hash:        tc.blockIDHash,
 				PartsHeader: tc.blockIDPartsHeader,

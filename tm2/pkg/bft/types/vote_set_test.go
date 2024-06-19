@@ -61,6 +61,8 @@ func withBlockPartsHeader(vote *Vote, blockPartsHeader PartSetHeader) *Vote {
 }
 
 func TestAddVote(t *testing.T) {
+	t.Parallel()
+
 	height, round := int64(1), 0
 	voteSet, _, privValidators := randVoteSet(height, round, PrevoteType, 10, 1)
 	val0 := privValidators[0]
@@ -106,6 +108,8 @@ func TestAddVote(t *testing.T) {
 }
 
 func Test2_3Majority(t *testing.T) {
+	t.Parallel()
+
 	height, round := int64(1), 0
 	voteSet, _, privValidators := randVoteSet(height, round, PrevoteType, 10, 1)
 
@@ -162,6 +166,8 @@ func Test2_3Majority(t *testing.T) {
 }
 
 func Test2_3MajorityRedux(t *testing.T) {
+	t.Parallel()
+
 	height, round := int64(1), 0
 	voteSet, _, privValidators := randVoteSet(height, round, PrevoteType, 100, 1)
 
@@ -267,6 +273,8 @@ func Test2_3MajorityRedux(t *testing.T) {
 }
 
 func TestBadVotes(t *testing.T) {
+	t.Parallel()
+
 	height, round := int64(1), 0
 	voteSet, _, privValidators := randVoteSet(height, round, PrevoteType, 10, 1)
 
@@ -332,6 +340,8 @@ func TestBadVotes(t *testing.T) {
 }
 
 func TestConflicts(t *testing.T) {
+	t.Parallel()
+
 	height, round := int64(1), 0
 	voteSet, _, privValidators := randVoteSet(height, round, PrevoteType, 4, 1)
 	blockHash1 := random.RandBytes(32)
@@ -465,6 +475,8 @@ func TestConflicts(t *testing.T) {
 }
 
 func TestMakeCommit(t *testing.T) {
+	t.Parallel()
+
 	height, round := int64(1), 0
 	voteSet, _, privValidators := randVoteSet(height, round, PrecommitType, 10, 1)
 	blockHash, blockPartsHeader := crypto.CRandBytes(32), PartSetHeader{123, crypto.CRandBytes(32)}

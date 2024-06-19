@@ -9,13 +9,18 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cockroachdb/apd"
+	"github.com/cockroachdb/apd/v3"
+)
+
+var (
+	reFloat    = regexp.MustCompile(`^[0-9\.]+([eE][\-\+]?[0-9]+)?$`)
+	reHexFloat = regexp.MustCompile(`^0[xX][0-9a-fA-F\.]+([pP][\-\+]?[0-9a-fA-F]+)?$`)
 )
 
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
 	if debug {
-		debug.Printf("EVAL: %v\n", x)
+		debug.Printf("EVAL: (%T) %v\n", x, x)
 		// fmt.Println(m.String())
 	}
 	// This case moved out of switch for performance.
@@ -42,13 +47,13 @@ func (m *Machine) doOpEval() {
 		m.PopExpr()
 		switch x.Kind {
 		case INT:
-			x.Value = strings.ReplaceAll(x.Value, "_", "")
+			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
 			// temporary optimization
 			bi := big.NewInt(0)
 			// TODO optimize.
 			// TODO deal with base.
-			if len(x.Value) > 2 && x.Value[0] == '0' {
-				var ok bool = false
+			var ok bool
+			if len(x.Value) >= 2 && x.Value[0] == '0' {
 				switch x.Value[1] {
 				case 'b', 'B':
 					_, ok = bi.SetString(x.Value[2:], 2)
@@ -56,6 +61,8 @@ func (m *Machine) doOpEval() {
 					_, ok = bi.SetString(x.Value[2:], 8)
 				case 'x', 'X':
 					_, ok = bi.SetString(x.Value[2:], 16)
+				case '0', '1', '2', '3', '4', '5', '6', '7':
+					_, ok = bi.SetString(x.Value, 8)
 				default:
 					ok = false
 				}
@@ -77,9 +84,9 @@ func (m *Machine) doOpEval() {
 				V: BigintValue{V: bi},
 			})
 		case FLOAT:
-			x.Value = strings.ReplaceAll(x.Value, "_", "")
+			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
 
-			if matched, _ := regexp.MatchString(`^[0-9\.]+([eE][\-\+]?[0-9]+)?$`, x.Value); matched {
+			if reFloat.MatchString(x.Value) {
 				value := x.Value
 				bd, c, err := apd.NewFromString(value)
 				if err != nil {
@@ -97,7 +104,7 @@ func (m *Machine) doOpEval() {
 					V: BigdecValue{V: bd},
 				})
 				return
-			} else if matched, _ := regexp.MatchString(`^0[xX][0-9a-fA-F\.]+([pP][\-\+]?[0-9a-fA-F]+)?$`, x.Value); matched {
+			} else if reHexFloat.MatchString(x.Value) {
 				originalInput := x.Value
 				value := x.Value[2:]
 				var hexString string
@@ -160,8 +167,7 @@ func (m *Machine) doOpEval() {
 					panic(fmt.Sprintf("error computing exponent: %v", err))
 				}
 				// Step 3 make Decimal from mantissa and exp.
-				var dValue *big.Int
-				dValue = new(big.Int)
+				dValue := new(apd.BigInt)
 				_, ok := dValue.SetString(hexString, 16)
 				if !ok {
 					panic(fmt.Sprintf("can't convert %s to decimal", value))

@@ -192,21 +192,3 @@ func (ss *scanner) advanceEscapeSequence() bool {
 		return ss.done()
 	}
 }
-
-// pops the next monoid term.
-// The result is a string enclosed in balanced parentheses,
-// brackets, or quotes; or what comes before such things.
-// scanner doesn't understand operators, so a polynomial
-// expression could be a single monoid as far as this scanner
-// is concerned.  TODO Chop functions should maybe use this.
-func (ss *scanner) popMonoid() string {
-	startOut := ss.out()
-	start := ss.idx
-	for !ss.advance() {
-		if ss.out() != startOut {
-			end := ss.idx
-			return string(ss.rnz[start:end])
-		}
-	}
-	panic("no monoid")
-}

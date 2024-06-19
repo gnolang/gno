@@ -11,16 +11,12 @@ import (
 
 // amino
 type StructA struct {
-	fieldA int
-	fieldB int
 	FieldC int
 	FieldD uint32
 }
 
 // amino
 type StructB struct {
-	fieldA int
-	fieldB int
 	FieldC int
 	FieldD uint32
 	FieldE submodule.StructSM

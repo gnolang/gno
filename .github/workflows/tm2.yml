@@ -1,69 +1,20 @@
 name: tm2
 
 on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
   pull_request:
     paths:
-      - "go.sum"
-      - "tm2/Makefile"
-      - "tm2/**.go"
-      - ".github/workflows/tm2.yml"
-  push:
-    branches: [ "master" ]
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: true
+      - "tm2/**"
+      - ".github/**"
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
-        goarch: [ "amd64" ]
-        goos: [ "linux" ]
-        program: [ "./cmd/tm2txsync", "./pkg/amino/cmd/aminoscan", "./pkg/amino/cmd/goscan", "./pkg/autofile/cmd", "./pkg/iavl/cmd/iaviewer" ]
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/setup-go@v4
-        with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
-      - name: go install
-        working-directory: tm2
-        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go install ${{ matrix.program }}
-
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        go-version: [ "1.19.x", "1.20.x" ]
-        args:
-          - _test.flappy
-          - _test.pkg.amino
-          - _test.pkg.bft
-          - _test.pkg.others
-          - _test.cmds
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/setup-go@v4
-        with:
-          go-version: ${{ matrix.go-version }}
-      - uses: actions/checkout@v3
-      - name: test
-        working-directory: tm2
-        run: |
-          export GOPATH=$HOME/go
-          export GOTEST_FLAGS="-v -p 1 -timeout=30m -coverprofile=coverage.out -covermode=atomic"
-          make ${{ matrix.args }}
-      - if: runner.os == 'Linux'
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          name: tm2
-          flags: tm2,tm2-${{matrix.args}},go-${{ matrix.go-version }}
-          files: ./tm2/coverage.out
-          #fail_ci_if_error: ${{ github.repository == 'gnolang/gno' }}
-          fail_ci_if_error: false # temporarily
+  main:
+    name: Run Main
+    uses: ./.github/workflows/main_template.yml
+    with:
+      modulepath: "tm2"
+    secrets:
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}

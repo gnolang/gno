@@ -2,16 +2,20 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/gno.land/pkg/log"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -19,41 +23,63 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	vmm "github.com/gnolang/gno/tm2/pkg/sdk/vm"
-	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
+const defaultNodeDir = "gnoland-data"
+
+var errMissingGenesis = errors.New("missing genesis.json")
+
+var startGraphic = strings.ReplaceAll(`
+                    __             __
+  ___ ____  ___    / /__ ____  ___/ /
+ / _ '/ _ \/ _ \_ / / _ '/ _ \/ _  /
+ \_, /_//_/\___(_)_/\_,_/_//_/\_,_/
+/___/
+`, "'", "`")
+
 type startCfg struct {
-	skipFailingGenesisTxs bool
-	skipStart             bool
-	genesisBalancesFile   string
-	genesisTxsFile        string
+	gnoRootDir            string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	skipFailingGenesisTxs bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisBalancesFile   string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisTxsFile        string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisRemote         string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisFile           string
 	chainID               string
-	genesisRemote         string
-	rootDir               string
+	dataDir               string
 	genesisMaxVMCycles    int64
 	config                string
+	lazyInit              bool
+
+	logLevel  string
+	logFormat string
 }
 
-func newStartCmd(io *commands.IO) *commands.Command {
+func newStartCmd(io commands.IO) *commands.Command {
 	cfg := &startCfg{}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "start",
 			ShortUsage: "start [flags]",
-			ShortHelp:  "Run the full node",
+			ShortHelp:  "starts the Gnoland blockchain node",
+			LongHelp:   "Starts the Gnoland blockchain node, with accompanying setup",
 		},
 		cfg,
-		func(_ context.Context, args []string) error {
-			return execStart(cfg, args, io)
+		func(ctx context.Context, _ []string) error {
+			return execStart(ctx, cfg, io)
 		},
 	)
 }
 
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
+	gnoroot := gnoenv.RootDir()
+	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
+	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
+
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
 		"skip-failing-genesis-txs",
@@ -61,25 +87,25 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"don't panic when replaying invalid genesis txs",
 	)
 
-	fs.BoolVar(
-		&c.skipStart,
-		"skip-start",
-		false,
-		"quit after initialization, don't start the node",
-	)
-
 	fs.StringVar(
 		&c.genesisBalancesFile,
 		"genesis-balances-file",
-		"./genesis/genesis_balances.txt",
+		defaultGenesisBalancesFile,
 		"initial distribution file",
 	)
 
 	fs.StringVar(
 		&c.genesisTxsFile,
 		"genesis-txs-file",
-		"./genesis/genesis_txs.txt",
+		defaultGenesisTxsFile,
 		"initial txs to replay",
+	)
+
+	fs.StringVar(
+		&c.genesisFile,
+		"genesis",
+		"genesis.json",
+		"the path to the genesis.json",
 	)
 
 	fs.StringVar(
@@ -90,10 +116,17 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
-		&c.rootDir,
-		"root-dir",
-		"testdir",
-		"directory for config and data",
+		&c.gnoRootDir,
+		"gnoroot-dir",
+		gnoroot,
+		"the root directory of the gno repository",
+	)
+
+	fs.StringVar(
+		&c.dataDir,
+		"data-dir",
+		defaultNodeDir,
+		"the path to the node's data directory",
 	)
 
 	fs.StringVar(
@@ -106,214 +139,290 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.Int64Var(
 		&c.genesisMaxVMCycles,
 		"genesis-max-vm-cycles",
-		10_000_000,
+		100_000_000,
 		"set maximum allowed vm cycles per operation. Zero means no limit.",
 	)
 
 	fs.StringVar(
 		&c.config,
-		"config",
+		flagConfigFlag,
 		"",
-		"config file (optional)",
+		"the flag config file (optional)",
+	)
+
+	fs.StringVar(
+		&c.logLevel,
+		"log-level",
+		zapcore.DebugLevel.String(),
+		"log level for the gnoland node,",
+	)
+
+	fs.StringVar(
+		&c.logFormat,
+		"log-format",
+		log.ConsoleFormat.String(),
+		"log format for the gnoland node",
+	)
+
+	fs.BoolVar(
+		&c.lazyInit,
+		"lazy",
+		false,
+		"flag indicating if lazy init is enabled. Generates the node secrets, configuration, and genesis.json",
 	)
 }
 
-func execStart(c *startCfg, args []string, io *commands.IO) error {
-	logger := log.NewTMLogger(log.NewSyncWriter(io.Out))
-	rootDir := c.rootDir
+func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
+	// Get the absolute path to the node's data directory
+	nodeDir, err := filepath.Abs(c.dataDir)
+	if err != nil {
+		return fmt.Errorf("unable to get absolute path for data directory, %w", err)
+	}
 
-	cfg := config.LoadOrMakeConfigWithOptions(rootDir, func(cfg *config.Config) {
-		cfg.Consensus.CreateEmptyBlocks = true
-		cfg.Consensus.CreateEmptyBlocksInterval = 0 * time.Second
-	})
+	// Get the absolute path to the node's genesis.json
+	genesisPath, err := filepath.Abs(c.genesisFile)
+	if err != nil {
+		return fmt.Errorf("unable to get absolute path for the genesis.json, %w", err)
+	}
 
-	// create priv validator first.
-	// need it to generate genesis.json
-	newPrivValKey := cfg.PrivValidatorKeyFile()
-	newPrivValState := cfg.PrivValidatorStateFile()
-	priv := privval.LoadOrGenFilePV(newPrivValKey, newPrivValState)
+	// Initialize the logger
+	zapLogger, err := initializeLogger(io.Out(), c.logLevel, c.logFormat)
+	if err != nil {
+		return fmt.Errorf("unable to initialize zap logger, %w", err)
+	}
 
-	// write genesis file if missing.
-	genesisFilePath := filepath.Join(rootDir, cfg.Genesis)
-	if !osm.FileExists(genesisFilePath) {
-		genDoc := makeGenesisDoc(
-			priv.GetPubKey(),
-			c.chainID,
-			c.genesisBalancesFile,
-			loadGenesisTxs(c.genesisTxsFile, c.chainID, c.genesisRemote),
+	defer func() {
+		// Sync the logger before exiting
+		_ = zapLogger.Sync()
+	}()
+
+	// Wrap the zap logger
+	logger := log.ZapLoggerToSlog(zapLogger)
+
+	if c.lazyInit {
+		if err := lazyInitNodeDir(io, nodeDir); err != nil {
+			return fmt.Errorf("unable to lazy-init the node directory, %w", err)
+		}
+	}
+
+	// Load the configuration
+	cfg, err := config.LoadConfig(nodeDir)
+	if err != nil {
+		return fmt.Errorf("%s, %w", tryConfigInit, err)
+	}
+
+	// Check if the genesis.json exists
+	if !osm.FileExists(genesisPath) {
+		if !c.lazyInit {
+			return errMissingGenesis
+		}
+
+		// Load the private validator secrets
+		privateKey := privval.LoadFilePV(
+			cfg.PrivValidatorKeyFile(),
+			cfg.PrivValidatorStateFile(),
 		)
-		writeGenesisFile(genDoc, genesisFilePath)
+
+		// Init a new genesis.json
+		if err := lazyInitGenesis(io, c, genesisPath, privateKey.GetPubKey()); err != nil {
+			return fmt.Errorf("unable to initialize genesis.json, %w", err)
+		}
 	}
 
-	// create application and node.
-	gnoApp, err := gnoland.NewApp(rootDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
+	// Initialize telemetry
+	if err := telemetry.Init(*cfg.Telemetry); err != nil {
+		return fmt.Errorf("unable to initialize telemetry, %w", err)
+	}
+
+	// Create application and node
+	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
-		return fmt.Errorf("error in creating new app: %w", err)
+		return fmt.Errorf("unable to create the Gnoland app, %w", err)
 	}
 
-	cfg.LocalApp = gnoApp
+	// Print the starting graphic
+	if c.logFormat != string(log.JSONFormat) {
+		io.Println(startGraphic)
+	}
 
-	gnoNode, err := node.DefaultNewNode(cfg, logger)
+	// Create a default node, with the given setup
+	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, logger)
 	if err != nil {
-		return fmt.Errorf("error in creating node: %w", err)
+		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}
 
-	fmt.Fprintln(io.Err, "Node created.")
+	// Start the node (async)
+	if err := gnoNode.Start(); err != nil {
+		return fmt.Errorf("unable to start the Gnoland node, %w", err)
+	}
 
-	if c.skipStart {
-		fmt.Fprintln(io.Err, "'--skip-start' is set. Exiting.")
+	// Set up the wait context
+	nodeCtx, _ := signal.NotifyContext(
+		ctx,
+		os.Interrupt,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
+
+	// Wait for the exit signal
+	<-nodeCtx.Done()
+
+	if !gnoNode.IsRunning() {
+		return nil
+	}
+
+	// Gracefully stop the gno node
+	if err := gnoNode.Stop(); err != nil {
+		return fmt.Errorf("unable to gracefully stop the Gnoland node, %w", err)
+	}
+
+	return nil
+}
+
+// lazyInitNodeDir initializes new secrets, and a default configuration
+// in the given node directory, if not present
+func lazyInitNodeDir(io commands.IO, nodeDir string) error {
+	var (
+		configPath  = constructConfigPath(nodeDir)
+		secretsPath = constructSecretsPath(nodeDir)
+	)
+
+	// Check if the configuration already exists
+	if !osm.FileExists(configPath) {
+		// Create the gnoland config options
+		cfg := &configInitCfg{
+			configCfg: configCfg{
+				configPath: constructConfigPath(nodeDir),
+			},
+		}
+
+		// Run gnoland config init
+		if err := execConfigInit(cfg, io); err != nil {
+			return fmt.Errorf("unable to initialize config, %w", err)
+		}
+
+		io.Printfln("WARN: Initialized default node config at %q", filepath.Dir(cfg.configPath))
+		io.Println()
+	}
+
+	// Create the gnoland secrets options
+	secrets := &secretsInitCfg{
+		commonAllCfg: commonAllCfg{
+			dataDir: secretsPath,
+		},
+		forceOverwrite: false, // existing secrets shouldn't be pruned
+	}
+
+	// Run gnoland secrets init
+	err := execSecretsInit(secrets, []string{}, io)
+	if err == nil {
+		io.Printfln("WARN: Initialized default node secrets at %q", secrets.dataDir)
 
 		return nil
 	}
 
-	if err := gnoNode.Start(); err != nil {
-		return fmt.Errorf("error in start node: %w", err)
+	// Check if the error is valid
+	if errors.Is(err, errOverwriteNotEnabled) {
+		// No new secrets were generated
+		return nil
 	}
 
-	// run forever
-	osm.TrapSignal(func() {
-		if gnoNode.IsRunning() {
-			_ = gnoNode.Stop()
-		}
-	})
-
-	select {} // run forever
+	return fmt.Errorf("unable to initialize secrets, %w", err)
 }
 
-// Makes a local test genesis doc with local privValidator.
-func makeGenesisDoc(
-	pvPub crypto.PubKey,
-	chainID string,
-	genesisBalancesFile string,
-	genesisTxs []std.Tx,
-) *bft.GenesisDoc {
-	gen := &bft.GenesisDoc{}
+// lazyInitGenesis a new genesis.json file, with a signle validator
+func lazyInitGenesis(
+	io commands.IO,
+	c *startCfg,
+	genesisPath string,
+	publicKey crypto.PubKey,
+) error {
+	// Check if the genesis.json is present
+	if osm.FileExists(genesisPath) {
+		return nil
+	}
 
+	// Generate the new genesis.json file
+	if err := generateGenesisFile(genesisPath, publicKey, c); err != nil {
+		return fmt.Errorf("unable to generate genesis file, %w", err)
+	}
+
+	io.Printfln("WARN: Initialized genesis.json at %q", genesisPath)
+
+	return nil
+}
+
+// initializeLogger initializes the zap logger using the given format and log level,
+// outputting to the given IO
+func initializeLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logger, error) {
+	// Initialize the log level
+	level, err := zapcore.ParseLevel(logLevel)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse log level, %w", err)
+	}
+
+	// Initialize the log format
+	format := log.Format(strings.ToLower(logFormat))
+
+	// Initialize the zap logger
+	return log.GetZapLoggerFn(format)(io, level), nil
+}
+
+func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) error {
+	gen := &bft.GenesisDoc{}
 	gen.GenesisTime = time.Now()
-	gen.ChainID = chainID
+	gen.ChainID = c.chainID
 	gen.ConsensusParams = abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			// TODO: update limits.
-			MaxTxBytes:   1000000,  // 1MB,
-			MaxDataBytes: 2000000,  // 2MB,
-			MaxGas:       10000000, // 10M gas
-			TimeIotaMS:   100,      // 100ms
+			MaxTxBytes:   1_000_000,   // 1MB,
+			MaxDataBytes: 2_000_000,   // 2MB,
+			MaxGas:       100_000_000, // 100M gas
+			TimeIotaMS:   100,         // 100ms
 		},
 	}
+
 	gen.Validators = []bft.GenesisValidator{
 		{
-			Address: pvPub.Address(),
-			PubKey:  pvPub,
+			Address: pk.Address(),
+			PubKey:  pk,
 			Power:   10,
 			Name:    "testvalidator",
 		},
 	}
 
-	// Load distribution.
-	balances := loadGenesisBalances(genesisBalancesFile)
-	// debug: for _, balance := range balances { fmt.Println(balance) }
-
-	// Load initial packages from examples.
-	test1 := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	txs := []std.Tx{}
-
-	// List initial packages to load from examples.
-	pkgs, err := gnomod.ListPkgs(filepath.Join("..", "examples"))
+	// Load balances files
+	balances, err := gnoland.LoadGenesisBalancesFile(c.genesisBalancesFile)
 	if err != nil {
-		panic(fmt.Errorf("listing gno packages: %w", err))
+		return fmt.Errorf("unable to load genesis balances file %q: %w", c.genesisBalancesFile, err)
 	}
 
-	// Sort packages by dependencies.
-	sortedPkgs, err := pkgs.Sort()
+	// Load examples folder
+	examplesDir := filepath.Join(c.gnoRootDir, "examples")
+	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, genesisDeployAddress, genesisDeployFee)
 	if err != nil {
-		panic(fmt.Errorf("sorting packages: %w", err))
+		return fmt.Errorf("unable to load examples folder: %w", err)
 	}
 
-	// Filter out draft packages.
-	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
-
-	for _, pkg := range nonDraftPkgs {
-		// open files in directory as MemPackage.
-		memPkg := gno.ReadMemPackage(pkg.Path(), pkg.Name())
-		var tx std.Tx
-		tx.Msgs = []std.Msg{
-			vmm.MsgAddPackage{
-				Creator: test1,
-				Package: memPkg,
-				Deposit: nil,
-			},
-		}
-		tx.Fee = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
-		txs = append(txs, tx)
+	// Load Genesis TXs
+	genesisTxs, err := gnoland.LoadGenesisTxsFile(c.genesisTxsFile, c.chainID, c.genesisRemote)
+	if err != nil {
+		return fmt.Errorf("unable to load genesis txs file: %w", err)
 	}
 
-	// load genesis txs from file.
-	txs = append(txs, genesisTxs...)
+	genesisTxs = append(pkgsTxs, genesisTxs...)
 
-	// construct genesis AppState.
+	// Construct genesis AppState.
 	gen.AppState = gnoland.GnoGenesisState{
 		Balances: balances,
-		Txs:      txs,
-	}
-	return gen
-}
-
-func writeGenesisFile(gen *bft.GenesisDoc, filePath string) {
-	err := gen.SaveAs(filePath)
-	if err != nil {
-		panic(err)
-	}
-}
-
-func loadGenesisTxs(
-	path string,
-	chainID string,
-	genesisRemote string,
-) []std.Tx {
-	txs := []std.Tx{}
-	txsBz := osm.MustReadFile(path)
-	txsLines := strings.Split(string(txsBz), "\n")
-	for _, txLine := range txsLines {
-		if txLine == "" {
-			continue // skip empty line
-		}
-
-		// patch the TX
-		txLine = strings.ReplaceAll(txLine, "%%CHAINID%%", chainID)
-		txLine = strings.ReplaceAll(txLine, "%%REMOTE%%", genesisRemote)
-
-		var tx std.Tx
-		amino.MustUnmarshalJSON([]byte(txLine), &tx)
-		txs = append(txs, tx)
+		Txs:      genesisTxs,
 	}
 
-	return txs
-}
-
-func loadGenesisBalances(path string) []string {
-	// each balance is in the form: g1xxxxxxxxxxxxxxxx=100000ugnot
-	balances := []string{}
-	content := osm.MustReadFile(path)
-	lines := strings.Split(string(content), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		// remove comments.
-		line = strings.Split(line, "#")[0]
-		line = strings.TrimSpace(line)
-
-		// skip empty lines.
-		if line == "" {
-			continue
-		}
-
-		parts := strings.Split(line, "=")
-		if len(parts) != 2 {
-			panic("invalid genesis_balance line: " + line)
-		}
-
-		balances = append(balances, line)
+	// Write genesis state
+	if err := gen.SaveAs(genesisFile); err != nil {
+		return fmt.Errorf("unable to write genesis file %q: %w", genesisFile, err)
 	}
-	return balances
+
+	return nil
 }

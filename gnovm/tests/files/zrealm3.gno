@@ -172,6 +172,8 @@ func main() {
 //                 "FileName": "main.gno",
 //                 "IsMethod": false,
 //                 "Name": "init.2",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/test",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
@@ -206,6 +208,8 @@ func main() {
 //                 "FileName": "main.gno",
 //                 "IsMethod": false,
 //                 "Name": "main",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/test",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",

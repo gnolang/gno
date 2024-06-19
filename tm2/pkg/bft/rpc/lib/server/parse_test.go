@@ -13,6 +13,8 @@ import (
 )
 
 func TestParseJSONMap(t *testing.T) {
+	t.Parallel()
+
 	input := []byte(`{"value":"1234","height":22}`)
 
 	// naive is float,string
@@ -101,6 +103,8 @@ func TestParseJSONMap(t *testing.T) {
 }
 
 func TestParseJSONArray(t *testing.T) {
+	t.Parallel()
+
 	input := []byte(`["1234",22]`)
 
 	// naive is float,string
@@ -134,6 +138,8 @@ func TestParseJSONArray(t *testing.T) {
 }
 
 func TestParseJSONRPC(t *testing.T) {
+	t.Parallel()
+
 	demo := func(ctx *types.Context, height int, name string) {}
 	call := NewRPCFunc(demo, "height,name")
 
@@ -170,6 +176,8 @@ func TestParseJSONRPC(t *testing.T) {
 }
 
 func TestParseURI(t *testing.T) {
+	t.Parallel()
+
 	demo := func(ctx *types.Context, height int, name string) {}
 	call := NewRPCFunc(demo, "height,name")
 

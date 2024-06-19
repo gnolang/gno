@@ -67,6 +67,7 @@ func tNewDirs(t *testing.T) (string, *bfsDirs) {
 	// dependency lookup by dirs.
 	old, ex := os.LookupEnv("GNO_HOME")
 	os.Setenv("GNO_HOME", wdJoin(t, "testdata/dirsdep"))
+
 	t.Cleanup(func() {
 		if ex {
 			os.Setenv("GNO_HOME", old)
@@ -99,7 +100,7 @@ func TestDirs_findPackage(t *testing.T) {
 		}},
 		{"alpha", []bfsDir{
 			{importPath: "dirs.mod/dep/alpha", dir: filepath.Join(td, "dirsdep/pkg/mod/dirs.mod/dep/alpha")},
-			// no testdir/module/alpha as it is inside a module
+			// no gnoland-data/module/alpha as it is inside a module
 		}},
 		{"math", []bfsDir{
 			{importPath: "math", dir: filepath.Join(td, "dirs/math")},

@@ -1,0 +1,20 @@
+# Test with a failing _filetest.gno file
+
+! gno test -v .
+
+stdout 'Machine.RunMain\(\) panic: beep boop'
+stderr '=== RUN   file/failing_filetest.gno'
+stderr 'panic: fail on failing_filetest.gno: got unexpected error: beep boop'
+
+-- failing.gno --
+package failing
+
+-- failing_filetest.gno --
+package main
+
+func main() {
+	panic("beep boop")
+}
+
+// Output:
+// blah

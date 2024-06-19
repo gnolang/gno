@@ -1,1 +1,1 @@
-module "gno.land/p/demo/flow"
+module gno.land/p/demo/flow

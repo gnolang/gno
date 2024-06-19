@@ -56,6 +56,8 @@ func main() {
 //                 "FileName": "main.gno",
 //                 "IsMethod": false,
 //                 "Name": "main",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/test",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",

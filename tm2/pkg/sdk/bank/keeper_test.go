@@ -11,6 +11,8 @@ import (
 )
 
 func TestKeeper(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -88,6 +90,8 @@ func TestKeeper(t *testing.T) {
 }
 
 func TestBankKeeper(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	ctx := env.ctx
 
@@ -134,6 +138,8 @@ func TestBankKeeper(t *testing.T) {
 }
 
 func TestViewKeeper(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	ctx := env.ctx
 	view := NewViewKeeper(env.acck)

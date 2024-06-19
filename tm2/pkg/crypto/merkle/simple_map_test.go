@@ -8,6 +8,8 @@ import (
 )
 
 func TestSimpleMap(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		keys   []string
 		values []string // each string gets converted to []byte in test

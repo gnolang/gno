@@ -7,7 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Buffer
 
 // A Buffer is a buffer area in which to draw.
@@ -82,7 +82,7 @@ func (bb *Buffer) DrawToScreen(s tcell.Screen) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Cell
 
 // A terminal character cell.
@@ -131,10 +131,6 @@ var gDefaultSpaceTStyle = tcell.StyleDefault.
 	Dim(true).
 	Background(tcell.ColorGray)
 
-var gDefaultTStyle = gDefaultStyle.GetTStyle().
-	Foreground(gDefaultForeground).
-	Background(gDefaultBackground)
-
 // This is where a bit of dynamic logic is performed,
 // namely where the attr is used to derive the final style.
 func (cc *Cell) GetTCellContent() (mainc rune, combc []rune, tstyle tcell.Style) {
@@ -161,7 +157,7 @@ func (cc *Cell) GetTCellContent() (mainc rune, combc []rune, tstyle tcell.Style)
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // View
 // analogy: "Buffer:View :: array:slice".
 
@@ -205,7 +201,7 @@ func (bs View) GetCell(x, y int) *Cell {
 	)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // BufferedView
 
 // A view onto an element.

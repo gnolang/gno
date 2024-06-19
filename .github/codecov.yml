@@ -1,30 +1,41 @@
 codecov:
-  require_ci_to_pass: no
+  require_ci_to_pass: true
   notify:
-    wait_for_ci: no
+    wait_for_ci: true
 
-ignore:
-  - misc
-
-comment: false # will use it later.
+comment:
+  require_changes: false
 
 coverage:
+  round: down
+  precision: 2
   status:
-    project: off
-    patch: off
+    project:
+      default:
+        target: auto
+        threshold: 10 # Let's decrease this later.
+        base: parent
+        if_no_uploads: error
+        if_not_found: success
+        if_ci_failed: error
+        only_pulls: false
+    patch:
+      default:
+        target: auto
+        threshold: 10 # Let's decrease this later.
+        base: auto
+        if_no_uploads: error
+        if_not_found: success
+        if_ci_failed: error
+        only_pulls: false
 
-flags:
+flag_management:
   default_rules:
     carryforward: true
-  tm2:
-    paths:
-      - tm2
-    after_n_builds: 4
-  gnovm:
-    paths:
-      - gnovm
-    after_n_builds: 9
-  gno.land:
-    paths:
-      - gno.land
-    after_n_builds: 3
+    statuses:
+      - type: project
+        target: auto
+        threshold: 10 # Let's decrease this later.
+      - type: patch
+        target: auto # Let's decrease this later.
+        threshold: 10

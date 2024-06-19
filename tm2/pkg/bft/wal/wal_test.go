@@ -29,7 +29,7 @@ type TestMessage struct {
 
 func (TestMessage) AssertWALMessage() {}
 
-var testPackage = amino.RegisterPackage(amino.NewPackage(
+var _ = amino.RegisterPackage(amino.NewPackage(
 	"github.com/gnolang/gno/tm2/pkg/bft/wal",
 	"wal",
 	amino.GetCallersDirname(),
@@ -39,6 +39,8 @@ var testPackage = amino.RegisterPackage(amino.NewPackage(
 	))
 
 func TestWALWriterReader(t *testing.T) {
+	t.Parallel()
+
 	now := tmtime.Now()
 	msgs := []TimedWALMessage{
 		{Time: now, Msg: TestMessage{Duration: time.Second, Height: 1, Round: 1}},
@@ -96,6 +98,8 @@ func makeTempWAL(t *testing.T, maxMsgSize int64, walChunkSize int64) (wal *baseW
 }
 
 func TestWALWrite(t *testing.T) {
+	t.Parallel()
+
 	// Create WAL
 	const walChunkSize = 100000
 	wal := makeTempWAL(t, maxTestMsgSize, walChunkSize)
@@ -119,6 +123,8 @@ func TestWALWrite(t *testing.T) {
 }
 
 func TestWALSearchForHeight(t *testing.T) {
+	t.Parallel()
+
 	// Create WAL
 	const numHeight, numRounds, dataSize = 100, 10000, 10
 	const walChunkSize = 100000
@@ -161,6 +167,8 @@ func TestWALSearchForHeight(t *testing.T) {
 }
 
 func TestWALPeriodicSync(t *testing.T) {
+	t.Parallel()
+
 	// Create WAL
 	const numHeight, numRounds, dataSize = 100, 10000, 10
 	const walChunkSize = 100000
@@ -172,7 +180,7 @@ func TestWALPeriodicSync(t *testing.T) {
 
 	// Is this needed?
 	wal.SetFlushInterval(walTestFlushInterval)
-	wal.SetLogger(log.TestingLogger())
+	wal.SetLogger(log.NewNoopLogger())
 
 	// Take snapshot of starting state.
 	startInfo := wal.Group().ReadGroupInfo()

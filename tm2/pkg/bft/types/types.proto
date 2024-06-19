@@ -12,158 +12,158 @@ import "google/protobuf/any.proto";
 
 // messages
 message Proposal {
-	uint32 Type = 1;
-	sint64 Height = 2;
-	sint64 Round = 3;
-	sint64 POLRound = 4;
-	BlockID BlockID = 5;
-	google.protobuf.Timestamp Timestamp = 6;
-	bytes Signature = 7;
+	uint32 type = 1 [json_name = "Type"];
+	sint64 height = 2;
+	sint64 round = 3;
+	sint64 pol_round = 4;
+	BlockID block_id = 5;
+	google.protobuf.Timestamp timestamp = 6;
+	bytes signature = 7;
 }
 
 message Block {
-	Header Header = 1;
-	Data Data = 2;
-	Commit LastCommit = 3;
+	Header header = 1;
+	Data data = 2;
+	Commit last_commit = 3;
 }
 
 message Header {
-	string Version = 1;
-	string ChainID = 2;
-	sint64 Height = 3;
-	google.protobuf.Timestamp Time = 4;
-	sint64 NumTxs = 5;
-	sint64 TotalTxs = 6;
-	string AppVersion = 7;
-	BlockID LastBlockID = 8;
-	bytes LastCommitHash = 9;
-	bytes DataHash = 10;
-	bytes ValidatorsHash = 11;
-	bytes NextValidatorsHash = 12;
-	bytes ConsensusHash = 13;
-	bytes AppHash = 14;
-	bytes LastResultsHash = 15;
-	string ProposerAddress = 16;
+	string version = 1;
+	string chain_id = 2;
+	sint64 height = 3;
+	google.protobuf.Timestamp time = 4;
+	sint64 num_txs = 5;
+	sint64 total_txs = 6;
+	string app_version = 7;
+	BlockID last_block_id = 8;
+	bytes last_commit_hash = 9;
+	bytes data_hash = 10;
+	bytes validators_hash = 11;
+	bytes next_validators_hash = 12;
+	bytes consensus_hash = 13;
+	bytes app_hash = 14;
+	bytes last_results_hash = 15;
+	string proposer_address = 16;
 }
 
 message Data {
-	repeated bytes Txs = 1;
+	repeated bytes txs = 1;
 }
 
 message Commit {
-	BlockID BlockID = 1;
-	repeated CommitSig Precommits = 2;
+	BlockID block_id = 1;
+	repeated CommitSig precommits = 2;
 }
 
 message BlockID {
-	bytes Hash = 1;
-	PartSetHeader PartsHeader = 2;
+	bytes hash = 1;
+	PartSetHeader parts_header = 2 [json_name = "parts"];
 }
 
 message CommitSig {
-	uint32 Type = 1;
-	sint64 Height = 2;
-	sint64 Round = 3;
-	BlockID BlockID = 4;
-	google.protobuf.Timestamp Timestamp = 5;
-	string ValidatorAddress = 6;
-	sint64 ValidatorIndex = 7;
-	bytes Signature = 8;
+	uint32 type = 1;
+	sint64 height = 2;
+	sint64 round = 3;
+	BlockID block_id = 4;
+	google.protobuf.Timestamp timestamp = 5;
+	string validator_address = 6;
+	sint64 validator_index = 7;
+	bytes signature = 8;
 }
 
 message Vote {
-	uint32 Type = 1;
-	sint64 Height = 2;
-	sint64 Round = 3;
-	BlockID BlockID = 4;
-	google.protobuf.Timestamp Timestamp = 5;
-	string ValidatorAddress = 6;
-	sint64 ValidatorIndex = 7;
-	bytes Signature = 8;
+	uint32 type = 1;
+	sint64 height = 2;
+	sint64 round = 3;
+	BlockID block_id = 4;
+	google.protobuf.Timestamp timestamp = 5;
+	string validator_address = 6;
+	sint64 validator_index = 7;
+	bytes signature = 8;
 }
 
 message Part {
-	sint64 Index = 1;
-	bytes Bytes = 2;
-	SimpleProof Proof = 3;
+	sint64 index = 1;
+	bytes bytes = 2;
+	SimpleProof proof = 3;
 }
 
 message PartSet {
 }
 
 message PartSetHeader {
-	sint64 Total = 1;
-	bytes Hash = 2;
+	sint64 total = 1;
+	bytes hash = 2;
 }
 
 message Validator {
-	string Address = 1;
-	google.protobuf.Any PubKey = 2;
-	sint64 VotingPower = 3;
-	sint64 ProposerPriority = 4;
+	string address = 1;
+	google.protobuf.Any pub_key = 2;
+	sint64 voting_power = 3;
+	sint64 proposer_priority = 4;
 }
 
 message ValidatorSet {
-	repeated Validator Validators = 1;
-	Validator Proposer = 2;
+	repeated Validator validators = 1;
+	Validator proposer = 2;
 }
 
 message EventNewBlock {
-	Block Block = 1;
-	abci.ResponseBeginBlock ResultBeginBlock = 2;
-	abci.ResponseEndBlock ResultEndBlock = 3;
+	Block block = 1;
+	abci.ResponseBeginBlock result_begin_block = 2;
+	abci.ResponseEndBlock result_end_block = 3;
 }
 
 message EventNewBlockHeader {
-	Header Header = 1;
-	abci.ResponseBeginBlock ResultBeginBlock = 2;
-	abci.ResponseEndBlock ResultEndBlock = 3;
+	Header header = 1;
+	abci.ResponseBeginBlock result_begin_block = 2;
+	abci.ResponseEndBlock result_end_block = 3;
 }
 
 message EventTx {
-	TxResult Result = 1;
+	TxResult result = 1;
 }
 
 message EventVote {
-	Vote Vote = 1;
+	Vote vote = 1;
 }
 
 message EventString {
-	string Value = 1;
+	string value = 1;
 }
 
 message EventValidatorSetUpdates {
-	repeated abci.ValidatorUpdate ValidatorUpdates = 1;
+	repeated abci.ValidatorUpdate validator_updates = 1;
 }
 
 message DuplicateVoteEvidence {
-	google.protobuf.Any PubKey = 1;
-	Vote VoteA = 2;
-	Vote VoteB = 3;
+	google.protobuf.Any pub_key = 1 [json_name = "PubKey"];
+	Vote vote_a = 2 [json_name = "VoteA"];
+	Vote vote_b = 3 [json_name = "VoteB"];
 }
 
 message MockGoodEvidence {
-	sint64 Height = 1;
-	string Address = 2;
+	sint64 height = 1 [json_name = "Height"];
+	string address = 2 [json_name = "Address"];
 }
 
 message MockRandomGoodEvidence {
-	MockGoodEvidence MockGoodEvidence = 1;
+	MockGoodEvidence mock_good_evidence = 1 [json_name = "MockGoodEvidence"];
 }
 
 message MockBadEvidence {
-	MockGoodEvidence MockGoodEvidence = 1;
+	MockGoodEvidence mock_good_evidence = 1 [json_name = "MockGoodEvidence"];
 }
 
 message TxResult {
-	sint64 Height = 1;
-	uint32 Index = 2;
-	bytes Tx = 3;
-	abci.ResponseDeliverTx Response = 4;
+	sint64 height = 1;
+	uint32 index = 2;
+	bytes tx = 3;
+	abci.ResponseDeliverTx response = 4;
 }
 
 message MockAppState {
-	string AccountOwner = 1;
+	string account_owner = 1;
 }
 
 message VoteSet {

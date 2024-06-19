@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/cockroachdb/apd"
+	"github.com/cockroachdb/apd/v3"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
@@ -43,7 +43,8 @@ func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
 
 const (
-	nilStr = "nil"
+	nilStr       = "nil"
+	undefinedStr = "undefined"
 )
 
 var (
@@ -360,7 +361,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			Index: ii,
 		}
 	}
-	bv := &TypedValue{ // heap alloc
+	bv := &TypedValue{ // heap alloc, so need to compare value rather than pointer
 		T: DataByteType,
 		V: DataByteValue{
 			Base:     av,
@@ -368,6 +369,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			ElemType: et,
 		},
 	}
+
 	return PointerValue{
 		TV:    bv,
 		Base:  av,
@@ -500,7 +502,15 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	}
 	*/
 	fields := alloc.NewStructFields(len(sv.Fields))
-	copy(fields, sv.Fields)
+
+	// Each field needs to be copied individually to ensure that
+	// value fields are copied as such, even though they may be represented
+	// as pointers. A good example of this would be a struct that has
+	// a field that is an array. The value array is represented as a pointer.
+	for i, field := range sv.Fields {
+		fields[i] = field.Copy(alloc)
+	}
+
 	return alloc.NewStruct(fields)
 }
 
@@ -518,16 +528,30 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
-	Type     Type      // includes unbound receiver(s)
-	IsMethod bool      // is an (unbound) method
-	Source   BlockNode // for block mem allocation
-	Name     Name      // name of function/method
-	Closure  Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
-	FileName Name      // file name where declared
-	PkgPath  string
+	Type       Type      // includes unbound receiver(s)
+	IsMethod   bool      // is an (unbound) method
+	Source     BlockNode // for block mem allocation
+	Name       Name      // name of function/method
+	Closure    Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
+	FileName   Name      // file name where declared
+	PkgPath    string
+	NativePkg  string // for native bindings through NativeStore
+	NativeName Name   // not redundant with Name; this cannot be changed in userspace
 
 	body       []Stmt         // function body
 	nativeBody func(*Machine) // alternative to Body
+}
+
+func (fv *FuncValue) IsNative() bool {
+	if fv.NativePkg == "" && fv.NativeName == "" {
+		return false
+	}
+	if fv.NativePkg == "" || fv.NativeName == "" {
+		panic(fmt.Sprintf("function (%q).%s has invalid native pkg/name ((%q).%s)",
+			fv.Source.GetLocation().PkgPath, fv.Name,
+			fv.NativePkg, fv.NativeName))
+	}
+	return true
 }
 
 func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
@@ -540,6 +564,8 @@ func (fv *FuncValue) Copy(alloc *Allocator) *FuncValue {
 		Closure:    fv.Closure,
 		FileName:   fv.FileName,
 		PkgPath:    fv.PkgPath,
+		NativePkg:  fv.NativePkg,
+		NativeName: fv.NativeName,
 		body:       fv.body,
 		nativeBody: fv.nativeBody,
 	}
@@ -791,6 +817,7 @@ type PackageValue struct {
 	fBlocksMap map[Name]*Block
 }
 
+// IsRealm returns true if pv represents a realm.
 func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
@@ -999,6 +1026,28 @@ func (tv TypedValue) Copy(alloc *Allocator) (cp TypedValue) {
 	default:
 		cp = tv
 	}
+	return
+}
+
+// unrefCopy makes a copy of the underlying value in the case of reference values.
+// It copies other values as expected using the normal Copy method.
+func (tv TypedValue) unrefCopy(alloc *Allocator, store Store) (cp TypedValue) {
+	switch tv.V.(type) {
+	case RefValue:
+		cp.T = tv.T
+		refObject := tv.GetFirstObject(store)
+		switch refObjectValue := refObject.(type) {
+		case *ArrayValue:
+			cp.V = refObjectValue.Copy(alloc)
+		case *StructValue:
+			cp.V = refObjectValue.Copy(alloc)
+		default:
+			cp = tv
+		}
+	default:
+		cp = tv.Copy(alloc)
+	}
+
 	return
 }
 
@@ -1445,6 +1494,88 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	return tv.V.(BigdecValue).V
 }
 
+// returns true if tv is zero
+func (tv *TypedValue) isZero() bool {
+	if tv.T == nil {
+		panic("type should not be nil")
+	}
+	switch tv.T.Kind() {
+	case IntKind:
+		v := tv.GetInt()
+		if v == 0 {
+			return true
+		}
+	case Int8Kind:
+		v := tv.GetInt8()
+		if v == 0 {
+			return true
+		}
+	case Int16Kind:
+		v := tv.GetInt16()
+		if v == 0 {
+			return true
+		}
+	case Int32Kind:
+		v := tv.GetInt32()
+		if v == 0 {
+			return true
+		}
+	case Int64Kind:
+		v := tv.GetInt64()
+		if v == 0 {
+			return true
+		}
+	case UintKind:
+		v := tv.GetUint()
+		if v == 0 {
+			return true
+		}
+	case Uint8Kind:
+		v := tv.GetUint8()
+		if v == 0 {
+			return true
+		}
+	case Uint16Kind:
+		v := tv.GetUint16()
+		if v == 0 {
+			return true
+		}
+	case Uint32Kind:
+		v := tv.GetUint32()
+		if v == 0 {
+			return true
+		}
+	case Uint64Kind:
+		v := tv.GetUint64()
+		if v == 0 {
+			return true
+		}
+	case Float32Kind:
+		v := tv.GetFloat32()
+		if v == 0 {
+			return true
+		}
+	case Float64Kind:
+		v := tv.GetFloat64()
+		if v == 0 {
+			return true
+		}
+	case BigintKind:
+		v := tv.GetBigInt()
+		if v.Sign() == 0 {
+			return true
+		}
+	case BigdecKind:
+		v := tv.GetBigDec()
+		if v.Sign() == 0 {
+			return true
+		}
+	default:
+		panic("not numeric")
+	}
+	return false
+}
+
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	// Special case when nil: has no separator.
 	if tv.T == nil {
@@ -1495,8 +1626,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		bz = append(bz, '{')
 		for i := 0; i < sl; i++ {
 			fv := fillValueTV(store, &sv.Fields[i])
-			ft := bt.Fields[i]
-			omitTypes := ft.Elem().Kind() != InterfaceKind
+			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
 			bz = append(bz, fv.ComputeMapKey(store, omitTypes)...)
 			if i != sl-1 {
 				bz = append(bz, ',')
@@ -2236,7 +2366,7 @@ func (b *Block) StringIndented(indent string) string {
 	if len(source) > 32 {
 		source = source[:32] + "..."
 	}
-	lines := []string{}
+	lines := make([]string, 0, 3)
 	lines = append(lines,
 		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
 			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
@@ -2296,7 +2426,7 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if path.IsBlockBlankPath() {
 		if debug {
-			if path.Name != "_" {
+			if path.Name != blankIdentifier {
 				panic(fmt.Sprintf(
 					"zero value path is reserved for \"_\", but got %s",
 					path.Name))
@@ -2312,12 +2442,8 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	// the generation for uverse is 0.  If path.Depth is
 	// 0, it implies that b == uverse, and the condition
 	// would fail as if it were 1.
-	i := uint8(1)
-LOOP:
-	if i < path.Depth {
+	for i := uint8(1); i < path.Depth; i++ {
 		b = b.GetParent(store)
-		i++
-		goto LOOP
 	}
 	return b.GetPointerToInt(store, int(path.Index))
 }
@@ -2490,7 +2616,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			cv.Base = base
 			switch cb := base.(type) {
 			case *ArrayValue:
-				et := baseOf(tv.T).(*ArrayType).Elt
+				et := baseOf(tv.T).(*PointerType).Elt
 				epv := cb.GetPointerAtIndexInt2(store, cv.Index, et)
 				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
 			case *StructValue:

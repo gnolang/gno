@@ -7,7 +7,7 @@ import (
 	"github.com/gdamore/tcell/v2"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Page
 
 // A Page has renderable Elem(ents).
@@ -389,7 +389,7 @@ func (pg *Page) DecCursor(isVertical bool) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // TextElem
 
 type TextElem struct {
@@ -474,8 +474,6 @@ func (tel *TextElem) Render() (updated bool) {
 	return true
 }
 
-var ctr = 0
-
 func (tel *TextElem) Draw(offset Coord, view View) {
 	minX, maxX, minY, maxY := computeIntersection(tel.Size, offset, view.Bounds)
 	for y := minY; y < maxY; y++ {
@@ -494,7 +492,7 @@ func (tel *TextElem) ProcessEventKey(ev *EventKey) bool {
 	return false // TODO: clipboard.
 }
 
-//----------------------------------------
+// ----------------------------------------
 // misc.
 
 type Color = tcell.Color
@@ -728,7 +726,7 @@ func (tt *Attrs) Merge(ot *Attrs) {
 	tt.Other = ot.Other // TODO merge by key.
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AttrFlags
 
 // NOTE: AttrFlags are merged with a simple or-assign op.
@@ -752,7 +750,7 @@ type KVPair struct {
 	Value interface{}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // computeIntersection()
 
 // els: element size
@@ -812,7 +810,7 @@ func computeIntersection(els Size, elo Coord, vws Size) (minX, maxX, minY, maxY 
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // Misc simple types
 
 type Padding struct {

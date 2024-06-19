@@ -10,6 +10,8 @@ import (
 )
 
 func TestABCIResults(t *testing.T) {
+	t.Parallel()
+
 	a := ABCIResult{Error: nil, Data: nil}
 	b := ABCIResult{Error: nil, Data: []byte{}}
 	c := ABCIResult{Error: nil, Data: []byte("one")}
@@ -46,6 +48,8 @@ func TestABCIResults(t *testing.T) {
 }
 
 func TestABCIResultsBytes(t *testing.T) {
+	t.Parallel()
+
 	results := NewResults([]abci.ResponseDeliverTx{
 		{ResponseBase: abci.ResponseBase{Error: nil, Data: []byte{}}},
 		{ResponseBase: abci.ResponseBase{Error: nil, Data: []byte("one")}},

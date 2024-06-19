@@ -5,7 +5,7 @@ import "std"
 const zeroAddress = std.Address("")
 
 func checkIsValidAddress(addr std.Address) error {
-	if addr.String() == "" {
+	if !addr.IsValid() {
 		return ErrInvalidAddress
 	}
 	return nil

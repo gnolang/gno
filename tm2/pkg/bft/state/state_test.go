@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	_ "github.com/gnolang/gno/tm2/pkg/db/_all"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
@@ -23,12 +24,12 @@ import (
 func setupTestCase(t *testing.T) (func(t *testing.T), dbm.DB, sm.State) {
 	t.Helper()
 
-	config := cfg.ResetTestRoot("state_")
+	config, genesisFile := cfg.ResetTestRoot("state_")
 	dbType := dbm.BackendType(config.DBBackend)
 	stateDB, err := dbm.NewDB("state", dbType, config.DBDir())
 	require.NoError(t, err)
 
-	state, err := sm.LoadStateFromDBOrGenesisFile(stateDB, config.GenesisFile())
+	state, err := sm.LoadStateFromDBOrGenesisFile(stateDB, genesisFile)
 	assert.NoError(t, err, "expected no error on LoadStateFromDBOrGenesisFile")
 
 	tearDown := func(t *testing.T) {
@@ -42,6 +43,8 @@ func setupTestCase(t *testing.T) (func(t *testing.T), dbm.DB, sm.State) {
 
 // TestStateCopy tests the correct copying behaviour of State.
 func TestStateCopy(t *testing.T) {
+	t.Parallel()
+
 	t.Helper()
 
 	tearDown, _, state := setupTestCase(t)
@@ -62,6 +65,8 @@ func TestStateCopy(t *testing.T) {
 
 // TestMakeGenesisStateNilValidators tests state's consistency when genesis file's validators field is nil.
 func TestMakeGenesisStateNilValidators(t *testing.T) {
+	t.Parallel()
+
 	doc := types.GenesisDoc{
 		ChainID:    "dummy",
 		Validators: nil,
@@ -75,6 +80,8 @@ func TestMakeGenesisStateNilValidators(t *testing.T) {
 
 // TestStateSaveLoad tests saving and loading State from a db.
 func TestStateSaveLoad(t *testing.T) {
+	t.Parallel()
+
 	tearDown, stateDB, state := setupTestCase(t)
 	defer tearDown(t)
 	//nolint: vetshadow
@@ -91,6 +98,8 @@ func TestStateSaveLoad(t *testing.T) {
 
 // TestABCIResponsesSaveLoad tests saving and loading ABCIResponses.
 func TestABCIResponsesSaveLoad1(t *testing.T) {
+	t.Parallel()
+
 	tearDown, stateDB, state := setupTestCase(t)
 	defer tearDown(t)
 	//nolint: vetshadow
@@ -129,6 +138,8 @@ func TestABCIResponsesSaveLoad1(t *testing.T) {
 
 // TestResultsSaveLoad tests saving and loading ABCI results.
 func TestABCIResponsesSaveLoad2(t *testing.T) {
+	t.Parallel()
+
 	tearDown, stateDB, _ := setupTestCase(t)
 	defer tearDown(t)
 	//nolint: vetshadow
@@ -223,6 +234,8 @@ func TestABCIResponsesSaveLoad2(t *testing.T) {
 
 // TestValidatorSimpleSaveLoad tests saving and loading validators.
 func TestValidatorSimpleSaveLoad(t *testing.T) {
+	t.Parallel()
+
 	tearDown, stateDB, state := setupTestCase(t)
 	defer tearDown(t)
 	//nolint: vetshadow
@@ -256,6 +269,8 @@ func TestValidatorSimpleSaveLoad(t *testing.T) {
 
 // TestValidatorChangesSaveLoad tests saving and loading a validator set with changes.
 func TestOneValidatorChangesSaveLoad(t *testing.T) {
+	t.Parallel()
+
 	tearDown, stateDB, state := setupTestCase(t)
 	defer tearDown(t)
 
@@ -309,6 +324,8 @@ func TestOneValidatorChangesSaveLoad(t *testing.T) {
 }
 
 func TestProposerFrequency(t *testing.T) {
+	t.Parallel()
+
 	// some explicit test cases
 	testCases := []struct {
 		powers []int64
@@ -432,6 +449,8 @@ func testProposerFreq(t *testing.T, caseNum int, valSet *types.ValidatorSet) {
 // TestProposerPriorityDoesNotGetResetToZero assert that we preserve accum when calling updateState
 // see https://github.com/tendermint/classic/issues/2718
 func TestProposerPriorityDoesNotGetResetToZero(t *testing.T) {
+	t.Parallel()
+
 	tearDown, _, state := setupTestCase(t)
 	defer tearDown(t)
 	val1VotingPower := int64(10)
@@ -534,6 +553,8 @@ func TestProposerPriorityDoesNotGetResetToZero(t *testing.T) {
 }
 
 func TestProposerPriorityProposerAlternates(t *testing.T) {
+	t.Parallel()
+
 	// Regression test that would fail if the inner workings of
 	// IncrementProposerPriority change.
 	// Additionally, make sure that same power validators alternate if both
@@ -670,6 +691,8 @@ func TestProposerPriorityProposerAlternates(t *testing.T) {
 }
 
 func TestLargeGenesisValidator(t *testing.T) {
+	t.Parallel()
+
 	tearDown, _, state := setupTestCase(t)
 	defer tearDown(t)
 
@@ -822,6 +845,8 @@ func TestLargeGenesisValidator(t *testing.T) {
 }
 
 func TestStoreLoadValidatorsIncrementsProposerPriority(t *testing.T) {
+	t.Parallel()
+
 	const valSetSize = 2
 	tearDown, stateDB, state := setupTestCase(t)
 	defer tearDown(t)
@@ -845,6 +870,8 @@ func TestStoreLoadValidatorsIncrementsProposerPriority(t *testing.T) {
 // TestValidatorChangesSaveLoad tests saving and loading a validator set with
 // changes.
 func TestManyValidatorChangesSaveLoad(t *testing.T) {
+	t.Parallel()
+
 	const valSetSize = 7
 	tearDown, stateDB, state := setupTestCase(t)
 	defer tearDown(t)
@@ -890,6 +917,8 @@ func TestManyValidatorChangesSaveLoad(t *testing.T) {
 }
 
 func TestStateMakeBlock(t *testing.T) {
+	t.Parallel()
+
 	tearDown, _, state := setupTestCase(t)
 	defer tearDown(t)
 
@@ -905,6 +934,8 @@ func TestStateMakeBlock(t *testing.T) {
 // TestConsensusParamsChangesSaveLoad tests saving and loading consensus params
 // with changes.
 func TestConsensusParamsChangesSaveLoad(t *testing.T) {
+	t.Parallel()
+
 	tearDown, stateDB, state := setupTestCase(t)
 	defer tearDown(t)
 
@@ -964,6 +995,8 @@ func TestConsensusParamsChangesSaveLoad(t *testing.T) {
 }
 
 func TestApplyUpdates(t *testing.T) {
+	t.Parallel()
+
 	initParams := makeConsensusParams(1, 2, 3, 3, 4)
 
 	cases := [...]struct {

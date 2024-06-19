@@ -58,6 +58,13 @@ func (m *Machine) doOpCall() {
 	clo := fr.Func.GetClosure(m.Store)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
 	m.PushBlock(b)
+	if fv.nativeBody == nil && fv.NativePkg != "" {
+		// native function, unmarshaled so doesn't have nativeBody yet
+		fv.nativeBody = m.Store.GetNative(fv.NativePkg, fv.NativeName)
+		if fv.nativeBody == nil {
+			panic(fmt.Sprintf("natively defined function (%q).%s could not be resolved", fv.NativePkg, fv.NativeName))
+		}
+	}
 	if fv.nativeBody == nil {
 		fbody := fv.GetBodyFromSource(m.Store)
 		if len(ft.Results) == 0 {
@@ -154,7 +161,11 @@ func (m *Machine) doOpCall() {
 		}
 		// TODO: some more pt <> pv.Type
 		// reconciliations/conversions necessary.
-		b.Values[i] = pv
+
+		// Make a copy so that a reference to the argument isn't used
+		// in cases where the non-primitive value type is represented
+		// as a pointer, *StructValue, for example.
+		b.Values[i] = pv.Copy(m.Alloc)
 	}
 }
 
@@ -236,7 +247,7 @@ func (m *Machine) doOpReturnFromBlock() {
 // deferred statements can refer to results with name
 // expressions.
 func (m *Machine) doOpReturnToBlock() {
-	cfr := m.LastCallFrame(1)
+	cfr := m.MustLastCallFrame(1)
 	ft := cfr.Func.GetType(m.Store)
 	numParams := len(ft.Params)
 	numResults := len(ft.Results)
@@ -249,10 +260,11 @@ func (m *Machine) doOpReturnToBlock() {
 }
 
 func (m *Machine) doOpReturnCallDefers() {
-	cfr := m.LastCallFrame(1)
+	cfr := m.MustLastCallFrame(1)
 	dfr, ok := cfr.PopDefer()
 	if !ok {
 		// Done with defers.
+		m.DeferPanicScope = 0
 		m.ForcePopOp()
 		if len(m.Exceptions) > 0 {
 			// In a state of panic (not return).
@@ -261,6 +273,9 @@ func (m *Machine) doOpReturnCallDefers() {
 		}
 		return
 	}
+
+	m.DeferPanicScope = dfr.PanicScope
+
 	// Call last deferred call.
 	// NOTE: the following logic is largely duplicated in doOpCall().
 	// Convert if variadic argument.
@@ -336,7 +351,7 @@ func (m *Machine) doOpReturnCallDefers() {
 
 func (m *Machine) doOpDefer() {
 	lb := m.LastBlock()
-	cfr := m.LastCallFrame(1)
+	cfr := m.MustLastCallFrame(1)
 	ds := m.PopStmt().(*DeferStmt)
 	// Pop arguments
 	numArgs := len(ds.Call.Args)
@@ -350,10 +365,11 @@ func (m *Machine) doOpDefer() {
 	case *FuncValue:
 		// TODO what if value is NativeValue?
 		cfr.PushDefer(Defer{
-			Func:   cv,
-			Args:   args,
-			Source: ds,
-			Parent: lb,
+			Func:       cv,
+			Args:       args,
+			Source:     ds,
+			Parent:     lb,
+			PanicScope: m.PanicScope,
 		})
 	case *BoundMethodValue:
 		if debug {
@@ -370,17 +386,19 @@ func (m *Machine) doOpDefer() {
 		args2[0] = cv.Receiver
 		copy(args2[1:], args)
 		cfr.PushDefer(Defer{
-			Func:   cv.Func,
-			Args:   args2,
-			Source: ds,
-			Parent: lb,
+			Func:       cv.Func,
+			Args:       args2,
+			Source:     ds,
+			Parent:     lb,
+			PanicScope: m.PanicScope,
 		})
 	case *NativeValue:
 		cfr.PushDefer(Defer{
-			GoFunc: cv,
-			Args:   args,
-			Source: ds,
-			Parent: lb,
+			GoFunc:     cv,
+			Args:       args,
+			Source:     ds,
+			Parent:     lb,
+			PanicScope: m.PanicScope,
 		})
 	default:
 		panic("should not happen")
@@ -399,6 +417,7 @@ func (m *Machine) doOpPanic2() {
 		// Recovered from panic
 		m.PushOp(OpReturnFromBlock)
 		m.PushOp(OpReturnCallDefers)
+		m.PanicScope = 0
 	} else {
 		// Keep panicking
 		last := m.PopUntilLastCallFrame()

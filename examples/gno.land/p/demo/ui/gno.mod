@@ -1,1 +1,1 @@
-module "gno.land/p/demo/ui"
+module gno.land/p/demo/ui

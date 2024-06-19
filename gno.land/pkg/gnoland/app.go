@@ -2,30 +2,64 @@ package gnoland
 
 import (
 	"fmt"
+	"log/slog"
 	"path/filepath"
-	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
-	"github.com/gnolang/gno/tm2/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
+
+	// Only goleveldb is supported for now.
+	_ "github.com/gnolang/gno/tm2/pkg/db/_tags"
+	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
 
+type AppOptions struct {
+	DB dbm.DB
+	// `gnoRootDir` should point to the local location of the gno repository.
+	// It serves as the gno equivalent of GOROOT.
+	GnoRootDir       string
+	GenesisTxHandler GenesisTxHandler
+	Logger           *slog.Logger
+	MaxCycles        int64
+}
+
+func NewAppOptions() *AppOptions {
+	return &AppOptions{
+		GenesisTxHandler: PanicOnFailingTxHandler,
+		Logger:           log.NewNoopLogger(),
+		DB:               memdb.NewMemDB(),
+		GnoRootDir:       gnoenv.RootDir(),
+	}
+}
+
+func (c *AppOptions) validate() error {
+	if c.Logger == nil {
+		return fmt.Errorf("no logger provided")
+	}
+
+	if c.DB == nil {
+		return fmt.Errorf("no db provided")
+	}
+
+	return nil
+}
+
 // NewApp creates the GnoLand application.
-func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger, maxCycles int64) (abci.Application, error) {
-	// Get main DB.
-	db, err := dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(rootDir, "data"))
-	if err != nil {
-		return nil, fmt.Errorf("error initializing database %q using path %q: %w", dbm.GoLevelDBBackend, rootDir, err)
+func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
+	if err := cfg.validate(); err != nil {
+		return nil, err
 	}
 
 	// Capabilities keys.
@@ -33,21 +67,24 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger, maxCy
 	baseKey := store.NewStoreKey("base")
 
 	// Create BaseApp.
-	baseApp := sdk.NewBaseApp("gnoland", logger, db, baseKey, mainKey)
+	// TODO: Add a consensus based min gas prices for the node, by default it does not check
+	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
 	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
-	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, db)
-	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
+	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
-	stdlibsDir := filepath.Join("..", "gnovm", "stdlibs")
-	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, maxCycles)
+
+	// XXX: Embed this ?
+	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
+	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
 
 	// Set InitChainer
-	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, skipFailingGenesisTxs))
+	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, cfg.GenesisTxHandler))
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
@@ -88,56 +125,73 @@ func NewApp(rootDir string, skipFailingGenesisTxs bool, logger log.Logger, maxCy
 	return baseApp, nil
 }
 
+// NewApp creates the GnoLand application.
+func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger, maxCycles int64) (abci.Application, error) {
+	var err error
+
+	cfg := NewAppOptions()
+	if skipFailingGenesisTxs {
+		cfg.GenesisTxHandler = NoopGenesisTxHandler
+	}
+
+	// Get main DB.
+	cfg.DB, err = dbm.NewDB("gnolang", dbm.GoLevelDBBackend, filepath.Join(dataRootDir, config.DefaultDBDir))
+	if err != nil {
+		return nil, fmt.Errorf("error initializing database %q using path %q: %w", dbm.GoLevelDBBackend, dataRootDir, err)
+	}
+
+	cfg.Logger = logger
+	return NewAppWithOptions(cfg)
+}
+
+type GenesisTxHandler func(ctx sdk.Context, tx std.Tx, res sdk.Result)
+
+func NoopGenesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {}
+
+func PanicOnFailingTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
+	if res.IsErr() {
+		panic(res.Log)
+	}
+}
+
 // InitChainer returns a function that can initialize the chain with genesis.
-func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, skipFailingGenesisTxs bool) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
+func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, resHandler GenesisTxHandler) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
-		// Get genesis state.
-		genState := req.AppState.(GnoGenesisState)
-		// Parse and set genesis state balances.
-		for _, bal := range genState.Balances {
-			addr, coins := parseBalance(bal)
-			acc := acctKpr.NewAccountWithAddress(ctx, addr)
-			acctKpr.SetAccount(ctx, acc)
-			err := bankKpr.SetCoins(ctx, addr, coins)
-			if err != nil {
-				panic(err)
-			}
-		}
-		// Run genesis txs.
-		for i, tx := range genState.Txs {
-			res := baseApp.Deliver(tx)
-			if res.IsErr() {
-				fmt.Println("ERROR LOG:", res.Log)
-				fmt.Println("#", i, string(amino.MustMarshalJSON(tx)))
-				// NOTE: comment out to ignore.
-				if !skipFailingGenesisTxs {
-					panic(res.Error)
+		if req.AppState != nil {
+			// Get genesis state
+			genState := req.AppState.(GnoGenesisState)
+
+			// Parse and set genesis state balances
+			for _, bal := range genState.Balances {
+				acc := acctKpr.NewAccountWithAddress(ctx, bal.Address)
+				acctKpr.SetAccount(ctx, acc)
+				err := bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
+				if err != nil {
+					panic(err)
 				}
-			} else {
-				fmt.Println("SUCCESS:", string(amino.MustMarshalJSON(tx)))
+			}
+
+			// Run genesis txs
+			for _, tx := range genState.Txs {
+				res := baseApp.Deliver(tx)
+				if res.IsErr() {
+					ctx.Logger().Error(
+						"Unable to deliver genesis tx",
+						"log", res.Log,
+						"error", res.Error,
+						"gas-used", res.GasUsed,
+					)
+				}
+
+				resHandler(ctx, tx, res)
 			}
 		}
+
 		// Done!
 		return abci.ResponseInitChain{
 			Validators: req.Validators,
 		}
 	}
-}
-
-func parseBalance(bal string) (crypto.Address, std.Coins) {
-	parts := strings.Split(bal, "=")
-	if len(parts) != 2 {
-		panic(fmt.Sprintf("invalid balance string %s", bal))
-	}
-	addr, err := crypto.AddressFromBech32(parts[0])
-	if err != nil {
-		panic(fmt.Sprintf("invalid balance addr %s (%v)", bal, err))
-	}
-	coins, err := std.ParseCoins(parts[1])
-	if err != nil {
-		panic(fmt.Sprintf("invalid balance coins %s (%v)", bal, err))
-	}
-	return addr, coins
 }
 
 // XXX not used yet.

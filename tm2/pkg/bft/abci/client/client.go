@@ -7,11 +7,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
 
-const (
-	dialRetryIntervalSeconds = 3
-	echoRetryIntervalSeconds = 1
-)
-
 // Client defines an interface for an ABCI client.
 // All `Async` methods return a `ReqRes` object.
 // All `Sync` methods return the appropriate protobuf ResponseXxx struct and an error.
@@ -48,11 +43,11 @@ type Client interface {
 	EndBlockSync(abci.RequestEndBlock) (abci.ResponseEndBlock, error)
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 type Callback func(abci.Request, abci.Response)
 
-//----------------------------------------
+// ----------------------------------------
 
 type ReqRes struct {
 	abci.Request

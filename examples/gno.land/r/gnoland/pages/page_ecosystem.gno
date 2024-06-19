@@ -1,0 +1,45 @@
+package gnopages
+
+func init() {
+	var (
+		path  = "ecosystem"
+		title = "Discover Gno.land Ecosystem Projects & Initiatives"
+		// XXX: description = "Dive further into the Gno.land ecosystem and discover the core infrastructure, projects, smart contracts, and tooling we’re building."
+		body = `
+### [Gno Playground](https://play.gno.land)
+
+Gno Playground is a simple web interface that lets you write, test, and experiment with your Gno code to improve your 
+understanding of the Gno language. You can share your code, run unit tests, deploy your realms and packages, and execute
+functions in your code using the repo. 
+
+Visit the playground at [play.gno.land](https://play.gno.land)!
+
+### [Gnoscan](https://gnoscan.io)
+
+Developed by the Onbloc team, Gnoscan is Gno.land’s blockchain explorer. Anyone can use Gnoscan to easily find
+information that resides on the Gno.land blockchain, such as wallet addresses, TX hashes, blocks, and contracts. 
+Gnoscan makes our on-chain data easy to read and intuitive to discover.
+
+Explore the Gno.land blockchain at [gnoscan.io](https://gnoscan.io)!
+
+### Adena
+
+Adena is a user-friendly non-custodial wallet for Gno.land. Open-source and developed by Onbloc, Adena allows gnomes to 
+interact easily with the chain. With an emphasis on UX, Adena is built to handle millions of realms and tokens with a
+high-quality interface, support for NFTs and custom tokens, and seamless integration.
+
+### Gnoswap
+
+Gnoswap is currently under development and led by the Onbloc team. Gnoswap will be the first DEX on Gno.land and is an 
+automated market maker (AMM) protocol written in Gno that allows for permissionless token exchanges on the platform.
+
+### Flippando
+
+Flippando is a simple on-chain memory game, ported from Solidity to Gno, which starts with an empty matrix to flip tiles
+on to see what’s underneath. If the tiles match, they remain uncovered; if not, they are briefly shown, and the player 
+must memorize their colors until the entire matrix is uncovered. The end result can be minted as an NFT, which can later
+be assembled into bigger, more complex NFTs, creating a digital “painting” with the uncovered tiles.
+`
+	)
+	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:23Z", nil, nil)
+}

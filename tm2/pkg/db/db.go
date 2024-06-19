@@ -2,53 +2,74 @@ package db
 
 import (
 	"fmt"
-	"strings"
+	"slices"
+
+	"golang.org/x/exp/maps"
 )
 
 type BackendType string
 
+func (b BackendType) String() string {
+	return string(b)
+}
+
 // These are valid backend types.
+//
+// The backends themselves must be imported to be used (ie. using the blank
+// import, `import _ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"`). To allow
+// for end-user customization at build time, the package
+// "github.com/gnolang/gno/tm2/pkg/db/_tags" can be imported -- this package
+// will import each database depending on whether its build tag is provided.
+//
+// This can be used in conjunction with specific to provide defaults, for instance:
+//
+//	package main
+//
+//	import (
+//		"github.com/gnolang/gno/tm2/pkg/db"
+//		_ "github.com/gnolang/gno/tm2/pkg/db/_tags" // allow user to customize with build tags
+//		_ "github.com/gnolang/gno/tm2/pkg/db/memdb" // always support memdb
+//	)
+//
+//	func main() {
+//		db.NewDB("mydb", db.BackendType(userProvidedBackend), "./data")
+//	}
 const (
 	// GoLevelDBBackend represents goleveldb (github.com/syndtr/goleveldb - most
 	// popular implementation)
-	//   - pure go
 	//   - stable
 	GoLevelDBBackend BackendType = "goleveldb"
-	// CLevelDBBackend represents cleveldb (uses levigo wrapper)
-	//   - fast
-	//   - requires gcc
-	//   - use cleveldb build tag (go build -tags cleveldb)
-	CLevelDBBackend BackendType = "cleveldb"
-	// MemDBBackend represents in-memoty key value store, which is mostly used
+	// MemDBBackend represents in-memory key value store, which is mostly used
 	// for testing.
 	MemDBBackend BackendType = "memdb"
-	// FSDBBackend represents filesystem database
-	//	 - EXPERIMENTAL
-	//   - slow
-	FSDBBackend BackendType = "fsdb"
 	// BoltDBBackend represents bolt (uses etcd's fork of bolt -
 	// go.etcd.io/bbolt)
 	//   - EXPERIMENTAL
 	//   - may be faster is some use-cases (random reads - indexer)
-	//   - use boltdb build tag (go build -tags boltdb)
 	BoltDBBackend BackendType = "boltdb"
-	// RocksDBBackend represents rocksdb (uses github.com/tecbot/gorocksdb)
-	//   - EXPERIMENTAL
-	//   - requires gcc
-	//   - use rocksdb build tag (go build -tags rocksdb)
-	RocksDBBackend BackendType = "rocksdb"
 )
 
 type dbCreator func(name string, dir string) (DB, error)
 
 var backends = map[BackendType]dbCreator{}
 
-func registerDBCreator(backend BackendType, creator dbCreator, force bool) {
+// InternalRegisterDBCreator is used by the init functions of imported databases
+// to register their own dbCreators.
+//
+// This function is not meant for usage outside of db/.
+func InternalRegisterDBCreator(backend BackendType, creator dbCreator, force bool) {
 	_, ok := backends[backend]
 	if !force && ok {
 		return
 	}
 	backends[backend] = creator
+}
+
+// BackendList returns a list of available db backends. The list is sorted.
+func BackendList() []BackendType {
+	keys := maps.Keys(backends)
+	slices.Sort(keys)
+	return keys
 }
 
 // NewDB creates a new database of type backend with the given name.
@@ -58,11 +79,8 @@ func registerDBCreator(backend BackendType, creator dbCreator, force bool) {
 func NewDB(name string, backend BackendType, dir string) (DB, error) {
 	dbCreator, ok := backends[backend]
 	if !ok {
-		var keys []string
-		for k := range backends {
-			keys = append(keys, string(k))
-		}
-		return nil, fmt.Errorf("unknown db_backend %s. Expected either %s", backend, strings.Join(keys, " or "))
+		keys := BackendList()
+		return nil, fmt.Errorf("unknown db_backend %s. Expected one of %v", backend, keys)
 	}
 
 	db, err := dbCreator(name, dir)

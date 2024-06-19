@@ -10,6 +10,8 @@ import (
 )
 
 func TestPrivKeySecp256k1SignVerify(t *testing.T) {
+	t.Parallel()
+
 	msg := []byte("A.1.2 ECC Key Pair Generation by Testing Candidates")
 	priv := GenPrivKey()
 	tests := []struct {
@@ -23,6 +25,8 @@ func TestPrivKeySecp256k1SignVerify(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			got, err := tt.privKey.Sign(msg)
 			if tt.wantSignErr {
 				require.Error(t, err)

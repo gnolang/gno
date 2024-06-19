@@ -11,4 +11,4 @@ func main() {
 }
 
 // Output:
-// struct{(12 uint16)}
+// (struct{(12 uint16)} main.T)

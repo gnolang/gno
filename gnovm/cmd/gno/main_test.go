@@ -9,11 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
-func TestMain_Gnodev(t *testing.T) {
+func TestMain_Gno(t *testing.T) {
 	tc := []testMainCase{
 		{args: []string{""}, errShouldBe: "flag: help requested"},
 	}
@@ -89,17 +90,17 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 				if r := recover(); r != nil {
 					output := fmt.Sprintf("%v", r)
 					t.Log("recover", output)
-					require.False(t, recoverShouldBeEmpty, "should panic")
+					require.False(t, recoverShouldBeEmpty, "should not panic")
 					require.True(t, errShouldBeEmpty, "should not return an error")
 					if test.recoverShouldContain != "" {
-						require.Contains(t, output, test.recoverShouldContain, "recover should contain")
+						require.Regexpf(t, test.recoverShouldContain, output, "recover should contain")
 					}
 					if test.recoverShouldBe != "" {
 						require.Equal(t, test.recoverShouldBe, output, "recover should be")
 					}
 					checkOutputs(t)
 				} else {
-					require.True(t, recoverShouldBeEmpty, "should not panic")
+					require.True(t, recoverShouldBeEmpty, "should panic")
 				}
 			}()
 

@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -10,62 +11,67 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
 
-type exportCfg struct {
-	rootCfg *baseCfg
+type ExportCfg struct {
+	RootCfg *BaseCfg
 
-	nameOrBech32 string
-	outputPath   string
-	unsafe       bool
+	NameOrBech32 string
+	OutputPath   string
+	Unsafe       bool
 }
 
-func newExportCmd(rootCfg *baseCfg) *commands.Command {
-	cfg := &exportCfg{
-		rootCfg: rootCfg,
+func NewExportCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cfg := &ExportCfg{
+		RootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "export",
 			ShortUsage: "export [flags]",
-			ShortHelp:  "Exports private key armor",
+			ShortHelp:  "exports private key armor",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execExport(cfg, commands.NewDefaultIO())
+			return execExport(cfg, io)
 		},
 	)
 }
 
-func (c *exportCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *ExportCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.nameOrBech32,
+		&c.NameOrBech32,
 		"key",
 		"",
-		"Name or Bech32 address of the private key",
+		"name or bech32 address of the private key",
 	)
 
 	fs.StringVar(
-		&c.outputPath,
+		&c.OutputPath,
 		"output-path",
 		"",
-		"The desired output path for the armor file",
+		"the desired output path for the armor file",
 	)
 
 	fs.BoolVar(
-		&c.unsafe,
+		&c.Unsafe,
 		"unsafe",
 		false,
-		"Export the private key armor as unencrypted",
+		"export the private key armor as unencrypted",
 	)
 }
 
-func execExport(cfg *exportCfg, io *commands.IO) error {
+func execExport(cfg *ExportCfg, io commands.IO) error {
+	// check keyname
+	if cfg.NameOrBech32 == "" {
+		return errors.New("key to be exported shouldn't be empty")
+	}
+
 	// Create a new instance of the key-base
-	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	if err != nil {
 		return fmt.Errorf(
 			"unable to create a key base from directory %s, %w",
-			cfg.rootCfg.Home,
+			cfg.RootCfg.Home,
 			err,
 		)
 	}
@@ -73,7 +79,7 @@ func execExport(cfg *exportCfg, io *commands.IO) error {
 	// Get the key-base decrypt password
 	decryptPassword, err := io.GetPassword(
 		"Enter a passphrase to decrypt your private key from disk:",
-		cfg.rootCfg.InsecurePasswordStdin,
+		cfg.RootCfg.InsecurePasswordStdin,
 	)
 	if err != nil {
 		return fmt.Errorf(
@@ -87,12 +93,19 @@ func execExport(cfg *exportCfg, io *commands.IO) error {
 		exportErr error
 	)
 
-	if cfg.unsafe {
+	if cfg.Unsafe {
 		// Generate the unencrypted armor
 		armor, exportErr = kb.ExportPrivKeyUnsafe(
-			cfg.nameOrBech32,
+			cfg.NameOrBech32,
 			decryptPassword,
 		)
+
+		privk, err := kb.ExportPrivateKeyObject(cfg.NameOrBech32, decryptPassword)
+		if err != nil {
+			panic(err)
+		}
+
+		io.Printf("privk:\n%x\n", privk.Bytes())
 	} else {
 		// Get the armor encrypt password
 		encryptPassword, err := io.GetCheckPassword(
@@ -100,7 +113,7 @@ func execExport(cfg *exportCfg, io *commands.IO) error {
 				"Enter a passphrase to encrypt your private key armor:",
 				"Repeat the passphrase:",
 			},
-			cfg.rootCfg.InsecurePasswordStdin,
+			cfg.RootCfg.InsecurePasswordStdin,
 		)
 		if err != nil {
 			return fmt.Errorf(
@@ -111,7 +124,7 @@ func execExport(cfg *exportCfg, io *commands.IO) error {
 
 		// Generate the encrypted armor
 		armor, exportErr = kb.ExportPrivKey(
-			cfg.nameOrBech32,
+			cfg.NameOrBech32,
 			decryptPassword,
 			encryptPassword,
 		)
@@ -126,7 +139,7 @@ func execExport(cfg *exportCfg, io *commands.IO) error {
 
 	// Write the armor to disk
 	if err := os.WriteFile(
-		cfg.outputPath,
+		cfg.OutputPath,
 		[]byte(armor),
 		0o644,
 	); err != nil {
@@ -136,7 +149,7 @@ func execExport(cfg *exportCfg, io *commands.IO) error {
 		)
 	}
 
-	io.Printfln("Private key armor successfully outputted to %s", cfg.outputPath)
+	io.Printfln("Private key armor successfully outputted to %s", cfg.OutputPath)
 
 	return nil
 }

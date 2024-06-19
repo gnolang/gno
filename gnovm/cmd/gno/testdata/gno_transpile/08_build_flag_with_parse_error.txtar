@@ -1,0 +1,18 @@
+# Run gno transpile with -gobuild flag on file with parse error
+
+! gno transpile -gobuild .
+
+! stdout .+
+stderr '^main.gno:3:1: expected declaration, found invalid$'
+
+# no *.gen.go files are created
+! exec test -f main.gno.gen.go
+
+-- main.gno --
+package main
+
+invalid
+
+func main() {
+	var x = 1
+}

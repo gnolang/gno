@@ -5,14 +5,14 @@ import (
 	"go/ast"
 	"io"
 	"io/fs"
-	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 )
 
 func isGnoFile(f fs.DirEntry) bool {
@@ -86,9 +86,14 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 				}
 				visited[parentDir] = true
 
-				// cannot use path.Join or filepath.Join, because we need
-				// to ensure that ./ is the prefix to pass to go build.
-				pkg := "./" + parentDir
+				pkg := parentDir
+				if !filepath.IsAbs(parentDir) {
+					// cannot use path.Join or filepath.Join, because we need
+					// to ensure that ./ is the prefix to pass to go build.
+					// if not absolute.
+					pkg = "./" + parentDir
+				}
+
 				paths = append(paths, pkg)
 				return nil
 			})
@@ -100,24 +105,91 @@ func gnoPackagesFromArgs(args []string) ([]string, error) {
 	return paths, nil
 }
 
+// targetsFromPatterns returns a list of target paths that match the patterns.
+// Each pattern can represent a file or a directory, and if the pattern
+// includes "/...", the "..." is treated as a wildcard, matching any string.
+// Intended to be used by gno commands such as `gno test`.
+func targetsFromPatterns(patterns []string) ([]string, error) {
+	paths := []string{}
+	for _, p := range patterns {
+		var match func(string) bool
+		patternLookup := false
+		dirToSearch := p
+
+		// Check if the pattern includes `/...`
+		if strings.Contains(p, "/...") {
+			index := strings.Index(p, "/...")
+			if index != -1 {
+				dirToSearch = p[:index] // Extract the directory path to search
+			}
+			match = matchPattern(strings.TrimPrefix(p, "./"))
+			patternLookup = true
+		}
+
+		info, err := os.Stat(dirToSearch)
+		if err != nil {
+			return nil, fmt.Errorf("invalid file or package path: %w", err)
+		}
+
+		// If the pattern is a file or a directory
+		// without `/...`, add it to the list.
+		if !info.IsDir() || !patternLookup {
+			paths = append(paths, p)
+			continue
+		}
+
+		// the pattern is a dir containing `/...`, walk the dir recursively and
+		// look for directories containing at least one .gno file and match pattern.
+		visited := map[string]bool{} // used to run the builder only once per folder.
+		err = filepath.WalkDir(dirToSearch, func(curpath string, f fs.DirEntry, err error) error {
+			if err != nil {
+				return fmt.Errorf("%s: walk dir: %w", dirToSearch, err)
+			}
+			// Skip directories and non ".gno" files.
+			if f.IsDir() || !isGnoFile(f) {
+				return nil
+			}
+
+			parentDir := filepath.Dir(curpath)
+			if _, found := visited[parentDir]; found {
+				return nil
+			}
+
+			visited[parentDir] = true
+			if match(parentDir) {
+				paths = append(paths, parentDir)
+			}
+
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return paths, nil
+}
+
+// matchPattern(pattern)(name) reports whether
+// name matches pattern.  Pattern is a limited glob
+// pattern in which '...' means 'any string' and there
+// is no other special syntax.
+// Simplified version of go source's matchPatternInternal
+// (see $GOROOT/src/cmd/internal/pkgpattern)
+func matchPattern(pattern string) func(name string) bool {
+	re := regexp.QuoteMeta(pattern)
+	re = strings.Replace(re, `\.\.\.`, `.*`, -1)
+	// Special case: foo/... matches foo too.
+	if strings.HasSuffix(re, `/.*`) {
+		re = re[:len(re)-len(`/.*`)] + `(/.*)?`
+	}
+	reg := regexp.MustCompile(`^` + re + `$`)
+	return func(name string) bool {
+		return reg.MatchString(name)
+	}
+}
+
 func fmtDuration(d time.Duration) string {
 	return fmt.Sprintf("%.2fs", d.Seconds())
-}
-
-func guessRootDir() string {
-	cmd := exec.Command("go", "list", "-m", "-mod=mod", "-f", "{{.Dir}}", "github.com/gnolang/gno")
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		log.Fatal("can't guess --root-dir, please fill it manually.")
-	}
-	rootDir := strings.TrimSpace(string(out))
-	return rootDir
-}
-
-// makeTestGoMod creates the temporary go.mod for test
-func makeTestGoMod(path string, packageName string, goversion string) error {
-	content := fmt.Sprintf("module %s\n\ngo %s\n", packageName, goversion)
-	return os.WriteFile(path, []byte(content), 0o644)
 }
 
 // getPathsFromImportSpec derive and returns ImportPaths
@@ -125,8 +197,8 @@ func makeTestGoMod(path string, packageName string, goversion string) error {
 func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []importPath) {
 	for _, i := range importSpec {
 		path := i.Path.Value[1 : len(i.Path.Value)-1] // trim leading and trailing `"`
-		if strings.HasPrefix(path, gno.ImportPrefix) {
-			res := strings.TrimPrefix(path, gno.ImportPrefix)
+		if strings.HasPrefix(path, transpiler.ImportPrefix) {
+			res := strings.TrimPrefix(path, transpiler.ImportPrefix)
 			importPaths = append(importPaths, importPath("."+res))
 		}
 	}
@@ -135,9 +207,9 @@ func getPathsFromImportSpec(importSpec []*ast.ImportSpec) (importPaths []importP
 
 // ResolvePath joins the output dir with relative pkg path
 // e.g
-// Output Dir: Temp/gno-precompile
+// Output Dir: Temp/gno-transpile
 // Pkg Path: ../example/gno.land/p/pkg
-// Returns -> Temp/gno-precompile/example/gno.land/p/pkg
+// Returns -> Temp/gno-transpile/example/gno.land/p/pkg
 func ResolvePath(output string, path importPath) (string, error) {
 	absOutput, err := filepath.Abs(output)
 	if err != nil {
@@ -147,7 +219,7 @@ func ResolvePath(output string, path importPath) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgPath := strings.TrimPrefix(absPkgPath, guessRootDir())
+	pkgPath := strings.TrimPrefix(absPkgPath, gnoenv.RootDir())
 
 	return filepath.Join(absOutput, pkgPath), nil
 }

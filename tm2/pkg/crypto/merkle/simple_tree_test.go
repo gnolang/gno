@@ -17,6 +17,8 @@ func (tI testItem) Hash() []byte {
 }
 
 func TestSimpleProof(t *testing.T) {
+	t.Parallel()
+
 	total := 100
 
 	items := make([][]byte, total)
@@ -69,6 +71,8 @@ func TestSimpleProof(t *testing.T) {
 }
 
 func TestSimpleHashAlternatives(t *testing.T) {
+	t.Parallel()
+
 	total := 100
 
 	items := make([][]byte, total)
@@ -104,6 +108,8 @@ func BenchmarkSimpleHashAlternatives(b *testing.B) {
 }
 
 func Test_getSplitPoint(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		length int
 		want   int

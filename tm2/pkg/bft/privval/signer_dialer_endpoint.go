@@ -1,9 +1,9 @@
 package privval
 
 import (
+	"log/slog"
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
 
@@ -41,7 +41,7 @@ type SignerDialerEndpoint struct {
 // dialer and respond to any signature requests over the connection
 // using the given privVal.
 func NewSignerDialerEndpoint(
-	logger log.Logger,
+	logger *slog.Logger,
 	dialer SocketDialer,
 ) *SignerDialerEndpoint {
 	sd := &SignerDialerEndpoint{

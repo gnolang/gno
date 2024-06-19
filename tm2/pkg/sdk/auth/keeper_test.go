@@ -9,6 +9,8 @@ import (
 )
 
 func TestAccountMapperGetSet(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	addr := crypto.AddressFromPreimage([]byte("some-address"))
 
@@ -38,6 +40,8 @@ func TestAccountMapperGetSet(t *testing.T) {
 }
 
 func TestAccountMapperRemoveAccount(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	addr1 := crypto.AddressFromPreimage([]byte("addr1"))
 	addr2 := crypto.AddressFromPreimage([]byte("addr2"))

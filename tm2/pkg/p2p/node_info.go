@@ -3,6 +3,7 @@ package p2p
 import (
 	"fmt"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/state/eventstore"
 	"github.com/gnolang/gno/tm2/pkg/strings"
 	"github.com/gnolang/gno/tm2/pkg/versionset"
 )
@@ -100,7 +101,7 @@ func (info NodeInfo) Validate() error {
 	other := info.Other
 	txIndex := other.TxIndex
 	switch txIndex {
-	case "", "on", "off":
+	case "", eventstore.StatusOn, eventstore.StatusOff:
 	default:
 		return fmt.Errorf("info.Other.TxIndex should be either 'on', 'off', or empty string, got '%v'", txIndex)
 	}

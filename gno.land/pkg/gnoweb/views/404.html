@@ -1,0 +1,18 @@
+{{- define "app" -}}
+<!DOCTYPE html>
+<html>
+  <head>
+    {{ template "html_head" . }}
+    <title>404 - Not Found</title>
+  </head>
+  <body>
+    <section class="section">
+      <div class="container">
+        <p>{{.Data.title}}</p>
+        <p>{{.Data.path}}</p>
+      </div>
+    </section>
+    {{ template "analytics" .}}
+  </body>
+</html>
+{{- end -}}

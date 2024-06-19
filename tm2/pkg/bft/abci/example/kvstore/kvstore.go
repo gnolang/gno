@@ -9,6 +9,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	abciver "github.com/gnolang/gno/tm2/pkg/bft/abci/version"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
 
 var (
@@ -60,7 +61,7 @@ type KVStoreApplication struct {
 }
 
 func NewKVStoreApplication() *KVStoreApplication {
-	state := loadState(dbm.NewMemDB())
+	state := loadState(memdb.NewMemDB())
 	return &KVStoreApplication{state: state}
 }
 

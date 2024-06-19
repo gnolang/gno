@@ -50,6 +50,8 @@ func exampleVote(t byte) *Vote {
 // This test will fail and can be removed once CommitSig contains only sigs and
 // timestamps.
 func TestVoteEncoding(t *testing.T) {
+	t.Parallel()
+
 	vote := examplePrecommit()
 	commitSig := vote.CommitSig()
 	bz1 := amino.MustMarshal(vote)
@@ -58,6 +60,8 @@ func TestVoteEncoding(t *testing.T) {
 }
 
 func TestVoteSignable(t *testing.T) {
+	t.Parallel()
+
 	vote := examplePrecommit()
 	signBytes := vote.SignBytes("test_chain_id")
 
@@ -68,6 +72,8 @@ func TestVoteSignable(t *testing.T) {
 }
 
 func TestVoteSignBytesTestVectors(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		chainID string
 		vote    *Vote
@@ -147,6 +153,8 @@ func TestVoteSignBytesTestVectors(t *testing.T) {
 }
 
 func TestVoteProposalNotEq(t *testing.T) {
+	t.Parallel()
+
 	cv := CanonicalizeVote("", &Vote{Height: 1, Round: 1})
 	p := CanonicalizeProposal("", &Proposal{Height: 1, Round: 1})
 	vb, err := amino.MarshalSized(cv)
@@ -157,6 +165,8 @@ func TestVoteProposalNotEq(t *testing.T) {
 }
 
 func TestVoteVerifySignature(t *testing.T) {
+	t.Parallel()
+
 	privVal := NewMockPV()
 	pubkey := privVal.GetPubKey()
 
@@ -186,6 +196,8 @@ func TestVoteVerifySignature(t *testing.T) {
 }
 
 func TestIsVoteTypeValid(t *testing.T) {
+	t.Parallel()
+
 	tc := []struct {
 		name string
 		in   SignedMsgType
@@ -199,6 +211,8 @@ func TestIsVoteTypeValid(t *testing.T) {
 	for _, tt := range tc {
 		tt := tt
 		t.Run(tt.name, func(st *testing.T) {
+			st.Parallel()
+
 			if rs := IsVoteTypeValid(tt.in); rs != tt.out {
 				t.Errorf("Got unexpected Vote type. Expected:\n%v\nGot:\n%v", rs, tt.out)
 			}
@@ -207,6 +221,8 @@ func TestIsVoteTypeValid(t *testing.T) {
 }
 
 func TestVoteVerify(t *testing.T) {
+	t.Parallel()
+
 	privVal := NewMockPV()
 	pubkey := privVal.GetPubKey()
 
@@ -225,6 +241,8 @@ func TestVoteVerify(t *testing.T) {
 }
 
 func TestMaxVoteBytes(t *testing.T) {
+	t.Parallel()
+
 	// time is varint encoded so need to pick the max.
 	// year int, month Month, day, hour, min, sec, nsec int, loc *Location
 	timestamp := time.Date(math.MaxInt64, 0, 0, 0, 0, 0, math.MaxInt64, time.UTC)
@@ -256,6 +274,8 @@ func TestMaxVoteBytes(t *testing.T) {
 }
 
 func TestVoteString(t *testing.T) {
+	t.Parallel()
+
 	str := examplePrecommit().String()
 	expected := `Vote{56789:6AF1F4111082 12345/02/2(Precommit) 8B01023386C3 000000000000 @ 2017-12-25T03:00:01.234Z}`
 	if str != expected {
@@ -270,6 +290,8 @@ func TestVoteString(t *testing.T) {
 }
 
 func TestVoteValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	privVal := NewMockPV()
 
 	testCases := []struct {
@@ -289,6 +311,8 @@ func TestVoteValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			vote := examplePrecommit()
 			err := privVal.SignVote("test_chain_id", vote)
 			require.NoError(t, err)

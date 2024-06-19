@@ -329,7 +329,7 @@ func stripPrefix(key []byte, prefix []byte) (stripped []byte) {
 		panic("should not happen")
 	}
 	if !bytes.Equal(key[:len(prefix)], prefix) {
-		panic("should not happne")
+		panic("should not happen")
 	}
 	return key[len(prefix):]
 }

@@ -1,6 +1,7 @@
 package privval
 
 import (
+	"log/slog"
 	"net"
 	"testing"
 	"time"
@@ -32,6 +33,8 @@ type dialerTestCase struct {
 // SignerDialerEndpoint.dialer() call inside SignerDialerEndpoint.acceptNewConnection() to return
 // successfully immediately, putting an instant stop to any retry attempts.
 func TestSignerRemoteRetryTCPOnly(t *testing.T) {
+	t.Parallel()
+
 	var (
 		attemptCh = make(chan int)
 		retries   = 10
@@ -60,7 +63,7 @@ func TestSignerRemoteRetryTCPOnly(t *testing.T) {
 	}(ln, attemptCh)
 
 	dialerEndpoint := NewSignerDialerEndpoint(
-		log.TestingLogger(),
+		log.NewTestingLogger(t),
 		DialTCPFn(ln.Addr().String(), testTimeoutReadWrite, ed25519.GenPrivKey()),
 	)
 	SignerDialerEndpointTimeoutReadWrite(time.Millisecond)(dialerEndpoint)
@@ -83,9 +86,11 @@ func TestSignerRemoteRetryTCPOnly(t *testing.T) {
 }
 
 func TestRetryConnToRemoteSigner(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range getDialerTestCases(t) {
 		var (
-			logger           = log.TestingLogger()
+			logger           = log.NewTestingLogger(t)
 			chainID          = random.RandStr(12)
 			mockPV           = types.NewMockPV()
 			endpointIsOpenCh = make(chan struct{})
@@ -130,9 +135,9 @@ func TestRetryConnToRemoteSigner(t *testing.T) {
 	}
 }
 
-// /////////////////////////////////
+// -----------
 
-func newSignerListenerEndpoint(logger log.Logger, ln net.Listener, timeoutReadWrite time.Duration) *SignerListenerEndpoint {
+func newSignerListenerEndpoint(logger *slog.Logger, ln net.Listener, timeoutReadWrite time.Duration) *SignerListenerEndpoint {
 	var listener net.Listener
 
 	if ln.Addr().Network() == "unix" {
@@ -168,7 +173,7 @@ func getMockEndpoints(
 	t.Helper()
 
 	var (
-		logger           = log.TestingLogger()
+		logger           = log.NewTestingLogger(t)
 		endpointIsOpenCh = make(chan struct{})
 
 		dialerEndpoint = NewSignerDialerEndpoint(

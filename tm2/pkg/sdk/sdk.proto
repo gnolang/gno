@@ -9,7 +9,7 @@ import "github.com/gnolang/gno/tm2/pkg/crypto/merkle/merkle.proto";
 
 // messages
 message Result {
-	abci.ResponseBase ResponseBase = 1;
-	sint64 GasWanted = 2;
-	sint64 GasUsed = 3;
+	abci.ResponseBase response_base = 1 [json_name = "ResponseBase"];
+	sint64 gas_wanted = 2 [json_name = "GasWanted"];
+	sint64 gas_used = 3 [json_name = "GasUsed"];
 }

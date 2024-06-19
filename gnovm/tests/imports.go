@@ -20,29 +20,27 @@ import (
 	"image"
 	"image/color"
 	"io"
-	"io/ioutil"
 	"log"
 	"math"
 	"math/big"
 	"math/rand"
 	"net"
 	"net/url"
+	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
-	"testing"
 	"text/template"
 	"time"
 	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
+	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -52,18 +50,19 @@ import (
 
 type importMode uint64
 
+// Import modes to control the import behaviour of TestStore.
 const (
+	// use stdlibs/* only (except a few exceptions). for stdlibs/* and examples/* testing.
 	ImportModeStdlibsOnly importMode = iota
+	// use stdlibs/* if present, otherwise use native. used in files/tests, excluded for *_native.go
 	ImportModeStdlibsPreferred
+	// do not use stdlibs/* if native registered. used in files/tests, excluded for *_stdlibs.go
 	ImportModeNativePreferred
 )
 
-// ImportModeStdlibsOnly: use stdlibs/* only (except a few exceptions). for stdlibs/* and examples/* testing.
-// ImportModeStdlibsPreferred: use stdlibs/* if present, otherwise use native. for files/tests2/*.
-// ImportModeNativePreferred: do not use stdlibs/* if native registered. for files/tests/*.
 // NOTE: this isn't safe, should only be used for testing.
 func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (store gno.Store) {
-	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
+	getPackage := func(pkgPath string, newStore gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
@@ -79,10 +78,13 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			if strings.HasPrefix(pkgPath, testPath) {
 				baseDir := filepath.Join(filesPath, "extern", pkgPath[len(testPath):])
 				memPkg := gno.ReadMemPackage(baseDir, pkgPath)
+				send := std.Coins{}
+				ctx := TestContext(pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					PkgPath: "test",
 					Output:  stdout,
-					Store:   store,
+					Store:   newStore,
+					Context: ctx,
 				})
 				// pkg := gno.NewPackageNode(gno.Name(memPkg.Name), memPkg.Path, nil)
 				// pv := pkg.NewPackage()
@@ -94,17 +96,9 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		// if stdlibs package is preferred , try to load it first.
 		if mode == ImportModeStdlibsOnly ||
 			mode == ImportModeStdlibsPreferred {
-			stdlibPath := filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
-			if osm.DirExists(stdlibPath) {
-				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					// NOTE: see also pkgs/sdk/vm/builtins.go
-					// XXX: why does this fail when just pkgPath?
-					PkgPath: "gno.land/r/stdlibs/" + pkgPath,
-					Output:  stdout,
-					Store:   store,
-				})
-				return m2.RunMemPackage(memPkg, true)
+			pn, pv = loadStdlib(rootDir, pkgPath, newStore, stdout)
+			if pn != nil {
+				return
 			}
 		}
 
@@ -115,12 +109,10 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			pkgPath == "crypto/rand" ||
 			pkgPath == "crypto/md5" ||
 			pkgPath == "crypto/sha1" ||
-			pkgPath == "encoding/base64" ||
 			pkgPath == "encoding/binary" ||
 			pkgPath == "encoding/json" ||
 			pkgPath == "encoding/xml" ||
 			pkgPath == "internal/os_test" ||
-			pkgPath == "math" ||
 			pkgPath == "math/big" ||
 			pkgPath == "math/rand" ||
 			mode == ImportModeStdlibsPreferred ||
@@ -138,7 +130,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf((*fmt.Formatter)(nil)).Elem())
 				pkg.DefineGoNativeValue("Println", func(a ...interface{}) (n int, err error) {
 					// NOTE: uncomment to debug long running tests
-					fmt.Println(a...)
+					// fmt.Println(a...)
 					res := fmt.Sprintln(a...)
 					return stdout.Write([]byte(res))
 				})
@@ -194,7 +186,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 						d := arg0.GetInt64()
 						sec := d / int64(time.Second)
 						nano := d % int64(time.Second)
-						ctx := m.Context.(stdlibs.ExecContext)
+						ctx := m.Context.(*teststd.TestExecContext)
 						ctx.Timestamp += sec
 						ctx.TimestampNano += nano
 						if ctx.TimestampNano >= int64(time.Second) {
@@ -210,17 +202,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeType(reflect.TypeOf(net.TCPAddr{}))
 				pkg.DefineGoNativeValue("IPv4", net.IPv4)
 				return pkg, pkg.NewPackage()
-			case "net/http":
-				// XXX UNSAFE
-				// There's no reason why we can't replace these with safer alternatives.
-				panic("just say gno")
-				/*
-					pkg := gno.NewPackageNode("http", pkgPath, nil)
-					pkg.DefineGoNativeType(reflect.TypeOf(http.Request{}))
-					pkg.DefineGoNativeValue("DefaultClient", http.DefaultClient)
-					pkg.DefineGoNativeType(reflect.TypeOf(http.Client{}))
-					return pkg, pkg.NewPackage()
-				*/
 			case "net/url":
 				pkg := gno.NewPackageNode("url", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(url.Values{}))
@@ -272,8 +253,20 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("Abs", math.Abs)
 				pkg.DefineGoNativeValue("Cos", math.Cos)
 				pkg.DefineGoNativeValue("Pi", math.Pi)
+				pkg.DefineGoNativeValue("Float64bits", math.Float64bits)
+				pkg.DefineGoNativeValue("Pi", math.Pi)
 				pkg.DefineGoNativeValue("MaxFloat32", math.MaxFloat32)
 				pkg.DefineGoNativeValue("MaxFloat64", math.MaxFloat64)
+				pkg.DefineGoNativeValue("MaxUint32", uint32(math.MaxUint32))
+				pkg.DefineGoNativeValue("MaxUint64", uint64(math.MaxUint64))
+				pkg.DefineGoNativeValue("MinInt8", math.MinInt8)
+				pkg.DefineGoNativeValue("MinInt16", math.MinInt16)
+				pkg.DefineGoNativeValue("MinInt32", math.MinInt32)
+				pkg.DefineGoNativeValue("MinInt64", int64(math.MinInt64))
+				pkg.DefineGoNativeValue("MaxInt8", math.MaxInt8)
+				pkg.DefineGoNativeValue("MaxInt16", math.MaxInt16)
+				pkg.DefineGoNativeValue("MaxInt32", math.MaxInt32)
+				pkg.DefineGoNativeValue("MaxInt64", int64(math.MaxInt64))
 				return pkg, pkg.NewPackage()
 			case "math/rand":
 				// XXX only expose for tests.
@@ -338,11 +331,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg := gno.NewPackageNode("big", pkgPath, nil)
 				pkg.DefineGoNativeValue("NewInt", big.NewInt)
 				return pkg, pkg.NewPackage()
-			case "sort":
-				pkg := gno.NewPackageNode("sort", pkgPath, nil)
-				pkg.DefineGoNativeValue("Strings", sort.Strings)
-				// pkg.DefineGoNativeValue("Sort", sort.Sort)
-				return pkg, pkg.NewPackage()
 			case "flag":
 				pkg := gno.NewPackageNode("flag", pkgPath, nil)
 				pkg.DefineGoNativeType(reflect.TypeOf(flag.Flag{}))
@@ -350,15 +338,12 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			case "io":
 				pkg := gno.NewPackageNode("io", pkgPath, nil)
 				pkg.DefineGoNativeValue("EOF", io.EOF)
+				pkg.DefineGoNativeValue("NopCloser", io.NopCloser)
 				pkg.DefineGoNativeValue("ReadFull", io.ReadFull)
+				pkg.DefineGoNativeValue("ReadAll", io.ReadAll)
 				pkg.DefineGoNativeType(reflect.TypeOf((*io.ReadCloser)(nil)).Elem())
 				pkg.DefineGoNativeType(reflect.TypeOf((*io.Closer)(nil)).Elem())
 				pkg.DefineGoNativeType(reflect.TypeOf((*io.Reader)(nil)).Elem())
-				return pkg, pkg.NewPackage()
-			case "io/ioutil":
-				pkg := gno.NewPackageNode("ioutil", pkgPath, nil)
-				pkg.DefineGoNativeValue("NopCloser", ioutil.NopCloser)
-				pkg.DefineGoNativeValue("ReadAll", ioutil.ReadAll)
 				return pkg, pkg.NewPackage()
 			case "log":
 				pkg := gno.NewPackageNode("log", pkgPath, nil)
@@ -383,25 +368,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg := gno.NewPackageNode("fnv", pkgPath, nil)
 				pkg.DefineGoNativeValue("New32a", fnv.New32a)
 				return pkg, pkg.NewPackage()
-				/* XXX support somehow for speed. for now, generic implemented in stdlibs.
-				case "internal/bytealg":
-					pkg := gno.NewPackageNode("bytealg", pkgPath, nil)
-					pkg.DefineGoNativeValue("Compare", bytealg.Compare)
-					pkg.DefineGoNativeValue("CountString", bytealg.CountString)
-					pkg.DefineGoNativeValue("Cutover", bytealg.Cutover)
-					pkg.DefineGoNativeValue("Equal", bytealg.Equal)
-					pkg.DefineGoNativeValue("HashStr", bytealg.HashStr)
-					pkg.DefineGoNativeValue("HashStrBytes", bytealg.HashStrBytes)
-					pkg.DefineGoNativeValue("HashStrRev", bytealg.HashStrRev)
-					pkg.DefineGoNativeValue("HashStrRevBytes", bytealg.HashStrRevBytes)
-					pkg.DefineGoNativeValue("Index", bytealg.Index)
-					pkg.DefineGoNativeValue("IndexByte", bytealg.IndexByte)
-					pkg.DefineGoNativeValue("IndexByteString", bytealg.IndexByteString)
-					pkg.DefineGoNativeValue("IndexRabinKarp", bytealg.IndexRabinKarp)
-					pkg.DefineGoNativeValue("IndexRabinKarpBytes", bytealg.IndexRabinKarpBytes)
-					pkg.DefineGoNativeValue("IndexString", bytealg.IndexString)
-					return pkg, pkg.NewPackage()
-				*/
 			default:
 				// continue on...
 			}
@@ -409,15 +375,8 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 
 		// if native package is preferred, try to load stdlibs/* as backup.
 		if mode == ImportModeNativePreferred {
-			stdlibPath := filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath)
-			if osm.DirExists(stdlibPath) {
-				memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-					PkgPath: "test",
-					Output:  stdout,
-					Store:   store,
-				})
-				pn, pv = m2.RunMemPackage(memPkg, true)
+			pn, pv = loadStdlib(rootDir, pkgPath, newStore, stdout)
+			if pn != nil {
 				return
 			}
 		}
@@ -426,10 +385,17 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		examplePath := filepath.Join(rootDir, "examples", pkgPath)
 		if osm.DirExists(examplePath) {
 			memPkg := gno.ReadMemPackage(examplePath, pkgPath)
+			if memPkg.IsEmpty() {
+				panic(fmt.Sprintf("found an empty package %q", pkgPath))
+			}
+
+			send := std.Coins{}
+			ctx := TestContext(pkgPath, send)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  stdout,
-				Store:   store,
+				Store:   newStore,
+				Context: ctx,
 			})
 			pn, pv = m2.RunMemPackage(memPkg, true)
 			return
@@ -437,42 +403,60 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		return nil, nil
 	}
 	// NOTE: store is also used in closure above.
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
 	store = gno.NewStore(nil, baseStore, iavlStore)
 	store.SetPackageGetter(getPackage)
+	store.SetNativeStore(teststdlibs.NativeStore)
 	store.SetPackageInjector(testPackageInjector)
 	store.SetStrictGo2GnoMapping(false)
-	// native mappings
-	stdlibs.InjectNativeMappings(store)
 	return
 }
 
-//----------------------------------------
-// testInjectNatives
-// analogous to stdlibs.InjectNatives, but with
-// native methods suitable for the testing environment.
+func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gno.PackageNode, *gno.PackageValue) {
+	dirs := [...]string{
+		// normal stdlib path.
+		filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath),
+		// override path. definitions here override the previous if duplicate.
+		filepath.Join(rootDir, "gnovm", "tests", "stdlibs", pkgPath),
+	}
+	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
+	for _, path := range dirs {
+		dl, err := os.ReadDir(path)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			panic(fmt.Errorf("could not access dir %q: %w", path, err))
+		}
+
+		for _, f := range dl {
+			// NOTE: RunMemPackage has other rules; those should be mostly useful
+			// for on-chain packages (ie. include README and gno.mod).
+			if !f.IsDir() && strings.HasSuffix(f.Name(), ".gno") {
+				files = append(files, filepath.Join(path, f.Name()))
+			}
+		}
+	}
+	if len(files) == 0 {
+		return nil, nil
+	}
+
+	memPkg := gno.ReadMemPackageFromList(files, pkgPath)
+	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+		// NOTE: see also pkgs/sdk/vm/builtins.go
+		// Needs PkgPath != its name because TestStore.getPackage is the package
+		// getter for the store, which calls loadStdlib, so it would be recursively called.
+		PkgPath: "stdlibload",
+		Output:  stdout,
+		Store:   store,
+	})
+	save := pkgPath != "testing" // never save the "testing" package
+	return m2.RunMemPackageWithOverrides(memPkg, save)
+}
 
 func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
-	// Also inject stdlibs native functions.
-	stdlibs.InjectPackage(store, pn)
-	isOriginCall := func(m *gno.Machine) bool {
-		tname := m.Frames[0].Func.Name
-		switch tname {
-		case "main": // test is a _filetest
-			return len(m.Frames) == 3
-		case "runtest": // test is a _test
-			return len(m.Frames) == 7
-		}
-		// support init() in _filetest
-		// XXX do we need to distinguish from 'runtest'/_test?
-		// XXX pretty hacky even if not.
-		if strings.HasPrefix(string(tname), "init.") {
-			return len(m.Frames) == 3
-		}
-		panic("unable to determine if test is a _test or a _filetest")
-	}
 	// Test specific injections:
 	switch pn.PkgPath {
 	case "strconv":
@@ -480,203 +464,6 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 		// from stdlibs.InjectNatives.
 		pn.DefineGoNativeType(reflect.TypeOf(strconv.NumError{}))
 		pn.DefineGoNativeValue("ParseInt", strconv.ParseInt)
-	case "std":
-		// NOTE: some of these are overrides.
-		// Also see stdlibs/InjectPackage.
-		pn.DefineNativeOverride("AssertOriginCall",
-			/*
-				gno.Flds( // params
-				),
-				gno.Flds( // results
-				),
-			*/
-			func(m *gno.Machine) {
-				if !isOriginCall(m) {
-					m.Panic(typedString("invalid non-origin call"))
-					return
-				}
-			},
-		)
-		pn.DefineNativeOverride("IsOriginCall",
-			/*
-				gno.Flds( // params
-				),
-				gno.Flds( // results
-					"isOrigin", "bool",
-				),
-			*/
-			func(m *gno.Machine) {
-				res0 := gno.TypedValue{T: gno.BoolType}
-				res0.SetBool(isOriginCall(m))
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNativeOverride("GetCallerAt",
-			/*
-				gno.Flds( // params
-					"n", "int",
-				),
-				gno.Flds( // results
-					"", "Address",
-				),
-			*/
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				n := arg0.GetInt()
-				if n <= 0 {
-					m.Panic(typedString("GetCallerAt requires positive arg"))
-					return
-				}
-				if n > m.NumFrames()-1 {
-					// NOTE: the last frame's LastPackage
-					// is set to the original non-frame
-					// package, so need this check.
-					m.Panic(typedString("frame not found"))
-					return
-				}
-				var pkgAddr string
-				if n == m.NumFrames()-1 {
-					// This makes it consistent with GetOrigCaller and TestSetOrigCaller.
-					ctx := m.Context.(stdlibs.ExecContext)
-					pkgAddr = string(ctx.OrigCaller)
-				} else {
-					pkgAddr = string(m.LastCallFrame(n).LastPackage.GetPkgAddr().Bech32())
-				}
-				res0 := gno.Go2GnoValue(
-					m.Alloc,
-					m.Store,
-					reflect.ValueOf(pkgAddr),
-				)
-				addrT := store.GetType(gno.DeclaredTypeID("std", "Address"))
-				res0.T = addrT
-				m.PushValue(res0)
-			},
-		)
-		pn.DefineNative("TestSetOrigCaller",
-			gno.Flds( // params
-				"", "Address",
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				addr := arg0.GetString()
-				// overwrite context
-				ctx := m.Context.(stdlibs.ExecContext)
-				ctx.OrigCaller = crypto.Bech32Address(addr)
-				m.Context = ctx
-			},
-		)
-		pn.DefineNative("TestSetOrigPkgAddr",
-			gno.Flds( // params
-				"", "Address",
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				addr := crypto.Bech32Address(arg0.GetString())
-				// overwrite context
-				ctx := m.Context.(stdlibs.ExecContext)
-				ctx.OrigPkgAddr = addr
-				m.Context = ctx
-			},
-		)
-		pn.DefineNative("TestSetOrigSend",
-			gno.Flds( // params
-				"sent", "Coins",
-				"spent", "Coins",
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				arg0, arg1 := m.LastBlock().GetParams2()
-				var sent std.Coins
-				rvSent := reflect.ValueOf(&sent).Elem()
-				gno.Gno2GoValue(arg0.TV, rvSent)
-				sent = rvSent.Interface().(std.Coins) // needed?
-				var spent std.Coins
-				rvSpent := reflect.ValueOf(&spent).Elem()
-				gno.Gno2GoValue(arg1.TV, rvSpent)
-				spent = rvSpent.Interface().(std.Coins) // needed?
-				// overwrite context.
-				ctx := m.Context.(stdlibs.ExecContext)
-				ctx.OrigSend = sent
-				ctx.OrigSendSpent = &spent
-				m.Context = ctx
-			},
-		)
-		pn.DefineNative("TestIssueCoins",
-			gno.Flds( // params
-				"addr", "Address",
-				"coins", "Coins",
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				arg0, arg1 := m.LastBlock().GetParams2()
-				addr := crypto.Bech32Address(arg0.TV.GetString())
-				var coins std.Coins
-				rvCoins := reflect.ValueOf(&coins).Elem()
-				gno.Gno2GoValue(arg1.TV, rvCoins)
-				coins = rvCoins.Interface().(std.Coins) // needed?
-				// overwrite context.
-				ctx := m.Context.(stdlibs.ExecContext)
-				banker := ctx.Banker
-				for _, coin := range coins {
-					banker.IssueCoin(addr, coin.Denom, coin.Amount)
-				}
-			},
-		)
-		pn.DefineNative("TestCurrentRealm",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"realm", "string",
-			),
-			func(m *gno.Machine) {
-				rlmpath := m.Realm.Path
-				m.PushValue(typedString(rlmpath))
-			},
-		)
-		pn.DefineNative("TestSkipHeights",
-			gno.Flds( // params
-				"count", "int64",
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				arg0 := m.LastBlock().GetParams1().TV
-				count := arg0.GetInt64()
-
-				ctx := m.Context.(stdlibs.ExecContext)
-				ctx.Height += count
-				m.Context = ctx
-			},
-		)
-		// TODO: move elsewhere.
-		pn.DefineNative("ClearStoreCache",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				if gno.IsDebug() && testing.Verbose() {
-					store.Print()
-					fmt.Println("========================================")
-					fmt.Println("CLEAR CACHE (RUNTIME)")
-					fmt.Println("========================================")
-				}
-				m.Store.ClearCache()
-				m.PreprocessAllFilesAndSaveBlockNodes()
-				if gno.IsDebug() && testing.Verbose() {
-					store.Print()
-					fmt.Println("========================================")
-					fmt.Println("CLEAR CACHE DONE")
-					fmt.Println("========================================")
-				}
-			},
-		)
 	}
 }
 
@@ -692,13 +479,6 @@ func (*dummyReader) Read(b []byte) (n int, err error) {
 }
 
 //----------------------------------------
-
-// NOTE: does not allocate; used for panics.
-func typedString(s string) gno.TypedValue {
-	tv := gno.TypedValue{T: gno.StringType}
-	tv.V = gno.StringValue(s)
-	return tv
-}
 
 type TestReport struct {
 	Name    string

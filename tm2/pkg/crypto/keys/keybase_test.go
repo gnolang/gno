@@ -9,9 +9,12 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys/keyerror"
 )
 
 func TestCreateAccountInvalidMnemonic(t *testing.T) {
+	t.Parallel()
+
 	kb := NewInMemory()
 	_, err := kb.CreateAccount(
 		"some_account",
@@ -21,50 +24,10 @@ func TestCreateAccountInvalidMnemonic(t *testing.T) {
 	assert.Equal(t, "invalid mnemonic", err.Error())
 }
 
-func TestCreateLedgerUnsupportedAlgo(t *testing.T) {
-	kb := NewInMemory()
-	_, err := kb.CreateLedger("some_account", Ed25519, "cosmos", 0, 1)
-	assert.Error(t, err)
-	assert.Equal(t, "unsupported signing algo: only secp256k1 is supported", err.Error())
-}
-
-func TestCreateLedger(t *testing.T) {
-	kb := NewInMemory()
-
-	// test_cover and test_unit will result in different answers
-	// test_cover does not compile some dependencies so ledger is disabled
-	// test_unit may add a ledger mock
-	// both cases are acceptable
-	ledger, err := kb.CreateLedger("some_account", Secp256k1, "cosmos", 3, 1)
-	if err != nil {
-		assert.Error(t, err)
-		assert.Equal(t, "no Ledger discovery function defined", err.Error())
-		assert.Nil(t, ledger)
-		t.Skip("ledger nano S: support for ledger devices is not available in this executable")
-		return
-	}
-
-	// The mock is available, check that the address is correct
-	pubKey := ledger.GetPubKey()
-	pubs := crypto.PubKeyToBech32(pubKey)
-	assert.Equal(t, "cosmospub1addwnpepqdszcr95mrqqs8lw099aa9h8h906zmet22pmwe9vquzcgvnm93eqygufdlv", pubs)
-
-	// Check that restoring the key gets the same results
-	restoredKey, err := kb.GetByName("some_account")
-	assert.NotNil(t, restoredKey)
-	assert.Equal(t, "some_account", restoredKey.GetName())
-	assert.Equal(t, TypeLedger, restoredKey.GetType())
-	pubKey = restoredKey.GetPubKey()
-	pubs = crypto.PubKeyToBech32(pubKey)
-	assert.Equal(t, "cosmospub1addwnpepqdszcr95mrqqs8lw099aa9h8h906zmet22pmwe9vquzcgvnm93eqygufdlv", pubs)
-
-	path, err := restoredKey.GetPath()
-	assert.NoError(t, err)
-	assert.Equal(t, "44'/118'/3'/0/1", path.String())
-}
-
 // TestKeyManagement makes sure we can manipulate these keys well
 func TestKeyManagement(t *testing.T) {
+	t.Parallel()
+
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
@@ -80,8 +43,9 @@ func TestKeyManagement(t *testing.T) {
 	assert.Empty(t, l)
 
 	// create some keys
-	_, err = cstore.GetByName(n1)
-	require.Error(t, err)
+	has, err := cstore.HasByName(n1)
+	require.NoError(t, err)
+	require.False(t, has)
 	i, err := cstore.CreateAccount(n1, mn1, bip39Passphrase, p1, 0, 0)
 	require.NoError(t, err)
 	require.Equal(t, n1, i.GetName())
@@ -91,14 +55,21 @@ func TestKeyManagement(t *testing.T) {
 	// we can get these keys
 	i2, err := cstore.GetByName(n2)
 	require.NoError(t, err)
-	_, err = cstore.GetByName(n3)
-	require.NotNil(t, err)
-	_, err = cstore.GetByAddress(toAddr(i2))
+	has, err = cstore.HasByName(n3)
 	require.NoError(t, err)
+	require.False(t, has)
+	has, err = cstore.HasByAddress(toAddr(i2))
+	require.NoError(t, err)
+	require.True(t, has)
+	// Also check with HasByNameOrAddress
+	has, err = cstore.HasByNameOrAddress(crypto.AddressToBech32(toAddr(i2)))
+	require.NoError(t, err)
+	require.True(t, has)
 	addr, err := crypto.AddressFromBech32("g1frtkxv37nq7arvyz5p0mtjqq7hwuvd4dnt892p")
 	require.NoError(t, err)
 	_, err = cstore.GetByAddress(addr)
 	require.NotNil(t, err)
+	require.True(t, keyerror.IsErrKeyNotFound(err))
 
 	// list shows them in order
 	keyS, err := cstore.List()
@@ -117,8 +88,9 @@ func TestKeyManagement(t *testing.T) {
 	keyS, err = cstore.List()
 	require.NoError(t, err)
 	require.Equal(t, 1, len(keyS))
-	_, err = cstore.GetByName(n1)
-	require.Error(t, err)
+	has, err = cstore.HasByName(n1)
+	require.NoError(t, err)
+	require.False(t, has)
 
 	// create an offline key
 	o1 := "offline"
@@ -147,6 +119,8 @@ func TestKeyManagement(t *testing.T) {
 // TestSignVerify does some detailed checks on how we sign and validate
 // signatures
 func TestSignVerify(t *testing.T) {
+	t.Parallel()
+
 	cstore := NewInMemory()
 
 	n1, n2, n3 := "some dude", "a dudette", "dude-ish"
@@ -233,6 +207,8 @@ func assertPassword(t *testing.T, cstore Keybase, name, pass, badpass string) {
 
 // TestExportImport tests exporting and importing
 func TestExportImport(t *testing.T) {
+	t.Parallel()
+
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
@@ -263,6 +239,8 @@ func TestExportImport(t *testing.T) {
 }
 
 func TestExportImportPubKey(t *testing.T) {
+	t.Parallel()
+
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
@@ -304,6 +282,8 @@ func TestExportImportPubKey(t *testing.T) {
 
 // TestAdvancedKeyManagement verifies update, import, export functionality
 func TestAdvancedKeyManagement(t *testing.T) {
+	t.Parallel()
+
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
@@ -352,6 +332,8 @@ func TestAdvancedKeyManagement(t *testing.T) {
 
 // TestSeedPhrase verifies restoring from a seed phrase
 func TestSeedPhrase(t *testing.T) {
+	t.Parallel()
+
 	// make the storage with reasonable defaults
 	cstore := NewInMemory()
 
@@ -368,8 +350,9 @@ func TestSeedPhrase(t *testing.T) {
 	// now, let us delete this key
 	err = cstore.Delete(n1, p1, false)
 	require.Nil(t, err, "%+v", err)
-	_, err = cstore.GetByName(n1)
-	require.NotNil(t, err)
+	has, err := cstore.HasByName(n1)
+	require.NoError(t, err)
+	require.False(t, has)
 }
 
 func ExampleNew() {

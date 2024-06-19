@@ -1,0 +1,6 @@
+# Run gno test without args
+
+! gno test
+
+! stdout .+ 
+stderr 'USAGE'

@@ -8,596 +8,598 @@ import "google/protobuf/any.proto";
 
 // messages
 message TypedValue {
-	google.protobuf.Any T = 1;
-	google.protobuf.Any V = 2;
-	bytes N = 3;
+	google.protobuf.Any t = 1 [json_name = "T"];
+	google.protobuf.Any v = 2 [json_name = "V"];
+	bytes n = 3 [json_name = "N"];
 }
 
 message StringValue {
-	string Value = 1;
+	string value = 1;
 }
 
 message BigintValue {
-	string Value = 1;
+	string value = 1;
 }
 
 message BigdecValue {
-	string Value = 1;
+	string value = 1;
 }
 
 message PointerValue {
-	TypedValue TV = 1;
-	google.protobuf.Any Base = 2;
-	sint64 Index = 3;
-	TypedValue Key = 4;
+	TypedValue tv = 1 [json_name = "TV"];
+	google.protobuf.Any base = 2 [json_name = "Base"];
+	sint64 index = 3 [json_name = "Index"];
+	TypedValue key = 4 [json_name = "Key"];
 }
 
 message ArrayValue {
-	ObjectInfo ObjectInfo = 1;
-	repeated TypedValue List = 2;
-	bytes Data = 3;
+	ObjectInfo object_info = 1 [json_name = "ObjectInfo"];
+	repeated TypedValue list = 2 [json_name = "List"];
+	bytes data = 3 [json_name = "Data"];
 }
 
 message SliceValue {
-	google.protobuf.Any Base = 1;
-	sint64 Offset = 2;
-	sint64 Length = 3;
-	sint64 Maxcap = 4;
+	google.protobuf.Any base = 1 [json_name = "Base"];
+	sint64 offset = 2 [json_name = "Offset"];
+	sint64 length = 3 [json_name = "Length"];
+	sint64 maxcap = 4 [json_name = "Maxcap"];
 }
 
 message StructValue {
-	ObjectInfo ObjectInfo = 1;
-	repeated TypedValue Fields = 2;
+	ObjectInfo object_info = 1 [json_name = "ObjectInfo"];
+	repeated TypedValue fields = 2 [json_name = "Fields"];
 }
 
 message FuncValue {
-	google.protobuf.Any Type = 1;
-	bool IsMethod = 2;
-	google.protobuf.Any Source = 3;
-	string Name = 4;
-	google.protobuf.Any Closure = 5;
-	string FileName = 6;
-	string PkgPath = 7;
+	google.protobuf.Any type = 1 [json_name = "Type"];
+	bool is_method = 2 [json_name = "IsMethod"];
+	google.protobuf.Any source = 3 [json_name = "Source"];
+	string name = 4 [json_name = "Name"];
+	google.protobuf.Any closure = 5 [json_name = "Closure"];
+	string file_name = 6 [json_name = "FileName"];
+	string pkg_path = 7 [json_name = "PkgPath"];
+	string native_pkg = 8 [json_name = "NativePkg"];
+	string native_name = 9 [json_name = "NativeName"];
 }
 
 message MapValue {
-	ObjectInfo ObjectInfo = 1;
-	MapList List = 2;
+	ObjectInfo object_info = 1 [json_name = "ObjectInfo"];
+	MapList list = 2 [json_name = "List"];
 }
 
 message MapList {
-	repeated MapListItem List = 1;
+	repeated MapListItem list = 1 [json_name = "List"];
 }
 
 message MapListItem {
-	TypedValue Key = 1;
-	TypedValue Value = 2;
+	TypedValue key = 1 [json_name = "Key"];
+	TypedValue value = 2 [json_name = "Value"];
 }
 
 message BoundMethodValue {
-	ObjectInfo ObjectInfo = 1;
-	FuncValue Func = 2;
-	TypedValue Receiver = 3;
+	ObjectInfo object_info = 1 [json_name = "ObjectInfo"];
+	FuncValue func = 2 [json_name = "Func"];
+	TypedValue receiver = 3 [json_name = "Receiver"];
 }
 
 message TypeValue {
-	google.protobuf.Any Type = 1;
+	google.protobuf.Any type = 1 [json_name = "Type"];
 }
 
 message PackageValue {
-	ObjectInfo ObjectInfo = 1;
-	google.protobuf.Any Block = 2;
-	string PkgName = 3;
-	string PkgPath = 4;
-	repeated string FNames = 5;
-	repeated google.protobuf.Any FBlocks = 6;
+	ObjectInfo object_info = 1 [json_name = "ObjectInfo"];
+	google.protobuf.Any block = 2 [json_name = "Block"];
+	string pkg_name = 3 [json_name = "PkgName"];
+	string pkg_path = 4 [json_name = "PkgPath"];
+	repeated string f_names = 5 [json_name = "FNames"];
+	repeated google.protobuf.Any f_blocks = 6 [json_name = "FBlocks"];
 }
 
 message Block {
-	ObjectInfo ObjectInfo = 1;
-	google.protobuf.Any Source = 2;
-	repeated TypedValue Values = 3;
-	google.protobuf.Any Parent = 4;
-	TypedValue Blank = 5;
+	ObjectInfo object_info = 1 [json_name = "ObjectInfo"];
+	google.protobuf.Any source = 2 [json_name = "Source"];
+	repeated TypedValue values = 3 [json_name = "Values"];
+	google.protobuf.Any parent = 4 [json_name = "Parent"];
+	TypedValue blank = 5 [json_name = "Blank"];
 }
 
 message RefValue {
-	string ObjectID = 1;
-	bool Escaped = 2;
-	string PkgPath = 3;
-	string Hash = 4;
+	string object_id = 1 [json_name = "ObjectID"];
+	bool escaped = 2 [json_name = "Escaped"];
+	string pkg_path = 3 [json_name = "PkgPath"];
+	string hash = 4 [json_name = "Hash"];
 }
 
 message ObjectID {
-	string Value = 1;
+	string value = 1;
 }
 
 message ObjectInfo {
-	string ID = 1;
-	string Hash = 2;
-	string OwnerID = 3;
-	uint64 ModTime = 4;
-	sint64 RefCount = 5;
-	bool IsEscaped = 6;
+	string id = 1 [json_name = "ID"];
+	string hash = 2 [json_name = "Hash"];
+	string owner_id = 3 [json_name = "OwnerID"];
+	uint64 mod_time = 4 [json_name = "ModTime"];
+	sint64 ref_count = 5 [json_name = "RefCount"];
+	bool is_escaped = 6 [json_name = "IsEscaped"];
 }
 
 message ValueHash {
-	string Value = 1;
+	string value = 1;
 }
 
 message Hashlet {
-	bytes Value = 1;
+	bytes value = 1;
 }
 
 message ValuePath {
-	uint32 Type = 1;
-	uint32 Depth = 2;
-	uint32 Index = 3;
-	string Name = 4;
+	uint32 type = 1 [json_name = "Type"];
+	uint32 depth = 2 [json_name = "Depth"];
+	uint32 index = 3 [json_name = "Index"];
+	string name = 4 [json_name = "Name"];
 }
 
 message Location {
-	string PkgPath = 1;
-	string File = 2;
-	sint64 Line = 3;
-	sint64 Nonce = 4;
+	string pkg_path = 1 [json_name = "PkgPath"];
+	string file = 2 [json_name = "File"];
+	sint64 line = 3 [json_name = "Line"];
+	sint64 nonce = 4 [json_name = "Nonce"];
 }
 
 message Attributes {
-	sint64 Line = 1;
-	string Label = 2;
+	sint64 line = 1 [json_name = "Line"];
+	string label = 2 [json_name = "Label"];
 }
 
 message NameExpr {
-	Attributes Attributes = 1;
-	ValuePath Path = 2;
-	string Name = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	ValuePath path = 2 [json_name = "Path"];
+	string name = 3 [json_name = "Name"];
 }
 
 message BasicLitExpr {
-	Attributes Attributes = 1;
-	sint64 Kind = 2;
-	string Value = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	sint64 kind = 2 [json_name = "Kind"];
+	string value = 3 [json_name = "Value"];
 }
 
 message BinaryExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any Left = 2;
-	sint64 Op = 3;
-	google.protobuf.Any Right = 4;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any left = 2 [json_name = "Left"];
+	sint64 op = 3 [json_name = "Op"];
+	google.protobuf.Any right = 4 [json_name = "Right"];
 }
 
 message CallExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any Func = 2;
-	repeated google.protobuf.Any Args = 3;
-	bool Varg = 4;
-	sint64 NumArgs = 5;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any func = 2 [json_name = "Func"];
+	repeated google.protobuf.Any args = 3 [json_name = "Args"];
+	bool varg = 4 [json_name = "Varg"];
+	sint64 num_args = 5 [json_name = "NumArgs"];
 }
 
 message IndexExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any X = 2;
-	google.protobuf.Any Index = 3;
-	bool HasOK = 4;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any x = 2 [json_name = "X"];
+	google.protobuf.Any index = 3 [json_name = "Index"];
+	bool has_ok = 4 [json_name = "HasOK"];
 }
 
 message SelectorExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any X = 2;
-	ValuePath Path = 3;
-	string Sel = 4;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any x = 2 [json_name = "X"];
+	ValuePath path = 3 [json_name = "Path"];
+	string sel = 4 [json_name = "Sel"];
 }
 
 message SliceExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any X = 2;
-	google.protobuf.Any Low = 3;
-	google.protobuf.Any High = 4;
-	google.protobuf.Any Max = 5;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any x = 2 [json_name = "X"];
+	google.protobuf.Any low = 3 [json_name = "Low"];
+	google.protobuf.Any high = 4 [json_name = "High"];
+	google.protobuf.Any max = 5 [json_name = "Max"];
 }
 
 message StarExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any X = 2;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any x = 2 [json_name = "X"];
 }
 
 message RefExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any X = 2;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any x = 2 [json_name = "X"];
 }
 
 message TypeAssertExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any X = 2;
-	google.protobuf.Any Type = 3;
-	bool HasOK = 4;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any x = 2 [json_name = "X"];
+	google.protobuf.Any type = 3 [json_name = "Type"];
+	bool has_ok = 4 [json_name = "HasOK"];
 }
 
 message UnaryExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any X = 2;
-	sint64 Op = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any x = 2 [json_name = "X"];
+	sint64 op = 3 [json_name = "Op"];
 }
 
 message CompositeLitExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any Type = 2;
-	repeated KeyValueExpr Elts = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any type = 2 [json_name = "Type"];
+	repeated KeyValueExpr elts = 3 [json_name = "Elts"];
 }
 
 message KeyValueExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any Key = 2;
-	google.protobuf.Any Value = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any key = 2 [json_name = "Key"];
+	google.protobuf.Any value = 3 [json_name = "Value"];
 }
 
 message FuncLitExpr {
-	Attributes Attributes = 1;
-	StaticBlock StaticBlock = 2;
-	FuncTypeExpr Type = 3;
-	repeated google.protobuf.Any Body = 4;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	StaticBlock static_block = 2 [json_name = "StaticBlock"];
+	FuncTypeExpr type = 3 [json_name = "Type"];
+	repeated google.protobuf.Any body = 4 [json_name = "Body"];
 }
 
 message ConstExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any Source = 2;
-	TypedValue TypedValue = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any source = 2 [json_name = "Source"];
+	TypedValue typed_value = 3 [json_name = "TypedValue"];
 }
 
 message FieldTypeExpr {
-	Attributes Attributes = 1;
-	string Name = 2;
-	google.protobuf.Any Type = 3;
-	google.protobuf.Any Tag = 4;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	string name = 2 [json_name = "Name"];
+	google.protobuf.Any type = 3 [json_name = "Type"];
+	google.protobuf.Any tag = 4 [json_name = "Tag"];
 }
 
 message ArrayTypeExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any Len = 2;
-	google.protobuf.Any Elt = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any len = 2 [json_name = "Len"];
+	google.protobuf.Any elt = 3 [json_name = "Elt"];
 }
 
 message SliceTypeExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any Elt = 2;
-	bool Vrd = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any elt = 2 [json_name = "Elt"];
+	bool vrd = 3 [json_name = "Vrd"];
 }
 
 message InterfaceTypeExpr {
-	Attributes Attributes = 1;
-	repeated FieldTypeExpr Methods = 2;
-	string Generic = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	repeated FieldTypeExpr methods = 2 [json_name = "Methods"];
+	string generic = 3 [json_name = "Generic"];
 }
 
 message ChanTypeExpr {
-	Attributes Attributes = 1;
-	sint64 Dir = 2;
-	google.protobuf.Any Value = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	sint64 dir = 2 [json_name = "Dir"];
+	google.protobuf.Any value = 3 [json_name = "Value"];
 }
 
 message FuncTypeExpr {
-	Attributes Attributes = 1;
-	repeated FieldTypeExpr Params = 2;
-	repeated FieldTypeExpr Results = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	repeated FieldTypeExpr params = 2 [json_name = "Params"];
+	repeated FieldTypeExpr results = 3 [json_name = "Results"];
 }
 
 message MapTypeExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any Key = 2;
-	google.protobuf.Any Value = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any key = 2 [json_name = "Key"];
+	google.protobuf.Any value = 3 [json_name = "Value"];
 }
 
 message StructTypeExpr {
-	Attributes Attributes = 1;
-	repeated FieldTypeExpr Fields = 2;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	repeated FieldTypeExpr fields = 2 [json_name = "Fields"];
 }
 
 message constTypeExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any Source = 2;
-	google.protobuf.Any Type = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any source = 2 [json_name = "Source"];
+	google.protobuf.Any type = 3 [json_name = "Type"];
 }
 
 message MaybeNativeTypeExpr {
-	Attributes Attributes = 1;
-	google.protobuf.Any Type = 2;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any type = 2 [json_name = "Type"];
 }
 
 message AssignStmt {
-	Attributes Attributes = 1;
-	repeated google.protobuf.Any Lhs = 2;
-	sint64 Op = 3;
-	repeated google.protobuf.Any Rhs = 4;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	repeated google.protobuf.Any lhs = 2 [json_name = "Lhs"];
+	sint64 op = 3 [json_name = "Op"];
+	repeated google.protobuf.Any rhs = 4 [json_name = "Rhs"];
 }
 
 message BlockStmt {
-	Attributes Attributes = 1;
-	StaticBlock StaticBlock = 2;
-	repeated google.protobuf.Any Body = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	StaticBlock static_block = 2 [json_name = "StaticBlock"];
+	repeated google.protobuf.Any body = 3 [json_name = "Body"];
 }
 
 message BranchStmt {
-	Attributes Attributes = 1;
-	sint64 Op = 2;
-	string Label = 3;
-	uint32 Depth = 4;
-	sint64 BodyIndex = 5;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	sint64 op = 2 [json_name = "Op"];
+	string label = 3 [json_name = "Label"];
+	uint32 depth = 4 [json_name = "Depth"];
+	sint64 body_index = 5 [json_name = "BodyIndex"];
 }
 
 message DeclStmt {
-	Attributes Attributes = 1;
-	repeated google.protobuf.Any Body = 2;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	repeated google.protobuf.Any body = 2 [json_name = "Body"];
 }
 
 message DeferStmt {
-	Attributes Attributes = 1;
-	CallExpr Call = 2;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	CallExpr call = 2 [json_name = "Call"];
 }
 
 message ExprStmt {
-	Attributes Attributes = 1;
-	google.protobuf.Any X = 2;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any x = 2 [json_name = "X"];
 }
 
 message ForStmt {
-	Attributes Attributes = 1;
-	StaticBlock StaticBlock = 2;
-	google.protobuf.Any Init = 3;
-	google.protobuf.Any Cond = 4;
-	google.protobuf.Any Post = 5;
-	repeated google.protobuf.Any Body = 6;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	StaticBlock static_block = 2 [json_name = "StaticBlock"];
+	google.protobuf.Any init = 3 [json_name = "Init"];
+	google.protobuf.Any cond = 4 [json_name = "Cond"];
+	google.protobuf.Any post = 5 [json_name = "Post"];
+	repeated google.protobuf.Any body = 6 [json_name = "Body"];
 }
 
 message GoStmt {
-	Attributes Attributes = 1;
-	CallExpr Call = 2;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	CallExpr call = 2 [json_name = "Call"];
 }
 
 message IfStmt {
-	Attributes Attributes = 1;
-	StaticBlock StaticBlock = 2;
-	google.protobuf.Any Init = 3;
-	google.protobuf.Any Cond = 4;
-	IfCaseStmt Then = 5;
-	IfCaseStmt Else = 6;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	StaticBlock static_block = 2 [json_name = "StaticBlock"];
+	google.protobuf.Any init = 3 [json_name = "Init"];
+	google.protobuf.Any cond = 4 [json_name = "Cond"];
+	IfCaseStmt then = 5 [json_name = "Then"];
+	IfCaseStmt else = 6 [json_name = "Else"];
 }
 
 message IfCaseStmt {
-	Attributes Attributes = 1;
-	StaticBlock StaticBlock = 2;
-	repeated google.protobuf.Any Body = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	StaticBlock static_block = 2 [json_name = "StaticBlock"];
+	repeated google.protobuf.Any body = 3 [json_name = "Body"];
 }
 
 message IncDecStmt {
-	Attributes Attributes = 1;
-	google.protobuf.Any X = 2;
-	sint64 Op = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any x = 2 [json_name = "X"];
+	sint64 op = 3 [json_name = "Op"];
 }
 
 message RangeStmt {
-	Attributes Attributes = 1;
-	StaticBlock StaticBlock = 2;
-	google.protobuf.Any X = 3;
-	google.protobuf.Any Key = 4;
-	google.protobuf.Any Value = 5;
-	sint64 Op = 6;
-	repeated google.protobuf.Any Body = 7;
-	bool IsMap = 8;
-	bool IsString = 9;
-	bool IsArrayPtr = 10;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	StaticBlock static_block = 2 [json_name = "StaticBlock"];
+	google.protobuf.Any x = 3 [json_name = "X"];
+	google.protobuf.Any key = 4 [json_name = "Key"];
+	google.protobuf.Any value = 5 [json_name = "Value"];
+	sint64 op = 6 [json_name = "Op"];
+	repeated google.protobuf.Any body = 7 [json_name = "Body"];
+	bool is_map = 8 [json_name = "IsMap"];
+	bool is_string = 9 [json_name = "IsString"];
+	bool is_array_ptr = 10 [json_name = "IsArrayPtr"];
 }
 
 message ReturnStmt {
-	Attributes Attributes = 1;
-	repeated google.protobuf.Any Results = 2;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	repeated google.protobuf.Any results = 2 [json_name = "Results"];
 }
 
 message PanicStmt {
-	Attributes Attributes = 1;
-	google.protobuf.Any Exception = 2;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any exception = 2 [json_name = "Exception"];
 }
 
 message SelectStmt {
-	Attributes Attributes = 1;
-	repeated SelectCaseStmt Cases = 2;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	repeated SelectCaseStmt cases = 2 [json_name = "Cases"];
 }
 
 message SelectCaseStmt {
-	Attributes Attributes = 1;
-	StaticBlock StaticBlock = 2;
-	google.protobuf.Any Comm = 3;
-	repeated google.protobuf.Any Body = 4;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	StaticBlock static_block = 2 [json_name = "StaticBlock"];
+	google.protobuf.Any comm = 3 [json_name = "Comm"];
+	repeated google.protobuf.Any body = 4 [json_name = "Body"];
 }
 
 message SendStmt {
-	Attributes Attributes = 1;
-	google.protobuf.Any Chan = 2;
-	google.protobuf.Any Value = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	google.protobuf.Any chan = 2 [json_name = "Chan"];
+	google.protobuf.Any value = 3 [json_name = "Value"];
 }
 
 message SwitchStmt {
-	Attributes Attributes = 1;
-	StaticBlock StaticBlock = 2;
-	google.protobuf.Any Init = 3;
-	google.protobuf.Any X = 4;
-	bool IsTypeSwitch = 5;
-	repeated SwitchClauseStmt Clauses = 6;
-	string VarName = 7;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	StaticBlock static_block = 2 [json_name = "StaticBlock"];
+	google.protobuf.Any init = 3 [json_name = "Init"];
+	google.protobuf.Any x = 4 [json_name = "X"];
+	bool is_type_switch = 5 [json_name = "IsTypeSwitch"];
+	repeated SwitchClauseStmt clauses = 6 [json_name = "Clauses"];
+	string var_name = 7 [json_name = "VarName"];
 }
 
 message SwitchClauseStmt {
-	Attributes Attributes = 1;
-	StaticBlock StaticBlock = 2;
-	repeated google.protobuf.Any Cases = 3;
-	repeated google.protobuf.Any Body = 4;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	StaticBlock static_block = 2 [json_name = "StaticBlock"];
+	repeated google.protobuf.Any cases = 3 [json_name = "Cases"];
+	repeated google.protobuf.Any body = 4 [json_name = "Body"];
 }
 
 message EmptyStmt {
-	Attributes Attributes = 1;
+	Attributes attributes = 1 [json_name = "Attributes"];
 }
 
 message bodyStmt {
-	Attributes Attributes = 1;
-	repeated google.protobuf.Any Body = 2;
-	sint64 BodyLen = 3;
-	sint64 NextBodyIndex = 4;
-	sint64 NumOps = 5;
-	sint64 NumValues = 6;
-	sint64 NumExprs = 7;
-	sint64 NumStmts = 8;
-	google.protobuf.Any Cond = 9;
-	google.protobuf.Any Post = 10;
-	google.protobuf.Any Active = 11;
-	google.protobuf.Any Key = 12;
-	google.protobuf.Any Value = 13;
-	sint64 Op = 14;
-	sint64 ListLen = 15;
-	sint64 ListIndex = 16;
-	MapListItem NextItem = 17;
-	sint64 StrLen = 18;
-	sint64 StrIndex = 19;
-	sint32 NextRune = 20;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	repeated google.protobuf.Any body = 2 [json_name = "Body"];
+	sint64 body_len = 3 [json_name = "BodyLen"];
+	sint64 next_body_index = 4 [json_name = "NextBodyIndex"];
+	sint64 num_ops = 5 [json_name = "NumOps"];
+	sint64 num_values = 6 [json_name = "NumValues"];
+	sint64 num_exprs = 7 [json_name = "NumExprs"];
+	sint64 num_stmts = 8 [json_name = "NumStmts"];
+	google.protobuf.Any cond = 9 [json_name = "Cond"];
+	google.protobuf.Any post = 10 [json_name = "Post"];
+	google.protobuf.Any active = 11 [json_name = "Active"];
+	google.protobuf.Any key = 12 [json_name = "Key"];
+	google.protobuf.Any value = 13 [json_name = "Value"];
+	sint64 op = 14 [json_name = "Op"];
+	sint64 list_len = 15 [json_name = "ListLen"];
+	sint64 list_index = 16 [json_name = "ListIndex"];
+	MapListItem next_item = 17 [json_name = "NextItem"];
+	sint64 str_len = 18 [json_name = "StrLen"];
+	sint64 str_index = 19 [json_name = "StrIndex"];
+	sint32 next_rune = 20 [json_name = "NextRune"];
 }
 
 message FuncDecl {
-	Attributes Attributes = 1;
-	StaticBlock StaticBlock = 2;
-	NameExpr NameExpr = 3;
-	bool IsMethod = 4;
-	FieldTypeExpr Recv = 5;
-	FuncTypeExpr Type = 6;
-	repeated google.protobuf.Any Body = 7;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	StaticBlock static_block = 2 [json_name = "StaticBlock"];
+	NameExpr name_expr = 3 [json_name = "NameExpr"];
+	bool is_method = 4 [json_name = "IsMethod"];
+	FieldTypeExpr recv = 5 [json_name = "Recv"];
+	FuncTypeExpr type = 6 [json_name = "Type"];
+	repeated google.protobuf.Any body = 7 [json_name = "Body"];
 }
 
 message ImportDecl {
-	Attributes Attributes = 1;
-	NameExpr NameExpr = 2;
-	string PkgPath = 3;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	NameExpr name_expr = 2 [json_name = "NameExpr"];
+	string pkg_path = 3 [json_name = "PkgPath"];
 }
 
 message ValueDecl {
-	Attributes Attributes = 1;
-	repeated NameExpr NameExprs = 2;
-	google.protobuf.Any Type = 3;
-	repeated google.protobuf.Any Values = 4;
-	bool Const = 5;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	repeated NameExpr name_exprs = 2 [json_name = "NameExprs"];
+	google.protobuf.Any type = 3 [json_name = "Type"];
+	repeated google.protobuf.Any values = 4 [json_name = "Values"];
+	bool const = 5 [json_name = "Const"];
 }
 
 message TypeDecl {
-	Attributes Attributes = 1;
-	NameExpr NameExpr = 2;
-	google.protobuf.Any Type = 3;
-	bool IsAlias = 4;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	NameExpr name_expr = 2 [json_name = "NameExpr"];
+	google.protobuf.Any type = 3 [json_name = "Type"];
+	bool is_alias = 4 [json_name = "IsAlias"];
 }
 
 message StaticBlock {
-	Block Block = 1;
-	repeated google.protobuf.Any Types = 2;
-	uint32 NumNames = 3;
-	repeated string Names = 4;
-	repeated string Consts = 5;
-	repeated string Externs = 6;
-	Location Loc = 7;
+	Block block = 1 [json_name = "Block"];
+	repeated google.protobuf.Any types = 2 [json_name = "Types"];
+	uint32 num_names = 3 [json_name = "NumNames"];
+	repeated string names = 4 [json_name = "Names"];
+	repeated string consts = 5 [json_name = "Consts"];
+	repeated string externs = 6 [json_name = "Externs"];
+	Location loc = 7 [json_name = "Loc"];
 }
 
 message FileSet {
-	repeated FileNode Files = 1;
+	repeated FileNode files = 1 [json_name = "Files"];
 }
 
 message FileNode {
-	Attributes Attributes = 1;
-	StaticBlock StaticBlock = 2;
-	string Name = 3;
-	string PkgName = 4;
-	repeated google.protobuf.Any Decls = 5;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	StaticBlock static_block = 2 [json_name = "StaticBlock"];
+	string name = 3 [json_name = "Name"];
+	string pkg_name = 4 [json_name = "PkgName"];
+	repeated google.protobuf.Any decls = 5 [json_name = "Decls"];
 }
 
 message PackageNode {
-	Attributes Attributes = 1;
-	StaticBlock StaticBlock = 2;
-	string PkgPath = 3;
-	string PkgName = 4;
-	FileSet FileSet = 5;
+	Attributes attributes = 1 [json_name = "Attributes"];
+	StaticBlock static_block = 2 [json_name = "StaticBlock"];
+	string pkg_path = 3 [json_name = "PkgPath"];
+	string pkg_name = 4 [json_name = "PkgName"];
+	FileSet file_set = 5 [json_name = "FileSet"];
 }
 
 message RefNode {
-	Location Location = 1;
-	google.protobuf.Any BlockNode = 2;
+	Location location = 1 [json_name = "Location"];
+	google.protobuf.Any block_node = 2 [json_name = "BlockNode"];
 }
 
 message PrimitiveType {
-	sint64 Value = 1;
+	sint64 value = 1;
 }
 
 message PointerType {
-	google.protobuf.Any Elt = 1;
+	google.protobuf.Any elt = 1 [json_name = "Elt"];
 }
 
 message ArrayType {
-	sint64 Len = 1;
-	google.protobuf.Any Elt = 2;
-	bool Vrd = 3;
+	sint64 len = 1 [json_name = "Len"];
+	google.protobuf.Any elt = 2 [json_name = "Elt"];
+	bool vrd = 3 [json_name = "Vrd"];
 }
 
 message SliceType {
-	google.protobuf.Any Elt = 1;
-	bool Vrd = 2;
+	google.protobuf.Any elt = 1 [json_name = "Elt"];
+	bool vrd = 2 [json_name = "Vrd"];
 }
 
 message StructType {
-	string PkgPath = 1;
-	repeated FieldType Fields = 2;
+	string pkg_path = 1 [json_name = "PkgPath"];
+	repeated FieldType fields = 2 [json_name = "Fields"];
 }
 
 message FieldType {
-	string Name = 1;
-	google.protobuf.Any Type = 2;
-	bool Embedded = 3;
-	string Tag = 4;
+	string name = 1 [json_name = "Name"];
+	google.protobuf.Any type = 2 [json_name = "Type"];
+	bool embedded = 3 [json_name = "Embedded"];
+	string tag = 4 [json_name = "Tag"];
 }
 
 message FuncType {
-	repeated FieldType Params = 1;
-	repeated FieldType Results = 2;
+	repeated FieldType params = 1 [json_name = "Params"];
+	repeated FieldType results = 2 [json_name = "Results"];
 }
 
 message MapType {
-	google.protobuf.Any Key = 1;
-	google.protobuf.Any Value = 2;
+	google.protobuf.Any key = 1 [json_name = "Key"];
+	google.protobuf.Any value = 2 [json_name = "Value"];
 }
 
 message InterfaceType {
-	string PkgPath = 1;
-	repeated FieldType Methods = 2;
-	string Generic = 3;
+	string pkg_path = 1 [json_name = "PkgPath"];
+	repeated FieldType methods = 2 [json_name = "Methods"];
+	string generic = 3 [json_name = "Generic"];
 }
 
 message TypeType {
 }
 
 message DeclaredType {
-	string PkgPath = 1;
-	string Name = 2;
-	google.protobuf.Any Base = 3;
-	repeated TypedValue Methods = 4;
+	string pkg_path = 1 [json_name = "PkgPath"];
+	string name = 2 [json_name = "Name"];
+	google.protobuf.Any base = 3 [json_name = "Base"];
+	repeated TypedValue methods = 4 [json_name = "Methods"];
 }
 
 message PackageType {
 }
 
 message ChanType {
-	sint64 Dir = 1;
-	google.protobuf.Any Elt = 2;
+	sint64 dir = 1 [json_name = "Dir"];
+	google.protobuf.Any elt = 2 [json_name = "Elt"];
 }
 
 message blockType {
 }
 
 message tupleType {
-	repeated google.protobuf.Any Elts = 1;
+	repeated google.protobuf.Any elts = 1 [json_name = "Elts"];
 }
 
 message RefType {
-	string ID = 1;
+	string id = 1 [json_name = "ID"];
 }

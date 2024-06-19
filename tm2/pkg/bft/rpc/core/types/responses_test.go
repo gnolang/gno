@@ -9,6 +9,8 @@ import (
 )
 
 func TestStatusIndexer(t *testing.T) {
+	t.Parallel()
+
 	var status *ResultStatus
 	assert.False(t, status.TxIndexEnabled())
 
