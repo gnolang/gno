@@ -1,0 +1,26 @@
+# Test-print-events flag
+
+gno test -print-events=true . 
+
+! stdout .+
+stderr '---       event: +'
+
+-- valid.gno --
+package valid
+
+import "std"
+
+func Hello() {	
+	std.Emit("emit_in_pkg", "k1", "v1")
+}
+
+-- valid_test.gno --
+package valid
+
+import "testing"
+
+func TestHello(t *testing.T) {
+	Hello()
+}
+
+

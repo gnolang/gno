@@ -99,11 +99,29 @@ func Gray(args ...interface{}) string {
 func ColoredBytes(data []byte, textColor, bytesColor func(...interface{}) string) string {
 	s := ""
 	for _, b := range data {
-		if 0x21 <= b && b < 0x7F {
+		if isASCII(b) {
 			s += textColor(string(b))
 		} else {
 			s += bytesColor(fmt.Sprintf("%02X", b))
 		}
 	}
 	return s
+}
+
+func ColoredBytesOnlyAscii(data []byte, textColor func(...interface{}) string) string {
+	s := ""
+	for _, b := range data {
+		if isASCII(b) {
+			s += textColor(string(b))
+
+			continue
+		}
+
+		s += string(b)
+	}
+	return s
+}
+
+func isASCII(b byte) bool {
+	return 0x21 <= b && b <= 0x7E
 }
