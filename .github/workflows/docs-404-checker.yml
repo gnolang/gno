@@ -1,0 +1,31 @@
+name: "docs / 404 checker"
+
+on:
+  push:
+    paths:
+      - master
+  pull_request:
+    paths:
+      - "docs/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.21'
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Build docs
+        run: make -C docs/ build
+
+      - name: Run linter
+        run: make -C docs/ lint
