@@ -22,57 +22,68 @@ func isFileExist(path string) bool {
 }
 
 func gnoPackagesFromArgs(args []string) ([]string, error) {
-	paths := []string{}
-	for _, arg := range args {
-		info, err := os.Stat(arg)
+	var paths []string
+
+	for _, argPath := range args {
+		info, err := os.Stat(argPath)
 		if err != nil {
 			return nil, fmt.Errorf("invalid file or package path: %w", err)
 		}
+
 		if !info.IsDir() {
-			if filepath.IsAbs(arg) {
-				paths = append(paths, arg)
-			} else {
-				paths = append(paths, "."+string(filepath.Separator)+arg)
-			}
-		} else {
-			// if the passed arg is a dir, then we'll recursively walk the dir
-			// and look for directories containing at least one .gno file.
+			paths = append(paths, ensurePathPrefix(argPath))
 
-			visited := map[string]bool{} // used to run the builder only once per folder.
-			err = filepath.WalkDir(arg, func(curpath string, f fs.DirEntry, err error) error {
-				if err != nil {
-					return fmt.Errorf("%s: walk dir: %w", arg, err)
-				}
-				if f.IsDir() {
-					return nil // skip
-				}
-				if !isGnoFile(f) {
-					return nil // skip
-				}
+			continue
+		}
 
-				parentDir := filepath.Dir(curpath)
-				if _, found := visited[parentDir]; found {
-					return nil
-				}
-				visited[parentDir] = true
-
-				pkg := parentDir
-				if !filepath.IsAbs(parentDir) {
-					// cannot use path.Join or filepath.Join, because we need
-					// to ensure that ./ is the prefix to pass to go build.
-					// if not absolute.
-					pkg = "." + string(filepath.Separator) + parentDir
-				}
-
-				paths = append(paths, pkg)
-				return nil
-			})
-			if err != nil {
-				return nil, err
-			}
+		// Gather package paths from the directory
+		err = walkDirForGnoFiles(argPath, func(path string) {
+			paths = append(paths, ensurePathPrefix(path))
+		})
+		if err != nil {
+			return nil, fmt.Errorf("unable to walk dir: %w", err)
 		}
 	}
+
 	return paths, nil
+}
+
+func ensurePathPrefix(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+
+	// cannot use path.Join or filepath.Join, because we need
+	// to ensure that ./ is the prefix to pass to go build.
+	// if not absolute.
+	return "." + string(filepath.Separator) + path
+}
+
+func walkDirForGnoFiles(root string, addPath func(path string)) error {
+	visited := make(map[string]struct{})
+
+	walkFn := func(currPath string, f fs.DirEntry, err error) error {
+		if err != nil {
+			return fmt.Errorf("%s: walk dir: %w", root, err)
+		}
+
+		if f.IsDir() || !isGnoFile(f) {
+			return nil
+		}
+
+		parentDir := filepath.Dir(currPath)
+		if _, found := visited[parentDir]; found {
+			return nil
+		}
+
+		visited[parentDir] = struct{}{}
+
+		addPath(parentDir)
+
+		return nil
+	}
+
+	return filepath.WalkDir(root, walkFn)
 }
 
 // targetsFromPatterns returns a list of target paths that match the patterns.

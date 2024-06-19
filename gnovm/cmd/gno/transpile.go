@@ -42,9 +42,10 @@ type transpileOptions struct {
 	skipped []string
 }
 
-func newTranspileOptions(cfg *transpileCfg) *transpileOptions {
+func newTranspileOptions(cfg *transpileCfg, io commands.IO) *transpileOptions {
 	return &transpileOptions{
 		cfg:        cfg,
+		io:         io,
 		transpiled: map[string]struct{}{},
 	}
 }
@@ -138,7 +139,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("list paths: %w", err)
 	}
 
-	opts := newTranspileOptions(cfg)
+	opts := newTranspileOptions(cfg, io)
 	var errlist scanner.ErrorList
 	for _, path := range paths {
 		st, err := os.Stat(path)
