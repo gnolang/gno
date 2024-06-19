@@ -149,7 +149,7 @@ func TestSecrets_Init_Single(t *testing.T) {
 		},
 		{
 			"node p2p key initialized",
-			nodeKeyKey,
+			nodeIDKey,
 			defaultNodeKeyName,
 			verifyNodeKey,
 		},
@@ -207,7 +207,7 @@ func TestSecrets_Init_Single_Overwrite(t *testing.T) {
 		},
 		{
 			"node p2p key not overwritten",
-			nodeKeyKey,
+			nodeIDKey,
 			defaultNodeKeyName,
 		},
 	}
