@@ -33,7 +33,6 @@ func ParseString(s string) ([]int64, error) {
 	return ints, nil
 }
 
-
 func zeroPad9(s string) string {
 	n := 9 - len(s)
 	if n < 0 {

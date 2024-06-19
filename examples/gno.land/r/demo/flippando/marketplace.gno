@@ -11,7 +11,6 @@ import (
 
 type Marketplace struct {
 	listings map[string]Listing // CompositeTokenID -> Listing
-	// listings avl.Tree  // CompositeTokenID -> Listing
 }
 
 type Listing struct {
@@ -57,14 +56,12 @@ func (m *Marketplace) ListNFT(compositeTokenID grc721.TokenID, seller std.Addres
 
 	// Add the new listing to the marketplace
 	m.listings[compositeTokenIDstr] = newListing
-	// m.listings.Set(string(compositeTokenID), newListing)
 	return nil
 }
 
 func (m *Marketplace) RemoveListing(compositeTokenID grc721.TokenID, seller std.Address) error {
 	// Retrieve the listing
 	rawListing, exists := m.listings[string(compositeTokenID)]
-	// rawListing, exists := m.listings.Get(string(compositeTokenID))
 	if !exists {
 		return errors.New("listing does not exist")
 	}
@@ -78,7 +75,6 @@ func (m *Marketplace) RemoveListing(compositeTokenID grc721.TokenID, seller std.
 
 	// Remove the listing from the marketplace
 	delete(m.listings, string(compositeTokenID))
-	// m.listings.Remove(string(compositeTokenID))
 	return nil
 }
 
@@ -87,10 +83,6 @@ func (m *Marketplace) GetListings() string {
 	for _, value := range m.listings {
 		// Type assert the value to a Listing
 		listing := value
-		//if !ok {
-			// Handle the case where the value is not a Listing
-		//	continue // Skip this iteration
-		//}
 		compositeTokenURI := GetCompositeTokenURI(string(listing.CompositeTokenID))
 		compositeTokenURI = strings.Trim(compositeTokenURI, "\"")
 
@@ -111,85 +103,6 @@ func (m *Marketplace) GetListings() string {
 
 	return string(marketplaceJSON)
 }
-
-/*
-func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721.TokenID) (buyResult string) {
-	var buyError error
-    var berr error
-    
-    flipPaid := ""
-    flipBurned := ""
-    listingRaw, exists := m.listings[string(compositeTokenID)]
-	// listingRaw, exists := m.listings.Get(string(compositeTokenID))
-	if !exists {
-		buyError = ErrMarketplaceListingDoesNotExist
-	}
-	listing := listingRaw
-    
-    compositeNFTOwner := GetOwnerOfCompositeTokenId(string(compositeTokenID))
-    // Use the specific function to transfer the composite NFT
-	tcerr := TransferCompositeNFT(std.Address(listing.Seller), buyer, string(compositeTokenID))
-	if tcerr != nil {
-		//buyError = tcerr
-        buyError = errors.New(ufmt.Sprintf("TransferCompositeNFT error: seller=%s, buyer=%s, tokenID=%s, owner=%s, error: %s", listing.Seller, buyer, string(compositeTokenID), compositeNFTOwner, tcerr.Error()))
-	}
-
-    // transfer basic NFTs to buyer
-    if buyError == nil {
-        for _, t := range listing.BasicTokenIDs {
-            //basicTokenId := grc721.TokenID(t)
-            basicTokenId := grc721.TokenID(strconv.FormatInt(t, 10))
-            ownerBasicNFT := GetOwnerOfBasicNFT(string(basicTokenId))
-            berr := TransferBasicNFTToBuyer(std.Address(listing.Seller), buyer, basicTokenId)
-            if berr != nil {
-                buyError = errors.New(ufmt.Sprintf("TransferBasicNFTToBuyer error: seller=%s, buyer=%s, basicTokenId=%s, owner=%s, error: %s", listing.Seller, buyer, string(basicTokenId), string(ownerBasicNFT), berr.Error()))
-                //errors.New("TransferBasicNFTToBuyer error: ")
-            }
-        }
-        // revert the composite NFT transfer
-        if buyError != nil {
-            reverr := TransferCompositeNFT(buyer, std.Address(listing.Seller), string(compositeTokenID))
-            if reverr != nil {
-                //buyError = tcerr
-                buyError = errors.New(ufmt.Sprintf("revert TransferCompositeNFT error: seller=%s, buyer=%s, tokenID=%s, owner=%s, error: %s", listing.Seller, buyer, string(compositeTokenID), compositeNFTOwner, tcerr.Error()))
-            }
-        }
-    }
-
-	// Use the specific function to transfer FLIP tokens
-    if buyError == nil{
-        fPricePaid, fPriceBurned, terr := TransferFLIPToSeller(buyer, listing.Seller, std.NewCoin("FLIP", int64(listing.Price)))
-        if terr != nil {
-            buyError = terr
-        }
-        flipPaid = fPricePaid
-        flipBurned = fPriceBurned
-    }
-
-	// Remove the listing after successful transfer
-    if buyError == nil {
-	    delete(m.listings, string(compositeTokenID))
-    }
-
-    var buyErrorString string
-    if buyError != nil {
-        buyErrorString = buyError.Error()
-    } else {
-        buyErrorString = ""
-    }
-
-    buyNFTResultObject := &buyNFTResult{
-        flipPaid: flipPaid,
-        flipBurned: flipBurned,
-        buyerror: buyErrorString,
-    }
-    buyResultJSON, merr := buyNFTResultObject.MarshalJSON() 
-
-    if merr != nil {
-        buyError = errors.New("Error in marshaling buyNFTResult")
-    }
-	return string(buyResultJSON)
-}*/
 
 func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721.TokenID) (buyResult string) {
     var buyError error
