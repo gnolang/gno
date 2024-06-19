@@ -276,7 +276,10 @@ func transpileFile(srcPath string, opts *transpileOptions) error {
 	// transpile imported packages, if `SkipImports` sets to false
 	if !flags.skipImports &&
 		!strings.HasSuffix(srcPath, "_filetest.gno") && !strings.HasSuffix(srcPath, "_test.gno") {
-		dirPaths := getPathsFromImportSpec(opts.cfg.rootDir, transpileRes.Imports)
+		dirPaths, err := getPathsFromImportSpec(opts.cfg.rootDir, transpileRes.Imports)
+		if err != nil {
+			return err
+		}
 		for _, path := range dirPaths {
 			if err := transpilePkg(path, opts); err != nil {
 				return err
@@ -300,11 +303,11 @@ func goBuildFileOrPkg(io commands.IO, fileOrPkg string, cfg *transpileCfg) error
 
 // getPathsFromImportSpec returns the directory paths where the code for each
 // importSpec is stored (assuming they start with [transpiler.ImportPrefix]).
-func getPathsFromImportSpec(rootDir string, importSpec []*ast.ImportSpec) (dirs []string) {
+func getPathsFromImportSpec(rootDir string, importSpec []*ast.ImportSpec) (dirs []string, err error) {
 	for _, i := range importSpec {
 		path, err := strconv.Unquote(i.Path.Value)
 		if err != nil {
-			continue
+			return nil, err
 		}
 		if strings.HasPrefix(path, transpiler.ImportPrefix) {
 			res := strings.TrimPrefix(path, transpiler.ImportPrefix)
