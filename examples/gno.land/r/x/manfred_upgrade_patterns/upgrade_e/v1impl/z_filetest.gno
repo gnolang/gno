@@ -13,5 +13,3 @@ func main() {
 // Output:
 // hello from v1
 // not implemented
-
-// Error:
