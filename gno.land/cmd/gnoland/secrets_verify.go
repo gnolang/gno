@@ -87,7 +87,7 @@ func execSecretsVerify(cfg *secretsVerifyCfg, args []string, io commands.IO) err
 		}
 
 		return nil
-	case nodeKeyKey:
+	case nodeIDKey:
 		return readAndVerifyNodeKey(nodeKeyPath, io)
 	default:
 		// Validate the validator's private key

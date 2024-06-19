@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/var18.gno:4: should not happen
+// main/files/var18.gno:4: assignment mismatch: 3 variables but 2 values

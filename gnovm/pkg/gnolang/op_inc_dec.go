@@ -26,6 +26,10 @@ func (m *Machine) doOpInc() {
 			panic("expected lv.V to be nil for primitive type for OpInc")
 		}
 	}
+
+	// here we can't just switch on the value type
+	// because it could be a type alias
+	// type num int
 	switch baseOf(lv.T) {
 	case IntType:
 		lv.SetInt(lv.GetInt() + 1)

@@ -1,0 +1,9 @@
+package main
+
+// both not const, and both interface
+func main() {
+	println([]byte("a") == []byte("b"))
+}
+
+// Error:
+// main/files/types/eql_0f30.gno:5: []uint8 can only be compared to nil

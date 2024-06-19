@@ -50,7 +50,7 @@ func (m *Machine) doOpAddAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.TV.T, rv.T)
+		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// XXX HACK (until value persistence impl'd)
@@ -73,7 +73,7 @@ func (m *Machine) doOpSubAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.TV.T, rv.T)
+		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// XXX HACK (until value persistence impl'd)
@@ -96,7 +96,7 @@ func (m *Machine) doOpMulAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.TV.T, rv.T)
+		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// XXX HACK (until value persistence impl'd)
@@ -119,7 +119,7 @@ func (m *Machine) doOpQuoAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.TV.T, rv.T)
+		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// XXX HACK (until value persistence impl'd)
@@ -142,7 +142,7 @@ func (m *Machine) doOpRemAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.TV.T, rv.T)
+		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// XXX HACK (until value persistence impl'd)
@@ -165,7 +165,7 @@ func (m *Machine) doOpBandAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.TV.T, rv.T)
+		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// XXX HACK (until value persistence impl'd)
@@ -188,7 +188,7 @@ func (m *Machine) doOpBandnAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.TV.T, rv.T)
+		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// XXX HACK (until value persistence impl'd)
@@ -211,7 +211,7 @@ func (m *Machine) doOpBorAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.TV.T, rv.T)
+		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// XXX HACK (until value persistence impl'd)
@@ -234,7 +234,7 @@ func (m *Machine) doOpXorAssign() {
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
-		assertSameTypes(lv.TV.T, rv.T)
+		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
 
 	// XXX HACK (until value persistence impl'd)
