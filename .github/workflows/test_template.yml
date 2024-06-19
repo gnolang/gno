@@ -46,21 +46,32 @@ jobs:
             (set +x; echo 'txtar coverage results:')
             go tool covdata percent -i=$TXTARCOVERDIR
 
-            # Merge and print combined coverage results
-            go tool covdata merge -v 1 -i="$GOCOVERDIR,$TXTARCOVERDIR" -o $COVERDIR
-            (set +x; echo 'final coverage results:')
-            go tool covdata percent -i=$COVERDIR
-
             # Generate final coverage output
-            go tool covdata textfmt -v 1 -i=$COVERDIR -o coverage.out || touch coverage.out
+            go tool covdata textfmt -v 1 -i=$GOCOVERDIR -o gocoverage.out
+            go tool covdata textfmt -v 1 -i=$TXTARCOVERDIR -o txtarcoverage.out
 
-        - name: Upload coverage to Codecov
+        - name: Upload go coverage to Codecov
+          working-directory:  ${{ inputs.modulepath }}
           uses: codecov/codecov-action@v4
           with:
-              token: ${{ secrets.codecov-token }}
-              verbose: true
-              fail_ci_if_error: true
-              flags: ${{ inputs.modulepath }}
+            disable_search: true
+            fail_ci_if_error: true
+            file: ./gocoverage.out
+            flags: ${{ inputs.modulepath }}
+            token: ${{ secrets.codecov-token }}
+            verbose: true
+
+        - name: Upload txtar coverage to Codecov
+          working-directory:  ${{ inputs.modulepath }}
+          uses: codecov/codecov-action@v4
+          with:
+            disable_search: true
+            fail_ci_if_error: true
+            file: ./txtarcoverage.out
+            flags: ${{ inputs.modulepath }}/txtar
+            token: ${{ secrets.codecov-token }}
+            verbose: true
+
     # TODO: We have to fix race conditions before running this job
     # test-with-race:
     #     runs-on: ubuntu-latest
