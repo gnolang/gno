@@ -78,7 +78,7 @@ func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
 	case validatorStateKey:
 		// Show the validator's last sign state
 		return readAndShowValidatorState(validatorStatePath, io)
-	case nodeKeyKey:
+	case nodeIDKey:
 		// Show the node's p2p info
 		return readAndShowNodeKey(nodeKeyPath, io)
 	default:

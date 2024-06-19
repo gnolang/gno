@@ -269,7 +269,7 @@ func TestSecrets_Get_Single(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			nodeKeyKey,
+			nodeIDKey,
 		}
 
 		// Run the command
@@ -326,7 +326,7 @@ func TestSecrets_Get_Single(t *testing.T) {
 			"get",
 			"--data-dir",
 			secretsPath,
-			nodeKeyKey,
+			nodeIDKey,
 		}
 
 		// Run the command
