@@ -26,6 +26,7 @@ func TestEmptyPathError(t *testing.T) {
 }
 
 func TestExtractLinks(t *testing.T) {
+	// todo rewrite
 	t.Parallel()
 
 	// Generate temporary source dir
