@@ -2,6 +2,7 @@ package events
 
 import (
 	"bytes"
+	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
 	"sort"
 	"std"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 )
 
 type Event struct {
+	id          seqid.ID
 	name        string    // name of event
 	description string    // short description of event
 	link        string    // link to a corresponding web2 sign up page, ie eventbrite/luma
@@ -23,8 +25,9 @@ type Event struct {
 type eventsSlice []*Event
 
 var (
-	a      *authorizable.Authorizable
-	events eventsSlice
+	a         *authorizable.Authorizable
+	events    eventsSlice
+	idCounter seqid.ID
 )
 
 const (
@@ -36,7 +39,7 @@ func init() {
 	su := std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
 	a = authorizable.NewAuthorizableWithAddress(su)
 
-	events = make([]*Event, 10)
+	events = make(eventsSlice, 0)
 }
 
 func AddEvent(name, description, link, location string, startTime int64) {
@@ -56,6 +59,7 @@ func AddEvent(name, description, link, location string, startTime int64) {
 	}
 
 	e := &Event{
+		id:          idCounter.Next(),
 		name:        name,
 		description: description,
 		link:        link,
@@ -66,6 +70,15 @@ func AddEvent(name, description, link, location string, startTime int64) {
 	events = append(events, e)
 	sort.Sort(events)
 }
+
+func DelEvent(id seqid.ID) {
+	a.AssertOnAuthList()
+
+	sort.Find()
+
+}
+
+// Rendering
 
 // RenderEventWidget shows up to amt of the latest events to a caller
 func RenderEventWidget(amt int) string {
