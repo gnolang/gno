@@ -926,7 +926,7 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	}
 	// general case
 	if t == nil {
-		t = defaultTypeOf(tv.T, tv.V)
+		t = defaultTypeOf(tv.T)
 	}
 	switch tv.T {
 	case UntypedBoolType:

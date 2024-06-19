@@ -2477,7 +2477,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		// convert type
 		if isUntyped(xt) { // convert if x is untyped literal
 			if t == nil {
-				t = defaultTypeOf(xt, nil)
+				t = defaultTypeOf(xt)
 			}
 			// Push type into expr if qualifying binary expr.
 			if bx, ok := (*x).(*BinaryExpr); ok {

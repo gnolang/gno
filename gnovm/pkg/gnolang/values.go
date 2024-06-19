@@ -1594,7 +1594,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 	}
 	*tv = tv2.Copy(alloc)
 	if cu && isUntyped(tv.T) {
-		ConvertUntypedTo(tv, defaultTypeOf(tv.T, tv.V))
+		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
 }
 
