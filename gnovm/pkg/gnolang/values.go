@@ -1502,6 +1502,88 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	return tv.V.(BigdecValue).V
 }
 
+// returns true if tv is zero
+func (tv *TypedValue) isZero() bool {
+	if tv.T == nil {
+		panic("type should not be nil")
+	}
+	switch tv.T.Kind() {
+	case IntKind:
+		v := tv.GetInt()
+		if v == 0 {
+			return true
+		}
+	case Int8Kind:
+		v := tv.GetInt8()
+		if v == 0 {
+			return true
+		}
+	case Int16Kind:
+		v := tv.GetInt16()
+		if v == 0 {
+			return true
+		}
+	case Int32Kind:
+		v := tv.GetInt32()
+		if v == 0 {
+			return true
+		}
+	case Int64Kind:
+		v := tv.GetInt64()
+		if v == 0 {
+			return true
+		}
+	case UintKind:
+		v := tv.GetUint()
+		if v == 0 {
+			return true
+		}
+	case Uint8Kind:
+		v := tv.GetUint8()
+		if v == 0 {
+			return true
+		}
+	case Uint16Kind:
+		v := tv.GetUint16()
+		if v == 0 {
+			return true
+		}
+	case Uint32Kind:
+		v := tv.GetUint32()
+		if v == 0 {
+			return true
+		}
+	case Uint64Kind:
+		v := tv.GetUint64()
+		if v == 0 {
+			return true
+		}
+	case Float32Kind:
+		v := tv.GetFloat32()
+		if v == 0 {
+			return true
+		}
+	case Float64Kind:
+		v := tv.GetFloat64()
+		if v == 0 {
+			return true
+		}
+	case BigintKind:
+		v := tv.GetBigInt()
+		if v.Sign() == 0 {
+			return true
+		}
+	case BigdecKind:
+		v := tv.GetBigDec()
+		if v.Sign() == 0 {
+			return true
+		}
+	default:
+		panic("not numeric")
+	}
+	return false
+}
+
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	// Special case when nil: has no separator.
 	if tv.T == nil {

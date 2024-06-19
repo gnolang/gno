@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/boards_test
+// PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
 // SEND: 200000000ugnot
@@ -889,4 +889,4 @@ func main() {
 // switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/users"]
 // switchrealm["gno.land/r/demo/boards"]
-// switchrealm["gno.land/r/boards_test"]
+// switchrealm["gno.land/r/demo/boards_test"]

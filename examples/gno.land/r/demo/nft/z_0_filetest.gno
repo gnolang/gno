@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/nft_test
+// PKGPATH: gno.land/r/demo/nft_test
 package nft_test
 
 import (
@@ -246,4 +246,4 @@ func main() {
 //     }
 // }
 // switchrealm["gno.land/r/demo/nft"]
-// switchrealm["gno.land/r/nft_test"]
+// switchrealm["gno.land/r/demo/nft_test"]
