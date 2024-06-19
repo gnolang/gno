@@ -159,6 +159,38 @@ func main() {
 	m.RunMain()
 }
 
+func BenchmarkPreprocessForLoop(b *testing.B) {
+	m := NewMachine("test", nil)
+	c := `package test
+func main() {
+	for i:=0; i<10000; i++ {}
+}`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+
+	for i := 0; i < b.N; i++ {
+		m.RunMain()
+	}
+}
+
+func BenchmarkIfStatement(b *testing.B) {
+	m := NewMachine("test", nil)
+	c := `package test
+func main() {
+	for i:=0; i<10000; i++ {
+		if i > 10 {
+			
+		}
+	}
+}`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+
+	for i := 0; i < b.N; i++ {
+		m.RunMain()
+	}
+}
+
 func TestDoOpEvalBaseConversion(t *testing.T) {
 	m := NewMachine("test", nil)
 
