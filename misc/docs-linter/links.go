@@ -40,12 +40,6 @@ func lintLinks(fileUrlMap map[string][]string, ctx context.Context) error {
 
 	for filePath, urls := range validUrls {
 		filePath := filePath
-
-		if len(urls) != 0 {
-			println("extracted for: " + filePath)
-			fmt.Println(urls)
-		}
-
 		for _, url := range urls {
 			url := url
 			g.Go(func() error {
