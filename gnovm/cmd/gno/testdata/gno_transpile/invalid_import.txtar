@@ -1,10 +1,10 @@
-# Run gno transpile with gno files with whitelist errors
+# Run gno transpile with gno files with an invalid import path
 
 ! gno transpile .
 
 ! stdout .+
-stderr '^main.gno:5:2: import "xxx" is not in the whitelist$'
-stderr '^sub/sub.gno:3:8: import "xxx" is not in the whitelist$'
+stderr '^main.gno:5:2: import "xxx" does not exist$'
+stderr '^sub/sub.gno:3:8: import "xxx" does not exist$'
 stderr '^2 transpile error\(s\)$'
 
 # no *.gen.go files are created
