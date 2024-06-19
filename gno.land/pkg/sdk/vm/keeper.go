@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -82,6 +83,7 @@ func (vm *VMKeeper) Initialize(ms store.MultiStore) {
 	baseSDKStore := ms.GetStore(vm.baseKey)
 	iavlSDKStore := ms.GetStore(vm.iavlKey)
 	vm.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
+
 	vm.initBuiltinPackagesAndTypes(vm.gnoStore)
 	if vm.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
@@ -137,30 +139,63 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 }
 
 func (vm *VMKeeper) checkNamespacePerm(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
+	const syspkg = "gno.land/r/sys/names"
+
 	store := vm.getGnoStore(ctx)
 
-	// if r/system/names does not exists -> skip validation.
-	if pv := store.GetPackage("gno.land/r/system/names", false); pv == nil {
+	// if r/sys/names does not exists -> skip validation.
+	if store.GetPackage("gno.land/r/sys/names", false) == nil {
 		return nil
 	}
+	pkgAddr := gno.DerivePkgAddr(pkgPath)
 
 	pathSp := strings.SplitN(pkgPath, "/", 4) // gno.land/r/...
 	namespace := pathSp[2]
 
-	res, err := vm.Call(ctx, MsgCall{
-		Caller:  creator,
-		Send:    std.Coins{},
-		PkgPath: "gno.land/r/system/names",
-		Func:    "HasPerm",
-		Args:    []string{namespace},
-	})
-	if err != nil {
-		return err
+	// Parse and run the files, construct *PV.
+	msgCtx := stdlibs.ExecContext{
+		ChainID:       ctx.ChainID(),
+		Height:        ctx.BlockHeight(),
+		Timestamp:     ctx.BlockTime().Unix(),
+		OrigCaller:    creator.Bech32(),
+		OrigSendSpent: new(std.Coins),
+		OrigPkgAddr:   pkgAddr.Bech32(),
+		Banker:        NewSDKBanker(vm, ctx),
+		EventLogger:   ctx.EventLogger(),
 	}
-	// TODO: needs fixed representation of bool
-	if res != "(true bool)" {
-		return fmt.Errorf("namespace %q not allowed", namespace)
-	}
+
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:   pkgPath,
+			Output:    os.Stdout, // XXX
+			Store:     store,
+			Context:   msgCtx,
+			Alloc:     store.GetAllocator(),
+			MaxCycles: vm.maxCycles,
+			GasMeter:  ctx.GasMeter(),
+		})
+	// -	res, err := vm.Call(ctx, MsgCall{
+	// 	-		Caller:  creator,
+	// 	-		Send:    std.Coins{},
+	// 	-		PkgPath: "gno.land/r/system/names",
+	// 	-		Func:    "HasPerm",
+	// 	-		Args:    []string{namespace},
+	// 	-	})
+
+	x := gno.Call(
+		gno.Sel(gnolang.Nx("names"), "HasPerm"), // Call testing.RunTest
+		gno.Str(namespace),                      // First param, the name of the test
+	)
+
+	ret := m.Eval(x)
+	panic(ret)
+	// // if err != nil {
+	// // 	return err
+	// // }
+	// // TODO: needs fixed representation of bool
+	// if res != "(true bool)" {
+	// 	return fmt.Errorf("namespace %q not allowed", namespace)
+	// }
 
 	return nil
 }
