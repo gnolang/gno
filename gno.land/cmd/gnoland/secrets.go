@@ -21,7 +21,7 @@ const (
 )
 
 const (
-	nodeKeyKey             = "NodeKey"
+	nodeIDKey              = "NodeID"
 	validatorPrivateKeyKey = "ValidatorPrivateKey"
 	validatorStateKey      = "ValidatorState"
 )
