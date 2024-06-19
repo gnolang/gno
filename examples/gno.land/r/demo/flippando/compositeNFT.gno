@@ -130,12 +130,6 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 
 // it is used in marketplace
 func TransferCompositeNFT(from, to std.Address, tid grc721.TokenID) error {
-	tokenId := grc721.TokenID(tid)
-	//FlipCompositeNFT.Approve(std.CurrentRealm().Addr(), tokenId)
-	//FlipCompositeNFT.Approve(to, tokenId)
-	//FlipCompositeNFT.Approve(from, tokenId)
-	//FlipCompositeNFT.SetApprovalForAll(std.CurrentRealm().Addr(), true)
-	//FlipCompositeNFT.SetApprovalForAll(std.PrevRealm().Addr(), true)
 	err := FlipCompositeNFT.TransferFrom(from, to, tid)
 	if err != nil {
 		//panic(err.Error())
