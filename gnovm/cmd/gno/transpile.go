@@ -33,6 +33,8 @@ type transpileCfg struct {
 
 type transpileOptions struct {
 	cfg *transpileCfg
+	// CLI output
+	io commands.IO
 	// transpiled is the set of packages already
 	// transpiled from .gno to .go.
 	transpiled map[string]struct{}
@@ -147,7 +149,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 			err = transpilePkg(path, opts)
 		} else {
 			if opts.cfg.verbose {
-				fmt.Fprintf(os.Stderr, "%s\n", filepath.Clean(path))
+				io.ErrPrintln(filepath.Clean(path))
 			}
 
 			err = transpileFile(path, opts)
@@ -172,7 +174,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 					return fmt.Errorf("resolve output path: %w", err)
 				}
 			}
-			err := goBuildFileOrPkg(pkgPath, cfg)
+			err := goBuildFileOrPkg(io, pkgPath, cfg)
 			if err != nil {
 				var fileErrlist scanner.ErrorList
 				if !errors.As(err, &fileErrlist) {
@@ -208,7 +210,7 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 	}
 	if err == nil && gmod.Draft {
 		if opts.cfg.verbose {
-			fmt.Fprintf(os.Stderr, "%s (skipped, gno.mod marks module as draft)\n", filepath.Clean(dirPath))
+			opts.io.ErrPrintfln("%s (skipped, gno.mod marks module as draft)", filepath.Clean(dirPath))
 		}
 		opts.skipped = append(opts.skipped, dirPath)
 		return nil
@@ -224,7 +226,7 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 	}
 
 	if opts.cfg.verbose {
-		fmt.Fprintf(os.Stderr, "%s\n", filepath.Clean(dirPath))
+		opts.io.ErrPrintln(filepath.Clean(dirPath))
 	}
 	for _, file := range files {
 		if err := transpileFile(file, opts); err != nil {
@@ -285,12 +287,12 @@ func transpileFile(srcPath string, opts *transpileOptions) error {
 	return nil
 }
 
-func goBuildFileOrPkg(fileOrPkg string, cfg *transpileCfg) error {
+func goBuildFileOrPkg(io commands.IO, fileOrPkg string, cfg *transpileCfg) error {
 	verbose := cfg.verbose
 	goBinary := cfg.goBinary
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "%s [build]\n", filepath.Clean(fileOrPkg))
+		io.ErrPrintfln("%s [build]", filepath.Clean(fileOrPkg))
 	}
 
 	return buildTranspiledPackage(fileOrPkg, goBinary)
