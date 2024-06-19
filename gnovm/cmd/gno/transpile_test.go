@@ -33,9 +33,10 @@ func Test_parseGoBuildErrors(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name          string
-		output        string
-		expectedError error
+		name            string
+		output          string
+		expectedError   error
+		expectedErrorIs error
 	}{
 		{
 			name:          "empty output",
@@ -79,22 +80,27 @@ pkg/file.gno:60:20: ugly error`,
 			},
 		},
 		{
-			name:          "line parse error",
-			output:        `main.gno:9000000000000000000000000000000000000000000000000000:11: error`,
-			expectedError: strconv.ErrRange,
+			name:            "line parse error",
+			output:          `main.gno:9000000000000000000000000000000000000000000000000000:11: error`,
+			expectedErrorIs: strconv.ErrRange,
 		},
 		{
-			name:          "column parse error",
-			output:        `main.gno:1:9000000000000000000000000000000000000000000000000000: error`,
-			expectedError: strconv.ErrRange,
+			name:            "column parse error",
+			output:          `main.gno:1:9000000000000000000000000000000000000000000000000000: error`,
+			expectedErrorIs: strconv.ErrRange,
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			err := parseGoBuildErrors(tt.output)
-			assert.ErrorIs(t, err, tt.expectedError)
+			if eis := tt.expectedErrorIs; eis != nil {
+				assert.ErrorIs(t, err, eis)
+			} else {
+				assert.Equal(t, tt.expectedError, err)
+			}
 		})
 	}
 }
