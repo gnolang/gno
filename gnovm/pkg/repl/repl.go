@@ -138,6 +138,21 @@ func NewRepl(opts ...ReplOption) *Repl {
 	return r
 }
 
+// XXX: improve this
+func (r *Repl) Parse(input string) (out string, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("recovered from panic: %q", r)
+		}
+	}()
+	r.state.id++
+
+	_, declErr := r.parseDeclaration(input)
+	_, expErr := r.parseExpression(input)
+
+	return "", fmt.Errorf("error parsing code:\n\t- as expression: %w\n\t- as declarations: %w", expErr, declErr)
+}
+
 // Process accepts any valid Gno source code and executes it if it
 // is an expression, or stores it for later use if they are declarations.
 // If the provided input is not valid Gno source code, an error is returned.
