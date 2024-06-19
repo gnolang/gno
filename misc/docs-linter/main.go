@@ -56,7 +56,7 @@ func execLint(cfg *cfg, ctx context.Context) error {
 
 	// Extract URLs from docs files
 	fileUrlMap := make(map[string][]string)
-	fileJSXMap := make(map[string][]string)
+	//fileJSXMap := make(map[string][]string)
 
 	for _, filePath := range mdFiles {
 		fileContents, err := os.ReadFile(filePath)
@@ -69,13 +69,14 @@ func execLint(cfg *cfg, ctx context.Context) error {
 
 		// Extract and save URLs from each file
 		urls := extractUrls(fileContents)
+
 		fileUrlMap[filePath] = urls
 	}
 
-	// lint JSX tags
-	if err = lintJSX(fileJSXMap, ctx); err != nil {
-		return err
-	}
+	//// lint JSX tags
+	//if err = lintJSX(fileJSXMap, ctx); err != nil {
+	//	return err
+	//}
 
 	// lint links
 	if err = lintLinks(fileUrlMap, ctx); err != nil {

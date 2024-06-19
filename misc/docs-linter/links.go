@@ -13,16 +13,19 @@ import (
 	"sync"
 )
 
-func lintLinks(map[string]string, ctx context.Context) error {
-
+func lintLinks(fileUrlMap map[string][]string, ctx context.Context) error {
 	// Filter links by prefix & ignore localhost
-	var validUrls []string
-	for url := range urlFileMap {
-		// Look for http & https only
-		if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-			// Ignore localhost
-			if !strings.Contains(url, "localhost") && !strings.Contains(url, "127.0.0.1") {
-				validUrls = append(validUrls, url)
+	validUrls := make(map[string][]string)
+
+	for file, urls := range fileUrlMap {
+		file := file
+		for _, url := range urls {
+			// Look for http & https only
+			if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+				// Ignore localhost
+				if !strings.Contains(url, "localhost") && !strings.Contains(url, "127.0.0.1") {
+					validUrls[file] = append(validUrls[file], url)
+				}
 			}
 		}
 	}
@@ -35,17 +38,26 @@ func lintLinks(map[string]string, ctx context.Context) error {
 		notFoundUrls []string
 	)
 
-	for _, url := range validUrls {
-		url := url
-		g.Go(func() error {
-			if err := checkUrl(url); err != nil {
-				lock.Lock()
-				notFoundUrls = append(notFoundUrls, fmt.Sprintf(">>> %s (found in file: %s)", url, urlFileMap[url]))
-				lock.Unlock()
-			}
+	for filePath, urls := range validUrls {
+		filePath := filePath
 
-			return nil
-		})
+		if len(urls) != 0 {
+			println("extracted for: " + filePath)
+			fmt.Println(urls)
+		}
+
+		for _, url := range urls {
+			url := url
+			g.Go(func() error {
+				if err := checkUrl(url); err != nil {
+					lock.Lock()
+					notFoundUrls = append(notFoundUrls, fmt.Sprintf(">>> %s (found in file: %s)", url, filePath))
+					lock.Unlock()
+				}
+
+				return nil
+			})
+		}
 	}
 
 	if err := g.Wait(); err != nil {

@@ -8,19 +8,20 @@ import (
 )
 
 func lintJSX(filesToAnalyze []string, ctx context.Context) error {
-	file, err := os.Open(filesToAnalyze)
-	if err != nil {
-		return err
-	}
-
-	cleanup := func() error {
-		if closeErr := file.Close(); closeErr != nil {
-			return fmt.Errorf("unable to gracefully close file, %w", closeErr)
-		}
-		return nil
-	}
-
-	return cleanup()
+	//file, err := os.Open(filesToAnalyze)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//cleanup := func() error {
+	//	if closeErr := file.Close(); closeErr != nil {
+	//		return fmt.Errorf("unable to gracefully close file, %w", closeErr)
+	//	}
+	//	return nil
+	//}
+	//
+	//return cleanup()
+	return nil
 }
 
 func findJSXTags(filePath string) (map[string]string, error) {
@@ -41,9 +42,6 @@ func findJSXTags(filePath string) (map[string]string, error) {
 
 	// Scan file line by line
 	for scanner.Scan() {
-		line := scanner.Text()
-
-		jsxTags[url] = filePath
 	}
 
 	return jsxTags, cleanup()
