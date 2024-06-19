@@ -67,7 +67,7 @@
 /gnovm/pkg/gnolang/           @jaekwon @moul @piux2 @deelawn
 /gnovm/pkg/doc/               @thehowl
 /gnovm/pkg/repl/              @mvertes @ajnavarro
-/gnovm/pkg/gnomod/            @moul # looking for maintainer
+/gnovm/pkg/gnomod/            @thehowl
 /gnovm/pkg/gnoenv/            @gfanton
 /gnovm/pkg/transpiler/        @thehowl
 /gnovm/pkg/integration/       @gfanton
