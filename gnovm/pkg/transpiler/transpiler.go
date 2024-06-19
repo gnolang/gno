@@ -68,6 +68,7 @@ var stdlibWhitelist = []string{
 	"unicode",
 	"unicode/utf8",
 	"unicode/utf16",
+	"testing",
 
 	// gno
 	"std",
