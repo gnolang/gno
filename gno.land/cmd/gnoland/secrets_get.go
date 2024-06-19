@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -234,6 +235,20 @@ func readAndShowNodeKey(path string, io commands.IO) error {
 	return w.Flush()
 }
 
+// constructP2PAddress constructs the P2P address other nodes can use
+// to connect directly
 func constructP2PAddress(nodeID p2p.ID, listenAddress string) string {
-	return fmt.Sprintf("%s@%s", nodeID, listenAddress)
+	var (
+		address string
+		parts   = strings.SplitN(listenAddress, "://", 2)
+	)
+
+	switch len(parts) {
+	case 2:
+		address = parts[1]
+	default:
+		address = listenAddress
+	}
+
+	return fmt.Sprintf("%s@%s", nodeID, address)
 }
