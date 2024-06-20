@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"os"
 )
 
 var errEndpointNotSet = errors.New("telemetry exporter endpoint not set")
@@ -11,15 +12,21 @@ type Config struct {
 	MetricsEnabled   bool   `toml:"enabled"`
 	MeterName        string `toml:"meter_name"`
 	ServiceName      string `toml:"service_name"`
+	ServiceInstance  string `toml:"service_instance"`
 	ExporterEndpoint string `toml:"exporter_endpoint" comment:"the endpoint to export metrics to, like a local OpenTelemetry collector"`
 }
 
 // DefaultTelemetryConfig is the default configuration used for the node
 func DefaultTelemetryConfig() *Config {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "gno-node"
+	}
 	return &Config{
 		MetricsEnabled:   false,
 		MeterName:        "gno.land",
 		ServiceName:      "gno.land",
+		ServiceInstance:  hostname,
 		ExporterEndpoint: "",
 	}
 }
