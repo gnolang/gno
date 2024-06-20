@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -13,13 +15,12 @@ import (
 	zone "github.com/lrstanley/bubblezone"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/muesli/reflow/wordwrap"
 )
 
 // var noopLogger = log.NewNopLogger()
 
-const gnoPrefix = "gno.land/r/"
+const gnoPrefix = "gno.land/"
 
 // You generally won't need this unless you're processing stuff with
 // complicated ANSI escape sequences. Turn it on if you notice flickering.
@@ -74,7 +75,7 @@ func initURLInput() textinput.Model {
 	ti.CharLimit = 156
 	ti.PromptStyle = lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#FF06B7"))
-	ti.Prompt = "gno.land/r/"
+	ti.Prompt = gnoPrefix
 
 	return ti
 }
@@ -106,11 +107,43 @@ type model struct {
 	viewport     viewport.Model
 	height       int
 
+	pageurls       map[string]string
 	messageDisplay bool
 }
 
 func (m model) Init() tea.Cmd {
 	return nil
+}
+
+var urlPattern = regexp.MustCompile(`(?m)/(?:p|r)/[^[;\s]+`)
+
+func (m model) FindAndMarkURLs(body []byte) []byte {
+	var buf bytes.Buffer
+	lastIndex := 0
+
+	indexes := urlPattern.FindAllIndex(body, -1)
+	for i, loc := range indexes {
+		markid := fmt.Sprintf("url_%d", i)
+
+		// Write bytes before match
+		buf.Write(body[lastIndex:loc[0]])
+
+		// Write quoted URL
+		u := string(body[loc[0]:loc[1]])
+		buf.WriteString(m.zone.Mark(markid, u))
+		m.pageurls[markid] = u
+		lastIndex = loc[1]
+	}
+	// Write remaining bytes
+	buf.Write(body[lastIndex:])
+
+	// Cleanup previous urls
+	for i := len(indexes); i < len(m.pageurls); i++ {
+		markid := fmt.Sprintf("url_%d", i)
+		delete(m.pageurls, markid)
+	}
+
+	return buf.Bytes()
 }
 
 func (m model) fetchRenderView() (view []byte, err error) {
@@ -122,6 +155,7 @@ func (m model) fetchRenderView() (view []byte, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to fetch Render: %w", err)
 	}
+
 	r, err := glamour.NewTermRenderer(
 		glamour.WithAutoStyle(),
 		glamour.WithWordWrap(m.viewport.Width),
@@ -136,13 +170,14 @@ func (m model) fetchRenderView() (view []byte, err error) {
 		return nil, fmt.Errorf("uanble to render markdown view: %w", err)
 	}
 
-	return view, nil
+	return m.FindAndMarkURLs(view), nil
 }
 
 func (m model) fetchFuncsList() (view []list.Item, err error) {
 	path := m.urlInput.Value()
 	rlmpath := gnoPrefix + path
 
+	rlmpath, _, _ = strings.Cut(rlmpath, ":")
 	funcs, err := m.client.Funcs(rlmpath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to fetch Render: %w", err)
@@ -160,7 +195,7 @@ func (m model) fetchFuncsList() (view []list.Item, err error) {
 
 func (m model) getError(err error) string {
 	f := wordwrap.NewWriter(m.viewport.Width)
-	fmt.Fprintf(f, "error: %s", err)
+	fmt.Fprintf(f, "error: %v", err)
 	serr := f.String()
 	return serr
 }
@@ -223,22 +258,36 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
-		if msg.Type != tea.MouseLeft {
-			return m, nil
+		if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown ||
+			msg.Button == tea.MouseButtonWheelLeft || msg.Button == tea.MouseButtonWheelRight {
+			m.viewport, cmd = m.viewport.Update(msg)
+			return m, cmd // stop here to avoid update input view
 		}
 
 		if m.zone.Get("url_input").InBounds(msg) {
 			m.commandInput.Blur()
 			cmds = append(cmds, m.urlInput.Focus())
 			m.commandFocus = false
-		}
-
-		if m.zone.Get("command_input").InBounds(msg) {
+		} else if m.zone.Get("command_input").InBounds(msg) {
 			m.urlInput.Blur()
 			cmds = append(cmds, m.commandInput.Focus())
 			m.commandFocus = true
-		}
+		} else {
+			for mark := range m.pageurls {
+				if !m.zone.Get(mark).InBounds(msg) {
+					continue
+				}
 
+				if uri := m.pageurls[mark]; uri != "" {
+					uri = strings.TrimPrefix(uri, "/")
+					m.urlInput.SetValue(uri)
+					m.urlInput.CursorEnd()
+					m.RenderUpdate()
+				}
+
+				break
+			}
+		}
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "alt+down", "alt+up", "tab":
@@ -276,17 +325,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				rlmpath := gnoPrefix + path
 				res, err := m.client.Call(rlmpath, m.commandInput.Value())
 				if err != nil {
-					content := fmt.Sprintf("%s\n\npress [enter] to dismiss", m.getError(errors.Cause(err)))
+					content := fmt.Sprintf("%s\n\npress [enter] to dismiss", m.getError(err))
 					m.viewport.SetContent(content)
+					m.messageDisplay = true
 				} else {
 					if strings.TrimSpace(string(res)) == "" {
-						break
+						m.RenderUpdate()
+						m.messageDisplay = false
+					} else {
+						m.viewport.SetContent(fmt.Sprintf("%s\n\npress [enter] to dismiss", string(res)))
+						m.messageDisplay = true
 					}
-					m.viewport.SetContent(fmt.Sprintf("%s\n\npress [enter] to dismiss", string(res)))
 				}
 
 				m.listFuncs.Erase()
-				m.messageDisplay = true
 				break
 			}
 
@@ -321,6 +373,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// here.
 			m.viewport = viewport.New(msg.Width, msg.Height-verticalMarginHeight)
 			m.viewport.YPosition = headerHeight
+			m.viewport.MouseWheelEnabled = true
+			m.viewport.MouseWheelDelta = 1
 			m.viewport.HighPerformanceRendering = useHighPerformanceRenderer
 			m.ready = true
 

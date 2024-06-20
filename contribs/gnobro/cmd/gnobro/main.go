@@ -15,6 +15,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	zone "github.com/lrstanley/bubblezone"
 )
 
@@ -55,12 +56,19 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 		"target gnoland address",
 	)
 
+	fs.StringVar(
+		&c.chainID,
+		"chainid",
+		defaultBroOptions.chainID,
+		"chainid",
+	)
+
 }
 
 func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
-	m := zone.New()
 	home := gnoenv.HomeDir()
 
+	logger := log.NewNoopLogger()
 	var address string
 	var kb keys.Keybase
 	if len(args) > 0 && args[0] != "" {
@@ -89,37 +97,28 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to create http client for %q: %w", remoteAddr, err)
 	}
 
-	broclient := &BroClient{
-		client: &gnoclient.Client{
-			RPCClient: cl,
-			Signer:    signer,
-		},
-		base: gnoclient.BaseTxCfg{
-			GasFee:         "1000000ugnot",
-			GasWanted:      2000000,
-			AccountNumber:  1,
-			SequenceNumber: 1,
-		},
+	gnocl := &gnoclient.Client{
+		RPCClient: cl,
+		Signer:    signer,
+	}
+	base := gnoclient.BaseTxCfg{
+		GasFee:    "1000000ugnot",
+		GasWanted: 2000000,
 	}
 
-	res, err := broclient.Call("gno.land/r/dev/counter", "Inc()")
-	if err != nil {
-		return fmt.Errorf("cal error: %+v", err)
-	}
-	fmt.Println(res)
-	if res != nil {
-		os.Exit(1)
-	}
+	broclient := NewBroClient(logger, base, gnocl)
 
 	cmd := initCommandInput()
-	p := tea.NewProgram(
-		model{
-			client:       broclient,
-			listFuncs:    newFuncList(),
-			urlInput:     initURLInput(),
-			commandInput: cmd,
-			zone:         m,
-		},
+	mod := model{
+		client:       broclient,
+		listFuncs:    newFuncList(),
+		urlInput:     initURLInput(),
+		commandInput: cmd,
+		zone:         zone.New(),
+		pageurls:     map[string]string{},
+	}
+
+	p := tea.NewProgram(mod,
 		tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
 		tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
 	)
@@ -130,22 +129,6 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 
 	return nil
 }
-
-// func execApi(cfg *apiCfg, args []string, io commands.IO) error {
-// 	logger := log.ZapLoggerToSlog(log.NewZapConsoleLogger(io.Out(), zapcore.DebugLevel))
-
-// 	var server http.Server
-// 	server.ReadHeaderTimeout = 60 * time.Second
-// 	server.Handler = proxycl
-
-// 	l, err := net.Listen("tcp", cfg.listener)
-// 	if err != nil {
-// 		return fmt.Errorf("unable to listen on %q: %w", cfg.listener, err)
-// 	}
-// 	logger.Info("api listening", "addr", l.Addr())
-
-// 	return server.Serve(l)
-// }
 
 func getSignerForAccount(io commands.IO, address string, kb keys.Keybase, cfg *broCfg) (gnoclient.Signer, error) {
 	var signer gnoclient.SignerFromKeybase
