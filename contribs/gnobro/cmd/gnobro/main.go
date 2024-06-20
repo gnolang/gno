@@ -10,8 +10,11 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
+	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	zone "github.com/lrstanley/bubblezone"
 )
 
@@ -56,10 +59,29 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 	m := zone.New()
-	// if len(os.Args) != 2 {
-	// 	fmt.Fprintln(os.Stderr, "no nameOrBench32 given")
-	// 	return
-	// }
+	home := gnoenv.HomeDir()
+
+	var address string
+	var kb keys.Keybase
+	if len(args) > 0 && args[0] != "" {
+		address = args[0]
+
+		var err error
+		kb, err = keys.NewKeyBaseFromDir(home)
+		if err != nil {
+			return fmt.Errorf("unable to load keybase: %w", err)
+		}
+	} else {
+		// create a inmemory keybase
+		kb = keys.NewInMemory()
+		kb.CreateAccount(integration.DefaultAccount_Name, integration.DefaultAccount_Seed, "", "", 0, 0)
+		address = integration.DefaultAccount_Name
+	}
+
+	signer, err := getSignerForAccount(io, address, kb, cfg)
+	if err != nil {
+		return fmt.Errorf("unable to get signer for account %q: %w", address, err)
+	}
 
 	remoteAddr := resolveUnixOrTCPAddr(cfg.target)
 	cl, err := client.NewHTTPClient(remoteAddr)
@@ -67,40 +89,32 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to create http client for %q: %w", remoteAddr, err)
 	}
 
-	broclient := gnoclient.Client{
-		RPCClient: cl,
+	broclient := &BroClient{
+		client: &gnoclient.Client{
+			RPCClient: cl,
+			Signer:    signer,
+		},
+		base: gnoclient.BaseTxCfg{
+			GasFee:         "1000000ugnot",
+			GasWanted:      2000000,
+			AccountNumber:  1,
+			SequenceNumber: 1,
+		},
 	}
 
-	// name := os.Args[1]
-
-	// kb, err := keys.NewKeyBaseFromDir(gnoenv.HomeDir())
-	// if err != nil {
-	// 	panic("unable to load keybase: " + err.Error())
-	// }
-
-	// if ok, err := kb.HasByNameOrAddress(name); !ok || err != nil {
-	// 	if err != nil {
-	// 		panic("invalid name: " + err.Error())
-	// 	}
-
-	// 	panic("unknown name/address: " + name)
-	// }
-
-	// fmt.Printf("[%s] Enter password: ", name)
-
-	// password, err := terminal.ReadPassword(0)
-	// if err != nil {
-	// 	panic("error while reading password: " + err.Error())
-	// }
-
-	// if _, err := kb.ExportPrivKeyUnsafe(name, string(password)); err != nil {
-	// 	panic("invalid password: " + err.Error())
-	// }
+	res, err := broclient.Call("gno.land/r/dev/counter", "Inc()")
+	if err != nil {
+		return fmt.Errorf("cal error: %+v", err)
+	}
+	fmt.Println(res)
+	if res != nil {
+		os.Exit(1)
+	}
 
 	cmd := initCommandInput()
 	p := tea.NewProgram(
 		model{
-			client:       &BroClient{client: &broclient},
+			client:       broclient,
 			listFuncs:    newFuncList(),
 			urlInput:     initURLInput(),
 			commandInput: cmd,
@@ -115,6 +129,54 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 	}
 
 	return nil
+}
+
+// func execApi(cfg *apiCfg, args []string, io commands.IO) error {
+// 	logger := log.ZapLoggerToSlog(log.NewZapConsoleLogger(io.Out(), zapcore.DebugLevel))
+
+// 	var server http.Server
+// 	server.ReadHeaderTimeout = 60 * time.Second
+// 	server.Handler = proxycl
+
+// 	l, err := net.Listen("tcp", cfg.listener)
+// 	if err != nil {
+// 		return fmt.Errorf("unable to listen on %q: %w", cfg.listener, err)
+// 	}
+// 	logger.Info("api listening", "addr", l.Addr())
+
+// 	return server.Serve(l)
+// }
+
+func getSignerForAccount(io commands.IO, address string, kb keys.Keybase, cfg *broCfg) (gnoclient.Signer, error) {
+	var signer gnoclient.SignerFromKeybase
+
+	signer.Keybase = kb
+	signer.Account = address
+	signer.ChainID = cfg.chainID // XXX: override this
+	// 	ChainID:  chainid, // Chain ID for transaction signing
+
+	if ok, err := kb.HasByNameOrAddress(address); !ok || err != nil {
+		if err != nil {
+			return nil, fmt.Errorf("invalid name: %w", err)
+		}
+
+		return nil, fmt.Errorf("unknown name/address: %q", address)
+	}
+
+	// try empty password first
+	if _, err := kb.ExportPrivKeyUnsafe(address, ""); err != nil {
+		prompt := fmt.Sprintf("[%.10s] Enter password:", address)
+		signer.Password, err = io.GetPassword(prompt, true)
+		if err != nil {
+			return nil, fmt.Errorf("error while reading password: %w", err)
+		}
+
+		if _, err := kb.ExportPrivKeyUnsafe(address, string(signer.Password)); err != nil {
+			return nil, fmt.Errorf("invalid password: %w", err)
+		}
+	}
+
+	return signer, nil
 }
 
 func resolveUnixOrTCPAddr(in string) (out string) {

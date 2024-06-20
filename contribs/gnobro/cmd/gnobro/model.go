@@ -13,6 +13,7 @@ import (
 	zone "github.com/lrstanley/bubblezone"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/muesli/reflow/wordwrap"
 )
 
@@ -192,12 +193,26 @@ func (m *model) RenderUpdate() {
 	m.listFuncs.SetSize(m.viewport.Width, 7)
 }
 
-func (m *model) ExtendCommandInput() {
+func (m *model) ExtendCommandInput() bool {
 	if m.commandInput.Focused() {
 		if item, ok := m.listFuncs.SelectedItem().(itemFunc); ok {
-			m.commandInput.SetValue(item.Title())
+			var value string
+			if len(item.Params) > 0 {
+				value = item.Title() + "("
+			} else {
+				value = item.Title() + "()"
+			}
+
+			currentValue := m.commandInput.Value()
+			if len(value) > len(currentValue) && strings.HasPrefix(value, currentValue) {
+				m.commandInput.SetValue(value)
+				return true
+			}
+
 		}
 	}
+
+	return false
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -226,25 +241,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "alt+down":
+		case "alt+down", "alt+up", "tab":
 			if m.urlInput.Focused() {
 				m.urlInput.Blur()
 				cmds = append(cmds, m.commandInput.Focus())
 				m.commandFocus = true
+			} else if m.commandInput.Focused() {
+				if msg.String() == "tab" && m.ExtendCommandInput() {
+					break
+				} else {
+					m.commandInput.Blur()
+					cmds = append(cmds, m.urlInput.Focus())
+					m.commandFocus = false
+				}
 			}
-		case "down", "tab":
+		case "down":
 			if m.commandFocus {
 				m.listFuncs.CursorDown()
 			}
 		case "up":
 			if m.commandFocus {
 				m.listFuncs.CursorUp()
-			}
-		case "alt+up":
-			if m.commandInput.Focused() {
-				m.commandInput.Blur()
-				cmds = append(cmds, m.urlInput.Focus())
-				m.commandFocus = false
 			}
 		case "alt+r":
 			m.RenderUpdate()
@@ -258,9 +275,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				path := m.urlInput.Value()
 				rlmpath := gnoPrefix + path
 				res, err := m.client.Call(rlmpath, m.commandInput.Value())
-
 				if err != nil {
-					content := fmt.Sprintf("%s\n\npress [enter] to dismiss", m.getError(err))
+					content := fmt.Sprintf("%s\n\npress [enter] to dismiss", m.getError(errors.Cause(err)))
 					m.viewport.SetContent(content)
 				} else {
 					if strings.TrimSpace(string(res)) == "" {

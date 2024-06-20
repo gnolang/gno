@@ -21,14 +21,9 @@ var (
 )
 
 type BroClient struct {
+	base   gnoclient.BaseTxCfg
 	client *gnoclient.Client
 	log    *slog.Logger
-}
-
-type CallCfg struct {
-	rlmpath      string
-	eval         string
-	nameOrBech32 string
 }
 
 // gnokey maketx call -pkgpath "gno.land/r/dev/hello" -func "Inc" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -broadcast -chainid "tendermint-test" -remote "http://127.0.0.1:36657" g1jg8mtut
@@ -38,8 +33,11 @@ func (bl *BroClient) Call(path, call string) ([]byte, error) {
 		return nil, fmt.Errorf("unable to parse method/args: %w", err)
 	}
 
-	base := gnoclient.BaseTxCfg{}
-	cm, err := bl.client.Call(base, gnoclient.MsgCall{
+	if len(args) == 0 {
+		args = nil
+	}
+
+	cm, err := bl.client.Call(bl.base, gnoclient.MsgCall{
 		PkgPath:  path,
 		FuncName: method,
 		Args:     args,
