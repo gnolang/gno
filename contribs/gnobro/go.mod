@@ -9,6 +9,7 @@ require (
 	github.com/charmbracelet/bubbletea v0.26.2
 	github.com/charmbracelet/glamour v0.7.0
 	github.com/charmbracelet/lipgloss v0.10.0
+	github.com/charmbracelet/wish v1.4.0
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
 	github.com/lrstanley/bubblezone v0.0.0-20240125042004-b7bafc493195
 	github.com/muesli/reflow v0.3.0
@@ -18,20 +19,28 @@ require (
 require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.8.0 // indirect
+	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.3 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.5 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/charmbracelet/keygen v0.5.0 // indirect
+	github.com/charmbracelet/log v0.4.0 // indirect
+	github.com/charmbracelet/ssh v0.0.0-20240401141849-854cddfa2917 // indirect
+	github.com/charmbracelet/x/errors v0.0.0-20240117030013-d31dba354651 // indirect
+	github.com/charmbracelet/x/exp/term v0.0.0-20240328150354-ab9afc214dfd // indirect
 	github.com/cockroachdb/apd/v3 v3.2.1 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.13.3 // indirect
+	github.com/creack/pty v1.1.21 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
 	github.com/dlclark/regexp2 v1.4.0 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216 // indirect
+	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect

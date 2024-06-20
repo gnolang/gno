@@ -2,31 +2,45 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	charmlog "github.com/charmbracelet/log"
+	"github.com/charmbracelet/ssh"
+	"github.com/charmbracelet/wish"
+	"github.com/charmbracelet/wish/activeterm"
+	"github.com/charmbracelet/wish/bubbletea"
+	"github.com/charmbracelet/wish/logging"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
-	"github.com/gnolang/gno/tm2/pkg/log"
+	tmlog "github.com/gnolang/gno/tm2/pkg/log"
 	zone "github.com/lrstanley/bubblezone"
 )
 
 type broCfg struct {
-	target  string
-	chainID string
+	target      string
+	chainID     string
+	sshListener string
 }
 
 var defaultBroOptions = broCfg{
-	target:  "127.0.0.1:26657",
-	chainID: "dev",
+	target:      "127.0.0.1:26657",
+	sshListener: "",
+	chainID:     "dev",
 }
 
 func main() {
@@ -36,7 +50,7 @@ func main() {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "gnobro",
-			ShortUsage: "gnobro [flags] [path ...]",
+			ShortUsage: "gnobro [flags]",
 			ShortHelp:  "runs a cli browser.",
 			LongHelp:   `run a cli browser`,
 		},
@@ -63,12 +77,19 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 		"chainid",
 	)
 
+	fs.StringVar(
+		&c.sshListener,
+		"ssh",
+		defaultBroOptions.sshListener,
+		"ssh server listener address",
+	)
+
 }
 
 func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 	home := gnoenv.HomeDir()
 
-	logger := log.NewNoopLogger()
+	logger := tmlog.NewNoopLogger()
 	var address string
 	var kb keys.Keybase
 	if len(args) > 0 && args[0] != "" {
@@ -108,23 +129,73 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 
 	broclient := NewBroClient(logger, base, gnocl)
 
-	cmd := initCommandInput()
+	render := lipgloss.DefaultRenderer()
+
+	cmd := initCommandInput(render)
 	mod := model{
+		render:       render,
 		client:       broclient,
 		listFuncs:    newFuncList(),
-		urlInput:     initURLInput(),
+		urlInput:     initURLInput(render),
 		commandInput: cmd,
 		zone:         zone.New(),
 		pageurls:     map[string]string{},
 	}
 
-	p := tea.NewProgram(mod,
-		tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
-		tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
+	if cfg.sshListener == "" {
+		p := tea.NewProgram(mod,
+			tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
+			tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
+		)
+
+		if _, err := p.Run(); err != nil {
+			return fmt.Errorf("could not run program: %w", err)
+		}
+
+		return nil
+	}
+
+	teaHandler := func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
+		model := mod
+		model.render = bubbletea.MakeRenderer(s)
+		return model, []tea.ProgramOption{
+			tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
+			tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
+		}
+	}
+
+	sshaddr, err := net.ResolveTCPAddr("", cfg.sshListener)
+	if err != nil {
+		return fmt.Errorf("unable to resolve address: %w", err)
+	}
+
+	logger = slog.New(charmlog.New(io.Out()))
+	s, err := wish.NewServer(
+		wish.WithAddress(sshaddr.String()),
+		wish.WithHostKeyPath(".ssh/id_ed25519"),
+		wish.WithMiddleware(
+			bubbletea.Middleware(teaHandler),
+			activeterm.Middleware(), // Bubble Tea apps usually require a PTY.
+			logging.Middleware(),
+		),
 	)
 
-	if _, err := p.Run(); err != nil {
-		return fmt.Errorf("could not run program: %w", err)
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	logger.Info("Starting SSH server", "addr", sshaddr.String())
+	go func() {
+		if err = s.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
+			logger.Error("Could not start server", "error", err)
+			done <- nil
+		}
+	}()
+
+	<-done
+	logger.Info("Stopping SSH server")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer func() { cancel() }()
+	if err := s.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
+		logger.Error("Could not stop server", "error", err)
 	}
 
 	return nil

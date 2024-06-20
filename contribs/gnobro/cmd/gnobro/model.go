@@ -31,32 +31,27 @@ const gnoPrefix = "gno.land/"
 const useHighPerformanceRenderer = false
 
 var (
-	boxRoundedStyle = func() lipgloss.Style {
+	boxRoundedStyle = func(r *lipgloss.Renderer) lipgloss.Style {
 		b := lipgloss.RoundedBorder()
-		return lipgloss.NewStyle().
+		return r.NewStyle().
 			BorderStyle(b).
 			Padding(0, 2)
-	}()
+	}
 
-	inputStyleLeft = func() lipgloss.Style {
+	inputStyleLeft = func(r *lipgloss.Renderer) lipgloss.Style {
 		b := lipgloss.RoundedBorder()
 		b.Right = "├"
-		return lipgloss.NewStyle().
+		return r.NewStyle().
 			BorderStyle(b).
 			Padding(0, 2)
-	}()
+	}
 
-	infoStyle = func() lipgloss.Style {
+	infoStyle = func(r *lipgloss.Renderer) lipgloss.Style {
 		b := lipgloss.RoundedBorder()
 		b.Left = "┤"
-		return boxRoundedStyle.Copy().BorderStyle(b)
-	}()
+		return boxRoundedStyle(r).Copy().BorderStyle(b)
+	}
 )
-
-// func (i itemFunc) Description() string {
-// 	var str strings
-// 	return i.Params
-// }
 
 type modelFunc struct {
 	textInput textinput.Model
@@ -68,23 +63,23 @@ type modelInput struct {
 	err       error
 }
 
-func initURLInput() textinput.Model {
+func initURLInput(r *lipgloss.Renderer) textinput.Model {
 	ti := textinput.New()
 	ti.Placeholder = "demo/foo20"
 	ti.Focus()
 	ti.CharLimit = 156
-	ti.PromptStyle = lipgloss.NewStyle().
+	ti.PromptStyle = r.NewStyle().
 		Foreground(lipgloss.Color("#FF06B7"))
 	ti.Prompt = gnoPrefix
 
 	return ti
 }
 
-func initCommandInput() textinput.Model {
+func initCommandInput(r *lipgloss.Renderer) textinput.Model {
 	ti := textinput.New()
 	ti.Placeholder = ""
 	ti.CharLimit = 156
-	ti.PromptStyle = lipgloss.NewStyle().
+	ti.PromptStyle = r.NewStyle().
 		Foreground(lipgloss.Color("#FF06B7"))
 	ti.Prompt = "> "
 
@@ -94,6 +89,7 @@ func initCommandInput() textinput.Model {
 type model struct {
 	name, pass string
 	kb         keys.Keybase
+	render     *lipgloss.Renderer
 
 	client *BroClient
 
@@ -250,6 +246,7 @@ func (m *model) ExtendCommandInput() bool {
 	return false
 }
 
+// XXX: it's bit messy here, need some rework
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
@@ -436,7 +433,7 @@ func (m model) View() string {
 }
 
 func (m model) listFuncsView() string {
-	return boxRoundedStyle.
+	return boxRoundedStyle(m.render).
 		Render(m.listFuncs.View())
 }
 
@@ -445,14 +442,14 @@ func (m model) bodyView() string {
 }
 
 func (m model) headerView() string {
-	return m.zone.Mark("url_input", boxRoundedStyle.
+	return m.zone.Mark("url_input", boxRoundedStyle(m.render).
 		Width(m.viewport.Width-2).
 		Render(m.urlInput.View()))
 }
 
 func (m model) footerView() string {
-	info := infoStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
-	command := m.zone.Mark("command_input", inputStyleLeft.
+	info := infoStyle(m.render).Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
+	command := m.zone.Mark("command_input", inputStyleLeft(m.render).
 		Width(m.viewport.Width-lipgloss.Width(info)-5).
 		Render(m.commandInput.View()))
 	line := strings.Repeat("─", 3)
