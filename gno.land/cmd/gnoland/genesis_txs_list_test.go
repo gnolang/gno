@@ -67,6 +67,5 @@ func TestGenesis_List_All(t *testing.T) {
 		require.NoError(t, cmdErr)
 
 		require.Len(t, buf.String(), 1830)
-
 	})
 }

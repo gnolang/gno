@@ -38,7 +38,7 @@ func execTxsListCmd(io commands.IO, cfg *txsCfg) error {
 
 	gs, ok := genesis.AppState.(gnoland.GnoGenesisState)
 	if !ok {
-		return fmt.Errorf("genesis state is not using the correct Gno Genesis type.")
+		return fmt.Errorf("genesis state is not using the correct Gno Genesis type")
 	}
 
 	tw := tabwriter.NewWriter(io.Out(), 0, 8, 2, '\t', 0)
