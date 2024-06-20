@@ -135,6 +135,7 @@ func SignAndBroadcastHandler(
 	if err != nil {
 		return nil, err
 	}
+
 	accountAddr := info.GetAddress()
 
 	qopts := &QueryCfg{
@@ -216,7 +217,7 @@ func ExecSignAndBroadcast(
 	}
 
 	if cfg.cli == nil {
-		return fmt.Errorf("rpcClient hasn't been initialized")
+		return errors.New("rpcClient hasn't been initialized")
 	}
 
 	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass)

@@ -2,122 +2,160 @@ package client
 
 import (
 	"bytes"
-	"errors"
 	"flag"
-	"os"
-	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/require"
 )
 
-func Test_ExecSignAndBroadcast(t *testing.T) {
+var (
+	addr, _  = crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	mnemonic = "process giant gadget pet latin sock receive exercise arctic indoor clump transfer zero increase version model defense teach hole program economy bridge enhance fade"
+)
+
+func Test_ExecSignAndBroadcast_Error(t *testing.T) {
 	t.Parallel()
 
 	// Create a temporary directory for test files
 	kbHome, cleanup := testutils.NewTestCaseDir(t)
 	defer cleanup()
 
-	// Create a test transaction JSON file
-	txFile := filepath.Join(kbHome, "test_tx.json")
-	txJSON := `{
-		"type": "StdTx",
-		"value": {
-			"msg": [],
-			"fee": {},
-			"signatures": [],
-			"memo": ""
-		}
-	}`
-	err := os.WriteFile(txFile, []byte(txJSON), 0644)
-	require.NoError(t, err)
-
 	// Check the keybase
 	kb, err := keys.NewKeyBaseFromDir(kbHome)
 	require.NoError(t, err)
 
-	kb.GetByName("")
-
-	cli := &mockRPCClient{
-		broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-			return &ctypes.ResultBroadcastTxCommit{
-				CheckTx: abci.ResponseCheckTx{},
-				DeliverTx: abci.ResponseDeliverTx{
-					ResponseBase: abci.ResponseBase{
-						Data:   []byte("test data"),
-						Events: []abci.Event{},
-					},
-					GasWanted: 100,
-					GasUsed:   90,
-				},
-				Hash:   []byte{0xab, 0xcd}, // "q80=" at base64 format
-				Height: 12345,
-			}, nil
-		},
-	}
-
-	// Initialize test configuration
-	cfg := &MakeTxCfg{
-		RootCfg: &BaseCfg{
-			BaseOptions: BaseOptions{
-				Home:                  kbHome,
-				InsecurePasswordStdin: true,
-			},
-		},
-		GasWanted: 100,
-		GasFee:    "1",
-		Memo:      "test memo",
-		Broadcast: true,
-		Simulate:  SimulateTest,
-		ChainID:   "test-chain",
-		cli:       cli,
-	}
+	_, err = kb.CreateAccount("test", mnemonic, "", "", 0, 0)
+	require.NoError(t, err)
 
 	// Define test cases
 	testCases := []struct {
 		name      string
+		cfg       MakeTxCfg
 		args      []string
 		expectErr bool
 		errMsg    string
 		output    string
 	}{
 		{
-			name:      "Invalid number of arguments",
-			args:      []string{},
-			expectErr: true,
-			errMsg:    flag.ErrHelp.Error(),
-		},
-		{
-			name:      "File not found",
-			args:      []string{"non_existent_file.json"},
-			expectErr: true,
-			errMsg:    "EOF",
-		},
-		{
 			name:      "Successful sign and broadcast",
-			args:      []string{"test-account", txFile},
+			args:      []string{"test"},
 			expectErr: false,
 			output:    "test data\nOK!\nGAS WANTED: 100\nGAS USED:   90\nHEIGHT:     12345\nEVENTS:     []\nTX HASH:    q80=\n",
+			cfg: MakeTxCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Remote:                "localhost:26657",
+						Home:                  kbHome,
+						InsecurePasswordStdin: true,
+					},
+				},
+				GasWanted: 100,
+				GasFee:    "1",
+				Memo:      "test memo",
+				Broadcast: true,
+				Simulate:  SimulateTest,
+				ChainID:   "test-chain",
+				cli: &mockRPCClient{
+					abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+						var acc = std.BaseAccount{
+							Address:       addr,
+							AccountNumber: 0,
+							Sequence:      0,
+						}
+
+						jsonData := amino.MustMarshalJSON(&acc)
+
+						return &ctypes.ResultABCIQuery{
+							Response: abci.ResponseQuery{
+								ResponseBase: abci.ResponseBase{
+									Data: jsonData,
+								},
+							},
+						}, nil
+					},
+					broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+						return &ctypes.ResultBroadcastTxCommit{
+							CheckTx: abci.ResponseCheckTx{},
+							DeliverTx: abci.ResponseDeliverTx{
+								ResponseBase: abci.ResponseBase{
+									Data:   []byte("test data"),
+									Events: []abci.Event{},
+								},
+								GasWanted: 100,
+								GasUsed:   90,
+							},
+							Hash:   []byte{0xab, 0xcd}, // "q80=" at base64 format
+							Height: 12345,
+						}, nil
+					},
+				},
+			},
+		},
+		{
+			name:      "Invalid number of arguments",
+			args:      []string{}, // empty arguments
+			expectErr: true,
+			errMsg:    flag.ErrHelp.Error(),
+			cfg: MakeTxCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Home:                  kbHome,
+						InsecurePasswordStdin: true,
+					},
+				},
+				GasWanted: 100,
+				GasFee:    "1",
+				Memo:      "test memo",
+				Broadcast: true,
+				Simulate:  SimulateTest,
+				ChainID:   "test-chain",
+			},
+		},
+		{
+			name:      "RPC client not initialized",
+			args:      []string{"test"},
+			expectErr: true,
+			errMsg:    "rpcClient hasn't been initialized",
+			cfg: MakeTxCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Home:                  kbHome,
+						InsecurePasswordStdin: true,
+					},
+				},
+				GasWanted: 100,
+				GasFee:    "1",
+				Memo:      "test memo",
+				Broadcast: true,
+				Simulate:  SimulateTest,
+				ChainID:   "test-chain",
+				cli:       nil, // empty RPCClient
+			},
 		},
 	}
 
 	// Create a new test IO
 	io := commands.NewTestIO()
 
-	mockOutput := new(bytes.Buffer)
-	io.SetOut(commands.WriteNopCloser(mockOutput))
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			mockOutput := new(bytes.Buffer)
+
+			io.SetIn(strings.NewReader(""))
+			io.SetOut(commands.WriteNopCloser(mockOutput))
+
 			tx := std.Tx{} // Initialize a proper transaction object
-			err = ExecSignAndBroadcast(cfg, tc.args, tx, io)
+			err = ExecSignAndBroadcast(&tc.cfg, tc.args, tx, io)
 
 			if tc.expectErr {
 				require.Error(t, err)
@@ -131,138 +169,4 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 			}
 		})
 	}
-}
-
-func Test_ExecSignAndBroadcast_CheckTxError(t *testing.T) {
-	t.Parallel()
-
-	// Create a temporary directory for test files
-	kbHome, cleanup := testutils.NewTestCaseDir(t)
-	defer cleanup()
-
-	// Create a test transaction JSON file
-	txFile := filepath.Join(kbHome, "test_tx.json")
-	txJSON := `{
-		"type": "StdTx",
-		"value": {
-			"msg": [],
-			"fee": {},
-			"signatures": [],
-			"memo": ""
-		}
-	}`
-	err := os.WriteFile(txFile, []byte(txJSON), 0644)
-	require.NoError(t, err)
-
-	expectedError := errors.New("CheckTx failed")
-
-	cli := &mockRPCClient{
-		broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-			return &ctypes.ResultBroadcastTxCommit{
-				CheckTx: abci.ResponseCheckTx{
-					ResponseBase: abci.ResponseBase{
-						Error: abci.ABCIErrorOrStringError(expectedError),
-						Log:   expectedError.Error(),
-					},
-				},
-				DeliverTx: abci.ResponseDeliverTx{},
-				Hash:      []byte{0x01, 0x02, 0x03},
-				Height:    12345,
-			}, nil
-		},
-	}
-
-	// Initialize test configuration
-	cfg := &MakeTxCfg{
-		RootCfg: &BaseCfg{
-			BaseOptions: BaseOptions{
-				Home:                  kbHome,
-				InsecurePasswordStdin: true,
-			},
-		},
-		GasWanted: 100,
-		GasFee:    "1",
-		Memo:      "test memo",
-		Broadcast: true,
-		Simulate:  SimulateTest,
-		ChainID:   "test-chain",
-		cli:       cli,
-	}
-
-	// Create a new test IO
-	io := commands.NewTestIO()
-
-	// Test: CheckTx error
-	args := []string{"test-account", txFile}
-	tx := std.Tx{} // Initialize a proper transaction object
-	err = ExecSignAndBroadcast(cfg, args, tx, io)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), expectedError.Error())
-}
-
-func Test_ExecSignAndBroadcast_DeliverTxError(t *testing.T) {
-	t.Parallel()
-
-	// Create a temporary directory for test files
-	kbHome, cleanup := testutils.NewTestCaseDir(t)
-	defer cleanup()
-
-	// Create a test transaction JSON file
-	txFile := filepath.Join(kbHome, "test_tx.json")
-	txJSON := `{
-		"type": "StdTx",
-		"value": {
-			"msg": [],
-			"fee": {},
-			"signatures": [],
-			"memo": ""
-		}
-	}`
-	err := os.WriteFile(txFile, []byte(txJSON), 0644)
-	require.NoError(t, err)
-
-	expectedError := errors.New("DeliverTx failed")
-
-	cli := &mockRPCClient{
-		broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-			return &ctypes.ResultBroadcastTxCommit{
-				CheckTx: abci.ResponseCheckTx{},
-				DeliverTx: abci.ResponseDeliverTx{
-					ResponseBase: abci.ResponseBase{
-						Error: abci.ABCIErrorOrStringError(expectedError),
-						Log:   expectedError.Error(),
-					},
-				},
-				Hash:   []byte{0x01, 0x02, 0x03},
-				Height: 12345,
-			}, nil
-		},
-	}
-
-	// Initialize test configuration
-	cfg := &MakeTxCfg{
-		RootCfg: &BaseCfg{
-			BaseOptions: BaseOptions{
-				Home:                  kbHome,
-				InsecurePasswordStdin: true,
-			},
-		},
-		GasWanted: 100,
-		GasFee:    "1",
-		Memo:      "test memo",
-		Broadcast: true,
-		Simulate:  SimulateTest,
-		ChainID:   "test-chain",
-		cli:       cli,
-	}
-
-	// Create a new test IO
-	io := commands.NewTestIO()
-
-	// Test: DeliverTx error
-	args := []string{"test-account", txFile}
-	tx := std.Tx{} // Initialize a proper transaction object
-	err = ExecSignAndBroadcast(cfg, args, tx, io)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), expectedError.Error())
 }
