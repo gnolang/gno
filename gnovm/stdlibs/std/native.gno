@@ -1,5 +1,9 @@
 package std
 
+const (
+	ZeroAddress Address = "g100000000000000000000000000000000dnmcnx"
+)
+
 // AssertOriginCall panics if [IsOriginCall] returns false.
 func AssertOriginCall() // injected
 

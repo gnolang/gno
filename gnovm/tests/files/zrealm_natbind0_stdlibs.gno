@@ -154,7 +154,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "native.gno",
-//                         "Line": "13",
+//                         "Line": "17",
 //                         "Nonce": "0",
 //                         "PkgPath": "std"
 //                     }
