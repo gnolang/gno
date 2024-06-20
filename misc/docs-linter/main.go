@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"golang.org/x/sync/errgroup"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +47,12 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		return errEmptyPath
 	}
 
-	fmt.Println("Linting...")
+	absPath, err := filepath.Abs(cfg.docsPath)
+	if err != nil {
+		return fmt.Errorf("error getting absolute path for docs folder: %w", err)
+	}
+
+	fmt.Printf("Linting %s...\n", absPath)
 
 	// Find docs files to lint
 	mdFiles, err := findFilePaths(cfg.docsPath)
@@ -55,8 +61,8 @@ func execLint(cfg *cfg, ctx context.Context) error {
 	}
 
 	// Make storage maps for tokens to analyze
-	//fileUrlMap := make(map[string][]string)
-	fileJSXMap := make(map[string][]string)
+	fileUrlMap := make(map[string][]string) // file path > [urls]
+	fileJSXMap := make(map[string][]string) // file path > [JSX items]
 
 	// Extract tokens from files
 	for _, filePath := range mdFiles {
@@ -66,31 +72,28 @@ func execLint(cfg *cfg, ctx context.Context) error {
 			return err
 		}
 
-		// pass it to jsx extractor
-		// save jsx map
 		fileJSXMap[filePath] = extractJSX(fileContents)
 
 		// Execute URL extractor
-		//fileUrlMap[filePath] = extractUrls(fileContents)
-
-		if len(fileJSXMap[filePath]) != 0 {
-			fmt.Println(filePath, fileJSXMap[filePath])
-		}
-
+		fileUrlMap[filePath] = extractUrls(fileContents)
 	}
 
-	// Run linters
+	// Run linters in parallel
+	g, _ := errgroup.WithContext(ctx)
 
-	//// lint JSX tags
-	//if err = lintJSX(fileJSXMap, ctx); err != nil {
-	//	return err
-	//}
+	g.Go(func() error {
+		return lintJSX(fileJSXMap, ctx)
+	})
 
-	// lint links
-	//if err = lintLinks(fileUrlMap, ctx); err != nil {
-	//	return err
-	//}
+	g.Go(func() error {
+		return lintLinks(fileUrlMap, ctx)
+	})
 
+	if err := g.Wait(); err != nil {
+		return errFoundLintItems
+	}
+
+	fmt.Println("Lint complete, no issues found.")
 	return nil
 }
 

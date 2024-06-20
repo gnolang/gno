@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"regexp"
+	"strings"
 )
 
 func extractJSX(fileContent []byte) []string {
@@ -17,12 +19,38 @@ func extractJSX(fileContent []byte) []string {
 	contentNoInlineCode := reInlineCode.ReplaceAllString(contentNoCodeBlocks, "")
 
 	// Extract JSX/HTML elements
-	reJSXHTML := regexp.MustCompile("(?s)<[^>]+>")
+	reJSX := regexp.MustCompile("(?s)<[^>]+>")
 
-	return reJSXHTML.FindAllString(contentNoInlineCode, -1)
+	matches := reJSX.FindAllString(contentNoInlineCode, -1)
+
+	filteredMatches := make([]string, 0)
+	// Ignore HTML comments and escaped JSX
+	for _, m := range matches {
+		if !strings.Contains(m, "!--") && !strings.Contains(m, "\\>") {
+			filteredMatches = append(filteredMatches, m)
+		}
+	}
+
+	return filteredMatches
 }
 
 func lintJSX(fileUrlMap map[string][]string, ctx context.Context) error {
+	found := false
+	for filePath, tags := range fileUrlMap {
+		filePath := filePath
+		for _, tag := range tags {
+			if !found {
+				fmt.Println("Tags that need checking:")
+				found = true
+			}
+
+			fmt.Printf(">>> %s (found in file: %s)\n", tag, filePath)
+		}
+	}
+
+	if found {
+		return errFoundUnescapedJSXTags
+	}
 
 	return nil
 }

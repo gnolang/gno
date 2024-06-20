@@ -13,23 +13,38 @@ import (
 	"sync"
 )
 
-func lintLinks(fileUrlMap map[string][]string, ctx context.Context) error {
-	// Filter links by prefix & ignore localhost
-	validUrls := make(map[string][]string)
+// extractUrls extracts URLs from a file and maps them to the file
+func extractUrls(fileContent []byte) []string {
+	scanner := bufio.NewScanner(bytes.NewReader(fileContent))
+	urls := make([]string, 0)
 
-	for file, urls := range fileUrlMap {
-		file := file
-		for _, url := range urls {
-			// Look for http & https only
-			if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-				// Ignore localhost
-				if !strings.Contains(url, "localhost") && !strings.Contains(url, "127.0.0.1") {
-					validUrls[file] = append(validUrls[file], url)
-				}
+	// Scan file line by line
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Extract links
+		rxStrict := xurls.Strict()
+		url := rxStrict.FindString(line)
+
+		// Check for empty links and skip them
+		if url == " " || len(url) == 0 {
+			continue
+		}
+
+		// Look for http & https only
+		if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+			// Ignore localhost
+			if !strings.Contains(url, "localhost") && !strings.Contains(url, "127.0.0.1") {
+				urls = append(urls, url)
 			}
 		}
 	}
 
+	return urls
+}
+
+func lintLinks(fileUrlMap map[string][]string, ctx context.Context) error {
+	// Filter links by prefix & ignore localhost
 	// Setup parallel checking for links
 	g, _ := errgroup.WithContext(ctx)
 
@@ -38,7 +53,7 @@ func lintLinks(fileUrlMap map[string][]string, ctx context.Context) error {
 		notFoundUrls []string
 	)
 
-	for filePath, urls := range validUrls {
+	for filePath, urls := range fileUrlMap {
 		filePath := filePath
 		for _, url := range urls {
 			url := url
@@ -60,6 +75,7 @@ func lintLinks(fileUrlMap map[string][]string, ctx context.Context) error {
 
 	// Print out the URLs that returned a 404 along with the file names
 	if len(notFoundUrls) > 0 {
+		fmt.Println("Links that need checking:")
 		for _, result := range notFoundUrls {
 			fmt.Println(result)
 		}
@@ -67,33 +83,7 @@ func lintLinks(fileUrlMap map[string][]string, ctx context.Context) error {
 		return errFound404Links
 	}
 
-	fmt.Println("No broken links were found.")
-
 	return nil
-}
-
-// extractUrls extracts URLs from a file and maps them to the file
-func extractUrls(fileContent []byte) []string {
-	scanner := bufio.NewScanner(bytes.NewReader(fileContent))
-	urls := make([]string, 0)
-
-	// Scan file line by line
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		// Extract links
-		rxStrict := xurls.Strict()
-		url := rxStrict.FindString(line)
-
-		// Check for empty links and skip them
-		if url == " " || len(url) == 0 {
-			continue
-		}
-
-		urls = append(urls, url)
-	}
-
-	return urls
 }
 
 // checkUrl checks if a URL is a 404

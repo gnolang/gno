@@ -14,7 +14,7 @@ version of the Go programming language called Gno.
 
 ### Key Features and Technology
 
-1**Interpreted Gno**: Gno.land utilizes the Gno programming language, which is based on Go. It is executed
+1. **Interpreted Gno**: Gno.land utilizes the Gno programming language, which is based on Go. It is executed
    through a specialized virtual machine called the GnoVM, purpose-built for blockchain development with built-in
    determinism and a modified standard library. While Gno
    shares similarities with Go in terms of syntax, it currently lacks go routine support. However, this feature is
