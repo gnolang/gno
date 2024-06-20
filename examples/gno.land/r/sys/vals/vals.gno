@@ -2,6 +2,7 @@ package vals
 
 import (
 	"std"
+	"strconv"
 
 	"gno.land/p/sys/vals/types"
 )
@@ -57,4 +58,16 @@ func getChanges() []types.Validator {
 	v.changes = v.changes[:0]
 
 	return changes
+}
+
+func Render(_ string) string {
+	if len(v.changes) == 0 {
+		return "No valset changes to apply."
+	}
+
+	output := "Valset changes to apply:\n"
+	for _, change := range v.changes {
+		output += "- " + string(change.Address) + " (" + strconv.FormatUint(change.VotingPower, 10) + ")\n"
+	}
+	return output
 }
