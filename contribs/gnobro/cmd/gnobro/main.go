@@ -44,7 +44,7 @@ var defaultBroOptions = broCfg{
 	chainID:     "dev",
 }
 
-//go:embed banner.txt
+//go:embed banner2.txt
 var banner string
 
 func main() {
@@ -87,7 +87,6 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultBroOptions.sshListener,
 		"ssh server listener address",
 	)
-
 }
 
 func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
@@ -116,8 +115,8 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to get signer for account %q: %w", address, err)
 	}
 
-	remoteAddr := resolveUnixOrTCPAddr(cfg.target)
-	cl, err := client.NewHTTPClient(remoteAddr)
+	// remoteAddr := resolveUnixOrTCPAddr(cfg.target)
+	cl, err := client.NewHTTPClient(cfg.target)
 	if err != nil {
 		return fmt.Errorf("unable to create http client for %q: %w", remoteAddr, err)
 	}
@@ -132,15 +131,22 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 	}
 
 	broclient := NewBroClient(logger, base, gnocl)
+	// res, err := broclient.Render("gno.land/r/gnoland/blogss", "")
+	// if err != nil {
+	// 	io.ErrPrintfln("error: %+v", err)
+	// 	os.Exit(1)
+	// }
+	// fmt.Println(res)
 
-	render := lipgloss.DefaultRenderer()
+	renderer := lipgloss.DefaultRenderer()
 
-	cmd := initCommandInput(render)
+	cmd := initCommandInput(renderer)
 	mod := model{
-		render:       render,
+		// banner:       banner,
+		render:       renderer,
 		client:       broclient,
 		listFuncs:    newFuncList(),
-		urlInput:     initURLInput(render),
+		urlInput:     initURLInput(renderer),
 		commandInput: cmd,
 		zone:         zone.New(),
 		pageurls:     map[string]string{},

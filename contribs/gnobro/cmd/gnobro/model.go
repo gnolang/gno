@@ -438,8 +438,8 @@ func (m model) View() string {
 	}
 
 	if m.banner != "" {
-		banner := m.render.NewStyle().
-			Border(lipgloss.HiddenBorder()).
+		banner := m.render.NewStyle().Padding(1, 5).
+			Border(lipgloss.DoubleBorder(), true, false, true).
 			Render(m.banner)
 		return lipgloss.PlaceHorizontal(m.width, lipgloss.Center, banner)
 	}
