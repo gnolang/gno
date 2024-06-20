@@ -3,10 +3,12 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric"
 	sdkMetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -112,14 +114,35 @@ var (
 )
 
 func Init(config config.Config) error {
-	// Use oltp metric exporter
-	exp, err := otlpmetricgrpc.New(
-		context.Background(),
-		otlpmetricgrpc.WithEndpoint(config.ExporterEndpoint),
-		otlpmetricgrpc.WithInsecure(),
+	var (
+		ctx = context.Background()
+		exp sdkMetric.Exporter
 	)
+
+	u, err := url.Parse(config.ExporterEndpoint)
 	if err != nil {
-		return fmt.Errorf("unable to create metrics exporter, %w", err)
+		return fmt.Errorf("Error parsing exporter endpoint: %s, %w", config.ExporterEndpoint, err)
+	}
+
+	// Use oltp metric exporter with http/https or grpc
+	switch u.Scheme {
+	case "http", "https":
+		exp, err = otlpmetrichttp.New(
+			ctx,
+			otlpmetrichttp.WithEndpointURL(config.ExporterEndpoint),
+		)
+		if err != nil {
+			return fmt.Errorf("unable to create http metrics exporter, %w", err)
+		}
+	default:
+		exp, err = otlpmetricgrpc.New(
+			ctx,
+			otlpmetricgrpc.WithEndpoint(config.ExporterEndpoint),
+			otlpmetricgrpc.WithInsecure(),
+		)
+		if err != nil {
+			return fmt.Errorf("unable to create grpc metrics exporter, %w", err)
+		}
 	}
 
 	provider := sdkMetric.NewMeterProvider(
