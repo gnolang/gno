@@ -65,7 +65,7 @@ type modelInput struct {
 
 func initURLInput(r *lipgloss.Renderer) textinput.Model {
 	ti := textinput.New()
-	ti.Placeholder = "demo/foo20"
+	ti.Placeholder = "r/gnoland/blog"
 	ti.Focus()
 	ti.CharLimit = 156
 	ti.PromptStyle = r.NewStyle().
@@ -87,21 +87,21 @@ func initCommandInput(r *lipgloss.Renderer) textinput.Model {
 }
 
 type model struct {
-	name, pass string
-	kb         keys.Keybase
-	render     *lipgloss.Renderer
+	kb     keys.Keybase
+	render *lipgloss.Renderer
+	banner string
 
 	client *BroClient
 
 	urlInput  textinput.Model
 	listFuncs FuncListModel
 
-	commandInput textinput.Model
-	commandFocus bool
-	zone         *zone.Manager
-	ready        bool
-	viewport     viewport.Model
-	height       int
+	commandInput  textinput.Model
+	commandFocus  bool
+	zone          *zone.Manager
+	ready         bool
+	viewport      viewport.Model
+	height, width int
 
 	pageurls       map[string]string
 	messageDisplay bool
@@ -253,6 +253,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds []tea.Cmd
 	)
 
+	if m.banner != "" {
+		if _, ok := msg.(tea.KeyMsg); ok {
+			m.banner = ""
+			return m, nil
+		}
+	}
+
 	switch msg := msg.(type) {
 	case tea.MouseMsg:
 		if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown ||
@@ -358,6 +365,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.WindowSizeMsg:
+		m.width = msg.Width
+
 		headerHeight := lipgloss.Height(m.headerView())
 		footerHeight := lipgloss.Height(m.footerView())
 		verticalMarginHeight := headerHeight + footerHeight
@@ -426,6 +435,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	if !m.ready {
 		return "\n  Initializing..."
+	}
+
+	if m.banner != "" {
+		banner := m.render.NewStyle().
+			Border(lipgloss.HiddenBorder()).
+			Render(m.banner)
+		return lipgloss.PlaceHorizontal(m.width, lipgloss.Center, banner)
 	}
 
 	mainView := fmt.Sprintf("%s\n%s\n%s", m.headerView(), m.bodyView(), m.footerView())

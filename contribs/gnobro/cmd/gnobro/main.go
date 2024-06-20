@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
@@ -42,6 +43,9 @@ var defaultBroOptions = broCfg{
 	sshListener: "",
 	chainID:     "dev",
 }
+
+//go:embed banner.txt
+var banner string
 
 func main() {
 	cfg := &broCfg{}
@@ -157,6 +161,7 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 
 	teaHandler := func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 		model := mod
+		model.banner = fmt.Sprintf(banner, s.User())
 		model.render = bubbletea.MakeRenderer(s)
 		return model, []tea.ProgramOption{
 			tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
@@ -192,7 +197,7 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 
 	<-done
 	logger.Info("Stopping SSH server")
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer func() { cancel() }()
 	if err := s.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
 		logger.Error("Could not stop server", "error", err)
@@ -207,7 +212,6 @@ func getSignerForAccount(io commands.IO, address string, kb keys.Keybase, cfg *b
 	signer.Keybase = kb
 	signer.Account = address
 	signer.ChainID = cfg.chainID // XXX: override this
-	// 	ChainID:  chainid, // Chain ID for transaction signing
 
 	if ok, err := kb.HasByNameOrAddress(address); !ok || err != nil {
 		if err != nil {
