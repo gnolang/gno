@@ -5,7 +5,6 @@ import (
 
 	"std"
 
-	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/sys/vals/types"
 )
@@ -47,7 +46,7 @@ func TestPoC_AddValidator_Invalid(t *testing.T) {
 		p := NewPoC(WithInitialSet(initialSet))
 
 		// Attempt to add the validator
-		uassert.PanicsWithError(t, types.ErrValidatorExists, func() {
+		testing.PanicsWithError(t, types.ErrValidatorExists, func() {
 			p.AddValidator(proposalAddress, proposalKey)
 		})
 	})
@@ -65,7 +64,7 @@ func TestPoC_AddValidator(t *testing.T) {
 	p := NewPoC()
 
 	// Attempt to add the validator
-	uassert.NotPanics(t, func() {
+	testing.NotPanics(t, func() {
 		p.AddValidator(proposalAddress, proposalKey)
 	})
 
@@ -92,7 +91,7 @@ func TestPoC_RemoveValidator_Invalid(t *testing.T) {
 		p := NewPoC(WithInitialSet(initialSet))
 
 		// Attempt to remove the validator
-		uassert.PanicsWithError(t, types.ErrValidatorMissing, func() {
+		testing.PanicsWithError(t, types.ErrValidatorMissing, func() {
 			p.RemoveValidator(std.Address("totally random"))
 		})
 	})
@@ -112,7 +111,7 @@ func TestPoC_RemoveValidator(t *testing.T) {
 	p := NewPoC(WithInitialSet(initialSet))
 
 	// Attempt to remove the validator
-	uassert.NotPanics(t, func() {
+	testing.NotPanics(t, func() {
 		p.RemoveValidator(proposalAddress)
 	})
 
