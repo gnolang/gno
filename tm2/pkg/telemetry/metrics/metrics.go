@@ -121,7 +121,7 @@ func Init(config config.Config) error {
 
 	u, err := url.Parse(config.ExporterEndpoint)
 	if err != nil {
-		return fmt.Errorf("Error parsing exporter endpoint: %s, %w", config.ExporterEndpoint, err)
+		return fmt.Errorf("error parsing exporter endpoint: %s, %w", config.ExporterEndpoint, err)
 	}
 
 	// Use oltp metric exporter with http/https or grpc
