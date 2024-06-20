@@ -54,11 +54,13 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		return fmt.Errorf("error finding .md files: %w", err)
 	}
 
-	// Extract URLs from docs files
-	fileUrlMap := make(map[string][]string)
-	//fileJSXMap := make(map[string][]string)
+	// Make storage maps for tokens to analyze
+	//fileUrlMap := make(map[string][]string)
+	fileJSXMap := make(map[string][]string)
 
+	// Extract tokens from files
 	for _, filePath := range mdFiles {
+		// Read file content once and pass it to linters
 		fileContents, err := os.ReadFile(filePath)
 		if err != nil {
 			return err
@@ -66,12 +68,18 @@ func execLint(cfg *cfg, ctx context.Context) error {
 
 		// pass it to jsx extractor
 		// save jsx map
+		fileJSXMap[filePath] = extractJSX(fileContents)
 
-		// Extract and save URLs from each file
-		urls := extractUrls(fileContents)
+		// Execute URL extractor
+		//fileUrlMap[filePath] = extractUrls(fileContents)
 
-		fileUrlMap[filePath] = urls
+		if len(fileJSXMap[filePath]) != 0 {
+			fmt.Println(filePath, fileJSXMap[filePath])
+		}
+
 	}
+
+	// Run linters
 
 	//// lint JSX tags
 	//if err = lintJSX(fileJSXMap, ctx); err != nil {
@@ -79,9 +87,9 @@ func execLint(cfg *cfg, ctx context.Context) error {
 	//}
 
 	// lint links
-	if err = lintLinks(fileUrlMap, ctx); err != nil {
-		return err
-	}
+	//if err = lintLinks(fileUrlMap, ctx); err != nil {
+	//	return err
+	//}
 
 	return nil
 }
