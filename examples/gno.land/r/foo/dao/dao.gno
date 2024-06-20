@@ -1,4 +1,4 @@
-package govdao
+package foodao
 
 import (
 	"std"
@@ -88,7 +88,7 @@ func IsMember(addr std.Address) bool {
 
 func AssertIsMember(addr std.Address) {
 	if !IsMember(addr) {
-		panic("caller is not member of govdao")
+		panic("caller is not member of foodao")
 	}
 }
 
@@ -96,7 +96,7 @@ func Render(path string) string {
 	if path == "" {
 		output := ""
 		for idx, prop := range proposals {
-			output += ufmt.Sprintf("- [/r/gov/dao:%d](%d) - %s (by %s)", idx, idx, prop.comment, prop.author)
+			output += ufmt.Sprintf("- [/r/foo/dao:%d](%d) - %s (by %s)", idx, idx, prop.comment, prop.author)
 		}
 		return output
 	}

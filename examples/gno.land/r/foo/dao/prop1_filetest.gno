@@ -10,7 +10,7 @@ package main
 import (
 	"std"
 
-	govdao "gno.land/r/gov/dao"
+	foodao "gno.land/r/foo/dao"
 	"gno.land/r/sys/validators"
 )
 
@@ -32,24 +32,24 @@ func init() {
 	// Create a proposal.
 	// XXX: payment
 	comment := "manual valset changes proposal example"
-	govdao.Propose(comment, executor)
+	foodao.Propose(comment, executor)
 }
 
 func main() {
 	println("--")
-	println(govdao.Render(""))
+	println(foodao.Render(""))
 	println("--")
-	println(govdao.Render("1"))
+	println(foodao.Render("1"))
 	println("--")
-	govdao.VoteOnProposal(1, "YES")
+	foodao.VoteOnProposal(1, "YES")
 	println("--")
-	println(govdao.Render("1"))
+	println(foodao.Render("1"))
 	println("--")
 	println(validators.Render(""))
 	println("--")
-	govdao.ExecuteProposal(1)
+	foodao.ExecuteProposal(1)
 	println("--")
-	println(govdao.Render("1"))
+	println(foodao.Render("1"))
 	println("--")
 	println(validators.Render(""))
 }
