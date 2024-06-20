@@ -202,12 +202,16 @@ func parseQueryEvalData(data string) (pkgPath, expr string) {
 	}
 	dot := strings.IndexByte(data, '.')
 	if dot < 0 {
-		panic("expected <pkgpath>.<expression> syntax in query input data")
+		panic(panicInvalidQueryEvalData)
 	}
 	pkgPath += data[:dot]
 	expr = data[dot+1:]
 	return
 }
+
+const (
+	panicInvalidQueryEvalData = "expected <pkgpath>.<expression> syntax in query input data"
+)
 
 // queryFile returns the file bytes, or list of files if directory.
 // if file, res.Value is []byte("file").
