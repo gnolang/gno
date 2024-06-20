@@ -1,5 +1,9 @@
 package std
 
+const (
+	ZeroAddress Address = "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqluuxe" // XXX: specific to gno.land
+)
+
 // AssertOriginCall panics if [IsOriginCall] returns false.
 func AssertOriginCall() // injected
 
