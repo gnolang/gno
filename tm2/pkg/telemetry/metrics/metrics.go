@@ -16,30 +16,30 @@ import (
 )
 
 const (
-	broadcastTxTimerKey = "broadcast_tx_hist"
-	buildBlockTimerKey  = "build_block_hist"
+	broadcastTxTimerKey = "tm2_broadcast_tx_hist"
+	buildBlockTimerKey  = "tm2_build_block_hist"
 
-	inboundPeersKey  = "inbound_peers_hist"
-	outboundPeersKey = "outbound_peers_hist"
-	dialingPeersKey  = "dialing_peers_hist"
+	inboundPeersKey  = "tm2_inbound_peers_hist"
+	outboundPeersKey = "tm2_outbound_peers_hist"
+	dialingPeersKey  = "tm2_dialing_peers_hist"
 
-	numMempoolTxsKey = "num_mempool_txs_hist"
-	numCachedTxsKey  = "num_cached_txs_hist"
+	numMempoolTxsKey = "tm2_num_mempool_txs_hist"
+	numCachedTxsKey  = "tm2_num_cached_txs_hist"
 
-	vmQueryCallsKey  = "vm_query_calls_counter"
-	vmQueryErrorsKey = "vm_query_errors_counter"
-	vmGasUsedKey     = "vm_gas_used_hist"
-	vmCPUCyclesKey   = "vm_cpu_cycles_hist"
-	vmExecMsgKey     = "vm_exec_msg_hist"
+	vmQueryCallsKey  = "gno_vm_query_calls_counter"
+	vmQueryErrorsKey = "gno_vm_query_errors_counter"
+	vmGasUsedKey     = "gno_vm_gas_used_hist"
+	vmCPUCyclesKey   = "gno_vm_cpu_cycles_hist"
+	vmExecMsgKey     = "gno_vm_exec_msg_hist"
 
-	validatorCountKey       = "validator_count_hist"
-	validatorVotingPowerKey = "validator_vp_hist"
-	blockIntervalKey        = "block_interval_hist"
-	blockTxsKey             = "block_txs_hist"
-	blockSizeKey            = "block_size_hist"
+	validatorCountKey       = "gno_validator_count_hist"
+	validatorVotingPowerKey = "gno_validator_vp_hist"
+	blockIntervalKey        = "tm2_block_interval_hist"
+	blockTxsKey             = "tm2_block_txs_hist"
+	blockSizeKey            = "tm2_block_size_hist"
 
-	httpRequestTimeKey = "http_request_time_hist"
-	wsRequestTimeKey   = "ws_request_time_hist"
+	httpRequestTimeKey = "tm2_http_request_time_hist"
+	wsRequestTimeKey   = "tm2_ws_request_time_hist"
 )
 
 var (
