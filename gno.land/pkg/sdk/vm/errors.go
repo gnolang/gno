@@ -36,7 +36,7 @@ func (e TypeCheckError) Error() string {
 	return bld.String()
 }
 
-func ErrPkgAlreadyExist(msg string) error {
+func ErrPkgAlreadyExists(msg string) error {
 	return errors.Wrap(PkgExistError{}, msg)
 }
 
