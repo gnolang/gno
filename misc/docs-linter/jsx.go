@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -34,9 +33,9 @@ func extractJSX(fileContent []byte) []string {
 	return filteredMatches
 }
 
-func lintJSX(fileUrlMap map[string][]string, ctx context.Context) error {
+func lintJSX(fileJSXMap map[string][]string) error {
 	found := false
-	for filePath, tags := range fileUrlMap {
+	for filePath, tags := range fileJSXMap {
 		filePath := filePath
 		for _, tag := range tags {
 			if !found {
