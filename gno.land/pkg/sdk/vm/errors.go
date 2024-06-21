@@ -16,6 +16,7 @@ func (abciError) AssertABCIError() {}
 // NOTE: these are meant to be used in conjunction with pkgs/errors.
 type (
 	InvalidPkgPathError struct{ abciError }
+	PkgExistError       struct{ abciError }
 	InvalidStmtError    struct{ abciError }
 	InvalidExprError    struct{ abciError }
 	TypeCheckError      struct {
@@ -25,6 +26,7 @@ type (
 )
 
 func (e InvalidPkgPathError) Error() string { return "invalid package path" }
+func (e PkgExistError) Error() string       { return "package already exists" }
 func (e InvalidStmtError) Error() string    { return "invalid statement" }
 func (e InvalidExprError) Error() string    { return "invalid expression" }
 func (e TypeCheckError) Error() string {
@@ -32,6 +34,10 @@ func (e TypeCheckError) Error() string {
 	bld.WriteString("invalid gno package; type check errors:\n")
 	bld.WriteString(strings.Join(e.Errors, "\n"))
 	return bld.String()
+}
+
+func ErrPkgAlreadyExist(msg string) error {
+	return errors.Wrap(PkgExistError{}, msg)
 }
 
 func ErrInvalidPkgPath(msg string) error {
