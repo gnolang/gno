@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-// extractLocalLinks extracts links to local files from file content
+// extractLocalLinks extracts links to local files given file content
 func extractLocalLinks(fileContent []byte) []string {
 	scanner := bufio.NewScanner(bytes.NewReader(fileContent))
 	links := make([]string, 0)
