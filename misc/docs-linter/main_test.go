@@ -25,6 +25,56 @@ func TestEmptyPathError(t *testing.T) {
 	assert.ErrorIs(t, execLint(cfg, ctx), errEmptyPath)
 }
 
+func TestExtractLinks(t *testing.T) {
+	t.Parallel()
+
+	// Create mock file content with random links
+	mockFileContent := `# Lorem Ipsum
+Lorem ipsum dolor sit amet, 
+[consectetur](https://example.org)
+adipiscing elit. Vivamus lacinia odio
+vitae [vestibulum vestibulum](http://localhost:3000).
+Cras [vel ex](http://192.168.1.1) et
+turpis egestas luctus. Nullam
+[eleifend](https://www.wikipedia.org)
+nulla ac [blandit tempus](https://gitlab.org). 
+## Valid Links Here are some valid links:
+- [Mozilla](https://mozilla.org) 
+- [Valid URL](https://valid-url.net) 
+- [Another Valid URL](https://another-valid-url.info) 
+- [Valid Link](https://valid-link.edu)
+`
+
+	// Expected URLs
+	expectedUrls := []string{
+		"https://example.org",
+		"http://192.168.1.1",
+		"https://www.wikipedia.org",
+		"https://gitlab.org",
+		"https://mozilla.org",
+		"https://valid-url.net",
+		"https://another-valid-url.info",
+		"https://valid-link.edu",
+	}
+
+	// Extract URLs from each file in the sourceDir
+	extractedUrls := extractUrls([]byte(mockFileContent))
+	c
+	if len(expectedUrls) != len(extractedUrls) {
+		t.Fatal("Did not extract correct amount of URLs")
+	}
+
+	sort.Strings(extractedUrls)
+	sort.Strings(expectedUrls)
+
+	for i, u := range expectedUrls {
+		if u != extractedUrls[i] {
+			t.Fatalf("expected to get %s, got %s", u, extractedUrls[i])
+		}
+	}
+
+}
+
 func TestFindFilePaths(t *testing.T) {
 	t.Parallel()
 
