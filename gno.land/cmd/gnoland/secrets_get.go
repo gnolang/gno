@@ -51,7 +51,7 @@ func (c *secretsGetCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.raw,
 		"raw",
 		false,
-		"flag indicating if the single value JSON should be raw",
+		"output raw string values, rather than as JSON strings",
 	)
 }
 
