@@ -151,6 +151,15 @@ func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721.TokenID)
         fPricePaid, fPriceBurned, terr := TransferFLIPToSeller(buyer, listing.Seller, std.NewCoin("FLIP", int64(listing.Price)))
         if terr != nil {
             buyError = terr
+            //revert the sale on FLIP transfer error, most likely not enough tokens
+            reverr := TransferCompositeNFT(buyer, std.Address(listing.Seller), compositeTokenID)
+            if reverr != nil {
+                buyError = errors.New(ufmt.Sprintf("revert TransferCompositeNFT on FLIP error: seller=%s, buyer=%s, tokenID=%s, owner=%s, error: %s", listing.Seller, buyer, string(compositeTokenID), compositeNFTOwner, tcerr.Error()))
+            }
+            // Revert any successfully transferred basic NFTs
+            for _, tid := range transferredBasicNFTs {
+                _ = TransferBasicNFTToBuyer(buyer, std.Address(listing.Seller), tid)
+            }
         }
         flipPaid = fPricePaid
         flipBurned = fPriceBurned
