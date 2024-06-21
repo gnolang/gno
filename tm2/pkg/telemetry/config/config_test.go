@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,5 +26,18 @@ func TestConfig_ValidateBasic(t *testing.T) {
 		c.ExporterEndpoint = "0.0.0.0:8080"
 
 		assert.NoError(t, c.ValidateBasic())
+	})
+
+	t.Run("valid hostname", func(t *testing.T) {
+		t.Parallel()
+
+		c := DefaultTelemetryConfig()
+
+		hostname, err := os.Hostname()
+		if err != nil {
+			assert.Equal(t, "gno-node", c.ServiceInstance)
+		} else {
+			assert.Equal(t, hostname, c.ServiceInstance)
+		}
 	})
 }
