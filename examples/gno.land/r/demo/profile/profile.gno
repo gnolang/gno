@@ -3,27 +3,17 @@ package profile
 import (
 	"bytes"
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/mux"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/mux"
 	"std"
-	"time"
 )
 
-type WebsiteInfo struct {
-	Name string
-	URL  string
-}
+type contextKey string
 
 type UserProfile struct {
-	Username            string
-	Address             std.Address
-	AvatarURL           string
-	Age                 string
-	Gender              string
-	Websites            *avl.Tree // Name -> URL
-	Country             string
-	City                string
-	ModificationHistory map[string][]string
+	Username string
+	Address  std.Address
+	Fields   *avl.Tree
 }
 
 var profiles *avl.Tree      // address -> UserProfile
@@ -37,10 +27,10 @@ func init() {
 
 	router.HandleFunc("", homeHandler)
 	router.HandleFunc("info/{username}", profileHandler)
-	router.HandleFunc("history/{username}", historyHandler)
 }
 
-func CreateProfile(username, avatarurl, age, gender, websiteName, websiteURL, country, city string) {
+// CreateProfile creates a new user profile with a username and address
+func CreateProfile(username string) {
 	caller := std.GetOrigCaller()
 
 	// Check if a profile already exists for this address
@@ -50,323 +40,163 @@ func CreateProfile(username, avatarurl, age, gender, websiteName, websiteURL, co
 
 	// Check if the username is already taken
 	if username != "" {
-		_, exists := usernameIndex.Get(username)
-		if exists {
-			panic("Username is already taken")
+		if _, exists := usernameIndex.Get(username); exists {
+			panic("username is already taken")
 		}
 	}
 
-	websites := avl.NewTree()
-	websites.Set(websiteName, websiteURL)
-
 	profile := UserProfile{
-		Username:  username,
-		Address:   caller,
-		AvatarURL: avatarurl,
-		Age:       age,
-		Gender:    gender,
-		Websites:  websites,
-		Country:   country,
-		City:      city,
+		Username: username,
+		Address:  caller,
+		Fields:   avl.NewTree(),
 	}
 
 	profiles.Set(caller.String(), profile)
-
 	usernameIndex.Set(username, caller.String())
 	std.Emit("UserProfileCreated", "username", username, "address", caller.String())
 }
 
-func UpdateProfile(username, avatarurl, age, gender, websiteName, websiteURL, country, city string) {
-    caller := std.GetOrigCaller()
-    value, exists := profiles.Get(caller.String())
-    if !exists {
-        panic("Profile not found")
-    }
+func UpdateProfile(username string, fields ...interface{}) {
+	profile := GetProfileByUsername(username)
 
-    // Retrieve the existing profile
-    existingProfile := value.(UserProfile)
-    changes := make(map[string]string)
-
-    // update the username and manage index if changed
-    if username != "" && username != existingProfile.Username {
-        _, exists := usernameIndex.Get(username)
-        if exists {
-            panic("Username is already taken")
-        }
-
-        if existingProfile.Username != "" {
-            usernameIndex.Remove(existingProfile.Username)
-        }
-        usernameIndex.Set(username, caller.String())
-
-        changes["Username"] = "Changed from " + existingProfile.Username + " to " + username
-        existingProfile.Username = username
-    }
-
-    // Initialize the ModificationHistory map if it's nil
-    if existingProfile.ModificationHistory == nil {
-        existingProfile.ModificationHistory = make(map[string][]string)
-    }
-
-    // Function to update the profile field if changed
-    updateField := func(field *string, newValue, fieldName string, profile *UserProfile) {
-        if newValue != "" && *field != newValue {
-            changeDescription := "Changed from " + *field + " to " + newValue
-            profile.ModificationHistory[fieldName] = append(profile.ModificationHistory[fieldName], time.Now().Format(time.RFC3339)+": "+changeDescription)
-            changes[fieldName] = changeDescription
-            *field = newValue
-        }
-    }
-
-    // Update fields and log changes
-    updateField(&existingProfile.AvatarURL, avatarurl, "AvatarURL", &existingProfile)
-    updateField(&existingProfile.Age, age, "Age", &existingProfile)
-    updateField(&existingProfile.Gender, gender, "Gender", &existingProfile)
-    updateField(&existingProfile.Country, country, "Country", &existingProfile)
-    updateField(&existingProfile.City, city, "City", &existingProfile)
-
-    // Update the website tree if a new website is provided
-    if websiteName != "" && websiteURL != "" {
-        existingProfile.Websites.Set(websiteName, websiteURL)
-        changeDescription := "Updated website " + websiteName + " to " + websiteURL
-        existingProfile.ModificationHistory["Websites"] = append(existingProfile.ModificationHistory["Websites"], time.Now().Format(time.RFC3339)+": "+changeDescription)
-        changes["Website"] = changeDescription
-    }
-
-    // Update the profile in the tree
-    profiles.Set(caller.String(), existingProfile)
-
-    // Emit the changes
-    if len(changes) > 0 {
-        emitArgs := []string{"address", caller.String()}
-        for key, value := range changes {
-            emitArgs = append(emitArgs, key, value)
-        }
-        std.Emit("UserProfileUpdated", emitArgs...)
-    }
-}
-
-// Get complete Profile by Address
-func GetProfileByAddress(address std.Address) UserProfile {
-	if value, exists := profiles.Get(address.String()); exists {
-		return value.(UserProfile)
+	// Check for username change
+	var newUsername string
+	for i := 0; i < len(fields); i += 2 {
+		if fields[i] == "Username" {
+			newUsername = fields[i+1].(string)
+			break
+		}
 	}
 
+	// Update username if it has changed
+	if newUsername != "" && newUsername != profile.Username {
+		if _, exists := usernameIndex.Get(newUsername); exists {
+			panic("username is already taken")
+		}
+		usernameIndex.Remove(profile.Username)
+		profile.Username = newUsername
+		usernameIndex.Set(newUsername, profile.Address.String())
+		std.Emit("UserProfileUpdated", "username", newUsername)
+	}
+
+	// Update existing fields only
+	for i := 0; i < len(fields); i += 2 {
+		key := fields[i].(string)
+		value := fields[i+1]
+		if key == "Username" {
+			continue
+		}
+		if _, exists := profile.Fields.Get(key); exists {
+			profile.Fields.Set(key, value)
+			std.Emit("UserProfileUpdated", "username", profile.Username, "key", key, "value", ufmt.Sprintf("%v", value))
+		} else {
+			panic(ufmt.Sprintf("field '%s' does not exist in profile", key))
+		}
+	}
+
+	profiles.Set(profile.Address.String(), profile)
+}
+
+// AddFields adds multiple fields to a UserProfile using key-value pairs
+func AddFields(profile UserProfile, fields ...interface{}) UserProfile {
+	if len(fields)%2 != 0 {
+		panic("fields must be in key-value pairs")
+	}
+
+	for i := 0; i < len(fields); i += 2 {
+		key := fields[i].(string)
+		value := fields[i+1]
+
+		// Get the current values
+		var values []interface{}
+		if existing, exists := profile.Fields.Get(key); exists {
+			values = existing.([]interface{})
+		}
+
+		// Append the new value
+		values = append(values, value)
+		profile.Fields.Set(key, values)
+		std.Emit("UserProfileUpdated", "username", profile.Username, "key", key, "value", ufmt.Sprintf("%v", value))
+	}
+	profiles.Set(profile.Address.String(), profile)
+	return profile
+}
+
+// RemoveProfile deletes a user profile
+func RemoveProfile(username string) {
+	profile := GetProfileByUsername(username)
+	profiles.Remove(profile.Address.String())
+	usernameIndex.Remove(username)
+	std.Emit("UserProfileDeleted", "username", username, "address", profile.Address.String())
+}
+
+// GetField retrieves a field from a UserProfile
+func GetField(profile UserProfile, key string) interface{} {
+	if value, exists := profile.Fields.Get(key); exists {
+		return value
+	}
+	return nil
+}
+
+// GetProfileByUsername retrieves a profile by username
+func GetProfileByUsername(username string) UserProfile {
+	if addr, exists := usernameIndex.Get(username); exists {
+		if profile, ok := profiles.Get(addr.(string)); ok {
+			return profile.(UserProfile)
+		}
+	}
+	panic("username not found")
+}
+
+// GetProfileByAddress retrieves a profile by address
+func GetProfileByAddress(address std.Address) UserProfile {
+	if profile, exists := profiles.Get(address.String()); exists {
+		return profile.(UserProfile)
+	}
 	panic("profile not found")
 }
 
-// Get complete profile by username
-func GetProfileByUsername(username string) UserProfile {
-	if addr, exists := usernameIndex.Get(username); exists {
-		return GetProfileByAddress(std.Address(addr.(string)))
-	}
 
-	panic("username not found")
+// formatFieldValue formats the value for display
+func formatFieldValue(value interface{}) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case int:
+		return ufmt.Sprintf("%d", v)
+	case float64:
+		return ufmt.Sprintf("%f", v)
+	case []interface{}:
+		var result string
+		for _, val := range v {
+			result += formatFieldValue(val) + ", "
+		}
+		if len(result) > 0 {
+			return result[:len(result)-2] // Remove trailing comma and space
+		}
+		return result
+	default:
+		return ufmt.Sprintf("%v", v)
+	}
 }
 
-// Get username
-func GetUsernameByAddress(address std.Address) string {
-	if value, exists := profiles.Get(address.String()); exists {
-		return value.(UserProfile).Username
-	}
+// Handlers
 
-	panic("address not found")
-}
-
-// Get address from username
-func GetAddressByUsername(username string) string {
-	if addr, exists := usernameIndex.Get(username); exists {
-		return addr.(string)
-	}
-
-	panic("username not found")
-}
-
-// Get avatarurl from address or username
-func GetAvatarURL(address std.Address, username string) string {
-	if address != "" {
-		if value, exists := profiles.Get(address.String()); exists {
-			return value.(UserProfile).AvatarURL
-		}
-	} else if username != "" {
-		if addr, exists := usernameIndex.Get(username); exists {
-			if value, exists := profiles.Get(addr.(string)); exists {
-				return value.(UserProfile).AvatarURL
-			}
-		}
-	}
-
-	panic("address or username not found")
-}
-
-// Get age from address or username
-func GetAge(address std.Address, username string) string {
-	if address != "" {
-		if value, exists := profiles.Get(address.String()); exists {
-			return value.(UserProfile).Age
-		}
-	} else if username != "" {
-		if addr, exists := usernameIndex.Get(username); exists {
-			if value, exists := profiles.Get(addr.(string)); exists {
-				return value.(UserProfile).Age
-			}
-		}
-	}
-
-	panic("address or username not found")
-}
-
-// Get gender from address or username
-func GetGender(address std.Address, username string) string {
-	if address != "" {
-		if value, exists := profiles.Get(address.String()); exists {
-			return value.(UserProfile).Gender
-		}
-	} else if username != "" {
-		if addr, exists := usernameIndex.Get(username); exists {
-			if value, exists := profiles.Get(addr.(string)); exists {
-				return value.(UserProfile).Gender
-			}
-		}
-	}
-
-	panic("address or username not found")
-}
-
-// Get website from address or username
-func GetWebsite(address std.Address, username, websiteName string) string {
-	if address != "" {
-		if value, exists := profiles.Get(address.String()); exists {
-			profile := value.(UserProfile)
-			if url, exists := profile.Websites.Get(websiteName); exists {
-				return url.(string)
-			}
-			panic("website not found")
-		}
-	} else if username != "" {
-		if addr, exists := usernameIndex.Get(username); exists {
-			if value, exists := profiles.Get(addr.(string)); exists {
-				profile := value.(UserProfile)
-				if url, exists := profile.Websites.Get(websiteName); exists {
-					return url.(string)
-				}
-				panic("website not found")
-			}
-		}
-	}
-
-	panic("address or username not found")
-}
-
-// Get all websites from address or username
-func GetAllWebsites(address std.Address, username string) map[string]string {
-	if address != "" {
-		if value, exists := profiles.Get(address.String()); exists {
-			profile := value.(UserProfile)
-			websites := make(map[string]string)
-			profile.Websites.Iterate("", "", func(key string, value interface{}) bool {
-				websites[key] = value.(string)
-				return true
-			})
-			return websites
-		}
-	} else if username != "" {
-		if addr, exists := usernameIndex.Get(username); exists {
-			if value, exists := profiles.Get(addr.(string)); exists {
-				profile := value.(UserProfile)
-				websites := make(map[string]string)
-				profile.Websites.Iterate("", "", func(key string, value interface{}) bool {
-					websites[key] = value.(string)
-					return true
-				})
-				return websites
-			}
-		}
-	}
-	panic("address or username not found")
-}
-
-// Get country from address or username
-func GetCountry(address std.Address, username string) string {
-	if address != "" {
-		if value, exists := profiles.Get(address.String()); exists {
-			return value.(UserProfile).Country
-		}
-	} else if username != "" {
-		if addr, exists := usernameIndex.Get(username); exists {
-			if value, exists := profiles.Get(addr.(string)); exists {
-				return value.(UserProfile).Country
-			}
-		}
-	}
-
-	panic("address or username not found")
-}
-
-// Get city from address or username
-func GetCity(address std.Address, username string) string {
-	if address != "" {
-		if value, exists := profiles.Get(address.String()); exists {
-			return value.(UserProfile).City
-		}
-	} else if username != "" {
-		if addr, exists := usernameIndex.Get(username); exists {
-			if value, exists := profiles.Get(addr.(string)); exists {
-				return value.(UserProfile).City
-			}
-		}
-	}
-
-	panic("address or username not found")
-}
-
-// Get modification history specific to a field from address or username
-func GetModificationHistory(address std.Address, username, field string) string {
-	var value interface{}
-	var exists bool
-
-	if address != "" {
-		value, exists = profiles.Get(address.String())
-	} else if username != "" {
-		if addr, ok := usernameIndex.Get(username); ok {
-			value, exists = profiles.Get(addr.(string))
-		}
-	}
-
-	if !exists {
-		panic("address or username not found")
-	}
-
-	profile, ok := value.(UserProfile)
-	if !ok || profile.ModificationHistory == nil {
-		panic("no modification history available")
-	}
-
-	changes, found := profile.ModificationHistory[field]
-	if !found {
-		panic("no modifications recorded for the field")
-	}
-
-	var b bytes.Buffer
-	for _, change := range changes {
-		b.WriteString(ufmt.Sprintf("%s\n", change))
-	}
-	return b.String()
-}
-
+// homeHandler lists all profiles
 func homeHandler(res *mux.ResponseWriter, req *mux.Request) {
 	var b bytes.Buffer
 	b.WriteString("<html><body>")
-	res.Write("<h1>Profiles List</h1><br>")
+	b.WriteString("<h1>Profiles List</h1><br>")
 	usernameIndex.Iterate("", "", func(key string, value interface{}) bool {
 		username := key
-		res.Write("<p>Username: " + username + " [<a href='/r/demo/profile:info/" + username + "'>" + "View Profile</a>]</p>")
-		return true
+		b.WriteString("<p>Username: " + username + " [<a href='/r/demo/profile:info/" + username + "'>View Profile</a>]</p>")
+		return false
 	})
 	b.WriteString("</body></html>")
 	res.Write(b.String())
 }
 
+// profileHandler displays a user profile
 func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 	username := req.GetVar("username")
 	profile := GetProfileByUsername(username)
@@ -374,50 +204,14 @@ func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
 	var b bytes.Buffer
 
 	b.WriteString("<html><body>")
-	// Reteturn home link
 	b.WriteString("<p>[<a href='/r/demo/profile'>Home</a>]</p>")
 	b.WriteString("<h1>Profile of " + profile.Username + "</h1>")
-	b.WriteString("<p>Username: " + profile.Username + "</p>")
 	b.WriteString("<p>Address: " + profile.Address.String() + "</p>")
-	b.WriteString("<p>Avatar URL: <img src='" + profile.AvatarURL + "' /></p>")
-	b.WriteString("<p>Age: " + profile.Age + "</p>")
-	b.WriteString("<p>Gender: " + profile.Gender + "</p>")
-	b.WriteString("<p>Country: " + profile.Country + "</p>")
-	b.WriteString("<p>City: " + profile.City + "</p>")
 
-	b.WriteString("<h2>Websites:</h2>")
-	profile.Websites.Iterate("", "", func(key string, value interface{}) bool {
-		b.WriteString("<p>" + key + ": <a href='" + value.(string) + "'>" + value.(string) + "</a></p>")
-		return true
+	profile.Fields.Iterate("", "", func(key string, value interface{}) bool {
+		b.WriteString("<p>" + key + ": " + formatFieldValue(value) + "</p>")
+		return false
 	})
-
-	b.WriteString("<p>[<a href='/r/demo/profile:history/" + username + "'>View Modification History</a>]</p>")
-	b.WriteString("</body></html>")
-
-	res.Write(b.String())
-}
-
-func historyHandler(res *mux.ResponseWriter, req *mux.Request) {
-	username := req.GetVar("username")
-	profile := GetProfileByUsername(username)
-
-	var b bytes.Buffer
-
-	b.WriteString("<html><body>")
-
-	b.WriteString("<p>[<a href='/r/demo/profile'>Home</a>] | [<a href='/r/demo/profile:info/" + username + "'>Profile " + username + "</a>]</p>")
-	b.WriteString("<h1>Modification History for " + profile.Username + "</h1>")
-
-	if profile.ModificationHistory != nil && len(profile.ModificationHistory) > 0 {
-		for field, changes := range profile.ModificationHistory {
-			b.WriteString("<h2>" + field + "</h2>")
-			for _, change := range changes {
-				b.WriteString("<p>" + change + "</p>")
-			}
-		}
-	} else {
-		b.WriteString("<p>No modifications recorded.</p>")
-	}
 
 	b.WriteString("</body></html>")
 	res.Write(b.String())
