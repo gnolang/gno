@@ -75,27 +75,27 @@ func constructSecretsPath(nodeDir string) string {
 
 type (
 	secrets struct {
-		ValidatorKeyInfo   *validatorKeyInfo   `json:"validator_key_info,omitempty" toml:"validator_key_info"`
-		ValidatorStateInfo *validatorStateInfo `json:"validator_state_info,omitempty" toml:"validator_state_info"`
-		NodeIDInfo         *nodeIDInfo         `json:"node_id_info,omitempty" toml:"node_id_info"`
+		ValidatorKeyInfo   *validatorKeyInfo   `json:"validator_key_info,omitempty" toml:"validator_key_info" comment:"the validator private key info"`
+		ValidatorStateInfo *validatorStateInfo `json:"validator_state_info,omitempty" toml:"validator_state_info" comment:"the last signed validator state info"`
+		NodeIDInfo         *nodeIDInfo         `json:"node_id_info,omitempty" toml:"node_id_info" comment:"the derived node ID info"`
 	}
 
 	validatorKeyInfo struct {
-		Address string `json:"address" toml:"address"`
-		PubKey  string `json:"pub_key" toml:"pub_key"`
+		Address string `json:"address" toml:"address" comment:"the validator address"`
+		PubKey  string `json:"pub_key" toml:"pub_key" comment:"the validator public key"`
 	}
 
 	validatorStateInfo struct {
-		Height int64 `json:"height" toml:"height"`
-		Round  int   `json:"round" toml:"round"`
-		Step   int8  `json:"step" toml:"step"`
+		Height int64 `json:"height" toml:"height" comment:"the height of the last sign"`
+		Round  int   `json:"round" toml:"round" comment:"the round of the last sign"`
+		Step   int8  `json:"step" toml:"step" comment:"the step of the last sign"`
 
-		Signature []byte `json:"signature,omitempty" toml:"signature,omitempty"`
-		SignBytes []byte `json:"sign_bytes,omitempty" toml:"sign_bytes,omitempty"`
+		Signature []byte `json:"signature,omitempty" toml:"signature,omitempty" comment:"the signature of the last sign"`
+		SignBytes []byte `json:"sign_bytes,omitempty" toml:"sign_bytes,omitempty" comment:"the raw signature bytes of the last sign"`
 	}
 
 	nodeIDInfo struct {
-		ID         string `json:"id" json:"id"`
-		P2PAddress string `json:"p2p_address" toml:"p2p_address"`
+		ID         string `json:"id" toml:"id" comment:"the node ID derived from the private key"`
+		P2PAddress string `json:"p2p_address" toml:"p2p_address" comment:"the node's constructed P2P address'"`
 	}
 )
