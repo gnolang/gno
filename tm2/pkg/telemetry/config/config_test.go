@@ -15,6 +15,7 @@ func TestConfig_ValidateBasic(t *testing.T) {
 
 		c := DefaultTelemetryConfig()
 		c.ExporterEndpoint = "" // empty
+		c.PrometheusAddr = ""
 
 		assert.ErrorIs(t, c.ValidateBasic(), errEndpointNotSet)
 	})

@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-var errEndpointNotSet = errors.New("telemetry exporter endpoint not set")
+var errEndpointNotSet = errors.New("telemetry endpoints not set")
 
 // Config is the configuration struct for the tm2 telemetry package
 type Config struct {
@@ -36,7 +36,7 @@ func DefaultTelemetryConfig() *Config {
 // ValidateBasic performs basic telemetry config validation and
 // returns an error if any check fails
 func (cfg *Config) ValidateBasic() error {
-	if cfg.ExporterEndpoint == "" {
+	if cfg.ExporterEndpoint == "" && cfg.PrometheusAddr == "" {
 		return errEndpointNotSet
 	}
 
