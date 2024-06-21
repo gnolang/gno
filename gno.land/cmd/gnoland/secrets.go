@@ -1,13 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"path/filepath"
-	"reflect"
-	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -75,62 +71,6 @@ func constructSecretsPath(nodeDir string) string {
 		nodeDir,
 		config.DefaultSecretsDir,
 	)
-}
-
-// printKeyValue searches and prints the given key value in JSON
-func printKeyValue[T *secrets | *config.Config](
-	input T,
-	raw bool,
-	io commands.IO,
-	key ...string,
-) error {
-	// prepareOutput prepares the JSON output, taking into account raw mode
-	prepareOutput := func(input any) (string, error) {
-		encoded, err := json.MarshalIndent(input, "", "    ")
-		if err != nil {
-			return "", fmt.Errorf("unable to marshal JSON, %w", err)
-		}
-
-		output := string(encoded)
-
-		if raw {
-			if err := json.Unmarshal(encoded, &output); err != nil {
-				return "", fmt.Errorf("unable to unmarshal raw JSON, %w", err)
-			}
-		}
-
-		return output, nil
-	}
-
-	if len(key) == 0 {
-		// Print the entire input
-		output, err := prepareOutput(input)
-		if err != nil {
-			return err
-		}
-
-		io.Println(output)
-
-		return nil
-	}
-
-	// Get the value using reflect
-	secretValue := reflect.ValueOf(input).Elem()
-
-	// Get the value path, with sections separated out by a period
-	field, err := getFieldAtPath(secretValue, strings.Split(key[0], "."))
-	if err != nil {
-		return err
-	}
-
-	output, err := prepareOutput(field.Interface())
-	if err != nil {
-		return err
-	}
-
-	io.Println(output)
-
-	return nil
 }
 
 type (
