@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// extractJSX extracts links to local files from file content
 func extractJSX(fileContent []byte) []string {
 	text := string(fileContent)
 

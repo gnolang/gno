@@ -13,7 +13,7 @@ import (
 	"sync"
 )
 
-// extractUrls extracts URLs from a file and maps them to the file
+// extractJSX extracts urls file content
 func extractUrls(fileContent []byte) []string {
 	scanner := bufio.NewScanner(bytes.NewReader(fileContent))
 	urls := make([]string, 0)
