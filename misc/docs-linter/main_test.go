@@ -59,20 +59,66 @@ nulla ac [blandit tempus](https://gitlab.org).
 
 	// Extract URLs from each file in the sourceDir
 	extractedUrls := extractUrls([]byte(mockFileContent))
-	c
+
 	if len(expectedUrls) != len(extractedUrls) {
-		t.Fatal("Did not extract correct amount of URLs")
+		t.Fatal("did not extract correct amount of URLs")
 	}
 
 	sort.Strings(extractedUrls)
 	sort.Strings(expectedUrls)
 
 	for i, u := range expectedUrls {
-		if u != extractedUrls[i] {
-			t.Fatalf("expected to get %s, got %s", u, extractedUrls[i])
-		}
+		require.Equal(t, u, extractedUrls[i])
+	}
+}
+
+func TestExtractJSX(t *testing.T) {
+	t.Parallel()
+
+	// Create mock file content with random JSX tags
+	mockFileContent := `
+#### Usage
+
+### getFunctionSignatures
+
+Fetches public facing function signatures
+
+#### Parameters
+
+Returns **Promise<FunctionSignature[]>**
+
+# test text from gnodev.md <node-rpc-listener>
+
+#### Usage
+### evaluateExpression
+
+Evaluates any expression in readonly mode and returns the results
+
+#### Parameters
+
+Returns **Promise<string>**
+`
+
+	// Expected JSX tags
+	expectedTags := []string{
+		"<FunctionSignature[]>",
+		"<string>",
+		"<node-rpc-listener>",
 	}
 
+	// Extract JSX tags from the mock file content
+	extractedTags := extractJSX([]byte(mockFileContent))
+
+	if len(expectedTags) != len(extractedTags) {
+		t.Fatal("did not extract the correct amount of JSX tags")
+	}
+
+	sort.Strings(extractedTags)
+	sort.Strings(expectedTags)
+
+	for i, tag := range expectedTags {
+		require.Equal(t, tag, extractedTags[i])
+	}
 }
 
 func TestFindFilePaths(t *testing.T) {
