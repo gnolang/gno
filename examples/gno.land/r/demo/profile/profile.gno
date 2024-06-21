@@ -8,8 +8,6 @@ import (
 	"std"
 )
 
-type contextKey string
-
 type UserProfile struct {
 	Username string
 	Address  std.Address
