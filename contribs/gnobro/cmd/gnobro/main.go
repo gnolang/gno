@@ -33,15 +33,17 @@ import (
 )
 
 type broCfg struct {
-	target      string
-	chainID     string
-	sshListener string
+	target       string
+	chainID      string
+	defaultRealm string
+	sshListener  string
 }
 
 var defaultBroOptions = broCfg{
-	target:      "127.0.0.1:26657",
-	sshListener: "",
-	chainID:     "dev",
+	target:       "127.0.0.1:26657",
+	sshListener:  "",
+	defaultRealm: "/r/gnoland/blog",
+	chainID:      "dev",
 }
 
 //go:embed banner2.txt
@@ -79,6 +81,13 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 		"chainid",
 		defaultBroOptions.chainID,
 		"chainid",
+	)
+
+	fs.StringVar(
+		&c.defaultRealm,
+		"default-realm",
+		defaultBroOptions.defaultRealm,
+		"default realm to display when gnobro start",
 	)
 
 	fs.StringVar(
@@ -139,6 +148,12 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 	// fmt.Println(res)
 
 	renderer := lipgloss.DefaultRenderer()
+	input := initURLInput(renderer)
+	if cfg.defaultRealm != "" {
+		path := strings.TrimLeft(cfg.defaultRealm, "gno.land")
+		path = strings.TrimLeft(cfg.defaultRealm, "/")
+		input.SetValue(path)
+	}
 
 	cmd := initCommandInput(renderer)
 	mod := model{
@@ -146,7 +161,7 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 		render:       renderer,
 		client:       broclient,
 		listFuncs:    newFuncList(),
-		urlInput:     initURLInput(renderer),
+		urlInput:     input,
 		commandInput: cmd,
 		zone:         zone.New(),
 		pageurls:     map[string]string{},

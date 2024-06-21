@@ -246,6 +246,10 @@ func (m *model) ExtendCommandInput() bool {
 	return false
 }
 
+type updateRenderMsg struct {
+	realmPath string
+}
+
 // XXX: it's bit messy here, need some rework
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
@@ -389,6 +393,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			//
 			// Render the viewport one line below the header.
 			m.viewport.YPosition = headerHeight + 1
+
+			if value := m.urlInput.Value(); value != "" {
+				m.RenderUpdate()
+			}
 		} else {
 			m.viewport.Width = msg.Width
 			m.viewport.Height = msg.Height - verticalMarginHeight
