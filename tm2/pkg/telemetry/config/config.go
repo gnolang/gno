@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"os"
 )
 
 var errEndpointNotSet = errors.New("telemetry exporter endpoint not set")
@@ -17,11 +18,15 @@ type Config struct {
 
 // DefaultTelemetryConfig is the default configuration used for the node
 func DefaultTelemetryConfig() *Config {
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "gno-node"
+	}
 	return &Config{
 		MetricsEnabled:    false,
 		MeterName:         "gno.land",
 		ServiceName:       "gno.land",
-		ServiceInstanceID: "gno-node-1",
+		ServiceInstanceID: hostname,
 		ExporterEndpoint:  "",
 	}
 }

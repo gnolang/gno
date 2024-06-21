@@ -152,6 +152,7 @@ func Init(config config.Config) error {
 			resource.NewWithAttributes(
 				semconv.SchemaURL,
 				semconv.ServiceNameKey.String(config.ServiceName),
+				// TODO: Get git tag / commit version
 				semconv.ServiceVersionKey.String("1.0.0"),
 				semconv.ServiceInstanceIDKey.String(config.ServiceInstanceID),
 			),
