@@ -48,7 +48,7 @@ func Echo() string {
 	err = env.vmk.AddPackage(ctx, msg1)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, InvalidPkgPathError{}))
+	assert.True(t, errors.Is(err, PkgExistError{}))
 }
 
 // Sending total send amount succeeds.
