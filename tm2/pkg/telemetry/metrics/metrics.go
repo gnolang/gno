@@ -3,12 +3,15 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric"
 	sdkMetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -124,6 +127,24 @@ func Init(config config.Config) error {
 		return fmt.Errorf("error parsing exporter endpoint: %s, %w", config.ExporterEndpoint, err)
 	}
 
+	// The exporter embeds a default OpenTelemetry Reader and
+	// implements prometheus.Collector, allowing it to be used as
+	// both a Reader and Collector.
+	promexp, err := prometheus.New()
+	if err != nil {
+		return fmt.Errorf("Error creating prometheus exporter, %w", err)
+	}
+
+	if config.PrometheusAddr != "" {
+		go func() {
+			http.Handle("/metrics", promhttp.Handler())
+			err := http.ListenAndServe(config.PrometheusAddr, nil)
+			if err != nil {
+				fmt.Printf("[ERROR] Prometheus metrics server error: %w\n", err)
+			}
+		}()
+	}
+
 	// Use oltp metric exporter with http/https or grpc
 	switch u.Scheme {
 	case "http", "https":
@@ -146,6 +167,7 @@ func Init(config config.Config) error {
 	}
 
 	provider := sdkMetric.NewMeterProvider(
+		sdkMetric.WithReader(promexp),
 		// Default period is 1m
 		sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exp)),
 		sdkMetric.WithResource(
