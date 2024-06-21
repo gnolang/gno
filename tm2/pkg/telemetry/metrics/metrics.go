@@ -136,10 +136,22 @@ func Init(config config.Config) error {
 		return fmt.Errorf("error creating prometheus exporter, %w", err)
 	}
 
-	_ = promexp
+	providerOptions := []sdkMetric.Option{
+		sdkMetric.WithResource(
+			resource.NewWithAttributes(
+				semconv.SchemaURL,
+				semconv.ServiceNameKey.String(config.ServiceName),
+				// TODO: Get git tag / commit version
+				semconv.ServiceVersionKey.String("1.0.0"),
+				semconv.ServiceInstanceIDKey.String(config.ServiceInstance),
+			),
+		),
+	}
+
 	if config.PrometheusAddr != "" {
+		providerOptions = append(providerOptions, sdkMetric.WithReader(promexp))
+
 		go func() {
-			return
 			server := &http.Server{
 				Addr:              config.PrometheusAddr,
 				ReadHeaderTimeout: 5 * time.Second,
@@ -148,7 +160,7 @@ func Init(config config.Config) error {
 
 			err := server.ListenAndServe()
 			if err != nil {
-				fmt.Printf("[ERROR] Prometheus metrics server error: %w\n", err)
+				fmt.Printf("[ERROR] Prometheus metrics server error: %v\n", err)
 			}
 		}()
 	}
@@ -163,6 +175,7 @@ func Init(config config.Config) error {
 		if err != nil {
 			return fmt.Errorf("unable to create http metrics exporter, %w", err)
 		}
+		providerOptions = append(providerOptions, sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exp)))
 	default:
 		exp, err = otlpmetricgrpc.New(
 			ctx,
@@ -172,22 +185,10 @@ func Init(config config.Config) error {
 		if err != nil {
 			return fmt.Errorf("unable to create grpc metrics exporter, %w", err)
 		}
+		providerOptions = append(providerOptions, sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exp)))
 	}
 
-	provider := sdkMetric.NewMeterProvider(
-		// sdkMetric.WithReader(promexp),
-		// Default period is 1m
-		sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exp)),
-		sdkMetric.WithResource(
-			resource.NewWithAttributes(
-				semconv.SchemaURL,
-				semconv.ServiceNameKey.String(config.ServiceName),
-				// TODO: Get git tag / commit version
-				semconv.ServiceVersionKey.String("1.0.0"),
-				semconv.ServiceInstanceIDKey.String(config.ServiceInstanceID),
-			),
-		),
-	)
+	provider := sdkMetric.NewMeterProvider(providerOptions...)
 	otel.SetMeterProvider(provider)
 	meter := provider.Meter(config.MeterName)
 
