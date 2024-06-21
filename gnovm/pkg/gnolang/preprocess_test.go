@@ -29,7 +29,7 @@ func main() {
 
 	defer func() {
 		err := recover()
-		assert.Contains(t, fmt.Sprint(err), "incompatible types in binary expression")
+		assert.Contains(t, fmt.Sprint(err), "incompatible operands in binary expression")
 	}()
 	Preprocess(store, pn, n)
 }
@@ -54,7 +54,7 @@ func main() {
 
 	defer func() {
 		err := recover()
-		assert.Contains(t, fmt.Sprint(err), "incompatible types in binary expression")
+		assert.Contains(t, fmt.Sprint(err), "incompatible operands in binary expression")
 	}()
 	Preprocess(store, pn, n)
 }
