@@ -25,7 +25,7 @@ func newConfigGetCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "get",
-			ShortUsage: "config get <key>",
+			ShortUsage: "config get [flags] [<key>]",
 			ShortHelp:  "shows the Gno node configuration",
 			LongHelp: "Shows the Gno node configuration at the given path " +
 				"by fetching the option specified at <key>",

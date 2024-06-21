@@ -30,7 +30,7 @@ func newSecretsGetCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "get",
-			ShortUsage: "secrets get <key>",
+			ShortUsage: "secrets get [flags] [<key>]",
 			ShortHelp:  "shows the Gno secrets present in a common directory",
 			LongHelp: "shows the validator private key, the node p2p key and the validator's last sign state at the given path " +
 				"by fetching the option specified at <key>",
