@@ -44,7 +44,7 @@ func (c *configGetCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.BoolVar(
 		&c.raw,
-		"r",
+		"raw",
 		false,
 		"flag indicating if the single value JSON should be raw",
 	)
