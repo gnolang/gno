@@ -1,34 +1,8 @@
 ---
-id: using-gnokey
+id: state-changing-calls
 ---
 
-# Using `gnokey`
-
-## Overview
-In this tutorial, you will learn how to use the `gnokey` binary to interact with
-a Gno.land chain. You will learn how to create state-changing calls, run readonly
-queries without using gas, as well as create, sign, and broadcast airgapped
-transactions for full security.
-
-## Prerequisites
-- **`gno`, `gnokey`, and `gnodev` installed.** Reference the
-  [Local Setup](local-setup/installation.md#2-installing-the-required-tools-) guide for steps
-- **A Gno.land keypair set up.** Reference the
-  [Working with Key Pairs](local-setup/working-with-key-pairs.md) guide for steps
-
-## Interacting with a Gno.land chain
-
-`gnokey` allows you to interact with any Gno.land network, such as the
-[Portal Loop](../concepts/portal-loop.md) testnet.
-
-There are multiple ways anyone can interact with the chain:
-- Transactions - state-changing calls which use gas
-- ABCI queries - read-only calls which do not use gas
-
-Both transactions and ABCI queries can be made via `gnokey`'s subcommands,
-`maketx` and `query`.
-
-## State-changing calls (transactions)
+# Making state-changing calls (transactions)
 
 In Gno, there are four types of messages that can change on-chain state:
 - `AddPackage` - adds new code to the chain
@@ -43,14 +17,14 @@ A Gno.land transaction contains two main things:
 
 Currently, `gnokey` supports single-message transactions, while multiple-message
 transactions can be created in Go programs, supported by the
-[gnoclient](../reference/gnoclient/gnoclient.md) package.
+[gnoclient](../../../reference/gnoclient/gnoclient.md) package.
 
 We will need some testnet coins (GNOTs) for each state-changing call. Visit the [Faucet
 Hub](https://faucet.gno.land) to get GNOTs for the Gno testnets that are currently live.
 
 Let's delve deeper into each of these message types.
 
-### `AddPackage`
+## `AddPackage`
 
 In case you want to upload new code to the chain, you can use the `AddPackage`
 message type. You can send an `AddPackage` transaction with `gnokey` using the
@@ -61,7 +35,7 @@ gnokey maketx addpkg
 ```
 
 To understand how to use this subcommand better, let's write a simple "Hello world"
-[pure package](../concepts/packages.md). First, let's create a folder which will
+[pure package](../../../concepts/packages.md). First, let's create a folder which will
 store our example code.
 
 ```bash
@@ -183,10 +157,10 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 Congratulations! You have just uploaded a pure package to your local chain.
 If you wish to upload the package to a remote testnet, make sure to switch out
 the `-chainid` & `-remote` values for the ones matching your desired testnet.
-Find a list of all networks in the [Network Configuration](../reference/network-config.md)
+Find a list of all networks in the [Network Configuration](../../../reference/network-config.md)
 section.
 
-### `Call`
+## `Call`
 
 The `Call` message type is used to call any exported function on the chain.
 You can send a `Call` transaction with `gnokey` using the following command:
@@ -205,7 +179,7 @@ the [`query` functionality](#query) for a read-only call which does not use gas.
 
 For this example, we will call the `wugnot` realm, which wraps GNOTs to a
 GRC20-compatible token called `wugnot`. We can find this realm deployed on the
-[Portal Loop](../concepts/portal-loop.md) testnet, under the `gno.land/r/demo/wugnot`.
+[Portal Loop](../../../concepts/portal-loop.md) testnet, under the `gno.land/r/demo/wugnot`.
 
 We will wrap `1000ugnot` into the equivalent in `wugnot`. To do this, we can call
 the `Deposit()` function found in the `wugnot` realm. As previously, we will
@@ -268,9 +242,9 @@ checks the `wugnot` balance of a specific address. This is discouraged, as
 `maketx call` actually uses gas. To call a read-only function without spending gas,
 check out the `vm/qeval` query in the [ABCI queries section](#vmqeval).
 
-### `Send`
+## `Send`
 
-We can use the `Send` message type to access the TM2 [Banker](../concepts/stdlibs/banker.md)
+We can use the `Send` message type to access the TM2 [Banker](../../../concepts/stdlibs/banker.md)
 directly and transfer coins from one Gno address to another.
 
 Coins, such as GNOTs, are always formatted in the following way:
@@ -301,7 +275,7 @@ respectively.
 To check the balance of a specific address, check out the `bank/balances` query
 in the [ABCI queries section](#bankbalances).
 
-### `Run`
+## `Run`
 
 With the `Run` message, you can write a snippet of Gno code and run it against
 code on the chain. For this example, we will use the [Userbook realm](https://gno.land/r/demo/userbook),
@@ -358,7 +332,7 @@ After running this command, the chain will execute the script and apply any stat
 changes. Additionally, by using `println`, which is only available in the `Run`
 & testing context, we will be able to see the return value of the function called.
 
-#### The power of `Run`
+### The power of `Run`
 
 Specifically, the above example could have been replaced with a simple `maketx call`
 call. The full potential of run comes out in three specific cases:
@@ -475,297 +449,8 @@ func main() {
 }
 ```
 
-Finally, we can call functions that are on top-level objects, which is not possible
-with the `Call` message.
-
-## ABCI queries
-
-Using ABCI queries you can query the state of the chain without spending any gas.
-All queries need to be pointed towards a specific remote address from which
-the state will be retrieved.
-
-To send ABCI queries, you can use the `gnokey query`
-subcommand, and provide it with the appropriate query.
-The `query` subcommand allows us to send different types of queries to a Gno.land
-network.
-
-Below is a list of queries a user can make with `gnokey`:
-- `auth/accounts/{ADDRESS}` - returns information about an account
-- `bank/balances/{ADDRESS}` - returns balances of an account
-- `vm/qfuncs` - returns the exported functions for a given pkgpath
-- `vm/qfile` - returns the list of files for a given pkgpath
-- `vm/qeval` - evaluates an expression in read-only mode on and returns the results
-- `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
-
-Let's see how we can use them.
-
-### `auth/accounts`
-
-We can obtain information about a specific address using this subquery. To call it,
-we can run the following command:
-
-```bash
-gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
-```
-
-With this, we are asking the Portal Loop network to deliver information about the
-specified address. If everything went correctly, we should get the following
-output:
-
-```bash
-height: 0
-data: {
-  "BaseAccount": {
-    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-    "coins": "227984898927ugnot",
-    "public_key": {
-      "@type": "/tm.PubKeySecp256k1",
-      "value": "A+FhNtsXHjLfSJk1lB8FbiL4mGPjc50Kt81J7EKDnJ2y"
-    },
-    "account_number": "0",
-    "sequence": "12"
-  }
-}
-```
-
-The return data will contain the following fields:
-- `height` - the height at which the query was executed. This is currently not
-  supported and is `0` by default.
-- `data` - contains the result of the query.
-
-The `data` field returns a `BaseAccount`, which is the main struct used in TM2 to
-hold account data. It contains the following information:
-- `address` - the address of the account
-- `coins` - the list of coins the account owns
-- `public_key` - the TM2 public key of the account, which the address is derived from
-- `account_number` - a unique identifier for the account on the Gno.land chain
-- `sequence` - a nonce, used for protection against replay attacks
-
-### `bank/balances`
-
-With this query, we can fetch balances of a specific account. To call it, we can
-run the following command:
-
-```bash
-gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote https://rpc.gno.land:443
-```
-
-If everything went correctly, we should get the following
-output:
-
-```bash
-height: 0
-data: "227984898927ugnot"
-```
-
-The data field will contain the coins the address owns.
-
-### `vm/qfuncs`
-
-Using the `vm/qfuncs` query, we can fetch exported functions from a specific package
-path. To specify the path we want to query, we can use the `-data` flag:
-
-```bash
-gnokey query vm/qfuncs --data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
-```
-
-The output is a string containing all exported functions for the `wugnot` realm:
-
-```json
-height: 0
-data: [
-        {
-          "FuncName": "Deposit",
-          "Params": null,
-          "Results": null
-        },
-        {
-          "FuncName": "Withdraw",
-          "Params": [
-            {
-            "Name": "amount",
-            "Type": "uint64",
-            "Value": ""
-            }
-          ],
-          "Results": null
-        },
-        // other functions
-]
-```
-
-### `vm/qfile`
-
-With the `vm/qfile` query, we can fetch files found on a specific package path.
-To specify the path we want to query, we can use the `-data` flag:
-
-```bash
-gnokey query vm/qfile -data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
-```
-
-The output is a string containing all exported functions for the
-`wugnot` realm:
-
-```bash
-height: 0
-data: gno.mod
-wugnot.gno
-z0_filetest.gno
-```
-
-### `vm/qeval`
-
-`vm/qeval` allows us to evaluate a call to an exported function without using gas,
-in read-only mode. For example:
-
-```bash
-gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/demo/wugnot
-BalanceOf(\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\")" 
-```
-
-This command will return the `wugnot` balance of the above address without using gas.
-Properly escaping quotation marks and separating the package path and the realm function with a new line character
-is currently required.
-
-### `vm/qrender`
-
-`vm/qrender` is an alias for executing `vm/qeval` on the `Render("")` function.
-We can use it like this:
-
-```bash
-gnokey query vm/qrender --data "gno.land/r/demo/userbook
-" -remote https://rpc.gno.land:443
-```
-
-Running this command will display the current `Render()` output of the Userbook
-realm, which is also displayed by default on the [realm's page](https://gno.land/r/demo/userbook):
-
-```bash
-height: 0
-data: # Welcome to UserBook!
-
-## UserBook - Page #1:
-
-#### User #0 - g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 - signed up at Block #0
-#### User #1 - g125em6arxsnj49vx35f0n0z34putv5ty3376fg5 - signed up at Block #0
-#### User #2 - g1urt7pdmwg2m6z3rsgu4e8peppm4027fvpwkmj8 - signed up at Block #0
-#### User #3 - g1uf8u5jf2m9l80g0zsfq7tufl3qufqc4393jtkl - signed up at Block #0
-#### User #4 - g1lafcru2z2qelxr33gm4znqshmpur6l9sl3g2aw - signed up at Block #0
----
-
-#### Total users: 5
-#### Latest signup: User #4 at Block #0
----
-
-You're viewing page #1
-```
-
-## Making an airgapped transaction
-
-`gnokey` provides a way to create a transaction, sign it, and later
-broadcast it to a chain in an airgapped manner. This approach, while more 
-complicated, grants users full control over the creation, signing, and broadcasting 
-of transactions.
-
-Here are the steps taken in this process:
-1. Fetch account information from the chain
-2. Create an unsigned transaction locally
-3. Sign the transaction
-4. Broadcast the transaction
-
-For this example, we will again use the Userbook realm on the Portal Loop testnet.
-
-### Fetching account information from the chain
-
-First, we need to fetch data for the account we are using to sign the transaction,
-using the [auth/accounts](#authaccounts) query:
-
-```bash
-gnokey query auth/accounts/<your_address> -remote "https://rpc.gno.land:443"
-```
-
-We need to extract the account number and sequence from the output:
-
-```bash
-height: 0
-data: {
-  "BaseAccount": {
-    "address": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj",
-    "coins": "10000000ugnot",
-    "public_key": null,
-    "account_number": "468",
-    "sequence": "0"
-  }
-}
-```
-
-In this case, the account number is `468`, and the sequence (nonce) is `0`. We
-will need these values to sign the transaction later.
-
-### Creating an unsigned transaction locally
-
-To create the transaction you want, you can use the aforementioned `call` API,
-without the `-broadcast` flag, while redirecting the output to a local file:
-
-```bash
-gnokey maketx call \
--pkgpath "gno.land/r/demo/userbook" \
--func "SignUp" \
--gas-fee 1000000ugnot \
--gas-wanted 2000000 \
-mykey > userbook.tx
-```
-
-This will create a `userbook.tx` file with a null `signature` field.
-Now we are ready to sign the transaction.
-
-### Signing the transaction
-
-To add a signature to the transaction, we can use the `gnokey sign` subcommand.
-To sign, we must set the correct flags for the subcommand:
-- `-tx-path` - path to the transaction file to sign, in our case, `userbook.tx`
-- `-chainid` - id of the chain to sign for
-- `-account-number` - number of the account fetched previously
-- `-account-sequence` - sequence of the account fetched previously
-
-```bash
-gnokey sign \
--tx-path userbook.tx \
--chainid "portal-loop" \
--account-number 468 \
--account-sequence 0 \
-mykey
-```
-
-After inputting the correct values, `gnokey` will ask for the password to decrypt
-the keypair. Once we input the password, we should receive the message that the
-signing was completed. If we open the `userbook.tx` file, we will be able to see
-that the signature field has been populated.
-
-We are now ready to broadcast this transaction to the chain.
-
-### Broadcasting the transaction
-
-To broadcast the signed transaction to the chain, we can use the `gnokey broadcast`
-subcommand, giving it the path to the signed transaction:
-
-```bash
-gnokey broadcast -remote "https://rpc.gno.land:443" userbook.tx
-```
-
-In this case, we do not need to specify a keypair, as the transaction has already
-been signed in a previous step and `gnokey` is only sending it to the RPC endpoint.
-
-## Verifying a transaction's signature
-
-To verify a transaction's signature is correct, you can use the `gnokey verify`
-subcommand. We can provide the path to the transaction document using the `-docpath`
-flag, provide the key we signed the transaction with, and the signature itself.
-Make sure the signature is in the `hex` format.
-
-```bash
-gnokey verify -docpath userbook.tx mykey <signature>
-```
+Finally, we can call functions that are on top-level objects, which is not 
+currently possible with the `Call` message.
 
 ## Conclusion
 

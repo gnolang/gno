@@ -13,7 +13,7 @@ and packages, send native coins, and more.
 - **`gnokey` installed.** Reference the
 [Local Setup](installation.md#3-installing-other-gno-tools) guide for steps
 - **A keypair in `gnokey`.** Reference the 
-[Working with Key Pairs](working-with-key-pairs.md#adding-a-private-key-using-a-mnemonic) guide for steps
+[Working with Key Pairs](../../gno-tooling/cli/gnokey/working-with-key-pairs.mdkey/working-with-key-pairs.md#adding-a-private-key-using-a-mnemonic) guide for steps
 
 ## 1. Get testnet GNOTs
 For interacting with any Gno.land chain, you will need a certain amount of GNOTs
@@ -83,7 +83,7 @@ MyKeypair
 ```
 
 To see what each option and flag in this command does, read the `gnokey` 
-[reference page](../../gno-tooling/cli/gnokey.md). 
+[reference page](../../gno-tooling/cli/gnokey/gnokey.mdokey.md). 
 
 ## Conclusion
 

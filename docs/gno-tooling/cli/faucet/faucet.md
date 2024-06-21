@@ -21,7 +21,7 @@ The Gno faucet works by designating a single address as a faucet address that wi
 
 Ensure the faucet account will have enough funds by [premining its balance](../../../gno-infrastructure/premining-balances.md) to a high value.
 In case you do not have an existing address added to `gnokey`, you can consult
-the [Working with Key Pairs](../../../getting-started/local-setup/working-with-key-pairs.md) guide.
+the [Working with Key Pairs](../gnokey/working-with-key-pairs.md) guide.
 
 ## 2. Start the local chain
 

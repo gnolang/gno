@@ -14,7 +14,7 @@ APIs for common functionality.
 - Use local keystore to sign & broadcast transactions containing any type of 
 Gno message
 - Sign & broadcast transactions with batch messages
-- Use [ABCI queries](../../gno-tooling/cli/gnokey.md#make-an-abci-query) in
+- Use [ABCI queries](../../gno-tooling/cli/gnokey/gnokey.mdokey.md#make-an-abci-query) in
 your Go code
 
 ## Installation
