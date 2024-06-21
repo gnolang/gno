@@ -1,7 +1,7 @@
 package std
 
 const (
-	ZeroAddress Address = "g100000000000000000000000000000000dnmcnx"
+	ZeroAddress Address = "g100000000000000000000000000000000dnmcnx" // XXX: specific to gno.land
 )
 
 // AssertOriginCall panics if [IsOriginCall] returns false.

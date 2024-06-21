@@ -92,7 +92,7 @@ func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amo
 		panic(err)
 	}
 	// TODO: once TotalCoin is implemented, we need to deduct the TotalCoins beside send coin to ZeroAddress (?)
-	zeroAddr := std.ZeroAddress()
+	zeroAddr := ZeroAddress()
 	_, err = bnk.vmk.bank.AddCoins(bnk.ctx, zeroAddr, std.Coins{std.Coin{denom, amount}})
 	if err != nil {
 		panic(err)
