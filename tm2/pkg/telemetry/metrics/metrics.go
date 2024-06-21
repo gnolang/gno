@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -19,30 +20,30 @@ import (
 )
 
 const (
-	broadcastTxTimerKey = "tm2_broadcast_tx_hist"
-	buildBlockTimerKey  = "tm2_build_block_hist"
+	broadcastTxTimerKey = "tm2_broadcast_tx_hist" // #nosec G101
+	buildBlockTimerKey  = "tm2_build_block_hist"  // #nosec G101
 
-	inboundPeersKey  = "tm2_inbound_peers_hist"
-	outboundPeersKey = "tm2_outbound_peers_hist"
-	dialingPeersKey  = "tm2_dialing_peers_hist"
+	inboundPeersKey  = "tm2_inbound_peers_hist"  // #nosec G101
+	outboundPeersKey = "tm2_outbound_peers_hist" // #nosec G101
+	dialingPeersKey  = "tm2_dialing_peers_hist"  // #nosec G101
 
-	numMempoolTxsKey = "tm2_num_mempool_txs_hist"
-	numCachedTxsKey  = "tm2_num_cached_txs_hist"
+	numMempoolTxsKey = "tm2_num_mempool_txs_hist" // #nosec G101
+	numCachedTxsKey  = "tm2_num_cached_txs_hist"  // #nosec G101
 
-	vmQueryCallsKey  = "gno_vm_query_calls_counter"
-	vmQueryErrorsKey = "gno_vm_query_errors_counter"
-	vmGasUsedKey     = "gno_vm_gas_used_hist"
-	vmCPUCyclesKey   = "gno_vm_cpu_cycles_hist"
-	vmExecMsgKey     = "gno_vm_exec_msg_hist"
+	vmQueryCallsKey  = "gno_vm_query_calls_counter"  // #nosec G101
+	vmQueryErrorsKey = "gno_vm_query_errors_counter" // #nosec G101
+	vmGasUsedKey     = "gno_vm_gas_used_hist"        // #nosec G101
+	vmCPUCyclesKey   = "gno_vm_cpu_cycles_hist"      // #nosec G101
+	vmExecMsgKey     = "gno_vm_exec_msg_hist"        // #nosec G101
 
-	validatorCountKey       = "gno_validator_count_hist"
-	validatorVotingPowerKey = "gno_validator_vp_hist"
-	blockIntervalKey        = "tm2_block_interval_hist"
-	blockTxsKey             = "tm2_block_txs_hist"
-	blockSizeKey            = "tm2_block_size_hist"
+	validatorCountKey       = "gno_validator_count_hist" // #nosec G101
+	validatorVotingPowerKey = "gno_validator_vp_hist"    // #nosec G101
+	blockIntervalKey        = "tm2_block_interval_hist"  // #nosec G101
+	blockTxsKey             = "tm2_block_txs_hist"       // #nosec G101
+	blockSizeKey            = "tm2_block_size_hist"      // #nosec G101
 
-	httpRequestTimeKey = "tm2_http_request_time_hist"
-	wsRequestTimeKey   = "tm2_ws_request_time_hist"
+	httpRequestTimeKey = "tm2_http_request_time_hist" // #nosec G101
+	wsRequestTimeKey   = "tm2_ws_request_time_hist"   // #nosec G101
 )
 
 var (
@@ -132,13 +133,20 @@ func Init(config config.Config) error {
 	// both a Reader and Collector.
 	promexp, err := prometheus.New()
 	if err != nil {
-		return fmt.Errorf("Error creating prometheus exporter, %w", err)
+		return fmt.Errorf("error creating prometheus exporter, %w", err)
 	}
 
+	_ = promexp
 	if config.PrometheusAddr != "" {
 		go func() {
+			return
+			server := &http.Server{
+				Addr:              config.PrometheusAddr,
+				ReadHeaderTimeout: 5 * time.Second,
+			}
 			http.Handle("/metrics", promhttp.Handler())
-			err := http.ListenAndServe(config.PrometheusAddr, nil)
+
+			err := server.ListenAndServe()
 			if err != nil {
 				fmt.Printf("[ERROR] Prometheus metrics server error: %w\n", err)
 			}
@@ -167,7 +175,7 @@ func Init(config config.Config) error {
 	}
 
 	provider := sdkMetric.NewMeterProvider(
-		sdkMetric.WithReader(promexp),
+		// sdkMetric.WithReader(promexp),
 		// Default period is 1m
 		sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exp)),
 		sdkMetric.WithResource(
