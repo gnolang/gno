@@ -93,8 +93,10 @@ func printKeyValue[T *secrets | *config.Config](
 
 		output := string(encoded)
 
-		if raw && len(encoded) > 0 && encoded[0] == '"' {
-			output = strings.ReplaceAll(output, "\"", "")
+		if raw {
+			if err := json.Unmarshal(encoded, &output); err != nil {
+				return "", fmt.Errorf("unable to unmarshal raw JSON, %w", err)
+			}
 		}
 
 		return output, nil
