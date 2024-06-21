@@ -1253,7 +1253,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case StringKind, ArrayKind, SliceKind:
 					// Replace const index with int *ConstExpr,
 					// or if not const, assert integer type..
-					checkOrConvertIntegerType(store, last, n.Index)
+					checkOrConvertIntegerKind(store, last, n.Index)
 				case MapKind:
 					mt := baseOf(gnoTypeOf(store, dt)).(*MapType)
 					checkOrConvertType(store, last, &n.Index, mt.Key, false)
@@ -1267,9 +1267,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *SliceExpr:
 				// Replace const L/H/M with int *ConstExpr,
 				// or if not const, assert integer type..
-				checkOrConvertIntegerType(store, last, n.Low)
-				checkOrConvertIntegerType(store, last, n.High)
-				checkOrConvertIntegerType(store, last, n.Max)
+				checkOrConvertIntegerKind(store, last, n.Low)
+				checkOrConvertIntegerKind(store, last, n.High)
+				checkOrConvertIntegerKind(store, last, n.Max)
 
 			// TRANS_LEAVE -----------------------
 			case *TypeAssertExpr:
@@ -1728,12 +1728,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *ForStmt:
 				// Cond consts become bool *ConstExprs.
-				checkOrConvertType(store, last, &n.Cond, BoolType, false)
+				checkOrConvertBoolKind(store, last, n.Cond)
 
 			// TRANS_LEAVE -----------------------
 			case *IfStmt:
 				// Cond consts become bool *ConstExprs.
-				checkOrConvertType(store, last, &n.Cond, BoolType, false)
+				checkOrConvertBoolKind(store, last, n.Cond)
 
 			// TRANS_LEAVE -----------------------
 			case *RangeStmt:
@@ -2474,7 +2474,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 // autoNative is usually false, but set to true
 // for native function calls, where gno values are
 // automatically converted to native go types.
-// NOTE: also see checkOrConvertIntegerType()
+// NOTE: also see checkOrConvertIntegerKind()
 func convertType(store Store, last BlockNode, x *Expr, t Type) {
 	if debug {
 		debug.Printf("convertType, *x: %v:, t:%v \n", *x, t)
@@ -2783,18 +2783,40 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 	return
 }
 
-// like checkOrConvertType() but for any integer type.
-func checkOrConvertIntegerType(store Store, last BlockNode, x Expr) {
+// like checkOrConvertType() but for any typed bool kind.
+func checkOrConvertBoolKind(store Store, last BlockNode, x Expr) {
+	if cx, ok := x.(*ConstExpr); ok {
+		convertConst(store, last, cx, BoolType)
+	} else if x != nil {
+		xt := evalStaticTypeOf(store, last, x)
+		checkBoolKind(xt)
+	}
+}
+
+// assert that xt is a typed bool kind.
+func checkBoolKind(xt Type) {
+	switch xt.Kind() {
+	case BoolKind:
+		return // ok
+	default:
+		panic(fmt.Sprintf(
+			"expected typed bool kind, but got %v",
+			xt.Kind()))
+	}
+}
+
+// like checkOrConvertType() but for any typed integer kind.
+func checkOrConvertIntegerKind(store Store, last BlockNode, x Expr) {
 	if cx, ok := x.(*ConstExpr); ok {
 		convertConst(store, last, cx, IntType)
 	} else if x != nil {
 		xt := evalStaticTypeOf(store, last, x)
-		checkIntegerType(xt)
+		checkIntegerKind(xt)
 	}
 }
 
-// assert that xt can be assigned as an integer type.
-func checkIntegerType(xt Type) {
+// assert that xt is a typed integer kind.
+func checkIntegerKind(xt Type) {
 	switch xt.Kind() {
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
 		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
@@ -2802,7 +2824,7 @@ func checkIntegerType(xt Type) {
 		return // ok
 	default:
 		panic(fmt.Sprintf(
-			"expected integer type, but got %v",
+			"expected typed integer kind, but got %v",
 			xt.Kind()))
 	}
 }
