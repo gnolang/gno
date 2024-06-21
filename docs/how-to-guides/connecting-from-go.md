@@ -101,8 +101,9 @@ func main() {
 A few things to note:
 - You can view keys in your local keybase by running `gnokey list`.  
 - You can get the password from a user input using the IO package.
-- `Signer` can also be initialized in-memory from a BIP39 mnemonic, using the 
-[`SignerFromBip39`](../reference/gnoclient/signer.md#func-signerfrombip39) function.
+- `Signer` can also be initialized in-memory from a BIP39 mnemonic, using the
+[`SignerFromBip39`](https://gnolang.github.io/gno/github.com/gnolang/gno@v0.0.0/gno.land/pkg/gnoclient.html#SignerFromBip39)
+function. function.
 
 ## Initialize the RPC connection & Client
 
