@@ -124,7 +124,7 @@ Returns **Promise<string>**
 func TestExtractLocalLinks(t *testing.T) {
 	t.Parallel()
 
-	// Create mock file content with random JSX tags
+	// Create mock file content with random local links
 	mockFileContent := `
 Here is some text with a link to a local file: [text](../concepts/file1.md)
 Here is some text with a link to a local file: [text](../concepts/file2.md something weird)
@@ -144,7 +144,7 @@ And a websocket link: [websocket](ws://example.com/socket)
 		"./path/to/file2.md",
 	}
 
-	// Extract JSX tags from the mock file content
+	// Extract local links tags from the mock file content
 	extractedLinks := extractLocalLinks([]byte(mockFileContent))
 
 	if len(expectedLinks) != len(extractedLinks) {
