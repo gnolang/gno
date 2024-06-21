@@ -176,7 +176,7 @@ func TestSecrets_Get_ValidatorKeyInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"validator_key_info",
+			validatorPrivateKeyKey,
 		}
 
 		// Run the command
@@ -221,7 +221,7 @@ func TestSecrets_Get_ValidatorKeyInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"validator_key_info.address",
+			fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "address"),
 		}
 
 		// Run the command
@@ -259,7 +259,7 @@ func TestSecrets_Get_ValidatorKeyInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"validator_key_info.address",
+			fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "address"),
 			"--raw",
 		}
 
@@ -294,7 +294,7 @@ func TestSecrets_Get_ValidatorKeyInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"validator_key_info.pub_key",
+			fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "pub_key"),
 		}
 
 		// Run the command
@@ -332,7 +332,7 @@ func TestSecrets_Get_ValidatorKeyInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"validator_key_info.pub_key",
+			fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "pub_key"),
 			"--raw",
 		}
 
@@ -371,7 +371,7 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"validator_state_info",
+			validatorStateKey,
 		}
 
 		// Run the command
@@ -422,7 +422,7 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"validator_state_info.height",
+			fmt.Sprintf("%s.%s", validatorStateKey, "height"),
 		}
 
 		// Run the command
@@ -456,7 +456,7 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"validator_state_info.round",
+			fmt.Sprintf("%s.%s", validatorStateKey, "round"),
 		}
 
 		// Run the command
@@ -490,7 +490,7 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"validator_state_info.step",
+			fmt.Sprintf("%s.%s", validatorStateKey, "step"),
 		}
 
 		// Run the command
@@ -530,7 +530,7 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"node_id_info",
+			nodeIDKey,
 		}
 
 		// Run the command
@@ -588,7 +588,7 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			secretsPath,
-			"node_id_info",
+			nodeIDKey,
 		}
 
 		// Run the command
@@ -633,7 +633,7 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"node_id_info.id",
+			fmt.Sprintf("%s.%s", nodeIDKey, "id"),
 		}
 
 		// Run the command
@@ -671,7 +671,7 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"node_id_info.id",
+			fmt.Sprintf("%s.%s", nodeIDKey, "id"),
 			"--raw",
 		}
 
@@ -709,7 +709,7 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"node_id_info.p2p_address",
+			fmt.Sprintf("%s.%s", nodeIDKey, "p2p_address"),
 		}
 
 		// Run the command
@@ -749,7 +749,7 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 			"get",
 			"--data-dir",
 			dirPath,
-			"node_id_info.p2p_address",
+			fmt.Sprintf("%s.%s", nodeIDKey, "p2p_address"),
 			"--raw",
 		}
 

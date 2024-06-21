@@ -21,9 +21,9 @@ const (
 )
 
 const (
-	nodeIDKey              = "ID"
-	validatorPrivateKeyKey = "ValidatorPrivateKey"
-	validatorStateKey      = "ValidatorState"
+	nodeIDKey              = "node_id"
+	validatorPrivateKeyKey = "validator_key"
+	validatorStateKey      = "validator_state"
 )
 
 // newSecretsCmd creates the secrets root command
@@ -75,9 +75,9 @@ func constructSecretsPath(nodeDir string) string {
 
 type (
 	secrets struct {
-		ValidatorKeyInfo   *validatorKeyInfo   `json:"validator_key_info,omitempty" toml:"validator_key_info" comment:"the validator private key info"`
-		ValidatorStateInfo *validatorStateInfo `json:"validator_state_info,omitempty" toml:"validator_state_info" comment:"the last signed validator state info"`
-		NodeIDInfo         *nodeIDInfo         `json:"node_id_info,omitempty" toml:"node_id_info" comment:"the derived node ID info"`
+		ValidatorKeyInfo   *validatorKeyInfo   `json:"validator_key,omitempty" toml:"validator_key" comment:"the validator private key info"`
+		ValidatorStateInfo *validatorStateInfo `json:"validator_state,omitempty" toml:"validator_state" comment:"the last signed validator state info"`
+		NodeIDInfo         *nodeIDInfo         `json:"node_id,omitempty" toml:"node_id" comment:"the derived node ID info"`
 	}
 
 	validatorKeyInfo struct {
