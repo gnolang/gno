@@ -90,6 +90,8 @@ func (mempkg *MemPackage) Validate() error {
 	return nil
 }
 
+const licenseName = "LICENSE"
+
 // Splits a path into the dirpath and filename.
 func SplitFilepath(filepath string) (dirpath string, filename string) {
 	parts := strings.Split(filepath, "/")
@@ -101,6 +103,8 @@ func SplitFilepath(filepath string) (dirpath string, filename string) {
 		return strings.Join(parts[:len(parts)-1], "/"), last
 	} else if last == "" {
 		return strings.Join(parts[:len(parts)-1], "/"), ""
+	} else if last == licenseName {
+		return strings.Join(parts[:len(parts)-1], "/"), licenseName
 	} else {
 		return strings.Join(parts, "/"), ""
 	}
