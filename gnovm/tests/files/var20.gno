@@ -9,7 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/var20.gno:8: assignment mismatch: 3 variable(s) but r<VPBlock(3,0)> returns 1 value(s):
-// --- preprocess stack ---
-// stack 0: func main() { var a<VPBlock(1,0)>, b<VPBlock(1,1)>, c<VPBlock(1,2)> = r<VPBlock(3,0)>() }
-// ------------------------
+// main/files/var20.gno:8: assignment mismatch: 3 variable(s) but r<VPBlock(3,0)> returns 1 value(s)
