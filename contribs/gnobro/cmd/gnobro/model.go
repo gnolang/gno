@@ -34,14 +34,13 @@ const useHighPerformanceRenderer = false
 
 var (
 	navStyleEnable = func(r *lipgloss.Renderer) lipgloss.Style {
-		return r.NewStyle().Margin(0, 1).
-			Background(lipgloss.Color("#FF06B7"))
+		return r.NewStyle().
+			Foreground(lipgloss.Color("#fab387"))
 		// Foreground(lipgloss.Color("201"))
 	}
 
 	navStyleDisable = func(r *lipgloss.Renderer) lipgloss.Style {
-		return r.NewStyle().Margin(0, 1).
-			Background(lipgloss.Color("235")).
+		return r.NewStyle().
 			Foreground(lipgloss.Color("240"))
 	}
 
@@ -587,28 +586,33 @@ func (m model) urlView() string {
 }
 
 func (m model) navView() string {
-	home := navStyleEnable(m.render).Render("[home]")
+	home := navStyleEnable(m.render).Padding(0, 1).Render("[Home]")
 
-	next := "[next]"
-	if m.current != nil && m.current.Next() != nil {
-		next = navStyleEnable(m.render).Render(next)
-	} else {
-		next = navStyleDisable(m.render).Render(next)
-	}
-
-	prev := "[prev]"
+	var style lipgloss.Style
 	if m.current != nil && m.current.Prev() != nil {
-		prev = navStyleEnable(m.render).Render(prev)
+		style = navStyleEnable(m.render)
 	} else {
-		prev = navStyleDisable(m.render).Render(prev)
+		style = navStyleDisable(m.render)
 	}
+	prev := style.Margin(0, 1).Render("<prev")
 
-	return m.render.NewStyle().Width(m.width-2).
-		Padding(0, 2).Render(lipgloss.JoinHorizontal(lipgloss.Left,
-		m.zone.Mark("home_button", home),
-		m.zone.Mark("prev_button", prev),
-		m.zone.Mark("next_button", next),
-	),
+	if m.current != nil && m.current.Next() != nil {
+		style = navStyleEnable(m.render)
+	} else {
+		style = navStyleDisable(m.render)
+	}
+	next := style.Margin(0, 1).Render("next>")
+
+	spaceWidth := m.width / 3
+	return lipgloss.JoinHorizontal(lipgloss.Left,
+		m.render.NewStyle().Width(spaceWidth).Padding(0, 1).
+			Render(lipgloss.JoinHorizontal(lipgloss.Left,
+				m.zone.Mark("prev_button", prev),
+				m.zone.Mark("next_button", next),
+			)),
+		m.render.PlaceHorizontal(spaceWidth, lipgloss.Center, "Gno.Land"),
+		m.render.PlaceHorizontal(spaceWidth, lipgloss.Right,
+			m.zone.Mark("home_button", home)),
 	)
 
 }
