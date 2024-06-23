@@ -699,7 +699,7 @@ func debugLookup(m *Machine, name string) (tv TypedValue, ok bool) {
 		}
 	}
 	// Fallback: search a global value.
-	if v := sblocks[0].Source.GetValueRef(m.Store, Name(name)); v != nil {
+	if v := sblocks[0].Source.GetValueRef(m.Store, Name(name), true); v != nil {
 		return *v, true
 	}
 	return tv, false

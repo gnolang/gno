@@ -117,7 +117,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 		if debug {
 			debug.Printf("initStaticBlocks %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
-		fmt.Printf("initStaticBlocks %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 
 		switch stage {
 		// ----------------------------------------
@@ -157,10 +156,8 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				}
 			case *ValueDecl:
 				last2 := skipFile(last)
-				fmt.Printf("XXXXXX %#v\n", last2)
 				for i := 0; i < len(n.NameExprs); i++ {
 					nx := &n.NameExprs[i]
-					fmt.Println("XXXXX", nx)
 					if nx.Name == blankIdentifier {
 						continue
 					}
@@ -170,11 +167,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				last2 := skipFile(last)
 				last2.Predefine(false, n.Name)
 			case *FuncDecl:
-				fmt.Println("HMMM")
-				fmt.Println("HMMM", last)
-				fmt.Println("HMMM", stack)
-				fmt.Println("HMMM", n.Name)
-				fmt.Println("HMMM")
 				if n.IsMethod {
 					if n.Recv.Name == "" || n.Recv.Name == blankIdentifier {
 						// create a hidden var with leading dot.
@@ -337,8 +329,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	preprocessing.Add(1)
 	defer preprocessing.Add(-1)
 
-	fmt.Println("PREPROCESSSSSSSS", n)
-
 	if ctx == nil {
 		// Generally a ctx is required, but if not, it's ok to pass in nil.
 		// panic("Preprocess requires context")
@@ -493,7 +483,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				ifs := ns[len(ns)-1].(*IfStmt)
 				// anything declared in ifs are copied.
 				for _, n := range ifs.GetBlockNames() {
-					tv := ifs.GetValueRef(nil, n)
+					tv := ifs.GetValueRef(nil, n, false)
 					last.Define(n, *tv)
 				}
 
@@ -610,7 +600,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// anything declared in ss are copied,
 				// namely ss.VarName if defined.
 				for _, n := range ss.GetBlockNames() {
-					tv := ss.GetValueRef(nil, n)
+					tv := ss.GetValueRef(nil, n, false)
 					last.Define(n, *tv)
 				}
 				if ss.IsTypeSwitch {
@@ -2110,21 +2100,25 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 					// evaluate typed value for static definition.
-					for i, vx := range n.Values {
-						if cx, ok := vx.(*ConstExpr); ok &&
-							!cx.TypedValue.IsUndefined() {
-							if n.Const {
-								// const _ = <const_expr>: static block should contain value
-								tvs[i] = cx.TypedValue
-							} else {
-								// var _ = <const_expr>: static block should NOT contain value
-								tvs[i] = anyValue(cx.TypedValue.T)
+					for i, _ := range n.NameExprs {
+						// consider value if specified.
+						if len(n.Values) > 0 {
+							vx := n.Values[i]
+							if cx, ok := vx.(*ConstExpr); ok &&
+								!cx.TypedValue.IsUndefined() {
+								if n.Const {
+									// const _ = <const_expr>: static block should contain value
+									tvs[i] = cx.TypedValue
+								} else {
+									// var _ = <const_expr>: static block should NOT contain value
+									tvs[i] = anyValue(cx.TypedValue.T)
+								}
+								continue
 							}
-						} else {
-							// for var decls of non-const expr.
-							st := sts[i]
-							tvs[i] = anyValue(st)
 						}
+						// for var decls of non-const expr.
+						st := sts[i]
+						tvs[i] = anyValue(st)
 					}
 				}
 				// define.
@@ -2161,13 +2155,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// during *TypeDecl:ENTER.  Then, copy over the
 				// values, completing the recursion.
 				tmp := evalStaticType(store, last, n.Type)
-				fmt.Println("!@#!@#!@#", last, n.Name)
-				fmt.Println("!@#!@#!@#", last.GetValueRef(store, n.Name))
-				fmt.Printf("ASDASDASDASD %#v\n", last)
-				pkg := packageOf(last)
-				fmt.Printf("PKGPKGPKGPKG %#v\n", pkg)
-				fmt.Printf("PKGPKGPKGPKG %#v\n", pkg.GetValueRef(store, n.Name))
-				dst := last.GetValueRef(store, n.Name).GetType()
+				dst := last.GetValueRef(store, n.Name, true).GetType()
 				switch dst := dst.(type) {
 				case *FuncType:
 					*dst = *(tmp.(*FuncType))
@@ -2189,7 +2177,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					exists := false
 					if dt := store.GetTypeSafe(tid); dt != nil {
 						dst = dt.(*DeclaredType)
-						last.GetValueRef(store, n.Name).SetType(dst)
+						last.GetValueRef(store, n.Name, true).SetType(dst)
 						exists = true
 					}
 					if !exists {
@@ -2288,7 +2276,7 @@ func pushInitRealBlockAndCopy(bn BlockNode, last *BlockNode, stack *[]BlockNode)
 // anything declared in orig are copied.
 func copyFromFauxBlock(bn BlockNode, orig BlockNode) {
 	for _, n := range orig.GetBlockNames() {
-		tv := orig.GetValueRef(nil, n)
+		tv := orig.GetValueRef(nil, n, false)
 		bn.Define(n, *tv)
 	}
 }
@@ -2813,14 +2801,8 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 	}
 	switch cx := x.(type) {
 	case *NameExpr:
-		fmt.Println("findUndefined2", cx.Name)
-		if tv := last.GetValueRef(store, cx.Name); tv != nil {
-			if tv.T == nil { // only predefined
-				fmt.Println("findUndefined2 unknown", cx.Name)
-				return cx.Name
-			} else {
-				return
-			}
+		if tv := last.GetValueRef(store, cx.Name, true); tv != nil {
+			return
 		}
 		if _, ok := UverseNode().GetLocalIndex(cx.Name); ok {
 			// XXX NOTE even if the name is shadowed by a file
@@ -2828,7 +2810,6 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 			// will be predefined later.
 			return
 		}
-		fmt.Println("findUndefined2 unknown2", cx.Name)
 		return cx.Name
 	case *BasicLitExpr:
 		return
@@ -3191,7 +3172,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 					dt.Name, cd.Name))
 			}
 		} else {
-			ftv := pkg.GetValueRef(store, cd.Name)
+			ftv := pkg.GetValueRef(store, cd.Name, true)
 			ft := ftv.T.(*FuncType)
 			cd.Type = *Preprocess(store, last, &cd.Type).(*FuncTypeExpr)
 			ft2 := evalStaticType(store, last, &cd.Type).(*FuncType)
@@ -3232,7 +3213,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 // non-package) stmt bodies.
 func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
-		panic("decl node already predefined!")
+		panic(fmt.Sprintf("decl node already predefined! %v", d))
 	}
 
 	// If un is blank, it means the predefine succeeded.
@@ -3313,20 +3294,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			case *StarExpr:
 				t = &PointerType{}
 			case *NameExpr:
-				if tv := last.GetValueRef(store, tx.Name); tv != nil {
-					if tv.T == nil {
-						// only predefined
-						un = tx.Name
-						return
-					}
-					// fmt.Println("!!!!! d", d)
-					// fmt.Println("!!!!! tx tx.Name tv", tx, tx.Name, tv)
-					// fmt.Println("!!!!! last", last.GetValueRef(store, tx.Name))
-					// fmt.Println("!!!!! last.p",
-					// last.GetParentNode(nil).GetValueRef(store, tx.Name))
-					// fmt.Println("!!!!!")
-					// (file) block name
-					// XXX
+				if tv := last.GetValueRef(store, tx.Name, true); tv != nil {
 					t = tv.GetType()
 					if dt, ok := t.(*DeclaredType); ok {
 						if !dt.sealed {
@@ -3354,7 +3322,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 					return
 				}
 				pkgName := tx.X.(*NameExpr).Name
-				tv := last.GetValueRef(store, pkgName)
+				tv := last.GetValueRef(store, pkgName, true)
 				pv, ok := tv.V.(*PackageValue)
 				if !ok {
 					panic(fmt.Sprintf(
@@ -3807,8 +3775,8 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 	if !ok {
 		return false
 	}
-	tv := bn.GetStaticBlock().Block.Values[idx]
-	if tv.T == nil {
+	t := bn.GetStaticBlock().Types[idx]
+	if t == nil {
 		return false
 	}
 	return true
