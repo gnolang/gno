@@ -551,14 +551,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	if !m.ready {
-		return "\n  Initializing..."
+		return "+"
 	}
 
 	if m.banner != "" {
 		banner := m.render.NewStyle().Padding(1, 5).
 			Border(lipgloss.DoubleBorder(), true, false, true).
 			Render(m.banner)
-		return lipgloss.PlaceHorizontal(m.width, lipgloss.Center, banner)
+
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, banner)
 	}
 
 	mainView := fmt.Sprintf("%s\n%s\n%s", m.headerView(), m.bodyView(), m.footerView())

@@ -35,17 +35,19 @@ import (
 )
 
 type broCfg struct {
-	target       string
-	chainID      string
-	defaultRealm string
-	sshListener  string
+	target         string
+	chainID        string
+	defaultRealm   string
+	sshListener    string
+	sshHostKeyPath string
 }
 
 var defaultBroOptions = broCfg{
-	target:       "127.0.0.1:26657",
-	sshListener:  "",
-	defaultRealm: "gno.land/r/gnoland/home",
-	chainID:      "dev",
+	target:         "127.0.0.1:26657",
+	sshListener:    "",
+	defaultRealm:   "gno.land/r/gnoland/home",
+	chainID:        "dev",
+	sshHostKeyPath: ".ssh/id_ed25519",
 }
 
 //go:embed banner2.txt
@@ -98,6 +100,14 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultBroOptions.sshListener,
 		"ssh server listener address",
 	)
+
+	fs.StringVar(
+		&c.sshHostKeyPath,
+		"ssh-key",
+		defaultBroOptions.sshHostKeyPath,
+		"ssh host key path",
+	)
+
 }
 
 func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
@@ -157,7 +167,7 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 
 	cmd := initCommandInput(renderer)
 	mod := model{
-		// banner:       banner,
+		banner:       banner,
 		render:       renderer,
 		client:       broclient,
 		listFuncs:    newFuncList(),
@@ -199,7 +209,7 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 	logger = slog.New(charmlog.New(io.Out()))
 	s, err := wish.NewServer(
 		wish.WithAddress(sshaddr.String()),
-		wish.WithHostKeyPath(".ssh/id_ed25519"),
+		wish.WithHostKeyPath(cfg.sshHostKeyPath),
 		wish.WithMiddleware(
 			accesscontrol.Middleware(),
 			bubbletea.Middleware(teaHandler),
