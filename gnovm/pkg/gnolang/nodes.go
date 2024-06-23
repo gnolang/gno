@@ -1765,12 +1765,14 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 	sb.Define2(false, n, tv.T, tv)
 }
 
+// Set type to nil, only reserving the name.
 func (sb *StaticBlock) Predefine(isConst bool, n Name) {
 	sb.Define2(isConst, n, nil, anyValue(nil))
 }
 
 // The declared type st may not be the same as the static tv;
 // e.g. var x MyInterface = MyStruct{}.
+// Setting st and tv to nil/zero reserves (predefines) name for definition later.
 func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	if debug {
 		debug.Printf(
