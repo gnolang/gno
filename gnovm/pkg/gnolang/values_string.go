@@ -258,6 +258,11 @@ func (v RefValue) String() string {
 		v.PkgPath)
 }
 
+func (v *HeapItemValue) String() string {
+	return fmt.Sprintf("heapitem(%v)",
+		v.Value)
+}
+
 // ----------------------------------------
 // *TypedValue.Sprint
 
@@ -376,7 +381,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 	default:
 		// The remaining types may have a nil value.
 		if tv.V == nil {
-			return nilStr + " " + tv.T.String()
+			return "(" + nilStr + " " + tv.T.String() + ")"
 		}
 
 		// *ArrayType, *SliceType, *StructType, *MapType

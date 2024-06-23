@@ -8,7 +8,7 @@ id: running-a-faucet
 
 In this tutorial, we will cover how to run a local native currency faucet that works seamlessly with a Gno node.
 Using the faucet, any address can get a hold of native currency funds in case they
-haven't [premined a balance beforehand](../../../getting-started/local-setup/premining-balances.md).
+haven't [premined a balance beforehand](../../../gno-infrastructure/premining-balances.md).
 
 ## Prerequisites
 
@@ -19,14 +19,14 @@ haven't [premined a balance beforehand](../../../getting-started/local-setup/pre
 
 The Gno faucet works by designating a single address as a faucet address that will distribute funds.
 
-Ensure the faucet account will have enough funds by [premining its balance](../../../getting-started/local-setup/premining-balances.md) to a high value.
+Ensure the faucet account will have enough funds by [premining its balance](../../../gno-infrastructure/premining-balances.md) to a high value.
 In case you do not have an existing address added to `gnokey`, you can consult
 the [Working with Key Pairs](../../../getting-started/local-setup/working-with-key-pairs.md) guide.
 
 ## 2. Start the local chain
 
 After ensuring the faucet address will have enough funds in the premine, we
-can [run the local blockchain node](../../../getting-started/local-setup/setting-up-a-local-chain.md).
+can [run the local blockchain node](../../../gno-infrastructure/setting-up-a-local-chain.md).
 Navigate to the `gno.land` sub-folder and run the appropriate make command:
 
 ```bash

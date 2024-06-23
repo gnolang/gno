@@ -20,7 +20,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -34,7 +33,6 @@ type testCfg struct {
 	rootDir             string
 	run                 string
 	timeout             time.Duration
-	transpile           bool // TODO: transpile should be the default, but it needs to automatically transpile dependencies in memory.
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	withNativeFallback  bool
@@ -111,13 +109,6 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
-		&c.transpile,
-		"transpile",
-		false,
-		"transpile gno to go before testing",
-	)
-
-	fs.BoolVar(
 		&c.updateGoldenTests,
 		"update-golden-tests",
 		false,
@@ -165,21 +156,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	verbose := cfg.verbose
-
-	tempdirRoot, err := os.MkdirTemp("", "gno-transpile")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(tempdirRoot)
-
-	// go.mod
-	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = makeTestGoMod(modPath, transpiler.ImportPrefix, "1.21")
-	if err != nil {
-		return fmt.Errorf("write .mod file: %w", err)
-	}
-
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
 		cfg.rootDir = gnoenv.RootDir()
@@ -209,43 +185,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	buildErrCount := 0
 	testErrCount := 0
 	for _, pkg := range subPkgs {
-		if cfg.transpile {
-			if verbose {
-				io.ErrPrintfln("=== PREC  %s", pkg.Dir)
-			}
-			transpileOpts := newTranspileOptions(&transpileCfg{
-				output: tempdirRoot,
-			})
-			err := transpilePkg(importPath(pkg.Dir), transpileOpts)
-			if err != nil {
-				io.ErrPrintln(err)
-				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkg.Dir)
-				io.ErrPrintln("FAIL")
-
-				buildErrCount++
-				continue
-			}
-
-			if verbose {
-				io.ErrPrintfln("=== BUILD %s", pkg.Dir)
-			}
-			tempDir, err := ResolvePath(tempdirRoot, importPath(pkg.Dir))
-			if err != nil {
-				return errors.New("cannot resolve build dir")
-			}
-			err = goBuildFileOrPkg(tempDir, defaultTranspileCfg)
-			if err != nil {
-				io.ErrPrintln(err)
-				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkg.Dir)
-				io.ErrPrintln("FAIL")
-
-				buildErrCount++
-				continue
-			}
-		}
-
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
 			continue
@@ -319,7 +258,7 @@ func gnoTestPkg(
 			if gnoPkgPath == "" {
 				// unable to read pkgPath from gno.mod, generate a random realm path
 				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = transpiler.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+				gnoPkgPath = gno.RealmPathPrefix + random.RandStr(8)
 			}
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
@@ -332,7 +271,7 @@ func gnoTestPkg(
 		})
 
 		if hasError {
-			os.Exit(1)
+			return commands.ExitCodeError(1)
 		}
 		testPkgName := getPkgNameFromFileset(ifiles)
 

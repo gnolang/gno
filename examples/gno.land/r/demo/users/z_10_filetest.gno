@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/users_test
+// PKGPATH: gno.land/r/demo/users_test
 package users_test
 
 import (
