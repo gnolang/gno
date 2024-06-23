@@ -36,7 +36,6 @@ var (
 	navStyleEnable = func(r *lipgloss.Renderer) lipgloss.Style {
 		return r.NewStyle().
 			Foreground(lipgloss.Color("#fab387"))
-		// Foreground(lipgloss.Color("201"))
 	}
 
 	navStyleDisable = func(r *lipgloss.Renderer) lipgloss.Style {
