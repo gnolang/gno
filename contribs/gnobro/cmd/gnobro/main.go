@@ -1,6 +1,7 @@
 package main
 
 import (
+	"container/list"
 	"context"
 	_ "embed"
 	"errors"
@@ -42,7 +43,7 @@ type broCfg struct {
 var defaultBroOptions = broCfg{
 	target:       "127.0.0.1:26657",
 	sshListener:  "",
-	defaultRealm: "/r/gnoland/blog",
+	defaultRealm: "gno.land/r/gnoland/home",
 	chainID:      "dev",
 }
 
@@ -145,13 +146,11 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 	// 	io.ErrPrintfln("error: %+v", err)
 	// 	os.Exit(1)
 	// }
-	// fmt.Println(res)
 
 	renderer := lipgloss.DefaultRenderer()
 	input := initURLInput(renderer)
 	if cfg.defaultRealm != "" {
-		path := strings.TrimLeft(cfg.defaultRealm, "gno.land")
-		path = strings.TrimLeft(cfg.defaultRealm, "/")
+		path := strings.TrimLeft(cfg.defaultRealm, gnoPrefix)
 		input.SetValue(path)
 	}
 
@@ -165,6 +164,7 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 		commandInput: cmd,
 		zone:         zone.New(),
 		pageurls:     map[string]string{},
+		history:      list.New(),
 	}
 
 	if cfg.sshListener == "" {

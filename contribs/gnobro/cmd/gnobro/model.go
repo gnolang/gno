@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	clist "container/list"
 	"fmt"
 	"regexp"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/muesli/reflow/wordwrap"
 )
@@ -31,6 +33,18 @@ const gnoPrefix = "gno.land/"
 const useHighPerformanceRenderer = false
 
 var (
+	navStyleEnable = func(r *lipgloss.Renderer) lipgloss.Style {
+		return r.NewStyle().Margin(0, 1).
+			Background(lipgloss.Color("#FF06B7"))
+		// Foreground(lipgloss.Color("201"))
+	}
+
+	navStyleDisable = func(r *lipgloss.Renderer) lipgloss.Style {
+		return r.NewStyle().Margin(0, 1).
+			Background(lipgloss.Color("235")).
+			Foreground(lipgloss.Color("240"))
+	}
+
 	boxRoundedStyle = func(r *lipgloss.Renderer) lipgloss.Style {
 		b := lipgloss.RoundedBorder()
 		return r.NewStyle().
@@ -105,29 +119,47 @@ type model struct {
 
 	pageurls       map[string]string
 	messageDisplay bool
+
+	history *clist.List
+	current *clist.Element
 }
 
 func (m model) Init() tea.Cmd {
+	m.history.Init()
 	return nil
 }
 
-var urlPattern = regexp.MustCompile(`(?m)/(?:p|r)/[^[;\s]+`)
+// realm path surrounded by ansi escape sequences
+var reUrlPattern = regexp.MustCompile(`(?mU)\x1b[^m]*m(?:gno.land)?(/[^\s]+)\x1b[^m]*m`)
 
-func (m model) FindAndMarkURLs(body []byte) []byte {
+func redirectWebPath(path string) string {
+	if alias, ok := gnoweb.Aliases[path]; ok {
+		return alias
+	}
+
+	if redirect, ok := gnoweb.Redirects[path]; ok {
+		return redirect
+	}
+
+	return path
+}
+
+func (m model) findAndMarkURLs(body []byte) []byte {
 	var buf bytes.Buffer
 	lastIndex := 0
 
-	indexes := urlPattern.FindAllIndex(body, -1)
+	indexes := reUrlPattern.FindAllSubmatchIndex(body, -1)
 	for i, loc := range indexes {
+		match := string(body[loc[0]:loc[1]])
+		uri := string(body[loc[2]:loc[3]])
 		markid := fmt.Sprintf("url_%d", i)
 
 		// Write bytes before match
 		buf.Write(body[lastIndex:loc[0]])
 
 		// Write quoted URL
-		u := string(body[loc[0]:loc[1]])
-		buf.WriteString(m.zone.Mark(markid, u))
-		m.pageurls[markid] = u
+		buf.WriteString(m.zone.Mark(markid, match))
+		m.pageurls[markid] = uri
 		lastIndex = loc[1]
 	}
 	// Write remaining bytes
@@ -166,7 +198,7 @@ func (m model) fetchRenderView() (view []byte, err error) {
 		return nil, fmt.Errorf("uanble to render markdown view: %w", err)
 	}
 
-	return m.FindAndMarkURLs(view), nil
+	return m.findAndMarkURLs(view), nil
 }
 
 func (m model) fetchFuncsList() (view []list.Item, err error) {
@@ -194,6 +226,65 @@ func (m model) getError(err error) string {
 	fmt.Fprintf(f, "error: %v", err)
 	serr := f.String()
 	return serr
+}
+
+func (m *model) moveToRealm(realm string) bool {
+	// Trim prefix
+	path := strings.TrimPrefix(realm, gnoPrefix)
+	// redirect if any well known path
+	path = redirectWebPath(path)
+	// trim any slash
+	path = strings.TrimPrefix(path, "/")
+	if path == m.urlInput.Value() {
+		return false
+	}
+
+	// Set uri input
+	m.urlInput.SetValue(path)
+	m.urlInput.CursorEnd()
+	// Update render
+	m.RenderUpdate()
+
+	return true
+}
+
+func (m *model) updateHistory() {
+	v := m.urlInput.Value()
+	if m.history.Len() == 0 {
+		m.current = m.history.PushBack(v)
+		return
+	}
+
+	m.current = m.history.InsertAfter(v, m.current)
+	if next := m.current.Next(); next != nil {
+		m.history.Remove(next)
+	}
+
+}
+
+func (m *model) moveHistoryForward() (string, bool) {
+	if next := m.current.Next(); next != nil {
+		m.current = next
+		return m.current.Value.(string), true
+	}
+	return "", false
+}
+
+func (m *model) moveHistoryBackward() (string, bool) {
+	if prev := m.current.Prev(); prev != nil {
+		m.current = prev
+		return m.current.Value.(string), true
+	}
+	return "", false
+}
+
+func (m *model) updateHistoryBackward(forward bool) {
+	v := m.urlInput.Value()
+	if m.history.Len() == 0 {
+		m.current = m.history.PushBack(v)
+	} else {
+		m.current = m.history.InsertAfter(v, m.current)
+	}
 }
 
 func (m *model) RenderUpdate() {
@@ -272,28 +363,43 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd // stop here to avoid update input view
 		}
 
-		if m.zone.Get("url_input").InBounds(msg) {
-			m.commandInput.Blur()
-			cmds = append(cmds, m.urlInput.Focus())
-			m.commandFocus = false
-		} else if m.zone.Get("command_input").InBounds(msg) {
-			m.urlInput.Blur()
-			cmds = append(cmds, m.commandInput.Focus())
-			m.commandFocus = true
-		} else {
-			for mark := range m.pageurls {
-				if !m.zone.Get(mark).InBounds(msg) {
-					continue
+		if msg.Action == tea.MouseActionRelease {
+			switch {
+			case m.zone.Get("prev_button").InBounds(msg):
+				if path, ok := m.moveHistoryBackward(); ok {
+					m.moveToRealm(path)
+				}
+			case m.zone.Get("next_button").InBounds(msg):
+				if path, ok := m.moveHistoryForward(); ok {
+					m.moveToRealm(path)
+				}
+			case m.zone.Get("home_button").InBounds(msg):
+				if m.moveToRealm("gno.land/r/gnoland/home") {
+					m.updateHistory()
 				}
 
-				if uri := m.pageurls[mark]; uri != "" {
-					uri = strings.TrimPrefix(uri, "/")
-					m.urlInput.SetValue(uri)
-					m.urlInput.CursorEnd()
-					m.RenderUpdate()
-				}
+			case m.zone.Get("url_input").InBounds(msg):
+				m.commandInput.Blur()
+				cmds = append(cmds, m.urlInput.Focus())
+				m.commandFocus = false
+			case m.zone.Get("command_input").InBounds(msg):
+				m.urlInput.Blur()
+				cmds = append(cmds, m.commandInput.Focus())
+				m.commandFocus = true
+			default:
+				for mark := range m.pageurls {
+					if !m.zone.Get(mark).InBounds(msg) {
+						continue
+					}
 
-				break
+					if uri := m.pageurls[mark]; uri != "" {
+						if m.moveToRealm(uri) {
+							m.updateHistory()
+						}
+					}
+
+					break
+				}
 			}
 		}
 	case tea.KeyMsg:
@@ -353,6 +459,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.messageDisplay || m.urlInput.Focused() {
 				m.listFuncs.Erase()
 				m.RenderUpdate()
+				if m.current.Value.(string) != m.urlInput.Value() {
+					m.updateHistory()
+				}
+
 				m.messageDisplay = false
 			}
 
@@ -396,6 +506,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			if value := m.urlInput.Value(); value != "" {
 				m.RenderUpdate()
+				m.updateHistory()
 			}
 		} else {
 			m.viewport.Width = msg.Width
@@ -466,9 +577,40 @@ func (m model) bodyView() string {
 }
 
 func (m model) headerView() string {
+	return lipgloss.JoinVertical(lipgloss.Left, m.navView(), m.urlView())
+}
+
+func (m model) urlView() string {
 	return m.zone.Mark("url_input", boxRoundedStyle(m.render).
 		Width(m.viewport.Width-2).
 		Render(m.urlInput.View()))
+}
+
+func (m model) navView() string {
+	home := navStyleEnable(m.render).Render("[home]")
+
+	next := "[next]"
+	if m.current != nil && m.current.Next() != nil {
+		next = navStyleEnable(m.render).Render(next)
+	} else {
+		next = navStyleDisable(m.render).Render(next)
+	}
+
+	prev := "[prev]"
+	if m.current != nil && m.current.Prev() != nil {
+		prev = navStyleEnable(m.render).Render(prev)
+	} else {
+		prev = navStyleDisable(m.render).Render(prev)
+	}
+
+	return m.render.NewStyle().Width(m.width-2).
+		Padding(0, 2).Render(lipgloss.JoinHorizontal(lipgloss.Left,
+		m.zone.Mark("home_button", home),
+		m.zone.Mark("prev_button", prev),
+		m.zone.Mark("next_button", next),
+	),
+	)
+
 }
 
 func (m model) footerView() string {
