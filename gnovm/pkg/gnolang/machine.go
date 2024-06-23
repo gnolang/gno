@@ -26,7 +26,7 @@ type Exception struct {
 	// currently executing deferred function is able to recover from the panic.
 	Frame *Frame
 
-	Stacktrace string
+	Stacktrace Stacktrace
 }
 
 func (e Exception) Sprint(m *Machine) string {
@@ -2157,8 +2157,8 @@ func (m *Machine) ExceptionsStacktrace() string {
 	var builder strings.Builder
 
 	for _, ex := range m.Exceptions {
-		builder.WriteString(fmt.Sprintf("panic %s\n", ex.Value.Sprint(m)))
-		builder.WriteString(fmt.Sprintf("%s\n", ex.Stacktrace))
+		builder.WriteString(fmt.Sprintf("panic %s\n", ex.Sprint(m)))
+		builder.WriteString(fmt.Sprintf("%s\n", ex.Stacktrace.String()))
 	}
 
 	return builder.String()
