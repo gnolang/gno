@@ -424,25 +424,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
-				if n.Op == DEFINE {
-					// XXX just remove?
-					for _, lx := range n.Lhs {
-						ln := lx.(*NameExpr).Name
-						if ln == blankIdentifier {
-							// ignore.
-						} else {
-							if !isLocallyDefined(last, ln) {
-								// initial declaration to be re-defined.
-								// last.Define(ln, anyValue(nil))
-								last.Predefine(false, ln)
-							} else {
-								// do not redeclare nor re-predefine.
-							}
-						}
-					}
-				} else {
-					// nothing defined.
-				}
 
 			// TRANS_ENTER -----------------------
 			case *ImportDecl, *ValueDecl, *TypeDecl, *FuncDecl:
@@ -3149,11 +3130,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 		// NOTE: unlike the *ValueDecl case, this case doesn't
 		// preprocess d itself (only d.Type).
 		if cd.IsMethod {
-			// XXX probably remove.
 			if cd.Recv.Name == "" || cd.Recv.Name == blankIdentifier {
-				// create a hidden var with leading dot.
-				// NOTE: document somewhere.
-				// cd.Recv.Name = ".recv"
 				panic("cd.Recv.Name should have been set in initStaticBlocks")
 			}
 			cd.Recv = *Preprocess(store, last, &cd.Recv).(*FieldTypeExpr)
@@ -3207,6 +3184,9 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 					dt.Name, cd.Name))
 			}
 		} else {
+			if cd.Name == "init" {
+				panic("cd.Name 'init' should have been appended with a number in initStaticBlocks")
+			}
 			ftv := pkg.GetValueRef(store, cd.Name, true)
 			ft := ftv.T.(*FuncType)
 			cd.Type = *Preprocess(store, last, &cd.Type).(*FuncTypeExpr)
@@ -3407,6 +3387,9 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				return
 			}
 		} else {
+			if d.Name == "init" {
+				panic("cd.Name 'init' should have been appended with a number in initStaticBlocks")
+			}
 			// define package-level function.
 			ft := &FuncType{}
 			pkg := skipFile(last).(*PackageNode)
