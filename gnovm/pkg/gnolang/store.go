@@ -621,7 +621,6 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.alloc.Reset()
 	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
 	ds.opslog = nil                             // new ops log.
-	//ds.current = nil
 	ds.SetCachePackage(Uverse())
 }
 
