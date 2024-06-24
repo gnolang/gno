@@ -30,15 +30,11 @@ func extractLocalLinks(fileContent []byte) []string {
 			match = match[2 : len(match)-1]
 
 			// Remove markdown headers in links
-			pos := strings.Index(match, "#")
-
-			if pos != -1 {
+			if pos := strings.Index(match, "#"); pos != -1 {
 				match = match[:pos]
 			}
 
-			pos = strings.Index(match, " ")
-
-			if pos != -1 {
+			if pos := strings.Index(match, " "); pos != -1 {
 				match = match[:pos]
 			}
 
