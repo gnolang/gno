@@ -72,7 +72,8 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 		}
 		for _, f := range files {
 			if isGnoFile(f) {
-				paths = append(paths, ensurePathPrefix(argPath))
+				path := filepath.Join(argPath, f.Name())
+				paths = append(paths, ensurePathPrefix(path))
 			}
 		}
 	}
