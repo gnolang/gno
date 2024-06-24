@@ -110,7 +110,7 @@ func (b banker) SendCoins(from, to Address, amt Coins) {
 		panic("BankerTypeReadonly cannot send coins")
 	}
 	if b.pkgAddr != from.String() {
-		msg := "can only send coins from realm that created banker(" + b.pkgAddr + ")" + " not ( " + from.String() + ")"
+		msg := `can only send coins from realm that created banker "` + b.pkgAddr + `", not "` + from.String() + `"`
 		panic(msg)
 	}
 	denoms, amounts := amt.expandNative()
