@@ -87,19 +87,7 @@ For now, obtain the file by
 ## TODO: Add link to download the file from GitHub
 ```
 
-## 8. Add the new validator to existing chain
-
-::: info
-
-This step is currently unavailable. It will be supported in the future after complete implementation of validator set injection with the `r/sys/vals` realm.
-
-:::
-
-```bash
-## TODO: Add a new validator
-```
-
-## 9. Confirm the validator information of the first node.
+## 8. Confirm the validator information of the first node.
 
 ```bash
 # Node ID
@@ -120,7 +108,7 @@ $ curl ifconfig.me/ip # GET PUBLIC IP
 1.2.3.4 # USE YOUR OWN PUBLIC IP
 ```
 
-## 10. Configure the persistent_peers list
+## 9. Configure the persistent_peers list
 
 Configure a list of nodes that your validators will always retain a connection with.
 
@@ -128,7 +116,7 @@ Configure a list of nodes that your validators will always retain a connection w
 $ gnoland config set p2p.persistent_peers "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:26656" -config-path gnoland-data/config/config.toml
 ```
 
-## 11. Configure the seeds
+## 10. Configure the seeds
 
 Configure the list of seed nodes. Seed nodes provide information about other nodes for the validator to connect with the chain, enabling a fast and stable initial connection.
 
@@ -142,7 +130,7 @@ This is an option to configure the node set as the Seed Mode. However, the optio
 gnoland config set p2p.seeds "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:26656" -config-path gnoland-data/config/config.toml
 ```
 
-## 12. Start the second node
+## 11. Start the second node
 
 ```bash
 gnoland start -data-dir ./gnoland-data -genesis ./genesis.json
