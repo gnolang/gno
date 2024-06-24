@@ -15,13 +15,21 @@ type Stacktrace struct {
 
 func (s Stacktrace) String() string {
 	var builder strings.Builder
+
 	for _, e := range s.Executions {
-		if e.Stmt == nil {
+		switch {
+		case e.Stmt == nil:
 			builder.WriteString(fmt.Sprintf("%s()\n", e.Frame.Func))
 			builder.WriteString(fmt.Sprintf("    %s/%s:%d\n", e.Frame.Func.PkgPath, e.Frame.Func.FileName, e.Frame.Func.Source.GetLine()))
-		} else {
+		case e.Frame.Func != nil && e.Frame.Func.IsNative():
+			builder.WriteString(fmt.Sprintf("%s()\n", e.Frame.Func))
+			builder.WriteString(fmt.Sprintf("    %s.%s\n", e.Frame.Func.NativePkg, e.Frame.Func.NativeName))
+		case e.Frame.Func != nil:
 			builder.WriteString(fmt.Sprintf("%s\n", e.Stmt.String()))
-			builder.WriteString(fmt.Sprintf("    %s\n", frameFuncLocation(e.Frame, e.Stmt)))
+			builder.WriteString(fmt.Sprintf("    %s/%s:%d\n", e.Frame.Func.PkgPath, e.Frame.Func.FileName, e.Stmt.GetLine()))
+		default:
+			builder.WriteString(fmt.Sprintf("%s\n", e.Frame.GoFunc.Value.Type()))
+			builder.WriteString("    gonative\n")
 		}
 	}
 	return builder.String()
@@ -30,9 +38,13 @@ func (s Stacktrace) String() string {
 func (m *Machine) Stacktrace() Stacktrace {
 	stacktrace := Stacktrace{}
 
+	if len(m.Frames) == 0 {
+		return stacktrace
+	}
+
 	index := len(m.Stmts)
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		if m.Frames[i].Func != nil {
+		if m.Frames[i].IsCall() {
 			stm := m.Stmts[index-1]
 			bs := stm.(*bodyStmt)
 			stm = bs.Body[bs.NextBodyIndex-1]
@@ -44,15 +56,8 @@ func (m *Machine) Stacktrace() Stacktrace {
 		index = m.Frames[i].NumStmts
 	}
 
-	if len(m.Frames) > 0 {
-		stacktrace.Executions = append(stacktrace.Executions, Execution{
-			Frame: m.Frames[0],
-		})
-	}
-
+	stacktrace.Executions = append(stacktrace.Executions, Execution{
+		Frame: m.Frames[0],
+	})
 	return stacktrace
-}
-
-func frameFuncLocation(f *Frame, stmt Stmt) string {
-	return fmt.Sprintf("%s/%s:%d", f.Func.PkgPath, f.Func.FileName, stmt.GetLine())
 }
