@@ -3,11 +3,11 @@ package main
 import "gno.land/r/x/manfred_upgrade_patterns/upgrade_d/v2"
 
 func main() {
-	println("a", v1.Get("a"))
-	println("b", v1.Get("b"))
-	println("c", v1.Get("c"))
-	println("d", v1.Get("d"))
-	println("e", v1.Get("e"))
+	println("a", v2.Get("a"))
+	println("b", v2.Get("b"))
+	println("c", v2.Get("c"))
+	println("d", v2.Get("d"))
+	println("e", v2.Get("e"))
 }
 
 // Output:

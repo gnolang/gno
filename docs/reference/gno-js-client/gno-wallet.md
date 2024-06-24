@@ -63,7 +63,7 @@ Deploys the specified package / realm
 #### Parameters
 
 * `gnoPackage` **MemPackage** the package / realm to be deployed
-* `funds` **Map<string, number>** the denomination -> value map for funds
+* `funds` **Map<string, number\>** the denomination -> value map for funds
 * `fee` **TxFee** the custom transaction fee, if any
 
 Returns **Promise<string\>**
