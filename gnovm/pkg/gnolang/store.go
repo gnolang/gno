@@ -313,7 +313,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 func (ds *defaultStore) SetObject(oo Object) {
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
-	o2 := copyValueWithRefs(nil, oo)
+	o2 := copyValueWithRefs(oo)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
 	// set hash.
