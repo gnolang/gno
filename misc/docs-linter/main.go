@@ -61,9 +61,9 @@ func execLint(cfg *cfg, ctx context.Context) error {
 	}
 
 	// Make storage maps for tokens to analyze
-	fileUrlMap := make(map[string][]string)       // file path > [urls]
-	fileJSXMap := make(map[string][]string)       // file path > [JSX items]
-	fileLocalLinkMap := make(map[string][]string) // file path > [local links]
+	filepathToURLs := make(map[string][]string)      // file path > [urls]
+	filepathToJSX := make(map[string][]string)       // file path > [JSX items]
+	filepathToLocalLink := make(map[string][]string) // file path > [local links]
 
 	// Extract tokens from files
 	for _, filePath := range mdFiles {
@@ -74,28 +74,28 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		}
 
 		// Execute JSX extractor
-		fileJSXMap[filePath] = extractJSX(fileContents)
+		filepathToJSX[filePath] = extractJSX(fileContents)
 
 		// Execute URL extractor
-		fileUrlMap[filePath] = extractUrls(fileContents)
+		filepathToURLs[filePath] = extractUrls(fileContents)
 
 		// Execute local link extractor
-		fileLocalLinkMap[filePath] = extractLocalLinks(fileContents)
+		filepathToLocalLink[filePath] = extractLocalLinks(fileContents)
 	}
 
 	// Run linters in parallel
 	g, _ := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
-		return lintJSX(fileJSXMap)
+		return lintJSX(filepathToJSX)
 	})
 
 	g.Go(func() error {
-		return lintURLs(fileUrlMap, ctx)
+		return lintURLs(filepathToURLs, ctx)
 	})
 
 	g.Go(func() error {
-		return lintLocalLinks(fileLocalLinkMap, cfg.docsPath)
+		return lintLocalLinks(filepathToLocalLink, cfg.docsPath)
 	})
 
 	if err := g.Wait(); err != nil {
