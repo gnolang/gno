@@ -78,13 +78,6 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
-		&c.strict,
-		"strict",
-		defaultFmtOptions.strict,
-		"when enabled, fail if any parse errors are encountered",
-	)
-
-	fs.BoolVar(
 		&c.imports,
 		"imports",
 		defaultFmtOptions.imports,
@@ -149,9 +142,6 @@ func fmtProcessFiles(cfg *fmtCfg, files []string, processFile fmtProcessFileFunc
 		}
 
 		errCount++
-		if cfg.strict {
-			break // stop here if in strict mode
-		}
 	}
 	return errCount
 }
@@ -208,7 +198,7 @@ func fmtProcessDiff(file string, data []byte, io commands.IO) bool {
 }
 
 func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFileFunc, error) {
-	r := gnoimports.NewFSResolver(cfg.strict)
+	r := gnoimports.NewFSResolver()
 
 	gnoroot := gnoenv.RootDir()
 

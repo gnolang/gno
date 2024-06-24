@@ -26,18 +26,14 @@ type Resolver interface {
 }
 
 type FSResolver struct {
-	// When strict is enable resolve will fail on any error
-	strict bool
-
 	fset    *token.FileSet
 	visited map[string]bool
 	pkgpath map[string]Package   // pkg path -> pkg
 	pkgs    map[string][]Package // pkg name -> []pkg
 }
 
-func NewFSResolver(strict bool) *FSResolver {
+func NewFSResolver() *FSResolver {
 	return &FSResolver{
-		strict:  strict,
 		fset:    token.NewFileSet(),
 		visited: map[string]bool{},
 		pkgpath: map[string]Package{},
@@ -103,12 +99,9 @@ func (r *FSResolver) LoadPackages(root string) error {
 	return err
 }
 
+// XXX: Use error handler
 func (r *FSResolver) newStrictError(f string, args ...any) error {
 	err := fmt.Errorf(f, args...)
-	if r.strict {
-		return err
-	}
-
 	if debug {
 		fmt.Fprintln(os.Stderr, err.Error())
 	}
