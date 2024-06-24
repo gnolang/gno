@@ -60,7 +60,7 @@ func TestNodeMovePreviousTX(t *testing.T) {
 		t.Logf("initial state %d", callInc)
 		for _, tc := range moves {
 			t.Logf("moving from `%d`", tc.Move)
-			err := node.MoveFrom(ctx, tc.Move)
+			err := node.MoveBy(ctx, tc.Move)
 			require.NoError(t, err)
 			if tc.Move != 0 {
 				assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())

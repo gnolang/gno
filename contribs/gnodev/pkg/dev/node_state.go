@@ -2,6 +2,7 @@ package dev
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
@@ -53,11 +54,11 @@ func (n *Node) getState(ctx context.Context) ([]std.Tx, error) {
 	return n.state, nil
 }
 
-// MoveFrom adjusts the current state of the node by `x` transactions.
+// MoveBy adjusts the current state of the node by `x` transactions.
 // `x` can be negative to move backward or positive to move forward, however, index boundaries are respected
 // with a lower limit of 0 and upper limit equaling the total number of states.
-// If a move is successful, node is reload.
-func (n *Node) MoveFrom(ctx context.Context, x int) error {
+// If a move is successful, node is reloaded.
+func (n *Node) MoveBy(ctx context.Context, x int) error {
 	n.muNode.Lock()
 	defer n.muNode.Unlock()
 
@@ -113,11 +114,11 @@ func (n *Node) MoveFrom(ctx context.Context, x int) error {
 }
 
 func (n *Node) MoveToPreviousTX(ctx context.Context) error {
-	return n.MoveFrom(ctx, -1)
+	return n.MoveBy(ctx, -1)
 }
 
 func (n *Node) MoveToNextTX(ctx context.Context) error {
-	return n.MoveFrom(ctx, 1)
+	return n.MoveBy(ctx, 1)
 }
 
 // Export the current state as genesis doc
