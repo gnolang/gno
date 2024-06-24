@@ -39,7 +39,6 @@ var (
 
 type devCfg struct {
 	// Listeners
-	webListenerAddr          string
 	nodeRPCListenerAddr      string
 	nodeP2PListenerAddr      string
 	nodeProxyAppListenerAddr string
@@ -54,6 +53,10 @@ type devCfg struct {
 	balancesFile string
 	genesisFile  string
 	txsFile      string
+
+	// Web Configuration
+	webListenerAddr     string
+	webRemoteHelperAddr string
 
 	// Node Configuration
 	minimal    bool
@@ -118,7 +121,14 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.webListenerAddr,
 		"web-listener",
 		defaultDevOptions.webListenerAddr,
-		"web server listening address",
+		"web server listener address",
+	)
+
+	fs.StringVar(
+		&c.webRemoteHelperAddr,
+		"web-help-remote",
+		defaultDevOptions.webRemoteHelperAddr,
+		"web server help page's remote addr (default to <node-rpc-listener>)",
 	)
 
 	fs.StringVar(

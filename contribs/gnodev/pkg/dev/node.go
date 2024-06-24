@@ -246,7 +246,7 @@ func (n *Node) updatePackages(paths ...string) error {
 		pkgsUpdated += len(pkgslist)
 	}
 
-	n.logger.Info(fmt.Sprintf("updated %d pacakges", pkgsUpdated))
+	n.logger.Info(fmt.Sprintf("updated %d packages", pkgsUpdated))
 	return nil
 }
 
