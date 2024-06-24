@@ -4,6 +4,7 @@ import (
 	"context"
 	"strconv"
 	"testing"
+	"time"
 
 	emitter "github.com/gnolang/gno/contribs/gnodev/internal/mock"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
@@ -14,14 +15,12 @@ import (
 )
 
 func TestNodeMovePreviousTX(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	const callInc = 5
 
 	node, emitter := testingCounterRealm(t, callInc)
 
 	t.Run("Prev TX", func(t *testing.T) {
+		ctx := testingContext(t)
 		err := node.MoveToPreviousTX(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
@@ -33,6 +32,7 @@ func TestNodeMovePreviousTX(t *testing.T) {
 	})
 
 	t.Run("Next TX", func(t *testing.T) {
+		ctx := testingContext(t)
 		err := node.MoveToNextTX(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
@@ -44,6 +44,7 @@ func TestNodeMovePreviousTX(t *testing.T) {
 	})
 
 	t.Run("Multi Move TX", func(t *testing.T) {
+		ctx := testingContext(t)
 		moves := []struct {
 			Move           int
 			ExpectedResult string
@@ -75,8 +76,7 @@ func TestNodeMovePreviousTX(t *testing.T) {
 }
 
 func TestSaveCurrentState(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := testingContext(t)
 
 	node, emitter := testingCounterRealm(t, 2)
 
@@ -113,18 +113,17 @@ func TestSaveCurrentState(t *testing.T) {
 }
 
 func TestExportState(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	node, _ := testingCounterRealm(t, 3)
 
 	t.Run("export state", func(t *testing.T) {
+		ctx := testingContext(t)
 		state, err := node.ExportCurrentState(ctx)
 		require.NoError(t, err)
 		assert.Equal(t, 3, len(state))
 	})
 
 	t.Run("export genesis doc", func(t *testing.T) {
+		ctx := testingContext(t)
 		doc, err := node.ExportStateAsGenesis(ctx)
 		require.NoError(t, err)
 		require.NotNil(t, doc.AppState)
@@ -186,4 +185,10 @@ func Render(_ string) string { return strconv.Itoa(value) }
 	require.Equal(t, render, strconv.Itoa(inc))
 
 	return node, emitter
+}
+
+func testingContext(t *testing.T) context.Context {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
+	t.Cleanup(cancel)
+	return ctx
 }
