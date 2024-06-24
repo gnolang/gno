@@ -47,7 +47,7 @@ func RegisterSponsor(name, apiVersion, url, description, contactInfo string) {
 	totalSponsors += 1
 }
 
-// GetSponsorByAddress retrieves a sponsor by their address
+// GetSponsorByAddress retrieves the sponsor by their address
 func GetSponsorByAddress(addr std.Address) *sponsors.Sponsor {
 	value, found := addr2Sponsor.Get(addr.String())
 	if !found {
@@ -57,7 +57,7 @@ func GetSponsorByAddress(addr std.Address) *sponsors.Sponsor {
 	return value.(*sponsors.Sponsor)
 }
 
-// GetSponsorByName retrieves a sponsor by their name
+// GetSponsorByName retrieves the sponsor by their name
 func GetSponsorByName(name string) *sponsors.Sponsor {
 	value, found := name2Sponsor.Get(name)
 	if !found {
@@ -65,6 +65,41 @@ func GetSponsorByName(name string) *sponsors.Sponsor {
 	}
 
 	return value.(*sponsors.Sponsor)
+}
+
+// GetURLByAddress retrieves the sponsor's URL by their address
+func GetURLByAddress(addr std.Address) string {
+	value, found := addr2Sponsor.Get(addr.String())
+	if !found {
+		return ""
+	}
+
+	return value.(*sponsors.Sponsor).DiscoverURL
+}
+
+// GetURLByName retrieves the sponsor's URL by their name
+func GetURLByName(name string) string {
+	value, found := name2Sponsor.Get(name)
+	if !found {
+		return ""
+	}
+
+	return value.(*sponsors.Sponsor).DiscoverURL
+}
+
+// GetList retrieves pairs of (name, address) with each sponsor
+func GetList() []string {
+	var sponsorList []string
+
+	name2Sponsor.Iterate("", "", func(key string, value interface{}) bool {
+		sponsor := value.(*sponsors.Sponsor)
+
+		sponsorList = append(sponsorList, key, sponsor.Address.String())
+
+		return false
+	})
+
+	return sponsorList
 }
 
 // GetTotalSponsors returns the total number of registered sponsors
