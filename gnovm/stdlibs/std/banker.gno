@@ -72,6 +72,9 @@ func GetBanker(bt BankerType) Banker {
 	var pkgAddr string
 	if bt == BankerTypeOrigSend {
 		pkgAddr = GetOrigPkgAddr().String()
+		if pkgAddr != CurrentRealm().Addr().String() {
+			panic("can only send coins from original package")
+		}
 	} else if bt == BankerTypeRealmSend || bt == BankerTypeRealmIssue {
 		pkgAddr = CurrentRealm().Addr().String()
 	}
