@@ -201,6 +201,15 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					}
 				} else {
 					pkg := skipFile(last).(*PackageNode)
+					// special case: if n.Name == "init", assign unique suffix.
+					if n.Name == "init" {
+						idx := pkg.GetNumNames()
+						// NOTE: use a dot for init func suffixing.
+						// this also makes them unreferenceable.
+						dname := Name(fmt.Sprintf("init.%d", idx))
+						n.Name = dname
+					}
+
 					pkg.Predefine(false, n.Name)
 				}
 			case *FuncTypeExpr:
@@ -3401,14 +3410,6 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			// define package-level function.
 			ft := &FuncType{}
 			pkg := skipFile(last).(*PackageNode)
-			// special case: if d.Name == "init", assign unique suffix.
-			if d.Name == "init" {
-				idx := pkg.GetNumNames()
-				// NOTE: use a dot for init func suffixing.
-				// this also makes them unreferenceable.
-				dname := Name(fmt.Sprintf("init.%d", idx))
-				d.Name = dname
-			}
 			// define a FuncValue w/ above type as d.Name.
 			// fill in later during *FuncDecl:BLOCK.
 			fv := &FuncValue{
