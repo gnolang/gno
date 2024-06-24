@@ -9,7 +9,7 @@ stdout OK!
 stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED:   [0-9]+'
 stdout 'HEIGHT:     [0-9]+'
-stdout 'EVENTS:     \[{\"orig_caller\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\",\"prev\":{\"prev_pkg_path\":\"\",\"prev_pkg_addr\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},\"prev_func\":\"foo\",\"pkg_path\":\"gno.land\/r\/demo\/cbee\",\"func\":\"subFoo\",\"type\":\"foo\",\"attrs\":\[{\"key\":\"k1\",\"value\":\"v1\"},{\"key\":\"k2\",\"value\":\"v2\"}\]},{\"orig_caller\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\",\"prev\":{\"prev_pkg_path\":\"\",\"prev_pkg_addr\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\"},\"prev_func\":\"\",\"pkg_path\":\"gno.land\/r\/demo\/cbee\",\"func\":\"subBar\",\"type\":\"bar\",\"attrs\":\[{\"key\":\"bar\",\"value\":\"baz\"}\]}\]'
+stdout 'EVENTS:     \[{\"prev\":{\"addr\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\",\"pkg_path\":\"\"},\"prev_func\":\"foo\",\"pkg_path\":\"gno.land\/r\/demo\/cbee\",\"func\":\"subFoo\",\"type\":\"foo\",\"attrs\":\[{\"key\":\"k1\",\"value\":\"v1\"},{\"key\":\"k2\",\"value\":\"v2\"}\]},{\"prev\":{\"addr\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\",\"pkg_path\":\"\"},\"prev_func\":\"\",\"pkg_path\":\"gno.land\/r\/demo\/cbee\",\"func\":\"subBar\",\"type\":\"bar\",\"attrs\":\[{\"key\":\"bar\",\"value\":\"baz\"}\]}\]'
 
 
 -- cbee.gno --
