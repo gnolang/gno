@@ -277,9 +277,3 @@ gnoland config set p2p.seeds "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:2
 ```bash
 gnoland start -data-dir ./gnoland-data -genesis ./genesis.json
 ```
-
-## Results After Starting the Chain and Two Nodes
-
-![1st_node](../assets/validator/running-a-validator/1st_node.png) The 1st node at height 12263.
-
-![2nd_node](../assets/validator/running-a-validator/2nd_node.png) The 2nd node at height 12263 (synced with the 1st node)
