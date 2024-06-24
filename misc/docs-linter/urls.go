@@ -43,8 +43,7 @@ func extractUrls(fileContent []byte) []string {
 	return urls
 }
 
-func lintURLs(fileUrlMap map[string][]string, ctx context.Context) error {
-	// Filter links by prefix & ignore localhost
+func lintURLs(filepathToURLs map[string][]string, ctx context.Context) error {
 	// Setup parallel checking for links
 	g, _ := errgroup.WithContext(ctx)
 
@@ -53,8 +52,7 @@ func lintURLs(fileUrlMap map[string][]string, ctx context.Context) error {
 		notFoundUrls []string
 	)
 
-	for filePath, urls := range fileUrlMap {
-		filePath := filePath
+	for filePath, urls := range filepathToURLs {
 		for _, url := range urls {
 			url := url
 			g.Go(func() error {

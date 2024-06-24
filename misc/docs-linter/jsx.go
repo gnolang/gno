@@ -34,10 +34,9 @@ func extractJSX(fileContent []byte) []string {
 	return filteredMatches
 }
 
-func lintJSX(fileJSXMap map[string][]string) error {
+func lintJSX(filepathToJSX map[string][]string) error {
 	found := false
-	for filePath, tags := range fileJSXMap {
-		filePath := filePath
+	for filePath, tags := range filepathToJSX {
 		for _, tag := range tags {
 			if !found {
 				fmt.Println("Tags that need checking:")

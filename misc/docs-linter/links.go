@@ -55,10 +55,9 @@ func extractLocalLinks(fileContent []byte) []string {
 	return links
 }
 
-func lintLocalLinks(fileLocalLinkMap map[string][]string, docsPath string) error {
+func lintLocalLinks(filepathToLinks map[string][]string, docsPath string) error {
 	var found bool
-	for filePath, links := range fileLocalLinkMap {
-		filePath := filePath
+	for filePath, links := range filepathToLinks {
 		for _, link := range links {
 			path := filepath.Join(docsPath, filepath.Dir(filePath), link)
 
