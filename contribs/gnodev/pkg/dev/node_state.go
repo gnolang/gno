@@ -99,8 +99,7 @@ func (n *Node) MoveBy(ctx context.Context, x int) error {
 	}
 
 	// Reset the node with the new genesis state.
-	err = n.rebuildNode(ctx, genesis)
-	if err != nil {
+	if err = n.rebuildNode(ctx, genesis); err != nil {
 		return fmt.Errorf("uanble to rebuild node: %w", err)
 	}
 
