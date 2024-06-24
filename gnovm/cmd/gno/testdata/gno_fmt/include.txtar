@@ -1,5 +1,5 @@
 # Test fmt with include and verbose enabled
-gno fmt -i $WORK/pkg file.gno
+gno fmt -include $WORK/pkg file.gno
 cmp stdout stdout.golden
 cmp stderr stderr.golden
 

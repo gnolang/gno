@@ -1,6 +1,6 @@
 # Test error parsing
 
-gno fmt -i v1 -i v2 v2/file_filetest.gno
+gno fmt -include v1 -include v2 v2/file_filetest.gno
 cmp stdout stdout.golden
 cmp stderr stderr.golden
 
