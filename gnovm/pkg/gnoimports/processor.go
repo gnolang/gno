@@ -237,8 +237,6 @@ func collectUnresolved(file *ast.File, topDecls map[*ast.Object]ast.Decl) map[st
 			if d := topDecls[e.Obj]; d != nil {
 				delete(unresolved, e.Name)
 			}
-
-			return true
 		case *ast.SelectorExpr:
 			for _, u := range unresolvedList {
 				if u == e.X {
@@ -247,8 +245,6 @@ func collectUnresolved(file *ast.File, topDecls map[*ast.Object]ast.Decl) map[st
 					break
 				}
 			}
-
-			return true
 		}
 
 		return true
