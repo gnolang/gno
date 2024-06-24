@@ -160,7 +160,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.StringVar(
 		&c.genesisFile,
-		"genesis-file",
+		"genesis",
 		defaultDevOptions.genesisFile,
 		"load the given genesis file",
 	)
