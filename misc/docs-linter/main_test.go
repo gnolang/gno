@@ -28,45 +28,96 @@ func TestEmptyPathError(t *testing.T) {
 func TestExtractLinks(t *testing.T) {
 	t.Parallel()
 
-	// Generate temporary source dir
-	sourceDir, err := os.MkdirTemp(".", "sourceDir")
-	require.NoError(t, err)
-	t.Cleanup(removeDir(t, sourceDir))
+	// Create mock file content with random links
+	mockFileContent := `# Lorem Ipsum
+Lorem ipsum dolor sit amet, 
+[consectetur](https://example.org)
+adipiscing elit. Vivamus lacinia odio
+vitae [vestibulum vestibulum](http://localhost:3000).
+Cras [vel ex](http://192.168.1.1) et
+turpis egestas luctus. Nullam
+[eleifend](https://www.wikipedia.org)
+nulla ac [blandit tempus](https://gitlab.org). 
+## Valid Links Here are some valid links:
+- [Mozilla](https://mozilla.org) 
+- [Valid URL](https://valid-url.net) 
+- [Another Valid URL](https://another-valid-url.info) 
+- [Valid Link](https://valid-link.edu)
+`
 
-	// Create mock files with random links
-	mockFiles := map[string]string{
-		"file1.md": "This is a test file with a link: https://example.com.\nAnother link: http://example.org.",
-		"file2.md": "Markdown content with a link: https://example.com/page.",
-		"file3.md": "Links in a list:\n- https://example.com/item1\n- https://example.org/item2",
-	}
-
-	for fileName, content := range mockFiles {
-		filePath := filepath.Join(sourceDir, fileName)
-		err := os.WriteFile(filePath, []byte(content), 0644)
-		require.NoError(t, err)
-	}
-
-	// Expected URLs and their corresponding files
-	expectedUrls := map[string]string{
-		"https://example.com":       filepath.Join(sourceDir, "file1.md"),
-		"http://example.org":        filepath.Join(sourceDir, "file1.md"),
-		"https://example.com/page":  filepath.Join(sourceDir, "file2.md"),
-		"https://example.com/item1": filepath.Join(sourceDir, "file3.md"),
-		"https://example.org/item2": filepath.Join(sourceDir, "file3.md"),
+	// Expected URLs
+	expectedUrls := []string{
+		"https://example.org",
+		"http://192.168.1.1",
+		"https://www.wikipedia.org",
+		"https://gitlab.org",
+		"https://mozilla.org",
+		"https://valid-url.net",
+		"https://another-valid-url.info",
+		"https://valid-link.edu",
 	}
 
 	// Extract URLs from each file in the sourceDir
-	for fileName := range mockFiles {
-		filePath := filepath.Join(sourceDir, fileName)
-		extractedUrls, err := extractUrls(filePath)
-		require.NoError(t, err)
+	extractedUrls := extractUrls([]byte(mockFileContent))
 
-		// Verify that the extracted URLs match the expected URLs
-		for url, expectedFile := range expectedUrls {
-			if expectedFile == filePath {
-				require.Equal(t, expectedFile, extractedUrls[url], "URL: %s not correctly mapped to file: %s", url, expectedFile)
-			}
-		}
+	if len(expectedUrls) != len(extractedUrls) {
+		t.Fatal("did not extract correct amount of URLs")
+	}
+
+	sort.Strings(extractedUrls)
+	sort.Strings(expectedUrls)
+
+	for i, u := range expectedUrls {
+		require.Equal(t, u, extractedUrls[i])
+	}
+}
+
+func TestExtractJSX(t *testing.T) {
+	t.Parallel()
+
+	// Create mock file content with random JSX tags
+	mockFileContent := `
+#### Usage
+
+### getFunctionSignatures
+
+Fetches public facing function signatures
+
+#### Parameters
+
+Returns **Promise<FunctionSignature[]>**
+
+# test text from gnodev.md <node-rpc-listener>
+
+#### Usage
+### evaluateExpression
+
+Evaluates any expression in readonly mode and returns the results
+
+#### Parameters
+
+Returns **Promise<string>**
+`
+
+	// Expected JSX tags
+	expectedTags := []string{
+		"<FunctionSignature[]>",
+		"<string>",
+		"<node-rpc-listener>",
+	}
+
+	// Extract JSX tags from the mock file content
+	extractedTags := extractJSX([]byte(mockFileContent))
+
+	if len(expectedTags) != len(extractedTags) {
+		t.Fatal("did not extract the correct amount of JSX tags")
+	}
+
+	sort.Strings(extractedTags)
+	sort.Strings(expectedTags)
+
+	for i, tag := range expectedTags {
+		require.Equal(t, tag, extractedTags[i])
 	}
 }
 
