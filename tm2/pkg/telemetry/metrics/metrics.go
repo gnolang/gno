@@ -129,14 +129,6 @@ func Init(config config.Config) error {
 		return fmt.Errorf("error parsing exporter endpoint: %s, %w", config.ExporterEndpoint, err)
 	}
 
-	// The exporter embeds a default OpenTelemetry Reader and
-	// implements prometheus.Collector, allowing it to be used as
-	// both a Reader and Collector.
-	promexp, err := prometheus.New()
-	if err != nil {
-		return fmt.Errorf("error creating prometheus exporter, %w", err)
-	}
-
 	providerOptions := []sdkMetric.Option{
 		sdkMetric.WithResource(
 			resource.NewWithAttributes(
@@ -150,6 +142,14 @@ func Init(config config.Config) error {
 	}
 
 	if config.PrometheusAddr != "" {
+		// The exporter embeds a default OpenTelemetry Reader and
+		// implements prometheus.Collector, allowing it to be used as
+		// both a Reader and Collector.
+		promexp, err := prometheus.New()
+		if err != nil {
+			return fmt.Errorf("error creating prometheus exporter, %w", err)
+		}
+
 		providerOptions = append(providerOptions, sdkMetric.WithReader(promexp))
 
 		go func(ctx context.Context) {
