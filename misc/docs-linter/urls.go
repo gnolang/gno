@@ -54,6 +54,7 @@ func lintURLs(filepathToURLs map[string][]string, ctx context.Context) error {
 	)
 
 	for filePath, urls := range filepathToURLs {
+		filePath := filePath
 		for _, url := range urls {
 			url := url
 			g.Go(func() error {
