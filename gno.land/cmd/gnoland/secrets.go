@@ -80,11 +80,13 @@ type (
 		NodeIDInfo         *nodeIDInfo         `json:"node_id,omitempty" toml:"node_id" comment:"the derived node ID info"`
 	}
 
+	// NOTE: keep in sync with tm2/pkg/bft/privval/file.go
 	validatorKeyInfo struct {
 		Address string `json:"address" toml:"address" comment:"the validator address"`
 		PubKey  string `json:"pub_key" toml:"pub_key" comment:"the validator public key"`
 	}
 
+	// NOTE: keep in sync with tm2/pkg/bft/privval/file.go
 	validatorStateInfo struct {
 		Height int64 `json:"height" toml:"height" comment:"the height of the last sign"`
 		Round  int   `json:"round" toml:"round" comment:"the round of the last sign"`
@@ -94,6 +96,7 @@ type (
 		SignBytes []byte `json:"sign_bytes,omitempty" toml:"sign_bytes,omitempty" comment:"the raw signature bytes of the last sign"`
 	}
 
+	// NOTE: keep in sync with tm2/pkg/p2p/key.go
 	nodeIDInfo struct {
 		ID         string `json:"id" toml:"id" comment:"the node ID derived from the private key"`
 		P2PAddress string `json:"p2p_address" toml:"p2p_address" comment:"the node's constructed P2P address'"`

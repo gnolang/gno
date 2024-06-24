@@ -38,6 +38,7 @@ func voteToStep(vote *types.Vote) int8 {
 // -------------------------------------------------------------------------------
 
 // FilePVKey stores the immutable part of PrivValidator.
+// NOTE: keep in sync with gno.land/cmd/gnoland/secrets.go
 type FilePVKey struct {
 	Address types.Address  `json:"address" comment:"the validator address"`
 	PubKey  crypto.PubKey  `json:"pub_key" comment:"the validator public key"`
@@ -66,6 +67,7 @@ func (pvKey FilePVKey) Save() {
 // -------------------------------------------------------------------------------
 
 // FilePVLastSignState stores the mutable part of PrivValidator.
+// NOTE: keep in sync with gno.land/cmd/gnoland/secrets.go
 type FilePVLastSignState struct {
 	Height    int64  `json:"height" comment:"the height of the last sign"`
 	Round     int    `json:"round" comment:"the round of the last sign"`
