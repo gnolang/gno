@@ -12,6 +12,7 @@ import (
 
 func TestFormatImportFromSource(t *testing.T) {
 	mockResolver := NewMockResolver()
+	t.Parallel()
 
 	mp := &MockPackage{
 		PkgPath: "example.com/mypkg",
@@ -53,6 +54,7 @@ func main() {
 
 func TestFormatImportFromFile(t *testing.T) {
 	mockResolver := NewMockResolver()
+	t.Parallel()
 
 	// Add packages to the MockResolver
 	mp := &MockPackage{
