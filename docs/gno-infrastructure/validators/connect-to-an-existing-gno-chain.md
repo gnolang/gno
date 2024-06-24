@@ -91,7 +91,7 @@ For now, obtain the file by
 
 ::: info
 
-This step is currently unavailable. It will be supported in the future after complete implementation of validator set injection with the `r/sys/val` realm.
+This step is currently unavailable. It will be supported in the future after complete implementation of validator set injection with the `r/sys/vals` realm.
 
 :::
 
