@@ -131,15 +131,19 @@ Here is another local link: [another](./path/to/file1.md)
 Here is another local link: [another](./path/to/file2.md#header-1-2)
 And a link to an external website: [example](https://example.com)
 And a websocket link: [websocket](ws://example.com/socket)
-Here's an embedmd link': [embedmd]:# (../assets/how-to-guides/simple-library/tapas.gno go)
+Here's an embedmd link: [embedmd]:# (../assets/how-to-guides/simple-library/tapas.gno go)
+Here's an embedmd link: [embedmd]:# (../assets/myfile.sol go)
+Here's an embedmd link: [embedmd]:# (../assets/myfi()le.gno c)
 `
 
-	// Expected JSX tags
+	// Expected local links
 	expectedLinks := []string{
 		"../concepts/file1.md",
 		"./path/to/file1.md",
 		"./path/to/file2.md",
 		"../assets/how-to-guides/simple-library/tapas.gno",
+		"../assets/myfile.sol",
+		"../assets/myfi()le.gno",
 	}
 
 	// Extract local links tags from the mock file content
