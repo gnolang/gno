@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -151,10 +152,11 @@ func Init(config config.Config) error {
 	if config.PrometheusAddr != "" {
 		providerOptions = append(providerOptions, sdkMetric.WithReader(promexp))
 
-		go func() {
+		go func(ctx context.Context) {
 			server := &http.Server{
 				Addr:              config.PrometheusAddr,
 				ReadHeaderTimeout: 5 * time.Second,
+				BaseContext:       func(net.Listener) context.Context { return ctx },
 			}
 			http.Handle("/metrics", promhttp.Handler())
 
@@ -162,7 +164,7 @@ func Init(config config.Config) error {
 			if err != nil {
 				fmt.Printf("[ERROR] Prometheus metrics server error: %v\n", err)
 			}
-		}()
+		}(ctx)
 	}
 
 	// Use oltp metric exporter with http/https or grpc
