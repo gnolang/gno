@@ -132,7 +132,7 @@ func (m model) Init() tea.Cmd {
 }
 
 // realm path surrounded by ansi escape sequences
-var reUrlPattern = regexp.MustCompile(`(?mU)\x1b[^m]*m(?:gno.land)?(/[^\s]+)\x1b[^m]*m`)
+var reUrlPattern = regexp.MustCompile(`(?mU)\x1b[^m]*m(?:(?:https?://)?gno.land)?(/[^\s]+)\x1b[^m]*m`)
 
 func redirectWebPath(path string) string {
 	if alias, ok := gnoweb.Aliases[path]; ok {
@@ -261,7 +261,6 @@ func (m *model) updateHistory() {
 	if next := m.current.Next(); next != nil {
 		m.history.Remove(next)
 	}
-
 }
 
 func (m *model) moveHistoryForward() (string, bool) {
@@ -339,7 +338,7 @@ func (m *model) ExtendCommandInput() bool {
 	return false
 }
 
-type updateRenderMsg struct {
+type UpdateRenderMsg struct {
 	realmPath string
 }
 
@@ -358,6 +357,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case UpdateRenderMsg:
+		if msg.realmPath != "" {
+			m.moveToRealm(msg.realmPath)
+		} else {
+			m.RenderUpdate()
+		}
+
 	case tea.MouseMsg:
 		if msg.Button == tea.MouseButtonWheelUp || msg.Button == tea.MouseButtonWheelDown ||
 			msg.Button == tea.MouseButtonWheelLeft || msg.Button == tea.MouseButtonWheelRight {

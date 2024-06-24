@@ -2,7 +2,10 @@ module github.com/gnolang/gno/contribs/gnobro
 
 go 1.21
 
-replace github.com/gnolang/gno => ../..
+replace (
+	github.com/gnolang/gno => ../..
+	github.com/gnolang/gno/contribs/gnodev => ../gnodev
+)
 
 require (
 	github.com/charmbracelet/bubbles v0.18.0
@@ -13,6 +16,8 @@ require (
 	github.com/charmbracelet/ssh v0.0.0-20240401141849-854cddfa2917
 	github.com/charmbracelet/wish v1.4.0
 	github.com/gnolang/gno v0.0.0-00010101000000-000000000000
+	github.com/gnolang/gno/contribs/gnodev v0.0.0-00010101000000-000000000000
+	github.com/gorilla/websocket v1.5.1
 	github.com/lrstanley/bubblezone v0.0.0-20240125042004-b7bafc493195
 	github.com/muesli/reflow v0.3.0
 	github.com/sahilm/fuzzy v0.1.1
@@ -38,7 +43,6 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
 	github.com/dlclark/regexp2 v1.4.0 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
-	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
@@ -49,7 +53,6 @@ require (
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/securecookie v1.1.1 // indirect
 	github.com/gorilla/sessions v1.2.1 // indirect
-	github.com/gorilla/websocket v1.5.1 // indirect
 	github.com/gotuna/gotuna v0.6.0 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.20.0 // indirect
 	github.com/libp2p/go-buffer-pool v0.1.0 // indirect

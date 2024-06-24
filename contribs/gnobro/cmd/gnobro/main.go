@@ -9,11 +9,12 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -24,6 +25,7 @@ import (
 	"github.com/charmbracelet/wish/activeterm"
 	"github.com/charmbracelet/wish/bubbletea"
 	"github.com/charmbracelet/wish/logging"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -111,6 +113,9 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	home := gnoenv.HomeDir()
 
 	logger := tmlog.NewNoopLogger()
@@ -152,11 +157,6 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 	}
 
 	broclient := NewBroClient(logger, base, gnocl)
-	// res, err := broclient.Render("gno.land/r/gnoland/blogss", "")
-	// if err != nil {
-	// 	io.ErrPrintfln("error: %+v", err)
-	// 	os.Exit(1)
-	// }
 
 	renderer := lipgloss.DefaultRenderer()
 	input := initURLInput(renderer)
@@ -167,7 +167,7 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 
 	cmd := initCommandInput(renderer)
 	mod := model{
-		banner:       banner,
+		// banner:       banner,
 		render:       renderer,
 		client:       broclient,
 		listFuncs:    newFuncList(),
@@ -184,10 +184,51 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 			tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
 		)
 
+		addr := cfg.target
+		if !strings.HasPrefix(addr, "http://") && !strings.HasPrefix(addr, "https://") {
+			addr = "http://" + addr
+		}
+
+		devpoint, err := url.Parse(addr)
+		if err != nil {
+			return fmt.Errorf("unable to construct devaddr: %w", err)
+		}
+
+		host, _, _ := net.SplitHostPort(devpoint.Host)
+		eventsurl := fmt.Sprintf("ws://%s:8888/_events", host)
+		// if err := CheckEndpoint(eventsurl); err != nil {
+		// 	return fmt.Errorf("unable to check dev events endpoint: %w", err)
+		// }
+
+		var wg sync.WaitGroup
+		if true {
+			var devcl DevClient
+			// devcl.Logger = log.ZapLoggerToSlog(log.NewZapConsoleLogger(io.Out(), zapcore.DebugLevel))
+			devcl.Handler = func(typ events.Type, data any) error {
+				switch typ {
+				case events.EvtReload, events.EvtReset, events.EvtTxResult:
+					p.Send(UpdateRenderMsg{})
+				default:
+				}
+
+				return nil
+			}
+
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				if err := devcl.Run(ctx, eventsurl, nil); err != nil {
+					io.ErrPrintfln("run error: %s", err.Error())
+				}
+			}()
+		}
+
 		if _, err := p.Run(); err != nil {
 			return fmt.Errorf("could not run program: %w", err)
 		}
 
+		wg.Wait()
 		return nil
 	}
 
@@ -230,8 +271,6 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 
 	<-done
 	logger.Info("Stopping SSH server")
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer func() { cancel() }()
 	if err := s.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
 		logger.Error("Could not stop server", "error", err)
 	}
