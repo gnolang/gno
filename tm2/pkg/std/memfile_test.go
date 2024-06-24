@@ -270,3 +270,52 @@ func TestMemPackage_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestSplitFilepath(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		filepath    string
+		expDirPath  string
+		expFilename string
+	}{
+		{
+			name: "empty",
+		},
+		{
+			name:       "one part",
+			filepath:   "root",
+			expDirPath: "root",
+		},
+		{
+			name:        "file",
+			filepath:    "gno.land/r/demo/avl/avl.gno",
+			expDirPath:  "gno.land/r/demo/avl",
+			expFilename: "avl.gno",
+		},
+		{
+			name:       "trailing slash",
+			filepath:   "gno.land/r/demo/avl/",
+			expDirPath: "gno.land/r/demo/avl",
+		},
+		{
+			name:        "license",
+			filepath:    "gno.land/r/demo/avl/LICENSE",
+			expDirPath:  "gno.land/r/demo/avl",
+			expFilename: "LICENSE",
+		},
+		{
+			name:       "regular path",
+			filepath:   "gno.land/p/demo/avl",
+			expDirPath: "gno.land/p/demo/avl",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dirPath, filename := SplitFilepath(tt.filepath)
+			assert.Equal(t, tt.expDirPath, dirPath)
+			assert.Equal(t, tt.expFilename, filename)
+		})
+	}
+}

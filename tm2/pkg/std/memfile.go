@@ -98,14 +98,15 @@ func SplitFilepath(filepath string) (dirpath string, filename string) {
 	if len(parts) == 1 {
 		return parts[0], ""
 	}
-	last := parts[len(parts)-1]
-	if strings.Contains(last, ".") {
+
+	switch last := parts[len(parts)-1]; {
+	case strings.Contains(last, "."):
 		return strings.Join(parts[:len(parts)-1], "/"), last
-	} else if last == "" {
+	case last == "":
 		return strings.Join(parts[:len(parts)-1], "/"), ""
-	} else if last == licenseName {
+	case last == licenseName:
 		return strings.Join(parts[:len(parts)-1], "/"), licenseName
-	} else {
-		return strings.Join(parts, "/"), ""
 	}
+
+	return strings.Join(parts, "/"), ""
 }
