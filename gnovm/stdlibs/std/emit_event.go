@@ -30,7 +30,6 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	ctx := GetContext(m)
 
 	evt := gnoEvent{
-		OrigCaller: ctx.OrigCaller.String(),
 		Prev:       prev,
 		PrevFunc:   prevFunc,
 		PkgPath:    pkgPath,
@@ -58,7 +57,6 @@ func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
 }
 
 type gnoEvent struct {
-	OrigCaller string              `json:"orig_caller"`
 	Prev       prevStack           `json:"prev"`
 	PrevFunc   string              `json:"prev_func"`
 	PkgPath    string              `json:"pkg_path"`
