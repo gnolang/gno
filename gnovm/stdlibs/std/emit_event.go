@@ -21,8 +21,8 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	fnIdent := getPrevFunctionNameFromTarget(m, "Emit")
 	prevFunc := getPrevFunctionNameFromTarget(m, fnIdent) // get the previous function name of the function that called Emit
 
-	prevAddr, prevPath := prevRealm(m)
-	prev := PrevRealm{
+	prevAddr, prevPath := x_prevRealm(m)
+	prev := prevRealm{
 		Addr:    prevAddr,
 		PkgPath: prevPath,
 	}
@@ -57,7 +57,7 @@ func attrKeysAndValues(attrs []string) ([]gnoEventAttribute, error) {
 }
 
 type gnoEvent struct {
-	Prev       PrevRealm           `json:"prev"`
+	Prev       prevRealm           `json:"prev"`
 	PrevFunc   string              `json:"prev_func"`
 	PkgPath    string              `json:"pkg_path"`
 	Func       string              `json:"func"`
@@ -65,7 +65,7 @@ type gnoEvent struct {
 	Attributes []gnoEventAttribute `json:"attrs"`
 }
 
-type PrevRealm struct {
+type prevRealm struct {
 	Addr    string `json:"addr"`
 	PkgPath string `json:"pkg_path"`
 }
@@ -77,6 +77,6 @@ type gnoEventAttribute struct {
 	Value string `json:"value"`
 }
 
-func prevRealm(m *gno.Machine) (string, string) {
+func x_prevRealm(m *gno.Machine) (string, string) {
 	return X_getRealm(m, 1)
 }
