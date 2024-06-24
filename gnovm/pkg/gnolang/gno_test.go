@@ -159,37 +159,37 @@ func main() {
 	m.RunMain()
 }
 
-func BenchmarkPreprocessForLoop(b *testing.B) {
-	m := NewMachine("test", nil)
-	c := `package test
-func main() {
-	for i:=0; i<10000; i++ {}
-}`
-	n := MustParseFile("main.go", c)
-	m.RunFiles(n)
+//func BenchmarkPreprocessForLoop(b *testing.B) {
+//	m := NewMachine("test", nil)
+//	c := `package test
+//func main() {
+//	for i:=0; i<10000; i++ {}
+//}`
+//	n := MustParseFile("main.go", c)
+//	m.RunFiles(n)
+//
+//	for i := 0; i < b.N; i++ {
+//		m.RunMain()
+//	}
+//}
 
-	for i := 0; i < b.N; i++ {
-		m.RunMain()
-	}
-}
-
-func BenchmarkIfStatement(b *testing.B) {
-	m := NewMachine("test", nil)
-	c := `package test
-func main() {
-	for i:=0; i<10000; i++ {
-		if i > 10 {
-			
-		}
-	}
-}`
-	n := MustParseFile("main.go", c)
-	m.RunFiles(n)
-
-	for i := 0; i < b.N; i++ {
-		m.RunMain()
-	}
-}
+//func BenchmarkIfStatement(b *testing.B) {
+//	m := NewMachine("test", nil)
+//	c := `package test
+//func main() {
+//	for i:=0; i<10000; i++ {
+//		if i > 10 {
+//
+//		}
+//	}
+//}`
+//	n := MustParseFile("main.go", c)
+//	m.RunFiles(n)
+//
+//	for i := 0; i < b.N; i++ {
+//		m.RunMain()
+//	}
+//}
 
 func TestDoOpEvalBaseConversion(t *testing.T) {
 	m := NewMachine("test", nil)
@@ -401,17 +401,17 @@ func BenchmarkBenchdata(b *testing.B) {
 				name += "_param:" + param
 			}
 			b.Run(name, func(b *testing.B) {
-				if strings.HasPrefix(name, "matrix.gno_param") {
-					// CGO_ENABLED=0 go test -bench . -benchmem ./... -short -run=^$ -cpu 1,2 -count=1 ./...
-					// That is not just exposing test and benchmark traces as output, but these benchmarks are failing
-					// making the output unparseable:
-					/*
-						BenchmarkBenchdata/matrix.gno_param:3           panic: runtime error: index out of range [31] with length 25 [recovered]
-						panic: runtime error: index out of range [31] with length 25:
-						...
-					*/
-					b.Skip("it panics causing an error when parsing benchmark results")
-				}
+				//if strings.HasPrefix(name, "matrix.gno_param") {
+				//	// CGO_ENABLED=0 go test -bench . -benchmem ./... -short -run=^$ -cpu 1,2 -count=1 ./...
+				//	// That is not just exposing test and benchmark traces as output, but these benchmarks are failing
+				//	// making the output unparseable:
+				//	/*
+				//		BenchmarkBenchdata/matrix.gno_param:3           panic: runtime error: index out of range [31] with length 25 [recovered]
+				//		panic: runtime error: index out of range [31] with length 25:
+				//		...
+				//	*/
+				//	b.Skip("it panics causing an error when parsing benchmark results")
+				//}
 
 				// Gen template with N and param.
 				var buf bytes.Buffer
