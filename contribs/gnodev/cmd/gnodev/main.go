@@ -404,8 +404,10 @@ func runEventLoop(
 			switch key.Upper() {
 			case rawterm.KeyH: // Helper
 				logger.Info("Gno Dev Helper", "helper", helper)
+
 			case rawterm.KeyA: // Accounts
 				logAccounts(logger.WithGroup(AccountsLogName), bk, dnode)
+
 			case rawterm.KeyR: // Reload
 				logger.WithGroup(NodeLogName).Info("reloading...")
 				if err = dnode.ReloadAll(ctx); err != nil {
@@ -444,6 +446,7 @@ func runEventLoop(
 				exported++
 
 				logger.WithGroup(NodeLogName).Info("node state exported", "file", docfile)
+
 			case rawterm.KeyN: // Next tx
 				logger.Info("moving forward...")
 				if err := dnode.MoveToNextTX(ctx); err != nil {
@@ -460,6 +463,7 @@ func runEventLoop(
 
 			case rawterm.KeyCtrlC: // Exit
 				return nil
+
 			default:
 			}
 
