@@ -57,7 +57,7 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 	}
 
 	return &NodeConfig{
-		Logger:                noopLogger,
+		Logger:                log.NewNoopLogger(),
 		Emitter:               &emitter.NoopServer{},
 		DefaultDeployer:       defaultDeployer,
 		BalancesList:          balances,
