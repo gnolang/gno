@@ -6,20 +6,7 @@ id: validators-running-a-validator
 
 ## Becoming a Gno.land validator
 
-The Gno.land blockchain is powered by the [Tendermint2](https://docs.gno.land/concepts/tendermint2) (TM2) consensus, which 
-involves committing of new blocks and broadcasting votes by multiple validators 
-selected via governance in [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution) (PoC). While 
-traditional Proof of Stake (PoS) blockchains such as the Cosmos Hub required 
-validators to secure a delegation of staked tokens to join the validator set, 
-no bonding of capital is involved in Gno.land. Rather, the validators on Gno.land 
-are expected to demonstrate their technical expertise and alignment with the 
-project by making continuous, meaningful contributions to the project. 
-Furthermore, the voting power and the transaction fee rewards between validators
- are distributed evenly to achieve higher decentralization. From a technical 
- perspective, the validator set implementation in Gno.land as its abstracted away 
- into the `r/sys/val` realm ([work in progress](https://github.com/gnolang/gno/issues/1824)), as a form of smart-contract, 
- for modularity, whereas existing blockchains include the validator management 
- logic within the consensus layer.
+The Gno.land blockchain is powered by the [Tendermint2](https://docs.gno.land/concepts/tendermint2) (TM2) consensus, which involves committing of new blocks and broadcasting votes by multiple validators selected via governance in [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution) (PoC). While traditional Proof of Stake (PoS) blockchains such as the Cosmos Hub required validators to secure a delegation of staked tokens to join the validator set, no bonding of capital is involved in Gno.land. Rather, the validators on Gno.land are expected to demonstrate their technical expertise and alignment with the project by making continuous, meaningful contributions to the project. Furthermore, the voting power and the transaction fee rewards between validators are distributed evenly to achieve higher decentralization. From a technical perspective, the validator set implementation in Gno.land as its abstracted away into the `r/sys/val` realm ([work in progress](https://github.com/gnolang/gno/issues/1824)), as a form of smart-contract, for modularity, whereas existing blockchains include the validator management logic within the consensus layer.
 
 # Start a New Gno Chain and a Validator
 
@@ -29,7 +16,7 @@ Furthermore, the voting power and the transaction fee rewards between validators
 - A required step in order for the Gno.land node to function correctly.
 
 ```bash
-gnoland config init
+gnoland config init -config-path gnoland-data/config/config.toml
 ```
 
 ## 2. Initialize the secrets (required)
@@ -38,16 +25,15 @@ gnoland config init
 - A required step which may otherwise prevent blocks from being produced.
 
 ```bash
-gnoland secrets init
+gnoland secrets init -data-dir gnoland-data/secrets
 ```
 
 :::tip
 
-A moniker is a human-readable username of your validator node. You may customize 
-your moniker with the following command:
+A moniker is a human-readable username of your validator node. You may customize your moniker with the following command:
 
 ```bash
-gnoland config set moniker node01
+gnoland config set moniker node01 -config-path gnoland-data/config/config.toml
 ```
 
 :::
@@ -57,7 +43,7 @@ gnoland config set moniker node01
 - A configuration to connect with the RPC service (port 26657) when an external client (i.e. a dApp like Adena Wallet) communicates with the chain (transaction request, block height check, etc.).
 
 ```bash
-gnoland config set rpc.laddr "tcp://0.0.0.0:26657"
+gnoland config set rpc.laddr "tcp://0.0.0.0:26657" -config-path gnoland-data/config/config.toml
 
 # similar behavior for cosmos validator
 # gaiad tx staking create-validator `--node string (default:tcp://localhost:26657)`
@@ -74,7 +60,7 @@ The key file path is relative by default.
 :::
 
 ```bash
-gnoland config set priv_validator_key_file secrets/priv_validator_key.json
+gnoland config set priv_validator_key_file secrets/priv_validator_key.json -config-path gnoland-data/config/config.toml
 ```
 
 ## 5. Set the validator state (optional)
@@ -88,7 +74,7 @@ The key file path is relative by default.
 :::
 
 ```bash
-gnoland config set priv_validator_state_file secrets/priv_validator_state.json
+gnoland config set priv_validator_state_file secrets/priv_validator_state.json -config-path gnoland-data/config/config.toml
 ```
 
 ## 6. Set the node key (optional)
@@ -102,7 +88,7 @@ The key file path is relative by default.
 :::
 
 ```bash
-gnoland config set node_key_file secrets/node_key.json
+gnoland config set node_key_file secrets/node_key.json -config-path gnoland-data/config/config.toml
 ```
 
 ## 7. Generate the genesis file (required)
@@ -119,7 +105,7 @@ gnoland genesis generate
 
 ```bash
 # check the secrets file generated in step (2)
-$ gnoland secrets get
+$ gnoland secrets get -data-dir gnoland-data/secrets
 [Node P2P Info]
 Node ID:  g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6
 
@@ -151,13 +137,13 @@ gnoland start -data-dir ./gnoland-data -genesis ./genesis.json
 ## 1. Initialize the configurations (required)
 
 ```bash
-gnoland config init
+gnoland config init -config-path gnoland-data/config/config.toml
 ```
 
 ## 2. Initialize the secrets (required)
 
 ```bash
-gnoland secrets init
+gnoland secrets init -data-dir gnoland-data/secrets
 ```
 
 :::tip
@@ -165,7 +151,7 @@ gnoland secrets init
 Set a new moniker to distinguish your new node from the existing one.
 
 ```bash
-gnoland config set moniker node02
+gnoland config set moniker node02 -config-path gnoland-data/config/config.toml
 ```
 
 :::
@@ -173,7 +159,7 @@ gnoland config set moniker node02
 ## 3. Set the rpc connection address (required for connecting with other nodes)
 
 ```bash
-gnoland config set rpc.laddr "tcp://0.0.0.0:26657"
+gnoland config set rpc.laddr "tcp://0.0.0.0:26657" -config-path gnoland-data/config/config.toml
 ```
 
 ## 4. Set the validator private key (required)
@@ -185,7 +171,7 @@ The key file path is relative by default.
 :::
 
 ```bash
-gnoland config set priv_validator_key_file secrets/priv_validator_key.json
+gnoland config set priv_validator_key_file secrets/priv_validator_key.json -config-path gnoland-data/config/config.toml
 ```
 
 ## 5. Set the validator state (required)
@@ -197,7 +183,7 @@ The key file path is relative by default.
 :::
 
 ```bash
-gnoland config set priv_validator_state_file secrets/priv_validator_state.json
+gnoland config set priv_validator_state_file secrets/priv_validator_state.json -config-path gnoland-data/config/config.toml
 ```
 
 ## 6. Set the node key (required)
@@ -209,7 +195,7 @@ The key file path is relative by default.
 :::
 
 ```bash
-gnoland config set node_key_file secrets/node_key.json
+gnoland config set node_key_file secrets/node_key.json -config-path gnoland-data/config/config.toml
 ```
 
 ## 7. Obtain the genesis file of the chain to connect to
@@ -235,8 +221,7 @@ For now, obtain the file by
 
 ::: info
 
-This step is currently unavailable. It will be supported in the future after 
-complete implementation of validator set injection with the `r/sys/val` realm.
+This step is currently unavailable. It will be supported in the future after complete implementation of validator set injection with the `r/sys/val` realm.
 
 :::
 
@@ -248,7 +233,7 @@ complete implementation of validator set injection with the `r/sys/val` realm.
 
 ```bash
 # Node ID
-$ gnoland secrets get NodeKey
+$ gnoland secrets get NodeKey -data-dir gnoland-data/secrets
 
 [Node P2P Info]
 Node ID:  g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6
@@ -267,28 +252,24 @@ $ curl ifconfig.me/ip # GET PUBLIC IP
 
 ## 10. Configure the persistent_peers list
 
-Configure a list of nodes that your validators will always retain a connection 
-with.
+Configure a list of nodes that your validators will always retain a connection with.
 
 ```bash
-$ gnoland config set p2p.persistent_peers "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:26656"
+$ gnoland config set p2p.persistent_peers "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:26656" -config-path gnoland-data/config/config.toml
 ```
 
 ## 11. Configure the seeds
 
-Configure the list of seed nodes. Seed nodes provide information about other 
-nodes for the validator to connect with the chain, enabling a fast and stable 
-initial connection.
+Configure the list of seed nodes. Seed nodes provide information about other nodes for the validator to connect with the chain, enabling a fast and stable initial connection.
 
 :::info
 
-This is an option to configure the node set as the Seed Mode. However, the option 
-to activate the Seed Mode from the node is currently missing.
+This is an option to configure the node set as the Seed Mode. However, the option to activate the Seed Mode from the node is currently missing.
 
 :::
 
 ```bash
-gnoland config set p2p.seeds "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:26656"
+gnoland config set p2p.seeds "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:26656" -config-path gnoland-data/config/config.toml
 ```
 
 ## 12. Start the second node
