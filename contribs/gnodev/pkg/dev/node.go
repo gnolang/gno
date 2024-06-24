@@ -458,9 +458,9 @@ func (n *Node) handleEventTX(evt tm2events.Event) {
 	}
 }
 
-var noopLogger = log.NewNoopLogger()
-
 func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState) (err error) {
+	var noopLogger = log.NewNoopLogger()
+
 	// Stop the node if it's currently running.
 	if err := n.stopIfRunning(); err != nil {
 		return fmt.Errorf("unable to stop the node: %w", err)
