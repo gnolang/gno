@@ -5,12 +5,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"io"
-	"mvdan.cc/xurls/v2"
 	"net/http"
 	"strings"
 	"sync"
+
+	"golang.org/x/sync/errgroup"
+	"mvdan.cc/xurls/v2"
 )
 
 // extractUrls extracts urls from given file content
