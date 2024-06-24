@@ -11,10 +11,11 @@ import (
 )
 
 func TestFormatImportFromSource(t *testing.T) {
-	mockResolver := NewMockResolver()
 	t.Parallel()
 
-	mp := &MockPackage{
+	mockResolver := newMockResolver()
+
+	mp := &mockPackage{
 		PkgPath: "example.com/mypkg",
 		PkgName: "mypkg",
 	}
@@ -53,11 +54,12 @@ func main() {
 }
 
 func TestFormatImportFromFile(t *testing.T) {
-	mockResolver := NewMockResolver()
 	t.Parallel()
 
+	mockResolver := newMockResolver()
+
 	// Add packages to the MockResolver
-	mp := &MockPackage{
+	mp := &mockPackage{
 		PkgPath: "example.com/mypkg",
 		PkgName: "mypkg",
 	}
