@@ -134,6 +134,7 @@ And a websocket link: [websocket](ws://example.com/socket)
 Here's an embedmd link: [embedmd]:# (../assets/how-to-guides/simple-library/tapas.gno go)
 Here's an embedmd link: [embedmd]:# (../assets/myfile.sol go)
 Here's an embedmd link: [embedmd]:# (../assets/myfi()le.gno c)
+Here's an embedmd link: [embedmd]:# (../assets/)myfi(le.gno c)
 `
 
 	// Expected local links
@@ -144,6 +145,7 @@ Here's an embedmd link: [embedmd]:# (../assets/myfi()le.gno c)
 		"../assets/how-to-guides/simple-library/tapas.gno",
 		"../assets/myfile.sol",
 		"../assets/myfi()le.gno",
+		"../assets/)myfi(le.gno",
 	}
 
 	// Extract local links tags from the mock file content
