@@ -450,20 +450,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				for i := range n.Params {
 					p := &n.Params[i]
 					if p.Name == "" || p.Name == blankIdentifier {
-						// create a hidden var with leading dot.
-						// NOTE: document somewhere.
-						// pn := fmt.Sprintf(".arg_%d", i)
-						// p.Name = Name(pn)
 						panic("arg name should have been set in initStaticBlocks")
 					}
 				}
 				for i := range n.Results {
 					r := &n.Results[i]
 					if r.Name == blankIdentifier {
-						// create a hidden var with leading dot.
-						// NOTE: document somewhere.
-						// rn := fmt.Sprintf(".res_%d", i)
-						// r.Name = Name(rn)
 						panic("result name should have been set in initStaticBlock")
 					}
 				}
