@@ -10,6 +10,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+var ErrEmptyState = errors.New("empty state")
+
 // Save the current state as initialState
 func (n *Node) SaveCurrentState(ctx context.Context) error {
 	n.muNode.RLock()
@@ -68,7 +70,7 @@ func (n *Node) MoveFrom(ctx context.Context, x int) error {
 	maxState := len(state)
 	switch {
 	case maxState == 0: // no state
-		return fmt.Errorf("empty state")
+		return ErrEmptyState
 	case newIndex < 0:
 		newIndex = 0
 		n.logger.Info("minimum state reached", "tx-index", fmt.Sprintf("%d/%d", newIndex, maxState))
