@@ -15,6 +15,12 @@ There are some implementation design decisions taken by the package authors:
 All of these responsibilities are left to the calling context, in the form of interface implementations.
 The reason for these choices is simple - _to keep the library minimal_.
 
+> [!NOTE]
+> We aim to make [libtm](https://github.com/gnolang/libtm) an independent project, both in terms of repository and
+> governance. This will be pursued once we have successfully integrated `libtm` with `tm2` and demonstrated that the
+> codebase and its API are stable and reliable for broader use. Until this integration is complete and stability is
+> confirmed, `libtm` will continue to be improved upon within the current structure, in the gno monorepo.
+
 ### What this library is
 
 This library is meant to be used as a consensus engine base for any distributed system that needs such functionality.
