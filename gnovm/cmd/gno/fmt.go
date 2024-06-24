@@ -118,7 +118,7 @@ func execFmt(cfg *fmtCfg, args []string, io commands.IO) error {
 	errCount := fmtProcessFiles(cfg, files, processFileFunc, io)
 	if errCount > 0 {
 		if !cfg.verbose {
-			os.Exit(1)
+			return commands.ExitCodeError(1)
 		}
 
 		return fmt.Errorf("failed to format %d files", errCount)
