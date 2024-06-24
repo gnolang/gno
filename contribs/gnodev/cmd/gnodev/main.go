@@ -31,6 +31,8 @@ const (
 	AccountsLogName    = "Accounts"
 )
 
+var ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
+
 var (
 	DefaultDeployerName    = integration.DefaultAccount_Name
 	DefaultDeployerAddress = crypto.MustAddressFromString(integration.DefaultAccount_Address)
@@ -224,7 +226,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func (c *devCfg) validateConfigFlags() error {
 	if (c.balancesFile != "" || c.txsFile != "") && c.genesisFile != "" {
-		return errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
+		return ErrConflictingFileArgs
 	}
 
 	return nil
