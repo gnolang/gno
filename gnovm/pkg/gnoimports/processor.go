@@ -16,8 +16,6 @@ import (
 
 const tabWidth = 8
 
-type ParseError error
-
 type parsedPackage struct {
 	error error
 	files map[string]*ast.File
@@ -50,7 +48,7 @@ func (p *Processor) FormatImportFromSource(filename string, src any) ([]byte, er
 	// Parse the source file
 	nodefile, err := p.parseFile(filename, src)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse source: %w", ParseError(err))
+		return nil, fmt.Errorf("unable to parse source: %w", err)
 	}
 
 	// Collect top level declarations within the source
@@ -123,7 +121,7 @@ func (p *Processor) parseFile(path string, src any) (file *ast.File, err error) 
 	// Parse the source file
 	file, err = parser.ParseFile(p.fset, path, src, parser.ParseComments|parser.AllErrors)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse file %q: %w", path, ParseError(err))
+		return nil, fmt.Errorf("unable to parse file %q: %w", path, err)
 	}
 
 	return file, nil
@@ -178,7 +176,7 @@ func (p *Processor) processPackageFiles(path string, pkg Package) *parsedPackage
 
 		file, err := p.parseFile(filename, r)
 		if err != nil {
-			return ParseError(err)
+			return err
 		}
 
 		collectTopDeclaration(file, pkgc.decls)

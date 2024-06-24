@@ -110,7 +110,7 @@ func execFmt(cfg *fmtCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to gather gno files: %w", err)
 	}
 
-	processFileFunc, err := fmtGetProcessFileFunc(cfg)
+	processFileFunc, err := fmtGetProcessFileFunc(cfg, io)
 	if err != nil {
 		return err
 	}
@@ -127,9 +127,9 @@ func execFmt(cfg *fmtCfg, args []string, io commands.IO) error {
 	return nil
 }
 
-func fmtGetProcessFileFunc(cfg *fmtCfg) (fmtProcessFileFunc, error) {
+func fmtGetProcessFileFunc(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, error) {
 	if cfg.imports {
-		return fmtFormatFileImports(cfg)
+		return fmtFormatFileImports(cfg, io)
 	}
 	return fmtFormatFile, nil
 }
@@ -197,10 +197,22 @@ func fmtProcessDiff(file string, data []byte, io commands.IO) bool {
 	return false
 }
 
-func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFileFunc, error) {
+func fmtFormatFileImports(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, error) {
 	r := gnoimports.NewFSResolver()
 
 	gnoroot := gnoenv.RootDir()
+
+	pkgHandler := func(path string, err error) error {
+		if err == nil {
+			return nil
+		}
+
+		if !fmtPrintParserError(err, io) {
+			io.ErrPrintfln("unable to load %q: %w", err.Error())
+		}
+
+		return nil
+	}
 
 	// Load any additional packages supplied by the user
 	for _, include := range cfg.include {
@@ -209,20 +221,20 @@ func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFileFunc, error) {
 			return nil, fmt.Errorf("unable to determine absolute path of %q: %w", include, err)
 		}
 
-		if err := r.LoadPackages(absp); err != nil {
+		if err := r.LoadPackages(absp, pkgHandler); err != nil {
 			return nil, fmt.Errorf("unable to load %q: %w", absp, err)
 		}
 	}
 
 	// Load stdlibs
 	stdlibs := filepath.Join(gnoroot, "gnovm", "stdlibs")
-	if err := r.LoadPackages(stdlibs); err != nil {
+	if err := r.LoadPackages(stdlibs, pkgHandler); err != nil {
 		return nil, fmt.Errorf("unable to load %q: %w", stdlibs, err)
 	}
 
 	// Load examples directory
 	examples := filepath.Join(gnoroot, "examples")
-	if err := r.LoadPackages(examples); err != nil {
+	if err := r.LoadPackages(examples, pkgHandler); err != nil {
 		return nil, fmt.Errorf("unable to load %q: %w", examples, err)
 	}
 
@@ -233,22 +245,10 @@ func fmtFormatFileImports(cfg *fmtCfg) (fmtProcessFileFunc, error) {
 			return data
 		}
 
-		// If found, print parsing errors
-		for uerr := err; uerr != nil; uerr = errors.Unwrap(err) {
-			perr, ok := uerr.(gnoimports.ParseError)
-			if !ok {
-				continue
-			}
-
-			if fmtPrintScannerError(perr, io) {
-				return nil
-			}
-
-			io.ErrPrintln(perr)
-			return nil
+		if !fmtPrintParserError(err, io) {
+			io.ErrPrintfln("format error: %s", err.Error())
 		}
 
-		io.ErrPrintfln("format error: %s", err.Error())
 		return nil
 	}, nil
 }
@@ -268,6 +268,21 @@ func fmtFormatFile(file string, io commands.IO) []byte {
 	}
 
 	return buf.Bytes()
+}
+
+func fmtPrintParserError(err error, io commands.IO) bool {
+	// Get underlying parse error
+	for ; err != nil; err = errors.Unwrap(err) {
+		if scanErrors, ok := err.(scanner.ErrorList); ok {
+			for _, e := range scanErrors {
+				io.ErrPrintln(e)
+			}
+
+			return true
+		}
+	}
+
+	return false
 }
 
 func fmtPrintScannerError(err error, io commands.IO) bool {
