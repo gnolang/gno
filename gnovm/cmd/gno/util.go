@@ -91,7 +91,7 @@ func ensurePathPrefix(path string) string {
 	return "." + string(filepath.Separator) + path
 }
 
-func walkDirForGnoFiles(root string, recurse bool, addPath func(path string)) error {
+func walkDirForGnoFiles(root string, addPath func(path string)) error {
 	visited := make(map[string]struct{})
 
 	walkFn := func(currPath string, f fs.DirEntry, err error) error {
