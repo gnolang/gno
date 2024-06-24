@@ -7,59 +7,41 @@ services:
       - "8090"
     volumes:
       - ./collector/collector.yaml:/etc/otelcol-contrib/config.yaml
-    networks:
-      - gnoland-net
+
   prometheus:
     image: prom/prometheus:latest
     command:
       - "--enable-feature=remote-write-receiver"
+      - "--enable-feature=otlp-write-receiver"
       - "--config.file=/etc/prometheus/prometheus.yml"
     ports:
       - "9090:9090"
     volumes:
-      - prometheus:/prometheus
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-    networks:
-      - gnoland-net
+
   grafana:
     image: grafana/grafana-enterprise
     volumes:
-      - grafana_data:/var/lib/grafana
       - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
       - ./grafana/dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
       - ./grafana/gno-dashboards.json:/var/lib/grafana/dashboards/gno-dashboards.json
     ports:
       - "3000:3000"
-    networks:
-      - gnoland-net
+
   gnoland:
-    build:
-      context: ./gnoland
-      dockerfile: Dockerfile
+    image: ghcr.io/gnolang/gno/gnoland:master
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
     ports:
       - "26657:26657"
-    networks:
-      - gnoland-net
+      - "26660:26660"
+    volumes:
+      - ./gnoland/entrypoint.sh:/entrypoint.sh
+
   supernova:
-    build:
-      dockerfile: supernova.Dockerfile
-      args:
-        supernova_version: v1.2.1
+    image: ghcr.io/gnolang/supernova
     command: >
       -sub-accounts 10 -transactions 200 -url http://gnoland:26657
       -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
     restart: always
-    networks:
-      - gnoland-net
-
-networks:
-  gnoland-net:
-    driver: bridge
-
-volumes:
-  prometheus:
-    driver: local
-  grafana_data:
-    driver: local
-  gnoland:
-    driver: local
+    depends_on:
+      - gnoland

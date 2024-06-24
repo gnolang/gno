@@ -19,7 +19,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
   "links": [],
   "panels": [
     {
@@ -59,7 +58,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 4,
         "w": 12,
         "x": 0,
         "y": 1
@@ -81,7 +80,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -89,7 +88,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vm_query_errors_counter",
+          "expr": "gno_vm_query_errors_counter",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -123,7 +122,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 4,
         "w": 12,
         "x": 12,
         "y": 1
@@ -145,7 +144,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -153,7 +152,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vm_query_calls_counter",
+          "expr": "gno_vm_query_calls_counter{}",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -187,10 +186,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 4,
         "w": 12,
         "x": 0,
-        "y": 9
+        "y": 5
       },
       "id": 26,
       "options": {
@@ -209,7 +208,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -217,14 +216,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(vm_gas_used_hist_sum[10m])/rate(vm_gas_used_hist_count[10m])",
+          "expr": "rate(gno_vm_gas_used_hist_sum[$__interval])/rate(gno_vm_gas_used_hist_count[$__interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average Gas Used by VM execution [10min]",
+      "title": "Average Gas Used by VM execution [$__interval]",
       "type": "stat"
     },
     {
@@ -251,10 +250,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 4,
         "w": 12,
         "x": 12,
-        "y": 9
+        "y": 5
       },
       "id": 27,
       "options": {
@@ -273,7 +272,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -281,14 +280,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(vm_cpu_cycles_hist_sum[10m])/rate(vm_cpu_cycles_hist_count[10m])",
+          "expr": "rate(gno_vm_cpu_cycles_hist_sum[$__interval]) / rate(gno_vm_cpu_cycles_hist_count[$__interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average CPU Cycles in VM execution [10min]",
+      "title": "Average CPU Cycles in VM execution [$__interval]",
       "type": "stat"
     },
     {
@@ -296,7 +295,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 17
+        "y": 9
       },
       "id": 15,
       "title": "Mempool",
@@ -326,10 +325,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 5,
         "w": 12,
         "x": 0,
-        "y": 18
+        "y": 10
       },
       "id": 16,
       "options": {
@@ -348,7 +347,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -356,14 +355,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(num_mempool_txs_hist_sum[10m])/rate(num_mempool_txs_count[10m])",
+          "expr": "rate(tm2_num_mempool_txs_hist_sum[$__interval]) / rate(tm2_num_mempool_txs_count[$__interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average Valid Mempool Txs",
+      "title": " Average Valid Mempool Txs [$__interval]",
       "type": "stat"
     },
     {
@@ -390,10 +389,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 5,
         "w": 12,
         "x": 12,
-        "y": 18
+        "y": 10
       },
       "id": 17,
       "options": {
@@ -412,7 +411,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -420,14 +419,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(num_cached_txs_hist_sum[10m])/rate(num_cached_txs_count[10m])",
+          "expr": "rate(tm2_num_cached_txs_hist_sum[$__interval])/rate(tm2_num_cached_txs_count[$__interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average Cached Mempool Txs",
+      "title": "Average Cached Mempool Txs [$__interval]",
       "type": "stat"
     },
     {
@@ -436,7 +435,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 26
+        "y": 15
       },
       "id": 11,
       "panels": [],
@@ -468,10 +467,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 7,
+        "w": 8,
         "x": 0,
-        "y": 27
+        "y": 16
       },
       "id": 12,
       "options": {
@@ -490,7 +489,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -498,14 +497,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(inbound_peers_hist_sum[10m])/rate(inbound_peers_hist_count[10m])",
+          "expr": "rate(tm2_inbound_peers_hist_sum[$__interval]) / rate(tm2_inbound_peers_hist_count[$__interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average Inbound Peer Count",
+      "title": "Average Inbound Peer Count [$__interval]",
       "type": "stat"
     },
     {
@@ -534,10 +533,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 27
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 16
       },
       "id": 13,
       "options": {
@@ -556,7 +555,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -564,7 +563,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(outbound_peers_hist_sum[10m])/rate(outbound_peers_hist_count[10m])",
+          "expr": "rate(tm2_outbound_peers_hist_sum[10m]) / rate(tm2_outbound_peers_hist_count[10m])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -600,10 +599,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 6,
-        "y": 35
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 16
       },
       "id": 14,
       "options": {
@@ -622,7 +621,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -630,7 +629,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(dialing_peers_hist_sum[10m])/rate(dialing_peers_hist_count[10m])",
+          "expr": "rate(tm2_dialing_peers_hist_sum[10m]) / rate(tm2_dialing_peers_hist_count[10m])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -645,7 +644,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 43
+        "y": 23
       },
       "id": 9,
       "title": "Consensus",
@@ -676,10 +675,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 5,
+        "w": 5,
         "x": 0,
-        "y": 44
+        "y": 24
       },
       "id": 18,
       "options": {
@@ -698,7 +697,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -706,7 +705,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(validator_count_hist_sum[10m])/rate(validator_count_hist_count[10m])",
+          "expr": "rate(gno_validator_count_hist_sum[10m]) / rate(gno_validator_count_hist_count[10m])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -741,10 +740,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 44
+        "h": 5,
+        "w": 5,
+        "x": 5,
+        "y": 24
       },
       "id": 19,
       "options": {
@@ -763,7 +762,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -771,7 +770,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(validator_vp_hist_sum[10m])/rate(validator_vp_hist_count[10m])",
+          "expr": "rate(gno_validator_vp_hist_sum[10m]) / rate(gno_validator_vp_hist_count[10m])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -798,28 +797,20 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "#EAB839",
-                "value": 5
-              },
-              {
-                "color": "red",
-                "value": 10
               }
             ]
           },
-          "unit": "s"
+          "unit": "decbytes"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 52
+        "h": 5,
+        "w": 5,
+        "x": 12,
+        "y": 24
       },
-      "id": 3,
+      "id": 21,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -836,7 +827,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -845,7 +836,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(build_block_hist_milliseconds_sum[10m])/rate(build_block_hist_milliseconds_count[10m])",
+          "expr": "rate(tm2_block_size_hist_B_sum[10m])/rate(tm2_block_size_hist_B_count[10m])",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -855,7 +846,7 @@
           "useBackend": false
         }
       ],
-      "title": "Average Block Build Time [10min]",
+      "title": "Average Block Size [10min]",
       "type": "stat"
     },
     {
@@ -886,10 +877,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 52
+        "h": 5,
+        "w": 5,
+        "x": 17,
+        "y": 24
       },
       "id": 4,
       "options": {
@@ -908,7 +899,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -917,7 +908,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(block_interval_hist_seconds_sum[10m])/rate(block_interval_hist_seconds_count[10m])",
+          "expr": "rate(tm2_block_interval_hist_seconds_sum[10m]) / rate(tm2_block_interval_hist_seconds_count[10m])",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -951,10 +942,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 5,
+        "w": 10,
         "x": 0,
-        "y": 60
+        "y": 29
       },
       "id": 20,
       "options": {
@@ -991,7 +982,7 @@
           "reverse": false
         }
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -1000,7 +991,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "sum(block_txs_hist_bucket\n) by (le)",
+          "expr": "sum(tm2_block_txs_hist_bucket) by (le)",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -1010,7 +1001,7 @@
           "useBackend": false
         }
       ],
-      "title": "Average Block Tx Count [10min]",
+      "title": "Average Block Tx Count ",
       "type": "heatmap"
     },
     {
@@ -1030,20 +1021,28 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "#EAB839",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 10
               }
             ]
           },
-          "unit": "decbytes"
+          "unit": "s"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 5,
+        "w": 5,
         "x": 12,
-        "y": 60
+        "y": 29
       },
-      "id": 21,
+      "id": 3,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -1060,7 +1059,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -1069,7 +1068,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(block_size_hist_B_sum[10m])/rate(block_size_hist_B_count[10m])",
+          "expr": "rate(tm2_build_block_hist_milliseconds_sum[10m]) / rate(tm2_build_block_hist_milliseconds_count[10m])",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -1079,7 +1078,7 @@
           "useBackend": false
         }
       ],
-      "title": "Average Block Size [10min]",
+      "title": "Average Block Build Time [10min]",
       "type": "stat"
     },
     {
@@ -1088,7 +1087,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 68
+        "y": 34
       },
       "id": 8,
       "panels": [],
@@ -1125,10 +1124,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 5,
+        "w": 6,
         "x": 0,
-        "y": 69
+        "y": 35
       },
       "id": 2,
       "options": {
@@ -1147,7 +1146,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -1156,7 +1155,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(broadcast_tx_hist_milliseconds_sum[10m])/rate(broadcast_tx_hist_milliseconds_count[10m])",
+          "expr": "rate(tm2_broadcast_tx_hist_milliseconds_sum[$__interval]) / rate(tm2_broadcast_tx_hist_milliseconds_count[$__interval])",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -1166,7 +1165,7 @@
           "useBackend": false
         }
       ],
-      "title": "Average Transaction Broadcast Duration [10min]",
+      "title": "Average Transaction Broadcast Duration [$__interval]",
       "type": "stat"
     },
     {
@@ -1175,7 +1174,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 77
+        "y": 40
       },
       "id": 7,
       "panels": [],
@@ -1216,10 +1215,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 6,
+        "w": 7,
         "x": 0,
-        "y": 78
+        "y": 41
       },
       "id": 5,
       "options": {
@@ -1238,7 +1237,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -1247,7 +1246,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(http_request_time_hist_milliseconds_sum[10m])/rate(http_request_time_hist_milliseconds_count[10m])",
+          "expr": "rate(tm2_http_request_time_hist_milliseconds_sum[10m]) / rate(tm2_http_request_time_hist_milliseconds_count[10m])",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
@@ -1295,10 +1294,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 78
+        "h": 6,
+        "w": 7,
+        "x": 7,
+        "y": 41
       },
       "id": 6,
       "options": {
@@ -1317,7 +1316,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "10.4.3",
       "targets": [
         {
           "datasource": {
@@ -1326,7 +1325,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(ws_request_time_hist_milliseconds_sum[10m])/rate(ws_request_time_hist_milliseconds_count[10m])",
+          "expr": "rate(tm2_ws_request_time_hist_milliseconds_sum[10m]) / rate(tm2_ws_request_time_hist_milliseconds_count[10m])",
           "fullMetaSearch": false,
           "hide": false,
           "includeNullMetadata": true,
@@ -1348,7 +1347,7 @@
     "list": []
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {},
