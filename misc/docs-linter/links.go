@@ -21,9 +21,16 @@ func extractLocalLinks(fileContent []byte) []string {
 	for scanner.Scan() {
 		line := scanner.Text()
 
+		// Check for embedmd links
 		if strings.Contains(line, "[embedmd]") {
 			openPar := strings.Index(line, "(")
 			closePar := strings.LastIndex(line, ")")
+
+			if openPar == -1 || closePar == -1 {
+				links = append(links, line)
+
+				continue
+			}
 
 			link := line[openPar+1 : closePar]
 

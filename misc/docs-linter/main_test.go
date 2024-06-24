@@ -135,6 +135,7 @@ Here's an embedmd link: [embedmd]:# (../assets/how-to-guides/simple-library/tapa
 Here's an embedmd link: [embedmd]:# (../assets/myfile.sol go)
 Here's an embedmd link: [embedmd]:# (../assets/myfi()le.gno c)
 Here's an embedmd link: [embedmd]:# (../assets/)myfi(le.gno c)
+Here's another link: [embedmd]:# (../assets/myfile.gno c
 `
 
 	// Expected local links
