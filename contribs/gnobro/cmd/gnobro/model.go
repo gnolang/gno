@@ -50,6 +50,12 @@ var (
 			Padding(0, 2)
 	}
 
+	promptStyle = func(r *lipgloss.Renderer) lipgloss.Style {
+		return r.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#ea76cb"))
+	}
+
 	inputStyleLeft = func(r *lipgloss.Renderer) lipgloss.Style {
 		b := lipgloss.RoundedBorder()
 		b.Right = "├"
@@ -80,8 +86,7 @@ func initURLInput(r *lipgloss.Renderer) textinput.Model {
 	ti.Placeholder = "r/gnoland/blog"
 	ti.Focus()
 	ti.CharLimit = 156
-	ti.PromptStyle = r.NewStyle().
-		Foreground(lipgloss.Color("#FF06B7"))
+	ti.PromptStyle = promptStyle(r)
 	ti.Prompt = gnoPrefix
 
 	return ti
@@ -91,8 +96,7 @@ func initCommandInput(r *lipgloss.Renderer) textinput.Model {
 	ti := textinput.New()
 	ti.Placeholder = ""
 	ti.CharLimit = 156
-	ti.PromptStyle = r.NewStyle().
-		Foreground(lipgloss.Color("#FF06B7"))
+	ti.PromptStyle = promptStyle(r)
 	ti.Prompt = "> "
 
 	return ti
