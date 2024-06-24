@@ -29,10 +29,6 @@ type fmtCfg struct {
 	include fmtIncludes
 }
 
-var defaultFmtOptions = &fmtCfg{
-	imports: true,
-}
-
 func newFmtCmd(io commands.IO) *commands.Command {
 	cfg := &fmtCfg{}
 	return commands.NewCommand(
@@ -52,21 +48,21 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.write,
 		"w",
-		defaultFmtOptions.write,
+		false,
 		"write result to (source) file instead of stdout",
 	)
 
 	fs.BoolVar(
 		&c.verbose,
 		"v",
-		defaultFmtOptions.verbose,
+		false,
 		"verbose mode",
 	)
 
 	fs.BoolVar(
 		&c.quiet,
 		"q",
-		defaultFmtOptions.verbose,
+		false,
 		"quiet mode",
 	)
 
@@ -79,14 +75,14 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.imports,
 		"imports",
-		defaultFmtOptions.imports,
+		true,
 		"attempt to format, resolve and sort file imports",
 	)
 
 	fs.BoolVar(
 		&c.diff,
 		"diff",
-		defaultFmtOptions.diff,
+		false,
 		"print and make the command fail if any diff is found",
 	)
 }
