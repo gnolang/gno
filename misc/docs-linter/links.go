@@ -10,6 +10,9 @@ import (
 	"strings"
 )
 
+// Valid start to an embedmd link
+const embedmd = `[embedmd]:# `
+
 // extractLocalLinks extracts links to local files from the given file content
 func extractLocalLinks(fileContent []byte) []string {
 	scanner := bufio.NewScanner(bytes.NewReader(fileContent))
@@ -22,22 +25,20 @@ func extractLocalLinks(fileContent []byte) []string {
 		line := scanner.Text()
 
 		// Check for embedmd links
-		if strings.Contains(line, "[embedmd]") {
-			openPar := strings.Index(line, "(")
-			closePar := strings.LastIndex(line, ")")
+		if embedmdPos := strings.Index(line, embedmd); embedmdPos != -1 {
+			link := line[embedmdPos+len(embedmd)+1:]
 
-			if openPar == -1 || closePar == -1 {
-				links = append(links, line)
-
-				continue
+			// Find closing parentheses
+			if closePar := strings.LastIndex(link, ")"); closePar != -1 {
+				link = link[:closePar]
 			}
 
-			link := line[openPar+1 : closePar]
-
+			// Remove space
 			if pos := strings.Index(link, " "); pos != -1 {
 				link = link[:pos]
 			}
 
+			// Add link to be checked
 			links = append(links, link)
 			continue
 		}

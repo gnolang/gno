@@ -135,7 +135,7 @@ Here's an embedmd link: [embedmd]:# (../assets/how-to-guides/simple-library/tapa
 Here's an embedmd link: [embedmd]:# (../assets/myfile.sol go)
 Here's an embedmd link: [embedmd]:# (../assets/myfi()le.gno c)
 Here's an embedmd link: [embedmd]:# (../assets/)myfi(le.gno c)
-Here's another link: [embedmd]:# (../assets/myfile.gno c
+Here's another link: [embedmd]:# (../folder/myfile.gno c
 `
 
 	// Expected local links
@@ -147,6 +147,7 @@ Here's another link: [embedmd]:# (../assets/myfile.gno c
 		"../assets/myfile.sol",
 		"../assets/myfi()le.gno",
 		"../assets/)myfi(le.gno",
+		"../folder/myfile.gno",
 	}
 
 	// Extract local links tags from the mock file content
