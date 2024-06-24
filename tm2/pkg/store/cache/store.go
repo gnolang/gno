@@ -27,7 +27,7 @@ type cValue struct {
 func (cv cValue) String() string {
 	return fmt.Sprintf("cValue{%s,%v,%v}",
 		colors.DefaultColoredBytes(cv.value),
-		cv.value, cv.deleted, cv.dirty)
+		cv.deleted, cv.dirty)
 }
 
 // cacheStore wraps an in-memory cache around an underlying types.Store.
