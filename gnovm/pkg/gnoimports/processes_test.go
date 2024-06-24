@@ -15,11 +15,7 @@ func TestFormatImportFromSource(t *testing.T) {
 
 	mockResolver := newMockResolver()
 
-	mp := &mockPackage{
-		PkgPath: "example.com/mypkg",
-		PkgName: "mypkg",
-	}
-
+	mp := newMockedPackage("example.com/mypkg", "mypkg")
 	pkgcontent := `package mypkg
 
 func MyFunc(str string) string{
@@ -59,11 +55,7 @@ func TestFormatImportFromFile(t *testing.T) {
 	mockResolver := newMockResolver()
 
 	// Add packages to the MockResolver
-	mp := &mockPackage{
-		PkgPath: "example.com/mypkg",
-		PkgName: "mypkg",
-	}
-
+	mp := newMockedPackage("example.com/mypkg", "mypkg")
 	pkgcontent := `package mypkg
 
 func MyFunc(str string) string{

@@ -96,7 +96,7 @@ func (r *FSResolver) LoadPackages(root string, pkgHandler PackageHandler) error 
 			// Stop on path conflict, has a package path should be uniq
 			return pkgHandler(
 				path,
-				fmt.Errorf("%q has been declared twice\n", pkg.Path()),
+				fmt.Errorf("%q has been declared twice", pkg.Path()),
 			)
 		}
 

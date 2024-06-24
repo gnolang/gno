@@ -92,6 +92,7 @@ func (p *Processor) FormatFile(file string) ([]byte, error) {
 	}
 
 	if pkg == nil {
+		fmt.Printf("-> parsing file: %q, %q\n", file, filename)
 		// Fallback on src
 		return p.FormatImportFromSource(filename, nil)
 	}

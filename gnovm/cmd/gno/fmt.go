@@ -26,7 +26,6 @@ type fmtCfg struct {
 	diff    bool
 	verbose bool
 	imports bool
-	strict  bool
 	include fmtIncludes
 }
 
@@ -64,17 +63,17 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 		"verbose mode",
 	)
 
-	fs.Var(
-		&c.include,
-		"i",
-		"specify additional directories containing packages to resolve",
-	)
-
 	fs.BoolVar(
 		&c.quiet,
 		"q",
 		defaultFmtOptions.verbose,
 		"quiet mode",
+	)
+
+	fs.Var(
+		&c.include,
+		"include",
+		"specify additional directories containing packages to resolve",
 	)
 
 	fs.BoolVar(
@@ -88,14 +87,13 @@ func (c *fmtCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.diff,
 		"diff",
 		defaultFmtOptions.diff,
-		"print and make the command fail if any diff is found and write is disabled",
+		"print and make the command fail if any diff is found",
 	)
 }
 
 type fmtProcessFileFunc func(file string, io commands.IO) []byte
 
 func execFmt(cfg *fmtCfg, args []string, io commands.IO) error {
-	cfg.write = !cfg.diff && cfg.write
 	if len(args) == 0 {
 		return flag.ErrHelp
 	}
@@ -207,7 +205,7 @@ func fmtFormatFileImports(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, erro
 			return nil
 		}
 
-		if !fmtPrintParserError(err, io) {
+		if !fmtPrintScannerError(err, io) {
 			io.ErrPrintfln("unable to load %q: %w", err.Error())
 		}
 
@@ -245,7 +243,7 @@ func fmtFormatFileImports(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, erro
 			return data
 		}
 
-		if !fmtPrintParserError(err, io) {
+		if !fmtPrintScannerError(err, io) {
 			io.ErrPrintfln("format error: %s", err.Error())
 		}
 
@@ -268,21 +266,6 @@ func fmtFormatFile(file string, io commands.IO) []byte {
 	}
 
 	return buf.Bytes()
-}
-
-func fmtPrintParserError(err error, io commands.IO) bool {
-	// Get underlying parse error
-	for ; err != nil; err = errors.Unwrap(err) {
-		if scanErrors, ok := err.(scanner.ErrorList); ok {
-			for _, e := range scanErrors {
-				io.ErrPrintln(e)
-			}
-
-			return true
-		}
-	}
-
-	return false
 }
 
 func fmtPrintScannerError(err error, io commands.IO) bool {
