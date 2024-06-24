@@ -488,7 +488,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	// Execute node creation and handle any errors.
 	defer recoverFromError()
 
-	// XXX(TODO): Redirect the node log somewhere else
+	// XXX: Redirect the node log somewhere else
 	node, nodeErr := gnoland.NewInMemoryNode(noopLogger, nodeConfig)
 	if nodeErr != nil {
 		return fmt.Errorf("unable to create a new node: %w", err)
