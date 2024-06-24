@@ -35,17 +35,17 @@ func (s Stacktrace) String() string {
 	return builder.String()
 }
 
-func (m *Machine) Stacktrace() Stacktrace {
-	stacktrace := Stacktrace{}
-
+// Stacktrace returns the stack trace of the machine.
+// It collects the executions and frames from the machine's frames and statements.
+func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	if len(m.Frames) == 0 {
-		return stacktrace
+		return
 	}
 
-	index := len(m.Stmts)
+	nextStmtIndex := len(m.Stmts) - 1
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
-			stm := m.Stmts[index-1]
+			stm := m.Stmts[nextStmtIndex]
 			bs := stm.(*bodyStmt)
 			stm = bs.Body[bs.NextBodyIndex-1]
 			stacktrace.Executions = append(stacktrace.Executions, Execution{
@@ -53,11 +53,13 @@ func (m *Machine) Stacktrace() Stacktrace {
 				Frame: m.Frames[i],
 			})
 		}
-		index = m.Frames[i].NumStmts
+		// if the frame is a call, the next statement is the last statement of the frame.
+		nextStmtIndex = m.Frames[i].NumStmts - 1
 	}
 
 	stacktrace.Executions = append(stacktrace.Executions, Execution{
 		Frame: m.Frames[0],
 	})
-	return stacktrace
+
+	return
 }
