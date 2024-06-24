@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testCounterRealm = "gno.land/r/dev/counter"
+
 func TestNodeMovePreviousTX(t *testing.T) {
 	const callInc = 5
 
@@ -26,7 +28,7 @@ func TestNodeMovePreviousTX(t *testing.T) {
 		assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
 
 		// Check for correct render update
-		render, err := testingRenderRealm(t, node, "gno.land/r/dev/counter")
+		render, err := testingRenderRealm(t, node, testCounterRealm)
 		require.NoError(t, err)
 		require.Equal(t, render, "4")
 	})
@@ -38,7 +40,7 @@ func TestNodeMovePreviousTX(t *testing.T) {
 		assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
 
 		// Check for correct render update
-		render, err := testingRenderRealm(t, node, "gno.land/r/dev/counter")
+		render, err := testingRenderRealm(t, node, testCounterRealm)
 		require.NoError(t, err)
 		require.Equal(t, render, "5")
 	})
@@ -68,7 +70,7 @@ func TestNodeMovePreviousTX(t *testing.T) {
 			}
 
 			// Check for correct render update
-			render, err := testingRenderRealm(t, node, "gno.land/r/dev/counter")
+			render, err := testingRenderRealm(t, node, testCounterRealm)
 			require.NoError(t, err)
 			require.Equal(t, render, tc.ExpectedResult)
 		}
@@ -86,7 +88,7 @@ func TestSaveCurrentState(t *testing.T) {
 
 	// Send a new tx
 	msg := gnoclient.MsgCall{
-		PkgPath:  "gno.land/r/dev/counter",
+		PkgPath:  testCounterRealm,
 		FuncName: "Inc",
 		Args:     []string{"10"},
 	}
@@ -98,7 +100,7 @@ func TestSaveCurrentState(t *testing.T) {
 	assert.Equal(t, events.EvtTxResult, emitter.NextEvent().Type())
 
 	// Test render
-	render, err := testingRenderRealm(t, node, "gno.land/r/dev/counter")
+	render, err := testingRenderRealm(t, node, testCounterRealm)
 	require.NoError(t, err)
 	require.Equal(t, render, "12") // 2 + 10
 
@@ -107,7 +109,7 @@ func TestSaveCurrentState(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, events.EvtReset, emitter.NextEvent().Type())
 
-	render, err = testingRenderRealm(t, node, "gno.land/r/dev/counter")
+	render, err = testingRenderRealm(t, node, testCounterRealm)
 	require.NoError(t, err)
 	require.Equal(t, render, "2") // Back to the original state
 }
@@ -159,7 +161,7 @@ func Render(_ string) string { return strconv.Itoa(value) }
 	assert.Len(t, node.ListPkgs(), 1)
 
 	// Test rendering
-	render, err := testingRenderRealm(t, node, "gno.land/r/dev/counter")
+	render, err := testingRenderRealm(t, node, testCounterRealm)
 	require.NoError(t, err)
 	require.Equal(t, render, "0")
 
@@ -168,7 +170,7 @@ func Render(_ string) string { return strconv.Itoa(value) }
 		t.Logf("call %d", i)
 		// Craft `Inc` msg
 		msg := gnoclient.MsgCall{
-			PkgPath:  "gno.land/r/dev/counter",
+			PkgPath:  testCounterRealm,
 			FuncName: "Inc",
 			Args:     []string{"1"},
 		}
@@ -180,7 +182,7 @@ func Render(_ string) string { return strconv.Itoa(value) }
 		assert.Equal(t, events.EvtTxResult, emitter.NextEvent().Type())
 	}
 
-	render, err = testingRenderRealm(t, node, "gno.land/r/dev/counter")
+	render, err = testingRenderRealm(t, node, testCounterRealm)
 	require.NoError(t, err)
 	require.Equal(t, render, strconv.Itoa(inc))
 
