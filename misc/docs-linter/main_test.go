@@ -127,21 +127,19 @@ func TestExtractLocalLinks(t *testing.T) {
 	// Create mock file content with random local links
 	mockFileContent := `
 Here is some text with a link to a local file: [text](../concepts/file1.md)
-Here is some text with a link to a local file: [text](../concepts/file2.md something weird)
 Here is another local link: [another](./path/to/file1.md)
 Here is another local link: [another](./path/to/file2.md#header-1-2)
-Here is another local link: [another](./path/to/file2.md #header-1-2 weird text)
 And a link to an external website: [example](https://example.com)
 And a websocket link: [websocket](ws://example.com/socket)
+Here's an embedmd link': [embedmd]:# (../assets/how-to-guides/simple-library/tapas.gno go)
 `
 
 	// Expected JSX tags
 	expectedLinks := []string{
 		"../concepts/file1.md",
-		"../concepts/file2.md",
 		"./path/to/file1.md",
 		"./path/to/file2.md",
-		"./path/to/file2.md",
+		"../assets/how-to-guides/simple-library/tapas.gno",
 	}
 
 	// Extract local links tags from the mock file content

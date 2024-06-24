@@ -21,6 +21,20 @@ func extractLocalLinks(fileContent []byte) []string {
 	for scanner.Scan() {
 		line := scanner.Text()
 
+		// Find embedmd links
+		if strings.Contains(line, "[embedmd]") {
+			openPar := strings.Index(line, "(")
+			closePar := strings.Index(line, ")")
+
+			link := line[openPar+1 : closePar]
+			if pos := strings.Index(link, " "); pos != -1 {
+				link = link[:pos]
+			}
+
+			links = append(links, link)
+			continue
+		}
+
 		// Find all matches
 		matches := re.FindAllString(line, -1)
 
@@ -31,10 +45,6 @@ func extractLocalLinks(fileContent []byte) []string {
 
 			// Remove markdown headers in links
 			if pos := strings.Index(match, "#"); pos != -1 {
-				match = match[:pos]
-			}
-
-			if pos := strings.Index(match, " "); pos != -1 {
 				match = match[:pos]
 			}
 
