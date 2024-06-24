@@ -68,9 +68,7 @@ func TestRoutes(t *testing.T) {
 			response := httptest.NewRecorder()
 			app.Router.ServeHTTP(response, request)
 			assert.Equal(t, r.status, response.Code)
-
-			body := response.Body.String()
-			assert.Contains(t, body, r.substring)
+			assert.Contains(t, response.Body.String(), r.substring)
 		})
 	}
 }
