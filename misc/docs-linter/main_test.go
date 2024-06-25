@@ -2,14 +2,16 @@ package main
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEmptyPathError(t *testing.T) {
@@ -212,6 +214,46 @@ func TestFindFilePaths(t *testing.T) {
 			require.Equal(t, result, expectedResults[i])
 		}
 	}
+}
+
+func TestFlow(t *testing.T) {
+	t.Parallel()
+
+	tempDir, err := os.MkdirTemp(".", "test")
+	require.NoError(t, err)
+	t.Cleanup(removeDir(t, tempDir))
+
+	contents := `This is a [broken Wikipedia link](https://www.wikipedia.org/non-existent-page).
+Here's an embedmd link that links to a non-existing file: [embedmd]:# (../assets/myfile.sol go)
+and here is some JSX tags <string\> <random-unescaped-text-tag>
+and a local link will be added in further code.
+`
+
+	filePath := filepath.Join(tempDir, "examplefile.md")
+
+	err = os.MkdirAll(filepath.Dir(filePath), os.ModePerm)
+	require.NoError(t, err)
+
+	f, err := os.Create(filePath)
+	require.NoError(t, err)
+
+	_, err = f.WriteString(contents)
+	require.NoError(t, err)
+
+	err = f.Close()
+	require.NoError(t, err)
+
+	filePathToLink := filepath.Join(tempDir, "fileToLinkTo.md")
+
+	contents += fmt.Sprintf(" [This](%s) is a valid local link.", filePathToLink)
+
+	err = execLint(&cfg{
+		docsPath: tempDir,
+	},
+		context.Background(),
+	)
+
+	assert.ErrorIs(t, err, errFoundLintItems)
 }
 
 func removeDir(t *testing.T, dirPath string) func() {

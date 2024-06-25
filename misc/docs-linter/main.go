@@ -99,7 +99,7 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		return lintLocalLinks(filepathToLocalLink, cfg.docsPath)
 	})
 
-	if err := g.Wait(); err != nil {
+	if err = g.Wait(); err != nil {
 		return errFoundLintItems
 	}
 
