@@ -107,10 +107,9 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// NOTE: this requires finalized AST structure, especially gotos, and
 	// cannot add or remove statements from bodies.
 	for _, fn := range fset.Files {
-		findGotoLoopStmts(store, pn, fn) // XXX need to pass in store at all?
-		//findLoopEscapedNames(store, pn, fn) // XXX need to pass in store at all?
+		findGotoLoopStmts(pn, fn)
+		findLoopEscapedNames(pn, fn)
 	}
-
 }
 
 // Initialize static block info.
@@ -2239,7 +2238,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	return nn
 }
 
-func findGotoLoopStmts(store Store, ctx BlockNode, bn BlockNode) {
+func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
 	fmt.Println("---findGotoLoopStmts, ctx: ", ctx)
 	fmt.Println("---findGotoLoopStmts, bn: ", bn)
 	// create stack of BlockNodes.
@@ -2249,7 +2248,6 @@ func findGotoLoopStmts(store Store, ctx BlockNode, bn BlockNode) {
 
 	// iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-
 		defer func() {
 			if r := recover(); r != nil {
 				// before re-throwing the error, append location information to message.
@@ -2312,18 +2310,178 @@ func findGotoLoopStmts(store Store, ctx BlockNode, bn BlockNode) {
 						fmt.Println("---bn: ", bn)
 						fmt.Println("---body: ", bn.GetBody())
 
-						// list all stmts
+						// list all stmts and tag within goto loop
 						for _, s := range bn.GetBody() {
 							if s.GetLine() >= labelLine && s.GetLine() <= gotoLine {
 								fmt.Println("s: ", s)
 								s.SetAttribute(ATTR_GOTOLOOPSTMT, true)
 							}
 						}
-
-						//panic("goto block!!!")
 					}
 				}
 			}
+			//fmt.Println("---trans_leave, n: ", n)
+			// finalization.
+			if _, ok := n.(BlockNode); ok {
+				// Pop block.
+				stack = stack[:len(stack)-1]
+				last = stack[len(stack)-1]
+				//fmt.Println("---last: ", last, reflect.TypeOf(last))
+			}
+			return n, TRANS_CONTINUE
+		}
+		return n, TRANS_CONTINUE
+	})
+}
+
+func findLoopEscapedNames(ctx BlockNode, bn BlockNode) {
+	fmt.Println("---findLoopEscapedNames, ctx: ", ctx)
+	fmt.Println("---findLoopEscapedNames, bn: ", bn)
+	// create stack of BlockNodes.
+	var stack []BlockNode = make([]BlockNode, 0, 32)
+	var last BlockNode = ctx
+	stack = append(stack, last)
+
+	// iterate over all nodes recursively.
+	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+
+		defer func() {
+			if r := recover(); r != nil {
+				// before re-throwing the error, append location information to message.
+				loc := last.GetLocation()
+				if nline := n.GetLine(); nline > 0 {
+					loc.Line = nline
+				}
+
+				var err error
+				rerr, ok := r.(error)
+				if ok {
+					// NOTE: gotuna/gorilla expects error exceptions.
+					err = errors.Wrap(rerr, loc.String())
+				} else {
+					// NOTE: gotuna/gorilla expects error exceptions.
+					err = fmt.Errorf("%s: %v", loc.String(), r)
+				}
+
+				// Re-throw the error after wrapping it with the preprocessing stack information.
+				panic(&PreprocessError{
+					err:   err,
+					stack: stack,
+				})
+			}
+		}()
+
+		if debug {
+			debug.Printf("findLoopEscapedNames %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+		}
+
+		switch stage {
+		// ----------------------------------------
+		case TRANS_ENTER:
+			switch n := n.(type) {
+			case *BranchStmt:
+				fmt.Println("---trans_enter, branch stmt")
+				switch n.Op {
+				case GOTO:
+					// XXX
+					bn, depth, index, labelLine := findGotoLabel(last, n.Label)
+					n.Depth = depth
+					n.BodyIndex = index
+
+					// find goto range
+					gotoLine := n.GetLine()
+					if labelLine < gotoLine {
+						fmt.Println("labelLine: ", labelLine)
+						fmt.Println("gotoLine: ", gotoLine)
+						fmt.Println("---bn: ", bn)
+						fmt.Println("---body: ", bn.GetBody())
+
+						// list all stmts within goto loop
+						for _, s := range bn.GetBody() {
+							if s.GetLine() >= labelLine && s.GetLine() <= gotoLine {
+								if s.GetAttribute(ATTR_GOTOLOOPSTMT) == false {
+									panic("should not happen")
+								}
+								fmt.Println("---found gotoLoopStmt, s: ", s, reflect.TypeOf(s))
+								switch s := s.(type) {
+								case *AssignStmt:
+									if s.Op == DEFINE { // XXX, a, b := 1, 2, b, c := 3, 4?
+										fmt.Println("---define stmt, s: ", s)
+										for _, x := range s.Lhs {
+											fmt.Println("x: ", x, reflect.TypeOf(x))
+											if nx, ok := x.(*NameExpr); !ok {
+												panic("should not happen")
+											} else {
+												if nx.Name != blankIdentifier {
+													fmt.Println("---set type as loop defined for nx: ", nx)
+													nx.Type = NameExprTypeLoopDefine
+												}
+											}
+										}
+									}
+								case *DeclStmt:
+									// XXX
+									if d, ok := s.Body[0].(*ValueDecl); ok {
+										fmt.Println("---d: ", d)
+										for _, nx := range d.NameExprs {
+											if nx.Name != blankIdentifier {
+												fmt.Println("---set type as loop defined for nx: ", nx)
+												nx.Type = NameExprTypeLoopDefine
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			case *ForStmt:
+				// find all defined values in for loop, and set nameExpr type
+				//fmt.Println("---Init: ", n.Init, reflect.TypeOf(n.Init))
+				// handle init to set type for `loopvar`
+				if as, ok := n.Init.(*AssignStmt); ok {
+					fmt.Println("---as: ", as)
+					if as.Op == DEFINE { // only for define in faux block
+						if nx, ok := as.Lhs[0].(*NameExpr); !ok {
+							panic("should not happen")
+						} else {
+							if nx.Name != blankIdentifier {
+								fmt.Println("---set type as loop defined for nx: ", nx)
+								nx.Type = NameExprTypeLoopDefine
+							}
+						}
+					}
+				}
+				// handle stmts
+				for _, s := range n.Body {
+					fmt.Println("---s within for loop: ", s)
+					if as, ok := s.(*AssignStmt); ok && as.Op == DEFINE {
+						for _, lx := range as.Lhs {
+							if nx, ok := lx.(*NameExpr); !ok {
+								panic("should not happen")
+							} else {
+								if nx.Name != blankIdentifier {
+									fmt.Println("---set type as loop defined for nx: ", nx)
+									nx.Type = NameExprTypeLoopDefine
+								}
+							}
+						}
+					}
+				}
+			case *RangeStmt:
+				// TODO:
+			}
+			return n, TRANS_CONTINUE
+
+			// ----------------------------------------
+		case TRANS_BLOCK:
+			if bn, ok := n.(BlockNode); ok {
+				pushInitBlock(bn, &last, &stack)
+			}
+
+			//fmt.Println("---trans_block, n: ", n, reflect.TypeOf(n))
+		// ----------------------------------------
+		case TRANS_LEAVE:
 			fmt.Println("---trans_leave, n: ", n)
 			// finalization.
 			if _, ok := n.(BlockNode); ok {
