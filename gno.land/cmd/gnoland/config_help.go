@@ -116,7 +116,6 @@ func (g *metadataHelperGenerator) generateFields(rv reflect.Value, parent string
 
 		metas = append(metas, meta)
 		metas = append(metas, childs...)
-
 	}
 
 	return metas
