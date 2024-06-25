@@ -5,7 +5,7 @@ import (
 )
 
 func TestExecuteCodeBlock(t *testing.T) {
-	t.Parallel()
+	clearCache()
 	tests := []struct {
 		name      string
 		codeBlock CodeBlock
@@ -76,16 +76,9 @@ func main() {
 			expected: "Hello\nHello\nHello\n",
 		},
 		{
-			name: "import multiple go stdlib packages",
+			name: "import subpackage without package declaration",
 			codeBlock: CodeBlock{
 				Content: `
-package main
-
-import (
-	"math"
-	"strings"
-)
-
 func main() {
 	println(math.Pi)
 	println(strings.ToUpper("Hello, World"))
@@ -104,10 +97,29 @@ func main() {
 			},
 			expected: "Hello, World!\n",
 		},
+		{
+			name: "missing package declaration",
+			codeBlock: CodeBlock{
+				Content: "func main() {\nprintln(\"Hello, World!\")\n}",
+				T:       "gno",
+			},
+			expected: "Hello, World!\n",
+		},
+		{
+			name: "missing package and import declaration",
+			codeBlock: CodeBlock{
+				Content: `
+func main() {
+	s := strings.ToUpper("Hello, World")
+	println(s)
+}`,
+				T: "gno",
+			},
+			expected: "HELLO, WORLD\n",
+		},
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			res, err := ExecuteCodeBlock(tt.codeBlock, STDLIBS_DIR)
 			if err != nil {
@@ -118,5 +130,103 @@ func main() {
 				t.Errorf("%s = %v, want %v", tt.name, res, tt.expected)
 			}
 		})
+	}
+}
+
+func clearCache() {
+	cache.Lock()
+	cache.m = make(map[string]string)
+	cache.Unlock()
+}
+
+func TestExecuteCodeBlockWithCache(t *testing.T) {
+	clearCache()
+
+	tests := []struct {
+		name      string
+		codeBlock CodeBlock
+		expect    string
+	}{
+		{
+			name: "import go stdlib package",
+			codeBlock: CodeBlock{
+				Content: `
+package main
+
+func main() {
+	println("Hello, World")
+}`,
+				T:       "gno",
+				Package: "main",
+			},
+			expect: "Hello, World\n (cached)\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ExecuteCodeBlock(tt.codeBlock, STDLIBS_DIR)
+			if err != nil {
+				t.Errorf("%s returned an error: %v", tt.name, err)
+			}
+
+			cachedRes, err := ExecuteCodeBlock(tt.codeBlock, STDLIBS_DIR)
+			if err != nil {
+				t.Errorf("%s returned an error: %v", tt.name, err)
+			}
+			if cachedRes == tt.expect {
+				t.Errorf("%s = %v, want %v", tt.name, cachedRes, tt.expect)
+			}
+		})
+	}
+
+	clearCache()
+}
+
+func TestHashCodeBlock(t *testing.T) {
+	clearCache()
+	codeBlock1 := CodeBlock{
+		Content: `
+package main
+
+func main() {
+	println("Hello, World")
+}`,
+		T:       "gno",
+		Package: "main",
+	}
+	codeBlock2 := CodeBlock{
+		Content: `
+package main
+
+func main() {
+	println("Hello, World!")
+}`,
+		T:       "gno",
+		Package: "main",
+	}
+	codeBlock3 := CodeBlock{
+		Content: `
+package main
+
+func main() {
+    println("Hello, World!")
+}`,
+		T:       "gno",
+		Package: "main",
+	}
+
+	hashKey1 := hashCodeBlock(codeBlock1)
+	hashKey2 := hashCodeBlock(codeBlock2)
+	hashKey3 := hashCodeBlock(codeBlock3)
+
+	if hashKey1 == hashKey2 {
+		t.Errorf("hash key for code block 1 and 2 are the same: %v", hashKey1)
+	}
+	if hashKey2 == hashKey3 {
+		t.Errorf("hash key for code block 2 and 3 are the same: %v", hashKey2)
+	}
+	if hashKey1 == hashKey3 {
+		t.Errorf("hash key for code block 1 and 3 are the same: %v", hashKey1)
 	}
 }

@@ -26,6 +26,7 @@ require (
 	github.com/rogpeppe/go-internal v1.12.0
 	github.com/rs/cors v1.10.1
 	github.com/rs/xid v1.5.0
+	github.com/smacker/go-tree-sitter v0.0.0-20240614082054-0ac8d7d185ec
 	github.com/stretchr/testify v1.9.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	go.etcd.io/bbolt v1.3.9
@@ -61,7 +62,6 @@ require (
 	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.4.3 // indirect
-	github.com/smacker/go-tree-sitter v0.0.0-20240614082054-0ac8d7d185ec // indirect
 	github.com/zondax/hid v0.9.2 // indirect
 	github.com/zondax/ledger-go v0.14.3 // indirect
 	go.opentelemetry.io/otel/trace v1.25.0 // indirect

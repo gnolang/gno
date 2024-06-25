@@ -12,7 +12,44 @@ func TestDoctest(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	markdownContent := "## Example\nprint hello world in gno.\n```go\npackage main\n\nfunc main() {\nprintln(\"Hello, World!\")\n}\n```"
+	markdownContent := `# Go Code Examples
+
+This document contains two simple examples written in Go.
+
+## Example 1: Fibonacci Sequence
+
+The first example prints the first 10 numbers of the Fibonacci sequence.
+
+` + "```go" + `
+package main
+
+func main() {
+    a, b := 0, 1
+    for i := 0; i < 10; i++ {
+        println(a)
+        a, b = b, a+b
+    }
+}
+` + "```" + `
+
+## Example 2: String Reversal
+
+The second example reverses a given string and prints it.
+
+` + "```go" + `
+package main
+
+func main() {
+    str := "Hello, Go!"
+    runes := []rune(str)
+    for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+        runes[i], runes[j] = runes[j], runes[i]
+    }
+    println(string(runes))
+}
+` + "```" + `
+
+These two examples demonstrate basic Go functionality without using concurrency, generics, or reflect.`
 
 	mdFile, err := os.CreateTemp(tempDir, "sample-*.md")
 	if err != nil {
@@ -34,7 +71,11 @@ func TestDoctest(t *testing.T) {
 		},
 		{
 			args:                []string{"doctest", "-path", mdFilePath, "-index", "0"},
-			stdoutShouldContain: "Hello, World!\n",
+			stdoutShouldContain: "0\n1\n1\n2\n3\n5\n8\n13\n21\n34\n\n",
+		},
+		{
+			args:                []string{"doctest", "-path", mdFilePath, "-index", "1"},
+			stdoutShouldContain: "!oG ,olleH\n",
 		},
 	}
 
