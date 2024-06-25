@@ -139,7 +139,7 @@ A couple of things to note:
 - `gnoland config init` initializes a default configuration
 - `gnoland secrets init` initializes new node secrets (validator key, node p2p key)
 
-Essentially, `gnoland start --lazy` is simply a combination of `gnoland secrets generate` and `gnoland config generate`,
+Essentially, `gnoland start --lazy` is simply a combination of `gnoland secrets init` and `gnoland config init`,
 with the default options enabled.
 
 #### Changing the node configuration
