@@ -12,7 +12,7 @@ The full list of pre-deployed available packages can be found under the [demo pa
 
 In Go, the classic key/value data type is represented by the `map` construct. However, while Gno also supports the use of `map`, it is not a viable option as it lacks determinism due to its non-sequential nature.
  
-To address this issue, Gno implements the [AVL Tree](https://en.wikipedia.org/wiki/AVL\_tree) (Adelson-Velsky-Landis Tree) as a solution. The AVL Tree is a self-balancing binary search tree.
+To address this issue, Gno implements the [AVL Tree](https://en.wikipedia.org/wiki/AVL_tree) (Adelson-Velsky-Landis Tree) as a solution. The AVL Tree is a self-balancing binary search tree.
 
 The `avl` package comprises a set of functions that can manipulate the leaves and nodes of the AVL Tree.
 
@@ -41,12 +41,12 @@ The role of each function is as follows:
 
 Two types of contracts exist in`grc20`:
 
-1. `AdminToken`\
-   \- Implements the token factory with `Helper` functions.\
-   \- The underlying struct should not be exposed to users. However, it can be typecasted as UserToken using the `GRC20()` method.
-2. `UserToken`\
-   \- Implements the `IGRC20` interface.\
-   \- The underlying struct can be exposed to users. Created with the `GRC20()` method of `adminToken`.
+1. `AdminToken`
+   - Implements the token factory with `Helper` functions.
+   - The underlying struct should not be exposed to users. However, it can be typecasted as UserToken using the `GRC20()` method.
+2. `UserToken`
+   - Implements the `IGRC20` interface.
+   - The underlying struct can be exposed to users. Created with the `GRC20()` method of `adminToken`.
 
 ## `grc721`
 
@@ -72,7 +72,7 @@ func IsApprovedForAll(owner, operator std.Address) bool
 * `OwnerOf`: Returns the `owner`'s address of a token specified by its `TokenID`.
 * `SafeTransferFrom`: Equivalent to the `TransferFrom` function of `grc20`.
   * The `Safe` prefix indicates that the function runs a check to ensure that the `to` address is a valid address that can receive tokens.
-  * As you can see from the [code](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/demo/grc/grc721/basic\_nft.gno#L341), the concept of `Safe` has yet to be implemented.
+  * As you can see from the [code](https://github.com/gnolang/gno/blob/master/examples/gno.land/p/demo/grc/grc721/basic_nft.gno#L341), the concept of `Safe` has yet to be implemented.
 * `SetApprovalForAll`: Approves all tokens owned by the `owner` to an `operator`.
   * You may not set multiple `operator`s.
 * `GetApproved`: Returns the `address` of the `operator` for a token, specified with its `ID`.

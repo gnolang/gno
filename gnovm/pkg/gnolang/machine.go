@@ -94,7 +94,6 @@ type MachineOptions struct {
 	CheckTypes    bool // not yet used
 	ReadOnly      bool
 	Debug         bool
-	DebugAddr     string    // debugger io stream address (stdin/stdout if empty)
 	Input         io.Reader // used for default debugger input only
 	Output        io.Writer // default os.Stdout
 	Store         Store     // default NewStore(Alloc, nil, nil)
@@ -1957,9 +1956,11 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 		return ptr
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
+		hv := m.Alloc.NewHeapItem(tv)
 		return PointerValue{
-			TV:   &tv, // heap alloc
-			Base: nil,
+			TV:    &hv.Value,
+			Base:  hv,
+			Index: 0,
 		}
 	default:
 		panic("should not happen")

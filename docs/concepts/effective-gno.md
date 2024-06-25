@@ -679,7 +679,7 @@ For example, if you're creating a coin for cross-chain transfers, Coins
 are your best bet. They're IBC-ready and their strict rules offer top-notch
 security.
 
-Read about how to use the Banker module [here](stdlibs/banker).
+Read about how to use the Banker module [here](stdlibs/banker.md).
 
 #### GRC20 tokens
 
@@ -723,7 +723,7 @@ See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/wu
 
 <!-- TODO:
 
-- packages and realms versionning
+- packages and realms versioning
 - code generation
 - unit tests, fuzzing tests, example tests, txtar
 - shipping non-contract stuff with the realm: client, documentation, assets
