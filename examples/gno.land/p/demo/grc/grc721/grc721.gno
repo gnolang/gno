@@ -10,28 +10,29 @@ import (
 type Collection struct {
 	name              string
 	symbol            string
-	owners            *avl.Tree // tokenID > std.Address
 	balances          *avl.Tree // std.Address > # of owned tokens
-	tokenApprovals    *avl.Tree // tokenID > std.Address
 	operatorApprovals *avl.Tree // "OwnerAddress:OperatorAddress" -> bool
-	tokenURIs         *avl.Tree // tokenID > URI
+	tokenData         *avl.Tree // tokenID > *tokenData
+}
+
+type tokenData struct {
+	owner    std.Address
+	approved std.Address
+	uri      string
 }
 
 var _ IGRC721 = (*Collection)(nil)
 
 const emptyAddress = std.Address("")
 
-func NewGRC721Collection(name, symbol string) *Collection {
+func NewCollection(name, symbol string) *Collection {
 	return &Collection{
 		name:     name,
 		symbol:   symbol,
-		owners:   avl.NewTree(),
 		balances: avl.NewTree(),
-		// give an address permission to a specific tokenID
-		tokenApprovals: avl.NewTree(),
 		// give any addresses permissions for all owners' assets
 		operatorApprovals: avl.NewTree(),
-		tokenURIs:         avl.NewTree(),
+		tokenData:         avl.NewTree(),
 	}
 }
 
@@ -53,7 +54,7 @@ func (c Collection) OwnerOf(tokenId string) std.Address {
 	return c.mustBeOwned(tokenId)
 }
 
-func (c Collection) TransferFrom(from, to std.Address, tokenId string) {
+func (c *Collection) TransferFrom(from, to std.Address, tokenId string) {
 	caller := std.PrevRealm().Addr()
 	mustBeValid(to)
 
@@ -63,7 +64,7 @@ func (c Collection) TransferFrom(from, to std.Address, tokenId string) {
 	}
 }
 
-func (c Collection) Approve(to std.Address, tokenId string) {
+func (c *Collection) Approve(to std.Address, tokenId string) {
 	caller := std.PrevRealm().Addr()
 
 	if caller == to {
@@ -74,7 +75,7 @@ func (c Collection) Approve(to std.Address, tokenId string) {
 	c.approve(to, tokenId, caller, true)
 }
 
-func (c Collection) SetApprovalForAll(operator std.Address, approved bool) {
+func (c *Collection) SetApprovalForAll(operator std.Address, approved bool) {
 	caller := std.PrevRealm().Addr()
 	mustBeValid(operator)
 
@@ -104,7 +105,7 @@ func (c Collection) GetApproved(tokenId string) std.Address {
 	return c.getApproved(tokenId)
 }
 
-func (c Collection) IsApprovedForAll(owner, operator std.Address) bool {
+func (c *Collection) IsApprovedForAll(owner, operator std.Address) bool {
 	approved, exists := c.operatorApprovals.Get(operatorKey(owner, operator))
 	if !exists || approved == false {
 		return false
@@ -115,20 +116,28 @@ func (c Collection) IsApprovedForAll(owner, operator std.Address) bool {
 
 func (c Collection) TokenURI(tokenId string) string {
 	c.mustBeOwned(tokenId)
-	uri, exists := c.tokenURIs.Get(tokenId)
-	if !exists {
-		return ""
-	}
-
-	return uri.(string)
+	rawData, _ := c.tokenData.Get(tokenId)
+	return rawData.(*tokenData).uri
 }
 
-func (c Collection) SetTokenURI(tokenId string, tokenURI string) string {
-	c.tokenURIs.Set(tokenId, tokenURI)
+func (c *Collection) SetTokenURI(tokenId string, tokenURI string) string {
+	rawData, exists := c.tokenData.Get(tokenId)
+	if !exists {
+		// Instantiate token data if it does not exist
+		c.tokenData.Set(tokenId, &tokenData{
+			uri: tokenURI,
+		})
+	} else {
+		// Update URI
+		data := rawData.(*tokenData)
+		data.uri = tokenURI
+		c.tokenData.Set(tokenId, data)
+	}
+
 	return tokenURI
 }
 
-func (c Collection) Mint(to std.Address, tokenId string) {
+func (c *Collection) Mint(to std.Address, tokenId string) {
 	mustBeValid(to)
 	prevOwner := c.update(to, tokenId, emptyAddress)
 	if prevOwner != emptyAddress {
@@ -137,7 +146,7 @@ func (c Collection) Mint(to std.Address, tokenId string) {
 	}
 }
 
-func (c Collection) Burn(tokenId string) {
+func (c *Collection) Burn(tokenId string) {
 	prevOwner := c.update(emptyAddress, tokenId, emptyAddress)
 
 	if prevOwner == emptyAddress {
@@ -154,12 +163,13 @@ func (c Collection) requireOwner(caller std.Address, tokenId string) {
 }
 
 func (c Collection) getApproved(tokenId string) std.Address {
-	approved, exists := c.tokenApprovals.Get(tokenId)
+	rawData, exists := c.tokenData.Get(tokenId)
 	if !exists {
-		return "" // panic instead?
+		err := ufmt.Sprintf("GRC721: token with ID %s does not exist", tokenId)
+		panic(err)
 	}
 
-	return approved.(std.Address)
+	return rawData.(*tokenData).approved
 }
 
 // mustBeValid panics if the given address is not valid
@@ -173,13 +183,14 @@ func mustBeValid(address std.Address) {
 // mustBeOwned panics if token is not owned by an address (does not exist)
 // If the token is owned, mustBeOwned returns the owner of the token
 func (c Collection) mustBeOwned(tokenId string) std.Address {
-	owner, exists := c.owners.Get(tokenId)
+	rawData, exists := c.tokenData.Get(tokenId)
+
 	if !exists {
 		err := ufmt.Sprintf("GRC721: token with ID %s does not exist", tokenId)
 		panic(err)
 	}
 
-	return owner.(std.Address)
+	return rawData.(*tokenData).owner
 }
 
 // checkAuthorized checks if spender is authorized to spend specified token on behalf of owner
@@ -201,7 +212,7 @@ func (c Collection) isAuthorized(owner, spender std.Address, tokenId string) boo
 		c.getApproved(tokenId) == owner
 }
 
-func (c Collection) update(to std.Address, tokenId string, auth std.Address) std.Address {
+func (c *Collection) update(to std.Address, tokenId string, auth std.Address) std.Address {
 	from := c.ownerOf(tokenId)
 
 	if auth != emptyAddress {
@@ -225,15 +236,23 @@ func (c Collection) update(to std.Address, tokenId string, auth std.Address) std
 		} else {
 			c.balances.Set(to.String(), toBalance.(uint64)+1)
 		}
-		// Set new ownership
-		c.owners.Set(tokenId, to)
-	} else {
-		// Burn
-		_, removed := c.owners.Remove(tokenId)
-		if !removed {
-			str := ufmt.Sprintf("GRC721: Cannot burn token with id %s", tokenId)
-			panic(str)
+
+		rawData, initialized := c.tokenData.Get(tokenId)
+		if !initialized {
+			// Initialize new tokenData
+			c.tokenData.Set(tokenId, &tokenData{
+				owner: to,
+			})
+		} else {
+			// If tokenData exists, change only what's needed
+			data := rawData.(*tokenData)
+			data.owner = to
+			c.tokenData.Set(tokenId, data)
 		}
+	} else {
+		// Burn case
+		// Remove token data completely
+		c.tokenData.Remove(tokenId)
 	}
 
 	std.Emit("Transfer",
@@ -245,13 +264,14 @@ func (c Collection) update(to std.Address, tokenId string, auth std.Address) std
 	return from
 }
 
-func (c Collection) approve(to std.Address, tokenId string, auth std.Address, emitEvent bool) {
+func (c *Collection) approve(to std.Address, tokenId string, auth std.Address, emitEvent bool) {
 	if emitEvent || auth != emptyAddress {
 		owner := c.mustBeOwned(tokenId)
 
 		if auth != emptyAddress && owner != auth && !c.IsApprovedForAll(owner, auth) {
 			panic("GRC721: invalid approver")
 		}
+
 		if emitEvent {
 			std.Emit("Approval",
 				"owner", owner.String(),
@@ -261,16 +281,21 @@ func (c Collection) approve(to std.Address, tokenId string, auth std.Address, em
 		}
 	}
 
-	c.tokenApprovals.Set(tokenId, to)
+	// No need for exist check, done by mustBeOwned already
+	rawData, _ := c.tokenData.Get(tokenId)
+	data := rawData.(*tokenData)
+	data.approved = to
+
+	c.tokenData.Set(tokenId, data)
 }
 
 func (c Collection) ownerOf(tokenId string) std.Address {
-	owner, exists := c.owners.Get(tokenId)
+	data, exists := c.tokenData.Get(tokenId)
 	if !exists {
 		return emptyAddress
 	}
 
-	return owner.(std.Address)
+	return data.(*tokenData).owner
 }
 
 // operatorKey is a helper to create the key for the operatorApproval tree
