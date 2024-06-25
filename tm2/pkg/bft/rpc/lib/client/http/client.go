@@ -135,11 +135,6 @@ func sendRequestCommon[T requestType, R responseType](
 	}
 	defer httpResponse.Body.Close() //nolint: errcheck
 
-	// Parse the response code
-	if !isOKStatus(httpResponse.StatusCode) {
-		return nil, fmt.Errorf("invalid status code received, %d", httpResponse.StatusCode)
-	}
-
 	// Parse the response body
 	responseBytes, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
@@ -148,11 +143,47 @@ func sendRequestCommon[T requestType, R responseType](
 
 	var response R
 
-	if err := json.Unmarshal(responseBytes, &response); err != nil {
-		return nil, fmt.Errorf("unable to unmarshal response body, %w", err)
-	}
+	// Regardless of HTTP response code, if jsonrpc was received
+	// we want to unmarshal and use it as the response (#2422).
+	//
+	// The table below indicates what to do based on two bool variables:
+	//  1. is HTTP code 2xx? 
+	//  2. can response body be unmarshalled?
+	//
+	// /--------+------------------+--------------------------------------\
+	// |        | jsonrpc          | text                                 |
+	// |--------+------------------+--------------------------------------|
+	// | 2xx    | use as response  | Error "unable to unmarshal response" |
+	// | >=300  | use as response⁺ | Error "invalid status code"          |
+	// \------------------------------------------------------------------/
+	// In the case marked with ⁺, we prepend a fmt.Print to show the HTTP
+	// response code to the user.
 
-	return response, nil
+	errUnmarshal := json.Unmarshal(responseBytes, &response)
+	isOK := isOKStatus(httpResponse.StatusCode)
+
+	if errUnmarshal != nil {
+		// could unmarshal response
+		if !isOK {
+			// Note: this is not an error
+			fmt.Printf(
+				"invalid status code received, %d. Wrapped RPC error is shown below:\n", 
+				httpResponse.StatusCode
+			)
+		}
+		return response, nil
+	} else {
+		// response could not be unmarshalled
+		if isOK {
+			return nil, fmt.Errorf("unable to unmarshal response body, %w", err)
+		} else {
+			return nil, fmt.Errorf(
+				"invalid status code received, %d. No wrapped jsonrpc found in the response. Body: \"%s\"",
+				httpResponse.StatusCode,
+				string(responseBytes),
+			)
+		}
+	}
 }
 
 // DefaultHTTPClient is used to create an http client with some default parameters.
