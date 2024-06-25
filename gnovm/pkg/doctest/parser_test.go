@@ -6,80 +6,81 @@ import (
 )
 
 func TestGetCodeBlocks(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
-		expected []CodeBlock
+		expected []codeBlock
 	}{
 		{
 			name:  "Single code block with backticks",
 			input: "```go\nfmt.Println(\"Hello, World!\")\n```",
-			expected: []CodeBlock{
+			expected: []codeBlock{
 				{
-					Content: "fmt.Println(\"Hello, World!\")",
-					Start:   6,
-					End:     35,
-					T:       "go",
-					Index:   0,
+					content: "fmt.Println(\"Hello, World!\")",
+					start:   6,
+					end:     35,
+					lang:    "go",
+					index:   0,
 				},
 			},
 		},
 		{
 			name:  "Single code block with additional backticks",
 			input: "```go\nfmt.Println(\"Hello, World!\")\n``````",
-			expected: []CodeBlock{
+			expected: []codeBlock{
 				{
-					Content: "fmt.Println(\"Hello, World!\")",
-					Start:   6,
-					End:     35,
-					T:       "go",
-					Index:   0,
+					content: "fmt.Println(\"Hello, World!\")",
+					start:   6,
+					end:     35,
+					lang:    "go",
+					index:   0,
 				},
 			},
 		},
 		{
 			name:  "Single code block with tildes",
 			input: "## Example\nprint hello world in go.\n~~~go\nfmt.Println(\"Hello, World!\")\n~~~",
-			expected: []CodeBlock{
+			expected: []codeBlock{
 				{
-					Content: "fmt.Println(\"Hello, World!\")",
-					Start:   42,
-					End:     71,
-					T:       "go",
-					Index:   0,
+					content: "fmt.Println(\"Hello, World!\")",
+					start:   42,
+					end:     71,
+					lang:    "go",
+					index:   0,
 				},
 			},
 		},
 		{
 			name:  "Multiple code blocks",
 			input: "Here is some text.\n```python\ndef hello():\n    print(\"Hello, World!\")\n```\nSome more text.\n```javascript\nconsole.log(\"Hello, World!\");\n```",
-			expected: []CodeBlock{
+			expected: []codeBlock{
 				{
-					Content: "def hello():\n    print(\"Hello, World!\")",
-					Start:   29,
-					End:     69,
-					T:       "python",
-					Index:   0,
+					content: "def hello():\n    print(\"Hello, World!\")",
+					start:   29,
+					end:     69,
+					lang:    "python",
+					index:   0,
 				},
 				{
-					Content: "console.log(\"Hello, World!\");",
-					Start:   103,
-					End:     133,
-					T:       "javascript",
-					Index:   1,
+					content: "console.log(\"Hello, World!\");",
+					start:   103,
+					end:     133,
+					lang:    "javascript",
+					index:   1,
 				},
 			},
 		},
 		{
 			name:  "Code block with no language specifier",
 			input: "```\nfmt.Println(\"Hello, World!\")\n```",
-			expected: []CodeBlock{
+			expected: []codeBlock{
 				{
-					Content: "fmt.Println(\"Hello, World!\")",
-					Start:   4,
-					End:     33,
-					T:       "plain",
-					Index:   0,
+					content: "fmt.Println(\"Hello, World!\")",
+					start:   4,
+					end:     33,
+					lang:    "plain",
+					index:   0,
 				},
 			},
 		},
@@ -91,31 +92,33 @@ func TestGetCodeBlocks(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := GetCodeBlocks(tt.input)
 			if len(result) != len(tt.expected) {
 				t.Errorf("Failed %s: expected %d code blocks, got %d", tt.name, len(tt.expected), len(result))
 			}
 
 			for i, res := range result {
-				if normalize(res.Content) != normalize(tt.expected[i].Content) {
-					t.Errorf("Failed %s: expected content %s, got %s", tt.name, tt.expected[i].Content, res.Content)
+				if normalize(res.content) != normalize(tt.expected[i].content) {
+					t.Errorf("Failed %s: expected content %s, got %s", tt.name, tt.expected[i].content, res.content)
 				}
 
-				if res.Start != tt.expected[i].Start {
-					t.Errorf("Failed %s: expected start %d, got %d", tt.name, tt.expected[i].Start, res.Start)
+				if res.start != tt.expected[i].start {
+					t.Errorf("Failed %s: expected start %d, got %d", tt.name, tt.expected[i].start, res.start)
 				}
 
-				if res.End != tt.expected[i].End {
-					t.Errorf("Failed %s: expected end %d, got %d", tt.name, tt.expected[i].End, res.End)
+				if res.end != tt.expected[i].end {
+					t.Errorf("Failed %s: expected end %d, got %d", tt.name, tt.expected[i].end, res.end)
 				}
 
-				if res.T != tt.expected[i].T {
-					t.Errorf("Failed %s: expected type %s, got %s", tt.name, tt.expected[i].T, res.T)
+				if res.lang != tt.expected[i].lang {
+					t.Errorf("Failed %s: expected type %s, got %s", tt.name, tt.expected[i].lang, res.lang)
 				}
 
-				if res.Index != tt.expected[i].Index {
-					t.Errorf("Failed %s: expected index %d, got %d", tt.name, tt.expected[i].Index, res.Index)
+				if res.index != tt.expected[i].index {
+					t.Errorf("Failed %s: expected index %d, got %d", tt.name, tt.expected[i].index, res.index)
 				}
 			}
 		})

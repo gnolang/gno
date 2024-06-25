@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 
 	dt "github.com/gnolang/gno/gnovm/pkg/doctest"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -46,7 +47,7 @@ func (c *doctestCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execDoctest(cfg *doctestCfg, args []string, io commands.IO) error {
+func execDoctest(cfg *doctestCfg, _ []string, io commands.IO) error {
 	if cfg.markdownPath == "" {
 		return fmt.Errorf("markdown file path is required")
 	}
@@ -55,7 +56,7 @@ func execDoctest(cfg *doctestCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("code block index must be non-negative")
 	}
 
-	content, err := dt.ReadMarkdownFile(cfg.markdownPath)
+	content, err := fetchMarkdown(cfg.markdownPath)
 	if err != nil {
 		return fmt.Errorf("failed to read markdown file: %w", err)
 	}
@@ -75,4 +76,13 @@ func execDoctest(cfg *doctestCfg, args []string, io commands.IO) error {
 	io.Println(result)
 
 	return nil
+}
+
+// fetchMarkdown reads a markdown file and returns its content
+func fetchMarkdown(path string) (string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+	return string(content), nil
 }

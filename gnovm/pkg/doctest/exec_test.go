@@ -8,26 +8,26 @@ func TestExecuteCodeBlock(t *testing.T) {
 	clearCache()
 	tests := []struct {
 		name      string
-		codeBlock CodeBlock
+		codeBlock codeBlock
 		expected  string
 	}{
 		{
 			name: "import go stdlib package",
-			codeBlock: CodeBlock{
-				Content: `
+			codeBlock: codeBlock{
+				content: `
 package main
 
 func main() {
 	println("Hello, World")
 }`,
-				T: "gno",
+				lang: "gno",
 			},
 			expected: "Hello, World\n",
 		},
 		{
 			name: "import go stdlib package",
-			codeBlock: CodeBlock{
-				Content: `
+			codeBlock: codeBlock{
+				content: `
 package main
 
 import "std"
@@ -36,14 +36,14 @@ func main() {
 	addr := std.GetOrigCaller()
 	println(addr)
 }`,
-				T: "gno",
+				lang: "gno",
 			},
 			expected: "g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt\n",
 		},
 		{
 			name: "import go stdlib package",
-			codeBlock: CodeBlock{
-				Content: `
+			codeBlock: codeBlock{
+				content: `
 package main
 
 import "strings"
@@ -51,14 +51,14 @@ import "strings"
 func main() {
 	println(strings.ToUpper("Hello, World"))
 }`,
-				T: "gno",
+				lang: "gno",
 			},
 			expected: "HELLO, WORLD\n",
 		},
 		{
 			name: "print multiple values",
-			codeBlock: CodeBlock{
-				Content: `
+			codeBlock: codeBlock{
+				content: `
 package main
 
 func main() {
@@ -67,47 +67,47 @@ func main() {
 		println("Hello")
 	}
 }`,
-				T: "gno",
+				lang: "gno",
 			},
 			expected: "Hello\nHello\nHello\n",
 		},
 		{
 			name: "import subpackage without package declaration",
-			codeBlock: CodeBlock{
-				Content: `
+			codeBlock: codeBlock{
+				content: `
 func main() {
 	println(math.Pi)
 	println(strings.ToUpper("Hello, World"))
 }`,
-				T: "gno",
+				lang: "gno",
 			},
 			expected: "3.141592653589793\nHELLO, WORLD\n",
 		},
 		{
 			name: "test",
-			codeBlock: CodeBlock{
-				Content: "package main\n\nfunc main() {\nprintln(\"Hello, World!\")\n}",
-				T:       "gno",
+			codeBlock: codeBlock{
+				content: "package main\n\nfunc main() {\nprintln(\"Hello, World!\")\n}",
+				lang:    "gno",
 			},
 			expected: "Hello, World!\n",
 		},
 		{
 			name: "missing package declaration",
-			codeBlock: CodeBlock{
-				Content: "func main() {\nprintln(\"Hello, World!\")\n}",
-				T:       "gno",
+			codeBlock: codeBlock{
+				content: "func main() {\nprintln(\"Hello, World!\")\n}",
+				lang:    "gno",
 			},
 			expected: "Hello, World!\n",
 		},
 		{
 			name: "missing package and import declaration",
-			codeBlock: CodeBlock{
-				Content: `
+			codeBlock: codeBlock{
+				content: `
 func main() {
 	s := strings.ToUpper("Hello, World")
 	println(s)
 }`,
-				T: "gno",
+				lang: "gno",
 			},
 			expected: "HELLO, WORLD\n",
 		},
@@ -134,30 +134,33 @@ func clearCache() {
 }
 
 func TestExecuteCodeBlockWithCache(t *testing.T) {
+	t.Parallel()
 	clearCache()
 
 	tests := []struct {
 		name      string
-		codeBlock CodeBlock
+		codeBlock codeBlock
 		expect    string
 	}{
 		{
 			name: "import go stdlib package",
-			codeBlock: CodeBlock{
-				Content: `
+			codeBlock: codeBlock{
+				content: `
 package main
 
 func main() {
 	println("Hello, World")
 }`,
-				T: "gno",
+				lang: "gno",
 			},
 			expect: "Hello, World\n (cached)\n",
 		},
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := ExecuteCodeBlock(tt.codeBlock, STDLIBS_DIR)
 			if err != nil {
 				t.Errorf("%s returned an error: %v", tt.name, err)
@@ -177,33 +180,33 @@ func main() {
 }
 
 func TestHashCodeBlock(t *testing.T) {
-	clearCache()
-	codeBlock1 := CodeBlock{
-		Content: `
+	t.Parallel()
+	codeBlock1 := codeBlock{
+		content: `
 package main
 
 func main() {
 	println("Hello, World")
 }`,
-		T: "gno",
+		lang: "gno",
 	}
-	codeBlock2 := CodeBlock{
-		Content: `
+	codeBlock2 := codeBlock{
+		content: `
 package main
 
 func main() {
 	println("Hello, World!")
 }`,
-		T: "gno",
+		lang: "gno",
 	}
-	codeBlock3 := CodeBlock{
-		Content: `
+	codeBlock3 := codeBlock{
+		content: `
 package main
 
 func main() {
     println("Hello, World!")
 }`,
-		T: "gno",
+		lang: "gno",
 	}
 
 	hashKey1 := hashCodeBlock(codeBlock1)

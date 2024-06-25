@@ -31,24 +31,28 @@ const (
 const STDLIBS_DIR = "../../stdlibs"
 
 // cache stores the results of code execution.
-var cache = struct {
+var cache struct {
 	m map[string]string
 	sync.RWMutex
-}{m: make(map[string]string)}
+}
+
+func init() {
+	cache.m = make(map[string]string)
+}
 
 // hashCodeBlock generates a SHA256 hash for the given code block.
-func hashCodeBlock(c CodeBlock) string {
+func hashCodeBlock(c codeBlock) string {
 	h := sha256.New()
-	h.Write([]byte(c.Content))
+	h.Write([]byte(c.content))
 	return hex.EncodeToString(h.Sum(nil))
 }
 
 // ExecuteCodeBlock executes a parsed code block and executes it in a gno VM.
-func ExecuteCodeBlock(c CodeBlock, stdlibDir string) (string, error) {
-	if c.T == "go" {
-		c.T = "gno"
-	} else if c.T != "gno" {
-		return "", fmt.Errorf("unsupported language type: %s", c.T)
+func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
+	if c.lang == "go" {
+		c.lang = "gno"
+	} else if c.lang != "gno" {
+		return "", fmt.Errorf("unsupported language type: %s", c.lang)
 	}
 
 	hashKey := hashCodeBlock(c)
@@ -62,7 +66,7 @@ func ExecuteCodeBlock(c CodeBlock, stdlibDir string) (string, error) {
 		return fmt.Sprintf("%s (cached)", result), nil
 	}
 
-	src, err := analyzeAndModifyCode(c.Content)
+	src, err := analyzeAndModifyCode(c.content)
 	if err != nil {
 		return "", err
 	}
@@ -83,7 +87,7 @@ func ExecuteCodeBlock(c CodeBlock, stdlibDir string) (string, error) {
 	acck.SetAccount(ctx, acc)
 
 	files := []*std.MemFile{
-		{Name: fmt.Sprintf("%d.%s", c.Index, c.T), Body: src},
+		{Name: fmt.Sprintf("%d.%s", c.index, c.lang), Body: src},
 	}
 
 	coins := std.MustParseCoins("")

@@ -5,7 +5,7 @@ import (
 )
 
 func TestAnalyzeAndModifyCode(t *testing.T) {
-	t.Skip()
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -75,7 +75,9 @@ func main() {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			modifiedCode, err := analyzeAndModifyCode(tt.input)
 			if err != nil {
 				t.Fatalf("AnalyzeAndModifyCode(%s) returned error: %v", tt.name, err)
