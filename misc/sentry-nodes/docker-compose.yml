@@ -81,9 +81,9 @@ services:
       PERSISTENT_PEERS: "g1f2v3rf5c36z54kchnat2vdg0sf9kszuc74l75u@gno1:26656"
       P2P_PRIVATE_PEER_IDS: "g1gk7jk5wgt8r7wqs89rjk9pvkj525gj00r40zlr"
     labels:
-      - "traefik.http.routers.gno3.rule=Host(`gno3-sentry-1-rpc.localhost`)"
-      - "traefik.http.routers.gno3.entrypoints=web"
-      - "traefik.http.services.gno3.loadbalancer.server.port=26657"
+      - "traefik.http.routers.gno3-sentry-1.rule=Host(`gno3-sentry-1-rpc.localhost`)"
+      - "traefik.http.routers.gno3-sentry-1.entrypoints=web"
+      - "traefik.http.services.gno3-sentry-1.loadbalancer.server.port=26657"
 
   gno3-sentry-2:
     image: "ghcr.io/gnolang/gno/gnoland:master"
@@ -99,6 +99,6 @@ services:
       PERSISTENT_PEERS: "g1f2v3rf5c36z54kchnat2vdg0sf9kszuc74l75u@gno1:26656"
       P2P_PRIVATE_PEER_IDS: "g1gk7jk5wgt8r7wqs89rjk9pvkj525gj00r40zlr"
     labels:
-      - "traefik.http.routers.gno3.rule=Host(`gno3-sentry-2-rpc.localhost`)"
-      - "traefik.http.routers.gno3.entrypoints=web"
-      - "traefik.http.services.gno3.loadbalancer.server.port=26657"
+      - "traefik.http.routers.gno3-sentry-2.rule=Host(`gno3-sentry-2-rpc.localhost`)"
+      - "traefik.http.routers.gno3-sentry-2.entrypoints=web"
+      - "traefik.http.services.gno3-sentry-2.loadbalancer.server.port=26657"
