@@ -26,6 +26,13 @@ stdout 'Tx successfully signed and saved to '
 ## broadcast
 gnokey broadcast $WORK/multi/multi_msg.tx -quiet=false
 
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   [0-9]+'
+stdout 'HEIGHT:     [0-9]+'
+stdout 'EVENTS:     \[{\"type\":\"TAG\",\"attrs\":\[{\"key\":\"KEY\",\"value\":\"value11\"}],\"prev\":{\"addr\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\",\"pkg_path\":\"\"},\"pkg_path\":\"gno.land\/r\/demo\/simple_event\",\"func\":\"Event\"},{\"type\":\"TAG\",\"attrs\":\[{\"key\":\"KEY\",\"value\":\"value22\"}],\"prev\":{\"addr\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\",\"pkg_path\":\"\"},\"pkg_path\":\"gno.land\/r\/demo\/simple_event\",\"func\":\"Event\"}]'
+
+
 
 -- event/simple_event.gno --
 package simple_event
