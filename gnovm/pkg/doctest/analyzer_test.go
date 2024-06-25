@@ -76,7 +76,7 @@ func main() {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			modifiedCode, _, err := analyzeAndModifyCode(tt.input)
+			modifiedCode, err := analyzeAndModifyCode(tt.input)
 			if err != nil {
 				t.Fatalf("AnalyzeAndModifyCode(%s) returned error: %v", tt.name, err)
 			}

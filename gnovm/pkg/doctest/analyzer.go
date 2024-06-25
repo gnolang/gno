@@ -50,31 +50,29 @@ var stdLibPackages = map[string]bool{
 
 // analyzeAndModifyCode analyzes the given code block, adds package declaration if missing,
 // ensures a main function exists, and updates imports. It returns the modified code as a string.
-func analyzeAndModifyCode(code string) (string, execOpts, error) {
+func analyzeAndModifyCode(code string) (string, error) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, "", code, parser.AllErrors)
 	if err != nil {
 		// append package main to the code and try to parse again
 		node, err = parser.ParseFile(fset, "", "package main\n"+code, parser.ParseComments)
 		if err != nil {
-			return "", execOpts{}, fmt.Errorf("failed to parse code: %v", err)
+			return "", fmt.Errorf("failed to parse code: %w", err)
 		}
 	}
 
-	opts := parseExecOptions(node.Comments)
-
 	ensurePackageDeclaration(node)
 	if exist := ensureMainFunction(node); !exist {
-		return "", execOpts{}, fmt.Errorf("main function is missing")
+		return "", fmt.Errorf("main function is missing")
 	}
 	updateImports(node)
 
 	src, err := codePrettier(fset, node)
 	if err != nil {
-		return "", execOpts{}, err
+		return "", err
 	}
 
-	return src, opts, nil
+	return src, nil
 }
 
 // ensurePackageDeclaration ensures the code block has a package declaration.
@@ -201,34 +199,7 @@ func removeImportDecls(decls []ast.Decl) []ast.Decl {
 func codePrettier(fset *token.FileSet, node *ast.File) (string, error) {
 	var buf bytes.Buffer
 	if err := printer.Fprint(&buf, fset, node); err != nil {
-		return "", fmt.Errorf("failed to print code: %v", err)
+		return "", fmt.Errorf("failed to print code: %w", err)
 	}
 	return buf.String(), nil
-}
-
-type execOpts struct {
-	ignore      bool
-	shouldPanic bool
-	expected    string
-}
-
-func parseExecOptions(cc []*ast.CommentGroup) execOpts {
-	opts := execOpts{}
-
-	for _, cg := range cc {
-		for _, c := range cg.List {
-			text := strings.TrimSpace(strings.TrimPrefix(c.Text, "//"))
-			switch {
-			case strings.HasPrefix(text, "@ignore"):
-				opts.ignore = true
-			case strings.HasPrefix(text, "@panic"):
-				opts.shouldPanic = true
-			case strings.HasPrefix(text, "@expected"):
-				opts.expected = strings.TrimSpace(strings.TrimPrefix(text, "@expected"))
-			default:
-				// ignore other comments
-			}
-		}
-	}
-	return opts
 }

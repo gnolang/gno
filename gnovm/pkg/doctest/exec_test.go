@@ -20,8 +20,7 @@ package main
 func main() {
 	println("Hello, World")
 }`,
-				T:       "gno",
-				Package: "main",
+				T: "gno",
 			},
 			expected: "Hello, World\n",
 		},
@@ -37,8 +36,7 @@ func main() {
 	addr := std.GetOrigCaller()
 	println(addr)
 }`,
-				T:       "gno",
-				Package: "main",
+				T: "gno",
 			},
 			expected: "g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt\n",
 		},
@@ -53,8 +51,7 @@ import "strings"
 func main() {
 	println(strings.ToUpper("Hello, World"))
 }`,
-				T:       "gno",
-				Package: "main",
+				T: "gno",
 			},
 			expected: "HELLO, WORLD\n",
 		},
@@ -70,8 +67,7 @@ func main() {
 		println("Hello")
 	}
 }`,
-				T:       "gno",
-				Package: "main",
+				T: "gno",
 			},
 			expected: "Hello\nHello\nHello\n",
 		},
@@ -83,8 +79,7 @@ func main() {
 	println(math.Pi)
 	println(strings.ToUpper("Hello, World"))
 }`,
-				T:       "gno",
-				Package: "main",
+				T: "gno",
 			},
 			expected: "3.141592653589793\nHELLO, WORLD\n",
 		},
@@ -93,7 +88,6 @@ func main() {
 			codeBlock: CodeBlock{
 				Content: "package main\n\nfunc main() {\nprintln(\"Hello, World!\")\n}",
 				T:       "gno",
-				Package: "main",
 			},
 			expected: "Hello, World!\n",
 		},
@@ -156,8 +150,7 @@ package main
 func main() {
 	println("Hello, World")
 }`,
-				T:       "gno",
-				Package: "main",
+				T: "gno",
 			},
 			expect: "Hello, World\n (cached)\n",
 		},
@@ -192,8 +185,7 @@ package main
 func main() {
 	println("Hello, World")
 }`,
-		T:       "gno",
-		Package: "main",
+		T: "gno",
 	}
 	codeBlock2 := CodeBlock{
 		Content: `
@@ -202,8 +194,7 @@ package main
 func main() {
 	println("Hello, World!")
 }`,
-		T:       "gno",
-		Package: "main",
+		T: "gno",
 	}
 	codeBlock3 := CodeBlock{
 		Content: `
@@ -212,8 +203,7 @@ package main
 func main() {
     println("Hello, World!")
 }`,
-		T:       "gno",
-		Package: "main",
+		T: "gno",
 	}
 
 	hashKey1 := hashCodeBlock(codeBlock1)

@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -63,13 +62,9 @@ func ExecuteCodeBlock(c CodeBlock, stdlibDir string) (string, error) {
 		return fmt.Sprintf("%s (cached)", result), nil
 	}
 
-	src, opts, err := analyzeAndModifyCode(c.Content)
+	src, err := analyzeAndModifyCode(c.Content)
 	if err != nil {
 		return "", err
-	}
-
-	if opts.ignore {
-		return "[skip]", nil
 	}
 
 	baseKey := store.NewStoreKey("baseKey")
@@ -95,21 +90,8 @@ func ExecuteCodeBlock(c CodeBlock, stdlibDir string) (string, error) {
 	msg2 := vm.NewMsgRun(addr, coins, files)
 
 	res, err := vmk.Run(ctx, msg2)
-	if opts.shouldPanic {
-		if err == nil {
-			return "", fmt.Errorf("expected panic, but code executed successfully")
-		}
-		return fmt.Sprintf("panicked as expected: %v", err), nil
-	}
-
 	if err != nil {
 		return "", err
-	}
-
-	if opts.expected != "" {
-		if !strings.Contains(res, opts.expected) {
-			return res, fmt.Errorf("output mismatch: expected to %q, got %q", opts.expected, res)
-		}
 	}
 
 	cache.Lock()

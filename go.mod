@@ -26,9 +26,9 @@ require (
 	github.com/rogpeppe/go-internal v1.12.0
 	github.com/rs/cors v1.10.1
 	github.com/rs/xid v1.5.0
-	github.com/smacker/go-tree-sitter v0.0.0-20240614082054-0ac8d7d185ec
 	github.com/stretchr/testify v1.9.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	github.com/yuin/goldmark v1.7.3
 	go.etcd.io/bbolt v1.3.9
 	go.opentelemetry.io/otel v1.27.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.25.0

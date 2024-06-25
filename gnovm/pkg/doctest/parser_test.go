@@ -18,7 +18,7 @@ func TestGetCodeBlocks(t *testing.T) {
 				{
 					Content: "fmt.Println(\"Hello, World!\")",
 					Start:   6,
-					End:     38,
+					End:     35,
 					T:       "go",
 					Index:   0,
 				},
@@ -31,7 +31,7 @@ func TestGetCodeBlocks(t *testing.T) {
 				{
 					Content: "fmt.Println(\"Hello, World!\")",
 					Start:   6,
-					End:     41,
+					End:     35,
 					T:       "go",
 					Index:   0,
 				},
@@ -44,7 +44,7 @@ func TestGetCodeBlocks(t *testing.T) {
 				{
 					Content: "fmt.Println(\"Hello, World!\")",
 					Start:   42,
-					End:     74,
+					End:     71,
 					T:       "go",
 					Index:   0,
 				},
@@ -64,7 +64,7 @@ func TestGetCodeBlocks(t *testing.T) {
 				{
 					Content: "console.log(\"Hello, World!\");",
 					Start:   103,
-					End:     136,
+					End:     133,
 					T:       "javascript",
 					Index:   1,
 				},
@@ -77,7 +77,7 @@ func TestGetCodeBlocks(t *testing.T) {
 				{
 					Content: "fmt.Println(\"Hello, World!\")",
 					Start:   4,
-					End:     36,
+					End:     33,
 					T:       "plain",
 					Index:   0,
 				},
