@@ -13,6 +13,7 @@ type Collection struct {
 	balances          *avl.Tree // std.Address > # of owned tokens
 	operatorApprovals *avl.Tree // "OwnerAddress:OperatorAddress" -> bool
 	tokenData         *avl.Tree // tokenID > *tokenData
+	baseURI           string    // baseURI
 }
 
 type tokenData struct {
@@ -114,12 +115,14 @@ func (c *Collection) IsApprovedForAll(owner, operator std.Address) bool {
 	return true
 }
 
+// TokenURI returns the URI of a specific token, prepended with the baseURI for the collection
 func (c Collection) TokenURI(tokenId string) string {
 	c.mustBeOwned(tokenId)
 	rawData, _ := c.tokenData.Get(tokenId)
-	return rawData.(*tokenData).uri
+	return c.baseURI + rawData.(*tokenData).uri
 }
 
+// SetTokenURI sets a URI for a specific token
 func (c *Collection) SetTokenURI(tokenId string, tokenURI string) string {
 	rawData, exists := c.tokenData.Get(tokenId)
 	if !exists {
