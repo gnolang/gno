@@ -169,7 +169,9 @@ command:
 gnoland config set moniker node01
 ```
 
-:::warn Modify existing secrets
+:::
+
+:::warning Modify existing secrets
 
 We can modify existing secrets, or utilize our own (if we have them backed up, for example) for the Gno.land node.
 Each secret needs to be placed in the appropriate path within `<data-dir>/secrets`, and it can be replaced or

@@ -19,7 +19,7 @@ In this tutorial, you will learn how to start a local Gno node and connect to an
 ## 1. Initialize the node directory
 
 To initialize a new Gno.land node working directory (configuration and secrets), make sure to
-follow [Step 1](setting-up-a-new-chain#1-generate-the-node-directory-secrets--config) from the
+follow [Step 1](./validators-setting-up-a-new-chain#1-generate-the-node-directory-secrets--config) from the
 chain setup tutorial.
 
 ## 2. Obtain the `genesis.json` of the remote chain
@@ -85,7 +85,7 @@ gnoland config set p2p.persistent_peers "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd
 We should configure the list of seed nodes. Seed nodes provide information about other nodes for the validator to
 connect with the chain, enabling a fast and stable initial connection. These seed nodes are also called _bootnodes_.
 
-:::warn
+:::warning
 
 The option to activate the Seed Mode from the node is currently missing.
 

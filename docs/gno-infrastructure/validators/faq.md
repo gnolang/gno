@@ -111,7 +111,7 @@ the `gnoland genesis generate` command. Refer
 to [this section](../../gno-tooling/cli/gnoland.md#gnoland-genesis-generate-flags) for various flags that allow you to
 manipulate the file.
 
-:::warn
+:::warning
 
 Editing generated genesis.json manually is extremely dangerous. It may corrupt chain initial state which leads chain to
 not start
@@ -173,10 +173,10 @@ the configurations file.
 ### How do I initialize and start a new gno chain?
 
 To start an independent gno chain, follow the initialization process available
-in [this section](./start-a-new-gno-chain-and-validator.md).
+in [this section](./setting-up-a-new-chain.md).
 
 ### How do I connect to an existing gno chain?
 
 To join the validator set of a gno chain, you must first establish a connection. Refer
-to [this section](./connect-to-an-existing-gno-chain.md) for a step-by-step guide on how to connect to an existing gno
+to [this section](./connect-to-existing-chain.md) for a step-by-step guide on how to connect to an existing gno
 chain.
