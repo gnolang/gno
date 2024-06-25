@@ -32,7 +32,8 @@ gnoland config set moniker node02 -config-path gnoland-data/config/config.toml
 
 :::info
 
-The genesis file will be [easily downloadable from GitHub](https://github.com/gnolang/gno/issues/1836#issuecomment-2049428623) in the future.
+The genesis file will
+be [easily downloadable from GitHub](https://github.com/gnolang/gno/issues/1836#issuecomment-2049428623) in the future.
 
 For now, obtain the file by
 
@@ -76,11 +77,13 @@ $ gnoland config set p2p.persistent_peers "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66t
 
 ## 6. Configure the seeds
 
-Configure the list of seed nodes. Seed nodes provide information about other nodes for the validator to connect with the chain, enabling a fast and stable initial connection.
+Configure the list of seed nodes. Seed nodes provide information about other nodes for the validator to connect with the
+chain, enabling a fast and stable initial connection.
 
 :::info
 
-This is an option to configure the node set as the Seed Mode. However, the option to activate the Seed Mode from the node is currently missing.
+This is an option to configure the node set as the Seed Mode. However, the option to activate the Seed Mode from the
+node is currently missing.
 
 :::
 

@@ -24,7 +24,8 @@ gnoland secrets init -data-dir gnoland-data/secrets
 
 :::tip
 
-A moniker is a human-readable username of your validator node. You may customize your moniker with the following command:
+A moniker is a human-readable username of your validator node. You may customize your moniker with the following
+command:
 
 ```bash
 gnoland config set moniker node01 -config-path gnoland-data/config/config.toml
@@ -34,7 +35,8 @@ gnoland config set moniker node01 -config-path gnoland-data/config/config.toml
 
 ## 3. Set the rpc connection address (required for connecting with other nodes)
 
-- A configuration to connect with the RPC service (port 26657) when an external client (i.e. a dApp like Adena Wallet) communicates with the chain (transaction request, block height check, etc.).
+- A configuration to connect with the RPC service (port 26657) when an external client (i.e. a dApp like Adena Wallet)
+  communicates with the chain (transaction request, block height check, etc.).
 
 ```bash
 gnoland config set rpc.laddr "tcp://0.0.0.0:26657" -config-path gnoland-data/config/config.toml
@@ -45,7 +47,8 @@ gnoland config set rpc.laddr "tcp://0.0.0.0:26657" -config-path gnoland-data/con
 
 ## 4. Set the validator private key (optional)
 
-- Set path of the validator private key. A default value exists. When using a separate secrets folder, you must set the path to the respective location.
+- Set path of the validator private key. A default value exists. When using a separate secrets folder, you must set the
+  path to the respective location.
 
 :::tip
 
@@ -59,13 +62,15 @@ gnoland config set priv_validator_key_file secrets/priv_validator_key.json -conf
 
 :::
 
-info validator private key is one of secrets that centeralized within `<data-dir>/secrets`, it can be replaced or regenerated with `gnoland secrets init ValidatorPrivateKey --force`
+info validator private key is one of secrets that centeralized within `<data-dir>/secrets`, it can be replaced or
+regenerated with `gnoland secrets init ValidatorPrivateKey --force`
 
 :::
 
 ## 5. Set the validator state (optional)
 
-- Set path of the validator state. A default value exists. When using a separate secrets folder, you must set the path to the respective location.
+- Set path of the validator state. A default value exists. When using a separate secrets folder, you must set the path
+  to the respective location.
 
 :::tip
 
@@ -79,13 +84,15 @@ gnoland config set priv_validator_state_file secrets/priv_validator_state.json -
 
 :::
 
-info validator state is one of secrets that centeralized within `<data-dir>/secrets`, it can be replaced or regenerated with `gnoland secrets init ValidatorState --force`
+info validator state is one of secrets that centeralized within `<data-dir>/secrets`, it can be replaced or regenerated
+with `gnoland secrets init ValidatorState --force`
 
 :::
 
 ## 6. Set the node id (optional)
 
-- Set path of the node id. A default path exists. When using a separate secrets folder, you must set the path to the respective location.
+- Set path of the node id. A default path exists. When using a separate secrets folder, you must set the path to the
+  respective location.
 
 :::tip
 
@@ -99,7 +106,8 @@ gnoland config set node_key_file secrets/node_key.json -config-path gnoland-data
 
 :::info
 
-node is is one of secrets that centeralized within `<data-dir>/secrets`, it can be replaced or regenerated with `gnoland secrets init NodeID --force`
+node is is one of secrets that centeralized within `<data-dir>/secrets`, it can be replaced or regenerated
+with `gnoland secrets init NodeID --force`
 
 :::
 

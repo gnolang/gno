@@ -4,7 +4,7 @@ id: gno-tooling-gnoland
 
 # gnoland
 
-`gnoland` is the Gno.land blockchain client binary, which is capable of managing 
+`gnoland` is the Gno.land blockchain client binary, which is capable of managing
 node working files, as well as starting the blockchain client itself.
 
 ### gnoland start [flags]
@@ -13,21 +13,21 @@ Starts the Gnoland blockchain node, with accompanying setup.
 
 #### FLAGS
 
-| Name | Type | Description |
-| --- | --- | --- |
-| `chainid` | String | The ID of the chain. (default: `dev`) |
-| `data-dir` | String | The path to the node's data directory. This is an important folder. The chain may fail to start if this folder is contaminated. (default: `gnoland-data`) |
-| `flag-config-path` | String | The flag config file (optional). |
-| `genesis` | String | The path to the `genesis.json` file. (default: `genesis.json`) |
-| `genesis-balance-file` | String | Initial distribution file. (default: `~/gno/gno.land/genesis/genesis_balances.txt`) |
-| `genesis-max-vm-cycles` | Int | Sets maximum allowed vm cycles per operation. Zero means no limit. When increasing this option, the `block-max-gas` must also be increased to utilize the max cycles. (default: `100000000`) |
-| `genesis-remote` | String | A replacement for `$$REMOTES%%` in genesis. (default: `localhost:26657`) |
-| `genesis-txs-file` | String | Initial txs to replay. (default: ~/gno/gno.land/genesis/genesis_txs.jsonl) |
-| `gnoroot-dir` | String | The root directory of the `gno` repository. (default: `~/gno`) |
-| `lazy` | Boolean | Flag indication if lazy init is enabled. Generates the node secrets, configuration, and `genesis.json`. When set to `true`, you may start the chain without any initialization process, which comes in handy when developing. (default: `false`) |
-| `log-format` | String | The log format for the gnoland node. (default: `console`) |
-| `log-level` | String | The log level for the gnoland node. (default: `debug`) |
-| `skip-failing-genesis-txs` | Boolean | Doesn’t panic when replaying invalid genesis txs. When starting a production-level chain, it is recommended to set this value to `true` to monitor and analyze failing transactions. (default: `false`) |
+| Name                       | Type    | Description                                                                                                                                                                                                                                      |
+|----------------------------|---------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `chainid`                  | String  | The ID of the chain. (default: `dev`)                                                                                                                                                                                                            |
+| `data-dir`                 | String  | The path to the node's data directory. This is an important folder. The chain may fail to start if this folder is contaminated. (default: `gnoland-data`)                                                                                        |
+| `flag-config-path`         | String  | The flag config file (optional).                                                                                                                                                                                                                 |
+| `genesis`                  | String  | The path to the `genesis.json` file. (default: `genesis.json`)                                                                                                                                                                                   |
+| `genesis-balance-file`     | String  | Initial distribution file. (default: `~/gno/gno.land/genesis/genesis_balances.txt`)                                                                                                                                                              |
+| `genesis-max-vm-cycles`    | Int     | Sets maximum allowed vm cycles per operation. Zero means no limit. When increasing this option, the `block-max-gas` must also be increased to utilize the max cycles. (default: `100000000`)                                                     |
+| `genesis-remote`           | String  | A replacement for `$$REMOTES%%` in genesis. (default: `localhost:26657`)                                                                                                                                                                         |
+| `genesis-txs-file`         | String  | Initial txs to replay. (default: ~/gno/gno.land/genesis/genesis_txs.jsonl)                                                                                                                                                                       |
+| `gnoroot-dir`              | String  | The root directory of the `gno` repository. (default: `~/gno`)                                                                                                                                                                                   |
+| `lazy`                     | Boolean | Flag indication if lazy init is enabled. Generates the node secrets, configuration, and `genesis.json`. When set to `true`, you may start the chain without any initialization process, which comes in handy when developing. (default: `false`) |
+| `log-format`               | String  | The log format for the gnoland node. (default: `console`)                                                                                                                                                                                        |
+| `log-level`                | String  | The log level for the gnoland node. (default: `debug`)                                                                                                                                                                                           |
+| `skip-failing-genesis-txs` | Boolean | Doesn’t panic when replaying invalid genesis txs. When starting a production-level chain, it is recommended to set this value to `true` to monitor and analyze failing transactions. (default: `false`)                                          |
 
 ### gnoland genesis <subcommand> [flags] [<arg>...]
 
@@ -36,7 +36,7 @@ Gno `genesis.json` manipulation suite for managing genesis parameters.
 #### SUBCOMMANDS
 
 | Name        | Description                                 |
-| ----------- | ------------------------------------------- |
+|-------------|---------------------------------------------|
 | `generate`  | Generates a fresh `genesis.json`.           |
 | `validator` | Validator set management in `genesis.json`. |
 | `verify`    | Verifies a `genesis.json`.                  |
@@ -49,15 +49,15 @@ Generates a node's `genesis.json` based on specified parameters.
 
 #### FLAGS
 
-| Name | Type | Description |
-| --- | --- | --- |
-| `block-max-data-bytes` | Int | The max size of the block data.(default: `2000000`) |
-| `block-max-gas` | Int | The max gas limit for the block. (default: `100000000`) |
-| `block-max-tx-bytes` | Int | The max size of the block transaction. (default: `1000000`) |
-| `block-time-itoa` | Int | The block time itoa (in ms). (default: `100`) |
-| `chain-id` | String | The ID of the chain. (default: `dev`) |
-| `genesis-time` | Int | The genesis creation time. (default: `utc now timestamp`) |
-| `output-path` : | String | The output path for the `genesis.json`. If the genesis-time of the Genesis File is set to a future time, the chain will automatically start at that time if the node is online. (default: `./genesis.json`) |
+| Name                   | Type   | Description                                                                                                                                                                                                 |
+|------------------------|--------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `block-max-data-bytes` | Int    | The max size of the block data.(default: `2000000`)                                                                                                                                                         |
+| `block-max-gas`        | Int    | The max gas limit for the block. (default: `100000000`)                                                                                                                                                     |
+| `block-max-tx-bytes`   | Int    | The max size of the block transaction. (default: `1000000`)                                                                                                                                                 |
+| `block-time-itoa`      | Int    | The block time itoa (in ms). (default: `100`)                                                                                                                                                               |
+| `chain-id`             | String | The ID of the chain. (default: `dev`)                                                                                                                                                                       |
+| `genesis-time`         | Int    | The genesis creation time. (default: `utc now timestamp`)                                                                                                                                                   |
+| `output-path` :        | String | The output path for the `genesis.json`. If the genesis-time of the Genesis File is set to a future time, the chain will automatically start at that time if the node is online. (default: `./genesis.json`) |
 
 ### gnoland genesis validator <subcommand> [flags]
 
@@ -66,14 +66,14 @@ Manipulates the `genesis.json` validator set.
 #### SUBCOMANDS
 
 | Name     | Description                                  |
-| -------- | -------------------------------------------- |
+|----------|----------------------------------------------|
 | `add`    | Adds a new validator to the `genesis.json`.  |
 | `remove` | Removes a validator from the `genesis.json`. |
 
 #### FLAGS
 
 | Name           | Type   | Description                                                |
-| -------------- | ------ | ---------------------------------------------------------- |
+|----------------|--------|------------------------------------------------------------|
 | `address`      | String | The gno bech32 address of the validator.                   |
 | `genesis-path` | String | The path to the `genesis.json`. (default `./genesis.json`) |
 
@@ -84,7 +84,7 @@ Adds a new validator to the `genesis.json`.
 #### FLAGS
 
 | Name           | Type   | Description                                                     |
-| -------------- | ------ | --------------------------------------------------------------- |
+|----------------|--------|-----------------------------------------------------------------|
 | `address`      | String | The gno bech32 address of the validator.                        |
 | `genesis-path` | String | The path to the `genesis.json`. (default: `./genesis.json`)     |
 | `name`         | String | The name of the validator (must be unique).                     |
@@ -103,7 +103,7 @@ Removes a validator from the `genesis.json`.
 #### FLAGS
 
 | Name           | Type   | Description                                                 |
-| -------------- | ------ | ----------------------------------------------------------- |
+|----------------|--------|-------------------------------------------------------------|
 | `address`      | String | The gno bech32 address of the validator.                    |
 | `genesis-path` | String | The path to the `genesis.json`. (default: `./genesis.json)` |
 
@@ -119,7 +119,7 @@ Verifies a `genesis.json`.
 #### FLAGS
 
 | Name           | Type   | Description                                               |
-| -------------- | ------ | --------------------------------------------------------- |
+|----------------|--------|-----------------------------------------------------------|
 | `genesis-path` | String | The path to the `genesis.json`. (default: `genesis.json`) |
 
 ### gnoland genesis balances <subcommand> [flags] [<arg>…]
@@ -129,7 +129,7 @@ Manages `genesis.json` account balances.
 #### SUBCOMMANDS
 
 | Name     | Description                                            |
-| -------- | ------------------------------------------------------ |
+|----------|--------------------------------------------------------|
 | `add`    | Adds the balance information.                          |
 | `remove` | Removes the balance information of a specific account. |
 
@@ -138,7 +138,7 @@ Manages `genesis.json` account balances.
 #### FLAGS
 
 | Name            | Type   | Description                                                                                |
-| --------------- | ------ | ------------------------------------------------------------------------------------------ |
+|-----------------|--------|--------------------------------------------------------------------------------------------|
 | `balance-sheet` | String | The path to the balance file containing addresses in the format `<address>=<amount>ugnot`. |
 | `genesis-path`  | String | The path to the `genesis.json` (default: `./genesis.json`)                                 |
 | `parse-export`  | String | The path to the transaction export containing a list of transactions (JSONL).              |
@@ -156,7 +156,7 @@ g1rzuwh5frve732k4futyw45y78rzuty4626zy6h:{[24 184 235 209 35 102 125 21 90 169 2
 #### FLAGS
 
 | Name           | Type   | Description                                                                                 |
-| -------------- | ------ | ------------------------------------------------------------------------------------------- |
+|----------------|--------|---------------------------------------------------------------------------------------------|
 | `address`      | String | The address of the account whose balance information should be removed from `genesis.json`. |
 | `genesis-path` | String | The path to the `genesis.json`. (default: `./genesis.json`)                                 |
 
@@ -172,38 +172,38 @@ Manages genesis transactions through input files.
 #### SUBCOMMANDS
 
 | Name     | Description                                       |
-| -------- | ------------------------------------------------- |
+|----------|---------------------------------------------------|
 | `add`    | Imports transactions into the `genesis.json`.     |
 | `remove` | Removes the transactions from the `genesis.json`. |
 | `export` | Exports the transactions from the `genesis.json`. |
 
 ### gnoland secrets <subcommand> [flags] [<arg>…]
 
-The gno secrets manipulation suite for managing the validator key, p2p key and 
+The gno secrets manipulation suite for managing the validator key, p2p key and
 validator state.
 
 #### SUBCOMMANDS
 
 | Name     | Description                                             |
-| -------- | ------------------------------------------------------- |
+|----------|---------------------------------------------------------|
 | `init`   | Initializes required Gno secrets in a common directory. |
 | `verify` | Verifies all Gno secrets in a common directory.         |
 | `get`    | Shows all Gno secrets present in a common directory.    |
 
 ### gnoland secrets init [flags] [<key>]
 
-Initializes the validator private key, the node p2p key and the validator's last 
+Initializes the validator private key, the node p2p key and the validator's last
 sign state. If a key is provided, it initializes the specified key.
 
 - Available keys
-  - `ValidatorPrivateKey` : The private key of the validator, which is different from the private key of the wallet.
-  - `NodeKey` : A key used for communicating with other nodes.
-  - `ValidatorState` : The current state of the validator such as the last signed block.
+    - `ValidatorPrivateKey` : The private key of the validator, which is different from the private key of the wallet.
+    - `NodeKey` : A key used for communicating with other nodes.
+    - `ValidatorState` : The current state of the validator such as the last signed block.
 
 #### FLAGS
 
 | Name       | Type   | Description                                                     |
-| ---------- | ------ | --------------------------------------------------------------- |
+|------------|--------|-----------------------------------------------------------------|
 | `data-dir` | String | The secrets output directory. (default: `gnoland-data/secrets`) |
 | `force`    | String | Overwrites existing secrets, if any. (default: `false`)         |
 
@@ -222,7 +222,7 @@ Node key saved at gnoland-data/secrets/node_key.json
 
 ### gnoland secrets verify [flags] [<key>]
 
-Verifies the validator private key, the node p2p key and the validator's last 
+Verifies the validator private key, the node p2p key and the validator's last
 sign state. If a key is provided, it verifies the specified key value.
 
 - Available keys: [ValidatorPrivateKey, NodeKey, ValidatorState]
@@ -230,7 +230,7 @@ sign state. If a key is provided, it verifies the specified key value.
 #### FLAGS
 
 | Name       | Type   | Description                                                     |
-| ---------- | ------ | --------------------------------------------------------------- |
+|------------|--------|-----------------------------------------------------------------|
 | `data-dir` | String | The secrets output directory. (default: `gnoland-data/secrets`) |
 
 ```bash
@@ -248,7 +248,7 @@ Node P2P key at gnoland-data/secrets/node_key.json is valid
 
 ### gnoland secrets get [flags] [<key>]
 
-Shows the validator private key, the node p2p key and the validator's last sign 
+Shows the validator private key, the node p2p key and the validator's last sign
 state. If a key is provided, it shows the specified key value.
 
 - Available keys: [`ValidatorPrivateKey`, `NodeKey`, `ValidatorState`]
@@ -256,7 +256,7 @@ state. If a key is provided, it shows the specified key value.
 #### FLAGS
 
 | Name       | Type   | Description                                                     |
-| ---------- | ------ | --------------------------------------------------------------- |
+|------------|--------|-----------------------------------------------------------------|
 | `data-dir` | String | The secrets output directory. (default: `gnoland-data/secrets)` |
 
 ```bash
@@ -295,20 +295,20 @@ The gno config manipulation suite for editing base and module configurations.
 #### SUBCOMMANDS
 
 | Name   | Description                             |
-| ------ | --------------------------------------- |
+|--------|-----------------------------------------|
 | `init` | Initializes the Gno node configuration. |
 | `set`  | Edits the Gno node configuration.       |
 | `get`  | Shows the Gno node configuration.       |
 
 ### gnoland config init [flags]
 
-Initializes the Gno node configuration locally with default values, which 
+Initializes the Gno node configuration locally with default values, which
 includes the base and module configurations.
 
 #### FLAGS
 
 | Name          | Type    | Description                                                                  |
-| ------------- | ------- | ---------------------------------------------------------------------------- |
+|---------------|---------|------------------------------------------------------------------------------|
 | `config-path` | String  | The path for the `config.toml`. (default: `gnoland-data/config/config.toml`) |
 | `force`       | Boolean | Overwrites existing config.toml, if any. (default: `false`)                  |
 
@@ -320,29 +320,29 @@ Default configuration initialized at gnoland-data/config/config.toml
 
 ### gnoland config set <key> <value>
 
-Edits the Gno node configuration at the given path by setting the option 
+Edits the Gno node configuration at the given path by setting the option
 specified at `<key>` to the given `<value>`.
 
 #### FLAGS
 
 | Name          | Type   | Description                                                                  |
-| ------------- | ------ | ---------------------------------------------------------------------------- |
+|---------------|--------|------------------------------------------------------------------------------|
 | `config-path` | String | The path for the `config.toml`. (default: `gnoland-data/config/config.toml`) |
 
 :::info
-The `config set` command replaces the complexity of manual editing of the 
-`config.toml` file required in Cosmos chains. 
+The `config set` command replaces the complexity of manual editing of the
+`config.toml` file required in Cosmos chains.
 :::
 
 ### gnoland config get <key>
 
-Shows the Gno node configuration at the given path by fetching the option 
+Shows the Gno node configuration at the given path by fetching the option
 specified at `<key>`.
 
 #### FLAGS
 
 | Name          | Type   | Description                                                               |
-| ------------- | ------ | ------------------------------------------------------------------------- |
+|---------------|--------|---------------------------------------------------------------------------|
 | `config-path` | String | the path for the config.toml (default: `gnoland-data/config/config.toml`) |
 
 ```bash
