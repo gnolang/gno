@@ -1523,7 +1523,13 @@ func TestAddPackageSingle_Sponsor(t *testing.T) {
 	client := Client{
 		Signer: &mockSigner{
 			sign: func(cfg SignCfg) (*std.Tx, error) {
-				return &std.Tx{}, nil
+				cfg.Tx.Signatures = []std.Signature{
+					{
+						PubKey:    nil,
+						Signature: nil,
+					},
+				}
+				return &cfg.Tx, nil
 			},
 			info: func() keys.Info {
 				return &mockKeysInfo{
@@ -1582,7 +1588,7 @@ func TestAddPackageSingle_Sponsor(t *testing.T) {
 	assert.NoError(t, err)
 
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\nhi gnoclient!\n", string(res.DeliverTx.Data))
+	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
 }
 
 func TestAddPackageMultiple(t *testing.T) {
@@ -1664,7 +1670,13 @@ func TestAddPackageMultiple_Sponsor(t *testing.T) {
 	client := Client{
 		Signer: &mockSigner{
 			sign: func(cfg SignCfg) (*std.Tx, error) {
-				return &std.Tx{}, nil
+				cfg.Tx.Signatures = []std.Signature{
+					{
+						PubKey:    nil,
+						Signature: nil,
+					},
+				}
+				return &cfg.Tx, nil
 			},
 			info: func() keys.Info {
 				return &mockKeysInfo{
@@ -1737,7 +1749,7 @@ func TestAddPackageMultiple_Sponsor(t *testing.T) {
 	assert.NoError(t, err)
 
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\nhi gnoclient!\n", string(res.DeliverTx.Data))
+	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
 }
 
 func TestAddPackageErrors(t *testing.T) {
