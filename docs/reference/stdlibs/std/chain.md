@@ -5,7 +5,7 @@ id: chain
 # Chain-related
 
 ## Realm
-This is the type returned by [std.CurrentRealm](#currentrealm) and [std.PrevRealm](#prevrealm).
+Returned by [std.CurrentRealm](#currentrealm) and [std.PrevRealm](#prevrealm).
 ```go
 type Realm struct {
 	addr    Address
