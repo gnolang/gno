@@ -21,9 +21,9 @@ const (
 )
 
 const (
-	nodeIDKey              = "NodeID"
-	validatorPrivateKeyKey = "ValidatorPrivateKey"
-	validatorStateKey      = "ValidatorState"
+	nodeIDKey              = "node_id"
+	validatorPrivateKeyKey = "validator_key"
+	validatorStateKey      = "validator_state"
 )
 
 // newSecretsCmd creates the secrets root command
@@ -72,3 +72,33 @@ func constructSecretsPath(nodeDir string) string {
 		config.DefaultSecretsDir,
 	)
 }
+
+type (
+	secrets struct {
+		ValidatorKeyInfo   *validatorKeyInfo   `json:"validator_key,omitempty" toml:"validator_key" comment:"the validator private key info"`
+		ValidatorStateInfo *validatorStateInfo `json:"validator_state,omitempty" toml:"validator_state" comment:"the last signed validator state info"`
+		NodeIDInfo         *nodeIDInfo         `json:"node_id,omitempty" toml:"node_id" comment:"the derived node ID info"`
+	}
+
+	// NOTE: keep in sync with tm2/pkg/bft/privval/file.go
+	validatorKeyInfo struct {
+		Address string `json:"address" toml:"address" comment:"the validator address"`
+		PubKey  string `json:"pub_key" toml:"pub_key" comment:"the validator public key"`
+	}
+
+	// NOTE: keep in sync with tm2/pkg/bft/privval/file.go
+	validatorStateInfo struct {
+		Height int64 `json:"height" toml:"height" comment:"the height of the last sign"`
+		Round  int   `json:"round" toml:"round" comment:"the round of the last sign"`
+		Step   int8  `json:"step" toml:"step" comment:"the step of the last sign"`
+
+		Signature []byte `json:"signature,omitempty" toml:"signature,omitempty" comment:"the signature of the last sign"`
+		SignBytes []byte `json:"sign_bytes,omitempty" toml:"sign_bytes,omitempty" comment:"the raw signature bytes of the last sign"`
+	}
+
+	// NOTE: keep in sync with tm2/pkg/p2p/key.go
+	nodeIDInfo struct {
+		ID         string `json:"id" toml:"id" comment:"the node ID derived from the private key"`
+		P2PAddress string `json:"p2p_address" toml:"p2p_address" comment:"the node's constructed P2P address'"`
+	}
+)

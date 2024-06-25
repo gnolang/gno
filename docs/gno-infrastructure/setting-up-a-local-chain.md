@@ -10,10 +10,12 @@ In this tutorial, you will learn how to start a local Gno node (and chain!).
 Additionally, you will see the different options you can use to make your Gno instance unique.
 
 ## Prerequisites
+
 - **Git**
 - **`make` (for running Makefiles)**
 - **Go 1.21+**
-- **Go Environment Setup**: Ensure you have Go set up as outlined in the [Go official installation documentation](https://go.dev/doc/install) for your environment
+- **Go Environment Setup**: Ensure you have Go set up as outlined in
+  the [Go official installation documentation](https://go.dev/doc/install) for your environment
 
 ## Installation
 
@@ -153,7 +155,7 @@ A couple of things to note:
 - `gnoland config init` initializes a default configuration
 - `gnoland secrets init` initializes new node secrets (validator key, node p2p key)
 
-Essentially, `gnoland start --lazy` is simply a combination of `gnoland secrets generate` and `gnoland config generate`,
+Essentially, `gnoland start --lazy` is simply a combination of `gnoland secrets init` and `gnoland config init`,
 with the default options enabled.
 
 #### Changing the node configuration
@@ -244,7 +246,7 @@ locally will be the validator node for the new Gno network.
 To display the generated node key data, run the following command:
 
 ```shell
-gnoland secrets get ValidatorPrivateKey
+gnoland secrets get validator_key
 ```
 
 This will display the information we need for updating the `genesis.json`:
