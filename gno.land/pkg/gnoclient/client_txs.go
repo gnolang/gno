@@ -333,16 +333,6 @@ func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, 
 
 // SignTx signs a transaction using the client's signer
 func (c *Client) SignTransaction(tx std.Tx, accountNumber, sequenceNumber uint64) (*std.Tx, error) {
-	if sequenceNumber == 0 || accountNumber == 0 {
-		caller := c.Signer.Info().GetAddress()
-		account, _, err := c.QueryAccount(caller)
-		if err != nil {
-			return nil, errors.Wrap(err, "query account")
-		}
-		accountNumber = account.AccountNumber
-		sequenceNumber = account.Sequence
-	}
-
 	// Ensure sequence number and account number are provided
 	signCfg := SignCfg{
 		Tx:             tx,

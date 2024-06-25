@@ -2178,27 +2178,6 @@ func TestSignTransaction(t *testing.T) {
 		expectedError error
 	}{
 		{
-			name: "Failed to query account",
-			client: Client{
-				Signer: &mockSigner{
-					info: func() keys.Info {
-						return &mockKeysInfo{
-							getAddress: func() crypto.Address {
-								return adr
-							},
-						}
-					},
-				},
-				RPCClient: &mockRPCClient{
-					abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
-						return nil, errors.New("failed to query account")
-					},
-				},
-			},
-			tx:            std.Tx{},
-			expectedError: errors.New("failed to query account"),
-		},
-		{
 			name: "Failed to sign transaction",
 			client: Client{
 				Signer: &mockSigner{

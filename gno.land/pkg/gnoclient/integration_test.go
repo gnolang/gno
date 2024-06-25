@@ -8,7 +8,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 
 	"github.com/gnolang/gno/gno.land/pkg/integration"
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -29,7 +28,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	// Init Signer & RPCClient
 	keybase := keys.NewInMemory()
 
-	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	signer := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
 
@@ -68,73 +67,92 @@ func TestCallSingle_Integration(t *testing.T) {
 
 // Run tests
 func TestCallSingle_Sponsor_Integration(t *testing.T) {
-	// Set up in-memory node
+	// Set up an in-memory node for testing
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
 
-	// Init Signer & RPCClient
+	// Initialize in-memory key storage
 	keybase := keys.NewInMemory()
 
-	sponsor := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
-	sponsoree := newInMemorySigner(t, keybase, "tendermint_test", generateMnemonic(t), "test2")
+	// Create signer accounts for sponsor and sponsoree
+	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
+	// Set up an RPC client to interact with the in-memory node
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
 
-	// Setup Client
-	client := Client{
+	// Initialize sponsor and sponsoree clients with their respective signers and RPC client
+	sponsorClient := Client{
 		Signer:    sponsor,
 		RPCClient: rpcClient,
 	}
 
-	sponsorTx := &std.Tx{
-		Msgs: []std.Msg{
-			vm.MsgNoop{
-				Caller: sponsor.Info().GetAddress(),
-			},
-			vm.MsgCall{
-				Caller:  sponsoree.Info().GetAddress(),
-				PkgPath: "gno.land/r/demo/deep/very/deep",
-				Func:    "Render",
-				Args:    []string{"test argument"},
-			},
-		},
-		Fee:  std.NewFee(8000000, std.NewCoin("ugnot", 10000)),
-		Memo: "x",
+	sponsoreeClient := Client{
+		Signer:    sponsoree,
+		RPCClient: rpcClient,
 	}
 
-	// Sponsoree address doesn't exist onchain
-	presignedTx, err := sponsoree.Sign(SignCfg{
-		Tx:             *sponsorTx,
-		SequenceNumber: 0,
-		AccountNumber:  0,
-	})
+	// Fetch sponsoree account information before the transaction
+	var sponsoreeAccountNumber uint64 = 0
+	var sponsoreeSequence uint64 = 0
+
+	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	if sponsoreeBefore != nil {
+		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
+		sponsoreeSequence = sponsoreeBefore.Sequence
+	}
+
+	// Configure the transaction to be sponsored
+	cfg := SponsorTxCfg{
+		BaseTxCfg: BaseTxCfg{
+			GasWanted: 100000,
+			GasFee:    "10000ugnot",
+			Memo:      "Test memo",
+		},
+		SponsorAddress: sponsor.Info().GetAddress(),
+	}
+
+	// Create the message for the transaction
+	msg := MsgCall{
+		PkgPath:  "gno.land/r/demo/deep/very/deep",
+		FuncName: "Render",
+		Args:     []string{"test argument"},
+	}
+
+	// Sponsoree creates a new sponsor transaction
+	tx, err := sponsoreeClient.NewSponsorTransaction(cfg, msg)
 	require.NoError(t, err)
 
-	// Query sponsor's balance before transaction
-	sponsorBefore, _, err := client.QueryAccount(sponsor.Info().GetAddress())
+	// Sponsoree signs the transaction
+	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
 	require.NoError(t, err)
 
-	// Execute sponsor transaction
-	res, err := client.ExecuteSponsorTransaction(*presignedTx, 0, 0)
+	// Fetch sponsor account information before the transaction
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
 	require.NoError(t, err)
 
+	// Sponsor executes the transaction
+	res, err := sponsorClient.ExecuteSponsorTransaction(*sponsorTx, sponsorBefore.AccountNumber, sponsorBefore.Sequence)
+	require.NoError(t, err)
+
+	// Check the result of the transaction execution
 	expected := "(\"hi test argument\" string)\n\n"
 	got := string(res.DeliverTx.Data)
 
 	assert.Nil(t, err)
 	assert.Equal(t, expected, got)
 
-	// Query sponsoree's balance after transaction
-	sponsoreeAfter, _, err := client.QueryAccount(sponsoree.Info().GetAddress())
+	// Query sponsoree's balance after the transaction
+	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
 	require.NoError(t, err)
 	assert.Equal(t, std.Coins(nil), sponsoreeAfter.GetCoins())
 
-	// Query sponsor's balance after transaction
-	sponsorAfter, _, err := client.QueryAccount(sponsor.Info().GetAddress())
+	// Query sponsor's balance after the transaction
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
 	require.NoError(t, err)
-	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.NewCoins(sponsorTx.Fee.GasFee))
+	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
 }
 
@@ -147,7 +165,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	keybase := keys.NewInMemory()
-	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	signer := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
 
@@ -193,79 +211,101 @@ func TestCallMultiple_Integration(t *testing.T) {
 }
 
 // Run tests
-// func TestCallMultiple_Sponsor_Integration(t *testing.T) {
-// 	// Set up in-memory node
-// 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-// 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
-// 	defer node.Stop()
+func TestCallMultiple_Sponsor_Integration(t *testing.T) {
+	// Set up an in-memory node for testing
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
 
-// 	// Init Signer & RPCClient
-// 	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
-// 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
-// 	require.NoError(t, err)
+	// Initialize in-memory key storage
+	keybase := keys.NewInMemory()
 
-// 	// Setup Client
-// 	client := Client{
-// 		Signer:    signer,
-// 		RPCClient: rpcClient,
-// 	}
+	// Create signer accounts for sponsor and sponsoree
+	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
-// 	// Make Tx config
-// 	baseCfg := BaseTxCfg{
-// 		GasFee:         "10000ugnot",
-// 		GasWanted:      8000000,
-// 		AccountNumber:  0,
-// 		SequenceNumber: 0,
-// 		Memo:           "",
-// 	}
+	// Set up an RPC client to interact with the in-memory node
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
-// 	// Make Msg configs
-// 	msg1 := MsgCall{
-// 		PkgPath:  "gno.land/r/demo/deep/very/deep",
-// 		FuncName: "Render",
-// 		Args:     []string{""},
-// 		Send:     "",
-// 	}
+	// Initialize sponsor and sponsoree clients with their respective signers and RPC client
+	sponsorClient := Client{
+		Signer:    sponsor,
+		RPCClient: rpcClient,
+	}
 
-// 	// Same call, different argument
-// 	msg2 := MsgCall{
-// 		PkgPath:  "gno.land/r/demo/deep/very/deep",
-// 		FuncName: "Render",
-// 		Args:     []string{"test argument"},
-// 		Send:     "",
-// 	}
+	sponsoreeClient := Client{
+		Signer:    sponsoree,
+		RPCClient: rpcClient,
+	}
 
-// 	expected := "(\"it works!\" string)\n\n(\"hi test argument\" string)\n\n"
+	// Fetch sponsoree account information before the transaction
+	var sponsoreeAccountNumber uint64 = 0
+	var sponsoreeSequence uint64 = 0
 
-// 	// sponsoree is the Bech32 encoded address of the sponsored account
-// 	sponsoree, _ := crypto.AddressFromBech32("g13sm84nuqed3fuank8huh7x9mupgw22uft3lcl8")
+	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	if sponsoreeBefore != nil {
+		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
+		sponsoreeSequence = sponsoreeBefore.Sequence
+	}
 
-// 	// Query sponsoree's balance before transaction
-// 	sponsoreeBefore, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
+	// Configure the transaction to be sponsored
+	cfg := SponsorTxCfg{
+		BaseTxCfg: BaseTxCfg{
+			GasWanted: 100000,
+			GasFee:    "10000ugnot",
+			Memo:      "Test memo",
+		},
+		SponsorAddress: sponsor.Info().GetAddress(),
+	}
 
-// 	// Query sponsor's balance before transaction
-// 	sponsorBefore, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
+	// Create multiple messages for the transaction
+	msg1 := MsgCall{
+		PkgPath:  "gno.land/r/demo/deep/very/deep",
+		FuncName: "Render",
+		Args:     []string{"test1"},
+	}
 
-// 	// Execute sponsor transaction
-// 	res, err := client.SponsorTransaction(baseCfg, sponsoree, msg1, msg2)
+	msg2 := MsgCall{
+		PkgPath:  "gno.land/r/demo/deep/very/deep",
+		FuncName: "Render",
+		Args:     []string{"test2"},
+	}
 
-// 	got := string(res.DeliverTx.Data)
-// 	assert.Nil(t, err)
-// 	assert.Equal(t, expected, got)
+	// Sponsoree creates a new sponsor transaction
+	tx, err := sponsoreeClient.NewSponsorTransaction(cfg, msg1, msg2)
+	require.NoError(t, err)
 
-// 	// Query sponsoree's balance after transaction
-// 	sponsoreeAfter, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
-// 	assert.Equal(t, sponsoreeBefore.GetCoins(), sponsoreeAfter.GetCoins())
+	// Sponsoree signs the transaction
+	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
+	require.NoError(t, err)
 
-// 	// Query sponsor's balance after transaction
-// 	sponsorAfter, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
-// 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(baseCfg.GasFee))
-// 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
-// }
+	// Fetch sponsor account information before the transaction
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
+
+	// Sponsor executes the transaction
+	res, err := sponsorClient.ExecuteSponsorTransaction(*sponsorTx, sponsorBefore.AccountNumber, sponsorBefore.Sequence)
+	require.NoError(t, err)
+
+	// Check the result of the transaction execution
+	expected := "(\"hi test1\" string)\n\n(\"hi test2\" string)\n\n"
+	got := string(res.DeliverTx.Data)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, got)
+
+	// Query sponsoree's balance after the transaction
+	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	require.NoError(t, err)
+	assert.Equal(t, std.Coins(nil), sponsoreeAfter.GetCoins())
+
+	// Query sponsor's balance after the transaction
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
+	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
+	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
+}
 
 // Run tests
 func TestSendSingle_Integration(t *testing.T) {
@@ -276,7 +316,7 @@ func TestSendSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	keybase := keys.NewInMemory()
-	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	signer := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
 
@@ -319,76 +359,102 @@ func TestSendSingle_Integration(t *testing.T) {
 }
 
 // Run tests
-// func TestSendSingle_Sponsor_Integration(t *testing.T) {
-// 	// Set up in-memory node
-// 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-// 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
-// 	defer node.Stop()
+func TestSendSingle_Sponsor_Integration(t *testing.T) {
+	// Set up an in-memory node for testing
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
 
-// 	// Init Signer & RPCClient
-// 	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
-// 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
-// 	require.NoError(t, err)
+	// Initialize in-memory key storage
+	keybase := keys.NewInMemory()
 
-// 	// Setup Client
-// 	client := Client{
-// 		Signer:    signer,
-// 		RPCClient: rpcClient,
-// 	}
+	// Create signer accounts for sponsor and sponsoree
+	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
-// 	// Create base transaction configuration
-// 	baseCfg := BaseTxCfg{
-// 		GasFee:         "10000ugnot",
-// 		GasWanted:      8000000,
-// 		AccountNumber:  0,
-// 		SequenceNumber: 0,
-// 		Memo:           "",
-// 	}
+	// Set up an RPC client to interact with the in-memory node
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
-// 	// Create MsgSend configuration for a new address on the blockchain
-// 	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
-// 	amount := 10
-// 	msg := MsgSend{
-// 		ToAddress: toAddress,
-// 		Send:      std.Coin{"ugnot", int64(amount)}.String(),
-// 	}
+	// Initialize sponsor and sponsoree clients with their respective signers and RPC client
+	sponsorClient := Client{
+		Signer:    sponsor,
+		RPCClient: rpcClient,
+	}
 
-// 	// Sponsoree is the Bech32 encoded address of the sponsored account
-// 	sponsoree, _ := crypto.AddressFromBech32("g13sm84nuqed3fuank8huh7x9mupgw22uft3lcl8")
+	sponsoreeClient := Client{
+		Signer:    sponsoree,
+		RPCClient: rpcClient,
+	}
 
-// 	// Query sponsoree's balance before transaction
-// 	sponsoreeBefore, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
+	// Fetch sponsoree account information before the transaction
+	var sponsoreeAccountNumber uint64 = 0
+	var sponsoreeSequence uint64 = 0
 
-// 	// Query sponsor's balance before transaction
-// 	sponsorBefore, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
+	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	if sponsoreeBefore != nil {
+		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
+		sponsoreeSequence = sponsoreeBefore.Sequence
+	}
 
-// 	// Execute sponsor transaction
-// 	res, err := client.SponsorTransaction(baseCfg, sponsoree, msg)
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, "", string(res.DeliverTx.Data))
+	// Configure the transaction to be sponsored
+	cfg := SponsorTxCfg{
+		BaseTxCfg: BaseTxCfg{
+			GasWanted: 1000000,
+			GasFee:    "100000ugnot",
+			Memo:      "Test memo",
+		},
+		SponsorAddress: sponsor.Info().GetAddress(),
+	}
 
-// 	// Query recipient account's balance after transaction
-// 	account, _, err := client.QueryAccount(toAddress)
-// 	require.NoError(t, err)
+	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 
-// 	expected := std.Coins{{"ugnot", int64(amount)}}
-// 	got := account.GetCoins()
-// 	assert.Equal(t, expected, got)
+	// Create the message for the transaction
+	msg := MsgSend{
+		ToAddress: toAddress,
+		Send:      "10000ugnot",
+	}
 
-// 	// Query sponsoree's balance after transaction
-// 	sponsoreeAfter, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
-// 	expectedSponsoreeAfter := sponsoreeBefore.GetCoins().Sub(std.NewCoins(std.NewCoin("ugnot", int64(amount))))
-// 	assert.Equal(t, expectedSponsoreeAfter, sponsoreeAfter.GetCoins())
+	// Sponsoree creates a new sponsor transaction
+	tx, err := sponsoreeClient.NewSponsorTransaction(cfg, msg)
+	require.NoError(t, err)
 
-// 	// Query sponsor's balance after transaction
-// 	sponsorAfter, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
-// 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(baseCfg.GasFee))
-// 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
-// }
+	// Sponsoree signs the transaction
+	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
+	require.NoError(t, err)
+
+	// Fetch sponsor account information before the transaction
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
+
+	// Sponsor executes the transaction
+	res, err := sponsorClient.ExecuteSponsorTransaction(*sponsorTx, sponsorBefore.AccountNumber, sponsorBefore.Sequence)
+	require.NoError(t, err)
+
+	// Check the result of the transaction execution
+	expected := "(\"hi test argument\" string)\n\n"
+	got := string(res.DeliverTx.Data)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, got)
+
+	// Query sponsoree's balance after the transaction
+	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	require.NoError(t, err)
+	assert.Equal(t, std.Coins(nil), sponsoreeAfter.GetCoins())
+
+	// Query sponsor's balance after the transaction
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
+	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
+	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
+
+	// Query to's balance after the transaction
+	toAfter, _, err := sponsorClient.QueryAccount(toAddress)
+	require.NoError(t, err)
+
+	assert.Equal(t, toAfter, std.NewCoins(std.MustParseCoin(msg.Send)))
+}
 
 func TestSendMultiple_Integration(t *testing.T) {
 	// Set up in-memory node
@@ -398,7 +464,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	keybase := keys.NewInMemory()
-	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	signer := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
 
@@ -455,7 +521,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 // 	defer node.Stop()
 
 // 	// Init Signer & RPCClient
-// 	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+// 	signer := newInMemorySigner(t, keybase,  integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 // 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 // 	require.NoError(t, err)
 
@@ -535,7 +601,7 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	keybase := keys.NewInMemory()
-	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	signer := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
 
@@ -593,7 +659,7 @@ func main() {
 // 	defer node.Stop()
 
 // 	// Init Signer & RPCClient
-// 	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+// 	signer := newInMemorySigner(t, keybase,  integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 // 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 // 	require.NoError(t, err)
 
@@ -675,7 +741,7 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	keybase := keys.NewInMemory()
-	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	signer := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
 
@@ -755,7 +821,7 @@ func main() {
 // 	defer node.Stop()
 
 // 	// Init Signer & RPCClient
-// 	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+// 	signer := newInMemorySigner(t, keybase,  integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 // 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 // 	require.NoError(t, err)
 
@@ -859,7 +925,7 @@ func TestAddPackageSingle_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	keybase := keys.NewInMemory()
-	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	signer := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
 
@@ -929,7 +995,7 @@ func Echo(str string) string {
 // 	defer node.Stop()
 
 // 	// Init Signer & RPCClient
-// 	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+// 	signer := newInMemorySigner(t, keybase,  integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 // 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 // 	require.NoError(t, err)
 
@@ -1023,7 +1089,7 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 
 	// Init Signer & RPCClient
 	keybase := keys.NewInMemory()
-	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	signer := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
 
@@ -1130,7 +1196,7 @@ func Hello(str string) string {
 // 	defer node.Stop()
 
 // 	// Init Signer & RPCClient
-// 	signer := newInMemorySigner(t, keybase, "tendermint_test", integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+// 	signer := newInMemorySigner(t, keybase,  integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 // 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 // 	require.NoError(t, err)
 
@@ -1256,17 +1322,17 @@ func Hello(str string) string {
 // MsgCall with Send field populated (single/multiple)
 // MsgRun with Send field populated (single/multiple)
 
-func newInMemorySigner(t *testing.T, kb keys.Keybase, chainid, mnemonic, accName string) *SignerFromKeybase {
+func newInMemorySigner(t *testing.T, kb keys.Keybase, mnemonic, accName string) *SignerFromKeybase {
 	t.Helper()
 
 	_, err := kb.CreateAccount(accName, mnemonic, "", "", uint32(0), uint32(0))
 	require.NoError(t, err)
 
 	return &SignerFromKeybase{
-		Keybase:  kb,      // Stores keys in memory or on disk
-		Account:  accName, // Account name or bech32 format
-		Password: "",      // Password for encryption
-		ChainID:  chainid, // Chain ID for transaction signing
+		Keybase:  kb,                // Stores keys in memory or on disk
+		Account:  accName,           // Account name or bech32 format
+		Password: "",                // Password for encryption
+		ChainID:  "tendermint_test", // Chain ID for transaction signing
 	}
 }
 
