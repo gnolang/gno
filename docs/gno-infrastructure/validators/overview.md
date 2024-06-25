@@ -14,7 +14,7 @@ Gno.land is a blockchain powered by the Gno tech stack, which consists of the [G
 | **Consensus Mechanism**              | Proof of Stake          | Proof of Contribution       |
 | **Requirement**                      | Delegation of Stake     | Contribution                |
 | **Voting Power Reward Distribution** | Capital-based           | Evenly-distributed          |
-| **Number of Validators**             | 180                     | 20~50 (TBD)                 |
+| **Number of Validators**             | 180                     | 20~200 (gradually increasing) |
 | **Virtual Machine**                  | N/A                     | GnoVM                       |
 | **Tokenomics**                       | Inflationary (Dilutive) | Deflationary (Non-dilutive) |
 
