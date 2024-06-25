@@ -101,19 +101,23 @@ func main() {
 A few things to note:
 - You can view keys in your local keybase by running `gnokey list`.  
 - You can get the password from a user input using the IO package.
-- `Signer` can also be initialized in-memory from a BIP39 mnemonic, using the 
-[`SignerFromBip39`](../reference/gnoclient/signer.md#func-signerfrombip39) function.
+- `Signer` can also be initialized in-memory from a BIP39 mnemonic, using the
+[`SignerFromBip39`](https://gnolang.github.io/gno/github.com/gnolang/gno@v0.0.0/gno.land/pkg/gnoclient.html#SignerFromBip39)
+function.
 
 ## Initialize the RPC connection & Client
 
 You can initialize the RPC Client used to connect to the Gno.land network with
 the following line:
 ```go
-rpc := rpcclient.NewHTTPClient("<gno_chain_endpoint>")
+rpc, err := rpcclient.NewHTTPClient("<gno.land_remote_endpoint>")
+if err != nil {
+    panic(err)
+}
 ```
 
-A list of Gno.land network endpoints & chain IDs can be found in the [Gno RPC 
-endpoints](../reference/rpc-endpoints.md#network-configurations) page. 
+A list of Gno.land network endpoints & chain IDs can be found in the 
+[Gno RPC endpoints](../reference/network-config.md) page.
 
 With this, we can initialize the `gnoclient.Client` struct: 
 
@@ -139,7 +143,10 @@ func main() {
 	}
 
 	// Initialize the RPC client
-	rpc := rpcclient.NewHTTPClient("<gno.land_remote_endpoint>")
+	rpc, err := rpcclient.NewHTTPClient("<gno.land_remote_endpoint>")
+	if err != nil {
+		panic(err)
+	}
 	
 	// Initialize the gnoclient
 	client := gnoclient.Client{
@@ -157,6 +164,13 @@ We can now communicate with the Gno.land chain. Let's explore some of the functi
 To send transactions to the chain, we need to know the account number (ID) and 
 sequence (nonce). We can get this information by querying the chain with the
 `QueryAccount` function:
+
+```go
+import (
+    ...
+    "github.com/gnolang/gno/tm2/pkg/crypto"
+)
+```
 
 ```go
 // Convert Gno address string to `crypto.Address`
