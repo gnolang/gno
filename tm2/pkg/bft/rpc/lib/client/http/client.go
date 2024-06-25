@@ -135,15 +135,18 @@ func sendRequestCommon[T requestType, R responseType](
 	}
 	defer httpResponse.Body.Close() //nolint: errcheck
 
-	// Parse the response code
-	if !isOKStatus(httpResponse.StatusCode) {
-		return nil, fmt.Errorf("invalid status code received, %d", httpResponse.StatusCode)
-	}
-
-	// Parse the response body
+	// Read the response body
 	responseBytes, err := io.ReadAll(httpResponse.Body)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read response body, %w", err)
+	}
+
+	// Parse the response code
+	if !isOKStatus(httpResponse.StatusCode) {
+		return nil, fmt.Errorf(
+			"invalid status code received, %d. Response body: %q", 
+			httpResponse.StatusCode, string(responseBytes),
+		)
 	}
 
 	var response R
