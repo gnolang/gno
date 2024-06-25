@@ -86,13 +86,13 @@ contribution is acknowledged and highly regarded in PoC. We look forward to havi
 1. **Tendermint ( Tendermint2 ) Key :** A unique key used for voting in consensus during creation of blocks. A
    Tendermint Key is also often called a Validator Key. It is automatically created when running
    the `gnoland secrets init` command. A validator may check their Tendermint Key by running
-   the `gnoland secrets get` `ValidatorPrivateKey` command.
+   the `gnoland secrets get validator_key` command.
 
 2. **User-owned keys :** A key that is generated when a new account is created using the `gnokey` command. It is used to
    sign transactions.
 
 3. **Node Key :** A key used for communicating with other nodes. It is automatically created when running
-   the `gnoland secrets init` command. A validator may check their Node Key by running the `gnoland secrets get NodeKey`
+   the `gnoland secrets init` command. A validator may check their Node Key by running the `gnoland secrets get node_id`
    command.
 
 ### What is a full node and a pruned node?

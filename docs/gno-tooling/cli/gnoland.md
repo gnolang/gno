@@ -92,7 +92,11 @@ Adds a new validator to the `genesis.json`.
 | `pub-key`      | String | The bech32 string representation of the validator's public key. |
 
 ```bash
-$ gnoland genesis validator add -address g1rzuwh5frve732k4futyw45y78rzuty4626zy6h --name test1 --pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zplmcmggxyxyrch0zcyg684yxmerullv3l6hmau58sk4eyxskmny9h7lsnz
+gnoland genesis validator add \
+-address g1rzuwh5frve732k4futyw45y78rzuty4626zy6h \
+-name test1 \
+-pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zplmcmggxyxyrch0zcyg684yxmerullv3l6hmau58sk4eyxskmny9h7lsnz
+
 Validator with address g1rzuwh5frve732k4futyw45y78rzuty4626zy6h added to genesis file
 ```
 
@@ -108,7 +112,9 @@ Removes a validator from the `genesis.json`.
 | `genesis-path` | String | The path to the `genesis.json`. (default: `./genesis.json)` |
 
 ```bash
-$ gnoland genesis validator remove -address g1rzuwh5frve732k4futyw45y78rzuty4626zy6h
+gnoland genesis validator remove \
+-address g1rzuwh5frve732k4futyw45y78rzuty4626zy6h
+
 Validator with address g1rzuwh5frve732k4futyw45y78rzuty4626zy6h removed from genesis file
 ```
 
@@ -145,7 +151,9 @@ Manages `genesis.json` account balances.
 | `single`        | String | The direct balance addition in the format `<address>=<amount>ugnot`.                       |
 
 ```bash
-$ gnoland genesis balances add -single g1rzuwh5frve732k4futyw45y78rzuty4626zy6h=100ugnot
+gnoland genesis balances add \
+-single g1rzuwh5frve732k4futyw45y78rzuty4626zy6h=100ugnot
+
 1 pre-mines saved
 
 g1rzuwh5frve732k4futyw45y78rzuty4626zy6h:{[24 184 235 209 35 102 125 21 90 169 226 200 234 208 158 56 197 197 146 186] [{%!d(string=ugnot) 100}]}ugnot
@@ -161,7 +169,9 @@ g1rzuwh5frve732k4futyw45y78rzuty4626zy6h:{[24 184 235 209 35 102 125 21 90 169 2
 | `genesis-path` | String | The path to the `genesis.json`. (default: `./genesis.json`)                                 |
 
 ```bash
-$ gnoland genesis balances remove -address=g1rzuwh5frve732k4futyw45y78rzuty4626zy6h
+gnoland genesis balances remove \
+-address=g1rzuwh5frve732k4futyw45y78rzuty4626zy6h
+
 Pre-mine information for address g1rzuwh5frve732k4futyw45y78rzuty4626zy6h removed
 ```
 
@@ -195,10 +205,11 @@ validator state.
 Initializes the validator private key, the node p2p key and the validator's last
 sign state. If a key is provided, it initializes the specified key.
 
-- Available keys
-    - `ValidatorPrivateKey` : The private key of the validator, which is different from the private key of the wallet.
-    - `NodeKey` : A key used for communicating with other nodes.
-    - `ValidatorState` : The current state of the validator such as the last signed block.
+Available keys:
+
+- `validator_key` : The private key of the validator, which is different from the private key of the wallet.
+- `node_id` : A key used for communicating with other nodes.
+- `validator_state` : The current state of the validator such as the last signed block.
 
 #### FLAGS
 
@@ -209,14 +220,15 @@ sign state. If a key is provided, it initializes the specified key.
 
 ```bash
 # force initialize all key
-$ gnoland secrets init -force
+gnoland secrets init -force
+
 Validator private key saved at gnoland-data/secrets/priv_validator_key.json
 Validator last sign state saved at gnoland-data/secrets/priv_validator_state.json
 Node key saved at gnoland-data/secrets/node_key.json
 
 
 # force initialize a specific key type (ex: NodeKey)
-$ gnoland secrets init NodeKey -force
+gnoland secrets init node_key -force
 Node key saved at gnoland-data/secrets/node_key.json
 ```
 
@@ -225,7 +237,7 @@ Node key saved at gnoland-data/secrets/node_key.json
 Verifies the validator private key, the node p2p key and the validator's last
 sign state. If a key is provided, it verifies the specified key value.
 
-- Available keys: [ValidatorPrivateKey, NodeKey, ValidatorState]
+Available keys: [`validator_key`, `node_id`, `validator_state`]
 
 #### FLAGS
 
@@ -235,14 +247,14 @@ sign state. If a key is provided, it verifies the specified key value.
 
 ```bash
 # verify all keys
-$ gnoland secrets verify
+gnoland secrets verify
 Validator Private Key at gnoland-data/secrets/priv_validator_key.json is valid
 Last Validator Sign state at gnoland-data/secrets/priv_validator_state.json is valid
 Node P2P key at gnoland-data/secrets/node_key.json is valid
 
 
 # verify a specific key type (ex: NodeKey)
-$ gnoland secrets verify NodeKey
+gnoland secrets verify node_key
 Node P2P key at gnoland-data/secrets/node_key.json is valid
 ```
 
@@ -251,7 +263,7 @@ Node P2P key at gnoland-data/secrets/node_key.json is valid
 Shows the validator private key, the node p2p key and the validator's last sign
 state. If a key is provided, it shows the specified key value.
 
-- Available keys: [`ValidatorPrivateKey`, `NodeKey`, `ValidatorState`]
+Available keys: [`validator_key`, `node_key`, `validator_state`]
 
 #### FLAGS
 
@@ -260,32 +272,37 @@ state. If a key is provided, it shows the specified key value.
 | `data-dir` | String | The secrets output directory. (default: `gnoland-data/secrets)` |
 
 ```bash
-$ gnoland secrets get
-[Node P2P Info]
-Node ID:  g1lhn5zztl8vgaccper5uh99fhrdtewn6dmu8pnc
+gnoland secrets get
 
-[Validator Key Info]
-Address:     g1vn0jjsge9yv740kjrdgjrvvuukdncstljs90yh
-Public Key:  gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zq0wf2kadne5hztjch2hl38k6gcdfyzrr9c5l0awz2dw6v3ul6n654xhvua
+{
+    "validator_key": {
+        "address": "g14j4dlsh3jzgmhezzp9v8xp7wxs4mvyskuw5ljl",
+        "pub_key": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqaqle3fdduqul4slg6zllypq9r8gj4wlfucy6qfnzmjcgqv675kxjz8jvk"
+    },
+    "validator_state": {
+        "height": 0,
+        "round": 0,
+        "step": 0
+    },
+    "node_id": {
+        "id": "g17h5t86vrztm6vuesx0xsyrg90wplj9mt9nsxng",
+        "p2p_address": "g17h5t86vrztm6vuesx0xsyrg90wplj9mt9nsxng@0.0.0.0:26656"
+    }
+}
 
-[Last Validator Sign State Info]
-Height:  0
-Round:   0
-Step:    0
+# will return node id info
+gnoland secrets get node_id
 
-
-
-# will return node id
-$ gnoland secrets get NodeKey
 # to get node id in cosmos
-$ gaiad tendermint show-node-id
+# gaiad tendermint show-node-id
 
 # will return validator address and pub key
-$ gnoland secrets get ValidatorPrivateKey
+gnoland secrets get validator_key
 # to get validator address in cosmos
-$ gaiad tendermint show-address
+# gaiad tendermint show-address
+
 # to get validator pub key in cosmos
-$ gaiad tendermint show-validator
+# gaiad tendermint show-validator
 ```
 
 ### gnoland config [subcommand] [flags]
@@ -314,7 +331,8 @@ includes the base and module configurations.
 
 ```bash
 # initialize the configuration file
-$ gnoland config init
+gnoland config init
+
 Default configuration initialized at gnoland-data/config/config.toml
 ```
 
@@ -330,8 +348,7 @@ specified at `<key>` to the given `<value>`.
 | `config-path` | String | The path for the `config.toml`. (default: `gnoland-data/config/config.toml`) |
 
 :::info
-The `config set` command replaces the complexity of manual editing of the
-`config.toml` file required in Cosmos chains.
+The `config set` command replaces the complexity of manually editing the `config.toml` file.
 :::
 
 ### gnoland config get <key>
@@ -347,15 +364,15 @@ specified at `<key>`.
 
 ```bash
 # check the current monkier (the displayed validator name)
-$ gnoland config get moniker
+gnoland config get -r moniker
 n3wbie-MacBook-Pro.local
 
 # set a new moniker
-$ gnoland config set moniker hello
+gnoland config set moniker hello
 Updated configuration saved at gnoland-data/config/config.toml
 
 
 # confirm the moniker change
-$ gnoland config get moniker
+gnoland config get -r moniker
 hello
 ```

@@ -26,7 +26,7 @@ the [Working with Key Pairs](../../../getting-started/local-setup/working-with-k
 ## 2. Start the local chain
 
 After ensuring the faucet address will have enough funds in the premine, we
-can [run the local blockchain node](../../../gno-infrastructure/setting-up-a-local-chain.md).
+can [run the local blockchain node](../../../gno-infrastructure/validators/setting-up-a-local-chain.md).
 Navigate to the `gno.land` sub-folder and run the appropriate make command:
 
 ```bash
