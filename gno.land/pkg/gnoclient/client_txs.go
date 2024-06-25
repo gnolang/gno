@@ -352,6 +352,7 @@ func (c *Client) SignTransaction(tx std.Tx, accountNumber, sequenceNumber uint64
 
 	signedTx, err := c.Signer.Sign(signCfg)
 	if err != nil {
+
 		return nil, errors.Wrap(err, "sign")
 	}
 
@@ -370,11 +371,6 @@ func (c *Client) ExecuteSponsorTransaction(tx std.Tx, accountNumber, sequenceNum
 	// Validate basic transaction
 	if err := tx.ValidateBasic(); err != nil {
 		return nil, err
-	}
-
-	// Ensure at least one message is provided
-	if len(tx.Msgs) == 0 {
-		return nil, ErrNoMessages
 	}
 
 	// Ensure tx is a sponsor transaction

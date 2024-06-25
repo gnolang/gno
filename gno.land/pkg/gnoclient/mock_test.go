@@ -17,14 +17,14 @@ type (
 	mockValidate func() error
 
 	// Msg mock
-	// mockMsg struct{}
+	mockMsg struct{}
 )
 
-// func (m mockMsg) validateMsg() error { return nil }
-// func (m mockMsg) getType() string    { return "mock" }
-// func (m mockMsg) getCoins() (std.Coins, error) {
-// 	return std.NewCoins(std.MustParseCoin("1000ugnot")), nil
-// }
+func (m mockMsg) validateMsg() error { return nil }
+func (m mockMsg) getType() string    { return "mock" }
+func (m mockMsg) getCoins() (std.Coins, error) {
+	return std.NewCoins(std.MustParseCoin("1000ugnot")), nil
+}
 
 type mockSigner struct {
 	sign     mockSign

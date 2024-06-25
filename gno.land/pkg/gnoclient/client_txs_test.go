@@ -7,12 +7,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -165,7 +167,10 @@ func TestCallSingle_Sponsor(t *testing.T) {
 		Send:     "100ugnot",
 	}
 
-	presignedTx, err := client.NewSponsorTransaction(cfg, msg)
+	tx, err := client.NewSponsorTransaction(cfg, msg)
+	assert.NoError(t, err)
+
+	presignedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
 	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
@@ -314,12 +319,12 @@ func TestCallMultiple_Sponsor(t *testing.T) {
 	tx, err := client.NewSponsorTransaction(cfg, msg1, msg2, msg3)
 	assert.NoError(t, err)
 
-	signedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	presignedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
-	res, err := client.ExecuteSponsorTransaction(*signedTx, cfg.AccountNumber, cfg.SequenceNumber)
-
+	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
+
 	require.NotNil(t, res)
 	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
 }
@@ -507,6 +512,7 @@ func TestCallErrors(t *testing.T) {
 	}
 }
 
+// Send tests
 func TestSendSingle(t *testing.T) {
 	t.Parallel()
 
@@ -617,11 +623,10 @@ func TestSendSingle_Sponsor(t *testing.T) {
 	tx, err := client.NewSponsorTransaction(cfg, msg)
 	assert.NoError(t, err)
 
-	signedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	presignedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
-	res, err := client.ExecuteSponsorTransaction(*signedTx, cfg.AccountNumber, cfg.SequenceNumber)
-
+	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
@@ -745,11 +750,12 @@ func TestSendMultiple_Sponsor(t *testing.T) {
 	tx, err := client.NewSponsorTransaction(cfg, msg1, msg2)
 	assert.NoError(t, err)
 
-	signedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	presignedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
-	res, err := client.ExecuteSponsorTransaction(*signedTx, cfg.AccountNumber, cfg.SequenceNumber)
+	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
+
 	require.NotNil(t, res)
 	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
 }
@@ -1009,7 +1015,6 @@ func main() {
 	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
 }
 
-// Run tests
 func TestRunSingle_Sponsor(t *testing.T) {
 	t.Parallel()
 
@@ -1082,11 +1087,12 @@ func main() {
 	tx, err := client.NewSponsorTransaction(cfg, msg)
 	assert.NoError(t, err)
 
-	signedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	presignedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
-	res, err := client.ExecuteSponsorTransaction(*signedTx, cfg.AccountNumber, cfg.SequenceNumber)
+	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
+
 	require.NotNil(t, res)
 	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
 }
@@ -1253,11 +1259,12 @@ func main() {
 	tx, err := client.NewSponsorTransaction(cfg, msg1, msg2)
 	assert.NoError(t, err)
 
-	signedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	presignedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
-	res, err := client.ExecuteSponsorTransaction(*signedTx, cfg.AccountNumber, cfg.SequenceNumber)
+	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
+
 	require.NotNil(t, res)
 	assert.Equal(t, "hi gnoclient!\nhi gnoclient!\n", string(res.DeliverTx.Data))
 }
@@ -1451,7 +1458,7 @@ func TestRunErrors(t *testing.T) {
 	}
 }
 
-// Run tests
+// AddPackage tests
 func TestAddPackageSingle(t *testing.T) {
 	t.Parallel()
 
@@ -1510,7 +1517,74 @@ func TestAddPackageSingle(t *testing.T) {
 	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
 }
 
-// Run tests
+func TestAddPackageSingle_Sponsor(t *testing.T) {
+	t.Parallel()
+
+	client := Client{
+		Signer: &mockSigner{
+			sign: func(cfg SignCfg) (*std.Tx, error) {
+				return &std.Tx{}, nil
+			},
+			info: func() keys.Info {
+				return &mockKeysInfo{
+					getAddress: func() crypto.Address {
+						return adr
+					},
+				}
+			},
+		},
+		RPCClient: &mockRPCClient{
+			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+				res := &ctypes.ResultBroadcastTxCommit{
+					DeliverTx: abci.ResponseDeliverTx{
+						ResponseBase: abci.ResponseBase{
+							Data: []byte("hi gnoclient!\n"),
+						},
+					},
+				}
+				return res, nil
+			},
+		},
+	}
+
+	cfg := SponsorTxCfg{
+		BaseTxCfg: BaseTxCfg{
+			GasWanted:      100000,
+			GasFee:         "10000ugnot",
+			AccountNumber:  1,
+			SequenceNumber: 1,
+			Memo:           "Test memo",
+		},
+		SponsorAddress: adr,
+	}
+
+	msg := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "hello",
+			Path: "gno.land/p/demo/hello",
+			Files: []*std.MemFile{
+				{
+					Name: "file1.gno",
+					Body: "",
+				},
+			},
+		},
+		Deposit: "",
+	}
+
+	tx, err := client.NewSponsorTransaction(cfg, msg)
+	assert.NoError(t, err)
+
+	sponsorTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	assert.NoError(t, err)
+
+	res, err := client.ExecuteSponsorTransaction(*sponsorTx, cfg.AccountNumber, cfg.SequenceNumber)
+	assert.NoError(t, err)
+
+	require.NotNil(t, res)
+	assert.Equal(t, "hi gnoclient!\nhi gnoclient!\n", string(res.DeliverTx.Data))
+}
+
 func TestAddPackageMultiple(t *testing.T) {
 	t.Parallel()
 
@@ -1584,7 +1658,88 @@ func TestAddPackageMultiple(t *testing.T) {
 	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
 }
 
-// AddPackage tests
+func TestAddPackageMultiple_Sponsor(t *testing.T) {
+	t.Parallel()
+
+	client := Client{
+		Signer: &mockSigner{
+			sign: func(cfg SignCfg) (*std.Tx, error) {
+				return &std.Tx{}, nil
+			},
+			info: func() keys.Info {
+				return &mockKeysInfo{
+					getAddress: func() crypto.Address {
+						return adr
+					},
+				}
+			},
+		},
+		RPCClient: &mockRPCClient{
+			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+				res := &ctypes.ResultBroadcastTxCommit{
+					DeliverTx: abci.ResponseDeliverTx{
+						ResponseBase: abci.ResponseBase{
+							Data: []byte("hi gnoclient!\n"),
+						},
+					},
+				}
+				return res, nil
+			},
+		},
+	}
+
+	cfg := SponsorTxCfg{
+		BaseTxCfg: BaseTxCfg{
+			GasWanted:      100000,
+			GasFee:         "10000ugnot",
+			AccountNumber:  1,
+			SequenceNumber: 1,
+			Memo:           "Test memo",
+		},
+		SponsorAddress: adr,
+	}
+
+	msg1 := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "hello",
+			Path: "gno.land/p/demo/hello",
+			Files: []*std.MemFile{
+				{
+					Name: "file1.gno",
+					Body: "",
+				},
+			},
+		},
+		Deposit: "",
+	}
+
+	msg2 := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "goodbye",
+			Path: "gno.land/p/demo/goodbye",
+			Files: []*std.MemFile{
+				{
+					Name: "file1.gno",
+					Body: "",
+				},
+			},
+		},
+		Deposit: "",
+	}
+
+	tx, err := client.NewSponsorTransaction(cfg, msg1, msg2)
+	assert.NoError(t, err)
+
+	sponsorTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	assert.NoError(t, err)
+
+	res, err := client.ExecuteSponsorTransaction(*sponsorTx, cfg.AccountNumber, cfg.SequenceNumber)
+	assert.NoError(t, err)
+
+	require.NotNil(t, res)
+	assert.Equal(t, "hi gnoclient!\nhi gnoclient!\n", string(res.DeliverTx.Data))
+}
+
 func TestAddPackageErrors(t *testing.T) {
 	t.Parallel()
 
@@ -1774,20 +1929,20 @@ func TestAddPackageErrors(t *testing.T) {
 	}
 }
 
-func TestSponsorTransactionErrors(t *testing.T) {
+func TestNewSponsorTransaction(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
 		name          string
 		client        Client
 		cfg           SponsorTxCfg
-		presignedTx   std.Tx
+		msgs          []Msg
 		expectedError error
 	}{
 		{
 			name: "Invalid Client",
 			client: Client{
-				Signer:    nil, // empty signer
+				Signer:    nil, // invalid signer
 				RPCClient: &mockRPCClient{},
 			},
 			cfg: SponsorTxCfg{
@@ -1803,22 +1958,22 @@ func TestSponsorTransactionErrors(t *testing.T) {
 			expectedError: ErrMissingSigner,
 		},
 		{
-			name: "Invalid BaseTxCfg",
+			name: "Invalid SponsorTxCfg",
 			client: Client{
 				Signer:    &mockSigner{},
 				RPCClient: &mockRPCClient{},
 			},
 			cfg: SponsorTxCfg{
 				BaseTxCfg: BaseTxCfg{
-					GasWanted:      100000,
+					GasWanted:      -1,
 					GasFee:         "10000ugnot",
 					AccountNumber:  1,
 					SequenceNumber: 1,
 					Memo:           "Test memo",
 				},
-				SponsorAddress: adr,
+				SponsorAddress: crypto.Address{}, // invalid sponsor address
 			},
-			expectedError: ErrInvalidGasWanted,
+			expectedError: ErrInvalidSponsorAddress,
 		},
 		{
 			name: "Empty message list",
@@ -1836,20 +1991,53 @@ func TestSponsorTransactionErrors(t *testing.T) {
 				},
 				SponsorAddress: adr,
 			},
-			presignedTx: std.Tx{
-				Msgs: []std.Msg{}, // no messages provided
-				Fee:  std.NewFee(1, std.NewCoin("ugnot", 1)),
-				Signatures: []std.Signature{
-					{
-						PubKey:    nil,
-						Signature: nil,
-					},
-				},
-			},
+
+			msgs: []Msg{}, // no messages provided
+
 			expectedError: ErrNoMessages,
 		},
 		{
-			name: "Empty signatures list",
+			name: "All messages aren't the same type",
+			client: Client{
+				Signer: &mockSigner{
+					info: func() keys.Info {
+						return &mockKeysInfo{
+							getAddress: func() crypto.Address {
+								return adr
+							},
+						}
+					},
+				},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: SponsorTxCfg{
+				BaseTxCfg: BaseTxCfg{
+					GasWanted:      100000,
+					GasFee:         "10000ugnot",
+					AccountNumber:  1,
+					SequenceNumber: 1,
+					Memo:           "Test memo",
+				},
+				SponsorAddress: adr,
+			},
+
+			// MixedMessage is invalid
+			msgs: []Msg{
+				MsgCall{
+					PkgPath:  "gno.land/r/demo/deep/very/deep",
+					FuncName: "Render",
+					Args:     []string{""},
+					Send:     "100ugnot",
+				},
+				MsgSend{
+					ToAddress: adr,
+					Send:      "100ugnot",
+				},
+			},
+			expectedError: ErrMixedMessageTypes,
+		},
+		{
+			name: "At least one invalid message",
 			client: Client{
 				Signer:    &mockSigner{},
 				RPCClient: &mockRPCClient{},
@@ -1864,30 +2052,19 @@ func TestSponsorTransactionErrors(t *testing.T) {
 				},
 				SponsorAddress: adr,
 			},
-			presignedTx: std.Tx{
-				Msgs: []std.Msg{
-					vm.MsgCall{},
+			msgs: []Msg{
+				// invalid message send
+				MsgSend{
+					ToAddress: crypto.Address{},
+					Send:      "10000ugnot",
 				},
-				Fee:        std.NewFee(1, std.NewCoin("ugnot", 1)),
-				Signatures: []std.Signature{}, // no signatures provided
 			},
-			expectedError: ErrNoSignatures,
+			expectedError: ErrInvalidToAddress,
 		},
 		{
-			name: "Error signAndBroadcastTxCommit",
+			name: "Failed to parse coin from message",
 			client: Client{
-				Signer: &mockSigner{
-					info: func() keys.Info {
-						return &mockKeysInfo{
-							getAddress: func() crypto.Address {
-								return adr
-							},
-						}
-					},
-					sign: func(cfg SignCfg) (*std.Tx, error) {
-						return nil, errors.New("failed to sign tx") // failed to sign tx
-					},
-				},
+				Signer:    &mockSigner{},
 				RPCClient: &mockRPCClient{},
 			},
 			cfg: SponsorTxCfg{
@@ -1900,11 +2077,263 @@ func TestSponsorTransactionErrors(t *testing.T) {
 				},
 				SponsorAddress: adr,
 			},
-			presignedTx: std.Tx{
-				Msgs: []std.Msg{
-					vm.MsgCall{},
+			msgs: []Msg{
+				MsgCall{
+					PkgPath:  "gno.land/r/demo/deep/very/deep",
+					FuncName: "Render",
+					Args:     []string{""},
+					Send:     "xxx", // invalid coin
 				},
-				Fee: std.NewFee(1, std.NewCoin("ugnot", 1)),
+			},
+			expectedError: ErrInvalidAmount,
+		},
+		{
+			name: "Invalid message type",
+			client: Client{
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: SponsorTxCfg{
+				BaseTxCfg: BaseTxCfg{
+					GasWanted:      100000,
+					GasFee:         "10000ugnot",
+					AccountNumber:  1,
+					SequenceNumber: 1,
+					Memo:           "Test memo",
+				},
+				SponsorAddress: adr,
+			},
+			msgs: []Msg{
+				mockMsg{}, // invalid msg type
+			},
+			expectedError: ErrInvalidMsgType,
+		},
+		{
+			name: "Failed to parse gas fee",
+			client: Client{
+				Signer: &mockSigner{
+					info: func() keys.Info {
+						return &mockKeysInfo{
+							getAddress: func() crypto.Address {
+								return adr
+							},
+						}
+					},
+				},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: SponsorTxCfg{
+				BaseTxCfg: BaseTxCfg{
+					GasWanted:      100000,
+					GasFee:         "xxx", // invalid gas fee
+					AccountNumber:  1,
+					SequenceNumber: 1,
+					Memo:           "Test memo",
+				},
+				SponsorAddress: adr,
+			},
+			msgs: []Msg{
+				MsgCall{
+					PkgPath:  "gno.land/r/demo/deep/very/deep",
+					FuncName: "Render",
+					Args:     []string{""},
+					Send:     "100ugnot",
+				},
+			},
+			expectedError: errors.New("invalid coin expression: xxx"),
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			res, err := tc.client.NewSponsorTransaction(tc.cfg, tc.msgs...)
+			assert.Nil(t, res)
+			assert.Equal(t, err.Error(), tc.expectedError.Error())
+		})
+	}
+}
+
+func TestSignTransaction(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name          string
+		client        Client
+		tx            std.Tx
+		expectedError error
+	}{
+		{
+			name: "Failed to query account",
+			client: Client{
+				Signer: &mockSigner{
+					info: func() keys.Info {
+						return &mockKeysInfo{
+							getAddress: func() crypto.Address {
+								return adr
+							},
+						}
+					},
+				},
+				RPCClient: &mockRPCClient{
+					abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+						return nil, errors.New("failed to query account")
+					},
+				},
+			},
+			tx:            std.Tx{},
+			expectedError: errors.New("failed to query account"),
+		},
+		{
+			name: "Failed to sign transaction",
+			client: Client{
+				Signer: &mockSigner{
+					info: func() keys.Info {
+						return &mockKeysInfo{
+							getAddress: func() crypto.Address {
+								return adr
+							},
+						}
+					},
+					sign: func(cfg SignCfg) (*std.Tx, error) {
+						return nil, errors.New("failed to sign transaction")
+					},
+				},
+				RPCClient: &mockRPCClient{
+					abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+						acc := std.NewBaseAccount(adr, nil, nil, 0, 0)
+						accData, _ := amino.MarshalJSON(acc)
+
+						return &ctypes.ResultABCIQuery{
+							Response: abci.ResponseQuery{
+								ResponseBase: abci.ResponseBase{
+									Data: accData,
+								},
+							},
+						}, nil
+					},
+				},
+			},
+			tx:            std.Tx{},
+			expectedError: errors.New("failed to sign transaction"),
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			res, err := tc.client.SignTransaction(tc.tx, 0, 0)
+			assert.Nil(t, res)
+			assert.Equal(t, err.Error(), tc.expectedError.Error())
+		})
+	}
+}
+
+func TestExecuteSponsorTransaction(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name          string
+		client        Client
+		tx            std.Tx
+		expectedError error
+	}{
+		{
+			name: "Invalid Client",
+			client: Client{
+				Signer:    nil,
+				RPCClient: &mockRPCClient{},
+			},
+			tx:            std.Tx{},
+			expectedError: ErrMissingSigner,
+		},
+		{
+			name: "Invalid transaction",
+			client: Client{
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
+			},
+			tx: std.Tx{
+				Fee: std.NewFee(1000, std.NewCoin("ugnot", 10)),
+				Msgs: []std.Msg{
+					vm.MsgCall{
+						Caller: adr,
+					},
+				},
+				Signatures: []std.Signature{}, // no signatures provided
+			},
+			expectedError: errors.New("no signatures error"),
+		},
+		{
+			name: "tx is not a sponsor transaction",
+			client: Client{
+				Signer:    &mockSigner{},
+				RPCClient: &mockRPCClient{},
+			},
+			tx: std.Tx{
+				Fee: std.NewFee(1000, std.NewCoin("ugnot", 10)),
+				Msgs: []std.Msg{ // missing noop msg
+					bank.MsgSend{
+						FromAddress: adr,
+						ToAddress:   adr,
+						Amount:      std.NewCoins(std.NewCoin("gnot", 1000)),
+					},
+				},
+				Signatures: []std.Signature{
+					{
+						PubKey:    nil,
+						Signature: nil,
+					},
+				},
+			},
+			expectedError: ErrInvalidSponsorTx,
+		},
+		{
+			name: "signAndBroadcastTxCommit error",
+			client: Client{
+				Signer: &mockSigner{
+					info: func() keys.Info {
+						return &mockKeysInfo{
+							getAddress: func() crypto.Address {
+								return adr
+							},
+						}
+					},
+					sign: func(cfg SignCfg) (*std.Tx, error) {
+						return nil, errors.New("failed to sign tx")
+					},
+				},
+				RPCClient: &mockRPCClient{
+					abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+						acc := std.NewBaseAccount(adr, std.NewCoins(), nil, 0, 0)
+						accData, _ := amino.MarshalJSON(acc)
+
+						return &ctypes.ResultABCIQuery{
+							Response: abci.ResponseQuery{
+								ResponseBase: abci.ResponseBase{
+									Data: accData,
+								},
+							},
+						}, nil
+					},
+				},
+			},
+			tx: std.Tx{
+				Fee: std.NewFee(1000, std.NewCoin("ugnot", 10)),
+				Msgs: []std.Msg{ // missing noop msg
+					vm.MsgNoop{
+						Caller: adr,
+					},
+					bank.MsgSend{
+						FromAddress: adr,
+						ToAddress:   adr,
+						Amount:      std.NewCoins(std.NewCoin("gnot", 1000)),
+					},
+				},
 				Signatures: []std.Signature{
 					{
 						PubKey:    nil,
@@ -1921,9 +2350,9 @@ func TestSponsorTransactionErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			res, err := tc.client.ExecuteSponsorTransaction(tc.presignedTx, tc.cfg.AccountNumber, tc.cfg.SequenceNumber)
+			res, err := tc.client.ExecuteSponsorTransaction(tc.tx, 0, 0)
 			assert.Nil(t, res)
-			assert.Contains(t, err.Error(), tc.expectedError.Error())
+			assert.Equal(t, err.Error(), tc.expectedError.Error())
 		})
 	}
 }
