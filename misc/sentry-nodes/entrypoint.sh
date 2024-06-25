@@ -13,7 +13,7 @@ CHAIN_ID=${CHAIN_ID:-"dev"}
 SEEDS=${SEEDS:-""}
 PERSISTENT_PEERS=${PERSISTENT_PEERS:-""}
 
-# echo '{}' > gnoland-data/secrets/priv_validator_state.json
+echo '{}' > gnoland-data/secrets/priv_validator_state.json
 
 gnoland config init
 
