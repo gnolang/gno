@@ -111,7 +111,7 @@ node is is one of secrets that centeralized within `<data-dir>/secrets`, it can 
 gnoland genesis generate
 ```
 
-## 7. Add example transactions into the genesis file (optional)
+## 8. Add example transactions into the genesis file (optional)
 
 :::info
 
@@ -123,7 +123,7 @@ this step is not required, however using gno chain without exapmle transactions 
 gnoland genesis txs add packages ~/gno/examples
 ```
 
-## 8. Add a validator (required)
+## 9. Add a validator (required)
 
 - Add an initial validator. Blocks will not be produced if the chain is started without an active validator.
 
@@ -150,7 +150,7 @@ $ gnoland genesis validator add \
   -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpleysamt23ar025757uepld60xztnw7ujc3gwtjuy4pwv6z9sh4g284h3q # public key of validator
 ```
 
-## 9. Start the chain
+## 10. Start the chain
 
 ```bash
 gnoland start -data-dir ./gnoland-data -genesis ./genesis.json
