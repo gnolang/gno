@@ -111,6 +111,18 @@ node is is one of secrets that centeralized within `<data-dir>/secrets`, it can 
 gnoland genesis generate
 ```
 
+## 7. Add example transactions into the genesis file (optional)
+
+:::info
+
+this step is not required, however using gno chain without exapmle transactions can be super clunky.
+
+:::
+
+```bash
+gnoland genesis txs add packages ~/gno/examples
+```
+
 ## 8. Add a validator (required)
 
 - Add an initial validator. Blocks will not be produced if the chain is started without an active validator.
