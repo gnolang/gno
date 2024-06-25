@@ -2426,6 +2426,8 @@ func findLoopEscapedNames(ctx BlockNode, bn BlockNode) {
 				// find all defined values in for loop, and set nameExpr type
 				// handle init to set type for `loopvar`
 				if as, ok := n.Init.(*AssignStmt); ok {
+					// TODO: a, b := 1, 2, b, c := 3, 4?
+					// check if b is first declared within/without the goto loop.
 					if as.Op == DEFINE { // only for define in faux block
 						if nx, ok := as.Lhs[0].(*NameExpr); !ok {
 							panic("should not happen")
