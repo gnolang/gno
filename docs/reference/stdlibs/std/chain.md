@@ -4,6 +4,19 @@ id: chain
 
 # Chain-related
 
+## Realm
+This is the type returned by [std.CurrentRealm](#currentrealm) and [std.PrevRealm](#prevrealm).
+```go
+type Realm struct {
+	addr    Address
+	pkgPath string
+}
+
+func (r Realm) Addr() Address
+func (r Realm) PkgPath() string
+func (r Realm) IsUser() bool
+```
+
 ## IsOriginCall
 ```go
 func IsOriginCall() bool
@@ -105,9 +118,8 @@ origPkgAddr := std.GetOrigPkgAddr()
 ```go
 func CurrentRealm() Realm
 ```
-Returns current Realm object.
+Returns current [Realm](#realm) object.
 
-[//]: # (todo link to realm type explanation)
 #### Usage
 ```go
 currentRealm := std.CurrentRealm()
@@ -118,7 +130,7 @@ currentRealm := std.CurrentRealm()
 ```go
 func PrevRealm() Realm
 ```
-Returns the previous caller realm (can be code or user realm). If caller is a
+Returns the previous caller [realm](#realm) (can be code or user realm). If caller is a
 user realm, `pkgpath` will be empty.
 
 #### Usage
