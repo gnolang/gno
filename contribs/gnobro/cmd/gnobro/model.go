@@ -332,6 +332,7 @@ func (m *model) ExtendCommandInput() bool {
 				m.commandInput.SetValue(value)
 				return true
 			}
+			m.commandInput.CursorEnd()
 
 		}
 	}
@@ -413,20 +414,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "alt+down", "alt+up", "tab":
+		case "alt+down":
 			if m.urlInput.Focused() && !m.readonly {
 				m.urlInput.Blur()
 				cmds = append(cmds, m.commandInput.Focus())
 				m.commandFocus = true
-			} else if m.commandInput.Focused() {
-				if msg.String() == "tab" && m.ExtendCommandInput() {
-					break
-				} else {
-					m.commandInput.Blur()
-					cmds = append(cmds, m.urlInput.Focus())
-					m.commandFocus = false
-				}
 			}
+		case "alt+up":
+			if m.commandInput.Focused() {
+				m.commandInput.Blur()
+				cmds = append(cmds, m.urlInput.Focus())
+				m.commandFocus = false
+			}
+		case "tab":
+			m.ExtendCommandInput()
 		case "down":
 			if m.commandFocus {
 				m.listFuncs.CursorDown()
