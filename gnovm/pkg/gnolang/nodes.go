@@ -2091,14 +2091,15 @@ func (x *BasicLitExpr) GetInt() int {
 type GnoAttribute string
 
 const (
-	ATTR_PREPROCESSED GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED   GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE   GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
-	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
-	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
-	ATTR_GOTOLOOPSTMT GnoAttribute = "ATTR_GOTOLOOPSTMT"
+	ATTR_PREPROCESSED  GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREDEFINED    GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE    GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE  GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA          GnoAttribute = "ATTR_IOTA"
+	ATTR_LOCATIONED    GnoAttribute = "ATTR_LOCATIONED"
+	ATTR_INJECTED      GnoAttribute = "ATTR_INJECTED"
+	ATTR_GOTOLOOP_STMT GnoAttribute = "ATTR_GOTOLOOP_STMT"
+	ATTR_PARENT_NODE   GnoAttribute = "ATTR_PARENT_NODE"
 )
 
 var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)

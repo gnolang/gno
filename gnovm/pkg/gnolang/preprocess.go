@@ -2239,8 +2239,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 }
 
 func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
-	fmt.Println("---findGotoLoopStmts, ctx: ", ctx)
-	fmt.Println("---findGotoLoopStmts, bn: ", bn)
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -2289,12 +2287,10 @@ func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
 				pushInitBlock(bn, &last, &stack)
 			}
 
-			//fmt.Println("---trans_block, n: ", n, reflect.TypeOf(n))
 		// ----------------------------------------
 		case TRANS_LEAVE:
 			switch n := n.(type) {
 			case *BranchStmt:
-				fmt.Println("---trans_leave, branch stmt")
 				switch n.Op {
 				case GOTO:
 					// XXX
@@ -2304,23 +2300,21 @@ func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
 
 					// find goto range
 					gotoLine := n.GetLine()
-					if labelLine < gotoLine {
-						fmt.Println("labelLine: ", labelLine)
-						fmt.Println("gotoLine: ", gotoLine)
-						fmt.Println("---bn: ", bn)
-						fmt.Println("---body: ", bn.GetBody())
+					if labelLine >= gotoLine {
+						return n, TRANS_SKIP
+					}
+					debug.Printf("gotoLine :%d, labelLine: %d \n", gotoLine, labelLine)
+					n.SetAttribute(n.Label, labelLine)
+					n.SetAttribute(ATTR_PARENT_NODE, bn)
 
-						// list all stmts and tag within goto loop
-						for _, s := range bn.GetBody() {
-							if s.GetLine() >= labelLine && s.GetLine() <= gotoLine {
-								fmt.Println("s: ", s)
-								s.SetAttribute(ATTR_GOTOLOOPSTMT, true)
-							}
+					// list all stmts and tag within goto loop
+					for _, s := range bn.GetBody() {
+						if s.GetLine() >= labelLine && s.GetLine() <= gotoLine {
+							s.SetAttribute(ATTR_GOTOLOOP_STMT, true)
 						}
 					}
 				}
 			}
-			//fmt.Println("---trans_leave, n: ", n)
 			// finalization.
 			if _, ok := n.(BlockNode); ok {
 				// Pop block.
@@ -2334,9 +2328,10 @@ func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
 	})
 }
 
+// find escaped names from for/range loops, and goto loops,
+// set nameExpr type as NameExprTypeLoopDefine, used as a
+// dependency in the future.
 func findLoopEscapedNames(ctx BlockNode, bn BlockNode) {
-	fmt.Println("---findLoopEscapedNames, ctx: ", ctx)
-	fmt.Println("---findLoopEscapedNames, bn: ", bn)
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -2380,40 +2375,33 @@ func findLoopEscapedNames(ctx BlockNode, bn BlockNode) {
 		case TRANS_ENTER:
 			switch n := n.(type) {
 			case *BranchStmt:
-				fmt.Println("---trans_enter, branch stmt")
 				switch n.Op {
 				case GOTO:
-					// XXX
-					bn, depth, index, labelLine := findGotoLabel(last, n.Label)
-					n.Depth = depth
-					n.BodyIndex = index
+					if pn, ok := n.GetAttribute(ATTR_PARENT_NODE).(BlockNode); ok {
+						// indicates that a goto loop exists, set by last phase.
+						labelLine := n.GetAttribute(n.Label).(int) // set in last phase
+						gotoLine := n.GetLine()
 
-					// find goto range
-					gotoLine := n.GetLine()
-					if labelLine < gotoLine {
-						fmt.Println("labelLine: ", labelLine)
-						fmt.Println("gotoLine: ", gotoLine)
-						fmt.Println("---bn: ", bn)
-						fmt.Println("---body: ", bn.GetBody())
+						debug.Printf("gotoLine :%d, labelLine: %d \n", gotoLine, labelLine)
 
 						// list all stmts within goto loop
-						for _, s := range bn.GetBody() {
+						for _, s := range pn.GetBody() {
 							if s.GetLine() >= labelLine && s.GetLine() <= gotoLine {
-								if s.GetAttribute(ATTR_GOTOLOOPSTMT) == false {
+								if s.GetAttribute(ATTR_GOTOLOOP_STMT) != true {
 									panic("should not happen")
 								}
-								fmt.Println("---found gotoLoopStmt, s: ", s, reflect.TypeOf(s))
 								switch s := s.(type) {
 								case *AssignStmt:
-									if s.Op == DEFINE { // XXX, a, b := 1, 2, b, c := 3, 4?
-										fmt.Println("---define stmt, s: ", s)
+									// TODO: a, b := 1, 2, b, c := 3, 4?
+									// check if b is first declared within/without the goto loop.
+									if s.Op == DEFINE {
+										debug.Println("---define stmt, s: ", s)
 										for _, x := range s.Lhs {
-											fmt.Println("x: ", x, reflect.TypeOf(x))
 											if nx, ok := x.(*NameExpr); !ok {
 												panic("should not happen")
 											} else {
 												if nx.Name != blankIdentifier {
-													fmt.Println("---set type as loop defined for nx: ", nx)
+													fmt.Println("---define, set type as loop defined for nx: ", nx)
 													nx.Type = NameExprTypeLoopDefine
 												}
 											}
@@ -2422,10 +2410,9 @@ func findLoopEscapedNames(ctx BlockNode, bn BlockNode) {
 								case *DeclStmt:
 									// XXX
 									if d, ok := s.Body[0].(*ValueDecl); ok {
-										fmt.Println("---d: ", d)
 										for _, nx := range d.NameExprs {
 											if nx.Name != blankIdentifier {
-												fmt.Println("---set type as loop defined for nx: ", nx)
+												fmt.Println("---var decl, set type as loop defined for nx: ", nx)
 												nx.Type = NameExprTypeLoopDefine
 											}
 										}
@@ -2437,16 +2424,14 @@ func findLoopEscapedNames(ctx BlockNode, bn BlockNode) {
 				}
 			case *ForStmt:
 				// find all defined values in for loop, and set nameExpr type
-				//fmt.Println("---Init: ", n.Init, reflect.TypeOf(n.Init))
 				// handle init to set type for `loopvar`
 				if as, ok := n.Init.(*AssignStmt); ok {
-					fmt.Println("---as: ", as)
 					if as.Op == DEFINE { // only for define in faux block
 						if nx, ok := as.Lhs[0].(*NameExpr); !ok {
 							panic("should not happen")
 						} else {
 							if nx.Name != blankIdentifier {
-								fmt.Println("---set type as loop defined for nx: ", nx)
+								debug.Println("---for init, set type as loop defined for nx: ", nx)
 								nx.Type = NameExprTypeLoopDefine
 							}
 						}
@@ -2454,14 +2439,13 @@ func findLoopEscapedNames(ctx BlockNode, bn BlockNode) {
 				}
 				// handle stmts
 				for _, s := range n.Body {
-					fmt.Println("---s within for loop: ", s)
 					if as, ok := s.(*AssignStmt); ok && as.Op == DEFINE {
 						for _, lx := range as.Lhs {
 							if nx, ok := lx.(*NameExpr); !ok {
 								panic("should not happen")
 							} else {
 								if nx.Name != blankIdentifier {
-									fmt.Println("---set type as loop defined for nx: ", nx)
+									fmt.Println("---for body, set type as loop defined for nx: ", nx)
 									nx.Type = NameExprTypeLoopDefine
 								}
 							}
@@ -2473,23 +2457,8 @@ func findLoopEscapedNames(ctx BlockNode, bn BlockNode) {
 			}
 			return n, TRANS_CONTINUE
 
-			// ----------------------------------------
-		case TRANS_BLOCK:
-			if bn, ok := n.(BlockNode); ok {
-				pushInitBlock(bn, &last, &stack)
-			}
-
-			//fmt.Println("---trans_block, n: ", n, reflect.TypeOf(n))
 		// ----------------------------------------
 		case TRANS_LEAVE:
-			fmt.Println("---trans_leave, n: ", n)
-			// finalization.
-			if _, ok := n.(BlockNode); ok {
-				// Pop block.
-				stack = stack[:len(stack)-1]
-				last = stack[len(stack)-1]
-				//fmt.Println("---last: ", last, reflect.TypeOf(last))
-			}
 			return n, TRANS_CONTINUE
 		}
 		return n, TRANS_CONTINUE
@@ -2836,7 +2805,6 @@ func findBranchLabel(last BlockNode, label Name) (
 func findGotoLabel(last BlockNode, label Name) (
 	bn BlockNode, depth uint8, bodyIdx int, line int,
 ) {
-	fmt.Println("---findGotoLabel, last: ", last)
 	var ls Stmt // label stmt
 	for {
 		switch cbn := last.(type) {
@@ -2848,7 +2816,6 @@ func findGotoLabel(last BlockNode, label Name) (
 		case *PackageNode:
 			panic("unexpected package blocknode")
 		case *FuncLitExpr, *FuncDecl:
-			fmt.Println("---FuncDecl")
 			body := cbn.GetBody()
 			ls, bodyIdx = body.GetLabeledStmt(label)
 			if bodyIdx != -1 {
