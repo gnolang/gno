@@ -25,6 +25,7 @@ import (
 	"github.com/charmbracelet/wish/activeterm"
 	"github.com/charmbracelet/wish/bubbletea"
 	"github.com/charmbracelet/wish/logging"
+
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -33,19 +34,24 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	tmlog "github.com/gnolang/gno/tm2/pkg/log"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	zone "github.com/lrstanley/bubblezone"
 )
 
 type broCfg struct {
-	target         string
+	readonly       bool
+	remote         string
+	devEndpoint    string
 	chainID        string
+	defaultAccount string
 	defaultRealm   string
 	sshListener    string
 	sshHostKeyPath string
 }
 
 var defaultBroOptions = broCfg{
-	target:         "127.0.0.1:26657",
+	remote:         "127.0.0.1:26657",
+	devEndpoint:    "",
 	sshListener:    "",
 	defaultRealm:   "gno.land/r/gnoland/home",
 	chainID:        "dev",
@@ -76,9 +82,9 @@ func main() {
 
 func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.target,
+		&c.remote,
 		"target",
-		defaultBroOptions.target,
+		defaultBroOptions.remote,
 		"target gnoland address",
 	)
 
@@ -90,10 +96,17 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
+		&c.defaultAccount,
+		"account",
+		defaultBroOptions.defaultAccount,
+		"default local account to use",
+	)
+
+	fs.StringVar(
 		&c.defaultRealm,
 		"default-realm",
 		defaultBroOptions.defaultRealm,
-		"default realm to display when gnobro start",
+		"default realm to display when gnobro start and no argument are provided",
 	)
 
 	fs.StringVar(
@@ -110,6 +123,19 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 		"ssh host key path",
 	)
 
+	fs.StringVar(
+		&c.devEndpoint,
+		"dev",
+		defaultBroOptions.devEndpoint,
+		"dev endpoint, if empty will be default to `ws://<target>:8888`",
+	)
+
+	fs.BoolVar(
+		&c.readonly,
+		"readonly",
+		defaultBroOptions.readonly,
+		"readonly mode, no command allowed",
+	)
 }
 
 func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
@@ -121,8 +147,8 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 	logger := tmlog.NewNoopLogger()
 	var address string
 	var kb keys.Keybase
-	if len(args) > 0 && args[0] != "" {
-		address = args[0]
+	if cfg.defaultAccount != "" {
+		address = cfg.defaultAccount
 
 		var err error
 		kb, err = keys.NewKeyBaseFromDir(home)
@@ -142,7 +168,7 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 	}
 
 	// remoteAddr := resolveUnixOrTCPAddr(cfg.target)
-	cl, err := client.NewHTTPClient(cfg.target)
+	cl, err := client.NewHTTPClient(cfg.remote)
 	if err != nil {
 		return fmt.Errorf("unable to create http client for %q: %w", remoteAddr, err)
 	}
@@ -160,7 +186,16 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 
 	renderer := lipgloss.DefaultRenderer()
 	input := initURLInput(renderer)
-	if cfg.defaultRealm != "" {
+
+	var targetRealm string
+	if len(args) > 0 {
+		targetRealm = args[0]
+	}
+	switch {
+	case targetRealm != "":
+		path := strings.TrimLeft(targetRealm, gnoPrefix)
+		input.SetValue(path)
+	case cfg.defaultRealm != "":
 		path := strings.TrimLeft(cfg.defaultRealm, gnoPrefix)
 		input.SetValue(path)
 	}
@@ -169,6 +204,7 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 	mod := model{
 		// banner:       banner,
 		render:       renderer,
+		readonly:     cfg.readonly,
 		client:       broclient,
 		listFuncs:    newFuncList(),
 		urlInput:     input,
@@ -180,53 +216,78 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 
 	if cfg.sshListener == "" {
 		p := tea.NewProgram(mod,
-			tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
+			tea.WithAltScreen(), // use the full size of the terminal in its "alternate screen buffer"
+
 			tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
 		)
 
-		addr := cfg.target
-		if !strings.HasPrefix(addr, "http://") && !strings.HasPrefix(addr, "https://") {
-			addr = "http://" + addr
+		host1, port1 := cfg.remote, "8888"
+		if cfg.devEndpoint != "" {
+			host1, port1, err = net.SplitHostPort(cfg.devEndpoint)
+			if err != nil {
+				return fmt.Errorf("unable to parse dev endpoint: %w", err)
+			}
 		}
 
-		devpoint, err := url.Parse(addr)
+		if !strings.HasPrefix(host1, "http://") && !strings.HasPrefix(host1, "https://") {
+			host1 = "http://" + host1
+		}
+
+		devpoint, err := url.Parse(host1)
 		if err != nil {
 			return fmt.Errorf("unable to construct devaddr: %w", err)
 		}
 
-		host, _, _ := net.SplitHostPort(devpoint.Host)
-		eventsurl := fmt.Sprintf("ws://%s:8888/_events", host)
-		// if err := CheckEndpoint(eventsurl); err != nil {
-		// 	return fmt.Errorf("unable to check dev events endpoint: %w", err)
-		// }
+		host, port2, _ := net.SplitHostPort(devpoint.Host)
+		devpoint.Host = host
+		devpoint.Scheme = "ws"
+		devpoint.Path = "_events"
+		switch {
+		case port1 != "":
+			devpoint.Host += ":" + port1
+		case port2 != "":
+			devpoint.Host += ":" + port2
+		}
 
-		var wg sync.WaitGroup
-		if true {
-			var devcl DevClient
-			// devcl.Logger = log.ZapLoggerToSlog(log.NewZapConsoleLogger(io.Out(), zapcore.DebugLevel))
-			devcl.Handler = func(typ events.Type, data any) error {
-				switch typ {
-				case events.EvtReload, events.EvtReset, events.EvtTxResult:
-					p.Send(UpdateRenderMsg{})
-				default:
-				}
-
-				return nil
+		// var wg sync.WaitGroup
+		var devcl DevClient
+		// devcl.Logger = log.ZapLoggerToSlog(log.NewZapConsoleLogger(io.Out(), zapcore.DebugLevel))
+		devcl.Handler = func(typ events.Type, data any) error {
+			switch typ {
+			case events.EvtReload, events.EvtReset, events.EvtTxResult:
+				p.Send(UpdateRenderMsg{})
+			default:
 			}
 
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-
-				if err := devcl.Run(ctx, eventsurl, nil); err != nil {
-					io.ErrPrintfln("run error: %s", err.Error())
-				}
-			}()
+			return nil
 		}
 
-		if _, err := p.Run(); err != nil {
-			return fmt.Errorf("could not run program: %w", err)
-		}
+		var wg sync.WaitGroup
+
+		ctx, cancel := context.WithCancelCause(ctx)
+		defer cancel(nil)
+
+		// Setup trap signal
+		osm.TrapSignal(func() {
+			cancel(nil)
+			p.Quit()
+		})
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := devcl.Run(ctx, devpoint.String(), nil); err != nil {
+				logger.Error("dev connection failed", "err", err)
+			}
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := p.Run()
+			cancel(err)
+			io.Println("Bye!")
+		}()
 
 		wg.Wait()
 		return nil

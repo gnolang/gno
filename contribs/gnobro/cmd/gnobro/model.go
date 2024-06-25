@@ -118,6 +118,7 @@ type model struct {
 	ready         bool
 	viewport      viewport.Model
 	height, width int
+	readonly      bool
 
 	pageurls       map[string]string
 	messageDisplay bool
@@ -390,7 +391,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.commandInput.Blur()
 				cmds = append(cmds, m.urlInput.Focus())
 				m.commandFocus = false
-			case m.zone.Get("command_input").InBounds(msg):
+			case !m.readonly && m.zone.Get("command_input").InBounds(msg):
 				m.urlInput.Blur()
 				cmds = append(cmds, m.commandInput.Focus())
 				m.commandFocus = true
@@ -413,7 +414,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "alt+down", "alt+up", "tab":
-			if m.urlInput.Focused() {
+			if m.urlInput.Focused() && !m.readonly {
 				m.urlInput.Blur()
 				cmds = append(cmds, m.commandInput.Focus())
 				m.commandFocus = true
@@ -628,6 +629,10 @@ func (m model) navView() string {
 }
 
 func (m model) footerView() string {
+	if m.readonly {
+		return ""
+	}
+
 	info := infoStyle(m.render).Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
 	command := m.zone.Mark("command_input", inputStyleLeft(m.render).
 		Width(m.viewport.Width-lipgloss.Width(info)-5).
