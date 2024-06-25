@@ -88,7 +88,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
-	// Finally, predefine other decls and
+	// Then, predefine other decls and
 	// preprocess ValueDecls..
 	for _, fn := range fset.Files {
 		for i := 0; i < len(fn.Decls); i++ {
@@ -103,6 +103,14 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
+	// Finally, identify loop escaped name exprs and sets type.
+	// NOTE: this requires finalized AST structure, especially gotos, and
+	// cannot add or remove statements from bodies.
+	for _, fn := range fset.Files {
+		findGotoLoopStmts(store, pn, fn)    // XXX need to pass in store at all?
+		findLoopEscapedNames(store, pn, fn) // XXX need to pass in store at all?
+	}
+
 }
 
 // Initialize static block info.
@@ -2229,6 +2237,74 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	})
 
 	return nn
+}
+
+func findGotoLoopStmts(store Store, ctx BlockNode, bn BlockNode) {
+
+	// create stack of BlockNodes.
+	var stack []BlockNode = make([]BlockNode, 0, 32)
+	var last BlockNode = ctx
+	stack = append(stack, last)
+
+	// iterate over all nodes recursively.
+	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+
+		defer func() {
+			if r := recover(); r != nil {
+				// before re-throwing the error, append location information to message.
+				loc := last.GetLocation()
+				if nline := n.GetLine(); nline > 0 {
+					loc.Line = nline
+				}
+
+				var err error
+				rerr, ok := r.(error)
+				if ok {
+					// NOTE: gotuna/gorilla expects error exceptions.
+					err = errors.Wrap(rerr, loc.String())
+				} else {
+					// NOTE: gotuna/gorilla expects error exceptions.
+					err = fmt.Errorf("%s: %v", loc.String(), r)
+				}
+
+				// Re-throw the error after wrapping it with the preprocessing stack information.
+				panic(&PreprocessError{
+					err:   err,
+					stack: stack,
+				})
+			}
+		}()
+
+		if debug {
+			debug.Printf("findGotoLoopStmts %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+		}
+
+		switch stage {
+		// ----------------------------------------
+		case TRANS_ENTER:
+			switch n := n.(type) {
+			case *BranchStmt:
+				switch n.Op {
+				case GOTO:
+					// XXX
+					_, depth, index := findGotoLabel(last, n.Label)
+					n.Depth = depth
+					n.BodyIndex = index
+				}
+			}
+
+		// ----------------------------------------
+		case TRANS_LEAVE:
+			// finalization.
+			if _, ok := n.(BlockNode); ok {
+				// Pop block.
+				stack = stack[:len(stack)-1]
+				last = stack[len(stack)-1]
+			}
+			return n, TRANS_CONTINUE
+		}
+		return n, TRANS_CONTINUE
+	})
 }
 
 func isSwitchLabel(ns []Node, label Name) bool {

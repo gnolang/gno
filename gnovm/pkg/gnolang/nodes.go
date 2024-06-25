@@ -363,11 +363,21 @@ var (
 	_ Expr = &ConstExpr{}
 )
 
+type NameExprType int
+
+const (
+	NameExprTypeNormal      NameExprType = iota // default
+	NameExprTypeLoopDefine                      // when defining escaped name in loop
+	NameExprTypeLoopUse                         // when above used in non-define lhs/rhs
+	NameExprTypeLoopClosure                     // when above used in closure lhs/rhs
+)
+
 type NameExpr struct {
 	Attributes
 	// TODO rename .Path's to .ValuePaths.
 	Path ValuePath // set by preprocessor.
 	Name
+	Type NameExprType
 }
 
 type NameExprs []NameExpr
