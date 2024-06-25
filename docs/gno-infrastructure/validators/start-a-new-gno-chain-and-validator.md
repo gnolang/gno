@@ -57,6 +57,12 @@ The key file path is relative by default.
 gnoland config set priv_validator_key_file secrets/priv_validator_key.json -config-path gnoland-data/config/config.toml
 ```
 
+:::
+
+info validator private key is one of secrets that centeralized within `<data-dir>/secrets`, it can be replaced or regenerated with `gnoland secrets init ValidatorPrivateKey --force`
+
+:::
+
 ## 5. Set the validator state (optional)
 
 - Set path of the validator state. A default value exists. When using a separate secrets folder, you must set the path to the respective location.
@@ -71,9 +77,15 @@ The key file path is relative by default.
 gnoland config set priv_validator_state_file secrets/priv_validator_state.json -config-path gnoland-data/config/config.toml
 ```
 
-## 6. Set the node key (optional)
+:::
 
-- Set path of the node key. A default path exists. When using a separate secrets folder, you must set the path to the respective location.
+info validator state is one of secrets that centeralized within `<data-dir>/secrets`, it can be replaced or regenerated with `gnoland secrets init ValidatorState --force`
+
+:::
+
+## 6. Set the node id (optional)
+
+- Set path of the node id. A default path exists. When using a separate secrets folder, you must set the path to the respective location.
 
 :::tip
 
@@ -84,6 +96,12 @@ The key file path is relative by default.
 ```bash
 gnoland config set node_key_file secrets/node_key.json -config-path gnoland-data/config/config.toml
 ```
+
+:::info
+
+node is is one of secrets that centeralized within `<data-dir>/secrets`, it can be replaced or regenerated with `gnoland secrets init NodeID --force`
+
+:::
 
 ## 7. Generate the genesis file (required)
 
@@ -117,7 +135,7 @@ $ gnoland genesis validator add \
   -address g1lnha5yem9dmj0yfzysfqsnvrm6j2ywshq83qdf \ # address of validator
   -name node01 \ # name of validator
   -power 10 \ # voting power of validator
-  -pub-key  pub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpleysamt23ar025757uepld60xztnw7ujc3gwtjuy4pwv6z9sh4g284h3q # public key of validator
+  -pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zpleysamt23ar025757uepld60xztnw7ujc3gwtjuy4pwv6z9sh4g284h3q # public key of validator
 ```
 
 ## 9. Start the chain
