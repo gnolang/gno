@@ -11,7 +11,7 @@ and packages, send native coins, and more.
 
 ## Prerequisites
 - **`gnokey` installed.** Reference the
-[Local Setup](installation.md#3-installing-other-gno-tools) guide for steps
+[Local Setup](installation.md#2-installing-the-required-tools-) guide for steps
 - **A keypair in `gnokey`.** Reference the 
 [Working with Key Pairs](working-with-key-pairs.md#adding-a-private-key-using-a-mnemonic) guide for steps
 
@@ -21,18 +21,15 @@ to pay gas fees with.
 
 For this example, we will use the [Portal Loop](../../concepts/testnets.md#portal-loop) 
 testnet. We can access the Portal Loop faucet through the
-[Gno Faucet Hub](https://faucet.gno.land), or by accessing the faucet directly at
-[gno.land/faucet](https://gno.land/faucet). 
+[Gno Faucet Hub](https://faucet.gno.land). There, you will find a card for each
+available faucet.
 
-![faucet-hub](../../assets/getting-started/local-setup/interacting-with-gnoland/faucet-hub.png)
+After choosing the "Gno Portal Loop" card, you will get a prompt to input your address, 
+select the amount of testnet GNOT you want to receive, and solve a captcha. In 
+this case, 1 GNOT is enough.
 
-After choosing "Gno Portal Loop", you will get a prompt to input your address, 
-select the amount of testnet GNOT you want to receive, and solve a captcha:
-
-![faucet-hub-portal-loop](../../assets/getting-started/local-setup/interacting-with-gnoland/faucet-hub-portal-loop.png)
-
-After inputting your address and solving the captcha, you can check if you have received funds with the
-following `gnokey` command:
+After inputting your Gno address and solving the captcha, you can check if you
+have received funds with the following `gnokey` command:
 
 ```bash
 gnokey query bank/balances/<your_gno_address> --remote "https://rpc.gno.land:443"    
@@ -48,26 +45,22 @@ data: "10000000ugnot"
 ```
 
 ## 2. Visit a realm
+
 For this example, we will use the [Userbook realm](https://gno.land/r/demo/userbook).
 The Userbook realm is a simple app that allows users to sign up, and keeps track
 of when they signed up. It also displays the currently signed-up users and the block
-height at which they have signed up.
-
-![userbook-default](../../assets/getting-started/local-setup/interacting-with-gnoland/userbook-default.png)
-
-> Note: block heights are not correct because of the way the Portal Loop testnet 
-> works.
-> Read more [here](../../concepts/portal-loop.md). 
+height at which they have signed up. The realm can be found on its path, 
+[`gno.land/r/demo/userbook`](https://gno.land/r/demo/userbook).
 
 To see what functions are available to call on the Userbook realm, click
-the `[help]` button. 
+the [`[help]`](https://gno.land/r/demo/userbook?help) button in the top right
+corner. There, you will be able to see all callable functions in the realm,
+and an interface that will generate `gnokey` commands based on your inputs.
 
-![userbook-help](../../assets/getting-started/local-setup/interacting-with-gnoland/userbook-help.png)
-
-By choosing one of the two `gnokey` commands and inputting your address 
-(or keypair name) in the top bar, you will have a ready command to paste into your 
-terminal. For example, the following command will call the `SignUp` function with the
-keypair `MyKeypair`: 
+In this case, we want to call the `SignUp()` function. First, you can input your
+address (or keypair name) at the top. After doing this, `gnoweb` will give you a
+command ready to paste into your terminal. For example, the following command will 
+call the `SignUp` function with the keypair `MyKeypair`: 
 
 ```
 gnokey maketx call \
