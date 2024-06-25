@@ -66,6 +66,6 @@ func TestGenesis_List_All(t *testing.T) {
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		require.NoError(t, cmdErr)
 
-		require.Len(t, buf.String(), 1830)
+		require.Len(t, buf.String(), 14743)
 	})
 }
