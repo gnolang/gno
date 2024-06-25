@@ -12,7 +12,7 @@ visibility, and you will learn how to easily access realm APIs.
 
 ## Prerequisites
 - **`gnodev` installed.** Reference the 
-[Local Setup](installation.md#3-installing-other-gno-tools) guide for steps
+[Local Setup](installation.md#2-installing-the-required-tools-) guide for steps
 
 ## 1. Start `gnodev`
 To browse Gno source code, we need two components:

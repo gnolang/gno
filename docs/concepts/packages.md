@@ -20,7 +20,7 @@ The `avl` package comprises a set of functions that can manipulate the leaves an
 
 Gno includes an implementation of the `erc20` fungible token standard referred to as `grc20`. The interfaces of `grc20` are as follows:
 
-[embedmd]:# (../assets/explanation/packages/pkg-1.gno go)
+[embedmd]:# (../assets/concepts/packages/pkg-1.gno go)
 ```go
 func TotalSupply() uint64
 func BalanceOf(account std.Address) uint64
@@ -52,7 +52,7 @@ Two types of contracts exist in`grc20`:
 
 Gno includes an implementation of the `erc721` non-fungible token standard referred to as `grc721`. The interfaces of `grc721` are as follows:
 
-[embedmd]:# (../assets/explanation/packages/pkg-2.gno go)
+[embedmd]:# (../assets/concepts/packages/pkg-2.gno go)
 ```go
 // functions that work similarly to those of grc20
 func BalanceOf(owner std.Address) (uint64, error)
@@ -82,7 +82,7 @@ func IsApprovedForAll(owner, operator std.Address) bool
 
 The `testutils` package contains a set of functions that comes in handy when testing realms. The sample function below is the commonly used `TestAddress` function that generates a random address.
 
-[embedmd]:# (../assets/explanation/packages/pkg-3.gno go)
+[embedmd]:# (../assets/concepts/packages/pkg-3.gno go)
 ```go
 func TestAddress(name string) std.Address {
 	if len(name) > std.RawAddressSize {
@@ -100,7 +100,7 @@ func TestAddress(name string) std.Address {
 
 The code takes the `name` as the input and creates a random address. Below is a list of examples where it's used in the test case of the `foo20` realm.
 
-[embedmd]:# (../assets/explanation/packages/pkg-4.gno go)
+[embedmd]:# (../assets/concepts/packages/pkg-4.gno go)
 ```go
 admin := users.AddressOrName("g1tntwtvzrkt2gex69f0pttan0fp05zmeg5yykv8")
 test2 := users.AddressOrName(testutils.TestAddress("test2"))
