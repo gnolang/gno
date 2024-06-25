@@ -41,6 +41,7 @@ func (*PackageValue) assertValue()     {}
 func (*NativeValue) assertValue()      {}
 func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
+func (*HeapItemValue) assertValue()    {}
 
 const (
 	nilStr       = "nil"
@@ -64,6 +65,7 @@ var (
 	_ Value = &NativeValue{}
 	_ Value = &Block{}
 	_ Value = RefValue{}
+	_ Value = &HeapItemValue{}
 )
 
 // ----------------------------------------
@@ -166,14 +168,20 @@ func (dbv DataByteValue) SetByte(b byte) {
 // Index is -1 for the shared "_" block var,
 // and -2 for (gno and native) map items.
 //
+// A pointer constructed via a &x{} composite lit expression or constructed via
+// new() or make() will have a virtual HeapItemValue as base.
+//
 // Allocation for PointerValue is not immediate,
 // as usually PointerValues are temporary for assignment
 // or binary operations. When a pointer is to be
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
+//
+// Since PointerValue is used internally for assignment etc,
+// it MUST stay minimal for computational efficiency.
 type PointerValue struct {
 	TV    *TypedValue // escape val if pointer to var.
-	Base  Value       // array/struct/block.
+	Base  Value       // array/struct/block, or heapitem.
 	Index int         // list/fields/values index, or -1 or -2 (see below).
 	Key   *TypedValue `json:",omitempty"` // for maps.
 }
@@ -2336,12 +2344,12 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 
 // TODO rename to BlockValue.
 type Block struct {
-	ObjectInfo // for closures
-	Source     BlockNode
-	Values     []TypedValue
-	Parent     Value
-	Blank      TypedValue // captures "_" // XXX remove and replace with global instance.
-	bodyStmt   bodyStmt   // XXX expose for persistence, not needed for MVP.
+	ObjectInfo
+	Source   BlockNode
+	Values   []TypedValue
+	Parent   Value
+	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
+	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
@@ -2501,6 +2509,15 @@ type RefValue struct {
 	Hash     ValueHash `json:",omitempty"`
 }
 
+// Base for a detached singleton (e.g. new(int) or &struct{})
+// Conceptually like a Block that holds one value.
+// NOTE: could be renamed to HeapItemBaseValue.
+// See also note in realm.go about auto-unwrapping.
+type HeapItemValue struct {
+	ObjectInfo
+	Value TypedValue
+}
+
 // ----------------------------------------
 
 func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
@@ -2629,6 +2646,8 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			case *Block:
 				vpv := cb.GetPointerToInt(store, cv.Index)
 				cv.TV = vpv.TV // TODO optimize?
+			case *HeapItemValue:
+				cv.TV = &cb.Value
 			default:
 				panic("should not happen")
 			}
