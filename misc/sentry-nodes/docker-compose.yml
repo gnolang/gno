@@ -1,0 +1,104 @@
+services:
+  traefik:
+    image: "traefik:v3.0"
+    container_name: "traefik"
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=true"
+      - "--entryPoints.web.address=:80"
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+  gno1:
+    image: "ghcr.io/gnolang/gno/gnoland:master"
+    container_name: "gno1"
+    entrypoint: "/entrypoint.sh"
+    ports:
+      - 26657:26657
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh
+      - ./genesis.json:/gnoroot/gnoland-data/genesis.json:ro
+      - ./gnoland-data-1/secrets:/gnoroot/gnoland-data/secrets
+    environment:
+      MONIKER: "gnode1"
+      SEED_MODE: true
+      // PERSISTENT_PEERS: "g1ywvkuuryghmwmalmcjjnfp9za3zju62tc7pfdq@gno2:26656,g1gk7jk5wgt8r7wqs89rjk9pvkj525gj00r40zlr@gno3:26656"
+    labels:
+      - "traefik.http.routers.gno1.rule=Host(`gno1-rpc.localhost`)"
+      - "traefik.http.routers.gno1.entrypoints=web"
+      - "traefik.http.services.gno1.loadbalancer.server.port=26657"
+
+  gno2:
+    image: "ghcr.io/gnolang/gno/gnoland:master"
+    container_name: "gno2"
+    entrypoint: "/entrypoint.sh"
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh
+      - ./genesis.json:/gnoroot/gnoland-data/genesis.json:ro
+      - ./gnoland-data-2/secrets:/gnoroot/gnoland-data/secrets
+    environment:
+      MONIKER: "gnode2"
+      SEEDS: "g1f2v3rf5c36z54kchnat2vdg0sf9kszuc74l75u@gno1:26656"
+      PERSISTENT_PEERS: "g1f2v3rf5c36z54kchnat2vdg0sf9kszuc74l75u@gno1:26656"
+    labels:
+      - "traefik.http.routers.gno2.rule=Host(`gno2-rpc.localhost`)"
+      - "traefik.http.routers.gno2.entrypoints=web"
+      - "traefik.http.services.gno2.loadbalancer.server.port=26657"
+
+  gno3:
+    image: "ghcr.io/gnolang/gno/gnoland:master"
+    container_name: "gno3"
+    entrypoint: "/entrypoint.sh"
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh
+      - ./genesis.json:/gnoroot/gnoland-data/genesis.json:ro
+      - ./gnoland-data-3/secrets:/gnoroot/gnoland-data/secrets
+    environment:
+      MONIKER: "gnode3"
+      SEEDS: "g1f2v3rf5c36z54kchnat2vdg0sf9kszuc74l75u@gno1:26656"
+      PERSISTENT_PEERS: "g1gdv6qnla2q0ry545gukpv90szkd6chkjyvnmes@gno3-sentry-1:26656,g1r5h20zkvpfhqe3rmpzakw39jxq5czh67fu8rlm@gno3-sentry-2:26656"
+      PEX: "false"
+    labels:
+      - "traefik.http.routers.gno3.rule=Host(`gno3-rpc.localhost`)"
+      - "traefik.http.routers.gno3.entrypoints=web"
+      - "traefik.http.services.gno3.loadbalancer.server.port=26657"
+
+  gno3-sentry-1:
+    image: "ghcr.io/gnolang/gno/gnoland:master"
+    container_name: "gno3-sentry-1"
+    entrypoint: "/entrypoint.sh"
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh
+      - ./genesis.json:/gnoroot/gnoland-data/genesis.json:ro
+      - ./gnoland-data-3-sentry-1/secrets:/gnoroot/gnoland-data/secrets
+    environment:
+      MONIKER: "gnode3-sentry-1"
+      SEEDS: "g1f2v3rf5c36z54kchnat2vdg0sf9kszuc74l75u@gno1:26656"
+      PERSISTENT_PEERS: "g1f2v3rf5c36z54kchnat2vdg0sf9kszuc74l75u@gno1:26656"
+      P2P_PRIVATE_PEER_IDS: "g1gk7jk5wgt8r7wqs89rjk9pvkj525gj00r40zlr"
+    labels:
+      - "traefik.http.routers.gno3.rule=Host(`gno3-sentry-1-rpc.localhost`)"
+      - "traefik.http.routers.gno3.entrypoints=web"
+      - "traefik.http.services.gno3.loadbalancer.server.port=26657"
+
+  gno3-sentry-2:
+    image: "ghcr.io/gnolang/gno/gnoland:master"
+    container_name: "gno3-sentry-2"
+    entrypoint: "/entrypoint.sh"
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh
+      - ./genesis.json:/gnoroot/gnoland-data/genesis.json:ro
+      - ./gnoland-data-3-sentry-2/secrets:/gnoroot/gnoland-data/secrets
+    environment:
+      MONIKER: "gnode3-sentry-2"
+      SEEDS: "g1f2v3rf5c36z54kchnat2vdg0sf9kszuc74l75u@gno1:26656"
+      PERSISTENT_PEERS: "g1f2v3rf5c36z54kchnat2vdg0sf9kszuc74l75u@gno1:26656"
+      P2P_PRIVATE_PEER_IDS: "g1gk7jk5wgt8r7wqs89rjk9pvkj525gj00r40zlr"
+    labels:
+      - "traefik.http.routers.gno3.rule=Host(`gno3-sentry-2-rpc.localhost`)"
+      - "traefik.http.routers.gno3.entrypoints=web"
+      - "traefik.http.services.gno3.loadbalancer.server.port=26657"
