@@ -107,8 +107,8 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// NOTE: this requires finalized AST structure, especially gotos, and
 	// cannot add or remove statements from bodies.
 	for _, fn := range fset.Files {
-		findGotoLoopStmts(store, pn, fn)    // XXX need to pass in store at all?
-		findLoopEscapedNames(store, pn, fn) // XXX need to pass in store at all?
+		findGotoLoopStmts(store, pn, fn) // XXX need to pass in store at all?
+		//findLoopEscapedNames(store, pn, fn) // XXX need to pass in store at all?
 	}
 
 }
@@ -1916,7 +1916,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 					findBranchLabel(last, n.Label)
 				case GOTO:
-					_, depth, index := findGotoLabel(last, n.Label)
+					_, depth, index, _ := findGotoLabel(last, n.Label)
 					n.Depth = depth
 					n.BodyIndex = index
 				case FALLTHROUGH:
@@ -2240,7 +2240,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 }
 
 func findGotoLoopStmts(store Store, ctx BlockNode, bn BlockNode) {
-
+	fmt.Println("---findGotoLoopStmts, ctx: ", ctx)
+	fmt.Println("---findGotoLoopStmts, bn: ", bn)
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -2282,24 +2283,54 @@ func findGotoLoopStmts(store Store, ctx BlockNode, bn BlockNode) {
 		switch stage {
 		// ----------------------------------------
 		case TRANS_ENTER:
+			return n, TRANS_CONTINUE
+
+			// ----------------------------------------
+		case TRANS_BLOCK:
+			if bn, ok := n.(BlockNode); ok {
+				pushInitBlock(bn, &last, &stack)
+			}
+
+			//fmt.Println("---trans_block, n: ", n, reflect.TypeOf(n))
+		// ----------------------------------------
+		case TRANS_LEAVE:
 			switch n := n.(type) {
 			case *BranchStmt:
+				fmt.Println("---trans_leave, branch stmt")
 				switch n.Op {
 				case GOTO:
 					// XXX
-					_, depth, index := findGotoLabel(last, n.Label)
+					bn, depth, index, labelLine := findGotoLabel(last, n.Label)
 					n.Depth = depth
 					n.BodyIndex = index
+
+					// find goto range
+					gotoLine := n.GetLine()
+					if labelLine < gotoLine {
+						fmt.Println("labelLine: ", labelLine)
+						fmt.Println("gotoLine: ", gotoLine)
+						fmt.Println("---bn: ", bn)
+						fmt.Println("---body: ", bn.GetBody())
+
+						// list all stmts
+						for _, s := range bn.GetBody() {
+							if s.GetLine() >= labelLine && s.GetLine() <= gotoLine {
+								fmt.Println("s: ", s)
+								s.SetAttribute(ATTR_GOTOLOOPSTMT, true)
+							}
+						}
+
+						//panic("goto block!!!")
+					}
 				}
 			}
-
-		// ----------------------------------------
-		case TRANS_LEAVE:
+			fmt.Println("---trans_leave, n: ", n)
 			// finalization.
 			if _, ok := n.(BlockNode); ok {
 				// Pop block.
 				stack = stack[:len(stack)-1]
 				last = stack[len(stack)-1]
+				//fmt.Println("---last: ", last, reflect.TypeOf(last))
 			}
 			return n, TRANS_CONTINUE
 		}
@@ -2645,8 +2676,10 @@ func findBranchLabel(last BlockNode, label Name) (
 }
 
 func findGotoLabel(last BlockNode, label Name) (
-	bn BlockNode, depth uint8, bodyIdx int,
+	bn BlockNode, depth uint8, bodyIdx int, line int,
 ) {
+	fmt.Println("---findGotoLabel, last: ", last)
+	var ls Stmt // label stmt
 	for {
 		switch cbn := last.(type) {
 		case *IfStmt, *SwitchStmt:
@@ -2657,10 +2690,12 @@ func findGotoLabel(last BlockNode, label Name) (
 		case *PackageNode:
 			panic("unexpected package blocknode")
 		case *FuncLitExpr, *FuncDecl:
+			fmt.Println("---FuncDecl")
 			body := cbn.GetBody()
-			_, bodyIdx = body.GetLabeledStmt(label)
+			ls, bodyIdx = body.GetLabeledStmt(label)
 			if bodyIdx != -1 {
 				bn = cbn
+				line = ls.GetLine()
 				return
 			} else {
 				panic(fmt.Sprintf(
@@ -2669,9 +2704,10 @@ func findGotoLabel(last BlockNode, label Name) (
 			}
 		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt:
 			body := cbn.GetBody()
-			_, bodyIdx = body.GetLabeledStmt(label)
+			ls, bodyIdx = body.GetLabeledStmt(label)
 			if bodyIdx != -1 {
 				bn = cbn
+				line = ls.GetLine()
 				return
 			} else {
 				last = cbn.GetParentNode(nil)
