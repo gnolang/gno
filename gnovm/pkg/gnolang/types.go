@@ -1203,8 +1203,8 @@ func (ft *FuncType) Specify(store Store, argTVs []TypedValue, isVarg bool) *Func
 					continue
 				} else if vargt == nil {
 					vargt = varg.T
-				} else if isUntyped(varg.T) && vargt.TypeID() == defaultTypeOf(varg.T, varg.V).TypeID() {
-					vargt = defaultTypeOf(varg.T, varg.V)
+				} else if isUntyped(varg.T) && vargt.TypeID() == defaultTypeOf(varg.T).TypeID() {
+					vargt = defaultTypeOf(varg.T)
 				} else if vargt.TypeID() != varg.T.TypeID() {
 					panic(fmt.Sprintf(
 						"incompatible varg types: expected %v, got %s",
@@ -2203,11 +2203,11 @@ func KindOf(t Type) Kind {
 // ----------------------------------------
 // main type-assertion functions.
 
-// TODO: document what class of problems its for.
+// Only for runtime debugging.
 // One of them can be nil, and this lets uninitialized primitives
 // and others serve as empty values.  See doOpAdd()
-// usage: if debug { assertSameTypes() }
-func assertSameTypes(lt, rt Type) {
+// usage: if debug { debugAssertSameTypes() }
+func debugAssertSameTypes(lt, rt Type) {
 	if lt == nil && rt == nil {
 		// both are nil.
 	} else if lt == nil || rt == nil {
@@ -2232,8 +2232,10 @@ func assertSameTypes(lt, rt Type) {
 	}
 }
 
-// Like assertSameTypes(), but more relaxed, for == and !=.
-func assertEqualityTypes(lt, rt Type) {
+// Only for runtime debugging.
+// Like debugAssertSameTypes(), but more relaxed, for == and !=.
+// usage: if debug { debugAssertEqualityTypes() }
+func debugAssertEqualityTypes(lt, rt Type) {
 	if lt == nil && rt == nil {
 		// both are nil.
 	} else if lt == nil || rt == nil {
@@ -2281,23 +2283,14 @@ func isDataByte(t Type) bool {
 
 // TODO move untyped const stuff to preprocess.go.
 // TODO associate with ConvertTo() in documentation.
-func defaultTypeOf(t Type, v Value) Type {
+func defaultTypeOf(t Type) Type {
 	switch t {
 	case UntypedBoolType:
 		return BoolType
 	case UntypedRuneType:
 		return Int32Type
 	case UntypedBigintType:
-		typeVal := IntType
-		if bigintValue, ok := v.(BigintValue); ok {
-			if bigintValue.V != nil && bigintValue.V.Sign() == 1 && !bigintValue.V.IsInt64() {
-				// Use an unsigned type if the value is positive and we know
-				// it won't fit in an int64.
-				typeVal = Uint64Type
-			}
-		}
-
-		return typeVal
+		return IntType
 	case UntypedBigdecType:
 		return Float64Type
 	case UntypedStringType:
@@ -2371,6 +2364,7 @@ func fillEmbeddedName(ft *FieldType) {
 	ft.Embedded = true
 }
 
+// TODO: empty interface? refer to assertAssignableTo
 func IsImplementedBy(it Type, ot Type) bool {
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:
@@ -2505,7 +2499,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					checkType(spec, match.Elem(), false)
+					assertAssignableTo(spec, match.Elem(), false)
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2519,11 +2513,11 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					checkType(spec, match, false)
+					assertAssignableTo(spec, match, false)
 					return // ok
 				} else {
 					if isUntyped(spec) {
-						spec = defaultTypeOf(spec, nil)
+						spec = defaultTypeOf(spec)
 					}
 					lookup[ct.Generic] = spec
 					return // ok
