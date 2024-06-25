@@ -11,17 +11,15 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	charmlog "github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
-	"github.com/charmbracelet/wish/accesscontrol"
 	"github.com/charmbracelet/wish/activeterm"
 	"github.com/charmbracelet/wish/bubbletea"
 	"github.com/charmbracelet/wish/logging"
@@ -202,7 +200,6 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 
 	cmd := initCommandInput(renderer)
 	mod := model{
-		// banner:       banner,
 		render:       renderer,
 		readonly:     cfg.readonly,
 		client:       broclient,
@@ -294,9 +291,18 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 	}
 
 	teaHandler := func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
-		model := mod
+		model := mod // copy model
+		model.readonly = cfg.readonly
 		model.banner = fmt.Sprintf(banner, s.User())
 		model.render = bubbletea.MakeRenderer(s)
+		model.history = list.New() // set a new history
+
+		if len(s.Command()) == 1 {
+			path := filepath.Clean(s.Command()[0])
+			model.urlInput.SetValue(path)
+			model.urlInput.CursorEnd()
+		}
+
 		return model, []tea.ProgramOption{
 			tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
 			tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
@@ -313,30 +319,37 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 		wish.WithAddress(sshaddr.String()),
 		wish.WithHostKeyPath(cfg.sshHostKeyPath),
 		wish.WithMiddleware(
-			accesscontrol.Middleware(),
-			bubbletea.Middleware(teaHandler),
+			NoCommandMiddleware(),
 			activeterm.Middleware(), // Bubble Tea apps usually require a PTY.
+			bubbletea.Middleware(teaHandler),
 			logging.Middleware(),
 		),
 	)
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	logger.Info("Starting SSH server", "addr", sshaddr.String())
+	ctx, cancelCause := context.WithCancelCause(ctx)
+	defer cancelCause(nil)
+
+	// Setup trap signal
+	osm.TrapSignal(func() {
+		logger.Info("Stopping SSH server")
+		if err := s.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
+			cancelCause(fmt.Errorf("Could not stop server: %w", err))
+		} else {
+			cancel()
+		}
+	})
+
 	go func() {
+		logger.Info("Starting SSH server", "addr", sshaddr.String())
 		if err = s.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
-			logger.Error("Could not start server", "error", err)
-			done <- nil
+			cancelCause(err)
+		} else {
+			cancel()
 		}
 	}()
 
-	<-done
-	logger.Info("Stopping SSH server")
-	if err := s.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
-		logger.Error("Could not stop server", "error", err)
-	}
-
-	return nil
+	<-ctx.Done()
+	return context.Cause(ctx)
 }
 
 func getSignerForAccount(io commands.IO, address string, kb keys.Keybase, cfg *broCfg) (gnoclient.Signer, error) {
@@ -391,4 +404,16 @@ func resolveUnixOrTCPAddr(in string) (out string) {
 	}
 
 	panic(err)
+}
+
+func NoCommandMiddleware() wish.Middleware {
+	return func(sh ssh.Handler) ssh.Handler {
+		return func(s ssh.Session) {
+			if len(s.Command()) > 0 {
+				s.Exit(1)
+			} else {
+				sh(s)
+			}
+		}
+	}
 }

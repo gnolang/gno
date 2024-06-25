@@ -280,7 +280,7 @@ func (m *model) moveHistoryBackward() (string, bool) {
 	return "", false
 }
 
-func (m *model) updateHistoryBackward(forward bool) {
+func (m *model) updateHistoryBackward() {
 	v := m.urlInput.Value()
 	if m.history.Len() == 0 {
 		m.current = m.history.PushBack(v)
