@@ -29,7 +29,7 @@ Starts the Gnoland blockchain node, with accompanying setup.
 | `log-level`                | String  | The log level for the gnoland node. (default: `debug`)                                                                                                                                                                                           |
 | `skip-failing-genesis-txs` | Boolean | Doesn’t panic when replaying invalid genesis txs. When starting a production-level chain, it is recommended to set this value to `true` to monitor and analyze failing transactions. (default: `false`)                                          |
 
-### gnoland genesis <subcommand> [flags] [<arg>...]
+### gnoland genesis \<subcommand\> [flags] [\<arg\>...]
 
 Gno `genesis.json` manipulation suite for managing genesis parameters.
 
@@ -59,7 +59,7 @@ Generates a node's `genesis.json` based on specified parameters.
 | `genesis-time`         | Int    | The genesis creation time. (default: `utc now timestamp`)                                                                                                                                                   |
 | `output-path` :        | String | The output path for the `genesis.json`. If the genesis-time of the Genesis File is set to a future time, the chain will automatically start at that time if the node is online. (default: `./genesis.json`) |
 
-### gnoland genesis validator <subcommand> [flags]
+### gnoland genesis validator \<subcommand\> [flags]
 
 Manipulates the `genesis.json` validator set.
 
@@ -118,7 +118,7 @@ gnoland genesis validator remove \
 Validator with address g1rzuwh5frve732k4futyw45y78rzuty4626zy6h removed from genesis file
 ```
 
-### gnoland genesis verify <subcommand> [flags] [<arg>…]
+### gnoland genesis verify \<subcommand\> [flags] [\<arg\>…]
 
 Verifies a `genesis.json`.
 
@@ -128,7 +128,7 @@ Verifies a `genesis.json`.
 |----------------|--------|-----------------------------------------------------------|
 | `genesis-path` | String | The path to the `genesis.json`. (default: `genesis.json`) |
 
-### gnoland genesis balances <subcommand> [flags] [<arg>…]
+### gnoland genesis balances \<subcommand\> [flags] [\<arg\>…]
 
 Manages `genesis.json` account balances.
 
@@ -175,7 +175,7 @@ gnoland genesis balances remove \
 Pre-mine information for address g1rzuwh5frve732k4futyw45y78rzuty4626zy6h removed
 ```
 
-### gnoland txs <subcommand> [flags] [<arg>…]
+### gnoland txs \<subcommand\> [flags] [\<arg\>…]
 
 Manages genesis transactions through input files.
 
@@ -187,7 +187,7 @@ Manages genesis transactions through input files.
 | `remove` | Removes the transactions from the `genesis.json`. |
 | `export` | Exports the transactions from the `genesis.json`. |
 
-### gnoland secrets <subcommand> [flags] [<arg>…]
+### gnoland secrets \<subcommand\> [flags] [\<arg\>…]
 
 The gno secrets manipulation suite for managing the validator key, p2p key and
 validator state.
@@ -200,7 +200,7 @@ validator state.
 | `verify` | Verifies all Gno secrets in a common directory.         |
 | `get`    | Shows all Gno secrets present in a common directory.    |
 
-### gnoland secrets init [flags] [<key>]
+### gnoland secrets init [flags] [\<key\>]
 
 Initializes the validator private key, the node p2p key and the validator's last
 sign state. If a key is provided, it initializes the specified key.
@@ -232,7 +232,7 @@ gnoland secrets init node_key -force
 Node key saved at gnoland-data/secrets/node_key.json
 ```
 
-### gnoland secrets verify [flags] [<key>]
+### gnoland secrets verify [flags] [\<key\>]
 
 Verifies the validator private key, the node p2p key and the validator's last
 sign state. If a key is provided, it verifies the specified key value.
@@ -258,7 +258,7 @@ gnoland secrets verify node_key
 Node P2P key at gnoland-data/secrets/node_key.json is valid
 ```
 
-### gnoland secrets get [flags] [<key>]
+### gnoland secrets get [flags] [\<key\>]
 
 Shows the validator private key, the node p2p key and the validator's last sign
 state. If a key is provided, it shows the specified key value.
@@ -336,10 +336,10 @@ gnoland config init
 Default configuration initialized at gnoland-data/config/config.toml
 ```
 
-### gnoland config set <key> <value>
+### gnoland config set \<key\> \<value\>
 
 Edits the Gno node configuration at the given path by setting the option
-specified at `<key>` to the given `<value>`.
+specified at `\<key\>` to the given `\<value\>`.
 
 #### FLAGS
 
@@ -351,10 +351,10 @@ specified at `<key>` to the given `<value>`.
 The `config set` command replaces the complexity of manually editing the `config.toml` file.
 :::
 
-### gnoland config get <key>
+### gnoland config get \<key\>
 
 Shows the Gno node configuration at the given path by fetching the option
-specified at `<key>`.
+specified at `\<key\>`.
 
 #### FLAGS
 
