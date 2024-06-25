@@ -26,49 +26,7 @@ gnoland config set moniker node02 -config-path gnoland-data/config/config.toml
 
 :::
 
-## 3. Set the rpc connection address (required for connecting with other nodes)
-
-```bash
-gnoland config set rpc.laddr "tcp://0.0.0.0:26657" -config-path gnoland-data/config/config.toml
-```
-
-## 4. Set the validator private key (required)
-
-:::tip
-
-The key file path is relative by default.
-
-:::
-
-```bash
-gnoland config set priv_validator_key_file secrets/priv_validator_key.json -config-path gnoland-data/config/config.toml
-```
-
-## 5. Set the validator state (required)
-
-:::tip
-
-The key file path is relative by default.
-
-:::
-
-```bash
-gnoland config set priv_validator_state_file secrets/priv_validator_state.json -config-path gnoland-data/config/config.toml
-```
-
-## 6. Set the node key (required)
-
-:::tip
-
-The key file path is relative by default.
-
-:::
-
-```bash
-gnoland config set node_key_file secrets/node_key.json -config-path gnoland-data/config/config.toml
-```
-
-## 7. Obtain the genesis file of the chain to connect to
+## 3. Obtain the genesis file of the chain to connect to
 
 - The genesis file of target chain is required to communicate.
 
@@ -87,7 +45,7 @@ For now, obtain the file by
 ## TODO: Add link to download the file from GitHub
 ```
 
-## 8. Confirm the validator information of the first node.
+## 4. Confirm the validator information of the first node.
 
 ```bash
 # Node ID
@@ -108,7 +66,7 @@ $ curl ifconfig.me/ip # GET PUBLIC IP
 1.2.3.4 # USE YOUR OWN PUBLIC IP
 ```
 
-## 9. Configure the persistent_peers list
+## 5. Configure the persistent_peers list
 
 Configure a list of nodes that your validators will always retain a connection with.
 
@@ -116,7 +74,7 @@ Configure a list of nodes that your validators will always retain a connection w
 $ gnoland config set p2p.persistent_peers "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:26656" -config-path gnoland-data/config/config.toml
 ```
 
-## 10. Configure the seeds
+## 6. Configure the seeds
 
 Configure the list of seed nodes. Seed nodes provide information about other nodes for the validator to connect with the chain, enabling a fast and stable initial connection.
 
@@ -130,7 +88,7 @@ This is an option to configure the node set as the Seed Mode. However, the optio
 gnoland config set p2p.seeds "g19d8x6tcr2eyup9e2zwp9ydprm98l76gp66tmd6@1.2.3.4:26656" -config-path gnoland-data/config/config.toml
 ```
 
-## 11. Start the second node
+## 7. Start the second node
 
 ```bash
 gnoland start -data-dir ./gnoland-data -genesis ./genesis.json
