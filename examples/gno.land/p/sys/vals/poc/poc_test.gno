@@ -3,7 +3,7 @@ package poc
 import (
 	"testing"
 
-	"std"
+	"gno.land/p/demo/testutils"
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/sys/vals/types"
@@ -15,7 +15,7 @@ func generateTestValidators(count int) []*types.Validator {
 
 	for i := 0; i < count; i++ {
 		val := &types.Validator{
-			Address:     std.Address(ufmt.Sprintf("%d", i)),
+			Address:     testutils.TestAddress(ufmt.Sprintf("%d", i)),
 			PubKey:      "public-key",
 			VotingPower: 1,
 		}
@@ -33,7 +33,7 @@ func TestPoC_AddValidator_Invalid(t *testing.T) {
 		t.Parallel()
 
 		var (
-			proposalAddress = std.Address("caller")
+			proposalAddress = testutils.TestAddress("caller")
 			proposalKey     = "public-key"
 
 			initialSet = generateTestValidators(1)
@@ -56,7 +56,7 @@ func TestPoC_AddValidator(t *testing.T) {
 	t.Parallel()
 
 	var (
-		proposalAddress = std.Address("caller")
+		proposalAddress = testutils.TestAddress("caller")
 		proposalKey     = "public-key"
 	)
 
@@ -81,7 +81,7 @@ func TestPoC_RemoveValidator_Invalid(t *testing.T) {
 		t.Parallel()
 
 		var (
-			proposalAddress = std.Address("caller")
+			proposalAddress = testutils.TestAddress("caller")
 			initialSet      = generateTestValidators(1)
 		)
 
@@ -92,7 +92,7 @@ func TestPoC_RemoveValidator_Invalid(t *testing.T) {
 
 		// Attempt to remove the validator
 		testing.PanicsWithError(t, types.ErrValidatorMissing, func() {
-			p.RemoveValidator(std.Address("totally random"))
+			p.RemoveValidator(testutils.TestAddress("totally random"))
 		})
 	})
 }
@@ -101,7 +101,7 @@ func TestPoC_RemoveValidator(t *testing.T) {
 	t.Parallel()
 
 	var (
-		proposalAddress = std.Address("caller")
+		proposalAddress = testutils.TestAddress("caller")
 		initialSet      = generateTestValidators(1)
 	)
 
