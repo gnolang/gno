@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -228,13 +227,13 @@ func TestFlow(t *testing.T) {
 	contents := `This is a [broken Wikipedia link](https://www.wikipedia.org/non-existent-page).
 Here's an embedmd link that links to a non-existing file: [embedmd]:# (../assets/myfile.sol go)
 and here is some JSX tags <string\> <random-unescaped-text-tag>
-and a local link will be added in further code.
-`
+and [this is a link to a non-existent](../myfolder/myfile.md) file.`
 
 	expectedItems := []string{
 		"https://www.wikipedia.org/non-existent-page",
 		"../assets/myfile.sol",
 		"<random-unescaped-text-tag>",
+		"../myfolder/myfile.md",
 	}
 
 	filePath := filepath.Join(tempDir, "examplefile.md")
@@ -250,10 +249,6 @@ and a local link will be added in further code.
 
 	err = f.Close()
 	require.NoError(t, err)
-
-	filePathToLink := filepath.Join(tempDir, "fileToLinkTo.md")
-
-	contents += fmt.Sprintf(" [This](%s) is a valid local link.", filePathToLink)
 
 	res, err := execLint(&cfg{
 		docsPath: tempDir,
