@@ -133,7 +133,7 @@ func TestCallSingle_Sponsor_Integration(t *testing.T) {
 	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
 	require.NoError(t, err)
 
-	// Sponsor executes the transaction
+	// Sponsor executes the transaction which received from sponsoree
 	res, err := sponsorClient.ExecuteSponsorTransaction(*sponsorTx, sponsorBefore.AccountNumber, sponsorBefore.Sequence)
 	require.NoError(t, err)
 
@@ -284,7 +284,7 @@ func TestCallMultiple_Sponsor_Integration(t *testing.T) {
 	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
 	require.NoError(t, err)
 
-	// Sponsor executes the transaction
+	// Sponsor executes the transaction which received from sponsoree
 	res, err := sponsorClient.ExecuteSponsorTransaction(*sponsorTx, sponsorBefore.AccountNumber, sponsorBefore.Sequence)
 	require.NoError(t, err)
 
@@ -370,7 +370,7 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 
 	// Create signer accounts for sponsor and sponsoree
 	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
-	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
+	sender := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
 	// Set up an RPC client to interact with the in-memory node
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
@@ -382,30 +382,30 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 		RPCClient: rpcClient,
 	}
 
-	sponsoreeClient := Client{
-		Signer:    sponsoree,
+	senderClient := Client{
+		Signer:    sender,
 		RPCClient: rpcClient,
 	}
 
-	// Ensure sponsoree has enough money to make msg send
+	// Ensure sender has enough money to make msg send
 	_, err = sponsorClient.Send(BaseTxCfg{
 		GasWanted: 1000000,
 		GasFee:    "100000ugnot",
 		Memo:      "Test memo",
 	}, MsgSend{
-		ToAddress: sponsoree.Info().GetAddress(),
+		ToAddress: sender.Info().GetAddress(),
 		Send:      "100000ugnot",
 	})
 	require.NoError(t, err)
 
-	// Fetch sponsoree account information before the transaction
-	var sponsoreeAccountNumber uint64 = 0
-	var sponsoreeSequence uint64 = 0
+	// Fetch sender account information before the transaction
+	var senderAccountNumber uint64 = 0
+	var senderSequence uint64 = 0
 
-	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
-	if sponsoreeBefore != nil {
-		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
-		sponsoreeSequence = sponsoreeBefore.Sequence
+	senderBefore, _, _ := senderClient.QueryAccount(sender.Info().GetAddress())
+	if senderBefore != nil {
+		senderAccountNumber = senderBefore.AccountNumber
+		senderSequence = senderBefore.Sequence
 	}
 
 	// Configure the transaction to be sponsored
@@ -426,33 +426,33 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 		Send:      "10000ugnot",
 	}
 
-	// Sponsoree creates a new sponsor transaction
-	tx, err := sponsoreeClient.NewSponsorTransaction(cfg, msg)
+	// sender creates a new sponsor transaction
+	tx, err := senderClient.NewSponsorTransaction(cfg, msg)
 	require.NoError(t, err)
 
-	// Sponsoree signs the transaction
-	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
+	// sender signs the transaction
+	sponsorTx, err := senderClient.SignTransaction(*tx, senderAccountNumber, senderSequence)
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
 	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
 	require.NoError(t, err)
 
-	// Sponsor executes the transaction
+	// Sponsor executes the transaction which received from sender
 	res, err := sponsorClient.ExecuteSponsorTransaction(*sponsorTx, sponsorBefore.AccountNumber, sponsorBefore.Sequence)
 	require.NoError(t, err)
 
 	// Check the result of the transaction execution
-	expected := "(\"hi test argument\" string)\n\n"
+	expected := ""
 	got := string(res.DeliverTx.Data)
 
 	assert.Nil(t, err)
 	assert.Equal(t, expected, got)
 
-	// Query sponsoree's balance after the transaction
-	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	// Query sender's balance after the transaction
+	senderAfter, _, err := senderClient.QueryAccount(sender.Info().GetAddress())
 	require.NoError(t, err)
-	assert.Equal(t, sponsoreeBefore.GetCoins(), sponsoreeAfter.GetCoins().Sub(std.MustParseCoins(msg.Send)))
+	assert.Equal(t, senderBefore.GetCoins(), senderAfter.GetCoins().Add(std.MustParseCoins(msg.Send)))
 
 	// Query sponsor's balance after the transaction
 	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
@@ -464,7 +464,7 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 	toAfter, _, err := sponsorClient.QueryAccount(toAddress)
 	require.NoError(t, err)
 
-	assert.Equal(t, toAfter, std.NewCoins(std.MustParseCoin(msg.Send)))
+	assert.Equal(t, toAfter.GetCoins(), std.NewCoins(std.MustParseCoin(msg.Send)))
 }
 
 func TestSendMultiple_Integration(t *testing.T) {
