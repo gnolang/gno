@@ -4,11 +4,9 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/encoding/json"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 const defaultIndent = "  "
@@ -28,7 +26,10 @@ const defaultRecursionLimit = 10000
 // different builds of your program, even when using the same version of the
 // protobuf module.
 func (tv *TypedValue) Marshal() ([]byte, error) {
-	return MarshalOptions{}.Marshal(tv)
+	return MarshalOptions{
+		Store: nil,
+		Alloc: nilAllocator,
+	}.Marshal(tv)
 }
 
 // MarshalOptions is a configurable JSON format marshaler.
@@ -101,6 +102,8 @@ type MarshalOptions struct {
 	// }
 
 	Store Store
+
+	Alloc *Allocator
 }
 
 // UnmarshalOptions is a configurable JSON format parser.
@@ -198,10 +201,10 @@ func (o MarshalOptions) marshal(b []byte, tv *TypedValue) ([]byte, error) {
 	}
 
 	// XXX: Use store as resolver
-	if o.Store == nil {
-		panic("no store has been set")
-		// o.Resolver = protoregistry.GlobalTypes
-	}
+	// if o.Store == nil {
+	// 	panic("no store has been set")
+	// 	// o.Resolver = protoregistry.GlobalTypes
+	// }
 
 	internalEnc, err := json.NewEncoder(b, o.Indent)
 	if err != nil {
@@ -259,7 +262,7 @@ func wellKnownTypeMarshaler(tv *TypedValue) marshalFunc {
 	switch tv.T.Kind() {
 	case BoolKind, StringKind,
 		IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
-		UintKind, Uint8Kind, Uint16Kind, Uint64Kind,
+		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
 		Float32Kind, Float64Kind,
 		BigintKind, BigdecKind:
 		return encoder.marshalSingular
@@ -291,22 +294,22 @@ func wellKnownTypeUnmarshaler(tv *TypedValue) unmarshalFunc {
 	switch tv.T.Kind() {
 	case BoolKind, StringKind,
 		IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
-		UintKind, Uint8Kind, Uint16Kind, Uint64Kind,
+		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
 		Float32Kind, Float64Kind,
 		BigintKind, BigdecKind:
-		return decoder.marshalSingular
+		return decoder.unmarshalSingular
 
-	case StructKind:
-		return decoder.marshalStructValue
+	// case StructKind:
+	// 	return decoder.unmarshalStructValue
 
-	case ArrayKind, SliceKind, TupleKind: // List
-		return decoder.marshalListValue
+	// case ArrayKind, SliceKind, TupleKind: // List
+	// 	return decoder.unmarshalListValue
 
-	case InterfaceKind:
-		return decoder.marshalAny
+	// case InterfaceKind:
+	// 	return decoder.unmarshalAny
 
-	case PointerKind:
-		return decoder.marshalPointerValue
+	// case PointerKind:
+	// 	return decoder.unmarshalPointerValue
 
 	case RefTypeKind:
 		return nil
@@ -330,12 +333,30 @@ func (e encoder) marshalMessage(tv *TypedValue) error {
 		return nil
 	}
 
-	panic("no supported")
+	fmt.Printf("%+#v\n", tv.V)
 	// store := e.opts.Store
 
-	// // var typeURL string
-	// var oid string
+	var typeURL string
+	var oid string
 	// switch cv := tv.V.(type) {
+	// case TypeValue:
+
+	// }
+
+	v := copyValueWithRefs(tv.V)
+	fmt.Printf("%#v\n", v)
+
+	if ctv, ok := tv.V.(TypeValue); ok {
+		switch cv := ctv.Type.(type) {
+		case *DeclaredType:
+
+			fmt.Println(cv)
+		}
+	}
+
+	// default:
+	// 	panic("NOOO")
+
 	// case RefValue:
 	// 	// XXX: check for empty pkgpath
 	// 	typeURL = cv.PkgPath
@@ -353,21 +374,23 @@ func (e encoder) marshalMessage(tv *TypedValue) error {
 	// 		case *StructValue:
 	// 			fpv := cb.GetPointerToInt(store, cv.Index)
 	// 			cv.TV = fpv.TV // TODO optimize?
+	// 		case *Block:
+	// 			vpv := cb.GetPointerToInt(store, cv.Index)
+	// 			cv.TV = vpv.TV // TODO optimize?
+
 	// 		case *BoundMethodValue:
 	// 			panic("should not happen: not a bound method")
 	// 		case *MapValue:
 	// 			panic("should not happen: not a map value")
-	// 		case *Block:
-	// 			vpv := cb.GetPointerToInt(store, cv.Index)
-	// 			cv.TV = vpv.TV // TODO optimize?
 	// 		default:
 	// 			panic("should not happen")
 	// 		}
 	// 		tv.V = cv
 	// 	}
-	// default:
-	// 	// do nothing
+	// do nothing
 	// }
+
+	_, _ = oid, typeURL
 
 	return nil
 }
@@ -509,7 +532,7 @@ func (d decoder) unmarshalMessage(tv *TypedValue, skipTypeURL bool) error {
 // marshalSingular marshals the given non-repeated field value. This includes
 // all scalar types, enums, messages, and groups.
 func (e encoder) marshalSingular(tv *TypedValue) error {
-	if tv.V == nil {
+	if len(tv.N) == 0 {
 		e.WriteNull()
 		return nil
 	}
@@ -518,7 +541,7 @@ func (e encoder) marshalSingular(tv *TypedValue) error {
 	case BoolKind:
 		e.WriteBool(tv.GetBool())
 	case StringKind:
-		e.WriteString(tv.String())
+		e.WriteString(tv.GetString())
 	case IntKind:
 		e.WriteInt(tv.GetInt())
 	case Int8Kind:
@@ -563,6 +586,15 @@ func (d decoder) unmarshalSingular(tv *TypedValue) error {
 		return err
 	}
 
+	// XXX: guess unknown type
+	// if tv.T == nil {
+	// 	if !d.unmarshalUnknownNumber(tv, tok) {
+	// 		return d.newError(tok.Pos(), "invalid value for %v field %v: %v", tok.Kind(), tok.Name(), tok.RawString())
+	// 	}
+
+	// 	return nil
+	// }
+
 	switch kind := tv.T.Kind(); kind {
 	case BoolKind:
 		if tok.Kind() == json.Bool {
@@ -572,157 +604,242 @@ func (d decoder) unmarshalSingular(tv *TypedValue) error {
 		if tok.Kind() == json.String {
 			tv.SetString(StringValue(tok.ParsedString()))
 		}
-	case IntKind:
-		d.opts.Store.GetAllocator().NewNative()
-		e.WriteInt(tv.GetInt())
-	case Int8Kind:
-		e.WriteInt8(tv.GetInt8())
-	case Int16Kind:
-		e.WriteInt16(tv.GetInt16())
-	case Int32Kind:
-		e.WriteInt32(tv.GetInt32())
-	case Int64Kind:
-		e.WriteInt64(tv.GetInt64())
-	case UintKind:
-		e.WriteUint(tv.GetUint())
-	case Uint8Kind:
-		e.WriteUint8(tv.GetUint8())
-	case Uint16Kind:
-		e.WriteUint16(tv.GetUint16())
-	case Uint32Kind:
-		e.WriteUint32(tv.GetUint32())
-	case Uint64Kind:
-		e.WriteUint64(tv.GetUint64())
-	case Float32Kind:
-		e.WriteFloat32(tv.GetFloat32())
-	case Float64Kind:
-		e.WriteFloat64(tv.GetFloat64())
+	case IntKind, Int16Kind, Int8Kind, Int32Kind, Int64Kind:
+		if ok := unmarshalInt(tv, tok); ok {
+			return nil
+		}
+	case UintKind, Uint16Kind, Uint8Kind, Uint32Kind, Uint64Kind:
+		if ok := unmarshalUint(tv, tok); ok {
+			return nil
+		}
+	case Float32Kind, Float64Kind:
+		if ok := unmarshalFloat(tv, tok); ok {
+			return nil
+		}
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind.String()))
 	}
 
-	// case protoreflect.MessageKind, protoreflect.GroupKind:
-	// 	if err := e.marshalMessage(val.Message(), ""); err != nil {
-	// 		return err
-	// 	}
-
 	return nil
 }
 
-func unmarshalInt(tok json.Token, bitSize int) (Value, bool) {
+func getBitsize(t Type) int {
+	switch k := t.Kind(); k {
+	case Int8Kind, Uint8Kind:
+		return 8
+	case Int16Kind, Uint16Kind:
+		return 16
+	case Int32Kind, Float32Kind, Uint32Kind:
+		return 32
+	case UintKind, IntKind, Int64Kind, Uint64Kind, Float64Kind:
+		return 64
+	default:
+		panic("cannot not guess no bitSize of type: " + k.String())
+	}
+
+}
+
+// func (d *decoder) unmarshalUnknownNumber(tv *TypedValue, tok json.Token) bool {
+// 	alloc := d.opts.Store.GetAllocator()
+// 	switch tok.Kind() {
+// 	case json.Number:
+// 		if v, ok := tok.Int(64); ok {
+// 			tv.T = alloc.NewType(IntType)
+// 			tv.SetInt(int(v))
+// 		} else if v, ok := tok.Uint(64); ok {
+// 			tv.T = alloc.NewType(UintType)
+// 			tv.SetUint(uint(v))
+// 		} else if v, ok := tok.Float(64); ok {
+// 			tv.T = alloc.NewType(Float64Type)
+// 			tv.SetFloat64(v)
+// 		} else {
+// 			return false
+// 		}
+
+// 		return true
+
+// 	case json.String:
+// 		// Decode number from string.
+// 		s := strings.TrimSpace(tok.ParsedString())
+// 		if len(s) != len(tok.ParsedString()) {
+// 			return false
+// 		}
+// 		dec := json.NewDecoder([]byte(s))
+// 		tok, err := dec.Read()
+// 		if err != nil {
+// 			return false
+// 		}
+
+// 		return d.unmarshalUnknownNumber(tv, tok)
+// 	}
+
+// 	return false
+// }
+
+func unmarshalInt(tv *TypedValue, tok json.Token) bool {
+	bitSize := getBitsize(tv.T)
 	switch tok.Kind() {
 	case json.Number:
-		return getInt(tok, bitSize)
+		return setInt(tv, tok, bitSize)
 
 	case json.String:
 		// Decode number from string.
 		s := strings.TrimSpace(tok.ParsedString())
 		if len(s) != len(tok.ParsedString()) {
-			return protoreflect.Value{}, false
+			return false
 		}
 		dec := json.NewDecoder([]byte(s))
 		tok, err := dec.Read()
 		if err != nil {
-			return protoreflect.Value{}, false
+
+			return false
 		}
-		return getInt(tok, bitSize)
+		return setInt(tv, tok, bitSize)
 	}
 
-	return nil, false
+	return false
 }
 
-func getInt(tok json.Token, bitSize int) (Value, bool) {
-	n, ok := tok.Int(bitSize)
-	if !ok {
-		return protoreflect.Value{}, false
+func setInt(tv *TypedValue, tok json.Token, bitSize int) bool {
+	var ok bool
+	var n int64
+
+	switch bt := tv.T.Kind(); bt {
+	case IntKind:
+		if n, ok = tok.Int(bitSize); ok {
+			tv.SetInt(int(n))
+		}
+	case Int32Kind:
+		if n, ok = tok.Int(bitSize); ok {
+			tv.SetInt32(int32(n))
+		}
+	case Int16Kind:
+		if n, ok = tok.Int(bitSize); ok {
+			tv.SetInt16(int16(n))
+		}
+	case Int64Kind:
+		if n, ok = tok.Int(bitSize); ok {
+			tv.SetInt64(n)
+		}
+	default:
+		panic(fmt.Sprintf("invalid int kind: %s", bt.String()))
 	}
-	if bitSize == 32 {
-		return protoreflect.ValueOfInt32(int32(n)), true
-	}
-	return protoreflect.ValueOfInt64(n), true
+
+	return ok
 }
 
-func unmarshalUint(tok json.Token, bitSize int) (protoreflect.Value, bool) {
+func unmarshalUint(tv *TypedValue, tok json.Token) bool {
+	bitSize := getBitsize(tv.T)
 	switch tok.Kind() {
 	case json.Number:
-		return getUint(tok, bitSize)
+		return setUint(tv, tok, bitSize)
 
 	case json.String:
 		// Decode number from string.
 		s := strings.TrimSpace(tok.ParsedString())
 		if len(s) != len(tok.ParsedString()) {
-			return protoreflect.Value{}, false
+			return false
 		}
 		dec := json.NewDecoder([]byte(s))
 		tok, err := dec.Read()
 		if err != nil {
-			return protoreflect.Value{}, false
+
+			return false
 		}
-		return getUint(tok, bitSize)
+		return setUint(tv, tok, bitSize)
 	}
-	return protoreflect.Value{}, false
+
+	return false
 }
 
-func getUint(tok json.Token, bitSize int) (protoreflect.Value, bool) {
-	n, ok := tok.Uint(bitSize)
-	if !ok {
-		return protoreflect.Value{}, false
+func setUint(tv *TypedValue, tok json.Token, bitSize int) bool {
+	var ok bool
+	var n uint64
+
+	switch bt := tv.T.Kind(); bt {
+	case UintKind:
+		if n, ok = tok.Uint(bitSize); ok {
+			tv.SetUint(uint(n))
+		}
+	case Uint16Kind:
+		if n, ok = tok.Uint(bitSize); ok {
+			tv.SetUint16(uint16(n))
+		}
+	case Uint32Kind:
+		if n, ok = tok.Uint(bitSize); ok {
+			tv.SetUint32(uint32(n))
+		}
+	case Uint64Kind:
+		if n, ok = tok.Uint(bitSize); ok {
+			tv.SetUint64(n)
+		}
+	default:
+		panic(fmt.Sprintf("invalid uint kind: %s", bt.String()))
 	}
 
-	if bitSize == 32 {
-		return protoreflect.ValueOfUint32(uint32(n)), true
-	}
-	return protoreflect.ValueOfUint64(n), true
+	return ok
 }
 
-func unmarshalFloat(tok json.Token, bitSize int) (protoreflect.Value, bool) {
+func unmarshalFloat(tv *TypedValue, tok json.Token) bool {
+	bitSize := getBitsize(tv.T)
 	switch tok.Kind() {
 	case json.Number:
-		return getFloat(tok, bitSize)
+		return setFloat(tv, tok, bitSize)
 
 	case json.String:
+		// XXX: do we need to suuport this
 		s := tok.ParsedString()
-		switch s {
-		case "NaN":
-			if bitSize == 32 {
-				return float32(math.NaN())), true
-			}
-			return protoreflect.ValueOfFloat64(math.NaN()), true
-		case "Infinity":
-			if bitSize == 32 {
-				return protoreflect.ValueOfFloat32(float32(math.Inf(+1))), true
-			}
-			return protoreflect.ValueOfFloat64(math.Inf(+1)), true
-		case "-Infinity":
-			if bitSize == 32 {
-				return protoreflect.ValueOfFloat32(float32(math.Inf(-1))), true
-			}
-			return protoreflect.ValueOfFloat64(math.Inf(-1)), true
-		}
+		// switch s {
+		// case "NaN":
+		// 	if bitSize == 32 {
+		// 		tv.Set
+		// 		return
+		// 	}
+		// 	return protoreflect.ValueOfFloat64(math.NaN()), true
+		// case "Infinity":
+		// 	if bitSize == 32 {
+		// 		return protoreflect.ValueOfFloat32(float32(math.Inf(+1))), true
+		// 	}
+		// 	return protoreflect.ValueOfFloat64(math.Inf(+1)), true
+		// case "-Infinity":
+		// 	if bitSize == 32 {
+		// 		return protoreflect.ValueOfFloat32(float32(math.Inf(-1))), true
+		// 	}
+		// 	return protoreflect.ValueOfFloat64(math.Inf(-1)), true
+		// }
 
 		// Decode number from string.
 		if len(s) != len(strings.TrimSpace(s)) {
-			return protoreflect.Value{}, false
+			return false
 		}
 		dec := json.NewDecoder([]byte(s))
 		tok, err := dec.Read()
 		if err != nil {
-			return protoreflect.Value{}, false
+			return false
 		}
-		return getFloat(tok, bitSize)
+		return setFloat(tv, tok, bitSize)
 	}
-	return protoreflect.Value{}, false
+	return false
 }
 
-func getFloat(tok json.Token, bitSize int) (protoreflect.Value, bool) {
-	n, ok := tok.Float(bitSize)
-	if !ok {
-		return protoreflect.Value{}, false
+func setFloat(tv *TypedValue, tok json.Token, bitSize int) bool {
+	var ok bool
+	var n float64
+
+	switch bt := tv.T.Kind(); bt {
+	case Float32Kind:
+		if n, ok = tok.Float(bitSize); ok {
+			tv.SetFloat32(float32(n))
+		}
+	case Float64Kind:
+		if n, ok = tok.Float(bitSize); ok {
+			tv.SetFloat64(float64(n))
+		}
+	default:
+		panic(fmt.Sprintf("invalid uint kind: %s", bt.String()))
 	}
-	if bitSize == 32 {
-		return protoreflect.ValueOfFloat32(float32(n)), true
-	}
-	return protoreflect.ValueOfFloat64(n), true
+
+	return ok
 }
 
 // The JSON representation of an Any message uses the regular representation of
@@ -770,12 +887,14 @@ func (e encoder) marshalStructValue(tv *TypedValue) error {
 		}
 
 		if jsontag != "" {
-			e.WriteName(string(ft.Tag))
+			e.WriteName(jsontag)
 		} else {
 			e.WriteName(string(ft.Name))
 		}
 
-		e.marshalSingular(fv)
+		if err := e.marshalMessage(fv); err != nil {
+			return err
+		}
 	}
 
 	return nil
