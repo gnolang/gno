@@ -91,14 +91,14 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.genesisBalancesFile,
 		"genesis-balances-file",
 		defaultGenesisBalancesFile,
-		"initial distribution file",
+		"initial distribution file (requires -lazy)",
 	)
 
 	fs.StringVar(
 		&c.genesisTxsFile,
 		"genesis-txs-file",
 		defaultGenesisTxsFile,
-		"initial txs to replay",
+		"initial txs to replay (requires -lazy)",
 	)
 
 	fs.StringVar(
@@ -203,6 +203,14 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		if err := lazyInitNodeDir(io, nodeDir); err != nil {
 			return fmt.Errorf("unable to lazy-init the node directory, %w", err)
 		}
+	}
+
+	// Only allow -genesis-balances-file and -genesis-txs-file with -lazy (#2391)
+	if c.genesisBalancesFile != "" && !c.lazyInit {
+		return fmt.Errorf("you can not use -genesis-balances-file without -lazy")
+	}
+	if c.genesisTxsFile != "" && !c.lazyInit {
+		return fmt.Errorf("you can not use -genesis-txs-file without -lazy")
 	}
 
 	// Load the configuration
@@ -331,7 +339,7 @@ func lazyInitNodeDir(io commands.IO, nodeDir string) error {
 	return fmt.Errorf("unable to initialize secrets, %w", err)
 }
 
-// lazyInitGenesis a new genesis.json file, with a signle validator
+// lazyInitGenesis a new genesis.json file, with a single validator
 func lazyInitGenesis(
 	io commands.IO,
 	c *startCfg,
