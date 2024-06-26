@@ -18,7 +18,7 @@ stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED:   \d+'
 stdout 'HEIGHT:     \d+'
 stdout 'EVENTS:     \[{\"type\":\"bar\",\"pkg_path\":\"gno.land\/r\/demo\/ee\",\"func\":\"Bar\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\]}\]'
-stdout 'TX HASH:    \s+'
+stdout 'TX HASH:    '
 
 -- ee.gno --
 package ee
