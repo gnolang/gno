@@ -144,12 +144,14 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			if i != 0 {
 				signerAccs[i], res = GetSignerAcc(newCtx, ak, signerAddrs[i])
 				// only create new account when tx is a sponsor transaction
-				if !res.IsOK() && tx.IsSponsorTx() {
-					isNewAccount = true
-					signerAccs[i] = ak.NewAccountWithAddress(newCtx, signerAddrs[i])
-					signerAccs[i].SetPubKey(stdSigs[i].PubKey)
-				} else {
-					return newCtx, res, true
+				if !res.IsOK() {
+					if tx.IsSponsorTx() {
+						isNewAccount = true
+						signerAccs[i] = ak.NewAccountWithAddress(newCtx, signerAddrs[i])
+						signerAccs[i].SetPubKey(stdSigs[i].PubKey)
+					} else {
+						return newCtx, res, true
+					}
 				}
 			}
 
