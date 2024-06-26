@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 
+LOG_LEVEL=${LOG_LEVEL:-"error"}
+
 MONIKER=${MONIKER:-"gnode"}
 P2P_LADDR=${P2P_LADDR:-"tcp://0.0.0.0:26656"}
 RPC_LADDR=${RPC_LADDR:-"tcp://0.0.0.0:26657"}
@@ -31,4 +33,4 @@ gnoland config set p2p.seed_mode "${SEED_MODE}"
 gnoland config set p2p.seeds     "${SEEDS}"
 gnoland config set p2p.persistent_peers "${PERSISTENT_PEERS}"
 
-exec gnoland start --genesis="./gnoland-data/genesis.json" --log-level=info
+exec gnoland start --genesis="./gnoland-data/genesis.json" --log-level=${LOG_LEVEL}
