@@ -210,7 +210,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		c.genesisTxsFile != defaultGenesisTxsFile {
 		// These options only work with -lazy (#2391)
 		return fmt.Errorf(
-			`Error: -skip-failing-genesis-txs, -genesis-balances-file, -genesis-txs-file only work with -lazy and will be removed soon. 
+			`error: -skip-failing-genesis-txs, -genesis-balances-file, -genesis-txs-file only work with -lazy and will be removed soon. 
 
 Please see 'gnoland genesis balances -h'
        and 'gnoland genesis txs -h' instead to manually prepare a genesis without -lazy`,
