@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Run tests
+// Call tests
 func TestCallSingle_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
@@ -65,9 +65,8 @@ func TestCallSingle_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-// Run tests
 func TestCallSingle_Sponsor_Integration(t *testing.T) {
-	// Set up an in-memory node for testing
+	// Set up an in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
@@ -156,7 +155,6 @@ func TestCallSingle_Sponsor_Integration(t *testing.T) {
 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
 }
 
-// Run tests
 func TestCallMultiple_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
@@ -210,9 +208,8 @@ func TestCallMultiple_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-// Run tests
 func TestCallMultiple_Sponsor_Integration(t *testing.T) {
-	// Set up an in-memory node for testing
+	// Set up an in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
@@ -307,7 +304,7 @@ func TestCallMultiple_Sponsor_Integration(t *testing.T) {
 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
 }
 
-// Run tests
+// Send tests
 func TestSendSingle_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
@@ -358,9 +355,8 @@ func TestSendSingle_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-// Run tests
 func TestSendSingle_Sponsor_Integration(t *testing.T) {
-	// Set up an in-memory node for testing
+	// Set up an in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
@@ -526,7 +522,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 }
 
 func TestSendMultiple_Sponsor_Integration(t *testing.T) {
-	// Set up an in-memory node for testing
+	// Set up an in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
 	defer node.Stop()
@@ -700,88 +696,115 @@ func main() {
 	assert.Equal(t, string(res.DeliverTx.Data), "- before: 0\n- after: 10\n")
 }
 
-// Run tests
-// func TestRunSingle_Sponsor_Integration(t *testing.T) {
-// 	// Set up in-memory node
-// 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-// 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
-// 	defer node.Stop()
+func TestRunSingle_Sponsor_Integration(t *testing.T) {
+	// Set up an in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
 
-// 	// Init Signer & RPCClient
-// 	signer := newInMemorySigner(t, keybase,  integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
-// 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
-// 	require.NoError(t, err)
+	// Initialize in-memory key storage
+	keybase := keys.NewInMemory()
 
-// 	client := Client{
-// 		Signer:    signer,
-// 		RPCClient: rpcClient,
-// 	}
+	// Create signer accounts for sponsor and sponsoree
+	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
-// 	// Make Tx config
-// 	baseCfg := BaseTxCfg{
-// 		GasFee:         "10000ugnot",
-// 		GasWanted:      8000000,
-// 		AccountNumber:  0,
-// 		SequenceNumber: 0,
-// 		Memo:           "",
-// 	}
+	// Set up an RPC client to interact with the in-memory node
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
-// 	fileBody := `package main
-// import (
-// 	"gno.land/p/demo/ufmt"
-// 	"gno.land/r/demo/tests"
-// )
-// func main() {
-// 	println(ufmt.Sprintf("- before: %d", tests.Counter()))
-// 	for i := 0; i < 10; i++ {
-// 		tests.IncCounter()
-// 	}
-// 	println(ufmt.Sprintf("- after: %d", tests.Counter()))
-// }`
+	// Initialize sponsor and sponsoree clients with their respective signers and RPC client
+	sponsorClient := Client{
+		Signer:    sponsor,
+		RPCClient: rpcClient,
+	}
 
-// 	// Make Msg configs
-// 	msg := MsgRun{
-// 		Package: &std.MemPackage{
-// 			Files: []*std.MemFile{
-// 				{
-// 					Name: "main.gno",
-// 					Body: fileBody,
-// 				},
-// 			},
-// 		},
-// 		Send: "",
-// 	}
+	sponsoreeClient := Client{
+		Signer:    sponsoree,
+		RPCClient: rpcClient,
+	}
 
-// 	// sponsoree is the Bech32 encoded address of the sponsored account
-// 	sponsoree, _ := crypto.AddressFromBech32("g13sm84nuqed3fuank8huh7x9mupgw22uft3lcl8")
+	// Fetch sponsoree account information before the transaction
+	var sponsoreeAccountNumber uint64 = 0
+	var sponsoreeSequence uint64 = 0
 
-// 	// Query sponsoree's balance before transaction
-// 	sponsoreeBefore, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
+	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	if sponsoreeBefore != nil {
+		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
+		sponsoreeSequence = sponsoreeBefore.Sequence
+	}
 
-// 	// Query sponsor's balance before transaction
-// 	sponsorBefore, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
+	// Configure the transaction to be sponsored
+	cfg := SponsorTxCfg{
+		BaseTxCfg: BaseTxCfg{
+			GasFee:    "10000ugnot",
+			GasWanted: 8000000,
+			Memo:      "",
+		},
+		SponsorAddress: sponsor.Info().GetAddress(),
+	}
 
-// 	// Execute sponsor transaction
-// 	res, err := client.SponsorTransaction(baseCfg, sponsoree, msg)
-// 	assert.NoError(t, err)
-// 	require.NotNil(t, res)
-// 	assert.Equal(t, string(res.DeliverTx.Data), "- before: 0\n- after: 10\n")
+	fileBody := `package main
+	import (
+		"gno.land/p/demo/ufmt"
+		"gno.land/r/demo/tests"
+	)
+	func main() {
+		println(ufmt.Sprintf("- before: %d", tests.Counter()))
+		for i := 0; i < 10; i++ {
+			tests.IncCounter()
+		}
+		println(ufmt.Sprintf("- after: %d", tests.Counter()))
+	}`
 
-// 	// Query sponsoree's balance after transaction
-// 	sponsoreeAfter, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
-// 	assert.Equal(t, sponsoreeBefore.GetCoins(), sponsoreeAfter.GetCoins())
+	// Create the message for the transaction
+	msg := MsgRun{
+		Package: &std.MemPackage{
+			Files: []*std.MemFile{
+				{
+					Name: "main.gno",
+					Body: fileBody,
+				},
+			},
+		},
+		Send: "",
+	}
 
-// 	// Query sponsor's balance after transaction
-// 	sponsorAfter, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
-// 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(baseCfg.GasFee))
-// 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
-// }
+	// Sponsoree creates a new sponsor transaction
+	tx, err := sponsoreeClient.NewSponsorTransaction(cfg, msg)
+	require.NoError(t, err)
 
-// Run tests
+	// Sponsoree signs the transaction
+	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
+	require.NoError(t, err)
+
+	// Fetch sponsor account information before the transaction
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
+
+	// Sponsor executes the transaction which received from sponsoree
+	res, err := sponsorClient.ExecuteSponsorTransaction(*sponsorTx, sponsorBefore.AccountNumber, sponsorBefore.Sequence)
+	require.NoError(t, err)
+
+	// Check the result of the transaction execution
+	expected := "- before: 0\n- after: 10\n"
+	got := string(res.DeliverTx.Data)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, got)
+
+	// Query sponsoree's balance after the transaction
+	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	require.NoError(t, err)
+	assert.Equal(t, std.Coins(nil), sponsoreeAfter.GetCoins())
+
+	// Query sponsor's balance after the transaction
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
+	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
+	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
+}
+
 func TestRunMultiple_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
@@ -862,110 +885,136 @@ func main() {
 	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
-// Run tests
-// func TestRunMultiple_Sponsor_Integration(t *testing.T) {
-// 	// Set up in-memory node
-// 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-// 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
-// 	defer node.Stop()
+func TestRunMultiple_Sponsor_Integration(t *testing.T) {
+	// Set up an in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
 
-// 	// Init Signer & RPCClient
-// 	signer := newInMemorySigner(t, keybase,  integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
-// 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
-// 	require.NoError(t, err)
+	// Initialize in-memory key storage
+	keybase := keys.NewInMemory()
 
-// 	client := Client{
-// 		Signer:    signer,
-// 		RPCClient: rpcClient,
-// 	}
+	// Create signer accounts for sponsor and sponsoree
+	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
-// 	// Make Tx config
-// 	baseCfg := BaseTxCfg{
-// 		GasFee:         "10000ugnot",
-// 		GasWanted:      8000000,
-// 		AccountNumber:  0,
-// 		SequenceNumber: 0,
-// 		Memo:           "",
-// 	}
+	// Set up an RPC client to interact with the in-memory node
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
-// 	fileBody1 := `package main
-// import (
-// 	"gno.land/p/demo/ufmt"
-// 	"gno.land/r/demo/tests"
-// )
-// func main() {
-// 	println(ufmt.Sprintf("- before: %d", tests.Counter()))
-// 	for i := 0; i < 10; i++ {
-// 		tests.IncCounter()
-// 	}
-// 	println(ufmt.Sprintf("- after: %d", tests.Counter()))
-// }`
+	// Initialize sponsor and sponsoree clients with their respective signers and RPC client
+	sponsorClient := Client{
+		Signer:    sponsor,
+		RPCClient: rpcClient,
+	}
 
-// 	fileBody2 := `package main
-// import (
-// 	"gno.land/p/demo/ufmt"
-// 	"gno.land/r/demo/deep/very/deep"
-// )
-// func main() {
-// 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
-// }`
+	sponsoreeClient := Client{
+		Signer:    sponsoree,
+		RPCClient: rpcClient,
+	}
 
-// 	// Make Msg configs
-// 	msg1 := MsgRun{
-// 		Package: &std.MemPackage{
-// 			Files: []*std.MemFile{
-// 				{
-// 					Name: "main.gno",
-// 					Body: fileBody1,
-// 				},
-// 			},
-// 		},
-// 		Send: "",
-// 	}
-// 	msg2 := MsgRun{
-// 		Package: &std.MemPackage{
-// 			Files: []*std.MemFile{
-// 				{
-// 					Name: "main.gno",
-// 					Body: fileBody2,
-// 				},
-// 			},
-// 		},
-// 		Send: "",
-// 	}
+	// Fetch sponsoree account information before the transaction
+	var sponsoreeAccountNumber uint64 = 0
+	var sponsoreeSequence uint64 = 0
 
-// 	// sponsoree is the Bech32 encoded address of the sponsored account
-// 	sponsoree, _ := crypto.AddressFromBech32("g13sm84nuqed3fuank8huh7x9mupgw22uft3lcl8")
+	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	if sponsoreeBefore != nil {
+		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
+		sponsoreeSequence = sponsoreeBefore.Sequence
+	}
 
-// 	// Query sponsoree's balance before transaction
-// 	sponsoreeBefore, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
+	// Configure the transaction to be sponsored
+	cfg := SponsorTxCfg{
+		BaseTxCfg: BaseTxCfg{
+			GasFee:    "10000ugnot",
+			GasWanted: 8000000,
+			Memo:      "",
+		},
+		SponsorAddress: sponsor.Info().GetAddress(),
+	}
 
-// 	// Query sponsor's balance before transaction
-// 	sponsorBefore, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
+	fileBody1 := `package main
+	import (
+		"gno.land/p/demo/ufmt"
+		"gno.land/r/demo/tests"
+	)
+	func main() {
+		println(ufmt.Sprintf("- before: %d", tests.Counter()))
+		for i := 0; i < 10; i++ {
+			tests.IncCounter()
+		}
+		println(ufmt.Sprintf("- after: %d", tests.Counter()))
+	}`
 
-// 	expected := "- before: 0\n- after: 10\nhi gnoclient!\n"
+	fileBody2 := `package main
+	import (
+		"gno.land/p/demo/ufmt"
+		"gno.land/r/demo/deep/very/deep"
+	)
+	func main() {
+		println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
+	}`
 
-// 	// Execute sponsor transaction
-// 	res, err := client.SponsorTransaction(baseCfg, sponsoree, msg1, msg2)
-// 	assert.NoError(t, err)
-// 	require.NotNil(t, res)
-// 	assert.Equal(t, expected, string(res.DeliverTx.Data))
+	// Make Msg configs
+	msg1 := MsgRun{
+		Package: &std.MemPackage{
+			Files: []*std.MemFile{
+				{
+					Name: "main.gno",
+					Body: fileBody1,
+				},
+			},
+		},
+		Send: "",
+	}
+	msg2 := MsgRun{
+		Package: &std.MemPackage{
+			Files: []*std.MemFile{
+				{
+					Name: "main.gno",
+					Body: fileBody2,
+				},
+			},
+		},
+		Send: "",
+	}
 
-// 	// Query sponsoree's balance after transaction
-// 	sponsoreeAfter, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
-// 	assert.Equal(t, sponsoreeBefore.GetCoins(), sponsoreeAfter.GetCoins())
+	// Sponsoree creates a new sponsor transaction
+	tx, err := sponsoreeClient.NewSponsorTransaction(cfg, msg1, msg2)
+	require.NoError(t, err)
 
-// 	// Query sponsor's balance after transaction
-// 	sponsorAfter, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
-// 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(baseCfg.GasFee))
-// 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
-// }
+	// Sponsoree signs the transaction
+	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
+	require.NoError(t, err)
 
-// Run tests
+	// Fetch sponsor account information before the transaction
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
+
+	// Sponsor executes the transaction which received from sponsoree
+	res, err := sponsorClient.ExecuteSponsorTransaction(*sponsorTx, sponsorBefore.AccountNumber, sponsorBefore.Sequence)
+	require.NoError(t, err)
+
+	// Check the result of the transaction execution
+	expected := "- before: 0\n- after: 10\nhi gnoclient!\n"
+	got := string(res.DeliverTx.Data)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, got)
+
+	// Query sponsoree's balance after the transaction
+	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	require.NoError(t, err)
+	assert.Equal(t, std.Coins(nil), sponsoreeAfter.GetCoins())
+
+	// Query sponsor's balance after the transaction
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
+	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
+	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
+}
+
+// AddPackage tests
 func TestAddPackageSingle_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
@@ -1036,100 +1085,139 @@ func Echo(str string) string {
 	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
 }
 
-// Run tests
-// func TestAddPackageSingle_Sponsor_Integration(t *testing.T) {
-// 	// Set up in-memory node
-// 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-// 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
-// 	defer node.Stop()
+func TestAddPackageSingle_Sponsor_Integration(t *testing.T) {
+	// Set up an in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
 
-// 	// Init Signer & RPCClient
-// 	signer := newInMemorySigner(t, keybase,  integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
-// 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
-// 	require.NoError(t, err)
+	// Initialize in-memory key storage
+	keybase := keys.NewInMemory()
 
-// 	// Setup Client
-// 	client := Client{
-// 		Signer:    signer,
-// 		RPCClient: rpcClient,
-// 	}
+	// Create signer accounts for sponsor and sponsoree
+	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
-// 	// Make Tx config
-// 	baseCfg := BaseTxCfg{
-// 		GasFee:         "10000ugnot",
-// 		GasWanted:      8000000,
-// 		AccountNumber:  0,
-// 		SequenceNumber: 0,
-// 		Memo:           "",
-// 	}
+	// Set up an RPC client to interact with the in-memory node
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
-// 	body := `package echo
+	// Initialize sponsor and sponsoree clients with their respective signers and RPC client
+	sponsorClient := Client{
+		Signer:    sponsor,
+		RPCClient: rpcClient,
+	}
 
-// func Echo(str string) string {
-// 	return str
-// }`
+	sponsoreeClient := Client{
+		Signer:    sponsoree,
+		RPCClient: rpcClient,
+	}
 
-// 	fileName := "echo.gno"
-// 	deploymentPath := "gno.land/p/demo/integration/test/echo"
-// 	deposit := "100ugnot"
+	// Ensure sponsoree has enough money to make msg addpackage
+	_, err = sponsorClient.Send(BaseTxCfg{
+		GasWanted: 1000000,
+		GasFee:    "100000ugnot",
+		Memo:      "Test memo",
+	}, MsgSend{
+		ToAddress: sponsoree.Info().GetAddress(),
+		Send:      "100000ugnot",
+	})
+	require.NoError(t, err)
 
-// 	// Make Msg config
-// 	msg := MsgAddPackage{
-// 		Package: &std.MemPackage{
-// 			Name: "echo",
-// 			Path: deploymentPath,
-// 			Files: []*std.MemFile{
-// 				{
-// 					Name: fileName,
-// 					Body: body,
-// 				},
-// 			},
-// 		},
-// 		Deposit: deposit,
-// 	}
+	// Fetch sponsoree account information before the transaction
+	var sponsoreeAccountNumber uint64 = 0
+	var sponsoreeSequence uint64 = 0
 
-// 	// sponsoree is the Bech32 encoded address of the sponsored account
-// 	sponsoree, _ := crypto.AddressFromBech32("g13sm84nuqed3fuank8huh7x9mupgw22uft3lcl8")
+	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	if sponsoreeBefore != nil {
+		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
+		sponsoreeSequence = sponsoreeBefore.Sequence
+	}
 
-// 	// Query sponsoree's balance before transaction
-// 	sponsoreeBefore, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
+	// Configure the transaction to be sponsored
+	cfg := SponsorTxCfg{
+		BaseTxCfg: BaseTxCfg{
+			GasFee:    "10000ugnot",
+			GasWanted: 8000000,
+			Memo:      "",
+		},
+		SponsorAddress: sponsor.Info().GetAddress(),
+	}
 
-// 	// Query sponsor's balance before transaction
-// 	sponsorBefore, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
+	body := `package echo
 
-// 	// Execute AddPackage
-// 	_, err = client.SponsorTransaction(baseCfg, sponsoree, msg)
-// 	assert.Nil(t, err)
+func Echo(str string) string {
+	return str
+}`
 
-// 	// Check for deployed file on the node
-// 	query, err := client.Query(QueryCfg{
-// 		Path: "vm/qfile",
-// 		Data: []byte(deploymentPath),
-// 	})
-// 	require.NoError(t, err)
-// 	assert.Equal(t, string(query.Response.Data), fileName)
+	fileName := "echo.gno"
+	deploymentPath := "gno.land/p/demo/integration/test/echo"
+	deposit := "100ugnot"
 
-// 	// Query balance to validate deposit
-// 	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
-// 	require.NoError(t, err)
-// 	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+	// Make Msg config
+	msg := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "echo",
+			Path: deploymentPath,
+			Files: []*std.MemFile{
+				{
+					Name: fileName,
+					Body: body,
+				},
+			},
+		},
+		Deposit: deposit,
+	}
 
-// 	// Query sponsoree's balance after transaction
-// 	sponsoreeAfter, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
-// 	expectedSponsoreeAfter := sponsoreeBefore.GetCoins().Sub(std.MustParseCoins(deposit))
-// 	assert.Equal(t, expectedSponsoreeAfter, sponsoreeAfter.GetCoins())
+	// Sponsoree creates a new sponsor transaction
+	tx, err := sponsoreeClient.NewSponsorTransaction(cfg, msg)
+	require.NoError(t, err)
 
-// 	// Query sponsor's balance after transaction
-// 	sponsorAfter, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
-// 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(baseCfg.GasFee))
-// 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
-// }
+	// Sponsoree signs the transaction
+	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
+	require.NoError(t, err)
 
-// Run tests
+	// Fetch sponsor account information before the transaction
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
+
+	// Sponsor executes the transaction which received from sponsoree
+	res, err := sponsorClient.ExecuteSponsorTransaction(*sponsorTx, sponsorBefore.AccountNumber, sponsorBefore.Sequence)
+	require.NoError(t, err)
+
+	// Check the result of the transaction execution
+	expected := ""
+	got := string(res.DeliverTx.Data)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, got)
+
+	// Check for deployed file on the node
+	query, err := sponsorClient.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, string(query.Response.Data), fileName)
+
+	// Query package's balance to validate the deposit amount
+	baseAcc, _, err := sponsorClient.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
+	require.NoError(t, err)
+	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+
+	// Query sponsoree's balance after the transaction
+	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	require.NoError(t, err)
+	expectedSponsoreeAfter := sponsoreeBefore.GetCoins().Sub(std.MustParseCoins(deposit))
+	assert.Equal(t, expectedSponsoreeAfter, sponsoreeAfter.GetCoins())
+
+	// Query sponsor's balance after the transaction
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
+	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
+	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
+}
+
 func TestAddPackageMultiple_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
@@ -1237,135 +1325,175 @@ func Hello(str string) string {
 	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
 }
 
-// Run tests
-// func TestAddPackageMultiple_Sponsor_Integration(t *testing.T) {
-// 	// Set up in-memory node
-// 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-// 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
-// 	defer node.Stop()
+func TestAddPackageMultiple_Sponsor_Integration(t *testing.T) {
+	// Set up an in-memory node
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
 
-// 	// Init Signer & RPCClient
-// 	signer := newInMemorySigner(t, keybase,  integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
-// 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
-// 	require.NoError(t, err)
+	// Initialize in-memory key storage
+	keybase := keys.NewInMemory()
 
-// 	// Setup Client
-// 	client := Client{
-// 		Signer:    signer,
-// 		RPCClient: rpcClient,
-// 	}
+	// Create signer accounts for sponsor and sponsoree
+	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
-// 	// Make Tx config
-// 	baseCfg := BaseTxCfg{
-// 		GasFee:         "10000ugnot",
-// 		GasWanted:      8000000,
-// 		AccountNumber:  0,
-// 		SequenceNumber: 0,
-// 		Memo:           "",
-// 	}
+	// Set up an RPC client to interact with the in-memory node
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
-// 	deposit := "100ugnot"
-// 	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
+	// Initialize sponsor and sponsoree clients with their respective signers and RPC client
+	sponsorClient := Client{
+		Signer:    sponsor,
+		RPCClient: rpcClient,
+	}
 
-// 	body1 := `package echo
+	sponsoreeClient := Client{
+		Signer:    sponsoree,
+		RPCClient: rpcClient,
+	}
 
-// func Echo(str string) string {
-// 	return str
-// }`
+	// Ensure sponsoree has enough money to make msg addpackage
+	_, err = sponsorClient.Send(BaseTxCfg{
+		GasWanted: 1000000,
+		GasFee:    "100000ugnot",
+		Memo:      "Test memo",
+	}, MsgSend{
+		ToAddress: sponsoree.Info().GetAddress(),
+		Send:      "100000ugnot",
+	})
+	require.NoError(t, err)
 
-// 	deploymentPath2 := "gno.land/p/demo/integration/test/hello"
-// 	body2 := `package hello
+	// Fetch sponsoree account information before the transaction
+	var sponsoreeAccountNumber uint64 = 0
+	var sponsoreeSequence uint64 = 0
 
-// func Hello(str string) string {
-// 	return "Hello " + str + "!"
-// }`
+	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	if sponsoreeBefore != nil {
+		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
+		sponsoreeSequence = sponsoreeBefore.Sequence
+	}
 
-// 	msg1 := MsgAddPackage{
-// 		Package: &std.MemPackage{
-// 			Name: "echo",
-// 			Path: deploymentPath1,
-// 			Files: []*std.MemFile{
-// 				{
-// 					Name: "echo.gno",
-// 					Body: body1,
-// 				},
-// 			},
-// 		},
-// 		Deposit: "",
-// 	}
+	// Configure the transaction to be sponsored
+	cfg := SponsorTxCfg{
+		BaseTxCfg: BaseTxCfg{
+			GasFee:    "10000ugnot",
+			GasWanted: 8000000,
+			Memo:      "",
+		},
+		SponsorAddress: sponsor.Info().GetAddress(),
+	}
 
-// 	msg2 := MsgAddPackage{
-// 		Package: &std.MemPackage{
-// 			Name: "hello",
-// 			Path: deploymentPath2,
-// 			Files: []*std.MemFile{
-// 				{
-// 					Name: "gno.mod",
-// 					Body: "module gno.land/p/demo/integration/test/hello",
-// 				},
-// 				{
-// 					Name: "hello.gno",
-// 					Body: body2,
-// 				},
-// 			},
-// 		},
-// 		Deposit: deposit,
-// 	}
+	deposit := "100ugnot"
+	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
 
-// 	// sponsoree is the Bech32 encoded address of the sponsored account
-// 	sponsoree, _ := crypto.AddressFromBech32("g13sm84nuqed3fuank8huh7x9mupgw22uft3lcl8")
+	body1 := `package echo
 
-// 	// Query sponsoree's balance before transaction
-// 	sponsoreeBefore, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
+func Echo(str string) string {
+	return str
+}`
 
-// 	// Query sponsor's balance before transaction
-// 	sponsorBefore, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
+	deploymentPath2 := "gno.land/p/demo/integration/test/hello"
+	body2 := `package hello
 
-// 	// Execute AddPackage
-// 	_, err = client.SponsorTransaction(baseCfg, sponsoree, msg1, msg2)
-// 	assert.Nil(t, err)
+func Hello(str string) string {
+	return "Hello " + str + "!"
+}`
 
-// 	// Check Package #1
-// 	query, err := client.Query(QueryCfg{
-// 		Path: "vm/qfile",
-// 		Data: []byte(deploymentPath1),
-// 	})
-// 	require.NoError(t, err)
-// 	assert.Equal(t, string(query.Response.Data), "echo.gno")
+	msg1 := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "echo",
+			Path: deploymentPath1,
+			Files: []*std.MemFile{
+				{
+					Name: "echo.gno",
+					Body: body1,
+				},
+			},
+		},
+		Deposit: "",
+	}
 
-// 	// Query balance to validate deposit
-// 	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath1))
-// 	require.NoError(t, err)
-// 	assert.Equal(t, baseAcc.GetCoins().String(), "")
+	msg2 := MsgAddPackage{
+		Package: &std.MemPackage{
+			Name: "hello",
+			Path: deploymentPath2,
+			Files: []*std.MemFile{
+				{
+					Name: "gno.mod",
+					Body: "module gno.land/p/demo/integration/test/hello",
+				},
+				{
+					Name: "hello.gno",
+					Body: body2,
+				},
+			},
+		},
+		Deposit: deposit,
+	}
 
-// 	// Check Package #2
-// 	query, err = client.Query(QueryCfg{
-// 		Path: "vm/qfile",
-// 		Data: []byte(deploymentPath2),
-// 	})
-// 	require.NoError(t, err)
-// 	assert.Contains(t, string(query.Response.Data), "hello.gno")
-// 	assert.Contains(t, string(query.Response.Data), "gno.mod")
+	// Sponsoree creates a new sponsor transaction
+	tx, err := sponsoreeClient.NewSponsorTransaction(cfg, msg1, msg2)
+	require.NoError(t, err)
 
-// 	// Query balance to validate deposit
-// 	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
-// 	require.NoError(t, err)
-// 	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+	// Sponsoree signs the transaction
+	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
+	require.NoError(t, err)
 
-// 	// Query sponsoree's balance after transaction
-// 	sponsoreeAfter, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
-// 	expectedSponsoreeAfter := sponsoreeBefore.GetCoins().Sub(std.MustParseCoins(deposit))
-// 	assert.Equal(t, expectedSponsoreeAfter, sponsoreeAfter.GetCoins())
+	// Fetch sponsor account information before the transaction
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
 
-// 	// Query sponsor's balance after transaction
-// 	sponsorAfter, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
-// 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(baseCfg.GasFee))
-// 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
-// }
+	// Sponsor executes the transaction which received from sponsoree
+	res, err := sponsorClient.ExecuteSponsorTransaction(*sponsorTx, sponsorBefore.AccountNumber, sponsorBefore.Sequence)
+	require.NoError(t, err)
+
+	// Check the result of the transaction execution
+	expected := ""
+	got := string(res.DeliverTx.Data)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, got)
+
+	// Check Package #1
+	query, err := sponsorClient.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath1),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, string(query.Response.Data), "echo.gno")
+
+	// Query package's balance to validate the deposit amount
+	baseAcc, _, err := sponsorClient.QueryAccount(gnolang.DerivePkgAddr(deploymentPath1))
+	require.NoError(t, err)
+	assert.Equal(t, baseAcc.GetCoins().String(), "")
+
+	// Check Package #2
+	query, err = sponsorClient.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath2),
+	})
+	require.NoError(t, err)
+	assert.Contains(t, string(query.Response.Data), "hello.gno")
+	assert.Contains(t, string(query.Response.Data), "gno.mod")
+
+	// Query package's balance to validate the deposit amount
+	baseAcc, _, err = sponsorClient.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
+	require.NoError(t, err)
+	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+
+	// Query sponsoree's balance after the transaction
+	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	require.NoError(t, err)
+	expectedSponsoreeAfter := sponsoreeBefore.GetCoins().Sub(std.MustParseCoins(deposit))
+	assert.Equal(t, expectedSponsoreeAfter, sponsoreeAfter.GetCoins())
+
+	// Query sponsor's balance after the transaction
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
+	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
+	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
+}
 
 // todo add more integration tests:
 // MsgCall with Send field populated (single/multiple)
