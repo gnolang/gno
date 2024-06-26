@@ -78,6 +78,12 @@ func TestCallSingle_Sponsor_Integration(t *testing.T) {
 	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
+	sponsorInfo, err := sponsor.Info()
+	require.NoError(t, err)
+
+	sponsoreeInfo, err := sponsoree.Info()
+	require.NoError(t, err)
+
 	// Set up an RPC client to interact with the in-memory node
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
@@ -97,7 +103,7 @@ func TestCallSingle_Sponsor_Integration(t *testing.T) {
 	var sponsoreeAccountNumber uint64 = 0
 	var sponsoreeSequence uint64 = 0
 
-	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
 	if sponsoreeBefore != nil {
 		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
 		sponsoreeSequence = sponsoreeBefore.Sequence
@@ -110,7 +116,7 @@ func TestCallSingle_Sponsor_Integration(t *testing.T) {
 			GasFee:    "10000ugnot",
 			Memo:      "Test memo",
 		},
-		SponsorAddress: sponsor.Info().GetAddress(),
+		SponsorAddress: sponsorInfo.GetAddress(),
 	}
 
 	// Create the message for the transaction
@@ -129,7 +135,7 @@ func TestCallSingle_Sponsor_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
-	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 
 	// Sponsor executes the transaction which received from sponsoree
@@ -144,12 +150,12 @@ func TestCallSingle_Sponsor_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 
 	// Query sponsoree's balance after the transaction
-	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
 	require.NoError(t, err)
 	assert.Equal(t, std.Coins(nil), sponsoreeAfter.GetCoins())
 
 	// Query sponsor's balance after the transaction
-	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
@@ -221,6 +227,12 @@ func TestCallMultiple_Sponsor_Integration(t *testing.T) {
 	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
+	sponsorInfo, err := sponsor.Info()
+	require.NoError(t, err)
+
+	sponsoreeInfo, err := sponsoree.Info()
+	require.NoError(t, err)
+
 	// Set up an RPC client to interact with the in-memory node
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
@@ -240,7 +252,7 @@ func TestCallMultiple_Sponsor_Integration(t *testing.T) {
 	var sponsoreeAccountNumber uint64 = 0
 	var sponsoreeSequence uint64 = 0
 
-	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
 	if sponsoreeBefore != nil {
 		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
 		sponsoreeSequence = sponsoreeBefore.Sequence
@@ -253,7 +265,7 @@ func TestCallMultiple_Sponsor_Integration(t *testing.T) {
 			GasFee:    "10000ugnot",
 			Memo:      "Test memo",
 		},
-		SponsorAddress: sponsor.Info().GetAddress(),
+		SponsorAddress: sponsorInfo.GetAddress(),
 	}
 
 	// Create multiple messages for the transaction
@@ -278,7 +290,7 @@ func TestCallMultiple_Sponsor_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
-	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 
 	// Sponsor executes the transaction which received from sponsoree
@@ -293,12 +305,12 @@ func TestCallMultiple_Sponsor_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 
 	// Query sponsoree's balance after the transaction
-	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
 	require.NoError(t, err)
 	assert.Equal(t, std.Coins(nil), sponsoreeAfter.GetCoins())
 
 	// Query sponsor's balance after the transaction
-	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
@@ -368,6 +380,12 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	sender := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
+	sponsorInfo, err := sponsor.Info()
+	require.NoError(t, err)
+
+	senderInfo, err := sender.Info()
+	require.NoError(t, err)
+
 	// Set up an RPC client to interact with the in-memory node
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
@@ -389,7 +407,7 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 		GasFee:    "100000ugnot",
 		Memo:      "Test memo",
 	}, MsgSend{
-		ToAddress: sender.Info().GetAddress(),
+		ToAddress: senderInfo.GetAddress(),
 		Send:      "100000ugnot",
 	})
 	require.NoError(t, err)
@@ -398,7 +416,7 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 	var senderAccountNumber uint64 = 0
 	var senderSequence uint64 = 0
 
-	senderBefore, _, _ := senderClient.QueryAccount(sender.Info().GetAddress())
+	senderBefore, _, _ := senderClient.QueryAccount(senderInfo.GetAddress())
 	if senderBefore != nil {
 		senderAccountNumber = senderBefore.AccountNumber
 		senderSequence = senderBefore.Sequence
@@ -411,7 +429,7 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 			GasFee:    "100000ugnot",
 			Memo:      "Test memo",
 		},
-		SponsorAddress: sponsor.Info().GetAddress(),
+		SponsorAddress: sponsorInfo.GetAddress(),
 	}
 
 	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
@@ -431,7 +449,7 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
-	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 
 	// Sponsor executes the transaction which received from sender
@@ -446,13 +464,13 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 
 	// Query sponsor's balance after the transaction
-	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
 
 	// Query sender's balance after the transaction
-	senderAfter, _, err := senderClient.QueryAccount(sender.Info().GetAddress())
+	senderAfter, _, err := senderClient.QueryAccount(senderInfo.GetAddress())
 	require.NoError(t, err)
 	expectedSenderAfter := senderBefore.GetCoins().Sub(std.MustParseCoins(msg.Send))
 	assert.Equal(t, expectedSenderAfter, senderAfter.GetCoins())
@@ -534,6 +552,12 @@ func TestSendMultiple_Sponsor_Integration(t *testing.T) {
 	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	sender := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
+	sponsorInfo, err := sponsor.Info()
+	require.NoError(t, err)
+
+	senderInfo, err := sender.Info()
+	require.NoError(t, err)
+
 	// Set up an RPC client to interact with the in-memory node
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
@@ -555,7 +579,7 @@ func TestSendMultiple_Sponsor_Integration(t *testing.T) {
 		GasFee:    "100000ugnot",
 		Memo:      "Test memo",
 	}, MsgSend{
-		ToAddress: sender.Info().GetAddress(),
+		ToAddress: senderInfo.GetAddress(),
 		Send:      "100000ugnot",
 	})
 	require.NoError(t, err)
@@ -564,7 +588,7 @@ func TestSendMultiple_Sponsor_Integration(t *testing.T) {
 	var senderAccountNumber uint64 = 0
 	var senderSequence uint64 = 0
 
-	senderBefore, _, _ := senderClient.QueryAccount(sender.Info().GetAddress())
+	senderBefore, _, _ := senderClient.QueryAccount(senderInfo.GetAddress())
 	if senderBefore != nil {
 		senderAccountNumber = senderBefore.AccountNumber
 		senderSequence = senderBefore.Sequence
@@ -577,7 +601,7 @@ func TestSendMultiple_Sponsor_Integration(t *testing.T) {
 			GasFee:    "100000ugnot",
 			Memo:      "Test memo",
 		},
-		SponsorAddress: sponsor.Info().GetAddress(),
+		SponsorAddress: sponsorInfo.GetAddress(),
 	}
 
 	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
@@ -604,7 +628,7 @@ func TestSendMultiple_Sponsor_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
-	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 
 	// Sponsor executes the transaction which received from sender
@@ -619,13 +643,13 @@ func TestSendMultiple_Sponsor_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 
 	// Query sender's balance after the transaction
-	senderAfter, _, err := senderClient.QueryAccount(sender.Info().GetAddress())
+	senderAfter, _, err := senderClient.QueryAccount(senderInfo.GetAddress())
 	require.NoError(t, err)
 	expectSenderAfter := senderBefore.GetCoins().Sub(std.NewCoins(std.NewCoin("ugnot", amount1+amount2)))
 	assert.Equal(t, expectSenderAfter, senderAfter.GetCoins())
 
 	// Query sponsor's balance after the transaction
-	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
@@ -709,6 +733,12 @@ func TestRunSingle_Sponsor_Integration(t *testing.T) {
 	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
+	sponsorInfo, err := sponsor.Info()
+	require.NoError(t, err)
+
+	sponsoreeInfo, err := sponsoree.Info()
+	require.NoError(t, err)
+
 	// Set up an RPC client to interact with the in-memory node
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
@@ -728,7 +758,7 @@ func TestRunSingle_Sponsor_Integration(t *testing.T) {
 	var sponsoreeAccountNumber uint64 = 0
 	var sponsoreeSequence uint64 = 0
 
-	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
 	if sponsoreeBefore != nil {
 		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
 		sponsoreeSequence = sponsoreeBefore.Sequence
@@ -741,7 +771,7 @@ func TestRunSingle_Sponsor_Integration(t *testing.T) {
 			GasWanted: 8000000,
 			Memo:      "",
 		},
-		SponsorAddress: sponsor.Info().GetAddress(),
+		SponsorAddress: sponsorInfo.GetAddress(),
 	}
 
 	fileBody := `package main
@@ -779,7 +809,7 @@ func TestRunSingle_Sponsor_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
-	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 
 	// Sponsor executes the transaction which received from sponsoree
@@ -794,12 +824,12 @@ func TestRunSingle_Sponsor_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 
 	// Query sponsoree's balance after the transaction
-	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
 	require.NoError(t, err)
 	assert.Equal(t, std.Coins(nil), sponsoreeAfter.GetCoins())
 
 	// Query sponsor's balance after the transaction
-	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
@@ -898,6 +928,12 @@ func TestRunMultiple_Sponsor_Integration(t *testing.T) {
 	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
+	sponsorInfo, err := sponsor.Info()
+	require.NoError(t, err)
+
+	sponsoreeInfo, err := sponsoree.Info()
+	require.NoError(t, err)
+
 	// Set up an RPC client to interact with the in-memory node
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
@@ -917,7 +953,7 @@ func TestRunMultiple_Sponsor_Integration(t *testing.T) {
 	var sponsoreeAccountNumber uint64 = 0
 	var sponsoreeSequence uint64 = 0
 
-	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
 	if sponsoreeBefore != nil {
 		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
 		sponsoreeSequence = sponsoreeBefore.Sequence
@@ -930,7 +966,7 @@ func TestRunMultiple_Sponsor_Integration(t *testing.T) {
 			GasWanted: 8000000,
 			Memo:      "",
 		},
-		SponsorAddress: sponsor.Info().GetAddress(),
+		SponsorAddress: sponsorInfo.GetAddress(),
 	}
 
 	fileBody1 := `package main
@@ -988,7 +1024,7 @@ func TestRunMultiple_Sponsor_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
-	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 
 	// Sponsor executes the transaction which received from sponsoree
@@ -1003,12 +1039,12 @@ func TestRunMultiple_Sponsor_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 
 	// Query sponsoree's balance after the transaction
-	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
 	require.NoError(t, err)
 	assert.Equal(t, std.Coins(nil), sponsoreeAfter.GetCoins())
 
 	// Query sponsor's balance after the transaction
-	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
@@ -1098,6 +1134,12 @@ func TestAddPackageSingle_Sponsor_Integration(t *testing.T) {
 	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
+	sponsorInfo, err := sponsor.Info()
+	require.NoError(t, err)
+
+	sponsoreeInfo, err := sponsoree.Info()
+	require.NoError(t, err)
+
 	// Set up an RPC client to interact with the in-memory node
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
@@ -1119,7 +1161,7 @@ func TestAddPackageSingle_Sponsor_Integration(t *testing.T) {
 		GasFee:    "100000ugnot",
 		Memo:      "Test memo",
 	}, MsgSend{
-		ToAddress: sponsoree.Info().GetAddress(),
+		ToAddress: sponsoreeInfo.GetAddress(),
 		Send:      "100000ugnot",
 	})
 	require.NoError(t, err)
@@ -1128,7 +1170,7 @@ func TestAddPackageSingle_Sponsor_Integration(t *testing.T) {
 	var sponsoreeAccountNumber uint64 = 0
 	var sponsoreeSequence uint64 = 0
 
-	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
 	if sponsoreeBefore != nil {
 		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
 		sponsoreeSequence = sponsoreeBefore.Sequence
@@ -1141,7 +1183,7 @@ func TestAddPackageSingle_Sponsor_Integration(t *testing.T) {
 			GasWanted: 8000000,
 			Memo:      "",
 		},
-		SponsorAddress: sponsor.Info().GetAddress(),
+		SponsorAddress: sponsorInfo.GetAddress(),
 	}
 
 	body := `package echo
@@ -1178,7 +1220,7 @@ func Echo(str string) string {
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
-	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 
 	// Sponsor executes the transaction which received from sponsoree
@@ -1206,13 +1248,13 @@ func Echo(str string) string {
 	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
 
 	// Query sponsoree's balance after the transaction
-	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
 	require.NoError(t, err)
 	expectedSponsoreeAfter := sponsoreeBefore.GetCoins().Sub(std.MustParseCoins(deposit))
 	assert.Equal(t, expectedSponsoreeAfter, sponsoreeAfter.GetCoins())
 
 	// Query sponsor's balance after the transaction
-	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
@@ -1338,6 +1380,12 @@ func TestAddPackageMultiple_Sponsor_Integration(t *testing.T) {
 	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
+	sponsorInfo, err := sponsor.Info()
+	require.NoError(t, err)
+
+	sponsoreeInfo, err := sponsoree.Info()
+	require.NoError(t, err)
+
 	// Set up an RPC client to interact with the in-memory node
 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
 	require.NoError(t, err)
@@ -1359,7 +1407,7 @@ func TestAddPackageMultiple_Sponsor_Integration(t *testing.T) {
 		GasFee:    "100000ugnot",
 		Memo:      "Test memo",
 	}, MsgSend{
-		ToAddress: sponsoree.Info().GetAddress(),
+		ToAddress: sponsoreeInfo.GetAddress(),
 		Send:      "100000ugnot",
 	})
 	require.NoError(t, err)
@@ -1368,7 +1416,7 @@ func TestAddPackageMultiple_Sponsor_Integration(t *testing.T) {
 	var sponsoreeAccountNumber uint64 = 0
 	var sponsoreeSequence uint64 = 0
 
-	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
 	if sponsoreeBefore != nil {
 		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
 		sponsoreeSequence = sponsoreeBefore.Sequence
@@ -1381,7 +1429,7 @@ func TestAddPackageMultiple_Sponsor_Integration(t *testing.T) {
 			GasWanted: 8000000,
 			Memo:      "",
 		},
-		SponsorAddress: sponsor.Info().GetAddress(),
+		SponsorAddress: sponsorInfo.GetAddress(),
 	}
 
 	deposit := "100ugnot"
@@ -1441,7 +1489,7 @@ func Hello(str string) string {
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
-	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 
 	// Sponsor executes the transaction which received from sponsoree
@@ -1483,13 +1531,13 @@ func Hello(str string) string {
 	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
 
 	// Query sponsoree's balance after the transaction
-	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
+	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
 	require.NoError(t, err)
 	expectedSponsoreeAfter := sponsoreeBefore.GetCoins().Sub(std.MustParseCoins(deposit))
 	assert.Equal(t, expectedSponsoreeAfter, sponsoreeAfter.GetCoins())
 
 	// Query sponsor's balance after the transaction
-	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())

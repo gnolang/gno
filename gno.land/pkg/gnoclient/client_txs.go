@@ -35,16 +35,19 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 			return nil, err
 		}
 
-		caller := c.Signer.Info().GetAddress()
+		caller, err := c.Signer.Info()
+		if err != nil {
+			return nil, err
+		}
 
 		// Unwrap syntax sugar to vm.MsgCall slice
-		vmMsgs = append(vmMsgs, vm.MsgCall{
-			Caller:  caller,
+		vmMsgs = append(vmMsgs, std.Msg(vm.MsgCall{
+			Caller:  caller.GetAddress(),
 			PkgPath: msg.PkgPath,
 			Func:    msg.FuncName,
 			Args:    msg.Args,
 			Send:    send,
-		})
+		}))
 	}
 
 	// Parse gas fee
@@ -90,17 +93,20 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 			return nil, err
 		}
 
-		caller := c.Signer.Info().GetAddress()
+		caller, err := c.Signer.Info()
+		if err != nil {
+			return nil, err
+		}
 
 		msg.Package.Name = "main"
 		msg.Package.Path = ""
 
 		// Unwrap syntax sugar to vm.MsgCall slice
-		vmMsgs = append(vmMsgs, vm.MsgRun{
-			Caller:  caller,
+		vmMsgs = append(vmMsgs, std.Msg(vm.MsgRun{
+			Caller:  caller.GetAddress(),
 			Package: msg.Package,
 			Send:    send,
-		})
+		}))
 	}
 
 	// Parse gas fee
@@ -146,14 +152,17 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 			return nil, err
 		}
 
-		caller := c.Signer.Info().GetAddress()
+		caller, err := c.Signer.Info()
+		if err != nil {
+			return nil, err
+		}
 
 		// Unwrap syntax sugar to vm.MsgSend slice
-		vmMsgs = append(vmMsgs, bank.MsgSend{
-			FromAddress: caller,
+		vmMsgs = append(vmMsgs, std.Msg(bank.MsgSend{
+			FromAddress: caller.GetAddress(),
 			ToAddress:   msg.ToAddress,
 			Amount:      send,
-		})
+		}))
 	}
 
 	// Parse gas fee
@@ -199,14 +208,17 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.Resul
 			return nil, err
 		}
 
-		caller := c.Signer.Info().GetAddress()
+		caller, err := c.Signer.Info()
+		if err != nil {
+			return nil, err
+		}
 
-		// Unwrap syntax sugar to vm.MsgAddPackage slice
-		vmMsgs = append(vmMsgs, vm.MsgAddPackage{
-			Creator: caller,
+		// Unwrap syntax sugar to vm.MsgCall slice
+		vmMsgs = append(vmMsgs, std.Msg(vm.MsgAddPackage{
+			Creator: caller.GetAddress(),
 			Package: msg.Package,
 			Deposit: deposit,
-		})
+		}))
 	}
 
 	// Parse gas fee
@@ -243,6 +255,12 @@ func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, 
 		return nil, ErrNoMessages
 	}
 
+	// Ensure at least one signer is ready
+	signer, err := c.Signer.Info()
+	if err != nil {
+		return nil, err
+	}
+
 	// Determine the type of the first user-provided message
 	firstMsgType := msgs[0].getType()
 
@@ -275,7 +293,7 @@ func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, 
 		case MsgCall:
 			// Unwrap syntax sugar to vm.MsgCall slice
 			vmMsgs = append(vmMsgs, vm.MsgCall{
-				Caller:  c.Signer.Info().GetAddress(),
+				Caller:  signer.GetAddress(),
 				PkgPath: m.PkgPath,
 				Func:    m.FuncName,
 				Args:    m.Args,
@@ -285,7 +303,7 @@ func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, 
 		case MsgSend:
 			// Unwrap syntax sugar to vm.MsgSend slice
 			vmMsgs = append(vmMsgs, bank.MsgSend{
-				FromAddress: c.Signer.Info().GetAddress(),
+				FromAddress: signer.GetAddress(),
 				ToAddress:   m.ToAddress,
 				Amount:      coins,
 			})
@@ -296,7 +314,7 @@ func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, 
 
 			// Unwrap syntax sugar to vm.MsgRun slice
 			vmMsgs = append(vmMsgs, vm.MsgRun{
-				Caller:  c.Signer.Info().GetAddress(),
+				Caller:  signer.GetAddress(),
 				Package: m.Package,
 				Send:    coins,
 			})
@@ -304,7 +322,7 @@ func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, 
 		case MsgAddPackage:
 			// Unwrap syntax sugar to vm.MsgAddPackage slice
 			vmMsgs = append(vmMsgs, vm.MsgAddPackage{
-				Creator: c.Signer.Info().GetAddress(),
+				Creator: signer.GetAddress(),
 				Package: m.Package,
 				Deposit: coins,
 			})
@@ -342,7 +360,6 @@ func (c *Client) SignTransaction(tx std.Tx, accountNumber, sequenceNumber uint64
 
 	signedTx, err := c.Signer.Sign(signCfg)
 	if err != nil {
-
 		return nil, errors.Wrap(err, "sign")
 	}
 

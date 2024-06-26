@@ -12,7 +12,7 @@ import (
 // Signer provides an interface for signing transactions.
 type Signer interface {
 	Sign(SignCfg) (*std.Tx, error) // Signs a transaction and returns a signed tx ready for broadcasting.
-	Info() keys.Info               // Returns key information, including the address.
+	Info() (keys.Info, error)      // Returns key information, including the address.
 	Validate() error               // Checks whether the signer is properly configured.
 }
 
@@ -38,9 +38,14 @@ func (s SignerFromKeybase) Validate() error {
 		return err
 	}
 
+	caller, err := s.Info()
+	if err != nil {
+		return err
+	}
+
 	// To verify if the password unlocks the account, sign a blank transaction.
 	msg := vm.MsgCall{
-		Caller: s.Info().GetAddress(),
+		Caller: caller.GetAddress(),
 	}
 	signCfg := SignCfg{
 		Tx: std.Tx{
@@ -56,12 +61,12 @@ func (s SignerFromKeybase) Validate() error {
 }
 
 // Info gets keypair information.
-func (s SignerFromKeybase) Info() keys.Info {
+func (s SignerFromKeybase) Info() (keys.Info, error) {
 	info, err := s.Keybase.GetByNameOrAddress(s.Account)
 	if err != nil {
-		panic("should not happen")
+		return nil, err
 	}
-	return info
+	return info, nil
 }
 
 // SignCfg provides the signing configuration, containing:

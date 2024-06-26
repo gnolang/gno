@@ -30,19 +30,19 @@ stdout '"sequence": "1"'
 gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args John -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate test test1
 gnokey query auth/accounts/$USER_ADDR_test1
 stdout '"sequence": "2"'
-gnokey query vm/qeval --data "gno.land/r/hello\nHello()"
+gnokey query vm/qeval --data "gno.land/r/hello.Hello()"
 stdout 'Hello, John!'
 # -simulate only
 gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args Paul -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
 gnokey query auth/accounts/$USER_ADDR_test1
 stdout '"sequence": "2"'
-gnokey query vm/qeval --data "gno.land/r/hello\nHello()"
+gnokey query vm/qeval --data "gno.land/r/hello.Hello()"
 stdout 'Hello, John!'
 # -simulate skip
 gnokey maketx call -pkgpath gno.land/r/hello -func SetName -args George -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate skip test1
 gnokey query auth/accounts/$USER_ADDR_test1
 stdout '"sequence": "3"'
-gnokey query vm/qeval --data "gno.land/r/hello\nHello()"
+gnokey query vm/qeval --data "gno.land/r/hello.Hello()"
 stdout 'Hello, George!'
 
 # attempt calling hello.Grumpy (always panics).
@@ -52,19 +52,19 @@ stdout 'Hello, George!'
 ! gnokey maketx call -pkgpath gno.land/r/hello -func Grumpy -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate test test1
 gnokey query auth/accounts/$USER_ADDR_test1
 stdout '"sequence": "3"'
-gnokey query vm/qeval --data "gno.land/r/hello\nHello()"
+gnokey query vm/qeval --data "gno.land/r/hello.Hello()"
 stdout 'Hello, George!'
 # -simulate only
 ! gnokey maketx call -pkgpath gno.land/r/hello -func Grumpy -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate only test1
 gnokey query auth/accounts/$USER_ADDR_test1
 stdout '"sequence": "3"'
-gnokey query vm/qeval --data "gno.land/r/hello\nHello()"
+gnokey query vm/qeval --data "gno.land/r/hello.Hello()"
 stdout 'Hello, George!'
 # -simulate skip
 ! gnokey maketx call -pkgpath gno.land/r/hello -func Grumpy -gas-wanted 2000000 -gas-fee 1000000ugnot -broadcast -chainid tendermint_test -simulate skip test1
 gnokey query auth/accounts/$USER_ADDR_test1
 stdout '"sequence": "4"'
-gnokey query vm/qeval --data "gno.land/r/hello\nHello()"
+gnokey query vm/qeval --data "gno.land/r/hello.Hello()"
 stdout 'Hello, George!'
 
 -- test/test.gno --

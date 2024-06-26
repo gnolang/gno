@@ -16,15 +16,25 @@ import (
 	libs_time "github.com/gnolang/gno/gnovm/stdlibs/time"
 )
 
-type nativeFunc struct {
-	gnoPkg  string
-	gnoFunc gno.Name
-	params  []gno.FieldTypeExpr
-	results []gno.FieldTypeExpr
-	f       func(m *gno.Machine)
+// NativeFunc represents a function in the standard library which has a native
+// (go-based) implementation, commonly referred to as a "native binding".
+type NativeFunc struct {
+	gnoPkg     string
+	gnoFunc    gno.Name
+	params     []gno.FieldTypeExpr
+	results    []gno.FieldTypeExpr
+	hasMachine bool
+	f          func(m *gno.Machine)
 }
 
-var nativeFuncs = [...]nativeFunc{
+// HasMachineParam returns whether the given native binding has a machine parameter.
+// This means that the Go version of this function expects a *gno.Machine
+// as its first parameter.
+func (n *NativeFunc) HasMachineParam() bool {
+	return n.hasMachine
+}
+
+var nativeFuncs = [...]NativeFunc{
 	{
 		"crypto/ed25519",
 		"verify",
@@ -36,6 +46,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("bool")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -69,6 +80,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("[32]byte")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -96,6 +108,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("uint32")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -123,6 +136,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("float32")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -150,6 +164,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("uint64")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -177,6 +192,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("float64")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -206,6 +222,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("r0"), Type: gno.X("[]string")},
 			{Name: gno.N("r1"), Type: gno.X("[]int64")},
 		},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -245,6 +262,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p4"), Type: gno.X("[]int64")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -281,6 +299,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("int64")},
 		},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -314,6 +333,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p3"), Type: gno.X("int64")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -347,6 +367,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p3"), Type: gno.X("int64")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -378,6 +399,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p1"), Type: gno.X("[]string")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -400,6 +422,7 @@ var nativeFuncs = [...]nativeFunc{
 		"AssertOriginCall",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			libs_std.AssertOriginCall(
 				m,
@@ -413,6 +436,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("bool")},
 		},
+		true,
 		func(m *gno.Machine) {
 			r0 := libs_std.IsOriginCall(
 				m,
@@ -432,6 +456,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		true,
 		func(m *gno.Machine) {
 			r0 := libs_std.GetChainID(
 				m,
@@ -451,6 +476,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("int64")},
 		},
+		true,
 		func(m *gno.Machine) {
 			r0 := libs_std.GetHeight(
 				m,
@@ -471,6 +497,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("r0"), Type: gno.X("[]string")},
 			{Name: gno.N("r1"), Type: gno.X("[]int64")},
 		},
+		true,
 		func(m *gno.Machine) {
 			r0, r1 := libs_std.X_origSend(
 				m,
@@ -495,6 +522,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		true,
 		func(m *gno.Machine) {
 			r0 := libs_std.X_origCaller(
 				m,
@@ -514,6 +542,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		true,
 		func(m *gno.Machine) {
 			r0 := libs_std.X_origPkgAddr(
 				m,
@@ -535,6 +564,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -565,6 +595,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 			{Name: gno.N("r1"), Type: gno.X("string")},
 		},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -599,6 +630,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -627,6 +659,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -659,6 +692,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("r1"), Type: gno.X("[20]byte")},
 			{Name: gno.N("r2"), Type: gno.X("bool")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -696,6 +730,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -725,6 +760,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("[]byte")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -759,6 +795,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("r0"), Type: gno.X("int")},
 			{Name: gno.N("r1"), Type: gno.X("error")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -791,6 +828,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("bool")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -819,6 +857,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -850,6 +889,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -880,6 +920,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -907,6 +948,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		false,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -932,6 +974,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("int64")},
 		},
+		false,
 		func(m *gno.Machine) {
 			r0 := libs_testing.X_unixNano()
 
@@ -951,6 +994,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("r1"), Type: gno.X("int32")},
 			{Name: gno.N("r2"), Type: gno.X("int64")},
 		},
+		true,
 		func(m *gno.Machine) {
 			r0, r1, r2 := libs_time.X_now(
 				m,

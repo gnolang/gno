@@ -128,6 +128,9 @@ func TestSignerFromKeybase(t *testing.T) {
 				ChainID:  chainID,
 			}
 
+			signerInfo, err := signer.Info()
+			require.NoError(t, err)
+
 			// Test for missing ChainID scenario
 			if tc.validateOnly {
 				signer.ChainID = ""
@@ -140,7 +143,7 @@ func TestSignerFromKeybase(t *testing.T) {
 					Tx: std.Tx{
 						Msgs: []std.Msg{
 							vm.MsgCall{
-								Caller: signer.Info().GetAddress(),
+								Caller: signerInfo.GetAddress(),
 							},
 						},
 						Fee: std.NewFee(0, std.NewCoin("ugnot", 1000000)),

@@ -17,24 +17,39 @@ func TestClient_parseRemoteAddr(t *testing.T) {
 	t.Parallel()
 
 	testTable := []struct {
-		remoteAddr string
-		network    string
-		rest       string
+		remoteAddr      string
+		expectedNetwork string
+		expectedRest    string
 	}{
 		{
 			"127.0.0.1",
 			"tcp",
-			"127.0.0.1",
+			"127.0.0.1:80",
+		},
+		{
+			"127.0.0.1:5000",
+			"tcp",
+			"127.0.0.1:5000",
+		},
+		{
+			"http://example.com",
+			"http",
+			"example.com:80",
 		},
 		{
 			"https://example.com",
 			"https",
-			"example.com",
+			"example.com:443",
 		},
 		{
-			"wss://[::1]",
-			"wss",
-			"[::1]",
+			"http://example.com:5000",
+			"http",
+			"example.com:5000",
+		},
+		{
+			"https://example.com:5000",
+			"https",
+			"example.com:5000",
 		},
 	}
 
@@ -44,11 +59,10 @@ func TestClient_parseRemoteAddr(t *testing.T) {
 		t.Run(testCase.remoteAddr, func(t *testing.T) {
 			t.Parallel()
 
-			n, r, err := parseRemoteAddr(testCase.remoteAddr)
-			require.NoError(t, err)
+			n, r := parseRemoteAddr(testCase.remoteAddr)
 
-			assert.Equal(t, n, testCase.network)
-			assert.Equal(t, r, testCase.rest)
+			assert.Equal(t, testCase.expectedNetwork, n)
+			assert.Equal(t, testCase.expectedRest, r)
 		})
 	}
 }
@@ -66,7 +80,6 @@ func TestClient_makeHTTPDialer(t *testing.T) {
 		require.Error(t, err)
 
 		assert.Contains(t, err.Error(), "dial tcp:", "should convert https to tcp")
-		assert.Contains(t, err.Error(), "address .:", "should have parsed the address (as incorrect)")
 	})
 
 	t.Run("udp", func(t *testing.T) {
@@ -76,7 +89,6 @@ func TestClient_makeHTTPDialer(t *testing.T) {
 		require.Error(t, err)
 
 		assert.Contains(t, err.Error(), "dial udp:", "udp protocol should remain the same")
-		assert.Contains(t, err.Error(), "address .:", "should have parsed the address (as incorrect)")
 	})
 }
 

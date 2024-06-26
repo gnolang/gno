@@ -6,7 +6,7 @@ id: testnets
 
 This page documents all Gno.land testnets, what their properties are, and how
 they are meant to be used. For testnet configuration, visit the 
-[reference section](../reference/network-config).
+[reference section](../reference/network-config.md).
 
 Gno.land testnets are categorized by 4 main points:
 - **Persistence of state**

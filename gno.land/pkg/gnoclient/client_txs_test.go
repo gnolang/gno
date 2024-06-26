@@ -30,12 +30,12 @@ func TestRender(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -68,12 +68,12 @@ func TestCallSingle(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -127,12 +127,12 @@ func TestCallSingle_Sponsor(t *testing.T) {
 				}
 				return &cfg.Tx, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -187,12 +187,12 @@ func TestCallMultiple(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -262,12 +262,12 @@ func TestCallMultiple_Sponsor(t *testing.T) {
 				}
 				return &cfg.Tx, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -521,12 +521,12 @@ func TestSendSingle(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -580,12 +580,12 @@ func TestSendSingle_Sponsor(t *testing.T) {
 				}
 				return &cfg.Tx, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -640,12 +640,12 @@ func TestSendMultiple(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -702,12 +702,12 @@ func TestSendMultiple_Sponsor(t *testing.T) {
 				}
 				return &cfg.Tx, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -880,12 +880,12 @@ func TestSendErrors(t *testing.T) {
 			name: "Invalid To Address",
 			client: Client{
 				Signer: &mockSigner{
-					info: func() keys.Info {
+					info: func() (keys.Info, error) {
 						return &mockKeysInfo{
 							getAddress: func() crypto.Address {
 								return adr
 							},
-						}
+						}, nil
 					},
 				},
 				RPCClient: &mockRPCClient{},
@@ -909,12 +909,12 @@ func TestSendErrors(t *testing.T) {
 			name: "Invalid Send Coins",
 			client: Client{
 				Signer: &mockSigner{
-					info: func() keys.Info {
+					info: func() (keys.Info, error) {
 						return &mockKeysInfo{
 							getAddress: func() crypto.Address {
 								return adr
 							},
-						}
+						}, nil
 					},
 				},
 				RPCClient: &mockRPCClient{},
@@ -957,12 +957,12 @@ func TestRunSingle(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -1029,12 +1029,12 @@ func TestRunSingle_Sponsor(t *testing.T) {
 				}
 				return &cfg.Tx, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -1105,12 +1105,12 @@ func TestRunMultiple(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -1189,12 +1189,12 @@ func TestRunMultiple_Sponsor(t *testing.T) {
 				}
 				return &cfg.Tx, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -1419,12 +1419,12 @@ func TestRunErrors(t *testing.T) {
 			name: "Invalid Empty Package",
 			client: Client{
 				Signer: &mockSigner{
-					info: func() keys.Info {
+					info: func() (keys.Info, error) {
 						return &mockKeysInfo{
 							getAddress: func() crypto.Address {
 								return adr
 							},
-						}
+						}, nil
 					},
 				},
 				RPCClient: &mockRPCClient{},
@@ -1467,12 +1467,12 @@ func TestAddPackageSingle(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -1531,12 +1531,12 @@ func TestAddPackageSingle_Sponsor(t *testing.T) {
 				}
 				return &cfg.Tx, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -1599,12 +1599,12 @@ func TestAddPackageMultiple(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -1678,12 +1678,12 @@ func TestAddPackageMultiple_Sponsor(t *testing.T) {
 				}
 				return &cfg.Tx, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -1902,12 +1902,12 @@ func TestAddPackageErrors(t *testing.T) {
 			name: "Invalid Empty Package",
 			client: Client{
 				Signer: &mockSigner{
-					info: func() keys.Info {
+					info: func() (keys.Info, error) {
 						return &mockKeysInfo{
 							getAddress: func() crypto.Address {
 								return adr
 							},
-						}
+						}, nil
 					},
 				},
 				RPCClient: &mockRPCClient{},
@@ -2009,15 +2009,40 @@ func TestNewSponsorTransaction(t *testing.T) {
 			expectedError: ErrNoMessages,
 		},
 		{
+			name: "Signer not found",
+			client: Client{
+				Signer: &mockSigner{
+					info: func() (keys.Info, error) {
+						return nil, errors.New("failed to get signer info") // signer not found
+					},
+				},
+				RPCClient: &mockRPCClient{},
+			},
+			cfg: SponsorTxCfg{
+				BaseTxCfg: BaseTxCfg{
+					GasWanted:      100000,
+					GasFee:         "10000ugnot",
+					AccountNumber:  1,
+					SequenceNumber: 1,
+					Memo:           "Test memo",
+				},
+				SponsorAddress: adr,
+			},
+
+			msgs: []Msg{}, // no messages provided
+
+			expectedError: ErrNoMessages,
+		},
+		{
 			name: "All messages aren't the same type",
 			client: Client{
 				Signer: &mockSigner{
-					info: func() keys.Info {
+					info: func() (keys.Info, error) {
 						return &mockKeysInfo{
 							getAddress: func() crypto.Address {
 								return adr
 							},
-						}
+						}, nil
 					},
 				},
 				RPCClient: &mockRPCClient{},
@@ -2124,12 +2149,12 @@ func TestNewSponsorTransaction(t *testing.T) {
 			name: "Failed to parse gas fee",
 			client: Client{
 				Signer: &mockSigner{
-					info: func() keys.Info {
+					info: func() (keys.Info, error) {
 						return &mockKeysInfo{
 							getAddress: func() crypto.Address {
 								return adr
 							},
-						}
+						}, nil
 					},
 				},
 				RPCClient: &mockRPCClient{},
@@ -2181,12 +2206,12 @@ func TestSignTransaction(t *testing.T) {
 			name: "Failed to sign transaction",
 			client: Client{
 				Signer: &mockSigner{
-					info: func() keys.Info {
+					info: func() (keys.Info, error) {
 						return &mockKeysInfo{
 							getAddress: func() crypto.Address {
 								return adr
 							},
-						}
+						}, nil
 					},
 					sign: func(cfg SignCfg) (*std.Tx, error) {
 						return nil, errors.New("failed to sign transaction")
@@ -2287,12 +2312,12 @@ func TestExecuteSponsorTransaction(t *testing.T) {
 			name: "signAndBroadcastTxCommit error",
 			client: Client{
 				Signer: &mockSigner{
-					info: func() keys.Info {
+					info: func() (keys.Info, error) {
 						return &mockKeysInfo{
 							getAddress: func() crypto.Address {
 								return adr
 							},
-						}
+						}, nil
 					},
 					sign: func(cfg SignCfg) (*std.Tx, error) {
 						return nil, errors.New("failed to sign tx")

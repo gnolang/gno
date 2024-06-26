@@ -39,7 +39,7 @@ Fetches public facing function signatures
 * `height` **number** the height for querying.
   If omitted, the latest height is used (optional, default `0`)
 
-Returns **Promise<FunctionSignature[]>**
+Returns **Promise<FunctionSignature[]\>**
 
 #### Usage
 

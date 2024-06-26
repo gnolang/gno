@@ -360,7 +360,7 @@ func TestSecrets_Verify_Single(t *testing.T) {
 			"verify",
 			"--data-dir",
 			dirPath,
-			nodeKeyKey,
+			nodeIDKey,
 		}
 
 		// Run the command

@@ -34,7 +34,7 @@ and [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=har
 :::
 
 We discussed Gno folder structures more in detail in
-the [simple Smart Contract guide](simple-contract.md#1-setting-up-the-work-directory).
+the [simple Smart Contract guide](simple-contract.md#local-setup).
 For now, we will just follow some rules outlined there.
 
 Create the main working directory for our Package:

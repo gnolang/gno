@@ -1,0 +1,44 @@
+# Run gno transpile with valid gno files, using the -output and -gobuild flags together.
+
+gno transpile -v -output directory/hello/ -gobuild .
+! stdout .+
+cmp stderr stderr1.golden
+
+exists directory/hello/main.gno.gen.go
+! exists main.gno.gen.go
+rm directory
+
+# Try running using the absolute path to the directory.
+gno transpile -v -output directory/hello -gobuild $WORK
+! stdout .+
+cmpenv stderr stderr2.golden
+
+exists directory/hello$WORK/main.gno.gen.go
+! exists directory/hello/main.gno.gen.go
+rm directory
+
+# Try running in subdirectory, using a "relative non-local path." (ie. has "../")
+mkdir subdir
+cd subdir
+gno transpile -v -output hello -gobuild ..
+! stdout .+
+cmpenv stderr ../stderr3.golden
+
+exists hello$WORK/main.gno.gen.go
+! exists main.gno.gen.go
+
+-- stderr1.golden --
+.
+directory/hello [build]
+-- stderr2.golden --
+$WORK
+directory/hello$WORK [build]
+-- stderr3.golden --
+..
+hello$WORK [build]
+-- main.gno --
+package main
+
+func main() {
+	println("hello")
+}

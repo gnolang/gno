@@ -2,6 +2,7 @@ package gas
 
 import (
 	"github.com/gnolang/gno/tm2/pkg/store/types"
+	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	"github.com/gnolang/overflow"
 )
 
@@ -98,6 +99,22 @@ func (gs *Store) iterator(start, end []byte, ascending bool) types.Iterator {
 	}
 
 	return gi
+}
+
+func (gs *Store) Print() {
+	if ps, ok := gs.parent.(types.Printer); ok {
+		ps.Print()
+	} else {
+		utils.Print(gs.parent)
+	}
+}
+
+func (gs *Store) Flush() {
+	if cts, ok := gs.parent.(types.Flusher); ok {
+		cts.Flush()
+	} else {
+		panic("underlying store does not implement Flush()")
+	}
 }
 
 type gasIterator struct {

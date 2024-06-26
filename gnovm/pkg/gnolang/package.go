@@ -31,6 +31,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	// &NativeValue{},
 	&Block{},
 	RefValue{},
+	&HeapItemValue{},
 
 	//----------------------------------------
 	// Realm/Object

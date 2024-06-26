@@ -3,6 +3,7 @@ package validators
 
 import (
 	"std"
+	"strconv"
 
 	"gno.land/p/gov/proposal"
 )
@@ -44,4 +45,16 @@ func getAndResetChanges() []Change {
 	cpy := unappliedChanges[:]
 	unappliedChanges = []Change{}
 	return cpy
+}
+
+func Render(_ string) string {
+	if len(unappliedChanges) == 0 {
+		return "No valset changes to apply."
+	}
+
+	output := "Valset changes to apply:\n"
+	for _, change := range unappliedChanges {
+		output += "- " + string(change.Address) + " (" + strconv.Itoa(change.Power) + ")\n"
+	}
+	return output
 }

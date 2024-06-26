@@ -96,14 +96,80 @@ func Gray(args ...interface{}) string {
 	return treatAll(ANSIFgGray, args...)
 }
 
-func ColoredBytes(data []byte, textColor, bytesColor func(...interface{}) string) string {
+// result may be 4 ASNSII chars longer than they should be to denote the
+// elipses (...), and one for a trailing hex nibble in case the last byte is
+// non-ascii.
+// NOTE: it is annoying to try make this perfect and always fit within n, so we
+// don't do this yet, but left as an exercise. :)
+func ColoredBytesN(data []byte, n int, textColor, bytesColor func(...interface{}) string) string {
+	_n := 0
 	s := ""
-	for _, b := range data {
+	buf := ""         // buffer
+	bufIsText := true // is buf text or hex
+	for i, b := range data {
+	RESTART:
 		if 0x21 <= b && b < 0x7F {
-			s += textColor(string(b))
+			if !bufIsText {
+				s += bytesColor(buf)
+				buf = ""
+				bufIsText = true
+				goto RESTART
+			}
+			buf += string(b)
+			_n += 1
+			if n != 0 && _n >= n {
+				if i == len(data)-1 {
+					// done
+					s += textColor(buf)
+					buf = ""
+				} else {
+					s += textColor(buf) + "..."
+					buf = ""
+				}
+				break
+			}
 		} else {
-			s += bytesColor(fmt.Sprintf("%02X", b))
+			if bufIsText {
+				s += textColor(buf)
+				buf = ""
+				bufIsText = false
+				goto RESTART
+			}
+			buf += fmt.Sprintf("%02X", b)
+			_n += 2
+			if n != 0 && _n >= n {
+				if i == len(data)-1 {
+					// done
+					s += bytesColor(buf)
+					buf = ""
+				} else {
+					s += bytesColor(buf) + "..."
+					buf = ""
+				}
+				break
+			}
+		}
+	}
+	if buf != "" {
+		if bufIsText {
+			s += textColor(buf)
+			buf = ""
+		} else {
+			s += bytesColor(buf)
+			buf = ""
 		}
 	}
 	return s
+}
+
+func DefaultColoredBytesN(data []byte, n int) string {
+	return ColoredBytesN(data, n, Blue, Green)
+}
+
+func ColoredBytes(data []byte, textColor, bytesColor func(...interface{}) string) string {
+	return ColoredBytesN(data, 0, textColor, bytesColor)
+}
+
+func DefaultColoredBytes(data []byte) string {
+	return ColoredBytes(data, Blue, Green)
 }

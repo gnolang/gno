@@ -23,3 +23,12 @@ To add Gnoclient to your Go project, run the following command:
 ```bash
 go get github.com/gnolang/gno/gno.land/pkg/gnoclient
 ```
+
+## Reference documentation & usage
+
+To see the full reference documentation for the `gnoclient` package, we recommend
+visiting the [`gnoclient godoc page`](https://gnolang.github.io/gno/github.com/gnolang/gno@v0.0.0/gno.land/pkg/gnoclient.html).
+
+For a tutorial on how to use the `gnoclient` package, check out 
+["How to connect a Go app to Gno.land"](../../how-to-guides/connecting-from-go.md)
+
