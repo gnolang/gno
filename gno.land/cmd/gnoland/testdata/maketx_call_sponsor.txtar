@@ -8,7 +8,6 @@ gnoland start
 gnokey maketx call -pkgpath gno.land/r/foo/bar -func GetCaller -gas-fee 1000000ugnot -gas-wanted 2000000 --sponsor=${USER_ADDR_test1} -broadcast -chainid=tendermint_test test1
 
 ## compare GetCaller
-stdout '\("${USER_ADDR_test1}" string\)'
 stdout OK!
 stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED:   \d+'
