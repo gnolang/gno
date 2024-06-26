@@ -24,7 +24,7 @@ func main() {
 			Name:       "docs-linter",
 			ShortUsage: "docs-linter [flags]",
 			ShortHelp: `Lints the .md files in the given folder & subfolders.
-Checks for 404 links, as well as improperly escaped JSX tags.`,
+Checks for 404 links (local and remote), as well as improperly escaped JSX tags.`,
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
