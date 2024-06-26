@@ -206,7 +206,8 @@ func (o MarshalOptions) marshal(b []byte, tv *TypedValue) ([]byte, error) {
 	// 	// o.Resolver = protoregistry.GlobalTypes
 	// }
 
-	internalEnc, err := json.NewEncoder(b, o.Indent)
+	var buff bytes.Buffer
+	internalEnc, err := json.NewEncoder(b, &buff, o.Indent)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +223,7 @@ func (o MarshalOptions) marshal(b []byte, tv *TypedValue) ([]byte, error) {
 		return nil, err
 	}
 
-	return enc.Bytes(), nil
+	return buff.Bytes(), nil
 }
 
 type encoder struct {

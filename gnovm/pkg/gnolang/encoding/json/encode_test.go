@@ -5,6 +5,7 @@
 package json_test
 
 import (
+	"bytes"
 	"math"
 	"testing"
 
@@ -349,28 +350,31 @@ func TestEncoder(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.wantOut != "" {
-				enc, err := json.NewEncoder(nil, "")
+				var b bytes.Buffer
+
+				enc, err := json.NewEncoder(nil, &b, "")
 				if err != nil {
 					t.Fatalf("NewEncoder() returned error: %v", err)
 				}
 				tc.write(enc)
-				got := string(enc.Bytes())
+				got := string(b.Bytes())
 				if got != tc.wantOut {
 					t.Errorf("%s:\n<got>:\n%v\n<want>\n%v\n", tc.desc, got, tc.wantOut)
 				}
 			}
 			if tc.wantOutIndent != "" {
-				enc, err := json.NewEncoder(nil, "\t")
+				var b bytes.Buffer
+				enc, err := json.NewEncoder(nil, &b, "\t")
 				if err != nil {
 					t.Fatalf("NewEncoder() returned error: %v", err)
 				}
 				tc.write(enc)
-				// XXX: implement this
-				// got, want := string(enc.Bytes()), tc.wantOutIndent
-				// if got != want {
-				// 	t.Errorf("%s(indent):\n<got>:\n%v\n<want>\n%v\n<diff -want +got>\n%v\n",
-				// 		tc.desc, got, want, cmp.Diff(want, got, splitLines))
-				// }
+
+				got, want := string(b.Bytes()), tc.wantOutIndent
+				if got != want {
+					t.Errorf("%s(indent):\n<got>:\n%v\n<want>\n%v\n<diff -want +got>\n",
+						tc.desc, got, want)
+				}
 			}
 		})
 	}
@@ -381,7 +385,8 @@ func TestWriteStringError(t *testing.T) {
 
 	for _, in := range tests {
 		t.Run(in, func(t *testing.T) {
-			enc, err := json.NewEncoder(nil, "")
+			var b bytes.Buffer
+			enc, err := json.NewEncoder(nil, &b, "")
 			if err != nil {
 				t.Fatalf("NewEncoder() returned error: %v", err)
 			}
