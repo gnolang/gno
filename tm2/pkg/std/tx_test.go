@@ -151,7 +151,7 @@ func TestGetSigners(t *testing.T) {
 	msgs = []Msg{
 		mockMsg{
 			caller:  addr,
-			msgType: "run",
+			msgType: "call",
 		},
 		mockMsg{
 			caller:  addr2,
@@ -173,7 +173,7 @@ func TestGetSigners(t *testing.T) {
 		},
 	}
 	tx = NewTx(msgs, Fee{}, []Signature{}, "")
-	require.Equal(t, []crypto.Address{addr}, tx.GetSigners())
+	require.Equal(t, []crypto.Address{addr, addr2}, tx.GetSigners())
 }
 
 func TestGetSignBytes(t *testing.T) {
