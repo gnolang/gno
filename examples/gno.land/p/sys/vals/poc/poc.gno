@@ -3,6 +3,7 @@ package poc
 import (
 	"std"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/sys/vals/types"
 )
 
@@ -16,7 +17,7 @@ type PoC struct {
 	// This slice can never practically grow more than ~150 elements,
 	// due to Tendermint's quadratic network complexity
 	validators              []*types.Validator
-	addressToValidatorIndex map[std.Address]int // address -> index
+	addressToValidatorIndex *avl.Tree // address -> index
 }
 
 // NewPoC creates a new empty Proof of Contribution validator set
@@ -24,7 +25,7 @@ func NewPoC(opts ...Option) *PoC {
 	// Create the empty set
 	p := &PoC{
 		validators:              make([]*types.Validator, 0),
-		addressToValidatorIndex: make(map[std.Address]int),
+		addressToValidatorIndex: avl.NewTree(),
 	}
 
 	// Apply the options
@@ -46,7 +47,7 @@ func (p *PoC) AddValidator(address std.Address, pubKey string, power uint64) *ty
 	}
 
 	// Add the validator to the set
-	p.addressToValidatorIndex[v.Address] = len(p.validators)
+	p.addressToValidatorIndex.Set(v.Address.String(), len(p.validators))
 	p.validators = append(p.validators, v)
 
 	return v
@@ -69,14 +70,17 @@ func (p *PoC) RemoveValidator(address std.Address) *types.Validator {
 	// Validate that the operation is a valid call
 	p.validateRemove(address)
 
+	addressStr := address.String()
+
 	// Fetch the validator index
-	index := p.addressToValidatorIndex[address]
+	indexRaw, _ := p.addressToValidatorIndex.Get(addressStr)
+	index := indexRaw.(int)
 
 	// Remove the validator from the set
 	validator := p.validators[index]
 	p.validators = append(p.validators[:index], p.validators[index+1:]...)
 
-	delete(p.addressToValidatorIndex, address)
+	p.addressToValidatorIndex.Remove(addressStr)
 
 	return validator
 }
@@ -90,18 +94,18 @@ func (p *PoC) validateRemove(address std.Address) {
 }
 
 func (p *PoC) IsValidator(address std.Address) bool {
-	_, exists := p.addressToValidatorIndex[address]
+	_, exists := p.addressToValidatorIndex.Get(address.String())
 
 	return exists
 }
 
 func (p *PoC) GetValidator(address std.Address) types.Validator {
-	valIndex, exists := p.addressToValidatorIndex[address]
+	valIndexRaw, exists := p.addressToValidatorIndex.Get(address.String())
 	if !exists {
 		panic(types.ErrValidatorMissing)
 	}
 
-	return *p.validators[valIndex]
+	return *p.validators[valIndexRaw.(int)]
 }
 
 func (p *PoC) GetValidators() []*types.Validator {
