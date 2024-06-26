@@ -449,22 +449,23 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, expected, got)
 
-	// Query sender's balance after the transaction
-	senderAfter, _, err := senderClient.QueryAccount(sender.Info().GetAddress())
-	require.NoError(t, err)
-	assert.Equal(t, senderBefore.GetCoins(), senderAfter.GetCoins().Add(std.MustParseCoins(msg.Send)))
-
 	// Query sponsor's balance after the transaction
 	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
 	require.NoError(t, err)
 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
 
+	// Query sender's balance after the transaction
+	senderAfter, _, err := senderClient.QueryAccount(sender.Info().GetAddress())
+	require.NoError(t, err)
+	expectedSenderAfter := senderBefore.GetCoins().Sub(std.MustParseCoins(msg.Send))
+	assert.Equal(t, expectedSenderAfter, senderAfter.GetCoins())
+
 	// Query to's balance after the transaction
 	toAfter, _, err := sponsorClient.QueryAccount(toAddress)
 	require.NoError(t, err)
-
-	assert.Equal(t, toAfter.GetCoins(), std.NewCoins(std.MustParseCoin(msg.Send)))
+	expectedToAfter := std.NewCoins(std.MustParseCoin(msg.Send))
+	assert.Equal(t, expectedToAfter, toAfter.GetCoins())
 }
 
 func TestSendMultiple_Integration(t *testing.T) {
@@ -524,84 +525,121 @@ func TestSendMultiple_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-// Run tests
-// func TestSendMultiple_Sponsor_Integration(t *testing.T) {
-// 	// Set up in-memory node
-// 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-// 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
-// 	defer node.Stop()
+func TestSendMultiple_Sponsor_Integration(t *testing.T) {
+	// Set up an in-memory node for testing
+	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
+	defer node.Stop()
 
-// 	// Init Signer & RPCClient
-// 	signer := newInMemorySigner(t, keybase,  integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
-// 	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
-// 	require.NoError(t, err)
+	// Initialize in-memory key storage
+	keybase := keys.NewInMemory()
 
-// 	// Setup Client
-// 	client := Client{
-// 		Signer:    signer,
-// 		RPCClient: rpcClient,
-// 	}
+	// Create signer accounts for sponsor and sponsoree
+	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
+	sender := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
 
-// 	// Make Tx config
-// 	baseCfg := BaseTxCfg{
-// 		GasFee:         "10000ugnot",
-// 		GasWanted:      8000000,
-// 		AccountNumber:  0,
-// 		SequenceNumber: 0,
-// 		Memo:           "",
-// 	}
+	// Set up an RPC client to interact with the in-memory node
+	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
+	require.NoError(t, err)
 
-// 	// Make Msg configs
-// 	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
-// 	amount1 := 10
-// 	msg1 := MsgSend{
-// 		ToAddress: toAddress,
-// 		Send:      std.Coin{"ugnot", int64(amount1)}.String(),
-// 	}
+	// Initialize sponsor and sponsoree clients with their respective signers and RPC client
+	sponsorClient := Client{
+		Signer:    sponsor,
+		RPCClient: rpcClient,
+	}
 
-// 	// Same send, different argument
-// 	amount2 := 20
-// 	msg2 := MsgSend{
-// 		ToAddress: toAddress,
-// 		Send:      std.Coin{"ugnot", int64(amount2)}.String(),
-// 	}
+	senderClient := Client{
+		Signer:    sender,
+		RPCClient: rpcClient,
+	}
 
-// 	// Sponsoree is the Bech32 encoded address of the sponsored account
-// 	sponsoree, _ := crypto.AddressFromBech32("g13sm84nuqed3fuank8huh7x9mupgw22uft3lcl8")
+	// Ensure sender has enough money to make msg send
+	_, err = sponsorClient.Send(BaseTxCfg{
+		GasWanted: 1000000,
+		GasFee:    "100000ugnot",
+		Memo:      "Test memo",
+	}, MsgSend{
+		ToAddress: sender.Info().GetAddress(),
+		Send:      "100000ugnot",
+	})
+	require.NoError(t, err)
 
-// 	// Query sponsoree's balance before transaction
-// 	sponsoreeBefore, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
+	// Fetch sender account information before the transaction
+	var senderAccountNumber uint64 = 0
+	var senderSequence uint64 = 0
 
-// 	// Query sponsor's balance before transaction
-// 	sponsorBefore, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
+	senderBefore, _, _ := senderClient.QueryAccount(sender.Info().GetAddress())
+	if senderBefore != nil {
+		senderAccountNumber = senderBefore.AccountNumber
+		senderSequence = senderBefore.Sequence
+	}
 
-// 	// Execute sponsor transaction
-// 	res, err := client.SponsorTransaction(baseCfg, sponsoree, msg1, msg2)
-// 	assert.NoError(t, err)
-// 	assert.Equal(t, "", string(res.DeliverTx.Data))
+	// Configure the transaction to be sponsored
+	cfg := SponsorTxCfg{
+		BaseTxCfg: BaseTxCfg{
+			GasWanted: 1000000,
+			GasFee:    "100000ugnot",
+			Memo:      "Test memo",
+		},
+		SponsorAddress: sponsor.Info().GetAddress(),
+	}
 
-// 	// Query recipient account's balance after transaction
-// 	account, _, err := client.QueryAccount(toAddress)
-// 	require.NoError(t, err)
+	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 
-// 	expected := std.Coins{{"ugnot", int64(amount1 + amount2)}}
-// 	got := account.GetCoins()
-// 	assert.Equal(t, expected, got)
+	// Create the messages for the transaction
+	var amount1 int64 = 20000
+	msg1 := MsgSend{
+		ToAddress: toAddress,
+		Send:      std.NewCoin("ugnot", amount1).String(),
+	}
 
-// 	// Query sponsoree's balance after transaction
-// 	sponsoreeAfter, _, err := client.QueryAccount(sponsoree)
-// 	require.NoError(t, err)
-// 	expectedSponsoreeAfter := sponsoreeBefore.GetCoins().Sub(std.NewCoins(std.NewCoin("ugnot", int64(amount1+amount2))))
-// 	assert.Equal(t, expectedSponsoreeAfter, sponsoreeAfter.GetCoins())
+	var amount2 int64 = 20000
+	msg2 := MsgSend{
+		ToAddress: toAddress,
+		Send:      std.NewCoin("ugnot", amount2).String(),
+	}
 
-// 	// Query sponsor's balance after transaction
-// 	sponsorAfter, _, err := client.QueryAccount(client.Signer.Info().GetAddress())
-// 	require.NoError(t, err)
-// 	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(baseCfg.GasFee))
-// 	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
-// }
+	// sender creates a new sponsor transaction
+	tx, err := senderClient.NewSponsorTransaction(cfg, msg1, msg2)
+	require.NoError(t, err)
+
+	// sender signs the transaction
+	sponsorTx, err := senderClient.SignTransaction(*tx, senderAccountNumber, senderSequence)
+	require.NoError(t, err)
+
+	// Fetch sponsor account information before the transaction
+	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
+
+	// Sponsor executes the transaction which received from sender
+	res, err := sponsorClient.ExecuteSponsorTransaction(*sponsorTx, sponsorBefore.AccountNumber, sponsorBefore.Sequence)
+	require.NoError(t, err)
+
+	// Check the result of the transaction execution
+	expected := ""
+	got := string(res.DeliverTx.Data)
+
+	assert.Nil(t, err)
+	assert.Equal(t, expected, got)
+
+	// Query sender's balance after the transaction
+	senderAfter, _, err := senderClient.QueryAccount(sender.Info().GetAddress())
+	require.NoError(t, err)
+	expectSenderAfter := senderBefore.GetCoins().Sub(std.NewCoins(std.NewCoin("ugnot", amount1+amount2)))
+	assert.Equal(t, expectSenderAfter, senderAfter.GetCoins())
+
+	// Query sponsor's balance after the transaction
+	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
+	require.NoError(t, err)
+	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
+	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
+
+	// Query to's balance after the transaction
+	toAfter, _, err := sponsorClient.QueryAccount(toAddress)
+	require.NoError(t, err)
+	expectToAfter := std.NewCoins(std.NewCoin("ugnot", amount1+amount2))
+	assert.Equal(t, expectToAfter, toAfter.GetCoins())
+}
 
 // Run tests
 func TestRunSingle_Integration(t *testing.T) {
