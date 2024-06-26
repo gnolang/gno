@@ -31,6 +31,10 @@ import (
 
 const defaultNodeDir = "gnoland-data"
 
+var gnoroot = gnoenv.RootDir()
+var defaultGenesisBalancesFile = filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
+var defaultGenesisTxsFile = filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
+
 var errMissingGenesis = errors.New("missing genesis.json")
 
 var startGraphic = strings.ReplaceAll(`
@@ -76,10 +80,6 @@ func newStartCmd(io commands.IO) *commands.Command {
 }
 
 func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
-	gnoroot := gnoenv.RootDir()
-	defaultGenesisBalancesFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
-	defaultGenesisTxsFile := filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
-
 	fs.BoolVar(
 		&c.skipFailingGenesisTxs,
 		"skip-failing-genesis-txs",
@@ -119,7 +119,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.gnoRootDir,
 		"gnoroot-dir",
 		gnoroot,
-		"the root directory of the gno repository (with -lazy)",
+		"the root directory of the gno repository",
 	)
 
 	fs.StringVar(
@@ -133,7 +133,7 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.genesisRemote,
 		"genesis-remote",
 		"localhost:26657",
-		"replacement for '%%REMOTE%%' in genesis (with -lazy)",
+		"replacement for '%%REMOTE%%' in genesis",
 	)
 
 	fs.Int64Var(
@@ -203,17 +203,15 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		if err := lazyInitNodeDir(io, nodeDir); err != nil {
 			return fmt.Errorf("unable to lazy-init the node directory, %w", err)
 		}
-	} else if c.gnoRootDir != "" ||
-		skipFailingGenesisTxs ||
-		genesisBalancesFile != "" ||
-		genesisTxsFile != "" ||
-		genesisRemote != "" {
+	} else if c.skipFailingGenesisTxs ||
+		c.genesisBalancesFile != defaultGenesisBalancesFile ||
+		c.genesisTxsFile != defaultGenesisTxsFile {
 		// These options only work with -lazy (#2391)
-		return fmt.Error(
-			"You used one of the DEPRECATED option below:\n",
-			"-gnoroot-dir, -skip-failing-genesis-txs, -genesis-balances-file, -genesis-txs-file, -genesis-remote.\n\n",
-			"The previously mentionned options are *only* available with -lazy and will be removed soon (#2391).\n",
-			"Consider using commands like 'gnoland genesis balances' instead.\n",
+		return fmt.Errorf(
+			`Error: -skip-failing-genesis-txs, -genesis-balances-file, -genesis-txs-file only work with -lazy and will be removed soon. 
+
+Please see 'gnoland genesis balances -h'
+       and 'gnoland genesis txs -h' instead to manually prepare a genesis without -lazy`,
 		)
 	}
 
