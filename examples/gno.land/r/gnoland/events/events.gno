@@ -2,13 +2,13 @@ package events
 
 import (
 	"bytes"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
 	"sort"
 	"std"
 	"strconv"
 	"time"
 
 	"gno.land/p/demo/ownable/exts/authorizable"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -26,7 +26,7 @@ type eventsSlice []*Event
 
 var (
 	a         *authorizable.Authorizable
-	events    eventsSlice
+	events    eventsSlice // sorted oldest > newest
 	idCounter seqid.ID
 )
 
@@ -74,8 +74,6 @@ func AddEvent(name, description, link, location string, startTime int64) {
 func DelEvent(id seqid.ID) {
 	a.AssertOnAuthList()
 
-	sort.Find()
-
 }
 
 // Rendering
@@ -101,9 +99,8 @@ func RenderEventWidget(amt int) string {
 
 	output := ""
 
-	for _, _ = range events[eventNum-amt:] {
-		//output += ufmt.Sprintf("- [%s](%s)\n", event.name, event.link)
-		output += "1"
+	for _, event := range events[eventNum-amt:] {
+		output += ufmt.Sprintf("- [%s](%s)\n", event.name, event.link)
 	}
 
 	return output
@@ -122,24 +119,30 @@ func renderHome() string {
 
 	// Find position of latest past event
 	pos := sort.Search(len(events), func(i int) bool {
-		return events[i].startTime.After(time.Now())
+		return events[i].startTime.Before(time.Now())
 	})
 
-	// Add events
-	for i, e := range events {
-		output += "<div class='columns-3'>"
-		output += e.RenderListItem()
-		output += "</div>\n\n"
+	// Add upcoming events
+	output += "## Upcoming events\n\n"
+	output += "<div class='columns-3'>"
 
-		// Add separator if we are at the boundary between upcoming and past events
-		if i == pos-1 {
-			output += "---\n\n"
-		}
+	for _, e := range events[:pos] {
+		output += e.RenderListItem()
 	}
 
-	output += "---\n\n"
-	output += "##### *All times are local."
+	output += "</div>\n\n"
 
+	output += "---\n\n"
+
+	// Add past events
+	output += "## Past events\n\n"
+	output += "<div class='columns-3'>"
+
+	for _, e := range events[pos:] {
+		output += e.RenderListItem()
+	}
+
+	output += "</div>\n\n"
 	return output
 }
 
@@ -152,13 +155,13 @@ func (e Event) RenderListItem() string {
 	buf.WriteString(ufmt.Sprintf("**Location:** %s\n\n", e.location))
 	buf.WriteString(ufmt.Sprintf("**Time & Date:** %s\n\n", e.startTime.Format("02 Jan 2006, 15:04")))
 
-	if e.startTime.Before(time.Now()) {
-		buf.WriteString("*Event is over\n\n")
-	}
+	//if e.startTime.Before(time.Now()) {
+	//	buf.WriteString("*Event is over\n\n")
+	//}
 
 	buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
 
-	buf.WriteString("\n</div>")
+	buf.WriteString("</div>")
 
 	return buf.String()
 }
@@ -186,7 +189,7 @@ func (m eventsSlice) Len() int {
 
 // Less compares the startTime fields of two elements
 func (m eventsSlice) Less(i, j int) bool {
-	return m[i].startTime.Before(m[j].startTime)
+	return m[i].startTime.After(m[j].startTime)
 }
 
 // Swap swaps two elements in the slice

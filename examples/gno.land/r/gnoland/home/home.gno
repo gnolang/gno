@@ -6,7 +6,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
 	blog "gno.land/r/gnoland/blog"
-	"gno.land/r/gnoland/events"
+	events "gno.land/r/gnoland/events"
 )
 
 // XXX: p/demo/ui API is crappy, we need to make it more idiomatic
