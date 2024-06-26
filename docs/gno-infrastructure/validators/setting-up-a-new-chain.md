@@ -423,32 +423,20 @@ gnoland start --config config.toml
 
 ### Changing the premine list
 
-You do not need to use the `gno.land/genesis/genesis_balances.txt` file as the source of truth for initial network
-funds.
+You should not use the `gno.land/genesis/genesis_balances.txt` file as the source of truth for initial network
+funds. 
 
-To specify a custom balance sheet for a fresh local chain, you can use the `-genesis-balances-file`:
+Instead you should use the subcommand `gnoland genesis balances add`.
+Here is an example (change the address with one of your addresses, see `gnokey list`).
 
-```bash
-gnoland start -genesis-balances-file custom-balances.txt
 ```
-
-Make sure the balances file follows the following format:
-
-```text
-<address>=<balance>ugnot
-```
-
-Following this pattern, potential entries into the genesis balances file would look like:
-
-```text
-g1qpymzwx4l4cy6cerdyajp9ksvjsf20rk5y9rtt=10000000000ugnot
-g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq=10000000000ugnot
+gnoland genesis balances add -single g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=10000000000ugnot
 ```
 
 :::info Genesis generation
 
 Genesis block generation happens only once during the lifetime of a Gno chain.
-This means that if you specify a balances file using `gnoland start`, and the chain has already started (advanced from
-block 0), the specified balance sheet will not be applied.
+This means that if the chain has already started (advanced from
+block 0), the balance sheet can not be changed.
 
 :::
