@@ -12,7 +12,7 @@ import (
 
 	"gno.land/p/sys/vals/types"
 	govdao "gno.land/r/gov/dao"
-	"gno.land/r/sys/validators"
+	"gno.land/r/sys/vals"
 )
 
 func init() {
@@ -38,7 +38,7 @@ func init() {
 
 	// Wraps changesFn to emit a certified event only if executed from a
 	// complete governance proposal process.
-	executor := validators.NewPropExecutor(changesFn)
+	executor := vals.NewPropExecutor(changesFn)
 
 	// Create a proposal.
 	// XXX: payment
@@ -56,13 +56,13 @@ func main() {
 	println("--")
 	println(govdao.Render("1"))
 	println("--")
-	println(validators.Render(""))
+	println(vals.Render(""))
 	println("--")
 	govdao.ExecuteProposal(1)
 	println("--")
 	println(govdao.Render("1"))
 	println("--")
-	println(validators.Render(""))
+	println(vals.Render(""))
 }
 
 // Output:
