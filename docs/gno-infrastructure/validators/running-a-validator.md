@@ -20,8 +20,8 @@ consensus layer.
 
 # Start a New Gno Chain and a Validator
 
-- [start a new gno chain and a validator](./start-a-new-gno-chain-and-validator.md)
+- [start a new gno chain and a validator](./setting-up-a-new-chain.md)
 
 # Connect to an Existing Gno Chain
 
-- [connect to an existing gno chain](./connect-to-an-existing-gno-chain.md)
+- [connect to an existing gno chain](./connect-to-existing-chain.md)
