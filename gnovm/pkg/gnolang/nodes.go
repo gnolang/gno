@@ -218,9 +218,9 @@ type Node interface {
 	SetLine(int)
 	GetLabel() Name
 	SetLabel(Name)
-	HasAttribute(key interface{}) bool
-	GetAttribute(key interface{}) interface{}
-	SetAttribute(key interface{}, value interface{})
+	HasAttribute(key GnoAttribute) bool
+	GetAttribute(key GnoAttribute) interface{}
+	SetAttribute(key GnoAttribute, value interface{})
 }
 
 // non-pointer receiver to help make immutable.
@@ -384,6 +384,7 @@ type NameExprType int
 
 const (
 	NameExprTypeNormal      NameExprType = iota // default
+	NameExprTypeDefine                          // when defining normally
 	NameExprTypeLoopDefine                      // when defining escaped name in loop
 	NameExprTypeLoopUse                         // when above used in non-define lhs/rhs
 	NameExprTypeLoopClosure                     // when above used in closure lhs/rhs

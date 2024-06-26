@@ -160,46 +160,65 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				if n.Op == DEFINE {
 					var defined bool
 					for _, lx := range n.Lhs {
-						ln := lx.(*NameExpr).Name
+						nx := lx.(*NameExpr)
+						ln := nx.Name
 						if ln == blankIdentifier {
 							continue
 						}
-						last.Predefine(false, ln)
-						defined = true
+						if isLocallyDefined(last, ln) {
+							// already defined, do nothing
+						} else {
+							// if loop extern, will change to
+							// NameExprTypeLoopDefine later.
+							nx.Type = NameExprTypeDefine
+							last.Predefine(false, ln)
+							defined = true
+						}
 					}
 					if !defined {
 						panic(fmt.Sprintf("nothing defined in assignment %s", n.String()))
 					}
 				}
 			case *ImportDecl:
-				name := n.Name
-				if name == "." {
+				nx := &n.NameExpr
+				nn := nx.Name
+				if nn == "." {
 					panic("dot imports not allowed in gno")
 				}
-				if name == "" { // use default
+				if nn == "" { // use default
 					pv := store.GetPackage(n.PkgPath, true)
 					if pv == nil {
 						panic(fmt.Sprintf(
 							"unknown import path %s",
 							n.PkgPath))
 					}
-					name = pv.PkgName
+					nn = pv.PkgName
 				}
-				if name != blankIdentifier {
-					last.Predefine(false, name)
+				if nn != blankIdentifier {
+					nx.Type = NameExprTypeDefine
+					last.Predefine(false, nn)
 				}
 			case *ValueDecl:
 				last2 := skipFile(last)
 				for i := 0; i < len(n.NameExprs); i++ {
 					nx := &n.NameExprs[i]
-					if nx.Name == blankIdentifier {
+					nn := nx.Name
+					if nn == blankIdentifier {
 						continue
 					}
-					last2.Predefine(n.Const, nx.Name)
+					if !isLocallyDefined(last, nn) {
+						nx.Type = NameExprTypeDefine
+						last2.Predefine(n.Const, nn)
+					}
 				}
 			case *TypeDecl:
 				last2 := skipFile(last)
-				last2.Predefine(false, n.Name)
+				nx := &n.NameExpr
+				nn := nx.Name
+				if !isLocallyDefined(last2, nn) {
+					nx.Type = NameExprTypeDefine
+					last2.Predefine(false, n.Name)
+				}
 			case *FuncDecl:
 				if n.IsMethod {
 					if n.Recv.Name == "" || n.Recv.Name == blankIdentifier {
@@ -217,7 +236,8 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						dname := Name(fmt.Sprintf("init.%d", idx))
 						n.Name = dname
 					}
-
+					nx := &n.NameExpr
+					nx.Type = NameExprTypeDefine
 					pkg.Predefine(false, n.Name)
 				}
 			case *FuncTypeExpr:
@@ -2293,7 +2313,8 @@ func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
 			case *BranchStmt:
 				switch n.Op {
 				case GOTO:
-					bn, depth, index, labelLine := findGotoLabel(last, n.Label)
+					// bn, depth, index, labelLine := findGotoLabel(last, n.Label)
+					bn, _, _, labelLine := findGotoLabel(last, n.Label)
 					// already done in Preprocess:
 					// n.Depth = depth
 					// n.BodyIndex = index
@@ -2317,7 +2338,7 @@ func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
 								// Skip the body of these:
 								case *FuncLitExpr:
 									return n, TRANS_SKIP
-								case *FuncDec:
+								case *FuncDecl:
 									return n, TRANS_SKIP
 								// Otherwise mark stmt as gotoloop.
 								case Stmt:
@@ -2358,6 +2379,8 @@ func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
 // set nameExpr type as NameExprTypeLoopDefine, used as a
 // dependency in the future.
 func findLoopEscapedNames(ctx BlockNode, bn BlockNode) {
+	// XXX continue work here...
+	xxx
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
