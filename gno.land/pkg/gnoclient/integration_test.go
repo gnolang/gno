@@ -387,6 +387,17 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 		RPCClient: rpcClient,
 	}
 
+	// Ensure sponsoree has enough money to make msg send
+	_, err = sponsorClient.Send(BaseTxCfg{
+		GasWanted: 1000000,
+		GasFee:    "100000ugnot",
+		Memo:      "Test memo",
+	}, MsgSend{
+		ToAddress: sponsoree.Info().GetAddress(),
+		Send:      "100000ugnot",
+	})
+	require.NoError(t, err)
+
 	// Fetch sponsoree account information before the transaction
 	var sponsoreeAccountNumber uint64 = 0
 	var sponsoreeSequence uint64 = 0
@@ -441,7 +452,7 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 	// Query sponsoree's balance after the transaction
 	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoree.Info().GetAddress())
 	require.NoError(t, err)
-	assert.Equal(t, std.Coins(nil), sponsoreeAfter.GetCoins())
+	assert.Equal(t, sponsoreeBefore.GetCoins(), sponsoreeAfter.GetCoins().Sub(std.MustParseCoins(msg.Send)))
 
 	// Query sponsor's balance after the transaction
 	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsor.Info().GetAddress())
