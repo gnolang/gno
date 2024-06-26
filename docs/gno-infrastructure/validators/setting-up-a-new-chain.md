@@ -436,7 +436,7 @@ gnoland genesis balances add -single g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=10
 :::info Genesis generation
 
 Genesis block generation happens only once during the lifetime of a Gno chain.
-This means that if the chain has already started (advanced from
-block 0), the balance sheet can not be changed.
+This means that once the chain has already started (advanced from
+block 0), the balance sheet can not be changed arbitrarily.
 
 :::
