@@ -61,8 +61,8 @@ const (
 )
 
 // NOTE: this isn't safe, should only be used for testing.
-func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (store gno.Store) {
-	getPackage := func(pkgPath string, newStore gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
+func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (resStore gno.Store) {
+	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
@@ -83,7 +83,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					PkgPath: "test",
 					Output:  stdout,
-					Store:   newStore,
+					Store:   store,
 					Context: ctx,
 				})
 				// pkg := gno.NewPackageNode(gno.Name(memPkg.Name), memPkg.Path, nil)
@@ -96,7 +96,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		// if stdlibs package is preferred , try to load it first.
 		if mode == ImportModeStdlibsOnly ||
 			mode == ImportModeStdlibsPreferred {
-			pn, pv = loadStdlib(rootDir, pkgPath, newStore, stdout)
+			pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
 			if pn != nil {
 				return
 			}
@@ -375,7 +375,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 
 		// if native package is preferred, try to load stdlibs/* as backup.
 		if mode == ImportModeNativePreferred {
-			pn, pv = loadStdlib(rootDir, pkgPath, newStore, stdout)
+			pn, pv = loadStdlib(rootDir, pkgPath, store, stdout)
 			if pn != nil {
 				return
 			}
@@ -394,7 +394,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  stdout,
-				Store:   newStore,
+				Store:   store,
 				Context: ctx,
 			})
 			pn, pv = m2.RunMemPackage(memPkg, true)
@@ -402,15 +402,15 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 		}
 		return nil, nil
 	}
-	// NOTE: store is also used in closure above.
 	db := memdb.NewMemDB()
 	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
-	store = gno.NewStore(nil, baseStore, iavlStore)
-	store.SetPackageGetter(getPackage)
-	store.SetNativeStore(teststdlibs.NativeStore)
-	store.SetPackageInjector(testPackageInjector)
-	store.SetStrictGo2GnoMapping(false)
+	// make a new store
+	resStore = gno.NewStore(nil, baseStore, iavlStore)
+	resStore.SetPackageGetter(getPackage)
+	resStore.SetNativeStore(teststdlibs.NativeStore)
+	resStore.SetPackageInjector(testPackageInjector)
+	resStore.SetStrictGo2GnoMapping(false)
 	return
 }
 
