@@ -1,0 +1,13 @@
+name: run benchmarks on My PR
+
+on:
+  push:
+    branches: [ "dummy-benchmark" ]
+
+jobs:
+  check:
+    uses: ./.github/workflows/benchmark_template.yml
+    secrets: inherit
+    with:
+      publish: false
+      test-flags: "-short"

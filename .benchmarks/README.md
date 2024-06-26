@@ -8,7 +8,7 @@ We have two types of benchmarks; slow and fast ones. Slow ones can also be execu
 
 Now let's see how to add your tests to the generated benchmark graphs and also add as checks if they are fast enough on every PR:
 
-## Add new benchmarks to generated graphs.
+## Add new benchmarks to generated graphs
 
 All benchmarks can be added to these graphs to keep track of the performance evolution on different parts of the code. This is done adding new lines on [gobenchdata-web.yml](https://github.com/gnolang/gno/blob/gh-benchmarks/gobenchdata-web.yml)
 
@@ -20,6 +20,7 @@ Things to take into account:
 - The value on `package` and `benchmarks` are regular expressions.
 - You have to explicitly add your new package here to make it appears on generated graphs.
 - If you have benchmarks on the same package that takes much more time per op than the rest, you should divide it into a separate graph for visibility. In this example we can see how we separated tests from the gnolang package into the ones finishing with `Equality` and `LoopyMain`, because `LoopyMain` is taking an order of magnitude more time per operation than the other tests:
+
 ```yaml
       - name: Equality benchmarks (gnovm)
         benchmarks: [ '.Equality' ]
