@@ -174,7 +174,7 @@ func createImportSpecs(imports map[string]bool) []ast.Spec {
 	sort.Strings(paths)
 
 	specs := make([]ast.Spec, 0, len(imports))
-	for path := range imports {
+	for _, path := range paths {
 		specs = append(specs, &ast.ImportSpec{
 			Path: &ast.BasicLit{
 				Kind:  token.STRING,

@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -85,6 +86,17 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := acck.NewAccountWithAddress(ctx, addr)
 	acck.SetAccount(ctx, acc)
+
+	memPkg := &std.MemPackage{
+		Name:  "main",
+		Path:  "main",
+		Files: []*std.MemFile{{Name: fmt.Sprintf("%d.%s", c.index, c.lang), Body: src}},
+	}
+
+	getter := newDynPackageLoader(stdlibDir)
+	if err := gnolang.TypeCheckMemPackage(memPkg, getter); err != nil {
+		return "", fmt.Errorf("type checking failed: %w", err)
+	}
 
 	files := []*std.MemFile{
 		{Name: fmt.Sprintf("%d.%s", c.index, c.lang), Body: src},
