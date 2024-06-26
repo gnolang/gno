@@ -746,6 +746,8 @@ func isStopOrSkip(oldnc *TransCtrl, nc TransCtrl) (stop bool) {
 }
 
 // returns true if transcribe() should break (a loop).
+// NOTE: maybe only relevant for AssignStmt and SwitchClauseStmt,
+// otherwise generally behavior is identical to TRANS_SKIP.
 func isBreak(nc TransCtrl) (brek bool) {
 	if nc == TRANS_BREAK {
 		return true

@@ -2293,26 +2293,52 @@ func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
 			case *BranchStmt:
 				switch n.Op {
 				case GOTO:
-					// XXX
 					bn, depth, index, labelLine := findGotoLabel(last, n.Label)
-					n.Depth = depth
-					n.BodyIndex = index
+					// already done in Preprocess:
+					// n.Depth = depth
+					// n.BodyIndex = index
 
-					// find goto range
+					// this goto line location
 					gotoLine := n.GetLine()
+					// skip if destination comes after.
 					if labelLine >= gotoLine {
 						return n, TRANS_SKIP
 					}
-					debug.Printf("gotoLine :%d, labelLine: %d \n", gotoLine, labelLine)
-					n.SetAttribute(n.Label, labelLine)
-					n.SetAttribute(ATTR_PARENT_NODE, bn)
 
-					// list all stmts and tag within goto loop
-					for _, s := range bn.GetBody() {
-						if s.GetLine() >= labelLine && s.GetLine() <= gotoLine {
-							s.SetAttribute(ATTR_GOTOLOOP_STMT, true)
-						}
+					// recurse and mark stmts as ATTR_GOTOLOOP_STMT
+					Transcribe(bn,
+						func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+							switch stage {
+							case TRANS_ENTER:
+								// NOTE: called redundantly
+								// for many goto stmts,
+								// idempotenct updates only.
+								switch n.(type) {
+								// Skip the body of these:
+								case *FuncLitExpr:
+									return n, TRANS_SKIP
+								case *FuncDec:
+									return n, TRANS_SKIP
+								// Otherwise mark stmt as gotoloop.
+								case Stmt:
+									if n.GetLine() <= gotoLine {
+										n.SetAttribute(
+											ATTR_GOTOLOOP_STMT,
+											true)
+									} else {
+										return n, TRANS_SKIP
+									}
+								}
+								return n, TRANS_CONTINUE
+							}
+							return n, TRANS_CONTINUE
+						})
+					if val := n.GetAttribute(ATTR_GOTOLOOP_STMT); val == nil || !val.(bool) {
+						panic("ATTR_GOTOLOOP_STMT not set for last goto stmt")
 					}
+					// XXX
+					// n.SetAttribute(ATTR_GOTO_BLOCKNODE, bn)
+					//n.SetAttribute(ATTR_GOTO_LABEL_LINE, labelLine)
 				}
 			}
 			// finalization.
@@ -2377,7 +2403,7 @@ func findLoopEscapedNames(ctx BlockNode, bn BlockNode) {
 			case *BranchStmt:
 				switch n.Op {
 				case GOTO:
-					if pn, ok := n.GetAttribute(ATTR_PARENT_NODE).(BlockNode); ok {
+					if pn, ok := n.GetAttribute(ATTR_GOTO_BLOCKNODE).(BlockNode); ok {
 						// indicates that a goto loop exists, set by last phase.
 						labelLine := n.GetAttribute(n.Label).(int) // set in last phase
 						gotoLine := n.GetLine()

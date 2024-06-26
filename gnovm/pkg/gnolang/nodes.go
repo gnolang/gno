@@ -152,10 +152,25 @@ func (loc Location) IsZero() bool {
 // even after preprocessing.  Temporary attributes (e.g. those
 // for preprocessing) are stored in .data.
 
+type GnoAttribute string
+
+const (
+	ATTR_PREPROCESSED    GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREDEFINED      GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE      GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE    GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA            GnoAttribute = "ATTR_IOTA"
+	ATTR_LOCATIONED      GnoAttribute = "ATTR_LOCATIONED"
+	ATTR_INJECTED        GnoAttribute = "ATTR_INJECTED"
+	ATTR_GOTOLOOP_STMT   GnoAttribute = "ATTR_GOTOLOOP_STMT"
+	ATTR_GOTO_BLOCKNODE  GnoAttribute = "ATTR_GOTO_BLOCKNODE"
+	ATTR_GOTO_LABEL_LINE GnoAttribute = "ATTR_GOTO_LABEL_LINE"
+)
+
 type Attributes struct {
 	Line  int
 	Label Name
-	data  map[interface{}]interface{} // not persisted
+	data  map[GnoAttribute]interface{} // not persisted
 }
 
 func (attr *Attributes) GetLine() int {
@@ -174,18 +189,20 @@ func (attr *Attributes) SetLabel(label Name) {
 	attr.Label = label
 }
 
-func (attr *Attributes) HasAttribute(key interface{}) bool {
+func (attr *Attributes) HasAttribute(key GnoAttribute) bool {
 	_, ok := attr.data[key]
 	return ok
 }
 
-func (attr *Attributes) GetAttribute(key interface{}) interface{} {
+// GnoAttribute must not be user provided / arbitrary,
+// otherwise will create potential exploits.
+func (attr *Attributes) GetAttribute(key GnoAttribute) interface{} {
 	return attr.data[key]
 }
 
-func (attr *Attributes) SetAttribute(key interface{}, value interface{}) {
+func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {
 	if attr.data == nil {
-		attr.data = make(map[interface{}]interface{})
+		attr.data = make(map[GnoAttribute]interface{})
 	}
 	attr.data[key] = value
 }
@@ -2087,20 +2104,6 @@ func (x *BasicLitExpr) GetInt() int {
 	}
 	return i
 }
-
-type GnoAttribute string
-
-const (
-	ATTR_PREPROCESSED  GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED    GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE    GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE  GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA          GnoAttribute = "ATTR_IOTA"
-	ATTR_LOCATIONED    GnoAttribute = "ATTR_LOCATIONED"
-	ATTR_INJECTED      GnoAttribute = "ATTR_INJECTED"
-	ATTR_GOTOLOOP_STMT GnoAttribute = "ATTR_GOTOLOOP_STMT"
-	ATTR_PARENT_NODE   GnoAttribute = "ATTR_PARENT_NODE"
-)
 
 var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
 
