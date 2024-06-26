@@ -9,8 +9,8 @@ import (
 
 // vals is the wrapper for the validator set protocol
 type vals struct {
-	p       types.Protocol    // p is the underlying validator set protocol
-	changes []types.Validator // changes are the set changes that happened between scrapes
+	p       types.ValsetProtocol // p is the underlying validator set protocol
+	changes []types.Validator    // changes are the set changes that happened between scrapes
 }
 
 // v holds the active on-chain validator set state

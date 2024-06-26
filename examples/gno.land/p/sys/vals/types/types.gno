@@ -4,8 +4,8 @@ import (
 	"std"
 )
 
-// Protocol defines the validator set protocol (PoA / PoS / PoC / ?)
-type Protocol interface {
+// ValsetProtocol defines the validator set protocol (PoA / PoS / PoC / ?)
+type ValsetProtocol interface {
 	// AddValidator adds a new validator to the validator set.
 	// If the validator is already present, the method should error out
 	//
