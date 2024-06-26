@@ -148,6 +148,8 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 					isNewAccount = true
 					signerAccs[i] = ak.NewAccountWithAddress(newCtx, signerAddrs[i])
 					signerAccs[i].SetPubKey(stdSigs[i].PubKey)
+				} else {
+					return newCtx, res, true
 				}
 			}
 
@@ -156,11 +158,8 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			if isGenesis && !opts.VerifyGenesisSignatures {
 				// No signatures are needed for genesis.
 			} else {
-				if isNewAccount {
-					sacc.SetAccountNumber(0)
-				}
 				// Check signature
-				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis)
+				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, isGenesis || isNewAccount)
 				if err != nil {
 					return newCtx, res, true
 				}
