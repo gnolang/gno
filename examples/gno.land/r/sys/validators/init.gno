@@ -1,4 +1,4 @@
-package vals
+package validators
 
 import (
 	"gno.land/p/sys/vals/poc"

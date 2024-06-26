@@ -1,4 +1,4 @@
-package vals
+package validators
 
 import (
 	"std"
