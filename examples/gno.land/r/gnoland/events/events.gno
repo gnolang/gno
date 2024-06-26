@@ -19,7 +19,7 @@ type Event struct {
 	link        string    // link to a corresponding web2 sign up page, ie eventbrite/luma
 	location    string    // location of the event
 	startTime   time.Time // start time of the event
-	// FIXME: add duration/endtime?
+	// add duration/endtime?
 }
 
 type eventsSlice []*Event
@@ -71,9 +71,19 @@ func AddEvent(name, description, link, location string, startTime int64) {
 	sort.Sort(events)
 }
 
-func DelEvent(id seqid.ID) {
+func DelEvent(id seqid.ID) string {
 	a.AssertOnAuthList()
 
+	for _, event := range events {
+		if event.id == id {
+			// todo see if there is a bug in the vm
+			// --= Error =--
+			// Data: interface conversion: gnolang.RefValue is not gnolang.Object: missing method DecRefCount
+			return "found THE ID: " + strconv.Itoa(int(event.id))
+		}
+	}
+
+	return ""
 }
 
 // Rendering
@@ -126,7 +136,7 @@ func renderHome() string {
 	output += "## Upcoming events\n\n"
 	output += "<div class='columns-3'>"
 
-	for _, e := range events[:pos] {
+	for _, e := range events {
 		output += e.RenderListItem()
 	}
 
@@ -160,13 +170,14 @@ func (e Event) RenderListItem() string {
 	//}
 
 	buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
+	buf.WriteString(ufmt.Sprintf("<!-- id: %s --> \n\n", e.id))
 
 	buf.WriteString("</div>")
 
 	return buf.String()
 }
 
-func Render(path string) string {
+func Render(_ string) string {
 	return renderHome()
 }
 
