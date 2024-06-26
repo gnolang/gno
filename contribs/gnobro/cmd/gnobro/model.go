@@ -378,14 +378,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case m.zone.Get("prev_button").InBounds(msg):
 				if path, ok := m.moveHistoryBackward(); ok {
 					m.moveToRealm(path)
+
+					// unfocus command
+					m.commandInput.Blur()
+					cmds = append(cmds, m.urlInput.Focus())
+					m.commandFocus = false
 				}
 			case m.zone.Get("next_button").InBounds(msg):
 				if path, ok := m.moveHistoryForward(); ok {
 					m.moveToRealm(path)
+
+					// unfocus command
+					m.commandInput.Blur()
+					cmds = append(cmds, m.urlInput.Focus())
+					m.commandFocus = false
 				}
 			case m.zone.Get("home_button").InBounds(msg):
 				if m.moveToRealm("gno.land/r/gnoland/home") {
 					m.updateHistory()
+
+					// unfocus command
+					m.commandInput.Blur()
+					cmds = append(cmds, m.urlInput.Focus())
+					m.commandFocus = false
 				}
 
 			case m.zone.Get("url_input").InBounds(msg):
