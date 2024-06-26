@@ -93,18 +93,14 @@ func CountSubKeys(pub crypto.PubKey) int {
 func (tx Tx) GetSigners() []crypto.Address {
 	seen := map[string]bool{}
 	var signers []crypto.Address
-	// Iterate through all messages in the transaction
 	for _, msg := range tx.GetMsgs() {
-		// Iterate through all signers of the current message
 		for _, addr := range msg.GetSigners() {
-			// Add the address to the signers list if it hasn't been seen before
 			if !seen[addr.String()] {
 				signers = append(signers, addr)
 				seen[addr.String()] = true
 			}
 		}
 	}
-
 	return signers
 }
 
