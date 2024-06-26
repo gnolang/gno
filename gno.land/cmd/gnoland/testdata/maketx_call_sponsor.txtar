@@ -1,14 +1,11 @@
 # test for maketx call with sponsorship
 loadpkg gno.land/r/foo/bar $WORK
 
-## another test user, test2
-adduser test2
-
 # start a new node
 gnoland start
 
 ## execute GetCaller
-gnokey maketx call -pkgpath gno.land/r/foo/bar -func GetCaller -gas-fee 1000000ugnot -gas-wanted 2000000 --sponsoree=${USER_ADDR_test2} -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/foo/bar -func GetCaller -gas-fee 1000000ugnot -gas-wanted 2000000 --sponsor=${USER_ADDR_test1} -broadcast -chainid=tendermint_test test1
 
 ## compare GetCaller
 stdout '\("${USER_ADDR_test2}" string\)'
