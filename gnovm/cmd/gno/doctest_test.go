@@ -49,7 +49,19 @@ func main() {
 }
 ` + "```" + `
 
-These two examples demonstrate basic Go functionality without using concurrency, generics, or reflect.`
+These two examples demonstrate basic Go functionality without using concurrency, generics, or reflect.` + "## std Package" + `
+` + "```go" + `
+package main
+
+import (
+	"std"
+)
+
+func main() {
+    addr := std.GetOrigCaller()
+    println(addr)
+}
+`
 
 	mdFile, err := os.CreateTemp(tempDir, "sample-*.md")
 	if err != nil {
@@ -76,6 +88,10 @@ These two examples demonstrate basic Go functionality without using concurrency,
 		{
 			args:                []string{"doctest", "-path", mdFilePath, "-index", "1"},
 			stdoutShouldContain: "!oG ,olleH\n",
+		},
+		{
+			args:                []string{"doctest", "-path", mdFilePath, "-index", "2"},
+			stdoutShouldContain: "g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt\n",
 		},
 	}
 
