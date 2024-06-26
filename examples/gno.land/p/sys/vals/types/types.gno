@@ -22,6 +22,9 @@ type Protocol interface {
 	// bech32 address is part of the validator set
 	IsValidator(address std.Address) bool
 
+	// GetValidator returns the validator using the given address
+	GetValidator(address std.Address) Validator
+
 	// GetValidators returns the currently active validator set
 	GetValidators() []*Validator
 }

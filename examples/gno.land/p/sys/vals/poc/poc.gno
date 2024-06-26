@@ -95,6 +95,15 @@ func (p *PoC) IsValidator(address std.Address) bool {
 	return exists
 }
 
+func (p *PoC) GetValidator(address std.Address) types.Validator {
+	valIndex, exists := p.addressToValidatorIndex[address]
+	if !exists {
+		panic(types.ErrValidatorMissing)
+	}
+
+	return *p.validators[valIndex]
+}
+
 func (p *PoC) GetValidators() []*types.Validator {
 	return p.validators
 }

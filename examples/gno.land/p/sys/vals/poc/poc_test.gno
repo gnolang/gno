@@ -137,3 +137,56 @@ func TestPoC_RemoveValidator(t *testing.T) {
 		t.Fatal("address is validator")
 	}
 }
+
+func TestPoC_GetValidator(t *testing.T) {
+	t.Parallel()
+
+	t.Run("validator not in set", func(t *testing.T) {
+		t.Parallel()
+
+		// Create the protocol with no initial set
+		p := NewPoC()
+
+		// Attempt to get the voting power
+		testing.PanicsWithError(t, types.ErrValidatorMissing, func() {
+			p.GetValidator(testutils.TestAddress("caller"))
+		})
+	})
+
+	t.Run("validator fetched", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			address     = testutils.TestAddress("caller")
+			pubKey      = "public-key"
+			votingPower = uint64(10)
+
+			initialSet = generateTestValidators(1)
+		)
+
+		initialSet[0].Address = address
+		initialSet[0].PubKey = pubKey
+		initialSet[0].VotingPower = votingPower
+
+		// Create the protocol with an initial set
+		p := NewPoC(WithInitialSet(initialSet))
+
+		// Get the validator
+		val := p.GetValidator(address)
+
+		// Validate the address
+		if val.Address != address {
+			t.Fatal("invalid address")
+		}
+
+		// Validate the voting power
+		if val.VotingPower != votingPower {
+			t.Fatal("invalid voting power")
+		}
+
+		// Validate the public key
+		if val.PubKey != pubKey {
+			t.Fatal("invalid public key")
+		}
+	})
+}
