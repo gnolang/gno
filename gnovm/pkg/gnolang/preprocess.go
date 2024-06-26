@@ -19,10 +19,16 @@ const (
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// First, initialize all file nodes and connect to package node.
+	// This will also reserve names on BlockNode.StaticBlock by
+	// calling StaticBlock.Predefine().
 	for _, fn := range fset.Files {
 		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
 		initStaticBlocks(store, pn, fn)
 	}
+	// NOTE: The calls to .Predefine() above is more of a name reservation,
+	// and what comes later in PredefineFileset() below is a second type of
+	// pre-defining mixed with defining, where recursive types are defined
+	// first and then filled out later.
 	// NOTE: much of what follows is duplicated for a single *FileNode
 	// in the main Preprocess translation function.  Keep synced.
 
@@ -109,11 +115,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 	// iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-		// if already preprocessed, skip it.
-		if n.GetAttribute(ATTR_PREPROCESSED) == true {
-			return n, TRANS_SKIP
-		}
-
 		defer func() {
 			if r := recover(); r != nil {
 				// before re-throwing the error, append location information to message.
@@ -320,6 +321,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 			default:
 				panic("should not happen")
 			}
+			return n, TRANS_CONTINUE
 
 		// ----------------------------------------
 		case TRANS_LEAVE:
@@ -3267,13 +3269,11 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				return
 			}
 		}
-		last2 := skipFile(last)
 		for i := 0; i < len(d.NameExprs); i++ {
 			nx := &d.NameExprs[i]
 			if nx.Name == blankIdentifier {
 				nx.Path.Name = blankIdentifier
 			} else {
-				last2.Predefine(d.Const, nx.Name)
 				nx.Path = last.GetPathForName(store, nx.Name)
 			}
 		}
