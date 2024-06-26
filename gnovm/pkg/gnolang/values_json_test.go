@@ -261,39 +261,36 @@ func TestTypedValueMarshalJSON_Struct(t *testing.T) {
 	}
 }
 
-// const RecursiveValueFile = `
-// package testdata
+const RecursiveValueFile = `
+package testdata
 
-// type Recursive struct {
-// 	Nested *Recursive
-// }
+type Recursive struct {
+	Nested *Recursive
+}
 
-// var RecursiveStruct = &Recursive{}
+var RecursiveStruct = &Recursive{}
 
-// func init() {
-// 	RecursiveStruct.Nested = RecursiveStruct
-// }
-// `
+func init() {
+	RecursiveStruct.Nested = RecursiveStruct
+}
+`
 
 // // TestTypedValueMarshal_RecursiveMarshalPanic tests marshaling of recursive structures.
-// func TestTypedValueMarshal_RecursiveMarshalPanic(t *testing.T) {
-// 	m := NewMachine(pkgpath, nil)
-// 	defer m.Release()
+func TestTypedValueMarshal_RecursiveMarshalPanic(t *testing.T) {
+	m := NewMachine(pkgpath, nil)
+	defer m.Release()
 
-// 	nn := MustParseFile("testdata.gno", RecursiveValueFile)
-// 	m.RunFiles(nn)
-// 	m.RunDeclaration(ImportD("testdata", pkgpath))
+	nn := MustParseFile("testdata.gno", RecursiveValueFile)
+	m.RunFiles(nn)
+	m.RunDeclaration(ImportD("testdata", pkgpath))
 
-// 	tps := m.Eval(Sel(Nx("testdata"), "RecursiveStruct"))
-// 	require.Len(t, tps, 1)
-// 	gv := tps[0]
+	tps := m.Eval(Sel(Nx("testdata"), "RecursiveStruct"))
+	require.Len(t, tps, 1)
+	tv := tps[0]
 
-// 	// Create a TypedValue marshaler
-// 	tvm := NewTypedValueMarshaler(nil)
-// 	mv := tvm.Wrap(&gv)
-
-// 	require.PanicsWithError(t,
-// 		ErrRecursivePointer.Error(),
-// 		func() { amino.MarshalJSON(mv) },
-// 	)
-// }
+	require.PanicsWithError(t,
+		ErrRecursivePointer.Error(),
+		func() {
+			tv.Marshal()
+		})
+}

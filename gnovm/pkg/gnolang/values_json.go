@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -14,9 +15,7 @@ const defaultRecursionLimit = 10000
 
 // Format formats the message as a multiline string.
 // This function is only intended for human consumption and ignores errors.
-// Do not depend on the output being stable. Its output will change across
-// different builds of your program, even when using the same version of the
-// protobuf module.
+// Do not depend on the output being stable.
 // func Format(m *TypedValue) string {
 // 	return MarshalOptions{Multiline: true}.Format(m)
 // }
@@ -28,13 +27,13 @@ const defaultRecursionLimit = 10000
 func (tv *TypedValue) Marshal() ([]byte, error) {
 	return MarshalOptions{
 		Store: nil,
-		Alloc: nilAllocator,
 	}.Marshal(tv)
 }
 
 // MarshalOptions is a configurable JSON format marshaler.
 type MarshalOptions struct {
-	// pragma.NoUnkeyedLiterals
+	// Format an output compatible with amino
+	AminoFormat bool
 
 	// Multiline specifies whether the marshaler should format the output in
 	// indented-form with every textual element on a new line.
@@ -47,52 +46,9 @@ type MarshalOptions struct {
 	// Indent can only be composed of space or tab characters.
 	Indent string
 
-	// AllowPartial allows messages that have missing required fields to marshal
-	// without returning an error. If AllowPartial is false (the default),
-	// Marshal will return error if there are any missing required fields.
-	AllowPartial bool
-
-	// UseProtoNames uses proto field name instead of lowerCamelCase name in JSON
-	// field names.
-	UseProtoNames bool
-
-	// UseEnumNumbers emits enum values as numbers.
-	UseEnumNumbers bool
-
-	// EmitUnpopulated specifies whether to emit unpopulated fields. It does not
-	// emit unpopulated oneof fields or unpopulated extension fields.
-	// The JSON value emitted for unpopulated fields are as follows:
-	//  ╔═══════╤════════════════════════════╗
-	//  ║ JSON  │ Protobuf field             ║
-	//  ╠═══════╪════════════════════════════╣
-	//  ║ false │ proto3 boolean fields      ║
-	//  ║ 0     │ proto3 numeric fields      ║
-	//  ║ ""    │ proto3 string/bytes fields ║
-	//  ║ null  │ proto2 scalar fields       ║
-	//  ║ null  │ message fields             ║
-	//  ║ []    │ list fields                ║
-	//  ║ {}    │ map fields                 ║
-	//  ╚═══════╧════════════════════════════╝
-	EmitUnpopulated bool
-
-	// EmitDefaultValues specifies whether to emit default-valued primitive fields,
-	// empty lists, and empty maps. The fields affected are as follows:
-	//  ╔═══════╤════════════════════════════════════════╗
-	//  ║ JSON  │ Protobuf field                         ║
-	//  ╠═══════╪════════════════════════════════════════╣
-	//  ║ false │ non-optional scalar boolean fields     ║
-	//  ║ 0     │ non-optional scalar numeric fields     ║
-	//  ║ ""    │ non-optional scalar string/byte fields ║
-	//  ║ []    │ empty repeated fields                  ║
-	//  ║ {}    │ empty map fields                       ║
-	//  ╚═══════╧════════════════════════════════════════╝
-	//
-	// Behaves similarly to EmitUnpopulated, but does not emit "null"-value fields,
-	// i.e. presence-sensing fields that are omitted will remain omitted to preserve
-	// presence-sensing.
-	// EmitUnpopulated takes precedence over EmitDefaultValues since the former generates
-	// a strict superset of the latter.
-	EmitDefaultValues bool
+	// If this is true Object will be Wnwraped when encounter, instead of
+	// producing an {@type: <str>, "oid": <str>} obj
+	FillRefValue bool
 
 	// Resolver is used for looking up types when expanding google.protobuf.Any
 	// messages. If nil, this defaults to using protoregistry.GlobalTypes.
@@ -120,6 +76,8 @@ type UnmarshalOptions struct {
 	RecursionLimit int
 
 	Store Store
+
+	Alloc *Allocator
 }
 
 // Format formats the message as a string.
@@ -159,11 +117,13 @@ func (o UnmarshalOptions) Unmarshal(b []byte, tv *TypedValue) error {
 // introducing other code paths for unmarshal that do not go through this.
 func (o UnmarshalOptions) unmarshal(b []byte, tv *TypedValue) error {
 	// tv.Reset()  XXX: reset typed value ?
+	if o.Alloc == nil {
+		o.Alloc = nilAllocator
+	}
 
-	// XXX: Set a default store
-	// if o.Resolver == nil {
-	// 	o.Resolver = protoregistry.GlobalTypes
-	// }
+	if o.Store == nil {
+		o.Store = NewStore(o.Alloc, nil, nil)
+	}
 
 	if o.RecursionLimit == 0 {
 		o.RecursionLimit = defaultRecursionLimit
@@ -200,6 +160,14 @@ func (o MarshalOptions) marshal(b []byte, tv *TypedValue) ([]byte, error) {
 		o.Indent = defaultIndent
 	}
 
+	if o.Alloc == nil {
+		o.Alloc = nilAllocator
+	}
+
+	if o.Store == nil {
+		o.Store = NewStore(o.Alloc, nil, nil)
+	}
+
 	// XXX: Use store as resolver
 	// if o.Store == nil {
 	// 	panic("no store has been set")
@@ -218,8 +186,8 @@ func (o MarshalOptions) marshal(b []byte, tv *TypedValue) ([]byte, error) {
 		return append(b, '{', '}'), nil
 	}
 
-	enc := encoder{internalEnc, o}
-	if err := enc.marshalMessage(tv); err != nil {
+	enc := encoder{internalEnc, map[string]bool{}, o}
+	if err := enc.marshalValue(tv); err != nil {
 		return nil, err
 	}
 
@@ -228,7 +196,12 @@ func (o MarshalOptions) marshal(b []byte, tv *TypedValue) ([]byte, error) {
 
 type encoder struct {
 	*json.Encoder
-	opts MarshalOptions
+	cache map[string]bool
+	opts  MarshalOptions
+}
+
+func (e encoder) store() Store {
+	return e.opts.Store
 }
 
 type decoder struct {
@@ -319,10 +292,10 @@ func wellKnownTypeUnmarshaler(tv *TypedValue) unmarshalFunc {
 	return nil
 }
 
-// marshalMessage marshals the fields in the given protoreflect.Message.
+// marshalValue marshals the fields in the given TypedValue.
 // If the typeURL is non-empty, then a synthetic "@type" field is injected
 // containing the URL as the value.
-func (e encoder) marshalMessage(tv *TypedValue) error {
+func (e encoder) marshalValue(tv *TypedValue) error {
 	if marshal := wellKnownTypeMarshaler(tv); marshal != nil {
 		return marshal(e, tv)
 	}
@@ -852,15 +825,31 @@ func (e encoder) marshalAny(tv *TypedValue) error {
 	return fmt.Errorf("any: TODO")
 }
 
-var errEmptyObject = fmt.Errorf(`empty object`)
-var errMissingType = fmt.Errorf(`missing "@type" field`)
+var ErrRecursivePointer = errors.New(`recursive detected`)
+var ErrMissingType = errors.New(`missing "@type" field`)
+var ErrEmptyObject = errors.New(`empty object`)
 
 // Wrapper types are encoded as JSON primitives like string, number or boolean.
 
 func (e encoder) marshalPointerValue(tv *TypedValue) error {
 	pv := tv.V.(PointerValue)
-	etv := pv.TV
-	return e.marshalMessage(etv)
+	o, ok := pv.Base.(Object)
+	if !ok {
+		panic(ErrEmptyObject)
+	}
+
+	if e.store() == nil {
+		id := o.GetObjectID()
+		if e.cache[id.String()] {
+			panic(ErrRecursivePointer)
+		}
+		e.cache[id.String()] = true
+
+		etv := pv.Deref()
+		return e.marshalValue(&etv)
+	}
+
+	panic("not supported")
 }
 
 func (e encoder) marshalStructValue(tv *TypedValue) error {
@@ -873,7 +862,6 @@ func (e encoder) marshalStructValue(tv *TypedValue) error {
 	for i := range st.Fields {
 		ft := st.Fields[i]
 		jsontag := ft.Tag.Get("json")
-
 		if !ft.IsExported() {
 			if jsontag != "" {
 				return fmt.Errorf("struct field %s has json tag but is not exported", ft.Name)
@@ -893,7 +881,7 @@ func (e encoder) marshalStructValue(tv *TypedValue) error {
 			e.WriteName(string(ft.Name))
 		}
 
-		if err := e.marshalMessage(fv); err != nil {
+		if err := e.marshalValue(fv); err != nil {
 			return err
 		}
 	}
@@ -913,7 +901,6 @@ func isEmptyValue(tv *TypedValue) bool {
 // The JSON representation for ListValue is JSON array that contains the encoded
 // ListValue.values repeated field and follows the serialization rules for a
 // repeated field.
-
 func (e encoder) marshalListValue(tv *TypedValue) error {
 	e.StartArray()
 	defer e.EndArray()
@@ -947,7 +934,7 @@ func (e encoder) marshalArrayValue(tv *TypedValue) {
 	avl := len(av.List)
 	for i := 0; i < avl; i++ {
 		etv := &av.List[i]
-		e.marshalMessage(etv)
+		e.marshalValue(etv)
 	}
 }
 
@@ -955,7 +942,26 @@ func (e encoder) marshalSliceValue(tv *TypedValue) {
 	sv := tv.V.(*SliceValue)
 	svo := sv.Offset
 	svl := sv.Length
-	av := sv.GetBase(e.opts.Store)
+	var av *ArrayValue
+
+	switch cv := sv.Base.(type) {
+	case nil:
+		return
+	case RefValue:
+		store := e.store()
+		if store == nil {
+			return // cannot guess rev without a store
+		}
+
+		av = store.GetObject(cv.ObjectID).(*ArrayValue)
+		sv.Base = av
+
+	case *ArrayValue:
+		av = cv
+	default:
+		panic("should not happen")
+	}
+
 	if av.Data != nil {
 		e.WriteBytesArrayValue(av.Data[svo:])
 		return
