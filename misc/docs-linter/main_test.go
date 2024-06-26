@@ -228,14 +228,13 @@ func TestFlow(t *testing.T) {
 	contents := `This is a [broken Wikipedia link](https://www.wikipedia.org/non-existent-page).
 Here's an embedmd link that links to a non-existing file: [embedmd]:# (../assets/myfile.sol go)
 and here is some JSX tags <string\> <random-unescaped-text-tag>
-and a local link will be added in further code. https://github.com/leohhhn/aisdasdisa
+and a local link will be added in further code.
 `
 
 	expectedItems := []string{
 		"https://www.wikipedia.org/non-existent-page",
 		"../assets/myfile.sol",
 		"<random-unescaped-text-tag>",
-		"sadasd",
 	}
 
 	filePath := filepath.Join(tempDir, "examplefile.md")
@@ -265,7 +264,7 @@ and a local link will be added in further code. https://github.com/leohhhn/aisda
 	assert.ErrorIs(t, err, errFoundLintItems)
 
 	for _, item := range expectedItems {
-		assert.(t, strings.Contains(res, item))
+		assert.True(t, strings.Contains(res, item))
 	}
 
 }
