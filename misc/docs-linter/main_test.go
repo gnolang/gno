@@ -261,7 +261,6 @@ and [this is a link to a non-existent](../myfolder/myfile.md) file.`
 	for _, item := range expectedItems {
 		assert.True(t, strings.Contains(res, item))
 	}
-
 }
 
 func removeDir(t *testing.T, dirPath string) func() {

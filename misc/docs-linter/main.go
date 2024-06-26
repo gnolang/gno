@@ -5,11 +5,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/commands"
-	"golang.org/x/sync/errgroup"
 	"os"
 	"path/filepath"
 	"strings"
+	
+	"github.com/gnolang/gno/tm2/pkg/commands"
+	"golang.org/x/sync/errgroup"
 )
 
 type cfg struct {
