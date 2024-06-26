@@ -8,13 +8,13 @@ Gnodev allows for quick and efficient development of Gno code.
 
 By watching your development directory, gnodev detects changes in your Gno
 code, reflecting them in the state of the node immediately. Gnodev also runs a
-local instance of `gnoweb`, allowing you to see the rendering of your Gno code instantly. 
+local instance of `gnoweb`, allowing you to see the rendering of your Gno code instantly.
 
 ## Features
 - **In-Memory Node**: Gnodev starts an in-memory node, and automatically loads
   the **examples** folder and any user-specified paths.
 - **Web Interface Server**: Gnodev automatically starts a `gnoweb` server on
-[`localhost:8888`](https://localhost:8888).
+  [`localhost:8888`](https://localhost:8888).
 - **Balances and Keybase Customization**: Users can set account balances, load them from a file, or add new
   accounts via a flag.
 - **Hot Reload**: Gnodev monitors the **examples** folder, as well as any folder specified as an argument for
@@ -120,19 +120,20 @@ While `gnodev` is running, the following shortcuts are available:
 
 ### Options
 
-| Flag                | Effect                                                     |
-|---------------------|------------------------------------------------------------|
-| --minimal           | Start `gnodev` without loading the examples folder.        |
-| --no-watch          | Disable hot reload.                                        |
-| --add-account       | Pre-add account(s) in the form `<bech32>[=<amount>]`       |
-| --balances-file     | Load a balance for the user(s) from a balance file.        |
-| --chain-id          | Set node ChainID                                           |
-| --deploy-key        | Default key name or Bech32 address for uploading packages. |
-| --home              | Set the path to load user's Keybase.                       |
-| --max-gas           | Set the maximum gas per block                              |
-| --no-replay         | Do not replay previous transactions upon reload            |
-| --node-rpc-listener | listening address for GnoLand RPC node                     |
-| --root              | gno root directory                                         |
-| --server-mode       | disable interaction, and adjust logging for server use.    |
-| --verbose           | enable verbose output for development                      |
-| --web-listener      | web server listening address                               |
+| Flag                | Effect                                                                |
+|---------------------|-----------------------------------------------------------------------|
+| --minimal           | Start `gnodev` without loading the examples folder.                   |
+| --no-watch          | Disable hot reload.                                                   |
+| --add-account       | Pre-add account(s) in the form `<bech32>[=<amount>]`                  |
+| --balances-file     | Load a balance for the user(s) from a balance file.                   |
+| --chain-id          | Set node ChainID                                                      |
+| --deploy-key        | Default key name or Bech32 address for uploading packages.            |
+| --home              | Set the path to load user's Keybase.                                  |
+| --max-gas           | Set the maximum gas per block                                         |
+| --no-replay         | Do not replay previous transactions upon reload                       |
+| --node-rpc-listener | listening address for GnoLand RPC node                                |
+| --root              | gno root directory                                                    |
+| --server-mode       | disable interaction, and adjust logging for server use.               |
+| --verbose           | enable verbose output for development                                 |
+| --web-listener      | web server listening address                                          |
+| --web-help-remote   | web server help page's remote addr - defaults to <node-rpc-listener\> |
