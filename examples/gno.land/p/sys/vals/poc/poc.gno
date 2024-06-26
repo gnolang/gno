@@ -6,6 +6,8 @@ import (
 	"gno.land/p/sys/vals/types"
 )
 
+const errInvalidVotingPower = "invalid voting power"
+
 // PoC specifies the Proof of Contribution validator set.
 // In order to become part of the set, users to be voted into
 // the validator set by a govdao proposal
@@ -33,14 +35,14 @@ func NewPoC(opts ...Option) *PoC {
 	return p
 }
 
-func (p *PoC) AddValidator(address std.Address, pubKey string) *types.Validator {
+func (p *PoC) AddValidator(address std.Address, pubKey string, power uint64) *types.Validator {
 	// Validate that the operation is a valid call
-	p.validateAdd(address)
+	p.validateAdd(address, power)
 
 	v := &types.Validator{
 		Address:     address,
 		PubKey:      pubKey, // TODO: in the future, verify the public key
-		VotingPower: 1,      // in this PoC system, all new validators have the same voting power
+		VotingPower: power,
 	}
 
 	// Add the validator to the set
@@ -51,10 +53,15 @@ func (p *PoC) AddValidator(address std.Address, pubKey string) *types.Validator 
 }
 
 // validateAdd validates a validator add call
-func (p *PoC) validateAdd(address std.Address) {
+func (p *PoC) validateAdd(address std.Address, power uint64) {
 	// Check if the validator is already in the set
 	if p.IsValidator(address) {
 		panic(types.ErrValidatorExists)
+	}
+
+	// Make sure the voting power > 0
+	if power == 0 {
+		panic(errInvalidVotingPower)
 	}
 }
 

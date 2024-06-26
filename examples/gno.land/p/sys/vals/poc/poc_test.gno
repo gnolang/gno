@@ -47,7 +47,24 @@ func TestPoC_AddValidator_Invalid(t *testing.T) {
 
 		// Attempt to add the validator
 		testing.PanicsWithError(t, types.ErrValidatorExists, func() {
-			p.AddValidator(proposalAddress, proposalKey)
+			p.AddValidator(proposalAddress, proposalKey, 1)
+		})
+	})
+
+	t.Run("invalid voting power", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			proposalAddress = testutils.TestAddress("caller")
+			proposalKey     = "public-key"
+		)
+
+		// Create the protocol with no initial set
+		p := NewPoC()
+
+		// Attempt to add the validator
+		testing.PanicsWithError(t, errInvalidVotingPower, func() {
+			p.AddValidator(proposalAddress, proposalKey, 0)
 		})
 	})
 }
@@ -65,7 +82,7 @@ func TestPoC_AddValidator(t *testing.T) {
 
 	// Attempt to add the validator
 	testing.NotPanics(t, func() {
-		p.AddValidator(proposalAddress, proposalKey)
+		p.AddValidator(proposalAddress, proposalKey, 1)
 	})
 
 	// Make sure the validator is added

@@ -18,8 +18,12 @@ var v *vals
 
 // addValidator adds a new validator to the validator set.
 // If the validator is already present, the method errors out
-func addValidator(address std.Address, pubKey string) {
-	if val := v.p.AddValidator(address, pubKey); val != nil {
+func addValidator(validator types.Validator) {
+	if val := v.p.AddValidator(
+		validator.Address,
+		validator.PubKey,
+		validator.VotingPower,
+	); val != nil {
 		// Validator added, note the change
 		v.changes = append(v.changes, types.Validator{
 			Address:     val.Address,

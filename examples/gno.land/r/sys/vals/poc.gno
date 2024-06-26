@@ -38,7 +38,7 @@ func NewPropExecutor(changesFn func() []types.Validator) proposal.Executor {
 			}
 
 			// This change request is to add the validator
-			addValidator(change.Address, change.PubKey)
+			addValidator(change)
 		}
 
 		return nil

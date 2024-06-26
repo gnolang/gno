@@ -93,6 +93,6 @@ func main() {
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // Valset changes to apply:
-// - g12345678 (1)
-// - g000000000 (1)
+// - g12345678 (10)
+// - g000000000 (10)
 // - g000000000 (0)

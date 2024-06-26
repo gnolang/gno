@@ -12,7 +12,7 @@ type Protocol interface {
 	// TODO: This API is not ideal -- the address should be derived from
 	// the public key, and not be passed in as such, but currently Gno
 	// does not support crypto address derivation
-	AddValidator(address std.Address, pubKey string) *Validator
+	AddValidator(address std.Address, pubKey string, power uint64) *Validator
 
 	// RemoveValidator removes the given validator from the set.
 	// If the validator is not present in the set, the method should error out
