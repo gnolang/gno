@@ -1,15 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/commands"
+	"golang.org/x/sync/errgroup"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/gnolang/gno/tm2/pkg/commands"
-	"golang.org/x/sync/errgroup"
 )
 
 type cfg struct {
@@ -28,7 +28,12 @@ Checks for 404 links (local and remote), as well as improperly escaped JSX tags.
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
-			return execLint(cfg, ctx)
+			res, err := execLint(cfg, ctx)
+			if len(res) != 0 {
+				fmt.Println(res)
+			}
+
+			return err
 		})
 
 	cmd.Execute(context.Background(), os.Args[1:])
@@ -43,22 +48,24 @@ func (c *cfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execLint(cfg *cfg, ctx context.Context) error {
+func execLint(cfg *cfg, ctx context.Context) (string, error) {
 	if cfg.docsPath == "" {
-		return errEmptyPath
+		return "", errEmptyPath
 	}
 
 	absPath, err := filepath.Abs(cfg.docsPath)
 	if err != nil {
-		return fmt.Errorf("error getting absolute path for docs folder: %w", err)
+		return "", fmt.Errorf("error getting absolute path for docs folder: %w", err)
 	}
 
-	fmt.Printf("Linting %s...\n", absPath)
+	// Main buffer to write to the end user after linting
+	var output bytes.Buffer
+	output.WriteString(fmt.Sprintf("Linting %s...\n", absPath))
 
 	// Find docs files to lint
 	mdFiles, err := findFilePaths(cfg.docsPath)
 	if err != nil {
-		return fmt.Errorf("error finding .md files: %w", err)
+		return "", fmt.Errorf("error finding .md files: %w", err)
 	}
 
 	// Make storage maps for tokens to analyze
@@ -71,7 +78,7 @@ func execLint(cfg *cfg, ctx context.Context) error {
 		// Read file content once and pass it to linters
 		fileContents, err := os.ReadFile(filePath)
 		if err != nil {
-			return err
+			return "", err
 		}
 
 		// Execute JSX extractor
@@ -88,23 +95,38 @@ func execLint(cfg *cfg, ctx context.Context) error {
 	g, _ := errgroup.WithContext(ctx)
 
 	g.Go(func() error {
-		return lintJSX(filepathToJSX)
+		res, err := lintJSX(filepathToJSX)
+		if err != nil {
+			output.WriteString(res)
+		}
+
+		return err
 	})
 
 	g.Go(func() error {
-		return lintURLs(filepathToURLs, ctx)
+		res, err := lintURLs(filepathToURLs, ctx)
+		if err != nil {
+			output.WriteString(res)
+		}
+
+		return err
 	})
 
 	g.Go(func() error {
-		return lintLocalLinks(filepathToLocalLink, cfg.docsPath)
+		res, err := lintLocalLinks(filepathToLocalLink, cfg.docsPath)
+		if err != nil {
+			output.WriteString(res)
+		}
+
+		return err
 	})
 
 	if err = g.Wait(); err != nil {
-		return errFoundLintItems
+		return output.String(), errFoundLintItems
 	}
 
-	fmt.Println("Lint complete, no issues found.")
-	return nil
+	output.WriteString("Lint complete, no issues found.")
+	return output.String(), nil
 }
 
 // findFilePaths gathers the file paths for specific file types

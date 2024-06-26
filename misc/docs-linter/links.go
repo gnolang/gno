@@ -13,12 +13,13 @@ import (
 // Valid start to an embedmd link
 const embedmd = `[embedmd]:# `
 
+// Regular expression to match markdown links
+var regex = regexp.MustCompile(`]\((\.\.?/.+?)\)`)
+
 // extractLocalLinks extracts links to local files from the given file content
 func extractLocalLinks(fileContent []byte) []string {
 	scanner := bufio.NewScanner(bytes.NewReader(fileContent))
 	links := make([]string, 0)
-	// Regular expression to match markdown links
-	re := regexp.MustCompile(`]\((\.\.?/.+?)\)`)
 
 	// Scan file line by line
 	for scanner.Scan() {
@@ -44,7 +45,7 @@ func extractLocalLinks(fileContent []byte) []string {
 		}
 
 		// Find all matches
-		matches := re.FindAllString(line, -1)
+		matches := regex.FindAllString(line, -1)
 
 		// Extract and print the local file links
 		for _, match := range matches {
@@ -63,26 +64,30 @@ func extractLocalLinks(fileContent []byte) []string {
 	return links
 }
 
-func lintLocalLinks(filepathToLinks map[string][]string, docsPath string) error {
-	var found bool
+func lintLocalLinks(filepathToLinks map[string][]string, docsPath string) (string, error) {
+	var (
+		found  bool
+		output bytes.Buffer
+	)
+
 	for filePath, links := range filepathToLinks {
 		for _, link := range links {
 			path := filepath.Join(docsPath, filepath.Dir(filePath), link)
 
 			if _, err := os.Stat(path); err != nil {
 				if !found {
-					fmt.Println("Could not find files with the following paths:")
+					output.WriteString("Could not find files with the following paths:\n")
 					found = true
 				}
 
-				fmt.Printf(">>> %s (found in file: %s)\n", link, filePath)
+				output.WriteString(fmt.Sprintf(">>> %s (found in file: %s)\n", link, filePath))
 			}
 		}
 	}
 
 	if found {
-		return errFoundUnreachableLocalLinks
+		return output.String(), errFoundUnreachableLocalLinks
 	}
 
-	return nil
+	return "", nil
 }

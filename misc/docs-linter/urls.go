@@ -44,13 +44,14 @@ func extractUrls(fileContent []byte) []string {
 	return urls
 }
 
-func lintURLs(filepathToURLs map[string][]string, ctx context.Context) error {
+func lintURLs(filepathToURLs map[string][]string, ctx context.Context) (string, error) {
 	// Setup parallel checking for links
 	g, _ := errgroup.WithContext(ctx)
 
 	var (
-		lock         sync.Mutex
-		notFoundUrls []string
+		lock   sync.Mutex
+		output bytes.Buffer
+		found  bool
 	)
 
 	for filePath, urls := range filepathToURLs {
@@ -60,7 +61,12 @@ func lintURLs(filepathToURLs map[string][]string, ctx context.Context) error {
 			g.Go(func() error {
 				if err := checkUrl(url); err != nil {
 					lock.Lock()
-					notFoundUrls = append(notFoundUrls, fmt.Sprintf(">>> %s (found in file: %s)", url, filePath))
+					if !found {
+						output.WriteString("Remote links that need checking:\n")
+						found = true
+					}
+
+					output.WriteString(fmt.Sprintf(">>> %s (found in file: %s)\n", url, filePath))
 					lock.Unlock()
 				}
 
@@ -69,21 +75,16 @@ func lintURLs(filepathToURLs map[string][]string, ctx context.Context) error {
 		}
 	}
 
+	// Check for possible thread errors
 	if err := g.Wait(); err != nil {
-		return err
+		return "", err
 	}
 
-	// Print out the URLs that returned a 404 along with the file names
-	if len(notFoundUrls) > 0 {
-		fmt.Println("Links that need checking:")
-		for _, result := range notFoundUrls {
-			fmt.Println(result)
-		}
-
-		return errFound404Links
+	if found {
+		return output.String(), errFound404Links
 	}
 
-	return nil
+	return "", nil
 }
 
 // checkUrl checks if a URL is a 404

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,7 +25,8 @@ func TestEmptyPathError(t *testing.T) {
 	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancelFn()
 
-	assert.ErrorIs(t, execLint(cfg, ctx), errEmptyPath)
+	_, err := execLint(cfg, ctx)
+	assert.ErrorIs(t, err, errEmptyPath)
 }
 
 func TestExtractLinks(t *testing.T) {
@@ -226,8 +228,15 @@ func TestFlow(t *testing.T) {
 	contents := `This is a [broken Wikipedia link](https://www.wikipedia.org/non-existent-page).
 Here's an embedmd link that links to a non-existing file: [embedmd]:# (../assets/myfile.sol go)
 and here is some JSX tags <string\> <random-unescaped-text-tag>
-and a local link will be added in further code.
+and a local link will be added in further code. https://github.com/leohhhn/aisdasdisa
 `
+
+	expectedItems := []string{
+		"https://www.wikipedia.org/non-existent-page",
+		"../assets/myfile.sol",
+		"<random-unescaped-text-tag>",
+		"sadasd",
+	}
 
 	filePath := filepath.Join(tempDir, "examplefile.md")
 
@@ -247,13 +256,18 @@ and a local link will be added in further code.
 
 	contents += fmt.Sprintf(" [This](%s) is a valid local link.", filePathToLink)
 
-	err = execLint(&cfg{
+	res, err := execLint(&cfg{
 		docsPath: tempDir,
 	},
 		context.Background(),
 	)
 
 	assert.ErrorIs(t, err, errFoundLintItems)
+
+	for _, item := range expectedItems {
+		assert.(t, strings.Contains(res, item))
+	}
+
 }
 
 func removeDir(t *testing.T, dirPath string) func() {
