@@ -1,5 +1,5 @@
 ---
-id: setting-up-a-local-chain
+id: validators-setting-up-a-new-chain
 ---
 
 # Setting up a Local Chain
@@ -10,10 +10,12 @@ In this tutorial, you will learn how to start a local Gno node (and chain!).
 Additionally, you will see the different options you can use to make your Gno instance unique.
 
 ## Prerequisites
+
 - **Git**
 - **`make` (for running Makefiles)**
 - **Go 1.21+**
-- **Go Environment Setup**: Ensure you have Go set up as outlined in the [Go official installation documentation](https://go.dev/doc/install) for your environment
+- **Go Environment Setup**: Ensure you have Go set up as outlined in
+  the [Go official installation documentation](https://go.dev/doc/install) for your environment
 
 ## Installation
 
@@ -38,22 +40,6 @@ it, run the `gnoland` command:
 gnoland --help
 ```
 
-If everything was successful, you should get the following output:
-
-```bash
-❯ gnoland
-USAGE
-  <subcommand> [flags] [<arg>...]
-
-starts the gnoland blockchain node.
-
-SUBCOMMANDS
-  start    run the full node
-  secrets  gno secrets manipulation suite
-  config   gno config manipulation suite
-  genesis  gno genesis manipulation suite
-```
-
 If you do not wish to install the binary globally, you can build and run it
 with the following command from the `gno.land/` folder:
 
@@ -75,7 +61,7 @@ gnoland start --lazy
 The command will trigger a chain initialization process (if you haven't run the node before), and start the Gno node,
 which is ready to accept transactions and interact with other Gno nodes.
 
-![gnoland start](../assets/getting-started/local-setup/setting-up-a-local-chain/gnoland-start.gif)
+![gnoland start](../../assets/getting-started/local-setup/setting-up-a-local-chain/gnoland-start.gif)
 
 :::info Lazy init
 
@@ -153,7 +139,7 @@ A couple of things to note:
 - `gnoland config init` initializes a default configuration
 - `gnoland secrets init` initializes new node secrets (validator key, node p2p key)
 
-Essentially, `gnoland start --lazy` is simply a combination of `gnoland secrets generate` and `gnoland config generate`,
+Essentially, `gnoland start --lazy` is simply a combination of `gnoland secrets init` and `gnoland config init`,
 with the default options enabled.
 
 #### Changing the node configuration
@@ -167,9 +153,31 @@ gnoland config set rpc.laddr tcp://0.0.0.0:26657
 
 This will update the RPC listen address to `0.0.0.0:26657`. You can verify the configuration was updated by running:
 
-```go
+```bash
 gnoland config get rpc.laddr
+
+# similar behavior for cosmos validator
+# gaiad tx staking create-validator `--node string (default:tcp://localhost:26657)`
 ```
+
+:::tip
+
+A moniker is a human-readable name of your Gno node. You may customize your moniker with the following
+command:
+
+```bash
+gnoland config set moniker node01
+```
+
+:::
+
+:::warning Modify existing secrets
+
+We can modify existing secrets, or utilize our own (if we have them backed up, for example) for the Gno.land node.
+Each secret needs to be placed in the appropriate path within `<data-dir>/secrets`, and it can be replaced or
+regenerated with `gnoland secrets init <key-name> --force`
+
+:::
 
 ### 2. Generate the `genesis.json`
 
@@ -180,6 +188,15 @@ need to regenerate the `genesis.json`, but simply fetch it from publicly availab
 trying to connect to.
 
 :::
+
+The `genesis.json` defines the initial genesis state for the chain. It contains information like:
+
+- the current validator set
+- any predeployed transactions
+- any premined balanced
+
+When the chain starts, the first block will be produced after all the init content inside the `genesis.json` is
+executed.
 
 Generating an empty `genesis.json` is relatively straightforward:
 
@@ -232,7 +249,18 @@ FLAGS
   -output-path ./genesis.json    the output path for the genesis.json
 ```
 
-### 3. Add the initial validator set
+## 3. Add the `examples` packages into the `genesis.json` (optional)
+
+This step is not necessarily required, however, using a Gno.land chain without the `examples` packages predeployed can
+present challenges with users who expect them to be present.
+
+The `examples` directory is located in the `$GNOROOT` location, or the local gno repository clone.
+
+```bash
+gnoland genesis txs add packages ./examples
+```
+
+### 4. Add the initial validator set
 
 A new Gno chain cannot advance without an active validator set.
 Since this example follows starting a completely new Gno chain, you need to add at least one validator to the validator
@@ -244,16 +272,16 @@ locally will be the validator node for the new Gno network.
 To display the generated node key data, run the following command:
 
 ```shell
-gnoland secrets get ValidatorPrivateKey
+gnoland secrets get validator_key
 ```
 
-This will display the information we need for updating the `genesis.json`:
+This will display the information we need for updating the `genesis.json`, in JSON:
 
 ```shell
-[Validator Key Info]
-
-Address:     g10e3smsmusjn00n7j75fk9u4zta8djrlglcv6af
-Public Key:  gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqhjhrqd7xlhda7spfdtx6lrcjxlk67av46w7eng9z4e2ch478fsk4xmq3j
+{
+    "address": "g14j4dlsh3jzgmhezzp9v8xp7wxs4mvyskuw5ljl",
+    "pub_key": "gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqaqle3fdduqul4slg6zllypq9r8gj4wlfucy6qfnzmjcgqv675kxjz8jvk"
+}
 ```
 
 Updating the `genesis.json` is relatively simple, running the following command will add the generated node info to the
@@ -261,8 +289,8 @@ validator set:
 
 ```shell
 gnoland genesis validator add \
---address g10e3smsmusjn00n7j75fk9u4zta8djrlglcv6af \
---pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqhjhrqd7xlhda7spfdtx6lrcjxlk67av46w7eng9z4e2ch478fsk4xmq3j \
+--address g14j4dlsh3jzgmhezzp9v8xp7wxs4mvyskuw5ljl \
+--pub-key gpub1pggj7ard9eg82cjtv4u52epjx56nzwgjyg9zqaqle3fdduqul4slg6zllypq9r8gj4wlfucy6qfnzmjcgqv675kxjz8jvk \
 --name Cuttlas
 ```
 
@@ -301,11 +329,12 @@ We can verify that the new validator was indeed added to the validator set:
 }
 ```
 
-### 4. Starting the chain
+### 5. Starting the chain
 
 We have completed the main aspects of setting up a node:
 
 - generated the node directory (secrets and configuration) ✅
+- set the adequate configuration params ✅
 - generated a `genesis.json` ✅
 - added an initial validator set to the `genesis.json` ✅
 
@@ -321,7 +350,7 @@ That's it! 🎉
 
 Your new Gno node (chain) should be up and running:
 
-![gnoland start](../assets/getting-started/local-setup/setting-up-a-local-chain/gnoland-start-manual.gif)
+![gnoland start](../../assets/getting-started/local-setup/setting-up-a-local-chain/gnoland-start-manual.gif)
 
 ## Chain runtime options
 
