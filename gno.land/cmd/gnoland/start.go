@@ -31,9 +31,11 @@ import (
 
 const defaultNodeDir = "gnoland-data"
 
-var gnoroot = gnoenv.RootDir()
-var defaultGenesisBalancesFile = filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
-var defaultGenesisTxsFile = filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
+var (
+	gnoroot                    = gnoenv.RootDir()
+	defaultGenesisBalancesFile = filepath.Join(gnoroot, "gno.land", "genesis", "genesis_balances.txt")
+	defaultGenesisTxsFile      = filepath.Join(gnoroot, "gno.land", "genesis", "genesis_txs.jsonl")
+)
 
 var errMissingGenesis = errors.New("missing genesis.json")
 
