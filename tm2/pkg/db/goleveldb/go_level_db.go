@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/internal"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -115,9 +116,9 @@ func (db *GoLevelDB) Print() {
 
 	itr := db.db.NewIterator(nil, nil)
 	for itr.Next() {
-		key := itr.Key()
-		value := itr.Value()
-		fmt.Printf("[%X]:\t[%X]\n", key, value)
+		key := colors.DefaultColoredBytesN(itr.Key(), 50)
+		value := colors.DefaultColoredBytesN(itr.Value(), 100)
+		fmt.Printf("%v: %v\n", key, value)
 	}
 }
 

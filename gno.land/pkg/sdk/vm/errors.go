@@ -20,7 +20,7 @@ type (
 	InvalidExprError    struct{ abciError }
 	TypeCheckError      struct {
 		abciError
-		Errors []string
+		Errors []string `json:"errors"`
 	}
 )
 

@@ -3,6 +3,7 @@ package validators
 
 import (
 	"std"
+	"strconv"
 
 	"gno.land/p/gov/proposal"
 )
@@ -15,10 +16,10 @@ type Change struct {
 	Power   int
 }
 
-// NewProposalExecutor creates a new executor that wraps a changes closure
+// NewPropExecutor creates a new executor that wraps a changes closure
 // proposal. It emits a typed object (subscribed by tm2) only if it passes
 // through a complete p/gov/proposal process.
-func NewProposalExecutor(changesFn func() []Change) proposal.Executor {
+func NewPropExecutor(changesFn func() []Change) proposal.Executor {
 	if changesFn == nil {
 		panic("changesFn should not be nil")
 	}
@@ -44,4 +45,16 @@ func getAndResetChanges() []Change {
 	cpy := unappliedChanges[:]
 	unappliedChanges = []Change{}
 	return cpy
+}
+
+func Render(_ string) string {
+	if len(unappliedChanges) == 0 {
+		return "No valset changes to apply."
+	}
+
+	output := "Valset changes to apply:\n"
+	for _, change := range unappliedChanges {
+		output += "- " + string(change.Address) + " (" + strconv.Itoa(change.Power) + ")\n"
+	}
+	return output
 }
