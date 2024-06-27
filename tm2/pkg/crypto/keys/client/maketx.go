@@ -141,20 +141,22 @@ func SignAndBroadcastHandler(
 	qopts := &QueryCfg{
 		RootCfg: baseopts,
 		Path:    fmt.Sprintf("auth/accounts/%s", accountAddr),
+		cli:     cfg.cli,
 	}
 	qres, err := QueryHandler(qopts)
 	if err != nil {
 		return nil, errors.Wrap(err, "query account")
 	}
-	var qret struct{ BaseAccount std.BaseAccount }
-	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
+
+	var acc std.BaseAccount
+	err = amino.UnmarshalJSON(qres.Response.Data, &acc)
 	if err != nil {
 		return nil, err
 	}
 
 	// sign tx
-	accountNumber := qret.BaseAccount.AccountNumber
-	sequence := qret.BaseAccount.Sequence
+	accountNumber := acc.AccountNumber
+	sequence := acc.Sequence
 
 	sOpts := signOpts{
 		chainID:         txopts.ChainID,

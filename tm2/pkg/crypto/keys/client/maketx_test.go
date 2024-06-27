@@ -8,11 +8,13 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
 	"github.com/stretchr/testify/require"
@@ -23,7 +25,7 @@ var (
 	mnemonic = "process giant gadget pet latin sock receive exercise arctic indoor clump transfer zero increase version model defense teach hole program economy bridge enhance fade"
 )
 
-func Test_ExecSignAndBroadcast_Error(t *testing.T) {
+func Test_ExecSignAndBroadcast(t *testing.T) {
 	t.Parallel()
 
 	// Create a temporary directory for test files
@@ -59,19 +61,15 @@ func Test_ExecSignAndBroadcast_Error(t *testing.T) {
 						InsecurePasswordStdin: true,
 					},
 				},
-				GasWanted: 100,
-				GasFee:    "1",
+				GasWanted: 100000,
+				GasFee:    "1000ugnot",
 				Memo:      "test memo",
 				Broadcast: true,
-				Simulate:  SimulateTest,
+				Simulate:  SimulateSkip,
 				ChainID:   "test-chain",
 				cli: &mockRPCClient{
-					abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
-						var acc = std.BaseAccount{
-							Address:       addr,
-							AccountNumber: 0,
-							Sequence:      0,
-						}
+					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+						var acc = std.NewBaseAccountWithAddress(addr)
 
 						jsonData := amino.MustMarshalJSON(&acc)
 
@@ -102,6 +100,26 @@ func Test_ExecSignAndBroadcast_Error(t *testing.T) {
 			},
 		},
 		{
+			name:      "Invalid simulation mode",
+			args:      []string{"test"},
+			expectErr: true,
+			errMsg:    "invalid simulate option: \"invalid\"",
+			cfg: MakeTxCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Home:                  kbHome,
+						InsecurePasswordStdin: true,
+					},
+				},
+				GasWanted: 100000,
+				GasFee:    "1000ugnot",
+				Memo:      "test memo",
+				Broadcast: true,
+				Simulate:  "invalid", // invalid simulation mode
+				ChainID:   "test-chain",
+			},
+		},
+		{
 			name:      "Invalid number of arguments",
 			args:      []string{}, // empty arguments
 			expectErr: true,
@@ -113,8 +131,8 @@ func Test_ExecSignAndBroadcast_Error(t *testing.T) {
 						InsecurePasswordStdin: true,
 					},
 				},
-				GasWanted: 100,
-				GasFee:    "1",
+				GasWanted: 100000,
+				GasFee:    "1000ugnot",
 				Memo:      "test memo",
 				Broadcast: true,
 				Simulate:  SimulateTest,
@@ -133,8 +151,8 @@ func Test_ExecSignAndBroadcast_Error(t *testing.T) {
 						InsecurePasswordStdin: true,
 					},
 				},
-				GasWanted: 100,
-				GasFee:    "1",
+				GasWanted: 100000,
+				GasFee:    "1000ugnot",
 				Memo:      "test memo",
 				Broadcast: true,
 				Simulate:  SimulateTest,
@@ -151,10 +169,21 @@ func Test_ExecSignAndBroadcast_Error(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			mockOutput := new(bytes.Buffer)
 
-			io.SetIn(strings.NewReader(""))
+			io.SetIn(strings.NewReader("\n"))
 			io.SetOut(commands.WriteNopCloser(mockOutput))
 
-			tx := std.Tx{} // Initialize a proper transaction object
+			// Initialize a proper transaction object
+			tx := std.Tx{
+				Msgs: []std.Msg{
+					bank.MsgSend{
+						FromAddress: addr,
+						ToAddress:   addr,
+						Amount:      std.MustParseCoins("1000ugnot"),
+					},
+				},
+				Fee: std.NewFee(tc.cfg.GasWanted, std.MustParseCoin(tc.cfg.GasFee)),
+			}
+
 			err = ExecSignAndBroadcast(&tc.cfg, tc.args, tx, io)
 
 			if tc.expectErr {
