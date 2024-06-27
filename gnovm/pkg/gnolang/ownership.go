@@ -333,6 +333,10 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		// something in it; in that case, ignore the base.  That will
 		// likely require maybe a preparation step in persistence
 		// ( or unlikely, a second type of ref-counting).
+		if refValue, ok := cv.Base.(RefValue); ok {
+			return store.GetObject(refValue.ObjectID)
+		}
+
 		return cv.Base.(Object)
 	case *ArrayValue:
 		return cv
