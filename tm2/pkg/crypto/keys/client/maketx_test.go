@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"strings"
 	"testing"
@@ -158,6 +159,121 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 				Simulate:  SimulateTest,
 				ChainID:   "test-chain",
 				cli:       nil, // empty RPCClient
+			},
+		},
+		{
+			name:      "SignAndBroadcastHandler error",
+			args:      []string{"test"},
+			expectErr: true,
+			errMsg:    "rpcClient hasn't been initialized",
+			cfg: MakeTxCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Home:                  "", // keybase dir is not set
+						InsecurePasswordStdin: true,
+					},
+				},
+				GasWanted: 100000,
+				GasFee:    "1000ugnot",
+				Memo:      "test memo",
+				Broadcast: true,
+				Simulate:  SimulateTest,
+				ChainID:   "test-chain",
+				cli:       nil,
+			},
+		},
+		{
+			name:      "CheckTx error",
+			args:      []string{"test"},
+			expectErr: true,
+			output:    "test data\nOK!\nGAS WANTED: 100\nGAS USED:   90\nHEIGHT:     12345\nEVENTS:     []\nTX HASH:    q80=\n",
+			cfg: MakeTxCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Remote:                "localhost:26657",
+						Home:                  kbHome,
+						InsecurePasswordStdin: true,
+					},
+				},
+				GasWanted: 100000,
+				GasFee:    "1000ugnot",
+				Memo:      "test memo",
+				Broadcast: true,
+				Simulate:  SimulateSkip,
+				ChainID:   "test-chain",
+				cli: &mockRPCClient{
+					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+						var acc = std.NewBaseAccountWithAddress(addr)
+
+						jsonData := amino.MustMarshalJSON(&acc)
+
+						return &ctypes.ResultABCIQuery{
+							Response: abci.ResponseQuery{
+								ResponseBase: abci.ResponseBase{
+									Data: jsonData,
+								},
+							},
+						}, nil
+					},
+					broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+						err := errors.New("failed to checkTx")
+
+						return &ctypes.ResultBroadcastTxCommit{
+							CheckTx: abci.ResponseCheckTx{
+								ResponseBase: abci.ResponseBase{
+									Error: abci.ABCIErrorOrStringError(err),
+									Log:   err.Error(),
+								},
+							},
+						}, nil
+					},
+				},
+			},
+		},
+		{
+			name:      "DeliverTx error",
+			args:      []string{"test"},
+			expectErr: true,
+			output:    "test data\nOK!\nGAS WANTED: 100\nGAS USED:   90\nHEIGHT:     12345\nEVENTS:     []\nTX HASH:    q80=\n",
+			cfg: MakeTxCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Remote:                "localhost:26657",
+						Home:                  kbHome,
+						InsecurePasswordStdin: true,
+					},
+				},
+				GasWanted: 100000,
+				GasFee:    "1000ugnot",
+				Memo:      "test memo",
+				Broadcast: true,
+				Simulate:  SimulateSkip,
+				ChainID:   "test-chain",
+				cli: &mockRPCClient{
+					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+						var acc = std.NewBaseAccountWithAddress(addr)
+
+						jsonData := amino.MustMarshalJSON(&acc)
+
+						return &ctypes.ResultABCIQuery{
+							Response: abci.ResponseQuery{
+								ResponseBase: abci.ResponseBase{
+									Data: jsonData,
+								},
+							},
+						}, nil
+					},
+					broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+						return &ctypes.ResultBroadcastTxCommit{
+							DeliverTx: abci.ResponseDeliverTx{
+								ResponseBase: abci.ResponseBase{
+									Error: abci.ABCIErrorOrStringError(err),
+									Log:   err.Error(),
+								},
+							},
+						}, nil
+					},
+				},
 			},
 		},
 	}
