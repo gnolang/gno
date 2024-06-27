@@ -38,7 +38,15 @@ func NewPoC(opts ...Option) *PoC {
 
 func (p *PoC) AddValidator(address std.Address, pubKey string, power uint64) *types.Validator {
 	// Validate that the operation is a valid call
-	p.validateAdd(address, power)
+	// Check if the validator is already in the set
+	if p.IsValidator(address) {
+		panic(types.ErrValidatorExists)
+	}
+
+	// Make sure the voting power > 0
+	if power == 0 {
+		panic(errInvalidVotingPower)
+	}
 
 	v := &types.Validator{
 		Address:     address,
@@ -53,22 +61,12 @@ func (p *PoC) AddValidator(address std.Address, pubKey string, power uint64) *ty
 	return v
 }
 
-// validateAdd validates a validator add call
-func (p *PoC) validateAdd(address std.Address, power uint64) {
-	// Check if the validator is already in the set
-	if p.IsValidator(address) {
-		panic(types.ErrValidatorExists)
-	}
-
-	// Make sure the voting power > 0
-	if power == 0 {
-		panic(errInvalidVotingPower)
-	}
-}
-
 func (p *PoC) RemoveValidator(address std.Address) *types.Validator {
 	// Validate that the operation is a valid call
-	p.validateRemove(address)
+	// Check if the address is a validator
+	if !p.IsValidator(address) {
+		panic(types.ErrValidatorMissing)
+	}
 
 	addressStr := address.String()
 
@@ -83,14 +81,6 @@ func (p *PoC) RemoveValidator(address std.Address) *types.Validator {
 	p.addressToValidatorIndex.Remove(addressStr)
 
 	return validator
-}
-
-// validateRemove validates a validator remove call
-func (p *PoC) validateRemove(address std.Address) {
-	// Check if the address is a validator
-	if !p.IsValidator(address) {
-		panic(types.ErrValidatorMissing)
-	}
 }
 
 func (p *PoC) IsValidator(address std.Address) bool {
