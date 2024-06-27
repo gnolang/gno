@@ -1795,8 +1795,7 @@ func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
 	fr.Popped = true
 	if debug {
-		// TODO: optimize with fr.IsCall
-		if fr.Func == nil && fr.GoFunc == nil {
+		if !fr.IsCall() {
 			panic("unexpected non-call (loop) frame")
 		}
 	}
@@ -1872,8 +1871,7 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 	}
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		if fr.Func != nil || fr.GoFunc != nil {
-			// TODO: optimize with fr.IsCall
+		if fr.IsCall() {
 			if n == 1 {
 				return fr
 			} else {
@@ -1894,8 +1892,7 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		if fr.Func != nil || fr.GoFunc != nil {
-			// TODO: optimize with fr.IsCall
+		if fr.IsCall() {
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}
