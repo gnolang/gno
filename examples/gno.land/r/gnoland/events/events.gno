@@ -71,19 +71,15 @@ func AddEvent(name, description, link, location string, startTime int64) {
 	sort.Sort(events)
 }
 
-func DelEvent(id seqid.ID) string {
+func DelEvent(id seqid.ID) {
 	a.AssertOnAuthList()
 
-	for _, event := range events {
+	for i, event := range events {
 		if event.id == id {
-			// todo see if there is a bug in the vm
-			// --= Error =--
-			// Data: interface conversion: gnolang.RefValue is not gnolang.Object: missing method DecRefCount
-			return "found THE ID: " + strconv.Itoa(int(event.id))
+			events = append(events[:i], events[i+1:]...)
+			return
 		}
 	}
-
-	return ""
 }
 
 // Rendering
