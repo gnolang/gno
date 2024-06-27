@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const maxStacktraceSize = 128
+
 type Execution struct {
 	Stmt  Stmt
 	Frame *Frame
@@ -16,7 +18,19 @@ type Stacktrace struct {
 func (s Stacktrace) String() string {
 	var builder strings.Builder
 
-	for _, e := range s.Executions {
+	excecutions := s.Executions
+	numFramesElided := 0
+	if len(s.Executions) > maxStacktraceSize {
+		excecutions = s.Executions[:maxStacktraceSize/2]
+		excecutions = append(excecutions, s.Executions[len(s.Executions)-maxStacktraceSize/2:]...)
+		numFramesElided = len(s.Executions) - maxStacktraceSize
+	}
+
+	for i, e := range excecutions {
+		if numFramesElided > 0 && i == maxStacktraceSize/2 {
+			builder.WriteString(fmt.Sprintf("...%d frame(s) elided...\n", numFramesElided))
+		}
+
 		switch {
 		case e.Stmt == nil:
 			builder.WriteString(fmt.Sprintf("%s()\n", e.Frame.Func))
