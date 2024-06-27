@@ -109,6 +109,7 @@ func EditEvent(id seqid.ID, name, description, link, location string, startTime 
 	}
 }
 
+
 // Rendering
 
 // RenderEventWidget shows up to amt of the latest events to a caller
@@ -148,6 +149,7 @@ func renderHome() string {
 	}
 
 	output += "Below is a list of all upcoming and past Gno.land events.\n\n"
+
 	output += "---\n\n"
 
 	// Find position of latest past event
@@ -159,12 +161,15 @@ func renderHome() string {
 	output += "## Upcoming events\n\n"
 	output += "<div class='columns-3'>"
 
-	for _, e := range events {
-		output += e.RenderListItem()
+	if len(events[:pos]) > 0 {
+		for _, e := range events[:pos] {
+			output += e.RenderListItem()
+		}
+	} else {
+		output += "No upcoming events.\n\n"
 	}
 
 	output += "</div>\n\n"
-
 	output += "---\n\n"
 
 	// Add past events
@@ -186,12 +191,7 @@ func (e Event) RenderListItem() string {
 	buf.WriteString(ufmt.Sprintf("### %s\n\n", e.name))
 	buf.WriteString(ufmt.Sprintf("%s\n\n", e.description))
 	buf.WriteString(ufmt.Sprintf("**Location:** %s\n\n", e.location))
-	buf.WriteString(ufmt.Sprintf("**Time & Date:** %s\n\n", e.startTime.Format("02 Jan 2006, 15:04")))
-
-	//if e.startTime.Before(time.Now()) {
-	//	buf.WriteString("*Event is over\n\n")
-	//}
-
+	buf.WriteString(ufmt.Sprintf("**Time & Date:** %s\n\n", e.startTime.Format("02 Jan 2006, 15:04"))
 	buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
 	buf.WriteString(ufmt.Sprintf("<!-- id: %s --> \n\n", e.id))
 
