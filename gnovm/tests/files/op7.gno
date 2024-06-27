@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// main/files/op7.gno:11:5: incompatible types in binary expression: .uverse.error GTR main.T
+// main/files/op7.gno:11:5: operator > not defined on: InterfaceKind

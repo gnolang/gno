@@ -479,6 +479,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 
 //----------------------------------------
 // type checking (using go/types)
+// XXX move to gotypecheck.go.
 
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
 // [Store], separated for ease of testing.
