@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/type31.gno:8:31: invalid operation: mismatched types string and main.String
+// main/files/type31.gno:8:10: invalid operation: mismatched types string and main.String
