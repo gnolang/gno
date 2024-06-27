@@ -25,11 +25,7 @@ func addValidator(validator types.Validator) {
 		validator.VotingPower,
 	); val != nil {
 		// Validator added, note the change
-		v.changes = append(v.changes, types.Validator{
-			Address:     val.Address,
-			PubKey:      val.PubKey,
-			VotingPower: val.VotingPower,
-		})
+		v.changes = append(v.changes, *val)
 
 		// Emit the validator set change
 		std.Emit(types.ValidatorAddedEvent)
