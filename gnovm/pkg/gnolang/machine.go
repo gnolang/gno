@@ -679,7 +679,7 @@ func (m *Machine) RunFunc(fn Name) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("Machine.RunFunc(%q) panic: %v\n%s\n",
-				fn, r, m.Stacktrace())
+				fn, r, m.ExceptionsStacktrace())
 			panic(r)
 		}
 	}()
