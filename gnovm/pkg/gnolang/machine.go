@@ -2158,7 +2158,7 @@ func (m *Machine) ExceptionsStacktrace() string {
 
 	for _, ex := range m.Exceptions {
 		builder.WriteString(fmt.Sprintf("panic %s\n", ex.Sprint(m)))
-		builder.WriteString(fmt.Sprintf("%s\n", ex.Stacktrace.String()))
+		builder.WriteString(fmt.Sprintf("%s", ex.Stacktrace.String()))
 	}
 
 	return builder.String()
