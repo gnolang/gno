@@ -82,6 +82,33 @@ func DelEvent(id seqid.ID) {
 	}
 }
 
+func EditEvent(id seqid.ID, name, description, link, location string, startTime int64) {
+	a.AssertOnAuthList()
+
+	var prevStartTime time.Time
+	newStartTime := time.Unix(startTime, 0)
+	for i, event := range events {
+		if event.id == id {
+			prevStartTime = event.startTime
+			events[i] = &Event{
+				id:          id,
+				name:        name,
+				description: description,
+				link:        link,
+				location:    location,
+				startTime:   newStartTime,
+			}
+
+			return
+		}
+	}
+
+	// If sort order was disrupted, sort again
+	if newStartTime != prevStartTime {
+		sort.Sort(events)
+	}
+}
+
 // Rendering
 
 // RenderEventWidget shows up to amt of the latest events to a caller
