@@ -105,9 +105,8 @@ origPkgAddr := std.GetOrigPkgAddr()
 ```go
 func CurrentRealm() Realm
 ```
-Returns current Realm object.
+Returns current [Realm](realm.md) object.
 
-[//]: # (todo link to realm type explanation)
 #### Usage
 ```go
 currentRealm := std.CurrentRealm()
@@ -118,7 +117,7 @@ currentRealm := std.CurrentRealm()
 ```go
 func PrevRealm() Realm
 ```
-Returns the previous caller realm (can be code or user realm). If caller is a
+Returns the previous caller [realm](realm.md) (can be code or user realm). If caller is a
 user realm, `pkgpath` will be empty.
 
 #### Usage
