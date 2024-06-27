@@ -30,11 +30,12 @@
 //  newAdmin := std.Address("new-admin-address")
 //  role.SetRoleAdmin(newAdmin)
 
-package accesscontrol // import "gno.land/p/demo/accesscontrol"
+package accesscontrol
 
 import (
 	"std"
 	"errors"
+	
 	"gno.land/p/demo/avl"
 )
 
