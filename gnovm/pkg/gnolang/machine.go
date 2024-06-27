@@ -1540,10 +1540,10 @@ func (m *Machine) PopStmt() Stmt {
 		m.Printf("-s %v\n", s)
 	}
 	if bs, ok := s.(*bodyStmt); ok {
-		s = bs.PopActiveStmt()
-	} else {
-		m.Stmts = m.Stmts[:numStmts-1]
+		return bs.PopActiveStmt()
 	}
+
+	m.Stmts = m.Stmts[:numStmts-1]
 
 	return s
 }
