@@ -114,7 +114,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			pkgPath == "encoding/xml" ||
 			pkgPath == "internal/os_test" ||
 			pkgPath == "math/big" ||
-			pkgPath == "math/rand" ||
 			mode == ImportModeStdlibsPreferred ||
 			mode == ImportModeNativePreferred {
 			switch pkgPath {

@@ -374,9 +374,14 @@ func encodePerm(s []int) int {
 
 // TestUniformFactorial tests several ways of generating a uniform value in [0, n!).
 func TestUniformFactorial(t *testing.T) {
+	if testing.Short() {
+		t.Skip("This test takes ~3 mins to run on Gno at time of writing, even in its short form")
+		return
+	}
+
 	r := New(NewPCG(1, 2))
 	top := 6
-	if true || testing.Short() {
+	if testing.Short() {
 		top = 3
 	}
 	for n := 3; n <= top; n++ {
