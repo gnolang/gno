@@ -175,7 +175,7 @@ func handlerRealmAlias(logger *slog.Logger, app gotuna.App, cfg *Config, rlmpath
 		tmpl.Set("PathLinks", pathLinks)
 		tmpl.Set("Contents", string(res.Data))
 		tmpl.Set("Config", cfg)
-		tmpl.Set("IsAlias", true)
+		tmpl.Set("IsAlias", true) 
 		tmpl.Render(w, r, "realm_render.html", "funcs.html")
 	})
 }
@@ -295,7 +295,7 @@ func handlerRealmMain(logger *slog.Logger, app gotuna.App, cfg *Config) http.Han
 				writeError(logger, w, errors.New("error querying realm package"))
 				return
 			}
-			// Render blank query path, /r/REALM:.
+			// Render blank query path, /r/REALM:. 
 			handleRealmRender(logger, app, cfg, w, r)
 		}
 	})
@@ -335,6 +335,21 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 			return
 		}
 	}
+
+	dirdata := []byte(rlmpath)
+	dirres, err := makeRequest(logger, cfg, qFileStr, dirdata)
+	if err != nil {
+		writeError(logger, w, err)
+		return
+	}
+	files := strings.Split(string(dirres.Data), "\n") 
+	hasReadme := false
+	for _, v := range files {
+		if v == "README.md" {
+			hasReadme = true
+		}
+	} 
+	
 	// linkify querystr.
 	queryParts := strings.Split(querystr, "/")
 	pathLinks := []pathLink{}
@@ -343,7 +358,7 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 			URL:  "/r/" + rlmname + ":" + strings.Join(queryParts[:i+1], "/"),
 			Text: part,
 		})
-	}
+	} 
 	// Render template.
 	tmpl := app.NewTemplatingEngine()
 	// XXX: extract title from realm's output
@@ -352,8 +367,9 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 	tmpl.Set("RealmPath", rlmpath)
 	tmpl.Set("Query", querystr)
 	tmpl.Set("PathLinks", pathLinks)
-	tmpl.Set("Contents", string(res.Data))
+	tmpl.Set("Contents", string(res.Data)) 
 	tmpl.Set("Config", cfg)
+	tmpl.Set("HasReadme", hasReadme)
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
 }
 
