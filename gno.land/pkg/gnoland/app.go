@@ -163,6 +163,10 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 			// Get genesis state
 			genState := req.AppState.(GnoGenesisState)
 
+			// Init ZeroAccount
+			zeroAcc := acctKpr.NewAccountWithAddress(ctx, vm.ZeroAddress())
+			acctKpr.SetAccount(ctx, zeroAcc)
+
 			// Parse and set genesis state balances
 			for _, bal := range genState.Balances {
 				acc := acctKpr.NewAccountWithAddress(ctx, bal.Address)
