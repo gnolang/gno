@@ -7,6 +7,38 @@ id: gno-js-provider
 The `Gno Provider` is an extension on the `tm2-js-client` `Provider`,
 outlined [here](../tm2-js-client/Provider/provider.md). Both JSON-RPC and WS providers are included with the package.
 
+## Instantiation
+
+### new GnoWSProvider
+
+Creates a new instance of the Gno WebSocket Provider, based on [`tm2-js-client` `WSProvider`](../tm2-js-client/Provider/ws-provider.md)
+
+#### Parameters
+
+Same as [`tm2-js-client` `WSProvider`](../tm2-js-client/Provider/ws-provider.md)
+
+#### Usage
+
+```ts
+new GnoWSProvider('ws://staging.gno.land:26657/ws');
+// provider with WS connection is created
+```
+
+### new GnoJSONRPCProvider
+
+Creates a new instance of the Gno JSON-RPC Provider, based on [`tm2-js-client` `JSONRPCProvider`](../tm2-js-client/Provider/json-rpc-provider.md)
+
+#### Parameters
+
+Same as [`tm2-js-client` `JSONRPCProvider`](../tm2-js-client/Provider/json-rpc-provider.md)
+
+#### Usage
+
+```ts
+new GnoJSONRPCProvider('http://staging.gno.land:36657');
+// provider is created
+```
+
 ## Realm Methods
 
 ### getRenderOutput
