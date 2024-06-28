@@ -8,7 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	
+	"sync"
+
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"golang.org/x/sync/errgroup"
 )
@@ -95,10 +96,14 @@ func execLint(cfg *cfg, ctx context.Context) (string, error) {
 	// Run linters in parallel
 	g, _ := errgroup.WithContext(ctx)
 
+	var writeLock sync.Mutex
+
 	g.Go(func() error {
 		res, err := lintJSX(filepathToJSX)
 		if err != nil {
+			writeLock.Lock()
 			output.WriteString(res)
+			writeLock.Unlock()
 		}
 
 		return err
@@ -107,7 +112,9 @@ func execLint(cfg *cfg, ctx context.Context) (string, error) {
 	g.Go(func() error {
 		res, err := lintURLs(filepathToURLs, ctx)
 		if err != nil {
+			writeLock.Lock()
 			output.WriteString(res)
+			writeLock.Unlock()
 		}
 
 		return err
@@ -116,7 +123,9 @@ func execLint(cfg *cfg, ctx context.Context) (string, error) {
 	g.Go(func() error {
 		res, err := lintLocalLinks(filepathToLocalLink, cfg.docsPath)
 		if err != nil {
+			writeLock.Lock()
 			output.WriteString(res)
+			writeLock.Unlock()
 		}
 
 		return err
