@@ -1,5 +1,5 @@
 # Output
-Output gnoland-start-masnual.gif
+Output gnoland-start-manual.gif
 
 # Requirement
 Require gnoland
@@ -8,6 +8,7 @@ Require gnoland
 Set FontSize 18
 Set Width 1200
 Set Height 600
+Set Padding 40
 
 ## Run
 

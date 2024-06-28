@@ -8,6 +8,7 @@ Require gnokey
 Set FontSize 18
 Set Width 1200
 Set Height 600
+Set Padding 40
 
 ## Run
 
@@ -18,7 +19,6 @@ Sleep 500ms
 Enter
 Sleep 500ms
 
-
 ## Enter password
 Sleep 500ms
 Enter
@@ -26,10 +26,11 @@ Sleep 500ms
 Enter
 
 ## Enter mnemonic
+Sleep 500ms
 Paste
 Sleep 800ms
 Enter
 
 # Wait a bit and Exit
-Sleep 3s
+Sleep 4s
 Ctrl+c

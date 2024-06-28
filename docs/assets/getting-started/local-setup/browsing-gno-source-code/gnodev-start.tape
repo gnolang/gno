@@ -7,7 +7,8 @@ Require gnodev
 # Set up, should be in config.
 Set FontSize 18
 Set Width 1200
-Set Height 600
+Set Height 400
+Set Padding 40
 
 ## Run
 
