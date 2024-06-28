@@ -73,6 +73,8 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello.Inc()`), expectedResult: `(43 int)`},
 		{input: []byte(`gno.land/r/hello.pvEcho("hello")`), expectedResult: `("pvecho:hello" string)`},
 		{input: []byte(`gno.land/r/hello.1337`), expectedResult: `(1337 int)`},
+		{input: []byte(`gno.land/r/hello.13.37`), expectedResult: `(13.37 float64)`},
+		{input: []byte(`gno.land/r/hello.float64(1337)`), expectedResult: `(1337 float64)`},
 		{input: []byte(`gno.land/r/hello.myStructInst`), expectedResult: `(struct{(1000 int)} gno.land/r/hello.myStruct)`},
 		{input: []byte(`gno.land/r/hello.myStructInst.Foo()`), expectedResult: `("myStruct.Foo" string)`},
 		{input: []byte(`gno.land/r/hello.myStruct`), expectedResultMatch: `\(typeval{gno.land/r/hello.myStruct \(0x.*\)} type{}\)`},
@@ -89,6 +91,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello.doesnotexist`), expectedErrorMatch: `^/:0: name doesnotexist not declared:`}, // multiline error
 		{input: []byte(`gno.land/r/doesnotexist.Foo`), expectedErrorMatch: `^invalid package path$`},
 		{input: []byte(`gno.land/r/hello.Panic()`), expectedErrorMatch: `^foo$`},
+		{input: []byte(`gno.land/r/hello.panic("bar")`), expectedErrorMatch: `^bar$`},
 		{input: []byte(`gno.land/r/hello.sl[6]`), expectedErrorMatch: `^slice index out of bounds: 6 \(len=5\)$`},
 	}
 
