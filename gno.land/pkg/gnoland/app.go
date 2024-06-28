@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"strconv"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -110,13 +112,13 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	)
 
 	// Set up the event collector
-	c := newCollector[abci.ValidatorUpdate](
+	c := newCollector[validatorUpdate](
 		cfg.EventSwitch,      // global event switch filled by the node
 		validatorEventFilter, // filter fn that keeps the collector valid
 	)
 
 	// Set EndBlocker
-	baseApp.SetEndBlocker(EndBlocker(c))
+	baseApp.SetEndBlocker(EndBlocker(c, vmKpr, baseApp.Logger()))
 
 	// Set a handler Route.
 	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
@@ -220,10 +222,96 @@ func InitChainer(
 // EndBlocker defines the logic executed after every block.
 // Currently, it parses events that happened during execution to calculate
 // validator set changes
-func EndBlocker(collector *collector[abci.ValidatorUpdate]) func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return func(_ sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
+func EndBlocker(
+	collector *collector[validatorUpdate],
+	vmKeeper vm.VMKeeperI,
+	logger *slog.Logger,
+) func(
+	ctx sdk.Context,
+	req abci.RequestEndBlock,
+) abci.ResponseEndBlock {
+	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
+		// Check if there was a valset change
+		if len(collector.getEvents()) == 0 {
+			// No valset updates
+			return abci.ResponseEndBlock{}
+		}
+
+		// Run the VM to get the updates from the chain
+		msg := vm.MsgCall{
+			Caller:  crypto.Address{}, // Zero address
+			PkgPath: valRealm,
+			Func:    valChangesFn,
+		}
+
+		response, err := vmKeeper.Call(ctx, msg)
+		if err != nil {
+			logger.Error("unable to call VM during EndBlocker", "err", err)
+
+			return abci.ResponseEndBlock{}
+		}
+
+		// Extract the updates from the VM response
+		updates, err := extractUpdatesFromResponse(response)
+		if err != nil {
+			logger.Error("unable to extract updates from response", "err", err)
+
+			return abci.ResponseEndBlock{}
+		}
+
 		return abci.ResponseEndBlock{
-			ValidatorUpdates: collector.getEvents(),
+			ValidatorUpdates: updates,
 		}
 	}
+}
+
+// extractUpdatesFromResponse extracts the validator set updates
+// from the VM response.
+//
+// This method is not ideal, but currently there is no mechanism
+// in place to parse typed VM responses
+func extractUpdatesFromResponse(response string) ([]abci.ValidatorUpdate, error) {
+	// Find the submatches
+	matches := valRegexp.FindAllStringSubmatch(response, -1)
+	if len(matches) == 0 {
+		// No changes to extract
+		return nil, nil
+	}
+
+	updates := make([]abci.ValidatorUpdate, 0, len(matches))
+	for _, match := range matches {
+		var (
+			addressRaw = match[1]
+			pubKeyRaw  = match[2]
+			powerRaw   = match[3]
+		)
+
+		// Parse the address
+		address, err := crypto.AddressFromBech32(addressRaw)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse address, %w", err)
+		}
+
+		// Parse the public key
+		pubKey, err := crypto.PubKeyFromBech32(pubKeyRaw)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse public key, %w", err)
+		}
+
+		// Parse the voting power
+		power, err := strconv.ParseInt(powerRaw, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse voting power, %w", err)
+		}
+
+		update := abci.ValidatorUpdate{
+			Address: address,
+			PubKey:  pubKey,
+			Power:   power,
+		}
+
+		updates = append(updates, update)
+	}
+
+	return updates, nil
 }

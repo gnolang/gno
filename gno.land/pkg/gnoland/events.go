@@ -1,7 +1,6 @@
 package gnoland
 
 import (
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/rs/xid"
 )
@@ -9,7 +8,7 @@ import (
 // eventType encompasses all event types
 // that can appear in the collector
 type eventType interface {
-	abci.ValidatorUpdate
+	validatorUpdate
 }
 
 // filterFn is the filter method for incoming events
