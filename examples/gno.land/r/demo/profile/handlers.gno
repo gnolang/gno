@@ -29,7 +29,7 @@ func homeHandler(res *mux.ResponseWriter, req *mux.Request) {
     b.WriteString("<h2>Setters</h2>")
     for field := range stringFields {
         link := ufmt.Sprintf(SetStringFieldURL, field)
-        b.WriteString(ufmt.Sprintf("<p>[<a href='%s'>Set %s Field</a>]</p>", link, field))
+        b.WriteString(ufmt.Sprintf("<p>[<a href='%s'>Set %s</a>]</p>", link, field))
     }
 
     for field := range intFields {
