@@ -19,7 +19,7 @@ and packages, send native coins, and more.
 For interacting with any Gno.land chain, you will need a certain amount of GNOTs
 to pay gas fees with. 
 
-For this example, we will use the [Portal Loop](../../concepts/testnets.md#portal-loop) 
+For this example, we will use the [Portal Loop](../../concepts/portal-loop.md) 
 testnet. We can access the Portal Loop faucet through the
 [Gno Faucet Hub](https://faucet.gno.land). There, you will find a card for each
 available faucet.
