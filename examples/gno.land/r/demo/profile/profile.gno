@@ -76,7 +76,7 @@ func SetBoolField(field string, value bool) error {
     return nil
 }
 
-//Getters
+// Getters
 
 func GetStringField(addr std.Address, field, def string) string {
 	key := addr.String() + ":" + field
