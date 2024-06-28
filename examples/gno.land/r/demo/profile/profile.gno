@@ -16,7 +16,7 @@ func init() {
 	router.HandleFunc("f/{addr}/{field}", fieldHandler)
 }
 
-// list of support string fields
+// list of supported string fields
 var stringFields = map[string]bool{
 	"DisplayName": true,
 	"Homepage": true,
