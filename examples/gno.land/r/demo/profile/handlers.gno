@@ -102,7 +102,7 @@ func profileHandler(res *mux.ResponseWriter, req *mux.Request) {
     address := std.Address(addr)
 
     for field := range stringFields {
-        value := GetStringField(address, field, "N/A")
+        value := GetStringField(address, field, "n/a")
         link := ufmt.Sprintf(SetStringFieldURL, field)
         b.WriteString(ufmt.Sprintf("<p>%s: %s [<a href='%s'>Edit</a>]</p>", field, value, link))
     }
