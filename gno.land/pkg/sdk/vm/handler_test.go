@@ -167,12 +167,9 @@ func pvEcho(msg string) string { return "pvecho:"+msg }
 
 func TestVmHandlerQuery_Funcs(t *testing.T) {
 	tt := []struct {
-		input               []byte
-		expectedResult      string
-		expectedResultMatch string
-		expectedErrorMatch  string
-		expectedPanicMatch  string
-		// XXX: expectedEvents
+		input              []byte
+		expectedResult     string
+		expectedErrorMatch string
 	}{
 		// valid queries
 		{input: []byte(`gno.land/r/hello`), expectedResult: `[{"FuncName":"Panic","Params":null,"Results":null},{"FuncName":"Echo","Params":[{"Name":"msg","Type":"string","Value":""}],"Results":[{"Name":"_","Type":"string","Value":""}]},{"FuncName":"GetCounter","Params":null,"Results":[{"Name":"_","Type":"int","Value":""}]},{"FuncName":"Inc","Params":null,"Results":[{"Name":"_","Type":"int","Value":""}]}]`},
@@ -223,6 +220,68 @@ func pvEcho(msg string) string { return "pvecho:"+msg }
 
 			req := abci.RequestQuery{
 				Path: "vm/qfuncs",
+				Data: tc.input,
+			}
+
+			res := vmHandler.Query(env.ctx, req)
+			if tc.expectedErrorMatch == "" {
+				assert.True(t, res.IsOK(), "should not have error")
+				if tc.expectedResult != "" {
+					assert.Equal(t, string(res.Data), tc.expectedResult)
+				}
+			} else {
+				assert.False(t, res.IsOK(), "should have an error")
+				errmsg := res.Error.Error()
+				assert.Regexp(t, tc.expectedErrorMatch, errmsg)
+			}
+		})
+	}
+}
+
+func TestVmHandlerQuery_File(t *testing.T) {
+	tt := []struct {
+		input               []byte
+		expectedResult      string
+		expectedResultMatch string
+		expectedErrorMatch  string
+		expectedPanicMatch  string
+		// XXX: expectedEvents
+	}{
+		// valid queries
+		{input: []byte(`gno.land/r/hello/hello.gno`), expectedResult: "package hello\nfunc Hello() string { return \"hello\" }"},
+		{input: []byte(`gno.land/r/hello/README.md`), expectedResult: "# Hello"},
+		{input: []byte(`gno.land/r/hello/doesnotexist.gno`), expectedErrorMatch: `file "gno.land/r/hello/doesnotexist.gno" is not available`},
+		{input: []byte(`gno.land/r/hello`), expectedResult: "README.md\nhello.gno"},
+		{input: []byte(`gno.land/r/doesnotexist`), expectedErrorMatch: `package "gno.land/r/doesnotexist" is not available`},
+		{input: []byte(`gno.land/r/doesnotexist/hello.gno`), expectedErrorMatch: `file "gno.land/r/doesnotexist/hello.gno" is not available`},
+	}
+
+	for _, tc := range tt {
+		name := string(tc.input)
+		t.Run(name, func(t *testing.T) {
+			env := setupTestEnv()
+			ctx := env.ctx
+			vmHandler := env.vmh
+
+			// Give "addr1" some gnots.
+			addr := crypto.AddressFromPreimage([]byte("addr1"))
+			acc := env.acck.NewAccountWithAddress(ctx, addr)
+			env.acck.SetAccount(ctx, acc)
+			env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+			assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+
+			// Create test package.
+			files := []*std.MemFile{
+				{"README.md", "# Hello"},
+				{"hello.gno", "package hello\nfunc Hello() string { return \"hello\" }"},
+			}
+			pkgPath := "gno.land/r/hello"
+			msg1 := NewMsgAddPackage(addr, pkgPath, files)
+			err := env.vmk.AddPackage(ctx, msg1)
+			assert.NoError(t, err)
+
+			req := abci.RequestQuery{
+				Path: "vm/qfile",
 				Data: tc.input,
 			}
 
