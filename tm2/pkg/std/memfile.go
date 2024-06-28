@@ -8,8 +8,8 @@ import (
 )
 
 type MemFile struct {
-	Name string
-	Body string
+	Name string `json:"name" yaml:"name"`
+	Body string `json:"body" yaml:"body"`
 }
 
 // MemPackage represents the information and files of a package which will be
@@ -19,9 +19,9 @@ type MemFile struct {
 // NOTE: in the future, a MemPackage may represent
 // updates/additional-files for an existing package.
 type MemPackage struct {
-	Name  string // package name as declared by `package`
-	Path  string // import path
-	Files []*MemFile
+	Name  string     `json:"name" yaml:"name"` // package name as declared by `package`
+	Path  string     `json:"path" yaml:"path"` // import path
+	Files []*MemFile `json:"files" yaml:"files"`
 }
 
 func (mempkg *MemPackage) GetFile(name string) *MemFile {
