@@ -58,3 +58,25 @@ func TestPrevRealm(t *testing.T) {
 		t.Errorf("want GetRSubtestsPrevRealm().Addr==%s, got %s", rTestsAddr, addr)
 	}
 }
+
+func TestSetRealm_UserRealm(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	std.TestSetRealm(std.NewUserRealm(alice))
+
+	got := GetPrevRealm().Addr()
+
+	if alice != got {
+		t.Fatalf("expected %s, got %s", alice, got)
+	}
+}
+
+func TestSetRealm_CodeRealm(t *testing.T) {
+	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/users"))
+	expected := "g17m4ga9t9dxn8uf06p3cahdavzfexe33ecg8v2s" // derived from the path above
+
+	got := GetPrevRealm().Addr()
+
+	if expected != got.String() {
+		t.Fatalf("expected %s, got %s", expected, got)
+	}
+}
