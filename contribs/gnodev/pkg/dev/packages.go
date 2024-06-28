@@ -27,7 +27,7 @@ func ResolvePackagePathQuery(bk *address.Book, path string) (PackagePath, error)
 	if err != nil {
 		return ppath, fmt.Errorf("malformed path/query: %w", err)
 	}
-	ppath.Path = upath.Path
+	ppath.Path = filepath.Clean(upath.Path)
 
 	// Check for creator option
 	creator := upath.Query().Get("creator")

@@ -4,37 +4,42 @@ package telemetry
 // https://github.com/open-telemetry/opentelemetry-go/blob/main/example/prometheus/main.go
 
 import (
+	"fmt"
+	"sync/atomic"
+
+	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
-	"github.com/gnolang/gno/tm2/pkg/telemetry/options"
 )
 
-const (
-	defaultMeterName   = "gno.land"
-	defaultServiceName = "gno.land"
+var (
+	globalConfig         config.Config
+	telemetryInitialized atomic.Bool
 )
 
-var config options.Config
-
-// MetricsEnabled returns true if metrics have been initialized.
+// MetricsEnabled returns true if metrics have been initialized
 func MetricsEnabled() bool {
-	return config.MetricsEnabled
+	return globalConfig.MetricsEnabled
 }
 
-// Init will initialize metrics with the options provided. This function may also initialize tracing when
-// this is something that we want to support.
-func Init(options ...Option) error {
-	config.MeterName = defaultMeterName
-	config.ServiceName = defaultServiceName
-	for _, opt := range options {
-		opt(&config)
+// Init initializes the global telemetry
+func Init(c config.Config) error {
+	// Check if the metrics are enabled at all
+	if !c.MetricsEnabled {
+		return nil
 	}
 
-	// Initialize metrics to be collected.
-	if config.MetricsEnabled {
-		if err := metrics.Init(config); err != nil {
-			return err
-		}
+	// Validate the configuration
+	if err := c.ValidateBasic(); err != nil {
+		return fmt.Errorf("unable to validate config, %w", err)
 	}
 
-	return nil
+	// Check if it's been enabled already
+	if !telemetryInitialized.CompareAndSwap(false, true) {
+		return nil
+	}
+
+	// Update the global configuration
+	globalConfig = c
+
+	return metrics.Init(c)
 }

@@ -38,7 +38,6 @@ var (
 
 type devCfg struct {
 	// Listeners
-	webListenerAddr          string
 	nodeRPCListenerAddr      string
 	nodeP2PListenerAddr      string
 	nodeProxyAppListenerAddr string
@@ -49,6 +48,11 @@ type devCfg struct {
 	root            string
 	premineAccounts varPremineAccounts
 	balancesFile    string
+	txsFile         string
+
+	// Web Configuration
+	webListenerAddr     string
+	webRemoteHelperAddr string
 
 	// Node Configuration
 	minimal    bool
@@ -64,7 +68,7 @@ var defaultDevOptions = &devCfg{
 	chainId:             "dev",
 	maxGas:              10_000_000_000,
 	webListenerAddr:     "127.0.0.1:8888",
-	nodeRPCListenerAddr: "127.0.0.1:36657",
+	nodeRPCListenerAddr: "127.0.0.1:26657",
 	deployKey:           DefaultDeployerAddress.String(),
 	home:                gnoenv.HomeDir(),
 	root:                gnoenv.RootDir(),
@@ -84,9 +88,7 @@ func main() {
 			Name:       "gnodev",
 			ShortUsage: "gnodev [flags] [path ...]",
 			ShortHelp:  "runs an in-memory node and gno.land web server for development purposes.",
-			LongHelp: `The gnodev command starts an in-memory node and a gno.land web interface
-primarily for realm package development. It automatically loads the 'examples' directory and any
-additional specified paths.`,
+			LongHelp:   `The gnodev command starts an in-memory node and a gno.land web interface primarily for realm package development. It automatically loads the 'examples' directory and any additional specified paths.`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -115,7 +117,14 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.webListenerAddr,
 		"web-listener",
 		defaultDevOptions.webListenerAddr,
-		"web server listening address",
+		"web server listener address",
+	)
+
+	fs.StringVar(
+		&c.webRemoteHelperAddr,
+		"web-help-remote",
+		defaultDevOptions.webRemoteHelperAddr,
+		"web server help page's remote addr (default to <node-rpc-listener>)",
 	)
 
 	fs.StringVar(
@@ -136,6 +145,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		"balance-file",
 		defaultDevOptions.balancesFile,
 		"load the provided balance file (refer to the documentation for format)",
+	)
+
+	fs.StringVar(
+		&c.txsFile,
+		"txs-file",
+		defaultDevOptions.txsFile,
+		"load the provided transactions file (refer to the documentation for format)",
 	)
 
 	fs.StringVar(
@@ -161,7 +177,7 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.BoolVar(
 		&c.verbose,
-		"verbose",
+		"v",
 		defaultDevOptions.verbose,
 		"enable verbose output for development",
 	)
@@ -251,7 +267,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	server := http.Server{
 		Handler:           mux,
 		Addr:              cfg.webListenerAddr,
-		ReadHeaderTimeout: time.Minute,
+		ReadHeaderTimeout: time.Second * 60,
 	}
 	defer server.Close()
 

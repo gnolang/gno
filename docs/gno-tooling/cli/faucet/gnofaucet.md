@@ -40,7 +40,7 @@ gnokey add test1 --recover
 
 > **Test Seed Phrase:** source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate
 > oppose farm nothing bullet exhibit title speed wink action roast
-
+> **Test Private key:** ea97b9fddb7e6bf6867090a7a819657047949fbb9466d617f940538efd888605
 ### **Step 2. Run `gnofaucet`**
 
 ```bash

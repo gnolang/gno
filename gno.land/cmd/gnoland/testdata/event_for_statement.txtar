@@ -1,0 +1,64 @@
+# load the package from $WORK directory
+loadpkg gno.land/r/demo/foree $WORK
+
+# start a new node
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/foree -func Foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   [0-9]+'
+stdout 'HEIGHT:     [0-9]+'
+stdout 'EVENTS:     \[{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","func":"Foo","attrs":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","func":"Foo","attrs":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","func":"Foo","attrs":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","func":"Foo","attrs":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","func":"Foo","attrs":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","func":"Foo","attrs":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","func":"Foo","attrs":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","func":"Foo","attrs":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","func":"Foo","attrs":\[{"key":"foo","value":"bar"}\]},{"type":"testing","pkg_path":"gno.land\/r\/demo\/foree","func":"Foo","attrs":\[{"key":"foo","value":"bar"}\]}\]'
+
+gnokey maketx call -pkgpath gno.land/r/demo/foree -func Bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   [0-9]+'
+stdout 'HEIGHT:     [0-9]+'
+stdout 'EVENTS:     \[{"type":"Foo","pkg_path":"gno.land\/r\/demo\/foree","func":"subFoo","attrs":\[{"key":"k1","value":"v1"},{"key":"k2","value":"v2"}\]},{"type":"Bar","pkg_path":"gno.land\/r\/demo\/foree","func":"subBar","attrs":\[{"key":"bar","value":"baz"}\]},{"type":"Foo","pkg_path":"gno.land\/r\/demo\/foree","func":"subFoo","attrs":\[{"key":"k1","value":"v1"},{"key":"k2","value":"v2"}\]},{"type":"Bar","pkg_path":"gno.land\/r\/demo\/foree","func":"subBar","attrs":\[{"key":"bar","value":"baz"}\]}\]'
+
+
+-- foree.gno --
+
+package foree
+
+import "std"
+
+func Foo() {
+	for i := 0; i < 10; i++ {
+		std.Emit("testing", "foo", "bar")
+	}
+}
+
+const (
+	eventFoo = "Foo"
+	eventBar = "Bar"
+)
+
+type contractA struct{}
+
+func (c *contractA) Foo(cb func()) {
+	subFoo()
+	cb()
+}
+
+func subFoo() {
+	std.Emit(eventFoo, "k1", "v1", "k2", "v2")
+}
+
+type contractB struct{}
+
+func (c *contractB) subBar() {
+	std.Emit(eventBar, "bar", "baz")
+}
+
+func Bar() {
+    a := &contractA{}
+	b := &contractB{}
+	for i := 0; i < 2; i++ {
+		a.Foo(func() {
+			b.subBar()
+		})
+	}
+}
