@@ -61,7 +61,7 @@ gnoland start --lazy
 The command will trigger a chain initialization process (if you haven't run the node before), and start the Gno node,
 which is ready to accept transactions and interact with other Gno nodes.
 
-![gnoland start](../../assets/getting-started/local-setup/setting-up-a-local-chain/gnoland-start.gif)
+![gnoland start](../../assets/gno-infrastructure/validators/setting-up-a-local-chain/gnoland-start.gif)
 
 :::info Lazy init
 
@@ -350,7 +350,7 @@ That's it! 🎉
 
 Your new Gno node (chain) should be up and running:
 
-![gnoland start](../../assets/getting-started/local-setup/setting-up-a-local-chain/gnoland-start-manual.gif)
+![gnoland start](../../assets/gno-infrastructure/validators/setting-up-a-local-chain/gnoland-start-manual.gif)
 
 ## Chain runtime options
 

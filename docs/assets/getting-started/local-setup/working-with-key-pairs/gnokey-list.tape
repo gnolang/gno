@@ -1,8 +1,8 @@
 # Output
-Output gnodev-start.gif
+Output gnokey-list.gif
 
 # Requirement
-Require gnodev
+Require gnokey
 
 # Set up, should be in config.
 Set FontSize 18
@@ -11,10 +11,10 @@ Set Height 600
 
 ## Run
 
-Type "gnodev"
+Type "gnokey list"
 Sleep 500ms
 Enter
 
 # Wait a bit and Exit
-Sleep 5s
+Sleep 3s
 Ctrl+c
