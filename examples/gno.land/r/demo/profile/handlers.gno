@@ -137,7 +137,7 @@ func fieldHandler(res *mux.ResponseWriter, req *mux.Request) {
 
     if _, ok := stringFields[field]; ok {
         value = GetStringField(address, field, "N/A")
-        editLink = ufmt.Sprintf(SetStringFieldURL+"&addr=%s", field, addr)
+        editLink = ufmt.Sprintf("%s&addr=%s", SetStringFieldURL, field, addr)
     } else if _, ok := intFields[field]; ok {
         value = ufmt.Sprintf("%d", GetIntField(address, field, 0))
         editLink = ufmt.Sprintf(SetIntFieldURL+"&addr=%s", field, addr)
