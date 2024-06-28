@@ -36,7 +36,7 @@ func TestMachine(store gno.Store, stdout io.Writer, pkgPath string) *gno.Machine
 }
 
 func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAlloc int64, send std.Coins) *gno.Machine {
-	ctx := testContext(pkgPath, send)
+	ctx := TestContext(pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       "", // set later.
 		Output:        stdout,
@@ -47,7 +47,8 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 	return m
 }
 
-func testContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
+// TestContext returns a TestExecContext. Usable for test purpose only.
+func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr("user1.gno")
@@ -262,8 +263,18 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
 
+					parts := strings.SplitN(errstr, ":\n--- preprocess stack ---", 2)
+					if len(parts) == 2 {
+						fmt.Println(parts[0])
+						errstr = parts[0]
+					}
 					if errstr != errWanted {
-						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
+						if f.syncWanted {
+							// write error to file
+							replaceWantedInPlace(path, "Error", errstr)
+						} else {
+							panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
+						}
 					}
 
 					// NOTE: ignores any gno.GetDebugErrors().
@@ -278,12 +289,16 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						} else {
 							errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 						}
+						parts := strings.SplitN(errstr, ":\n--- preprocess stack ---", 2)
+						if len(parts) == 2 {
+							fmt.Println(parts[0])
+							errstr = parts[0]
+						}
 						// check tip line, write to file
-						ctl := fmt.Sprintf(
-							errstr +
-								"\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, " +
-								"DELETE THIS LINE AND RUN TEST AGAIN ***",
-						)
+						ctl := errstr +
+							"\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, " +
+							"DELETE THIS LINE AND RUN TEST AGAIN ***"
+						// write error to file
 						replaceWantedInPlace(path, "Error", ctl)
 						panic(fmt.Sprintf("fail on %s: err recorded, check the message and run test again", path))
 					}

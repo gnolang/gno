@@ -8,13 +8,13 @@ Gnodev allows for quick and efficient development of Gno code.
 
 By watching your development directory, gnodev detects changes in your Gno
 code, reflecting them in the state of the node immediately. Gnodev also runs a
-local instance of `gnoweb`, allowing you to see the rendering of your Gno code instantly. 
+local instance of `gnoweb`, allowing you to see the rendering of your Gno code instantly.
 
 ## Features
 - **In-Memory Node**: Gnodev starts an in-memory node, and automatically loads
   the **examples** folder and any user-specified paths.
 - **Web Interface Server**: Gnodev automatically starts a `gnoweb` server on
-[`localhost:8888`](https://localhost:8888).
+  [`localhost:8888`](https://localhost:8888).
 - **Balances and Keybase Customization**: Users can set account balances, load them from a file, or add new
   accounts via a flag.
 - **Hot Reload**: Gnodev monitors the **examples** folder, as well as any folder specified as an argument for
@@ -72,6 +72,21 @@ g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=10000000000000ugnot # test2
 # ...
 ```
 
+### Transactions file
+
+You can specify a transactions file using `--txs-file`. The file should contain a list of signed transactions
+that will be applied when starting the in-memory node.
+```
+{"msg":[{"@type":"/vm.m_call","caller":"g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq","send":"","pkg_path":"gno.land/r/gnoland/blog","func":"ModAddPost","args":["post1","First post","Lorem Ipsum","2022-05-20T13:17:22Z","","tag1,tag2"]}],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":[{"pub_key":{"@type":"/tm.PubKeySecp256k1","value":"AnK+a6mcFDjY6b/v6p7r8QFW1M1PgIoQxBgrwOoyY7v3"},"signature":"sHjOGXZEi9wt2FSXFHmkDDoVQyepvFHKRDDU0zgedHYnCYPx5/YndyihsDD5Y2Z7/RgNYBh4JlJwDMGFNStzBQ=="}],"memo":""}
+{"msg":[{"@type":"/vm.m_call","caller":"g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq","send":"","pkg_path":"gno.land/r/gnoland/blog","func":"ModAddPost","args":["post2","Second post","Lorem Ipsum","2022-05-20T13:17:23Z","","tag1,tag3"]}],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":[{"pub_key":{"@type":"/tm.PubKeySecp256k1","value":"AnK+a6mcFDjY6b/v6p7r8QFW1M1PgIoQxBgrwOoyY7v3"},"signature":"sHjOGXZEi9wt2FSXFHmkDDoVQyepvFHKRDDU0zgedHYnCYPx5/YndyihsDD5Y2Z7/RgNYBh4JlJwDMGFNStzBQ=="}],"memo":""}
+```
+
+#### Construct the transaction
+`gnokey maketx ... >> "tx-file.json"`
+
+#### Signing the transaction
+`gnokey sign -tx-path tx-file.json ...`
+
 ### Deploy
 
 All realms and packages will be deployed to the in-memory node by the address passed in with the
@@ -105,19 +120,20 @@ While `gnodev` is running, the following shortcuts are available:
 
 ### Options
 
-| Flag                | Effect                                                     |
-|---------------------|------------------------------------------------------------|
-| --minimal           | Start `gnodev` without loading the examples folder.        |
-| --no-watch          | Disable hot reload.                                        |
-| --add-account       | Pre-add account(s) in the form `<bech32>[=<amount>]`       |
-| --balances-file     | Load a balance for the user(s) from a balance file.        |
-| --chain-id          | Set node ChainID                                           |
-| --deploy-key        | Default key name or Bech32 address for uploading packages. |
-| --home              | Set the path to load user's Keybase.                       |
-| --max-gas           | Set the maximum gas per block                              |
-| --no-replay         | Do not replay previous transactions upon reload            |
-| --node-rpc-listener | listening address for GnoLand RPC node                     |
-| --root              | gno root directory                                         |
-| --server-mode       | disable interaction, and adjust logging for server use.    |
-| --verbose           | enable verbose output for development                      |
-| --web-listener      | web server listening address                               |
+| Flag                | Effect                                                                |
+|---------------------|-----------------------------------------------------------------------|
+| --minimal           | Start `gnodev` without loading the examples folder.                   |
+| --no-watch          | Disable hot reload.                                                   |
+| --add-account       | Pre-add account(s) in the form `<bech32>[=<amount>]`                  |
+| --balances-file     | Load a balance for the user(s) from a balance file.                   |
+| --chain-id          | Set node ChainID                                                      |
+| --deploy-key        | Default key name or Bech32 address for uploading packages.            |
+| --home              | Set the path to load user's Keybase.                                  |
+| --max-gas           | Set the maximum gas per block                                         |
+| --no-replay         | Do not replay previous transactions upon reload                       |
+| --node-rpc-listener | listening address for GnoLand RPC node                                |
+| --root              | gno root directory                                                    |
+| --server-mode       | disable interaction, and adjust logging for server use.               |
+| --verbose           | enable verbose output for development                                 |
+| --web-listener      | web server listening address                                          |
+| --web-help-remote   | web server help page's remote addr - defaults to <node-rpc-listener\> |

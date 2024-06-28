@@ -25,7 +25,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -210,7 +209,7 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	// Load the configuration
 	cfg, err := config.LoadConfig(nodeDir)
 	if err != nil {
-		return fmt.Errorf("unable to load config, %w", err)
+		return fmt.Errorf("%s, %w", tryConfigInit, err)
 	}
 
 	// Check if the genesis.json exists
@@ -405,9 +404,7 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 
 	// Load examples folder
 	examplesDir := filepath.Join(c.gnoRootDir, "examples")
-	test1 := crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, test1, defaultFee, nil)
+	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, genesisDeployAddress, genesisDeployFee)
 	if err != nil {
 		return fmt.Errorf("unable to load examples folder: %w", err)
 	}
