@@ -271,7 +271,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				// XXX only expose for tests.
 				pkg := gno.NewPackageNode("rand", pkgPath, nil)
 				// make native rand same as gno rand.
-				rnd := rand.New(rand.NewPCG(0, 0))
+				rnd := rand.New(rand.NewPCG(0, 0)) //nolint:gosec
 				pkg.DefineGoNativeValue("IntN", rnd.IntN)
 				pkg.DefineGoNativeValue("Uint32", rnd.Uint32)
 				return pkg, pkg.NewPackage()
