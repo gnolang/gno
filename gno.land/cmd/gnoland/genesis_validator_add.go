@@ -22,9 +22,10 @@ var (
 type validatorAddCfg struct {
 	rootCfg *validatorCfg
 
-	pubKey string
-	name   string
-	power  int64
+	address string
+	pubKey  string
+	name    string
+	power   int64
 }
 
 // newValidatorAddCmd creates the genesis validator add subcommand
@@ -48,6 +49,13 @@ func newValidatorAddCmd(validatorCfg *validatorCfg, io commands.IO) *commands.Co
 
 func (c *validatorAddCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
+		&c.address,
+		"address",
+		"",
+		"the gno bech32 address of the validator",
+	)
+
+	fs.StringVar(
 		&c.pubKey,
 		"pub-key",
 		"",
@@ -70,6 +78,7 @@ func (c *validatorAddCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execValidatorAdd(cfg *validatorAddCfg, io commands.IO) error {
+
 	// Load the genesis
 	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.genesisPath)
 	if loadErr != nil {
@@ -77,7 +86,7 @@ func execValidatorAdd(cfg *validatorAddCfg, io commands.IO) error {
 	}
 
 	// Check the validator address
-	address, err := crypto.AddressFromString(cfg.rootCfg.address)
+	address, err := crypto.AddressFromString(cfg.address)
 	if err != nil {
 		return fmt.Errorf("invalid validator address, %w", err)
 	}
@@ -130,7 +139,7 @@ func execValidatorAdd(cfg *validatorAddCfg, io commands.IO) error {
 
 	io.Printfln(
 		"Validator with address %s added to genesis file",
-		cfg.rootCfg.address,
+		cfg.address,
 	)
 
 	return nil
