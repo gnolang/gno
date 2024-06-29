@@ -31,8 +31,10 @@ package gnolang
 */
 
 import (
+	"bytes"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -565,6 +567,15 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package
 			errs = multierr.Append(errs, err)
 			continue
 		}
+
+		// enforce formatting
+		var buf bytes.Buffer
+		err = format.Node(&buf, fset, f)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		file.Body = buf.String()
 
 		files = append(files, f)
 	}
