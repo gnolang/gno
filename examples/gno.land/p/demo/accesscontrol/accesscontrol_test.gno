@@ -100,27 +100,27 @@ func TestCreateRole(t *testing.T) {
 	}
 }
 
-// TestOnlyAdmin verifies the OnlyAdmin method.
-func TestAssertOrigCallerIsAdmin(t *testing.T) {
+// TestCallerIsAdmin verifies the CallerIsAdmin method.
+func TestCallerIsAdmin(t *testing.T) {
 	adminRole := testutils.TestAddress("admin-address")
 	roleData := NewRoleData("ExampleRole", adminRole)
-	// Call AssertOrigCallerIsAdmin with admin caller
+	// Call CallerIsAdmin with admin caller
 	std.TestSetOrigCaller(adminRole)
-	defer func () {
+	defer func() {
 		if r := recover(); r != nil {
 			t.Fatalf("expected no panic, got %v", r)
 		}
-	}() 
-	roleData.AssertOrigCallerIsAdmin()
-	// Call AssertOrigCallerIsAdmin with non-admin caller
+	}()
+	roleData.AssertCallerIsAdmin()
+	// Call CallerIsAdmin with non-admin caller
 	user := testutils.TestAddress("user-address")
 	std.TestSetOrigCaller(user)
-	defer func () {
+	defer func() {
 		if r := recover(); r == nil {
 			t.Fatalf("expected panic, got nil")
 		}
 	}()
-	roleData.AssertOrigCallerIsAdmin()
+	roleData.AssertCallerIsAdmin()
 }
 
 // Testing the RevokeRole Method for a Non-Admin
@@ -194,19 +194,19 @@ func TestSetRoleAdmin(t *testing.T) {
 	// Change administrator
 	roleData.SetRoleAdmin(newAdmin)
 
-	std.TestSetOrigCaller(newAdmin)
-
 	// Check that the new administrator is correct
+	if roleData.AdminRole != newAdmin {
+		t.Fatalf("expected new admin to be %s, got %s", newAdmin.String(), roleData.AdminRole.String())
+	}
+
+	// Simulate newAdmin as the current caller
+	std.TestSetOrigCaller(newAdmin)
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatalf("expected no panic, got %v", r)
 		}
 	}()
-	roleData.AssertOrigCallerIsAdmin()
-
-	// Simulate newAdmin as the current caller
-	std.TestSetOrigCaller(newAdmin)
-	roleData.AssertOrigCallerIsAdmin() // Should not panic
+	roleData.AssertCallerIsAdmin()
 
 	// Add a role to a user
 	roleData.GrantRole(user)
