@@ -43,14 +43,6 @@ type Roles struct {
 	Admin    std.Address
 }
 
-// NewRoles creates a new instance of Roles with a global admin
-func NewRoles(admin std.Address) *Roles {
-	return &Roles{
-		AllRoles: []*Role{},
-		Admin:    admin,
-	}
-}
-
 // NewRole creates a new instance of Role
 func NewRole(name string, adminRole std.Address) *Role {
 	return &Role{
