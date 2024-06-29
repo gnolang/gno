@@ -12,23 +12,16 @@ type Execution struct {
 	Frame *Frame
 }
 type Stacktrace struct {
-	Executions []Execution
+	Executions      []Execution
+	NumFramesElided int
 }
 
 func (s Stacktrace) String() string {
 	var builder strings.Builder
 
-	excecutions := s.Executions
-	numFramesElided := 0
-	if len(s.Executions) > maxStacktraceSize {
-		excecutions = s.Executions[:maxStacktraceSize/2]
-		excecutions = append(excecutions, s.Executions[len(s.Executions)-maxStacktraceSize/2:]...)
-		numFramesElided = len(s.Executions) - maxStacktraceSize
-	}
-
-	for i, e := range excecutions {
-		if numFramesElided > 0 && i == maxStacktraceSize/2 {
-			builder.WriteString(fmt.Sprintf("...%d frame(s) elided...\n", numFramesElided))
+	for i, e := range s.Executions {
+		if s.NumFramesElided > 0 && i == maxStacktraceSize/2 {
+			builder.WriteString(fmt.Sprintf("...%d frame(s) elided...\n", s.NumFramesElided))
 		}
 
 		switch {
@@ -56,13 +49,14 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 		return
 	}
 
+	var executions []Execution
 	nextStmtIndex := len(m.Stmts) - 1
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
 			stm := m.Stmts[nextStmtIndex]
 			bs := stm.(*bodyStmt)
 			stm = bs.Body[bs.NextBodyIndex-1]
-			stacktrace.Executions = append(stacktrace.Executions, Execution{
+			executions = append(executions, Execution{
 				Stmt:  stm,
 				Frame: m.Frames[i],
 			})
@@ -71,9 +65,17 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 		nextStmtIndex = m.Frames[i].NumStmts - 1
 	}
 
-	stacktrace.Executions = append(stacktrace.Executions, Execution{
+	executions = append(executions, Execution{
 		Frame: m.Frames[0],
 	})
+
+	stacktrace.Executions = executions
+	// if the stacktrace is too long, we trim it down to maxStacktraceSize
+	if len(executions) > maxStacktraceSize {
+		stacktrace.Executions = executions[:maxStacktraceSize/2]
+		stacktrace.Executions = append(stacktrace.Executions, executions[len(executions)-maxStacktraceSize/2:]...)
+		stacktrace.NumFramesElided = len(executions) - maxStacktraceSize
+	}
 
 	return
 }
