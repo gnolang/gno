@@ -69,6 +69,7 @@ func NewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.Role, mi
 	if timestamps == nil || accessControl == nil {
 		return nil, errors.New("timestamps and accesscontrol values must be different from nil")
 	}
+
 	return &TimeLockUtil{
 		timestamps:    timestamps,
 		accessControl: accessControl,
@@ -81,18 +82,30 @@ func (tl *TimeLockUtil) Schedule(id seqid.ID, delay uint64) error {
 	if delay < tl.minDelay {
 		return errors.New("timelockutil: Schedule: insufficient delay")
 	}
+
 	if tl.timestamps.Has(id.Binary()) {
 		return errors.New("timelockutil: Schedule: operation already scheduled")
 	}
+
 	tl.timestamps.Set(id.Binary(), uint64(time.Now().Unix())+delay)
-	std.Emit("CallScheduled", "id", id.String(), "delay", strconv.FormatInt(int64(delay), 10))
+
+	std.Emit(
+		"TimeLockScheduled",
+		"id", id.String(),
+		"delay", strconv.FormatInt(int64(delay), 10),
+	)
+
 	return nil
 }
 
 // Remove operation
 func (tl *TimeLockUtil) Remove(id seqid.ID) {
 	tl.timestamps.Remove(id.Binary())
-	std.Emit("Removed", "id", id.String())
+
+	std.Emit(
+		"TimeLockRemoved",
+		"id", id.String(),
+	)
 }
 
 // Cancels a planned operation
@@ -100,8 +113,14 @@ func (tl *TimeLockUtil) Cancel(id seqid.ID) error {
 	if !tl.IsPending(id) {
 		errors.New("timelock: Cancel: operation not pending")
 	}
+
 	tl.timestamps.Remove(id.Binary())
-	std.Emit("Cancelled", "id", id.String())
+
+	std.Emit(
+		"TimeLockCancelled",
+		"id", id.String(),
+	)
+
 	return nil
 }
 
@@ -110,8 +129,14 @@ func (tl *TimeLockUtil) Execute(id seqid.ID) error {
 	if !tl.IsPending(id) {
 		errors.New("timelock: Execute: operation not pending")
 	}
+
 	tl.timestamps.Set(id.Binary(), DoneTimestamp)
-	std.Emit("CallExecuted", "id", id.String())
+
+	std.Emit(
+		"TimeLockExecuted",
+		"id", id.String(),
+	)
+
 	return nil
 }
 
@@ -120,8 +145,15 @@ func (tl *TimeLockUtil) UpdateDelay(newDelay uint64) error {
 	if std.GetOrigCaller() != tl.accessControl.AdminRole {
 		return errors.New("timelock: UpdateDelay: only admin can update delay")
 	}
-	std.Emit("MinDelayChange", "oldDelay", strconv.FormatInt(int64(tl.minDelay), 10), "newDelay", strconv.FormatInt(int64(newDelay), 10))
+
+	std.Emit(
+		"TimeLockMinDelayChanged",
+		"oldDelay", strconv.FormatInt(int64(tl.minDelay), 10),
+		"newDelay", strconv.FormatInt(int64(newDelay), 10),
+	)
+
 	tl.minDelay = newDelay
+
 	return nil
 }
 
@@ -133,6 +165,7 @@ func (tl *TimeLockUtil) IsPending(id seqid.ID) bool {
 		ufmt.Errorf("Error retrieving operation state: %v", err)
 		return false
 	}
+
 	return state == Pending
 }
 
@@ -144,6 +177,7 @@ func (tl *TimeLockUtil) IsReady(id seqid.ID) bool {
 		ufmt.Errorf("Error retrieving operation state: %v", err)
 		return false
 	}
+
 	return state == Ready
 }
 
@@ -153,6 +187,7 @@ func (tl *TimeLockUtil) GetOperationState(id seqid.ID) (OperationState, error) {
 	if err != nil {
 		return Unset, err
 	}
+
 	if timestamp == 0 {
 		return Unset, nil
 	} else if timestamp == DoneTimestamp {
@@ -167,9 +202,11 @@ func (tl *TimeLockUtil) GetOperationState(id seqid.ID) (OperationState, error) {
 // Returns the timestamp of an operation
 func (tl *TimeLockUtil) GetTimestamp(id seqid.ID) (int64, error) {
 	value, ok := tl.timestamps.Get(id.Binary())
+
 	if !ok {
 		return 0, nil // Returning 0 as the timestamp and nil for no error
 	}
+
 	switch v := value.(type) {
 	case int:
 		return int64(v), nil
