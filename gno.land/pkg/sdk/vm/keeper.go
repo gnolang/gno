@@ -369,7 +369,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	if err = gno.TypeCheckMemPackage(memPkg, gnostore); err != nil {
+	fmt := false
+	if err = gno.TypeCheckMemPackage(memPkg, gnostore, fmt); err != nil {
 		return "", ErrTypeCheck(err)
 	}
 
