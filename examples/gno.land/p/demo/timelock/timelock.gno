@@ -12,7 +12,7 @@
 //
 //  Initialize timelock utility with an AVL tree and access control.
 //  timestamps := avl.NewTree()
-//  adminRole := accesscontrol.NewRoleData("admin", std.Address("admin-address"))
+//  adminRole := accesscontrol.NewRole("admin", std.Address("admin-address"))
 //  timeLockUtil := timelock.NewTimeLockUtil(timestamps, adminRole, 30)
 //
 //  Schedule an operation with a delay of 60 seconds.
@@ -30,19 +30,18 @@
 //  Update the minimum delay for future operations.
 //  timeLockUtil.UpdateDelay(45)
 
-package timelock // import "gno.land/p/demo/timelock"
+package timelock
 
 import (
+	"errors"
 	"std"
 	"strconv"
 	"time"
-	"errors"
-
-	"gno.land/p/demo/ufmt"
 
 	"gno.land/p/demo/accesscontrol"
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
 )
 
 // Marks operations completed
@@ -61,12 +60,12 @@ const (
 // TimeLockUtil stores the necessary parameters for the timelock operations
 type TimeLockUtil struct {
 	timestamps    *avl.Tree
-	accessControl *accesscontrol.RoleData
+	accessControl *accesscontrol.Role
 	minDelay      uint64
 }
 
 // New instance of TimeLockUtil
-func NewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.RoleData, minDelay uint64) (*TimeLockUtil, error) {
+func NewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.Role, minDelay uint64) (*TimeLockUtil, error) {
 	if timestamps == nil || accessControl == nil {
 		return nil, errors.New("timestamps and accesscontrol values must be different from nil")
 	}

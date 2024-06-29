@@ -1,3 +1,25 @@
+// import "gno.land/p/demo/accesscontrol"
+//
+// Create a new role with a specific admin.
+// adminRole := std.Address("admin-address")
+// role := accesscontrol.NewRole("ExampleRole", adminRole)
+//
+// Check if an account has a specific role.
+// account := std.Address("user-address")
+// hasRole := role.HasRole(account)
+//
+// Grant a role to a specific account.
+// role.GrantRole(account)
+//
+// Revoke a role from a specific account.
+// role.RevokeRole(account)
+//
+// Renounce a role with caller confirmation.
+// role.RenounceRole(std.GetOrigCaller())
+//
+// Change the admin role for a specific role.
+// newAdmin := std.Address("new-admin-address")
+// role.SetRoleAdmin(newAdmin)
 package accesscontrol
 
 import (
