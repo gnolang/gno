@@ -107,7 +107,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// NOTE: this requires finalized AST structure, especially gotos, and
 	// cannot add or remove statements from bodies.
 	for _, fn := range fset.Files {
-		findGotoLoopStmts(pn, fn)
+		findGotoLoopDefines(pn, fn)
 		findLoopEscapedNames(pn, fn)
 	}
 }
@@ -2258,8 +2258,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	return nn
 }
 
-// Identifies GotoLoopStmts
-func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
+// Identifies NameExprTypeLoopDefines.
+// Also finds GotoLoopStmts, XXX but probably remove, not needed.
+func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -2294,7 +2295,7 @@ func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
 		}()
 
 		if debug {
-			debug.Printf("findGotoLoopStmts %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("findGotoLoopDefines %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
