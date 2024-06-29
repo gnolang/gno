@@ -21,7 +21,6 @@ const (
 func homeHandler(res *mux.ResponseWriter, req *mux.Request) {
 	var b bytes.Buffer
 
-	b.WriteString("# Profiles\n")
 	b.WriteString("## Setters\n")
 	for field := range stringFields {
 		link := ufmt.Sprintf(SetStringFieldURL, field)
