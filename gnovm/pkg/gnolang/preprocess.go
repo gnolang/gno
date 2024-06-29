@@ -2258,6 +2258,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	return nn
 }
 
+// Identifies GotoLoopStmts
 func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -2334,7 +2335,7 @@ func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
 								// NOTE: called redundantly
 								// for many goto stmts,
 								// idempotenct updates only.
-								switch n.(type) {
+								switch n := n.(type) {
 								// Skip the body of these:
 								case *FuncLitExpr:
 									return n, TRANS_SKIP
@@ -2348,6 +2349,13 @@ func findGotoLoopStmts(ctx BlockNode, bn BlockNode) {
 											true)
 									} else {
 										return n, TRANS_SKIP
+									}
+								// Special case, maybe convert
+								// NameExprTypeDefine to
+								// NameExprTypeLoopDefine.
+								case *NameExpr:
+									if n.Type == NameExprTypeDefine {
+										n.Type = NameExprTypeLoopDefine
 									}
 								}
 								return n, TRANS_CONTINUE
