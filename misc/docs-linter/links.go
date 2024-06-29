@@ -3,105 +3,91 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"fmt"
-	"golang.org/x/sync/errgroup"
-	"io"
-	"mvdan.cc/xurls/v2"
-	"net/http"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
-	"sync"
 )
 
-// extractUrls extracts URLs from a file and maps them to the file
-func extractUrls(fileContent []byte) []string {
+// Valid start to an embedmd link
+const embedmd = `[embedmd]:# `
+
+// Regular expression to match markdown links
+var regex = regexp.MustCompile(`]\((\.\.?/.+?)\)`)
+
+// extractLocalLinks extracts links to local files from the given file content
+func extractLocalLinks(fileContent []byte) []string {
 	scanner := bufio.NewScanner(bytes.NewReader(fileContent))
-	urls := make([]string, 0)
+	links := make([]string, 0)
 
 	// Scan file line by line
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Extract links
-		rxStrict := xurls.Strict()
-		url := rxStrict.FindString(line)
+		// Check for embedmd links
+		if embedmdPos := strings.Index(line, embedmd); embedmdPos != -1 {
+			link := line[embedmdPos+len(embedmd)+1:]
 
-		// Check for empty links and skip them
-		if url == " " || len(url) == 0 {
+			// Find closing parentheses
+			if closePar := strings.LastIndex(link, ")"); closePar != -1 {
+				link = link[:closePar]
+			}
+
+			// Remove space
+			if pos := strings.Index(link, " "); pos != -1 {
+				link = link[:pos]
+			}
+
+			// Add link to be checked
+			links = append(links, link)
 			continue
 		}
 
-		// Look for http & https only
-		if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-			// Ignore localhost
-			if !strings.Contains(url, "localhost") && !strings.Contains(url, "127.0.0.1") {
-				urls = append(urls, url)
+		// Find all matches
+		matches := regex.FindAllString(line, -1)
+
+		// Extract and print the local file links
+		for _, match := range matches {
+			// Remove ]( from the beginning and ) from end of link
+			match = match[2 : len(match)-1]
+
+			// Remove markdown headers in links
+			if pos := strings.Index(match, "#"); pos != -1 {
+				match = match[:pos]
+			}
+
+			links = append(links, match)
+		}
+	}
+
+	return links
+}
+
+func lintLocalLinks(filepathToLinks map[string][]string, docsPath string) (string, error) {
+	var (
+		found  bool
+		output bytes.Buffer
+	)
+
+	for filePath, links := range filepathToLinks {
+		for _, link := range links {
+			path := filepath.Join(docsPath, filepath.Dir(filePath), link)
+
+			if _, err := os.Stat(path); err != nil {
+				if !found {
+					output.WriteString("Could not find files with the following paths:\n")
+					found = true
+				}
+
+				output.WriteString(fmt.Sprintf(">>> %s (found in file: %s)\n", link, filePath))
 			}
 		}
 	}
 
-	return urls
-}
-
-func lintLinks(fileUrlMap map[string][]string, ctx context.Context) error {
-	// Filter links by prefix & ignore localhost
-	// Setup parallel checking for links
-	g, _ := errgroup.WithContext(ctx)
-
-	var (
-		lock         sync.Mutex
-		notFoundUrls []string
-	)
-
-	for filePath, urls := range fileUrlMap {
-		filePath := filePath
-		for _, url := range urls {
-			url := url
-			g.Go(func() error {
-				if err := checkUrl(url); err != nil {
-					lock.Lock()
-					notFoundUrls = append(notFoundUrls, fmt.Sprintf(">>> %s (found in file: %s)", url, filePath))
-					lock.Unlock()
-				}
-
-				return nil
-			})
-		}
+	if found {
+		return output.String(), errFoundUnreachableLocalLinks
 	}
 
-	if err := g.Wait(); err != nil {
-		return err
-	}
-
-	// Print out the URLs that returned a 404 along with the file names
-	if len(notFoundUrls) > 0 {
-		fmt.Println("Links that need checking:")
-		for _, result := range notFoundUrls {
-			fmt.Println(result)
-		}
-
-		return errFound404Links
-	}
-
-	return nil
-}
-
-// checkUrl checks if a URL is a 404
-func checkUrl(url string) error {
-	// Attempt to retrieve the HTTP header
-	resp, err := http.Get(url)
-	if err != nil || resp.StatusCode == http.StatusNotFound {
-		return err404Link
-	}
-
-	// Ensure the response body is closed properly
-	cleanup := func(Body io.ReadCloser) error {
-		if err := Body.Close(); err != nil {
-			return fmt.Errorf("could not close response properly: %w", err)
-		}
-
-		return nil
-	}
-
-	return cleanup(resp.Body)
+	return "", nil
 }

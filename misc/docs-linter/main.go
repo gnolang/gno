@@ -1,14 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/commands"
-	"golang.org/x/sync/errgroup"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+
+	"github.com/gnolang/gno/tm2/pkg/commands"
+	"golang.org/x/sync/errgroup"
 )
 
 type cfg struct {
@@ -23,11 +26,16 @@ func main() {
 			Name:       "docs-linter",
 			ShortUsage: "docs-linter [flags]",
 			ShortHelp: `Lints the .md files in the given folder & subfolders.
-Checks for 404 links, as well as improperly escaped JSX tags.`,
+Checks for 404 links (local and remote), as well as improperly escaped JSX tags.`,
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
-			return execLint(cfg, ctx)
+			res, err := execLint(cfg, ctx)
+			if len(res) != 0 {
+				fmt.Println(res)
+			}
+
+			return err
 		})
 
 	cmd.Execute(context.Background(), os.Args[1:])
@@ -42,59 +50,93 @@ func (c *cfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execLint(cfg *cfg, ctx context.Context) error {
+func execLint(cfg *cfg, ctx context.Context) (string, error) {
 	if cfg.docsPath == "" {
-		return errEmptyPath
+		return "", errEmptyPath
 	}
 
 	absPath, err := filepath.Abs(cfg.docsPath)
 	if err != nil {
-		return fmt.Errorf("error getting absolute path for docs folder: %w", err)
+		return "", fmt.Errorf("error getting absolute path for docs folder: %w", err)
 	}
 
-	fmt.Printf("Linting %s...\n", absPath)
+	// Main buffer to write to the end user after linting
+	var output bytes.Buffer
+	output.WriteString(fmt.Sprintf("Linting %s...\n", absPath))
 
 	// Find docs files to lint
 	mdFiles, err := findFilePaths(cfg.docsPath)
 	if err != nil {
-		return fmt.Errorf("error finding .md files: %w", err)
+		return "", fmt.Errorf("error finding .md files: %w", err)
 	}
 
 	// Make storage maps for tokens to analyze
-	fileUrlMap := make(map[string][]string) // file path > [urls]
-	fileJSXMap := make(map[string][]string) // file path > [JSX items]
+	filepathToURLs := make(map[string][]string)      // file path > [urls]
+	filepathToJSX := make(map[string][]string)       // file path > [JSX items]
+	filepathToLocalLink := make(map[string][]string) // file path > [local links]
 
 	// Extract tokens from files
 	for _, filePath := range mdFiles {
 		// Read file content once and pass it to linters
 		fileContents, err := os.ReadFile(filePath)
 		if err != nil {
-			return err
+			return "", err
 		}
 
-		fileJSXMap[filePath] = extractJSX(fileContents)
+		// Execute JSX extractor
+		filepathToJSX[filePath] = extractJSX(fileContents)
 
 		// Execute URL extractor
-		fileUrlMap[filePath] = extractUrls(fileContents)
+		filepathToURLs[filePath] = extractUrls(fileContents)
+
+		// Execute local link extractor
+		filepathToLocalLink[filePath] = extractLocalLinks(fileContents)
 	}
 
 	// Run linters in parallel
 	g, _ := errgroup.WithContext(ctx)
 
+	var writeLock sync.Mutex
+
 	g.Go(func() error {
-		return lintJSX(fileJSXMap, ctx)
+		res, err := lintJSX(filepathToJSX)
+		if err != nil {
+			writeLock.Lock()
+			output.WriteString(res)
+			writeLock.Unlock()
+		}
+
+		return err
 	})
 
 	g.Go(func() error {
-		return lintLinks(fileUrlMap, ctx)
+		res, err := lintURLs(filepathToURLs, ctx)
+		if err != nil {
+			writeLock.Lock()
+			output.WriteString(res)
+			writeLock.Unlock()
+		}
+
+		return err
 	})
 
-	if err := g.Wait(); err != nil {
-		return errFoundLintItems
+	g.Go(func() error {
+		res, err := lintLocalLinks(filepathToLocalLink, cfg.docsPath)
+		if err != nil {
+			writeLock.Lock()
+			output.WriteString(res)
+			writeLock.Unlock()
+		}
+
+		return err
+	})
+
+	if err = g.Wait(); err != nil {
+		return output.String(), errFoundLintItems
 	}
 
-	fmt.Println("Lint complete, no issues found.")
-	return nil
+	output.WriteString("Lint complete, no issues found.")
+	return output.String(), nil
 }
 
 // findFilePaths gathers the file paths for specific file types

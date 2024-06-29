@@ -1,6 +1,6 @@
 module linter
 
-go 1.21.6
+go 1.22
 
 require (
 	github.com/gnolang/gno v0.0.0-20240516161351-0c9849a8ef0c

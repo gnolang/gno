@@ -50,7 +50,7 @@ The `gnoclient` package exposes a `Client` struct containing a `Signer` and
 `RPCClient` connector. `Client` exposes all available functionality for talking
 to a Gno.land chain.
 
-```go 
+```go
 type Client struct {
     Signer    Signer           // Signer for transaction authentication
     RPCClient rpcclient.Client // gnolang/gno/tm2/pkg/bft/rpc/client

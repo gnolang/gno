@@ -11,8 +11,8 @@ func TestSetOrigPkgAddr(addr Address)
 func TestSetOrigSend(sent, spent Coins)
 func TestIssueCoins(addr Address, coins Coins)
 func TestSetRealm(realm Realm)
-func NewUserRealm(address Address)
-func NewCodeRealm(pkgPath string)
+func NewUserRealm(address Address) Realm
+func NewCodeRealm(pkgPath string) Realm
 ```
 
 ---
@@ -132,7 +132,7 @@ userRealm := std.NewUserRealm(addr)
 ## NewCodeRealm
 
 ```go
-func NewCodeRealm(pkgPath string)
+func NewCodeRealm(pkgPath string) Realm
 ```
 
 Creates a new code realm for testing purposes.

@@ -45,7 +45,7 @@ To get up and running with the `libtm` package, you can add it to your project u
 go get -u github.com/gnolang/libtm
 ```
 
-Currently, the minimum required go version is `go 1.21`.
+Currently, the minimum required go version is `go 1.22`.
 
 ## Usage Examples
 
