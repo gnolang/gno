@@ -30,7 +30,7 @@ func homeHandler(res *mux.ResponseWriter, req *mux.Request) {
 
 	for field := range intFields {
 		link := ufmt.Sprintf(SetIntFieldURL, field)
-		b.WriteString(ufmt.Sprintf("- [Set %s Field](%s)\n", field, link))
+		b.WriteString(ufmt.Sprintf("- [Set %s](%s)\n", field, link))
 	}
 
 	for field := range boolFields {
