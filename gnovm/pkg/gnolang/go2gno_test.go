@@ -324,7 +324,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			err := TypeCheckMemPackage(tc.pkg, tc.getter)
+			err := TypeCheckMemPackage(tc.pkg, tc.getter, false)
 			if tc.check == nil {
 				assert.NoError(t, err)
 			} else {
@@ -332,4 +332,45 @@ func TestTypeCheckMemPackage(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTypeCheckMemPackage_fmt(t *testing.T) {
+	t.Parallel()
+
+	input := `
+	package hello
+		func Hello(name string) string   {return "hello"  + name
+}
+
+
+
+`
+
+	pkg := &std.MemPackage{
+		Name: "hello",
+		Path: "gno.land/p/demo/hello",
+		Files: []*std.MemFile{
+			{
+				Name: "hello.gno",
+				Body: input,
+			},
+		},
+	}
+
+	mpkgGetter := mockPackageGetter{}
+	err := TypeCheckMemPackage(pkg, mpkgGetter, false)
+	assert.NoError(t, err)
+	assert.Equal(t, input, pkg.Files[0].Body) // unchanged
+
+	expected := `package hello
+
+func Hello(name string) string {
+	return "hello" + name
+}
+`
+
+	err = TypeCheckMemPackage(pkg, mpkgGetter, true)
+	assert.NoError(t, err)
+	assert.NotEqual(t, input, pkg.Files[0].Body)
+	assert.Equal(t, expected, pkg.Files[0].Body)
 }

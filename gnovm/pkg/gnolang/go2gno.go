@@ -492,7 +492,10 @@ type MemPackageGetter interface {
 // mempkg. To retrieve dependencies, it uses getter.
 //
 // The syntax checking is performed entirely using Go's go/types package.
-func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter) error {
+//
+// If fmt is true, the code will be automatically updated with the formatted
+// source code.
+func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter, fmt bool) error {
 	var errs error
 	imp := &gnoImporter{
 		getter: getter,
@@ -505,7 +508,7 @@ func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter) error 
 	}
 	imp.cfg.Importer = imp
 
-	_, err := imp.parseCheckMemPackage(mempkg)
+	_, err := imp.parseCheckMemPackage(mempkg, fmt)
 	// prefer to return errs instead of err:
 	// err will generally contain only the first error encountered.
 	if errs != nil {
@@ -546,12 +549,12 @@ func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Pac
 		g.cache[path] = gnoImporterResult{err: err}
 		return nil, err
 	}
-	result, err := g.parseCheckMemPackage(mpkg)
+	result, err := g.parseCheckMemPackage(mpkg, false)
 	g.cache[path] = gnoImporterResult{pkg: result, err: err}
 	return result, err
 }
 
-func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package, error) {
+func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage, fmt bool) (*types.Package, error) {
 	fset := token.NewFileSet()
 	files := make([]*ast.File, 0, len(mpkg.Files))
 	var errs error
@@ -569,13 +572,15 @@ func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package
 		}
 
 		// enforce formatting
-		var buf bytes.Buffer
-		err = format.Node(&buf, fset, f)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			continue
+		if fmt {
+			var buf bytes.Buffer
+			err = format.Node(&buf, fset, f)
+			if err != nil {
+				errs = multierr.Append(errs, err)
+				continue
+			}
+			file.Body = buf.String()
 		}
-		file.Body = buf.String()
 
 		files = append(files, f)
 	}

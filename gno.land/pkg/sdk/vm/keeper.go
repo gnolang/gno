@@ -163,7 +163,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	if err := gno.TypeCheckMemPackage(memPkg, gnostore); err != nil {
+	fmt := true
+	if err := gno.TypeCheckMemPackage(memPkg, gnostore, fmt); err != nil {
 		return ErrTypeCheck(err)
 	}
 
