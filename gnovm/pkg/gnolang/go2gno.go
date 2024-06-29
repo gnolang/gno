@@ -493,9 +493,9 @@ type MemPackageGetter interface {
 //
 // The syntax checking is performed entirely using Go's go/types package.
 //
-// If fmt is true, the code will be automatically updated with the formatted
-// source code.
-func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter, fmt bool) error {
+// If format is true, the code will be automatically updated with the
+// formatted source code.
+func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter, format bool) error {
 	var errs error
 	imp := &gnoImporter{
 		getter: getter,
@@ -508,7 +508,7 @@ func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter, fmt bo
 	}
 	imp.cfg.Importer = imp
 
-	_, err := imp.parseCheckMemPackage(mempkg, fmt)
+	_, err := imp.parseCheckMemPackage(mempkg, format)
 	// prefer to return errs instead of err:
 	// err will generally contain only the first error encountered.
 	if errs != nil {

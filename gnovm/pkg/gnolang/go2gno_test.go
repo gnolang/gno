@@ -324,8 +324,8 @@ func TestTypeCheckMemPackage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			fmt := false
-			err := TypeCheckMemPackage(tc.pkg, tc.getter, fmt)
+			format := false
+			err := TypeCheckMemPackage(tc.pkg, tc.getter, format)
 			if tc.check == nil {
 				assert.NoError(t, err)
 			} else {
@@ -335,7 +335,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 	}
 }
 
-func TestTypeCheckMemPackage_fmt(t *testing.T) {
+func TestTypeCheckMemPackage_format(t *testing.T) {
 	t.Parallel()
 
 	input := `
@@ -359,8 +359,8 @@ func TestTypeCheckMemPackage_fmt(t *testing.T) {
 	}
 
 	mpkgGetter := mockPackageGetter{}
-	fmt := false
-	err := TypeCheckMemPackage(pkg, mpkgGetter, fmt)
+	format := false
+	err := TypeCheckMemPackage(pkg, mpkgGetter, format)
 	assert.NoError(t, err)
 	assert.Equal(t, input, pkg.Files[0].Body) // unchanged
 
@@ -371,8 +371,8 @@ func Hello(name string) string {
 }
 `
 
-	fmt = true
-	err = TypeCheckMemPackage(pkg, mpkgGetter, fmt)
+	format = true
+	err = TypeCheckMemPackage(pkg, mpkgGetter, format)
 	assert.NoError(t, err)
 	assert.NotEqual(t, input, pkg.Files[0].Body)
 	assert.Equal(t, expected, pkg.Files[0].Body)
