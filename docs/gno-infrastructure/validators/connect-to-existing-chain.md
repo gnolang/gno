@@ -12,14 +12,14 @@ In this tutorial, you will learn how to start a local Gno node and connect to an
 
 - **Git**
 - **`make` (for running Makefiles)**
-- **Go 1.21+**
+- **Go 1.22+**
 - **Go Environment Setup**: Ensure you have Go set up as outlined in
   the [Go official installation documentation](https://go.dev/doc/install) for your environment
 
 ## 1. Initialize the node directory
 
 To initialize a new Gno.land node working directory (configuration and secrets), make sure to
-follow [Step 1](./validators-setting-up-a-new-chain#1-generate-the-node-directory-secrets--config) from the
+follow [Step 1](./setting-up-a-new-chain.md#1-generate-the-node-directory-secrets--config) from the
 chain setup tutorial.
 
 ## 2. Obtain the `genesis.json` of the remote chain

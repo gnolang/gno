@@ -13,7 +13,7 @@ Additionally, you will see the different options you can use to make your Gno in
 
 - **Git**
 - **`make` (for running Makefiles)**
-- **Go 1.21+**
+- **Go 1.22+**
 - **Go Environment Setup**: Ensure you have Go set up as outlined in
   the [Go official installation documentation](https://go.dev/doc/install) for your environment
 
