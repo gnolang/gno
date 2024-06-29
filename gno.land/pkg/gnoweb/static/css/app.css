@@ -262,13 +262,17 @@ li > * {
   vertical-align: middle;
 }
 
-input {
+input, textarea {
   background-color: var(--input-background-color, #eee);
   border: 1px solid var(--border-color);
   color: var(--text-color, #000);
   width: 25em;
   padding: 0.4rem 0.5rem;
-  max-width: 100%;x
+  max-width: 100%;
+}
+
+textarea {
+  height: 7em;
 }
 
 blockquote {
