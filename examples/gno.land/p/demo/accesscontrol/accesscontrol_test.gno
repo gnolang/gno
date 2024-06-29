@@ -14,7 +14,7 @@ func TestAccessControl(t *testing.T) {
 	user2 := testutils.TestAddress("user2")
 
 	// Create new RoleData
-	roleData := NewRoleData("admin", admin)
+	roleData := NewRole("admin", admin)
 
 	// Check initial admin role
 	if roleData.AdminRole != admin {
@@ -72,13 +72,13 @@ func TestCreateRole(t *testing.T) {
 	admin := testutils.TestAddress("admin")
 	std.TestSetOrigCaller(admin)
 
-	// Create role data with the administrator
-	roleData := NewRoleData("admin", admin)
+	// Create roles with the administrator
+	roles := &Roles{Admin: admin}
 
 	// Create a new role with a new administrator address
 	newAdmin := testutils.TestAddress("newAdmin")
 	newRoleName := "newRole"
-	newRole := roleData.CreateRole(newRoleName, newAdmin)
+	newRole := roles.CreateRole(newRoleName, newAdmin)
 
 	// Check that the new role has been created correctly
 	if newRole.Name != newRoleName {
@@ -103,7 +103,7 @@ func TestCreateRole(t *testing.T) {
 // TestCallerIsAdmin verifies the CallerIsAdmin method.
 func TestCallerIsAdmin(t *testing.T) {
 	adminRole := testutils.TestAddress("admin-address")
-	roleData := NewRoleData("ExampleRole", adminRole)
+	roleData := NewRole("ExampleRole", adminRole)
 	// Call CallerIsAdmin with admin caller
 	std.TestSetOrigCaller(adminRole)
 	defer func() {
@@ -130,7 +130,7 @@ func TestRevokeRoleNonAdmin(t *testing.T) {
 	user2 := testutils.TestAddress("user2")
 
 	// Create role data with the administrator
-	roleData := NewRoleData("admin", admin)
+	roleData := NewRole("admin", admin)
 
 	// Grant role to user1
 	std.TestSetOrigCaller(admin)
@@ -154,7 +154,7 @@ func TestRevokeRoleNonAdmin(t *testing.T) {
 // Testing the RenounceRole method with Invalid Confirmation
 func TestRenounceRole(t *testing.T) {
 	adminRole := testutils.TestAddress("admin-address")
-	roleData := NewRoleData("ExampleRole", adminRole)
+	roleData := NewRole("ExampleRole", adminRole)
 	account := testutils.TestAddress("user-address")
 	// Simulate the administrator as the current caller
 	std.TestSetOrigCaller(adminRole)
@@ -181,7 +181,7 @@ func TestSetRoleAdmin(t *testing.T) {
 	user := testutils.TestAddress("user")
 
 	// Create role data with the administrator
-	roleData := NewRoleData("admin", admin)
+	roleData := NewRole("admin", admin)
 
 	// Check that the initial administrator is correct
 	if roleData.AdminRole != admin {
