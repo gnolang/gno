@@ -7,7 +7,6 @@ import (
 )
 
 func TestHandleBalanceQuery(t *testing.T) {
-
 	pkgPath := "gno.land/r/demo/wugnot"
 	queryPath := balancesQuery + pkgPath
 
