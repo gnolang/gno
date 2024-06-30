@@ -50,7 +50,7 @@ The `gnoclient` package exposes a `Client` struct containing a `Signer` and
 `RPCClient` connector. `Client` exposes all available functionality for talking
 to a Gno.land chain.
 
-```go 
+```go
 type Client struct {
     Signer    Signer           // Signer for transaction authentication
     RPCClient rpcclient.Client // gnolang/gno/tm2/pkg/bft/rpc/client
@@ -101,8 +101,9 @@ func main() {
 A few things to note:
 - You can view keys in your local keybase by running `gnokey list`.  
 - You can get the password from a user input using the IO package.
-- `Signer` can also be initialized in-memory from a BIP39 mnemonic, using the 
-[`SignerFromBip39`](../reference/gnoclient/signer.md#func-signerfrombip39) function.
+- `Signer` can also be initialized in-memory from a BIP39 mnemonic, using the
+[`SignerFromBip39`](https://gnolang.github.io/gno/github.com/gnolang/gno@v0.0.0/gno.land/pkg/gnoclient.html#SignerFromBip39)
+function.
 
 ## Initialize the RPC connection & Client
 
@@ -115,8 +116,8 @@ if err != nil {
 }
 ```
 
-A list of Gno.land network endpoints & chain IDs can be found in the [Gno RPC 
-endpoints](../reference/rpc-endpoints.md#network-configurations) page. 
+A list of Gno.land network endpoints & chain IDs can be found in the 
+[Gno RPC endpoints](../reference/network-config.md) page.
 
 With this, we can initialize the `gnoclient.Client` struct: 
 

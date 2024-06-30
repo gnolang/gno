@@ -1,26 +1,17 @@
 package main
 
 import (
-	"bufio"
+	"bytes"
 	"context"
-	"errors"
 	"flag"
 	"fmt"
-	"github.com/gnolang/gno/tm2/pkg/commands"
-	"golang.org/x/sync/errgroup"
-	"io"
-	"mvdan.cc/xurls/v2"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
-)
 
-var (
-	errEmptyPath     = errors.New("you need to pass in a path to scan")
-	err404Link       = errors.New("link returned a 404")
-	errFound404Links = errors.New("found links resulting in a 404 response status")
+	"github.com/gnolang/gno/tm2/pkg/commands"
+	"golang.org/x/sync/errgroup"
 )
 
 type cfg struct {
@@ -34,11 +25,17 @@ func main() {
 		commands.Metadata{
 			Name:       "docs-linter",
 			ShortUsage: "docs-linter [flags]",
-			ShortHelp:  "Finds broken 404 links in the .md files in the given folder & subfolders",
+			ShortHelp: `Lints the .md files in the given folder & subfolders.
+Checks for 404 links (local and remote), as well as improperly escaped JSX tags.`,
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {
-			return execLint(cfg, ctx)
+			res, err := execLint(cfg, ctx)
+			if len(res) != 0 {
+				fmt.Println(res)
+			}
+
+			return err
 		})
 
 	cmd.Execute(context.Background(), os.Args[1:])
@@ -53,79 +50,93 @@ func (c *cfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execLint(cfg *cfg, ctx context.Context) error {
+func execLint(cfg *cfg, ctx context.Context) (string, error) {
 	if cfg.docsPath == "" {
-		return errEmptyPath
+		return "", errEmptyPath
 	}
 
-	fmt.Println("Linting docs/")
+	absPath, err := filepath.Abs(cfg.docsPath)
+	if err != nil {
+		return "", fmt.Errorf("error getting absolute path for docs folder: %w", err)
+	}
 
+	// Main buffer to write to the end user after linting
+	var output bytes.Buffer
+	output.WriteString(fmt.Sprintf("Linting %s...\n", absPath))
+
+	// Find docs files to lint
 	mdFiles, err := findFilePaths(cfg.docsPath)
 	if err != nil {
-		return fmt.Errorf("error finding .md files: %w", err)
+		return "", fmt.Errorf("error finding .md files: %w", err)
 	}
 
-	urlFileMap := make(map[string]string)
+	// Make storage maps for tokens to analyze
+	filepathToURLs := make(map[string][]string)      // file path > [urls]
+	filepathToJSX := make(map[string][]string)       // file path > [JSX items]
+	filepathToLocalLink := make(map[string][]string) // file path > [local links]
+
+	// Extract tokens from files
 	for _, filePath := range mdFiles {
-		// Extract URLs from each file
-		urls, err := extractUrls(filePath)
+		// Read file content once and pass it to linters
+		fileContents, err := os.ReadFile(filePath)
 		if err != nil {
-			fmt.Printf("Error extracting URLs from file: %s, %v", filePath, err)
-			continue
+			return "", err
 		}
-		// For each url, save what file it was found in
-		for url, file := range urls {
-			urlFileMap[url] = file
-		}
+
+		// Execute JSX extractor
+		filepathToJSX[filePath] = extractJSX(fileContents)
+
+		// Execute URL extractor
+		filepathToURLs[filePath] = extractUrls(fileContents)
+
+		// Execute local link extractor
+		filepathToLocalLink[filePath] = extractLocalLinks(fileContents)
 	}
 
-	// Filter links by prefix & ignore localhost
-	var validUrls []string
-	for url := range urlFileMap {
-		// Look for http & https only
-		if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
-			// Ignore localhost
-			if !strings.Contains(url, "localhost") && !strings.Contains(url, "127.0.0.1") {
-				validUrls = append(validUrls, url)
-			}
-		}
-	}
-
-	// Setup parallel checking for links
+	// Run linters in parallel
 	g, _ := errgroup.WithContext(ctx)
 
-	var (
-		lock         sync.Mutex
-		notFoundUrls []string
-	)
+	var writeLock sync.Mutex
 
-	for _, url := range validUrls {
-		url := url
-		g.Go(func() error {
-			if err := checkUrl(url); err != nil {
-				lock.Lock()
-				notFoundUrls = append(notFoundUrls, fmt.Sprintf(">>> %s (found in file: %s)", url, urlFileMap[url]))
-				lock.Unlock()
-			}
-
-			return nil
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return err
-	}
-
-	// Print out the URLs that returned a 404 along with the file names
-	if len(notFoundUrls) > 0 {
-		for _, result := range notFoundUrls {
-			fmt.Println(result)
+	g.Go(func() error {
+		res, err := lintJSX(filepathToJSX)
+		if err != nil {
+			writeLock.Lock()
+			output.WriteString(res)
+			writeLock.Unlock()
 		}
 
-		return errFound404Links
+		return err
+	})
+
+	g.Go(func() error {
+		res, err := lintURLs(filepathToURLs, ctx)
+		if err != nil {
+			writeLock.Lock()
+			output.WriteString(res)
+			writeLock.Unlock()
+		}
+
+		return err
+	})
+
+	g.Go(func() error {
+		res, err := lintLocalLinks(filepathToLocalLink, cfg.docsPath)
+		if err != nil {
+			writeLock.Lock()
+			output.WriteString(res)
+			writeLock.Unlock()
+		}
+
+		return err
+	})
+
+	if err = g.Wait(); err != nil {
+		return output.String(), errFoundLintItems
 	}
 
-	return nil
+	output.WriteString("Lint complete, no issues found.")
+	return output.String(), nil
 }
 
 // findFilePaths gathers the file paths for specific file types
@@ -159,60 +170,4 @@ func findFilePaths(startPath string) ([]string, error) {
 	}
 
 	return filePaths, nil
-}
-
-// extractUrls extracts URLs from a file and maps them to the file
-func extractUrls(filePath string) (map[string]string, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-
-	cleanup := func() error {
-		if closeErr := file.Close(); closeErr != nil {
-			return fmt.Errorf("unable to gracefully close file, %w", closeErr)
-		}
-		return nil
-	}
-
-	scanner := bufio.NewScanner(file)
-	urls := make(map[string]string)
-
-	// Scan file line by line
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		// Extract links
-		rxStrict := xurls.Strict()
-		url := rxStrict.FindString(line)
-
-		// Check for empty links and skip them
-		if url == " " || len(url) == 0 {
-			continue
-		}
-
-		urls[url] = filePath
-	}
-
-	return urls, cleanup()
-}
-
-// checkUrl checks if a URL is a 404
-func checkUrl(url string) error {
-	// Attempt to retrieve the HTTP header
-	resp, err := http.Get(url)
-	if err != nil || resp.StatusCode == http.StatusNotFound {
-		return err404Link
-	}
-
-	// Ensure the response body is closed properly
-	cleanup := func(Body io.ReadCloser) error {
-		if err := Body.Close(); err != nil {
-			return fmt.Errorf("could not close response properly: %w", err)
-		}
-
-		return nil
-	}
-
-	return cleanup(resp.Body)
 }
