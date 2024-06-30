@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/encoding/json"
 )
@@ -13,21 +14,20 @@ import (
 const defaultIndent = "  "
 const defaultRecursionLimit = 10000
 
-// Format formats the message as a multiline string.
-// This function is only intended for human consumption and ignores errors.
-// Do not depend on the output being stable.
-// func Format(m *TypedValue) string {
-// 	return MarshalOptions{Multiline: true}.Format(m)
-// }
+func (tv *TypedValue) MarshalJSON() ([]byte, error) {
+	return MarshalOptions{}.Marshal(tv)
+}
 
-// Marshal writes the given [*TypedValue] in JSON format using default options.
-// Do not depend on the output being stable. Its output will change across
-// different builds of your program, even when using the same version of the
-// protobuf module.
-func (tv *TypedValue) Marshal() ([]byte, error) {
-	return MarshalOptions{
-		Store: nil,
-	}.Marshal(tv)
+func (tv *TypedValue) MarshalJSONAmino() ([]byte, error) {
+	return MarshalOptions{}.Marshal(tv)
+}
+
+func (tv *TypedValue) UnmarshalJSON(b []byte) error {
+	return UnmarshalOptions{}.Unmarshal(b, tv)
+}
+
+func (tv *TypedValue) UnmarshalJSONAmino(b []byte) error {
+	return UnmarshalOptions{}.Unmarshal(b, tv)
 }
 
 // MarshalOptions is a configurable JSON format marshaler.
@@ -50,15 +50,10 @@ type MarshalOptions struct {
 	// producing an {@type: <str>, "oid": <str>} obj
 	FillRefValue bool
 
-	// Resolver is used for looking up types when expanding google.protobuf.Any
-	// messages. If nil, this defaults to using protoregistry.GlobalTypes.
-	// Resolver interface {
-	// 	protoregistry.ExtensionTypeResolver
-	// 	protoregistry.MessageTypeResolver
-	// }
-
+	// XXX: TODO
 	Store Store
 
+	// XXX: TODO
 	Alloc *Allocator
 }
 
@@ -75,46 +70,26 @@ type UnmarshalOptions struct {
 	// If zero, a default limit is applied.
 	RecursionLimit int
 
+	// XXX: TODO
 	Store Store
 
+	// XXX: TODO
 	Alloc *Allocator
 }
 
-// Format formats the message as a string.
-// This method is only intended for human consumption and ignores errors.
-// Do not depend on the output being stable. Its output will change across
-// different builds of your program, even when using the same version of the
-// protobuf module.
-// XXX: ignore me ?
-// func (o MarshalOptions) Format(m *TypedValue) string {
-// 	if m == nil || !m.ProtoReflect().IsValid() {
-// 		return "<nil>" // invalid syntax, but okay since this is for debugging
-// 	}
-// 	o.AllowPartial = true
-// 	b, _ := o.Marshal(m)
-// 	return string(b)
-// }
-
-// Marshal marshals the given [*TypedValue] in the JSON format using options in
-// Do not depend on the output being stable. Its output will change across
-// different builds of your program, even when using the same version of the
-// protobuf module.
 func (o MarshalOptions) Marshal(tv *TypedValue) ([]byte, error) {
 	return o.marshal(nil, tv)
 }
 
-// Unmarshal reads the given []byte and populates the given [proto.Message]
+// Unmarshal reads the given []byte and populates the given [TypedValue]
 // using options in the UnmarshalOptions object.
-// It will clear the message first before setting the fields.
-// If it returns an error, the given message may be partially set.
-// The provided message must be mutable (e.g., a non-nil pointer to a message).
+// It will clear the Value first.
+// For now Type T must be set to be able to unarshal value from byte.
 func (o UnmarshalOptions) Unmarshal(b []byte, tv *TypedValue) error {
 	return o.unmarshal(b, tv)
 }
 
 // unmarshal is a centralized function that all unmarshal operations go through.
-// For profiling purposes, avoid changing the name of this function or
-// introducing other code paths for unmarshal that do not go through this.
 func (o UnmarshalOptions) unmarshal(b []byte, tv *TypedValue) error {
 	// tv.Reset()  XXX: reset typed value ?
 	if o.Alloc == nil {
@@ -130,7 +105,7 @@ func (o UnmarshalOptions) unmarshal(b []byte, tv *TypedValue) error {
 	}
 
 	dec := decoder{json.NewDecoder(b), o}
-	if err := dec.unmarshalMessage(tv, false); err != nil {
+	if err := dec.unmarshalValue(tv); err != nil {
 		return err
 	}
 
@@ -153,8 +128,6 @@ func (o MarshalOptions) MarshalAppend(b []byte, m *TypedValue) ([]byte, error) {
 }
 
 // marshal is a centralized function that all marshal operations go through.
-// For profiling purposes, avoid changing the name of this function or
-// introducing other code paths for marshal that do not go through this.
 func (o MarshalOptions) marshal(b []byte, tv *TypedValue) ([]byte, error) {
 	if o.Multiline && o.Indent == "" {
 		o.Indent = defaultIndent
@@ -167,12 +140,6 @@ func (o MarshalOptions) marshal(b []byte, tv *TypedValue) ([]byte, error) {
 	if o.Store == nil {
 		o.Store = NewStore(o.Alloc, nil, nil)
 	}
-
-	// XXX: Use store as resolver
-	// if o.Store == nil {
-	// 	panic("no store has been set")
-	// 	// o.Resolver = protoregistry.GlobalTypes
-	// }
 
 	var buff bytes.Buffer
 	internalEnc, err := json.NewEncoder(b, &buff, o.Indent)
@@ -228,105 +195,56 @@ func (d decoder) syntaxError(pos int, f string, x ...any) error {
 	return fmt.Errorf(head+f, x...)
 }
 
-type marshalFunc func(encoder, *TypedValue) error
+// marshalValue marshals the fields in the given TypedValue.
+func (e encoder) marshalValue(tv *TypedValue) error {
+	if tv.T == nil {
+		e.WriteNull()
+		return nil
+	}
 
-// wellKnownTypeMarshaler returns a marshal function if the message type
-// has specialized serialization behavior. It returns nil otherwise.
-func wellKnownTypeMarshaler(tv *TypedValue) marshalFunc {
 	switch tv.T.Kind() {
 	case BoolKind, StringKind,
 		IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
 		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
 		Float32Kind, Float64Kind,
 		BigintKind, BigdecKind:
-		return encoder.marshalSingular
+		return e.marshalScalar(tv)
 
 	case StructKind:
-		return encoder.marshalStructValue
+		return e.marshalStructValue(tv)
 
 	case ArrayKind, SliceKind, TupleKind: // List
-		return encoder.marshalListValue
+		return e.marshalListValue(tv)
 
 	case InterfaceKind:
-		return encoder.marshalAny
+		return e.marshalAny(tv)
 
 	case PointerKind:
-		return encoder.marshalPointerValue
-
-	case RefTypeKind:
-		return nil
+		return e.marshalPointerValue(tv)
+	default:
+		return fmt.Errorf("unable to marshal unknown type: %q", tv.T.Kind())
 	}
 
-	return nil
-}
+	// fmt.Printf("%+#v\n", tv.V)
+	// // store := e.opts.Store
 
-type unmarshalFunc func(decoder, *TypedValue) error
-
-// wellKnownTypeUnmarshaler returns a unmarshal function if the message type
-// has specialized serialization behavior. It returns nil otherwise.
-func wellKnownTypeUnmarshaler(tv *TypedValue) unmarshalFunc {
-	switch tv.T.Kind() {
-	case BoolKind, StringKind,
-		IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
-		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
-		Float32Kind, Float64Kind,
-		BigintKind, BigdecKind:
-		return decoder.unmarshalSingular
-
-	// case StructKind:
-	// 	return decoder.unmarshalStructValue
-
-	// case ArrayKind, SliceKind, TupleKind: // List
-	// 	return decoder.unmarshalListValue
-
-	// case InterfaceKind:
-	// 	return decoder.unmarshalAny
-
-	// case PointerKind:
-	// 	return decoder.unmarshalPointerValue
-
-	case RefTypeKind:
-		return nil
-	}
-
-	return nil
-}
-
-// marshalValue marshals the fields in the given TypedValue.
-// If the typeURL is non-empty, then a synthetic "@type" field is injected
-// containing the URL as the value.
-func (e encoder) marshalValue(tv *TypedValue) error {
-	if marshal := wellKnownTypeMarshaler(tv); marshal != nil {
-		return marshal(e, tv)
-	}
-
-	e.StartObject()
-	defer e.EndObject()
-
-	if tv.V == nil {
-		return nil
-	}
-
-	fmt.Printf("%+#v\n", tv.V)
-	// store := e.opts.Store
-
-	var typeURL string
-	var oid string
-	// switch cv := tv.V.(type) {
-	// case TypeValue:
+	// var typeURL string
+	// var oid string
+	// // switch cv := tv.V.(type) {
+	// // case TypeValue:
 
 	// }
 
-	v := copyValueWithRefs(tv.V)
-	fmt.Printf("%#v\n", v)
+	// v := copyValueWithRefs(tv.V)
+	// fmt.Printf("%#v\n", v)
 
-	if ctv, ok := tv.V.(TypeValue); ok {
-		switch cv := ctv.Type.(type) {
-		case *DeclaredType:
+	// if ctv, ok := tv.V.(TypeValue); ok {
+	// 	switch cv := ctv.Type.(type) {
+	// 	case *DeclaredType:
 
-			fmt.Println(cv)
-		}
-	}
+	// 		fmt.Println(cv)
+	// 	}
+	// }
 
 	// default:
 	// 	panic("NOOO")
@@ -364,28 +282,48 @@ func (e encoder) marshalValue(tv *TypedValue) error {
 	// do nothing
 	// }
 
-	_, _ = oid, typeURL
+	// _, _ = oid, typeURL
 
 	return nil
 }
 
-// unmarshalMessage unmarshals a message into the given protoreflect.Message.
-func (d decoder) unmarshalMessage(tv *TypedValue, skipTypeURL bool) error {
+func (d decoder) unmarshalValue(tv *TypedValue) error {
 	d.opts.RecursionLimit--
 	if d.opts.RecursionLimit < 0 {
 		return errors.New("exceeded max recursion depth")
 	}
-	if unmarshal := wellKnownTypeUnmarshaler(tv); unmarshal != nil {
-		return unmarshal(d, tv)
+
+	switch tv.T.Kind() {
+	case BoolKind, StringKind,
+		IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
+		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
+		Float32Kind, Float64Kind,
+		BigintKind, BigdecKind:
+		return d.unmarshalSingular(tv)
+
+		// case StructKind:
+		// 	return decoder.unmarshalStructValue
+
+		// case ArrayKind, SliceKind, TupleKind: // List
+		// 	return decoder.unmarshalListValue
+
+		// case InterfaceKind:
+		// 	return decoder.unmarshalAny
+
+		// case PointerKind:
+		// 	return decoder.unmarshalPointerValue
+
 	}
 
-	tok, err := d.Read()
-	if err != nil {
-		return err
-	}
-	if tok.Kind() != json.ObjectOpen {
-		return d.unexpectedTokenError(tok)
-	}
+	panic("not implemented")
+
+	// tok, err := d.Read()
+	// if err != nil {
+	// 	return err
+	// }
+	// if tok.Kind() != json.ObjectOpen {
+	// 	return d.unexpectedTokenError(tok)
+	// }
 
 	// messageDesc := m.Descriptor()
 	// if !flags.ProtoLegacy && messageset.IsMessageSet(messageDesc) {
@@ -503,9 +441,9 @@ func (d decoder) unmarshalMessage(tv *TypedValue, skipTypeURL bool) error {
 	return nil
 }
 
-// marshalSingular marshals the given non-repeated field value. This includes
+// marshalScalar marshals the given non-repeated field value. This includes
 // all scalar types, enums, messages, and groups.
-func (e encoder) marshalSingular(tv *TypedValue) error {
+func (e encoder) marshalScalar(tv *TypedValue) error {
 	if len(tv.N) == 0 {
 		e.WriteNull()
 		return nil
@@ -543,11 +481,6 @@ func (e encoder) marshalSingular(tv *TypedValue) error {
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind.String()))
 	}
-
-	// case protoreflect.MessageKind, protoreflect.GroupKind:
-	// 	if err := e.marshalMessage(val.Message(), ""); err != nil {
-	// 		return err
-	// 	}
 
 	return nil
 }
@@ -761,8 +694,9 @@ func unmarshalFloat(tv *TypedValue, tok json.Token) bool {
 		return setFloat(tv, tok, bitSize)
 
 	case json.String:
-		// XXX: do we need to suuport this
 		s := tok.ParsedString()
+
+		// XXX: do we need to suport this
 		// switch s {
 		// case "NaN":
 		// 	if bitSize == 32 {
@@ -822,7 +756,7 @@ func setFloat(tv *TypedValue, tok json.Token, bitSize int) bool {
 // custom JSON representation, that representation will be embedded adding a
 // field `value` which holds the custom JSON in addition to the `@type` field.
 func (e encoder) marshalAny(tv *TypedValue) error {
-	return fmt.Errorf("any: TODO")
+	panic("no implemented")
 }
 
 var ErrRecursivePointer = errors.New(`recursive detected`)
@@ -830,26 +764,25 @@ var ErrMissingType = errors.New(`missing "@type" field`)
 var ErrEmptyObject = errors.New(`empty object`)
 
 // Wrapper types are encoded as JSON primitives like string, number or boolean.
-
 func (e encoder) marshalPointerValue(tv *TypedValue) error {
+	if tv.V == nil {
+		return nil
+	}
+
 	pv := tv.V.(PointerValue)
 	o, ok := pv.Base.(Object)
 	if !ok {
 		panic(ErrEmptyObject)
 	}
 
-	if e.store() == nil {
-		id := o.GetObjectID()
-		if e.cache[id.String()] {
-			panic(ErrRecursivePointer)
-		}
-		e.cache[id.String()] = true
-
-		etv := pv.Deref()
-		return e.marshalValue(&etv)
+	id := o.GetObjectID()
+	if e.cache[id.String()] {
+		panic(ErrRecursivePointer)
 	}
+	e.cache[id.String()] = true
 
-	panic("not supported")
+	etv := pv.Deref()
+	return e.marshalValue(&etv)
 }
 
 func (e encoder) marshalStructValue(tv *TypedValue) error {
@@ -862,21 +795,30 @@ func (e encoder) marshalStructValue(tv *TypedValue) error {
 	for i := range st.Fields {
 		ft := st.Fields[i]
 		jsontag := ft.Tag.Get("json")
+		name, opts, hasOpts := parseTagValue(jsontag)
+		if !isValidTag(name) {
+			name = ""
+		}
+
+		if name == "-" && !hasOpts {
+			continue
+		}
+
 		if !ft.IsExported() {
 			if jsontag != "" {
-				return fmt.Errorf("struct field %s has json tag but is not exported", ft.Name)
+				return fmt.Errorf("struct field %q has json tag but is not exported", ft.Name)
 			}
 
 			continue
 		}
 
 		fv := &sv.Fields[i]
-		if _, omitempty := ft.Tag.Lookup("omitempty"); omitempty && isEmptyValue(fv) {
+		if opts.Contains("omitempty") && isEmptyValue(fv) {
 			continue
 		}
 
-		if jsontag != "" {
-			e.WriteName(jsontag)
+		if name != "" {
+			e.WriteName(name)
 		} else {
 			e.WriteName(string(ft.Name))
 		}
@@ -889,7 +831,59 @@ func (e encoder) marshalStructValue(tv *TypedValue) error {
 	return nil
 }
 
+// tagOptions is the string following a comma in a struct field's "json"
+// tag, or the empty string. It does not include the leading comma.
+type tagOptions string
+
+// parseTag splits a struct field's json tag into its name and
+// comma-separated options.
+func parseTagValue(tag string) (string, tagOptions, bool) {
+	tag, opt, ok := strings.Cut(tag, ",")
+	return tag, tagOptions(opt), ok
+}
+
+// Contains reports whether a comma-separated list of options
+// contains a particular substr flag. substr must be surrounded by a
+// string boundary or commas.
+func (o tagOptions) Contains(optionName string) bool {
+	if len(o) == 0 {
+		return false
+	}
+	s := string(o)
+	for s != "" {
+		var name string
+		name, s, _ = strings.Cut(s, ",")
+		if name == optionName {
+			return true
+		}
+	}
+	return false
+}
+
+func isValidTag(s string) bool {
+	// Reserve '@' prefix for special tag
+	if s == "" || s[0] == '@' {
+		return false
+	}
+
+	for _, c := range s {
+		switch {
+		case strings.ContainsRune("!#$%&()*+-./:;<=>?@[]^_{|}~ ", c):
+			// Backslash and quote chars are reserved, but
+			// otherwise any punctuation chars are allowed
+			// in a tag name.
+		case !unicode.IsLetter(c) && !unicode.IsDigit(c):
+			return false
+		}
+	}
+	return true
+}
+
 func isEmptyValue(tv *TypedValue) bool {
+	if tv.T == nil {
+		return true
+	}
+
 	switch tv.T.Kind() {
 	case ArrayKind, MapKind, SliceKind, StringKind:
 		return tv.GetLength() == 0
@@ -949,10 +943,6 @@ func (e encoder) marshalSliceValue(tv *TypedValue) {
 		return
 	case RefValue:
 		store := e.store()
-		if store == nil {
-			return // cannot guess rev without a store
-		}
-
 		av = store.GetObject(cv.ObjectID).(*ArrayValue)
 		sv.Base = av
 
@@ -968,7 +958,7 @@ func (e encoder) marshalSliceValue(tv *TypedValue) {
 	}
 
 	for i := svo; i < svo+svl; i++ {
-		e.marshalSingular(&av.List[i])
+		e.marshalValue(&av.List[i])
 	}
 }
 

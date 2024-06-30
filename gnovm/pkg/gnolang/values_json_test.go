@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gotuna/gotuna/test/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,6 +21,9 @@ func TestTypedValueMarshalJSON_Primitive(t *testing.T) {
 		ArgRep   string // string representation
 	}{
 		// Boolean
+		{"nil", "null"},
+
+		// Boolean
 		{"true", "true"},
 		{"false", "false"},
 
@@ -28,14 +32,14 @@ func TestTypedValueMarshalJSON_Primitive(t *testing.T) {
 		{"int8(42)", `42`},
 		{"int16(42)", `42`},
 		{"int32(42)", `42`},
-		{"int64(42)", `42`}, // Needs to be quoted for amino
+		{"int64(42)", `42`},
 
 		// uint types
-		{"uint(42)", `42`}, // Needs to be quoted for amino
+		{"uint(42)", `42`},
 		{"uint8(42)", `42`},
 		{"uint16(42)", `42`},
 		{"uint32(42)", `42`},
-		{"uint64(42)", `42`}, // Needs to be quoted for amino
+		{"uint64(42)", `42`},
 
 		// Float types // XXX: Require amino unsafe
 		// {"float32(3.14)", "3.14"},
@@ -63,7 +67,7 @@ func TestTypedValueMarshalJSON_Primitive(t *testing.T) {
 			require.Len(t, tps, 1)
 
 			t.Run("Marshal", func(t *testing.T) {
-				raw, err := tps[0].Marshal()
+				raw, err := tps[0].MarshalJSON()
 				require.NoError(t, err)
 				assert.Equal(t, tc.ArgRep, string(raw))
 			})
@@ -88,6 +92,10 @@ func TestTypedValueMarshalJSON_Array(t *testing.T) {
 		{`[]int{1, 2, 3, 4, 5}`, `[1,2,3,4,5]`},
 		{`[]uint{1, 2, 3, 4, 5}`, `[1,2,3,4,5]`},
 		{`[]string{"hello", "world"}`, `["hello","world"]`},
+		{
+			`[]interface{}{"hello", 32, true, struct{A string}{"high"}}`,
+			`["hello",32,true,{"A":"high"}]`,
+		},
 
 		// XXX: Amino
 		// {`[]int{1, 2, 3, 4, 5}`, `["1","2","3","4","5"]`},
@@ -119,7 +127,7 @@ func TestTypedValueMarshalJSON_Array(t *testing.T) {
 			tv := tps[0]
 
 			t.Run("Marshal", func(t *testing.T) {
-				raw, err := tv.Marshal()
+				raw, err := tv.MarshalJSON()
 				require.NoError(t, err)
 				assert.Equal(t, tc.ArgRep, string(raw))
 			})
@@ -147,7 +155,8 @@ type Simple struct {
 type Tags struct {
 	A int ` + "`json:\"valueA\"`" + `
 	B string ` + "`json:\"valueB\"`" + `
-	C bool ` + "`json:\"valueC\"`" + `
+	C bool ` + "`json:\"valueC,omitempty\"`" + `
+	D *Simple ` + "`json:\"valueD,omitempty\"`" + `
 }
 
 // Struct with unexported field
@@ -171,31 +180,60 @@ type Interface struct {
 
 func TestTypedValueMarshalJSON_Struct(t *testing.T) {
 	cases := []struct {
-		ValueRep string // string representation
-		Expected string // string representation
+		ValueRep      string // s tring representation
+		Expected      string // string representation
+		ExpectedAmino string // string representation
 	}{
 		{
 			`Simple{}`,
 			`{"A":0,"B":"","C":false}`,
+			`{"A":"0","B":"","C":false}`,
 		},
 		{
 			`Simple{A:0, B:"",C:false}`,
 			`{"A":0,"B":"","C":false}`,
+			`{"A":"0","B":"","C":false}`,
 		},
 		{
 			`Simple{A:42,B:"hello gno",C:true}`,
 			`{"A":42,"B":"hello gno","C":true}`,
+			`{"A":"42","B":"hello gno","C":true}`,
 		},
+		{
+			`Simple{A:42,B:"hello gno",C:true}`,
+			`{"A":42,"B":"hello gno","C":true}`,
+			`{"A":"42","B":"hello gno","C":true}`,
+		},
+
+		// Tag
 		{
 			`Tags{A:42,B:"hello gno",C:true}`,
 			`{"valueA":42,"valueB":"hello gno","valueC":true}`,
+			`{"valueA":"42","valueB":"hello gno","valueC":true}`,
 		},
+
+		// Nested
 		{
 			`Nested{A:43,B: &Simple{A:42,B:"hello gno",C:true}}`,
 			`{"A":43,"B":{"A":42,"B":"hello gno","C":true}}`,
+			`{"A":"43","B":{"A":42,"B":"hello gno","C":true}}`,
 		},
 
-		{`Unexported{A:42}`, `{"A":42}`},
+		// Interface
+		{
+			`Interface{A:42, I: nil}`,
+			`{"A":42,"I":null}"`,
+			`{"A":"42","I":null}"`,
+		},
+
+		{
+			`Interface{A:42, I: &Simple{A: 42}}`,
+			`{"A":42,"I":{"A":42,"B":"","C":false}}`,
+			`{"A":"42","I":{"A":"42","B":"","C":false}}`,
+		},
+
+		// Unexported
+		{`Unexported{A:42}`, `{"A":42}`, `{"A":"42"}`},
 
 		// XXX: amino
 		// {
@@ -247,7 +285,7 @@ func TestTypedValueMarshalJSON_Struct(t *testing.T) {
 			tv := tps[0]
 
 			t.Run("Marshal", func(t *testing.T) {
-				raw, err := tv.Marshal()
+				raw, err := tv.MarshalJSON()
 				require.NoError(t, err)
 				assert.Equal(t, tc.Expected, string(raw))
 			})
@@ -275,7 +313,7 @@ func init() {
 }
 `
 
-// // TestTypedValueMarshal_RecursiveMarshalPanic tests marshaling of recursive structures.
+// TestTypedValueMarshal_RecursiveMarshalPanic tests marshaling of recursive structures.
 func TestTypedValueMarshal_RecursiveMarshalPanic(t *testing.T) {
 	m := NewMachine(pkgpath, nil)
 	defer m.Release()
@@ -291,6 +329,51 @@ func TestTypedValueMarshal_RecursiveMarshalPanic(t *testing.T) {
 	require.PanicsWithError(t,
 		ErrRecursivePointer.Error(),
 		func() {
-			tv.Marshal()
+			tv.MarshalJSON()
 		})
+}
+
+const RefValueFile = `
+package refvalue
+
+import "testdata"
+
+var Value = testdata.Simple{}
+`
+
+func TestTypedValueMarshal_RefValue(t *testing.T) {
+	m := NewMachine(pkgpath, nil)
+	defer m.Release()
+
+	sf := std.MemFile{
+		Name: "struct.gno",
+		Body: StructsFile,
+	}
+	m.RunMemPackage(&std.MemPackage{
+		Name:  "testdata",
+		Path:  "testdata",
+		Files: []*std.MemFile{&sf},
+	}, false)
+
+	rf := std.MemFile{
+		Name: "ref.gno",
+		Body: RefValueFile,
+	}
+	m.RunMemPackage(&std.MemPackage{
+		Name:  "refvalue",
+		Path:  "refvalue",
+		Files: []*std.MemFile{&rf},
+	}, false)
+
+	// sn := MustParseFile("structs.gno", StructsFile)
+	m.RunDeclaration(ImportD("refvalue", "refvalue"))
+
+	tps := m.Eval(Sel(Nx("refvalue"), "Value"))
+	require.Len(t, tps, 1)
+	tv := tps[0]
+
+	raw, err := tv.MarshalJSON()
+	require.NoError(t, err)
+	println(string(raw))
+
 }
