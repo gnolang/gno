@@ -1,8 +1,9 @@
 package client
 
 import (
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"testing"
+
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
 func TestHandleBalanceQuery(t *testing.T) {
