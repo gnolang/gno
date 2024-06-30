@@ -108,7 +108,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// cannot add or remove statements from bodies.
 	for _, fn := range fset.Files {
 		findGotoLoopDefines(pn, fn)
-		findLoopEscapedNames(pn, fn)
+		findGotoLoopUses(pn, fn)
 	}
 }
 
@@ -2329,6 +2329,9 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 					}
 
 					// recurse and mark stmts as ATTR_GOTOLOOP_STMT
+					// We don't really need ATTR_GOTOLOOP_STMT,
+					// but the logic is here and might use it one day,
+					// so keep for a while.
 					Transcribe(bn,
 						func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 							switch stage {
@@ -2366,9 +2369,6 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 					if val := n.GetAttribute(ATTR_GOTOLOOP_STMT); val == nil || !val.(bool) {
 						panic("ATTR_GOTOLOOP_STMT not set for last goto stmt")
 					}
-					// XXX
-					// n.SetAttribute(ATTR_GOTO_BLOCKNODE, bn)
-					//n.SetAttribute(ATTR_GOTO_LABEL_LINE, labelLine)
 				}
 			}
 			// finalization.
@@ -2384,18 +2384,18 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	})
 }
 
-// find escaped names from for/range loops, and goto loops,
-// set nameExpr type as NameExprTypeLoopDefine, used as a
-// dependency in the future.
-func findLoopEscapedNames(ctx BlockNode, bn BlockNode) {
-	// XXX continue work here...
-	xxx
+// Find uses of loop names; those names that are defined as loop defines;
+// defines within loops that are used as reference or captured in a closure
+// later. Also happens to adjust the type and paths of such usage.
+// If there is no usage of the &name or as closure capture, a
+// NameExprTypeLoopDefine gets demoted to NameExprTypeDefine in demoteLoopDefines().
+func findLoopUses(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
 	stack = append(stack, last)
 
-	// iterate over all nodes recursively.
+	// Iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 
 		defer func() {
@@ -2425,95 +2425,56 @@ func findLoopEscapedNames(ctx BlockNode, bn BlockNode) {
 		}()
 
 		if debug {
-			debug.Printf("findLoopEscapedNames %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("findLoopUses %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
-			case *BranchStmt:
-				switch n.Op {
-				case GOTO:
-					if pn, ok := n.GetAttribute(ATTR_GOTO_BLOCKNODE).(BlockNode); ok {
-						// indicates that a goto loop exists, set by last phase.
-						labelLine := n.GetAttribute(n.Label).(int) // set in last phase
-						gotoLine := n.GetLine()
-
-						debug.Printf("gotoLine :%d, labelLine: %d \n", gotoLine, labelLine)
-
-						// list all stmts within goto loop
-						for _, s := range pn.GetBody() {
-							if s.GetLine() >= labelLine && s.GetLine() <= gotoLine {
-								if s.GetAttribute(ATTR_GOTOLOOP_STMT) != true {
-									panic("should not happen")
-								}
-								switch s := s.(type) {
-								case *AssignStmt:
-									// TODO: a, b := 1, 2, b, c := 3, 4?
-									// check if b is first declared within/without the goto loop.
-									if s.Op == DEFINE {
-										debug.Println("---define stmt, s: ", s)
-										for _, x := range s.Lhs {
-											if nx, ok := x.(*NameExpr); !ok {
-												panic("should not happen")
-											} else {
-												if nx.Name != blankIdentifier {
-													fmt.Println("---define, set type as loop defined for nx: ", nx)
-													nx.Type = NameExprTypeLoopDefine
-												}
-											}
-										}
-									}
-								case *DeclStmt:
-									// XXX
-									if d, ok := s.Body[0].(*ValueDecl); ok {
-										for _, nx := range d.NameExprs {
-											if nx.Name != blankIdentifier {
-												fmt.Println("---var decl, set type as loop defined for nx: ", nx)
-												nx.Type = NameExprTypeLoopDefine
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			case *ForStmt:
-				// find all defined values in for loop, and set nameExpr type
-				// handle init to set type for `loopvar`
-				if as, ok := n.Init.(*AssignStmt); ok {
-					// TODO: a, b := 1, 2, b, c := 3, 4?
-					// check if b is first declared within/without the goto loop.
-					if as.Op == DEFINE { // only for define in faux block
-						if nx, ok := as.Lhs[0].(*NameExpr); !ok {
-							panic("should not happen")
+			case *NameExpr:
+				switch n.Type {
+				case NameExprTypeNormal:
+					// Find the block where name is defined
+					dbn := last.GetBlockNodeForPath(nil, n.Path)
+					// if the name is loop defined,
+					lds := dbn.GetAttribute(ATTR_LOOP_DEFINES)
+					if hasName(lds, n.Name) {
+						depth, found := findFirstClosure(stack, dbn)
+						if found {
+							// If across a closure,
+							// mark name as loop used.
+							addAttrLoopUse(dbn, n.Name)
+							// Also adjust NameExpr type and path.
+							// We could do this in a later phase too.
+							n.Type = NameExprTypeLoopClosure
+							n.Path.Depth = depth
+							// NOTE: this index will be overwritten later.
+							n.Path.Index = indexOfName(lds, n.Name)
 						} else {
-							if nx.Name != blankIdentifier {
-								debug.Println("---for init, set type as loop defined for nx: ", nx)
-								nx.Type = NameExprTypeLoopDefine
+							if ftype == TRANS_REF_X {
+								// if used as a reference,
+								// mark name as loop used.
+								addAttrLoopUse(dbn, n.Name)
+								// Also adjust NameExpr type.
+								// We could do this later too.
+								n.Type = NameExprTypeLoopUse
 							}
 						}
+					} else {
+						// if the name is not loop defined,
+						// do nothing.
 					}
+				case NameExprTypeDefine:
+					// nothing to do.
+				case NameExprTypeLoopDefine:
+					// Set name in attribute, so later matches
+					// on NameExpr can know that this was loop defined
+					// on this block.
+					setAttrLoopDefines(last, n.Name)
+				case NameExprTypeLoopUse, NameExprTypeLoopClosure:
+					panic("unexpected node type")
 				}
-				// handle stmts
-				for _, s := range n.Body {
-					if as, ok := s.(*AssignStmt); ok && as.Op == DEFINE {
-						for _, lx := range as.Lhs {
-							if nx, ok := lx.(*NameExpr); !ok {
-								panic("should not happen")
-							} else {
-								if nx.Name != blankIdentifier {
-									fmt.Println("---for body, set type as loop defined for nx: ", nx)
-									nx.Type = NameExprTypeLoopDefine
-								}
-							}
-						}
-					}
-				}
-			case *RangeStmt:
-				// TODO:
 			}
 			return n, TRANS_CONTINUE
 
@@ -2523,6 +2484,168 @@ func findLoopEscapedNames(ctx BlockNode, bn BlockNode) {
 		}
 		return n, TRANS_CONTINUE
 	})
+}
+
+func assertNotHasName(names []Name, name Name) {
+	if hasName(names, name) {
+		panic("name already contained in names")
+	}
+}
+
+func setAttrLoopDefine(bn BlockNode, name Name) {
+	bnLDs := bn.GetAttribute(ATTR_LOOP_DEFINES)
+	assertNotHasName(bnLDs, name)
+	bnLDs = append(bnLDs, name)
+	bn.SetAttribute(ATTR_LOOP_DEFINES)
+}
+
+func addAttrLoopUse(bn BlockNode, name Name) {
+	bnLUs := bn.GetAttribute(ATTR_LOOP_USES)
+	assertNotHasName(bnLUs, name)
+	if hasName(bnLUs, name) {
+		return
+	} else {
+		bnLUs = append(bnLUs, name)
+		bn.SetAttribute(ATTR_LOOP_USES)
+		return
+	}
+}
+
+// finds the first FuncLitExpr in the stack at or after stop.
+// returns the depth of first closure, 1 if stop itself is a closure,
+// or 0 if not found.
+func findFirstClosure(stack []BlockNode, stop BlockNode) (depth int, found bool) {
+	for i := len(stack) - 1; i >= 0; i-- {
+		stbn := stack[i]
+		switch stbn.(type) {
+		case *FuncLitExpr:
+			depth = len(stack) - 1 - i + 1 // +1 since 1 is lowest.
+			found = true
+			// even if found, continue iteration in case
+			// an earlier *FuncLitExpr is found.
+			fallthrough // in case stop is *FuncLitExpr
+		default:
+			if stbn == stop {
+				return
+			}
+		}
+	}
+	panic("stop not found in stack")
+}
+
+// NameExprTypeLoopDefine gets demoted to NameExprTypeDefine if no actual
+// usage was found that warrants a NameExprTypeLoopDefine.
+func findLoopUses(ctx BlockNode, bn BlockNode) {
+	// create stack of BlockNodes.
+	var stack []BlockNode = make([]BlockNode, 0, 32)
+	var last BlockNode = ctx
+	stack = append(stack, last)
+
+	// Iterate over all nodes recursively.
+	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+
+		defer func() {
+			if r := recover(); r != nil {
+				// before re-throwing the error, append location information to message.
+				loc := last.GetLocation()
+				if nline := n.GetLine(); nline > 0 {
+					loc.Line = nline
+				}
+
+				var err error
+				rerr, ok := r.(error)
+				if ok {
+					// NOTE: gotuna/gorilla expects error exceptions.
+					err = errors.Wrap(rerr, loc.String())
+				} else {
+					// NOTE: gotuna/gorilla expects error exceptions.
+					err = fmt.Errorf("%s: %v", loc.String(), r)
+				}
+
+				// Re-throw the error after wrapping it with the preprocessing stack information.
+				panic(&PreprocessError{
+					err:   err,
+					stack: stack,
+				})
+			}
+		}()
+
+		if debug {
+			debug.Printf("findLoopUses %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+		}
+
+		switch stage {
+		// ----------------------------------------
+		case TRANS_ENTER:
+			switch n := n.(type) {
+			case *NameExpr:
+				switch n.Type {
+				case NameExprTypeNormal:
+					// Find the block where name is defined
+					dbn := last.GetBlockNodeForPath(nil, n.Path)
+					// if the name is loop defined,
+					lds := dbn.GetAttribute(ATTR_LOOP_DEFINES)
+					if hasName(lds, n.Name) {
+						// if the name is actually loop used,
+						lus := dbn.GetAttribute(ATTR_LOOP_USES)
+						if hasName(lus, n.Name) {
+							// change type finally to LoopUse.
+							n.Type = NameExprTypeLoopUse
+						} else {
+							// else, will be demoted in later clause.
+						}
+					}
+				case NameExprTypeLoopDefine:
+					// Find the block where name is defined
+					dbn := last.GetBlockNodeForPath(nil, n.Path)
+					// if the name is loop defined,
+					lds := dbn.GetAttribute(ATTR_LOOP_DEFINES)
+					if hasName(lds, n.Name) {
+						// if the name is actually loop used,
+						lus := dbn.GetAttribute(ATTR_LOOP_USES)
+						if !hasName(lus, n.Name) {
+							// demote type finally to Define.
+							n.Type = NameExprTypeDefine
+						}
+					}
+				case NameExprTypeLoopClosure:
+					// adjust the ValuePath index based on use.
+					dbn := last.GetBlockNodeForPath(nil, n.Path)
+					lus := dbn.GetAttribute(ATTR_LOOP_USES)
+					n.Path.Index = indexOfName(lus, n.Name)
+				}
+			}
+			return n, TRANS_CONTINUE
+
+		// ----------------------------------------
+		case TRANS_LEAVE:
+			switch n := n.(type) {
+			case BlockNode:
+				// In another clause above for NameExprTypeLoopClosure
+				// we set the index to ATTR_LOOP_USES, so a simple swap
+				// works here.
+				lds := n.GetAttribute(ATTR_LOOP_DEFINES)
+				lus := n.GetAttribute(ATTR_LOOP_USES)
+				if len(lds) > len(lus) {
+					panic("defines should be a superset of used-defines")
+				}
+				n.SetAttribute(ATTR_LOOP_DEFINES, lus)
+				// XXX implement delete.
+				// n.DelAttribute(ATTR_LOOP_USES)
+			}
+			return n, TRANS_CONTINUE
+		}
+		return n, TRANS_CONTINUE
+	})
+}
+
+func indexOfName(ns []Node, name Name) int {
+	for i, nn := range ns {
+		if nn == name {
+			return i
+		}
+	}
+	panic("not not found in ns")
 }
 
 func isSwitchLabel(ns []Node, label Name) bool {

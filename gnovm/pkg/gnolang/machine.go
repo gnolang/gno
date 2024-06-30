@@ -588,7 +588,7 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 				}
 			}
 			// if dep already in loopfindr, abort.
-			if hasName(dep, loopfindr) {
+			if hasName(loopfindr, dep) {
 				if _, ok := (*depdecl).(*FuncDecl); ok {
 					// recursive function dependencies
 					// are OK with func decls.
@@ -2152,7 +2152,7 @@ func (m *Machine) String() string {
 //----------------------------------------
 // utility
 
-func hasName(n Name, ns []Name) bool {
+func hasName(ns []Name, n Name) bool {
 	for _, n2 := range ns {
 		if n == n2 {
 			return true
