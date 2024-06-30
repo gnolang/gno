@@ -161,6 +161,7 @@ func renderHome(admin bool) string {
 	output += "## Upcoming events\n\n"
 	output += "<div class='columns-3'>"
 
+	// If there are any upcoming events
 	if len(events[:pos]) > 0 {
 		for _, e := range events[:pos] {
 			output += e.Render(admin)
@@ -176,8 +177,12 @@ func renderHome(admin bool) string {
 	output += "## Past events\n\n"
 	output += "<div class='columns-3'>"
 
-	for _, e := range events[pos:] {
-		output += e.Render(admin)
+	if len(events[pos:]) > 0 {
+		for _, e := range events[pos:] {
+			output += e.Render(admin)
+		}
+	} else {
+		output += "No past events.\n\n"
 	}
 
 	output += "</div>\n\n"
