@@ -1,6 +1,6 @@
 # Test Realm instruction correct
 
-gno test -verbose .
+gno test -v .
 
 ! stdout .+ # stdout should be empty
 stderr '=== RUN   file/x_filetest.gno'
@@ -55,6 +55,8 @@ func main() {
 //                 "FileName": "main.gno",
 //                 "IsMethod": false,
 //                 "Name": "main",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/x",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",

@@ -13,7 +13,6 @@ import (
 	memcfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
@@ -30,43 +29,10 @@ func (ps peerState) GetHeight() int64 {
 	return ps.height
 }
 
-// mempoolLogger is a TestingLogger which uses a different
-// color for each validator ("validator" key must exist).
-func mempoolLogger() log.Logger {
-	return log.TestingLoggerWithColorFn(func(keyvals ...interface{}) colors.Color {
-		for i := 0; i < len(keyvals)-1; i += 2 {
-			if keyvals[i] == "validator" {
-				num := keyvals[i+1].(int)
-				switch num % 8 {
-				case 0:
-					return colors.Red
-				case 1:
-					return colors.Green
-				case 2:
-					return colors.Yellow
-				case 3:
-					return colors.Blue
-				case 4:
-					return colors.Magenta
-				case 5:
-					return colors.Cyan
-				case 6:
-					return colors.White
-				case 7:
-					return colors.Gray
-				default:
-					panic("should not happen")
-				}
-			}
-		}
-		return colors.None
-	})
-}
-
 // connect N mempool reactors through N switches
 func makeAndConnectReactors(mconfig *memcfg.MempoolConfig, pconfig *p2pcfg.P2PConfig, n int) []*Reactor {
 	reactors := make([]*Reactor, n)
-	logger := mempoolLogger()
+	logger := log.NewNoopLogger()
 	for i := 0; i < n; i++ {
 		app := kvstore.NewKVStoreApplication()
 		cc := proxy.NewLocalClientCreator(app)

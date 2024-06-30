@@ -1,6 +1,6 @@
 # Test Realm instruction updated
 
-gno test -verbose . -update-golden-tests
+gno test -v . -update-golden-tests
 
 ! stdout .+ # stdout should be empty
 stderr '=== RUN   file/x_filetest.gno'
@@ -70,6 +70,8 @@ func main() {
 //                 "FileName": "main.gno",
 //                 "IsMethod": false,
 //                 "Name": "main",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/x",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",

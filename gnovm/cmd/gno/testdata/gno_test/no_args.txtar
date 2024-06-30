@@ -3,4 +3,4 @@
 ! gno test
 
 ! stdout .+ 
-stderr 'flag: help requested'
+stderr 'USAGE'

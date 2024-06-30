@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ledger"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
@@ -42,6 +43,9 @@ const (
 	French
 	// Italian is currently not supported.
 	Italian
+)
+
+const (
 	addressSuffix = "address"
 	infoSuffix    = "info"
 )
@@ -71,7 +75,7 @@ func NewDBKeybase(db dbm.DB) Keybase {
 
 // NewInMemory creates a transient keybase on top of in-memory storage
 // instance useful for testing purposes and on-the-fly key generation.
-func NewInMemory() Keybase { return dbKeybase{dbm.NewMemDB()} }
+func NewInMemory() Keybase { return dbKeybase{memdb.NewMemDB()} }
 
 // CreateAccount converts a mnemonic to a private key and persists it, encrypted with the given password.
 // XXX Info could include the separately derived ed25519 key,

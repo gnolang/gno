@@ -1,11 +1,10 @@
-// PKGPATH: gno.land/r/groups_test
+// PKGPATH: gno.land/r/demo/groups_test
 package groups_test
 
 // SEND: 200000000ugnot
 
 import (
 	"std"
-	"strconv"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"

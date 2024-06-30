@@ -1,0 +1,31 @@
+{{- define "app" -}}
+<!DOCTYPE html>
+<html>
+  <head>
+    {{ template "html_head" . }}
+    <title>Gno.land - {{.Data.DirPath}}/{{.Data.FileName}}</title>
+  </head>
+  <body onload="main()">
+    <div id="root">
+      <div id="header">{{ template "logo" }} {{ template "header_buttons" }}</div>
+      <div class="inline-list">
+        <span id="logo_path"> <a href="{{ .Data.DirPath }}/">{{ .Data.DirPath }}/</a>{{ .Data.FileName }} </span>
+      </div>
+
+      <div id="package_file" class="container">
+        <pre><code>{{ .Data.FileContents }}</code></pre>
+      </div>
+
+      {{ template "footer" }}
+    </div>
+    {{ template "js" .}}
+    <script type="text/javascript" src="/static/js/highlight.min.js"></script>
+    <script>
+      hljs.configure({
+        throwUnescapedHTML: true, // important to avoid inserting escaped html
+      });
+      hljs.highlightAll(); // applied to all <pre><code>...</code></pre>
+    </script>
+  </body>
+</html>
+{{- end -}}

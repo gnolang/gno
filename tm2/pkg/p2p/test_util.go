@@ -17,25 +17,7 @@ import (
 
 const testCh = 0x01
 
-//------------------------------------------------
-
-func AddPeerToSwitchPeerSet(sw *Switch, peer Peer) {
-	sw.peers.Add(peer)
-}
-
-func CreateRandomPeer(outbound bool) *peer {
-	addr, netAddr := CreateRoutableAddr()
-	p := &peer{
-		peerConn: peerConn{
-			outbound:   outbound,
-			socketAddr: netAddr,
-		},
-		nodeInfo: NodeInfo{NetAddress: netAddr},
-		mconn:    &conn.MConnection{},
-	}
-	p.SetLogger(log.TestingLogger().With("peer", addr))
-	return p
-}
+// ------------------------------------------------
 
 func CreateRoutableAddr() (addr string, netAddr *NetAddress) {
 	for {
@@ -53,7 +35,7 @@ func CreateRoutableAddr() (addr string, netAddr *NetAddress) {
 	return
 }
 
-//------------------------------------------------------------------
+// ------------------------------------------------------------------
 // Connects switches via arbitrary net.Conn. Used for testing.
 
 const TEST_HOST = "localhost"
@@ -175,7 +157,7 @@ func MakeSwitch(
 
 	// TODO: let the config be passed in?
 	sw := initSwitch(i, NewSwitch(cfg, t, opts...))
-	sw.SetLogger(log.TestingLogger().With("switch", i))
+	sw.SetLogger(log.NewNoopLogger().With("switch", i))
 	sw.SetNodeKey(&nodeKey)
 
 	for ch := range sw.reactorsByCh {
@@ -223,7 +205,7 @@ func testPeerConn(
 	return newPeerConn(outbound, persistent, conn, socketAddr), nil
 }
 
-//----------------------------------------------------------------
+// ----------------------------------------------------------------
 // rand node info
 
 func testNodeInfo(id ID, name string) NodeInfo {

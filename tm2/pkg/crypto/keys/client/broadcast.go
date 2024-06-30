@@ -14,43 +14,47 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type broadcastCfg struct {
-	rootCfg *baseCfg
+type BroadcastCfg struct {
+	RootCfg *BaseCfg
 
-	dryRun bool
+	DryRun bool
 
 	// internal
 	tx *std.Tx
+	// Set by SignAndBroadcastHandler, similar to DryRun.
+	// If true, simulation is attempted but not printed;
+	// the result is only returned in case of an error.
+	testSimulate bool
 }
 
-func newBroadcastCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
-	cfg := &broadcastCfg{
-		rootCfg: rootCfg,
+func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cfg := &BroadcastCfg{
+		RootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "broadcast",
 			ShortUsage: "broadcast [flags] <file-name>",
-			ShortHelp:  "Broadcasts a signed document",
+			ShortHelp:  "broadcasts a signed document",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execBroadcast(cfg, args, commands.NewDefaultIO())
+			return execBroadcast(cfg, args, io)
 		},
 	)
 }
 
-func (c *broadcastCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *BroadcastCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
-		&c.dryRun,
+		&c.DryRun,
 		"dry-run",
 		false,
 		"perform a dry-run broadcast",
 	)
 }
 
-func execBroadcast(cfg *broadcastCfg, args []string, io commands.IO) error {
+func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
@@ -67,7 +71,7 @@ func execBroadcast(cfg *broadcastCfg, args []string, io commands.IO) error {
 	}
 	cfg.tx = &tx
 
-	res, err := broadcastHandler(cfg)
+	res, err := BroadcastHandler(cfg)
 	if err != nil {
 		return err
 	}
@@ -81,17 +85,19 @@ func execBroadcast(cfg *broadcastCfg, args []string, io commands.IO) error {
 		io.Println("OK!")
 		io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
 		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
+		io.Println("HEIGHT:    ", res.Height)
+		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 	}
 	return nil
 }
 
-func broadcastHandler(cfg *broadcastCfg) (*ctypes.ResultBroadcastTxCommit, error) {
+func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error) {
 	if cfg.tx == nil {
 		return nil, errors.New("invalid tx")
 	}
 
-	remote := cfg.rootCfg.Remote
-	if remote == "" || remote == "y" {
+	remote := cfg.RootCfg.Remote
+	if remote == "" {
 		return nil, errors.New("missing remote url")
 	}
 
@@ -100,10 +106,20 @@ func broadcastHandler(cfg *broadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
 	}
 
-	cli := client.NewHTTP(remote, "/websocket")
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return nil, err
+	}
 
-	if cfg.dryRun {
-		return simulateTx(cli, bz)
+	// Both for DryRun and testSimulate, we perform simulation.
+	// However, DryRun always returns here, while in case of success
+	// testSimulate continues onto broadcasting the transaction.
+	if cfg.DryRun || cfg.testSimulate {
+		res, err := SimulateTx(cli, bz)
+		hasError := err != nil || res.CheckTx.IsErr() || res.DeliverTx.IsErr()
+		if cfg.DryRun || hasError {
+			return res, err
+		}
 	}
 
 	bres, err := cli.BroadcastTxCommit(bz)
@@ -114,7 +130,7 @@ func broadcastHandler(cfg *broadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 	return bres, nil
 }
 
-func simulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxCommit, error) {
+func SimulateTx(cli client.ABCIClient, tx []byte) (*ctypes.ResultBroadcastTxCommit, error) {
 	bres, err := cli.ABCIQuery(".app/simulate", tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "simulate tx")

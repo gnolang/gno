@@ -1,9 +1,9 @@
 package consensus
 
 import (
+	"log/slog"
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
 
@@ -18,7 +18,7 @@ type TimeoutTicker interface {
 	Chan() <-chan timeoutInfo       // on which to receive a timeout
 	ScheduleTimeout(ti timeoutInfo) // reset the timer
 
-	SetLogger(log.Logger)
+	SetLogger(*slog.Logger)
 }
 
 // timeoutTicker wraps time.Timer,
@@ -67,11 +67,16 @@ func (t *timeoutTicker) Chan() <-chan timeoutInfo {
 // ScheduleTimeout schedules a new timeout by sending on the internal tickChan.
 // The timeoutRoutine is always available to read from tickChan, so this won't block.
 // The scheduling may fail if the timeoutRoutine has already scheduled a timeout for a later height/round/step.
+// If the service has been closed, the timeout will be ignored.
 func (t *timeoutTicker) ScheduleTimeout(ti timeoutInfo) {
-	t.tickChan <- ti
+	select {
+	case t.tickChan <- ti:
+	case <-t.Quit():
+		t.Logger.Warn("Unable to schedule timeout as service has been closed")
+	}
 }
 
-//-------------------------------------------------------------
+// -------------------------------------------------------------
 
 // stop the timer and drain if necessary
 func (t *timeoutTicker) stopTimer() {

@@ -32,7 +32,7 @@ func (c *envCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.json,
 		"json",
 		false,
-		"Prints the environment in JSON format instead of as a shell script.",
+		"prints the environment in JSON format instead of as a shell script.",
 	)
 }
 

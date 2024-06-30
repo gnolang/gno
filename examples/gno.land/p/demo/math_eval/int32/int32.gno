@@ -93,7 +93,7 @@ func Eval(expr expression, variables map[string]int) (res int, err error) {
 			res, ok = variables[ast.Str]
 		}
 		if !ok {
-			err = errors.New(ufmt.Sprintf("variable '%s' not found", ast.Str))
+			err = ufmt.Errorf("variable '%s' not found", ast.Str)
 		}
 		return
 	case expressionOperation:
@@ -115,10 +115,7 @@ func Eval(expr expression, variables map[string]int) (res int, err error) {
 			res = l * r
 		case "/":
 			if r == 0 {
-				err = errors.New(
-					ufmt.Sprintf("violation of arithmetic specification: a division by zero in Eval: [%d/%d]",
-						l,
-						r))
+				err = ufmt.Errorf("violation of arithmetic specification: a division by zero in Eval: [%d/%d]", l, r)
 				return
 			}
 			res = l / r
@@ -213,9 +210,8 @@ func (a *ast) parseExpression() (expression, error) {
 	r := a.parseBinOpRHS(0, lhs)
 	a.depth--
 	if a.depth == 0 && a.currentIndex != len(a.rawexpressions) && a.err == nil {
-		return r, errors.New(
-			ufmt.Sprintf("bad expression, reaching the end or missing the operator\n%s",
-				expressionError(a.source, a.currentexpression.Offset)))
+		return r, ufmt.Errorf("bad expression, reaching the end or missing the operator\n%s",
+			expressionError(a.source, a.currentexpression.Offset))
 	}
 	return r, nil
 }
@@ -252,11 +248,10 @@ func (a *ast) getTokPrecedence() int {
 func (a *ast) parseNumber() expressionNumber {
 	f64, err := strconv.Atoi(a.currentexpression.expression)
 	if err != nil {
-		a.err = errors.New(
-			ufmt.Sprintf("%v\nwant '(' or '0-9' but get '%s'\n%s",
-				err.Error(),
-				a.currentexpression.expression,
-				expressionError(a.source, a.currentexpression.Offset)))
+		a.err = ufmt.Errorf("%v\nwant '(' or '0-9' but get '%s'\n%s",
+			err.Error(),
+			a.currentexpression.expression,
+			expressionError(a.source, a.currentexpression.Offset))
 		return expressionNumber{}
 	}
 	n := expressionNumber{
@@ -286,9 +281,8 @@ func (a *ast) parsePrimary() expression {
 		if a.currentexpression.expression == "(" {
 			t := a.getNextexpressionRaw()
 			if t == nil {
-				a.err = errors.New(
-					ufmt.Sprintf("want '(' or '0-9' but get EOF\n%s",
-						expressionError(a.source, a.currentexpression.Offset)))
+				a.err = ufmt.Errorf("want '(' or '0-9' but get EOF\n%s",
+					expressionError(a.source, a.currentexpression.Offset))
 				return nil
 			}
 			e, _ := a.parseExpression()
@@ -296,19 +290,17 @@ func (a *ast) parsePrimary() expression {
 				return nil
 			}
 			if a.currentexpression.expression != ")" {
-				a.err = errors.New(
-					ufmt.Sprintf("want ')' but get %s\n%s",
-						a.currentexpression.expression,
-						expressionError(a.source, a.currentexpression.Offset)))
+				a.err = ufmt.Errorf("want ')' but get %s\n%s",
+					a.currentexpression.expression,
+					expressionError(a.source, a.currentexpression.Offset))
 				return nil
 			}
 			a.getNextexpressionRaw()
 			return e
 		} else if a.currentexpression.expression == "-" {
 			if a.getNextexpressionRaw() == nil {
-				a.err = errors.New(
-					ufmt.Sprintf("want '0-9' but get '-'\n%s",
-						expressionError(a.source, a.currentexpression.Offset)))
+				a.err = ufmt.Errorf("want '0-9' but get '-'\n%s",
+					expressionError(a.source, a.currentexpression.Offset))
 				return nil
 			}
 			bin := expressionOperation{
@@ -333,9 +325,8 @@ func (a *ast) parseBinOpRHS(execPrec int, lhs expression) expression {
 		}
 		binOp := a.currentexpression.expression
 		if a.getNextexpressionRaw() == nil {
-			a.err = errors.New(
-				ufmt.Sprintf("want '(' or '0-9' but get EOF\n%s",
-					expressionError(a.source, a.currentexpression.Offset)))
+			a.err = ufmt.Errorf("want '(' or '0-9' but get EOF\n%s",
+				expressionError(a.source, a.currentexpression.Offset))
 			return nil
 		}
 		rhs := a.parsePrimary()
@@ -455,11 +446,10 @@ func (p *parser) nextTok() *expressionRaw {
 			tok.Offset = start
 			err = p.nextCh()
 		} else if p.ch != ' ' {
-			s := ufmt.Sprintf("symbol error: unknown '%v', pos [%v:]\n%s",
+			p.err = ufmt.Errorf("symbol error: unknown '%v', pos [%v:]\n%s",
 				string(p.ch),
 				start,
 				expressionError(p.Input, start))
-			p.err = errors.New(s)
 		}
 	}
 	return tok

@@ -52,18 +52,18 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
 
 ### Environment
 
-The gno repository is primarily based on Golang (Go) and Gnolang (Gno).
+The gno repository is primarily based on Go (Golang) and Gno.
 
 The primary tech stack for working on the repository:
 
-- Go (version 1.20+)
+- Go (version 1.22+)
 - make (for using Makefile configurations)
 
 It is recommended to work on a Unix environment, as most of the tooling is built around ready-made tools in Unix (WSL2
 for Windows / Linux / macOS).
 
 For Gno, there is no specific tooling that needs to be installed, that’s not already provided with the repo itself.
-You can utilize the `gno` command to facilitate Gnolang support when writing Smart Contracts in Gno, by installing it
+You can utilize the `gno` command to facilitate Gno support when writing Smart Contracts in Gno, by installing it
 with `make install_gno`.
 
 If you are working on Go source code on this repository, `pkg.go.dev` will not
@@ -104,6 +104,18 @@ To use *gofumpt* instead of *gofmt*, as hinted in the comment, you may either ha
 cexpr system('go run -modfile </path/to/gno>/misc/devdeps/go.mod mvdan.cc/gofumpt -w ' . expand('%'))
 ```
 
+##### ViM Linting Support
+
+To integrate GNO linting in Vim, you can use Vim's `:make` command with a custom `makeprg` and `errorformat` to run the GNO linter and parse its output. Add the following configuration to your `.vimrc` file:
+
+```vim
+autocmd FileType gno setlocal makeprg=gno\ lint\ %
+autocmd FileType gno setlocal errorformat=%f:%l:\ %m
+
+" Optional: Key binding to run :make on the current file
+autocmd FileType gno nnoremap <buffer> <F5> :make<CR>
+```
+
 ### ViM Support (with LSP)
 
 There is an experimental and unofficial [Gno Language Server](https://github.com/jdkato/gnols)
@@ -137,16 +149,16 @@ if (executable('gnols'))
 else
 	echomsg 'gnols binary not found: LSP disabled for Gno files'
 endif
-	
+
 function! s:on_lsp_buffer_enabled() abort
     " Autocompletion
     setlocal omnifunc=lsp#complete
     " Format on save
     autocmd BufWritePre <buffer> LspDocumentFormatSync
-    " Some optionnal mappings
-    nmap <buffer> <leader>i <Plug>(lsp-hover) 
+    " Some optional mappings
+    nmap <buffer> <leader>i <Plug>(lsp-hover)
     " Following mappings are not supported yet by gnols
-    " nmap <buffer> gd <plug>(lsp-definition)     
+    " nmap <buffer> gd <plug>(lsp-definition)
     " nmap <buffer> <leader>rr <plug>(lsp-rename)
 endfunction
 augroup lsp_install
@@ -163,7 +175,7 @@ Inside `lsp#register_server()`, you also have to replace
 `workspace_config.root` and `workspace_config.gno` with the correct directories
 from your machine.
 
-Additionaly, it's not possible to use `gofumpt` for code formatting with
+Additionally, it's not possible to use `gofumpt` for code formatting with
 `gnols` for now.
 
 #### Emacs Support
@@ -172,7 +184,31 @@ Additionaly, it's not possible to use `gofumpt` for code formatting with
 2. Add to your emacs configuration file:
 
 ```lisp
-(add-to-list 'auto-mode-alist '("\\.gno\\'" . go-mode))
+(define-derived-mode gno-mode go-mode "GNO"
+  "Major mode for GNO files, an alias for go-mode."
+  (setq-local tab-width 8))
+(define-derived-mode gno-dot-mod-mode go-dot-mod-mode "GNO Mod"
+  "Major mode for GNO mod files, an alias for go-dot-mod-mode."
+  )
+```
+
+3. To integrate GNO linting with Flycheck, add the following to your Emacs configuration:
+```lisp
+(require 'flycheck)
+
+(flycheck-define-checker gno-lint
+  "A GNO syntax checker using the gno lint tool."
+  :command ("gno" "lint" source-original)
+  :error-patterns (;; ./file.gno:32: error message (code=1)
+                   (error line-start (file-name) ":" line ": " (message) " (code=" (id (one-or-more digit)) ")." line-end))
+  ;; Ensure the file is saved, to work around
+  ;; https://github.com/python/mypy/issues/4746.
+  :predicate (lambda ()
+               (and (not (bound-and-true-p polymode-mode))
+                    (flycheck-buffer-saved-p)))
+  :modes gno-mode)
+
+(add-to-list 'flycheck-checkers 'gno-lint)
 ```
 
 #### Sublime Text
@@ -254,7 +290,7 @@ If you wish to test a `.gno` Realm or Package, you can utilize the `gno` tool.
 
 2. Now, you can point to the directory containing the `*_test.gno` files:
 
-    gno test <path-to-dir> --verbose
+    gno test <path-to-dir> -v
 
 
 To learn more about how `gno` can help you when developing gno code, you can look into the available

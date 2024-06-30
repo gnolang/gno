@@ -79,6 +79,10 @@ GNO_CASE:
 	}
 	// special case for undefined/nil source
 	if tv.IsUndefined() {
+		switch t.Kind() {
+		case BoolKind, StringKind, IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind, Float32Kind, Float64Kind, BigintKind, BigdecKind:
+			panic(fmt.Sprintf("cannot convert %v to %v", tv, t))
+		}
 		tv.T = t
 		return
 	}
@@ -883,7 +887,7 @@ GNO_CASE:
 func ConvertUntypedTo(tv *TypedValue, t Type) {
 	if debug {
 		defer func() {
-			debug.Printf("---after ConvertUntypedTo---, tv:%v \n", tv)
+			debug.Printf("ConvertUntypedTo done, tv: %v \n", tv)
 		}()
 	}
 	if debug {
@@ -944,17 +948,17 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	case UntypedRuneType:
 		ConvertUntypedRuneTo(tv, t)
 	case UntypedBigintType:
-		if preprocessing == 0 {
+		if preprocessing.Load() == 0 {
 			panic("untyped Bigint conversion should not happen during interpretation")
 		}
 		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	case UntypedBigdecType:
-		if preprocessing == 0 {
+		if preprocessing.Load() == 0 {
 			panic("untyped Bigdec conversion should not happen during interpretation")
 		}
 		ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
 	case UntypedStringType:
-		if preprocessing == 0 {
+		if preprocessing.Load() == 0 {
 			panic("untyped String conversion should not happen during interpretation")
 		}
 		if t.Kind() == StringKind {

@@ -646,12 +646,12 @@ func BenchmarkReverseBytes64(b *testing.B) {
 
 func TestLen(t *testing.T) {
 	for i := 0; i < 256; i++ {
-		len := 8 - tab[i].nlz
+		length := 8 - tab[i].nlz
 		for k := 0; k < 64-8; k++ {
 			x := uint64(i) << uint(k)
 			want := 0
 			if x != 0 {
-				want = len + k
+				want = length + k
 			}
 			if x <= 1<<8-1 {
 				got := Len8(uint8(x))
@@ -1094,7 +1094,7 @@ func TestDiv64PanicZero(t *testing.T) {
 }
 
 func TestRem32(t *testing.T) {
-	// Sanity check: for non-oveflowing dividends, the result is the
+	// Sanity check: for non-overflowing dividends, the result is the
 	// same as the rem returned by Div32
 	hi, lo, y := uint32(510510), uint32(9699690), uint32(510510+1) // ensure hi < y
 	for i := 0; i < 1000; i++ {
@@ -1121,7 +1121,7 @@ func TestRem32Overflow(t *testing.T) {
 }
 
 func TestRem64(t *testing.T) {
-	// Sanity check: for non-oveflowing dividends, the result is the
+	// Sanity check: for non-overflowing dividends, the result is the
 	// same as the rem returned by Div64
 	hi, lo, y := uint64(510510), uint64(9699690), uint64(510510+1) // ensure hi < y
 	for i := 0; i < 1000; i++ {

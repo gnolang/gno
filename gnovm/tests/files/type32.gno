@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// main/files/type32.gno:9#1: cannot use string as main.S without explicit conversion
+// main/files/type32.gno:9#1: invalid operation: mismatched types string and main.S

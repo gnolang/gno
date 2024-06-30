@@ -2,6 +2,8 @@ package gnoland
 
 import (
 	"fmt"
+	"log/slog"
+	"sync"
 	"time"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -12,17 +14,18 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type InMemoryNodeConfig struct {
-	PrivValidator         bft.PrivValidator // identity of the validator
-	Genesis               *bft.GenesisDoc
-	TMConfig              *tmcfg.Config
-	SkipFailingGenesisTxs bool
-	GenesisMaxVMCycles    int64
+	PrivValidator      bft.PrivValidator // identity of the validator
+	Genesis            *bft.GenesisDoc
+	TMConfig           *tmcfg.Config
+	GenesisTxHandler   GenesisTxHandler
+	GenesisMaxVMCycles int64
 }
 
 // NewMockedPrivValidator generate a new key
@@ -39,7 +42,7 @@ func NewDefaultGenesisConfig(pk crypto.PubKey, chainid string) *bft.GenesisDoc {
 			Block: &abci.BlockParams{
 				MaxTxBytes:   1_000_000,   // 1MB,
 				MaxDataBytes: 2_000_000,   // 2MB,
-				MaxGas:       10_0000_000, // 10M gas
+				MaxGas:       100_000_000, // 100M gas
 				TimeIotaMS:   100,         // 100ms
 			},
 		},
@@ -51,34 +54,9 @@ func NewDefaultGenesisConfig(pk crypto.PubKey, chainid string) *bft.GenesisDoc {
 }
 
 func NewDefaultTMConfig(rootdir string) *tmcfg.Config {
-	return tmcfg.DefaultConfig().SetRootDir(rootdir)
-}
-
-// NewInMemoryNodeConfig creates a default configuration for an in-memory node.
-func NewDefaultInMemoryNodeConfig(rootdir string) *InMemoryNodeConfig {
-	tm := NewDefaultTMConfig(rootdir)
-
-	// Create Mocked Identity
-	pv := NewMockedPrivValidator()
-	genesis := NewDefaultGenesisConfig(pv.GetPubKey(), tm.ChainID())
-
-	// Add self as validator
-	self := pv.GetPubKey()
-	genesis.Validators = []bft.GenesisValidator{
-		{
-			Address: self.Address(),
-			PubKey:  self,
-			Power:   10,
-			Name:    "self",
-		},
-	}
-
-	return &InMemoryNodeConfig{
-		PrivValidator:      pv,
-		TMConfig:           tm,
-		Genesis:            genesis,
-		GenesisMaxVMCycles: 10_000_000,
-	}
+	// We use `TestConfig` here otherwise ChainID will be empty, and
+	// there is no other way to update it than using a config file
+	return tmcfg.TestConfig().SetRootDir(rootdir)
 }
 
 func (cfg *InMemoryNodeConfig) validate() error {
@@ -94,24 +72,28 @@ func (cfg *InMemoryNodeConfig) validate() error {
 		return fmt.Errorf("`TMConfig.RootDir` is required to locate `stdlibs` directory")
 	}
 
+	if cfg.GenesisTxHandler == nil {
+		return fmt.Errorf("`GenesisTxHandler` is required but not provided")
+	}
+
 	return nil
 }
 
 // NewInMemoryNode creates an in-memory gnoland node. In this mode, the node does not
 // persist any data and uses an in-memory database. The `InMemoryNodeConfig.TMConfig.RootDir`
 // should point to the correct gno repository to load the stdlibs.
-func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, error) {
+func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("validate config error: %w", err)
 	}
 
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
-		Logger:                logger,
-		GnoRootDir:            cfg.TMConfig.RootDir,
-		SkipFailingGenesisTxs: cfg.SkipFailingGenesisTxs,
-		MaxCycles:             cfg.GenesisMaxVMCycles,
-		DB:                    db.NewMemDB(),
+		Logger:           logger,
+		GnoRootDir:       cfg.TMConfig.RootDir,
+		GenesisTxHandler: cfg.GenesisTxHandler,
+		MaxCycles:        cfg.GenesisMaxVMCycles,
+		DB:               memdb.NewMemDB(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
@@ -130,7 +112,7 @@ func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, er
 	// Create genesis factory
 	genProvider := func() (*bft.GenesisDoc, error) { return cfg.Genesis, nil }
 
-	dbProvider := func(*node.DBContext) (db.DB, error) { return db.NewMemDB(), nil }
+	dbProvider := func(*node.DBContext) (db.DB, error) { return memdb.NewMemDB(), nil }
 
 	// generate p2p node identity
 	// XXX: do we need to configur
@@ -144,4 +126,30 @@ func NewInMemoryNode(logger log.Logger, cfg *InMemoryNodeConfig) (*node.Node, er
 		dbProvider,
 		logger,
 	)
+}
+
+// GetNodeReadiness waits until the node is ready, signaling via the EventNewBlock event.
+// XXX: This should be replace by https://github.com/gnolang/gno/pull/1216
+func GetNodeReadiness(n *node.Node) <-chan struct{} {
+	const listenerID = "first_block_listener"
+
+	var once sync.Once
+
+	nb := make(chan struct{})
+	ready := func() {
+		close(nb)
+		n.EventSwitch().RemoveListener(listenerID)
+	}
+
+	n.EventSwitch().AddListener(listenerID, func(ev events.Event) {
+		if _, ok := ev.(bft.EventNewBlock); ok {
+			once.Do(ready)
+		}
+	})
+
+	if n.BlockStore().Height() > 0 {
+		once.Do(ready)
+	}
+
+	return nb
 }
