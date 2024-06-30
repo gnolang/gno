@@ -108,7 +108,8 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// cannot add or remove statements from bodies.
 	for _, fn := range fset.Files {
 		findGotoLoopDefines(pn, fn)
-		findGotoLoopUses(pn, fn)
+		findLoopUses1(pn, fn)
+		findLoopUses2(pn, fn)
 	}
 }
 
@@ -122,31 +123,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 	// iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-		defer func() {
-			if r := recover(); r != nil {
-				// before re-throwing the error, append location information to message.
-				loc := last.GetLocation()
-				if nline := n.GetLine(); nline > 0 {
-					loc.Line = nline
-				}
-
-				var err error
-				rerr, ok := r.(error)
-				if ok {
-					// NOTE: gotuna/gorilla expects error exceptions.
-					err = errors.Wrap(rerr, loc.String())
-				} else {
-					// NOTE: gotuna/gorilla expects error exceptions.
-					err = fmt.Errorf("%s: %v", loc.String(), r)
-				}
-
-				// Re-throw the error after wrapping it with the preprocessing stack information.
-				panic(&PreprocessError{
-					err:   err,
-					stack: stack,
-				})
-			}
-		}()
+		defer doRecover(stack, n)
 
 		if debug {
 			debug.Printf("initStaticBlocks %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
@@ -264,15 +241,9 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 		// ----------------------------------------
 		case TRANS_BLOCK:
+			pushInitBlock(n, &last, &stack)
 			switch n := n.(type) {
-			case *BlockStmt:
-				pushInitBlock(n, &last, &stack)
-			case *ForStmt:
-				pushInitBlock(n, &last, &stack)
-			case *IfStmt:
-				pushInitBlock(n, &last, &stack)
 			case *IfCaseStmt:
-				pushInitRealBlock(n, &last, &stack)
 				// parent if statement.
 				ifs := ns[len(ns)-1].(*IfStmt)
 				// anything declared in ifs are copied.
@@ -280,7 +251,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					last.Predefine(false, n)
 				}
 			case *RangeStmt:
-				pushInitBlock(n, &last, &stack)
 				if n.Op == DEFINE {
 					if n.Key != nil {
 						last.Predefine(false, n.Key.(*NameExpr).Name)
@@ -290,7 +260,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					}
 				}
 			case *FuncLitExpr:
-				pushInitBlock(n, &last, &stack)
 				for _, p := range n.Type.Params {
 					last.Predefine(false, p.Name)
 				}
@@ -299,10 +268,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						last.Predefine(false, rf.Name)
 					}
 				}
-			case *SelectCaseStmt:
-				pushInitBlock(n, &last, &stack)
 			case *SwitchStmt:
-				pushInitBlock(n, &last, &stack)
 				if n.VarName != "" {
 					// NOTE: this defines for default clauses too,
 					// see comment on block copying @
@@ -310,7 +276,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					last.Predefine(false, n.VarName)
 				}
 			case *SwitchClauseStmt:
-				pushInitRealBlock(n, &last, &stack)
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
 				// anything declared in ss are copied,
@@ -328,7 +293,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					}
 				}
 			case *FuncDecl:
-				pushInitBlock(n, &last, &stack)
 				if n.IsMethod {
 					n.Predefine(false, n.Recv.Name)
 				}
@@ -343,25 +307,53 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						n.Predefine(false, rte.Name)
 					}
 				}
-			case *FileNode:
-				pushInitBlock(n, &last, &stack)
-			default:
-				panic("should not happen")
 			}
 			return n, TRANS_CONTINUE
 
 		// ----------------------------------------
 		case TRANS_LEAVE:
-			// finalization.
-			if _, ok := n.(BlockNode); ok {
-				// Pop block.
+
+			// Pop block from stack.
+			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+			// POP BLOCK YOURSELF.
+			switch n.(type) {
+			case BlockNode:
 				stack = stack[:len(stack)-1]
 				last = stack[len(stack)-1]
 			}
+
 			return n, TRANS_CONTINUE
 		}
 		return n, TRANS_CONTINUE
 	})
+}
+
+func doRecover(stack []BlockNode, n Node) {
+	if r := recover(); r != nil {
+		// before re-throwing the error, append location information to message.
+		last := stack[len(stack)-1]
+		loc := last.GetLocation()
+		if nline := n.GetLine(); nline > 0 {
+			loc.Line = nline
+		}
+
+		var err error
+		rerr, ok := r.(error)
+		if ok {
+			// NOTE: gotuna/gorilla expects error exceptions.
+			err = errors.Wrap(rerr, loc.String())
+		} else {
+			// NOTE: gotuna/gorilla expects error exceptions.
+			err = fmt.Errorf("%s: %v", loc.String(), r)
+		}
+
+		// Re-throw the error after wrapping it with the preprocessing stack information.
+		panic(&PreprocessError{
+			err:   err,
+			stack: stack,
+		})
+	}
 }
 
 // This counter ensures (during testing) that certain functions
@@ -418,31 +410,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			return n, TRANS_SKIP
 		}
 
-		defer func() {
-			if r := recover(); r != nil {
-				// before re-throwing the error, append location information to message.
-				loc := last.GetLocation()
-				if nline := n.GetLine(); nline > 0 {
-					loc.Line = nline
-				}
-
-				var err error
-				rerr, ok := r.(error)
-				if ok {
-					// NOTE: gotuna/gorilla expects error exceptions.
-					err = errors.Wrap(rerr, loc.String())
-				} else {
-					// NOTE: gotuna/gorilla expects error exceptions.
-					err = fmt.Errorf("%s: %v", loc.String(), r)
-				}
-
-				// Re-throw the error after wrapping it with the preprocessing stack information.
-				panic(&PreprocessError{
-					err:   err,
-					stack: stack,
-				})
-			}
-		}()
+		defer doRecover(stack, n)
 		if debug {
 			debug.Printf("Preprocess %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
@@ -515,7 +483,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *IfCaseStmt:
-				pushInitRealBlockAndCopy(n, &last, &stack)
+				pushInitBlockAndCopy(n, &last, &stack)
 				// parent if statement.
 				ifs := ns[len(ns)-1].(*IfStmt)
 				// anything declared in ifs are copied.
@@ -631,7 +599,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_BLOCK -----------------------
 			case *SwitchClauseStmt:
-				pushInitRealBlockAndCopy(n, &last, &stack)
+				pushInitBlockAndCopy(n, &last, &stack)
 				// parent switch statement.
 				ss := ns[len(ns)-1].(*SwitchStmt)
 				// anything declared in ss are copied,
@@ -844,15 +812,23 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// in evalStaticType(store,).
 			n.SetAttribute(ATTR_PREPROCESSED, true)
 
-			// -There is still work to be done while leaving, but
-			// once the logic of that is done, we will have to
-			// perform additionally deferred logic that is best
-			// handled with orthogonal switch conditions.
-			// -For example, while leaving nodes w/
-			// TRANS_COMPOSITE_TYPE, (regardless of whether name or
-			// literal), any elided type names are inserted. (This
-			// works because the transcriber leaves the composite
-			// type before entering the kv elements.)
+			// Defer pop block from stack.
+			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+			// POP BLOCK YOURSELF.
+			defer func() {
+				switch n.(type) {
+				case BlockNode:
+					stack = stack[:len(stack)-1]
+					last = stack[len(stack)-1]
+				}
+			}()
+
+			// While leaving nodes w/ TRANS_COMPOSITE_TYPE,
+			// (regardless of whether name or literal), any elided
+			// type names are inserted. (This works because the
+			// transcriber leaves the composite type before
+			// entering the kv elements.)
 			defer func() {
 				switch ftype {
 				// TRANS_LEAVE (deferred)---------
@@ -1956,6 +1932,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					panic("should not happen")
 				}
 
+			// TRANS_LEAVE -----------------------
 			case *IncDecStmt:
 				xt := evalStaticTypeOf(store, last, n.X)
 				n.AssertCompatible(xt)
@@ -2242,12 +2219,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// end type switch statement
 			// END TRANS_LEAVE -----------------------
 
-			// finalization (during leave).
-			if _, ok := n.(BlockNode); ok {
-				// Pop block.
-				stack = stack[:len(stack)-1]
-				last = stack[len(stack)-1]
-			}
 			return n, TRANS_CONTINUE
 		}
 
@@ -2268,31 +2239,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 
 	// iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-		defer func() {
-			if r := recover(); r != nil {
-				// before re-throwing the error, append location information to message.
-				loc := last.GetLocation()
-				if nline := n.GetLine(); nline > 0 {
-					loc.Line = nline
-				}
-
-				var err error
-				rerr, ok := r.(error)
-				if ok {
-					// NOTE: gotuna/gorilla expects error exceptions.
-					err = errors.Wrap(rerr, loc.String())
-				} else {
-					// NOTE: gotuna/gorilla expects error exceptions.
-					err = fmt.Errorf("%s: %v", loc.String(), r)
-				}
-
-				// Re-throw the error after wrapping it with the preprocessing stack information.
-				panic(&PreprocessError{
-					err:   err,
-					stack: stack,
-				})
-			}
-		}()
+		defer doRecover(stack, n)
 
 		if debug {
 			debug.Printf("findGotoLoopDefines %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
@@ -2303,7 +2250,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 		case TRANS_ENTER:
 			return n, TRANS_CONTINUE
 
-			// ----------------------------------------
+		// ----------------------------------------
 		case TRANS_BLOCK:
 			if bn, ok := n.(BlockNode); ok {
 				pushInitBlock(bn, &last, &stack)
@@ -2311,6 +2258,19 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 
 		// ----------------------------------------
 		case TRANS_LEAVE:
+
+			// Defer pop block from stack.
+			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+			// POP BLOCK YOURSELF.
+			defer func() {
+				switch n.(type) {
+				case BlockNode:
+					stack = stack[:len(stack)-1]
+					last = stack[len(stack)-1]
+				}
+			}()
+
 			switch n := n.(type) {
 			case *BranchStmt:
 				switch n.Op {
@@ -2371,13 +2331,6 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 					}
 				}
 			}
-			// finalization.
-			if _, ok := n.(BlockNode); ok {
-				// Pop block.
-				stack = stack[:len(stack)-1]
-				last = stack[len(stack)-1]
-				//fmt.Println("---last: ", last, reflect.TypeOf(last))
-			}
 			return n, TRANS_CONTINUE
 		}
 		return n, TRANS_CONTINUE
@@ -2389,7 +2342,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 // later. Also happens to adjust the type and paths of such usage.
 // If there is no usage of the &name or as closure capture, a
 // NameExprTypeLoopDefine gets demoted to NameExprTypeDefine in demoteLoopDefines().
-func findLoopUses(ctx BlockNode, bn BlockNode) {
+func findLoopUses1(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -2397,38 +2350,20 @@ func findLoopUses(ctx BlockNode, bn BlockNode) {
 
 	// Iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-
-		defer func() {
-			if r := recover(); r != nil {
-				// before re-throwing the error, append location information to message.
-				loc := last.GetLocation()
-				if nline := n.GetLine(); nline > 0 {
-					loc.Line = nline
-				}
-
-				var err error
-				rerr, ok := r.(error)
-				if ok {
-					// NOTE: gotuna/gorilla expects error exceptions.
-					err = errors.Wrap(rerr, loc.String())
-				} else {
-					// NOTE: gotuna/gorilla expects error exceptions.
-					err = fmt.Errorf("%s: %v", loc.String(), r)
-				}
-
-				// Re-throw the error after wrapping it with the preprocessing stack information.
-				panic(&PreprocessError{
-					err:   err,
-					stack: stack,
-				})
-			}
-		}()
+		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("findLoopUses %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("findLoopUses1 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
+
+		// ----------------------------------------
+		case TRANS_BLOCK:
+			if bn, ok := n.(BlockNode); ok {
+				pushInitBlock(bn, &last, &stack)
+			}
+
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
@@ -2480,6 +2415,17 @@ func findLoopUses(ctx BlockNode, bn BlockNode) {
 
 		// ----------------------------------------
 		case TRANS_LEAVE:
+
+			// Pop block from stack.
+			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+			// POP BLOCK YOURSELF.
+			switch n.(type) {
+			case BlockNode:
+				stack = stack[:len(stack)-1]
+				last = stack[len(stack)-1]
+			}
+
 			return n, TRANS_CONTINUE
 		}
 		return n, TRANS_CONTINUE
@@ -2533,9 +2479,10 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (depth int, found bool)
 	panic("stop not found in stack")
 }
 
-// NameExprTypeLoopDefine gets demoted to NameExprTypeDefine if no actual
+// Convert non-loop uses of loop names to NameExprTypeLoopUse.
+// Alos, NameExprTypeLoopDefine gets demoted to NameExprTypeDefine if no actual
 // usage was found that warrants a NameExprTypeLoopDefine.
-func findLoopUses(ctx BlockNode, bn BlockNode) {
+func findLoopUses2(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -2543,38 +2490,20 @@ func findLoopUses(ctx BlockNode, bn BlockNode) {
 
 	// Iterate over all nodes recursively.
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-
-		defer func() {
-			if r := recover(); r != nil {
-				// before re-throwing the error, append location information to message.
-				loc := last.GetLocation()
-				if nline := n.GetLine(); nline > 0 {
-					loc.Line = nline
-				}
-
-				var err error
-				rerr, ok := r.(error)
-				if ok {
-					// NOTE: gotuna/gorilla expects error exceptions.
-					err = errors.Wrap(rerr, loc.String())
-				} else {
-					// NOTE: gotuna/gorilla expects error exceptions.
-					err = fmt.Errorf("%s: %v", loc.String(), r)
-				}
-
-				// Re-throw the error after wrapping it with the preprocessing stack information.
-				panic(&PreprocessError{
-					err:   err,
-					stack: stack,
-				})
-			}
-		}()
+		defer doRecover(stack, n)
 
 		if debug {
-			debug.Printf("findLoopUses %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
+			debug.Printf("findLoopUses2 %s (%v) stage:%v\n", n.String(), reflect.TypeOf(n), stage)
 		}
 
 		switch stage {
+
+		// ----------------------------------------
+		case TRANS_BLOCK:
+			if bn, ok := n.(BlockNode); ok {
+				pushInitBlock(bn, &last, &stack)
+			}
+
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
@@ -2619,6 +2548,19 @@ func findLoopUses(ctx BlockNode, bn BlockNode) {
 
 		// ----------------------------------------
 		case TRANS_LEAVE:
+
+			// Defer pop block from stack.
+			// NOTE: DO NOT USE TRANS_SKIP WITHIN BLOCK
+			// NODES, AS TRANS_LEAVE WILL BE SKIPPED; OR
+			// POP BLOCK YOURSELF.
+			defer func() {
+				switch n.(type) {
+				case BlockNode:
+					stack = stack[:len(stack)-1]
+					last = stack[len(stack)-1]
+				}
+			}()
+
 			switch n := n.(type) {
 			case BlockNode:
 				// In another clause above for NameExprTypeLoopClosure
@@ -2668,21 +2610,13 @@ func isSwitchLabel(ns []Node, label Name) bool {
 // Idempotent.
 func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	if !bn.IsInitialized() {
-		bn.InitStaticBlock(bn, *last)
-	}
-	if bn.GetStaticBlock().Source != bn {
-		panic("expected the source of a block node to be itself")
-	}
-	*last = bn
-	*stack = append(*stack, bn)
-}
-
-// like pushInitBlock(), but when the last block is a faux block,
-// namely after SwitchStmt and IfStmt.
-// Idempotent.
-func pushInitRealBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
-	if !bn.IsInitialized() {
-		bn.InitStaticBlock(bn, (*last).GetParentNode(nil))
+		switch bn.(type) {
+		case *IfCaseStmt, *SwitchClauseStmt:
+			// skip faux block
+			bn.InitStaticBlock(bn, (*last).GetParentNode(nil))
+		default:
+			bn.InitStaticBlock(bn, *last)
+		}
 	}
 	if bn.GetStaticBlock().Source != bn {
 		panic("expected the source of a block node to be itself")
@@ -2694,9 +2628,14 @@ func pushInitRealBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 // like pushInitBlock(), but when the last block is a faux block,
 // namely after SwitchStmt and IfStmt.
 // Not idempotent, as it calls bn.Define with reference to last's TV value slot.
-func pushInitRealBlockAndCopy(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
+func pushInitBlockAndCopy(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
+	if _, ok := bn.(*IfCaseStmt); !ok {
+		if _, ok := bn.(*SwitchClauseStmt); !ok {
+			panic("should not happen")
+		}
+	}
 	orig := *last
-	pushInitRealBlock(bn, last, stack)
+	pushInitBlock(bn, last, stack)
 	copyFromFauxBlock(bn, orig)
 }
 
