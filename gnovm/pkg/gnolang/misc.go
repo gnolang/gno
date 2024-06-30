@@ -209,19 +209,6 @@ func insertDeclNode(name Name, line int, loc Location, deps ...Name) {
 	}
 }
 
-// dumpGraph prints the current declGraph
-func dumpGraph() {
-	fmt.Println("-----------------------dump declGraph begin-------------------------")
-	for _, node := range declGraph {
-		fmt.Printf("%s, %d -> ", node.Name, node.Line)
-		for _, d := range node.Dependencies {
-			fmt.Printf("%s, %d ", d.Name, d.Line)
-		}
-		fmt.Println()
-	}
-	fmt.Println("-----------------------dump declGraph done-------------------------")
-}
-
 // assertNoCycle checks if there is a cycle in the declGraph graph
 func assertNoCycle() {
 	defer func() {

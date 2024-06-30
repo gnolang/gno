@@ -19,13 +19,10 @@ const (
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	defer func() {
-		//fmt.Println("---Predefine file set ending")
 		// Check for cyclic
 		if len(declGraph) != 0 {
-			//dumpGraph()
 			assertNoCycle()
 		}
-		//fmt.Println("---no cycle detected")
 		if err := recover(); err != nil {
 			panic(err)
 		}
@@ -2875,7 +2872,7 @@ func checkIntegerKind(xt Type) {
 // preprocess-able before other file-level declarations are
 // preprocessed).
 func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
-	//fmt.Println("---predefine now, d.line", d.GetLine())
+	// fmt.Println("---predefine now, d.line", d.GetLine())
 	defer func() {
 		if r := recover(); r != nil {
 			// before re-throwing the error, append location information to message.
