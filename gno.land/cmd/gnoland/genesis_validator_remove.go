@@ -57,6 +57,11 @@ func execValidatorRemove(cfg *validatorCfg, io commands.IO) error {
 	// Drop the validator
 	genesis.Validators = append(genesis.Validators[:index], genesis.Validators[index+1:]...)
 
+	// Update the on-chain validator set, if any
+	if err = alignChainValset(cfg.genesisPath, genesis); err != nil {
+		return fmt.Errorf("unable to align on-chain valset, %w", err)
+	}
+
 	// Save the updated genesis
 	if err := genesis.SaveAs(cfg.genesisPath); err != nil {
 		return fmt.Errorf("unable to save genesis.json, %w", err)

@@ -123,8 +123,13 @@ func execValidatorAdd(cfg *validatorAddCfg, io commands.IO) error {
 	// Add the validator
 	genesis.Validators = append(genesis.Validators, validator)
 
+	// Update the on-chain validator set, if any
+	if err = alignChainValset(cfg.rootCfg.genesisPath, genesis); err != nil {
+		return fmt.Errorf("unable to align on-chain valset, %w", err)
+	}
+
 	// Save the updated genesis
-	if err := genesis.SaveAs(cfg.rootCfg.genesisPath); err != nil {
+	if err = genesis.SaveAs(cfg.rootCfg.genesisPath); err != nil {
 		return fmt.Errorf("unable to save genesis.json, %w", err)
 	}
 

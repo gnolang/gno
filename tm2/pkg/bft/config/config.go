@@ -322,6 +322,9 @@ type BaseConfig struct {
 	// If true, query the ABCI app on connecting to a new peer
 	// so the app can decide if we should keep the connection or not
 	FilterPeers bool `toml:"filter_peers" comment:"If true, query the ABCI app on connecting to a new peer\n so the app can decide if we should keep the connection or not"` // false
+
+	// The validator set management protocol, ex. PoC / PoA / PoS
+	ValsetProtocol string `toml:"valset_protocol" comment:"The validator set management protocol to utilize"`
 }
 
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
