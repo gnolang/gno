@@ -85,7 +85,7 @@ func alignChainValset(genesisPath string, genesis *types.GenesisDoc) error {
 	state := genesis.AppState.(gnoland.GnoGenesisState)
 
 	switch cfg.ValsetProtocol {
-	case "poc":
+	case config.ProofOfContribution:
 		// Find the /r/sys/vals deploy transaction
 		pkg := findSysValsDeployment(state.Txs)
 		if pkg == nil {

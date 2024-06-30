@@ -37,6 +37,8 @@ const (
 	SocketABCI = "socket"
 )
 
+const ProofOfContribution = "poc"
+
 // Regular expression for TCP or UNIX socket address
 // TCP address: host:port (IPv4 example)
 // UNIX address: unix:// followed by the path
@@ -341,6 +343,7 @@ func DefaultBaseConfig() BaseConfig {
 		FilterPeers:        false,
 		DBBackend:          db.GoLevelDBBackend.String(),
 		DBPath:             DefaultDBDir,
+		ValsetProtocol:     "", // none by default
 	}
 }
 
