@@ -19,6 +19,8 @@ type QueryCfg struct {
 	Path string
 }
 
+const balancesQuery = "bank/balances/"
+
 func NewQueryCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 	cfg := &QueryCfg{
 		RootCfg: rootCfg,
@@ -82,7 +84,7 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 
 	path := cfg.Path
 
-	if strings.Contains(path, "bank/balances") {
+	if strings.Contains(path, balancesQuery) {
 		path = handleBankBalances(path)
 	}
 
@@ -109,10 +111,10 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 func handleBankBalances(path string) string {
 	// If the query is bank/balances & it contains a path, derive the address from the path
 	if strings.Contains(path, "gno.land/") {
-		i := strings.Index(path, "bank/balances/")
-		pkgPath := path[i+len("bank/balances/"):]
+		i := strings.Index(path, balancesQuery)
+		pkgPath := path[i+len(balancesQuery):]
 		pkgAddr := gnolang.DerivePkgAddr(pkgPath)
-		path = "bank/balances/" + pkgAddr.String()
+		path = balancesQuery + pkgAddr.String()
 	}
 
 	return path
