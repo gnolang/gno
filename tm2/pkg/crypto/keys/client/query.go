@@ -84,8 +84,15 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 
 	path := cfg.Path
 
+	if path == "" {
+		return nil, errors.New("missing path")
+	}
+
 	if strings.Contains(path, balancesQuery) {
 		path = handleBalanceQuery(path)
+		if path == "" {
+			return nil, errors.New("could not derive address from pkgpath")
+		}
 	}
 
 	data := []byte(cfg.Data)
@@ -108,7 +115,7 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	return qres, nil
 }
 
-func handleBalanceQuery(path string, io commands.IO) string {
+func handleBalanceQuery(path string) string {
 	// If the query is bank/balances & it contains a path, derive the address from the path
 	if strings.Contains(path, "gno.land/") {
 		i := strings.Index(path, balancesQuery)
@@ -116,7 +123,6 @@ func handleBalanceQuery(path string, io commands.IO) string {
 
 		pkgAddr := gnolang.DerivePkgAddr(pkgPath)
 		if len(pkgAddr.Bytes()) == 0 {
-			io.Printf("could not derive address from path")
 			return ""
 		}
 
