@@ -85,7 +85,7 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	path := cfg.Path
 
 	if strings.Contains(path, balancesQuery) {
-		path = handleBankBalances(path)
+		path = handleBalanceQuery(path)
 	}
 
 	data := []byte(cfg.Data)
@@ -108,7 +108,7 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	return qres, nil
 }
 
-func handleBankBalances(path string) string {
+func handleBalanceQuery(path string) string {
 	// If the query is bank/balances & it contains a path, derive the address from the path
 	if strings.Contains(path, "gno.land/") {
 		i := strings.Index(path, balancesQuery)
