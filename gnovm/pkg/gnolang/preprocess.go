@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"reflect"
 	"sync/atomic"
@@ -241,7 +242,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 
 		// ----------------------------------------
 		case TRANS_BLOCK:
-			pushInitBlock(n, &last, &stack)
+			pushInitBlock(n.(BlockNode), &last, &stack)
 			switch n := n.(type) {
 			case *IfCaseStmt:
 				// parent if statement.
@@ -2369,7 +2370,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
 					// if the name is loop defined,
-					lds := dbn.GetAttribute(ATTR_LOOP_DEFINES)
+					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 					if hasName(lds, n.Name) {
 						depth, found := findFirstClosure(stack, dbn)
 						if found {
@@ -2379,7 +2380,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							// Also adjust NameExpr type and path.
 							// We could do this in a later phase too.
 							n.Type = NameExprTypeLoopClosure
-							n.Path.Depth = depth
+							n.Path.Depth = uint8(depth)
 							// NOTE: this index will be overwritten later.
 							n.Path.Index = indexOfName(lds, n.Name)
 						} else {
@@ -2402,7 +2403,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 					// Set name in attribute, so later matches
 					// on NameExpr can know that this was loop defined
 					// on this block.
-					setAttrLoopDefines(last, n.Name)
+					setAttrLoopDefine(last, n.Name)
 				case NameExprTypeLoopUse, NameExprTypeLoopClosure:
 					panic("unexpected node type")
 				}
@@ -2435,20 +2436,20 @@ func assertNotHasName(names []Name, name Name) {
 }
 
 func setAttrLoopDefine(bn BlockNode, name Name) {
-	bnLDs := bn.GetAttribute(ATTR_LOOP_DEFINES)
+	bnLDs, _ := bn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 	assertNotHasName(bnLDs, name)
 	bnLDs = append(bnLDs, name)
-	bn.SetAttribute(ATTR_LOOP_DEFINES)
+	bn.SetAttribute(ATTR_LOOP_DEFINES, bnLDs)
 }
 
 func addAttrLoopUse(bn BlockNode, name Name) {
-	bnLUs := bn.GetAttribute(ATTR_LOOP_USES)
+	bnLUs, _ := bn.GetAttribute(ATTR_LOOP_USES).([]Name)
 	assertNotHasName(bnLUs, name)
 	if hasName(bnLUs, name) {
 		return
 	} else {
 		bnLUs = append(bnLUs, name)
-		bn.SetAttribute(ATTR_LOOP_USES)
+		bn.SetAttribute(ATTR_LOOP_USES, bnLUs)
 		return
 	}
 }
@@ -2463,9 +2464,11 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (depth int, found bool)
 		case *FuncLitExpr:
 			depth = len(stack) - 1 - i + 1 // +1 since 1 is lowest.
 			found = true
+			if stbn == stop {
+				return
+			}
 			// even if found, continue iteration in case
 			// an earlier *FuncLitExpr is found.
-			fallthrough // in case stop is *FuncLitExpr
 		default:
 			if stbn == stop {
 				return
@@ -2507,10 +2510,10 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
 					// if the name is loop defined,
-					lds := dbn.GetAttribute(ATTR_LOOP_DEFINES)
+					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 					if hasName(lds, n.Name) {
 						// if the name is actually loop used,
-						lus := dbn.GetAttribute(ATTR_LOOP_USES)
+						lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
 						if hasName(lus, n.Name) {
 							// change type finally to LoopUse.
 							n.Type = NameExprTypeLoopUse
@@ -2522,10 +2525,10 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
 					// if the name is loop defined,
-					lds := dbn.GetAttribute(ATTR_LOOP_DEFINES)
+					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 					if hasName(lds, n.Name) {
 						// if the name is actually loop used,
-						lus := dbn.GetAttribute(ATTR_LOOP_USES)
+						lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
 						if !hasName(lus, n.Name) {
 							// demote type finally to Define.
 							n.Type = NameExprTypeDefine
@@ -2534,7 +2537,7 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 				case NameExprTypeLoopClosure:
 					// adjust the ValuePath index based on use.
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					lus := dbn.GetAttribute(ATTR_LOOP_USES)
+					lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
 					n.Path.Index = indexOfName(lus, n.Name)
 				}
 			}
@@ -2560,8 +2563,8 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 				// In another clause above for NameExprTypeLoopClosure
 				// we set the index to ATTR_LOOP_USES, so a simple swap
 				// works here.
-				lds := n.GetAttribute(ATTR_LOOP_DEFINES)
-				lus := n.GetAttribute(ATTR_LOOP_USES)
+				lds, _ := n.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
+				lus, _ := n.GetAttribute(ATTR_LOOP_USES).([]Name)
 				if len(lds) > len(lus) {
 					panic("defines should be a superset of used-defines")
 				}
@@ -2575,10 +2578,13 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 	})
 }
 
-func indexOfName(ns []Node, name Name) int {
+func indexOfName(ns []Name, name Name) uint16 {
 	for i, nn := range ns {
 		if nn == name {
-			return i
+			if i >= math.MaxUint16 {
+				panic("ns is MaxUint16 or greater in length")
+			}
+			return uint16(i)
 		}
 	}
 	panic("not not found in ns")
@@ -2602,6 +2608,7 @@ func isSwitchLabel(ns []Node, label Name) bool {
 }
 
 // Idempotent.
+// Also makes sure the stack doesn't reach MaxUint8 in length.
 func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	if !bn.IsInitialized() {
 		switch bn.(type) {
@@ -2617,6 +2624,9 @@ func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	}
 	*last = bn
 	*stack = append(*stack, bn)
+	if len(*stack) >= math.MaxUint8 {
+		panic("block node depth reached maximum MaxUint8")
+	}
 }
 
 // like pushInitBlock(), but when the last block is a faux block,

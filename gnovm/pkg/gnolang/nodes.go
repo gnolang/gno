@@ -163,8 +163,8 @@ const (
 	ATTR_LOCATIONED    GnoAttribute = "ATTR_LOCATIONE"
 	ATTR_INJECTED      GnoAttribute = "ATTR_INJECTED"
 	ATTR_GOTOLOOP_STMT GnoAttribute = "ATTR_GOTOLOOP_STMT" // XXX delete?
-	ATTR_LOOP_DEFINES  GnoAttribute = "ATTR_LOOP_DEFINES"  // []Name
-	ATTR_LOOP_USES     GnoAttribute = "ATTR_LOOP_USES"     // []Name XXX???
+	ATTR_LOOP_DEFINES  GnoAttribute = "ATTR_LOOP_DEFINES"  // []Name defined within loops.
+	ATTR_LOOP_USES     GnoAttribute = "ATTR_LOOP_USES"     // []Name loop defines actually used.
 )
 
 type Attributes struct {
