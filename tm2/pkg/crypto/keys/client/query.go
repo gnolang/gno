@@ -3,9 +3,9 @@ package client
 import (
 	"context"
 	"flag"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
