@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// Cyclic dependency detected: S(File: files/recursive1d.gno, Line: 5) -> S(File: files/recursive1d.gno, Line: 5)
+// Cyclic dependency detected: S(File: files/recursive1d.gno) -> S(File: files/recursive1d.gno)

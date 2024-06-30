@@ -1992,8 +1992,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 						if maybeRecursive {
 							for _, name := range names {
-								line := n.GetLine()
-								insertDeclNode(dst.Name, line, last.GetLocation(), name)
+								insertDeclNode(dst.Name, last.GetLocation(), name)
 							}
 						}
 					}

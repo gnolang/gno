@@ -173,24 +173,22 @@ func DerivePkgAddr(pkgPath string) crypto.Address {
 // used to detect cycle definition of struct in `PredefineFileSet`.
 type DeclNode struct {
 	Name
-	Line         int
 	Loc          Location // file info
 	Dependencies []*DeclNode
 }
 
 // insertDeclNode inserts a new dependency into the graph
-func insertDeclNode(name Name, line int, loc Location, deps ...Name) {
+func insertDeclNode(name Name, loc Location, deps ...Name) {
 	var dep *DeclNode
 	for _, d := range declGraph {
 		if d.Name == name {
 			dep = d
-			dep.Line = line
 			dep.Loc = loc
 			break
 		}
 	}
 	if dep == nil {
-		dep = &DeclNode{Name: name, Line: line, Loc: loc}
+		dep = &DeclNode{Name: name, Loc: loc}
 		declGraph = append(declGraph, dep)
 	}
 	for _, depName := range deps {
@@ -222,7 +220,7 @@ func assertNoCycle() {
 		if detectCycle(dep, visited, reStack, &cycle) {
 			cycleNames := make([]string, len(cycle))
 			for i, c := range cycle {
-				cycleNames[i] = fmt.Sprintf("%s(File: %s, Line: %d)", c.Name, c.Loc.File, c.Line)
+				cycleNames[i] = fmt.Sprintf("%s(File: %s)", c.Name, c.Loc.File)
 			}
 			cycleMsg := strings.Join(cycleNames, " -> ")
 			panic(fmt.Sprintf("Cyclic dependency detected: %s", cycleMsg))

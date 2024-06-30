@@ -119,7 +119,7 @@ func TestDebug(t *testing.T) {
 		{in: "p \"xxxx\"\n", out: `("xxxx" string)`},
 		{in: "si\n", out: "sample.gno:14"},
 		{in: "s\ns\n", out: `=>   14: var global = "test"`},
-		//{in: "s\n\n", out: "=>   33: 	num := 5"},
+		{in: "s\n\n", out: "=>   33: 	num := 5"},
 		{in: "foo", out: "command not available: foo"},
 		{in: "\n\n", out: "dbg> "},
 		{in: "#\n", out: "dbg> "},
