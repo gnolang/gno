@@ -385,9 +385,9 @@ type NameExprType int
 const (
 	NameExprTypeNormal      NameExprType = iota // default
 	NameExprTypeDefine                          // when defining normally
-	NameExprTypeLoopDefine                      // when defining escaped name in loop
-	NameExprTypeLoopUse                         // when above used in non-define lhs/rhs
-	NameExprTypeLoopClosure                     // when above used in closure lhs/rhs
+	NameExprTypeHeapDefine                      // when defining escaped name in loop
+	NameExprTypeHeapUse                         // when above used in non-define lhs/rhs
+	NameExprTypeHeapClosure                     // when above used in closure lhs/rhs
 )
 
 type NameExpr struct {

@@ -147,7 +147,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 							// already defined, do nothing
 						} else {
 							// if loop extern, will change to
-							// NameExprTypeLoopDefine later.
+							// NameExprTypeHeapDefine later.
 							nx.Type = NameExprTypeDefine
 							last.Predefine(false, ln)
 							defined = true
@@ -2230,7 +2230,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 	return nn
 }
 
-// Identifies NameExprTypeLoopDefines.
+// Identifies NameExprTypeHeapDefines.
 // Also finds GotoLoopStmts, XXX but probably remove, not needed.
 func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
@@ -2321,10 +2321,10 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 									}
 								// Special case, maybe convert
 								// NameExprTypeDefine to
-								// NameExprTypeLoopDefine.
+								// NameExprTypeHeapDefine.
 								case *NameExpr:
 									if n.Type == NameExprTypeDefine {
-										n.Type = NameExprTypeLoopDefine
+										n.Type = NameExprTypeHeapDefine
 									}
 								}
 								return n, TRANS_CONTINUE
@@ -2346,7 +2346,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 // defines within loops that are used as reference or captured in a closure
 // later. Also happens to adjust the type and paths of such usage.
 // If there is no usage of the &name or as closure capture, a
-// NameExprTypeLoopDefine gets demoted to NameExprTypeDefine in demoteLoopDefines().
+// NameExprTypeHeapDefine gets demoted to NameExprTypeDefine in demoteHeapDefines().
 func findLoopUses1(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -2386,10 +2386,10 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 						if found {
 							// If across a closure,
 							// mark name as loop used.
-							addAttrLoopUse(dbn, n.Name)
+							addAttrHeapUse(dbn, n.Name)
 							// Also adjust NameExpr type and path.
 							// We could do this in a later phase too.
-							n.Type = NameExprTypeLoopClosure
+							n.Type = NameExprTypeHeapClosure
 							n.Path.Depth = uint8(depth)
 							// NOTE: this index will be overwritten later.
 							n.Path.Index = indexOfName(lds, n.Name)
@@ -2397,10 +2397,10 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							if ftype == TRANS_REF_X {
 								// if used as a reference,
 								// mark name as loop used.
-								addAttrLoopUse(dbn, n.Name)
+								addAttrHeapUse(dbn, n.Name)
 								// Also adjust NameExpr type.
 								// We could do this later too.
-								n.Type = NameExprTypeLoopUse
+								n.Type = NameExprTypeHeapUse
 							}
 						}
 					} else {
@@ -2409,12 +2409,12 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 					}
 				case NameExprTypeDefine:
 					// nothing to do.
-				case NameExprTypeLoopDefine:
+				case NameExprTypeHeapDefine:
 					// Set name in attribute, so later matches
 					// on NameExpr can know that this was loop defined
 					// on this block.
-					setAttrLoopDefine(last, n.Name)
-				case NameExprTypeLoopUse, NameExprTypeLoopClosure:
+					setAttrHeapDefine(last, n.Name)
+				case NameExprTypeHeapUse, NameExprTypeHeapClosure:
 					panic("unexpected node type")
 				}
 			}
@@ -2445,14 +2445,14 @@ func assertNotHasName(names []Name, name Name) {
 	}
 }
 
-func setAttrLoopDefine(bn BlockNode, name Name) {
+func setAttrHeapDefine(bn BlockNode, name Name) {
 	bnLDs, _ := bn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 	assertNotHasName(bnLDs, name)
 	bnLDs = append(bnLDs, name)
 	bn.SetAttribute(ATTR_LOOP_DEFINES, bnLDs)
 }
 
-func addAttrLoopUse(bn BlockNode, name Name) {
+func addAttrHeapUse(bn BlockNode, name Name) {
 	bnLUs, _ := bn.GetAttribute(ATTR_LOOP_USES).([]Name)
 	assertNotHasName(bnLUs, name)
 	if hasName(bnLUs, name) {
@@ -2488,9 +2488,9 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (depth int, found bool)
 	panic("stop not found in stack")
 }
 
-// Convert non-loop uses of loop names to NameExprTypeLoopUse.
-// Alos, NameExprTypeLoopDefine gets demoted to NameExprTypeDefine if no actual
-// usage was found that warrants a NameExprTypeLoopDefine.
+// Convert non-loop uses of loop names to NameExprTypeHeapUse.
+// Alos, NameExprTypeHeapDefine gets demoted to NameExprTypeDefine if no actual
+// usage was found that warrants a NameExprTypeHeapDefine.
 func findLoopUses2(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -2529,13 +2529,13 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 						// if the name is actually loop used,
 						lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
 						if hasName(lus, n.Name) {
-							// change type finally to LoopUse.
-							n.Type = NameExprTypeLoopUse
+							// change type finally to HeapUse.
+							n.Type = NameExprTypeHeapUse
 						} else {
 							// else, will be demoted in later clause.
 						}
 					}
-				case NameExprTypeLoopDefine:
+				case NameExprTypeHeapDefine:
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
 					// if the name is loop defined,
@@ -2548,7 +2548,7 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 							n.Type = NameExprTypeDefine
 						}
 					}
-				case NameExprTypeLoopClosure:
+				case NameExprTypeHeapClosure:
 					// adjust the ValuePath index based on use.
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
 					lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
@@ -2574,7 +2574,7 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 
 			switch n := n.(type) {
 			case BlockNode:
-				// In another clause above for NameExprTypeLoopClosure
+				// In another clause above for NameExprTypeHeapClosure
 				// we set the index to ATTR_LOOP_USES, so a simple swap
 				// works here.
 				lds, _ := n.GetAttribute(ATTR_LOOP_DEFINES).([]Name)

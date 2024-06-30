@@ -96,7 +96,20 @@ func (vp ValuePath) String() string {
 }
 
 func (x NameExpr) String() string {
-	return fmt.Sprintf("%s<%s>", x.Name, x.Path.String())
+	switch x.Type {
+	case NameExprTypeNormal:
+		return fmt.Sprintf("%s<%s>", x.Name, x.Path.String())
+	case NameExprTypeDefine:
+		return fmt.Sprintf("%s<%s>", x.Name, x.Path.String())
+	case NameExprTypeHeapDefine:
+		return fmt.Sprintf("%s<!~%s>", x.Name, x.Path.String())
+	case NameExprTypeHeapUse:
+		return fmt.Sprintf("%s<~%s>", x.Name, x.Path.String())
+	case NameExprTypeHeapClosure:
+		return fmt.Sprintf("%s<()~%s>", x.Name, x.Path.String())
+	default:
+		panic("unexpected NameExpr type")
+	}
 }
 
 func (x BasicLitExpr) String() string {
