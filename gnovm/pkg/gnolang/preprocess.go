@@ -2253,7 +2253,8 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 
 		// ----------------------------------------
 		case TRANS_BLOCK:
-			pushInitBlock(bn, &last, &stack)
+			pushInitBlock(n.(BlockNode), &last, &stack)
+			return n, TRANS_CONTINUE
 
 		// ----------------------------------------
 		case TRANS_LEAVE:
@@ -2287,10 +2288,8 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 						return n, TRANS_SKIP
 					}
 
-					// recurse and mark stmts as ATTR_GOTOLOOP_STMT
-					// We don't really need ATTR_GOTOLOOP_STMT,
-					// but the logic is here and might use it one day,
-					// so keep for a while.
+					// Recurse and mark stmts as ATTR_GOTOLOOP_STMT.
+					// NOTE: ATTR_GOTOLOOP_STMT is not used.
 					Transcribe(bn,
 						func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 							switch stage {
@@ -2301,9 +2300,16 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 								switch n := n.(type) {
 								// Skip the body of these:
 								case *FuncLitExpr:
-									return n, TRANS_SKIP
+									if len(ns) > 0 {
+										// inner funcs.
+										return n, TRANS_SKIP
+									}
+									return n, TRANS_CONTINUE
 								case *FuncDecl:
-									return n, TRANS_SKIP
+									if len(ns) > 0 {
+										panic("unexpected inner func decl")
+									}
+									return n, TRANS_CONTINUE
 								// Otherwise mark stmt as gotoloop.
 								case Stmt:
 									if n.GetLine() <= gotoLine {
@@ -2359,12 +2365,16 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 
 		// ----------------------------------------
 		case TRANS_BLOCK:
-			pushInitBlock(bn, &last, &stack)
+			pushInitBlock(n.(BlockNode), &last, &stack)
 
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
 			case *NameExpr:
+				// Ignore non-block type paths
+				if n.Path.Type != VPBlock {
+					return n, TRANS_CONTINUE
+				}
 				switch n.Type {
 				case NameExprTypeNormal:
 					// Find the block where name is defined
@@ -2499,12 +2509,16 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 
 		// ----------------------------------------
 		case TRANS_BLOCK:
-			pushInitBlock(bn, &last, &stack)
+			pushInitBlock(n.(BlockNode), &last, &stack)
 
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
 			case *NameExpr:
+				// Ignore non-block type paths
+				if n.Path.Type != VPBlock {
+					return n, TRANS_CONTINUE
+				}
 				switch n.Type {
 				case NameExprTypeNormal:
 					// Find the block where name is defined
@@ -2632,6 +2646,7 @@ func pushInitBlock(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 // like pushInitBlock(), but when the last block is a faux block,
 // namely after SwitchStmt and IfStmt.
 // Not idempotent, as it calls bn.Define with reference to last's TV value slot.
+// XXX do we need this?
 func pushInitBlockAndCopy(bn BlockNode, last *BlockNode, stack *[]BlockNode) {
 	if _, ok := bn.(*IfCaseStmt); !ok {
 		if _, ok := bn.(*SwitchClauseStmt); !ok {
