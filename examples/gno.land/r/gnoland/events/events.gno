@@ -16,7 +16,7 @@ type Event struct {
 	id          seqid.ID
 	name        string    // name of event
 	description string    // short description of event
-	link        string    // link to a corresponding web2 sign up page, ie eventbrite/luma
+	link        string    // link to a corresponding web2 page, ie eventbrite/luma or conference page
 	location    string    // location of the event
 	startTime   time.Time // start time of the event
 	// add duration/endtime?
