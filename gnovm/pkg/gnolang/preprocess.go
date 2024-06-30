@@ -2,11 +2,10 @@ package gnolang
 
 import (
 	"fmt"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"math/big"
 	"reflect"
 	"sync/atomic"
-
-	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 const (
@@ -634,7 +633,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// The main TRANS_LEAVE switch.
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
-			case *NameExpr:
+			case *NameExpr: // e.g. var a int, a is NameExpr
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -751,6 +750,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *BinaryExpr:
+				// TODO: improve readability
 				lt := evalStaticTypeOf(store, last, n.Left)
 				rt := evalStaticTypeOf(store, last, n.Right)
 
@@ -1030,6 +1030,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								return n, TRANS_CONTINUE
 							}
 						}
+						// TODO: consider this, need check?
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
 						if !constConverted {
@@ -1055,7 +1056,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				// Handle special cases.
 				// NOTE: these appear to be actually special cases in go.
-				// In general, a string is not assignable to []bytes
+				// In general, a string is not checkAssignableTo to []bytes
 				// without conversion.
 				if cx, ok := n.Func.(*ConstExpr); ok {
 					fv := cx.GetFunc()
@@ -1216,7 +1217,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				} else {
-					for i := range n.Args {
+					for i := range n.Args { // iterate args
 						if hasVarg {
 							if (len(spts) - 1) <= i {
 								if isVarg {
@@ -2254,6 +2255,7 @@ func getResultTypedValues(cx *CallExpr) []TypedValue {
 // composite exprs/nodes that contain constant expression nodes (e.g. const
 // exprs in the rhs of AssignStmts).
 func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
+	debug.Printf("---evalConst, x: %v \n", x)
 	// TODO: some check or verification for ensuring x
 	// is constant?  From the machine?
 	m := NewMachine(".dontcare", store)
@@ -2451,16 +2453,14 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				switch bx.Op {
 				case ADD, SUB, MUL, QUO, REM, BAND, BOR, XOR,
 					BAND_NOT, LAND, LOR:
-					// push t into bx.Left and bx.Right
+					// push t into bx.Left and bx.Right, recursively
 					checkOrConvertType(store, last, &bx.Left, t, autoNative)
 					checkOrConvertType(store, last, &bx.Right, t, autoNative)
 					return
-				case SHL, SHR:
-					// push t into bx.Left
-					checkOrConvertType(store, last, &bx.Left, t, autoNative)
-					return
-					// case EQL, LSS, GTR, NEQ, LEQ, GEQ:
-					// default:
+				case EQL, LSS, GTR, NEQ, LEQ, GEQ:
+					// nothing to do, quick forward
+				default:
+					// do nothing
 				}
 			}
 		}

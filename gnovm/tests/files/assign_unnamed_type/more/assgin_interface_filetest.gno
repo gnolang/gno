@@ -33,7 +33,7 @@ func main() {
 }
 
 // Output:
-// (undefined)
+// (undefined) main.Foo
 // (slice[(1 int)] main.myIntSlice)
 // (slice[(1 int)] main.myIntSlice)
 // (slice[(1 int)] main.myIntSlice)
