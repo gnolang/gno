@@ -82,12 +82,8 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 
 	path := cfg.Path
 
-	// If the query is bank/balances & it contains a path, derive the address from the path
-	if strings.Contains(path, "bank/balances") && strings.Contains(path, "gno.land/") {
-		i := strings.Index(path, "bank/balances/")
-		pkgPath := path[i+len("bank/balances/"):]
-		pkgAddr := gnolang.DerivePkgAddr(pkgPath)
-		path = "bank/balances/" + pkgAddr.String()
+	if strings.Contains(path, "bank/balances") {
+		path = handleBankBalances(path)
 	}
 
 	data := []byte(cfg.Data)
@@ -108,4 +104,16 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	}
 
 	return qres, nil
+}
+
+func handleBankBalances(path string) string {
+	// If the query is bank/balances & it contains a path, derive the address from the path
+	if strings.Contains(path, "gno.land/") {
+		i := strings.Index(path, "bank/balances/")
+		pkgPath := path[i+len("bank/balances/"):]
+		pkgAddr := gnolang.DerivePkgAddr(pkgPath)
+		path = "bank/balances/" + pkgAddr.String()
+	}
+
+	return path
 }
