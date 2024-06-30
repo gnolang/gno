@@ -3,6 +3,8 @@ package client
 import (
 	"context"
 	"flag"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -78,18 +80,29 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 		return nil, errors.New("missing remote url")
 	}
 
+	path := cfg.Path
+
+	// If the query is bank/balances & it contains a path, derive the address from the path
+	if strings.Contains(path, "bank/balances") && strings.Contains(path, "gno.land/") {
+		i := strings.Index(path, "bank/balances/")
+		pkgPath := path[i+len("bank/balances/"):]
+		pkgAddr := gnolang.DerivePkgAddr(pkgPath)
+		path = "bank/balances/" + pkgAddr.String()
+	}
+
 	data := []byte(cfg.Data)
 	opts2 := client.ABCIQueryOptions{
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
+
 	cli, err := client.NewHTTPClient(remote)
 	if err != nil {
 		return nil, errors.Wrap(err, "new http client")
 	}
 
 	qres, err := cli.ABCIQueryWithOptions(
-		cfg.Path, data, opts2)
+		path, data, opts2)
 	if err != nil {
 		return nil, errors.Wrap(err, "querying")
 	}
