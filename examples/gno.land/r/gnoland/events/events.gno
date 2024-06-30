@@ -109,7 +109,6 @@ func EditEvent(id seqid.ID, name, description, link, location string, startTime 
 	}
 }
 
-
 // Rendering
 
 // RenderEventWidget shows up to amt of the latest events to a caller
@@ -128,11 +127,12 @@ func RenderEventWidget(amt int) string {
 	}
 
 	if amt > eventNum {
-		amt = eventNum - 1
+		amt = eventNum
 	}
 
 	output := ""
 
+	// todo check for ordering
 	for _, event := range events[eventNum-amt:] {
 		output += ufmt.Sprintf("- [%s](%s)\n", event.name, event.link)
 	}
@@ -140,7 +140,7 @@ func RenderEventWidget(amt int) string {
 	return output
 }
 
-func renderHome() string {
+func renderHome(admin bool) string {
 	output := "# Gno.land Events\n\n"
 
 	if len(events) == 0 {
@@ -163,7 +163,7 @@ func renderHome() string {
 
 	if len(events[:pos]) > 0 {
 		for _, e := range events[:pos] {
-			output += e.RenderListItem()
+			output += e.Render(admin)
 		}
 	} else {
 		output += "No upcoming events.\n\n"
@@ -177,31 +177,38 @@ func renderHome() string {
 	output += "<div class='columns-3'>"
 
 	for _, e := range events[pos:] {
-		output += e.RenderListItem()
+		output += e.Render(admin)
 	}
 
 	output += "</div>\n\n"
 	return output
 }
 
-func (e Event) RenderListItem() string {
+func (e Event) Render(admin bool) string {
 	var buf bytes.Buffer
 
 	buf.WriteString("<div>\n\n")
 	buf.WriteString(ufmt.Sprintf("### %s\n\n", e.name))
 	buf.WriteString(ufmt.Sprintf("%s\n\n", e.description))
 	buf.WriteString(ufmt.Sprintf("**Location:** %s\n\n", e.location))
-	buf.WriteString(ufmt.Sprintf("**Time & Date:** %s\n\n", e.startTime.Format("02 Jan 2006, 15:04"))
-	buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
-	buf.WriteString(ufmt.Sprintf("<!-- id: %s --> \n\n", e.id))
+	buf.WriteString(ufmt.Sprintf("**Time & Date:** %s\n\n", e.startTime.Format("02 Jan 2006, 15:04")))
 
+	if admin {
+		buf.WriteString(ufmt.Sprintf("Event ID: %s\n\n", e.id))
+	}
+
+	buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
 	buf.WriteString("</div>")
 
 	return buf.String()
 }
 
-func Render(_ string) string {
-	return renderHome()
+func Render(path string) string {
+	if path == "admin" {
+		return renderHome(true)
+	}
+
+	return renderHome(false)
 }
 
 func GetOwner() std.Address {
