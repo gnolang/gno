@@ -736,11 +736,15 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			name := toName(s.Name)
 			tipe := toExpr(fs, s.Type)
 			alias := s.Assign != 0
-			ds = append(ds, &TypeDecl{
+			td := &TypeDecl{
 				NameExpr: NameExpr{Name: name},
 				Type:     tipe,
 				IsAlias:  alias,
-			})
+			}
+			// collect decl info for debug
+			posn := fs.Position(gd.Pos())
+			td.SetLine(posn.Line)
+			ds = append(ds, td)
 		case *ast.ValueSpec:
 			if gd.Tok == token.CONST {
 				var names []NameExpr

@@ -18,4 +18,4 @@ func main() {
 }
 
 // Error:
-// loop in variable initialization: dependency trail [B C A] circularly depends on B
+// Cyclic dependency detected: C(File: files/recursive2.gno, Line: 11) -> A(File: files/recursive2.gno, Line: 3) -> B(File: files/recursive2.gno, Line: 7) -> C(File: files/recursive2.gno, Line: 11)
