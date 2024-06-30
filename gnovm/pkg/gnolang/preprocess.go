@@ -2252,9 +2252,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 
 		// ----------------------------------------
 		case TRANS_BLOCK:
-			if bn, ok := n.(BlockNode); ok {
-				pushInitBlock(bn, &last, &stack)
-			}
+			pushInitBlock(bn, &last, &stack)
 
 		// ----------------------------------------
 		case TRANS_LEAVE:
@@ -2360,9 +2358,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 
 		// ----------------------------------------
 		case TRANS_BLOCK:
-			if bn, ok := n.(BlockNode); ok {
-				pushInitBlock(bn, &last, &stack)
-			}
+			pushInitBlock(bn, &last, &stack)
 
 		// ----------------------------------------
 		case TRANS_ENTER:
@@ -2500,9 +2496,7 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 
 		// ----------------------------------------
 		case TRANS_BLOCK:
-			if bn, ok := n.(BlockNode); ok {
-				pushInitBlock(bn, &last, &stack)
-			}
+			pushInitBlock(bn, &last, &stack)
 
 		// ----------------------------------------
 		case TRANS_ENTER:
