@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
 
@@ -24,11 +24,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-)
-
-var (
-	ErrInvalidRealm     = errors.New("invalid realm")
-	ErrUnauthorizedUser = errors.New("unauthorized user")
 )
 
 const (
@@ -162,11 +157,11 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	}
 
 	// XXX: is this necessary ?
-	pkgPath = filepath.Clean(pkgPath) // cleanup pkgpath
+	pkgPath = path.Clean(pkgPath) // cleanup pkgpath
 
 	match := reNamespace.FindStringSubmatch(pkgPath)
 	if len(match) != 2 {
-		return fmt.Errorf("%w: %q", ErrInvalidRealm, pkgPath)
+		return ErrInvalidPkgPath(pkgPath)
 	}
 	username := match[1]
 
@@ -176,10 +171,10 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	// Allow user with their own address as namespace
 	if addr, err := crypto.AddressFromBech32(username); err == nil {
 		if addr.Compare(creator) == 0 {
-			return nil
+			return nil // ok
 		}
 
-		return fmt.Errorf("%w: %q", ErrUnauthorizedUser, username)
+		return ErrUnauthorizedUser(username)
 	}
 
 	// Parse and run the files, construct *PV.
@@ -208,14 +203,14 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		})
 	defer m.Release()
 
-	// call $sysUsersPkg.GetUserByName("<user>")
+	// call $sysUsersPkg.Resolve("<user>")
 	// We only need to check by name here, as address have already been check
 	mpv := gno.NewPackageNode("main", "main", nil).NewPackage()
 	m.SetActivePackage(mpv)
 	m.RunDeclaration(gno.ImportD("users", sysUsersPkg))
 	x := gno.Call(
-		gno.Sel(gno.Nx("users"), "GetUserByName"),
-		gno.Str(username),
+		gno.Sel(gno.Nx("users"), "Resolve"),
+		gno.Str("@"+username),
 	)
 
 	ret := m.Eval(x)
@@ -223,12 +218,22 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		panic("call: invalid response length")
 	}
 
+	useraddress := ret[0]
 	// If value is nil, no user has been registered for this namespace
-	if user := ret[0]; user.V == nil {
-		return fmt.Errorf("%w: %q", ErrUnauthorizedUser, username)
+	if useraddress.T.Kind() != gno.StringKind {
+		panic("call: invalid response kind")
 	}
 
-	return nil
+	// Check for ownership
+	if rawAddr := useraddress.GetString(); rawAddr != "" {
+		if owner, err := crypto.AddressFromBech32(rawAddr); err == nil {
+			if owner.Compare(creator) == 0 {
+				return nil // ok
+			}
+		}
+	}
+
+	return ErrUnauthorizedUser(username)
 }
 
 // AddPackage adds a package with given fileset.
@@ -268,9 +273,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// TODO: ACLs.
 	// - if r/system/names does not exists -> skip validation.
 	// - loads r/system/names data state.
-	// - lookup r/system/names.namespaces for `{r,p}/NAMES`.
-	// - check if caller is in Admins or Editors.
-	// - check if namespace is not in pause.
 	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
 		return err
 	}

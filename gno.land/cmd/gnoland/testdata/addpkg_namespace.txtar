@@ -4,7 +4,7 @@ adduser gui
 
 gnoland start
 
-## test address namespace
+## test address (g1...) namespace
 
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$USER_ADDR_test1/one -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test gui
 stderr 'unauthorized user'
@@ -12,22 +12,30 @@ stderr 'unauthorized user'
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$USER_ADDR_gui/one -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
-## test unregister namespace
+## test unregistered namespace
 
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
 stderr 'unauthorized user'
 
-## test register namespace
+## test registered namespace
 
-## XXX: THE FOLLOWING LINES REQUIRE BEING ABLE TO SET examples/gno.land/r/demo/users/users.admin=<test1_addr>
+# # XXX: THE FOLLOWING LINES REQUIRE BEING ABLE TO SET examples/gno.land/r/demo/users/users.admin=<test1_addr>
+# # test test1 invite gui
 # gnokey maketx call -pkgpath gno.land/r/demo/users -func Invite -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -args $USER_ADDR_gui test1
 # stdout 'OK!'
 
+# # test gui register namespace
 # gnokey maketx call -pkgpath gno.land/r/demo/users -func Register -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -args $USER_ADDR_test1 -args 'guiland' -args 'im gui' gui
 # stdout 'OK!'
 
+# # test gui pushing on guiland/one
 # gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test gui
 # stdout 'OK!'
+
+# # test test1 pushing on guiland/two
+# ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/two -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test test1
+# stderr 'unauthorized user'
+
 
 -- one.gno --
 package one
