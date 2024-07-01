@@ -160,7 +160,7 @@ const (
 	ATTR_TYPE_VALUE    GnoAttribute = "ATTR_TYPE_VALUE"
 	ATTR_TYPEOF_VALUE  GnoAttribute = "ATTR_TYPEOF_VALUE"
 	ATTR_IOTA          GnoAttribute = "ATTR_IOTA"
-	ATTR_LOCATIONED    GnoAttribute = "ATTR_LOCATIONE"
+	ATTR_LOCATIONED    GnoAttribute = "ATTR_LOCATIONE" // XXX DELETE
 	ATTR_INJECTED      GnoAttribute = "ATTR_INJECTED"
 	ATTR_GOTOLOOP_STMT GnoAttribute = "ATTR_GOTOLOOP_STMT" // XXX delete?
 	ATTR_LOOP_DEFINES  GnoAttribute = "ATTR_LOOP_DEFINES"  // []Name defined within loops.
@@ -181,10 +181,12 @@ func (attr *Attributes) SetLine(line int) {
 	attr.Line = line
 }
 
+// XXX GetLabels(), and HasLabel().
 func (attr *Attributes) GetLabel() Name {
 	return attr.Label
 }
 
+// XXX I think should be AddLabel instead.
 func (attr *Attributes) SetLabel(label Name) {
 	attr.Label = label
 }
@@ -214,8 +216,8 @@ type Node interface {
 	assertNode()
 	String() string
 	Copy() Node
-	GetLine() int
-	SetLine(int)
+	GetLine() int // must not be used for logic.
+	SetLine(int)  // must not be used for logic.
 	GetLabel() Name
 	SetLabel(Name)
 	HasAttribute(key GnoAttribute) bool
