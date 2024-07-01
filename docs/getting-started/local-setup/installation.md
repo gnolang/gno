@@ -57,7 +57,7 @@ gno --help
 
 You should get the help output from the command:
 
-![gno help](../../assets/getting-started/local-setup/local-setup/gno-help.gif)
+![gno help](../../assets/getting-started/local-setup/installation/gno-help.gif)
 
 Alternatively, if you don't want to have the binary callable system-wide, you
 can run the binary directly:
@@ -76,11 +76,11 @@ about `gnodev` [here](../../gno-tooling/cli/gnodev.md).
 To verify that the `gnodev` binary is installed system-wide, you can run:
 
 ```bash
-gnodev
+gnodev --help
 ```
 
 You should get the following output:
-![gnodev](../../assets/getting-started/local-setup/local-setup/gnodev.gif)
+![gnodev](../../assets/getting-started/local-setup/installation/gnodev-help.gif)
 
 
 ### `gnokey`
@@ -97,7 +97,7 @@ gnokey --help
 
 You should get the help output from the command:
 
-![gnokey help](../../assets/getting-started/local-setup/local-setup/gnokey-help.gif)
+![gnokey help](../../assets/getting-started/local-setup/installation/gnokey-help.gif)
 
 ## Conclusion
 
