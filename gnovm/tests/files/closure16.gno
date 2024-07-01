@@ -2,7 +2,8 @@ package main
 
 func main() {
 	var fns []func() int
-	for i := 0; i < 3; i++ {
+	s := []int{1, 2, 3}
+	for i, _ := range s {
 		x := i
 		f := func() int {
 			return x
@@ -13,11 +14,6 @@ func main() {
 		println(fn())
 	}
 }
-
-// Go Output:
-// 0
-// 1
-// 2
 
 // Output:
 // 0

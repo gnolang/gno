@@ -2,8 +2,9 @@ package main
 
 func main() {
 	var fns []func() int
-	for i := 0; i < 3; i++ {
-		x := i
+	m := map[string]int{"a": 1, "b": 2}
+	for _, v := range m {
+		x := v
 		f := func() int {
 			return x
 		}
@@ -14,12 +15,6 @@ func main() {
 	}
 }
 
-// Go Output:
-// 0
-// 1
-// 2
-
 // Output:
-// 0
 // 1
 // 2
