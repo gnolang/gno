@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -23,6 +24,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+)
+
+var (
+	ErrInvalidUrl       = errors.New("invalid url")
+	ErrUnauthorizedUser = errors.New("unauthorized user")
 )
 
 const (
@@ -139,20 +145,27 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 }
 
 func (vm *VMKeeper) checkNamespacePerm(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	const syspkg = "gno.land/r/sys/names"
+	const sysUsersPkg = "gno.land/r/demo/users"
 
 	store := vm.getGnoStore(ctx)
 
 	// if r/sys/names does not exists -> skip validation.
-	if store.GetPackage("gno.land/r/sys/names", false) == nil {
+	usersPkg := store.GetPackage(sysUsersPkg, false)
+	if usersPkg == nil {
 		return nil
 	}
-	pkgAddr := gno.DerivePkgAddr(pkgPath)
 
-	pathSp := strings.SplitN(pkgPath, "/", 4) // gno.land/r/...
-	namespace := pathSp[2]
+	pkgPath = filepath.Clean(pkgPath)         // cleanup pkgpath
+	pathSp := strings.SplitN(pkgPath, "/", 4) // gno.land/r/<user>/<pname>
+	if len(pathSp) < 3 {
+		return fmt.Errorf("%w: %s", ErrInvalidUrl, pkgPath)
+	}
+
+	// XXX: cleanup username
+	username := pathSp[2]
 
 	// Parse and run the files, construct *PV.
+	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
@@ -174,28 +187,22 @@ func (vm *VMKeeper) checkNamespacePerm(ctx sdk.Context, creator crypto.Address, 
 			MaxCycles: vm.maxCycles,
 			GasMeter:  ctx.GasMeter(),
 		})
-	// -	res, err := vm.Call(ctx, MsgCall{
-	// 	-		Caller:  creator,
-	// 	-		Send:    std.Coins{},
-	// 	-		PkgPath: "gno.land/r/system/names",
-	// 	-		Func:    "HasPerm",
-	// 	-		Args:    []string{namespace},
-	// 	-	})
+	defer m.Release()
 
+	m.RunDeclaration(gno.ImportD("users", sysUsersPkg))
 	x := gno.Call(
-		gno.Sel(gnolang.Nx("names"), "HasPerm"), // Call testing.RunTest
-		gno.Str(namespace),                      // First param, the name of the test
+		gno.Sel(gnolang.Nx("users"), "GetUserByAddressOrName"), // Call testing.RunTest
+		gno.Str("@"+username),                                  // First param, the name of the test
 	)
 
 	ret := m.Eval(x)
-	panic(ret)
-	// // if err != nil {
-	// // 	return err
-	// // }
-	// // TODO: needs fixed representation of bool
-	// if res != "(true bool)" {
-	// 	return fmt.Errorf("namespace %q not allowed", namespace)
-	// }
+	if len(ret) == 0 {
+		panic("invalid response length call")
+	}
+
+	if user := ret[0]; user.V == nil {
+		return fmt.Errorf("%w: %s", ErrUnauthorizedUser, pkgPath)
+	}
 
 	return nil
 }
@@ -235,6 +242,12 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// Pay deposit from creator.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 
+	// TODO: ACLs.
+	// - if r/system/names does not exists -> skip validation.
+	// - loads r/system/names data state.
+	// - lookup r/system/names.namespaces for `{r,p}/NAMES`.
+	// - check if caller is in Admins or Editors.
+	// - check if namespace is not in pause.
 	if err := vm.checkNamespacePerm(ctx, creator, pkgPath); err != nil {
 		return err
 	}
