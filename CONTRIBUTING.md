@@ -345,10 +345,10 @@ Fixed in:
 
 #### Don't Rebase
 
-Commits are squashed when merged into the repository; they only show up in the
+Commits are squashed when merged into master; they only show up in the
 commit history as one commit. Consequently, rebasing is generally not useful on
 this repository, and in general it is more likely to cause you headaches while
-trying to untangle merge conflicts.
+trying to untangle the repeated merge conflicts typical of rebases.
 
 If you have `git pull` set up to rebase automatically, you can change the `git`
 configuration to disable rebase:
@@ -358,8 +358,8 @@ git config pull.rebase false
 ```
 
 Note that this, executed in the Gno repository, _will only change the
-configuration for that repository_. So your global settings will remain the same
-for all other commits.
+configuration within the repository_. So your global settings will remain the same
+for all other projects.
 
 By using merges instead of rebase, you can make sure that any reviewers of your
 PR can view the changes you made to your PR since you last modified it. If you
