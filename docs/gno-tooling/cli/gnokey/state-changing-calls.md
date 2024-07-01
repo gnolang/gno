@@ -152,7 +152,7 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `GAS WANTED: 200000` - the original amount of gas specified for the transaction
 - `GAS USED:   117564` - the gas used to execute the transaction
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
-- `EVENTS:     []` - events emitted by the transaction, in this case, none
+- `EVENTS:     []` - [events](../../../concepts/stdlibs/events.md) emitted by the transaction, in this case, none
 
 Congratulations! You have just uploaded a pure package to your local chain.
 If you wish to upload the package to a remote testnet, make sure to switch out

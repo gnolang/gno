@@ -5,15 +5,17 @@ id: interacting-with-gnoland
 # Interacting with Gno.land code
 
 ## Overview
+
 In this tutorial, you will learn how to interact with Gno.land code.
 You will understand how to use your keypair to send transactions to realms
 and packages, send native coins, and more.
 
 ## Prerequisites
+
 - **`gnokey` installed.** Reference the
 [Local Setup](installation.md#3-installing-other-gno-tools) guide for steps
 - **A keypair in `gnokey`.** Reference the 
-[Working with Key Pairs](../../gno-tooling/cli/gnokey/working-with-key-pairs.mdkey/working-with-key-pairs.md#adding-a-private-key-using-a-mnemonic) guide for steps
+[Creating a key pair](creating-a-keypair.md) guide for steps
 
 ## 1. Get testnet GNOTs
 For interacting with any Gno.land chain, you will need a certain amount of GNOTs
@@ -35,7 +37,7 @@ After inputting your address and solving the captcha, you can check if you have 
 following `gnokey` command:
 
 ```bash
-gnokey query bank/balances/<your_gno_address> --remote "https://rpc.gno.land:443"    
+gnokey query bank/balances/<your_gno_address> --remote "https://rpc.gno.land:443"
 ```
 
 If the faucet request was successful, you should see something similar to the 
@@ -48,6 +50,7 @@ data: "10000000ugnot"
 ```
 
 ## 2. Visit a realm
+
 For this example, we will use the [Userbook realm](https://gno.land/r/demo/userbook).
 The Userbook realm is a simple app that allows users to sign up, and keeps track
 of when they signed up. It also displays the currently signed-up users and the block
@@ -92,6 +95,6 @@ That's it! Congratulations on executing your first transaction on a Gno network!
 If the previous transaction was successful, you should be able
 to see your address on the main page of the Userbook realm. 
 
-This concludes the "Local Setup" tutorial. For next steps, see the 
+This concludes the "Local Setup" section. For next steps, see the 
 [How-to guides section](../../how-to-guides/how-to-guides.md), where you will 
 learn how to write your first realm, package, and much more.

@@ -11,6 +11,8 @@ In this tutorial section, you will learn how to use the `gnokey` binary.
 state-changing calls, run readonly queries without using gas, as well as create, 
 sign, and broadcast airgapped transactions for full security.
 
+// TODO FIX 
+
 ## Prerequisites
 
 - **`gno`, `gnokey`, and `gnodev` installed.** Reference the
@@ -29,3 +31,6 @@ There are multiple ways anyone can interact with the chain:
 
 Both transactions and ABCI queries can be made via `gnokey`'s subcommands,
 `maketx` and `query`.
+
+
+TODO FIX
