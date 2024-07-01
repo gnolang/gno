@@ -448,11 +448,13 @@ func (m *Machine) injectLocOnPanic() {
 		// Show last location information.
 		// First, determine the line number of expression or statement if any.
 		lastLine := 0
+		lastColumn := 0
 		if len(m.Exprs) > 0 {
 			for i := len(m.Exprs) - 1; i >= 0; i-- {
 				expr := m.Exprs[i]
 				if expr.GetLine() > 0 {
 					lastLine = expr.GetLine()
+					lastColumn = expr.GetColumn()
 					break
 				}
 			}
@@ -462,6 +464,7 @@ func (m *Machine) injectLocOnPanic() {
 				stmt := m.Stmts[i]
 				if stmt.GetLine() > 0 {
 					lastLine = stmt.GetLine()
+					lastColumn = stmt.GetColumn()
 					break
 				}
 			}
@@ -476,6 +479,7 @@ func (m *Machine) injectLocOnPanic() {
 				lastLoc = loc
 				if lastLine > 0 {
 					lastLoc.Line = lastLine
+					lastLoc.Column = lastColumn
 				}
 				break
 			}
@@ -1956,9 +1960,11 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 		return ptr
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
+		hv := m.Alloc.NewHeapItem(tv)
 		return PointerValue{
-			TV:   &tv, // heap alloc
-			Base: nil,
+			TV:    &hv.Value,
+			Base:  hv,
+			Index: 0,
 		}
 	default:
 		panic("should not happen")
