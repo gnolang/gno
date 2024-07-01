@@ -1,140 +1,185 @@
-package foo20
+// Package grc20factory defines a factory realm for grc20 tokens.
+// It serves as a registry/proxy for accessing all tokens registered in it.
+
+package grc20factory
 
 import (
+	"bytes"
+	"math"
 	"std"
-	"strconv"
 	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ufmt"
 )
 
-// XXX: the p/grc20 library needs a refactor to change names (i.e., adminToken)
-
-type token struct {
-	adminToken *grc20.AdminToken
-	admin      std.Address
+type tokenWithAdmin struct {
+	token    *grc20.Token
+	admin    std.Address
+	fauceted bool
 }
 
-var tokens avl.Tree // symbol -> token
+var tokens avl.Tree // symbol -> tokenWithAdmin
 
-func NewToken(name, symbol string, decimals uint, initialMint uint64) {
+func NewToken(name, symbol string, decimals uint8, initialMint uint64) {
 	admin := std.PrevRealm().Addr()
 	NewTokenWithAdmin(name, symbol, decimals, initialMint, admin)
 }
 
-func NewTokenWithAdmin(name, symbol string, decimals uint, initialMint uint64, admin std.Address) {
+func NewTokenWithAdmin(name, symbol string, decimals uint8, initialMint uint64, admin std.Address) {
 	exists := tokens.Has(symbol)
 	if exists {
-		panic("token already exists")
+		err := ufmt.Sprintf("token with symbol $%s already exists", symbol)
+		panic(err)
 	}
 
-	newToken := grc20.NewAdminToken(name, symbol, decimals)
+	newToken := grc20.NewGRC20Token(name, symbol, decimals)
 	newToken.Mint(admin, initialMint)
-	t := token{
-		adminToken: newToken,
-		admin:      admin,
+
+	t := tokenWithAdmin{
+		token:    newToken,
+		admin:    admin,
+		fauceted: false, // faucet disabled by default
 	}
+
 	tokens.Set(symbol, &t)
 }
 
-// method proxies as public functions.
-//
+// Getters
 
-// getters.
-
+// TotalSupply gets the total supply of a token specified by symbol
 func TotalSupply(symbol string) uint64 {
-	token := mustTokenBySymbol(symbol)
-	return token.adminToken.TotalSupply()
+	t := mustTokenBySymbol(symbol)
+	return t.token.TotalSupply()
 }
 
 func BalanceOf(symbol string, owner std.Address) uint64 {
-	token := mustTokenBySymbol(symbol)
-	balance, err := token.adminToken.BalanceOf(owner)
-	checkErr(err)
-	return balance
+	t := mustTokenBySymbol(symbol)
+	return t.token.BalanceOf(owner)
 }
 
 func Allowance(symbol string, owner, spender std.Address) uint64 {
-	token := mustTokenBySymbol(symbol)
-	allowance, err := token.adminToken.Allowance(owner, spender)
-	checkErr(err)
-	return allowance
+	t := mustTokenBySymbol(symbol)
+	return t.token.Allowance(owner, spender)
 }
 
-// setters.
+// Decimals returns the decimals of the token
+func Decimals(symbol string) uint8 {
+	t := mustTokenBySymbol(symbol)
+	return t.token.Decimals()
+}
+
+// Setters
 
 func Transfer(symbol string, to std.Address, amount uint64) {
-	token := mustTokenBySymbol(symbol)
-	caller := std.PrevRealm().Addr()
-	err := token.adminToken.Transfer(caller, to, amount)
-	checkErr(err)
+	t := mustTokenBySymbol(symbol)
+
+	t.token.Transfer(to, amount)
 }
 
 func Approve(symbol string, spender std.Address, amount uint64) {
-	token := mustTokenBySymbol(symbol)
-	caller := std.PrevRealm().Addr()
-	err := token.adminToken.Approve(caller, spender, amount)
-	checkErr(err)
+	t := mustTokenBySymbol(symbol)
+
+	t.token.Approve(spender, amount)
 }
 
 func TransferFrom(symbol string, from, to std.Address, amount uint64) {
-	token := mustTokenBySymbol(symbol)
-	caller := std.PrevRealm().Addr()
-	err := token.adminToken.TransferFrom(caller, from, to, amount)
-	if err != nil {
+	t := mustTokenBySymbol(symbol)
+	t.token.TransferFrom(from, to, amount)
+}
+
+// Faucet
+
+func Faucet(symbol string) {
+	t := mustTokenBySymbol(symbol)
+	if !t.fauceted {
+		err := ufmt.Sprintf("faucet is paused for token %s ($%s)", t.token.Name(), t.token.Symbol())
 		panic(err)
 	}
-}
 
-// faucet.
-func Faucet(symbol string) {
-	token := mustTokenBySymbol(symbol)
-	// FIXME: add limits?
-	// FIXME: add payment in gnot?
+	// Mint 1000 tokens to caller
 	caller := std.PrevRealm().Addr()
-	err := token.adminToken.Mint(caller, 1000*10000) // 1k
-	checkErr(err)
+	t.token.Mint(caller, uint64(1000*math.Pow10(int(t.token.Decimals()))))
 }
 
-// administration.
+// Administration
 
 func Mint(symbol string, address std.Address, amount uint64) {
-	token := mustTokenBySymbol(symbol)
+	t := mustTokenBySymbol(symbol)
 	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller, token.admin)
-	err := token.adminToken.Mint(address, amount)
-	checkErr(err)
+	assertIsAdmin(caller, t.admin)
+
+	t.token.Mint(address, amount)
 }
 
 func Burn(symbol string, address std.Address, amount uint64) {
-	token := mustTokenBySymbol(symbol)
+	t := mustTokenBySymbol(symbol)
 	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller, token.admin)
-	err := token.adminToken.Burn(address, amount)
-	checkErr(err)
+	assertIsAdmin(caller, t.admin)
+
+	t.token.Burn(address, amount)
 }
 
-// render.
+func EnableFaucet(symbol string) {
+	t := mustTokenBySymbol(symbol)
+	caller := std.PrevRealm().Addr()
+	assertIsAdmin(caller, t.admin)
+
+	t.fauceted = true
+}
+
+func DisableFaucet(symbol string) {
+	t := mustTokenBySymbol(symbol)
+	caller := std.PrevRealm().Addr()
+	assertIsAdmin(caller, t.admin)
+
+	t.fauceted = false
+}
+
+// Rendering
 //
+
+func renderList() string {
+
+	var buf bytes.Buffer
+
+	buf.WriteString(ufmt.Sprintf("# GRC20 Token Factory\n\n"))
+
+	if tokens.Size() == 0 {
+		buf.WriteString("No tokens are currently registered.")
+		return buf.String()
+	}
+
+	tokens.Iterate("", "", func(key string, value interface{}) bool {
+		t := value.(*tokenWithAdmin)
+		buf.WriteString(ufmt.Sprintf("#### [Token $%s](/r/demo/grc20factory:%s)\n\n", t.token.Symbol(), t.token.Symbol()))
+
+		return false
+	})
+
+	return buf.String()
+}
 
 func Render(path string) string {
 	parts := strings.Split(path, "/")
 	c := len(parts)
 
 	switch {
-	case path == "":
-		return "TODO: list existing tokens and admins"
-	case c == 1:
+	case path == "": // pkgpath
+		return renderList()
+	case c == 1: // pkgpath:symbol
 		symbol := parts[0]
-		token := mustTokenBySymbol(symbol)
-		return token.adminToken.RenderHome()
-	case c == 3 && parts[1] == "balance":
+		t := mustTokenBySymbol(symbol)
+		return t.token.RenderHome()
+	case c == 3 && parts[1] == "balance": // pkgpath:symbol/balance/address
 		symbol := parts[0]
-		token := mustTokenBySymbol(symbol)
+
+		t := mustTokenBySymbol(symbol)
 		owner := std.Address(parts[2])
-		balance, _ := token.adminToken.BalanceOf(owner)
-		return strconv.FormatUint(balance, 10)
+
+		bal := t.token.BalanceOf(owner)
+		return ufmt.Sprintf("%s has %d of $%s tokens.", owner.String(), bal, t.token.Symbol())
 	default:
 		return "404\n"
 	}
@@ -149,16 +194,11 @@ func assertIsAdmin(caller, admin std.Address) {
 	}
 }
 
-func mustTokenBySymbol(symbol string) *token {
+func mustTokenBySymbol(symbol string) *tokenWithAdmin {
 	t, exists := tokens.Get(symbol)
 	if !exists {
 		panic("token does not exist")
 	}
-	return t.(*token)
-}
 
-func checkErr(err error) {
-	if err != nil {
-		panic(err)
-	}
+	return t.(*tokenWithAdmin)
 }

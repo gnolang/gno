@@ -1,6 +1,7 @@
 package vault
 
 import (
+	"errors"
 	"std"
 
 	"gno.land/p/demo/avl"
@@ -15,16 +16,16 @@ type Vault interface {
 	Redeem() error
 }
 
-func New(adminToken *grc20.AdminToken) Vault {
+func New(token *grc20.Token) Vault {
 	return &impl{
-		adminToken: adminToken,
-		users:      avl.Tree{},
+		token: token,
+		users: avl.Tree{},
 	}
 }
 
 type impl struct {
-	adminToken *grc20.AdminToken
-	users      avl.Tree // std.Address -> userVault
+	token *grc20.Token
+	users avl.Tree // std.Address -> userVault
 }
 
 type userVault struct {
@@ -40,7 +41,6 @@ type userVault struct {
 
 func (v *impl) Deposit(amount uint, recover std.Address, lockDuration uint) error {
 	caller := std.GetOrigCaller()
-	pkgAddr := std.GetOrigPkgAddr()
 
 	uv := userVault{
 		lockDuration:    lockDuration,
@@ -50,10 +50,7 @@ func (v *impl) Deposit(amount uint, recover std.Address, lockDuration uint) erro
 	}
 
 	// deposit.
-	err := v.adminToken.Transfer(caller, pkgAddr, uint64(amount))
-	if err != nil {
-		return err
-	}
+	v.token.Transfer(caller, uint64(amount))
 	v.users.Set(caller.String(), &uv)
 
 	return nil
@@ -66,12 +63,10 @@ func (v *impl) Unvault(amount uint) error {
 		return err
 	}
 
-	balance, err := v.adminToken.BalanceOf(caller)
-	if err != nil {
-		return err
-	}
+	balance := v.token.BalanceOf(caller)
+
 	if balance < uint64(amount) {
-		return grc20.ErrInsufficientBalance
+		return errors.New("insufficient balance")
 	}
 
 	println("AAA1", std.GetHeight(), uv.redeemMinHeight, uv.lockDuration)
@@ -83,7 +78,6 @@ func (v *impl) Unvault(amount uint) error {
 }
 
 func (v *impl) Redeem() error {
-	pkgAddr := std.GetOrigPkgAddr()
 	caller := std.GetOrigCaller()
 	uv, err := v.getUserVault(caller)
 	if err != nil {
@@ -98,10 +92,7 @@ func (v *impl) Redeem() error {
 	// TODO: check height.
 
 	// transfer token.
-	err = v.adminToken.Transfer(pkgAddr, caller, uint64(uv.unvaultedAmount))
-	if err != nil {
-		return err
-	}
+	v.token.Transfer(caller, uint64(uv.unvaultedAmount))
 
 	uv.unvaultedAmount = 0
 	// TODO: if balance == 0 -> destroy?

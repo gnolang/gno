@@ -1,65 +1,39 @@
 package grc20
 
-import (
-	"std"
-
-	"gno.land/p/demo/grc/exts"
-)
+import "std"
 
 type IGRC20 interface {
-	exts.TokenMetadata
 
-	// Returns the amount of tokens in existence.
-	TotalSupply() uint64
+	// Name returns the name of the token - e.g. "MyToken"
+	Name() (name string)
 
-	// Returns the amount of tokens owned by `account`.
-	BalanceOf(account std.Address) (uint64, error)
+	// Symbol returns the symbol of the token, for example, “WUGNOT”
+	Symbol() (symbol string)
 
-	// Moves `amount` tokens from the caller's account to `to`.
-	//
-	// Returns an error if the operation failed.
-	Transfer(to std.Address, amount uint64) error
+	// Decimals returns the number of decimals the token uses - e.g. 8, means to divide the token amount by 100000000 to get its user representation
+	Decimals() (decimals uint8)
 
-	// Returns the remaining number of tokens that `spender` will be
-	// allowed to spend on behalf of `owner` through {transferFrom}. This is
-	// zero by default.
-	//
-	// This value changes when {approve} or {transferFrom} are called.
-	Allowance(owner, spender std.Address) (uint64, error)
+	// TotalSupply returns the total token supply
+	TotalSupply() (totalSupply uint64)
 
-	// Sets `amount` as the allowance of `spender` over the caller's tokens.
-	//
-	// Returns an error if the operation failed.
-	//
-	// IMPORTANT: Beware that changing an allowance with this method brings the risk
-	// that someone may use both the old and the new allowance by unfortunate
-	// transaction ordering. One possible solution to mitigate this race
-	// condition is to first reduce the spender's allowance to 0 and set the
-	// desired value afterwards:
-	// https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-	Approve(spender std.Address, amount uint64) error
+	// BalanceOf returns the account balance of another account with address _owner
+	BalanceOf(owner std.Address) (balance uint64)
 
-	// Moves `amount` tokens from `from` to `to` using the
-	// allowance mechanism. `amount` is then deducted from the caller's
-	// allowance.
-	//
-	// Returns an error if the operation failed.
-	TransferFrom(from, to std.Address, amount uint64) error
-}
+	// Transfer transfers `value` amount of tokens to address `to`, and MUST fire the Transfer event
+	// The function SHOULD throw if the message caller’s account balance does not have enough tokens to spend
+	Transfer(to std.Address, value uint64) (success bool)
 
-// Emitted when `value` tokens are moved from one account (`from`) to another (`to`).
-//
-// Note that `value` may be zero.
-type TransferEvent struct {
-	From  std.Address
-	To    std.Address
-	Value uint64
-}
+	// TransferFrom transfers `value` amount of tokens from address `from` to address `to`, and MUST fire the Transfer event
+	// Note: Transfers of 0 values MUST be treated as normal transfers and fire the Transfer event.
+	TransferFrom(from, to std.Address, value uint64) (success bool)
 
-// Emitted when the allowance of a `spender` for an `owner` is set by
-// a call to {approve}. `value` is the new allowance.
-type ApprovalEvent struct {
-	Owner   std.Address
-	Spender std.Address
-	Value   uint64
+	// Approve allows `spender` to withdraw from your account multiple times, up to the `value` amount
+	// If this function is called again it overwrites the current allowance with value
+	Approve(spender std.Address, value uint64) (success bool)
+
+	Allowance(owner, spender std.Address) (remaining uint64)
+
+	// Events
+	// Transfer(from, to std.Address, value uint64) - MUST trigger when tokens are transferred, including zero value transfers
+	// Approval(spender std.Address, value uint64) - MUST trigger on any successful call to Approve
 }
