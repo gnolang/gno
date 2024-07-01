@@ -3,6 +3,7 @@ package keyscli
 import (
 	"flag"
 
+	rpcClient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 )
@@ -19,8 +20,11 @@ type MakeTxCfg struct {
 }
 
 func NewMakeTxCmd(rootCfg *client.BaseCfg, io commands.IO) *commands.Command {
+	cli, _ := rpcClient.NewHTTPClient(rootCfg.Remote)
+
 	cfg := &client.MakeTxCfg{
 		RootCfg: rootCfg,
+		Client:  cli,
 	}
 
 	cmd := commands.NewCommand(
