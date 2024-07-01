@@ -2,9 +2,8 @@ package proposal
 
 import (
 	"errors"
-	"testing"
-
 	"std"
+	"testing"
 )
 
 func TestExecutor(t *testing.T) {
