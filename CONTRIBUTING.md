@@ -255,7 +255,7 @@ access to this workflow:
 ```sh
 alias gnox="go run -C /path/to/gno/repo ./gnovm/cmd/gno"
 alias gnokeyx="go run -C /path/to/gno/repo ./gno.land/cmd/gnokey"
-alias gnodevx="go run -C /path/to/gno/repo/contribs/gnodev ."
+alias gnodevx="go run -C /path/to/gno/repo/contribs/gnodev ./cmd/gnodev"
 ```
 
 ### Testing
