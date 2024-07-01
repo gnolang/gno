@@ -1,10 +1,12 @@
 package client
 
 import (
+	"encoding/base64"
 	"flag"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -23,6 +25,8 @@ type MakeTxCfg struct {
 	// Valid options are SimulateTest, SimulateSkip or SimulateOnly.
 	Simulate string
 	ChainID  string
+
+	cli client.ABCIClient
 }
 
 // These are the valid options for MakeTxConfig.Simulate.
@@ -42,8 +46,11 @@ func (c *MakeTxCfg) Validate() error {
 }
 
 func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cli, _ := client.NewHTTPClient(rootCfg.Remote)
+
 	cfg := &MakeTxCfg{
 		RootCfg: rootCfg,
+		cli:     cli,
 	}
 
 	cmd := commands.NewCommand(
@@ -128,25 +135,28 @@ func SignAndBroadcastHandler(
 	if err != nil {
 		return nil, err
 	}
+
 	accountAddr := info.GetAddress()
 
 	qopts := &QueryCfg{
 		RootCfg: baseopts,
 		Path:    fmt.Sprintf("auth/accounts/%s", accountAddr),
+		cli:     cfg.cli,
 	}
 	qres, err := QueryHandler(qopts)
 	if err != nil {
 		return nil, errors.Wrap(err, "query account")
 	}
-	var qret struct{ BaseAccount std.BaseAccount }
-	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
+
+	var acc std.BaseAccount
+	err = amino.UnmarshalJSON(qres.Response.Data, &acc)
 	if err != nil {
 		return nil, err
 	}
 
 	// sign tx
-	accountNumber := qret.BaseAccount.AccountNumber
-	sequence := qret.BaseAccount.Sequence
+	accountNumber := acc.AccountNumber
+	sequence := acc.Sequence
 
 	sOpts := signOpts{
 		chainID:         txopts.ChainID,
@@ -170,6 +180,8 @@ func SignAndBroadcastHandler(
 
 		DryRun:       cfg.Simulate == SimulateOnly,
 		testSimulate: cfg.Simulate == SimulateTest,
+
+		cli: cfg.cli,
 	}
 
 	return BroadcastHandler(bopts)
@@ -187,6 +199,10 @@ func ExecSignAndBroadcast(
 
 	baseopts := cfg.RootCfg
 
+	if len(args) != 1 {
+		return flag.ErrHelp
+	}
+
 	// query account
 	nameOrBech32 := args[0]
 
@@ -200,6 +216,10 @@ func ExecSignAndBroadcast(
 
 	if err != nil {
 		return err
+	}
+
+	if cfg.cli == nil {
+		return errors.New("rpcClient hasn't been initialized")
 	}
 
 	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass)
@@ -219,6 +239,7 @@ func ExecSignAndBroadcast(
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", bres.Height)
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
+	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
 
 	return nil
 }
