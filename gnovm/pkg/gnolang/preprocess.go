@@ -2292,6 +2292,12 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 					// NOTE: ATTR_GOTOLOOP_STMT is not used.
 					Transcribe(bn,
 						func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+
+							// nothing to do until label line.
+							if n.GetLine() < labelLine {
+								return n, TRANS_CONTINUE
+							}
+
 							switch stage {
 							case TRANS_ENTER:
 								// NOTE: called redundantly

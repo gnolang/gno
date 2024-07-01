@@ -47,7 +47,7 @@ type Store interface {
 	GetTypeSafe(tid TypeID) Type
 	SetCacheType(Type)
 	SetType(Type)
-	GetBlockNode(Location) BlockNode
+	GetBlockNode(Location) BlockNode // to get a PackageNode, use PackageNodeLocation().
 	GetBlockNodeSafe(Location) BlockNode
 	SetBlockNode(BlockNode)
 	// UNSTABLE
