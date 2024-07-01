@@ -22,9 +22,111 @@ import (
 )
 
 var (
-	addr, _  = crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	mnemonic = "process giant gadget pet latin sock receive exercise arctic indoor clump transfer zero increase version model defense teach hole program economy bridge enhance fade"
+	addr, _ = crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 )
+
+func Test_SignAndBroadcastHandler(t *testing.T) {
+	t.Parallel()
+
+	// Create a temporary directory for test files
+	kbHome, cleanup := testutils.NewTestCaseDir(t)
+	defer cleanup()
+
+	// Check the keybase
+	kb, err := keys.NewKeyBaseFromDir(kbHome)
+	require.NoError(t, err)
+
+	_, err = kb.CreateAccount("test", testMnemonic, "", "", 0, 0)
+	require.NoError(t, err)
+
+	// Define test cases
+	testCases := []struct {
+		name      string
+		cfg       MakeTxCfg
+		keyName   string
+		expectErr bool
+		errMsg    string
+		output    string
+	}{
+		{
+			name: "Successfull sign and broadcast",
+			cfg: MakeTxCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Remote:                "localhost:26657",
+						Home:                  kbHome,
+						InsecurePasswordStdin: true,
+					},
+				},
+				GasWanted: 100000,
+				GasFee:    "1000ugnot",
+				Memo:      "test memo",
+				Broadcast: true,
+				Simulate:  SimulateSkip,
+				ChainID:   "test-chain",
+				Client: &mockRPCClient{
+					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+						var acc = std.NewBaseAccountWithAddress(addr)
+
+						jsonData := amino.MustMarshalJSON(&acc)
+
+						return &ctypes.ResultABCIQuery{
+							Response: abci.ResponseQuery{
+								ResponseBase: abci.ResponseBase{
+									Data: jsonData,
+								},
+							},
+						}, nil
+					},
+					broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+						return &ctypes.ResultBroadcastTxCommit{
+							CheckTx: abci.ResponseCheckTx{},
+							DeliverTx: abci.ResponseDeliverTx{
+								ResponseBase: abci.ResponseBase{
+									Data:   []byte("test data"),
+									Events: []abci.Event{},
+								},
+								GasWanted: 100,
+								GasUsed:   90,
+							},
+							Hash:   []byte{0xab, 0xcd}, // "q80=" at base64 format
+							Height: 12345,
+						}, nil
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			// Initialize a proper transaction object
+			tx := std.Tx{
+				Msgs: []std.Msg{
+					bank.MsgSend{
+						FromAddress: addr,
+						ToAddress:   addr,
+						Amount:      std.MustParseCoins("1000ugnot"),
+					},
+				},
+				Fee: std.NewFee(tc.cfg.GasWanted, std.MustParseCoin(tc.cfg.GasFee)),
+			}
+
+			_, err := SignAndBroadcastHandler(&tc.cfg, tc.keyName, tx, "")
+
+			if tc.expectErr {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.errMsg)
+			} else {
+				require.NoError(t, err)
+
+				// require.Equal(t, tc.output, res)
+			}
+		})
+	}
+
+}
 
 func Test_ExecSignAndBroadcast(t *testing.T) {
 	t.Parallel()
@@ -37,7 +139,7 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 	kb, err := keys.NewKeyBaseFromDir(kbHome)
 	require.NoError(t, err)
 
-	_, err = kb.CreateAccount("test", mnemonic, "", "", 0, 0)
+	_, err = kb.CreateAccount("test", testMnemonic, "", "", 0, 0)
 	require.NoError(t, err)
 
 	// Define test cases
@@ -68,7 +170,7 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 				Broadcast: true,
 				Simulate:  SimulateSkip,
 				ChainID:   "test-chain",
-				cli: &mockRPCClient{
+				Client: &mockRPCClient{
 					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 						var acc = std.NewBaseAccountWithAddress(addr)
 
@@ -158,7 +260,7 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 				Broadcast: true,
 				Simulate:  SimulateTest,
 				ChainID:   "test-chain",
-				cli:       nil, // empty RPCClient
+				Client:    nil, // empty RPCClient
 			},
 		},
 		{
@@ -179,14 +281,14 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 				Broadcast: true,
 				Simulate:  SimulateTest,
 				ChainID:   "test-chain",
-				cli:       nil,
+				Client:    nil,
 			},
 		},
 		{
 			name:      "CheckTx error",
 			args:      []string{"test"},
 			expectErr: true,
-			output:    "test data\nOK!\nGAS WANTED: 100\nGAS USED:   90\nHEIGHT:     12345\nEVENTS:     []\nTX HASH:    q80=\n",
+			output:    "",
 			cfg: MakeTxCfg{
 				RootCfg: &BaseCfg{
 					BaseOptions: BaseOptions{
@@ -201,7 +303,7 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 				Broadcast: true,
 				Simulate:  SimulateSkip,
 				ChainID:   "test-chain",
-				cli: &mockRPCClient{
+				Client: &mockRPCClient{
 					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 						var acc = std.NewBaseAccountWithAddress(addr)
 
@@ -234,7 +336,7 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 			name:      "DeliverTx error",
 			args:      []string{"test"},
 			expectErr: true,
-			output:    "test data\nOK!\nGAS WANTED: 100\nGAS USED:   90\nHEIGHT:     12345\nEVENTS:     []\nTX HASH:    q80=\n",
+			output:    "",
 			cfg: MakeTxCfg{
 				RootCfg: &BaseCfg{
 					BaseOptions: BaseOptions{
@@ -249,7 +351,7 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 				Broadcast: true,
 				Simulate:  SimulateSkip,
 				ChainID:   "test-chain",
-				cli: &mockRPCClient{
+				Client: &mockRPCClient{
 					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 						var acc = std.NewBaseAccountWithAddress(addr)
 

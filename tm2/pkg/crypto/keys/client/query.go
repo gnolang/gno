@@ -16,7 +16,7 @@ type QueryCfg struct {
 	Data string
 	Path string
 
-	cli client.ABCIClient
+	client client.ABCIClient
 }
 
 func NewQueryCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -24,7 +24,7 @@ func NewQueryCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 
 	cfg := &QueryCfg{
 		RootCfg: rootCfg,
-		cli:     cli,
+		client:  cli,
 	}
 
 	return commands.NewCommand(
@@ -78,18 +78,13 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 }
 
 func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
-	remote := cfg.RootCfg.Remote
-	if remote == "" {
-		return nil, errors.New("missing remote url")
-	}
-
 	data := []byte(cfg.Data)
 	opts2 := client.ABCIQueryOptions{
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
 
-	qres, err := cfg.cli.ABCIQueryWithOptions(
+	qres, err := cfg.client.ABCIQueryWithOptions(
 		cfg.Path, data, opts2)
 	if err != nil {
 		return nil, errors.Wrap(err, "querying")

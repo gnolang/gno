@@ -26,7 +26,7 @@ type MakeTxCfg struct {
 	Simulate string
 	ChainID  string
 
-	cli client.ABCIClient
+	Client client.ABCIClient
 }
 
 // These are the valid options for MakeTxConfig.Simulate.
@@ -50,7 +50,7 @@ func NewMakeTxCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 
 	cfg := &MakeTxCfg{
 		RootCfg: rootCfg,
-		cli:     cli,
+		Client:  cli,
 	}
 
 	cmd := commands.NewCommand(
@@ -141,7 +141,7 @@ func SignAndBroadcastHandler(
 	qopts := &QueryCfg{
 		RootCfg: baseopts,
 		Path:    fmt.Sprintf("auth/accounts/%s", accountAddr),
-		cli:     cfg.cli,
+		client:  cfg.Client,
 	}
 	qres, err := QueryHandler(qopts)
 	if err != nil {
@@ -181,7 +181,7 @@ func SignAndBroadcastHandler(
 		DryRun:       cfg.Simulate == SimulateOnly,
 		testSimulate: cfg.Simulate == SimulateTest,
 
-		cli: cfg.cli,
+		cli: cfg.Client,
 	}
 
 	return BroadcastHandler(bopts)
@@ -216,10 +216,6 @@ func ExecSignAndBroadcast(
 
 	if err != nil {
 		return err
-	}
-
-	if cfg.cli == nil {
-		return errors.New("rpcClient hasn't been initialized")
 	}
 
 	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass)
