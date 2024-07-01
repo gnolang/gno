@@ -53,6 +53,32 @@ func extractPanicErr(r interface{}) string {
 	return "unknown error"
 }
 
+// NoError asserts no error occurred
+func NoError(t *T, err error) bool {
+	if err == nil {
+		return true
+	}
+
+	t.Fatalf("Function errored with err %s", err)
+
+	return false
+}
+
+// ErrorIs asserts the given error matches the target error
+func ErrorIs(t *T, err error, target error) bool {
+	if err == nil || target == nil {
+		return err == target
+	}
+
+	if err.Error() != target.Error() {
+		t.Fatalf("Target error mismatch, expected %s, got %s", target, err)
+
+		return false
+	}
+
+	return true
+}
+
 // PanicsWithError asserts that the code inside the specified func panics,
 // and that the recovered panic value is an error that satisfies the given message
 func PanicsWithError(t *T, errString string, f func()) bool {

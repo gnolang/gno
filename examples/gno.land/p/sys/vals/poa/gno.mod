@@ -1,4 +1,4 @@
-module gno.land/p/sys/vals/poc
+module gno.land/p/sys/vals/poa
 
 require (
 	gno.land/p/demo/avl v0.0.0-latest

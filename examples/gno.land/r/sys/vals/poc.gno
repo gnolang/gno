@@ -61,6 +61,6 @@ func IsValidator(address string) bool {
 }
 
 // GetValidators returns the typed validator set
-func GetValidators() []*types.Validator {
+func GetValidators() []types.Validator {
 	return v.p.GetValidators()
 }
