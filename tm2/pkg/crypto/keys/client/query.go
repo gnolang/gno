@@ -13,8 +13,9 @@ import (
 type QueryCfg struct {
 	RootCfg *BaseCfg
 
-	Data string
-	Path string
+	Data   string
+	Path   string
+	Output string
 }
 
 func NewQueryCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -42,6 +43,13 @@ func (c *QueryCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"query data bytes",
 	)
+
+	fs.StringVar(
+		&c.Output,
+		"output",
+		TEXT_FORMAT,
+		"format of query's output",
+	)
 }
 
 func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
@@ -56,19 +64,21 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 		return err
 	}
 
+	// If there is an error in the response, return the log message
 	if qres.Response.Error != nil {
-		io.Printf("Log: %s\n",
-			qres.Response.Log)
+		io.Printf("Log: %s\n", qres.Response.Log)
 		return qres.Response.Error
 	}
 
-	resdata := qres.Response.Data
-	// XXX in general, how do we know what to show?
-	// proof := qres.Response.Proof
-	height := qres.Response.Height
-	io.Printf("height: %d\ndata: %s\n",
-		height,
-		string(resdata))
+	switch cfg.Output {
+	case TEXT_FORMAT:
+		io.Printf("height: %d\ndata: %s\n", qres.Response.Height, string(qres.Response.Data))
+	case JSON_FORMAT:
+		io.Printf(formatQueryResponse(qres.Response))
+	default:
+		return errors.New("Invalid output format")
+	}
+
 	return nil
 }
 
