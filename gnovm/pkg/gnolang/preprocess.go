@@ -2399,6 +2399,8 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							n.Type = NameExprTypeHeapClosure
 							// The path must stay same for now,
 							// used later in findLoopUses2.
+							// XXX actually uncomment once
+							// the runtime works.
 							// lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
 							// n.Path.Depth = uint8(depth)
 							// n.Path.Index = indexOfName(lus, n.Name)
