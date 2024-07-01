@@ -271,10 +271,6 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// - lookup r/system/names.namespaces for `{r,p}/NAMES`.
 	// - check if caller is in Admins or Editors.
 	// - check if namespace is not in pause.
-	if err := vm.checkNamespacePerm(ctx, creator, pkgPath); err != nil {
-		return err
-	}
-
 	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
 		return err
 	}
