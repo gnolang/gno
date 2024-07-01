@@ -7,46 +7,19 @@ This document outlines some basic pointers on making your future contribution a 
 etiquette employed by the core gno team. It lays out coding styles, simple how-to guides and tools to get you up and
 running and pushing code.
 
-If you are unsure about something, please don’t hesitate to reach out for help by opening an issue here or discuss on
-Discord.
-Likewise, if you have an idea on how to improve this guide, go for it as well.
-
-## Table of Contents
-
-- [Important Resources](#important-resources)
-- [Getting Started](#getting-started)
-    - [Environment](#environment)
-    - [Local Setup](#local-setup)
-    - [Testing](#testing)
-      - [Running locally](#running-locally)
-      - [Running test workflows](#running-test-workflows)
-      - [Testing Gno code](#testing-gno-code)
-    - [Repository Structure](#repository-structure)
-- [How do I?](#how-do-i)
-    - [How do I submit changes?](#how-do-i-submit-changes)
-      - [A Word on Rebasing](#a-word-on-rebasing)
-    - [How do I report a bug?](#how-do-i-report-a-bug)
-    - [How do I request a feature?](#how-do-i-request-a-feature)
-- [Style Guides](#style-guides)
-    - [Git Commit Messages](#git-commit-messages)
-    - [Go/Gno Style Guide](#gogno-style-guide)
-    - [Documentation Style Guide](#documentation-style-guide)
-- [Additional Notes](#additional-notes)
-    - [Issue and Pull Request Labels](#issue-and-pull-request-labels)
-      - [Labels for Pull Requests](#labels-for-pull-requests)
-      - [Labels for Issues](#labels-for-issues)
-    - [Notable Contributions](#notable-contributions)
+If you are unsure about something, please don’t hesitate to reach out for help by opening [a discussion thread](https://github.com/gnolang/gno/discussions)
+or by using the #dev-public channel on Discord.
 
 ## Important Resources
 
 - **[Discord](https://discord.gg/YFtMjWwUN7)** - we are very active on Discord. Join today and start discussing all
   things gno with fellow engineers and enthusiasts.
-- **[Awesome Gno](https://github.com/gnolang/awesome-gno)** - check out the list of compiled resources for helping you
-  understand the gno ecosystem
-- **[Active Staging](https://staging.gno.land/)** - use the currently available staging environment to play around with a
-  production network. If you want to interact with a local instance, refer to the [Local Setup](#local-setup) guide.
-- **[Twitter](https://twitter.com/_gnoland)** - follow us on Twitter to get the latest scoop
-- **[Telegram](https://t.me/gnoland)** - join our official Telegram group to start a conversation about gno
+- **[Gno.land Documentation]** - if you're looking to dive into Gno programming, read our documentation first!
+  This guide will be more helpful to embark on the journey of your first contribution :)
+- **[Awesome Gno](https://github.com/gnolang/awesome-gno)** - a list of projects and tools for Gno and its ecosystem.
+- **[Portal Loop](https://gno.land)** - the node on the gno.land website builds on master, replaying at genesis all
+  the transactions from its previous execution. Use it to develop realms using the latest features;
+  [learn more on the docs](https://docs.gno.land/concepts/portal-loop/).
 
 ## Getting Started
 
@@ -60,16 +33,17 @@ The primary tech stack for working on the repository:
 - make (for using Makefile configurations)
 
 It is recommended to work on a Unix environment, as most of the tooling is built around ready-made tools in Unix (WSL2
-for Windows / Linux / macOS).
+for Windows, or Linux/macOS).
 
 For Gno, there is no specific tooling that needs to be installed, that’s not already provided with the repo itself.
-You can utilize the `gno` command to facilitate Gno support when writing Smart Contracts in Gno, by installing it
-with `make install_gno`.
+In the [Local Setup](#local-setup) section, we'll delve into how to clone the repository and install the day-to-day
+tools you'll need for Gno development.
+This document is developer-oriented, and takes some things for granted; for a more step-by-step guide, please check
+out the [installation guide on the documentation](https://docs.gno.land/getting-started/local-setup/installation).
 
-If you are working on Go source code on this repository, `pkg.go.dev` will not
-render our documentation as it has a license it does not recognise. Instead, use
-the `go doc` command, or use our statically-generated documentation:
-https://gnolang.github.io/gno/github.com/gnolang/gno.html
+If you are working on Go source code on this repository, `pkg.go.dev` will not render our documentation as it has a
+license it does not recognise. Instead, use the `go doc` command, [`pkgsite`](https://github.com/golang/pkgsite), or
+use our statically-generated documentation: https://gnolang.github.io/gno/github.com/gnolang/gno.html
 
 Additionally, you can also configure your editor to recognize `.gno` files as `.go` files, to get the benefit of syntax
 highlighting.
@@ -77,8 +51,7 @@ highlighting.
 #### Visual Studio Code
 
 There currently is an unofficial [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=harry-hov.gno)
-extension (primarily developed by a core team member) for working with `*.gno`
-files.
+extension for working with `*.gno` files.
 
 #### ViM Support (without LSP)
 
@@ -221,22 +194,28 @@ developed by the community, with an installation guide for Sublime Text.
 To get started with Gno development, the process is relatively straightforward.
 
 Clone the repo:
-`git clone https://github.com/gnolang/gno.git`
+
+```sh
+git clone https://github.com/gnolang/gno.git
+```
 
 Build / install base commands:
-`make install`
+
+```sh
+make install
+```
 
 If you haven't already, you may need to add the directory where [`go install`
 places its binaries](https://pkg.go.dev/cmd/go#hdr-Compile_and_install_packages_and_dependencies)
 to your `PATH`. If you haven't configured `GOBIN` or `GOPATH` differently, this
 command should suffice:
 
-```
+```sh
 echo 'export PATH="$HOME/go/bin:$PATH"' >> ~/.profile
 source ~/.profile # reload ~/.profile in the current shell
 ```
 
-After that, you should be good to go to use `gno` and `gnokey`, straight from
+After that, you should be good to go to use `gno`, `gnokey` and `gnodev`, straight from
 your command line! The following commands should list the help messages for
 each:
 
@@ -253,45 +232,52 @@ USAGE
 
 Manages private keys for the node
 [...]
+$ gnodev --help
+USAGE
+  gnodev [flags] [path ...]
+
+The gnodev command starts an in-memory node and a gno.land web interface [...]
+```
+
+#### Using `go run` aliases for testing
+
+If you're working on changes to the code, and want to use the command line tools
+to quickly test their output, you can use `go run` with the import paths of the
+tools to run them.
+
+```sh
+go run github.com/gnolang/gno/gnovm/cmd/gno test -v ./my/directory
+```
+
+Gno developers often use a shell alias, in their `~/.profile`, to have quick
+access to this workflow:
+
+```sh
+alias gnox="go run -C /path/to/gno/repo ./gnovm/cmd/gno"
+alias gnokeyx="go run -C /path/to/gno/repo ./gno.land/cmd/gnokey"
+alias gnodevx="go run -C /path/to/gno/repo/contribs/gnodev ."
 ```
 
 ### Testing
 
-There are essentially 2 ways to execute the entire test suite:
-
-1. Using the base `go test` commands (running locally),
-2. Using a tool like [act](https://github.com/nektos/act) to run workflow files in Docker containers
+As most of the code is in Go and in Gno, the `go test` and `gno test` commands
+are the ones employed in testing.
 
 #### Running locally
 
 To run the entire test suite locally, run the following command:
 
-    make test
+```
+make test
+```
 
 This will execute the full test suite, that includes tests for `.gno` files, as well as project `.go` tests.
-
-#### Running test workflows
-
-Using a tool like [act](https://github.com/nektos/act) can enable you to run specific repository workflow files locally,
-using Docker. The workflow configurations contain different `go` versions, so it might be worth running if you’re
-worried about compatibility.
-
-To run the entire test suite through workflow files, run the following command:
-
-    act -v -j go-test
 
 #### Testing Gno code
 
 If you wish to test a `.gno` Realm or Package, you can utilize the `gno` tool.
 
-1. To install it, simply run:
-
-    make install_gno
-
-2. Now, you can point to the directory containing the `*_test.gno` files:
-
-    gno test <path-to-dir> -v
-
+    gno test -v <path-to-dir>
 
 To learn more about how `gno` can help you when developing gno code, you can look into the available
 subcommands by running:
@@ -357,15 +343,40 @@ Fixed in:
 [0a0577c](https://github.com/gnolang/gno/commit/0a0577ccdeb951a6621d6fbe1c04ac4e64a529c1)
 ```
 
-#### A Word on Rebasing
+#### Don't Rebase
 
-Avoid rebasing after you open your PRs to reviews. Instead, add more commits to your PR.
-It's OK to do force pushes if PR was never opened for reviews before.
+Commits are squashed when merged into the repository; they only show up in the
+commit history as one commit. Consequently, rebasing is generally not useful on
+this repository, and in general it is more likely to cause you headaches while
+trying to untangle merge conflicts.
 
-A reviewer may like to see a linear commit history while reviewing. If you tend to force push from an older commit,
-a reviewer might lose track in your recent changes and will have to start reviewing from scratch.
+If you have `git pull` set up to rebase automatically, you can change the `git`
+configuration to disable rebase:
 
-Don't worry about adding too many commits. The commits are squashed into a single commit while merging (if needed).
+```
+git config pull.rebase false
+```
+
+Note that this, executed in the Gno repository, _will only change the
+configuration for that repository_. So your global settings will remain the same
+for all other commits.
+
+By using merges instead of rebase, you can make sure that any reviewers of your
+PR can view the changes you made to your PR since you last modified it. If you
+force push your branch (as you have to, if you rebase the branch) this is not
+possible.
+
+Of course, as long as your PR is in draft, you may force push your branch as
+much as necessary; however, avoid it after you received your first review.
+
+#### Enable write access to maintainers
+
+When creating a pull request, you'll see a checkbox next to the "Create pull
+request" button, asking if you want to "Allow edits and access to secrets by
+maintainers". Please keep this checked: it allows maintainers to merge the
+`master` branch into your own before merging the pull request. This means we can
+verify that the CI will not break when merging the pull request in the master
+branch.
 
 #### PR template
 
@@ -441,7 +452,7 @@ of PRs that are allowed are the following:
 A general rule of thumb:
 
 - Never favor rewriting history in PRs (rebases have very few exceptions, like implementation rewrites;
-see [A Word on Rebasing](#a-word-on-rebasing))
+see [Don't Rebase](#dont-rebase))
 - Tend to make separate commits for logically separate changes
 
 ### Go/Gno Style Guide
@@ -470,6 +481,36 @@ Resources for idiomatic Go docs:
 - [Go Doc Comments](https://tip.golang.org/doc/comment)
 
 ## Additional Notes
+
+### Versioning
+
+Gno has not reached mainnet yet; when it does, version 1.0.0 will be published,
+following the rules of [semantic versioning](https://semver.org/) to decide
+version numbers.
+
+Before that happens, the Gno team has adopted an informal versioning system
+for its 0.MINOR.PATCH versions, which works as follows:
+
+- The Gno team releases, weekly-ish, a new PATCH version which will contian a
+	mixture of bug fixes and new functionality.
+- If the release contains breaking changes, then the PATCH is reset to 0 and the
+	MINOR version is increased.
+
+Note that what is considered a "breaking change" will consider mostly what is
+meant to be used as a public API. For instance, the majority of the Go packages
+are not yet meant for public usage; [gnoclient](https://gnolang.github.io/gno/github.com/gnolang/gno/gno.land/pkg/gnoclient.html)
+is a notable exception.
+
+Examples of what may be considered a breaking change:
+
+- Removing one of the subcommands of `gno` or `gnokey`, or changing its flags.
+- Changing the marshaling of transactions.
+- Changing an RPC endpoint in a backwards-incompatible manner.
+
+ie., if somebody's usage of Gno tooling or blockchains is likely to be
+disrupted as a result of the change, then it is a breaking change. Yes, what is
+"likely" is somewhat subjective, but this will change as we switch to a 1.0.0
+and as we set out rules for compatibility.
 
 ### Issue and Pull Request Labels
 
