@@ -491,7 +491,7 @@ version numbers.
 Before that happens, the Gno team has adopted an informal versioning system
 for its 0.MINOR.PATCH versions, which works as follows:
 
-- The Gno team releases, weekly-ish, a new PATCH version which will contian a
+- The Gno team releases, weekly-ish, a new PATCH version which will contain a
 	mixture of bug fixes and new functionality.
 - If the release contains breaking changes, then the PATCH is reset to 0 and the
 	MINOR version is increased.
