@@ -13,14 +13,14 @@ package main
 // 3. in type func, find termination condition when not const
 //    this condition should be the opposite of the convert condition
 
-// TODO: composite literal
-// TODO: simple print non-const untyped
+// TODO: composite literal, checked, OK!
+// TODO: simple print non-const untyped, checked, to typed if interface, OK!
 
 func main() {
 	a := 2
-	s := map[string]float32{"k": 1 << a}
+	s := []float32{1 << a}
 	println(s[0])
 }
 
 // Error:
-// main/files/types2/15a.gno:21: operator << not defined on: Float32Kind
+// main/files/types2/shift_d40.gno:21: operator << not defined on: Float32Kind

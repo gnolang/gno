@@ -9,14 +9,31 @@ package main
 
 import "fmt"
 
+type R interface {
+	foo()
+}
+
+type U64 uint64
+
+func (u64 U64) foo() {
+	println("bar")
+}
+
+func bar(r R) {
+	r.foo()
+}
+
 // case of expr in type call
 func main() {
 	x := 2
-	var r float32
-	r = 1 << x // untyped rhs to float32
-	println(r)
-	fmt.Printf("%T \n", r)
+	var r R
+	// assign to interface
+	r = 1 << x // 2 step. first binary, second call type
+
+	r.foo()
+
+	fmt.Printf("%T \n", r) // TODO: should output main.U64 rather than the underlying type
 }
 
 // Error:
-// main/files/types2/4.gno:16: operator << not defined on: Float32Kind
+// main/files/types2/shift_b6.gno:31: <untyped> bigint does not implement main.R

@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/12.gno:5: operator << not defined on: <nil>
+// main/files/types2/shift_d37.gno:5: operator << not defined on: <nil>

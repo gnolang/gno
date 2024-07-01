@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/10a17b1.gno:13: cannot use int as float32
+// main/files/types2/shift_d13.gno:13: cannot use int as float32

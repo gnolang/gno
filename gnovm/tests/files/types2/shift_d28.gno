@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/10a26.gno:6: operator << not defined on: Float32Kind
+// main/files/types2/shift_d28.gno:6: operator << not defined on: Float32Kind

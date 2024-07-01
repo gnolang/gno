@@ -851,7 +851,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					} else { // left is typed const, right not const
 						if !isShift {
-							if isUntyped(rt) { // refer to 0_d.gno. e.g. int(1) + 1<<x
+							if isUntyped(rt) { // refer to shift_b9.gno. e.g. int(1) + 1<<x
 								checkOrConvertType(store, last, &n.Right, lt, false, false)
 							} else { // left typed const, right typed non-const
 								debug.Println("---both typed")
@@ -894,7 +894,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// refer to 0f20_filetest
 						checkOrConvertType(store, last, &n.Right, lt, false, false)
 					} else if !isShift { // left not const(typed), right is typed const, both typed
-						if isUntyped(lt) { // refer to 0_d.gno
+						if isUntyped(lt) { // refer to shift_b9.gno
 							checkOrConvertType(store, last, &n.Left, rt, false, false)
 						} else {
 							checkOrConvertType(store, last, &n.Right, lt, false, false)
@@ -2485,7 +2485,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		// deal with binary expr(bx.Left), determine its type
 		if coerce || !coerce && isUntyped(xt) || xt == nil { // XXX, simplify?
 			// coerce mostly when explicitly conversion, type call, while arg is binary expr
-			// not coerce: assign, refer to 0_a_1.gno, func call(param), 10a17b2
+			// not coerce: assign, refer to shift_b2.gno, func call(param), 10a17b2
 
 			// check against dest type from outer context
 			bx.checkShiftExpr(store, last, originType, true)
@@ -2508,7 +2508,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				checkOrConvertType(store, last, &bx.Left, t, autoNative, coerce)
 			}
 		} else { // not coerce, xt is typed, no need to convert but check. refer to 10a17b1.
-			checkAssignableTo(xt, t, false) // refer to 0_a_2.gno, 0_a_3.gno
+			checkAssignableTo(xt, t, false) // refer to shift_b3.gno, shift_b4.gno
 		}
 
 	} else if ux, ok := (*x).(*UnaryExpr); ok {

@@ -9,12 +9,14 @@ package main
 
 import "fmt"
 
-// case of const in type call
+// case of expr in type call
 func main() {
-	r := int(uint(string("hello")))
+	x := 2
+	var r float32
+	r = 1 << x // untyped rhs to float32
 	println(r)
 	fmt.Printf("%T \n", r)
 }
 
 // Error:
-// main/files/types2/1_a.gno:14: cannot convert StringKind to UintKind
+// main/files/types2/shift_c6.gno:16: operator << not defined on: Float32Kind
