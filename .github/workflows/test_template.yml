@@ -25,15 +25,51 @@ jobs:
         - name: Checkout code
           uses: actions/checkout@v4
         - name: Go test
-          run: go test -coverprofile coverage.out -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./...
           working-directory:  ${{ inputs.modulepath }}
-        - name: Upload coverage to Codecov
+          env:
+            TXTARCOVERDIR: /tmp/txtarcoverdir # txtar cover output
+            GOCOVERDIR: /tmp/gocoverdir # go cover output
+            COVERDIR: /tmp/coverdir # final output
+          run: |
+            set -x # print commands
+
+            mkdir -p "$GOCOVERDIR" "$TXTARCOVERDIR" "$COVERDIR"
+
+            # XXX: Simplify coverage of txtar - the current setup is a bit
+            # confusing and meticulous. There will be some improvements in Go
+            # 1.23 regarding coverage, so we can use this as a workaround until
+            # then.
+            go test -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./... -test.gocoverdir=$GOCOVERDIR
+            # Print results
+            (set +x; echo 'go coverage results:')
+            go tool covdata percent -i=$GOCOVERDIR
+            (set +x; echo 'txtar coverage results:')
+            go tool covdata percent -i=$TXTARCOVERDIR
+
+            # Generate final coverage output
+            go tool covdata textfmt -v 1 -i=$GOCOVERDIR -o gocoverage.out
+            go tool covdata textfmt -v 1 -i=$TXTARCOVERDIR -o txtarcoverage.out
+
+        - name: Upload go coverage to Codecov
           uses: codecov/codecov-action@v4
           with:
-              token: ${{ secrets.codecov-token }}
-              verbose: true
-              fail_ci_if_error: true
-              flags: ${{ inputs.modulepath }}
+            disable_search: true
+            fail_ci_if_error: true
+            file: ${{ inputs.modulepath }}/gocoverage.out
+            flags: ${{ inputs.modulepath }}
+            token: ${{ secrets.codecov-token }}
+            verbose: true
+
+        - name: Upload txtar coverage to Codecov
+          uses: codecov/codecov-action@v4
+          with:
+            disable_search: true
+            fail_ci_if_error: true
+            file: ${{ inputs.modulepath }}/txtarcoverage.out
+            flags: ${{ inputs.modulepath }}/txtar
+            token: ${{ secrets.codecov-token }}
+            verbose: true
+
     # TODO: We have to fix race conditions before running this job
     # test-with-race:
     #     runs-on: ubuntu-latest
