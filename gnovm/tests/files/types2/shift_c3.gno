@@ -3,11 +3,12 @@ package main
 import "fmt"
 
 func main() {
-	var r uint64 = 1 << int8(1)
-	fmt.Printf("%T \n", r)
+	x := 1
+	r := uint(+(1 << x))
 	println(r)
+	fmt.Printf("%T \n", r)
 }
 
 // Output:
-// uint64
 // 2
+// uint

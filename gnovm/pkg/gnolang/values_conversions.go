@@ -14,6 +14,10 @@ import (
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
 func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
+	debug.Printf("---convertTo: tv: %v, t: %v \n", tv, t)
+	defer func() {
+		debug.Printf("---after convert: tv: %v \n", tv)
+	}()
 	if debug {
 		if t == nil {
 			panic("ConvertTo() requires non-nil type")
@@ -44,6 +48,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
+			// both NativeType, use reflect to assert.
 			// convert go-native to gno type (shallow).
 			*tv = go2GnoValue2(alloc, store, tv.V.(*NativeValue).Value, false)
 			ConvertTo(alloc, store, tv, t)
@@ -72,7 +77,23 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 	}
 GNO_CASE:
 	// special case for interface target
+	// TODO: consider interface{}(nil)
+	// var a interface, a == 1
+	// seems the second case is not match with here
+	// the second case should be a empty interface
+	// that both type and data is nil, (0x00)
+	// look line 91
+	// is it specified for nil to typed-nil?
+	// that nil is different with undefined?
+
+	// XXX, go does not do this, see: go.dev/issue/13061
 	if t.Kind() == InterfaceKind {
+		if tv.IsUndefined() && tv.T == nil { // if tv.T == nil, nil T and nil Value. not a nil interface
+			if _, ok := t.(*NativeType); !ok { // no support for native now
+				debug.Printf("t is interface and not native, t: %v \n", t)
+				tv.T = t
+			}
+		}
 		return
 	}
 	// special case for undefined/nil source
@@ -868,6 +889,8 @@ GNO_CASE:
 				"cannot convert %s to %s",
 				tv.T.String(), k.String()))
 		}
+	case BigintKind:
+		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	default:
 		panic(fmt.Sprintf(
 			"cannot convert %s to %s",
