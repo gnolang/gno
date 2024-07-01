@@ -54,15 +54,23 @@ func (cdc *Codec) encodeReflectJSON(w io.Writer, info *TypeInfo, rv reflect.Valu
 	// Handle override if rv implements amino.Marshaler.
 	if info.IsAminoMarshaler {
 		// First, encode rv into repr instance.
-		var (
-			rrv   reflect.Value
-			rinfo *TypeInfo
-		)
+		var rrv reflect.Value
 		rrv, err = toReprObject(rv)
 		if err != nil {
 			return
 		}
-		rinfo = info.ReprType
+
+		var rinfo *TypeInfo
+		if info.HasTypeDescription {
+			rt := typeDescription(rv)
+			rrv = rrv.Elem().Convert(rt)
+
+			// rrv = reflect.New(info.ReprType.Type).Elem()
+			rinfo, err = cdc.getTypeInfoWLock(rt)
+		} else {
+			rinfo = info.ReprType
+		}
+
 		// Then, encode the repr instance.
 		err = cdc.encodeReflectJSON(w, rinfo, rrv, fopts)
 		return

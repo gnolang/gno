@@ -74,11 +74,20 @@ func (cdc *Codec) encodeReflectBinary(w io.Writer, info *TypeInfo, rv reflect.Va
 	if info.IsAminoMarshaler {
 		// First, encode rv into repr instance.
 		var rrv reflect.Value
-		rinfo := info.ReprType
 		rrv, err = toReprObject(rv)
 		if err != nil {
 			return
 		}
+
+		var rinfo *TypeInfo
+		if info.HasTypeDescription {
+			rt := typeDescription(rv)
+			rrv = rrv.Elem().Convert(rt)
+			rinfo, err = cdc.getTypeInfoWLock(rt)
+		} else {
+			rinfo = info.ReprType
+		}
+
 		// Then, encode the repr instance.
 		err = cdc.encodeReflectBinary(w, rinfo, rrv, fopts, bare, options)
 		return
