@@ -376,12 +376,12 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 			case "Preprocessed":
 				// check preprocessed AST.
 				pn := store.GetBlockNode(gno.PackageNodeLocation(pkgPath))
-				pns := pn.(*gno.PackageNode).FileSet.Files[0].String()
-				if preWanted != resWanted {
+				pre := pn.(*gno.PackageNode).FileSet.Files[0].String()
+				if pre != preWanted {
 					// panic so tests immediately fail (for now).
 					diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
 						A:        difflib.SplitLines(preWanted),
-						B:        difflib.SplitLines(pns),
+						B:        difflib.SplitLines(pre),
 						FromFile: "Expected",
 						FromDate: "",
 						ToFile:   "Actual",

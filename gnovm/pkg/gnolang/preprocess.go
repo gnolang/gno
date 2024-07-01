@@ -104,14 +104,6 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			}
 		}
 	}
-	// Finally, identify loop escaped name exprs and sets type.
-	// NOTE: this requires finalized AST structure, especially gotos, and
-	// cannot add or remove statements from bodies.
-	for _, fn := range fset.Files {
-		findGotoLoopDefines(pn, fn)
-		findLoopUses1(pn, fn)
-		findLoopUses2(pn, fn)
-	}
 }
 
 // Initialize static block info.
@@ -382,6 +374,16 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
+	n = preprocess1(store, ctx, n)
+	if bn, ok := n.(BlockNode); ok {
+		findGotoLoopDefines(ctx, bn)
+		findLoopUses1(ctx, bn)
+		findLoopUses2(ctx, bn)
+	}
+	return n
+}
+
+func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	// Increment preprocessing counter while preprocessing.
 	preprocessing.Add(1)
 	defer preprocessing.Add(-1)
@@ -2350,7 +2352,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 
 // Find uses of loop names; those names that are defined as loop defines;
 // defines within loops that are used as reference or captured in a closure
-// later. Also happens to adjust the type and paths of such usage.
+// later. Also happens to adjust the type (but not paths) of such usage.
 // If there is no usage of the &name or as closure capture, a
 // NameExprTypeHeapDefine gets demoted to NameExprTypeDefine in demoteHeapDefines().
 func findLoopUses1(ctx BlockNode, bn BlockNode) {
@@ -2388,17 +2390,20 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 					if hasName(lds, n.Name) {
-						depth, found := findFirstClosure(stack, dbn)
+						_, found := findFirstClosure(stack, dbn)
 						if found {
 							// If across a closure,
 							// mark name as loop used.
 							addAttrHeapUse(dbn, n.Name)
-							// Also adjust NameExpr type and path.
-							// We could do this in a later phase too.
+							// Also adjust NameExpr type.
 							n.Type = NameExprTypeHeapClosure
-							n.Path.Depth = uint8(depth)
-							// NOTE: this index will be overwritten later.
-							n.Path.Index = indexOfName(lds, n.Name)
+							// The path must stay same for now,
+							// used later in findLoopUses2.
+							// XXX actually uncomment once
+							// the runtime works.
+							// lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
+							// n.Path.Depth = uint8(depth)
+							// n.Path.Index = indexOfName(lus, n.Name)
 						} else {
 							if ftype == TRANS_REF_X {
 								// if used as a reference,
@@ -2459,8 +2464,8 @@ func setAttrHeapDefine(bn BlockNode, name Name) {
 }
 
 func addAttrHeapUse(bn BlockNode, name Name) {
+	fmt.Println("DIDUSE", name, bn)
 	bnLUs, _ := bn.GetAttribute(ATTR_LOOP_USES).([]Name)
-	assertNotHasName(bnLUs, name)
 	if hasName(bnLUs, name) {
 		return
 	} else {
@@ -2555,10 +2560,11 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 						}
 					}
 				case NameExprTypeHeapClosure:
-					// adjust the ValuePath index based on use.
-					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
-					n.Path.Index = indexOfName(lus, n.Name)
+					// Adjust the ValuePath index based on use.
+					// Actually, was already adjusted in findLoopUses1.
+					// dbn := last.GetBlockNodeForPath(nil, n.Path)
+					// lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
+					// ...
 				}
 			}
 			return n, TRANS_CONTINUE
@@ -2585,7 +2591,7 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 				// works here.
 				lds, _ := n.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 				lus, _ := n.GetAttribute(ATTR_LOOP_USES).([]Name)
-				if len(lds) > len(lus) {
+				if len(lds) < len(lus) {
 					panic("defines should be a superset of used-defines")
 				}
 				n.SetAttribute(ATTR_LOOP_DEFINES, lus)
@@ -2607,7 +2613,7 @@ func indexOfName(ns []Name, name Name) uint16 {
 			return uint16(i)
 		}
 	}
-	panic("not not found in ns")
+	panic(fmt.Sprintln("name "+name+" not found in ns", ns))
 }
 
 func isSwitchLabel(ns []Node, label Name) bool {
