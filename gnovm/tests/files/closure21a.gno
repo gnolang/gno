@@ -12,8 +12,7 @@ func forLoopRef() {
 	}()
 
 	for i := 0; i < 3; i++ {
-		z := i
-		s1 = append(s1, &z)
+		s1 = append(s1, &i)
 	}
 }
 
