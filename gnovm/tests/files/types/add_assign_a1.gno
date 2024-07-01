@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/add_assign_a1.gno:21: invalid operation: mismatched types main.Error1 and main.Error2
+// main/files/types/add_assign_a1.gno:21:2: invalid operation: mismatched types main.Error1 and main.Error2

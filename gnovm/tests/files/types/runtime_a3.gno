@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/runtime_a3.gno:8: operator ++ not defined on: InterfaceKind
+// main/files/types/runtime_a3.gno:8:2: operator ++ not defined on: InterfaceKind
