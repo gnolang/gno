@@ -3,11 +3,17 @@ package uassert
 import (
 	"std"
 	"strings"
-	"testing"
 )
 
 type TestingT interface {
+	Skip(args ...interface{})
 	Errorf(fmt string, args ...interface{})
+	Error(args ...interface{})
+	Fatalf(fmt string, args ...interface{})
+	Fatal(args ...interface{})
+	Logf(fmt string, args ...interface{})
+	// Run(name string, f testingFunc)
+	Helper()
 }
 
 func MustEqualStrings(t TestingT, a, b string) {
