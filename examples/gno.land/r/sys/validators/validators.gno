@@ -1,16 +1,16 @@
-package vals
+package validators
 
 import (
 	"std"
 	"strconv"
 
-	"gno.land/p/sys/vals"
+	"gno.land/p/sys/validators"
 )
 
 // valset is the wrapper for the validator set protocol
 type valset struct {
-	p       vals.ValsetProtocol // p is the underlying validator set protocol
-	changes []vals.Validator    // changes are the set changes that happened between scrapes
+	p       validators.ValsetProtocol // p is the underlying validator set protocol
+	changes []validators.Validator    // changes are the set changes that happened between scrapes
 }
 
 // v holds the active on-chain validator set state
@@ -18,7 +18,7 @@ var v *valset
 
 // addValidator adds a new validator to the validator set.
 // If the validator is already present, the method errors out
-func addValidator(validator vals.Validator) {
+func addValidator(validator validators.Validator) {
 	val, err := v.p.AddValidator(validator.Address, validator.PubKey, validator.VotingPower)
 	if err != nil {
 		panic(err)
@@ -29,7 +29,7 @@ func addValidator(validator vals.Validator) {
 		v.changes = append(v.changes, *val)
 
 		// Emit the validator set change
-		std.Emit(vals.ValidatorAddedEvent)
+		std.Emit(validators.ValidatorAddedEvent)
 	}
 }
 
@@ -43,21 +43,21 @@ func removeValidator(address std.Address) {
 
 	if val != nil {
 		// Validator removed, note the change
-		v.changes = append(v.changes, vals.Validator{
+		v.changes = append(v.changes, validators.Validator{
 			Address:     val.Address,
 			PubKey:      val.PubKey,
 			VotingPower: 0, // nullified the voting power indicates removal
 		})
 
 		// Emit the validator set change
-		std.Emit(vals.ValidatorRemovedEvent)
+		std.Emit(validators.ValidatorRemovedEvent)
 	}
 }
 
 // getChanges returns the validator changes stored on the realm
-func getChanges() []vals.Validator {
+func getChanges() []validators.Validator {
 	// Construct the changes
-	changes := make([]vals.Validator, len(v.changes))
+	changes := make([]validators.Validator, len(v.changes))
 	copy(changes, v.changes)
 
 	// Reset the changes set
