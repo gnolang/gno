@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -27,7 +27,7 @@ import (
 )
 
 var (
-	ErrInvalidUrl       = errors.New("invalid url")
+	ErrInvalidRealm     = errors.New("invalid realm")
 	ErrUnauthorizedUser = errors.New("unauthorized user")
 )
 
@@ -144,25 +144,42 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
-func (vm *VMKeeper) checkNamespacePerm(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
+// Namespace can be either a user or crypto address.
+// XXX: Uppercase should be valid but transform into lowercase ?
+var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([a-zA-Z]+[_a-zA-Z0-9]+)`)
+
+// checkNamespacePermission check if
+func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
 	const sysUsersPkg = "gno.land/r/demo/users"
 
 	store := vm.getGnoStore(ctx)
 
-	// if r/sys/names does not exists -> skip validation.
+	// if `sysUsersPkg` does not exists -> skip validation.
 	usersPkg := store.GetPackage(sysUsersPkg, false)
 	if usersPkg == nil {
 		return nil
 	}
 
-	pkgPath = filepath.Clean(pkgPath)         // cleanup pkgpath
-	pathSp := strings.SplitN(pkgPath, "/", 4) // gno.land/r/<user>/<pname>
-	if len(pathSp) < 3 {
-		return fmt.Errorf("%w: %s", ErrInvalidUrl, pkgPath)
-	}
+	// XXX: is this necessary ?
+	pkgPath = filepath.Clean(pkgPath) // cleanup pkgpath
 
-	// XXX: cleanup username
-	username := pathSp[2]
+	match := reNamespace.FindStringSubmatch(pkgPath)
+	if len(match) != 2 {
+		return fmt.Errorf("%w: %q", ErrInvalidRealm, pkgPath)
+	}
+	username := match[1]
+
+	// Lowercase username
+	username = strings.ToLower(username)
+
+	// Allow user with their own address as namespace
+	if addr, err := crypto.AddressFromBech32(username); err == nil {
+		if addr.Compare(creator) == 0 {
+			return nil
+		}
+
+		return fmt.Errorf("%w: %q", ErrUnauthorizedUser, username)
+	}
 
 	// Parse and run the files, construct *PV.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
@@ -173,13 +190,14 @@ func (vm *VMKeeper) checkNamespacePerm(ctx sdk.Context, creator crypto.Address, 
 		OrigCaller:    creator.Bech32(),
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
-		Banker:        NewSDKBanker(vm, ctx),
-		EventLogger:   ctx.EventLogger(),
+		// XXX: should we remove the banker ?
+		Banker:      NewSDKBanker(vm, ctx),
+		EventLogger: ctx.EventLogger(),
 	}
 
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
-			PkgPath:   pkgPath,
+			PkgPath:   "",
 			Output:    os.Stdout, // XXX
 			Store:     store,
 			Context:   msgCtx,
@@ -189,10 +207,14 @@ func (vm *VMKeeper) checkNamespacePerm(ctx sdk.Context, creator crypto.Address, 
 		})
 	defer m.Release()
 
+	// call $sysUsersPkg.GetUserByName("<user>")
+	// We only need to check by name here, as address have already been check
+	mpv := gno.NewPackageNode("main", "main", nil).NewPackage()
+	m.SetActivePackage(mpv)
 	m.RunDeclaration(gno.ImportD("users", sysUsersPkg))
 	x := gno.Call(
-		gno.Sel(gnolang.Nx("users"), "GetUserByAddressOrName"), // Call testing.RunTest
-		gno.Str("@"+username),                                  // First param, the name of the test
+		gno.Sel(gno.Nx("users"), "GetUserByName"),
+		gno.Str(username),
 	)
 
 	ret := m.Eval(x)
@@ -200,8 +222,9 @@ func (vm *VMKeeper) checkNamespacePerm(ctx sdk.Context, creator crypto.Address, 
 		panic("invalid response length call")
 	}
 
+	// If value is nil, no user has been registered for this namespace
 	if user := ret[0]; user.V == nil {
-		return fmt.Errorf("%w: %s", ErrUnauthorizedUser, pkgPath)
+		return fmt.Errorf("%w: %q", ErrUnauthorizedUser, username)
 	}
 
 	return nil
@@ -249,6 +272,10 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// - check if caller is in Admins or Editors.
 	// - check if namespace is not in pause.
 	if err := vm.checkNamespacePerm(ctx, creator, pkgPath); err != nil {
+		return err
+	}
+
+	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
 		return err
 	}
 
