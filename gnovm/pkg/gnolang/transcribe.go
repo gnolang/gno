@@ -47,6 +47,7 @@ const (
 	TRANS_COMPOSITE_KEY
 	TRANS_COMPOSITE_VALUE
 	TRANS_FUNCLIT_TYPE
+	TRANS_FUNCLIT_HEAP_CAPTURE // XXX stringer is broken, make _dev.stringer fails.
 	TRANS_FUNCLIT_BODY
 	TRANS_FIELDTYPE_TYPE
 	TRANS_FIELDTYPE_TAG
@@ -100,6 +101,7 @@ const (
 	TRANS_IMPORT_PATH
 	TRANS_CONST_TYPE
 	TRANS_CONST_VALUE
+	TRANS_VAR_NAME // XXX stringer
 	TRANS_VAR_TYPE
 	TRANS_VAR_VALUE
 	TRANS_TYPE_TYPE
@@ -112,6 +114,7 @@ const (
 //     ENTER,CHILDS1,[BLOCK,CHILDS2]?,LEAVE sequence for that node,
 //     i.e. skipping (the rest of) it;
 //   - TRANS_BREAK to break out of looping in CHILDS1 or CHILDS2,
+//     but still perform TRANS_LEAVE.
 //   - TRANS_EXIT to stop traversing altogether.
 //
 // Do not mutate ns.
@@ -264,6 +267,14 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 		if isStopOrSkip(nc, c) {
 			return
 		}
+		for idx := range cnn.HeapCaptures {
+			cnn.HeapCaptures[idx] = *(transcribe(t, nns, TRANS_FUNCLIT_HEAP_CAPTURE, idx, &cnn.HeapCaptures[idx], &c).(*NameExpr))
+			if isBreak(c) {
+				break
+			} else if isStopOrSkip(nc, c) {
+				return
+			}
+		}
 		cnn2, c2 := t(ns, ftype, index, cnn, TRANS_BLOCK)
 		if isStopOrSkip(nc, c2) {
 			nn = cnn2
@@ -359,6 +370,7 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *AssignStmt:
+		// XXX consider RHS, LHS, RHS, LHS, ... order.
 		for idx := range cnn.Lhs {
 			cnn.Lhs[idx] = transcribe(t, nns, TRANS_ASSIGN_LHS, idx, cnn.Lhs[idx], &c).(Expr)
 			if isBreak(c) {
@@ -683,6 +695,10 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 				return
 			}
 		}
+		// XXX consider RHS, LHS, RHS, LHS, ... order.
+		for idx := range cnn.NameExprs {
+			cnn.NameExprs[idx] = *(transcribe(t, nns, TRANS_VAR_NAME, idx, &cnn.NameExprs[idx], &c).(*NameExpr))
+		}
 		for idx := range cnn.Values {
 			cnn.Values[idx] = transcribe(t, nns, TRANS_VAR_VALUE, idx, cnn.Values[idx], &c).(Expr)
 			if isBreak(c) {
@@ -746,8 +762,6 @@ func isStopOrSkip(oldnc *TransCtrl, nc TransCtrl) (stop bool) {
 }
 
 // returns true if transcribe() should break (a loop).
-// NOTE: maybe only relevant for AssignStmt and SwitchClauseStmt,
-// otherwise generally behavior is identical to TRANS_SKIP.
 func isBreak(nc TransCtrl) (brek bool) {
 	if nc == TRANS_BREAK {
 		return true

@@ -917,6 +917,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					if ftype == TRANS_ASSIGN_LHS {
 						as := ns[len(ns)-1].(*AssignStmt)
 						fillNameExprPath(last, n, as.Op == DEFINE)
+						return n, TRANS_CONTINUE
+					} else if ftype == TRANS_VAR_NAME {
+						fillNameExprPath(last, n, true)
+						return n, TRANS_CONTINUE
 					} else {
 						fillNameExprPath(last, n, false)
 					}
@@ -2390,7 +2394,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 					if hasName(lds, n.Name) {
-						_, found := findFirstClosure(stack, dbn)
+						fle, _, found := findFirstClosure(stack, dbn)
 						if found {
 							// If across a closure,
 							// mark name as loop used.
@@ -2399,6 +2403,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							n.Type = NameExprTypeHeapClosure
 							// The path must stay same for now,
 							// used later in findLoopUses2.
+							addHeapCapture(fle, n.Name)
 							// XXX actually uncomment once
 							// the runtime works.
 							// lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
@@ -2475,14 +2480,30 @@ func addAttrHeapUse(bn BlockNode, name Name) {
 	}
 }
 
+func addHeapCapture(fle *FuncLitExpr, name Name) {
+	for _, ne := range fle.HeapCaptures {
+		if ne.Name == name {
+			return // already exists
+		}
+	}
+	vp := fle.GetPathForName(nil, name)
+	ne := NameExpr{
+		Path: vp,
+		Name: name,
+		Type: NameExprTypeHeapUse,
+	}
+	fle.HeapCaptures = append(fle.HeapCaptures, ne)
+}
+
 // finds the first FuncLitExpr in the stack at or after stop.
 // returns the depth of first closure, 1 if stop itself is a closure,
 // or 0 if not found.
-func findFirstClosure(stack []BlockNode, stop BlockNode) (depth int, found bool) {
+func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, depth int, found bool) {
 	for i := len(stack) - 1; i >= 0; i-- {
 		stbn := stack[i]
-		switch stbn.(type) {
+		switch stbn := stbn.(type) {
 		case *FuncLitExpr:
+			fle = stbn
 			depth = len(stack) - 1 - i + 1 // +1 since 1 is lowest.
 			found = true
 			if stbn == stop {
@@ -3839,10 +3860,6 @@ func fillNameExprPath(last BlockNode, nx *NameExpr, isDefineLHS bool) {
 	}
 
 	// If not DEFINE_LHS, yet is statically undefined, set path from parent.
-
-	// NOTE: ValueDecl names don't need this distinction, as
-	// the transcriber doesn't enter any of the ValueDecl.NameExprs nodes,
-	// so this function never gets called for them.
 	if !isDefineLHS {
 		if last.GetStaticTypeOf(nil, nx.Name) == nil {
 			// NOTE: We cannot simply call last.GetPathForName() as below here,

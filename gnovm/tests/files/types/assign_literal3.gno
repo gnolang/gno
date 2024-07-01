@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_literal3.gno:4: cannot assign to (const (true <untyped> bool))
+// main/files/types/assign_literal3.gno:4: cannot assign to uverse true
