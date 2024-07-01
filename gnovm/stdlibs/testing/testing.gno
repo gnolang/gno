@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Top level functions
 
 // skipErr is the type of the panic created by SkipNow
@@ -39,6 +39,93 @@ func Recover(result Setter) {
 	panic(r)
 }
 
+func extractPanicErr(r interface{}) string {
+	err, ok := r.(error)
+	if ok {
+		return err.Error()
+	}
+
+	errStr, ok := r.(string)
+	if ok {
+		return errStr
+	}
+
+	return "unknown error"
+}
+
+// NoError asserts no error occurred
+func NoError(t *T, err error) bool {
+	if err == nil {
+		return true
+	}
+
+	t.Fatalf("Function errored with err %s", err)
+
+	return false
+}
+
+// ErrorIs asserts the given error matches the target error
+func ErrorIs(t *T, err error, target error) bool {
+	if err == nil || target == nil {
+		return err == target
+	}
+
+	if err.Error() != target.Error() {
+		t.Fatalf("Target error mismatch, expected %s, got %s", target, err)
+
+		return false
+	}
+
+	return true
+}
+
+// PanicsWithError asserts that the code inside the specified func panics,
+// and that the recovered panic value is an error that satisfies the given message
+func PanicsWithError(t *T, errString string, f func()) bool {
+	t.Helper()
+
+	var valid bool
+
+	defer func() {
+		if r := recover(); r != nil {
+			// Check if the error matches
+			panicErr := extractPanicErr(r)
+			if panicErr == errString {
+				valid = true
+
+				return
+			}
+
+			t.Fatalf("Function panicked with err, %s", panicErr)
+		}
+	}()
+
+	// Run the callback
+	f()
+
+	return valid
+}
+
+// NotPanics asserts that the code inside the specified func does NOT panic
+func NotPanics(t *T, f func()) bool {
+	t.Helper()
+
+	valid := true
+
+	defer func() {
+		if r := recover(); r != nil {
+			valid = false
+
+			t.Fatalf("Function panicked with err, %s", extractPanicErr(r))
+		}
+	}()
+
+	// Run the callback
+	f()
+
+	return valid
+}
+
 type Setter interface {
 	Set(v interface{})
 }
@@ -60,7 +147,7 @@ func AllocsPerRun2(runs int, f func()) (total int) {
 	return 0
 }
 
-//----------------------------------------
+// ----------------------------------------
 // T
 
 type T struct {
@@ -225,7 +312,7 @@ func (t *T) report() Report {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // B
 // TODO: actually implement
 
@@ -261,7 +348,7 @@ func (b *B) StartTimer()                               { panic("not yet implemen
 func (b *B) StopTimer()                                { panic("not yet implemented") }
 func (b *B) TempDir() string                           { panic("not yet implemented") }
 
-//----------------------------------------
+// ----------------------------------------
 // PB
 // TODO: actually implement
 
