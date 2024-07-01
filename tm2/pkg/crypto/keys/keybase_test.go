@@ -116,6 +116,40 @@ func TestKeyManagement(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestDeleteByAddress makes sure we can have a key by multiple names
+func TestDeleteByAddress(t *testing.T) {
+	t.Parallel()
+
+	// make the storage with reasonable defaults
+	cstore := NewInMemory()
+
+	n1, n2 := "john", "john2"
+	p1 := "1234"
+	mn1 := `lounge napkin all odor tilt dove win inject sleep jazz uncover traffic hint require cargo arm rocket round scan bread report squirrel step lake`
+	bech32 := "g14h6xypa7dkq9lh4ft5znpj8lt95gek9a7qt3c6"
+	bip39Passphrase := ""
+
+	i1, err := cstore.CreateAccount(n1, mn1, bip39Passphrase, p1, 0, 0)
+	require.NoError(t, err)
+	require.Equal(t, n1, i1.GetName())
+	require.Equal(t, crypto.AddressToBech32(i1.GetAddress()), bech32)
+	// Create the same key with a different name
+	i2, err := cstore.CreateAccount(n2, mn1, bip39Passphrase, p1, 0, 0)
+	require.NoError(t, err)
+	require.Equal(t, n2, i2.GetName())
+	require.Equal(t, crypto.AddressToBech32(i2.GetAddress()), bech32)
+
+	// Delete the key by address
+	err = cstore.Delete(bech32, "", true)
+	require.NoError(t, err)
+	has, err := cstore.HasByName(n2)
+	require.NoError(t, err)
+	require.False(t, has)
+	has, err = cstore.HasByName(n1)
+	require.NoError(t, err)
+	require.False(t, has)
+}
+
 // TestSignVerify does some detailed checks on how we sign and validate
 // signatures
 func TestSignVerify(t *testing.T) {
