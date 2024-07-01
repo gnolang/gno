@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_index_b.gno:8: want bool type got int
+// main/files/types/assign_index_b.gno:8:2: want bool type got int

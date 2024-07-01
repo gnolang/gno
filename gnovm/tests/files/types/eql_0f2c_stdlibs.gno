@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f2c_stdlibs.gno:19: operator < not defined on: InterfaceKind
+// main/files/types/eql_0f2c_stdlibs.gno:19:5: operator < not defined on: InterfaceKind
