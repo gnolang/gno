@@ -148,7 +148,7 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 // XXX: Uppercase should be valid but transform into lowercase ?
 var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([a-zA-Z]+[_a-zA-Z0-9]+)`)
 
-// checkNamespacePermission check if
+// checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
 	const sysUsersPkg = "gno.land/r/demo/users"
 
@@ -219,7 +219,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 
 	ret := m.Eval(x)
 	if len(ret) == 0 {
-		panic("invalid response length call")
+		panic("call: invalid response length")
 	}
 
 	// If value is nil, no user has been registered for this namespace
