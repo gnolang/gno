@@ -19,11 +19,12 @@ var v *vals
 // addValidator adds a new validator to the validator set.
 // If the validator is already present, the method errors out
 func addValidator(validator types.Validator) {
-	if val := v.p.AddValidator(
-		validator.Address,
-		validator.PubKey,
-		validator.VotingPower,
-	); val != nil {
+	val, err := v.p.AddValidator(validator.Address, validator.PubKey, validator.VotingPower)
+	if err != nil {
+		panic(err)
+	}
+
+	if val != nil {
 		// Validator added, note the change
 		v.changes = append(v.changes, *val)
 
@@ -35,7 +36,12 @@ func addValidator(validator types.Validator) {
 // removeValidator removes the given validator from the set.
 // If the validator is not present in the set, the method errors out
 func removeValidator(address std.Address) {
-	if val := v.p.RemoveValidator(address); val != nil {
+	val, err := v.p.RemoveValidator(address)
+	if err != nil {
+		panic(err)
+	}
+
+	if val != nil {
 		// Validator removed, note the change
 		v.changes = append(v.changes, types.Validator{
 			Address:     val.Address,
@@ -69,5 +75,6 @@ func Render(_ string) string {
 	for _, change := range v.changes {
 		output += "- " + string(change.Address) + " (" + strconv.FormatUint(change.VotingPower, 10) + ")\n"
 	}
+
 	return output
 }

@@ -1,4 +1,4 @@
-package poc
+package poa
 
 import (
 	"testing"
@@ -10,11 +10,11 @@ import (
 )
 
 // generateTestValidators generates a dummy validator set
-func generateTestValidators(count int) []*types.Validator {
-	vals := make([]*types.Validator, 0, count)
+func generateTestValidators(count int) []types.Validator {
+	vals := make([]types.Validator, 0, count)
 
 	for i := 0; i < count; i++ {
-		val := &types.Validator{
+		val := types.Validator{
 			Address:     testutils.TestAddress(ufmt.Sprintf("%d", i)),
 			PubKey:      "public-key",
 			VotingPower: 1,
@@ -26,7 +26,7 @@ func generateTestValidators(count int) []*types.Validator {
 	return vals
 }
 
-func TestPoC_AddValidator_Invalid(t *testing.T) {
+func TestPoA_AddValidator_Invalid(t *testing.T) {
 	t.Parallel()
 
 	t.Run("validator already in set", func(t *testing.T) {
@@ -43,12 +43,11 @@ func TestPoC_AddValidator_Invalid(t *testing.T) {
 		initialSet[0].PubKey = proposalKey
 
 		// Create the protocol with an initial set
-		p := NewPoC(WithInitialSet(initialSet))
+		p := NewPoA(WithInitialSet(initialSet))
 
 		// Attempt to add the validator
-		testing.PanicsWithError(t, types.ErrValidatorExists, func() {
-			p.AddValidator(proposalAddress, proposalKey, 1)
-		})
+		_, err := p.AddValidator(proposalAddress, proposalKey, 1)
+		testing.ErrorIs(t, err, types.ErrValidatorExists)
 	})
 
 	t.Run("invalid voting power", func(t *testing.T) {
@@ -60,16 +59,15 @@ func TestPoC_AddValidator_Invalid(t *testing.T) {
 		)
 
 		// Create the protocol with no initial set
-		p := NewPoC()
+		p := NewPoA()
 
 		// Attempt to add the validator
-		testing.PanicsWithError(t, errInvalidVotingPower, func() {
-			p.AddValidator(proposalAddress, proposalKey, 0)
-		})
+		_, err := p.AddValidator(proposalAddress, proposalKey, 0)
+		testing.ErrorIs(t, err, ErrInvalidVotingPower)
 	})
 }
 
-func TestPoC_AddValidator(t *testing.T) {
+func TestPoA_AddValidator(t *testing.T) {
 	t.Parallel()
 
 	var (
@@ -78,20 +76,19 @@ func TestPoC_AddValidator(t *testing.T) {
 	)
 
 	// Create the protocol with no initial set
-	p := NewPoC()
+	p := NewPoA()
 
 	// Attempt to add the validator
-	testing.NotPanics(t, func() {
-		p.AddValidator(proposalAddress, proposalKey, 1)
-	})
+	_, err := p.AddValidator(proposalAddress, proposalKey, 1)
+	testing.NoError(t, err)
 
 	// Make sure the validator is added
-	if !p.IsValidator(proposalAddress) || len(p.validators) != 1 {
+	if !p.IsValidator(proposalAddress) || p.validators.Size() != 1 {
 		t.Fatal("address is not validator")
 	}
 }
 
-func TestPoC_RemoveValidator_Invalid(t *testing.T) {
+func TestPoA_RemoveValidator_Invalid(t *testing.T) {
 	t.Parallel()
 
 	t.Run("proposed removal not in set", func(t *testing.T) {
@@ -105,16 +102,15 @@ func TestPoC_RemoveValidator_Invalid(t *testing.T) {
 		initialSet[0].Address = proposalAddress
 
 		// Create the protocol with an initial set
-		p := NewPoC(WithInitialSet(initialSet))
+		p := NewPoA(WithInitialSet(initialSet))
 
 		// Attempt to remove the validator
-		testing.PanicsWithError(t, types.ErrValidatorMissing, func() {
-			p.RemoveValidator(testutils.TestAddress("totally random"))
-		})
+		_, err := p.RemoveValidator(testutils.TestAddress("totally random"))
+		testing.ErrorIs(t, err, types.ErrValidatorMissing)
 	})
 }
 
-func TestPoC_RemoveValidator(t *testing.T) {
+func TestPoA_RemoveValidator(t *testing.T) {
 	t.Parallel()
 
 	var (
@@ -125,32 +121,30 @@ func TestPoC_RemoveValidator(t *testing.T) {
 	initialSet[0].Address = proposalAddress
 
 	// Create the protocol with an initial set
-	p := NewPoC(WithInitialSet(initialSet))
+	p := NewPoA(WithInitialSet(initialSet))
 
 	// Attempt to remove the validator
-	testing.NotPanics(t, func() {
-		p.RemoveValidator(proposalAddress)
-	})
+	_, err := p.RemoveValidator(proposalAddress)
+	testing.NoError(t, err)
 
 	// Make sure the validator is removed
-	if p.IsValidator(proposalAddress) || len(p.validators) != 0 {
+	if p.IsValidator(proposalAddress) || p.validators.Size() != 0 {
 		t.Fatal("address is validator")
 	}
 }
 
-func TestPoC_GetValidator(t *testing.T) {
+func TestPoA_GetValidator(t *testing.T) {
 	t.Parallel()
 
 	t.Run("validator not in set", func(t *testing.T) {
 		t.Parallel()
 
 		// Create the protocol with no initial set
-		p := NewPoC()
+		p := NewPoA()
 
 		// Attempt to get the voting power
-		testing.PanicsWithError(t, types.ErrValidatorMissing, func() {
-			p.GetValidator(testutils.TestAddress("caller"))
-		})
+		_, err := p.GetValidator(testutils.TestAddress("caller"))
+		testing.ErrorIs(t, err, types.ErrValidatorMissing)
 	})
 
 	t.Run("validator fetched", func(t *testing.T) {
@@ -169,10 +163,11 @@ func TestPoC_GetValidator(t *testing.T) {
 		initialSet[0].VotingPower = votingPower
 
 		// Create the protocol with an initial set
-		p := NewPoC(WithInitialSet(initialSet))
+		p := NewPoA(WithInitialSet(initialSet))
 
 		// Get the validator
-		val := p.GetValidator(address)
+		val, err := p.GetValidator(address)
+		testing.NoError(t, err)
 
 		// Validate the address
 		if val.Address != address {
@@ -187,6 +182,58 @@ func TestPoC_GetValidator(t *testing.T) {
 		// Validate the public key
 		if val.PubKey != pubKey {
 			t.Fatal("invalid public key")
+		}
+	})
+}
+
+func TestPoA_GetValidators(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty set", func(t *testing.T) {
+		t.Parallel()
+
+		// Create the protocol with no initial set
+		p := NewPoA()
+
+		// Attempt to get the voting power
+		vals := p.GetValidators()
+
+		if len(vals) != 0 {
+			t.Fatal("validator set is not empty")
+		}
+	})
+
+	t.Run("validator set fetched", func(t *testing.T) {
+		t.Parallel()
+
+		initialSet := generateTestValidators(10)
+
+		// Create the protocol with an initial set
+		p := NewPoA(WithInitialSet(initialSet))
+
+		// Get the validator set
+		vals := p.GetValidators()
+
+		if len(vals) != len(initialSet) {
+			t.Fatal("returned validator set mismatch")
+		}
+
+		for _, val := range vals {
+			for _, initialVal := range initialSet {
+				if val.Address != initialVal.Address {
+					continue
+				}
+
+				// Validate the voting power
+				if val.VotingPower != initialVal.VotingPower {
+					t.Fatal("invalid voting power")
+				}
+
+				// Validate the public key
+				if val.PubKey != initialVal.PubKey {
+					t.Fatal("invalid public key")
+				}
+			}
 		}
 	})
 }
