@@ -1,0 +1,14 @@
+# TODO: add explanation
+
+adduser test2
+gnoland start
+
+gnokey query bank/balances/${USER_ADDR_test1}
+stdout 'height: 0'
+stdout 'data: "10000000000000ugnot"'
+gnokey query bank/balances/${USER_ADDR_test2}
+stdout 'height: 0'
+stdout 'data: "10000000ugnot"'
+
+#gnokey sign -txpath unsigned.tx -chainid "portal-loop" -number ACCOUNTNUMBER -sequence SEQUENCENUMBER moul > signed.tx
+#gnokey broadcast -remote "https://rpc.gno.land:443" signed.tx
