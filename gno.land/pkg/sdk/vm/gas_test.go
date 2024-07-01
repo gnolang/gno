@@ -133,7 +133,6 @@ func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	ctx := env.ctx
 	// conduct base gas meter tests from a non-genesis block since genesis block use infinite gas meter instead.
 	ctx = ctx.WithBlockHeader(&bft.Header{Height: int64(1)})
-	vmHandler := NewHandler(env.vmk)
 	// Create an account  with 10M ugnot (10gnot)
 	addr := crypto.AddressFromPreimage([]byte("test1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
@@ -173,5 +172,5 @@ func Echo() UnknowType {
 	fee := std.NewFee(500000, std.MustParseCoin("1ugnot"))
 	tx := std.NewTx(msgs, fee, []std.Signature{}, "")
 
-	return ctx, tx, vmHandler
+	return ctx, tx, env.vmh
 }

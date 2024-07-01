@@ -22,6 +22,7 @@ type testEnv struct {
 	vmk  *VMKeeper
 	bank bankm.BankKeeper
 	acck authm.AccountKeeper
+	vmh  vmHandler
 }
 
 func setupTestEnv() testEnv {
@@ -42,6 +43,7 @@ func setupTestEnv() testEnv {
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir, 100_000_000)
 
 	vmk.Initialize(ms.MultiCacheWrap())
+	vmh := NewHandler(vmk)
 
-	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}
+	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck, vmh: vmh}
 }
