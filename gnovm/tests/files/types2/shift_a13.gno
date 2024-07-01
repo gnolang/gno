@@ -3,7 +3,7 @@ package main
 import "fmt"
 
 func main() {
-	var r uint64 = 1 << int8(1)
+	var r uint64 = 1 << int8(1) // determined by use context
 	fmt.Printf("%T \n", r)
 	println(r)
 }

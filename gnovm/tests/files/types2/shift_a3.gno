@@ -1,6 +1,5 @@
 package main
 
-// both typed(different) const
 func main() {
 	println(1 << 'a')
 	println(1 >> 'a')

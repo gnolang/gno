@@ -2,7 +2,7 @@ package main
 
 func main() {
 	x := 11
-	y := 1.0 << x
+	y := 1.0 << x // no const
 	println(y)
 }
 

@@ -1,7 +1,7 @@
 package main
 
 func main() {
-	r := uint64(1<<2 == 1>>2)
+	r := uint64(1<<2 == 1>>2) //special case with == !=, untyped bool
 	println(r)
 }
 

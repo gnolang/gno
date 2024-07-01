@@ -2,7 +2,7 @@ package main
 
 func main() {
 	a := 1
-	r := a << "hello" // NOTE: go vet would fail, but still process
+	r := a << "hello"
 	println(r)
 }
 
