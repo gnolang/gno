@@ -212,8 +212,8 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	next := mv.List.Head
 	for next != nil {
 		ss = append(ss,
-			next.Key.String()+":"+
-				next.Value.String())
+			next.Key.ProtectedString(seen)+":"+
+				next.Value.ProtectedString(seen))
 		next = next.Next
 	}
 	return "map{" + strings.Join(ss, ",") + "}"
@@ -256,6 +256,11 @@ func (v RefValue) String() string {
 	}
 	return fmt.Sprintf("ref(%s)",
 		v.PkgPath)
+}
+
+func (v *HeapItemValue) String() string {
+	return fmt.Sprintf("heapitem(%v)",
+		v.Value)
 }
 
 // ----------------------------------------
@@ -376,7 +381,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 	default:
 		// The remaining types may have a nil value.
 		if tv.V == nil {
-			return nilStr + " " + tv.T.String()
+			return "(" + nilStr + " " + tv.T.String() + ")"
 		}
 
 		// *ArrayType, *SliceType, *StructType, *MapType

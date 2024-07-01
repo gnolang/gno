@@ -23,13 +23,12 @@ import (
 	"log"
 	"math"
 	"math/big"
-	"math/rand"
+	"math/rand/v2"
 	"net"
 	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,10 +38,11 @@ import (
 	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
+	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	stypes "github.com/gnolang/gno/tm2/pkg/store/types"
@@ -61,8 +61,8 @@ const (
 )
 
 // NOTE: this isn't safe, should only be used for testing.
-func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (store gno.Store) {
-	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
+func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (resStore gno.Store) {
+	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
 		}
@@ -78,10 +78,13 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			if strings.HasPrefix(pkgPath, testPath) {
 				baseDir := filepath.Join(filesPath, "extern", pkgPath[len(testPath):])
 				memPkg := gno.ReadMemPackage(baseDir, pkgPath)
+				send := std.Coins{}
+				ctx := TestContext(pkgPath, send)
 				m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 					PkgPath: "test",
 					Output:  stdout,
 					Store:   store,
+					Context: ctx,
 				})
 				// pkg := gno.NewPackageNode(gno.Name(memPkg.Name), memPkg.Path, nil)
 				// pv := pkg.NewPackage()
@@ -111,7 +114,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			pkgPath == "encoding/xml" ||
 			pkgPath == "internal/os_test" ||
 			pkgPath == "math/big" ||
-			pkgPath == "math/rand" ||
 			mode == ImportModeStdlibsPreferred ||
 			mode == ImportModeNativePreferred {
 			switch pkgPath {
@@ -183,7 +185,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 						d := arg0.GetInt64()
 						sec := d / int64(time.Second)
 						nano := d % int64(time.Second)
-						ctx := m.Context.(stdlibs.ExecContext)
+						ctx := m.Context.(*teststd.TestExecContext)
 						ctx.Timestamp += sec
 						ctx.TimestampNano += nano
 						if ctx.TimestampNano >= int64(time.Second) {
@@ -254,26 +256,24 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("Pi", math.Pi)
 				pkg.DefineGoNativeValue("MaxFloat32", math.MaxFloat32)
 				pkg.DefineGoNativeValue("MaxFloat64", math.MaxFloat64)
-				pkg.DefineGoNativeValue("MaxUint32", math.MaxUint32)
+				pkg.DefineGoNativeValue("MaxUint32", uint32(math.MaxUint32))
 				pkg.DefineGoNativeValue("MaxUint64", uint64(math.MaxUint64))
 				pkg.DefineGoNativeValue("MinInt8", math.MinInt8)
 				pkg.DefineGoNativeValue("MinInt16", math.MinInt16)
 				pkg.DefineGoNativeValue("MinInt32", math.MinInt32)
-				pkg.DefineGoNativeValue("MinInt64", math.MinInt64)
+				pkg.DefineGoNativeValue("MinInt64", int64(math.MinInt64))
 				pkg.DefineGoNativeValue("MaxInt8", math.MaxInt8)
 				pkg.DefineGoNativeValue("MaxInt16", math.MaxInt16)
 				pkg.DefineGoNativeValue("MaxInt32", math.MaxInt32)
-				pkg.DefineGoNativeValue("MaxInt64", math.MaxInt64)
+				pkg.DefineGoNativeValue("MaxInt64", int64(math.MaxInt64))
 				return pkg, pkg.NewPackage()
 			case "math/rand":
 				// XXX only expose for tests.
 				pkg := gno.NewPackageNode("rand", pkgPath, nil)
-				pkg.DefineGoNativeValue("Intn", rand.Intn)
-				pkg.DefineGoNativeValue("Uint32", rand.Uint32)
-				pkg.DefineGoNativeValue("Seed", rand.Seed)
-				pkg.DefineGoNativeValue("New", rand.New)
-				pkg.DefineGoNativeValue("NewSource", rand.NewSource)
-				pkg.DefineGoNativeType(reflect.TypeOf(rand.Rand{}))
+				// make native rand same as gno rand.
+				rnd := rand.New(rand.NewPCG(0, 0)) //nolint:gosec
+				pkg.DefineGoNativeValue("IntN", rnd.IntN)
+				pkg.DefineGoNativeValue("Uint32", rnd.Uint32)
 				return pkg, pkg.NewPackage()
 			case "crypto/rand":
 				pkg := gno.NewPackageNode("rand", pkgPath, nil)
@@ -327,11 +327,6 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			case "math/big":
 				pkg := gno.NewPackageNode("big", pkgPath, nil)
 				pkg.DefineGoNativeValue("NewInt", big.NewInt)
-				return pkg, pkg.NewPackage()
-			case "sort":
-				pkg := gno.NewPackageNode("sort", pkgPath, nil)
-				pkg.DefineGoNativeValue("Strings", sort.Strings)
-				// pkg.DefineGoNativeValue("Sort", sort.Sort)
 				return pkg, pkg.NewPackage()
 			case "flag":
 				pkg := gno.NewPackageNode("flag", pkgPath, nil)
@@ -391,25 +386,28 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				panic(fmt.Sprintf("found an empty package %q", pkgPath))
 			}
 
+			send := std.Coins{}
+			ctx := TestContext(pkgPath, send)
 			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
 				PkgPath: "test",
 				Output:  stdout,
 				Store:   store,
+				Context: ctx,
 			})
 			pn, pv = m2.RunMemPackage(memPkg, true)
 			return
 		}
 		return nil, nil
 	}
-	// NOTE: store is also used in closure above.
 	db := memdb.NewMemDB()
 	baseStore := dbadapter.StoreConstructor(db, stypes.StoreOptions{})
 	iavlStore := iavl.StoreConstructor(db, stypes.StoreOptions{})
-	store = gno.NewStore(nil, baseStore, iavlStore)
-	store.SetPackageGetter(getPackage)
-	store.SetNativeStore(teststdlibs.NativeStore)
-	store.SetPackageInjector(testPackageInjector)
-	store.SetStrictGo2GnoMapping(false)
+	// make a new store
+	resStore = gno.NewStore(nil, baseStore, iavlStore)
+	resStore.SetPackageGetter(getPackage)
+	resStore.SetNativeStore(teststdlibs.NativeStore)
+	resStore.SetPackageInjector(testPackageInjector)
+	resStore.SetStrictGo2GnoMapping(false)
 	return
 }
 

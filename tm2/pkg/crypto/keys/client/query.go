@@ -13,10 +13,7 @@ import (
 type QueryCfg struct {
 	RootCfg *BaseCfg
 
-	Data   string
-	Height int64
-	Prove  bool
-
+	Data string
 	Path string
 }
 
@@ -44,20 +41,6 @@ func (c *QueryCfg) RegisterFlags(fs *flag.FlagSet) {
 		"data",
 		"",
 		"query data bytes",
-	)
-
-	fs.Int64Var(
-		&c.Height,
-		"height",
-		0,
-		"query height (not yet supported)",
-	)
-
-	fs.BoolVar(
-		&c.Prove,
-		"prove",
-		false,
-		"prove query result (not yet supported)",
 	)
 }
 
@@ -91,7 +74,7 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 
 func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	remote := cfg.RootCfg.Remote
-	if remote == "" || remote == "y" {
+	if remote == "" {
 		return nil, errors.New("missing remote url")
 	}
 
