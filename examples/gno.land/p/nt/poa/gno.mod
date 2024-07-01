@@ -1,8 +1,8 @@
-module gno.land/p/sys/vals/poa
+module gno.land/p/nt/poa
 
 require (
 	gno.land/p/demo/avl v0.0.0-latest
 	gno.land/p/demo/testutils v0.0.0-latest
 	gno.land/p/demo/ufmt v0.0.0-latest
-	gno.land/p/sys/vals/types v0.0.0-latest
+	gno.land/p/sys/vals v0.0.0-latest
 )

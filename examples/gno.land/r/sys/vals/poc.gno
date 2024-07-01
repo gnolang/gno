@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/gov/proposal"
-	"gno.land/p/sys/vals/types"
+	"gno.land/p/sys/vals"
 )
 
 const daoPkgPath = "gno.land/r/gov/dao"
@@ -20,7 +20,7 @@ const (
 //
 // Concept adapted from:
 // https://github.com/gnolang/gno/pull/1945
-func NewPropExecutor(changesFn func() []types.Validator) proposal.Executor {
+func NewPropExecutor(changesFn func() []vals.Validator) proposal.Executor {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -61,6 +61,6 @@ func IsValidator(address string) bool {
 }
 
 // GetValidators returns the typed validator set
-func GetValidators() []types.Validator {
+func GetValidators() []vals.Validator {
 	return v.p.GetValidators()
 }

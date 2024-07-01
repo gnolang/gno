@@ -4,26 +4,26 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/sys/vals"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/sys/vals/types"
 )
 
 // generateTestValidators generates a dummy validator set
-func generateTestValidators(count int) []types.Validator {
-	vals := make([]types.Validator, 0, count)
+func generateTestValidators(count int) []vals.Validator {
+	validators := make([]vals.Validator, 0, count)
 
 	for i := 0; i < count; i++ {
-		val := types.Validator{
+		val := vals.Validator{
 			Address:     testutils.TestAddress(ufmt.Sprintf("%d", i)),
 			PubKey:      "public-key",
 			VotingPower: 1,
 		}
 
-		vals = append(vals, val)
+		validators = append(validators, val)
 	}
 
-	return vals
+	return validators
 }
 
 func TestPoA_AddValidator_Invalid(t *testing.T) {
@@ -47,7 +47,7 @@ func TestPoA_AddValidator_Invalid(t *testing.T) {
 
 		// Attempt to add the validator
 		_, err := p.AddValidator(proposalAddress, proposalKey, 1)
-		testing.ErrorIs(t, err, types.ErrValidatorExists)
+		testing.ErrorIs(t, err, vals.ErrValidatorExists)
 	})
 
 	t.Run("invalid voting power", func(t *testing.T) {
@@ -106,7 +106,7 @@ func TestPoA_RemoveValidator_Invalid(t *testing.T) {
 
 		// Attempt to remove the validator
 		_, err := p.RemoveValidator(testutils.TestAddress("totally random"))
-		testing.ErrorIs(t, err, types.ErrValidatorMissing)
+		testing.ErrorIs(t, err, vals.ErrValidatorMissing)
 	})
 }
 
@@ -144,7 +144,7 @@ func TestPoA_GetValidator(t *testing.T) {
 
 		// Attempt to get the voting power
 		_, err := p.GetValidator(testutils.TestAddress("caller"))
-		testing.ErrorIs(t, err, types.ErrValidatorMissing)
+		testing.ErrorIs(t, err, vals.ErrValidatorMissing)
 	})
 
 	t.Run("validator fetched", func(t *testing.T) {

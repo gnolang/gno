@@ -1,13 +1,13 @@
 package vals
 
 import (
-	"gno.land/p/sys/vals/poa"
-	"gno.land/p/sys/vals/types"
+	"gno.land/p/nt/poa"
+	"gno.land/p/sys/vals"
 )
 
 func init() {
-	v = &vals{
+	v = &valset{
 		p:       poa.NewPoA(),
-		changes: make([]types.Validator, 0),
+		changes: make([]vals.Validator, 0),
 	}
 }

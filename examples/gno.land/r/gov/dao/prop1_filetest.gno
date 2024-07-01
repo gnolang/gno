@@ -10,14 +10,14 @@ package main
 import (
 	"std"
 
-	"gno.land/p/sys/vals/types"
+	pVals "gno.land/p/sys/vals"
 	govdao "gno.land/r/gov/dao"
 	"gno.land/r/sys/vals"
 )
 
 func init() {
-	changesFn := func() []types.Validator {
-		return []types.Validator{
+	changesFn := func() []pVals.Validator {
+		return []pVals.Validator{
 			{
 				Address:     std.Address("g12345678"),
 				PubKey:      "pubkey",
