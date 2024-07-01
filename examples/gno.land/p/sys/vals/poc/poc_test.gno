@@ -86,7 +86,7 @@ func TestPoC_AddValidator(t *testing.T) {
 	})
 
 	// Make sure the validator is added
-	if !p.IsValidator(proposalAddress) || len(p.validators) != 1 {
+	if !p.IsValidator(proposalAddress) || p.validators.Size() != 1 {
 		t.Fatal("address is not validator")
 	}
 }
@@ -133,7 +133,7 @@ func TestPoC_RemoveValidator(t *testing.T) {
 	})
 
 	// Make sure the validator is removed
-	if p.IsValidator(proposalAddress) || len(p.validators) != 0 {
+	if p.IsValidator(proposalAddress) || p.validators.Size() != 0 {
 		t.Fatal("address is validator")
 	}
 }
@@ -187,6 +187,58 @@ func TestPoC_GetValidator(t *testing.T) {
 		// Validate the public key
 		if val.PubKey != pubKey {
 			t.Fatal("invalid public key")
+		}
+	})
+}
+
+func TestPoC_GetValidators(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty set", func(t *testing.T) {
+		t.Parallel()
+
+		// Create the protocol with no initial set
+		p := NewPoC()
+
+		// Attempt to get the voting power
+		vals := p.GetValidators()
+
+		if len(vals) != 0 {
+			t.Fatal("validator set is not empty")
+		}
+	})
+
+	t.Run("validator set fetched", func(t *testing.T) {
+		t.Parallel()
+
+		initialSet := generateTestValidators(10)
+
+		// Create the protocol with an initial set
+		p := NewPoC(WithInitialSet(initialSet))
+
+		// Get the validator set
+		vals := p.GetValidators()
+
+		if len(vals) != len(initialSet) {
+			t.Fatal("returned validator set mismatch")
+		}
+
+		for _, val := range vals {
+			for _, initialVal := range initialSet {
+				if val.Address != initialVal.Address {
+					continue
+				}
+
+				// Validate the voting power
+				if val.VotingPower != initialVal.VotingPower {
+					t.Fatal("invalid voting power")
+				}
+
+				// Validate the public key
+				if val.PubKey != initialVal.PubKey {
+					t.Fatal("invalid public key")
+				}
+			}
 		}
 	})
 }

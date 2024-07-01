@@ -13,19 +13,14 @@ const errInvalidVotingPower = "invalid voting power"
 // In order to become part of the set, users to be voted into
 // the validator set by a govdao proposal
 type PoC struct {
-	// validators holds the current validator set.
-	// This slice can never practically grow more than ~150 elements,
-	// due to Tendermint's quadratic network complexity
-	validators              []*types.Validator
-	addressToValidatorIndex *avl.Tree // address -> index
+	validators *avl.Tree // std.Address -> *types.Validator
 }
 
 // NewPoC creates a new empty Proof of Contribution validator set
 func NewPoC(opts ...Option) *PoC {
 	// Create the empty set
 	p := &PoC{
-		validators:              make([]*types.Validator, 0),
-		addressToValidatorIndex: avl.NewTree(),
+		validators: avl.NewTree(),
 	}
 
 	// Apply the options
@@ -37,7 +32,7 @@ func NewPoC(opts ...Option) *PoC {
 }
 
 func (p *PoC) AddValidator(address std.Address, pubKey string, power uint64) *types.Validator {
-	// Validate that the operation is a valid call
+	// Validate that the operation is a valid call.
 	// Check if the validator is already in the set
 	if p.IsValidator(address) {
 		panic(types.ErrValidatorExists)
@@ -55,8 +50,7 @@ func (p *PoC) AddValidator(address std.Address, pubKey string, power uint64) *ty
 	}
 
 	// Add the validator to the set
-	p.addressToValidatorIndex.Set(v.Address.String(), len(p.validators))
-	p.validators = append(p.validators, v)
+	p.validators.Set(address.String(), v)
 
 	return v
 }
@@ -68,36 +62,39 @@ func (p *PoC) RemoveValidator(address std.Address) *types.Validator {
 		panic(types.ErrValidatorMissing)
 	}
 
-	addressStr := address.String()
-
-	// Fetch the validator index
-	indexRaw, _ := p.addressToValidatorIndex.Get(addressStr)
-	index := indexRaw.(int)
+	// Fetch the validator
+	validator := p.GetValidator(address)
 
 	// Remove the validator from the set
-	validator := p.validators[index]
-	p.validators = append(p.validators[:index], p.validators[index+1:]...)
+	p.validators.Remove(address.String())
 
-	p.addressToValidatorIndex.Remove(addressStr)
-
-	return validator
+	return &validator
 }
 
 func (p *PoC) IsValidator(address std.Address) bool {
-	_, exists := p.addressToValidatorIndex.Get(address.String())
+	_, exists := p.validators.Get(address.String())
 
 	return exists
 }
 
 func (p *PoC) GetValidator(address std.Address) types.Validator {
-	valIndexRaw, exists := p.addressToValidatorIndex.Get(address.String())
+	validatorRaw, exists := p.validators.Get(address.String())
 	if !exists {
 		panic(types.ErrValidatorMissing)
 	}
 
-	return *p.validators[valIndexRaw.(int)]
+	return *(validatorRaw.(*types.Validator))
 }
 
 func (p *PoC) GetValidators() []*types.Validator {
-	return p.validators
+	validators := make([]*types.Validator, 0, p.validators.Size())
+
+	p.validators.Iterate("", "", func(_ string, value interface{}) bool {
+		validator := value.(*types.Validator)
+		validators = append(validators, validator)
+
+		return false
+	})
+
+	return validators
 }

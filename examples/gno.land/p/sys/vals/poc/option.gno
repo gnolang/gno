@@ -7,9 +7,8 @@ type Option func(*PoC)
 // WithInitialSet sets the initial PoA validator set
 func WithInitialSet(validators []*types.Validator) Option {
 	return func(p *PoC) {
-		for index, validator := range validators {
-			p.validators = append(p.validators, validator)
-			p.addressToValidatorIndex.Set(validator.Address.String(), index)
+		for _, validator := range validators {
+			p.validators.Set(validator.Address.String(), validator)
 		}
 	}
 }
