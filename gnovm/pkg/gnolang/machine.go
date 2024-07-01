@@ -1943,7 +1943,19 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	switch lx := lx.(type) {
 	case *NameExpr:
 		lb := m.LastBlock()
-		return lb.GetPointerTo(m.Store, lx.Path)
+		xv := lb.GetPointerTo(m.Store, lx.Path)
+		if lx.Type == NameExprTypeHeapUse {
+			tv := xv.Deref()
+			fmt.Println("---tv: ", tv)
+			hv := m.Alloc.NewHeapItem(tv)
+			return PointerValue{
+				TV:    &hv.Value,
+				Base:  hv,
+				Index: 0,
+			}
+		} else {
+			return xv
+		}
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
