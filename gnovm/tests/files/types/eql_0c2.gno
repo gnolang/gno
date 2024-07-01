@@ -21,4 +21,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0c2.gno:16: bigint overflows target kind
+// main/files/types/eql_0c2.gno:16:5: bigint overflows target kind
