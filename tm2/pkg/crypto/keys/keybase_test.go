@@ -236,6 +236,14 @@ func TestExportImport(t *testing.T) {
 	require.Equal(t, john.GetPubKey().Address(), johnAddr)
 	require.Equal(t, john.GetName(), "john")
 	require.Equal(t, john, john2)
+
+	// Delete the imported key
+	err = cstore.Delete("john2", "secretcpw", false)
+	require.NoError(t, err)
+	// The original key should still exist
+	has, err := cstore.HasByName("john")
+	require.NoError(t, err)
+	require.True(t, has)
 }
 
 func TestExportImportPubKey(t *testing.T) {
