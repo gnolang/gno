@@ -1,7 +1,10 @@
 package config
 
 import (
+	"io"
 	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -15,7 +18,7 @@ func ensureFiles(t *testing.T, rootDir string, files ...string) {
 	t.Helper()
 
 	for _, f := range files {
-		p := join(f, rootDir)
+		p := filepath.Join(rootDir, f)
 		_, err := os.Stat(p)
 		assert.Nil(t, err, p)
 	}
@@ -24,52 +27,52 @@ func ensureFiles(t *testing.T, rootDir string, files ...string) {
 func TestEnsureRoot(t *testing.T) {
 	t.Parallel()
 
-	require := require.New(t)
-
 	// setup temp dir for test
 	tmpDir := t.TempDir()
 
 	// create root dir
 	throwaway := DefaultConfig()
 	throwaway.SetRootDir(tmpDir)
-	throwaway.EnsureDirs()
-	configPath := join(tmpDir, defaultConfigFilePath)
-	WriteConfigFile(configPath, throwaway)
+	require.NoError(t, throwaway.EnsureDirs())
+
+	configPath := filepath.Join(tmpDir, defaultConfigPath)
+	require.NoError(t, WriteConfigFile(configPath, throwaway))
 
 	// make sure config is set properly
-	data, err := os.ReadFile(join(tmpDir, defaultConfigFilePath))
-	require.Nil(err)
+	data, err := os.ReadFile(filepath.Join(tmpDir, defaultConfigPath))
+	require.Nil(t, err)
 
-	if !checkConfig(string(data)) {
-		t.Fatalf("config file missing some information")
-	}
+	require.True(t, checkConfig(string(data)))
 
-	ensureFiles(t, tmpDir, "data")
+	ensureFiles(t, tmpDir, DefaultDBDir)
 }
 
 func TestEnsureTestRoot(t *testing.T) {
 	t.Parallel()
 
-	require := require.New(t)
-
 	testName := "ensureTestRoot"
 
 	// create root dir
-	cfg := ResetTestRoot(testName)
+	cfg, _ := ResetTestRoot(testName)
 	defer os.RemoveAll(cfg.RootDir)
 	rootDir := cfg.RootDir
 
 	// make sure config is set properly
-	data, err := os.ReadFile(join(rootDir, defaultConfigFilePath))
-	require.Nil(err)
+	data, err := os.ReadFile(filepath.Join(rootDir, defaultConfigPath))
+	require.Nil(t, err)
 
-	if !checkConfig(string(data)) {
-		t.Fatalf("config file missing some information")
-	}
+	require.True(t, checkConfig(string(data)))
 
 	// TODO: make sure the cfg returned and testconfig are the same!
 	baseConfig := DefaultBaseConfig()
-	ensureFiles(t, rootDir, defaultDataDir, baseConfig.Genesis, baseConfig.PrivValidatorKey, baseConfig.PrivValidatorState)
+	ensureFiles(
+		t,
+		rootDir,
+		"genesis.json",
+		DefaultDBDir,
+		baseConfig.PrivValidatorKey,
+		baseConfig.PrivValidatorState,
+	)
 }
 
 func checkConfig(configFile string) bool {
@@ -90,7 +93,6 @@ func checkConfig(configFile string) bool {
 		"wal",
 		"propose",
 		"max",
-		"genesis",
 	}
 	for _, e := range elems {
 		if !strings.Contains(configFile, e) {
@@ -160,4 +162,69 @@ func TestTOML_LoadConfig(t *testing.T) {
 		assert.Equal(t, defaultConfig.TxEventStore.EventStoreType, cfg.TxEventStore.EventStoreType)
 		assert.Empty(t, defaultConfig.TxEventStore.Params, cfg.TxEventStore.Params)
 	})
+}
+
+func TestTOML_ConfigComments(t *testing.T) {
+	t.Parallel()
+
+	collectCommentTags := func(v reflect.Value) []string {
+		var (
+			comments    = make([]string, 0)
+			structStack = []reflect.Value{v}
+		)
+
+		// Descend on and parse all child fields
+		for len(structStack) > 0 {
+			structVal := structStack[len(structStack)-1]
+			structStack = structStack[:len(structStack)-1]
+
+			// Process all fields of the struct
+			for i := 0; i < structVal.NumField(); i++ {
+				fieldVal := structVal.Field(i)
+				fieldType := structVal.Type().Field(i)
+
+				// If the field is a struct, push it onto the stack for further processing
+				if fieldVal.Kind() == reflect.Struct {
+					structStack = append(structStack, fieldVal)
+
+					continue
+				}
+
+				// Collect the comment tag value from the field
+				if commentTag := fieldType.Tag.Get("comment"); commentTag != "" {
+					comments = append(comments, commentTag)
+				}
+			}
+		}
+
+		return comments
+	}
+
+	cleanComments := func(original string) string {
+		return strings.ReplaceAll(original, "#", "")
+	}
+
+	// Create test config file
+	configFile, cleanup := testutils.NewTestFile(t)
+	t.Cleanup(cleanup)
+
+	// Create the default config
+	defaultConfig := DefaultConfig()
+
+	// Write valid TOML
+	require.NoError(t, WriteConfigFile(configFile.Name(), defaultConfig))
+
+	// Collect config comments
+	comments := collectCommentTags(reflect.ValueOf(*defaultConfig))
+	require.NotEmpty(t, comments)
+
+	// Read the entire config file
+	rawConfig, err := io.ReadAll(configFile)
+	require.NoError(t, err)
+
+	// Verify TOML comments are present
+	content := cleanComments(string(rawConfig))
+	for _, comment := range comments {
+		assert.Contains(t, content, cleanComments(comment))
+	}
 }

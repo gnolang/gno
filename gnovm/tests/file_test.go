@@ -33,60 +33,14 @@ func TestFiles(t *testing.T) {
 }
 
 func TestChallenges(t *testing.T) {
+	t.Skip("Challenge tests, skipping.")
 	baseDir := filepath.Join(".", "challenges")
 	runFileTests(t, baseDir, nil)
 }
 
-func TestTypes(t *testing.T) {
-	baseDir := filepath.Join(".", "files/types")
-	runFileTests(t, baseDir, []string{"*_native*"})
-}
-
-func TestTypesNative(t *testing.T) {
-	baseDir := filepath.Join(".", "files/types")
-	runFileTests(t, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
-}
-
-func TestTypes2(t *testing.T) {
-	baseDir := filepath.Join(".", "files/types2")
-	runFileTests(t, baseDir, nil)
-}
-
-func TestDebug(t *testing.T) {
-	baseDir := filepath.Join(".", "debug")
-	runFileTests(t, baseDir, []string{"*_native*"})
-}
-
-func TestDebugNative(t *testing.T) {
-	baseDir := filepath.Join(".", "debug")
-	runFileTests(t, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
-}
-
-func filterFileTests(t *testing.T, files []fs.DirEntry, ignore []string) []fs.DirEntry {
-	t.Helper()
-
-	for i := 0; i < len(files); i++ {
-		file := files[i]
-		skip := func() { files = append(files[:i], files[i+1:]...); i-- }
-		if filepath.Ext(file.Name()) != ".gno" {
-			skip()
-			continue
-		}
-		for _, is := range ignore {
-			if match, err := path.Match(is, file.Name()); match {
-				skip()
-				continue
-			} else if err != nil {
-				t.Fatalf("error parsing glob pattern %q: %v", is, err)
-			}
-		}
-		if testing.Short() && strings.Contains(file.Name(), "_long") {
-			t.Logf("skipping test %s in short mode.", file.Name())
-			skip()
-			continue
-		}
-	}
-	return files
+type testFile struct {
+	path string
+	fs.DirEntry
 }
 
 // ignore are glob patterns to ignore
@@ -95,19 +49,82 @@ func runFileTests(t *testing.T, baseDir string, ignore []string, opts ...RunFile
 
 	opts = append([]RunFileTestOption{WithSyncWanted(*withSync)}, opts...)
 
-	files, err := os.ReadDir(baseDir)
+	files, err := readFiles(t, baseDir)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	files = filterFileTests(t, files, ignore)
-
+	var path string
+	var name string
 	for _, file := range files {
-		file := file
-		t.Run(file.Name(), func(t *testing.T) {
-			runFileTest(t, filepath.Join(baseDir, file.Name()), opts...)
+		path = file.path
+		name = strings.TrimPrefix(file.path, baseDir+string(os.PathSeparator))
+		t.Run(name, func(t *testing.T) {
+			runFileTest(t, path, opts...)
 		})
 	}
+}
+
+// it reads all files recursively in the directory
+func readFiles(t *testing.T, dir string) ([]testFile, error) {
+	t.Helper()
+	var files []testFile
+
+	err := filepath.WalkDir(dir, func(path string, de fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if de.IsDir() && de.Name() == "extern" {
+			return filepath.SkipDir
+		}
+		f := testFile{path: path, DirEntry: de}
+
+		files = append(files, f)
+		return nil
+	})
+	return files, err
+}
+
+func filterFileTests(t *testing.T, files []testFile, ignore []string) []testFile {
+	t.Helper()
+	filtered := make([]testFile, 0, 1000)
+	var name string
+
+	for _, f := range files {
+		// skip none .gno files
+		name = f.DirEntry.Name()
+		if filepath.Ext(name) != ".gno" {
+			continue
+		}
+		// skip ignored files
+		if isIgnored(t, name, ignore) {
+			continue
+		}
+		// skip _long file if we only want to test regular file.
+		if testing.Short() && strings.Contains(name, "_long") {
+			t.Logf("skipping test %s in short mode.", name)
+			continue
+		}
+		filtered = append(filtered, f)
+	}
+	return filtered
+}
+
+func isIgnored(t *testing.T, name string, ignore []string) bool {
+	t.Helper()
+	isIgnore := false
+	for _, is := range ignore {
+		match, err := path.Match(is, name)
+		if err != nil {
+			t.Fatalf("error parsing glob pattern %q: %v", is, err)
+		}
+		if match {
+			isIgnore = true
+			break
+		}
+	}
+	return isIgnore
 }
 
 func runFileTest(t *testing.T, path string, opts ...RunFileTestOption) {

@@ -1014,7 +1014,7 @@ type ValueDecl struct {
 func (x *ValueDecl) GetDeclNames() []Name {
 	ns := make([]Name, 0, len(x.NameExprs))
 	for _, nx := range x.NameExprs {
-		if nx.Name == "_" {
+		if nx.Name == blankIdentifier {
 			// ignore
 		} else {
 			ns = append(ns, nx.Name)
@@ -1031,7 +1031,7 @@ type TypeDecl struct {
 }
 
 func (x *TypeDecl) GetDeclNames() []Name {
-	if x.NameExpr.Name == "_" {
+	if x.NameExpr.Name == blankIdentifier {
 		return nil // ignore
 	} else {
 		return []Name{x.NameExpr.Name}
@@ -1092,13 +1092,21 @@ func PackageNameFromFileBody(name, body string) Name {
 	return Name(astFile.Name.Name)
 }
 
-// NOTE: panics if package name is invalid.
+// ReadMemPackage initializes a new MemPackage by reading the OS directory
+// at dir, and saving it with the given pkgPath (import path).
+// The resulting MemPackage will contain the names and content of all *.gno files,
+// and additionally README.md, LICENSE, and gno.mod.
+//
+// ReadMemPackage does not perform validation aside from the package's name;
+// the files are not parsed but their contents are merely stored inside a MemFile.
+//
+// NOTE: panics if package name is invalid (characters must be alphanumeric or _,
+// lowercase, and must start with a letter).
 func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		panic(err)
 	}
-	memPkg := &std.MemPackage{Path: pkgPath}
 	allowedFiles := []string{ // make case insensitive?
 		"gno.mod",
 		"LICENSE",
@@ -1107,27 +1115,53 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	allowedFileExtensions := []string{
 		".gno",
 	}
-	var pkgName Name
+	// exceptions to allowedFileExtensions
+	var rejectedFileExtensions []string
+
+	if IsStdlib(pkgPath) {
+		// Allows transpilation to work on stdlibs with native fns.
+		allowedFileExtensions = append(allowedFileExtensions, ".go")
+		rejectedFileExtensions = []string{".gen.go"}
+	}
+
+	list := make([]string, 0, len(files))
 	for _, file := range files {
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
-			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) {
+			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) ||
+			endsWith(file.Name(), rejectedFileExtensions) {
 			continue
 		}
-		fpath := filepath.Join(dir, file.Name())
+		list = append(list, filepath.Join(dir, file.Name()))
+	}
+	return ReadMemPackageFromList(list, pkgPath)
+}
+
+// ReadMemPackageFromList creates a new [std.MemPackage] with the specified pkgPath,
+// containing the contents of all the files provided in the list slice.
+// No parsing or validation is done on the filenames.
+//
+// NOTE: panics if package name is invalid (characters must be alphanumeric or _,
+// lowercase, and must start with a letter).
+func ReadMemPackageFromList(list []string, pkgPath string) *std.MemPackage {
+	memPkg := &std.MemPackage{Path: pkgPath}
+	var pkgName Name
+	for _, fpath := range list {
+		fname := filepath.Base(fpath)
 		bz, err := os.ReadFile(fpath)
 		if err != nil {
 			panic(err)
 		}
-		if pkgName == "" && strings.HasSuffix(file.Name(), ".gno") {
-			pkgName = PackageNameFromFileBody(file.Name(), string(bz))
+		// XXX: should check that all pkg names are the same (else package is invalid)
+		if pkgName == "" && strings.HasSuffix(fname, ".gno") {
+			pkgName = PackageNameFromFileBody(fname, string(bz))
 			if strings.HasSuffix(string(pkgName), "_test") {
 				pkgName = pkgName[:len(pkgName)-len("_test")]
 			}
 		}
 		memPkg.Files = append(memPkg.Files,
 			&std.MemFile{
-				Name: file.Name(),
+				Name: fname,
 				Body: string(bz),
 			})
 	}
@@ -1141,33 +1175,29 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	return memPkg
 }
 
-func PrecompileMemPackage(memPkg *std.MemPackage) error {
-	return nil
-}
-
-// Returns the code fileset minus any spurious or test files.
+// ParseMemPackage executes [ParseFile] on each file of the memPkg, excluding
+// test and spurious (non-gno) files. The resulting *FileSet is returned.
+//
+// If one of the files has a different package name than memPkg.Name,
+// or [ParseFile] returns an error, ParseMemPackage panics.
 func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 	fset = &FileSet{}
 	for _, mfile := range memPkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
-			continue // skip spurious file.
+		if !strings.HasSuffix(mfile.Name, ".gno") ||
+			endsWith(mfile.Name, []string{"_test.gno", "_filetest.gno"}) {
+			continue // skip spurious or test file.
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
-			panic(errors.Wrap(err, "parsing file "+mfile.Name))
+			panic(err)
 		}
-		if strings.HasSuffix(mfile.Name, "_test.gno") {
-			// skip test file.
-		} else if strings.HasSuffix(mfile.Name, "_filetest.gno") {
-			// skip test file.
-		} else if memPkg.Name == string(n.PkgName) {
-			// add package file.
-			fset.AddFiles(n)
-		} else {
+		if memPkg.Name != string(n.PkgName) {
 			panic(fmt.Sprintf(
 				"expected package name [%s] but got [%s]",
 				memPkg.Name, n.PkgName))
 		}
+		// add package file.
+		fset.AddFiles(n)
 	}
 	return fset
 }
@@ -1236,7 +1266,11 @@ func (fs *FileSet) GetDeclFor(n Name) (*FileNode, *Decl) {
 
 func (fs *FileSet) GetDeclForSafe(n Name) (*FileNode, *Decl, bool) {
 	// XXX index to bound to linear time.
-	for _, fn := range fs.Files {
+
+	// Iteration happens reversing fs.Files; this is because the LAST declaration
+	// of n is what we are looking for.
+	for i := len(fs.Files) - 1; i >= 0; i-- {
+		fn := fs.Files[i]
 		for i, dn := range fn.Decls {
 			if _, isImport := dn.(*ImportDecl); isImport {
 				// imports in other files don't count.
@@ -1377,6 +1411,7 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
 	}
+
 	fd := FuncD(n, ps, rs, nil)
 	fd = Preprocess(nil, x, fd).(*FuncDecl)
 	ft := evalStaticType(nil, x, &fd.Type).(*FuncType)
@@ -1457,6 +1492,22 @@ type StaticBlock struct {
 	Consts   []Name // TODO consider merging with Names.
 	Externs  []Name
 	Loc      Location
+
+	// temporary storage for rolling back redefinitions.
+	oldValues []oldValue
+}
+
+type oldValue struct {
+	idx   uint16
+	value Value
+}
+
+// revert values upon failure of redefinitions.
+func (sb *StaticBlock) revertToOld() {
+	for _, ov := range sb.oldValues {
+		sb.Block.Values[ov.idx].V = ov.value
+	}
+	sb.oldValues = nil
 }
 
 // Implements BlockNode
@@ -1547,8 +1598,8 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
-	if n == "_" {
-		return NewValuePathBlock(0, 0, "_")
+	if n == blankIdentifier {
+		return NewValuePathBlock(0, 0, blankIdentifier)
 	}
 	// Check local.
 	gen := 1
@@ -1656,7 +1707,6 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 			path.Depth -= 1
 		}
 	}
-	panic("should not happen")
 }
 
 // Implements BlockNode.
@@ -1706,12 +1756,11 @@ func (sb *StaticBlock) GetValueRef(store Store, n Name) *TypedValue {
 // values, which are pre-computeed in the preprocessor.
 // Once a typed value is defined, it cannot be changed.
 //
-// NOTE: Currently tv.V is only set when the value
-// represents a Type(Value). The purpose of tv is to describe
-// the invariant of a named value, at the minimum its type,
-// but also sometimes the typeval value; but we could go
-// further and store preprocessed constant results here
-// too.  See "anyValue()" and "asValue()" for usage.
+// NOTE: Currently tv.V is only set when the value represents a Type(Value) or
+// a FuncValue.  The purpose of tv is to describe the invariant of a named
+// value, at the minimum its type, but also sometimes the typeval value; but we
+// could go further and store preprocessed constant results here too.  See
+// "anyValue()" and "asValue()" for usage.
 func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 	sb.Define2(false, n, tv.T, tv)
 }
@@ -1741,7 +1790,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	if tv.T == nil && tv.V != nil {
 		panic("StaticBlock.Define2() requires .T if .V is set")
 	}
-	if n == "_" {
+	if n == blankIdentifier {
 		return // ignore
 	}
 	idx, exists := sb.GetLocalIndex(n)
@@ -1754,16 +1803,30 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 		}
 		old := sb.Block.Values[idx]
 		if !old.IsUndefined() {
-			if tv.T.TypeID() != old.T.TypeID() {
-				panic(fmt.Sprintf(
-					"StaticBlock.Define2(%s) cannot change .T; was %v, new %v",
-					n, old.T, tv.T))
+			if tv.T.Kind() == FuncKind && tv.T.(*FuncType).IsZero() {
+				// special case,
+				// allow re-predefining for func upgrades.
+				// keep the old type so we can check it at preprocessor.
+				tv.T = old.T
+				fv := tv.V.(*FuncValue)
+				fv.Type = old.T
+				st = old.T
+				sb.oldValues = append(sb.oldValues,
+					oldValue{idx, old.V})
+			} else {
+				if tv.T.TypeID() != old.T.TypeID() {
+					panic(fmt.Sprintf(
+						"StaticBlock.Define2(%s) cannot change .T; was %v, new %v",
+						n, old.T, tv.T))
+				}
+				if tv.V != old.V {
+					panic(fmt.Sprintf(
+						"StaticBlock.Define2(%s) cannot change .V",
+						n))
+				}
 			}
-			if tv.V != old.V {
-				panic(fmt.Sprintf(
-					"StaticBlock.Define2(%s) cannot change .V",
-					n))
-			}
+			// Allow re-definitions if they have the same type.
+			// (In normal scenarios, duplicate declarations are "caught" by RunMemPackage.)
 		}
 		sb.Block.Values[idx] = tv
 		sb.Types[idx] = st
@@ -2023,10 +2086,12 @@ const (
 	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
 )
 
+var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
+
 // TODO: consider length restrictions.
+// If this function is changed, ReadMemPackage's documentation should be updated accordingly.
 func validatePkgName(name string) {
-	if nameOK, _ := regexp.MatchString(
-		`^[a-z][a-z0-9_]+$`, name); !nameOK {
+	if !rePkgName.MatchString(name) {
 		panic(fmt.Sprintf("cannot create package with invalid name %q", name))
 	}
 }

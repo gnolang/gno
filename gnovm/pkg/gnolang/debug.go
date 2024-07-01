@@ -3,7 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"net/http"
-	"os"
+	"strings"
 	"time"
 
 	// Ignore pprof import, as the server does not
@@ -22,10 +22,8 @@ type debugging bool
 
 // using a const is probably faster.
 // const debug debugging = true // or flip
-var debug debugging = false
 
 func init() {
-	debug = os.Getenv("DEBUG") == "1"
 	if debug {
 		go func() {
 			// e.g.
@@ -47,16 +45,16 @@ func init() {
 
 var enabled bool = true
 
-func (d debugging) Println(args ...interface{}) {
-	if d {
+func (debugging) Println(args ...interface{}) {
+	if debug {
 		if enabled {
 			fmt.Println(append([]interface{}{"DEBUG:"}, args...)...)
 		}
 	}
 }
 
-func (d debugging) Printf(format string, args ...interface{}) {
-	if d {
+func (debugging) Printf(format string, args ...interface{}) {
+	if debug {
 		if enabled {
 			fmt.Printf("DEBUG: "+format, args...)
 		}
@@ -68,12 +66,46 @@ var derrors []string = nil
 // Instead of actually panic'ing, which messes with tests, errors are sometimes
 // collected onto `var derrors`.  tests/file_test.go checks derrors after each
 // test, and the file test fails if any unexpected debug errors were found.
-func (d debugging) Errorf(format string, args ...interface{}) {
-	if d {
+func (debugging) Errorf(format string, args ...interface{}) {
+	if debug {
 		if enabled {
 			derrors = append(derrors, fmt.Sprintf(format, args...))
 		}
 	}
+}
+
+// PreprocessError wraps a processing error along with its associated
+// preprocessing stack for enhanced error reporting.
+type PreprocessError struct {
+	err   error
+	stack []BlockNode
+}
+
+// Unwrap returns the encapsulated error message.
+func (p *PreprocessError) Unwrap() error {
+	return p.err
+}
+
+// Stack produces a string representation of the preprocessing stack
+// trace that was associated with the error occurrence.
+func (p *PreprocessError) Stack() string {
+	var stacktrace strings.Builder
+	for i := len(p.stack) - 1; i >= 0; i-- {
+		sbn := p.stack[i]
+		fmt.Fprintf(&stacktrace, "stack %d: %s\n", i, sbn.String())
+	}
+	return stacktrace.String()
+}
+
+// Error consolidates and returns the full error message, including
+// the actual error followed by its associated preprocessing stack.
+func (p *PreprocessError) Error() string {
+	var err strings.Builder
+	fmt.Fprintf(&err, "%s:\n", p.Unwrap())
+	fmt.Fprintln(&err, "--- preprocess stack ---")
+	fmt.Fprint(&err, p.Stack())
+	fmt.Fprintf(&err, "------------------------")
+	return err.String()
 }
 
 // ----------------------------------------

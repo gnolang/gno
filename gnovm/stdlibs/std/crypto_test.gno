@@ -15,6 +15,17 @@ func TestValid(t *testing.T) {
 		{inputAddress: "g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa", expected: true},
 		{inputAddress: "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq", expected: true},
 		{inputAddress: "g14da4n9hcynyzz83q607uu8keuh9hwlv42ra6fa", expected: true},
+
+		// Bech32 doesn't allow '1', 'b', 'i', 'o' for data part
+		//
+		// 	https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki#bech32
+		{inputAddress: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", expected: true},
+		{inputAddress: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf1", expected: false},
+		{inputAddress: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqfb", expected: false},
+		{inputAddress: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqfi", expected: false},
+		{inputAddress: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqfo", expected: false},
+
+		{inputAddress: "g1u0000000000000000000000000000000000000", expected: false},
 		{inputAddress: "", expected: false},
 		{inputAddress: "000000000000", expected: false},
 		{inputAddress: "0000000000000000000000000000000000000000000000000000000000000000000000", expected: false},

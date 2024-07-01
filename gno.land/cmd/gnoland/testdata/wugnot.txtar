@@ -1,3 +1,5 @@
+loadpkg gno.land/r/demo/wugnot
+
 gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/demo/wugnot -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1

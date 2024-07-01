@@ -69,6 +69,25 @@ func (s *basicNFT) TokenURI(tid TokenID) (string, error) {
 	return uri.(string), nil
 }
 
+func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
+	// check for invalid TokenID
+	if !s.exists(tid) {
+		return false, ErrInvalidTokenId
+	}
+
+	// check for the right owner
+	owner, err := s.OwnerOf(tid)
+	if err != nil {
+		return false, err
+	}
+	caller := std.PrevRealm().Addr()
+	if caller != owner {
+		return false, ErrCallerIsNotOwner
+	}
+	s.tokenURIs.Set(string(tid), string(tURI))
+	return true, nil
+}
+
 // IsApprovedForAll returns true if operator is approved for all by the owner.
 // Otherwise, returns false
 func (s *basicNFT) IsApprovedForAll(owner, operator std.Address) bool {

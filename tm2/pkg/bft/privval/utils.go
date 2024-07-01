@@ -2,11 +2,11 @@ package privval
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
@@ -25,7 +25,7 @@ func IsConnTimeout(err error) bool {
 }
 
 // NewSignerListener creates a new SignerListenerEndpoint using the corresponding listen address
-func NewSignerListener(listenAddr string, logger log.Logger) (*SignerListenerEndpoint, error) {
+func NewSignerListener(listenAddr string, logger *slog.Logger) (*SignerListenerEndpoint, error) {
 	var listener net.Listener
 
 	protocol, address := osm.ProtocolAndAddress(listenAddr)

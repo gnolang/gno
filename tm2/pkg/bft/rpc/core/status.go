@@ -74,7 +74,7 @@ import (
 // ```
 func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 	var latestHeight int64
-	if consensusReactor.FastSync() {
+	if getFastSync() {
 		latestHeight = blockStore.Height()
 	} else {
 		latestHeight = consensusState.GetLastHeight()
@@ -106,7 +106,7 @@ func Status(ctx *rpctypes.Context) (*ctypes.ResultStatus, error) {
 			LatestAppHash:     latestAppHash,
 			LatestBlockHeight: latestHeight,
 			LatestBlockTime:   latestBlockTime,
-			CatchingUp:        consensusReactor.FastSync(),
+			CatchingUp:        getFastSync(),
 		},
 		ValidatorInfo: ctypes.ValidatorInfo{
 			Address:     pubKey.Address(),
@@ -125,7 +125,7 @@ func validatorAtHeight(h int64) *types.Validator {
 	lastBlockHeight, vals := consensusState.GetValidators()
 	if lastBlockHeight == h {
 		for _, val := range vals {
-			if val.Address != privValAddress {
+			if val.Address == privValAddress {
 				return val
 			}
 		}

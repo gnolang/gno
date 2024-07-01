@@ -86,7 +86,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]st
 
 // LoadPackagesFromDir loads gno packages from a directory.
 // It creates and returns a list of transactions based on these packages.
-func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
+func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee) ([]std.Tx, error) {
 	// list all packages from target path
 	pkgs, err := gnomod.ListPkgs(dir)
 	if err != nil {
@@ -103,24 +103,38 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, deposit s
 	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
 	txs := []std.Tx{}
 	for _, pkg := range nonDraftPkgs {
-		// Open files in directory as MemPackage.
-		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
-
-		// Create transaction
-		tx := std.Tx{
-			Fee: fee,
-			Msgs: []std.Msg{
-				vmm.MsgAddPackage{
-					Creator: creator,
-					Package: memPkg,
-					Deposit: deposit,
-				},
-			},
+		tx, err := LoadPackage(pkg, creator, fee, nil)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}
 
-		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
 		txs = append(txs, tx)
 	}
 
 	return txs, nil
+}
+
+// LoadPackage loads a single package into a `std.Tx`
+func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.Coins) (std.Tx, error) {
+	var tx std.Tx
+
+	// Open files in directory as MemPackage.
+	memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
+	err := memPkg.Validate()
+	if err != nil {
+		return tx, fmt.Errorf("invalid package: %w", err)
+	}
+
+	// Create transaction
+	tx.Fee = fee
+	tx.Msgs = []std.Msg{
+		vmm.MsgAddPackage{
+			Creator: creator,
+			Package: memPkg,
+			Deposit: deposit,
+		},
+	}
+	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+
+	return tx, nil
 }

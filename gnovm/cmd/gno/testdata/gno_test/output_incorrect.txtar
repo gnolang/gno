@@ -1,6 +1,6 @@
 # Test Output instruction incorrect
 
-! gno test -verbose .
+! gno test -v .
 
 ! stdout .+ # stdout should be empty
 stderr '=== RUN   file/x_filetest.gno'

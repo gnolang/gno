@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 	"github.com/zalando/go-keyring"
@@ -13,14 +13,12 @@ import (
 func main() {
 	stdio := commands.NewDefaultIO()
 	wrappedio := &wrappedIO{IO: stdio}
-	cmd := client.NewRootCmd(wrappedio)
+	baseCfg := client.DefaultBaseOptions
+	baseCfg.Home = gnoenv.HomeDir()
+	cmd := client.NewRootCmdWithBaseConfig(wrappedio, baseCfg)
 	cmd.AddSubCommands(newKcCmd(stdio))
 
-	if err := cmd.ParseAndRun(context.Background(), os.Args[1:]); err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "%+v\n", err)
-
-		os.Exit(1)
-	}
+	cmd.Execute(context.Background(), os.Args[1:])
 }
 
 type wrappedIO struct {

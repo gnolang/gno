@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -30,8 +30,6 @@ func TestVMKeeperAddPackage(t *testing.T) {
 		{
 			Name: "test.gno",
 			Body: `package test
-
-import "std"
 
 func Echo() string {
 	return "hello world"
@@ -94,7 +92,7 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, res, `("echo:hello world" string)`)
+	assert.Equal(t, `("echo:hello world" string)`+"\n\n", res)
 	// t.Log("result:", res)
 }
 
@@ -147,7 +145,7 @@ func GetAdmin() string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
-	assert.Equal(t, res, "")
+	assert.Equal(t, "", res)
 	fmt.Println(err.Error())
 	assert.True(t, strings.Contains(err.Error(), "insufficient coins error"))
 }
@@ -237,7 +235,7 @@ func Echo(msg string) string {
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, res, `("echo:hello world" string)`)
+	assert.Equal(t, `("echo:hello world" string)`+"\n\n", res)
 }
 
 // Sending too much realm package coins fails.
@@ -333,9 +331,9 @@ func GetAdmin() string {
 	coins := std.MustParseCoins("")
 	msg2 := NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
 	res, err := env.vmk.Call(ctx, msg2)
-	addrString := fmt.Sprintf("(\"%s\" string)", addr.String())
+	addrString := fmt.Sprintf("(\"%s\" string)\n\n", addr.String())
 	assert.NoError(t, err)
-	assert.Equal(t, res, addrString)
+	assert.Equal(t, addrString, res)
 }
 
 // Call Run without imports, without variables.
@@ -362,7 +360,7 @@ func main() {
 	msg2 := NewMsgRun(addr, coins, files)
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, res, "hello world!\n")
+	assert.Equal(t, "hello world!\n", res)
 }
 
 // Call Run with stdlibs.
@@ -393,5 +391,44 @@ func main() {
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
 	expectedString := fmt.Sprintf("hello world! %s\n", addr.String())
-	assert.Equal(t, res, expectedString)
+	assert.Equal(t, expectedString, res)
+}
+
+func TestNumberOfArgsError(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+
+	// Create test package.
+	files := []*std.MemFile{
+		{
+			Name: "test.gno",
+			Body: `package test
+
+func Echo(msg string) string {
+	return "echo:"+msg
+}`,
+		},
+	}
+	pkgPath := "gno.land/r/test"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	// Call Echo function with wrong number of arguments
+	coins := std.MustParseCoins("1ugnot")
+	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world", "extra arg"})
+	assert.PanicsWithValue(
+		t,
+		"wrong number of arguments in call to Echo: want 1 got 2",
+		func() {
+			env.vmk.Call(ctx, msg2)
+		},
+	)
 }

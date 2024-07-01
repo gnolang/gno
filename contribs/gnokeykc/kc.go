@@ -19,7 +19,7 @@ func newKcCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "kc",
 			ShortUsage: "kc <command>",
-			ShortHelp:  "Manage OS keychain",
+			ShortHelp:  "manage OS keychain",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,

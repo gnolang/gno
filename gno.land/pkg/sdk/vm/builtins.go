@@ -5,80 +5,41 @@ import (
 	"path/filepath"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-func (vm *VMKeeper) initBuiltinPackagesAndTypes(store gno.Store) {
-	// NOTE: native functions/methods added here must be quick operations,
-	// or account for gas before operation.
-	// TODO: define criteria for inclusion, and solve gas calculations.
-	getPackage := func(pkgPath string) (pn *gno.PackageNode, pv *gno.PackageValue) {
-		// otherwise, built-in package value.
-		// first, load from filepath.
-		stdlibPath := filepath.Join(vm.stdlibsDir, pkgPath)
-		if !osm.DirExists(stdlibPath) {
-			// does not exist.
-			return nil, nil
-		}
-		memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-		if memPkg.IsEmpty() {
-			// no gno files are present, skip this package
-			return nil, nil
-		}
-
-		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-			PkgPath: "gno.land/r/stdlibs/" + pkgPath,
-			// PkgPath: pkgPath,
-			Output: os.Stdout,
-			Store:  store,
-		})
-		defer m2.Release()
-		return m2.RunMemPackage(memPkg, true)
+// NOTE: this function may add loaded dependencies to store if they don't
+// already exist, including mem packages. If this happens during a transaction
+// with the tx context store, the transaction caller will pay for operations.
+// NOTE: native functions/methods added here must be quick operations, or
+// account for gas before operation.
+// TODO: define criteria for inclusion, and solve gas calculations(???).
+func (vm *VMKeeper) getPackage(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
+	// otherwise, built-in package value.
+	// first, load from filepath.
+	stdlibPath := filepath.Join(vm.stdlibsDir, pkgPath)
+	if !osm.DirExists(stdlibPath) {
+		// does not exist.
+		return nil, nil
 	}
-	store.SetPackageGetter(getPackage)
-	store.SetPackageInjector(vm.packageInjector)
-	stdlibs.InjectNativeMappings(store)
-}
-
-func (vm *VMKeeper) packageInjector(store gno.Store, pn *gno.PackageNode) {
-	// Also inject stdlibs native functions.
-	stdlibs.InjectPackage(store, pn)
-	// vm (this package) specific injections:
-	switch pn.PkgPath {
-	case "std":
-		/* XXX deleteme
-		// Also see stdlibs/InjectPackage.
-		pn.DefineNative("AssertOriginCall",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-			),
-			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 2
-				if !isOrigin {
-					panic("invalid non-origin call")
-				}
-			},
-		)
-		pn.DefineNative("IsOriginCall",
-			gno.Flds( // params
-			),
-			gno.Flds( // results
-				"isOrigin", "bool",
-			),
-			func(m *gno.Machine) {
-				isOrigin := len(m.Frames) == 2
-				res0 := gno.TypedValue{T: gno.BoolType}
-				res0.SetBool(isOrigin)
-				m.PushValue(res0)
-			},
-		)
-		*/
+	memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
+	if memPkg.IsEmpty() {
+		// no gno files are present, skip this package
+		return nil, nil
 	}
+
+	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
+		// PkgPath: pkgPath,
+		Output: os.Stdout,
+		Store:  store,
+	})
+	defer m2.Release()
+	pn, pv = m2.RunMemPackage(memPkg, true)
+	return
 }
 
 // ----------------------------------------

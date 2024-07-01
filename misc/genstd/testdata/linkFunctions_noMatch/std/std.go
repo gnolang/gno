@@ -1,0 +1,3 @@
+package std
+
+func Y() {}

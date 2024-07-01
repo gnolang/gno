@@ -15,7 +15,6 @@ import (
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/mock"
-	"github.com/gnolang/gno/tm2/pkg/maths"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 
@@ -1052,7 +1051,7 @@ func TestValSetUpdatesOrderIndependenceTestsExecute(t *testing.T) {
 
 		// perform at most 20 permutations on the updates and call UpdateWithChangeSet()
 		n := len(tt.updateVals)
-		maxNumPerms := maths.MinInt(20, n*n)
+		maxNumPerms := min(20, n*n)
 		for j := 0; j < maxNumPerms; j++ {
 			// create a copy of original set and apply a random permutation of updates
 			valSetCopy := valSet.Copy()

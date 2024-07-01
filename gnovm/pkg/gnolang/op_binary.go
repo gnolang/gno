@@ -45,7 +45,7 @@ func (m *Machine) doOpLor() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -60,7 +60,7 @@ func (m *Machine) doOpLand() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// set result in lv.
@@ -76,15 +76,15 @@ func (m *Machine) doOpEql() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
+	if debug {
+		debugAssertEqualityTypes(lv.T, rv.T)
+	}
 
 	debug.Printf("---doOpEql: lv: %v, rv: %v \n", lv, rv)
 	debug.Printf("---doOpEql: lv.T: %v, rv.T: %v \n", lv.T, rv.T)
 	debug.Printf("---doOpEql: lv.V: %v, rv.V: %v \n", lv.V, rv.V)
 	debug.Printf("---doOpEql: lv.N: %v, rv.N: %v \n", lv.N, rv.N)
 	var res bool
-	if debug {
-		assertAssignable(lv.T, rv.T)
-	}
 	res = isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
@@ -100,7 +100,7 @@ func (m *Machine) doOpNeq() {
 
 	var res bool
 	if debug {
-		assertAssignable(lv.T, rv.T)
+		debugAssertEqualityTypes(lv.T, rv.T)
 	}
 
 	res = !isEql(m.Store, lv, rv)
@@ -116,7 +116,7 @@ func (m *Machine) doOpLss() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -133,7 +133,7 @@ func (m *Machine) doOpLeq() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -150,7 +150,7 @@ func (m *Machine) doOpGtr() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -167,7 +167,7 @@ func (m *Machine) doOpGeq() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// set the result in lv.
@@ -184,7 +184,7 @@ func (m *Machine) doOpAdd() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// add rv to lv.
@@ -198,7 +198,7 @@ func (m *Machine) doOpSub() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// sub rv from lv.
@@ -212,7 +212,7 @@ func (m *Machine) doOpBor() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv | rv
@@ -226,7 +226,7 @@ func (m *Machine) doOpXor() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv ^ rv
@@ -240,7 +240,7 @@ func (m *Machine) doOpMul() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv * rv
@@ -254,7 +254,7 @@ func (m *Machine) doOpQuo() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv / rv
@@ -268,7 +268,7 @@ func (m *Machine) doOpRem() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv % rv
@@ -314,7 +314,7 @@ func (m *Machine) doOpBand() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv & rv
@@ -328,7 +328,7 @@ func (m *Machine) doOpBandn() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also result
 	if debug {
-		assertSameTypes(lv.T, rv.T)
+		debugAssertSameTypes(lv.T, rv.T)
 	}
 
 	// lv &^ rv
@@ -350,7 +350,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	} else if rvu {
 		return false
 	}
-	if !isSameType(lv.T, rv.T) {
+	if err := checkSame(lv.T, rv.T, ""); err != nil {
 		return false
 	}
 	debug.Println("---assert to be same types")
@@ -486,7 +486,13 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				rfv.GetClosure(store)
 		}
 	case PointerKind:
-		// TODO: assumes runtime instance normalization.
+		if lv.V != nil && rv.V != nil {
+			lpv := lv.V.(PointerValue)
+			rpv := rv.V.(PointerValue)
+			if lpv.TV.T == DataByteType && rpv.TV.T == DataByteType {
+				return *(lpv.TV) == *(rpv.TV) && lpv.Base == rpv.Base && lpv.Index == rpv.Index && lpv.Key == rpv.Key
+			}
+		}
 		return lv.V == rv.V
 	default:
 		panic(fmt.Sprintf(

@@ -1,0 +1,48 @@
+# Reproducible Test for https://github.com/gnolang/gno/issues/1588
+
+gnoland start
+
+# add contract
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/demo/xx -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func DefineFamily -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+gnokey maketx call -pkgpath gno.land/r/demo/xx -func GetOutcastChildAge -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+stdout '(10 int)'
+
+-- gno.mod --
+module gno.land/r/demo/xx
+
+-- realm.gno --
+package xx
+
+type Parent struct {
+	children []Child
+	outcastChild *Child
+}
+
+type Child struct {
+	age int
+}
+
+var parent Parent
+
+func DefineFamily() {
+	parent = Parent{
+		children: []Child{
+			{age: 10},
+			{age: 20},
+		},
+	}
+	parent.outcastChild = &parent.children[0]
+}
+
+func GetOutcastChildAge() int {
+	if parent.outcastChild == nil {
+		return -1
+	}
+	return parent.outcastChild.age
+}

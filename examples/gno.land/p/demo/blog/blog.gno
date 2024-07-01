@@ -1,7 +1,6 @@
 package blog
 
 import (
-	"errors"
 	"std"
 	"strconv"
 	"strings"
@@ -13,16 +12,22 @@ import (
 )
 
 type Blog struct {
-	Title        string
-	Prefix       string   // i.e. r/gnoland/blog:
-	Posts        avl.Tree // slug -> Post
-	NoBreadcrumb bool
+	Title             string
+	Prefix            string   // i.e. r/gnoland/blog:
+	Posts             avl.Tree // slug -> *Post
+	PostsPublished    avl.Tree // published-date -> *Post
+	PostsAlphabetical avl.Tree // title -> *Post
+	NoBreadcrumb      bool
 }
 
 func (b Blog) RenderLastPostsWidget(limit int) string {
+	if b.PostsPublished.Size() == 0 {
+		return "No posts."
+	}
+
 	output := ""
 	i := 0
-	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+	b.PostsPublished.ReverseIterate("", "", func(key string, value interface{}) bool {
 		p := value.(*Post)
 		output += ufmt.Sprintf("- [%s](%s)\n", p.Title, p.URL())
 		i++
@@ -42,7 +47,7 @@ func (b Blog) RenderHome(res *mux.ResponseWriter, req *mux.Request) {
 	}
 
 	res.Write("<div class='columns-3'>")
-	b.Posts.Iterate("", "", func(key string, value interface{}) bool {
+	b.PostsPublished.ReverseIterate("", "", func(key string, value interface{}) bool {
 		post := value.(*Post)
 		res.Write(post.RenderListItem())
 		return false
@@ -62,19 +67,18 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	}
 	p := post.(*Post)
 
-	if !b.NoBreadcrumb {
-		breadStr := breadcrumb([]string{
-			ufmt.Sprintf("[%s](%s)", b.Title, b.Prefix),
-			"p",
-			p.Title,
-		})
-		res.Write(breadStr)
-	}
+	res.Write("<main class='gno-tmpl-page'>" + "\n\n")
 
-	// output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
+	res.Write("# " + p.Title + "\n\n")
 	res.Write(p.Body + "\n\n")
+	res.Write("---\n\n")
+
 	res.Write(p.RenderTagList() + "\n\n")
-	res.Write(formatAuthorAndDate(p.Author, p.CreatedAt) + "\n\n")
+	res.Write(p.RenderAuthorList() + "\n\n")
+	res.Write(p.RenderPublishData() + "\n\n")
+
+	res.Write("---\n")
+	res.Write("<details><summary>Comment section</summary>\n\n")
 
 	// comments
 	p.Comments.ReverseIterate("", "", func(key string, value interface{}) bool {
@@ -82,6 +86,9 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 		res.Write(comment.RenderListItem())
 		return false
 	})
+
+	res.Write("</details>\n")
+	res.Write("</main>")
 }
 
 func (b Blog) RenderTag(res *mux.ResponseWriter, req *mux.Request) {
@@ -124,43 +131,89 @@ func (b Blog) Render(path string) string {
 	return router.Render(path)
 }
 
-func (b *Blog) NewPost(author std.Address, slug, title, body string, tags []string) error {
-	_, found := b.Posts.Get(slug)
-	if found {
-		return errors.New("slug already exists.")
+func (b *Blog) NewPost(publisher std.Address, slug, title, body, pubDate string, authors, tags []string) error {
+	if _, found := b.Posts.Get(slug); found {
+		return ErrPostSlugExists
 	}
 
-	post := Post{
-		Author:    author,
+	var parsedTime time.Time
+	var err error
+	if pubDate != "" {
+		parsedTime, err = time.Parse(time.RFC3339, pubDate)
+		if err != nil {
+			return err
+		}
+	} else {
+		// If no publication date was passed in by caller, take current block time
+		parsedTime = time.Now()
+	}
+
+	post := &Post{
+		Publisher: publisher,
+		Authors:   authors,
 		Slug:      slug,
 		Title:     title,
 		Body:      body,
 		Tags:      tags,
-		CreatedAt: time.Now(),
+		CreatedAt: parsedTime,
 	}
-	return b.prepareAndSetPost(&post)
+
+	return b.prepareAndSetPost(post, false)
 }
 
-func (b *Blog) prepareAndSetPost(post *Post) error {
+func (b *Blog) prepareAndSetPost(post *Post, edit bool) error {
 	post.Title = strings.TrimSpace(post.Title)
 	post.Body = strings.TrimSpace(post.Body)
 
 	if post.Title == "" {
-		return errors.New("title is missing.")
+		return ErrPostTitleMissing
 	}
 	if post.Body == "" {
-		return errors.New("body is missing.")
+		return ErrPostBodyMissing
 	}
 	if post.Slug == "" {
-		return errors.New("slug is missing.")
+		return ErrPostSlugMissing
 	}
-	// more input sanitization?
 
 	post.Blog = b
 	post.UpdatedAt = time.Now()
 
+	trimmedTitleKey := getTitleKey(post.Title)
+	pubDateKey := getPublishedKey(post.CreatedAt)
+
+	if !edit {
+		// Cannot have two posts with same title key
+		if _, found := b.PostsAlphabetical.Get(trimmedTitleKey); found {
+			return ErrPostTitleExists
+		}
+		// Cannot have two posts with *exact* same timestamp
+		if _, found := b.PostsPublished.Get(pubDateKey); found {
+			return ErrPostPubDateExists
+		}
+	}
+
+	// Store post under keys
+	b.PostsAlphabetical.Set(trimmedTitleKey, post)
+	b.PostsPublished.Set(pubDateKey, post)
 	b.Posts.Set(post.Slug, post)
+
 	return nil
+}
+
+func (b *Blog) RemovePost(slug string) {
+	p, exists := b.Posts.Get(slug)
+	if !exists {
+		panic("post with specified slug doesn't exist")
+	}
+
+	post := p.(*Post)
+
+	titleKey := getTitleKey(post.Title)
+	publishedKey := getPublishedKey(post.CreatedAt)
+
+	_, _ = b.Posts.Remove(slug)
+	_, _ = b.PostsAlphabetical.Remove(titleKey)
+	_, _ = b.PostsPublished.Remove(publishedKey)
 }
 
 func (b *Blog) GetPost(slug string) *Post {
@@ -179,16 +232,25 @@ type Post struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	Comments     avl.Tree
-	Author       std.Address
+	Authors      []string
+	Publisher    std.Address
 	Tags         []string
 	CommentIndex int
 }
 
-func (p *Post) Update(title, body string, tags []string) error {
+func (p *Post) Update(title, body, publicationDate string, authors, tags []string) error {
 	p.Title = title
 	p.Body = body
 	p.Tags = tags
-	return p.Blog.prepareAndSetPost(p)
+	p.Authors = authors
+
+	parsedTime, err := time.Parse(time.RFC3339, publicationDate)
+	if err != nil {
+		return err
+	}
+
+	p.CreatedAt = parsedTime
+	return p.Blog.prepareAndSetPost(p, true)
 }
 
 func (p *Post) AddComment(author std.Address, comment string) error {
@@ -234,29 +296,64 @@ func (p *Post) RenderListItem() string {
 		return "error: no such post\n"
 	}
 	output := "<div>\n\n"
-	output += ufmt.Sprintf("## [%s](%s)\n", p.Title, p.URL())
-	output += ufmt.Sprintf("**[Learn More](%s)**\n", p.URL())
+	output += ufmt.Sprintf("### [%s](%s)\n", p.Title, p.URL())
+	// output += ufmt.Sprintf("**[Learn More](%s)**\n\n", p.URL())
+
+	output += " " + p.CreatedAt.Format("02 Jan 2006")
 	// output += p.Summary() + "\n\n"
 	// output += p.RenderTagList() + "\n\n"
-	// output += formatAuthorAndDate(p.Author, p.CreatedAt) + "\n"
 	output += "\n"
 	output += "</div>"
 	return output
 }
 
+// Render post tags
 func (p *Post) RenderTagList() string {
 	if p == nil {
 		return "error: no such post\n"
 	}
-	output := ""
+	if len(p.Tags) == 0 {
+		return ""
+	}
+
+	output := "Tags: "
 	for idx, tag := range p.Tags {
 		if idx > 0 {
 			output += " "
 		}
 		tagURL := p.Blog.Prefix + "t/" + tag
 		output += ufmt.Sprintf("[#%s](%s)", tag, tagURL)
+
 	}
 	return output
+}
+
+// Render authors if there are any
+func (p *Post) RenderAuthorList() string {
+	out := "Written"
+	if len(p.Authors) != 0 {
+		out += " by "
+
+		for idx, author := range p.Authors {
+			out += author
+			if idx < len(p.Authors)-1 {
+				out += ", "
+			}
+		}
+	}
+	out += " on " + p.CreatedAt.Format("02 Jan 2006")
+
+	return out
+}
+
+func (p *Post) RenderPublishData() string {
+	out := "Published "
+	if p.Publisher != "" {
+		out += "by " + p.Publisher.String() + " "
+	}
+	out += "to " + p.Blog.Title
+
+	return out
 }
 
 func (p *Post) URL() string {
@@ -287,15 +384,15 @@ type Comment struct {
 }
 
 func (c Comment) RenderListItem() string {
-	output := ""
-	output += ufmt.Sprintf("#### %s\n", formatAuthorAndDate(c.Author, c.CreatedAt))
-	output += c.Comment + "\n"
-	output += "\n"
-	return output
-}
+	output := "<h5>"
+	output += c.Comment + "\n\n"
+	output += "</h5>"
 
-func formatAuthorAndDate(author std.Address, createdAt time.Time) string {
-	authorString := author.String() // FIXME: username.
-	createdAtString := createdAt.Format("2006-01-02 3:04pm MST")
-	return ufmt.Sprintf("by %s on %s", authorString, createdAtString)
+	output += "<h6>"
+	output += ufmt.Sprintf("by %s on %s", c.Author, c.CreatedAt.Format(time.RFC822))
+	output += "</h6>\n\n"
+
+	output += "---\n\n"
+
+	return output
 }

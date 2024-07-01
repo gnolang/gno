@@ -118,17 +118,3 @@ type Iterator interface {
 	// Close releases the Iterator.
 	Close()
 }
-
-// For testing convenience.
-func bz(s string) []byte {
-	return []byte(s)
-}
-
-// We defensively turn nil keys or values into []byte{} for
-// most operations.
-func nonNilBytes(bz []byte) []byte {
-	if bz == nil {
-		return []byte{}
-	}
-	return bz
-}

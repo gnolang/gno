@@ -10,22 +10,22 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
 
-type verifyCfg struct {
-	rootCfg *baseCfg
+type VerifyCfg struct {
+	RootCfg *BaseCfg
 
-	docPath string
+	DocPath string
 }
 
-func newVerifyCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
-	cfg := &verifyCfg{
-		rootCfg: rootCfg,
+func NewVerifyCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cfg := &VerifyCfg{
+		RootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "verify",
 			ShortUsage: "verify [flags] <key-name> <signature>",
-			ShortHelp:  "Verifies the document signature",
+			ShortHelp:  "verifies the document signature",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -34,16 +34,16 @@ func newVerifyCmd(rootCfg *baseCfg, io commands.IO) *commands.Command {
 	)
 }
 
-func (c *verifyCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *VerifyCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.docPath,
+		&c.DocPath,
 		"docpath",
 		"",
 		"path of document file to verify",
 	)
 }
 
-func execVerify(cfg *verifyCfg, args []string, io commands.IO) error {
+func execVerify(cfg *VerifyCfg, args []string, io commands.IO) error {
 	var (
 		kb  keys.Keybase
 		err error
@@ -58,8 +58,8 @@ func execVerify(cfg *verifyCfg, args []string, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	docpath := cfg.docPath
-	kb, err = keys.NewKeyBaseFromDir(cfg.rootCfg.Home)
+	docpath := cfg.DocPath
+	kb, err = keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
 	if err != nil {
 		return err
 	}

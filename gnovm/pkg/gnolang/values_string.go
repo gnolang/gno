@@ -7,6 +7,47 @@ import (
 	"strings"
 )
 
+type protectedStringer interface {
+	ProtectedString(*seenValues) string
+}
+
+// This indicates the maximum anticipated depth of the stack when printing a Value type.
+const defaultSeenValuesSize = 32
+
+type seenValues struct {
+	values []Value
+}
+
+func (sv *seenValues) Put(v Value) {
+	sv.values = append(sv.values, v)
+}
+
+func (sv *seenValues) Contains(v Value) bool {
+	for _, vv := range sv.values {
+		if vv == v {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Pop should be called by using a defer after each Put.
+// Consider why this is necessary:
+//   - we are printing an array of structs
+//   - each invocation of struct.ProtectedString adds the value to the seenValues
+//   - without calling Pop before exiting struct.ProtectedString, the next call to
+//     struct.ProtectedString in the array.ProtectedString loop will not result in the value
+//     being printed if the value has already been print
+//   - this is NOT recursion and SHOULD be printed
+func (sv *seenValues) Pop() {
+	sv.values = sv.values[:len(sv.values)-1]
+}
+
+func newSeenValues() *seenValues {
+	return &seenValues{values: make([]Value, 0, defaultSeenValuesSize)}
+}
+
 func (v StringValue) String() string {
 	return strconv.Quote(string(v))
 }
@@ -24,10 +65,21 @@ func (dbv DataByteValue) String() string {
 }
 
 func (av *ArrayValue) String() string {
+	return av.ProtectedString(newSeenValues())
+}
+
+func (av *ArrayValue) ProtectedString(seen *seenValues) string {
+	if seen.Contains(av) {
+		return fmt.Sprintf("%p", av)
+	}
+
+	seen.Put(av)
+	defer seen.Pop()
+
 	ss := make([]string, len(av.List))
 	if av.Data == nil {
 		for i, e := range av.List {
-			ss[i] = e.String()
+			ss[i] = e.ProtectedString(seen)
 		}
 		// NOTE: we may want to unify the representation,
 		// but for now tests expect this to be different.
@@ -41,17 +93,30 @@ func (av *ArrayValue) String() string {
 }
 
 func (sv *SliceValue) String() string {
+	return sv.ProtectedString(newSeenValues())
+}
+
+func (sv *SliceValue) ProtectedString(seen *seenValues) string {
 	if sv.Base == nil {
 		return "nil-slice"
 	}
+
+	if seen.Contains(sv) {
+		return fmt.Sprintf("%p", sv)
+	}
+
 	if ref, ok := sv.Base.(RefValue); ok {
 		return fmt.Sprintf("slice[%v]", ref)
 	}
+
+	seen.Put(sv)
+	defer seen.Pop()
+
 	vbase := sv.Base.(*ArrayValue)
 	if vbase.Data == nil {
 		ss := make([]string, sv.Length)
 		for i, e := range vbase.List[sv.Offset : sv.Offset+sv.Length] {
-			ss[i] = e.String()
+			ss[i] = e.ProtectedString(seen)
 		}
 		return "slice[" + strings.Join(ss, ",") + "]"
 	}
@@ -62,16 +127,40 @@ func (sv *SliceValue) String() string {
 }
 
 func (pv PointerValue) String() string {
-	// NOTE: cannot do below, due to recursion problems.
-	// TODO: create a different String2(...) function.
-	// return fmt.Sprintf("&%s", v.TypedValue.String())
-	return fmt.Sprintf("&%p.(*%s)", pv.TV, pv.TV.T.String())
+	return pv.ProtectedString(newSeenValues())
+}
+
+func (pv PointerValue) ProtectedString(seen *seenValues) string {
+	if seen.Contains(pv) {
+		return fmt.Sprintf("%p", &pv)
+	}
+
+	seen.Put(pv)
+	defer seen.Pop()
+
+	// Handle nil TV's, avoiding a nil pointer deref below.
+	if pv.TV == nil {
+		return "&<nil>"
+	}
+
+	return fmt.Sprintf("&%s", pv.TV.ProtectedString(seen))
 }
 
 func (sv *StructValue) String() string {
+	return sv.ProtectedString(newSeenValues())
+}
+
+func (sv *StructValue) ProtectedString(seen *seenValues) string {
+	if seen.Contains(sv) {
+		return fmt.Sprintf("%p", sv)
+	}
+
+	seen.Put(sv)
+	defer seen.Pop()
+
 	ss := make([]string, len(sv.Fields))
 	for i, f := range sv.Fields {
-		ss[i] = f.String()
+		ss[i] = f.ProtectedString(seen)
 	}
 	return "struct{" + strings.Join(ss, ",") + "}"
 }
@@ -104,15 +193,27 @@ func (v *BoundMethodValue) String() string {
 }
 
 func (mv *MapValue) String() string {
+	return mv.ProtectedString(newSeenValues())
+}
+
+func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	if mv.List == nil {
 		return "zero-map"
 	}
+
+	if seen.Contains(mv) {
+		return fmt.Sprintf("%p", mv)
+	}
+
+	seen.Put(mv)
+	defer seen.Pop()
+
 	ss := make([]string, 0, mv.GetLength())
 	next := mv.List.Head
 	for next != nil {
 		ss = append(ss,
-			next.Key.String()+":"+
-				next.Value.String())
+			next.Key.ProtectedString(seen)+":"+
+				next.Value.ProtectedString(seen))
 		next = next.Next
 	}
 	return "map{" + strings.Join(ss, ",") + "}"
@@ -157,6 +258,11 @@ func (v RefValue) String() string {
 		v.PkgPath)
 }
 
+func (v *HeapItemValue) String() string {
+	return fmt.Sprintf("heapitem(%v)",
+		v.Value)
+}
+
 // ----------------------------------------
 // *TypedValue.Sprint
 
@@ -177,9 +283,26 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "Error")))
 		return res[0].GetString()
 	}
+
+	return tv.ProtectedSprint(newSeenValues(), true)
+}
+
+func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
+	if seen.Contains(tv.V) {
+		return fmt.Sprintf("%p", tv)
+	}
+
 	// print declared type
-	if _, ok := tv.T.(*DeclaredType); ok {
-		return tv.String()
+	if _, ok := tv.T.(*DeclaredType); ok && considerDeclaredType {
+		return tv.ProtectedString(seen)
+	}
+
+	// This is a special case that became necessary after adding `ProtectedString()` methods to
+	// reliably prevent recursive print loops.
+	if tv.V != nil {
+		if v, ok := tv.V.(RefValue); ok {
+			return v.String()
+		}
 	}
 
 	// otherwise, default behavior.
@@ -204,6 +327,8 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 			return fmt.Sprintf("%d", tv.GetUint())
 		case Uint8Type:
 			return fmt.Sprintf("%d", tv.GetUint8())
+		case DataByteType:
+			return fmt.Sprintf("%d", tv.GetDataByte())
 		case Uint16Type:
 			return fmt.Sprintf("%d", tv.GetUint16())
 		case Uint32Type:
@@ -225,9 +350,7 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		if tv.V == nil {
 			return "invalid-pointer"
 		}
-		return tv.V.(PointerValue).String()
-	case *ArrayType, *SliceType, *StructType, *MapType, *TypeType, *NativeType:
-		return printNilOrValue(tv, tv.V)
+		return tv.V.(PointerValue).ProtectedString(seen)
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
@@ -253,8 +376,22 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		return tv.V.(*PackageValue).String()
 	case *ChanType:
 		panic("not yet implemented")
-		// return tv.V.(*ChanValue).String()
+	case *TypeType:
+		return tv.V.(TypeValue).String()
 	default:
+		// The remaining types may have a nil value.
+		if tv.V == nil {
+			return "(" + nilStr + " " + tv.T.String() + ")"
+		}
+
+		// *ArrayType, *SliceType, *StructType, *MapType
+		if ps, ok := tv.V.(protectedStringer); ok {
+			return ps.ProtectedString(seen)
+		} else if s, ok := tv.V.(fmt.Stringer); ok {
+			// *NativeType
+			return s.String()
+		}
+
 		if debug {
 			panic(fmt.Sprintf(
 				"unexpected type %s",
@@ -265,21 +402,15 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	}
 }
 
-func printNilOrValue(tv *TypedValue, valueType interface{}) string {
-	if debug {
-		debug.Printf("printNilOrValue: tv: %v, T:%v, V:%v \n", *tv, (*tv).T, (*tv).V)
-	}
-	if tv.V == nil {
-		return nilStr + " " + tv.T.String()
-	}
-	return fmt.Sprintf("%v", valueType)
-}
-
 // ----------------------------------------
 // TypedValue.String()
 
 // For gno debugging/testing.
 func (tv TypedValue) String() string {
+	return tv.ProtectedString(newSeenValues())
+}
+
+func (tv TypedValue) ProtectedString(seen *seenValues) string {
 	if tv.IsUndefined() {
 		var n string
 		if tv.T == nil {
@@ -322,12 +453,17 @@ func (tv TypedValue) String() string {
 			vs = fmt.Sprintf("%v", tv.GetFloat32())
 		case Float64Type:
 			vs = fmt.Sprintf("%v", tv.GetFloat64())
+		// Complex types that require recusion protection.
 		default:
 			vs = nilStr
 		}
 	} else {
-		vs = fmt.Sprintf("%v", tv.V)
+		vs = tv.ProtectedSprint(seen, false)
+		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
+			vs = strconv.Quote(vs)
+		}
 	}
+
 	ts := tv.T.String()
 	return fmt.Sprintf("(%s %s)", vs, ts) // TODO improve
 }
