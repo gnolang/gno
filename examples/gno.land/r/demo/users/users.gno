@@ -236,12 +236,11 @@ func GetUserByAddressOrName(input users.AddressOrName) *users.User {
 }
 
 func Resolve(input users.AddressOrName) std.Address {
-	name, isName := input.GetName()
-	if !isName {
-		return std.Address(input) // TODO check validity
+	if user := GetUserByAddressOrName(input); user != nil {
+		return user.Address
 	}
-	user := GetUserByName(name)
-	return user.Address
+
+	return std.Address("")
 }
 
 //----------------------------------------
