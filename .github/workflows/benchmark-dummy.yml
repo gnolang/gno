@@ -1,4 +1,4 @@
-name: (TBD) run benchmarks with new action
+name: run benchmarks with new action
 
 on:
   push:
