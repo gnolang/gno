@@ -27,7 +27,6 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 		Attributes: eventAttrs,
 		PkgPath:    pkgPath,
 		Func:       fnIdent,
-		OrigCaller: ctx.OrigCaller.String(),
 	}
 
 	ctx.EventLogger.EmitEvent(evt)
@@ -53,7 +52,6 @@ type gnoEvent struct {
 	Attributes []gnoEventAttribute `json:"attrs"`
 	PkgPath    string              `json:"pkg_path"`
 	Func       string              `json:"func"`
-	OrigCaller string              `json:"orig_caller"`
 }
 
 func (e gnoEvent) AssertABCIEvent() {}
