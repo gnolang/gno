@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/add_assign_a_01.gno:6: assignment operator += requires only one expression on lhs and rhs
+// main/files/types/add_assign_a_01.gno:6:2: assignment operator += requires only one expression on lhs and rhs

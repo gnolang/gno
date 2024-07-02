@@ -16,4 +16,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_struct_d.gno:15: main.bar is not comparable
+// main/files/types/cmp_struct_d.gno:15:10: main.bar is not comparable
