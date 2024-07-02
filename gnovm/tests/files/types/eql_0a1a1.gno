@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0a1a1.gno:5: cannot use uint as uint64
+// main/files/types/eql_0a1a1.gno:5:10: cannot use uint as uint64

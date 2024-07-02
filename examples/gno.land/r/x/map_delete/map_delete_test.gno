@@ -1,8 +1,6 @@
 package mapdelete
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestGetMap(t *testing.T) {
 	if !(GetMap(3)) {

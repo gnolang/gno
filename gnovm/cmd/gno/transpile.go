@@ -134,7 +134,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	}
 
 	// transpile .gno packages and files.
-	paths, err := gnoPackagesFromArgs(args)
+	paths, err := gnoFilesFromArgsRecursively(args)
 	if err != nil {
 		return fmt.Errorf("list paths: %w", err)
 	}

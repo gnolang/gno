@@ -1,8 +1,6 @@
 package stack
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestStack(t *testing.T) {
 	s := New() // Empty stack
