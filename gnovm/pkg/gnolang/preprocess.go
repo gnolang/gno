@@ -141,7 +141,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						} else {
 							// if loop extern, will change to
 							// NameExprTypeHeapDefine later.
-							debug.Println("---initStaticBlocks, NameExpr, n: ", n)
 							nx.Type = NameExprTypeDefine
 							last.Predefine(false, ln)
 							defined = true

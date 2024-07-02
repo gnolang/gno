@@ -296,7 +296,6 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *RefExpr:
-		debug.Println("---RefExpr, x: ", x)
 		m.PushOp(OpRef)
 		// evaluate x
 		m.PushForPointer(x.X)
