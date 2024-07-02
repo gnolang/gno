@@ -237,3 +237,25 @@ func Equal(t TestingT, expected, actual interface{}, msgs ...string) bool {
 
 	return true
 }
+
+func Empty(t TestingT, obj interface{}, msgs ...string) bool {
+	t.Helper()
+	switch val := obj.(type) {
+	case string:
+		if val != "" {
+			return fail(t, msgs, "uassert.Empty: not empty string: %s", val)
+		}
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		if val != 0 {
+			return fail(t, msgs, "uassert.Empty: not empty number: %d", val)
+		}
+	case std.Address:
+		var zeroAddr std.Address
+		if val != zeroAddr {
+			return fail(t, msgs, "uassert.Empty: not empty std.Address: %s", string(val))
+		}
+	default:
+		return fail(t, msgs, "uassert.Empty: unsupported type")
+	}
+	return true
+}

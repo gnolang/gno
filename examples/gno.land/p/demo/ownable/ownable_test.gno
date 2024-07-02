@@ -72,9 +72,7 @@ func TestDropOwnership(t *testing.T) {
 	uassert.NoError(t, err, "DropOwnership failed")
 
 	owner := o.Owner()
-	if owner != "" { // XXX: uassert.Empty...
-		t.Fatalf("Expected owner to be empty, not %s", owner)
-	}
+	uassert.Empty(t, owner, "owner should be empty")
 }
 
 // Errors

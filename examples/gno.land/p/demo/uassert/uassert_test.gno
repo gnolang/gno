@@ -154,3 +154,48 @@ func TestEqual(t *testing.T) {
 		})
 	}
 }
+
+type myStruct struct {
+	S string
+	I int
+}
+
+func TestEmpty(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	cases := []struct {
+		obj           interface{}
+		expectedEmpty bool
+	}{
+		// expected to be empty
+		{"", true},
+		{0, true},
+		{int(0), true},
+		{int64(0), true},
+		{uint(0), true},
+		// XXX: continue
+
+		// not expected to be empty
+		{"Hello World", false},
+		{1, false},
+		{int32(1), false},
+		{uint64(1), false},
+		{std.Address("g12345"), false},
+
+		// unsupported
+		{nil, false},
+		{myStruct{}, false},
+		{&myStruct{}, false},
+	}
+
+	for _, c := range cases {
+		name := fmt.Sprintf("Empty(%v)", c.obj)
+		t.Run(name, func(t *testing.T) {
+			res := Empty(mockT, c.obj)
+
+			if res != c.expectedEmpty {
+				t.Errorf("%s should return %v: %s", name, c.expectedEmpty, mockT.actualString())
+			}
+		})
+	}
+}
