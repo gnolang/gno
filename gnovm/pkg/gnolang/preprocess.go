@@ -18,6 +18,15 @@ const (
 // Anything predefined or preprocessed here get skipped during the Preprocess
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
+	defer func() {
+		// Check for cyclic
+		if len(declGraph) != 0 {
+			assertNoCycle()
+		}
+		if err := recover(); err != nil {
+			panic(err)
+		}
+	}()
 	// First, initialize all file nodes and connect to package node.
 	for _, fn := range fset.Files {
 		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
@@ -98,6 +107,9 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 		}
 	}
 }
+
+// declGraph represents a slice of declGraph
+var declGraph []*DeclNode
 
 // This counter ensures (during testing) that certain functions
 // (like ConvertUntypedTo() for bigints and strings)
@@ -1971,6 +1983,20 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case *StructType:
 					*dst = *(tmp.(*StructType))
 				case *DeclaredType:
+					if st, ok := tmp.(*StructType); ok {
+						// check if fields contains declaredType
+						maybeRecursive := false
+						names := make([]Name, 0)
+
+						for _, f := range st.Fields {
+							maybeRecursive = checkFieldReference(st.PkgPath, f.Type, &names)
+						}
+						if maybeRecursive {
+							for _, name := range names {
+								insertDeclNode(dst.Name, last.GetLocation(), name)
+							}
+						}
+					}
 					// if store has this type, use that.
 					tid := DeclaredTypeID(lastpn.PkgPath, n.Name)
 					exists := false
@@ -2846,6 +2872,7 @@ func checkIntegerKind(xt Type) {
 // preprocess-able before other file-level declarations are
 // preprocessed).
 func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
+	// fmt.Println("---predefine now, d.line", d.GetLine())
 	defer func() {
 		if r := recover(); r != nil {
 			// before re-throwing the error, append location information to message.
@@ -3142,7 +3169,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			last2.Define(d.Name, asValue(t))
 			d.Path = last.GetPathForName(store, d.Name)
 		}
-		// after predefinitions, return any undefined dependencies.
+		// after predefinitions, return any undefined declGraph.
 		un = findUndefined(store, last, d.Type)
 		if un != "" {
 			return
