@@ -54,18 +54,6 @@ func removeValidator(address std.Address) {
 	}
 }
 
-// getChanges returns the validator changes stored on the realm
-func getChanges() []validators.Validator {
-	// Construct the changes
-	changes := make([]validators.Validator, len(v.changes))
-	copy(changes, v.changes)
-
-	// Reset the changes set
-	v.changes = v.changes[:0]
-
-	return changes
-}
-
 func Render(_ string) string {
 	if len(v.changes) == 0 {
 		return "No valset changes to apply."
