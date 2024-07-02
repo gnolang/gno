@@ -3,7 +3,6 @@ package ed25519
 import (
 	"crypto/ed25519"
 	"encoding/hex"
-	"std"
 	"testing"
 )
 

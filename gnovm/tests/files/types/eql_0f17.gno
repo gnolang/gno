@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f17.gno:9: main.f can only be compared to nil
+// main/files/types/eql_0f17.gno:9:10: main.f can only be compared to nil

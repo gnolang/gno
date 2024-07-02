@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f30d.gno:4: []int can only be compared to nil
+// main/files/types/eql_0f30d.gno:4:10: []int can only be compared to nil

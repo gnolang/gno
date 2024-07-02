@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/rem_f3.gno:5: invalid operation: division by zero
+// main/files/types/rem_f3.gno:5:10: invalid operation: division by zero
