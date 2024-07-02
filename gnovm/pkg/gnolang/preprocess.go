@@ -2329,6 +2329,11 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 									if n.GetLabel() == label {
 										labelReached = true
 									}
+									// If goto < label,
+									// then not a goto loop.
+									if n == origGoto && !labelReached {
+										return n, TRANS_EXIT
+									}
 								}
 
 								// If label not reached, continue.
