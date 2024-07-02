@@ -63,7 +63,7 @@ func NewRecurringSubscription(duration time.Duration, amount int64) *RecurringSu
 
 // CheckAccess verifies if the caller has an active recurring subscription.
 func (rs *RecurringSubscription) CheckAccess(caller std.Address) {
-	send := std.GetOrigSend()
+	send := std.PrevRealm().Addr()
 	sendAmount := send.AmountOf("ugnot")
 
 	if sendAmount < rs.amount {
