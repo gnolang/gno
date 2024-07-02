@@ -15,7 +15,7 @@ env:
 jobs:
   benchmarks:
     if: ${{ github.repository == 'sw360cab/gno' }}
-    runs-on: [self-hosted, Linux, X64, benchmark-v1]
+    runs-on: ubuntu-latest
     steps:
     - name: checkout
       uses: actions/checkout@v4
