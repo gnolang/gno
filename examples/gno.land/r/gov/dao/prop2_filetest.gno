@@ -75,7 +75,7 @@ func main() {
 // # Prop#0
 //
 // post a new blogpost about govdao
-// Status: success
+// Status: succeeded
 // Author: g1qzu77x7g9z0klhnavmewmhxcz4jcckflhl7sce
 // --
 // # Gnoland's Blog

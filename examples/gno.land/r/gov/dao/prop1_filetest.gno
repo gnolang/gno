@@ -91,7 +91,7 @@ func main() {
 //
 // manual valset changes proposal example
 // Status: succeeded
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Author: g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa
 // --
 // Valset changes to apply:
 // - g12345678 (10)
