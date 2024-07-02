@@ -152,10 +152,25 @@ func (loc Location) IsZero() bool {
 // even after preprocessing.  Temporary attributes (e.g. those
 // for preprocessing) are stored in .data.
 
+type GnoAttribute string
+
+const (
+	ATTR_PREPROCESSED  GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREDEFINED    GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE    GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE  GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA          GnoAttribute = "ATTR_IOTA"
+	ATTR_LOCATIONED    GnoAttribute = "ATTR_LOCATIONE" // XXX DELETE
+	ATTR_INJECTED      GnoAttribute = "ATTR_INJECTED"
+	ATTR_GOTOLOOP_STMT GnoAttribute = "ATTR_GOTOLOOP_STMT" // XXX delete?
+	ATTR_LOOP_DEFINES  GnoAttribute = "ATTR_LOOP_DEFINES"  // []Name defined within loops.
+	ATTR_LOOP_USES     GnoAttribute = "ATTR_LOOP_USES"     // []Name loop defines actually used.
+)
+
 type Attributes struct {
 	Line  int
 	Label Name
-	data  map[interface{}]interface{} // not persisted
+	data  map[GnoAttribute]interface{} // not persisted
 }
 
 func (attr *Attributes) GetLine() int {
@@ -166,26 +181,30 @@ func (attr *Attributes) SetLine(line int) {
 	attr.Line = line
 }
 
+// XXX GetLabels(), and HasLabel().
 func (attr *Attributes) GetLabel() Name {
 	return attr.Label
 }
 
+// XXX I think should be AddLabel instead.
 func (attr *Attributes) SetLabel(label Name) {
 	attr.Label = label
 }
 
-func (attr *Attributes) HasAttribute(key interface{}) bool {
+func (attr *Attributes) HasAttribute(key GnoAttribute) bool {
 	_, ok := attr.data[key]
 	return ok
 }
 
-func (attr *Attributes) GetAttribute(key interface{}) interface{} {
+// GnoAttribute must not be user provided / arbitrary,
+// otherwise will create potential exploits.
+func (attr *Attributes) GetAttribute(key GnoAttribute) interface{} {
 	return attr.data[key]
 }
 
-func (attr *Attributes) SetAttribute(key interface{}, value interface{}) {
+func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {
 	if attr.data == nil {
-		attr.data = make(map[interface{}]interface{})
+		attr.data = make(map[GnoAttribute]interface{})
 	}
 	attr.data[key] = value
 }
@@ -197,13 +216,13 @@ type Node interface {
 	assertNode()
 	String() string
 	Copy() Node
-	GetLine() int
-	SetLine(int)
+	GetLine() int // must not be used for logic.
+	SetLine(int)  // must not be used for logic.
 	GetLabel() Name
 	SetLabel(Name)
-	HasAttribute(key interface{}) bool
-	GetAttribute(key interface{}) interface{}
-	SetAttribute(key interface{}, value interface{})
+	HasAttribute(key GnoAttribute) bool
+	GetAttribute(key GnoAttribute) interface{}
+	SetAttribute(key GnoAttribute, value interface{})
 }
 
 // non-pointer receiver to help make immutable.
@@ -363,11 +382,22 @@ var (
 	_ Expr = &ConstExpr{}
 )
 
+type NameExprType int
+
+const (
+	NameExprTypeNormal      NameExprType = iota // default
+	NameExprTypeDefine                          // when defining normally
+	NameExprTypeHeapDefine                      // when defining escaped name in loop
+	NameExprTypeHeapUse                         // when above used in non-define lhs/rhs
+	NameExprTypeHeapClosure                     // when above used in closure lhs/rhs
+)
+
 type NameExpr struct {
 	Attributes
 	// TODO rename .Path's to .ValuePaths.
 	Path ValuePath // set by preprocessor.
 	Name
+	Type NameExprType
 }
 
 type NameExprs []NameExpr
@@ -494,8 +524,9 @@ type KeyValueExprs []KeyValueExpr
 type FuncLitExpr struct {
 	Attributes
 	StaticBlock
-	Type FuncTypeExpr // function type
-	Body              // function body
+	Type         FuncTypeExpr // function type
+	Body                      // function body
+	HeapCaptures NameExprs    // filled in findLoopUses1
 }
 
 // The preprocessor replaces const expressions
@@ -1469,6 +1500,7 @@ type BlockNode interface {
 	GetNumNames() uint16
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
+	GetBlockNodeForPath(Store, ValuePath) BlockNode
 	GetIsConst(Store, Name) bool
 	GetLocalIndex(Name) (uint16, bool)
 	GetValueRef(Store, Name, bool) *TypedValue
@@ -1567,6 +1599,7 @@ func (sb *StaticBlock) GetBlockNames() (ns []Name) {
 }
 
 // Implements BlockNode.
+// NOTE: Extern names may also be local, if declared later.
 func (sb *StaticBlock) GetExternNames() (ns []Name) {
 	return sb.Externs // copy?
 }
@@ -1608,6 +1641,8 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	}
 	// Register as extern.
 	// NOTE: uverse names are externs too.
+	// NOTE: if a name is later declared in this block later, it is both an
+	// extern name with depth > 1, as well as local name with depth == 1.
 	if !isFile(sb.GetSource(store)) {
 		sb.GetStaticBlock().addExternName(n)
 	}
@@ -1634,6 +1669,21 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 	}
 	// Name does not exist.
 	panic(fmt.Sprintf("name %s not declared", n))
+}
+
+// Get the containing block node for node with path relative to this containing block.
+func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNode {
+	if path.Type != VPBlock {
+		panic("expected block type value path but got something else")
+	}
+
+	// NOTE: path.Depth == 1 means it's in bn.
+	var bn BlockNode = sb.GetSource(store)
+	for i := 1; i < int(path.Depth); i++ {
+		bn = bn.GetParentNode(store)
+	}
+
+	return bn
 }
 
 // Returns whether a name defined here in in ancestry is a const.
@@ -2077,18 +2127,6 @@ func (x *BasicLitExpr) GetInt() int {
 	}
 	return i
 }
-
-type GnoAttribute string
-
-const (
-	ATTR_PREPROCESSED GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED   GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE   GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA         GnoAttribute = "ATTR_IOTA"
-	ATTR_LOCATIONED   GnoAttribute = "ATTR_LOCATIONED"
-	ATTR_INJECTED     GnoAttribute = "ATTR_INJECTED"
-)
 
 var rePkgName = regexp.MustCompile(`^[a-z][a-z0-9_]+$`)
 

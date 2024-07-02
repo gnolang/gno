@@ -837,7 +837,17 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	shouldPanic := true
 	switch clx := lx.(type) {
-	case *NameExpr, *StarExpr, *SelectorExpr:
+	case *NameExpr:
+		if clx.Name == "_" {
+			shouldPanic = false
+		} else if clx.Path.Type == VPUverse {
+			panic(fmt.Sprintf("cannot assign to uverse %v", clx.Name))
+		} else if last.GetIsConst(store, clx.Name) {
+			panic(fmt.Sprintf("cannot assign to const %v", clx.Name))
+		} else {
+			shouldPanic = false
+		}
+	case *StarExpr, *SelectorExpr:
 		shouldPanic = false
 	case *IndexExpr:
 		xt := evalStaticTypeOf(store, last, clx.X)
