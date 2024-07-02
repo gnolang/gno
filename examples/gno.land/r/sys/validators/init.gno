@@ -6,8 +6,9 @@ import (
 )
 
 func init() {
-	v = &valset{
-		p:       poa.NewPoA(),
-		changes: make([]validators.Validator, 0),
-	}
+	// The default valset protocol is PoA
+	vp = poa.NewPoA()
+
+	// No changes to apply initially
+	changes = make([]validators.Validator, 0)
 }

@@ -7,26 +7,22 @@ import (
 	"gno.land/p/sys/validators"
 )
 
-// valset is the wrapper for the validator set protocol
-type valset struct {
-	p       validators.ValsetProtocol // p is the underlying validator set protocol
+var (
+	vp      validators.ValsetProtocol // p is the underlying validator set protocol
 	changes []validators.Validator    // changes are the set changes that happened between scrapes
-}
-
-// v holds the active on-chain validator set state
-var v *valset
+)
 
 // addValidator adds a new validator to the validator set.
 // If the validator is already present, the method errors out
 func addValidator(validator validators.Validator) {
-	val, err := v.p.AddValidator(validator.Address, validator.PubKey, validator.VotingPower)
+	val, err := vp.AddValidator(validator.Address, validator.PubKey, validator.VotingPower)
 	if err != nil {
 		panic(err)
 	}
 
 	if val != nil {
 		// Validator added, note the change
-		v.changes = append(v.changes, *val)
+		changes = append(changes, *val)
 
 		// Emit the validator set change
 		std.Emit(validators.ValidatorAddedEvent)
@@ -36,14 +32,14 @@ func addValidator(validator validators.Validator) {
 // removeValidator removes the given validator from the set.
 // If the validator is not present in the set, the method errors out
 func removeValidator(address std.Address) {
-	val, err := v.p.RemoveValidator(address)
+	val, err := vp.RemoveValidator(address)
 	if err != nil {
 		panic(err)
 	}
 
 	if val != nil {
 		// Validator removed, note the change
-		v.changes = append(v.changes, validators.Validator{
+		changes = append(changes, validators.Validator{
 			Address:     val.Address,
 			PubKey:      val.PubKey,
 			VotingPower: 0, // nullified the voting power indicates removal
@@ -55,12 +51,12 @@ func removeValidator(address std.Address) {
 }
 
 func Render(_ string) string {
-	if len(v.changes) == 0 {
+	if len(changes) == 0 {
 		return "No valset changes to apply."
 	}
 
 	output := "Valset changes to apply:\n"
-	for _, change := range v.changes {
+	for _, change := range changes {
 		output += "- " + string(change.Address) + " (" + strconv.FormatUint(change.VotingPower, 10) + ")\n"
 	}
 

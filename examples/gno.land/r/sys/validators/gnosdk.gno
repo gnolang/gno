@@ -6,11 +6,11 @@ import "gno.land/p/sys/validators"
 // This function is unexported and intended to be called by gno.land through the GnoSDK
 func getChanges() []validators.Validator {
 	// Construct the changes
-	changes := make([]validators.Validator, len(v.changes))
-	copy(changes, v.changes)
+	valsetChanges := make([]validators.Validator, len(changes))
+	copy(valsetChanges, changes)
 
 	// Reset the changes set
-	v.changes = v.changes[:0]
+	changes = changes[:0]
 
-	return changes
+	return valsetChanges
 }
