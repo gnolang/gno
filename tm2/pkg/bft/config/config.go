@@ -48,12 +48,12 @@ type Config struct {
 	BaseConfig `toml:",squash"`
 
 	// Options for services
-	RPC          *rpc.RPCConfig       `toml:"rpc" comment:"##### rpc server configuration options #####"`
-	P2P          *p2p.P2PConfig       `toml:"p2p" comment:"##### peer to peer configuration options #####"`
-	Mempool      *mem.MempoolConfig   `toml:"mempool" comment:"##### mempool configuration options #####"`
-	Consensus    *cns.ConsensusConfig `toml:"consensus" comment:"##### consensus configuration options #####"`
-	TxEventStore *eventstore.Config   `toml:"tx_event_store" comment:"##### event store #####"`
-	Telemetry    *telemetry.Config    `toml:"telemetry" comment:"##### node telemetry #####"`
+	RPC          *rpc.RPCConfig       `json:"rpc" toml:"rpc" comment:"##### rpc server configuration options #####"`
+	P2P          *p2p.P2PConfig       `json:"p2p" toml:"p2p" comment:"##### peer to peer configuration options #####"`
+	Mempool      *mem.MempoolConfig   `json:"mempool" toml:"mempool" comment:"##### mempool configuration options #####"`
+	Consensus    *cns.ConsensusConfig `json:"consensus" toml:"consensus" comment:"##### consensus configuration options #####"`
+	TxEventStore *eventstore.Config   `json:"tx_event_store" toml:"tx_event_store" comment:"##### event store #####"`
+	Telemetry    *telemetry.Config    `json:"telemetry" toml:"telemetry" comment:"##### node telemetry #####"`
 }
 
 // DefaultConfig returns a default configuration for a Tendermint node
