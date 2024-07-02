@@ -1,240 +1,244 @@
 package events
 
 import (
-	"gno.land/p/demo/ui"
+	"bytes"
+	"sort"
+	"std"
+	"strconv"
+	"time"
+
+	"gno.land/p/demo/ownable/exts/authorizable"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
 )
 
-// XXX: p/demo/ui API is crappy, we need to make it more idiomatic
-// XXX: use an updatable block system to update content from a DAO
-// XXX: var blocks avl.Tree
-
-func Render(_ string) string {
-	dom := ui.DOM{Prefix: "r/gnoland/events:"}
-	dom.Title = "Gno.land Core Team Attends Industry Events & Meetups"
-	dom.Classes = []string{"gno-tmpl-section"}
-
-	// body
-	dom.Body.Append(introSection()...)
-	dom.Body.Append(ui.HR{})
-	dom.Body.Append(upcomingEvents()...)
-	dom.Body.Append(ui.HR{})
-	dom.Body.Append(pastEvents()...)
-
-	return dom.String()
+type Event struct {
+	id          seqid.ID
+	name        string    // name of event
+	description string    // short description of event
+	link        string    // link to a corresponding web2 page, ie eventbrite/luma or conference page
+	location    string    // location of the event
+	startTime   time.Time // start time of the event
+	// add duration/endtime?
 }
 
-func introSection() ui.Element {
-	return ui.Element{
-		ui.Paragraph("If you’re interested in building web3 with us, catch up with Gno.land in person at one of our industry events. We’re looking to connect with developers and like-minded thinkers who can contribute to the growth of our platform."),
+type eventsSlice []*Event
+
+var (
+	a         *authorizable.Authorizable
+	events    eventsSlice // sorted oldest > newest
+	idCounter seqid.ID
+)
+
+const (
+	maxDescLength = 100
+	maxWidgetSize = 5
+)
+
+func init() {
+	su := std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
+	a = authorizable.NewAuthorizableWithAddress(su)
+
+	events = make(eventsSlice, 0)
+}
+
+func AddEvent(name, description, link, location string, startTime int64) {
+	a.AssertOnAuthList()
+
+	if name == "" {
+		panic(errEmptyName)
+	}
+
+	if startTime <= 0 {
+		panic(errInvalidStartTime)
+	}
+
+	if len(description) > maxDescLength {
+		str := ufmt.Sprintf("event description is %d chars, while it cannot be more than %d chars", len(description), maxDescLength)
+		panic(str)
+	}
+
+	e := &Event{
+		id:          idCounter.Next(),
+		name:        name,
+		description: description,
+		link:        link,
+		location:    location,
+		startTime:   time.Unix(startTime, 0), // given in unix seconds
+	}
+
+	events = append(events, e)
+	sort.Sort(events)
+}
+
+func DelEvent(id seqid.ID) {
+	a.AssertOnAuthList()
+
+	for i, event := range events {
+		if event.id == id {
+			events = append(events[:i], events[i+1:]...)
+			return
+		}
 	}
 }
 
-func upcomingEvents() ui.Element {
-	return ui.Element{
-		ui.H2("Upcoming Events"),
-		ui.Text(`<div class="columns-3">
-<div class="column">
+func EditEvent(id seqid.ID, name, description, link, location string, startTime int64) {
+	a.AssertOnAuthList()
 
-### GopherCon EU
-- Come Meet Us at our Booth
-- Berlin, June 17 - 20, 2024
+	var prevStartTime time.Time
+	newStartTime := time.Unix(startTime, 0)
+	for i, event := range events {
+		if event.id == id {
+			prevStartTime = event.startTime
+			events[i] = &Event{
+				id:          id,
+				name:        name,
+				description: description,
+				link:        link,
+				location:    location,
+				startTime:   newStartTime,
+			}
 
-[Learn More](https://gophercon.eu/)
-</div><!-- end column-->
+			return
+		}
+	}
 
-<div class="column">
-
-### GopherCon US
-- Come Meet Us at our Booth
-- Chicago, July 7 - 10, 2024
-
-[Learn More](https://www.gophercon.com/)
-
-</div><!-- end column-->
-
-<div class="column">
-
-### Nebular Summit
-- Join our workshop
-- Brussels, July 12 - 13, 2024
-
-[Learn More](https://nebular.builders/)
-</div><!-- end column-->
-
-<div class="column">
-
-</div><!-- end column-->
-<div class="column">
-
-</div><!-- end column-->
-</div><!-- end columns-3-->`),
+	// If sort order was disrupted, sort again
+	if newStartTime != prevStartTime {
+		sort.Sort(events)
 	}
 }
 
-func pastEvents() ui.Element {
-	return ui.Element{
-		ui.H2("Past Events"),
-		ui.Text(`<div class="columns-3">
-
-<div class="column">
-
-### Gno @ Golang Serbia
-
-- **Join the meetup**
-- Belgrade, May 23, 2024
-
-[Learn more](https://gno.land/r/gnoland/blog:p/gnomes-in-serbia)
-
-</div><!-- end column-->
-
-<div class="column">
-
-### Intro to Gno Tokyo
-
-- **Join the meetup**
-- Tokyo, April 11, 2024
-
-[Learn more](https://gno.land/r/gnoland/blog:p/gno-tokyo)
-
-</div><!-- end column-->
-
-<div class="column">
-
-### Go to Gno Seoul
-
-- **Join the workshop**
-- Seoul, March 23, 2024
-
-[Learn more](https://medium.com/onbloc/go-to-gno-recap-intro-to-the-gno-stack-with-memeland-284a43d7f620)
-
-</div><!-- end column-->
-
-<div class="column">
-
-### GopherCon US
-
-- **Come Meet Us at our Booth**
-- San Diego, September 26 - 29, 2023
-
-[Learn more](https://www.gophercon.com/)
-
-</div><!-- end column-->
-
-<div class="column">
-
-### GopherCon EU
-
-- **Come Meet Us at our Booth**
-- Berlin, July 26 - 29, 2023
-
-[Learn more](https://gophercon.eu/)
-
-</div><!-- end column-->
-
-<div class="column">
-
-### Nebular Summit Gno.land for Developers
-
-- Paris, July 24 - 25, 2023
-- Manfred Touron
-
-[Learn more](https://www.nebular.builders/)
-
-</div><!-- end column-->
-
-<div class="column">
-
-### EthCC
-
-- **Come Meet Us at our Booth**
-- Paris, July 17 - 20, 2023
-- Manfred Touron
-
-[Learn more](https://www.ethcc.io/)
-
-</div><!-- end column-->
-
-<div class="column">
-
-### Eth Seoul
-
-- **The Evolution of Smart Contracts: A Journey into Gno.land**
-- Seoul, June 3, 2023
-- Manfred Touron
-
-[Learn more](https://2023.ethseoul.org/)
-
-</div><!-- end column-->
-<div class="column">
-
-### BUIDL Asia
-
-- **Proof of Contribution in Gno.land**
-- Seoul, June 6, 2023
-- Manfred Touron
-
-[Learn more](https://www.buidl.asia/)
-
-</div><!-- end column-->
-<div class="column">
-
-### Game Developer Conference
-
-- **Side Event: Web3 Gaming Apps Powered by Gno**
-- San Francisco, Mach 23, 2023
-- Jae Kwon
-
-[Watch the talk](https://www.youtube.com/watch?v=IJ0xel8lr4c)
-
-</div><!-- end column-->
-<div class="column">
-
-### EthDenver
-
-- **Side Event: Discover Gno.land**
-- Denver, Feb 24 - Mar 5, 2023
-- Jae Kwon
-
-[Watch the talk](https://www.youtube.com/watch?v=IJ0xel8lr4c)
-
-</div><!-- end column-->
-<div class="column">
-
-### Istanbul Blockchain Week
-
-- Istanbul, Nov 14 - 17, 2022
-- Manfred Touron
-
-[Watch the talk](https://www.youtube.com/watch?v=JX0gdWT0Cg4)
-
-</div><!-- end column-->
-<div class="column">
-
-### Web Summit Buckle Up and Build with Cosmos
-
-- Lisbon, Nov 1 - 4, 2022
-- Manfred Touron
-
-</div><!-- end column-->
-<div class="column">
-
-### Cosmoverse
-
-- Medallin, Sept 26 - 28, 2022
-- Manfred Touron
-
-[Watch the talk](https://www.youtube.com/watch?v=6s1zG7hgxMk)
-
-</div><!-- end column-->
-<div class="column">
-
-### Berlin Blockchain Week Buckle Up and Build with Cosmos
-
-- Berlin, Sept 11 - 18, 2022
-
-[Watch the talk](https://www.youtube.com/watch?v=hCLErPgnavI)
-
-</div><!-- end column-->
-</div><!-- end columns-3-->`),
+// Rendering
+
+// RenderEventWidget shows up to amt of the latest events to a caller
+func RenderEventWidget(amt int) string {
+	eventNum := len(events)
+	if eventNum == 0 {
+		return "No events."
 	}
+
+	if amt > 5 {
+		panic("maximum number of events in widget is " + strconv.Itoa(maxWidgetSize))
+	}
+
+	if amt < 1 {
+		panic("amt needs to be more than 0")
+	}
+
+	if amt > eventNum {
+		amt = eventNum
+	}
+
+	output := ""
+
+	// todo check for ordering
+	for _, event := range events[eventNum-amt:] {
+		output += ufmt.Sprintf("- [%s](%s)\n", event.name, event.link)
+	}
+
+	return output
+}
+
+func renderHome(admin bool) string {
+	output := "# Gno.land Events\n\n"
+
+	if len(events) == 0 {
+		output += "No upcoming or past events."
+		return output
+	}
+
+	output += "Below is a list of all upcoming and past Gno.land events.\n\n"
+
+	output += "---\n\n"
+
+	// Find position of latest past event
+	pos := sort.Search(len(events), func(i int) bool {
+		return events[i].startTime.Before(time.Now())
+	})
+
+	// Add upcoming events
+	output += "## Upcoming events\n\n"
+	output += "<div class='columns-3'>"
+
+	// If there are any upcoming events
+	if len(events[:pos]) > 0 {
+		for _, e := range events[:pos] {
+			output += e.Render(admin)
+		}
+	} else {
+		output += "No upcoming events.\n\n"
+	}
+
+	output += "</div>\n\n"
+	output += "---\n\n"
+
+	// Add past events
+	output += "## Past events\n\n"
+	output += "<div class='columns-3'>"
+
+	if len(events[pos:]) > 0 {
+		for _, e := range events[pos:] {
+			output += e.Render(admin)
+		}
+	} else {
+		output += "No past events.\n\n"
+	}
+
+	output += "</div>\n\n"
+	return output
+}
+
+func (e Event) Render(admin bool) string {
+	var buf bytes.Buffer
+
+	buf.WriteString("<div>\n\n")
+	buf.WriteString(ufmt.Sprintf("### %s\n\n", e.name))
+	buf.WriteString(ufmt.Sprintf("%s\n\n", e.description))
+	buf.WriteString(ufmt.Sprintf("**Location:** %s\n\n", e.location))
+	buf.WriteString(ufmt.Sprintf("**Time & Date:** %s\n\n", e.startTime.Format("02 Jan 2006, 15:04")))
+
+	if admin {
+		buf.WriteString(ufmt.Sprintf("Event ID: %s\n\n", e.id))
+	}
+
+	buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
+	buf.WriteString("</div>")
+
+	return buf.String()
+}
+
+func Render(path string) string {
+	if path == "admin" {
+		return renderHome(true)
+	}
+
+	return renderHome(false)
+}
+
+func GetOwner() std.Address {
+	return a.Owner()
+}
+
+func AddModerator(mod std.Address) {
+	a.AssertCallerIsOwner()
+
+	if err := a.AddToAuthList(mod); err != nil {
+		panic(err)
+	}
+}
+
+// Len returns the length of the slice
+func (m eventsSlice) Len() int {
+	return len(m)
+}
+
+// Less compares the startTime fields of two elements
+func (m eventsSlice) Less(i, j int) bool {
+	return m[i].startTime.After(m[j].startTime)
+}
+
+// Swap swaps two elements in the slice
+func (m eventsSlice) Swap(i, j int) {
+	m[i], m[j] = m[j], m[i]
 }
