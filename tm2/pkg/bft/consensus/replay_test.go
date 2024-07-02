@@ -20,6 +20,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	abci_testing "github.com/gnolang/gno/tm2/pkg/bft/abci/types/testing"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
@@ -1131,7 +1132,15 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 
 	val, _ := types.RandValidator(true, 10)
 	vals := types.NewValidatorSet([]*types.Validator{val})
-	app := &initChainApp{vals: vals.ABCIValidatorUpdates()}
+	appVals := vals.ABCIValidatorUpdates()
+	// returns the vals on InitChain
+	app := &abci_testing.MockApplication{
+		InitChainFn: func(req abci.RequestInitChain) abci.ResponseInitChain {
+			return abci.ResponseInitChain{
+				Validators: appVals,
+			}
+		},
+	}
 	clientCreator := proxy.NewLocalClientCreator(app)
 
 	config, genesisFile := ResetConfig("handshake_test_")
@@ -1144,13 +1153,9 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
 	handshaker := NewHandshaker(stateDB, state, store, genDoc)
 	proxyApp := appconn.NewAppConns(clientCreator)
-	if err := proxyApp.Start(); err != nil {
-		t.Fatalf("Error starting proxy app connections: %v", err)
-	}
-	defer proxyApp.Stop()
-	if err := handshaker.Handshake(proxyApp); err != nil {
-		t.Fatalf("Error on abci handshake: %v", err)
-	}
+	require.NoError(t, proxyApp.Start(), "Error starting proxy app connections")
+	defer func() { require.NoError(t, proxyApp.Stop()) }()
+	require.NoError(t, handshaker.Handshake(proxyApp), "Error on abci handshake")
 
 	// reload the state, check the validator set was updated
 	state = sm.LoadState(stateDB)
@@ -1161,14 +1166,34 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 	assert.Equal(t, newValAddr, expectValAddr)
 }
 
-// returns the vals on InitChain
-type initChainApp struct {
-	abci.BaseApplication
-	vals []abci.ValidatorUpdate
-}
+func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
+	t.Parallel()
 
-func (ica *initChainApp) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
-	return abci.ResponseInitChain{
-		Validators: ica.vals,
+	const numInitResponses = 42
+
+	app := &abci_testing.MockApplication{
+		InitChainFn: func(req abci.RequestInitChain) abci.ResponseInitChain {
+			return abci.ResponseInitChain{
+				TxResponses: make([]abci.ResponseDeliverTx, numInitResponses),
+			}
+		},
 	}
+	clientCreator := proxy.NewLocalClientCreator(app)
+
+	config, genesisFile := ResetConfig("handshake_test_")
+	defer os.RemoveAll(config.RootDir)
+	stateDB, state, store := makeStateAndStore(config, genesisFile, "v0.0.0-test")
+
+	// now start the app using the handshake - it should sync
+	genDoc, _ := sm.MakeGenesisDocFromFile(genesisFile)
+	handshaker := NewHandshaker(stateDB, state, store, genDoc)
+	proxyApp := appconn.NewAppConns(clientCreator)
+	require.NoError(t, proxyApp.Start(), "Error starting proxy app connections")
+	defer func() { require.NoError(t, proxyApp.Stop()) }()
+	require.NoError(t, handshaker.Handshake(proxyApp), "Error on abci handshake")
+
+	// check that the genesis transaction results are saved
+	res, err := sm.LoadABCIResponses(stateDB, 0)
+	require.NoError(t, err, "Failed to load genesis ABCI responses")
+	assert.Len(t, res.DeliverTxs, numInitResponses)
 }

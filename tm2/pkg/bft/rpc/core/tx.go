@@ -19,7 +19,7 @@ func Tx(_ *rpctypes.Context, hash []byte) (*ctypes.ResultTx, error) {
 	}
 
 	// Sanity check the block height
-	height, err := getHeight(blockStore.Height(), &resultIndex.BlockNum)
+	height, err := getHeight(blockStore.Height(), &resultIndex.BlockNum, 1)
 	if err != nil {
 		return nil, err
 	}
