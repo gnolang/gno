@@ -108,6 +108,11 @@ type Repl struct {
 	stdin     io.Reader
 }
 
+// Read implements io.Reader.
+func (r *Repl) Read(p []byte) (n int, err error) {
+	panic("unimplemented")
+}
+
 // NewRepl creates a Repl struct. It is able to process input source code and eventually run it.
 func NewRepl(opts ...ReplOption) *Repl {
 	t := template.Must(template.New("tmpl").Parse(fileTemplate))
