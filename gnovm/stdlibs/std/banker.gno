@@ -69,14 +69,14 @@ func GetBanker(bt BankerType) Banker {
 		panic("invalid banker type")
 	}
 
-	var pkgAddr string
+	var pkgAddr Address
 	if bt == BankerTypeOrigSend {
-		pkgAddr = GetOrigPkgAddr().String()
-		if pkgAddr != CurrentRealm().Addr().String() {
+		pkgAddr = GetOrigPkgAddr()
+		if pkgAddr != CurrentRealm().Addr() {
 			panic("banker with type BankerTypeOrigSend can only be instantiated by the origin package")
 		}
 	} else if bt == BankerTypeRealmSend || bt == BankerTypeRealmIssue {
-		pkgAddr = CurrentRealm().Addr().String()
+		pkgAddr = CurrentRealm().Addr()
 	}
 	return banker{
 		bt,
@@ -93,7 +93,7 @@ func bankerRemoveCoin(bt uint8, addr string, denom string, amount int64)
 
 type banker struct {
 	bt      BankerType
-	pkgAddr string
+	pkgAddr Address
 }
 
 func (b banker) GetCoins(addr Address) (dst Coins) {
@@ -109,8 +109,8 @@ func (b banker) SendCoins(from, to Address, amt Coins) {
 	if b.bt == BankerTypeReadonly {
 		panic("BankerTypeReadonly cannot send coins")
 	}
-	if b.pkgAddr != from.String() {
-		msg := `can only send coins from realm that created banker "` + b.pkgAddr + `", not "` + from.String() + `"`
+	if b.pkgAddr != from {
+		msg := `can only send coins from realm that created banker "` + b.pkgAddr + `", not "` + from + `"`
 		panic(msg)
 	}
 	denoms, amounts := amt.expandNative()
