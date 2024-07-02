@@ -391,7 +391,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 // starts with `Test`.
 func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 	if !(tv.T.Kind() == FuncKind &&
-			strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
+		strings.HasPrefix(string(tv.V.(*FuncValue).Name), "Test")) {
 		return // not a test function.
 	}
 	// XXX ensure correct func type.
@@ -1940,26 +1940,10 @@ func (m *Machine) PushForPointer(lx Expr) {
 }
 
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
-	fmt.Println("---PopAsPointer, lx: ", lx)
 	switch lx := lx.(type) {
 	case *NameExpr:
-		fmt.Println("---lx is NameExpr, lx.Type: ", lx.Type)
 		lb := m.LastBlock()
-		xv := lb.GetPointerTo(m.Store, lx.Path)
-
-		if lx.Type == NameExprTypeHeapUse {
-			tv := xv.Deref()
-			fmt.Println("---tv: ", tv)
-			hv := m.Alloc.NewHeapItem(tv)
-		
-			return PointerValue{
-				TV:    &hv.Value,
-				Base:  hv,
-				Index: 0,
-			}
-		} else {
-			return xv
-		}
+		return lb.GetPointerTo(m.Store, lx.Path)
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()

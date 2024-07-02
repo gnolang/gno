@@ -2433,6 +2433,8 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
+	fmt.Println("---GetPointerTo, b: ", b)
+	fmt.Println("---GetPointerTo, path: ", path)
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != blankIdentifier {

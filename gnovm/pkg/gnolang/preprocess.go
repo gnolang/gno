@@ -2293,7 +2293,6 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 
 			switch n := n.(type) {
 			case *ForStmt:
-				debug.Println("---ForStmt, n: ", n)
 				Transcribe(n,
 					func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 						switch stage {
@@ -2443,22 +2442,17 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 		case TRANS_ENTER:
 			switch n := n.(type) {
 			case *NameExpr:
-				debug.Println("---trans_enter, NameExpr: ", n)
 				// Ignore non-block type paths
 				if n.Path.Type != VPBlock {
 					return n, TRANS_CONTINUE
 				}
 				switch n.Type {
 				case NameExprTypeNormal:
-					debug.Println("---TypeNormal")
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					debug.Println("---dbn: ", dbn)
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-					debug.Println("---lds: ", lds)
 					if hasName(lds, n.Name) {
-						debug.Println("---hasName")
 						fle, _, found := findFirstClosure(stack, dbn)
 						if found {
 							// If across a closure,
@@ -2476,6 +2470,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							// n.Path.Index = indexOfName(lus, n.Name)
 						} else {
 							if ftype == TRANS_REF_X {
+								fmt.Println("ref")
 								// if used as a reference,
 								// mark name as loop used.
 								addAttrHeapUse(dbn, n.Name)
@@ -2527,12 +2522,9 @@ func assertNotHasName(names []Name, name Name) {
 }
 
 func setAttrHeapDefine(bn BlockNode, name Name) {
-	debug.Println("---setAttrHeapDefine, bn: ", bn)
-	debug.Println("---setAttrHeapDefine, name: ", name)
 	bnLDs, _ := bn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 	assertNotHasName(bnLDs, name)
 	bnLDs = append(bnLDs, name)
-	debug.Println("---bnLDs: ", bnLDs)
 	bn.SetAttribute(ATTR_LOOP_DEFINES, bnLDs)
 }
 
