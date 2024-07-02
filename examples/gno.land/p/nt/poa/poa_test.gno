@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 	"gno.land/p/sys/validators"
 
 	"gno.land/p/demo/ufmt"
@@ -47,7 +49,7 @@ func TestPoA_AddValidator_Invalid(t *testing.T) {
 
 		// Attempt to add the validator
 		_, err := p.AddValidator(proposalAddress, proposalKey, 1)
-		testing.ErrorIs(t, err, validators.ErrValidatorExists)
+		uassert.ErrorIs(t, err, validators.ErrValidatorExists)
 	})
 
 	t.Run("invalid voting power", func(t *testing.T) {
@@ -63,7 +65,7 @@ func TestPoA_AddValidator_Invalid(t *testing.T) {
 
 		// Attempt to add the validator
 		_, err := p.AddValidator(proposalAddress, proposalKey, 0)
-		testing.ErrorIs(t, err, ErrInvalidVotingPower)
+		uassert.ErrorIs(t, err, ErrInvalidVotingPower)
 	})
 }
 
@@ -80,7 +82,7 @@ func TestPoA_AddValidator(t *testing.T) {
 
 	// Attempt to add the validator
 	_, err := p.AddValidator(proposalAddress, proposalKey, 1)
-	testing.NoError(t, err)
+	uassert.NoError(t, err)
 
 	// Make sure the validator is added
 	if !p.IsValidator(proposalAddress) || p.validators.Size() != 1 {
@@ -106,7 +108,7 @@ func TestPoA_RemoveValidator_Invalid(t *testing.T) {
 
 		// Attempt to remove the validator
 		_, err := p.RemoveValidator(testutils.TestAddress("totally random"))
-		testing.ErrorIs(t, err, validators.ErrValidatorMissing)
+		uassert.ErrorIs(t, err, validators.ErrValidatorMissing)
 	})
 }
 
@@ -125,7 +127,7 @@ func TestPoA_RemoveValidator(t *testing.T) {
 
 	// Attempt to remove the validator
 	_, err := p.RemoveValidator(proposalAddress)
-	testing.NoError(t, err)
+	urequire.NoError(t, err)
 
 	// Make sure the validator is removed
 	if p.IsValidator(proposalAddress) || p.validators.Size() != 0 {
@@ -144,7 +146,7 @@ func TestPoA_GetValidator(t *testing.T) {
 
 		// Attempt to get the voting power
 		_, err := p.GetValidator(testutils.TestAddress("caller"))
-		testing.ErrorIs(t, err, validators.ErrValidatorMissing)
+		uassert.ErrorIs(t, err, validators.ErrValidatorMissing)
 	})
 
 	t.Run("validator fetched", func(t *testing.T) {
@@ -167,7 +169,7 @@ func TestPoA_GetValidator(t *testing.T) {
 
 		// Get the validator
 		val, err := p.GetValidator(address)
-		testing.NoError(t, err)
+		urequire.NoError(t, err)
 
 		// Validate the address
 		if val.Address != address {
@@ -225,14 +227,10 @@ func TestPoA_GetValidators(t *testing.T) {
 				}
 
 				// Validate the voting power
-				if val.VotingPower != initialVal.VotingPower {
-					t.Fatal("invalid voting power")
-				}
+				uassert.Equal(t, val.VotingPower, initialVal.VotingPower)
 
 				// Validate the public key
-				if val.PubKey != initialVal.PubKey {
-					t.Fatal("invalid public key")
-				}
+				uassert.Equal(t, val.PubKey, initialVal.PubKey)
 			}
 		}
 	})
