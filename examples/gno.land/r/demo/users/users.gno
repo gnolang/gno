@@ -1,37 +1,86 @@
 package users
 
 import (
+	"errors"
+	"math/rand"
 	"regexp"
 	"std"
 	"strconv"
 	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/entropy"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/users"
+	"gno.land/p/demo/wordlist"
 )
 
 //----------------------------------------
 // State
 
 var (
-	admin      std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
-	name2User  avl.Tree                    // Name -> *users.User
-	addr2User  avl.Tree                    // std.Address -> *users.User
-	invites    avl.Tree                    // string(inviter+":"+invited) -> true
-	counter    int                         // user id counter
-	minFee     int64       = 200 * 1000000 // minimum gnot must be paid to register.
-	maxFeeMult int64       = 10            // maximum multiples of minFee accepted.
+	admin      std.Address       = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
+	name2User  avl.Tree                          // Name -> *users.User
+	addr2User  avl.Tree                          // std.Address -> *users.User
+	invites    avl.Tree                          // string(inviter+":"+invited) -> true
+	counter    int                               // user id counter
+	minFee     int64             = 200 * 1000000 // minimum gnot must be paid to register.
+	maxFeeMult int64             = 10            // maximum multiples of minFee accepted.
+	ent        *entropy.Instance = entropy.New()
 )
+
+var ErrAddressAlreadyRegistered = errors.New("address already registered")
 
 //----------------------------------------
 // Top-level functions
 
-func ClaimDefaultName(profile string) {
+// ClaimDefaultName registers a random name for free.
+func ClaimDefaultName(profile string) string {
 	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
+
+	_, ok := addr2User.Get(caller.String())
+	if ok {
+		panic(ErrAddressAlreadyRegistered)
+	}
+
+	seed := uint64(ent.Value())
+	r := rand.New(rand.NewPCG(seed, 0xbadcafe))
+
+	var name string
+	// gas is the limit.
+	for {
+		var (
+			adjective = wordlist.RandomAdjective(r)
+			job       = wordlist.RandomJob(r)
+			color     = wordlist.RandomColor(r)
+			nb        = r.IntN(100)
+		)
+		name = ufmt.Sprintf("%s_%s_%s_%d%d", adjective, color, job, nb/10, nb%10)
+		_, ok := name2User.Get(name)
+		if !ok {
+			break
+		}
+	}
+
+	// register.
+	counter++
+	user := &users.User{
+		Address: caller,
+		Name:    name,
+		Profile: profile,
+		Number:  counter,
+	}
+	name2User.Set(name, user)
+	addr2User.Set(caller.String(), user)
+
+	return name
 }
 
+// Register registers a chosen name.
 func Register(inviter std.Address, name string, profile string) {
+	// XXX: Register could override an existing default name, but we need to implement symlnks.
+
 	// assert CallTx call.
 	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
@@ -59,11 +108,11 @@ func Register(inviter std.Address, name string, profile string) {
 	// assert not already registered.
 	_, ok := name2User.Get(name)
 	if ok {
-		panic("name already registered")
+		panic("name already exists")
 	}
 	_, ok = addr2User.Get(caller.String())
 	if ok {
-		panic("address already registered")
+		panic(ErrAddressAlreadyRegistered)
 	}
 	// assert name is valid.
 	if !reName.MatchString(name) {
@@ -79,6 +128,7 @@ func Register(inviter std.Address, name string, profile string) {
 			}
 		}
 	}
+
 	// register.
 	counter++
 	user := &users.User{
