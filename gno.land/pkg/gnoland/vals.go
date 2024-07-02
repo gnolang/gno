@@ -50,7 +50,7 @@ func validatorEventFilter(event events.Event) []validatorUpdate {
 		case validatorAddedEvent, validatorRemovedEvent:
 			// We don't pass data around with the events, but a single
 			// notification is enough to "trigger" a VM scrape
-			return []validatorUpdate{}
+			return []validatorUpdate{{}}
 		default:
 			continue
 		}
