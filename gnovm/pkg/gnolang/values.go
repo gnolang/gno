@@ -2458,6 +2458,23 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 }
 
 // Convenience
+func (b *Block) GetPointerToMaybeHeapUse(store Store, nx *NameExpr) PointerValue {
+	switch nx.Type {
+	case NameExprTypeNormal:
+		return b.GetPointerTo(store, nx.Path)
+	case NameExprTypeHeapUse:
+		// XXX
+		return b.GetPointerToHeapUse(store, nx.Path)
+	case NameExprTypeHeapClosure:
+		// XXX this should panic after logic is complete,
+		// should not happen.
+		return b.GetPointerTo(store, nx.Path)
+	default:
+		panic("unexpected NameExpr type for GetPointerToMaybeHeapUse")
+	}
+}
+
+// Convenience
 func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerValue {
 	switch nx.Type {
 	case NameExprTypeNormal:
@@ -2467,7 +2484,7 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 	case NameExprTypeHeapDefine:
 		return b.GetPointerToHeapDefine(store, nx.Path)
 	default:
-		panic("unexpected NameExpr type for GetPointerMaybeHeapDefine")
+		panic("unexpected NameExpr type for GetPointerToMaybeHeapDefine")
 	}
 }
 
