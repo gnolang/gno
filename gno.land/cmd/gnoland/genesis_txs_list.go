@@ -1,14 +1,18 @@
 package main
 
 import (
+	"bytes"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
+
+var ErrWrongGenesisType = errors.New("genesis state is not using the correct Gno Genesis type")
 
 // newTxsListCmd list all transactions on the specified genesis file
 func newTxsListCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
@@ -31,17 +35,21 @@ func newTxsListCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 func execTxsListCmd(io commands.IO, cfg *txsCfg) error {
 	genesis, err := types.GenesisDocFromFile(cfg.genesisPath)
 	if err != nil {
-		return fmt.Errorf("unable to load genesis, %w", err)
+		return fmt.Errorf("%w, %w", errUnableToLoadGenesis, err)
 	}
 
 	gs, ok := genesis.AppState.(gnoland.GnoGenesisState)
 	if !ok {
-		return fmt.Errorf("genesis state is not using the correct Gno Genesis type")
+		return ErrWrongGenesisType
 	}
 
-	je := json.NewEncoder(io.Out())
+	b, err := amino.MarshalJSONIndent(gs.Txs, "", "    ")
+	if err != nil {
+		return errors.New("error marshalling data to amino JSON")
+	}
 
-	je.SetIndent("", "    ")
+	buf := bytes.NewBuffer(b)
+	_, err = buf.WriteTo(io.Out())
 
-	return je.Encode(gs.Txs)
+	return err
 }

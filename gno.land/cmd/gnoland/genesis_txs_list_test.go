@@ -31,7 +31,7 @@ func TestGenesis_List_All(t *testing.T) {
 
 		// Run the command
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, "unable to load genesis")
+		assert.ErrorIs(t, cmdErr, errUnableToLoadGenesis)
 	})
 
 	t.Run("list all txs", func(t *testing.T) {
@@ -66,6 +66,6 @@ func TestGenesis_List_All(t *testing.T) {
 		cmdErr := cmd.ParseAndRun(context.Background(), args)
 		require.NoError(t, cmdErr)
 
-		require.Len(t, buf.String(), 14743)
+		require.Len(t, buf.String(), 4442)
 	})
 }
