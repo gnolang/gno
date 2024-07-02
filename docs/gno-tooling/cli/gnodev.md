@@ -21,6 +21,8 @@ local instance of `gnoweb`, allowing you to see the rendering of your Gno code i
   file changes, reloading and automatically restarting the node as needed.
 - **State Maintenance**: Gnodev replays all transactions in between reloads,
   ensuring the previous node state is preserved.
+- **Transaction Manipulation**: Gnodev adds the capability to cancel and redo transactions interactively.
+- **State Export:** Export the current state at any time in a genesis doc format.
 
 ## Installation
 
@@ -115,6 +117,11 @@ While `gnodev` is running, the following shortcuts are available:
 - To see help, press `H`.
 - To display accounts balances, press `A`.
 - To reload manually, press `R`.
+- To cancel the last action, press `P`.
+- To redo the last cancelled action, press `N`.
+- To save the current state, press `Ctrl+S`.
+- To restore the saved state, press `Ctrl+R`.
+- To export the current state to a genesis file, press `E`.
 - To reset the state of the node, press `CMD+R`.
 - To stop `gnodev`, press `CMD+C`.
 
@@ -137,3 +144,5 @@ While `gnodev` is running, the following shortcuts are available:
 | --verbose           | enable verbose output for development                                 |
 | --web-listener      | web server listening address                                          |
 | --web-help-remote   | web server help page's remote addr - defaults to <node-rpc-listener\> |
+| --genesis-file      | Load and extract transactions from a genesis file                     |
+
