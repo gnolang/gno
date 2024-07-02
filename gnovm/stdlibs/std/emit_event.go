@@ -20,13 +20,15 @@ func X_emit(m *gno.Machine, typ string, attrs []string) {
 	_, pkgPath := currentRealm(m)
 	fnIdent := getPrevFunctionNameFromTarget(m, "Emit")
 
+	ctx := GetContext(m)
+
 	evt := GnoEvent{
 		Type:       typ,
+		Attributes: eventAttrs,
 		PkgPath:    pkgPath,
 		Func:       fnIdent,
-		Attributes: eventAttrs,
 	}
-	ctx := GetContext(m)
+
 	ctx.EventLogger.EmitEvent(evt)
 }
 
@@ -47,9 +49,9 @@ func attrKeysAndValues(attrs []string) ([]GnoEventAttribute, error) {
 
 type GnoEvent struct {
 	Type       string              `json:"type"`
+	Attributes []GnoEventAttribute `json:"attrs"`
 	PkgPath    string              `json:"pkg_path"`
 	Func       string              `json:"func"`
-	Attributes []GnoEventAttribute `json:"attrs"`
 }
 
 func (e GnoEvent) AssertABCIEvent() {}

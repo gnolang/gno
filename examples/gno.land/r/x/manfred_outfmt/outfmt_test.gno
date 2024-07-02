@@ -45,6 +45,7 @@ Numbers: 24 25 2
 
 	// json
 	{
+
 		got := outfmt.Render("?fmt=json")
 		expected := `{"Number":746,"Text":"Hello Gnomes!","Numbers":[57,82,16,14,28,32]}`
 		if got != expected {

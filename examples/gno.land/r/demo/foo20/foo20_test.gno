@@ -1,7 +1,6 @@
 package foo20
 
 import (
-	"errors"
 	"std"
 	"testing"
 
