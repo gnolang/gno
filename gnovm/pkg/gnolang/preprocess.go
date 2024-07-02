@@ -2291,6 +2291,30 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 			}()
 
 			switch n := n.(type) {
+			case *ForStmt:
+				Transcribe(n,
+					func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+						switch stage {
+						case TRANS_ENTER:
+							switch n := n.(type) {
+							case *FuncLitExpr:
+								if len(ns) > 0 {
+									// inner funcs.
+									return n, TRANS_SKIP
+								}
+								return n, TRANS_CONTINUE
+							case *FuncDecl:
+								panic("unexpected inner func decl")
+								return n, TRANS_CONTINUE
+							case *NameExpr:
+								if n.Type == NameExprTypeDefine {
+									n.Type = NameExprTypeHeapDefine
+								}
+							}
+						}
+						return n, TRANS_CONTINUE
+					})
+
 			case *BranchStmt:
 				switch n.Op {
 				case GOTO:
@@ -2558,7 +2582,7 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 }
 
 // Convert non-loop uses of loop names to NameExprTypeHeapUse.
-// Alos, NameExprTypeHeapDefine gets demoted to NameExprTypeDefine if no actual
+// Also, NameExprTypeHeapDefine gets demoted to NameExprTypeDefine if no actual
 // usage was found that warrants a NameExprTypeHeapDefine.
 func findLoopUses2(ctx BlockNode, bn BlockNode) {
 	// create stack of BlockNodes.
