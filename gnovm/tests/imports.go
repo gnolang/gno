@@ -23,7 +23,7 @@ import (
 	"log"
 	"math"
 	"math/big"
-	"math/rand/v2"
+	"math/rand"
 	"net"
 	"net/url"
 	"os"
@@ -114,6 +114,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			pkgPath == "encoding/xml" ||
 			pkgPath == "internal/os_test" ||
 			pkgPath == "math/big" ||
+			pkgPath == "math/rand" ||
 			mode == ImportModeStdlibsPreferred ||
 			mode == ImportModeNativePreferred {
 			switch pkgPath {
@@ -270,10 +271,12 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			case "math/rand":
 				// XXX only expose for tests.
 				pkg := gno.NewPackageNode("rand", pkgPath, nil)
-				// make native rand same as gno rand.
-				rnd := rand.New(rand.NewPCG(0, 0)) //nolint:gosec
-				pkg.DefineGoNativeValue("IntN", rnd.IntN)
-				pkg.DefineGoNativeValue("Uint32", rnd.Uint32)
+				pkg.DefineGoNativeValue("Intn", rand.Intn)
+				pkg.DefineGoNativeValue("Uint32", rand.Uint32)
+				pkg.DefineGoNativeValue("Seed", rand.Seed)
+				pkg.DefineGoNativeValue("New", rand.New)
+				pkg.DefineGoNativeValue("NewSource", rand.NewSource)
+				pkg.DefineGoNativeType(reflect.TypeOf(rand.Rand{}))
 				return pkg, pkg.NewPackage()
 			case "crypto/rand":
 				pkg := gno.NewPackageNode("rand", pkgPath, nil)

@@ -15,7 +15,7 @@ func TestRender(t *testing.T) {
 * [?fmt=jsonp](/r/x/manfred_outfmt:?fmt=jsonp)
 `
 		if got != expected {
-			t.Errorf("expected %q, got %q.", expected, got)
+			t.Fatalf("expected %q, got %q.", expected, got)
 		}
 	}
 
@@ -23,11 +23,11 @@ func TestRender(t *testing.T) {
 	{
 		got := outfmt.Render("?fmt=stringer")
 		expected := `Text: Hello Gnomes!
-Number: 222
-Numbers: 34 44 39 7 72 48 74
+Number: 957
+Numbers: 3 54 32 88
 `
 		if got != expected {
-			t.Errorf("expected %q, got %q.", expected, got)
+			t.Fatalf("expected %q, got %q.", expected, got)
 		}
 	}
 
@@ -35,11 +35,11 @@ Numbers: 34 44 39 7 72 48 74
 	{
 		got := outfmt.Render("?fmt=stringer")
 		expected := `Text: Hello Gnomes!
-Number: 898
-Numbers: 24 25 2
+Number: 141
+Numbers: 98 27
 `
 		if got != expected {
-			t.Errorf("expected %q, got %q.", expected, got)
+			t.Fatalf("expected %q, got %q.", expected, got)
 		}
 	}
 
@@ -47,18 +47,18 @@ Numbers: 24 25 2
 	{
 
 		got := outfmt.Render("?fmt=json")
-		expected := `{"Number":746,"Text":"Hello Gnomes!","Numbers":[57,82,16,14,28,32]}`
+		expected := `{"Number":801,"Text":"Hello Gnomes!","Numbers":[5,78,51,78,91,41]}`
 		if got != expected {
-			t.Errorf("expected %q, got %q.", expected, got)
+			t.Fatalf("expected %q, got %q.", expected, got)
 		}
 	}
 
 	// jsonp
 	{
 		got := outfmt.Render("?fmt=jsonp")
-		expected := `callback({"Number":795,"Text":"Hello Gnomes!","Numbers":[29,51,88,61,93,21,2,66,79]})`
+		expected := `callback({"Number":63,"Text":"Hello Gnomes!","Numbers":[2,66,50,73,81]})`
 		if got != expected {
-			t.Errorf("expected %q, got %q.", expected, got)
+			t.Fatalf("expected %q, got %q.", expected, got)
 		}
 	}
 }

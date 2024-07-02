@@ -12,7 +12,7 @@ In this tutorial, you will learn how to start a local Gno node and connect to an
 
 - **Git**
 - **`make` (for running Makefiles)**
-- **Go 1.22+**
+- **Go 1.21+**
 - **Go Environment Setup**: Ensure you have Go set up as outlined in
   the [Go official installation documentation](https://go.dev/doc/install) for your environment
 

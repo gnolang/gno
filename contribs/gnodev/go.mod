@@ -1,6 +1,6 @@
 module github.com/gnolang/gno/contribs/gnodev
 
-go 1.22
+go 1.21
 
 toolchain go1.22.4
 

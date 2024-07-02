@@ -1707,7 +1707,7 @@ var makeFieldsInput = func() []byte {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
 	for i := range x {
-		switch rand.IntN(10) {
+		switch rand.Intn(10) {
 		case 0:
 			x[i] = ' '
 		case 1:
@@ -1729,7 +1729,7 @@ var makeFieldsInputASCII = func() []byte {
 	x := make([]byte, 1<<20)
 	// Input is ~10% space, rest ASCII non-space.
 	for i := range x {
-		if rand.IntN(10) == 0 {
+		if rand.Intn(10) == 0 {
 			x[i] = ' '
 		} else {
 			x[i] = 'x'
@@ -1827,7 +1827,7 @@ func makeBenchInputHard() []byte {
 	}
 	x := make([]byte, 0, 1<<20)
 	for {
-		i := rand.IntN(len(tokens))
+		i := rand.Intn(len(tokens))
 		if len(x)+len(tokens[i]) >= 1<<20 {
 			break
 		}

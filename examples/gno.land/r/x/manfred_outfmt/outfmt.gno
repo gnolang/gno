@@ -2,9 +2,9 @@ package outfmt
 
 import (
 	"encoding/json"
-	"math/rand"
 	"strings"
 
+	"gno.land/p/demo/rand"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -27,21 +27,22 @@ func (res *Result) String() string {
 	return output
 }
 
-var rSeed = rand.NewPCG(0, 0)
+var rSeed int64
 
 func genResult() Result {
-	r := rand.New(rSeed)
-
 	// init rand
+	r := rand.FromSeed(rSeed)
+	defer func() { rSeed = r.Seed() }()
+
 	res := Result{
 		Text:   "Hello Gnomes!",
-		Number: r.IntN(1000),
+		Number: r.Intn(1000),
 	}
 
-	length := r.IntN(8) + 2
+	length := r.Intn(8) + 2
 	res.Numbers = make([]int, length)
 	for i := 0; i < length; i++ {
-		res.Numbers[i] = r.IntN(100)
+		res.Numbers[i] = r.Intn(100)
 	}
 
 	return res

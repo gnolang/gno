@@ -1,16 +1,16 @@
 package gnoface
 
 import (
-	"math/rand"
 	"std"
 	"strconv"
 	"strings"
 
+	"gno.land/p/demo/rand"
 	"gno.land/p/demo/ufmt"
 )
 
 func Render(path string) string {
-	seed := uint64(std.GetHeight())
+	seed := std.GetHeight()
 
 	path = strings.TrimSpace(path)
 	if path != "" {
@@ -18,7 +18,7 @@ func Render(path string) string {
 		if err != nil {
 			panic(err)
 		}
-		seed = uint64(s)
+		seed = int64(s)
 	}
 
 	output := ufmt.Sprintf("Gnoface #%d\n", seed)
@@ -26,7 +26,7 @@ func Render(path string) string {
 	return output
 }
 
-func Draw(seed uint64) string {
+func Draw(seed int64) string {
 	var (
 		hairs = []string{
 			"     s",
@@ -102,7 +102,7 @@ func Draw(seed uint64) string {
 		}
 	)
 
-	r := rand.New(rand.NewPCG(seed, 0xdeadbeef))
+	r := rand.FromSeed(seed)
 
 	return pick(r, hairs) + "\n" +
 		pick(r, headtop) + "\n" +
@@ -117,8 +117,8 @@ func Draw(seed uint64) string {
 		pick(r, headbottom) + "\n"
 }
 
-func pick(r *rand.Rand, slice []string) string {
-	return slice[r.IntN(len(slice))]
+func pick(r *rand.Instance, slice []string) string {
+	return slice[r.Intn(len(slice))]
 }
 
 // based on https://github.com/moul/pipotron/blob/master/dict/ascii-face.yml
