@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_type_assertion_d.gno:19: cannot use main.Dog as main.Robot without explicit conversion
+// main/files/types/assign_type_assertion_d.gno:19:2: cannot use main.Dog as main.Robot without explicit conversion
