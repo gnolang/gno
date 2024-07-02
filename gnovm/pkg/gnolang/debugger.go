@@ -613,7 +613,7 @@ func debugEvalExpr(m *Machine, node ast.Node) (tv TypedValue, err error) {
 			return tv, fmt.Errorf("invalid selector: %s", n.Sel.Name)
 		}
 		for _, vp := range tr {
-			x = x.GetPointerTo(m.Alloc, m.Store, vp).Deref()
+			x = x.GetPointerToFromTV(m.Alloc, m.Store, vp).Deref()
 		}
 		return x, nil
 	case *ast.IndexExpr:
