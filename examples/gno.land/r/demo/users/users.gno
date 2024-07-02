@@ -48,8 +48,7 @@ func ClaimDefaultName(profile string) string {
 	r := rand.New(rand.NewPCG(seed, 0xbadcafe))
 
 	var name string
-	// gas is the limit.
-	for {
+	for { // gas is the limit.
 		var (
 			adjective = wordlist.RandomAdjective(r)
 			job       = wordlist.RandomJob(r)
