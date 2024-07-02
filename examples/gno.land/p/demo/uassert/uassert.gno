@@ -1,7 +1,10 @@
 // uassert is an adapted lighter version of https://github.com/stretchr/testify/assert.
 package uassert
 
-import "std"
+import (
+	"std"
+	"strconv"
+)
 
 // NoError asserts that a function returned no error (i.e. `nil`).
 func NoError(t TestingT, err error, msgs ...string) bool {
@@ -96,55 +99,123 @@ func Equal(t TestingT, expected, actual interface{}, msgs ...string) bool {
 	// XXX: slices
 	// XXX: pointers
 
+	equal := false
+	ok_ := false
+	es, as := "unsupported type", "unsupported type"
+
 	switch ev := expected.(type) {
 	case string:
-		av, ok := actual.(string)
-		return ok && ev == av
+		if av, ok := actual.(string); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = ev, as
+		}
 	case std.Address:
-		av, ok := actual.(std.Address)
-		return ok && ev == av
+		if av, ok := actual.(std.Address); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = string(ev), string(av)
+		}
 	case int:
-		av, ok := actual.(int)
-		return ok && ev == av
+		if av, ok := actual.(int); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = strconv.Itoa(ev), strconv.Itoa(av)
+		}
 	case int8:
-		av, ok := actual.(int8)
-		return ok && ev == av
+		if av, ok := actual.(int8); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = strconv.Itoa(int(ev)), strconv.Itoa(int(av))
+		}
 	case int16:
-		av, ok := actual.(int16)
-		return ok && ev == av
+		if av, ok := actual.(int16); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = strconv.Itoa(int(ev)), strconv.Itoa(int(av))
+		}
 	case int32:
-		av, ok := actual.(int32)
-		return ok && ev == av
+		if av, ok := actual.(int32); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = strconv.Itoa(int(ev)), strconv.Itoa(int(av))
+		}
 	case int64:
-		av, ok := actual.(int64)
-		return ok && ev == av
+		if av, ok := actual.(int64); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = strconv.Itoa(int(ev)), strconv.Itoa(int(av))
+		}
 	case uint:
-		av, ok := actual.(uint)
-		return ok && ev == av
+		if av, ok := actual.(uint); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = strconv.FormatUint(uint64(ev), 10), strconv.FormatUint(uint64(av), 10)
+		}
 	case uint8:
-		av, ok := actual.(uint8)
-		return ok && ev == av
+		if av, ok := actual.(uint8); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = strconv.FormatUint(uint64(ev), 10), strconv.FormatUint(uint64(av), 10)
+		}
 	case uint16:
-		av, ok := actual.(uint16)
-		return ok && ev == av
+		if av, ok := actual.(uint16); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = strconv.FormatUint(uint64(ev), 10), strconv.FormatUint(uint64(av), 10)
+		}
 	case uint32:
-		av, ok := actual.(uint32)
-		return ok && ev == av
+		if av, ok := actual.(uint32); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = strconv.FormatUint(uint64(ev), 10), strconv.FormatUint(uint64(av), 10)
+		}
 	case uint64:
-		av, ok := actual.(uint64)
-		return ok && ev == av
+		if av, ok := actual.(uint64); ok {
+			equal = ev == av
+			ok_ = true
+			es, as = strconv.FormatUint(ev, 10), strconv.FormatUint(av, 10)
+		}
 	case bool:
-		av, ok := actual.(bool)
-		return ok && ev == av
+		if av, ok := actual.(bool); ok {
+			equal = ev == av
+			ok_ = true
+			if ev {
+				es, as = "true", "false"
+			} else {
+				es, as = "false", "true"
+			}
+		}
 	case float32:
-		av, ok := actual.(float32)
-		return ok && ev == av
+		if av, ok := actual.(float32); ok {
+			equal = ev == av
+			ok_ = true
+		}
 	case float64:
-		av, ok := actual.(float64)
-		return ok && ev == av
+		if av, ok := actual.(float64); ok {
+			equal = ev == av
+			ok_ = true
+		}
 	default:
-		fail(t, msgs, "uassert.Equal: unsupported type")
+		return fail(t, msgs, "uassert.Equal: unsupported type")
 	}
 
-	return false
+	/*
+		type stringer interface{ String() string }
+		if ev, ok := expected.(stringer); ok {
+			if av, ok := actual.(stringer); ok {
+				equal = ev.String() == av.String()
+				ok_ = true
+			}
+		}
+	*/
+
+	if !ok_ {
+		return fail(t, msgs, "uassert.Equal: different types") // XXX: display the types
+	}
+	if !equal {
+		return fail(t, msgs, "uassert.Equal: same type but different value\n\texpected: %s\n\tactual:   %s", es, as)
+	}
+
+	return true
 }

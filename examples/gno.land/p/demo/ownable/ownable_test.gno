@@ -3,6 +3,9 @@ package ownable
 import (
 	"std"
 	"testing"
+
+	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
 var (
@@ -16,18 +19,14 @@ func TestNew(t *testing.T) {
 
 	o := New()
 	got := o.Owner()
-	if firstCaller != got {
-		t.Fatalf("Expected %s, got: %s", firstCaller, got)
-	}
+	uassert.Equal(t, firstCaller, got)
 }
 
 func TestNewWithAddress(t *testing.T) {
 	o := NewWithAddress(firstCaller)
 
 	got := o.Owner()
-	if firstCaller != got {
-		t.Fatalf("Expected %s, got: %s", firstCaller, got)
-	}
+	uassert.Equal(t, firstCaller, got)
 }
 
 func TestOwner(t *testing.T) {
@@ -36,9 +35,7 @@ func TestOwner(t *testing.T) {
 	o := New()
 	expected := firstCaller
 	got := o.Owner()
-	if expected != got {
-		t.Fatalf("Expected %s, got: %s", expected, got)
-	}
+	uassert.Equal(t, expected, got)
 }
 
 func TestTransferOwnership(t *testing.T) {
@@ -47,14 +44,10 @@ func TestTransferOwnership(t *testing.T) {
 	o := New()
 
 	err := o.TransferOwnership(secondCaller)
-	if err != nil {
-		t.Fatalf("TransferOwnership failed, %v", err)
-	}
+	uassert.NoError(t, err, "TransferOwnership failed")
 
 	got := o.Owner()
-	if secondCaller != got {
-		t.Fatalf("Expected: %s, got: %s", secondCaller, got)
-	}
+	uassert.Equal(t, secondCaller, got)
 }
 
 func TestCallerIsOwner(t *testing.T) {
@@ -67,9 +60,7 @@ func TestCallerIsOwner(t *testing.T) {
 	std.TestSetOrigCaller(unauthorizedCaller) // TODO(bug): should not be needed
 
 	err := o.CallerIsOwner()
-	if err == nil {
-		t.Fatalf("Expected %s to not be owner", unauthorizedCaller)
-	}
+	uassert.Error(t, err) // XXX: IsError(..., unauthorizedCaller)
 }
 
 func TestDropOwnership(t *testing.T) {
@@ -78,12 +69,10 @@ func TestDropOwnership(t *testing.T) {
 	o := New()
 
 	err := o.DropOwnership()
-	if err != nil {
-		t.Fatalf("DropOwnership failed, %v", err)
-	}
+	uassert.NoError(t, err, "DropOwnership failed")
 
 	owner := o.Owner()
-	if owner != "" {
+	if owner != "" { // XXX: uassert.Empty...
 		t.Fatalf("Expected owner to be empty, not %s", owner)
 	}
 }
@@ -100,12 +89,12 @@ func TestErrUnauthorized(t *testing.T) {
 	std.TestSetOrigCaller(secondCaller) // TODO(bug): should not be needed
 
 	err := o.TransferOwnership(firstCaller)
-	if err != ErrUnauthorized {
+	if err != ErrUnauthorized { // XXX: uassert.IsError
 		t.Fatalf("Should've been ErrUnauthorized, was %v", err)
 	}
 
 	err = o.DropOwnership()
-	if err != ErrUnauthorized {
+	if err != ErrUnauthorized { // XXX: uassert.IsError
 		t.Fatalf("Should've been ErrUnauthorized, was %v", err)
 	}
 }
@@ -116,12 +105,12 @@ func TestErrInvalidAddress(t *testing.T) {
 	o := New()
 
 	err := o.TransferOwnership("")
-	if err != ErrInvalidAddress {
+	if err != ErrInvalidAddress { // XXX: uassert.IsError
 		t.Fatalf("Should've been ErrInvalidAddress, was %v", err)
 	}
 
 	err = o.TransferOwnership("10000000001000000000100000000010000000001000000000")
-	if err != ErrInvalidAddress {
+	if err != ErrInvalidAddress { // XXX: uassert.IsError
 		t.Fatalf("Should've been ErrInvalidAddress, was %v", err)
 	}
 }
