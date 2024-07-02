@@ -10,24 +10,35 @@ package main
 import (
 	"std"
 
+	"gno.land/p/sys/vals/types"
 	govdao "gno.land/r/gov/dao"
-	"gno.land/r/sys/validators"
+	"gno.land/r/sys/vals"
 )
 
 func init() {
-	// Create the validators change proposal.
-	changesFn := func() []validators.Change {
-		return []validators.Change{
-			// add a new validator.
-			{Address: std.Address("g12345678"), Power: 1},
-			// remove an existing validator.
-			{Address: std.Address("g000000000"), Power: 0},
+	changesFn := func() []types.Validator {
+		return []types.Validator{
+			{
+				Address:     std.Address("g12345678"),
+				PubKey:      "pubkey",
+				VotingPower: 10, // add a new validator
+			},
+			{
+				Address:     std.Address("g000000000"),
+				PubKey:      "pubkey",
+				VotingPower: 10, // add a new validator
+			},
+			{
+				Address:     std.Address("g000000000"),
+				PubKey:      "pubkey",
+				VotingPower: 0, // remove an existing validator
+			},
 		}
 	}
 
 	// Wraps changesFn to emit a certified event only if executed from a
 	// complete governance proposal process.
-	executor := validators.NewPropExecutor(changesFn)
+	executor := vals.NewPropExecutor(changesFn)
 
 	// Create a proposal.
 	// XXX: payment
@@ -45,13 +56,13 @@ func main() {
 	println("--")
 	println(govdao.Render("1"))
 	println("--")
-	println(validators.Render(""))
+	println(vals.Render(""))
 	println("--")
 	govdao.ExecuteProposal(1)
 	println("--")
 	println(govdao.Render("1"))
 	println("--")
-	println(validators.Render(""))
+	println(vals.Render(""))
 }
 
 // Output:
@@ -81,5 +92,6 @@ func main() {
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // Valset changes to apply:
-// - g12345678 (1)
+// - g12345678 (10)
+// - g000000000 (10)
 // - g000000000 (0)
