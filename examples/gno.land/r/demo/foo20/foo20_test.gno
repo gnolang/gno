@@ -1,9 +1,11 @@
 package foo20
 
 import (
+	"errors"
 	"std"
 	"testing"
 
+	"gno.land/p/demo/uassert"
 	pusers "gno.land/p/demo/users"
 	"gno.land/r/demo/users"
 )
@@ -73,21 +75,9 @@ func TestErrConditions(t *testing.T) {
 			{"Approve(empty, 1))", "invalid address", func() { Approve(pusers.AddressOrName(empty), 1) }},
 		}
 		for _, tc := range tests {
-			shouldPanicWithMsg(t, tc.fn, tc.msg)
+			t.Run(tc.name, func(t *testing.T) {
+				uassert.PanicsWithMessage(t, tc.msg, tc.fn)
+			})
 		}
 	}
-}
-
-func shouldPanicWithMsg(t *testing.T, f func(), msg string) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("The code did not panic")
-		} else {
-			errMsg := error(r).Error()
-			if errMsg != msg {
-				t.Errorf("excepted panic(%v), got(%v)", msg, errMsg)
-			}
-		}
-	}()
-	f()
 }
