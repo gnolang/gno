@@ -153,7 +153,7 @@ func Init(config config.Config) error {
 				semconv.SchemaURL,
 				semconv.ServiceNameKey.String(config.ServiceName),
 				semconv.ServiceVersionKey.String("1.0.0"),
-				semconv.ServiceInstanceIDKey.String("gno-node-1"),
+				semconv.ServiceInstanceIDKey.String(config.ServiceInstanceID),
 			),
 		),
 	)
