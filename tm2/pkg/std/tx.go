@@ -60,6 +60,15 @@ func (tx Tx) ValidateBasic() error {
 	return nil
 }
 
+func (tx Tx) IsSponsorTx() bool {
+	for _, msg := range tx.Msgs {
+		if msg.Type() == "no_op" {
+			return true
+		}
+	}
+	return false
+}
+
 // CountSubKeys counts the total number of keys for a multi-sig public key.
 func CountSubKeys(pub crypto.PubKey) int {
 	v, ok := pub.(multisig.PubKeyMultisigThreshold)

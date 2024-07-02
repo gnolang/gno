@@ -157,6 +157,24 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 		}
 	}
 
+	// Check if accountNumber or sequence is zero to determine if account information needs to be fetched
+	if cfg.AccountNumber == 0 || cfg.Sequence == 0 {
+		accountAddr := info.GetAddress()
+
+		qopts := &QueryCfg{
+			RootCfg: cfg.RootCfg,
+			Path:    fmt.Sprintf("auth/accounts/%s", accountAddr),
+		}
+		qres, err := QueryHandler(qopts)
+		if err == nil {
+			var qret struct{ BaseAccount std.BaseAccount }
+			if err := amino.UnmarshalJSON(qres.Response.Data, &qret); err == nil {
+				cfg.AccountNumber = qret.BaseAccount.AccountNumber
+				cfg.Sequence = qret.BaseAccount.Sequence
+			}
+		}
+	}
+
 	// Prepare the signature ops
 	sOpts := signOpts{
 		chainID:         cfg.ChainID,
@@ -185,6 +203,22 @@ func signTx(
 	signOpts signOpts,
 	keyOpts keyOpts,
 ) error {
+	// Save the signature
+	signers := tx.GetSigners()
+	if tx.Signatures == nil {
+		for range signers {
+			tx.Signatures = append(tx.Signatures, std.Signature{
+				PubKey:    nil, // Zero signature
+				Signature: nil, // Zero signature
+			})
+		}
+	}
+
+	// Validate the tx after signing
+	if err := tx.ValidateBasic(); err != nil {
+		return fmt.Errorf("unable to validate transaction, %w", err)
+	}
+
 	signBytes, err := tx.GetSignBytes(
 		signOpts.chainID,
 		signOpts.accountNumber,
@@ -204,38 +238,21 @@ func signTx(
 		return fmt.Errorf("unable to sign transaction bytes, %w", err)
 	}
 
-	// Save the signature
-	if tx.Signatures == nil {
-		tx.Signatures = make([]std.Signature, 0, 1)
+	addr := pub.Address()
+
+	found := false
+	for i := range tx.Signatures {
+		if signers[i] == addr {
+			found = true
+			tx.Signatures[i] = std.Signature{
+				PubKey:    pub,
+				Signature: sig,
+			}
+		}
 	}
 
-	// Check if the signature needs to be overwritten
-	for index, signature := range tx.Signatures {
-		if !signature.PubKey.Equals(pub) {
-			continue
-		}
-
-		// Save the signature
-		tx.Signatures[index] = std.Signature{
-			PubKey:    pub,
-			Signature: sig,
-		}
-
-		return nil
-	}
-
-	// Append the signature, since it wasn't
-	// present before
-	tx.Signatures = append(
-		tx.Signatures, std.Signature{
-			PubKey:    pub,
-			Signature: sig,
-		},
-	)
-
-	// Validate the tx after signing
-	if err := tx.ValidateBasic(); err != nil {
-		return fmt.Errorf("unable to validate transaction, %w", err)
+	if !found {
+		return fmt.Errorf("address %v (%s) not in signer set", addr, keyOpts.keyName)
 	}
 
 	return nil

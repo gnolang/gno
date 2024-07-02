@@ -1,0 +1,1 @@
+{"msg":[{"@type":"/vm.m_noop","caller":"g1xmugg9x4ynp8uuglc5t67jggefp48whmp38k8n"},{"@type":"/vm.m_call","caller":"g1y490harzjqmdngmmaw4tyc4qdm5ma5k0fv3w6p","send":"","pkg_path":"gno.land/r/demo/userbook","func":"SignUp","args":null}],"fee":{"gas_wanted":"2000000","gas_fee":"1000000ugnot"},"signatures":null,"memo":""}

@@ -283,7 +283,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}
 	// Make context.
 	// NOTE: if this is too expensive,
-	// could it be safely partially memoized?
+	// could it be safely partially memorized?
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
 		Height:        ctx.BlockHeight(),
