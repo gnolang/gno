@@ -6,14 +6,19 @@ import (
 	"flag"
 	"os"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type VerifyCfg struct {
 	RootCfg *BaseCfg
 
-	DocPath string
+	DocPath       string
+	ChainID       string
+	AccountNumber uint64
+	Sequence      uint64
 }
 
 func NewVerifyCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -40,6 +45,28 @@ func (c *VerifyCfg) RegisterFlags(fs *flag.FlagSet) {
 		"docpath",
 		"",
 		"path of document file to verify",
+	)
+
+	// info to recontruct the message
+	fs.StringVar(
+		&c.ChainID,
+		"chainid",
+		"dev",
+		"the ID of the chain",
+	)
+
+	fs.Uint64Var(
+		&c.AccountNumber,
+		"account-number",
+		0,
+		"account number to verify with",
+	)
+
+	fs.Uint64Var(
+		&c.Sequence,
+		"account-sequence",
+		0,
+		"account sequence to verify with",
 	)
 }
 
@@ -84,8 +111,19 @@ func execVerify(cfg *VerifyCfg, args []string, io commands.IO) error {
 	// validate document to sign.
 	// XXX
 
+	// reconstruct the message hash
+	stdTx := std.Tx{}
+	err = amino.UnmarshalJSON(msg, &stdTx)
+	if err != nil {
+		io.Println("error in validate document")
+	}
+	origMessageHash, err := stdTx.GetSignBytes(cfg.ChainID, cfg.AccountNumber, cfg.Sequence)
+	if err != nil {
+		io.Println("error in reconstruct message hash")
+	}
+
 	// verify signature.
-	err = kb.Verify(name, msg, sig)
+	err = kb.Verify(name, origMessageHash, sig)
 	if err == nil {
 		io.Println("Valid signature!")
 	}
