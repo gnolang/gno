@@ -13,6 +13,8 @@ func IsOriginCall() bool // injected
 func GetChainID() string // injected
 func GetHeight() int64   // injected
 
+func GasUsed() int64           // injected
+
 func GetOrigSend() Coins {
 	den, amt := origSend()
 	coins := make(Coins, len(den))
