@@ -56,9 +56,9 @@ func ErrorIs(t TestingT, err, target error, msgs ...string) bool {
 	return true
 }
 
-// PanicsWithError asserts that the code inside the specified func panics,
-// and that the recovered panic value is an error that satisfies the given message
-func PanicsWithError(t TestingT, errString string, f func(), msgs ...string) bool {
+// PanicsWithMessage asserts that the code inside the specified func panics,
+// and that the recovered panic value satisfies the given message
+func PanicsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 	t.Helper()
 
 	didPanic, panicValue := checkDidPanic(f)
@@ -66,8 +66,8 @@ func PanicsWithError(t TestingT, errString string, f func(), msgs ...string) boo
 		return fail(t, msgs, "func should panic\n\tPanic value:\t%v", panicValue)
 	}
 
-	if panicValue != errString {
-		return fail(t, msgs, "func should panic with error:\t%s\n\tPanic value:\t%s", panicValue, errString)
+	if panicValue != msg {
+		return fail(t, msgs, "func should panic with message:\t%s\n\tPanic value:\t%s", panicValue, msg)
 	}
 	return true
 }

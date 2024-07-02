@@ -60,35 +60,35 @@ func TestFalse(t *testing.T) {
 	mockT.equals(t, "error: should be false")
 }
 
-func TestPanicsWithError(t *testing.T) {
+func TestPanicsWithMessage(t *testing.T) {
 	mockT := new(mockTestingT)
-	if !PanicsWithError(mockT, "panic", func() {
+	if !PanicsWithMessage(mockT, "panic", func() {
 		panic(errors.New("panic"))
 	}) {
-		t.Error("PanicsWithError should return true")
+		t.Error("PanicsWithMessage should return true")
 	}
 	mockT.empty(t)
 
-	if PanicsWithError(mockT, "Panic!", func() {
+	if PanicsWithMessage(mockT, "Panic!", func() {
 		// noop
 	}) {
-		t.Error("PanicsWithError should return false")
+		t.Error("PanicsWithMessage should return false")
 	}
 	mockT.equals(t, "error: func should panic\n\tPanic value:\tnil")
 
-	if PanicsWithError(mockT, "at the disco", func() {
+	if PanicsWithMessage(mockT, "at the disco", func() {
 		panic(errors.New("panic"))
 	}) {
-		t.Error("PanicsWithError should return false")
+		t.Error("PanicsWithMessage should return false")
 	}
-	mockT.equals(t, "error: func should panic with error:\tpanic\n\tPanic value:\tat the disco")
+	mockT.equals(t, "error: func should panic with message:\tpanic\n\tPanic value:\tat the disco")
 
-	if PanicsWithError(mockT, "Panic!", func() {
+	if PanicsWithMessage(mockT, "Panic!", func() {
 		panic("panic")
 	}) {
-		t.Error("PanicsWithError should return false")
+		t.Error("PanicsWithMessage should return false")
 	}
-	mockT.equals(t, "error: func should panic with error:\tpanic\n\tPanic value:\tPanic!")
+	mockT.equals(t, "error: func should panic with message:\tpanic\n\tPanic value:\tPanic!")
 }
 
 func TestNotPanics(t *testing.T) {

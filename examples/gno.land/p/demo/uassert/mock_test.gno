@@ -16,6 +16,8 @@ var _ TestingT = (*mockTestingT)(nil)
 
 func (mockT *mockTestingT) Helper()                              { /* noop */ }
 func (mockT *mockTestingT) Skip(args ...interface{})             { /* not implmented */ }
+func (mockT *mockTestingT) Fail()                                { /* not implmented */ }
+func (mockT *mockTestingT) FailNow()                             { /* not implmented */ }
 func (mockT *mockTestingT) Logf(fmt string, args ...interface{}) { /* noop */ }
 
 func (mockT *mockTestingT) Fatalf(fmt string, args ...interface{}) {
