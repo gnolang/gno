@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_literal2.gno:5: cannot assign to (const (2 <untyped> bigint))
+// main/files/types/assign_literal2.gno:5:2: cannot assign to (const (2 <untyped> bigint))
