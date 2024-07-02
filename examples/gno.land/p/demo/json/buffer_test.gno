@@ -1,6 +1,7 @@
 package json
 
 import (
+	"io"
 	"testing"
 )
 

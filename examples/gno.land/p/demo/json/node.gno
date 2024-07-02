@@ -56,6 +56,23 @@ func NewNode(prev *Node, b *buffer, typ ValueType, key **string) (*Node, error) 
 	return curr, nil
 }
 
+func valueNode(prev *Node, key string, typ ValueType, value interface{}) *Node {
+	curr := &Node{
+		prev:     prev,
+		data:     nil,
+		borders:  [2]int{0, 0},
+		key:      &key,
+		nodeType: typ,
+		modified: false,
+	}
+
+	if curr.value != nil {
+		curr.value = value
+	}
+
+	return curr
+}
+
 // load retrieves the value of the current node.
 func (n *Node) load() interface{} {
 	return n.value
@@ -480,31 +497,49 @@ func ObjectNode(key string, value map[string]*Node) *Node {
 
 // IsArray returns true if the current node is array type.
 func (n *Node) IsArray() bool {
+	if n == nil {
+		return false
+	}
 	return n.nodeType == Array
 }
 
 // IsObject returns true if the current node is object type.
 func (n *Node) IsObject() bool {
+	if n == nil {
+		return false
+	}
 	return n.nodeType == Object
 }
 
 // IsNull returns true if the current node is null type.
 func (n *Node) IsNull() bool {
+	if n == nil {
+		return false
+	}
 	return n.nodeType == Null
 }
 
 // IsBool returns true if the current node is boolean type.
 func (n *Node) IsBool() bool {
+	if n == nil {
+		return false
+	}
 	return n.nodeType == Boolean
 }
 
 // IsString returns true if the current node is string type.
 func (n *Node) IsString() bool {
+	if n == nil {
+		return false
+	}
 	return n.nodeType == String
 }
 
 // IsNumber returns true if the current node is number type.
 func (n *Node) IsNumber() bool {
+	if n == nil {
+		return false
+	}
 	return n.nodeType == Number
 }
 
@@ -1080,4 +1115,74 @@ func Must(root *Node, expect error) *Node {
 	}
 
 	return root
+}
+
+func (n *Node) Keys() []string {
+	if n == nil {
+		return nil
+	}
+	result := make([]string, 0, len(n.next))
+	for key := range n.next {
+		result = append(result, key)
+	}
+	return result
+}
+
+func (n *Node) getSortedChildren() (result []*Node) {
+	if n == nil {
+		return nil
+	}
+
+	size := len(n.next)
+	if n.IsObject() {
+		result = make([]*Node, size)
+		keys := n.Keys()
+
+		// sort keys in ascending order
+		for i := 1; i < len(keys); i++ {
+			key := keys[i]
+			j := i - 1
+			for j >= 0 && keys[j] > key {
+				keys[j+1] = keys[j]
+				j--
+			}
+			keys[j+1] = key
+		}
+
+		for i, key := range keys {
+			result[i] = n.next[key]
+		}
+	} else if n.IsArray() {
+		result = make([]*Node, size)
+		for _, elem := range n.next {
+			result[*elem.index] = elem
+		}
+	}
+
+	return result
+}
+
+func deepEqual(n1, n2 *Node) bool {
+	if n1 == nil && n2 == nil {
+		return true
+	}
+	if n1 == nil || n2 == nil {
+		return false
+	}
+	if n1.nodeType != n2.nodeType {
+		return false
+	}
+	if n1.value != n2.value {
+		return false
+	}
+	if len(n1.next) != len(n2.next) {
+		return false
+	}
+	for key, child1 := range n1.next {
+		child2, ok := n2.next[key]
+		if !ok || !deepEqual(child1, child2) {
+			return false
+		}
+	}
+	return true
 }

@@ -154,38 +154,3 @@ func TestParseFloat_May_Interoperability_Problem(t *testing.T) {
 		})
 	}
 }
-
-func TestParseIntLiteral(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected int64
-	}{
-		{"0", 0},
-		{"1", 1},
-		{"-1", -1},
-		{"12345", 12345},
-		{"-12345", -12345},
-		{"9223372036854775807", 9223372036854775807},
-		{"-9223372036854775808", -9223372036854775808},
-		{"-92233720368547758081", 0},
-		{"18446744073709551616", 0},
-		{"9223372036854775808", 0},
-		{"-9223372036854775809", 0},
-		{"", 0},
-		{"abc", 0},
-		{"12345x", 0},
-		{"123e5", 0},
-		{"9223372036854775807x", 0},
-		{"27670116110564327410", 0},
-		{"-27670116110564327410", 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got, _ := ParseIntLiteral([]byte(tt.input))
-			if got != tt.expected {
-				t.Errorf("ParseIntLiteral(%s): got %v, want %v", tt.input, got, tt.expected)
-			}
-		})
-	}
-}

@@ -17,7 +17,7 @@ const (
 	whiteSpace     = ' '
 	plus           = '+'
 	minus          = '-'
-	aesterisk      = '*'
+	asterisk       = '*'
 	bang           = '!'
 	question       = '?'
 	newLine        = '\n'
