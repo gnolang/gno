@@ -231,15 +231,95 @@ func (m *mapping) typesEqual(gnoe, goe ast.Expr) error {
 			return err
 		}
 		return nil
+	case *ast.MapType:
+		goe, ok := goe.(*ast.MapType)
+		if !ok {
+			return &mismatch
+		}
+		if err := m.typesEqual(gnoe.Key, goe.Key); err != nil {
+			return err
+		}
+		if err := m.typesEqual(gnoe.Value, goe.Value); err != nil {
+			return err
+		}
+		return nil
+	case *ast.StructType:
+		goe, ok := goe.(*ast.StructType)
+		if !ok || len(gnoe.Fields.List) != len(goe.Fields.List) {
+			return &mismatch
+		}
+		for i := 0; i < len(gnoe.Fields.List); i++ {
+			gnoField, goField := gnoe.Fields.List[i], goe.Fields.List[i]
+			if len(gnoField.Names) != len(goField.Names) {
+				return &mismatch
+			}
+			for j := 0; j < len(gnoField.Names); j++ {
+				if gnoField.Names[j].Name != goField.Names[j].Name {
+					return &mismatch
+				}
+			}
+			if err := m.typesEqual(gnoField.Type, goField.Type); err != nil {
+				return err
+			}
+		}
+		return nil
+	case *ast.InterfaceType:
+		goe, ok := goe.(*ast.InterfaceType)
+		if !ok || len(gnoe.Methods.List) != len(goe.Methods.List) {
+			return &mismatch
+		}
+		for i := 0; i < len(gnoe.Methods.List); i++ {
+			gnoField, goField := gnoe.Methods.List[i], goe.Methods.List[i]
+			if len(gnoField.Names) != len(goField.Names) {
+				return &mismatch
+			}
+			for j := 0; j < len(gnoField.Names); j++ {
+				if gnoField.Names[j].Name != goField.Names[j].Name {
+					return &mismatch
+				}
+			}
+			if err := m.typesEqual(gnoField.Type, goField.Type); err != nil {
+				return err
+			}
+		}
+		return nil
+	case *ast.FuncType:
+		goe, ok := goe.(*ast.FuncType)
+		if !ok {
+			return &mismatch
+		}
+		if ok := m.fieldListsMatch(gnoe.Params, goe.Params); !ok {
+			return &mismatch
+		}
+		if ok := m.fieldListsMatch(gnoe.Results, goe.Results); !ok {
+			return &mismatch
+		}
+		return nil
+	case *ast.Ellipsis:
+		goe, ok := goe.(*ast.Ellipsis)
+		if !ok {
+			return &mismatch
+		}
+		if err := m.typesEqual(gnoe.Elt, goe.Elt); err != nil {
+			return &mismatch
+		}
+		return nil
+	case *ast.SelectorExpr:
+		goe, ok := goe.(*ast.SelectorExpr)
+		if !ok {
+			return &mismatch
+		}
 
-	case *ast.StructType,
-		*ast.FuncType,
-		*ast.InterfaceType,
-		*ast.MapType,
-		*ast.Ellipsis,
-		*ast.SelectorExpr:
-		// TODO
-		panic("not implemented")
+		gnoImport := resolveSelectorImport(m.gnoImports, gnoe)
+		goImport := resolveSelectorImport(m.goImports, goe)
+		if gnoImport != goImport {
+			return &mismatch
+		}
+
+		if gnoe.Sel.Name != goe.Sel.Name {
+			return &mismatch
+		}
+		return nil
 	default:
 		panic(fmt.Errorf("invalid expression as func param/return type: %T (%v)", gnoe, gnoe))
 	}
