@@ -26,14 +26,15 @@ var (
 //----------------------------------------
 // Top-level functions
 
+func ClaimDefaultName(profile string) {
+	std.AssertOriginCall()
+	caller := std.PrevRealm().Addr()
+}
+
 func Register(inviter std.Address, name string, profile string) {
 	// assert CallTx call.
 	std.AssertOriginCall()
-	// assert invited or paid.
-	caller := std.GetCallerAt(2)
-	if caller != std.GetOrigCaller() {
-		panic("should not happen") // because std.AssertOrigCall().
-	}
+	caller := std.PrevRealm().Addr()
 	sentCoins := std.GetOrigSend()
 	minCoin := std.NewCoin("ugnot", minFee)
 	if inviter == "" {
