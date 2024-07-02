@@ -4,19 +4,16 @@ import (
 	"errors"
 	"std"
 	"testing"
+
+	"gno.land/p/demo/uassert"
 )
 
 func TestExecutor(t *testing.T) {
 	t.Parallel()
 
 	verifyProposalFailed := func(e Executor) {
-		if !e.IsDone() {
-			t.Fatal("expected proposal to be done")
-		}
-
-		if e.IsSuccessful() {
-			t.Fatal("expected proposal to fail")
-		}
+		uassert.True(t, e.IsDone(), "expected proposal to be done")
+		uassert.False(t, e.IsSuccessful(), "expected proposal to fail")
 
 		if e.GetStatus() != Failed {
 			t.Fatal("expected status to be Failed")
@@ -24,13 +21,8 @@ func TestExecutor(t *testing.T) {
 	}
 
 	verifyProposalSucceeded := func(e Executor) {
-		if !e.IsDone() {
-			t.Fatal("expected proposal to be done")
-		}
-
-		if !e.IsSuccessful() {
-			t.Fatal("expected proposal to be successful")
-		}
+		uassert.True(t, e.IsDone(), "expected proposal to be done")
+		uassert.True(t, e.IsSuccessful(), "expected proposal to be successful")
 
 		if e.GetStatus() != Succeeded {
 			t.Fatal("expected status to be Succeeded")
@@ -58,13 +50,11 @@ func TestExecutor(t *testing.T) {
 		}
 
 		// Execute as not the /r/gov/dao caller
-		testing.PanicsWithError(t, errNotGovDAO.Error(), func() {
-			e.Execute()
+		uassert.PanicsWithMessage(t, errNotGovDAO.Error(), func() {
+			_ = e.Execute()
 		})
 
-		if called {
-			t.Fatal("unexpected proposal execution")
-		}
+		uassert.False(t, called, "expected proposal to not execute")
 	})
 
 	t.Run("execution successful", func(t *testing.T) {
@@ -91,13 +81,13 @@ func TestExecutor(t *testing.T) {
 		r := std.NewCodeRealm(daoPkgPath)
 		std.TestSetRealm(r)
 
-		testing.NotPanics(t, func() {
-			testing.NoError(t, e.Execute())
+		uassert.NotPanics(t, func() {
+			err := e.Execute()
+
+			uassert.NoError(t, err)
 		})
 
-		if !called {
-			t.Fatal("expected proposal to execute")
-		}
+		uassert.True(t, called, "expected proposal to execute")
 
 		// Make sure the execution params are correct
 		verifyProposalSucceeded(e)
@@ -128,15 +118,13 @@ func TestExecutor(t *testing.T) {
 		r := std.NewCodeRealm(daoPkgPath)
 		std.TestSetRealm(r)
 
-		testing.NotPanics(t, func() {
+		uassert.NotPanics(t, func() {
 			err := e.Execute()
 
-			testing.ErrorIs(t, err, expectedErr)
+			uassert.ErrorIs(t, err, expectedErr)
 		})
 
-		if !called {
-			t.Fatal("expected proposal to execute")
-		}
+		uassert.True(t, called, "expected proposal to execute")
 
 		// Make sure the execution params are correct
 		verifyProposalFailed(e)
@@ -166,22 +154,20 @@ func TestExecutor(t *testing.T) {
 		r := std.NewCodeRealm(daoPkgPath)
 		std.TestSetRealm(r)
 
-		testing.NotPanics(t, func() {
-			testing.NoError(t, e.Execute())
+		uassert.NotPanics(t, func() {
+			uassert.NoError(t, e.Execute())
 		})
 
-		if !called {
-			t.Fatal("expected proposal to execute")
-		}
+		uassert.True(t, called, "expected proposal to execute")
 
 		// Make sure the execution params are correct
 		verifyProposalSucceeded(e)
 
 		// Attempt to execute the proposal again
-		testing.NotPanics(t, func() {
+		uassert.NotPanics(t, func() {
 			err := e.Execute()
 
-			testing.ErrorIs(t, err, ErrAlreadyDone)
+			uassert.ErrorIs(t, err, ErrAlreadyDone)
 		})
 	})
 }
