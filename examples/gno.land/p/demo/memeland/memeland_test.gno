@@ -118,6 +118,8 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 }
 
 func TestGetPostsInRangeByUpvote(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+
 	m := NewMemeland()
 	now := time.Now()
 
@@ -132,7 +134,8 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 	m.Upvote(id2)
 
 	// Change caller so avoid double upvote panic
-	std.TestSetOrigCaller(testutils.TestAddress("alice"))
+	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
 	m.Upvote(id1)
 
 	// Final upvote count:
@@ -261,14 +264,18 @@ func TestUpvote(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	std.TestSetOrigCaller(alice)
+
+	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
 
 	// Alice is admin
 	m := NewMemeland()
 
 	// Set caller to Bob
 	bob := testutils.TestAddress("bob")
-	std.TestSetOrigCaller(bob)
+
+	std.TestSetRealm(std.NewUserRealm(bob))
+	std.TestSetOrigCaller(bob) // TODO(bug): should not be needed
 
 	// Bob adds post to Memeland
 	now := time.Now()
@@ -289,7 +296,9 @@ func TestDelete(t *testing.T) {
 
 func TestDeleteByNonAdmin(t *testing.T) {
 	alice := testutils.TestAddress("alice")
-	std.TestSetOrigCaller(alice)
+
+	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
 
 	m := NewMemeland()
 
@@ -299,7 +308,9 @@ func TestDeleteByNonAdmin(t *testing.T) {
 
 	// Bob will try to delete meme posted by Alice, which should fail
 	bob := testutils.TestAddress("bob")
-	std.TestSetOrigCaller(bob)
+
+	std.TestSetRealm(std.NewUserRealm(bob))
+	std.TestSetOrigCaller(bob) // TODO(bug): should not be needed
 
 	defer func() {
 		if r := recover(); r == nil {

@@ -13,7 +13,8 @@ var (
 )
 
 func TestNew(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetRealm(std.NewUserRealm(firstCaller))
+	std.TestSetOrigCaller(firstCaller) // TODO(bug): should not be needed
 
 	result := New()
 
@@ -27,10 +28,14 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewFromOwnable(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetRealm(std.NewUserRealm(firstCaller))
+	std.TestSetOrigCaller(firstCaller) // TODO(bug): should not be needed
+
 	o := ownable.New()
 
-	std.TestSetOrigCaller(secondCaller)
+	std.TestSetRealm(std.NewUserRealm(secondCaller))
+	std.TestSetOrigCaller(secondCaller) // TODO(bug): should not be needed
+
 	result := NewFromOwnable(o)
 
 	if result.Owner() != firstCaller {
@@ -39,7 +44,8 @@ func TestNewFromOwnable(t *testing.T) {
 }
 
 func TestSetUnpaused(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetRealm(std.NewUserRealm(firstCaller))
+	std.TestSetOrigCaller(firstCaller) // TODO(bug): should not be needed
 
 	result := New()
 	result.Unpause()
@@ -50,7 +56,8 @@ func TestSetUnpaused(t *testing.T) {
 }
 
 func TestSetPaused(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetRealm(std.NewUserRealm(firstCaller))
+	std.TestSetOrigCaller(firstCaller) // TODO(bug): should not be needed
 
 	result := New()
 	result.Pause()
@@ -61,7 +68,8 @@ func TestSetPaused(t *testing.T) {
 }
 
 func TestIsPaused(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetRealm(std.NewUserRealm(firstCaller))
+	std.TestSetOrigCaller(firstCaller) // TODO(bug): should not be needed
 
 	result := New()
 
