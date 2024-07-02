@@ -1,4 +1,4 @@
-name: run benchmarks on My PR
+name: (TBD) run benchmarks with new action
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
 
 jobs:
   check:
-    uses: ./.github/workflows/benchmark_template.yml
+    uses: ./.github/workflows/benchmark-dummy-template.yml
     secrets: inherit
     with:
       publish: false
