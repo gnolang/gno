@@ -10,11 +10,6 @@ import (
 // File for storing in-package BaseApp optional functions,
 // for options that need access to non-exported fields of the BaseApp
 
-// SetStoreOptions sets store options on the multistore associated with the app
-func SetStoreOptions(opts store.StoreOptions) func(*BaseApp) {
-	return func(bap *BaseApp) { bap.cms.SetStoreOptions(opts) }
-}
-
 // SetPruningOptions sets pruning options on the multistore associated with the app
 func SetPruningOptions(opts store.PruningOptions) func(*BaseApp) {
 	return func(bap *BaseApp) {
@@ -32,16 +27,6 @@ func SetMinGasPrices(gasPricesStr string) func(*BaseApp) {
 	}
 
 	return func(bap *BaseApp) { bap.setMinGasPrices(gasPrices) }
-}
-
-// SetHaltHeight returns a BaseApp option function that sets the halt block height.
-func SetHaltHeight(blockHeight uint64) func(*BaseApp) {
-	return func(bap *BaseApp) { bap.setHaltHeight(blockHeight) }
-}
-
-// SetHaltTime returns a BaseApp option function that sets the halt block time.
-func SetHaltTime(haltTime uint64) func(*BaseApp) {
-	return func(bap *BaseApp) { bap.setHaltTime(haltTime) }
 }
 
 func (app *BaseApp) SetName(name string) {

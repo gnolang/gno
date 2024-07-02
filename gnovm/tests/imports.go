@@ -464,7 +464,7 @@ func testPackageInjector(store gno.Store, pn *gno.PackageNode) {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 type dummyReader struct{}
 
@@ -475,7 +475,7 @@ func (*dummyReader) Read(b []byte) (n int, err error) {
 	return len(b), nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 
 type TestReport struct {
 	Name    string

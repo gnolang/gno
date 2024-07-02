@@ -1,6 +1,6 @@
 package std
 
-// Emit is a function that constructs a gnoEvent with a specified type and attributes.
+// Emit is a function that constructs a GnoEvent with a specified type and attributes.
 // It then forwards this event to the event logger. Each emitted event carries metadata
 // such as the event type, the initializing realm, and the provided attributes.
 //

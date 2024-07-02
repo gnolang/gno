@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"strconv"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
@@ -32,6 +35,7 @@ type AppOptions struct {
 	GnoRootDir       string
 	GenesisTxHandler GenesisTxHandler
 	Logger           *slog.Logger
+	EventSwitch      events.EventSwitch
 	MaxCycles        int64
 }
 
@@ -41,6 +45,7 @@ func NewAppOptions() *AppOptions {
 		Logger:           log.NewNoopLogger(),
 		DB:               memdb.NewMemDB(),
 		GnoRootDir:       gnoenv.RootDir(),
+		EventSwitch:      events.NilEventSwitch(),
 	}
 }
 
@@ -56,7 +61,7 @@ func (c *AppOptions) validate() error {
 	return nil
 }
 
-// NewApp creates the GnoLand application.
+// NewAppWithOptions creates the GnoLand application with specified options
 func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
@@ -106,8 +111,14 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		},
 	)
 
+	// Set up the event collector
+	c := newCollector[validatorUpdate](
+		cfg.EventSwitch,      // global event switch filled by the node
+		validatorEventFilter, // filter fn that keeps the collector valid
+	)
+
 	// Set EndBlocker
-	baseApp.SetEndBlocker(EndBlocker(vmKpr))
+	baseApp.SetEndBlocker(EndBlocker(c, vmKpr, baseApp.Logger()))
 
 	// Set a handler Route.
 	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
@@ -128,7 +139,12 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 }
 
 // NewApp creates the GnoLand application.
-func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger, maxCycles int64) (abci.Application, error) {
+func NewApp(
+	dataRootDir string,
+	skipFailingGenesisTxs bool,
+	logger *slog.Logger,
+	evsw events.EventSwitch,
+) (abci.Application, error) {
 	var err error
 
 	cfg := NewAppOptions()
@@ -143,21 +159,28 @@ func NewApp(dataRootDir string, skipFailingGenesisTxs bool, logger *slog.Logger,
 	}
 
 	cfg.Logger = logger
+	cfg.EventSwitch = evsw
+
 	return NewAppWithOptions(cfg)
 }
 
 type GenesisTxHandler func(ctx sdk.Context, tx std.Tx, res sdk.Result)
 
-func NoopGenesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {}
+func NoopGenesisTxHandler(_ sdk.Context, _ std.Tx, _ sdk.Result) {}
 
-func PanicOnFailingTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
+func PanicOnFailingTxHandler(_ sdk.Context, _ std.Tx, res sdk.Result) {
 	if res.IsErr() {
 		panic(res.Log)
 	}
 }
 
 // InitChainer returns a function that can initialize the chain with genesis.
-func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, resHandler GenesisTxHandler) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
+func InitChainer(
+	baseApp *sdk.BaseApp,
+	acctKpr auth.AccountKeeperI,
+	bankKpr bank.BankKeeperI,
+	resHandler GenesisTxHandler,
+) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		if req.AppState != nil {
 			// Get genesis state
@@ -196,9 +219,99 @@ func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank
 	}
 }
 
-// XXX not used yet.
-func EndBlocker(vmk vm.VMKeeperI) func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-	return func(ctx sdk.Context, req abci.RequestEndBlock) abci.ResponseEndBlock {
-		return abci.ResponseEndBlock{}
+// EndBlocker defines the logic executed after every block.
+// Currently, it parses events that happened during execution to calculate
+// validator set changes
+func EndBlocker(
+	collector *collector[validatorUpdate],
+	vmKeeper vm.VMKeeperI,
+	logger *slog.Logger,
+) func(
+	ctx sdk.Context,
+	req abci.RequestEndBlock,
+) abci.ResponseEndBlock {
+	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
+		// Check if there was a valset change
+		if len(collector.getEvents()) == 0 {
+			// No valset updates
+			return abci.ResponseEndBlock{}
+		}
+
+		// Run the VM to get the updates from the chain
+		msg := vm.MsgCall{
+			Caller:  crypto.Address{}, // Zero address
+			PkgPath: valRealm,
+			Func:    valChangesFn,
+		}
+
+		response, err := vmKeeper.Call(ctx, msg)
+		if err != nil {
+			logger.Error("unable to call VM during EndBlocker", "err", err)
+
+			return abci.ResponseEndBlock{}
+		}
+
+		// Extract the updates from the VM response
+		updates, err := extractUpdatesFromResponse(response)
+		if err != nil {
+			logger.Error("unable to extract updates from response", "err", err)
+
+			return abci.ResponseEndBlock{}
+		}
+
+		return abci.ResponseEndBlock{
+			ValidatorUpdates: updates,
+		}
 	}
+}
+
+// extractUpdatesFromResponse extracts the validator set updates
+// from the VM response.
+//
+// This method is not ideal, but currently there is no mechanism
+// in place to parse typed VM responses
+func extractUpdatesFromResponse(response string) ([]abci.ValidatorUpdate, error) {
+	// Find the submatches
+	matches := valRegexp.FindAllStringSubmatch(response, -1)
+	if len(matches) == 0 {
+		// No changes to extract
+		return nil, nil
+	}
+
+	updates := make([]abci.ValidatorUpdate, 0, len(matches))
+	for _, match := range matches {
+		var (
+			addressRaw = match[1]
+			pubKeyRaw  = match[2]
+			powerRaw   = match[3]
+		)
+
+		// Parse the address
+		address, err := crypto.AddressFromBech32(addressRaw)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse address, %w", err)
+		}
+
+		// Parse the public key
+		pubKey, err := crypto.PubKeyFromBech32(pubKeyRaw)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse public key, %w", err)
+		}
+
+		// Parse the voting power
+		power, err := strconv.ParseInt(powerRaw, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("unable to parse voting power, %w", err)
+		}
+
+		update := abci.ValidatorUpdate{
+			Address: address,
+			PubKey:  pubKey,
+			Power:   power,
+		}
+
+		updates = append(updates, update)
+	}
+
+	return updates, nil
 }
