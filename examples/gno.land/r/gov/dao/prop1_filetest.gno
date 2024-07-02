@@ -88,7 +88,7 @@ func main() {
 // # Prop#0
 //
 // manual valset changes proposal example
-// Status: success
+// Status: succeeded
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // Valset changes to apply:
