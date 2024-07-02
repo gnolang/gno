@@ -7,10 +7,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path"
+	"regexp"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
@@ -81,6 +84,7 @@ func (vm *VMKeeper) Initialize(ms store.MultiStore) {
 	baseSDKStore := ms.GetStore(vm.baseKey)
 	iavlSDKStore := ms.GetStore(vm.iavlKey)
 	vm.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
+
 	vm.gnoStore.SetPackageGetter(vm.getPackage)
 	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
 	if vm.gnoStore.NumMemPackages() > 0 {
@@ -136,6 +140,102 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
+// Namespace can be either a user or crypto address.
+// XXX: Uppercase should be valid but transform into lowercase ?
+var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([a-zA-Z]+[_a-zA-Z0-9]+)`)
+
+// checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
+func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
+	const sysUsersPkg = "gno.land/r/demo/users"
+
+	store := vm.getGnoStore(ctx)
+
+	// if `sysUsersPkg` does not exists -> skip validation.
+	usersPkg := store.GetPackage(sysUsersPkg, false)
+	if usersPkg == nil {
+		return nil
+	}
+
+	// XXX: is this necessary ?
+	pkgPath = path.Clean(pkgPath) // cleanup pkgpath
+
+	match := reNamespace.FindStringSubmatch(pkgPath)
+	if len(match) != 2 {
+		return ErrInvalidPkgPath(pkgPath)
+	}
+	username := match[1]
+
+	// Lowercase username
+	username = strings.ToLower(username)
+
+	// Allow user with their own address as namespace
+	if addr, err := crypto.AddressFromBech32(username); err == nil {
+		if addr.Compare(creator) == 0 {
+			return nil // ok
+		}
+
+		return ErrUnauthorizedUser(username)
+	}
+
+	// Parse and run the files, construct *PV.
+	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	msgCtx := stdlibs.ExecContext{
+		ChainID:       ctx.ChainID(),
+		Height:        ctx.BlockHeight(),
+		Timestamp:     ctx.BlockTime().Unix(),
+		OrigCaller:    creator.Bech32(),
+		OrigSendSpent: new(std.Coins),
+		OrigPkgAddr:   pkgAddr.Bech32(),
+		// XXX: should we remove the banker ?
+		Banker:      NewSDKBanker(vm, ctx),
+		EventLogger: ctx.EventLogger(),
+	}
+
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:   "",
+			Output:    os.Stdout, // XXX
+			Store:     store,
+			Context:   msgCtx,
+			Alloc:     store.GetAllocator(),
+			MaxCycles: vm.maxCycles,
+			GasMeter:  ctx.GasMeter(),
+		})
+	defer m.Release()
+
+	// call $sysUsersPkg.Resolve("<user>")
+	// We only need to check by name here, as address have already been check
+	mpv := gno.NewPackageNode("main", "main", nil).NewPackage()
+	m.SetActivePackage(mpv)
+	m.RunDeclaration(gno.ImportD("users", sysUsersPkg))
+	x := gno.Call(
+		gno.Sel(gno.Nx("users"), "GetUserAddressByName"),
+		gno.Str(username),
+	)
+
+	ret := m.Eval(x)
+	if len(ret) == 0 {
+		panic("call: invalid response length")
+	}
+
+	useraddress := ret[0]
+	// If value is nil, no user has been registered for this namespace
+	if useraddress.T.Kind() != gno.StringKind {
+		panic("call: invalid response kind")
+	}
+
+	// Check for ownership
+	if rawAddr := useraddress.GetString(); rawAddr != "" {
+		if owner, err := crypto.AddressFromBech32(rawAddr); err == nil {
+			if owner.Compare(creator) == 0 {
+				return nil // ok
+			}
+		}
+	}
+
+	return ErrUnauthorizedUser(username)
+}
+
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	creator := msg.Creator
@@ -173,9 +273,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// TODO: ACLs.
 	// - if r/system/names does not exists -> skip validation.
 	// - loads r/system/names data state.
-	// - lookup r/system/names.namespaces for `{r,p}/NAMES`.
-	// - check if caller is in Admins or Editors.
-	// - check if namespace is not in pause.
+	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
+		return err
+	}
 
 	err = vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
 	if err != nil {

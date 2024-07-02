@@ -218,6 +218,15 @@ func GetUserByName(name string) *users.User {
 	return userI.(*users.User)
 }
 
+// Get user address by name
+func GetUserAddressByName(name string) std.Address {
+	if user := GetUserByName(input); user != nil {
+		return user.Address
+	}
+
+	return std.Address("")
+}
+
 func GetUserByAddress(addr std.Address) *users.User {
 	userI, ok := addr2User.Get(addr.String())
 	if !ok {
@@ -240,6 +249,7 @@ func Resolve(input users.AddressOrName) std.Address {
 	if !isName {
 		return std.Address(input) // TODO check validity
 	}
+
 	user := GetUserByName(name)
 	return user.Address
 }
