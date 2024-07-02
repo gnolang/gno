@@ -15,7 +15,7 @@ For this guide, we will build a small Go app that will:
 
 ## Prerequisites
 - A local Gno.land keypair generated using
-[gnokey](../getting-started/local-setup/working-with-key-pairs.md)
+[gnokey](../gno-tooling/cli/gnokey/working-with-key-pairs.md)
 
 ## Setup
 
