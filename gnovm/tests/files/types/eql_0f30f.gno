@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f30f.gno:7: cannot use [2]int as [3]int
+// main/files/types/eql_0f30f.gno:7:10: cannot use [2]int as [3]int

@@ -23,8 +23,8 @@ type proposal struct {
 }
 
 func (p proposal) Status() Status {
-	if p.executor.Done() {
-		return Status(p.executor.Status())
+	if p.executor.IsDone() {
+		return Status(p.executor.GetStatus())
 	}
 	if p.accepted {
 		return Accepted
