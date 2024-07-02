@@ -1,10 +1,10 @@
-package vals
+package validators
 
 import (
 	"std"
 
 	"gno.land/p/gov/proposal"
-	"gno.land/p/sys/vals/types"
+	"gno.land/p/sys/validators"
 )
 
 const daoPkgPath = "gno.land/r/gov/dao"
@@ -20,7 +20,7 @@ const (
 //
 // Concept adapted from:
 // https://github.com/gnolang/gno/pull/1945
-func NewPropExecutor(changesFn func() []types.Validator) proposal.Executor {
+func NewPropExecutor(changesFn func() []validators.Validator) proposal.Executor {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -56,11 +56,11 @@ func assertGovDAOCaller() {
 
 // IsValidator returns a flag indicating if the given bech32 address
 // is part of the validator set
-func IsValidator(address string) bool {
-	return v.p.IsValidator(std.Address(address))
+func IsValidator(addr std.Address) bool {
+	return vp.IsValidator(addr)
 }
 
 // GetValidators returns the typed validator set
-func GetValidators() []types.Validator {
-	return v.p.GetValidators()
+func GetValidators() []validators.Validator {
+	return vp.GetValidators()
 }

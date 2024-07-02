@@ -10,14 +10,14 @@ package main
 import (
 	"std"
 
-	"gno.land/p/sys/vals/types"
+	pVals "gno.land/p/sys/validators"
 	govdao "gno.land/r/gov/dao"
-	"gno.land/r/sys/vals"
+	"gno.land/r/sys/validators"
 )
 
 func init() {
-	changesFn := func() []types.Validator {
-		return []types.Validator{
+	changesFn := func() []pVals.Validator {
+		return []pVals.Validator{
 			{
 				Address:     std.Address("g12345678"),
 				PubKey:      "pubkey",
@@ -38,7 +38,7 @@ func init() {
 
 	// Wraps changesFn to emit a certified event only if executed from a
 	// complete governance proposal process.
-	executor := vals.NewPropExecutor(changesFn)
+	executor := validators.NewPropExecutor(changesFn)
 
 	// Create a proposal.
 	// XXX: payment
@@ -56,13 +56,13 @@ func main() {
 	println("--")
 	println(govdao.Render("1"))
 	println("--")
-	println(vals.Render(""))
+	println(validators.Render(""))
 	println("--")
 	govdao.ExecuteProposal(1)
 	println("--")
 	println(govdao.Render("1"))
 	println("--")
-	println(vals.Render(""))
+	println(validators.Render(""))
 }
 
 // Output:

@@ -5,7 +5,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/sys/vals/types"
+	"gno.land/p/sys/validators"
 )
 
 var ErrInvalidVotingPower = errors.New("invalid voting power")
@@ -19,7 +19,7 @@ var ErrInvalidVotingPower = errors.New("invalid voting power")
 // To remove:
 // - proposed validator must be part of the set already
 type PoA struct {
-	validators *avl.Tree // std.Address -> types.Validator
+	validators *avl.Tree // std.Address -> validators.Validator
 }
 
 // NewPoA creates a new empty Proof of Authority validator set
@@ -37,19 +37,19 @@ func NewPoA(opts ...Option) *PoA {
 	return p
 }
 
-func (p *PoA) AddValidator(address std.Address, pubKey string, power uint64) (*types.Validator, error) {
+func (p *PoA) AddValidator(address std.Address, pubKey string, power uint64) (validators.Validator, error) {
 	// Validate that the operation is a valid call.
 	// Check if the validator is already in the set
 	if p.IsValidator(address) {
-		return nil, types.ErrValidatorExists
+		return validators.Validator{}, validators.ErrValidatorExists
 	}
 
 	// Make sure the voting power > 0
 	if power == 0 {
-		return nil, ErrInvalidVotingPower
+		return validators.Validator{}, ErrInvalidVotingPower
 	}
 
-	v := types.Validator{
+	v := validators.Validator{
 		Address:     address,
 		PubKey:      pubKey, // TODO: in the future, verify the public key
 		VotingPower: power,
@@ -58,15 +58,15 @@ func (p *PoA) AddValidator(address std.Address, pubKey string, power uint64) (*t
 	// Add the validator to the set
 	p.validators.Set(address.String(), v)
 
-	return &v, nil
+	return v, nil
 }
 
-func (p *PoA) RemoveValidator(address std.Address) (*types.Validator, error) {
+func (p *PoA) RemoveValidator(address std.Address) (validators.Validator, error) {
 	// Validate that the operation is a valid call
 	// Fetch the validator
 	validator, err := p.GetValidator(address)
 	if err != nil {
-		return nil, err
+		return validators.Validator{}, err
 	}
 
 	// Remove the validator from the set
@@ -81,26 +81,26 @@ func (p *PoA) IsValidator(address std.Address) bool {
 	return exists
 }
 
-func (p *PoA) GetValidator(address std.Address) (*types.Validator, error) {
+func (p *PoA) GetValidator(address std.Address) (validators.Validator, error) {
 	validatorRaw, exists := p.validators.Get(address.String())
 	if !exists {
-		return nil, types.ErrValidatorMissing
+		return validators.Validator{}, validators.ErrValidatorMissing
 	}
 
-	validator := validatorRaw.(types.Validator)
+	validator := validatorRaw.(validators.Validator)
 
-	return &validator, nil
+	return validator, nil
 }
 
-func (p *PoA) GetValidators() []types.Validator {
-	validators := make([]types.Validator, 0, p.validators.Size())
+func (p *PoA) GetValidators() []validators.Validator {
+	vals := make([]validators.Validator, 0, p.validators.Size())
 
 	p.validators.Iterate("", "", func(_ string, value interface{}) bool {
-		validator := value.(types.Validator)
-		validators = append(validators, validator)
+		validator := value.(validators.Validator)
+		vals = append(vals, validator)
 
 		return false
 	})
 
-	return validators
+	return vals
 }

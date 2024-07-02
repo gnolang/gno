@@ -182,7 +182,7 @@ func packageStaffPicks() ui.Element {
 					ui.BulletList{
 						ui.Link{URL: "r/sys/names"},
 						ui.Link{URL: "r/sys/rewards"},
-						ui.Link{URL: "r/sys/vals"},
+						ui.Link{URL: "r/sys/validators"},
 					},
 				}, {
 					ui.H4("[r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)"),
