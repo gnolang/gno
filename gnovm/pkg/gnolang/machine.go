@@ -1124,6 +1124,20 @@ const (
 // main run loop.
 
 func (m *Machine) Run() {
+	defer func() {
+		if r := recover(); r != nil {
+			switch r := r.(type) {
+			case []Exception:
+				panic(m.buildPanicString(r))
+			case error:
+				m.Panic(typedString(r.Error()))
+			default:
+				m.Panic(typedString(fmt.Sprintf("%v", r)))
+			}
+			m.Run()
+		}
+	}()
+
 	for {
 		if m.Debugger.enabled {
 			m.Debug()
@@ -1997,6 +2011,15 @@ func (m *Machine) CheckEmpty() error {
 	} else {
 		return nil
 	}
+}
+
+func (m *Machine) buildPanicString(exceptions []Exception) string {
+	// Build exception string just as go, separated by \n\t.
+	exs := make([]string, len(exceptions))
+	for i, ex := range exceptions {
+		exs[i] = ex.Sprint(m)
+	}
+	return strings.Join(exs, "\n\t")
 }
 
 func (m *Machine) Panic(ex TypedValue) {

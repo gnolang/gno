@@ -3,7 +3,6 @@ package gnolang
 import (
 	"fmt"
 	"reflect"
-	"strings"
 )
 
 func (m *Machine) doOpPrecall() {
@@ -422,12 +421,7 @@ func (m *Machine) doOpPanic2() {
 		// Keep panicking
 		last := m.PopUntilLastCallFrame()
 		if last == nil {
-			// Build exception string just as go, separated by \n\t.
-			exs := make([]string, len(m.Exceptions))
-			for i, ex := range m.Exceptions {
-				exs[i] = ex.Sprint(m)
-			}
-			panic(strings.Join(exs, "\n\t"))
+			panic(m.Exceptions)
 		}
 		m.PushOp(OpPanic2)
 		m.PushOp(OpReturnCallDefers) // XXX rename, not return?
