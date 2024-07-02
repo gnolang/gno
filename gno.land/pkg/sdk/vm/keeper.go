@@ -209,8 +209,8 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	m.SetActivePackage(mpv)
 	m.RunDeclaration(gno.ImportD("users", sysUsersPkg))
 	x := gno.Call(
-		gno.Sel(gno.Nx("users"), "Resolve"),
-		gno.Str("@"+username),
+		gno.Sel(gno.Nx("users"), "GetUserAddressByName"),
+		gno.Str(username),
 	)
 
 	ret := m.Eval(x)
