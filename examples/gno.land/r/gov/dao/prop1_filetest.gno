@@ -12,18 +12,29 @@ package prop01
 import (
 	"std"
 
+	pVals "gno.land/p/sys/validators"
 	govdao "gno.land/r/gov/dao"
 	"gno.land/r/sys/validators"
 )
 
 func init() {
-	// Create the validators change proposal.
-	changesFn := func() []validators.Change {
-		return []validators.Change{
-			// add a new validator.
-			{Address: std.Address("g12345678"), Power: 1},
-			// remove an existing validator.
-			{Address: std.Address("g000000000"), Power: 0},
+	changesFn := func() []pVals.Validator {
+		return []pVals.Validator{
+			{
+				Address:     std.Address("g12345678"),
+				PubKey:      "pubkey",
+				VotingPower: 10, // add a new validator
+			},
+			{
+				Address:     std.Address("g000000000"),
+				PubKey:      "pubkey",
+				VotingPower: 10, // add a new validator
+			},
+			{
+				Address:     std.Address("g000000000"),
+				PubKey:      "pubkey",
+				VotingPower: 0, // remove an existing validator
+			},
 		}
 	}
 
@@ -79,9 +90,10 @@ func main() {
 // # Prop#0
 //
 // manual valset changes proposal example
-// Status: success
-// Author: g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa
+// Status: succeeded
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // Valset changes to apply:
-// - g12345678 (1)
+// - g12345678 (10)
+// - g000000000 (10)
 // - g000000000 (0)

@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/access1_stdlibs.gno:8: cannot access gno.land/p/demo/testutils.testVar2 from main
+// main/files/access1_stdlibs.gno:8:10: cannot access gno.land/p/demo/testutils.testVar2 from main
