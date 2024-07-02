@@ -1,4 +1,4 @@
-package gnoimports
+package gnofmt
 
 import (
 	"fmt"

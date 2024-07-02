@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
-	"github.com/gnolang/gno/gnovm/pkg/gnoimports"
+	"github.com/gnolang/gno/gnovm/pkg/gnofmt"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/rogpeppe/go-internal/diff"
 )
@@ -192,7 +192,7 @@ func fmtProcessDiff(file string, data []byte, io commands.IO) bool {
 }
 
 func fmtFormatFileImports(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, error) {
-	r := gnoimports.NewFSResolver()
+	r := gnofmt.NewFSResolver()
 
 	gnoroot := gnoenv.RootDir()
 
@@ -232,7 +232,7 @@ func fmtFormatFileImports(cfg *fmtCfg, io commands.IO) (fmtProcessFileFunc, erro
 		return nil, fmt.Errorf("unable to load %q: %w", examples, err)
 	}
 
-	p := gnoimports.NewProcessor(r)
+	p := gnofmt.NewProcessor(r)
 	return func(file string, io commands.IO) []byte {
 		data, err := p.FormatFile(file)
 		if err == nil {
