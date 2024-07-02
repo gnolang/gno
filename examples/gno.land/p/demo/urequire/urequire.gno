@@ -46,9 +46,9 @@ func ErrorIs(t uassert.TestingT, err, target error, msgs ...string) {
 	t.FailNow()
 }
 
-func PanicsWithError(t uassert.TestingT, errString string, f func(), msgs ...string) {
+func PanicsWithMessage(t uassert.TestingT, msg string, f func(), msgs ...string) {
 	t.Helper()
-	if uassert.PanicsWithError(t, errString, f, msgs...) {
+	if uassert.PanicsWithMessage(t, msg, f, msgs...) {
 		return
 	}
 	t.FailNow()
