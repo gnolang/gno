@@ -56,8 +56,8 @@ func assertGovDAOCaller() {
 
 // IsValidator returns a flag indicating if the given bech32 address
 // is part of the validator set
-func IsValidator(address string) bool {
-	return v.p.IsValidator(std.Address(address))
+func IsValidator(addr std.Address) bool {
+	return v.p.IsValidator(addr)
 }
 
 // GetValidators returns the typed validator set
