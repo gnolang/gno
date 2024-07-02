@@ -78,10 +78,14 @@ func ClaimDefaultName(profile string) string {
 
 // Register registers a chosen name.
 func Register(inviter std.Address, name string, profile string) {
+	std.AssertOriginCall()
+	register(inviter, name, profile)
+}
+
+func register(inviter std.Address, name string, profile string) {
 	// XXX: Register could override an existing default name, but we need to implement symlnks.
 
 	// assert CallTx call.
-	std.AssertOriginCall()
 	caller := std.PrevRealm().Addr()
 	sentCoins := std.GetOrigSend()
 	minCoin := std.NewCoin("ugnot", minFee)
