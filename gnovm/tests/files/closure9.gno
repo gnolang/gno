@@ -13,13 +13,3 @@ func main() {
 		println(fn())
 	}
 }
-
-// Go Output:
-// 0
-// 1
-// 2
-
-// Output:
-// 0
-// 1
-// 2

@@ -2469,7 +2469,6 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							// n.Path.Index = indexOfName(lus, n.Name)
 						} else {
 							if ftype == TRANS_REF_X {
-								fmt.Println("ref")
 								// if used as a reference,
 								// mark name as loop used.
 								addAttrHeapUse(dbn, n.Name)
