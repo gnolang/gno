@@ -3,7 +3,6 @@ package main
 import (
 	"std"
 
-	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/users"
 )
 

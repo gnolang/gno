@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0b4_stdlibs.gno:9: <untyped> bigint does not implement .uverse.error
+// main/files/types/eql_0b4_stdlibs.gno:9:10: <untyped> bigint does not implement .uverse.error

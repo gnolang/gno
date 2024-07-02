@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/users"
 )
 
 func TestSetTokenRoyalty(t *testing.T) {
