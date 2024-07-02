@@ -67,6 +67,6 @@ func assertCalledByGovdao() {
 	caller := std.CurrentRealm().PkgPath()
 
 	if caller != daoPkgPath {
-		panic(errNotGovDAO.Error())
+		panic(errNotGovDAO)
 	}
 }
