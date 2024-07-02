@@ -1,4 +1,4 @@
-package upgradea
+package main
 
 import (
 	v1 "gno.land/r/x/manfred_upgrade_patterns/upgrade_a/v1"

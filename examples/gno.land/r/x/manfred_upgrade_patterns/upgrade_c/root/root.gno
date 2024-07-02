@@ -1,13 +1,15 @@
 package root
 
+import "std"
+
 var (
-	counter               int
-	currentImplementation = "gno.land/r/x/manfred_upgrade_patterns/upgrade_c/v1"
+	counter     int
+	currentImpl = "gno.land/r/x/manfred_upgrade_patterns/upgrade_c/v1"
 )
 
-func Inc() int {
-	// TODO: if caller is currentImplementation
-	counter++
+func Inc(nb int) int {
+	assertIsCurrentImpl()
+	counter += nb
 	return counter
 }
 
@@ -15,7 +17,17 @@ func Get() int {
 	return counter
 }
 
-func UpdateCurrentImplementation(address string) {
-	// TODO: if is admin
-	currentImplementation = address
+func SetCurrentImpl(pkgpath string) {
+	assertIsAdmin()
+	currentImpl = pkgpath
+}
+
+func assertIsCurrentImpl() {
+	if std.PrevRealm().PkgPath() != currentImpl {
+		panic("unauthorized")
+	}
+}
+
+func assertIsAdmin() {
+	// TODO
 }
