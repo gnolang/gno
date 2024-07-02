@@ -219,6 +219,7 @@ func Equal(t TestingT, expected, actual interface{}, msgs ...string) bool {
 	}
 
 	/*
+		// XXX: implement stringer and other well known similar interfaces
 		type stringer interface{ String() string }
 		if ev, ok := expected.(stringer); ok {
 			if av, ok := actual.(stringer); ok {
