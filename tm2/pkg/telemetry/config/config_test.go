@@ -36,9 +36,9 @@ func TestConfig_ValidateBasic(t *testing.T) {
 
 		hostname, err := os.Hostname()
 		if err != nil {
-			assert.Equal(t, "gno-node", c.ServiceInstance)
+			assert.Equal(t, "gno-node", c.ServiceInstanceID)
 		} else {
-			assert.Equal(t, hostname, c.ServiceInstance)
+			assert.Equal(t, hostname, c.ServiceInstanceID)
 		}
 	})
 }
