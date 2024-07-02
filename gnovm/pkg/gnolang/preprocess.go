@@ -23,7 +23,8 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// This will also reserve names on BlockNode.StaticBlock by
 	// calling StaticBlock.Predefine().
 	for _, fn := range fset.Files {
-		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
+		setNodeLines(fn)
+		setNodeLocations(pn.PkgPath, string(fn.Name), fn)
 		initStaticBlocks(store, pn, fn)
 	}
 	// NOTE: The calls to .Predefine() above is more of a name reservation,
@@ -375,7 +376,18 @@ var preprocessing atomic.Int32
 //   - Assigns BlockValuePath to NameExprs.
 //   - TODO document what it does.
 func Preprocess(store Store, ctx BlockNode, n Node) Node {
+	// XXX If initStaticBlocks doesn't happen here,
+	// XXX it means Preprocess on blocks might fail.
+	// XXX it works for now because preprocess also does pushInitBlock,
+	// XXX but it's kinda weird.
+	// XXX maybe consider moving initStaticBlocks here and ensure idempotency of it.
 	n = preprocess1(store, ctx, n)
+	// XXX check node lines and locations
+	checkNodeLinesLocations("XXXpkgPath", "XXXfileName", n)
+	// XXX what about the fact that preprocess1 sets the PREPROCESSED attr on all nodes?
+	// XXX do any of the following need the attr, or similar attrs?
+	// XXX well the following may be isn't idempotent,
+	// XXX so it is currently strange.
 	if bn, ok := n.(BlockNode); ok {
 		findGotoLoopDefines(ctx, bn)
 		findLoopUses1(ctx, bn)
@@ -398,7 +410,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 	if fn, ok := n.(*FileNode); ok {
 		pkgPath := ctx.(*PackageNode).PkgPath
 		fileName := string(fn.Name)
-		SetNodeLocations(pkgPath, fileName, fn)
+		setNodeLines(fn)
+		setNodeLocations(pkgPath, fileName, fn)
 	}
 
 	// create stack of BlockNodes.
@@ -1284,7 +1297,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// convert to byteslice.
 							args1 := n.Args[1]
 							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
-								bsx := constType(nil, gByteSliceType)
+								bsx := constType(n, gByteSliceType)
 								args1 = Call(bsx, args1)
 								args1 = Preprocess(nil, last, args1).(Expr)
 								n.Args[1] = args1
@@ -1319,7 +1332,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 							// convert to byteslice.
 							args1 := n.Args[1]
 							if evalStaticTypeOf(store, last, args1).Kind() == StringKind {
-								bsx := constType(nil, gByteSliceType)
+								bsx := constType(n, gByteSliceType)
 								args1 = Call(bsx, args1)
 								args1 = Preprocess(nil, last, args1).(Expr)
 								n.Args[1] = args1
@@ -1919,7 +1932,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 					findBranchLabel(last, n.Label)
 				case GOTO:
-					_, depth, index, _ := findGotoLabel(last, n.Label)
+					_, depth, index := findGotoLabel(last, n.Label)
 					n.Depth = depth
 					n.BodyIndex = index
 				case FALLTHROUGH:
@@ -2298,31 +2311,53 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 			case *BranchStmt:
 				switch n.Op {
 				case GOTO:
-					// bn, depth, index, labelLine := findGotoLabel(last, n.Label)
-					bn, _, _, labelLine := findGotoLabel(last, n.Label)
+					// bn, depth, index := findGotoLabel(last, n.Label)
+					bn, _, _ := findGotoLabel(last, n.Label)
 					// already done in Preprocess:
 					// n.Depth = depth
 					// n.BodyIndex = index
 
-					// this goto line location
-					gotoLine := n.GetLine()
-					// skip if destination comes after.
-					if labelLine >= gotoLine {
-						return n, TRANS_SKIP
-					}
+					// NOTE: we must not use line numbers
+					// for logic, as line numbers are not
+					// guaranteed (see checkNodeLinesLocations).
+					// Instead we rely on the transcribe order
+					// and keep track of whether we've seen
+					// the label and goto stmts respectively.
+					//
+					// DOES NOT WORK:
+					// gotoLine := n.GetLine()
+					// if labelLine >= gotoLine {
+					//	return n, TRANS_SKIP
+					// }
+					var label = n.Label
+					var labelReached bool
+					var origGoto = n
 
 					// Recurse and mark stmts as ATTR_GOTOLOOP_STMT.
 					// NOTE: ATTR_GOTOLOOP_STMT is not used.
 					Transcribe(bn,
 						func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 
-							// nothing to do until label line.
-							if n.GetLine() < labelLine {
-								return n, TRANS_CONTINUE
-							}
-
 							switch stage {
 							case TRANS_ENTER:
+								// Check to see if label reached.
+								if _, ok := n.(Stmt); ok {
+									// XXX HasLabel
+									if n.GetLabel() == label {
+										labelReached = true
+									}
+									// If goto < label,
+									// then not a goto loop.
+									if n == origGoto && !labelReached {
+										return n, TRANS_EXIT
+									}
+								}
+
+								// If label not reached, continue.
+								if !labelReached {
+									return n, TRANS_CONTINUE
+								}
+
 								// NOTE: called redundantly
 								// for many goto stmts,
 								// idempotenct updates only.
@@ -2341,13 +2376,19 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 									return n, TRANS_CONTINUE
 								// Otherwise mark stmt as gotoloop.
 								case Stmt:
-									if n.GetLine() <= gotoLine {
+									// we're done if we
+									// re-encounter origGotoStmtm.
+									if n == origGoto {
 										n.SetAttribute(
 											ATTR_GOTOLOOP_STMT,
 											true)
-									} else {
-										return n, TRANS_SKIP
+										return n, TRANS_EXIT // done
 									}
+									// otherwise set attribute.
+									n.SetAttribute(
+										ATTR_GOTOLOOP_STMT,
+										true)
+									return n, TRANS_CONTINUE
 								// Special case, maybe convert
 								// NameExprTypeDefine to
 								// NameExprTypeHeapDefine.
@@ -2360,9 +2401,11 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 							}
 							return n, TRANS_CONTINUE
 						})
+					/* XXX not true when labelLine > gotoLine.
 					if val := n.GetAttribute(ATTR_GOTOLOOP_STMT); val == nil || !val.(bool) {
 						panic("ATTR_GOTOLOOP_STMT not set for last goto stmt")
 					}
+					*/
 				}
 			}
 			return n, TRANS_CONTINUE
@@ -2494,7 +2537,6 @@ func setAttrHeapDefine(bn BlockNode, name Name) {
 }
 
 func addAttrHeapUse(bn BlockNode, name Name) {
-	fmt.Println("DIDUSE", name, bn)
 	bnLUs, _ := bn.GetAttribute(ATTR_LOOP_USES).([]Name)
 	if hasName(bnLUs, name) {
 		return
@@ -2918,6 +2960,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 		Source:     x,
 		TypedValue: cv,
 	}
+	cx.SetLine(x.GetLine())
 	cx.SetAttribute(ATTR_PREPROCESSED, true)
 	setConstAttrs(cx)
 	return cx
@@ -2926,6 +2969,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 func constType(source Expr, t Type) *constTypeExpr {
 	cx := &constTypeExpr{Source: source}
 	cx.Type = t
+	cx.SetLine(source.GetLine())
 	cx.SetAttribute(ATTR_PREPROCESSED, true)
 	return cx
 }
@@ -3002,9 +3046,8 @@ func findBranchLabel(last BlockNode, label Name) (
 }
 
 func findGotoLabel(last BlockNode, label Name) (
-	bn BlockNode, depth uint8, bodyIdx int, line int,
+	bn BlockNode, depth uint8, bodyIdx int,
 ) {
-	var ls Stmt // label stmt
 	for {
 		switch cbn := last.(type) {
 		case *IfStmt, *SwitchStmt:
@@ -3016,10 +3059,9 @@ func findGotoLabel(last BlockNode, label Name) (
 			panic("unexpected package blocknode")
 		case *FuncLitExpr, *FuncDecl:
 			body := cbn.GetBody()
-			ls, bodyIdx = body.GetLabeledStmt(label)
+			_, bodyIdx = body.GetLabeledStmt(label)
 			if bodyIdx != -1 {
 				bn = cbn
-				line = ls.GetLine()
 				return
 			} else {
 				panic(fmt.Sprintf(
@@ -3028,10 +3070,9 @@ func findGotoLabel(last BlockNode, label Name) (
 			}
 		case *BlockStmt, *ForStmt, *IfCaseStmt, *RangeStmt, *SelectCaseStmt, *SwitchClauseStmt:
 			body := cbn.GetBody()
-			ls, bodyIdx = body.GetLabeledStmt(label)
+			_, bodyIdx = body.GetLabeledStmt(label)
 			if bodyIdx != -1 {
 				bn = cbn
-				line = ls.GetLine()
 				return
 			} else {
 				last = cbn.GetParentNode(nil)
@@ -3162,7 +3203,7 @@ func convertType(store Store, last BlockNode, x *Expr, t Type) {
 
 // convert x to destination type t
 func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
-	cx := Expr(Call(constType(nil, t), *x))
+	cx := Expr(Call(constType(*x, t), *x))
 	cx = Preprocess(store, last, cx).(Expr)
 	*x = cx
 }
@@ -3312,7 +3353,7 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 				panic("cannot elide unknown composite type")
 			}
 			ct = t
-			cx.Type = constType(nil, t)
+			cx.Type = constType(cx, t)
 		} else {
 			un = findUndefined(store, last, cx.Type)
 			if un != "" {
@@ -4217,12 +4258,30 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 }
 
 // ----------------------------------------
-// SetNodeLocations
+// setNodeLines & setNodeLocations
 
-// Iterate over all block nodes recursively and sets location information
-// based on sparse expectations, and ensures uniqueness of BlockNode.Locations.
+func setNodeLines(n Node) {
+	lastLine := 0
+	Transcribe(n, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+		if stage != TRANS_ENTER {
+			return n, TRANS_CONTINUE
+		}
+		line := n.GetLine()
+		if line == lastLine {
+		} else if line == 0 {
+			line = lastLine
+		} else {
+			lastLine = line
+		}
+		n.SetLine(line)
+		return n, TRANS_CONTINUE
+	})
+}
+
+// Iterate over all nodes recursively and sets location information
+// based on sparse expectations on block nodes, and ensures uniqueness of BlockNode.Locations.
 // Ensures uniqueness of BlockNode.Locations.
-func SetNodeLocations(pkgPath string, fileName string, n Node) {
+func setNodeLocations(pkgPath string, fileName string, n Node) {
 	if n.GetAttribute(ATTR_LOCATIONED) == true {
 		return // locations already set (typically n is a filenode).
 	}
@@ -4247,13 +4306,19 @@ func SetNodeLocations(pkgPath string, fileName string, n Node) {
 			loc := Location{
 				PkgPath: pkgPath,
 				File:    fileName,
-				Line:    line,
+				Line:    lastLine,
 				Nonce:   nextNonce,
 			}
 			bn.SetLocation(loc)
 		}
 		return n, TRANS_CONTINUE
 	})
+}
+
+// XXX check node lines, uniqueness of locations,
+// and also check location pkgpath and filename.
+func checkNodeLinesLocations(pkgPath string, fileName string, n Node) {
+	// XXX
 }
 
 // ----------------------------------------
