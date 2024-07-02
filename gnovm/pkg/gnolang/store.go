@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	bm "github.com/gnolang/gno/benchmarking"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -227,6 +228,13 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 
 // Some atomic operation.
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
+	var size int
+	if bm.StorageEnabled {
+		bm.StartStore(byte(bm.StoreGetPackageRealm))
+		defer func() {
+			bm.StopStore(size)
+		}()
+	}
 	oid := ObjectIDFromPkgPath(pkgPath)
 	key := backendRealmKey(oid)
 	bz := ds.baseStore.Get([]byte(key))
@@ -234,6 +242,7 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 		return nil
 	}
 	amino.MustUnmarshal(bz, &rlm)
+	size = len(bz)
 	if debug {
 		if rlm.ID != oid.PkgID {
 			panic(fmt.Sprintf("unexpected realm id: expected %v but got %v",
@@ -245,10 +254,23 @@ func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 
 // An atomic operation to set the package realm info (id counter etc).
 func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+
+	var size int
+	if bm.StorageEnabled {
+		bm.StartStore(byte(bm.StoreSetPackageRealm))
+		defer func() {
+			bm.StopStore(size)
+		}()
+	}
 	oid := ObjectIDFromPkgPath(rlm.Path)
 	key := backendRealmKey(oid)
 	bz := amino.MustMarshal(rlm)
 	ds.baseStore.Set([]byte(key), bz)
+	size = len(bz)
 }
 
 // NOTE: does not consult the packageGetter, so instead
@@ -257,6 +279,10 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 // all []TypedValue types and TypeValue{} types to be
 // loaded (non-ref) types.
 func (ds *defaultStore) GetObject(oid ObjectID) Object {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
 	oo := ds.GetObjectSafe(oid)
 	if oo == nil {
 		panic(fmt.Sprintf("unexpected object with id %s", oid.String()))
@@ -286,9 +312,23 @@ func (ds *defaultStore) GetObjectSafe(oid ObjectID) Object {
 // loads and caches an object.
 // CONTRACT: object isn't already in the cache.
 func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+
+	var size int
+
+	if bm.StorageEnabled {
+		bm.StartStore(byte(bm.StoreGetObject))
+		defer func() {
+			bm.StopStore(size)
+		}()
+	}
 	key := backendObjectKey(oid)
 	hashbz := ds.baseStore.Get([]byte(key))
 	if hashbz != nil {
+		size = len(hashbz)
 		hash := hashbz[:HashSize]
 		bz := hashbz[HashSize:]
 		var oo Object
@@ -311,6 +351,17 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 // NOTE: unlike GetObject(), SetObject() is also used to persist updated
 // package values.
 func (ds *defaultStore) SetObject(oo Object) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+	var size int
+	if bm.StorageEnabled {
+		bm.StartStore(byte(bm.StoreSetObject))
+		defer func() {
+			bm.StopStore(size)
+		}()
+	}
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
@@ -329,6 +380,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 		copy(hashbz, hash.Bytes())
 		copy(hashbz[HashSize:], bz)
 		ds.baseStore.Set([]byte(key), hashbz)
+		size = len(hashbz)
 	}
 	// save object to cache.
 	if debug {
@@ -365,6 +417,17 @@ func (ds *defaultStore) SetObject(oo Object) {
 }
 
 func (ds *defaultStore) DelObject(oo Object) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+	if bm.StorageEnabled {
+		bm.StartStore(byte(bm.StoreDeleteObject))
+		defer func() {
+			// delete is a signle operation, not a func of size of bytes
+			bm.StopStore(0)
+		}()
+	}
 	oid := oo.GetObjectID()
 	// delete from cache.
 	delete(ds.cacheObjects, oid)
@@ -393,6 +456,19 @@ func (ds *defaultStore) GetType(tid TypeID) Type {
 }
 
 func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+
+	var size int
+
+	if bm.StorageEnabled {
+		bm.StartStore(byte(bm.StoreGetType))
+		defer func() {
+			bm.StopStore(size)
+		}()
+	}
 	// check cache.
 	if tt, exists := ds.cacheTypes[tid]; exists {
 		return tt
@@ -404,6 +480,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 		if bz != nil {
 			var tt Type
 			amino.MustUnmarshal(bz, &tt)
+			size = len(bz)
 			if debug {
 				if tt.TypeID() != tid {
 					panic(fmt.Sprintf("unexpected type id: expected %v but got %v",
@@ -435,6 +512,18 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 }
 
 func (ds *defaultStore) SetType(tt Type) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+	var size int
+
+	if bm.StorageEnabled {
+		bm.StartStore(byte(bm.StoreSetType))
+		defer func() {
+			bm.StopStore(size)
+		}()
+	}
 	tid := tt.TypeID()
 	// return if tid already known.
 	if tt2, exists := ds.cacheTypes[tid]; exists {
@@ -450,6 +539,7 @@ func (ds *defaultStore) SetType(tt Type) {
 		tcopy := copyTypeWithRefs(tt)
 		bz := amino.MustMarshalAny(tcopy)
 		ds.baseStore.Set([]byte(key), bz)
+		size = len(bz)
 	}
 	// save type to cache.
 	ds.cacheTypes[tid] = tt
@@ -464,6 +554,19 @@ func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
 }
 
 func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+
+	var size int
+
+	if bm.StorageEnabled {
+		bm.StartStore(byte(bm.StoreGetBlockNode))
+		defer func() {
+			bm.StopStore(size)
+		}()
+	}
 	// check cache.
 	if bn, exists := ds.cacheNodes[loc]; exists {
 		return bn
@@ -475,6 +578,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 		if bz != nil {
 			var bn BlockNode
 			amino.MustUnmarshal(bz, &bn)
+			size = len(bz)
 			if debug {
 				if bn.GetLocation() != loc {
 					panic(fmt.Sprintf("unexpected node location: expected %v but got %v",
@@ -538,6 +642,18 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 }
 
 func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+	var size int
+
+	if bm.StorageEnabled {
+		bm.StartStore(byte(bm.StoreAddMemPackage))
+		defer func() {
+			bm.StopStore(size)
+		}()
+	}
 	memPkg.Validate() // NOTE: duplicate validation.
 	ctr := ds.incGetPackageIndexCounter()
 	idxkey := []byte(backendPackageIndexKey(ctr))
@@ -545,6 +661,7 @@ func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
 	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
 	pathkey := []byte(backendPackagePathKey(memPkg.Path))
 	ds.iavlStore.Set(pathkey, bz)
+	size = len(bz)
 }
 
 // GetMemPackage retrieves the MemPackage at the given path.
@@ -554,6 +671,19 @@ func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
 }
 
 func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
+	if bm.OpsEnabled {
+		bm.PauseOpCode()
+		defer bm.ResumeOpCode()
+	}
+
+	var size int
+
+	if bm.StorageEnabled {
+		bm.StartStore(byte(bm.StoreGetMemPackage))
+		defer func() {
+			bm.StopStore(size)
+		}()
+	}
 	pathkey := []byte(backendPackagePathKey(path))
 	bz := ds.iavlStore.Get(pathkey)
 	if bz == nil {
@@ -571,6 +701,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	}
 	var memPkg *std.MemPackage
 	amino.MustUnmarshal(bz, &memPkg)
+	size = len(bz)
 	return memPkg
 }
 
