@@ -2304,9 +2304,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 								}
 								return n, TRANS_CONTINUE
 							case *FuncDecl:
-								if len(ns) > 0 {
-									panic("unexpected inner func decl")
-								}
+								panic("unexpected inner func decl")
 								return n, TRANS_CONTINUE
 							case *NameExpr:
 								if n.Type == NameExprTypeDefine {
