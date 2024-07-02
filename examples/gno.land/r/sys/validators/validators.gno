@@ -20,13 +20,11 @@ func addValidator(validator validators.Validator) {
 		panic(err)
 	}
 
-	if val != nil {
-		// Validator added, note the change
-		changes = append(changes, *val)
+	// Validator added, note the change
+	changes = append(changes, val)
 
-		// Emit the validator set change
-		std.Emit(validators.ValidatorAddedEvent)
-	}
+	// Emit the validator set change
+	std.Emit(validators.ValidatorAddedEvent)
 }
 
 // removeValidator removes the given validator from the set.
@@ -37,17 +35,15 @@ func removeValidator(address std.Address) {
 		panic(err)
 	}
 
-	if val != nil {
-		// Validator removed, note the change
-		changes = append(changes, validators.Validator{
-			Address:     val.Address,
-			PubKey:      val.PubKey,
-			VotingPower: 0, // nullified the voting power indicates removal
-		})
+	// Validator removed, note the change
+	changes = append(changes, validators.Validator{
+		Address:     val.Address,
+		PubKey:      val.PubKey,
+		VotingPower: 0, // nullified the voting power indicates removal
+	})
 
-		// Emit the validator set change
-		std.Emit(validators.ValidatorRemovedEvent)
-	}
+	// Emit the validator set change
+	std.Emit(validators.ValidatorRemovedEvent)
 }
 
 func Render(_ string) string {

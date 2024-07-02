@@ -37,16 +37,16 @@ func NewPoA(opts ...Option) *PoA {
 	return p
 }
 
-func (p *PoA) AddValidator(address std.Address, pubKey string, power uint64) (*validators.Validator, error) {
+func (p *PoA) AddValidator(address std.Address, pubKey string, power uint64) (validators.Validator, error) {
 	// Validate that the operation is a valid call.
 	// Check if the validator is already in the set
 	if p.IsValidator(address) {
-		return nil, validators.ErrValidatorExists
+		return validators.Validator{}, validators.ErrValidatorExists
 	}
 
 	// Make sure the voting power > 0
 	if power == 0 {
-		return nil, ErrInvalidVotingPower
+		return validators.Validator{}, ErrInvalidVotingPower
 	}
 
 	v := validators.Validator{
@@ -58,15 +58,15 @@ func (p *PoA) AddValidator(address std.Address, pubKey string, power uint64) (*v
 	// Add the validator to the set
 	p.validators.Set(address.String(), v)
 
-	return &v, nil
+	return v, nil
 }
 
-func (p *PoA) RemoveValidator(address std.Address) (*validators.Validator, error) {
+func (p *PoA) RemoveValidator(address std.Address) (validators.Validator, error) {
 	// Validate that the operation is a valid call
 	// Fetch the validator
 	validator, err := p.GetValidator(address)
 	if err != nil {
-		return nil, err
+		return validators.Validator{}, err
 	}
 
 	// Remove the validator from the set
@@ -81,15 +81,15 @@ func (p *PoA) IsValidator(address std.Address) bool {
 	return exists
 }
 
-func (p *PoA) GetValidator(address std.Address) (*validators.Validator, error) {
+func (p *PoA) GetValidator(address std.Address) (validators.Validator, error) {
 	validatorRaw, exists := p.validators.Get(address.String())
 	if !exists {
-		return nil, validators.ErrValidatorMissing
+		return validators.Validator{}, validators.ErrValidatorMissing
 	}
 
 	validator := validatorRaw.(validators.Validator)
 
-	return &validator, nil
+	return validator, nil
 }
 
 func (p *PoA) GetValidators() []validators.Validator {
