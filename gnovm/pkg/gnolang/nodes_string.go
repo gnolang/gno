@@ -185,7 +185,11 @@ func (x CompositeLitExpr) String() string {
 }
 
 func (x FuncLitExpr) String() string {
-	return fmt.Sprintf("func %s{ %s }", x.Type, x.Body.String())
+	heapCaptures := ""
+	if len(x.HeapCaptures) > 0 {
+		heapCaptures = "<" + x.HeapCaptures.String() + ">"
+	}
+	return fmt.Sprintf("func %s{ %s }%s", x.Type, x.Body.String(), heapCaptures)
 }
 
 func (x KeyValueExpr) String() string {

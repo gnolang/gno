@@ -2384,11 +2384,6 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 							}
 							return n, TRANS_CONTINUE
 						})
-					/* XXX not true when labelLine > gotoLine.
-					if val := n.GetAttribute(ATTR_GOTOLOOP_STMT); val == nil || !val.(bool) {
-						panic("ATTR_GOTOLOOP_STMT not set for last goto stmt")
-					}
-					*/
 				}
 			}
 			return n, TRANS_CONTINUE
