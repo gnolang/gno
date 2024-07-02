@@ -2,7 +2,6 @@
 package prop02
 
 import (
-	"std"
 	"time"
 
 	"gno.land/p/demo/context"
