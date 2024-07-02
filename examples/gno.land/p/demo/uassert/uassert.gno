@@ -4,6 +4,7 @@ package uassert
 import (
 	"std"
 	"strconv"
+	"strings"
 )
 
 // NoError asserts that a function returned no error (i.e. `nil`).
@@ -21,6 +22,23 @@ func Error(t TestingT, err error, msgs ...string) bool {
 	if err == nil {
 		return fail(t, msgs, "an error is expected but got nil")
 	}
+	return true
+}
+
+// ErrorContains asserts that a function returned an error (i.e. not `nil`)
+// and that the error contains the specified substring.
+func ErrorContains(t TestingT, err error, contains string, msgs ...string) bool {
+	t.Helper()
+
+	if !Error(t, err, msgs...) {
+		return false
+	}
+
+	actual := err.Error()
+	if !strings.Contains(actual, contains) {
+		return fail(t, msgs, "error %q does not contain %q", actual, contains)
+	}
+
 	return true
 }
 

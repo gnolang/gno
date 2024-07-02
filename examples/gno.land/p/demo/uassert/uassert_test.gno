@@ -36,6 +36,14 @@ func TestError(t *testing.T) {
 	mockT.equals(t, "error: an error is expected but got nil")
 }
 
+func TestErrorContains(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	// nil error
+	var err error
+	False(t, ErrorContains(mockT, err, ""), "ErrorContains should return false for nil arg")
+}
+
 func TestTrue(t *testing.T) {
 	mockT := new(mockTestingT)
 	if !True(mockT, true) {

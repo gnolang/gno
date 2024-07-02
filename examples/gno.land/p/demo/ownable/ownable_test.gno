@@ -4,13 +4,13 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
 )
 
 var (
-	firstCaller  = std.Address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
-	secondCaller = std.Address("g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa")
+	firstCaller  = testutils.TestAddress("first")
+	secondCaller = testutils.TestAddress("second")
 )
 
 func TestNew(t *testing.T) {
@@ -89,14 +89,10 @@ func TestErrUnauthorized(t *testing.T) {
 	std.TestSetOrigCaller(secondCaller) // TODO(bug): should not be needed
 
 	err := o.TransferOwnership(firstCaller)
-	if err != ErrUnauthorized { // XXX: uassert.IsError
-		t.Fatalf("Should've been ErrUnauthorized, was %v", err)
-	}
+	uassert.ErrorContains(t, err, ErrUnauthorized.Error())
 
 	err = o.DropOwnership()
-	if err != ErrUnauthorized { // XXX: uassert.IsError
-		t.Fatalf("Should've been ErrUnauthorized, was %v", err)
-	}
+	uassert.ErrorContains(t, err, ErrUnauthorized.Error())
 }
 
 func TestErrInvalidAddress(t *testing.T) {
@@ -105,12 +101,8 @@ func TestErrInvalidAddress(t *testing.T) {
 	o := New()
 
 	err := o.TransferOwnership("")
-	if err != ErrInvalidAddress { // XXX: uassert.IsError
-		t.Fatalf("Should've been ErrInvalidAddress, was %v", err)
-	}
+	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 
 	err = o.TransferOwnership("10000000001000000000100000000010000000001000000000")
-	if err != ErrInvalidAddress { // XXX: uassert.IsError
-		t.Fatalf("Should've been ErrInvalidAddress, was %v", err)
-	}
+	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 }

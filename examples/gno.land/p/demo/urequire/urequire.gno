@@ -22,6 +22,14 @@ func Error(t uassert.TestingT, err error, msgs ...string) {
 	t.FailNow()
 }
 
+func ErrorContains(t uassert.TestingT, err error, contains string, msgs ...string) {
+	t.Helper()
+	if uassert.ErrorContains(t, err, contains, msgs...) {
+		return
+	}
+	t.FailNow()
+}
+
 func True(t uassert.TestingT, value bool, msgs ...string) {
 	t.Helper()
 	if uassert.True(t, value, msgs...) {
