@@ -22,5 +22,12 @@ func main() {
 	panic("here")
 }
 
+// Stacktrace:
+// panic here
+// panic((const ("here" <untyped> string)))
+//     main/files/panic1.gno:22
+// main()
+//     main/files/panic1.gno:20
+
 // Error:
 // here

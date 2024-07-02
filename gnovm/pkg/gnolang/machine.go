@@ -25,6 +25,8 @@ type Exception struct {
 	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
 	// currently executing deferred function is able to recover from the panic.
 	Frame *Frame
+
+	Stacktrace Stacktrace
 }
 
 func (e Exception) Sprint(m *Machine) string {
@@ -681,7 +683,7 @@ func (m *Machine) RunFunc(fn Name) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("Machine.RunFunc(%q) panic: %v\n%s\n",
-				fn, r, m.String())
+				fn, r, m.ExceptionsStacktrace())
 			panic(r)
 		}
 	}()
@@ -692,7 +694,7 @@ func (m *Machine) RunMain() {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("Machine.RunMain() panic: %v\n%s\n",
-				r, m.String())
+				r, m.ExceptionsStacktrace())
 			panic(r)
 		}
 	}()
@@ -1543,11 +1545,11 @@ func (m *Machine) PopStmt() Stmt {
 	}
 	if bs, ok := s.(*bodyStmt); ok {
 		return bs.PopActiveStmt()
-	} else {
-		// general case.
-		m.Stmts = m.Stmts[:numStmts-1]
-		return s
 	}
+
+	m.Stmts = m.Stmts[:numStmts-1]
+
+	return s
 }
 
 func (m *Machine) ForcePopStmt() (s Stmt) {
@@ -1777,6 +1779,7 @@ func (m *Machine) PopFrame() Frame {
 		m.Printf("-F %#v\n", f)
 	}
 	m.Frames = m.Frames[:numFrames-1]
+
 	return *f
 }
 
@@ -1796,8 +1799,7 @@ func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
 	fr.Popped = true
 	if debug {
-		// TODO: optimize with fr.IsCall
-		if fr.Func == nil && fr.GoFunc == nil {
+		if !fr.IsCall() {
 			panic("unexpected non-call (loop) frame")
 		}
 	}
@@ -1873,8 +1875,7 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 	}
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		if fr.Func != nil || fr.GoFunc != nil {
-			// TODO: optimize with fr.IsCall
+		if fr.IsCall() {
 			if n == 1 {
 				return fr
 			} else {
@@ -1895,8 +1896,7 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		if fr.Func != nil || fr.GoFunc != nil {
-			// TODO: optimize with fr.IsCall
+		if fr.IsCall() {
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}
@@ -2007,8 +2007,9 @@ func (m *Machine) Panic(ex TypedValue) {
 	m.Exceptions = append(
 		m.Exceptions,
 		Exception{
-			Value: ex,
-			Frame: m.MustLastCallFrame(1),
+			Value:      ex,
+			Frame:      m.MustLastCallFrame(1),
+			Stacktrace: m.Stacktrace(),
 		},
 	)
 
@@ -2148,6 +2149,17 @@ func (m *Machine) String() string {
 
 	for _, ex := range m.Exceptions {
 		builder.WriteString(fmt.Sprintf("      %s\n", ex.Sprint(m)))
+	}
+
+	return builder.String()
+}
+
+func (m *Machine) ExceptionsStacktrace() string {
+	var builder strings.Builder
+
+	for _, ex := range m.Exceptions {
+		builder.WriteString(fmt.Sprintf("panic %s\n", ex.Sprint(m)))
+		builder.WriteString(fmt.Sprintf("%s", ex.Stacktrace.String()))
 	}
 
 	return builder.String()
