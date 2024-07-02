@@ -830,6 +830,11 @@ func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
 
+// IsPkgPath returns true if pv represents a package path.
+func (pv *PackageValue) IsPkgPath() bool {
+	return IsPkgPath(pv.PkgPath)
+}
+
 func (pv *PackageValue) getFBlocksMap() map[Name]*Block {
 	if pv.fBlocksMap == nil {
 		pv.fBlocksMap = make(map[Name]*Block, len(pv.FNames))
