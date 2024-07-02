@@ -41,6 +41,22 @@ func TestSprintf(t *testing.T) {
 		{"â", nil, "â"},
 		{"Hello, World! 😊", nil, "Hello, World! 😊"},
 		{"unicode formatting: %s", []interface{}{"😊"}, "unicode formatting: 😊"},
+		{"uint8 as hex [%x]", []interface{}{uint8(255)}, "uint8 as hex [ff]"},
+		{"[]uint8 as hex [%x]", []interface{}{[]uint8{0xAB, 0xCD, 0xEF}}, "[]uint8 as hex [abcdef]"},
+		{"[32]uint8 as hex [%x]", []interface{}{[32]uint8{0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF}}, "[32]uint8 as hex [123456789abcdef000000000000000000000000]"},
+		{"invalid hex [%x]", []interface{}{"invalid"}, "invalid hex [(unhandled)]"},
+		{"rune as character [%c]", []interface{}{rune('A')}, "rune as character [A]"},
+		{"int as character [%c]", []interface{}{int('B')}, "int as character [B]"},
+		{"invalid character [%c]", []interface{}{"invalid"}, "invalid character [(unhandled)]"},
+		{"quoted string [%q]", []interface{}{"hello"}, "quoted string [\"hello\"]"},
+		{"quoted string with escape [%q]", []interface{}{"\thello\nworld\\"}, "quoted string with escape [\"\\thello\\nworld\\\\\"]"},
+		{"invalid quoted string [%q]", []interface{}{123}, "invalid quoted string [(unhandled)]"},
+		{"type of bool [%T]", []interface{}{true}, "type of bool [bool]"},
+		{"type of int [%T]", []interface{}{123}, "type of int [int]"},
+		{"type of string [%T]", []interface{}{"hello"}, "type of string [string]"},
+		{"type of []byte [%T]", []interface{}{[]byte{1, 2, 3}}, "type of []byte [[]byte]"},
+		{"type of []rune [%T]", []interface{}{[]rune{'a', 'b', 'c'}}, "type of []rune [[]rune]"},
+		{"type of unknown [%T]", []interface{}{struct{}{}}, "type of unknown [unknown]"},
 	}
 
 	for _, tc := range cases {
