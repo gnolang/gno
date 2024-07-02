@@ -25,7 +25,7 @@ jobs:
       with:
         go-version: "1.22.x"
     - name: Run benchmark
-      run: go test -benchmem -bench=. -run=^$ ./forked-gno/gnovm/stdlibs/ -cpu 1,2 ${{ inputs.test-flags }} | tee benchmarks.txt
+      run: go test -benchmem -bench=. -run=^$ github.com/gnolang/gno/tm2/pkg/db/goleveldb/ -cpu 1,2 ${{ inputs.test-flags }} | tee benchmarks.txt
 
     - name: Store benchmark result - separate results repo
       uses: benchmark-action/github-action-benchmark@v1
@@ -40,4 +40,4 @@ jobs:
         comment-on-alert: true
         # fail-on-alert: true
         # alert-comment-cc-users: '@ajnavarro'
-        gh-repository: 'github.com/gnolang/benchmarks'
+        # gh-repository: 'github.com/gnolang/benchmarks'
