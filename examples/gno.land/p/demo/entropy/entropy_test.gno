@@ -1,49 +1,48 @@
-package rand
+package entropy
 
 import (
 	"fmt"
 	"std"
+	"strconv"
 	"strings"
 	"testing"
-
-	"gno.land/p/demo/rand"
 )
 
 func TestInstance(t *testing.T) {
-	instance := rand.New()
+	instance := New()
 	if instance == nil {
 		t.Errorf("instance should not be nil")
 	}
 }
 
-func TestIntn(t *testing.T) {
-	baseRand := rand.New()
-	baseResult := computeIntn(t, baseRand)
+func TestInstanceValue(t *testing.T) {
+	baseEntropy := New()
+	baseResult := computeValue(t, baseEntropy)
 
-	sameHeightRand := rand.New()
-	sameHeightResult := computeIntn(t, sameHeightRand)
+	sameHeightEntropy := New()
+	sameHeightResult := computeValue(t, sameHeightEntropy)
 
 	if baseResult != sameHeightResult {
 		t.Errorf("should have the same result: new=%s, base=%s", sameHeightResult, baseResult)
 	}
 
 	std.TestSkipHeights(1)
-	differentHeightRand := rand.New()
-	differentHeightResult := computeIntn(t, differentHeightRand)
+	differentHeightEntropy := New()
+	differentHeightResult := computeValue(t, differentHeightEntropy)
 
 	if baseResult == differentHeightResult {
 		t.Errorf("should have different result: new=%s, base=%s", differentHeightResult, baseResult)
 	}
 }
 
-func computeIntn(t *testing.T, r *rand.Instance) string {
+func computeValue(t *testing.T, r *Instance) string {
 	t.Helper()
 
-	arr := []string{}
+	out := ""
 	for i := 0; i < 10; i++ {
-		arr = append(arr, fmt.Sprintf("%d", r.Intn(1000)))
+		val := int(r.Value())
+		out += strconv.Itoa(val) + " "
 	}
 
-	out := strings.Join(arr, ",")
 	return out
 }
