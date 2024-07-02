@@ -1,6 +1,6 @@
 // For convenient purposes, more tests have been created using `testscripts` format and are located in `gnovm/cmd/testdata/gno_fmt/` folder
 
-package gnoimports
+package gnofmt
 
 import (
 	"os"
