@@ -100,6 +100,9 @@ func Equal(t TestingT, expected, actual interface{}, msgs ...string) bool {
 	case string:
 		av, ok := actual.(string)
 		return ok && ev == av
+	case std.Address:
+		av, ok := actual.(std.Address)
+		return ok && ev == av
 	case int:
 		av, ok := actual.(int)
 		return ok && ev == av

@@ -3,6 +3,7 @@ package uassert
 import (
 	"errors"
 	"fmt"
+	"std"
 	"testing"
 )
 
@@ -123,12 +124,14 @@ func TestEqual(t *testing.T) {
 		{nil, nil, true, ""},
 		{int32(123), int32(123), true, ""},
 		{uint64(123), uint64(123), true, ""},
+		{std.Address("g12345"), std.Address("g12345"), true, ""},
 		//{[]byte("Hello World"), []byte("Hello World"), true, ""},
 		// {myType("1"), myType("1"), true, ""},
 		//{&struct{}{}, &struct{}{}, true, "pointer equality is based on equality of underlying value"},
 
 		// not expected to be equal
 		{"Hello World", 42, false, ""},
+		{41, 42, false, ""},
 		{10, uint(10), false, ""},
 	}
 
