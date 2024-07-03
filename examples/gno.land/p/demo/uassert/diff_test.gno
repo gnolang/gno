@@ -71,6 +71,12 @@ func TestMyersDiff(t *testing.T) {
 			new:      "",
 			expected: "[-abc]",
 		},
+		{
+			name:     "non-ascii",
+			old:      "ASCII 문자가 아닌 것도 되나?",
+			new:      "ASCII 문자가 아닌 것도 됨.",
+			expected: "ASCII 문자가 아닌 것도 [-되나?][+됨.]",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -85,7 +91,7 @@ func TestMyersDiff(t *testing.T) {
 }
 
 func TestEqual(t *testing.T) {
-	testCases := []struct {
+	tests := []struct {
 		name        string
 		expected    interface{}
 		actual      interface{}
@@ -129,7 +135,7 @@ func TestEqual(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
+	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			mockT := &mockTestingT{}
 			result := Equal(mockT, tc.expected, tc.actual)

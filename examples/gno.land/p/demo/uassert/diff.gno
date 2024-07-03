@@ -110,9 +110,15 @@ endSearch:
 }
 
 func formatDiff(edits []Edit) string {
-	var result strings.Builder
-	var currentType EditType
-	var currentChars strings.Builder
+	if len(edits) == 0 {
+		return ""
+	}
+
+	var (
+		result       strings.Builder
+		currentType  EditType
+		currentChars strings.Builder
+	)
 
 	flushCurrent := func() {
 		if currentChars.Len() > 0 {
@@ -120,9 +126,13 @@ func formatDiff(edits []Edit) string {
 			case EditKeep:
 				result.WriteString(currentChars.String())
 			case EditInsert:
-				result.WriteString("[+" + currentChars.String() + "]")
+				result.WriteString("[+")
+				result.WriteString(currentChars.String())
+				result.WriteByte(']')
 			case EditDelete:
-				result.WriteString("[-" + currentChars.String() + "]")
+				result.WriteString("[-")
+				result.WriteString(currentChars.String())
+				result.WriteByte(']')
 			}
 			currentChars.Reset()
 		}
