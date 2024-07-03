@@ -1,1 +1,1 @@
-module context
+module gno.land/p/demo/context
