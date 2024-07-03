@@ -70,7 +70,7 @@ the `[help]` button.
 By choosing one of the two `gnokey` commands and inputting your address 
 (or keypair name) in the top bar, you will have a ready command to paste into your 
 terminal. For example, the following command will call the `SignUp` function with the
-keypair `MyKeypair`: 
+keypair `MyKey`: 
 
 ```
 gnokey maketx call \
@@ -82,7 +82,7 @@ gnokey maketx call \
 -broadcast \
 -chainid "portal-loop" \
 -remote "https://rpc.gno.land:443" \
-MyKeypair
+MyKey
 ```
 
 To see what each option and flag in this command does, read the `gnokey` 
