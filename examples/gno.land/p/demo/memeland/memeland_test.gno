@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
@@ -15,7 +14,6 @@ import (
 func TestPostMeme(t *testing.T) {
 	m := NewMemeland()
 	id := m.PostMeme("Test meme data", time.Now().Unix())
-
 	uassert.NotEqual(t, "", string(id), "Expected valid ID, got empty string")
 }
 
