@@ -106,8 +106,8 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, tplData G
 	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
 	txs := []std.Tx{}
 	for _, pkg := range nonDraftPkgs {
-		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
-		tx, err := LoadPackage(memPkg, creator, fee, nil, tplData)
+		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name, tplData)
+		tx, err := LoadPackage(memPkg, creator, fee, nil)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}

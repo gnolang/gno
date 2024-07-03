@@ -1105,7 +1105,7 @@ func PackageNameFromFileBody(name, body string) Name {
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
+func ReadMemPackage(dir string, pkgPath string, genData) *std.MemPackage {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		panic(err)

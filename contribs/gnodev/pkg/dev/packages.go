@@ -8,8 +8,10 @@ import (
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -139,10 +141,20 @@ func (pm PackagesMap) Load(fee std.Fee) ([]std.Tx, error) {
 
 		// Open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(modPkg.Dir, modPkg.Name)
+		for _, file := range memPkg.Files {
+			fmt.Printf("BBB: %q, %s\n", file.Name, file.Body)
+		}
 
 		tx, err := gnoland.LoadPackage(memPkg, pkg.Creator, fee, pkg.Deposit, tplData)
 		if err != nil {
 			return nil, err
+		}
+
+		var msg vm.MsgAddPackage
+		bz := tx.Msgs[0].GetSignBytes()
+		amino.MustUnmarshalJSON(bz, &msg)
+		for _, file := range msg.Package.Files {
+			fmt.Printf("AAA: %q, %s\n", file.Name, file.Body)
 		}
 
 		txs = append(txs, tx)
