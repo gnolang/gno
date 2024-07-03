@@ -35,7 +35,7 @@ func TestBalanceOf(t *testing.T) {
 
 	balanceAddr1OfToken1, err := dummy.BalanceOf(addr1, tid1)
 	uassert.NoError(t, err, "should not result in error")
-	uassert.Equal(t, 0, balanceAddr1OfToken1)
+	uassert.Equal(t, uint64(0), balanceAddr1OfToken1)
 
 	dummy.mintBatch(addr1, []TokenID{tid1, tid2}, []uint64{10, 100})
 	dummy.mintBatch(addr2, []TokenID{tid1}, []uint64{20})
@@ -47,9 +47,9 @@ func TestBalanceOf(t *testing.T) {
 	balanceAddr2OfToken1, err := dummy.BalanceOf(addr2, tid1)
 	uassert.NoError(t, err, "should not result in error")
 
-	uassert.Equal(t, 10, balanceAddr1OfToken1)
-	uassert.Equal(t, 100, balanceAddr1OfToken2)
-	uassert.Equal(t, 20, balanceAddr2OfToken1)
+	uassert.Equal(t, uint64(10), balanceAddr1OfToken1)
+	uassert.Equal(t, uint64(100), balanceAddr1OfToken2)
+	uassert.Equal(t, uint64(20), balanceAddr2OfToken1)
 }
 
 func TestBalanceOfBatch(t *testing.T) {
@@ -64,16 +64,16 @@ func TestBalanceOfBatch(t *testing.T) {
 
 	balanceBatch, err := dummy.BalanceOfBatch([]std.Address{addr1, addr2}, []TokenID{tid1, tid2})
 	uassert.NoError(t, err, "should not result in error")
-	uassert.Equal(t, 10, balanceBatch[0])
-	uassert.Equal(t, 0, balanceBatch[1])
+	uassert.Equal(t, uint64(0), balanceBatch[0])
+	uassert.Equal(t, uint64(0), balanceBatch[1])
 
 	dummy.mintBatch(addr1, []TokenID{tid1}, []uint64{10})
 	dummy.mintBatch(addr2, []TokenID{tid2}, []uint64{20})
 
 	balanceBatch, err = dummy.BalanceOfBatch([]std.Address{addr1, addr2}, []TokenID{tid1, tid2})
 	uassert.NoError(t, err, "should not result in error")
-	uassert.Equal(t, 10, balanceBatch[0])
-	uassert.Equal(t, 20, balanceBatch[1])
+	uassert.Equal(t, uint64(10), balanceBatch[0])
+	uassert.Equal(t, uint64(20), balanceBatch[1])
 }
 
 func TestIsApprovedForAll(t *testing.T) {
@@ -133,12 +133,12 @@ func TestSafeTransferFrom(t *testing.T) {
 	// Check balance of caller after transfer
 	balanceOfCaller, err := dummy.BalanceOf(caller, tid)
 	uassert.NoError(t, err, "should not result in error")
-	uassert.Equal(t, 40, balanceOfCaller)
+	uassert.Equal(t, uint64(40), balanceOfCaller)
 
 	// Check balance of addr after transfer
 	balanceOfAddr, err := dummy.BalanceOf(addr, tid)
 	uassert.NoError(t, err, "should not result in error")
-	uassert.Equal(t, 60, balanceOfAddr)
+	uassert.Equal(t, uint64(60), balanceOfAddr)
 }
 
 func TestSafeBatchTransferFrom(t *testing.T) {
@@ -166,16 +166,16 @@ func TestSafeBatchTransferFrom(t *testing.T) {
 	uassert.NoError(t, err, "should not result in error")
 
 	// Check token1's balance of caller after batch transfer
-	uassert.Equal(t, 6, balanceBatch[0])
+	uassert.Equal(t, uint64(6), balanceBatch[0])
 
 	// Check token1's balance of addr after batch transfer
-	uassert.Equal(t, 4, balanceBatch[1])
+	uassert.Equal(t, uint64(4), balanceBatch[1])
 
 	// Check token2's balance of caller after batch transfer
-	uassert.Equal(t, 40, balanceBatch[2])
+	uassert.Equal(t, uint64(40), balanceBatch[2])
 
 	// Check token2's balance of addr after batch transfer
-	uassert.Equal(t, 60, balanceBatch[3])
+	uassert.Equal(t, uint64(60), balanceBatch[3])
 }
 
 func TestSafeMint(t *testing.T) {
@@ -200,11 +200,11 @@ func TestSafeMint(t *testing.T) {
 	balanceBatch, err := dummy.BalanceOfBatch([]std.Address{addr1, addr2, addr1}, []TokenID{tid1, tid1, tid2})
 	uassert.NoError(t, err, "should not result in error")
 	// Check token1's balance of addr1 after mint
-	uassert.Equal(t, 100, balanceBatch[0])
+	uassert.Equal(t, uint64(100), balanceBatch[0])
 	// Check token1's balance of addr2 after mint
-	uassert.Equal(t, 50, balanceBatch[1])
+	uassert.Equal(t, uint64(50), balanceBatch[1])
 	// Check token2's balance of addr1 after mint
-	uassert.Equal(t, 200, balanceBatch[2])
+	uassert.Equal(t, uint64(200), balanceBatch[2])
 }
 
 func TestSafeBatchMint(t *testing.T) {
@@ -227,13 +227,13 @@ func TestSafeBatchMint(t *testing.T) {
 	balanceBatch, err := dummy.BalanceOfBatch([]std.Address{addr1, addr2, addr1, addr2}, []TokenID{tid1, tid1, tid2, tid2})
 	uassert.NoError(t, err, "should not result in error")
 	// Check token1's balance of addr1 after batch mint
-	uassert.Equal(t, 100, balanceBatch[0])
+	uassert.Equal(t, uint64(100), balanceBatch[0])
 	// Check token1's balance of addr2 after batch mint
-	uassert.Equal(t, 300, balanceBatch[1])
+	uassert.Equal(t, uint64(300), balanceBatch[1])
 	// Check token2's balance of addr1 after batch mint
-	uassert.Equal(t, 200, balanceBatch[2])
+	uassert.Equal(t, uint64(200), balanceBatch[2])
 	// Check token2's balance of addr2 after batch mint
-	uassert.Equal(t, 400, balanceBatch[3])
+	uassert.Equal(t, uint64(400), balanceBatch[3])
 }
 
 func TestBurn(t *testing.T) {
@@ -246,21 +246,21 @@ func TestBurn(t *testing.T) {
 	tid2 := TokenID("2")
 
 	dummy.mintBatch(addr, []TokenID{tid1, tid2}, []uint64{100, 200})
-	err := dummy.Burn(zeroAddress, tid1, 60)
+	err := dummy.Burn(zeroAddress, tid1, uint64(60))
 	uassert.Error(t, err, "should result in error")
-	err = dummy.Burn(addr, tid1, 160)
+	err = dummy.Burn(addr, tid1, uint64(160))
 	uassert.Error(t, err, "should result in error")
-	err = dummy.Burn(addr, tid1, 60)
+	err = dummy.Burn(addr, tid1, uint64(60))
 	uassert.NoError(t, err, "should not result in error")
-	err = dummy.Burn(addr, tid2, 60)
+	err = dummy.Burn(addr, tid2, uint64(60))
 	uassert.NoError(t, err, "should not result in error")
 	balanceBatch, err := dummy.BalanceOfBatch([]std.Address{addr, addr}, []TokenID{tid1, tid2})
 	uassert.NoError(t, err, "should not result in error")
 
 	// Check token1's balance of addr after burn
-	uassert.Equal(t, 40, balanceBatch[0])
+	uassert.Equal(t, uint64(40), balanceBatch[0])
 	// Check token2's balance of addr after burn
-	uassert.Equal(t, 140, balanceBatch[1])
+	uassert.Equal(t, uint64(140), balanceBatch[1])
 }
 
 func TestBatchBurn(t *testing.T) {
@@ -283,7 +283,7 @@ func TestBatchBurn(t *testing.T) {
 	uassert.NoError(t, err, "should not result in error")
 
 	// Check token1's balance of addr after batch burn
-	uassert.Equal(t, 40, balanceBatch[0])
+	uassert.Equal(t, uint64(40), balanceBatch[0])
 	// Check token2's balance of addr after batch burn
-	uassert.Equal(t, 140, balanceBatch[1])
+	uassert.Equal(t, uint64(140), balanceBatch[1])
 }
