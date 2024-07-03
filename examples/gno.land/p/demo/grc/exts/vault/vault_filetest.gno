@@ -2,7 +2,6 @@ package main
 
 import (
 	"std"
-	"time"
 
 	"gno.land/p/demo/grc/exts/vault"
 	"gno.land/p/demo/grc/grc20"

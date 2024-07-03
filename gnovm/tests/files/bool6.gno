@@ -9,4 +9,4 @@ func X() string {
 }
 
 // Error:
-// main/files/bool6.gno:8: operator || not defined on: StringKind
+// main/files/bool6.gno:8:9: operator || not defined on: StringKind

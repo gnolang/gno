@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_call.gno:9: cannot use int as string
+// main/files/types/assign_call.gno:9:2: cannot use int as string

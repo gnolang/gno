@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/fun24.gno:3: cannot use untyped string as IntKind
+// main/files/fun24.gno:3:28: cannot use untyped string as IntKind

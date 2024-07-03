@@ -6,10 +6,20 @@ import "errors"
 // Executor represents a minimal closure-oriented proposal design.
 // It is intended to be used by a govdao governance proposal (v1, v2, etc).
 type Executor interface {
+	// Execute executes the given proposal, and returns any error encountered
+	// during the execution
 	Execute() error
-	Done() bool
-	Success() bool  // Done() && !err
-	Status() Status // human-readable execution status
+
+	// IsDone returns a flag indicating if the proposal was executed
+	IsDone() bool
+
+	// IsSuccessful returns a flag indicating if the proposal was executed
+	// and is successful
+	IsSuccessful() bool // IsDone() && !err
+
+	// GetStatus returns the current human-readable status
+	// of the proposal
+	GetStatus() Status // human-readable execution status
 }
 
 // ErrAlreadyDone is the error returned when trying to execute an already
@@ -19,8 +29,10 @@ var ErrAlreadyDone = errors.New("already executed")
 // Status enum.
 type Status string
 
-var (
+const (
 	NotExecuted Status = "not_executed"
-	Success     Status = "success"
+	Succeeded   Status = "succeeded"
 	Failed      Status = "failed"
 )
+
+const daoPkgPath = "gno.land/r/gov/dao" // TODO: make sure this is configurable through r/sys/vars
