@@ -25,17 +25,6 @@ func TestSecrets_Verify_All(t *testing.T) {
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 
-		// Run the init command
-		initArgs := []string{
-			"secrets",
-			"init",
-			"--home",
-			homeDir.Path(),
-		}
-
-		// Run the init command
-		require.NoError(t, cmd.ParseAndRun(context.Background(), initArgs))
-
 		// Modify the signature
 		state, err := readSecretData[privval.FilePVLastSignState](homeDir.SecretsValidatorState())
 		require.NoError(t, err)

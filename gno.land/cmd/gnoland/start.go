@@ -210,12 +210,6 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		return fmt.Errorf("unable to initialize telemetry, %w", err)
 	}
 
-	// Create application and node
-	cfg.LocalApp, err = gnoland.NewApp(c.homeDir.Path(), c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
-	if err != nil {
-		return fmt.Errorf("unable to create the Gnoland app, %w", err)
-	}
-
 	// Print the starting graphic
 	if c.logFormat != string(log.JSONFormat) {
 		io.Println(startGraphic)
@@ -225,13 +219,13 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	evsw := events.NewEventSwitch()
 
 	// Create application and node
-	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, evsw, logger)
+	cfg.LocalApp, err = gnoland.NewApp(c.homeDir.Path(), c.skipFailingGenesisTxs, evsw, logger)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)
 	}
 
 	// Create a default node, with the given setup
-	gnoNode, err := node.DefaultNewNode(cfg, c.homeDir.GenesisFilePath(), logger)
+	gnoNode, err := node.DefaultNewNode(cfg, c.homeDir.GenesisFilePath(), evsw, logger)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}

@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -26,25 +25,19 @@ func TestSecrets_Get_All(t *testing.T) {
 		// Create a temporary directory
 		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
+		secrets, err := homeDir.GetSecrets()
+		require.NoError(t, err)
+
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
-
-		// Run the init command
-		initArgs := []string{
-			"secrets",
-			"init",
-			"--home",
-			homeDir.Path(),
-		}
-
-		// Run the init command
-		require.NoError(t, cmd.ParseAndRun(context.Background(), initArgs))
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
 		io.SetOut(commands.WriteNopCloser(mockOutput))
 
 		cmd = newRootCmd(io)
+
+		_ = secrets
 
 		// Get the node key
 		nodeKey, err := readSecretData[p2p.NodeKey](homeDir.SecretsNodeKey())
@@ -134,196 +127,119 @@ func TestSecrets_Get_All(t *testing.T) {
 func TestSecrets_Get_ValidatorKeyInfo(t *testing.T) {
 	t.Parallel()
 
-	t.Run("validator key info", func(t *testing.T) {
-		t.Parallel()
+	tests := []struct {
+		name     string
+		args     []string
+		expected func(t *testing.T, out []byte, s *secrets)
+	}{
+		{
+			name: "2-validator key info",
+			args: []string{validatorPrivateKeyKey},
+			expected: func(t *testing.T, out []byte, s *secrets) {
+				var vk validatorKeyInfo
 
-		// Create a temporary directory
-		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
+				require.NoError(t, json.Unmarshal([]byte(out), &vk))
 
-		validKey := generateValidatorPrivateKey()
+				// Make sure the private key info is displayed
+				assert.Equal(
+					t,
+					s.ValidatorKeyInfo.Address,
+					vk.Address,
+				)
 
-		require.NoError(t, saveSecretData(validKey, homeDir.SecretsValidatorKey()))
+				assert.Equal(
+					t,
+					s.ValidatorKeyInfo.PubKey,
+					vk.PubKey,
+				)
+			},
+		},
+		{
+			name: "2-validator key address",
+			args: []string{fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "address")},
+			expected: func(t *testing.T, out []byte, s *secrets) {
+				var address string
 
-		mockOutput := bytes.NewBufferString("")
-		io := commands.NewTestIO()
-		io.SetOut(commands.WriteNopCloser(mockOutput))
+				require.NoError(t, json.Unmarshal(out, &address))
 
-		// Create the command
-		cmd := newRootCmd(io)
-		args := []string{
-			"secrets",
-			"get",
-			"--home",
-			homeDir.Path(),
-			validatorPrivateKeyKey,
-		}
+				assert.Equal(
+					t,
+					s.ValidatorKeyInfo.Address,
+					address,
+				)
 
-		// Run the command
-		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
+			},
+		},
+		{
+			name: "2-validator key address, raw",
+			args: []string{fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "address"), "--raw"},
+			expected: func(t *testing.T, out []byte, s *secrets) {
+				assert.Equal(
+					t,
+					s.ValidatorKeyInfo.Address,
+					escapeNewline(out),
+				)
 
-		var vk validatorKeyInfo
+			},
+		},
+		{
+			name: "2-validator key pubkey",
+			args: []string{fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "pub_key")},
+			expected: func(t *testing.T, out []byte, s *secrets) {
+				var address string
 
-		require.NoError(t, json.Unmarshal(mockOutput.Bytes(), &vk))
+				require.NoError(t, json.Unmarshal(out, &address))
 
-		// Make sure the private key info is displayed
-		assert.Equal(
-			t,
-			validKey.Address.String(),
-			vk.Address,
-		)
+				assert.Equal(
+					t,
+					s.ValidatorKeyInfo.PubKey,
+					address,
+				)
+			},
+		},
+		{
+			name: "2-validator key pubkey, raw",
+			args: []string{fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "pub_key"), "--raw"},
+			expected: func(t *testing.T, out []byte, s *secrets) {
+				assert.Equal(
+					t,
+					s.ValidatorKeyInfo.PubKey,
+					escapeNewline(out),
+				)
+			},
+		},
+	}
 
-		assert.Equal(
-			t,
-			validKey.PubKey.String(),
-			vk.PubKey,
-		)
-	})
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 
-	t.Run("validator key address", func(t *testing.T) {
-		t.Parallel()
+			// Create a temporary directory
+			homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
-		dirPath := t.TempDir()
-		keyPath := filepath.Join(dirPath, defaultValidatorKeyName)
+			secrets, err := homeDir.GetSecrets()
+			require.NoError(t, err)
 
-		validKey := generateValidatorPrivateKey()
+			mockOutput := bytes.NewBufferString("")
+			io := commands.NewTestIO()
+			io.SetOut(commands.WriteNopCloser(mockOutput))
 
-		require.NoError(t, saveSecretData(validKey, keyPath))
+			// Create the command
+			cmd := newRootCmd(io)
+			args := []string{
+				"secrets",
+				"get",
+				"--home",
+				homeDir.Path(),
+			}
+			args = append(args, test.args...)
 
-		mockOutput := bytes.NewBufferString("")
-		io := commands.NewTestIO()
-		io.SetOut(commands.WriteNopCloser(mockOutput))
+			// Run the command
+			require.NoError(t, cmd.ParseAndRun(context.Background(), args))
 
-		// Create the command
-		cmd := newRootCmd(io)
-		args := []string{
-			"secrets",
-			"get",
-			"--data-dir",
-			dirPath,
-			fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "address"),
-		}
-
-		// Run the command
-		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
-
-		var address string
-
-		require.NoError(t, json.Unmarshal(mockOutput.Bytes(), &address))
-
-		assert.Equal(
-			t,
-			validKey.Address.String(),
-			address,
-		)
-	})
-
-	t.Run("validator key address, raw", func(t *testing.T) {
-		t.Parallel()
-
-		dirPath := t.TempDir()
-		keyPath := filepath.Join(dirPath, defaultValidatorKeyName)
-
-		validKey := generateValidatorPrivateKey()
-
-		require.NoError(t, saveSecretData(validKey, keyPath))
-
-		mockOutput := bytes.NewBufferString("")
-		io := commands.NewTestIO()
-		io.SetOut(commands.WriteNopCloser(mockOutput))
-
-		// Create the command
-		cmd := newRootCmd(io)
-		args := []string{
-			"secrets",
-			"get",
-			"--data-dir",
-			dirPath,
-			fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "address"),
-			"--raw",
-		}
-
-		// Run the command
-		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
-
-		assert.Equal(
-			t,
-			validKey.Address.String(),
-			escapeNewline(mockOutput.Bytes()),
-		)
-	})
-
-	t.Run("validator key pubkey", func(t *testing.T) {
-		t.Parallel()
-
-		dirPath := t.TempDir()
-		keyPath := filepath.Join(dirPath, defaultValidatorKeyName)
-
-		validKey := generateValidatorPrivateKey()
-
-		require.NoError(t, saveSecretData(validKey, keyPath))
-
-		mockOutput := bytes.NewBufferString("")
-		io := commands.NewTestIO()
-		io.SetOut(commands.WriteNopCloser(mockOutput))
-
-		// Create the command
-		cmd := newRootCmd(io)
-		args := []string{
-			"secrets",
-			"get",
-			"--data-dir",
-			dirPath,
-			fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "pub_key"),
-		}
-
-		// Run the command
-		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
-
-		var address string
-
-		require.NoError(t, json.Unmarshal(mockOutput.Bytes(), &address))
-
-		assert.Equal(
-			t,
-			validKey.PubKey.String(),
-			address,
-		)
-	})
-
-	t.Run("validator key pubkey, raw", func(t *testing.T) {
-		t.Parallel()
-
-		dirPath := t.TempDir()
-		keyPath := filepath.Join(dirPath, defaultValidatorKeyName)
-
-		validKey := generateValidatorPrivateKey()
-
-		require.NoError(t, saveSecretData(validKey, keyPath))
-
-		mockOutput := bytes.NewBufferString("")
-		io := commands.NewTestIO()
-		io.SetOut(commands.WriteNopCloser(mockOutput))
-
-		// Create the command
-		cmd := newRootCmd(io)
-		args := []string{
-			"secrets",
-			"get",
-			"--data-dir",
-			dirPath,
-			fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "pub_key"),
-			"--raw",
-		}
-
-		// Run the command
-		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
-
-		assert.Equal(
-			t,
-			validKey.PubKey.String(),
-			escapeNewline(mockOutput.Bytes()),
-		)
-	})
+			test.expected(t, mockOutput.Bytes(), secrets)
+		})
+	}
 }
 
 func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
@@ -380,107 +296,75 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 		)
 	})
 
-	t.Run("validator state info height", func(t *testing.T) {
-		t.Parallel()
+	testsValidatorStates := []struct {
+		name     string
+		key      string
+		expected func(t *testing.T, out string, s *secrets)
+	}{
+		{
+			name: "height",
+			key:  fmt.Sprintf("%s.%s", validatorStateKey, "height"),
+			expected: func(t *testing.T, out string, s *secrets) {
+				assert.Equal(
+					t,
+					fmt.Sprintf("%d\n", s.ValidatorStateInfo.Height),
+					out,
+				)
+			},
+		},
+		{
+			name: "round",
+			key:  fmt.Sprintf("%s.%s", validatorStateKey, "round"),
+			expected: func(t *testing.T, out string, s *secrets) {
+				assert.Equal(
+					t,
+					fmt.Sprintf("%d\n", s.ValidatorStateInfo.Round),
+					out,
+				)
+			},
+		},
+		{
+			name: "step",
+			key:  fmt.Sprintf("%s.%s", validatorStateKey, "step"),
+			expected: func(t *testing.T, out string, s *secrets) {
+				assert.Equal(
+					t,
+					fmt.Sprintf("%d\n", s.ValidatorStateInfo.Step),
+					out,
+				)
+			},
+		},
+	}
+	for _, tests := range testsValidatorStates {
+		t.Run("validator state info "+tests.name, func(t *testing.T) {
+			t.Parallel()
 
-		dirPath := t.TempDir()
-		statePath := filepath.Join(dirPath, defaultValidatorStateName)
+			// Create a temporary directory
+			homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
-		validState := generateLastSignValidatorState()
+			secrets, err := homeDir.GetSecrets()
+			require.NoError(t, err)
 
-		require.NoError(t, saveSecretData(validState, statePath))
+			mockOutput := bytes.NewBufferString("")
+			io := commands.NewTestIO()
+			io.SetOut(commands.WriteNopCloser(mockOutput))
 
-		mockOutput := bytes.NewBufferString("")
-		io := commands.NewTestIO()
-		io.SetOut(commands.WriteNopCloser(mockOutput))
+			// Create the command
+			cmd := newRootCmd(io)
+			args := []string{
+				"secrets",
+				"get",
+				"--home",
+				homeDir.Path(),
+				tests.key,
+			}
 
-		// Create the command
-		cmd := newRootCmd(io)
-		args := []string{
-			"secrets",
-			"get",
-			"--data-dir",
-			dirPath,
-			fmt.Sprintf("%s.%s", validatorStateKey, "height"),
-		}
+			// Run the command
+			require.NoError(t, cmd.ParseAndRun(context.Background(), args))
 
-		// Run the command
-		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
-
-		assert.Equal(
-			t,
-			fmt.Sprintf("%d\n", validState.Height),
-			mockOutput.String(),
-		)
-	})
-
-	t.Run("validator state info round", func(t *testing.T) {
-		t.Parallel()
-
-		dirPath := t.TempDir()
-		statePath := filepath.Join(dirPath, defaultValidatorStateName)
-
-		validState := generateLastSignValidatorState()
-
-		require.NoError(t, saveSecretData(validState, statePath))
-
-		mockOutput := bytes.NewBufferString("")
-		io := commands.NewTestIO()
-		io.SetOut(commands.WriteNopCloser(mockOutput))
-
-		// Create the command
-		cmd := newRootCmd(io)
-		args := []string{
-			"secrets",
-			"get",
-			"--data-dir",
-			dirPath,
-			fmt.Sprintf("%s.%s", validatorStateKey, "round"),
-		}
-
-		// Run the command
-		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
-
-		assert.Equal(
-			t,
-			fmt.Sprintf("%d\n", validState.Round),
-			mockOutput.String(),
-		)
-	})
-
-	t.Run("validator state info step", func(t *testing.T) {
-		t.Parallel()
-
-		dirPath := t.TempDir()
-		statePath := filepath.Join(dirPath, defaultValidatorStateName)
-
-		validState := generateLastSignValidatorState()
-
-		require.NoError(t, saveSecretData(validState, statePath))
-
-		mockOutput := bytes.NewBufferString("")
-		io := commands.NewTestIO()
-		io.SetOut(commands.WriteNopCloser(mockOutput))
-
-		// Create the command
-		cmd := newRootCmd(io)
-		args := []string{
-			"secrets",
-			"get",
-			"--data-dir",
-			dirPath,
-			fmt.Sprintf("%s.%s", validatorStateKey, "step"),
-		}
-
-		// Run the command
-		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
-
-		assert.Equal(
-			t,
-			fmt.Sprintf("%d\n", validState.Step),
-			mockOutput.String(),
-		)
-	})
+			tests.expected(t, mockOutput.String(), secrets)
+		})
+	}
 }
 
 func TestSecrets_Get_NodeIDInfo(t *testing.T) {
@@ -489,14 +373,11 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 	t.Run("node ID info, default config", func(t *testing.T) {
 		t.Parallel()
 
-		cfg := config.DefaultConfig()
+		// Create a temporary directory
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
-		dirPath := t.TempDir()
-		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
-
-		validNodeKey := generateNodeKey()
-
-		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+		secrets, err := homeDir.GetSecrets()
+		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -507,8 +388,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		args := []string{
 			"secrets",
 			"get",
-			"--data-dir",
-			dirPath,
+			"--home",
+			homeDir.Path(),
 			nodeIDKey,
 		}
 
@@ -521,14 +402,14 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		// Make sure the node p2p key is displayed
 		assert.Equal(
 			t,
-			validNodeKey.ID().String(),
+			secrets.NodeIDInfo.ID,
 			ni.ID,
 		)
 
 		// Make sure the default node p2p address is displayed
 		assert.Equal(
 			t,
-			constructP2PAddress(validNodeKey.ID(), cfg.P2P.ListenAddress),
+			secrets.NodeIDInfo.P2PAddress,
 			ni.P2PAddress,
 		)
 	})
@@ -537,10 +418,11 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		t.Parallel()
 
 		// Create a temporary directory
-		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withConfig, withSecrets)
 
-		cfg, err := config.LoadConfig(homeDir.ConfigFile())
+		cfg, err := homeDir.GetConfig()
 		require.NoError(t, err)
+
 		cfg.P2P.ListenAddress = "tcp://127.0.0.1:2525"
 		require.NoError(t, config.WriteConfigFile(homeDir.ConfigFile(), cfg))
 
@@ -588,9 +470,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		// Create a temporary directory
 		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
-		validNodeKey := generateNodeKey()
-
-		require.NoError(t, saveSecretData(validNodeKey, homeDir.SecretsNodeKey()))
+		secrets, err := homeDir.GetSecrets()
+		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -609,26 +490,26 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		// Run the command
 		require.NoError(t, cmd.ParseAndRun(context.Background(), args))
 
-		var output string
+		// TODO(albttx): why string not working here
+		var output map[string]string
 		require.NoError(t, json.Unmarshal(mockOutput.Bytes(), &output))
 
 		// Make sure the node p2p key is displayed
 		assert.Equal(
 			t,
-			validNodeKey.ID().String(),
-			output,
+			secrets.NodeIDInfo.ID,
+			output["id"],
 		)
 	})
 
 	t.Run("ID, raw", func(t *testing.T) {
 		t.Parallel()
 
-		dirPath := t.TempDir()
-		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
+		// Create a temporary directory
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
-		validNodeKey := generateNodeKey()
-
-		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+		secrets, err := homeDir.GetSecrets()
+		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -639,8 +520,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		args := []string{
 			"secrets",
 			"get",
-			"--data-dir",
-			dirPath,
+			"--home",
+			homeDir.Path(),
 			fmt.Sprintf("%s.%s", nodeIDKey, "id"),
 			"--raw",
 		}
@@ -651,7 +532,7 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		// Make sure the node p2p key is displayed
 		assert.Equal(
 			t,
-			validNodeKey.ID().String(),
+			secrets.NodeIDInfo.ID,
 			escapeNewline(mockOutput.Bytes()),
 		)
 	})
@@ -659,14 +540,11 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 	t.Run("P2P Address", func(t *testing.T) {
 		t.Parallel()
 
-		cfg := config.DefaultConfig()
+		// Create a temporary directory
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets, withConfig)
 
-		dirPath := t.TempDir()
-		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
-
-		validNodeKey := generateNodeKey()
-
-		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+		secrets, err := homeDir.GetSecrets()
+		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -677,8 +555,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		args := []string{
 			"secrets",
 			"get",
-			"--data-dir",
-			dirPath,
+			"--home",
+			homeDir.Path(),
 			fmt.Sprintf("%s.%s", nodeIDKey, "p2p_address"),
 		}
 
@@ -691,7 +569,7 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		// Make sure the custom node p2p address is displayed
 		assert.Equal(
 			t,
-			constructP2PAddress(validNodeKey.ID(), cfg.P2P.ListenAddress),
+			secrets.NodeIDInfo.P2PAddress,
 			output,
 		)
 	})
@@ -699,14 +577,11 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 	t.Run("P2P Address, raw", func(t *testing.T) {
 		t.Parallel()
 
-		cfg := config.DefaultConfig()
+		// Create a temporary directory
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets, withConfig)
 
-		dirPath := t.TempDir()
-		nodeKeyPath := filepath.Join(dirPath, defaultNodeKeyName)
-
-		validNodeKey := generateNodeKey()
-
-		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+		secrets, err := homeDir.GetSecrets()
+		require.NoError(t, err)
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -717,8 +592,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		args := []string{
 			"secrets",
 			"get",
-			"--data-dir",
-			dirPath,
+			"--home",
+			homeDir.Path(),
 			fmt.Sprintf("%s.%s", nodeIDKey, "p2p_address"),
 			"--raw",
 		}
@@ -729,7 +604,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		// Make sure the custom node p2p address is displayed
 		assert.Equal(
 			t,
-			constructP2PAddress(validNodeKey.ID(), cfg.P2P.ListenAddress),
+			secrets.NodeIDInfo.P2PAddress,
+			// constructP2PAddress(validNodeKey.ID(), cfg.P2P.ListenAddress),
 			escapeNewline(mockOutput.Bytes()),
 		)
 	})

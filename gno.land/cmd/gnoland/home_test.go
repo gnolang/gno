@@ -28,6 +28,15 @@ func newTestHomeDirectory(t *testing.T, home string, args ...int) homeDirectory 
 			require.NoError(t, config.WriteConfigFile(homeDir.ConfigFile(), config.DefaultConfig()))
 		case withSecrets:
 			require.NoError(t, os.MkdirAll(homeDir.SecretsDir(), 0o700))
+
+			nodeKey := generateNodeKey()
+			require.NoError(t, saveSecretData(nodeKey, homeDir.SecretsNodeKey()))
+
+			validKey := generateValidatorPrivateKey()
+			require.NoError(t, saveSecretData(validKey, homeDir.SecretsValidatorKey()))
+
+			validState := generateLastSignValidatorState()
+			require.NoError(t, saveSecretData(validState, homeDir.SecretsValidatorState()))
 		}
 	}
 

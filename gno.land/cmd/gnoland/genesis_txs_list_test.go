@@ -5,40 +5,20 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
 func TestGenesis_List_All(t *testing.T) {
 	t.Parallel()
 
-	t.Run("invalid genesis path", func(t *testing.T) {
-		t.Parallel()
-
-		// Create the command
-		cmd := newRootCmd(commands.NewTestIO())
-		args := []string{
-			"genesis",
-			"txs",
-			"list",
-			"--genesis-path",
-			"",
-		}
-
-		// Run the command
-		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorIs(t, cmdErr, errUnableToLoadGenesis)
-	})
-
 	t.Run("list all txs", func(t *testing.T) {
 		t.Parallel()
 
-		tempGenesis, cleanup := testutils.NewTestFile(t)
-		t.Cleanup(cleanup)
+		// Create a temporary directory
+		homeDir := newTestHomeDirectory(t, t.TempDir())
 
 		// Generate dummy txs
 		txs := generateDummyTxs(t, 10)
@@ -47,7 +27,7 @@ func TestGenesis_List_All(t *testing.T) {
 		genesis.AppState = gnoland.GnoGenesisState{
 			Txs: txs,
 		}
-		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
+		require.NoError(t, genesis.SaveAs(homeDir.GenesisFilePath()))
 
 		cio := commands.NewTestIO()
 		buf := bytes.NewBuffer(nil)
@@ -58,8 +38,8 @@ func TestGenesis_List_All(t *testing.T) {
 			"genesis",
 			"txs",
 			"list",
-			"--genesis-path",
-			tempGenesis.Name(),
+			"--home",
+			homeDir.Path(),
 		}
 
 		// Run the command

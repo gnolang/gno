@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 
+	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/peterbourgon/ff/v3"
 	"github.com/peterbourgon/ff/v3/fftoml"
@@ -14,32 +15,6 @@ func main() {
 	cmd := newRootCmd(commands.NewDefaultIO())
 
 	cmd.Execute(context.Background(), os.Args[1:])
-}
-
-type homeDirectory struct {
-	homeDir     string
-	genesisFile string
-}
-
-func (h homeDirectory) Path() string       { return h.homeDir }
-func (h homeDirectory) ConfigDir() string  { return h.Path() + "/config" }
-func (h homeDirectory) ConfigFile() string { return h.ConfigDir() + "/config.toml" }
-
-func (h homeDirectory) GenesisFilePath() string {
-	if h.genesisFile != "" {
-		return h.genesisFile
-	}
-	return h.Path() + "/genesis.json"
-}
-
-func (h homeDirectory) SecretsDir() string     { return h.Path() + "/secrets" }
-func (h homeDirectory) SecretsNodeKey() string { return h.SecretsDir() + "/" + defaultNodeKeyName }
-func (h homeDirectory) SecretsValidatorKey() string {
-	return h.SecretsDir() + "/" + defaultValidatorKeyName
-}
-
-func (h homeDirectory) SecretsValidatorState() string {
-	return h.SecretsDir() + "/" + defaultValidatorStateName
 }
 
 type rootCfg struct {
@@ -83,3 +58,39 @@ func newRootCmd(io commands.IO) *commands.Command {
 
 	return cmd
 }
+
+type homeDirectory struct {
+	homeDir     string
+	genesisFile string
+}
+
+func (h homeDirectory) Path() string       { return h.homeDir }
+func (h homeDirectory) ConfigDir() string  { return h.Path() + "/config" }
+func (h homeDirectory) ConfigFile() string { return h.ConfigDir() + "/config.toml" }
+
+func (h homeDirectory) GenesisFilePath() string {
+	if h.genesisFile != "" {
+		return h.genesisFile
+	}
+	return h.Path() + "/genesis.json"
+}
+
+func (h homeDirectory) SecretsDir() string     { return h.Path() + "/secrets" }
+func (h homeDirectory) SecretsNodeKey() string { return h.SecretsDir() + "/" + defaultNodeKeyName }
+func (h homeDirectory) SecretsValidatorKey() string {
+	return h.SecretsDir() + "/" + defaultValidatorKeyName
+}
+
+func (h homeDirectory) SecretsValidatorState() string {
+	return h.SecretsDir() + "/" + defaultValidatorStateName
+}
+
+func (h homeDirectory) GetSecrets() (*secrets, error) {
+	return loadSecrets(h)
+}
+
+func (h homeDirectory) GetConfig() (*config.Config, error) {
+	return config.LoadConfig(h.Path())
+}
+
+// func (h homeDirectory) GetGenesis() (gnoland.)

@@ -31,7 +31,6 @@ func newTxsListCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 			LongHelp:   "Lists transactions existing on genesis.json",
 		},
 		cfg,
-		// commands.NewEmptyConfig(),
 		func(ctx context.Context, args []string) error {
 			return execTxsListCmd(io, txsCfg)
 		},
@@ -41,7 +40,6 @@ func newTxsListCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 }
 
 func (c *txsListCfg) RegisterFlags(fs *flag.FlagSet) {
-	c.rootCfg.RegisterFlags(fs)
 }
 
 func execTxsListCmd(io commands.IO, cfg *txsCfg) error {

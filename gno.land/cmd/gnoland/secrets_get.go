@@ -55,11 +55,6 @@ func (c *secretsGetCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
-	// Verify the secrets key
-	if err := verifySecretsKey(args); err != nil {
-		return err
-	}
-
 	// Load the secrets from the dir
 	loadedSecrets, err := loadSecrets(cfg.homeDir)
 	if err != nil {
@@ -77,7 +72,7 @@ func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
 // loadSecrets loads the secrets from the specified data directory
 func loadSecrets(homeDir homeDirectory) (*secrets, error) {
 	var (
-		s   *secrets
+		s   *secrets = &secrets{}
 		err error
 	)
 
@@ -146,7 +141,7 @@ func readNodeID(homeDir homeDirectory) (*nodeIDInfo, error) {
 	}
 
 	if osm.FileExists(homeDir.ConfigFile()) {
-		cfg, err = config.LoadConfig(homeDir.ConfigFile())
+		cfg, err = config.LoadConfig(homeDir.Path())
 		if err != nil {
 			return nil, fmt.Errorf("unable to load config file, %w", err)
 		}
