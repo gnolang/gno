@@ -1,11 +1,13 @@
 package gnoland
 
 import (
-	"fmt"
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLoadPackagesFromDir(t *testing.T) {
@@ -17,7 +19,7 @@ func TestLoadPackagesFromDir(t *testing.T) {
 				{Name: "empty.gno", Body: "package foo"},
 				{Name: "generated.gno.tpl", Body: `package foo
 
-/* {{.}} */
+var ChainID = {{.Genesis.ChainID | printf "%q"}}
 `},
 			},
 		}
@@ -25,6 +27,21 @@ func TestLoadPackagesFromDir(t *testing.T) {
 		fee     = std.Fee{}
 		deposit = std.Coins{}
 	)
-	tx, err := LoadPackage(memPkg, creator, fee, deposit)
-	fmt.Printf("$$$$$$$$$ tx=%v, err=%v\n", tx, err)
+	tplData := TplData{}
+	tplData.Genesis.ChainID = "test"
+	tx, err := LoadPackage(memPkg, creator, fee, deposit, tplData)
+	assert.NoError(t, err)
+	var msg vm.MsgAddPackage
+	bz := tx.Msgs[0].GetSignBytes()
+	amino.MustUnmarshalJSON(bz, &msg)
+	for _, file := range msg.Package.Files {
+		assert.NotEqual(t, "generated.gno.tpl", file.Name, "*.tpl files should be removed")
+		if file.Name == "generated.gno.tpl" {
+			expected := `package foo
+
+var ChainID = "test"
+`
+			assert.Equal(t, expected, file.Body)
+		}
+	}
 }
