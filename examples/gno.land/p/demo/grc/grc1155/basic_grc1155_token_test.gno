@@ -1,11 +1,8 @@
 package grc1155
 
 import (
-	"fmt"
 	"std"
 	"testing"
-
-	"gno.land/p/demo/users"
 )
 
 const dummyURI = "ipfs://xyz"
