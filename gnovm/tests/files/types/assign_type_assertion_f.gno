@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_type_assertion_f.gno:19: cannot assign to (const (1 <untyped> bigint))
+// main/files/types/assign_type_assertion_f.gno:19:2: cannot assign to (const (1 <untyped> bigint))

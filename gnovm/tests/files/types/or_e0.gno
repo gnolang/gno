@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/or_e0.gno:23: invalid operation: mismatched types main.Error1 and main.Error2
+// main/files/types/or_e0.gno:23:10: invalid operation: mismatched types main.Error1 and main.Error2
