@@ -66,8 +66,8 @@ func (m *Machine) doOpCall() {
 	debug.Println("---b.Names: ", b.Source.GetBlockNames())
 	debug.Println("---b.Values: ", b.Values)
 
-	for i, c := range fv.Captures {
-		b.Values[i] = c
+	for i := len(fv.Captures) - 1; i >= 0; i-- {
+		b.Values[i] = fv.Captures[i].Copy(m.Alloc)
 	}
 
 	debug.Println("---b.Values after copy: ", b.Values)
