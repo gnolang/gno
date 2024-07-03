@@ -2492,14 +2492,18 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 // First defines a new HeapItemValue.
 // This gets called from NameExprTypeHeapDefine name expressions.
 func (b *Block) GetPointerToHeapDefine(store Store, path ValuePath) PointerValue {
-	// XXX
+	// XXX create a new blank &HeapItemValue{}
+	// XXX assign it to b.GetPointerTo(store, path),
+	// XXX return pointer to Value, e.g.
+	// XXX PointerValue{Base:hiv,TV:&hiv.Value} or something like that.
 	return b.GetPointerTo(store, path)
 }
 
 // Assumes a HeapItemValue, and gets inner pointer.
 // This gets called from NameExprTypeHeapUse name expressions.
 func (b *Block) GetPointerToHeapUse(store Store, path ValuePath) PointerValue {
-	// XXX
+	// XXX return PointerValue with base b.GetPointerto(store, path),
+	// XXX and TV to *HeapItemValue.Value
 	return b.GetPointerTo(store, path)
 }
 
