@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"testing"
 
-	"gno.land/p/demo/sponsors"
-
 	"gno.land/p/demo/testutils"
 )
 
