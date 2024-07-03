@@ -4,7 +4,7 @@
 
 ! stdout .+
 stderr 'panic: unknown import path net \[recovered\]'
-stderr '	panic: gno.land/r/\w{8}/contract.gno:3: unknown import path net'
+stderr '	panic: gno.land/r/\w{8}/contract.gno:3:8: unknown import path net'
 
 gno test -v --with-native-fallback .
 
