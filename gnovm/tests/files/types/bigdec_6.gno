@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/bigdec_6.gno:4: operator % not defined on: BigdecKind
+// main/files/types/bigdec_6.gno:4:10: operator % not defined on: BigdecKind

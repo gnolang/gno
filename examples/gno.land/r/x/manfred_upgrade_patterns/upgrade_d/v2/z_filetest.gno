@@ -1,8 +1,6 @@
 package main
 
-import (
-	"gno.land/r/x/manfred_upgrade_patterns/upgrade_d/v2"
-)
+import "gno.land/r/x/manfred_upgrade_patterns/upgrade_d/v2"
 
 func main() {
 	println("a", v2.Get("a"))

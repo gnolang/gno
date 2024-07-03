@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// main/files/type37.gno:8: invalid receiver type main.Arr (base type is pointer type)
+// main/files/type37.gno:8:1: invalid receiver type main.Arr (base type is pointer type)
