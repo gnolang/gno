@@ -78,6 +78,7 @@ func (m *Machine) doOpCall() {
 			// Initialize return variables with default value.
 			numParams := len(ft.Params)
 			for i, rt := range ft.Results {
+				// results/parameters never are heap use/closure.
 				ptr := b.GetPointerToInt(nil, numParams+i)
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
 				ptr.Assign2(m.Alloc, nil, nil, dtv, false)
@@ -167,6 +168,10 @@ func (m *Machine) doOpCall() {
 		// as a pointer, *StructValue, for example.
 		b.Values[i] = pv.Copy(m.Alloc)
 	}
+	// Copy *FuncValue.Captures into block
+	// NOTE: addHeapCapture in preprocess ensures order.
+	// XXX I think we can copy into the last len(.Captures) items of b.Values.
+	// XXX actually copy
 }
 
 func (m *Machine) doOpCallNativeBody() {

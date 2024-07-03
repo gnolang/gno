@@ -2461,16 +2461,21 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							// If across a closure,
 							// mark name as loop used.
 							addAttrHeapUse(dbn, n.Name)
-							// Also adjust NameExpr type.
-							n.Type = NameExprTypeHeapClosure
 							// The path must stay same for now,
 							// used later in findLoopUses2.
-							addHeapCapture(fle, n.Name)
+							idx := addHeapCapture(dbn, fle, n.Name)
+							// adjust NameExpr type.
+							n.Type = NameExprTypeHeapUse
 							// XXX actually uncomment once
-							// the runtime works.
-							// lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
+							// the runtime works. Instead of using
+							// the values from the closure, will
+							// use values from function block.
+							// see XXX in op_call.go
 							// n.Path.Depth = uint8(depth)
-							// n.Path.Index = indexOfName(lus, n.Name)
+							// n.Path.Index = idx
+							if false {
+								println(idx) // XXX delete
+							}
 						} else {
 							if ftype == TRANS_REF_X {
 								// if used as a reference,
@@ -2541,19 +2546,37 @@ func addAttrHeapUse(bn BlockNode, name Name) {
 	}
 }
 
-func addHeapCapture(fle *FuncLitExpr, name Name) {
+// adds ~name to fle static block and to heap captures atomically.
+func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) uint16 {
 	for _, ne := range fle.HeapCaptures {
 		if ne.Name == name {
-			return // already exists
+			// assert ~name also already defined.
+			idx, ok := fle.GetLocalIndex("~" + name)
+			if !ok {
+				panic("~name not added to fle atomically")
+			}
+			return idx // already exists
 		}
 	}
+
+	// define ~name to fle.
+	idx, ok := fle.GetLocalIndex("~" + name)
+	if ok {
+		panic("~name already defined in fle")
+	}
+	tv := dbn.GetValueRef(nil, name, true)
+	fle.Define("~"+name, tv.Copy(nil))
+
+	// add name to fle.HeapCaptures.
 	vp := fle.GetPathForName(nil, name)
+	vp.Depth -= 1 // minus 1 for fle itself.
 	ne := NameExpr{
 		Path: vp,
 		Name: name,
-		Type: NameExprTypeHeapUse,
+		Type: NameExprTypeHeapClosure,
 	}
 	fle.HeapCaptures = append(fle.HeapCaptures, ne)
+	return idx
 }
 
 // finds the first FuncLitExpr in the stack at or after stop.

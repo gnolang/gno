@@ -389,7 +389,7 @@ const (
 	NameExprTypeDefine                          // when defining normally
 	NameExprTypeHeapDefine                      // when defining escaped name in loop
 	NameExprTypeHeapUse                         // when above used in non-define lhs/rhs
-	NameExprTypeHeapClosure                     // when above used in closure lhs/rhs
+	NameExprTypeHeapClosure                     // when closure captures name
 )
 
 type NameExpr struct {

@@ -838,6 +838,7 @@ func getChildObjects(val Value, more []Value) []Value {
 		if bv, ok := cv.Closure.(*Block); ok {
 			more = getSelfOrChildObjects(bv, more)
 		}
+		// XXX return Captures
 		return more
 	case *BoundMethodValue:
 		more = getChildObjects(cv.Func, more) // *FuncValue not object
@@ -1129,6 +1130,7 @@ func copyValueWithRefs(val Value) Value {
 			panic("cannot copy function value with native body when there is no native package")
 		}
 		ft := copyTypeWithRefs(cv.Type)
+		// XXX toRefValue Captures.
 		return &FuncValue{
 			Type:       ft,
 			IsMethod:   cv.IsMethod,

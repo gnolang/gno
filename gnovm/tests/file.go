@@ -378,17 +378,22 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				pn := store.GetBlockNode(gno.PackageNodeLocation(pkgPath))
 				pre := pn.(*gno.PackageNode).FileSet.Files[0].String()
 				if pre != preWanted {
-					// panic so tests immediately fail (for now).
-					diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-						A:        difflib.SplitLines(preWanted),
-						B:        difflib.SplitLines(pre),
-						FromFile: "Expected",
-						FromDate: "",
-						ToFile:   "Actual",
-						ToDate:   "",
-						Context:  1,
-					})
-					panic(fmt.Sprintf("fail on %s: diff:\n%s\n", path, diff))
+					if f.syncWanted {
+						// write error to file
+						replaceWantedInPlace(path, "Preprocessed", pre)
+					} else {
+						// panic so tests immediately fail (for now).
+						diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+							A:        difflib.SplitLines(preWanted),
+							B:        difflib.SplitLines(pre),
+							FromFile: "Expected",
+							FromDate: "",
+							ToFile:   "Actual",
+							ToDate:   "",
+							Context:  1,
+						})
+						panic(fmt.Sprintf("fail on %s: diff:\n%s\n", path, diff))
+					}
 				}
 			default:
 				return nil
