@@ -1,8 +1,6 @@
 package int256
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestEq(t *testing.T) {
 	tests := []struct {

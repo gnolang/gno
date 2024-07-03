@@ -1,8 +1,6 @@
 package echo
 
-import (
-	"testing"
-)
+import "testing"
 
 func Test(t *testing.T) {
 	if Render("aa") != "aa" {

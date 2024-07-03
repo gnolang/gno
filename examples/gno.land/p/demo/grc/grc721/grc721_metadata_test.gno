@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/users"
 )
 
 func TestSetMetadata(t *testing.T) {
