@@ -1,8 +1,6 @@
 package uint256
 
-import (
-	"testing"
-)
+import "testing"
 
 type logicOpTest struct {
 	name string

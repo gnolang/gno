@@ -20,4 +20,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_poiner.gno:19: cannot use main.Person as main.Worker without explicit conversion
+// main/files/types/cmp_pointer.gno:19:27: cannot use main.Person as main.Worker without explicit conversion
