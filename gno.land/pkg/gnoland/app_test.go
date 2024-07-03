@@ -12,7 +12,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -92,7 +91,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, log.NewNoopLogger())
+		eb := EndBlocker(c, nil, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}, abci.RequestEndBlock{})
@@ -133,7 +132,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(std.GnoEvent{})
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, mockVMKeeper, log.NewNoopLogger())
+		eb := EndBlocker(c, mockVMKeeper, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}, abci.RequestEndBlock{})
@@ -177,7 +176,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(std.GnoEvent{})
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, mockVMKeeper, log.NewNoopLogger())
+		eb := EndBlocker(c, mockVMKeeper, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}, abci.RequestEndBlock{})
@@ -246,7 +245,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(txEvent)
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, mockVMKeeper, log.NewNoopLogger())
+		eb := EndBlocker(c, mockVMKeeper, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}, abci.RequestEndBlock{})

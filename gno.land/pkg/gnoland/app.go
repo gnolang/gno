@@ -118,7 +118,13 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	)
 
 	// Set EndBlocker
-	baseApp.SetEndBlocker(EndBlocker(c, vmKpr, baseApp.Logger()))
+	baseApp.SetEndBlocker(
+		EndBlocker(
+			c,
+			vmKpr,
+			baseApp,
+		),
+	)
 
 	// Set a handler Route.
 	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
@@ -219,13 +225,22 @@ func InitChainer(
 	}
 }
 
+// endBlockerApp is the app abstraction required by any EndBlocker
+type endBlockerApp interface {
+	// LastBlockHeight returns the latest app height
+	LastBlockHeight() int64
+
+	// Logger returns the logger reference
+	Logger() *slog.Logger
+}
+
 // EndBlocker defines the logic executed after every block.
 // Currently, it parses events that happened during execution to calculate
 // validator set changes
 func EndBlocker(
 	collector *collector[validatorUpdate],
 	vmKeeper vm.VMKeeperI,
-	logger *slog.Logger,
+	app endBlockerApp,
 ) func(
 	ctx sdk.Context,
 	req abci.RequestEndBlock,
@@ -242,11 +257,12 @@ func EndBlocker(
 			Caller:  crypto.Address{}, // Zero address
 			PkgPath: valRealm,
 			Func:    valChangesFn,
+			Args:    []string{fmt.Sprintf("%d", app.LastBlockHeight())},
 		}
 
 		response, err := vmKeeper.Call(ctx, msg)
 		if err != nil {
-			logger.Error("unable to call VM during EndBlocker", "err", err)
+			app.Logger().Error("unable to call VM during EndBlocker", "err", err)
 
 			return abci.ResponseEndBlock{}
 		}
@@ -254,7 +270,7 @@ func EndBlocker(
 		// Extract the updates from the VM response
 		updates, err := extractUpdatesFromResponse(response)
 		if err != nil {
-			logger.Error("unable to extract updates from response", "err", err)
+			app.Logger().Error("unable to extract updates from response", "err", err)
 
 			return abci.ResponseEndBlock{}
 		}

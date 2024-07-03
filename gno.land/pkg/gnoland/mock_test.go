@@ -1,8 +1,11 @@
 package gnoland
 
 import (
+	"log/slog"
+
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/events"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
@@ -76,4 +79,30 @@ func (m *mockVMKeeper) Run(ctx sdk.Context, msg vm.MsgRun) (res string, err erro
 	}
 
 	return "", nil
+}
+
+type (
+	lastBlockHeightDelegate func() int64
+	loggerDelegate          func() *slog.Logger
+)
+
+type mockEndBlockerApp struct {
+	lastBlockHeightFn lastBlockHeightDelegate
+	loggerFn          loggerDelegate
+}
+
+func (m *mockEndBlockerApp) LastBlockHeight() int64 {
+	if m.lastBlockHeightFn != nil {
+		return m.lastBlockHeightFn()
+	}
+
+	return 0
+}
+
+func (m *mockEndBlockerApp) Logger() *slog.Logger {
+	if m.loggerFn != nil {
+		return m.loggerFn()
+	}
+
+	return log.NewNoopLogger()
 }

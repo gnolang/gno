@@ -2,15 +2,21 @@ package validators
 
 import (
 	"std"
-	"strconv"
 
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/sys/validators"
 )
 
 var (
 	vp      validators.ValsetProtocol // p is the underlying validator set protocol
-	changes []validators.Validator    // changes are the set changes that happened between scrapes
+	changes []change                  // changes holds any valset changes
 )
+
+// change represents a single valset change, tied to a specific block number
+type change struct {
+	blockNum  int64                // the block number associated with the valset change
+	validator validators.Validator // the validator update
+}
 
 // addValidator adds a new validator to the validator set.
 // If the validator is already present, the method errors out
@@ -21,7 +27,10 @@ func addValidator(validator validators.Validator) {
 	}
 
 	// Validator added, note the change
-	changes = append(changes, val)
+	changes = append(changes, change{
+		blockNum:  std.GetHeight(),
+		validator: val,
+	})
 
 	// Emit the validator set change
 	std.Emit(validators.ValidatorAddedEvent)
@@ -36,10 +45,13 @@ func removeValidator(address std.Address) {
 	}
 
 	// Validator removed, note the change
-	changes = append(changes, validators.Validator{
-		Address:     val.Address,
-		PubKey:      val.PubKey,
-		VotingPower: 0, // nullified the voting power indicates removal
+	changes = append(changes, change{
+		blockNum: std.GetHeight(),
+		validator: validators.Validator{
+			Address:     val.Address,
+			PubKey:      val.PubKey,
+			VotingPower: 0, // nullified the voting power indicates removal
+		},
 	})
 
 	// Emit the validator set change
@@ -51,9 +63,14 @@ func Render(_ string) string {
 		return "No valset changes to apply."
 	}
 
-	output := "Valset changes to apply:\n"
+	output := "Valset changes:\n"
 	for _, change := range changes {
-		output += "- " + string(change.Address) + " (" + strconv.FormatUint(change.VotingPower, 10) + ")\n"
+		output += ufmt.Sprintf(
+			"- #%d: %s (%d)\n",
+			change.blockNum,
+			string(change.validator.Address),
+			change.validator.VotingPower,
+		)
 	}
 
 	return output

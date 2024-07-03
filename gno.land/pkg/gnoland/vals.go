@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	valRealm     = "gno.land/r/sys/vals"
-	valChangesFn = "getChanges"
+	valRealm     = "gno.land/r/sys/validators"
+	valChangesFn = "GetChanges"
 
 	validatorAddedEvent   = "ValidatorAdded"
 	validatorRemovedEvent = "ValidatorRemoved"
