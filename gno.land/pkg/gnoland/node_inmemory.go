@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -91,6 +92,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		GenesisTxHandler: cfg.GenesisTxHandler,
 		MaxCycles:        cfg.GenesisMaxVMCycles,
 		DB:               memdb.NewMemDB(),
+		EventSwitch:      events.NewEventSwitch(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
