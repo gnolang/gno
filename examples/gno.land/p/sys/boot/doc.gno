@@ -9,9 +9,6 @@
 // - gnodev:
 //   - register current node's on poa
 //   - dynamically load local gnokey's information
+//
 // - gnoland: static file manually patched by the chain architects.
 package boot
-
-/*
-  {{.}}
-*/

@@ -27,7 +27,7 @@ var ChainID = {{.Genesis.ChainID | printf "%q"}}
 		fee     = std.Fee{}
 		deposit = std.Coins{}
 	)
-	tplData := TplData{}
+	tplData := GenesisTplData{}
 	tplData.Genesis.ChainID = "test"
 	tx, err := LoadPackage(memPkg, creator, fee, deposit, tplData)
 	assert.NoError(t, err)
