@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_type_assertion.gno:13: cannot use string as int
+// main/files/types/assign_type_assertion.gno:13:2: cannot use string as int

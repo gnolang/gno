@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0a02.gno:7: cannot use *int as string
+// main/files/types/eql_0a02.gno:7:10: cannot use *int as string
