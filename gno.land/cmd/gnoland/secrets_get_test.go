@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -537,25 +536,16 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 	t.Run("node ID info, existing config", func(t *testing.T) {
 		t.Parallel()
 
-		var (
-			dirPath     = t.TempDir()
-			configPath  = constructConfigPath(dirPath)
-			secretsPath = constructSecretsPath(dirPath)
-			nodeKeyPath = filepath.Join(secretsPath, defaultNodeKeyName)
-		)
+		// Create a temporary directory
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withSecrets)
 
-		// Ensure the sub-dirs exist
-		require.NoError(t, os.MkdirAll(filepath.Dir(configPath), 0o755))
-		require.NoError(t, os.MkdirAll(secretsPath, 0o755))
-
-		// Set up the config
-		cfg := config.DefaultConfig()
+		cfg, err := config.LoadConfig(homeDir.ConfigFile())
+		require.NoError(t, err)
 		cfg.P2P.ListenAddress = "tcp://127.0.0.1:2525"
-
-		require.NoError(t, config.WriteConfigFile(configPath, cfg))
+		require.NoError(t, config.WriteConfigFile(homeDir.ConfigFile(), cfg))
 
 		validNodeKey := generateNodeKey()
-		require.NoError(t, saveSecretData(validNodeKey, nodeKeyPath))
+		require.NoError(t, saveSecretData(validNodeKey, homeDir.SecretsNodeKey()))
 
 		mockOutput := bytes.NewBufferString("")
 		io := commands.NewTestIO()
@@ -566,8 +556,8 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 		args := []string{
 			"secrets",
 			"get",
-			"--data-dir",
-			secretsPath,
+			"--home",
+			homeDir.Path(),
 			nodeIDKey,
 		}
 
@@ -613,7 +603,7 @@ func TestSecrets_Get_NodeIDInfo(t *testing.T) {
 			"get",
 			"--home",
 			homeDir.Path(),
-			nodeKeyKey,
+			nodeIDKey,
 		}
 
 		// Run the command
