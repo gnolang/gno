@@ -3,6 +3,8 @@ package grc20
 import (
 	"std"
 	"testing"
+
+	"gno.land/p/demo/uassert"
 )
 
 func TestUserTokenImpl(t *testing.T) {
@@ -21,17 +23,17 @@ func TestUserApprove(t *testing.T) {
 	// Set owner as the original caller
 	std.TestSetOrigCaller(owner)
 	// Mint 100000000 tokens for owner
-	assertE(t, dummyAdmin.Mint(owner, 100000000))
+	uassert.NoError(t, dummyAdmin.Mint(owner, 100000000))
 
 	dummyUser := dummyAdmin.GRC20()
 	// Approve spender to spend 5000000 tokens
-	assertE(t, dummyUser.Approve(spender, 5000000))
+	uassert.NoError(t, dummyUser.Approve(spender, 5000000))
 
 	// Set spender as the original caller
 	std.TestSetOrigCaller(spender)
 	// Try to transfer 10000000 tokens from owner to dest, should fail because it exceeds allowance
 	err := dummyUser.TransferFrom(owner, dest, 10000000)
-	assert(t, err != nil, "should not be able to transfer more than approved")
+	uassert.Error(t, err, "should not be able to transfer more than approved")
 
 	// Define a set of test data with spend amount and expected remaining allowance
 	tests := []struct {
@@ -47,20 +49,20 @@ func TestUserApprove(t *testing.T) {
 	for _, tt := range tests {
 		b0, _ := dummyUser.BalanceOf(dest)
 		// Perform transfer from owner to dest
-		assertE(t, dummyUser.TransferFrom(owner, dest, tt.spend))
+		uassert.NoError(t, dummyUser.TransferFrom(owner, dest, tt.spend))
 		a, _ := dummyUser.Allowance(owner, spender)
 		// Check if allowance equals expected value
-		assert(t, a == tt.exp, "allowance exp: %d,got %d", tt.exp, a)
+		uassert.Equal(t, tt.exp, a)
 
 		// Get dest current balance
 		b, _ := dummyUser.BalanceOf(dest)
 		// Calculate expected balance ,should be initial balance plus transfer amount
 		expB := b0 + tt.spend
 		// Check if balance equals expected value
-		assert(t, b == expB, "balance exp: %d,got %d", expB, b)
+		uassert.Equal(t, expB, b)
 	}
 
 	// Try to transfer one token from owner to dest ,should fail because no allowance left
 	err = dummyUser.TransferFrom(owner, dest, 1)
-	assert(t, err != nil, "no allowance")
+	uassert.Error(t, err, "no allowance")
 }
