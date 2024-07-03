@@ -5,7 +5,7 @@ id: interact-with-gnoland-without-gnokey
 # Interact with Gno.land without gnokey
 
 A [previous tutorial](interact-with-gnoland.md) showed how to interact with the
-gno.land blockchain using the command-line tool `gnokey` . This tutorial explains
+gno.land blockchain using the command-line tool `gnokey`. This tutorial explains
 other methods to interact with gno.land without using `gnokey`, and when you might
 want to use them. This is mainly for developers writing an application.
 
