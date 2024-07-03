@@ -107,7 +107,6 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 
 // Initialize static block info.
 func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
-
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -2110,7 +2109,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 					// evaluate typed value for static definition.
-					for i, _ := range n.NameExprs {
+					for i := range n.NameExprs {
 						// consider value if specified.
 						if len(n.Values) > 0 {
 							vx := n.Values[i]
