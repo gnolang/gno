@@ -20,4 +20,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/or_f1_stdlibs.gno:19: operator | not defined on: InterfaceKind
+// main/files/types/or_f1_stdlibs.gno:19:10: operator | not defined on: InterfaceKind

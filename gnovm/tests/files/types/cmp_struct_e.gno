@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_struct_e.gno:11: main.foo is not comparable
+// main/files/types/cmp_struct_e.gno:11:10: main.foo is not comparable
