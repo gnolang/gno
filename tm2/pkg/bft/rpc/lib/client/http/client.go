@@ -9,9 +9,12 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/bcrypt"
 )
 
 const (
@@ -128,6 +131,16 @@ func sendRequestCommon[T requestType, R responseType](
 	// Set the header content type
 	req.Header.Set("Content-Type", "application/json")
 
+	authInfo, err := parseAuthInfo(rpcURL)
+	if err == nil {
+		saltBytes := crypto.CRandBytes(16)
+		encryptedPassword, err := bcrypt.GenerateFromPassword(saltBytes, []byte(authInfo.Password), 12)
+		if err != nil {
+			return nil, fmt.Errorf("unable to encrypt authentication info, %w", err)
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("%s %s", authInfo.Username, string(encryptedPassword)))
+	}
+
 	// Execute the request
 	httpResponse, err := client.Do(req.WithContext(ctx))
 	if err != nil {
@@ -238,6 +251,26 @@ func parseRemoteAddr(remoteAddr string) (string, string) {
 	}
 
 	return protocol, address
+}
+
+type AuthInfo struct {
+	Username string
+	Password string
+}
+
+func parseAuthInfo(remoteAddr string) (AuthInfo, error) {
+	parsedURL, err := url.Parse(remoteAddr)
+	if err != nil {
+		return AuthInfo{}, err
+	}
+
+	username := parsedURL.User.Username()
+	password, _ := parsedURL.User.Password()
+
+	return AuthInfo{
+		Username: username,
+		Password: password,
+	}, nil
 }
 
 // isOKStatus returns a boolean indicating if the response
