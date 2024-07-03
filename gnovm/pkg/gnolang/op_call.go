@@ -168,6 +168,10 @@ func (m *Machine) doOpCall() {
 		// as a pointer, *StructValue, for example.
 		b.Values[i] = pv.Copy(m.Alloc)
 	}
+	// Copy *FuncValue.Captures into block
+	// NOTE: addHeapCapture in preprocess ensures order.
+	// XXX I think we can copy into the last len(.Captures) items of b.Values.
+	// XXX actually copy
 }
 
 func (m *Machine) doOpCallNativeBody() {
