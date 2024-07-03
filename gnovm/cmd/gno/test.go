@@ -277,25 +277,7 @@ func gnoTestPkg(
 
 		// run test files in pkg
 		if len(tfiles.Files) > 0 {
-			testStore := tests.TestStore(
-				rootDir, "",
-				stdin, stdout, stderr,
-				mode,
-			)
-			if verbose {
-				testStore.SetLogStoreOps(true)
-			}
-
-			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
-			if printRuntimeMetrics {
-				// from tm2/pkg/sdk/vm/keeper.go
-				// XXX: make maxAllocTx configurable.
-				maxAllocTx := int64(500 * 1000 * 1000)
-
-				m.Alloc = gno.NewAllocator(maxAllocTx)
-			}
-			m.RunMemPackage(memPkg, true)
-			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, runFlag, io)
+			err := runTestFiles(cfg, memPkg, tfiles, verbose, printRuntimeMetrics, runFlag, io)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -312,8 +294,6 @@ func gnoTestPkg(
 				testStore.SetLogStoreOps(true)
 			}
 
-			m := tests.TestMachine(testStore, stdout, testPkgName)
-
 			memFiles := make([]*std.MemFile, 0, len(ifiles.FileNames())+1)
 			for _, f := range memPkg.Files {
 				for _, ifileName := range ifiles.FileNames() {
@@ -323,13 +303,13 @@ func gnoTestPkg(
 					}
 				}
 			}
+			memPkg := &std.MemPackage{
+				Name:  testPkgName,
+				Files: memFiles,
+				Path:  pkgPath + "_test",
+			}
 
-			memPkg.Files = memFiles
-			memPkg.Name = testPkgName
-			memPkg.Path = memPkg.Path + "_test"
-			m.RunMemPackage(memPkg, true)
-
-			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)
+			err := runTestFiles(cfg, memPkg, ifiles, verbose, printRuntimeMetrics, runFlag, io)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -414,19 +394,20 @@ func pkgPathFromRootDir(pkgPath, rootDir string) string {
 }
 
 func runTestFiles(
-	m *gno.Machine,
+	cfg *testCfg,
+	memPkg *std.MemPackage,
 	files *gno.FileSet,
-	pkgName string,
 	verbose bool,
 	printRuntimeMetrics bool,
 	runFlag string,
 	io commands.IO,
 ) (errs error) {
-	defer func() {
-		if r := recover(); r != nil {
-			errs = multierr.Append(fmt.Errorf("panic: %v\nstack:\n%v\ngno machine: %v", r, string(debug.Stack()), m.String()), errs)
-		}
-	}()
+	pkgName := memPkg.Name
+	stdout := io.Out()
+	stdin := io.In()
+	stderr := io.Err()
+	rootDir := cfg.rootDir
+	mode := tests.ImportModeStdlibsOnly
 
 	testFuncs := &testFuncs{
 		PackageName: pkgName,
@@ -435,63 +416,85 @@ func runTestFiles(
 	}
 	loadTestFuncs(pkgName, testFuncs, files)
 
-	// before/after statistics
-	numPackagesBefore := m.Store.NumMemPackages()
-
 	testmain, err := formatTestmain(testFuncs)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	m.RunFiles(files.Files...)
-	n := gno.MustParseFile("main_test.gno", testmain)
-	m.RunFiles(n)
-
 	for _, test := range testFuncs.Tests {
-		testFuncStr := fmt.Sprintf("%q", test.Name)
+		func() {
+			testStore := tests.TestStore(
+				rootDir, "",
+				stdin, stdout, stderr,
+				mode,
+			)
+			testStore.ClearCache()
 
-		eval := m.Eval(gno.Call("runtest", testFuncStr))
+			m := tests.TestMachine(testStore, stdout, memPkg.Name)
+			testFuncStr := fmt.Sprintf("%q", test.Name)
 
-		ret := eval[0].GetString()
-		if ret == "" {
-			err := errors.New("failed to execute unit test: %q", test.Name)
-			errs = multierr.Append(errs, err)
-			io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", test.Name)
-			continue
-		}
+			// before/after statistics
+			numPackagesBefore := m.Store.NumMemPackages()
 
-		// TODO: replace with amino or send native type?
-		var rep report
-		err = json.Unmarshal([]byte(ret), &rep)
-		if err != nil {
-			errs = multierr.Append(errs, err)
-			io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", test.Name)
-			continue
-		}
+			defer func() {
+				if r := recover(); r != nil {
+					err := fmt.Errorf("panic: %v\nstack:\n%v\ngno machine: %v", r, string(debug.Stack()), m.String())
+					errs = multierr.Append(err, errs)
+				}
+			}()
+			m.RunMemPackage(memPkg, true)
 
-		if rep.Failed {
-			err := errors.New("failed: %q", test.Name)
-			errs = multierr.Append(errs, err)
-		}
+			filesCopy := files.CopyFileSet()
+			//filesCopy := files
+			//fmt.Printf("AAA: %v\n", files)
+			//fmt.Printf("BBB: %v\n", filesCopy)
+			m.RunFiles(filesCopy.Files...)
+			n := gno.MustParseFile("main_test.gno", testmain)
+			m.RunFiles(n)
 
-		if printRuntimeMetrics {
-			imports := m.Store.NumMemPackages() - numPackagesBefore - 1
-			// XXX: store changes
-			// XXX: max mem consumption
-			allocsVal := "n/a"
-			if m.Alloc != nil {
-				maxAllocs, allocs := m.Alloc.Status()
-				allocsVal = fmt.Sprintf("%s(%.2f%%)",
-					prettySize(allocs),
-					float64(allocs)/float64(maxAllocs)*100,
+			eval := m.Eval(gno.Call("runtest", testFuncStr))
+
+			ret := eval[0].GetString()
+			if ret == "" {
+				err := errors.New("failed to execute unit test: %q", test.Name)
+				errs = multierr.Append(errs, err)
+				io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", test.Name)
+				return
+			}
+
+			// TODO: replace with amino or send native type?
+			var rep report
+			err = json.Unmarshal([]byte(ret), &rep)
+			if err != nil {
+				errs = multierr.Append(errs, err)
+				io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", test.Name)
+				return
+			}
+
+			if rep.Failed {
+				err := errors.New("failed: %q", test.Name)
+				errs = multierr.Append(errs, err)
+			}
+
+			if printRuntimeMetrics {
+				imports := m.Store.NumMemPackages() - numPackagesBefore - 1
+				// XXX: store changes
+				// XXX: max mem consumption
+				allocsVal := "n/a"
+				if m.Alloc != nil {
+					maxAllocs, allocs := m.Alloc.Status()
+					allocsVal = fmt.Sprintf("%s(%.2f%%)",
+						prettySize(allocs),
+						float64(allocs)/float64(maxAllocs)*100,
+					)
+				}
+				io.ErrPrintfln("---       runtime: cycle=%s imports=%d allocs=%s",
+					prettySize(m.Cycles),
+					imports,
+					allocsVal,
 				)
 			}
-			io.ErrPrintfln("---       runtime: cycle=%s imports=%d allocs=%s",
-				prettySize(m.Cycles),
-				imports,
-				allocsVal,
-			)
-		}
+		}()
 	}
 
 	return errs
