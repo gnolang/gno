@@ -2,7 +2,6 @@ package gnoface
 
 import (
 	"math/rand"
-	"std"
 	"strconv"
 	"strings"
 

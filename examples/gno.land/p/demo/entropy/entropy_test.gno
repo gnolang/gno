@@ -1,10 +1,8 @@
 package entropy
 
 import (
-	"fmt"
 	"std"
 	"strconv"
-	"strings"
 	"testing"
 )
 
