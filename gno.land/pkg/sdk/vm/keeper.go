@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/gnostore"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -40,58 +41,43 @@ var _ VMKeeperI = &VMKeeper{}
 
 // VMKeeper holds all package code and store state.
 type VMKeeper struct {
-	baseKey    store.StoreKey
-	iavlKey    store.StoreKey
-	acck       auth.AccountKeeper
-	bank       bank.BankKeeper
-	stdlibsDir string
-
-	// cached, the DeliverTx persistent state.
-	gnoStore gno.Store
+	gnoStoreKey store.StoreKey
+	acck        auth.AccountKeeper
+	bank        bank.BankKeeper
 
 	maxCycles int64 // max allowed cylces on VM executions
 }
 
 // NewVMKeeper returns a new VMKeeper.
 func NewVMKeeper(
-	baseKey store.StoreKey,
-	iavlKey store.StoreKey,
+	gnoStoreKey store.StoreKey,
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
-	stdlibsDir string,
 	maxCycles int64,
 ) *VMKeeper {
 	// TODO: create an Options struct to avoid too many constructor parameters
 	vmk := &VMKeeper{
-		baseKey:    baseKey,
-		iavlKey:    iavlKey,
-		acck:       acck,
-		bank:       bank,
-		stdlibsDir: stdlibsDir,
-		maxCycles:  maxCycles,
+		gnoStoreKey: gnoStoreKey,
+		acck:        acck,
+		bank:        bank,
+		maxCycles:   maxCycles,
 	}
 	return vmk
 }
 
 func (vm *VMKeeper) Initialize(ms store.MultiStore) {
-	if vm.gnoStore != nil {
-		panic("should not happen")
-	}
-	alloc := gno.NewAllocator(maxAllocTx)
-	baseSDKStore := ms.GetStore(vm.baseKey)
-	iavlSDKStore := ms.GetStore(vm.iavlKey)
-	vm.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
-	vm.gnoStore.SetPackageGetter(vm.getPackage)
-	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
-	if vm.gnoStore.NumMemPackages() > 0 {
+	gnoStore := gnostore.GetGnoStore(ms.GetStore(vm.gnoStoreKey))
+
+	if gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
 		// TODO remove this, and generally solve for in-mem garbage collection
 		// and memory management across many objects/types/nodes/packages.
+		gnoStoreTx := gnoStore.BeginTransaction(nil, nil)
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
 				PkgPath: "",
 				Output:  os.Stdout, // XXX
-				Store:   vm.gnoStore,
+				Store:   gnoStoreTx,
 			})
 		defer m2.Release()
 		gno.DisableDebug()
@@ -101,39 +87,12 @@ func (vm *VMKeeper) Initialize(ms store.MultiStore) {
 }
 
 func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
-	// construct main store if nil.
-	if vm.gnoStore == nil {
-		panic("VMKeeper must first be initialized")
+	sto := ctx.MultiStore().GetStore(vm.gnoStoreKey)
+	gs := gnostore.GetGnoStore(sto)
+	if gs == nil {
+		panic("could not get gno store")
 	}
-	switch ctx.Mode() {
-	case sdk.RunTxModeDeliver:
-		// swap sdk store of existing store.
-		// this is needed due to e.g. gas wrappers.
-		baseSDKStore := ctx.Store(vm.baseKey)
-		iavlSDKStore := ctx.Store(vm.iavlKey)
-		vm.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
-		// clear object cache for every transaction.
-		// NOTE: this is inefficient, but simple.
-		// in the future, replace with more advanced caching strategy.
-		vm.gnoStore.ClearObjectCache()
-		return vm.gnoStore
-	case sdk.RunTxModeCheck:
-		// For query??? XXX Why not RunTxModeQuery?
-		simStore := vm.gnoStore.Fork()
-		baseSDKStore := ctx.Store(vm.baseKey)
-		iavlSDKStore := ctx.Store(vm.iavlKey)
-		simStore.SwapStores(baseSDKStore, iavlSDKStore)
-		return simStore
-	case sdk.RunTxModeSimulate:
-		// always make a new store for simulate for isolation.
-		simStore := vm.gnoStore.Fork()
-		baseSDKStore := ctx.Store(vm.baseKey)
-		iavlSDKStore := ctx.Store(vm.iavlKey)
-		simStore.SwapStores(baseSDKStore, iavlSDKStore)
-		return simStore
-	default:
-		panic("should not happen")
-	}
+	return gs
 }
 
 // AddPackage adds a package with given fileset.

@@ -17,29 +17,31 @@ import (
 // NOTE: native functions/methods added here must be quick operations, or
 // account for gas before operation.
 // TODO: define criteria for inclusion, and solve gas calculations(???).
-func (vm *VMKeeper) getPackage(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
-	// otherwise, built-in package value.
-	// first, load from filepath.
-	stdlibPath := filepath.Join(vm.stdlibsDir, pkgPath)
-	if !osm.DirExists(stdlibPath) {
-		// does not exist.
-		return nil, nil
-	}
-	memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
-	if memPkg.IsEmpty() {
-		// no gno files are present, skip this package
-		return nil, nil
-	}
+func PackageGetter(stdlibsDir string) func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
+	return func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
+		// otherwise, built-in package value.
+		// first, load from filepath.
+		stdlibPath := filepath.Join(stdlibsDir, pkgPath)
+		if !osm.DirExists(stdlibPath) {
+			// does not exist.
+			return nil, nil
+		}
+		memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
+		if memPkg.IsEmpty() {
+			// no gno files are present, skip this package
+			return nil, nil
+		}
 
-	m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
-		// PkgPath: pkgPath,
-		Output: os.Stdout,
-		Store:  store,
-	})
-	defer m2.Release()
-	pn, pv = m2.RunMemPackage(memPkg, true)
-	return
+		m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+			PkgPath: "gno.land/r/stdlibs/" + pkgPath,
+			// PkgPath: pkgPath,
+			Output: os.Stdout,
+			Store:  store,
+		})
+		defer m2.Release()
+		pn, pv = m2.RunMemPackage(memPkg, true)
+		return
+	}
 }
 
 // ----------------------------------------

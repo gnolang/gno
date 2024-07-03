@@ -5,8 +5,11 @@ import (
 	"log/slog"
 	"path/filepath"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/gnostore"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -65,6 +68,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Capabilities keys.
 	mainKey := store.NewStoreKey("main")
 	baseKey := store.NewStoreKey("base")
+	gnoKey := store.NewStoreKey("gno")
 
 	// Create BaseApp.
 	// TODO: Add a consensus based min gas prices for the node, by default it does not check
@@ -74,14 +78,17 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Set mounts for BaseApp's MultiStore.
 	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
+	// XXX: Embed this ?
+	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
+	baseApp.MountStoreWithDB(gnoKey, gnostore.StoreConstructor(gnolang.NewAllocator(500*1000*1000), func(gs gnolang.Store) {
+		gs.SetPackageGetter(vm.PackageGetter(stdlibsDir))
+		gs.SetNativeStore(stdlibs.NativeStore)
+	}), cfg.DB)
 
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
-
-	// XXX: Embed this ?
-	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
-	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
+	vmKpr := vm.NewVMKeeper(gnoKey, acctKpr, bankKpr, cfg.MaxCycles)
 
 	// Set InitChainer
 	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, cfg.GenesisTxHandler))
