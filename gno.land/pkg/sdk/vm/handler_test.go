@@ -87,7 +87,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello`), expectedPanicMatch: `expected <pkgpath>.<expression> syntax in query input data`},
 
 		// errors
-		{input: []byte(`gno.land/r/hello.doesnotexist`), expectedErrorMatch: `^/:0: name doesnotexist not declared:`}, // multiline error
+		{input: []byte(`gno.land/r/hello.doesnotexikst`), expectedErrorMatch: `^/0:0: name doesnotexist not declared:`}, // multiline error
 		{input: []byte(`gno.land/r/doesnotexist.Foo`), expectedErrorMatch: `^invalid package path$`},
 		{input: []byte(`gno.land/r/hello.Panic()`), expectedErrorMatch: `^foo$`},
 		{input: []byte(`gno.land/r/hello.panic("bar")`), expectedErrorMatch: `^bar$`},
