@@ -3,7 +3,7 @@ package govdao
 import (
 	"std"
 
-	"gno.land/p/gov/proposal"
+	pproposal "gno.land/p/gov/proposal"
 )
 
 const daoPkgPath = "gno.land/r/gov/dao"
@@ -13,7 +13,7 @@ const (
 	errNotGovDAO         = "caller not govdao executor"
 )
 
-func NewPropExecutor(changesFn func() []std.Address) proposal.Executor {
+func NewPropExecutor(changesFn func() []std.Address) pproposal.Executor {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -29,7 +29,7 @@ func NewPropExecutor(changesFn func() []std.Address) proposal.Executor {
 		return nil
 	}
 
-	return proposal.NewExecutor(callback)
+	return pproposal.NewExecutor(callback)
 }
 
 // assertGovDAOCaller verifies the caller is the GovDAO executor
