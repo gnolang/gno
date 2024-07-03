@@ -3,8 +3,6 @@ package main
 // SEND: 199000000ugnot
 
 import (
-	"std"
-
 	"gno.land/r/demo/users"
 )
 
