@@ -2437,11 +2437,26 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							// If across a closure,
 							// mark name as loop used.
 							addAttrHeapUse(dbn, n.Name)
-							// Also adjust NameExpr type.
-							n.Type = NameExprTypeHeapClosure
 							// The path must stay same for now,
 							// used later in findLoopUses2.
 							addHeapCapture(fle, n.Name)
+							// Also adjust NameExpr type.
+							n.Type = NameExprTypeHeapUse
+							// Get capture index.
+							idx, ok := fle.GetLocalIndex("~" + n.Name)
+							if !ok {
+								// Register new capture on fle.
+								// It will live in the block.
+								tv := dbn.GetValueRef(nil, n.Name, true)
+								fle.Define("~"+n.Name, tv.Copy(nil))
+								idx, ok = fle.GetLocalIndex("~" + n.Name)
+								if !ok {
+									panic("should not happen")
+								}
+								if false {
+									println(idx)
+								}
+							}
 							// XXX actually uncomment once
 							// the runtime works.
 							// lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
@@ -2524,10 +2539,11 @@ func addHeapCapture(fle *FuncLitExpr, name Name) {
 		}
 	}
 	vp := fle.GetPathForName(nil, name)
+	vp.Depth -= 1 // minus 1 for fle itself.
 	ne := NameExpr{
 		Path: vp,
 		Name: name,
-		Type: NameExprTypeHeapUse,
+		Type: NameExprTypeHeapClosure,
 	}
 	fle.HeapCaptures = append(fle.HeapCaptures, ne)
 }

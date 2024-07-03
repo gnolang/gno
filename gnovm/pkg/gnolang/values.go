@@ -536,12 +536,13 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 // makes construction TypedValue{T:*FuncType{},V:*FuncValue{}}
 // faster.
 type FuncValue struct {
-	Type       Type      // includes unbound receiver(s)
-	IsMethod   bool      // is an (unbound) method
-	Source     BlockNode // for block mem allocation
-	Name       Name      // name of function/method
-	Closure    Value     // *Block or RefValue to closure (may be nil for file blocks; lazy)
-	FileName   Name      // file name where declared
+	Type       Type         // includes unbound receiver(s)
+	IsMethod   bool         // is an (unbound) method
+	Source     BlockNode    // for block mem allocation
+	Name       Name         // name of function/method
+	Closure    Value        // *Block or RefValue to closure (may be nil for file blocks; lazy)
+	Captures   []TypedValue `json:",omitempty"` // HeapItemValues captured from closure.
+	FileName   Name         // file name where declared
 	PkgPath    string
 	NativePkg  string // for native bindings through NativeStore
 	NativeName Name   // not redundant with Name; this cannot be changed in userspace

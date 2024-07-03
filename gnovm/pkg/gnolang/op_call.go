@@ -78,6 +78,7 @@ func (m *Machine) doOpCall() {
 			// Initialize return variables with default value.
 			numParams := len(ft.Params)
 			for i, rt := range ft.Results {
+				// results/parameters never are heap use/closure.
 				ptr := b.GetPointerToInt(nil, numParams+i)
 				dtv := defaultTypedValue(m.Alloc, rt.Type)
 				ptr.Assign2(m.Alloc, nil, nil, dtv, false)

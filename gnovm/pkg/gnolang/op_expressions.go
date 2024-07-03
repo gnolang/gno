@@ -753,6 +753,16 @@ func (m *Machine) doOpFuncLit() {
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
 	m.Alloc.AllocateFunc()
+	// First copy closure captured heap values
+	// to *FuncValue. Later during doOpCall a block
+	// will be created that copies these values for
+	// every invocation of the function.
+	captures := []TypedValue(nil)
+	for _, nx := range x.HeapCaptures {
+		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		// XXX check that ptr.TV is a heap item value.
+		captures = append(captures, *ptr.TV)
+	}
 	m.PushValue(TypedValue{
 		T: ft,
 		V: &FuncValue{
@@ -761,6 +771,7 @@ func (m *Machine) doOpFuncLit() {
 			Source:     x,
 			Name:       "",
 			Closure:    lb,
+			Captures:   captures,
 			PkgPath:    m.Package.PkgPath,
 			body:       x.Body,
 			nativeBody: nil,
