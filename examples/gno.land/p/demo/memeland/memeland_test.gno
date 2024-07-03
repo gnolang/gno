@@ -15,6 +15,7 @@ import (
 func TestPostMeme(t *testing.T) {
 	m := NewMemeland()
 	id := m.PostMeme("Test meme data", time.Now().Unix())
+
 	uassert.NotEqual(t, "", string(id), "Expected valid ID, got empty string")
 }
 
