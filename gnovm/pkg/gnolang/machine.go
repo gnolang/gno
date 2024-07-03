@@ -1942,15 +1942,27 @@ func (m *Machine) PushForPointer(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	switch lx := lx.(type) {
 	case *NameExpr:
-		lb := m.LastBlock()
-		return lb.GetPointerTo(m.Store, lx.Path)
+		switch lx.Type {
+		case NameExprTypeNormal:
+			lb := m.LastBlock()
+			return lb.GetPointerTo(m.Store, lx.Path)
+		case NameExprTypeHeapUse:
+			lb := m.LastBlock()
+			return lb.GetPointerToHeapUse(m.Store, lx.Path)
+		case NameExprTypeHeapClosure:
+			// XXX
+			lb := m.LastBlock()
+			return lb.GetPointerTo(m.Store, lx.Path)
+		default:
+			panic("unexpected NameExpr in PopAsPointer")
+		}
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
 		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()
-		return xv.GetPointerTo(m.Alloc, m.Store, lx.Path)
+		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 	case *StarExpr:
 		ptr := m.PopValue().V.(PointerValue)
 		return ptr

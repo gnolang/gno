@@ -1693,10 +1693,10 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 // or binary operations. When a pointer is to be
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
-func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath) PointerValue {
+func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path ValuePath) PointerValue {
 	if debug {
 		if tv.IsUndefined() {
-			panic("GetPointerTo() on undefined value")
+			panic("GetPointerToFromTV() on undefined value")
 		}
 	}
 
@@ -1915,7 +1915,7 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 		}
 		bv := *dtv
 		for i, path := range tr {
-			ptr := bv.GetPointerTo(alloc, store, path)
+			ptr := bv.GetPointerToFromTV(alloc, store, path)
 			if i == len(tr)-1 {
 				return ptr // done
 			}
@@ -2455,6 +2455,51 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 		b = b.GetParent(store)
 	}
 	return b.GetPointerToInt(store, int(path.Index))
+}
+
+// Convenience
+func (b *Block) GetPointerToMaybeHeapUse(store Store, nx *NameExpr) PointerValue {
+	switch nx.Type {
+	case NameExprTypeNormal:
+		return b.GetPointerTo(store, nx.Path)
+	case NameExprTypeHeapUse:
+		// XXX
+		return b.GetPointerToHeapUse(store, nx.Path)
+	case NameExprTypeHeapClosure:
+		// XXX this should panic after logic is complete,
+		// should not happen.
+		return b.GetPointerTo(store, nx.Path)
+	default:
+		panic("unexpected NameExpr type for GetPointerToMaybeHeapUse")
+	}
+}
+
+// Convenience
+func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerValue {
+	switch nx.Type {
+	case NameExprTypeNormal:
+		return b.GetPointerTo(store, nx.Path)
+	case NameExprTypeDefine:
+		return b.GetPointerTo(store, nx.Path)
+	case NameExprTypeHeapDefine:
+		return b.GetPointerToHeapDefine(store, nx.Path)
+	default:
+		panic("unexpected NameExpr type for GetPointerToMaybeHeapDefine")
+	}
+}
+
+// First defines a new HeapItemValue.
+// This gets called from NameExprTypeHeapDefine name expressions.
+func (b *Block) GetPointerToHeapDefine(store Store, path ValuePath) PointerValue {
+	// XXX
+	return b.GetPointerTo(store, path)
+}
+
+// Assumes a HeapItemValue, and gets inner pointer.
+// This gets called from NameExprTypeHeapUse name expressions.
+func (b *Block) GetPointerToHeapUse(store Store, path ValuePath) PointerValue {
+	// XXX
+	return b.GetPointerTo(store, path)
 }
 
 // Result is used has lhs for any assignments to "_".

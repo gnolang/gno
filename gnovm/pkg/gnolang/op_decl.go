@@ -58,8 +58,8 @@ func (m *Machine) doOpValueDecl() {
 		} else if isUntyped(tv.T) {
 			ConvertUntypedTo(&tv, nil)
 		}
-		nx := s.NameExprs[i]
-		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		nx := &s.NameExprs[i]
+		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, tv, false)
 	}
 }
