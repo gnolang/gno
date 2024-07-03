@@ -761,6 +761,8 @@ func (m *Machine) doOpFuncLit() {
 	for _, nx := range x.HeapCaptures {
 		ptr := lb.GetPointerTo(m.Store, nx.Path)
 		// XXX check that ptr.TV is a heap item value.
+		// it must be in the form of:
+		// {T:heapItemType{},V:HeapItemValue{...}}
 		captures = append(captures, *ptr.TV)
 	}
 	m.PushValue(TypedValue{
