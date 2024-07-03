@@ -46,17 +46,32 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
+	debug.Println("---doOpCall")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
 	fv := fr.Func
+	debug.Println("---fv: ", fv)
+	debug.Println("---fv.Captures: ", fv.Captures)
 	ft := fr.Func.GetType(m.Store)
+	debug.Println("---ft: ", ft)
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
+	debug.Println("---clo: ", clo)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
+	debug.Println("---b: ", b)
+	debug.Println("---b.Names: ", b.Source.GetBlockNames())
+	debug.Println("---b.Values: ", b.Values)
+
+	for i, c := range fv.Captures {
+		b.Values[i] = c
+	}
+
+	debug.Println("---b.Values after copy: ", b.Values)
+
 	m.PushBlock(b)
 	if fv.nativeBody == nil && fv.NativePkg != "" {
 		// native function, unmarshaled so doesn't have nativeBody yet
@@ -66,8 +81,11 @@ func (m *Machine) doOpCall() {
 		}
 	}
 	if fv.nativeBody == nil {
+		debug.Println("---no nativeBody")
 		fbody := fv.GetBodyFromSource(m.Store)
+		debug.Println("---fbody: ", fbody)
 		if len(ft.Results) == 0 {
+			debug.Println("---len of results == 0")
 			// Push final empty *ReturnStmt;
 			// TODO: transform in preprocessor instead to return only
 			// when necessary.
@@ -93,6 +111,7 @@ func (m *Machine) doOpCall() {
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
 	} else {
+		debug.Println("---call native  body")
 		// No return exprs and no defers, safe to skip OpEval.
 		// NOTE: m.PushOp(OpReturn) doesn't handle defers.
 		m.PushOp(OpReturn)
@@ -168,10 +187,13 @@ func (m *Machine) doOpCall() {
 		// as a pointer, *StructValue, for example.
 		b.Values[i] = pv.Copy(m.Alloc)
 	}
+	debug.Println("---b.Names: ", b.Source.GetBlockNames())
+	debug.Println("---b.Values: ", b.Values)
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
 	// XXX I think we can copy into the last len(.Captures) items of b.Values.
 	// XXX actually copy
+	debug.Println("---going to do some update staff")
 }
 
 func (m *Machine) doOpCallNativeBody() {

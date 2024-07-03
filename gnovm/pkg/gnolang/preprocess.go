@@ -2456,7 +2456,8 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 					if hasName(lds, n.Name) {
-						fle, _, found := findFirstClosure(stack, dbn)
+						fle, depth, found := findFirstClosure(stack, dbn)
+						debug.Println("---depth: ", depth)
 						if found {
 							// If across a closure,
 							// mark name as loop used.
@@ -2473,6 +2474,10 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							// see XXX in op_call.go
 							// n.Path.Depth = uint8(depth)
 							// n.Path.Index = idx
+							debug.Println("---n.Path---: ", n.Path)
+							n.Path.Depth = uint8(depth)
+							n.Path.Index = idx
+							debug.Println("---n.Path after---: ", n.Path)
 							if false {
 								println(idx) // XXX delete
 							}
@@ -2548,6 +2553,9 @@ func addAttrHeapUse(bn BlockNode, name Name) {
 
 // adds ~name to fle static block and to heap captures atomically.
 func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) uint16 {
+	debug.Println("---addHeapCapture, dbn: ", dbn)
+	debug.Println("---addHeapCapture, fle: ", fle)
+	debug.Println("---addHeapCapture, name: ", name)
 	for _, ne := range fle.HeapCaptures {
 		if ne.Name == name {
 			// assert ~name also already defined.
@@ -2564,17 +2572,23 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) uint16 {
 	if ok {
 		panic("~name already defined in fle")
 	}
+
 	tv := dbn.GetValueRef(nil, name, true)
 	fle.Define("~"+name, tv.Copy(nil))
 
+	debug.Println("---tv: ", tv)
+	debug.Println("---fle.blockNames :", fle.GetBlockNames())
+
 	// add name to fle.HeapCaptures.
 	vp := fle.GetPathForName(nil, name)
+	debug.Println("---vp: ", vp)
 	vp.Depth -= 1 // minus 1 for fle itself.
 	ne := NameExpr{
 		Path: vp,
 		Name: name,
 		Type: NameExprTypeHeapClosure,
 	}
+	debug.Println("---ne: ", ne)
 	fle.HeapCaptures = append(fle.HeapCaptures, ne)
 	return idx
 }
