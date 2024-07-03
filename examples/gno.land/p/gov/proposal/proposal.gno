@@ -82,7 +82,8 @@ func IsApprovedByGovdaoContext(ctx context.Context) bool {
 	if v == nil {
 		return false
 	}
-	return v.(string) == approvedStatus
+	vs, ok := v.(string)
+	return ok && vs == approvedStatus
 }
 
 func AssertContextApprovedByGovDAO(ctx context.Context) {
