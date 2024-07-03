@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -1007,15 +1008,21 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 	return nil, false, nil, nil, false
 }
 
+const (
+	missingMethodMsg   = "(missing method %s)"
+	wrongTypeMsg       = "(wrong type for method %s)"
+	pointerReceiverMsg = "(method %s has pointer receiver)"
+)
+
 // For run-time type assertion.
 // TODO: optimize somehow.
-func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
+func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 	for _, im := range it.Methods {
 		if im.Type.Kind() == InterfaceKind {
 			// field is embedded interface...
 			im2 := baseOf(im.Type).(*InterfaceType)
-			if !im2.IsImplementedBy(ot) {
-				return false
+			if err := im2.VerifyImplementedBy(ot); err != nil {
+				return err
 			} else {
 				continue
 			}
@@ -1023,7 +1030,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 		// find method in field.
 		tr, hp, rt, ft, _ := findEmbeddedFieldType(it.PkgPath, ot, im.Name, nil)
 		if tr == nil { // not found.
-			return false
+			return fmt.Errorf(missingMethodMsg, im.Name)
 		}
 		if nft, ok := ft.(*NativeType); ok {
 			// Treat native function types as autoNative calls.
@@ -1033,22 +1040,26 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 			// ie, if each of ft's arg types can match
 			// against the desired arg types in im.Types.
 			if !gno2GoTypeMatches(im.Type, nft.Type) {
-				return false
+				return errors.New("types do not match")
 			}
 		} else if mt, ok := ft.(*FuncType); ok {
 			// if method is pointer receiver, check addressability:
 			if _, ptrRcvr := rt.(*PointerType); ptrRcvr && !hp {
-				return false // not addressable.
+				return fmt.Errorf(pointerReceiverMsg, im.Name) // not addressable.
 			}
 			// check for func type equality.
 			dmtid := mt.TypeID()
 			imtid := im.Type.TypeID()
 			if dmtid != imtid {
-				return false
+				return fmt.Errorf(wrongTypeMsg, im.Name)
 			}
 		}
 	}
-	return true
+	return nil
+}
+
+func (it *InterfaceType) IsImplementedBy(ot Type) bool {
+	return it.VerifyImplementedBy(ot) == nil
 }
 
 func (it *InterfaceType) GetPathForName(n Name) ValuePath {
