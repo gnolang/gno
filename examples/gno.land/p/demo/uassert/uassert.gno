@@ -126,7 +126,11 @@ func Equal(t TestingT, expected, actual interface{}, msgs ...string) bool {
 		if av, ok := actual.(string); ok {
 			equal = ev == av
 			ok_ = true
-			es, as = ev, as
+			es, as = ev, av
+			if !equal {
+				diff := myersDiff(ev, av)
+				return fail(t, msgs, "uassert.Equal: strings are different\n\tDiff: %s", formatDiff(diff))
+			}
 		}
 	case std.Address:
 		if av, ok := actual.(std.Address); ok {
