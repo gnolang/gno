@@ -17,7 +17,21 @@ import (
 	"gno.land/r/sys/validators"
 )
 
+const daoPkgPath = "gno.land/r/gov/dao"
+
 func init() {
+	membersFn := func() []std.Address {
+		return []std.Address{
+			std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
+		}
+	}
+
+	mExec := govdao.NewPropExecutor(membersFn)
+
+	comment := "adding someone to vote"
+	id := govdao.Propose(comment, mExec)
+	govdao.ExecuteProposal(id)
+
 	changesFn := func() []pVals.Validator {
 		return []pVals.Validator{
 			{
@@ -44,7 +58,7 @@ func init() {
 
 	// Create a proposal.
 	// XXX: payment
-	comment := "manual valset changes proposal example"
+	comment = "manual valset changes proposal example"
 	govdao.Propose(comment, executor)
 }
 
@@ -69,16 +83,18 @@ func main() {
 
 // Output:
 // --
-// - [/r/gov/dao:0](0) - manual valset changes proposal example (by g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa)
+// - [/r/gov/dao:0](0) - adding someone to vote (**succeeded**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// - [/r/gov/dao:1](1) - manual valset changes proposal example (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+//
 // --
-// # Prop#0
+// # Prop#1
 //
 // manual valset changes proposal example
 // Status: active
 // Author: g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa
 // --
 // --
-// # Prop#0
+// # Prop#1
 //
 // manual valset changes proposal example
 // Status: accepted
@@ -87,7 +103,7 @@ func main() {
 // No valset changes to apply.
 // --
 // --
-// # Prop#0
+// # Prop#1
 //
 // manual valset changes proposal example
 // Status: succeeded
