@@ -436,6 +436,12 @@ func resolvePackagesPathFromArgs(cfg *devCfg, bk *address.Book, args []string) (
 			Creator: defaultKey,
 			Deposit: nil,
 		})
+	} else {
+		paths = append(paths, gnodev.PackagePath{
+			Path:    filepath.Join(cfg.root, "examples", "gno.land", "p", "sys", "boot"),
+			Creator: defaultKey,
+			Deposit: nil,
+		})
 	}
 
 	return paths, nil

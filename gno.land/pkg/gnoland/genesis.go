@@ -89,7 +89,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]st
 
 // LoadPackagesFromDir loads gno packages from a directory.
 // It creates and returns a list of transactions based on these packages.
-func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, tplData TplData) ([]std.Tx, error) {
+func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, tplData GenesisTplData) ([]std.Tx, error) {
 	// list all packages from target path
 	pkgs, err := gnomod.ListPkgs(dir) // XXX: gnomod isn't maanaging packages but modules
 	if err != nil {
@@ -119,7 +119,7 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, tplData T
 }
 
 // LoadPackage loads a single package into a `std.Tx`
-func LoadPackage(memPkg *std.MemPackage, creator bft.Address, fee std.Fee, deposit std.Coins, tplData TplData) (std.Tx, error) {
+func LoadPackage(memPkg *std.MemPackage, creator bft.Address, fee std.Fee, deposit std.Coins, tplData GenesisTplData) (std.Tx, error) {
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.
@@ -158,7 +158,7 @@ func LoadPackage(memPkg *std.MemPackage, creator bft.Address, fee std.Fee, depos
 	return tx, nil
 }
 
-type TplData struct {
+type GenesisTplData struct {
 	Genesis types.GenesisDoc
 	// LocalGnokey
 	// BuildTags

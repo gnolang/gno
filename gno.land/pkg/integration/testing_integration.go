@@ -16,6 +16,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -595,8 +596,10 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 	}
 
 	txs := make([]std.Tx, len(pkgslist))
+	tplData := gnoland.GenesisTplData{}
 	for i, pkg := range pkgslist {
-		tx, err := gnoland.LoadPackage(pkg, creator, fee, deposit)
+		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
+		tx, err := gnoland.LoadPackage(memPkg, creator, fee, deposit, tplData)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load pkg %q: %w", pkg.Name, err)
 		}
