@@ -88,7 +88,7 @@ func PanicsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 	}
 
 	if panicValue != msg {
-		return fail(t, msgs, "func should panic with message:\t%s\n\tPanic value:\t%s", panicValue, msg)
+		return fail(t, msgs, "func should panic with message:\t%s\n\tPanic value:\t%s", msg, panicValue)
 	}
 	return true
 }
