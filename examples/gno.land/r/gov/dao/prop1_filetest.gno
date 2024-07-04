@@ -91,14 +91,16 @@ func main() {
 //
 // manual valset changes proposal example
 // Status: active
-// Author: g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa
+// Voting status: YES: 0, NO: 0, percent: 0, members: 1
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // --
 // # Prop#1
 //
 // manual valset changes proposal example
 // Status: accepted
-// Author: g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa
+// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // No valset changes to apply.
 // --
@@ -107,7 +109,8 @@ func main() {
 //
 // manual valset changes proposal example
 // Status: succeeded
-// Author: g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa
+// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // Valset changes:
 // - #123: g12345678 (10)

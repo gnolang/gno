@@ -2,6 +2,8 @@ package govdao
 
 import (
 	"std"
+
+	"gno.land/p/demo/ufmt"
 )
 
 const YAY = "YES"
@@ -22,36 +24,62 @@ func NewPercentageVoter(percent int) *PercentageVoter {
 type PercentageVoter struct {
 	percentage int
 
-	yes int
-	no  int
+	voters []std.Address
+	yes    int
+	no     int
 }
 
-func (pv *PercentageVoter) Accepted(voters []std.Address) bool {
+func (pv *PercentageVoter) IsAccepted(voters []std.Address) bool {
 	if len(voters) == 0 {
 		return true // special case
 	}
 
-	return (pv.yes/len(voters))*100 >= pv.percentage
+	return pv.percent(voters) >= pv.percentage
 }
 
-func (pv *PercentageVoter) Finished(voters []std.Address) bool {
+func (pv *PercentageVoter) IsFinished(voters []std.Address) bool {
 	return pv.yes+pv.no >= len(voters)
 }
 
-func (pv *PercentageVoter) Vote(voters []std.Address, flag string) {
-	if (pv.no + pv.yes) == len(voters) {
+func (pv *PercentageVoter) Status(voters []std.Address) string {
+	return ufmt.Sprintf("YES: %d, NO: %d, percent: %d, members: %d", pv.yes, pv.no, pv.percent(voters), len(voters))
+}
+
+func (pv *PercentageVoter) Vote(voters []std.Address, caller std.Address, flag string) {
+	if (pv.no + pv.yes) >= len(voters) {
 		panic("no more votes allowed")
 	}
 
-	if flag == NAY {
-		pv.no++
-		return
+	if pv.alreadyVoted(caller) {
+		panic("caller already voted")
 	}
 
-	if flag == YAY {
+	switch flag {
+	case YAY:
 		pv.yes++
-		return
+		pv.voters = append(pv.voters, caller)
+	case NAY:
+		pv.no++
+		pv.voters = append(pv.voters, caller)
+	default:
+		panic("voting values must be YES or NO")
+	}
+}
+
+func (pv *PercentageVoter) percent(voters []std.Address) int {
+	if len(voters) == 0 {
+		return 0
 	}
 
-	panic("voting values must be YES or NO")
+	return int((float32(pv.yes) / float32(len(voters))) * 100)
+}
+
+func (pv *PercentageVoter) alreadyVoted(addr std.Address) bool {
+	for _, v := range pv.voters {
+		if v == addr {
+			return true
+		}
+	}
+
+	return false
 }

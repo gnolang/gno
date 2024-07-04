@@ -9,13 +9,15 @@ import (
 )
 
 var proposals = make([]*proposal, 0)
-var members = make([]std.Address, 0)
+var members = make([]std.Address, 0) // XXX: these should be pointers to avoid data duplication. Not possible due to VM bugs
 
 type proposal struct {
 	author   std.Address
 	comment  string
 	executor pproposal.Executor
 	voter    Voter
+	executed bool
+	voters   []std.Address // XXX: these should be pointers to avoid data duplication. Not possible due to VM bugs.
 }
 
 func (p proposal) Status() Status {
@@ -27,11 +29,11 @@ func (p proposal) Status() Status {
 		return Succeeded
 	}
 
-	if !p.voter.Finished(members) {
+	if !p.voter.IsFinished(members) {
 		return Active
 	}
 
-	if p.voter.Accepted(members) {
+	if p.voter.IsAccepted(members) {
 		return Accepted
 	}
 
@@ -67,33 +69,44 @@ func VoteOnProposal(idx int, option string) {
 
 	prop := getProposal(idx)
 
+	if prop.executed {
+		panic("prop already executed, cannot vote.")
+	}
+
 	if prop.executor.IsExpired() {
 		panic("prop is expired, cannot vote.")
 	}
 
-	if prop.voter.Finished(members) {
+	if prop.voter.IsFinished(members) {
 		panic("prop is not active anymore, cannot vote.")
 	}
 
-	prop.voter.Vote(members, option)
+	prop.voter.Vote(members, caller, option)
 }
 
 func ExecuteProposal(idx int) {
 	assertProposalExists(idx)
 	prop := getProposal(idx)
 
+	if prop.executed {
+		panic("prop already executed")
+	}
+
 	if prop.executor.IsExpired() {
 		panic("prop is expired, cannot execute.")
 	}
 
-	if !prop.voter.Finished(members) {
+	if !prop.voter.IsFinished(members) {
 		panic("prop is still active, cannot execute.")
 	}
-	if !prop.voter.Accepted(members) {
+
+	if !prop.voter.IsAccepted(members) {
 		panic("prop is not accepted, cannot execute.")
 	}
 
 	prop.executor.Execute()
+	prop.voters = members
+	prop.executed = true
 }
 
 func IsMember(addr std.Address) bool {
@@ -140,12 +153,20 @@ func Render(path string) string {
 		return "404"
 	}
 	prop := getProposal(idx)
+
+	vs := members
+	if prop.executed {
+		vs = prop.voters
+	}
+
 	output := ""
 	output += ufmt.Sprintf("# Prop#%d", idx) + "\n"
 	output += "\n"
 	output += prop.comment
 	output += "\n"
 	output += ufmt.Sprintf("Status: %s", string(prop.Status()))
+	output += "\n"
+	output += ufmt.Sprintf("Voting status: %s", prop.voter.Status(vs))
 	output += "\n"
 	output += ufmt.Sprintf("Author: %s", string(prop.author))
 	return output
