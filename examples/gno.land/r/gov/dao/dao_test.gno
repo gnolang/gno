@@ -37,7 +37,7 @@ func TestPackage(t *testing.T) {
 	// try to vote not being a member
 	std.TestSetOrigCaller(nu1)
 
-	urequire.PanicsWithMessage(t, "caller is not member of govdao", func() {
+	urequire.PanicsWithMessage(t, msgCallerNotAMember, func() {
 		VoteOnProposal(pid, "YES")
 	})
 
@@ -46,7 +46,7 @@ func TestPackage(t *testing.T) {
 	urequire.NotPanics(t, func() {
 		VoteOnProposal(pid, "YES")
 	})
-	urequire.PanicsWithMessage(t, "caller already voted", func() {
+	urequire.PanicsWithMessage(t, msgAlreadyVoted, func() {
 		VoteOnProposal(pid, "YES")
 	})
 
@@ -63,6 +63,9 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 	}
 
 	std.TestSetOrigCaller(u2)
+	urequire.PanicsWithMessage(t, msgWrongVotingValue, func() {
+		VoteOnProposal(pid, "INCORRECT")
+	})
 	urequire.NotPanics(t, func() {
 		VoteOnProposal(pid, "NO")
 	})
@@ -148,7 +151,7 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 	u5 := testutils.TestAddress("u5")
 	members = append(members, u5)
 	std.TestSetOrigCaller(u5)
-	urequire.PanicsWithMessage(t, "prop already executed", func() {
+	urequire.PanicsWithMessage(t, msgPropExecuted, func() {
 		ExecuteProposal(pid)
 	})
 

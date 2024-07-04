@@ -6,8 +6,14 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-const YAY = "YES"
-const NAY = "NO"
+const (
+	YAY = "YES"
+	NAY = "NO"
+
+	msgNoMoreVotesAllowed = "no more votes allowed"
+	msgAlreadyVoted       = "caller already voted"
+	msgWrongVotingValue   = "voting values must be YES or NO"
+)
 
 func NewPercentageVoter(percent int) *PercentageVoter {
 	if percent < 0 || percent > 100 {
@@ -47,11 +53,11 @@ func (pv *PercentageVoter) Status(voters []std.Address) string {
 
 func (pv *PercentageVoter) Vote(voters []std.Address, caller std.Address, flag string) {
 	if pv.IsFinished(voters) {
-		panic("no more votes allowed")
+		panic(msgNoMoreVotesAllowed)
 	}
 
 	if pv.alreadyVoted(caller) {
-		panic("caller already voted")
+		panic(msgAlreadyVoted)
 	}
 
 	switch flag {
@@ -62,7 +68,7 @@ func (pv *PercentageVoter) Vote(voters []std.Address, caller std.Address, flag s
 		pv.no++
 		pv.voters = append(pv.voters, caller)
 	default:
-		panic("voting values must be YES or NO")
+		panic(msgWrongVotingValue)
 	}
 }
 

@@ -8,8 +8,22 @@ import (
 	pproposal "gno.land/p/gov/proposal"
 )
 
-var proposals = make([]*proposal, 0)
-var members = make([]std.Address, 0) // XXX: these should be pointers to avoid data duplication. Not possible due to VM bugs
+var (
+	proposals = make([]*proposal, 0)
+	members   = make([]std.Address, 0) // XXX: these should be pointers to avoid data duplication. Not possible due to VM bugs
+)
+
+const (
+	msgMissingExecutor = "missing proposal executor"
+	msgPropExecuted    = "prop already executed"
+	msgPropExpired     = "prop is expired"
+	msgPropInactive    = "prop is not active anymore"
+	msgPropActive      = "prop is still active"
+	msgPropNotAccepted = "prop is not accepted"
+
+	msgCallerNotAMember = "caller is not member of govdao"
+	msgProposalNotFound = "proposal not found"
+)
 
 type proposal struct {
 	author   std.Address
@@ -45,7 +59,7 @@ func (p proposal) Status() Status {
 func Propose(comment string, executor pproposal.Executor) int {
 	// XXX: require payment?
 	if executor == nil {
-		panic("missing proposal executor")
+		panic(msgMissingExecutor)
 	}
 	caller := std.PrevRealm().Addr()
 	AssertIsMember(caller)
@@ -70,15 +84,15 @@ func VoteOnProposal(idx int, option string) {
 	prop := getProposal(idx)
 
 	if prop.executed {
-		panic("prop already executed, cannot vote.")
+		panic(msgPropExecuted)
 	}
 
 	if prop.executor.IsExpired() {
-		panic("prop is expired, cannot vote.")
+		panic(msgPropExpired)
 	}
 
 	if prop.voter.IsFinished(members) {
-		panic("prop is not active anymore, cannot vote.")
+		panic(msgPropInactive)
 	}
 
 	prop.voter.Vote(members, caller, option)
@@ -89,19 +103,19 @@ func ExecuteProposal(idx int) {
 	prop := getProposal(idx)
 
 	if prop.executed {
-		panic("prop already executed")
+		panic(msgPropExecuted)
 	}
 
 	if prop.executor.IsExpired() {
-		panic("prop is expired, cannot execute.")
+		panic(msgPropExpired)
 	}
 
 	if !prop.voter.IsFinished(members) {
-		panic("prop is still active, cannot execute.")
+		panic(msgPropActive)
 	}
 
 	if !prop.voter.IsAccepted(members) {
-		panic("prop is not accepted, cannot execute.")
+		panic(msgPropNotAccepted)
 	}
 
 	prop.executor.Execute()
@@ -125,7 +139,7 @@ func IsMember(addr std.Address) bool {
 
 func AssertIsMember(addr std.Address) {
 	if !IsMember(addr) {
-		panic("caller is not member of govdao")
+		panic(msgCallerNotAMember)
 	}
 }
 
@@ -174,7 +188,7 @@ func Render(path string) string {
 
 func getProposal(idx int) *proposal {
 	if idx > len(proposals)-1 {
-		panic("proposal not found")
+		panic(msgProposalNotFound)
 	}
 
 	return proposals[idx]
