@@ -1,7 +1,9 @@
-// Package monit is intended to link a monitoring system with the chain in both directions.
+// Package monit links a monitoring system with the chain in both directions.
 //
-// The agent will periodically call Incr() and verify that the value is always higher to the previously known one.
-// The contract will store the last update time and will use it to detect wether or not the monitoring agent seems to be done or not.
+// The agent will periodically call Incr() and verify that the value is always
+// higher than the previously known one. The contract will store the last update
+// time and use it to detect whether or not the monitoring agent is functioning
+// correctly.
 package monit
 
 import (
@@ -22,18 +24,20 @@ var (
 	watchdogDuration = 5 * time.Minute
 )
 
-// Anyone can call Incr.
+// Incr increments the counter and informs the watchdog that we're alive.
+// This function can be called by anyone.
 func Incr() int {
-	wd.Alive()
 	counter++
 	lastUpdate = time.Now()
 	lastCaller = std.PrevRealm().Addr()
+	wd.Alive()
 	return counter
 }
 
-// Only the admin can Reset.
+// Reset resets the realm state.
+// This function can only be called by the admin.
 func Reset() {
-	if owner.CallerIsOwner() != nil { // TODO: replace with owner.AsserCallerIsOwner
+	if owner.CallerIsOwner() != nil { // TODO: replace with owner.AssertCallerIsOwner
 		panic("unauthorized")
 	}
 	counter = 0
@@ -50,5 +54,6 @@ func Render(_ string) string {
 	)
 }
 
-// proxies to ownable.Ownable.*
+// TransferOwnership transfers ownership to a new owner. This is a proxy to
+// ownable.Ownable.TransferOwnership.
 func TransferOwnership(newOwner std.Address) { owner.TransferOwnership(newOwner) }
