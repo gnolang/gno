@@ -133,7 +133,8 @@ func main() {
 // - [r/demo/microblog](r/demo/microblog)
 // - [r/demo/nft](r/demo/nft)
 // - [r/demo/types](r/demo/types)
-// - [r/demo/art](r/demo/art)
+// - [r/demo/art/gnoface](r/demo/art/gnoface)
+// - [r/demo/art/millipede](r/demo/art/millipede)
 // - [r/demo/groups](r/demo/groups)
 // - ...
 //
