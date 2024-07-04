@@ -30,7 +30,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 			{"BalanceOf(unknown)", 0, func() uint64 { return BalanceOf(unknown) }},
 		}
 		for _, tc := range tests {
-			uaasert.Equal(t, tc.balance, tc.fn(), "balance does not match")
+			uassert.Equal(t, tc.balance, tc.fn(), "balance does not match")
 		}
 	}
 
