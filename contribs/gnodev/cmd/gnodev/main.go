@@ -311,7 +311,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 
 var helper string = `
 A           Accounts - Display known accounts and balances
-H           Help - Display this message
+H           Help - Also https://github.com/gnolang/gno/blob/master/docs/gno-tooling/cli/gnodev.md
 R           Reload - Reload all packages to take change into account.
 Ctrl+R      Reset - Reset application state.
 Ctrl+C      Exit - Exit the application
