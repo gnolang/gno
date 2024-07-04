@@ -144,7 +144,7 @@ func sendRequestCommon[T requestType, R responseType](
 	// Parse the response code
 	if !isOKStatus(httpResponse.StatusCode) {
 		return nil, fmt.Errorf(
-			"invalid status code received, %d. Response body: %q", 
+			"invalid status code received, %d. Response body: %q",
 			httpResponse.StatusCode, string(responseBytes),
 		)
 	}
