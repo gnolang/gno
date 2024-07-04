@@ -1,0 +1,25 @@
+# Test format with write flag
+
+gno fmt -w file1.gno
+cmp file1.gno file1.gno.golden
+cmp stderr stderr.golden
+
+-- file1.gno --
+package testdata
+
+import (
+	"std"
+	"doesnotexist"
+)
+
+   var myVar1 = std.Banker{}
+
+-- file1.gno.golden --
+package testdata
+
+import (
+	"std"
+)
+
+var myVar1 = std.Banker{}
+-- stderr.golden --

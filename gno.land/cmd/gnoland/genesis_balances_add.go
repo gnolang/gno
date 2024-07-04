@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -44,7 +43,7 @@ func newBalancesAddCmd(rootCfg *balancesCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "add",
 			ShortUsage: "balances add [flags]",
-			LongHelp:   "Adds a new validator to the genesis.json",
+			ShortHelp:  "adds balances to the genesis.json",
 		},
 		cfg,
 		func(ctx context.Context, _ []string) error {
@@ -93,16 +92,16 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 		return errNoBalanceSource
 	}
 
-	finalBalances := make(accountBalances)
+	finalBalances := gnoland.NewBalances()
 
 	// Get the balance sheet from the source
 	if singleEntriesSet {
-		balances, err := getBalancesFromEntries(cfg.singleEntries)
+		balances, err := gnoland.GetBalancesFromEntries(cfg.singleEntries...)
 		if err != nil {
 			return fmt.Errorf("unable to get balances from entries, %w", err)
 		}
 
-		finalBalances.leftMerge(balances)
+		finalBalances.LeftMerge(balances)
 	}
 
 	if balanceSheetSet {
@@ -112,12 +111,12 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 			return fmt.Errorf("unable to open balance sheet, %w", loadErr)
 		}
 
-		balances, err := getBalancesFromSheet(file)
+		balances, err := gnoland.GetBalancesFromSheet(file)
 		if err != nil {
 			return fmt.Errorf("unable to get balances from balance sheet, %w", err)
 		}
 
-		finalBalances.leftMerge(balances)
+		finalBalances.LeftMerge(balances)
 	}
 
 	if txFileSet {
@@ -132,7 +131,7 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 			return fmt.Errorf("unable to get balances from tx file, %w", err)
 		}
 
-		finalBalances.leftMerge(balances)
+		finalBalances.LeftMerge(balances)
 	}
 
 	// Initialize genesis app state if it is not initialized already
@@ -149,10 +148,10 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 
 	// Merge the two balance sheets, with the input
 	// having precedence over the genesis balances
-	finalBalances.leftMerge(genesisBalances)
+	finalBalances.LeftMerge(genesisBalances)
 
 	// Save the balances
-	state.Balances = finalBalances.toList()
+	state.Balances = finalBalances.List()
 	genesis.AppState = state
 
 	// Save the updated genesis
@@ -174,56 +173,6 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 	return nil
 }
 
-// getBalancesFromEntries extracts the balance entries
-// from the array of balance
-func getBalancesFromEntries(entries []string) (accountBalances, error) {
-	balances := make(accountBalances)
-
-	for _, entry := range entries {
-		var balance gnoland.Balance
-		if err := balance.Parse(entry); err != nil {
-			return nil, fmt.Errorf("unable to parse balance entry: %w", err)
-		}
-		balances[balance.Address] = balance
-	}
-
-	return balances, nil
-}
-
-// getBalancesFromSheet extracts the balance sheet from the passed in
-// balance sheet file, that has the format of <address>=<amount>ugnot
-func getBalancesFromSheet(sheet io.Reader) (accountBalances, error) {
-	// Parse the balances
-	balances := make(accountBalances)
-	scanner := bufio.NewScanner(sheet)
-
-	for scanner.Scan() {
-		entry := scanner.Text()
-
-		// Remove comments
-		entry = strings.Split(entry, "#")[0]
-		entry = strings.TrimSpace(entry)
-
-		// Skip empty lines
-		if entry == "" {
-			continue
-		}
-
-		var balance gnoland.Balance
-		if err := balance.Parse(entry); err != nil {
-			return nil, fmt.Errorf("unable to extract balance data, %w", err)
-		}
-
-		balances[balance.Address] = balance
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error encountered while scanning, %w", err)
-	}
-
-	return balances, nil
-}
-
 // getBalancesFromTransactions constructs a balance map based on MsgSend messages.
 // This way of determining the final balance sheet is not valid, since it doesn't take into
 // account different message types (ex. MsgCall) that can initialize accounts with some balance values.
@@ -234,8 +183,8 @@ func getBalancesFromTransactions(
 	ctx context.Context,
 	io commands.IO,
 	reader io.Reader,
-) (accountBalances, error) {
-	balances := make(accountBalances)
+) (gnoland.Balances, error) {
+	balances := gnoland.NewBalances()
 
 	scanner := bufio.NewScanner(reader)
 
@@ -285,7 +234,7 @@ func getBalancesFromTransactions(
 				// This way of determining final account balances is not really valid,
 				// because we take into account only the ugnot transfer messages (MsgSend)
 				// and not other message types (like MsgCall), that can also
-				// initialize accounts with some balances. Because of this,
+				// initialize accounts with some gnoland. Because of this,
 				// we can run into a situation where a message send amount or fee
 				// causes an accounts balance to go < 0. In these cases,
 				// we initialize the account (it is present in the balance sheet), but
@@ -336,9 +285,9 @@ func getBalancesFromTransactions(
 
 // mapGenesisBalancesFromState extracts the initial account balances from the
 // genesis app state
-func mapGenesisBalancesFromState(state gnoland.GnoGenesisState) (accountBalances, error) {
+func mapGenesisBalancesFromState(state gnoland.GnoGenesisState) (gnoland.Balances, error) {
 	// Construct the initial genesis balance sheet
-	genesisBalances := make(accountBalances)
+	genesisBalances := gnoland.NewBalances()
 
 	for _, balance := range state.Balances {
 		genesisBalances[balance.Address] = balance

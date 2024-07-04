@@ -118,31 +118,23 @@ type Location struct {
 	PkgPath string
 	File    string
 	Line    int
-	Nonce   int
+	Column  int
 }
 
 func (loc Location) String() string {
-	if loc.Nonce == 0 {
-		return fmt.Sprintf("%s/%s:%d",
-			loc.PkgPath,
-			loc.File,
-			loc.Line,
-		)
-	} else {
-		return fmt.Sprintf("%s/%s:%d#%d",
-			loc.PkgPath,
-			loc.File,
-			loc.Line,
-			loc.Nonce,
-		)
-	}
+	return fmt.Sprintf("%s/%s:%d:%d",
+		loc.PkgPath,
+		loc.File,
+		loc.Line,
+		loc.Column,
+	)
 }
 
 func (loc Location) IsZero() bool {
 	return loc.PkgPath == "" &&
 		loc.File == "" &&
 		loc.Line == 0 &&
-		loc.Nonce == 0
+		loc.Column == 0
 }
 
 // ----------------------------------------
@@ -153,26 +145,10 @@ func (loc Location) IsZero() bool {
 // for preprocessing) are stored in .data.
 
 type Attributes struct {
-	Line  int
-	Label Name
-	data  map[interface{}]interface{} // not persisted
-}
-
-func (attr *Attributes) Copy() Attributes {
-	if attr == nil {
-		return Attributes{}
-	}
-
-	data := make(map[interface{}]interface{})
-	for k, v := range attr.data {
-		data[k] = v
-	}
-
-	return Attributes{
-		Line:  attr.Line,
-		Label: attr.Label,
-		data:  data,
-	}
+	Line   int
+	Column int
+	Label  Name
+	data   map[interface{}]interface{} // not persisted
 }
 
 func (attr *Attributes) GetLine() int {
@@ -181,6 +157,14 @@ func (attr *Attributes) GetLine() int {
 
 func (attr *Attributes) SetLine(line int) {
 	attr.Line = line
+}
+
+func (attr *Attributes) GetColumn() int {
+	return attr.Column
+}
+
+func (attr *Attributes) SetColumn(column int) {
+	attr.Column = column
 }
 
 func (attr *Attributes) GetLabel() Name {
@@ -216,6 +200,8 @@ type Node interface {
 	Copy() Node
 	GetLine() int
 	SetLine(int)
+	GetColumn() int
+	SetColumn(int)
 	GetLabel() Name
 	SetLabel(Name)
 	HasAttribute(key interface{}) bool
@@ -1031,7 +1017,7 @@ type ValueDecl struct {
 func (x *ValueDecl) GetDeclNames() []Name {
 	ns := make([]Name, 0, len(x.NameExprs))
 	for _, nx := range x.NameExprs {
-		if nx.Name == "_" {
+		if nx.Name == blankIdentifier {
 			// ignore
 		} else {
 			ns = append(ns, nx.Name)
@@ -1048,7 +1034,7 @@ type TypeDecl struct {
 }
 
 func (x *TypeDecl) GetDeclNames() []Name {
-	if x.NameExpr.Name == "_" {
+	if x.NameExpr.Name == blankIdentifier {
 		return nil // ignore
 	} else {
 		return []Name{x.NameExpr.Name}
@@ -1132,11 +1118,21 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	allowedFileExtensions := []string{
 		".gno",
 	}
+	// exceptions to allowedFileExtensions
+	var rejectedFileExtensions []string
+
+	if IsStdlib(pkgPath) {
+		// Allows transpilation to work on stdlibs with native fns.
+		allowedFileExtensions = append(allowedFileExtensions, ".go")
+		rejectedFileExtensions = []string{".gen.go"}
+	}
+
 	list := make([]string, 0, len(files))
 	for _, file := range files {
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
-			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) {
+			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) ||
+			endsWith(file.Name(), rejectedFileExtensions) {
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))
@@ -1196,7 +1192,7 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 		}
 		n, err := ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
-			panic(errors.Wrap(err, "parsing file "+mfile.Name))
+			panic(err)
 		}
 		if memPkg.Name != string(n.PkgName) {
 			panic(fmt.Sprintf(
@@ -1605,8 +1601,8 @@ func (sb *StaticBlock) GetParentNode(store Store) BlockNode {
 // Implements BlockNode.
 // As a side effect, notes externally defined names.
 func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
-	if n == "_" {
-		return NewValuePathBlock(0, 0, "_")
+	if n == blankIdentifier {
+		return NewValuePathBlock(0, 0, blankIdentifier)
 	}
 	// Check local.
 	gen := 1
@@ -1631,7 +1627,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 			bp = bp.GetParentNode(store)
 			gen++
 			if 0xff < gen {
-				panic("GetPathForName: value path depth overflow")
+				panic("value path depth overflow")
 			}
 		}
 	}
@@ -1797,7 +1793,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	if tv.T == nil && tv.V != nil {
 		panic("StaticBlock.Define2() requires .T if .V is set")
 	}
-	if n == "_" {
+	if n == blankIdentifier {
 		return // ignore
 	}
 	idx, exists := sb.GetLocalIndex(n)

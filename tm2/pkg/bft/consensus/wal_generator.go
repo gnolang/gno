@@ -25,18 +25,19 @@ func makeAddrs() (string, string, string) {
 		fmt.Sprintf("tcp://0.0.0.0:%d", start+2)
 }
 
-// getConfig returns a config for test cases
-func getConfig(t *testing.T) *cfg.Config {
+// getConfig returns a config and genesis file for test cases
+func getConfig(t *testing.T) (*cfg.Config, string) {
 	t.Helper()
 
-	c := cfg.ResetTestRoot(t.Name())
+	c, genesisFile := cfg.ResetTestRoot(t.Name())
 
 	// and we use random ports to run in parallel
 	tm, rpc, grpc := makeAddrs()
 	c.P2P.ListenAddress = tm
 	c.RPC.ListenAddress = rpc
 	c.RPC.GRPCListenAddress = grpc
-	return c
+
+	return c, genesisFile
 }
 
 // heightStopWAL is a WAL which writes all msgs to underlying WALWriter.

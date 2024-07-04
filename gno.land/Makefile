@@ -25,7 +25,7 @@ GOTEST_FLAGS ?= -v -p 1 -timeout=30m
 ########################################
 # Dev tools
 .PHONY: start.gnoland
-start.gnoland:; go run ./cmd/gnoland start
+start.gnoland:; go run ./cmd/gnoland start -lazy
 
 .PHONY: start.gnoweb
 start.gnoweb:; go run ./cmd/gnoweb
@@ -49,7 +49,7 @@ install.gnokey:;     go install ./cmd/gnokey
 
 .PHONY: fclean
 fclean: clean
-	rm -rf testdir
+	rm -rf gnoland-data genesis.json
 
 .PHONY: clean
 clean:

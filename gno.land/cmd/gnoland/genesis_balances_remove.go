@@ -33,7 +33,7 @@ func newBalancesRemoveCmd(rootCfg *balancesCfg, io commands.IO) *commands.Comman
 		commands.Metadata{
 			Name:       "remove",
 			ShortUsage: "balances remove [flags]",
-			LongHelp:   "Removes the balance information of a specific account",
+			ShortHelp:  "removes the balance information of a specific account",
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
@@ -86,7 +86,7 @@ func execBalancesRemove(cfg *balancesRemoveCfg, io commands.IO) error {
 	delete(genesisBalances, address)
 
 	// Save the balances
-	state.Balances = genesisBalances.toList()
+	state.Balances = genesisBalances.List()
 	genesis.AppState = state
 
 	// Save the updated genesis

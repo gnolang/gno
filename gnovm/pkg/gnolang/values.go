@@ -41,6 +41,7 @@ func (*PackageValue) assertValue()     {}
 func (*NativeValue) assertValue()      {}
 func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
+func (*HeapItemValue) assertValue()    {}
 
 const (
 	nilStr       = "nil"
@@ -64,6 +65,7 @@ var (
 	_ Value = &NativeValue{}
 	_ Value = &Block{}
 	_ Value = RefValue{}
+	_ Value = &HeapItemValue{}
 )
 
 // ----------------------------------------
@@ -166,14 +168,20 @@ func (dbv DataByteValue) SetByte(b byte) {
 // Index is -1 for the shared "_" block var,
 // and -2 for (gno and native) map items.
 //
+// A pointer constructed via a &x{} composite lit expression or constructed via
+// new() or make() will have a virtual HeapItemValue as base.
+//
 // Allocation for PointerValue is not immediate,
 // as usually PointerValues are temporary for assignment
 // or binary operations. When a pointer is to be
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
+//
+// Since PointerValue is used internally for assignment etc,
+// it MUST stay minimal for computational efficiency.
 type PointerValue struct {
 	TV    *TypedValue // escape val if pointer to var.
-	Base  Value       // array/struct/block.
+	Base  Value       // array/struct/block, or heapitem.
 	Index int         // list/fields/values index, or -1 or -2 (see below).
 	Key   *TypedValue `json:",omitempty"` // for maps.
 }
@@ -184,7 +192,6 @@ const (
 	PointerIndexNative     = -3 // Base is *NativeValue.
 )
 
-/*
 func (pv *PointerValue) GetBase(store Store) Object {
 	switch cbase := pv.Base.(type) {
 	case nil:
@@ -196,10 +203,9 @@ func (pv *PointerValue) GetBase(store Store) Object {
 	case Object:
 		return cbase
 	default:
-		panic("should not happen")
+		panic(fmt.Sprintf("unexpected pointer base type %T", cbase))
 	}
 }
-*/
 
 // cu: convert untyped; pass false for const definitions
 // TODO: document as something that enables into-native assignment.
@@ -817,6 +823,7 @@ type PackageValue struct {
 	fBlocksMap map[Name]*Block
 }
 
+// IsRealm returns true if pv represents a realm.
 func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
@@ -1493,6 +1500,88 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	return tv.V.(BigdecValue).V
 }
 
+// returns true if tv is zero
+func (tv *TypedValue) isZero() bool {
+	if tv.T == nil {
+		panic("type should not be nil")
+	}
+	switch tv.T.Kind() {
+	case IntKind:
+		v := tv.GetInt()
+		if v == 0 {
+			return true
+		}
+	case Int8Kind:
+		v := tv.GetInt8()
+		if v == 0 {
+			return true
+		}
+	case Int16Kind:
+		v := tv.GetInt16()
+		if v == 0 {
+			return true
+		}
+	case Int32Kind:
+		v := tv.GetInt32()
+		if v == 0 {
+			return true
+		}
+	case Int64Kind:
+		v := tv.GetInt64()
+		if v == 0 {
+			return true
+		}
+	case UintKind:
+		v := tv.GetUint()
+		if v == 0 {
+			return true
+		}
+	case Uint8Kind:
+		v := tv.GetUint8()
+		if v == 0 {
+			return true
+		}
+	case Uint16Kind:
+		v := tv.GetUint16()
+		if v == 0 {
+			return true
+		}
+	case Uint32Kind:
+		v := tv.GetUint32()
+		if v == 0 {
+			return true
+		}
+	case Uint64Kind:
+		v := tv.GetUint64()
+		if v == 0 {
+			return true
+		}
+	case Float32Kind:
+		v := tv.GetFloat32()
+		if v == 0 {
+			return true
+		}
+	case Float64Kind:
+		v := tv.GetFloat64()
+		if v == 0 {
+			return true
+		}
+	case BigintKind:
+		v := tv.GetBigInt()
+		if v.Sign() == 0 {
+			return true
+		}
+	case BigdecKind:
+		v := tv.GetBigDec()
+		if v.Sign() == 0 {
+			return true
+		}
+	default:
+		panic("not numeric")
+	}
+	return false
+}
+
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	// Special case when nil: has no separator.
 	if tv.T == nil {
@@ -1543,8 +1632,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		bz = append(bz, '{')
 		for i := 0; i < sl; i++ {
 			fv := fillValueTV(store, &sv.Fields[i])
-			ft := bt.Fields[i]
-			omitTypes := ft.Elem().Kind() != InterfaceKind
+			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
 			bz = append(bz, fv.ComputeMapKey(store, omitTypes)...)
 			if i != sl-1 {
 				bz = append(bz, ',')
@@ -2254,12 +2342,12 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 
 // TODO rename to BlockValue.
 type Block struct {
-	ObjectInfo // for closures
-	Source     BlockNode
-	Values     []TypedValue
-	Parent     Value
-	Blank      TypedValue // captures "_" // XXX remove and replace with global instance.
-	bodyStmt   bodyStmt   // XXX expose for persistence, not needed for MVP.
+	ObjectInfo
+	Source   BlockNode
+	Values   []TypedValue
+	Parent   Value
+	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
+	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
@@ -2284,7 +2372,7 @@ func (b *Block) StringIndented(indent string) string {
 	if len(source) > 32 {
 		source = source[:32] + "..."
 	}
-	lines := []string{}
+	lines := make([]string, 0, 3)
 	lines = append(lines,
 		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
 			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
@@ -2344,7 +2432,7 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if path.IsBlockBlankPath() {
 		if debug {
-			if path.Name != "_" {
+			if path.Name != blankIdentifier {
 				panic(fmt.Sprintf(
 					"zero value path is reserved for \"_\", but got %s",
 					path.Name))
@@ -2417,6 +2505,15 @@ type RefValue struct {
 	Escaped  bool      `json:",omitempty"`
 	PkgPath  string    `json:",omitempty"`
 	Hash     ValueHash `json:",omitempty"`
+}
+
+// Base for a detached singleton (e.g. new(int) or &struct{})
+// Conceptually like a Block that holds one value.
+// NOTE: could be renamed to HeapItemBaseValue.
+// See also note in realm.go about auto-unwrapping.
+type HeapItemValue struct {
+	ObjectInfo
+	Value TypedValue
 }
 
 // ----------------------------------------
@@ -2547,6 +2644,8 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			case *Block:
 				vpv := cb.GetPointerToInt(store, cv.Index)
 				cv.TV = vpv.TV // TODO optimize?
+			case *HeapItemValue:
+				cv.TV = &cb.Value
 			default:
 				panic("should not happen")
 			}

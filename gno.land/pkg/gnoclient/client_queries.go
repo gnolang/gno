@@ -11,6 +11,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+var ErrInvalidBlockHeight = errors.New("invalid block height provided")
+
 // QueryCfg contains configuration options for performing ABCI queries.
 type QueryCfg struct {
 	Path                       string // Query path
@@ -88,7 +90,7 @@ func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCI
 	}
 
 	path := "vm/qrender"
-	data := []byte(fmt.Sprintf("%s\n%s", pkgPath, args))
+	data := []byte(fmt.Sprintf("%s:%s", pkgPath, args))
 
 	qres, err := c.RPCClient.ABCIQuery(path, data)
 	if err != nil {
@@ -111,7 +113,7 @@ func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.Resul
 	}
 
 	path := "vm/qeval"
-	data := []byte(fmt.Sprintf("%s\n%s", pkgPath, expression))
+	data := []byte(fmt.Sprintf("%s.%s", pkgPath, expression))
 
 	qres, err := c.RPCClient.ABCIQuery(path, data)
 	if err != nil {
@@ -122,4 +124,56 @@ func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.Resul
 	}
 
 	return string(qres.Response.Data), qres, nil
+}
+
+// Block gets the latest block at height, if any
+// Height must be larger than 0
+func (c *Client) Block(height int64) (*ctypes.ResultBlock, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return nil, ErrMissingRPCClient
+	}
+
+	if height <= 0 {
+		return nil, ErrInvalidBlockHeight
+	}
+
+	block, err := c.RPCClient.Block(&height)
+	if err != nil {
+		return nil, fmt.Errorf("block query failed: %w", err)
+	}
+
+	return block, nil
+}
+
+// BlockResult gets the block results at height, if any
+// Height must be larger than 0
+func (c *Client) BlockResult(height int64) (*ctypes.ResultBlockResults, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return nil, ErrMissingRPCClient
+	}
+
+	if height <= 0 {
+		return nil, ErrInvalidBlockHeight
+	}
+
+	blockResults, err := c.RPCClient.BlockResults(&height)
+	if err != nil {
+		return nil, fmt.Errorf("block query failed: %w", err)
+	}
+
+	return blockResults, nil
+}
+
+// LatestBlockHeight gets the latest block height on the chain
+func (c *Client) LatestBlockHeight() (int64, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return 0, ErrMissingRPCClient
+	}
+
+	status, err := c.RPCClient.Status()
+	if err != nil {
+		return 0, fmt.Errorf("block number query failed: %w", err)
+	}
+
+	return status.SyncInfo.LatestBlockHeight, nil
 }

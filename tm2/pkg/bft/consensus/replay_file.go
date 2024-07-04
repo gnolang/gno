@@ -9,19 +9,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
-	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
-	cnscfg "github.com/gnolang/gno/tm2/pkg/bft/consensus/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
-	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
-	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
-	"github.com/gnolang/gno/tm2/pkg/bft/store"
 	walm "github.com/gnolang/gno/tm2/pkg/bft/wal"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/events"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
@@ -32,15 +24,6 @@ const (
 
 // --------------------------------------------------------
 // replay messages interactively or all at once
-
-// replay the wal file
-func RunReplayFile(config cfg.BaseConfig, csConfig *cnscfg.ConsensusConfig, console bool) {
-	consensusState := newConsensusStateForReplay(config, csConfig)
-
-	if err := consensusState.ReplayFile(csConfig.WalFile(), console); err != nil {
-		osm.Exit(fmt.Sprintf("Error during consensus replay: %v", err))
-	}
-}
 
 // Replay msgs in file or start the console
 func (cs *ConsensusState) ReplayFile(file string, console bool) error {
@@ -265,67 +248,4 @@ func (pb *playback) replayConsoleLoop() int {
 			fmt.Println(pb.count)
 		}
 	}
-}
-
-// --------------------------------------------------------------------------------
-
-// convenience for replay mode
-func newConsensusStateForReplay(config cfg.BaseConfig, csConfig *cnscfg.ConsensusConfig) *ConsensusState {
-	dbType := dbm.BackendType(config.DBBackend)
-	// Get BlockStore
-	blockStoreDB, err := dbm.NewDB("blockstore", dbType, config.DBDir())
-	if err != nil {
-		osm.Exit(err.Error())
-	}
-
-	blockStore := store.NewBlockStore(blockStoreDB)
-
-	// Get State
-	stateDB, err := dbm.NewDB("state", dbType, config.DBDir())
-	if err != nil {
-		osm.Exit(err.Error())
-	}
-
-	gdoc, err := sm.MakeGenesisDocFromFile(config.GenesisFile())
-	if err != nil {
-		osm.Exit(err.Error())
-	}
-	state, err := sm.MakeGenesisState(gdoc)
-	if err != nil {
-		osm.Exit(err.Error())
-	}
-
-	// Create proxyAppConn connection (consensus, mempool, query)
-	clientCreator := proxy.DefaultClientCreator(
-		config.LocalApp,
-		config.ProxyApp,
-		config.ABCI,
-		config.DBDir(),
-	)
-	proxyApp := appconn.NewAppConns(clientCreator)
-	err = proxyApp.Start()
-	if err != nil {
-		osm.Exit(fmt.Sprintf("Error starting proxy app conns: %v", err))
-	}
-
-	evsw := events.NewEventSwitch()
-	if err := evsw.Start(); err != nil {
-		osm.Exit(fmt.Sprintf("Failed to start event bus: %v", err))
-	}
-
-	handshaker := NewHandshaker(stateDB, state, blockStore, gdoc)
-	handshaker.SetEventSwitch(evsw)
-	err = handshaker.Handshake(proxyApp)
-	if err != nil {
-		osm.Exit(fmt.Sprintf("Error on handshake: %v", err))
-	}
-
-	mempool := mock.Mempool{}
-	blockExec := sm.NewBlockExecutor(stateDB, log.NewNoopLogger(), proxyApp.Consensus(), mempool)
-
-	consensusState := NewConsensusState(csConfig, state.Copy(), blockExec,
-		blockStore, mempool)
-
-	consensusState.SetEventSwitch(evsw)
-	return consensusState
 }
