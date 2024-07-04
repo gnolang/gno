@@ -26,7 +26,7 @@ filter_peers = false
 home = ""
 
 # A custom human readable name for this node
-moniker = "artemis.local"
+moniker = "artemis.local" # Change me!
 
 # Path to the JSON file containing the private key to use for node authentication in the p2p protocol
 node_key_file = "secrets/node_key.json"
@@ -62,7 +62,7 @@ proxy_app = "tcp://127.0.0.1:26658"
 
   # Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
   skip_timeout_commit = false
-  timeout_commit = "2s"
+  timeout_commit = "2s" # Do NOT change me, leave me at 2s!
   timeout_precommit = "1s"
   timeout_precommit_delta = "500ms"
   timeout_prevote = "1s"
@@ -86,7 +86,7 @@ proxy_app = "tcp://127.0.0.1:26658"
   recheck = true
 
   # Maximum number of transactions in the mempool
-  size = 5000
+  size = 10000 # Advised value is 10000
   wal_dir = ""
 
 ##### peer to peer configuration options #####
@@ -110,13 +110,13 @@ proxy_app = "tcp://127.0.0.1:26658"
   home = ""
 
   # Address to listen for incoming connections
-  laddr = "tcp://0.0.0.0:26656"
+  laddr = "tcp://0.0.0.0:26656" # Change me!
 
   # Maximum number of inbound peers
   max_num_inbound_peers = 40
 
   # Maximum number of outbound peers to connect to, excluding persistent peers
-  max_num_outbound_peers = 10
+  max_num_outbound_peers = 40 # Advised value is 40
 
   # Maximum size of a message packet payload, in bytes
   max_packet_msg_payload_size = 1024
@@ -186,7 +186,7 @@ proxy_app = "tcp://127.0.0.1:26658"
   home = ""
 
   # TCP or UNIX socket address for the RPC server to listen on
-  laddr = "tcp://127.0.0.1:26657"
+  laddr = "tcp://127.0.0.1:26657" # Change me!
 
   # Maximum size of request body, in bytes
   max_body_bytes = 1000000
@@ -227,10 +227,10 @@ proxy_app = "tcp://127.0.0.1:26658"
 
 ##### node telemetry #####
 [telemetry]
-  enabled = false
+  enabled = false # Advised to be `true`
 
   # the endpoint to export metrics to, like a local OpenTelemetry collector
-  exporter_endpoint = ""
+  exporter_endpoint = "" # Change me!
   meter_name = "gno.land"
 
   # the ID helps to distinguish instances of the same service that exist at the same time (e.g. instances of a horizontally scaled service)
