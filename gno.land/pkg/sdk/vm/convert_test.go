@@ -9,7 +9,7 @@ import (
 )
 
 func TestConvertEmptyNumbers(t *testing.T) {
-	var tests = []struct {
+	tests := []struct {
 		arg         string
 		argT        gnolang.Type
 		expectedErr string
