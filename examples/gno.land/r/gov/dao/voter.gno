@@ -46,7 +46,7 @@ func (pv *PercentageVoter) Status(voters []std.Address) string {
 }
 
 func (pv *PercentageVoter) Vote(voters []std.Address, caller std.Address, flag string) {
-	if (pv.no + pv.yes) >= len(voters) {
+	if pv.IsFinished(voters) {
 		panic("no more votes allowed")
 	}
 
