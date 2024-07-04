@@ -5,35 +5,154 @@ package valopers
 import (
 	"std"
 
-	"gno.land/p/demo/ownable"
-	govdao "gno.land/r/gov/dao"
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
-// Valoper represents a validator operator profile.
+const daoPkgPath = "gno.land/r/gov/dao"
+
+const (
+	errValoperExists        = "valoper already exists"
+	errValoperMissing       = "valoper does not exist"
+	errInvalidAddressUpdate = "valoper updated address exists"
+
+	errNotGovDAO = "caller not govdao executor"
+)
+
+// valopers keeps track of all the active validator operators
+var valopers *avl.Tree // Address -> Valoper
+
+// Valoper represents a validator operator profile
 type Valoper struct {
-	ownable.Ownable // Embedding the Ownable type for ownership management.
+	Name        string // the display name of the valoper
+	Description string // the description of the valoper
 
-	DisplayName   string      // The display name of the valoper.
-	ValidatorAddr std.Address // The address of the validator.
-	// TODO: Add other valoper metadata as needed.
+	Address      std.Address // The bech32 gno address of the validator
+	PubKey       string      // the bech32 public key of the validator
+	P2PAddresses []string    // the publicly reachable P2P addresses of the validator
 }
 
-// Register registers a new valoper.
-// TODO: Define the parameters and implement the function.
-func Register( /* TBD */ ) {
-	panic("not implemented")
+// Register registers a new valoper
+func Register(v Valoper) {
+	assertGovDAOCaller()
+
+	// Check if the valoper is already registered
+	if isValoper(v.Address) {
+		panic(errValoperExists)
+	}
+
+	// TODO add address derivation from public key
+	// (when the laws of gno make it possible)
+
+	// Save the valoper to the set
+	valopers.Set(v.Address.String(), v)
 }
 
-// Update updates an existing valoper.
-// TODO: Define the parameters and implement the function.
-func Update( /* TBD */ ) {
-	panic("not implemented")
+// Unregister unregisters a valoper
+func Unregister(address std.Address) {
+	assertGovDAOCaller()
+
+	if !isValoper(address) {
+		panic(errValoperMissing)
+	}
+
+	// Remove the valoper
+	valopers.Remove(address.String())
 }
 
-// GovXXX is a placeholder for a function to interact with the governance DAO.
-// TODO: Define a good API and implement it.
-func GovXXX() {
-	// Assert that the caller is a member of the governance DAO.
-	govdao.AssertIsMember(std.PrevRealm().Addr())
-	panic("not implemented")
+// Update updates an existing valoper
+func Update(address std.Address, v Valoper) {
+	assertGovDAOCaller()
+
+	// Check if the valoper is present
+	if !isValoper(address) {
+		panic(errValoperMissing)
+	}
+
+	// Check that the valoper wouldn't be
+	// overwriting an existing one
+	isAddressUpdate := address != v.Address
+	if isAddressUpdate && isValoper(v.Address) {
+		panic(errInvalidAddressUpdate)
+	}
+
+	// Remove the old valoper info
+	// in case the address changed
+	if address != v.Address {
+		valopers.Remove(address.String())
+	}
+
+	// Save the new valoper info
+	valopers.Set(v.Address.String(), v)
+}
+
+// Fetch fetches the valoper, if present
+func Fetch(address std.Address) Valoper {
+	valoperRaw, exists := valopers.Get(address.String())
+	if !exists {
+		panic(errValoperMissing)
+	}
+
+	return valoperRaw.(Valoper)
+}
+
+// Render renders the current valoper set
+func Render(_ string) string {
+	if valopers.Size() == 0 {
+		return "No valopers to display."
+	}
+
+	output := "Valset changes to apply:\n"
+	valopers.Iterate("", "", func(_ string, value interface{}) bool {
+		valoper := value.(Valoper)
+
+		output += renderValoper(valoper)
+
+		return false
+	})
+
+	return output
+}
+
+// renderValoper renders a single valoper
+func renderValoper(v Valoper) string {
+	output := ufmt.Sprintf("## %s\n", v.Name)
+	output += ufmt.Sprintf("%s\n\n", v.Description)
+	output += ufmt.Sprintf("- Address: %s\n", v.Address.String())
+	output += ufmt.Sprintf("- PubKey: %s\n", v.PubKey)
+	output += "- P2P Addresses: [\n"
+
+	if len(v.P2PAddresses) == 0 {
+		output += "]\n"
+
+		return output
+	}
+
+	for index, addr := range v.P2PAddresses {
+		output += addr
+
+		if index == len(v.P2PAddresses)-1 {
+			output += "]\n"
+
+			continue
+		}
+
+		output += ",\n"
+	}
+
+	return output
+}
+
+// isValoper checks if the valoper exists
+func isValoper(address std.Address) bool {
+	_, exists := valopers.Get(address.String())
+
+	return exists
+}
+
+// assertGovDAOCaller verifies the caller is the GovDAO executor
+func assertGovDAOCaller() {
+	if std.PrevRealm().PkgPath() != daoPkgPath {
+		panic(errNotGovDAO)
+	}
 }
