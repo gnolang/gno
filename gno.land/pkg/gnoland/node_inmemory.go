@@ -85,6 +85,8 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		return nil, fmt.Errorf("validate config error: %w", err)
 	}
 
+	evsw := events.NewEventSwitch()
+
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
 		Logger:           logger,
@@ -92,7 +94,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		GenesisTxHandler: cfg.GenesisTxHandler,
 		MaxCycles:        cfg.GenesisMaxVMCycles,
 		DB:               memdb.NewMemDB(),
-		EventSwitch:      events.NewEventSwitch(),
+		EventSwitch:      evsw,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
@@ -122,6 +124,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		appClientCreator,
 		genProvider,
 		dbProvider,
+		evsw,
 		logger,
 	)
 }

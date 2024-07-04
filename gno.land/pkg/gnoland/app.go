@@ -148,8 +148,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 func NewApp(
 	dataRootDir string,
 	skipFailingGenesisTxs bool,
-	logger *slog.Logger,
 	evsw events.EventSwitch,
+	logger *slog.Logger,
 ) (abci.Application, error) {
 	var err error
 
