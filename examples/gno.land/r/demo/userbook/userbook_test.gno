@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/urequire"
 )
 
 func TestRender(t *testing.T) {
