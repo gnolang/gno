@@ -1,5 +1,13 @@
-// Command genstd provides static code generation for standard library native
-// bindings.
+// Command genstd is a code-generator to create meta-information for the Gno
+// standard libraries.
+//
+// All the packages in the standard libraries are parsed and relevant
+// information is collected; the file is then generated followingthe template
+// available in ./template.tmpl
+//
+// genstd is responsible for linking natively bound functions, a FFI from Gno
+// functions to Go implementations, and calculating the initialization order
+// of the standard libraries.
 package main
 
 import (
@@ -28,6 +36,8 @@ func main() {
 	}
 }
 
+const outputFile = "generated.go"
+
 func _main(stdlibsPath string) error {
 	stdlibsPath = filepath.Clean(stdlibsPath)
 	if s, err := os.Stat(stdlibsPath); err != nil {
@@ -45,17 +55,19 @@ func _main(stdlibsPath string) error {
 
 	// Link up each Gno function with its matching Go function.
 	mappings := linkFunctions(pkgs)
+	initOrder := sortPackages(pkgs)
 
 	// Create generated file.
-	f, err := os.Create("native.go")
+	f, err := os.Create(outputFile)
 	if err != nil {
-		return fmt.Errorf("create native.go: %w", err)
+		return fmt.Errorf("create "+outputFile+": %w", err)
 	}
 	defer f.Close()
 
 	// Execute template.
 	td := &tplData{
-		Mappings: mappings,
+		Mappings:  mappings,
+		InitOrder: initOrder,
 	}
 	if err := tpl.Execute(f, td); err != nil {
 		return fmt.Errorf("execute template: %w", err)
@@ -73,10 +85,15 @@ func _main(stdlibsPath string) error {
 }
 
 type pkgData struct {
-	importPath  string
-	fsDir       string
+	importPath string
+	fsDir      string
+
+	// for matching native functions
 	gnoBodyless []funcDecl
 	goExported  []funcDecl
+
+	// for determining initialization order
+	imports map[string]struct{}
 }
 
 type funcDecl struct {
@@ -92,7 +109,7 @@ func addImports(fds []*ast.FuncDecl, imports []*ast.ImportSpec) []funcDecl {
 	return r
 }
 
-// walkStdlibs does a BFS walk through the given directory, expected to be a
+// walkStdlibs does walks through the given directory, expected to be a
 // "stdlib" directory, parsing and keeping track of Go and Gno functions of
 // interest.
 func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
@@ -114,12 +131,14 @@ func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 
 		dir := filepath.Dir(fpath)
 		var pkg *pkgData
-		// because of bfs, we know that if we've already been in this directory
-		// in a previous file, it must be in the last entry of pkgs.
+		// if we've already been in this directory in a previous file, it must
+		// be in the last entry of pkgs, as all files in a directory are
+		// processed together.
 		if len(pkgs) == 0 || pkgs[len(pkgs)-1].fsDir != dir {
 			pkg = &pkgData{
-				importPath: strings.ReplaceAll(strings.TrimPrefix(dir, stdlibsPath+"/"), string(filepath.Separator), "/"),
+				importPath: strings.TrimPrefix(strings.ReplaceAll(dir, string(filepath.Separator), "/"), stdlibsPath+"/"),
 				fsDir:      dir,
+				imports:    make(map[string]struct{}),
 			}
 			pkgs = append(pkgs, pkg)
 		} else {
@@ -130,16 +149,29 @@ func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 		if err != nil {
 			return err
 		}
+
 		if ext == ".go" {
 			// keep track of exported function declarations.
 			// warn about all exported type, const and var declarations.
 			if exp := filterExported(f); len(exp) > 0 {
 				pkg.goExported = append(pkg.goExported, addImports(exp, f.Imports)...)
 			}
-		} else if bd := filterBodylessFuncDecls(f); len(bd) > 0 {
+			return nil
+		}
+
+		// ext == ".gno"
+		if bd := filterBodylessFuncDecls(f); len(bd) > 0 {
 			// gno file -- keep track of function declarations without body.
 			pkg.gnoBodyless = append(pkg.gnoBodyless, addImports(bd, f.Imports)...)
 		}
+		for _, imp := range f.Imports {
+			impVal, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				panic(err)
+			}
+			pkg.imports[impVal] = struct{}{}
+		}
+
 		return nil
 	})
 	return pkgs, err
@@ -181,11 +213,13 @@ var tpl = template.Must(template.New("").Parse(templateText))
 
 // tplData is the data passed to the template.
 type tplData struct {
-	Mappings []mapping
+	Mappings  []mapping
+	InitOrder []string
 }
 
 type tplImport struct{ Name, Path string }
 
+// Imports returns the packages that the resulting generated files should import.
 func (t tplData) Imports() (res []tplImport) {
 	add := func(path string) {
 		for _, v := range res {

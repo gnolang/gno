@@ -17,7 +17,7 @@ func runTool(importPath string) error {
 
 	cmd := exec.Command(
 		"go", "run", "-modfile", filepath.Join(gr, "misc/devdeps/go.mod"),
-		importPath, "-w", "native.go",
+		importPath, "-w", outputFile,
 	)
 	_, err := cmd.Output()
 	if err != nil {
