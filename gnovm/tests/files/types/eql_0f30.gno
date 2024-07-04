@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f30.gno:5: []uint8 can only be compared to nil
+// main/files/types/eql_0f30.gno:5:10: []uint8 can only be compared to nil

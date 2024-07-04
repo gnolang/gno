@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/add_assign_f2_stdlibs.gno:20: operator += not defined on: InterfaceKind
+// main/files/types/add_assign_f2_stdlibs.gno:20:2: operator += not defined on: InterfaceKind

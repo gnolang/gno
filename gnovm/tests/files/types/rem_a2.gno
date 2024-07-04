@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/rem_a2.gno:4: invalid operation: division by zero
+// main/files/types/rem_a2.gno:4:10: invalid operation: division by zero
