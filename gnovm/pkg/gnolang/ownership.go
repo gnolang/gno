@@ -129,6 +129,7 @@ var (
 	_ Object = &BoundMethodValue{}
 	_ Object = &MapValue{}
 	_ Object = &Block{}
+	_ Object = &HeapItemValue{}
 )
 
 type ObjectInfo struct {
@@ -332,11 +333,7 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		// something in it; in that case, ignore the base.  That will
 		// likely require maybe a preparation step in persistence
 		// ( or unlikely, a second type of ref-counting).
-		if cv.Base != nil {
-			return cv.Base.(Object)
-		} else {
-			return cv.TV.GetFirstObject(store)
-		}
+		return cv.GetBase(store)
 	case *ArrayValue:
 		return cv
 	case *SliceValue:
@@ -359,6 +356,9 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 		oo := store.GetObject(cv.ObjectID)
 		tv.V = oo
 		return oo
+	case *HeapItemValue:
+		// should only appear in PointerValue.Base
+		panic("heap item value should only appear as a pointer's base")
 	default:
 		return nil
 	}

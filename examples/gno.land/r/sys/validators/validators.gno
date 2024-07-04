@@ -1,47 +1,60 @@
-// Package validators is used to manage the validator set.
 package validators
 
 import (
 	"std"
+	"strconv"
 
-	"gno.land/p/gov/proposal"
+	"gno.land/p/sys/validators"
 )
 
-var unappliedChanges = []Change{}
+var (
+	vp      validators.ValsetProtocol // p is the underlying validator set protocol
+	changes []validators.Validator    // changes are the set changes that happened between scrapes
+)
 
-// Change represents a change in the validator set.
-type Change struct {
-	Address std.Address
-	Power   int
-}
-
-// NewProposalExecutor creates a new executor that wraps a changes closure
-// proposal. It emits a typed object (subscribed by tm2) only if it passes
-// through a complete p/gov/proposal process.
-func NewProposalExecutor(changesFn func() []Change) proposal.Executor {
-	if changesFn == nil {
-		panic("changesFn should not be nil")
+// addValidator adds a new validator to the validator set.
+// If the validator is already present, the method errors out
+func addValidator(validator validators.Validator) {
+	val, err := vp.AddValidator(validator.Address, validator.PubKey, validator.VotingPower)
+	if err != nil {
+		panic(err)
 	}
 
-	// Certify that the changes are sent from the context of this realm.
-	callback := func() error {
-		newChanges := changesFn()
+	// Validator added, note the change
+	changes = append(changes, val)
 
-		// emit for external clients
-		std.Emit("newChanges") // XXX: pass parameters
-
-		// append to slice for gno.land
-		unappliedChanges = append(unappliedChanges, newChanges...)
-		return nil
-	}
-
-	exec := proposal.NewExecutor(callback)
-	return exec
+	// Emit the validator set change
+	std.Emit(validators.ValidatorAddedEvent)
 }
 
-// this function is unexported and intended to be called by the chain.
-func getAndResetChanges() []Change {
-	cpy := unappliedChanges[:]
-	unappliedChanges = []Change{}
-	return cpy
+// removeValidator removes the given validator from the set.
+// If the validator is not present in the set, the method errors out
+func removeValidator(address std.Address) {
+	val, err := vp.RemoveValidator(address)
+	if err != nil {
+		panic(err)
+	}
+
+	// Validator removed, note the change
+	changes = append(changes, validators.Validator{
+		Address:     val.Address,
+		PubKey:      val.PubKey,
+		VotingPower: 0, // nullified the voting power indicates removal
+	})
+
+	// Emit the validator set change
+	std.Emit(validators.ValidatorRemovedEvent)
+}
+
+func Render(_ string) string {
+	if len(changes) == 0 {
+		return "No valset changes to apply."
+	}
+
+	output := "Valset changes to apply:\n"
+	for _, change := range changes {
+		output += "- " + string(change.Address) + " (" + strconv.FormatUint(change.VotingPower, 10) + ")\n"
+	}
+
+	return output
 }
