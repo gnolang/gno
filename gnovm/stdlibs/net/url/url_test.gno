@@ -5,12 +5,13 @@
 package url
 
 import (
-	"bytes"
+
 	// encodingPkg "encoding"
 	// "encoding/gob"
 	"encoding/json"
 	"fmt"
 	"io"
+
 	// "net"
 	"strings"
 	"testing"

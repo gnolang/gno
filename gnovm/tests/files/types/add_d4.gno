@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/add_d4.gno:7: operator + not defined on: InterfaceKind
+// main/files/types/add_d4.gno:7:10: operator + not defined on: InterfaceKind

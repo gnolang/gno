@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f30a.gno:4: map[string]int can only be compared to nil
+// main/files/types/eql_0f30a.gno:4:10: map[string]int can only be compared to nil

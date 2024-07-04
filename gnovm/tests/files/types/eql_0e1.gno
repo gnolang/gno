@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0e1.gno:23: cannot use main.Error1 as main.Error2 without explicit conversion
+// main/files/types/eql_0e1.gno:23:10: cannot use main.Error1 as main.Error2 without explicit conversion

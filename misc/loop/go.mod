@@ -2,6 +2,8 @@ module loop
 
 go 1.22
 
+toolchain go1.22.4
+
 require (
 	github.com/docker/docker v24.0.7+incompatible
 	github.com/docker/go-connections v0.4.0

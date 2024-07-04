@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/if2.gno:7: expected typed bool kind, but got IntKind
+// main/files/if2.gno:7:2: expected typed bool kind, but got IntKind
