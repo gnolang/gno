@@ -18,7 +18,7 @@ var (
 	wd               = watchdog.Watchdog{Duration: 5 * time.Minute}
 	lastUpdate       time.Time
 	lastCaller       std.Address
-	owner            = ownable.New() // TODO: replace with -> // owner          = ownable.NewWithAddress(std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")) // @manfred; TODO replace with the agent address
+	owner            = ownable.New() // TODO: replace with -> ownable.NewWithAddress...
 	watchdogDuration = 5 * time.Minute
 )
 
