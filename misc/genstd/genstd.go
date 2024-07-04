@@ -18,7 +18,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"text/template"
 
@@ -165,10 +164,7 @@ func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 			pkg.gnoBodyless = append(pkg.gnoBodyless, addImports(bd, f.Imports)...)
 		}
 		for _, imp := range f.Imports {
-			impVal, err := strconv.Unquote(imp.Path.Value)
-			if err != nil {
-				panic(err)
-			}
+			impVal := mustUnquote(imp.Path.Value)
 			pkg.imports[impVal] = struct{}{}
 		}
 
@@ -233,11 +229,7 @@ func (t tplData) Imports() (res []tplImport) {
 		add(m.GoImportPath)
 		// There might be a bit more than we need - but we run goimports to fix that.
 		for _, v := range m.goImports {
-			s, err := strconv.Unquote(v.Path.Value)
-			if err != nil {
-				panic(fmt.Errorf("could not unquote go import string literal: %s", v.Path.Value))
-			}
-			add(s)
+			add(mustUnquote(v.Path.Value))
 		}
 	}
 	return

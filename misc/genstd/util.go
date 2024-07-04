@@ -11,7 +11,13 @@ import (
 	"sync"
 )
 
+// for tests
+var skipExternalTools bool
+
 func runTool(importPath string) error {
+	if skipExternalTools {
+		return nil
+	}
 	shortName := path.Base(importPath)
 	gr := gitRoot()
 
