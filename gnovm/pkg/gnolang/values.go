@@ -213,6 +213,8 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+	debug.Println("---Assign2, pv: ", pv)
+	debug.Println("---Assign2, tv2: ", tv2)
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -295,6 +297,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 }
 
 func (pv PointerValue) Deref() (tv TypedValue) {
+	debug.Println("---Deref, pv: ", pv)
 	if pv.TV.T == DataByteType {
 		dbv := pv.TV.V.(DataByteValue)
 		tv.T = dbv.ElemType
@@ -1671,6 +1674,13 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 // cu: convert untyped after assignment. pass false
 // for const definitions, but true for all else.
 func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
+	debug.Printf("---addr of the tv to be assigned: %p \n", tv)
+
+	debug.Println("---tv: ", tv, reflect.TypeOf(tv))
+	debug.Println("---tv2: ", tv2)
+	defer func() {
+		debug.Println("---tv after Assign: ", tv)
+	}()
 	if debug {
 		if tv.T == DataByteType {
 			// assignment to data byte types should only
@@ -1683,6 +1693,10 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 			panic("should not happen")
 		}
 	}
+	//if hv, ok := tv.(*HeapItemValue); ok {
+	//	debug.Println("---hv: ", hv)
+	//	panic("asdfasdfadadfadfasd!!!!!")
+	//}
 	*tv = tv2.Copy(alloc)
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
@@ -2347,11 +2361,12 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 // TODO rename to BlockValue.
 type Block struct {
 	ObjectInfo
-	Source   BlockNode
-	Values   []TypedValue
-	Parent   Value
-	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
-	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
+	Source     BlockNode
+	Values     []TypedValue
+	HeapValues []*HeapItemValue
+	Parent     Value
+	Blank      TypedValue // captures "_" // XXX remove and replace with global instance.
+	bodyStmt   bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
@@ -2425,7 +2440,10 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
+	debug.Println("---GetPointerToInt, index: ", index)
 	vv := fillValueTV(store, &b.Values[index])
+	debug.Println("---vv: ", vv)
+	debug.Printf("---addr of vv: %p \n", vv)
 	return PointerValue{
 		TV:    vv,
 		Base:  b,
@@ -2433,7 +2451,10 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 	}
 }
 
+// TODO: modify this to get values from heapItems for heap use nxs.
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
+	debug.Println("---GetPointerTo, b: ", b)
+	debug.Println("---GetPointerTo, path: ", path)
 	if path.IsBlockBlankPath() {
 		if debug {
 			if path.Name != blankIdentifier {
@@ -2459,13 +2480,14 @@ func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 }
 
 // Convenience
-func (b *Block) GetPointerToMaybeHeapUse(store Store, nx *NameExpr) PointerValue {
+func (b *Block) GetPointerToMaybeHeapUse(alloc *Allocator, store Store, nx *NameExpr) PointerValue {
+	debug.Println("---GetPointerToMaybeHeapUse, nx: ", nx, nx.Type)
 	switch nx.Type {
 	case NameExprTypeNormal:
 		return b.GetPointerTo(store, nx.Path)
 	case NameExprTypeHeapUse:
 		// XXX
-		return b.GetPointerToHeapUse(store, nx.Path)
+		return b.GetPointerToHeapUse(alloc, store, nx.Path)
 	case NameExprTypeHeapClosure:
 		// XXX this should panic after logic is complete,
 		// should not happen.
@@ -2476,14 +2498,14 @@ func (b *Block) GetPointerToMaybeHeapUse(store Store, nx *NameExpr) PointerValue
 }
 
 // Convenience
-func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerValue {
+func (b *Block) GetPointerToMaybeHeapDefine(alloc *Allocator, store Store, nx *NameExpr) PointerValue {
 	switch nx.Type {
 	case NameExprTypeNormal:
 		return b.GetPointerTo(store, nx.Path)
 	case NameExprTypeDefine:
 		return b.GetPointerTo(store, nx.Path)
 	case NameExprTypeHeapDefine:
-		return b.GetPointerToHeapDefine(store, nx.Path)
+		return b.GetPointerToHeapDefine(alloc, store, nx.Path)
 	default:
 		panic("unexpected NameExpr type for GetPointerToMaybeHeapDefine")
 	}
@@ -2491,16 +2513,49 @@ func (b *Block) GetPointerToMaybeHeapDefine(store Store, nx *NameExpr) PointerVa
 
 // First defines a new HeapItemValue.
 // This gets called from NameExprTypeHeapDefine name expressions.
-func (b *Block) GetPointerToHeapDefine(store Store, path ValuePath) PointerValue {
-	// XXX
-	return b.GetPointerTo(store, path)
+func (b *Block) GetPointerToHeapDefine(alloc *Allocator, store Store, path ValuePath) PointerValue {
+	// XXX create a new blank &HeapItemValue{}
+	// XXX assign it to b.GetPointerTo(store, path),
+	// XXX return pointer to Value, e.g.
+	// XXX PointerValue{Base:hiv,TV:&hiv.Value} or something like that.
+	debug.Println("---GetPointerToHeapDefine, path: ", path)
+
+	ptr := b.GetPointerTo(store, path)
+
+	hiv := &HeapItemValue{}
+	*ptr.TV = TypedValue{
+		T: heapItemType{},
+		V: hiv,
+	}
+
+	return PointerValue{
+		TV:    &hiv.Value,
+		Base:  hiv,
+		Index: 0,
+	}
 }
 
 // Assumes a HeapItemValue, and gets inner pointer.
 // This gets called from NameExprTypeHeapUse name expressions.
-func (b *Block) GetPointerToHeapUse(store Store, path ValuePath) PointerValue {
-	// XXX
-	return b.GetPointerTo(store, path)
+func (b *Block) GetPointerToHeapUse(alloc *Allocator, store Store, path ValuePath) PointerValue {
+	// XXX return PointerValue with base b.GetPointerto(store, path),
+	// XXX and TV to *HeapItemValue.Value
+
+	debug.Println("---GetPointerToHeapUse, b: ", b)
+	debug.Println("---GetPointerToHeapUse, path: ", path)
+
+	ptr := b.GetPointerTo(store, path)
+	debug.Println("---ptr.TV: ", ptr.TV)
+	if _, ok := ptr.TV.T.(heapItemType); ok {
+		debug.Println("---pop out: ", ptr.TV.V)
+		return PointerValue{
+			TV:    &ptr.TV.V.(*HeapItemValue).Value,
+			Base:  ptr.TV.V,
+			Index: 0,
+		}
+	} else {
+		panic("should not happen")
+	}
 }
 
 // Result is used has lhs for any assignments to "_".
@@ -2660,6 +2715,7 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
+	debug.Println("---fillValueTV, tv: ", *tv)
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package
@@ -2694,6 +2750,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 				vpv := cb.GetPointerToInt(store, cv.Index)
 				cv.TV = vpv.TV // TODO optimize?
 			case *HeapItemValue:
+				debug.Println("---HeapItemValue")
 				cv.TV = &cb.Value
 			default:
 				panic("should not happen")
