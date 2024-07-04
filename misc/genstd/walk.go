@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strconv"
 )
 
 // WalkDir is a forked version of [filepath.WalkDir].
@@ -55,12 +53,4 @@ func walkDir(path string, d fs.DirEntry, walkDirFn fs.WalkDirFunc) error {
 		}
 	}
 	return nil
-}
-
-func mustUnquote(v string) string {
-	s, err := strconv.Unquote(v)
-	if err != nil {
-		panic(fmt.Errorf("could not unquote import path literal: %s", v))
-	}
-	return s
 }

@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -122,4 +123,12 @@ func pkgNameFromPath(path string) string {
 			(r < '0' || r > '9')
 	})
 	return ns + "_" + strings.Join(flds, "_")
+}
+
+func mustUnquote(v string) string {
+	s, err := strconv.Unquote(v)
+	if err != nil {
+		panic(fmt.Errorf("could not unquote import path literal: %s", v))
+	}
+	return s
 }
