@@ -11,17 +11,24 @@ type Watchdog struct {
 func (w *Watchdog) Alive() {
 	now := time.Now()
 	if !w.IsAlive() {
-		lastDown = now
+		w.lastDown = now
 	}
 	w.lastUpdate = now
+}
+
+func (w Watchdog) Status() string {
+	if w.IsAlive() {
+		return "OK"
+	}
+	return "KO"
 }
 
 func (w Watchdog) IsAlive() bool {
 	return time.Since(w.lastUpdate) < w.Duration
 }
 
-func (w Watchdog) UpSince() time.time {
-	return lastDown
+func (w Watchdog) UpSince() time.Time {
+	return w.lastDown
 }
 
 func (w Watchdog) DownSince() time.Time {

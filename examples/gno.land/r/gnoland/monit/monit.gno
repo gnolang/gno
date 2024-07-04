@@ -24,6 +24,7 @@ var (
 
 // Anyone can call Incr.
 func Incr() int {
+	wd.Alive()
 	counter++
 	lastUpdate = time.Now()
 	lastCaller = std.PrevRealm().Addr()
@@ -38,13 +39,11 @@ func Reset() {
 	counter = 0
 	lastCaller = std.PrevRealm().Addr()
 	lastUpdate = time.Now()
+	wd = watchdog.Watchdog{Duration: 5 * time.Minute}
 }
 
 func Render(_ string) string {
-	status := "KO"
-	if time.Since(lastUpdate) < watchdogDuration {
-		status = "OK"
-	}
+	status := wd.Status()
 	return ufmt.Sprintf(
 		"counter=%d\nlast update=%s\nlast caller=%s\nstatus=%s",
 		counter, lastUpdate, lastCaller, status,

@@ -3,6 +3,8 @@ package monit
 import (
 	"testing"
 	"time"
+
+	"gno.land/p/demo/uassert"
 )
 
 func TestPackage(t *testing.T) {
@@ -13,7 +15,7 @@ last update=0001-01-01 00:00:00 +0000 UTC
 last caller=
 status=KO`
 		got := Render("")
-		assertEqualString(t, expected, got)
+		uassert.Equal(t, expected, got)
 	}
 
 	// call Incr(), watchdog is OK.
@@ -26,35 +28,30 @@ last update=2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
 last caller=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 status=OK`
 		got := Render("")
-		assertEqualString(t, expected, got)
+		uassert.Equal(t, expected, got)
 	}
 
-	// wait 1h, watchdog is KO.
-	lastUpdate = time.Now().Add(-time.Hour) // TODO: use std.TestSkipTime()
-	{
-		expected := `counter=3
-last update=2009-02-13 22:31:30 +0000 UTC m=+1234564290.000000001
-last caller=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-status=KO`
-		got := Render("")
-		assertEqualString(t, expected, got)
-	}
+	/* XXX: improve tests once we've the missing std.TestSkipTime feature
+		// wait 1h, watchdog is KO.
+		use std.TestSkipTime(time.Hour)
+		{
+			expected := `counter=3
+	last update=2009-02-13 22:31:30 +0000 UTC m=+1234564290.000000001
+	last caller=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+	status=KO`
+			got := Render("")
+			uassert.Equal(t, expected, got)
+		}
 
-	// call Incr(), watchdog is OK.
-	Incr()
-	{
-		expected := `counter=4
-last update=2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
-last caller=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-status=OK`
-		got := Render("")
-		assertEqualString(t, expected, got)
-	}
-}
-
-func assertEqualString(t *testing.T, expected, got string) {
-	t.Helper()
-	if expected != got {
-		t.Errorf("expected=%q\n     got=%q\n", expected, got)
-	}
+		// call Incr(), watchdog is OK.
+		Incr()
+		{
+			expected := `counter=4
+	last update=2009-02-13 23:31:30 +0000 UTC m=+1234567890.000000001
+	last caller=g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+	status=OK`
+			got := Render("")
+			uassert.Equal(t, expected, got)
+		}
+	*/
 }
