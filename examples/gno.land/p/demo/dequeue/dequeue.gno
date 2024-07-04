@@ -12,8 +12,8 @@ type Dequeue struct {
 	data  *avl.Tree // Storage for Dequeue elements
 }
 
-// NewDequeue creates and initializes a new Dequeue.
-func NewDequeue() *Dequeue {
+// New creates and initializes a new Dequeue.
+func New() *Dequeue {
 	return &Dequeue{
 		begin: seqid.ID(0),
 		end:   seqid.ID(0),

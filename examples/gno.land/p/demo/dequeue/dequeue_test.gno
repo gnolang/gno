@@ -6,7 +6,7 @@ import (
 
 func TestPushBack(t *testing.T) {
 	// Initialize a new queue
-	queue := NewDequeue()
+	queue := New()
 
 	// Test pushing an element to the back of the queue
 	err := queue.PushBack("first")
@@ -31,7 +31,7 @@ func TestPushBack(t *testing.T) {
 
 func TestPopBack(t *testing.T) {
 	// Initialize a new queue
-	queue := NewDequeue()
+	queue := New()
 
 	// Add two elements to the queue
 	queue.PushBack("first")
@@ -74,7 +74,7 @@ func TestPopBack(t *testing.T) {
 
 func TestPushFront(t *testing.T) {
 	// Initialize a new queue
-	queue := NewDequeue()
+	queue := New()
 
 	// Test pushing an element to the front of the queue
 	err := queue.PushFront("first")
@@ -99,7 +99,7 @@ func TestPushFront(t *testing.T) {
 
 func TestPopFront(t *testing.T) {
 	// Initialize a new queue
-	queue := NewDequeue()
+	queue := New()
 
 	// Add two elements to the queue
 	queue.PushBack("first")
@@ -142,7 +142,7 @@ func TestPopFront(t *testing.T) {
 
 func TestFront(t *testing.T) {
 	// Initialize a new queue
-	queue := NewDequeue()
+	queue := New()
 
 	// Add two elements to the queue
 	queue.PushBack("first")
@@ -179,7 +179,7 @@ func TestFront(t *testing.T) {
 
 func TestBack(t *testing.T) {
 	// Initialize a new queue
-	queue := NewDequeue()
+	queue := New()
 
 	// Add two elements to the queue
 	queue.PushBack("first")
@@ -216,7 +216,7 @@ func TestBack(t *testing.T) {
 
 func TestAt(t *testing.T) {
 	// Initialize a new queue
-	queue := NewDequeue()
+	queue := New()
 
 	// Add three elements to the queue
 	queue.PushBack("first")
@@ -260,7 +260,7 @@ func TestAt(t *testing.T) {
 
 func TestClear(t *testing.T) {
 	// Initialize a new queue
-	queue := NewDequeue()
+	queue := New()
 
 	// Add two elements to the queue
 	queue.PushBack("first")
@@ -293,7 +293,7 @@ func TestClear(t *testing.T) {
 
 func TestLengthAndEmpty(t *testing.T) {
 	// Initialize a new queue
-	queue := NewDequeue()
+	queue := New()
 
 	// Test initial length and empty status
 	if queue.Length() != 0 {
