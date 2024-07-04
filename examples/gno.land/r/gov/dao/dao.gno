@@ -146,7 +146,7 @@ func AssertIsMember(addr std.Address) {
 func Render(path string) string {
 	if path == "" {
 		if len(proposals) == 0 {
-			return "No proposals found :(." // corner case
+			return "No proposals found :(" // corner case
 		}
 
 		output := ""

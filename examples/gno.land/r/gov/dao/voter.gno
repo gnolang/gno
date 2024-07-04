@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	YAY = "YES"
-	NAY = "NO"
+	yay = "YES"
+	nay = "NO"
 
 	msgNoMoreVotesAllowed = "no more votes allowed"
 	msgAlreadyVoted       = "caller already voted"
@@ -61,10 +61,10 @@ func (pv *PercentageVoter) Vote(voters []std.Address, caller std.Address, flag s
 	}
 
 	switch flag {
-	case YAY:
+	case yay:
 		pv.yes++
 		pv.voters = append(pv.voters, caller)
-	case NAY:
+	case nay:
 		pv.no++
 		pv.voters = append(pv.voters, caller)
 	default:

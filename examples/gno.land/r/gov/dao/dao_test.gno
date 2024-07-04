@@ -22,7 +22,7 @@ func TestPackage(t *testing.T) {
 
 	out := Render("")
 
-	expected := "No proposals found :(."
+	expected := "No proposals found :("
 	urequire.Equal(t, expected, out)
 
 	var called bool
@@ -58,9 +58,7 @@ Status: active
 Voting status: YES: 1, NO: 0, percent: 33, members: 3
 Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
-	if out != expected { // XXX: urequire.Equal is doing strange things with strings
-		t.Errorf("%s != %s", out, expected)
-	}
+	urequire.Equal(t, expected, out)
 
 	std.TestSetOrigCaller(u2)
 	urequire.PanicsWithMessage(t, msgWrongVotingValue, func() {
@@ -78,9 +76,7 @@ Status: active
 Voting status: YES: 1, NO: 1, percent: 33, members: 3
 Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
-	if out != expected { // XXX: urequire.Equal is doing strange things with strings
-		t.Errorf("%s != %s", out, expected)
-	}
+	urequire.Equal(t, expected, out)
 
 	std.TestSetOrigCaller(u3)
 	urequire.NotPanics(t, func() {
@@ -95,9 +91,7 @@ Status: accepted
 Voting status: YES: 2, NO: 1, percent: 66, members: 3
 Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
-	if out != expected { // XXX: urequire.Equal is doing strange things with strings
-		t.Errorf("%s != %s", out, expected)
-	}
+	urequire.Equal(t, expected, out)
 
 	// Add a new member, so non-executed proposals will change the voting status
 	u4 := testutils.TestAddress("u4")
@@ -111,9 +105,7 @@ Status: active
 Voting status: YES: 2, NO: 1, percent: 50, members: 4
 Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
-	if out != expected { // XXX: urequire.Equal is doing strange things with strings
-		t.Errorf("%s != %s", out, expected)
-	}
+	urequire.Equal(t, expected, out)
 
 	std.TestSetOrigCaller(u4)
 	urequire.NotPanics(t, func() {
@@ -128,9 +120,7 @@ Status: accepted
 Voting status: YES: 3, NO: 1, percent: 75, members: 4
 Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
-	if out != expected { // XXX: urequire.Equal is doing strange things with strings
-		t.Errorf("%s != %s", out, expected)
-	}
+	urequire.Equal(t, expected, out)
 
 	ExecuteProposal(pid)
 	urequire.True(t, called)
@@ -143,9 +133,7 @@ Status: succeeded
 Voting status: YES: 3, NO: 1, percent: 75, members: 4
 Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
-	if out != expected { // XXX: urequire.Equal is doing strange things with strings
-		t.Errorf("%s != %s", out, expected)
-	}
+	urequire.Equal(t, expected, out)
 
 	// Add a new member and try to vote an already executed proposal
 	u5 := testutils.TestAddress("u5")
@@ -164,7 +152,6 @@ Status: succeeded
 Voting status: YES: 3, NO: 1, percent: 75, members: 4
 Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
-	if out != expected { // XXX: urequire.Equal is doing strange things with strings
-		t.Errorf("%s != %s", out, expected)
-	}
+	urequire.Equal(t, expected, out)
+
 }
