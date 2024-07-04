@@ -172,7 +172,7 @@ func (m *Machine) doOpExec(op Op) {
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Alloc, m.Store, knx)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
@@ -187,7 +187,7 @@ func (m *Machine) doOpExec(op Op) {
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Alloc, m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
@@ -268,7 +268,7 @@ func (m *Machine) doOpExec(op Op) {
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, iv, false)
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Alloc, m.Store, knx)
 					ptr.TV.Assign(m.Alloc, iv, false)
 				default:
 					panic("should not happen")
@@ -281,7 +281,7 @@ func (m *Machine) doOpExec(op Op) {
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, ev, false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Alloc, m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, ev, false)
 				default:
 					panic("should not happen")
@@ -361,7 +361,7 @@ func (m *Machine) doOpExec(op Op) {
 					m.PopAsPointer(bs.Key).Assign2(m.Alloc, m.Store, m.Realm, kv, false)
 				case DEFINE:
 					knx := bs.Key.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, knx)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Alloc, m.Store, knx)
 					ptr.TV.Assign(m.Alloc, kv, false)
 				default:
 					panic("should not happen")
@@ -374,7 +374,7 @@ func (m *Machine) doOpExec(op Op) {
 					m.PopAsPointer(bs.Value).Assign2(m.Alloc, m.Store, m.Realm, vv, false)
 				case DEFINE:
 					vnx := bs.Value.(*NameExpr)
-					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Store, vnx)
+					ptr := m.LastBlock().GetPointerToMaybeHeapDefine(m.Alloc, m.Store, vnx)
 					ptr.TV.Assign(m.Alloc, vv, false)
 				default:
 					panic("should not happen")

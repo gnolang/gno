@@ -179,9 +179,11 @@ func (m *Machine) doOpStar() {
 
 // XXX this is wrong, for var i interface{}; &i is *interface{}.
 func (m *Machine) doOpRef() {
+	debug.Println("---doOpRef")
 	rx := m.PopExpr().(*RefExpr)
 	m.Alloc.AllocatePointer()
 	xv := m.PopAsPointer(rx.X)
+	debug.Println("---xv: ", xv, reflect.TypeOf(xv))
 	if nv, ok := xv.TV.V.(*NativeValue); ok {
 		// If a native pointer, ensure it is addressable.  This
 		// way, PointerValue{*NativeValue{rv}} can be converted
@@ -753,17 +755,25 @@ func (m *Machine) doOpFuncLit() {
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
 	m.Alloc.AllocateFunc()
+
+	debug.Println("---doOpFuncLit, x: ", x)
 	// First copy closure captured heap values
 	// to *FuncValue. Later during doOpCall a block
 	// will be created that copies these values for
 	// every invocation of the function.
 	captures := []TypedValue(nil)
 	for _, nx := range x.HeapCaptures {
+		debug.Println("---nx: ", nx)
 		ptr := lb.GetPointerTo(m.Store, nx.Path)
+		debug.Println("---ptr: ", ptr)
+		debug.Println("---ptr.TV: ", ptr.TV)
+		debug.Println("---ptr.T: ", ptr.TV.T)
+		debug.Println("---ptr.V: ", ptr.TV.V)
 		// XXX check that ptr.TV is a heap item value.
 		// it must be in the form of:
 		// {T:heapItemType{},V:HeapItemValue{...}}
 		captures = append(captures, *ptr.TV)
+		debug.Println("---captures: ", captures)
 	}
 	m.PushValue(TypedValue{
 		T: ft,

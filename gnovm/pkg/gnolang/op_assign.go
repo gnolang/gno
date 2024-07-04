@@ -1,17 +1,28 @@
 package gnolang
 
+import "reflect"
+
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
+	debug.Println("---doOpDefine, s: ", s)
 	// Define each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
 	lb := m.LastBlock()
+	debug.Println("---lb values before assign: ", lb.Values)
+
 	for i := 0; i < len(s.Lhs); i++ {
+		if _, ok := rvs[i].T.(*PointerType); ok {
+			pv := rvs[i].V.(PointerValue)
+			debug.Println("---pv: ", pv, pv.Base)
+		}
 		// Get name and value of i'th term.
 		nx := s.Lhs[i].(*NameExpr)
 		// Finally, define (or assign if loop block).
-		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
+		ptr := lb.GetPointerToMaybeHeapDefine(m.Alloc, m.Store, nx)
+		debug.Println("---doOpDefine, ptr: ", ptr)
+		debug.Println("---rvs[i]: ", rvs[i], reflect.TypeOf(rvs[i]), reflect.TypeOf(rvs[i].T))
 		// XXX HACK (until value persistence impl'd)
 		if m.ReadOnly {
 			if oo, ok := ptr.Base.(Object); ok {
@@ -21,6 +32,7 @@ func (m *Machine) doOpDefine() {
 			}
 		}
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
+		debug.Println("---lb values after assign: ", lb.Values)
 	}
 }
 

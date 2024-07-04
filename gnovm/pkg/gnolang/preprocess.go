@@ -2472,9 +2472,6 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							// the values from the closure, will
 							// use values from function block.
 							// see XXX in op_call.go
-							// n.Path.Depth = uint8(depth)
-							// n.Path.Index = idx
-							debug.Println("---n.Path---: ", n.Path)
 							n.Path.Depth = uint8(depth)
 							n.Path.Index = idx
 							debug.Println("---n.Path after---: ", n.Path)

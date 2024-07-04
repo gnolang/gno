@@ -1785,6 +1785,8 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 // If skipPredefined, skips over names that are only predefined.
 // Returns nil if not defined.
 func (sb *StaticBlock) GetValueRef(store Store, n Name, skipPredefined bool) *TypedValue {
+	debug.Println("---GetValueRef, sb: ", sb)
+	debug.Println("---GetValueRef, n: ", n)
 	idx, ok := sb.GetLocalIndex(n)
 	bb := &sb.Block
 	bp := sb.GetParentNode(store)
@@ -1814,6 +1816,7 @@ func (sb *StaticBlock) GetValueRef(store Store, n Name, skipPredefined bool) *Ty
 // could go further and store preprocessed constant results here too.  See
 // "anyValue()" and "asValue()" for usage.
 func (sb *StaticBlock) Define(n Name, tv TypedValue) {
+	debug.Println("---Define, n : ", n)
 	sb.Define2(false, n, tv.T, tv)
 }
 
@@ -1848,6 +1851,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 		return // ignore
 	}
 	idx, exists := sb.GetLocalIndex(n)
+	debug.Println("---exists:, ", exists)
 	if exists {
 		// Is re-defining.
 		if isConst != sb.getLocalIsConst(n) {
@@ -1887,6 +1891,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	} else {
 		// The general case without re-definition.
 		sb.Names = append(sb.Names, n)
+		debug.Println("---sb.Names: ", sb.Names)
 		if isConst {
 			sb.Consts = append(sb.Consts, n)
 		}
