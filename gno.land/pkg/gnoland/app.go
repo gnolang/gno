@@ -121,7 +121,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Initialize the VMKeeper.
 	ms := baseApp.GetCacheMultiStore()
-	vmKpr.Initialize(ms)
+	vmKpr.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?
 
 	return baseApp, nil

@@ -41,7 +41,7 @@ func setupTestEnv() testEnv {
 	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir, 100_000_000)
 
-	vmk.Initialize(ms.MultiCacheWrap())
+	vmk.Initialize(log.NewNoopLogger(), ms.MultiCacheWrap())
 
 	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}
 }

@@ -562,7 +562,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 		// implementations works by running Machine.RunMemPackage with save = true,
 		// which would add the package to the store after running.
 		// Some packages may never be persisted, thus why we only attempt this twice.
-		if !isRetry {
+		if !isRetry && ds.pkgGetter != nil {
 			if pv := ds.GetPackage(path, false); pv != nil {
 				return ds.getMemPackage(path, true)
 			}

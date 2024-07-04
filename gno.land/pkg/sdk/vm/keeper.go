@@ -6,12 +6,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
@@ -73,7 +77,7 @@ func NewVMKeeper(
 	return vmk
 }
 
-func (vm *VMKeeper) Initialize(ms store.MultiStore) {
+func (vm *VMKeeper) Initialize(logger *slog.Logger, ms store.MultiStore) {
 	if vm.gnoStore != nil {
 		panic("should not happen")
 	}
@@ -81,12 +85,28 @@ func (vm *VMKeeper) Initialize(ms store.MultiStore) {
 	baseSDKStore := ms.GetStore(vm.baseKey)
 	iavlSDKStore := ms.GetStore(vm.iavlKey)
 	vm.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
-	vm.gnoStore.SetPackageGetter(vm.getPackage)
 	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
-	if vm.gnoStore.NumMemPackages() > 0 {
+	if vm.gnoStore.NumMemPackages() == 0 {
+		// No packages in the store; set up the stdlibs.
+		start := time.Now()
+
+		stdlibInitList := stdlibs.InitOrder()
+		for _, lib := range stdlibInitList {
+			if lib == "testing" {
+				// XXX: testing is skipped for now while it uses testing-only packages
+				// like fmt and encoding/json
+				continue
+			}
+			vm.loadPackage(lib, vm.gnoStore)
+		}
+
+		logger.Debug("Standard libraries initialized",
+			"elapsed", time.Since(start))
+	} else {
 		// for now, all mem packages must be re-run after reboot.
 		// TODO remove this, and generally solve for in-mem garbage collection
 		// and memory management across many objects/types/nodes/packages.
+		start := time.Now()
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
 				PkgPath: "",
@@ -97,7 +117,31 @@ func (vm *VMKeeper) Initialize(ms store.MultiStore) {
 		gno.DisableDebug()
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
+		logger.Debug("GnoVM packages preprocessed",
+			"elapsed", time.Since(start))
 	}
+}
+
+func (vm *VMKeeper) loadPackage(pkgPath string, store gno.Store) {
+	stdlibPath := filepath.Join(vm.stdlibsDir, pkgPath)
+	if !osm.DirExists(stdlibPath) {
+		// does not exist.
+		return
+	}
+	memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
+	if memPkg.IsEmpty() {
+		// no gno files are present, skip this package
+		return
+	}
+
+	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
+		// PkgPath: pkgPath, XXX why?
+		Output: os.Stdout,
+		Store:  store,
+	})
+	defer m.Release()
+	m.RunMemPackage(memPkg, true)
 }
 
 func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {

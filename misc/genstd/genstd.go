@@ -114,7 +114,7 @@ func addImports(fds []*ast.FuncDecl, imports []*ast.ImportSpec) []funcDecl {
 // interest.
 func walkStdlibs(stdlibsPath string) ([]*pkgData, error) {
 	pkgs := make([]*pkgData, 0, 64)
-	err := filepath.WalkDir(stdlibsPath, func(fpath string, d fs.DirEntry, err error) error {
+	err := WalkDir(stdlibsPath, func(fpath string, d fs.DirEntry, err error) error {
 		// skip dirs and top-level directory.
 		if d.IsDir() || filepath.Dir(fpath) == stdlibsPath {
 			return nil
