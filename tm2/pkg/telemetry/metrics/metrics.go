@@ -3,12 +3,17 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"net"
+	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/telemetry/config"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/otel/exporters/prometheus"
 	"go.opentelemetry.io/otel/metric"
 	sdkMetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -16,30 +21,30 @@ import (
 )
 
 const (
-	broadcastTxTimerKey = "broadcast_tx_hist"
-	buildBlockTimerKey  = "build_block_hist"
+	broadcastTxTimerKey = "tm2_broadcast_tx_hist" // #nosec G101
+	buildBlockTimerKey  = "tm2_build_block_hist"  // #nosec G101
 
-	inboundPeersKey  = "inbound_peers_hist"
-	outboundPeersKey = "outbound_peers_hist"
-	dialingPeersKey  = "dialing_peers_hist"
+	inboundPeersKey  = "tm2_inbound_peers_hist"  // #nosec G101
+	outboundPeersKey = "tm2_outbound_peers_hist" // #nosec G101
+	dialingPeersKey  = "tm2_dialing_peers_hist"  // #nosec G101
 
-	numMempoolTxsKey = "num_mempool_txs_hist"
-	numCachedTxsKey  = "num_cached_txs_hist"
+	numMempoolTxsKey = "tm2_num_mempool_txs_hist" // #nosec G101
+	numCachedTxsKey  = "tm2_num_cached_txs_hist"  // #nosec G101
 
-	vmQueryCallsKey  = "vm_query_calls_counter"
-	vmQueryErrorsKey = "vm_query_errors_counter"
-	vmGasUsedKey     = "vm_gas_used_hist"
-	vmCPUCyclesKey   = "vm_cpu_cycles_hist"
-	vmExecMsgKey     = "vm_exec_msg_hist"
+	vmQueryCallsKey  = "gno_vm_query_calls_counter"  // #nosec G101
+	vmQueryErrorsKey = "gno_vm_query_errors_counter" // #nosec G101
+	vmGasUsedKey     = "gno_vm_gas_used_hist"        // #nosec G101
+	vmCPUCyclesKey   = "gno_vm_cpu_cycles_hist"      // #nosec G101
+	vmExecMsgKey     = "gno_vm_exec_msg_hist"        // #nosec G101
 
-	validatorCountKey       = "validator_count_hist"
-	validatorVotingPowerKey = "validator_vp_hist"
-	blockIntervalKey        = "block_interval_hist"
-	blockTxsKey             = "block_txs_hist"
-	blockSizeKey            = "block_size_hist"
+	validatorCountKey       = "gno_validator_count_hist" // #nosec G101
+	validatorVotingPowerKey = "gno_validator_vp_hist"    // #nosec G101
+	blockIntervalKey        = "tm2_block_interval_hist"  // #nosec G101
+	blockTxsKey             = "tm2_block_txs_hist"       // #nosec G101
+	blockSizeKey            = "tm2_block_size_hist"      // #nosec G101
 
-	httpRequestTimeKey = "http_request_time_hist"
-	wsRequestTimeKey   = "ws_request_time_hist"
+	httpRequestTimeKey = "tm2_http_request_time_hist" // #nosec G101
+	wsRequestTimeKey   = "tm2_ws_request_time_hist"   // #nosec G101
 )
 
 var (
@@ -124,6 +129,44 @@ func Init(config config.Config) error {
 		return fmt.Errorf("error parsing exporter endpoint: %s, %w", config.ExporterEndpoint, err)
 	}
 
+	providerOptions := []sdkMetric.Option{
+		sdkMetric.WithResource(
+			resource.NewWithAttributes(
+				semconv.SchemaURL,
+				semconv.ServiceNameKey.String(config.ServiceName),
+				// TODO: Get git tag / commit version
+				semconv.ServiceVersionKey.String("1.0.0"),
+				semconv.ServiceInstanceIDKey.String(config.ServiceInstanceID),
+			),
+		),
+	}
+
+	if config.PrometheusAddr != "" {
+		// The exporter embeds a default OpenTelemetry Reader and
+		// implements prometheus.Collector, allowing it to be used as
+		// both a Reader and Collector.
+		promexp, err := prometheus.New()
+		if err != nil {
+			return fmt.Errorf("error creating prometheus exporter, %w", err)
+		}
+
+		providerOptions = append(providerOptions, sdkMetric.WithReader(promexp))
+
+		go func(ctx context.Context) {
+			server := &http.Server{
+				Addr:              config.PrometheusAddr,
+				ReadHeaderTimeout: 5 * time.Second,
+				BaseContext:       func(net.Listener) context.Context { return ctx },
+			}
+			http.Handle("/metrics", promhttp.Handler())
+
+			err := server.ListenAndServe()
+			if err != nil {
+				fmt.Printf("[ERROR] Prometheus metrics server error: %v\n", err)
+			}
+		}(ctx)
+	}
+
 	// Use oltp metric exporter with http/https or grpc
 	switch u.Scheme {
 	case "http", "https":
@@ -134,6 +177,7 @@ func Init(config config.Config) error {
 		if err != nil {
 			return fmt.Errorf("unable to create http metrics exporter, %w", err)
 		}
+		providerOptions = append(providerOptions, sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exp)))
 	default:
 		exp, err = otlpmetricgrpc.New(
 			ctx,
@@ -143,20 +187,10 @@ func Init(config config.Config) error {
 		if err != nil {
 			return fmt.Errorf("unable to create grpc metrics exporter, %w", err)
 		}
+		providerOptions = append(providerOptions, sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exp)))
 	}
 
-	provider := sdkMetric.NewMeterProvider(
-		// Default period is 1m
-		sdkMetric.WithReader(sdkMetric.NewPeriodicReader(exp)),
-		sdkMetric.WithResource(
-			resource.NewWithAttributes(
-				semconv.SchemaURL,
-				semconv.ServiceNameKey.String(config.ServiceName),
-				semconv.ServiceVersionKey.String("1.0.0"),
-				semconv.ServiceInstanceIDKey.String(config.ServiceInstanceID),
-			),
-		),
-	)
+	provider := sdkMetric.NewMeterProvider(providerOptions...)
 	otel.SetMeterProvider(provider)
 	meter := provider.Meter(config.MeterName)
 
