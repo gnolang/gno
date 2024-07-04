@@ -30,9 +30,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 			{"BalanceOf(unknown)", 0, func() uint64 { return BalanceOf(unknown) }},
 		}
 		for _, tc := range tests {
-			if tc.fn() != tc.balance {
-				t.Errorf("%s: have: %d want: %d", tc.name, tc.fn(), tc.balance)
-			}
+			uaasert.Equal(t, tc.balance, tc.fn(), "balance does not match")
 		}
 	}
 
@@ -50,9 +48,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 			{"BalanceOf(unknown)", 10000000, func() uint64 { return BalanceOf(unknown) }},
 		}
 		for _, tc := range tests {
-			if tc.fn() != tc.balance {
-				t.Errorf("%s: have: %d want: %d", tc.name, tc.fn(), tc.balance)
-			}
+			uaasert.Equal(t, tc.balance, tc.fn(), "balance does not match")
 		}
 	}
 }

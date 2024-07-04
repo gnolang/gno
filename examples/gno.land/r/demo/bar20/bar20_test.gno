@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 )
 
 func TestPackage(t *testing.T) {
@@ -14,18 +15,12 @@ func TestPackage(t *testing.T) {
 
 	balance, _ := Token.BalanceOf(alice)
 	expected := uint64(0)
-	if balance != expected {
-		t.Errorf("balance should be %d, got %d", expected, balance)
-	}
+	uassert.Equal(t, expected, balance, "balance does not match")
 
 	ret := Faucet()
-	if ret != "OK" {
-		t.Errorf("faucet should be OK, got %s", ret)
-	}
+	uassert.Equal(t, "OK", ret, "faucet should be OK")
 
 	balance, _ = Token.BalanceOf(alice)
 	expected = uint64(1_000_000)
-	if balance != expected {
-		t.Errorf("balance should be %d, got %d", expected, balance)
-	}
+	uassert.Equal(t, expected, balance, "balance does not match")
 }
