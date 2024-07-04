@@ -309,8 +309,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	return runEventLoop(ctx, logger, book, rt, devNode, watcher)
 }
 
-var helper string = `
-For more in-depth documentation, visit the GNO Tooling CLI documentation: 
+var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation: 
 https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev
 
 A           Accounts - Display known accounts and balances
