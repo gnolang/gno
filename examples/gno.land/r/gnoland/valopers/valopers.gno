@@ -96,7 +96,7 @@ func Render(_ string) string {
 	valopers.Iterate("", "", func(_ string, value interface{}) bool {
 		valoper := value.(Valoper)
 
-		output += renderValoper(valoper)
+		output += valoper.Render()
 
 		return false
 	})
@@ -104,8 +104,8 @@ func Render(_ string) string {
 	return output
 }
 
-// renderValoper renders a single valoper
-func renderValoper(v Valoper) string {
+// Render renders a single valoper with their information
+func (v Valoper) Render() string {
 	output := ufmt.Sprintf("## %s\n", v.Name)
 	output += ufmt.Sprintf("%s\n\n", v.Description)
 	output += ufmt.Sprintf("- Address: %s\n", v.Address.String())
