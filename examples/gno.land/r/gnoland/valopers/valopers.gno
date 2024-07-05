@@ -7,12 +7,17 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
+	pVals "gno.land/p/sys/validators"
+	govdao "gno.land/r/gov/dao"
+	"gno.land/r/sys/validators"
 )
 
 const (
 	errValoperExists        = "valoper already exists"
 	errValoperMissing       = "valoper does not exist"
 	errInvalidAddressUpdate = "valoper updated address exists"
+	errValoperInactive      = "valoper is not active"
+	errValoperNotCaller     = "valoper is not the caller"
 )
 
 // valopers keeps track of all the active validator operators
@@ -129,4 +134,44 @@ func isValoper(address std.Address) bool {
 	_, exists := valopers.Get(address.String())
 
 	return exists
+}
+
+// GovDAOProposal creates a proposal to the GovDAO
+// for adding the given valoper to the validator set.
+// This function is meant to serve as a helper
+// for generating the govdao proposal
+func GovDAOProposal(address std.Address) {
+	valoper := GetByAddr(address)
+	if !valoper.Active {
+		panic(errValoperInactive)
+	}
+
+	// Make sure the valoper is the caller
+	if std.GetOrigCaller() != address {
+		panic(errValoperInactive)
+	}
+
+	changesFn := func() []pVals.Validator {
+		return []pVals.Validator{
+			{
+				Address:     valoper.Address,
+				PubKey:      valoper.PubKey,
+				VotingPower: 10,
+			},
+		}
+	}
+
+	// Create the executor
+	executor := validators.NewPropExecutor(changesFn)
+
+	// Craft the proposal comment
+	comment := ufmt.Sprintf(
+		"Proposal to add valoper %s (Address: %s; PubKey: %s) to the valset",
+		valoper.Name,
+		valoper.Address.String(),
+		valoper.PubKey,
+	)
+
+	// Create the govdao proposal
+	govdao.Propose(comment, executor)
 }
