@@ -11,10 +11,14 @@ import (
 
 var registry = avl.NewTree() // pkg path -> IGRC20
 
+// func Register(getName func() string, slug string) {
+
 func Register(token grc20.IGRC20, slug string) {
+	// proxy := tmpproxy{getName: getName}
+	proxy := Proxify(token)
 	rlmPath := std.PrevRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
-	registry.Set(key, token)
+	registry.Set(key, proxy)
 	std.Emit(
 		registerEvent,
 		"pkgpath", rlmPath,

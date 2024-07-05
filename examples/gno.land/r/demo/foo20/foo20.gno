@@ -18,7 +18,9 @@ var (
 
 func init() {
 	foo = grc20.NewAdminToken("Foo", "FOO", 4)
-	grc20reg.Register(foo.GRC20(), "")
+	pub := foo.GRC20()
+	proxy := grc20reg.Proxify(pub)
+	grc20reg.Register(proxy.GetName, "")
 	foo.Mint(admin, 1000000*10000)                                    // @administrator (1M)
 	foo.Mint("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq", 10000*10000) // @manfred (10k)
 }

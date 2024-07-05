@@ -6,10 +6,9 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
-
-	"gno.land/r/demo/users"
-
 	pusers "gno.land/p/demo/users"
+	"gno.land/r/demo/grc20reg"
+	"gno.land/r/demo/users"
 )
 
 var (
@@ -18,6 +17,10 @@ var (
 	// WUGNOT is the banker usable by users directly.
 	WUGNOT = wugnot.GRC20()
 )
+
+func init() {
+	grc20reg.Register(WUGNOT, "")
+}
 
 const (
 	ugnotMinDeposit  uint64 = 1000
