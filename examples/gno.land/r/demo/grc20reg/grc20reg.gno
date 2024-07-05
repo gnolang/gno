@@ -15,6 +15,11 @@ func Register(token grc20.IGRC20, slug string) {
 	rlmPath := std.PrevRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 	registry.Set(key, token)
+	std.Emit(
+		registerEvent,
+		"pkgpath", rlmPath,
+		"slug", slug,
+	)
 }
 
 func Get(key string) grc20.IGRC20 {
@@ -51,3 +56,5 @@ func Render(path string) string {
 	}
 	return s
 }
+
+const registerEvent = "register"
