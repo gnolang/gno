@@ -1,4 +1,4 @@
-package uassert
+package diff
 
 import (
 	"strings"
@@ -17,7 +17,7 @@ type Edit struct {
 	Char rune
 }
 
-func myersDiff(old, new string) []Edit {
+func MyersDiff(old, new string) []Edit {
 	oldRunes, newRunes := []rune(old), []rune(new)
 	n, m := len(oldRunes), len(newRunes)
 
@@ -109,7 +109,7 @@ endSearch:
 	return edits
 }
 
-func formatDiff(edits []Edit) string {
+func Format(edits []Edit) string {
 	if len(edits) == 0 {
 		return ""
 	}
