@@ -93,7 +93,9 @@ func (vm *VMKeeper) Initialize(
 	iavlSDKStore := ms.GetStore(vm.iavlKey)
 
 	if cacheStdlibLoad {
+		st := time.Now()
 		vm.gnoStore = CachedStdlibLoad(vm.stdlibsDir, baseSDKStore, iavlSDKStore)
+		fmt.Println("ELAPSED", time.Since(st))
 		return
 	}
 
@@ -176,16 +178,16 @@ func loadStdlib(stdlibsDir string, store gno.Store) {
 	}
 }
 
-func loadStdlibPackage(pkgPath string, stdlibsDir string, store gno.Store) {
+func loadStdlibPackage(pkgPath, stdlibsDir string, store gno.Store) {
 	stdlibPath := filepath.Join(stdlibsDir, pkgPath)
 	if !osm.DirExists(stdlibPath) {
 		// does not exist.
-		panic(fmt.Sprintf("failed loading stdlib %q: does not exist"))
+		panic(fmt.Sprintf("failed loading stdlib %q: does not exist", pkgPath))
 	}
 	memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
 	if memPkg.IsEmpty() {
 		// no gno files are present
-		panic(fmt.Sprintf("failed loading stdlib %q: not a valid MemPackage"))
+		panic(fmt.Sprintf("failed loading stdlib %q: not a valid MemPackage", pkgPath))
 	}
 
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
