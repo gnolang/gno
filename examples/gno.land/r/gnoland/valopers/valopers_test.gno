@@ -46,7 +46,7 @@ func TestValopers_Register(t *testing.T) {
 		})
 
 		uassert.NotPanics(t, func() {
-			valoper := Fetch(v.Address)
+			valoper := GetByAddr(v.Address)
 
 			uassert.Equal(t, v.Address, valoper.Address)
 			uassert.Equal(t, v.Name, valoper.Name)
@@ -94,7 +94,7 @@ func TestValopers_Unregister(t *testing.T) {
 
 		// Make sure the valoper is removed
 		uassert.PanicsWithMessage(t, errValoperMissing, func() {
-			_ = Fetch(v.Address)
+			_ = GetByAddr(v.Address)
 		})
 	})
 }
@@ -183,7 +183,7 @@ func TestValopers_Update(t *testing.T) {
 
 		// Make sure the valoper is updated
 		uassert.NotPanics(t, func() {
-			valoper := Fetch(v.Address)
+			valoper := GetByAddr(v.Address)
 
 			uassert.Equal(t, v.Name, valoper.Name)
 		})

@@ -76,8 +76,8 @@ func Update(address std.Address, v Valoper) {
 	valopers.Set(v.Address.String(), v)
 }
 
-// Fetch fetches the valoper, if present
-func Fetch(address std.Address) Valoper {
+// GetByAddr fetches the valoper using the address, if present
+func GetByAddr(address std.Address) Valoper {
 	valoperRaw, exists := valopers.Get(address.String())
 	if !exists {
 		panic(errValoperMissing)
