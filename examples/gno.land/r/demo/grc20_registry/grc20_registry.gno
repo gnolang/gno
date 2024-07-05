@@ -2,43 +2,52 @@ package grc20_registry
 
 import (
 	"std"
-	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ufmt"
 )
 
 var registry = avl.NewTree() // pkg path -> IGRC20
 
-func Register(token grc20.IGRC20) {
-	caller := std.PrevRealm().PkgPath()
-	registry.Set(caller, token)
+func Register(token grc20.IGRC20, slug string) {
+	rlmPath := std.PrevRealm().PkgPath()
+	key := fqname.Construct(rlmPath, slug)
+	registry.Set(key, token)
 }
 
-func Get(pkgPath string) (grc20.IGRC20, bool) {
-	coinI, ok := registry.Get(pkgPath)
+func Get(key string) grc20.IGRC20 {
+	token, ok := registry.Get(key)
 	if !ok {
-		return nil, false
+		return nil
 	}
-	coin, ok := coinI.(grc20.IGRC20)
-	if !ok {
-		panic("internal error: registered object is not a GRC20 token")
+	return token.(grc20.IGRC20)
+}
+
+func MustGet(key string) grc20.IGRC20 {
+	token := Get(key)
+	if token == nil {
+		panic("unknown token: " + key)
 	}
-	return coin, true
+	return token
 }
 
 func Render(path string) string {
-	s := "# GRC20 Registry\n\n" +
-		"## Registered Tokens\n\n"
-	registry.Iterate("", "", func(pkgPath string, tokenI interface{}) bool {
-		token, ok := tokenI.(grc20.IGRC20)
-		pkgWebPath := strings.TrimPrefix(pkgPath, "gno.land")
-		if ok {
-			s += "- [" + token.GetName() + " (" + pkgPath + ")](" + pkgWebPath + ")\n"
-		} else {
-			s += "- [internal error: registered object is not a GRC20 token (" + pkgPath + ")](" + pkgWebPath + ")\n"
-		}
+	s := ""
+
+	// TODO: add pagination
+	count := 0
+	registry.Iterate("", "", func(key string, tokenI interface{}) bool {
+		count++
+		token := tokenI.(grc20.IGRC20)
+		rlmPath, slug := fqname.Parse(key)
+		rlmLink := fqname.RenderLink(rlmPath, slug)
+		s += ufmt.Sprintf("- **%s** - %s\n", token.GetName(), rlmLink)
 		return false
 	})
+	if count == 0 {
+		return "No registered token."
+	}
 	return s
 }

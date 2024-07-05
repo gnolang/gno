@@ -5,34 +5,46 @@ import (
 	"testing"
 
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/urequire"
 )
 
 func TestRegistry(t *testing.T) {
-	coin := &dummyImpl{}
+	std.TestSetRealm(std.NewCodeRealm("gno.land/r/demo/foo"))
 	realmAddr := std.CurrentRealm().PkgPath()
-	Register(coin)
-	regCoin, ok := Get(realmAddr)
-	if !ok {
-		t.Fatal("expected to find coin")
-	}
-	if coin.GetSymbol() != "TST" {
-		t.Fatal("expected coin to have symbol TST")
-	}
-	expected := `# GRC20 Registry
+	tokenImpl := &dummyImpl{}
 
-## Registered Tokens
+	// register
+	Register(tokenImpl, "")
+	regToken := Get(realmAddr)
+	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
+	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
-* [TestToken ()]()
+	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo)
 `
 	got := Render("")
-	if got != expected {
-		t.Fatalf("expected `%s`, got `%s`", expected, got)
-	}
+	urequire.Equal(t, expected, got)
 
-	// we test this here because there is more chance to find a bug after a token has been registered
-	if _, ok := Get("0xdeadbeef"); ok {
-		t.Fatal("expected not to find coin")
-	}
+	// 404
+	invalidToken := Get("0xdeadbeef")
+	urequire.True(t, invalidToken == nil)
+
+	// register with a slug
+	Register(tokenImpl, "mySlug")
+	regToken = Get(realmAddr + ".mySlug")
+	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
+	urequire.Equal(t, regToken.GetSymbol(), "TST")
+
+	// override
+	Register(tokenImpl, "")
+	regToken = Get(realmAddr + "")
+	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
+	urequire.Equal(t, regToken.GetSymbol(), "TST")
+
+	expected = `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo)
+- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).mySlug
+`
+	got = Render("")
+	urequire.Equal(t, expected, got)
 }
 
 type dummyImpl struct{}
