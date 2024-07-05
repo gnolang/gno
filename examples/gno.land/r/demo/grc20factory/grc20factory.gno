@@ -12,6 +12,10 @@ import (
 
 // XXX: the p/grc20 library needs a refactor to change names (i.e., adminToken)
 
+func init() {
+	NewToken("lorem ipsum", "LOREM", 4, 0xcafebabe)
+}
+
 type token struct {
 	adminToken *grc20.AdminToken
 	admin      std.Address
