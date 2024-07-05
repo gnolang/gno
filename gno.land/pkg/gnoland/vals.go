@@ -16,6 +16,7 @@ const (
 	validatorRemovedEvent = "ValidatorRemoved"
 )
 
+// XXX: replace with amino-based clean approach
 var valRegexp = regexp.MustCompile(`{\("([^"]*)"\s[^)]+\),\("((?:[^"]|\\")*)"\s[^)]+\),\((\d+)\s[^)]+\)}`)
 
 // validatorUpdate is a type being used for "notifying"
