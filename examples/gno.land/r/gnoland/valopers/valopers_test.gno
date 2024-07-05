@@ -55,50 +55,6 @@ func TestValopers_Register(t *testing.T) {
 	})
 }
 
-func TestValopers_Unregister(t *testing.T) {
-	t.Parallel()
-
-	t.Run("non-existing valoper", func(t *testing.T) {
-		t.Parallel()
-
-		// Clear the set for the test
-		valopers = avl.NewTree()
-
-		// Remove the valoper
-		uassert.PanicsWithMessage(t, errValoperMissing, func() {
-			Unregister(testutils.TestAddress("valoper"))
-		})
-	})
-
-	t.Run("successful removal", func(t *testing.T) {
-		t.Parallel()
-
-		// Clear the set for the test
-		valopers = avl.NewTree()
-
-		v := Valoper{
-			Address: testutils.TestAddress("valoper"),
-			Name:    "new valoper",
-			PubKey:  "pub key",
-		}
-
-		// Add the valoper
-		uassert.NotPanics(t, func() {
-			Register(v)
-		})
-
-		// Remove the valoper
-		uassert.NotPanics(t, func() {
-			Unregister(v.Address)
-		})
-
-		// Make sure the valoper is removed
-		uassert.PanicsWithMessage(t, errValoperMissing, func() {
-			_ = GetByAddr(v.Address)
-		})
-	})
-}
-
 func TestValopers_Update(t *testing.T) {
 	t.Parallel()
 
@@ -175,6 +131,7 @@ func TestValopers_Update(t *testing.T) {
 
 		// Update the valoper name
 		v.Name = "new name"
+		v.Active = false
 
 		// Update the valoper
 		uassert.NotPanics(t, func() {
@@ -186,6 +143,7 @@ func TestValopers_Update(t *testing.T) {
 			valoper := GetByAddr(v.Address)
 
 			uassert.Equal(t, v.Name, valoper.Name)
+			uassert.Equal(t, v.Active, valoper.Active)
 		})
 	})
 }

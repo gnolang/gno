@@ -26,6 +26,7 @@ type Valoper struct {
 	Address      std.Address // The bech32 gno address of the validator
 	PubKey       string      // the bech32 public key of the validator
 	P2PAddresses []string    // the publicly reachable P2P addresses of the validator
+	Active       bool        // flag indicating if the valoper is active
 }
 
 // Register registers a new valoper
@@ -40,16 +41,6 @@ func Register(v Valoper) {
 
 	// Save the valoper to the set
 	valopers.Set(v.Address.String(), v)
-}
-
-// Unregister unregisters a valoper
-func Unregister(address std.Address) {
-	if !isValoper(address) {
-		panic(errValoperMissing)
-	}
-
-	// Remove the valoper
-	valopers.Remove(address.String())
 }
 
 // Update updates an existing valoper
