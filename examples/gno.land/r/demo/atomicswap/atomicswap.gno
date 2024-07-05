@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"std"
 	"time"
+
+	"gno.land/p/demo/ufmt"
 )
 
 // Swap represents an atomic swap contract.
@@ -33,25 +35,27 @@ func New(recipient std.Address, hashlock string, timelock time.Time) *Swap {
 }
 
 // Claim allows the recipient to claim the funds if they provide the correct preimage.
-func (s *Swap) Claim(preimage []byte) {
+func (s *Swap) Claim(preimage string) {
 	require(!s.claimed, "already claimed")
 	require(!s.refunded, "already refunded")
-	require(std.GetOrigCaller() == s.recipient, "unauthorized")
-	require(hex.EncodeToString(sha256.Sum256(preimage)[:]) == s.hashlock, "invalid preimage")
+	require(std.PrevRealm().Addr() == s.recipient, "unauthorized")
+	require(hex.EncodeToString(sha256.Sum256([]byte(preimage))[:]) == s.hashlock, "invalid preimage")
 
 	s.claimed = true
-	std.SendCoins(s.recipient, s.amount)
+	banker := std.GetBanker(std.BankerTypeOrigSend)
+	banker.SendCoins(std.GetOrigPkgAddr(), s.recipient, s.amount)
 }
 
 // Refund allows the sender to refund the funds after the timelock has expired.
 func (s *Swap) Refund() {
 	require(!s.claimed, "already claimed")
 	require(!s.refunded, "already refunded")
-	require(std.GetOrigCaller() == s.sender, "unauthorized")
+	require(std.PrevRealm().Addr() == s.sender, "unauthorized")
 	require(time.Now().After(s.timelock), "timelock not expired")
 
 	s.refunded = true
-	std.SendCoins(s.sender, s.amount)
+	banker := std.GetBanker(std.BankerTypeOrigSend)
+	banker.SendCoins(std.GetOrigPkgAddr(), s.sender, s.amount)
 }
 
 // require checks a condition and panics with a message if the condition is false.
@@ -63,7 +67,7 @@ func require(check bool, msg string) {
 
 // Render returns the current state of the swap.
 func (s *Swap) Render(_ string) string {
-	return std.Sprintf(
+	return ufmt.Sprintf(
 		"sender=%s\nrecipient=%s\namount=%s\nhashlock=%s\ntimelock=%s\nclaimed=%t\nrefunded=%t",
 		s.sender, s.recipient, s.amount.String(), s.hashlock, s.timelock, s.claimed, s.refunded,
 	)
