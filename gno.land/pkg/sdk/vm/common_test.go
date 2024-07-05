@@ -25,6 +25,14 @@ type testEnv struct {
 }
 
 func setupTestEnv() testEnv {
+	return _setupTestEnv(true)
+}
+
+func setupTestEnvCold() testEnv {
+	return _setupTestEnv(false)
+}
+
+func _setupTestEnv(cacheStdlibs bool) testEnv {
 	db := memdb.NewMemDB()
 
 	baseCapKey := store.NewStoreKey("baseCapKey")
@@ -42,7 +50,7 @@ func setupTestEnv() testEnv {
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir, 100_000_000)
 
 	mcw := ms.MultiCacheWrap()
-	vmk.Initialize(log.NewNoopLogger(), mcw, true)
+	vmk.Initialize(log.NewNoopLogger(), mcw, cacheStdlibs)
 	mcw.MultiWrite()
 
 	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}
