@@ -40,7 +40,7 @@ func validatorEventFilter(event events.Event) []validatorUpdate {
 			continue
 		}
 
-		// Make sure the event is from `r/sys/vals`
+		// Make sure the event is from `r/sys/validators`
 		if gnoEv.PkgPath != valRealm {
 			continue
 		}
