@@ -86,7 +86,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// XXX: Embed this ?
 	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
-	vmKpr := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
 
 	// Set InitChainer
 	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, cfg.GenesisTxHandler))
@@ -121,7 +121,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	baseApp.SetEndBlocker(
 		EndBlocker(
 			c,
-			vmKpr,
+			vmk,
 			baseApp,
 		),
 	)
@@ -129,7 +129,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Set a handler Route.
 	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
 	baseApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
-	baseApp.Router().AddRoute("vm", vm.NewHandler(vmKpr))
+	baseApp.Router().AddRoute("vm", vm.NewHandler(vmk))
 
 	// Load latest version.
 	if err := baseApp.LoadLatestVersion(); err != nil {
@@ -138,7 +138,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Initialize the VMKeeper.
 	ms := baseApp.GetCacheMultiStore()
-	vmKpr.Initialize(ms)
+	vmk.Initialize(ms)
 	ms.MultiWrite() // XXX why was't this needed?
 
 	return baseApp, nil
@@ -239,7 +239,7 @@ type endBlockerApp interface {
 // validator set changes
 func EndBlocker(
 	collector *collector[validatorUpdate],
-	vmKeeper vm.VMKeeperI,
+	vmk vm.VMKeeperI,
 	app endBlockerApp,
 ) func(
 	ctx sdk.Context,
@@ -260,7 +260,7 @@ func EndBlocker(
 			Args:    []string{fmt.Sprintf("%d", app.LastBlockHeight())},
 		}
 
-		response, err := vmKeeper.Call(ctx, msg)
+		response, err := vmk.Call(ctx, msg)
 		if err != nil {
 			app.Logger().Error("unable to call VM during EndBlocker", "err", err)
 
