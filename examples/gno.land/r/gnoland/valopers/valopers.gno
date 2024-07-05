@@ -9,14 +9,10 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-const daoPkgPath = "gno.land/r/gov/dao"
-
 const (
 	errValoperExists        = "valoper already exists"
 	errValoperMissing       = "valoper does not exist"
 	errInvalidAddressUpdate = "valoper updated address exists"
-
-	errNotGovDAO = "caller not govdao executor"
 )
 
 // valopers keeps track of all the active validator operators
@@ -34,8 +30,6 @@ type Valoper struct {
 
 // Register registers a new valoper
 func Register(v Valoper) {
-	assertGovDAOCaller()
-
 	// Check if the valoper is already registered
 	if isValoper(v.Address) {
 		panic(errValoperExists)
@@ -50,8 +44,6 @@ func Register(v Valoper) {
 
 // Unregister unregisters a valoper
 func Unregister(address std.Address) {
-	assertGovDAOCaller()
-
 	if !isValoper(address) {
 		panic(errValoperMissing)
 	}
@@ -62,8 +54,6 @@ func Unregister(address std.Address) {
 
 // Update updates an existing valoper
 func Update(address std.Address, v Valoper) {
-	assertGovDAOCaller()
-
 	// Check if the valoper is present
 	if !isValoper(address) {
 		panic(errValoperMissing)
@@ -148,11 +138,4 @@ func isValoper(address std.Address) bool {
 	_, exists := valopers.Get(address.String())
 
 	return exists
-}
-
-// assertGovDAOCaller verifies the caller is the GovDAO executor
-func assertGovDAOCaller() {
-	if std.PrevRealm().PkgPath() != daoPkgPath {
-		panic(errNotGovDAO)
-	}
 }

@@ -3,8 +3,6 @@ package valopers
 import (
 	"testing"
 
-	"std"
-
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
@@ -13,27 +11,11 @@ import (
 func TestValopers_Register(t *testing.T) {
 	t.Parallel()
 
-	t.Run("not govdao caller", func(t *testing.T) {
-		t.Parallel()
-
-		// Clear the set for the test
-		valopers = avl.NewTree()
-
-		v := Valoper{}
-
-		uassert.PanicsWithMessage(t, errNotGovDAO, func() {
-			Register(v)
-		})
-	})
-
 	t.Run("already a valoper", func(t *testing.T) {
 		t.Parallel()
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
-
-		r := std.NewCodeRealm(daoPkgPath)
-		std.TestSetRealm(r)
 
 		v := Valoper{
 			Address: testutils.TestAddress("valoper"),
@@ -52,9 +34,6 @@ func TestValopers_Register(t *testing.T) {
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
-
-		r := std.NewCodeRealm(daoPkgPath)
-		std.TestSetRealm(r)
 
 		v := Valoper{
 			Address: testutils.TestAddress("valoper"),
@@ -79,26 +58,11 @@ func TestValopers_Register(t *testing.T) {
 func TestValopers_Unregister(t *testing.T) {
 	t.Parallel()
 
-	t.Run("not govdao caller", func(t *testing.T) {
-		t.Parallel()
-
-		// Clear the set for the test
-		valopers = avl.NewTree()
-
-		// Remove the valoper
-		uassert.PanicsWithMessage(t, errNotGovDAO, func() {
-			Unregister(testutils.TestAddress("valoper"))
-		})
-	})
-
 	t.Run("non-existing valoper", func(t *testing.T) {
 		t.Parallel()
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
-
-		r := std.NewCodeRealm(daoPkgPath)
-		std.TestSetRealm(r)
 
 		// Remove the valoper
 		uassert.PanicsWithMessage(t, errValoperMissing, func() {
@@ -111,9 +75,6 @@ func TestValopers_Unregister(t *testing.T) {
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
-
-		r := std.NewCodeRealm(daoPkgPath)
-		std.TestSetRealm(r)
 
 		v := Valoper{
 			Address: testutils.TestAddress("valoper"),
@@ -141,28 +102,11 @@ func TestValopers_Unregister(t *testing.T) {
 func TestValopers_Update(t *testing.T) {
 	t.Parallel()
 
-	t.Run("not govdao caller", func(t *testing.T) {
-		t.Parallel()
-
-		// Clear the set for the test
-		valopers = avl.NewTree()
-
-		v := Valoper{}
-
-		// Update the valoper
-		uassert.PanicsWithMessage(t, errNotGovDAO, func() {
-			Update(v.Address, v)
-		})
-	})
-
 	t.Run("non-existing valoper", func(t *testing.T) {
 		t.Parallel()
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
-
-		r := std.NewCodeRealm(daoPkgPath)
-		std.TestSetRealm(r)
 
 		v := Valoper{}
 
@@ -177,9 +121,6 @@ func TestValopers_Update(t *testing.T) {
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
-
-		r := std.NewCodeRealm(daoPkgPath)
-		std.TestSetRealm(r)
 
 		one := Valoper{
 			Address: testutils.TestAddress("valoper 1"),
@@ -217,9 +158,6 @@ func TestValopers_Update(t *testing.T) {
 
 		// Clear the set for the test
 		valopers = avl.NewTree()
-
-		r := std.NewCodeRealm(daoPkgPath)
-		std.TestSetRealm(r)
 
 		var (
 			name = "new valoper"
