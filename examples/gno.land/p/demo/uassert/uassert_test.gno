@@ -89,14 +89,14 @@ func TestPanicsWithMessage(t *testing.T) {
 	}) {
 		t.Error("PanicsWithMessage should return false")
 	}
-	mockT.equals(t, "error: func should panic with message:\tpanic\n\tPanic value:\tat the disco")
+	mockT.equals(t, "error: func should panic with message:\tat the disco\n\tPanic value:\tpanic")
 
 	if PanicsWithMessage(mockT, "Panic!", func() {
 		panic("panic")
 	}) {
 		t.Error("PanicsWithMessage should return false")
 	}
-	mockT.equals(t, "error: func should panic with message:\tpanic\n\tPanic value:\tPanic!")
+	mockT.equals(t, "error: func should panic with message:\tPanic!\n\tPanic value:\tpanic")
 }
 
 func TestNotPanics(t *testing.T) {
