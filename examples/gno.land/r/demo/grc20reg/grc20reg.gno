@@ -49,7 +49,8 @@ func Render(path string) string {
 			token := tokenI.(grc20.IGRC20)
 			rlmPath, slug := fqname.Parse(key)
 			rlmLink := fqname.RenderLink(rlmPath, slug)
-			s += ufmt.Sprintf("- **%s** - %s\n", token.GetName(), rlmLink)
+			infoLink := "/r/demo/grc20reg:" + key
+			s += ufmt.Sprintf("- **%s** - %s - [info](%s)\n", token.GetName(), rlmLink, infoLink)
 			return false
 		})
 		if count == 0 {

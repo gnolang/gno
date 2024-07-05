@@ -19,7 +19,7 @@ func TestRegistry(t *testing.T) {
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
-	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo)
+	expected := `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo) - [info](/r/demo/grc20reg:gno.land/r/demo/foo)
 `
 	got := Render("")
 	urequire.Equal(t, expected, got)
@@ -40,8 +40,8 @@ func TestRegistry(t *testing.T) {
 	urequire.True(t, regToken != nil, "expected to find a token") // fixme: use urequire.NotNil
 	urequire.Equal(t, regToken.GetSymbol(), "TST")
 
-	expected = `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo)
-- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).mySlug
+	expected = `- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo) - [info](/r/demo/grc20reg:gno.land/r/demo/foo)
+- **TestToken** - [gno.land/r/demo/foo](/r/demo/foo).mySlug - [info](/r/demo/grc20reg:gno.land/r/demo/foo.mySlug)
 `
 	got = Render("")
 	urequire.Equal(t, expected, got)
