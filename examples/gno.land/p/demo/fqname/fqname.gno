@@ -52,3 +52,21 @@ func Construct(pkgpath, name string) string {
 	}
 	return pkgpath + "." + name
 }
+
+// RenderLink creates a formatted link for a fully qualified identifier.
+// If the package path starts with "gno.land", it converts it to a markdown link.
+// If the domain is different or missing, it returns the input as is.
+func RenderLink(pkgPath, slug string) string {
+	if strings.HasPrefix(pkgPath, "gno.land") {
+		pkgLink := strings.TrimPrefix(pkgPath, "gno.land")
+		if slug != "" {
+			link := pkgPath + "." + slug
+			return "[" + pkgPath + "](" + pkgLink + ")." + slug
+		}
+		return "[" + pkgPath + "](" + pkgLink + ")"
+	}
+	if slug != "" {
+		return pkgPath + "." + slug
+	}
+	return pkgPath
+}

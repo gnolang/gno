@@ -51,3 +51,24 @@ func TestConstruct(t *testing.T) {
 		uassert.Equal(t, tt.expected, result, "Constructed FQName did not match expected")
 	}
 }
+
+func TestRenderLink(t *testing.T) {
+	tests := []struct {
+		pkgPath  string
+		slug     string
+		expected string
+	}{
+		{"gno.land/p/demo/avl", "Tree", "[gno.land/p/demo/avl](/p/demo/avl).Tree"},
+		{"gno.land/p/demo/avl", "", "[gno.land/p/demo/avl](/p/demo/avl)"},
+		{"github.com/a/b", "C", "github.com/a/b.C"},
+		{"example.com/pkg", "Func", "example.com/pkg.Func"},
+		{"gno.land/r/demo/foo20", "GRC20", "[gno.land/r/demo/foo20](/r/demo/foo20).GRC20"},
+		{"gno.land/r/demo/foo20", "", "[gno.land/r/demo/foo20](/r/demo/foo20)"},
+		{"", "", ""},
+	}
+
+	for _, tt := range tests {
+		result := RenderLink(tt.pkgPath, tt.slug)
+		uassert.Equal(t, tt.expected, result, "Rendered link did not match expected")
+	}
+}
