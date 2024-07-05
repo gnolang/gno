@@ -626,7 +626,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	data := make([]byte, 0, len(msgs))
 	err := error(nil)
 
-	var events []Event
+	events := []Event{}
 
 	// NOTE: GasWanted is determined by ante handler and GasUsed by the GasMeter.
 	for i, msg := range msgs {
