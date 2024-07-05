@@ -376,6 +376,8 @@ func TestVMKeeperRunImportStdlibsColdStdlibLoad(t *testing.T) {
 }
 
 func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
+	t.Helper()
+
 	ctx := env.ctx
 
 	// Give "addr1" some gnots.
