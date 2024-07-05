@@ -8,16 +8,21 @@ import (
 //----------------------------------------
 // KVPair
 
+// KVPair is a key-value struct for []byte value.
 type KVPair struct {
 	Key   []byte
 	Value []byte
 }
 
+// KVPairs is a slice of KVPair.
 type KVPairs []KVPair
 
-// Sorting
-func (kvs KVPairs) Len() int { return len(kvs) }
+// Len returns the length of kvs.
+func (kvs KVPairs) Len() int {
+	return len(kvs)
+}
 
+// Less reports whether kvs[i] should be ordered before kvs[j].
 func (kvs KVPairs) Less(i, j int) bool {
 	switch bytes.Compare(kvs[i].Key, kvs[j].Key) {
 	case -1:
@@ -30,22 +35,33 @@ func (kvs KVPairs) Less(i, j int) bool {
 		panic("invalid comparison result")
 	}
 }
-func (kvs KVPairs) Swap(i, j int) { kvs[i], kvs[j] = kvs[j], kvs[i] }
-func (kvs KVPairs) Sort()         { sort.Sort(kvs) }
+
+// Swap swaps the elements with indexes, i and j.
+func (kvs KVPairs) Swap(i, j int) {
+	kvs[i], kvs[j] = kvs[j], kvs[i]
+}
+
+// Sort sorts a kvs in ascending order.
+func (kvs KVPairs) Sort() {
+	sort.Sort(kvs)
+}
 
 //----------------------------------------
 // KI64Pair
 
+// KI64Pair is a key-value struct for int64 value.
 type KI64Pair struct {
 	Key   []byte
 	Value int64
 }
 
+// KI64Pairs is a slice of KI64Pair.
 type KI64Pairs []KI64Pair
 
-// Sorting
+// Len returns the length of kvs.
 func (kvs KI64Pairs) Len() int { return len(kvs) }
 
+// Less reports whether kvs[i] should be ordered before kvs[j].
 func (kvs KI64Pairs) Less(i, j int) bool {
 	switch bytes.Compare(kvs[i].Key, kvs[j].Key) {
 	case -1:
@@ -58,5 +74,13 @@ func (kvs KI64Pairs) Less(i, j int) bool {
 		panic("invalid comparison result")
 	}
 }
-func (kvs KI64Pairs) Swap(i, j int) { kvs[i], kvs[j] = kvs[j], kvs[i] }
-func (kvs KI64Pairs) Sort()         { sort.Sort(kvs) }
+
+// Swap swaps the elements with indexes, i and j.
+func (kvs KI64Pairs) Swap(i, j int) {
+	kvs[i], kvs[j] = kvs[j], kvs[i]
+}
+
+// Sort sorts a kvs in ascending order.
+func (kvs KI64Pairs) Sort() {
+	sort.Sort(kvs)
+}

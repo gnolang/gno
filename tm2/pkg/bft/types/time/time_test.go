@@ -8,6 +8,8 @@ import (
 )
 
 func TestWeightedMedian(t *testing.T) {
+	t.Parallel()
+
 	m := make([]*WeightedTime, 3)
 
 	t1 := Now()

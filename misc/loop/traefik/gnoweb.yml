@@ -1,0 +1,22 @@
+---
+http:
+  routers:
+    gnoweb-local:
+      service: gnoweb
+      rule: "Host(`portal.gno.local`)"
+      entrypoints: ["web", "websecure", "private"]
+      middlewares: []
+
+    gnoweb:
+      service: gnoweb
+      rule: "Host(`gno.land`) || Host(`portal.gnoteam.com`)"
+      tls:
+        certResolver: le
+      entrypoints: ["web", "websecure"]
+      middlewares: []
+
+  services:
+    gnoweb:
+      loadBalancer:
+        servers:
+          - url: "http://localhost:8888"

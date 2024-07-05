@@ -13,6 +13,8 @@ import (
 )
 
 func TestCacheRemove(t *testing.T) {
+	t.Parallel()
+
 	cache := newMapTxCache(100)
 	numTxs := 10
 	txs := make([][]byte, numTxs)
@@ -35,6 +37,8 @@ func TestCacheRemove(t *testing.T) {
 }
 
 func TestCacheAfterUpdate(t *testing.T) {
+	t.Parallel()
+
 	app := kvstore.NewKVStoreApplication()
 	cc := proxy.NewLocalClientCreator(app)
 	mempool, cleanup := newMempoolWithApp(cc)

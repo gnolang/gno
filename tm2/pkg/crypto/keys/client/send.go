@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"flag"
-	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -14,68 +13,68 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-type sendCfg struct {
-	rootCfg *makeTxCfg
+type MakeSendCfg struct {
+	RootCfg *MakeTxCfg
 
-	send string
-	to   string
+	Send string
+	To   string
 }
 
-func newSendCmd(rootCfg *makeTxCfg) *commands.Command {
-	cfg := &sendCfg{
-		rootCfg: rootCfg,
+func NewMakeSendCmd(rootCfg *MakeTxCfg, io commands.IO) *commands.Command {
+	cfg := &MakeSendCfg{
+		RootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "send",
 			ShortUsage: "send [flags] <key-name or address>",
-			ShortHelp:  "Sends native currency",
+			ShortHelp:  "sends native currency",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execSend(cfg, args, commands.NewDefaultIO())
+			return execMakeSend(cfg, args, io)
 		},
 	)
 }
 
-func (c *sendCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *MakeSendCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
-		&c.send,
+		&c.Send,
 		"send",
 		"",
 		"send amount",
 	)
 
 	fs.StringVar(
-		&c.to,
+		&c.To,
 		"to",
 		"",
 		"destination address",
 	)
 }
 
-func execSend(cfg *sendCfg, args []string, io *commands.IO) error {
+func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
 
-	if cfg.rootCfg.gasWanted == 0 {
+	if cfg.RootCfg.GasWanted == 0 {
 		return errors.New("gas-wanted not specified")
 	}
-	if cfg.rootCfg.gasFee == "" {
+	if cfg.RootCfg.GasFee == "" {
 		return errors.New("gas-fee not specified")
 	}
-	if cfg.send == "" {
+	if cfg.Send == "" {
 		return errors.New("send (amount) must be specified")
 	}
-	if cfg.to == "" {
+	if cfg.To == "" {
 		return errors.New("to (destination address) must be specified")
 	}
 
 	// read account pubkey.
 	nameOrBech32 := args[0]
-	kb, err := keys.NewKeyBaseFromDir(cfg.rootCfg.rootCfg.Home)
+	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.RootCfg.Home)
 	if err != nil {
 		return err
 	}
@@ -87,20 +86,20 @@ func execSend(cfg *sendCfg, args []string, io *commands.IO) error {
 	// info.GetPubKey()
 
 	// Parse to address.
-	toAddr, err := crypto.AddressFromBech32(cfg.to)
+	toAddr, err := crypto.AddressFromBech32(cfg.To)
 	if err != nil {
 		return err
 	}
 
 	// Parse send amount.
-	send, err := std.ParseCoins(cfg.send)
+	send, err := std.ParseCoins(cfg.Send)
 	if err != nil {
 		return errors.Wrap(err, "parsing send coins")
 	}
 
 	// parse gas wanted & fee.
-	gaswanted := cfg.rootCfg.gasWanted
-	gasfee, err := std.ParseCoin(cfg.rootCfg.gasFee)
+	gaswanted := cfg.RootCfg.GasWanted
+	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
 	if err != nil {
 		return errors.Wrap(err, "parsing gas fee coin")
 	}
@@ -115,16 +114,16 @@ func execSend(cfg *sendCfg, args []string, io *commands.IO) error {
 		Msgs:       []std.Msg{msg},
 		Fee:        std.NewFee(gaswanted, gasfee),
 		Signatures: nil,
-		Memo:       cfg.rootCfg.memo,
+		Memo:       cfg.RootCfg.Memo,
 	}
 
-	if cfg.rootCfg.broadcast {
-		err := signAndBroadcast(cfg.rootCfg, args, tx, io)
+	if cfg.RootCfg.Broadcast {
+		err := ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		if err != nil {
 			return err
 		}
 	} else {
-		fmt.Println(string(amino.MustMarshalJSON(tx)))
+		io.Println(string(amino.MustMarshalJSON(tx)))
 	}
 	return nil
 }

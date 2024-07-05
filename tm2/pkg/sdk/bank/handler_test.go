@@ -16,6 +16,8 @@ import (
 )
 
 func TestInvalidMsg(t *testing.T) {
+	t.Parallel()
+
 	h := NewHandler(BankKeeper{})
 	res := h.Process(sdk.NewContext(sdk.RunTxModeDeliver, nil, &bft.Header{ChainID: "test-chain"}, nil), tu.NewTestMsg())
 	require.False(t, res.IsOK())
@@ -23,6 +25,8 @@ func TestInvalidMsg(t *testing.T) {
 }
 
 func TestBalances(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	h := NewHandler(env.bank)
 	_, _, addr := tu.KeyTestPubAddr()
@@ -51,6 +55,8 @@ func TestBalances(t *testing.T) {
 }
 
 func TestQuerierRouteNotFound(t *testing.T) {
+	t.Parallel()
+
 	env := setupTestEnv()
 	h := NewHandler(env.bank)
 	req := abci.RequestQuery{

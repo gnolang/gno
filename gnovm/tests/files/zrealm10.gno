@@ -18,8 +18,8 @@ func main() {
 }
 
 // Output:
-// struct{(1 int)}
-// struct{(3 int)}
+// (struct{(1 int)} gno.land/r/test.MyStruct)
+// (struct{(3 int)} gno.land/r/test.MyStruct)
 
 // Realm:
 // switchrealm["gno.land/r/test"]

@@ -1,26 +1,21 @@
 package amino
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"unicode"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Constants
 
-var (
-	jsonMarshalerType   = reflect.TypeOf(new(json.Marshaler)).Elem()
-	jsonUnmarshalerType = reflect.TypeOf(new(json.Unmarshaler)).Elem()
-	errorType           = reflect.TypeOf(new(error)).Elem()
-)
+var errorType = reflect.TypeOf(new(error)).Elem()
 
-//----------------------------------------
+// ----------------------------------------
 // encode: see binary-encode.go and json-encode.go
 // decode: see binary-decode.go and json-decode.go
 
-//----------------------------------------
+// ----------------------------------------
 // Misc.
 
 // CONTRACT: by the time this is called, len(bz) >= _n
@@ -182,18 +177,6 @@ func constructConcreteType(cinfo *TypeInfo) (crv, irvSet reflect.Value) {
 	return
 }
 
-// Like constructConcreteType(), but if pointer preferred, returns a nil one.
-// We like nil pointers for efficiency.
-func constructConcreteTypeNilPreferred(cinfo *TypeInfo) (crv reflect.Value) {
-	// Construct new concrete type.
-	if cinfo.PointerPreferred {
-		crv = reflect.Zero(cinfo.PtrToType)
-	} else {
-		crv = reflect.New(cinfo.Type).Elem()
-	}
-	return
-}
-
 func toReprObject(rv reflect.Value) (rrv reflect.Value, err error) {
 	var mwrm reflect.Value
 	if rv.CanAddr() {
@@ -266,12 +249,6 @@ func unmarshalAminoReprType(rm reflect.Method) (rrt reflect.Type) {
 	if rrt.Kind() == reflect.Ptr {
 		panic(fmt.Sprintf("Representative objects cannot be pointers; got %v", rrt))
 	}
-	return
-}
-
-func toPBMessage(cdc *Codec, rv reflect.Value) (pbrv reflect.Value) {
-	rm := rv.MethodByName("ToPBMessage")
-	pbrv = rm.Call([]reflect.Value{reflect.ValueOf(cdc)})[0]
 	return
 }
 

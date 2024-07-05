@@ -14,4 +14,4 @@ func main() {
 }
 
 // Output:
-// 0 2 4 6
+// (0 main.Kind) (2 main.Kind) (4 main.Kind) (6 main.Kind)

@@ -1,11 +1,11 @@
 # Test Realm instruction updated
 
-gno test -verbose . -update-golden-tests
+gno test -v . -update-golden-tests
 
 ! stdout .+ # stdout should be empty
 stderr '=== RUN   file/x_filetest.gno'
 stderr '--- PASS: file/x_filetest.gno \(\d\.\d\ds\)'
-stderr 'ok      \./\. 	\d\.\d\ds'
+stderr 'ok      \. 	\d\.\d\ds'
 
 cmp x_filetest.gno x_filetest.gno.golden
 
@@ -47,9 +47,9 @@ func main() {
 //         "@type": "/gno.RefNode",
 //         "BlockNode": null,
 //         "Location": {
+//             "Column": "0",
 //             "File": "",
 //             "Line": "0",
-//             "Nonce": "0",
 //             "PkgPath": "gno.land/r/x"
 //         }
 //     },
@@ -70,14 +70,16 @@ func main() {
 //                 "FileName": "main.gno",
 //                 "IsMethod": false,
 //                 "Name": "main",
+//                 "NativeName": "",
+//                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/x",
 //                 "Source": {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
+//                         "Column": "1",
 //                         "File": "main.gno",
 //                         "Line": "6",
-//                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/x"
 //                     }
 //                 },

@@ -2,21 +2,21 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"go/scanner"
 	"os"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/repl"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 type replCfg struct {
-	verbose        bool
 	rootDir        string
-	initialImports string
 	initialCommand string
 	skipUsage      bool
 }
@@ -28,7 +28,7 @@ func newReplCmd() *commands.Command {
 		commands.Metadata{
 			Name:       "repl",
 			ShortUsage: "repl [flags]",
-			ShortHelp:  "Starts a GnoVM REPL",
+			ShortHelp:  "starts a GnoVM REPL",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -38,25 +38,11 @@ func newReplCmd() *commands.Command {
 }
 
 func (c *replCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.BoolVar(
-		&c.verbose,
-		"verbose",
-		false,
-		"verbose output when running",
-	)
-
 	fs.StringVar(
 		&c.rootDir,
 		"root-dir",
 		"",
 		"clone location of github.com/gnolang/gno (gno tries to guess it)",
-	)
-
-	fs.StringVar(
-		&c.initialImports,
-		"imports",
-		"gno.land/p/demo/avl,gno.land/p/demo/ufmt",
-		"initial imports, separated by a comma",
 	)
 
 	fs.StringVar(
@@ -80,7 +66,7 @@ func execRepl(cfg *replCfg, args []string) error {
 	}
 
 	if cfg.rootDir == "" {
-		cfg.rootDir = guessRootDir()
+		cfg.rootDir = gnoenv.RootDir()
 	}
 
 	if !cfg.skipUsage {
@@ -88,10 +74,10 @@ func execRepl(cfg *replCfg, args []string) error {
 //   gno> import "gno.land/p/demo/avl"     // import the p/demo/avl package
 //   gno> func a() string { return "a" }   // declare a new function named a
 //   gno> /src                             // print current generated source
-//   gno> /editor                          // enter in editor mode to add several lines
+//   gno> /editor                          // enter in multi-line mode, end with ';'
 //   gno> /reset                           // remove all previously inserted code
 //   gno> println(a())                     // print the result of calling a()
-//   gno> /exit
+//   gno> /exit                            // alternative to <Ctrl-D>
 `)
 	}
 
@@ -99,30 +85,59 @@ func execRepl(cfg *replCfg, args []string) error {
 }
 
 func runRepl(cfg *replCfg) error {
-	// init repl state
 	r := repl.NewRepl()
 
 	if cfg.initialCommand != "" {
 		handleInput(r, cfg.initialCommand)
 	}
 
-	var multiline bool
-	for {
-		fmt.Fprint(os.Stdout, "gno> ")
+	fmt.Fprint(os.Stdout, "gno> ")
 
-		input, err := getInput(multiline)
-		if err != nil {
-			return err
+	inEdit := false
+	prev := ""
+	liner := bufio.NewScanner(os.Stdin)
+
+	for liner.Scan() {
+		line := liner.Text()
+
+		if l := strings.TrimSpace(line); l == ";" {
+			line, inEdit = "", false
+		} else if l == "/editor" {
+			line, inEdit = "", true
+			fmt.Fprintln(os.Stdout, "// enter a single ';' to quit and commit")
+		}
+		if prev != "" {
+			line = prev + "\n" + line
+			prev = ""
+		}
+		if inEdit {
+			fmt.Fprint(os.Stdout, "...  ")
+			prev = line
+			continue
 		}
 
-		multiline = handleInput(r, input)
+		if err := handleInput(r, line); err != nil {
+			var goScanError scanner.ErrorList
+			if errors.As(err, &goScanError) {
+				// We assune that a Go scanner error indicates an incomplete Go statement.
+				// Append next line and retry.
+				prev = line
+			} else {
+				fmt.Fprintln(os.Stderr, err)
+			}
+		}
+
+		if prev == "" {
+			fmt.Fprint(os.Stdout, "gno> ")
+		} else {
+			fmt.Fprint(os.Stdout, "...  ")
+		}
 	}
+	return nil
 }
 
-// handleInput reads the input string and parses it depending if it
-// is a specific command, or source code. It returns true if the following
-// input is expected to be on more than one line.
-func handleInput(r *repl.Repl, input string) bool {
+// handleInput executes specific "/" commands, or evaluates input as Gno source code.
+func handleInput(r *repl.Repl, input string) error {
 	switch strings.TrimSpace(input) {
 	case "/reset":
 		r.Reset()
@@ -130,49 +145,14 @@ func handleInput(r *repl.Repl, input string) bool {
 		fmt.Fprintln(os.Stdout, r.Src())
 	case "/exit":
 		os.Exit(0)
-	case "/editor":
-		fmt.Fprintln(os.Stdout, "// Entering editor mode (^D to finish)")
-		return true
 	case "":
-		// avoid to increase the repl execution counter if sending empty content
-		fmt.Fprintln(os.Stdout, "")
-		return false
+		// Avoid to increase the repl execution counter if no input.
 	default:
 		out, err := r.Process(input)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
+			return err
 		}
 		fmt.Fprintln(os.Stdout, out)
 	}
-
-	return false
-}
-
-const (
-	inputBreaker = "^D"
-	nl           = "\n"
-)
-
-func getInput(ml bool) (string, error) {
-	s := bufio.NewScanner(os.Stdin)
-	var mlOut bytes.Buffer
-	for s.Scan() {
-		line := s.Text()
-		if !ml {
-			return line, nil
-		}
-
-		if line == inputBreaker {
-			break
-		}
-
-		mlOut.WriteString(line)
-		mlOut.WriteString(nl)
-	}
-
-	if err := s.Err(); err != nil {
-		return "", err
-	}
-
-	return mlOut.String(), nil
+	return nil
 }

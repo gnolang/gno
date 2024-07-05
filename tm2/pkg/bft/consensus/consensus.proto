@@ -14,75 +14,75 @@ import "google/protobuf/duration.proto";
 
 // messages
 message NewRoundStepMessage {
-	sint64 Height = 1;
-	sint64 Round = 2;
-	uint32 Step = 3;
-	sint64 SecondsSinceStartTime = 4;
-	sint64 LastCommitRound = 5;
+	sint64 height = 1 [json_name = "Height"];
+	sint64 round = 2 [json_name = "Round"];
+	uint32 step = 3 [json_name = "Step"];
+	sint64 seconds_since_start_time = 4 [json_name = "SecondsSinceStartTime"];
+	sint64 last_commit_round = 5 [json_name = "LastCommitRound"];
 }
 
 message NewValidBlockMessage {
-	sint64 Height = 1;
-	sint64 Round = 2;
-	PartSetHeader BlockPartsHeader = 3;
-	BitArray BlockParts = 4;
-	bool IsCommit = 5;
+	sint64 height = 1 [json_name = "Height"];
+	sint64 round = 2 [json_name = "Round"];
+	PartSetHeader block_parts_header = 3 [json_name = "BlockPartsHeader"];
+	BitArray block_parts = 4 [json_name = "BlockParts"];
+	bool is_commit = 5 [json_name = "IsCommit"];
 }
 
 message ProposalMessage {
-	Proposal Proposal = 1;
+	Proposal proposal = 1 [json_name = "Proposal"];
 }
 
 message ProposalPOLMessage {
-	sint64 Height = 1;
-	sint64 ProposalPOLRound = 2;
-	BitArray ProposalPOL = 3;
+	sint64 height = 1 [json_name = "Height"];
+	sint64 proposal_pol_round = 2 [json_name = "ProposalPOLRound"];
+	BitArray proposal_pol = 3 [json_name = "ProposalPOL"];
 }
 
 message BlockPartMessage {
-	sint64 Height = 1;
-	sint64 Round = 2;
-	Part Part = 3;
+	sint64 height = 1 [json_name = "Height"];
+	sint64 round = 2 [json_name = "Round"];
+	Part part = 3 [json_name = "Part"];
 }
 
 message VoteMessage {
-	Vote Vote = 1;
+	Vote vote = 1 [json_name = "Vote"];
 }
 
 message HasVoteMessage {
-	sint64 Height = 1;
-	sint64 Round = 2;
-	uint32 Type = 3;
-	sint64 Index = 4;
+	sint64 height = 1 [json_name = "Height"];
+	sint64 round = 2 [json_name = "Round"];
+	uint32 type = 3 [json_name = "Type"];
+	sint64 index = 4 [json_name = "Index"];
 }
 
 message VoteSetMaj23Message {
-	sint64 Height = 1;
-	sint64 Round = 2;
-	uint32 Type = 3;
-	BlockID BlockID = 4;
+	sint64 height = 1 [json_name = "Height"];
+	sint64 round = 2 [json_name = "Round"];
+	uint32 type = 3 [json_name = "Type"];
+	BlockID block_id = 4 [json_name = "BlockID"];
 }
 
 message VoteSetBitsMessage {
-	sint64 Height = 1;
-	sint64 Round = 2;
-	uint32 Type = 3;
-	BlockID BlockID = 4;
-	BitArray Votes = 5;
+	sint64 height = 1 [json_name = "Height"];
+	sint64 round = 2 [json_name = "Round"];
+	uint32 type = 3 [json_name = "Type"];
+	BlockID block_id = 4 [json_name = "BlockID"];
+	BitArray votes = 5 [json_name = "Votes"];
 }
 
 message newRoundStepInfo {
-	HRS HRS = 1;
+	HRS hrs = 1;
 }
 
 message msgInfo {
-	google.protobuf.Any Msg = 1;
-	string PeerID = 2;
+	google.protobuf.Any msg = 1;
+	string peer_id = 2 [json_name = "peer_key"];
 }
 
 message timeoutInfo {
-	google.protobuf.Duration Duration = 1;
-	sint64 Height = 2;
-	sint64 Round = 3;
-	uint32 Step = 4;
+	google.protobuf.Duration duration = 1;
+	sint64 height = 2;
+	sint64 round = 3;
+	uint32 step = 4;
 }

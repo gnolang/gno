@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/gnolang/gno/gnovm/pkg/doc"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -22,7 +23,7 @@ type docCfg struct {
 	rootDir    string
 }
 
-func newDocCmd(io *commands.IO) *commands.Command {
+func newDocCmd(io commands.IO) *commands.Command {
 	c := &docCfg{}
 	return commands.NewCommand(
 		commands.Metadata{
@@ -70,14 +71,14 @@ func (c *docCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.rootDir,
 		"root-dir",
 		"",
-		"clone location of github.com/gnolang/gno (gnodev tries to guess it)",
+		"clone location of github.com/gnolang/gno (gno binary tries to guess it)",
 	)
 }
 
-func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
+func execDoc(cfg *docCfg, args []string, io commands.IO) error {
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
-		cfg.rootDir = guessRootDir()
+		cfg.rootDir = gnoenv.RootDir()
 	}
 
 	wd, err := os.Getwd()
@@ -112,7 +113,7 @@ func execDoc(cfg *docCfg, args []string, io *commands.IO) error {
 		io.Printfln("warning: error parsing some candidate packages:\n%v", err)
 	}
 	return res.WriteDocumentation(
-		io.Out,
+		io.Out(),
 		&doc.WriteDocumentationOptions{
 			ShowAll:    cfg.all,
 			Source:     cfg.src,

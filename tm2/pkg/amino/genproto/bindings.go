@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/amino/genproto/stringutil"
 	"github.com/gnolang/gno/tm2/pkg/amino/pkg"
 )
 
@@ -105,7 +106,7 @@ func generateMethodsForType(imports *ast.GenDecl, scope *ast.Scope, pkg *amino.P
 	}
 	dpbote_ := pbote_[1:]
 
-	//////////////////
+	// -----------
 	// ToPBMessage()
 	{
 		scope2 := ast.NewScope(scope)
@@ -127,7 +128,7 @@ func generateMethodsForType(imports *ast.GenDecl, scope *ast.Scope, pkg *amino.P
 		))
 	}
 
-	//////////////////
+	// -----------
 	// EmptyPBMessage()
 	// Use to create the pbm to proto.Unmarshal to before FromPBMessage.
 	{
@@ -148,7 +149,7 @@ func generateMethodsForType(imports *ast.GenDecl, scope *ast.Scope, pkg *amino.P
 		))
 	}
 
-	//////////////////
+	// -----------
 	// FromPBMessage()
 	{
 		scope2 := ast.NewScope(scope)
@@ -169,7 +170,7 @@ func generateMethodsForType(imports *ast.GenDecl, scope *ast.Scope, pkg *amino.P
 		))
 	}
 
-	//////////////////
+	// -----------
 	// TypeUrl()
 	{
 		methods = append(methods, _func("GetTypeURL",
@@ -182,7 +183,7 @@ func generateMethodsForType(imports *ast.GenDecl, scope *ast.Scope, pkg *amino.P
 		))
 	}
 
-	//////////////////
+	// -----------
 	// Is*ReprEmpty()
 	{
 		rinfo := info.ReprType
@@ -524,7 +525,8 @@ func go2pbStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 			goorfIsPtr := field.IsPtr()
 			goorfType := field.TypeInfo
 			goorf := _sel(goor, field.Name) // next goo
-			pbof := _sel(pbo, field.Name)   // next pbo
+			// The protobuf field is lower_snake_case and protoc converts it to CamelCase.
+			pbof := _sel(pbo, CamelCase(stringutil.ToLowerSnakeCase(field.Name))) // next pbo
 
 			// Translate in place.
 			scope2 := ast.NewScope(scope)
@@ -821,7 +823,8 @@ func pb2goStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl, scope
 
 	case reflect.Struct:
 		for _, field := range goorType.Fields {
-			pbof := _sel(pbo, field.Name) // next pbo.
+			// The protobuf field is lower_snake_case and protoc converts it to CamelCase.
+			pbof := _sel(pbo, CamelCase(stringutil.ToLowerSnakeCase(field.Name))) // next pbo.
 			goorfIsPtr := field.IsPtr()
 			goorfType := field.TypeInfo
 			goorf := _sel(goor, field.Name) // next goor.
@@ -965,7 +968,7 @@ func isReprEmptyStmts(rootPkg *amino.Package, isRoot bool, imports *ast.GenDecl,
 	return b
 }
 
-//----------------------------------------
+// ----------------------------------------
 // other....
 
 // Splits a Go expression into left and right parts.
@@ -1013,7 +1016,7 @@ func chopRight(expr string) (left string, tok rune, right string) {
 	return
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AST Construction (Expr)
 
 func _i(name string) *ast.Ident {
@@ -1021,14 +1024,6 @@ func _i(name string) *ast.Ident {
 		panic("unexpected empty identifier")
 	}
 	return &ast.Ident{Name: name}
-}
-
-func _iOrNil(name string) *ast.Ident {
-	if name == "" {
-		return nil
-	} else {
-		return _i(name)
-	}
 }
 
 // recvTypeName is empty if there are no receivers.
@@ -1104,6 +1099,27 @@ func _fields(args ...interface{}) *ast.FieldList {
 		List: list,
 	}
 }
+
+const (
+	reDGTS = `(?:[0-9]+)`
+	reHExX = `(?:0[xX][0-9a-fA-F]+)`
+	rePSCI = `(?:[eE]+?[0-9]+)`
+	reNSCI = `(?:[eE]-[1-9][0-9]+)`
+	reASCI = `(?:[eE][-+]?[0-9]+)`
+)
+
+var (
+	reIsInt = regexp.MustCompile(
+		`^-?(?:` +
+			reDGTS + `|` +
+			reHExX + `)` + rePSCI + `?$`,
+	)
+	reIsFloat = regexp.MustCompile(
+		`^-?(?:` +
+			reDGTS + `\.` + reDGTS + reASCI + `?|` +
+			reDGTS + reNSCI + `)$`,
+	)
+)
 
 // Parses simple expressions (but not all).
 // Useful for parsing strings to ast nodes, like foo.bar["qwe"](),
@@ -1287,22 +1303,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 		}
 	}
 	// Numeric int?  We do these before dots, because dots are legal in numbers.
-	const (
-		DGTS = `(?:[0-9]+)`
-		HExX = `(?:0[xX][0-9a-fA-F]+)`
-		PSCI = `(?:[eE]+?[0-9]+)`
-		NSCI = `(?:[eE]-[1-9][0-9]+)`
-		ASCI = `(?:[eE][-+]?[0-9]+)`
-	)
-	isInt, err := regexp.Match(
-		`^-?(?:`+
-			DGTS+`|`+
-			HExX+`)`+PSCI+`?$`,
-		[]byte(expr),
-	)
-	if err != nil {
-		panic("should not happen")
-	}
+	isInt := reIsInt.MatchString(expr)
 	if isInt {
 		return &ast.BasicLit{
 			Kind:  token.INT,
@@ -1310,15 +1311,7 @@ func _x(expr string, args ...interface{}) ast.Expr {
 		}
 	}
 	// Numeric float?  We do these before dots, because dots are legal in floats.
-	isFloat, err := regexp.Match(
-		`^-?(?:`+
-			DGTS+`\.`+DGTS+ASCI+`?|`+
-			DGTS+NSCI+`)$`,
-		[]byte(expr),
-	)
-	if err != nil {
-		panic("should not happen")
-	}
+	isFloat := reIsFloat.MatchString(expr)
 	if isFloat {
 		return &ast.BasicLit{
 			Kind:  token.FLOAT,
@@ -1344,29 +1337,6 @@ func _x(expr string, args ...interface{}) ast.Expr {
 //	3             ==  !=  <  <=  >  >=
 //	2             &&
 //	1             ||
-var sp = " "
-
-var (
-	prec5 = strings.Split("*  /  %  <<  >>  &  &^", sp)
-	prec4 = strings.Split("+ - | ^", sp)
-	prec3 = strings.Split("== != < <= > >=", sp)
-	prec2 = strings.Split("&&", sp)
-	prec1 = strings.Split("||", sp)
-	precs = [][]string{prec1, prec2, prec3, prec4, prec5}
-)
-
-// 0 for prec1... -1 if no match.
-func lowestMatch(op string) int {
-	for i, prec := range precs {
-		for _, op2 := range prec {
-			if op == op2 {
-				return i
-			}
-		}
-	}
-	return -1
-}
-
 func _kv(k, v interface{}) *ast.KeyValueExpr {
 	var kx, vx ast.Expr
 	if ks, ok := k.(string); ok {
@@ -1389,10 +1359,6 @@ func _block(b ...ast.Stmt) *ast.BlockStmt {
 	return &ast.BlockStmt{
 		List: b,
 	}
-}
-
-func _xs(exprs ...ast.Expr) []ast.Expr {
-	return exprs
 }
 
 // Usage: _a(lhs1, lhs2, ..., ":=", rhs1, rhs2, ...)
@@ -1470,13 +1436,6 @@ func _call(fn ast.Expr, args ...ast.Expr) *ast.CallExpr {
 	}
 }
 
-func _ta(x ast.Expr, t ast.Expr) *ast.TypeAssertExpr {
-	return &ast.TypeAssertExpr{
-		X:    x,
-		Type: t,
-	}
-}
-
 func _sel(x ast.Expr, sel string) *ast.SelectorExpr {
 	return &ast.SelectorExpr{
 		X:   x,
@@ -1532,7 +1491,7 @@ func _sl(x ast.Expr) *ast.ArrayType {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AST Construction (Stmt)
 
 func _if(cond ast.Expr, b ...ast.Stmt) *ast.IfStmt {
@@ -1564,34 +1523,6 @@ func _return(results ...ast.Expr) *ast.ReturnStmt {
 	}
 }
 
-func _continue(label string) *ast.BranchStmt {
-	return &ast.BranchStmt{
-		Tok:   token.CONTINUE,
-		Label: _i(label),
-	}
-}
-
-func _break(label string) *ast.BranchStmt {
-	return &ast.BranchStmt{
-		Tok:   token.BREAK,
-		Label: _i(label),
-	}
-}
-
-func _goto(label string) *ast.BranchStmt {
-	return &ast.BranchStmt{
-		Tok:   token.GOTO,
-		Label: _i(label),
-	}
-}
-
-func _fallthrough(label string) *ast.BranchStmt {
-	return &ast.BranchStmt{
-		Tok:   token.FALLTHROUGH,
-		Label: _i(label),
-	}
-}
-
 // even/odd args are paired,
 // name1, path1, name2, path2, etc.
 func _imports(nameAndPaths ...string) *ast.GenDecl {
@@ -1616,15 +1547,6 @@ func _for(init ast.Stmt, cond ast.Expr, post ast.Stmt, b ...ast.Stmt) *ast.ForSt
 		Post: post,
 		Body: _block(b...),
 	}
-}
-
-func _loop(b ...ast.Stmt) *ast.ForStmt {
-	return _for(nil, nil, nil, b...)
-}
-
-func _once(b ...ast.Stmt) *ast.ForStmt {
-	b = append(b, _break(""))
-	return _for(nil, nil, nil, b...)
 }
 
 func _len(x ast.Expr) *ast.CallExpr {
@@ -1766,7 +1688,7 @@ func _aop(op string) token.Token {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AST Compile-Time
 
 func _ctif(cond bool, then_, else_ ast.Stmt) ast.Stmt {
@@ -1779,7 +1701,7 @@ func _ctif(cond bool, then_, else_ ast.Stmt) ast.Stmt {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // AST query and manipulation.
 
 func importPathForName(name string, imports *ast.GenDecl) (path string, exists bool) {
@@ -1794,24 +1716,6 @@ func importPathForName(name string, imports *ast.GenDecl) (path string, exists b
 					panic("malformed path " + ispec.Path.Value)
 				}
 				return path, true
-			}
-		}
-	}
-	return "", false
-}
-
-func importNameForPath(path string, imports *ast.GenDecl) (name string, exists bool) {
-	if imports.Tok != token.IMPORT {
-		panic("unexpected ast.GenDecl token " + imports.Tok.String())
-	}
-	for _, spec := range imports.Specs {
-		if ispec, ok := spec.(*ast.ImportSpec); ok {
-			specPath, err := strconv.Unquote(ispec.Path.Value)
-			if err != nil {
-				panic("malformed path " + ispec.Path.Value)
-			}
-			if specPath == path {
-				return ispec.Name.Name, true
 			}
 		}
 	}

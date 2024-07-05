@@ -19,6 +19,8 @@ func fromHex(bits string) []byte {
 }
 
 func TestHChaCha20(t *testing.T) {
+	t.Parallel()
+
 	for i, v := range hChaCha20Vectors {
 		var key [32]byte
 		var nonce [16]byte
@@ -63,6 +65,8 @@ var hChaCha20Vectors = []struct {
 }
 
 func TestVectors(t *testing.T) {
+	t.Parallel()
+
 	for i, v := range vectors {
 		if len(v.plaintext) == 0 {
 			v.plaintext = make([]byte, len(v.ciphertext))

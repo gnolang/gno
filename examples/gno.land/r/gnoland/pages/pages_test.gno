@@ -1,53 +1,45 @@
 package gnopages
 
 import (
-	"std"
 	"strings"
 	"testing"
 )
 
-func TestPackage(t *testing.T) {
-	std.TestSetOrigCaller(std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"))
-
-	author := std.GetOrigCaller()
-
-	// by default, lorem ipsum posts
-	{
-		got := Render("")
-		expected := `
-# Gnoland's Pages
-
-<div class='columns-3'><div>
-
-## [Events](/r/gnoland/pages:p/events)
-**[Learn More](/r/gnoland/pages:p/events)**
-
-</div><div>
-
-## [Game of Realms](/r/gnoland/pages:p/gor)
-**[Learn More](/r/gnoland/pages:p/gor)**
-
-</div><div>
-
-## [Getting Started](/r/gnoland/pages:p/start)
-**[Learn More](/r/gnoland/pages:p/start)**
-
-</div><div>
-
-## [Tokenomics](/r/gnoland/pages:p/tokenomics)
-**[Learn More](/r/gnoland/pages:p/tokenomics)**
-
-</div></div>
-`
-		assertMDEquals(t, got, expected)
+func TestHome(t *testing.T) {
+	printedOnce := false
+	got := Render("")
+	expectedSubtrings := []string{
+		"/r/gnoland/pages:p/tokenomics",
+		"/r/gnoland/pages:p/start",
+		"/r/gnoland/pages:p/gor",
+		"/r/gnoland/pages:p/about",
+		"/r/gnoland/pages:p/gnolang",
+	}
+	for _, substring := range expectedSubtrings {
+		if !strings.Contains(got, substring) {
+			if !printedOnce {
+				println(got)
+				printedOnce = true
+			}
+			t.Errorf("expected %q, but not found.", substring)
+		}
 	}
 }
 
-func assertMDEquals(t *testing.T, got, expected string) {
-	t.Helper()
-	expected = strings.TrimSpace(expected)
-	got = strings.TrimSpace(got)
-	if expected != got {
-		t.Errorf("invalid render output.\nexpected %q.\ngot      %q.", expected, got)
+func TestAbout(t *testing.T) {
+	printedOnce := false
+	got := Render("p/about")
+	expectedSubtrings := []string{
+		"Gno.land Is A Platform To Write Smart Contracts In Gno",
+		"Gno.land is a next-generation smart contract platform using Gno, an interpreted version of the general-purpose Go\nprogramming language.",
+	}
+	for _, substring := range expectedSubtrings {
+		if !strings.Contains(got, substring) {
+			if !printedOnce {
+				println(got)
+				printedOnce = true
+			}
+			t.Errorf("expected %q, but not found.", substring)
+		}
 	}
 }

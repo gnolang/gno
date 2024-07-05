@@ -1,7 +1,7 @@
 package types
 
 import (
-	"io/ioutil"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,6 +16,8 @@ const (
 )
 
 func TestBasicPartSet(t *testing.T) {
+	t.Parallel()
+
 	// Construct random data of size partSize * 100
 	data := random.RandBytes(testPartSize * 100)
 	partSet := NewPartSetFromData(data, testPartSize)
@@ -54,13 +56,15 @@ func TestBasicPartSet(t *testing.T) {
 
 	// Reconstruct data, assert that they are equal.
 	data2Reader := partSet2.GetReader()
-	data2, err := ioutil.ReadAll(data2Reader)
+	data2, err := io.ReadAll(data2Reader)
 	require.NoError(t, err)
 
 	assert.Equal(t, data, data2)
 }
 
 func TestWrongProof(t *testing.T) {
+	t.Parallel()
+
 	// Construct random data of size partSize * 100
 	data := random.RandBytes(testPartSize * 100)
 	partSet := NewPartSetFromData(data, testPartSize)
@@ -86,6 +90,8 @@ func TestWrongProof(t *testing.T) {
 }
 
 func TestPartSetHeaderValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		testName              string
 		malleatePartSetHeader func(*PartSetHeader)
@@ -98,6 +104,8 @@ func TestPartSetHeaderValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			data := random.RandBytes(testPartSize * 100)
 			ps := NewPartSetFromData(data, testPartSize)
 			psHeader := ps.Header()
@@ -108,6 +116,8 @@ func TestPartSetHeaderValidateBasic(t *testing.T) {
 }
 
 func TestPartValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		testName     string
 		malleatePart func(*Part)
@@ -128,6 +138,8 @@ func TestPartValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			data := random.RandBytes(testPartSize * 100)
 			ps := NewPartSetFromData(data, testPartSize)
 			part := ps.GetPart(0)

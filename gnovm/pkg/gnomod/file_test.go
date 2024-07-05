@@ -14,17 +14,36 @@ import (
 	"golang.org/x/mod/module"
 )
 
-const testRemote string = "test3.gno.land:36657"
+const testRemote string = "test3.gno.land:26657"
 
 func TestFetchDeps(t *testing.T) {
 	for _, tc := range []struct {
 		desc                 string
 		modFile              File
+		errorShouldContain   string
 		requirements         []string
 		stdOutContains       []string
 		cachedStdOutContains []string
 	}{
 		{
+			desc: "not_exists",
+			modFile: File{
+				Module: &modfile.Module{
+					Mod: module.Version{
+						Path: "testFetchDeps",
+					},
+				},
+				Require: []*modfile.Require{
+					{
+						Mod: module.Version{
+							Path:    "gno.land/p/demo/does_not_exists",
+							Version: "v0.0.0",
+						},
+					},
+				},
+			},
+			errorShouldContain: "querychain (gno.land/p/demo/does_not_exists)",
+		}, {
 			desc: "fetch_gno.land/p/demo/avl",
 			modFile: File{
 				Module: &modfile.Module{
@@ -89,29 +108,34 @@ func TestFetchDeps(t *testing.T) {
 			defer cleanUpFn()
 
 			// Fetching dependencies
-			tc.modFile.FetchDeps(dirPath, testRemote, true)
+			err := tc.modFile.FetchDeps(dirPath, testRemote, true)
+			if tc.errorShouldContain != "" {
+				require.ErrorContains(t, err, tc.errorShouldContain)
+			} else {
+				require.Nil(t, err)
 
-			// Read dir
-			entries, err := os.ReadDir(filepath.Join(dirPath, "gno.land", "p", "demo"))
-			require.Nil(t, err)
+				// Read dir
+				entries, err := os.ReadDir(filepath.Join(dirPath, "gno.land", "p", "demo"))
+				require.Nil(t, err)
 
-			// Check dir entries
-			assert.Equal(t, len(tc.requirements), len(entries))
-			for _, e := range entries {
-				assert.Contains(t, tc.requirements, e.Name())
-			}
+				// Check dir entries
+				assert.Equal(t, len(tc.requirements), len(entries))
+				for _, e := range entries {
+					assert.Contains(t, tc.requirements, e.Name())
+				}
 
-			// Check logs
-			for _, c := range tc.stdOutContains {
-				assert.Contains(t, buf.String(), c)
-			}
+				// Check logs
+				for _, c := range tc.stdOutContains {
+					assert.Contains(t, buf.String(), c)
+				}
 
-			buf.Reset()
+				buf.Reset()
 
-			// Try fetching again. Should be cached
-			tc.modFile.FetchDeps(dirPath, testRemote, true)
-			for _, c := range tc.cachedStdOutContains {
-				assert.Contains(t, buf.String(), c)
+				// Try fetching again. Should be cached
+				tc.modFile.FetchDeps(dirPath, testRemote, true)
+				for _, c := range tc.cachedStdOutContains {
+					assert.Contains(t, buf.String(), c)
+				}
 			}
 		})
 	}

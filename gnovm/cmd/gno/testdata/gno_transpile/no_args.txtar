@@ -1,0 +1,6 @@
+# Run gno transpile without args
+
+! gno transpile
+
+! stdout .+
+stderr 'USAGE'

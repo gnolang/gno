@@ -2,9 +2,9 @@ package bank
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -178,7 +178,7 @@ func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 	return nil
 }
 
-//----------------------------------------
+// ----------------------------------------
 // ViewKeeper
 
 // ViewKeeperI defines a module interface that facilitates read only access to
@@ -201,7 +201,7 @@ func NewViewKeeper(acck auth.AccountKeeper) ViewKeeper {
 }
 
 // Logger returns a module-specific logger.
-func (view ViewKeeper) Logger(ctx sdk.Context) log.Logger {
+func (view ViewKeeper) Logger(ctx sdk.Context) *slog.Logger {
 	return ctx.Logger().With("module", fmt.Sprintf("x/%s", ModuleName))
 }
 

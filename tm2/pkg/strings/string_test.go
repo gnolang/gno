@@ -9,6 +9,8 @@ import (
 )
 
 func TestStringInSlice(t *testing.T) {
+	t.Parallel()
+
 	assert.True(t, StringInSlice("a", []string{"a", "b", "c"}))
 	assert.False(t, StringInSlice("d", []string{"a", "b", "c"}))
 	assert.True(t, StringInSlice("", []string{""}))
@@ -16,6 +18,8 @@ func TestStringInSlice(t *testing.T) {
 }
 
 func TestIsASCIIText(t *testing.T) {
+	t.Parallel()
+
 	notASCIIText := []string{
 		"", "\xC2", "\xC2\xA2", "\xFF", "\x80", "\xF0", "\n", "\t",
 	}
@@ -31,6 +35,8 @@ func TestIsASCIIText(t *testing.T) {
 }
 
 func TestASCIITrim(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, ASCIITrim(" "), "")
 	assert.Equal(t, ASCIITrim(" a"), "a")
 	assert.Equal(t, ASCIITrim("a "), "a")
@@ -39,6 +45,8 @@ func TestASCIITrim(t *testing.T) {
 }
 
 func TestStringSliceEqual(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		a    []string
 		b    []string

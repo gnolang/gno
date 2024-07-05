@@ -53,6 +53,8 @@ func getSignerTestCases(t *testing.T) []signerTestCase {
 }
 
 func TestSignerClose(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range getSignerTestCases(t) {
 		err := tc.signerClient.Close()
 		assert.NoError(t, err)
@@ -63,6 +65,8 @@ func TestSignerClose(t *testing.T) {
 }
 
 func TestSignerPing(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range getSignerTestCases(t) {
 		defer tc.signerServer.Stop()
 		defer tc.signerClient.Close()
@@ -73,6 +77,8 @@ func TestSignerPing(t *testing.T) {
 }
 
 func TestSignerGetPubKey(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range getSignerTestCases(t) {
 		defer tc.signerServer.Stop()
 		defer tc.signerClient.Close()
@@ -90,6 +96,8 @@ func TestSignerGetPubKey(t *testing.T) {
 }
 
 func TestSignerProposal(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range getSignerTestCases(t) {
 		ts := time.Now()
 		want := &types.Proposal{Timestamp: ts}
@@ -106,6 +114,8 @@ func TestSignerProposal(t *testing.T) {
 }
 
 func TestSignerVote(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range getSignerTestCases(t) {
 		ts := time.Now()
 		want := &types.Vote{Timestamp: ts, Type: types.PrecommitType}
@@ -122,6 +132,8 @@ func TestSignerVote(t *testing.T) {
 }
 
 func TestSignerVoteResetDeadline(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range getSignerTestCases(t) {
 		ts := time.Now()
 		want := &types.Vote{Timestamp: ts, Type: types.PrecommitType}
@@ -148,6 +160,8 @@ func TestSignerVoteResetDeadline(t *testing.T) {
 }
 
 func TestFlappySignerVoteKeepAlive(t *testing.T) {
+	t.Parallel()
+
 	testutils.FilterStability(t, testutils.Flappy)
 
 	for _, tc := range getSignerTestCases(t) {
@@ -175,6 +189,8 @@ func TestFlappySignerVoteKeepAlive(t *testing.T) {
 }
 
 func TestSignerSignProposalErrors(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range getSignerTestCases(t) {
 		// Replace service with a mock that always fails
 		tc.signerServer.privVal = types.NewErroringMockPV()
@@ -197,6 +213,8 @@ func TestSignerSignProposalErrors(t *testing.T) {
 }
 
 func TestSignerSignVoteErrors(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range getSignerTestCases(t) {
 		ts := time.Now()
 		vote := &types.Vote{Timestamp: ts, Type: types.PrecommitType}
@@ -243,6 +261,8 @@ func brokenHandler(privVal types.PrivValidator, request SignerMessage, chainID s
 }
 
 func TestSignerUnexpectedResponse(t *testing.T) {
+	t.Parallel()
+
 	for _, tc := range getSignerTestCases(t) {
 		tc.signerServer.privVal = types.NewMockPV()
 		tc.mockPV = types.NewMockPV()

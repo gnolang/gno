@@ -6,15 +6,17 @@ import (
 	"github.com/stretchr/testify/require"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 func TestVerifyIAVLStoreQueryProof(t *testing.T) {
+	t.Parallel()
+
 	// Create main tree for testing.
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	opts := types.StoreOptions{
 		PruningOptions: types.PruneNothing,
 	}
@@ -58,8 +60,10 @@ func TestVerifyIAVLStoreQueryProof(t *testing.T) {
 }
 
 func TestVerifyMultiStoreQueryProof(t *testing.T) {
+	t.Parallel()
+
 	// Create main tree for testing.
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	store := NewMultiStore(db)
 	iavlStoreKey := types.NewStoreKey("iavlStoreKey")
 
@@ -113,8 +117,10 @@ func TestVerifyMultiStoreQueryProof(t *testing.T) {
 }
 
 func TestVerifyMultiStoreQueryProofEmptyStore(t *testing.T) {
+	t.Parallel()
+
 	// Create main tree for testing.
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	store := NewMultiStore(db)
 	iavlStoreKey := types.NewStoreKey("iavlStoreKey")
 
@@ -142,8 +148,10 @@ func TestVerifyMultiStoreQueryProofEmptyStore(t *testing.T) {
 }
 
 func TestVerifyMultiStoreQueryProofAbsence(t *testing.T) {
+	t.Parallel()
+
 	// Create main tree for testing.
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	store := NewMultiStore(db)
 	iavlStoreKey := types.NewStoreKey("iavlStoreKey")
 

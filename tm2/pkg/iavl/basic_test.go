@@ -10,10 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
 
 func TestBasic(t *testing.T) {
-	tree := NewMutableTree(db.NewMemDB(), 0)
+	t.Parallel()
+
+	tree := NewMutableTree(memdb.NewMemDB(), 0)
 	up := tree.Set([]byte("1"), []byte("one"))
 	if up {
 		t.Error("Did not expect an update (should have been create)")
@@ -103,6 +106,8 @@ func TestBasic(t *testing.T) {
 }
 
 func TestUnit(t *testing.T) {
+	t.Parallel()
+
 	expectHash := func(tree *ImmutableTree, hashCount int64) {
 		// ensure number of new hash calculations is as expected.
 		hash, count := tree.hashWithCount()
@@ -184,6 +189,8 @@ func TestUnit(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
+	t.Parallel()
+
 	size := 10000
 	keyLen, dataLen := 16, 40
 
@@ -214,13 +221,15 @@ func TestRemove(t *testing.T) {
 }
 
 func TestIntegration(t *testing.T) {
+	t.Parallel()
+
 	type record struct {
 		key   string
 		value string
 	}
 
 	records := make([]*record, 400)
-	tree := NewMutableTree(db.NewMemDB(), 0)
+	tree := NewMutableTree(memdb.NewMemDB(), 0)
 
 	randomRecord := func() *record {
 		return &record{randstr(20), randstr(20)}
@@ -279,6 +288,8 @@ func TestIntegration(t *testing.T) {
 }
 
 func TestIterateRange(t *testing.T) {
+	t.Parallel()
+
 	type record struct {
 		key   string
 		value string
@@ -302,7 +313,7 @@ func TestIterateRange(t *testing.T) {
 	}
 	sort.Strings(keys)
 
-	tree := NewMutableTree(db.NewMemDB(), 0)
+	tree := NewMutableTree(memdb.NewMemDB(), 0)
 
 	// insert all the data
 	for _, r := range records {
@@ -363,7 +374,9 @@ func TestIterateRange(t *testing.T) {
 }
 
 func TestPersistence(t *testing.T) {
-	db := db.NewMemDB()
+	t.Parallel()
+
+	db := memdb.NewMemDB()
 
 	// Create some random key value pairs
 	records := make(map[string]string)
@@ -390,8 +403,10 @@ func TestPersistence(t *testing.T) {
 }
 
 func TestProof(t *testing.T) {
+	t.Parallel()
+
 	// Construct some random tree
-	db := db.NewMemDB()
+	db := memdb.NewMemDB()
 	tree := NewMutableTree(db, 100)
 	for i := 0; i < 10; i++ {
 		key, value := randstr(20), randstr(20)
@@ -420,7 +435,9 @@ func TestProof(t *testing.T) {
 }
 
 func TestTreeProof(t *testing.T) {
-	db := db.NewMemDB()
+	t.Parallel()
+
+	db := memdb.NewMemDB()
 	tree := NewMutableTree(db, 100)
 	assert.Equal(t, tree.Hash(), []byte(nil))
 

@@ -13,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ledger"
 	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
@@ -42,16 +43,11 @@ const (
 	French
 	// Italian is currently not supported.
 	Italian
-	addressSuffix = "address"
-	infoSuffix    = "info"
 )
 
 const (
-	// used for deriving seed from mnemonic
-	DefaultBIP39Passphrase = ""
-
-	// bits of entropy to draw when creating a mnemonic
-	defaultEntropySize = 256
+	addressSuffix = "address"
+	infoSuffix    = "info"
 )
 
 var (
@@ -79,7 +75,7 @@ func NewDBKeybase(db dbm.DB) Keybase {
 
 // NewInMemory creates a transient keybase on top of in-memory storage
 // instance useful for testing purposes and on-the-fly key generation.
-func NewInMemory() Keybase { return dbKeybase{dbm.NewMemDB()} }
+func NewInMemory() Keybase { return dbKeybase{memdb.NewMemDB()} }
 
 // CreateAccount converts a mnemonic to a private key and persists it, encrypted with the given password.
 // XXX Info could include the separately derived ed25519 key,
@@ -168,14 +164,32 @@ func (kb dbKeybase) List() ([]Info, error) {
 	return res, nil
 }
 
+// HasByNameOrAddress checks if a key with the name or bech32 string address is in the keybase.
+func (kb dbKeybase) HasByNameOrAddress(nameOrBech32 string) (bool, error) {
+	address, err := crypto.AddressFromBech32(nameOrBech32)
+	if err != nil {
+		return kb.HasByName(nameOrBech32)
+	}
+	return kb.HasByAddress(address)
+}
+
+// HasByName checks if a key with the name is in the keybase.
+func (kb dbKeybase) HasByName(name string) (bool, error) {
+	return kb.db.Has(infoKey(name)), nil
+}
+
+// HasByAddress checks if a key with the address is in the keybase.
+func (kb dbKeybase) HasByAddress(address crypto.Address) (bool, error) {
+	return kb.db.Has(addrKey(address)), nil
+}
+
 // Get returns the public information about one key.
 func (kb dbKeybase) GetByNameOrAddress(nameOrBech32 string) (Info, error) {
 	addr, err := crypto.AddressFromBech32(nameOrBech32)
 	if err != nil {
 		return kb.GetByName(nameOrBech32)
-	} else {
-		return kb.GetByAddress(addr)
 	}
+	return kb.GetByAddress(addr)
 }
 
 func (kb dbKeybase) GetByName(name string) (Info, error) {
@@ -189,7 +203,7 @@ func (kb dbKeybase) GetByName(name string) (Info, error) {
 func (kb dbKeybase) GetByAddress(address crypto.Address) (Info, error) {
 	ik := kb.db.Get(addrKey(address))
 	if len(ik) == 0 {
-		return nil, fmt.Errorf("key with address %s not found", address)
+		return nil, keyerror.NewErrKeyNotFound(fmt.Sprintf("key with address %s not found", address))
 	}
 	bs := kb.db.Get(ik)
 	return readInfo(bs)

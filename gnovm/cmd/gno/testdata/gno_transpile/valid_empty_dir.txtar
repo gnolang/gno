@@ -1,0 +1,6 @@
+# Run gno transpile on an empty dir
+
+gno transpile .
+
+! stdout .+
+! stderr .+

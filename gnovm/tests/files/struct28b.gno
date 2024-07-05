@@ -14,4 +14,4 @@ func main() {
 }
 
 // Output:
-// struct{(struct{(nil *main.T1)} main.T2)}
+// (struct{(struct{(nil *main.T1)} main.T2)} main.T1)

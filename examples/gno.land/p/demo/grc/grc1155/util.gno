@@ -7,7 +7,7 @@ import (
 const zeroAddress std.Address = ""
 
 func isValidAddress(addr std.Address) bool {
-	if addr.String() == "" {
+	if !addr.IsValid() {
 		return false
 	}
 	return true

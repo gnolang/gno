@@ -125,7 +125,11 @@ func (g *Group) OnStart() error {
 // OnStop implements service.Service by stopping the goroutine described above.
 // NOTE: g.Head must be closed separately using Close.
 func (g *Group) OnStop() {
-	g.FlushAndSync()
+	if err := g.FlushAndSync(); err != nil {
+		g.Logger.Error(
+			fmt.Sprintf("unable to gracefully flush data, %s", err.Error()),
+		)
+	}
 }
 
 // Wait blocks until all internal goroutines are finished. Supposed to be
@@ -136,11 +140,20 @@ func (g *Group) Wait() {
 
 // Close closes the head file. The group must be stopped by this moment.
 func (g *Group) Close() {
-	g.FlushAndSync()
+	if err := g.FlushAndSync(); err != nil {
+		g.Logger.Error(
+			fmt.Sprintf("unable to gracefully flush data, %s", err.Error()),
+		)
+	}
 
 	g.mtx.Lock()
-	_ = g.Head.Close()
-	g.mtx.Unlock()
+	defer g.mtx.Unlock()
+
+	if err := g.Head.Close(); err != nil {
+		g.Logger.Error(
+			fmt.Sprintf("unable to gracefully close group head, %s", err.Error()),
+		)
+	}
 }
 
 // HeadSizeLimit returns the current head size limit.
@@ -334,6 +347,8 @@ func (g *Group) ReadGroupInfo() GroupInfo {
 	return g.readGroupInfo()
 }
 
+var indexedFilePattern = regexp.MustCompile(`^.+\.([0-9]{3,})$`)
+
 // Index includes the head.
 // CONTRACT: caller should have called g.mtx.Lock
 func (g *Group) readGroupInfo() GroupInfo {
@@ -362,7 +377,6 @@ func (g *Group) readGroupInfo() GroupInfo {
 		} else if strings.HasPrefix(fileInfo.Name(), headBase) {
 			fileSize := fileInfo.Size()
 			totalSize += fileSize
-			indexedFilePattern := regexp.MustCompile(`^.+\.([0-9]{3,})$`)
 			submatch := indexedFilePattern.FindSubmatch([]byte(fileInfo.Name()))
 			if len(submatch) != 0 {
 				// Matches

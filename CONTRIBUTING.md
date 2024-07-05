@@ -1,7 +1,7 @@
-# Contributing to GNO
+# Contributing to Gno
 
-Thank you for looking to contribute to the GNO project.
-We appreciate every open-source contribution, as it helps us improve and enhance gno for the benefit of the community.
+Thank you for looking to contribute to the Gno project.
+We appreciate every open-source contribution, as it helps us improve and enhance Gno for the benefit of the community.
 
 This document outlines some basic pointers on making your future contribution a great experience. It outlines basic PR
 etiquette employed by the core gno team. It lays out coding styles, simple how-to guides and tools to get you up and
@@ -20,7 +20,7 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
     - [Testing](#testing)
       - [Running locally](#running-locally)
       - [Running test workflows](#running-test-workflows)
-      - [Testing GNO code](#testing-gno-code)
+      - [Testing Gno code](#testing-gno-code)
     - [Repository Structure](#repository-structure)
 - [How do I?](#how-do-i)
     - [How do I submit changes?](#how-do-i-submit-changes)
@@ -41,9 +41,9 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
 
 - **[Discord](https://discord.gg/YFtMjWwUN7)** - we are very active on Discord. Join today and start discussing all
   things gno with fellow engineers and enthusiasts.
-- **[Awesome GNO](https://github.com/gnolang/awesome-gno)** - check out the list of compiled resources for helping you
+- **[Awesome Gno](https://github.com/gnolang/awesome-gno)** - check out the list of compiled resources for helping you
   understand the gno ecosystem
-- **[Active Staging](https://gno.land/)** - use the currently available staging environment to play around with a
+- **[Active Staging](https://staging.gno.land/)** - use the currently available staging environment to play around with a
   production network. If you want to interact with a local instance, refer to the [Local Setup](#local-setup) guide.
 - **[Twitter](https://twitter.com/_gnoland)** - follow us on Twitter to get the latest scoop
 - **[Telegram](https://t.me/gnoland)** - join our official Telegram group to start a conversation about gno
@@ -52,41 +52,49 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
 
 ### Environment
 
-The gno repository is primarily based on Golang (Go), and Gnolang (Gno).
+The gno repository is primarily based on Go (Golang) and Gno.
 
 The primary tech stack for working on the repository:
 
-- Go (version 1.19+)
+- Go (version 1.22+)
 - make (for using Makefile configurations)
-- Docker (for using the official Docker setup files)
 
 It is recommended to work on a Unix environment, as most of the tooling is built around ready-made tools in Unix (WSL2
 for Windows / Linux / macOS).
 
 For Gno, there is no specific tooling that needs to be installed, that’s not already provided with the repo itself.
-You can utilize the `gno` command to facilitate Gnolang support when writing Smart Contracts in Gno, by installing it
+You can utilize the `gno` command to facilitate Gno support when writing Smart Contracts in Gno, by installing it
 with `make install_gno`.
+
+If you are working on Go source code on this repository, `pkg.go.dev` will not
+render our documentation as it has a license it does not recognise. Instead, use
+the `go doc` command, or use our statically-generated documentation:
+https://gnolang.github.io/gno/github.com/gnolang/gno.html
 
 Additionally, you can also configure your editor to recognize `.gno` files as `.go` files, to get the benefit of syntax
 highlighting.
 
-Currently, we support a [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=harry-hov.gno) extension
-(eventually official in the future) for Gnolang.
+#### Visual Studio Code
 
-#### ViM Support
+There currently is an unofficial [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=harry-hov.gno)
+extension (primarily developed by a core team member) for working with `*.gno`
+files.
+
+#### ViM Support (without LSP)
 
 Add to your `.vimrc` file:
 
 ```vim
 function! GnoFmt()
-    cexpr system('gofmt -e -w ' . expand('%')) "or replace with gofumpt, see below
-    edit!
+	cexpr system('gofmt -e -w ' . expand('%')) " or replace with gofumpt, see below
+	edit!
+	set syntax=go
 endfunction
 command! GnoFmt call GnoFmt()
 augroup gno_autocmd
-    autocmd!
-    autocmd BufNewFile,BufRead *.gno set filetype=go
-    autocmd BufWritePost *.gno GnoFmt
+	autocmd!
+	autocmd BufNewFile,BufRead *.gno set syntax=go
+	autocmd BufWritePost *.gno GnoFmt
 augroup END
 ```
 
@@ -96,14 +104,117 @@ To use *gofumpt* instead of *gofmt*, as hinted in the comment, you may either ha
 cexpr system('go run -modfile </path/to/gno>/misc/devdeps/go.mod mvdan.cc/gofumpt -w ' . expand('%'))
 ```
 
+##### ViM Linting Support
+
+To integrate GNO linting in Vim, you can use Vim's `:make` command with a custom `makeprg` and `errorformat` to run the GNO linter and parse its output. Add the following configuration to your `.vimrc` file:
+
+```vim
+autocmd FileType gno setlocal makeprg=gno\ lint\ %
+autocmd FileType gno setlocal errorformat=%f:%l:\ %m
+
+" Optional: Key binding to run :make on the current file
+autocmd FileType gno nnoremap <buffer> <F5> :make<CR>
+```
+
+### ViM Support (with LSP)
+
+There is an experimental and unofficial [Gno Language Server](https://github.com/jdkato/gnols)
+developed by the community, with an installation guide for Neovim.
+
+For ViM purists, you have to install the [`vim-lsp`](https://github.com/prabirshrestha/vim-lsp)
+plugin and then register the LSP server in your `.vimrc` file:
+
+```vim
+augroup gno_autocmd
+    autocmd!
+    autocmd BufNewFile,BufRead *.gno
+        \ set filetype=gno |
+        \ set syntax=go
+augroup END
+
+if (executable('gnols'))
+    au User lsp_setup call lsp#register_server({
+        \ 'name': 'gnols',
+        \ 'cmd': ['gnols'],
+        \ 'allowlist': ['gno'],
+        \ 'config': {},
+        \ 'workspace_config': {
+        \   'root' : '/path/to/gno_repo',
+        \	'gno'  : '/path/to/gno_bin',
+        \   'precompileOnSave' : v:true,
+        \   'buildOnSave'      : v:false,
+        \ },
+        \ 'languageId': {server_info->'gno'},
+    \ })
+else
+	echomsg 'gnols binary not found: LSP disabled for Gno files'
+endif
+
+function! s:on_lsp_buffer_enabled() abort
+    " Autocompletion
+    setlocal omnifunc=lsp#complete
+    " Format on save
+    autocmd BufWritePre <buffer> LspDocumentFormatSync
+    " Some optional mappings
+    nmap <buffer> <leader>i <Plug>(lsp-hover)
+    " Following mappings are not supported yet by gnols
+    " nmap <buffer> gd <plug>(lsp-definition)
+    " nmap <buffer> <leader>rr <plug>(lsp-rename)
+endfunction
+augroup lsp_install
+    au!
+    autocmd User lsp_buffer_enabled call s:on_lsp_buffer_enabled()
+augroup END
+```
+
+Note that unlike the previous ViM setup without LSP, here it is required by
+`vim-lsp` to have a specific `filetype=gno`. Syntax highlighting is preserved
+thanks to `syntax=go`.
+
+Inside `lsp#register_server()`, you also have to replace
+`workspace_config.root` and `workspace_config.gno` with the correct directories
+from your machine.
+
+Additionally, it's not possible to use `gofumpt` for code formatting with
+`gnols` for now.
+
 #### Emacs Support
 
 1. Install [go-mode.el](https://github.com/dominikh/go-mode.el).
 2. Add to your emacs configuration file:
 
 ```lisp
-(add-to-list 'auto-mode-alist '("\\.gno\\'" . go-mode))
+(define-derived-mode gno-mode go-mode "GNO"
+  "Major mode for GNO files, an alias for go-mode."
+  (setq-local tab-width 8))
+(define-derived-mode gno-dot-mod-mode go-dot-mod-mode "GNO Mod"
+  "Major mode for GNO mod files, an alias for go-dot-mod-mode."
+  )
 ```
+
+3. To integrate GNO linting with Flycheck, add the following to your Emacs configuration:
+```lisp
+(require 'flycheck)
+
+(flycheck-define-checker gno-lint
+  "A GNO syntax checker using the gno lint tool."
+  :command ("gno" "lint" source-original)
+  :error-patterns (;; ./file.gno:32: error message (code=1)
+                   (error line-start (file-name) ":" line ": " (message) " (code=" (id (one-or-more digit)) ")." line-end))
+  ;; Ensure the file is saved, to work around
+  ;; https://github.com/python/mypy/issues/4746.
+  :predicate (lambda ()
+               (and (not (bound-and-true-p polymode-mode))
+                    (flycheck-buffer-saved-p)))
+  :modes gno-mode)
+
+(add-to-list 'flycheck-checkers 'gno-lint)
+```
+
+#### Sublime Text
+
+There is an experimental and unofficial [Gno Language Server](https://github.com/jdkato/gnols)
+developed by the community, with an installation guide for Sublime Text.
 
 ### Local Setup
 
@@ -113,9 +224,36 @@ Clone the repo:
 `git clone https://github.com/gnolang/gno.git`
 
 Build / install base commands:
-`make build `
+`make install`
 
-That’s it!
+If you haven't already, you may need to add the directory where [`go install`
+places its binaries](https://pkg.go.dev/cmd/go#hdr-Compile_and_install_packages_and_dependencies)
+to your `PATH`. If you haven't configured `GOBIN` or `GOPATH` differently, this
+command should suffice:
+
+```
+echo 'export PATH="$HOME/go/bin:$PATH"' >> ~/.profile
+source ~/.profile # reload ~/.profile in the current shell
+```
+
+After that, you should be good to go to use `gno` and `gnokey`, straight from
+your command line! The following commands should list the help messages for
+each:
+
+```console
+$ gno --help
+USAGE
+  <subcommand> [flags] [<arg>...]
+
+Runs the gno development toolkit
+[...]
+$ gnokey --help
+USAGE
+  <subcommand> [flags] [<arg>...]
+
+Manages private keys for the node
+[...]
+```
 
 ### Testing
 
@@ -142,7 +280,7 @@ To run the entire test suite through workflow files, run the following command:
 
     act -v -j go-test
 
-#### Testing GNO code
+#### Testing Gno code
 
 If you wish to test a `.gno` Realm or Package, you can utilize the `gno` tool.
 
@@ -152,7 +290,7 @@ If you wish to test a `.gno` Realm or Package, you can utilize the `gno` tool.
 
 2. Now, you can point to the directory containing the `*_test.gno` files:
 
-    gno test <path-to-dir> --verbose
+    gno test <path-to-dir> -v
 
 
 To learn more about how `gno` can help you when developing gno code, you can look into the available
@@ -160,24 +298,35 @@ subcommands by running:
 
     gno --help
 
+#### Adding new tests
+
+Most packages will follow the convention established with Go: each package
+contains within its file many files suffixed with `_test.go` which test its
+functionality. As a general rule, you should follow this convention, and in
+every PR you make you should ensure all the code you added is appropriately
+covered by tests ([Codecov](https://about.codecov.io/) will loudly complain in
+your PR's comments if you don't).
+
+Additionally, we have a few testing systems that stray from this general rule;
+at the time of writing, these are for integration tests and language tests. You
+can find more documentation about them [on this guide](docs/testing-guide.md).
+
 ### Repository Structure
 
 The repository structure can seem tricky at first, but it’s simple if you consider the philosophy that the gno project
-employs (check out [PHILOSOPHY.md](https://github.com/gnolang/gno/blob/master/PHILOSOPHY.md)).
+employs (check out [PHILOSOPHY.md](./PHILOSOPHY.md)).
 
 The gno project currently favors a mono-repo structure, as it’s easier to manage contributions and keep everyone
 aligned. In the future, this may change, but in the meantime the majority of gno resources and source code will be
 centralized here.
 
-- `cmd` - contains the base command implementations for tools like `gnokey`, `gnotxport`, etc. The actual underlying
-  logic is located within the `pkgs` subdirectories.
 - `examples` - contains the example `.gno` realms and packages. This is the central point for adding user-defined realms
   and packages.
-- `gnoland` - contains the base source code for bootstrapping the Gnoland node
-- `pkgs` - contains the dev-audited packages used throughout the gno codebase
-- `stdlibs` - contains the standard library packages used (imported) in `.gno` Smart Contracts. These packages are
-  themselves `.gno` files.
-- `tests` - contains the standard language tests for Gnolang
+- `gno.land` - contains the base source code for bootstrapping the Gnoland node,
+  using `tm2` and `gnovm`.
+- `gnovm` - contains the implementation of the Gno programming language and its
+  Virtual Machine, together with their standard libraries and tests.
+- `tm2` - contains a fork of the [Tendermint consensus engine](https://docs.tendermint.com/v0.34/introduction/what-is-tendermint.html) with different expectations.
 
 ## How do I?
 

@@ -18,12 +18,16 @@ var (
 // Coin tests
 
 func TestCoin(t *testing.T) {
+	t.Parallel()
+
 	require.Panics(t, func() { NewCoin(testDenom1, -1) })
 	require.Panics(t, func() { NewCoin(strings.ToUpper(testDenom1), 10) })
 	require.Equal(t, int64(5), NewCoin(testDenom1, 5).Amount)
 }
 
 func TestIsEqualCoin(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		inputOne Coin
 		inputTwo Coin
@@ -46,6 +50,8 @@ func TestIsEqualCoin(t *testing.T) {
 }
 
 func TestCoinIsValid(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		coin       Coin
 		expectPass bool
@@ -66,6 +72,8 @@ func TestCoinIsValid(t *testing.T) {
 }
 
 func TestAddCoin(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		inputOne    Coin
 		inputTwo    Coin
@@ -88,6 +96,8 @@ func TestAddCoin(t *testing.T) {
 }
 
 func TestSubCoin(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		inputOne    Coin
 		inputTwo    Coin
@@ -120,6 +130,8 @@ func TestSubCoin(t *testing.T) {
 }
 
 func TestIsGTECoin(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		inputOne Coin
 		inputTwo Coin
@@ -142,6 +154,8 @@ func TestIsGTECoin(t *testing.T) {
 }
 
 func TestIsLTCoin(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		inputOne Coin
 		inputTwo Coin
@@ -167,6 +181,8 @@ func TestIsLTCoin(t *testing.T) {
 }
 
 func TestCoinIsZero(t *testing.T) {
+	t.Parallel()
+
 	coin := NewCoin(testDenom1, 0)
 	res := coin.IsZero()
 	require.True(t, res)
@@ -180,6 +196,8 @@ func TestCoinIsZero(t *testing.T) {
 // Coins tests
 
 func TestIsZeroCoins(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		inputOne Coins
 		expected bool
@@ -198,6 +216,8 @@ func TestIsZeroCoins(t *testing.T) {
 }
 
 func TestEqualCoins(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		inputOne Coins
 		inputTwo Coins
@@ -224,6 +244,8 @@ func TestEqualCoins(t *testing.T) {
 }
 
 func TestAddCoins(t *testing.T) {
+	t.Parallel()
+
 	zero := int64(0)
 	one := int64(1)
 	two := int64(2)
@@ -248,6 +270,8 @@ func TestAddCoins(t *testing.T) {
 }
 
 func TestSubCoins(t *testing.T) {
+	t.Parallel()
+
 	zero := int64(0)
 	one := int64(1)
 	two := int64(2)
@@ -277,6 +301,8 @@ func TestSubCoins(t *testing.T) {
 }
 
 func TestCoins(t *testing.T) {
+	t.Parallel()
+
 	good := Coins{
 		{"gas", int64(1)},
 		{"mineral", int64(1)},
@@ -339,6 +365,8 @@ func TestCoins(t *testing.T) {
 }
 
 func TestCoinsGT(t *testing.T) {
+	t.Parallel()
+
 	one := int64(1)
 	two := int64(2)
 
@@ -351,6 +379,8 @@ func TestCoinsGT(t *testing.T) {
 }
 
 func TestCoinsLT(t *testing.T) {
+	t.Parallel()
+
 	one := int64(1)
 	two := int64(2)
 
@@ -366,6 +396,8 @@ func TestCoinsLT(t *testing.T) {
 }
 
 func TestCoinsLTE(t *testing.T) {
+	t.Parallel()
+
 	one := int64(1)
 	two := int64(2)
 
@@ -381,6 +413,8 @@ func TestCoinsLTE(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
+	t.Parallel()
+
 	one := int64(1)
 
 	cases := []struct {
@@ -395,11 +429,11 @@ func TestParse(t *testing.T) {
 		{"98 bar , 1 foo  ", true, Coins{{"bar", int64(98)}, {"foo", one}}},
 		{"  55\t \t bling\n", true, Coins{{"bling", int64(55)}}},
 		{"2foo, 97 bar", true, Coins{{"bar", int64(97)}, {"foo", int64(2)}}},
+		{"5foo-bar", false, nil},
 		{"5 mycoin,", false, nil},             // no empty coins in a list
 		{"2 3foo, 97 bar", false, nil},        // 3foo is invalid coin name
 		{"11me coin, 12you coin", false, nil}, // no spaces in coin names
 		{"1.2btc", false, nil},                // amount must be integer
-		{"5foo-bar", false, nil},              // once more, only letters in coin name
 	}
 
 	for tcIndex, tc := range cases {
@@ -413,6 +447,8 @@ func TestParse(t *testing.T) {
 }
 
 func TestSortCoins(t *testing.T) {
+	t.Parallel()
+
 	good := Coins{
 		NewCoin("gas", 1),
 		NewCoin("mineral", 1),
@@ -462,6 +498,8 @@ func TestSortCoins(t *testing.T) {
 }
 
 func TestAmountOf(t *testing.T) {
+	t.Parallel()
+
 	case0 := Coins{}
 	case1 := Coins{
 		NewCoin("gold", 0),
@@ -504,6 +542,8 @@ func TestAmountOf(t *testing.T) {
 }
 
 func TestCoinsIsAnyGTE(t *testing.T) {
+	t.Parallel()
+
 	one := int64(1)
 	two := int64(2)
 
@@ -524,6 +564,8 @@ func TestCoinsIsAnyGTE(t *testing.T) {
 }
 
 func TestCoinsIsAllGT(t *testing.T) {
+	t.Parallel()
+
 	one := int64(1)
 	two := int64(2)
 
@@ -544,6 +586,8 @@ func TestCoinsIsAllGT(t *testing.T) {
 }
 
 func TestCoinsIsAllGTE(t *testing.T) {
+	t.Parallel()
+
 	one := int64(1)
 	two := int64(2)
 
@@ -566,6 +610,8 @@ func TestCoinsIsAllGTE(t *testing.T) {
 }
 
 func TestNewCoins(t *testing.T) {
+	t.Parallel()
+
 	tenatom := NewCoin("atom", 10)
 	tenbtc := NewCoin("btc", 10)
 	zeroeth := NewCoin("eth", 0)
@@ -582,7 +628,10 @@ func TestNewCoins(t *testing.T) {
 		{"panic on dups", []Coin{tenatom, tenatom}, Coins{}, true},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			if tt.wantPanic {
 				require.Panics(t, func() { NewCoins(tt.coins...) })
 				return
@@ -594,6 +643,8 @@ func TestNewCoins(t *testing.T) {
 }
 
 func TestCoinsIsAnyGT(t *testing.T) {
+	t.Parallel()
+
 	twoAtom := NewCoin("atom", 2)
 	fiveAtom := NewCoin("atom", 5)
 	threeEth := NewCoin("eth", 3)
@@ -613,6 +664,8 @@ func TestCoinsIsAnyGT(t *testing.T) {
 }
 
 func TestFindDup(t *testing.T) {
+	t.Parallel()
+
 	abc := NewCoin("abc", 10)
 	def := NewCoin("def", 10)
 	ghi := NewCoin("ghi", 10)
@@ -632,7 +685,10 @@ func TestFindDup(t *testing.T) {
 		{"dup after first position", args{Coins{abc, def, def}}, 2},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			if got := findDup(tt.args.coins); got != tt.want {
 				t.Errorf("findDup() = %v, want %v", got, tt.want)
 			}
@@ -641,6 +697,8 @@ func TestFindDup(t *testing.T) {
 }
 
 func TestMarshalJSONCoins(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name      string
 		input     Coins
@@ -652,7 +710,11 @@ func TestMarshalJSONCoins(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			bz, err := amino.MarshalJSON(tc.input)
 			require.NoError(t, err)
 			require.Equal(t, tc.strOutput, string(bz))

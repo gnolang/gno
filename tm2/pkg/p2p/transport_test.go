@@ -33,6 +33,8 @@ func newMultiplexTransport(
 }
 
 func TestTransportMultiplexConnFilter(t *testing.T) {
+	t.Parallel()
+
 	mt := newMultiplexTransport(
 		emptyNodeInfo(),
 		NodeKey{
@@ -87,6 +89,8 @@ func TestTransportMultiplexConnFilter(t *testing.T) {
 }
 
 func TestTransportMultiplexConnFilterTimeout(t *testing.T) {
+	t.Parallel()
+
 	mt := newMultiplexTransport(
 		emptyNodeInfo(),
 		NodeKey{
@@ -137,6 +141,8 @@ func TestTransportMultiplexConnFilterTimeout(t *testing.T) {
 }
 
 func TestTransportMultiplexAcceptMultiple(t *testing.T) {
+	t.Parallel()
+
 	mt := testSetupMultiplexTransport(t)
 	laddr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
 
@@ -212,6 +218,8 @@ func testDialer(dialAddr NetAddress, errc chan error) {
 }
 
 func TestFlappyTransportMultiplexAcceptNonBlocking(t *testing.T) {
+	t.Parallel()
+
 	testutils.FilterStability(t, testutils.Flappy)
 
 	mt := testSetupMultiplexTransport(t)
@@ -298,6 +306,8 @@ func TestFlappyTransportMultiplexAcceptNonBlocking(t *testing.T) {
 }
 
 func TestTransportMultiplexValidateNodeInfo(t *testing.T) {
+	t.Parallel()
+
 	mt := testSetupMultiplexTransport(t)
 
 	errc := make(chan error)
@@ -339,6 +349,8 @@ func TestTransportMultiplexValidateNodeInfo(t *testing.T) {
 }
 
 func TestTransportMultiplexRejectMismatchID(t *testing.T) {
+	t.Parallel()
+
 	mt := testSetupMultiplexTransport(t)
 
 	errc := make(chan error)
@@ -378,6 +390,8 @@ func TestTransportMultiplexRejectMismatchID(t *testing.T) {
 }
 
 func TestTransportMultiplexDialRejectWrongID(t *testing.T) {
+	t.Parallel()
+
 	mt := testSetupMultiplexTransport(t)
 
 	var (
@@ -407,6 +421,8 @@ func TestTransportMultiplexDialRejectWrongID(t *testing.T) {
 }
 
 func TestTransportMultiplexRejectIncompatible(t *testing.T) {
+	t.Parallel()
+
 	mt := testSetupMultiplexTransport(t)
 
 	errc := make(chan error)
@@ -443,6 +459,8 @@ func TestTransportMultiplexRejectIncompatible(t *testing.T) {
 }
 
 func TestTransportMultiplexRejectSelf(t *testing.T) {
+	t.Parallel()
+
 	mt := testSetupMultiplexTransport(t)
 
 	errc := make(chan error)
@@ -482,6 +500,8 @@ func TestTransportMultiplexRejectSelf(t *testing.T) {
 }
 
 func TestTransportConnDuplicateIPFilter(t *testing.T) {
+	t.Parallel()
+
 	filter := ConnDuplicateIPFilter()
 
 	if err := filter(nil, &testTransportConn{}, nil); err != nil {
@@ -507,6 +527,8 @@ func TestTransportConnDuplicateIPFilter(t *testing.T) {
 }
 
 func TestTransportHandshake(t *testing.T) {
+	t.Parallel()
+
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)

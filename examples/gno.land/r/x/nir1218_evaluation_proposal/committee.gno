@@ -9,7 +9,7 @@ import (
 
 type Committee struct {
 	members    []std.Address // TODO - use avl tree or address set?
-	categories avl.Tree      // A catagory is mapped to a list of evaluation criteria
+	categories avl.Tree      // A category is mapped to a list of evaluation criteria
 	evaluation *Evaluation
 }
 
@@ -84,7 +84,7 @@ func (c *Committee) AddContribution(pr *PullRequest, contributor std.Address) (c
 	if !c.isMember(std.GetOrigCaller()) {
 		return -1, false
 	}
-	// Check the category of the PR matches a catagory this committee evaluates
+	// Check the category of the PR matches a category this committee evaluates
 	// TODO check the category is an approved category
 	if c.categories.Has(pr.category) {
 		return c.evaluation.AddContribution(pr, contributor)

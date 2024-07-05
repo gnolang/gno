@@ -7,9 +7,10 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/db"
+	_ "github.com/gnolang/gno/tm2/pkg/db/_all"
 	"github.com/gnolang/gno/tm2/pkg/iavl"
 )
 
@@ -75,19 +76,6 @@ func runKnownQueries(b *testing.B, t *iavl.MutableTree, keys [][]byte) {
 	}
 }
 
-func runInsert(b *testing.B, t *iavl.MutableTree, keyLen, dataLen, blockSize int) *iavl.MutableTree {
-	b.Helper()
-
-	for i := 1; i <= b.N; i++ {
-		t.Set(randBytes(keyLen), randBytes(dataLen))
-		if i%blockSize == 0 {
-			t.Hash()
-			t.SaveVersion()
-		}
-	}
-	return t
-}
-
 func runUpdate(b *testing.B, t *iavl.MutableTree, dataLen, blockSize int, keys [][]byte) *iavl.MutableTree {
 	b.Helper()
 
@@ -95,23 +83,6 @@ func runUpdate(b *testing.B, t *iavl.MutableTree, dataLen, blockSize int, keys [
 	for i := 1; i <= b.N; i++ {
 		key := keys[rand.Int31n(l)]
 		t.Set(key, randBytes(dataLen))
-		if i%blockSize == 0 {
-			commitTree(b, t)
-		}
-	}
-	return t
-}
-
-func runDelete(b *testing.B, t *iavl.MutableTree, blockSize int, keys [][]byte) *iavl.MutableTree {
-	b.Helper()
-
-	var key []byte
-	l := int32(len(keys))
-	for i := 1; i <= b.N; i++ {
-		key = keys[rand.Int31n(l)]
-		// key = randBytes(16)
-		// TODO: test if removed, use more keys (from insert)
-		t.Remove(key)
 		if i%blockSize == 0 {
 			commitTree(b, t)
 		}
@@ -180,50 +151,40 @@ type benchmark struct {
 	keyLen, dataLen     int
 }
 
-func BenchmarkMedium(b *testing.B) {
-	b.Skip("TODO: benchmark panicking")
-	benchmarks := []benchmark{
-		{"memdb", 100000, 100, 16, 40},
-		{"goleveldb", 100000, 100, 16, 40},
-		// FIXME: this crashes on init! Either remove support, or make it work.
-		// {"cleveldb", 100000, 100, 16, 40},
-		{"leveldb", 100000, 100, 16, 40},
+func BenchmarkSmall(b *testing.B) {
+	ls := db.BackendList()
+	bs := make([]benchmark, 0, len(ls))
+	for _, backend := range ls {
+		bs = append(bs, benchmark{backend, 1_000, 100, 16, 40})
 	}
-	runBenchmarks(b, benchmarks)
+	runBenchmarks(b, bs)
 }
 
-func BenchmarkSmall(b *testing.B) {
-	b.Skip("TODO: benchmark panicking")
-	benchmarks := []benchmark{
-		{"memdb", 1000, 100, 4, 10},
-		{"goleveldb", 1000, 100, 4, 10},
-		// FIXME: this crashes on init! Either remove support, or make it work.
-		// {"cleveldb", 100000, 100, 16, 40},
-		{"leveldb", 1000, 100, 4, 10},
+func BenchmarkMedium(b *testing.B) {
+	ls := db.BackendList()
+	bs := make([]benchmark, 0, len(ls))
+	for _, backend := range ls {
+		bs = append(bs, benchmark{backend, 100_000, 100, 16, 40})
 	}
-	runBenchmarks(b, benchmarks)
+	runBenchmarks(b, bs)
 }
 
 func BenchmarkLarge(b *testing.B) {
-	b.Skip("TODO: benchmark panicking")
-	benchmarks := []benchmark{
-		{"memdb", 1000000, 100, 16, 40},
-		{"goleveldb", 1000000, 100, 16, 40},
-		// FIXME: this crashes on init! Either remove support, or make it work.
-		// {"cleveldb", 100000, 100, 16, 40},
-		{"leveldb", 1000000, 100, 16, 40},
+	ls := db.BackendList()
+	bs := make([]benchmark, 0, len(ls))
+	for _, backend := range ls {
+		bs = append(bs, benchmark{backend, 1_000_000, 100, 16, 40})
 	}
-	runBenchmarks(b, benchmarks)
+	runBenchmarks(b, bs)
 }
 
 func BenchmarkLevelDBBatchSizes(b *testing.B) {
-	b.Skip("TODO: benchmark panicking")
 	benchmarks := []benchmark{
-		{"goleveldb", 100000, 5, 16, 40},
-		{"goleveldb", 100000, 25, 16, 40},
-		{"goleveldb", 100000, 100, 16, 40},
-		{"goleveldb", 100000, 400, 16, 40},
-		{"goleveldb", 100000, 2000, 16, 40},
+		{db.GoLevelDBBackend, 100000, 5, 16, 40},
+		{db.GoLevelDBBackend, 100000, 25, 16, 40},
+		{db.GoLevelDBBackend, 100000, 100, 16, 40},
+		{db.GoLevelDBBackend, 100000, 400, 16, 40},
+		{db.GoLevelDBBackend, 100000, 2000, 16, 40},
 	}
 	runBenchmarks(b, benchmarks)
 }
@@ -231,12 +192,11 @@ func BenchmarkLevelDBBatchSizes(b *testing.B) {
 // BenchmarkLevelDBLargeData is intended to push disk limits
 // in the leveldb, to make sure not everything is cached
 func BenchmarkLevelDBLargeData(b *testing.B) {
-	b.Skip("TODO: benchmark panicking")
 	benchmarks := []benchmark{
-		{"goleveldb", 50000, 100, 32, 100},
-		{"goleveldb", 50000, 100, 32, 1000},
-		{"goleveldb", 50000, 100, 32, 10000},
-		{"goleveldb", 50000, 100, 32, 100000},
+		{db.GoLevelDBBackend, 50000, 100, 32, 100},
+		{db.GoLevelDBBackend, 50000, 100, 32, 1000},
+		{db.GoLevelDBBackend, 50000, 100, 32, 10000},
+		{db.GoLevelDBBackend, 50000, 100, 32, 100000},
 	}
 	runBenchmarks(b, benchmarks)
 }
@@ -259,8 +219,9 @@ func runBenchmarks(b *testing.B, benchmarks []benchmark) {
 
 		// note that "" leads to nil backing db!
 		var d db.DB
+		var err error
 		if bb.dbType != "nodb" {
-			d, err := db.NewDB("test", bb.dbType, dirName)
+			d, err = db.NewDB("test", bb.dbType, dirName)
 			require.NoError(b, err)
 			defer d.Close()
 		}

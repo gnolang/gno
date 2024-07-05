@@ -11,8 +11,8 @@ import (
 func Test_execGenerateNormal(t *testing.T) {
 	t.Parallel()
 
-	cfg := &generateCfg{
-		customEntropy: false,
+	cfg := &GenerateCfg{
+		CustomEntropy: false,
 	}
 
 	err := execGenerate(cfg, []string{}, commands.NewTestIO())
@@ -22,8 +22,8 @@ func Test_execGenerateNormal(t *testing.T) {
 func Test_execGenerateUser(t *testing.T) {
 	t.Parallel()
 
-	cfg := &generateCfg{
-		customEntropy: true,
+	cfg := &GenerateCfg{
+		CustomEntropy: true,
 	}
 
 	io := commands.NewTestIO()

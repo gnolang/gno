@@ -2,12 +2,11 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
+	"io"
 )
 
 func main() {
-	file, err := ioutil.TempFile("", "yeagibench")
+	file, err := io.TempFile("", "yeagibench")
 	if err != nil {
 		panic(err)
 	}

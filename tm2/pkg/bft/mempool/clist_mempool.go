@@ -3,22 +3,25 @@ package mempool
 import (
 	"bytes"
 	"container/list"
+	"context"
 	"crypto/sha256"
 	"fmt"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	auto "github.com/gnolang/gno/tm2/pkg/autofile"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
-	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/clist"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/maths"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 )
 
 // --------------------------------------------------------------------------------
@@ -32,7 +35,7 @@ type CListMempool struct {
 	config *cfg.MempoolConfig
 
 	mtx          sync.Mutex
-	proxyAppConn proxy.AppConnMempool
+	proxyAppConn appconn.Mempool
 	txs          *clist.CList // concurrent linked-list of good txs
 	preCheck     PreCheckFunc
 	height       int64 // the last block Update()'d to
@@ -63,7 +66,7 @@ type CListMempool struct {
 	// A log of mempool txs
 	wal *auto.AutoFile
 
-	logger log.Logger
+	logger *slog.Logger
 }
 
 var _ Mempool = &CListMempool{}
@@ -74,7 +77,7 @@ type CListMempoolOption func(*CListMempool)
 // NewCListMempool returns a new mempool with the given configuration and connection to an application.
 func NewCListMempool(
 	config *cfg.MempoolConfig,
-	proxyAppConn proxy.AppConnMempool,
+	proxyAppConn appconn.Mempool,
 	height int64,
 	maxTxBytes int64,
 	options ...CListMempoolOption,
@@ -91,7 +94,7 @@ func NewCListMempool(
 		rechecking:    0,
 		recheckCursor: nil,
 		recheckEnd:    nil,
-		logger:        log.NewNopLogger(),
+		logger:        log.NewNoopLogger(),
 	}
 	if config.CacheSize > 0 {
 		mempool.cache = newMapTxCache(config.CacheSize)
@@ -111,7 +114,7 @@ func (mem *CListMempool) EnableTxsAvailable() {
 }
 
 // SetLogger sets the Logger.
-func (mem *CListMempool) SetLogger(l log.Logger) {
+func (mem *CListMempool) SetLogger(l *slog.Logger) {
 	mem.logger = l
 }
 
@@ -333,6 +336,22 @@ func (mem *CListMempool) addTx(memTx *mempoolTx) {
 	e := mem.txs.PushBack(memTx)
 	mem.txsMap.Store(txKey(memTx.tx), e)
 	atomic.AddInt64(&mem.txsBytes, int64(len(memTx.tx)))
+
+	// Update the telemetry
+	mem.logTelemetry()
+}
+
+// logTelemetry logs the mempool telemetry
+func (mem *CListMempool) logTelemetry() {
+	if !telemetry.MetricsEnabled() {
+		return
+	}
+
+	// Log the total number of mempool transactions
+	metrics.NumMempoolTxs.Record(context.Background(), int64(mem.txs.Len()))
+
+	// Log the total number of the mempool cache transactions
+	metrics.NumCachedTxs.Record(context.Background(), int64(mem.cache.Len()))
 }
 
 // Called from:
@@ -347,6 +366,9 @@ func (mem *CListMempool) removeTx(tx types.Tx, elem *clist.CElement, removeFromC
 	if removeFromCache {
 		mem.cache.Remove(tx)
 	}
+
+	// Update the telemetry
+	mem.logTelemetry()
 }
 
 // callback, which is called after the app checked the tx for the first time.
@@ -460,7 +482,7 @@ func (mem *CListMempool) ReapMaxBytesMaxGas(maxDataBytes, maxGas int64) types.Tx
 	var totalGas int64
 	// TODO: we will get a performance boost if we have a good estimate of avg
 	// size per tx, and set the initial capacity based off of that.
-	// txs := make([]types.Tx, 0, maths.MinInt(mem.txs.Len(), max/mem.avgTxSize))
+	// txs := make([]types.Tx, 0, min(mem.txs.Len(), max/mem.avgTxSize))
 	txs := make([]types.Tx, 0, mem.txs.Len())
 	for e := mem.txs.Front(); e != nil; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
@@ -496,7 +518,7 @@ func (mem *CListMempool) ReapMaxTxs(max int) types.Txs {
 		time.Sleep(time.Millisecond * 10)
 	}
 
-	txs := make([]types.Tx, 0, maths.MinInt(mem.txs.Len(), max))
+	txs := make([]types.Tx, 0, min(mem.txs.Len(), max))
 	for e := mem.txs.Front(); e != nil && len(txs) <= max; e = e.Next() {
 		memTx := e.Value.(*mempoolTx)
 		txs = append(txs, memTx.tx)
@@ -622,12 +644,13 @@ type txCache interface {
 	Reset()
 	Push(tx types.Tx) bool
 	Remove(tx types.Tx)
+	Len() int
 }
 
 // mapTxCache maintains a LRU cache of transactions. This only stores the hash
 // of the tx, due to memory concerns.
 type mapTxCache struct {
-	mtx  sync.Mutex
+	mtx  sync.RWMutex
 	size int
 	map_ map[[sha256.Size]byte]*list.Element
 	list *list.List
@@ -650,6 +673,13 @@ func (cache *mapTxCache) Reset() {
 	cache.map_ = make(map[[sha256.Size]byte]*list.Element, cache.size)
 	cache.list.Init()
 	cache.mtx.Unlock()
+}
+
+func (cache *mapTxCache) Len() int {
+	cache.mtx.RLock()
+	defer cache.mtx.RUnlock()
+
+	return cache.list.Len()
 }
 
 // Push adds the given tx to the cache and returns true. It returns
@@ -698,6 +728,7 @@ var _ txCache = (*nopTxCache)(nil)
 func (nopTxCache) Reset()             {}
 func (nopTxCache) Push(types.Tx) bool { return true }
 func (nopTxCache) Remove(types.Tx)    {}
+func (nopTxCache) Len() int           { return 0 }
 
 // --------------------------------------------------------------------------------
 

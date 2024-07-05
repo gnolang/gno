@@ -29,6 +29,8 @@ func init() {
 }
 
 func TestProposalSignable(t *testing.T) {
+	t.Parallel()
+
 	chainID := "test_chain_id"
 	signBytes := testProposal.SignBytes(chainID)
 
@@ -38,6 +40,8 @@ func TestProposalSignable(t *testing.T) {
 }
 
 func TestProposalString(t *testing.T) {
+	t.Parallel()
+
 	str := testProposal.String()
 	expected := `Proposal{12345/23456 (010203:111:626C6F636B70, -1) 000000000000 @ 2018-02-11T07:09:22.765Z}`
 	if str != expected {
@@ -46,6 +50,8 @@ func TestProposalString(t *testing.T) {
 }
 
 func TestProposalVerifySignature(t *testing.T) {
+	t.Parallel()
+
 	privVal := NewMockPV()
 	pubKey := privVal.GetPubKey()
 
@@ -104,6 +110,8 @@ func BenchmarkProposalVerifySignature(b *testing.B) {
 }
 
 func TestProposalValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	privVal := NewMockPV()
 	testCases := []struct {
 		testName         string
@@ -130,6 +138,8 @@ func TestProposalValidateBasic(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			prop := NewProposal(
 				4, 2, 2,
 				blockID)

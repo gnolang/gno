@@ -9,4 +9,4 @@ func main() {
 }
 
 // Output:
-// 1
+// (1 main.myint)

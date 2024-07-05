@@ -5,8 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
-
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/store/cache"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 )
@@ -14,7 +13,7 @@ import (
 func benchmarkCacheStoreIterator(b *testing.B, numKVs int) {
 	b.Helper()
 
-	mem := dbadapter.Store{DB: dbm.NewMemDB()}
+	mem := dbadapter.Store{DB: memdb.NewMemDB()}
 	cstore := cache.New(mem)
 	keys := make([]string, numKVs, numKVs)
 

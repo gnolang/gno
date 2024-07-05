@@ -29,6 +29,8 @@ func registerTransports(cdc *amino.Codec) {
 }
 
 func TestMarshalJSON(t *testing.T) {
+	t.Parallel()
+
 	cdc := amino.NewCodec()
 	registerTransports(cdc)
 	cases := []struct {
@@ -130,6 +132,8 @@ func TestMarshalJSON(t *testing.T) {
 }
 
 func TestMarshalJSONTime(t *testing.T) {
+	t.Parallel()
+
 	cdc := amino.NewCodec()
 	registerTransports(cdc)
 
@@ -180,6 +184,8 @@ type innerFP struct {
 
 // We don't support maps.
 func TestUnmarshalMap(t *testing.T) {
+	t.Parallel()
+
 	jsonBytes := []byte("dontcare")
 	obj := new(map[string]int)
 	cdc := amino.NewCodec()
@@ -198,6 +204,8 @@ func TestUnmarshalMap(t *testing.T) {
 }
 
 func TestUnmarshalFunc(t *testing.T) {
+	t.Parallel()
+
 	jsonBytes := []byte(`"dontcare"`)
 	obj := func() {}
 	cdc := amino.NewCodec()
@@ -218,6 +226,8 @@ func TestUnmarshalFunc(t *testing.T) {
 }
 
 func TestUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+
 	cdc := amino.NewCodec()
 	registerTransports(cdc)
 	cases := []struct {
@@ -310,6 +320,8 @@ func TestUnmarshalJSON(t *testing.T) {
 }
 
 func TestJSONCodecRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	cdc := amino.NewCodec()
 	registerTransports(cdc)
 	type allInclusive struct {
@@ -480,6 +492,8 @@ func interfacePtr(v interface{}) *interface{} {
 // Test to ensure that Amino codec's time encoding/decoding roundtrip
 // produces the same result as the standard library json's.
 func TestAminoJSONTimeEncodeDecodeRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	loc, err := time.LoadLocation("America/Los_Angeles")
 	require.NoError(t, err)
 	din := time.Date(2008, 9, 15, 14, 13, 12, 11109876, loc).Round(time.Millisecond).UTC()
@@ -503,6 +517,8 @@ func TestAminoJSONTimeEncodeDecodeRoundTrip(t *testing.T) {
 }
 
 func TestMarshalJSONIndent(t *testing.T) {
+	t.Parallel()
+
 	cdc := amino.NewCodec()
 	registerTransports(cdc)
 	obj := Transport{Vehicle: Car("Tesla")}

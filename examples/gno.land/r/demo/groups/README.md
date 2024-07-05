@@ -8,7 +8,7 @@
 
 ### - create group
 
-    ./build/gnokey maketx call -func "CreateGroup" -args "dao_trinity_ngo" -gas-fee "1000000ugnot" -gas-wanted 4000000 -broadcast true -chainid dev -remote 0.0.0.0:26657 -pkgpath "gno.land/r/demo/groups" test1 
+    ./build/gnokey maketx call -func "CreateGroup" -args "dao_trinity_ngo" -gas-fee "1000000ugnot" -gas-wanted 4000000 -broadcast -chainid dev -remote 0.0.0.0:26657 -pkgpath "gno.land/r/demo/groups" test1 
 
 ### - add member
 

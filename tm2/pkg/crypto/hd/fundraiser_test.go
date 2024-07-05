@@ -43,6 +43,8 @@ func initFundraiserTestVectors(t *testing.T) []addrData {
 }
 
 func TestFundraiserCompatibility(t *testing.T) {
+	t.Parallel()
+
 	hdToAddrTable := initFundraiserTestVectors(t)
 
 	for i, d := range hdToAddrTable {

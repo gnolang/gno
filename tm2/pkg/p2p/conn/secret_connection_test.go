@@ -98,6 +98,8 @@ func makeSecretConnPair(tb testing.TB) (fooSecConn, barSecConn *SecretConnection
 }
 
 func TestSecretConnectionHandshake(t *testing.T) {
+	t.Parallel()
+
 	fooSecConn, barSecConn := makeSecretConnPair(t)
 	if err := fooSecConn.Close(); err != nil {
 		t.Error(err)
@@ -110,6 +112,8 @@ func TestSecretConnectionHandshake(t *testing.T) {
 // Test that shareEphPubKey rejects lower order public keys based on an
 // (incomplete) blacklist.
 func TestShareLowOrderPubkey(t *testing.T) {
+	t.Parallel()
+
 	fooConn, barConn := makeKVStoreConnPair()
 	defer fooConn.Close()
 	defer barConn.Close()
@@ -141,6 +145,8 @@ func TestShareLowOrderPubkey(t *testing.T) {
 // Test that additionally that the Diffie-Hellman shared secret is non-zero.
 // The shared secret would be zero for lower order pub-keys (but tested against the blacklist only).
 func TestComputeDHFailsOnLowOrder(t *testing.T) {
+	t.Parallel()
+
 	_, locPrivKey := genEphKeys()
 	for _, remLowOrderPubKey := range blacklist {
 		remLowOrderPubKey := remLowOrderPubKey
@@ -153,6 +159,8 @@ func TestComputeDHFailsOnLowOrder(t *testing.T) {
 }
 
 func TestConcurrentWrite(t *testing.T) {
+	t.Parallel()
+
 	fooSecConn, barSecConn := makeSecretConnPair(t)
 	fooWriteText := random.RandStr(dataMaxSize)
 
@@ -175,6 +183,8 @@ func TestConcurrentWrite(t *testing.T) {
 }
 
 func TestConcurrentRead(t *testing.T) {
+	t.Parallel()
+
 	fooSecConn, barSecConn := makeSecretConnPair(t)
 	fooWriteText := random.RandStr(dataMaxSize)
 	n := 100
@@ -221,6 +231,8 @@ func readLots(t *testing.T, wg *sync.WaitGroup, conn net.Conn, n int) {
 }
 
 func TestSecretConnectionReadWrite(t *testing.T) {
+	t.Parallel()
+
 	fooConn, barConn := makeKVStoreConnPair()
 	fooWrites, barWrites := []string{}, []string{}
 	fooReads, barReads := []string{}, []string{}
@@ -234,7 +246,7 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 	// A helper that will run with (fooConn, fooWrites, fooReads) and vice versa
 	genNodeRunner := func(id string, nodeConn kvstoreConn, nodeWrites []string, nodeReads *[]string) async.Task {
 		return func(_ int) (interface{}, error, bool) {
-			// Initiate cryptographic private key and secret connection trhough nodeConn.
+			// Initiate cryptographic private key and secret connection through nodeConn.
 			nodePrvKey := ed25519.GenPrivKey()
 			nodeSecretConn, err := MakeSecretConnection(nodeConn, nodePrvKey)
 			if err != nil {
@@ -341,6 +353,8 @@ func TestSecretConnectionReadWrite(t *testing.T) {
 var update = flag.Bool("update", false, "update .golden files")
 
 func TestDeriveSecretsAndChallengeGolden(t *testing.T) {
+	t.Parallel()
+
 	goldenFilepath := filepath.Join("testdata", t.Name()+".golden")
 	if *update {
 		t.Logf("Updating golden test vector file %s", goldenFilepath)
@@ -386,6 +400,8 @@ func (pk privKeyWithNilPubKey) PubKey() crypto.PubKey           { return nil }
 func (pk privKeyWithNilPubKey) Equals(pk2 crypto.PrivKey) bool  { return pk.orig.Equals(pk2) }
 
 func TestNilPubkey(t *testing.T) {
+	t.Parallel()
+
 	fooConn, barConn := makeKVStoreConnPair()
 	fooPrvKey := ed25519.GenPrivKey()
 	barPrvKey := privKeyWithNilPubKey{ed25519.GenPrivKey()}
@@ -404,6 +420,8 @@ func TestNilPubkey(t *testing.T) {
 }
 
 func TestNonEd25519Pubkey(t *testing.T) {
+	t.Parallel()
+
 	fooConn, barConn := makeKVStoreConnPair()
 	fooPrvKey := ed25519.GenPrivKey()
 	barPrvKey := secp256k1.GenPrivKey()

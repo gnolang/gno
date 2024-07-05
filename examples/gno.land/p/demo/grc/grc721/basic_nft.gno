@@ -69,6 +69,25 @@ func (s *basicNFT) TokenURI(tid TokenID) (string, error) {
 	return uri.(string), nil
 }
 
+func (s *basicNFT) SetTokenURI(tid TokenID, tURI TokenURI) (bool, error) {
+	// check for invalid TokenID
+	if !s.exists(tid) {
+		return false, ErrInvalidTokenId
+	}
+
+	// check for the right owner
+	owner, err := s.OwnerOf(tid)
+	if err != nil {
+		return false, err
+	}
+	caller := std.PrevRealm().Addr()
+	if caller != owner {
+		return false, ErrCallerIsNotOwner
+	}
+	s.tokenURIs.Set(string(tid), string(tURI))
+	return true, nil
+}
+
 // IsApprovedForAll returns true if operator is approved for all by the owner.
 // Otherwise, returns false
 func (s *basicNFT) IsApprovedForAll(owner, operator std.Address) bool {
@@ -95,7 +114,7 @@ func (s *basicNFT) Approve(to std.Address, tid TokenID) error {
 		return ErrApprovalToCurrentOwner
 	}
 
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	if caller != owner && !s.IsApprovedForAll(owner, caller) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -123,7 +142,7 @@ func (s *basicNFT) SetApprovalForAll(operator std.Address, approved bool) error 
 		return ErrInvalidAddress
 	}
 
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	return s.setApprovalForAll(caller, operator, approved)
 }
 
@@ -131,7 +150,7 @@ func (s *basicNFT) SetApprovalForAll(operator std.Address, approved bool) error 
 // contract recipients are aware of the GRC721 protocol to prevent
 // tokens from being forever locked.
 func (s *basicNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}
@@ -150,7 +169,7 @@ func (s *basicNFT) SafeTransferFrom(from, to std.Address, tid TokenID) error {
 
 // Transfers `tokenId` token from `from` to `to`.
 func (s *basicNFT) TransferFrom(from, to std.Address, tid TokenID) error {
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	if !s.isApprovedOrOwner(caller, tid) {
 		return ErrCallerIsNotOwnerOrApproved
 	}

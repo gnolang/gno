@@ -2,8 +2,6 @@ package clist
 
 import (
 	"fmt"
-	"runtime"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -12,6 +10,8 @@ import (
 )
 
 func TestPanicOnMaxLength(t *testing.T) {
+	t.Parallel()
+
 	maxLength := 1000
 
 	l := newWithMax(maxLength)
@@ -24,6 +24,8 @@ func TestPanicOnMaxLength(t *testing.T) {
 }
 
 func TestSmall(t *testing.T) {
+	t.Parallel()
+
 	l := New()
 	el1 := l.PushBack(1)
 	el2 := l.PushBack(2)
@@ -64,110 +66,9 @@ func TestSmall(t *testing.T) {
 	}
 }
 
-// This test is quite hacky because it relies on SetFinalizer
-// which isn't guaranteed to run at all.
-//
-//nolint:unused,deadcode
-func _TestGCFifo(t *testing.T) {
-	t.Helper()
-
-	if runtime.GOARCH != "amd64" {
-		t.Skipf("Skipping on non-amd64 machine")
-	}
-
-	const numElements = 1000000
-	l := New()
-	gcCount := new(uint64)
-
-	// SetFinalizer doesn't work well with circular structures,
-	// so we construct a trivial non-circular structure to
-	// track.
-	type value struct {
-		Int int
-	}
-	done := make(chan struct{})
-
-	for i := 0; i < numElements; i++ {
-		v := new(value)
-		v.Int = i
-		l.PushBack(v)
-		runtime.SetFinalizer(v, func(v *value) {
-			atomic.AddUint64(gcCount, 1)
-		})
-	}
-
-	for el := l.Front(); el != nil; {
-		l.Remove(el)
-		// oldEl := el
-		el = el.Next()
-		// oldEl.DetachPrev()
-		// oldEl.DetachNext()
-	}
-
-	runtime.GC()
-	time.Sleep(time.Second * 3)
-	runtime.GC()
-	time.Sleep(time.Second * 3)
-	_ = done
-
-	if *gcCount != numElements {
-		t.Errorf("Expected gcCount to be %v, got %v", numElements,
-			*gcCount)
-	}
-}
-
-// This test is quite hacky because it relies on SetFinalizer
-// which isn't guaranteed to run at all.
-//
-//nolint:unused,deadcode
-func _TestGCRandom(t *testing.T) {
-	t.Helper()
-
-	if runtime.GOARCH != "amd64" {
-		t.Skipf("Skipping on non-amd64 machine")
-	}
-
-	const numElements = 1000000
-	l := New()
-	gcCount := 0
-
-	// SetFinalizer doesn't work well with circular structures,
-	// so we construct a trivial non-circular structure to
-	// track.
-	type value struct {
-		Int int
-	}
-
-	for i := 0; i < numElements; i++ {
-		v := new(value)
-		v.Int = i
-		l.PushBack(v)
-		runtime.SetFinalizer(v, func(v *value) {
-			gcCount++
-		})
-	}
-
-	els := make([]*CElement, 0, numElements)
-	for el := l.Front(); el != nil; el = el.Next() {
-		els = append(els, el)
-	}
-
-	for _, i := range random.RandPerm(numElements) {
-		el := els[i]
-		l.Remove(el)
-		_ = el.Next()
-	}
-
-	runtime.GC()
-	time.Sleep(time.Second * 3)
-
-	if gcCount != numElements {
-		t.Errorf("Expected gcCount to be %v, got %v", numElements,
-			gcCount)
-	}
-}
-
 func TestScanRightDeleteRandom(t *testing.T) {
+	t.Parallel()
+
 	const numElements = 1000
 	const numTimes = 100
 	const numScanners = 10
@@ -239,6 +140,8 @@ func TestScanRightDeleteRandom(t *testing.T) {
 }
 
 func TestWaitChan(t *testing.T) {
+	t.Parallel()
+
 	l := New()
 	ch := l.WaitChan()
 

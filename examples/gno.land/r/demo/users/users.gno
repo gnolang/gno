@@ -7,44 +7,16 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/users"
 )
-
-//----------------------------------------
-// Types
-
-type User struct {
-	address std.Address
-	name    string
-	profile string
-	number  int
-	invites int
-	inviter std.Address
-}
-
-func (u *User) Render() string {
-	str := "## user " + u.name + "\n" +
-		"\n" +
-		" * address = " + string(u.address) + "\n" +
-		" * " + strconv.Itoa(u.invites) + " invites\n"
-	if u.inviter != "" {
-		str = str + " * invited by " + string(u.inviter) + "\n"
-	}
-	str = str + "\n" +
-		u.profile + "\n"
-	return str
-}
-
-func (u User) Name() string         { return u.name }
-func (u User) Profile() string      { return u.profile }
-func (u User) Address() std.Address { return u.address }
 
 //----------------------------------------
 // State
 
 var (
 	admin      std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
-	name2User  avl.Tree                    // Name -> *User
-	addr2User  avl.Tree                    // std.Address -> *User
+	name2User  avl.Tree                    // Name -> *users.User
+	addr2User  avl.Tree                    // std.Address -> *users.User
 	invites    avl.Tree                    // string(inviter+":"+invited) -> true
 	counter    int                         // user id counter
 	minFee     int64       = 200 * 1000000 // minimum gnot must be paid to register.
@@ -63,7 +35,7 @@ func Register(inviter std.Address, name string, profile string) {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
 	sentCoins := std.GetOrigSend()
-	minCoin := std.Coin{"ugnot", minFee}
+	minCoin := std.NewCoin("ugnot", minFee)
 	if inviter == "" {
 		// banker := std.GetBanker(std.BankerTypeOrigSend)
 		if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
@@ -108,13 +80,13 @@ func Register(inviter std.Address, name string, profile string) {
 	}
 	// register.
 	counter++
-	user := &User{
-		address: caller,
-		name:    name,
-		profile: profile,
-		number:  counter,
-		invites: invites,
-		inviter: inviter,
+	user := &users.User{
+		Address: caller,
+		Name:    name,
+		Profile: profile,
+		Number:  counter,
+		Invites: invites,
+		Inviter: inviter,
 	}
 	name2User.Set(name, user)
 	addr2User.Set(caller.String(), user)
@@ -137,12 +109,12 @@ func Invite(invitee string) {
 		if !ok {
 			panic("user unknown")
 		}
-		user := userI.(*User)
-		if user.invites <= 0 {
+		user := userI.(*users.User)
+		if user.Invites <= 0 {
 			panic("user has no invite tokens")
 		}
-		user.invites -= len(lines)
-		if user.invites < 0 {
+		user.Invites -= len(lines)
+		if user.Invites < 0 {
 			panic("user has insufficient invite tokens")
 		}
 	}
@@ -204,8 +176,8 @@ func GrantInvites(invites string) {
 				panic("invalid user " + name)
 			}
 		}
-		user := userI.(*User)
-		user.invites += invites
+		user := userI.(*users.User)
+		user.Invites += invites
 	}
 }
 
@@ -238,29 +210,38 @@ func SetMaxFeeMultiple(newMaxFeeMult int64) {
 //----------------------------------------
 // Exposed public functions
 
-func GetUserByName(name string) *User {
+func GetUserByName(name string) *users.User {
 	userI, ok := name2User.Get(name)
 	if !ok {
 		return nil
 	}
-	return userI.(*User)
+	return userI.(*users.User)
 }
 
-func GetUserByAddress(addr std.Address) *User {
+func GetUserByAddress(addr std.Address) *users.User {
 	userI, ok := addr2User.Get(addr.String())
 	if !ok {
 		return nil
 	}
-	return userI.(*User)
+	return userI.(*users.User)
 }
 
 // unlike GetUserByName, input must be "@" prefixed for names.
-func GetUserByAddressOrName(input AddressOrName) *User {
+func GetUserByAddressOrName(input users.AddressOrName) *users.User {
 	name, isName := input.GetName()
 	if isName {
 		return GetUserByName(name)
 	}
 	return GetUserByAddress(std.Address(input))
+}
+
+func Resolve(input users.AddressOrName) std.Address {
+	name, isName := input.GetName()
+	if !isName {
+		return std.Address(input) // TODO check validity
+	}
+	user := GetUserByName(name)
+	return user.Address
 }
 
 //----------------------------------------
@@ -297,8 +278,8 @@ func Render(path string) string {
 func renderHome() string {
 	doc := ""
 	name2User.Iterate("", "", func(key string, value interface{}) bool {
-		user := value.(*User)
-		doc += " * [" + user.name + "](/r/demo/users:" + user.name + ")\n"
+		user := value.(*users.User)
+		doc += " * [" + user.Name + "](/r/demo/users:" + user.Name + ")\n"
 		return false
 	})
 	return doc

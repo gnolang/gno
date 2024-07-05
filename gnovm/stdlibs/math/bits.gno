@@ -4,10 +4,6 @@
 
 package math
 
-import (
-	imath "internal/math"
-)
-
 const (
 	uvnan    = 0x7FF8000000000001
 	uvinf    = 0x7FF0000000000000
@@ -28,11 +24,11 @@ func Inf(sign int) float64 {
 	} else {
 		v = uvneginf
 	}
-	return imath.Float64frombits(v)
+	return Float64frombits(v)
 }
 
 // NaN returns an IEEE 754 “not-a-number” value.
-func NaN() float64 { return imath.Float64frombits(uvnan) }
+func NaN() float64 { return Float64frombits(uvnan) }
 
 // IsNaN reports whether f is an IEEE 754 “not-a-number” value.
 func IsNaN(f float64) (is bool) {

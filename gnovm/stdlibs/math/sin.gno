@@ -1,7 +1,6 @@
 // Copyright 2011 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-// from https://github.com/golang/go/blob/e4de2e7fd04c92d4035cd268d5043f2380aef437/src/pkg/math/sin.go
 
 package math
 
@@ -110,42 +109,49 @@ var _cos = [...]float64{
 	4.16666666666665929218e-2,   // 0x3fa555555555554b
 }
 
-// Cos returns the cosine of x.
+// Cos returns the cosine of the radian argument x.
 //
 // Special cases are:
 //
 //	Cos(±Inf) = NaN
 //	Cos(NaN) = NaN
 func Cos(x float64) float64 {
+	return cos(x)
+}
+
+func cos(x float64) float64 {
 	const (
-		PI4A = 7.85398125648498535156e-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
-		PI4B = 3.77489470793079817668e-8                             // 0x3e64442d00000000,
-		PI4C = 2.69515142907905952645e-15                            // 0x3ce8469898cc5170,
-		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
+		PI4A = 7.85398125648498535156e-1  // 0x3fe921fb40000000, Pi/4 split into three parts
+		PI4B = 3.77489470793079817668e-8  // 0x3e64442d00000000,
+		PI4C = 2.69515142907905952645e-15 // 0x3ce8469898cc5170,
 	)
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
-	case x != x || x < -MaxFloat64 || x > MaxFloat64: // IsNaN(x) || IsInf(x, 0):
+	case IsNaN(x) || IsInf(x, 0):
 		return NaN()
 	}
 
 	// make argument positive
 	sign := false
-	if x < 0 {
-		x = -x
+	x = Abs(x)
+
+	var j uint64
+	var y, z float64
+	if x >= reduceThreshold {
+		j, z = trigReduce(x)
+	} else {
+		j = uint64(x * (4 / Pi)) // integer part of x/(Pi/4), as integer for tests on the phase angle
+		y = float64(j)           // integer part of x/(Pi/4), as float
+
+		// map zeros to origin
+		if j&1 == 1 {
+			j++
+			y++
+		}
+		j &= 7                               // octant modulo 2Pi radians (360 degrees)
+		z = ((x - y*PI4A) - y*PI4B) - y*PI4C // Extended precision modular arithmetic
 	}
 
-	j := int64(x * M4PI) // integer part of x/(Pi/4), as integer for tests on the phase angle
-	y := float64(j)      // integer part of x/(Pi/4), as float
-
-	// map zeros to origin
-	if j&1 == 1 {
-		j += 1
-		y += 1
-	}
-	j &= 7 // octant modulo 2Pi radians (360 degrees)
 	if j > 3 {
 		j -= 4
 		sign = !sign
@@ -154,7 +160,6 @@ func Cos(x float64) float64 {
 		sign = !sign
 	}
 
-	z := ((x - y*PI4A) - y*PI4B) - y*PI4C // Extended precision modular arithmetic
 	zz := z * z
 	if j == 1 || j == 2 {
 		y = z + z*zz*((((((_sin[0]*zz)+_sin[1])*zz+_sin[2])*zz+_sin[3])*zz+_sin[4])*zz+_sin[5])
@@ -167,7 +172,7 @@ func Cos(x float64) float64 {
 	return y
 }
 
-// Sin returns the sine of x.
+// Sin returns the sine of the radian argument x.
 //
 // Special cases are:
 //
@@ -175,19 +180,20 @@ func Cos(x float64) float64 {
 //	Sin(±Inf) = NaN
 //	Sin(NaN) = NaN
 func Sin(x float64) float64 {
+	return sin(x)
+}
+
+func sin(x float64) float64 {
 	const (
-		PI4A = 7.85398125648498535156e-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
-		PI4B = 3.77489470793079817668e-8                             // 0x3e64442d00000000,
-		PI4C = 2.69515142907905952645e-15                            // 0x3ce8469898cc5170,
-		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
+		PI4A = 7.85398125648498535156e-1  // 0x3fe921fb40000000, Pi/4 split into three parts
+		PI4B = 3.77489470793079817668e-8  // 0x3e64442d00000000,
+		PI4C = 2.69515142907905952645e-15 // 0x3ce8469898cc5170,
 	)
-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
-	// when compiler does it for us
 	// special cases
 	switch {
-	case x == 0 || x != x: // x == 0 || IsNaN():
+	case x == 0 || IsNaN(x):
 		return x // return ±0 || NaN()
-	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
+	case IsInf(x, 0):
 		return NaN()
 	}
 
@@ -198,22 +204,27 @@ func Sin(x float64) float64 {
 		sign = true
 	}
 
-	j := int64(x * M4PI) // integer part of x/(Pi/4), as integer for tests on the phase angle
-	y := float64(j)      // integer part of x/(Pi/4), as float
+	var j uint64
+	var y, z float64
+	if x >= reduceThreshold {
+		j, z = trigReduce(x)
+	} else {
+		j = uint64(x * (4 / Pi)) // integer part of x/(Pi/4), as integer for tests on the phase angle
+		y = float64(j)           // integer part of x/(Pi/4), as float
 
-	// map zeros to origin
-	if j&1 == 1 {
-		j += 1
-		y += 1
+		// map zeros to origin
+		if j&1 == 1 {
+			j++
+			y++
+		}
+		j &= 7                               // octant modulo 2Pi radians (360 degrees)
+		z = ((x - y*PI4A) - y*PI4B) - y*PI4C // Extended precision modular arithmetic
 	}
-	j &= 7 // octant modulo 2Pi radians (360 degrees)
 	// reflect in x axis
 	if j > 3 {
 		sign = !sign
 		j -= 4
 	}
-
-	z := ((x - y*PI4A) - y*PI4B) - y*PI4C // Extended precision modular arithmetic
 	zz := z * z
 	if j == 1 || j == 2 {
 		y = 1.0 - 0.5*zz + zz*zz*((((((_cos[0]*zz)+_cos[1])*zz+_cos[2])*zz+_cos[3])*zz+_cos[4])*zz+_cos[5])

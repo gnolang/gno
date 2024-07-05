@@ -37,6 +37,8 @@ func makeVote(val PrivValidator, chainID string, valIndex int, height int64, rou
 }
 
 func TestEvidence(t *testing.T) {
+	t.Parallel()
+
 	val := NewMockPV()
 	val2 := NewMockPV()
 
@@ -83,6 +85,8 @@ func TestEvidence(t *testing.T) {
 }
 
 func TestDuplicatedVoteEvidence(t *testing.T) {
+	t.Parallel()
+
 	ev := randomDuplicatedVoteEvidence()
 
 	assert.True(t, ev.Equal(ev))
@@ -90,6 +94,8 @@ func TestDuplicatedVoteEvidence(t *testing.T) {
 }
 
 func TestEvidenceList(t *testing.T) {
+	t.Parallel()
+
 	ev := randomDuplicatedVoteEvidence()
 	evl := EvidenceList([]Evidence{ev})
 
@@ -99,6 +105,8 @@ func TestEvidenceList(t *testing.T) {
 }
 
 func TestEvidenceByteSize(t *testing.T) {
+	t.Parallel()
+
 	val := NewMockPV()
 	blockID := makeBlockID(tmhash.Sum([]byte("blockhash")), math.MaxInt64, tmhash.Sum([]byte("partshash")))
 	blockID2 := makeBlockID(tmhash.Sum([]byte("blockhash2")), math.MaxInt64, tmhash.Sum([]byte("partshash")))
@@ -127,6 +135,8 @@ func randomDuplicatedVoteEvidence() *DuplicateVoteEvidence {
 }
 
 func TestDuplicateVoteEvidenceValidation(t *testing.T) {
+	t.Parallel()
+
 	val := NewMockPV()
 	blockID := makeBlockID(tmhash.Sum([]byte("blockhash")), math.MaxInt64, tmhash.Sum([]byte("partshash")))
 	blockID2 := makeBlockID(tmhash.Sum([]byte("blockhash2")), math.MaxInt64, tmhash.Sum([]byte("partshash")))
@@ -151,6 +161,8 @@ func TestDuplicateVoteEvidenceValidation(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
+
 			ev := &DuplicateVoteEvidence{
 				PubKey: secp256k1.GenPrivKey().PubKey(),
 				VoteA:  makeVote(val, chainID, math.MaxInt64, math.MaxInt64, math.MaxInt64, 0x02, blockID),
@@ -163,11 +175,15 @@ func TestDuplicateVoteEvidenceValidation(t *testing.T) {
 }
 
 func TestMockGoodEvidenceValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	goodEvidence := NewMockGoodEvidence(int64(1), 1, crypto.AddressFromPreimage([]byte{1}))
 	assert.Nil(t, goodEvidence.ValidateBasic())
 }
 
 func TestMockBadEvidenceValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	badEvidence := MockBadEvidence{MockGoodEvidence: NewMockGoodEvidence(int64(1), 1, crypto.AddressFromPreimage([]byte{1}))}
 	assert.Nil(t, badEvidence.ValidateBasic())
 }

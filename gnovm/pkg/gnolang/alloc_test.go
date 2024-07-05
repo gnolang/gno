@@ -6,6 +6,8 @@ import (
 )
 
 func TestAllocSizes(t *testing.T) {
+	t.Parallel()
+
 	// go elemental
 	println("_allocPointer", unsafe.Sizeof(&StructValue{}))
 	println("_allocSlice", unsafe.Sizeof([]byte("12345678901234567890123456789012345678901234567890")))

@@ -52,6 +52,8 @@ func _printValue(x interface{}) {
 }
 
 func TestSelectors(t *testing.T) {
+	t.Parallel()
+
 	x0 := struct{ F0 int }{1}
 	_printValue(x0.F0) //       *ST.F0
 	//                            F:0

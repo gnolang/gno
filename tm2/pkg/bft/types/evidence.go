@@ -65,7 +65,7 @@ const (
 )
 
 // MaxEvidencePerBlock returns the maximum number of evidences
-// allowed in the block and their maximum total size (limitted to 1/10th
+// allowed in the block and their maximum total size (limited to 1/10th
 // of the maximum block size).
 // TODO: change to a constant, or to a fraction of the validator set size.
 // See https://github.com/tendermint/classic/issues/2590

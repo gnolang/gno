@@ -532,7 +532,7 @@ func (cdc *Codec) getTypeInfoFromFullnameRLock(fullname string, fopts FieldOptio
 
 	info, ok := cdc.fullnameToTypeInfo[fullname]
 	if !ok {
-		err = fmt.Errorf("unrecognized concrete type full name %s of %v", fullname, cdc.fullnameToTypeInfo)
+		err = fmt.Errorf("amino: unrecognized concrete type full name %s", fullname)
 		cdc.mtx.RUnlock()
 		return
 	}
@@ -594,7 +594,7 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 	cdc.typeInfos[rt] = info
 
 	info.Type = rt
-	info.PtrToType = reflect.PtrTo(rt)
+	info.PtrToType = reflect.PointerTo(rt)
 	info.ZeroValue = reflect.Zero(rt)
 	var isAminoMarshaler bool
 	var reprType reflect.Type
@@ -602,7 +602,7 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 		isAminoMarshaler = true
 		reprType = marshalAminoReprType(rm)
 	}
-	if rm, ok := reflect.PtrTo(rt).MethodByName("UnmarshalAmino"); ok {
+	if rm, ok := reflect.PointerTo(rt).MethodByName("UnmarshalAmino"); ok {
 		if !isAminoMarshaler {
 			panic("Must implement both (o).MarshalAmino and (*o).UnmarshalAmino")
 		}

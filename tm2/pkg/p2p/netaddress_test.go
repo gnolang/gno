@@ -11,6 +11,8 @@ import (
 )
 
 func TestAddress2ID(t *testing.T) {
+	t.Parallel()
+
 	idbz, _ := hex.DecodeString("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
 	id := crypto.AddressFromBytes(idbz).ID()
 	assert.Equal(t, crypto.ID("g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6"), id)
@@ -21,6 +23,8 @@ func TestAddress2ID(t *testing.T) {
 }
 
 func TestNewNetAddress(t *testing.T) {
+	t.Parallel()
+
 	tcpAddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:8080")
 	require.Nil(t, err)
 
@@ -41,6 +45,8 @@ func TestNewNetAddress(t *testing.T) {
 }
 
 func TestNewNetAddressFromString(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name     string
 		addr     string
@@ -85,6 +91,8 @@ func TestNewNetAddressFromString(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			addr, err := NewNetAddressFromString(tc.addr)
 			if tc.correct {
 				if assert.Nil(t, err, tc.addr) {
@@ -98,6 +106,8 @@ func TestNewNetAddressFromString(t *testing.T) {
 }
 
 func TestNewNetAddressFromStrings(t *testing.T) {
+	t.Parallel()
+
 	addrs, errs := NewNetAddressFromStrings([]string{
 		"127.0.0.1:8080",
 		"g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080",
@@ -108,11 +118,15 @@ func TestNewNetAddressFromStrings(t *testing.T) {
 }
 
 func TestNewNetAddressFromIPPort(t *testing.T) {
+	t.Parallel()
+
 	addr := NewNetAddressFromIPPort("", net.ParseIP("127.0.0.1"), 8080)
 	assert.Equal(t, "127.0.0.1:8080", addr.String())
 }
 
 func TestNetAddressProperties(t *testing.T) {
+	t.Parallel()
+
 	// TODO add more test cases
 	testCases := []struct {
 		addr     string
@@ -140,6 +154,8 @@ func TestNetAddressProperties(t *testing.T) {
 }
 
 func TestNetAddressReachabilityTo(t *testing.T) {
+	t.Parallel()
+
 	// TODO add more test cases
 	testCases := []struct {
 		addr         string

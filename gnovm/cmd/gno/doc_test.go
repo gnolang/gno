@@ -10,7 +10,7 @@ func TestGnoDoc(t *testing.T) {
 		},
 		{
 			args:                []string{"doc", "avl"},
-			stdoutShouldContain: "func NewNode",
+			stdoutShouldContain: "func NewTree",
 		},
 		{
 			args:                []string{"doc", "-u", "avl.Node"},

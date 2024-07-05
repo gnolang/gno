@@ -8,8 +8,8 @@ name ["gno.land/r/demo/boards"](https://gno.land/r/demo/boards/)
 ## Build `gnokey`, create your account, and interact with Gno.
 
 NOTE: Where you see `-remote localhost:26657` here, that flag can be replaced
-with `-remote test3.gno.land:36657` if you have $GNOT on the testnet.
-(To use the testnet, also replace `-chainid dev` with `-chainid testchain` .)
+with `-remote test3.gno.land:26657` if you have $GNOT on the testnet.
+(To use the testnet, also replace `-chainid dev` with `-chainid test3` .)
 
 ### Build `gnokey` (and other tools).
 
@@ -58,7 +58,7 @@ your `ACCOUNT_ADDR` and `KEYNAME`
 
 Instead of editing `gno.land/genesis/genesis_balances.txt`, a more general solution (with more steps)
 is to run a local "faucet" and use the web browser to add $GNOT. (This can be done at any time.)
-See this page: https://github.com/gnolang/gno/blob/master/gno.land/cmd/gnofaucet/README.md 
+See this page: https://github.com/gnolang/gno/blob/master/gno.land/cmd/gnofaucet/README.md
 
 ### Start the `gnoland` node.
 
@@ -97,8 +97,7 @@ Interactive documentation: https://test3.gno.land/r/demo/boards?help&__func=Crea
 Next, query for the permanent board ID by querying (you need this to create a new post):
 
 ```bash
-./build/gnokey query "vm/qeval" -data "gno.land/r/demo/boards
-GetBoardIDFromName(\"BOARDNAME\")" -remote localhost:26657
+./build/gnokey query "vm/qeval" -data 'gno.land/r/demo/boards.GetBoardIDFromName("BOARDNAME")' -remote localhost:26657
 ```
 
 ### Create a post of a board with a smart contract call.
@@ -120,8 +119,7 @@ Interactive documentation: https://test3.gno.land/r/demo/boards?help&__func=Crea
 Interactive documentation: https://test3.gno.land/r/demo/boards?help&__func=CreateReply
 
 ```bash
-./build/gnokey query "vm/qrender" -data "gno.land/r/demo/boards
-BOARDNAME/1" -remote localhost:26657
+./build/gnokey query "vm/qrender" -data "gno.land/r/demo/boards:BOARDNAME/1" -remote localhost:26657
 ```
 
 ### Render page with optional path expression.
@@ -130,8 +128,7 @@ The contents of `https://gno.land/r/demo/boards:` and `https://gno.land/r/demo/b
 the `Render(path string)` function like so:
 
 ```bash
-./build/gnokey query "vm/qrender" -data "gno.land/r/demo/boards
-gnolang"
+./build/gnokey query "vm/qrender" -data "gno.land/r/demo/boards:gnolang"
 ```
 ## View the board in the browser.
 

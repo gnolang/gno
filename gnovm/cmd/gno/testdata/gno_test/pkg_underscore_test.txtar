@@ -1,0 +1,69 @@
+# Test a pkg name with _test as suffix
+
+# Set up GNOROOT in the current directory.
+mkdir $WORK/gnovm
+symlink $WORK/gnovm/stdlibs -> $GNOROOT/gnovm/stdlibs
+env GNOROOT=$WORK
+
+gno test -v ./examples/gno.land/p/demo/hello
+
+stderr '=== RUN   TestHello'
+stderr '--- PASS: TestHello.*'
+
+stderr '=== RUN   TestHullo'
+stderr '--- PASS: TestHullo.*'
+
+stderr '=== RUN   file/z0_filetest.*'
+
+-- examples/gno.land/p/demo/hello/gno.mod --
+module gno.land/p/demo/hello
+
+-- examples/gno.land/p/demo/hello/hello.gno --
+package hello
+
+var Name = "foo"
+
+-- examples/gno.land/p/demo/hello/hello_test.gno --
+package hello_test
+
+import (
+       "testing"
+
+       "gno.land/p/demo/hello"
+)
+
+var Name = "bar"
+
+func TestHello(t *testing.T) {
+     s := "hello " + hello.Name + " " + Name
+     const want = "hello foo bar"
+     if s != want {
+        t.Errorf("got: %q want %q", s, want)
+     }
+}
+
+-- examples/gno.land/p/demo/hello/hullo_test.gno --
+package hello
+
+import (
+       "testing"
+)
+
+func TestHullo(t *testing.T) {
+     s := "hullo " + Name
+     const want = "hullo foo"
+     if s != want {
+        t.Errorf("got: %q want %q", s, want)
+     }
+}
+
+-- examples/gno.land/p/demo/hello/z0_filetest.gno --
+package main
+
+import "gno.land/p/demo/hello"
+
+func main() {
+	println("filetest " + hello.Name)
+}
+
+// Output: filetest foo

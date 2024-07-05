@@ -1,11 +1,8 @@
 package iavl
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
-
-	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
 // pathWithLeaf is a path to a leaf node and the leaf node itself.
@@ -26,14 +23,6 @@ func (pwl pathWithLeaf) StringIndented(indent string) string {
 		indent, pwl.Path.stringIndented(indent+"  "),
 		indent, pwl.Leaf.stringIndented(indent+"  "),
 		indent)
-}
-
-// `verify` checks that the leaf node's hash + the inner nodes merkle-izes to
-// the given root. If it returns an error, it means the leafHash or the
-// PathToLeaf is incorrect.
-func (pwl pathWithLeaf) verify(root []byte) error {
-	leafHash := pwl.Leaf.Hash()
-	return pwl.Path.verify(leafHash, root)
 }
 
 // `computeRootHash` computes the root hash with leaf node.
@@ -73,21 +62,6 @@ func (pl PathToLeaf) stringIndented(indent string) string {
 		indent)
 }
 
-// `verify` checks that the leaf node's hash + the inner nodes merkle-izes to
-// the given root. If it returns an error, it means the leafHash or the
-// PathToLeaf is incorrect.
-func (pl PathToLeaf) verify(leafHash []byte, root []byte) error {
-	hash := leafHash
-	for i := len(pl) - 1; i >= 0; i-- {
-		pin := pl[i]
-		hash = pin.Hash(hash)
-	}
-	if !bytes.Equal(root, hash) {
-		return errors.Wrap(ErrInvalidProof, "")
-	}
-	return nil
-}
-
 // `computeRootHash` computes the root hash assuming some leaf hash.
 // Does not verify the root hash.
 func (pl PathToLeaf) computeRootHash(leafHash []byte) []byte {
@@ -115,37 +89,6 @@ func (pl PathToLeaf) isRightmost() bool {
 		}
 	}
 	return true
-}
-
-func (pl PathToLeaf) isEmpty() bool {
-	return pl == nil || len(pl) == 0
-}
-
-func (pl PathToLeaf) dropRoot() PathToLeaf {
-	if pl.isEmpty() {
-		return pl
-	}
-	return pl[:len(pl)-1]
-}
-
-func (pl PathToLeaf) hasCommonRoot(pl2 PathToLeaf) bool {
-	if pl.isEmpty() || pl2.isEmpty() {
-		return false
-	}
-	leftEnd := pl[len(pl)-1]
-	rightEnd := pl2[len(pl2)-1]
-
-	return bytes.Equal(leftEnd.Left, rightEnd.Left) &&
-		bytes.Equal(leftEnd.Right, rightEnd.Right)
-}
-
-func (pl PathToLeaf) isLeftAdjacentTo(pl2 PathToLeaf) bool {
-	for pl.hasCommonRoot(pl2) {
-		pl, pl2 = pl.dropRoot(), pl2.dropRoot()
-	}
-	pl, pl2 = pl.dropRoot(), pl2.dropRoot()
-
-	return pl.isRightmost() && pl2.isLeftmost()
 }
 
 // returns -1 if invalid.

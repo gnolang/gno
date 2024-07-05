@@ -12,14 +12,6 @@ const bdOptionByte = 0x01
 // ----------------------------------------
 // cdc.decodeReflectBinary
 
-var ErrOverflowInt = errors.New("encoded integer value overflows int(32)")
-
-const (
-	// architecture dependent int limits:
-	maxInt = int(^uint(0) >> 1)
-	minInt = -maxInt - 1
-)
-
 // This is the main entrypoint for decoding all types from binary form. This
 // function calls decodeReflectBinary*, and generally those functions should
 // only call this one, for overrides all happen here.

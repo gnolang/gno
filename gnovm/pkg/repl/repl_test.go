@@ -69,7 +69,7 @@ var fixtures = []struct {
 		CodeSteps: []step{
 			{
 				Line:  "importasdasd",
-				Error: "recovered from panic: test/test1.gno:7: name importasdasd not declared",
+				Error: "test/test1.gno:7:2: name importasdasd not declared",
 			},
 			{
 				Line: "var a := 1",
@@ -199,6 +199,8 @@ func TestRepl(t *testing.T) {
 }
 
 func TestReplOpts(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 
 	r := NewRepl(WithStd(nil, nil, nil), WithStore(nil))
@@ -212,6 +214,8 @@ func TestReplOpts(t *testing.T) {
 }
 
 func TestReplReset(t *testing.T) {
+	t.Parallel()
+
 	require := require.New(t)
 
 	r := NewRepl()

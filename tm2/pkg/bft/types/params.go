@@ -16,6 +16,18 @@ const (
 
 	// MaxBlockPartsCount is the maximum count of block parts.
 	MaxBlockPartsCount = (MaxBlockSizeBytes / BlockPartSizeBytes) + 1
+
+	// MaxBlockTxBytes is the max size of the block transaction
+	MaxBlockTxBytes int64 = 1000000 // 1MB
+
+	// MaxBlockDataBytes is the max size of the block data
+	MaxBlockDataBytes int64 = 2000000 // 2MB
+
+	// MaxBlockMaxGas is the max gas limit for the block
+	MaxBlockMaxGas int64 = 100000000 // 100M gas
+
+	// BlockTimeIotaMS is the block time iota (in ms)
+	BlockTimeIotaMS int64 = 100 // ms
 )
 
 var validatorPubKeyTypeURLs = map[string]struct{}{
@@ -31,10 +43,10 @@ func DefaultConsensusParams() abci.ConsensusParams {
 
 func DefaultBlockParams() *abci.BlockParams {
 	return &abci.BlockParams{
-		MaxTxBytes:   1024 * 1024, // 1MB
-		MaxDataBytes: 22020096,    // 21MB
-		MaxGas:       -1,
-		TimeIotaMS:   1000, // 1s
+		MaxTxBytes:   MaxBlockTxBytes,
+		MaxDataBytes: MaxBlockDataBytes,
+		MaxGas:       MaxBlockMaxGas,
+		TimeIotaMS:   BlockTimeIotaMS,
 	}
 }
 

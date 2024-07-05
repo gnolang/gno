@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/cockroachdb/apd"
+	"github.com/cockroachdb/apd/v3"
 )
 
 // t cannot be nil or untyped or DataByteType.
@@ -77,6 +77,10 @@ GNO_CASE:
 	}
 	// special case for undefined/nil source
 	if tv.IsUndefined() {
+		switch t.Kind() {
+		case BoolKind, StringKind, IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind, Float32Kind, Float64Kind, BigintKind, BigdecKind:
+			panic(fmt.Sprintf("cannot convert %v to %v", tv, t))
+		}
 		tv.T = t
 		return
 	}
@@ -878,6 +882,11 @@ GNO_CASE:
 // TODO: method on TypedValue?
 func ConvertUntypedTo(tv *TypedValue, t Type) {
 	if debug {
+		defer func() {
+			debug.Printf("ConvertUntypedTo done, tv: %v \n", tv)
+		}()
+	}
+	if debug {
 		if !isUntyped(tv.T) {
 			panic(fmt.Sprintf(
 				"ConvertUntypedTo expects untyped const source but got %s",
@@ -935,17 +944,17 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	case UntypedRuneType:
 		ConvertUntypedRuneTo(tv, t)
 	case UntypedBigintType:
-		if preprocessing == 0 {
+		if preprocessing.Load() == 0 {
 			panic("untyped Bigint conversion should not happen during interpretation")
 		}
 		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	case UntypedBigdecType:
-		if preprocessing == 0 {
+		if preprocessing.Load() == 0 {
 			panic("untyped Bigdec conversion should not happen during interpretation")
 		}
 		ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
 	case UntypedStringType:
-		if preprocessing == 0 {
+		if preprocessing.Load() == 0 {
 			panic("untyped String conversion should not happen during interpretation")
 		}
 		if t.Kind() == StringKind {
@@ -1113,7 +1122,7 @@ func ConvertUntypedBigintTo(dst *TypedValue, bv BigintValue, t Type) {
 		return // done
 	case BigdecKind:
 		dst.T = t
-		dst.V = BigdecValue{V: apd.NewWithBigInt(bi, 0)}
+		dst.V = BigdecValue{V: apd.NewWithBigInt(new(apd.BigInt).SetMathBigInt(bi), 0)}
 		return // done
 	default:
 		panic(fmt.Sprintf(
@@ -1240,12 +1249,14 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 	case Float32Kind:
 		dst.T = t
 		dst.V = nil
-		f64, _ := bd.Float64()
+		f64, err := bd.Float64()
+		if err != nil {
+			panic(fmt.Errorf("cannot convert untyped bigdec to float64: %w", err))
+		}
+
 		bf := big.NewFloat(f64)
-		f32, acc := bf.Float32()
-		if f32 == 0 && (acc == big.Below || acc == big.Above) {
-			panic("cannot convert untyped bigdec to float32 -- too close to zero")
-		} else if math.IsInf(float64(f32), 0) {
+		f32, _ := bf.Float32()
+		if math.IsInf(float64(f32), 0) {
 			panic("cannot convert untyped bigdec to float32 -- too close to +-Inf")
 		}
 		dst.SetFloat32(f32)
@@ -1253,10 +1264,11 @@ func ConvertUntypedBigdecTo(dst *TypedValue, bv BigdecValue, t Type) {
 	case Float64Kind:
 		dst.T = t
 		dst.V = nil
-		f64, _ := bd.Float64()
-		if f64 == 0 && !bd.IsZero() {
-			panic("cannot convert untyped bigdec to float64 -- too close to zero")
-		} else if math.IsInf(f64, 0) {
+		f64, err := bd.Float64()
+		if err != nil {
+			panic(fmt.Errorf("cannot convert untyped bigdec to float64: %w", err))
+		}
+		if math.IsInf(f64, 0) {
 			panic("cannot convert untyped bigdec to float64 -- too close to +-Inf")
 		}
 		dst.SetFloat64(f64)

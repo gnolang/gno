@@ -32,8 +32,6 @@ type PrimitivesStruct struct {
 	Time        time.Time
 	Duration    time.Duration
 	Empty       EmptyStruct
-
-	unexposed int8
 }
 
 type ShortArraysStruct struct {

@@ -7,7 +7,6 @@ import (
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/maths"
 )
 
 // Get block headers for minHeight <= height <= maxHeight.
@@ -95,35 +94,35 @@ func BlockchainInfo(ctx *rpctypes.Context, minHeight, maxHeight int64) (*ctypes.
 	}, nil
 }
 
-// error if either min or max are negative or min < max
-// if 0, use 1 for min, latest block height for max
-// enforce limit.
-// error if min > max
-func filterMinMax(height, min, max, limit int64) (int64, int64, error) {
+// error if either low or high are negative or low > high
+// if low is 0 it defaults to 1, if high is 0 it defaults to height (block height).
+// limit sets the maximum amounts of values included within [low,high] (inclusive),
+// increasing low as necessary.
+func filterMinMax(height, low, high, limit int64) (int64, int64, error) {
 	// filter negatives
-	if min < 0 || max < 0 {
-		return min, max, fmt.Errorf("heights must be non-negative")
+	if low < 0 || high < 0 {
+		return low, high, fmt.Errorf("heights must be non-negative")
 	}
 
 	// adjust for default values
-	if min == 0 {
-		min = 1
+	if low == 0 {
+		low = 1
 	}
-	if max == 0 {
-		max = height
+	if high == 0 {
+		high = height
 	}
 
-	// limit max to the height
-	max = maths.MinInt64(height, max)
+	// limit high to the height
+	high = min(height, high)
 
-	// limit min to within `limit` of max
+	// limit low to within `limit` of max
 	// so the total number of blocks returned will be `limit`
-	min = maths.MaxInt64(min, max-limit+1)
+	low = max(low, high-limit+1)
 
-	if min > max {
-		return min, max, fmt.Errorf("min height %d can't be greater than max height %d", min, max)
+	if low > high {
+		return low, high, fmt.Errorf("min height %d can't be greater than max height %d", low, high)
 	}
-	return min, max, nil
+	return low, high, nil
 }
 
 // Get block at a given height.

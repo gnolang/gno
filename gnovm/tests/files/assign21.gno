@@ -14,4 +14,4 @@ func main() {
 }
 
 // Output:
-// 1 true
+// (1 main.thing) true

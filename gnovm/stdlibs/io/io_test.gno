@@ -1,8 +1,8 @@
+package io_test
+
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
-
-package io_test
 
 import (
 	"bytes"
@@ -459,3 +459,84 @@ func TestCopyLargeWriter(t *testing.T) {
 		t.Errorf("Copy error: got %v, want %v", err, want)
 	}
 }
+
+func TestNopCloserWriterToForwarding(t *testing.T) {
+	for _, tc := range [...]struct {
+		Name string
+		r    io.Reader
+	}{
+		{"not a WriterTo", io.Reader(nil)},
+		{"a WriterTo", struct {
+			io.Reader
+			io.WriterTo
+		}{}},
+	} {
+		nc := io.NopCloser(tc.r)
+
+		_, expected := tc.r.(io.WriterTo)
+		_, got := nc.(io.WriterTo)
+		if expected != got {
+			t.Errorf("NopCloser incorrectly forwards WriterTo for %s, got %t want %t", tc.Name, got, expected)
+		}
+	}
+}
+
+// XXX os.CreateTemp is not available for now
+// func TestOffsetWriter_Seek(t *testing.T) {
+// 	tmpfilename := "TestOffsetWriter_Seek"
+// 	tmpfile, err := os.CreateTemp(t.TempDir(), tmpfilename)
+// 	if err != nil || tmpfile == nil {
+// 		t.Fatalf("CreateTemp(%s) failed: %v", tmpfilename, err)
+// 	}
+// 	defer tmpfile.Close()
+// 	w := NewOffsetWriter(tmpfile, 0)
+
+// 	// Should throw error errWhence if whence is not valid
+// 	t.Run("errWhence", func(t *testing.T) {
+// 		for _, whence := range []int{-3, -2, -1, 3, 4, 5} {
+// 			var offset int64 = 0
+// 			gotOff, gotErr := w.Seek(offset, whence)
+// 			if gotOff != 0 || gotErr != ErrWhence {
+// 				t.Errorf("For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, %v)",
+// 					whence, offset, gotOff, gotErr, 0, ErrWhence)
+// 			}
+// 		}
+// 	})
+
+// 	// Should throw error errOffset if offset is negative
+// 	t.Run("errOffset", func(t *testing.T) {
+// 		for _, whence := range []int{SeekStart, SeekCurrent} {
+// 			for offset := int64(-3); offset < 0; offset++ {
+// 				gotOff, gotErr := w.Seek(offset, whence)
+// 				if gotOff != 0 || gotErr != ErrOffset {
+// 					t.Errorf("For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, %v)",
+// 						whence, offset, gotOff, gotErr, 0, ErrOffset)
+// 				}
+// 			}
+// 		}
+// 	})
+
+// 	// Normal tests
+// 	t.Run("normal", func(t *testing.T) {
+// 		tests := []struct {
+// 			offset    int64
+// 			whence    int
+// 			returnOff int64
+// 		}{
+// 			// keep in order
+// 			{whence: SeekStart, offset: 1, returnOff: 1},
+// 			{whence: SeekStart, offset: 2, returnOff: 2},
+// 			{whence: SeekStart, offset: 3, returnOff: 3},
+// 			{whence: SeekCurrent, offset: 1, returnOff: 4},
+// 			{whence: SeekCurrent, offset: 2, returnOff: 6},
+// 			{whence: SeekCurrent, offset: 3, returnOff: 9},
+// 		}
+// 		for idx, tt := range tests {
+// 			gotOff, gotErr := w.Seek(tt.offset, tt.whence)
+// 			if gotOff != tt.returnOff || gotErr != nil {
+// 				t.Errorf("%d:: For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, <nil>)",
+// 					idx+1, tt.whence, tt.offset, gotOff, gotErr, tt.returnOff)
+// 			}
+// 		}
+// 	})
+// }

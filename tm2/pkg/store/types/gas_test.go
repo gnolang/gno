@@ -9,6 +9,8 @@ import (
 )
 
 func TestGasMeter(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		limit Gas
 		usage []Gas
@@ -46,6 +48,8 @@ func TestGasMeter(t *testing.T) {
 }
 
 func TestAddUint64Overflow(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		a, b     int64
 		result   int64

@@ -1,0 +1,89 @@
+{{- define "app" -}}
+<!DOCTYPE html>
+<html>
+  <head>
+    {{ template "html_head" . }}
+    <title>Gno.land - {{.Data.DirPath}}</title>
+  </head>
+  <body onload="main()">
+    <div id="root">
+      <div id="data" data-realm-path="{{ .Data.RealmPath }}" data-remote="{{ .Data.Config.HelpRemote }}" data-chainid="{{ .Data.Config.HelpChainID }}" />
+      <div id="header">{{ template "logo" }} {{ template "header_buttons" }}</div>
+      <div class="inline-list">
+        <span id="logo_path"> <a href="{{ .Data.DirPath }}">{{ .Data.DirPath }}</a>?help </span>
+      </div>
+
+      <div id="realm_help" class="container">
+        <br />
+        These are the realm's exposed functions ("public smart contracts").<br />
+        <br />
+        My address: <input id="my_address" placeholder="ADDRESS" width="40" /> (see <a href="https://docs.gno.land/gno-tooling/cli/gno-tooling-gnokey/#list-all-known-keys" target="_blank">`gnokey list`</a>)<br />
+        <br />
+        <br />
+        {{ template "func_specs" . }}
+      </div>
+
+      {{ template "footer" }}
+    </div>
+    {{ template "js" . }}
+    <script src="/static/js/realm_help.js"></script>
+  </body>
+</html>
+{{- end -}}
+
+{{- define "func_specs" -}}
+<div class="func_specs">
+  {{ $funcName := .Data.FuncName }} {{ $found := false }} {{ if eq $funcName "" }} {{ range .Data.FunctionSignatures }} {{ template "func_spec" . }} {{ end }} {{ else }} {{ range
+  .Data.FunctionSignatures }} {{ if eq .FuncName $funcName }} {{ $found = true }} {{ template "func_spec" . }} {{ end }} {{ end }} {{ if not $found }} {{ $funcName }} not found. {{ end }} {{ end }}
+</div>
+{{- end -}}
+
+{{- define "func_spec" -}}
+<div class="func_spec" data-func-name="{{ .FuncName }}">
+  <table>
+    <tr class="func_name">
+      <th>contract</th>
+      <td>{{ .FuncName }}(...)</td>
+    </tr>
+    <tr class="func_params">
+      <th>params</th>
+      <td>
+        <table>
+          {{ range .Params }}{{ template "func_param" . }}{{ end }}
+        </table>
+      </td>
+    </tr>
+    <tr class="func_results">
+      <th>results</th>
+      <td>
+        <table>
+          {{ range .Results }}{{ template "func_result" . }}{{ end }}
+        </table>
+      </td>
+    </tr>
+    <tr class="command">
+      <th>command</th>
+      <td>
+        <div class="shell_command" />
+      </td>
+    </tr>
+  </table>
+</div>
+{{- end -}}
+
+{{- define "func_param" -}}
+<tr>
+  <th class="func_param_name">{{ .Name }}</th>
+  <td class="func_param_value">
+    <input type="text" value="{{ .Value }}" />
+  </td>
+  <td class="func_param_type">{{ .Type }}</td>
+</tr>
+{{- end -}}
+
+{{- define "func_result" -}}
+<tr>
+  <th class="func_result_name">{{ .Name }}</th>
+  <td class="func_result_type">{{ .Type }}</td>
+</tr>
+{{ end }}

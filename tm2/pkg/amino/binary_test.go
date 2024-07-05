@@ -12,6 +12,8 @@ import (
 )
 
 func TestNilSliceEmptySlice(t *testing.T) {
+	t.Parallel()
+
 	cdc := amino.NewCodec()
 
 	type TestStruct struct {
@@ -59,6 +61,8 @@ func TestNilSliceEmptySlice(t *testing.T) {
 }
 
 func TestNewFieldBackwardsCompatibility(t *testing.T) {
+	t.Parallel()
+
 	type V1 struct {
 		String  string
 		String2 string
@@ -109,6 +113,8 @@ func TestNewFieldBackwardsCompatibility(t *testing.T) {
 }
 
 func TestWriteEmpty(t *testing.T) {
+	t.Parallel()
+
 	type Inner struct {
 		Val int
 	}
@@ -136,6 +142,8 @@ func TestWriteEmpty(t *testing.T) {
 }
 
 func TestForceWriteEmpty(t *testing.T) {
+	t.Parallel()
+
 	type InnerWriteEmpty struct {
 		// sth. that isn't zero-len if default, e.g. fixed32:
 		ValIn int32 `amino:"write_empty" binary:"fixed32"`
@@ -158,6 +166,8 @@ func TestForceWriteEmpty(t *testing.T) {
 }
 
 func TestStructSlice(t *testing.T) {
+	t.Parallel()
+
 	type Foo struct {
 		A uint
 		B uint
@@ -182,6 +192,8 @@ func TestStructSlice(t *testing.T) {
 }
 
 func TestStructPointerSlice1(t *testing.T) {
+	t.Parallel()
+
 	cdc := amino.NewCodec()
 
 	type Foo struct {
@@ -220,6 +232,8 @@ func TestStructPointerSlice1(t *testing.T) {
 
 // Like TestStructPointerSlice2, but without nil_elements field tag.
 func TestStructPointerSlice2(t *testing.T) {
+	t.Parallel()
+
 	cdc := amino.NewCodec()
 
 	type Foo struct {
@@ -251,6 +265,8 @@ func TestStructPointerSlice2(t *testing.T) {
 }
 
 func TestBasicTypes(t *testing.T) {
+	t.Parallel()
+
 	// we explicitly disallow type definitions like the following:
 	type byteAlias []byte
 
@@ -268,6 +284,8 @@ func TestBasicTypes(t *testing.T) {
 }
 
 func TestUnmarshalMapBinary(t *testing.T) {
+	t.Parallel()
+
 	obj := new(map[string]int)
 	cdc := amino.NewCodec()
 
@@ -291,6 +309,8 @@ func TestUnmarshalMapBinary(t *testing.T) {
 }
 
 func TestUnmarshalFuncBinary(t *testing.T) {
+	t.Parallel()
+
 	obj := func() {}
 	cdc := amino.NewCodec()
 	// Binary doesn't support decoding to a func...
@@ -316,6 +336,8 @@ func TestUnmarshalFuncBinary(t *testing.T) {
 }
 
 func TestDuration(t *testing.T) {
+	t.Parallel()
+
 	cdc := amino.NewCodec()
 	d0 := time.Duration(0)
 	bz := cdc.MustMarshal(d0)

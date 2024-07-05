@@ -21,6 +21,8 @@ var invalidStrs = []string{
 }
 
 func TestEmptyAddresses(t *testing.T) {
+	t.Parallel()
+
 	require.Equal(t, (crypto.Address{}).String(), "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqluuxe")
 
 	addr := crypto.AddressFromBytes(make([]byte, 20))
@@ -47,6 +49,8 @@ func testMarshal(t *testing.T, addr crypto.Address, marshal func(orig interface{
 }
 
 func TestRandBech32AddrConsistency(t *testing.T) {
+	t.Parallel()
+
 	var pub ed25519.PubKeyEd25519
 
 	for i := 0; i < 1000; i++ {

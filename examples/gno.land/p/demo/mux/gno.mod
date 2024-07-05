@@ -1,1 +1,1 @@
-module "gno.land/p/demo/mux"
+module gno.land/p/demo/mux

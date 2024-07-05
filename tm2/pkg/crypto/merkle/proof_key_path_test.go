@@ -10,6 +10,8 @@ import (
 )
 
 func TestKeyPath(t *testing.T) {
+	t.Parallel()
+
 	var path KeyPath
 	keys := make([][]byte, 10)
 	alphanum := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"

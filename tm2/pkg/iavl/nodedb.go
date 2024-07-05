@@ -385,7 +385,7 @@ func (ndb *nodeDB) saveRoot(hash []byte, version int64) error {
 	return nil
 }
 
-////////////////// Utility and test functions /////////////////////////////////
+// ----------- Utility and test functions // -----------
 
 func (ndb *nodeDB) leafNodes() []*Node {
 	leaves := []*Node{}

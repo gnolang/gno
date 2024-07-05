@@ -35,12 +35,16 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/std"
+	"go.uber.org/multierr"
 )
 
 func MustReadFile(path string) *FileNode {
@@ -79,7 +83,7 @@ func ParseExpr(expr string) (retx Expr, err error) {
 			if rerr, ok := r.(error); ok {
 				err = rerr
 			} else {
-				err = errors.New(fmt.Sprintf("%v", r))
+				err = fmt.Errorf("%v", r)
 			}
 			return
 		}
@@ -96,11 +100,16 @@ func MustParseExpr(expr string) Expr {
 	return x
 }
 
-// filename must not include the path.
+// ParseFile uses the Go parser to parse body. It then runs [Go2Gno] on the
+// resulting AST -- the resulting FileNode is returned, together with any other
+// error (including panics, which are recovered) from [Go2Gno].
 func ParseFile(filename string, body string) (fn *FileNode, err error) {
-	// Parse src but stop after processing the imports.
+	// Use go parser to parse the body.
 	fs := token.NewFileSet()
-	f, err := parser.ParseFile(fs, filename, body, parser.ParseComments|parser.DeclarationErrors)
+	// TODO(morgan): would be nice to add parser.SkipObjectResolution as we don't
+	// seem to be using its features, but this breaks when testing (specifically redeclaration tests).
+	const parseOpts = parser.ParseComments | parser.DeclarationErrors
+	f, err := parser.ParseFile(fs, filename, body, parseOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -112,9 +121,9 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			if rerr, ok := r.(error); ok {
-				err = rerr
+				err = errors.Wrap(rerr, "parsing file")
 			} else {
-				err = errors.New(fmt.Sprintf("%v", r))
+				err = errors.New(fmt.Sprintf("%v", r)).Stacktrace()
 			}
 			return
 		}
@@ -128,6 +137,7 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 func setLoc(fs *token.FileSet, pos token.Pos, n Node) Node {
 	posn := fs.Position(pos)
 	n.SetLine(posn.Line)
+	n.SetColumn(posn.Column)
 	return n
 }
 
@@ -431,7 +441,10 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 		}
 		name := toName(gon.Name)
 		type_ := Go2Gno(fs, gon.Type).(*FuncTypeExpr)
-		body := Go2Gno(fs, gon.Body).(*BlockStmt).Body
+		var body []Stmt
+		if gon.Body != nil {
+			body = Go2Gno(fs, gon.Body).(*BlockStmt).Body
+		}
 		return &FuncDecl{
 			IsMethod: isMethod,
 			Recv:     recv,
@@ -462,6 +475,105 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			spew.Sdump(gon),
 		))
 	}
+}
+
+//----------------------------------------
+// type checking (using go/types)
+// XXX move to gotypecheck.go.
+
+// MemPackageGetter implements the GetMemPackage() method. It is a subset of
+// [Store], separated for ease of testing.
+type MemPackageGetter interface {
+	GetMemPackage(path string) *std.MemPackage
+}
+
+// TypeCheckMemPackage performs type validation and checking on the given
+// mempkg. To retrieve dependencies, it uses getter.
+//
+// The syntax checking is performed entirely using Go's go/types package.
+func TypeCheckMemPackage(mempkg *std.MemPackage, getter MemPackageGetter) error {
+	var errs error
+	imp := &gnoImporter{
+		getter: getter,
+		cache:  map[string]gnoImporterResult{},
+		cfg: &types.Config{
+			Error: func(err error) {
+				errs = multierr.Append(errs, err)
+			},
+		},
+	}
+	imp.cfg.Importer = imp
+
+	_, err := imp.parseCheckMemPackage(mempkg)
+	// prefer to return errs instead of err:
+	// err will generally contain only the first error encountered.
+	if errs != nil {
+		return errs
+	}
+	return err
+}
+
+type gnoImporterResult struct {
+	pkg *types.Package
+	err error
+}
+
+type gnoImporter struct {
+	getter MemPackageGetter
+	cache  map[string]gnoImporterResult
+	cfg    *types.Config
+}
+
+// Unused, but satisfies the Importer interface.
+func (g *gnoImporter) Import(path string) (*types.Package, error) {
+	return g.ImportFrom(path, "", 0)
+}
+
+type importNotFoundError string
+
+func (e importNotFoundError) Error() string { return "import not found: " + string(e) }
+
+// ImportFrom returns the imported package for the given import
+// path when imported by a package file located in dir.
+func (g *gnoImporter) ImportFrom(path, _ string, _ types.ImportMode) (*types.Package, error) {
+	if pkg, ok := g.cache[path]; ok {
+		return pkg.pkg, pkg.err
+	}
+	mpkg := g.getter.GetMemPackage(path)
+	if mpkg == nil {
+		err := importNotFoundError(path)
+		g.cache[path] = gnoImporterResult{err: err}
+		return nil, err
+	}
+	result, err := g.parseCheckMemPackage(mpkg)
+	g.cache[path] = gnoImporterResult{pkg: result, err: err}
+	return result, err
+}
+
+func (g *gnoImporter) parseCheckMemPackage(mpkg *std.MemPackage) (*types.Package, error) {
+	fset := token.NewFileSet()
+	files := make([]*ast.File, 0, len(mpkg.Files))
+	var errs error
+	for _, file := range mpkg.Files {
+		if !strings.HasSuffix(file.Name, ".gno") ||
+			endsWith(file.Name, []string{"_test.gno", "_filetest.gno"}) {
+			continue // skip spurious file.
+		}
+
+		const parseOpts = parser.ParseComments | parser.DeclarationErrors | parser.SkipObjectResolution
+		f, err := parser.ParseFile(fset, file.Name, file.Body, parseOpts)
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+
+		files = append(files, f)
+	}
+	if errs != nil {
+		return nil, errs
+	}
+
+	return g.cfg.Check(mpkg.Path, fset, files, nil)
 }
 
 //----------------------------------------
@@ -657,6 +769,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Const:     true,
 				}
 				cd.SetAttribute(ATTR_IOTA, si)
+				setLoc(fs, s.Pos(), cd)
 				ds = append(ds, cd)
 			} else {
 				var names []NameExpr
@@ -675,6 +788,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Values:    values,
 					Const:     false,
 				}
+				setLoc(fs, s.Pos(), vd)
 				ds = append(ds, vd)
 			}
 		case *ast.ImportSpec:
@@ -682,16 +796,19 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			if err != nil {
 				panic("unexpected import spec path type")
 			}
-			ds = append(ds, &ImportDecl{
+			im := &ImportDecl{
 				NameExpr: *Nx(toName(s.Name)),
 				PkgPath:  path,
-			})
+			}
+			setLoc(fs, s.Pos(), im)
+			ds = append(ds, im)
 		default:
 			panic(fmt.Sprintf(
 				"unexpected decl spec %v",
 				reflect.TypeOf(s)))
 		}
 	}
+
 	return ds
 }
 

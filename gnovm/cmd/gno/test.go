@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"text/template"
@@ -16,6 +17,7 @@ import (
 
 	"go.uber.org/multierr"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/tests"
@@ -31,26 +33,25 @@ type testCfg struct {
 	rootDir             string
 	run                 string
 	timeout             time.Duration
-	precompile          bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	withNativeFallback  bool
 }
 
-func newTestCmd(io *commands.IO) *commands.Command {
+func newTestCmd(io commands.IO) *commands.Command {
 	cfg := &testCfg{}
 
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "test",
 			ShortUsage: "test [flags] <package> [<package>...]",
-			ShortHelp:  "Runs the tests for the specified packages",
+			ShortHelp:  "runs the tests for the specified packages",
 			LongHelp: `Runs the tests for the specified packages.
 
 'gno test' recompiles each package along with any files with names matching the
 file pattern "*_test.gno" or "*_filetest.gno".
 
-The only <package> supported for now is a directory (relative or absolute).
+The <package> can be directory or file path (relative or absolute).
 
 - "*_test.gno" files work like "*_test.go" files, but they contain only test
 functions. Benchmark and fuzz functions aren't supported yet. Similarly, only
@@ -102,16 +103,9 @@ instruction with the actual content of the test instead of failing.
 func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.verbose,
-		"verbose",
+		"v",
 		false,
 		"verbose output when running",
-	)
-
-	fs.BoolVar(
-		&c.precompile,
-		"precompile",
-		false,
-		"precompile gno to go before testing",
 	)
 
 	fs.BoolVar(
@@ -157,34 +151,19 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execTest(cfg *testCfg, args []string, io *commands.IO) error {
+func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}
 
-	verbose := cfg.verbose
-
-	tempdirRoot, err := os.MkdirTemp("", "gno-precompile")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(tempdirRoot)
-
-	// go.mod
-	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.19")
-	if err != nil {
-		return fmt.Errorf("write .mod file: %w", err)
-	}
-
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
-		cfg.rootDir = guessRootDir()
+		cfg.rootDir = gnoenv.RootDir()
 	}
 
-	paths, err := gnoPackagesFromArgs(args)
+	paths, err := targetsFromPatterns(args)
 	if err != nil {
-		return fmt.Errorf("list package paths from args: %w", err)
+		return fmt.Errorf("list targets from patterns: %w", err)
 	}
 	if len(paths) == 0 {
 		io.ErrPrintln("no packages to test")
@@ -206,43 +185,6 @@ func execTest(cfg *testCfg, args []string, io *commands.IO) error {
 	buildErrCount := 0
 	testErrCount := 0
 	for _, pkg := range subPkgs {
-		if cfg.precompile {
-			if verbose {
-				io.ErrPrintfln("=== PREC  %s", pkg.Dir)
-			}
-			precompileOpts := newPrecompileOptions(&precompileCfg{
-				output: tempdirRoot,
-			})
-			err := precompilePkg(importPath(pkg.Dir), precompileOpts)
-			if err != nil {
-				io.ErrPrintln(err)
-				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkg.Dir)
-				io.ErrPrintln("FAIL")
-
-				buildErrCount++
-				continue
-			}
-
-			if verbose {
-				io.ErrPrintfln("=== BUILD %s", pkg.Dir)
-			}
-			tempDir, err := ResolvePath(tempdirRoot, importPath(pkg.Dir))
-			if err != nil {
-				return errors.New("cannot resolve build dir")
-			}
-			err = goBuildFileOrPkg(tempDir, defaultBuildOptions)
-			if err != nil {
-				io.ErrPrintln(err)
-				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkg.Dir)
-				io.ErrPrintln("FAIL")
-
-				buildErrCount++
-				continue
-			}
-		}
-
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
 			continue
@@ -279,7 +221,7 @@ func gnoTestPkg(
 	unittestFiles,
 	filetestFiles []string,
 	cfg *testCfg,
-	io *commands.IO,
+	io commands.IO,
 ) error {
 	var (
 		verbose             = cfg.verbose
@@ -287,9 +229,9 @@ func gnoTestPkg(
 		runFlag             = cfg.run
 		printRuntimeMetrics = cfg.printRuntimeMetrics
 
-		stdin  = io.In
-		stdout = io.Out
-		stderr = io.Err
+		stdin  = io.In()
+		stdout = io.Out()
+		stderr = io.Err()
 		errs   error
 	)
 
@@ -298,15 +240,6 @@ func gnoTestPkg(
 		// XXX: display a warn?
 		mode = tests.ImportModeStdlibsPreferred
 	}
-	testStore := tests.TestStore(
-		rootDir, "",
-		stdin, stdout, stderr,
-		mode,
-	)
-	if verbose {
-		testStore.SetLogStoreOps(true)
-	}
-
 	if !verbose {
 		// TODO: speedup by ignoring if filter is file/*?
 		mockOut := bytes.NewBufferString("")
@@ -321,16 +254,38 @@ func gnoTestPkg(
 		if err == nil {
 			gnoPkgPath = modfile.Module.Mod.Path
 		} else {
-			// unable to read pkgPath from gno.mod, generate a random realm path
-			gnoPkgPath = gno.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+			gnoPkgPath = pkgPathFromRootDir(pkgPath, rootDir)
+			if gnoPkgPath == "" {
+				// unable to read pkgPath from gno.mod, generate a random realm path
+				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
+				gnoPkgPath = gno.RealmPathPrefix + random.RandStr(8)
+			}
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
-		tfiles, ifiles := parseMemPackageTests(memPkg)
+		var tfiles, ifiles *gno.FileSet
+
+		hasError := catchRuntimeError(gnoPkgPath, stderr, func() {
+			tfiles, ifiles = parseMemPackageTests(memPkg)
+		})
+
+		if hasError {
+			return commands.ExitCodeError(1)
+		}
+		testPkgName := getPkgNameFromFileset(ifiles)
 
 		// run test files in pkg
-		{
+		if len(tfiles.Files) > 0 {
+			testStore := tests.TestStore(
+				rootDir, "",
+				stdin, stdout, stderr,
+				mode,
+			)
+			if verbose {
+				testStore.SetLogStoreOps(true)
+			}
+
 			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
@@ -346,16 +301,37 @@ func gnoTestPkg(
 			}
 		}
 
-		// run test files in xxx_test pkg
-		{
-			testPkgName := getPkgNameFromFileset(ifiles)
-			if testPkgName != "" {
-				m := tests.TestMachine(testStore, stdout, testPkgName)
-				m.RunMemPackage(memPkg, true)
-				err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)
-				if err != nil {
-					errs = multierr.Append(errs, err)
+		// test xxx_test pkg
+		if len(ifiles.Files) > 0 {
+			testStore := tests.TestStore(
+				rootDir, "",
+				stdin, stdout, stderr,
+				mode,
+			)
+			if verbose {
+				testStore.SetLogStoreOps(true)
+			}
+
+			m := tests.TestMachine(testStore, stdout, testPkgName)
+
+			memFiles := make([]*std.MemFile, 0, len(ifiles.FileNames())+1)
+			for _, f := range memPkg.Files {
+				for _, ifileName := range ifiles.FileNames() {
+					if f.Name == "gno.mod" || f.Name == ifileName {
+						memFiles = append(memFiles, f)
+						break
+					}
 				}
+			}
+
+			memPkg.Files = memFiles
+			memPkg.Name = testPkgName
+			memPkg.Path = memPkg.Path + "_test"
+			m.RunMemPackage(memPkg, true)
+
+			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)
+			if err != nil {
+				errs = multierr.Append(errs, err)
 			}
 		}
 	}
@@ -408,6 +384,35 @@ func gnoTestPkg(
 	return errs
 }
 
+// attempts to determine the full gno pkg path by analyzing the directory.
+func pkgPathFromRootDir(pkgPath, rootDir string) string {
+	abPkgPath, err := filepath.Abs(pkgPath)
+	if err != nil {
+		log.Printf("could not determine abs path: %v", err)
+		return ""
+	}
+	abRootDir, err := filepath.Abs(rootDir)
+	if err != nil {
+		log.Printf("could not determine abs path: %v", err)
+		return ""
+	}
+	abRootDir += string(filepath.Separator)
+	if !strings.HasPrefix(abPkgPath, abRootDir) {
+		return ""
+	}
+	impPath := strings.ReplaceAll(abPkgPath[len(abRootDir):], string(filepath.Separator), "/")
+	for _, prefix := range [...]string{
+		"examples/",
+		"gnovm/stdlibs/",
+		"gnovm/tests/stdlibs/",
+	} {
+		if strings.HasPrefix(impPath, prefix) {
+			return impPath[len(prefix):]
+		}
+	}
+	return ""
+}
+
 func runTestFiles(
 	m *gno.Machine,
 	files *gno.FileSet,
@@ -415,9 +420,13 @@ func runTestFiles(
 	verbose bool,
 	printRuntimeMetrics bool,
 	runFlag string,
-	io *commands.IO,
-) error {
-	var errs error
+	io commands.IO,
+) (errs error) {
+	defer func() {
+		if r := recover(); r != nil {
+			errs = multierr.Append(fmt.Errorf("panic: %v\nstack:\n%v\ngno machine: %v", r, string(debug.Stack()), m.String()), errs)
+		}
+	}()
 
 	testFuncs := &testFuncs{
 		PackageName: pkgName,
@@ -439,22 +448,15 @@ func runTestFiles(
 	m.RunFiles(n)
 
 	for _, test := range testFuncs.Tests {
-		if verbose {
-			io.ErrPrintfln("=== RUN   %s", test.Name)
-		}
-
 		testFuncStr := fmt.Sprintf("%q", test.Name)
 
-		startedAt := time.Now()
 		eval := m.Eval(gno.Call("runtest", testFuncStr))
-		duration := time.Since(startedAt)
-		dstr := fmtDuration(duration)
 
 		ret := eval[0].GetString()
 		if ret == "" {
 			err := errors.New("failed to execute unit test: %q", test.Name)
 			errs = multierr.Append(errs, err)
-			io.ErrPrintfln("--- FAIL: %s (%v)", test.Name, duration)
+			io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", test.Name)
 			continue
 		}
 
@@ -463,30 +465,13 @@ func runTestFiles(
 		err = json.Unmarshal([]byte(ret), &rep)
 		if err != nil {
 			errs = multierr.Append(errs, err)
-			io.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
+			io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", test.Name)
 			continue
 		}
 
-		switch {
-		case rep.Filtered:
-			io.ErrPrintfln("--- FILT: %s", test.Name)
-			// noop
-		case rep.Skipped:
-			if verbose {
-				io.ErrPrintfln("--- SKIP: %s", test.Name)
-			}
-		case rep.Failed:
+		if rep.Failed {
 			err := errors.New("failed: %q", test.Name)
 			errs = multierr.Append(errs, err)
-			io.ErrPrintfln("--- FAIL: %s (%s)", test.Name, dstr)
-		default:
-			if verbose {
-				io.ErrPrintfln("--- PASS: %s (%s)", test.Name, dstr)
-			}
-		}
-
-		if rep.Output != "" && (verbose || rep.Failed) {
-			io.ErrPrintfln("output: %s", rep.Output)
 		}
 
 		if printRuntimeMetrics {
@@ -514,12 +499,8 @@ func runTestFiles(
 
 // mirror of stdlibs/testing.Report
 type report struct {
-	Name     string
-	Verbose  bool
-	Failed   bool
-	Skipped  bool
-	Filtered bool
-	Output   string
+	Failed  bool
+	Skipped bool
 }
 
 var testmainTmpl = template.Must(template.New("testmain").Parse(`
@@ -605,7 +586,7 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 		}
 		n, err := gno.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
-			panic(errors.Wrap(err, "parsing file "+mfile.Name))
+			panic(err)
 		}
 		if n == nil {
 			panic("should not happen")
