@@ -192,7 +192,6 @@ const (
 	PointerIndexNative     = -3 // Base is *NativeValue.
 )
 
-/*
 func (pv *PointerValue) GetBase(store Store) Object {
 	switch cbase := pv.Base.(type) {
 	case nil:
@@ -207,7 +206,6 @@ func (pv *PointerValue) GetBase(store Store) Object {
 		panic("should not happen")
 	}
 }
-*/
 
 // cu: convert untyped; pass false for const definitions
 // TODO: document as something that enables into-native assignment.
