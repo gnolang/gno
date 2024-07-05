@@ -52,9 +52,10 @@ func execTxsAddPackages(
 	}
 
 	parsedTxs := make([]std.Tx, 0)
+	tplData := gnoland.GenesisTplData{}
 	for _, path := range args {
 		// Generate transactions from the packages (recursively)
-		txs, err := gnoland.LoadPackagesFromDir(path, genesisDeployAddress, genesisDeployFee)
+		txs, err := gnoland.LoadPackagesFromDir(path, genesisDeployAddress, genesisDeployFee, tplData)
 		if err != nil {
 			return fmt.Errorf("unable to load txs from directory, %w", err)
 		}

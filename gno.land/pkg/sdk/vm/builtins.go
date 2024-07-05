@@ -25,7 +25,8 @@ func (vm *VMKeeper) getPackage(pkgPath string, store gno.Store) (pn *gno.Package
 		// does not exist.
 		return nil, nil
 	}
-	memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
+	var genData interface{} = nil
+	memPkg := gno.ReadMemPackage(stdlibPath, pkgPath, genData)
 	if memPkg.IsEmpty() {
 		// no gno files are present, skip this package
 		return nil, nil

@@ -7,9 +7,11 @@ import (
 	"path/filepath"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
-	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -128,6 +130,9 @@ func (pm PackagesMap) Load(fee std.Fee) ([]std.Tx, error) {
 
 	nonDraft := sorted.GetNonDraftPkgs()
 	txs := []std.Tx{}
+
+	tplData := gnoland.GenesisTplData{}
+
 	for _, modPkg := range nonDraft {
 		pkg := pm[modPkg.Dir]
 		if pkg.Creator.IsZero() {
@@ -136,23 +141,22 @@ func (pm PackagesMap) Load(fee std.Fee) ([]std.Tx, error) {
 
 		// Open files in directory as MemPackage.
 		memPkg := gno.ReadMemPackage(modPkg.Dir, modPkg.Name)
-		if err := memPkg.Validate(); err != nil {
-			return nil, fmt.Errorf("invalid package: %w", err)
+		for _, file := range memPkg.Files {
+			fmt.Printf("BBB: %q, %s\n", file.Name, file.Body)
 		}
 
-		// Create transaction
-		tx := std.Tx{
-			Fee: fee,
-			Msgs: []std.Msg{
-				vmm.MsgAddPackage{
-					Creator: pkg.Creator,
-					Deposit: pkg.Deposit,
-					Package: memPkg,
-				},
-			},
+		tx, err := gnoland.LoadPackage(memPkg, pkg.Creator, fee, pkg.Deposit, tplData)
+		if err != nil {
+			return nil, err
 		}
 
-		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
+		var msg vm.MsgAddPackage
+		bz := tx.Msgs[0].GetSignBytes()
+		amino.MustUnmarshalJSON(bz, &msg)
+		for _, file := range msg.Package.Files {
+			fmt.Printf("AAA: %q, %s\n", file.Name, file.Body)
+		}
+
 		txs = append(txs, tx)
 	}
 

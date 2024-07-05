@@ -74,6 +74,42 @@ func Render(_ string) string { return "foo" }
 	require.NoError(t, node.Close())
 }
 
+func TestNewNode_tplData(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	const (
+		// foobar package
+		testGnoMod = "module gno.land/r/dev/foobar\n"
+		docFile    = `package foobar`
+		testFile   = `package foobar
+func Render(_ string) string { return "{{.}}" }
+`
+	)
+
+	// Generate package
+	pkgpath := generateTestingPackage(t,
+		"gno.mod", testGnoMod,
+		"foobar.gno.tpl", testFile,
+		"doc.gno", docFile,
+	)
+	logger := log.NewTestingLogger(t)
+
+	// Call NewDevNode with no package should work
+	cfg := DefaultNodeConfig(gnoenv.RootDir())
+	cfg.PackagesPathList = []PackagePath{pkgpath}
+	node, err := NewDevNode(ctx, logger, &emitter.NoopServer{}, cfg)
+	require.NoError(t, err)
+	assert.Len(t, node.ListPkgs(), 1)
+
+	// Test rendering
+	render, err := testingRenderRealm(t, node, "gno.land/r/dev/foobar")
+	require.NoError(t, err)
+	assert.Equal(t, render, "foo")
+
+	require.NoError(t, node.Close())
+}
+
 func TestNodeAddPackage(t *testing.T) {
 	// Setup a Node instance
 	const (
