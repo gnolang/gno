@@ -93,7 +93,6 @@ func (vm *VMKeeper) Initialize(
 	iavlSDKStore := ms.GetStore(vm.iavlKey)
 
 	if cacheStdlibLoad {
-		st := time.Now()
 		vm.gnoStore = CachedStdlibLoad(vm.stdlibsDir, baseSDKStore, iavlSDKStore)
 		return
 	}
