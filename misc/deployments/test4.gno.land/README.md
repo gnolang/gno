@@ -10,7 +10,7 @@ The initial `genesis.json` validator set is consisted of 3 entities (7 validator
 - Gno DevX - the gno devX team (**2 validators**)
 - Onbloc - the [Onbloc](https://onbloc.xyz/) team (**1 validator**)
 
-Subsequent validators will be added through the governance mechanism in govdao, employing Proof of Contribution.
+Subsequent validators will be added through the governance mechanism in govdao, employing a preliminary simplified version Proof of Contribution.
 
 The addresses premined belong to different faucet accounts, validator entities and implementation partners.
 
