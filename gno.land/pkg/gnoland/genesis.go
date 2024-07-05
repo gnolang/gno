@@ -89,7 +89,7 @@ func LoadGenesisTxsFile(path string, chainID string, genesisRemote string) ([]st
 
 // LoadPackagesFromDir loads gno packages from a directory.
 // It creates and returns a list of transactions based on these packages.
-func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, tplData GenesisTplData) ([]std.Tx, error) {
+func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, genData GenesisTplData) ([]std.Tx, error) {
 	// list all packages from target path
 	pkgs, err := gnomod.ListPkgs(dir) // XXX: gnomod isn't maanaging packages but modules
 	if err != nil {
@@ -106,8 +106,8 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, tplData G
 	nonDraftPkgs := sortedPkgs.GetNonDraftPkgs()
 	txs := []std.Tx{}
 	for _, pkg := range nonDraftPkgs {
-		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name, tplData)
-		tx, err := LoadPackage(memPkg, creator, fee, nil)
+		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name, genData)
+		tx, err := LoadPackage(memPkg, creator, fee, nil, genData)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load package %q: %w", pkg.Dir, err)
 		}
@@ -119,7 +119,7 @@ func LoadPackagesFromDir(dir string, creator bft.Address, fee std.Fee, tplData G
 }
 
 // LoadPackage loads a single package into a `std.Tx`
-func LoadPackage(memPkg *std.MemPackage, creator bft.Address, fee std.Fee, deposit std.Coins, tplData GenesisTplData) (std.Tx, error) {
+func LoadPackage(memPkg *std.MemPackage, creator bft.Address, fee std.Fee, deposit std.Coins, genData GenesisTplData) (std.Tx, error) {
 	var tx std.Tx
 
 	// Open files in directory as MemPackage.
@@ -134,7 +134,7 @@ func LoadPackage(memPkg *std.MemPackage, creator bft.Address, fee std.Fee, depos
 			file.Name = strings.TrimSuffix(file.Name, ".tpl")
 			var tpl = template.Must(template.New(file.Name).Parse(file.Body))
 			var buf bytes.Buffer
-			if err := tpl.Execute(&buf, tplData); err != nil {
+			if err := tpl.Execute(&buf, genData); err != nil {
 				return std.Tx{}, err
 			}
 			file.Body = buf.String()

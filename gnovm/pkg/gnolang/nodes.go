@@ -1105,7 +1105,7 @@ func PackageNameFromFileBody(name, body string) Name {
 //
 // NOTE: panics if package name is invalid (characters must be alphanumeric or _,
 // lowercase, and must start with a letter).
-func ReadMemPackage(dir string, pkgPath string, genData) *std.MemPackage {
+func ReadMemPackage(dir, pkgPath string, genData interface{}) *std.MemPackage {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		panic(err)
@@ -1129,10 +1129,16 @@ func ReadMemPackage(dir string, pkgPath string, genData) *std.MemPackage {
 
 	list := make([]string, 0, len(files))
 	for _, file := range files {
-		if file.IsDir() ||
-			strings.HasPrefix(file.Name(), ".") ||
-			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) ||
-			endsWith(file.Name(), rejectedFileExtensions) {
+		if file.IsDir() {
+			continue
+		}
+
+		var (
+			isHiddenFile = strings.HasPrefix(file.Name(), ".")
+			isNotAllowed = (!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name()))
+			isRejected   = endsWith(file.Name(), rejectedFileExtensions)
+		)
+		if isHiddenFile || isNotAllowed || isRejected {
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))

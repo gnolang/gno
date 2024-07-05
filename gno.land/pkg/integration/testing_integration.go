@@ -598,7 +598,8 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 	txs := make([]std.Tx, len(pkgslist))
 	tplData := gnoland.GenesisTplData{}
 	for i, pkg := range pkgslist {
-		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name)
+		genData := gnoland.GenesisTplData{}
+		memPkg := gno.ReadMemPackage(pkg.Dir, pkg.Name, genData)
 		tx, err := gnoland.LoadPackage(memPkg, creator, fee, deposit, tplData)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load pkg %q: %w", pkg.Name, err)
