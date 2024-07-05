@@ -1,4 +1,4 @@
-package grc20_registry
+package grc20reg
 
 import (
 	"std"

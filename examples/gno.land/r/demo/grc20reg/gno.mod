@@ -1,4 +1,4 @@
-module gno.land/r/demo/grc20_registry
+module gno.land/r/demo/grc20reg
 
 require (
 	gno.land/p/demo/avl v0.0.0-latest

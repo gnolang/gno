@@ -6,10 +6,9 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/grc20_registry"
-	"gno.land/r/demo/users"
-
 	pusers "gno.land/p/demo/users"
+	"gno.land/r/demo/grc20reg"
+	"gno.land/r/demo/users"
 )
 
 var (
@@ -19,7 +18,7 @@ var (
 
 func init() {
 	foo = grc20.NewAdminToken("Foo", "FOO", 4)
-	grc20_registry.Register(foo.GRC20())
+	grc20reg.Register(foo.GRC20(), "")
 	foo.Mint(admin, 1000000*10000)                                    // @administrator (1M)
 	foo.Mint("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq", 10000*10000) // @manfred (10k)
 }
