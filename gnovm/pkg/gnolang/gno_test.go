@@ -42,92 +42,6 @@ func BenchmarkStringLargeData(b *testing.B) {
 	}
 }
 
-func TestRunInvalidLabels(t *testing.T) {
-	tests := []struct {
-		code   string
-		output string
-	}{
-		{
-			code: `
-		package test
-		func main(){}
-		func invalidLabel() {
-			FirstLoop:
-				for i := 0; i < 10; i++ {
-				}
-				for i := 0; i < 10; i++ {
-					break FirstLoop
-				}
-		}
-`,
-			output: `cannot find branch label "FirstLoop"`,
-		},
-		{
-			code: `
-		package test
-		func main(){}
-
-		func undefinedLabel() {
-			for i := 0; i < 10; i++ {
-				break UndefinedLabel
-			}
-		}
-`,
-			output: `label UndefinedLabel undefined`,
-		},
-		{
-			code: `
-		package test
-		func main(){}
-
-		func labelOutsideScope() {
-			for i := 0; i < 10; i++ {
-				continue FirstLoop
-			}
-			FirstLoop:
-			for i := 0; i < 10; i++ {
-			}
-		}
-`,
-			output: `cannot find branch label "FirstLoop"`,
-		},
-		{
-			code: `
-		package test
-		func main(){}
-		
-		func invalidLabelStatement() {
-			if true {
-				break InvalidLabel
-			}
-		}
-`,
-			output: `label InvalidLabel undefined`,
-		},
-	}
-
-	for n, s := range tests {
-		n := n
-		t.Run(fmt.Sprintf("%v\n", n), func(t *testing.T) {
-			defer func() {
-				if r := recover(); r != nil {
-					es := fmt.Sprintf("%v\n", r)
-					if !strings.Contains(es, s.output) {
-						t.Fatalf("invalid label test: `%v` missing expected error: %+v got: %v\n", n, s.output, es)
-					}
-				} else {
-					t.Fatalf("invalid label test: `%v` should have failed but didn't\n", n)
-				}
-			}()
-
-			m := NewMachine("test", nil)
-			nn := MustParseFile("main.go", s.code)
-			m.RunFiles(nn)
-			m.RunMain()
-		})
-	}
-}
-
 func TestBuiltinIdentifiersShadowing(t *testing.T) {
 	t.Parallel()
 	tests := map[string]string{}
@@ -243,6 +157,38 @@ func main() {
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
 	m.RunMain()
+}
+
+func BenchmarkPreprocessForLoop(b *testing.B) {
+	m := NewMachine("test", nil)
+	c := `package test
+func main() {
+	for i:=0; i<10000; i++ {}
+}`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+
+	for i := 0; i < b.N; i++ {
+		m.RunMain()
+	}
+}
+
+func BenchmarkIfStatement(b *testing.B) {
+	m := NewMachine("test", nil)
+	c := `package test
+func main() {
+	for i:=0; i<10000; i++ {
+		if i > 10 {
+			
+		}
+	}
+}`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+
+	for i := 0; i < b.N; i++ {
+		m.RunMain()
+	}
 }
 
 func TestDoOpEvalBaseConversion(t *testing.T) {

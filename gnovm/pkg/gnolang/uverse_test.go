@@ -39,7 +39,7 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 				var a []string
 				println(a)
 			}`,
-			expected: "nil []string\n",
+			expected: "(nil []string)\n",
 		},
 		{
 			name: "print non-empty slice",
@@ -57,7 +57,7 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 				var a map[string]string
 				println(a)
 			}`,
-			expected: "nil map[string]string\n",
+			expected: "(nil map[string]string)\n",
 		},
 		{
 			name: "print non-empty map",

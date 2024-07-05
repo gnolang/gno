@@ -11,20 +11,31 @@ import (
 	testlibs_testing "github.com/gnolang/gno/gnovm/tests/stdlibs/testing"
 )
 
-type nativeFunc struct {
-	gnoPkg  string
-	gnoFunc gno.Name
-	params  []gno.FieldTypeExpr
-	results []gno.FieldTypeExpr
-	f       func(m *gno.Machine)
+// NativeFunc represents a function in the standard library which has a native
+// (go-based) implementation, commonly referred to as a "native binding".
+type NativeFunc struct {
+	gnoPkg     string
+	gnoFunc    gno.Name
+	params     []gno.FieldTypeExpr
+	results    []gno.FieldTypeExpr
+	hasMachine bool
+	f          func(m *gno.Machine)
 }
 
-var nativeFuncs = [...]nativeFunc{
+// HasMachineParam returns whether the given native binding has a machine parameter.
+// This means that the Go version of this function expects a *gno.Machine
+// as its first parameter.
+func (n *NativeFunc) HasMachineParam() bool {
+	return n.hasMachine
+}
+
+var nativeFuncs = [...]NativeFunc{
 	{
 		"std",
 		"AssertOriginCall",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			testlibs_std.AssertOriginCall(
 				m,
@@ -38,27 +49,9 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("bool")},
 		},
+		true,
 		func(m *gno.Machine) {
 			r0 := testlibs_std.IsOriginCall(
-				m,
-			)
-
-			m.PushValue(gno.Go2GnoValue(
-				m.Alloc,
-				m.Store,
-				reflect.ValueOf(&r0).Elem(),
-			))
-		},
-	},
-	{
-		"std",
-		"TestCurrentRealm",
-		[]gno.FieldTypeExpr{},
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("r0"), Type: gno.X("string")},
-		},
-		func(m *gno.Machine) {
-			r0 := testlibs_std.TestCurrentRealm(
 				m,
 			)
 
@@ -76,6 +69,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p0"), Type: gno.X("int64")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -95,6 +89,7 @@ var nativeFuncs = [...]nativeFunc{
 		"ClearStoreCache",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			testlibs_std.ClearStoreCache(
 				m,
@@ -110,6 +105,7 @@ var nativeFuncs = [...]nativeFunc{
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("string")},
 		},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -137,6 +133,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -158,6 +155,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p0"), Type: gno.X("string")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -174,44 +172,28 @@ var nativeFuncs = [...]nativeFunc{
 	},
 	{
 		"std",
-		"testSetPrevRealm",
+		"testSetRealm",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("string")},
+			{Name: gno.N("p1"), Type: gno.X("string")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
 				p0  string
 				rp0 = reflect.ValueOf(&p0).Elem()
+				p1  string
+				rp1 = reflect.ValueOf(&p1).Elem()
 			)
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 1, "")).TV, rp1)
 
-			testlibs_std.X_testSetPrevRealm(
+			testlibs_std.X_testSetRealm(
 				m,
-				p0)
-		},
-	},
-	{
-		"std",
-		"testSetPrevAddr",
-		[]gno.FieldTypeExpr{
-			{Name: gno.N("p0"), Type: gno.X("string")},
-		},
-		[]gno.FieldTypeExpr{},
-		func(m *gno.Machine) {
-			b := m.LastBlock()
-			var (
-				p0  string
-				rp0 = reflect.ValueOf(&p0).Elem()
-			)
-
-			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
-
-			testlibs_std.X_testSetPrevAddr(
-				m,
-				p0)
+				p0, p1)
 		},
 	},
 	{
@@ -224,6 +206,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p3"), Type: gno.X("[]int64")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -256,6 +239,7 @@ var nativeFuncs = [...]nativeFunc{
 			{Name: gno.N("p2"), Type: gno.X("[]int64")},
 		},
 		[]gno.FieldTypeExpr{},
+		true,
 		func(m *gno.Machine) {
 			b := m.LastBlock()
 			var (
@@ -277,12 +261,49 @@ var nativeFuncs = [...]nativeFunc{
 		},
 	},
 	{
+		"std",
+		"getRealm",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("int")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("string")},
+			{Name: gno.N("r1"), Type: gno.X("string")},
+		},
+		true,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  int
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0, r1 := testlibs_std.X_getRealm(
+				m,
+				p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r1).Elem(),
+			))
+		},
+	},
+	{
 		"testing",
 		"unixNano",
 		[]gno.FieldTypeExpr{},
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("r0"), Type: gno.X("int64")},
 		},
+		false,
 		func(m *gno.Machine) {
 			r0 := testlibs_testing.X_unixNano()
 
