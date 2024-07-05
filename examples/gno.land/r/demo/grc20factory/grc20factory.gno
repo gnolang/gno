@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/r/demo/grc20reg"
 )
 
 // XXX: the p/grc20 library needs a refactor to change names (i.e., adminToken)
@@ -36,6 +37,7 @@ func NewTokenWithAdmin(name, symbol string, decimals uint, initialMint uint64, a
 		admin:      admin,
 	}
 	tokens.Set(symbol, &t)
+	grc20reg.Register(newToken.GRC20(), symbol)
 }
 
 // method proxies as public functions.

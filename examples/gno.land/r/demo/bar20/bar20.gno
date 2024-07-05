@@ -9,6 +9,7 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/grc20reg"
 )
 
 var (
@@ -19,6 +20,7 @@ var (
 func init() {
 	banker = grc20.NewAdminToken("Bar", "BAR", 4)
 	Token = banker.GRC20()
+	grc20reg.Register(token, "")
 }
 
 func Faucet() string {
