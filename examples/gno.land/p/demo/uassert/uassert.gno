@@ -126,7 +126,7 @@ func Equal(t TestingT, expected, actual interface{}, msgs ...string) bool {
 		if av, ok := actual.(string); ok {
 			equal = ev == av
 			ok_ = true
-			es, as = ev, as
+			es, as = ev, av
 		}
 	case std.Address:
 		if av, ok := actual.(std.Address); ok {
