@@ -95,7 +95,6 @@ func (vm *VMKeeper) Initialize(
 	if cacheStdlibLoad {
 		st := time.Now()
 		vm.gnoStore = CachedStdlibLoad(vm.stdlibsDir, baseSDKStore, iavlSDKStore)
-		fmt.Println("ELAPSED", time.Since(st))
 		return
 	}
 
