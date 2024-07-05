@@ -19,7 +19,7 @@ const (
 var valRegexp = regexp.MustCompile(`{\("([^"]*)"\s[^)]+\),\("((?:[^"]|\\")*)"\s[^)]+\),\((\d+)\s[^)]+\)}`)
 
 // validatorUpdate is a type being used for "notifying"
-// that a validator change happened on-chain. The events from `r/sys/vals`
+// that a validator change happened on-chain. The events from `r/sys/validators`
 // do not pass data related to validator add / remove instances (who, what, how)
 type validatorUpdate struct{}
 
