@@ -11,12 +11,13 @@
 package entropy
 
 import (
+	"math"
 	"std"
 	"time"
 )
 
 type Instance struct {
-	value int64
+	value uint32
 }
 
 func New() *Instance {
@@ -25,25 +26,25 @@ func New() *Instance {
 	return &r
 }
 
-func FromSeed(seed int64) *Instance {
+func FromSeed(seed uint32) *Instance {
 	r := Instance{value: seed}
 	r.addEntropy()
 	return &r
 }
 
-func (i *Instance) Seed() int64 {
+func (i *Instance) Seed() uint32 {
 	return i.value
 }
 
 func (i *Instance) djb2String(input string) {
 	for _, c := range input {
-		i.djb2Int64(int64(c))
+		i.djb2Uint32(uint32(c))
 	}
 }
 
 // super fast random algorithm.
 // http://www.cse.yorku.ca/~oz/hash.html
-func (i *Instance) djb2Int64(input int64) {
+func (i *Instance) djb2Uint32(input uint32) {
 	i.value = (i.value << 5) + i.value + input
 }
 
@@ -65,21 +66,24 @@ func (i *Instance) addEntropy() {
 	// height
 	{
 		height := std.GetHeight()
-		i.djb2Int64(height)
+		if height >= math.MaxUint32 {
+			height -= math.MaxUint32
+		}
+		i.djb2Uint32(uint32(height))
 	}
 
 	// time
 	{
 		secs := time.Now().Second()
-		i.djb2Int64(int64(secs))
+		i.djb2Uint32(uint32(secs))
 		nsecs := time.Now().Nanosecond()
-		i.djb2Int64(int64(nsecs))
+		i.djb2Uint32(uint32(nsecs))
 	}
 
 	// FIXME: compute other hard-to-guess but deterministic variables, like real gas?
 }
 
-func (i *Instance) Value() int64 {
+func (i *Instance) Value() uint32 {
 	i.addEntropy()
 	return i.value
 }
