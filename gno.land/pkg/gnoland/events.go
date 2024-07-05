@@ -5,23 +5,17 @@ import (
 	"github.com/rs/xid"
 )
 
-// eventType encompasses all event types
-// that can appear in the collector
-type eventType interface {
-	validatorUpdate
-}
-
 // filterFn is the filter method for incoming events
-type filterFn[T eventType] func(events.Event) []T
+type filterFn[T any] func(events.Event) []T
 
 // collector is the generic in-memory event collector
-type collector[T eventType] struct {
+type collector[T any] struct {
 	events []T         // temporary event storage
 	filter filterFn[T] // method used for filtering events
 }
 
 // newCollector creates a new event collector
-func newCollector[T eventType](
+func newCollector[T any](
 	evsw events.EventSwitch,
 	filter filterFn[T],
 ) *collector[T] {
