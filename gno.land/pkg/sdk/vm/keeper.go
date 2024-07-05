@@ -10,10 +10,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -21,6 +23,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 	"go.opentelemetry.io/otel/attribute"
@@ -77,28 +81,30 @@ func NewVMKeeper(
 	return vmk
 }
 
-func (vm *VMKeeper) Initialize(logger *slog.Logger, ms store.MultiStore) {
+func (vm *VMKeeper) Initialize(
+	logger *slog.Logger,
+	ms store.MultiStore,
+	cacheStdlibLoad bool,
+) {
 	if vm.gnoStore != nil {
 		panic("should not happen")
 	}
-	alloc := gno.NewAllocator(maxAllocTx)
 	baseSDKStore := ms.GetStore(vm.baseKey)
 	iavlSDKStore := ms.GetStore(vm.iavlKey)
+
+	if cacheStdlibLoad {
+		vm.gnoStore = CachedStdlibLoad(vm.stdlibsDir, baseSDKStore, iavlSDKStore)
+		return
+	}
+
+	alloc := gno.NewAllocator(maxAllocTx)
 	vm.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
 	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
-	if vm.gnoStore.NumMemPackages() == 0 {
+	if !cacheStdlibLoad && vm.gnoStore.NumMemPackages() == 0 {
 		// No packages in the store; set up the stdlibs.
 		start := time.Now()
 
-		stdlibInitList := stdlibs.InitOrder()
-		for _, lib := range stdlibInitList {
-			if lib == "testing" {
-				// XXX: testing is skipped for now while it uses testing-only packages
-				// like fmt and encoding/json
-				continue
-			}
-			vm.loadPackage(lib, vm.gnoStore)
-		}
+		loadStdlib(vm.stdlibsDir, vm.gnoStore)
 
 		logger.Debug("Standard libraries initialized",
 			"elapsed", time.Since(start))
@@ -122,8 +128,56 @@ func (vm *VMKeeper) Initialize(logger *slog.Logger, ms store.MultiStore) {
 	}
 }
 
-func (vm *VMKeeper) loadPackage(pkgPath string, store gno.Store) {
-	stdlibPath := filepath.Join(vm.stdlibsDir, pkgPath)
+func CachedStdlibLoad(stdlibsDir string, baseStore, iavlStore store.Store) gno.Store {
+	cachedStdlibOnce.Do(func() {
+		cachedStdlibBase = memdb.NewMemDB()
+		cachedStdlibIavl = memdb.NewMemDB()
+
+		cachedGnoStore = gno.NewStore(nil,
+			dbadapter.StoreConstructor(cachedStdlibBase, types.StoreOptions{}),
+			dbadapter.StoreConstructor(cachedStdlibIavl, types.StoreOptions{}))
+		cachedGnoStore.SetNativeStore(stdlibs.NativeStore)
+		loadStdlib(stdlibsDir, cachedGnoStore)
+	})
+
+	itr := cachedStdlibBase.Iterator(nil, nil)
+	for ; itr.Valid(); itr.Next() {
+		baseStore.Set(itr.Key(), itr.Value())
+	}
+
+	itr = cachedStdlibIavl.Iterator(nil, nil)
+	for ; itr.Valid(); itr.Next() {
+		iavlStore.Set(itr.Key(), itr.Value())
+	}
+
+	alloc := gno.NewAllocator(maxAllocTx)
+	gs := gno.NewStore(alloc, baseStore, iavlStore)
+	gs.SetNativeStore(stdlibs.NativeStore)
+	gno.CopyCachesFromStore(gs, cachedGnoStore)
+	return gs
+}
+
+var (
+	cachedStdlibOnce sync.Once
+	cachedStdlibBase *memdb.MemDB
+	cachedStdlibIavl *memdb.MemDB
+	cachedGnoStore   gno.Store
+)
+
+func loadStdlib(stdlibsDir string, store gno.Store) {
+	stdlibInitList := stdlibs.InitOrder()
+	for _, lib := range stdlibInitList {
+		if lib == "testing" {
+			// XXX: testing is skipped for now while it uses testing-only packages
+			// like fmt and encoding/json
+			continue
+		}
+		loadStdlibPackage(lib, stdlibsDir, store)
+	}
+}
+
+func loadStdlibPackage(pkgPath string, stdlibsDir string, store gno.Store) {
+	stdlibPath := filepath.Join(stdlibsDir, pkgPath)
 	if !osm.DirExists(stdlibPath) {
 		// does not exist.
 		return

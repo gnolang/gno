@@ -112,6 +112,16 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 	return ds
 }
 
+// CopyCachesFromStore allows to copy a store's internal object, type and
+// BlockNode cache into the dst store.
+// This is mostly useful for testing, where many stores have to be initialized.
+func CopyCachesFromStore(dst, src Store) {
+	ds, ss := dst.(*defaultStore), src.(*defaultStore)
+	ds.cacheObjects = maps.Clone(ss.cacheObjects)
+	ds.cacheTypes = maps.Clone(ss.cacheTypes)
+	ds.cacheNodes = maps.Clone(ss.cacheNodes)
+}
+
 func (ds *defaultStore) GetAllocator() *Allocator {
 	return ds.alloc
 }

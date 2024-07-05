@@ -33,6 +33,9 @@ type AppOptions struct {
 	GenesisTxHandler GenesisTxHandler
 	Logger           *slog.Logger
 	MaxCycles        int64
+	// Whether to cache the result of loading the standard libraries.
+	// This is useful if you have to start many nodes, like in testing.
+	CacheStdlibLoad bool
 }
 
 func NewAppOptions() *AppOptions {
@@ -121,7 +124,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Initialize the VMKeeper.
 	ms := baseApp.GetCacheMultiStore()
-	vmKpr.Initialize(cfg.Logger, ms)
+	vmKpr.Initialize(cfg.Logger, ms, cfg.CacheStdlibLoad)
 	ms.MultiWrite() // XXX why was't this needed?
 
 	return baseApp, nil
@@ -157,7 +160,12 @@ func PanicOnFailingTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
 }
 
 // InitChainer returns a function that can initialize the chain with genesis.
-func InitChainer(baseApp *sdk.BaseApp, acctKpr auth.AccountKeeperI, bankKpr bank.BankKeeperI, resHandler GenesisTxHandler) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
+func InitChainer(
+	baseApp *sdk.BaseApp,
+	acctKpr auth.AccountKeeperI,
+	bankKpr bank.BankKeeperI,
+	resHandler GenesisTxHandler,
+) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		if req.AppState != nil {
 			// Get genesis state

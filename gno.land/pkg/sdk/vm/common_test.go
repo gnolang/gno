@@ -42,7 +42,7 @@ func setupTestEnv() testEnv {
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir, 100_000_000)
 
 	mcw := ms.MultiCacheWrap()
-	vmk.Initialize(log.NewNoopLogger(), mcw)
+	vmk.Initialize(log.NewNoopLogger(), mcw, true)
 	mcw.MultiWrite()
 
 	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}
