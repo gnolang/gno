@@ -48,12 +48,14 @@ func (m *mockEventSwitch) RemoveListener(listenerID string) {
 type (
 	addPackageDelegate func(sdk.Context, vm.MsgAddPackage) error
 	callDelegate       func(sdk.Context, vm.MsgCall) (string, error)
+	queryEvalDelegate  func(sdk.Context, string, string) (string, error)
 	runDelegate        func(sdk.Context, vm.MsgRun) (string, error)
 )
 
 type mockVMKeeper struct {
 	addPackageFn addPackageDelegate
 	callFn       callDelegate
+	queryFn      queryEvalDelegate
 	runFn        runDelegate
 }
 
@@ -68,6 +70,14 @@ func (m *mockVMKeeper) AddPackage(ctx sdk.Context, msg vm.MsgAddPackage) error {
 func (m *mockVMKeeper) Call(ctx sdk.Context, msg vm.MsgCall) (res string, err error) {
 	if m.callFn != nil {
 		return m.callFn(ctx, msg)
+	}
+
+	return "", nil
+}
+
+func (m *mockVMKeeper) QueryEval(ctx sdk.Context, pkgPath, expr string) (res string, err error) {
+	if m.queryFn != nil {
+		return m.queryFn(ctx, pkgPath, expr)
 	}
 
 	return "", nil

@@ -6,11 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/stretchr/testify/assert"
@@ -113,12 +111,11 @@ func TestEndBlocker(t *testing.T) {
 			mockEventSwitch = newCommonEvSwitch()
 
 			mockVMKeeper = &mockVMKeeper{
-				callFn: func(_ sdk.Context, call vm.MsgCall) (string, error) {
+				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
 					vmCalled = true
 
-					require.Equal(t, crypto.Address{}, call.Caller)
-					require.Equal(t, valRealm, call.PkgPath)
-					require.NotNil(t, call.Func)
+					require.Equal(t, valRealm, pkgPath)
+					require.NotEmpty(t, expr)
 
 					return "", errors.New("random call error")
 				},
@@ -157,12 +154,11 @@ func TestEndBlocker(t *testing.T) {
 			mockEventSwitch = newCommonEvSwitch()
 
 			mockVMKeeper = &mockVMKeeper{
-				callFn: func(_ sdk.Context, call vm.MsgCall) (string, error) {
+				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
 					vmCalled = true
 
-					require.Equal(t, crypto.Address{}, call.Caller)
-					require.Equal(t, valRealm, call.PkgPath)
-					require.NotNil(t, call.Func)
+					require.Equal(t, valRealm, pkgPath)
+					require.NotEmpty(t, expr)
 
 					return constructVMResponse([]abci.ValidatorUpdate{}), nil
 				},
@@ -197,10 +193,9 @@ func TestEndBlocker(t *testing.T) {
 			mockEventSwitch = newCommonEvSwitch()
 
 			mockVMKeeper = &mockVMKeeper{
-				callFn: func(_ sdk.Context, call vm.MsgCall) (string, error) {
-					require.Equal(t, crypto.Address{}, call.Caller)
-					require.Equal(t, valRealm, call.PkgPath)
-					require.NotNil(t, call.Func)
+				queryFn: func(_ sdk.Context, pkgPath, expr string) (string, error) {
+					require.Equal(t, valRealm, pkgPath)
+					require.NotEmpty(t, expr)
 
 					return constructVMResponse(changes), nil
 				},
