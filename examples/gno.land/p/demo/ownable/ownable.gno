@@ -81,7 +81,7 @@ func (o Ownable) Owner() std.Address {
 }
 
 func (o Ownable) AssertCallerIsOwner() {
-	if std.GetOrigCaller() != o.owner {
+	if std.PrevRealm().Addr() != o.owner {
 		panic(ErrUnauthorized)
 	}
 }
