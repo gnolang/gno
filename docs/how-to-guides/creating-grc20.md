@@ -17,7 +17,7 @@ Our **GRC20** Realm will have the following functionality:
 
 ## 1. Importing token package
 For this realm, we import the `grc20` package, as this includes
-the main functionality of our token realm. The package can be found the 
+the main functionality of our token realm. The package can be found at the 
 `gno.land/p/demo/grc/grc20` path.
 
 [embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-1.gno go)
@@ -55,7 +55,7 @@ The code snippet above does the following:
 pointer to the GRC20 token type, `grc20.AdminToken`,
 - Defines and sets the value of `admin` with a type of `std.Address` to contain 
 the address of the deployer
-- Initializes `mytoken` as a new GRC20 token, and set its name, symbol, and 
+- Initializes `mytoken` as a new GRC20 token, and sets its name, symbol, and 
 decimal values,
 - Mint 1 million units of `My Token` and assign them to the admin's address.
 
