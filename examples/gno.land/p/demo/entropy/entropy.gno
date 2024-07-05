@@ -1,7 +1,7 @@
 // Entropy generates fully deterministic, cost-effective, and hard to guess
 // numbers.
 //
-// It is designed both for for single-usage, like seeding math/rand or for being
+// It is designed both for single-usage, like seeding math/rand or for being
 // reused which increases the entropy and its cost effectiveness.
 //
 // Disclaimer: this package is unsafe and won't prevent others to guess values
