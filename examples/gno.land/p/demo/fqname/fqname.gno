@@ -60,7 +60,6 @@ func RenderLink(pkgPath, slug string) string {
 	if strings.HasPrefix(pkgPath, "gno.land") {
 		pkgLink := strings.TrimPrefix(pkgPath, "gno.land")
 		if slug != "" {
-			link := pkgPath + "." + slug
 			return "[" + pkgPath + "](" + pkgLink + ")." + slug
 		}
 		return "[" + pkgPath + "](" + pkgLink + ")"
