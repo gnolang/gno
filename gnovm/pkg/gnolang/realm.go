@@ -70,21 +70,12 @@ func (pid PkgID) Bytes() []byte {
 }
 
 func PkgIDFromPkgPath(path string) PkgID {
-	// fmt.Printf("PkgPath %s -> PkgID %v", path,
-	//	PkgID{HashBytes([]byte(path))})
 	return PkgID{HashBytes([]byte(path))}
 }
 
-// Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
-	pkgID := PkgIDFromPkgPath(path)
-	return ObjectIDFromPkgID(pkgID)
-}
-
-// Returns the ObjectID of the PackageValue associated with pkgID.
-func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	return ObjectID{
-		PkgID:   pkgID,
+		PkgID:   PkgIDFromPkgPath(path),
 		NewTime: 1, // by realm logic.
 	}
 }
@@ -154,10 +145,6 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		return // do nothing.
 	}
 	if po.GetObjectID().PkgID != rlm.ID {
-		// fmt.Println("PO", po.String())
-		// fmt.Println("PO.PKGID", po.GetObjectID().PkgID)
-		// fmt.Println("rlm", rlm)
-		// fmt.Println("rlm.ID", rlm.ID)
 		panic("cannot modify external-realm or non-realm object")
 	}
 

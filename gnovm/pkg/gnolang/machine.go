@@ -279,11 +279,7 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	} else {
 		pn = NewPackageNode(Name(memPkg.Name), memPkg.Path, &FileSet{})
 		pv = pn.NewPackage()
-		if true { // TODO finish SetBlockNode()
-			m.Store.SetBlockNode(pn)
-		} else {
-			// TODO m.Store.SetCacheBlockNode(pn)
-		}
+		m.Store.SetBlockNode(pn)
 		m.Store.SetCachePackage(pv)
 	}
 	m.SetActivePackage(pv)
@@ -1744,24 +1740,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	}
 	m.Package = pv
 	rlm := pv.GetRealm()
-	if rlm == nil && recv.IsDefined() {
-		// if bound method, get realm from receiver.
-		obj := recv.GetFirstObject(m.Store)
-		if obj == nil {
-			// panic("XXX not sure why this would be")
-			fmt.Println("XXX XXX", recv.String())
-		} else {
-			recvOID := obj.GetObjectInfo().ID
-			if !recvOID.IsZero() {
-				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				pv := m.Store.GetObject(recvPkgOID).(*PackageValue)
-				rlm = pv.GetRealm() // done
-			}
-		}
-	}
 	if rlm != nil && m.Realm != rlm {
-		// enter new realm
-		m.Realm = rlm
+		m.Realm = rlm // enter new realm
 	}
 }
 
