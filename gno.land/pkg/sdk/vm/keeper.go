@@ -93,18 +93,27 @@ func (vm *VMKeeper) Initialize(
 	iavlSDKStore := ms.GetStore(vm.iavlKey)
 
 	if cacheStdlibLoad {
-		vm.gnoStore = CachedStdlibLoad(vm.stdlibsDir, baseSDKStore, iavlSDKStore)
-		return
+		// Testing case (using the cache speeds up starting many nodes)
+		vm.gnoStore = cachedStdlibLoad(vm.stdlibsDir, baseSDKStore, iavlSDKStore)
+	} else {
+		// On-chain case
+		vm.gnoStore = uncachedPackageLoad(logger, vm.stdlibsDir, baseSDKStore, iavlSDKStore)
 	}
+}
 
+func uncachedPackageLoad(
+	logger *slog.Logger,
+	stdlibsDir string,
+	baseStore, iavlStore store.Store,
+) gno.Store {
 	alloc := gno.NewAllocator(maxAllocTx)
-	vm.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
-	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
-	if !cacheStdlibLoad && vm.gnoStore.NumMemPackages() == 0 {
+	gnoStore := gno.NewStore(alloc, baseStore, iavlStore)
+	gnoStore.SetNativeStore(stdlibs.NativeStore)
+	if gnoStore.NumMemPackages() == 0 {
 		// No packages in the store; set up the stdlibs.
 		start := time.Now()
 
-		loadStdlib(vm.stdlibsDir, vm.gnoStore)
+		loadStdlib(stdlibsDir, gnoStore)
 
 		logger.Debug("Standard libraries initialized",
 			"elapsed", time.Since(start))
@@ -113,22 +122,25 @@ func (vm *VMKeeper) Initialize(
 		// TODO remove this, and generally solve for in-mem garbage collection
 		// and memory management across many objects/types/nodes/packages.
 		start := time.Now()
+
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
 				PkgPath: "",
 				Output:  os.Stdout, // XXX
-				Store:   vm.gnoStore,
+				Store:   gnoStore,
 			})
 		defer m2.Release()
 		gno.DisableDebug()
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
+
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
+	return gnoStore
 }
 
-func CachedStdlibLoad(stdlibsDir string, baseStore, iavlStore store.Store) gno.Store {
+func cachedStdlibLoad(stdlibsDir string, baseStore, iavlStore store.Store) gno.Store {
 	cachedStdlibOnce.Do(func() {
 		cachedStdlibBase = memdb.NewMemDB()
 		cachedStdlibIavl = memdb.NewMemDB()

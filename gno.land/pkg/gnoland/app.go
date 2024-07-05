@@ -35,6 +35,8 @@ type AppOptions struct {
 	MaxCycles        int64
 	// Whether to cache the result of loading the standard libraries.
 	// This is useful if you have to start many nodes, like in testing.
+	// This disables loading existing packages; so it should only be used
+	// on a fresh database.
 	CacheStdlibLoad bool
 }
 
