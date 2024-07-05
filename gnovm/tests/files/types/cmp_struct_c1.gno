@@ -16,4 +16,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_struct_c1.gno:15: cannot use main.bar as main.foo without explicit conversion
+// main/files/types/cmp_struct_c1.gno:15:10: cannot use main.bar as main.foo without explicit conversion

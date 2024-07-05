@@ -18,4 +18,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f27_stdlibs.gno:13: operator > not defined on: InterfaceKind
+// main/files/types/eql_0f27_stdlibs.gno:13:5: operator > not defined on: InterfaceKind

@@ -328,7 +328,7 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 func (tv *TypedValue) GetFirstObject(store Store) Object {
 	switch cv := tv.V.(type) {
 	case PointerValue:
-		return cv.Base.(Object)
+		return cv.GetBase(store)
 	case *ArrayValue:
 		return cv
 	case *SliceValue:

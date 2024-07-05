@@ -203,7 +203,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 	case Object:
 		return cbase
 	default:
-		panic("should not happen")
+		panic(fmt.Sprintf("unexpected pointer base type %T", cbase))
 	}
 }
 
