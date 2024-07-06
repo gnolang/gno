@@ -13,13 +13,6 @@ func GetChanges(from int64) []validators.Validator {
 	changes.Iterate(getBlockID(from), "", func(_ string, value interface{}) bool {
 		chs := value.([]change)
 
-		if len(chs) > 0 && chs[0].blockNum < from {
-			// Each change entry in the set is tied to the same block number,
-			// so there is no need to parse other changes
-			// if the block number is invalid (< from)
-			return false
-		}
-
 		for _, ch := range chs {
 			valsetChanges = append(valsetChanges, ch.validator)
 		}
