@@ -43,16 +43,13 @@ func TestAtomicSwap(t *testing.T) {
 
 	// Test claim
 	std.TestSetRealm(std.NewUserRealm(recipient))
+	uassert.PanicsWithMessage(t, "invalid preimage", func() { swap.Claim("invalid") })
 	swap.Claim("secret")
 	uassert.True(t, swap.claimed, "expected claimed to be true")
 
 	// Test refund (should fail because already claimed)
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("expected panic, got none")
-		}
-	}()
-	swap.Refund()
+	uassert.PanicsWithMessage(t, "already claimed", swap.Refund)
+	uassert.PanicsWithMessage(t, "already claimed", func() { swap.Claim("secret") })
 }
 
 func TestAtomicSwapRefund(t *testing.T) {
@@ -73,11 +70,13 @@ func TestAtomicSwapRefund(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(sender))
 	std.TestSetOrigSend(amount, nil)
 	swap := NewCoinSwap(recipient, hashlockHex, timelock) // Create a new swap
-	swap.timelock = time.Now().Add(-1 * time.Hour)        // override timelock
 
+	// Test Refund
 	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
 	std.TestSetOrigPkgAddr(pkgAddr)
 	std.TestIssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
+	uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
+	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
 	swap.Refund()
 	uassert.True(t, swap.refunded, "expected refunded to be true")
 }

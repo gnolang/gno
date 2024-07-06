@@ -51,6 +51,7 @@ func newSwap(
 		claimed:   false,
 		refunded:  false,
 		sendFn:    sendFn,
+		amountStr: amountStr,
 	}
 }
 
