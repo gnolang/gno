@@ -42,16 +42,12 @@ func NewGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, to
 	allowance, err := token.Allowance(sender, curAddr)
 	require(err == nil, "allowance error")
 	require(allowance > 0, "no allowance")
-	println("RECIPIENT", recipient)
-	println("SENDER", sender)
-	println("CUR", curAddr)
 	err = token.TransferFrom(sender, curAddr, allowance)
-	require(err == nil, "cannot retrieve tokens from allowance: "+err.Error())
-
+	require(err == nil, "cannot retrieve tokens from allowance")
 	amountStr := ufmt.Sprintf("%d%s", allowance, token.GetSymbol())
 	sendFn := func(to std.Address) {
 		err := token.Transfer(to, allowance)
-		require(err == nil, "cannot transfer tokens: "+err.Error())
+		require(err == nil, "cannot transfer tokens")
 	}
 	return newSwap(sender, recipient, hashlock, timelock, amountStr, sendFn)
 }
