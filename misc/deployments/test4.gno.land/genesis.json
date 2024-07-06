@@ -15,5 +15,24 @@
       ]
     }
   },
-  "app_hash": null
+  "app_hash": null,
+  "app_state": {
+    "@type": "/gno.GenesisState",
+    "balances": [
+      "g19qr6kdu7pyvc95jyec7f7xfq2lj2w4zp46u4sy=9000000000000000000ugnot",
+      "g1xmtdgzwvvclkxxgszyyas0ekz66kder3x8jmzk=9000000000000000000ugnot",
+      "g1pwx9cvx9cyeza8jnajsr2rxqyzsanjwd0ssx32=9000000000000000000ugnot",
+      "g1jv52j08qvyrjmdnv7yag9swpt9gz2rd9zg66ga=9000000000000000000ugnot",
+      "g17a3rlkw58e4gnp92al9fx9039tt5w9mq9530f8=9000000000000000000ugnot",
+      "g18l9us6trqaljw39j94wzf5ftxmd9qqkvrxghd2=9000000000000000000ugnot",
+      "g1s8zdg7e7jrcjupna78wvyy32py0ghgn3jm9rwu=9000000000000000000ugnot",
+      "g1dupcckverkpf5vsjk4z4xs0q6l630zjv98pv0a=9000000000000000000ugnot",
+      "g1qhuef2450xh7g7na8s865nreu2xw8j84kgkvt5=9000000000000000000ugnot",
+      "g13qtrg2fnphh4rw697educlcmv0ru2yk63flfad=9000000000000000000ugnot",
+      "g1mk2ww330ms9yxr9pxelpg0t0emqvjjepnhmmeh=9000000000000000000ugnot",
+      "g1er355fkjksqpdtwmhf5penwa82p0rhqxkkyhk5=9000000000000000000ugnot",
+      "g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm=9000000000000000000ugnot"
+    ],
+    "txs": null
+  }
 }
