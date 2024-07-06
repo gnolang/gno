@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0a03.gno:8: cannot use int8 as int
+// main/files/types/eql_0a03.gno:8:10: cannot use int8 as int
