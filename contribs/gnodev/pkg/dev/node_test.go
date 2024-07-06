@@ -67,7 +67,7 @@ func Render(_ string) string { return "foo" }
 
 	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
-	cfg.PackagesPathList = []PackagePath{pkgpath}
+	cfg.PackagesModifier = []PackagePath{pkgpath}
 	cfg.Logger = logger
 	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
@@ -476,7 +476,7 @@ func generateTestingPackage(t *testing.T, nameFile ...string) PackagePath {
 
 func createDefaultTestingNodeConfig(pkgslist ...PackagePath) *NodeConfig {
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
-	cfg.PackagesPathList = pkgslist
+	cfg.PackagesModifier = pkgslist
 	return cfg
 }
 
@@ -499,7 +499,7 @@ func newTestingDevNodeWithConfig(t *testing.T, cfg *NodeConfig) (*Node, *mock.Se
 
 	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
-	assert.Len(t, node.ListPkgs(), len(cfg.PackagesPathList))
+	assert.Len(t, node.ListPkgs(), len(cfg.PackagesModifier))
 
 	t.Cleanup(func() {
 		node.Close()

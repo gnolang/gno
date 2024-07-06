@@ -7,13 +7,16 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/rawterm"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/watcher"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
@@ -40,6 +43,8 @@ var (
 )
 
 type devCfg struct {
+	chdir string
+
 	// Listeners
 	nodeRPCListenerAddr      string
 	nodeP2PListenerAddr      string
@@ -106,6 +111,13 @@ func main() {
 }
 
 func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.StringVar(
+		&c.chdir,
+		"C",
+		defaultDevOptions.chdir,
+		"change directory before running gnodev",
+	)
+
 	fs.StringVar(
 		&c.home,
 		"home",
@@ -244,6 +256,38 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
 
+	if cfg.chdir != "" {
+		if err := os.Chdir(cfg.chdir); err != nil {
+			return fmt.Errorf("unable to change directory: %w", err)
+		}
+	}
+
+	dir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("unable to guess current dir: %w", err)
+	}
+
+	var resolvers []packages.Resolver
+	gnoroot := gnoenv.RootDir()
+	localresolver := packages.GuessLocalResolverGnoMod(dir)
+	if localresolver == nil {
+		localresolver = packages.GuessLocalResolverFromRoots(dir, []string{gnoroot})
+		if localresolver == nil {
+			return fmt.Errorf("unable to guess current package: %w", err)
+		}
+	}
+
+	path := localresolver.Path
+	resolvers = append(resolvers, localresolver)
+
+	exampleRoot := filepath.Join(gnoroot, "examples")
+	fsResolver := packages.NewFSResolver(exampleRoot)
+	resolvers = append(resolvers, fsResolver)
+	loader := &packages.Loader{
+		Paths:    []string{path},
+		Resolver: packages.ChainedResolver(resolvers),
+	}
+
 	if err := cfg.validateConfigFlags(); err != nil {
 		return fmt.Errorf("validate error: %w", err)
 	}
@@ -272,10 +316,10 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	}
 
 	// Check and Parse packages
-	pkgpaths, err := resolvePackagesPathFromArgs(cfg, book, args)
-	if err != nil {
-		return fmt.Errorf("unable to parse package paths: %w", err)
-	}
+	// pkgpaths, err := resolvePackagesPathFromArgs(cfg, book, args)
+	// if err != nil {
+	// 	return fmt.Errorf("unable to parse package paths: %w", err)
+	// }
 
 	// generate balances
 	balances, err := generateBalances(book, cfg)
@@ -287,7 +331,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
 	nodeLogger := logger.WithGroup(NodeLogName)
-	nodeCfg := setupDevNodeConfig(cfg, logger, emitterServer, balances, pkgpaths)
+	nodeCfg := setupDevNodeConfig(cfg, logger, emitterServer, balances, loader)
 	devNode, err := setupDevNode(ctx, cfg, nodeCfg)
 	if err != nil {
 		return err
@@ -325,13 +369,29 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 		})
 	}
 
+	// XXX: TODO:
+	// - create a map of known path that are allowed
+	// - move this
+	u, err := url.Parse("http://" + path)
+	if err != nil {
+		return fmt.Errorf("malformed path %q: %w", path, err)
+	}
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/static") && !strings.HasPrefix(r.URL.Path, u.Path) {
+			http.Redirect(w, r, u.Path, http.StatusFound)
+			return
+		}
+
+		webhandler.ServeHTTP(w, r)
+	})
+
 	// Setup HotReload if needed
 	if !cfg.noWatch {
 		evtstarget := fmt.Sprintf("%s/_events", server.Addr)
 		mux.Handle("/_events", emitterServer)
-		mux.Handle("/", emitter.NewMiddleware(evtstarget, webhandler))
+		mux.Handle("/", emitter.NewMiddleware(evtstarget, handler))
 	} else {
-		mux.Handle("/", webhandler)
+		mux.Handle("/", handler)
 	}
 
 	go func() {
@@ -350,7 +410,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	defer watcher.Stop()
 
 	// Add node pkgs to watcher
-	watcher.AddPackages(devNode.ListPkgs()...)
+	watcher.UpdatePackagesWatch(devNode.ListPkgs()...)
 
 	if !cfg.serverMode {
 		logger.WithGroup("--- READY").Info("for commands and help, press `h`")
@@ -360,7 +420,7 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	return runEventLoop(ctx, logger, book, rt, devNode, watcher)
 }
 
-var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation: 
+var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation:
 https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev
 
 P           Previous TX  - Go to the previous tx
@@ -403,21 +463,23 @@ func runEventLoop(
 		select {
 		case <-ctx.Done():
 			return context.Cause(ctx)
-		case pkgs, ok := <-watch.PackagesUpdate:
+		case _, ok := <-watch.PackagesUpdate:
 			if !ok {
 				return nil
 			}
 
-			// fmt.Fprintln(nodeOut, "Loading package updates...")
-			if err = dnode.UpdatePackages(pkgs.PackagesPath()...); err != nil {
-				return fmt.Errorf("unable to update packages: %w", err)
-			}
+			// if err = dnode.UpdatePackages(pkgs.PackagesPath()...); err != nil {
+			// 	return fmt.Errorf("unable to update packages: %w", err)
+			// }
 
 			logger.WithGroup(NodeLogName).Info("reloading...")
 			if err = dnode.Reload(ctx); err != nil {
 				logger.WithGroup(NodeLogName).
 					Error("unable to reload node", "err", err)
 			}
+
+			listpkgs := dnode.ListPkgs()
+			watch.UpdatePackagesWatch(listpkgs...)
 
 		case key, ok := <-keyPressCh:
 			if !ok {
@@ -516,8 +578,8 @@ func listenForKeyPress(logger *slog.Logger, rt *rawterm.RawTerm) <-chan rawterm.
 	return cc
 }
 
-func resolvePackagesPathFromArgs(cfg *devCfg, bk *address.Book, args []string) ([]gnodev.PackagePath, error) {
-	paths := make([]gnodev.PackagePath, 0, len(args))
+func resolvePackagesPathFromArgs(cfg *devCfg, bk *address.Book, args []string) ([]gnodev.PackageModifier, error) {
+	modifiers := make([]gnodev.PackageModifier, 0, len(args))
 
 	if cfg.deployKey == "" {
 		return nil, fmt.Errorf("default deploy key cannot be empty")
@@ -528,8 +590,12 @@ func resolvePackagesPathFromArgs(cfg *devCfg, bk *address.Book, args []string) (
 		return nil, fmt.Errorf("unable to get deploy key %q", cfg.deployKey)
 	}
 
+	if len(args) == 0 {
+		args = append(args, ".") // add current dir if none are provided
+	}
+
 	for _, arg := range args {
-		path, err := gnodev.ResolvePackagePathQuery(bk, arg)
+		path, err := gnodev.ResolvePackageModifierQuery(bk, arg)
 		if err != nil {
 			return nil, fmt.Errorf("invalid package path/query %q: %w", arg, err)
 		}
@@ -539,17 +605,17 @@ func resolvePackagesPathFromArgs(cfg *devCfg, bk *address.Book, args []string) (
 			path.Creator = defaultKey
 		}
 
-		paths = append(paths, path)
+		modifiers = append(modifiers, path)
 	}
 
 	// Add examples folder if minimal is set to false
-	if !cfg.minimal {
-		paths = append(paths, gnodev.PackagePath{
+	if cfg.minimal {
+		modifiers = append(modifiers, gnodev.PackageModifier{
 			Path:    filepath.Join(cfg.root, "examples"),
 			Creator: defaultKey,
 			Deposit: nil,
 		})
 	}
 
-	return paths, nil
+	return modifiers, nil
 }

@@ -9,6 +9,7 @@ import (
 
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
+	"github.com/gnolang/gno/contribs/gnodev/pkg/packages"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
@@ -55,14 +56,15 @@ func setupDevNodeConfig(
 	logger *slog.Logger,
 	emitter emitter.Emitter,
 	balances gnoland.Balances,
-	pkgspath []gnodev.PackagePath,
+	loader *packages.Loader,
 ) *gnodev.NodeConfig {
 	config := gnodev.DefaultNodeConfig(cfg.root)
+	config.Loader = loader
 
 	config.Logger = logger
 	config.Emitter = emitter
 	config.BalancesList = balances.List()
-	config.PackagesPathList = pkgspath
+	// config.PackagesModifier = pkgspath
 	config.TMConfig.RPC.ListenAddress = resolveUnixOrTCPAddr(cfg.nodeRPCListenerAddr)
 	config.NoReplay = cfg.noReplay
 	config.MaxGasPerBlock = cfg.maxGas

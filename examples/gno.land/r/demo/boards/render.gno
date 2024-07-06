@@ -13,12 +13,13 @@ func RenderBoard(bid BoardID) string {
 	if board == nil {
 		return "missing board"
 	}
+
 	return board.RenderBoard()
 }
 
 func Render(path string) string {
 	if path == "" {
-		str := "These are all the boards of this realm:\n\n"
+		str := "are all the boards of this realm:\n\n"
 		gBoards.Iterate("", "", func(key string, value interface{}) bool {
 			board := value.(*Board)
 			str += " * [" + board.url + "](" + board.url + ")\n"
@@ -26,6 +27,7 @@ func Render(path string) string {
 		})
 		return str
 	}
+
 	parts := strings.Split(path, "/")
 	if len(parts) == 1 {
 		// /r/demo/boards:BOARD_NAME

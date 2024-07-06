@@ -88,7 +88,7 @@ func TestResolvePackagePathQuery(t *testing.T) {
 		t.Run(tc.Path, func(t *testing.T) {
 			t.Parallel()
 
-			result, err := ResolvePackagePathQuery(book, tc.Path)
+			result, err := ResolvePackageModifierQuery(book, tc.Path)
 			if tc.ShouldFail {
 				assert.Error(t, err)
 				return
