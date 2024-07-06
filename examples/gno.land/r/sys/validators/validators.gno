@@ -88,13 +88,17 @@ func getBlockID(blockNum int64) string {
 }
 
 func Render(_ string) string {
-	if changes.Size() == 0 {
+	var (
+		size       = changes.Size()
+		maxDisplay = 10
+	)
+
+	if size == 0 {
 		return "No valset changes to apply."
 	}
 
 	output := "Valset changes:\n"
-
-	changes.Iterate("", "", func(_ string, value interface{}) bool {
+	changes.ReverseIterateByOffset(size-maxDisplay, maxDisplay, func(_ string, value interface{}) bool {
 		chs := value.([]change)
 
 		for _, ch := range chs {
