@@ -16,7 +16,6 @@ const (
 	errValoperExists        = "valoper already exists"
 	errValoperMissing       = "valoper does not exist"
 	errInvalidAddressUpdate = "valoper updated address exists"
-	errValoperInactive      = "valoper is not active"
 	errValoperNotCaller     = "valoper is not the caller"
 )
 
@@ -141,14 +140,19 @@ func isValoper(address std.Address) bool {
 // This function is meant to serve as a helper
 // for generating the govdao proposal
 func GovDAOProposal(address std.Address) {
-	valoper := GetByAddr(address)
-	if !valoper.Active {
-		panic(errValoperInactive)
-	}
+	var (
+		valoper     = GetByAddr(address)
+		votingPower = uint64(1)
+	)
 
 	// Make sure the valoper is the caller
 	if std.GetOrigCaller() != address {
-		panic(errValoperInactive)
+		panic(errValoperNotCaller)
+	}
+
+	// Determine the voting power
+	if !valoper.Active {
+		votingPower = uint64(0)
 	}
 
 	changesFn := func() []pVals.Validator {
@@ -156,7 +160,7 @@ func GovDAOProposal(address std.Address) {
 			{
 				Address:     valoper.Address,
 				PubKey:      valoper.PubKey,
-				VotingPower: 10,
+				VotingPower: votingPower,
 			},
 		}
 	}
