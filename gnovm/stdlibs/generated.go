@@ -1018,3 +1018,51 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 }
+
+var initOrder = [...]string{
+	"errors",
+	"internal/bytealg",
+	"io",
+	"unicode",
+	"unicode/utf8",
+	"bytes",
+	"strings",
+	"bufio",
+	"encoding/binary",
+	"math/bits",
+	"math",
+	"crypto/chacha20/chacha",
+	"crypto/cipher",
+	"crypto/chacha20",
+	"strconv",
+	"crypto/chacha20/rand",
+	"crypto/ed25519",
+	"crypto/sha256",
+	"encoding",
+	"encoding/base64",
+	"encoding/hex",
+	"hash",
+	"hash/adler32",
+	"math/overflow",
+	"math/rand",
+	"path",
+	"sort",
+	"net/url",
+	"regexp/syntax",
+	"regexp",
+	"std",
+	"testing",
+	"time",
+	"unicode/utf16",
+}
+
+// InitOrder returns the initialization order of the standard libraries.
+// This is calculated starting from the list of all standard libraries and
+// iterating through each: if a package depends on an unitialized package, that
+// is processed first, and so on recursively; matching the behaviour of Go's
+// [program initialization].
+//
+// [program initialization]: https://go.dev/ref/spec#Program_initialization
+func InitOrder() []string {
+	return initOrder[:]
+}
