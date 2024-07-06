@@ -408,7 +408,7 @@ func isBase64(s string) bool {
 
 // NOTE: rt.Kind() isn't a pointer.
 func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, bool) {
-	isIntString := reInt.MatchString(arg)
+	isIntString := reInt.Match([]byte(arg))
 	isQuotedString := strings.HasPrefix(arg, `"`) && strings.HasSuffix(arg, `"`)
 	isHexString := strings.HasPrefix(strings.ToLower(arg), "0x")
 	isBase64String := isBase64(arg)
@@ -425,6 +425,7 @@ func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, boo
 
 	if isIntString && expectingInt {
 		qarg := `"` + arg + `"`
+		// jsonStringToArg
 		rv, err := jsonStringToArg(rt, qarg)
 		if err != nil {
 			return rv, err, false
@@ -434,7 +435,8 @@ func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, boo
 
 	if isHexString {
 		if !expectingString && !expectingByteSlice {
-			err := errors.New("got a hex string arg, but expected " + rt.Kind().String())
+			err := errors.New("got a hex string arg, but expected '%s'",
+				rt.Kind().String())
 			return reflect.ValueOf(nil), err, false
 		}
 
