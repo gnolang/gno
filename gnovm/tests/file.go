@@ -307,7 +307,6 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						panic(fmt.Sprintf("fail on %s: got unexpected debug error(s): %v", path, gno.GetDebugErrors()))
 					}
 					// pnc is nil, errWanted empty, no gno debug errors
-					return nil
 				}
 			case "Output":
 				// panic if got unexpected error

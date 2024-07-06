@@ -171,6 +171,13 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			if co.GetIsEscaped() {
 				// already escaped
 			} else {
+				if !co.GetIsReal() {
+					// this can happen if a ref +1
+					// new object gets passed into
+					// an external realm function.
+					co.SetIsNewReal(false)
+					rlm.MarkNewReal(co)
+				}
 				rlm.MarkNewEscaped(co)
 			}
 		} else if co.GetIsReal() {
@@ -375,6 +382,15 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 			// oo.SetIsNewReal(false)
 			// skip if became deleted.
 			continue
+		} else if oo.GetIsReal() && oo.GetObjectID().PkgID != rlm.ID {
+			// the object was new real in this realm,
+			// but another realm saved it before
+			// this realm started finalizing.
+			// if debug { XXX uncomment in the future
+			if oo.GetObjectID().PkgID == rlm.ID {
+				panic("should have been saved in another realm")
+			}
+			// }
 		} else {
 			rlm.incRefCreatedDescendants(store, oo)
 		}
@@ -442,7 +458,6 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// NOTE: do not unset owner here,
 				// may become unescaped later
 				// in processNewEscapedMarks().
-				// NOTE: may already be escaped.
 				rlm.MarkNewEscaped(child)
 			}
 		} else {
@@ -569,6 +584,7 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 				if eo.GetObjectID().IsZero() {
 					panic("new escaped mark has no object ID")
 				}
+
 				// escaped has no owner.
 				eo.SetOwner(nil)
 			}
@@ -1471,7 +1487,7 @@ func toRefValue(val Value) RefValue {
 		} else if oo.GetIsEscaped() {
 			if debug {
 				if !oo.GetOwnerID().IsZero() {
-					panic("cannot convert escaped object to ref value without an owner ID")
+					panic("cannot convert escaped object to ref value with an owner ID")
 				}
 			}
 			return RefValue{
