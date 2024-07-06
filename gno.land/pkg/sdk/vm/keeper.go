@@ -150,7 +150,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 
 	store := vm.getGnoStore(ctx)
 
-	// if `sysUsersPkg` does not exists -> skip validation.
+	// if `sysUsersPkg` does not exist -> skip validation.
 	usersPkg := store.GetPackage(sysUsersPkg, false)
 	if usersPkg == nil {
 		return nil
