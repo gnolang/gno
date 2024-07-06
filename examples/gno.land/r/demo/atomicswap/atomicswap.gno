@@ -10,6 +10,25 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
+var defaultTimelockDuration = 7 * 24 * time.Hour // 1w
+
+// NewCoinSwap creates a new atomic swap contract for native coins.
+// It uses a default timelock duration.
+func NewCoinSwap(recipient std.Address, hashlock string) *Swap {
+	timelock := time.Now().Add(defaultTimelockDuration)
+	return NewCustomCoinSwap(recipient, hashlock, timelock)
+}
+
+// NewGRC20Swap creates a new atomic swap contract for grc20 tokens.
+// It uses gno.land/r/demo/grc20reg to lookup for a registered token.
+func NewGRC20Swap(recipient std.Address, hashlock string, tokenRegistryKey string) *Swap {
+	timelock := time.Now().Add(defaultTimelockDuration)
+	panic("not implemented (depends on #2516)")
+	var token grc20.IGRC20
+	// token := grc20reg.Get(tokenRegistryKey)
+	return NewCustomGRC20Swap(recipient, hashlock, timelock, token)
+}
+
 // Swap represents an atomic swap contract.
 type Swap struct {
 	sender    std.Address
@@ -22,8 +41,10 @@ type Swap struct {
 	sendFn    func(to std.Address)
 }
 
-// NewCoinSwap creates a new atomic swap contract for native coins.
-func NewCoinSwap(recipient std.Address, hashlock string, timelock time.Time) *Swap {
+// NewCoinSwapWithTimelock creates a new atomic swap contract for native coin.
+// It allows specifying a custom timelock duration.
+// It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
+func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Time) *Swap {
 	sender := std.PrevRealm().Addr()
 	sent := std.GetOrigSend()
 	require(len(sent) != 0, "at least one coin needs to be sent")
@@ -35,7 +56,9 @@ func NewCoinSwap(recipient std.Address, hashlock string, timelock time.Time) *Sw
 	return newSwap(sender, recipient, hashlock, timelock, amountStr, sendFn)
 }
 
-func NewGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, token grc20.IGRC20) *Swap {
+// NewCustomGRC20Swap creates a new atomic swap contract for grc20 tokens.
+// It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
+func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, token grc20.IGRC20) *Swap {
 	sender := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
 

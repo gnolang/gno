@@ -31,7 +31,7 @@ func TestNewCoinSwap_Claim(t *testing.T) {
 	// Create a new swap
 	std.TestSetRealm(std.NewUserRealm(sender))
 	std.TestSetOrigSend(amount, nil)
-	swap := NewCoinSwap(recipient, hashlockHex, timelock)
+	swap := NewCustomCoinSwap(recipient, hashlockHex, timelock)
 
 	// Test initial state
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
@@ -70,7 +70,7 @@ func TestNewCoinSwap_Refund(t *testing.T) {
 	// Create a new swap
 	std.TestSetRealm(std.NewUserRealm(sender))
 	std.TestSetOrigSend(amount, nil)
-	swap := NewCoinSwap(recipient, hashlockHex, timelock) // Create a new swap
+	swap := NewCustomCoinSwap(recipient, hashlockHex, timelock) // Create a new swap
 
 	// Test Refund
 	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
@@ -96,7 +96,7 @@ func TestNewGRC20_Claim(t *testing.T) {
 
 	// Create a new swap
 	std.TestSetRealm(std.NewUserRealm(sender))
-	swap := NewGRC20Swap(recipient, hashlockHex, timelock, test20.Pub)
+	swap := NewCustomGRC20Swap(recipient, hashlockHex, timelock, test20.Pub)
 
 	// Test initial state
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
@@ -146,7 +146,7 @@ func TestNewGRC20_Refund(t *testing.T) {
 
 	// Create a new swap
 	std.TestSetRealm(std.NewUserRealm(sender))
-	swap := NewGRC20Swap(recipient, hashlockHex, timelock, test20.Pub)
+	swap := NewCustomGRC20Swap(recipient, hashlockHex, timelock, test20.Pub)
 
 	// Test initial state
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
