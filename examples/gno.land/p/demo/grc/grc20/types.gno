@@ -1,12 +1,20 @@
 package grc20
 
 import (
+	"errors"
 	"std"
 
 	"gno.land/p/demo/grc/exts"
 )
 
-type IGRC20 interface {
+var (
+	ErrInsufficientBalance   = errors.New("insufficient balance")
+	ErrInsufficientAllowance = errors.New("insufficient allowance")
+	ErrInvalidAddress        = errors.New("invalid address")
+	ErrCannotTransferToSelf  = errors.New("cannot send transfer to self")
+)
+
+type Token interface {
 	exts.TokenMetadata
 
 	// Returns the amount of tokens in existence.
@@ -47,19 +55,7 @@ type IGRC20 interface {
 	TransferFrom(from, to std.Address, amount uint64) error
 }
 
-// Emitted when `value` tokens are moved from one account (`from`) to another (`to`).
-//
-// Note that `value` may be zero.
-type TransferEvent struct {
-	From  std.Address
-	To    std.Address
-	Value uint64
-}
-
-// Emitted when the allowance of a `spender` for an `owner` is set by
-// a call to {approve}. `value` is the new allowance.
-type ApprovalEvent struct {
-	Owner   std.Address
-	Spender std.Address
-	Value   uint64
-}
+const (
+	TransferEvent = "Transfer"
+	ApprovalEvent = "Approval"
+)
