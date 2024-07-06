@@ -22,5 +22,7 @@ func main() {
 }
 
 // Output:
-// hello
-// .
+
+// Error:
+
+// Realm:
