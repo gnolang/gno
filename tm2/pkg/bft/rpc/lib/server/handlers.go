@@ -470,13 +470,13 @@ func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, boo
 	}
 
 	if isQuotedString && expectingByteSlice {
-		var v interface{}
-		err := amino.UnmarshalJSON([]byte(arg), &v)
+		v := reflect.New(reflect.TypeOf(""))
+		err := amino.UnmarshalJSON([]byte(arg), v.Interface())
 		if err != nil {
 			return reflect.ValueOf(nil), err, false
 		}
-		strVal := reflect.ValueOf(v).Elem().String()
-		return reflect.ValueOf([]byte(strVal)), nil, true
+		v = v.Elem()
+		return reflect.ValueOf([]byte(v.String())), nil, true
 	}
 
 	return reflect.ValueOf(nil), nil, false
