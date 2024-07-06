@@ -14,6 +14,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -71,7 +72,7 @@ func NewSnapshotter(dockerClient *client.Client, cfg config) (*snapshotter, erro
 
 // pullLatestImage get latest version of the docker image
 func (s snapshotter) pullLatestImage(ctx context.Context) (bool, error) {
-	reader, err := s.dockerClient.ImagePull(ctx, "ghcr.io/gnolang/gno/gnoland:master", types.ImagePullOptions{})
+	reader, err := s.dockerClient.ImagePull(ctx, "ghcr.io/gnolang/gno/gnoland:master", image.PullOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -112,7 +113,7 @@ func (s snapshotter) switchTraefikPortalLoop(url string) error {
 
 func (s snapshotter) getPortalLoopContainers(ctx context.Context) ([]types.Container, error) {
 	// Check if a portal loop is running
-	containers, err := s.dockerClient.ContainerList(ctx, types.ContainerListOptions{})
+	containers, err := s.dockerClient.ContainerList(ctx, container.ListOptions{})
 	if err != nil {
 		return []types.Container{}, err
 	}
@@ -138,7 +139,7 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 	}
 
 	// Run Docker container
-	container, err := s.dockerClient.ContainerCreate(ctx, &container.Config{
+	dockerContainer, err := s.dockerClient.ContainerCreate(ctx, &container.Config{
 		Image: "ghcr.io/gnolang/gno/gnoland:master",
 		Labels: map[string]string{
 			"the-portal-loop": s.containerName,
@@ -170,12 +171,12 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 		return nil, err
 	}
 
-	err = s.dockerClient.NetworkConnect(ctx, "portal-loop", container.ID, nil)
+	err = s.dockerClient.NetworkConnect(ctx, "portal-loop", dockerContainer.ID, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.dockerClient.ContainerStart(ctx, container.ID, types.ContainerStartOptions{}); err != nil {
+	if err := s.dockerClient.ContainerStart(ctx, dockerContainer.ID, container.StartOptions{}); err != nil {
 		return nil, err
 	}
 	time.Sleep(time.Second * 5)
@@ -185,7 +186,7 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 		return nil, err
 	}
 	for _, c := range containers {
-		if c.ID == container.ID {
+		if c.ID == dockerContainer.ID {
 			return &c, nil
 		}
 	}
