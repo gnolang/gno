@@ -37,6 +37,11 @@ type AppOptions struct {
 	Logger           *slog.Logger
 	EventSwitch      events.EventSwitch
 	MaxCycles        int64
+	// Whether to cache the result of loading the standard libraries.
+	// This is useful if you have to start many nodes, like in testing.
+	// This disables loading existing packages; so it should only be used
+	// on a fresh database.
+	CacheStdlibLoad bool
 }
 
 func NewAppOptions() *AppOptions {
@@ -138,7 +143,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Initialize the VMKeeper.
 	ms := baseApp.GetCacheMultiStore()
-	vmk.Initialize(ms)
+	vmk.Initialize(cfg.Logger, ms, cfg.CacheStdlibLoad)
 	ms.MultiWrite() // XXX why was't this needed?
 
 	return baseApp, nil
