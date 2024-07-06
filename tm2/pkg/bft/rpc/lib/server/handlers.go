@@ -430,6 +430,7 @@ func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, boo
 		if err != nil {
 			return rv, err, false
 		}
+
 		return rv, nil, true
 	}
 
@@ -440,6 +441,7 @@ func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, boo
 			return reflect.ValueOf(nil), err, false
 		}
 
+		var value []byte
 		value, err := hex.DecodeString(arg[2:])
 		if err != nil {
 			return reflect.ValueOf(nil), err, false
