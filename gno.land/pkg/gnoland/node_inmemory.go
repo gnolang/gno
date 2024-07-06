@@ -94,6 +94,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		GenesisTxHandler: cfg.GenesisTxHandler,
 		MaxCycles:        cfg.GenesisMaxVMCycles,
 		DB:               memdb.NewMemDB(),
+		CacheStdlibLoad:  true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
