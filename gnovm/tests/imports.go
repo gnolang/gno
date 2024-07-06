@@ -89,6 +89,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				// pkg := gno.NewPackageNode(gno.Name(memPkg.Name), memPkg.Path, nil)
 				// pv := pkg.NewPackage()
 				// m2.SetActivePackage(pv)
+				// XXX remove second arg 'false' and remove all gonative stuff.
 				return m2.RunMemPackage(memPkg, false)
 			}
 		}
