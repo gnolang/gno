@@ -46,14 +46,14 @@ network.
 ### What stage is the Gno.land project in?
 
 Gno.land is currently in Testnet 3, the single-node testnet stage. The next version, Testnet 4, is scheduled to go live
-in Q2 2024, which will include a validator set implementation for a multinode environment.
+in Q3 2024, which will include a validator set implementation for a multinode environment.
 
 ## Becoming a Validator
 
 ### How do I join the testnet as a validator?
 
 Out of many official Gno testnets, Testnet4 (`test4`) is the purpose-built network for testing the multi-node validator
-environment prior to mainnet launch. Testnet4 is scheduled to go live in Q2 2024 with genesis validators consisting of
+environment prior to mainnet launch. Testnet4 is scheduled to go live in Q3 2024 with genesis validators consisting of
 the Gno Core Team, partners, and external contributors.
 
 For more information about joining testnet4,
