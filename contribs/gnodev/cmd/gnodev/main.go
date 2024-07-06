@@ -62,6 +62,7 @@ type devCfg struct {
 	maxGas     int64
 	chainId    string
 	serverMode bool
+	unsafeAPI  bool
 }
 
 var defaultDevOptions = &devCfg{
@@ -209,6 +210,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 		defaultDevOptions.maxGas,
 		"set the maximum gas per block",
 	)
+
+	fs.BoolVar(
+		&c.unsafeAPI,
+		"unsafe-api",
+		defaultDevOptions.unsafeAPI,
+		"enable /reset and /reload endpoints which are not safe to expose publicly",
+	)
 }
 
 func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
@@ -274,6 +282,23 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	// Setup gnoweb
 	webhandler := setupGnoWebServer(logger.WithGroup(WebLogName), cfg, devNode)
 
+	// Setup unsafe APIs if enabled
+	if cfg.unsafeAPI {
+		mux.HandleFunc("/reset", func(res http.ResponseWriter, req *http.Request) {
+			if err := devNode.Reset(req.Context()); err != nil {
+				logger.Error("failed to reset", slog.Any("err", err))
+				res.WriteHeader(http.StatusInternalServerError)
+			}
+		})
+
+		mux.HandleFunc("/reload", func(res http.ResponseWriter, req *http.Request) {
+			if err := devNode.Reload(req.Context()); err != nil {
+				logger.Error("failed to reload", slog.Any("err", err))
+				res.WriteHeader(http.StatusInternalServerError)
+			}
+		})
+	}
+
 	// Setup HotReload if needed
 	if !cfg.noWatch {
 		evtstarget := fmt.Sprintf("%s/_events", server.Addr)
@@ -309,11 +334,13 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	return runEventLoop(ctx, logger, book, rt, devNode, watcher)
 }
 
-var helper string = `
+var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation: 
+https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev
+
 A           Accounts - Display known accounts and balances
 H           Help - Display this message
-R           Reload - Reload all packages to take change into account.
-Ctrl+R      Reset - Reset application state.
+R           Reload - Reload all packages to take change into account
+Ctrl+R      Reset - Reset application state
 Ctrl+C      Exit - Exit the application
 `
 
