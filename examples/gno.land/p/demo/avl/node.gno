@@ -70,7 +70,7 @@ func (node *Node) _copy() *Node {
 }
 
 // Has checks if a node with the given key exists in the subtree rooted at the node.
-ffunc (node *Node) Has(key Key) bool {
+func (node *Node) Has(key Key) bool {
 	if node == nil {
 		return false
 	}
@@ -117,14 +117,13 @@ func (node *Node) Get(key Key) (index int, value interface{}, exists bool) {
 
 // GetByIndex retrieves the key-value pair of the node at the given index
 // in the subtree rooted at the node.
-func (node *Node) GetByIndex(index int) (key string, value interface{}) {
+func (node *Node) GetByIndex(index int) (key Key, value interface{}) {
 	if node.height == 0 {
 		if index == 0 {
 			return node.key, node.value
 		}
 		panic("GetByIndex asked for invalid index")
 	}
-	// TODO: could improve this by storing the sizes
 	leftNode := node.getLeftNode()
 	if index < leftNode.size {
 		return leftNode.GetByIndex(index)
