@@ -3,6 +3,7 @@ package rpcserver
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -400,11 +401,17 @@ func nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, bool
 
 var reInt = regexp.MustCompile(`^-?[0-9]+$`)
 
+func isBase64(s string) bool {
+	_, err := base64.StdEncoding.DecodeString(s)
+	return err == nil
+}
+
 // NOTE: rt.Kind() isn't a pointer.
 func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, bool) {
-	isIntString := reInt.Match([]byte(arg))
+	isIntString := reInt.MatchString(arg)
 	isQuotedString := strings.HasPrefix(arg, `"`) && strings.HasSuffix(arg, `"`)
 	isHexString := strings.HasPrefix(strings.ToLower(arg), "0x")
+	isBase64String := isBase64(arg)
 
 	var expectingString, expectingByteSlice, expectingInt bool
 	switch rt.Kind() {
@@ -418,23 +425,19 @@ func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, boo
 
 	if isIntString && expectingInt {
 		qarg := `"` + arg + `"`
-		// jsonStringToArg
 		rv, err := jsonStringToArg(rt, qarg)
 		if err != nil {
 			return rv, err, false
 		}
-
 		return rv, nil, true
 	}
 
 	if isHexString {
 		if !expectingString && !expectingByteSlice {
-			err := errors.New("got a hex string arg, but expected '%s'",
-				rt.Kind().String())
+			err := errors.New("got a hex string arg, but expected " + rt.Kind().String())
 			return reflect.ValueOf(nil), err, false
 		}
 
-		var value []byte
 		value, err := hex.DecodeString(arg[2:])
 		if err != nil {
 			return reflect.ValueOf(nil), err, false
@@ -445,14 +448,31 @@ func _nonJSONStringToArg(rt reflect.Type, arg string) (reflect.Value, error, boo
 		return reflect.ValueOf(value), nil, true
 	}
 
-	if isQuotedString && expectingByteSlice {
-		v := reflect.New(reflect.TypeOf(""))
-		err := amino.UnmarshalJSON([]byte(arg), v.Interface())
+	if isBase64String {
+		if !expectingString && !expectingByteSlice {
+			err := errors.New("got a base64 string arg, but expected " + rt.Kind().String())
+			return reflect.ValueOf(nil), err, false
+		}
+
+		value, err := base64.StdEncoding.DecodeString(arg)
 		if err != nil {
 			return reflect.ValueOf(nil), err, false
 		}
-		v = v.Elem()
-		return reflect.ValueOf([]byte(v.String())), nil, true
+		if rt.Kind() == reflect.String {
+			return reflect.ValueOf(string(value)), nil, true
+		}
+
+		return reflect.ValueOf(value), nil, true
+	}
+
+	if isQuotedString && expectingByteSlice {
+		var v interface{}
+		err := amino.UnmarshalJSON([]byte(arg), &v)
+		if err != nil {
+			return reflect.ValueOf(nil), err, false
+		}
+		strVal := reflect.ValueOf(v).Elem().String()
+		return reflect.ValueOf([]byte(strVal)), nil, true
 	}
 
 	return reflect.ValueOf(nil), nil, false
