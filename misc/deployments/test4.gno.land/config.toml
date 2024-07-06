@@ -82,7 +82,7 @@ proxy_app = "tcp://127.0.0.1:26658"
   # Limit the total size of all txs in the mempool.
   # This only accounts for raw transactions (e.g. given 1MB transactions and
   # max_txs_bytes=5MB, mempool will only accept 5 transactions).
-  max_pending_txs_bytes = 1073741824
+  max_pending_txs_bytes = 1073741824 # ~1GB
   recheck = true
 
   # Maximum number of transactions in the mempool
