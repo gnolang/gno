@@ -234,15 +234,15 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		return fmt.Errorf("unable to initialize telemetry, %w", err)
 	}
 
+	// Print the starting graphic
+	if c.logFormat != string(log.JSONFormat) {
+		io.Println(startGraphic)
+	}
+
 	// Create application and node
 	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)
-	}
-
-	// Print the starting graphic
-	if c.logFormat != string(log.JSONFormat) {
-		io.Println(startGraphic)
 	}
 
 	// Create a default node, with the given setup

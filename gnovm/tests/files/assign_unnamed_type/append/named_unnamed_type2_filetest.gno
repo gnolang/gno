@@ -13,4 +13,4 @@ func main() {
 }
 
 // Error:
-// main/files/assign_unnamed_type/append/named_unnamed_type2_filetest.gno:11: cannot use int as int64
+// main/files/assign_unnamed_type/append/named_unnamed_type2_filetest.gno:11:7: cannot use int as int64
