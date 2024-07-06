@@ -227,10 +227,10 @@ proxy_app = "tcp://127.0.0.1:26658"
 
 ##### node telemetry #####
 [telemetry]
-  enabled = false # Advised to be `true`
+  enabled = true # Advised to be `true`
 
   # the endpoint to export metrics to, like a local OpenTelemetry collector
-  exporter_endpoint = "" # Change me!
+  exporter_endpoint = "" # Change me to the OTEL endpoint!
   meter_name = "test4.gno.land"
 
   # the ID helps to distinguish instances of the same service that exist at the same time (e.g. instances of a horizontally scaled service)
