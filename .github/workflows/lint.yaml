@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v6
         with:
           version: v1.54 # do not forget to change the version also on the makefile
           args:
