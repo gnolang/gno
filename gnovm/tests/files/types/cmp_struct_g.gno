@@ -18,4 +18,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_struct_g.gno:17: cannot use main.Person as main.Dog without explicit conversion
+// main/files/types/cmp_struct_g.gno:17:25: cannot use main.Person as main.Dog without explicit conversion

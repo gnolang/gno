@@ -38,9 +38,7 @@ func TestOwner(t *testing.T) {
 	o := NewOwnable()
 	expected := alice
 	got := o.Owner()
-	if expected != got {
-		t.Fatalf("Expected %s, got: %s", expected, got)
-	}
+	uassert.Equal(t, expected, got)
 }
 
 func TestTransferOwnership(t *testing.T) {
@@ -69,9 +67,7 @@ func TestCallerIsOwner(t *testing.T) {
 	std.TestSetOrigCaller(unauthorizedCaller) // TODO(bug): should not be needed
 
 	err := o.CallerIsOwner()
-	if err == nil {
-		t.Fatalf("Expected %s to not be owner", unauthorizedCaller)
-	}
+	uassert.Error(t, err) // XXX: IsError(..., unauthorizedCaller)
 }
 
 func TestDropOwnership(t *testing.T) {
@@ -80,14 +76,10 @@ func TestDropOwnership(t *testing.T) {
 	o := NewOwnable()
 
 	err := o.DropOwnership()
-	if err != nil {
-		t.Fatalf("DropOwnership failed, %v", err)
-	}
+	uassert.NoError(t, err, "DropOwnership failed")
 
 	owner := o.Owner()
-	if owner != "" {
-		t.Fatalf("Expected owner to be empty, not %s", owner)
-	}
+	uassert.Empty(t, owner, "owner should be empty")
 }
 
 // Errors
@@ -107,9 +99,7 @@ func TestErrUnauthorized(t *testing.T) {
 	}
 
 	err = o.DropOwnership()
-	if err != ErrUnauthorized {
-		t.Fatalf("Should've been ErrUnauthorized, was %v", err)
-	}
+	uassert.ErrorContains(t, err, ErrUnauthorized.Error())
 }
 
 func TestErrInvalidAddress(t *testing.T) {
@@ -118,12 +108,8 @@ func TestErrInvalidAddress(t *testing.T) {
 	o := NewOwnable()
 
 	err := o.TransferOwnership("")
-	if err != ErrInvalidAddress {
-		t.Fatalf("Should've been ErrInvalidAddress, was %v", err)
-	}
+	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 
 	err = o.TransferOwnership("10000000001000000000100000000010000000001000000000")
-	if err != ErrInvalidAddress {
-		t.Fatalf("Should've been ErrInvalidAddress, was %v", err)
-	}
+	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 }
