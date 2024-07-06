@@ -15,6 +15,26 @@
       ]
     }
   },
+  "validators": [
+    {
+      "address": "g1mxguhd5zacar64txhfm0v7hhtph5wur5hx86vs",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "C0l3PwIhnCmIG3YiAa9jf/uuvZj1ob7lolasnEhDgBE="
+      },
+      "power": "",
+      "name": "devx-val-1"
+    },
+    {
+      "address": "g1t9ctfa468hn6czff8kazw08crazehcxaqa2uaa",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "wBqj3F9RgIJ12UqGq5okzHfVbbd6H5AF5y4as8Ovx00="
+      },
+      "power": "",
+      "name": "devx-val-2"
+    }
+  ],
   "app_hash": null,
   "app_state": {
     "@type": "/gno.GenesisState",
