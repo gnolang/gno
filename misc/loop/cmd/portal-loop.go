@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/sirupsen/logrus"
 )
 
@@ -83,13 +84,13 @@ func StartPortalLoop(ctx context.Context, portalLoop *snapshotter, force bool) e
 	}
 
 	// 6. Start a new portal loop
-	container, err := portalLoop.startPortalLoopContainer(context.Background())
+	dockerContainer, err := portalLoop.startPortalLoopContainer(context.Background())
 	if err != nil {
 		return err
 	}
-	for _, p := range container.Ports {
+	for _, p := range dockerContainer.Ports {
 		if p.Type == "tcp" && p.PrivatePort == uint16(26657) {
-			ip := container.NetworkSettings.Networks["portal-loop"].IPAddress
+			ip := dockerContainer.NetworkSettings.Networks["portal-loop"].IPAddress
 			portalLoop.url = fmt.Sprintf("http://%s:%d", ip, int(p.PrivatePort))
 			break
 		}
@@ -156,7 +157,7 @@ func StartPortalLoop(ctx context.Context, portalLoop *snapshotter, force bool) e
 			"container.id":    c.ID,
 			"container.ports": c.Ports,
 		}).Infof("remove container")
-		err = portalLoop.dockerClient.ContainerRemove(ctx, c.ID, types.ContainerRemoveOptions{
+		err = portalLoop.dockerClient.ContainerRemove(ctx, c.ID, container.RemoveOptions{
 			Force:         true,  // Force the removal of a running container
 			RemoveVolumes: true,  // Remove the volumes associated with the container
 			RemoveLinks:   false, // Remove the specified link and not the underlying container
