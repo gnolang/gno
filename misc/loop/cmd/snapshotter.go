@@ -205,10 +205,14 @@ func (s snapshotter) backupTXs(ctx context.Context, rpcURL string) error {
 	defer instanceBackupFile.Close()
 
 	w := legacy.NewWriter(instanceBackupFile)
-	// client := http.NewClient(s.cfg.rpcAddr)
-	client := http.NewClient(rpcURL)
 
-	backupService := backup.NewService(client, w)
+	// Create the tx-archive backup service
+	c, err := http.NewClient(rpcURL)
+	if err != nil {
+		return fmt.Errorf("could not create tx-archive client, %w", err)
+	}
+
+	backupService := backup.NewService(c, w)
 
 	// Run the backup service
 	if backupErr := backupService.ExecuteBackup(ctx, cfg); backupErr != nil {
