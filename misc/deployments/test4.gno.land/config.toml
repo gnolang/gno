@@ -100,7 +100,7 @@ proxy_app = "tcp://127.0.0.1:26658"
   # If empty, will use the same port as the laddr,
   # and will introspect on the listener or use UPnP
   # to figure out the address.
-  external_address = ""
+  external_address = "" # Change me!
 
   # Time to wait before flushing messages out on the connection
   flush_throttle_timeout = "100ms"
