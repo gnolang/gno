@@ -70,7 +70,9 @@ func saveChange(ch change) {
 
 	setRaw, exists := changes.Get(id)
 	if !exists {
-		setRaw = make([]change, 0, 1)
+		changes.Set(id, []change{ch})
+
+		return
 	}
 
 	// Save the change
