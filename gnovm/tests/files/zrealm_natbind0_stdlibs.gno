@@ -41,9 +41,9 @@ func main() {
 //         "@type": "/gno.RefNode",
 //         "BlockNode": null,
 //         "Location": {
+//             "Column": "0",
 //             "File": "",
 //             "Line": "0",
-//             "Nonce": "0",
 //             "PkgPath": "gno.land/r/test"
 //         }
 //     },
@@ -81,10 +81,10 @@ func main() {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
-//                         "File": "native.gno",
-//                         "Line": "13",
-//                         "Nonce": "0",
-//                         "PkgPath": "std"
+//                         "Column": "1",
+//                         "File": "main.gno",
+//                         "Line": "10",
+//                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },
 //                 "Type": {
@@ -127,9 +127,9 @@ func main() {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
+//                         "Column": "1",
 //                         "File": "main.gno",
-//                         "Line": "10",
-//                         "Nonce": "0",
+//                         "Line": "14",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },
@@ -163,10 +163,10 @@ func main() {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
-//                         "File": "main.gno",
-//                         "Line": "14",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/test"
+//                         "Column": "1",
+//                         "File": "native.gno",
+//                         "Line": "13",
+//                         "PkgPath": "std"
 //                     }
 //                 },
 //                 "Type": {

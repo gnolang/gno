@@ -132,13 +132,11 @@ loop:
 					continue loop
 				}
 			default:
-				for _, b := range m.Debugger.breakpoints {
-					if b == m.Debugger.loc && m.Debugger.loc != m.Debugger.prevLoc {
-						m.Debugger.state = DebugAtCmd
-						m.Debugger.prevLoc = m.Debugger.loc
-						debugList(m, "")
-						continue loop
-					}
+				if atBreak(m) {
+					m.Debugger.state = DebugAtCmd
+					m.Debugger.prevLoc = m.Debugger.loc
+					debugList(m, "")
+					continue loop
 				}
 			}
 			break loop
@@ -157,6 +155,20 @@ loop:
 	case OpReturn, OpReturnFromBlock:
 		m.Debugger.call = m.Debugger.call[:len(m.Debugger.call)-1]
 	}
+}
+
+// atBreak returns true if current machine location matches a breakpoint, false otherwise.
+func atBreak(m *Machine) bool {
+	loc := m.Debugger.loc
+	if loc == m.Debugger.prevLoc {
+		return false
+	}
+	for _, b := range m.Debugger.breakpoints {
+		if loc.File == b.File && loc.Line == b.Line {
+			return true
+		}
+	}
+	return false
 }
 
 // debugCmd processes a debugger REPL command. It displays a prompt, then
@@ -231,6 +243,7 @@ func debugUpdateLocation(m *Machine) {
 		expr := m.Exprs[i]
 		if l := expr.GetLine(); l > 0 {
 			m.Debugger.loc.Line = l
+			m.Debugger.loc.Column = expr.GetColumn()
 			return
 		}
 	}
@@ -239,6 +252,7 @@ func debugUpdateLocation(m *Machine) {
 		if stmt := m.PeekStmt1(); stmt != nil {
 			if l := stmt.GetLine(); l > 0 {
 				m.Debugger.loc.Line = l
+				m.Debugger.loc.Column = stmt.GetColumn()
 				return
 			}
 		}

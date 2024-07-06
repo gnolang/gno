@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_range_c.gno:14: index type should be int, but got float32
+// main/files/types/assign_range_c.gno:14:2: index type should be int, but got float32
