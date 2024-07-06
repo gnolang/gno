@@ -17,10 +17,15 @@ type Client struct {
 }
 
 // NewClient creates a new TM2 HTTP client
-func NewClient(remote string) *Client {
-	return &Client{
-		client: rpcClient.NewHTTP(remote, ""),
+func NewClient(remote string) (*Client, error) {
+	c, err := rpcClient.NewHTTPClient(remote)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create HTTP client, %w", err)
 	}
+
+	return &Client{
+		client: c,
+	}, nil
 }
 
 func (c *Client) SendTransaction(tx *std.Tx) error {

@@ -96,7 +96,10 @@ func (c *restoreCfg) exec(ctx context.Context, _ []string) error {
 	}
 
 	// Set up the client
-	client := http.NewClient(c.remote)
+	client, err := http.NewClient(c.remote)
+	if err != nil {
+		return fmt.Errorf("unable to create gno client, %w", err)
+	}
 
 	// Set up the logger
 	zapLogger, loggerErr := zap.NewDevelopment()

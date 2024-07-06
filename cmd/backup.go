@@ -140,7 +140,10 @@ func (c *backupCfg) exec(ctx context.Context, _ []string) error {
 	}
 
 	// Set up the client
-	client := http.NewClient(c.remote)
+	client, err := http.NewClient(c.remote)
+	if err != nil {
+		return fmt.Errorf("could not create a gno client, %w", err)
+	}
 
 	// Set up the logger
 	zapLogger, loggerErr := zap.NewDevelopment()

@@ -33,7 +33,7 @@ func TestRestore_ExecuteRestore(t *testing.T) {
 			},
 		}
 		mockSource = &mockSource{
-			nextFn: func(ctx context.Context) (*std.Tx, error) {
+			nextFn: func(_ context.Context) (*std.Tx, error) {
 				if exampleTxGiven == exampleTxCount {
 					return nil, io.EOF
 				}
@@ -87,7 +87,7 @@ func TestRestore_ExecuteRestore_Watch(t *testing.T) {
 			},
 		}
 		mockSource = &mockSource{
-			nextFn: func(ctx context.Context) (*std.Tx, error) {
+			nextFn: func(_ context.Context) (*std.Tx, error) {
 				if simulateEOF.Load() {
 					return nil, io.EOF
 				}
