@@ -3,13 +3,15 @@ package validators
 import (
 	"std"
 
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/sys/validators"
 )
 
 var (
 	vp      validators.ValsetProtocol // p is the underlying validator set protocol
-	changes []change                  // changes holds any valset changes
+	changes *avl.Tree                 // changes holds any valset changes; seqid(block number) -> []change
 )
 
 // change represents a single valset change, tied to a specific block number
@@ -27,10 +29,12 @@ func addValidator(validator validators.Validator) {
 	}
 
 	// Validator added, note the change
-	changes = append(changes, change{
+	ch := change{
 		blockNum:  std.GetHeight(),
 		validator: val,
-	})
+	}
+
+	saveChange(ch)
 
 	// Emit the validator set change
 	std.Emit(validators.ValidatorAddedEvent)
@@ -45,33 +49,63 @@ func removeValidator(address std.Address) {
 	}
 
 	// Validator removed, note the change
-	changes = append(changes, change{
+	ch := change{
 		blockNum: std.GetHeight(),
 		validator: validators.Validator{
 			Address:     val.Address,
 			PubKey:      val.PubKey,
 			VotingPower: 0, // nullified the voting power indicates removal
 		},
-	})
+	}
+
+	saveChange(ch)
 
 	// Emit the validator set change
 	std.Emit(validators.ValidatorRemovedEvent)
 }
 
+// saveChange saves the valset change
+func saveChange(ch change) {
+	id := getBlockID(ch.blockNum)
+
+	setRaw, exists := changes.Get(id)
+	if !exists {
+		setRaw = make([]change, 0, 1)
+	}
+
+	// Save the change
+	set := setRaw.([]change)
+	set = append(set, ch)
+
+	changes.Set(id, set)
+}
+
+// getBlockID converts the block number to a sequential ID
+func getBlockID(blockNum int64) string {
+	return seqid.ID(uint64(blockNum)).String()
+}
+
 func Render(_ string) string {
-	if len(changes) == 0 {
+	if changes.Size() == 0 {
 		return "No valset changes to apply."
 	}
 
 	output := "Valset changes:\n"
-	for _, change := range changes {
-		output += ufmt.Sprintf(
-			"- #%d: %s (%d)\n",
-			change.blockNum,
-			string(change.validator.Address),
-			change.validator.VotingPower,
-		)
-	}
+
+	changes.Iterate("", "", func(_ string, value interface{}) bool {
+		chs := value.([]change)
+
+		for _, ch := range chs {
+			output += ufmt.Sprintf(
+				"- #%d: %s (%d)\n",
+				ch.blockNum,
+				ch.validator.Address.String(),
+				ch.validator.VotingPower,
+			)
+		}
+
+		return false
+	})
 
 	return output
 }
