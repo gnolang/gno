@@ -21,7 +21,7 @@ type Token interface {
 	TotalSupply() uint64
 
 	// Returns the amount of tokens owned by `account`.
-	BalanceOf(account std.Address) (uint64, error)
+	BalanceOf(account std.Address) uint64
 
 	// Moves `amount` tokens from the caller's account to `to`.
 	//
@@ -33,7 +33,7 @@ type Token interface {
 	// zero by default.
 	//
 	// This value changes when {approve} or {transferFrom} are called.
-	Allowance(owner, spender std.Address) (uint64, error)
+	Allowance(owner, spender std.Address) uint64
 
 	// Sets `amount` as the allowance of `spender` over the caller's tokens.
 	//

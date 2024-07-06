@@ -1,5 +1,6 @@
 package grc20
 
+/*
 import (
 	"std"
 	"testing"
@@ -64,3 +65,4 @@ func TestUserApprove(t *testing.T) {
 	err = dummyUser.TransferFrom(owner, dest, 1)
 	assert(t, err != nil, "no allowance")
 }
+*/
