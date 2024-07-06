@@ -3,18 +3,25 @@ package avl
 //----------------------------------------
 // Node
 
+
+// Key interface for AVL tree keys.
+type Key interface {
+	LessThan(Key) bool
+	Equals(Key) bool
+}
+
 // Node represents a node in an AVL tree.
 type Node struct {
-	key       string      // key is the unique identifier for the node.
-	value     interface{} // value is the data stored in the node.
-	height    int8        // height is the height of the node in the tree.
-	size      int         // size is the number of nodes in the subtree rooted at this node.
-	leftNode  *Node       // leftNode is the left child of the node.
-	rightNode *Node       // rightNode is the right child of the node.
+	key       Key           // key is the unique identifier for the node.
+	value     interface{}   // value is the data stored in the node.
+	height    int8          // height is the height of the node in the tree.
+	size      int           // size is the number of nodes in the subtree rooted at this node.
+	leftNode  *Node         // leftNode is the left child of the node.
+	rightNode *Node         // rightNode is the right child of the node.
 }
 
 // NewNode creates a new node with the given key and value.
-func NewNode(key string, value interface{}) *Node {
+func NewNode(key Key, value interface{}) *Node {
 	return &Node{
 		key:    key,
 		value:  value,
@@ -22,6 +29,7 @@ func NewNode(key string, value interface{}) *Node {
 		size:   1,
 	}
 }
+
 
 // Size returns the size of the subtree rooted at the node.
 func (node *Node) Size() int {
@@ -37,9 +45,10 @@ func (node *Node) IsLeaf() bool {
 }
 
 // Key returns the key of the node.
-func (node *Node) Key() string {
-	return node.key
+func (node *Node) Key() Key {
+    return node.key
 }
+
 
 // Value returns the value of the node.
 func (node *Node) Value() interface{} {
@@ -61,40 +70,41 @@ func (node *Node) _copy() *Node {
 }
 
 // Has checks if a node with the given key exists in the subtree rooted at the node.
-func (node *Node) Has(key string) (has bool) {
+ffunc (node *Node) Has(key Key) bool {
 	if node == nil {
 		return false
 	}
-	if node.key == key {
+	if key.Equals(node.key) {
 		return true
 	}
 	if node.height == 0 {
 		return false
 	}
-	if key < node.key {
+	if key.LessThan(node.key) {
 		return node.getLeftNode().Has(key)
 	}
 	return node.getRightNode().Has(key)
 }
 
+
 // Get searches for a node with the given key in the subtree rooted at the node
 // and returns its index, value, and whether it exists.
-func (node *Node) Get(key string) (index int, value interface{}, exists bool) {
+// Update get method to accept New key values
+// Get searches for a node with the given key in the subtree rooted at the node
+// and returns its index, value, and whether it exists.
+func (node *Node) Get(key Key) (index int, value interface{}, exists bool) {
 	if node == nil {
 		return 0, nil, false
 	}
 
 	if node.height == 0 {
-		if node.key == key {
+		if key.Equals(node.key) {
 			return 0, node.value, true
-		}
-		if node.key < key {
-			return 1, nil, false
 		}
 		return 0, nil, false
 	}
 
-	if key < node.key {
+	if key.LessThan(node.key) {
 		return node.getLeftNode().Get(key)
 	}
 
@@ -103,6 +113,7 @@ func (node *Node) Get(key string) (index int, value interface{}, exists bool) {
 	index += node.size - rightNode.size
 	return index, value, exists
 }
+
 
 // GetByIndex retrieves the key-value pair of the node at the given index
 // in the subtree rooted at the node.
@@ -125,7 +136,8 @@ func (node *Node) GetByIndex(index int) (key string, value interface{}) {
 // and returns the new root of the subtree and whether an existing node was updated.
 //
 // XXX consider a better way to do this... perhaps split Node from Node.
-func (node *Node) Set(key string, value interface{}) (newSelf *Node, updated bool) {
+// Updated Set method to set new Key 
+func (node *Node) Set(key Key, value interface{}) (newSelf *Node, updated bool) {
 	if node == nil {
 		return NewNode(key, value), false
 	}
@@ -135,7 +147,7 @@ func (node *Node) Set(key string, value interface{}) (newSelf *Node, updated boo
 	}
 
 	node = node._copy()
-	if key < node.key {
+	if key.LessThan(node.key) {
 		node.leftNode, updated = node.getLeftNode().Set(key, value)
 	} else {
 		node.rightNode, updated = node.getRightNode().Set(key, value)
@@ -151,12 +163,13 @@ func (node *Node) Set(key string, value interface{}) (newSelf *Node, updated boo
 
 // setLeaf inserts a new leaf node with the given key-value pair into the subtree rooted at the node,
 // and returns the new root of the subtree and whether an existing node was updated.
-func (node *Node) setLeaf(key string, value interface{}) (newSelf *Node, updated bool) {
-	if key == node.key {
+// Update setLeaf according new key type
+func (node *Node) setLeaf(key Key, value interface{}) (newSelf *Node, updated bool) {
+	if key.Equals(node.key) {
 		return NewNode(key, value), true
 	}
 
-	if key < node.key {
+	if key.LessThan(node.key) {
 		return &Node{
 			key:       node.key,
 			height:    1,
@@ -175,26 +188,27 @@ func (node *Node) setLeaf(key string, value interface{}) (newSelf *Node, updated
 	}, false
 }
 
+
 // Remove deletes the node with the given key from the subtree rooted at the node.
 // returns the new root of the subtree, the new leftmost leaf key (if changed),
 // the removed value and the removal was successful.
-func (node *Node) Remove(key string) (
-	newNode *Node, newKey string, value interface{}, removed bool,
+func (node *Node) Remove(key Key) (
+	newNode *Node, newKey Key, value interface{}, removed bool,
 ) {
 	if node == nil {
-		return nil, "", nil, false
+		return nil, nil, nil, false
 	}
 	if node.height == 0 {
-		if key == node.key {
-			return nil, "", node.value, true
+		if key.Equals(node.key) {
+			return nil, nil, node.value, true
 		}
-		return node, "", nil, false
+		return node, nil, nil, false
 	}
-	if key < node.key {
+	if key.LessThan(node.key) {
 		var newLeftNode *Node
 		newLeftNode, newKey, value, removed = node.getLeftNode().Remove(key)
 		if !removed {
-			return node, "", value, false
+			return node, nil, value, false
 		}
 		if newLeftNode == nil { // left node held value, was removed
 			return node.rightNode, node.key, value, true
@@ -209,19 +223,16 @@ func (node *Node) Remove(key string) (
 	var newRightNode *Node
 	newRightNode, newKey, value, removed = node.getRightNode().Remove(key)
 	if !removed {
-		return node, "", value, false
+		return node, nil, value, false
 	}
 	if newRightNode == nil { // right node held value, was removed
-		return node.leftNode, "", value, true
+		return node.leftNode, nil, value, true
 	}
 	node = node._copy()
 	node.rightNode = newRightNode
-	if newKey != "" {
-		node.key = newKey
-	}
 	node.calcHeightAndSize()
 	node = node.balance()
-	return node, "", value, true
+	return node, newKey, value, true
 }
 
 // getLeftNode returns the left child of the node.
