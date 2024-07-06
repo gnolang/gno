@@ -79,7 +79,10 @@ func (s *Swap) Claim(preimage string) {
 	require(!s.claimed, "already claimed")
 	require(!s.refunded, "already refunded")
 	require(std.PrevRealm().Addr() == s.recipient, "unauthorized")
-	require(hex.EncodeToString(sha256.Sum256([]byte(preimage))[:]) == s.hashlock, "invalid preimage")
+
+	hashlock := sha256.Sum256([]byte(preimage))
+	hashlockHex := hex.EncodeToString(hashlock[:])
+	require(hashlockHex == s.hashlock, "invalid preimage")
 
 	s.claimed = true
 	s.sendFn(s.recipient)
