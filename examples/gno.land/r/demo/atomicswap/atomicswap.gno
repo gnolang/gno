@@ -6,6 +6,7 @@ import (
 	"std"
 	"time"
 
+	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -23,6 +24,7 @@ type Swap struct {
 
 // NewCoinSwap creates a new atomic swap contract for native coins.
 func NewCoinSwap(recipient std.Address, hashlock string, timelock time.Time) *Swap {
+	sender := std.PrevRealm().Addr()
 	sent := std.GetOrigSend()
 	require(len(sent) != 0, "at least one coin needs to be sent")
 	sendFn := func(to std.Address) {
@@ -30,10 +32,32 @@ func NewCoinSwap(recipient std.Address, hashlock string, timelock time.Time) *Sw
 		banker.SendCoins(std.GetOrigPkgAddr(), to, sent)
 	}
 	amountStr := sent.String()
-	return newSwap(recipient, hashlock, timelock, amountStr, sendFn)
+	return newSwap(sender, recipient, hashlock, timelock, amountStr, sendFn)
+}
+
+func NewGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, token grc20.IGRC20) *Swap {
+	sender := std.PrevRealm().Addr()
+	curAddr := std.CurrentRealm().Addr()
+
+	allowance, err := token.Allowance(sender, curAddr)
+	require(err == nil, "allowance error")
+	require(allowance > 0, "no allowance")
+	println("RECIPIENT", recipient)
+	println("SENDER", sender)
+	println("CUR", curAddr)
+	err = token.TransferFrom(sender, curAddr, allowance)
+	require(err == nil, "cannot retrieve tokens from allowance: "+err.Error())
+
+	amountStr := ufmt.Sprintf("%d%s", allowance, token.GetSymbol())
+	sendFn := func(to std.Address) {
+		err := token.Transfer(to, allowance)
+		require(err == nil, "cannot transfer tokens: "+err.Error())
+	}
+	return newSwap(sender, recipient, hashlock, timelock, amountStr, sendFn)
 }
 
 func newSwap(
+	sender std.Address,
 	recipient std.Address,
 	hashlock string,
 	timelock time.Time,
@@ -42,7 +66,6 @@ func newSwap(
 ) *Swap {
 	require(time.Now().Before(timelock), "timelock must be in the future")
 	require(hashlock != "", "hashlock must not be empty")
-	sender := std.PrevRealm().Addr()
 	return &Swap{
 		recipient: recipient,
 		sender:    sender,

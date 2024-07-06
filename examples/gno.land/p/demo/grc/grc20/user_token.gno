@@ -43,6 +43,7 @@ func (t *userToken) Approve(spender std.Address, amount uint64) error {
 func (t *userToken) TransferFrom(from, to std.Address, amount uint64) error {
 	spender := std.PrevRealm().Addr()
 	if err := t.admin.spendAllowance(from, spender, amount); err != nil {
+		println("AAAAAAAAAAAAAAAAAAAAA", from, spender, amount)
 		return err
 	}
 	return t.admin.transfer(from, to, amount)
