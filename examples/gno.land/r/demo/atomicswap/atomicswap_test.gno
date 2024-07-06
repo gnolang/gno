@@ -30,24 +30,12 @@ func TestAtomicSwap(t *testing.T) {
 	// Create a new swap
 	std.TestSetRealm(std.NewUserRealm(sender))
 	std.TestSetOrigSend(amount, nil)
-	swap := New(recipient, hashlockHex, timelock)
-
-	/*
-		swap := &Swap{
-			sender:    sender,
-			recipient: recipient,
-			amount:    amount,
-			hashlock:  hashlockHex,
-			timelock:  timelock,
-			claimed:   false,
-			refunded:  false,
-		}
-	*/
+	swap := NewCoinSwap(recipient, hashlockHex, timelock)
 
 	// Test initial state
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
 	uassert.Equal(t, recipient, swap.recipient, "expected recipient to match")
-	uassert.True(t, swap.amount.IsEqual(amount), "expected amount to match")
+	uassert.Equal(t, swap.amountStr, amount.String(), "expected amount to match")
 	uassert.Equal(t, hashlockHex, swap.hashlock, "expected hashlock to match")
 	uassert.True(t, swap.timelock.Equal(timelock), "expected timelock to match")
 	uassert.False(t, swap.claimed, "expected claimed to be false")
@@ -79,20 +67,14 @@ func TestAtomicSwapRefund(t *testing.T) {
 	amount := std.Coins{{Denom: "ugnot", Amount: 1}}
 	hashlock := sha256.Sum256([]byte("secret"))
 	hashlockHex := hex.EncodeToString(hashlock[:])
-	timelock := time.Now().Add(-1 * time.Hour)
+	timelock := time.Now().Add(1 * time.Hour)
 
 	// Create a new swap
-	swap := &Swap{
-		sender:    sender,
-		recipient: recipient,
-		amount:    amount,
-		hashlock:  hashlockHex,
-		timelock:  timelock,
-		claimed:   false,
-		refunded:  false,
-	}
-
 	std.TestSetRealm(std.NewUserRealm(sender))
+	std.TestSetOrigSend(amount, nil)
+	swap := NewCoinSwap(recipient, hashlockHex, timelock) // Create a new swap
+	swap.timelock = time.Now().Add(-1 * time.Hour)        // override timelock
+
 	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
 	std.TestSetOrigPkgAddr(pkgAddr)
 	std.TestIssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
