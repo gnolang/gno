@@ -205,7 +205,7 @@ func main() {
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
 //                 "FileName": "main.gno",
 //                 "IsMethod": false,
@@ -241,7 +241,7 @@ func main() {
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:5"
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:3"
 //                 },
 //                 "FileName": "main.gno",
 //                 "IsMethod": false,
@@ -268,5 +268,5 @@ func main() {
 //         }
 //     ]
 // }
-// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:3]
 // d[a8ada09dee16d791fd406d629fe29bb0ed084a30:4]
+// d[a8ada09dee16d791fd406d629fe29bb0ed084a30:5]

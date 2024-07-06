@@ -82,9 +82,9 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "Column": "1",
-//                         "File": "main.gno",
-//                         "Line": "10",
-//                         "PkgPath": "gno.land/r/test"
+//                         "File": "native.gno",
+//                         "Line": "13",
+//                         "PkgPath": "std"
 //                     }
 //                 },
 //                 "Type": {
@@ -129,7 +129,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "main.gno",
-//                         "Line": "14",
+//                         "Line": "10",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },
@@ -164,9 +164,9 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "Column": "1",
-//                         "File": "native.gno",
-//                         "Line": "13",
-//                         "PkgPath": "std"
+//                         "File": "main.gno",
+//                         "Line": "14",
+//                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },
 //                 "Type": {
