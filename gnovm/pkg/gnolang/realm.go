@@ -567,6 +567,24 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
+					/*
+						println("@@@@@@@@1")
+						fmt.Printf("po: %v\n", po)
+						fmt.Printf("po.Info: %v\n", po.GetObjectInfo())
+						fmt.Printf("po.Owner: %v\n", po.GetOwner())
+						fmt.Printf("po.Hash: %v\n", po.GetHash())
+						fmt.Printf("po.IsDeleted: %v\n", po.GetIsDeleted())
+						fmt.Printf("po.IsDirty: %v\n", po.GetIsDirty())
+						fmt.Printf("po.IsEscaped: %v\n", po.GetIsEscaped())
+						fmt.Printf("po.IsNewDeleted: %v\n", po.GetIsNewDeleted())
+						fmt.Printf("po.IsNewEscaped: %v\n", po.GetIsNewEscaped())
+						fmt.Printf("po.IsOwned: %v\n", po.GetIsOwned())
+						fmt.Printf("po.IsReal: %v\n", po.GetIsReal())
+						fmt.Printf("po.IsNewReal: %v\n", po.GetIsNewReal())
+						fmt.Printf("po.IsTransient: %v\n", po.GetIsTransient())
+						println("@@@@@@@@2")
+						os.Exit(1)
+					*/
 					panic("new escaped mark has no object ID")
 				}
 				// escaped has no owner.
