@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"net/url"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -220,7 +221,7 @@ func ExecSignAndBroadcast(
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", bres.Height)
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
-	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+	io.Println("TX HASH:   ", url.QueryEscape(base64.StdEncoding.EncodeToString(bres.Hash)))
 
 	return nil
 }
