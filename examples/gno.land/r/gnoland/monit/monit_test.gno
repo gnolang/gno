@@ -2,7 +2,6 @@ package monit
 
 import (
 	"testing"
-	"time"
 
 	"gno.land/p/demo/uassert"
 )

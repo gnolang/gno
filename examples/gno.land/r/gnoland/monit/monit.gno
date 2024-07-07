@@ -17,9 +17,9 @@ import (
 
 var (
 	counter          int
-	wd               = watchdog.Watchdog{Duration: 5 * time.Minute}
 	lastUpdate       time.Time
 	lastCaller       std.Address
+	wd               = watchdog.Watchdog{Duration: 5 * time.Minute}
 	owner            = ownable.New() // TODO: replace with -> ownable.NewWithAddress...
 	watchdogDuration = 5 * time.Minute
 )
