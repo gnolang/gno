@@ -23,13 +23,12 @@ func main() {
 }
 
 // Output:
-// hello gno.land/r/crossrealm_test
-// hello gno.land/r/crossrealm_test
+// hello gno.land/r/demo/tests/crossrealm
+// hello gno.land/r/demo/tests/crossrealm
 // .
 
 // Error:
 
 // Realm:
-// switchrealm["gno.land/r/crossrealm_test"]
 // switchrealm["gno.land/r/demo/tests/crossrealm"]
 // switchrealm["gno.land/r/crossrealm_test"]

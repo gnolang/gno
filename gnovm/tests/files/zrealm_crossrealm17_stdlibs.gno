@@ -24,7 +24,7 @@ func main() {
 }
 
 // Output:
-// hello container gno.land/r/crossrealm_test
+// hello container gno.land/r/demo/tests/crossrealm
 // .
 
 // Error:
