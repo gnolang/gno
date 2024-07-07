@@ -22,8 +22,6 @@ the main functionality of our token realm. The package can be found at the
 
 [embedmd]:# (../assets/how-to-guides/creating-grc20/mytoken-1.gno go)
 ```go
-package mytoken
-
 import (
 	"std"
 	"strings"
@@ -52,6 +50,7 @@ func init() {
 	// Get the GRC20 compatible safe object
 	mytoken = banker.Token()
 }
+
 ```
 
 The code snippet above does the following:
