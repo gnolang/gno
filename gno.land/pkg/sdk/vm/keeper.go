@@ -146,15 +146,9 @@ var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([a-zA-Z]+[_a-zA-Z0-9]+)
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	const sysUsersPkg = "gno.land/r/demo/users"
+	const sysUsersPkg = "gno.land/r/sys/users"
 
 	store := vm.getGnoStore(ctx)
-
-	// if `sysUsersPkg` does not exist -> skip validation.
-	usersPkg := store.GetPackage(sysUsersPkg, false)
-	if usersPkg == nil {
-		return nil
-	}
 
 	// XXX: is this necessary ?
 	pkgPath = path.Clean(pkgPath) // cleanup pkgpath
@@ -168,13 +162,10 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	// Lowercase username
 	username = strings.ToLower(username)
 
-	// Allow user with their own address as namespace
-	if addr, err := crypto.AddressFromBech32(username); err == nil {
-		if addr.Compare(creator) == 0 {
-			return nil // ok
-		}
-
-		return ErrUnauthorizedUser(username)
+	// if `sysUsersPkg` does not exist -> skip validation.
+	usersPkg := store.GetPackage(sysUsersPkg, false)
+	if usersPkg == nil {
+		return nil
 	}
 
 	// Parse and run the files, construct *PV.
@@ -203,13 +194,14 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		})
 	defer m.Release()
 
-	// call $sysUsersPkg.Resolve("<user>")
+	// call $sysUsersPkg.IsAuthorizedAddressForName("<user>")
 	// We only need to check by name here, as address have already been check
 	mpv := gno.NewPackageNode("main", "main", nil).NewPackage()
 	m.SetActivePackage(mpv)
 	m.RunDeclaration(gno.ImportD("users", sysUsersPkg))
 	x := gno.Call(
-		gno.Sel(gno.Nx("users"), "GetUserAddressByName"),
+		gno.Sel(gno.Nx("users"), "IsAuthorizedAddressForName"),
+		gno.Str(creator.String()),
 		gno.Str(username),
 	)
 
@@ -219,21 +211,15 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	}
 
 	useraddress := ret[0]
-	// If value is nil, no user has been registered for this namespace
-	if useraddress.T.Kind() != gno.StringKind {
+	if useraddress.T.Kind() != gno.BoolKind {
 		panic("call: invalid response kind")
 	}
 
-	// Check for ownership
-	if rawAddr := useraddress.GetString(); rawAddr != "" {
-		if owner, err := crypto.AddressFromBech32(rawAddr); err == nil {
-			if owner.Compare(creator) == 0 {
-				return nil // ok
-			}
-		}
+	if isAuthorized := useraddress.GetBool(); !isAuthorized {
+		return ErrUnauthorizedUser(username)
 	}
 
-	return ErrUnauthorizedUser(username)
+	return nil
 }
 
 // AddPackage adds a package with given fileset.

@@ -9,18 +9,31 @@ import (
 // For now this package is disable by default
 var enable = false
 
-var admin = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // @moul
+var admin = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
 
 // Admin call to Activate or Desactivate this package.
-func AdminActivate(t bool) {
-	assertAdmin()
+func AdminEnable() {
+	assertIsAdmin()
 
-	enable = t
+	enable = true
 }
+
+func AdminDisable() {
+	assertIsAdmin()
+
+	enable = false
+}
+
+func IsEnable() bool { return enable }
 
 // This method ensure that the given address have ownership on the given name.
 func IsAuthorizedAddressForName(address std.Address, name string) bool {
 	if !enable {
+		return true
+	}
+
+	// Allow user with their own address as name
+	if address.String() == name {
 		return true
 	}
 
@@ -33,7 +46,7 @@ func IsAuthorizedAddressForName(address std.Address, name string) bool {
 
 func assertIsAdmin() {
 	caller := std.GetOrigCaller()
-	if admin != caller {
-		panic("access restricted.")
+	if admin != caller.String() {
+		panic("access restricted")
 	}
 }
