@@ -376,8 +376,7 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 	// NOTE: the following range does not work
 	// because incRefCreatedDescendants may append to newCreated
 	// for the case when new escapes are found to have crossed.
-	// XXX write test.
-	// for _, oo := range rlm.newCreated {
+	// BAD: for _, oo := range rlm.newCreated {
 	for i := 0; i < len(rlm.newCreated); i++ {
 		oo := rlm.newCreated[i]
 		if debug {
@@ -583,11 +582,9 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					// exists, mark dirty.
 					rlm.MarkDirty(po)
 				}
+				// TODO: move to if debug { } once proven.
 				if eo.GetObjectID().IsZero() {
-					// this can happen if a ref +1
-					// new object gets passed into
-					// an external realm function.
-					rlm.assignNewObjectID(eo)
+					panic("new escaped object has no object ID")
 				}
 				// escaped has no owner.
 				eo.SetOwner(nil)
