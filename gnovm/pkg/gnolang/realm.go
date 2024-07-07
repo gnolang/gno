@@ -382,15 +382,6 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 			// oo.SetIsNewReal(false)
 			// skip if became deleted.
 			continue
-		} else if oo.GetIsReal() && oo.GetObjectID().PkgID != rlm.ID {
-			// the object was new real in this realm,
-			// but another realm saved it before
-			// this realm started finalizing.
-			// if debug { XXX uncomment in the future
-			if oo.GetObjectID().PkgID == rlm.ID {
-				panic("should have been saved in another realm")
-			}
-			// }
 		} else {
 			rlm.incRefCreatedDescendants(store, oo)
 		}
@@ -458,6 +449,13 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// NOTE: do not unset owner here,
 				// may become unescaped later
 				// in processNewEscapedMarks().
+				if !child.GetIsReal() {
+					// this can happen if a ref +1
+					// new object gets passed into
+					// an external realm function.
+					child.SetIsNewReal(false)
+					rlm.MarkNewReal(child)
+				}
 				rlm.MarkNewEscaped(child)
 			}
 		} else {
@@ -582,7 +580,10 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
-					panic("new escaped mark has no object ID")
+					// this can happen if a ref +1
+					// new object gets passed into
+					// an external realm function.
+					rlm.assignNewObjectID(eo)
 				}
 
 				// escaped has no owner.
