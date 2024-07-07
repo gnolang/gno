@@ -1751,7 +1751,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// Last step: we need to insert the statements to FuncValue.body of PackageNopde.Values[i].V
 							// updating FuncValue.body=FuncValue.Source.Body in updates := pn.PrepareNewValues(pv) during preprocess.
 							// we updated FuncValue from source.
-
 						}
 					} else { // len(Lhs) == len(Rhs)
 						if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
