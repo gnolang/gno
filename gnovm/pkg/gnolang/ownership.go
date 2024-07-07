@@ -140,11 +140,12 @@ type ObjectInfo struct {
 	RefCount  int       // for persistence. deleted/gc'd if 0.
 	IsEscaped bool      `json:",omitempty"` // hash in iavl.
 	// MemRefCount int // consider for optimizations.
-	isDirty      bool
-	isDeleted    bool
-	isNewReal    bool
-	isNewEscaped bool
-	isNewDeleted bool
+	isDirty          bool
+	isDeleted        bool
+	isNewReal        bool
+	isNewEscaped     bool
+	isNewDeleted     bool
+	lastNewRealRealm PkgID
 
 	// XXX huh?
 	owner Object // mem reference to owner.
@@ -154,17 +155,19 @@ type ObjectInfo struct {
 // Note that "owner" is nil.
 func (oi *ObjectInfo) Copy() ObjectInfo {
 	return ObjectInfo{
-		ID:           oi.ID,
-		Hash:         oi.Hash.Copy(),
-		OwnerID:      oi.OwnerID,
-		ModTime:      oi.ModTime,
-		RefCount:     oi.RefCount,
-		IsEscaped:    oi.IsEscaped,
-		isDirty:      oi.isDirty,
-		isDeleted:    oi.isDeleted,
-		isNewReal:    oi.isNewReal,
-		isNewEscaped: oi.isNewEscaped,
-		isNewDeleted: oi.isNewDeleted,
+		ID:        oi.ID,
+		Hash:      oi.Hash.Copy(),
+		OwnerID:   oi.OwnerID,
+		ModTime:   oi.ModTime,
+		RefCount:  oi.RefCount,
+		IsEscaped: oi.IsEscaped,
+		// XXX do the following need copying too?
+		isDirty:          oi.isDirty,
+		isDeleted:        oi.isDeleted,
+		isNewReal:        oi.isNewReal,
+		isNewEscaped:     oi.isNewEscaped,
+		isNewDeleted:     oi.isNewDeleted,
+		lastNewRealRealm: oi.lastNewRealRealm,
 	}
 }
 
