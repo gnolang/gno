@@ -69,6 +69,15 @@
       },
       "power": "1",
       "name": "devx-val-2"
+    },
+    {
+      "address": "g1gav33elude7prcdctpjekze7ft9l8qdjxqaj6d",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "+DJIo04cO4y+144EdXCw3ED/plkOhWDJ8FP1ScF40m4="
+      },
+      "power": "1",
+      "name": "onbloc-val-1"
     }
   ],
   "app_hash": null,
