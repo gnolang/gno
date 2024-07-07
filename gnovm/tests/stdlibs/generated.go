@@ -315,3 +315,19 @@ var nativeFuncs = [...]NativeFunc{
 		},
 	},
 }
+
+var initOrder = [...]string{
+	"std",
+	"testing",
+}
+
+// InitOrder returns the initialization order of the standard libraries.
+// This is calculated starting from the list of all standard libraries and
+// iterating through each: if a package depends on an unitialized package, that
+// is processed first, and so on recursively; matching the behaviour of Go's
+// [program initialization].
+//
+// [program initialization]: https://go.dev/ref/spec#Program_initialization
+func InitOrder() []string {
+	return initOrder[:]
+}

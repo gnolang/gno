@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_rune_a.gno:7: cannot use untyped string as Int32Kind
+// main/files/types/assign_rune_a.gno:7:2: cannot use untyped string as Int32Kind

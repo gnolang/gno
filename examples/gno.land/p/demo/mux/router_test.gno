@@ -1,9 +1,6 @@
 package mux
 
-import (
-	"strings"
-	"testing"
-)
+import "testing"
 
 func TestRouter_Render(t *testing.T) {
 	// Define handlers and route configuration
