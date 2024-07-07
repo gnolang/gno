@@ -2,12 +2,14 @@
 package crossrealm_test
 
 import (
+	"std"
+
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
 type fooer struct{}
 
-func (fooer) Foo() { println("hello") }
+func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
 var f *fooer
 
@@ -22,7 +24,7 @@ func main() {
 }
 
 // Output:
-// hello
+// hello gno.land/r/crossrealm_test
 // .
 
 // Error:

@@ -2,12 +2,14 @@
 package crossrealm_test
 
 import (
+	"std"
+
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
 type container struct{ *fooer }
 
-func (container) Foo() { println("hello container") }
+func (container) Foo() { println("hello container " + std.CurrentRealm().PkgPath()) }
 
 type fooer struct{}
 
@@ -22,7 +24,7 @@ func main() {
 }
 
 // Output:
-// hello container
+// hello container gno.land/r/crossrealm_test
 // .
 
 // Error:
@@ -593,7 +595,7 @@ func main() {
 //                                     "Location": {
 //                                         "Column": "1",
 //                                         "File": "main.gno",
-//                                         "Line": "10",
+//                                         "Line": "12",
 //                                         "PkgPath": "gno.land/r/crossrealm_test"
 //                                     }
 //                                 },
@@ -664,7 +666,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "main.gno",
-//                         "Line": "16",
+//                         "Line": "18",
 //                         "PkgPath": "gno.land/r/crossrealm_test"
 //                     }
 //                 },
