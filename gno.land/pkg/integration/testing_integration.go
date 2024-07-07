@@ -341,7 +341,8 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				fmt.Fprintf(ts.Stdout(), "Added %s(%s) to genesis", args[0], balance.Address)
 			},
 			// `replace` will replace all occurences of the first argument with the second
-			// argument of any loaded files
+			// argument of any loaded files.
+			// This is mostly use to replace hardcoded address inside txtar file.
 			"replace": func(ts *testscript.TestScript, neg bool, args []string) {
 				args, err := unquote(args)
 				if err != nil {
