@@ -35,7 +35,7 @@ git clone https://github.com/gnolang/gno.git
 There are three tools that should be used for getting started with Gno development:
 - `gno` - the GnoVM binary
 - `gnodev` - the Gno [development helper](../../gno-tooling/cli/gnodev.md)
-- `gnokey` - the Gno [keypair manager](working-with-key-pairs.md)
+- `gnokey` - the Gno [keypair manager](../../gno-tooling/cli/gnokey/working-with-key-pairs.mdkey/working-with-key-pairs.md)
 
 To install all three  tools, simply run the following in the root of the repo:
 ```bash
@@ -87,7 +87,7 @@ You should get the following output:
 
 `gnokey` is the Gno.land keypair management CLI tool. It allows you to create
 keypairs, sign transactions, and broadcast them to Gno.land chains. Read more
-about `gnokey` [here](../../gno-tooling/cli/gnokey.md).
+about `gnokey` [here](../../gno-tooling/cli/gnokey/gnokey.mdokey.md).
 
 To verify that the `gnokey` binary is installed system-wide, you can run:
 
