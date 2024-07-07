@@ -597,7 +597,7 @@ In this example, `GetPost` is a function that retrieves a post from the
 loading any other posts.
 
 In the future, we plan to add built-in "map" support that will match the
-efficienty of an `avl.Tree` while offering a more intuitive API. Until then, if
+efficiency of an `avl.Tree` while offering a more intuitive API. Until then, if
 you're dealing with a compact dataset, it's probably best to use slices.
 For larger datasets where you need to quickly retrieve elements by keys,
 `avl.Tree` is the way to go.
@@ -679,7 +679,7 @@ For example, if you're creating a coin for cross-chain transfers, Coins
 are your best bet. They're IBC-ready and their strict rules offer top-notch
 security.
 
-Read about how to use the Banker module [here](stdlibs/banker).
+Read about how to use the Banker module [here](stdlibs/banker.md).
 
 #### GRC20 tokens
 

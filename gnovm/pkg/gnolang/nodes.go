@@ -118,31 +118,23 @@ type Location struct {
 	PkgPath string
 	File    string
 	Line    int
-	Nonce   int
+	Column  int
 }
 
 func (loc Location) String() string {
-	if loc.Nonce == 0 {
-		return fmt.Sprintf("%s/%s:%d",
-			loc.PkgPath,
-			loc.File,
-			loc.Line,
-		)
-	} else {
-		return fmt.Sprintf("%s/%s:%d#%d",
-			loc.PkgPath,
-			loc.File,
-			loc.Line,
-			loc.Nonce,
-		)
-	}
+	return fmt.Sprintf("%s/%s:%d:%d",
+		loc.PkgPath,
+		loc.File,
+		loc.Line,
+		loc.Column,
+	)
 }
 
 func (loc Location) IsZero() bool {
 	return loc.PkgPath == "" &&
 		loc.File == "" &&
 		loc.Line == 0 &&
-		loc.Nonce == 0
+		loc.Column == 0
 }
 
 // ----------------------------------------
@@ -153,9 +145,10 @@ func (loc Location) IsZero() bool {
 // for preprocessing) are stored in .data.
 
 type Attributes struct {
-	Line  int
-	Label Name
-	data  map[interface{}]interface{} // not persisted
+	Line   int
+	Column int
+	Label  Name
+	data   map[interface{}]interface{} // not persisted
 }
 
 func (attr *Attributes) GetLine() int {
@@ -164,6 +157,14 @@ func (attr *Attributes) GetLine() int {
 
 func (attr *Attributes) SetLine(line int) {
 	attr.Line = line
+}
+
+func (attr *Attributes) GetColumn() int {
+	return attr.Column
+}
+
+func (attr *Attributes) SetColumn(column int) {
+	attr.Column = column
 }
 
 func (attr *Attributes) GetLabel() Name {
@@ -199,6 +200,8 @@ type Node interface {
 	Copy() Node
 	GetLine() int
 	SetLine(int)
+	GetColumn() int
+	SetColumn(int)
 	GetLabel() Name
 	SetLabel(Name)
 	HasAttribute(key interface{}) bool
@@ -1119,11 +1122,21 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 	allowedFileExtensions := []string{
 		".gno",
 	}
+	// exceptions to allowedFileExtensions
+	var rejectedFileExtensions []string
+
+	if IsStdlib(pkgPath) {
+		// Allows transpilation to work on stdlibs with native fns.
+		allowedFileExtensions = append(allowedFileExtensions, ".go")
+		rejectedFileExtensions = []string{".gen.go"}
+	}
+
 	list := make([]string, 0, len(files))
 	for _, file := range files {
 		if file.IsDir() ||
 			strings.HasPrefix(file.Name(), ".") ||
-			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) {
+			(!endsWith(file.Name(), allowedFileExtensions) && !contains(allowedFiles, file.Name())) ||
+			endsWith(file.Name(), rejectedFileExtensions) {
 			continue
 		}
 		list = append(list, filepath.Join(dir, file.Name()))

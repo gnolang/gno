@@ -35,7 +35,7 @@ func TestNodeStartStop(t *testing.T) {
 	defer os.RemoveAll(config.RootDir)
 
 	// create & start node
-	n, err := DefaultNewNode(config, genesisFile, log.NewNoopLogger())
+	n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewNoopLogger())
 	require.NoError(t, err)
 	err = n.Start()
 	require.NoError(t, err)
@@ -98,7 +98,7 @@ func TestNodeDelayedStart(t *testing.T) {
 	now := tmtime.Now()
 
 	// create & start node
-	n, err := DefaultNewNode(config, genesisFile, log.NewTestingLogger(t))
+	n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewTestingLogger(t))
 	n.GenesisDoc().GenesisTime = now.Add(2 * time.Second)
 	require.NoError(t, err)
 
@@ -115,7 +115,7 @@ func TestNodeReady(t *testing.T) {
 	defer os.RemoveAll(config.RootDir)
 
 	// Create & start node
-	n, err := DefaultNewNode(config, genesisFile, log.NewTestingLogger(t))
+	n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewTestingLogger(t))
 	require.NoError(t, err)
 
 	// Assert that blockstore has zero block before waiting for the first block
@@ -148,7 +148,7 @@ func TestNodeSetAppVersion(t *testing.T) {
 	defer os.RemoveAll(config.RootDir)
 
 	// create & start node
-	n, err := DefaultNewNode(config, genesisFile, log.NewTestingLogger(t))
+	n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewTestingLogger(t))
 	require.NoError(t, err)
 
 	// default config uses the kvstore app
@@ -192,7 +192,7 @@ func TestNodeSetPrivValTCP(t *testing.T) {
 	}()
 	defer signerServer.Stop()
 
-	n, err := DefaultNewNode(config, genesisFile, log.NewTestingLogger(t))
+	n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewTestingLogger(t))
 	require.NoError(t, err)
 	assert.IsType(t, &privval.SignerClient{}, n.PrivValidator())
 }
@@ -205,7 +205,7 @@ func TestPrivValidatorListenAddrNoProtocol(t *testing.T) {
 	defer os.RemoveAll(config.RootDir)
 	config.BaseConfig.PrivValidatorListenAddr = addrNoPrefix
 
-	_, err := DefaultNewNode(config, genesisFile, log.NewTestingLogger(t))
+	_, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewTestingLogger(t))
 	assert.Error(t, err)
 }
 
@@ -236,7 +236,7 @@ func TestNodeSetPrivValIPC(t *testing.T) {
 	}()
 	defer pvsc.Stop()
 
-	n, err := DefaultNewNode(config, genesisFile, log.NewTestingLogger(t))
+	n, err := DefaultNewNode(config, genesisFile, events.NewEventSwitch(), log.NewTestingLogger(t))
 	require.NoError(t, err)
 	assert.IsType(t, &privval.SignerClient{}, n.PrivValidator())
 }
@@ -324,6 +324,7 @@ func TestNodeNewNodeCustomReactors(t *testing.T) {
 		proxy.DefaultClientCreator(nil, config.ProxyApp, config.ABCI, config.DBDir()),
 		DefaultGenesisDocProviderFunc(genesisFile),
 		DefaultDBProvider,
+		events.NewEventSwitch(),
 		log.NewTestingLogger(t),
 		CustomReactors(map[string]p2p.Reactor{"FOO": cr, "BLOCKCHAIN": customBlockchainReactor}),
 	)

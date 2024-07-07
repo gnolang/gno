@@ -1,7 +1,6 @@
 package keystore
 
 import (
-	"fmt"
 	"std"
 	"strings"
 	"testing"
