@@ -171,14 +171,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			if co.GetIsEscaped() {
 				// already escaped
 			} else {
-				if !co.GetIsReal() {
-					// this can happen if a ref +1
-					// new object gets passed into
-					// an external realm function.
-					co.SetIsNewReal(false)
-					rlm.MarkNewReal(co)
-				}
-				rlm.MarkNewEscaped(co)
+				rlm.MarkNewEscapedCheckCrossRealm(co)
 			}
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
@@ -270,6 +263,24 @@ func (rlm *Realm) MarkNewDeleted(oo Object) {
 		rlm.newDeleted = make([]Object, 0, 256)
 	}
 	rlm.newDeleted = append(rlm.newDeleted, oo)
+}
+
+func (rlm *Realm) MarkNewEscapedCheckCrossRealm(oo Object) {
+	oi := oo.GetObjectInfo()
+	if !oi.GetIsReal() {
+		// this can happen if a ref +1
+		// new object gets passed into
+		// an external realm function.
+		if oi.lastNewRealRealm == rlm.ID {
+			// we already marked as new real here
+			// and appended to newCreated, skip.
+		} else {
+			oi.lastNewRealRealm = rlm.ID
+			oi.SetIsNewReal(false)
+			rlm.MarkNewReal(oo)
+		}
+	}
+	rlm.MarkNewEscaped(oo)
 }
 
 func (rlm *Realm) MarkNewEscaped(oo Object) {
@@ -366,7 +377,13 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 // and get assigned ids.
 func (rlm *Realm) processNewCreatedMarks(store Store) {
 	// Create new objects and their new descendants.
-	for _, oo := range rlm.newCreated {
+	// NOTE: the following range does not work
+	// because incRefCreatedDescendants may append to newCreated
+	// for the case when new escapes are found to have crossed.
+	// XXX write test.
+	// for _, oo := range rlm.newCreated {
+	for i := 0; i < len(rlm.newCreated); i++ {
+		oo := rlm.newCreated[i]
 		if debug {
 			if oo.GetIsDirty() {
 				panic("new created mark cannot be dirty")
@@ -449,14 +466,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// NOTE: do not unset owner here,
 				// may become unescaped later
 				// in processNewEscapedMarks().
-				if !child.GetIsReal() {
-					// this can happen if a ref +1
-					// new object gets passed into
-					// an external realm function.
-					child.SetIsNewReal(false)
-					rlm.MarkNewReal(child)
-				}
-				rlm.MarkNewEscaped(child)
+				rlm.MarkNewEscapedCheckCrossRealm(child)
 			}
 		} else {
 			panic("child reference count should be greater than zero after increasing")
