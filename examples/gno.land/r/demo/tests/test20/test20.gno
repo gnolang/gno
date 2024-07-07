@@ -11,8 +11,8 @@ package test20
 import "gno.land/p/demo/grc/grc20"
 
 var (
-	Admin = grc20.NewAdminToken("Test20", "TST", 4)
-	Pub   = Admin.GRC20()
+	Banker = grc20.NewBanker("Test20", "TST", 4)
+	Token  = Banker.Token()
 )
 
 // XXX func init() { grc20reg.Register(Pub, "") } // Depends on #2516

@@ -91,21 +91,21 @@ func TestNewGRC20_Claim(t *testing.T) {
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)
 
-	test20.Admin.Mint(sender, 100_000)
-	test20.Admin.Approve(sender, rlm, 70_000)
+	test20.Banker.Mint(sender, 100_000)
+	test20.Banker.Approve(sender, rlm, 70_000)
 
 	// Create a new swap
 	std.TestSetRealm(std.NewUserRealm(sender))
-	swap := NewCustomGRC20Swap(recipient, hashlockHex, timelock, test20.Pub)
+	swap := NewCustomGRC20Swap(recipient, hashlockHex, timelock, test20.Token)
 
 	// Test initial state
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
 	uassert.Equal(t, recipient, swap.recipient, "expected recipient to match")
-	bal, _ := test20.Pub.BalanceOf(sender)
+	bal := test20.Token.BalanceOf(sender)
 	uassert.Equal(t, bal, uint64(30_000))
-	bal, _ = test20.Pub.BalanceOf(rlm)
+	bal = test20.Token.BalanceOf(rlm)
 	uassert.Equal(t, bal, uint64(70_000))
-	bal, _ = test20.Pub.BalanceOf(recipient)
+	bal = test20.Token.BalanceOf(recipient)
 	uassert.Equal(t, bal, uint64(0))
 
 	// uassert.Equal(t, swap.amountStr, amount.String(), "expected amount to match")
@@ -120,11 +120,11 @@ func TestNewGRC20_Claim(t *testing.T) {
 	swap.Claim("secret")
 	uassert.True(t, swap.claimed, "expected claimed to be true")
 
-	bal, _ = test20.Pub.BalanceOf(sender)
+	bal = test20.Token.BalanceOf(sender)
 	uassert.Equal(t, bal, uint64(30_000))
-	bal, _ = test20.Pub.BalanceOf(rlm)
+	bal = test20.Token.BalanceOf(rlm)
 	uassert.Equal(t, bal, uint64(0))
-	bal, _ = test20.Pub.BalanceOf(recipient)
+	bal = test20.Token.BalanceOf(recipient)
 	uassert.Equal(t, bal, uint64(70_000))
 
 	// Test refund (should fail because already claimed)
@@ -141,21 +141,21 @@ func TestNewGRC20_Refund(t *testing.T) {
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)
 
-	test20.Admin.Mint(sender, 100_000)
-	test20.Admin.Approve(sender, rlm, 70_000)
+	test20.Banker.Mint(sender, 100_000)
+	test20.Banker.Approve(sender, rlm, 70_000)
 
 	// Create a new swap
 	std.TestSetRealm(std.NewUserRealm(sender))
-	swap := NewCustomGRC20Swap(recipient, hashlockHex, timelock, test20.Pub)
+	swap := NewCustomGRC20Swap(recipient, hashlockHex, timelock, test20.Token)
 
 	// Test initial state
 	uassert.Equal(t, sender, swap.sender, "expected sender to match")
 	uassert.Equal(t, recipient, swap.recipient, "expected recipient to match")
-	bal, _ := test20.Pub.BalanceOf(sender)
+	bal := test20.Token.BalanceOf(sender)
 	uassert.Equal(t, bal, uint64(30_000))
-	bal, _ = test20.Pub.BalanceOf(rlm)
+	bal = test20.Token.BalanceOf(rlm)
 	uassert.Equal(t, bal, uint64(70_000))
-	bal, _ = test20.Pub.BalanceOf(recipient)
+	bal = test20.Token.BalanceOf(recipient)
 	uassert.Equal(t, bal, uint64(0))
 
 	// Test Refund
@@ -167,10 +167,10 @@ func TestNewGRC20_Refund(t *testing.T) {
 	swap.Refund()
 	uassert.True(t, swap.refunded, "expected refunded to be true")
 
-	bal, _ = test20.Pub.BalanceOf(sender)
+	bal = test20.Token.BalanceOf(sender)
 	uassert.Equal(t, bal, uint64(100_000))
-	bal, _ = test20.Pub.BalanceOf(rlm)
+	bal = test20.Token.BalanceOf(rlm)
 	uassert.Equal(t, bal, uint64(0))
-	bal, _ = test20.Pub.BalanceOf(recipient)
+	bal = test20.Token.BalanceOf(recipient)
 	uassert.Equal(t, bal, uint64(0))
 }

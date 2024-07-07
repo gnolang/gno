@@ -24,7 +24,7 @@ func NewCoinSwap(recipient std.Address, hashlock string) *Swap {
 func NewGRC20Swap(recipient std.Address, hashlock string, tokenRegistryKey string) *Swap {
 	timelock := time.Now().Add(defaultTimelockDuration)
 	panic("not implemented (depends on #2516)")
-	var token grc20.IGRC20
+	var token grc20.Token
 	// token := grc20reg.Get(tokenRegistryKey)
 	return NewCustomGRC20Swap(recipient, hashlock, timelock, token)
 }
@@ -58,14 +58,13 @@ func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Tim
 
 // NewCustomGRC20Swap creates a new atomic swap contract for grc20 tokens.
 // It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
-func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, token grc20.IGRC20) *Swap {
+func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, token grc20.Token) *Swap {
 	sender := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
 
-	allowance, err := token.Allowance(sender, curAddr)
-	require(err == nil, "allowance error")
+	allowance := token.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
-	err = token.TransferFrom(sender, curAddr, allowance)
+	err := token.TransferFrom(sender, curAddr, allowance)
 	require(err == nil, "cannot retrieve tokens from allowance")
 	amountStr := ufmt.Sprintf("%d%s", allowance, token.GetSymbol())
 	sendFn := func(to std.Address) {
