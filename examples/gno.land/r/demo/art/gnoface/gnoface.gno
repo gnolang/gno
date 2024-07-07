@@ -6,11 +6,12 @@ import (
 	"strconv"
 	"strings"
 
+	"gno.land/p/demo/entropy"
 	"gno.land/p/demo/ufmt"
 )
 
 func Render(path string) string {
-	seed := uint64(std.GetHeight())
+	seed := uint64(entropy.New().Value())
 
 	path = strings.TrimSpace(path)
 	if path != "" {

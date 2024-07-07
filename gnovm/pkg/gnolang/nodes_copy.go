@@ -362,6 +362,9 @@ func (fs *FileSet) CopyFileSet() *FileSet {
 
 func (x *FileNode) Copy() Node {
 	return &FileNode{
+		// XXX: Attributes?
+		// XXX: StaticBlock?
+		Name:    x.Name,
 		PkgName: x.PkgName,
 		Decls:   copyDecls(x.Decls),
 	}
