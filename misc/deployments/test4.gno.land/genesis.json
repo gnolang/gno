@@ -17,12 +17,48 @@
   },
   "validators": [
     {
+      "address": "g19v2h4pn6lrf8pwvhn8h0anek0cpt2tmhye4vkv",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "b0bw/4GEumi09c6uhTutrjXoV7lUAxGZQqcT+MbaFBQ="
+      },
+      "power": "1",
+      "name": "core-val-1"
+    },
+    {
+      "address": "g13us7swtc9hq550y9v4z6vcarak9vf8nqdvcqj4",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "6FXDIqlSEl5pbPMMTLSa12XC99lWGQIRVm82bWTQibo="
+      },
+      "power": "1",
+      "name": "core-val-2"
+    },
+    {
+      "address": "g1ectm6algkfw3qnjmjvx7hacmh358t36ggj5lqv",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "gqFJlETPoCVCnRnCVuRjpY47Yj2kxm5R2ukPFHtlLr4="
+      },
+      "power": "1",
+      "name": "core-val-3"
+    },
+    {
+      "address": "g1tcxls3ylnrwrq95j33xpyuct4l370ra7jca4kj",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "n+j30mkr4dHWZlrq2MMrbR1YcIDDf3UiyEDF2oSFp3M="
+      },
+      "power": "1",
+      "name": "core-val-4"
+    },
+    {
       "address": "g1mxguhd5zacar64txhfm0v7hhtph5wur5hx86vs",
       "pub_key": {
         "@type": "/tm.PubKeyEd25519",
         "value": "C0l3PwIhnCmIG3YiAa9jf/uuvZj1ob7lolasnEhDgBE="
       },
-      "power": "",
+      "power": "1",
       "name": "devx-val-1"
     },
     {
@@ -31,7 +67,7 @@
         "@type": "/tm.PubKeyEd25519",
         "value": "wBqj3F9RgIJ12UqGq5okzHfVbbd6H5AF5y4as8Ovx00="
       },
-      "power": "",
+      "power": "1",
       "name": "devx-val-2"
     }
   ],
@@ -39,42 +75,42 @@
   "app_state": {
     "@type": "/gno.GenesisState",
     "balances": [
-      "g18amm3fc00t43dcxsys6udug0czyvqt9e7p23rd=9000000000000000000ugnot",
-      "g1mx4pum9976th863jgry4sdjzfwu03qan5w2v9j=9000000000000000000ugnot",
-      "g1er355fkjksqpdtwmhf5penwa82p0rhqxkkyhk5=9000000000000000000ugnot",
-      "g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq=9000000000000000000ugnot",
-      "g1acn3xssksatydd0fcuslvgmjyw0fzkjdhusddg=9000000000000000000ugnot",
-      "g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm=9000000000000000000ugnot",
-      "g17a3rlkw58e4gnp92al9fx9039tt5w9mq9530f8=9000000000000000000ugnot",
-      "g18l9us6trqaljw39j94wzf5ftxmd9qqkvrxghd2=9000000000000000000ugnot",
-      "g1pwx9cvx9cyeza8jnajsr2rxqyzsanjwd0ssx32=9000000000000000000ugnot",
-      "g19qr6kdu7pyvc95jyec7f7xfq2lj2w4zp46u4sy=9000000000000000000ugnot",
-      "g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2=9000000000000000000ugnot",
-      "g15ruzptpql4dpuyzej0wkt5rq6r26kw4nxu9fwd=9000000000000000000ugnot",
-      "g19p3yzr3cuhzqa02j0ce6kzvyjqfzwemw3vam0x=9000000000000000000ugnot",
-      "g1s8zdg7e7jrcjupna78wvyy32py0ghgn3jm9rwu=9000000000000000000ugnot",
-      "g1778y2yphxs2wpuaflsy5y9qwcd4gttn4g5yjx5=9000000000000000000ugnot",
-      "g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun=9000000000000000000ugnot",
-      "g1dfr24yhk5ztwtqn2a36m8f6ud8cx5hww4dkjfl=9000000000000000000ugnot",
-      "g1ker4vvggvsyatexxn3hkthp2hu80pkhrwmuczr=9000000000000000000ugnot",
-      "g1cpx59z5r8vzeww2fm4ezpz7yvjs7kptywkm864=9000000000000000000ugnot",
-      "g1dupcckverkpf5vsjk4z4xs0q6l630zjv98pv0a=9000000000000000000ugnot",
-      "g1jazghxvvgz3egnr2fc8uf72z4g0l03596y9ls7=9000000000000000000ugnot",
-      "g1mk2ww330ms9yxr9pxelpg0t0emqvjjepnhmmeh=9000000000000000000ugnot",
       "g1xmtdgzwvvclkxxgszyyas0ekz66kder3x8jmzk=9000000000000000000ugnot",
-      "g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq=9000000000000000000ugnot",
-      "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=9000000000000000000ugnot",
-      "g1qhuef2450xh7g7na8s865nreu2xw8j84kgkvt5=9000000000000000000ugnot",
-      "g17p2kkyy9lp2z3ecw4psssk357vxp20afnyl00d=9000000000000000000ugnot",
-      "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq=9000000000000000000ugnot",
-      "g1jv52j08qvyrjmdnv7yag9swpt9gz2rd9zg66ga=9000000000000000000ugnot",
-      "g197q5e9v00vuz256ly7fq7v3ekaun5cr7wmjgfh=9000000000000000000ugnot",
-      "g13qtrg2fnphh4rw697educlcmv0ru2yk63flfad=9000000000000000000ugnot",
+      "g19qr6kdu7pyvc95jyec7f7xfq2lj2w4zp46u4sy=9000000000000000000ugnot",
+      "g1acn3xssksatydd0fcuslvgmjyw0fzkjdhusddg=9000000000000000000ugnot",
+      "g19p3yzr3cuhzqa02j0ce6kzvyjqfzwemw3vam0x=9000000000000000000ugnot",
+      "g1er355fkjksqpdtwmhf5penwa82p0rhqxkkyhk5=9000000000000000000ugnot",
+      "g1jazghxvvgz3egnr2fc8uf72z4g0l03596y9ls7=9000000000000000000ugnot",
+      "g1dfr24yhk5ztwtqn2a36m8f6ud8cx5hww4dkjfl=9000000000000000000ugnot",
+      "g18amm3fc00t43dcxsys6udug0czyvqt9e7p23rd=9000000000000000000ugnot",
+      "g15ruzptpql4dpuyzej0wkt5rq6r26kw4nxu9fwd=9000000000000000000ugnot",
+      "g18l9us6trqaljw39j94wzf5ftxmd9qqkvrxghd2=9000000000000000000ugnot",
+      "g1cpx59z5r8vzeww2fm4ezpz7yvjs7kptywkm864=9000000000000000000ugnot",
       "g125em6arxsnj49vx35f0n0z34putv5ty3376fg5=9000000000000000000ugnot",
-      "g1dnllrdzwfhxv3evyk09y48mgn5phfjvtyrlzm7=9000000000000000000ugnot",
-      "g16tfrrul20g4jzt3z303raqw8vs8s2pqqh5clwu=9000000000000000000ugnot",
+      "g1s8zdg7e7jrcjupna78wvyy32py0ghgn3jm9rwu=9000000000000000000ugnot",
       "g1q6jrp203fq0239pv38sdq3y3urvd6vt5azacpv=9000000000000000000ugnot",
-      "g13d7jc32adhc39erm5me38w5v7ej7lpvlnqjk73=9000000000000000000ugnot"
+      "g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq=9000000000000000000ugnot",
+      "g1ker4vvggvsyatexxn3hkthp2hu80pkhrwmuczr=9000000000000000000ugnot",
+      "g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun=9000000000000000000ugnot",
+      "g1pwx9cvx9cyeza8jnajsr2rxqyzsanjwd0ssx32=9000000000000000000ugnot",
+      "g1dnllrdzwfhxv3evyk09y48mgn5phfjvtyrlzm7=9000000000000000000ugnot",
+      "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=9000000000000000000ugnot",
+      "g197q5e9v00vuz256ly7fq7v3ekaun5cr7wmjgfh=9000000000000000000ugnot",
+      "g1mk2ww330ms9yxr9pxelpg0t0emqvjjepnhmmeh=9000000000000000000ugnot",
+      "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq=9000000000000000000ugnot",
+      "g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm=9000000000000000000ugnot",
+      "g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq=9000000000000000000ugnot",
+      "g1mx4pum9976th863jgry4sdjzfwu03qan5w2v9j=9000000000000000000ugnot",
+      "g17p2kkyy9lp2z3ecw4psssk357vxp20afnyl00d=9000000000000000000ugnot",
+      "g1778y2yphxs2wpuaflsy5y9qwcd4gttn4g5yjx5=9000000000000000000ugnot",
+      "g13qtrg2fnphh4rw697educlcmv0ru2yk63flfad=9000000000000000000ugnot",
+      "g1dupcckverkpf5vsjk4z4xs0q6l630zjv98pv0a=9000000000000000000ugnot",
+      "g17a3rlkw58e4gnp92al9fx9039tt5w9mq9530f8=9000000000000000000ugnot",
+      "g1jv52j08qvyrjmdnv7yag9swpt9gz2rd9zg66ga=9000000000000000000ugnot",
+      "g1qhuef2450xh7g7na8s865nreu2xw8j84kgkvt5=9000000000000000000ugnot",
+      "g13d7jc32adhc39erm5me38w5v7ej7lpvlnqjk73=9000000000000000000ugnot",
+      "g1e6gxg5tvc55mwsn7t7dymmlasratv7mkv0rap2=9000000000000000000ugnot",
+      "g16tfrrul20g4jzt3z303raqw8vs8s2pqqh5clwu=9000000000000000000ugnot"
     ],
     "txs": null
   }

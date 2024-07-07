@@ -1,4 +1,4 @@
-# Faucet Accounts
+# Faucet Accounts (Core)
 
 g1qhuef2450xh7g7na8s865nreu2xw8j84kgkvt5=9000000000000000000ugnot # Faucet #0
 g19qr6kdu7pyvc95jyec7f7xfq2lj2w4zp46u4sy=9000000000000000000ugnot # Faucet #1
@@ -10,6 +10,9 @@ g1dupcckverkpf5vsjk4z4xs0q6l630zjv98pv0a=9000000000000000000ugnot # Faucet #6
 g17a3rlkw58e4gnp92al9fx9039tt5w9mq9530f8=9000000000000000000ugnot # Faucet #7
 g1jv52j08qvyrjmdnv7yag9swpt9gz2rd9zg66ga=9000000000000000000ugnot # Faucet #8
 g1mk2ww330ms9yxr9pxelpg0t0emqvjjepnhmmeh=9000000000000000000ugnot # Faucet #9
+
+# Faucet Accounts (DevX)
+
 g1q6jrp203fq0239pv38sdq3y3urvd6vt5azacpv=9000000000000000000ugnot # Faucet #10
 g13d7jc32adhc39erm5me38w5v7ej7lpvlnqjk73=9000000000000000000ugnot # Faucet #11
 
