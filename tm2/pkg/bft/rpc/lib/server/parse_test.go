@@ -223,7 +223,6 @@ func TestParseURINonJSON(t *testing.T) {
 		url := fmt.Sprintf("test.com/method?height=%v&name=%v&hash=%v", tc.raw[0], tc.raw[1], url.QueryEscape(tc.raw[2]))
 		req, err := http.NewRequest("GET", url, nil)
 
-		t.Error(req.URL)
 		assert.NoError(t, err)
 
 		// Invoke httpParamsToArgs to parse the request and convert to reflect.Values
