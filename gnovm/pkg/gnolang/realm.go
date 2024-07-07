@@ -171,13 +171,6 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			if co.GetIsEscaped() {
 				// already escaped
 			} else {
-				if !co.GetIsReal() {
-					// this can happen if a ref +1
-					// new object gets passed into
-					// an external realm function.
-					co.SetIsNewReal(false)
-					rlm.MarkNewReal(co)
-				}
 				rlm.MarkNewEscaped(co)
 			}
 		} else if co.GetIsReal() {
@@ -573,7 +566,10 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					rlm.MarkDirty(po)
 				}
 				if eo.GetObjectID().IsZero() {
-					panic("new escaped mark has no object ID")
+					// this can happen if a ref +1
+					// new object gets passed into
+					// an external realm function.
+					rlm.assignNewObjectID(eo)
 				}
 
 				// escaped has no owner.
