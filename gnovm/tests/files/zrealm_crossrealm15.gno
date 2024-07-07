@@ -22,6 +22,8 @@ func main() {
 }
 
 // Output:
+// hello
+// .
 
 // Error:
 
