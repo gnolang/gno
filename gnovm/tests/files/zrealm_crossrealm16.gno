@@ -2,12 +2,14 @@
 package crossrealm_test
 
 import (
+	"std"
+
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
 type fooer struct{}
 
-func (fooer) Foo() { println("hello") }
+func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
 var f *fooer
 
@@ -19,7 +21,7 @@ func main() {
 }
 
 // Output:
-// hello
+// hello gno.land/r/crossrealm_test
 // .
 
 // Error:
@@ -325,7 +327,17 @@ func main() {
 //                         }
 //                     }
 //                 ],
-//                 "Results": []
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.RefType",
+//                             "ID": "gno.land/r/demo/tests/crossrealm.Fooer"
+//                         }
+//                     }
+//                 ]
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
@@ -363,7 +375,17 @@ func main() {
 //                             }
 //                         }
 //                     ],
-//                     "Results": []
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/r/demo/tests/crossrealm.Fooer"
+//                             }
+//                         }
+//                     ]
 //                 }
 //             }
 //         },
@@ -392,7 +414,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm.gno",
-//                         "Line": "36",
+//                         "Line": "39",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm"
 //                     }
 //                 },
@@ -509,7 +531,7 @@ func main() {
 //                                     "Location": {
 //                                         "Column": "1",
 //                                         "File": "main.gno",
-//                                         "Line": "10",
+//                                         "Line": "12",
 //                                         "PkgPath": "gno.land/r/crossrealm_test"
 //                                     }
 //                                 },
@@ -561,7 +583,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "main.gno",
-//                         "Line": "14",
+//                         "Line": "16",
 //                         "PkgPath": "gno.land/r/crossrealm_test"
 //                     }
 //                 },
