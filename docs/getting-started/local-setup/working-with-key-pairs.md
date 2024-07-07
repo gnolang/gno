@@ -97,7 +97,7 @@ To generate the mnemonic phrase in the console, you can run:
 gnokey generate
 ```
 
-![gnokey generate](../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-generate.gif)
+![gnokey generate](../../assets/getting-started/local-setup/working-with-key-pairs/gnokey-generate.gif)
 
 ## Adding a random private key
 If we wanted to add a new private key to the keystore, we can run the following 
@@ -115,7 +115,7 @@ After you enter the password, the `gnokey` tool will add the key to the keystore
 and return the accompanying [mnemonic phrase](https://en.bitcoin.it/wiki/Seed_phrase), which you should remember 
 somewhere if you want to recover the key at a future point in time.
 
-![gnokey add random](../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-add-random.gif)
+![gnokey add random](../../assets/getting-started/local-setup/working-with-key-pairs/gnokey-add-random.gif)
 
 You can check that the key was indeed added to the keystore, by listing available
 keys:
@@ -124,7 +124,7 @@ keys:
 gnokey list
 ```
 
-![gnokey list](../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-list.gif)
+![gnokey list](../../assets/getting-started/local-setup/working-with-key-pairs/gnokey-list.gif)
 
 ## Adding a private key using a mnemonic
 To add a private key to the `gnokey` keystore [using an existing mnemonic](#generating-a-bip39-mnemonic),
@@ -140,7 +140,7 @@ Of course, you can replace `MyKey` with whatever name you want for your key.
 By following the prompts to encrypt the key on disk, and providing a BIP39 
 mnemonic, we can successfully add the key to the keystore.
 
-![gnokey add mnemonic](../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-add-mnemonic.gif)
+![gnokey add mnemonic](../../assets/getting-started/local-setup/working-with-key-pairs/gnokey-add-mnemonic.gif)
 
 ## Deleting a private key
 To delete a private key from the `gnokey` keystore, we need to know the name or
@@ -175,7 +175,7 @@ Follow the prompts presented in the terminal. Namely, you will be asked to
 decrypt the key in the keystore, and later to encrypt the armor file on disk.
 It is worth noting that you can also export unencrypted key armor, using the `--unsafe` flag.
 
-![gnokey export](../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-export.gif)
+![gnokey export](../../assets/getting-started/local-setup/working-with-key-pairs/gnokey-export.gif)
 
 ## Importing a private key
 If you have an exported private key file, you can import it into `gnokey` fairly
@@ -195,4 +195,4 @@ encryption password for storing the key in the keystore.
 After executing the previous command, the `gnokey` keystore will have imported 
 `ImportedKey`.
 
-![gnokey import](../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-import.gif)
+![gnokey import](../../assets/getting-started/local-setup/working-with-key-pairs/gnokey-import.gif)
