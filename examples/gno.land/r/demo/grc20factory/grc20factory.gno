@@ -2,12 +2,12 @@ package foo20
 
 import (
 	"std"
-	"strconv"
 	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/ufmt"
 )
 
 var instances avl.Tree // symbol -> instance
@@ -89,13 +89,13 @@ func Faucet(symbol string) {
 
 func Mint(symbol string, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	inst.admin.AssertIsCallerIsOwner()
+	inst.admin.AssertCallerIsOwner()
 	checkErr(inst.banker.Mint(to, amount))
 }
 
 func Burn(symbol string, from std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	inst.admin.AssertIsCallerIsOwner()
+	inst.admin.AssertCallerIsOwner()
 	checkErr(inst.banker.Burn(from, amount))
 }
 
@@ -109,13 +109,13 @@ func Render(path string) string {
 	case c == 1:
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)
-		return token.banker.RenderHome()
+		return inst.banker.RenderHome()
 	case c == 3 && parts[1] == "balance":
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)
 		owner := std.Address(parts[2])
-		balance := token.banker.BalanceOf(owner)
-		return strconv.FormatUint(balance, 10)
+		balance := inst.Token().BalanceOf(owner)
+		return ufmt.Sprintf("%d", balance)
 	default:
 		return "404\n"
 	}
