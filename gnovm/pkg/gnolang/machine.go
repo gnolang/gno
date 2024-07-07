@@ -36,8 +36,8 @@ func (e Exception) Sprint(m *Machine) string {
 
 type Machine struct {
 	// State
-	Ops        []Op // main operations
-	NumOps     int
+	Ops        []Op          // operations stack
+	NumOps     int           // number of operations
 	Values     []TypedValue  // buffer of values to be operated on
 	NumValues  int           // number of values
 	Exprs      []Expr        // pending expressions
@@ -47,9 +47,9 @@ type Machine struct {
 	Package    *PackageValue // active package
 	Realm      *Realm        // active realm
 	Alloc      *Allocator    // memory allocations
-	Exceptions []Exception
-	NumResults int   // number of results returned
-	Cycles     int64 // number of "cpu" cycles
+	Exceptions []Exception   // exceptions stack
+	NumResults int           // number of results returned
+	Cycles     int64         // number of "cpu" cycles performed
 
 	Debugger Debugger
 
@@ -199,6 +199,7 @@ func (m *Machine) Release() {
 	machinePool.Put(m)
 }
 
+// Convenience for initial setup of the machine.
 func (m *Machine) SetActivePackage(pv *PackageValue) {
 	if err := m.CheckEmpty(); err != nil {
 		panic(errors.Wrap(err, "set package when machine not empty"))
@@ -207,6 +208,14 @@ func (m *Machine) SetActivePackage(pv *PackageValue) {
 	m.Realm = pv.GetRealm()
 	m.Blocks = []*Block{
 		pv.GetBlock(m.Store),
+	}
+}
+
+func (m *Machine) setCurrentPackage(pv *PackageValue) {
+	m.Package = pv
+	rlm := pv.GetRealm()
+	if rlm != nil {
+		m.Realm = rlm
 	}
 }
 
@@ -1797,29 +1806,36 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		m.Printf("+F %#v\n", fr)
 	}
 	m.Frames = append(m.Frames, fr)
-	pv := fv.GetPackage(m.Store)
-	if pv == nil {
-		panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
-	}
-	rlm := pv.GetRealm()
-	if rlm == nil && recv.IsDefined() {
+	if recv.IsDefined() {
+		// If the receiver is defined, we enter the receiver's realm.
 		obj := recv.GetFirstObject(m.Store)
 		if obj == nil {
 			// could be a nil receiver.
-			// just ignore.
+			// set package and realm of function.
+			pv := fv.GetPackage(m.Store)
+			if pv == nil {
+				panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
+			}
+			m.setCurrentPackage(pv) // maybe new realm
 		} else {
 			recvOID := obj.GetObjectInfo().ID
-			if !recvOID.IsZero() {
+			if recvOID.IsZero() {
+				// receiver isn't owned yet.
+				// just continue with current package and realm.
+				// XXX is this reasonable?
+			} else {
 				// override the pv and rlm with receiver's.
 				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
-				pv = m.Store.GetObject(recvPkgOID).(*PackageValue)
-				rlm = pv.GetRealm() // done
+				pv := m.Store.GetObject(recvPkgOID).(*PackageValue)
+				m.setCurrentPackage(pv) // maybe new realm
 			}
 		}
-	}
-	m.Package = pv
-	if rlm != nil && m.Realm != rlm {
-		m.Realm = rlm // enter new realm
+	} else {
+		pv := fv.GetPackage(m.Store)
+		if pv == nil {
+			panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
+		}
+		m.setCurrentPackage(pv) // maybe new realm
 	}
 }
 

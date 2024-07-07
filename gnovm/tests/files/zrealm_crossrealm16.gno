@@ -465,6 +465,7 @@ func main() {
 //         }
 //     ]
 // }
+// switchrealm["gno.land/r/demo/tests/crossrealm"]
 // switchrealm["gno.land/r/crossrealm_test"]
 // u[f5a516808f8976c33939133293d598ce3bca4e8d:2]={
 //     "Blank": {},
@@ -615,5 +616,3 @@ func main() {
 //         }
 //     ]
 // }
-// switchrealm["gno.land/r/demo/tests/crossrealm"]
-// switchrealm["gno.land/r/crossrealm_test"]
