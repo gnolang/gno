@@ -15,6 +15,26 @@
       ]
     }
   },
+  "validators": [
+    {
+      "address": "g1mxguhd5zacar64txhfm0v7hhtph5wur5hx86vs",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "C0l3PwIhnCmIG3YiAa9jf/uuvZj1ob7lolasnEhDgBE="
+      },
+      "power": "",
+      "name": "devx-val-1"
+    },
+    {
+      "address": "g1t9ctfa468hn6czff8kazw08crazehcxaqa2uaa",
+      "pub_key": {
+        "@type": "/tm.PubKeyEd25519",
+        "value": "wBqj3F9RgIJ12UqGq5okzHfVbbd6H5AF5y4as8Ovx00="
+      },
+      "power": "",
+      "name": "devx-val-2"
+    }
+  ],
   "app_hash": null,
   "app_state": {
     "@type": "/gno.GenesisState",
@@ -51,7 +71,10 @@
       "g197q5e9v00vuz256ly7fq7v3ekaun5cr7wmjgfh=9000000000000000000ugnot",
       "g13qtrg2fnphh4rw697educlcmv0ru2yk63flfad=9000000000000000000ugnot",
       "g125em6arxsnj49vx35f0n0z34putv5ty3376fg5=9000000000000000000ugnot",
-      "g1dnllrdzwfhxv3evyk09y48mgn5phfjvtyrlzm7=9000000000000000000ugnot"
+      "g1dnllrdzwfhxv3evyk09y48mgn5phfjvtyrlzm7=9000000000000000000ugnot",
+      "g16tfrrul20g4jzt3z303raqw8vs8s2pqqh5clwu=9000000000000000000ugnot",
+      "g1q6jrp203fq0239pv38sdq3y3urvd6vt5azacpv=9000000000000000000ugnot",
+      "g13d7jc32adhc39erm5me38w5v7ej7lpvlnqjk73=9000000000000000000ugnot"
     ],
     "txs": null
   }
