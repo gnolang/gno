@@ -24,19 +24,19 @@ make up
 
 This will build out the required Docker images for this simulation, and start the services
 
+NOTE: if you want to build with no cache for some reason i.e low code changes
+
+```shell
+make up fresh
+```
+
 ### Step 2: Open Grafana
 
 When you've verified that the `telemetry` containers are up and running, head on over to http://localhost:3000 to open
 the Grafana dashboard.
 
-Default login details:
 
-```
-username: admin
-password: admin
-```
-
-After you've logged in (you can skip setting a new password), on the left hand side, click on
+On the left hand side, click on
 `Dashboards -> Gno -> Gno Node Metrics`:
 ![Grafana](assets/grafana-1.jpeg)
 
@@ -44,6 +44,14 @@ This will open up the predefined Gno Metrics dashboards (added for ease of use) 
 ![Metrics Dashboard](assets/grafana-2.jpeg)
 
 Periodically, these metrics will be updated as the `supernova` process is simulating network traffic.
+
+For Profiling Data go we use Grafana Pyroscope
+
+On the left hand side, click on:
+`Explore -> Grafana Pyroscope -> Run Query`:
+![Profiling Dashboard](assets/pyroscope.png)
+
+Various options for profiling data are avaliable to select.
 
 ### Step 3: Stopping the cluster
 

@@ -9,6 +9,8 @@ services:
       - ./collector/collector.yaml:/etc/otelcol-contrib/config.yaml
     networks:
       - gnoland-net
+    container_name: opentelemetry
+
   prometheus:
     image: prom/prometheus:latest
     command:
@@ -21,6 +23,8 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - gnoland-net
+    container_name: prometheus
+
   grafana:
     image: grafana/grafana-enterprise
     volumes:
@@ -30,16 +34,21 @@ services:
       - ./grafana/gno-dashboards.json:/var/lib/grafana/dashboards/gno-dashboards.json
     ports:
       - "3000:3000"
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
     networks:
       - gnoland-net
+    container_name: grafana
+
   gnoland:
-    build:
-      context: ./gnoland
-      dockerfile: Dockerfile
+    image: local-gnoland:latest  # Use the existing image
     ports:
       - "26657:26657"
     networks:
       - gnoland-net
+    container_name: gnoland-node
+
   supernova:
     build:
       dockerfile: supernova.Dockerfile
@@ -51,9 +60,23 @@ services:
     restart: always
     networks:
       - gnoland-net
+    container_name: supernova
+
+  pyroscope:
+    image: grafana/pyroscope
+    ports:
+      - "4040:4040"
+    volumes:
+      - pyroscope:/pyroscope
+      - ./pyroscope/pyroscope.yml:/etc/pyroscope.yml
+    command: ["server", "-config.file=/etc/pyroscope.yml"]
+    networks:
+      - gnoland-net
+    container_name: pyroscope
 
 networks:
   gnoland-net:
+    name: gnoland-net
     driver: bridge
 
 volumes:
@@ -62,4 +85,6 @@ volumes:
   grafana_data:
     driver: local
   gnoland:
+    driver: local
+  pyroscope:
     driver: local
