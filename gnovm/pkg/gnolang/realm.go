@@ -171,6 +171,13 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			if co.GetIsEscaped() {
 				// already escaped
 			} else {
+				if !co.GetIsReal() {
+					// this can happen if a ref +1
+					// new object gets passed into
+					// an external realm function.
+					co.SetIsNewReal(false)
+					rlm.MarkNewReal(co)
+				}
 				rlm.MarkNewEscaped(co)
 			}
 		} else if co.GetIsReal() {
@@ -442,6 +449,13 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// NOTE: do not unset owner here,
 				// may become unescaped later
 				// in processNewEscapedMarks().
+				if !child.GetIsReal() {
+					// this can happen if a ref +1
+					// new object gets passed into
+					// an external realm function.
+					child.SetIsNewReal(false)
+					rlm.MarkNewReal(child)
+				}
 				rlm.MarkNewEscaped(child)
 			}
 		} else {
