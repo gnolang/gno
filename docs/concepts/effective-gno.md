@@ -701,12 +701,11 @@ best of both worlds, you can wrap a Coins into a GRC20 compatible token.
 ```go
 import "gno.land/p/demo/grc/grc20"
 
-var fooToken grc20.AdminToken = grc20.NewAdminToken("Foo Token", "FOO", 4)
+var fooToken = grc20.NewBanker("Foo Token", "FOO", 4)
 
 func MyBalance() uint64 {
 	caller := std.PrevRealm().Addr()
-	balance, _ := fooToken.BalanceOf(caller)
-	return balance
+	return fooToken.BalanceOf(caller)
 }
 ```
 
