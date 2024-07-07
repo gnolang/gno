@@ -6,15 +6,15 @@ import (
 )
 
 // NOTE: it is valid to persist external realm types.
-var somevalue tests.TestRealmObject
+var somevalue *tests.TestRealmObject
 
 func init() {
-	somevalue.Field = "test"
+	somevalue = &tests.TestRealmObjectValue
 }
 
 func main() {
-	// NOTE: but it is invalid to modify it using an external realm function.
-	somevalue.Modify()
+	// NOTE: but it is invalid to modify it directly.
+	somevalue.Field = "test"
 	println(somevalue)
 }
 

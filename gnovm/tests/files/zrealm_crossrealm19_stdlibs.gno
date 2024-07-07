@@ -29,6 +29,8 @@ func main() {
 }
 
 // Output:
+// hello B gno.land/r/demo/tests/crossrealm
+// .
 
 // Error:
 
