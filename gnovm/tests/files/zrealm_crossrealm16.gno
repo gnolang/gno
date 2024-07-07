@@ -325,7 +325,17 @@ func main() {
 //                         }
 //                     }
 //                 ],
-//                 "Results": []
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.RefType",
+//                             "ID": "gno.land/r/demo/tests/crossrealm.Fooer"
+//                         }
+//                     }
+//                 ]
 //             },
 //             "V": {
 //                 "@type": "/gno.FuncValue",
@@ -363,7 +373,17 @@ func main() {
 //                             }
 //                         }
 //                     ],
-//                     "Results": []
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/r/demo/tests/crossrealm.Fooer"
+//                             }
+//                         }
+//                     ]
 //                 }
 //             }
 //         },
@@ -392,7 +412,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "crossrealm.gno",
-//                         "Line": "36",
+//                         "Line": "39",
 //                         "PkgPath": "gno.land/r/demo/tests/crossrealm"
 //                     }
 //                 },

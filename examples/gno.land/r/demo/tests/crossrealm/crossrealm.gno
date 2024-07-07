@@ -32,5 +32,8 @@ type Fooer interface{ Foo() }
 
 var fooer Fooer
 
-func SetFooer(f Fooer) { fooer = f }
-func CallFoo()         { fooer.Foo() }
+func SetFooer(f Fooer) Fooer {
+	fooer = f
+	return fooer
+}
+func CallFoo() { fooer.Foo() }
