@@ -1,0 +1,20 @@
+loadpkg gno.land/r/dev/admin $WORK
+
+adduser dev
+
+replace "g1abcde" $USER_ADDR_dev
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/dev/admin -func Render -gas-fee 1000000ugnot -gas-wanted 2000000 -args '' -broadcast -chainid=tendermint_test test1
+! stdout g1abcde
+stdout $USER_ADDR_dev
+
+-- admin.gno --
+package admin
+
+var admin = "g1abcde"
+
+func Render(path string) string {
+	return "# Hello "+admin
+}
