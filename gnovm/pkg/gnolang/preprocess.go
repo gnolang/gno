@@ -1680,7 +1680,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 
 							// check if we we need to decompose for named typed conversion in the function return results
-							decompose := false
+							var decompose bool
 
 							for i, rhsType := range cft.Results {
 								lt := evalStaticTypeOf(store, last, n.Lhs[i])
@@ -1689,18 +1689,18 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									break
 								}
 							}
-							if decompose == true {
+							if decompose {
 								// only enter this section if cft.Results to be converted to Lhs type for named type conversion.
 								// decompose a,b = x()
-								// .tmp1, .tmp2 := x()  assignment statemet expression (Op=DEFINE)
-								// a,b = .tmp1, .tmp2   assignment statemet expression ( Op=ASSIGN )
+								// .tmp1, .tmp2 := x()  assignment statement expression (Op=DEFINE)
+								// a,b = .tmp1, .tmp2   assignment statement expression ( Op=ASSIGN )
 								// add the new statement to last.Body
 
 								// step1:
 								// create a hidden var with leading . (dot) the curBodyLen increase every time when there is an decompostion
 								// because there could be multiple decomposition happens
 								// we use both stmt index and resturn result number to differentiate the .tmp variables created in each assignment decompostion
-								// ex. .tmp_3_2: this variabl is created as the 3rd statement in the block, the 2nd parameter returned from x(),
+								// ex. .tmp_3_2: this variable is created as the 3rd statement in the block, the 2nd parameter returned from x(),
 								// create .tmp_1_1, .tmp_1_2 .... based on number of result from x()
 								var tmpExprs Exprs
 								for i := range cft.Results {
@@ -1721,8 +1721,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 								// a,b = .tmp1, .tmp2
 								// assign stmt expression
-								// the right hand side will be converted to  call expr for nameed/unnamed covnerstion
-								// we make a copy of tmpExrs to prevent dsx.Lhs in the preview statement changing by the side effect
+								// the right hand side will be converted to  call expr for nameed/unnamed covnersion
+								// we make a copy of tmpExprs to prevent dsx.Lhs in the preview statement changing by the side effect
 								// when asx.Rhs is converted to const call expr during the preprocess of the next statement
 
 								asx := &AssignStmt{
@@ -1734,7 +1734,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								asx = Preprocess(store, last, asx).(*AssignStmt)
 
 								// step4:
-								// replace the orignal stmt with two new stmts
+								// replace the original stmt with two new stmts
 								body := last.GetBody()
 								// we need to do an in-place replacement while leaving the current node
 								n.Attributes = dsx.Attributes

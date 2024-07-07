@@ -1367,7 +1367,7 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 			panic("PackageNode.PrepareNewValues() package mismatch")
 		}
 	}
-	// the FuncValue Body maybe be altered during the preprocessing.
+	// The FuncValue Body may have been altered during the preprocessing.
 	// We need to update body field from the source in the FuncValue accordingly.
 	for _, tv := range x.Values {
 		if fv, ok := tv.V.(*FuncValue); ok {
