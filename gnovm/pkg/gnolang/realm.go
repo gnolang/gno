@@ -382,15 +382,6 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 			// oo.SetIsNewReal(false)
 			// skip if became deleted.
 			continue
-		} else if oo.GetIsReal() && oo.GetObjectID().PkgID != rlm.ID {
-			// the object was new real in this realm,
-			// but another realm saved it before
-			// this realm started finalizing.
-			// if debug { XXX uncomment in the future
-			if oo.GetObjectID().PkgID == rlm.ID {
-				panic("should have been saved in another realm")
-			}
-			// }
 		} else {
 			rlm.incRefCreatedDescendants(store, oo)
 		}
