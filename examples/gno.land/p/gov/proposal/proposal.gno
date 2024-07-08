@@ -66,15 +66,10 @@ func (exec *executorImpl) IsSuccessful() bool {
 	return exec.success
 }
 
-func (exec executorImpl) GetStatus() Status {
-	switch {
-	case exec.success:
-		return Succeeded
-	case exec.done:
-		return Failed
-	default:
-		return NotExecuted
-	}
+// IsExpired returns whether the execution had expired or not.
+// This implementation never expires.
+func (exec *executorImpl) IsExpired() bool {
+	return false
 }
 
 func IsApprovedByGovdaoContext(ctx context.Context) bool {
