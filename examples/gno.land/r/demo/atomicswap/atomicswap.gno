@@ -43,7 +43,7 @@ func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Tim
 	sent := std.GetOrigSend()
 	require(len(sent) != 0, "at least one coin needs to be sent")
 	sendFn := func(to std.Address) {
-		banker := std.GetBanker(std.BankerTypeOrigSend)
+		banker := std.GetBanker(std.BankerTypeRealmSend)
 		banker.SendCoins(std.GetOrigPkgAddr(), to, sent)
 	}
 	amountStr := sent.String()
@@ -76,6 +76,18 @@ func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Ti
 	return counter, swap
 }
 
+// Claim loads a registered swap and tries to claim it.
+func Claim(id int, secret string) {
+	swap := mustGet(id)
+	swap.Claim(secret)
+}
+
+// Refund loads a registered swap and tries to refund it.
+func Refund(id int) {
+	swap := mustGet(id)
+	swap.Refund()
+}
+
 // Render returns a list of swaps (simplified) for the homepage, and swap details when specifying a swap ID.
 func Render(path string) string {
 	if path == "" { // home
@@ -86,6 +98,7 @@ func Render(path string) string {
 			swap := value.(*Swap)
 			output += ufmt.Sprintf("- %s: %s -(%s)> %s - %s\n",
 				key, swap.sender, swap.amountStr, swap.recipient, swap.Status())
+			return false
 		})
 		return output
 	} else { // by id
@@ -102,4 +115,14 @@ func require(check bool, msg string) {
 	if !check {
 		panic(msg)
 	}
+}
+
+// mustGet retrieves a swap by its id or panic.
+func mustGet(id int) *Swap {
+	key := strconv.Itoa(id)
+	swap, ok := swaps.Get(key)
+	if !ok {
+		panic("unknown swap ID")
+	}
+	return swap.(*Swap)
 }
