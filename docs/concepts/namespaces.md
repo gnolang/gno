@@ -6,7 +6,7 @@ id: namespaces
 
 Namespaces provide users with the exclusive capability to publish contracts under their designated namespaces, similar to GitHub's user and organization model.
 
-This feature is currently a work in progress (WIP). To learn more about namespaces, please checkout https://github.com/gnolang/gno/issues/1107.
+__NOTE__: This feature isn't enabled by default on the chain and is currently only enabled on gno.land.
 
 # Package Path
 
@@ -33,3 +33,16 @@ Examples:
 
 - `gno.land/p/demo/avl`: This signifies a package named `avl` within the `demo` namespace.
 - `gno.land/r/gnoland/home`: This signifies a realm named `home` within the `gnoland` namespace.
+
+## Registration Process
+
+The registration process is contract-based. The `AddPkg` command references `sys/users` for filtering, which in turn is based on `r/demo/users`.
+
+When `sys/users` is enabled, you need to register a name using `r/demo/users`. This process requires an `Invite`, after which you can call the `r/demo/users.Register` function to register the name for the caller's address.
+
+After successful registration, you can add a package under the registered namespace.
+
+## Anonymous Namespace
+
+Gno.land offers the ability to add a package without having a registered namespace. 
+You can do this by using the user's own address as a namespace. This is formatted as `{p,r}/{std.Address}/**`. 

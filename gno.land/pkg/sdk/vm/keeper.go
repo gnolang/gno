@@ -251,7 +251,6 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 }
 
 // Namespace can be either a user or crypto address.
-// XXX: Uppercase should be valid but transform into lowercase ?
 var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([a-zA-Z]+[_a-zA-Z0-9]+)`)
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
@@ -264,6 +263,13 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	pkgPath = path.Clean(pkgPath) // cleanup pkgpath
 
 	match := reNamespace.FindStringSubmatch(pkgPath)
+	switch len(match) {
+	case 0:
+		return ErrInvalidPkgPath(pkgPath) // no match
+	case 2: // ok
+	default:
+		panic("invalid pattern while matching pkgpath")
+	}
 	if len(match) != 2 {
 		return ErrInvalidPkgPath(pkgPath)
 	}
