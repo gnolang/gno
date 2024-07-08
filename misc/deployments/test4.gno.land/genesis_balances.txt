@@ -45,6 +45,7 @@ g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun=9000000000000000000ugnot # Jerónimo
 g15ruzptpql4dpuyzej0wkt5rq6r26kw4nxu9fwd=9000000000000000000ugnot # Denis
 # XXX=9000000000000000000ugnot # Lucio # TODO add
 g1dnllrdzwfhxv3evyk09y48mgn5phfjvtyrlzm7=9000000000000000000ugnot # Danny
+# XXX=9000000000000000000ugnot # Alan
 g197q5e9v00vuz256ly7fq7v3ekaun5cr7wmjgfh=9000000000000000000ugnot # Salvo
 g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq=9000000000000000000ugnot # Alexis
 
@@ -55,7 +56,7 @@ g18l9us6trqaljw39j94wzf5ftxmd9qqkvrxghd2=9000000000000000000ugnot # Adena
 
 # Berty
 
-g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm=9000000000000000000ugnot
+g1qynsu9dwj9lq0m5fkje7jh6qy3md80ztqnshhm=9000000000000000000ugnot # Berty Core Team
 
 # Dragos
 
