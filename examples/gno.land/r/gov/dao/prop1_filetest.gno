@@ -1,5 +1,3 @@
-// PKGPATH: gno.land/r/foo/prop01
-//
 // Please note that this package is intended for demonstration purposes only.
 // You could execute this code (the init part) by running a `maketx run` command
 // or by uploading a similar package to a personal namespace.
@@ -7,7 +5,7 @@
 // For the specific case of validators, a `r/gnoland/valopers` will be used to
 // organize the lifecycle of validators (register, etc), and this more complex
 // contract will be responsible to generate proposals.
-package prop01
+package main
 
 import (
 	"std"
@@ -17,7 +15,21 @@ import (
 	"gno.land/r/sys/validators"
 )
 
+const daoPkgPath = "gno.land/r/gov/dao"
+
 func init() {
+	membersFn := func() []std.Address {
+		return []std.Address{
+			std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
+		}
+	}
+
+	mExec := govdao.NewPropExecutor(membersFn)
+
+	comment := "adding someone to vote"
+	id := govdao.Propose(comment, mExec)
+	govdao.ExecuteProposal(id)
+
 	changesFn := func() []pVals.Validator {
 		return []pVals.Validator{
 			{
@@ -44,7 +56,7 @@ func init() {
 
 	// Create a proposal.
 	// XXX: payment
-	comment := "manual valset changes proposal example"
+	comment = "manual valset changes proposal example"
 	govdao.Propose(comment, executor)
 }
 
@@ -69,29 +81,34 @@ func main() {
 
 // Output:
 // --
-// - [/r/gov/dao:0](0) - manual valset changes proposal example (by g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa)
+// - [/r/gov/dao:0](0) - adding someone to vote (**succeeded**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// - [/r/gov/dao:1](1) - manual valset changes proposal example (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+//
 // --
-// # Prop#0
+// # Prop#1
 //
 // manual valset changes proposal example
 // Status: active
-// Author: g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa
+// Voting status: YES: 0, NO: 0, percent: 0, members: 1
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // --
-// # Prop#0
+// # Prop#1
 //
 // manual valset changes proposal example
 // Status: accepted
-// Author: g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa
+// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // No valset changes to apply.
 // --
 // --
-// # Prop#0
+// # Prop#1
 //
 // manual valset changes proposal example
 // Status: succeeded
-// Author: g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa
+// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // Valset changes:
 // - #123: g12345678 (10)
