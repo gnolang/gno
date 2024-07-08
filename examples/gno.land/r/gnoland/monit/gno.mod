@@ -1,4 +1,4 @@
-module monit
+module gno.land/r/gnoland/monit
 
 require (
 	gno.land/p/demo/ownable v0.0.0-latest
