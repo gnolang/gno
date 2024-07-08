@@ -1,0 +1,33 @@
+package access
+
+import "std"
+
+type UnprivilegedSet struct {
+	Set
+}
+
+// Unprivileged returns an unprivileged structure that can be securely exposed as object.
+func (s Set) Unprivileged() UnprivilegedSet {
+	return UnprivilegedSet{Set: s}
+}
+
+func (u *UnprivilegedSet) Add(addr std.Address) {
+	u.AssertCurrentHasAccess()
+	u.Set.Add(addr)
+}
+
+func (u *UnprivilegedSet) Del(addr std.Address) {
+	u.AssertCurrentHasAccess()
+	u.Set.Del(addr)
+}
+
+func (u *UnprivilegedSet) ForceDel(addr std.Address) {
+	u.AssertCurrentHasAccess()
+	u.Set.ForceDel(addr)
+}
+
+func (u *UnprivilegedSet) Replace(addr std.Address) {
+	u.AssertCurrentHasAccess()
+	addrs := []std.Address{addr}
+	u.Set.Replace(addrs)
+}
