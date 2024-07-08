@@ -363,15 +363,15 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation: 
 https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev
 
-P           Previous TX	 - Go to the previous tx
-N           Next TX	 - Go to the next tx
-E           Export	 - Export the current state as genesis doc
-A           Accounts	 - Display known accounts and balances
-H           Help	 - Display this message
-R           Reload	 - Reload all packages to take change into account.
-Ctrl+S      Save State	 - Save the current state
-Ctrl+R      Reset	 - Reset application to it's initial/save state.
-Ctrl+C      Exit	 - Exit the application
+P           Previous TX  - Go to the previous tx
+N           Next TX      - Go to the next tx
+E           Export       - Export the current state as genesis doc
+A           Accounts     - Display known accounts and balances
+H           Help         - Display this message
+R           Reload       - Reload all packages to take change into account.
+Ctrl+S      Save State   - Save the current state
+Ctrl+R      Reset        - Reset application to it's initial/save state.
+Ctrl+C      Exit         - Exit the application
 `
 
 func runEventLoop(
