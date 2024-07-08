@@ -9,7 +9,7 @@ function renderUsernames(raw) {
 
 function parseContent(source, isCode) {
   if (isCode) {
-    const highlightedCode = hljs.highlight(source, { language: "go" }).value;
+    const highlightedCode = hljs.highlightAuto(source).value;
     const codeElement = document.createElement("code");
     codeElement.classList.add("hljs");
     codeElement.innerHTML = highlightedCode;
