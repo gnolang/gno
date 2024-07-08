@@ -3,32 +3,30 @@ package main
 import (
 	"std"
 
-	"gno.land/p/demo/grc/exts/vault"
-	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/tests/test20"
+	"gno.land/r/demo/vault"
 )
 
 func main() {
-	alice := testutils.TestAddress("alice")
-	bob := testutils.TestAddress("bob")       // recovery request address (cold wallet).
-	charly := testutils.TestAddress("charly") // recovery dest.
-	pkgaddr := std.GetOrigPkgAddr()
-
-	// create a fooAdminToken + fooToken (GRC20) pair.
-	fooAdminToken := grc20.NewAdminToken("Foo", "FOO", 4)
-	fooAdminToken.Mint(alice, 1000)
-	fooToken := fooAdminToken.GRC20()
+	var (
+		alice   = testutils.TestAddress("alice")
+		bob     = testutils.TestAddress("bob")    // recovery request address (cold wallet).
+		charly  = testutils.TestAddress("charly") // recovery dest.
+		pkgaddr = std.GetOrigPkgAddr()
+		token   = test20.Token
+	)
 
 	printBalances := func() {
-		aliceBalance, _ := fooToken.BalanceOf(alice)
-		bobBalance, _ := fooToken.BalanceOf(bob)
-		charlyBalance, _ := fooToken.BalanceOf(charly)
-		pkgBalance, _ := fooToken.BalanceOf(pkgaddr)
+		aliceBalance := fooToken.BalanceOf(alice)
+		bobBalance := fooToken.BalanceOf(bob)
+		charlyBalance := fooToken.BalanceOf(charly)
+		pkgBalance := fooToken.BalanceOf(pkgaddr)
+		height := std.GetHeight()
 		println(ufmt.Sprintf(
 			"balances: alice=%d, bob=%d, charly=%d, pkg=%d, height=%d",
-			aliceBalance, bobBalance, charlyBalance, pkgBalance, std.GetHeight(),
-		))
+			aliceBalance, bobBalance, charlyBalance, pkgBalance, height))
 	}
 
 	// create a vault for fooAdminToken.

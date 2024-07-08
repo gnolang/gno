@@ -15,7 +15,7 @@ type Vault interface {
 	Redeem() error
 }
 
-func New(adminToken *grc20.AdminToken) Vault {
+func New(adminToken *grc20.Banker) Vault {
 	return &impl{
 		adminToken: adminToken,
 		users:      avl.Tree{},
@@ -23,7 +23,7 @@ func New(adminToken *grc20.AdminToken) Vault {
 }
 
 type impl struct {
-	adminToken *grc20.AdminToken
+	adminToken *grc20.Banker
 	users      avl.Tree // std.Address -> userVault
 }
 
@@ -66,10 +66,7 @@ func (v *impl) Unvault(amount uint) error {
 		return err
 	}
 
-	balance, err := v.adminToken.BalanceOf(caller)
-	if err != nil {
-		return err
-	}
+	balance := v.adminToken.BalanceOf(caller)
 	if balance < uint64(amount) {
 		return grc20.ErrInsufficientBalance
 	}
