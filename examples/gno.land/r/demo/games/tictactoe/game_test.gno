@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 )
 
 func TestGame(t *testing.T) {
@@ -19,20 +20,21 @@ func TestGame(t *testing.T) {
 
 	game, err = NewGame(addr2, addr3)
 	assertNoErr(t, err)
-
 	assertFalse(t, game.IsOver())
 	assertFalse(t, game.IsDraw())
-	assertErr(t, game.Play(addr3, 0, 0))   // addr2's turn
-	assertErr(t, game.Play(addr2, -1, 0))  // invalid location
-	assertErr(t, game.Play(addr2, 3, 0))   // invalid location
-	assertErr(t, game.Play(addr2, 0, -1))  // invalid location
-	assertErr(t, game.Play(addr2, 0, 3))   // invalid location
-	assertNoErr(t, game.Play(addr2, 1, 1)) // first move
-	assertErr(t, game.Play(addr2, 2, 2))   // addr3's turn
-	assertErr(t, game.Play(addr3, 1, 1))   // slot already used
-	assertNoErr(t, game.Play(addr3, 0, 0)) // second move
-	assertNoErr(t, game.Play(addr2, 1, 2)) // third move
-	assertNoErr(t, game.Play(addr3, 0, 1)) // fourth move
+	assertErr(t, game.Play(addr3, 0, 0))                                 // addr2's turn
+	assertErr(t, game.Play(addr2, -1, 0))                                // invalid location
+	assertErr(t, game.Play(addr2, 3, 0))                                 // invalid location
+	assertErr(t, game.Play(addr2, 0, -1))                                // invalid location
+	uassert.ErrorContains(t, game.Play(addr2, 0, 3), "game not started") // invalid location
+	// assertNoErr(t,
+	game.start()
+	uassert.NoError(t, game.Play(addr2, 1, 1)) // first move
+	assertErr(t, game.Play(addr2, 2, 2))       // addr3's turn
+	assertErr(t, game.Play(addr3, 1, 1))       // slot already used
+	assertNoErr(t, game.Play(addr3, 0, 0))     // second move
+	assertNoErr(t, game.Play(addr2, 1, 2))     // third move
+	assertNoErr(t, game.Play(addr3, 0, 1))     // fourth move
 	assertFalse(t, game.IsOver())
 	assertNoErr(t, game.Play(addr2, 1, 0)) // fifth move (win)
 	assertTrue(t, game.IsOver())
