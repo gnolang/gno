@@ -82,14 +82,14 @@ func fieldHandler(res *mux.ResponseWriter, req *mux.Request) {
 	var editLink string
 
 	if _, ok := stringFields[field]; ok {
-		value = GetStringField(address, field, "n/a")
-		editLink = ufmt.Sprintf("%s&addr=%s", SetStringFieldURL, addr)
+		value = ufmt.Sprintf("%s", GetStringField(address, field, "n/a"))
+		editLink = ufmt.Sprintf(SetStringFieldURL+"&addr=%s&value=%s", field, addr, value)
 	} else if _, ok := intFields[field]; ok {
 		value = ufmt.Sprintf("%d", GetIntField(address, field, 0))
-		editLink = ufmt.Sprintf(SetIntFieldURL+"&addr=%s", field, addr)
+		editLink = ufmt.Sprintf(SetIntFieldURL+"&addr=%s&value=%s", field, addr, value)
 	} else if _, ok := boolFields[field]; ok {
 		value = ufmt.Sprintf("%t", GetBoolField(address, field, false))
-		editLink = ufmt.Sprintf(SetBoolFieldURL+"&addr=%s", field, addr)
+		editLink = ufmt.Sprintf(SetBoolFieldURL+"&addr=%s&value=%s", field, addr, value)
 	}
 
 	b.WriteString(ufmt.Sprintf("- %s: %s [Edit](%s)\n", field, value, editLink))

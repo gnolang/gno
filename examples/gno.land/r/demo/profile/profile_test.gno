@@ -5,145 +5,114 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 )
 
+// Global addresses for test users
+var (
+	alice   = testutils.TestAddress("alice")
+	bob     = testutils.TestAddress("bob")
+	charlie = testutils.TestAddress("charlie")
+	dave    = testutils.TestAddress("dave")
+	eve     = testutils.TestAddress("eve")
+	frank   = testutils.TestAddress("frank")
+	user1   = testutils.TestAddress("user1")
+	user2   = testutils.TestAddress("user2")
+)
 
 func TestStringFields(t *testing.T) {
-	addr := testutils.TestAddress("alice")
-	std.TestSetRealm(std.NewUserRealm(addr))
+	std.TestSetRealm(std.NewUserRealm(alice))
 
 	// Get before setting
-	name := GetStringField(addr, DisplayName, "anon")
-	assertSameString(t, name, "anon")
+	name := GetStringField(alice, DisplayName, "anon")
+	uassert.Equal(t, "anon", name)
 
 	// Set
-	if err := SetStringField(DisplayName, "Alice foo"); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if err := SetStringField(Homepage, "https://example.com"); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	err := SetStringField(DisplayName, "Alice foo")
+	uassert.NoError(t, err)
+	err = SetStringField(Homepage, "https://example.com")
+	uassert.NoError(t, err)
 
 	// Get after setting
-	name = GetStringField(addr, DisplayName, "anon")
-	homepage := GetStringField(addr, Homepage, "")
-	bio := GetStringField(addr, Bio, "42")
+	name = GetStringField(alice, DisplayName, "anon")
+	homepage := GetStringField(alice, Homepage, "")
+	bio := GetStringField(alice, Bio, "42")
 
-	assertSameString(t, name, "Alice foo")
-	assertSameString(t, homepage, "https://example.com")
-	assertSameString(t, bio, "42")
+	uassert.Equal(t, "Alice foo", name)
+	uassert.Equal(t, "https://example.com", homepage)
+	uassert.Equal(t, "42", bio)
 }
 
 func TestIntFields(t *testing.T) {
-	addr := testutils.TestAddress("bob")
-	std.TestSetRealm(std.NewUserRealm(addr))
+	std.TestSetRealm(std.NewUserRealm(bob))
 
 	// Get before setting
-	age := GetIntField(addr, Age, 25)
-	assertSameInt(t, age, 25)
+	age := GetIntField(bob, Age, 25)
+	uassert.Equal(t, 25, age)
 
 	// Set
-	if err := SetIntField(Age, 30); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	err := SetIntField(Age, 30)
+	uassert.NoError(t, err)
 
 	// Get after setting
-	age = GetIntField(addr, Age, 25)
-	assertSameInt(t, age, 30)
+	age = GetIntField(bob, Age, 25)
+	uassert.Equal(t, 30, age)
 }
 
 func TestBoolFields(t *testing.T) {
-	addr := testutils.TestAddress("charlie")
-	std.TestSetRealm(std.NewUserRealm(addr))
+	std.TestSetRealm(std.NewUserRealm(charlie))
 
 	// Get before setting
-	hiring := GetBoolField(addr, AvailableForHiring, false)
-	assertSameBool(t, hiring, false)
+	hiring := GetBoolField(charlie, AvailableForHiring, false)
+	uassert.Equal(t, false, hiring)
 
 	// Set
-	if err := SetBoolField(AvailableForHiring, true); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	err := SetBoolField(AvailableForHiring, true)
+	uassert.NoError(t, err)
 
 	// Get after setting
-	hiring = GetBoolField(addr, AvailableForHiring, false)
-	assertSameBool(t, hiring, true)
+	hiring = GetBoolField(charlie, AvailableForHiring, false)
+	uassert.Equal(t, true, hiring)
 }
 
 func TestInvalidStringField(t *testing.T) {
-	addr := testutils.TestAddress("dave")
-	std.TestSetRealm(std.NewUserRealm(addr))
+	std.TestSetRealm(std.NewUserRealm(dave))
 
 	err := SetStringField(InvalidField, "test")
-	if err == nil {
-		t.Error("expected error for invalid field, got nil")
-	}
+	uassert.Error(t, err)
 }
 
 func TestInvalidIntField(t *testing.T) {
-	addr := testutils.TestAddress("eve")
-	std.TestSetRealm(std.NewUserRealm(addr))
+	std.TestSetRealm(std.NewUserRealm(eve))
 
 	err := SetIntField(InvalidField, 123)
-	if err == nil {
-		t.Error("expected error for invalid field, got nil")
-	}
+	uassert.Error(t, err)
 }
 
 func TestInvalidBoolField(t *testing.T) {
-	addr := testutils.TestAddress("frank")
-	std.TestSetRealm(std.NewUserRealm(addr))
+	std.TestSetRealm(std.NewUserRealm(frank))
 
 	err := SetBoolField(InvalidField, true)
-	if err == nil {
-		t.Error("expected error for invalid field, got nil")
-	}
+	uassert.Error(t, err)
 }
 
 func TestMultipleProfiles(t *testing.T) {
-	addr1 := testutils.TestAddress("user1")
-	addr2 := testutils.TestAddress("user2")
+	// Set profile for user1
+	std.TestSetRealm(std.NewUserRealm(user1))
+	err := SetStringField(DisplayName, "User One")
+	uassert.NoError(t, err)
 
-	// Set profile for addr1
-	std.TestSetRealm(std.NewUserRealm(addr1))
-	if err := SetStringField(DisplayName, "User One"); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-
-	// Set profile for addr2
-	std.TestSetRealm(std.NewUserRealm(addr2))
-	if err := SetStringField(DisplayName, "User Two"); err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	// Set profile for user2
+	std.TestSetRealm(std.NewUserRealm(user2))
+	err = SetStringField(DisplayName, "User Two")
+	uassert.NoError(t, err)
 
 	// Get profiles
-	std.TestSetRealm(std.NewUserRealm(addr1)) // Switch back to addr1
-	name1 := GetStringField(addr1, DisplayName, "anon")
-	std.TestSetRealm(std.NewUserRealm(addr2)) // Switch back to addr2
-	name2 := GetStringField(addr2, DisplayName, "anon")
+	std.TestSetRealm(std.NewUserRealm(user1)) // Switch back to user1
+	name1 := GetStringField(user1, DisplayName, "anon")
+	std.TestSetRealm(std.NewUserRealm(user2)) // Switch back to user2
+	name2 := GetStringField(user2, DisplayName, "anon")
 
-	assertSameString(t, name1, "User One")
-	assertSameString(t, name2, "User Two")
-}
-
-// Assertions helpers
-func assertSameString(t *testing.T, a, b string) {
-	t.Helper()
-	if a != b {
-		t.Errorf("expected %q, got %q", a, b)
-	}
-}
-
-func assertSameInt(t *testing.T, a, b int) {
-	t.Helper()
-	if a != b {
-		t.Errorf("expected %d, got %d", a, b)
-	}
-}
-
-func assertSameBool(t *testing.T, a, b bool) {
-	t.Helper()
-	if a != b {
-		t.Errorf("expected %t, got %t", a, b)
-	}
+	uassert.Equal(t, "User One", name1)
+	uassert.Equal(t, "User Two", name2)
 }
