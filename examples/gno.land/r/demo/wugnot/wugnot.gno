@@ -35,7 +35,7 @@ func Withdraw(amount uint64) {
 	caller := std.PrevRealm().Addr()
 	pkgaddr := std.CurrentRealm().Addr()
 	callerBal := Token.BalanceOf(caller)
-	require(amount < callerBal, ufmt.Sprintf("Insufficient balance: %d available, %d needed.", callerBal, amount))
+	require(amount <= callerBal, ufmt.Sprintf("Insufficient balance: %d available, %d needed.", callerBal, amount))
 
 	// send swapped ugnots to qcaller
 	stdBanker := std.GetBanker(std.BankerTypeRealmSend)
