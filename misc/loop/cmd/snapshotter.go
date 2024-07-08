@@ -14,7 +14,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -72,7 +71,7 @@ func NewSnapshotter(dockerClient *client.Client, cfg config) (*snapshotter, erro
 
 // pullLatestImage get latest version of the docker image
 func (s snapshotter) pullLatestImage(ctx context.Context) (bool, error) {
-	reader, err := s.dockerClient.ImagePull(ctx, "ghcr.io/gnolang/gno/gnoland:master", image.PullOptions{})
+	reader, err := s.dockerClient.ImagePull(ctx, "ghcr.io/gnolang/gno/gnoland:master", types.ImagePullOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -113,7 +112,7 @@ func (s snapshotter) switchTraefikPortalLoop(url string) error {
 
 func (s snapshotter) getPortalLoopContainers(ctx context.Context) ([]types.Container, error) {
 	// Check if a portal loop is running
-	containers, err := s.dockerClient.ContainerList(ctx, container.ListOptions{})
+	containers, err := s.dockerClient.ContainerList(ctx, types.ContainerListOptions{})
 	if err != nil {
 		return []types.Container{}, err
 	}
@@ -176,7 +175,7 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 		return nil, err
 	}
 
-	if err := s.dockerClient.ContainerStart(ctx, dockerContainer.ID, container.StartOptions{}); err != nil {
+	if err := s.dockerClient.ContainerStart(ctx, dockerContainer.ID, types.ContainerStartOptions{}); err != nil {
 		return nil, err
 	}
 	time.Sleep(time.Second * 5)
