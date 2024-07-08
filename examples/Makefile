@@ -62,4 +62,4 @@ fmt:
 
 .PHONY: tidy
 tidy:
-	find . -name "gno.mod" -execdir go run github.com/gnolang/gno/gnovm/cmd/gno mod tidy \;
+	go run github.com/gnolang/gno/gnovm/cmd/gno mod tidy -v --recursive

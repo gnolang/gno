@@ -31,7 +31,7 @@ tasks:
 
 ports:
   - name: gnoweb
-    description: "the Gno.land web server"
+    description: "the gno.land web server"
     port: 8888
     onOpen: open-preview
 
