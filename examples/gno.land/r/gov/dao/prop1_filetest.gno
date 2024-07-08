@@ -1,5 +1,3 @@
-// PKGPATH: gno.land/r/foo/prop01
-//
 // Please note that this package is intended for demonstration purposes only.
 // You could execute this code (the init part) by running a `maketx run` command
 // or by uploading a similar package to a personal namespace.
@@ -7,7 +5,7 @@
 // For the specific case of validators, a `r/gnoland/valopers` will be used to
 // organize the lifecycle of validators (register, etc), and this more complex
 // contract will be responsible to generate proposals.
-package prop01
+package main
 
 import (
 	"std"
