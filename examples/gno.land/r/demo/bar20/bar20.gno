@@ -20,7 +20,7 @@ var (
 func init() {
 	banker = grc20.NewBanker("Bar", "BAR", 4)
 	Token = banker.Token()
- 	grc20reg.Register(Token, "")
+	grc20reg.Register(Token, "")
 }
 
 func Faucet() string {

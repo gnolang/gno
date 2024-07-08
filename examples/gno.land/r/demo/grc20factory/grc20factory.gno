@@ -6,9 +6,9 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
-	"gno.land/r/demo/grc20reg"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/grc20reg"
 )
 
 var instances avl.Tree // symbol -> instance
