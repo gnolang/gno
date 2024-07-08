@@ -1,3 +1,5 @@
+// PKGPATH: gno.land/r/foo/prop01
+//
 // Please note that this package is intended for demonstration purposes only.
 // You could execute this code (the init part) by running a `maketx run` command
 // or by uploading a similar package to a personal namespace.
@@ -5,7 +7,7 @@
 // For the specific case of validators, a `r/gnoland/valopers` will be used to
 // organize the lifecycle of validators (register, etc), and this more complex
 // contract will be responsible to generate proposals.
-package main
+package prop01
 
 import (
 	"std"
@@ -67,20 +69,20 @@ func main() {
 
 // Output:
 // --
-// - [/r/gov/dao:0](0) - manual valset changes proposal example (by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// - [/r/gov/dao:0](0) - manual valset changes proposal example (by g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa)
 // --
 // # Prop#0
 //
 // manual valset changes proposal example
 // Status: active
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Author: g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa
 // --
 // --
 // # Prop#0
 //
 // manual valset changes proposal example
 // Status: accepted
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Author: g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa
 // --
 // No valset changes to apply.
 // --
@@ -89,7 +91,7 @@ func main() {
 //
 // manual valset changes proposal example
 // Status: succeeded
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Author: g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa
 // --
 // Valset changes:
 // - #123: g12345678 (10)
