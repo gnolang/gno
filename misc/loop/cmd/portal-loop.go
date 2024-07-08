@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/sirupsen/logrus"
 )
 
@@ -157,7 +156,7 @@ func StartPortalLoop(ctx context.Context, portalLoop *snapshotter, force bool) e
 			"container.id":    c.ID,
 			"container.ports": c.Ports,
 		}).Infof("remove container")
-		err = portalLoop.dockerClient.ContainerRemove(ctx, c.ID, container.RemoveOptions{
+		err = portalLoop.dockerClient.ContainerRemove(ctx, c.ID, types.ContainerRemoveOptions{
 			Force:         true,  // Force the removal of a running container
 			RemoveVolumes: true,  // Remove the volumes associated with the container
 			RemoveLinks:   false, // Remove the specified link and not the underlying container
