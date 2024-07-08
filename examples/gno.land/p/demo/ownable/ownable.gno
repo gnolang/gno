@@ -10,6 +10,7 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // being embedded in a Gno object to manage per-object ownership.
 type Ownable interface {
 	Owner() std.Address
+	AssertCallerIsOwner()
 }
 
 // Transferrable embeds Ownable, indicating that the owner can transfer ownership and drop ownership

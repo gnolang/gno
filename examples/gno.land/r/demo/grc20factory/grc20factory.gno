@@ -39,7 +39,7 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 
 type instance struct {
 	banker *grc20.Banker
-	admin  *ownable.Ownable
+	admin  ownable.Ownable
 	faucet uint64 // per-request amount. disabled if 0.
 }
 
