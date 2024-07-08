@@ -13,6 +13,18 @@ var (
 	router = mux.NewRouter()
 )
 
+const (
+	DisplayName        = "DisplayName"
+	Homepage           = "Homepage"
+	Bio                = "Bio"
+	Age                = "Age"
+	Location           = "Location"
+	Avatar             = "Avatar"
+	GravatarEmail      = "GravatarEmail"
+	AvailableForHiring = "AvailableForHiring"
+	InvalidField       = "InvalidField"
+)
+
 func init() {
 	router.HandleFunc("", homeHandler)
 	router.HandleFunc("u/{addr}", profileHandler)
@@ -21,22 +33,22 @@ func init() {
 
 // list of supported string fields
 var stringFields = map[string]bool{
-	"DisplayName":   true,
-	"Homepage":      true,
-	"Bio":           true,
-	"Location":      true,
-	"Avatar":        true,
-	"GravatarEmail": true,
+	DisplayName:   true,
+	Homepage:      true,
+	Bio:           true,
+	Location:      true,
+	Avatar:        true,
+	GravatarEmail: true,
 }
 
 // list of support int fields
 var intFields = map[string]bool{
-	"Age": true,
+	Age: true,
 }
 
 // list of support bool fields
 var boolFields = map[string]bool{
-	"AvailableForHiring": true,
+	AvailableForHiring: true,
 }
 
 // Setters
@@ -106,8 +118,4 @@ func GetIntField(addr std.Address, field string, def int) int {
 	}
 
 	return def
-}
-
-func Render(path string) string {
-	return router.Render(path)
 }

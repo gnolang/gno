@@ -7,14 +7,6 @@ import (
 	"gno.land/p/demo/testutils"
 )
 
-const (
-	DisplayName        = "DisplayName"
-	Homepage           = "Homepage"
-	Bio                = "Bio"
-	Age                = "Age"
-	AvailableForHiring = "AvailableForHiring"
-	InvalidField       = "InvalidField"
-)
 
 func TestStringFields(t *testing.T) {
 	addr := testutils.TestAddress("alice")

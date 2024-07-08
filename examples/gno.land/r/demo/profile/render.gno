@@ -15,7 +15,6 @@ const (
 	SetBoolFieldURL   = BaseURL + "?help&__func=SetBoolField&field=%s"
 	ViewAllFieldsURL  = BaseURL + ":u/%s"
 	ViewFieldURL      = BaseURL + ":f/%s/%s"
-	PageSize          = 10 // Limit the number of addresses per page
 )
 
 func homeHandler(res *mux.ResponseWriter, req *mux.Request) {
@@ -96,4 +95,8 @@ func fieldHandler(res *mux.ResponseWriter, req *mux.Request) {
 	b.WriteString(ufmt.Sprintf("- %s: %s [Edit](%s)\n", field, value, editLink))
 
 	res.Write(b.String())
+}
+
+func Render(path string) string {
+	return router.Render(path)
 }
