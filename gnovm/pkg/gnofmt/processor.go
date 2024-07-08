@@ -19,7 +19,7 @@ const tabWidth = 8
 type parsedPackage struct {
 	error error
 	files map[string]*ast.File
-	decls map[*ast.Object]ast.Decl
+	decls map[*ast.Ident]ast.Decl
 }
 
 type Processor struct {
@@ -52,7 +52,7 @@ func (p *Processor) FormatImportFromSource(filename string, src any) ([]byte, er
 	}
 
 	// Collect top level declarations within the source
-	pkgDecls := make(map[*ast.Object]ast.Decl)
+	pkgDecls := make(map[*ast.Ident]ast.Decl)
 	collectTopDeclaration(nodefile, pkgDecls)
 
 	// Process and format the parsed node.
@@ -129,7 +129,7 @@ func (p *Processor) parseFile(path string, src any) (file *ast.File, err error) 
 }
 
 // Helper function to process and format a parsed AST node.
-func (p *Processor) processAndFormat(file *ast.File, filename string, topDecls map[*ast.Object]ast.Decl) ([]byte, error) {
+func (p *Processor) processAndFormat(file *ast.File, filename string, topDecls map[*ast.Ident]ast.Decl) ([]byte, error) {
 	// Collect unresolved
 	unresolved := collectUnresolved(file, topDecls)
 
@@ -167,7 +167,7 @@ func (p *Processor) processPackageFiles(path string, pkg Package) *parsedPackage
 	}
 
 	pkgc = &parsedPackage{
-		decls: make(map[*ast.Object]ast.Decl),
+		decls: make(map[*ast.Ident]ast.Decl),
 		files: map[string]*ast.File{},
 	}
 	pkgc.error = ReadWalkPackage(pkg, func(filename string, r io.Reader, err error) error {
@@ -190,31 +190,31 @@ func (p *Processor) processPackageFiles(path string, pkg Package) *parsedPackage
 }
 
 // collectTopDeclaration collects top-level declarations from a single file.
-func collectTopDeclaration(file *ast.File, topDecls map[*ast.Object]ast.Decl) {
+func collectTopDeclaration(file *ast.File, topDecls map[*ast.Ident]ast.Decl) {
 	for _, decl := range file.Decls {
 		switch d := decl.(type) {
 		case *ast.GenDecl:
 			for _, spec := range d.Specs {
 				switch s := spec.(type) {
 				case *ast.TypeSpec:
-					topDecls[s.Name.Obj] = d
+					topDecls[s.Name] = d
 				case *ast.ValueSpec:
 					for _, name := range s.Names {
-						topDecls[name.Obj] = d
+						topDecls[name] = d
 					}
 				}
 			}
 		case *ast.FuncDecl:
 			// Check for top-level function
 			if d.Recv == nil && d.Name != nil && d.Name.Obj != nil {
-				topDecls[d.Name.Obj] = d
+				topDecls[d.Name] = d
 			}
 		}
 	}
 }
 
 // collectUnresolved collects unresolved identifiers and declarations.
-func collectUnresolved(file *ast.File, topDecls map[*ast.Object]ast.Decl) map[string]map[string]bool {
+func collectUnresolved(file *ast.File, topDecls map[*ast.Ident]ast.Decl) map[string]map[string]bool {
 	unresolved := map[string]map[string]bool{}
 	unresolvedList := []*ast.Ident{}
 	for _, u := range file.Unresolved {
@@ -233,7 +233,7 @@ func collectUnresolved(file *ast.File, topDecls map[*ast.Object]ast.Decl) map[st
 	ast.Inspect(file, func(n ast.Node) bool {
 		switch e := n.(type) {
 		case *ast.Ident:
-			if d := topDecls[e.Obj]; d != nil {
+			if _, ok := topDecls[e]; ok {
 				delete(unresolved, e.Name)
 			}
 		case *ast.SelectorExpr:
@@ -260,7 +260,7 @@ func collectUnresolved(file *ast.File, topDecls map[*ast.Object]ast.Decl) map[st
 }
 
 // cleanupPreviousImports removes resolved imports from the unresolved list.
-func (p *Processor) cleanupPreviousImports(node *ast.File, knownDecls map[*ast.Object]ast.Decl, unresolved map[string]map[string]bool) {
+func (p *Processor) cleanupPreviousImports(node *ast.File, knownDecls map[*ast.Ident]ast.Decl, unresolved map[string]map[string]bool) {
 	imports := astutil.Imports(p.fset, node)
 	for _, imps := range imports {
 		for _, imp := range imps {
@@ -290,8 +290,8 @@ func (p *Processor) cleanupPreviousImports(node *ast.File, knownDecls map[*ast.O
 	}
 
 	// Mark knownDecls as resolved
-	for obj := range knownDecls {
-		delete(unresolved, obj.Name)
+	for ident := range knownDecls {
+		delete(unresolved, ident.Name)
 	}
 }
 
