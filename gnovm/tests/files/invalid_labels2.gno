@@ -12,4 +12,4 @@ FirstLoop:
 }
 
 // Error:
-// main/files/invalid_labels2.gno:7: cannot find branch label "FirstLoop"
+// main/files/invalid_labels2.gno:7:3: cannot find branch label "FirstLoop"

@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/add_b2.gno:5: cannot use untyped Bigint as StringKind
+// main/files/types/add_b2.gno:5:10: cannot use untyped Bigint as StringKind

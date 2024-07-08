@@ -138,7 +138,7 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 	}
 
 	// Run Docker container
-	container, err := s.dockerClient.ContainerCreate(ctx, &container.Config{
+	dockerContainer, err := s.dockerClient.ContainerCreate(ctx, &container.Config{
 		Image: "ghcr.io/gnolang/gno/gnoland:master",
 		Labels: map[string]string{
 			"the-portal-loop": s.containerName,
@@ -170,12 +170,12 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 		return nil, err
 	}
 
-	err = s.dockerClient.NetworkConnect(ctx, "portal-loop", container.ID, nil)
+	err = s.dockerClient.NetworkConnect(ctx, "portal-loop", dockerContainer.ID, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.dockerClient.ContainerStart(ctx, container.ID, types.ContainerStartOptions{}); err != nil {
+	if err := s.dockerClient.ContainerStart(ctx, dockerContainer.ID, types.ContainerStartOptions{}); err != nil {
 		return nil, err
 	}
 	time.Sleep(time.Second * 5)
@@ -185,7 +185,7 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 		return nil, err
 	}
 	for _, c := range containers {
-		if c.ID == container.ID {
+		if c.ID == dockerContainer.ID {
 			return &c, nil
 		}
 	}
@@ -205,10 +205,14 @@ func (s snapshotter) backupTXs(ctx context.Context, rpcURL string) error {
 	defer instanceBackupFile.Close()
 
 	w := legacy.NewWriter(instanceBackupFile)
-	// client := http.NewClient(s.cfg.rpcAddr)
-	client := http.NewClient(rpcURL)
 
-	backupService := backup.NewService(client, w)
+	// Create the tx-archive backup service
+	c, err := http.NewClient(rpcURL)
+	if err != nil {
+		return fmt.Errorf("could not create tx-archive client, %w", err)
+	}
+
+	backupService := backup.NewService(c, w)
 
 	// Run the backup service
 	if backupErr := backupService.ExecuteBackup(ctx, cfg); backupErr != nil {
