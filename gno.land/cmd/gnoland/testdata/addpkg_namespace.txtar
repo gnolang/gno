@@ -4,13 +4,13 @@ loadpkg gno.land/r/sys/users
 adduser admin
 adduser gui
 
-replace "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" $USER_ADDR_admin # use our custom admin
+patchpkg "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" $USER_ADDR_admin # use our custom admin
 
 gnoland start
 
 ## When `sys/users` is Disable
 
-#  should be disable by default, addpkg should works by default
+# should be disable by default, addpkg should works by default
 
 # check is sys/users is disable
 # gui call -> sys/users.IsEnable
@@ -30,12 +30,12 @@ stdout 'OK!'
 
 ## When `sys/users` is Enable
 
-# enable users
+# enable `sys/users`
 # admin call -> sys/users.AdminEnable
 gnokey maketx call -pkgpath gno.land/r/sys/users -func AdminEnable -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test admin
 stdout 'OK!'
 
-# check that sys/users as been enable
+# check that `sys/users` as been enable
 # gui call -> sys/users.IsEnable
 gnokey maketx call -pkgpath gno.land/r/sys/users -func IsEnable -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test gui
 stdout 'OK!'
@@ -76,7 +76,7 @@ gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000
 stdout 'OK!'
 
 # test admin pushing on guiland/two
-# admin addpkg -> gno.land/r/guiland/one
+# admin addpkg -> gno.land/r/guiland/two
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/two -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test admin
 stderr 'unauthorized user'
 

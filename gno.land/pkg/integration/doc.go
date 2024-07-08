@@ -45,6 +45,12 @@
 //   - It's important to note that the load order is significant when using multiple `loadpkg`
 //     command; packages should be loaded in the order they are dependent upon.
 //
+// 6. `patchpkg`:
+//   - Patches any loaded files by package by replacing all occurrences of the first argument with the second.
+//   - This is mostly used to replace hardcoded addresses inside txtar files.
+//   - NOTE: this command may only be temporary, as it's not best approach to
+//     solve the above problem
+//
 // Logging:
 //
 // Gnoland logs aren't forwarded to stdout to avoid overwhelming the tests with too much
