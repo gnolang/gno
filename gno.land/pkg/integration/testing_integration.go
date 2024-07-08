@@ -340,22 +340,22 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 				fmt.Fprintf(ts.Stdout(), "Added %s(%s) to genesis", args[0], balance.Address)
 			},
-			// `patchpkg` Patch any loaded files by packages by replacing all occurences of the
+			// `patchpkg` Patch any loaded files by packages by replacing all occurrences of the
 			// first argument with the second.
 			// This is mostly use to replace hardcoded address inside txtar file.
 			"patchpkg": func(ts *testscript.TestScript, neg bool, args []string) {
 				args, err := unquote(args)
 				if err != nil {
-					tsValidateError(ts, "replace", neg, err)
+					tsValidateError(ts, "patchpkg", neg, err)
 				}
 
 				if len(args) != 2 {
-					ts.Fatalf("`replace`: should have exactly 2 arguments")
+					ts.Fatalf("`patchpkg`: should have exactly 2 arguments")
 				}
 
 				pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)
 				replace, with := args[0], args[1]
-				pkgs.SetReplace(replace, with)
+				pkgs.SetPatch(replace, with)
 			},
 			// `loadpkg` load a specific package from the 'examples' or working directory.
 			"loadpkg": func(ts *testscript.TestScript, neg bool, args []string) {
@@ -594,16 +594,16 @@ type pkgsLoader struct {
 	pkgs    []gnomod.Pkg
 	visited map[string]struct{}
 
-	// list of occurences to replaces with the given value
+	// list of occurrences to patchs with the given value
 	// XXX: find a better way
-	replaces map[string]string
+	patchs map[string]string
 }
 
 func newPkgsLoader() *pkgsLoader {
 	return &pkgsLoader{
-		pkgs:     make([]gnomod.Pkg, 0),
-		visited:  make(map[string]struct{}),
-		replaces: make(map[string]string),
+		pkgs:    make([]gnomod.Pkg, 0),
+		visited: make(map[string]struct{}),
+		patchs:  make(map[string]string),
 	}
 }
 
@@ -611,8 +611,8 @@ func (pl *pkgsLoader) List() gnomod.PkgList {
 	return pl.pkgs
 }
 
-func (pl *pkgsLoader) SetReplace(replace, with string) {
-	pl.replaces[replace] = with
+func (pl *pkgsLoader) SetPatch(replace, with string) {
+	pl.patchs[replace] = with
 }
 
 func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
@@ -629,7 +629,7 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 		}
 
 		// If any replace value is specified, apply them
-		if len(pl.replaces) > 0 {
+		if len(pl.patchs) > 0 {
 			for _, msg := range tx.Msgs {
 				addpkg, ok := msg.(vm.MsgAddPackage)
 				if !ok {
@@ -641,7 +641,7 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 				}
 
 				for _, file := range addpkg.Package.Files {
-					for replace, with := range pl.replaces {
+					for replace, with := range pl.patchs {
 						file.Body = strings.ReplaceAll(file.Body, replace, with)
 					}
 				}
