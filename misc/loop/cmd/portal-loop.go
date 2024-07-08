@@ -83,13 +83,13 @@ func StartPortalLoop(ctx context.Context, portalLoop *snapshotter, force bool) e
 	}
 
 	// 6. Start a new portal loop
-	container, err := portalLoop.startPortalLoopContainer(context.Background())
+	dockerContainer, err := portalLoop.startPortalLoopContainer(context.Background())
 	if err != nil {
 		return err
 	}
-	for _, p := range container.Ports {
+	for _, p := range dockerContainer.Ports {
 		if p.Type == "tcp" && p.PrivatePort == uint16(26657) {
-			ip := container.NetworkSettings.Networks["portal-loop"].IPAddress
+			ip := dockerContainer.NetworkSettings.Networks["portal-loop"].IPAddress
 			portalLoop.url = fmt.Sprintf("http://%s:%d", ip, int(p.PrivatePort))
 			break
 		}
