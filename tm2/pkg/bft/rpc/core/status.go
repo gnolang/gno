@@ -125,7 +125,7 @@ func validatorAtHeight(h int64) *types.Validator {
 	lastBlockHeight, vals := consensusState.GetValidators()
 	if lastBlockHeight == h {
 		for _, val := range vals {
-			if val.Address != privValAddress {
+			if val.Address == privValAddress {
 				return val
 			}
 		}

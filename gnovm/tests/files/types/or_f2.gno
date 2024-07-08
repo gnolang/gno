@@ -28,4 +28,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/or_f2.gno:27: operator | not defined on: InterfaceKind
+// main/files/types/or_f2.gno:27:10: operator | not defined on: InterfaceKind

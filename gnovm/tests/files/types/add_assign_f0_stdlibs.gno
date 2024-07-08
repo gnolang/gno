@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/add_assign_f0_stdlibs.gno:20: invalid operation: mismatched types int and .uverse.error
+// main/files/types/add_assign_f0_stdlibs.gno:20:2: invalid operation: mismatched types int and .uverse.error
