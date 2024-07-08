@@ -1,13 +1,10 @@
 package microblog
 
 import (
-	"log"
 	"std"
 	"strings"
 	"testing"
 
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/microblog"
 	"gno.land/p/demo/testutils"
 )
 
