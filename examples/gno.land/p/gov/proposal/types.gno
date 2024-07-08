@@ -17,9 +17,8 @@ type Executor interface {
 	// and is successful
 	IsSuccessful() bool // IsDone() && !err
 
-	// GetStatus returns the current human-readable status
-	// of the proposal
-	GetStatus() Status // human-readable execution status
+	// IsExpired returns whether the execution had expired or not.
+	IsExpired() bool
 }
 
 // ErrAlreadyDone is the error returned when trying to execute an already
