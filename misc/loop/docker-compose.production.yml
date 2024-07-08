@@ -51,7 +51,7 @@ services:
       - gnoweb
       - --bind=0.0.0.0:8888
       - --remote=traefik:26657
-      - --faucet-url=https://faucet-api.portal.gno.land
+      - --faucet-url=https://faucet-api.gno.land
       - --captcha-site=$CAPTCHA_SITE_KEY
       - --with-analytics
       - --help-chainid=portal-loop

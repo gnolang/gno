@@ -93,7 +93,7 @@ func main() {
 // Status: succeeded
 // Author: g1acws3q8u0hjl9pndjy8rqz58q3x05dnd6d99qa
 // --
-// Valset changes to apply:
-// - g12345678 (10)
-// - g000000000 (10)
-// - g000000000 (0)
+// Valset changes:
+// - #123: g12345678 (10)
+// - #123: g000000000 (10)
+// - #123: g000000000 (0)
