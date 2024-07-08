@@ -26,4 +26,7 @@ import (
 
 	// linter
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
+
+	// embedmd
+	_ "github.com/campoy/embedmd/embedmd"
 )
