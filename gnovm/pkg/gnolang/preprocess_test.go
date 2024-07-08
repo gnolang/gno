@@ -31,6 +31,7 @@ func main() {
 		err := recover()
 		assert.Contains(t, fmt.Sprint(err), "incompatible operands in binary expression")
 	}()
+	initStaticBlocks(store, pn, n)
 	Preprocess(store, pn, n)
 }
 
@@ -56,5 +57,6 @@ func main() {
 		err := recover()
 		assert.Contains(t, fmt.Sprint(err), "incompatible operands in binary expression")
 	}()
+	initStaticBlocks(store, pn, n)
 	Preprocess(store, pn, n)
 }
