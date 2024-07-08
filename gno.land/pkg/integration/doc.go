@@ -47,7 +47,7 @@
 //
 // 6. `patchpkg`:
 //   - Patches any loaded files by package by replacing all occurrences of the first argument with the second.
-//   - This is mostly used to replace hardcoded addresses inside txtar files.
+//   - This is mostly used to replace hardcoded addresses from loaded packages.
 //   - NOTE: this command may only be temporary, as it's not best approach to
 //     solve the above problem
 //
