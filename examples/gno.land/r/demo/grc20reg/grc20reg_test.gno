@@ -59,17 +59,15 @@ func TestRegistry(t *testing.T) {
 type dummyImpl struct{}
 
 // FIXME: this should fail.
-var _ grc20.IGRC20 = (*dummyImpl)(nil)
+var _ grc20.Token = (*dummyImpl)(nil)
 
-func (impl *dummyImpl) GetName() string                               { return "TestToken" }
-func (impl *dummyImpl) GetSymbol() string                             { return "TST" }
-func (impl *dummyImpl) GetDecimals() uint                             { return 1337 }
-func (impl *dummyImpl) TotalSupply() uint64                           { return 1234567 }
-func (impl *dummyImpl) BalanceOf(account std.Address) (uint64, error) { panic("not implemented") }
-func (impl *dummyImpl) Transfer(to std.Address, amount uint64) error  { panic("not implemented") }
-func (impl *dummyImpl) Allowance(owner, spender std.Address) (uint64, error) {
-	panic("not implemented")
-}
+func (impl *dummyImpl) GetName() string                                  { return "TestToken" }
+func (impl *dummyImpl) GetSymbol() string                                { return "TST" }
+func (impl *dummyImpl) GetDecimals() uint                                { return 1337 }
+func (impl *dummyImpl) TotalSupply() uint64                              { return 1234567 }
+func (impl *dummyImpl) BalanceOf(account std.Address) uint64             { panic("not implemented") }
+func (impl *dummyImpl) Transfer(to std.Address, amount uint64) error     { panic("not implemented") }
+func (impl *dummyImpl) Allowance(owner, spender std.Address) uint64      { panic("not implemented") }
 func (impl *dummyImpl) Approve(spender std.Address, amount uint64) error { panic("not implemented") }
 func (impl *dummyImpl) TransferFrom(from, to std.Address, amount uint64) error {
 	panic("not implemented")

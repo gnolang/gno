@@ -9,9 +9,9 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-var registry = avl.NewTree() // rlmPath[.slug] -> IGRC20
+var registry = avl.NewTree() // rlmPath[.slug] -> Token
 
-func Register(token grc20.IGRC20, slug string) {
+func Register(token grc20.Token, slug string) {
 	rlmPath := std.PrevRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 	registry.Set(key, token)
@@ -22,15 +22,15 @@ func Register(token grc20.IGRC20, slug string) {
 	)
 }
 
-func Get(key string) grc20.IGRC20 {
+func Get(key string) grc20.Token {
 	token, ok := registry.Get(key)
 	if !ok {
 		return nil
 	}
-	return token.(grc20.IGRC20)
+	return token.(grc20.Token)
 }
 
-func MustGet(key string) grc20.IGRC20 {
+func MustGet(key string) grc20.Token {
 	token := Get(key)
 	if token == nil {
 		panic("unknown token: " + key)
@@ -46,7 +46,7 @@ func Render(path string) string {
 		count := 0
 		registry.Iterate("", "", func(key string, tokenI interface{}) bool {
 			count++
-			token := tokenI.(grc20.IGRC20)
+			token := tokenI.(grc20.Token)
 			rlmPath, slug := fqname.Parse(key)
 			rlmLink := fqname.RenderLink(rlmPath, slug)
 			infoLink := "/r/demo/grc20reg:" + key
