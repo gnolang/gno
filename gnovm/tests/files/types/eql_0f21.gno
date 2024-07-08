@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f21.gno:9: [2]main.f is not comparable
+// main/files/types/eql_0f21.gno:9:10: [2]main.f is not comparable

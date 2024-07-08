@@ -547,7 +547,7 @@ func (n *Node) genesisTxHandler(ctx sdk.Context, tx std.Tx, res sdk.Result) {
 func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
-	genesis := gnoland.NewDefaultGenesisConfig(pv.GetPubKey(), chainid)
+	genesis := gnoland.NewDefaultGenesisConfig(chainid)
 	genesis.AppState = appstate
 
 	// Add self as validator

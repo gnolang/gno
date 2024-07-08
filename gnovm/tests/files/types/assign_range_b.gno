@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_range_b.gno:14: cannot use string as int
+// main/files/types/assign_range_b.gno:14:2: cannot use string as int
