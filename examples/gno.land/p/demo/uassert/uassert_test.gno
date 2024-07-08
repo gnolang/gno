@@ -201,3 +201,268 @@ func TestEmpty(t *testing.T) {
 		})
 	}
 }
+
+func TestNotEqual(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	cases := []struct {
+		expected interface{}
+		actual   interface{}
+		result   bool
+		remark   string
+	}{
+		// expected to be not equal
+		{"Hello World", 42, true, ""},
+		{41, 42, true, ""},
+		{10, uint(10), true, ""},
+		{"Hello", "World", true, ""},
+		{123, 456, true, ""},
+		{true, false, true, ""},
+		{false, true, true, ""},
+		// not expected to be not equal
+		{"Hello World", "Hello World", false, ""},
+		{123, 123, false, ""},
+		{123.5, 123.5, false, ""},
+		{nil, nil, false, ""},
+		{int32(123), int32(123), false, ""},
+		{uint64(123), uint64(123), false, ""},
+		{std.Address("g12345"), std.Address("g12345"), false, ""},
+	}
+
+	for _, c := range cases {
+		name := fmt.Sprintf("NotEqual(%v, %v)", c.expected, c.actual)
+		t.Run(name, func(t *testing.T) {
+			res := NotEqual(mockT, c.expected, c.actual)
+
+			if res != c.result {
+				t.Errorf("%s should return %v: %s - %s", name, c.result, c.remark, mockT.actualString())
+			}
+		})
+	}
+}
+
+func TestNil(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, Nil(mockT, nil))
+	mockT.empty(t)
+
+	False(t, Nil(mockT, "not nil"))
+	mockT.equals(t, "error: uassert.Nil: object should be nil")
+}
+
+func TestNotNil(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, NotNil(mockT, "not nil"))
+	mockT.empty(t)
+
+	False(t, NotNil(mockT, nil))
+	mockT.equals(t, "error: uassert.NotNil: object should not be nil")
+}
+
+func TestContains(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, Contains(mockT, "Hello World", "World"))
+	mockT.empty(t)
+
+	False(t, Contains(mockT, "Hello World", "Foo"))
+	mockT.equals(t, "error: uassert.Contains: \"Hello World\" does not contain \"Foo\"")
+
+	True(t, Contains(mockT, []string{"foo", "bar"}, "foo"))
+	mockT.empty(t)
+
+	False(t, Contains(mockT, []string{"foo", "bar"}, "baz"))
+	mockT.equals(t, "error: uassert.Contains: [foo bar] does not contain baz")
+}
+
+func TestLen(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, Len(mockT, "Hello", 5))
+	mockT.empty(t)
+
+	False(t, Len(mockT, "Hello", 6))
+	mockT.equals(t, "error: uassert.Len: expected length 6 but got 5")
+
+	True(t, Len(mockT, []interface{}{"foo", "bar"}, 2))
+	mockT.empty(t)
+
+	False(t, Len(mockT, []interface{}{"foo", "bar"}, 3))
+	mockT.equals(t, "error: uassert.Len: expected length 3 but got 2")
+}
+
+func TestGreater(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, Greater(mockT, 2, 1))
+	mockT.empty(t)
+
+	False(t, Greater(mockT, 1, 2))
+	mockT.equals(t, "error: uassert.Greater: 1 is not greater than 2")
+}
+
+func TestLess(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, Less(mockT, 1, 2))
+	mockT.empty(t)
+
+	False(t, Less(mockT, 2, 1))
+	mockT.equals(t, "error: uassert.Less: 2 is not less than 1")
+}
+
+func TestIsType(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, IsType(mockT, "string", "test"))
+	mockT.empty(t)
+
+	False(t, IsType(mockT, "string", 123))
+	mockT.equals(t, "error: uassert.IsType: expected type string but got int")
+}
+
+func TestRegexp(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, Regexp(mockT, "^[a-z]+$", "test"))
+	mockT.empty(t)
+
+	False(t, Regexp(mockT, "^[0-9]+$", "test"))
+	mockT.equals(t, "error: uassert.Regexp: \"test\" does not match \"^[0-9]+$\"")
+}
+
+func TestGreaterOrEqual(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, GreaterOrEqual(mockT, 2, 1))
+	mockT.empty(t)
+
+	True(t, GreaterOrEqual(mockT, 2, 2))
+	mockT.empty(t)
+
+	False(t, GreaterOrEqual(mockT, 1, 2))
+	mockT.equals(t, "error: uassert.GreaterOrEqual: 1 is not greater than or equal to 2")
+}
+
+func TestLessOrEqual(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, LessOrEqual(mockT, 1, 2))
+	mockT.empty(t)
+
+	True(t, LessOrEqual(mockT, 2, 2))
+	mockT.empty(t)
+
+	False(t, LessOrEqual(mockT, 2, 1))
+	mockT.equals(t, "error: uassert.LessOrEqual: 2 is not less than or equal to 1")
+}
+
+func TestNotContains(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, NotContains(mockT, "Hello World", "Foo"))
+	mockT.empty(t)
+
+	False(t, NotContains(mockT, "Hello World", "World"))
+	mockT.equals(t, "error: uassert.NotContains: \"Hello World\" contains \"World\"")
+
+	True(t, NotContains(mockT, []string{"foo", "bar"}, "baz"))
+	mockT.empty(t)
+
+	False(t, NotContains(mockT, []string{"foo", "bar"}, "foo"))
+	mockT.equals(t, "error: uassert.NotContains: [foo bar] contains foo")
+}
+
+func TestElementsMatch(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, ElementsMatch(mockT, []interface{}{"foo", "bar"}, []interface{}{"bar", "foo"}))
+	mockT.empty(t)
+
+	False(t, ElementsMatch(mockT, []interface{}{"foo", "bar"}, []interface{}{"baz", "foo"}))
+	mockT.equals(t, "error: uassert.ElementsMatch: lists do not match")
+}
+
+func TestSubset(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, Subset(mockT, []interface{}{"foo", "bar", "baz"}, []interface{}{"foo", "bar"}))
+	mockT.empty(t)
+
+	False(t, Subset(mockT, []interface{}{"foo", "bar"}, []interface{}{"foo", "baz"}))
+	mockT.equals(t, "error: uassert.Subset: item baz not found in set")
+}
+
+func TestNotSubset(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, NotSubset(mockT, []interface{}{"foo", "bar"}, []interface{}{"foo", "baz"}))
+	mockT.empty(t)
+
+	False(t, NotSubset(mockT, []interface{}{"foo", "bar"}, []interface{}{"foo"}))
+	mockT.equals(t, "error: uassert.NotSubset: subset is fully present in set")
+}
+
+func TestNotEmpty(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, NotEmpty(mockT, "not empty"))
+	mockT.empty(t)
+
+	False(t, NotEmpty(mockT, ""))
+	mockT.equals(t, "error: uassert.NotEmpty: string is empty")
+}
+
+func TestIsInstanceOf(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, IsInstanceOf(mockT, "string", "test"))
+	mockT.empty(t)
+
+	False(t, IsInstanceOf(mockT, "string", 123))
+	mockT.equals(t, "error: uassert.IsInstanceOf: 123 is not an instance of string")
+}
+
+func TestSame(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	obj := &struct{}{}
+	True(t, Same(mockT, obj, obj))
+	mockT.empty(t)
+
+	False(t, Same(mockT, obj, &struct{}{}))
+	mockT.equals(t, "error: uassert.Same: expected and actual do not reference the same object")
+}
+
+func TestNotSame(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	obj := &struct{}{}
+	True(t, NotSame(mockT, obj, &struct{}{}))
+	mockT.empty(t)
+
+	False(t, NotSame(mockT, obj, obj))
+	mockT.equals(t, "error: uassert.NotSame: expected and actual reference the same object")
+}
+
+func TestPanics(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, Panics(mockT, func() { panic("test panic") }))
+	mockT.empty(t)
+
+	False(t, Panics(mockT, func() {}))
+	mockT.equals(t, "error: uassert.Panics: function did not panic")
+}
+
+func TestPanicsWithValue(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, PanicsWithValue(mockT, "test panic", func() { panic("test panic") }))
+	mockT.empty(t)
+
+	False(t, PanicsWithValue(mockT, "expected panic", func() { panic("test panic") }))
+	mockT.equals(t, "error: uassert.PanicsWithValue: panic value test panic does not equal expected expected panic")
+}
