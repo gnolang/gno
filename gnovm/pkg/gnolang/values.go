@@ -2099,9 +2099,10 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		}
 	default:
 		panic(fmt.Sprintf(
-			"unexpected index base type %s (%v)",
+			"unexpected index base type %s (%v base %v)",
 			tv.T.String(),
-			reflect.TypeOf(tv.T)))
+			reflect.TypeOf(tv.T),
+			reflect.TypeOf(baseOf(tv.T))))
 	}
 }
 
