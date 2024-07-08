@@ -67,7 +67,7 @@ func execDoctest(cfg *doctestCfg, _ []string, io commands.IO) error {
 	}
 
 	selectedCodeBlock := codeBlocks[cfg.codeIndex]
-	result, err := dt.ExecuteCodeBlock(selectedCodeBlock, dt.STDLIBS_DIR)
+	result, err := dt.ExecuteCodeBlock(selectedCodeBlock, dt.GetStdlibsDir())
 	if err != nil {
 		return fmt.Errorf("failed to execute code block: %w", err)
 	}

@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"path/filepath"
+	"runtime"
 	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -29,7 +31,10 @@ const (
 	ASSERT       = "assert"       // Assert the result and expected output are equal
 )
 
-const STDLIBS_DIR = "../../stdlibs"
+func GetStdlibsDir() string {
+	_, filename, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(filename), "..", "..", "stdlibs")
+}
 
 // cache stores the results of code execution.
 var cache struct {

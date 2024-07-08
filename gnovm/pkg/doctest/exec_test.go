@@ -115,7 +115,8 @@ func main() {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res, err := ExecuteCodeBlock(tt.codeBlock, STDLIBS_DIR)
+			stdlidDir := GetStdlibsDir()
+			res, err := ExecuteCodeBlock(tt.codeBlock, stdlidDir)
 			if err != nil {
 				t.Errorf("%s returned an error: %v", tt.name, err)
 			}
@@ -161,12 +162,13 @@ func main() {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := ExecuteCodeBlock(tt.codeBlock, STDLIBS_DIR)
+			stdlibDir := GetStdlibsDir()
+			_, err := ExecuteCodeBlock(tt.codeBlock, stdlibDir)
 			if err != nil {
 				t.Errorf("%s returned an error: %v", tt.name, err)
 			}
 
-			cachedRes, err := ExecuteCodeBlock(tt.codeBlock, STDLIBS_DIR)
+			cachedRes, err := ExecuteCodeBlock(tt.codeBlock, stdlibDir)
 			if err != nil {
 				t.Errorf("%s returned an error: %v", tt.name, err)
 			}
