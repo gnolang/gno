@@ -9,19 +9,17 @@ import (
 	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
-	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	authm "github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	bankm "github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
-	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 // Option constants
@@ -32,7 +30,10 @@ const (
 )
 
 func GetStdlibsDir() string {
-	_, filename, _, _ := runtime.Caller(0)
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("cannot get current file path")
+	}
 	return filepath.Join(filepath.Dir(filename), "..", "..", "stdlibs")
 }
 
@@ -80,32 +81,30 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 	baseKey := store.NewStoreKey("baseKey")
 	iavlKey := store.NewStoreKey("iavlKey")
 
-	ms, ctx := setupMultiStore(baseKey, iavlKey)
+	db := memdb.NewMemDB()
 
-	acck := auth.NewAccountKeeper(iavlKey, std.ProtoBaseAccount)
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlKey, iavl.StoreConstructor, db)
+	ms.LoadLatestVersion()
+
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+	acck := authm.NewAccountKeeper(iavlKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
+	stdlibsDir := GetStdlibsDir()
+	vmk := vm.NewVMKeeper(baseKey, iavlKey, acck, bank, stdlibsDir, 100_000_000)
 
-	vmk := vm.NewVMKeeper(baseKey, iavlKey, acck, bank, stdlibDir, 100_000_000)
-	vmk.Initialize(ms.MultiCacheWrap())
-
-	addr := crypto.AddressFromPreimage([]byte("addr1"))
-	acc := acck.NewAccountWithAddress(ctx, addr)
-	acck.SetAccount(ctx, acc)
-
-	memPkg := &std.MemPackage{
-		Name:  "main",
-		Path:  "main",
-		Files: []*std.MemFile{{Name: fmt.Sprintf("%d.%s", c.index, c.lang), Body: src}},
-	}
-
-	getter := newDynPackageLoader(stdlibDir)
-	if err := gnolang.TypeCheckMemPackage(memPkg, getter); err != nil {
-		return "", fmt.Errorf("type checking failed: %w", err)
-	}
+	mcw := ms.MultiCacheWrap()
+	vmk.Initialize(log.NewNoopLogger(), mcw, true)
+	mcw.MultiWrite()
 
 	files := []*std.MemFile{
 		{Name: fmt.Sprintf("%d.%s", c.index, c.lang), Body: src},
 	}
+
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := acck.NewAccountWithAddress(ctx, addr)
+	acck.SetAccount(ctx, acc)
 
 	coins := std.MustParseCoins("")
 	msg2 := vm.NewMsgRun(addr, coins, files)
@@ -120,16 +119,4 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 	cache.Unlock()
 
 	return res, nil
-}
-
-func setupMultiStore(baseKey, iavlKey types.StoreKey) (types.CommitMultiStore, sdk.Context) {
-	db := memdb.NewMemDB()
-
-	ms := store.NewCommitMultiStore(db)
-	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
-	ms.MountStoreWithDB(iavlKey, iavl.StoreConstructor, db)
-	ms.LoadLatestVersion()
-
-	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "chain-id"}, log.NewNoopLogger())
-	return ms, ctx
 }
