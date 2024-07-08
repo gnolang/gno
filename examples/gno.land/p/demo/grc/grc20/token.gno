@@ -6,14 +6,54 @@ import (
 	"gno.land/p/demo/grc/exts"
 )
 
-type IGRC20 interface {
+// token implements the Token interface.
+//
+// It is generated with Banker.Token().
+// It can safely be explosed publicly.
+type token struct {
+	banker *Banker
+}
+
+// var _ Token = (*token)(nil)
+func (t *token) GetName() string     { return t.banker.name }
+func (t *token) GetSymbol() string   { return t.banker.symbol }
+func (t *token) GetDecimals() uint   { return t.banker.decimals }
+func (t *token) TotalSupply() uint64 { return t.banker.totalSupply }
+
+func (t *token) BalanceOf(owner std.Address) uint64 {
+	return t.banker.BalanceOf(owner)
+}
+
+func (t *token) Transfer(to std.Address, amount uint64) error {
+	caller := std.PrevRealm().Addr()
+	return t.banker.Transfer(caller, to, amount)
+}
+
+func (t *token) Allowance(owner, spender std.Address) uint64 {
+	return t.banker.Allowance(owner, spender)
+}
+
+func (t *token) Approve(spender std.Address, amount uint64) error {
+	caller := std.PrevRealm().Addr()
+	return t.banker.Approve(caller, spender, amount)
+}
+
+func (t *token) TransferFrom(from, to std.Address, amount uint64) error {
+	spender := std.PrevRealm().Addr()
+	if err := t.banker.SpendAllowance(from, spender, amount); err != nil {
+		return err
+	}
+	return t.banker.Transfer(from, to, amount)
+}
+
+type Token2 interface {
 	exts.TokenMetadata
 
 	// Returns the amount of tokens in existence.
 	TotalSupply() uint64
 
 	// Returns the amount of tokens owned by `account`.
-	BalanceOf(account std.Address) (uint64, error)
+	BalanceOf(account std.Address) uint64
 
 	// Moves `amount` tokens from the caller's account to `to`.
 	//
@@ -25,7 +65,7 @@ type IGRC20 interface {
 	// zero by default.
 	//
 	// This value changes when {approve} or {transferFrom} are called.
-	Allowance(owner, spender std.Address) (uint64, error)
+	Allowance(owner, spender std.Address) uint64
 
 	// Sets `amount` as the allowance of `spender` over the caller's tokens.
 	//
@@ -45,21 +85,4 @@ type IGRC20 interface {
 	//
 	// Returns an error if the operation failed.
 	TransferFrom(from, to std.Address, amount uint64) error
-}
-
-// Emitted when `value` tokens are moved from one account (`from`) to another (`to`).
-//
-// Note that `value` may be zero.
-type TransferEvent struct {
-	From  std.Address
-	To    std.Address
-	Value uint64
-}
-
-// Emitted when the allowance of a `spender` for an `owner` is set by
-// a call to {approve}. `value` is the new allowance.
-type ApprovalEvent struct {
-	Owner   std.Address
-	Spender std.Address
-	Value   uint64
 }

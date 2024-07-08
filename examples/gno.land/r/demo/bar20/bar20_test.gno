@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
 func TestPackage(t *testing.T) {
@@ -13,14 +13,7 @@ func TestPackage(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 	std.TestSetOrigCaller(alice) // XXX: should not need this
 
-	balance, _ := Token.BalanceOf(alice)
-	expected := uint64(0)
-	uassert.Equal(t, expected, balance, "balance does not match")
-
-	ret := Faucet()
-	uassert.Equal(t, "OK", ret, "faucet should be OK")
-
-	balance, _ = Token.BalanceOf(alice)
-	expected = uint64(1_000_000)
-	uassert.Equal(t, expected, balance, "balance does not match")
+	urequire.Equal(t, Token.BalanceOf(alice), uint64(0))
+	urequire.Equal(t, Faucet(), "OK")
+	urequire.Equal(t, Token.BalanceOf(alice), uint64(1_000_000))
 }
