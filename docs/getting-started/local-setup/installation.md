@@ -23,7 +23,7 @@ export PATH=$GOPATH/bin:$PATH
 ```
 
 ## 1. Cloning the repository
-To get started with a local Gno.land development environment, you must clone the
+To get started with a local gno.land development environment, you must clone the
 GitHub repository somewhere on disk:
 
 ```bash
@@ -85,8 +85,8 @@ You should get the following output:
 
 ### `gnokey`
 
-`gnokey` is the Gno.land keypair management CLI tool. It allows you to create
-keypairs, sign transactions, and broadcast them to Gno.land chains. Read more
+`gnokey` is the gno.land keypair management CLI tool. It allows you to create
+keypairs, sign transactions, and broadcast them to gno.land chains. Read more
 about `gnokey` [here](../../gno-tooling/cli/gnokey.md).
 
 To verify that the `gnokey` binary is installed system-wide, you can run:
