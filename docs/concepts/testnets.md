@@ -4,7 +4,7 @@ id: testnets
 
 # Gno Testnets
 
-This page documents all Gno.land testnets, what their properties are, and how
+This page documents all gno.land testnets, what their properties are, and how
 they are meant to be used. For testnet configuration, visit the 
 [reference section](../reference/network-config.md).
 
@@ -93,7 +93,7 @@ of Gno, and it can contain new on-chain code
   - There is no versioning strategy for test3. It will stay the way it is, until
 the team chooses to shut it down.
 
-Since Gno.land is designed with open-source in mind, anyone can see currently 
+Since gno.land is designed with open-source in mind, anyone can see currently 
 available code by browsing the [test3 homepage](https://test3.gno.land/). 
 
 Test3 is a single-node testnet, ran by the Gno core team. There is no plan to 

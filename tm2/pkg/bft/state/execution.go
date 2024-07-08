@@ -427,7 +427,7 @@ func fireEvents(evsw events.EventSwitch, block *types.Block, abciResponses *ABCI
 			Height:   block.Height,
 			Index:    uint32(i),
 			Tx:       tx,
-			Response: (abciResponses.DeliverTxs[i]),
+			Response: abciResponses.DeliverTxs[i],
 		}})
 	}
 

@@ -3,8 +3,8 @@ name: portal-loop
 on:
   push:
     paths:
-      - misc/loop
-      - .github/workflows/portal-loop.yml
+      - "misc/loop/**"
+      - ".github/workflows/portal-loop.yml"
     branches:
       - "master"
       - "ops/portal-loop"
