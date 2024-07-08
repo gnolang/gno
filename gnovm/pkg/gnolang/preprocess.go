@@ -3112,7 +3112,7 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 		}
 	case *FuncLitExpr:
 		for _, stmt := range cx.Body {
-			un = findUndefinedStmt(store, last, stmt, t)
+			un = findUndefinedStmt(store, cx, stmt, t)
 
 			if un != "" {
 				return
