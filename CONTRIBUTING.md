@@ -277,12 +277,16 @@ This will execute the full test suite, that includes tests for `.gno` files, as 
 
 If you wish to test a `.gno` Realm or Package, you can utilize the `gno` tool.
 
-    gno test -v <path-to-dir>
+```sh
+gno test -v <path-to-dir>
+```
 
 To learn more about how `gno` can help you when developing gno code, you can look into the available
 subcommands by running:
 
+```sh
     gno --help
+```
 
 #### Adding new tests
 
@@ -481,36 +485,6 @@ Resources for idiomatic Go docs:
 - [Go Doc Comments](https://tip.golang.org/doc/comment)
 
 ## Additional Notes
-
-### Versioning
-
-Gno has not reached mainnet yet; when it does, version 1.0.0 will be published,
-following the rules of [semantic versioning](https://semver.org/) to decide
-version numbers.
-
-Before that happens, the Gno team has adopted an informal versioning system
-for its 0.MINOR.PATCH versions, which works as follows:
-
-- The Gno team releases, weekly-ish, a new PATCH version which will contain a
-	mixture of bug fixes and new functionality.
-- If the release contains breaking changes, then the PATCH is reset to 0 and the
-	MINOR version is increased.
-
-Note that what is considered a "breaking change" will consider mostly what is
-meant to be used as a public API. For instance, the majority of the Go packages
-are not yet meant for public usage; [gnoclient](https://gnolang.github.io/gno/github.com/gnolang/gno/gno.land/pkg/gnoclient.html)
-is a notable exception.
-
-Examples of what may be considered a breaking change:
-
-- Removing one of the subcommands of `gno` or `gnokey`, or changing its flags.
-- Changing the marshaling of transactions.
-- Changing an RPC endpoint in a backwards-incompatible manner.
-
-ie., if somebody's usage of Gno tooling or blockchains is likely to be
-disrupted as a result of the change, then it is a breaking change. Yes, what is
-"likely" is somewhat subjective, but this will change as we switch to a 1.0.0
-and as we set out rules for compatibility.
 
 ### Issue and Pull Request Labels
 
