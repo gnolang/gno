@@ -76,6 +76,7 @@ func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Ti
 	return counter, swap
 }
 
+// Render returns a list of swaps (simplified) for the homepage, and swap details when specifying a swap ID.
 func Render(path string) string {
 	if path == "" { // home
 		output := ""
