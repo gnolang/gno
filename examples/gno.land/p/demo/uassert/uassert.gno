@@ -6,8 +6,6 @@ import (
 	"std"
 	"strconv"
 	"strings"
-
-	"gno.land/p/demo/ufmt"
 )
 
 // NoError asserts that a function returned no error (i.e. `nil`).
