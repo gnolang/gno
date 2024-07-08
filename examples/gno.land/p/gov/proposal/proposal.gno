@@ -66,7 +66,7 @@ func (exec *executorImpl) IsSuccessful() bool {
 	return exec.success
 }
 
-// Expired returns whether the execution had expired or not.
+// IsExpired returns whether the execution had expired or not.
 // This implementation never expires.
 func (exec *executorImpl) IsExpired() bool {
 	return false
