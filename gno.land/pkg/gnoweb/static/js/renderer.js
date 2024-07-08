@@ -7,27 +7,40 @@ function renderUsernames(raw) {
   return raw.replace(/( |\n)@([_a-z0-9]{5,16})/, "$1[@$2](/r/demo/users:$2)");
 }
 
-function parseContent(source) {
-  const { markedHighlight } = globalThis.markedHighlight;
-  const { Marked } = globalThis.marked;
-  const markedInstance = new Marked(
-    markedHighlight({
-      langPrefix: 'language-',
-      highlight(code, lang, info) {
-        if (lang === "json") {
-          try {
-            code = JSON.stringify(JSON.parse(code), null, 2);
-          } catch {}
-        }
-        const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-        return hljs.highlight(code, { language }).value;
-      }
-    })
-  );
-  markedInstance.setOptions({ gfm: true });
-  const doc = new DOMParser().parseFromString(source, "text/html");
-  const contents = doc.documentElement.textContent;
-  return markedInstance.parse(contents);
+function parseContent(source, isCode) {
+  if (isCode) {
+    const highlightedCode = hljs.highlight(source, { language: "go" }).value;
+    const codeElement = document.createElement("code");
+    codeElement.classList.add("hljs");
+    codeElement.innerHTML = highlightedCode;
+
+    const preElement = document.createElement("pre");
+    preElement.appendChild(codeElement);
+
+    return preElement;
+  } else {
+    const { markedHighlight } = globalThis.markedHighlight;
+    const { Marked } = globalThis.marked;
+    const markedInstance = new Marked(
+      markedHighlight({
+        langPrefix: "language-",
+        highlight(code, lang, info) {
+          if (lang === "json") {
+            try {
+              code = JSON.stringify(JSON.parse(code), null, 2);
+            } catch {}
+          }
+          const language = hljs.getLanguage(lang) ? lang : "plaintext";
+          return hljs.highlight(code, { language }).value;
+        },
+      })
+    );
+    markedInstance.setOptions({ gfm: true });
+    const doc = new DOMParser().parseFromString(source, "text/html");
+    const contents = doc.documentElement.textContent;
+
+    return markedInstance.parse(contents);
+  }
 }
 
 /*
