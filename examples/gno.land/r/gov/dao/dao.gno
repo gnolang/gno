@@ -8,30 +8,50 @@ import (
 	pproposal "gno.land/p/gov/proposal"
 )
 
-var proposals = make([]*proposal, 0)
+var (
+	proposals = make([]*proposal, 0)
+	members   = make([]std.Address, 0) // XXX: these should be pointers to avoid data duplication. Not possible due to VM bugs
+)
 
-// XXX var members ...
+const (
+	msgMissingExecutor = "missing proposal executor"
+	msgPropExecuted    = "prop already executed"
+	msgPropExpired     = "prop is expired"
+	msgPropInactive    = "prop is not active anymore"
+	msgPropActive      = "prop is still active"
+	msgPropNotAccepted = "prop is not accepted"
+
+	msgCallerNotAMember = "caller is not member of govdao"
+	msgProposalNotFound = "proposal not found"
+)
 
 type proposal struct {
-	idx      int
 	author   std.Address
 	comment  string
 	executor pproposal.Executor
-	// XXX: make "accepted" and "finished" managed by an interface that can have various voting implementations
-	accepted bool
-	finished bool
+	voter    Voter
+	executed bool
+	voters   []std.Address // XXX: these should be pointers to avoid data duplication. Not possible due to VM bugs.
 }
 
 func (p proposal) Status() Status {
-	if p.executor.Done() {
-		return Status(p.executor.Status())
+	if p.executor.IsExpired() {
+		return Expired
 	}
-	if p.accepted {
+
+	if p.executor.IsDone() {
+		return Succeeded
+	}
+
+	if !p.voter.IsFinished(members) {
+		return Active
+	}
+
+	if p.voter.IsAccepted(members) {
 		return Accepted
 	}
-	// XXX: timeout
-	// XXX: not_accepted
-	return Active
+
+	return NotAccepted
 }
 
 // Propose is designed to be called by another contract or with
@@ -39,7 +59,7 @@ func (p proposal) Status() Status {
 func Propose(comment string, executor pproposal.Executor) int {
 	// XXX: require payment?
 	if executor == nil {
-		panic("missing proposal executor")
+		panic(msgMissingExecutor)
 	}
 	caller := std.PrevRealm().Addr()
 	AssertIsMember(caller)
@@ -48,11 +68,12 @@ func Propose(comment string, executor pproposal.Executor) int {
 		comment:  comment,
 		executor: executor,
 		author:   caller,
-		idx:      len(proposals),
+		voter:    NewPercentageVoter(66), // at least 2/3 must say yes
 	}
 
 	proposals = append(proposals, prop)
-	return prop.idx
+
+	return len(proposals) - 1
 }
 
 func VoteOnProposal(idx int, option string) {
@@ -61,43 +82,78 @@ func VoteOnProposal(idx int, option string) {
 	AssertIsMember(caller)
 
 	prop := getProposal(idx)
-	if prop.finished {
-		panic("prop is not active anymore, cannot vote.")
+
+	if prop.executed {
+		panic(msgPropExecuted)
 	}
-	// XXX: implement the real voting (would be cool to have a generic p/)
-	prop.accepted = option == "YES"
-	prop.finished = true
+
+	if prop.executor.IsExpired() {
+		panic(msgPropExpired)
+	}
+
+	if prop.voter.IsFinished(members) {
+		panic(msgPropInactive)
+	}
+
+	prop.voter.Vote(members, caller, option)
 }
 
 func ExecuteProposal(idx int) {
 	assertProposalExists(idx)
 	prop := getProposal(idx)
-	if !prop.finished {
-		panic("prop is still active, cannot execute.")
+
+	if prop.executed {
+		panic(msgPropExecuted)
 	}
-	if !prop.accepted {
-		panic("prop is not accepted, cannot execute.")
+
+	if prop.executor.IsExpired() {
+		panic(msgPropExpired)
 	}
+
+	if !prop.voter.IsFinished(members) {
+		panic(msgPropActive)
+	}
+
+	if !prop.voter.IsAccepted(members) {
+		panic(msgPropNotAccepted)
+	}
+
 	prop.executor.Execute()
+	prop.voters = members
+	prop.executed = true
 }
 
 func IsMember(addr std.Address) bool {
-	// XXX: implement
-	return true // in the meantime, everyone is a DAO member
+	if len(members) == 0 { // special case for initial execution
+		return true
+	}
+
+	for _, v := range members {
+		if v == addr {
+			return true
+		}
+	}
+
+	return false
 }
 
 func AssertIsMember(addr std.Address) {
 	if !IsMember(addr) {
-		panic("caller is not member of govdao")
+		panic(msgCallerNotAMember)
 	}
 }
 
 func Render(path string) string {
 	if path == "" {
+		if len(proposals) == 0 {
+			return "No proposals found :(" // corner case
+		}
+
 		output := ""
 		for idx, prop := range proposals {
-			output += ufmt.Sprintf("- [/r/gov/dao:%d](%d) - %s (by %s)", idx, idx, prop.comment, prop.author)
+			output += ufmt.Sprintf("- [/r/gov/dao:%d](%d) - %s (**%s**)(by %s)\n", idx, idx, prop.comment, string(prop.Status()), prop.author)
 		}
+
 		return output
 	}
 
@@ -111,23 +167,35 @@ func Render(path string) string {
 		return "404"
 	}
 	prop := getProposal(idx)
+
+	vs := members
+	if prop.executed {
+		vs = prop.voters
+	}
+
 	output := ""
-	output += ufmt.Sprintf("# Prop#%d", prop.idx) + "\n"
+	output += ufmt.Sprintf("# Prop#%d", idx) + "\n"
 	output += "\n"
 	output += prop.comment
 	output += "\n"
 	output += ufmt.Sprintf("Status: %s", string(prop.Status()))
+	output += "\n"
+	output += ufmt.Sprintf("Voting status: %s", prop.voter.Status(vs))
 	output += "\n"
 	output += ufmt.Sprintf("Author: %s", string(prop.author))
 	return output
 }
 
 func getProposal(idx int) *proposal {
-	return proposals[idx-1]
+	if idx > len(proposals)-1 {
+		panic(msgProposalNotFound)
+	}
+
+	return proposals[idx]
 }
 
 func proposalExists(idx int) bool {
-	return idx > 0 && idx <= len(proposals)
+	return idx >= 0 && idx <= len(proposals)
 }
 
 func assertProposalExists(idx int) {
