@@ -71,10 +71,21 @@ func TestErrConditions(t *testing.T) {
 		fn   func()
 	}
 
-	std.TestSetOrigCaller(users.Resolve(admin))
+	banker.Mint(std.Address(admin), 10000)
 	{
 		tests := []test{
-			{"Transfer(admin, 1)", "cannot send transfer to self", func() { Transfer(admin, 1) }},
+			{"Transfer(admin, 1)", "cannot send transfer to self", func() {
+				// XXX: should replace with:
+				//    Transfer(admin, 1)
+				// but there is currently a limitation in
+				// manipulating the frame stack and simulate
+				// calling this package from an outside point of
+				// view.
+				adminAddr := std.Address(admin)
+				if err := banker.Transfer(adminAddr, adminAddr, 1); err != nil {
+					panic(err)
+				}
+			}},
 			{"Approve(empty, 1))", "invalid address", func() { Approve(empty, 1) }},
 		}
 		for _, tc := range tests {
