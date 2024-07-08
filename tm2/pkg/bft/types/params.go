@@ -5,6 +5,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 const (
@@ -28,6 +29,18 @@ const (
 
 	// BlockTimeIotaMS is the block time iota (in ms)
 	BlockTimeIotaMS int64 = 100 // ms
+
+	// PriceChangeCompressor is to reduce the impact of gas changes to gas price.
+	PriceChangeCompressor int64 = 8 // 1/8 = 0.125
+
+	// BlockTimeIotaMS is the block time iota (in ms)
+	TargetGas int64 = 60000000 // 60M gas
+
+	// Protocol level InitialGasPrice  10token/100gas
+	// TODO: use amino struct type
+	InitialGasPriceAmount int64  = 10
+	InitialGasPriceDenom  string = "token"
+	InitialGasPriceGas    int64  = 100
 )
 
 var validatorPubKeyTypeURLs = map[string]struct{}{
@@ -36,17 +49,22 @@ var validatorPubKeyTypeURLs = map[string]struct{}{
 
 func DefaultConsensusParams() abci.ConsensusParams {
 	return abci.ConsensusParams{
-		DefaultBlockParams(),
-		DefaultValidatorParams(),
+		Block:     DefaultBlockParams(),
+		Validator: DefaultValidatorParams(),
 	}
 }
 
 func DefaultBlockParams() *abci.BlockParams {
 	return &abci.BlockParams{
-		MaxTxBytes:   MaxBlockTxBytes,
-		MaxDataBytes: MaxBlockDataBytes,
-		MaxGas:       MaxBlockMaxGas,
-		TimeIotaMS:   BlockTimeIotaMS,
+		MaxTxBytes:            MaxBlockTxBytes,
+		MaxDataBytes:          MaxBlockDataBytes,
+		MaxGas:                MaxBlockMaxGas,
+		TimeIotaMS:            BlockTimeIotaMS,
+		PriceChangeCompressor: PriceChangeCompressor,
+		TargetGas:             TargetGas,
+		InitialGasPriceAmount: InitialGasPriceAmount,
+		InitialGasPriceDenom:  InitialGasPriceDenom,
+		InitialGasPriceGas:    InitialGasPriceGas,
 	}
 }
 
@@ -74,6 +92,29 @@ func ValidateConsensusParams(params abci.ConsensusParams) error {
 	if params.Block.TimeIotaMS <= 0 {
 		return errors.New("Block.TimeIotaMS must be greater than 0. Got %v",
 			params.Block.TimeIotaMS)
+	}
+
+	if params.Block.PriceChangeCompressor <= 0 {
+		return errors.New("Block.PriceChangeCompressor must be greater than 0. Got %v",
+			params.Block.PriceChangeCompressor)
+	}
+
+	if params.Block.TargetGas < 0 || params.Block.TargetGas > params.Block.MaxGas {
+		return errors.New("Block.TargetGas %v must be greater or equal 0 and smaller than MaxGas %v",
+			params.Block.TargetGas, params.Block.MaxGas)
+	}
+
+	if params.Block.InitialGasPriceGas <= 0 {
+		return errors.New("Block.InitialGasPriceGas must be greater than 0. Got %v",
+			params.Block.InitialGasPriceGas)
+	}
+	if params.Block.InitialGasPriceAmount < 0 {
+		return errors.New("Block.InitialGasPriceAmount must be greater or equal to 0. Got %v",
+			params.Block.InitialGasPriceAmount)
+	}
+	err := std.ValidateDenom(params.Block.InitialGasPriceDenom)
+	if err != nil {
+		return errors.New("Block.InitialGasPriceDenom is not valid, %v", err)
 	}
 
 	if len(params.Validator.PubKeyTypeURLs) == 0 {

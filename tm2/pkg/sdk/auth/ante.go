@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
@@ -379,6 +380,16 @@ func DeductFees(bank BankKeeperI, ctx sdk.Context, acc std.Account, fees std.Coi
 // consensus.
 func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 	minGasPrices := ctx.MinGasPrices()
+	blockHeader := ctx.BlockHeader().(*bft.Header)
+
+	blockGasPrice := std.GasPrice{
+		Gas: blockHeader.GasPriceGas,
+		Price: std.Coin{
+			Denom:  blockHeader.GasPriceDenom,
+			Amount: blockHeader.GasPriceAmount,
+		},
+	}
+	minGasPrices = append(minGasPrices, blockGasPrice)
 	if len(minGasPrices) == 0 {
 		// no minimum gas price (not recommended)
 		// TODO: allow for selective filtering of 0 fee txs.
@@ -415,7 +426,7 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 
 	return abciResult(std.ErrInsufficientFee(
 		fmt.Sprintf(
-			"insufficient fees; got: %q required (one of): %q", fee.GasFee, minGasPrices,
+			"insufficient fees; got: %q required (one of): %v", fee.GasFee, minGasPrices,
 		),
 	))
 }

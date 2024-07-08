@@ -53,10 +53,13 @@ func makeParams(
 ) abci.ConsensusParams {
 	return abci.ConsensusParams{
 		Block: &abci.BlockParams{
-			MaxTxBytes:    dataBytes,
-			MaxBlockBytes: blockBytes,
-			MaxGas:        blockGas,
-			TimeIotaMS:    blockTimeIotaMS,
+			MaxTxBytes:            dataBytes,
+			MaxBlockBytes:         blockBytes,
+			MaxGas:                blockGas,
+			TimeIotaMS:            blockTimeIotaMS,
+			PriceChangeCompressor: 1,
+			TargetGas:             0,
+			InitialGasPriceGas:    1,
 		},
 		Validator: &abci.ValidatorParams{
 			PubKeyTypeURLs: pubkeyTypeURLs,
