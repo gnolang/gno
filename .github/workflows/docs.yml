@@ -27,5 +27,8 @@ jobs:
       - name: Build docs
         run: make -C docs/ build
 
+      - name: Check diff
+        run: git diff --exit-code || (echo "Some docs files are not formatted, please run 'make build'." && exit 1)
+
       - name: Run linter
         run: make -C docs/ lint
