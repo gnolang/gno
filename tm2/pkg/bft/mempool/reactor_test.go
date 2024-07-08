@@ -1,0 +1,238 @@
+package mempool
+
+import (
+	"net"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/fortytw2/leaktest"
+	"github.com/stretchr/testify/assert"
+
+	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
+	memcfg "github.com/gnolang/gno/tm2/pkg/bft/mempool/config"
+	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/errors"
+	"github.com/gnolang/gno/tm2/pkg/log"
+	"github.com/gnolang/gno/tm2/pkg/p2p"
+	p2pcfg "github.com/gnolang/gno/tm2/pkg/p2p/config"
+	"github.com/gnolang/gno/tm2/pkg/p2p/mock"
+	"github.com/gnolang/gno/tm2/pkg/testutils"
+)
+
+type peerState struct {
+	height int64
+}
+
+func (ps peerState) GetHeight() int64 {
+	return ps.height
+}
+
+// connect N mempool reactors through N switches
+func makeAndConnectReactors(mconfig *memcfg.MempoolConfig, pconfig *p2pcfg.P2PConfig, n int) []*Reactor {
+	reactors := make([]*Reactor, n)
+	logger := log.NewNoopLogger()
+	for i := 0; i < n; i++ {
+		app := kvstore.NewKVStoreApplication()
+		cc := proxy.NewLocalClientCreator(app)
+		mempool, cleanup := newMempoolWithApp(cc)
+		defer cleanup()
+
+		reactors[i] = NewReactor(mconfig, mempool) // so we dont start the consensus states
+		reactors[i].SetLogger(logger.With("validator", i))
+	}
+
+	p2p.MakeConnectedSwitches(pconfig, n, func(i int, s *p2p.Switch) *p2p.Switch {
+		s.AddReactor("MEMPOOL", reactors[i])
+		return s
+	}, p2p.Connect2Switches)
+	return reactors
+}
+
+func waitForTxsOnReactors(t *testing.T, txs types.Txs, reactors []*Reactor) {
+	t.Helper()
+
+	// wait for the txs in all mempools
+	wg := new(sync.WaitGroup)
+	for i, reactor := range reactors {
+		wg.Add(1)
+		go func(r *Reactor, reactorIndex int) {
+			defer wg.Done()
+			waitForTxsOnReactor(t, txs, r, reactorIndex)
+		}(reactor, i)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	timer := time.After(timeout)
+	select {
+	case <-timer:
+		t.Fatal("Timed out waiting for txs")
+	case <-done:
+	}
+}
+
+func waitForTxsOnReactor(t *testing.T, txs types.Txs, reactor *Reactor, reactorIndex int) {
+	t.Helper()
+
+	mempool := reactor.mempool
+	for mempool.Size() < len(txs) {
+		time.Sleep(time.Millisecond * 100)
+	}
+
+	reapedTxs := mempool.ReapMaxTxs(len(txs))
+	for i, tx := range txs {
+		assert.Equalf(t, tx, reapedTxs[i],
+			"txs at index %d on reactor %d don't match: %v vs %v", i, reactorIndex, tx, reapedTxs[i])
+	}
+}
+
+// ensure no txs on reactor after some timeout
+func ensureNoTxs(t *testing.T, reactor *Reactor, timeout time.Duration) {
+	t.Helper()
+
+	time.Sleep(timeout) // wait for the txs in all mempools
+	assert.Zero(t, reactor.mempool.Size())
+}
+
+const (
+	numTxs  = 1000
+	timeout = 120 * time.Second // ridiculously high because CircleCI is slow
+)
+
+func TestReactorBroadcastTxMessage(t *testing.T) {
+	t.Parallel()
+
+	mconfig := memcfg.TestMempoolConfig()
+	pconfig := p2pcfg.TestP2PConfig()
+	const N = 4
+	reactors := makeAndConnectReactors(mconfig, pconfig, N)
+	defer func() {
+		for _, r := range reactors {
+			r.Stop()
+		}
+	}()
+	for _, r := range reactors {
+		for _, peer := range r.Switch.Peers().List() {
+			peer.Set(types.PeerStateKey, peerState{1})
+		}
+	}
+
+	// send a bunch of txs to the first reactor's mempool
+	// and wait for them all to be received in the others
+	txs := checkTxs(t, reactors[0].mempool, numTxs, UnknownPeerID, true)
+	waitForTxsOnReactors(t, txs, reactors)
+}
+
+func TestReactorNoBroadcastToSender(t *testing.T) {
+	t.Parallel()
+
+	mconfig := memcfg.TestMempoolConfig()
+	pconfig := p2pcfg.TestP2PConfig()
+	const N = 2
+	reactors := makeAndConnectReactors(mconfig, pconfig, N)
+	defer func() {
+		for _, r := range reactors {
+			r.Stop()
+		}
+	}()
+
+	// send a bunch of txs to the first reactor's mempool, claiming it came from peer
+	// ensure peer gets no txs
+	checkTxs(t, reactors[0].mempool, numTxs, 1, true)
+	ensureNoTxs(t, reactors[1], 100*time.Millisecond)
+}
+
+func TestFlappyBroadcastTxForPeerStopsWhenPeerStops(t *testing.T) {
+	t.Parallel()
+
+	testutils.FilterStability(t, testutils.Flappy)
+
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	mconfig := memcfg.TestMempoolConfig()
+	pconfig := p2pcfg.TestP2PConfig()
+	const N = 2
+	reactors := makeAndConnectReactors(mconfig, pconfig, N)
+	defer func() {
+		for _, r := range reactors {
+			r.Stop()
+		}
+	}()
+
+	// stop peer
+	sw := reactors[1].Switch
+	sw.StopPeerForError(sw.Peers().List()[0], errors.New("some reason"))
+
+	// check that we are not leaking any go-routines
+	// i.e. broadcastTxRoutine finishes when peer is stopped
+	leaktest.CheckTimeout(t, 10*time.Second)()
+}
+
+func TestFlappyBroadcastTxForPeerStopsWhenReactorStops(t *testing.T) {
+	t.Parallel()
+
+	testutils.FilterStability(t, testutils.Flappy)
+
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	mconfig := memcfg.TestMempoolConfig()
+	pconfig := p2pcfg.TestP2PConfig()
+	const N = 2
+	reactors := makeAndConnectReactors(mconfig, pconfig, N)
+
+	// stop reactors
+	for _, r := range reactors {
+		r.Stop()
+	}
+
+	// check that we are not leaking any go-routines
+	// i.e. broadcastTxRoutine finishes when reactor is stopped
+	leaktest.CheckTimeout(t, 10*time.Second)()
+}
+
+func TestMempoolIDsBasic(t *testing.T) {
+	t.Parallel()
+
+	ids := newMempoolIDs()
+
+	peer := mock.NewPeer(net.IP{127, 0, 0, 1})
+
+	ids.ReserveForPeer(peer)
+	assert.EqualValues(t, 1, ids.GetForPeer(peer))
+	ids.Reclaim(peer)
+
+	ids.ReserveForPeer(peer)
+	assert.EqualValues(t, 2, ids.GetForPeer(peer))
+	ids.Reclaim(peer)
+}
+
+func TestMempoolIDsPanicsIfNodeRequestsOvermaxActiveIDs(t *testing.T) {
+	t.Parallel()
+
+	if testing.Short() {
+		return
+	}
+
+	// 0 is already reserved for UnknownPeerID
+	ids := newMempoolIDs()
+
+	for i := 0; i < maxActiveIDs-1; i++ {
+		peer := mock.NewPeer(net.IP{127, 0, 0, 1})
+		ids.ReserveForPeer(peer)
+	}
+
+	assert.Panics(t, func() {
+		peer := mock.NewPeer(net.IP{127, 0, 0, 1})
+		ids.ReserveForPeer(peer)
+	})
+}

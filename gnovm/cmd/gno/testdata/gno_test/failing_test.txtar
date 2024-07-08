@@ -1,0 +1,20 @@
+# Test with a failing _test.gno file
+
+! gno test -v .
+
+! stdout .+
+stderr '=== RUN   TestAlwaysFailing'
+stderr '--- FAIL: TestAlwaysFailing'
+stderr 'FAIL: 0 build errors, 1 test errors'
+
+-- failing.gno --
+package failing
+
+-- failing_test.gno --
+package failing
+
+import "testing"
+
+func TestAlwaysFailing(t *testing.T) {
+	t.Fatal("failed")
+}

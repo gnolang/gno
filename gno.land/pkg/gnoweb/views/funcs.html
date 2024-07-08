@@ -1,0 +1,218 @@
+{{- define "header_buttons" -}}
+<div id="header_buttons">
+  <nav role="navigation">
+    <div id="menu-toggle">
+      <input type="checkbox" />
+
+      <!-- Burger Icon -->
+      <span></span>
+      <span></span>
+      <span></span>
+
+      <div class="navigation">
+        <ul>
+          <li><a href="/about">About</a></li>
+          <li><a href="/blog">Blog</a></li>
+          <li><a href="https://docs.gno.land/">Docs</a></li>
+          <li><a href="https://play.gno.land/">Playground</a></li>
+          <li><a href="/gor">Game of Realms</a></li>
+        </ul>
+
+        <div class="buttons">
+          <a href="https://github.com/gnolang/gno">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+              <path
+                d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+                fill="currentColor"
+              />
+            </svg>
+          </a>
+          <button title="Toggle dark mode" id="theme-toggle">
+            <!--
+              Copyright (c) 2013-2017 Cole Bemis
+              https://feathericons.com/
+            -->
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              id="theme-toggle-sun"
+            >
+              <circle cx="12" cy="12" r="5"></circle>
+              <line x1="12" y1="1" x2="12" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="23"></line>
+              <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+              <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+              <line x1="1" y1="12" x2="3" y2="12"></line>
+              <line x1="21" y1="12" x2="23" y2="12"></line>
+              <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+              <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+            </svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="32"
+              height="32"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              id="theme-toggle-moon"
+            >
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </nav>
+</div>
+{{- end -}}
+
+{{- define "html_head" -}}
+<meta charset="utf-8" />
+{{if .Data.Description}}<meta name="description" content="{{ .Data.Description }}" />{{end}}
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<link rel="stylesheet" href="/static/css/normalize.css" />
+<link rel="stylesheet" href="/static/css/app.css" />
+<link rel="apple-touch-icon" sizes="180x180" href="/static/img/apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="/static/img/favicon-32x32.png" />
+<link rel="icon" type="image/png" sizes="16x16" href="/static/img/favicon-16x16.png" />
+<link rel="mask-icon" href="/static/img/safari-pinned-tab.svg" color="#6f6f6f" />
+<meta name="theme-color" content="#ffffff" />
+<meta property="og:title" content="Gno.land - {{.Data.RealmName}}" />
+<meta property="og:url" content="https://gno.land" />
+<meta property="og:image" content="https://gno.land/static/img/og-gnoland.png" />
+<meta property="og:site_name" content="gno.land" />
+<meta property="og:description" content="{{ .Data.Description }}" />
+<noscript>
+  <style type="text/css">
+    #source { display: block; }
+    #theme-toggle { display: none; }
+  </style>
+</noscript>
+<script>
+  (function () {
+    const storageKey = "website_theme";
+    const themeDark = "dark";
+    const themeLight = "light";
+
+    function getColorPreference() {
+      if (localStorage.getItem(storageKey)) return localStorage.getItem(storageKey);
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? themeDark : themeLight;
+    }
+    function setTheme(value) {
+      document.firstElementChild.setAttribute("data-theme", value);
+    }
+    setTheme(getColorPreference());
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function (e) {
+      if (!localStorage.getItem(storageKey)) setTheme(e.matches ? themeDark : themeLight);
+    });
+    window.addEventListener("load", function () {
+      document.getElementById("theme-toggle").addEventListener("click", function (e) {
+        e.preventDefault();
+        const newValue = getColorPreference() === themeLight ? themeDark : themeLight;
+        localStorage.setItem(storageKey, newValue);
+        setTheme(newValue);
+      });
+    });
+  })();
+</script>
+{{- end -}}
+
+{{- define "logo" -}}
+<a class="logo" href="/">
+  <svg class="logo_img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 238">
+    <path d="M136.02,160.26c-1.77-6.5-5.55-12.22-10.68-16.59-1.98-1.69-4.14-3.29-6.5-4.78-2-1.27-4.52.6-3.94,2.9l1.42,5.62c1.8,7.14-5.86,12.93-12.24,9.26l-17.15-9.86c-11.27-6.48-25.13-6.48-36.4,0l-17.15,9.86c-6.38,3.67-14.04-2.13-12.24-9.26l1.46-5.78c.58-2.29-1.93-4.16-3.93-2.9-2.62,1.64-5,3.42-7.16,5.29-5.05,4.38-8.56,10.26-10.2,16.74l-.06.24c-4.17,16.56,2.31,33.97,16.29,43.78l43.3,30.37c4.74,3.32,11.05,3.32,15.79,0l43.3-30.37c14.19-9.95,20.65-27.74,16.09-44.51Z" class="logo-beard" />
+    <path d="M134.22,123.74c-3.78-31.58-19.27-63.22-34.25-87.46l22.26-22.26c5.04-5.04,1.47-13.66-5.66-13.66h-47.94c-3.7,0-7.41,1.63-9.91,4.88C41.84,27.21,8.79,75.55,3.02,123.74c-.52,4.39,4.63,7.08,7.93,4.14,11.52-10.26,29.49-17.6,57.67-17.6s46.14,7.35,57.67,17.6c3.3,2.94,8.45.24,7.93-4.14Z" class="logo-hat" />
+    <g class="logo-wording">
+      <path d="M190.79,202.39l13.67-21.82c9.35,10.07,21.82,14.14,36.2,14.14s32.13-6.23,32.13-29.73v-11.27c-9.11,11.51-21.58,17.98-35.96,17.98-28.77,0-51.06-20.14-51.06-58.74s21.82-58.98,51.06-58.98c13.91,0,26.61,5.75,35.96,17.74v-14.86h30.45v108.12c0,43.87-34.04,54.66-62.57,54.66-19.66,0-35.24-4.55-49.87-17.26ZM272.78,131.66v-37.64c-5.28-7.43-16.3-12.95-26.13-12.95-17.5,0-29.49,11.99-29.49,31.89s11.99,31.89,29.49,31.89c9.83,0,20.86-5.75,26.13-13.19Z" />
+      <path d="M397.33,172.66v-70c0-16.06-8.39-21.58-21.34-21.58-11.99,0-21.1,6.71-26.37,13.43v78.16h-30.45V56.86h30.45v14.86c7.43-8.63,21.82-17.74,40.52-17.74,25.65,0,37.88,14.38,37.88,36.92v81.75h-30.69Z" />
+      <path d="M438.76,114.64c0-32.84,23.01-60.65,61.13-60.65s61.37,27.81,61.37,60.65-23.01,60.89-61.37,60.89-61.13-28.05-61.13-60.89ZM529.62,114.64c0-17.98-10.55-33.56-29.73-33.56s-29.49,15.58-29.49,33.56,10.55,33.8,29.49,33.8,29.73-15.58,29.73-33.8Z" />
+      <path d="M565.38,161.87c0-7.19,5.99-13.19,13.19-13.19s13.19,5.99,13.19,13.19-5.99,13.19-13.19,13.19-13.19-5.99-13.19-13.19Z" />
+      <path d="M605.35,148.44V12.75h17.98v131.86c0,8.63,3.84,14.86,11.75,14.86,5.03,0,9.83-2.4,11.99-5.03l5.51,13.67c-4.79,4.31-11.03,7.43-21.58,7.43-17.02,0-25.65-9.83-25.65-27.09Z" />
+      <path d="M745.61,172.66v-17.26c-8.63,11.75-22.77,20.14-39.08,20.14-30.21,0-51.54-23.01-51.54-60.65s21.34-60.89,51.54-60.89c15.58,0,29.73,7.67,39.08,20.38v-17.5h17.98v115.79h-17.98ZM745.61,141.01v-52.26c-6.23-10.07-20.38-18.7-34.52-18.7-23.49,0-37.4,19.18-37.4,44.83s13.91,44.59,37.4,44.59c14.14,0,28.29-8.39,34.52-18.46Z" />
+      <path d="M860.96,172.66v-75.76c0-20.62-10.55-26.85-26.13-26.85-14.14,0-27.33,8.63-34.28,17.98v84.63h-17.98V56.86h17.98v16.78c8.15-9.83,23.97-19.66,41.47-19.66,23.97,0,36.68,12.23,36.68,37.4v81.27h-17.74Z" />
+      <path d="M982.02,172.66v-17.26c-8.63,11.75-22.77,20.14-39.08,20.14-30.21,0-51.54-23.01-51.54-60.65s21.34-60.89,51.54-60.89c15.58,0,29.73,7.67,39.08,20.38V12.75h17.98v159.91h-17.98ZM982.02,141.01v-52.26c-6.23-10.07-20.38-18.7-34.52-18.7-23.49,0-37.4,19.18-37.4,44.83s13.91,44.59,37.4,44.59c14.14,0,28.29-8.39,34.52-18.46Z" />
+    </g>
+  </svg>
+</a>
+{{- end -}} 
+
+{{- define "footer" -}}
+<footer class="footer">
+    {{ template "logo" }} 
+</footer>
+{{- end -}}
+
+{{- define "js" -}}
+<script type="text/javascript" src="/static/js/highlight.min.js"></script>
+<script type="text/javascript" src="/static/js/marked.min.js"></script>
+<script type="text/javascript" src="/static/js/umbrella.min.js"></script>
+<script type="text/javascript" src="/static/js/purify.min.js"></script>
+<script type="text/javascript" src="/static/js/renderer.js"></script>
+<script type="text/javascript">
+  function main() {
+    const parsed = parseContent(document.getElementById("source").innerHTML);
+    const DOM = {
+      home: document.getElementById("home"),
+      realm_render: document.getElementById("realm_render"),
+    };
+
+    for (const [key, el] of Object.entries(DOM)) {
+      if (el !== null) {
+        el.innerHTML = DOMPurify.sanitize(parsed, {
+          USE_PROFILES: { html: true },
+        });
+      }
+    }
+  }
+</script>
+{{ template "analytics" .}}
+{{- end -}}
+
+{{- define "analytics" -}}
+{{- if .Data.Config.WithAnalytics -}}
+<!-- 100% privacy-first analytics -->
+<script async defer src="https://sa.gno.services/latest.js"></script>
+<noscript><img src="https://sa.gno.services/noscript.gif" alt="" referrerpolicy="no-referrer-when-downgrade" /></noscript>
+{{- end -}}
+{{- end -}}
+
+{{- define "subscribe" -}}
+<!-- mailchimp -->
+<div id="mc_embed_signup" class="container">
+  <form
+    action="https://land.us18.list-manage.com/subscribe/post?u=8befe3303cf82796d2c1a1aff&amp;id=271812000b&amp;f_id=009170e7f0"
+    method="post"
+    id="mc-embedded-subscribe-form"
+    name="mc-embedded-subscribe-form"
+    class="validate"
+    target="_self"
+  >
+    <label for="mce-EMAIL"><img src="/static/img/ico-email.svg" alt="email" /><span>Subscribe by email:</span></label>
+    <div id="mc_embed_signup_scroll">
+      <div class="mc-field-group">
+        <input type="email" value="" name="EMAIL" class="required email" id="mce-EMAIL" placeholder="Type your email here" required />
+        <input type="submit" value="Subscribe" name="subscribe" id="mc-embedded-subscribe" class="button" />
+        <span id="mce-EMAIL-HELPERTEXT" class="helper_text"></span>
+      </div>
+      <div id="mce-responses" class="clear">
+        <div class="response" id="mce-error-response" style="display: none"></div>
+        <div class="response" id="mce-success-response" style="display: none"></div>
+      </div>
+      <div style="position: absolute; left: -5000px" aria-hidden="true">
+        <input type="text" name="b_8befe3303cf82796d2c1a1aff_271812000b" tabindex="-1" value="" />
+      </div>
+    </div>
+  </form>
+</div>
+<!-- /mailchimp -->
+{{- end -}}

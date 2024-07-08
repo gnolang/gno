@@ -1,0 +1,21 @@
+name: tm2
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "tm2/**"
+      - "go.*" # check on go.mod/sum update
+      - ".github/**"
+
+jobs:
+  main:
+    name: Run Main
+    uses: ./.github/workflows/main_template.yml
+    with:
+      modulepath: "tm2"
+    secrets:
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}

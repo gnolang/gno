@@ -1,0 +1,12 @@
+# man 5 gitmailmap
+# git log --mailmap --pretty=short | grep ^Author: | sort -u
+Jae Kwon <53785+jaekwon@users.noreply.github.com> Jae Kwon <jae@tendermint.com>
+Jae Kwon <53785+jaekwon@users.noreply.github.com> Jae Kwon <jae@gno.land>
+Jae Kwon <53785+jaekwon@users.noreply.github.com> jaekwon <jae@tendermint.com>
+Jae Kwon <53785+jaekwon@users.noreply.github.com> Naut Jae <naut_jae@Nauts-Mac-mini.local>
+Thomas Bruyelle <thomas.bruyelle@tendermint.com> Thomas Bruyelle <thomas.bruyelle@gmail.com>
+Thomas Bruyelle <thomas.bruyelle@tendermint.com> Thomas Bruyelle <thomasbruyelle@hey.com>
+Miloš Živković <milos.zivkovic@tendermint.com> Miloš Živković <milos@zmilos.com>
+Hariom Verma <hariom.verma@tendermint.com> Hariom Verma <hariom18599@gmail.com>
+Giancarlos Salas <me@giansalex.dev> Giancarlos Salas <giansalex@gmail.com>
+Morgan <morgan@morganbaz.com> Morgan <git@howl.moe>

@@ -1,0 +1,13 @@
+syntax = "proto3";
+package tm;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/crypto/hd/pb";
+
+// messages
+message Bip44Params {
+	uint32 purpose = 1;
+	uint32 coin_type = 2 [json_name = "coinType"];
+	uint32 account = 3;
+	bool change = 4;
+	uint32 address_index = 5 [json_name = "addressIndex"];
+}

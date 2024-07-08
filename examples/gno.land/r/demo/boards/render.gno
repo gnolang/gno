@@ -3,8 +3,6 @@ package boards
 import (
 	"strconv"
 	"strings"
-
-	"gno.land/p/demo/avl"
 )
 
 //----------------------------------------
@@ -21,8 +19,8 @@ func RenderBoard(bid BoardID) string {
 func Render(path string) string {
 	if path == "" {
 		str := "These are all the boards of this realm:\n\n"
-		gBoards.Iterate("", "", func(n *avl.Node) bool {
-			board := n.Value().(*Board)
+		gBoards.Iterate("", "", func(key string, value interface{}) bool {
+			board := value.(*Board)
 			str += " * [" + board.url + "](" + board.url + ")\n"
 			return false
 		})

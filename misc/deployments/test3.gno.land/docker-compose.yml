@@ -7,25 +7,27 @@ services:
     environment:
       - LOG_LEVEL=4
       - VIRTUAL_HOST=rpc.test3.gno.land
-      - VIRTUAL_PORT=36657
+      - VIRTUAL_PORT=26657
       - LETSENCRYPT_HOST=rpc.test3.gno.land
     command:
       - gnoland
+      - start
       - --skip-failing-genesis-txs
       - --chainid
       - test3
       - --genesis-remote
-      - test3.gno.land:36657
+      - test3.gno.land:26657
       - --genesis-balances-file
       - /overlay/balances.txt
       - --genesis-txs-file
-      - /overlay/genesis_txs.txt
+      - /overlay/genesis_txs.jsonl
     volumes:
       - "./data/gnoland:/opt/gno/src/testdir"
       - "./overlay:/overlay:ro"
     ports:
-      - 36656:36656
-      - 36657:36657
+      - 26656:26656
+      - 26657:26657
+      - 36657:26657
     restart: on-failure
     logging:
       driver: "json-file"
@@ -41,7 +43,7 @@ services:
       - --bind
       - 0.0.0.0:80
       - --remote
-      - gnoland:36657
+      - gnoland:26657
       - --captcha-site
       - $RECAPTCHA_SITE_KEY
       - --faucet-url
@@ -49,7 +51,7 @@ services:
       - --help-chainid
       - test3
       - --help-remote
-      - test3.gno.land:36657
+      - test3.gno.land:26657
       - --home-content
       - /overlay/HOME.md
     volumes:
@@ -76,7 +78,7 @@ services:
         mkdir -p /.gno &&
         expect -c \"set timeout -1; spawn gnokey add faucet --home /.gno/ --recover; expect \\\"Enter a passphrase\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect \\\"Repeat the passphrase\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect \\\"Enter your bip39 mnemonic\\\"; send \\\"$FAUCET_WORDS\\r\\\"; expect eof\" &&
         while true; do
-          expect -c \"set timeout -1; spawn gnofaucet serve faucet --is-behind-proxy --send 50000000ugnot --captcha-secret \\\"$RECAPTCHA_SECRET_KEY\\\" --remote gnoland:36657 --chain-id test3 --home /.gno/; expect \\\"Enter password.\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect eof\";
+          expect -c \"set timeout -1; spawn gnofaucet serve faucet --is-behind-proxy --send 50000000ugnot --captcha-secret \\\"$RECAPTCHA_SECRET_KEY\\\" --remote gnoland:26657 --chain-id test3 --home /.gno/; expect \\\"Enter password.\\\"; send \\\"$GNOKEY_PASS\\r\\\"; expect eof\";
           sleep 5;
         done
       "

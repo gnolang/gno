@@ -4,7 +4,7 @@ func isCombining(r rune) bool {
 	return inTable(r, combining)
 }
 
-//----------------------------------------
+// ----------------------------------------
 // from https://github.com/mattn/go-runewidth
 // runewidth doesn't expose whether a character is combining or not.
 // TODO might as well fork both runewidth and tcell.
@@ -61,15 +61,6 @@ type interval struct {
 }
 
 type table []interval
-
-func inTables(r rune, ts ...table) bool {
-	for _, t := range ts {
-		if inTable(r, t) {
-			return true
-		}
-	}
-	return false
-}
 
 func inTable(r rune, t table) bool {
 	if r < t[0].first {

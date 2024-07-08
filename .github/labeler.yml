@@ -1,0 +1,24 @@
+":receipt:  package/realm":
+- changed-files:
+  - any-glob-to-any-file:
+    - examples/**/*
+
+":package: :robot: gnovm":
+- changed-files:
+  - any-glob-to-any-file:
+    - gnovm/**/*
+
+":package: :globe_with_meridians:  tendermint v2":
+- changed-files:
+  - any-glob-to-any-file:
+    - tm2/**/*
+
+":package: :mountain:  gno.land":
+- changed-files:
+  - any-glob-to-any-file:
+    - "gno.land/**/*"
+
+":book:  documentation":
+- changed-files:
+  - any-glob-to-any-file:
+    - docs/**/*"

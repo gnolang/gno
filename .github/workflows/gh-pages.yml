@@ -1,0 +1,43 @@
+# generate docs and publish on gh-pages branch
+name: gh-pages
+
+on:
+  push:
+    branches: [ "master" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: ${{ github.repository == 'gnolang/gno' }} # Alternatively, validate based on provided tokens and permissions.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+      - run: "cd misc/gendocs && make install gen"
+      - uses: actions/configure-pages@v5
+        id: pages
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./misc/gendocs/godoc
+
+  deploy:
+    if: ${{ github.repository == 'gnolang/gno' }} # Alternatively, validate based on provided tokens and permissions.
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment

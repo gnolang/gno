@@ -1,0 +1,27 @@
+# Run gno transpile with gno files with parse errors
+
+! gno transpile .
+
+! stdout .+
+stderr '^main.gno:3:1: expected declaration, found invalid$'
+stderr '^main.gno:7:2: expected declaration, found wrong$'
+stderr '^sub/sub.gno:3:1: expected declaration, found invalid$'
+stderr '^3 transpile error\(s\)$'
+
+# no *.gen.go files are created
+! exec test -f main.gno.gen.go
+! exec test -f sub/sub.gno.gen.go
+
+-- main.gno --
+package main
+
+invalid
+
+func main() {
+	var x = 1
+	wrong
+}
+-- sub/sub.gno --
+package sub
+
+invalid

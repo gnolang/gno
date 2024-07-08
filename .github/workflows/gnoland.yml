@@ -1,0 +1,23 @@
+name: gno.land
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "gno.land/**"
+      - "tm2/**.go"
+      - "gnovm/**.go"
+      - "go.*" # check on go.mod/sum update
+      - ".github/**"
+
+jobs:
+  main:
+    name: Run Main
+    uses: ./.github/workflows/main_template.yml
+    with:
+      modulepath: "gno.land"
+    secrets:
+      codecov-token: ${{ secrets.CODECOV_TOKEN }}

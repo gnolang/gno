@@ -1,0 +1,15 @@
+syntax = "proto3";
+package tm;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/sdk/pb";
+
+// imports
+import "github.com/gnolang/gno/tm2/pkg/bft/abci/types/abci.proto";
+import "github.com/gnolang/gno/tm2/pkg/crypto/merkle/merkle.proto";
+
+// messages
+message Result {
+	abci.ResponseBase response_base = 1 [json_name = "ResponseBase"];
+	sint64 gas_wanted = 2 [json_name = "GasWanted"];
+	sint64 gas_used = 3 [json_name = "GasUsed"];
+}

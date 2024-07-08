@@ -1,3 +1,6 @@
 install:
 	go install mvdan.cc/gofumpt
-	go install golang.org/x/tools/gopls
+	go install google.golang.org/protobuf/cmd/protoc-gen-go
+
+tidy:
+	go mod tidy

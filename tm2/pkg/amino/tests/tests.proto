@@ -1,0 +1,412 @@
+syntax = "proto3";
+package tests;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/amino/tests/pb";
+
+// imports
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/any.proto";
+
+// messages
+message EmptyStruct {
+}
+
+message PrimitivesStruct {
+	sint32 int8 = 1 [json_name = "Int8"];
+	sint32 int16 = 2 [json_name = "Int16"];
+	sint32 int32 = 3 [json_name = "Int32"];
+	sfixed32 int32_fixed = 4 [json_name = "Int32Fixed"];
+	sint64 int64 = 5 [json_name = "Int64"];
+	sfixed64 int64_fixed = 6 [json_name = "Int64Fixed"];
+	sint64 int = 7 [json_name = "Int"];
+	uint32 byte = 8 [json_name = "Byte"];
+	uint32 uint8 = 9 [json_name = "Uint8"];
+	uint32 uint16 = 10 [json_name = "Uint16"];
+	uint32 uint32 = 11 [json_name = "Uint32"];
+	fixed32 uint32_fixed = 12 [json_name = "Uint32Fixed"];
+	uint64 uint64 = 13 [json_name = "Uint64"];
+	fixed64 uint64_fixed = 14 [json_name = "Uint64Fixed"];
+	uint64 uint = 15 [json_name = "Uint"];
+	string str = 16 [json_name = "Str"];
+	bytes bytes = 17 [json_name = "Bytes"];
+	google.protobuf.Timestamp time = 18 [json_name = "Time"];
+	google.protobuf.Duration duration = 19 [json_name = "Duration"];
+	EmptyStruct empty = 20 [json_name = "Empty"];
+}
+
+message ShortArraysStruct {
+	repeated google.protobuf.Timestamp time_ar = 1 [json_name = "TimeAr"];
+	repeated google.protobuf.Duration duration_ar = 2 [json_name = "DurationAr"];
+}
+
+message ArraysStruct {
+	repeated sint32 int8_ar = 1 [json_name = "Int8Ar"];
+	repeated sint32 int16_ar = 2 [json_name = "Int16Ar"];
+	repeated sint32 int32_ar = 3 [json_name = "Int32Ar"];
+	repeated sfixed32 int32_fixed_ar = 4 [json_name = "Int32FixedAr"];
+	repeated sint64 int64_ar = 5 [json_name = "Int64Ar"];
+	repeated sfixed64 int64_fixed_ar = 6 [json_name = "Int64FixedAr"];
+	repeated sint64 int_ar = 7 [json_name = "IntAr"];
+	bytes byte_ar = 8 [json_name = "ByteAr"];
+	bytes uint8_ar = 9 [json_name = "Uint8Ar"];
+	repeated uint32 uint16_ar = 10 [json_name = "Uint16Ar"];
+	repeated uint32 uint32_ar = 11 [json_name = "Uint32Ar"];
+	repeated fixed32 uint32_fixed_ar = 12 [json_name = "Uint32FixedAr"];
+	repeated uint64 uint64_ar = 13 [json_name = "Uint64Ar"];
+	repeated fixed64 uint64_fixed_ar = 14 [json_name = "Uint64FixedAr"];
+	repeated uint64 uint_ar = 15 [json_name = "UintAr"];
+	repeated string str_ar = 16 [json_name = "StrAr"];
+	repeated bytes bytes_ar = 17 [json_name = "BytesAr"];
+	repeated google.protobuf.Timestamp time_ar = 18 [json_name = "TimeAr"];
+	repeated google.protobuf.Duration duration_ar = 19 [json_name = "DurationAr"];
+	repeated EmptyStruct empty_ar = 20 [json_name = "EmptyAr"];
+}
+
+message ArraysArraysStruct {
+	repeated TESTS_Int8List int8_ar_ar = 1 [json_name = "Int8ArAr"];
+	repeated TESTS_Int16List int16_ar_ar = 2 [json_name = "Int16ArAr"];
+	repeated TESTS_Int32ValueList int32_ar_ar = 3 [json_name = "Int32ArAr"];
+	repeated TESTS_Fixed32Int32ValueList int32_fixed_ar_ar = 4 [json_name = "Int32FixedArAr"];
+	repeated TESTS_Int64ValueList int64_ar_ar = 5 [json_name = "Int64ArAr"];
+	repeated TESTS_Fixed64Int64ValueList int64_fixed_ar_ar = 6 [json_name = "Int64FixedArAr"];
+	repeated TESTS_Int64ValueList int_ar_ar = 7 [json_name = "IntArAr"];
+	repeated bytes byte_ar_ar = 8 [json_name = "ByteArAr"];
+	repeated bytes uint8_ar_ar = 9 [json_name = "Uint8ArAr"];
+	repeated TESTS_UInt16List uint16_ar_ar = 10 [json_name = "Uint16ArAr"];
+	repeated TESTS_UInt32ValueList uint32_ar_ar = 11 [json_name = "Uint32ArAr"];
+	repeated TESTS_Fixed32UInt32ValueList uint32_fixed_ar_ar = 12 [json_name = "Uint32FixedArAr"];
+	repeated TESTS_UInt64ValueList uint64_ar_ar = 13 [json_name = "Uint64ArAr"];
+	repeated TESTS_Fixed64UInt64ValueList uint64_fixed_ar_ar = 14 [json_name = "Uint64FixedArAr"];
+	repeated TESTS_UInt64ValueList uint_ar_ar = 15 [json_name = "UintArAr"];
+	repeated TESTS_StringValueList str_ar_ar = 16 [json_name = "StrArAr"];
+	repeated TESTS_BytesList bytes_ar_ar = 17 [json_name = "BytesArAr"];
+	repeated TESTS_TimestampList time_ar_ar = 18 [json_name = "TimeArAr"];
+	repeated TESTS_DurationList duration_ar_ar = 19 [json_name = "DurationArAr"];
+	repeated TESTS_EmptyStructList empty_ar_ar = 20 [json_name = "EmptyArAr"];
+}
+
+message SlicesStruct {
+	repeated sint32 int8_sl = 1 [json_name = "Int8Sl"];
+	repeated sint32 int16_sl = 2 [json_name = "Int16Sl"];
+	repeated sint32 int32_sl = 3 [json_name = "Int32Sl"];
+	repeated sfixed32 int32_fixed_sl = 4 [json_name = "Int32FixedSl"];
+	repeated sint64 int64_sl = 5 [json_name = "Int64Sl"];
+	repeated sfixed64 int64_fixed_sl = 6 [json_name = "Int64FixedSl"];
+	repeated sint64 int_sl = 7 [json_name = "IntSl"];
+	bytes byte_sl = 8 [json_name = "ByteSl"];
+	bytes uint8_sl = 9 [json_name = "Uint8Sl"];
+	repeated uint32 uint16_sl = 10 [json_name = "Uint16Sl"];
+	repeated uint32 uint32_sl = 11 [json_name = "Uint32Sl"];
+	repeated fixed32 uint32_fixed_sl = 12 [json_name = "Uint32FixedSl"];
+	repeated uint64 uint64_sl = 13 [json_name = "Uint64Sl"];
+	repeated fixed64 uint64_fixed_sl = 14 [json_name = "Uint64FixedSl"];
+	repeated uint64 uint_sl = 15 [json_name = "UintSl"];
+	repeated string str_sl = 16 [json_name = "StrSl"];
+	repeated bytes bytes_sl = 17 [json_name = "BytesSl"];
+	repeated google.protobuf.Timestamp time_sl = 18 [json_name = "TimeSl"];
+	repeated google.protobuf.Duration duration_sl = 19 [json_name = "DurationSl"];
+	repeated EmptyStruct empty_sl = 20 [json_name = "EmptySl"];
+}
+
+message SlicesSlicesStruct {
+	repeated TESTS_Int8List int8_sl_sl = 1 [json_name = "Int8SlSl"];
+	repeated TESTS_Int16List int16_sl_sl = 2 [json_name = "Int16SlSl"];
+	repeated TESTS_Int32ValueList int32_sl_sl = 3 [json_name = "Int32SlSl"];
+	repeated TESTS_Fixed32Int32ValueList int32_fixed_sl_sl = 4 [json_name = "Int32FixedSlSl"];
+	repeated TESTS_Int64ValueList int64_sl_sl = 5 [json_name = "Int64SlSl"];
+	repeated TESTS_Fixed64Int64ValueList int64_fixed_sl_sl = 6 [json_name = "Int64FixedSlSl"];
+	repeated TESTS_Int64ValueList int_sl_sl = 7 [json_name = "IntSlSl"];
+	repeated bytes byte_sl_sl = 8 [json_name = "ByteSlSl"];
+	repeated bytes uint8_sl_sl = 9 [json_name = "Uint8SlSl"];
+	repeated TESTS_UInt16List uint16_sl_sl = 10 [json_name = "Uint16SlSl"];
+	repeated TESTS_UInt32ValueList uint32_sl_sl = 11 [json_name = "Uint32SlSl"];
+	repeated TESTS_Fixed32UInt32ValueList uint32_fixed_sl_sl = 12 [json_name = "Uint32FixedSlSl"];
+	repeated TESTS_UInt64ValueList uint64_sl_sl = 13 [json_name = "Uint64SlSl"];
+	repeated TESTS_Fixed64UInt64ValueList uint64_fixed_sl_sl = 14 [json_name = "Uint64FixedSlSl"];
+	repeated TESTS_UInt64ValueList uint_sl_sl = 15 [json_name = "UintSlSl"];
+	repeated TESTS_StringValueList str_sl_sl = 16 [json_name = "StrSlSl"];
+	repeated TESTS_BytesList bytes_sl_sl = 17 [json_name = "BytesSlSl"];
+	repeated TESTS_TimestampList time_sl_sl = 18 [json_name = "TimeSlSl"];
+	repeated TESTS_DurationList duration_sl_sl = 19 [json_name = "DurationSlSl"];
+	repeated TESTS_EmptyStructList empty_sl_sl = 20 [json_name = "EmptySlSl"];
+}
+
+message PointersStruct {
+	sint32 int8_pt = 1 [json_name = "Int8Pt"];
+	sint32 int16_pt = 2 [json_name = "Int16Pt"];
+	sint32 int32_pt = 3 [json_name = "Int32Pt"];
+	sfixed32 int32_fixed_pt = 4 [json_name = "Int32FixedPt"];
+	sint64 int64_pt = 5 [json_name = "Int64Pt"];
+	sfixed64 int64_fixed_pt = 6 [json_name = "Int64FixedPt"];
+	sint64 int_pt = 7 [json_name = "IntPt"];
+	uint32 byte_pt = 8 [json_name = "BytePt"];
+	uint32 uint8_pt = 9 [json_name = "Uint8Pt"];
+	uint32 uint16_pt = 10 [json_name = "Uint16Pt"];
+	uint32 uint32_pt = 11 [json_name = "Uint32Pt"];
+	fixed32 uint32_fixed_pt = 12 [json_name = "Uint32FixedPt"];
+	uint64 uint64_pt = 13 [json_name = "Uint64Pt"];
+	fixed64 uint64_fixed_pt = 14 [json_name = "Uint64FixedPt"];
+	uint64 uint_pt = 15 [json_name = "UintPt"];
+	string str_pt = 16 [json_name = "StrPt"];
+	bytes bytes_pt = 17 [json_name = "BytesPt"];
+	google.protobuf.Timestamp time_pt = 18 [json_name = "TimePt"];
+	google.protobuf.Duration duration_pt = 19 [json_name = "DurationPt"];
+	EmptyStruct empty_pt = 20 [json_name = "EmptyPt"];
+}
+
+message PointerSlicesStruct {
+	repeated sint32 int8_pt_sl = 1 [json_name = "Int8PtSl"];
+	repeated sint32 int16_pt_sl = 2 [json_name = "Int16PtSl"];
+	repeated sint32 int32_pt_sl = 3 [json_name = "Int32PtSl"];
+	repeated sfixed32 int32_fixed_pt_sl = 4 [json_name = "Int32FixedPtSl"];
+	repeated sint64 int64_pt_sl = 5 [json_name = "Int64PtSl"];
+	repeated sfixed64 int64_fixed_pt_sl = 6 [json_name = "Int64FixedPtSl"];
+	repeated sint64 int_pt_sl = 7 [json_name = "IntPtSl"];
+	bytes byte_pt_sl = 8 [json_name = "BytePtSl"];
+	bytes uint8_pt_sl = 9 [json_name = "Uint8PtSl"];
+	repeated uint32 uint16_pt_sl = 10 [json_name = "Uint16PtSl"];
+	repeated uint32 uint32_pt_sl = 11 [json_name = "Uint32PtSl"];
+	repeated fixed32 uint32_fixed_pt_sl = 12 [json_name = "Uint32FixedPtSl"];
+	repeated uint64 uint64_pt_sl = 13 [json_name = "Uint64PtSl"];
+	repeated fixed64 uint64_fixed_pt_sl = 14 [json_name = "Uint64FixedPtSl"];
+	repeated uint64 uint_pt_sl = 15 [json_name = "UintPtSl"];
+	repeated string str_pt_sl = 16 [json_name = "StrPtSl"];
+	repeated bytes bytes_pt_sl = 17 [json_name = "BytesPtSl"];
+	repeated google.protobuf.Timestamp time_pt_sl = 18 [json_name = "TimePtSl"];
+	repeated google.protobuf.Duration duration_pt_sl = 19 [json_name = "DurationPtSl"];
+	repeated EmptyStruct empty_pt_sl = 20 [json_name = "EmptyPtSl"];
+}
+
+message ComplexSt {
+	PrimitivesStruct pr_field = 1 [json_name = "PrField"];
+	ArraysStruct ar_field = 2 [json_name = "ArField"];
+	SlicesStruct sl_field = 3 [json_name = "SlField"];
+	PointersStruct pt_field = 4 [json_name = "PtField"];
+}
+
+message EmbeddedSt1 {
+	PrimitivesStruct primitives_struct = 1 [json_name = "PrimitivesStruct"];
+}
+
+message EmbeddedSt2 {
+	PrimitivesStruct primitives_struct = 1 [json_name = "PrimitivesStruct"];
+	ArraysStruct arrays_struct = 2 [json_name = "ArraysStruct"];
+	SlicesStruct slices_struct = 3 [json_name = "SlicesStruct"];
+	PointersStruct pointers_struct = 4 [json_name = "PointersStruct"];
+}
+
+message EmbeddedSt3 {
+	PrimitivesStruct primitives_struct = 1 [json_name = "PrimitivesStruct"];
+	ArraysStruct arrays_struct = 2 [json_name = "ArraysStruct"];
+	SlicesStruct slices_struct = 3 [json_name = "SlicesStruct"];
+	PointersStruct pointers_struct = 4 [json_name = "PointersStruct"];
+	EmptyStruct empty_struct = 5 [json_name = "EmptyStruct"];
+}
+
+message EmbeddedSt4 {
+	sint64 foo1 = 1 [json_name = "Foo1"];
+	PrimitivesStruct primitives_struct = 2 [json_name = "PrimitivesStruct"];
+	string foo2 = 3 [json_name = "Foo2"];
+	ArraysStruct arrays_struct_field = 4 [json_name = "ArraysStructField"];
+	bytes foo3 = 5 [json_name = "Foo3"];
+	SlicesStruct slices_struct = 6 [json_name = "SlicesStruct"];
+	bool foo4 = 7 [json_name = "Foo4"];
+	PointersStruct pointers_struct_field = 8 [json_name = "PointersStructField"];
+	uint64 foo5 = 9 [json_name = "Foo5"];
+}
+
+message EmbeddedSt5NameOverride {
+	sint64 foo1 = 1 [json_name = "Foo1"];
+	PrimitivesStruct primitives_struct = 2 [json_name = "PrimitivesStruct"];
+	string foo2 = 3 [json_name = "Foo2"];
+	ArraysStruct arrays_struct_field = 4 [json_name = "ArraysStructField"];
+	bytes foo3 = 5 [json_name = "Foo3"];
+	SlicesStruct slices_struct = 6 [json_name = "SlicesStruct"];
+	bool foo4 = 7 [json_name = "Foo4"];
+	PointersStruct pointers_struct_field = 8 [json_name = "PointersStructField"];
+	uint64 foo5 = 9 [json_name = "Foo5"];
+}
+
+message AminoMarshalerStruct1 {
+	sint64 c = 1 [json_name = "C"];
+	sint64 d = 2 [json_name = "D"];
+}
+
+message ReprStruct1 {
+	sint64 c = 1 [json_name = "C"];
+	sint64 d = 2 [json_name = "D"];
+}
+
+message AminoMarshalerStruct2 {
+	repeated ReprElem2 value = 1;
+}
+
+message ReprElem2 {
+	string key = 1 [json_name = "Key"];
+	google.protobuf.Any value = 2 [json_name = "Value"];
+}
+
+message AminoMarshalerStruct3 {
+	sint32 value = 1;
+}
+
+message AminoMarshalerInt4 {
+	sint32 a = 1 [json_name = "A"];
+}
+
+message AminoMarshalerInt5 {
+	string value = 1;
+}
+
+message AminoMarshalerStruct6 {
+	repeated AminoMarshalerStruct1 value = 1;
+}
+
+message AminoMarshalerStruct7 {
+	bytes value = 1;
+}
+
+message ReprElem7 {
+	uint32 value = 1;
+}
+
+message IntDef {
+	sint64 value = 1;
+}
+
+message IntAr {
+	repeated sint64 value = 1;
+}
+
+message IntSl {
+	repeated sint64 value = 1;
+}
+
+message ByteAr {
+	bytes value = 1;
+}
+
+message ByteSl {
+	bytes value = 1;
+}
+
+message PrimitivesStructDef {
+	sint32 int8 = 1 [json_name = "Int8"];
+	sint32 int16 = 2 [json_name = "Int16"];
+	sint32 int32 = 3 [json_name = "Int32"];
+	sfixed32 int32_fixed = 4 [json_name = "Int32Fixed"];
+	sint64 int64 = 5 [json_name = "Int64"];
+	sfixed64 int64_fixed = 6 [json_name = "Int64Fixed"];
+	sint64 int = 7 [json_name = "Int"];
+	uint32 byte = 8 [json_name = "Byte"];
+	uint32 uint8 = 9 [json_name = "Uint8"];
+	uint32 uint16 = 10 [json_name = "Uint16"];
+	uint32 uint32 = 11 [json_name = "Uint32"];
+	fixed32 uint32_fixed = 12 [json_name = "Uint32Fixed"];
+	uint64 uint64 = 13 [json_name = "Uint64"];
+	fixed64 uint64_fixed = 14 [json_name = "Uint64Fixed"];
+	uint64 uint = 15 [json_name = "Uint"];
+	string str = 16 [json_name = "Str"];
+	bytes bytes = 17 [json_name = "Bytes"];
+	google.protobuf.Timestamp time = 18 [json_name = "Time"];
+	google.protobuf.Duration duration = 19 [json_name = "Duration"];
+	EmptyStruct empty = 20 [json_name = "Empty"];
+}
+
+message PrimitivesStructSl {
+	repeated PrimitivesStruct value = 1;
+}
+
+message PrimitivesStructAr {
+	repeated PrimitivesStruct value = 1;
+}
+
+message Concrete1 {
+}
+
+message Concrete2 {
+}
+
+message ConcreteTypeDef {
+	bytes value = 1;
+}
+
+message ConcreteWrappedBytes {
+	bytes value = 1 [json_name = "Value"];
+}
+
+message InterfaceFieldsStruct {
+	google.protobuf.Any f1 = 1 [json_name = "F1"];
+	google.protobuf.Any f2 = 2 [json_name = "F2"];
+	google.protobuf.Any f3 = 3 [json_name = "F3"];
+	google.protobuf.Any f4 = 4 [json_name = "F4"];
+}
+
+message TESTS_BytesList {
+	repeated bytes Value = 1;
+}
+
+message TESTS_BytesListList {
+	repeated TESTS_BytesList Value = 1;
+}
+
+message TESTS_DurationList {
+	repeated google.protobuf.Duration Value = 1;
+}
+
+message TESTS_EmptyStructList {
+	repeated EmptyStruct Value = 1;
+}
+
+message TESTS_Fixed32Int32ValueList {
+	repeated sfixed32 Value = 1;
+}
+
+message TESTS_Fixed32UInt32ValueList {
+	repeated fixed32 Value = 1;
+}
+
+message TESTS_Fixed64Int64ValueList {
+	repeated sfixed64 Value = 1;
+}
+
+message TESTS_Fixed64UInt64ValueList {
+	repeated fixed64 Value = 1;
+}
+
+message TESTS_Int16List {
+	repeated sint32 Value = 1;
+}
+
+message TESTS_Int32ValueList {
+	repeated sint32 Value = 1;
+}
+
+message TESTS_Int64ValueList {
+	repeated sint64 Value = 1;
+}
+
+message TESTS_Int8List {
+	repeated sint32 Value = 1;
+}
+
+message TESTS_StringValueList {
+	repeated string Value = 1;
+}
+
+message TESTS_TimestampList {
+	repeated google.protobuf.Timestamp Value = 1;
+}
+
+message TESTS_UInt16List {
+	repeated uint32 Value = 1;
+}
+
+message TESTS_UInt32ValueList {
+	repeated uint32 Value = 1;
+}
+
+message TESTS_UInt64ValueList {
+	repeated uint64 Value = 1;
+}

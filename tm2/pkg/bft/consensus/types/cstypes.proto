@@ -1,0 +1,103 @@
+syntax = "proto3";
+package tm;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/bft/consensus/types/pb";
+
+// imports
+import "github.com/gnolang/gno/tm2/pkg/bft/abci/types/abci.proto";
+import "github.com/gnolang/gno/tm2/pkg/crypto/merkle/merkle.proto";
+import "github.com/gnolang/gno/tm2/pkg/bft/types/types.proto";
+import "github.com/gnolang/gno/tm2/pkg/bitarray/bitarray.proto";
+import "google/protobuf/timestamp.proto";
+
+// messages
+message RoundState {
+	sint64 height = 1;
+	sint64 round = 2;
+	uint32 step = 3;
+	google.protobuf.Timestamp start_time = 4;
+	google.protobuf.Timestamp commit_time = 5;
+	ValidatorSet validators = 6;
+	Proposal proposal = 7;
+	Block proposal_block = 8;
+	PartSet proposal_block_parts = 9;
+	sint64 locked_round = 10;
+	Block locked_block = 11;
+	PartSet locked_block_parts = 12;
+	sint64 valid_round = 13;
+	Block valid_block = 14;
+	PartSet valid_block_parts = 15;
+	HeightVoteSet votes = 16;
+	sint64 commit_round = 17;
+	VoteSet last_commit = 18;
+	ValidatorSet last_validators = 19;
+	bool triggered_timeout_precommit = 20;
+}
+
+message HRS {
+	sint64 height = 1;
+	sint64 round = 2;
+	uint32 step = 3;
+}
+
+message RoundStateSimple {
+	string height_round_step = 1 [json_name = "height/round/step"];
+	google.protobuf.Timestamp start_time = 2;
+	bytes proposal_block_hash = 3;
+	bytes locked_block_hash = 4;
+	bytes valid_block_hash = 5;
+	HeightVoteSet votes = 6 [json_name = "height_vote_set"];
+}
+
+message PeerRoundState {
+	sint64 height = 1;
+	sint64 round = 2;
+	uint32 step = 3;
+	google.protobuf.Timestamp start_time = 4;
+	bool proposal = 5;
+	PartSetHeader proposal_block_parts_header = 6;
+	BitArray proposal_block_parts = 7;
+	sint64 proposal_pol_round = 8;
+	BitArray proposal_pol = 9;
+	BitArray prevotes = 10;
+	BitArray precommits = 11;
+	sint64 last_commit_round = 12;
+	BitArray last_commit = 13;
+	sint64 catchup_commit_round = 14;
+	BitArray catchup_commit = 15;
+}
+
+message HeightVoteSet {
+}
+
+message EventNewRoundStep {
+	HRS hrs = 1;
+	sint64 seconds_since_start_time = 2 [json_name = "SecondsSinceStartTime"];
+	sint64 last_commit_round = 3 [json_name = "LastCommitRound"];
+}
+
+message EventNewValidBlock {
+	HRS hrs = 1;
+	PartSetHeader block_parts_header = 2;
+	BitArray block_parts = 3;
+	bool is_commit = 4;
+}
+
+message EventNewRound {
+	HRS hrs = 1;
+	Validator proposer = 2;
+	sint64 proposer_index = 3;
+}
+
+message EventCompleteProposal {
+	HRS hrs = 1;
+	BlockID block_id = 2;
+}
+
+message EventTimeoutPropose {
+	HRS hrs = 1;
+}
+
+message EventTimeoutWait {
+	HRS hrs = 1;
+}

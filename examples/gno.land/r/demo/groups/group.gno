@@ -1,13 +1,14 @@
 package groups
 
 import (
-	"gno.land/p/demo/avl"
 	"std"
 	"strconv"
 	"time"
+
+	"gno.land/p/demo/avl"
 )
 
-type GroupID  uint64
+type GroupID uint64
 
 func (gid GroupID) String() string {
 	return strconv.Itoa(int(gid))
@@ -54,10 +55,10 @@ func (group *Group) newMember(id MemberID, address std.Address, weight int, meta
 }
 
 func (group *Group) HasPermission(addr std.Address, perm Permission) bool {
-    if group.creator != addr {
-        return false
-    }
-    return isValidPermission(perm)
+	if group.creator != addr {
+		return false
+	}
+	return isValidPermission(perm)
 }
 
 func (group *Group) RenderGroup() string {
@@ -68,8 +69,8 @@ func (group *Group) RenderGroup() string {
 		"Group Last MemberID: " + memberIDKey(group.lastMemberID) + "\n\n"
 
 	str += "Group Members: \n\n"
-	group.members.Iterate("", "", func(n *avl.Node) bool {
-		member := n.Value().(*Member)
+	group.members.Iterate("", "", func(key string, value interface{}) bool {
+		member := value.(*Member)
 		str += member.getMemberStr()
 		return false
 	})
@@ -83,7 +84,6 @@ func (group *Group) deleteGroup() {
 		panic("group does not exist with id " + group.id.String())
 	}
 	gGroupsByName.Remove(group.name)
-
 }
 
 func (group *Group) deleteMember(mid MemberID) {

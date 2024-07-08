@@ -4,6 +4,7 @@ import (
 	"std"
 	"strconv"
 	"strings"
+
 	"gno.land/r/demo/users"
 )
 
@@ -15,7 +16,7 @@ func getGroup(gid GroupID) *Group {
 	gidkey := groupIDKey(gid)
 	group_, exists := gGroups.Get(gidkey)
 	if !exists {
-		panic("group id ("+gid.String()+") does not exists")
+		panic("group id (" + gid.String() + ") does not exists")
 	}
 	group := group_.(*Group)
 	return group
@@ -29,7 +30,7 @@ func incGetGroupID() GroupID {
 func padLeft(str string, length int) string {
 	if len(str) >= length {
 		return str
-	} 
+	}
 	return strings.Repeat(" ", length-len(str)) + str
 }
 
@@ -37,9 +38,8 @@ func padZero(u64 uint64, length int) string {
 	str := strconv.Itoa(int(u64))
 	if len(str) >= length {
 		return str
-	} 
+	}
 	return strings.Repeat("0", length-len(str)) + str
-	
 }
 
 func groupIDKey(gid GroupID) string {
@@ -78,18 +78,17 @@ func summaryOf(str string, length int) string {
 func displayAddressMD(addr std.Address) string {
 	user := users.GetUserByAddress(addr)
 	if user == nil {
-		return "[" + addr.String() + "](/r/users:" + addr.String() + ")"
-	} 
-	return "[@" + user.Name() + "](/r/users:" + user.Name() + ")"
+		return "[" + addr.String() + "](/r/demo/users:" + addr.String() + ")"
+	}
+	return "[@" + user.Name + "](/r/demo/users:" + user.Name + ")"
 }
 
 func usernameOf(addr std.Address) string {
 	user := users.GetUserByAddress(addr)
 	if user == nil {
 		panic("user not found")
-	} 
-	return user.Name()
-	
+	}
+	return user.Name
 }
 
 func isValidPermission(perm Permission) bool {

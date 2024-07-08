@@ -1,0 +1,10 @@
+syntax = "proto3";
+package tm;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/bitarray/pb";
+
+// messages
+message BitArray {
+	sint64 bits = 1;
+	repeated uint64 elems = 2;
+}

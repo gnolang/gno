@@ -1,11 +1,8 @@
 package grc1155
 
 import (
-	"fmt"
 	"std"
 	"testing"
-
-	"gno.land/r/demo/users"
 )
 
 const dummyURI = "ipfs://xyz"
@@ -35,8 +32,8 @@ func TestBalanceOf(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm").Resolve()
-	addr2 := users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj").Resolve()
+	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -86,8 +83,8 @@ func TestBalanceOfBatch(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm").Resolve()
-	addr2 := users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj").Resolve()
+	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -126,8 +123,8 @@ func TestIsApprovedForAll(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm").Resolve()
-	addr2 := users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj").Resolve()
+	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	isApprovedForAll := dummy.IsApprovedForAll(addr1, addr2)
 	if isApprovedForAll != false {
@@ -142,7 +139,7 @@ func TestSetApprovalForAll(t *testing.T) {
 	}
 
 	caller := std.GetOrigCaller()
-	addr := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm").Resolve()
+	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	isApprovedForAll := dummy.IsApprovedForAll(caller, addr)
 	if isApprovedForAll != false {
@@ -177,7 +174,7 @@ func TestSafeTransferFrom(t *testing.T) {
 	}
 
 	caller := std.GetOrigCaller()
-	addr := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm").Resolve()
+	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid := TokenID("1")
 
@@ -224,7 +221,7 @@ func TestSafeBatchTransferFrom(t *testing.T) {
 	}
 
 	caller := std.GetOrigCaller()
-	addr := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm").Resolve()
+	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -280,8 +277,8 @@ func TestSafeMint(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm").Resolve()
-	addr2 := users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj").Resolve()
+	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -327,8 +324,8 @@ func TestSafeBatchMint(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr1 := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm").Resolve()
-	addr2 := users.AddressOrName("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj").Resolve()
+	addr1 := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
+	addr2 := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -374,7 +371,7 @@ func TestBurn(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm").Resolve()
+	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")
@@ -417,7 +414,7 @@ func TestBatchBurn(t *testing.T) {
 		t.Errorf("should not be nil")
 	}
 
-	addr := users.AddressOrName("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm").Resolve()
+	addr := std.Address("g1var589z07ppjsjd24ukm4uguzwdt0tw7g47cgm")
 
 	tid1 := TokenID("1")
 	tid2 := TokenID("2")

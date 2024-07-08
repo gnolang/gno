@@ -6,6 +6,8 @@ import (
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/users"
+
+	pusers "gno.land/p/demo/users"
 )
 
 var (
@@ -28,8 +30,8 @@ func mintNNFT(owner std.Address, n uint64) {
 
 // Getters
 
-func BalanceOf(user users.AddressOrName) uint64 {
-	balance, err := foo.BalanceOf(user.Resolve())
+func BalanceOf(user pusers.AddressOrName) uint64 {
+	balance, err := foo.BalanceOf(users.Resolve(user))
 	if err != nil {
 		panic(err)
 	}
@@ -46,8 +48,8 @@ func OwnerOf(tid grc721.TokenID) std.Address {
 	return owner
 }
 
-func IsApprovedForAll(owner, user users.AddressOrName) bool {
-	return foo.IsApprovedForAll(owner.Resolve(), user.Resolve())
+func IsApprovedForAll(owner, user pusers.AddressOrName) bool {
+	return foo.IsApprovedForAll(users.Resolve(owner), users.Resolve(user))
 }
 
 func GetApproved(tid grc721.TokenID) std.Address {
@@ -61,22 +63,22 @@ func GetApproved(tid grc721.TokenID) std.Address {
 
 // Setters
 
-func Approve(user users.AddressOrName, tid grc721.TokenID) {
-	err := foo.Approve(user.Resolve(), tid)
+func Approve(user pusers.AddressOrName, tid grc721.TokenID) {
+	err := foo.Approve(users.Resolve(user), tid)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func SetApprovalForAll(user users.AddressOrName, approved bool) {
-	err := foo.SetApprovalForAll(user.Resolve(), approved)
+func SetApprovalForAll(user pusers.AddressOrName, approved bool) {
+	err := foo.SetApprovalForAll(users.Resolve(user), approved)
 	if err != nil {
 		panic(err)
 	}
 }
 
-func TransferFrom(from, to users.AddressOrName, tid grc721.TokenID) {
-	err := foo.TransferFrom(from.Resolve(), to.Resolve(), tid)
+func TransferFrom(from, to pusers.AddressOrName, tid grc721.TokenID) {
+	err := foo.TransferFrom(users.Resolve(from), users.Resolve(to), tid)
 	if err != nil {
 		panic(err)
 	}
@@ -84,17 +86,17 @@ func TransferFrom(from, to users.AddressOrName, tid grc721.TokenID) {
 
 // Admin
 
-func Mint(to users.AddressOrName, tid grc721.TokenID) {
-	caller := std.GetOrigCaller()
+func Mint(to pusers.AddressOrName, tid grc721.TokenID) {
+	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
-	err := foo.Mint(to.Resolve(), tid)
+	err := foo.Mint(users.Resolve(to), tid)
 	if err != nil {
 		panic(err)
 	}
 }
 
 func Burn(tid grc721.TokenID) {
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 	assertIsAdmin(caller)
 	err := foo.Burn(tid)
 	if err != nil {

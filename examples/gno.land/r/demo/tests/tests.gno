@@ -1,9 +1,45 @@
 package tests
 
-import "std"
+import (
+	"std"
+
+	rsubtests "gno.land/r/demo/tests/subtests"
+)
+
+var counter int
+
+func IncCounter() {
+	counter++
+}
+
+func Counter() int {
+	return counter
+}
 
 func CurrentRealmPath() string {
-	return std.CurrentRealmPath()
+	return std.CurrentRealm().PkgPath()
+}
+
+var initOrigCaller = std.GetOrigCaller()
+
+func InitOrigCaller() std.Address {
+	return initOrigCaller
+}
+
+func CallAssertOriginCall() {
+	std.AssertOriginCall()
+}
+
+func CallIsOriginCall() bool {
+	return std.IsOriginCall()
+}
+
+func CallSubtestsAssertOriginCall() {
+	rsubtests.CallAssertOriginCall()
+}
+
+func CallSubtestsIsOriginCall() bool {
+	return rsubtests.CallIsOriginCall()
 }
 
 //----------------------------------------
@@ -22,7 +58,7 @@ func (t *TestRealmObject) Modify() {
 }
 
 //----------------------------------------
-// Test helpers to test a particualr realm bug.
+// Test helpers to test a particular realm bug.
 
 type TestNode struct {
 	Name  string
@@ -50,4 +86,16 @@ func ModTestNodes() {
 
 func PrintTestNodes() {
 	println(gTestNode2.Child.Name)
+}
+
+func GetPrevRealm() std.Realm {
+	return std.PrevRealm()
+}
+
+func GetRSubtestsPrevRealm() std.Realm {
+	return rsubtests.GetPrevRealm()
+}
+
+func Exec(fn func()) {
+	fn()
 }

@@ -1,0 +1,174 @@
+syntax = "proto3";
+package tm;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/bft/types/pb";
+
+// imports
+import "github.com/gnolang/gno/tm2/pkg/bft/abci/types/abci.proto";
+import "github.com/gnolang/gno/tm2/pkg/crypto/merkle/merkle.proto";
+import "github.com/gnolang/gno/tm2/pkg/bitarray/bitarray.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+// messages
+message Proposal {
+	uint32 type = 1 [json_name = "Type"];
+	sint64 height = 2;
+	sint64 round = 3;
+	sint64 pol_round = 4;
+	BlockID block_id = 5;
+	google.protobuf.Timestamp timestamp = 6;
+	bytes signature = 7;
+}
+
+message Block {
+	Header header = 1;
+	Data data = 2;
+	Commit last_commit = 3;
+}
+
+message Header {
+	string version = 1;
+	string chain_id = 2;
+	sint64 height = 3;
+	google.protobuf.Timestamp time = 4;
+	sint64 num_txs = 5;
+	sint64 total_txs = 6;
+	string app_version = 7;
+	BlockID last_block_id = 8;
+	bytes last_commit_hash = 9;
+	bytes data_hash = 10;
+	bytes validators_hash = 11;
+	bytes next_validators_hash = 12;
+	bytes consensus_hash = 13;
+	bytes app_hash = 14;
+	bytes last_results_hash = 15;
+	string proposer_address = 16;
+}
+
+message Data {
+	repeated bytes txs = 1;
+}
+
+message Commit {
+	BlockID block_id = 1;
+	repeated CommitSig precommits = 2;
+}
+
+message BlockID {
+	bytes hash = 1;
+	PartSetHeader parts_header = 2 [json_name = "parts"];
+}
+
+message CommitSig {
+	uint32 type = 1;
+	sint64 height = 2;
+	sint64 round = 3;
+	BlockID block_id = 4;
+	google.protobuf.Timestamp timestamp = 5;
+	string validator_address = 6;
+	sint64 validator_index = 7;
+	bytes signature = 8;
+}
+
+message Vote {
+	uint32 type = 1;
+	sint64 height = 2;
+	sint64 round = 3;
+	BlockID block_id = 4;
+	google.protobuf.Timestamp timestamp = 5;
+	string validator_address = 6;
+	sint64 validator_index = 7;
+	bytes signature = 8;
+}
+
+message Part {
+	sint64 index = 1;
+	bytes bytes = 2;
+	SimpleProof proof = 3;
+}
+
+message PartSet {
+}
+
+message PartSetHeader {
+	sint64 total = 1;
+	bytes hash = 2;
+}
+
+message Validator {
+	string address = 1;
+	google.protobuf.Any pub_key = 2;
+	sint64 voting_power = 3;
+	sint64 proposer_priority = 4;
+}
+
+message ValidatorSet {
+	repeated Validator validators = 1;
+	Validator proposer = 2;
+}
+
+message EventNewBlock {
+	Block block = 1;
+	abci.ResponseBeginBlock result_begin_block = 2;
+	abci.ResponseEndBlock result_end_block = 3;
+}
+
+message EventNewBlockHeader {
+	Header header = 1;
+	abci.ResponseBeginBlock result_begin_block = 2;
+	abci.ResponseEndBlock result_end_block = 3;
+}
+
+message EventTx {
+	TxResult result = 1;
+}
+
+message EventVote {
+	Vote vote = 1;
+}
+
+message EventString {
+	string value = 1;
+}
+
+message EventValidatorSetUpdates {
+	repeated abci.ValidatorUpdate validator_updates = 1;
+}
+
+message DuplicateVoteEvidence {
+	google.protobuf.Any pub_key = 1 [json_name = "PubKey"];
+	Vote vote_a = 2 [json_name = "VoteA"];
+	Vote vote_b = 3 [json_name = "VoteB"];
+}
+
+message MockGoodEvidence {
+	sint64 height = 1 [json_name = "Height"];
+	string address = 2 [json_name = "Address"];
+}
+
+message MockRandomGoodEvidence {
+	MockGoodEvidence mock_good_evidence = 1 [json_name = "MockGoodEvidence"];
+}
+
+message MockBadEvidence {
+	MockGoodEvidence mock_good_evidence = 1 [json_name = "MockGoodEvidence"];
+}
+
+message TxResult {
+	sint64 height = 1;
+	uint32 index = 2;
+	bytes tx = 3;
+	abci.ResponseDeliverTx response = 4;
+}
+
+message MockAppState {
+	string account_owner = 1;
+}
+
+message VoteSet {
+}
+
+message TYPES_BytesList {
+	repeated bytes Value = 1;
+}

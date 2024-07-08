@@ -1,9 +1,0 @@
-syntax = "proto3";
-package tm;
-
-option go_package = "github.com/gnolang/gno/pkgs/bft/mempool/pb";
-
-// messages
-message TxMessage {
-	bytes Tx = 1;
-}

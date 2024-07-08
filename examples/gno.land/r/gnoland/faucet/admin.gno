@@ -25,7 +25,7 @@ func AdminSetTransferLimit(amount int64) string {
 	if err := assertIsAdmin(); err != nil {
 		return err.Error()
 	}
-	gLimit = std.Coin{Denom: "ugnot", Amount: amount}
+	gLimit = std.NewCoin("ugnot", amount)
 	return ""
 }
 
@@ -44,7 +44,7 @@ func AdminAddController(addr std.Address) string {
 
 	size := gControllers.Size()
 
-	if size >= gControllersSize {
+	if size >= gControllersMaxSize {
 		return "can not add more controllers than allowed"
 	}
 

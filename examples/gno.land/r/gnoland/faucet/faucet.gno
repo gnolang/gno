@@ -10,18 +10,18 @@ import (
 
 var (
 	// configurable by admin.
-	gAdminAddr       std.Address = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	gControllers                 = avl.NewTree()
-	gControllersSize             = 10 // limit it to 10
-	gInPause                     = false
-	gMessage                     = "# Community Faucet.\n\n"
+	gAdminAddr          std.Address = std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	gControllers                    = avl.NewTree()
+	gControllersMaxSize             = 10 // limit it to 10
+	gInPause                        = false
+	gMessage                        = "# Community Faucet.\n\n"
 
 	// internal vars, for stats.
 	gTotalTransferred std.Coins
 	gTotalTransfers   = uint(0)
 
 	// per request limit, 350 gnot
-	gLimit std.Coin = std.Coin{"ugnot", 350000000}
+	gLimit std.Coin = std.NewCoin("ugnot", 350000000)
 )
 
 func Transfer(to std.Address, send int64) string {
@@ -37,13 +37,13 @@ func Transfer(to std.Address, send int64) string {
 	if send > gLimit.Amount {
 		return errors.New("Per request limit " + gLimit.String() + " exceed").Error()
 	}
-	sendCoins := std.Coins{std.Coin{Denom: "ugnot", Amount: send}}
+	sendCoins := std.Coins{std.NewCoin("ugnot", send)}
 
 	gTotalTransferred = gTotalTransferred.Add(sendCoins)
 	gTotalTransfers++
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
-	pkgaddr := std.GetOrigPkgAddr()
+	pkgaddr := std.CurrentRealm().Addr()
 	banker.SendCoins(pkgaddr, to, sendCoins)
 	return ""
 }
@@ -52,11 +52,11 @@ func GetPerTransferLimit() int64 {
 	return gLimit.Amount
 }
 
-func Render(path string) string {
+func Render(_ string) string {
 	banker := std.GetBanker(std.BankerTypeRealmSend)
-	balance := banker.GetCoins(std.GetOrigPkgAddr())
+	balance := banker.GetCoins(std.CurrentRealm().Addr())
 
-	output := path + gMessage
+	output := gMessage
 	if gInPause {
 		output += "Status: inactive.\n"
 	} else {
@@ -65,11 +65,11 @@ func Render(path string) string {
 	output += ufmt.Sprintf("Balance: %s.\n", balance.String())
 	output += ufmt.Sprintf("Total transfers: %s (in %d times).\n\n", gTotalTransferred.String(), gTotalTransfers)
 
-	output += "Package address: " + std.GetOrigPkgAddr().String() + "\n\n"
+	output += "Package address: " + std.CurrentRealm().Addr().String() + "\n\n"
 	output += ufmt.Sprintf("Admin: %s\n\n ", gAdminAddr.String())
 	output += ufmt.Sprintf("Controllers:\n\n ")
 
-	for i := 0; i < gControllersSize; i++ {
+	for i := 0; i < gControllers.Size(); i++ {
 		_, v := gControllers.GetByIndex(i)
 		output += ufmt.Sprintf("%s  ", v.(std.Address))
 	}

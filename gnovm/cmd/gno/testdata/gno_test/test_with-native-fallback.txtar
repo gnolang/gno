@@ -1,0 +1,32 @@
+# Test native lib
+
+! gno test -v .
+
+! stdout .+
+stderr 'panic: unknown import path net \[recovered\]'
+stderr '	panic: gno.land/r/\w{8}/contract.gno:3:8: unknown import path net'
+
+gno test -v --with-native-fallback .
+
+! stdout .+
+stderr '=== RUN   TestFoo'
+stderr '--- PASS: TestFoo'
+
+-- contract.gno --
+package contract
+
+import "net"
+
+func Foo() {
+	_ = net.IPv4
+}
+
+-- contract_test.gno --
+package contract
+
+import "testing"
+
+func TestFoo(t *testing.T) {
+	Foo()
+}
+

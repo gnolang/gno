@@ -1,0 +1,603 @@
+syntax = "proto3";
+package gno;
+
+option go_package = "github.com/gnolang/gno/pb";
+
+// imports
+import "google/protobuf/any.proto";
+
+// messages
+message TypedValue {
+	google.protobuf.Any T = 1;
+	google.protobuf.Any V = 2;
+	bytes N = 3;
+}
+
+message StringValue {
+	string Value = 1;
+}
+
+message BigintValue {
+	string Value = 1;
+}
+
+message BigdecValue {
+	string Value = 1;
+}
+
+message PointerValue {
+	TypedValue TV = 1;
+	google.protobuf.Any Base = 2;
+	sint64 Index = 3;
+	TypedValue Key = 4;
+}
+
+message ArrayValue {
+	ObjectInfo ObjectInfo = 1;
+	repeated TypedValue List = 2;
+	bytes Data = 3;
+}
+
+message SliceValue {
+	google.protobuf.Any Base = 1;
+	sint64 Offset = 2;
+	sint64 Length = 3;
+	sint64 Maxcap = 4;
+}
+
+message StructValue {
+	ObjectInfo ObjectInfo = 1;
+	repeated TypedValue Fields = 2;
+}
+
+message FuncValue {
+	google.protobuf.Any Type = 1;
+	bool IsMethod = 2;
+	google.protobuf.Any Source = 3;
+	string Name = 4;
+	google.protobuf.Any Closure = 5;
+	string FileName = 6;
+	string PkgPath = 7;
+}
+
+message MapValue {
+	ObjectInfo ObjectInfo = 1;
+	MapList List = 2;
+}
+
+message MapList {
+	repeated MapListItem List = 1;
+}
+
+message MapListItem {
+	TypedValue Key = 1;
+	TypedValue Value = 2;
+}
+
+message BoundMethodValue {
+	ObjectInfo ObjectInfo = 1;
+	FuncValue Func = 2;
+	TypedValue Receiver = 3;
+}
+
+message TypeValue {
+	google.protobuf.Any Type = 1;
+}
+
+message PackageValue {
+	ObjectInfo ObjectInfo = 1;
+	google.protobuf.Any Block = 2;
+	string PkgName = 3;
+	string PkgPath = 4;
+	repeated string FNames = 5;
+	repeated google.protobuf.Any FBlocks = 6;
+}
+
+message Block {
+	ObjectInfo ObjectInfo = 1;
+	google.protobuf.Any Source = 2;
+	repeated TypedValue Values = 3;
+	google.protobuf.Any Parent = 4;
+	TypedValue Blank = 5;
+}
+
+message RefValue {
+	string ObjectID = 1;
+	bool Escaped = 2;
+	string PkgPath = 3;
+	string Hash = 4;
+}
+
+message ObjectID {
+	string Value = 1;
+}
+
+message ObjectInfo {
+	string ID = 1;
+	string Hash = 2;
+	string OwnerID = 3;
+	uint64 ModTime = 4;
+	sint64 RefCount = 5;
+	bool IsEscaped = 6;
+}
+
+message ValueHash {
+	string Value = 1;
+}
+
+message Hashlet {
+	bytes Value = 1;
+}
+
+message ValuePath {
+	uint32 Type = 1;
+	uint32 Depth = 2;
+	uint32 Index = 3;
+	string Name = 4;
+}
+
+message Location {
+	string PkgPath = 1;
+	string File = 2;
+	sint64 Line = 3;
+	sint64 Column = 4;
+}
+
+message Attributes {
+	sint64 Line = 1;
+	string Label = 2;
+}
+
+message NameExpr {
+	Attributes Attributes = 1;
+	ValuePath Path = 2;
+	string Name = 3;
+}
+
+message BasicLitExpr {
+	Attributes Attributes = 1;
+	sint64 Kind = 2;
+	string Value = 3;
+}
+
+message BinaryExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any Left = 2;
+	sint64 Op = 3;
+	google.protobuf.Any Right = 4;
+}
+
+message CallExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any Func = 2;
+	repeated google.protobuf.Any Args = 3;
+	bool Varg = 4;
+	sint64 NumArgs = 5;
+}
+
+message IndexExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any X = 2;
+	google.protobuf.Any Index = 3;
+	bool HasOK = 4;
+}
+
+message SelectorExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any X = 2;
+	ValuePath Path = 3;
+	string Sel = 4;
+}
+
+message SliceExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any X = 2;
+	google.protobuf.Any Low = 3;
+	google.protobuf.Any High = 4;
+	google.protobuf.Any Max = 5;
+}
+
+message StarExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any X = 2;
+}
+
+message RefExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any X = 2;
+}
+
+message TypeAssertExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any X = 2;
+	google.protobuf.Any Type = 3;
+	bool HasOK = 4;
+}
+
+message UnaryExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any X = 2;
+	sint64 Op = 3;
+}
+
+message CompositeLitExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any Type = 2;
+	repeated KeyValueExpr Elts = 3;
+}
+
+message KeyValueExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any Key = 2;
+	google.protobuf.Any Value = 3;
+}
+
+message FuncLitExpr {
+	Attributes Attributes = 1;
+	StaticBlock StaticBlock = 2;
+	FuncTypeExpr Type = 3;
+	repeated google.protobuf.Any Body = 4;
+}
+
+message ConstExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any Source = 2;
+	TypedValue TypedValue = 3;
+}
+
+message FieldTypeExpr {
+	Attributes Attributes = 1;
+	string Name = 2;
+	google.protobuf.Any Type = 3;
+	google.protobuf.Any Tag = 4;
+}
+
+message ArrayTypeExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any Len = 2;
+	google.protobuf.Any Elt = 3;
+}
+
+message SliceTypeExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any Elt = 2;
+	bool Vrd = 3;
+}
+
+message InterfaceTypeExpr {
+	Attributes Attributes = 1;
+	repeated FieldTypeExpr Methods = 2;
+	string Generic = 3;
+}
+
+message ChanTypeExpr {
+	Attributes Attributes = 1;
+	sint64 Dir = 2;
+	google.protobuf.Any Value = 3;
+}
+
+message FuncTypeExpr {
+	Attributes Attributes = 1;
+	repeated FieldTypeExpr Params = 2;
+	repeated FieldTypeExpr Results = 3;
+}
+
+message MapTypeExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any Key = 2;
+	google.protobuf.Any Value = 3;
+}
+
+message StructTypeExpr {
+	Attributes Attributes = 1;
+	repeated FieldTypeExpr Fields = 2;
+}
+
+message constTypeExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any Source = 2;
+	google.protobuf.Any Type = 3;
+}
+
+message MaybeNativeTypeExpr {
+	Attributes Attributes = 1;
+	google.protobuf.Any Type = 2;
+}
+
+message AssignStmt {
+	Attributes Attributes = 1;
+	repeated google.protobuf.Any Lhs = 2;
+	sint64 Op = 3;
+	repeated google.protobuf.Any Rhs = 4;
+}
+
+message BlockStmt {
+	Attributes Attributes = 1;
+	StaticBlock StaticBlock = 2;
+	repeated google.protobuf.Any Body = 3;
+}
+
+message BranchStmt {
+	Attributes Attributes = 1;
+	sint64 Op = 2;
+	string Label = 3;
+	uint32 Depth = 4;
+	sint64 BodyIndex = 5;
+}
+
+message DeclStmt {
+	Attributes Attributes = 1;
+	repeated google.protobuf.Any Body = 2;
+}
+
+message DeferStmt {
+	Attributes Attributes = 1;
+	CallExpr Call = 2;
+}
+
+message ExprStmt {
+	Attributes Attributes = 1;
+	google.protobuf.Any X = 2;
+}
+
+message ForStmt {
+	Attributes Attributes = 1;
+	StaticBlock StaticBlock = 2;
+	google.protobuf.Any Init = 3;
+	google.protobuf.Any Cond = 4;
+	google.protobuf.Any Post = 5;
+	repeated google.protobuf.Any Body = 6;
+}
+
+message GoStmt {
+	Attributes Attributes = 1;
+	CallExpr Call = 2;
+}
+
+message IfStmt {
+	Attributes Attributes = 1;
+	StaticBlock StaticBlock = 2;
+	google.protobuf.Any Init = 3;
+	google.protobuf.Any Cond = 4;
+	IfCaseStmt Then = 5;
+	IfCaseStmt Else = 6;
+}
+
+message IfCaseStmt {
+	Attributes Attributes = 1;
+	StaticBlock StaticBlock = 2;
+	repeated google.protobuf.Any Body = 3;
+}
+
+message IncDecStmt {
+	Attributes Attributes = 1;
+	google.protobuf.Any X = 2;
+	sint64 Op = 3;
+}
+
+message RangeStmt {
+	Attributes Attributes = 1;
+	StaticBlock StaticBlock = 2;
+	google.protobuf.Any X = 3;
+	google.protobuf.Any Key = 4;
+	google.protobuf.Any Value = 5;
+	sint64 Op = 6;
+	repeated google.protobuf.Any Body = 7;
+	bool IsMap = 8;
+	bool IsString = 9;
+	bool IsArrayPtr = 10;
+}
+
+message ReturnStmt {
+	Attributes Attributes = 1;
+	repeated google.protobuf.Any Results = 2;
+}
+
+message PanicStmt {
+	Attributes Attributes = 1;
+	google.protobuf.Any Exception = 2;
+}
+
+message SelectStmt {
+	Attributes Attributes = 1;
+	repeated SelectCaseStmt Cases = 2;
+}
+
+message SelectCaseStmt {
+	Attributes Attributes = 1;
+	StaticBlock StaticBlock = 2;
+	google.protobuf.Any Comm = 3;
+	repeated google.protobuf.Any Body = 4;
+}
+
+message SendStmt {
+	Attributes Attributes = 1;
+	google.protobuf.Any Chan = 2;
+	google.protobuf.Any Value = 3;
+}
+
+message SwitchStmt {
+	Attributes Attributes = 1;
+	StaticBlock StaticBlock = 2;
+	google.protobuf.Any Init = 3;
+	google.protobuf.Any X = 4;
+	bool IsTypeSwitch = 5;
+	repeated SwitchClauseStmt Clauses = 6;
+	string VarName = 7;
+}
+
+message SwitchClauseStmt {
+	Attributes Attributes = 1;
+	StaticBlock StaticBlock = 2;
+	repeated google.protobuf.Any Cases = 3;
+	repeated google.protobuf.Any Body = 4;
+}
+
+message EmptyStmt {
+	Attributes Attributes = 1;
+}
+
+message bodyStmt {
+	Attributes Attributes = 1;
+	repeated google.protobuf.Any Body = 2;
+	sint64 BodyLen = 3;
+	sint64 NextBodyIndex = 4;
+	sint64 NumOps = 5;
+	sint64 NumValues = 6;
+	sint64 NumExprs = 7;
+	sint64 NumStmts = 8;
+	google.protobuf.Any Cond = 9;
+	google.protobuf.Any Post = 10;
+	google.protobuf.Any Active = 11;
+	google.protobuf.Any Key = 12;
+	google.protobuf.Any Value = 13;
+	sint64 Op = 14;
+	sint64 ListLen = 15;
+	sint64 ListIndex = 16;
+	MapListItem NextItem = 17;
+	sint64 StrLen = 18;
+	sint64 StrIndex = 19;
+	sint32 NextRune = 20;
+}
+
+message FuncDecl {
+	Attributes Attributes = 1;
+	StaticBlock StaticBlock = 2;
+	NameExpr NameExpr = 3;
+	bool IsMethod = 4;
+	FieldTypeExpr Recv = 5;
+	FuncTypeExpr Type = 6;
+	repeated google.protobuf.Any Body = 7;
+}
+
+message ImportDecl {
+	Attributes Attributes = 1;
+	NameExpr NameExpr = 2;
+	string PkgPath = 3;
+}
+
+message ValueDecl {
+	Attributes Attributes = 1;
+	repeated NameExpr NameExprs = 2;
+	google.protobuf.Any Type = 3;
+	repeated google.protobuf.Any Values = 4;
+	bool Const = 5;
+}
+
+message TypeDecl {
+	Attributes Attributes = 1;
+	NameExpr NameExpr = 2;
+	google.protobuf.Any Type = 3;
+	bool IsAlias = 4;
+}
+
+message StaticBlock {
+	Block Block = 1;
+	repeated google.protobuf.Any Types = 2;
+	uint32 NumNames = 3;
+	repeated string Names = 4;
+	repeated string Consts = 5;
+	repeated string Externs = 6;
+	Location Loc = 7;
+}
+
+message FileSet {
+	repeated FileNode Files = 1;
+}
+
+message FileNode {
+	Attributes Attributes = 1;
+	StaticBlock StaticBlock = 2;
+	string Name = 3;
+	string PkgName = 4;
+	repeated google.protobuf.Any Decls = 5;
+}
+
+message PackageNode {
+	Attributes Attributes = 1;
+	StaticBlock StaticBlock = 2;
+	string PkgPath = 3;
+	string PkgName = 4;
+	FileSet FileSet = 5;
+}
+
+message RefNode {
+	Location Location = 1;
+	google.protobuf.Any BlockNode = 2;
+}
+
+message PrimitiveType {
+	sint64 Value = 1;
+}
+
+message PointerType {
+	google.protobuf.Any Elt = 1;
+}
+
+message ArrayType {
+	sint64 Len = 1;
+	google.protobuf.Any Elt = 2;
+	bool Vrd = 3;
+}
+
+message SliceType {
+	google.protobuf.Any Elt = 1;
+	bool Vrd = 2;
+}
+
+message StructType {
+	string PkgPath = 1;
+	repeated FieldType Fields = 2;
+}
+
+message FieldType {
+	string Name = 1;
+	google.protobuf.Any Type = 2;
+	bool Embedded = 3;
+	string Tag = 4;
+}
+
+message FuncType {
+	repeated FieldType Params = 1;
+	repeated FieldType Results = 2;
+}
+
+message MapType {
+	google.protobuf.Any Key = 1;
+	google.protobuf.Any Value = 2;
+}
+
+message InterfaceType {
+	string PkgPath = 1;
+	repeated FieldType Methods = 2;
+	string Generic = 3;
+}
+
+message TypeType {
+}
+
+message DeclaredType {
+	string PkgPath = 1;
+	string Name = 2;
+	google.protobuf.Any Base = 3;
+	repeated TypedValue Methods = 4;
+}
+
+message PackageType {
+}
+
+message ChanType {
+	sint64 Dir = 1;
+	google.protobuf.Any Elt = 2;
+}
+
+message blockType {
+}
+
+message tupleType {
+	repeated google.protobuf.Any Elts = 1;
+}
+
+message RefType {
+	string ID = 1;
+}

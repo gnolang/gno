@@ -1,10 +1,12 @@
-<!--- Provide a general summary of your changes in the Title above -->
-<!--- If you need to use a more detailed template, append the query param template=detailed_pr_template.md to the URL -->
+<!-- please provide a detailed description of the changes made in this pull request. -->
 
-# Description
+<details><summary>Contributors' checklist...</summary>
 
-Please provide a detailed description of what was done in this PR
-
-# How has this been tested?
-
-Please complete this section if you ran tests for this functionality, otherwise delete it
+- [ ] Added new tests, or not needed, or not feasible
+- [ ] Provided an example (e.g. screenshot) to aid review or the PR is self-explanatory
+- [ ] Updated the official documentation or not needed
+- [ ] No breaking changes were made, or a `BREAKING CHANGE: xxx` message was included in the description
+- [ ] Added references to related issues and PRs
+- [ ] Provided any useful hints for running manual tests
+- [ ] Added new benchmarks to [generated graphs](https://gnoland.github.io/benchmarks), if any. More info [here](https://github.com/gnolang/gno/blob/master/.benchmarks/README.md).
+</details>

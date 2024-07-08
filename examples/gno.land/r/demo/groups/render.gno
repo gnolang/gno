@@ -2,8 +2,6 @@ package groups
 
 import (
 	"strings"
-
-	"gno.land/p/demo/avl"
 )
 
 //----------------------------------------
@@ -20,8 +18,8 @@ func RenderGroup(gid GroupID) string {
 func Render(path string) string {
 	if path == "" {
 		str := "List of all Groups:\n\n"
-		gGroups.Iterate("", "", func(n *avl.Node) bool {
-			group := n.Value().(*Group)
+		gGroups.Iterate("", "", func(key string, value interface{}) bool {
+			group := value.(*Group)
 			str += " * [" + group.name + "](" + group.url + ")\n"
 			return false
 		})
@@ -29,7 +27,7 @@ func Render(path string) string {
 	}
 	parts := strings.Split(path, "/")
 	if len(parts) == 1 {
-		// /r/Groups:Group_NAME
+		// /r/demo/groups:Group_NAME
 		name := parts[0]
 		groupI, exists := gGroupsByName.Get(name)
 		if !exists {

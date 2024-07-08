@@ -1,0 +1,25 @@
+version: "3.7"
+services:
+  gnonode:
+    container_name: gnoland-node
+    build:
+      context: .
+      dockerfile: ../..Dockerfile
+    environment:
+      - LOG_LEVEL=4
+    command: [ "gnoland", "start" ]
+    volumes:
+      - "gnonode:/opt/gno/src/gnoland-data"
+    networks:
+      - gnonode
+    restart: on-failure
+    logging:
+      driver: "json-file"
+      options:
+        max-file: "10"
+        max-size: "100m"
+
+networks:
+  gnonode: {}
+volumes:
+  gnonode: {}

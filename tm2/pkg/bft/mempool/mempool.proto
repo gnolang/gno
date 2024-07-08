@@ -1,0 +1,9 @@
+syntax = "proto3";
+package tm;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/bft/mempool/pb";
+
+// messages
+message TxMessage {
+	bytes tx = 1 [json_name = "Tx"];
+}

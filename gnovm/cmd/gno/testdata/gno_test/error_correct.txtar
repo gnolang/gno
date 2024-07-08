@@ -1,0 +1,18 @@
+# Test Error instruction correct
+
+gno test -v .
+
+stdout 'Machine\.RunMain\(\) panic: oups'
+stderr '=== RUN   file/x_filetest.gno'
+stderr '--- PASS: file/x_filetest.gno \(\d\.\d\ds\)'
+stderr 'ok      \. 	\d\.\d\ds'
+
+-- x_filetest.gno --
+package main
+
+func main() {
+	panic("oups")
+}
+
+// Error:
+// oups

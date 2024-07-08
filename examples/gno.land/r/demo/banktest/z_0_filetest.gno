@@ -1,7 +1,6 @@
-package main
-
-// NOTE: this doesn't do anything, as it sends to "main".
 // SEND: 100000000ugnot
+
+package main
 
 import (
 	"std"
@@ -10,36 +9,40 @@ import (
 )
 
 func main() {
-	banktestAddr := std.TestDerivePkgAddr("gno.land/r/banktest")
-
-	// print main balance before.
-	mainaddr := std.TestDerivePkgAddr("main")
-	banker := std.GetBanker(std.BankerTypeReadonly)
-	mainbal := banker.GetCoins(mainaddr)
-	println("main before:", mainbal) // plus OrigSend equals 300.
-
-	// simulate a Deposit call.
+	// set up main address and banktest addr.
+	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
+	mainaddr := std.DerivePkgAddr("main")
+	std.TestSetOrigCaller(mainaddr)
 	std.TestSetOrigPkgAddr(banktestAddr)
-	std.TestIssueCoins(banktestAddr, std.Coins{{"ugnot", 100000000}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 100000000}}, nil)
-	res := banktest.Deposit("ugnot", 100000000)
+
+	// get and print balance of mainaddr.
+	// with the SEND, + 200 gnot given by the TestContext, main should have 300gnot.
+	banker := std.GetBanker(std.BankerTypeRealmSend)
+	mainbal := banker.GetCoins(mainaddr)
+	println("main before:", mainbal)
+
+	// simulate a Deposit call. use Send + OrigSend to simulate -send.
+	banker.SendCoins(mainaddr, banktestAddr, std.Coins{{"ugnot", 100_000_000}})
+	std.TestSetOrigSend(std.Coins{{"ugnot", 100_000_000}}, nil)
+	res := banktest.Deposit("ugnot", 50_000_000)
 	println("Deposit():", res)
 
 	// print main balance after.
 	mainbal = banker.GetCoins(mainaddr)
-	println("main after:", mainbal) // still 300.
+	println("main after:", mainbal)
 
-	// simulate a Render().
+	// simulate a Render(). banker should have given back all coins.
 	res = banktest.Render("")
 	println(res)
 }
 
 // Output:
-// main before: 200000000ugnot
+// main before: 300000000ugnot
 // Deposit(): returned!
-// main after: 300000000ugnot
+// main after: 250000000ugnot
 // ## recent activity
 //
-//  * g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 100000000ugnot sent, 100000000ugnot returned, at 2009-02-13 11:31pm UTC
+//  * g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4 100000000ugnot sent, 50000000ugnot returned, at 2009-02-13 11:31pm UTC
 //
 // ## total deposits
+// 50000000ugnot

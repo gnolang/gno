@@ -1,188 +1,87 @@
-# Short doc about the commands (please keep in sync with cmd/README for now):
-# ------------------------ User commands -----------------------
-# gnokey        Key manipulation, also general interaction with gnoland
-# gnoland       Runs the blockchain node
-# gnotxport     Importing/exporting transactions from local blockchain node storage
-# website       Serves gno website, along with user-defined content
-# logos         Intended to be used as a browser
-#
-# ---------------------- Developer commands -------------------
-# gnoscan       Dumps imports from specified file’s AST
-# genproto      Helper for generating .proto implementations
-# gnofaucet     Serves GNOT faucet
-# gnodev        Handy tool for developing gno packages & realms
+.PHONY: help
+help:
+	@echo "Available make commands:"
+	@cat Makefile | grep '^[a-z][^:]*:' | grep -v 'install_' | cut -d: -f1 | sort | sed 's/^/  /'
 
-# Dist suite
-.PHONY: logos goscan gnoland gnokey gnofaucet logos reset gnoweb gnotxport
-all: build
-
-build: gnoland gnokey gnodev goscan logos gnoweb gnotxport gnofaucet
-
-install: install_gnodev install_gnokey
-
-reset:
-	rm -rf testdir
-	make
-
-tools:
-	go build -o build/logjack ./pkgs/autofile/cmd
-
-gnoland:
-	@echo "Building gnoland"
-	go build -o build/gnoland ./cmd/gnoland
-
-gnokey:
-	@echo "Building gnokey"
-	go build -o build/gnokey ./cmd/gnokey
-
-gnodev:
-	@echo "Building gnodev"
-	go build -o build/gnodev ./cmd/gnodev
-
-install_gnokey:
-	@echo "Installing gnokey"
-	go install ./cmd/gnokey
-
-install_gnodev:
-	@echo "Installing gnodev"
-	go install ./cmd/gnodev
-
-gnofaucet:
-	@echo "Building gnofaucet"
-	go build -o build/gnofaucet ./cmd/gnofaucet
-
-# goscan scans go code to determine its AST
-goscan:
-	@echo "Building goscan"
-	go build -o build/goscan ./cmd/goscan
-
-gnoweb:
-	@echo "Building website"
-
-	go build -o build/website ./gnoland/website
-
-gnotxport:
-	@echo "Building gnotxport"
-	go build -o build/gnotxport ./cmd/gnotxport
-
-logos:
-	@echo "building logos"
-	go build -o build/logos ./misc/logos/cmd/logos.go
-
-clean:
-	rm -rf build
-
-examples.precompile: install_gnodev
-	go run ./cmd/gnodev precompile --verbose ./examples
-
-examples.build: install_gnodev examples.precompile
-	go run ./cmd/gnodev build --verbose ./examples
+# command to run dependency utilities, like goimports.
+rundep=go run -modfile misc/devdeps/go.mod
 
 ########################################
-# Formatting, linting.
+# Environment variables
+# You can overwrite any of the following by passing a different value on the
+# command line, ie. `CGO_ENABLED=1 make test`.
+# NOTE: these are not very useful in this makefile, but they serve as
+# documentation for sub-makefiles.
+
+# disable cgo by default. cgo requires some additional dependencies in some
+# cases, and is not strictly required by any tm2 code.
+CGO_ENABLED ?= 0
+export CGO_ENABLED
+# flags for `make fmt`. -w will write the result to the destination files.
+GOFMT_FLAGS ?= -w
+# flags for `make imports`.
+GOIMPORTS_FLAGS ?= $(GOFMT_FLAGS)
+# test suite flags.
+GOTEST_FLAGS ?= -v -p 1 -timeout=30m
+# when running `make tidy`, use it to check that the go.mods are up-to-date.
+VERIFY_MOD_SUMS ?= false
+
+########################################
+# Dev tools
+.PHONY: install
+install: install.gnokey install.gno install.gnodev
+
+# shortcuts to frequently used commands from sub-components.
+.PHONY: install.gnokey
+install.gnokey:
+	$(MAKE) --no-print-directory -C ./gno.land	install.gnokey
+	@# \033[0;32m ... \033[0m is ansi for green text.
+	@printf "\033[0;32m[+] 'gnokey' has been installed. Read more in ./gno.land/\033[0m\n"
+.PHONY: install.gno
+install.gno:
+	$(MAKE) --no-print-directory -C ./gnovm	install
+	@printf "\033[0;32m[+] 'gno' has been installed. Read more in ./gnovm/\033[0m\n"
+.PHONY: install.gnodev
+install.gnodev:
+	$(MAKE) --no-print-directory -C ./contribs/gnodev install
+	@printf "\033[0;32m[+] 'gnodev' has been installed. Read more in ./contribs/gnodev/\033[0m\n"
+
+# old aliases
+.PHONY: install_gnokey
+install_gnokey: install.gnokey
+.PHONY: install_gno
+install_gno: install.gno
+
+.PHONY: test
+test: test.components test.docker
+
+.PHONY: test.components
+test.components:
+	$(MAKE) --no-print-directory -C tm2      test
+	$(MAKE) --no-print-directory -C gnovm    test
+	$(MAKE) --no-print-directory -C gno.land test
+	$(MAKE) --no-print-directory -C examples test
+	$(MAKE) --no-print-directory -C misc     test
+
+.PHONY: test.docker
+test.docker:
+	@if hash docker 2>/dev/null; then \
+		go test --tags=docker -count=1 -v ./misc/docker-integration; \
+	else \
+		echo "[-] 'docker' is missing, skipping ./misc/docker-integration tests."; \
+	fi
 
 .PHONY: fmt
 fmt:
-	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w .
-	go run -modfile ./misc/devdeps/go.mod mvdan.cc/gofumpt -w `find stdlibs examples -name "*.gno"`
+	$(MAKE) --no-print-directory -C tm2      fmt imports
+	$(MAKE) --no-print-directory -C gnovm    fmt imports
+	$(MAKE) --no-print-directory -C gno.land fmt imports
+	$(MAKE) --no-print-directory -C examples fmt
 
 .PHONY: lint
 lint:
-	golangci-lint run --config .golangci.yaml
+	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config .github/golangci.yml
 
-########################################
-# Test suite
-.PHONY: test test.go test.go1 test.go2 test.go3 test.go4 test.gno test.filesNative test.filesStdlibs test.realm test.packages test.flappy test.packages0 test.packages1 test.packages2 test.docker-integration
-test: test.gno test.go test.flappy
-	@echo "Full test suite finished."
-
-test.gno: test.filesNative test.filesStdlibs test.packages test.examples
-	go test tests/*.go -v -run "TestFileStr"
-	go test tests/*.go -v -run "TestSelectors"
-
-test.docker-integration:
-	go test -count=1 -v ./tests/docker-integration
-
-test.flappy:
-	# flappy tests should work "sometimes" (at least once)
-	TEST_STABILITY=flappy go run -modfile ./misc/devdeps/go.mod moul.io/testman test -test.v -timeout=20m -retry=10 -run ^TestFlappy \
-		./pkgs/bft/consensus ./pkgs/bft/blockchain ./pkgs/bft/mempool ./pkgs/p2p ./pkgs/bft/privval
-
-test.go: test.go1 test.go2 test.go3 test.go4
-
-test.go1:
-	# test most of pkgs/* except amino and bft.
-	# -p 1 shows test failures as they come
-	# maybe another way to do this?
-	go test `go list ./pkgs/... | grep -v pkgs/amino/ | grep -v pkgs/bft/` -v -p 1 -timeout=30m
-
-test.go2:
-	# test amino.
-	go test ./pkgs/amino/... -v -p 1 -timeout=30m
-
-test.go3:
-	# test bft.
-	go test ./pkgs/bft/... -v -p 1 -timeout=30m
-
-test.go4:
-	go test ./cmd/gnodev ./cmd/gnoland -v -p 1 -timeout=30m
-
-test.filesNative:
-	go test tests/*.go -v -test.short -run "TestFilesNative/" --timeout 30m
-
-test.filesNative.sync:
-	go test tests/*.go -v -test.short -run "TestFilesNative/" --timeout 30m --update-golden-tests
-
-test.filesStdlibs:
-	go test tests/*.go -v -test.short -run 'TestFiles$$/' --timeout 30m
-
-test.filesStdlibs.sync:
-	go test tests/*.go -v -test.short -run 'TestFiles$$/' --timeout 30m --update-golden-tests
-
-test.realm:
-	go test tests/*.go -v -run "TestFiles/^zrealm" --timeout 30m
-
-test.packages: test.packages0 test.packages1 test.packages2
-
-test.packages0:
-	go test tests/*.go -v -run "TestPackages/(bufio|crypto|encoding|errors|internal|io|math|sort|std|stdshim|strconv|strings|testing|unicode)" --timeout 30m
-
-test.packages1:
-	go test tests/*.go -v -run "TestPackages/regexp" --timeout 30m
-
-test.packages2:
-	go test tests/*.go -v -run "TestPackages/bytes" --timeout 30m
-
-test.examples:
-	go run ./cmd/gnodev test --verbose ./examples
-
-test.examples.sync:
-	go run ./cmd/gnodev test --verbose --update-golden-tests ./examples
-
-# Code gen
-stringer:
-	stringer -type=Kind
-	stringer -type=Op
-	stringer -type=TransCtrl
-	stringer -type=TransField
-	stringer -type=VPType
-	stringer -type=Word
-
-genproto:
-	rm -rf proto/*
-	find pkgs | grep -v "^pkgs\/amino" | grep "\.proto" | xargs rm
-	find pkgs | grep -v "^pkgs\/amino" | grep "pbbindings" | xargs rm
-	find pkgs | grep -v "^pkgs\/amino" | grep "pb.go" | xargs rm
-	@rm gno.proto || true
-	@rm pbbindings.go || true
-	@rm gno.pb.go || true
-	go run cmd/genproto/genproto.go
-
-genproto2:
-	rm -rf proto/*
-	#find pkgs | grep -v "^pkgs\/amino" | grep "\.proto" | xargs rm
-	find pkgs | grep -v "^pkgs\/amino" | grep "pbbindings" | xargs rm
-	find pkgs | grep -v "^pkgs\/amino" | grep "pb.go" | xargs rm
-	#@rm gno.proto || true
-	@rm pbbindings.go || true
-	@rm gno.pb.go || true
+.PHONY: tidy
+tidy:
+	$(MAKE) --no-print-directory -C misc     tidy

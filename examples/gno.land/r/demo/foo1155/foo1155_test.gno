@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/grc/grc1155"
-	"gno.land/r/demo/users"
+	"gno.land/p/demo/users"
 )
 
 func TestFoo721(t *testing.T) {
@@ -18,8 +18,8 @@ func TestFoo721(t *testing.T) {
 		expected interface{}
 		fn       func() interface{}
 	}{
-		{"BalanceOf(admin, tid1)", 100, func() interface{} { return BalanceOf(admin, tid1) }},
-		{"BalanceOf(bob, tid1)", 0, func() interface{} { return BalanceOf(bob, tid1) }},
+		{"BalanceOf(admin, tid1)", uint64(100), func() interface{} { return BalanceOf(admin, tid1) }},
+		{"BalanceOf(bob, tid1)", uint64(0), func() interface{} { return BalanceOf(bob, tid1) }},
 		{"IsApprovedForAll(admin, bob)", false, func() interface{} { return IsApprovedForAll(admin, bob) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

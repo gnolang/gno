@@ -1,0 +1,31 @@
+syntax = "proto3";
+package tm;
+
+option go_package = "github.com/gnolang/gno/tm2/pkg/bft/blockchain/pb";
+
+// imports
+import "github.com/gnolang/gno/tm2/pkg/bft/types/types.proto";
+import "github.com/gnolang/gno/tm2/pkg/bft/abci/types/abci.proto";
+import "github.com/gnolang/gno/tm2/pkg/crypto/merkle/merkle.proto";
+import "github.com/gnolang/gno/tm2/pkg/bitarray/bitarray.proto";
+
+// messages
+message BlockRequest {
+	sint64 height = 1 [json_name = "Height"];
+}
+
+message BlockResponse {
+	Block block = 1 [json_name = "Block"];
+}
+
+message NoBlockResponse {
+	sint64 height = 1 [json_name = "Height"];
+}
+
+message StatusRequest {
+	sint64 height = 1 [json_name = "Height"];
+}
+
+message StatusResponse {
+	sint64 height = 1 [json_name = "Height"];
+}
