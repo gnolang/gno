@@ -1948,8 +1948,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 								// a,b = .tmp1, .tmp2
 								// assign stmt expression
-								// the right hand side will be converted to  call expr for nameed/unnamed covnersion
-								// we make a copy of tmpExprs to prevent dsx.Lhs in the preview statement changing by the side effect
+								// the right hand side will be converted to  call expr for named/unnamed conversion,
+								// we make a copy of tmpExprs to prevent dsx.Lhs in the previous statement changing by the side effect
 								// when asx.Rhs is converted to const call expr during the preprocess of the next statement
 
 								asx := &AssignStmt{
