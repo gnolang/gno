@@ -63,7 +63,11 @@ $ gnokey maketx call -pkgpath gno.land/r/demo/users \
     -args 'My Profile Quote' test1
 ```
 
-:::note Do not forget to update chain id
+:::note Chain-ID
+
+Do not forget to update chain id, adequate to the network you're interacting with
+
+:::
 
 
 After successful registration, you can add a package under the registered namespace.
