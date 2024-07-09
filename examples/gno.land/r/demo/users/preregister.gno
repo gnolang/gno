@@ -26,6 +26,10 @@ var preRegisteredUsers = []struct {
 	{"nt", "g15ge0ae9077eh40erwrn2eq0xw6wupwqthpv34l"},       // -> @r_nt
 	{"sys", "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l"},      // -> @r_sys
 	{"x", "g164sdpew3c2t3rvxj3kmfv7c7ujlvcw2punzzuz"},        // -> @r_x
+
+	// Onbloc
+	{"gnoswap", "g1lmvrrrr4er2us84h2732sru76c9zl2nvknha8c"}, // -> @r_gnoswap
+	{"onbloc", "g12vx7dn3dqq89mz550zwunvg4qw6epq73d9csay"},  // -> @r_onbloc
 }
 
 func init() {
