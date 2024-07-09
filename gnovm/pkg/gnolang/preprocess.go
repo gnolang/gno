@@ -1899,13 +1899,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// Call case: a, b = x(...)
 							ift := evalStaticTypeOf(store, last, cx.Func)
 							cft := getGnoFuncTypeOf(store, ift)
-							if len(n.Lhs) != len(cft.Results) {
-								panic(fmt.Sprintf(
-									"assignment mismatch: "+
-										"%d variables but %s returns %d values",
-									len(n.Lhs), cx.Func.String(), len(cft.Results)))
-							}
-
 							// check if we we need to decompose for named typed conversion in the function return results
 							var decompose bool
 
