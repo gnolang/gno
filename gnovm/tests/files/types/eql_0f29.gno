@@ -21,4 +21,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f29.gno:16: operator > not defined on: InterfaceKind
+// main/files/types/eql_0f29.gno:16:5: operator > not defined on: InterfaceKind
