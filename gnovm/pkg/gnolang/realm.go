@@ -102,7 +102,6 @@ type Realm struct {
 	created []Object // about to become real.
 	updated []Object // real objects that were modified.
 	deleted []Object // real objects that became deleted.
-	escaped []Object // real objects with refcount > 1.
 }
 
 // Creates a blank new realm with counter 0.
@@ -171,7 +170,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			if co.GetIsEscaped() {
 				// already escaped
 			} else {
-				rlm.MarkNewEscaped(co)
+				rlm.MarkNewEscapedCheckCrossRealm(co)
 			}
 		} else if co.GetIsReal() {
 			rlm.MarkDirty(co)
@@ -265,6 +264,24 @@ func (rlm *Realm) MarkNewDeleted(oo Object) {
 	rlm.newDeleted = append(rlm.newDeleted, oo)
 }
 
+func (rlm *Realm) MarkNewEscapedCheckCrossRealm(oo Object) {
+	oi := oo.GetObjectInfo()
+	if oi.lastNewRealEscapedRealm == rlm.ID {
+		// already processed for this realm,
+		// see below.
+		return
+	}
+	if !oi.GetIsReal() {
+		// this can happen if a ref +1
+		// new object gets passed into
+		// an external realm function.
+		oi.lastNewRealEscapedRealm = rlm.ID
+		oi.SetIsNewReal(false)
+		rlm.MarkNewReal(oo)
+	}
+	rlm.MarkNewEscaped(oo)
+}
+
 func (rlm *Realm) MarkNewEscaped(oo Object) {
 	if debug {
 		if !oo.GetIsNewReal() && !oo.GetIsReal() {
@@ -300,8 +317,7 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 			len(rlm.newDeleted) > 0 ||
 			len(rlm.created) > 0 ||
 			len(rlm.updated) > 0 ||
-			len(rlm.deleted) > 0 ||
-			len(rlm.escaped) > 0 {
+			len(rlm.deleted) > 0 {
 			panic("realm updates in readonly transaction")
 		}
 		return
@@ -317,8 +333,7 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 		ensureUniq(rlm.updated)
 		if false ||
 			rlm.created != nil ||
-			rlm.deleted != nil ||
-			rlm.escaped != nil {
+			rlm.deleted != nil {
 			panic("realm should not have created, deleted, or escaped marks before beginning finalization")
 		}
 	}
@@ -337,7 +352,6 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	rlm.markDirtyAncestors(store)
 	if debug {
 		ensureUniq(rlm.created, rlm.updated, rlm.deleted)
-		ensureUniq(rlm.escaped)
 	}
 	// save all the created and updated objects.
 	// hash calculation is done along the way,
@@ -359,7 +373,12 @@ func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 // and get assigned ids.
 func (rlm *Realm) processNewCreatedMarks(store Store) {
 	// Create new objects and their new descendants.
-	for _, oo := range rlm.newCreated {
+	// NOTE: the following range does not work
+	// because incRefCreatedDescendants may append to newCreated
+	// for the case when new escapes are found to have crossed.
+	// BAD: for _, oo := range rlm.newCreated {
+	for i := 0; i < len(rlm.newCreated); i++ {
+		oo := rlm.newCreated[i]
 		if debug {
 			if oo.GetIsDirty() {
 				panic("new created mark cannot be dirty")
@@ -442,8 +461,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 				// NOTE: do not unset owner here,
 				// may become unescaped later
 				// in processNewEscapedMarks().
-				// NOTE: may already be escaped.
-				rlm.MarkNewEscaped(child)
+				rlm.MarkNewEscapedCheckCrossRealm(child)
 			}
 		} else {
 			panic("child reference count should be greater than zero after increasing")
@@ -523,7 +541,6 @@ func (rlm *Realm) decRefDeletedDescendants(store Store, oo Object) {
 // objects get their original owners marked dirty (to be further
 // marked via markDirtyAncestors).
 func (rlm *Realm) processNewEscapedMarks(store Store) {
-	escaped := make([]Object, 0, len(rlm.newEscaped))
 	// These are those marked by MarkNewEscaped(),
 	// regardless of whether new-real or was real,
 	// but is always newly escaped,
@@ -549,7 +566,6 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 			// we do that upon actually persisting
 			// the hash index.
 			// eo.SetIsNewEscaped(false)
-			escaped = append(escaped, eo)
 
 			// add to escaped, and mark dirty previous owner.
 			po := getOwner(store, eo)
@@ -566,15 +582,16 @@ func (rlm *Realm) processNewEscapedMarks(store Store) {
 					// exists, mark dirty.
 					rlm.MarkDirty(po)
 				}
+				// TODO: move to if debug { } once proven.
 				if eo.GetObjectID().IsZero() {
-					panic("new escaped mark has no object ID")
+					panic("new escaped object has no object ID")
 				}
+
 				// escaped has no owner.
 				eo.SetOwner(nil)
 			}
 		}
 	}
-	rlm.escaped = escaped // XXX is this actually used?
 }
 
 //----------------------------------------
@@ -789,7 +806,6 @@ func (rlm *Realm) clearMarks() {
 	rlm.created = nil
 	rlm.updated = nil
 	rlm.deleted = nil
-	rlm.escaped = nil
 }
 
 //----------------------------------------
@@ -1471,7 +1487,7 @@ func toRefValue(val Value) RefValue {
 		} else if oo.GetIsEscaped() {
 			if debug {
 				if !oo.GetOwnerID().IsZero() {
-					panic("cannot convert escaped object to ref value without an owner ID")
+					panic("cannot convert escaped object to ref value with an owner ID")
 				}
 			}
 			return RefValue{

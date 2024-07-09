@@ -7,6 +7,7 @@ import (
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
 	pusers "gno.land/p/demo/users"
+	"gno.land/r/demo/grc20reg"
 	"gno.land/r/demo/users"
 )
 
@@ -19,6 +20,10 @@ const (
 	ugnotMinDeposit  uint64 = 1000
 	wugnotMinDeposit uint64 = 1
 )
+
+func init() {
+	grc20reg.Register(Token, "")
+}
 
 func Deposit() {
 	caller := std.PrevRealm().Addr()
