@@ -52,7 +52,7 @@ $ gnokey maketx call -pkgpath gno.land/r/demo/users \
     -func Register \
     -gas-fee 1000000ugnot -gas-wanted 2000000 \
     -broadcast \
-    -chainid=dev \
+    -chainid=test4 \
     -send=20000000ugnot \
     -args '' \
     -args 'patrick' \
@@ -78,6 +78,6 @@ $ gnokey maketx addpkg \
     --gas-fee 1000000ugnot \
     --gas-wanted 2000000 \
     --broadcast \
-    --chainid dev \
+    --chainid test4 \
     test1
 ```
