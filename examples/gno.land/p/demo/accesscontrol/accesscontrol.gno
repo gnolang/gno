@@ -83,7 +83,7 @@ func (rs *Roles) CreateRole(name string, adminRole std.Address) *Role {
 		"RoleCreated",
 		"roleName", name,
 		"adminRole", adminRole.String(),
-		"sender", std.GetOrigCaller().String(),
+		"sender", rs.Admin.String(),
 	)
 
 	return role
