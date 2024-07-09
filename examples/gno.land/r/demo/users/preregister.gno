@@ -8,7 +8,7 @@ import (
 
 // pre-restricted name
 var preRestrictedNames = []string{
-	"bitcoin", "cosmos", "newtendermint", "administrator", "ethereum", "allinbits",
+	"bitcoin", "cosmos", "newtendermint", "administrator", "ethereum",
 }
 
 var preRegisteredUsers = []struct {

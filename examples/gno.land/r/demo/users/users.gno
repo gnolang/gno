@@ -60,6 +60,8 @@ func Register(inviter std.Address, name string, profile string) {
 		invites.Remove(invitekey)
 	}
 
+	isAdmin := caller == admin
+
 	// check for restricted name
 	if _, isRestricted := restricted.Get(name); isRestricted {
 		// only name invite by the admin can register restricted name
@@ -82,7 +84,6 @@ func Register(inviter std.Address, name string, profile string) {
 
 	// assert name is valid.
 	// admin can bypass name restriction
-	isAdmin := caller == admin
 	if !isAdmin && !reName.MatchString(name) {
 		panic("invalid name: " + name + " (must be at least 6 characters, lowercase alphanumeric with underscore)")
 	}
