@@ -1,7 +1,7 @@
 // import "gno.land/p/demo/accesscontrol"
 //
 // Create a new role with a specific admin.
-// adminRole := std.Address("admin-address")
+// adminAddr := std.Address("admin-address")
 // role := accesscontrol.NewRole("ExampleRole", adminRole)
 //
 // Check if an account has a specific role.
