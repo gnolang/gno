@@ -47,7 +47,6 @@ g16tfrrul20g4jzt3z303raqw8vs8s2pqqh5clwu=9000000000000000000ugnot # Ilker
 g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun=9000000000000000000ugnot # Jerónimo
 g15ruzptpql4dpuyzej0wkt5rq6r26kw4nxu9fwd=9000000000000000000ugnot # Denis
 g1dnllrdzwfhxv3evyk09y48mgn5phfjvtyrlzm7=9000000000000000000ugnot # Danny
-# XXX=9000000000000000000ugnot # Alan
 g197q5e9v00vuz256ly7fq7v3ekaun5cr7wmjgfh=9000000000000000000ugnot # Salvo
 g1mpkp5lm8lwpm0pym4388836d009zfe4maxlqsq=9000000000000000000ugnot # Alexis
 
@@ -68,3 +67,4 @@ g17ernafy6ctpcz6uepfsq2js8x2vz0wladh5yc3=9000000000000000000ugnot # ZenTasktic f
 # Teritori
 
 g16n55jt73sl8s5kl3z5ahrf0qrlxp47n205j9ex=9000000000000000000ugnot # Teritori Core Team
+g14u5eaheavy0ux4dmpykg2gvxpvqvexm9cyg58a=9000000000000000000ugnot # Norman
