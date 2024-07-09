@@ -2,7 +2,6 @@ package timelock
 
 import (
 	"std"
-	"strconv"
 	"testing"
 	"time"
 
