@@ -9,12 +9,14 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
@@ -247,6 +249,88 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
+// Namespace can be either a user or crypto address.
+var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
+
+// checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
+func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
+	const sysUsersPkg = "gno.land/r/sys/users"
+
+	store := vm.getGnoStore(ctx)
+
+	match := reNamespace.FindStringSubmatch(pkgPath)
+	switch len(match) {
+	case 0:
+		return ErrInvalidPkgPath(pkgPath) // no match
+	case 2: // ok
+	default:
+		panic("invalid pattern while matching pkgpath")
+	}
+	if len(match) != 2 {
+		return ErrInvalidPkgPath(pkgPath)
+	}
+	username := match[1]
+
+	// if `sysUsersPkg` does not exist -> skip validation.
+	usersPkg := store.GetPackage(sysUsersPkg, false)
+	if usersPkg == nil {
+		return nil
+	}
+
+	// Parse and run the files, construct *PV.
+	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	msgCtx := stdlibs.ExecContext{
+		ChainID:       ctx.ChainID(),
+		Height:        ctx.BlockHeight(),
+		Timestamp:     ctx.BlockTime().Unix(),
+		OrigCaller:    creator.Bech32(),
+		OrigSendSpent: new(std.Coins),
+		OrigPkgAddr:   pkgAddr.Bech32(),
+		// XXX: should we remove the banker ?
+		Banker:      NewSDKBanker(vm, ctx),
+		EventLogger: ctx.EventLogger(),
+	}
+
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:   "",
+			Output:    os.Stdout, // XXX
+			Store:     store,
+			Context:   msgCtx,
+			Alloc:     store.GetAllocator(),
+			MaxCycles: vm.maxCycles,
+			GasMeter:  ctx.GasMeter(),
+		})
+	defer m.Release()
+
+	// call $sysUsersPkg.IsAuthorizedAddressForName("<user>")
+	// We only need to check by name here, as address have already been check
+	mpv := gno.NewPackageNode("main", "main", nil).NewPackage()
+	m.SetActivePackage(mpv)
+	m.RunDeclaration(gno.ImportD("users", sysUsersPkg))
+	x := gno.Call(
+		gno.Sel(gno.Nx("users"), "IsAuthorizedAddressForName"),
+		gno.Str(creator.String()),
+		gno.Str(username),
+	)
+
+	ret := m.Eval(x)
+	if len(ret) == 0 {
+		panic("call: invalid response length")
+	}
+
+	useraddress := ret[0]
+	if useraddress.T.Kind() != gno.BoolKind {
+		panic("call: invalid response kind")
+	}
+
+	if isAuthorized := useraddress.GetBool(); !isAuthorized {
+		return ErrUnauthorizedUser(username)
+	}
+
+	return nil
+}
+
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	creator := msg.Creator
@@ -284,9 +368,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// TODO: ACLs.
 	// - if r/system/names does not exists -> skip validation.
 	// - loads r/system/names data state.
-	// - lookup r/system/names.namespaces for `{r,p}/NAMES`.
-	// - check if caller is in Admins or Editors.
-	// - check if namespace is not in pause.
+	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
+		return err
+	}
 
 	err = vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
 	if err != nil {
