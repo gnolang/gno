@@ -1,8 +1,8 @@
 package validators
 
 import (
+	"gno.land/p/demo/avl"
 	"gno.land/p/nt/poa"
-	"gno.land/p/sys/validators"
 )
 
 func init() {
@@ -10,5 +10,5 @@ func init() {
 	vp = poa.NewPoA()
 
 	// No changes to apply initially
-	changes = make([]validators.Validator, 0)
+	changes = avl.NewTree()
 }
