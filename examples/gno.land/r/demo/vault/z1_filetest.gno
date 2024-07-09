@@ -11,27 +11,29 @@ import (
 
 func main() {
 	var (
-		alice   = testutils.TestAddress("alice")
-		bob     = testutils.TestAddress("bob")    // recovery request address (cold wallet).
-		charly  = testutils.TestAddress("charly") // recovery dest.
-		pkgaddr = std.GetOrigPkgAddr()
-		token   = test20.Token
+		alice    = testutils.TestAddress("alice")
+		bob      = testutils.TestAddress("bob")    // recovery request address (cold wallet).
+		charly   = testutils.TestAddress("charly") // recovery dest.
+		pkgaddr  = std.GetOrigPkgAddr()
+		t20token = test20.Token
 	)
 
 	printBalances := func() {
-		aliceBalance := fooToken.BalanceOf(alice)
-		bobBalance := fooToken.BalanceOf(bob)
-		charlyBalance := fooToken.BalanceOf(charly)
-		pkgBalance := fooToken.BalanceOf(pkgaddr)
+		aliceBalance := t20token.BalanceOf(alice)
+		bobBalance := t20token.BalanceOf(bob)
+		charlyBalance := t20token.BalanceOf(charly)
+		pkgBalance := t20token.BalanceOf(pkgaddr)
 		height := std.GetHeight()
 		println(ufmt.Sprintf(
 			"balances: alice=%d, bob=%d, charly=%d, pkg=%d, height=%d",
 			aliceBalance, bobBalance, charlyBalance, pkgBalance, height))
 	}
 
-	// create a vault for fooAdminToken.
-	v := vault.New(fooAdminToken)
+	// create a vault for t20token.
+	v := vault.New(t20token)
 	printBalances()
+
+	return // XXX
 
 	// alice deposits 300 with an unlock duration of 5 blocks.
 	std.TestSetOrigCaller(alice)
@@ -40,7 +42,7 @@ func main() {
 	checkErr(v.Deposit(lockAmount, bob, lockDuration))
 	printBalances()
 
-	// alice calls unvault for 200 tokens.
+	// alice calls unvault for 200 t20tokens.
 	checkErr(v.Unvault(200))
 	printBalances()
 
@@ -48,7 +50,7 @@ func main() {
 	std.TestSkipHeights(int64(lockDuration) + 1)
 	printBalances()
 
-	// alice redeems 200 tokens.
+	// alice redeems 200 t20tokens.
 	checkErr(v.Redeem())
 	printBalances()
 

@@ -7,7 +7,6 @@ import (
 	"gno.land/p/demo/grc/grc20"
 )
 
-// Vault is a GRC20 compatible token with vault features.
 type Vault interface {
 	Deposit(amount uint, recovery std.Address, lockDuration uint) error
 	Unvault(amount uint) error
