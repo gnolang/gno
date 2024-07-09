@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -30,6 +31,8 @@ const (
 	AccountsLogName    = "Accounts"
 )
 
+var ErrConflictingFileArgs = errors.New("cannot specify `balances-file` or `txs-file` along with `genesis-file`")
+
 var (
 	DefaultDeployerName    = integration.DefaultAccount_Name
 	DefaultDeployerAddress = crypto.MustAddressFromString(integration.DefaultAccount_Address)
@@ -47,8 +50,11 @@ type devCfg struct {
 	home            string
 	root            string
 	premineAccounts varPremineAccounts
-	balancesFile    string
-	txsFile         string
+
+	// Files
+	balancesFile string
+	genesisFile  string
+	txsFile      string
 
 	// Web Configuration
 	webListenerAddr     string
@@ -156,6 +162,13 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
+		&c.genesisFile,
+		"genesis",
+		defaultDevOptions.genesisFile,
+		"load the given genesis file",
+	)
+
+	fs.StringVar(
 		&c.deployKey,
 		"deploy-key",
 		defaultDevOptions.deployKey,
@@ -219,9 +232,21 @@ func (c *devCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
+func (c *devCfg) validateConfigFlags() error {
+	if (c.balancesFile != "" || c.txsFile != "") && c.genesisFile != "" {
+		return ErrConflictingFileArgs
+	}
+
+	return nil
+}
+
 func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	defer cancel(nil)
+
+	if err := cfg.validateConfigFlags(); err != nil {
+		return fmt.Errorf("validate error: %w", err)
+	}
 
 	// Setup Raw Terminal
 	rt, restore, err := setupRawTerm(cfg, io)
@@ -262,7 +287,8 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 	// Setup Dev Node
 	// XXX: find a good way to export or display node logs
 	nodeLogger := logger.WithGroup(NodeLogName)
-	devNode, err := setupDevNode(ctx, nodeLogger, cfg, emitterServer, balances, pkgpaths)
+	nodeCfg := setupDevNodeConfig(cfg, logger, emitterServer, balances, pkgpaths)
+	devNode, err := setupDevNode(ctx, cfg, nodeCfg)
 	if err != nil {
 		return err
 	}
@@ -337,11 +363,15 @@ func execDev(cfg *devCfg, args []string, io commands.IO) (err error) {
 var helper string = `For more in-depth documentation, visit the GNO Tooling CLI documentation: 
 https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev
 
-A           Accounts - Display known accounts and balances
-H           Help - Display this message
-R           Reload - Reload all packages to take change into account
-Ctrl+R      Reset - Reset application state
-Ctrl+C      Exit - Exit the application
+P           Previous TX  - Go to the previous tx
+N           Next TX      - Go to the next tx
+E           Export       - Export the current state as genesis doc
+A           Accounts     - Display known accounts and balances
+H           Help         - Display this message
+R           Reload       - Reload all packages to take change into account.
+Ctrl+S      Save State   - Save the current state
+Ctrl+R      Reset        - Reset application to it's initial/save state.
+Ctrl+C      Exit         - Exit the application
 `
 
 func runEventLoop(
@@ -352,6 +382,20 @@ func runEventLoop(
 	dnode *gnodev.Node,
 	watch *watcher.PackageWatcher,
 ) error {
+	// XXX: move this in above, but we need to have a proper struct first
+	// XXX: make this configurable
+	var exported uint
+	path, err := os.MkdirTemp("", "gnodev-export")
+	if err != nil {
+		return fmt.Errorf("unable to create `export` directory: %w", err)
+	}
+
+	defer func() {
+		if exported == 0 {
+			_ = os.RemoveAll(path)
+		}
+	}()
+
 	keyPressCh := listenForKeyPress(logger.WithGroup(KeyPressLogName), rt)
 	for {
 		var err error
@@ -387,8 +431,10 @@ func runEventLoop(
 			switch key.Upper() {
 			case rawterm.KeyH: // Helper
 				logger.Info("Gno Dev Helper", "helper", helper)
+
 			case rawterm.KeyA: // Accounts
 				logAccounts(logger.WithGroup(AccountsLogName), bk, dnode)
+
 			case rawterm.KeyR: // Reload
 				logger.WithGroup(NodeLogName).Info("reloading...")
 				if err = dnode.ReloadAll(ctx); err != nil {
@@ -403,8 +449,48 @@ func runEventLoop(
 						Error("unable to reset node state", "err", err)
 				}
 
+			case rawterm.KeyCtrlS: // Save
+				logger.WithGroup(NodeLogName).Info("saving state...")
+				if err := dnode.SaveCurrentState(ctx); err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to save node state", "err", err)
+				}
+
+			case rawterm.KeyE:
+				logger.WithGroup(NodeLogName).Info("exporting state...")
+				doc, err := dnode.ExportStateAsGenesis(ctx)
+				if err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to export node state", "err", err)
+					continue
+				}
+
+				docfile := filepath.Join(path, fmt.Sprintf("export_%d.jsonl", exported))
+				if err := doc.SaveAs(docfile); err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to save genesis", "err", err)
+				}
+				exported++
+
+				logger.WithGroup(NodeLogName).Info("node state exported", "file", docfile)
+
+			case rawterm.KeyN: // Next tx
+				logger.Info("moving forward...")
+				if err := dnode.MoveToNextTX(ctx); err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to move forward", "err", err)
+				}
+
+			case rawterm.KeyP: // Next tx
+				logger.Info("moving backward...")
+				if err := dnode.MoveToPreviousTX(ctx); err != nil {
+					logger.WithGroup(NodeLogName).
+						Error("unable to move backward", "err", err)
+				}
+
 			case rawterm.KeyCtrlC: // Exit
 				return nil
+
 			default:
 			}
 
