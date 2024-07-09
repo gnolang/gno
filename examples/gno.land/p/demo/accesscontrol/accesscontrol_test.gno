@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 )
 
 // TestAccessControl verifies the access control functionality.
@@ -20,6 +21,7 @@ func TestAccessControl(t *testing.T) {
 	if roleData.AdminRole != admin {
 		t.Fatalf("expected admin role to be %s, got %s", admin.String(), roleData.AdminRole.String())
 	}
+	!uassert.Equal(t, roleData.AdminRole, admin)
 
 	// Grant role to user1
 	std.TestSetOrigCaller(admin)
