@@ -57,6 +57,7 @@ func (m *Machine) doOpExec(op Op) {
 		debug.Printf("%v\n", m)
 	}
 
+	fmt.Printf("PEEK STMT: %v\n", s)
 	// NOTE this could go in the switch statement, and we could
 	// use the EXEC_SWITCH to jump back, rather than putting this
 	// in front like so, but loops are so common that this is
@@ -85,9 +86,11 @@ func (m *Machine) doOpExec(op Op) {
 			return
 		}
 	case OpForLoop:
+		fmt.Println("---OpForLoop")
 		bs := m.LastBlock().GetBodyStmt()
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
+			fmt.Println("---init---")
 			bs.NumOps = m.NumOps
 			bs.NumValues = m.NumValues
 			bs.NumExprs = len(m.Exprs)
@@ -95,11 +98,13 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NextBodyIndex = -1
 		}
 		if bs.NextBodyIndex == -1 {
+			fmt.Println("---cond---")
 			if bs.Cond != nil {
 				cond := m.PopValue()
 				if !cond.GetBool() {
 					// done with loop.
 					m.PopFrameAndReset()
+					fmt.Println("---return---")
 					return
 				}
 			}
@@ -107,6 +112,7 @@ func (m *Machine) doOpExec(op Op) {
 		}
 		// execute body statement.
 		if bs.NextBodyIndex < bs.BodyLen {
+			fmt.Println("---executing body")
 			next := bs.Body[bs.NextBodyIndex]
 			bs.NextBodyIndex++
 			// continue onto exec stmt.
@@ -431,6 +437,7 @@ EXEC_SWITCH:
 	if debug {
 		debug.Printf("EXEC: %v\n", s)
 	}
+	debug.Printf("EXEC: %v\n", s)
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {
@@ -493,6 +500,7 @@ EXEC_SWITCH:
 		m.PushExpr(cs.X)
 		m.PushOp(OpEval)
 	case *ForStmt:
+		fmt.Println("---ForStmt")
 		m.PushFrameBasic(cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{
