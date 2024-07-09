@@ -474,6 +474,17 @@ If unsure, you should always follow the existing code style of the repository.
 Additionally, the gno codebase uses linters to enforce some common coding style etiquette. Any PR that aims to modify
 the gno codebase should make sure that the linter checks pass; otherwise they won’t be merged into the main code stream.
 
+#### Panics, and error messages
+
+The Gno codebase adopts in many places an unconventional approach to error handling, compared to the norm in Go.
+In some places, notably the BFT consensus code and the GnoVM, panicking is the norm and Go's errors (using the
+second `error` return value) are rarely used.
+
+The decision on whether to use one or the other comes from asking two questions:
+
+- Can the error really be gracefully handled?
+- What are the consequences of not handling the error?
+
 ### Documentation Style Guide
 
 When writing in-code documentation, always favor to stay aligned with the godoc standard. Gno’s development philosophy
