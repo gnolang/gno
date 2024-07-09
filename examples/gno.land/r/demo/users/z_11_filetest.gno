@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// restricted name
+// restricted name: superrestricted

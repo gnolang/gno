@@ -43,12 +43,9 @@ func main() {
 //  * [gnolang](/r/demo/users:gnolang)
 //  * [gnouser](/r/demo/users:gnouser)
 //  * [gov](/r/demo/users:gov)
-//  * [jaekwon](/r/demo/users:jaekwon)
-//  * [manfred](/r/demo/users:manfred)
 //  * [nt](/r/demo/users:nt)
 //  * [satoshi](/r/demo/users:satoshi)
 //  * [sys](/r/demo/users:sys)
-//  * [test1](/r/demo/users:test1)
 //  * [x](/r/demo/users:x)
 //
 // ========================================
