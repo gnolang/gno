@@ -42,7 +42,7 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 // TestingNodeConfig constructs an in-memory node configuration
 // with default packages and genesis transactions already loaded.
 // It will return the default creator address of the loaded packages.
-func TestingNodeConfig(t TestingTS, gnoroot string) (*gnoland.InMemoryNodeConfig, bft.Address) {
+func TestingNodeConfig(t TestingTS, gnoroot string, additionalTxs ...std.Tx) (*gnoland.InMemoryNodeConfig, bft.Address) {
 	cfg := TestingMinimalNodeConfig(t, gnoroot)
 
 	creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
@@ -50,7 +50,7 @@ func TestingNodeConfig(t TestingTS, gnoroot string) (*gnoland.InMemoryNodeConfig
 	balances := LoadDefaultGenesisBalanceFile(t, gnoroot)
 	txs := []std.Tx{}
 	txs = append(txs, LoadDefaultPackages(t, creator, gnoroot)...)
-	txs = append(txs, LoadDefaultGenesisTXsFile(t, cfg.Genesis.ChainID, gnoroot)...)
+	txs = append(txs, additionalTxs...)
 
 	cfg.Genesis.AppState = gnoland.GnoGenesisState{
 		Balances: balances,
