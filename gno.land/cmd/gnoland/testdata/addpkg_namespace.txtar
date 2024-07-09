@@ -8,59 +8,59 @@ patchpkg "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" $USER_ADDR_admin # use our c
 
 gnoland start
 
-## When `sys/users` is Disable
+## When `sys/users` is disabled
 
-# should be disable by default, addpkg should works by default
+# Should be disabled by default, addpkg should work by default
 
-# check is sys/users is disable
+# Check if sys/users is disabled
 # gui call -> sys/users.IsEnable
 gnokey maketx call -pkgpath gno.land/r/sys/users -func IsEnable -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test gui
 stdout 'OK!'
 stdout 'false'
 
-# gui sould be able to addpkg on test1 addr
+# Gui should be able to addpkg on test1 addr
 # gui addpkg -> gno.land/r/<addr_test1>/mysuperpkg
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$USER_ADDR_test1/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
-# gui sould be able to addpkg on random name
+# Gui should be able to addpkg on random name
 # gui addpkg -> gno.land/r/randomname/mysuperpkg
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/randomname/mysuperpkg -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
-## When `sys/users` is Enable
+## When `sys/users` is enabled
 
-# enable `sys/users`
+# Enable `sys/users`
 # admin call -> sys/users.AdminEnable
 gnokey maketx call -pkgpath gno.land/r/sys/users -func AdminEnable -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test admin
 stdout 'OK!'
 
-# check that `sys/users` as been enable
+# Check that `sys/users` has been enabled
 # gui call -> sys/users.IsEnable
 gnokey maketx call -pkgpath gno.land/r/sys/users -func IsEnable -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test gui
 stdout 'OK!'
 stdout 'true'
 
-# try to add a pkg with unregistered user
+# Try to add a pkg an with unregistered user
 # gui addpkg -> gno.land/r/<addr_test1>/one
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$USER_ADDR_test1/one -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test gui
 stderr 'unauthorized user'
 
-# try to add a pkg with unregistered user, on their own address as namespace
+# Try to add a pkg with an unregistered user, on their own address as namespace
 # gui addpkg -> gno.land/r/<addr_gui>/one
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/$USER_ADDR_gui/one -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
-## test unregistered namespace
+## Test unregistered namespace
 
-# call addpkg with admin user on gui namespace
+# Call addpkg with admin user on gui namespace
 # admin addpkg -> gno.land/r/guiland/one
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test admin
 stderr 'unauthorized user'
 
-## test registered namespace
+## Test registered namespace
 
-# test admin invite gui
+# Test admin invites gui
 # admin call -> demo/users.Invite
 gnokey maketx call -pkgpath gno.land/r/demo/users -func Invite -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -args $USER_ADDR_gui admin
 stdout 'OK!'
@@ -70,12 +70,12 @@ stdout 'OK!'
 gnokey maketx call -pkgpath gno.land/r/demo/users -func Register -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -args $USER_ADDR_admin -args 'guiland' -args 'im gui' gui
 stdout 'OK!'
 
-# test gui pushing on guiland/one
+# Test gui publishing on guiland/one
 # gui addpkg -> gno.land/r/guiland/one
 gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/one -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test gui
 stdout 'OK!'
 
-# test admin pushing on guiland/two
+# Test admin publishing on guiland/two
 # admin addpkg -> gno.land/r/guiland/two
 ! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/guiland/two -gas-fee 1000000ugnot -gas-wanted 100000000 -broadcast -chainid=tendermint_test admin
 stderr 'unauthorized user'

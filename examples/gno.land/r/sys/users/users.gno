@@ -7,7 +7,7 @@ import (
 )
 
 // For now this package is disable by default
-var enable = false
+var enabled = false
 
 var admin = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
 
@@ -15,20 +15,20 @@ var admin = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
 func AdminEnable() {
 	assertIsAdmin()
 
-	enable = true
+	enabled = true
 }
 
 func AdminDisable() {
 	assertIsAdmin()
 
-	enable = false
+	enabled = false
 }
 
-func IsEnable() bool { return enable }
+func IsEnable() bool { return enabled }
 
 // This method ensure that the given address have ownership on the given name.
 func IsAuthorizedAddressForName(address std.Address, name string) bool {
-	if !enable {
+	if !enabled {
 		return true
 	}
 

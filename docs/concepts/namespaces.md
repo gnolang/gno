@@ -46,20 +46,38 @@ The registration process is contract-based. The `AddPkg` command references
 When `sys/users` is enabled, you need to register a name using `r/demo/users`. You can call the
 `r/demo/users.Register` function to register the name for the caller's address.
 
+> ex: `test1` user registering as `patrick`
 ```bash
 $ gnokey maketx call -pkgpath gno.land/r/demo/users \
     -func Register \
     -gas-fee 1000000ugnot -gas-wanted 2000000 \
-    -broadcast -chainid=dev \
+    -broadcast \
+    -chainid=dev \
     -send=20000000ugnot \
-    -args '' # first argument
-    -args 'patrick'
+    -args '' \
+    -args 'patrick' \
     -args 'My Profile Quote' test1
 ```
+
+:::note Do not forget to update chain id
+
 
 After successful registration, you can add a package under the registered namespace.
 
 ## Anonymous Namespace
 
 Gno.land offers the ability to add a package without having a registered namespace. 
-You can do this by using the user's own address as a namespace. This is formatted as `{p,r}/{std.Address}/**`. 
+You can do this by using your own address as a namespace. This is formatted as `{p,r}/{std.Address}/**`. 
+
+> ex:  with `test1` user adding a package `microblog` using his own address as namespace
+```bash
+$ gnokey maketx addpkg \
+    --pkgpath "gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/microblog" \
+    --pkgdir "examples/gno.land/p/demo/microblog" \
+    --deposit 100000000ugnot \
+    --gas-fee 1000000ugnot \
+    --gas-wanted 2000000 \
+    --broadcast \
+    --chainid dev \
+    test1
+```

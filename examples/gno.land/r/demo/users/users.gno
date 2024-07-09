@@ -267,12 +267,11 @@ func Resolve(input users.AddressOrName) std.Address {
 
 // Add restricted name to the list
 func AdminAddRestrictedName(name string) {
-	// assert admin
-
 	// assert CallTx call.
 	std.AssertOriginCall()
 	// get caller
 	caller := std.GetOrigCaller()
+	// assert admin
 	if caller != admin {
 		panic("unauthorized")
 	}
