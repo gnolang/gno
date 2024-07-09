@@ -11,10 +11,12 @@ import (
 const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
 
 func main() {
+	caller := std.GetOrigCaller() // main
 	std.TestSetOrigCaller(admin)
 	users.AdminAddRestrictedName("superrestricted")
 
 	// test restricted name
+	std.TestSetOrigCaller(caller)
 	users.Register("", "superrestricted", "my profile")
 	println("done")
 }

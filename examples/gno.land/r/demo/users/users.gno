@@ -70,7 +70,7 @@ func Register(inviter std.Address, name string, profile string) {
 		panic("address already registered")
 	}
 
-	isInviterAdmin := inviter != admin
+	isInviterAdmin := inviter == admin
 
 	// check for restricted name
 	if _, isRestricted := restricted.Get(name); isRestricted {
