@@ -14,13 +14,15 @@ import (
 // State
 
 var (
-	admin      std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
-	name2User  avl.Tree                     // Name -> *users.User
-	addr2User  avl.Tree                     // std.Address -> *users.User
-	invites    avl.Tree                     // string(inviter+":"+invited) -> true
-	counter    int                          // user id counter
-	minFee     int64       = 20 * 1_000_000 // minimum gnot must be paid to register.
-	maxFeeMult int64       = 10             // maximum multiples of minFee accepted.
+	admin std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @jae
+
+	restricted avl.Tree                  // Name -> true - restricted name
+	name2User  avl.Tree                  // Name -> *users.User
+	addr2User  avl.Tree                  // std.Address -> *users.User
+	invites    avl.Tree                  // string(inviter+":"+invited) -> true
+	counter    int                       // user id counter
+	minFee     int64    = 20 * 1_000_000 // minimum gnot must be paid to register.
+	maxFeeMult int64    = 10             // maximum multiples of minFee accepted.
 )
 
 //----------------------------------------
@@ -34,8 +36,10 @@ func Register(inviter std.Address, name string, profile string) {
 	if caller != std.GetOrigCaller() {
 		panic("should not happen") // because std.AssertOrigCall().
 	}
+
 	sentCoins := std.GetOrigSend()
 	minCoin := std.NewCoin("ugnot", minFee)
+
 	if inviter == "" {
 		// banker := std.GetBanker(std.BankerTypeOrigSend)
 		if len(sentCoins) == 1 && sentCoins[0].IsGTE(minCoin) {
@@ -55,6 +59,17 @@ func Register(inviter std.Address, name string, profile string) {
 		}
 		invites.Remove(invitekey)
 	}
+
+	// check for restricted name
+	if _, isRestricted := restricted.Get(name); isRestricted {
+		// only name invite by the admin can register restricted name
+		if inviter != admin {
+			panic("restricted name")
+		}
+
+		restricted.Remove(name)
+	}
+
 	// assert not already registered.
 	_, ok := name2User.Get(name)
 	if ok {
@@ -64,8 +79,11 @@ func Register(inviter std.Address, name string, profile string) {
 	if ok {
 		panic("address already registered")
 	}
+
 	// assert name is valid.
-	if !reName.MatchString(name) {
+	// admin can bypass name restriction
+	isAdmin := caller == admin
+	if !isAdmin && !reName.MatchString(name) {
 		panic("invalid name: " + name + " (must be at least 6 characters, lowercase alphanumeric with underscore)")
 	}
 	// remainder of fees go toward invites.
@@ -243,6 +261,27 @@ func Resolve(input users.AddressOrName) std.Address {
 
 	user := GetUserByName(name)
 	return user.Address
+}
+
+// Add restricted name to the list of
+func AdminAddRestrictedName(name string) {
+	// assert admin
+
+	// assert CallTx call.
+	std.AssertOriginCall()
+	// get caller
+	caller := std.GetOrigCaller()
+	if caller != admin {
+		panic("unauthorized")
+	}
+
+	if user := GetUserByName(name); user != nil {
+		panic("already registered name")
+	}
+
+	// register restricted name
+
+	restricted.Set(name, true)
 }
 
 //----------------------------------------
