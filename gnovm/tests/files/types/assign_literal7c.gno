@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_literal7c.gno:7: cannot assign to str<VPBlock(1,0)>[(const (0 int))]
+// main/files/types/assign_literal7c.gno:7:2: cannot assign to str<VPBlock(1,0)>[(const (0 int))]

@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0a1f.gno:6: cannot use int as string
+// main/files/types/eql_0a1f.gno:6:10: cannot use int as string

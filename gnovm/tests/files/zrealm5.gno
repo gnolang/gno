@@ -175,13 +175,32 @@ func main() {
 //         "@type": "/gno.RefNode",
 //         "BlockNode": null,
 //         "Location": {
+//             "Column": "0",
 //             "File": "",
 //             "Line": "0",
-//             "Nonce": "0",
 //             "PkgPath": "gno.land/r/test"
 //         }
 //     },
 //     "Values": [
+//         {
+//             "T": {
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
+//                 }
+//             },
+//             "V": {
+//                 "@type": "/gno.PointerValue",
+//                 "Base": {
+//                     "@type": "/gno.RefValue",
+//                     "Hash": "7b9d58f40430bbbcbafd47eefb7a6dd342477f71",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
+//                 },
+//                 "Index": "0",
+//                 "TV": null
+//             }
+//         },
 //         {
 //             "T": {
 //                 "@type": "/gno.FuncType",
@@ -197,7 +216,7 @@ func main() {
 //                 },
 //                 "FileName": "main.gno",
 //                 "IsMethod": false,
-//                 "Name": "init.0",
+//                 "Name": "init.1",
 //                 "NativeName": "",
 //                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/test",
@@ -205,9 +224,9 @@ func main() {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
+//                         "Column": "1",
 //                         "File": "main.gno",
 //                         "Line": "11",
-//                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },
@@ -241,9 +260,9 @@ func main() {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
+//                         "Column": "1",
 //                         "File": "main.gno",
 //                         "Line": "15",
-//                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/test"
 //                     }
 //                 },
@@ -252,25 +271,6 @@ func main() {
 //                     "Params": [],
 //                     "Results": []
 //                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "github.com/gnolang/gno/_test/timtadh/data_structures/tree/avl.AvlNode"
-//                 }
-//             },
-//             "V": {
-//                 "@type": "/gno.PointerValue",
-//                 "Base": {
-//                     "@type": "/gno.RefValue",
-//                     "Hash": "7b9d58f40430bbbcbafd47eefb7a6dd342477f71",
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4"
-//                 },
-//                 "Index": "0",
-//                 "TV": null
 //             }
 //         }
 //     ]

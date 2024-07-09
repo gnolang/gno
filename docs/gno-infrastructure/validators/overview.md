@@ -44,12 +44,12 @@ will be determined following thorough testing and optimization experiments in Te
 
 ## Good Validators
 
-Validators for Gno.land are trusted to demonstrate professionalism and responsibility. Below are best practices that can
+Validators for gno.land are trusted to demonstrate professionalism and responsibility. Below are best practices that can
 be expected from a good, reliable validator.
 
 #### Ecosystem Contribution
 
-- Contributing to the core development of the Gno.land project
+- Contributing to the core development of the gno.land project
 - Providing useful tools or infrastructure services (wallets, explorers, public RPCs, etc.)
 - Creating educational materials to guide new members
 - Localizing documentation or content to lower language or cultural barriers
@@ -75,7 +75,7 @@ be expected from a good, reliable validator.
 
 ## Community
 
-Join the official Gno.land community in various channels to receive the latest updates about the project and actively
+Join the official gno.land community in various channels to receive the latest updates about the project and actively
 communicate with other validators and contributors.
 
 - [Gno.land Blog](https://gno.land/r/gnoland/blog)
@@ -84,7 +84,7 @@ communicate with other validators and contributors.
 
 :::info
 
-The validator set implementation in Gno.land is abstracted away from the consensus mechanism inside the `r/sys/vals`
+The validator set implementation in gno.land is abstracted away from the consensus mechanism inside the `r/sys/vals`
 realm. The realm is not production ready yet, and is still under active development. Proposals and contributions to
 improve and complete the implementation are welcome.
 
