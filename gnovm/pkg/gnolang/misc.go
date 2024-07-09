@@ -177,10 +177,28 @@ type DeclNode struct {
 	Dependencies []*DeclNode
 }
 
+// dumpGraph prints the current declGraph
+func dumpGraph(declGraph []*DeclNode) {
+	fmt.Println("-----------------------dump declGraph begin-------------------------")
+	for _, node := range declGraph {
+		fmt.Printf("%s -> ", node.Name)
+		for _, d := range node.Dependencies {
+			fmt.Printf("%s: ", d.Name)
+		}
+		fmt.Println()
+	}
+	fmt.Println("-----------------------dump declGraph done-------------------------")
+}
+
 // insertDeclNode inserts a new dependency into the graph
-func insertDeclNode(name Name, loc Location, deps ...Name) {
+func insertDeclNode(declGraph *[]*DeclNode, name Name, loc Location, deps ...Name) {
+	fmt.Println("---insertDeclNode, name: ", name)
+	for _, d := range *declGraph {
+		fmt.Println("---insertDeclNode, declGraph: ", *d)
+	}
+
 	var dep *DeclNode
-	for _, d := range declGraph {
+	for _, d := range *declGraph {
 		if d.Name == name {
 			dep = d
 			dep.Loc = loc
@@ -189,11 +207,11 @@ func insertDeclNode(name Name, loc Location, deps ...Name) {
 	}
 	if dep == nil {
 		dep = &DeclNode{Name: name, Loc: loc}
-		declGraph = append(declGraph, dep)
+		*declGraph = append(*declGraph, dep)
 	}
 	for _, depName := range deps {
 		var child *DeclNode
-		for _, d := range declGraph {
+		for _, d := range *declGraph {
 			if d.Name == depName {
 				child = d
 				break
@@ -201,14 +219,19 @@ func insertDeclNode(name Name, loc Location, deps ...Name) {
 		}
 		if child == nil {
 			child = &DeclNode{Name: depName}
-			declGraph = append(declGraph, child)
+			*declGraph = append(*declGraph, child)
 		}
 		dep.Dependencies = append(dep.Dependencies, child)
 	}
+
+	dumpGraph(*declGraph)
 }
 
 // assertNoCycle checks if there is a cycle in the declGraph graph
-func assertNoCycle() {
+func assertNoCycle(declGraph []*DeclNode) {
+	for _, d := range declGraph {
+		fmt.Println("---assertNoCycle, declGraph: ", *d)
+	}
 	defer func() {
 		declGraph = nil
 	}()

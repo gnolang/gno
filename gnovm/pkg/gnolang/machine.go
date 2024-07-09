@@ -618,8 +618,10 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 	// order and depend on other files.
 
 	// Run declarations.
+	// XXX, is this only for global vars
 	for _, fn := range fns {
 		for _, decl := range fn.Decls {
+			fmt.Println("---machine runDeclareFor, decl: ", decl)
 			runDeclarationFor(fn, decl)
 		}
 	}

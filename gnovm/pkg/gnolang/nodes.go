@@ -1772,6 +1772,8 @@ func (sb *StaticBlock) Predefine(isConst bool, n Name) {
 // The declared type st may not be the same as the static tv;
 // e.g. var x MyInterface = MyStruct{}.
 func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
+	fmt.Println("---Define2, n: ", n)
+
 	if debug {
 		debug.Printf(
 			"StaticBlock.Define2(%v, %s, %v, %v)\n",
