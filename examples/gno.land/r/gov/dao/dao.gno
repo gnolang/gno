@@ -61,7 +61,7 @@ func Propose(comment string, executor pproposal.Executor) int {
 	if executor == nil {
 		panic(msgMissingExecutor)
 	}
-	caller := std.PrevRealm().Addr()
+	caller := std.GetOrigCaller() // XXX: CHANGE THIS WHEN MSGRUN PERSIST CODE ESCAPING THE main() SCOPE! IT IS UNSAFE!
 	AssertIsMember(caller)
 
 	prop := &proposal{
@@ -78,7 +78,7 @@ func Propose(comment string, executor pproposal.Executor) int {
 
 func VoteOnProposal(idx int, option string) {
 	assertProposalExists(idx)
-	caller := std.PrevRealm().Addr()
+	caller := std.GetOrigCaller() // XXX: CHANGE THIS WHEN MSGRUN PERSIST CODE ESCAPING THE main() SCOPE! IT IS UNSAFE!
 	AssertIsMember(caller)
 
 	prop := getProposal(idx)
