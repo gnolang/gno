@@ -63,11 +63,11 @@ func Register(inviter std.Address, name string, profile string) {
 	// assert not already registered.
 	_, ok := name2User.Get(name)
 	if ok {
-		panic("name already registered")
+		panic("name already registered: " + name)
 	}
 	_, ok = addr2User.Get(caller.String())
 	if ok {
-		panic("address already registered")
+		panic("address already registered: " + caller.String())
 	}
 
 	isInviterAdmin := inviter == admin
@@ -76,7 +76,7 @@ func Register(inviter std.Address, name string, profile string) {
 	if _, isRestricted := restricted.Get(name); isRestricted {
 		// only address invite by the admin can register restricted name
 		if !isInviterAdmin {
-			panic("restricted name")
+			panic("restricted name: " + name)
 		}
 
 		restricted.Remove(name)

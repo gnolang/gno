@@ -8,7 +8,7 @@ import (
 
 // pre-restricted names
 var preRestrictedNames = []string{
-	"bitcoin", "cosmos", "newtendermint", "administrator", "ethereum",
+	"bitcoin", "cosmos", "newtendermint", "ethereum",
 }
 
 // pre-registered users
@@ -26,11 +26,6 @@ var preRegisteredUsers = []struct {
 	{"nt", "g15ge0ae9077eh40erwrn2eq0xw6wupwqthpv34l"},       // -> @r_nt
 	{"sys", "g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l"},      // -> @r_sys
 	{"x", "g164sdpew3c2t3rvxj3kmfv7c7ujlvcw2punzzuz"},        // -> @r_x
-
-	// famous name
-	{"test1", "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"},   // -> @test1
-	{"jaekwon", "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"}, // -> @jae
-	{"manfred", "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"}, // -> @moul
 }
 
 func init() {
