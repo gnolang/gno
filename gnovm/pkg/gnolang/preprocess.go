@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -426,6 +427,24 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
+				if n.Op == DEFINE {
+					for _, lx := range n.Lhs {
+						ln := lx.(*NameExpr).Name
+						if ln == blankIdentifier {
+							// ignore.
+						} else if strings.HasPrefix(string(ln), ".tmp_") {
+							_, ok := last.GetLocalIndex(ln)
+							if !ok {
+								// initial declaration to be re-defined.
+								last.Define(ln, anyValue(nil))
+							} else {
+								// do not redeclare.
+							}
+						}
+					}
+				} else {
+					// nothing defined.
+				}
 
 			// TRANS_ENTER -----------------------
 			case *ImportDecl, *ValueDecl, *TypeDecl, *FuncDecl:
