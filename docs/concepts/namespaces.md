@@ -4,13 +4,15 @@ id: namespaces
 
 # Namespaces
 
-Namespaces provide users with the exclusive capability to publish contracts under their designated namespaces, similar to GitHub's user and organization model.
+Namespaces provide users with the exclusive capability to publish contracts under their designated namespaces,
+similar to GitHub's user and organization model.
 
 :::warn This feature isn't enabled by default on the chain and is currently only on test4.gno.land.
 
 # Package Path
 
-A package path is a unique identifier for each package/realm. It specifies the location of the package source code which helps differentiate it from others. You can use a package path to:
+A package path is a unique identifier for each package/realm. It specifies the location of the package source
+code which helps differentiate it from others. You can use a package path to:
 
 - Call a specific function from a package/realm. (e.g using `gnokey maketx call`)
 - Import it in other packages/realms.
@@ -21,7 +23,9 @@ Here's a breakdown of the structure of a package path:
 - Type: Defines the type of package.
     - `p/`: [Package](packages.md)
     - `r/`: [Realm](realms.md)
-- Namespace: A namespace can be included after the type (e.g., user or organization name). Namespaces are a way to group related packages or realms, but currently ownership cannot be claimed. (see [Issue #1107](https://github.com/gnolang/gno/issues/1107) for more info)
+- Namespace: A namespace can be included after the type (e.g., user or organization name). Namespaces are a
+  way to group related packages or realms, but currently ownership cannot be claimed. (see 
+  [Issue#1107](https://github.com/gnolang/gno/issues/1107) for more info)
 - Remaining Path: The remaining part of the path.
     - Can only contain alphanumeric characters (letters and numbers) and underscores.
     - No special characters allowed (except underscore).
@@ -36,9 +40,22 @@ Examples:
 
 ## Registration Process
 
-The registration process is contract-based. The `AddPkg` command references `sys/users` for filtering, which in turn is based on `r/demo/users`.
+The registration process is contract-based. The `AddPkg` command references
+`sys/users` for filtering, which in turn is based on `r/demo/users`.
 
-When `sys/users` is enabled, you need to register a name using `r/demo/users`. This process requires an `Invite`, after which you can call the `r/demo/users.Register` function to register the name for the caller's address.
+When `sys/users` is enabled, you need to register a name using `r/demo/users`. You can call the
+`r/demo/users.Register` function to register the name for the caller's address.
+
+```bash
+$ gnokey maketx call -pkgpath gno.land/r/demo/users \
+    -func Register \
+    -gas-fee 1000000ugnot -gas-wanted 2000000 \
+    -broadcast -chainid=dev \
+    -send=20000000ugnot \
+    -args '' # first argument
+    -args 'patrick'
+    -args 'My Profile Quote' test1
+```
 
 After successful registration, you can add a package under the registered namespace.
 
