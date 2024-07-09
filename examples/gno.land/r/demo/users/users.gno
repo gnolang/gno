@@ -60,18 +60,6 @@ func Register(inviter std.Address, name string, profile string) {
 		invites.Remove(invitekey)
 	}
 
-	isAdmin := caller == admin
-
-	// check for restricted name
-	if _, isRestricted := restricted.Get(name); isRestricted {
-		// only name invite by the admin can register restricted name
-		if inviter != admin {
-			panic("restricted name")
-		}
-
-		restricted.Remove(name)
-	}
-
 	// assert not already registered.
 	_, ok := name2User.Get(name)
 	if ok {
@@ -82,11 +70,24 @@ func Register(inviter std.Address, name string, profile string) {
 		panic("address already registered")
 	}
 
+	isInviterAdmin := inviter != admin
+
+	// check for restricted name
+	if _, isRestricted := restricted.Get(name); isRestricted {
+		// only address invite by the admin can register restricted name
+		if !isInviterAdmin {
+			panic("restricted name")
+		}
+
+		restricted.Remove(name)
+	}
+
 	// assert name is valid.
-	// admin can bypass name restriction
-	if !isAdmin && !reName.MatchString(name) {
+	// admin inviter can bypass name restriction
+	if !isInviterAdmin && !reName.MatchString(name) {
 		panic("invalid name: " + name + " (must be at least 6 characters, lowercase alphanumeric with underscore)")
 	}
+
 	// remainder of fees go toward invites.
 	invites := int(0)
 	if len(sentCoins) == 1 {
@@ -264,7 +265,7 @@ func Resolve(input users.AddressOrName) std.Address {
 	return user.Address
 }
 
-// Add restricted name to the list of
+// Add restricted name to the list
 func AdminAddRestrictedName(name string) {
 	// assert admin
 

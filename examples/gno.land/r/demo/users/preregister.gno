@@ -6,11 +6,12 @@ import (
 	"gno.land/p/demo/users"
 )
 
-// pre-restricted name
+// pre-restricted names
 var preRestrictedNames = []string{
 	"bitcoin", "cosmos", "newtendermint", "administrator", "ethereum",
 }
 
+// pre-registered users
 var preRegisteredUsers = []struct {
 	Name    string
 	Address std.Address
