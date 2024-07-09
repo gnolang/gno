@@ -17,7 +17,7 @@ var (
 	enabled   = false                         // For now this package is disabled by default
 )
 
-func IsEnable() bool { return enabled }
+func IsEnabled() bool { return enabled }
 
 // This method ensures that the given address has ownership of the given name.
 func IsAuthorizedAddressForName(address std.Address, name string) bool {
