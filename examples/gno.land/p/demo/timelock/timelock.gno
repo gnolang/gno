@@ -193,8 +193,7 @@ func (tl *TimeLockUtil) GetOperationState(id seqid.ID) (OperationState, error) {
 	}
 	if timestamp == DoneTimestamp {
 		return Done, nil
-	}
-	 else if timestamp > time.Now().Unix() {
+	} else if timestamp > time.Now().Unix() {
 		return Pending, nil
 	}
 	return Ready, nil
