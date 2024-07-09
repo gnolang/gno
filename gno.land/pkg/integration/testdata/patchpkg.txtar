@@ -2,7 +2,7 @@ loadpkg gno.land/r/dev/admin $WORK
 
 adduser dev
 
-replace "g1abcde" $USER_ADDR_dev
+patchpkg "g1abcde" $USER_ADDR_dev
 
 gnoland start
 
