@@ -2,13 +2,10 @@ package uuid
 
 import (
 	"testing"
-	"time"
-
-	"gno.land/p/demo/ufmt"
 )
 
 func TestID(t *testing.T) {
-	u := NewUUID()	
+	u := NewUUID()
 
 	id1 := u.ID()
 	id2 := u.ID()
@@ -24,7 +21,6 @@ func TestID(t *testing.T) {
 	}
 
 	t.Logf("uuid1: %s , uuid2: %s", uuid1, uuid2)
-
 
 	const numIDs = 11
 	idMap := make(map[uint64]bool)
@@ -48,7 +44,6 @@ func TestCounter(t *testing.T) {
 	u := NewUUID()
 	initialCounter := u.counter
 
-	
 	for i := 0; i < 10; i++ {
 		u.ID()
 	}
@@ -59,7 +54,6 @@ func TestCounter(t *testing.T) {
 		t.Logf("Counter incremented correctly: expected %d, got %d", initialCounter+10, u.counter)
 	}
 
-	
 	u.counter = int64(MaxTimestamp) + 1
 	u.ID()
 	if u.counter != 0 {

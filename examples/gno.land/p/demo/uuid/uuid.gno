@@ -18,8 +18,8 @@ import (
 
 const (
 	TimestampLength uint8  = 41
-	MachineIDLength uint8  = 10
-	SequenceLength  uint8  = 12
+	MachineIDLength uint64 = 10
+	SequenceLength  uint64 = 12
 	MaxSequence     uint16 = 1<<SequenceLength - 1
 	MaxTimestamp    uint64 = 1<<TimestampLength - 1
 	MaxMachineID    uint64 = 1<<MachineIDLength - 1
@@ -56,8 +56,8 @@ func (u *UUID) ID() uint64 {
 		panic("Exceeding the time limit")
 	}
 
-	id := (uint64(elapsedTime) << uint64(timestampMoveLength)) |
-		(uint64(u.MachineID) << uint64(machineIDMoveLength)) |
+	id := (uint64(elapsedTime) << timestampMoveLength) |
+		(uint64(u.MachineID) << machineIDMoveLength) |
 		uint64(u.incrementSequence())
 	return id
 }
