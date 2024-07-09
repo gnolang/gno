@@ -53,7 +53,7 @@ func TestCallSingle_Integration(t *testing.T) {
 
 	// Execute call
 	res, err := client.Call(baseCfg, msg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	expected := "(\"hi test argument\" string)\n\n"
 	got := string(res.DeliverTx.Data)
@@ -107,7 +107,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 	// Execute call
 	res, err := client.Call(baseCfg, msg1, msg2)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	got := string(res.DeliverTx.Data)
 	assert.Equal(t, expected, got)
@@ -149,12 +149,12 @@ func TestSendSingle_Integration(t *testing.T) {
 
 	// Execute send
 	res, err := client.Send(baseCfg, msg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "", string(res.DeliverTx.Data))
 
 	// Get the new account balance
 	account, _, err := client.QueryAccount(toAddress)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	expected := std.Coins{{"ugnot", int64(amount)}}
 	got := account.GetCoins()
