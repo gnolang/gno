@@ -14,7 +14,7 @@ var (
 	ErrCannotTransferToSelf  = errors.New("cannot send transfer to self")
 )
 
-type Token interface {
+type GRC20 interface {
 	exts.TokenMetadata
 
 	// Returns the amount of tokens in existence.

@@ -17,8 +17,12 @@ package grc20
  - compatible with custom implementation/rules.
  - compatible with custom getCaller as a callback?
  - support addresseable OR sub treasuries.
+
  - single bnaker for multiple grc20 tokens; like std.Coin{}
    - consider returning `std.Coin`
+ - grc20factory.gno // var banks avl.Tree // key -> Bank
+    bank.LocalBankerWithSuffix(key).Transfer()
+ - boundingtoken.gno // tokenA, boundA
  - think about the r/grc20factory special contract
    - create new user token
    - what about being seen by another contract as the prevRealm (dex)
@@ -27,16 +31,60 @@ package grc20
  - GOOD NAMES!
  - GOOD NAMES!
  - GOOD NAMES!
- - GOOD NAMES!
- - GOOD NAMES!
 */
 
-type TokenBuilder interface {
+/*
+Foo20 := NewBank("foo20", "FOO", 5)
+
+
+
+Foo20.PrevRealmBanker().Transfer()
+
+local := Foo20.PrevRealmBanker()
+local.Transfer()
+
+func (b Bank) RealmIssueBanker() IssueBanker {
+	if caller != creator { panic}
+}
+*/
+
+/*
+type Bank interface { // XXX Ledger?
+	// GRC20
+
+	PrevRea0lmBanker() Banker                // most standard banker -> proxifed 1-1 on foo20.gno;  exposable object, and also perfect for dexes
+	PrevRealmNamedBanker(name string) Banker // most standard banker -> proxifed 1-1 on foo20.gno;  exposable object, and also perfect for dexes
+	LocalBanker() Banker                     // when a realm wants to make advanced workflows, such as a dao that will "give" delegation of their account to a specificed callback
+	LocalNamedBanker(name string) Banker     // when a realm wants to make advanced workflows, such as a dao that will "give" delegation of their account to a specificed callback
+
+	RealmIssueBanker() IssueBanker // panic if called from non-owning realm
+}
+*/
+
+// Spender???
+
+/*
+func ReadonlyWrapper(Banker) Banker {}
+func Mockify(Banker) MockBanker     { /* readonly + changes  }
+
+type Bank interface { // XXX Ledger?
+	PrevRealmBanker() BankerWithOptionToBecomeLocal // most standard banker -> proxifed 1-1 on foo20.gno;  exposable object, and also perfect for dexes
+	LocalBanker() Banker                            // when a realm wants to make advanced workflows, such as a dao that will "give" delegation of their account to a specificed callback
+	ReadonlyBanker() ReadonlyBanker                 // XXX: ReadOnlyBanker?
+	RealmIssueBanker() IssueBanker                  // panic if called from non-owning realm
+}
+
+type PrevRealmBanker interface {
+	GRC20
+	LocalBanker() Banker
+}
+
+type IssueBanker interface {
 	Mint()
 	Burn()
-	UserBanker() GRC20
-	LocalBanker() GRC20
+	Transfer(from, to std.Address, amount uint64)
 }
+
 type GRC20 interface{}
 
 func ExampleBucket() {
@@ -60,7 +108,7 @@ func ExampleDex() {
 }
 
 func ScopedBanker()
-
+*/
 /*
 // --- grc20 interface v1
 type Banker interface{} //?
@@ -189,22 +237,34 @@ func Example() {
 
 type PermissionedBanker struct{}
 
-func (mb *PermissionedBanker) Transfer(from, to std.Address, amount uint64) {}
+   func (mb *PermissionedBanker) Transfer(from, to std.Address, amount uint64) {}
+   func (mb *PermissinlessBanker) Transfer(to std.Address, amount uint64) {
+   from := mb.resolveFn()
+   }
 
 func (mb *PermissionedBanker) CustomBanker(callerFn func() std.Address) GRC20 {
 	// wrap
 }
 
-func UserBanker(mb *PermissionedBanker) GRC20 {
-	return mb.CustomBanker(func() std.Address {
+func PrevRealmBanker(mb *PermissionedBanker) GRC20 {
+        resolveFn := func() std.Address {
 		return std.PrevRealm().Addr()
-	})
+	}
+        return mb.CustomBanker(resolveFn)
 }
 
-func LocalRealmBanker(mb *PermissionedBanker) GRC20 {
+   func LocalRealmBanker(mb *PermissionedBanker) GRC20 {
 	rlm := std.PrevRealm().Addr()
-	return mb.CustomBanker(func() std.Address { return rlm })
-}
+        resolveFn := func() std.Address {
+		return rlm
+	}
+        return mb.CustomBanker(resolveFn)
+   }
+
+   func LocalRealmBankerWithSuffix(mb *PermissionedBanker, suffix string) GRC20 {
+	rlm := std.PrevRealm().Addr()
+	return mb.CustomBanker(func() string { return rlm + "/"+suffix })
+        }
 
 func MockBanker(mb *PermissionedBanker) GRC20 {
 	return mb.CustomBanker(func() std.Address { })
