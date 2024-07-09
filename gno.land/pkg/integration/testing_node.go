@@ -50,7 +50,6 @@ func TestingNodeConfig(t TestingTS, gnoroot string) (*gnoland.InMemoryNodeConfig
 	balances := LoadDefaultGenesisBalanceFile(t, gnoroot)
 	txs := []std.Tx{}
 	txs = append(txs, LoadDefaultPackages(t, creator, gnoroot)...)
-	txs = append(txs, LoadDefaultGenesisTXsFile(t, cfg.Genesis.ChainID, gnoroot)...)
 
 	cfg.Genesis.AppState = gnoland.GnoGenesisState{
 		Balances: balances,
