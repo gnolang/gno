@@ -1,3 +1,7 @@
+# Predeploy Accounts
+
+g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=103000000ugnot # Test1 (just enough for predeployment)
+
 # Faucet Accounts (Core)
 
 g1njagaeg7e398hze39ygfgvc4gwsh6lkz7dwnuz=9000000000000000000ugnot # Faucet #0
