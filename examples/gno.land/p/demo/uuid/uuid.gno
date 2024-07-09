@@ -8,14 +8,13 @@
 package uuid
 
 import (
-	"time"
-	"std"
 	"encoding/binary"
+	"std"
 	"strings"
+	"time"
 
 	"gno.land/p/demo/ufmt"
 )
-
 
 const (
 	TimestampLength uint8  = 41
@@ -33,33 +32,32 @@ const (
 type UUID struct {
 	MachineID     uint64
 	sequence      uint16
-	StartTime     int64 
+	StartTime     int64
 	LastTimestamp int64
 	counter       int64 // counter local for simulate the time because time.Now() is not available
 }
 
-
 func NewUUID() *UUID {
 	u := &UUID{
 		StartTime: time.Date(2008, 11, 10, 23, 0, 0, 0, time.UTC).Unix() * 1000,
-		counter:   0, 
+		counter:   0,
 	}
 	u.SetMachineID()
 	return u
 }
 
-// ID generates 
+// ID generates
 func (u *UUID) ID() uint64 {
-	current := u.incrementCounter() 
-	elapsedTime :=  current - u.StartTime 
+	current := u.incrementCounter()
+	elapsedTime := current - u.StartTime
 	u.LastTimestamp = current
-	
+
 	if uint64(elapsedTime) < MaxTimestamp {
 		panic("Exceeding the time limit")
 	}
 
-	id := (uint64(elapsedTime) << timestampMoveLength) |
-		(u.MachineID << machineIDMoveLength) |
+	id := (uint64(elapsedTime) << uint64(timestampMoveLength)) |
+		(uint64(u.MachineID) << uint64(machineIDMoveLength)) |
 		uint64(u.incrementSequence())
 	return id
 }
@@ -96,13 +94,13 @@ func IDToUUID(id uint64) string {
 
 	// Use bits from the Snowflake ID to generate the first half of the UUID
 	bytes[0] = byte(id >> 60)
-    bytes[1] = byte(id >> 52)
-    bytes[2] = byte(id >> 44)
-    bytes[3] = byte(id >> 36)
-    bytes[4] = byte(id >> 28)
-    bytes[5] = byte(id >> 20)
-    bytes[6] = byte(id >> 12)
-    bytes[7] = byte(id >> 4)
+	bytes[1] = byte(id >> 52)
+	bytes[2] = byte(id >> 44)
+	bytes[3] = byte(id >> 36)
+	bytes[4] = byte(id >> 28)
+	bytes[5] = byte(id >> 20)
+	bytes[6] = byte(id >> 12)
+	bytes[7] = byte(id >> 4)
 
 	// set the version and variant bits according to UUID specification.
 	bytes[6] = (bytes[6] & 0x0f) | 0x40 // version 4 (random)
@@ -124,11 +122,11 @@ func uint64ToBytes(i uint64) []byte {
 
 func bytesToHex(bs []byte) string {
 	hexChars := "0123456789abcdef"
-	
+
 	sb := strings.Builder{}
 	for _, b := range bs {
-		sb.WriteByte(hexChars[b >> 4])		// high 4 bits
-		sb.WriteByte(hexChars[b & 0x0f])	// low 4 bits
+		sb.WriteByte(hexChars[b>>4])   // high 4 bits
+		sb.WriteByte(hexChars[b&0x0f]) // low 4 bits
 	}
 
 	return sb.String()
