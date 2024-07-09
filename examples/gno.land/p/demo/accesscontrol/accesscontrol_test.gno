@@ -78,26 +78,25 @@ func TestCreateRole(t *testing.T) {
 	roles := &Roles{Admin: admin}
 
 	// Create a new role with a new administrator address
-	newAdmin := testutils.TestAddress("newAdmin")
 	newRoleName := "newRole"
-	newRole := roles.CreateRole(newRoleName, newAdmin)
+	newRole := roles.CreateRole(newRoleName)
 
 	// Check that the new role has been created correctly
 	if newRole.Name != newRoleName {
 		t.Fatalf("expected new role name to be '%s', got '%s'", newRoleName, newRole.Name)
 	}
-	if newRole.AdminRole != newAdmin {
-		t.Fatalf("expected new role admin role to be %s, got %s", newAdmin.String(), newRole.AdminRole.String())
+	if newRole.AdminRole != admin {
+		t.Fatalf("expected new role admin role to be %s, got %s", admin.String(), newRole.AdminRole.String())
 	}
 
 	// Simulate newAdmin as the current caller
-	std.TestSetOrigCaller(newAdmin)
+	std.TestSetOrigCaller(admin)
 
 	// Explicitly add the role to the new administrator to check functionality
-	newRole.GrantRole(newAdmin)
+	newRole.GrantRole(admin)
 
 	// Check if the new role has been added to the holder
-	if !newRole.HasRole(newAdmin) {
+	if !newRole.HasRole(admin) {
 		t.Fatalf("expected new role to be added to the holder")
 	}
 }

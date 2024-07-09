@@ -71,18 +71,17 @@ func (r *Role) AssertCallerIsAdmin() {
 }
 
 // Method to create a new role within the realm
-func (rs *Roles) CreateRole(name string, adminRole std.Address) *Role {
+func (rs *Roles) CreateRole(name string) *Role {
 	if rs.Admin != std.PrevRealm().Addr() {
 		panic("accesscontrol: caller does not have the global admin role")
 	}
 
-	role := NewRole(name, adminRole)
+	role := NewRole(name, rs.Admin)
 	rs.AllRoles = append(rs.AllRoles, role)
 
 	std.Emit(
 		"RoleCreated",
 		"roleName", name,
-		"adminRole", adminRole.String(),
 		"sender", rs.Admin.String(),
 	)
 
