@@ -157,7 +157,6 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 				if err != nil {
 					return newCtx, res, true
 				}
-
 				signerAccs[i], res = processSig(newCtx, sacc, stdSigs[i], signBytes, simulate, params, sigGasConsumer)
 				if !res.IsOK() {
 					return newCtx, res, true

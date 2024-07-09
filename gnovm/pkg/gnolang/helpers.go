@@ -8,6 +8,34 @@ import (
 )
 
 // ----------------------------------------
+// Functions centralizing definitions
+
+// RealmPathPrefix is the prefix used to identify pkgpaths which are meant to
+// be realms and as such to have their state persisted. This is used by [IsRealmPath].
+const RealmPathPrefix = "gno.land/r/"
+
+// ReGnoRunPath is the path used for realms executed in maketx run.
+// These are not considered realms, as an exception to the RealmPathPrefix rule.
+var ReGnoRunPath = regexp.MustCompile(`^gno\.land/r/g[a-z0-9]+/run$`)
+
+// IsRealmPath determines whether the given pkgpath is for a realm, and as such
+// should persist the global state.
+func IsRealmPath(pkgPath string) bool {
+	return strings.HasPrefix(pkgPath, RealmPathPrefix) &&
+		// MsgRun pkgPath aren't realms
+		!ReGnoRunPath.MatchString(pkgPath)
+}
+
+// IsStdlib determines whether s is a pkgpath for a standard library.
+func IsStdlib(s string) bool {
+	// NOTE(morgan): this is likely to change in the future as we add support for
+	// IBC/ICS and we allow import paths to other chains. It might be good to
+	// (eventually) follow the same rule as Go, which is: does the first
+	// element of the import path contain a dot?
+	return !strings.HasPrefix(s, "gno.land/")
+}
+
+// ----------------------------------------
 // AST Construction (Expr)
 // These are copied over from go-amino-x, but produces Gno ASTs.
 
