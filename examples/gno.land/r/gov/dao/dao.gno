@@ -151,7 +151,7 @@ func Render(path string) string {
 
 		output := ""
 		for idx, prop := range proposals {
-			output += ufmt.Sprintf("- [/r/gov/dao:%d](%d) - %s (**%s**)(by %s)\n", idx, idx, prop.comment, string(prop.Status()), prop.author)
+			output += ufmt.Sprintf("- [%d](/r/gov/dao:%d) - %s (**%s**)(by %s)\n", idx, idx, prop.comment, string(prop.Status()), prop.author)
 		}
 
 		return output
@@ -174,15 +174,17 @@ func Render(path string) string {
 	}
 
 	output := ""
-	output += ufmt.Sprintf("# Prop#%d", idx) + "\n"
-	output += "\n"
+	output += ufmt.Sprintf("# Prop #%d", idx)
+	output += "\n\n"
 	output += prop.comment
-	output += "\n"
+	output += "\n\n"
 	output += ufmt.Sprintf("Status: %s", string(prop.Status()))
-	output += "\n"
+	output += "\n\n"
 	output += ufmt.Sprintf("Voting status: %s", prop.voter.Status(vs))
-	output += "\n"
+	output += "\n\n"
 	output += ufmt.Sprintf("Author: %s", string(prop.author))
+	output += "\n\n"
+
 	return output
 }
 
