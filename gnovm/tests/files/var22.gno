@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/var22.gno:8: assignment mismatch: 3 variable(s) but 2 value(s)
+// main/files/var22.gno:8:6: assignment mismatch: 3 variable(s) but 2 value(s)
