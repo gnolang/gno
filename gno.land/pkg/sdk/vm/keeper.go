@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -251,16 +250,13 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 }
 
 // Namespace can be either a user or crypto address.
-var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([a-zA-Z]+[_a-zA-Z0-9]+)`)
+var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
 	const sysUsersPkg = "gno.land/r/sys/users"
 
 	store := vm.getGnoStore(ctx)
-
-	// XXX: is this necessary ?
-	pkgPath = path.Clean(pkgPath) // cleanup pkgpath
 
 	match := reNamespace.FindStringSubmatch(pkgPath)
 	switch len(match) {
@@ -274,9 +270,6 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 		return ErrInvalidPkgPath(pkgPath)
 	}
 	username := match[1]
-
-	// Lowercase username
-	username = strings.ToLower(username)
 
 	// if `sysUsersPkg` does not exist -> skip validation.
 	usersPkg := store.GetPackage(sysUsersPkg, false)
