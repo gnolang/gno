@@ -6,7 +6,7 @@ id: namespaces
 
 Namespaces provide users with the exclusive capability to publish contracts under their designated namespaces, similar to GitHub's user and organization model.
 
-__NOTE__: This feature isn't enabled by default on the chain and is currently only enabled on gno.land.
+:::warn This feature isn't enabled by default on the chain and is currently only on test4.gno.land.
 
 # Package Path
 
