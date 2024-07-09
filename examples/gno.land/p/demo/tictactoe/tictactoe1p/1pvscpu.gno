@@ -25,11 +25,12 @@ type Game struct {
 // fRand is a user-supplied func returning a random number in [0, n(
 // fPickMove is nil (uses averageDifficulty) or a func used for CPU to pick moves
 func GameFromRepr(
-	text string, 
-	cpu, human std.Address, 
-	fRand func(int) int, 
-	fPickMove func(*tictactoe.Game, func(int) int
-) (x, y int, e error)) (*Game, error) {
+	text string,
+	cpu, human std.Address,
+	fRand func(int) int,
+	fPickMove func(*tictactoe.Game, func(int) int,
+	) (x, y int, e error),
+) (*Game, error) {
 	addr1, addr2 := decideOrder(cpu, human, text, fRand)
 
 	var g *tictactoe.Game
