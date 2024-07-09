@@ -1,3 +1,5 @@
+[![GitHub repo Good Issues for newbies](https://img.shields.io/github/issues/gnolang/gno/good%20first%20issue?style=flat&logo=github&logoColor=green&label=Good%20First%20issues)](https://github.com/gnolang/gno/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22) [![GitHub Help Wanted issues](https://img.shields.io/github/issues/gnolang/gno/help%20wanted?style=flat&logo=github&logoColor=b545d1&label=%22Help%20Wanted%22%20issues)](https://github.com/gnolang/gno/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22) [![GitHub Help Wanted PRs](https://img.shields.io/github/issues-pr/gnolang/gno/help%20wanted?style=flat&logo=github&logoColor=b545d1&label=%22Help%20Wanted%22%20PRs)](https://github.com/gnolang/gno/pulls?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22) [![GitHub repo Issues](https://img.shields.io/github/issues/gnolang/gno?style=flat&logo=github&logoColor=red&label=Issues)](https://github.com/gnolang/gno/issues?q=is%3Aopen)
+
 # Contributing to Gno
 
 Thank you for looking to contribute to the Gno project.
