@@ -1917,9 +1917,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// add the new statement to last.Body
 
 								// step1:
-								// create a hidden var with leading . (dot) the curBodyLen increase every time when there is an decompostion
+								// create a hidden var with leading . (dot) the curBodyLen increase every time when there is an decomposition
 								// because there could be multiple decomposition happens
-								// we use both stmt index and resturn result number to differentiate the .tmp variables created in each assignment decompostion
+								// we use both stmt index and return result number to differentiate the .tmp variables created in each assignment decompostion
 								// ex. .tmp_3_2: this variable is created as the 3rd statement in the block, the 2nd parameter returned from x(),
 								// create .tmp_1_1, .tmp_1_2 .... based on number of result from x()
 								var tmpExprs Exprs
