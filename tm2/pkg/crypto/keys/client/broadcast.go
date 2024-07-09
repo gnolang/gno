@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"flag"
-	"net/url"
 	"os"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -89,7 +88,7 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 		io.Println("HEIGHT:    ", res.Height)
 		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
-		io.Println("TX HASH:   ", url.QueryEscape(base64.StdEncoding.EncodeToString(res.Hash)))
+		io.Println("TX HASH:   ", base64.URLEncoding.EncodeToString(res.Hash))
 	}
 	return nil
 }
