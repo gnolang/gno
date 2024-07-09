@@ -14,7 +14,7 @@ type VerifyNameFunc func(enabled bool, address std.Address, name string) bool
 var (
 	owner     = ownable.NewWithAddress(admin) // Package owner
 	checkFunc = VerifyNameByUser              // Checking namespace callback
-	enabled   = false                         // For now this package is disabled by default
+	enabled   = true                          // For now this package is disabled by default
 )
 
 func IsEnabled() bool { return enabled }
