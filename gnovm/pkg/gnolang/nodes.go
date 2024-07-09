@@ -1098,7 +1098,7 @@ func PackageNameFromFileBody(name, body string) Name {
 // ReadMemPackage initializes a new MemPackage by reading the OS directory
 // at dir, and saving it with the given pkgPath (import path).
 // The resulting MemPackage will contain the names and content of all *.gno files,
-// and additionally README.md, LICENSE, and gno.mod.
+// and additionally README.md, LICENSE.
 //
 // ReadMemPackage does not perform validation aside from the package's name;
 // the files are not parsed but their contents are merely stored inside a MemFile.
@@ -1111,7 +1111,6 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 		panic(err)
 	}
 	allowedFiles := []string{ // make case insensitive?
-		"gno.mod",
 		"LICENSE",
 		"README.md",
 	}
