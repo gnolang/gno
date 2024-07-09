@@ -12,19 +12,22 @@ const admin = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // @jae
 type VerifyNameFunc func(enabled bool, address std.Address, name string) bool
 
 var (
-	owner     = ownable.NewWithAddress(admin) // Pkg owner
-	checkFunc = DefaultCheckName              // Checking namesapce callback
-	enabled   = false                         // For now this package is disable by default
+	owner     = ownable.NewWithAddress(admin) // Package owner
+	checkFunc = VerifyNameByUser              // Checking namespace callback
+	enabled   = false                         // For now this package is disabled by default
 )
 
 func IsEnable() bool { return enabled }
 
-// This method ensure that the given address have ownership on the given name.
+// This method ensures that the given address has ownership of the given name.
 func IsAuthorizedAddressForName(address std.Address, name string) bool {
 	return checkFunc(enabled, address, name)
 }
 
-func DefaultCheckName(enable bool, address std.Address, name string) bool {
+// VerifyNameByUser checks from the `users` package that the user has correctly
+// registered the given name.
+// This function considers as valid an `address` that matches the `name`.
+func VerifyNameByUser(enable bool, address std.Address, name string) bool {
 	if !enable {
 		return true
 	}
