@@ -190,13 +190,14 @@ func (tl *TimeLockUtil) GetOperationState(id seqid.ID) (OperationState, error) {
 
 	if timestamp == 0 {
 		return Unset, nil
-	} else if timestamp == DoneTimestamp {
-		return Done, nil
-	} else if timestamp > time.Now().Unix() {
-		return Pending, nil
-	} else {
-		return Ready, nil
 	}
+	if timestamp == DoneTimestamp {
+		return Done, nil
+	}
+	 else if timestamp > time.Now().Unix() {
+		return Pending, nil
+	}
+	return Ready, nil
 }
 
 // Returns the timestamp of an operation
