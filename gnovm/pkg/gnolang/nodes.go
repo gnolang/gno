@@ -1423,7 +1423,7 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 			panic("should not happen")
 		}
 	}
-	fv := x.GetValueRef(nil, n).V.(*FuncValue)
+	fv := x.GetValueRef(nil, n, true).V.(*FuncValue)
 	fv.nativeBody = native
 }
 
@@ -1437,7 +1437,7 @@ func (x *PackageNode) DefineNativeOverride(n Name, native func(*Machine)) {
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
 	}
-	fv := x.GetValueRef(nil, n).V.(*FuncValue)
+	fv := x.GetValueRef(nil, n, true).V.(*FuncValue)
 	fv.nativeBody = native
 }
 
@@ -1474,7 +1474,7 @@ type BlockNode interface {
 	GetPathForName(Store, Name) ValuePath
 	GetIsConst(Store, Name) bool
 	GetLocalIndex(Name) (uint16, bool)
-	GetValueRef(Store, Name) *TypedValue
+	GetValueRef(Store, Name, bool) *TypedValue
 	GetStaticTypeOf(Store, Name) Type
 	GetStaticTypeOfAt(Store, ValuePath) Type
 	Predefine(bool, Name)
@@ -1735,17 +1735,19 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 // Implemented BlockNode.
 // This method is too slow for runtime, but it is used
 // during preprocessing to compute types.
+// If skipPredefined, skips over names that are only predefined.
 // Returns nil if not defined.
-func (sb *StaticBlock) GetValueRef(store Store, n Name) *TypedValue {
+func (sb *StaticBlock) GetValueRef(store Store, n Name, skipPredefined bool) *TypedValue {
 	idx, ok := sb.GetLocalIndex(n)
 	bb := &sb.Block
 	bp := sb.GetParentNode(store)
 	for {
-		if ok {
+		if ok && (!skipPredefined || sb.Types[idx] != nil) {
 			return bb.GetPointerToInt(store, int(idx)).TV
 		} else if bp != nil {
 			idx, ok = bp.GetLocalIndex(n)
-			bb = bp.GetStaticBlock().GetBlock()
+			sb = bp.GetStaticBlock()
+			bb = sb.GetBlock()
 			bp = bp.GetParentNode(store)
 		} else {
 			return nil
@@ -1755,8 +1757,8 @@ func (sb *StaticBlock) GetValueRef(store Store, n Name) *TypedValue {
 
 // Implements BlockNode
 // Statically declares a name definition.
-// At runtime, use *Block.GetValueRef() etc which take path
-// values, which are pre-computeed in the preprocessor.
+// At runtime, use *Block.GetPointerTo() which takes a path
+// value, which is pre-computeed in the preprocessor.
 // Once a typed value is defined, it cannot be changed.
 //
 // NOTE: Currently tv.V is only set when the value represents a Type(Value) or
@@ -1768,12 +1770,14 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 	sb.Define2(false, n, tv.T, tv)
 }
 
+// Set type to nil, only reserving the name.
 func (sb *StaticBlock) Predefine(isConst bool, n Name) {
 	sb.Define2(isConst, n, nil, anyValue(nil))
 }
 
 // The declared type st may not be the same as the static tv;
 // e.g. var x MyInterface = MyStruct{}.
+// Setting st and tv to nil/zero reserves (predefines) name for definition later.
 func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	if debug {
 		debug.Printf(
