@@ -34,7 +34,6 @@ g1mx4pum9976th863jgry4sdjzfwu03qan5w2v9j=9000000000000000000ugnot # Ray
 g127l4gkhk0emwsx5tmxe96sp86c05h8vg5tufzq=9000000000000000000ugnot # Maxwell
 g1acn3xssksatydd0fcuslvgmjyw0fzkjdhusddg=9000000000000000000ugnot # Dylan
 g1cpx59z5r8vzeww2fm4ezpz7yvjs7kptywkm864=9000000000000000000ugnot # Morgan
-# XXX=9000000000000000000ugnot # Kristov # TODO add
 g1ker4vvggvsyatexxn3hkthp2hu80pkhrwmuczr=9000000000000000000ugnot # Sergio
 
 # DevRel
@@ -47,7 +46,6 @@ g125em6arxsnj49vx35f0n0z34putv5ty3376fg5=9000000000000000000ugnot # Leon
 g16tfrrul20g4jzt3z303raqw8vs8s2pqqh5clwu=9000000000000000000ugnot # Ilker
 g1hy6zry03hg5d8le9s2w4fxme6236hkgd928dun=9000000000000000000ugnot # Jerónimo
 g15ruzptpql4dpuyzej0wkt5rq6r26kw4nxu9fwd=9000000000000000000ugnot # Denis
-# XXX=9000000000000000000ugnot # Lucio # TODO add
 g1dnllrdzwfhxv3evyk09y48mgn5phfjvtyrlzm7=9000000000000000000ugnot # Danny
 # XXX=9000000000000000000ugnot # Alan
 g197q5e9v00vuz256ly7fq7v3ekaun5cr7wmjgfh=9000000000000000000ugnot # Salvo
