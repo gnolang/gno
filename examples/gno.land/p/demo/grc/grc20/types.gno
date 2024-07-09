@@ -4,6 +4,7 @@ import (
 	"errors"
 	"std"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/exts"
 )
 
@@ -13,6 +14,16 @@ var (
 	ErrInvalidAddress        = errors.New("invalid address")
 	ErrCannotTransferToSelf  = errors.New("cannot send transfer to self")
 )
+
+type Bank struct {
+	name         string
+	symbol       string
+	decimals     uint
+	totalSupply_ uint64
+	balances     avl.Tree // std.Address -> uint64
+	allowances   avl.Tree // owner.(std.Address)+":"+spender.(std.Address)) -> uint64
+	owner        std.Address
+}
 
 type GRC20 interface {
 	exts.TokenMetadata
@@ -53,6 +64,17 @@ type GRC20 interface {
 	//
 	// Returns an error if the operation failed.
 	TransferFrom(from, to std.Address, amount uint64) error
+}
+
+type accountBanker struct {
+	accountFn func() std.Address
+	bank      *Bank
+}
+
+var _ GRC20 = (*accountBanker)(nil)
+
+type adminBanker struct {
+	bank *Bank
 }
 
 const (

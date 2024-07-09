@@ -3,22 +3,9 @@ package grc20
 import (
 	"std"
 	"strconv"
-	"strings"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 )
-
-type Bank struct {
-	name        string
-	symbol      string
-	decimals    uint
-	totalSupply uint64
-	balances    avl.Tree // account -> uint64
-	allowances  avl.Tree // owner.(account)+":"+spender.(account)) -> uint64
-	token       *token   // to share the same pointer
-	owner       std.Address
-}
 
 func NewBank(name, symbol string, decimals uint) *Bank {
 	if name == "" {
@@ -38,22 +25,21 @@ func NewBank(name, symbol string, decimals uint) *Bank {
 	}
 }
 
-func (b Bank) token() Token        { return b.token } // Token returns a grc20 safe-object implementation.
 func (b Bank) getName() string     { return b.name }
 func (b Bank) getSymbol() string   { return b.symbol }
 func (b Bank) getDecimals() uint   { return b.decimals }
-func (b Bank) totalSupply() uint64 { return b.totalSupply }
+func (b Bank) totalSupply() uint64 { return b.totalSupply_ }
 func (b Bank) knownAccounts() int  { return b.balances.Size() }
 
-func (b *Bank) nint(address std.Address, amount uint64) error {
+func (b *Bank) mint(address std.Address, amount uint64) error {
 	if !address.IsValid() {
 		return ErrInvalidAddress
 	}
 
 	// TODO: check for overflow
 
-	b.totalSupply += amount
-	currentBalance := b.BalanceOf(address)
+	b.totalSupply_ += amount
+	currentBalance := b.balanceOf(address)
 	newBalance := currentBalance + amount
 
 	b.balances.Set(string(address), newBalance)
@@ -74,12 +60,12 @@ func (b *Bank) burn(address std.Address, amount uint64) error {
 	}
 	// TODO: check for overflow
 
-	currentBalance := b.BalanceOf(address)
+	currentBalance := b.balanceOf(address)
 	if currentBalance < amount {
 		return ErrInsufficientBalance
 	}
 
-	b.totalSupply -= amount
+	b.totalSupply_ -= amount
 	newBalance := currentBalance - amount
 
 	b.balances.Set(string(address), newBalance)
@@ -110,7 +96,7 @@ func (b *Bank) spendAllowance(owner, spender std.Address, amount uint64) error {
 		return ErrInvalidAddress
 	}
 
-	currentAllowance := b.Allowance(owner, spender)
+	currentAllowance := b.allowance(owner, spender)
 	if currentAllowance < amount {
 		return ErrInsufficientAllowance
 	}
@@ -138,8 +124,8 @@ func (b *Bank) transfer(from, to std.Address, amount uint64) error {
 		return ErrCannotTransferToSelf
 	}
 
-	toBalance := b.BalanceOf(to)
-	fromBalance := b.BalanceOf(from)
+	toBalance := b.balanceOf(to)
+	fromBalance := b.balanceOf(from)
 
 	// debug.
 	// println("from", from, "to", to, "amount", amount, "fromBalance", fromBalance, "toBalance", toBalance)
@@ -164,10 +150,10 @@ func (b *Bank) transfer(from, to std.Address, amount uint64) error {
 }
 
 func (b *Bank) transferFrom(spender, from, to std.Address, amount uint64) error {
-	if err := b.SpendAllowance(from, spender, amount); err != nil {
+	if err := b.spendAllowance(from, spender, amount); err != nil {
 		return err
 	}
-	return b.Transfer(from, to, amount)
+	return b.transfer(from, to, amount)
 }
 
 func (b *Bank) allowance(owner, spender std.Address) uint64 {
@@ -202,23 +188,19 @@ func (b *Bank) RenderHome() string {
 	str := ""
 	str += ufmt.Sprintf("# %s ($%s)\n\n", b.name, b.symbol)
 	str += ufmt.Sprintf("* **Decimals**: %d\n", b.decimals)
-	str += ufmt.Sprintf("* **Total supply**: %d\n", b.totalSupply)
-	str += ufmt.Sprintf("* **Known accounts**: %d\n", b.KnownAccounts())
+	str += ufmt.Sprintf("* **Total supply**: %d\n", b.totalSupply_)
+	str += ufmt.Sprintf("* **Known accounts**: %d\n", b.knownAccounts())
 	return str
 }
 
-func allowanceKey(owner, spender account) string {
-	return owner + ":" + spender
+func allowanceKey(owner, spender std.Address) string {
+	return owner.String() + ":" + spender.String()
 }
 
-type account string // <std.Address>[/slug]
-
-func newAccount(addr std.Address, slug string) string {
-	if strings.Contains(slug, ":") {
-		panic("invalid account slug")
-	}
+func AccountSlugAddr(addr std.Address, slug string) std.Address {
 	if slug == "" {
-		return addr.String()
+		return addr
 	}
-	return addr.String() + "/" + slug
+	key := addr.String() + "/" + slug
+	return std.DerivePkgAddr(key) // temporarily using this helper
 }
