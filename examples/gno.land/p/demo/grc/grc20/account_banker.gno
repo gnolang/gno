@@ -64,6 +64,7 @@ func (ab *fnBanker) TransferFrom(from, to std.Address, amount uint64) error {
 		return ErrReadonly
 	}
 	spender := ab.accountFn()
+	println("HHHHHHH", "from", from, "spender", spender, "to", to)
 	if err := ab.bank.SpendAllowance(from, spender, amount); err != nil {
 		return err
 	}

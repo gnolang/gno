@@ -214,6 +214,7 @@ func TestNewGRC20_Refund(t *testing.T) {
 
 	test20.Bank.Mint(sender, 100_000)
 	test20.Bank.Approve(sender, rlm, 70_000)
+	println("AAAAAAAAAAA", "sender", sender, "rlm", rlm)
 
 	// Create a new swap
 	std.TestSetRealm(std.NewUserRealm(sender))

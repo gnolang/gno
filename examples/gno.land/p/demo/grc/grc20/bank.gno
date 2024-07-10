@@ -91,6 +91,7 @@ func (b Bank) BalanceOf(address std.Address) uint64 {
 }
 
 func (b *Bank) SpendAllowance(owner, spender std.Address, amount uint64) error {
+	println("SpendAllowance(owner=", owner, ", spender=", spender, ", amount=", amount)
 	if !owner.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -98,7 +99,9 @@ func (b *Bank) SpendAllowance(owner, spender std.Address, amount uint64) error {
 		return ErrInvalidAddress
 	}
 
+	println("SpendAllowance -> b.Allowance(owner=", owner, ", spender=", spender, ")")
 	currentAllowance := b.Allowance(owner, spender)
+	println("SpendAllowance -> b.Allowance -> currentAllowance=", currentAllowance)
 	if currentAllowance < amount {
 		return ErrInsufficientAllowance
 	}
@@ -152,14 +155,17 @@ func (b *Bank) Transfer(from, to std.Address, amount uint64) error {
 }
 
 func (b *Bank) TransferFrom(spender, from, to std.Address, amount uint64) error {
+	println("EEEEEEEEEE", "spender", spender, "from", from, "to", to)
 	if err := b.SpendAllowance(from, spender, amount); err != nil {
 		return err
 	}
 	return b.Transfer(from, to, amount)
 }
 
-func (b *Bank) Allowance(owner, spender std.Address) uint64 {
+func (b Bank) Allowance(owner, spender std.Address) uint64 {
+	println("Allowance(owner=", owner, ", spender=", spender, ")")
 	allowance, found := b.allowances.Get(allowanceKey(owner, spender))
+	println("Allowance -> ret allowance=", allowance, ", found=", found)
 	if !found {
 		return 0
 	}
@@ -174,6 +180,7 @@ func (b *Bank) Approve(owner, spender std.Address, amount uint64) error {
 		return ErrInvalidAddress
 	}
 
+	println("FFFFFFFFFF", allowanceKey(owner, spender))
 	b.allowances.Set(allowanceKey(owner, spender), amount)
 
 	std.Emit(

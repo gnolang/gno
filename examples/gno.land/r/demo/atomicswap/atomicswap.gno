@@ -62,15 +62,20 @@ func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Ti
 	sender := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
 	userBanker := grc20.PrevRealmBanker(bank)
+	println("- SENDER (prevrealm)   ", sender)
+	println("- ATOMICSWAP (currealm)", curAddr)
+	println("- RECIPIENT            ", recipient)
 
+	println("NewCustomGRC20Swap -> userBanker.Allowance(sender=", sender, ", curAddr=", curAddr, ")")
 	allowance := userBanker.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
+	println("NewCustomGRC20Swap -> userBanker.TransferFrom(sender=", sender, ", curAddr=", curAddr, ", allowance=", allowance)
 	err := userBanker.TransferFrom(sender, curAddr, allowance)
-	require(err == nil, "cannot retrieve tokens from allowance")
+	checkErr(err, "cannot retrieve tokens from allowance")
 	amountStr := ufmt.Sprintf("%d%s", allowance, userBanker.GetSymbol())
 	sendFn := func(to std.Address) {
 		err := userBanker.Transfer(to, allowance)
-		require(err == nil, "cannot transfer tokens")
+		checkErr(err, "cannot transfer tokens")
 	}
 	swap := newSwap(sender, recipient, hashlock, timelock, amountStr, sendFn)
 	counter++
@@ -128,4 +133,10 @@ func mustGet(id int) *Swap {
 		panic("unknown swap ID")
 	}
 	return swap.(*Swap)
+}
+
+func checkErr(err error, msg string) {
+	if err != nil {
+		panic(msg + " - " + err.Error())
+	}
 }
