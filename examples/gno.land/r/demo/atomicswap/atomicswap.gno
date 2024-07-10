@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/printfdebugging"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/grc20reg"
 )
@@ -62,14 +63,15 @@ func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Ti
 	sender := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
 	userBanker := grc20.PrevRealmBanker(bank)
-	println("- SENDER (prevrealm)   ", sender)
-	println("- ATOMICSWAP (currealm)", curAddr)
-	println("- RECIPIENT            ", recipient)
+	printfdebugging.BigRedLine()
+	println(">> - SENDER (prevrealm)   ", sender)
+	println(">> - ATOMICSWAP (currealm)", curAddr)
+	println(">> - RECIPIENT            ", recipient)
 
-	println("NewCustomGRC20Swap -> userBanker.Allowance(sender=", sender, ", curAddr=", curAddr, ")")
+	println(">> NewCustomGRC20Swap -> userBanker.Allowance(sender=", sender, ", curAddr=", curAddr, ")")
 	allowance := userBanker.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
-	println("NewCustomGRC20Swap -> userBanker.TransferFrom(sender=", sender, ", curAddr=", curAddr, ", allowance=", allowance)
+	println(">> NewCustomGRC20Swap -> userBanker.TransferFrom(sender=", sender, ", curAddr=", curAddr, ", allowance=", allowance)
 	err := userBanker.TransferFrom(sender, curAddr, allowance)
 	checkErr(err, "cannot retrieve tokens from allowance")
 	amountStr := ufmt.Sprintf("%d%s", allowance, userBanker.GetSymbol())
