@@ -20,6 +20,7 @@ to run on your machine.
 ```
 export GOPATH=$HOME/go
 export PATH=$GOPATH/bin:$PATH
+go env -w GOBIN=$GOPATH/bin
 ```
 
 ## 1. Cloning the repository
