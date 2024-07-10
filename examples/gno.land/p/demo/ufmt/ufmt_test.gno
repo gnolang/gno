@@ -13,7 +13,6 @@ func (stringer) String() string {
 }
 
 func TestSprintf(t *testing.T) {
-	errorToBePrinted := errors.New("can I be printed?")
 	tru := true
 	cases := []struct {
 		format         string
@@ -42,7 +41,6 @@ func TestSprintf(t *testing.T) {
 		{"â", nil, "â"},
 		{"Hello, World! 😊", nil, "Hello, World! 😊"},
 		{"unicode formatting: %s", []interface{}{"😊"}, "unicode formatting: 😊"},
-		{"error: %s", []interface{}{errorToBePrinted}, "error: can I be printed?"},
 		// mismatch printing
 		{"%s", []interface{}{nil}, "%!s(<nil>)"},
 		{"%s", []interface{}{421}, "%!s(int=421)"},
@@ -126,6 +124,14 @@ func TestErrorf(t *testing.T) {
 				t.Errorf("Errorf(%q, %v) = %q, expected %q", tt.format, tt.args, err.Error(), tt.expected)
 			}
 		})
+	}
+}
+
+func TestPrintErrors(t *testing.T) {
+	got := Sprintf("error: %s", errors.New("can I be printed?"))
+	expectedOutput := "error: can I be printed?"
+	if got != expectedOutput {
+		t.Errorf("got %q, want %q.", got, expectedOutput)
 	}
 }
 
