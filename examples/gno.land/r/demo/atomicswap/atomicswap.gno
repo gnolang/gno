@@ -62,6 +62,7 @@ func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Tim
 func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, bank *grc20.Bank) (int, *Swap) {
 	printfdebugging.BigRedLine("START")
 	defer printfdebugging.BigRedLine("END")
+	printfdebugging.Success()
 
 	sender := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
