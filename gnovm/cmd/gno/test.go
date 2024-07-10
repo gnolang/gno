@@ -207,7 +207,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			io.ErrPrintfln("ok      %s \ttotal gas used: %s", pkg.Dir, strconv.Itoa(int(gasUsed)))
+			io.ErrPrintfln("ok      %s \ttotal gas used: %d", pkg.Dir, gasUsed)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
@@ -384,7 +384,7 @@ func gnoTestPkg(
 			}
 
 			if verbose {
-				io.ErrPrintfln("--- PASS: %s (%s) with GasUsed: %v", testName, dstr, gasUsedInThisPeriod)
+				io.ErrPrintfln("--- PASS: %s (%s) with GasUsed: %d", testName, dstr, gasUsedInThisPeriod)
 			}
 			// XXX: add per-test metrics
 		}
