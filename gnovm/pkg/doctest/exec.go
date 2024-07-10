@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -70,6 +71,10 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 	cache.RUnlock()
 
 	if found {
+		result, err := compareResults(result, c.expectedOutput, c.expectedError)
+		if err != nil {
+			return "", err
+		}
 		return fmt.Sprintf("%s (cached)", result), nil
 	}
 
@@ -118,5 +123,24 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 	cache.m[hashKey] = res
 	cache.Unlock()
 
-	return res, nil
+	// return res, nil
+	return compareResults(res, c.expectedOutput, c.expectedError)
+}
+
+func compareResults(actual, expectedOutput, expectedError string) (string, error) {
+	actual = strings.TrimSpace(actual)
+	expectedOutput = strings.TrimSpace(expectedOutput)
+	expectedError = strings.TrimSpace(expectedError)
+
+	if expectedOutput != "" {
+		if actual != expectedOutput {
+			return "", fmt.Errorf("expected output:\n%s\n\nbut got:\n%s", expectedOutput, actual)
+		}
+	} else if expectedError != "" {
+		if actual != expectedError {
+			return "", fmt.Errorf("expected error:\n%s\n\nbut got:\n%s", expectedError, actual)
+		}
+	}
+
+	return actual, nil
 }

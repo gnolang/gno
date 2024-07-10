@@ -125,6 +125,125 @@ func TestGetCodeBlocks(t *testing.T) {
 	}
 }
 
+func TestParseExpectedResults(t *testing.T) {
+	tests := []struct {
+		name           string
+		content        string
+		wantOutput     string
+		wantError      string
+		wantParseError bool
+	}{
+		{
+			name: "Basic output",
+			content: `
+// Some code
+fmt.Println("Hello, World!")
+// Output:
+// Hello, World!
+`,
+			wantOutput: "Hello, World!",
+			wantError:  "",
+		},
+		{
+			name: "Basic error",
+			content: `
+// Some code that causes an error
+panic("oops")
+// Error:
+// panic: oops
+`,
+			wantOutput: "",
+			wantError:  "panic: oops",
+		},
+		{
+			name: "Output and error",
+			content: `
+// Some code with both output and error
+fmt.Println("Start")
+panic("oops")
+// Output:
+// Start
+// Error:
+// panic: oops
+`,
+			wantOutput: "Start",
+			wantError:  "panic: oops",
+		},
+		{
+			name: "Multiple output sections",
+			content: `
+// First output
+fmt.Println("Hello")
+// Output:
+// Hello
+// World
+`,
+			wantOutput: "Hello\nWorld",
+			wantError:  "",
+		},
+		{
+			name: "Preserve indentation",
+			content: `
+// Indented output
+fmt.Println("  Indented")
+// Output:
+//   Indented
+`,
+			wantOutput: "  Indented",
+			wantError:  "",
+		},
+		{
+			name: "Output with // in content",
+			content: `
+// Output with //
+fmt.Println("// Comment")
+// Output:
+// // Comment
+`,
+			wantOutput: "// Comment",
+			wantError:  "",
+		},
+		{
+			name: "Empty content",
+			content: `
+// Just some comments
+// No output or error
+`,
+			wantOutput: "",
+			wantError:  "",
+		},
+		{
+			name: "simple code",
+			content: `
+package main
+
+func main() {
+	println("Actual output")
+}
+// Output:
+// Actual output
+`,
+			wantOutput: "Actual output",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotOutput, gotError, err := parseExpectedResults(tt.content)
+			if (err != nil) != tt.wantParseError {
+				t.Errorf("parseExpectedResults() error = %v, wantParseError %v", err, tt.wantParseError)
+				return
+			}
+			if gotOutput != tt.wantOutput {
+				t.Errorf("parseExpectedResults() gotOutput = %v, want %v", gotOutput, tt.wantOutput)
+			}
+			if gotError != tt.wantError {
+				t.Errorf("parseExpectedResults() gotError = %v, want %v", gotError, tt.wantError)
+			}
+		})
+	}
+}
+
 // ignore whitespace in the source code
 func normalize(s string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(s, "\n", ""), "\r", ""), "\t", ""), " ", "")

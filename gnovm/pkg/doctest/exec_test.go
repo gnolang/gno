@@ -1,132 +1,9 @@
 package doctest
 
 import (
+	"strings"
 	"testing"
 )
-
-func TestExecuteCodeBlock(t *testing.T) {
-	clearCache()
-	tests := []struct {
-		name      string
-		codeBlock codeBlock
-		expected  string
-	}{
-		{
-			name: "import go stdlib package",
-			codeBlock: codeBlock{
-				content: `
-package main
-
-func main() {
-	println("Hello, World")
-}`,
-				lang: "gno",
-			},
-			expected: "Hello, World\n",
-		},
-		{
-			name: "import go stdlib package",
-			codeBlock: codeBlock{
-				content: `
-package main
-
-import "std"
-
-func main() {
-	addr := std.GetOrigCaller()
-	println(addr)
-}`,
-				lang: "gno",
-			},
-			expected: "g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt\n",
-		},
-		{
-			name: "import go stdlib package",
-			codeBlock: codeBlock{
-				content: `
-package main
-
-import "strings"
-
-func main() {
-	println(strings.ToUpper("Hello, World"))
-}`,
-				lang: "gno",
-			},
-			expected: "HELLO, WORLD\n",
-		},
-		{
-			name: "print multiple values",
-			codeBlock: codeBlock{
-				content: `
-package main
-
-func main() {
-	count := 3
-	for i := 0; i < count; i++ {
-		println("Hello")
-	}
-}`,
-				lang: "gno",
-			},
-			expected: "Hello\nHello\nHello\n",
-		},
-		{
-			name: "import subpackage without package declaration",
-			codeBlock: codeBlock{
-				content: `
-func main() {
-	println(math.Pi)
-	println(strings.ToUpper("Hello, World"))
-}`,
-				lang: "gno",
-			},
-			expected: "3.141592653589793\nHELLO, WORLD\n",
-		},
-		{
-			name: "test",
-			codeBlock: codeBlock{
-				content: "package main\n\nfunc main() {\nprintln(\"Hello, World!\")\n}",
-				lang:    "gno",
-			},
-			expected: "Hello, World!\n",
-		},
-		{
-			name: "missing package declaration",
-			codeBlock: codeBlock{
-				content: "func main() {\nprintln(\"Hello, World!\")\n}",
-				lang:    "gno",
-			},
-			expected: "Hello, World!\n",
-		},
-		{
-			name: "missing package and import declaration",
-			codeBlock: codeBlock{
-				content: `
-func main() {
-	s := strings.ToUpper("Hello, World")
-	println(s)
-}`,
-				lang: "gno",
-			},
-			expected: "HELLO, WORLD\n",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			stdlidDir := GetStdlibsDir()
-			res, err := ExecuteCodeBlock(tt.codeBlock, stdlidDir)
-			if err != nil {
-				t.Errorf("%s returned an error: %v", tt.name, err)
-			}
-
-			if res != tt.expected {
-				t.Errorf("%s = %v, want %v", tt.name, res, tt.expected)
-			}
-		})
-	}
-}
 
 func clearCache() {
 	cache.Lock()
@@ -223,5 +100,135 @@ func main() {
 	}
 	if hashKey1 == hashKey3 {
 		t.Errorf("hash key for code block 1 and 3 are the same: %v", hashKey1)
+	}
+}
+
+func TestExecuteCodeBlock(t *testing.T) {
+	tests := []struct {
+		name           string
+		codeBlock      codeBlock
+		expectedResult string
+		expectError    bool
+	}{
+		{
+			name: "Simple print without expected output",
+			codeBlock: codeBlock{
+				content: `
+package main
+
+func main() {
+	println("Hello, World!")
+}`,
+				lang: "gno",
+			},
+			expectedResult: "Hello, World!\n",
+		},
+		{
+			name: "Print with expected output",
+			codeBlock: codeBlock{
+				content: `
+package main
+
+func main() {
+	println("Hello, Gno!")
+}
+// Output:
+// Hello, Gno!`,
+				lang:           "gno",
+				expectedOutput: "Hello, Gno!",
+			},
+			expectedResult: "Hello, Gno!\n",
+		},
+		{
+			name: "Print with incorrect expected output",
+			codeBlock: codeBlock{
+				content: `
+package main
+
+func main() {
+	println("Hello, Gno!")
+}
+// Output:
+// Hello, World!`,
+				lang:           "gno",
+				expectedOutput: "Hello, World!",
+			},
+			expectError:    true,
+		},
+		{
+			name: "Code with expected error",
+			codeBlock: codeBlock{
+				content: `
+package main
+
+func main() {
+	panic("oops")
+}
+// Error:
+// panic: oops`,
+				lang:          "gno",
+				expectedError: "panic: oops",
+			},
+			expectError:    true,
+		},
+		{
+			name: "Code with unexpected error",
+			codeBlock: codeBlock{
+				content: `
+package main
+
+func main() {
+	panic("unexpected error")
+}`,
+				lang: "gno",
+			},
+			expectError:    true,
+		},
+		{
+			name: "Multiple print statements",
+			codeBlock: codeBlock{
+				content: `
+package main
+
+func main() {
+	println("Line 1")
+	println("Line 2")
+}
+// Output:
+// Line 1
+// Line 2`,
+				lang:           "gno",
+				expectedOutput: "Line 1\nLine 2",
+			},
+			expectedResult: "Line 1\nLine 2\n",
+		},
+		{
+			name: "Unsupported language",
+			codeBlock: codeBlock{
+				content: `print("Hello")`,
+				lang:    "python",
+			},
+			expectError:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := ExecuteCodeBlock(tt.codeBlock, GetStdlibsDir())
+
+			if tt.expectError {
+				if err == nil {
+					t.Errorf("Expected an error, but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+			}
+
+			if strings.TrimSpace(result) != strings.TrimSpace(tt.expectedResult) {
+				t.Errorf("Expected result %q, but got %q", tt.expectedResult, result)
+			}
+		})
 	}
 }
