@@ -2297,19 +2297,19 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 						switch stage {
 						case TRANS_ENTER:
 							switch n := n.(type) {
-							case *ForStmt:
-								fmt.Println("---forStmt, n: ", n)
-							case *BinaryExpr:
-								fmt.Println("---BinaryExpr, n: ", n)
-								if ftype == TRANS_FOR_COND {
-									if nx, ok := n.Left.(*NameExpr); ok {
-										fmt.Println("---nx: ", nx)
-										fmt.Println("nx.Type: ", nx.Type)
-										nx.Type = NameExprTypeLoopVar
-										fmt.Println("nx.Type after set: ", nx.Type)
-									}
-									//panic("22222222")
-								}
+							//case *ForStmt:
+							//	fmt.Println("---forStmt, n: ", n)
+							//case *BinaryExpr:
+							//	fmt.Println("---BinaryExpr, n: ", n)
+							//	if ftype == TRANS_FOR_COND {
+							//		if nx, ok := n.Left.(*NameExpr); ok {
+							//			fmt.Println("---nx: ", nx)
+							//			fmt.Println("nx.Type: ", nx.Type)
+							//			nx.Type = NameExprTypeLoopVar
+							//			fmt.Println("nx.Type after set: ", nx.Type)
+							//		}
+							//		//panic("22222222")
+							//	}
 							case *FuncLitExpr:
 								if len(ns) > 0 {
 									// inner funcs.
@@ -2661,8 +2661,10 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 				}
 				switch n.Type {
 				case NameExprTypeNormal:
+					fmt.Println("---find use2, type normal, n: ", n)
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
+					fmt.Println("---dbn: ", dbn)
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 					if hasName(lds, n.Name) {
@@ -2675,9 +2677,36 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 							// else, will be demoted in later clause.
 						}
 					}
+					if n.Type == NameExprTypeHeapUse {
+						fmt.Println("---it is heap use confirmed, going to traverse condition expr, n: ", n)
+						Transcribe(dbn,
+							func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+								switch stage {
+								case TRANS_ENTER:
+									switch n := n.(type) {
+									case *ForStmt:
+										fmt.Println("---forStmt, n: ", n)
+									case *BinaryExpr:
+										fmt.Println("---BinaryExpr, n: ", n)
+										if ftype == TRANS_FOR_COND {
+											if nx, ok := n.Left.(*NameExpr); ok {
+												fmt.Println("---nx: ", nx)
+												fmt.Println("nx.Type: ", nx.Type)
+												nx.Type = NameExprTypeLoopVar
+												fmt.Println("nx.Type after set: ", nx.Type)
+											}
+										}
+									}
+								}
+								return n, TRANS_CONTINUE
+							})
+
+					}
 				case NameExprTypeHeapDefine:
+					fmt.Println("---find use2, maybe demote to type define, n: ", n)
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
+					fmt.Println("---dbn: ", dbn)
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 					if hasName(lds, n.Name) {

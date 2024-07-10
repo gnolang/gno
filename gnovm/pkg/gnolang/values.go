@@ -2498,16 +2498,16 @@ func (b *Block) GetPointerToMaybeHeapUse(alloc *Allocator, store Store, nx *Name
 		// XXX, alloc first
 		// and use at once
 		ptr := b.GetPointerTo(store, nx.Path)
+		// initial values from Init expr
 		V := ptr.TV.V.(*HeapItemValue).Value
-
+		// new heapItem
 		hiv := &HeapItemValue{Value: V}
 		*ptr.TV = TypedValue{
 			T: heapItemType{},
 			V: hiv,
 		}
-
+		// return ptr to this new allocated heap item
 		if _, ok := ptr.TV.T.(heapItemType); ok {
-			debug.Println("---pop out: ", ptr.TV.V)
 			return PointerValue{
 				TV:    &ptr.TV.V.(*HeapItemValue).Value,
 				Base:  ptr.TV.V,
