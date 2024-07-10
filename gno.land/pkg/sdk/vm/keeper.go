@@ -123,6 +123,7 @@ func uncachedPackageLoad(
 		for ; iter.Valid(); iter.Next() {
 			baseStore.Set(append(iavlBackupPrefix, iter.Key()...), iter.Value())
 		}
+		iter.Close()
 
 		logger.Debug("Standard libraries initialized",
 			"elapsed", time.Since(start))
