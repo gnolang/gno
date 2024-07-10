@@ -28,6 +28,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"github.com/grafana/pyroscope-go"
+	"runtime"
+
 )
 
 const defaultNodeDir = "gnoland-data"
@@ -174,6 +177,35 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
+
+	// These 2 lines are only required if you're using mutex or block profiling
+	runtime.SetMutexProfileFraction(5)
+	runtime.SetBlockProfileRate(5)
+
+	// Start Pyroscope profiler
+    _, err := pyroscope.Start(pyroscope.Config{
+        ApplicationName: "gnoland.node",
+        ServerAddress:   "http://pyroscope:4040",
+        Logger:          pyroscope.StandardLogger,
+        Tags:            map[string]string{"hostname": os.Getenv("HOSTNAME")},
+        ProfileTypes: []pyroscope.ProfileType{
+            pyroscope.ProfileCPU,
+            pyroscope.ProfileAllocObjects,
+            pyroscope.ProfileAllocSpace,
+            pyroscope.ProfileInuseObjects,
+            pyroscope.ProfileInuseSpace,
+            pyroscope.ProfileGoroutines,
+            pyroscope.ProfileMutexCount,
+            pyroscope.ProfileMutexDuration,
+            pyroscope.ProfileBlockCount,
+            pyroscope.ProfileBlockDuration,
+        },
+    })
+    if err != nil {
+        return fmt.Errorf("failed to start pyroscope: %w", err)
+    }
+    // defer pyroscope.Stop()
+
 	// Get the absolute path to the node's data directory
 	nodeDir, err := filepath.Abs(c.dataDir)
 	if err != nil {
