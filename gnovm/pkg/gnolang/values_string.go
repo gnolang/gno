@@ -2,13 +2,48 @@ package gnolang
 
 import (
 	"fmt"
+	"io"
 	"reflect"
 	"strconv"
 	"strings"
 )
 
-type protectedStringer interface {
-	ProtectedString(*seenValues) string
+const stringByteLimit = 1024
+
+type protectedWriter interface {
+	ProtectedWrite(io.StringWriter, *seenValues) error
+}
+
+var errStringLimitExceeded = fmt.Errorf("string limit exceeded")
+
+type limitedStringWriter struct {
+	limit   int
+	builder strings.Builder
+}
+
+func newLimitedStringWriter(limit int) *limitedStringWriter {
+	return &limitedStringWriter{
+		limit: limit,
+	}
+}
+
+func (w *limitedStringWriter) WriteString(s string) (int, error) {
+	var limiteExceeded bool
+	if w.builder.Len()+len(s) > w.limit {
+		s = s[:w.limit-w.builder.Len()] + "..."
+		limiteExceeded = true
+	}
+
+	n, err := w.builder.WriteString(s)
+	if err != nil {
+		return n, err
+	}
+
+	if limiteExceeded {
+		return n, errStringLimitExceeded
+	}
+
+	return n, nil
 }
 
 // This indicates the maximum anticipated depth of the stack when printing a Value type.
@@ -49,90 +84,164 @@ func newSeenValues() *seenValues {
 }
 
 func (v StringValue) String() string {
-	return strconv.Quote(string(v))
+	w := newLimitedStringWriter(stringByteLimit)
+	v.ProtectedWrite(w, nil)
+	return w.builder.String()
+}
+
+func (v StringValue) ProtectedWrite(w io.StringWriter, _ *seenValues) error {
+	_, err := w.WriteString(strconv.Quote(string(v)))
+	return err
 }
 
 func (bv BigintValue) String() string {
-	return bv.V.String()
+	w := newLimitedStringWriter(stringByteLimit)
+	bv.ProtectedWrite(w, nil)
+	return w.builder.String()
+}
+
+func (bv BigintValue) ProtectedWrite(w io.StringWriter, _ *seenValues) error {
+	_, err := w.WriteString(bv.V.String())
+	return err
 }
 
 func (bv BigdecValue) String() string {
-	return bv.V.String()
+	w := newLimitedStringWriter(stringByteLimit)
+	bv.ProtectedWrite(w, nil)
+	return w.builder.String()
+}
+
+func (bv BigdecValue) ProtectedWrite(w io.StringWriter, _ *seenValues) error {
+	_, err := w.WriteString(bv.V.String())
+	return err
 }
 
 func (dbv DataByteValue) String() string {
-	return fmt.Sprintf("(%0X)", (dbv.GetByte()))
+	w := newLimitedStringWriter(stringByteLimit)
+	dbv.ProtectedWrite(w, nil)
+	return w.builder.String()
+}
+
+func (dbv DataByteValue) ProtectedWrite(w io.StringWriter, _ *seenValues) error {
+	_, err := w.WriteString(fmt.Sprintf("(%0X)", dbv.GetByte()))
+	return err
 }
 
 func (av *ArrayValue) String() string {
-	return av.ProtectedString(newSeenValues())
+	w := newLimitedStringWriter(stringByteLimit)
+	av.ProtectedWrite(w, newSeenValues())
+	return w.builder.String()
 }
 
-func (av *ArrayValue) ProtectedString(seen *seenValues) string {
+func (av *ArrayValue) ProtectedWrite(w io.StringWriter, seen *seenValues) error {
 	if seen.Contains(av) {
-		return fmt.Sprintf("%p", av)
+		_, err := w.WriteString(fmt.Sprintf("%p", av))
+		return err
 	}
 
 	seen.Put(av)
 	defer seen.Pop()
 
-	ss := make([]string, len(av.List))
-	if av.Data == nil {
-		for i, e := range av.List {
-			ss[i] = e.ProtectedString(seen)
+	if av.Data != nil {
+		var suffix string
+		bounds := len(av.Data)
+		if bounds > 256 {
+			bounds = 256
+			suffix = "..."
 		}
-		// NOTE: we may want to unify the representation,
-		// but for now tests expect this to be different.
-		// This may be helpful for testing implementation behavior.
-		return "array[" + strings.Join(ss, ",") + "]"
+
+		_, err := w.WriteString(fmt.Sprintf("array[0x%X%s]", av.Data[:bounds], suffix))
+		return err
 	}
-	if len(av.Data) > 256 {
-		return fmt.Sprintf("array[0x%X...]", av.Data[:256])
+
+	if _, err := w.WriteString("array["); err != nil {
+		return err
 	}
-	return fmt.Sprintf("array[0x%X]", av.Data)
+
+	for i, e := range av.List {
+		if err := e.ProtectedWrite(w, seen); err != nil {
+			return err
+		}
+
+		if i < len(av.List)-1 {
+			if _, err := w.WriteString(","); err != nil {
+				return err
+			}
+		}
+	}
+
+	_, err := w.WriteString("]")
+	return err
 }
 
 func (sv *SliceValue) String() string {
-	return sv.ProtectedString(newSeenValues())
+	w := newLimitedStringWriter(stringByteLimit)
+	sv.ProtectedWrite(w, newSeenValues())
+	return w.builder.String()
 }
 
-func (sv *SliceValue) ProtectedString(seen *seenValues) string {
+func (sv *SliceValue) ProtectedWrite(w io.StringWriter, seen *seenValues) error {
 	if sv.Base == nil {
-		return "nil-slice"
+		_, err := w.WriteString("nil-slice")
+		return err
 	}
 
 	if seen.Contains(sv) {
-		return fmt.Sprintf("%p", sv)
+		_, err := w.WriteString(fmt.Sprintf("%p", sv))
+		return err
 	}
 
 	if ref, ok := sv.Base.(RefValue); ok {
-		return fmt.Sprintf("slice[%v]", ref)
+		_, err := w.WriteString(fmt.Sprintf("slice[%v]", ref))
+		return err
 	}
 
 	seen.Put(sv)
 	defer seen.Pop()
 
 	vbase := sv.Base.(*ArrayValue)
-	if vbase.Data == nil {
-		ss := make([]string, sv.Length)
-		for i, e := range vbase.List[sv.Offset : sv.Offset+sv.Length] {
-			ss[i] = e.ProtectedString(seen)
+	if vbase.Data != nil {
+		var suffix string
+		bounds := sv.Length
+		if bounds > 256 {
+			bounds = 256
+			suffix = "..."
 		}
-		return "slice[" + strings.Join(ss, ",") + "]"
+
+		_, err := w.WriteString(fmt.Sprintf("slice[0x%X%s]", vbase.Data[sv.Offset:sv.Offset+bounds], suffix))
+		return err
 	}
-	if sv.Length > 256 {
-		return fmt.Sprintf("slice[0x%X...(%d)]", vbase.Data[sv.Offset:sv.Offset+256], sv.Length)
+
+	if _, err := w.WriteString("slice["); err != nil {
+		return err
 	}
-	return fmt.Sprintf("slice[0x%X]", vbase.Data[sv.Offset:sv.Offset+sv.Length])
+
+	for i, e := range vbase.List[sv.Offset : sv.Offset+sv.Length] {
+		if err := e.ProtectedWrite(w, seen); err != nil {
+			return err
+		}
+
+		if i < sv.Length-1 {
+			if _, err := w.WriteString(","); err != nil {
+				return err
+			}
+		}
+	}
+
+	_, err := w.WriteString("]")
+	return err
 }
 
 func (pv PointerValue) String() string {
-	return pv.ProtectedString(newSeenValues())
+	w := newLimitedStringWriter(stringByteLimit)
+	pv.ProtectedWrite(w, newSeenValues())
+	return w.builder.String()
 }
 
-func (pv PointerValue) ProtectedString(seen *seenValues) string {
+func (pv PointerValue) ProtectedWrite(w io.StringWriter, seen *seenValues) error {
 	if seen.Contains(pv) {
-		return fmt.Sprintf("%p", &pv)
+		_, err := w.WriteString(fmt.Sprintf("%p", &pv))
+		return err
 	}
 
 	seen.Put(pv)
@@ -140,29 +249,50 @@ func (pv PointerValue) ProtectedString(seen *seenValues) string {
 
 	// Handle nil TV's, avoiding a nil pointer deref below.
 	if pv.TV == nil {
-		return "&<nil>"
+		_, err := w.WriteString("&<nil>")
+		return err
 	}
 
-	return fmt.Sprintf("&%s", pv.TV.ProtectedString(seen))
+	if _, err := w.WriteString("&"); err != nil {
+		return err
+	}
+
+	return pv.TV.ProtectedWrite(w, seen)
 }
 
 func (sv *StructValue) String() string {
-	return sv.ProtectedString(newSeenValues())
+	w := newLimitedStringWriter(stringByteLimit)
+	sv.ProtectedWrite(w, newSeenValues())
+	return w.builder.String()
 }
 
-func (sv *StructValue) ProtectedString(seen *seenValues) string {
+func (sv *StructValue) ProtectedWrite(w io.StringWriter, seen *seenValues) error {
 	if seen.Contains(sv) {
-		return fmt.Sprintf("%p", sv)
+		_, err := w.WriteString(fmt.Sprintf("%p", sv))
+		return err
 	}
 
 	seen.Put(sv)
 	defer seen.Pop()
 
-	ss := make([]string, len(sv.Fields))
-	for i, f := range sv.Fields {
-		ss[i] = f.ProtectedString(seen)
+	if _, err := w.WriteString("struct{"); err != nil {
+		return err
 	}
-	return "struct{" + strings.Join(ss, ",") + "}"
+
+	for i, f := range sv.Fields {
+		if err := f.ProtectedWrite(w, seen); err != nil {
+			return err
+		}
+
+		if i < len(sv.Fields)-1 {
+			if _, err := w.WriteString(","); err != nil {
+				return err
+			}
+		}
+	}
+
+	_, err := w.WriteString("}")
+	return err
 }
 
 func (fv *FuncValue) String() string {
@@ -193,34 +323,58 @@ func (v *BoundMethodValue) String() string {
 }
 
 func (mv *MapValue) String() string {
-	return mv.ProtectedString(newSeenValues())
+	w := newLimitedStringWriter(stringByteLimit)
+	mv.ProtectedWrite(w, newSeenValues())
+	return w.builder.String()
 }
 
-func (mv *MapValue) ProtectedString(seen *seenValues) string {
+func (mv *MapValue) ProtectedWrite(w io.StringWriter, seen *seenValues) error {
 	if mv.List == nil {
-		return "zero-map"
+		_, err := w.WriteString("zero-map")
+		return err
 	}
 
 	if seen.Contains(mv) {
-		return fmt.Sprintf("%p", mv)
+		_, err := w.WriteString(fmt.Sprintf("%p", mv))
+		return err
 	}
 
 	seen.Put(mv)
 	defer seen.Pop()
 
-	ss := make([]string, 0, mv.GetLength())
+	if _, err := w.WriteString("map{"); err != nil {
+		return err
+	}
+
 	next := mv.List.Head
 	for next != nil {
-		ss = append(ss,
-			next.Key.ProtectedString(seen)+":"+
-				next.Value.ProtectedString(seen))
+		if err := next.Key.ProtectedWrite(w, seen); err != nil {
+			return err
+		}
+
+		if _, err := w.WriteString(":"); err != nil {
+			return err
+		}
+
+		if err := next.Value.ProtectedWrite(w, seen); err != nil {
+			return err
+		}
+
+		if next.Next != nil {
+			if _, err := w.WriteString(","); err != nil {
+				return err
+			}
+		}
+
 		next = next.Next
 	}
-	return "map{" + strings.Join(ss, ",") + "}"
+
+	_, err := w.WriteString("}")
+	return err
 }
 
 func (v TypeValue) String() string {
-	ptr := ""
+	var ptr string
 	if reflect.TypeOf(v.Type).Kind() == reflect.Ptr {
 		ptr = fmt.Sprintf(" (%p)", v.Type)
 	}
@@ -275,6 +429,8 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 
 	// if implements .String(), return it.
 	if IsImplementedBy(gStringerType, tv.T) {
+		// No worries here about the string being too large; the machine will exhaust
+		// its cycles before that happens.
 		res := m.Eval(Call(Sel(&ConstExpr{TypedValue: *tv}, "String")))
 		return res[0].GetString()
 	}
@@ -284,24 +440,32 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		return res[0].GetString()
 	}
 
-	return tv.ProtectedSprint(newSeenValues(), true)
+	w := newLimitedStringWriter(stringByteLimit)
+	tv.NonPrimitiveProtectedWrite(w, newSeenValues(), true)
+	return w.builder.String()
 }
 
-func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType bool) string {
+func (tv *TypedValue) NonPrimitiveProtectedWrite(
+	w io.StringWriter,
+	seen *seenValues,
+	considerDeclaredType bool,
+) error {
 	if seen.Contains(tv.V) {
-		return fmt.Sprintf("%p", tv)
+		_, err := w.WriteString(fmt.Sprintf("%p", tv))
+		return err
 	}
 
 	// print declared type
 	if _, ok := tv.T.(*DeclaredType); ok && considerDeclaredType {
-		return tv.ProtectedString(seen)
+		return tv.ProtectedWrite(w, seen)
 	}
 
 	// This is a special case that became necessary after adding `ProtectedString()` methods to
 	// reliably prevent recursive print loops.
 	if tv.V != nil {
 		if v, ok := tv.V.(RefValue); ok {
-			return v.String()
+			_, err := w.WriteString(v.String())
+			return err
 		}
 	}
 
@@ -310,54 +474,75 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 	case PrimitiveType:
 		switch bt {
 		case UntypedBoolType, BoolType:
-			return fmt.Sprintf("%t", tv.GetBool())
+			_, err := w.WriteString(fmt.Sprintf("%t", tv.GetBool()))
+			return err
 		case UntypedStringType, StringType:
-			return tv.GetString()
+			_, err := w.WriteString(tv.GetString())
+			return err
 		case IntType:
-			return fmt.Sprintf("%d", tv.GetInt())
+			_, err := w.WriteString(fmt.Sprintf("%d", tv.GetInt()))
+			return err
 		case Int8Type:
-			return fmt.Sprintf("%d", tv.GetInt8())
+			_, err := w.WriteString(fmt.Sprintf("%d", tv.GetInt8()))
+			return err
 		case Int16Type:
-			return fmt.Sprintf("%d", tv.GetInt16())
+			_, err := w.WriteString(fmt.Sprintf("%d", tv.GetInt16()))
+			return err
 		case UntypedRuneType, Int32Type:
-			return fmt.Sprintf("%d", tv.GetInt32())
+			_, err := w.WriteString(fmt.Sprintf("%d", tv.GetInt32()))
+			return err
 		case Int64Type:
-			return fmt.Sprintf("%d", tv.GetInt64())
+			_, err := w.WriteString(fmt.Sprintf("%d", tv.GetInt64()))
+			return err
 		case UintType:
-			return fmt.Sprintf("%d", tv.GetUint())
+			_, err := w.WriteString(fmt.Sprintf("%d", tv.GetUint()))
+			return err
 		case Uint8Type:
-			return fmt.Sprintf("%d", tv.GetUint8())
+			_, err := w.WriteString(fmt.Sprintf("%d", tv.GetUint8()))
+			return err
 		case DataByteType:
-			return fmt.Sprintf("%d", tv.GetDataByte())
+			_, err := w.WriteString(fmt.Sprintf("%d", tv.GetDataByte()))
+			return err
 		case Uint16Type:
-			return fmt.Sprintf("%d", tv.GetUint16())
+			_, err := w.WriteString(fmt.Sprintf("%d", tv.GetUint16()))
+			return err
 		case Uint32Type:
-			return fmt.Sprintf("%d", tv.GetUint32())
+			_, err := w.WriteString(fmt.Sprintf("%d", tv.GetUint32()))
+			return err
 		case Uint64Type:
-			return fmt.Sprintf("%d", tv.GetUint64())
+			_, err := w.WriteString(fmt.Sprintf("%d", tv.GetUint64()))
+			return err
 		case Float32Type:
-			return fmt.Sprintf("%v", tv.GetFloat32())
+			_, err := w.WriteString(fmt.Sprintf("%v", tv.GetFloat32()))
+			return err
 		case Float64Type:
-			return fmt.Sprintf("%v", tv.GetFloat64())
+			_, err := w.WriteString(fmt.Sprintf("%v", tv.GetFloat64()))
+			return err
 		case UntypedBigintType, BigintType:
-			return tv.V.(BigintValue).V.String()
+			_, err := w.WriteString(tv.V.(BigintValue).V.String())
+			return err
 		case UntypedBigdecType, BigdecType:
-			return tv.V.(BigdecValue).V.String()
+			_, err := w.WriteString(tv.V.(BigdecValue).V.String())
+			return err
 		default:
-			panic("should not happen")
+			panic(fmt.Sprintf("cannot print unknown primitive type %v", bt))
 		}
 	case *PointerType:
 		if tv.V == nil {
-			return "invalid-pointer"
+			_, err := w.WriteString("invalid-pointer")
+			return err
 		}
-		return tv.V.(PointerValue).ProtectedString(seen)
+
+		return tv.V.(PointerValue).ProtectedWrite(w, seen)
 	case *FuncType:
 		switch fv := tv.V.(type) {
 		case nil:
 			ft := tv.T.String()
-			return nilStr + " " + ft
+			_, err := w.WriteString(nilStr + " " + ft)
+			return err
 		case *FuncValue, *BoundMethodValue:
-			return fv.String()
+			_, err := w.WriteString(fv.String())
+			return err
 		default:
 			panic(fmt.Sprintf(
 				"unexpected func type %v",
@@ -369,27 +554,32 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 				panic("should not happen")
 			}
 		}
-		return nilStr
+		_, err := w.WriteString(nilStr)
+		return err
 	case *DeclaredType:
 		panic("should not happen")
 	case *PackageType:
-		return tv.V.(*PackageValue).String()
+		_, err := w.WriteString(tv.V.(*PackageValue).String())
+		return err
 	case *ChanType:
 		panic("not yet implemented")
 	case *TypeType:
-		return tv.V.(TypeValue).String()
+		_, err := w.WriteString(tv.V.(TypeValue).String())
+		return err
 	default:
 		// The remaining types may have a nil value.
 		if tv.V == nil {
-			return "(" + nilStr + " " + tv.T.String() + ")"
+			_, err := w.WriteString("(" + nilStr + " " + tv.T.String() + ")")
+			return err
 		}
 
 		// *ArrayType, *SliceType, *StructType, *MapType
-		if ps, ok := tv.V.(protectedStringer); ok {
-			return ps.ProtectedString(seen)
+		if ps, ok := tv.V.(protectedWriter); ok {
+			return ps.ProtectedWrite(w, seen)
 		} else if s, ok := tv.V.(fmt.Stringer); ok {
 			// *NativeType
-			return s.String()
+			_, err := w.WriteString(s.String())
+			return err
 		}
 
 		if debug {
@@ -407,14 +597,18 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 
 // For gno debugging/testing.
 func (tv TypedValue) String() string {
-	return tv.ProtectedString(newSeenValues())
+	w := newLimitedStringWriter(stringByteLimit)
+	tv.ProtectedWrite(w, newSeenValues())
+	return w.builder.String()
 }
 
-func (tv TypedValue) ProtectedString(seen *seenValues) string {
+func (tv TypedValue) ProtectedWrite(w io.StringWriter, seen *seenValues) error {
 	if tv.IsUndefined() {
-		return "(undefined)"
+		_, err := w.WriteString("(undefined)")
+		return err
 	}
-	vs := ""
+
+	var vs string
 	if tv.V == nil {
 		switch baseOf(tv.T) {
 		case BoolType, UntypedBoolType:
@@ -452,12 +646,26 @@ func (tv TypedValue) ProtectedString(seen *seenValues) string {
 			vs = nilStr
 		}
 	} else {
-		vs = tv.ProtectedSprint(seen, false)
-		if base := baseOf(tv.T); base == StringType || base == UntypedStringType {
-			vs = strconv.Quote(vs)
+		base := baseOf(tv.T)
+		quoteString := base == StringType || base == UntypedStringType
+		if quoteString {
+			if _, err := w.WriteString("\""); err != nil {
+				return err
+			}
+		}
+
+		if err := tv.NonPrimitiveProtectedWrite(w, seen, false); err != nil {
+			return err
+		}
+
+		if quoteString {
+			if _, err := w.WriteString("\""); err != nil {
+				return err
+			}
 		}
 	}
 
 	ts := tv.T.String()
-	return fmt.Sprintf("(%s %s)", vs, ts) // TODO improve
+	_, err := w.WriteString(fmt.Sprintf("(%s %s)", vs, ts))
+	return err
 }
