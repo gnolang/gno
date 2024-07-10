@@ -2,7 +2,6 @@ package tests
 
 import (
 	"flag"
-	"fmt"
 	"io/fs"
 	"os"
 	"path"
