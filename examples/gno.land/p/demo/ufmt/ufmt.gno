@@ -20,7 +20,7 @@ func Println(args ...interface{}) {
 			strs = append(strs, v)
 		case (interface{ String() string }):
 			strs = append(strs, v.String())
-		case (interface{ Error() string }):
+		case error:
 			strs = append(strs, v.Error())
 		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 			strs = append(strs, Sprintf("%d", v))
@@ -95,7 +95,7 @@ func Sprintf(format string, args ...interface{}) string {
 			switch v := arg.(type) {
 			case interface{ String() string }:
 				buf += v.String()
-			case interface{ Error() string }:
+			case error:
 				buf += v.Error()
 			case string:
 				buf += v
@@ -188,12 +188,12 @@ func fallback(verb string, arg interface{}) string {
 		s = "string=" + v
 	case (interface{ String() string }):
 		s = "string=" + v.String()
-	case (interface{ Error() string }):
+	case error:
 		// note: also "string=" in Go fmt
 		s = "string=" + v.Error()
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		// note: rune, byte would be dups, being aliases
-		if typename, e := TypeToString(v); e != nil {
+		if typename, e := typeToString(v); e != nil {
 			panic("should not happen")
 		} else {
 			s = typename + "=" + Sprintf("%d", v)
@@ -215,7 +215,7 @@ func fallback(verb string, arg interface{}) string {
 // Get the name of the type of `v` as a string.
 // The recognized type of v is currently limited to native non-composite types.
 // An error is returned otherwise.
-func TypeToString(v interface{}) (string, error) {
+func typeToString(v interface{}) (string, error) {
 	switch v.(type) {
 	case string:
 		return "string", nil
@@ -273,8 +273,7 @@ func (e *errMsg) Error() string {
 //
 //	%s: places a string value directly.
 //	    If the value implements the interface interface{ String() string },
-//	    the String() method is called to retrieve the value. Same for Error()
-//	    string.
+//	    the String() method is called to retrieve the value. Same for error.
 //	%c: formats the character represented by Unicode code point
 //	%d: formats an integer value using package "strconv".
 //	    Currently supports only uint, uint64, int, int64.
