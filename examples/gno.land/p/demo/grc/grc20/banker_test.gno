@@ -1,8 +1,11 @@
 package grc20
 
 import (
+	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
 )
 
@@ -11,7 +14,6 @@ func TestBankImpl(t *testing.T) {
 	urequire.False(t, dummy == nil, "dummy should not be nil")
 }
 
-/*
 func TestAllowance(t *testing.T) {
 	var (
 		owner   = testutils.TestAddress("owner")
@@ -19,7 +21,7 @@ func TestAllowance(t *testing.T) {
 		dest    = testutils.TestAddress("dest")
 	)
 
-	b := NewBanker("Dummy", "DUMMY", 6)
+	b := NewBank("Dummy", "DUMMY", 6)
 	urequire.NoError(t, b.Mint(owner, 100000000))
 	urequire.NoError(t, b.Approve(owner, spender, 5000000))
 	urequire.Error(t, b.TransferFrom(spender, owner, dest, 10000000), ErrInsufficientAllowance.Error(), "should not be able to transfer more than approved")
@@ -50,9 +52,9 @@ func TestAllowance(t *testing.T) {
 }
 
 func TestUserTokenImpl(t *testing.T) {
-	bank := NewBanker("Dummy", "DUMMY", 4)
-	tok := bank.Token()
-	_ = tok
+	bank := NewBank("Dummy", "DUMMY", 4)
+	banker := PrevRealmBanker(bank)
+	var _ GRC20 = banker
 }
 
 func TestUserApprove(t *testing.T) {
@@ -60,8 +62,8 @@ func TestUserApprove(t *testing.T) {
 	spender := testutils.TestAddress("spender")
 	dest := testutils.TestAddress("dest")
 
-	bank := NewBanker("Dummy", "DUMMY", 6)
-	tok := bank.Token()
+	bank := NewBank("Dummy", "DUMMY", 6)
+	banker := PrevRealmBanker(bank)
 
 	// Set owner as the original caller
 	std.TestSetOrigCaller(owner)
@@ -69,13 +71,13 @@ func TestUserApprove(t *testing.T) {
 	urequire.NoError(t, bank.Mint(owner, 100000000))
 
 	// Approve spender to spend 5000000 tokens
-	urequire.NoError(t, tok.Approve(spender, 5000000))
+	urequire.NoError(t, banker.Approve(spender, 5000000))
 
 	// Set spender as the original caller
 	std.TestSetOrigCaller(spender)
 	// Try to transfer 10000000 tokens from owner to dest, should fail because it exceeds allowance
 	urequire.Error(t,
-		tok.TransferFrom(owner, dest, 10000000),
+		banker.TransferFrom(owner, dest, 10000000),
 		ErrInsufficientAllowance.Error(),
 		"should not be able to transfer more than approved",
 	)
@@ -92,15 +94,15 @@ func TestUserApprove(t *testing.T) {
 
 	// perform transfer operation,and check if allowance and balance are correct
 	for _, tt := range tests {
-		b0 := tok.BalanceOf(dest)
+		b0 := banker.BalanceOf(dest)
 		// Perform transfer from owner to dest
-		urequire.NoError(t, tok.TransferFrom(owner, dest, tt.spend))
-		a := tok.Allowance(owner, spender)
+		urequire.NoError(t, banker.TransferFrom(owner, dest, tt.spend))
+		a := banker.Allowance(owner, spender)
 		// Check if allowance equals expected value
 		urequire.True(t, a == tt.exp, ufmt.Sprintf("allowance exp: %d,got %d", tt.exp, a))
 
 		// Get dest current balance
-		b := tok.BalanceOf(dest)
+		b := banker.BalanceOf(dest)
 		// Calculate expected balance ,should be initial balance plus transfer amount
 		expB := b0 + tt.spend
 		// Check if balance equals expected value
@@ -108,6 +110,5 @@ func TestUserApprove(t *testing.T) {
 	}
 
 	// Try to transfer one token from owner to dest ,should fail because no allowance left
-	urequire.Error(t, tok.TransferFrom(owner, dest, 1), ErrInsufficientAllowance.Error(), "no allowance")
+	urequire.Error(t, banker.TransferFrom(owner, dest, 1), ErrInsufficientAllowance.Error(), "no allowance")
 }
-*/
