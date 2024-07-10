@@ -2297,6 +2297,19 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 						switch stage {
 						case TRANS_ENTER:
 							switch n := n.(type) {
+							case *ForStmt:
+								fmt.Println("---forStmt, n: ", n)
+							case *BinaryExpr:
+								fmt.Println("---BinaryExpr, n: ", n)
+								if ftype == TRANS_FOR_COND {
+									if nx, ok := n.Left.(*NameExpr); ok {
+										fmt.Println("---nx: ", nx)
+										fmt.Println("nx.Type: ", nx.Type)
+										nx.Type = NameExprTypeLoopVar
+										fmt.Println("nx.Type after set: ", nx.Type)
+									}
+									//panic("22222222")
+								}
 							case *FuncLitExpr:
 								if len(ns) > 0 {
 									// inner funcs.

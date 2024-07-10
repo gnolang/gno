@@ -2484,6 +2484,7 @@ func (b *Block) GetPointerToMaybeHeapUse(alloc *Allocator, store Store, nx *Name
 	debug.Println("---GetPointerToMaybeHeapUse, nx: ", nx, nx.Type)
 	switch nx.Type {
 	case NameExprTypeNormal:
+		debug.Println("---normal use")
 		return b.GetPointerTo(store, nx.Path)
 	case NameExprTypeHeapUse:
 		// XXX
@@ -2492,6 +2493,30 @@ func (b *Block) GetPointerToMaybeHeapUse(alloc *Allocator, store Store, nx *Name
 		// XXX this should panic after logic is complete,
 		// should not happen.
 		return b.GetPointerTo(store, nx.Path)
+	case NameExprTypeLoopVar:
+		fmt.Println("---nameTypeLoopVar")
+		// XXX, alloc first
+		// and use at once
+		ptr := b.GetPointerTo(store, nx.Path)
+		V := ptr.TV.V.(*HeapItemValue).Value
+
+		hiv := &HeapItemValue{Value: V}
+		*ptr.TV = TypedValue{
+			T: heapItemType{},
+			V: hiv,
+		}
+
+		if _, ok := ptr.TV.T.(heapItemType); ok {
+			debug.Println("---pop out: ", ptr.TV.V)
+			return PointerValue{
+				TV:    &ptr.TV.V.(*HeapItemValue).Value,
+				Base:  ptr.TV.V,
+				Index: 0,
+			}
+		} else {
+			panic("should not happen")
+		}
+
 	default:
 		panic("unexpected NameExpr type for GetPointerToMaybeHeapUse")
 	}
@@ -2518,7 +2543,7 @@ func (b *Block) GetPointerToHeapDefine(alloc *Allocator, store Store, path Value
 	// XXX assign it to b.GetPointerTo(store, path),
 	// XXX return pointer to Value, e.g.
 	// XXX PointerValue{Base:hiv,TV:&hiv.Value} or something like that.
-	debug.Println("---GetPointerToHeapDefine, path: ", path)
+	debug.Println("---GetPointerToHeapDefine, allocate heapItem, path: ", path)
 
 	ptr := b.GetPointerTo(store, path)
 
