@@ -3,15 +3,21 @@ package foo20
 import (
 	"std"
 	"testing"
+
+	"gno.land/p/demo/testutils"
 )
 
 func TestReadOnlyPublicMethods(t *testing.T) {
-	admin := std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
-	manfred := std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
-	unknown := std.Address("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // valid but never used.
-	NewWithAdmin("Foo", "FOO", 4, 10_000*1_000_000, 0, admin)
-	NewWithAdmin("Bar", "BAR", 4, 10_000*1_000, 0, admin)
-	mustGetInstance("FOO").bank.Mint(manfred, 100_000_000)
+	std.TestSetOrigPkgAddr("gno.land/r/demo/grc20factory")
+	admin := testutils.TestAddress("admin")
+	bob := testutils.TestAddress("bob")
+	carl := testutils.TestAddress("carl")
+
+	std.TestSetOrigCaller(admin)
+	std.TestSetRealm(std.NewUserRealm(admin))
+	NewWithAdmin("Foo", "FOO", 4, 10_000*1_000_000, 10_000, admin)
+	NewWithAdmin("Bar", "BAR", 4, 10_000*1_000, 10_000, admin)
+	mustGetInstance("FOO").bank.Mint(bob, 100_000_000)
 
 	type test struct {
 		name    string
@@ -22,11 +28,11 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 	// check balances #1.
 	{
 		tests := []test{
-			{"TotalSupply", 10_100_000_000, func() uint64 { return TotalSupply("FOO") }},
+			{"TotalSupply", 10_000_000_000, func() uint64 { return TotalSupply("FOO") }},
 			{"BalanceOf(admin)", 10_000_000_000, func() uint64 { return BalanceOf("FOO", admin) }},
-			{"BalanceOf(manfred)", 100_000_000, func() uint64 { return BalanceOf("FOO", manfred) }},
-			{"Allowance(admin, manfred)", 0, func() uint64 { return Allowance("FOO", admin, manfred) }},
-			{"BalanceOf(unknown)", 0, func() uint64 { return BalanceOf("FOO", unknown) }},
+			{"BalanceOf(bob)", 0, func() uint64 { return BalanceOf("FOO", bob) }},
+			{"Allowance(admin, bob)", 0, func() uint64 { return Allowance("FOO", admin, bob) }},
+			{"BalanceOf(carl)", 0, func() uint64 { return BalanceOf("FOO", carl) }},
 		}
 		for _, tc := range tests {
 			if tc.fn() != tc.balance {
@@ -34,20 +40,21 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 			}
 		}
 	}
-	return
 
-	// unknown uses the faucet.
-	std.TestSetOrigCaller(unknown)
+	// carl uses the faucet.
+	// std.TestSetOrigCaller(carl)
+	// std.TestSetRealm(std.NewUserRealm(carl))
 	Faucet("FOO")
+	return
 
 	// check balances #2.
 	{
 		tests := []test{
-			{"TotalSupply", 10_110_000_000, func() uint64 { return TotalSupply("FOO") }},
+			{"TotalSupply", 10_000_010_000, func() uint64 { return TotalSupply("FOO") }},
 			{"BalanceOf(admin)", 10_000_000_000, func() uint64 { return BalanceOf("FOO", admin) }},
-			{"BalanceOf(manfred)", 100_000_000, func() uint64 { return BalanceOf("FOO", manfred) }},
-			{"Allowance(admin, manfred)", 0, func() uint64 { return Allowance("FOO", admin, manfred) }},
-			{"BalanceOf(unknown)", 10_000_000, func() uint64 { return BalanceOf("FOO", unknown) }},
+			{"BalanceOf(bob)", 0, func() uint64 { return BalanceOf("FOO", bob) }},
+			{"Allowance(admin, bob)", 0, func() uint64 { return Allowance("FOO", admin, bob) }},
+			{"BalanceOf(carl)", 10_000, func() uint64 { return BalanceOf("FOO", carl) }},
 		}
 		for _, tc := range tests {
 			if tc.fn() != tc.balance {

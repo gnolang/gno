@@ -28,6 +28,7 @@ func Deposit() {
 	amount := sent.AmountOf("ugnot")
 
 	require(uint64(amount) >= ugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d ugnot.", amount, ugnotMinDeposit))
+
 	checkErr(Bank.Mint(caller, uint64(amount)))
 }
 

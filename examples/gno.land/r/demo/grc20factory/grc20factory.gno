@@ -139,6 +139,6 @@ func mustGetInstance(symbol string) *instance {
 
 func checkErr(err error) {
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 }

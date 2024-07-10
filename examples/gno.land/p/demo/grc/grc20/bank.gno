@@ -4,7 +4,6 @@ import (
 	"std"
 	"strconv"
 
-	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -21,7 +20,7 @@ func NewBank(name, symbol string, decimals uint) *Bank {
 		name:     name,
 		symbol:   symbol,
 		decimals: decimals,
-		owner:    ownable.New(),
+		owner:    std.CurrentRealm().Addr(),
 	}
 }
 
@@ -32,7 +31,9 @@ func (b Bank) TotalSupply() uint64 { return b.totalSupply_ }
 func (b Bank) KnownAccounts() int  { return b.balances.Size() }
 
 func (b *Bank) Mint(address std.Address, amount uint64) error {
-	// panic("AdminBanker() can only be called by the Bank owner")
+	if std.CurrentRealm().Addr() != b.owner {
+		return ErrRestrictedBankOwner
+	}
 
 	if !address.IsValid() {
 		return ErrInvalidAddress
@@ -57,6 +58,10 @@ func (b *Bank) Mint(address std.Address, amount uint64) error {
 }
 
 func (b *Bank) Burn(address std.Address, amount uint64) error {
+	if std.CurrentRealm().Addr() != b.owner {
+		return ErrRestrictedBankOwner
+	}
+
 	if !address.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -90,8 +95,15 @@ func (b Bank) BalanceOf(address std.Address) uint64 {
 	return balance.(uint64)
 }
 
-func (b *Bank) SpendAllowance(owner, spender std.Address, amount uint64) error {
-	println(">> SpendAllowance(owner=", owner, ", spender=", spender, ", amount=", amount)
+func (b Bank) Allowance(owner, spender std.Address) uint64 {
+	allowance, found := b.allowances.Get(allowanceKey(owner, spender))
+	if !found {
+		return 0
+	}
+	return allowance.(uint64)
+}
+
+func (b *Bank) spendAllowance(owner, spender std.Address, amount uint64) error {
 	if !owner.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -99,9 +111,7 @@ func (b *Bank) SpendAllowance(owner, spender std.Address, amount uint64) error {
 		return ErrInvalidAddress
 	}
 
-	println(">> SpendAllowance -> b.Allowance(owner=", owner, ", spender=", spender, ")")
 	currentAllowance := b.Allowance(owner, spender)
-	println(">> SpendAllowance -> b.Allowance -> currentAllowance=", currentAllowance)
 	if currentAllowance < amount {
 		return ErrInsufficientAllowance
 	}
@@ -118,7 +128,7 @@ func (b *Bank) SpendAllowance(owner, spender std.Address, amount uint64) error {
 	return nil
 }
 
-func (b *Bank) Transfer(from, to std.Address, amount uint64) error {
+func (b *Bank) transfer(from, to std.Address, amount uint64) error {
 	if !from.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -133,7 +143,6 @@ func (b *Bank) Transfer(from, to std.Address, amount uint64) error {
 	fromBalance := b.BalanceOf(from)
 
 	// debug.
-	// println(">> from", from, "to", to, "amount", amount, "fromBalance", fromBalance, "toBalance", toBalance)
 
 	if fromBalance < amount {
 		return ErrInsufficientBalance
@@ -154,25 +163,18 @@ func (b *Bank) Transfer(from, to std.Address, amount uint64) error {
 	return nil
 }
 
-func (b *Bank) TransferFrom(spender, from, to std.Address, amount uint64) error {
-	println(">> TransferFrom -> spender=", spender, ", from=", from, ", to=", to, ", amount=", amount)
-	if err := b.SpendAllowance(from, spender, amount); err != nil {
+func (b *Bank) transferFrom(owner, spender, to std.Address, amount uint64) error {
+	if b.BalanceOf(owner) < amount {
+		return ErrInsufficientBalance
+	}
+	if err := b.spendAllowance(owner, spender, amount); err != nil {
 		return err
 	}
-	return b.Transfer(from, to, amount)
+	// XXX: since we don't "panic", we should take care of rollbacking spendAllowance if transfer fails.
+	return b.transfer(owner, to, amount)
 }
 
-func (b Bank) Allowance(owner, spender std.Address) uint64 {
-	println(">> Allowance(owner=", owner, ", spender=", spender, ")")
-	allowance, found := b.allowances.Get(allowanceKey(owner, spender))
-	println(">> Allowance -> ret allowance=", allowance, ", found=", found)
-	if !found {
-		return 0
-	}
-	return allowance.(uint64)
-}
-
-func (b *Bank) Approve(owner, spender std.Address, amount uint64) error {
+func (b *Bank) approve(owner, spender std.Address, amount uint64) error {
 	if !owner.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -180,7 +182,6 @@ func (b *Bank) Approve(owner, spender std.Address, amount uint64) error {
 		return ErrInvalidAddress
 	}
 
-	println(">> Approve -> owner=", owner, ", spender=", spender, ", amount=", amount)
 	b.allowances.Set(allowanceKey(owner, spender), amount)
 
 	std.Emit(

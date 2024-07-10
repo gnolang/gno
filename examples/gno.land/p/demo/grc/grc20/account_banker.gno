@@ -44,7 +44,7 @@ func (ab *fnBanker) Transfer(to std.Address, amount uint64) error {
 		return ErrReadonly
 	}
 	caller := ab.accountFn()
-	return ab.bank.Transfer(caller, to, amount)
+	return ab.bank.transfer(caller, to, amount)
 }
 
 func (ab *fnBanker) Allowance(owner, spender std.Address) uint64 {
@@ -56,17 +56,13 @@ func (ab *fnBanker) Approve(spender std.Address, amount uint64) error {
 		return ErrReadonly
 	}
 	caller := ab.accountFn()
-	return ab.bank.Approve(caller, spender, amount)
+	return ab.bank.approve(caller, spender, amount)
 }
 
-func (ab *fnBanker) TransferFrom(from, to std.Address, amount uint64) error {
+func (ab *fnBanker) TransferFrom(owner, to std.Address, amount uint64) error {
 	if ab.accountFn == nil {
 		return ErrReadonly
 	}
 	spender := ab.accountFn()
-	println(">> TransferFrom", "from=", from, ", spender=", spender, ", to=", to)
-	if err := ab.bank.SpendAllowance(from, spender, amount); err != nil {
-		return err
-	}
-	return ab.bank.Transfer(from, to, amount)
+	return ab.bank.transferFrom(owner, spender, to, amount)
 }

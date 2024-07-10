@@ -5,110 +5,132 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
 )
 
 func TestBankImpl(t *testing.T) {
-	dummy := NewBank("Dummy", "DUMMY", 4)
-	urequire.False(t, dummy == nil, "dummy should not be nil")
+	bank := NewBank("Dummy", "DUMMY", 4)
+	urequire.False(t, bank == nil, "dummy should not be nil")
 }
 
-func TestAllowance(t *testing.T) {
-	var (
-		owner   = testutils.TestAddress("owner")
-		spender = testutils.TestAddress("spender")
-		dest    = testutils.TestAddress("dest")
-	)
-
-	b := NewBank("Dummy", "DUMMY", 6)
-	urequire.NoError(t, b.Mint(owner, 100000000))
-	urequire.NoError(t, b.Approve(owner, spender, 5000000))
-	urequire.Error(t, b.TransferFrom(spender, owner, dest, 10000000), ErrInsufficientAllowance.Error(), "should not be able to transfer more than approved")
-
-	tests := []struct {
-		spend uint64
-		exp   uint64
-	}{
-		{3, 4999997},
-		{999997, 4000000},
-		{4000000, 0},
-	}
-
-	for _, tt := range tests {
-		b0 := b.BalanceOf(dest)
-		urequire.NoError(t, b.TransferFrom(spender, owner, dest, tt.spend))
-		a := b.Allowance(owner, spender)
-		urequire.Equal(t, a, tt.exp, ufmt.Sprintf("allowance exp: %d, got %d", tt.exp, a))
-		b := b.BalanceOf(dest)
-		expB := b0 + tt.spend
-		urequire.Equal(t, b, expB, ufmt.Sprintf("balance exp: %d, got %d", expB, b))
-	}
-
-	urequire.Error(t, b.TransferFrom(spender, owner, dest, 1), "no allowance")
-	key := allowanceKey(owner, spender)
-	urequire.False(t, b.allowances.Has(key), "allowance should be removed")
-	urequire.Equal(t, b.Allowance(owner, spender), uint64(0), "allowance should be 0")
-}
-
-func TestUserTokenImpl(t *testing.T) {
+func TestPrevRealmBankerImpl(t *testing.T) {
 	bank := NewBank("Dummy", "DUMMY", 4)
 	banker := PrevRealmBanker(bank)
+	urequire.False(t, banker == nil)
 	var _ GRC20 = banker
 }
 
-func TestUserApprove(t *testing.T) {
-	owner := testutils.TestAddress("owner")
-	spender := testutils.TestAddress("spender")
-	dest := testutils.TestAddress("dest")
+func TestBank(t *testing.T) {
+	var (
+		alice = testutils.TestAddress("alice")
+		bob   = testutils.TestAddress("bob")
+		carl  = testutils.TestAddress("carl")
+	)
+
+	b := NewBank("Dummy", "DUMMY", 6)
+
+	checkBalances := func(aliceEB, bobEB, carlEB uint64) {
+		t.Helper()
+		exp := ufmt.Sprintf("alice=%d bob=%d carl=%d", aliceEB, bobEB, carlEB)
+		aliceGB := b.BalanceOf(alice)
+		bobGB := b.BalanceOf(bob)
+		carlGB := b.BalanceOf(carl)
+		got := ufmt.Sprintf("alice=%d bob=%d carl=%d", aliceGB, bobGB, carlGB)
+		uassert.Equal(t, got, exp, "invalid balances")
+	}
+	checkAllowances := func(abEB, acEB, baEB, bcEB, caEB, cbEB uint64) {
+		t.Helper()
+		exp := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%s", abEB, acEB, baEB, bcEB, caEB, cbEB)
+		abGB := b.Allowance(alice, bob)
+		acGB := b.Allowance(alice, carl)
+		baGB := b.Allowance(bob, alice)
+		bcGB := b.Allowance(bob, carl)
+		caGB := b.Allowance(carl, alice)
+		cbGB := b.Allowance(carl, bob)
+		got := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%s", abGB, acGB, baGB, bcGB, caGB, cbGB)
+		uassert.Equal(t, got, exp, "invalid allowances")
+	}
+
+	checkBalances(0, 0, 0)
+	checkAllowances(0, 0, 0, 0, 0, 0)
+
+	urequire.NoError(t, b.Mint(alice, 1000))
+	urequire.NoError(t, b.Mint(alice, 100))
+	checkBalances(1100, 0, 0)
+	checkAllowances(0, 0, 0, 0, 0, 0)
+
+	urequire.NoError(t, b.approve(alice, bob, 99999999))
+	checkBalances(1100, 0, 0)
+	checkAllowances(99999999, 0, 0, 0, 0, 0)
+
+	urequire.NoError(t, b.approve(alice, bob, 400))
+	checkBalances(1100, 0, 0)
+	checkAllowances(400, 0, 0, 0, 0, 0)
+
+	urequire.Error(t, b.transferFrom(alice, bob, carl, 100000000))
+	checkBalances(1100, 0, 0)
+	checkAllowances(400, 0, 0, 0, 0, 0)
+
+	urequire.NoError(t, b.transferFrom(alice, bob, carl, 100))
+	checkBalances(1000, 0, 100)
+	checkAllowances(300, 0, 0, 0, 0, 0)
+
+	urequire.Error(t, b.spendAllowance(alice, bob, 2000000))
+	checkBalances(1000, 0, 100)
+	checkAllowances(300, 0, 0, 0, 0, 0)
+
+	urequire.NoError(t, b.spendAllowance(alice, bob, 100))
+	checkBalances(1000, 0, 100)
+	checkAllowances(200, 0, 0, 0, 0, 0)
+}
+
+func TestPrevRealmBanker(t *testing.T) {
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
+	carl := testutils.TestAddress("carl")
 
 	bank := NewBank("Dummy", "DUMMY", 6)
 	banker := PrevRealmBanker(bank)
 
-	// Set owner as the original caller
-	std.TestSetOrigCaller(owner)
-	// Mint 100000000 tokens for owner
-	urequire.NoError(t, bank.Mint(owner, 100000000))
-
-	// Approve spender to spend 5000000 tokens
-	urequire.NoError(t, banker.Approve(spender, 5000000))
-
-	// Set spender as the original caller
-	std.TestSetOrigCaller(spender)
-	// Try to transfer 10000000 tokens from owner to dest, should fail because it exceeds allowance
-	urequire.Error(t,
-		banker.TransferFrom(owner, dest, 10000000),
-		ErrInsufficientAllowance.Error(),
-		"should not be able to transfer more than approved",
-	)
-
-	// Define a set of test data with spend amount and expected remaining allowance
-	tests := []struct {
-		spend uint64 // Spend amount
-		exp   uint64 // Remaining allowance
-	}{
-		{3, 4999997},
-		{999997, 4000000},
-		{4000000, 0},
+	checkBalances := func(aliceEB, bobEB, carlEB uint64) {
+		t.Helper()
+		exp := ufmt.Sprintf("alice=%d bob=%d carl=%d", aliceEB, bobEB, carlEB)
+		aliceGB := bank.BalanceOf(alice)
+		bobGB := bank.BalanceOf(bob)
+		carlGB := bank.BalanceOf(carl)
+		got := ufmt.Sprintf("alice=%d bob=%d carl=%d", aliceGB, bobGB, carlGB)
+		uassert.Equal(t, got, exp, "invalid balances")
+	}
+	checkAllowances := func(abEB, acEB, baEB, bcEB, caEB, cbEB uint64) {
+		t.Helper()
+		exp := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%s", abEB, acEB, baEB, bcEB, caEB, cbEB)
+		abGB := bank.Allowance(alice, bob)
+		acGB := bank.Allowance(alice, carl)
+		baGB := bank.Allowance(bob, alice)
+		bcGB := bank.Allowance(bob, carl)
+		caGB := bank.Allowance(carl, alice)
+		cbGB := bank.Allowance(carl, bob)
+		got := ufmt.Sprintf("ab=%d ac=%d ba=%d bc=%d ca=%d cb=%s", abGB, acGB, baGB, bcGB, caGB, cbGB)
+		uassert.Equal(t, got, exp, "invalid allowances")
 	}
 
-	// perform transfer operation,and check if allowance and balance are correct
-	for _, tt := range tests {
-		b0 := banker.BalanceOf(dest)
-		// Perform transfer from owner to dest
-		urequire.NoError(t, banker.TransferFrom(owner, dest, tt.spend))
-		a := banker.Allowance(owner, spender)
-		// Check if allowance equals expected value
-		urequire.True(t, a == tt.exp, ufmt.Sprintf("allowance exp: %d,got %d", tt.exp, a))
+	urequire.NoError(t, bank.Mint(alice, 1000))
+	checkBalances(1000, 0, 0)
+	checkAllowances(0, 0, 0, 0, 0, 0)
 
-		// Get dest current balance
-		b := banker.BalanceOf(dest)
-		// Calculate expected balance ,should be initial balance plus transfer amount
-		expB := b0 + tt.spend
-		// Check if balance equals expected value
-		urequire.True(t, b == expB, ufmt.Sprintf("balance exp: %d,got %d", expB, b))
-	}
+	std.TestSetOrigCaller(alice)
+	urequire.Error(t, bank.Mint(alice, 1000))
+	urequire.NoError(t, banker.Approve(bob, 600))
+	checkBalances(1000, 0, 0)
+	checkAllowances(600, 0, 0, 0, 0, 0)
 
-	// Try to transfer one token from owner to dest ,should fail because no allowance left
-	urequire.Error(t, banker.TransferFrom(owner, dest, 1), ErrInsufficientAllowance.Error(), "no allowance")
+	std.TestSetOrigCaller(bob)
+	urequire.Error(t, banker.TransferFrom(alice, carl, 700))
+	checkBalances(1000, 0, 0)
+	checkAllowances(600, 0, 0, 0, 0, 0)
+	urequire.NoError(t, banker.TransferFrom(alice, carl, 400))
+	checkBalances(600, 0, 400)
+	checkAllowances(200, 0, 0, 0, 0, 0)
 }
