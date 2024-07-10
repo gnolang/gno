@@ -11,10 +11,7 @@ import (
 	"gno.land/r/demo/users"
 )
 
-var (
-	banker *grc20.Banker = grc20.NewBanker("wrapped GNOT", "wugnot", 0)
-	Token                = banker.Token()
-)
+var Bank *grc20.Bank = grc20.NewBank("wrapped GNOT", "wugnot", 0)
 
 const (
 	ugnotMinDeposit  uint64 = 1000
@@ -22,7 +19,7 @@ const (
 )
 
 func init() {
-	grc20reg.Register(Token, "")
+	grc20reg.Register(Bank, "")
 }
 
 func Deposit() {
@@ -31,7 +28,7 @@ func Deposit() {
 	amount := sent.AmountOf("ugnot")
 
 	require(uint64(amount) >= ugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d ugnot.", amount, ugnotMinDeposit))
-	checkErr(banker.Mint(caller, uint64(amount)))
+	checkErr(Bank.Mint(caller, uint64(amount)))
 }
 
 func Withdraw(amount uint64) {
@@ -39,14 +36,14 @@ func Withdraw(amount uint64) {
 
 	caller := std.PrevRealm().Addr()
 	pkgaddr := std.CurrentRealm().Addr()
-	callerBal := Token.BalanceOf(caller)
+	callerBal := Bank.BalanceOf(caller)
 	require(amount <= callerBal, ufmt.Sprintf("Insufficient balance: %d available, %d needed.", callerBal, amount))
 
 	// send swapped ugnots to qcaller
 	stdBanker := std.GetBanker(std.BankerTypeRealmSend)
 	send := std.Coins{{"ugnot", int64(amount)}}
 	stdBanker.SendCoins(pkgaddr, caller, send)
-	checkErr(banker.Burn(caller, amount))
+	checkErr(Bank.Burn(caller, amount))
 }
 
 func Render(path string) string {
@@ -55,43 +52,46 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return banker.RenderHome()
+		return Bank.RenderHome()
 	case c == 2 && parts[0] == "balance":
 		owner := std.Address(parts[1])
-		balance := Token.BalanceOf(owner)
+		balance := Bank.BalanceOf(owner)
 		return ufmt.Sprintf("%d", balance)
 	default:
 		return "404"
 	}
 }
 
-func TotalSupply() uint64 { return Token.TotalSupply() }
+func TotalSupply() uint64 { return Bank.TotalSupply() }
 
 func BalanceOf(owner pusers.AddressOrName) uint64 {
 	ownerAddr := users.Resolve(owner)
-	return Token.BalanceOf(ownerAddr)
+	return Bank.BalanceOf(ownerAddr)
 }
 
 func Allowance(owner, spender pusers.AddressOrName) uint64 {
 	ownerAddr := users.Resolve(owner)
 	spenderAddr := users.Resolve(spender)
-	return Token.Allowance(ownerAddr, spenderAddr)
+	return Bank.Allowance(ownerAddr, spenderAddr)
 }
 
 func Transfer(to pusers.AddressOrName, amount uint64) {
 	toAddr := users.Resolve(to)
-	checkErr(Token.Transfer(toAddr, amount))
+	userBanker := grc20.PrevRealmBanker(Bank)
+	checkErr(userBanker.Transfer(toAddr, amount))
 }
 
 func Approve(spender pusers.AddressOrName, amount uint64) {
 	spenderAddr := users.Resolve(spender)
-	checkErr(Token.Approve(spenderAddr, amount))
+	userBanker := grc20.PrevRealmBanker(Bank)
+	checkErr(userBanker.Approve(spenderAddr, amount))
 }
 
 func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
 	fromAddr := users.Resolve(from)
 	toAddr := users.Resolve(to)
-	checkErr(Token.TransferFrom(fromAddr, toAddr, amount))
+	userBanker := grc20.PrevRealmBanker(Bank)
+	checkErr(userBanker.TransferFrom(fromAddr, toAddr, amount))
 }
 
 func require(condition bool, msg string) {
