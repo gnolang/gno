@@ -28,8 +28,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"github.com/grafana/pyroscope-go"
-	"runtime"
 )
 
 const defaultNodeDir = "gnoland-data"
@@ -176,287 +174,259 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
-    // These 2 lines are only required if you're using mutex or block profiling
-    runtime.SetMutexProfileFraction(5)
-    runtime.SetBlockProfileRate(5)
+	// Get the absolute path to the node's data directory
+	nodeDir, err := filepath.Abs(c.dataDir)
+	if err != nil {
+		return fmt.Errorf("unable to get absolute path for data directory, %w", err)
+	}
 
-    // Start Pyroscope profiler
-    _, err := pyroscope.Start(pyroscope.Config{
-        ApplicationName: "gnoland.node",
-        ServerAddress:   "http://pyroscope:4040",
-        Logger:          pyroscope.StandardLogger,
-        Tags:            map[string]string{"hostname": os.Getenv("HOSTNAME")},
-        ProfileTypes: []pyroscope.ProfileType{
-            pyroscope.ProfileCPU,
-            pyroscope.ProfileAllocObjects,
-            pyroscope.ProfileAllocSpace,
-            pyroscope.ProfileInuseObjects,
-            pyroscope.ProfileInuseSpace,
-            pyroscope.ProfileGoroutines,
-            pyroscope.ProfileMutexCount,
-            pyroscope.ProfileMutexDuration,
-            pyroscope.ProfileBlockCount,
-            pyroscope.ProfileBlockDuration,
-        },
-    })
-    if err != nil {
-        return fmt.Errorf("failed to start pyroscope: %w", err)
-    }
-    // defer pyroscope.Stop()
+	// Get the absolute path to the node's genesis.json
+	genesisPath, err := filepath.Abs(c.genesisFile)
+	if err != nil {
+		return fmt.Errorf("unable to get absolute path for the genesis.json, %w", err)
+	}
 
-    // Get the absolute path to the node's data directory
-    nodeDir, err := filepath.Abs(c.dataDir)
-    if err != nil {
-        return fmt.Errorf("unable to get absolute path for data directory, %w", err)
-    }
+	// Initialize the logger
+	zapLogger, err := initializeLogger(io.Out(), c.logLevel, c.logFormat)
+	if err != nil {
+		return fmt.Errorf("unable to initialize zap logger, %w", err)
+	}
 
-    // Get the absolute path to the node's genesis.json
-    genesisPath, err := filepath.Abs(c.genesisFile)
-    if err != nil {
-        return fmt.Errorf("unable to get absolute path for the genesis.json, %w", err)
-    }
+	defer func() {
+		// Sync the logger before exiting
+		_ = zapLogger.Sync()
+	}()
 
-    // Initialize the logger
-    zapLogger, err := initializeLogger(io.Out(), c.logLevel, c.logFormat)
-    if err != nil {
-        return fmt.Errorf("unable to initialize zap logger, %w", err)
-    }
+	// Wrap the zap logger
+	logger := log.ZapLoggerToSlog(zapLogger)
 
-    defer func() {
-        // Sync the logger before exiting
-        _ = zapLogger.Sync()
-    }()
+	if c.lazyInit {
+		if err := lazyInitNodeDir(io, nodeDir); err != nil {
+			return fmt.Errorf("unable to lazy-init the node directory, %w", err)
+		}
+	}
 
-    // Wrap the zap logger
-    logger := log.ZapLoggerToSlog(zapLogger)
+	// Load the configuration
+	cfg, err := config.LoadConfig(nodeDir)
+	if err != nil {
+		return fmt.Errorf("%s, %w", tryConfigInit, err)
+	}
 
-    if c.lazyInit {
-        if err := lazyInitNodeDir(io, nodeDir); err != nil {
-            return fmt.Errorf("unable to lazy-init the node directory, %w", err)
-        }
-    }
+	// Check if the genesis.json exists
+	if !osm.FileExists(genesisPath) {
+		if !c.lazyInit {
+			return errMissingGenesis
+		}
 
-    // Load the configuration
-    cfg, err := config.LoadConfig(nodeDir)
-    if err != nil {
-        return fmt.Errorf("%s, %w", tryConfigInit, err)
-    }
+		// Load the private validator secrets
+		privateKey := privval.LoadFilePV(
+			cfg.PrivValidatorKeyFile(),
+			cfg.PrivValidatorStateFile(),
+		)
 
-    // Check if the genesis.json exists
-    if !osm.FileExists(genesisPath) {
-        if !c.lazyInit {
-            return errMissingGenesis
-        }
+		// Init a new genesis.json
+		if err := lazyInitGenesis(io, c, genesisPath, privateKey.GetPubKey()); err != nil {
+			return fmt.Errorf("unable to initialize genesis.json, %w", err)
+		}
+	}
 
-        // Load the private validator secrets
-        privateKey := privval.LoadFilePV(
-            cfg.PrivValidatorKeyFile(),
-            cfg.PrivValidatorStateFile(),
-        )
+	// Initialize telemetry
+	if err := telemetry.Init(*cfg.Telemetry); err != nil {
+		return fmt.Errorf("unable to initialize telemetry, %w", err)
+	}
 
-        // Init a new genesis.json
-        if err := lazyInitGenesis(io, c, genesisPath, privateKey.GetPubKey()); err != nil {
-            return fmt.Errorf("unable to initialize genesis.json, %w", err)
-        }
-    }
-
-    // Initialize telemetry
-    if err := telemetry.Init(*cfg.Telemetry); err != nil {
-        return fmt.Errorf("unable to initialize telemetry, %w", err)
-    }
-
-    // Print the starting graphic
-    if c.logFormat != string(log.JSONFormat) {
-        io.Println(startGraphic)
-    }
+	// Print the starting graphic
+	if c.logFormat != string(log.JSONFormat) {
+		io.Println(startGraphic)
+	}
 
 	// Create a top-level shared event switch
 	evsw := events.NewEventSwitch()
 
-    // Create application and node
-    cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, evsw, logger)
-    if err != nil {
-        return fmt.Errorf("unable to create the Gnoland app, %w", err)
-    }
+	// Create application and node
+	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, evsw, logger)
+	if err != nil {
+		return fmt.Errorf("unable to create the Gnoland app, %w", err)
+	}
 
-    // Create a default node, with the given setup
-    gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger)
-    if err != nil {
-        return fmt.Errorf("unable to create the Gnoland node, %w", err)
-    }
+	// Create a default node, with the given setup
+	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger)
+	if err != nil {
+		return fmt.Errorf("unable to create the Gnoland node, %w", err)
+	}
 
-    // Start the node (async)
-    if err := gnoNode.Start(); err != nil {
-        return fmt.Errorf("unable to start the Gnoland node, %w", err)
-    }
+	// Start the node (async)
+	if err := gnoNode.Start(); err != nil {
+		return fmt.Errorf("unable to start the Gnoland node, %w", err)
+	}
 
-    // Set up the wait context
-    nodeCtx, _ := signal.NotifyContext(
-        ctx,
-        os.Interrupt,
-        syscall.SIGINT,
-        syscall.SIGTERM,
-        syscall.SIGQUIT,
-    )
+	// Set up the wait context
+	nodeCtx, _ := signal.NotifyContext(
+		ctx,
+		os.Interrupt,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT,
+	)
 
-    // Wait for the exit signal
-    <-nodeCtx.Done()
+	// Wait for the exit signal
+	<-nodeCtx.Done()
 
-    if !gnoNode.IsRunning() {
-        return nil
-    }
+	if !gnoNode.IsRunning() {
+		return nil
+	}
 
-    // Gracefully stop the gno node
-    if err := gnoNode.Stop(); err != nil {
-        return fmt.Errorf("unable to gracefully stop the Gnoland node, %w", err)
-    }
+	// Gracefully stop the gno node
+	if err := gnoNode.Stop(); err != nil {
+		return fmt.Errorf("unable to gracefully stop the Gnoland node, %w", err)
+	}
 
-    return nil
+	return nil
 }
 
 // lazyInitNodeDir initializes new secrets, and a default configuration
 // in the given node directory, if not present
 func lazyInitNodeDir(io commands.IO, nodeDir string) error {
-    var (
-        configPath  = constructConfigPath(nodeDir)
-        secretsPath = constructSecretsPath(nodeDir)
-    )
+	var (
+		configPath  = constructConfigPath(nodeDir)
+		secretsPath = constructSecretsPath(nodeDir)
+	)
 
-    // Check if the configuration already exists
-    if !osm.FileExists(configPath) {
-        // Create the gnoland config options
-        cfg := &configInitCfg{
-            configCfg: configCfg{
-                configPath: constructConfigPath(nodeDir),
-            },
-        }
+	// Check if the configuration already exists
+	if !osm.FileExists(configPath) {
+		// Create the gnoland config options
+		cfg := &configInitCfg{
+			configCfg: configCfg{
+				configPath: constructConfigPath(nodeDir),
+			},
+		}
 
-        // Run gnoland config init
-        if err := execConfigInit(cfg, io); err != nil {
-            return fmt.Errorf("unable to initialize config, %w", err)
-        }
+		// Run gnoland config init
+		if err := execConfigInit(cfg, io); err != nil {
+			return fmt.Errorf("unable to initialize config, %w", err)
+		}
 
-        io.Printfln("WARN: Initialized default node config at %q", filepath.Dir(cfg.configPath))
-        io.Println()
-    }
+		io.Printfln("WARN: Initialized default node config at %q", filepath.Dir(cfg.configPath))
+		io.Println()
+	}
 
-    // Create the gnoland secrets options
-    secrets := &secretsInitCfg{
-        commonAllCfg: commonAllCfg{
-            dataDir: secretsPath,
-        },
-        forceOverwrite: false, // existing secrets shouldn't be pruned
-    }
+	// Create the gnoland secrets options
+	secrets := &secretsInitCfg{
+		commonAllCfg: commonAllCfg{
+			dataDir: secretsPath,
+		},
+		forceOverwrite: false, // existing secrets shouldn't be pruned
+	}
 
-    // Run gnoland secrets init
-    err := execSecretsInit(secrets, []string{}, io)
-    if err == nil {
-        io.Printfln("WARN: Initialized default node secrets at %q", secrets.dataDir)
+	// Run gnoland secrets init
+	err := execSecretsInit(secrets, []string{}, io)
+	if err == nil {
+		io.Printfln("WARN: Initialized default node secrets at %q", secrets.dataDir)
 
-        return nil
-    }
+		return nil
+	}
 
-    // Check if the error is valid
-    if errors.Is(err, errOverwriteNotEnabled) {
-        // No new secrets were generated
-        return nil
-    }
+	// Check if the error is valid
+	if errors.Is(err, errOverwriteNotEnabled) {
+		// No new secrets were generated
+		return nil
+	}
 
-    return fmt.Errorf("unable to initialize secrets, %w", err)
+	return fmt.Errorf("unable to initialize secrets, %w", err)
 }
 
 // lazyInitGenesis a new genesis.json file, with a signle validator
 func lazyInitGenesis(
-    io commands.IO,
-    c *startCfg,
-    genesisPath string,
-    publicKey crypto.PubKey,
+	io commands.IO,
+	c *startCfg,
+	genesisPath string,
+	publicKey crypto.PubKey,
 ) error {
-    // Check if the genesis.json is present
-    if osm.FileExists(genesisPath) {
-        return nil
-    }
+	// Check if the genesis.json is present
+	if osm.FileExists(genesisPath) {
+		return nil
+	}
 
-    // Generate the new genesis.json file
-    if err := generateGenesisFile(genesisPath, publicKey, c); err != nil {
-        return fmt.Errorf("unable to generate genesis file, %w", err)
-    }
+	// Generate the new genesis.json file
+	if err := generateGenesisFile(genesisPath, publicKey, c); err != nil {
+		return fmt.Errorf("unable to generate genesis file, %w", err)
+	}
 
-    io.Printfln("WARN: Initialized genesis.json at %q", genesisPath)
+	io.Printfln("WARN: Initialized genesis.json at %q", genesisPath)
 
-    return nil
+	return nil
 }
 
 // initializeLogger initializes the zap logger using the given format and log level,
 // outputting to the given IO
 func initializeLogger(io io.WriteCloser, logLevel, logFormat string) (*zap.Logger, error) {
-    // Initialize the log level
-    level, err := zapcore.ParseLevel(logLevel)
-    if err != nil {
-        return nil, fmt.Errorf("unable to parse log level, %w", err)
-    }
+	// Initialize the log level
+	level, err := zapcore.ParseLevel(logLevel)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse log level, %w", err)
+	}
 
-    // Initialize the log format
-    format := log.Format(strings.ToLower(logFormat))
+	// Initialize the log format
+	format := log.Format(strings.ToLower(logFormat))
 
-    // Initialize the zap logger
-    return log.GetZapLoggerFn(format)(io, level), nil
+	// Initialize the zap logger
+	return log.GetZapLoggerFn(format)(io, level), nil
 }
 
 func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) error {
-    gen := &bft.GenesisDoc{}
-    gen.GenesisTime = time.Now()
-    gen.ChainID = c.chainID
-    gen.ConsensusParams = abci.ConsensusParams{
-        Block: &abci.BlockParams{
-            // TODO: update limits.
-            MaxTxBytes:   1_000_000,   // 1MB,
-            MaxDataBytes: 2_000_000,   // 2MB,
-            MaxGas:       100_000_000, // 100M gas
-            TimeIotaMS:   100,         // 100ms
-        },
-    }
+	gen := &bft.GenesisDoc{}
+	gen.GenesisTime = time.Now()
+	gen.ChainID = c.chainID
+	gen.ConsensusParams = abci.ConsensusParams{
+		Block: &abci.BlockParams{
+			// TODO: update limits.
+			MaxTxBytes:   1_000_000,   // 1MB,
+			MaxDataBytes: 2_000_000,   // 2MB,
+			MaxGas:       100_000_000, // 100M gas
+			TimeIotaMS:   100,         // 100ms
+		},
+	}
 
-    gen.Validators = []bft.GenesisValidator{
-        {
-            Address: pk.Address(),
-            PubKey:  pk,
-            Power:   10,
-            Name:    "testvalidator",
-        },
-    }
+	gen.Validators = []bft.GenesisValidator{
+		{
+			Address: pk.Address(),
+			PubKey:  pk,
+			Power:   10,
+			Name:    "testvalidator",
+		},
+	}
 
-    // Load balances files
-    balances, err := gnoland.LoadGenesisBalancesFile(c.genesisBalancesFile)
-    if err != nil {
-        return fmt.Errorf("unable to load genesis balances file %q: %w", c.genesisBalancesFile, err)
-    }
+	// Load balances files
+	balances, err := gnoland.LoadGenesisBalancesFile(c.genesisBalancesFile)
+	if err != nil {
+		return fmt.Errorf("unable to load genesis balances file %q: %w", c.genesisBalancesFile, err)
+	}
 
-    // Load examples folder
-    examplesDir := filepath.Join(c.gnoRootDir, "examples")
-    pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, genesisDeployAddress, genesisDeployFee)
-    if err != nil {
-        return fmt.Errorf("unable to load examples folder: %w", err)
-    }
+	// Load examples folder
+	examplesDir := filepath.Join(c.gnoRootDir, "examples")
+	pkgsTxs, err := gnoland.LoadPackagesFromDir(examplesDir, genesisDeployAddress, genesisDeployFee)
+	if err != nil {
+		return fmt.Errorf("unable to load examples folder: %w", err)
+	}
 
-    // Load Genesis TXs
-    genesisTxs, err := gnoland.LoadGenesisTxsFile(c.genesisTxsFile, c.chainID, c.genesisRemote)
-    if err != nil {
-        return fmt.Errorf("unable to load genesis txs file: %w", err)
-    }
+	// Load Genesis TXs
+	genesisTxs, err := gnoland.LoadGenesisTxsFile(c.genesisTxsFile, c.chainID, c.genesisRemote)
+	if err != nil {
+		return fmt.Errorf("unable to load genesis txs file: %w", err)
+	}
 
-    genesisTxs = append(pkgsTxs, genesisTxs...)
+	genesisTxs = append(pkgsTxs, genesisTxs...)
 
-    // Construct genesis AppState.
-    gen.AppState = gnoland.GnoGenesisState{
-        Balances: balances,
-        Txs:      genesisTxs,
-    }
+	// Construct genesis AppState.
+	gen.AppState = gnoland.GnoGenesisState{
+		Balances: balances,
+		Txs:      genesisTxs,
+	}
 
-    // Write genesis state
-    if err := gen.SaveAs(genesisFile); err != nil {
-        return fmt.Errorf("unable to write genesis file %q: %w", genesisFile, err)
-    }
+	// Write genesis state
+	if err := gen.SaveAs(genesisFile); err != nil {
+		return fmt.Errorf("unable to write genesis file %q: %w", genesisFile, err)
+	}
 
-    return nil
+	return nil
 }
