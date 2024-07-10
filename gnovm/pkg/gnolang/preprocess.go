@@ -127,7 +127,10 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
+			case *RangeStmt:
+				fmt.Println("---RangeStmt, n: ", n)
 			case *AssignStmt:
+				fmt.Println("---AssignStmt, n: ", n)
 				if n.Op == DEFINE {
 					var defined bool
 					for _, lx := range n.Lhs {
@@ -247,7 +250,9 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 			case *RangeStmt:
 				if n.Op == DEFINE {
 					if n.Key != nil {
-						last.Predefine(false, n.Key.(*NameExpr).Name)
+						nx := n.Key.(*NameExpr)
+						last.Predefine(false, nx.Name)
+						nx.Type = NameExprTypeDefine
 					}
 					if n.Value != nil {
 						last.Predefine(false, n.Value.(*NameExpr).Name)
@@ -2292,24 +2297,12 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 
 			switch n := n.(type) {
 			case *ForStmt:
+				fmt.Println("---for stmt")
 				Transcribe(n,
 					func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 						switch stage {
 						case TRANS_ENTER:
 							switch n := n.(type) {
-							//case *ForStmt:
-							//	fmt.Println("---forStmt, n: ", n)
-							//case *BinaryExpr:
-							//	fmt.Println("---BinaryExpr, n: ", n)
-							//	if ftype == TRANS_FOR_COND {
-							//		if nx, ok := n.Left.(*NameExpr); ok {
-							//			fmt.Println("---nx: ", nx)
-							//			fmt.Println("nx.Type: ", nx.Type)
-							//			nx.Type = NameExprTypeLoopVar
-							//			fmt.Println("nx.Type after set: ", nx.Type)
-							//		}
-							//		//panic("22222222")
-							//	}
 							case *FuncLitExpr:
 								if len(ns) > 0 {
 									// inner funcs.
@@ -2320,6 +2313,8 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 								panic("unexpected inner func decl")
 								return n, TRANS_CONTINUE
 							case *NameExpr:
+								fmt.Println("---name expr, n: ", n)
+								fmt.Println("---name expr, n.Type: ", n.Type)
 								if n.Type == NameExprTypeDefine {
 									n.Type = NameExprTypeHeapDefine
 								}
@@ -2327,7 +2322,32 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 						}
 						return n, TRANS_CONTINUE
 					})
-
+			case *RangeStmt:
+				fmt.Println("---range stmt, n: ", n)
+				Transcribe(n,
+					func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
+						switch stage {
+						case TRANS_ENTER:
+							switch n := n.(type) {
+							case *FuncLitExpr:
+								if len(ns) > 0 {
+									// inner funcs.
+									return n, TRANS_SKIP
+								}
+								return n, TRANS_CONTINUE
+							case *FuncDecl:
+								panic("unexpected inner func decl")
+								return n, TRANS_CONTINUE
+							case *NameExpr:
+								fmt.Println("---name expr, n: ", n, n.Type)
+								if n.Type == NameExprTypeDefine {
+									fmt.Println("---promote type")
+									n.Type = NameExprTypeHeapDefine
+								}
+							}
+						}
+						return n, TRANS_CONTINUE
+					})
 			case *BranchStmt:
 				switch n.Op {
 				case GOTO:
