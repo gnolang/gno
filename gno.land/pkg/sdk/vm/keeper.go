@@ -118,6 +118,12 @@ func uncachedPackageLoad(
 
 		loadStdlib(stdlibsDir, gnoStore)
 
+		// XXX Quick and dirty to make this function work on non-validator nodes
+		iter := iavlStore.Iterator(nil, nil)
+		for ; iter.Valid(); iter.Next() {
+			baseStore.Set(append(iavlBackupPrefix, iter.Key()...), iter.Value())
+		}
+
 		logger.Debug("Standard libraries initialized",
 			"elapsed", time.Since(start))
 	} else {
@@ -125,6 +131,18 @@ func uncachedPackageLoad(
 		// TODO remove this, and generally solve for in-mem garbage collection
 		// and memory management across many objects/types/nodes/packages.
 		start := time.Now()
+
+		// XXX Quick and dirty to make this function work on non-validator nodes
+		if isStoreEmpty(iavlStore) {
+			iter := baseStore.Iterator(iavlBackupPrefix, nil)
+			for ; iter.Valid(); iter.Next() {
+				if !bytes.HasPrefix(iter.Key(), iavlBackupPrefix) {
+					break
+				}
+				iavlStore.Set(iter.Key()[len(iavlBackupPrefix):], iter.Value())
+			}
+			iter.Close()
+		}
 
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
@@ -141,6 +159,17 @@ func uncachedPackageLoad(
 			"elapsed", time.Since(start))
 	}
 	return gnoStore
+}
+
+var iavlBackupPrefix = []byte("init_iavl_backup:")
+
+func isStoreEmpty(st store.Store) bool {
+	iter := st.Iterator(nil, nil)
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		return false
+	}
+	return true
 }
 
 func cachedStdlibLoad(stdlibsDir string, baseStore, iavlStore store.Store) gno.Store {
