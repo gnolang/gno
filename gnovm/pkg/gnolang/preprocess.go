@@ -2086,7 +2086,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				} else if len(n.Values) != 0 && numNames != len(n.Values) {
-					panic("should not happen")
+					panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, len(n.Values)))
 				} else { // general case
 					for _, v := range n.Values {
 						if cx, ok := v.(*CallExpr); ok {
@@ -3068,7 +3068,7 @@ func checkAssignmentMismatch(cd *ValueDecl) {
 		numNames  = len(cd.NameExprs)
 		numValues = len(cd.Values)
 	)
-	if numValues <= 0 || numValues == numNames {
+	if numValues == 0 || numValues == numNames {
 		return
 	}
 
