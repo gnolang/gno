@@ -2824,7 +2824,7 @@ func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name 
 				return false
 			}
 
-			curr = bn.GetStaticBlock().Source
+			curr = bn.GetStaticBlock().GetParentNode(store)
 
 			if curr == nil {
 				return false
@@ -2836,7 +2836,6 @@ func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name 
 		pkg := packageOf(last)
 
 		if _, _, ok := pkg.FileSet.GetDeclForSafe(name); !ok {
-			// skip it if it's a local identifier
 			return ""
 		}
 
@@ -2852,7 +2851,6 @@ func findUndefined2SkipLocals(store Store, last BlockNode, x Expr, t Type) Name 
 
 func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
 	switch s := stmt.(type) {
-	case *BranchStmt:
 	case *ValueDecl:
 		for _, rh := range s.Values {
 			un := findUndefined2SkipLocals(store, last, rh, t)
@@ -2991,6 +2989,7 @@ func findUndefinedStmt(store Store, last BlockNode, stmt Stmt, t Type) Name {
 				return un
 			}
 		}
+	case *BranchStmt:
 	case nil:
 		return ""
 	default:
