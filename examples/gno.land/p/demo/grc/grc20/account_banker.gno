@@ -4,28 +4,27 @@ import (
 	"std"
 )
 
-func PrevRealmBanker(b *Bank, slug string) *accountBanker {
-	return &accountBanker{
+func PrevRealmBanker(b *Bank) *fnBanker {
+	return &fnBanker{
 		accountFn: func() std.Address {
-			prev := std.PrevRealm().Addr()
-			account := AccountSlugAddr(prev, slug)
-			return account
+			caller := std.PrevRealm().Addr()
+			return caller
 		},
 		bank: b,
 	}
 }
 
-func ReadonlyBanker(b *Bank, slug string) *accountBanker {
-	return &accountBanker{
+func ReadonlyBanker(b *Bank) *fnBanker {
+	return &fnBanker{
 		accountFn: nil,
 		bank:      b,
 	}
 }
 
-func LocalBanker(b *Bank, slug string) *accountBanker {
-	prev := std.PrevRealm().Addr()
-	account := AccountSlugAddr(prev, slug)
-	return &accountBanker{
+func AccountBanker(b *Bank, slug string) *fnBanker {
+	caller := std.PrevRealm().Addr()
+	account := AccountSlugAddr(caller, slug)
+	return &fnBanker{
 		accountFn: func() std.Address {
 			return account
 		},
@@ -34,30 +33,39 @@ func LocalBanker(b *Bank, slug string) *accountBanker {
 }
 
 // var _ Token = (*token)(nil)
-func (ab *accountBanker) GetName() string                    { return ab.bank.name }
-func (ab *accountBanker) GetSymbol() string                  { return ab.bank.symbol }
-func (ab *accountBanker) GetDecimals() uint                  { return ab.bank.decimals }
-func (ab *accountBanker) TotalSupply() uint64                { return ab.bank.totalSupply_ }
-func (ab *accountBanker) BalanceOf(owner std.Address) uint64 { return ab.bank.balanceOf(owner) }
+func (ab *fnBanker) GetName() string                    { return ab.bank.name }
+func (ab *fnBanker) GetSymbol() string                  { return ab.bank.symbol }
+func (ab *fnBanker) GetDecimals() uint                  { return ab.bank.decimals }
+func (ab *fnBanker) TotalSupply() uint64                { return ab.bank.totalSupply_ }
+func (ab *fnBanker) BalanceOf(owner std.Address) uint64 { return ab.bank.BalanceOf(owner) }
 
-func (ab *accountBanker) Transfer(to std.Address, amount uint64) error {
+func (ab *fnBanker) Transfer(to std.Address, amount uint64) error {
+	if ab.accountFn == nil {
+		return ErrReadonly
+	}
 	caller := ab.accountFn()
-	return ab.bank.transfer(caller, to, amount)
+	return ab.bank.Transfer(caller, to, amount)
 }
 
-func (ab *accountBanker) Allowance(owner, spender std.Address) uint64 {
-	return ab.bank.allowance(owner, spender)
+func (ab *fnBanker) Allowance(owner, spender std.Address) uint64 {
+	return ab.bank.Allowance(owner, spender)
 }
 
-func (ab *accountBanker) Approve(spender std.Address, amount uint64) error {
+func (ab *fnBanker) Approve(spender std.Address, amount uint64) error {
+	if ab.accountFn == nil {
+		return ErrReadonly
+	}
 	caller := ab.accountFn()
-	return ab.bank.approve(caller, spender, amount)
+	return ab.bank.Approve(caller, spender, amount)
 }
 
-func (ab *accountBanker) TransferFrom(from, to std.Address, amount uint64) error {
+func (ab *fnBanker) TransferFrom(from, to std.Address, amount uint64) error {
+	if ab.accountFn == nil {
+		return ErrReadonly
+	}
 	spender := ab.accountFn()
-	if err := ab.bank.spendAllowance(from, spender, amount); err != nil {
+	if err := ab.bank.SpendAllowance(from, spender, amount); err != nil {
 		return err
 	}
-	return ab.bank.transfer(from, to, amount)
+	return ab.bank.Transfer(from, to, amount)
 }

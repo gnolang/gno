@@ -6,7 +6,7 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-func TestBankerImpl(t *testing.T) {
+func TestBankImpl(t *testing.T) {
 	dummy := NewBank("Dummy", "DUMMY", 4)
 	urequire.False(t, dummy == nil, "dummy should not be nil")
 }

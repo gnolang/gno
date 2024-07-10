@@ -6,6 +6,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/exts"
+	"gno.land/p/demo/ownable"
 )
 
 var (
@@ -13,6 +14,7 @@ var (
 	ErrInsufficientAllowance = errors.New("insufficient allowance")
 	ErrInvalidAddress        = errors.New("invalid address")
 	ErrCannotTransferToSelf  = errors.New("cannot send transfer to self")
+	ErrReadonly              = errors.New("banker is readonly")
 )
 
 type Bank struct {
@@ -22,7 +24,7 @@ type Bank struct {
 	totalSupply_ uint64
 	balances     avl.Tree // std.Address -> uint64
 	allowances   avl.Tree // owner.(std.Address)+":"+spender.(std.Address)) -> uint64
-	owner        std.Address
+	owner        *ownable.Ownable
 }
 
 type GRC20 interface {
@@ -66,12 +68,12 @@ type GRC20 interface {
 	TransferFrom(from, to std.Address, amount uint64) error
 }
 
-type accountBanker struct {
+type fnBanker struct {
 	accountFn func() std.Address
 	bank      *Bank
 }
 
-var _ GRC20 = (*accountBanker)(nil)
+var _ GRC20 = (*fnBanker)(nil)
 
 type adminBanker struct {
 	bank *Bank

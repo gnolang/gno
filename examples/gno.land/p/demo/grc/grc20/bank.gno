@@ -4,6 +4,7 @@ import (
 	"std"
 	"strconv"
 
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -16,22 +17,23 @@ func NewBank(name, symbol string, decimals uint) *Bank {
 	}
 	// XXX additional checks (length, characters, limits, etc)
 
-	prev := std.PrevRealm().Addr()
 	return &Bank{
 		name:     name,
 		symbol:   symbol,
 		decimals: decimals,
-		owner:    prev,
+		owner:    ownable.New(),
 	}
 }
 
-func (b Bank) getName() string     { return b.name }
-func (b Bank) getSymbol() string   { return b.symbol }
-func (b Bank) getDecimals() uint   { return b.decimals }
-func (b Bank) totalSupply() uint64 { return b.totalSupply_ }
-func (b Bank) knownAccounts() int  { return b.balances.Size() }
+func (b Bank) GetName() string     { return b.name }
+func (b Bank) GetSymbol() string   { return b.symbol }
+func (b Bank) GetDecimals() uint   { return b.decimals }
+func (b Bank) TotalSupply() uint64 { return b.totalSupply_ }
+func (b Bank) KnownAccounts() int  { return b.balances.Size() }
 
-func (b *Bank) mint(address std.Address, amount uint64) error {
+func (b *Bank) Mint(address std.Address, amount uint64) error {
+	// panic("AdminBanker() can only be called by the Bank owner")
+
 	if !address.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -39,7 +41,7 @@ func (b *Bank) mint(address std.Address, amount uint64) error {
 	// TODO: check for overflow
 
 	b.totalSupply_ += amount
-	currentBalance := b.balanceOf(address)
+	currentBalance := b.BalanceOf(address)
 	newBalance := currentBalance + amount
 
 	b.balances.Set(string(address), newBalance)
@@ -54,13 +56,13 @@ func (b *Bank) mint(address std.Address, amount uint64) error {
 	return nil
 }
 
-func (b *Bank) burn(address std.Address, amount uint64) error {
+func (b *Bank) Burn(address std.Address, amount uint64) error {
 	if !address.IsValid() {
 		return ErrInvalidAddress
 	}
 	// TODO: check for overflow
 
-	currentBalance := b.balanceOf(address)
+	currentBalance := b.BalanceOf(address)
 	if currentBalance < amount {
 		return ErrInsufficientBalance
 	}
@@ -80,7 +82,7 @@ func (b *Bank) burn(address std.Address, amount uint64) error {
 	return nil
 }
 
-func (b Bank) balanceOf(address std.Address) uint64 {
+func (b Bank) BalanceOf(address std.Address) uint64 {
 	balance, found := b.balances.Get(address.String())
 	if !found {
 		return 0
@@ -88,7 +90,7 @@ func (b Bank) balanceOf(address std.Address) uint64 {
 	return balance.(uint64)
 }
 
-func (b *Bank) spendAllowance(owner, spender std.Address, amount uint64) error {
+func (b *Bank) SpendAllowance(owner, spender std.Address, amount uint64) error {
 	if !owner.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -96,7 +98,7 @@ func (b *Bank) spendAllowance(owner, spender std.Address, amount uint64) error {
 		return ErrInvalidAddress
 	}
 
-	currentAllowance := b.allowance(owner, spender)
+	currentAllowance := b.Allowance(owner, spender)
 	if currentAllowance < amount {
 		return ErrInsufficientAllowance
 	}
@@ -113,7 +115,7 @@ func (b *Bank) spendAllowance(owner, spender std.Address, amount uint64) error {
 	return nil
 }
 
-func (b *Bank) transfer(from, to std.Address, amount uint64) error {
+func (b *Bank) Transfer(from, to std.Address, amount uint64) error {
 	if !from.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -124,8 +126,8 @@ func (b *Bank) transfer(from, to std.Address, amount uint64) error {
 		return ErrCannotTransferToSelf
 	}
 
-	toBalance := b.balanceOf(to)
-	fromBalance := b.balanceOf(from)
+	toBalance := b.BalanceOf(to)
+	fromBalance := b.BalanceOf(from)
 
 	// debug.
 	// println("from", from, "to", to, "amount", amount, "fromBalance", fromBalance, "toBalance", toBalance)
@@ -149,14 +151,14 @@ func (b *Bank) transfer(from, to std.Address, amount uint64) error {
 	return nil
 }
 
-func (b *Bank) transferFrom(spender, from, to std.Address, amount uint64) error {
-	if err := b.spendAllowance(from, spender, amount); err != nil {
+func (b *Bank) TransferFrom(spender, from, to std.Address, amount uint64) error {
+	if err := b.SpendAllowance(from, spender, amount); err != nil {
 		return err
 	}
-	return b.transfer(from, to, amount)
+	return b.Transfer(from, to, amount)
 }
 
-func (b *Bank) allowance(owner, spender std.Address) uint64 {
+func (b *Bank) Allowance(owner, spender std.Address) uint64 {
 	allowance, found := b.allowances.Get(allowanceKey(owner, spender))
 	if !found {
 		return 0
@@ -164,7 +166,7 @@ func (b *Bank) allowance(owner, spender std.Address) uint64 {
 	return allowance.(uint64)
 }
 
-func (b *Bank) approve(owner, spender std.Address, amount uint64) error {
+func (b *Bank) Approve(owner, spender std.Address, amount uint64) error {
 	if !owner.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -189,7 +191,7 @@ func (b *Bank) RenderHome() string {
 	str += ufmt.Sprintf("# %s ($%s)\n\n", b.name, b.symbol)
 	str += ufmt.Sprintf("* **Decimals**: %d\n", b.decimals)
 	str += ufmt.Sprintf("* **Total supply**: %d\n", b.totalSupply_)
-	str += ufmt.Sprintf("* **Known accounts**: %d\n", b.knownAccounts())
+	str += ufmt.Sprintf("* **Known accounts**: %d\n", b.KnownAccounts())
 	return str
 }
 

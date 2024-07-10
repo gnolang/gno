@@ -9,12 +9,12 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-var registry = avl.NewTree() // rlmPath[.slug] -> Token
+var registry = avl.NewTree() // rlmPath[.slug] -> *grc20.Bank
 
-func Register(token grc20.Token, slug string) {
+func Register(bank *grc20.Bank, slug string) {
 	rlmPath := std.PrevRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
-	registry.Set(key, token)
+	registry.Set(key, bank)
 	std.Emit(
 		registerEvent,
 		"pkgpath", rlmPath,
@@ -22,20 +22,20 @@ func Register(token grc20.Token, slug string) {
 	)
 }
 
-func Get(key string) grc20.Token {
-	token, ok := registry.Get(key)
+func Get(key string) *grc20.Bank {
+	bank, ok := registry.Get(key)
 	if !ok {
 		return nil
 	}
-	return token.(grc20.Token)
+	return bank.(*grc20.Bank)
 }
 
-func MustGet(key string) grc20.Token {
-	token := Get(key)
-	if token == nil {
-		panic("unknown token: " + key)
+func MustGet(key string) *grc20.Bank {
+	bank := Get(key)
+	if bank == nil {
+		panic("unknown bank: " + key)
 	}
-	return token
+	return bank
 }
 
 func Render(path string) string {
@@ -44,29 +44,29 @@ func Render(path string) string {
 		// TODO: add pagination
 		s := ""
 		count := 0
-		registry.Iterate("", "", func(key string, tokenI interface{}) bool {
+		registry.Iterate("", "", func(key string, bankI interface{}) bool {
 			count++
-			token := tokenI.(grc20.Token)
+			bank := bankI.(*grc20.Bank)
 			rlmPath, slug := fqname.Parse(key)
 			rlmLink := fqname.RenderLink(rlmPath, slug)
 			infoLink := "/r/demo/grc20reg:" + key
-			s += ufmt.Sprintf("- **%s** - %s - [info](%s)\n", token.GetName(), rlmLink, infoLink)
+			s += ufmt.Sprintf("- **%s** - %s - [info](%s)\n", bank.GetName(), rlmLink, infoLink)
 			return false
 		})
 		if count == 0 {
 			return "No registered token."
 		}
 		return s
-	default: // specific token
+	default: // specific bank
 		key := path
-		token := MustGet(key)
+		bank := MustGet(key)
 		rlmPath, slug := fqname.Parse(key)
 		rlmLink := fqname.RenderLink(rlmPath, slug)
-		s := ufmt.Sprintf("# %s\n", token.GetName())
-		s += ufmt.Sprintf("- symbol: **%s**\n", token.GetSymbol())
+		s := ufmt.Sprintf("# %s\n", bank.GetName())
+		s += ufmt.Sprintf("- symbol: **%s**\n", bank.GetSymbol())
 		s += ufmt.Sprintf("- realm: %s\n", rlmLink)
-		s += ufmt.Sprintf("- decimals: %d\n", token.GetDecimals())
-		s += ufmt.Sprintf("- total supply: %d\n", token.TotalSupply())
+		s += ufmt.Sprintf("- decimals: %d\n", bank.GetDecimals())
+		s += ufmt.Sprintf("- total supply: %d\n", bank.TotalSupply())
 		return s
 	}
 }
