@@ -244,6 +244,126 @@ func main() {
 	}
 }
 
+func TestGenerateCodeBlockName(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected string
+	}{
+		{
+			name: "Function name",
+			content: `
+package main
+
+func TestFunction() {
+    println("Hello")
+}`,
+			expected: "TestFunction()",
+		},
+		{
+			name: "Main function only",
+			content: `
+package main
+
+func main() {
+    println("Hello")
+}`,
+			expected: "println(\"Hello\")",
+		},
+		{
+			name: "No function",
+			content: `
+package main
+
+var x = 5
+`,
+			expected: "x",
+		},
+		{
+			name: "Multiple functions",
+			content: `
+package main
+
+func main() {
+    println("Hello")
+}
+
+func AnotherFunction() {
+    println("World")
+}`,
+			expected: "AnotherFunction()",
+		},
+		{
+			name:     "Empty content",
+			content:  "",
+			expected: "unnamed_block",
+		},
+		{
+			name: "Only comments",
+			content: `
+// This is a comment
+// Another comment
+`,
+			expected: "unnamed_block",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := generateCodeBlockName(tt.content)
+			if result != tt.expected {
+				t.Errorf("generateCodeBlockName() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetCodeBlocks_Name(t *testing.T) {
+	markdown := `
+Some text here
+
+` + "```go" + `
+// @test: CustomNamedTest
+func main() {
+    println("Custom named test")
+}
+` + "```" + `
+
+Another paragraph
+
+` + "```go" + `
+func TestAutoNamed() {
+    println("Auto named test")
+}
+` + "```" + `
+
+` + "```go" + `
+var x = 5
+` + "```" + `
+`
+
+	codeBlocks := GetCodeBlocks(markdown)
+
+	if len(codeBlocks) != 3 {
+		t.Fatalf("Expected 3 code blocks, got %d", len(codeBlocks))
+	}
+
+	// Test custom named block
+	if codeBlocks[0].name != "CustomNamedTest" {
+		t.Errorf("Expected first block name to be 'CustomNamedTest', got '%s'", codeBlocks[0].name)
+	}
+
+	// Test auto named block with function
+	if codeBlocks[1].name != "func TestAutoNamed()..." {
+		t.Errorf("Expected second block name to be 'func TestAutoNamed()...', got '%s'", codeBlocks[1].name)
+	}
+
+	// Test auto named block without function
+	if codeBlocks[2].name != "var x = 5" {
+		t.Errorf("Expected third block name to be 'var x = 5', got '%s'", codeBlocks[2].name)
+	}
+}
+
 // ignore whitespace in the source code
 func normalize(s string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(s, "\n", ""), "\r", ""), "\t", ""), " ", "")

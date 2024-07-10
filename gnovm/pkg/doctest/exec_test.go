@@ -153,7 +153,7 @@ func main() {
 				lang:           "gno",
 				expectedOutput: "Hello, World!",
 			},
-			expectError:    true,
+			expectError: true,
 		},
 		{
 			name: "Code with expected error",
@@ -169,7 +169,7 @@ func main() {
 				lang:          "gno",
 				expectedError: "panic: oops",
 			},
-			expectError:    true,
+			expectError: true,
 		},
 		{
 			name: "Code with unexpected error",
@@ -182,7 +182,7 @@ func main() {
 }`,
 				lang: "gno",
 			},
-			expectError:    true,
+			expectError: true,
 		},
 		{
 			name: "Multiple print statements",
@@ -208,7 +208,7 @@ func main() {
 				content: `print("Hello")`,
 				lang:    "python",
 			},
-			expectError:    true,
+			expectError: true,
 		},
 	}
 
