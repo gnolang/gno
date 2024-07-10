@@ -59,7 +59,7 @@ func GameFromRepr(
 }
 
 func (game Game) ToRepr() string {
-	return strings.ReplaceAll(game.Game.Output(), "\n", "")
+	return strings.ReplaceAll(game.Output(), "\n", "")
 }
 
 func (game Game) IsCpuFirst() bool {
@@ -68,16 +68,16 @@ func (game Game) IsCpuFirst() bool {
 
 func (game *Game) PlayCPU() (x, y int, e error) {
 	switch {
-	case game.Game.Turn() != game.cpu:
+	case game.Turn() != game.cpu:
 		return -1, -1, ufmt.Errorf(
 			"not my turn (%s), turn is %s's",
-			game.cpu.String(), game.Game.Turn().String(),
+			game.cpu.String(), game.Turn().String(),
 		)
 	case game.IsOver():
 		return -1, -1, errors.New("game is over")
 	default:
 		x, y, _ = game.pickMove(game.Game, game.Intn)
-		e = game.Game.Play(game.cpu, x, y)
+		e = game.Play(game.cpu, x, y)
 		return x, y, e
 	}
 }
