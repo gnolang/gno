@@ -22,7 +22,7 @@ var (
 
 func init() {
 	Bank.Mint(owner.Owner(), 1_000_000*10_000) // @administrator (1M)
-	grc20reg.Register(bank, "")
+	grc20reg.Register(Bank, "")
 }
 
 func TotalSupply() uint64 {

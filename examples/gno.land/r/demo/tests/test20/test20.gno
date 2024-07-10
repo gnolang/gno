@@ -8,11 +8,20 @@
 //	 educational purposes.
 package test20
 
-import "gno.land/p/demo/grc/grc20"
+import (
+	"std"
+
+	"gno.land/p/demo/grc/grc20"
+)
 
 var (
-	Banker = grc20.NewBanker("Test20", "TST", 4)
-	Token  = Banker.Token()
+	Bank             = grc20.NewBank("Test20", "TST", 4)
+	PrevRealmBanker  = grc20.PrevRealmBanker(Bank)
+	AccountBanker    = grc20.AccountBanker(Bank, "")
+	AccountBankerFoo = grc20.AccountBanker(Bank, "foo")
 )
+
+func Mint(to std.Address, amount uint64)   { Bank.Mint(to, amount) }
+func Burn(from std.Address, amount uint64) { Bank.Burn(from, amount) }
 
 // XXX func init() { grc20reg.Register(Pub, "") } // Depends on #2516
