@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	// gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	// "github.com/gnolang/gno/tm2/pkg/store"
 )
 
 // ----------------------------------------
@@ -326,7 +328,9 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 	if !t.shouldRun(t.name) {
 		return
 	}
-
+	// m := gno.NewMachine("", nil)
+	// m.GasMeter = store.NewGasMeter(10000 * 1000 * 1000)
+	// gasStart := 0
 	start := unixNano()
 
 	defer func() {
@@ -341,7 +345,7 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 
 		dur := unixNano() - start
 		t.dur = formatDur(dur)
-
+		// gasUsed := m.GasMeter.GasConsumed()
 		if t.verbose {
 			switch {
 			case t.Failed():
@@ -349,7 +353,7 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 			case t.skipped:
 				fmt.Fprintf(os.Stderr, "--- SKIP: %s (%s)\n", t.name, t.dur)
 			case t.verbose:
-				fmt.Fprintf(os.Stderr, "--- PASS: %s (%s)\n", t.name, t.dur)
+				fmt.Fprintf(os.Stderr, "--- PASS: %s \n", t.name)
 			}
 		}
 	}()
