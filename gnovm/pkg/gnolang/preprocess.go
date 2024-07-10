@@ -127,8 +127,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 		// ----------------------------------------
 		case TRANS_ENTER:
 			switch n := n.(type) {
-			case *RangeStmt:
-				fmt.Println("---RangeStmt, n: ", n)
 			case *AssignStmt:
 				fmt.Println("---AssignStmt, n: ", n)
 				if n.Op == DEFINE {
@@ -255,7 +253,9 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						nx.Type = NameExprTypeDefine
 					}
 					if n.Value != nil {
+						nx := n.Value.(*NameExpr)
 						last.Predefine(false, n.Value.(*NameExpr).Name)
+						nx.Type = NameExprTypeDefine
 					}
 				}
 			case *FuncLitExpr:
