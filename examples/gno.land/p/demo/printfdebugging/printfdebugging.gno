@@ -1,9 +1,15 @@
 // this package is a joke... or not.
-// to be honest, I wish we can improve it so that printfdebugging becomes easier.
 package printfdebugging
 
-import "gno.land/p/demo/ufmt"
+import (
+	"strings"
 
-func BigRedLine() {
-	println(ufmt.Sprintf("%s[%dm####################################%s[%dm", Escape, int(BgRed), Escape, int(Reset)))
+	"gno.land/p/demo/ufmt"
+)
+
+func BigRedLine(args ...string) {
+	println(ufmt.Sprintf("%s[%dm####################################%s[%dm %s",
+		Escape, int(BgRed), Escape, int(Reset),
+		strings.Join(args, " "),
+	))
 }

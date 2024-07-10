@@ -60,10 +60,12 @@ func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Tim
 // NewCustomGRC20Swap creates a new atomic swap contract for grc20 tokens.
 // It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
 func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, bank *grc20.Bank) (int, *Swap) {
+	printfdebugging.BigRedLine("START")
+	defer printfdebugging.BigRedLine("END")
+
 	sender := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
 	userBanker := grc20.PrevRealmBanker(bank)
-	printfdebugging.BigRedLine()
 	println(">> - SENDER (prevrealm)   ", sender)
 	println(">> - ATOMICSWAP (currealm)", curAddr)
 	println(">> - RECIPIENT            ", recipient)
