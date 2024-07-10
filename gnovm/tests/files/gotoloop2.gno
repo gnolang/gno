@@ -4,7 +4,7 @@ func main() {
 	c := 0
 	closures := []func(){}
 loop:
-	i := 1
+	i := c
 	closures = append(closures, func() {
 		println(i)
 	})
@@ -21,16 +21,16 @@ loop:
 // You can tell by the preprocess printout of i<!~...> and i<()~...>.
 
 // Preprocessed:
-// file{ package main; func main() { c<!VPBlock(1,0)> := (const (0 int)); closures<!VPBlock(1,1)> := []func(){}; i<!~VPBlock(1,2)> := (const (1 int)); closures<VPBlock(1,1)> = (const (append func(x []func()(),args ...func()())(res []func()())))(closures<VPBlock(1,1)>, func func(){ (const (println func(xs ...interface{})()))(i<~VPBlock(2,2)>) }<i<()~VPBlock(1,2)>>); c<VPBlock(1,0)> += (const (1 int)); if c<VPBlock(2,0)> < (const (10 int)) { goto loop<1,2> }; for _<VPBlock(0,0)>, cl<VPBlock(1,0)> := range closures<VPBlock(2,1)> { cl<VPBlock(1,0)>() } } }
+// file{ package main; func main() { c<!VPBlock(1,0)> := (const (0 int)); closures<!VPBlock(1,1)> := []func(){}; i<!~VPBlock(1,2)> := c<VPBlock(1,0)>; closures<VPBlock(1,1)> = (const (append func(x []func()(),args ...func()())(res []func()())))(closures<VPBlock(1,1)>, func func(){ (const (println func(xs ...interface{})()))(i<~VPBlock(1,0)>) }<i<()~VPBlock(1,2)>>); c<VPBlock(1,0)> += (const (1 int)); if c<VPBlock(2,0)> < (const (10 int)) { goto loop<1,2> }; for _<VPBlock(0,0)>, cl<VPBlock(1,0)> := range closures<VPBlock(2,1)> { cl<VPBlock(1,0)>() } } }
 
 // Output:
+// 0
 // 1
-// 1
-// 1
-// 1
-// 1
-// 1
-// 1
-// 1
-// 1
-// 1
+// 2
+// 3
+// 4
+// 5
+// 6
+// 7
+// 8
+// 9
