@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/time16_native.gno:10: incompatible types in binary expression: go:time.Duration MUL int64
+// main/files/time16_native.gno:10:14: incompatible operands in binary expression: go:time.Duration MUL int64
