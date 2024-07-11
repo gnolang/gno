@@ -139,8 +139,8 @@ func TestNewGRC20_Claim(t *testing.T) {
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)
 
-	test20.Bank.Mint(sender, 100_000)
-	test20.Bank.Approve(sender, rlm, 70_000)
+	test20.Adm.Mint(sender, 100_000)
+	test20.Adm.Approve(sender, rlm, 70_000)
 
 	// Create a new swap
 	std.TestSetRealm(std.NewUserRealm(sender))
@@ -212,8 +212,8 @@ func TestNewGRC20_Refund(t *testing.T) {
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)
 
-	test20.Bank.Mint(sender, 100_000)
-	test20.Bank.Approve(sender, rlm, 70_000)
+	test20.Adm.Mint(sender, 100_000)
+	test20.Adm.Approve(sender, rlm, 70_000)
 	println("AAAAAAAAAAA", "sender", sender, "rlm", rlm)
 
 	// Create a new swap
@@ -280,13 +280,13 @@ func TestRender(t *testing.T) {
 	hashlockHex := hex.EncodeToString(hashlock[:])
 	timelock := time.Now().Add(1 * time.Hour)
 
-	test20.Bank.Mint(alice, 100_000)
+	test20.Adm.Mint(alice, 100_000)
 	std.TestSetRealm(std.NewUserRealm(alice))
 
-	test20.Bank.Approve(alice, rlm, 10_000)
+	test20.Adm.Approve(alice, rlm, 10_000)
 	_, bobSwap := NewCustomGRC20Swap(bob, hashlockHex, timelock, test20.Bank)
 
-	test20.Bank.Approve(alice, rlm, 20_000)
+	test20.Adm.Approve(alice, rlm, 20_000)
 	_, _ = NewCustomGRC20Swap(charly, hashlockHex, timelock, test20.Bank)
 
 	std.TestSetRealm(std.NewUserRealm(bob))

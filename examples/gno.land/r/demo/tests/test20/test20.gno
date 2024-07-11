@@ -9,19 +9,14 @@
 package test20
 
 import (
-	"std"
-
 	"gno.land/p/demo/grc/grc20"
 )
 
 var (
-	Bank, adm        = grc20.NewBank("Test20", "TST", 4)
+	Bank, Adm        = grc20.NewBank("Test20", "TST", 4)
 	PrevRealmBanker  = grc20.PrevRealmBanker(Bank)
 	AccountBanker    = grc20.AccountBanker(Bank, "")
 	AccountBankerFoo = grc20.AccountBanker(Bank, "foo")
 )
 
-func Mint(to std.Address, amount uint64)   { adm.Mint(to, amount) }
-func Burn(from std.Address, amount uint64) { adm.Burn(from, amount) }
-
-// XXX func init() { grc20reg.Register(Pub, "") } // Depends on #2516
+// XXX func init() { grc20reg.Register(Pub, "") } // circular dep (testing)

@@ -11,7 +11,7 @@ import (
 	"gno.land/r/demo/users"
 )
 
-var Bank *grc20.Bank = grc20.NewBank("wrapped GNOT", "wugnot", 0)
+var Bank, adm = grc20.NewBank("wrapped GNOT", "wugnot", 0)
 
 const (
 	ugnotMinDeposit  uint64 = 1000
@@ -29,7 +29,7 @@ func Deposit() {
 
 	require(uint64(amount) >= ugnotMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d ugnot.", amount, ugnotMinDeposit))
 
-	checkErr(Bank.Mint(caller, uint64(amount)))
+	checkErr(adm.Mint(caller, uint64(amount)))
 }
 
 func Withdraw(amount uint64) {
@@ -44,7 +44,7 @@ func Withdraw(amount uint64) {
 	stdBanker := std.GetBanker(std.BankerTypeRealmSend)
 	send := std.Coins{{"ugnot", int64(amount)}}
 	stdBanker.SendCoins(pkgaddr, caller, send)
-	checkErr(Bank.Burn(caller, amount))
+	checkErr(adm.Burn(caller, amount))
 }
 
 func Render(path string) string {
