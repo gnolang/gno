@@ -79,6 +79,9 @@ func TestPackage(t *testing.T) {
 	checkBalances(900, 0, 100, 0, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	uassert.Equal(t, dex.Size(), 1)
+	uassert.Equal(t, dex.Render(""), `Orders:
+Test20 -> Foo 100 at 2
+`)
 
 	uassert.Equal(t, dex.MatchPairOrders("foo20/test20"), 0)
 	checkBalances(900, 0, 100, 0, 0, 0)
@@ -100,10 +103,13 @@ func TestPackage(t *testing.T) {
 	checkBalances(900, 0, 100, 0, 9999500, 500)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 1500, 0, 0)
 	uassert.Equal(t, dex.Size(), 2)
+	uassert.Equal(t, dex.Render(""), `Orders:
+Foo -> Test20 500 at 2
+Test20 -> Foo 100 at 2
+`)
 
-	uassert.Equal(t, dex.MatchPairOrders("foo20/test20"), 0)
+	uassert.Equal(t, dex.MatchPairOrders("foo20/test20"), 1)
 	checkBalances(900, 0, 100, 0, 9999500, 500)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 1500, 0, 0)
-	uassert.Equal(t, dex.Size(), 2)
-	uassert.False(t, true)
+	uassert.Equal(t, dex.Size(), 1)
 }

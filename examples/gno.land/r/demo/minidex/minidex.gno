@@ -163,9 +163,9 @@ func (dex *DEX) Render(_ string) string {
 		ordersTree.Iterate("", "", func(key string, value interface{}) bool {
 			order := value.(*Order)
 			s += ufmt.Sprintf("%s -> %s %d at %d\n", order.tokenFrom.GetName(), order.tokenTo.GetName(), order.amount, order.price)
-			return true
+			return false
 		})
-		return true
+		return false
 	})
 	return s
 }
