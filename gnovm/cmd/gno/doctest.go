@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	dt "github.com/gnolang/gno/gnovm/pkg/doctest"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -12,7 +13,8 @@ import (
 
 type doctestCfg struct {
 	markdownPath string
-	codeIndex    int
+	// codeIndex    int
+	runPattern string
 }
 
 func newDoctestCmd(io commands.IO) *commands.Command {
@@ -21,7 +23,7 @@ func newDoctestCmd(io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "doctest",
-			ShortUsage: "doctest -path <markdown_file_path> -index <code_block_index>",
+			ShortUsage: "doctest -path <markdown_file_path> [-run <pattern>]",
 			ShortHelp:  "executes a specific code block from a markdown file",
 		},
 		cfg,
@@ -38,12 +40,11 @@ func (c *doctestCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"path to the markdown file",
 	)
-
-	fs.IntVar(
-		&c.codeIndex,
-		"index",
-		-1,
-		"index of the code block to execute",
+	fs.StringVar(
+		&c.runPattern,
+		"run",
+		"",
+		"pattern to match code block names",
 	)
 }
 
@@ -52,28 +53,23 @@ func execDoctest(cfg *doctestCfg, _ []string, io commands.IO) error {
 		return fmt.Errorf("markdown file path is required")
 	}
 
-	if cfg.codeIndex < 0 {
-		return fmt.Errorf("code block index must be non-negative")
-	}
-
 	content, err := fetchMarkdown(cfg.markdownPath)
 	if err != nil {
 		return fmt.Errorf("failed to read markdown file: %w", err)
 	}
 
-	codeBlocks := dt.GetCodeBlocks(content)
-	if cfg.codeIndex >= len(codeBlocks) {
-		return fmt.Errorf("invalid code block index: %d", cfg.codeIndex)
-	}
-
-	selectedCodeBlock := codeBlocks[cfg.codeIndex]
-	result, err := dt.ExecuteCodeBlock(selectedCodeBlock, dt.GetStdlibsDir())
+	results, err := dt.ExecuteMatchingCodeBlock(content, cfg.runPattern)
 	if err != nil {
 		return fmt.Errorf("failed to execute code block: %w", err)
 	}
 
+	if len(results) == 0 {
+		io.Println("No code blocks matched the pattern")
+		return nil
+	}
+
 	io.Println("Execution Result:")
-	io.Println(result)
+	io.Println(strings.Join(results, "\n\n"))
 
 	return nil
 }

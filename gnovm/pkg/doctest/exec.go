@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -123,7 +124,6 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 	cache.m[hashKey] = res
 	cache.Unlock()
 
-	// return res, nil
 	return compareResults(res, c.expectedOutput, c.expectedError)
 }
 
@@ -143,4 +143,37 @@ func compareResults(actual, expectedOutput, expectedError string) (string, error
 	}
 
 	return actual, nil
+}
+
+func ExecuteMatchingCodeBlock(content string, pattern string) ([]string, error) {
+	codeBlocks := GetCodeBlocks(content)
+	var results []string
+
+	for _, block := range codeBlocks {
+		if matchPattern(block.name, pattern) {
+			result, err := ExecuteCodeBlock(block, GetStdlibsDir())
+			if err != nil {
+				return nil, fmt.Errorf("failed to execute code block %s: %w", block.name, err)
+			}
+			results = append(results, fmt.Sprintf("\n=== %s ===\n\n%s", block.name, result))
+		}
+	}
+
+	return results, nil
+}
+
+func matchPattern(name, pattern string) bool {
+	if pattern == "" {
+		return true
+	}
+
+	pattern = regexp.QuoteMeta(pattern)
+	pattern = strings.ReplaceAll(pattern, "\\*", ".*")
+
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return false
+	}
+
+	return re.MatchString(name)
 }
