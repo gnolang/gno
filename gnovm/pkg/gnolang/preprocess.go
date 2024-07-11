@@ -128,7 +128,6 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 		case TRANS_ENTER:
 			switch n := n.(type) {
 			case *AssignStmt:
-				fmt.Println("---AssignStmt, n: ", n)
 				if n.Op == DEFINE {
 					var defined bool
 					for _, lx := range n.Lhs {
@@ -2706,14 +2705,21 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 									switch n := n.(type) {
 									case *ForStmt:
 										fmt.Println("---forStmt, n: ", n)
-									case *BinaryExpr:
-										fmt.Println("---BinaryExpr, n: ", n)
-										if ftype == TRANS_FOR_COND {
-											if nx, ok := n.Left.(*NameExpr); ok {
-												fmt.Println("---nx: ", nx)
-												fmt.Println("nx.Type: ", nx.Type)
-												nx.Type = NameExprTypeLoopVar
-												fmt.Println("nx.Type after set: ", nx.Type)
+									case Stmt:
+										if ftype == TRANS_FOR_POST {
+											fmt.Println("---for post stmt, n: ", n, reflect.TypeOf(n))
+											switch stmt := n.(type) {
+											case *AssignStmt:
+												fmt.Println("---assignStmt: ", stmt)
+												for _, x := range stmt.Lhs {
+													nx := x.(*NameExpr)
+													nx.Type = NameExprTypeLoopVar // set type for nx on post stmt of for loop
+												}
+
+											case *IncDecStmt:
+												fmt.Println("---IncDecStmt: ", stmt)
+												nx := stmt.X.(*NameExpr)
+												nx.Type = NameExprTypeLoopVar // set type for nx on post stmt of for loop
 											}
 										}
 									}

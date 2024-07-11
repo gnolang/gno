@@ -2493,30 +2493,6 @@ func (b *Block) GetPointerToMaybeHeapUse(alloc *Allocator, store Store, nx *Name
 		// XXX this should panic after logic is complete,
 		// should not happen.
 		return b.GetPointerTo(store, nx.Path)
-	case NameExprTypeLoopVar:
-		fmt.Println("---nameTypeLoopVar")
-		// XXX, alloc first
-		// and use at once
-		ptr := b.GetPointerTo(store, nx.Path)
-		// initial values from Init expr
-		V := ptr.TV.V.(*HeapItemValue).Value
-		// new heapItem
-		hiv := &HeapItemValue{Value: V}
-		*ptr.TV = TypedValue{
-			T: heapItemType{},
-			V: hiv,
-		}
-		// return ptr to this new allocated heap item
-		if _, ok := ptr.TV.T.(heapItemType); ok {
-			return PointerValue{
-				TV:    &ptr.TV.V.(*HeapItemValue).Value,
-				Base:  ptr.TV.V,
-				Index: 0,
-			}
-		} else {
-			panic("should not happen")
-		}
-
 	default:
 		panic("unexpected NameExpr type for GetPointerToMaybeHeapUse")
 	}
@@ -2580,6 +2556,33 @@ func (b *Block) GetPointerToHeapUse(alloc *Allocator, store Store, path ValuePat
 		}
 	} else {
 		panic("should not happen")
+	}
+}
+
+func (b *Block) GetPointerToLoopVarDefineUse(alloc *Allocator, store Store, path ValuePath) PointerValue {
+	fmt.Println("---nameTypeLoopVar")
+	debug.Println("---GetPointerToLoopVarDefineUse, b: ", b)
+	debug.Println("---GetPointerToLoopVarDefineUse, path: ", path)
+
+	// get heapItem defined from last iteration,
+	// if first iteration, from Init.
+	// XXX, maxwell. DO WE NEED THIS?
+	ptr := b.GetPointerTo(store, path)
+	// initial values from Init expr
+	V := ptr.TV.V.(*HeapItemValue).Value
+
+	// new heapItem base on initial one(copy last state)
+	// have multi heapItems as loop iterates.
+	hiv := &HeapItemValue{Value: V}
+	*ptr.TV = TypedValue{ // update to new allocated heapItem
+		T: heapItemType{},
+		V: hiv,
+	}
+	// return ptr to this new allocated heap item
+	return PointerValue{
+		TV:    &ptr.TV.V.(*HeapItemValue).Value,
+		Base:  ptr.TV.V,
+		Index: 0,
 	}
 }
 
