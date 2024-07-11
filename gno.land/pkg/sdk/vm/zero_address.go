@@ -3,7 +3,7 @@ package vm
 import "github.com/gnolang/gno/tm2/pkg/crypto"
 
 const (
-	zAddressBech32 = string("g100000000000000000000000000000000dnmcnx")
+	zAddressBech32 = string("g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqluuxe")
 )
 
 func ZeroAddress() crypto.Address {
