@@ -67,36 +67,37 @@ func TestPackage(t *testing.T) {
 	checkBalances(0, 0, 0, 0, 0, 0)
 
 	test20.Adm.Mint(alice, 1000)
-	foo20.Faucet()
-	checkBalances(1000, 0, 0, 10000000, 0, 0)
+	checkBalances(1000, 0, 0, 0, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
 	grc20.PrevRealmBanker(test20.Bank).Approve(dexAddr, 100)
-	checkBalances(1000, 0, 0, 10000000, 0, 0)
+	checkBalances(1000, 0, 0, 0, 0, 0)
 	checkAllowances(0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	uassert.Equal(t, dex.Size(), 0)
 
 	dex.PlaceOrder(test20.Bank, foo20.Bank, 100, 2)
-	checkBalances(900, 0, 100, 10000000, 0, 0)
+	checkBalances(900, 0, 100, 0, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	uassert.Equal(t, dex.Size(), 1)
 
 	uassert.Equal(t, dex.MatchPairOrders("foo20/test20"), 0)
-	checkBalances(900, 0, 100, 10000000, 0, 0)
+	checkBalances(900, 0, 100, 0, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	uassert.Equal(t, dex.Size(), 1)
 
 	std.TestSetOrigCaller(bob)
 	std.TestSetRealm(std.NewUserRealm(bob))
+	foo20.Faucet()
+	checkBalances(900, 0, 100, 0, 10000000, 0)
+	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
 	grc20.PrevRealmBanker(foo20.Bank).Approve(dexAddr, 2000)
-	checkBalances(900, 0, 100, 10000000, 0, 0)
+	checkBalances(900, 0, 100, 0, 10000000, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 2000, 0, 0)
 	uassert.Equal(t, dex.Size(), 1)
 
-	println("_______________")
-	return
 	dex.PlaceOrder(foo20.Bank, test20.Bank, 500, 2)
-	checkBalances(900, 0, 100, 10000000, 0, 0)
-	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	checkBalances(900, 0, 100, 0, 9999500, 500)
+	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 1500, 0, 0)
 	uassert.Equal(t, dex.Size(), 2)
 }
