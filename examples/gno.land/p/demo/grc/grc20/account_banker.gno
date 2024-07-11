@@ -22,7 +22,7 @@ func ReadonlyBanker(b *Bank) *fnBanker {
 }
 
 func AccountBanker(b *Bank, slug string) *fnBanker {
-	caller := std.PrevRealm().Addr()
+	caller := std.CurrentRealm().Addr()
 	account := AccountSlugAddr(caller, slug)
 	return &fnBanker{
 		accountFn: func() std.Address {

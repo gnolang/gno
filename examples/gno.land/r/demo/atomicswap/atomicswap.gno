@@ -7,7 +7,6 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
-	"gno.land/p/demo/printfdebugging"
 	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/grc20reg"
 )
@@ -60,21 +59,13 @@ func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Tim
 // NewCustomGRC20Swap creates a new atomic swap contract for grc20 tokens.
 // It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
 func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, bank *grc20.Bank) (int, *Swap) {
-	defer printfdebugging.Success()
-	printfdebugging.BigRedLine("START")
-	defer printfdebugging.BigRedLine("END")
-
 	sender := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
-	userBanker := grc20.PrevRealmBanker(bank)
-	println(">> - SENDER (prevrealm)   ", sender)
-	println(">> - ATOMICSWAP (currealm)", curAddr)
-	println(">> - RECIPIENT            ", recipient)
+	// userBanker := grc20.PrevRealmBanker(bank)
+	userBanker := grc20.AccountBanker(bank, "")
 
-	println(">> NewCustomGRC20Swap -> userBanker.Allowance(sender=", sender, ", curAddr=", curAddr, ")")
 	allowance := userBanker.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
-	println(">> NewCustomGRC20Swap -> userBanker.TransferFrom(sender=", sender, ", curAddr=", curAddr, ", allowance=", allowance)
 	err := userBanker.TransferFrom(sender, curAddr, allowance)
 	checkErr(err, "cannot retrieve tokens from allowance")
 	amountStr := ufmt.Sprintf("%d%s", allowance, userBanker.GetSymbol())

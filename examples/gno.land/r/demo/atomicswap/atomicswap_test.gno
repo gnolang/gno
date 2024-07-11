@@ -214,7 +214,6 @@ func TestNewGRC20_Refund(t *testing.T) {
 
 	test20.Adm.Mint(sender, 100_000)
 	test20.Adm.Approve(sender, rlm, 70_000)
-	println("AAAAAAAAAAA", "sender", sender, "rlm", rlm)
 
 	// Create a new swap
 	std.TestSetRealm(std.NewUserRealm(sender))
@@ -245,8 +244,11 @@ func TestNewGRC20_Refund(t *testing.T) {
 	pkgAddr := std.DerivePkgAddr("gno.land/r/demo/atomicswap")
 	std.TestSetOrigPkgAddr(pkgAddr)
 	std.TestIssueCoins(pkgAddr, std.Coins{{"ugnot", 100000000}})
-	uassert.PanicsWithMessage(t, "timelock not expired", swap.Refund)
-	swap.timelock = time.Now().Add(-1 * time.Hour) // override timelock
+	uassert.PanicsWithMessage(t, "timelock not expired", func() {
+		std.TestSetRealm(std.NewUserRealm(sender))
+		swap.Refund()
+	})
+	swap.timelock = time.Now().Add(-8 * 24 * time.Hour) // override timelock
 	swap.Refund()
 	uassert.True(t, swap.refunded, "expected refunded to be true")
 
@@ -262,7 +264,7 @@ func TestNewGRC20_Refund(t *testing.T) {
 - recipient: g1wfjkx6tsd9jkuapjta047h6lta047h6lducc3v
 - amount: 70000TST
 - hashlock: 2bb80d537b1da3e38bd30361aa855686bde0eacd7162fef6a25fe97bf527a25b
-- timelock: 2009-02-13T22:31:30Z
+- timelock: 2009-02-05T23:31:30Z
 - remaining: 0s`
 	uassert.Equal(t, expected, swap.String())
 	uassert.Equal(t, expected, Render("1"))
@@ -281,6 +283,7 @@ func TestRender(t *testing.T) {
 	timelock := time.Now().Add(1 * time.Hour)
 
 	test20.Adm.Mint(alice, 100_000)
+	std.TestSetOrigCaller(alice)
 	std.TestSetRealm(std.NewUserRealm(alice))
 
 	test20.Adm.Approve(alice, rlm, 10_000)
