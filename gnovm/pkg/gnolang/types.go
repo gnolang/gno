@@ -1,7 +1,6 @@
 package gnolang
 
 import (
-	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -1008,12 +1007,6 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 	return nil, false, nil, nil, false
 }
 
-const (
-	missingMethodMsg   = "(missing method %s)"
-	wrongTypeMsg       = "(wrong type for method %s)"
-	pointerReceiverMsg = "(method %s has pointer receiver)"
-)
-
 // For run-time type assertion.
 // TODO: optimize somehow.
 func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
@@ -1030,7 +1023,7 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 		// find method in field.
 		tr, hp, rt, ft, _ := findEmbeddedFieldType(it.PkgPath, ot, im.Name, nil)
 		if tr == nil { // not found.
-			return fmt.Errorf(missingMethodMsg, im.Name)
+			return fmt.Errorf("missing method %s", im.Name)
 		}
 		if nft, ok := ft.(*NativeType); ok {
 			// Treat native function types as autoNative calls.
@@ -1040,18 +1033,18 @@ func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 			// ie, if each of ft's arg types can match
 			// against the desired arg types in im.Types.
 			if !gno2GoTypeMatches(im.Type, nft.Type) {
-				return errors.New("types do not match")
+				return fmt.Errorf("wrong type for method %s", im.Name)
 			}
 		} else if mt, ok := ft.(*FuncType); ok {
 			// if method is pointer receiver, check addressability:
 			if _, ptrRcvr := rt.(*PointerType); ptrRcvr && !hp {
-				return fmt.Errorf(pointerReceiverMsg, im.Name) // not addressable.
+				return fmt.Errorf("method %s has pointer receiver", im.Name) // not addressable.
 			}
 			// check for func type equality.
 			dmtid := mt.TypeID()
 			imtid := im.Type.TypeID()
 			if dmtid != imtid {
-				return fmt.Errorf(wrongTypeMsg, im.Name)
+				return fmt.Errorf("wrong type for method %s", im.Name)
 			}
 		}
 	}

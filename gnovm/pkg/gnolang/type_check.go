@@ -242,7 +242,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 				return nil // ok
 			} else {
 				return errors.New(
-					"%s does not implement %s %s",
+					"%s does not implement %s (%s)",
 					xt.String(),
 					dt.String(),
 					err.Error())

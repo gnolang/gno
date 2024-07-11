@@ -242,7 +242,7 @@ func (m *Machine) doOpTypeAssert1() {
 			if err != nil {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
-					"%s doesn't implement %s %s",
+					"%s doesn't implement %s (%s)",
 					xt.String(),
 					it.String(),
 					err.Error())
