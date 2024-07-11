@@ -1,160 +1,89 @@
 package minidex
 
-/*
-var testRun bool
+import (
+	"std"
+	"testing"
 
-func TestPlaceOrder(t *testing.T) {
-	if testRun {
-		t.Skip("Skipping TestPlaceOrder because another test has already run.")
-	}
-	testRun = true
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/foo20"
+	"gno.land/r/demo/tests/test20"
+)
 
+func TestPackage(t *testing.T) {
 	// Setup
-	trader := std.Address("trader")
-	tokenFrom := &grc20.Bank{
-		Name:     "TokenA",
-		Symbol:   "TA",
-		Decimals: 18,
-	}
-	tokenTo := &grc20.Bank{
-		Name:     "TokenB",
-		Symbol:   "TB",
-		Decimals: 18,
-	}
-	amount := uint64(100)
-	price := uint64(2)
-
-	// Mock std functions
-	std.GetOrigCaller = func() std.Address { return trader }
-	std.CurrentRealm = func() std.Realm { return std.Realm{Addr: std.Address("dex")} }
-
-	// Create a new DEX
+	alice := testutils.TestAddress("alice")
+	bob := testutils.TestAddress("bob")
 	dex := NewDEX()
+	dexAddr := std.DerivePkgAddr("gno.land/r/demo/minidex")
+
+	checkBalances := func(
+		eatb, ebtb, edtb uint64,
+		eafb, ebfb, edfb uint64,
+	) {
+		exp := ufmt.Sprintf("atb=%d btb=%d dtb=%d afb=%d bfb=%d dfb=%d", eatb, ebtb, edtb, eafb, ebfb, edfb)
+		var (
+			gatb = test20.Bank.BalanceOf(alice)
+			gbtb = test20.Bank.BalanceOf(bob)
+			gdtb = test20.Bank.BalanceOf(dexAddr)
+			gafb = foo20.Bank.BalanceOf(alice)
+			gbfb = foo20.Bank.BalanceOf(bob)
+			gdfb = foo20.Bank.BalanceOf(dexAddr)
+		)
+		got := ufmt.Sprintf("atb=%d btb=%d dtb=%d afb=%d bfb=%d dfb=%d", gatb, gbtb, gdtb, gafb, gbfb, gdfb)
+		uassert.Equal(t, exp, got, "balances")
+	}
+	checkAllowances := func(
+		eabt, eadt, ebat, ebdt, edat, edbt uint64,
+		eabf, eadf, ebaf, ebdf, edaf, edbf uint64,
+	) {
+		exp := ufmt.Sprintf("abt=%d adt=%d bat=%d bdt=%d dat=%d dbt=%d abf=%d adf=%d baf=%d bdf=%d daf=%d dbf=%d",
+			eabt, eadt, ebat, ebdt, edat, edbt, eabf, eadf, ebaf, ebdf, edaf, edbf,
+		)
+		var (
+			gabt = test20.Bank.Allowance(alice, bob)
+			gadt = test20.Bank.Allowance(alice, dexAddr)
+			gbat = test20.Bank.Allowance(bob, alice)
+			gbdt = test20.Bank.Allowance(bob, dexAddr)
+			gdat = test20.Bank.Allowance(dexAddr, alice)
+			gdbt = test20.Bank.Allowance(dexAddr, bob)
+			gabf = foo20.Bank.Allowance(alice, bob)
+			gadf = foo20.Bank.Allowance(alice, dexAddr)
+			gbaf = foo20.Bank.Allowance(bob, alice)
+			gbdf = foo20.Bank.Allowance(bob, dexAddr)
+			gdaf = foo20.Bank.Allowance(dexAddr, alice)
+			gdbf = foo20.Bank.Allowance(dexAddr, bob)
+		)
+		got := ufmt.Sprintf("abt=%d adt=%d bat=%d bdt=%d dat=%d dbt=%d abf=%d adf=%d baf=%d bdf=%d daf=%d dbf=%d",
+			gabt, gadt, gbat, gbdt, gdat, gdbt, gabf, gadf, gbaf, gbdf, gdaf, gdbf,
+		)
+		uassert.Equal(t, exp, got, "allowances")
+	}
 
 	// Place an order
-	dex.PlaceOrder(tokenFrom, tokenTo, amount, price)
+	std.TestSetRealm(std.NewUserRealm(alice))
+	tokenFrom := test20.Bank
+	tokenTo := foo20.Bank
+	checkBalances(0, 0, 0, 0, 0, 0)
+
+	test20.Adm.Mint(alice, 1000)
+	foo20.Faucet()
+	checkBalances(1000, 0, 0, 10000000, 0, 0)
+	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+	grc20.PrevRealmBanker(tokenFrom).Approve(dexAddr, 100)
+	checkBalances(1000, 0, 0, 10000000, 0, 0)
+	checkAllowances(0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+	dex.PlaceOrder(tokenFrom, tokenTo, 100, 2)
+	checkBalances(900, 0, 100, 10000000, 0, 0)
+	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
 	// Test initial state
 	ordersTree, ok := dex.orders.Get(tokenFrom.GetName() + "/" + tokenTo.GetName())
 	uassert.True(t, ok, "expected orders tree to exist")
 	uassert.Equal(t, 1, ordersTree.(*avl.Tree).Size(), "expected one order")
 }
-
-func TestMatchOrders(t *testing.T) {
-	if testRun {
-		t.Skip("Skipping TestMatchOrders because another test has already run.")
-	}
-	testRun = true
-
-	// Setup
-	trader1 := std.Address("trader1")
-	trader2 := std.Address("trader2")
-	tokenA := &grc20.Bank{
-		Name:     "TokenA",
-		Symbol:   "TA",
-		Decimals: 18,
-	}
-	tokenB := &grc20.Bank{
-		Name:     "TokenB",
-		Symbol:   "TB",
-		Decimals: 18,
-	}
-	amount := uint64(100)
-	price := uint64(2)
-
-	// Mock std functions
-	std.GetOrigCaller = func() std.Address { return trader1 }
-	std.CurrentRealm = func() std.Realm { return std.Realm{Addr: std.Address("dex")} }
-
-	// Create a new DEX
-	dex := NewDEX()
-
-	// Place orders
-	dex.PlaceOrder(tokenA, tokenB, amount, price)
-	std.GetOrigCaller = func() std.Address { return trader2 }
-	dex.PlaceOrder(tokenB, tokenA, amount, price)
-
-	// Test state after matching
-	ordersTree, ok := dex.orders.Get(tokenA.GetName() + "/" + tokenB.GetName())
-	uassert.True(t, ok, "expected orders tree to exist")
-	uassert.Equal(t, 0, ordersTree.(*avl.Tree).Size(), "expected no orders after matching")
-}
-
-func TestCancelOrders(t *testing.T) {
-	if testRun {
-		t.Skip("Skipping TestCancelOrders because another test has already run.")
-	}
-	testRun = true
-
-	// Setup
-	trader := std.Address("trader")
-	tokenFrom := &grc20.Bank{
-		Name:     "TokenA",
-		Symbol:   "TA",
-		Decimals: 18,
-	}
-	tokenTo := &grc20.Bank{
-		Name:     "TokenB",
-		Symbol:   "TB",
-		Decimals: 18,
-	}
-	amount := uint64(100)
-	price := uint64(2)
-
-	// Mock std functions
-	std.GetOrigCaller = func() std.Address { return trader }
-	std.CurrentRealm = func() std.Realm { return std.Realm{Addr: std.Address("dex")} }
-
-	// Create a new DEX
-	dex := NewDEX()
-
-	// Place an order
-	dex.PlaceOrder(tokenFrom, tokenTo, amount, price)
-
-	// Cancel orders
-	dex.CancelOrders()
-
-	// Test state after cancelling
-	ordersTree, ok := dex.orders.Get(tokenFrom.GetName() + "/" + tokenTo.GetName())
-	uassert.True(t, ok, "expected orders tree to exist")
-	uassert.Equal(t, 0, ordersTree.(*avl.Tree).Size(), "expected no orders after cancelling")
-}
-
-func TestAdminClearOrders(t *testing.T) {
-	if testRun {
-		t.Skip("Skipping TestAdminClearOrders because another test has already run.")
-	}
-	testRun = true
-
-	// Setup
-	trader := std.Address("trader")
-	tokenFrom := &grc20.Bank{
-		Name:     "TokenA",
-		Symbol:   "TA",
-		Decimals: 18,
-	}
-	tokenTo := &grc20.Bank{
-		Name:     "TokenB",
-		Symbol:   "TB",
-		Decimals: 18,
-	}
-	amount := uint64(100)
-	price := uint64(2)
-
-	// Mock std functions
-	std.GetOrigCaller = func() std.Address { return trader }
-	std.CurrentRealm = func() std.Realm { return std.Realm{Addr: std.Address("dex")} }
-
-	// Create a new DEX
-	dex := NewDEX()
-
-	// Place an order
-	dex.PlaceOrder(tokenFrom, tokenTo, amount, price)
-
-	// Clear orders
-	dex.AdminClearOrders()
-
-	// Test state after clearing
-	uassert.Equal(t, 0, dex.orders.Size(), "expected no orders after clearing")
-}
-*/

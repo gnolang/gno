@@ -2,7 +2,6 @@ package minidex
 
 import (
 	"std"
-	"strconv"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
@@ -55,7 +54,7 @@ func (dex *DEX) PlaceOrder(tokenFrom, tokenTo *grc20.Bank, amount, price uint64)
 
 	ordersTree, ok := dex.orders.Get(pair)
 	if !ok {
-		ordersTree = avl.Tree{} // index -> order
+		ordersTree = &avl.Tree{} // index -> order
 	}
 	ordersTree.(*avl.Tree).Set(orderIndex.Binary(), order)
 	dex.orders.Set(pair, ordersTree)
@@ -65,8 +64,8 @@ func (dex *DEX) PlaceOrder(tokenFrom, tokenTo *grc20.Bank, amount, price uint64)
 		"trader", trader.String(),
 		"tokenFrom", tokenFrom.GetName(), // XXX: fqname
 		"tokenTo", tokenTo.GetName(),
-		"amount", strconv.Itoa(amount),
-		"price", strconv.Itoa(price),
+		"amount", ufmt.Sprintf("%d", amount),
+		"price", ufmt.Sprintf("%d", price),
 	)
 
 	dex.MatchOrders(pair)
@@ -80,30 +79,33 @@ func (dex *DEX) MatchOrders(pair string) {
 	}
 
 	orders := ordersTree.(*avl.Tree)
-	orders.Iterate("", "", func(key string, value interface{}) bool {
+	orders.Iterate("", "", func(key1 string, value interface{}) bool {
 		order1 := value.(*Order)
 		orders.Iterate("", "", func(key2 string, value2 interface{}) bool {
 			order2 := value2.(*Order)
 			if order1.tokenFrom == order2.tokenTo && order1.tokenTo == order2.tokenFrom {
-				tradeAmount := min(order1.amount, order2.amount)
-				order1.amount -= tradeAmount
-				order2.amount -= tradeAmount
-				order1.tokenFrom.TransferFrom(order2.trader, order1.trader, tradeAmount)
-				order2.tokenFrom.TransferFrom(order1.trader, order2.trader, tradeAmount*order1.price/order2.price)
+				amount1 := min(order1.amount, order2.amount)
+				amount2 := amount1 * order1.price / order2.price
+				order1.amount -= amount1
+				order2.amount -= amount2
+				banker1 := grc20.AccountBanker(order1.tokenFrom, "")
+				banker2 := grc20.AccountBanker(order2.tokenFrom, "")
+				banker1.Transfer(order2.trader, amount1)
+				banker2.Transfer(order1.trader, amount2)
 				std.Emit(
 					"trade_executed",
-					"trader1", order1.trader,
-					"trader2", order2.trader,
-					"tokenFrom1", order1.tokenFrom.GetName(),
-					"tokenTo1", order1.tokenTo.GetName(),
-					"amount", tradeAmount,
-					"price", order1.price,
+					"trader1", order1.trader.String(),
+					"trader2", order2.trader.String(),
+					"token1", order1.tokenFrom.GetName(),
+					"token2", order2.tokenFrom.GetName(),
+					"amount1", ufmt.Sprintf("%d", amount1),
+					"amount2", ufmt.Sprintf("%d", amount2),
 				)
 				if order1.amount == 0 {
-					orders.Delete(key)
+					orders.Remove(key1)
 				}
 				if order2.amount == 0 {
-					orders.Delete(key2)
+					orders.Remove(key2)
 				}
 				return false
 			}
@@ -115,27 +117,30 @@ func (dex *DEX) MatchOrders(pair string) {
 
 // CancelOrders cancels all orders for the caller and refunds the tokens.
 func (dex *DEX) CancelOrders() {
-	trader := std.GetOrigCaller()
+	trader := std.PrevRealm().Addr()
 	dex.orders.Iterate("", "", func(pair string, ordersTreeI interface{}) bool {
 		ordersTree := ordersTreeI.(*avl.Tree)
 		ordersTree.Iterate("", "", func(key string, value interface{}) bool {
 			order := value.(*Order)
 			if order.trader == trader {
-				userBanker := grc20.AccountBanker(order.tokenFrom.(*grc20.Bank), "")
+				userBanker := grc20.AccountBanker(order.tokenFrom, "")
 				err := userBanker.Transfer(trader, order.amount)
 				checkErr(err, "cannot refund tokens")
-				ordersTree.Delete(key)
+				ordersTree.Remove(key)
 			}
 			return true
 		})
 		return true
 	})
-	std.Emit("orders_cancelled", "trader", trader)
+	std.Emit(
+		"orders_cancelled",
+		"trader", trader.String(),
+	)
 }
 
 // AdminClearOrders clears all orders in the DEX (admin function).
 func (dex *DEX) AdminClearOrders() {
-	dex.orders = avl.NewTree()
+	dex.orders = avl.Tree{}
 	std.Emit("orders_cleared")
 }
 
