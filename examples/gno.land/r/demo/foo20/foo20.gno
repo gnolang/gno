@@ -15,13 +15,13 @@ import (
 )
 
 var (
-	Bank       *grc20.Bank      = grc20.NewBank("Foo", "FOO", 4)
-	UserBanker grc20.GRC20      = grc20.PrevRealmBanker(Bank)
-	owner      *ownable.Ownable = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
+	Bank, adm  = grc20.NewBank("Foo", "FOO", 4)
+	UserBanker = grc20.PrevRealmBanker(Bank)
+	owner      = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
 )
 
 func init() {
-	Bank.Mint(owner.Owner(), 1_000_000*10_000) // @administrator (1M)
+	adm.Mint(owner.Owner(), 1_000_000*10_000) // @administrator (1M)
 	grc20reg.Register(Bank, "")
 }
 
@@ -61,19 +61,19 @@ func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
 func Faucet() {
 	caller := std.PrevRealm().Addr()
 	amount := uint64(1_000 * 10_000) // 1k
-	checkErr(Bank.Mint(caller, amount))
+	checkErr(adm.Mint(caller, amount))
 }
 
 func Mint(to pusers.AddressOrName, amount uint64) {
 	owner.AssertCallerIsOwner()
 	toAddr := users.Resolve(to)
-	checkErr(Bank.Mint(toAddr, amount))
+	checkErr(adm.Mint(toAddr, amount))
 }
 
 func Burn(from pusers.AddressOrName, amount uint64) {
 	owner.AssertCallerIsOwner()
 	fromAddr := users.Resolve(from)
-	checkErr(Bank.Burn(fromAddr, amount))
+	checkErr(adm.Burn(fromAddr, amount))
 }
 
 func Render(path string) string {

@@ -18,13 +18,16 @@ var (
 )
 
 type Bank struct {
-	name         string
-	symbol       string
-	decimals     uint
-	totalSupply_ uint64
-	balances     avl.Tree // std.Address -> uint64
-	allowances   avl.Tree // owner.(std.Address)+":"+spender.(std.Address)) -> uint64
-	owner        std.Address
+	name     string
+	symbol   string
+	decimals uint
+	adm      *AdminBanker
+}
+
+type AdminBanker struct {
+	totalSupply uint64
+	balances    avl.Tree // std.Address -> uint64
+	allowances  avl.Tree // owner.(std.Address)+":"+spender.(std.Address)) -> uint64
 }
 
 type GRC20 interface {

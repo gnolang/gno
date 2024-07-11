@@ -71,7 +71,7 @@ func TestErrConditions(t *testing.T) {
 		fn   func()
 	}
 
-	Bank.Mint(std.Address(admin), 10000)
+	adm.Mint(std.Address(admin), 10000)
 	{
 		tests := []test{
 			{"Transfer(admin, 1)", "cannot send transfer to self", func() {
@@ -82,7 +82,7 @@ func TestErrConditions(t *testing.T) {
 				// calling this package from an outside point of
 				// view.
 				adminAddr := std.Address(admin)
-				if err := Bank.Transfer(adminAddr, adminAddr, 1); err != nil {
+				if err := adm.Transfer(adminAddr, adminAddr, 1); err != nil {
 					panic(err)
 				}
 			}},

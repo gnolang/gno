@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-func NewBank(name, symbol string, decimals uint) *Bank {
+func NewBank(name, symbol string, decimals uint) (*Bank, *AdminBanker) {
 	if name == "" {
 		panic("name should not be empty")
 	}
@@ -16,94 +16,40 @@ func NewBank(name, symbol string, decimals uint) *Bank {
 	}
 	// XXX additional checks (length, characters, limits, etc)
 
-	return &Bank{
+	bank := &Bank{
 		name:     name,
 		symbol:   symbol,
 		decimals: decimals,
-		owner:    std.CurrentRealm().Addr(),
 	}
+	adm := &AdminBanker{}
+	bank.adm = adm
+	return bank, adm
 }
 
 func (b Bank) GetName() string     { return b.name }
 func (b Bank) GetSymbol() string   { return b.symbol }
 func (b Bank) GetDecimals() uint   { return b.decimals }
-func (b Bank) TotalSupply() uint64 { return b.totalSupply_ }
-func (b Bank) KnownAccounts() int  { return b.balances.Size() }
-
-func (b *Bank) Mint(address std.Address, amount uint64) error {
-	if std.CurrentRealm().Addr() != b.owner {
-		return ErrRestrictedBankOwner
-	}
-
-	if !address.IsValid() {
-		return ErrInvalidAddress
-	}
-
-	// TODO: check for overflow
-
-	b.totalSupply_ += amount
-	currentBalance := b.BalanceOf(address)
-	newBalance := currentBalance + amount
-
-	b.balances.Set(string(address), newBalance)
-
-	std.Emit(
-		TransferEvent,
-		"from", "",
-		"to", string(address),
-		"value", strconv.Itoa(int(amount)),
-	)
-
-	return nil
-}
-
-func (b *Bank) Burn(address std.Address, amount uint64) error {
-	if std.CurrentRealm().Addr() != b.owner {
-		return ErrRestrictedBankOwner
-	}
-
-	if !address.IsValid() {
-		return ErrInvalidAddress
-	}
-	// TODO: check for overflow
-
-	currentBalance := b.BalanceOf(address)
-	if currentBalance < amount {
-		return ErrInsufficientBalance
-	}
-
-	b.totalSupply_ -= amount
-	newBalance := currentBalance - amount
-
-	b.balances.Set(string(address), newBalance)
-
-	std.Emit(
-		TransferEvent,
-		"from", string(address),
-		"to", "",
-		"value", strconv.Itoa(int(amount)),
-	)
-
-	return nil
-}
+func (b Bank) TotalSupply() uint64 { return b.adm.totalSupply }
+func (b Bank) KnownAccounts() int  { return b.adm.balances.Size() }
 
 func (b Bank) BalanceOf(address std.Address) uint64 {
-	balance, found := b.balances.Get(address.String())
-	if !found {
-		return 0
-	}
-	return balance.(uint64)
+	return b.adm.balanceOf(address)
 }
 
 func (b Bank) Allowance(owner, spender std.Address) uint64 {
-	allowance, found := b.allowances.Get(allowanceKey(owner, spender))
-	if !found {
-		return 0
-	}
-	return allowance.(uint64)
+	return b.adm.allowance(owner, spender)
 }
 
-func (b *Bank) spendAllowance(owner, spender std.Address, amount uint64) error {
+func (b *Bank) RenderHome() string {
+	str := ""
+	str += ufmt.Sprintf("# %s ($%s)\n\n", b.name, b.symbol)
+	str += ufmt.Sprintf("* **Decimals**: %d\n", b.decimals)
+	str += ufmt.Sprintf("* **Total supply**: %d\n", b.adm.totalSupply)
+	str += ufmt.Sprintf("* **Known accounts**: %d\n", b.KnownAccounts())
+	return str
+}
+
+func (b *AdminBanker) SpendAllowance(owner, spender std.Address, amount uint64) error {
 	if !owner.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -111,7 +57,7 @@ func (b *Bank) spendAllowance(owner, spender std.Address, amount uint64) error {
 		return ErrInvalidAddress
 	}
 
-	currentAllowance := b.Allowance(owner, spender)
+	currentAllowance := b.allowance(owner, spender)
 	if currentAllowance < amount {
 		return ErrInsufficientAllowance
 	}
@@ -128,7 +74,7 @@ func (b *Bank) spendAllowance(owner, spender std.Address, amount uint64) error {
 	return nil
 }
 
-func (b *Bank) transfer(from, to std.Address, amount uint64) error {
+func (b *AdminBanker) Transfer(from, to std.Address, amount uint64) error {
 	if !from.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -139,8 +85,8 @@ func (b *Bank) transfer(from, to std.Address, amount uint64) error {
 		return ErrCannotTransferToSelf
 	}
 
-	toBalance := b.BalanceOf(to)
-	fromBalance := b.BalanceOf(from)
+	toBalance := b.balanceOf(to)
+	fromBalance := b.balanceOf(from)
 
 	// debug.
 
@@ -163,18 +109,18 @@ func (b *Bank) transfer(from, to std.Address, amount uint64) error {
 	return nil
 }
 
-func (b *Bank) transferFrom(owner, spender, to std.Address, amount uint64) error {
-	if b.BalanceOf(owner) < amount {
+func (b *AdminBanker) TransferFrom(owner, spender, to std.Address, amount uint64) error {
+	if b.balanceOf(owner) < amount {
 		return ErrInsufficientBalance
 	}
-	if err := b.spendAllowance(owner, spender, amount); err != nil {
+	if err := b.SpendAllowance(owner, spender, amount); err != nil {
 		return err
 	}
 	// XXX: since we don't "panic", we should take care of rollbacking spendAllowance if transfer fails.
-	return b.transfer(owner, to, amount)
+	return b.Transfer(owner, to, amount)
 }
 
-func (b *Bank) approve(owner, spender std.Address, amount uint64) error {
+func (b *AdminBanker) Approve(owner, spender std.Address, amount uint64) error {
 	if !owner.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -194,13 +140,69 @@ func (b *Bank) approve(owner, spender std.Address, amount uint64) error {
 	return nil
 }
 
-func (b *Bank) RenderHome() string {
-	str := ""
-	str += ufmt.Sprintf("# %s ($%s)\n\n", b.name, b.symbol)
-	str += ufmt.Sprintf("* **Decimals**: %d\n", b.decimals)
-	str += ufmt.Sprintf("* **Total supply**: %d\n", b.totalSupply_)
-	str += ufmt.Sprintf("* **Known accounts**: %d\n", b.KnownAccounts())
-	return str
+func (a *AdminBanker) Mint(address std.Address, amount uint64) error {
+	if !address.IsValid() {
+		return ErrInvalidAddress
+	}
+
+	// XXX check for overflow
+
+	a.totalSupply += amount
+	currentBalance := a.balanceOf(address)
+	newBalance := currentBalance + amount
+
+	a.balances.Set(string(address), newBalance)
+
+	std.Emit(
+		TransferEvent,
+		"from", "",
+		"to", string(address),
+		"value", strconv.Itoa(int(amount)),
+	)
+
+	return nil
+}
+
+func (a *AdminBanker) Burn(address std.Address, amount uint64) error {
+	if !address.IsValid() {
+		return ErrInvalidAddress
+	}
+	// XXX check for overflow
+
+	currentBalance := a.balanceOf(address)
+	if currentBalance < amount {
+		return ErrInsufficientBalance
+	}
+
+	a.totalSupply -= amount
+	newBalance := currentBalance - amount
+
+	a.balances.Set(string(address), newBalance)
+
+	std.Emit(
+		TransferEvent,
+		"from", string(address),
+		"to", "",
+		"value", strconv.Itoa(int(amount)),
+	)
+
+	return nil
+}
+
+func (b AdminBanker) balanceOf(address std.Address) uint64 {
+	balance, found := b.balances.Get(address.String())
+	if !found {
+		return 0
+	}
+	return balance.(uint64)
+}
+
+func (b AdminBanker) allowance(owner, spender std.Address) uint64 {
+	allowance, found := b.allowances.Get(allowanceKey(owner, spender))
+	if !found {
+		return 0
+	}
+	return allowance.(uint64)
 }
 
 func allowanceKey(owner, spender std.Address) string {

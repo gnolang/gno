@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	Bank       *grc20.Bank = grc20.NewBank("Bar", "BAR", 4)
-	UserBanker             = grc20.PrevRealmBanker(Bank)
+	Bank, adm  = grc20.NewBank("Bar", "BAR", 4)
+	UserBanker = grc20.PrevRealmBanker(Bank)
 )
 
 func init() {
@@ -23,7 +23,7 @@ func init() {
 
 func Faucet() string {
 	caller := std.PrevRealm().Addr()
-	if err := Bank.Mint(caller, 1_000_000); err != nil {
+	if err := adm.Mint(caller, 1_000_000); err != nil {
 		return "error: " + err.Error()
 	}
 	return "OK"
