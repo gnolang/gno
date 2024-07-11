@@ -3,9 +3,6 @@ package grc721
 import (
 	"std"
 	"testing"
-
-	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/users"
 )
 
 var (

@@ -137,6 +137,7 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 func setLoc(fs *token.FileSet, pos token.Pos, n Node) Node {
 	posn := fs.Position(pos)
 	n.SetLine(posn.Line)
+	n.SetColumn(posn.Column)
 	return n
 }
 
