@@ -4,7 +4,6 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
@@ -63,10 +62,8 @@ func TestPackage(t *testing.T) {
 		uassert.Equal(t, exp, got, "allowances")
 	}
 
-	// Place an order
+	std.TestSetOrigCaller(alice)
 	std.TestSetRealm(std.NewUserRealm(alice))
-	tokenFrom := test20.Bank
-	tokenTo := foo20.Bank
 	checkBalances(0, 0, 0, 0, 0, 0)
 
 	test20.Adm.Mint(alice, 1000)
@@ -74,16 +71,32 @@ func TestPackage(t *testing.T) {
 	checkBalances(1000, 0, 0, 10000000, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-	grc20.PrevRealmBanker(tokenFrom).Approve(dexAddr, 100)
+	grc20.PrevRealmBanker(test20.Bank).Approve(dexAddr, 100)
 	checkBalances(1000, 0, 0, 10000000, 0, 0)
 	checkAllowances(0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	uassert.Equal(t, dex.Size(), 0)
 
-	dex.PlaceOrder(tokenFrom, tokenTo, 100, 2)
+	dex.PlaceOrder(test20.Bank, foo20.Bank, 100, 2)
 	checkBalances(900, 0, 100, 10000000, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	uassert.Equal(t, dex.Size(), 1)
 
-	// Test initial state
-	ordersTree, ok := dex.orders.Get(tokenFrom.GetName() + "/" + tokenTo.GetName())
-	uassert.True(t, ok, "expected orders tree to exist")
-	uassert.Equal(t, 1, ordersTree.(*avl.Tree).Size(), "expected one order")
+	uassert.Equal(t, dex.MatchPairOrders("foo20/test20"), 0)
+	checkBalances(900, 0, 100, 10000000, 0, 0)
+	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	uassert.Equal(t, dex.Size(), 1)
+
+	std.TestSetOrigCaller(bob)
+	std.TestSetRealm(std.NewUserRealm(bob))
+	grc20.PrevRealmBanker(foo20.Bank).Approve(dexAddr, 2000)
+	checkBalances(900, 0, 100, 10000000, 0, 0)
+	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 2000, 0, 0)
+	uassert.Equal(t, dex.Size(), 1)
+
+	println("_______________")
+	return
+	dex.PlaceOrder(foo20.Bank, test20.Bank, 500, 2)
+	checkBalances(900, 0, 100, 10000000, 0, 0)
+	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	uassert.Equal(t, dex.Size(), 2)
 }

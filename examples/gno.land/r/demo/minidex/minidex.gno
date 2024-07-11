@@ -67,17 +67,16 @@ func (dex *DEX) PlaceOrder(tokenFrom, tokenTo *grc20.Bank, amount, price uint64)
 		"amount", ufmt.Sprintf("%d", amount),
 		"price", ufmt.Sprintf("%d", price),
 	)
-
-	dex.MatchOrders(pair)
 }
 
-// MatchOrders matches orders for a given pair.
-func (dex *DEX) MatchOrders(pair string) {
+// MatchPairOrders matches orders for a given pair.
+func (dex *DEX) MatchPairOrders(pair string) int {
 	ordersTree, ok := dex.orders.Get(pair)
 	if !ok {
-		return
+		return 0
 	}
 
+	matched := 0
 	orders := ordersTree.(*avl.Tree)
 	orders.Iterate("", "", func(key1 string, value interface{}) bool {
 		order1 := value.(*Order)
@@ -92,6 +91,7 @@ func (dex *DEX) MatchOrders(pair string) {
 				banker2 := grc20.AccountBanker(order2.tokenFrom, "")
 				banker1.Transfer(order2.trader, amount1)
 				banker2.Transfer(order1.trader, amount2)
+				matched++
 				std.Emit(
 					"trade_executed",
 					"trader1", order1.trader.String(),
@@ -113,6 +113,7 @@ func (dex *DEX) MatchOrders(pair string) {
 		})
 		return true
 	})
+	return matched
 }
 
 // CancelOrders cancels all orders for the caller and refunds the tokens.
@@ -142,6 +143,16 @@ func (dex *DEX) CancelOrders() {
 func (dex *DEX) AdminClearOrders() {
 	dex.orders = avl.Tree{}
 	std.Emit("orders_cleared")
+}
+
+func (dex DEX) Size() int {
+	size := 0
+	dex.orders.Iterate("", "", func(pair string, ordersTreeI interface{}) bool {
+		ordersTree := ordersTreeI.(*avl.Tree)
+		size += ordersTree.Size()
+		return false
+	})
+	return size
 }
 
 // Render returns the current state of the DEX.
