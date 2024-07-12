@@ -21,14 +21,14 @@ type Order struct {
 
 // DEX represents the decentralized exchange.
 type DEX struct {
-	index  seqid.ID
-	orders avl.Tree // pair -> orders
+	index seqid.ID
+	pairs avl.Tree // pair -> orders
 }
 
 // NewDEX creates a new DEX instance.
 func NewDEX() *DEX {
 	return &DEX{
-		orders: avl.Tree{},
+		pairs: avl.Tree{},
 	}
 }
 
@@ -54,12 +54,12 @@ func (dex *DEX) PlaceOrder(tokenFrom, tokenTo *grc20.Bank, amount uint64, isBuy 
 	orderIndex := dex.index.Next()
 
 	pair := createPairString(tokenFrom, tokenTo)
-	ordersTree, ok := dex.orders.Get(pair)
+	ordersTree, ok := dex.pairs.Get(pair)
 	if !ok {
 		ordersTree = &avl.Tree{} // index -> order
 	}
 	ordersTree.(*avl.Tree).Set(orderIndex.Binary(), order)
-	dex.orders.Set(pair, ordersTree)
+	dex.pairs.Set(pair, ordersTree)
 
 	std.Emit(
 		"order_placed",
@@ -75,7 +75,7 @@ func (dex *DEX) PlaceOrder(tokenFrom, tokenTo *grc20.Bank, amount uint64, isBuy 
 // matchPairOrders matches orders for a given pair.
 func (dex *DEX) matchPairOrders(tokenFrom, tokenTo *grc20.Bank) int {
 	pair := createPairString(tokenFrom, tokenTo)
-	ordersTree, ok := dex.orders.Get(pair)
+	ordersTree, ok := dex.pairs.Get(pair)
 	if !ok {
 		return 0
 	}
@@ -86,6 +86,7 @@ func (dex *DEX) matchPairOrders(tokenFrom, tokenTo *grc20.Bank) int {
 		order1 := value.(*Order)
 		orders.Iterate("", "", func(key2 string, value2 interface{}) bool {
 			order2 := value2.(*Order)
+			println(order1.String(), "-------", order2.String())
 			if order1.isBuy != order2.isBuy && order1.tokenFrom == order2.tokenTo && order1.tokenTo == order2.tokenFrom {
 				amount := min(order1.amount, order2.amount)
 				order1.amount -= amount
@@ -121,7 +122,7 @@ func (dex *DEX) matchPairOrders(tokenFrom, tokenTo *grc20.Bank) int {
 // CancelOrders cancels all orders for the caller and refunds the tokens.
 func (dex *DEX) CancelOrders() {
 	trader := std.PrevRealm().Addr()
-	dex.orders.Iterate("", "", func(pair string, ordersTreeI interface{}) bool {
+	dex.pairs.Iterate("", "", func(pair string, ordersTreeI interface{}) bool {
 		ordersTree := ordersTreeI.(*avl.Tree)
 		ordersTree.Iterate("", "", func(key string, value interface{}) bool {
 			order := value.(*Order)
@@ -143,13 +144,13 @@ func (dex *DEX) CancelOrders() {
 
 // AdminClearOrders clears all orders in the DEX (admin function).
 func (dex *DEX) AdminClearOrders() {
-	dex.orders = avl.Tree{}
+	dex.pairs = avl.Tree{}
 	std.Emit("orders_cleared")
 }
 
 func (dex DEX) Size() int {
 	size := 0
-	dex.orders.Iterate("", "", func(pair string, ordersTreeI interface{}) bool {
+	dex.pairs.Iterate("", "", func(pair string, ordersTreeI interface{}) bool {
 		ordersTree := ordersTreeI.(*avl.Tree)
 		size += ordersTree.Size()
 		return false
@@ -160,20 +161,26 @@ func (dex DEX) Size() int {
 // Render returns the current state of the DEX.
 func (dex *DEX) Render(_ string) string {
 	s := "Orders:\n"
-	dex.orders.Iterate("", "", func(pair string, ordersTreeI interface{}) bool {
+	dex.pairs.Iterate("", "", func(pair string, ordersTreeI interface{}) bool {
 		ordersTree := ordersTreeI.(*avl.Tree)
 		ordersTree.Iterate("", "", func(key string, value interface{}) bool {
 			order := value.(*Order)
-			orderType := "Sell"
-			if order.isBuy {
-				orderType = "Buy"
-			}
-			s += ufmt.Sprintf("%s: %s -> %s %d\n", orderType, order.tokenFrom.GetName(), order.tokenTo.GetName(), order.amount)
+			s += order.String() + "\n"
 			return false
 		})
 		return false
 	})
 	return s
+}
+
+func (o Order) String() string {
+	orderType := "Sell"
+	if o.isBuy {
+		orderType = "Buy"
+	}
+	return ufmt.Sprintf("%s: %s -> %s %d\n",
+		orderType, o.tokenFrom.GetName(), o.tokenTo.GetName(), o.amount,
+	)
 }
 
 // createPairString creates a pair string based on two tokens, sorting by the token names to ensure consistency.
