@@ -38,6 +38,7 @@ func GameFromRepr(
 	switch len(text) {
 	case 0:
 		g, e = tictactoe.NewGame(addr1, addr2)
+		g.Start()
 	case 9:
 		r := []rune(text)
 		g, e = tictactoe.RecoverGame(

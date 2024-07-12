@@ -45,8 +45,8 @@ func Render(path string) string {
 	output += render(*game, cpuX, cpuY)
 	if debug {
 		output += ufmt.Sprintf(
-			"--- played x=%d y=%d  path=%s turn:%d error:%s",
-			x, y, path, game.Game.TurnNumber(), e,
+			"--- played x=%d y=%d cpuX=%d cpuY=%d height=%d path=%s turn:%d error:%s",
+			x, y, cpuX, cpuY, std.GetHeight(), path, game.Game.TurnNumber(), e,
 		)
 	}
 	return output
@@ -238,6 +238,7 @@ func css() string {
         margin-right: 2px; margin-bottom: 2px; 
         cursor: pointer; 
         color: initial;
+		border-radius: 5px;
     }
 	#board.won button, #board.won a.tile.button  { box-shadow: aquamarine 1px 1px 12px 6px; }
 	#board.lost button, #board.lost a.tile.button  { box-shadow: rgb(255, 200, 190) 0px 1px 34px 2px; }

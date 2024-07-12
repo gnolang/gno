@@ -68,7 +68,7 @@ func RecoverGame(player1, player2 std.Address, board string) (*Game, error) {
 }
 
 // start sets turnCtr to 0.
-func (g *Game) start() {
+func (g *Game) Start() {
 	if g.turnCtr != -1 {
 		panic("game already started")
 	}
