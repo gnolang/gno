@@ -60,9 +60,10 @@ func render(game tictactoe1p.Game, cpuX, cpuY int) string {
 	status, class := statusAndClass(game)
 	repr := game.ToRepr()
 	output := css()
-	output += `<img src="` + urlParrot + `" id="parrot" width="120" height="120" align="left" />`
 	output += `<form id="board" class="` + class + `">` + "\n"
 	// output += "\t" + `<input type="hidden" name="state" value="` + repr + `">` + "\n"
+	output += `<div id="left"><img src="` + urlParrot + `" id="parrot" width="120" height="120" align="left" /></div>` + "\n"
+	output += `<div id="right">`
 
 	for y := 2; y >= 0; y-- {
 		output += "\t"
@@ -82,6 +83,7 @@ func render(game tictactoe1p.Game, cpuX, cpuY int) string {
 		}
 		output += "<br />\n"
 	}
+	output += "</div>\n"
 	output += "</form>\n"
 	if game.IsOver() {
 		output += ufmt.Sprintf(
@@ -202,6 +204,20 @@ func parrotTalk(game tictactoe1p.Game) string {
 func css() string {
 	return `
 <style type="text/css">
+	/* responsive stuffs */
+	#board { 
+		display: flex; 
+		flex-direction: row;
+	}
+	#board > #left {
+		flex-shrink: 1;
+	}
+	#board > #right {
+		flex-shrink: 0;
+		flex-basis: auto;
+		width: 9.5em;
+	}
+	/* buttons, and parrot */
 	#board a.tile.button { 
 	  appearance: button;
 	  box-sizing: border-box;
