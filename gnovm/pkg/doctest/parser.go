@@ -2,15 +2,14 @@ package doctest
 
 import (
 	"bytes"
-	"fmt"
-	gast "go/ast"
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"regexp"
 	"strings"
 
 	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/ast"
+	mast "github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
 )
 
@@ -24,6 +23,7 @@ type codeBlock struct {
 	expectedOutput string // The expected output of the code block.
 	expectedError  string // The expected error of the code block.
 	name           string // The name of the code block.
+	options        ExecutionOption
 }
 
 // GetCodeBlocks parses the provided markdown text to extract all embedded code blocks.
@@ -34,26 +34,27 @@ func GetCodeBlocks(body string) []codeBlock {
 	doc := md.Parser().Parse(reader)
 
 	var codeBlocks []codeBlock
-	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+	mast.Walk(doc, func(n mast.Node, entering bool) (mast.WalkStatus, error) {
 		if entering {
-			if cb, ok := n.(*ast.FencedCodeBlock); ok {
+			if cb, ok := n.(*mast.FencedCodeBlock); ok {
 				codeBlock := createCodeBlock(cb, body, len(codeBlocks))
 				codeBlock.name = generateCodeBlockName(codeBlock.content)
 				codeBlocks = append(codeBlocks, codeBlock)
 			}
 		}
-		return ast.WalkContinue, nil
+		return mast.WalkContinue, nil
 	})
 
 	return codeBlocks
 }
 
 // createCodeBlock creates a CodeBlock from a code block node.
-func createCodeBlock(node *ast.FencedCodeBlock, body string, index int) codeBlock {
+func createCodeBlock(node *mast.FencedCodeBlock, body string, index int) codeBlock {
 	var buf bytes.Buffer
+	lines := node.Lines()
 	for i := 0; i < node.Lines().Len(); i++ {
-		line := node.Lines().At(i)
-		buf.Write(line.Value([]byte(body)))
+		line := lines.At(i)
+		buf.Write([]byte(body[line.Start:line.Stop]))
 	}
 
 	content := buf.String()
@@ -61,8 +62,12 @@ func createCodeBlock(node *ast.FencedCodeBlock, body string, index int) codeBloc
 	if language == "" {
 		language = "plain"
 	}
-	start := node.Lines().At(0).Start
-	end := node.Lines().At(node.Lines().Len() - 1).Stop
+
+	firstLine := body[lines.At(0).Start:lines.At(0).Stop]
+	options := parseExecutionOptions(language, []byte(firstLine))
+
+	start := lines.At(0).Start
+	end := lines.At(node.Lines().Len() - 1).Stop
 
 	expectedOutput, expectedError, err := parseExpectedResults(content)
 	if err != nil {
@@ -77,6 +82,7 @@ func createCodeBlock(node *ast.FencedCodeBlock, body string, index int) codeBloc
 		index:          index,
 		expectedOutput: expectedOutput,
 		expectedError:  expectedError,
+		options:        options,
 	}
 }
 
@@ -129,8 +135,13 @@ func parseExpectedResults(content string) (string, string, error) {
 	return expectedOutput, expectedError, nil
 }
 
-// generateCodeBlockName derives a name for the code block based either on special annotations within the code
-// or by analyzing the code structure, such as function name or variable declaration.
+//////////////////// Auto-Name Generator ////////////////////
+
+// generateCodeBlockName generates a name for a given code block based on its content.
+// It first checks for a custom name specified with `// @test:` comment.
+// If not found, it analyzes the code structure to create meaningful name.
+// The name is constructed based on the code's prefix (Test, Print or Calc),
+// imported packages, main identifier, and expected output.
 func generateCodeBlockName(content string) string {
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
@@ -145,98 +156,142 @@ func generateCodeBlockName(content string) string {
 		return generateFallbackName(content)
 	}
 
-	var mainFunc *gast.FuncDecl
+	prefix := determinePrefix(f)
+	imports := extractImports(f)
+	expectedOutput, _, _ := parseExpectedResults(content)
+	mainIdentifier := extractMainIdentifier(f)
+
+	name := constructName(prefix, imports, expectedOutput, mainIdentifier)
+
+	return name
+}
+
+// determinePrefix analyzes the AST of a file and determines an appropriate prefix
+// for the code block name.
+// It returns "Test" for test functions, "Print" for functions containing print statements,
+// "Calc" for function containing calculations, or an empty string if no specific prefix is determined.
+func determinePrefix(f *ast.File) string {
+	// determine the prefix by using heuristic
 	for _, decl := range f.Decls {
-		if fn, ok := decl.(*gast.FuncDecl); ok {
-			if fn.Name.Name == "main" {
-				mainFunc = fn // save the main and keep looking for a better name
-			} else {
-				return generateFunctionName(fn)
+		if fn, ok := decl.(*ast.FuncDecl); ok {
+			if strings.HasPrefix(fn.Name.Name, "Test") {
+				return "Test"
+			}
+			if containsPrintStmt(fn) {
+				return "Print"
+			}
+			if containsCalculation(fn) {
+				return "Calc"
 			}
 		}
 	}
+	return ""
+}
 
-	// analyze main function if it only exists
-	if mainFunc != nil {
-		return analyzeMainFunction(mainFunc)
+// containsPrintStmt checks if the given function declaration contains
+// any print or println statements.
+func containsPrintStmt(fn *ast.FuncDecl) bool {
+	var yes bool
+	ast.Inspect(fn, func(n ast.Node) bool {
+		if call, ok := n.(*ast.CallExpr); ok {
+			if ident, ok := call.Fun.(*ast.Ident); ok {
+				if ident.Name == "println" || ident.Name == "print" {
+					yes = true
+					return false
+				}
+			}
+		}
+		return true
+	})
+	return yes
+}
+
+// containsCalculation checks if the given function declaration contains
+// any binary or unary expressions, which are indicative of calculations.
+func containsCalculation(fn *ast.FuncDecl) bool {
+	var yes bool
+	ast.Inspect(fn, func(n ast.Node) bool {
+		switch n.(type) {
+		case *ast.BinaryExpr, *ast.UnaryExpr:
+			yes = true
+			return false
+		}
+		return true
+	})
+	return yes
+}
+
+// extractImports extracts the names of imported packages from the AST
+// of a Go file. It returns a slice of strings representing the imported
+// package names or the last part of the import path if no alias is used.
+func extractImports(f *ast.File) []string {
+	var imports []string
+	for _, imp := range f.Imports {
+		if imp.Name != nil {
+			imports = append(imports, imp.Name.Name)
+		} else {
+			path := strings.Trim(imp.Path.Value, `"`)
+			parts := strings.Split(path, "/")
+			imports = append(imports, parts[len(parts)-1])
+		}
 	}
+	return imports
+}
 
-	// find the first top-level declaration
+// extractMainIdentifier attempts to find the main identifier in the Go file.
+// It returns the name of the first function or the first declared variable.
+// If no suitable identifier is found, it returns an empty string.
+func extractMainIdentifier(f *ast.File) string {
 	for _, decl := range f.Decls {
 		switch d := decl.(type) {
-		case *gast.GenDecl:
-			if len(d.Specs) > 0 {
-				switch s := d.Specs[0].(type) {
-				case *gast.ValueSpec:
-					if len(s.Names) > 0 {
-						return s.Names[0].Name
+		case *ast.FuncDecl:
+			return d.Name.Name
+		case *ast.GenDecl:
+			for _, spec := range d.Specs {
+				if vs, ok := spec.(*ast.ValueSpec); ok {
+					if len(vs.Names) > 0 {
+						return vs.Names[0].Name
 					}
-				case *gast.TypeSpec:
-					return s.Name.Name
 				}
 			}
 		}
 	}
-
-	return generateFallbackName(content)
+	return ""
 }
 
-// generateFunctionName creates a descriptive name for a function declaration,
-// including the function name and its parameters.
-func generateFunctionName(fn *gast.FuncDecl) string {
-	params := make([]string, 0)
-	if fn.Type.Params != nil {
-		for _, param := range fn.Type.Params.List {
-			paramType := ""
-			if ident, ok := param.Type.(*gast.Ident); ok {
-				paramType = ident.Name
-			}
-			for _, name := range param.Names {
-				params = append(params, fmt.Sprintf("%s %s", name.Name, paramType))
-			}
-		}
+// constructName builds a name for the code block using the provided components.
+// The resulting name is truncated if it exceeds 50 characters.
+func constructName(
+	prefix string,
+	imports []string,
+	expectedOutput string,
+	mainIdentifier string,
+) string {
+	var parts []string
+	if prefix != "" {
+		parts = append(parts, prefix)
 	}
-	return fmt.Sprintf("%s(%s)", fn.Name.Name, strings.Join(params, ", "))
-}
-
-// analyzeMainFunction examines the main function declaration to extract a meaningful name,
-// typically based on the first significant call expression within the function body.
-func analyzeMainFunction(fn *gast.FuncDecl) string {
-	if fn.Body == nil {
-		return "main()"
+	if len(imports) > 0 {
+		parts = append(parts, strings.Join(imports, "_"))
 	}
-	for _, stmt := range fn.Body.List {
-		if exprStmt, ok := stmt.(*gast.ExprStmt); ok {
-			if callExpr, ok := exprStmt.X.(*gast.CallExpr); ok {
-				return generateCallExprName(callExpr)
-			}
-		}
+	if mainIdentifier != "" {
+		parts = append(parts, mainIdentifier)
 	}
-	return "main()"
-}
-
-// generateCallExprName constructs a name for call expression by extracting the function name
-// and formatting the arguments into a readable string.
-func generateCallExprName(callExpr *gast.CallExpr) string {
-	funcName := ""
-	if ident, ok := callExpr.Fun.(*gast.Ident); ok {
-		funcName = ident.Name
-	} else if selectorExpr, ok := callExpr.Fun.(*gast.SelectorExpr); ok {
-		if ident, ok := selectorExpr.X.(*gast.Ident); ok {
-			funcName = fmt.Sprintf("%s.%s", ident.Name, selectorExpr.Sel.Name)
+	if expectedOutput != "" {
+		// use first line of expected output, limit the length
+		outputPart := strings.Split(expectedOutput, "\n")[0]
+		if len(outputPart) > 20 {
+			outputPart = outputPart[:20] + "..."
 		}
+		parts = append(parts, outputPart)
 	}
 
-	args := make([]string, 0)
-	for _, arg := range callExpr.Args {
-		if basicLit, ok := arg.(*gast.BasicLit); ok {
-			args = append(args, basicLit.Value)
-		} else if ident, ok := arg.(*gast.Ident); ok {
-			args = append(args, ident.Name)
-		}
+	name := strings.Join(parts, "_")
+	if len(name) > 50 {
+		name = name[:50] + "..."
 	}
 
-	return fmt.Sprintf("%s(%s)", funcName, strings.Join(args, ", "))
+	return name
 }
 
 // generateFallbackName generates a default name for a code block when no other name could be determined.
@@ -253,4 +308,43 @@ func generateFallbackName(content string) string {
 		}
 	}
 	return "unnamed_block"
+}
+
+//////////////////// Execution Options ////////////////////
+
+type ExecutionOption struct {
+	Ignore      bool
+	ShouldPanic string
+	// TODO: add more options
+}
+
+func parseExecutionOptions(language string, firstLine []byte) ExecutionOption {
+	options := ExecutionOption{}
+
+	parts := strings.Split(language, ",")
+	for _, option := range parts[1:] { // skip the first part which is the language
+		switch strings.TrimSpace(option) {
+		case "ignore":
+			options.Ignore = true
+		case "should_panic":
+			options.ShouldPanic = "" // specific panic message will be parsed later
+		}
+	}
+
+	// parser options from the first line of the code block
+	if bytes.HasPrefix(firstLine, []byte("//")) {
+		re := regexp.MustCompile(`@(\w+)(?:="([^"]*)")?`)
+		matches := re.FindAllSubmatch(firstLine, -1)
+		for _, match := range matches {
+			switch string(match[1]) {
+			case "should_panic":
+				if match[2] != nil {
+					options.ShouldPanic = string(match[2])
+				}
+				// TOOD: add more options
+			}
+		}
+	}
+
+	return options
 }

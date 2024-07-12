@@ -1,6 +1,7 @@
 package doctest
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -251,24 +252,83 @@ func TestGenerateCodeBlockName(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "Function name",
-			content: `
-package main
-
-func TestFunction() {
-    println("Hello")
-}`,
-			expected: "TestFunction()",
-		},
-		{
-			name: "Main function only",
+			name: "Simple print function",
 			content: `
 package main
 
 func main() {
-    println("Hello")
+    println("Hello, World!")
+}
+// Output:
+// Hello, World!
+`,
+			expected: "Print_main_Hello, World!",
+		},
+		{
+			name: "Explicitly named code block",
+			content: `
+// @test: specified
+package main
+
+func main() {
+	println("specified")
 }`,
-			expected: "println(\"Hello\")",
+			expected: "specified",
+		},
+		{
+			name: "Simple calculation",
+			content: `
+package main
+
+import "math"
+
+func calculateArea(radius float64) float64 {
+    return math.Pi * radius * radius
+}
+
+func main() {
+    println(calculateArea(5))
+}
+// Output:
+// 78.53981633974483
+`,
+			expected: "Calc_math_calculateArea_78.53981633974483",
+		},
+		{
+			name: "Test function",
+			content: `
+package main
+
+import "testing"
+
+func TestSquareRoot(t *testing.T) {
+    got := math.Sqrt(4)
+    if got != 2 {
+        t.Errorf("Sqrt(4) = %f; want 2", got)
+    }
+}
+`,
+			expected: "Test_testing_TestSquareRoot",
+		},
+		{
+			name: "Multiple imports",
+			content: `
+package main
+
+import (
+    "math"
+    "strings"
+)
+
+func main() {
+    println(math.Pi)
+    println(strings.ToUpper("hello"))
+}
+// Output:
+// 3.141592653589793
+// HELLO
+`,
+			expected: "Print_math_strings_main_3.141592653589793",
 		},
 		{
 			name: "No function",
@@ -278,33 +338,6 @@ package main
 var x = 5
 `,
 			expected: "x",
-		},
-		{
-			name: "Multiple functions",
-			content: `
-package main
-
-func main() {
-    println("Hello")
-}
-
-func AnotherFunction() {
-    println("World")
-}`,
-			expected: "AnotherFunction()",
-		},
-		{
-			name:     "Empty content",
-			content:  "",
-			expected: "unnamed_block",
-		},
-		{
-			name: "Only comments",
-			content: `
-// This is a comment
-// Another comment
-`,
-			expected: "unnamed_block",
 		},
 	}
 
@@ -318,49 +351,52 @@ func AnotherFunction() {
 	}
 }
 
-func TestGetCodeBlocks_Name(t *testing.T) {
-	markdown := `
-Some text here
-
-` + "```go" + `
-// @test: CustomNamedTest
-func main() {
-    println("Custom named test")
-}
-` + "```" + `
-
-Another paragraph
-
-` + "```go" + `
-func TestAutoNamed() {
-    println("Auto named test")
-}
-` + "```" + `
-
-` + "```go" + `
-var x = 5
-` + "```" + `
-`
-
-	codeBlocks := GetCodeBlocks(markdown)
-
-	if len(codeBlocks) != 3 {
-		t.Fatalf("Expected 3 code blocks, got %d", len(codeBlocks))
+func TestParseExecutionOptions(t *testing.T) {
+	tests := []struct {
+		name      string
+		language  string
+		firstLine string
+		want      ExecutionOption
+	}{
+		{
+			name:      "No options",
+			language:  "go",
+			firstLine: "package main",
+			want:      ExecutionOption{},
+		},
+		{
+			name:      "Ignore option in language tag",
+			language:  "go,ignore",
+			firstLine: "package main",
+			want:      ExecutionOption{Ignore: true},
+		},
+		{
+			name:      "Should panic option in language tag",
+			language:  "go,should_panic",
+			firstLine: "package main",
+			want:      ExecutionOption{ShouldPanic: ""},
+		},
+		{
+			name:      "Should panic with message in comment",
+			language:  "go,should_panic",
+			firstLine: "// @should_panic=\"division by zero\"",
+			want:      ExecutionOption{ShouldPanic: "division by zero"},
+		},
+		{
+			name:      "Multiple options",
+			language:  "go,ignore,should_panic",
+			firstLine: "// @should_panic=\"runtime error\"",
+			want:      ExecutionOption{Ignore: true, ShouldPanic: "runtime error"},
+		},
 	}
 
-	// Test custom named block
-	if codeBlocks[0].name != "CustomNamedTest" {
-		t.Errorf("Expected first block name to be 'CustomNamedTest', got '%s'", codeBlocks[0].name)
-	}
-
-	// Test auto named block with function
-	if codeBlocks[1].name != "func TestAutoNamed()..." {
-		t.Errorf("Expected second block name to be 'func TestAutoNamed()...', got '%s'", codeBlocks[1].name)
-	}
-
-	// Test auto named block without function
-	if codeBlocks[2].name != "var x = 5" {
-		t.Errorf("Expected third block name to be 'var x = 5', got '%s'", codeBlocks[2].name)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parseExecutionOptions(tt.language, []byte(tt.firstLine))
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("parseExecutionOptions() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
