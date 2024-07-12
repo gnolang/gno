@@ -189,7 +189,7 @@ func Render(path string) string {
 	output += "## Proposal information\n\n"
 	output += ufmt.Sprintf("#### Status: %s\n\n", string(prop.Status()))
 	output += ufmt.Sprintf("#### Votes: \n\n%s\n\n", prop.voter.Status(vs))
-	output += ufmt.Sprintf("#### Author: %s\n\n", string(prop.author))
+	output += ufmt.Sprintf("#### Author: %s", string(prop.author))
 
 	return output
 }
