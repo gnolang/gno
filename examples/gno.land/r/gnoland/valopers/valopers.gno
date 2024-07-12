@@ -168,6 +168,8 @@ func GovDAOProposal(address std.Address) {
 	// Create the executor
 	executor := validators.NewPropExecutor(changesFn)
 
+	title := ufmt.Sprintf("Add %s as valoper", valoper.Name)
+
 	// Craft the proposal comment
 	comment := ufmt.Sprintf(
 		"Proposal to add valoper %s (Address: %s; PubKey: %s) to the valset",
@@ -177,5 +179,5 @@ func GovDAOProposal(address std.Address) {
 	)
 
 	// Create the govdao proposal
-	govdao.Propose("", comment, executor)
+	govdao.Propose(title, comment, executor)
 }
