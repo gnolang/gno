@@ -75,18 +75,18 @@ func TestPackage(t *testing.T) {
 	checkAllowances(0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	uassert.Equal(t, dex.Size(), 0)
 
-	dex.PlaceOrder(test20.Bank, foo20.Bank, 100, 2)
+	dex.PlaceOrder(test20.Bank, foo20.Bank, 100, false)
 	checkBalances(900, 0, 100, 0, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-	uassert.Equal(t, dex.Size(), 1)
+	uassert.Equal(t, dex.Size(), 1, "A")
 	uassert.Equal(t, dex.Render(""), `Orders:
-Test20 -> Foo 100 at 2
+Sell: Test20 -> Foo 100
 `)
 
-	uassert.Equal(t, dex.MatchPairOrders("foo20/test20"), 0)
+	uassert.Equal(t, dex.matchPairOrders("test20", "foo20"), 0)
 	checkBalances(900, 0, 100, 0, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-	uassert.Equal(t, dex.Size(), 1)
+	uassert.Equal(t, dex.Size(), 1, "B")
 
 	std.TestSetOrigCaller(bob)
 	std.TestSetRealm(std.NewUserRealm(bob))
@@ -97,19 +97,14 @@ Test20 -> Foo 100 at 2
 	grc20.PrevRealmBanker(foo20.Bank).Approve(dexAddr, 2000)
 	checkBalances(900, 0, 100, 0, 10000000, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 2000, 0, 0)
-	uassert.Equal(t, dex.Size(), 1)
+	uassert.Equal(t, dex.Size(), 1, "C")
 
-	dex.PlaceOrder(foo20.Bank, test20.Bank, 500, 2)
+	dex.PlaceOrder(foo20.Bank, test20.Bank, 500, true)
 	checkBalances(900, 0, 100, 0, 9999500, 500)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 1500, 0, 0)
-	uassert.Equal(t, dex.Size(), 2)
+	uassert.Equal(t, dex.Size(), 2, "D")
 	uassert.Equal(t, dex.Render(""), `Orders:
-Foo -> Test20 500 at 2
-Test20 -> Foo 100 at 2
+Buy: Foo -> Test20 500
+Sell: Test20 -> Foo 100
 `)
-
-	uassert.Equal(t, dex.MatchPairOrders("foo20/test20"), 1)
-	checkBalances(900, 0, 100, 0, 9999500, 500)
-	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 1500, 0, 0)
-	uassert.Equal(t, dex.Size(), 1)
 }
