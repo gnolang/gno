@@ -7,8 +7,8 @@ id: network-config
 | Network     | RPC Endpoint                      | Chain ID      | 
 |-------------|-----------------------------------|---------------|
 | Portal Loop | https://rpc.gno.land:443          | `portal-loop` |
-| Testnet 4   | upcoming                          | upcoming      |
-| Testnet 3   | https://rpc.test3.gno.land:443    | `test3`       |
+| Test4       | https://rpc.test4.gno.land:443/   | `test4`       |
+| Test3       | https://rpc.test3.gno.land:443    | `test3`       |
 | Staging     | http://rpc.staging.gno.land:36657 | `staging`     |
 
 ### WebSocket endpoints
