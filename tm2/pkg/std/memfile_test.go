@@ -16,27 +16,50 @@ func TestMemPackage_Validate(t *testing.T) {
 		{
 			"Correct",
 			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/r/demo/hey",
-				Files: []*MemFile{{Name: "a.gno"}},
+				Name: "hey",
+				Path: "gno.land/r/demo/hey",
+				Files: []*MemFile{
+					{
+						Name: "a.gno",
+						Body: "package hey",
+					},
+				},
 			},
 			"",
 		},
 		{
 			"Unsorted",
 			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/r/demo/hey",
-				Files: []*MemFile{{Name: "b.gno"}, {Name: "a.gno"}},
+				Name: "hey",
+				Path: "gno.land/r/demo/hey",
+				Files: []*MemFile{
+					{
+						Name: "b.gno",
+						Body: "package hey",
+					},
+					{
+						Name: "a.gno",
+						Body: "package hey",
+					},
+				},
 			},
 			"unsorted",
 		},
 		{
 			"Duplicate",
 			&MemPackage{
-				Name:  "hey",
-				Path:  "gno.land/r/demo/hey",
-				Files: []*MemFile{{Name: "a.gno"}, {Name: "a.gno"}},
+				Name: "hey",
+				Path: "gno.land/r/demo/hey",
+				Files: []*MemFile{
+					{
+						Name: "a.gno",
+						Body: "package hey",
+					},
+					{
+						Name: "a.gno",
+						Body: "package hey",
+					},
+				},
 			},
 			"duplicate",
 		},
@@ -255,6 +278,57 @@ func TestMemPackage_Validate(t *testing.T) {
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
 			"invalid package/realm path",
+		},
+		{
+			"Package Imports Package",
+			&MemPackage{
+				Name: "hey",
+				Path: "gno.land/p/demo/hey",
+				Files: []*MemFile{
+					{
+						Name: "a.gno",
+						Body: `package hey
+
+						import "gno.land/p/demo/hello"
+						`,
+					},
+				},
+			},
+			"",
+		},
+		{
+			"Realm Imports Realm",
+			&MemPackage{
+				Name: "hey",
+				Path: "gno.land/r/demo/hey",
+				Files: []*MemFile{
+					{
+						Name: "a.gno",
+						Body: `package hey
+
+						import "gno.land/r/demo/hello"
+						`,
+					},
+				},
+			},
+			"",
+		},
+		{
+			"Package Imports Realm",
+			&MemPackage{
+				Name: "hey",
+				Path: "gno.land/p/demo/hey",
+				Files: []*MemFile{
+					{
+						Name: "a.gno",
+						Body: `package hey
+
+						import "gno.land/r/demo/heyrealm"
+						`,
+					},
+				},
+			},
+			`package "gno.land/p/demo/hey" imports realm "gno.land/r/demo/heyrealm"`,
 		},
 	}
 	for _, tc := range tt {
