@@ -2560,7 +2560,7 @@ func (b *Block) GetPointerToHeapUse(alloc *Allocator, store Store, path ValuePat
 }
 
 func (b *Block) GetPointerToLoopVarDefineUse(alloc *Allocator, store Store, path ValuePath) PointerValue {
-	fmt.Println("---nameTypeLoopVar")
+	debug.Println("---nameTypeLoopVar")
 	debug.Println("---GetPointerToLoopVarDefineUse, b: ", b)
 	debug.Println("---GetPointerToLoopVarDefineUse, path: ", path)
 

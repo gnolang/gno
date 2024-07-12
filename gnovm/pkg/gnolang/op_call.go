@@ -65,9 +65,14 @@ func (m *Machine) doOpCall() {
 	debug.Println("---b: ", b)
 	debug.Println("---b.Names: ", b.Source.GetBlockNames())
 	debug.Println("---b.Values: ", b.Values)
+	debug.Println("---fv.Captures: ", fv.Captures, len(fv.Captures))
 
-	for i := len(fv.Captures) - 1; i >= 0; i-- {
-		b.Values[i] = fv.Captures[i].Copy(m.Alloc)
+	if len(fv.Captures) > len(b.Values) {
+		panic("should not happen")
+	} else if len(fv.Captures) != 0 {
+		for i := 0; i < len(fv.Captures); i++ {
+			b.Values[len(b.Values)-len(fv.Captures)] = fv.Captures[i].Copy(m.Alloc)
+		}
 	}
 
 	debug.Println("---b.Values after copy: ", b.Values)

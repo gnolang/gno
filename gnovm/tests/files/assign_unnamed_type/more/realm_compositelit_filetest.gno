@@ -1,10 +1,6 @@
 // PKGPATH: gno.land/r/test
 package test
 
-import (
-	"fmt"
-)
-
 type (
 	word uint
 	nat  []word
@@ -95,6 +91,7 @@ func main() {
 // }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]={
 //     "Blank": {},
+//     "HeapValues": null,
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //         "IsEscaped": true,
@@ -225,7 +222,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "main.gno",
-//                         "Line": "20",
+//                         "Line": "16",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/test"
 //                     }

@@ -2296,7 +2296,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 
 			switch n := n.(type) {
 			case *ForStmt:
-				fmt.Println("---for stmt")
+				debug.Println("---for stmt")
 				Transcribe(n,
 					func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 						switch stage {
@@ -2312,8 +2312,8 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 								panic("unexpected inner func decl")
 								return n, TRANS_CONTINUE
 							case *NameExpr:
-								fmt.Println("---name expr, n: ", n)
-								fmt.Println("---name expr, n.Type: ", n.Type)
+								debug.Println("---name expr, n: ", n)
+								debug.Println("---name expr, n.Type: ", n.Type)
 								if n.Type == NameExprTypeDefine {
 									n.Type = NameExprTypeHeapDefine
 								}
@@ -2322,7 +2322,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 						return n, TRANS_CONTINUE
 					})
 			case *RangeStmt:
-				fmt.Println("---range stmt, n: ", n)
+				debug.Println("---range stmt, n: ", n)
 				Transcribe(n,
 					func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 						switch stage {
@@ -2338,9 +2338,9 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 								panic("unexpected inner func decl")
 								return n, TRANS_CONTINUE
 							case *NameExpr:
-								fmt.Println("---name expr, n: ", n, n.Type)
+								debug.Println("---name expr, n: ", n, n.Type)
 								if n.Type == NameExprTypeDefine {
-									fmt.Println("---promote type")
+									debug.Println("---promote type")
 									n.Type = NameExprTypeHeapDefine
 								}
 							}
@@ -2491,12 +2491,14 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 						fle, depth, found := findFirstClosure(stack, dbn)
 						debug.Println("---depth: ", depth)
 						if found {
+							debug.Println("---found, n, n.Path: ", n, n.Path)
 							// If across a closure,
 							// mark name as loop used.
 							addAttrHeapUse(dbn, n.Name)
 							// The path must stay same for now,
 							// used later in findLoopUses2.
 							idx := addHeapCapture(dbn, fle, n.Name)
+							fmt.Println("---idx: ", idx)
 							// adjust NameExpr type.
 							n.Type = NameExprTypeHeapUse
 							// XXX actually uncomment once
@@ -2505,6 +2507,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							// use values from function block.
 							// see XXX in op_call.go
 							n.Path.Depth = uint8(depth)
+							// XXX,
 							n.Path.Index = idx
 							debug.Println("---n.Path after---: ", n.Path)
 							if false {
@@ -2527,6 +2530,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 				case NameExprTypeDefine:
 					// nothing to do.
 				case NameExprTypeHeapDefine:
+					//fmt.Println("---name expr, heap define, n: ", n)
 					// Set name in attribute, so later matches
 					// on NameExpr can know that this was loop defined
 					// on this block.
@@ -2558,13 +2562,13 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 
 func assertNotHasName(names []Name, name Name) {
 	if hasName(names, name) {
-		panic("name already contained in names")
+		panic(fmt.Sprintf("name: %s already contained in names: %v ", name, names))
 	}
 }
 
 func setAttrHeapDefine(bn BlockNode, name Name) {
 	bnLDs, _ := bn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-	assertNotHasName(bnLDs, name)
+	//assertNotHasName(bnLDs, name)
 	bnLDs = append(bnLDs, name)
 	bn.SetAttribute(ATTR_LOOP_DEFINES, bnLDs)
 }
@@ -2619,6 +2623,13 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) uint16 {
 	}
 	debug.Println("---ne: ", ne)
 	fle.HeapCaptures = append(fle.HeapCaptures, ne)
+
+	for i, n := range fle.GetBlockNames() {
+		if n == "~"+name {
+			idx = uint16(i)
+		}
+	}
+
 	return idx
 }
 
@@ -2680,10 +2691,10 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 				}
 				switch n.Type {
 				case NameExprTypeNormal:
-					fmt.Println("---find use2, type normal, n: ", n)
+					debug.Println("---find use2, type normal, n: ", n)
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					fmt.Println("---dbn: ", dbn)
+					debug.Println("---dbn: ", dbn)
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 					if hasName(lds, n.Name) {
@@ -2697,27 +2708,27 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 						}
 					}
 					if n.Type == NameExprTypeHeapUse {
-						fmt.Println("---it is heap use confirmed, going to traverse condition expr, n: ", n)
+						debug.Println("---it is heap use confirmed, going to traverse condition expr, n: ", n)
 						Transcribe(dbn,
 							func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 								switch stage {
 								case TRANS_ENTER:
 									switch n := n.(type) {
 									case *ForStmt:
-										fmt.Println("---forStmt, n: ", n)
+										debug.Println("---forStmt, n: ", n)
 									case Stmt:
 										if ftype == TRANS_FOR_POST {
-											fmt.Println("---for post stmt, n: ", n, reflect.TypeOf(n))
+											debug.Println("---for post stmt, n: ", n, reflect.TypeOf(n))
 											switch stmt := n.(type) {
 											case *AssignStmt:
-												fmt.Println("---assignStmt: ", stmt)
+												debug.Println("---assignStmt: ", stmt)
 												for _, x := range stmt.Lhs {
 													nx := x.(*NameExpr)
 													nx.Type = NameExprTypeLoopVar // set type for nx on post stmt of for loop
 												}
 
 											case *IncDecStmt:
-												fmt.Println("---IncDecStmt: ", stmt)
+												debug.Println("---IncDecStmt: ", stmt)
 												nx := stmt.X.(*NameExpr)
 												nx.Type = NameExprTypeLoopVar // set type for nx on post stmt of for loop
 											}
@@ -2729,10 +2740,10 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 
 					}
 				case NameExprTypeHeapDefine:
-					fmt.Println("---find use2, maybe demote to type define, n: ", n)
+					debug.Println("---find use2, maybe demote to type define, n: ", n)
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					fmt.Println("---dbn: ", dbn)
+					debug.Println("---dbn: ", dbn)
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 					if hasName(lds, n.Name) {
