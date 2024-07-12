@@ -7,7 +7,7 @@ id: namespaces
 Namespaces provide users with the exclusive capability to publish contracts under their designated namespaces,
 similar to GitHub's user and organization model.
 
-:::warn Not enabled
+:::warning Not enabled
 
 This feature isn't enabled by default on the portal loop chain and is currently available only on test4.gno.land.
 
