@@ -43,6 +43,21 @@ For more information on the Portal Loop, and how it can be best utilized,
 check out the [Portal Loop concept page](./portal-loop.md). Also, you can find
 the Portal Loop faucet on [`gno.land/faucet`](https://gno.land/faucet).
 
+## Test4
+Test4 a permanent multi-node testnet.
+
+- **Persistence of state:**
+  - State is fully persisted unless there are breaking changes in a new release,
+    where persistence partly depends on implementing a migration strategy
+- **Timeliness of code:**
+  - Versioning mechanisms for packages & realms will be implemented for test4
+- **Intended purpose**
+  - Running a full node, testing validator coordination, deploying stable Gno
+    dApps, creating tools that require persisted state & transaction history
+- **Versioning strategy**:
+  - Test4 is the first gno.land testnet to be release-based, following releases
+of the Gno tech stack.
+
 ## Staging
 Staging is a testnet that is reset once every 60 minutes.
 
@@ -56,24 +71,6 @@ Staging is a testnet that is reset once every 60 minutes.
   uploads code to the chain, etc.
 - **Versioning strategy**:
   - Staging is reset every 60 minutes to match the latest monorepo commit
-
-## Test4 (upcoming)
-Test4 (name subject to change) is an upcoming, permanent, multi-node testnet. 
-To follow test4 progress, view the test4 milestone
-[here](https://github.com/gnolang/gno/milestone/4).
-Once it is complete, it will have the following properties:
-
-- **Persistence of state:**
-  - State is fully persisted unless there are breaking changes in a new release,
-where persistence partly depends on implementing a migration strategy
-- **Timeliness of code:**
-  - Versioning mechanisms for packages & realms will be implemented for test4
-- **Intended purpose**
-  - Running a full node, testing validator coordination, deploying stable Gno 
-dApps, creating tools that require persisted state & transaction history
-- **Versioning strategy**:
-  - Test4 will be the first testnet to be release-based, following releases of
-the Gno tech stack.
 
 ## TestX
 These testnets are deprecated and currently serve as archives of previous progress.
