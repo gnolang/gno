@@ -400,6 +400,57 @@ func TestParseExecutionOptions(t *testing.T) {
 	}
 }
 
+func TestGetCodeBlocksWithOptions(t *testing.T) {
+	input := `
+Some text here
+
+` + "```go,ignore" + `
+// This block should be ignored
+func main() {
+    panic("This should not execute")
+}
+` + "```" + `
+
+Another paragraph
+
+` + "```go,should_panic" + `
+// @should_panic="runtime error: index out of range"
+func main() {
+    arr := []int{1, 2, 3}
+    fmt.Println(arr[5])
+}
+` + "```" + `
+
+` + "```go" + `
+// Normal execution
+func main() {
+    fmt.Println("Hello, World!")
+}
+` + "```" + `
+`
+
+	blocks := GetCodeBlocks(input)
+
+	if len(blocks) != 3 {
+		t.Fatalf("Expected 3 code blocks, got %d", len(blocks))
+	}
+
+	// Check the first block (ignore)
+	if !blocks[0].options.Ignore {
+		t.Errorf("Expected first block to be ignored")
+	}
+
+	// Check the second block (should_panic)
+	if blocks[1].options.ShouldPanic != "runtime error: index out of range" {
+		t.Errorf("Expected second block to have ShouldPanic option set to 'runtime error: index out of range', got '%s'", blocks[1].options.ShouldPanic)
+	}
+
+	// Check the third block (normal execution)
+	if blocks[2].options.Ignore || blocks[2].options.ShouldPanic != "" {
+		t.Errorf("Expected third block to have no special options")
+	}
+}
+
 // ignore whitespace in the source code
 func normalize(s string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(s, "\n", ""), "\r", ""), "\t", ""), " ", "")

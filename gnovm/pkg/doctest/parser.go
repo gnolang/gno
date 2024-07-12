@@ -341,7 +341,7 @@ func parseExecutionOptions(language string, firstLine []byte) ExecutionOption {
 				if match[2] != nil {
 					options.ShouldPanic = string(match[2])
 				}
-				// TOOD: add more options
+				// TODO: add more options
 			}
 		}
 	}

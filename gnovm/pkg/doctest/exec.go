@@ -58,9 +58,16 @@ func hashCodeBlock(c codeBlock) string {
 
 // ExecuteCodeBlock executes a parsed code block and executes it in a gno VM.
 func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
-	if c.lang == "go" {
-		c.lang = "gno"
-	} else if c.lang != "gno" {
+	if c.options.Ignore {
+		return "IGNORED", nil
+	}
+
+	// Extract the actual language from the lang field
+	lang := strings.Split(c.lang, ",")[0]
+
+	if lang == "go" {
+		lang = "gno"
+	} else if lang != "gno" {
 		return "", fmt.Errorf("unsupported language type: %s", c.lang)
 	}
 
@@ -105,7 +112,7 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 	mcw.MultiWrite()
 
 	files := []*std.MemFile{
-		{Name: fmt.Sprintf("%d.%s", c.index, c.lang), Body: src},
+		{Name: fmt.Sprintf("%d.%s", c.index, lang), Body: src},
 	}
 
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -116,6 +123,16 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 	msg2 := vm.NewMsgRun(addr, coins, files)
 
 	res, err := vmk.Run(ctx, msg2)
+	if c.options.ShouldPanic != "" {
+		if err == nil {
+			return "", fmt.Errorf("expected panic with message: %s, but executed successfully", c.options.ShouldPanic)
+		}
+		if !strings.Contains(err.Error(), c.options.ShouldPanic) {
+			return "", fmt.Errorf("expected panic with message: %s, but got: %s", c.options.ShouldPanic, err.Error())
+		}
+		return fmt.Sprintf("panicked as expected: %v", err), nil
+	}
+
 	if err != nil {
 		return "", err
 	}
@@ -129,17 +146,34 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 
 func compareResults(actual, expectedOutput, expectedError string) (string, error) {
 	actual = strings.TrimSpace(actual)
-	expectedOutput = strings.TrimSpace(expectedOutput)
-	expectedError = strings.TrimSpace(expectedError)
+	expected := strings.TrimSpace(expectedOutput)
+	if expected == "" {
+		expected = strings.TrimSpace(expectedError)
+	}
 
-	if expectedOutput != "" {
-		if actual != expectedOutput {
-			return "", fmt.Errorf("expected output:\n%s\n\nbut got:\n%s", expectedOutput, actual)
-		}
-	} else if expectedError != "" {
-		if actual != expectedError {
-			return "", fmt.Errorf("expected error:\n%s\n\nbut got:\n%s", expectedError, actual)
-		}
+	if expected == "" {
+		return actual, nil
+	}
+
+	if strings.HasPrefix(expected, "regex:") {
+		return compareRegex(actual, strings.TrimPrefix(expected, "regex:"))
+	}
+
+	if actual != expected {
+		return "", fmt.Errorf("expected:\n%s\n\nbut got:\n%s", expected, actual)
+	}
+
+	return actual, nil
+}
+
+func compareRegex(actual, pattern string) (string, error) {
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return "", fmt.Errorf("invalid regex pattern: %w", err)
+	}
+
+	if !re.MatchString(actual) {
+		return "", fmt.Errorf("output did not match regex pattern:\npattern: %s\nactual: %s", pattern, actual)
 	}
 
 	return actual, nil
