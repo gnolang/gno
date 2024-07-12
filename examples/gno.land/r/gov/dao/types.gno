@@ -8,11 +8,11 @@ import (
 type Status string
 
 var (
-	Accepted    Status = "accepted"
-	Active      Status = "active"
-	NotAccepted Status = "not accepted"
-	Expired     Status = "expired"
-	Succeeded   Status = "succeeded"
+	Accepted  Status = "Accepted" // passed voting
+	Active    Status = "Active"
+	Rejected  Status = "Rejected"
+	Expired   Status = "Expired"   // voting deadline passed
+	Succeeded Status = "Succeeded" // has been executed
 )
 
 // Voter defines the needed methods for a voting system

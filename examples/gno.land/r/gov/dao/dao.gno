@@ -26,12 +26,13 @@ const (
 )
 
 type proposal struct {
-	author   std.Address
-	comment  string
-	executor pproposal.Executor
-	voter    Voter
-	executed bool
-	voters   []std.Address // XXX: these should be pointers to avoid data duplication. Not possible due to VM bugs.
+	author      std.Address
+	title       string
+	description string
+	executor    pproposal.Executor
+	voter       Voter
+	executed    bool
+	voters      []std.Address // XXX: these should be pointers to avoid data duplication. Not possible due to VM bugs.
 }
 
 func (p proposal) Status() Status {
@@ -51,12 +52,12 @@ func (p proposal) Status() Status {
 		return Accepted
 	}
 
-	return NotAccepted
+	return Rejected
 }
 
 // Propose is designed to be called by another contract or with
 // `maketx run`, not by a `maketx call`.
-func Propose(comment string, executor pproposal.Executor) int {
+func Propose(title, comment string, executor pproposal.Executor) int {
 	// XXX: require payment?
 	if executor == nil {
 		panic(msgMissingExecutor)
@@ -65,10 +66,11 @@ func Propose(comment string, executor pproposal.Executor) int {
 	AssertIsMember(caller)
 
 	prop := &proposal{
-		comment:  comment,
-		executor: executor,
-		author:   caller,
-		voter:    NewPercentageVoter(66), // at least 2/3 must say yes
+		title:       title,
+		description: comment,
+		executor:    executor,
+		author:      caller,
+		voter:       NewPercentageVoter(66), // at least 2/3 must say yes
 	}
 
 	proposals = append(proposals, prop)
@@ -144,20 +146,27 @@ func AssertIsMember(addr std.Address) {
 }
 
 func Render(path string) string {
-	if path == "" {
+	output := ""
+
+	if path == "" { // render home
+		output = "# GovDAO Proposals\n\n"
 		if len(proposals) == 0 {
-			return "No proposals found :(" // corner case
+			output += "No proposals."
+			return output
 		}
 
-		output := ""
 		for idx, prop := range proposals {
-			output += ufmt.Sprintf("- [%d](/r/gov/dao:%d) - %s (**%s**)(by %s)\n", idx, idx, prop.comment, string(prop.Status()), prop.author)
+			output += prop.RenderlListItem(idx)
+
+			if len(proposals) > 1 {
+				output += "---\n\n"
+			}
 		}
 
 		return output
 	}
 
-	// else display the proposal
+	// render individual proposals
 	idx, err := strconv.Atoi(path)
 	if err != nil {
 		return "404"
@@ -166,6 +175,7 @@ func Render(path string) string {
 	if !proposalExists(idx) {
 		return "404"
 	}
+
 	prop := getProposal(idx)
 
 	vs := members
@@ -173,17 +183,13 @@ func Render(path string) string {
 		vs = prop.voters
 	}
 
-	output := ""
-	output += ufmt.Sprintf("# Prop #%d", idx)
-	output += "\n\n"
-	output += prop.comment
-	output += "\n\n"
-	output += ufmt.Sprintf("Status: %s", string(prop.Status()))
-	output += "\n\n"
-	output += ufmt.Sprintf("Voting status: %s", prop.voter.Status(vs))
-	output += "\n\n"
-	output += ufmt.Sprintf("Author: %s", string(prop.author))
-	output += "\n\n"
+	output += ufmt.Sprintf("# Prop #%d - %s\n\n", idx, prop.title)
+	output += ufmt.Sprintf("## Description\n\n%s\n\n", prop.description)
+
+	output += "## Proposal information\n\n"
+	output += ufmt.Sprintf("#### Status: %s\n\n", string(prop.Status()))
+	output += ufmt.Sprintf("#### Votes: \n\n%s\n\n", prop.voter.Status(vs))
+	output += ufmt.Sprintf("#### Author: %s\n\n", string(prop.author))
 
 	return output
 }
@@ -194,6 +200,12 @@ func getProposal(idx int) *proposal {
 	}
 
 	return proposals[idx]
+}
+
+func (p proposal) RenderlListItem(idx int) string {
+	output := ufmt.Sprintf("## [Prop #%d - %s](/r/gov/dao:%d)\n\n", idx, p.title, idx)
+	output += ufmt.Sprintf("#### Status: %s\n\n", string(p.Status()))
+	return output
 }
 
 func proposalExists(idx int) bool {

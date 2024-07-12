@@ -177,5 +177,5 @@ func GovDAOProposal(address std.Address) {
 	)
 
 	// Create the govdao proposal
-	govdao.Propose(comment, executor)
+	govdao.Propose("", comment, executor)
 }
