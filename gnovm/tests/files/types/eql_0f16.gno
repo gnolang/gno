@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f16.gno:16: [2]main.word is not comparable
+// main/files/types/eql_0f16.gno:16:10: [2]main.word is not comparable

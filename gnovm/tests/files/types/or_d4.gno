@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/or_d4.gno:6: operator | not defined on: BigdecKind
+// main/files/types/or_d4.gno:6:10: operator | not defined on: BigdecKind

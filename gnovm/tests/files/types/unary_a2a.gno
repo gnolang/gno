@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/unary_a2a.gno:7: operator ! not defined on: IntKind
+// main/files/types/unary_a2a.gno:7:7: operator ! not defined on: IntKind

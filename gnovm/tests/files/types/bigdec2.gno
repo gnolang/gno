@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/bigdec2.gno:7: cannot convert untyped bigdec to integer -- 1.2 not an exact integer
+// main/files/types/bigdec2.gno:7:10: cannot convert untyped bigdec to integer -- 1.2 not an exact integer

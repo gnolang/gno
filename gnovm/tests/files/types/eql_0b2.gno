@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0b2.gno:14: cannot use untyped Bigint as StringKind
+// main/files/types/eql_0b2.gno:14:5: cannot use untyped Bigint as StringKind
