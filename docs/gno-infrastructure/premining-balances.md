@@ -6,7 +6,7 @@ id: premining-balances
 
 ## Overview
 
-In this tutorial, you will gain an understanding on how to premine native currency on a local Gno.land chain.
+In this tutorial, you will gain an understanding on how to premine native currency on a local gno.land chain.
 Additionally, you will understand how to query the account balance after you premine it.
 
 Premining balance is the process of making sure some accounts (addresses) have specific funds when the chain initially
