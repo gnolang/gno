@@ -4,12 +4,13 @@ import "std"
 
 type Status string
 
+// ACTIVE -> ACCEPTED -> EXECUTED
+// ACTIVE -> NOT ACCEPTED
 var (
-	Accepted    Status = "accepted"
-	Active      Status = "active"
-	NotAccepted Status = "not accepted"
-	Expired     Status = "expired"
-	Succeeded   Status = "succeeded"
+	Active      Status = "active"       // proposal is still active
+	Accepted    Status = "accepted"     // proposal gathered quorum
+	NotAccepted Status = "not accepted" // proposal failed to gather quorum
+	Executed    Status = "executed"     // proposal is executed
 )
 
 func (s Status) String() string {
@@ -18,12 +19,6 @@ func (s Status) String() string {
 
 // PropStore defines the proposal storage abstraction
 type PropStore interface {
-	// AddProposal adds a new proposal to the store
-	AddProposal(proposal Proposal) error
-
-	// RemoveProposal removes a proposal from the store, if any
-	RemoveProposal(id uint64) error
-
 	// GetProposals returns the given paginated proposals
 	GetProposals(offset, count uint64) []Proposal
 
@@ -47,6 +42,6 @@ type Proposal interface {
 	// GetStatus returns the status of the proposal
 	GetStatus() Status
 
-	// GetVoters returns the voters of the proposal
-	GetVoters() []std.Address
+	// GetVotes returns the votes of the proposal
+	GetVotes() []Vote
 }

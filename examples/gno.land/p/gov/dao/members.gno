@@ -9,19 +9,26 @@ type MemberStore interface {
 	// GetMembers returns all members in the store
 	GetMembers() []Member
 
-	// AddMember attempts to add a member to the store
-	AddMember() error
-
-	// RemoveMember attempts to remove a member from the store
-	RemoveMember() error
-
 	// IsMember returns a flag indicating if the given address
 	// belongs to a member
 	IsMember(address std.Address) bool
+
+	// GetMember returns the requested member
+	GetMember(address std.Address) (Member, error)
+
+	// AddMember attempts to add a member to the store
+	AddMember(member Member) error
+
+	// RemoveMember attempts to remove a member from the store
+	RemoveMember(address std.Address) error
+
+	// UpdateMember attempts to update the member in the store
+	UpdateMember(address std.Address, member Member) error
 }
 
 // Member holds the relevant member information
 type Member struct {
-	Address std.Address // bech32 gno address of the member (unique)
-	Name    string      // name associated with the member
+	Address     std.Address // bech32 gno address of the member (unique)
+	Name        string      // name associated with the member
+	VotingPower uint64      // the voting power of the member
 }
