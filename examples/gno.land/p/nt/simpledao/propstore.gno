@@ -106,7 +106,7 @@ func (p *PropStore) GetProposals(givenOffset, count uint64) []dao.Proposal {
 func (p *PropStore) GetProposalByID(id uint64) (dao.Proposal, error) {
 	prop, exists := p.proposals.Get(getProposalID(id))
 	if !exists {
-		return dao.Proposal{}, errMissingProposal
+		return nil, errMissingProposal
 	}
 
 	return prop.(*proposal), nil

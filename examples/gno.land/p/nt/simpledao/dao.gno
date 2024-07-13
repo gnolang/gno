@@ -36,7 +36,7 @@ type SimpleDAO struct {
 }
 
 // NewSimpleDAO creates a new instance of the simpledao DAO
-func NewSimpleDAO(membStore dao.MembStore, propStore dao.PropStore) *SimpleDAO {
+func NewSimpleDAO(membStore *MembStore, propStore *PropStore) *SimpleDAO {
 	return &SimpleDAO{
 		membStore: membStore,
 		propStore: propStore,
@@ -202,5 +202,5 @@ const daoPkgPath = "gno.land/r/gov/dao"
 // isCallerGOVDAO returns a flag indicating if the
 // current caller context is the active GOVDAO
 func isCallerGOVDAO() bool {
-	return std.PrevRealm().Addr() == daoPkgPath
+	return std.CurrentRealm().PkgPath() == daoPkgPath
 }

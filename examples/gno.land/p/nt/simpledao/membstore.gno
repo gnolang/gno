@@ -22,7 +22,7 @@ type MembStoreOption func(*MembStore)
 func WithInitialMembers(members []dao.Member) MembStoreOption {
 	return func(store *MembStore) {
 		for _, m := range members {
-			members.Set(m.Address.String(), m)
+			store.members.Set(m.Address.String(), m)
 		}
 	}
 }
@@ -36,31 +36,22 @@ type MembStore struct {
 }
 
 // NewMembStore creates a new simpledao member store
-func NewMembStore() *MembStore {
-	// TODO add option
-	return &MembStore{
+func NewMembStore(opts ...MembStoreOption) *MembStore {
+	m := &MembStore{
 		members:          avl.NewTree(),
 		totalVotingPower: 0,
 		majorityPower:    0,
 	}
+
+	// Apply the options
+	for _, opt := range opts {
+		opt(m)
+	}
+
+	return m
 }
 
-func (m *MembStore) GetMembers() []dao.Member {
-	members := make([]dao.Member, 0, m.members.Size())
-
-	m.members.Iterate("", "", func(_ string, val interface{}) bool {
-		member := val.(dao.Member)
-
-		// Save the member
-		members = append(members, member)
-
-		return false
-	})
-
-	return members
-}
-
-func (m *MembStore) AddMember(member Member) error {
+func (m *MembStore) AddMember(member dao.Member) error {
 	if !isCallerGOVDAO() {
 		return errNotGovDAO
 	}
@@ -86,7 +77,7 @@ func (m *MembStore) RemoveMember(address std.Address) error {
 	}
 
 	// Check if the member exists
-	memberRaw, exists := m.members.Get(address)
+	memberRaw, exists := m.members.Get(address.String())
 	if !exists {
 		return errMissingMember
 	}
@@ -108,7 +99,7 @@ func (m *MembStore) UpdateMember(address std.Address, member dao.Member) error {
 	}
 
 	// Check if the member exists
-	memberRaw, exists := m.members.Get(address)
+	memberRaw, exists := m.members.Get(address.String())
 	if !exists {
 		return errMissingMember
 	}
@@ -144,7 +135,22 @@ func (m *MembStore) GetMember(address std.Address) (dao.Member, error) {
 		return dao.Member{}, errMissingMember
 	}
 
-	return member, nil
+	return member.(dao.Member), nil
+}
+
+func (m *MembStore) GetMembers() []dao.Member {
+	members := make([]dao.Member, 0, m.members.Size())
+
+	m.members.Iterate("", "", func(_ string, val interface{}) bool {
+		member := val.(dao.Member)
+
+		// Save the member
+		members = append(members, member)
+
+		return false
+	})
+
+	return members
 }
 
 // getMajorityPower returns the majority voting power
