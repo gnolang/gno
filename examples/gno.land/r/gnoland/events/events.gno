@@ -200,6 +200,7 @@ func (e Event) Render(admin bool) string {
 
 	if admin {
 		buf.WriteString(ufmt.Sprintf("Event ID: %s\n\n", e.id))
+		buf.WriteString(ufmt.Sprintf("[EDIT](/r/gnoland/events?help&__func=EditEvent&id=%s)\n\n", e.id))
 	}
 
 	buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
