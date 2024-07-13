@@ -62,15 +62,14 @@ func (p *PropStore) addProposal(proposal *proposal) (uint64, error) {
 	return nextID, nil
 }
 
-func (p *PropStore) GetProposals(givenOffset, count uint64) []dao.Proposal {
+func (p *PropStore) GetProposals(offset, count uint64) []dao.Proposal {
 	// Calculate the left and right bounds
-	offset := givenOffset
-	if offset < 1 {
-		offset = 1
+	if count < 1 {
+		return []dao.Proposal{}
 	}
 
 	var (
-		startIndex = (offset - 1) * count
+		startIndex = offset
 		endIndex   = startIndex + count
 
 		numProposals = uint64(p.proposals.Size())
@@ -82,8 +81,8 @@ func (p *PropStore) GetProposals(givenOffset, count uint64) []dao.Proposal {
 	}
 
 	// Check if the right bound is good
-	if endIndex >= numProposals {
-		endIndex = numProposals - 1
+	if endIndex > numProposals {
+		endIndex = numProposals
 	}
 
 	props := make([]dao.Proposal, 0)
@@ -119,7 +118,7 @@ func (p *PropStore) GetProposalsByAddress(address std.Address) []dao.Proposal {
 		prop := val.(*proposal)
 
 		// Check the author
-		if prop.GetAuthor() != address {
+		if prop.GetAuthor() == address {
 			props = append(props, prop)
 		}
 
