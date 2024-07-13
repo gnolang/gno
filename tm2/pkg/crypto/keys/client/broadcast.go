@@ -27,7 +27,7 @@ type BroadcastCfg struct {
 	// the result is only returned in case of an error.
 	testSimulate bool
 
-	cli client.ABCIClient
+	client client.ABCIClient
 }
 
 func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -38,7 +38,7 @@ func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 
 	cfg := &BroadcastCfg{
 		RootCfg: rootCfg,
-		cli:     cli,
+		client:  cli,
 	}
 
 	return commands.NewCommand(
@@ -106,6 +106,10 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 		return nil, errors.New("invalid tx")
 	}
 
+	if cfg.client == nil {
+		return nil, errors.New("RPC client has not been initialized")
+	}
+
 	bz, err := amino.Marshal(cfg.tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
@@ -115,14 +119,14 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 	// However, DryRun always returns here, while in case of success
 	// testSimulate continues onto broadcasting the transaction.
 	if cfg.DryRun || cfg.testSimulate {
-		res, err := SimulateTx(cfg.cli, bz)
+		res, err := SimulateTx(cfg.client, bz)
 		hasError := err != nil || res.CheckTx.IsErr() || res.DeliverTx.IsErr()
 		if cfg.DryRun || hasError {
 			return res, err
 		}
 	}
 
-	bres, err := cfg.cli.BroadcastTxCommit(bz)
+	bres, err := cfg.client.BroadcastTxCommit(bz)
 	if err != nil {
 		return nil, errors.Wrap(err, "broadcasting bytes")
 	}

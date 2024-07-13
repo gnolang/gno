@@ -16,7 +16,7 @@ type QueryCfg struct {
 	Data string
 	Path string
 
-	client client.ABCIClient
+	cli client.ABCIClient
 }
 
 func NewQueryCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -24,7 +24,7 @@ func NewQueryCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 
 	cfg := &QueryCfg{
 		RootCfg: rootCfg,
-		client:  cli,
+		cli:     cli,
 	}
 
 	return commands.NewCommand(
@@ -78,13 +78,17 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 }
 
 func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
+	if cfg.cli == nil {
+		return nil, errors.New("RPC client has not been initialized")
+	}
+
 	data := []byte(cfg.Data)
 	opts2 := client.ABCIQueryOptions{
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
 
-	qres, err := cfg.client.ABCIQueryWithOptions(
+	qres, err := cfg.cli.ABCIQueryWithOptions(
 		cfg.Path, data, opts2)
 	if err != nil {
 		return nil, errors.Wrap(err, "querying")

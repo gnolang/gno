@@ -26,6 +26,8 @@ type MakeTxCfg struct {
 	Simulate string
 	ChainID  string
 
+	// Client is the RPC client used for broadcasting transactions.
+	// It should be initialized before use
 	Client client.ABCIClient
 }
 
@@ -141,7 +143,7 @@ func SignAndBroadcastHandler(
 	qopts := &QueryCfg{
 		RootCfg: baseopts,
 		Path:    fmt.Sprintf("auth/accounts/%s", accountAddr),
-		client:  cfg.Client,
+		cli:     cfg.Client,
 	}
 	qres, err := QueryHandler(qopts)
 	if err != nil {
@@ -151,7 +153,7 @@ func SignAndBroadcastHandler(
 	var acc std.BaseAccount
 	err = amino.UnmarshalJSON(qres.Response.Data, &acc)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "unmarshal account")
 	}
 
 	// sign tx
@@ -181,7 +183,7 @@ func SignAndBroadcastHandler(
 		DryRun:       cfg.Simulate == SimulateOnly,
 		testSimulate: cfg.Simulate == SimulateTest,
 
-		cli: cfg.Client,
+		client: cfg.Client,
 	}
 
 	return BroadcastHandler(bopts)

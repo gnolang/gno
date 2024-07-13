@@ -46,10 +46,10 @@ func Test_SignAndBroadcastHandler(t *testing.T) {
 		keyName   string
 		expectErr bool
 		errMsg    string
-		output    string
 	}{
 		{
-			name: "Successfull sign and broadcast",
+			name:    "Successfull sign and broadcast",
+			keyName: "test",
 			cfg: MakeTxCfg{
 				RootCfg: &BaseCfg{
 					BaseOptions: BaseOptions{
@@ -96,6 +96,161 @@ func Test_SignAndBroadcastHandler(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:    "Failed to get key by name",
+			keyName: "nonexistent", // non-existent key name
+
+			cfg: MakeTxCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Remote:                "localhost:26657",
+						Home:                  kbHome,
+						InsecurePasswordStdin: true,
+					},
+				},
+				GasWanted: 100000,
+				GasFee:    "1000ugnot",
+				Memo:      "test memo",
+				Broadcast: true,
+				Simulate:  SimulateSkip,
+				ChainID:   "test-chain",
+			},
+			expectErr: true,
+			errMsg:    "Key nonexistent not found",
+		},
+		{
+			name:    "Failed to query account",
+			keyName: "test",
+			cfg: MakeTxCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Remote:                "localhost:26657",
+						Home:                  kbHome,
+						InsecurePasswordStdin: true,
+					},
+				},
+				GasWanted: 100000,
+				GasFee:    "1000ugnot",
+				Memo:      "test memo",
+				Broadcast: true,
+				Simulate:  SimulateSkip,
+				ChainID:   "test-chain",
+				Client: &mockRPCClient{
+					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+						return nil, errors.New("account not found")
+					},
+				},
+			},
+			expectErr: true,
+			errMsg:    "account not found",
+		},
+		{
+			name:    "Failed to parse account data",
+			keyName: "test",
+			cfg: MakeTxCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Remote:                "localhost:26657",
+						Home:                  kbHome,
+						InsecurePasswordStdin: true,
+					},
+				},
+				GasWanted: 100000,
+				GasFee:    "1000ugnot",
+				Memo:      "test memo",
+				Broadcast: true,
+				Simulate:  SimulateSkip,
+				ChainID:   "test-chain",
+				Client: &mockRPCClient{
+					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+						return &ctypes.ResultABCIQuery{
+							Response: abci.ResponseQuery{
+								ResponseBase: abci.ResponseBase{
+									Data: []byte(""),
+								},
+							},
+						}, nil
+					},
+				},
+			},
+			expectErr: true,
+			errMsg:    "cannot decode empty bytes",
+		},
+		{
+			name:    "Failed to sign transaction",
+			keyName: "test",
+			cfg: MakeTxCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Remote:                "localhost:26657",
+						Home:                  kbHome,
+						InsecurePasswordStdin: true,
+					},
+				},
+				GasWanted: int64(1 << 60), // gas over flow
+				GasFee:    "1000ugnot",
+				Memo:      "test memo",
+				Broadcast: true,
+				Simulate:  SimulateSkip,
+				ChainID:   "test-chain",
+				Client: &mockRPCClient{
+					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+						var acc = std.NewBaseAccountWithAddress(addr)
+
+						jsonData := amino.MustMarshalJSON(&acc)
+
+						return &ctypes.ResultABCIQuery{
+							Response: abci.ResponseQuery{
+								ResponseBase: abci.ResponseBase{
+									Data: jsonData,
+								},
+							},
+						}, nil
+					},
+				},
+			},
+			expectErr: true,
+			errMsg:    "unable to sign transaction, unable to validate transaction, gas overflow error",
+		},
+		{
+			name:    "Failed to broadcast transaction",
+			keyName: "test",
+			cfg: MakeTxCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Remote:                "localhost:26657",
+						Home:                  kbHome,
+						InsecurePasswordStdin: true,
+					},
+				},
+				GasWanted: 1000,
+				GasFee:    "1000ugnot",
+				Memo:      "test memo",
+				Broadcast: true,
+				Simulate:  SimulateSkip,
+				ChainID:   "test-chain",
+				Client: &mockRPCClient{
+					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
+						var acc = std.NewBaseAccountWithAddress(addr)
+
+						jsonData := amino.MustMarshalJSON(&acc)
+
+						return &ctypes.ResultABCIQuery{
+							Response: abci.ResponseQuery{
+								ResponseBase: abci.ResponseBase{
+									Data: jsonData,
+								},
+							},
+						}, nil
+					},
+					broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+						return nil, errors.New("broadcast failed") // failed to broadcast
+					},
+				},
+			},
+			expectErr: true,
+			errMsg:    "broadcast failed",
+		},
 	}
 
 	for _, tc := range testCases {
@@ -117,11 +272,9 @@ func Test_SignAndBroadcastHandler(t *testing.T) {
 
 			if tc.expectErr {
 				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.errMsg)
+				require.Equal(t, tc.errMsg, err.Error())
 			} else {
 				require.NoError(t, err)
-
-				// require.Equal(t, tc.output, res)
 			}
 		})
 	}
@@ -246,7 +399,7 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 			name:      "RPC client not initialized",
 			args:      []string{"test"},
 			expectErr: true,
-			errMsg:    "rpcClient hasn't been initialized",
+			errMsg:    "RPC client has not been initialized",
 			cfg: MakeTxCfg{
 				RootCfg: &BaseCfg{
 					BaseOptions: BaseOptions{
@@ -267,11 +420,11 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 			name:      "SignAndBroadcastHandler error",
 			args:      []string{"test"},
 			expectErr: true,
-			errMsg:    "rpcClient hasn't been initialized",
+			errMsg:    "Key test not found",
 			cfg: MakeTxCfg{
 				RootCfg: &BaseCfg{
 					BaseOptions: BaseOptions{
-						Home:                  "", // keybase dir is not set
+						Home:                  "", // keybase dir is not set => no keys found
 						InsecurePasswordStdin: true,
 					},
 				},

@@ -66,7 +66,7 @@ func Test_execBroadcast(t *testing.T) {
 				Remote:                "",
 			},
 		},
-		cli: cli,
+		client: cli,
 	}
 
 	// Define test cases
@@ -168,7 +168,7 @@ func Test_execBroadcast_CheckTxError(t *testing.T) {
 				InsecurePasswordStdin: true,
 			},
 		},
-		cli: cli,
+		client: cli,
 	}
 
 	// Create a new test IO
@@ -228,7 +228,7 @@ func Test_execBroadcast_DeliverTxError(t *testing.T) {
 				InsecurePasswordStdin: true,
 			},
 		},
-		cli: cli,
+		client: cli,
 	}
 
 	// Create a new test IO
@@ -253,7 +253,7 @@ func Test_BroadcastHandler(t *testing.T) {
 		},
 		DryRun:       false,
 		testSimulate: false,
-		cli: &mockRPCClient{
+		client: &mockRPCClient{
 			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 				return &ctypes.ResultBroadcastTxCommit{
 					CheckTx: abci.ResponseCheckTx{},
@@ -348,7 +348,7 @@ func Test_BroadcastHandler_DryRun(t *testing.T) {
 			Memo:       "",
 		},
 		DryRun: true,
-		cli: &mockRPCClient{
+		client: &mockRPCClient{
 			abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 				return &ctypes.ResultABCIQuery{
 					Response: abci.ResponseQuery{
@@ -387,7 +387,7 @@ func Test_BroadcastHandler_SimulateError(t *testing.T) {
 		},
 		DryRun:       false,
 		testSimulate: true,
-		cli: &mockRPCClient{
+		client: &mockRPCClient{
 			abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
 				return nil, expectedError
 			},
