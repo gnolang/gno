@@ -537,11 +537,7 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 	io := commands.NewTestIO()
 
 	for _, tc := range testCases {
-		tc := tc
-
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			mockOutput := new(bytes.Buffer)
 
 			io.SetIn(strings.NewReader("\n"))
