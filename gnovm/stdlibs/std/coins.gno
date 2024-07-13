@@ -177,6 +177,21 @@ func (cz Coins) Add(b Coins) Coins {
 	return c
 }
 
+// IsEqual returns true if the two sets of Coins have the same value
+func (cz Coins) IsEqual(other Coins) bool {
+	if len(cz) != len(other) {
+		return false
+	}
+
+	for _, coin := range cz {
+		if coin.Amount != other.AmountOf(coin.Denom) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // expandNative expands for usage within natively bound functions.
 func (cz Coins) expandNative() (denoms []string, amounts []int64) {
 	denoms = make([]string, len(cz))
