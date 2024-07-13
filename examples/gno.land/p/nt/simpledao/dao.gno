@@ -169,13 +169,13 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 		return errProposalExpired
 	}
 
-	// Attempt to execute the proposal
-	if err = prop.executor.Execute(); err != nil {
-		return ufmt.Errorf("failed to execute proposal %d, %s", id, err)
-	}
-
 	// Update the proposal status
 	prop.status = dao.Executed
+
+	// Attempt to execute the proposal
+	if err = prop.executor.Execute(); err != nil {
+		return ufmt.Errorf("error during proposal %d execution, %s", id, err)
+	}
 
 	return nil
 }
