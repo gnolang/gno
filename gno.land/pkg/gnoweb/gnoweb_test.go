@@ -49,7 +49,9 @@ func TestRoutes(t *testing.T) {
 		{"/p/demo/flow/LICENSE", ok, "BSD 3-Clause"},
 	}
 
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	rootdir := gnoenv.RootDir()
+	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
+	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
 	defer node.Stop()
 
@@ -96,7 +98,9 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	rootdir := gnoenv.RootDir()
+	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
+	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
 	defer node.Stop()
 

@@ -7,6 +7,12 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 )
 
+// Define empty event for NextEvent empty queue
+var (
+	eventNull = events.Custom("NULL")
+	EvtNull   = eventNull.Type()
+)
+
 // ServerEmitter is an `emitter.Emitter`
 var _ emitter.Emitter = (*ServerEmitter)(nil)
 
@@ -23,6 +29,8 @@ func (m *ServerEmitter) Emit(evt events.Event) {
 }
 
 func (m *ServerEmitter) NextEvent() (evt events.Event) {
+	evt = eventNull
+
 	m.muEvents.Lock()
 	defer m.muEvents.Unlock()
 
