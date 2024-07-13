@@ -21,54 +21,6 @@ import (
 func Test_execBroadcast(t *testing.T) {
 	t.Parallel()
 
-	// Create a temporary directory for test files
-	kbHome, cleanup := testutils.NewTestCaseDir(t)
-	defer cleanup()
-
-	// Create a test transaction JSON file
-	txFile := filepath.Join(kbHome, "test_tx.json")
-	txJSON := `{
-		"type": "StdTx",
-		"value": {
-			"msg": [],
-			"fee": {},
-			"signatures": [],
-			"memo": ""
-		}
-	}`
-	err := os.WriteFile(txFile, []byte(txJSON), 0644)
-	require.NoError(t, err)
-
-	cli := &mockRPCClient{
-		broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
-			return &ctypes.ResultBroadcastTxCommit{
-				CheckTx: abci.ResponseCheckTx{},
-				DeliverTx: abci.ResponseDeliverTx{
-					ResponseBase: abci.ResponseBase{
-						Data:   []byte("test data"),
-						Events: []abci.Event{},
-					},
-					GasWanted: 100,
-					GasUsed:   90,
-				},
-				Hash:   []byte{0xab, 0xcd}, // "q80=" at base64 format
-				Height: 12345,
-			}, nil
-		},
-	}
-
-	// Initialize test configuration
-	cfg := &BroadcastCfg{
-		RootCfg: &BaseCfg{
-			BaseOptions: BaseOptions{
-				Home:                  kbHome,
-				InsecurePasswordStdin: true,
-				Remote:                "",
-			},
-		},
-		client: cli,
-	}
-
 	// Define test cases
 	testCases := []struct {
 		name      string
@@ -91,7 +43,7 @@ func Test_execBroadcast(t *testing.T) {
 		},
 		{
 			name:      "Successful broadcast",
-			args:      []string{txFile},
+			args:      []string{"existed_file.json"},
 			expectErr: false,
 			output:    "test data\nOK!\nGAS WANTED: 100\nGAS USED:   90\nHEIGHT:     12345\nEVENTS:     []\nTX HASH:    q80=\n",
 		},
@@ -104,7 +56,64 @@ func Test_execBroadcast(t *testing.T) {
 	io.SetOut(commands.WriteNopCloser(mockOutput))
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Create a temporary directory for test files
+			kbHome, cleanup := testutils.NewTestCaseDir(t)
+			defer cleanup()
+
+			// Create a test transaction JSON file
+			txFile := filepath.Join(kbHome, "test_tx.json")
+			txJSON := `{
+			"type": "StdTx",
+			"value": {
+				"msg": [],
+				"fee": {},
+				"signatures": [],
+				"memo": ""
+			}
+		}`
+
+			err := os.WriteFile(txFile, []byte(txJSON), 0644)
+			require.NoError(t, err)
+
+			cli := &mockRPCClient{
+				broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+					return &ctypes.ResultBroadcastTxCommit{
+						CheckTx: abci.ResponseCheckTx{},
+						DeliverTx: abci.ResponseDeliverTx{
+							ResponseBase: abci.ResponseBase{
+								Data:   []byte("test data"),
+								Events: []abci.Event{},
+							},
+							GasWanted: 100,
+							GasUsed:   90,
+						},
+						Hash:   []byte{0xab, 0xcd}, // "q80=" at base64 format
+						Height: 12345,
+					}, nil
+				},
+			}
+
+			// Initialize test configuration
+			cfg := &BroadcastCfg{
+				RootCfg: &BaseCfg{
+					BaseOptions: BaseOptions{
+						Home:                  kbHome,
+						InsecurePasswordStdin: true,
+						Remote:                "",
+					},
+				},
+				client: cli,
+			}
+
+			if len(tc.args) > 0 && tc.args[0] == "existed_file.json" {
+				tc.args[0] = txFile
+			}
+
 			err = execBroadcast(cfg, tc.args, io)
 
 			if tc.expectErr {
@@ -139,6 +148,7 @@ func Test_execBroadcast_CheckTxError(t *testing.T) {
 			"memo": ""
 		}
 	}`
+
 	err := os.WriteFile(txFile, []byte(txJSON), 0644)
 	require.NoError(t, err)
 
@@ -199,6 +209,7 @@ func Test_execBroadcast_DeliverTxError(t *testing.T) {
 			"memo": ""
 		}
 	}`
+
 	err := os.WriteFile(txFile, []byte(txJSON), 0644)
 	require.NoError(t, err)
 

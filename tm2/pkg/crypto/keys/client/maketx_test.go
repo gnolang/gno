@@ -21,16 +21,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	addr, _ = crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-)
+var addr, _ = crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 
 func Test_SignAndBroadcastHandler(t *testing.T) {
 	t.Parallel()
 
 	// Create a temporary directory for test files
-	kbHome, cleanup := testutils.NewTestCaseDir(t)
-	defer cleanup()
+	kbHome, kbCleanUp := testutils.NewTestCaseDir(t)
+	defer kbCleanUp()
 
 	// Check the keybase
 	kb, err := keys.NewKeyBaseFromDir(kbHome)
@@ -48,7 +46,7 @@ func Test_SignAndBroadcastHandler(t *testing.T) {
 		errMsg    string
 	}{
 		{
-			name:    "Successfull sign and broadcast",
+			name:    "Successful sign and broadcast",
 			keyName: "test",
 			cfg: MakeTxCfg{
 				RootCfg: &BaseCfg{
@@ -66,9 +64,9 @@ func Test_SignAndBroadcastHandler(t *testing.T) {
 				ChainID:   "test-chain",
 				Client: &mockRPCClient{
 					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-						var acc = std.NewBaseAccountWithAddress(addr)
-
-						jsonData := amino.MustMarshalJSON(&acc)
+						jsonData := amino.MustMarshalJSON(&std.BaseAccount{
+							Address: addr,
+						})
 
 						return &ctypes.ResultABCIQuery{
 							Response: abci.ResponseQuery{
@@ -195,9 +193,9 @@ func Test_SignAndBroadcastHandler(t *testing.T) {
 				ChainID:   "test-chain",
 				Client: &mockRPCClient{
 					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-						var acc = std.NewBaseAccountWithAddress(addr)
-
-						jsonData := amino.MustMarshalJSON(&acc)
+						jsonData := amino.MustMarshalJSON(&std.BaseAccount{
+							Address: addr,
+						})
 
 						return &ctypes.ResultABCIQuery{
 							Response: abci.ResponseQuery{
@@ -231,9 +229,9 @@ func Test_SignAndBroadcastHandler(t *testing.T) {
 				ChainID:   "test-chain",
 				Client: &mockRPCClient{
 					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-						var acc = std.NewBaseAccountWithAddress(addr)
-
-						jsonData := amino.MustMarshalJSON(&acc)
+						jsonData := amino.MustMarshalJSON(&std.BaseAccount{
+							Address: addr,
+						})
 
 						return &ctypes.ResultABCIQuery{
 							Response: abci.ResponseQuery{
@@ -254,7 +252,10 @@ func Test_SignAndBroadcastHandler(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
 			// Initialize a proper transaction object
 			tx := std.Tx{
@@ -278,15 +279,14 @@ func Test_SignAndBroadcastHandler(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func Test_ExecSignAndBroadcast(t *testing.T) {
 	t.Parallel()
 
 	// Create a temporary directory for test files
-	kbHome, cleanup := testutils.NewTestCaseDir(t)
-	defer cleanup()
+	kbHome, kbCleanUp := testutils.NewTestCaseDir(t)
+	defer kbCleanUp()
 
 	// Check the keybase
 	kb, err := keys.NewKeyBaseFromDir(kbHome)
@@ -325,9 +325,9 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 				ChainID:   "test-chain",
 				Client: &mockRPCClient{
 					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-						var acc = std.NewBaseAccountWithAddress(addr)
-
-						jsonData := amino.MustMarshalJSON(&acc)
+						jsonData := amino.MustMarshalJSON(&std.BaseAccount{
+							Address: addr,
+						})
 
 						return &ctypes.ResultABCIQuery{
 							Response: abci.ResponseQuery{
@@ -458,9 +458,9 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 				ChainID:   "test-chain",
 				Client: &mockRPCClient{
 					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-						var acc = std.NewBaseAccountWithAddress(addr)
-
-						jsonData := amino.MustMarshalJSON(&acc)
+						jsonData := amino.MustMarshalJSON(&std.BaseAccount{
+							Address: addr,
+						})
 
 						return &ctypes.ResultABCIQuery{
 							Response: abci.ResponseQuery{
@@ -506,9 +506,9 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 				ChainID:   "test-chain",
 				Client: &mockRPCClient{
 					abciQueryWithOptions: func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
-						var acc = std.NewBaseAccountWithAddress(addr)
-
-						jsonData := amino.MustMarshalJSON(&acc)
+						jsonData := amino.MustMarshalJSON(&std.BaseAccount{
+							Address: addr,
+						})
 
 						return &ctypes.ResultABCIQuery{
 							Response: abci.ResponseQuery{
@@ -537,7 +537,11 @@ func Test_ExecSignAndBroadcast(t *testing.T) {
 	io := commands.NewTestIO()
 
 	for _, tc := range testCases {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			mockOutput := new(bytes.Buffer)
 
 			io.SetIn(strings.NewReader("\n"))
