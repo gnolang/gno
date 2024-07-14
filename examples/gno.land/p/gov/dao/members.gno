@@ -29,6 +29,5 @@ type MemberStore interface {
 // Member holds the relevant member information
 type Member struct {
 	Address     std.Address // bech32 gno address of the member (unique)
-	Name        string      // name associated with the member
 	VotingPower uint64      // the voting power of the member
 }

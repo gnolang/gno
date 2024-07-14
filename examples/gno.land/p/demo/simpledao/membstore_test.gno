@@ -21,7 +21,6 @@ func generateMembers(t *testing.T, count int) []dao.Member {
 	for i := 0; i < count; i++ {
 		members = append(members, dao.Member{
 			Address:     testutils.TestAddress(ufmt.Sprintf("member %d", i)),
-			Name:        "test member",
 			VotingPower: 10,
 		})
 	}
@@ -87,7 +86,6 @@ func TestMembStore_GetMembers(t *testing.T) {
 				}
 
 				uassert.Equal(t, member.VotingPower, fetchedMember.VotingPower)
-				uassert.Equal(t, member.Name, fetchedMember.Name)
 			}
 		}
 	})
@@ -270,11 +268,11 @@ func TestMembStore_UpdateMember(t *testing.T) {
 		members := generateMembers(t, 1)
 		m := NewMembStore(WithInitialMembers(members))
 
-		name := "new name!"
-		members[0].Name = name
+		votingPower := uint64(300)
+		members[0].VotingPower = votingPower
 
 		// Attempt to update a member
 		uassert.NoError(t, m.UpdateMember(members[0].Address, members[0]))
-		uassert.Equal(t, name, m.GetMembers()[0].Name)
+		uassert.Equal(t, votingPower, m.GetMembers()[0].VotingPower)
 	})
 }
