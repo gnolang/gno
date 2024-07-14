@@ -104,7 +104,7 @@ func TestProposal_Data(t *testing.T) {
 		t.Parallel()
 
 		p := &proposal{
-			status: dao.Executed,
+			status: dao.ExecutionSuccessful,
 		}
 
 		uassert.Equal(t, p.status.String(), p.GetStatus().String())

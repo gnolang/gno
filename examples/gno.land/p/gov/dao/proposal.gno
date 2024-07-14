@@ -2,18 +2,19 @@ package dao
 
 import "std"
 
-type Status string
+type ProposalStatus string
 
-// ACTIVE -> ACCEPTED -> EXECUTED
+// ACTIVE -> ACCEPTED -> EXECUTION(SUCCEEDED/FAILED)
 // ACTIVE -> NOT ACCEPTED
 var (
-	Active      Status = "active"       // proposal is still active
-	Accepted    Status = "accepted"     // proposal gathered quorum
-	NotAccepted Status = "not accepted" // proposal failed to gather quorum
-	Executed    Status = "executed"     // proposal is executed
+	Active              ProposalStatus = "active"               // proposal is still active
+	Accepted            ProposalStatus = "accepted"             // proposal gathered quorum
+	NotAccepted         ProposalStatus = "not accepted"         // proposal failed to gather quorum
+	ExecutionSuccessful ProposalStatus = "execution successful" // proposal is executed successfully
+	ExecutionFailed     ProposalStatus = "execution failed"     // proposal is failed during execution
 )
 
-func (s Status) String() string {
+func (s ProposalStatus) String() string {
 	return string(s)
 }
 
@@ -40,7 +41,7 @@ type Proposal interface {
 	GetDescription() string
 
 	// GetStatus returns the status of the proposal
-	GetStatus() Status
+	GetStatus() ProposalStatus
 
 	// GetVotes returns the votes of the proposal
 	GetVotes() []Vote

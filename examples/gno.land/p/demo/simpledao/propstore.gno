@@ -25,7 +25,7 @@ type proposal struct {
 	description string      // description of the proposal
 
 	executor pproposal.Executor // executor for the proposal
-	status   dao.Status         // status of the proposal
+	status   dao.ProposalStatus // status of the proposal
 
 	votes *votes // voting mechanism
 }
@@ -38,7 +38,7 @@ func (p *proposal) GetDescription() string {
 	return p.description
 }
 
-func (p *proposal) GetStatus() dao.Status {
+func (p *proposal) GetStatus() dao.ProposalStatus {
 	return p.status
 }
 

@@ -93,7 +93,8 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 	prop := propRaw.(*proposal)
 
 	// Check the proposal status
-	if prop.GetStatus() == dao.Executed {
+	if prop.GetStatus() == dao.ExecutionSuccessful ||
+		prop.GetStatus() == dao.ExecutionFailed {
 		// Proposal was already executed, nothing to vote on anymore.
 		//
 		// In fact, the proposal should stop accepting
@@ -159,7 +160,8 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 	}
 
 	// Check if the proposal is executed
-	if prop.GetStatus() == dao.Executed {
+	if prop.GetStatus() == dao.ExecutionSuccessful ||
+		prop.GetStatus() == dao.ExecutionFailed {
 		// Proposal is already executed
 		return errProposalExecuted
 	}
@@ -169,13 +171,15 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 		return errProposalExpired
 	}
 
-	// Update the proposal status
-	prop.status = dao.Executed
-
 	// Attempt to execute the proposal
 	if err = prop.executor.Execute(); err != nil {
+		prop.status = dao.ExecutionFailed
+
 		return ufmt.Errorf("error during proposal %d execution, %s", id, err)
 	}
+
+	// Update the proposal status
+	prop.status = dao.ExecutionSuccessful
 
 	return nil
 }
