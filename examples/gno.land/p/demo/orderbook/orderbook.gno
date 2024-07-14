@@ -1,8 +1,6 @@
 package orderbook
 
 import (
-	"fmt"
-
 	"gno.land/p/demo/dequeue"
 	"gno.land/p/demo/ufmt"
 )
