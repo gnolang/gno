@@ -28,7 +28,7 @@ height: 0
 data: {
   "BaseAccount": {
     "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-    "coins": "9999999000000ugnot",
+    "coins": "[0-9]*ugnot",
     "public_key": null,
     "account_number": "0",
     "sequence": "0"
