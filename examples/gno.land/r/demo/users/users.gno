@@ -296,7 +296,7 @@ var reName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{5,16}$`)
 // Render main page
 
 func Render(fullPath string) string {
-	path, qs := splitPathAndQuery(fullPath)
+	path, _ := splitPathAndQuery(fullPath)
 	if path == "" {
 		return renderHome(fullPath)
 	} else if len(path) >= 38 { // 39? 40?
