@@ -511,7 +511,7 @@ func Len(t TestingT, obj interface{}, length int, msgs ...string) bool {
 // Greater asserts that the first value is greater than the second.
 func Greater(t TestingT, e1, e2 interface{}, msgs ...string) bool {
 	t.Helper()
-	if !compare(t, e1, e2, ">") {
+	if compare(t, e1, e2) <= 0 {
 		return fail(t, msgs, "uassert.Greater: %v is not greater than %v", e1, e2)
 	}
 	return true
@@ -520,7 +520,7 @@ func Greater(t TestingT, e1, e2 interface{}, msgs ...string) bool {
 // GreaterOrEqual asserts that the first value is greater than or equal to the second.
 func GreaterOrEqual(t TestingT, e1, e2 interface{}, msgs ...string) bool {
 	t.Helper()
-	if !compare(t, e1, e2, ">=") {
+	if compare(t, e1, e2) < 0 {
 		return fail(t, msgs, "uassert.GreaterOrEqual: %v is not greater than or equal to %v", e1, e2)
 	}
 	return true
@@ -529,7 +529,7 @@ func GreaterOrEqual(t TestingT, e1, e2 interface{}, msgs ...string) bool {
 // Less asserts that the first value is less than the second.
 func Less(t TestingT, e1, e2 interface{}, msgs ...string) bool {
 	t.Helper()
-	if !compare(t, e1, e2, "<") {
+	if compare(t, e1, e2) >= 0 {
 		return fail(t, msgs, "uassert.Less: %v is not less than %v", e1, e2)
 	}
 	return true
@@ -538,7 +538,7 @@ func Less(t TestingT, e1, e2 interface{}, msgs ...string) bool {
 // LessOrEqual asserts that the first value is less than or equal to the second.
 func LessOrEqual(t TestingT, e1, e2 interface{}, msgs ...string) bool {
 	t.Helper()
-	if !compare(t, e1, e2, "<=") {
+	if compare(t, e1, e2) > 0 {
 		return fail(t, msgs, "uassert.LessOrEqual: %v is not less than or equal to %v", e1, e2)
 	}
 	return true

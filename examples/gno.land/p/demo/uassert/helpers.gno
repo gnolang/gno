@@ -50,155 +50,115 @@ func checkDidPanic(f func()) (didPanic bool, message string) {
 	return
 }
 
-func compare(t TestingT, e1, e2 interface{}, op string) bool {
+func compare(t TestingT, e1, e2 interface{}) int {
 	t.Helper()
 	switch v1 := e1.(type) {
 	case int:
 		v2 := e2.(int)
-		switch op {
-		case ">":
-			return v1 > v2
-		case "<":
-			return v1 < v2
-		case ">=":
-			return v1 >= v2
-		case "<=":
-			return v1 <= v2
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
 		}
+		return 0
 	case int8:
 		v2 := e2.(int8)
-		switch op {
-		case ">":
-			return v1 > v2
-		case "<":
-			return v1 < v2
-		case ">=":
-			return v1 >= v2
-		case "<=":
-			return v1 <= v2
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
 		}
+		return 0
 	case int16:
 		v2 := e2.(int16)
-		switch op {
-		case ">":
-			return v1 > v2
-		case "<":
-			return v1 < v2
-		case ">=":
-			return v1 >= v2
-		case "<=":
-			return v1 <= v2
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
 		}
+		return 0
 	case int32:
 		v2 := e2.(int32)
-		switch op {
-		case ">":
-			return v1 > v2
-		case "<":
-			return v1 < v2
-		case ">=":
-			return v1 >= v2
-		case "<=":
-			return v1 <= v2
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
 		}
+		return 0
 	case int64:
 		v2 := e2.(int64)
-		switch op {
-		case ">":
-			return v1 > v2
-		case "<":
-			return v1 < v2
-		case ">=":
-			return v1 >= v2
-		case "<=":
-			return v1 <= v2
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
 		}
+		return 0
 	case uint:
 		v2 := e2.(uint)
-		switch op {
-		case ">":
-			return v1 > v2
-		case "<":
-			return v1 < v2
-		case ">=":
-			return v1 >= v2
-		case "<=":
-			return v1 <= v2
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
 		}
+		return 0
 	case uint8:
 		v2 := e2.(uint8)
-		switch op {
-		case ">":
-			return v1 > v2
-		case "<":
-			return v1 < v2
-		case ">=":
-			return v1 >= v2
-		case "<=":
-			return v1 <= v2
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
 		}
+		return 0
 	case uint16:
 		v2 := e2.(uint16)
-		switch op {
-		case ">":
-			return v1 > v2
-		case "<":
-			return v1 < v2
-		case ">=":
-			return v1 >= v2
-		case "<=":
-			return v1 <= v2
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
 		}
+		return 0
 	case uint32:
 		v2 := e2.(uint32)
-		switch op {
-		case ">":
-			return v1 > v2
-		case "<":
-			return v1 < v2
-		case ">=":
-			return v1 >= v2
-		case "<=":
-			return v1 <= v2
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
 		}
+		return 0
 	case uint64:
 		v2 := e2.(uint64)
-		switch op {
-		case ">":
-			return v1 > v2
-		case "<":
-			return v1 < v2
-		case ">=":
-			return v1 >= v2
-		case "<=":
-			return v1 <= v2
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
 		}
+		return 0
 	case float32:
 		v2 := e2.(float32)
-		switch op {
-		case ">":
-			return v1 > v2
-		case "<":
-			return v1 < v2
-		case ">=":
-			return v1 >= v2
-		case "<=":
-			return v1 <= v2
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
 		}
+		return 0
 	case float64:
 		v2 := e2.(float64)
-		switch op {
-		case ">":
-			return v1 > v2
-		case "<":
-			return v1 < v2
-		case ">=":
-			return v1 >= v2
-		case "<=":
-			return v1 <= v2
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
 		}
+		return 0
+	case string:
+		v2 := e2.(string)
+		if v1 > v2 {
+			return 1
+		} else if v1 < v2 {
+			return -1
+		}
+		return 0
 	default:
-		return fail(t, []string{}, "uassert.compare: unsupported types or operation")
+		fail(t, []string{}, "compare: unsupported type")
+		return 0
 	}
-	return false
 }
