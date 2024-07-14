@@ -7,7 +7,7 @@ import (
 )
 
 func TestOrderBook_AddOrder(t *testing.T) {
-	ob := NewPriorityOrderBook()
+	ob := NewSequentialOrderBook()
 
 	order := Order{
 		ID:       "1",
@@ -26,7 +26,7 @@ func TestOrderBook_AddOrder(t *testing.T) {
 }
 
 func TestOrderBook_RemoveOrder(t *testing.T) {
-	ob := NewPriorityOrderBook()
+	ob := NewSequentialOrderBook()
 
 	order := Order{
 		ID:       "1",
@@ -48,7 +48,7 @@ func TestOrderBook_RemoveOrder(t *testing.T) {
 }
 
 func TestOrderBook_PeekOrder(t *testing.T) {
-	ob := NewPriorityOrderBook()
+	ob := NewSequentialOrderBook()
 
 	order := Order{
 		ID:       "1",
@@ -72,7 +72,7 @@ func TestOrderBook_PeekOrder(t *testing.T) {
 }
 
 func TestOrderBook_GetOrderCount(t *testing.T) {
-	ob := NewPriorityOrderBook()
+	ob := NewSequentialOrderBook()
 
 	order := Order{
 		ID:       "1",
@@ -96,7 +96,7 @@ func TestOrderBook_GetOrderCount(t *testing.T) {
 }
 
 func TestOrderBook_Render(t *testing.T) {
-	ob := NewPriorityOrderBook()
+	ob := NewSequentialOrderBook()
 
 	order1 := Order{
 		ID:       "1",
