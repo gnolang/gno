@@ -26,10 +26,6 @@ type PropStore interface {
 	// GetProposalByID returns the proposal associated with
 	// the given ID, if any
 	GetProposalByID(id uint64) (Proposal, error)
-
-	// GetProposalsByAddress returns the proposals associated
-	// with the given proposer address
-	GetProposalsByAddress(address std.Address) []Proposal
 }
 
 // Proposal is the single proposal abstraction

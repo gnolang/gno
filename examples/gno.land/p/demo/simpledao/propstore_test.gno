@@ -267,38 +267,3 @@ func TestPropStore_GetProposalByID(t *testing.T) {
 		equalProposals(t, proposal, fetchedProposal)
 	})
 }
-
-func TestPropStore_GetProposalByAddress(t *testing.T) {
-	t.Parallel()
-
-	t.Run("no proposals", func(t *testing.T) {
-		t.Parallel()
-
-		p := NewPropStore()
-
-		proposals := p.GetProposalsByAddress(testutils.TestAddress("address"))
-
-		uassert.Equal(t, 0, len(proposals))
-	})
-
-	t.Run("proposal found", func(t *testing.T) {
-		t.Parallel()
-
-		var (
-			p         = NewPropStore()
-			proposals = generateProposals(t, 10)
-		)
-
-		// Add the initial proposals
-		for _, proposal := range proposals {
-			_, err := p.addProposal(proposal)
-			urequire.NoError(t, err)
-		}
-
-		// Fetch the proposal
-		fetchedProposals := p.GetProposalsByAddress(proposals[0].GetAuthor())
-		uassert.Equal(t, 1, len(fetchedProposals))
-
-		equalProposals(t, proposals[0], fetchedProposals[0])
-	})
-}

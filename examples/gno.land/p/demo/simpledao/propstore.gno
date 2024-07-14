@@ -157,23 +157,6 @@ func (p *PropStore) GetProposalByID(id uint64) (dao.Proposal, error) {
 	return prop.(*proposal), nil
 }
 
-func (p *PropStore) GetProposalsByAddress(address std.Address) []dao.Proposal {
-	props := make([]dao.Proposal, 0, p.proposals.Size())
-
-	p.proposals.Iterate("", "", func(_ string, val interface{}) bool {
-		prop := val.(*proposal)
-
-		// Check the author
-		if prop.GetAuthor() == address {
-			props = append(props, prop)
-		}
-
-		return false
-	})
-
-	return props
-}
-
 // getProposalID generates a sequential proposal ID
 // from the given ID number
 func getProposalID(id uint64) string {
