@@ -322,10 +322,7 @@ func renderHome(path string) string {
 	doc := ""
 
 	p := pager.NewPager(&name2User)
-	page, err := p.GetPageByPath(path)
-	if err != nil {
-		panic("pager error: " + err.Error())
-	}
+	page := p.MustGetPageByPath(path)
 
 	for _, item := range page.Items {
 		user := item.Value.(*users.User)

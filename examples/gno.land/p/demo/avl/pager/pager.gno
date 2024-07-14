@@ -44,11 +44,7 @@ func NewPager(tree *avl.Tree) *Pager {
 }
 
 // GetPage retrieves a page of results from the AVL tree.
-func (p *Pager) GetPage(pageNumber int, pageSize int) (*Page, error) {
-	if pageSize < 1 {
-		return nil, ufmt.Errorf("invalid page size")
-	}
-
+func (p *Pager) GetPage(pageNumber int, pageSize int) *Page {
 	totalItems := p.Tree.Size()
 	totalPages := int(math.Ceil(float64(totalItems) / float64(pageSize)))
 
@@ -62,7 +58,7 @@ func (p *Pager) GetPage(pageNumber int, pageSize int) (*Page, error) {
 			HasPrev:    false,
 			HasNext:    pageNumber < totalPages,
 			Pager:      p,
-		}, nil
+		}
 	}
 
 	if pageNumber > totalPages {
@@ -75,7 +71,7 @@ func (p *Pager) GetPage(pageNumber int, pageSize int) (*Page, error) {
 			HasPrev:    totalPages > 0,
 			HasNext:    false,
 			Pager:      p,
-		}, nil
+		}
 	}
 
 	startIndex := (pageNumber - 1) * pageSize
@@ -99,7 +95,15 @@ func (p *Pager) GetPage(pageNumber int, pageSize int) (*Page, error) {
 		HasPrev:    pageNumber > 1,
 		HasNext:    pageNumber < totalPages,
 		Pager:      p,
-	}, nil
+	}
+}
+
+func (p *Pager) MustGetPageByPath(rawURL string) *Page {
+	page, err := p.GetPageByPath(rawURL)
+	if err != nil {
+		panic("invalid path")
+	}
+	return page
 }
 
 // GetPageByPath retrieves a page of results based on the query parameters in the URL path.
@@ -108,7 +112,7 @@ func (p *Pager) GetPageByPath(rawURL string) (*Page, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.GetPage(pageNumber, pageSize)
+	return p.GetPage(pageNumber, pageSize), nil
 }
 
 // RenderSelector generates the Markdown for the page selector.

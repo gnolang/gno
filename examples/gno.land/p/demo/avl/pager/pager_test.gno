@@ -37,8 +37,7 @@ func TestPager_GetPage(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		page, err := pager.GetPage(tt.pageNumber, tt.pageSize)
-		urequire.NoError(t, err, ufmt.Sprintf("GetPage(%d, %d) returned error: %v", tt.pageNumber, tt.pageSize, err))
+		page := pager.GetPage(tt.pageNumber, tt.pageSize)
 
 		uassert.Equal(t, len(tt.expected), len(page.Items))
 
@@ -142,8 +141,7 @@ func TestPager_RenderSelector_WithManyPages(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		page, err := pager.GetPage(tt.pageNumber, tt.pageSize)
-		urequire.NoError(t, err, ufmt.Sprintf("GetPage(%d, %d) returned error: %v", tt.pageNumber, tt.pageSize, err))
+		page := pager.GetPage(tt.pageNumber, tt.pageSize)
 
 		md := page.RenderSelector()
 		uassert.Equal(t, tt.expected, md)
