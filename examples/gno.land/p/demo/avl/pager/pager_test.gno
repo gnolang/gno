@@ -49,6 +49,38 @@ func TestPager_GetPage(t *testing.T) {
 	}
 }
 
+func TestPager_GetPageByPath(t *testing.T) {
+	// Create a new AVL tree and populate it with some key-value pairs.
+	tree := avl.NewTree()
+	for i := 0; i < 50; i++ {
+		tree.Set(ufmt.Sprintf("key%d", i), i)
+	}
+
+	// Create a new pager.
+	pager := NewPager(tree)
+
+	// Define test cases.
+	tests := []struct {
+		rawURL       string
+		expectedPage int
+		expectedSize int
+	}{
+		{"https://example.com?size=10&page=1", 1, 10},
+		{"https://example.com?size=10&page=2", 2, 10},
+		{"https://example.com?page=3", 3, pager.DefaultPageSize},
+		{"https://example.com?size=20", 1, 20},
+		{"https://example.com", 1, pager.DefaultPageSize},
+	}
+
+	for _, tt := range tests {
+		page, err := pager.GetPageByPath(tt.rawURL)
+		urequire.NoError(t, err, ufmt.Sprintf("GetPageByPath(%s) returned error: %v", tt.rawURL, err))
+
+		uassert.Equal(t, tt.expectedPage, page.PageNumber)
+		uassert.Equal(t, tt.expectedSize, page.PageSize)
+	}
+}
+
 func TestPage_RenderSelector(t *testing.T) {
 	// Create a new AVL tree and populate it with some key-value pairs.
 	tree := avl.NewTree()
@@ -76,7 +108,7 @@ func TestPage_RenderSelector(t *testing.T) {
 		page, err := pager.GetPage(tt.pageNumber, tt.pageSize)
 		urequire.NoError(t, err)
 
-		md := page.RenderSelector(pager.PageQueryParam)
+		md := page.RenderSelector()
 		uassert.Equal(t, tt.expected, md)
 	}
 }
@@ -106,14 +138,14 @@ func TestPager_RenderSelector_WithManyPages(t *testing.T) {
 		{7, 10, "[1](?page=1) | … | [5](?page=5) | [6](?page=6) | **7** | [8](?page=8) | [9](?page=9) | [10](?page=10)"},
 		{8, 10, "[1](?page=1) | … | [6](?page=6) | [7](?page=7) | **8** | [9](?page=9) | [10](?page=10)"},
 		{9, 10, "[1](?page=1) | … | [7](?page=7) | [8](?page=8) | **9** | [10](?page=10)"},
-		{10, 10, "[1](?page=1) | … | [8](?page=8) | [9](?page=9) | **10**"},
+		{10, 10, "[1](?page=1) | … | [9](?page=9) | **10**"},
 	}
 
 	for _, tt := range tests {
 		page, err := pager.GetPage(tt.pageNumber, tt.pageSize)
 		urequire.NoError(t, err, ufmt.Sprintf("GetPage(%d, %d) returned error: %v", tt.pageNumber, tt.pageSize, err))
 
-		md := page.RenderSelector(pager.PageQueryParam)
+		md := page.RenderSelector()
 		uassert.Equal(t, tt.expected, md)
 	}
 }
