@@ -184,14 +184,6 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 	return nil
 }
 
-func (s *SimpleDAO) GetMembStore() dao.MemberStore {
-	return s.membStore
-}
-
-func (s *SimpleDAO) GetPropStore() dao.PropStore {
-	return s.propStore
-}
-
 // getDAOCaller returns the DAO caller.
 // XXX: This is not a great way to determine the caller, and it is very unsafe.
 // However, the current MsgRun context does not persist escaping the main() scope.

@@ -1,146 +1,54 @@
 package govdao
 
 import (
-	"std"
 	"strconv"
 
+	"github.com/gnolang/gno/examples/gno.land/p/demo/simpledao"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/gov/dao"
 	pproposal "gno.land/p/gov/proposal"
 )
 
 var (
-	proposals = make([]*proposal, 0)
-	members   = make([]std.Address, 0) // XXX: these should be pointers to avoid data duplication. Not possible due to VM bugs
+	d         dao.DAO       // the current active DAO implementation
+	proposals dao.PropStore // the proposal store
+	members   dao.MembStore // the member store
 )
 
-const (
-	msgMissingExecutor = "missing proposal executor"
-	msgPropExecuted    = "prop already executed"
-	msgPropExpired     = "prop is expired"
-	msgPropInactive    = "prop is not active anymore"
-	msgPropActive      = "prop is still active"
-	msgPropNotAccepted = "prop is not accepted"
+func init() {
+	var (
+		propStore = simpledao.NewPropStore()
+		membStore = simpledao.NewMembStore()
+	)
 
-	msgCallerNotAMember = "caller is not member of govdao"
-	msgProposalNotFound = "proposal not found"
-)
+	// Set the stores
+	proposals = propStore
+	members = membStore
 
-type proposal struct {
-	author   std.Address
-	comment  string
-	executor pproposal.Executor
-	voter    Voter
-	executed bool
-	voters   []std.Address // XXX: these should be pointers to avoid data duplication. Not possible due to VM bugs.
-}
-
-func (p proposal) Status() Status {
-	if p.executor.IsExpired() {
-		return Expired
-	}
-
-	if p.executor.IsDone() {
-		return Succeeded
-	}
-
-	if !p.voter.IsFinished(members) {
-		return Active
-	}
-
-	if p.voter.IsAccepted(members) {
-		return Accepted
-	}
-
-	return NotAccepted
+	// Set the DAO implementation
+	d = simpledao.NewSimpleDAO(membStore, propStore)
 }
 
 // Propose is designed to be called by another contract or with
 // `maketx run`, not by a `maketx call`.
-func Propose(comment string, executor pproposal.Executor) int {
-	// XXX: require payment?
-	if executor == nil {
-		panic(msgMissingExecutor)
-	}
-	caller := std.GetOrigCaller() // XXX: CHANGE THIS WHEN MSGRUN PERSIST CODE ESCAPING THE main() SCOPE! IT IS UNSAFE!
-	AssertIsMember(caller)
-
-	prop := &proposal{
-		comment:  comment,
-		executor: executor,
-		author:   caller,
-		voter:    NewPercentageVoter(66), // at least 2/3 must say yes
-	}
-
-	proposals = append(proposals, prop)
-
-	return len(proposals) - 1
+func Propose(comment string, executor pproposal.Executor) (uint64, error) {
+	return d.Propose(comment, executor)
 }
 
-func VoteOnProposal(idx int, option string) {
-	assertProposalExists(idx)
-	caller := std.GetOrigCaller() // XXX: CHANGE THIS WHEN MSGRUN PERSIST CODE ESCAPING THE main() SCOPE! IT IS UNSAFE!
-	AssertIsMember(caller)
-
-	prop := getProposal(idx)
-
-	if prop.executed {
-		panic(msgPropExecuted)
-	}
-
-	if prop.executor.IsExpired() {
-		panic(msgPropExpired)
-	}
-
-	if prop.voter.IsFinished(members) {
-		panic(msgPropInactive)
-	}
-
-	prop.voter.Vote(members, caller, option)
+func VoteOnProposal(id uint64, option VoteOption) error {
+	return d.VoteOnProposal(id, option)
 }
 
-func ExecuteProposal(idx int) {
-	assertProposalExists(idx)
-	prop := getProposal(idx)
-
-	if prop.executed {
-		panic(msgPropExecuted)
-	}
-
-	if prop.executor.IsExpired() {
-		panic(msgPropExpired)
-	}
-
-	if !prop.voter.IsFinished(members) {
-		panic(msgPropActive)
-	}
-
-	if !prop.voter.IsAccepted(members) {
-		panic(msgPropNotAccepted)
-	}
-
-	prop.executor.Execute()
-	prop.voters = members
-	prop.executed = true
+func ExecuteProposal(id uint64) error {
+	return d.ExecuteProposal(id)
 }
 
-func IsMember(addr std.Address) bool {
-	if len(members) == 0 { // special case for initial execution
-		return true
-	}
-
-	for _, v := range members {
-		if v == addr {
-			return true
-		}
-	}
-
-	return false
+func GetPropStore() dao.PropStore {
+	return proposals
 }
 
-func AssertIsMember(addr std.Address) {
-	if !IsMember(addr) {
-		panic(msgCallerNotAMember)
-	}
+func GetMembStore() dao.MembStore {
+	return members
 }
 
 func Render(path string) string {
@@ -186,22 +94,4 @@ func Render(path string) string {
 	output += "\n\n"
 
 	return output
-}
-
-func getProposal(idx int) *proposal {
-	if idx > len(proposals)-1 {
-		panic(msgProposalNotFound)
-	}
-
-	return proposals[idx]
-}
-
-func proposalExists(idx int) bool {
-	return idx >= 0 && idx <= len(proposals)
-}
-
-func assertProposalExists(idx int) {
-	if !proposalExists(idx) {
-		panic("invalid proposal id")
-	}
 }

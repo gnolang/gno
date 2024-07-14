@@ -10,17 +10,17 @@ package main
 import (
 	"std"
 
+	"github.com/gnolang/gno/examples/gno.land/p/gov/dao"
 	pVals "gno.land/p/sys/validators"
 	govdao "gno.land/r/gov/dao"
 	"gno.land/r/sys/validators"
 )
 
-const daoPkgPath = "gno.land/r/gov/dao"
-
 func init() {
-	membersFn := func() []std.Address {
-		return []std.Address{
-			std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
+	membersFn := func() []dao.Member {
+		return []dao.Member{
+			Address:     std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
+			VotingPower: 10,
 		}
 	}
 

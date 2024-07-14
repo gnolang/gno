@@ -13,10 +13,4 @@ type DAO interface {
 
 	// ExecuteProposal executes the proposal with the given ID
 	ExecuteProposal(id uint64) error
-
-	// GetMembStore returns the member store associated with the DAO
-	GetMembStore() MemberStore
-
-	// GetPropStore returns the proposal store associated with the DAO
-	GetPropStore() PropStore
 }
