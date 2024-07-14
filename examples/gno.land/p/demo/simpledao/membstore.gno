@@ -71,28 +71,6 @@ func (m *MembStore) AddMember(member dao.Member) error {
 	return nil
 }
 
-func (m *MembStore) RemoveMember(address std.Address) error {
-	if !isCallerGOVDAO() {
-		return errNotGovDAO
-	}
-
-	// Check if the member exists
-	memberRaw, exists := m.members.Get(address.String())
-	if !exists {
-		return errMissingMember
-	}
-
-	member := memberRaw.(dao.Member)
-
-	// Remove the member
-	m.members.Remove(address.String())
-
-	m.totalVotingPower -= member.VotingPower
-	m.majorityPower = (2 * m.totalVotingPower) / 3
-
-	return nil
-}
-
 func (m *MembStore) UpdateMember(address std.Address, member dao.Member) error {
 	if !isCallerGOVDAO() {
 		return errNotGovDAO
@@ -102,6 +80,13 @@ func (m *MembStore) UpdateMember(address std.Address, member dao.Member) error {
 	memberRaw, exists := m.members.Get(address.String())
 	if !exists {
 		return errMissingMember
+	}
+
+	// Check if this is a removal request
+	if member.VotingPower == 0 {
+		m.members.Remove(address.String())
+
+		return nil
 	}
 
 	// Check that the member wouldn't be

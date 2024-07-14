@@ -22,10 +22,9 @@ type MemberStore interface {
 	// AddMember adds a member to the store
 	AddMember(member Member) error
 
-	// RemoveMember removes a member from the store
-	RemoveMember(address std.Address) error
-
-	// UpdateMember updates the member in the store
+	// UpdateMember updates the member in the store.
+	// If updating a member's voting power to 0,
+	// the member will be removed
 	UpdateMember(address std.Address, member Member) error
 }
 

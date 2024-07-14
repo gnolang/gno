@@ -188,54 +188,6 @@ func TestMembStore_Size(t *testing.T) {
 	})
 }
 
-func TestMembStore_RemoveMember(t *testing.T) {
-	t.Parallel()
-
-	t.Run("caller not govdao", func(t *testing.T) {
-		t.Parallel()
-
-		// Create an empty store
-		m := NewMembStore()
-
-		// Attempt to add a member
-		member := generateMembers(t, 1)[0]
-		uassert.ErrorIs(t, m.RemoveMember(member.Address), errNotGovDAO)
-	})
-
-	t.Run("member does not exist", func(t *testing.T) {
-		t.Parallel()
-
-		// Execute as the /r/gov/dao caller
-		r := std.NewCodeRealm(daoPkgPath)
-		std.TestSetRealm(r)
-
-		// Create an empty store
-		m := NewMembStore()
-
-		// Attempt to add a member
-		member := generateMembers(t, 1)[0]
-		uassert.ErrorIs(t, m.RemoveMember(member.Address), errMissingMember)
-	})
-
-	t.Run("member removed", func(t *testing.T) {
-		t.Parallel()
-
-		// Execute as the /r/gov/dao caller
-		r := std.NewCodeRealm(daoPkgPath)
-		std.TestSetRealm(r)
-
-		// Create a non-empty store
-		members := generateMembers(t, 1)
-		m := NewMembStore(WithInitialMembers(members))
-
-		// Attempt to remove a member
-		urequire.NoError(t, m.RemoveMember(members[0].Address))
-
-		// Make sure the member is removed
-		uassert.False(t, m.IsMember(members[0].Address))
-	})
-}
-
 func TestMembStore_UpdateMember(t *testing.T) {
 	t.Parallel()
 
@@ -297,5 +249,26 @@ func TestMembStore_UpdateMember(t *testing.T) {
 		// Attempt to update a member
 		uassert.NoError(t, m.UpdateMember(members[0].Address, members[0]))
 		uassert.Equal(t, votingPower, m.GetMembers()[0].VotingPower)
+	})
+
+	t.Run("member removed", func(t *testing.T) {
+		t.Parallel()
+
+		// Execute as the /r/gov/dao caller
+		r := std.NewCodeRealm(daoPkgPath)
+		std.TestSetRealm(r)
+
+		// Create a non-empty store
+		members := generateMembers(t, 1)
+		m := NewMembStore(WithInitialMembers(members))
+
+		votingPower := uint64(0)
+		members[0].VotingPower = votingPower
+
+		// Attempt to update a member
+		uassert.NoError(t, m.UpdateMember(members[0].Address, members[0]))
+
+		// Make sure the member was removed
+		uassert.False(t, m.IsMember(members[0].Address))
 	})
 }
