@@ -1,4 +1,4 @@
-package pagination
+package pager
 
 import (
 	"testing"
@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-func TestPaginator_GetPage(t *testing.T) {
+func TestPager_GetPage(t *testing.T) {
 	// Create a new AVL tree and populate it with some key-value pairs.
 	tree := avl.NewTree()
 	tree.Set("a", 1)
@@ -18,8 +18,8 @@ func TestPaginator_GetPage(t *testing.T) {
 	tree.Set("d", 4)
 	tree.Set("e", 5)
 
-	// Create a new paginator.
-	paginator := Paginator{Tree: tree}
+	// Create a new pager.
+	pager := Pager{Tree: tree}
 
 	// Define test cases.
 	tests := []struct {
@@ -37,19 +37,19 @@ func TestPaginator_GetPage(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		page, err := paginator.GetPage(tt.pageNumber, tt.pageSize)
+		page, err := pager.GetPage(tt.pageNumber, tt.pageSize)
 		urequire.NoError(t, err, ufmt.Sprintf("GetPage(%d, %d) returned error: %v", tt.pageNumber, tt.pageSize, err))
 
 		uassert.Equal(t, len(tt.expected), len(page.Items), ufmt.Sprintf("GetPage(%d, %d) returned %d items, expected %d", tt.pageNumber, tt.pageSize, len(page.Items), len(tt.expected)))
 
 		for i, item := range page.Items {
-			uassert.Equal(t, tt.expected[i].Key, item.Key, ufmt.Sprintf("GetPage(%d, %d) returned item %d as %v, expected %v", tt.pageNumber, tt.pageSize, i, item, tt.expected[i]))
-			uassert.Equal(t, tt.expected[i].Value, item.Value, ufmt.Sprintf("GetPage(%d, %d) returned item %d as %v, expected %v", tt.pageNumber, tt.pageSize, i, item, tt.expected[i]))
+			uassert.Equal(t, tt.expected[i].Key, item.Key, ufmt.Sprintf("GetPage(%d, %d) returned item %d as %v, expected %v", tt.pageNumber, tt.pageSize, i, item.Key, tt.expected[i].Key))
+			uassert.Equal(t, tt.expected[i].Value, item.Value, ufmt.Sprintf("GetPage(%d, %d) returned item %d as %v, expected %v", tt.pageNumber, tt.pageSize, i, item.Value, tt.expected[i].Value))
 		}
 	}
 }
 
-func TestPaginator_RenderPageSelector(t *testing.T) {
+func TestPage_RenderSelector(t *testing.T) {
 	// Create a new AVL tree and populate it with some key-value pairs.
 	tree := avl.NewTree()
 	tree.Set("a", 1)
@@ -58,8 +58,8 @@ func TestPaginator_RenderPageSelector(t *testing.T) {
 	tree.Set("d", 4)
 	tree.Set("e", 5)
 
-	// Create a new paginator.
-	paginator := Paginator{Tree: tree}
+	// Create a new pager.
+	pager := Pager{Tree: tree}
 
 	// Define test cases.
 	tests := []struct {
@@ -73,23 +73,23 @@ func TestPaginator_RenderPageSelector(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		page, err := paginator.GetPage(tt.pageNumber, tt.pageSize)
+		page, err := pager.GetPage(tt.pageNumber, tt.pageSize)
 		urequire.NoError(t, err, ufmt.Sprintf("GetPage(%d, %d) returned error: %v", tt.pageNumber, tt.pageSize, err))
 
-		md := paginator.RenderPageSelector(page)
-		uassert.Equal(t, tt.expected, md, ufmt.Sprintf("RenderPageSelector(%d, %d) returned %s, expected %s", tt.pageNumber, tt.pageSize, md, tt.expected))
+		md := page.RenderSelector()
+		uassert.Equal(t, tt.expected, md, ufmt.Sprintf("RenderSelector(%d, %d) returned %s, expected %s", tt.pageNumber, tt.pageSize, md, tt.expected))
 	}
 }
 
-func TestPaginator_RenderPageSelector_WithManyPages(t *testing.T) {
+func TestPage_RenderSelector_WithManyPages(t *testing.T) {
 	// Create a new AVL tree and populate it with many key-value pairs.
 	tree := avl.NewTree()
 	for i := 0; i < 100; i++ {
 		tree.Set(ufmt.Sprintf("key%d", i), i)
 	}
 
-	// Create a new paginator.
-	paginator := Paginator{Tree: tree}
+	// Create a new pager.
+	pager := Pager{Tree: tree}
 
 	// Define test cases for a large number of pages.
 	tests := []struct {
@@ -103,10 +103,10 @@ func TestPaginator_RenderPageSelector_WithManyPages(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		page, err := paginator.GetPage(tt.pageNumber, tt.pageSize)
+		page, err := pager.GetPage(tt.pageNumber, tt.pageSize)
 		urequire.NoError(t, err, ufmt.Sprintf("GetPage(%d, %d) returned error: %v", tt.pageNumber, tt.pageSize, err))
 
-		md := paginator.RenderPageSelector(page)
-		uassert.Equal(t, tt.expected, md, ufmt.Sprintf("RenderPageSelector(%d, %d) returned %s, expected %s", tt.pageNumber, tt.pageSize, md, tt.expected))
+		md := page.RenderSelector()
+		uassert.Equal(t, tt.expected, md, ufmt.Sprintf("RenderSelector(%d, %d) returned %s, expected %s", tt.pageNumber, tt.pageSize, md, tt.expected))
 	}
 }

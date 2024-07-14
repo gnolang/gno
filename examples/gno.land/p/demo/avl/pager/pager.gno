@@ -1,4 +1,4 @@
-package pagination
+package pager
 
 import (
 	"math"
@@ -7,8 +7,8 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-// Paginator is a struct that holds the AVL tree and pagination parameters.
-type Paginator struct {
+// Pager is a struct that holds the AVL tree and pagination parameters.
+type Pager struct {
 	Tree *avl.Tree
 }
 
@@ -30,13 +30,25 @@ type Item struct {
 }
 
 // GetPage retrieves a page of results from the AVL tree.
-func (p *Paginator) GetPage(pageNumber int, pageSize int) (*Page, error) {
-	if pageNumber < 1 || pageSize < 1 {
-		return nil, ufmt.Errorf("invalid page number or page size")
+func (p *Pager) GetPage(pageNumber int, pageSize int) (*Page, error) {
+	if pageSize < 1 {
+		return nil, ufmt.Errorf("invalid page size")
 	}
 
 	totalItems := p.Tree.Size()
 	totalPages := int(math.Ceil(float64(totalItems) / float64(pageSize)))
+
+	if pageNumber < 1 {
+		return &Page{
+			Items:      []Item{},
+			PageNumber: 0,
+			PageSize:   pageSize,
+			TotalItems: totalItems,
+			TotalPages: totalPages,
+			HasPrev:    false,
+			HasNext:    pageNumber < totalPages,
+		}, nil
+	}
 
 	if pageNumber > totalPages {
 		return &Page{
@@ -45,8 +57,8 @@ func (p *Paginator) GetPage(pageNumber int, pageSize int) (*Page, error) {
 			PageSize:   pageSize,
 			TotalItems: totalItems,
 			TotalPages: totalPages,
-			HasPrev:    pageNumber > 1,
-			HasNext:    pageNumber < totalPages,
+			HasPrev:    totalPages > 0,
+			HasNext:    false,
 		}, nil
 	}
 
@@ -57,7 +69,7 @@ func (p *Paginator) GetPage(pageNumber int, pageSize int) (*Page, error) {
 	}
 
 	items := []Item{}
-	p.Tree.IterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
+	p.Tree.ReverseIterateByOffset(startIndex, endIndex-startIndex, func(key string, value interface{}) bool {
 		items = append(items, Item{Key: key, Value: value})
 		return false
 	})
@@ -73,46 +85,46 @@ func (p *Paginator) GetPage(pageNumber int, pageSize int) (*Page, error) {
 	}, nil
 }
 
-// RenderPageSelector generates the Markdown for the page selector.
-func (p *Paginator) RenderPageSelector(page *Page) string {
-	if page.TotalPages <= 1 {
+// RenderSelector generates the Markdown for the page selector.
+func (p *Page) RenderSelector() string {
+	if p.TotalPages <= 1 {
 		return ""
 	}
 
 	md := ""
 
 	// First and Previous links
-	if page.HasPrev {
+	if p.HasPrev {
 		md += ufmt.Sprintf("[First](?page=1) | ")
-		md += ufmt.Sprintf("[Previous](?page=%d) | ", page.PageNumber-1)
+		md += ufmt.Sprintf("[Previous](?page=%d) | ", p.PageNumber-1)
 	} else {
 		md += "First | Previous | "
 	}
 
 	// Page number links
-	startPage := max(1, page.PageNumber-2)
-	endPage := min(page.TotalPages, page.PageNumber+2)
+	startPage := max(1, p.PageNumber-2)
+	endPage := min(p.TotalPages, p.PageNumber+2)
 
 	if startPage > 1 {
 		md += "… | "
 	}
 
 	for i := startPage; i <= endPage; i++ {
-		if i == page.PageNumber {
+		if i == p.PageNumber {
 			md += ufmt.Sprintf("**%d** | ", i)
 		} else {
 			md += ufmt.Sprintf("[%d](?page=%d) | ", i, i)
 		}
 	}
 
-	if endPage < page.TotalPages {
+	if endPage < p.TotalPages {
 		md += "… | "
 	}
 
 	// Next and Last links
-	if page.HasNext {
-		md += ufmt.Sprintf("[Next](?page=%d) | ", page.PageNumber+1)
-		md += ufmt.Sprintf("[Last](?page=%d)", page.TotalPages)
+	if p.HasNext {
+		md += ufmt.Sprintf("[Next](?page=%d) | ", p.PageNumber+1)
+		md += ufmt.Sprintf("[Last](?page=%d)", p.TotalPages)
 	} else {
 		md += "Next | Last"
 	}
