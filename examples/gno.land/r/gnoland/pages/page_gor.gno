@@ -3,14 +3,14 @@ package gnopages
 func init() {
 	path := "gor"
 	title := "Game of Realms - A Contest For The Best Contributors"
-	// XXX: description := "Game of Realms is the first high-stakes competition held in two phases to find the best contributors to the Gno.land platform with a 133,700 ATOM prize pool."
+	// XXX: description := "Game of Realms is the first high-stakes competition held in two phases to find the best contributors to the gno.land platform with a 133,700 ATOM prize pool."
 	body := `
 
 <div class="jumbotron">
 
 ### Game of Realms
 
-The first high-stakes contest will see participants compete for tiered membership to co-own the Gno.land blockchain. A series of complex technical and non-technical tasks will challenge contributors to create innovative patterns that push the chain to new limits. Start building the foundation for tomorrow through key smart contracts and other contributions that change our understanding of the world.
+The first high-stakes contest will see participants compete for tiered membership to co-own the gno.land blockchain. A series of complex technical and non-technical tasks will challenge contributors to create innovative patterns that push the chain to new limits. Start building the foundation for tomorrow through key smart contracts and other contributions that change our understanding of the world.
 
 </div><!-- end jumbotron-->
 
@@ -18,7 +18,7 @@ The competition is currently in phase one – for advanced developers only.
 
 Once the necessary tools to start phase two are ready, we’ll open up the competition to newer devs and non-technical contributors.
 
-If you want to stack ATOM rewards and play a key role in the success of Gno.land and web3, read more about Game of Realms or open a [PR](https://github.com/gnolang/gno/) today.
+If you want to stack ATOM rewards and play a key role in the success of gno.land and web3, read more about Game of Realms or open a [PR](https://github.com/gnolang/gno/) today.
 
 <div>
 
@@ -49,7 +49,7 @@ If you want to stack ATOM rewards and play a key role in the success of Gno.land
 
 ## Evaluation DAO
 
-This complex challenge seeks your skills in DAO development and implementation and is one of the most important challenges of phase one. The Evaluation DAO will ensure that contributions in Game of Realms and the Gno.land platform are fairly rewarded.
+This complex challenge seeks your skills in DAO development and implementation and is one of the most important challenges of phase one. The Evaluation DAO will ensure that contributions in Game of Realms and the gno.land platform are fairly rewarded.
 
 <div class="accordion gor-accordion">
 
@@ -101,7 +101,7 @@ See [GitHub issue 519](https://github.com/gnolang/gno/issues/519) for the most u
 
 ## Tutorials
 
-To progress to phase two of the competition, we need high-quality tutorials, guides, and documentation from phase one participants. Help to create materials that will onboard more contributors to Gno.land.
+To progress to phase two of the competition, we need high-quality tutorials, guides, and documentation from phase one participants. Help to create materials that will onboard more contributors to gno.land.
 
 <div class="accordion gor-accordion">
 
@@ -122,7 +122,7 @@ How to create, present, and house the tutorials has been established with produc
 
 <div id="acc-10" role="region" aria-labelledby="accpanel-10" class="accordion-panel is-muted is-hidden">
 
-We followed a collaborative approach to defining the scope of the work and creating a series of tutorials and videos, Gno by Example, to explain core concepts and show newcomers how to write in the Gno programming language. Gno docs and tutorials will be community-run so that anyone can contribute. Onbloc’s [developer portal](https://docs.onbloc.xyz/) is an excellent onramp to Gno.land currently. We will soon be releasing a documentation instance to house all tutorials.
+We followed a collaborative approach to defining the scope of the work and creating a series of tutorials and videos, Gno by Example, to explain core concepts and show newcomers how to write in the Gno programming language. Gno docs and tutorials will be community-run so that anyone can contribute. Onbloc’s [developer portal](https://docs.onbloc.xyz/) is an excellent onramp to gno.land currently. We will soon be releasing a documentation instance to house all tutorials.
 
 </div>
 

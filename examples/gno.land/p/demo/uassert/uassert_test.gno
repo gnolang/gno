@@ -157,6 +157,51 @@ func TestEqual(t *testing.T) {
 	}
 }
 
+func TestNotEqual(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	cases := []struct {
+		expected interface{}
+		actual   interface{}
+		result   bool
+		remark   string
+	}{
+		// expected to be not equal
+		{"Hello World", "Hello", true, ""},
+		{123, 124, true, ""},
+		{123.5, 123.6, true, ""},
+		{nil, 123, true, ""},
+		{int32(123), int32(124), true, ""},
+		{uint64(123), uint64(124), true, ""},
+		{std.Address("g12345"), std.Address("g67890"), true, ""},
+		// XXX: continue
+
+		// not expected to be not equal
+		{"Hello World", "Hello World", false, ""},
+		{123, 123, false, ""},
+		{123.5, 123.5, false, ""},
+		{nil, nil, false, ""},
+		{int32(123), int32(123), false, ""},
+		{uint64(123), uint64(123), false, ""},
+		{std.Address("g12345"), std.Address("g12345"), false, ""},
+		// XXX: continue
+
+		// expected to raise errors
+		// XXX: todo
+	}
+
+	for _, c := range cases {
+		name := fmt.Sprintf("NotEqual(%v, %v)", c.expected, c.actual)
+		t.Run(name, func(t *testing.T) {
+			res := NotEqual(mockT, c.expected, c.actual)
+
+			if res != c.result {
+				t.Errorf("%s should return %v: %s - %s", name, c.result, c.remark, mockT.actualString())
+			}
+		})
+	}
+}
+
 type myStruct struct {
 	S string
 	I int
@@ -197,45 +242,6 @@ func TestEmpty(t *testing.T) {
 
 			if res != c.expectedEmpty {
 				t.Errorf("%s should return %v: %s", name, c.expectedEmpty, mockT.actualString())
-			}
-		})
-	}
-}
-
-func TestNotEqual(t *testing.T) {
-	mockT := new(mockTestingT)
-
-	cases := []struct {
-		expected interface{}
-		actual   interface{}
-		result   bool
-		remark   string
-	}{
-		// expected to be not equal
-		{"Hello World", 42, true, ""},
-		{41, 42, true, ""},
-		{10, uint(10), true, ""},
-		{"Hello", "World", true, ""},
-		{123, 456, true, ""},
-		{true, false, true, ""},
-		{false, true, true, ""},
-		// not expected to be not equal
-		{"Hello World", "Hello World", false, ""},
-		{123, 123, false, ""},
-		{123.5, 123.5, false, ""},
-		{nil, nil, false, ""},
-		{int32(123), int32(123), false, ""},
-		{uint64(123), uint64(123), false, ""},
-		{std.Address("g12345"), std.Address("g12345"), false, ""},
-	}
-
-	for _, c := range cases {
-		name := fmt.Sprintf("NotEqual(%v, %v)", c.expected, c.actual)
-		t.Run(name, func(t *testing.T) {
-			res := NotEqual(mockT, c.expected, c.actual)
-
-			if res != c.result {
-				t.Errorf("%s should return %v: %s - %s", name, c.result, c.remark, mockT.actualString())
 			}
 		})
 	}
@@ -405,16 +411,6 @@ func TestNotSubset(t *testing.T) {
 	mockT.equals(t, "error: uassert.NotSubset: subset is fully present in set")
 }
 
-func TestNotEmpty(t *testing.T) {
-	mockT := new(mockTestingT)
-
-	True(t, NotEmpty(mockT, "not empty"))
-	mockT.empty(t)
-
-	False(t, NotEmpty(mockT, ""))
-	mockT.equals(t, "error: uassert.NotEmpty: string is empty")
-}
-
 func TestIsInstanceOf(t *testing.T) {
 	mockT := new(mockTestingT)
 
@@ -465,4 +461,44 @@ func TestPanicsWithValue(t *testing.T) {
 
 	False(t, PanicsWithValue(mockT, "expected panic", func() { panic("test panic") }))
 	mockT.equals(t, "error: uassert.PanicsWithValue: panic value test panic does not equal expected expected panic")
+}
+
+func TestNotEmpty(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	cases := []struct {
+		obj              interface{}
+		expectedNotEmpty bool
+	}{
+		// expected to be empty
+		{"", false},
+		{0, false},
+		{int(0), false},
+		{int64(0), false},
+		{uint(0), false},
+		{std.Address(""), false},
+
+		// not expected to be empty
+		{"Hello World", true},
+		{1, true},
+		{int32(1), true},
+		{uint64(1), true},
+		{std.Address("g12345"), true},
+
+		// unsupported
+		{nil, false},
+		{myStruct{}, false},
+		{&myStruct{}, false},
+	}
+
+	for _, c := range cases {
+		name := fmt.Sprintf("NotEmpty(%v)", c.obj)
+		t.Run(name, func(t *testing.T) {
+			res := NotEmpty(mockT, c.obj)
+
+			if res != c.expectedNotEmpty {
+				t.Errorf("%s should return %v: %s", name, c.expectedNotEmpty, mockT.actualString())
+			}
+		})
+	}
 }
