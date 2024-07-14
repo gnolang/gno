@@ -1,4 +1,4 @@
-module gno.land/p/nt/simpledao
+module gno.land/p/demo/simpledao
 
 require (
 	gno.land/p/demo/avl v0.0.0-latest
