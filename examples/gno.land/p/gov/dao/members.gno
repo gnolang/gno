@@ -19,13 +19,13 @@ type MemberStore interface {
 	// GetMember returns the requested member
 	GetMember(address std.Address) (Member, error)
 
-	// AddMember attempts to add a member to the store
+	// AddMember adds a member to the store
 	AddMember(member Member) error
 
-	// RemoveMember attempts to remove a member from the store
+	// RemoveMember removes a member from the store
 	RemoveMember(address std.Address) error
 
-	// UpdateMember attempts to update the member in the store
+	// UpdateMember updates the member in the store
 	UpdateMember(address std.Address, member Member) error
 }
 
