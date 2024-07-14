@@ -40,11 +40,11 @@ func TestPager_GetPage(t *testing.T) {
 		page, err := pager.GetPage(tt.pageNumber, tt.pageSize)
 		urequire.NoError(t, err, ufmt.Sprintf("GetPage(%d, %d) returned error: %v", tt.pageNumber, tt.pageSize, err))
 
-		uassert.Equal(t, len(tt.expected), len(page.Items), ufmt.Sprintf("GetPage(%d, %d) returned %d items, expected %d", tt.pageNumber, tt.pageSize, len(page.Items), len(tt.expected)))
+		uassert.Equal(t, len(tt.expected), len(page.Items))
 
 		for i, item := range page.Items {
-			uassert.Equal(t, tt.expected[i].Key, item.Key, ufmt.Sprintf("GetPage(%d, %d) returned item %d as %v, expected %v", tt.pageNumber, tt.pageSize, i, item, tt.expected[i]))
-			uassert.Equal(t, tt.expected[i].Value, item.Value, ufmt.Sprintf("GetPage(%d, %d) returned item %d as %v, expected %v", tt.pageNumber, tt.pageSize, i, item, tt.expected[i]))
+			uassert.Equal(t, tt.expected[i].Key, item.Key)
+			uassert.Equal(t, tt.expected[i].Value, item.Value)
 		}
 	}
 }
@@ -67,17 +67,17 @@ func TestPage_RenderSelector(t *testing.T) {
 		pageSize   int
 		expected   string
 	}{
-		{1, 2, "**1** | [2](?page=2) | [3](?page=3) | … | [Next](?page=2) | [Last](?page=3)"},
-		{2, 2, "[1](?page=1) | **2** | [3](?page=3) | … | [Next](?page=3) | [Last](?page=3)"},
-		{3, 2, "[1](?page=1) | … | [2](?page=2) | **3**"},
+		{1, 2, "**1** | [2](?page=2) | [3](?page=3)"},
+		{2, 2, "[1](?page=1) | **2** | [3](?page=3)"},
+		{3, 2, "[1](?page=1) | [2](?page=2) | **3**"},
 	}
 
 	for _, tt := range tests {
 		page, err := pager.GetPage(tt.pageNumber, tt.pageSize)
-		urequire.NoError(t, err, ufmt.Sprintf("GetPage(%d, %d) returned error: %v", tt.pageNumber, tt.pageSize, err))
+		urequire.NoError(t, err)
 
 		md := page.RenderSelector(pager.PageQueryParam)
-		uassert.Equal(t, tt.expected, md, ufmt.Sprintf("RenderSelector(%d, %d) returned %s, expected %s", tt.pageNumber, tt.pageSize, md, tt.expected))
+		uassert.Equal(t, tt.expected, md)
 	}
 }
 
@@ -97,9 +97,16 @@ func TestPager_RenderSelector_WithManyPages(t *testing.T) {
 		pageSize   int
 		expected   string
 	}{
-		{1, 10, "**1** | [2](?page=2) | [3](?page=3) | … | [Next](?page=2) | [Last](?page=10)"},
-		{5, 10, "[1](?page=1) | … | [4](?page=4) | **5** | [6](?page=6) | [7](?page=7) | … | [Next](?page=6) | [Last](?page=10)"},
-		{10, 10, "[1](?page=1) | … | [9](?page=9) | **10**"},
+		{1, 10, "**1** | [2](?page=2) | [3](?page=3) | … | [10](?page=10)"},
+		{2, 10, "[1](?page=1) | **2** | [3](?page=3) | [4](?page=4) | … | [10](?page=10)"},
+		{3, 10, "[1](?page=1) | [2](?page=2) | **3** | [4](?page=4) | [5](?page=5) | … | [10](?page=10)"},
+		{4, 10, "[1](?page=1) | [2](?page=2) | [3](?page=3) | **4** | [5](?page=5) | [6](?page=6) | … | [10](?page=10)"},
+		{5, 10, "[1](?page=1) | [2](?page=2) | [3](?page=3) | [4](?page=4) | **5** | [6](?page=6) | [7](?page=7) | … | [10](?page=10)"},
+		{6, 10, "[1](?page=1) | …  | [4](?page=4) | [5](?page=5) | **6** | [7](?page=7) | [8](?page=8) | [9](?page=9) | [10](?page=10)"},
+		{7, 10, "[1](?page=1) | …  | [5](?page=5) | [6](?page=6) | **7** | [8](?page=8) | [9](?page=9) | [10](?page=10)"},
+		{8, 10, "[1](?page=1) | …  | [6](?page=6) | [7](?page=7) | **8** | [9](?page=9) | [10](?page=10)"},
+		{9, 10, "[1](?page=1) | …  | [7](?page=7) | [8](?page=8) | **9** | [10](?page=10)"},
+		{10, 10, "[1](?page=1) | … | [8](?page=8) | [9](?page=9) | **10**"},
 	}
 
 	for _, tt := range tests {
@@ -107,7 +114,7 @@ func TestPager_RenderSelector_WithManyPages(t *testing.T) {
 		urequire.NoError(t, err, ufmt.Sprintf("GetPage(%d, %d) returned error: %v", tt.pageNumber, tt.pageSize, err))
 
 		md := page.RenderSelector(pager.PageQueryParam)
-		uassert.Equal(t, tt.expected, md, ufmt.Sprintf("RenderSelector(%d, %d) returned %s, expected %s", tt.pageNumber, tt.pageSize, md, tt.expected))
+		uassert.Equal(t, tt.expected, md)
 	}
 }
 
