@@ -25,6 +25,7 @@ type Page struct {
 	TotalPages int
 	HasPrev    bool
 	HasNext    bool
+	Pager      *Pager // Reference to the parent Pager
 }
 
 // Item represents a key-value pair in the AVL tree.
@@ -60,6 +61,7 @@ func (p *Pager) GetPage(pageNumber int, pageSize int) (*Page, error) {
 			TotalPages: totalPages,
 			HasPrev:    false,
 			HasNext:    pageNumber < totalPages,
+			Pager:      p,
 		}, nil
 	}
 
@@ -72,6 +74,7 @@ func (p *Pager) GetPage(pageNumber int, pageSize int) (*Page, error) {
 			TotalPages: totalPages,
 			HasPrev:    totalPages > 0,
 			HasNext:    false,
+			Pager:      p,
 		}, nil
 	}
 
@@ -95,11 +98,21 @@ func (p *Pager) GetPage(pageNumber int, pageSize int) (*Page, error) {
 		TotalPages: totalPages,
 		HasPrev:    pageNumber > 1,
 		HasNext:    pageNumber < totalPages,
+		Pager:      p,
 	}, nil
 }
 
+// GetPageByPath retrieves a page of results based on the query parameters in the URL path.
+func (p *Pager) GetPageByPath(rawURL string) (*Page, error) {
+	pageNumber, pageSize, err := p.ParseQuery(rawURL)
+	if err != nil {
+		return nil, err
+	}
+	return p.GetPage(pageNumber, pageSize)
+}
+
 // RenderSelector generates the Markdown for the page selector.
-func (p *Page) RenderSelector(queryParam string) string {
+func (p *Page) RenderSelector() string {
 	if p.TotalPages <= 1 {
 		return ""
 	}
@@ -108,21 +121,21 @@ func (p *Page) RenderSelector(queryParam string) string {
 
 	if p.HasPrev {
 		// Always show the first page link
-		md += ufmt.Sprintf("[%d](?%s=%d) | ", 1, queryParam, 1)
+		md += ufmt.Sprintf("[%d](?%s=%d) | ", 1, p.Pager.PageQueryParam, 1)
 
 		// Before
 		if p.PageNumber == 5 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", 2, queryParam, 2)
+			md += ufmt.Sprintf("[%d](?%s=%d) | ", 2, p.Pager.PageQueryParam, 2)
 		} else if p.PageNumber > 4 {
 			md += "… | "
 		}
 
 		if p.PageNumber > 3 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-2, queryParam, p.PageNumber-2)
+			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-2, p.Pager.PageQueryParam, p.PageNumber-2)
 		}
 
 		if p.PageNumber > 2 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-1, queryParam, p.PageNumber-1)
+			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-1, p.Pager.PageQueryParam, p.PageNumber-1)
 		}
 	}
 
@@ -133,21 +146,21 @@ func (p *Page) RenderSelector(queryParam string) string {
 		md += " | "
 
 		if p.PageNumber < p.TotalPages-1 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+1, queryParam, p.PageNumber+1)
+			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+1, p.Pager.PageQueryParam, p.PageNumber+1)
 		}
 
 		if p.PageNumber < p.TotalPages-2 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+2, queryParam, p.PageNumber+2)
+			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+2, p.Pager.PageQueryParam, p.PageNumber+2)
 		}
 
 		if p.PageNumber == p.TotalPages-4 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+3, queryParam, p.PageNumber+3)
+			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+3, p.Pager.PageQueryParam, p.PageNumber+3)
 		} else if p.PageNumber < p.TotalPages-3 {
 			md += "… | "
 		}
 
 		// Always show the last page link
-		md += ufmt.Sprintf("[%d](?%s=%d)", p.TotalPages, queryParam, p.TotalPages)
+		md += ufmt.Sprintf("[%d](?%s=%d)", p.TotalPages, p.Pager.PageQueryParam, p.TotalPages)
 	}
 
 	return md

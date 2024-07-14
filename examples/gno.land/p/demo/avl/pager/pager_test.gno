@@ -65,11 +65,11 @@ func TestPager_GetPageByPath(t *testing.T) {
 		expectedPage int
 		expectedSize int
 	}{
-		{"https://example.com?size=10&page=1", 1, 10},
-		{"https://example.com?size=10&page=2", 2, 10},
-		{"https://example.com?page=3", 3, pager.DefaultPageSize},
-		{"https://example.com?size=20", 1, 20},
-		{"https://example.com", 1, pager.DefaultPageSize},
+		{"/r/foo:bar/baz?size=10&page=1", 1, 10},
+		{"/r/foo:bar/baz?size=10&page=2", 2, 10},
+		{"/r/foo:bar/baz?page=3", 3, pager.DefaultPageSize},
+		{"/r/foo:bar/baz?size=20", 1, 20},
+		{"/r/foo:bar/baz", 1, pager.DefaultPageSize},
 	}
 
 	for _, tt := range tests {
@@ -138,7 +138,7 @@ func TestPager_RenderSelector_WithManyPages(t *testing.T) {
 		{7, 10, "[1](?page=1) | … | [5](?page=5) | [6](?page=6) | **7** | [8](?page=8) | [9](?page=9) | [10](?page=10)"},
 		{8, 10, "[1](?page=1) | … | [6](?page=6) | [7](?page=7) | **8** | [9](?page=9) | [10](?page=10)"},
 		{9, 10, "[1](?page=1) | … | [7](?page=7) | [8](?page=8) | **9** | [10](?page=10)"},
-		{10, 10, "[1](?page=1) | … | [9](?page=9) | **10**"},
+		{10, 10, "[1](?page=1) | … | [8](?page=8) | [9](?page=9) | **10**"},
 	}
 
 	for _, tt := range tests {
@@ -169,13 +169,13 @@ func TestPager_ParseQuery(t *testing.T) {
 		expectedSize  int
 		expectedError bool
 	}{
-		{"https://example.com?size=2&page=1", 1, 2, false},
-		{"https://example.com?size=3&page=2", 2, 3, false},
-		{"https://example.com?size=5&page=3", 3, 5, false},
-		{"https://example.com?page=2", 2, pager.DefaultPageSize, false},
-		{"https://example.com?size=3", 1, 3, false},
-		{"https://example.com", 1, pager.DefaultPageSize, false},
-		{"https://example.com?size=0&page=0", 1, pager.DefaultPageSize, false},
+		{"/r/foo:bar/baz?size=2&page=1", 1, 2, false},
+		{"/r/foo:bar/baz?size=3&page=2", 2, 3, false},
+		{"/r/foo:bar/baz?size=5&page=3", 3, 5, false},
+		{"/r/foo:bar/baz?page=2", 2, pager.DefaultPageSize, false},
+		{"/r/foo:bar/baz?size=3", 1, 3, false},
+		{"/r/foo:bar/baz", 1, pager.DefaultPageSize, false},
+		{"/r/foo:bar/baz?size=0&page=0", 1, pager.DefaultPageSize, false},
 	}
 
 	for _, tt := range tests {

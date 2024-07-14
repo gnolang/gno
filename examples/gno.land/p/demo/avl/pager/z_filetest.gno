@@ -32,7 +32,7 @@ func main() {
 		}
 
 		// Render and print the page selector.
-		pageSelector := page.RenderSelector(pager.PageQueryParam)
+		pageSelector := page.RenderSelector()
 		println("Page Selector:")
 		println(pageSelector)
 		println()
