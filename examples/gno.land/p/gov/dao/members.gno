@@ -9,6 +9,9 @@ type MemberStore interface {
 	// GetMembers returns all members in the store
 	GetMembers() []Member
 
+	// Size returns the current size of the store
+	Size() int
+
 	// IsMember returns a flag indicating if the given address
 	// belongs to a member
 	IsMember(address std.Address) bool

@@ -165,6 +165,29 @@ func TestMembStore_AddMember(t *testing.T) {
 	})
 }
 
+func TestMembStore_Size(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty govdao", func(t *testing.T) {
+		t.Parallel()
+
+		// Create an empty store
+		m := NewMembStore()
+
+		uassert.Equal(t, 0, m.Size())
+	})
+
+	t.Run("non-empty govdao", func(t *testing.T) {
+		t.Parallel()
+
+		// Create a non-empty store
+		members := generateMembers(t, 50)
+		m := NewMembStore(WithInitialMembers(members))
+
+		uassert.Equal(t, len(members), m.Size())
+	})
+}
+
 func TestMembStore_RemoveMember(t *testing.T) {
 	t.Parallel()
 

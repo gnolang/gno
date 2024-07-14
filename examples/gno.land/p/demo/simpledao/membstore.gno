@@ -153,6 +153,10 @@ func (m *MembStore) GetMembers() []dao.Member {
 	return members
 }
 
+func (m *MembStore) Size() int {
+	return m.members.Size()
+}
+
 // getMajorityPower returns the majority voting power
 // of the member store
 func (m *MembStore) getMajorityPower() uint64 {
