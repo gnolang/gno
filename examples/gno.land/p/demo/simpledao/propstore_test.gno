@@ -148,6 +148,44 @@ func TestProposal_Data(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("vote by member", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			members = generateMembers(t, 50)
+			p       = &proposal{
+				votes: newVotes(),
+			}
+		)
+
+		for _, m := range members {
+			urequire.NoError(t, p.votes.castVote(m, dao.YesVote))
+		}
+
+		votes := p.GetVotes()
+		urequire.Equal(t, len(members), len(votes))
+
+		vote, err := p.GetVoteByMember(members[0].Address)
+		urequire.NoError(t, err)
+
+		uassert.Equal(t, dao.YesVote.String(), vote.Option.String())
+		uassert.Equal(t, members[0].Address.String(), vote.Address.String())
+	})
+
+	t.Run("missing vote by member", func(t *testing.T) {
+		t.Parallel()
+
+		p := &proposal{
+			votes: newVotes(),
+		}
+
+		votes := p.GetVotes()
+		urequire.Equal(t, 0, len(votes))
+
+		_, err := p.GetVoteByMember(testutils.TestAddress("dummy"))
+		uassert.ErrorIs(t, err, errMissingVote)
+	})
 }
 
 func TestPropStore_GetProposals(t *testing.T) {

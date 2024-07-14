@@ -3,8 +3,6 @@ package simpledao
 import (
 	"errors"
 
-	"std"
-
 	"gno.land/p/demo/avl"
 	"gno.land/p/gov/dao"
 )
@@ -55,22 +53,7 @@ func (v *votes) getTally() (uint64, uint64) {
 	return v.yays, v.nays
 }
 
-// getVotes fetches the currently active vote set
-func (v *votes) getVotes() []dao.Vote {
-	votes := make([]dao.Vote, 0, v.voters.Size())
-
-	v.voters.Iterate("", "", func(key string, val interface{}) bool {
-		option := val.(dao.VoteOption)
-
-		vote := dao.Vote{
-			Address: std.Address(key),
-			Option:  option,
-		}
-
-		votes = append(votes, vote)
-
-		return false
-	})
-
-	return votes
+// getVoters returns the current voter set
+func (v *votes) getVoters() *avl.Tree {
+	return v.voters
 }

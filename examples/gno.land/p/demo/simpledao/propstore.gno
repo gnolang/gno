@@ -10,7 +10,10 @@ import (
 	pproposal "gno.land/p/gov/proposal"
 )
 
-var errMissingProposal = errors.New("proposal is missing")
+var (
+	errMissingProposal = errors.New("proposal is missing")
+	errMissingVote     = errors.New("member has not voted")
+)
 
 // proposal is the internal simpledao proposal implementation
 type proposal struct {
@@ -36,7 +39,41 @@ func (p *proposal) GetStatus() dao.Status {
 }
 
 func (p *proposal) GetVotes() []dao.Vote {
-	return p.votes.getVotes()
+	var (
+		voters = p.votes.getVoters()
+		votes  = make([]dao.Vote, 0, voters.Size())
+	)
+
+	voters.Iterate("", "", func(key string, val interface{}) bool {
+		option := val.(dao.VoteOption)
+
+		vote := dao.Vote{
+			Address: std.Address(key),
+			Option:  option,
+		}
+
+		votes = append(votes, vote)
+
+		return false
+	})
+
+	return votes
+}
+
+func (p *proposal) GetVoteByMember(address std.Address) (dao.Vote, error) {
+	voters := p.votes.getVoters()
+
+	optionRaw, exists := voters.Get(address.String())
+	if !exists {
+		return dao.Vote{}, errMissingVote
+	}
+
+	vote := dao.Vote{
+		Address: address,
+		Option:  optionRaw.(dao.VoteOption),
+	}
+
+	return vote, nil
 }
 
 // PropStore implements the dao.PropStore abstraction
