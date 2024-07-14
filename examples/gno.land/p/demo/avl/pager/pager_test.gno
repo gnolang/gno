@@ -104,8 +104,7 @@ func TestPage_RenderSelector(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		page, err := pager.GetPage(tt.pageNumber, tt.pageSize)
-		urequire.NoError(t, err)
+		page := pager.GetPage(tt.pageNumber, tt.pageSize)
 
 		md := page.RenderSelector()
 		uassert.Equal(t, tt.expected, md)
