@@ -11,6 +11,7 @@ type VoteOption string
 const (
 	YesVote VoteOption = "YES"
 	NoVote  VoteOption = "NO"
+	Abstain  VoteOption = "ABSTAIN"
 )
 
 func (v VoteOption) String() string {
