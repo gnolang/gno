@@ -2,6 +2,8 @@ package pager
 
 import (
 	"math"
+	"net/url"
+	"strconv"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
@@ -9,7 +11,9 @@ import (
 
 // Pager is a struct that holds the AVL tree and pagination parameters.
 type Pager struct {
-	Tree *avl.Tree
+	Tree            *avl.Tree
+	PageQueryParam  string
+	DefaultPageSize int
 }
 
 // Page represents a single page of results.
@@ -27,6 +31,15 @@ type Page struct {
 type Item struct {
 	Key   string
 	Value interface{}
+}
+
+// NewPager creates a new Pager with default values.
+func NewPager(tree *avl.Tree) *Pager {
+	return &Pager{
+		Tree:            tree,
+		PageQueryParam:  "page",
+		DefaultPageSize: 10,
+	}
 }
 
 // GetPage retrieves a page of results from the AVL tree.
@@ -86,50 +99,69 @@ func (p *Pager) GetPage(pageNumber int, pageSize int) (*Page, error) {
 }
 
 // RenderSelector generates the Markdown for the page selector.
-func (p *Page) RenderSelector() string {
+func (p *Page) RenderSelector(queryParam string) string {
 	if p.TotalPages <= 1 {
 		return ""
 	}
 
 	md := ""
 
-	// First and Previous links
-	if p.HasPrev {
-		md += ufmt.Sprintf("[First](?page=1) | ")
-		md += ufmt.Sprintf("[Previous](?page=%d) | ", p.PageNumber-1)
-	} else {
-		md += "First | Previous | "
-	}
-
 	// Page number links
-	startPage := max(1, p.PageNumber-2)
-	endPage := min(p.TotalPages, p.PageNumber+2)
+	if p.PageNumber > 1 {
+		md += ufmt.Sprintf("[%d](?%s=%d) | ", 1, queryParam, 1)
+	}
 
-	if startPage > 1 {
+	if p.PageNumber > 2 {
 		md += "… | "
 	}
 
-	for i := startPage; i <= endPage; i++ {
-		if i == p.PageNumber {
-			md += ufmt.Sprintf("**%d** | ", i)
-		} else {
-			md += ufmt.Sprintf("[%d](?page=%d) | ", i, i)
-		}
+	if p.HasPrev {
+		md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-1, queryParam, p.PageNumber-1)
 	}
 
-	if endPage < p.TotalPages {
-		md += "… | "
-	}
+	md += ufmt.Sprintf("**%d** | ", p.PageNumber)
 
-	// Next and Last links
 	if p.HasNext {
-		md += ufmt.Sprintf("[Next](?page=%d) | ", p.PageNumber+1)
-		md += ufmt.Sprintf("[Last](?page=%d)", p.TotalPages)
-	} else {
-		md += "Next | Last"
+		md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+1, queryParam, p.PageNumber+1)
+	}
+
+	if p.PageNumber < p.TotalPages-1 {
+		md += "… | "
+	}
+
+	if p.PageNumber < p.TotalPages {
+		md += ufmt.Sprintf("[%d](?%s=%d)", p.TotalPages, queryParam, p.TotalPages)
 	}
 
 	return md
+}
+
+// ParseQuery parses the URL to extract the page number and page size.
+func (p *Pager) ParseQuery(rawURL string) (int, int, error) {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return 1, p.DefaultPageSize, err
+	}
+
+	query := u.Query()
+	pageNumber := 1
+	pageSize := p.DefaultPageSize
+
+	if pageStr := query.Get(p.PageQueryParam); pageStr != "" {
+		pageNumber, err = strconv.Atoi(pageStr)
+		if err != nil || pageNumber < 1 {
+			pageNumber = 1
+		}
+	}
+
+	if sizeStr := query.Get("size"); sizeStr != "" {
+		pageSize, err = strconv.Atoi(sizeStr)
+		if err != nil || pageSize < 1 {
+			pageSize = p.DefaultPageSize
+		}
+	}
+
+	return pageNumber, pageSize, nil
 }
 
 func max(a, b int) int {
