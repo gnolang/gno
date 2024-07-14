@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/urequire"
 )
 
 var (
@@ -18,13 +19,8 @@ func TestNew(t *testing.T) {
 
 	result := New()
 
-	if result.paused != false {
-		t.Fatalf("Expected result to be unpaused, got %t\n", result.paused)
-	}
-
-	if result.Owner() != firstCaller {
-		t.Fatalf("Expected %s, got %s\n", firstCaller, result.Owner())
-	}
+	urequire.False(t, result.paused, "Expected result to be unpaused")
+	urequire.Equal(t, firstCaller.String(), result.Owner().String())
 }
 
 func TestNewFromOwnable(t *testing.T) {
@@ -38,9 +34,7 @@ func TestNewFromOwnable(t *testing.T) {
 
 	result := NewFromOwnable(o)
 
-	if result.Owner() != firstCaller {
-		t.Fatalf("Expected %s, got %s\n", firstCaller, result.Owner())
-	}
+	urequire.Equal(t, firstCaller.String(), result.Owner().String())
 }
 
 func TestSetUnpaused(t *testing.T) {
@@ -50,9 +44,7 @@ func TestSetUnpaused(t *testing.T) {
 	result := New()
 	result.Unpause()
 
-	if result.IsPaused() {
-		t.Fatalf("Expected result to be unpaused, got %t\n", result.IsPaused())
-	}
+	urequire.False(t, result.IsPaused(), "Expected result to be unpaused")
 }
 
 func TestSetPaused(t *testing.T) {
@@ -62,9 +54,7 @@ func TestSetPaused(t *testing.T) {
 	result := New()
 	result.Pause()
 
-	if !result.IsPaused() {
-		t.Fatalf("Expected result to be paused, got %t\n", result.IsPaused())
-	}
+	urequire.True(t, result.IsPaused(), "Expected result to be paused")
 }
 
 func TestIsPaused(t *testing.T) {
@@ -72,14 +62,8 @@ func TestIsPaused(t *testing.T) {
 	std.TestSetOrigCaller(firstCaller) // TODO(bug): should not be needed
 
 	result := New()
-
-	if result.IsPaused() {
-		t.Fatalf("Expected result to be unpaused, got %t\n", result.IsPaused())
-	}
+	urequire.False(t, result.IsPaused(), "Expected result to be unpaused")
 
 	result.Pause()
-
-	if !result.IsPaused() {
-		t.Fatalf("Expected result to be paused, got %t\n", result.IsPaused())
-	}
+	urequire.True(t, result.IsPaused(), "Expected result to be paused")
 }
