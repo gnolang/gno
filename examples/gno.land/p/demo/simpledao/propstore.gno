@@ -157,6 +157,10 @@ func (p *PropStore) GetProposalByID(id uint64) (dao.Proposal, error) {
 	return prop.(*proposal), nil
 }
 
+func (p *PropStore) Size() int {
+	return p.proposals.Size()
+}
+
 // getProposalID generates a sequential proposal ID
 // from the given ID number
 func getProposalID(id uint64) string {

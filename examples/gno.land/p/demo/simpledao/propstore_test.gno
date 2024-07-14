@@ -196,6 +196,7 @@ func TestPropStore_GetProposals(t *testing.T) {
 
 		p := NewPropStore()
 
+		uassert.Equal(t, 0, p.Size())
 		proposals := p.GetProposals(0, 0)
 
 		uassert.Equal(t, 0, len(proposals))
@@ -218,6 +219,8 @@ func TestPropStore_GetProposals(t *testing.T) {
 
 			urequire.NoError(t, err)
 		}
+
+		uassert.Equal(t, numProposals, p.Size())
 
 		fetchedProposals := p.GetProposals(0, uint64(halfRange))
 		urequire.Equal(t, halfRange, len(fetchedProposals))

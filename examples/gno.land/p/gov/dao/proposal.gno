@@ -26,6 +26,10 @@ type PropStore interface {
 	// GetProposalByID returns the proposal associated with
 	// the given ID, if any
 	GetProposalByID(id uint64) (Proposal, error)
+
+	// Size returns the number of proposals in
+	// the proposal store
+	Size() int
 }
 
 // Proposal is the single proposal abstraction
