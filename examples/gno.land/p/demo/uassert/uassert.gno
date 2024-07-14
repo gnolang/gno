@@ -496,7 +496,35 @@ func Len(t TestingT, obj interface{}, length int, msgs ...string) bool {
 	switch v := obj.(type) {
 	case string:
 		actualLen = len(v)
+	case []string:
+		actualLen = len(v)
 	case []interface{}:
+		actualLen = len(v)
+	case []int:
+		actualLen = len(v)
+	case []int8:
+		actualLen = len(v)
+	case []int16:
+		actualLen = len(v)
+	case []int32:
+		actualLen = len(v)
+	case []int64:
+		actualLen = len(v)
+	case []uint:
+		actualLen = len(v)
+	case []uint8:
+		actualLen = len(v)
+	case []uint16:
+		actualLen = len(v)
+	case []uint32:
+		actualLen = len(v)
+	case []uint64:
+		actualLen = len(v)
+	case []float32:
+		actualLen = len(v)
+	case []float64:
+		actualLen = len(v)
+	case []bool:
 		actualLen = len(v)
 	default:
 		return fail(t, msgs, "uassert.Len: unsupported type %T", obj)
