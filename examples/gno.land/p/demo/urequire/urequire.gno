@@ -78,9 +78,25 @@ func Equal(t uassert.TestingT, expected, actual interface{}, msgs ...string) {
 	t.FailNow()
 }
 
+func NotEqual(t uassert.TestingT, expected, actual interface{}, msgs ...string) {
+	t.Helper()
+	if uassert.NotEqual(t, expected, actual, msgs...) {
+		return
+	}
+	t.FailNow()
+}
+
 func Empty(t uassert.TestingT, obj interface{}, msgs ...string) {
 	t.Helper()
 	if uassert.Empty(t, obj, msgs...) {
+		return
+	}
+	t.FailNow()
+}
+
+func NotEmpty(t uassert.TestingT, obj interface{}, msgs ...string) {
+	t.Helper()
+	if uassert.NotEmpty(t, obj, msgs...) {
 		return
 	}
 	t.FailNow()
