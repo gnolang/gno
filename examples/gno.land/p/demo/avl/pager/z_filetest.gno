@@ -19,11 +19,7 @@ func main() {
 	pager := pager.NewPager(tree)
 
 	for pn := -1; pn < 8; pn++ {
-		page, err := pager.GetPage(pn, 7)
-		if err != nil {
-			println("Error:", err.Error())
-			return
-		}
+		page := pager.GetPage(pn, 7)
 
 		// Print the items on the page.
 		println(ufmt.Sprintf("Page %d of %d", page.PageNumber, page.TotalPages))
