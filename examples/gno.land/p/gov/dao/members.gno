@@ -7,7 +7,7 @@ import (
 // MemberStore defines the member storage abstraction
 type MemberStore interface {
 	// GetMembers returns all members in the store
-	GetMembers() []Member
+	GetMembers(offset, count uint64) []Member
 
 	// Size returns the current size of the store
 	Size() int

@@ -123,17 +123,30 @@ func (m *MembStore) GetMember(address std.Address) (dao.Member, error) {
 	return member.(dao.Member), nil
 }
 
-func (m *MembStore) GetMembers() []dao.Member {
-	members := make([]dao.Member, 0, m.members.Size())
+func (m *MembStore) GetMembers(offset, count uint64) []dao.Member {
+	// Calculate the left and right bounds
+	if count < 1 || offset >= uint64(m.members.Size()) {
+		return []dao.Member{}
+	}
 
-	m.members.Iterate("", "", func(_ string, val interface{}) bool {
-		member := val.(dao.Member)
+	// Limit the maximum number of returned members
+	if count > maxRequestMembers {
+		count = maxRequestMembers
+	}
 
-		// Save the member
-		members = append(members, member)
+	// Gather the members
+	members := make([]dao.Member, 0)
+	m.members.IterateByOffset(
+		int(offset),
+		int(count),
+		func(_ string, val interface{}) bool {
+			member := val.(dao.Member)
 
-		return false
-	})
+			// Save the member
+			members = append(members, member)
+
+			return false
+		})
 
 	return members
 }

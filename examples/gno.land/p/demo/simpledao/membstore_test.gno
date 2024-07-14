@@ -63,31 +63,47 @@ func TestMembStore_GetMembers(t *testing.T) {
 		// Create an empty store
 		m := NewMembStore()
 
-		members := m.GetMembers()
+		members := m.GetMembers(0, 10)
 		uassert.Equal(t, 0, len(members))
 	})
 
-	t.Run("valid members fetched", func(t *testing.T) {
+	t.Run("proper pagination", func(t *testing.T) {
 		t.Parallel()
 
-		// Create a non-empty store
-		members := generateMembers(t, 50)
+		var (
+			numMembers = maxRequestMembers * 2
+			halfRange  = numMembers / 2
 
-		m := NewMembStore(WithInitialMembers(members))
+			members = generateMembers(t, numMembers)
+			m       = NewMembStore(WithInitialMembers(members))
 
-		fetchedMembers := m.GetMembers()
+			verifyMembersPresent = func(members, fetchedMembers []dao.Member) {
+				for _, fetchedMember := range fetchedMembers {
+					for _, member := range members {
+						if member.Address != fetchedMember.Address {
+							continue
+						}
 
-		urequire.Equal(t, len(members), len(fetchedMembers))
-
-		for _, fetchedMember := range fetchedMembers {
-			for _, member := range members {
-				if member.Address != fetchedMember.Address {
-					continue
+						uassert.Equal(t, member.VotingPower, fetchedMember.VotingPower)
+					}
 				}
-
-				uassert.Equal(t, member.VotingPower, fetchedMember.VotingPower)
 			}
-		}
+		)
+
+		urequire.Equal(t, numMembers, m.Size())
+
+		fetchedMembers := m.GetMembers(0, uint64(halfRange))
+		urequire.Equal(t, halfRange, len(fetchedMembers))
+
+		// Verify the members
+		verifyMembersPresent(members, fetchedMembers)
+
+		// Fetch the other half
+		fetchedMembers = m.GetMembers(uint64(halfRange), uint64(halfRange))
+		urequire.Equal(t, halfRange, len(fetchedMembers))
+
+		// Verify the members
+		verifyMembersPresent(members, fetchedMembers)
 	})
 }
 
@@ -248,7 +264,7 @@ func TestMembStore_UpdateMember(t *testing.T) {
 
 		// Attempt to update a member
 		uassert.NoError(t, m.UpdateMember(members[0].Address, members[0]))
-		uassert.Equal(t, votingPower, m.GetMembers()[0].VotingPower)
+		uassert.Equal(t, votingPower, m.GetMembers(0, 10)[0].VotingPower)
 	})
 
 	t.Run("member removed", func(t *testing.T) {
