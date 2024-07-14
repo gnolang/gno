@@ -86,7 +86,7 @@ func (dex *DEX) matchPairOrders(tokenFrom, tokenTo *grc20.Bank) int {
 		order1 := value.(*Order)
 		orders.Iterate("", "", func(key2 string, value2 interface{}) bool {
 			order2 := value2.(*Order)
-			println(order1.String(), "-------", order2.String())
+			println("@@@@@@@@@@@@@@@", order1.String(), "-------", order2.String())
 			if order1.isBuy != order2.isBuy && order1.tokenFrom == order2.tokenTo && order1.tokenTo == order2.tokenFrom {
 				amount := min(order1.amount, order2.amount)
 				order1.amount -= amount
