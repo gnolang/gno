@@ -13,7 +13,7 @@ func TestOrderBook_AddOrder(t *testing.T) {
 		ID:       "1",
 		Type:     Buy,
 		Quantity: 10,
-		Price:    100.0,
+		Price:    100,
 	}
 
 	err := ob.AddOrder(order)
@@ -32,7 +32,7 @@ func TestOrderBook_RemoveOrder(t *testing.T) {
 		ID:       "1",
 		Type:     Buy,
 		Quantity: 10,
-		Price:    100.0,
+		Price:    100,
 	}
 
 	err := ob.AddOrder(order)
@@ -54,7 +54,7 @@ func TestOrderBook_PeekOrder(t *testing.T) {
 		ID:       "1",
 		Type:     Buy,
 		Quantity: 10,
-		Price:    100.0,
+		Price:    100,
 	}
 
 	err := ob.AddOrder(order)
@@ -78,7 +78,7 @@ func TestOrderBook_GetOrderCount(t *testing.T) {
 		ID:       "1",
 		Type:     Buy,
 		Quantity: 10,
-		Price:    100.0,
+		Price:    100,
 	}
 
 	err := ob.AddOrder(order)
@@ -102,25 +102,25 @@ func TestOrderBook_Render(t *testing.T) {
 		ID:       "1",
 		Type:     Buy,
 		Quantity: 10,
-		Price:    100.0,
+		Price:    100,
 	}
 	order2 := Order{
 		ID:       "2",
 		Type:     Buy,
 		Quantity: 15,
-		Price:    95.0,
+		Price:    95,
 	}
 	order3 := Order{
 		ID:       "3",
 		Type:     Sell,
 		Quantity: 5,
-		Price:    110.0,
+		Price:    110,
 	}
 	order4 := Order{
 		ID:       "4",
 		Type:     Sell,
 		Quantity: 8,
-		Price:    115.0,
+		Price:    115,
 	}
 
 	// Add orders to the order book
@@ -129,9 +129,16 @@ func TestOrderBook_Render(t *testing.T) {
 	ob.AddOrder(order3)
 	ob.AddOrder(order4)
 
-	expected := "Buy Orders:\nID: 1, Type: Buy, Quantity: 10, Price: 100.00\nID: 2, Type: Buy, Quantity: 15, Price: 95.00\n\nSell Orders:\nID: 3, Type: Sell, Quantity: 5, Price: 110.00\nID: 4, Type: Sell, Quantity: 8, Price: 115.00\n"
+	expected := "Buy Orders:\nID: 1, Quantity: 10, Price: 100\n\nSell Orders:\nID: 3, Quantity: 5, Price: 110\n"
+	result := ob.Render(1)
 
-	result := ob.Render(3) // Limit to 3 orders per type
+	uassert.Equal(t, expected, result, "Render() result does not match expected")
 
+	expected = "Buy Orders:\nID: 1, Quantity: 10, Price: 100\nID: 2, Quantity: 15, Price: 95\n\nSell Orders:\nID: 3, Quantity: 5, Price: 110\nID: 4, Quantity: 8, Price: 115\n"
+	result = ob.Render(2)
+
+	uassert.Equal(t, expected, result, "Render() result does not match expected")
+
+	result = ob.Render(3)
 	uassert.Equal(t, expected, result, "Render() result does not match expected")
 }

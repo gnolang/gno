@@ -12,13 +12,15 @@ const (
 	Sell
 )
 
+// Order represents a single order with ID, type (Buy or Sell), quantity, and price
 type Order struct {
-	ID       string
-	Type     OrderType
-	Quantity int
-	Price    float64
+	ID       string    // ID of the order
+	Type     OrderType // Type of the order (Buy or Sell)
+	Quantity int       // Quantity of the order
+	Price    uint64    // Price of the order (temporary uint64 due to lack of float support)
 }
 
+// OrderBook represents a collection of buy and sell orders
 type OrderBook struct {
 	buyOrders  *dequeue.Dequeue
 	sellOrders *dequeue.Dequeue
@@ -118,7 +120,7 @@ func (ob *OrderBook) Render(n int) string {
 			continue
 		}
 		order := value.(Order)
-		output += ufmt.Sprintf("ID: %s, Type: Buy, Quantity: %d, Price: %.2f\n", order.ID, order.Quantity, order.Price)
+		output += ufmt.Sprintf("ID: %s, Quantity: %d, Price: %d\n", order.ID, order.Quantity, order.Price)
 	}
 	output += "\n"
 
@@ -131,7 +133,7 @@ func (ob *OrderBook) Render(n int) string {
 			continue
 		}
 		order := value.(Order)
-		output += ufmt.Sprintf("ID: %s, Type: Sell, Quantity: %d, Price: %.2f\n", order.ID, order.Quantity, order.Price)
+		output += ufmt.Sprintf("ID: %s, Quantity: %d, Price: %d\n", order.ID, order.Quantity, order.Price)
 	}
 
 	return output
