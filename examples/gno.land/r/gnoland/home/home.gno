@@ -15,18 +15,8 @@ import (
 
 var (
 	override string
-	admin    = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+	admin    = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred by default
 )
-
-func AdminSetOverride(content string) {
-	admin.AssertCallerIsOwner()
-	override = content
-}
-
-func AdminTransferOwnership(newAdmin std.Address) {
-	admin.AssertCallerIsOwner()
-	admin.TransferOwnership(newAdmin)
-}
 
 func Render(_ string) string {
 	if override != "" {
@@ -286,4 +276,14 @@ func discoverLinks() ui.Element {
 </div><!-- end column-->
 </div><!-- end columns-3-->`),
 	}
+}
+
+func AdminSetOverride(content string) {
+	admin.AssertCallerIsOwner()
+	override = content
+}
+
+func AdminTransferOwnership(newAdmin std.Address) {
+	admin.AssertCallerIsOwner()
+	admin.TransferOwnership(newAdmin)
 }
