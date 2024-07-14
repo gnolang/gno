@@ -42,11 +42,11 @@ func main() {
 // Output:
 // Page 0 of 6
 // Page Selector:
-// **0** | [1](?page=1) | … | [6](?page=6)
+// **0** | [1](?page=1) | [2](?page=2) | … | [6](?page=6)
 //
 // Page 0 of 6
 // Page Selector:
-// **0** | [1](?page=1) | … | [6](?page=6)
+// **0** | [1](?page=1) | [2](?page=2) | … | [6](?page=6)
 //
 // Page 1 of 6
 // Key: 0000001, Value: (unhandled)
@@ -57,7 +57,7 @@ func main() {
 // Key: 0000006, Value: (unhandled)
 // Key: 0000007, Value: (unhandled)
 // Page Selector:
-// **1** | [2](?page=2) | … | [6](?page=6)
+// **1** | [2](?page=2) | [3](?page=3) | … | [6](?page=6)
 //
 // Page 2 of 6
 // Key: 0000008, Value: (unhandled)
@@ -68,7 +68,7 @@ func main() {
 // Key: 000000d, Value: (unhandled)
 // Key: 000000e, Value: (unhandled)
 // Page Selector:
-// [1](?page=1) | [1](?page=1) | **2** | [3](?page=3) | … | [6](?page=6)
+// [1](?page=1) | **2** | [3](?page=3) | [4](?page=4) | [5](?page=5) | [6](?page=6)
 //
 // Page 3 of 6
 // Key: 000000f, Value: (unhandled)
@@ -79,7 +79,7 @@ func main() {
 // Key: 000000m, Value: (unhandled)
 // Key: 000000n, Value: (unhandled)
 // Page Selector:
-// [1](?page=1) | … | [2](?page=2) | **3** | [4](?page=4) | … | [6](?page=6)
+// [1](?page=1) | [2](?page=2) | **3** | [4](?page=4) | [5](?page=5) | [6](?page=6)
 //
 // Page 4 of 6
 // Key: 000000p, Value: (unhandled)
@@ -90,7 +90,7 @@ func main() {
 // Key: 000000v, Value: (unhandled)
 // Key: 000000w, Value: (unhandled)
 // Page Selector:
-// [1](?page=1) | … | [3](?page=3) | **4** | [5](?page=5) | … | [6](?page=6)
+// [1](?page=1) | [2](?page=2) | [3](?page=3) | **4** | [5](?page=5) | [6](?page=6)
 //
 // Page 5 of 6
 // Key: 000000x, Value: (unhandled)
@@ -101,7 +101,7 @@ func main() {
 // Key: 0000012, Value: (unhandled)
 // Key: 0000013, Value: (unhandled)
 // Page Selector:
-// [1](?page=1) | … | [4](?page=4) | **5** | [6](?page=6) | [6](?page=6)
+// [1](?page=1) | [2](?page=2) | [3](?page=3) | [4](?page=4) | **5** | [6](?page=6)
 //
 // Page 6 of 6
 // Key: 0000014, Value: (unhandled)
@@ -112,8 +112,8 @@ func main() {
 // Key: 0000019, Value: (unhandled)
 // Key: 000001a, Value: (unhandled)
 // Page Selector:
-// [1](?page=1) | … | [5](?page=5) | **6** |
+// [1](?page=1) | … | [4](?page=4) | [5](?page=5) | **6**
 //
 // Page 7 of 6
 // Page Selector:
-// [1](?page=1) | … | [6](?page=6) | **7** |
+// [1](?page=1) | … | [5](?page=5) | [6](?page=6) | **7**

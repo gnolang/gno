@@ -106,30 +106,47 @@ func (p *Page) RenderSelector(queryParam string) string {
 
 	md := ""
 
-	// Page number links
-	if p.PageNumber > 1 {
-		md += ufmt.Sprintf("[%d](?%s=%d) | ", 1, queryParam, 1)
-	}
-
-	if p.PageNumber > 2 {
-		md += "… | "
-	}
-
 	if p.HasPrev {
-		md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-1, queryParam, p.PageNumber-1)
+		// Always show the first page link
+		md += ufmt.Sprintf("[%d](?%s=%d) | ", 1, queryParam, 1)
+
+		// Before
+		if p.PageNumber == 5 {
+			md += ufmt.Sprintf("[%d](?%s=%d) | ", 2, queryParam, 2)
+		} else if p.PageNumber > 4 {
+			md += "… | "
+		}
+
+		if p.PageNumber > 3 {
+			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-2, queryParam, p.PageNumber-2)
+		}
+
+		if p.PageNumber > 2 {
+			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber-1, queryParam, p.PageNumber-1)
+		}
 	}
 
-	md += ufmt.Sprintf("**%d** | ", p.PageNumber)
+	// Current page
+	md += ufmt.Sprintf("**%d**", p.PageNumber)
 
 	if p.HasNext {
-		md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+1, queryParam, p.PageNumber+1)
-	}
+		md += " | "
 
-	if p.PageNumber < p.TotalPages-1 {
-		md += "… | "
-	}
+		if p.PageNumber < p.TotalPages-1 {
+			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+1, queryParam, p.PageNumber+1)
+		}
 
-	if p.PageNumber < p.TotalPages {
+		if p.PageNumber < p.TotalPages-2 {
+			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+2, queryParam, p.PageNumber+2)
+		}
+
+		if p.PageNumber == p.TotalPages-4 {
+			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+3, queryParam, p.PageNumber+3)
+		} else if p.PageNumber < p.TotalPages-3 {
+			md += "… | "
+		}
+
+		// Always show the last page link
 		md += ufmt.Sprintf("[%d](?%s=%d)", p.TotalPages, queryParam, p.TotalPages)
 	}
 
