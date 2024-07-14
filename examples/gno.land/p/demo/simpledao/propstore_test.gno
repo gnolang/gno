@@ -205,7 +205,7 @@ func TestPropStore_GetProposals(t *testing.T) {
 		t.Parallel()
 
 		var (
-			numProposals = 50
+			numProposals = 20
 			halfRange    = numProposals / 2
 
 			p         = NewPropStore()

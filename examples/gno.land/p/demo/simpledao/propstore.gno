@@ -15,6 +15,10 @@ var (
 	errMissingVote     = errors.New("member has not voted")
 )
 
+// maxRequestProposals is the maximum number of
+// paginated proposals that can be requested
+const maxRequestProposals = 10
+
 // proposal is the internal simpledao proposal implementation
 type proposal struct {
 	author      std.Address // initiator of the proposal
@@ -103,6 +107,11 @@ func (p *PropStore) GetProposals(offset, count uint64) []dao.Proposal {
 	// Calculate the left and right bounds
 	if count < 1 {
 		return []dao.Proposal{}
+	}
+
+	// Limit the maximum number of returned proposals
+	if count > maxRequestProposals {
+		count = maxRequestProposals
 	}
 
 	var (
