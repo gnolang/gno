@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"gno.land/p/demo/dequeue"
+	"gno.land/p/demo/ufmt"
 )
 
 type OrderType int
@@ -119,7 +120,7 @@ func (ob *OrderBook) Render(n int) string {
 			continue
 		}
 		order := value.(Order)
-		output += fmt.Sprintf("ID: %s, Type: Buy, Quantity: %d, Price: %.2f\n", order.ID, order.Quantity, order.Price)
+		output += ufmt.Sprintf("ID: %s, Type: Buy, Quantity: %d, Price: %.2f\n", order.ID, order.Quantity, order.Price)
 	}
 	output += "\n"
 
@@ -132,7 +133,7 @@ func (ob *OrderBook) Render(n int) string {
 			continue
 		}
 		order := value.(Order)
-		output += fmt.Sprintf("ID: %s, Type: Sell, Quantity: %d, Price: %.2f\n", order.ID, order.Quantity, order.Price)
+		output += ufmt.Sprintf("ID: %s, Type: Sell, Quantity: %d, Price: %.2f\n", order.ID, order.Quantity, order.Price)
 	}
 
 	return output
