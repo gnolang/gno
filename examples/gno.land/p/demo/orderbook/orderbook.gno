@@ -20,22 +20,31 @@ type Order struct {
 	Price    uint64    // Price of the order (temporary uint64 due to lack of float support)
 }
 
-// OrderBook represents a collection of buy and sell orders
-type OrderBook struct {
+// OrderBook defines the interface for an order book
+type OrderBook interface {
+	AddOrder(order Order) error
+	RemoveOrder(orderType OrderType) error
+	PeekOrder(orderType OrderType) (Order, error)
+	GetOrderCount(orderType OrderType) (uint64, error)
+	Render(n int) string
+}
+
+// priorityOrderBook represents an order book prioritized by order type (Buy or Sell)
+type priorityOrderBook struct {
 	buyOrders  *dequeue.Dequeue
 	sellOrders *dequeue.Dequeue
 }
 
-// NewOrderBook initializes a new order book
-func NewOrderBook() *OrderBook {
-	return &OrderBook{
+// NewOrderBook initializes a new priority order book
+func NewPriorityOrderBook() OrderBook {
+	return &priorityOrderBook{
 		buyOrders:  dequeue.New(),
 		sellOrders: dequeue.New(),
 	}
 }
 
 // AddOrder adds a new order to the order book
-func (ob *OrderBook) AddOrder(order Order) error {
+func (ob *priorityOrderBook) AddOrder(order Order) error {
 	switch order.Type {
 	case Buy:
 		err := ob.buyOrders.PushBack(order)
@@ -54,7 +63,7 @@ func (ob *OrderBook) AddOrder(order Order) error {
 }
 
 // RemoveOrder removes the first order from the order book
-func (ob *OrderBook) RemoveOrder(orderType OrderType) error {
+func (ob *priorityOrderBook) RemoveOrder(orderType OrderType) error {
 	var err error
 
 	switch orderType {
@@ -76,7 +85,7 @@ func (ob *OrderBook) RemoveOrder(orderType OrderType) error {
 }
 
 // PeekOrder returns the first order in the order book without removing it
-func (ob *OrderBook) PeekOrder(orderType OrderType) (Order, error) {
+func (ob *priorityOrderBook) PeekOrder(orderType OrderType) (Order, error) {
 	switch orderType {
 	case Buy:
 		order, err := ob.buyOrders.Front()
@@ -96,7 +105,7 @@ func (ob *OrderBook) PeekOrder(orderType OrderType) (Order, error) {
 }
 
 // GetOrderCount returns the number of orders in the order book
-func (ob *OrderBook) GetOrderCount(orderType OrderType) (uint64, error) {
+func (ob *priorityOrderBook) GetOrderCount(orderType OrderType) (uint64, error) {
 	switch orderType {
 	case Buy:
 		return ob.buyOrders.Length(), nil
@@ -108,7 +117,7 @@ func (ob *OrderBook) GetOrderCount(orderType OrderType) (uint64, error) {
 }
 
 // Render returns a string representation of the order book with up to n orders per type
-func (ob *OrderBook) Render(n int) string {
+func (ob *priorityOrderBook) Render(n int) string {
 	var output string
 
 	// buy orders
