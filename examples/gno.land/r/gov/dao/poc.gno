@@ -3,10 +3,8 @@ package govdao
 import (
 	"std"
 
-	"gno.land/p/demo/context"
 	"gno.land/p/gov/dao"
-	"gno.land/p/gov/proposal"
-	pproposal "gno.land/p/gov/proposal"
+	"gno.land/p/gov/executor"
 )
 
 const daoPkgPath = "gno.land/r/gov/dao"
@@ -17,7 +15,7 @@ const (
 )
 
 // NewMemberPropExecutor returns the GOVDAO member change executor
-func NewMemberPropExecutor(changesFn func() []dao.Member) pproposal.Executor {
+func NewMemberPropExecutor(changesFn func() []dao.Member) executor.Executor {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -26,7 +24,7 @@ func NewMemberPropExecutor(changesFn func() []dao.Member) pproposal.Executor {
 		// Make sure the GovDAO executor runs the member changes
 		assertGovDAOCaller()
 
-		errs := &pproposal.CombinedErrors{}
+		errs := &executor.CombinedError{}
 		for _, member := range changesFn() {
 			switch {
 			case !members.IsMember(member.Address):
@@ -58,27 +56,69 @@ func NewMemberPropExecutor(changesFn func() []dao.Member) pproposal.Executor {
 		return errs
 	}
 
-	return pproposal.NewExecutor(callback)
+	return executor.NewCallbackExecutor(callback)
 }
 
-// SetDAOImpl sets a new DAO implementation
-func SetDAOImpl(ctx context.Context, impl dao.DAO) {
-	proposal.AssertContextApprovedByGovDAO(ctx)
+func NewDAOImplExecutor(changeFn func() dao.DAO) executor.Executor {
+	if changeFn == nil {
+		panic(errNoChangesProposed)
+	}
 
+	callback := func() error {
+		assertGovDAOCaller()
+
+		setDAOImpl(changeFn())
+
+		return nil
+	}
+
+	return executor.NewCallbackExecutor(callback)
+}
+
+func NewMembStoreImplExecutor(changeFn func() dao.MembStore) executor.Executor {
+	if changeFn == nil {
+		panic(errNoChangesProposed)
+	}
+
+	callback := func() error {
+		assertGovDAOCaller()
+
+		setMembStoreImpl(changeFn())
+
+		return nil
+	}
+
+	return executor.NewCallbackExecutor(callback)
+}
+
+func NewPropStoreImplExecutor(changeFn func() dao.PropStore) executor.Executor {
+	if changeFn == nil {
+		panic(errNoChangesProposed)
+	}
+
+	callback := func() error {
+		assertGovDAOCaller()
+
+		setPropStoreImpl(changeFn())
+
+		return nil
+	}
+
+	return executor.NewCallbackExecutor(callback)
+}
+
+// setDAOImpl sets a new DAO implementation
+func setDAOImpl(impl dao.DAO) {
 	d = impl
 }
 
-// SetMembStoreImpl sets a new dao.MembStore implementation
-func SetMembStoreImpl(ctx context.Context, impl dao.MembStore) {
-	proposal.AssertContextApprovedByGovDAO(ctx)
-
+// setMembStoreImpl sets a new dao.MembStore implementation
+func setMembStoreImpl(impl dao.MembStore) {
 	members = impl
 }
 
-// SetPropStoreImpl sets a new dao.PropStore implementation
-func SetPropStoreImpl(ctx context.Context, impl dao.PropStore) {
-	proposal.AssertContextApprovedByGovDAO(ctx)
-
+// setPropStoreImpl sets a new dao.PropStore implementation
+func setPropStoreImpl(impl dao.PropStore) {
 	proposals = impl
 }
 

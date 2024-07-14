@@ -3,7 +3,7 @@ package validators
 import (
 	"std"
 
-	"gno.land/p/gov/proposal"
+	"gno.land/p/gov/executor"
 	"gno.land/p/sys/validators"
 )
 
@@ -20,7 +20,7 @@ const (
 //
 // Concept adapted from:
 // https://github.com/gnolang/gno/pull/1945
-func NewPropExecutor(changesFn func() []validators.Validator) proposal.Executor {
+func NewPropExecutor(changesFn func() []validators.Validator) executor.Executor {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -44,7 +44,7 @@ func NewPropExecutor(changesFn func() []validators.Validator) proposal.Executor 
 		return nil
 	}
 
-	return proposal.NewExecutor(callback)
+	return executor.NewExecutor(callback)
 }
 
 // assertGovDAOCaller verifies the caller is the GovDAO executor

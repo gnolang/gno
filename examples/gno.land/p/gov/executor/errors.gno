@@ -1,14 +1,14 @@
-package proposal
+package executor
 
 import "strings"
 
-// CombinedErrors is a combined execution error
-type CombinedErrors struct {
+// CombinedError is a combined execution error
+type CombinedError struct {
 	errors []error
 }
 
 // Error returns the combined execution error
-func (e *CombinedErrors) Error() string {
+func (e *CombinedError) Error() string {
 	if len(e.errors) == 0 {
 		return ""
 	}
@@ -26,7 +26,7 @@ func (e *CombinedErrors) Error() string {
 }
 
 // Add adds a new error to the execution error
-func (e *CombinedErrors) Add(errs ...error) {
+func (e *CombinedError) Add(errs ...error) {
 	if len(errs) == 0 {
 		return
 	}
@@ -35,6 +35,6 @@ func (e *CombinedErrors) Add(errs ...error) {
 }
 
 // Size returns a
-func (e *CombinedErrors) Size() int {
+func (e *CombinedError) Size() int {
 	return len(e.errors)
 }

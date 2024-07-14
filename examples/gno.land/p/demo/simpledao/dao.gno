@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/gov/dao"
-	pproposal "gno.land/p/gov/proposal"
+	"gno.land/p/gov/executor"
 )
 
 var (
@@ -43,7 +43,7 @@ func NewSimpleDAO(membStore *MembStore, propStore *PropStore) *SimpleDAO {
 	}
 }
 
-func (s *SimpleDAO) Propose(description string, executor pproposal.Executor) (uint64, error) {
+func (s *SimpleDAO) Propose(description string, executor executor.Executor) (uint64, error) {
 	// Make sure the executor is set
 	if executor == nil {
 		return 0, errInvalidExecutor

@@ -3,10 +3,10 @@ package govdao
 import (
 	"strconv"
 
-	"github.com/gnolang/gno/examples/gno.land/p/demo/simpledao"
+	"gno.land/p/demo/simpledao"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/gov/dao"
-	pproposal "gno.land/p/gov/proposal"
+	"gno.land/p/gov/executor"
 )
 
 var (
@@ -31,7 +31,7 @@ func init() {
 
 // Propose is designed to be called by another contract or with
 // `maketx run`, not by a `maketx call`.
-func Propose(comment string, executor pproposal.Executor) (uint64, error) {
+func Propose(comment string, executor executor.Executor) (uint64, error) {
 	return d.Propose(comment, executor)
 }
 

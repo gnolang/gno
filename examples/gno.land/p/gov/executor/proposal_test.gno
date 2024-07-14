@@ -1,26 +1,16 @@
-package proposal
+package executor
 
 import (
 	"errors"
 	"std"
 	"testing"
 
+	"gno.land/p/demo/context"
 	"gno.land/p/demo/uassert"
-	"gno.land/p/demo/urequire"
 )
 
-func TestExecutor(t *testing.T) {
+func TestExecutor_Callback(t *testing.T) {
 	t.Parallel()
-
-	verifyProposalFailed := func(e Executor) {
-		uassert.True(t, e.IsDone(), "expected proposal to be done")
-		uassert.False(t, e.IsSuccessful(), "expected proposal to fail")
-	}
-
-	verifyProposalSucceeded := func(e Executor) {
-		uassert.True(t, e.IsDone(), "expected proposal to be done")
-		uassert.True(t, e.IsSuccessful(), "expected proposal to be successful")
-	}
 
 	t.Run("govdao not caller", func(t *testing.T) {
 		t.Parallel()
@@ -36,9 +26,7 @@ func TestExecutor(t *testing.T) {
 		)
 
 		// Create the executor
-		e := NewExecutor(cb)
-
-		urequire.False(t, e.IsDone(), "expected status to be NotExecuted")
+		e := NewCallbackExecutor(cb)
 
 		// Execute as not the /r/gov/dao caller
 		uassert.PanicsWithMessage(t, errNotGovDAO.Error(), func() {
@@ -62,9 +50,7 @@ func TestExecutor(t *testing.T) {
 		)
 
 		// Create the executor
-		e := NewExecutor(cb)
-
-		urequire.False(t, e.IsDone(), "expected status to be NotExecuted")
+		e := NewCallbackExecutor(cb)
 
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)
@@ -77,9 +63,6 @@ func TestExecutor(t *testing.T) {
 		})
 
 		uassert.True(t, called, "expected proposal to execute")
-
-		// Make sure the execution params are correct
-		verifyProposalSucceeded(e)
 	})
 
 	t.Run("execution unsuccessful", func(t *testing.T) {
@@ -97,7 +80,7 @@ func TestExecutor(t *testing.T) {
 		)
 
 		// Create the executor
-		e := NewExecutor(cb)
+		e := NewCallbackExecutor(cb)
 
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)
@@ -110,18 +93,23 @@ func TestExecutor(t *testing.T) {
 		})
 
 		uassert.True(t, called, "expected proposal to execute")
-
-		// Make sure the execution params are correct
-		verifyProposalFailed(e)
 	})
+}
 
-	t.Run("proposal already executed", func(t *testing.T) {
+func TestExecutor_Context(t *testing.T) {
+	t.Parallel()
+
+	t.Run("govdao not caller", func(t *testing.T) {
 		t.Parallel()
 
 		var (
 			called = false
 
-			cb = func() error {
+			cb = func(ctx context.Context) error {
+				if !IsApprovedByGovdaoContext(ctx) {
+					t.Fatal("not govdao caller")
+				}
+
 				called = true
 
 				return nil
@@ -129,28 +117,80 @@ func TestExecutor(t *testing.T) {
 		)
 
 		// Create the executor
-		e := NewExecutor(cb)
+		e := NewCtxExecutor(cb)
 
-		urequire.False(t, e.IsDone(), "expected status to be NotExecuted")
+		// Execute as not the /r/gov/dao caller
+		uassert.PanicsWithMessage(t, errNotGovDAO.Error(), func() {
+			_ = e.Execute()
+		})
+
+		uassert.False(t, called, "expected proposal to not execute")
+	})
+
+	t.Run("execution successful", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			called = false
+
+			cb = func(ctx context.Context) error {
+				if !IsApprovedByGovdaoContext(ctx) {
+					t.Fatal("not govdao caller")
+				}
+
+				called = true
+
+				return nil
+			}
+		)
+
+		// Create the executor
+		e := NewCtxExecutor(cb)
 
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)
 		std.TestSetRealm(r)
 
 		uassert.NotPanics(t, func() {
-			uassert.NoError(t, e.Execute())
+			err := e.Execute()
+
+			uassert.NoError(t, err)
 		})
 
 		uassert.True(t, called, "expected proposal to execute")
+	})
 
-		// Make sure the execution params are correct
-		verifyProposalSucceeded(e)
+	t.Run("execution unsuccessful", func(t *testing.T) {
+		t.Parallel()
 
-		// Attempt to execute the proposal again
+		var (
+			called      = false
+			expectedErr = errors.New("unexpected")
+
+			cb = func(ctx context.Context) error {
+				if !IsApprovedByGovdaoContext(ctx) {
+					t.Fatal("not govdao caller")
+				}
+
+				called = true
+
+				return expectedErr
+			}
+		)
+
+		// Create the executor
+		e := NewCtxExecutor(cb)
+
+		// Execute as the /r/gov/dao caller
+		r := std.NewCodeRealm(daoPkgPath)
+		std.TestSetRealm(r)
+
 		uassert.NotPanics(t, func() {
 			err := e.Execute()
 
-			uassert.ErrorIs(t, err, ErrAlreadyDone)
+			uassert.ErrorIs(t, err, expectedErr)
 		})
+
+		uassert.True(t, called, "expected proposal to execute")
 	})
 }

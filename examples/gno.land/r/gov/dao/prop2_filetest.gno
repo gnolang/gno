@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/context"
-	"gno.land/p/gov/proposal"
+	"gno.land/p/gov/executor"
 	gnoblog "gno.land/r/gnoland/blog"
 	govdao "gno.land/r/gov/dao"
 )
@@ -25,7 +25,7 @@ func init() {
 
 	govdao.ExecuteProposal(id)
 
-	executor := proposal.NewCtxExecutor(func(ctx context.Context) error {
+	ex := executor.NewCtxExecutor(func(ctx context.Context) error {
 		gnoblog.DaoAddPost(
 			ctx,
 			"hello-from-govdao",  // slug
@@ -41,7 +41,7 @@ func init() {
 	// Create a proposal.
 	// XXX: payment
 	comment = "post a new blogpost about govdao"
-	govdao.Propose(comment, executor)
+	govdao.Propose(comment, ex)
 }
 
 func main() {

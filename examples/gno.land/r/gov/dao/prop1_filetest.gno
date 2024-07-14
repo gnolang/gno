@@ -10,7 +10,7 @@ package main
 import (
 	"std"
 
-	"github.com/gnolang/gno/examples/gno.land/p/gov/dao"
+	"gno.land/p/gov/dao"
 	pVals "gno.land/p/sys/validators"
 	govdao "gno.land/r/gov/dao"
 	"gno.land/r/sys/validators"

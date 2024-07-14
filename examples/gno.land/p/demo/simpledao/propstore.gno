@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/gov/dao"
-	pproposal "gno.land/p/gov/proposal"
+	"gno.land/p/gov/executor"
 )
 
 var (
@@ -30,7 +30,7 @@ type proposal struct {
 	author      std.Address // initiator of the proposal
 	description string      // description of the proposal
 
-	executor pproposal.Executor // executor for the proposal
+	executor executor.Executor  // executor for the proposal
 	status   dao.ProposalStatus // status of the proposal
 
 	votes *votes // voting mechanism

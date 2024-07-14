@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/urequire"
-	pproposal "gno.land/p/gov/proposal"
+	"gno.land/p/gov/executor"
 )
 
 func TestPackage(t *testing.T) {
@@ -26,7 +26,7 @@ func TestPackage(t *testing.T) {
 	urequire.Equal(t, expected, out)
 
 	var called bool
-	ex := pproposal.NewExecutor(func() error {
+	ex := executor.NewCallbackExecutor(func() error {
 		called = true
 		return nil
 	})

@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/context"
-	"gno.land/p/gov/proposal"
+	"gno.land/p/gov/executor"
 )
 
 var (
@@ -42,7 +42,7 @@ func AdminRemoveModerator(addr std.Address) {
 }
 
 func DaoAddPost(ctx context.Context, slug, title, body, publicationDate, authors, tags string) {
-	proposal.AssertContextApprovedByGovDAO(ctx)
+	executor.AssertContextApprovedByGovDAO(ctx)
 	caller := std.DerivePkgAddr("gno.land/r/gov/dao")
 	addPost(caller, slug, title, body, publicationDate, authors, tags)
 }
