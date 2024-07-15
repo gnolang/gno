@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/unary_a0c.gno:7: operator + not defined on: StringKind
+// main/files/types/unary_a0c.gno:7:7: operator + not defined on: StringKind

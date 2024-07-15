@@ -25,4 +25,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/eql_0f0_native.gno:19: unexpected type pair: cannot use <untyped> bigint as gonative{error}
+// main/files/types/eql_0f0_native.gno:19:5: unexpected type pair: cannot use <untyped> bigint as gonative{error}

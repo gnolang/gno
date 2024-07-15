@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/add_assign_a0.gno:5: invalid operation: mismatched types int and int8
+// main/files/types/add_assign_a0.gno:5:2: invalid operation: mismatched types int and int8
