@@ -13,8 +13,6 @@ import (
 	"strings"
 
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/crypto/bcrypt"
 )
 
 const (
@@ -28,11 +26,17 @@ var (
 	ErrInvalidBatchResponse      = errors.New("invalid http batch response size")
 )
 
+type AuthInfo struct {
+	Username string
+	Password string
+}
+
 // Client is an HTTP client implementation
 type Client struct {
 	rpcURL string // the remote RPC URL of the node
 
-	client *http.Client
+	authInfo *AuthInfo
+	client   *http.Client
 }
 
 // NewClient initializes and creates a new HTTP RPC client
@@ -43,9 +47,12 @@ func NewClient(rpcURL string) (*Client, error) {
 		return nil, fmt.Errorf("invalid RPC URL, %w", err)
 	}
 
+	parseAuthInfo(rpcURL)
+
 	c := &Client{
-		rpcURL: address,
-		client: defaultHTTPClient(rpcURL),
+		rpcURL:   address,
+		authInfo: &AuthInfo{},
+		client:   defaultHTTPClient(rpcURL),
 	}
 
 	return c, nil
@@ -54,7 +61,7 @@ func NewClient(rpcURL string) (*Client, error) {
 // SendRequest sends a single RPC request to the server
 func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*types.RPCResponse, error) {
 	// Send the request
-	response, err := sendRequestCommon[types.RPCRequest, *types.RPCResponse](ctx, c.client, c.rpcURL, request)
+	response, err := sendRequestCommon[types.RPCRequest, *types.RPCResponse](ctx, c.client, c.rpcURL, c.authInfo, request)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +77,7 @@ func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*ty
 // SendBatch sends a single RPC batch request to the server
 func (c *Client) SendBatch(ctx context.Context, requests types.RPCRequests) (types.RPCResponses, error) {
 	// Send the batch
-	responses, err := sendRequestCommon[types.RPCRequests, types.RPCResponses](ctx, c.client, c.rpcURL, requests)
+	responses, err := sendRequestCommon[types.RPCRequests, types.RPCResponses](ctx, c.client, c.rpcURL, c.authInfo, requests)
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +117,7 @@ func sendRequestCommon[T requestType, R responseType](
 	ctx context.Context,
 	client *http.Client,
 	rpcURL string,
+	authInfo *AuthInfo,
 	request T,
 ) (R, error) {
 	// Marshal the request
@@ -131,14 +139,9 @@ func sendRequestCommon[T requestType, R responseType](
 	// Set the header content type
 	req.Header.Set("Content-Type", "application/json")
 
-	authInfo, err := parseAuthInfo(rpcURL)
-	if err == nil {
-		saltBytes := crypto.CRandBytes(16)
-		encryptedPassword, err := bcrypt.GenerateFromPassword(saltBytes, []byte(authInfo.Password), 12)
-		if err != nil {
-			return nil, fmt.Errorf("unable to encrypt authentication info, %w", err)
-		}
-		req.Header.Set("Authorization", fmt.Sprintf("%s %s", authInfo.Username, string(encryptedPassword)))
+	// Set the basic authentication
+	if authInfo != nil {
+		req.SetBasicAuth(authInfo.Username, authInfo.Password)
 	}
 
 	// Execute the request
@@ -251,11 +254,6 @@ func parseRemoteAddr(remoteAddr string) (string, string) {
 	}
 
 	return protocol, address
-}
-
-type AuthInfo struct {
-	Username string
-	Password string
 }
 
 func parseAuthInfo(remoteAddr string) (AuthInfo, error) {
