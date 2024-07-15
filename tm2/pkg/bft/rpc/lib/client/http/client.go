@@ -57,7 +57,7 @@ func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*ty
 	}
 
 	// Make sure the ID matches
-	if response.ID != response.ID {
+	if request.ID != response.ID {
 		return nil, ErrRequestResponseIDMismatch
 	}
 
