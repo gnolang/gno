@@ -11,9 +11,11 @@ var errAlreadyVoted = errors.New("vote already cast")
 
 // votes is a simple weighted voting system
 type votes struct {
-	// tally cache to keep track of active for / against votes
-	yays uint64
-	nays uint64
+	// tally cache to keep track of active
+	// yes / no / abstain votes
+	yays     uint64
+	nays     uint64
+	abstains uint64
 
 	voters *avl.Tree // std.Address -> dao.VoteOption
 }
@@ -36,9 +38,12 @@ func (v *votes) castVote(member dao.Member, option dao.VoteOption) error {
 	}
 
 	// Update the tally
-	if option == dao.YesVote {
+	switch option {
+	case dao.YesVote:
 		v.yays += member.VotingPower
-	} else {
+	case dao.AbstainVote:
+		v.abstains += member.VotingPower
+	default:
 		v.nays += member.VotingPower
 	}
 
@@ -49,8 +54,8 @@ func (v *votes) castVote(member dao.Member, option dao.VoteOption) error {
 }
 
 // getTally returns the yay, and nay count, respectively
-func (v *votes) getTally() (uint64, uint64) {
-	return v.yays, v.nays
+func (v *votes) getTally() (uint64, uint64, uint64) {
+	return v.yays, v.nays, v.abstains
 }
 
 // getVoters returns the current voter set

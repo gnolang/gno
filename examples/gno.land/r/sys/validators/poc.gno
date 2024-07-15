@@ -20,7 +20,7 @@ const (
 //
 // Concept adapted from:
 // https://github.com/gnolang/gno/pull/1945
-func NewPropExecutor(changesFn func() []validators.Validator) executor.Executor {
+func NewPropExecutor(changesFn func() []validators.Validator) dao.Executor {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
 	}

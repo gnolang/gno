@@ -6,7 +6,6 @@ import (
 	"gno.land/p/demo/simpledao"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/gov/dao"
-	"gno.land/p/gov/executor"
 )
 
 var (
@@ -31,7 +30,7 @@ func init() {
 
 // Propose is designed to be called by another contract or with
 // `maketx run`, not by a `maketx call`.
-func Propose(comment string, executor executor.Executor) (uint64, error) {
+func Propose(comment string, executor dao.Executor) (uint64, error) {
 	return d.Propose(comment, executor)
 }
 

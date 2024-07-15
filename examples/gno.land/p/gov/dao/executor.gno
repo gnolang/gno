@@ -6,4 +6,8 @@ type Executor interface {
 	// Execute executes the given proposal, and returns any error encountered
 	// during the execution
 	Execute() error
+
+	// IsExpired returns a flag indicating
+	// if the executor is expired
+	IsExpired() bool
 }

@@ -23,7 +23,11 @@ func WithInitialMembers(members []dao.Member) MembStoreOption {
 	return func(store *MembStore) {
 		for _, m := range members {
 			store.members.Set(m.Address.String(), m)
+
+			store.totalVotingPower += m.VotingPower
 		}
+
+		store.majorityPower = (2 * store.totalVotingPower) / 3
 	}
 }
 
@@ -159,4 +163,19 @@ func (m *MembStore) Size() int {
 // of the member store
 func (m *MembStore) getMajorityPower() uint64 {
 	return m.majorityPower
+}
+
+// getTotalPower returns the total voting power
+// of the member store
+func (m *MembStore) getTotalPower() uint64 {
+	return m.totalVotingPower
+}
+
+// TODO change to r/sys/vars
+const daoPkgPath = "gno.land/r/gov/dao"
+
+// isCallerGOVDAO returns a flag indicating if the
+// current caller context is the active GOVDAO
+func isCallerGOVDAO() bool {
+	return std.CurrentRealm().PkgPath() == daoPkgPath
 }

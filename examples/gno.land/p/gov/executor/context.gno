@@ -46,6 +46,12 @@ func (exec *CtxExecutor) Execute() error {
 	return exec.callbackCtx(ctx)
 }
 
+// IsExpired returns a flag indicating if the executor is expired.
+// The CtxExecutor never expires
+func (exec *CtxExecutor) IsExpired() bool {
+	return false
+}
+
 // IsApprovedByGovdaoContext asserts that the govdao approved the context
 func IsApprovedByGovdaoContext(ctx context.Context) bool {
 	v := ctx.Value(statusContextKey)

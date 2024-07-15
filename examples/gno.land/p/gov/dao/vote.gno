@@ -7,9 +7,9 @@ import (
 type VoteOption string
 
 const (
-	YesVote VoteOption = "YES"
-	NoVote  VoteOption = "NO"
-	Abstain VoteOption = "ABSTAIN"
+	YesVote     VoteOption = "YES"
+	NoVote      VoteOption = "NO"
+	AbstainVote VoteOption = "ABSTAIN"
 )
 
 func (v VoteOption) String() string {

@@ -1,12 +1,10 @@
 package dao
 
-import "gno.land/p/gov/executor"
-
 // DAO defines the DAO abstraction
 type DAO interface {
 	// Propose adds a new proposal to the executor-based GOVDAO.
 	// Returns the generated proposal ID
-	Propose(comment string, executor executor.Executor) (uint64, error)
+	Propose(comment string, executor Executor) (uint64, error)
 
 	// VoteOnProposal adds a vote to the given proposal ID
 	VoteOnProposal(id uint64, option VoteOption) error

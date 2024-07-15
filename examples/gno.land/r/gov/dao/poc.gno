@@ -15,7 +15,7 @@ const (
 )
 
 // NewMemberPropExecutor returns the GOVDAO member change executor
-func NewMemberPropExecutor(changesFn func() []dao.Member) executor.Executor {
+func NewMemberPropExecutor(changesFn func() []dao.Member) dao.Executor {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -59,7 +59,7 @@ func NewMemberPropExecutor(changesFn func() []dao.Member) executor.Executor {
 	return executor.NewCallbackExecutor(callback)
 }
 
-func NewDAOImplExecutor(changeFn func() dao.DAO) executor.Executor {
+func NewDAOImplExecutor(changeFn func() dao.DAO) dao.Executor {
 	if changeFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -75,7 +75,7 @@ func NewDAOImplExecutor(changeFn func() dao.DAO) executor.Executor {
 	return executor.NewCallbackExecutor(callback)
 }
 
-func NewMembStoreImplExecutor(changeFn func() dao.MembStore) executor.Executor {
+func NewMembStoreImplExecutor(changeFn func() dao.MembStore) dao.Executor {
 	if changeFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -91,7 +91,7 @@ func NewMembStoreImplExecutor(changeFn func() dao.MembStore) executor.Executor {
 	return executor.NewCallbackExecutor(callback)
 }
 
-func NewPropStoreImplExecutor(changeFn func() dao.PropStore) executor.Executor {
+func NewPropStoreImplExecutor(changeFn func() dao.PropStore) dao.Executor {
 	if changeFn == nil {
 		panic(errNoChangesProposed)
 	}

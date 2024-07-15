@@ -6,7 +6,6 @@ import (
 
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/gov/dao"
-	"gno.land/p/gov/executor"
 )
 
 var (
@@ -15,10 +14,9 @@ var (
 	errInsufficientExecuteFunds  = errors.New("insufficient funds for executing proposal")
 	errProposalExecuted          = errors.New("proposal already executed")
 	errProposalInactive          = errors.New("proposal is inactive")
-	errProposalExpired           = errors.New("proposal is expired")
 	errProposalNotAccepted       = errors.New("proposal is not accepted")
-
-	errNotGovDAO = errors.New("caller not correct govdao instance")
+	errExecutorExpired           = errors.New("executor is expired")
+	errNotGovDAO                 = errors.New("caller not correct govdao instance")
 )
 
 var (
@@ -35,15 +33,15 @@ type SimpleDAO struct {
 	propStore *PropStore
 }
 
-// NewSimpleDAO creates a new instance of the simpledao DAO
-func NewSimpleDAO(membStore *MembStore, propStore *PropStore) *SimpleDAO {
+// New creates a new instance of the simpledao DAO
+func New(membStore *MembStore, propStore *PropStore) *SimpleDAO {
 	return &SimpleDAO{
 		membStore: membStore,
 		propStore: propStore,
 	}
 }
 
-func (s *SimpleDAO) Propose(description string, executor executor.Executor) (uint64, error) {
+func (s *SimpleDAO) Propose(description string, executor dao.Executor) (uint64, error) {
 	// Make sure the executor is set
 	if executor == nil {
 		return 0, errInvalidExecutor
@@ -62,16 +60,17 @@ func (s *SimpleDAO) Propose(description string, executor executor.Executor) (uin
 
 	// Create the wrapped proposal
 	prop := &proposal{
+		author:      caller,
 		description: description,
 		executor:    executor,
-		author:      caller,
+		status:      dao.Active,
 		votes:       newVotes(),
 	}
 
 	// Add the proposal
 	id, err := s.propStore.addProposal(prop)
 	if err != nil {
-		return 0, ufmt.Errorf("unable to add proposal, %s", err)
+		return 0, ufmt.Errorf("unable to add proposal, %s", err.Error())
 	}
 
 	return id, nil
@@ -81,13 +80,13 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 	// Verify the GOVDAO member
 	member, err := s.membStore.GetMember(getDAOCaller())
 	if err != nil {
-		return ufmt.Errorf("unable to get govdao member, %s", err)
+		return ufmt.Errorf("unable to get govdao member, %s", err.Error())
 	}
 
 	// Check if the proposal exists
 	propRaw, err := s.propStore.GetProposalByID(id)
 	if err != nil {
-		return ufmt.Errorf("unable to get proposal %d, %s", id, err)
+		return ufmt.Errorf("unable to get proposal %d, %s", id, err.Error())
 	}
 
 	prop := propRaw.(*proposal)
@@ -105,26 +104,37 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 		return errProposalInactive
 	}
 
-	// Check if the proposal executor is expired
+	// Check if the executor is expired
 	if prop.executor.IsExpired() {
-		return errProposalExpired
+		return errExecutorExpired
 	}
 
 	// Cast the vote
 	if err = prop.votes.castVote(member, option); err != nil {
-		return ufmt.Errorf("unable to vote on proposal %d, %s", id, err)
+		return ufmt.Errorf("unable to vote on proposal %d, %s", id, err.Error())
 	}
 
 	// Check the votes to see if quorum is reached
 	var (
 		majorityPower = s.membStore.getMajorityPower()
-		yays, nays    = prop.votes.getTally()
+		totalPower    = s.membStore.getTotalPower()
+
+		yays, nays, abstains = prop.votes.getTally()
 	)
 
 	switch {
 	case yays > majorityPower:
+		// 2/3+ voted YES
 		prop.status = dao.Accepted
 	case nays > majorityPower:
+		// 2/3+ voted NO
+		prop.status = dao.NotAccepted
+	case abstains > majorityPower:
+		// 2/3+ voted ABSTAIN
+		prop.status = dao.NotAccepted
+	case yays+nays+abstains >= totalPower:
+		// Everyone voted, but it's undecided,
+		// hence the proposal can't go through
 		prop.status = dao.NotAccepted
 	default:
 		// Quorum not reached
@@ -148,16 +158,10 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 	// Check if the proposal exists
 	propRaw, err := s.propStore.GetProposalByID(id)
 	if err != nil {
-		return ufmt.Errorf("unable to get proposal %d, %s", id, err)
+		return ufmt.Errorf("unable to get proposal %d, %s", id, err.Error())
 	}
 
 	prop := propRaw.(*proposal)
-
-	// Check the proposal status
-	if prop.GetStatus() != dao.Accepted {
-		// Proposal is not accepted, cannot be executed
-		return errProposalNotAccepted
-	}
 
 	// Check if the proposal is executed
 	if prop.GetStatus() == dao.ExecutionSuccessful ||
@@ -166,16 +170,22 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 		return errProposalExecuted
 	}
 
-	// Check if proposal is expired
+	// Check the proposal status
+	if prop.GetStatus() != dao.Accepted {
+		// Proposal is not accepted, cannot be executed
+		return errProposalNotAccepted
+	}
+
+	// Check if the executor is expired
 	if prop.executor.IsExpired() {
-		return errProposalExpired
+		return errExecutorExpired
 	}
 
 	// Attempt to execute the proposal
 	if err = prop.executor.Execute(); err != nil {
 		prop.status = dao.ExecutionFailed
 
-		return ufmt.Errorf("error during proposal %d execution, %s", id, err)
+		return ufmt.Errorf("error during proposal %d execution, %s", id, err.Error())
 	}
 
 	// Update the proposal status
@@ -190,13 +200,4 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 // Until a better solution is developed, this enables proposals to be made through a package deployment + init()
 func getDAOCaller() std.Address {
 	return std.GetOrigCaller()
-}
-
-// TODO change to r/sys/vars
-const daoPkgPath = "gno.land/r/gov/dao"
-
-// isCallerGOVDAO returns a flag indicating if the
-// current caller context is the active GOVDAO
-func isCallerGOVDAO() bool {
-	return std.CurrentRealm().PkgPath() == daoPkgPath
 }

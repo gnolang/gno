@@ -35,6 +35,12 @@ func (exec *CallbackExecutor) Execute() error {
 	return nil
 }
 
+// IsExpired returns a flag indicating if the executor is expired.
+// The CallbackExecutor never expires
+func (exec *CallbackExecutor) IsExpired() bool {
+	return false
+}
+
 // assertCalledByGovdao asserts that the calling Realm is /r/gov/dao
 func assertCalledByGovdao() {
 	caller := std.CurrentRealm().PkgPath()
