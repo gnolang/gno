@@ -135,11 +135,11 @@ func Render(path string) string {
 		stats.GetNayPercent(),
 		stats.AbstainVotes,
 		stats.GetAbstainPercent(),
-		stats.MissingVotes,
-		stats.GetMissingPercent(),
+		stats.GetMissingVotes(),
+		stats.GetMissingVotesPercent(),
 	)
 	output += "\n\n"
-	output += ufmt.Sprintf("Threshold met: %t", stats.ThresholdMet)
+	output += ufmt.Sprintf("Threshold met: %t", stats.YayVotes > (2*stats.TotalVotingPower)/3)
 	output += "\n\n"
 
 	return output

@@ -32,7 +32,8 @@ type proposal struct {
 	executor dao.Executor       // executor for the proposal
 	status   dao.ProposalStatus // status of the proposal
 
-	votes *votes // voting mechanism
+	votes                 *votes        // voting mechanism
+	getTotalVotingPowerFn func() uint64 // total voting power of the voting body
 }
 
 func (p *proposal) GetAuthor() std.Address {
@@ -70,8 +71,18 @@ func (p *proposal) GetVotes() []dao.Vote {
 }
 
 func (p *proposal) GetVotingStats() dao.VotingStats {
-	// TODO implement
-	return dao.VotingStats{}
+	// Get the tally
+	yays, nays, abstains := p.votes.getTally()
+
+	// Get the total voting power of the body
+	totalPower := p.getTotalVotingPowerFn()
+
+	return dao.VotingStats{
+		YayVotes:         yays,
+		NayVotes:         nays,
+		AbstainVotes:     abstains,
+		TotalVotingPower: totalPower,
+	}
 }
 
 func (p *proposal) GetVoteByMember(address std.Address) (dao.Vote, error) {

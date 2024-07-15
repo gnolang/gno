@@ -54,7 +54,7 @@ func main() {
 //
 // Status: active
 //
-// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 10 (100%)
 //
 // Threshold met: false
 //
@@ -69,9 +69,9 @@ func main() {
 //
 // Status: accepted
 //
-// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+// Voting stats: YAY 10 (100%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
 //
-// Threshold met: false
+// Threshold met: true
 //
 //
 // --
@@ -88,9 +88,9 @@ func main() {
 //
 // Status: execution successful
 //
-// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+// Voting stats: YAY 10 (100%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
 //
-// Threshold met: false
+// Threshold met: true
 //
 //
 // --

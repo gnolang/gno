@@ -60,11 +60,12 @@ func (s *SimpleDAO) Propose(description string, executor dao.Executor) (uint64, 
 
 	// Create the wrapped proposal
 	prop := &proposal{
-		author:      caller,
-		description: description,
-		executor:    executor,
-		status:      dao.Active,
-		votes:       newVotes(),
+		author:                caller,
+		description:           description,
+		executor:              executor,
+		status:                dao.Active,
+		votes:                 newVotes(),
+		getTotalVotingPowerFn: s.membStore.getTotalPower,
 	}
 
 	// Add the proposal

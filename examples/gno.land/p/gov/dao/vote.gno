@@ -27,27 +27,26 @@ type VotingStats struct {
 	YayVotes     uint64
 	NayVotes     uint64
 	AbstainVotes uint64
-	MissingVotes uint64
 
-	ThresholdMet bool
+	TotalVotingPower uint64
 }
 
 func (v VotingStats) GetYayPercent() uint64 {
-	// TODO implement
-	return 0
+	return (v.YayVotes / v.TotalVotingPower) * 100
 }
 
 func (v VotingStats) GetNayPercent() uint64 {
-	// TODO implement
-	return 0
+	return (v.NayVotes / v.TotalVotingPower) * 100
 }
 
 func (v VotingStats) GetAbstainPercent() uint64 {
-	// TODO implement
-	return 0
+	return (v.AbstainVotes / v.TotalVotingPower) * 100
 }
 
-func (v VotingStats) GetMissingPercent() uint64 {
-	// TODO implement
-	return 0
+func (v VotingStats) GetMissingVotes() uint64 {
+	return v.TotalVotingPower - (v.YayVotes + v.NayVotes + v.AbstainVotes)
+}
+
+func (v VotingStats) GetMissingVotesPercent() uint64 {
+	return (v.GetMissingVotes() / v.TotalVotingPower) * 100
 }
