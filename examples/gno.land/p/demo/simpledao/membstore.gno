@@ -81,8 +81,7 @@ func (m *MembStore) UpdateMember(address std.Address, member dao.Member) error {
 	}
 
 	// Check if the member exists
-	memberRaw, exists := m.members.Get(address.String())
-	if !exists {
+	if !m.IsMember(address) {
 		return errMissingMember
 	}
 
