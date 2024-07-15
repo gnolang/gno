@@ -188,7 +188,7 @@ func TestParseURINonJSON(t *testing.T) {
 
 	// Helper function to decode input base64 string to []byte
 	decodeBase64 := func(input string) []byte {
-		decoded, _ := base64.URLEncoding.DecodeString(input)
+		decoded, _ := base64.StdEncoding.DecodeString(input)
 		return decoded
 	}
 
@@ -208,8 +208,8 @@ func TestParseURINonJSON(t *testing.T) {
 	}{
 		// can parse numbers unquoted and strings quoted
 		{[]string{"7", `"flew"`, "rnpVPFlGJlauMNiL43Dmcl1U9loOBlib4L9OQAQ29tI="}, 7, "flew", decodeBase64("rnpVPFlGJlauMNiL43Dmcl1U9loOBlib4L9OQAQ29tI="), false},
-		{[]string{"22", `"john"`, "_UztdqgPARnM25rjQ1lBsr3dlaaZuk2C8k4m5-bMvk8="}, 22, "john", decodeBase64("_UztdqgPARnM25rjQ1lBsr3dlaaZuk2C8k4m5-bMvk8="), false},
-		{[]string{"-10", `"bob"`, "er_8eAAXG4732x8L8zMfJvgU1UH6b76BiU3NisFHh6E="}, -10, "bob", decodeBase64("er_8eAAXG4732x8L8zMfJvgU1UH6b76BiU3NisFHh6E="), false},
+		{[]string{"22", `"john"`, "E+oc1Imd8g5W62tYntw6DjEI/5Lygsx9wJEwc4/oNWI="}, 22, "john", decodeBase64("E+oc1Imd8g5W62tYntw6DjEI/5Lygsx9wJEwc4/oNWI="), false},
+		{[]string{"-10", `"bob"`, "VAmm+RUvpjL3SAGG5gHNzo9ZWo2w3E15iyQB7DN0uF8="}, -10, "bob", decodeBase64("VAmm+RUvpjL3SAGG5gHNzo9ZWo2w3E15iyQB7DN0uF8="), false},
 		// can parse numbers quoted, too
 		{[]string{`"7"`, `"flew"`, "0x486173682076616c7565"}, 7, "flew", decodeHex("0x486173682076616c7565"), false}, // Testing hex encoded data
 		{[]string{`"-10"`, `"bob"`, "0x6578616d706c65"}, -10, "bob", decodeHex("0x6578616d706c65"), false},           // Testing hex encoded data
@@ -220,7 +220,7 @@ func TestParseURINonJSON(t *testing.T) {
 	// Iterate over test cases for non-JSON encoded parameters
 	for idx, tc := range nonJSONCases {
 		i := strconv.Itoa(idx)
-		url := fmt.Sprintf("test.com/method?height=%v&name=%v&hash=%v", tc.raw[0], tc.raw[1], tc.raw[2])
+		url := fmt.Sprintf("test.com/method?height=%v&name=%v&hash=%v", tc.raw[0], tc.raw[1], url.QueryEscape(tc.raw[2]))
 		req, err := http.NewRequest("GET", url, nil)
 
 		assert.NoError(t, err)

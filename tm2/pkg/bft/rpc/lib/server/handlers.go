@@ -365,7 +365,7 @@ func httpParamsToArgs(rpcFunc *RPCFunc, r *http.Request) ([]reflect.Value, error
 		}
 
 		// Handle base64 string
-		if decoded, err := base64.URLEncoding.DecodeString(arg); err == nil {
+		if decoded, err := base64.StdEncoding.DecodeString(arg); err == nil {
 			data, err := amino.MarshalJSON(decoded)
 			if err != nil {
 				return nil, errors.Wrap(err, "error marshaling argument to JSON")
