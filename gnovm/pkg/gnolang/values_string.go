@@ -650,16 +650,17 @@ func (tv TypedValue) ProtectedWrite(w io.StringWriter, seen *seenValues) error {
 		return err
 
 	}
+
+	if _, err := w.WriteString("("); err != nil {
+		return err
+	}
+
 	base := baseOf(tv.T)
 	quoteString := base == StringType || base == UntypedStringType
 	if quoteString {
 		if _, err := w.WriteString("\""); err != nil {
 			return err
 		}
-	}
-
-	if _, err := w.WriteString("("); err != nil {
-		return err
 	}
 
 	if err := tv.NonPrimitiveProtectedWrite(w, seen, false); err != nil {
