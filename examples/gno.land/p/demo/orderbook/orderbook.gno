@@ -29,7 +29,7 @@ type OrderBook interface {
 	Render(n int) string
 }
 
-// sequentialOrderBook represents an order book prioritized by order type (Buy or Sell)
+// sequentialOrderBook represents an order book prioritized by order insertion sequence
 type sequentialOrderBook struct {
 	buyOrders  *dequeue.Dequeue
 	sellOrders *dequeue.Dequeue
