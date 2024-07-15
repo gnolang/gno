@@ -4,18 +4,41 @@ id: realms
 
 # Realms
 
-A realm refers to a specific instance of a smart contract that can be written
-in [Gno](./gno-language.md). The potentials of realms are endless - you can create virtually any
-application in your mind with built-in composability,
-transparency, and censorship resistance. Here are some ideas of what you can build with realms:
+A Realm represents an on-chain entity which has an address, can execute code
+and is capable of managing Coins associated with the given address.
+It boils down to one of two kinds of realms:
 
-* Self-custodial financial exchanges (decentralized exchanges).
-* Lending platforms with better rates.
-* Transparent insurance systems.
-* Fair and accessible voting systems.
-* Logistics and supply chain networks.
+- User realms: an end-user of the blockchain, who has a private key from
+    which the public key and address are subsequently derived.
+- Code realms: a package published on-chain, with storage through globlal
+    variables and access to the Banker. It is Gno's specific flavour of a
+    "smart contract".
 
-## Packages vs Realms
+In many instances, when simply saying a "realm", the latter is intended;
+however, users are also considered "realms".
+
+Code realms offer limitless potential - they allow you to create virtually any
+application while being:
+
+- Composable: using other realms is an `import` statement away.
+- Transparent: like all code on Gno.land, they must be added to the chain in
+    their source format.
+- Stateful: global variables are automatically persisted to the chain when
+    modified in a transaction.
+
+Some examples of practical usages of realms:
+
+- Self-custodial financial exchanges (decentralized exchanges), like
+    [Gnoswap](https://github.com/gnoswap-labs/gnoswap).
+- Chess servers, like [GnoChess](https://github.com/gnolang/gnochess), and
+    generally speaking game servers.
+- Forum-style [boards](https://gno.land/r/demo/boards), Twitter-style
+    [microblogs](https://gno.land/r/demo/microblog), and other social
+    applications.
+- Transparent insurance systems.
+- Fair and accessible voting systems.
+
+## Pure vs Realm Packages
 
 #### [**Pure Packages**](https://github.com/gnolang/gno/tree/master/examples/gno.land/p)
 
@@ -25,7 +48,7 @@ transparency, and censorship resistance. Here are some ideas of what you can bui
 * Can be imported to other realms or packages.
 * Cannot import realms.
 
-#### [**Realms**](https://github.com/gnolang/gno/tree/master/examples/gno.land/r)
+#### [**Realm Packages**](https://github.com/gnolang/gno/tree/master/examples/gno.land/r)
 
 * Smart contracts in Gno.
 * Realms are stateful.

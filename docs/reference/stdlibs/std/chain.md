@@ -32,7 +32,7 @@ std.AssertOriginCall()
 ```go
 func Emit(typ string, attrs ...string)
 ```
-Emits a Gno event. Takes in a **string** type (event identifier), and an even number of string 
+Emits a Gno event. Takes in a **string** type (event identifier), and an even number of string
 arguments acting as key-value pairs to be included in the emitted event.
 
 #### Usage
@@ -102,10 +102,27 @@ origPkgAddr := std.GetOrigPkgAddr()
 ---
 
 ## CurrentRealm
+
 ```go
 func CurrentRealm() Realm
 ```
-Returns current [Realm](realm.md) object.
+CurrentRealm returns the [Realm](md) in which the caller is being executed.
+The value of CurrentRealm remains the same if called by a function within the
+same realm, or a function in a pure package. It will change if called by a
+realm with a different pkgpath.
+
+As an example, here is a sequence of function calls and the result of
+CurrentRealm() in each. In this example, main() is called in the context of a
+MsgRun transaction.
+
+```
+Function           | CurrentRealm result
+main.main()        | Realm{addr: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}
+-> main.helper()   | Realm{addr: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}
+-> realm1.Fn()     | Realm{addr: "g1em9rtwnzspuwpqdsxk9ldrn6z7r60vzj2l8xuw", pkgPath: "gno.land/r/demo/realm1"}
+-> realm1.helper() | Realm{addr: "g1em9rtwnzspuwpqdsxk9ldrn6z7r60vzj2l8xuw", pkgPath: "gno.land/r/demo/realm1"}
+-> realm2.Fn()     | Realm{addr: "g1x5cn0ef9mtwfed7yfp0t0jqwc5zlhzqpnd9mpd", pkgPath: "gno.land/r/demo/realm2"}
+```
 
 #### Usage
 ```go
@@ -117,8 +134,24 @@ currentRealm := std.CurrentRealm()
 ```go
 func PrevRealm() Realm
 ```
-Returns the previous caller [realm](realm.md) (can be code or user realm). If caller is a
-user realm, `pkgpath` will be empty.
+
+PrevRealm returns the [Realm](realm.md) which called the code being executed.
+The value of PrevRealm remains the same if called by a function within the
+same realm, or a function in a pure package. It will change if called by a
+realm with a different pkgpath.
+
+As an example, here is a sequence of function calls and the result of
+PrevRealm() in each. In this example, main() is called in the context of a
+MsgRun transaction.
+
+```
+Function           | PrevRealm result
+main.main()        | Realm{addr: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}
+-> main.helper()   | Realm{addr: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}
+-> realm1.Fn()     | Realm{addr: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}
+-> realm1.helper() | Realm{addr: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"}
+-> realm2.Fn()     | Realm{addr: "g1em9rtwnzspuwpqdsxk9ldrn6z7r60vzj2l8xuw", pkgPath: "gno.land/r/demo/realm1"}
+```
 
 #### Usage
 ```go
@@ -138,7 +171,7 @@ currentRealm := std.GetCallerAt(1)      // returns address of current realm
 previousRealm := std.GetCallerAt(2)     // returns address of previous realm/caller
 std.GetCallerAt(0)                      // error, n must be > 0
 ```
---- 
+---
 
 ## DerivePkgAddr
 ```go
