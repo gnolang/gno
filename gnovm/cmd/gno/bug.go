@@ -23,8 +23,9 @@ Describe your issue in as much detail as possible here
 
 ### Your environment
 
-* go version {{.GoVersion}} {{.Os}}/{{.Arch}}
-* gno commit that causes this issue: {{.Commit}}
+* Go version: {{.GoVersion}}
+* OS and CPU architecture: {{.Os}}/{{.Arch}}
+* Gno commit hash causing the issue: {{.Commit}}
 
 ### Steps to reproduce
 
@@ -65,7 +66,7 @@ func newBugCmd(io commands.IO) *commands.Command {
 
 The new issue body is prefilled for you with the following information:
 
-- Go version (example: go1.22.2)
+- Go version (example: go1.22.4)
 - OS and CPU architecture (example: linux/amd64)
 - Gno commit hash causing the issue (example: f24690e7ebf325bffcfaf9e328c3df8e6b21e50c)
 

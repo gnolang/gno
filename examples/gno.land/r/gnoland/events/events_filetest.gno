@@ -12,7 +12,7 @@ func main() {
 // # Gno.land Core Team Attends Industry Events & Meetups
 //
 //
-// If you’re interested in building web3 with us, catch up with Gno.land in person at one of our industry events. We’re looking to connect with developers and like-minded thinkers who can contribute to the growth of our platform.
+// If you’re interested in building web3 with us, catch up with gno.land in person at one of our industry events. We’re looking to connect with developers and like-minded thinkers who can contribute to the growth of our platform.
 //
 //
 // ---
