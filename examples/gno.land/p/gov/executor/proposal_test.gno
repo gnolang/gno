@@ -5,6 +5,7 @@ import (
 	"std"
 	"testing"
 
+	"github.com/gnolang/gno/examples/gno.land/r/sys/vars"
 	"gno.land/p/demo/context"
 	"gno.land/p/demo/uassert"
 )
@@ -53,7 +54,7 @@ func TestExecutor_Callback(t *testing.T) {
 		e := NewCallbackExecutor(cb)
 
 		// Execute as the /r/gov/dao caller
-		r := std.NewCodeRealm(daoPkgPath)
+		r := std.NewCodeRealm(vars.GetStringValue(vars.GovdaoRealm))
 		std.TestSetRealm(r)
 
 		uassert.NotPanics(t, func() {
@@ -83,7 +84,7 @@ func TestExecutor_Callback(t *testing.T) {
 		e := NewCallbackExecutor(cb)
 
 		// Execute as the /r/gov/dao caller
-		r := std.NewCodeRealm(daoPkgPath)
+		r := std.NewCodeRealm(vars.GetStringValue(vars.GovdaoRealm))
 		std.TestSetRealm(r)
 
 		uassert.NotPanics(t, func() {
@@ -148,7 +149,7 @@ func TestExecutor_Context(t *testing.T) {
 		e := NewCtxExecutor(cb)
 
 		// Execute as the /r/gov/dao caller
-		r := std.NewCodeRealm(daoPkgPath)
+		r := std.NewCodeRealm(vars.GetStringValue(vars.GovdaoRealm))
 		std.TestSetRealm(r)
 
 		uassert.NotPanics(t, func() {
@@ -182,7 +183,7 @@ func TestExecutor_Context(t *testing.T) {
 		e := NewCtxExecutor(cb)
 
 		// Execute as the /r/gov/dao caller
-		r := std.NewCodeRealm(daoPkgPath)
+		r := std.NewCodeRealm(vars.GetStringValue(vars.GovdaoRealm))
 		std.TestSetRealm(r)
 
 		uassert.NotPanics(t, func() {

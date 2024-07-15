@@ -7,6 +7,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/gov/dao"
 	"gno.land/p/gov/executor"
+	"gno.land/r/sys/vars"
 )
 
 const daoPkgPath = "gno.land/r/gov/dao" // TODO change to r/sys/vars
@@ -47,7 +48,7 @@ func AdminRemoveModerator(addr std.Address) {
 func NewPostExecutor(slug, title, body, publicationDate, authors, tags string) dao.Executor {
 	callback := func() error {
 		assertGovDAOCaller()
-		caller := std.DerivePkgAddr("gno.land/r/gov/dao") // TODO use r/sys/vars
+		caller := std.DerivePkgAddr(vars.GetStringValue(vars.GovdaoRealm))
 
 		addPost(caller, slug, title, body, publicationDate, authors, tags)
 
@@ -59,7 +60,7 @@ func NewPostExecutor(slug, title, body, publicationDate, authors, tags string) d
 
 // assertGovDAOCaller verifies the caller is the GovDAO executor
 func assertGovDAOCaller() {
-	if std.PrevRealm().PkgPath() != daoPkgPath {
+	if std.PrevRealm().PkgPath() != vars.GetStringValue(vars.GovdaoRealm) {
 		panic(errNotGovDAO)
 	}
 }

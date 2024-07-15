@@ -3,9 +3,9 @@ package executor
 import (
 	"errors"
 	"std"
-)
 
-const daoPkgPath = "gno.land/r/gov/dao" // TODO: make sure this is configurable through r/sys/vars
+	"gno.land/r/sys/vars"
+)
 
 var errNotGovDAO = errors.New("only r/gov/dao can be the caller")
 
@@ -45,7 +45,7 @@ func (exec *CallbackExecutor) IsExpired() bool {
 func assertCalledByGovdao() {
 	caller := std.CurrentRealm().PkgPath()
 
-	if caller != daoPkgPath {
+	if caller != vars.GetStringValue(vars.GovdaoRealm) {
 		panic(errNotGovDAO)
 	}
 }
