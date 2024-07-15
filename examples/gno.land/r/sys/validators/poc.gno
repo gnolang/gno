@@ -3,11 +3,12 @@ package validators
 import (
 	"std"
 
+	"github.com/gnolang/gno/examples/gno.land/p/gov/dao"
 	"gno.land/p/gov/executor"
 	"gno.land/p/sys/validators"
 )
 
-const daoPkgPath = "gno.land/r/gov/dao"
+const daoPkgPath = "gno.land/r/gov/dao" // TODO change to r/sys/vars
 
 const (
 	errNoChangesProposed = "no set changes proposed"
