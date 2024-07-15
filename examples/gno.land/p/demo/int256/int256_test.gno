@@ -1,9 +1,7 @@
 // ported from github.com/mempooler/int256
 package int256
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestSign(t *testing.T) {
 	tests := []struct {

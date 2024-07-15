@@ -15,4 +15,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/incdec_a4.gno:12: cannot use int8 as main.Int without explicit conversion
+// main/files/types/incdec_a4.gno:12:2: cannot use int8 as main.Int without explicit conversion

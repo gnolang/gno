@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_array_c.gno:10: [2][]int is not comparable
+// main/files/types/cmp_array_c.gno:10:25: [2][]int is not comparable

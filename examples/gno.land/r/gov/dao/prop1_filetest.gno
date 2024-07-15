@@ -10,18 +10,43 @@ package main
 import (
 	"std"
 
+	pVals "gno.land/p/sys/validators"
 	govdao "gno.land/r/gov/dao"
 	"gno.land/r/sys/validators"
 )
 
+const daoPkgPath = "gno.land/r/gov/dao"
+
 func init() {
-	// Create the validators change proposal.
-	changesFn := func() []validators.Change {
-		return []validators.Change{
-			// add a new validator.
-			{Address: std.Address("g12345678"), Power: 1},
-			// remove an existing validator.
-			{Address: std.Address("g000000000"), Power: 0},
+	membersFn := func() []std.Address {
+		return []std.Address{
+			std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
+		}
+	}
+
+	mExec := govdao.NewPropExecutor(membersFn)
+
+	comment := "adding someone to vote"
+	id := govdao.Propose(comment, mExec)
+	govdao.ExecuteProposal(id)
+
+	changesFn := func() []pVals.Validator {
+		return []pVals.Validator{
+			{
+				Address:     std.Address("g12345678"),
+				PubKey:      "pubkey",
+				VotingPower: 10, // add a new validator
+			},
+			{
+				Address:     std.Address("g000000000"),
+				PubKey:      "pubkey",
+				VotingPower: 10, // add a new validator
+			},
+			{
+				Address:     std.Address("g000000000"),
+				PubKey:      "pubkey",
+				VotingPower: 0, // remove an existing validator
+			},
 		}
 	}
 
@@ -31,7 +56,7 @@ func init() {
 
 	// Create a proposal.
 	// XXX: payment
-	comment := "manual valset changes proposal example"
+	comment = "manual valset changes proposal example"
 	govdao.Propose(comment, executor)
 }
 
@@ -56,30 +81,51 @@ func main() {
 
 // Output:
 // --
-// - [/r/gov/dao:0](0) - manual valset changes proposal example (by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// - [0](/r/gov/dao:0) - adding someone to vote (**succeeded**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// - [1](/r/gov/dao:1) - manual valset changes proposal example (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+//
 // --
-// # Prop#0
+// # Prop #1
 //
 // manual valset changes proposal example
+//
 // Status: active
+//
+// Voting status: YES: 0, NO: 0, percent: 0, members: 1
+//
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+//
 // --
 // --
-// # Prop#0
+// # Prop #1
 //
 // manual valset changes proposal example
+//
 // Status: accepted
+//
+// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+//
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+//
 // --
 // No valset changes to apply.
 // --
 // --
-// # Prop#0
+// # Prop #1
 //
 // manual valset changes proposal example
-// Status: success
+//
+// Status: succeeded
+//
+// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+//
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+//
+//
 // --
-// Valset changes to apply:
-// - g12345678 (1)
-// - g000000000 (0)
+// Valset changes:
+// - #123: g12345678 (10)
+// - #123: g000000000 (10)
+// - #123: g000000000 (0)
