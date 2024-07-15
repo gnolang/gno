@@ -33,10 +33,10 @@ type AuthInfo struct {
 
 // Client is an HTTP client implementation
 type Client struct {
-	rpcURL string // the remote RPC URL of the node
+	authInfo AuthInfo // the basic authentication info
+	rpcURL   string   // the remote RPC URL of the node
 
-	authInfo AuthInfo
-	client   *http.Client
+	client *http.Client
 }
 
 // NewClient initializes and creates a new HTTP RPC client
