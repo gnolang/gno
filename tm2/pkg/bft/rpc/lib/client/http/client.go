@@ -35,23 +35,21 @@ type AuthInfo struct {
 type Client struct {
 	rpcURL string // the remote RPC URL of the node
 
-	authInfo *AuthInfo
+	authInfo AuthInfo
 	client   *http.Client
 }
 
 // NewClient initializes and creates a new HTTP RPC client
 func NewClient(rpcURL string) (*Client, error) {
-	// Parse the RPC URL
-	address, err := toClientAddress(rpcURL)
+	// Parse the RPC URL and extract auth info
+	address, authInfo, err := toClientAddressAndAuth(rpcURL)
 	if err != nil {
 		return nil, fmt.Errorf("invalid RPC URL, %w", err)
 	}
 
-	parseAuthInfo(rpcURL)
-
 	c := &Client{
 		rpcURL:   address,
-		authInfo: &AuthInfo{},
+		authInfo: authInfo,
 		client:   defaultHTTPClient(rpcURL),
 	}
 
@@ -117,7 +115,7 @@ func sendRequestCommon[T requestType, R responseType](
 	ctx context.Context,
 	client *http.Client,
 	rpcURL string,
-	authInfo *AuthInfo,
+	authInfo AuthInfo,
 	request T,
 ) (R, error) {
 	// Marshal the request
@@ -139,8 +137,8 @@ func sendRequestCommon[T requestType, R responseType](
 	// Set the header content type
 	req.Header.Set("Content-Type", "application/json")
 
-	// Set the basic authentication
-	if authInfo != nil {
+	// Set the basic authentication if provided
+	if authInfo.Username != "" {
 		req.SetBasicAuth(authInfo.Username, authInfo.Password)
 	}
 
@@ -221,10 +219,26 @@ func toClientAddrAndParse(remoteAddr string) (string, string) {
 	return clientProtocol, trimmedAddress
 }
 
-func toClientAddress(remoteAddr string) (string, error) {
-	clientProtocol, trimmedAddress := toClientAddrAndParse(remoteAddr)
+func toClientAddressAndAuth(remoteAddr string) (string, AuthInfo, error) {
+	parsedURL, err := url.Parse(remoteAddr)
+	if err != nil {
+		return "", AuthInfo{}, err
+	}
 
-	return clientProtocol + "://" + trimmedAddress, nil
+	username := parsedURL.User.Username()
+	password, _ := parsedURL.User.Password()
+
+	authInfo := AuthInfo{
+		Username: username,
+		Password: password,
+	}
+
+	// Remove the user info from the parsed URL
+	parsedURL.User = nil
+
+	clientProtocol, trimmedAddress := toClientAddrAndParse(parsedURL.String())
+
+	return clientProtocol + "://" + trimmedAddress, authInfo, nil
 }
 
 // network - name of the network (for example, "tcp", "unix")
@@ -254,21 +268,6 @@ func parseRemoteAddr(remoteAddr string) (string, string) {
 	}
 
 	return protocol, address
-}
-
-func parseAuthInfo(remoteAddr string) (AuthInfo, error) {
-	parsedURL, err := url.Parse(remoteAddr)
-	if err != nil {
-		return AuthInfo{}, err
-	}
-
-	username := parsedURL.User.Username()
-	password, _ := parsedURL.User.Password()
-
-	return AuthInfo{
-		Username: username,
-		Password: password,
-	}, nil
 }
 
 // isOKStatus returns a boolean indicating if the response

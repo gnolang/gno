@@ -13,6 +13,55 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNewClient(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		rpcURL       string
+		expectedAuth AuthInfo
+		expectedURL  string
+	}{
+		{
+			"http://user:pass@localhost:26657",
+			AuthInfo{Username: "user", Password: "pass"},
+			"http://localhost:26657",
+		},
+		{
+			"http://user@localhost:26657",
+			AuthInfo{Username: "user"},
+			"http://localhost:26657",
+		},
+		{
+			"https://localhost:26657",
+			AuthInfo{},
+			"https://localhost:26657",
+		},
+		{
+			"tcp://localhost:26657",
+			AuthInfo{},
+			"http://localhost:26657",
+		},
+		{
+			"localhost",
+			AuthInfo{},
+			"http://localhost:80",
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.rpcURL, func(t *testing.T) {
+			t.Parallel()
+
+			client, err := NewClient(testCase.rpcURL)
+
+			require.NoError(t, err)
+			assert.Equal(t, testCase.expectedURL, client.rpcURL)
+			assert.Equal(t, testCase.expectedAuth, client.authInfo)
+		})
+	}
+}
+
 func TestClient_parseRemoteAddr(t *testing.T) {
 	t.Parallel()
 
@@ -224,5 +273,59 @@ func TestClient_SendBatchRequest(t *testing.T) {
 		assert.Equal(t, request.JSONRPC, resp.JSONRPC)
 		assert.Nil(t, resp.Result)
 		assert.Nil(t, resp.Error)
+	}
+}
+
+func Test_toClientAddressAndAuth(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		remoteAddr      string
+		expectedAddress string
+		expectedAuth    AuthInfo
+	}{
+		{
+			"http://user:pass@example.com",
+			"http://example.com:80",
+			AuthInfo{Username: "user", Password: "pass"},
+		},
+		{
+			"http://user@example.com",
+			"http://example.com:80",
+			AuthInfo{Username: "user"},
+		},
+		{
+			"https://user:pass@example.com:8080",
+			"https://example.com:8080",
+			AuthInfo{Username: "user", Password: "pass"},
+		},
+		{
+			"http://example.com",
+			"http://example.com:80",
+			AuthInfo{},
+		},
+		{
+			"example.com",
+			"http://example.com:80",
+			AuthInfo{},
+		},
+		{
+			"localhost",
+			"http://localhost:80",
+			AuthInfo{},
+		},
+	}
+
+	for _, testCase := range testCases {
+		testCase := testCase
+		t.Run(testCase.remoteAddr, func(t *testing.T) {
+			t.Parallel()
+
+			address, authInfo, err := toClientAddressAndAuth(testCase.remoteAddr)
+
+			require.NoError(t, err)
+			assert.Equal(t, testCase.expectedAddress, address)
+			assert.Equal(t, testCase.expectedAuth, authInfo)
+		})
 	}
 }
