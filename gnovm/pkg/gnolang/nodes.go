@@ -155,16 +155,20 @@ func (loc Location) IsZero() bool {
 type GnoAttribute string
 
 const (
-	ATTR_PREPROCESSED  GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED    GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE    GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE  GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA          GnoAttribute = "ATTR_IOTA"
-	ATTR_LOCATIONED    GnoAttribute = "ATTR_LOCATIONE" // XXX DELETE
-	ATTR_INJECTED      GnoAttribute = "ATTR_INJECTED"
-	ATTR_GOTOLOOP_STMT GnoAttribute = "ATTR_GOTOLOOP_STMT" // XXX delete?
-	ATTR_LOOP_DEFINES  GnoAttribute = "ATTR_LOOP_DEFINES"  // []Name defined within loops.
-	ATTR_LOOP_USES     GnoAttribute = "ATTR_LOOP_USES"     // []Name loop defines actually used.
+	ATTR_PREPROCESSED    GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREDEFINED      GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE      GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE    GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA            GnoAttribute = "ATTR_IOTA"
+	ATTR_LOCATIONED      GnoAttribute = "ATTR_LOCATIONE" // XXX DELETE
+	ATTR_INJECTED        GnoAttribute = "ATTR_INJECTED"
+	ATTR_GOTOLOOP_STMT   GnoAttribute = "ATTR_GOTOLOOP_STMT"   // XXX delete?
+	ATTR_LOOP_DEFINES    GnoAttribute = "ATTR_LOOP_DEFINES"    // []Name defined within loops.
+	ATTR_LOOP_USES       GnoAttribute = "ATTR_LOOP_USES"       // []Name loop defines actually used.
+	ATTR_LOOP_USES_DEPTH GnoAttribute = "ATTR_LOOP_USES_DEPTH" // []Name loop defines actually used.
+	ATTR_FLE_USED        GnoAttribute = "ATTR_FLE_USED"
+	ATTR_FLE_LOOP        GnoAttribute = "ATTR_FLE_LOOP" // bidirectional refer
+	ATTR_LOOP_FLEs       GnoAttribute = "ATTR_LOOP_FLEs"
 )
 
 type Attributes struct {

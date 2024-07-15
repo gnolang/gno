@@ -96,6 +96,7 @@ _test.gnolang: _test.gnolang.native _test.gnolang.stdlibs _test.gnolang.realm _t
 _test.gnolang.other:;        go test tests/*.go -run "(TestFileStr|TestSelectors)" $(GOTEST_FLAGS)
 _test.gnolang.realm:;        go test tests/*.go -run "TestFiles/^zrealm" $(GOTEST_FLAGS)
 _test.gnolang.pkg0:;         go test tests/*.go -run "TestStdlibs/(bufio|crypto|encoding|errors|internal|io|math|sort|std|strconv|strings|testing|unicode)" $(GOTEST_FLAGS)
+#_test.gnolang.pkg0:;         go test tests/*.go -run "TestStdlibs/(sort)" $(GOTEST_FLAGS)
 _test.gnolang.pkg1:;         go test tests/*.go -run "TestStdlibs/regexp" $(GOTEST_FLAGS)
 _test.gnolang.pkg2:;         go test tests/*.go -run "TestStdlibs/bytes" $(GOTEST_FLAGS)
 _test.gnolang.native:;       go test tests/*.go -test.short -run "TestFilesNative/" $(GOTEST_FLAGS)

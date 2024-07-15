@@ -52,7 +52,6 @@ func (m *Machine) doOpCall() {
 	fr := m.LastFrame()
 	fv := fr.Func
 	debug.Println("---fv: ", fv)
-	debug.Println("---fv.Captures: ", fv.Captures)
 	ft := fr.Func.GetType(m.Store)
 	debug.Println("---ft: ", ft)
 	pts := ft.Params
@@ -64,18 +63,19 @@ func (m *Machine) doOpCall() {
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
 	debug.Println("---b: ", b)
 	debug.Println("---b.Names: ", b.Source.GetBlockNames())
-	debug.Println("---b.Values: ", b.Values)
+	debug.Println("---b.Values before update: ", b.Values)
 	debug.Println("---fv.Captures: ", fv.Captures, len(fv.Captures))
 
-	if len(fv.Captures) > len(b.Values) {
-		panic("should not happen")
-	} else if len(fv.Captures) != 0 {
+	if len(fv.Captures) != 0 {
+		if len(fv.Captures) > len(b.Values) {
+			panic("should not happen")
+		}
 		for i := 0; i < len(fv.Captures); i++ {
 			b.Values[len(b.Values)-len(fv.Captures)] = fv.Captures[i].Copy(m.Alloc)
 		}
 	}
 
-	debug.Println("---b.Values after copy: ", b.Values)
+	debug.Println("---b.Values after update: ", b.Values)
 
 	m.PushBlock(b)
 	if fv.nativeBody == nil && fv.NativePkg != "" {
@@ -292,6 +292,7 @@ func (m *Machine) doOpReturnToBlock() {
 }
 
 func (m *Machine) doOpReturnCallDefers() {
+	debug.Println("---doOpReturnCallDefers")
 	cfr := m.MustLastCallFrame(1)
 	dfr, ok := cfr.PopDefer()
 	if !ok {
@@ -313,12 +314,26 @@ func (m *Machine) doOpReturnCallDefers() {
 	// Convert if variadic argument.
 	if dfr.Func != nil {
 		fv := dfr.Func
+		debug.Println("---defer, fv.Captures: ", fv.Captures)
 		ft := fv.GetType(m.Store)
 		pts := ft.Params
 		numParams := len(ft.Params)
 		// Create new block scope for defer.
 		clo := dfr.Func.GetClosure(m.Store)
 		b := m.Alloc.NewBlock(fv.GetSource(m.Store), clo)
+		// update values from captures
+		debug.Println("---b: ", b)
+		debug.Println("---b.Values before update: ", b.Values)
+		debug.Println("---b.Names before update: ", b.Source.GetBlockNames())
+		if len(fv.Captures) != 0 {
+			if len(fv.Captures) > len(b.Values) {
+				panic("should not happen")
+			}
+			for i := 0; i < len(fv.Captures); i++ {
+				b.Values[len(b.Values)-len(fv.Captures)] = fv.Captures[i].Copy(m.Alloc)
+			}
+		}
+		debug.Println("---b.Values after update: ", b.Values)
 		m.PushBlock(b)
 		if fv.nativeBody == nil {
 			fbody := fv.GetBodyFromSource(m.Store)

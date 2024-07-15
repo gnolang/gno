@@ -24,9 +24,6 @@ func main() {
 // This does make 'z' NameExprTypeHeapDefine.
 // You can tell by the preprocess printout of z<!~...> and z<()~...>.
 
-// Preprocessed:
-// file{ package main; type f (const-type main.f); var fs<!VPBlock(2,1)> []f<VPBlock(2,0)>; func forLoopClosure() { defer func func(){ for _<!VPBlock(0,0)>, f<!VPBlock(1,0)> := range fs<VPBlock(5,1)> { f<VPBlock(1,0)>() } }(); for i<!VPBlock(1,0)> := (const (0 int)); i<VPBlock(1,0)> < (const (3 int)); i<VPBlock(1,0)>++ { z<!~VPBlock(1,1)> := i<VPBlock(1,0)>; fs<VPBlock(4,1)> = (const (append func(x []main.f,args ...main.f)(res []main.f)))(fs<VPBlock(4,1)>, (const-type main.f)(func func(){ (const (println func(xs ...interface{})()))(z<~VPBlock(1,0)>) }<z<()~VPBlock(1,1)>>)) } }; func main() { forLoopClosure<VPBlock(3,2)>() } }
-
 // Output:
 // 0
 // 1

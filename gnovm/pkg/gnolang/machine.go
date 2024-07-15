@@ -2179,3 +2179,12 @@ func hasName(ns []Name, n Name) bool {
 	}
 	return false
 }
+
+func hasNameX(ns []*NameExpr, nx *NameExpr) bool {
+	for _, n2 := range ns {
+		if nx == n2 {
+			return true
+		}
+	}
+	return false
+}

@@ -91,7 +91,6 @@ func main() {
 // }
 // u[a8ada09dee16d791fd406d629fe29bb0ed084a30:2]={
 //     "Blank": {},
-//     "HeapValues": null,
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:2",
 //         "IsEscaped": true,

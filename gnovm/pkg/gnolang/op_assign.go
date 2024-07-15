@@ -13,10 +13,10 @@ func (m *Machine) doOpDefine() {
 	debug.Println("---lb values before assign: ", lb.Values)
 
 	for i := 0; i < len(s.Lhs); i++ {
-		if _, ok := rvs[i].T.(*PointerType); ok {
-			pv := rvs[i].V.(PointerValue)
-			debug.Println("---pv: ", pv, pv.Base)
-		}
+		//if _, ok := rvs[i].T.(*PointerType); ok {
+		//	pv := rvs[i].V.(PointerValue)
+		//	debug.Println("---pv: ", pv, pv.Base)
+		//}
 		// Get name and value of i'th term.
 		nx := s.Lhs[i].(*NameExpr)
 		// Finally, define (or assign if loop block).

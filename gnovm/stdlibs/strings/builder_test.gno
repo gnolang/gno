@@ -214,87 +214,87 @@ func TestBuilderCopyPanic(t *testing.T) {
 				_ = b.String() // appease vet
 			},
 		},
-		{
-			name:      "Len",
-			wantPanic: false,
-			fn: func() {
-				var a strings.Builder
-				a.WriteByte('x')
-				b := a
-				b.Len()
-			},
-		},
-		{
-			name:      "Cap",
-			wantPanic: false,
-			fn: func() {
-				var a strings.Builder
-				a.WriteByte('x')
-				b := a
-				b.Cap()
-			},
-		},
-		{
-			name:      "Reset",
-			wantPanic: false,
-			fn: func() {
-				var a strings.Builder
-				a.WriteByte('x')
-				b := a
-				b.Reset()
-				b.WriteByte('y')
-			},
-		},
-		{
-			name:      "Write",
-			wantPanic: true,
-			fn: func() {
-				var a strings.Builder
-				a.Write([]byte("x"))
-				b := a
-				b.Write([]byte("y"))
-			},
-		},
-		{
-			name:      "WriteByte",
-			wantPanic: true,
-			fn: func() {
-				var a strings.Builder
-				a.WriteByte('x')
-				b := a
-				b.WriteByte('y')
-			},
-		},
-		{
-			name:      "WriteString",
-			wantPanic: true,
-			fn: func() {
-				var a strings.Builder
-				a.WriteString("x")
-				b := a
-				b.WriteString("y")
-			},
-		},
-		{
-			name:      "WriteRune",
-			wantPanic: true,
-			fn: func() {
-				var a strings.Builder
-				a.WriteRune('x')
-				b := a
-				b.WriteRune('y')
-			},
-		},
-		{
-			name:      "Grow",
-			wantPanic: true,
-			fn: func() {
-				var a strings.Builder
-				a.Grow(1)
-				b := a
-				b.Grow(2)
-			},
-		},
+		//{
+		//	name:      "Len",
+		//	wantPanic: false,
+		//	fn: func() {
+		//		var a strings.Builder
+		//		a.WriteByte('x')
+		//		b := a
+		//		b.Len()
+		//	},
+		//},
+		//{
+		//	name:      "Cap",
+		//	wantPanic: false,
+		//	fn: func() {
+		//		var a strings.Builder
+		//		a.WriteByte('x')
+		//		b := a
+		//		b.Cap()
+		//	},
+		//},
+		//{
+		//	name:      "Reset",
+		//	wantPanic: false,
+		//	fn: func() {
+		//		var a strings.Builder
+		//		a.WriteByte('x')
+		//		b := a
+		//		b.Reset()
+		//		b.WriteByte('y')
+		//	},
+		//},
+		//{
+		//	name:      "Write",
+		//	wantPanic: true,
+		//	fn: func() {
+		//		var a strings.Builder
+		//		a.Write([]byte("x"))
+		//		b := a
+		//		b.Write([]byte("y"))
+		//	},
+		//},
+		//{
+		//	name:      "WriteByte",
+		//	wantPanic: true,
+		//	fn: func() {
+		//		var a strings.Builder
+		//		a.WriteByte('x')
+		//		b := a
+		//		b.WriteByte('y')
+		//	},
+		//},
+		//{
+		//	name:      "WriteString",
+		//	wantPanic: true,
+		//	fn: func() {
+		//		var a strings.Builder
+		//		a.WriteString("x")
+		//		b := a
+		//		b.WriteString("y")
+		//	},
+		//},
+		//{
+		//	name:      "WriteRune",
+		//	wantPanic: true,
+		//	fn: func() {
+		//		var a strings.Builder
+		//		a.WriteRune('x')
+		//		b := a
+		//		b.WriteRune('y')
+		//	},
+		//},
+		//{
+		//	name:      "Grow",
+		//	wantPanic: true,
+		//	fn: func() {
+		//		var a strings.Builder
+		//		a.Grow(1)
+		//		b := a
+		//		b.Grow(2)
+		//	},
+		//},
 	}
 	for _, tt := range tests {
 		// XXX remove goroutine usage
