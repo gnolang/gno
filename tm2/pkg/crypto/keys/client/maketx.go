@@ -220,7 +220,7 @@ func ExecSignAndBroadcast(
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", bres.Height)
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
-	io.Println("TX HASH:   ", base64.URLEncoding.EncodeToString(bres.Hash))
+	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
 
 	return nil
 }
