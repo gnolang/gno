@@ -69,6 +69,11 @@ func (p *proposal) GetVotes() []dao.Vote {
 	return votes
 }
 
+func (p *proposal) GetVotingStats() dao.VotingStats {
+	// TODO implement
+	return dao.VotingStats{}
+}
+
 func (p *proposal) GetVoteByMember(address std.Address) (dao.Vote, error) {
 	voters := p.votes.getVoters()
 

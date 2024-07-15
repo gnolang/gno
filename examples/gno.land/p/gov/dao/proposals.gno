@@ -46,6 +46,9 @@ type Proposal interface {
 	// GetVotes returns the votes of the proposal
 	GetVotes() []Vote
 
+	// GetVotingStats returns the voting stats of the proposal
+	GetVotingStats() VotingStats
+
 	// GetVoteByMember returns the proposal vote by the member, if any
 	GetVoteByMember(address std.Address) (Vote, error)
 }

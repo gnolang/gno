@@ -75,7 +75,7 @@ func NewDAOImplExecutor(changeFn func() dao.DAO) dao.Executor {
 	return executor.NewCallbackExecutor(callback)
 }
 
-func NewMembStoreImplExecutor(changeFn func() dao.MembStore) dao.Executor {
+func NewMembStoreImplExecutor(changeFn func() dao.MemberStore) dao.Executor {
 	if changeFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -113,7 +113,7 @@ func setDAOImpl(impl dao.DAO) {
 }
 
 // setMembStoreImpl sets a new dao.MembStore implementation
-func setMembStoreImpl(impl dao.MembStore) {
+func setMembStoreImpl(impl dao.MemberStore) {
 	members = impl
 }
 

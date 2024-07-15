@@ -17,19 +17,6 @@ import (
 )
 
 func init() {
-	membersFn := func() []dao.Member {
-		return []dao.Member{
-			Address:     std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
-			VotingPower: 10,
-		}
-	}
-
-	mExec := govdao.NewPropExecutor(membersFn)
-
-	comment := "adding someone to vote"
-	id := govdao.Propose(comment, mExec)
-	govdao.ExecuteProposal(id)
-
 	changesFn := func() []pVals.Validator {
 		return []pVals.Validator{
 			{
@@ -55,8 +42,7 @@ func init() {
 	executor := validators.NewPropExecutor(changesFn)
 
 	// Create a proposal.
-	// XXX: payment
-	comment = "manual valset changes proposal example"
+	comment := "manual valset changes proposal example"
 	govdao.Propose(comment, executor)
 }
 
@@ -64,64 +50,69 @@ func main() {
 	println("--")
 	println(govdao.Render(""))
 	println("--")
-	println(govdao.Render("1"))
+	println(govdao.Render("0"))
 	println("--")
-	govdao.VoteOnProposal(1, "YES")
+	govdao.VoteOnProposal(0, dao.YesVote)
 	println("--")
-	println(govdao.Render("1"))
+	println(govdao.Render("0"))
 	println("--")
 	println(validators.Render(""))
 	println("--")
-	govdao.ExecuteProposal(1)
+	govdao.ExecuteProposal(0)
 	println("--")
-	println(govdao.Render("1"))
+	println(govdao.Render("0"))
 	println("--")
 	println(validators.Render(""))
 }
 
 // Output:
 // --
-// - [0](/r/gov/dao:0) - adding someone to vote (**succeeded**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
-// - [1](/r/gov/dao:1) - manual valset changes proposal example (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// - [Proposal #0](/r/gov/dao:0) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
 // --
-// # Prop #1
+// # Prop #0
+//
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // manual valset changes proposal example
 //
 // Status: active
 //
-// Voting status: YES: 0, NO: 0, percent: 0, members: 1
+// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+//
+// Threshold met: false
+//
+//
+// --
+// --
+// # Prop #0
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-//
-//
-// --
-// --
-// # Prop #1
 //
 // manual valset changes proposal example
 //
 // Status: accepted
 //
-// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Threshold met: false
 //
 //
 // --
 // No valset changes to apply.
 // --
 // --
-// # Prop #1
+// # Prop #0
+//
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // manual valset changes proposal example
 //
-// Status: succeeded
+// Status: execution successful
 //
-// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Threshold met: false
 //
 //
 // --

@@ -1,46 +1,24 @@
 package main
 
 import (
-	"std"
 	"time"
 
-	"gno.land/p/demo/context"
-	"gno.land/p/gov/executor"
 	gnoblog "gno.land/r/gnoland/blog"
 	govdao "gno.land/r/gov/dao"
 )
 
 func init() {
-	membersFn := func() []std.Address {
-		return []std.Address{
-			std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
-		}
-	}
-
-	mExec := govdao.NewPropExecutor(membersFn)
-
-	comment := "adding someone to vote"
-
-	id := govdao.Propose(comment, mExec)
-
-	govdao.ExecuteProposal(id)
-
-	ex := executor.NewCtxExecutor(func(ctx context.Context) error {
-		gnoblog.DaoAddPost(
-			ctx,
-			"hello-from-govdao",  // slug
-			"Hello from GovDAO!", // title
-			"This post was published by a GovDAO proposal.", // body
-			time.Now().Format(time.RFC3339),                 // publidation date
-			"moul",                                          // authors
-			"govdao,example",                                // tags
-		)
-		return nil
-	})
+	ex := gnoblog.NewPostExecutor(
+		"hello-from-govdao",                             // slug
+		"Hello from GovDAO!",                            // title
+		"This post was published by a GovDAO proposal.", // body
+		time.Now().Format(time.RFC3339),                 // publidation date
+		"moul",                                          // authors
+		"govdao,example",                                // tags
+	)
 
 	// Create a proposal.
-	// XXX: payment
-	comment = "post a new blogpost about govdao"
+	comment := "post a new blogpost about govdao"
 	govdao.Propose(comment, ex)
 }
 
@@ -48,49 +26,52 @@ func main() {
 	println("--")
 	println(govdao.Render(""))
 	println("--")
-	println(govdao.Render("1"))
+	println(govdao.Render("0"))
 	println("--")
-	govdao.VoteOnProposal(1, "YES")
+	govdao.VoteOnProposal(0, "YES")
 	println("--")
-	println(govdao.Render("1"))
+	println(govdao.Render("0"))
 	println("--")
 	println(gnoblog.Render(""))
 	println("--")
-	govdao.ExecuteProposal(1)
+	govdao.ExecuteProposal(0)
 	println("--")
-	println(govdao.Render("1"))
+	println(govdao.Render("0"))
 	println("--")
 	println(gnoblog.Render(""))
 }
 
 // Output:
 // --
-// - [0](/r/gov/dao:0) - adding someone to vote (**succeeded**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
-// - [1](/r/gov/dao:1) - post a new blogpost about govdao (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// - [Proposal #0](/r/gov/dao:0) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
 // --
-// # Prop #1
+// # Prop #0
+//
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // post a new blogpost about govdao
 //
 // Status: active
 //
-// Voting status: YES: 0, NO: 0, percent: 0, members: 1
+// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
+//
+// Threshold met: false
+//
+//
+// --
+// --
+// # Prop #0
 //
 // Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
-//
-//
-// --
-// --
-// # Prop #1
 //
 // post a new blogpost about govdao
 //
 // Status: accepted
 //
-// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Threshold met: false
 //
 //
 // --
@@ -99,15 +80,17 @@ func main() {
 // No posts.
 // --
 // --
-// # Prop #1
+// # Prop #0
+//
+// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 //
 // post a new blogpost about govdao
 //
-// Status: succeeded
+// Status: execution successful
 //
-// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+// Voting stats: YAY 0 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 0 (0%)
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// Threshold met: false
 //
 //
 // --

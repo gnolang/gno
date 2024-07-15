@@ -3,7 +3,7 @@ package validators
 import (
 	"std"
 
-	"github.com/gnolang/gno/examples/gno.land/p/gov/dao"
+	"gno.land/p/gov/dao"
 	"gno.land/p/gov/executor"
 	"gno.land/p/sys/validators"
 )
@@ -45,7 +45,7 @@ func NewPropExecutor(changesFn func() []validators.Validator) dao.Executor {
 		return nil
 	}
 
-	return executor.NewExecutor(callback)
+	return executor.NewCallbackExecutor(callback)
 }
 
 // assertGovDAOCaller verifies the caller is the GovDAO executor
