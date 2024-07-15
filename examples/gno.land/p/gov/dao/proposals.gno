@@ -44,7 +44,7 @@ type Proposal interface {
 	GetStatus() ProposalStatus
 
 	// GetVotes returns the votes of the proposal
-	GetVotes() []Vote
+	GetVotes(offset, count uint64) []Vote
 
 	// GetVotingStats returns the voting stats of the proposal
 	GetVotingStats() VotingStats

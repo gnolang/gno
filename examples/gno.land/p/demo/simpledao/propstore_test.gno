@@ -57,12 +57,12 @@ func equalProposals(t *testing.T, p1, p2 dao.Proposal) {
 
 	uassert.Equal(
 		t,
-		len(p1.GetVotes()),
-		len(p2.GetVotes()),
+		len(p1.GetVotes(0, maxRequestVotes)),
+		len(p2.GetVotes(0, maxRequestVotes)),
 	)
 
-	p1Votes := p1.GetVotes()
-	for index, v2 := range p2.GetVotes() {
+	p1Votes := p1.GetVotes(0, maxRequestVotes)
+	for index, v2 := range p2.GetVotes(0, maxRequestVotes) {
 		uassert.Equal(
 			t,
 			p1Votes[index].Address.String(),
@@ -117,7 +117,7 @@ func TestProposal_Data(t *testing.T) {
 			votes: newVotes(),
 		}
 
-		uassert.Equal(t, 0, len(p.GetVotes()))
+		uassert.Equal(t, 0, len(p.GetVotes(0, maxRequestVotes)))
 	})
 
 	t.Run("existing votes", func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestProposal_Data(t *testing.T) {
 			urequire.NoError(t, p.votes.castVote(m, dao.YesVote))
 		}
 
-		votes := p.GetVotes()
+		votes := p.GetVotes(0, maxRequestVotes)
 
 		urequire.Equal(t, len(members), len(votes))
 
@@ -163,7 +163,7 @@ func TestProposal_Data(t *testing.T) {
 			urequire.NoError(t, p.votes.castVote(m, dao.YesVote))
 		}
 
-		votes := p.GetVotes()
+		votes := p.GetVotes(0, maxRequestVotes)
 		urequire.Equal(t, len(members), len(votes))
 
 		vote, err := p.GetVoteByMember(members[0].Address)
@@ -180,7 +180,7 @@ func TestProposal_Data(t *testing.T) {
 			votes: newVotes(),
 		}
 
-		votes := p.GetVotes()
+		votes := p.GetVotes(0, maxRequestVotes)
 		urequire.Equal(t, 0, len(votes))
 
 		_, err := p.GetVoteByMember(testutils.TestAddress("dummy"))

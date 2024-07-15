@@ -22,6 +22,10 @@ const (
 	// maxRequestMembers is the maximum number of
 	// paginated members that can be requested
 	maxRequestMembers = 50
+
+	// maxRequestVotes is the maximum number of
+	// paginated votes that can be requested
+	maxRequestVotes = 50
 )
 
 // proposal is the internal simpledao proposal implementation
@@ -48,24 +52,35 @@ func (p *proposal) GetStatus() dao.ProposalStatus {
 	return p.status
 }
 
-func (p *proposal) GetVotes() []dao.Vote {
-	var (
-		voters = p.votes.getVoters()
-		votes  = make([]dao.Vote, 0, voters.Size())
-	)
+func (p *proposal) GetVotes(offset, count uint64) []dao.Vote {
+	voters := p.votes.getVoters()
 
-	voters.Iterate("", "", func(key string, val interface{}) bool {
-		option := val.(dao.VoteOption)
+	// Calculate the left and right bounds
+	if count < 1 || offset >= uint64(voters.Size()) {
+		return []dao.Vote{}
+	}
 
-		vote := dao.Vote{
-			Address: std.Address(key),
-			Option:  option,
-		}
+	// Limit the maximum number of returned votes
+	if count > maxRequestVotes {
+		count = maxRequestVotes
+	}
 
-		votes = append(votes, vote)
+	votes := make([]dao.Vote, 0, voters.Size())
+	voters.IterateByOffset(
+		int(offset),
+		int(count),
+		func(key string, val interface{}) bool {
+			option := val.(dao.VoteOption)
 
-		return false
-	})
+			vote := dao.Vote{
+				Address: std.Address(key),
+				Option:  option,
+			}
+
+			votes = append(votes, vote)
+
+			return false
+		})
 
 	return votes
 }
