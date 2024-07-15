@@ -18,6 +18,9 @@ const (
 	protoHTTP  = "http"
 	protoHTTPS = "https"
 	protoTCP   = "tcp"
+
+	portHTTP  = "80"
+	portHTTPS = "443"
 )
 
 var (
@@ -230,9 +233,9 @@ func parseRemoteAddr(remoteAddr string) (string, string) {
 	if !strings.Contains(address, ":") {
 		switch protocol {
 		case protoHTTPS:
-			address += ":443"
+			address += ":" + portHTTPS
 		case protoHTTP, protoTCP:
-			address += ":80"
+			address += ":" + portHTTP
 		default: // noop
 		}
 	}
