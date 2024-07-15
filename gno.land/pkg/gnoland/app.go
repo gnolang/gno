@@ -283,6 +283,32 @@ func EndBlocker(
 	}
 }
 
+// getValidatorsRealm queries r/sys/vars for the
+// most up-to-date validator realm information
+func getValidatorsRealm(ctx sdk.Context, vmk vm.VMKeeperI) (string, string, error) {
+	// Run the VM to get the values from the chain
+	response, err := vmk.QueryEval(
+		ctx,
+		varsRealm,
+		fmt.Sprintf(
+			"%s(%s, %s)",
+			varsGetValue,
+			validatorRealmKey,
+			validatorsChangesFnKey,
+		),
+	)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to call VM during EndBlocker, %w", err)
+	}
+
+	// Parse the response
+	return extractValValuesFromResponse(response)
+}
+
+func extractValValuesFromResponse(response string) (string, string, error) {
+
+}
+
 // extractUpdatesFromResponse extracts the validator set updates
 // from the VM response.
 //

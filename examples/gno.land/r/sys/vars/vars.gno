@@ -17,11 +17,15 @@ const SystemPrefix = "sys-"
 
 // Initial keys
 
-const ValidatorsRealm = SystemPrefix + "validators-realm"
+const (
+	ValidatorsRealm     = SystemPrefix + "validators-realm"
+	ValidatorsChangesFn = SystemPrefix + "validators-changes-fn"
+)
 
 var (
 	ErrMissingValue     = errors.New("missing value")
 	ErrInvalidValueType = errors.New("invalid value type")
+	ErrTooManyValues    = errors.New("too many values requested")
 )
 
 // vars is a simple KV store
@@ -36,6 +40,10 @@ func init() {
 		{
 			ValidatorsRealm,
 			"gno.land/r/sys/validators/v2",
+		},
+		{
+			ValidatorsChangesFn,
+			"GetChanges",
 		},
 	}
 
@@ -70,6 +78,20 @@ func GetStringValue(key string) string {
 	}
 
 	return valStr
+}
+
+// GetStringValues fetches a list of values
+func GetStringValues(keys ...string) []string {
+	if len(keys) > maxRequestKeys {
+		panic(ErrTooManyValues)
+	}
+
+	vals := make([]string, 0, len(keys))
+	for _, key := range keys {
+		vals = append(vals, GetStringValue(key))
+	}
+
+	return vals
 }
 
 // GetKeys returns the paginated key values

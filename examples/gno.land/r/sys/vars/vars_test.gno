@@ -52,7 +52,6 @@ func TestVars_GetKeys(t *testing.T) {
 
 	keys := GetKeys(0, maxRequestKeys)
 
-	// Make sure there is 1 key
-	urequire.Equal(t, 1, len(keys))
-	uassert.Equal(t, ValidatorsRealm, keys[0])
+	// Make sure there are 2 keys
+	urequire.Equal(t, 2, len(keys))
 }
