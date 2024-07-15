@@ -1,4 +1,4 @@
-module gno.land/r/gov/dao
+module gno.land/r/gov/dao/v2
 
 require (
 	gno.land/p/demo/simpledao v0.0.0-latest

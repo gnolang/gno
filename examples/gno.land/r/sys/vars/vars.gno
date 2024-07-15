@@ -2,7 +2,6 @@ package vars
 
 import (
 	"errors"
-	"strings"
 
 	"gno.land/p/demo/avl"
 )
@@ -13,12 +12,12 @@ const maxRequestKeys = 50
 
 // Prefixes
 
-// GovernancePrefix is used for goveranance-related vars
-const GovernancePrefix = "gov-"
+// SystemPrefix is used for system-related vars
+const SystemPrefix = "sys-"
 
 // Initial keys
 
-const GovdaoRealm = GovernancePrefix + "govdao-realm"
+const ValidatorsRealm = SystemPrefix + "validators-realm"
 
 var (
 	ErrMissingValue     = errors.New("missing value")
@@ -35,8 +34,8 @@ func init() {
 		value string
 	}{
 		{
-			GovdaoRealm,
-			"gno.land/r/gov/dao",
+			ValidatorsRealm,
+			"gno.land/r/sys/validators/v2",
 		},
 	}
 
@@ -97,53 +96,6 @@ func GetKeys(offset, count uint64) []string {
 			return false
 		},
 	)
-
-	return keys
-}
-
-// GetKeysWithPrefix returns the paginated key values with the specified prefix
-func GetKeysWithPrefix(
-	prefix string,
-	offset,
-	count uint64,
-) []string {
-	// Calculate the left and right bounds
-	if count < 1 || offset >= uint64(vars.Size()) {
-		return []string{}
-	}
-
-	// Limit the maximum number of returned keys
-	if count > maxRequestKeys {
-		count = maxRequestKeys
-	}
-
-	var (
-		keys       = make([]string, 0)
-		currOffset = uint64(0)
-		currCount  = uint64(0)
-	)
-
-	vars.Iterate("", "", func(key string, _ interface{}) bool {
-		// Skip over specific elements
-		if currOffset < offset {
-			currOffset++
-
-			return false
-		}
-
-		// Check if the key matches
-		if !strings.HasPrefix(key, prefix) {
-			return false
-		}
-
-		// Save the key
-		keys = append(keys, key)
-
-		// Check if the count elements
-		// have been gathered
-		currCount++
-		return currCount == count
-	})
 
 	return keys
 }

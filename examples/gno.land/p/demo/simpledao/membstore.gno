@@ -170,8 +170,11 @@ func (m *MembStore) getTotalPower() uint64 {
 	return m.totalVotingPower
 }
 
-// TODO change to r/sys/vars
-const daoPkgPath = "gno.land/r/gov/dao"
+// We need to include a govdao guard here, even if the
+// executor guarantees it, because
+// the API of the member store is public and callable
+// by anyone who has a reference to the member store instance.
+const daoPkgPath = "gno.land/r/gov/dao/v2"
 
 // isCallerGOVDAO returns a flag indicating if the
 // current caller context is the active GOVDAO

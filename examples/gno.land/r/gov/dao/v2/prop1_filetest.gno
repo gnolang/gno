@@ -12,8 +12,7 @@ import (
 
 	"gno.land/p/gov/dao"
 	pVals "gno.land/p/sys/validators"
-	govdao "gno.land/r/gov/dao"
-	"gno.land/r/sys/validators"
+	govdao "gno.land/r/gov/dao/v2"
 )
 
 func init() {
@@ -67,7 +66,7 @@ func main() {
 
 // Output:
 // --
-// - [Proposal #0](/r/gov/dao:0) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// - [Proposal #0](/r/gov/dao/v2:0) - (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
 //
 // --
 // # Prop #0

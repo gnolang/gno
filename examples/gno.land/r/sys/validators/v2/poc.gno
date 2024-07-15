@@ -8,12 +8,7 @@ import (
 	"gno.land/p/sys/validators"
 )
 
-const daoPkgPath = "gno.land/r/gov/dao" // TODO change to r/sys/vars
-
-const (
-	errNoChangesProposed = "no set changes proposed"
-	errNotGovDAO         = "caller not govdao executor"
-)
+const errNoChangesProposed = "no set changes proposed"
 
 // NewPropExecutor creates a new executor that wraps a changes closure
 // proposal. This wrapper is required to ensure the GovDAO Realm actually
@@ -27,9 +22,6 @@ func NewPropExecutor(changesFn func() []validators.Validator) dao.Executor {
 	}
 
 	callback := func() error {
-		// Make sure the GovDAO executor runs the valset changes
-		assertGovDAOCaller()
-
 		for _, change := range changesFn() {
 			if change.VotingPower == 0 {
 				// This change request is to remove the validator
@@ -46,13 +38,6 @@ func NewPropExecutor(changesFn func() []validators.Validator) dao.Executor {
 	}
 
 	return executor.NewCallbackExecutor(callback)
-}
-
-// assertGovDAOCaller verifies the caller is the GovDAO executor
-func assertGovDAOCaller() {
-	if std.PrevRealm().PkgPath() != daoPkgPath {
-		panic(errNotGovDAO)
-	}
 }
 
 // IsValidator returns a flag indicating if the given bech32 address

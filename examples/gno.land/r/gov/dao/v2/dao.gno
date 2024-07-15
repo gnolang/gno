@@ -3,7 +3,6 @@ package govdao
 import (
 	"std"
 	"strconv"
-	"strings"
 
 	"gno.land/p/demo/simpledao"
 	"gno.land/p/demo/ufmt"
@@ -93,7 +92,7 @@ func Render(path string) string {
 			output += ufmt.Sprintf(
 				"- [Proposal #%d](%s:%d) - (**%s**)(by %s)\n",
 				idx,
-				strings.TrimPrefix(getGOVDAOPath(), "gno.land"),
+				"/r/gov/dao/v2",
 				idx,
 				prop.GetStatus().String(),
 				prop.GetAuthor().String(),
@@ -143,10 +142,4 @@ func Render(path string) string {
 	output += "\n\n"
 
 	return output
-}
-
-// getGOVDAOPath returns the active govdao Realm path
-func getGOVDAOPath() string {
-	// TODO use r/sys/vars
-	return "gno.land/r/gov/dao"
 }
