@@ -366,6 +366,18 @@ func main() {
 // Call Run with stdlibs.
 func TestVMKeeperRunImportStdlibs(t *testing.T) {
 	env := setupTestEnv()
+	testVMKeeperRunImportStdlibs(t, env)
+}
+
+// Call Run with stdlibs, "cold" loading the standard libraries
+func TestVMKeeperRunImportStdlibsColdStdlibLoad(t *testing.T) {
+	env := setupTestEnvCold()
+	testVMKeeperRunImportStdlibs(t, env)
+}
+
+func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
+	t.Helper()
+
 	ctx := env.ctx
 
 	// Give "addr1" some gnots.

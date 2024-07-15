@@ -2,6 +2,8 @@
 
 `gnodev` is designed to be a robust and user-friendly tool in your realm package development journey, streamlining your workflow and enhancing productivity.
 
+We will only give a quick overview below. You may find the official documentation at [docs/gno-tooling/gnodev.md](../../docs/gno-tooling/cli/gnodev.md).
+
 ### Synopsis
 **gnodev** [**-minimal**] [**-no-watch**] [**PKG_PATH ...**]
 

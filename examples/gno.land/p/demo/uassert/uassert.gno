@@ -88,7 +88,7 @@ func PanicsWithMessage(t TestingT, msg string, f func(), msgs ...string) bool {
 	}
 
 	if panicValue != msg {
-		return fail(t, msgs, "func should panic with message:\t%s\n\tPanic value:\t%s", panicValue, msg)
+		return fail(t, msgs, "func should panic with message:\t%s\n\tPanic value:\t%s", msg, panicValue)
 	}
 	return true
 }
@@ -126,7 +126,7 @@ func Equal(t TestingT, expected, actual interface{}, msgs ...string) bool {
 		if av, ok := actual.(string); ok {
 			equal = ev == av
 			ok_ = true
-			es, as = ev, as
+			es, as = ev, av
 		}
 	case std.Address:
 		if av, ok := actual.(std.Address); ok {
@@ -239,6 +239,140 @@ func Equal(t TestingT, expected, actual interface{}, msgs ...string) bool {
 	return true
 }
 
+// NotEqual asserts that two objects are not equal.
+func NotEqual(t TestingT, expected, actual interface{}, msgs ...string) bool {
+	t.Helper()
+
+	if expected == nil || actual == nil {
+		return expected != actual
+	}
+
+	// XXX: errors
+	// XXX: slices
+	// XXX: pointers
+
+	notEqual := false
+	ok_ := false
+	es, as := "unsupported type", "unsupported type"
+
+	switch ev := expected.(type) {
+	case string:
+		if av, ok := actual.(string); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = ev, as
+		}
+	case std.Address:
+		if av, ok := actual.(std.Address); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = string(ev), string(av)
+		}
+	case int:
+		if av, ok := actual.(int); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = strconv.Itoa(ev), strconv.Itoa(av)
+		}
+	case int8:
+		if av, ok := actual.(int8); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = strconv.Itoa(int(ev)), strconv.Itoa(int(av))
+		}
+	case int16:
+		if av, ok := actual.(int16); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = strconv.Itoa(int(ev)), strconv.Itoa(int(av))
+		}
+	case int32:
+		if av, ok := actual.(int32); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = strconv.Itoa(int(ev)), strconv.Itoa(int(av))
+		}
+	case int64:
+		if av, ok := actual.(int64); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = strconv.Itoa(int(ev)), strconv.Itoa(int(av))
+		}
+	case uint:
+		if av, ok := actual.(uint); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = strconv.FormatUint(uint64(ev), 10), strconv.FormatUint(uint64(av), 10)
+		}
+	case uint8:
+		if av, ok := actual.(uint8); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = strconv.FormatUint(uint64(ev), 10), strconv.FormatUint(uint64(av), 10)
+		}
+	case uint16:
+		if av, ok := actual.(uint16); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = strconv.FormatUint(uint64(ev), 10), strconv.FormatUint(uint64(av), 10)
+		}
+	case uint32:
+		if av, ok := actual.(uint32); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = strconv.FormatUint(uint64(ev), 10), strconv.FormatUint(uint64(av), 10)
+		}
+	case uint64:
+		if av, ok := actual.(uint64); ok {
+			notEqual = ev != av
+			ok_ = true
+			es, as = strconv.FormatUint(ev, 10), strconv.FormatUint(av, 10)
+		}
+	case bool:
+		if av, ok := actual.(bool); ok {
+			notEqual = ev != av
+			ok_ = true
+			if ev {
+				es, as = "true", "false"
+			} else {
+				es, as = "false", "true"
+			}
+		}
+	case float32:
+		if av, ok := actual.(float32); ok {
+			notEqual = ev != av
+			ok_ = true
+		}
+	case float64:
+		if av, ok := actual.(float64); ok {
+			notEqual = ev != av
+			ok_ = true
+		}
+	default:
+		return fail(t, msgs, "uassert.NotEqual: unsupported type")
+	}
+
+	/*
+		// XXX: implement stringer and other well known similar interfaces
+		type stringer interface{ String() string }
+		if ev, ok := expected.(stringer); ok {
+			if av, ok := actual.(stringer); ok {
+				notEqual = ev.String() != av.String()
+				ok_ = true
+			}
+		}
+	*/
+
+	if !ok_ {
+		return fail(t, msgs, "uassert.NotEqual: different types") // XXX: display the types
+	}
+	if !notEqual {
+		return fail(t, msgs, "uassert.NotEqual: same type and same value\n\texpected: %s\n\tactual:   %s", es, as)
+	}
+
+	return true
+}
+
 func Empty(t TestingT, obj interface{}, msgs ...string) bool {
 	t.Helper()
 	switch val := obj.(type) {
@@ -257,6 +391,28 @@ func Empty(t TestingT, obj interface{}, msgs ...string) bool {
 		}
 	default:
 		return fail(t, msgs, "uassert.Empty: unsupported type")
+	}
+	return true
+}
+
+func NotEmpty(t TestingT, obj interface{}, msgs ...string) bool {
+	t.Helper()
+	switch val := obj.(type) {
+	case string:
+		if val == "" {
+			return fail(t, msgs, "uassert.NotEmpty: empty string: %s", val)
+		}
+	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		if val == 0 {
+			return fail(t, msgs, "uassert.NotEmpty: empty number: %d", val)
+		}
+	case std.Address:
+		var zeroAddr std.Address
+		if val == zeroAddr {
+			return fail(t, msgs, "uassert.NotEmpty: empty std.Address: %s", string(val))
+		}
+	default:
+		return fail(t, msgs, "uassert.NotEmpty: unsupported type")
 	}
 	return true
 }
