@@ -1,6 +1,7 @@
 package doctest
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -31,6 +32,7 @@ const (
 	ASSERT       = "assert"       // Assert the result and expected output are equal
 )
 
+// GetStdlibsDir returns the path to the standard libraries directory.
 func GetStdlibsDir() string {
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
@@ -40,14 +42,7 @@ func GetStdlibsDir() string {
 }
 
 // cache stores the results of code execution.
-var cache struct {
-	m map[string]string
-	sync.RWMutex
-}
-
-func init() {
-	cache.m = make(map[string]string)
-}
+var cache = newCache(maxCacheSize)
 
 // hashCodeBlock generates a SHA256 hash for the given code block.
 func hashCodeBlock(c codeBlock) string {
@@ -65,20 +60,17 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 	// Extract the actual language from the lang field
 	lang := strings.Split(c.lang, ",")[0]
 
+	if lang != "go" && lang != "gno" {
+		return fmt.Sprintf("SKIPPED (Unsupported language: %s)", lang), nil
+	}
+
 	if lang == "go" {
 		lang = "gno"
-	} else if lang != "gno" {
-		return "", fmt.Errorf("unsupported language type: %s", c.lang)
 	}
 
 	hashKey := hashCodeBlock(c)
 
-	// using cached result to avoid re-execution
-	cache.RLock()
-	result, found := cache.m[hashKey]
-	cache.RUnlock()
-
-	if found {
+	if result, found := cache.get(hashKey); found {
 		result, err := compareResults(result, c.expectedOutput, c.expectedError)
 		if err != nil {
 			return "", err
@@ -137,13 +129,12 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 		return "", err
 	}
 
-	cache.Lock()
-	cache.m[hashKey] = res
-	cache.Unlock()
+	cache.set(hashKey, res)
 
 	return compareResults(res, c.expectedOutput, c.expectedError)
 }
 
+// compareResults compares the actual output of code execution with the expected output or error.
 func compareResults(actual, expectedOutput, expectedError string) (string, error) {
 	actual = strings.TrimSpace(actual)
 	expected := strings.TrimSpace(expectedOutput)
@@ -166,6 +157,8 @@ func compareResults(actual, expectedOutput, expectedError string) (string, error
 	return actual, nil
 }
 
+// compareRegex compares the actual output against a regex pattern.
+// It returns an error if the regex is invalid or if the actual output does not match the pattern.
 func compareRegex(actual, pattern string) (string, error) {
 	re, err := regexp.Compile(pattern)
 	if err != nil {
@@ -179,32 +172,72 @@ func compareRegex(actual, pattern string) (string, error) {
 	return actual, nil
 }
 
-func ExecuteMatchingCodeBlock(content string, pattern string) ([]string, error) {
+// ExecuteMatchingCodeBlock executes all code blocks in the given content that match the given pattern.
+// It returns a slice of execution results as strings and any error encountered during the execution.
+func ExecuteMatchingCodeBlock(ctx context.Context, content string, pattern string) ([]string, error) {
 	codeBlocks := GetCodeBlocks(content)
 	var results []string
 
 	for _, block := range codeBlocks {
 		if matchPattern(block.name, pattern) {
-			result, err := ExecuteCodeBlock(block, GetStdlibsDir())
-			if err != nil {
-				return nil, fmt.Errorf("failed to execute code block %s: %w", block.name, err)
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			default:
+				result, err := ExecuteCodeBlock(block, GetStdlibsDir())
+				if err != nil {
+					return nil, fmt.Errorf("failed to execute code block %s: %w", block.name, err)
+				}
+				results = append(results, fmt.Sprintf("\n=== %s ===\n\n%s\n", block.name, result))
 			}
-			results = append(results, fmt.Sprintf("\n=== %s ===\n\n%s", block.name, result))
 		}
 	}
 
 	return results, nil
 }
 
+var (
+	regexCache   = make(map[string]*regexp.Regexp)
+	regexCacheMu sync.RWMutex
+)
+
+// getCompiledRegex retrieves or compiles a regex pattern.
+// it uses a cache to store compiled regex patterns for reuse.
+func getCompiledRegex(pattern string) (*regexp.Regexp, error) {
+	regexCacheMu.RLock()
+	re, exists := regexCache[pattern]
+	regexCacheMu.RUnlock()
+
+	if exists {
+		return re, nil
+	}
+
+	regexCacheMu.Lock()
+	defer regexCacheMu.Unlock()
+
+	// double-check in case another goroutine has compiled the regex
+	if re, exists = regexCache[pattern]; exists {
+		return re, nil
+	}
+
+	compiledPattern := regexp.QuoteMeta(pattern)
+	compiledPattern = strings.ReplaceAll(compiledPattern, "\\*", ".*")
+	re, err := regexp.Compile(compiledPattern)
+	if err != nil {
+		return nil, err
+	}
+
+	regexCache[pattern] = re
+	return re, nil
+}
+
+// matchPattern checks if a name matches the specific pattern.
 func matchPattern(name, pattern string) bool {
 	if pattern == "" {
 		return true
 	}
 
-	pattern = regexp.QuoteMeta(pattern)
-	pattern = strings.ReplaceAll(pattern, "\\*", ".*")
-
-	re, err := regexp.Compile(pattern)
+	re, err := getCompiledRegex(pattern)
 	if err != nil {
 		return false
 	}

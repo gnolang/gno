@@ -1,19 +1,15 @@
 package doctest
 
 import (
+	"context"
+	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
-
-func clearCache() {
-	cache.Lock()
-	cache.m = make(map[string]string)
-	cache.Unlock()
-}
 
 func TestExecuteCodeBlockWithCache(t *testing.T) {
 	t.Parallel()
-	clearCache()
 
 	tests := []struct {
 		name      string
@@ -54,8 +50,6 @@ func main() {
 			}
 		})
 	}
-
-	clearCache()
 }
 
 func TestHashCodeBlock(t *testing.T) {
@@ -208,7 +202,7 @@ func main() {
 				content: `print("Hello")`,
 				lang:    "python",
 			},
-			expectError: true,
+			expectedResult: "SKIPPED (Unsupported language: python)",
 		},
 		{
 			name: "Ignored code block",
@@ -368,6 +362,118 @@ func TestCompareResults(t *testing.T) {
 				}
 				if tt.expectedError != "" && !strings.Contains(err.Error(), tt.expectedError) {
 					t.Errorf("compareResults() error = %v, should contain %v", err, tt.expectedError)
+				}
+			}
+		})
+	}
+}
+
+func TestExecuteMatchingCodeBlock(t *testing.T) {
+	testCases := []struct {
+		name           string
+		content        string
+		pattern        string
+		expectedResult []string
+		expectError    bool
+	}{
+		{
+			name: "Single matching block",
+			content: `
+Some text here
+` + "```go" + `
+// @test: test1
+func main() {
+    println("Hello, World!")
+}
+` + "```" + `
+More text
+`,
+			pattern:        "test1",
+			expectedResult: []string{"\n=== test1 ===\n\nHello, World!\n"},
+			expectError:    false,
+		},
+		{
+			name: "Multiple matching blocks",
+			content: `
+` + "```go" + `
+// @test: test1
+func main() {
+    println("First")
+}
+` + "```" + `
+` + "```go" + `
+// @test: test2
+func main() {
+    println("Second")
+}
+` + "```" + `
+`,
+			pattern:        "test*",
+			expectedResult: []string{"\n=== test1 ===\n\nFirst\n", "\n=== test2 ===\n\nSecond\n"},
+			expectError:    false,
+		},
+		{
+			name: "No matching blocks",
+			content: `
+` + "```go" + `
+// @test: test1
+func main() {
+    println("Hello")
+}
+` + "```" + `
+`,
+			pattern:        "nonexistent",
+			expectedResult: []string{},
+			expectError:    false,
+		},
+		{
+			name: "Error in code block",
+			content: `
+` + "```go" + `
+// @test: error_test
+func main() {
+    panic("This should cause an error")
+}
+` + "```" + `
+`,
+			pattern:     "error_test",
+			expectError: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			results, err := ExecuteMatchingCodeBlock(ctx, tc.content, tc.pattern)
+
+			if tc.expectError {
+				if err == nil {
+					t.Errorf("Expected an error, but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("Unexpected error: %v", err)
+				}
+
+				if len(results) == 0 && len(tc.expectedResult) == 0 {
+					// do nothing
+				} else if !reflect.DeepEqual(results, tc.expectedResult) {
+					t.Errorf("Expected results %v, but got %v", tc.expectedResult, results)
+				}
+			}
+
+			for _, expected := range tc.expectedResult {
+				found := false
+				for _, result := range results {
+					if strings.Contains(result, strings.TrimSpace(expected)) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Expected result not found: %s", expected)
 				}
 			}
 		})

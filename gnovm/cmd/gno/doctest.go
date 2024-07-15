@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	dt "github.com/gnolang/gno/gnovm/pkg/doctest"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -13,8 +14,8 @@ import (
 
 type doctestCfg struct {
 	markdownPath string
-	// codeIndex    int
-	runPattern string
+	runPattern   string
+	timeout      time.Duration
 }
 
 func newDoctestCmd(io commands.IO) *commands.Command {
@@ -23,7 +24,7 @@ func newDoctestCmd(io commands.IO) *commands.Command {
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "doctest",
-			ShortUsage: "doctest -path <markdown_file_path> [-run <pattern>]",
+			ShortUsage: "doctest -path <markdown_file_path> [-run <pattern>] [-timeout <duration>]",
 			ShortHelp:  "executes a specific code block from a markdown file",
 		},
 		cfg,
@@ -46,6 +47,11 @@ func (c *doctestCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"pattern to match code block names",
 	)
+	fs.Duration(
+		"timeout",
+		c.timeout,
+		"timeout for code execution (e.g., 30s, 1m)",
+	)
 }
 
 func execDoctest(cfg *doctestCfg, _ []string, io commands.IO) error {
@@ -58,18 +64,37 @@ func execDoctest(cfg *doctestCfg, _ []string, io commands.IO) error {
 		return fmt.Errorf("failed to read markdown file: %w", err)
 	}
 
-	results, err := dt.ExecuteMatchingCodeBlock(content, cfg.runPattern)
-	if err != nil {
+	if cfg.timeout == 0 {
+		cfg.timeout = 30 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.timeout)
+	defer cancel()
+
+	resultChan := make(chan []string)
+	errChan := make(chan error)
+
+	go func() {
+		results, err := dt.ExecuteMatchingCodeBlock(ctx, content, cfg.runPattern)
+		if err != nil {
+			errChan <- err
+		} else {
+			resultChan <- results
+		}
+	}()
+
+	select {
+	case results := <-resultChan:
+		if len(results) == 0 {
+			io.Println("No code blocks matched the pattern")
+			return nil
+		}
+		io.Println("Execution Result:")
+		io.Println(strings.Join(results, "\n\n"))
+	case err := <-errChan:
 		return fmt.Errorf("failed to execute code block: %w", err)
+	case <-ctx.Done():
+		return fmt.Errorf("execution timed out after %v", cfg.timeout)
 	}
-
-	if len(results) == 0 {
-		io.Println("No code blocks matched the pattern")
-		return nil
-	}
-
-	io.Println("Execution Result:")
-	io.Println(strings.Join(results, "\n\n"))
 
 	return nil
 }
