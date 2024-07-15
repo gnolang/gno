@@ -28,10 +28,10 @@ func newLimitedStringWriter(limit int) *limitedStringWriter {
 }
 
 func (w *limitedStringWriter) WriteString(s string) (int, error) {
-	var limiteExceeded bool
+	var limitExceeded bool
 	if w.builder.Len()+len(s) > w.limit {
 		s = s[:w.limit-w.builder.Len()] + "..."
-		limiteExceeded = true
+		limitExceeded = true
 	}
 
 	n, err := w.builder.WriteString(s)
@@ -39,7 +39,7 @@ func (w *limitedStringWriter) WriteString(s string) (int, error) {
 		return n, err
 	}
 
-	if limiteExceeded {
+	if limitExceeded {
 		return n, errStringLimitExceeded
 	}
 
@@ -608,8 +608,8 @@ func (tv TypedValue) ProtectedWrite(w io.StringWriter, seen *seenValues) error {
 		return err
 	}
 
-	var vs string
 	if tv.V == nil {
+		var vs string
 		switch baseOf(tv.T) {
 		case BoolType, UntypedBoolType:
 			vs = fmt.Sprintf("%t", tv.GetBool())
@@ -645,27 +645,36 @@ func (tv TypedValue) ProtectedWrite(w io.StringWriter, seen *seenValues) error {
 		default:
 			vs = nilStr
 		}
-	} else {
-		base := baseOf(tv.T)
-		quoteString := base == StringType || base == UntypedStringType
-		if quoteString {
-			if _, err := w.WriteString("\""); err != nil {
-				return err
-			}
-		}
 
-		if err := tv.NonPrimitiveProtectedWrite(w, seen, false); err != nil {
+		_, err := w.WriteString("(" + vs + " " + tv.T.String() + ")")
+		return err
+
+	}
+	base := baseOf(tv.T)
+	quoteString := base == StringType || base == UntypedStringType
+	if quoteString {
+		if _, err := w.WriteString("\""); err != nil {
 			return err
-		}
-
-		if quoteString {
-			if _, err := w.WriteString("\""); err != nil {
-				return err
-			}
 		}
 	}
 
-	ts := tv.T.String()
-	_, err := w.WriteString(fmt.Sprintf("(%s %s)", vs, ts))
-	return err
+	if _, err := w.WriteString("("); err != nil {
+		return err
+	}
+
+	if err := tv.NonPrimitiveProtectedWrite(w, seen, false); err != nil {
+		return err
+	}
+
+	if quoteString {
+		if _, err := w.WriteString("\""); err != nil {
+			return err
+		}
+	}
+
+	if _, err := w.WriteString(" " + tv.T.String() + ")"); err != nil {
+		return err
+	}
+
+	return nil
 }
