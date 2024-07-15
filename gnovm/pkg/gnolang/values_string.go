@@ -648,7 +648,6 @@ func (tv TypedValue) ProtectedWrite(w io.StringWriter, seen *seenValues) error {
 
 		_, err := w.WriteString("(" + vs + " " + tv.T.String() + ")")
 		return err
-
 	}
 
 	if _, err := w.WriteString("("); err != nil {
