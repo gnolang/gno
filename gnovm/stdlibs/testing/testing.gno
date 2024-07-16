@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Top level functions
 
 // skipErr is the type of the panic created by SkipNow
@@ -60,7 +60,7 @@ func AllocsPerRun2(runs int, f func()) (total int) {
 	return 0
 }
 
-//----------------------------------------
+// ----------------------------------------
 // T
 
 type T struct {
@@ -225,7 +225,7 @@ func (t *T) report() Report {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // B
 // TODO: actually implement
 
@@ -261,7 +261,7 @@ func (b *B) StartTimer()                               { panic("not yet implemen
 func (b *B) StopTimer()                                { panic("not yet implemented") }
 func (b *B) TempDir() string                           { panic("not yet implemented") }
 
-//----------------------------------------
+// ----------------------------------------
 // PB
 // TODO: actually implement
 
