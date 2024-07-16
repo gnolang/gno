@@ -38,6 +38,7 @@ func TestValopers_Register(t *testing.T) {
 		v := Valoper{
 			Address: testutils.TestAddress("valoper"),
 			Name:    "new valoper",
+			Moniker: "val-1",
 			PubKey:  "pub key",
 		}
 
@@ -50,6 +51,7 @@ func TestValopers_Register(t *testing.T) {
 
 			uassert.Equal(t, v.Address, valoper.Address)
 			uassert.Equal(t, v.Name, valoper.Name)
+			uassert.Equal(t, v.Moniker, valoper.Moniker)
 			uassert.Equal(t, v.PubKey, valoper.PubKey)
 		})
 	})

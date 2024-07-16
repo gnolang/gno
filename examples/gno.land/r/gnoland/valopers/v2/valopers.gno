@@ -24,6 +24,7 @@ var valopers *avl.Tree // Address -> Valoper
 // Valoper represents a validator operator profile
 type Valoper struct {
 	Name        string // the display name of the valoper
+	Moniker     string // the moniker of the valoper
 	Description string // the description of the valoper
 
 	Address      std.Address // The bech32 gno address of the validator
@@ -100,7 +101,7 @@ func Render(_ string) string {
 
 // Render renders a single valoper with their information
 func (v Valoper) Render() string {
-	output := ufmt.Sprintf("## %s\n", v.Name)
+	output := ufmt.Sprintf("## %s (%s)\n", v.Name, v.Moniker)
 	output += ufmt.Sprintf("%s\n\n", v.Description)
 	output += ufmt.Sprintf("- Address: %s\n", v.Address.String())
 	output += ufmt.Sprintf("- PubKey: %s\n", v.PubKey)
