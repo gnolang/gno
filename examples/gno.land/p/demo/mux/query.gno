@@ -5,11 +5,11 @@ import "strings"
 type UrlQuery map[string][]string
 
 /*
-	URL() returns a full map of key-listValue from request
-	to get a list of params by key, use: req.URL()["key"]
-	to get single param by key, use: req.URL().Get("key")
+	Query() returns a full map of key-listValue from request
+	to get a list of params by key, use: req.Query()["key"]
+	to get single param by key, use: req.Query().Get("key")
 */
-func (r *Request) URL() UrlQuery {
+func (r *Request) Query() UrlQuery {
 	urlQueries := UrlQuery{}
 	reqParts := strings.Split(r.Path, "/")
 	for i := 0; i < len(reqParts); i++ {
