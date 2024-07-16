@@ -106,7 +106,7 @@ func WithSyncWanted(v bool) RunFileTestOption {
 // the directory where to find the "stdlibs" directory.
 func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64, error) {
 	var f runFileTestOptions
-	var gasUsed = int64(0)
+	gasUsed := int64(0)
 	for _, opt := range opts {
 		opt(&f)
 	}
