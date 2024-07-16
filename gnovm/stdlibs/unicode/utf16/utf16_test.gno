@@ -7,7 +7,6 @@ package utf16
 import (
 	"testing"
 	"unicode"
-	"unicode/utf16"
 )
 
 type encodeTest struct {

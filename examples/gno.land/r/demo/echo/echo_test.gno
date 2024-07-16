@@ -2,13 +2,11 @@ package echo
 
 import (
 	"testing"
+
+	"gno.land/p/demo/urequire"
 )
 
 func Test(t *testing.T) {
-	if Render("aa") != "aa" {
-		t.Fail()
-	}
-	if Render("") != "" {
-		t.Fail()
-	}
+	urequire.Equal(t, "aa", Render("aa"))
+	urequire.Equal(t, "", Render(""))
 }

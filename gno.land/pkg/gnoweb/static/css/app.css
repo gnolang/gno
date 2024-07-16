@@ -371,7 +371,7 @@ code {
 }
 
 .footer > .logo {
-  display: block;
+  display: inline-block;
   margin: 1rem;
   height: 1.2rem;
 }

@@ -284,14 +284,29 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	}
 	m.SetActivePackage(pv)
 	// run files.
-	m.RunFiles(files.Files...)
-	// maybe save package value and mempackage.
+	updates := m.RunFileDecls(files.Files...)
+	// save package value and mempackage.
+	// XXX save condition will be removed once gonative is removed.
+	var throwaway *Realm
 	if save {
-		// store package values and types
-		m.savePackageValuesAndTypes()
+		// store new package values and types
+		throwaway = m.saveNewPackageValuesAndTypes()
+		if throwaway != nil {
+			m.Realm = throwaway
+		}
+	}
+	// run init functions
+	m.runInitFromUpdates(pv, updates)
+	// save again after init.
+	if save {
+		m.resavePackageValues(throwaway)
 		// store mempackage
 		m.Store.AddMemPackage(memPkg)
+		if throwaway != nil {
+			m.Realm = nil
+		}
 	}
+
 	return pn, pv
 }
 
@@ -448,11 +463,13 @@ func (m *Machine) injectLocOnPanic() {
 		// Show last location information.
 		// First, determine the line number of expression or statement if any.
 		lastLine := 0
+		lastColumn := 0
 		if len(m.Exprs) > 0 {
 			for i := len(m.Exprs) - 1; i >= 0; i-- {
 				expr := m.Exprs[i]
 				if expr.GetLine() > 0 {
 					lastLine = expr.GetLine()
+					lastColumn = expr.GetColumn()
 					break
 				}
 			}
@@ -462,6 +479,7 @@ func (m *Machine) injectLocOnPanic() {
 				stmt := m.Stmts[i]
 				if stmt.GetLine() > 0 {
 					lastLine = stmt.GetLine()
+					lastColumn = stmt.GetColumn()
 					break
 				}
 			}
@@ -476,6 +494,7 @@ func (m *Machine) injectLocOnPanic() {
 				lastLoc = loc
 				if lastLine > 0 {
 					lastLoc.Line = lastLine
+					lastLoc.Column = lastColumn
 				}
 				break
 			}
@@ -490,13 +509,27 @@ func (m *Machine) injectLocOnPanic() {
 	}
 }
 
-// Add files to the package's *FileSet and run them.
-// This will also run each init function encountered.
+// Convenience for tests.
+// Production must not use this, because realm package init
+// must happen after persistence and realm finalization,
+// then changes from init persisted again.
 func (m *Machine) RunFiles(fns ...*FileNode) {
-	m.runFiles(fns...)
+	pv := m.Package
+	if pv == nil {
+		panic("RunFiles requires Machine.Package")
+	}
+	updates := m.runFileDecls(fns...)
+	m.runInitFromUpdates(pv, updates)
 }
 
-func (m *Machine) runFiles(fns ...*FileNode) {
+// Add files to the package's *FileSet and run decls in them.
+// This will also run each init function encountered.
+// Returns the updated typed values of package.
+func (m *Machine) RunFileDecls(fns ...*FileNode) []TypedValue {
+	return m.runFileDecls(fns...)
+}
+
+func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -624,11 +657,15 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		}
 	}
 
-	// Run new init functions.
-	// Go spec: "To ensure reproducible initialization
-	// behavior, build systems are encouraged to present
-	// multiple files belonging to the same package in
-	// lexical file name order to a compiler."
+	return updates
+}
+
+// Run new init functions.
+// Go spec: "To ensure reproducible initialization
+// behavior, build systems are encouraged to present
+// multiple files belonging to the same package in
+// lexical file name order to a compiler."
+func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 	for _, tv := range updates {
 		if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
 			fv, ok := tv.V.(*FuncValue)
@@ -647,7 +684,10 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 
 // Save the machine's package using realm finalization deep crawl.
 // Also saves declared types.
-func (m *Machine) savePackageValuesAndTypes() {
+// This happens before any init calls.
+// Returns a throwaway realm package is not a realm,
+// such as stdlibs or /p/ packages.
+func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
@@ -660,6 +700,7 @@ func (m *Machine) savePackageValuesAndTypes() {
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		throwaway = rlm
 	}
 	// save declared types.
 	if bv, ok := pv.Block.(*Block); ok {
@@ -671,6 +712,25 @@ func (m *Machine) savePackageValuesAndTypes() {
 			}
 		}
 	}
+	return
+}
+
+// Resave any changes to realm after init calls.
+// Pass in the realm from m.saveNewPackageValuesAndTypes()
+// in case a throwaway was created.
+func (m *Machine) resavePackageValues(rlm *Realm) {
+	// save package value and dependencies.
+	pv := m.Package
+	if pv.IsRealm() {
+		rlm = pv.Realm
+		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		// re-save package realm info.
+		m.Store.SetPackageRealm(rlm)
+	} else { // use the throwaway realm.
+		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+	}
+	// types were already saved, and should not change
+	// even after running the init function.
 }
 
 func (m *Machine) RunFunc(fn Name) {
@@ -811,6 +871,13 @@ func (m *Machine) RunStatement(s Stmt) {
 // NOTE: to support realm persistence of types, must
 // first require the validation of blocknode locations.
 func (m *Machine) RunDeclaration(d Decl) {
+	if fd, ok := d.(*FuncDecl); ok && fd.Name == "init" {
+		// XXX or, consider running it, but why would this be needed?
+		// from a repl there is no need for init() functions.
+		// Also, there are complications with realms, where
+		// the realm must be persisted before init(), and persisted again.
+		panic("Machine.RunDeclaration cannot be used for init functions")
+	}
 	// Preprocess input using package block.  There should only
 	// be one block right now, and it's a *PackageNode.
 	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
@@ -1734,8 +1801,23 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if pv == nil {
 		panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
 	}
-	m.Package = pv
 	rlm := pv.GetRealm()
+	if rlm == nil && recv.IsDefined() {
+		obj := recv.GetFirstObject(m.Store)
+		if obj == nil {
+			// could be a nil receiver.
+			// just ignore.
+		} else {
+			recvOID := obj.GetObjectInfo().ID
+			if !recvOID.IsZero() {
+				// override the pv and rlm with receiver's.
+				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+				pv = m.Store.GetObject(recvPkgOID).(*PackageValue)
+				rlm = pv.GetRealm() // done
+			}
+		}
+	}
+	m.Package = pv
 	if rlm != nil && m.Realm != rlm {
 		m.Realm = rlm // enter new realm
 	}
@@ -1956,9 +2038,11 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 		return ptr
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
+		hv := m.Alloc.NewHeapItem(tv)
 		return PointerValue{
-			TV:   &tv, // heap alloc
-			Base: nil,
+			TV:    &hv.Value,
+			Base:  hv,
+			Index: 0,
 		}
 	default:
 		panic("should not happen")

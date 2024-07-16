@@ -80,7 +80,12 @@ type NodeProvider func(*cfg.Config, *slog.Logger) (*Node, error)
 // DefaultNewNode returns a Tendermint node with default settings for the
 // PrivValidator, ClientCreator, GenesisDoc, and DBProvider.
 // It implements NodeProvider.
-func DefaultNewNode(config *cfg.Config, genesisFile string, logger *slog.Logger) (*Node, error) {
+func DefaultNewNode(
+	config *cfg.Config,
+	genesisFile string,
+	evsw events.EventSwitch,
+	logger *slog.Logger,
+) (*Node, error) {
 	// Generate node PrivKey
 	nodeKey, err := p2p.LoadOrGenNodeKey(config.NodeKeyFile())
 	if err != nil {
@@ -105,6 +110,7 @@ func DefaultNewNode(config *cfg.Config, genesisFile string, logger *slog.Logger)
 		appClientCreator,
 		DefaultGenesisDocProviderFunc(genesisFile),
 		DefaultDBProvider,
+		evsw,
 		logger,
 	)
 }
@@ -415,6 +421,7 @@ func NewNode(config *cfg.Config,
 	clientCreator appconn.ClientCreator,
 	genesisDocProvider GenesisDocProvider,
 	dbProvider DBProvider,
+	evsw events.EventSwitch,
 	logger *slog.Logger,
 	options ...Option,
 ) (*Node, error) {
@@ -433,12 +440,6 @@ func NewNode(config *cfg.Config,
 	if err != nil {
 		return nil, err
 	}
-
-	// EventSwitch and EventStoreService must be started before the handshake because
-	// we might need to store the txs of the replayed block as this might not have happened
-	// when the node stopped last time (i.e. the node stopped after it saved the block
-	// but before it indexed the txs, or, endblocker panicked)
-	evsw := events.NewEventSwitch()
 
 	// Signal readiness when receiving the first block.
 	const readinessListenerID = "first_block_listener"

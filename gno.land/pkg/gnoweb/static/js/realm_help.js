@@ -84,20 +84,19 @@ function updateCommand(x) {
   });
   args.push(myAddr)
   var command = args.join(" ");
-  command = command + " > unsigned.tx";
+  command = command + " > call.tx";
   shell.append(u("<span>").text(command)).append(u("<br>"));
 
   // command 2: sign tx.
   var args = ["gnokey", "sign",
-    "-txpath", "unsigned.tx", "-chainid", shq(chainid),
-    "-number", "ACCOUNTNUMBER",
-    "-sequence", "SEQUENCENUMBER", myAddr];
+    "-tx-path", "call.tx", "-chainid", shq(chainid),
+    "-account-number", "ACCOUNTNUMBER",
+    "-account-sequence", "SEQUENCENUMBER", myAddr];
   var command = args.join(" ");
-  command = command + " > signed.tx";
   shell.append(u("<span>").text(command)).append(u("<br>"));
 
   // command 3: broadcast tx.
-  var args = ["gnokey", "broadcast", "-remote", shq(remote), "signed.tx"];
+  var args = ["gnokey", "broadcast", "-remote", shq(remote), "call.tx"];
   var command = args.join(" ");
   command = command;
   shell.append(u("<span>").text(command)).append(u("<br>"));
