@@ -251,64 +251,36 @@ func EndBlocker(
 	req abci.RequestEndBlock,
 ) abci.ResponseEndBlock {
 	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
-		return abci.ResponseEndBlock{}
+		// Check if there was a valset change
+		if len(collector.getEvents()) == 0 {
+			// No valset updates
+			return abci.ResponseEndBlock{}
+		}
 
-		// // Check if there was a valset change
-		// if len(collector.getEvents()) == 0 {
-		// 	// No valset updates
-		// 	return abci.ResponseEndBlock{}
-		// }
+		// Run the VM to get the updates from the chain
+		response, err := vmk.QueryEval(
+			ctx,
+			valRealm,
+			fmt.Sprintf("%s(%d)", valChangesFn, app.LastBlockHeight()),
+		)
+		if err != nil {
+			app.Logger().Error("unable to call VM during EndBlocker", "err", err)
 
-		// // Run the VM to get the updates from the chain
-		// response, err := vmk.QueryEval(
-		// 	ctx,
-		// 	valRealm,
-		// 	fmt.Sprintf("%s(%d)", valChangesFn, app.LastBlockHeight()),
-		// )
-		// if err != nil {
-		// 	app.Logger().Error("unable to call VM during EndBlocker", "err", err)
-		//
-		// 	return abci.ResponseEndBlock{}
-		// }
-		//
-		// // Extract the updates from the VM response
-		// updates, err := extractUpdatesFromResponse(response)
-		// if err != nil {
-		// 	app.Logger().Error("unable to extract updates from response", "err", err)
-		//
-		// 	return abci.ResponseEndBlock{}
-		// }
-		//
-		// return abci.ResponseEndBlock{
-		// 	ValidatorUpdates: updates,
-		// }
+			return abci.ResponseEndBlock{}
+		}
+
+		// Extract the updates from the VM response
+		updates, err := extractUpdatesFromResponse(response)
+		if err != nil {
+			app.Logger().Error("unable to extract updates from response", "err", err)
+
+			return abci.ResponseEndBlock{}
+		}
+
+		return abci.ResponseEndBlock{
+			ValidatorUpdates: updates,
+		}
 	}
-}
-
-// getValidatorsRealm queries r/sys/vars for the
-// most up-to-date validator realm information
-func getValidatorsRealm(ctx sdk.Context, vmk vm.VMKeeperI) (string, string, error) {
-	// Run the VM to get the values from the chain
-	response, err := vmk.QueryEval(
-		ctx,
-		varsRealm,
-		fmt.Sprintf(
-			"%s(%s, %s)",
-			varsGetValue,
-			validatorRealmKey,
-			validatorsChangesFnKey,
-		),
-	)
-	if err != nil {
-		return "", "", fmt.Errorf("unable to call VM during EndBlocker, %w", err)
-	}
-
-	// Parse the response
-	return extractValValuesFromResponse(response)
-}
-
-func extractValValuesFromResponse(response string) (string, string, error) {
-	return "", "", nil
 }
 
 // extractUpdatesFromResponse extracts the validator set updates

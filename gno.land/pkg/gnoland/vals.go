@@ -9,23 +9,15 @@ import (
 )
 
 const (
-	valRealm = "gno.land/r/sys/validators"
-
-	varsRealm    = "gno.land/r/sys/vars"
-	varsGetValue = "GetStringValues"
-
-	validatorRealmKey      = "sys-validators-realm"
-	validatorsChangesFnKey = "sys-validators-changes-fn"
+	valRealm     = "gno.land/r/sys/validators/v2"
+	valChangesFn = "GetChanges"
 
 	validatorAddedEvent   = "ValidatorAdded"
 	validatorRemovedEvent = "ValidatorRemoved"
 )
 
 // XXX: replace with amino-based clean approach
-var (
-	valRegexp  = regexp.MustCompile(`{\("([^"]*)"\s[^)]+\),\("((?:[^"]|\\")*)"\s[^)]+\),\((\d+)\s[^)]+\)}`)
-	varsRegexp = regexp.MustCompile(`{\("([^"]*)"\s[^)]+\),\("((?:[^"]|\\")*)"\s[^)]+\),\((\d+)\s[^)]+\)}`) // TODO change
-)
+var valRegexp = regexp.MustCompile(`{\("([^"]*)"\s[^)]+\),\("((?:[^"]|\\")*)"\s[^)]+\),\((\d+)\s[^)]+\)}`)
 
 // validatorUpdate is a type being used for "notifying"
 // that a validator change happened on-chain. The events from `r/sys/validators`
