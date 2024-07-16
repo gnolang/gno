@@ -13,6 +13,7 @@ import (
 	"gno.land/p/gov/dao"
 	pVals "gno.land/p/sys/validators"
 	govdao "gno.land/r/gov/dao/v2"
+	validators "gno.land/r/sys/validators/v2"
 )
 
 func init() {
