@@ -1,3 +1,12 @@
+package mytoken
+
+import (
+	"std"
+	"strings"
+
+	"gno.land/p/demo/ufmt"
+)
+
 // TotalSupply returns the total supply of mytoken
 func TotalSupply() uint64 {
 	return mytoken.TotalSupply()
@@ -10,84 +19,39 @@ func Decimals() uint {
 
 // BalanceOf returns the balance mytoken for `account`
 func BalanceOf(account std.Address) uint64 {
-	balance, err := mytoken.BalanceOf(account)
-	if err != nil {
-		panic(err)
-	}
-
-	return balance
+	return mytoken.BalanceOf(account)
 }
 
 // Allowance returns the allowance of spender on owner's balance
 func Allowance(owner, spender std.Address) uint64 {
-	allowance, err := mytoken.Allowance(owner, spender)
-	if err != nil {
-		panic(err)
-	}
-
-	return allowance
+	return mytoken.Allowance(owner, spender)
 }
 
 // Transfer transfers amount from caller to recipient
 func Transfer(recipient std.Address, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	if err := mytoken.Transfer(caller, recipient, amount); err != nil {
-		panic(err)
-	}
+	checkErr(mytoken.Transfer(recipient, amount))
 }
 
 // Approve approves amount of caller's tokens to be spent by spender
 func Approve(spender std.Address, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	if err := mytoken.Approve(caller, spender, amount); err != nil {
-		panic(err)
-	}
+	checkErr(mytoken.Approve(spender, amount))
 }
 
 // TransferFrom transfers `amount` of tokens from `from` to `to`
 func TransferFrom(from, to std.Address, amount uint64) {
-	caller := std.PrevRealm().Addr()
-
-	if amount <= 0 {
-		panic("transfer amount must be greater than zero")
-	}
-
-	if err := mytoken.TransferFrom(caller, from, to, amount); err != nil {
-		panic(err)
-	}
+	checkErr(mytoken.TransferFrom(from, to, amount))
 }
 
 // Mint mints amount of tokens to address. Callable only by admin of token
 func Mint(address std.Address, amount uint64) {
 	assertIsAdmin(std.PrevRealm().Addr())
-
-	if amount <= 0 {
-		panic("mint amount must be greater than zero")
-	}
-
-	if err := mytoken.Mint(address, amount); err != nil {
-		panic(err)
-	}
+	checkErr(banker.Mint(address, amount))
 }
 
 // Burn burns amount of tokens from address. Callable only by admin of token
 func Burn(address std.Address, amount uint64) {
 	assertIsAdmin(std.PrevRealm().Addr())
-
-	if amount <= 0 {
-		panic("burn amount must be greater than zero")
-	}
-
-	if err := mytoken.Burn(address, amount); err != nil {
-		panic(err)
-	}
-}
-
-// assertIsAdmin asserts the address is the admin of token
-func assertIsAdmin(address std.Address) {
-	if address != admin {
-		panic("restricted access")
-	}
+	checkErr(banker.Burn(address, amount))
 }
 
 // Render renders the state of the realm
@@ -106,5 +70,19 @@ func Render(path string) string {
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"
+	}
+}
+
+// assertIsAdmin asserts the address is the admin of token
+func assertIsAdmin(address std.Address) {
+	if address != admin {
+		panic("restricted access")
+	}
+}
+
+// checkErr asserts the function didn't returned an error
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
 	}
 }

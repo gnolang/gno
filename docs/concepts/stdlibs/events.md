@@ -9,7 +9,7 @@ id: events
 Events in Gno are a fundamental aspect of interacting with and monitoring
 on-chain applications. They serve as a bridge between the on-chain environment 
 and off-chain services, making it simpler for developers, analytics tools, and 
-monitoring services to track and respond to activities happening in Gno.land.
+monitoring services to track and respond to activities happening in gno.land.
 
 Gno events are pieces of data that log specific activities or changes occurring 
 within the state of an on-chain app. These activities are user-defined; they might

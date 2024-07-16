@@ -140,7 +140,7 @@ message Location {
 	string PkgPath = 1;
 	string File = 2;
 	sint64 Line = 3;
-	sint64 Nonce = 4;
+	sint64 Column = 4;
 }
 
 message Attributes {

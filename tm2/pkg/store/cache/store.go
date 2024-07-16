@@ -3,13 +3,17 @@ package cache
 import (
 	"bytes"
 	"container/list"
+	"fmt"
+	"reflect"
 	"sort"
 	"sync"
 
+	"github.com/gnolang/gno/tm2/pkg/colors"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
 	"github.com/gnolang/gno/tm2/pkg/store/types"
+	"github.com/gnolang/gno/tm2/pkg/store/utils"
 )
 
 // If value is nil but deleted is false, it means the parent doesn't have the
@@ -18,6 +22,12 @@ type cValue struct {
 	value   []byte
 	deleted bool
 	dirty   bool
+}
+
+func (cv cValue) String() string {
+	return fmt.Sprintf("cValue{%s,%v,%v}",
+		colors.DefaultColoredBytes(cv.value),
+		cv.deleted, cv.dirty)
 }
 
 // cacheStore wraps an in-memory cache around an underlying types.Store.
@@ -32,12 +42,13 @@ type cacheStore struct {
 var _ types.Store = (*cacheStore)(nil)
 
 func New(parent types.Store) *cacheStore {
-	return &cacheStore{
+	cs := &cacheStore{
 		cache:         make(map[string]*cValue),
 		unsortedCache: make(map[string]struct{}),
 		sortedCache:   list.New(),
 		parent:        parent,
 	}
+	return cs
 }
 
 // Implements types.Store.
@@ -112,6 +123,17 @@ func (store *cacheStore) Write() {
 	}
 
 	// Clear the cache
+	store.clear()
+}
+
+func (store *cacheStore) Flush() {
+	store.Write()
+	if fs, ok := store.parent.(types.Flusher); ok {
+		fs.Flush()
+	}
+}
+
+func (store *cacheStore) clear() {
 	store.cache = make(map[string]*cValue)
 	store.unsortedCache = make(map[string]struct{})
 	store.sortedCache = list.New()
@@ -208,4 +230,24 @@ func (store *cacheStore) setCacheValue(key, value []byte, deleted bool, dirty bo
 	if dirty {
 		store.unsortedCache[string(key)] = struct{}{}
 	}
+}
+
+func (store *cacheStore) Print() {
+	fmt.Println(colors.Cyan("cacheStore.Print"), fmt.Sprintf("%p", store))
+	for key, value := range store.cache {
+		fmt.Println(
+			colors.DefaultColoredBytesN([]byte(key), 50),
+			colors.DefaultColoredBytesN(value.value, 100),
+			"deleted", value.deleted,
+			"dirty", value.dirty,
+		)
+	}
+	fmt.Println(colors.Cyan("cacheStore.Print"), fmt.Sprintf("%p", store),
+		"print parent", fmt.Sprintf("%p", store.parent), reflect.TypeOf(store.parent))
+	if ps, ok := store.parent.(types.Printer); ok {
+		ps.Print()
+	} else {
+		utils.Print(store.parent)
+	}
+	fmt.Println(colors.Cyan("cacheStore.Print END"), fmt.Sprintf("%p", store))
 }

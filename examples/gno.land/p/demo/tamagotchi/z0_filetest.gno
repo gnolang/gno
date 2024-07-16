@@ -1,7 +1,6 @@
 package main
 
 import (
-	"std"
 	"time"
 
 	"internal/os_test"

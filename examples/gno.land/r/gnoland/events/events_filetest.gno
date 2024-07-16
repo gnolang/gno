@@ -12,7 +12,7 @@ func main() {
 // # Gno.land Core Team Attends Industry Events & Meetups
 //
 //
-// If you’re interested in building web3 with us, catch up with Gno.land in person at one of our industry events. We’re looking to connect with developers and like-minded thinkers who can contribute to the growth of our platform.
+// If you’re interested in building web3 with us, catch up with gno.land in person at one of our industry events. We’re looking to connect with developers and like-minded thinkers who can contribute to the growth of our platform.
 //
 //
 // ---
@@ -20,17 +20,6 @@ func main() {
 // ## Upcoming Events
 //
 // <div class="columns-3">
-// <div class="column">
-//
-// ### Gno @ Golang Serbia
-//
-// - Join the meetup
-// - Belgrade, May 23, 2024
-//
-// [Learn more](https://www.meetup.com/golang-serbia/events/300975006/)
-//
-// </div><!-- end column-->
-//
 // <div class="column">
 //
 // ### GopherCon EU
@@ -72,6 +61,40 @@ func main() {
 // ## Past Events
 //
 // <div class="columns-3">
+//
+// <div class="column">
+//
+// ### Gno @ Golang Serbia
+//
+// - **Join the meetup**
+// - Belgrade, May 23, 2024
+//
+// [Learn more](https://gno.land/r/gnoland/blog:p/gnomes-in-serbia)
+//
+// </div><!-- end column-->
+//
+// <div class="column">
+//
+// ### Intro to Gno Tokyo
+//
+// - **Join the meetup**
+// - Tokyo, April 11, 2024
+//
+// [Learn more](https://gno.land/r/gnoland/blog:p/gno-tokyo)
+//
+// </div><!-- end column-->
+//
+// <div class="column">
+//
+// ### Go to Gno Seoul
+//
+// - **Join the workshop**
+// - Seoul, March 23, 2024
+//
+// [Learn more](https://medium.com/onbloc/go-to-gno-recap-intro-to-the-gno-stack-with-memeland-284a43d7f620)
+//
+// </div><!-- end column-->
+//
 // <div class="column">
 //
 // ### GopherCon US

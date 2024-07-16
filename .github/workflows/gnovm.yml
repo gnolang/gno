@@ -8,6 +8,7 @@ on:
   pull_request: 
     paths:
       - "gnovm/**"
+      - "go.*" # check on go.mod/sum update
       - ".github/**"
 
 jobs:
@@ -18,3 +19,9 @@ jobs:
       modulepath: "gnovm"
     secrets:
       codecov-token: ${{ secrets.CODECOV_TOKEN }}
+  fmt:
+    name: Run Gno Fmt
+    uses: ./.github/workflows/gnofmt_template.yml
+    with:
+      path: "gnovm/stdlibs/..."
+      go-version: "1.22.x"

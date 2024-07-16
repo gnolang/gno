@@ -1,11 +1,9 @@
 package int256
 
 import (
-	"gno.land/p/demo/uint256"
-)
-
-import (
 	"testing"
+
+	"gno.land/p/demo/uint256"
 )
 
 func TestOr(t *testing.T) {

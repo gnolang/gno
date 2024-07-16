@@ -15,6 +15,12 @@ message m_call {
 	repeated string args = 5;
 }
 
+message m_run {
+	string caller = 1;
+	string send = 2;
+	std.MemPackage package = 3;
+}
+
 message m_addpkg {
 	string creator = 1;
 	std.MemPackage package = 2;
@@ -28,4 +34,8 @@ message InvalidStmtError {
 }
 
 message InvalidExprError {
+}
+
+message TypeCheckError {
+	repeated string errors = 1 [json_name = "Errors"];
 }

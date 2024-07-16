@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/fun22.gno:6: wrong argument count in call to time<VPBlock(2,0)>.Date; want 8 got 0
+// main/files/fun22.gno:6:2: wrong argument count in call to time<VPBlock(2,0)>.Date; want 8 got 0

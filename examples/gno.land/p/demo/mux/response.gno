@@ -1,8 +1,6 @@
 package mux
 
-import (
-	"strings"
-)
+import "strings"
 
 // ResponseWriter represents the response writer.
 type ResponseWriter struct {

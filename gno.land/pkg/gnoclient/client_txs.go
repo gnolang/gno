@@ -86,9 +86,14 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 			return nil, err
 		}
 
+		caller, err := c.Signer.Info()
+		if err != nil {
+			return nil, err
+		}
+
 		// Unwrap syntax sugar to vm.MsgCall slice
 		vmMsgs = append(vmMsgs, std.Msg(vm.MsgCall{
-			Caller:  c.Signer.Info().GetAddress(),
+			Caller:  caller.GetAddress(),
 			PkgPath: msg.PkgPath,
 			Func:    msg.FuncName,
 			Args:    msg.Args,
@@ -142,14 +147,17 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 			return nil, err
 		}
 
-		caller := c.Signer.Info().GetAddress()
+		caller, err := c.Signer.Info()
+		if err != nil {
+			return nil, err
+		}
 
 		msg.Package.Name = "main"
 		msg.Package.Path = ""
 
 		// Unwrap syntax sugar to vm.MsgCall slice
 		vmMsgs = append(vmMsgs, std.Msg(vm.MsgRun{
-			Caller:  caller,
+			Caller:  caller.GetAddress(),
 			Package: msg.Package,
 			Send:    send,
 		}))
@@ -201,9 +209,14 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 			return nil, err
 		}
 
+		caller, err := c.Signer.Info()
+		if err != nil {
+			return nil, err
+		}
+
 		// Unwrap syntax sugar to vm.MsgSend slice
 		vmMsgs = append(vmMsgs, std.Msg(bank.MsgSend{
-			FromAddress: c.Signer.Info().GetAddress(),
+			FromAddress: caller.GetAddress(),
 			ToAddress:   msg.ToAddress,
 			Amount:      send,
 		}))
@@ -255,11 +268,14 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.Resul
 			return nil, err
 		}
 
-		caller := c.Signer.Info().GetAddress()
+		caller, err := c.Signer.Info()
+		if err != nil {
+			return nil, err
+		}
 
 		// Unwrap syntax sugar to vm.MsgCall slice
 		vmMsgs = append(vmMsgs, std.Msg(vm.MsgAddPackage{
-			Creator: caller,
+			Creator: caller.GetAddress(),
 			Package: msg.Package,
 			Deposit: deposit,
 		}))
@@ -284,10 +300,13 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.Resul
 
 // signAndBroadcastTxCommit signs a transaction and broadcasts it, returning the result
 func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
-	caller := c.Signer.Info().GetAddress()
+	caller, err := c.Signer.Info()
+	if err != nil {
+		return nil, err
+	}
 
 	if sequenceNumber == 0 || accountNumber == 0 {
-		account, _, err := c.QueryAccount(caller)
+		account, _, err := c.QueryAccount(caller.GetAddress())
 		if err != nil {
 			return nil, errors.Wrap(err, "query account")
 		}

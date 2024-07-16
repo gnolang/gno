@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/redeclaration9.gno:7: redeclaration of method a.method
+// main/files/redeclaration9.gno:7:1: redeclaration of method a.method

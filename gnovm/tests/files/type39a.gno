@@ -21,4 +21,4 @@ func main() {
 }
 
 // Error:
-// main/files/type39a.gno:9: invalid receiver type main.FF (base type is interface type)
+// main/files/type39a.gno:9:1: invalid receiver type main.FF (base type is interface type)

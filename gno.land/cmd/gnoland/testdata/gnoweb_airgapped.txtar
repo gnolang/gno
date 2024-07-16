@@ -8,8 +8,18 @@ loadpkg gno.land/r/demo/echo
 gnoland start
 
 # Query account
-gnokey query auth/accounts/$USER_ADDR_test1
-cmp stdout query.stdout.golden
+gnokey query auth/accounts/${USER_ADDR_test1}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",'
+stdout '    "coins": "[0-9]*ugnot",' # dynamic
+stdout '    "public_key": null,'
+stdout '    "account_number": "0",'
+stdout '    "sequence": "0"'
+stdout '  }'
+stdout '}'
+! stderr '.+' # empty
 
 # Create transaction
 gnokey maketx call -pkgpath "gno.land/r/demo/echo" -func "Render" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -args "HELLO" test1
@@ -23,17 +33,6 @@ gnokey broadcast $WORK/call.tx
 stdout '("HELLO" string)'
 stdout 'GAS WANTED: 2000000'
 
--- query.stdout.golden --
-height: 0
-data: {
-  "BaseAccount": {
-    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
-    "coins": "9999999000000ugnot",
-    "public_key": null,
-    "account_number": "0",
-    "sequence": "0"
-  }
-}
 -- sign.stdout.golden --
 
 Tx successfully signed and saved to $WORK/call.tx

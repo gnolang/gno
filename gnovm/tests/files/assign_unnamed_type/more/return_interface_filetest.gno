@@ -16,4 +16,4 @@ func main() {
 }
 
 // Error:
-// main/files/assign_unnamed_type/more/return_interface_filetest.gno:13: cannot use interface{} as []int
+// main/files/assign_unnamed_type/more/return_interface_filetest.gno:13:2: cannot use interface{} as []int

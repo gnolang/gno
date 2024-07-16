@@ -15,7 +15,7 @@ Under the hood, the Gno code is parsed into an abstract syntax tree (AST) and th
 
 ![Gno and Go differences](static/img/gno-language/go-and-gno.jpg)
 
-The composable nature of Go/Gno allows for type-checked interactions between contracts, making Gno.land safer and more powerful, as well as operationally cheaper and faster. Smart contracts on Gno.land are light, simple, more focused, and easily interoperable—a network of interconnected contracts rather than siloed monoliths that limit interactions with other contracts.
+The composable nature of Go/Gno allows for type-checked interactions between contracts, making gno.land safer and more powerful, as well as operationally cheaper and faster. Smart contracts on gno.land are light, simple, more focused, and easily interoperable—a network of interconnected contracts rather than siloed monoliths that limit interactions with other contracts.
 
 ![Example of Gno code](static/img/gno-language/code-example.jpg)
 

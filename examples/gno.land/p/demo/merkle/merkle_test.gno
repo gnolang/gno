@@ -3,7 +3,6 @@ package merkle
 import (
 	"fmt"
 	"testing"
-	"time"
 )
 
 type testData struct {

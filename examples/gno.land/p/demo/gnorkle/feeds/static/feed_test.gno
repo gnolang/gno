@@ -10,6 +10,8 @@ import (
 	"gno.land/p/demo/gnorkle/ingester"
 	"gno.land/p/demo/gnorkle/message"
 	"gno.land/p/demo/gnorkle/storage/simple"
+	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
 type mockIngester struct {
@@ -44,20 +46,15 @@ func (i *mockIngester) CommitValue(storage gnorkle.Storage, providerAddress stri
 
 func TestNewSingleValueFeed(t *testing.T) {
 	staticFeed := static.NewSingleValueFeed("1", "")
-	if staticFeed.ID() != "1" {
-		t.Errorf("expected ID to be 1, got %s", staticFeed.ID())
-	}
 
-	if staticFeed.Type() != feed.TypeStatic {
-		t.Errorf("expected static feed type, got %s", staticFeed.Type())
-	}
+	uassert.Equal(t, "1", staticFeed.ID())
+	uassert.Equal(t, int(feed.TypeStatic), int(staticFeed.Type()))
 }
 
 func TestFeed_Ingest(t *testing.T) {
 	var undefinedFeed *static.Feed
-	if undefinedFeed.Ingest("", "", "") != feed.ErrUndefined {
-		t.Errorf("expected ErrUndefined, got nil")
-	}
+	err := undefinedFeed.Ingest("", "", "")
+	uassert.ErrorIs(t, err, feed.ErrUndefined)
 
 	tests := []struct {
 		name               string
@@ -157,15 +154,11 @@ func TestFeed_Ingest(t *testing.T) {
 				errText = err.Error()
 			}
 
-			if errText != tt.expErrText {
-				t.Fatalf("expected error text %s, got %s", tt.expErrText, errText)
-			}
+			urequire.Equal(t, tt.expErrText, errText)
 
 			if tt.doCommit {
 				err := staticFeed.Ingest(message.FuncTypeCommit, "", "")
-				if err != nil {
-					t.Fatalf("follow up commit failed: %s", err.Error())
-				}
+				urequire.NoError(t, err, "follow up commit failed")
 			}
 
 			if tt.verifyIsLocked {
@@ -174,31 +167,16 @@ func TestFeed_Ingest(t *testing.T) {
 					errText = err.Error()
 				}
 
-				if errText != "feed locked" {
-					t.Fatalf("expected error text feed locked, got %s", errText)
-				}
+				urequire.Equal(t, "feed locked", errText)
 			}
 
-			if tt.ingester.providerAddress != tt.providerAddress {
-				t.Errorf("expected provider address %s, got %s", tt.providerAddress, tt.ingester.providerAddress)
-			}
+			uassert.Equal(t, tt.providerAddress, tt.ingester.providerAddress)
 
 			feedValue, dataType, isLocked := staticFeed.Value()
-			if feedValue.String != tt.expFeedValueString {
-				t.Errorf("expected feed value string %s, got %s", tt.expFeedValueString, feedValue.String)
-			}
-
-			if dataType != "string" {
-				t.Errorf("expected data type string, got %s", dataType)
-			}
-
-			if isLocked != tt.verifyIsLocked {
-				t.Errorf("expected is locked %t, got %t", tt.verifyIsLocked, isLocked)
-			}
-
-			if staticFeed.IsActive() != tt.expIsActive {
-				t.Errorf("expected is active %t, got %t", tt.expIsActive, staticFeed.IsActive())
-			}
+			uassert.Equal(t, tt.expFeedValueString, feedValue.String)
+			uassert.Equal(t, "string", dataType)
+			uassert.Equal(t, tt.verifyIsLocked, isLocked)
+			uassert.Equal(t, tt.expIsActive, staticFeed.IsActive())
 		})
 	}
 }
@@ -262,9 +240,7 @@ func TestFeed_Tasks(t *testing.T) {
 				tt.tasks...,
 			)
 
-			if len(staticFeed.Tasks()) != len(tt.tasks) {
-				t.Fatalf("expected %d tasks, got %d", len(tt.tasks), len(staticFeed.Tasks()))
-			}
+			urequire.Equal(t, len(tt.tasks), len(staticFeed.Tasks()))
 
 			var errText string
 			json, err := staticFeed.MarshalJSON()
@@ -272,13 +248,8 @@ func TestFeed_Tasks(t *testing.T) {
 				errText = err.Error()
 			}
 
-			if errText != tt.expErrText {
-				t.Fatalf("expected error text %s, got %s", tt.expErrText, errText)
-			}
-
-			if string(json) != tt.expJSON {
-				t.Errorf("expected json %s, got %s", tt.expJSON, string(json))
-			}
+			urequire.Equal(t, tt.expErrText, errText)
+			urequire.Equal(t, tt.expJSON, string(json))
 		})
 	}
 }

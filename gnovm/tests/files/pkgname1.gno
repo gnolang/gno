@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/pkgname1.gno:8: name bar not declared
+// main/files/pkgname1.gno:8:19: name bar not declared

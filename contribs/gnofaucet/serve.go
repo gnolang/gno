@@ -154,7 +154,7 @@ func execServe(ctx context.Context, cfg *serveCfg, io commands.IO) error {
 	// Parse static gas values.
 	// It is worth noting that this is temporary,
 	// and will be removed once gas estimation is enabled
-	// on Gno.land
+	// on gno.land
 	gasFee := std.MustParseCoin(defaultGasFee)
 
 	gasWanted, err := strconv.ParseInt(defaultGasWanted, 10, 64)

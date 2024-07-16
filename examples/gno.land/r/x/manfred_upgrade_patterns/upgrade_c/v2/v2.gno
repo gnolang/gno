@@ -1,4 +1,4 @@
-package v1
+package v2
 
 import "gno.land/r/x/manfred_upgrade_patterns/upgrade_c/root"
 

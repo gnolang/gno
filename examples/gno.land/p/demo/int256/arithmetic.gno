@@ -1,8 +1,6 @@
 package int256
 
-import (
-	"gno.land/p/demo/uint256"
-)
+import "gno.land/p/demo/uint256"
 
 func (z *Int) Add(x, y *Int) *Int {
 	z.initiateAbs()

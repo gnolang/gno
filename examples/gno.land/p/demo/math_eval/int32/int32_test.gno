@@ -1,11 +1,6 @@
 package int32
 
-import (
-	"std"
-	"testing"
-
-	"gno.land/p/demo/ufmt"
-)
+import "testing"
 
 func TestOne(t *testing.T) {
 	ttt := []struct {

@@ -1,8 +1,6 @@
 package int256
 
-import (
-	"gno.land/p/demo/uint256"
-)
+import "gno.land/p/demo/uint256"
 
 // Abs returns |z|
 func (z *Int) Abs() *uint256.Uint {

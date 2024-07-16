@@ -34,7 +34,7 @@ id: go-gno-compatibility
 
 Generics are currently not implemented.
 
-Note that Gno does not support shadowing of built-in types. 
+Note that Gno does not support shadowing of built-in types.
 While the following built-in typecasting assignment would work in Go, this is not supported in Gno.
 
 ```go
@@ -205,7 +205,7 @@ Legend:
 | math/big                                    | `tbd`    |
 | math/bits                                   | `full`   |
 | math/cmplx                                  | `tbd`    |
-| math/rand                                   | `todo`   |
+| math/rand                                   | `full`[^9] |
 | mime                                        | `tbd`    |
 | mime/multipart                              | `tbd`    |
 | mime/quotedprintable                        | `tbd`    |
@@ -291,6 +291,7 @@ Legend:
   determinism. Concurrent functionality (such as `time.Ticker`) is not implemented.
 [^8]: `crypto/ed25519` is currently only implemented for `Verify`, which should
   still cover a majority of use cases. A full implementation is welcome.
+[^9]: `math/rand` in Gno ports over Go's `math/rand/v2`.
 
 ## Tooling (`gno` binary)
 

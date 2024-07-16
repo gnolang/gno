@@ -1,0 +1,16 @@
+package main
+
+import "fmt"
+
+func main() {
+	a := [2][2]int{{1, 2}, {3, 4}}
+	b := [2][2]int{{1, 2}, {3, 4}}
+	c := [2][2]int{{5, 6}, {7, 8}}
+
+	fmt.Println("a == b:", a == b) // True because the elements match exactly
+	fmt.Println("a == c:", a == c) // False because the elements do not match
+}
+
+// Output:
+// a == b: true
+// a == c: false

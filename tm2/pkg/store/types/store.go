@@ -40,7 +40,8 @@ type Store interface {
 	// Returns a cache-wrapped store.
 	CacheWrap() Store
 
-	// If cache-wrapped store, flushes to underlying store.
+	// If cache-wrapped store, writes to underlying store.
+	// Does not writes through layers of cache.
 	Write()
 }
 
@@ -53,6 +54,23 @@ type Iterator = dbm.Iterator
 // This is an optional, but useful extension to any CommitStore
 type Queryable interface {
 	Query(abci.RequestQuery) abci.ResponseQuery
+}
+
+// Useful for debugging.
+type Printer interface {
+	Print()
+}
+
+// Write through all caches.
+// You probably don't want this, rather write your program to Write() where
+// appropriate.  Not included in the main Store interface to discourage usage.
+type Flusher interface {
+	Flush()
+}
+
+// Write throgh
+type Writer interface {
+	Write()
 }
 
 // ----------------------------------------

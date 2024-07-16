@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/bltn0.gno:4: use of builtin println not in function call
+// main/files/bltn0.gno:4:7: use of builtin println not in function call

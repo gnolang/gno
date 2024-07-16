@@ -3,7 +3,6 @@ package sha256
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"std"
 	"testing"
 )
 

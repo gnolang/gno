@@ -1,9 +1,6 @@
 package main
 
 import (
-	"std"
-	"time"
-
 	"gno.land/r/demo/tamagotchi"
 )
 

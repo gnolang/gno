@@ -64,6 +64,8 @@ func (p Poll) VoteCount() (int, int) {
 		if vote == true {
 			yay = yay + 1
 		}
+
+        return false
 	})
 	return yay, p.Voters().Size() - yay
 }

@@ -25,7 +25,7 @@ func Render(_ string) string {
 
 func introSection() ui.Element {
 	return ui.Element{
-		ui.Paragraph("If you’re interested in building web3 with us, catch up with Gno.land in person at one of our industry events. We’re looking to connect with developers and like-minded thinkers who can contribute to the growth of our platform."),
+		ui.Paragraph("If you’re interested in building web3 with us, catch up with gno.land in person at one of our industry events. We’re looking to connect with developers and like-minded thinkers who can contribute to the growth of our platform."),
 	}
 }
 
@@ -33,17 +33,6 @@ func upcomingEvents() ui.Element {
 	return ui.Element{
 		ui.H2("Upcoming Events"),
 		ui.Text(`<div class="columns-3">
-<div class="column">
-
-### Gno @ Golang Serbia
-
-- Join the meetup
-- Belgrade, May 23, 2024
-
-[Learn more](https://www.meetup.com/golang-serbia/events/300975006/)
-
-</div><!-- end column-->
-
 <div class="column">
 
 ### GopherCon EU
@@ -78,13 +67,48 @@ func upcomingEvents() ui.Element {
 <div class="column">
 
 </div><!-- end column-->
-</div><!-- end columns-3-->`)}
+</div><!-- end columns-3-->`),
+	}
 }
 
 func pastEvents() ui.Element {
 	return ui.Element{
 		ui.H2("Past Events"),
 		ui.Text(`<div class="columns-3">
+
+<div class="column">
+
+### Gno @ Golang Serbia
+
+- **Join the meetup**
+- Belgrade, May 23, 2024
+
+[Learn more](https://gno.land/r/gnoland/blog:p/gnomes-in-serbia)
+
+</div><!-- end column-->
+
+<div class="column">
+
+### Intro to Gno Tokyo
+
+- **Join the meetup**
+- Tokyo, April 11, 2024
+
+[Learn more](https://gno.land/r/gnoland/blog:p/gno-tokyo)
+
+</div><!-- end column-->
+
+<div class="column">
+
+### Go to Gno Seoul
+
+- **Join the workshop**
+- Seoul, March 23, 2024
+
+[Learn more](https://medium.com/onbloc/go-to-gno-recap-intro-to-the-gno-stack-with-memeland-284a43d7f620)
+
+</div><!-- end column-->
+
 <div class="column">
 
 ### GopherCon US
@@ -211,5 +235,6 @@ func pastEvents() ui.Element {
 [Watch the talk](https://www.youtube.com/watch?v=hCLErPgnavI)
 
 </div><!-- end column-->
-</div><!-- end columns-3-->`)}
+</div><!-- end columns-3-->`),
+	}
 }

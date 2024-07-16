@@ -2,7 +2,6 @@ package ghverify
 
 import (
 	"std"
-	"strings"
 	"testing"
 
 	"gno.land/p/demo/testutils"

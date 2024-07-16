@@ -258,6 +258,11 @@ func (v RefValue) String() string {
 		v.PkgPath)
 }
 
+func (v *HeapItemValue) String() string {
+	return fmt.Sprintf("heapitem(%v)",
+		v.Value)
+}
+
 // ----------------------------------------
 // *TypedValue.Sprint
 

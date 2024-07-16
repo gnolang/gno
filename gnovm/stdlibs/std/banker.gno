@@ -1,6 +1,8 @@
 package std
 
-import "strconv"
+import (
+	"strconv"
+)
 
 // Realm functions can call std.GetBanker(options) to get
 // a banker instance. Banker objects cannot be persisted,
@@ -66,7 +68,20 @@ func GetBanker(bt BankerType) Banker {
 	if bt >= maxBanker {
 		panic("invalid banker type")
 	}
-	return banker{bt}
+
+	var pkgAddr Address
+	if bt == BankerTypeOrigSend {
+		pkgAddr = GetOrigPkgAddr()
+		if pkgAddr != CurrentRealm().Addr() {
+			panic("banker with type BankerTypeOrigSend can only be instantiated by the origin package")
+		}
+	} else if bt == BankerTypeRealmSend || bt == BankerTypeRealmIssue {
+		pkgAddr = CurrentRealm().Addr()
+	}
+	return banker{
+		bt,
+		pkgAddr,
+	}
 }
 
 // These are native bindings to the banker's functions.
@@ -77,7 +92,8 @@ func bankerIssueCoin(bt uint8, addr string, denom string, amount int64)
 func bankerRemoveCoin(bt uint8, addr string, denom string, amount int64)
 
 type banker struct {
-	bt BankerType
+	bt      BankerType
+	pkgAddr Address
 }
 
 func (b banker) GetCoins(addr Address) (dst Coins) {
@@ -92,6 +108,10 @@ func (b banker) GetCoins(addr Address) (dst Coins) {
 func (b banker) SendCoins(from, to Address, amt Coins) {
 	if b.bt == BankerTypeReadonly {
 		panic("BankerTypeReadonly cannot send coins")
+	}
+	if b.pkgAddr != from {
+		msg := `can only send coins from realm that created banker "` + b.pkgAddr + `", not "` + from + `"`
+		panic(msg)
 	}
 	denoms, amounts := amt.expandNative()
 	bankerSendCoins(uint8(b.bt), string(from), string(to), denoms, amounts)

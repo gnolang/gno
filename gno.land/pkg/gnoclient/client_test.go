@@ -24,13 +24,13 @@ func TestRender(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -63,13 +63,13 @@ func TestCallSingle(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -117,13 +117,13 @@ func TestCallMultiple(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -482,13 +482,13 @@ func TestClient_Send_Errors(t *testing.T) {
 			name: "Invalid To Address",
 			client: Client{
 				Signer: &mockSigner{
-					info: func() keys.Info {
+					info: func() (keys.Info, error) {
 						return &mockKeysInfo{
 							getAddress: func() crypto.Address {
 								adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 								return adr
 							},
-						}
+						}, nil
 					},
 				},
 				RPCClient: &mockRPCClient{},
@@ -512,13 +512,13 @@ func TestClient_Send_Errors(t *testing.T) {
 			name: "Invalid Send Coins",
 			client: Client{
 				Signer: &mockSigner{
-					info: func() keys.Info {
+					info: func() (keys.Info, error) {
 						return &mockKeysInfo{
 							getAddress: func() crypto.Address {
 								adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 								return adr
 							},
-						}
+						}, nil
 					},
 				},
 				RPCClient: &mockRPCClient{},
@@ -561,13 +561,13 @@ func TestRunSingle(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -628,13 +628,13 @@ func TestRunMultiple(t *testing.T) {
 			sign: func(cfg SignCfg) (*std.Tx, error) {
 				return &std.Tx{}, nil
 			},
-			info: func() keys.Info {
+			info: func() (keys.Info, error) {
 				return &mockKeysInfo{
 					getAddress: func() crypto.Address {
 						adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 						return adr
 					},
-				}
+				}, nil
 			},
 		},
 		RPCClient: &mockRPCClient{
@@ -849,13 +849,13 @@ func TestRunErrors(t *testing.T) {
 			name: "Invalid Empty Package",
 			client: Client{
 				Signer: &mockSigner{
-					info: func() keys.Info {
+					info: func() (keys.Info, error) {
 						return &mockKeysInfo{
 							getAddress: func() crypto.Address {
 								adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 								return adr
 							},
-						}
+						}, nil
 					},
 				},
 				RPCClient: &mockRPCClient{},
@@ -1040,13 +1040,13 @@ func TestAddPackageErrors(t *testing.T) {
 			name: "Invalid Empty Package",
 			client: Client{
 				Signer: &mockSigner{
-					info: func() keys.Info {
+					info: func() (keys.Info, error) {
 						return &mockKeysInfo{
 							getAddress: func() crypto.Address {
 								adr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 								return adr
 							},
-						}
+						}, nil
 					},
 				},
 				RPCClient: &mockRPCClient{},
