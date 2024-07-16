@@ -432,6 +432,9 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 		return undefinedStr
 	}
 
+	// TODO: is it possible calling string or error methods could also result in a massive
+	// string or recursive situation that impedes performance?
+
 	// if implements .String(), return it.
 	if IsImplementedBy(gStringerType, tv.T) {
 		// No worries here about the string being too large; the machine will exhaust
@@ -446,11 +449,11 @@ func (tv *TypedValue) Sprint(m *Machine) string {
 	}
 
 	w := newLimitedStringValueWriter(stringByteLimit)
-	tv.NonPrimitiveProtectedWrite(w, newSeenValues(), true)
+	tv.NonNilProtectedWrite(w, newSeenValues(), true)
 	return w.builder.String()
 }
 
-func (tv *TypedValue) NonPrimitiveProtectedWrite(
+func (tv *TypedValue) NonNilProtectedWrite(
 	w *limitedValueStringWriter,
 	seen *seenValues,
 	considerDeclaredType bool,
@@ -582,7 +585,7 @@ func (tv TypedValue) String() string {
 
 func (tv TypedValue) ProtectedWrite(w *limitedValueStringWriter, seen *seenValues) error {
 	if tv.IsUndefined() {
-		return w.WriteValueString("(undefined)")
+		return w.WriteValueString("(" + undefinedStr + ")")
 	}
 
 	if tv.V == nil {
@@ -591,6 +594,9 @@ func (tv TypedValue) ProtectedWrite(w *limitedValueStringWriter, seen *seenValue
 		case BoolType, UntypedBoolType:
 			vs = fmt.Sprintf("%t", tv.GetBool())
 		case StringType, UntypedStringType:
+			// XXX: Should this be surrounded by quotes for consistency?
+			// Or does an unquoted string useful for implying the string value
+			// (tv.V) is undefined?
 			vs = fmt.Sprintf("%s", tv.GetString())
 		case IntType:
 			vs = fmt.Sprintf("%d", tv.GetInt())
@@ -636,7 +642,7 @@ func (tv TypedValue) ProtectedWrite(w *limitedValueStringWriter, seen *seenValue
 		w.BeginQuotation()
 	}
 
-	if err := tv.NonPrimitiveProtectedWrite(w, seen, false); err != nil {
+	if err := tv.NonNilProtectedWrite(w, seen, false); err != nil {
 		return err
 	}
 
