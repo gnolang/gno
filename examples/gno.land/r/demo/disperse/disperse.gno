@@ -2,32 +2,30 @@ package disperse
 
 import (
 	"std"
+ 
+	tokens "gno.land/r/demo/grc20factory"
 )
 
-// SendSingleCoin parses receivers and amounts and sends out a single coin
-func SendSingleCoin(addresses []std.Address, coins std.Coins) {
+// DisperseGnot parses receivers and amounts and sends out gnot
+func DisperseGnot(addresses []std.Address, coins std.Coins) {
 	coinSent := std.GetOrigSend() // get Coins sent with call
 	caller := std.GetOrigCaller() // get tx sender
-
-	if len(coinSent) != len(coins) {
-		panic(ErrArgLenAndSentLenMismatch)
-	}
-
-	if len(addresses) != len(coins) {
-		panic(errNumAddrValMismatch)
-	}
-
-	for _, coin := range coins {
-		if coins.AmountOf(coin.Denom) != coinSent.AmountOf(coin.Denom) {
-			panic(ErrWrongAmount)
-		}
-	}
 
 	// Get address of Disperse realm
 	realmAddr := std.CurrentRealm().Addr()
 
 	// Get Banker
 	banker := std.GetBanker(std.BankerTypeOrigSend)
+
+	var totalAmount int64
+	for _, coin := range coins {
+		totalAmount += coin.Amount
+	}
+ 
+	// Check if total amount of coins sent is bigger or equal to total amount of coins to be sent
+	if totalAmount > coinSent.AmountOf("ugnot") {
+		panic(ErrWrongAmount)
+	}
 
 	// Send coins
 	for i, _ := range addresses {
@@ -44,8 +42,58 @@ func SendSingleCoin(addresses []std.Address, coins std.Coins) {
 	}
 }
 
-func main() {
+func DisperseToken(addresses []std.Address, coins std.Coins) {
+	caller := std.GetOrigCaller() // get tx sender
 
-	toSend := std.Coins{{"ugnot", 1000}}
+	var totalAmount uint64
+	for _, coin := range coins {
+		totalAmount += uint64(coin.Amount)
+	}
 
+	tokens.TransferFrom(coins[0].Denom, caller, std.CurrentRealm().Addr(), totalAmount)
+	for i, address := range addresses {
+		for y, coin := range coins {
+			if y == i {
+				tokens.Transfer(coin.Denom, address, uint64(coin.Amount))
+			}
+		}
+	}
+}
+
+func DisperseTokenString(symbol string, addresses string, amounts string) {
+	parsedAddresses, err := parseAddresses(addresses)
+	if err != nil {
+		panic(err)
+	}
+
+	parsedAmounts, err := parseAmounts(amounts)
+	if err != nil {
+		panic(err)
+	}
+
+	coins := make(std.Coins, len(parsedAmounts))
+	for i, amount := range parsedAmounts {
+		coins[i] = std.Coin{symbol, amount}
+	}
+
+	DisperseToken(parsedAddresses, coins)
+}
+
+func DisperseGnotString(addresses string, amounts string) {
+	parsedAddresses, err := parseAddresses(addresses)
+	if err != nil {
+		panic(err)
+	}
+
+	parsedAmounts, err := parseAmounts(amounts)
+	if err != nil {
+		panic(err)
+	}
+
+	coins := make(std.Coins, len(parsedAmounts))
+	for i, amount := range parsedAmounts {
+		coins[i] = std.Coin{"ugnot", amount}
+	}
+
+	DisperseGnot(parsedAddresses, coins)
 }

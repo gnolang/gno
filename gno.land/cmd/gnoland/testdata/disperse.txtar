@@ -1,21 +1,70 @@
+# Test for disperse
+
+loadpkg gno.land/r/demo/disperse
+loadpkg gno.land/r/demo/grc20factory 
+
 gnoland start
 
-gnokey maketx run -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1 $WORK/script.gno
+### Execute disperse gnot
 
--- script.gno --
-package main
+# Verifying default balance
+gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+stdout 'height: 0'
+stdout 'data: "9999990000000ugnot"'
 
-import (
-    "gno.land/r/demo/disperse"
-    "std"
-)
+# Executing disperse gnot
+gnokey maketx call -pkgpath "gno.land/r/demo/disperse" -func "DisperseGnotString" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "200ugnot" -broadcast -chainid=tendermint_test -args "g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0,g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c" -args "150,50" test1
 
-func main() {
+# Verifying balances after disperse
 
+gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+stdout 'height: 0'
+stdout 'data: "9999988999800ugnot"'
 
+gnokey query bank/balances/g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0
+stdout 'height: 0'
+stdout 'data: "150ugnot"'
 
-    toSend := std.Coins{}
+gnokey query bank/balances/g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c
+stdout 'height: 0'
+stdout 'data: "50ugnot"'
 
+### Execute disperse gnot (leftover gnot)
 
+# Execute disperse with 'send' of 200ugnot but total of 199ugnot
+gnokey maketx call -pkgpath "gno.land/r/demo/disperse" -func "DisperseGnotString" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "200ugnot" -broadcast -chainid=tendermint_test -args "g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0" -args "199" test1
 
-}
+# Verify balance after disperse
+gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
+stdout 'height: 0'
+stdout 'data: "9999987999601ugnot"'
+
+### Execute disperse gnot (invalid coins)
+
+# Execute disperse with 'send' of 200ugnot but total of 201ugnot
+! gnokey maketx call -pkgpath "gno.land/r/demo/disperse" -func "DisperseGnotString" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "200ugnot" -broadcast -chainid=tendermint_test -args "g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0" -args "201" test1
+
+### Execute disperse token
+
+# Create new token
+gnokey maketx call -pkgpath "gno.land/r/demo/grc20factory" -func "New" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -broadcast -chainid=tendermint_test -args "test" -args "TEST" -args 4 -args 1000000000 -args 0 test1
+gnokey maketx call -pkgpath "gno.land/r/demo/grc20factory" -func "Mint" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -broadcast -chainid=tendermint_test -args "TEST" -args "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" -args 1000000000 test1
+
+# Verify balance in new token after mint
+gnokey maketx call -pkgpath "gno.land/r/demo/grc20factory" -func "BalanceOf" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -broadcast -chainid=tendermint_test -args "TEST" -args "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" test1
+stdout '(2000000000 uint64)'
+
+# Approve allowance to smart contract
+gnokey maketx call -pkgpath "gno.land/r/demo/grc20factory" -func "Approve" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -broadcast -chainid=tendermint_test -args "TEST" -args "g1yryw6qs8h9anvguu4dfdc0u7zh4gvv8vqf59sj" -args "200" test1
+# Execute disperse token
+gnokey maketx call -pkgpath "gno.land/r/demo/disperse" -func "DisperseTokenString" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -broadcast -chainid=tendermint_test -args "TEST" -args "g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0,g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c" -args "150,50" test1
+
+# Verify balances after disperse
+gnokey maketx call -pkgpath "gno.land/r/demo/grc20factory" -func "BalanceOf" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -broadcast -chainid=tendermint_test -args "TEST" -args "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" test1
+stdout '(1999999800 uint64)'
+
+gnokey maketx call -pkgpath "gno.land/r/demo/grc20factory" -func "BalanceOf" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -broadcast -chainid=tendermint_test -args "TEST" -args "g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0" test1
+stdout '(150 uint64)'
+
+gnokey maketx call -pkgpath "gno.land/r/demo/grc20factory" -func "BalanceOf" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -broadcast -chainid=tendermint_test -args "TEST" -args "g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c" test1
+stdout '(50 uint64)'
