@@ -169,11 +169,11 @@ func TestStart_NonLazyWithLazyFlags(t *testing.T) {
 	t.Parallel()
 
 	for _, cfg := range []startCfg{
-		{ lazyInit: false, skipFailingGenesisTxs: true },
-		{ lazyInit: false, genesisBalancesFile: "foo" },
-		{ lazyInit: false, genesisTxsFile: "foo" },
+		{lazyInit: false, skipFailingGenesisTxs: true},
+		{lazyInit: false, genesisBalancesFile: "foo"},
+		{lazyInit: false, genesisTxsFile: "foo"},
 	} {
 		e := execStart(context.TODO(), &cfg, commands.NewTestIO())
-		require.ErrorContains(t, e, "with -lazy")	
+		require.ErrorContains(t, e, "with -lazy")
 	}
 }
