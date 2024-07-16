@@ -5,9 +5,9 @@ import "strings"
 type UrlQuery map[string][]string
 
 /*
-	Query() returns a full map of key-listValue from request
-	to get a list of params by key, use: req.Query()["key"]
-	to get single param by key, use: req.Query().Get("key")
+Query() returns a full map of key-listValue from request
+to get a list of params by key, use: req.Query()["key"]
+to get single param by key, use: req.Query().Get("key")
 */
 func (r *Request) Query() UrlQuery {
 	urlQueries := UrlQuery{}
