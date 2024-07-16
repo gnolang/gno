@@ -45,7 +45,7 @@ func MyersDiff(old, new string) []Edit {
 	max := n + m
 	v := make([]int, 2*max+1)
 	var trace [][]int
-
+search:
 	for d := 0; d <= max; d++ {
 		for k := -d; k <= d; k += 2 {
 			var x int
@@ -65,12 +65,11 @@ func MyersDiff(old, new string) []Edit {
 
 			if x == n && y == m {
 				trace = append(trace, append([]int(nil), v...))
-				goto endSearch
+				break search
 			}
 		}
 		trace = append(trace, append([]int(nil), v...))
 	}
-endSearch:
 
 	edits := make([]Edit, 0, n+m)
 	x, y := n, m
