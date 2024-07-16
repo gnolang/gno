@@ -10,18 +10,6 @@ import (
 // that can be returned on request
 const maxRequestKeys = 50
 
-// Prefixes
-
-// SystemPrefix is used for system-related vars
-const SystemPrefix = "sys-"
-
-// Initial keys
-
-const (
-	ValidatorsRealm     = SystemPrefix + "validators-realm"
-	ValidatorsChangesFn = SystemPrefix + "validators-changes-fn"
-)
-
 var (
 	ErrMissingValue     = errors.New("missing value")
 	ErrInvalidValueType = errors.New("invalid value type")
@@ -32,27 +20,8 @@ var (
 var vars *avl.Tree
 
 func init() {
-	// Initial KV set
-	initialSet := []struct {
-		key   string
-		value string
-	}{
-		{
-			ValidatorsRealm,
-			"gno.land/r/sys/validators/v2",
-		},
-		{
-			ValidatorsChangesFn,
-			"GetChanges",
-		},
-	}
-
-	// Save the initial KV set
+	// The initial variable set is empty
 	vars = avl.NewTree()
-
-	for _, v := range initialSet {
-		vars.Set(v.key, v.value)
-	}
 }
 
 // GetValue fetches the given value from the store, if any
