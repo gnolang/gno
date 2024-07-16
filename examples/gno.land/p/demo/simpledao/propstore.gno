@@ -140,7 +140,7 @@ func (p *PropStore) addProposal(proposal *proposal) (uint64, error) {
 }
 
 func (p *PropStore) GetProposals(offset, count uint64) []dao.Proposal {
-	// Calculate the left and right bounds
+	// Check the requested count
 	if count < 1 {
 		return []dao.Proposal{}
 	}
