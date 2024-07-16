@@ -79,8 +79,8 @@ func (m *Machine) doOpSelector() {
 	//fmt.Println("---doOpSelector")
 	sx := m.PopExpr().(*SelectorExpr)
 	xv := m.PeekValue(1)
-	debug.Println("---doOpSelector, sx: ", sx)
-	debug.Println("---doOpSelector, xv: ", xv)
+	//fmt.Println("---doOpSelector, sx: ", sx)
+	//fmt.Println("---doOpSelector, xv: ", xv)
 	res := xv.GetPointerToFromTV(m.Alloc, m.Store, sx.Path).Deref()
 	if debug {
 		m.Printf("-v[S] %v\n", xv)

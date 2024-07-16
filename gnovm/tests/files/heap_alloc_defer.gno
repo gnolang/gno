@@ -18,18 +18,20 @@ func main() {
 	}
 
 	for _, tt := range s {
-		f := func() {
-			println(tt.num)
-		}
-		f()
+		state := false
+		//f := func() {
+		//	println(tt.num)
+		//}
+		//f()
 		defer func() {
+			println(state)
 			tt.f()
 		}()
 	}
 }
 
-// Preprocessed:
-
 // Output:
+// false
 // hola
+// false
 // hello

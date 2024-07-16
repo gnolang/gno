@@ -71,7 +71,7 @@ func (m *Machine) doOpCall() {
 			panic("should not happen")
 		}
 		for i := 0; i < len(fv.Captures); i++ {
-			b.Values[len(b.Values)-len(fv.Captures)] = fv.Captures[i].Copy(m.Alloc)
+			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
 		}
 	}
 
@@ -330,7 +330,7 @@ func (m *Machine) doOpReturnCallDefers() {
 				panic("should not happen")
 			}
 			for i := 0; i < len(fv.Captures); i++ {
-				b.Values[len(b.Values)-len(fv.Captures)] = fv.Captures[i].Copy(m.Alloc)
+				b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
 			}
 		}
 		debug.Println("---b.Values after update: ", b.Values)

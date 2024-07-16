@@ -1711,9 +1711,6 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path ValuePath) PointerValue {
 	debug.Println("---GetPointerToFromTV, tv: ", tv)
 	debug.Println("---GetPointerToFromTV, path: ", path)
-	//if tv.IsUndefined() {
-	//	panic("GetPointerToFromTV() on undefined value")
-	//}
 	if debug {
 		if tv.IsUndefined() {
 			panic("GetPointerToFromTV() on undefined value")
@@ -1858,8 +1855,6 @@ func (tv *TypedValue) GetPointerToFromTV(alloc *Allocator, store Store, path Val
 			default:
 				panic("unexpected selector base typeval.")
 			}
-		case *heapItemType:
-			panic("!!!!!!!!!!!!!!!!!!!!!!!!!!")
 		default:
 			fmt.Println("---default, baseOf(dtv.T): ", baseOf(dtv.T))
 			//panic(fmt.Sprintf("unexpected selector base type %s (%s)",
@@ -2558,34 +2553,6 @@ func (b *Block) GetPointerToHeapUse(alloc *Allocator, store Store, path ValuePat
 	debug.Println("---ptr.TV: ", ptr.TV)
 	if _, ok := ptr.TV.T.(heapItemType); ok {
 		debug.Println("---pop out: ", ptr.TV.V)
-		return PointerValue{
-			TV:    &ptr.TV.V.(*HeapItemValue).Value,
-			Base:  ptr.TV.V,
-			Index: 0,
-		}
-	} else {
-		return ptr
-		//panic("should not happen")
-	}
-}
-
-func (b *Block) GetPointerToLoopVarDefineUse(alloc *Allocator, store Store, path ValuePath) PointerValue {
-	debug.Println("---GetPointerToLoopVarDefineUse, path: ", path)
-	// get heapItem defined from last iteration,
-	// if first iteration, from Init.
-	// XXX, Maxwell. maybe no need to alloc on Init.
-	// NOTE. Maxwell. TestCountStableOps
-
-	ptr := b.GetPointerTo(store, path)
-
-	// new heapItem base on last value
-	if h, ok := ptr.TV.V.(*HeapItemValue); ok {
-		hiv := &HeapItemValue{Value: h.Value}
-		*ptr.TV = TypedValue{ // update to new allocated heapItem
-			T: heapItemType{},
-			V: hiv,
-		}
-		// return ptr to this new allocated heap item
 		return PointerValue{
 			TV:    &ptr.TV.V.(*HeapItemValue).Value,
 			Base:  ptr.TV.V,

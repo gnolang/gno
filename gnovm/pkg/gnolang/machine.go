@@ -741,7 +741,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 // static types and values.
 func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	if debug {
-		m.Printf("Machine.EvalStatic(%v, %v)\n", last, x)
+		//m.Printf("Machine.EvalStatic(%v, %v)\n", last, x)
 	}
 	// X must have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
@@ -1954,9 +1954,6 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 			// XXX
 			lb := m.LastBlock()
 			return lb.GetPointerTo(m.Store, lx.Path)
-		case NameExprTypeLoopVar:
-			lb := m.LastBlock()
-			return lb.GetPointerToLoopVarDefineUse(m.Alloc, m.Store, lx.Path)
 
 		default:
 			panic("unexpected NameExpr in PopAsPointer")

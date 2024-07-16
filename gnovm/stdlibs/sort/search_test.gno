@@ -71,27 +71,27 @@ func log2(x int) int {
 	return n
 }
 
-//func TestSearchEfficiency(t *testing.T) {
-//	n := 100
-//	step := 1
-//	for exp := 2; exp < 10; exp++ {
-//		// n == 10**exp
-//		// step == 10**(exp-2)
-//		max := log2(n)
-//		for x := 0; x < n; x += step {
-//			count := 0
-//			i := sort.Search(n, func(i int) bool { count++; return i >= x })
-//			if i != x {
-//				t.Errorf("n = %d: expected index %d; got %d", n, x, i)
-//			}
-//			if count > max {
-//				t.Errorf("n = %d, x = %d: expected <= %d calls; got %d", n, x, max, count)
-//			}
-//		}
-//		n *= 10
-//		step *= 10
-//	}
-//}
+func TestSearchEfficiency(t *testing.T) {
+	n := 100
+	step := 1
+	for exp := 2; exp < 10; exp++ {
+		// n == 10**exp
+		// step == 10**(exp-2)
+		max := log2(n)
+		for x := 0; x < n; x += step {
+			count := 0
+			i := sort.Search(n, func(i int) bool { count++; return i >= x })
+			if i != x {
+				t.Errorf("n = %d: expected index %d; got %d", n, x, i)
+			}
+			if count > max {
+				t.Errorf("n = %d, x = %d: expected <= %d calls; got %d", n, x, max, count)
+			}
+		}
+		n *= 10
+		step *= 10
+	}
+}
 
 // Smoke tests for convenience wrappers - not comprehensive.
 

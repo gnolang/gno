@@ -166,9 +166,6 @@ const (
 	ATTR_LOOP_DEFINES    GnoAttribute = "ATTR_LOOP_DEFINES"    // []Name defined within loops.
 	ATTR_LOOP_USES       GnoAttribute = "ATTR_LOOP_USES"       // []Name loop defines actually used.
 	ATTR_LOOP_USES_DEPTH GnoAttribute = "ATTR_LOOP_USES_DEPTH" // []Name loop defines actually used.
-	ATTR_FLE_USED        GnoAttribute = "ATTR_FLE_USED"
-	ATTR_FLE_LOOP        GnoAttribute = "ATTR_FLE_LOOP" // bidirectional refer
-	ATTR_LOOP_FLEs       GnoAttribute = "ATTR_LOOP_FLEs"
 )
 
 type Attributes struct {
