@@ -74,14 +74,18 @@ func (m *MembStore) UpdateMember(address std.Address, member dao.Member) error {
 		return ErrNotGovDAO
 	}
 
-	// Check if the member exists
-	if !m.IsMember(address) {
-		return ErrMissingMember
+	// Get the member
+	oldMember, err := m.GetMember(address)
+	if err != nil {
+		return err
 	}
 
 	// Check if this is a removal request
 	if member.VotingPower == 0 {
 		m.members.Remove(address.String())
+
+		// Update the total voting power
+		m.totalVotingPower -= oldMember.VotingPower
 
 		return nil
 	}
@@ -101,6 +105,10 @@ func (m *MembStore) UpdateMember(address std.Address, member dao.Member) error {
 
 	// Save the new member info
 	m.members.Set(member.Address.String(), member)
+
+	// Update the total voting power
+	difference := member.VotingPower - oldMember.VotingPower
+	m.totalVotingPower += difference
 
 	return nil
 }

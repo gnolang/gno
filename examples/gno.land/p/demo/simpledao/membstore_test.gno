@@ -259,12 +259,16 @@ func TestMembStore_UpdateMember(t *testing.T) {
 		members := generateMembers(t, 1)
 		m := NewMembStore(WithInitialMembers(members))
 
+		oldVotingPower := m.totalVotingPower
+		urequire.Equal(t, members[0].VotingPower, oldVotingPower)
+
 		votingPower := uint64(300)
 		members[0].VotingPower = votingPower
 
 		// Attempt to update a member
 		uassert.NoError(t, m.UpdateMember(members[0].Address, members[0]))
 		uassert.Equal(t, votingPower, m.GetMembers(0, 10)[0].VotingPower)
+		urequire.Equal(t, votingPower, m.totalVotingPower)
 	})
 
 	t.Run("member removed", func(t *testing.T) {
