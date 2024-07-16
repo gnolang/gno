@@ -21,19 +21,19 @@ func TestEmit(t *testing.T) {
 		name           string
 		eventType      string
 		attrs          []string
-		expectedEvents []gnoEvent
+		expectedEvents []GnoEvent
 		expectPanic    bool
 	}{
 		{
 			name:      "SimpleValid",
 			eventType: "test",
 			attrs:     []string{"key1", "value1", "key2", "value2"},
-			expectedEvents: []gnoEvent{
+			expectedEvents: []GnoEvent{
 				{
 					Type:    "test",
 					PkgPath: pkgPath,
 					Func:    "",
-					Attributes: []gnoEventAttribute{
+					Attributes: []GnoEventAttribute{
 						{Key: "key1", Value: "value1"},
 						{Key: "key2", Value: "value2"},
 					},
@@ -51,12 +51,12 @@ func TestEmit(t *testing.T) {
 			name:      "EmptyAttribute",
 			eventType: "test",
 			attrs:     []string{"key1", "", "key2", "value2"},
-			expectedEvents: []gnoEvent{
+			expectedEvents: []GnoEvent{
 				{
 					Type:    "test",
 					PkgPath: pkgPath,
 					Func:    "",
-					Attributes: []gnoEventAttribute{
+					Attributes: []GnoEventAttribute{
 						{Key: "key1", Value: ""},
 						{Key: "key2", Value: "value2"},
 					},
@@ -68,12 +68,12 @@ func TestEmit(t *testing.T) {
 			name:      "EmptyType",
 			eventType: "",
 			attrs:     []string{"key1", "value1", "key2", "value2"},
-			expectedEvents: []gnoEvent{
+			expectedEvents: []GnoEvent{
 				{
 					Type:    "",
 					PkgPath: pkgPath,
 					Func:    "",
-					Attributes: []gnoEventAttribute{
+					Attributes: []GnoEventAttribute{
 						{Key: "key1", Value: "value1"},
 						{Key: "key2", Value: "value2"},
 					},
@@ -85,12 +85,12 @@ func TestEmit(t *testing.T) {
 			name:      "EmptyAttributeKey",
 			eventType: "test",
 			attrs:     []string{"", "value1", "key2", "value2"},
-			expectedEvents: []gnoEvent{
+			expectedEvents: []GnoEvent{
 				{
 					Type:    "test",
 					PkgPath: pkgPath,
 					Func:    "",
-					Attributes: []gnoEventAttribute{
+					Attributes: []GnoEventAttribute{
 						{Key: "", Value: "value1"},
 						{Key: "key2", Value: "value2"},
 					},
@@ -148,12 +148,12 @@ func TestEmit_MultipleEvents(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expect := []gnoEvent{
+	expect := []GnoEvent{
 		{
 			Type:    "test1",
 			PkgPath: "",
 			Func:    "",
-			Attributes: []gnoEventAttribute{
+			Attributes: []GnoEventAttribute{
 				{Key: "key1", Value: "value1"},
 				{Key: "key2", Value: "value2"},
 			},
@@ -162,7 +162,7 @@ func TestEmit_MultipleEvents(t *testing.T) {
 			Type:    "test2",
 			PkgPath: "",
 			Func:    "",
-			Attributes: []gnoEventAttribute{
+			Attributes: []GnoEventAttribute{
 				{Key: "key3", Value: "value3"},
 				{Key: "key4", Value: "value4"},
 			},
@@ -225,7 +225,7 @@ func TestEmit_ContractInteraction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := `[{"type":"foo","pkg_path":"","func":"","attrs":[{"key":"k1","value":"v1"},{"key":"k2","value":"v2"}]},{"type":"qux","pkg_path":"","func":"","attrs":[{"key":"bar","value":"baz"}]}]`
+	expected := `[{"type":"foo","attrs":[{"key":"k1","value":"v1"},{"key":"k2","value":"v2"}],"pkg_path":"","func":""},{"type":"qux","attrs":[{"key":"bar","value":"baz"}],"pkg_path":"","func":""}]`
 
 	assert.Equal(t, expected, string(res))
 }
@@ -253,7 +253,7 @@ func TestEmit_Iteration(t *testing.T) {
 	var builder strings.Builder
 	builder.WriteString("[")
 	for i := 0; i < 10; i++ {
-		builder.WriteString(`{"type":"bar","pkg_path":"","func":"","attrs":[{"key":"qux","value":"value1"}]},`)
+		builder.WriteString(`{"type":"bar","attrs":[{"key":"qux","value":"value1"}],"pkg_path":"","func":""},`)
 	}
 	expected := builder.String()[:builder.Len()-1] + "]"
 
@@ -311,7 +311,6 @@ func TestEmit_ComplexInteraction(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expected := `[{"type":"ForLoopEvent","pkg_path":"","func":"","attrs":[{"key":"iteration","value":"0"},{"key":"key","value":"value"}]},{"type":"ForLoopEvent","pkg_path":"","func":"","attrs":[{"key":"iteration","value":"1"},{"key":"key","value":"value"}]},{"type":"ForLoopEvent","pkg_path":"","func":"","attrs":[{"key":"iteration","value":"2"},{"key":"key","value":"value"}]},{"type":"ForLoopCompletionEvent","pkg_path":"","func":"","attrs":[{"key":"count","value":"3"}]},{"type":"CallbackEvent","pkg_path":"","func":"","attrs":[{"key":"key1","value":"value1"},{"key":"key2","value":"value2"}]},{"type":"CallbackCompletionEvent","pkg_path":"","func":"","attrs":[{"key":"key","value":"value"}]},{"type":"DeferEvent","pkg_path":"","func":"","attrs":[{"key":"key1","value":"value1"},{"key":"key2","value":"value2"}]}]`
-
+	expected := `[{"type":"ForLoopEvent","attrs":[{"key":"iteration","value":"0"},{"key":"key","value":"value"}],"pkg_path":"","func":""},{"type":"ForLoopEvent","attrs":[{"key":"iteration","value":"1"},{"key":"key","value":"value"}],"pkg_path":"","func":""},{"type":"ForLoopEvent","attrs":[{"key":"iteration","value":"2"},{"key":"key","value":"value"}],"pkg_path":"","func":""},{"type":"ForLoopCompletionEvent","attrs":[{"key":"count","value":"3"}],"pkg_path":"","func":""},{"type":"CallbackEvent","attrs":[{"key":"key1","value":"value1"},{"key":"key2","value":"value2"}],"pkg_path":"","func":""},{"type":"CallbackCompletionEvent","attrs":[{"key":"key","value":"value"}],"pkg_path":"","func":""},{"type":"DeferEvent","attrs":[{"key":"key1","value":"value1"},{"key":"key2","value":"value2"}],"pkg_path":"","func":""}]`
 	assert.Equal(t, expected, string(res))
 }

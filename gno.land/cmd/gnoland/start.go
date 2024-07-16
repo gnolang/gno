@@ -23,6 +23,7 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/events"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"go.uber.org/zap"
@@ -246,19 +247,22 @@ Please see 'gnoland genesis balances -h'
 		return fmt.Errorf("unable to initialize telemetry, %w", err)
 	}
 
-	// Create application and node
-	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, logger, c.genesisMaxVMCycles)
-	if err != nil {
-		return fmt.Errorf("unable to create the Gnoland app, %w", err)
-	}
-
 	// Print the starting graphic
 	if c.logFormat != string(log.JSONFormat) {
 		io.Println(startGraphic)
 	}
 
+	// Create a top-level shared event switch
+	evsw := events.NewEventSwitch()
+
+	// Create application and node
+	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, evsw, logger)
+	if err != nil {
+		return fmt.Errorf("unable to create the Gnoland app, %w", err)
+	}
+
 	// Create a default node, with the given setup
-	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, logger)
+	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}
