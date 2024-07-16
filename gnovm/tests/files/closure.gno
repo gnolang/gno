@@ -13,4 +13,4 @@ var b = func() {
 }
 
 // Error:
-// main/files/const24.gno:7:5: constant definition loop with a
+// main/files/closure.gno:7:5: constant definition loop with a
