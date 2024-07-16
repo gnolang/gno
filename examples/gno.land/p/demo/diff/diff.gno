@@ -4,7 +4,7 @@ import (
 	"strings"
 )
 
-type EditType int
+type EditType uint8
 
 const (
 	EditKeep EditType = iota
