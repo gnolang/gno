@@ -319,7 +319,7 @@ func TestEqualWithStringDiff(t *testing.T) {
 				mockT.empty(t)
 			} else {
 				mockT.equals(t, tc.expectedMsg)
-      }
+			}
 		})
 	}
 }
