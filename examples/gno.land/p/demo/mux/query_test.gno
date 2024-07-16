@@ -34,7 +34,6 @@ func TestQuery_Get(t *testing.T) {
 	}
 }
 
-
 func TestQuery_QueryList(t *testing.T) {
 	cases := []struct {
 		name           string
