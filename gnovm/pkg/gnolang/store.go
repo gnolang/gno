@@ -9,8 +9,12 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
+	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
+	"github.com/gnolang/gno/tm2/pkg/store/utils"
+	stringz "github.com/gnolang/gno/tm2/pkg/strings"
 )
 
 // PackageGetter specifies how the store may retrieve packages which are not
@@ -18,7 +22,8 @@ import (
 // package does not exist. store should be used to run the machine, or otherwise
 // call any methods which may call store.GetPackage; avoid using any "global"
 // store as the one passed to the PackageGetter may be a fork of that (ie.
-// the original is not meant to be written to).
+// the original is not meant to be written to). Loading dependencies may
+// cause writes to happen to the store, such as MemPackages to iavlstore.
 type PackageGetter func(pkgPath string, store Store) (*PackageNode, *PackageValue)
 
 // inject natives into a new or loaded package (value and node)
@@ -68,6 +73,8 @@ type Store interface {
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
 	ClearCache()
 	Print()
+	Write()
+	Flush()
 }
 
 // Used to keep track of in-mem objects during tx.
@@ -86,7 +93,7 @@ type defaultStore struct {
 
 	// transient
 	opslog  []StoreOp // for debugging and testing.
-	current []string
+	current []string  // for detecting import cycles.
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -105,6 +112,16 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 	return ds
 }
 
+// CopyCachesFromStore allows to copy a store's internal object, type and
+// BlockNode cache into the dst store.
+// This is mostly useful for testing, where many stores have to be initialized.
+func CopyCachesFromStore(dst, src Store) {
+	ds, ss := dst.(*defaultStore), src.(*defaultStore)
+	ds.cacheObjects = maps.Clone(ss.cacheObjects)
+	ds.cacheTypes = maps.Clone(ss.cacheTypes)
+	ds.cacheNodes = maps.Clone(ss.cacheNodes)
+}
+
 func (ds *defaultStore) GetAllocator() *Allocator {
 	return ds.alloc
 }
@@ -115,6 +132,7 @@ func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
 
 // Gets package from cache, or loads it from baseStore, or gets it from package getter.
 func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue {
+	// helper to detect circular imports
 	if isImport {
 		if slices.Contains(ds.current, pkgPath) {
 			panic(fmt.Sprintf("import cycle detected: %q (through %v)", pkgPath, ds.current))
@@ -196,7 +214,10 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			// but packages gotten from the pkgGetter may skip this step,
 			// so fill in store.CacheTypes here.
 			for _, tv := range pv.GetBlock(nil).Values {
-				if tv.T.Kind() == TypeKind {
+				if tv.T == nil {
+					// tv.T is nil here only when only predefined.
+					// (for other types, .T == nil even after definition).
+				} else if tv.T.Kind() == TypeKind {
 					t := tv.GetType()
 					ds.SetCacheType(t)
 				}
@@ -305,7 +326,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 func (ds *defaultStore) SetObject(oo Object) {
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
-	o2 := copyValueWithRefs(nil, oo)
+	o2 := copyValueWithRefs(oo)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
 	// set hash.
@@ -554,7 +575,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 		// implementations works by running Machine.RunMemPackage with save = true,
 		// which would add the package to the store after running.
 		// Some packages may never be persisted, thus why we only attempt this twice.
-		if !isRetry {
+		if !isRetry && ds.pkgGetter != nil {
 			if pv := ds.GetPackage(path, false); pv != nil {
 				return ds.getMemPackage(path, true)
 			}
@@ -672,8 +693,16 @@ func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
 	return nil
 }
 
+// Writes one level of cache to store.
+func (ds *defaultStore) Write() {
+	ds.baseStore.(types.Writer).Write()
+	ds.iavlStore.(types.Writer).Write()
+}
+
+// Flush cached writes to disk.
 func (ds *defaultStore) Flush() {
-	// XXX
+	ds.baseStore.(types.Flusher).Flush()
+	ds.iavlStore.(types.Flusher).Flush()
 }
 
 // ----------------------------------------
@@ -755,22 +784,25 @@ func (ds *defaultStore) ClearCache() {
 
 // for debugging
 func (ds *defaultStore) Print() {
-	fmt.Println("//----------------------------------------")
-	fmt.Println("defaultStore:baseStore...")
-	store.Print(ds.baseStore)
-	fmt.Println("//----------------------------------------")
-	fmt.Println("defaultStore:iavlStore...")
-	store.Print(ds.iavlStore)
-	fmt.Println("//----------------------------------------")
-	fmt.Println("defaultStore:cacheTypes...")
+	fmt.Println(colors.Yellow("//----------------------------------------"))
+	fmt.Println(colors.Green("defaultStore:baseStore..."))
+	utils.Print(ds.baseStore)
+	fmt.Println(colors.Yellow("//----------------------------------------"))
+	fmt.Println(colors.Green("defaultStore:iavlStore..."))
+	utils.Print(ds.iavlStore)
+	fmt.Println(colors.Yellow("//----------------------------------------"))
+	fmt.Println(colors.Green("defaultStore:cacheTypes..."))
 	for tid, typ := range ds.cacheTypes {
-		fmt.Printf("- %v: %v\n", tid, typ)
+		fmt.Printf("- %v: %v\n", tid,
+			stringz.TrimN(fmt.Sprintf("%v", typ), 50))
 	}
-	fmt.Println("//----------------------------------------")
-	fmt.Println("defaultStore:cacheNodes...")
+	fmt.Println(colors.Yellow("//----------------------------------------"))
+	fmt.Println(colors.Green("defaultStore:cacheNodes..."))
 	for loc, bn := range ds.cacheNodes {
-		fmt.Printf("- %v: %v\n", loc, bn)
+		fmt.Printf("- %v: %v\n", loc,
+			stringz.TrimN(fmt.Sprintf("%v", bn), 50))
 	}
+	fmt.Println(colors.Red("//----------------------------------------"))
 }
 
 // ----------------------------------------

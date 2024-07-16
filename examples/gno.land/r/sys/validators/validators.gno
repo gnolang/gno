@@ -1,47 +1,117 @@
-// Package validators is used to manage the validator set.
 package validators
 
 import (
 	"std"
 
-	"gno.land/p/gov/proposal"
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
+	"gno.land/p/sys/validators"
 )
 
-var unappliedChanges = []Change{}
+var (
+	vp      validators.ValsetProtocol // p is the underlying validator set protocol
+	changes *avl.Tree                 // changes holds any valset changes; seqid(block number) -> []change
+)
 
-// Change represents a change in the validator set.
-type Change struct {
-	Address std.Address
-	Power   int
+// change represents a single valset change, tied to a specific block number
+type change struct {
+	blockNum  int64                // the block number associated with the valset change
+	validator validators.Validator // the validator update
 }
 
-// NewPropExecutor creates a new executor that wraps a changes closure
-// proposal. It emits a typed object (subscribed by tm2) only if it passes
-// through a complete p/gov/proposal process.
-func NewPropExecutor(changesFn func() []Change) proposal.Executor {
-	if changesFn == nil {
-		panic("changesFn should not be nil")
+// addValidator adds a new validator to the validator set.
+// If the validator is already present, the method errors out
+func addValidator(validator validators.Validator) {
+	val, err := vp.AddValidator(validator.Address, validator.PubKey, validator.VotingPower)
+	if err != nil {
+		panic(err)
 	}
 
-	// Certify that the changes are sent from the context of this realm.
-	callback := func() error {
-		newChanges := changesFn()
-
-		// emit for external clients
-		std.Emit("newChanges") // XXX: pass parameters
-
-		// append to slice for gno.land
-		unappliedChanges = append(unappliedChanges, newChanges...)
-		return nil
+	// Validator added, note the change
+	ch := change{
+		blockNum:  std.GetHeight(),
+		validator: val,
 	}
 
-	exec := proposal.NewExecutor(callback)
-	return exec
+	saveChange(ch)
+
+	// Emit the validator set change
+	std.Emit(validators.ValidatorAddedEvent)
 }
 
-// this function is unexported and intended to be called by the chain.
-func getAndResetChanges() []Change {
-	cpy := unappliedChanges[:]
-	unappliedChanges = []Change{}
-	return cpy
+// removeValidator removes the given validator from the set.
+// If the validator is not present in the set, the method errors out
+func removeValidator(address std.Address) {
+	val, err := vp.RemoveValidator(address)
+	if err != nil {
+		panic(err)
+	}
+
+	// Validator removed, note the change
+	ch := change{
+		blockNum: std.GetHeight(),
+		validator: validators.Validator{
+			Address:     val.Address,
+			PubKey:      val.PubKey,
+			VotingPower: 0, // nullified the voting power indicates removal
+		},
+	}
+
+	saveChange(ch)
+
+	// Emit the validator set change
+	std.Emit(validators.ValidatorRemovedEvent)
+}
+
+// saveChange saves the valset change
+func saveChange(ch change) {
+	id := getBlockID(ch.blockNum)
+
+	setRaw, exists := changes.Get(id)
+	if !exists {
+		changes.Set(id, []change{ch})
+
+		return
+	}
+
+	// Save the change
+	set := setRaw.([]change)
+	set = append(set, ch)
+
+	changes.Set(id, set)
+}
+
+// getBlockID converts the block number to a sequential ID
+func getBlockID(blockNum int64) string {
+	return seqid.ID(uint64(blockNum)).String()
+}
+
+func Render(_ string) string {
+	var (
+		size       = changes.Size()
+		maxDisplay = 10
+	)
+
+	if size == 0 {
+		return "No valset changes to apply."
+	}
+
+	output := "Valset changes:\n"
+	changes.ReverseIterateByOffset(size-maxDisplay, maxDisplay, func(_ string, value interface{}) bool {
+		chs := value.([]change)
+
+		for _, ch := range chs {
+			output += ufmt.Sprintf(
+				"- #%d: %s (%d)\n",
+				ch.blockNum,
+				ch.validator.Address.String(),
+				ch.validator.VotingPower,
+			)
+		}
+
+		return false
+	})
+
+	return output
 }
