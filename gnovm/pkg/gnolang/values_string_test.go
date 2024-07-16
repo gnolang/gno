@@ -10,7 +10,7 @@ import (
 func TestStringValue_String(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		name     string
 		value    gnolang.StringValue
 		expected string
@@ -42,7 +42,9 @@ func TestStringValue_String(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := tt.value.String()
 			if result != tt.expected {
 				t.Errorf("expected %s, got %s", tt.expected, result)
@@ -54,7 +56,7 @@ func TestStringValue_String(t *testing.T) {
 func TestTypedValue_String(t *testing.T) {
 	t.Parallel()
 
-	var tests = []struct {
+	tests := []struct {
 		name     string
 		value    gnolang.TypedValue
 		expected string
@@ -129,7 +131,9 @@ func TestTypedValue_String(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := tt.value.String()
 			if result != tt.expected {
 				t.Errorf("expected %s, got %s", tt.expected, result)
