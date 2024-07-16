@@ -47,6 +47,7 @@ func (db *FormDatabase) CreateForm(title string, description string, openAt stri
 		ufmt.Errorf("error: %v", err)
 	}
 
+	// Parsing the json submission to create the gno data structures
 	for i := 0; i < node.Size(); i++ {
 		field, err := node.GetIndex(i)
 
