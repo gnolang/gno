@@ -31,22 +31,22 @@ type VotingStats struct {
 	TotalVotingPower uint64
 }
 
-func (v VotingStats) GetYayPercent() uint64 {
+func (v VotingStats) YayPercent() uint64 {
 	return (v.YayVotes / v.TotalVotingPower) * 100
 }
 
-func (v VotingStats) GetNayPercent() uint64 {
+func (v VotingStats) NayPercent() uint64 {
 	return (v.NayVotes / v.TotalVotingPower) * 100
 }
 
-func (v VotingStats) GetAbstainPercent() uint64 {
+func (v VotingStats) AbstainPercent() uint64 {
 	return (v.AbstainVotes / v.TotalVotingPower) * 100
 }
 
-func (v VotingStats) GetMissingVotes() uint64 {
+func (v VotingStats) MissingVotes() uint64 {
 	return v.TotalVotingPower - (v.YayVotes + v.NayVotes + v.AbstainVotes)
 }
 
-func (v VotingStats) GetMissingVotesPercent() uint64 {
-	return (v.GetMissingVotes() / v.TotalVotingPower) * 100
+func (v VotingStats) MissingVotesPercent() uint64 {
+	return (v.MissingVotes() / v.TotalVotingPower) * 100
 }

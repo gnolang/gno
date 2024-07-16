@@ -75,7 +75,7 @@ func (m *MembStore) UpdateMember(address std.Address, member dao.Member) error {
 	}
 
 	// Get the member
-	oldMember, err := m.GetMember(address)
+	oldMember, err := m.Member(address)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (m *MembStore) IsMember(address std.Address) bool {
 	return exists
 }
 
-func (m *MembStore) GetMember(address std.Address) (dao.Member, error) {
+func (m *MembStore) Member(address std.Address) (dao.Member, error) {
 	member, exists := m.members.Get(address.String())
 	if !exists {
 		return dao.Member{}, ErrMissingMember
@@ -128,7 +128,7 @@ func (m *MembStore) GetMember(address std.Address) (dao.Member, error) {
 	return member.(dao.Member), nil
 }
 
-func (m *MembStore) GetMembers(offset, count uint64) []dao.Member {
+func (m *MembStore) Members(offset, count uint64) []dao.Member {
 	// Calculate the left and right bounds
 	if count < 1 || offset >= uint64(m.members.Size()) {
 		return []dao.Member{}

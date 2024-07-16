@@ -40,19 +40,19 @@ type proposal struct {
 	getTotalVotingPowerFn func() uint64 // total voting power of the voting body
 }
 
-func (p *proposal) GetAuthor() std.Address {
+func (p *proposal) Author() std.Address {
 	return p.author
 }
 
-func (p *proposal) GetDescription() string {
+func (p *proposal) Description() string {
 	return p.description
 }
 
-func (p *proposal) GetStatus() dao.ProposalStatus {
+func (p *proposal) Status() dao.ProposalStatus {
 	return p.status
 }
 
-func (p *proposal) GetVotes(offset, count uint64) []dao.Vote {
+func (p *proposal) Votes(offset, count uint64) []dao.Vote {
 	// Calculate the left and right bounds
 	if count < 1 || offset >= uint64(p.votes.voters.Size()) {
 		return []dao.Vote{}
@@ -83,7 +83,7 @@ func (p *proposal) GetVotes(offset, count uint64) []dao.Vote {
 	return votes
 }
 
-func (p *proposal) GetVotingStats() dao.VotingStats {
+func (p *proposal) VotingStats() dao.VotingStats {
 	// Get the total voting power of the body
 	totalPower := p.getTotalVotingPowerFn()
 
@@ -95,7 +95,7 @@ func (p *proposal) GetVotingStats() dao.VotingStats {
 	}
 }
 
-func (p *proposal) GetVoteByMember(address std.Address) (dao.Vote, error) {
+func (p *proposal) VoteByMember(address std.Address) (dao.Vote, error) {
 	optionRaw, exists := p.votes.voters.Get(address.String())
 	if !exists {
 		return dao.Vote{}, ErrMissingVote
@@ -132,7 +132,7 @@ func (p *PropStore) addProposal(proposal *proposal) (uint64, error) {
 	return nextID, nil
 }
 
-func (p *PropStore) GetProposals(offset, count uint64) []dao.Proposal {
+func (p *PropStore) Proposals(offset, count uint64) []dao.Proposal {
 	// Check the requested count
 	if count < 1 {
 		return []dao.Proposal{}
@@ -177,7 +177,7 @@ func (p *PropStore) GetProposals(offset, count uint64) []dao.Proposal {
 	return props
 }
 
-func (p *PropStore) GetProposalByID(id uint64) (dao.Proposal, error) {
+func (p *PropStore) ProposalByID(id uint64) (dao.Proposal, error) {
 	prop, exists := p.proposals.Get(getProposalID(id))
 	if !exists {
 		return nil, ErrMissingProposal

@@ -37,7 +37,7 @@ func TestMembStore_GetMember(t *testing.T) {
 		// Create an empty store
 		m := NewMembStore()
 
-		_, err := m.GetMember(testutils.TestAddress("random"))
+		_, err := m.Member(testutils.TestAddress("random"))
 		uassert.ErrorIs(t, err, ErrMissingMember)
 	})
 
@@ -49,7 +49,7 @@ func TestMembStore_GetMember(t *testing.T) {
 
 		m := NewMembStore(WithInitialMembers(members))
 
-		_, err := m.GetMember(members[0].Address)
+		_, err := m.Member(members[0].Address)
 		uassert.NoError(t, err)
 	})
 }
@@ -63,7 +63,7 @@ func TestMembStore_GetMembers(t *testing.T) {
 		// Create an empty store
 		m := NewMembStore()
 
-		members := m.GetMembers(0, 10)
+		members := m.Members(0, 10)
 		uassert.Equal(t, 0, len(members))
 	})
 
@@ -92,14 +92,14 @@ func TestMembStore_GetMembers(t *testing.T) {
 
 		urequire.Equal(t, numMembers, m.Size())
 
-		fetchedMembers := m.GetMembers(0, uint64(halfRange))
+		fetchedMembers := m.Members(0, uint64(halfRange))
 		urequire.Equal(t, halfRange, len(fetchedMembers))
 
 		// Verify the members
 		verifyMembersPresent(members, fetchedMembers)
 
 		// Fetch the other half
-		fetchedMembers = m.GetMembers(uint64(halfRange), uint64(halfRange))
+		fetchedMembers = m.Members(uint64(halfRange), uint64(halfRange))
 		urequire.Equal(t, halfRange, len(fetchedMembers))
 
 		// Verify the members
@@ -267,7 +267,7 @@ func TestMembStore_UpdateMember(t *testing.T) {
 
 		// Attempt to update a member
 		uassert.NoError(t, m.UpdateMember(members[0].Address, members[0]))
-		uassert.Equal(t, votingPower, m.GetMembers(0, 10)[0].VotingPower)
+		uassert.Equal(t, votingPower, m.Members(0, 10)[0].VotingPower)
 		urequire.Equal(t, votingPower, m.totalVotingPower)
 	})
 

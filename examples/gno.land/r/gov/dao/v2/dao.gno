@@ -88,14 +88,14 @@ func Render(path string) string {
 		}
 
 		// Fetch the last 10 proposals
-		for idx, prop := range proposals.GetProposals(offset, uint64(10)) {
+		for idx, prop := range proposals.Proposals(offset, uint64(10)) {
 			output += ufmt.Sprintf(
 				"- [Proposal #%d](%s:%d) - (**%s**)(by %s)\n",
 				idx,
 				"/r/gov/dao/v2",
 				idx,
-				prop.GetStatus().String(),
-				prop.GetAuthor().String(),
+				prop.Status().String(),
+				prop.Author().String(),
 			)
 		}
 
@@ -109,33 +109,33 @@ func Render(path string) string {
 	}
 
 	// Fetch the proposal
-	prop, err := proposals.GetProposalByID(uint64(idx))
+	prop, err := proposals.ProposalByID(uint64(idx))
 	if err != nil {
 		return ufmt.Sprintf("unable to fetch proposal, %s", err.Error())
 	}
 
 	// Fetch the voting stats
-	stats := prop.GetVotingStats()
+	stats := prop.VotingStats()
 
 	output := ""
 	output += ufmt.Sprintf("# Prop #%d", idx)
 	output += "\n\n"
-	output += ufmt.Sprintf("Author: %s", prop.GetAuthor().String())
+	output += ufmt.Sprintf("Author: %s", prop.Author().String())
 	output += "\n\n"
-	output += prop.GetDescription()
+	output += prop.Description()
 	output += "\n\n"
-	output += ufmt.Sprintf("Status: %s", prop.GetStatus().String())
+	output += ufmt.Sprintf("Status: %s", prop.Status().String())
 	output += "\n\n"
 	output += ufmt.Sprintf(
 		"Voting stats: YAY %d (%d%%), NAY %d (%d%%), ABSTAIN %d (%d%%), HAVEN'T VOTED %d (%d%%)",
 		stats.YayVotes,
-		stats.GetYayPercent(),
+		stats.YayPercent(),
 		stats.NayVotes,
-		stats.GetNayPercent(),
+		stats.NayPercent(),
 		stats.AbstainVotes,
-		stats.GetAbstainPercent(),
-		stats.GetMissingVotes(),
-		stats.GetMissingVotesPercent(),
+		stats.AbstainPercent(),
+		stats.MissingVotes(),
+		stats.MissingVotesPercent(),
 	)
 	output += "\n\n"
 	output += ufmt.Sprintf("Threshold met: %t", stats.YayVotes > (2*stats.TotalVotingPower)/3)

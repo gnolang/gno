@@ -20,12 +20,12 @@ func (s ProposalStatus) String() string {
 
 // PropStore defines the proposal storage abstraction
 type PropStore interface {
-	// GetProposals returns the given paginated proposals
-	GetProposals(offset, count uint64) []Proposal
+	// Proposals returns the given paginated proposals
+	Proposals(offset, count uint64) []Proposal
 
-	// GetProposalByID returns the proposal associated with
+	// ProposalByID returns the proposal associated with
 	// the given ID, if any
-	GetProposalByID(id uint64) (Proposal, error)
+	ProposalByID(id uint64) (Proposal, error)
 
 	// Size returns the number of proposals in
 	// the proposal store
@@ -34,21 +34,21 @@ type PropStore interface {
 
 // Proposal is the single proposal abstraction
 type Proposal interface {
-	// GetAuthor returns the author of the proposal
-	GetAuthor() std.Address
+	// Author returns the author of the proposal
+	Author() std.Address
 
-	// GetDescription returns the description of the proposal
-	GetDescription() string
+	// Description returns the description of the proposal
+	Description() string
 
-	// GetStatus returns the status of the proposal
-	GetStatus() ProposalStatus
+	// Status returns the status of the proposal
+	Status() ProposalStatus
 
-	// GetVotes returns the votes of the proposal
-	GetVotes(offset, count uint64) []Vote
+	// Votes returns the votes of the proposal
+	Votes(offset, count uint64) []Vote
 
-	// GetVotingStats returns the voting stats of the proposal
-	GetVotingStats() VotingStats
+	// VotingStats returns the voting stats of the proposal
+	VotingStats() VotingStats
 
-	// GetVoteByMember returns the proposal vote by the member, if any
-	GetVoteByMember(address std.Address) (Vote, error)
+	// VoteByMember returns the proposal vote by the member, if any
+	VoteByMember(address std.Address) (Vote, error)
 }

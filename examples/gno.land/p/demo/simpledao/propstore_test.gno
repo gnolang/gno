@@ -39,30 +39,30 @@ func equalProposals(t *testing.T, p1, p2 dao.Proposal) {
 
 	uassert.Equal(
 		t,
-		p1.GetAuthor().String(),
-		p2.GetAuthor().String(),
+		p1.Author().String(),
+		p2.Author().String(),
 	)
 
 	uassert.Equal(
 		t,
-		p1.GetDescription(),
-		p2.GetDescription(),
+		p1.Description(),
+		p2.Description(),
 	)
 
 	uassert.Equal(
 		t,
-		p1.GetStatus().String(),
-		p2.GetStatus().String(),
+		p1.Status().String(),
+		p2.Status().String(),
 	)
 
 	uassert.Equal(
 		t,
-		len(p1.GetVotes(0, maxRequestVotes)),
-		len(p2.GetVotes(0, maxRequestVotes)),
+		len(p1.Votes(0, maxRequestVotes)),
+		len(p2.Votes(0, maxRequestVotes)),
 	)
 
-	p1Votes := p1.GetVotes(0, maxRequestVotes)
-	for index, v2 := range p2.GetVotes(0, maxRequestVotes) {
+	p1Votes := p1.Votes(0, maxRequestVotes)
+	for index, v2 := range p2.Votes(0, maxRequestVotes) {
 		uassert.Equal(
 			t,
 			p1Votes[index].Address.String(),
@@ -87,7 +87,7 @@ func TestProposal_Data(t *testing.T) {
 			author: testutils.TestAddress("address"),
 		}
 
-		uassert.Equal(t, p.author, p.GetAuthor())
+		uassert.Equal(t, p.author, p.Author())
 	})
 
 	t.Run("description", func(t *testing.T) {
@@ -97,7 +97,7 @@ func TestProposal_Data(t *testing.T) {
 			description: "example proposal description",
 		}
 
-		uassert.Equal(t, p.description, p.GetDescription())
+		uassert.Equal(t, p.description, p.Description())
 	})
 
 	t.Run("status", func(t *testing.T) {
@@ -107,7 +107,7 @@ func TestProposal_Data(t *testing.T) {
 			status: dao.ExecutionSuccessful,
 		}
 
-		uassert.Equal(t, p.status.String(), p.GetStatus().String())
+		uassert.Equal(t, p.status.String(), p.Status().String())
 	})
 
 	t.Run("no votes", func(t *testing.T) {
@@ -117,7 +117,7 @@ func TestProposal_Data(t *testing.T) {
 			votes: newVotes(),
 		}
 
-		uassert.Equal(t, 0, len(p.GetVotes(0, maxRequestVotes)))
+		uassert.Equal(t, 0, len(p.Votes(0, maxRequestVotes)))
 	})
 
 	t.Run("existing votes", func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestProposal_Data(t *testing.T) {
 			urequire.NoError(t, p.votes.castVote(m, dao.YesVote))
 		}
 
-		votes := p.GetVotes(0, maxRequestVotes)
+		votes := p.Votes(0, maxRequestVotes)
 
 		urequire.Equal(t, len(members), len(votes))
 
@@ -163,10 +163,10 @@ func TestProposal_Data(t *testing.T) {
 			urequire.NoError(t, p.votes.castVote(m, dao.YesVote))
 		}
 
-		votes := p.GetVotes(0, maxRequestVotes)
+		votes := p.Votes(0, maxRequestVotes)
 		urequire.Equal(t, len(members), len(votes))
 
-		vote, err := p.GetVoteByMember(members[0].Address)
+		vote, err := p.VoteByMember(members[0].Address)
 		urequire.NoError(t, err)
 
 		uassert.Equal(t, dao.YesVote.String(), vote.Option.String())
@@ -180,10 +180,10 @@ func TestProposal_Data(t *testing.T) {
 			votes: newVotes(),
 		}
 
-		votes := p.GetVotes(0, maxRequestVotes)
+		votes := p.Votes(0, maxRequestVotes)
 		urequire.Equal(t, 0, len(votes))
 
-		_, err := p.GetVoteByMember(testutils.TestAddress("dummy"))
+		_, err := p.VoteByMember(testutils.TestAddress("dummy"))
 		uassert.ErrorIs(t, err, ErrMissingVote)
 	})
 }
@@ -197,7 +197,7 @@ func TestPropStore_GetProposals(t *testing.T) {
 		p := NewPropStore()
 
 		uassert.Equal(t, 0, p.Size())
-		proposals := p.GetProposals(0, 0)
+		proposals := p.Proposals(0, 0)
 
 		uassert.Equal(t, 0, len(proposals))
 	})
@@ -222,7 +222,7 @@ func TestPropStore_GetProposals(t *testing.T) {
 
 		uassert.Equal(t, numProposals, p.Size())
 
-		fetchedProposals := p.GetProposals(0, uint64(halfRange))
+		fetchedProposals := p.Proposals(0, uint64(halfRange))
 		urequire.Equal(t, halfRange, len(fetchedProposals))
 
 		for index, fetchedProposal := range fetchedProposals {
@@ -230,7 +230,7 @@ func TestPropStore_GetProposals(t *testing.T) {
 		}
 
 		// Fetch the other half
-		fetchedProposals = p.GetProposals(uint64(halfRange), uint64(halfRange))
+		fetchedProposals = p.Proposals(uint64(halfRange), uint64(halfRange))
 		urequire.Equal(t, halfRange, len(fetchedProposals))
 
 		for index, fetchedProposal := range fetchedProposals {
@@ -247,7 +247,7 @@ func TestPropStore_GetProposalByID(t *testing.T) {
 
 		p := NewPropStore()
 
-		_, err := p.GetProposalByID(0)
+		_, err := p.ProposalByID(0)
 		uassert.ErrorIs(t, err, ErrMissingProposal)
 	})
 
@@ -264,7 +264,7 @@ func TestPropStore_GetProposalByID(t *testing.T) {
 		urequire.NoError(t, err)
 
 		// Fetch the proposal
-		fetchedProposal, err := p.GetProposalByID(0)
+		fetchedProposal, err := p.ProposalByID(0)
 		urequire.NoError(t, err)
 
 		equalProposals(t, proposal, fetchedProposal)

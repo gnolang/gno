@@ -79,13 +79,13 @@ func (s *SimpleDAO) Propose(description string, executor dao.Executor) (uint64, 
 
 func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 	// Verify the GOVDAO member
-	member, err := s.membStore.GetMember(getDAOCaller())
+	member, err := s.membStore.Member(getDAOCaller())
 	if err != nil {
 		return ufmt.Errorf("unable to get govdao member, %s", err.Error())
 	}
 
 	// Check if the proposal exists
-	propRaw, err := s.propStore.GetProposalByID(id)
+	propRaw, err := s.propStore.ProposalByID(id)
 	if err != nil {
 		return ufmt.Errorf("unable to get proposal %d, %s", id, err.Error())
 	}
@@ -93,8 +93,8 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 	prop := propRaw.(*proposal)
 
 	// Check the proposal status
-	if prop.GetStatus() == dao.ExecutionSuccessful ||
-		prop.GetStatus() == dao.ExecutionFailed {
+	if prop.Status() == dao.ExecutionSuccessful ||
+		prop.Status() == dao.ExecutionFailed {
 		// Proposal was already executed, nothing to vote on anymore.
 		//
 		// In fact, the proposal should stop accepting
@@ -155,7 +155,7 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 	}
 
 	// Check if the proposal exists
-	propRaw, err := s.propStore.GetProposalByID(id)
+	propRaw, err := s.propStore.ProposalByID(id)
 	if err != nil {
 		return ufmt.Errorf("unable to get proposal %d, %s", id, err.Error())
 	}
@@ -163,14 +163,14 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 	prop := propRaw.(*proposal)
 
 	// Check if the proposal is executed
-	if prop.GetStatus() == dao.ExecutionSuccessful ||
-		prop.GetStatus() == dao.ExecutionFailed {
+	if prop.Status() == dao.ExecutionSuccessful ||
+		prop.Status() == dao.ExecutionFailed {
 		// Proposal is already executed
 		return ErrProposalExecuted
 	}
 
 	// Check the proposal status
-	if prop.GetStatus() != dao.Accepted {
+	if prop.Status() != dao.Accepted {
 		// Proposal is not accepted, cannot be executed
 		return ErrProposalNotAccepted
 	}

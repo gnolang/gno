@@ -105,13 +105,13 @@ func TestSimpleDAO_Propose(t *testing.T) {
 		uassert.False(t, called)
 
 		// Make sure the proposal exists
-		prop, err := s.propStore.GetProposalByID(id)
+		prop, err := s.propStore.ProposalByID(id)
 		uassert.NoError(t, err)
 
-		uassert.Equal(t, proposer.String(), prop.GetAuthor().String())
-		uassert.Equal(t, description, prop.GetDescription())
-		uassert.Equal(t, dao.Active.String(), prop.GetStatus().String())
-		uassert.Equal(t, 0, len(prop.GetVotes(0, maxRequestVotes)))
+		uassert.Equal(t, proposer.String(), prop.Author().String())
+		uassert.Equal(t, description, prop.Description())
+		uassert.Equal(t, dao.Active.String(), prop.Status().String())
+		uassert.Equal(t, 0, len(prop.Votes(0, maxRequestVotes)))
 	})
 }
 
