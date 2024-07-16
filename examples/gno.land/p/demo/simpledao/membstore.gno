@@ -26,17 +26,13 @@ func WithInitialMembers(members []dao.Member) MembStoreOption {
 
 			store.totalVotingPower += m.VotingPower
 		}
-
-		store.majorityPower = (2 * store.totalVotingPower) / 3
 	}
 }
 
 // MembStore implements the dao.MembStore abstraction
 type MembStore struct {
-	members *avl.Tree // std.Address -> dao.Member
-
-	totalVotingPower uint64 // cached value for quick lookups
-	majorityPower    uint64 // cached value for quick lookups
+	members          *avl.Tree // std.Address -> dao.Member
+	totalVotingPower uint64    // cached value for quick lookups
 }
 
 // NewMembStore creates a new simpledao member store
@@ -44,7 +40,6 @@ func NewMembStore(opts ...MembStoreOption) *MembStore {
 	m := &MembStore{
 		members:          avl.NewTree(),
 		totalVotingPower: 0,
-		majorityPower:    0,
 	}
 
 	// Apply the options
@@ -70,7 +65,6 @@ func (m *MembStore) AddMember(member dao.Member) error {
 
 	// Update the total voting power
 	m.totalVotingPower += member.VotingPower
-	m.majorityPower = (2 * m.totalVotingPower) / 3
 
 	return nil
 }
@@ -156,12 +150,6 @@ func (m *MembStore) GetMembers(offset, count uint64) []dao.Member {
 
 func (m *MembStore) Size() int {
 	return m.members.Size()
-}
-
-// getMajorityPower returns the majority voting power
-// of the member store
-func (m *MembStore) getMajorityPower() uint64 {
-	return m.majorityPower
 }
 
 // getTotalPower returns the total voting power

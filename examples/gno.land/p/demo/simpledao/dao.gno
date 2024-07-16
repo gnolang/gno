@@ -117,8 +117,8 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 
 	// Check the votes to see if quorum is reached
 	var (
-		majorityPower = s.membStore.getMajorityPower()
 		totalPower    = s.membStore.getTotalPower()
+		majorityPower = (2 * totalPower) / 3
 	)
 
 	switch {
