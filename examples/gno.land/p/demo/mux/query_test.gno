@@ -13,9 +13,10 @@ func TestQuery_Get(t *testing.T) {
 		expectedOutput string
 	}{
 		// get by key
-		{"get_by_key_normal", "users/?name=testname&age=12", "name", "testname"},
-		{"get_same_query", "users/user?name=name1&name=name2", "name", "name1"},
-		{"get_by_key_unprocesspath", "users/unprocesspath?user=thinhnx&age=12", "user", "thinhnx"},
+		{"Get_query_key", "api/v1/?name=testname&age=12", "name", "testname"},
+		{"Get_query_repeat", "api/v1/user?name=name1&name=name2&name=name3", "name", "name1"},
+		{"Get_query_with_pre_path", "api/v1/unprocesspath?user=thinhnx&age=12", "user", "thinhnx"},
+		{"Get_query_empty", "api/v1/?name=testname&age=12", "loc", ""},
 	}
 
 	for _, tt := range cases {
@@ -25,7 +26,7 @@ func TestQuery_Get(t *testing.T) {
 				HandlerPath: "",
 				Path:        tt.reqPath,
 			}
-			output := req.URL().Get(tt.key)
+			output := req.Query().Get(tt.key)
 			if output != tt.expectedOutput {
 				t.Errorf("Expected %q, but got %q", tt.expectedOutput, output)
 			}
@@ -34,7 +35,7 @@ func TestQuery_Get(t *testing.T) {
 }
 
 
-func TestQuery_List(t *testing.T) {
+func TestQuery_QueryList(t *testing.T) {
 	cases := []struct {
 		name           string
 		reqPath        string
@@ -42,7 +43,10 @@ func TestQuery_List(t *testing.T) {
 		expectedOutput []string
 	}{
 		// get all queries
-		{"get_the_queries", "users/user?name=testname&age=12&name=thinhnx", "name", []string{"testname", "thinhnx"}},
+		{"get_name_list", "api/v1/user?name=name0&age=12&name=name1&age=30", "name", []string{"name0", "name1"}},
+		{"get_age_list", "api/v1/user?name=name0&age=12&name=name1&age=30", "age", []string{"12", "30"}},
+		{"get_loc_list", "api/v1/user?name=name0&age=12&name=name1&age=30&loc=HN", "loc", []string{"HN"}},
+		{"get_empty_list", "api/v1/user?name=name0&age=12&name=name1&age=30&loc=HN", "addr", []string{}},
 	}
 
 	for _, tt := range cases {
@@ -52,11 +56,13 @@ func TestQuery_List(t *testing.T) {
 				HandlerPath: "",
 				Path:        tt.reqPath,
 			}
-			output := req.URL()[tt.key]
+			// simple check for length of expected and output list
+			output := req.Query()[tt.key]
 			if len(output) != len(tt.expectedOutput) {
 				t.Errorf("Expected %q, but got %q", tt.expectedOutput, output)
 			}
-			listOutput := req.URL()[tt.key]
+			// check the corresponding elements
+			listOutput := req.Query()[tt.key]
 			for i, ttExpt := range tt.expectedOutput {
 				if ttExpt != listOutput[i] {
 					t.Errorf("Expected %q, but got %q", ttExpt, listOutput[i])
