@@ -1,9 +1,5 @@
 package zentasktic_core
 
-import (
-	"gno.land/p/demo/avl"
-)
-
 type Workable interface {
 	// restrict implementation of Workable to this realm
 	assertWorkable()
