@@ -54,7 +54,7 @@ type Edit struct {
 //   - new: the modified string.
 //
 // Returns:
-// - A slice of Edit operations representing the minimum difference between the two strings.
+//   - A slice of Edit operations representing the minimum difference between the two strings.
 func MyersDiff(old, new string) []Edit {
 	oldRunes, newRunes := []rune(old), []rune(new)
 	n, m := len(oldRunes), len(newRunes)
