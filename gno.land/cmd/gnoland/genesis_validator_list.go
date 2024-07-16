@@ -43,10 +43,10 @@ func execValidatorList(cfg *validatorListCfg, io commands.IO) error {
 	// Print validator set
 	io.Printf("Validator set in %s has %d validator(s):\n\n", cfg.rootCfg.genesisPath, len(genesis.Validators))
 	for _, validator := range genesis.Validators {
-		io.Printf("%s power=%d %s %s\n", 
-			validator.Address.String(), 
+		io.Printf("%s power=%d %s %s\n",
+			validator.Address.String(),
 			validator.Power,
-			validator.Name, 
+			validator.Name,
 			validator.PubKey.String(),
 		)
 	}

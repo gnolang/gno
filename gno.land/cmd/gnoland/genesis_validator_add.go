@@ -78,7 +78,6 @@ func (c *validatorAddCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execValidatorAdd(cfg *validatorAddCfg, io commands.IO) error {
-
 	// Load the genesis
 	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.genesisPath)
 	if loadErr != nil {
