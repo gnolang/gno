@@ -52,13 +52,3 @@ func (v *votes) castVote(member dao.Member, option dao.VoteOption) error {
 
 	return nil
 }
-
-// getTally returns the yay, and nay count, respectively
-func (v *votes) getTally() (uint64, uint64, uint64) {
-	return v.yays, v.nays, v.abstains
-}
-
-// getVoters returns the current voter set
-func (v *votes) getVoters() *avl.Tree {
-	return v.voters
-}

@@ -119,21 +119,19 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 	var (
 		majorityPower = s.membStore.getMajorityPower()
 		totalPower    = s.membStore.getTotalPower()
-
-		yays, nays, abstains = prop.votes.getTally()
 	)
 
 	switch {
-	case yays > majorityPower:
+	case prop.votes.yays > majorityPower:
 		// 2/3+ voted YES
 		prop.status = dao.Accepted
-	case nays > majorityPower:
+	case prop.votes.nays > majorityPower:
 		// 2/3+ voted NO
 		prop.status = dao.NotAccepted
-	case abstains > majorityPower:
+	case prop.votes.abstains > majorityPower:
 		// 2/3+ voted ABSTAIN
 		prop.status = dao.NotAccepted
-	case yays+nays+abstains >= totalPower:
+	case prop.votes.yays+prop.votes.nays+prop.votes.abstains >= totalPower:
 		// Everyone voted, but it's undecided,
 		// hence the proposal can't go through
 		prop.status = dao.NotAccepted

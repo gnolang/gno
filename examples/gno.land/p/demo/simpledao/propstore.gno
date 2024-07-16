@@ -53,10 +53,8 @@ func (p *proposal) GetStatus() dao.ProposalStatus {
 }
 
 func (p *proposal) GetVotes(offset, count uint64) []dao.Vote {
-	voters := p.votes.getVoters()
-
 	// Calculate the left and right bounds
-	if count < 1 || offset >= uint64(voters.Size()) {
+	if count < 1 || offset >= uint64(p.votes.voters.Size()) {
 		return []dao.Vote{}
 	}
 
@@ -65,8 +63,8 @@ func (p *proposal) GetVotes(offset, count uint64) []dao.Vote {
 		count = maxRequestVotes
 	}
 
-	votes := make([]dao.Vote, 0, voters.Size())
-	voters.IterateByOffset(
+	votes := make([]dao.Vote, 0, p.votes.voters.Size())
+	p.votes.voters.IterateByOffset(
 		int(offset),
 		int(count),
 		func(key string, val interface{}) bool {
@@ -86,24 +84,19 @@ func (p *proposal) GetVotes(offset, count uint64) []dao.Vote {
 }
 
 func (p *proposal) GetVotingStats() dao.VotingStats {
-	// Get the tally
-	yays, nays, abstains := p.votes.getTally()
-
 	// Get the total voting power of the body
 	totalPower := p.getTotalVotingPowerFn()
 
 	return dao.VotingStats{
-		YayVotes:         yays,
-		NayVotes:         nays,
-		AbstainVotes:     abstains,
+		YayVotes:         p.votes.yays,
+		NayVotes:         p.votes.nays,
+		AbstainVotes:     p.votes.abstains,
 		TotalVotingPower: totalPower,
 	}
 }
 
 func (p *proposal) GetVoteByMember(address std.Address) (dao.Vote, error) {
-	voters := p.votes.getVoters()
-
-	optionRaw, exists := voters.Get(address.String())
+	optionRaw, exists := p.votes.voters.Get(address.String())
 	if !exists {
 		return dao.Vote{}, ErrMissingVote
 	}
