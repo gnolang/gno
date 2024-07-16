@@ -24,7 +24,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 		uassert.ErrorIs(
 			t,
 			err,
-			errInvalidExecutor,
+			ErrInvalidExecutor,
 		)
 	})
 
@@ -60,7 +60,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 		uassert.ErrorIs(
 			t,
 			err,
-			errInsufficientProposalFunds,
+			ErrInsufficientProposalFunds,
 		)
 
 		uassert.False(t, called)
@@ -135,7 +135,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		uassert.ErrorContains(
 			t,
 			s.VoteOnProposal(0, dao.YesVote),
-			errMissingMember.Error(),
+			ErrMissingMember.Error(),
 		)
 	})
 
@@ -161,7 +161,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		uassert.ErrorContains(
 			t,
 			s.VoteOnProposal(0, dao.YesVote),
-			errMissingProposal.Error(),
+			ErrMissingProposal.Error(),
 		)
 	})
 
@@ -195,7 +195,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		uassert.ErrorIs(
 			t,
 			s.VoteOnProposal(id, dao.YesVote),
-			errProposalInactive,
+			ErrProposalInactive,
 		)
 	})
 
@@ -236,7 +236,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		uassert.ErrorIs(
 			t,
 			s.VoteOnProposal(id, dao.YesVote),
-			errExecutorExpired,
+			ErrExecutorExpired,
 		)
 	})
 
@@ -279,7 +279,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		uassert.ErrorContains(
 			t,
 			s.VoteOnProposal(id, dao.YesVote),
-			errAlreadyVoted.Error(),
+			ErrAlreadyVoted.Error(),
 		)
 	})
 
@@ -519,7 +519,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 		uassert.ErrorIs(
 			t,
 			s.ExecuteProposal(0),
-			errInsufficientExecuteFunds,
+			ErrInsufficientExecuteFunds,
 		)
 	})
 
@@ -547,7 +547,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 		uassert.ErrorContains(
 			t,
 			s.ExecuteProposal(0),
-			errMissingProposal.Error(),
+			ErrMissingProposal.Error(),
 		)
 	})
 
@@ -581,7 +581,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 		uassert.ErrorIs(
 			t,
 			s.ExecuteProposal(id),
-			errProposalNotAccepted,
+			ErrProposalNotAccepted,
 		)
 	})
 
@@ -635,7 +635,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 				uassert.ErrorIs(
 					t,
 					s.ExecuteProposal(id),
-					errProposalExecuted,
+					ErrProposalExecuted,
 				)
 			})
 		}
@@ -678,7 +678,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 		uassert.ErrorIs(
 			t,
 			s.ExecuteProposal(id),
-			errExecutorExpired,
+			ErrExecutorExpired,
 		)
 	})
 

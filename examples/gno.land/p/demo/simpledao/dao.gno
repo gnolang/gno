@@ -9,14 +9,14 @@ import (
 )
 
 var (
-	errInvalidExecutor           = errors.New("invalid executor provided")
-	errInsufficientProposalFunds = errors.New("insufficient funds for proposal")
-	errInsufficientExecuteFunds  = errors.New("insufficient funds for executing proposal")
-	errProposalExecuted          = errors.New("proposal already executed")
-	errProposalInactive          = errors.New("proposal is inactive")
-	errProposalNotAccepted       = errors.New("proposal is not accepted")
-	errExecutorExpired           = errors.New("executor is expired")
-	errNotGovDAO                 = errors.New("caller not correct govdao instance")
+	ErrInvalidExecutor           = errors.New("invalid executor provided")
+	ErrInsufficientProposalFunds = errors.New("insufficient funds for proposal")
+	ErrInsufficientExecuteFunds  = errors.New("insufficient funds for executing proposal")
+	ErrProposalExecuted          = errors.New("proposal already executed")
+	ErrProposalInactive          = errors.New("proposal is inactive")
+	ErrProposalNotAccepted       = errors.New("proposal is not accepted")
+	ErrExecutorExpired           = errors.New("executor is expired")
+	ErrNotGovDAO                 = errors.New("caller not correct govdao instance")
 )
 
 var (
@@ -44,7 +44,7 @@ func New(membStore *MembStore, propStore *PropStore) *SimpleDAO {
 func (s *SimpleDAO) Propose(description string, executor dao.Executor) (uint64, error) {
 	// Make sure the executor is set
 	if executor == nil {
-		return 0, errInvalidExecutor
+		return 0, ErrInvalidExecutor
 	}
 
 	var (
@@ -55,7 +55,7 @@ func (s *SimpleDAO) Propose(description string, executor dao.Executor) (uint64, 
 
 	// Check if the proposal is valid
 	if !s.membStore.IsMember(caller) && !canCoverFee {
-		return 0, errInsufficientProposalFunds
+		return 0, ErrInsufficientProposalFunds
 	}
 
 	// Create the wrapped proposal
@@ -102,12 +102,12 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 		// on either option, but leaving the ability to vote still,
 		// even if a proposal is accepted, or not accepted,
 		// leaves room for "principle" vote decisions to be recorded
-		return errProposalInactive
+		return ErrProposalInactive
 	}
 
 	// Check if the executor is expired
 	if prop.executor.IsExpired() {
-		return errExecutorExpired
+		return ErrExecutorExpired
 	}
 
 	// Cast the vote
@@ -153,7 +153,7 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 
 	// Check if the non-DAO member can cover the execute fee
 	if !s.membStore.IsMember(caller) && !canCoverFee {
-		return errInsufficientExecuteFunds
+		return ErrInsufficientExecuteFunds
 	}
 
 	// Check if the proposal exists
@@ -168,18 +168,18 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 	if prop.GetStatus() == dao.ExecutionSuccessful ||
 		prop.GetStatus() == dao.ExecutionFailed {
 		// Proposal is already executed
-		return errProposalExecuted
+		return ErrProposalExecuted
 	}
 
 	// Check the proposal status
 	if prop.GetStatus() != dao.Accepted {
 		// Proposal is not accepted, cannot be executed
-		return errProposalNotAccepted
+		return ErrProposalNotAccepted
 	}
 
 	// Check if the executor is expired
 	if prop.executor.IsExpired() {
-		return errExecutorExpired
+		return ErrExecutorExpired
 	}
 
 	// Attempt to execute the proposal

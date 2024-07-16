@@ -38,7 +38,7 @@ func TestMembStore_GetMember(t *testing.T) {
 		m := NewMembStore()
 
 		_, err := m.GetMember(testutils.TestAddress("random"))
-		uassert.ErrorIs(t, err, errMissingMember)
+		uassert.ErrorIs(t, err, ErrMissingMember)
 	})
 
 	t.Run("valid member fetched", func(t *testing.T) {
@@ -144,7 +144,7 @@ func TestMembStore_AddMember(t *testing.T) {
 
 		// Attempt to add a member
 		member := generateMembers(t, 1)[0]
-		uassert.ErrorIs(t, m.AddMember(member), errNotGovDAO)
+		uassert.ErrorIs(t, m.AddMember(member), ErrNotGovDAO)
 	})
 
 	t.Run("member already exists", func(t *testing.T) {
@@ -159,7 +159,7 @@ func TestMembStore_AddMember(t *testing.T) {
 		m := NewMembStore(WithInitialMembers(members))
 
 		// Attempt to add a member
-		uassert.ErrorIs(t, m.AddMember(members[0]), errAlreadyMember)
+		uassert.ErrorIs(t, m.AddMember(members[0]), ErrAlreadyMember)
 	})
 
 	t.Run("new member added", func(t *testing.T) {
@@ -215,7 +215,7 @@ func TestMembStore_UpdateMember(t *testing.T) {
 
 		// Attempt to update a member
 		member := generateMembers(t, 1)[0]
-		uassert.ErrorIs(t, m.UpdateMember(member.Address, member), errNotGovDAO)
+		uassert.ErrorIs(t, m.UpdateMember(member.Address, member), ErrNotGovDAO)
 	})
 
 	t.Run("non-existing member", func(t *testing.T) {
@@ -230,7 +230,7 @@ func TestMembStore_UpdateMember(t *testing.T) {
 		m := NewMembStore()
 
 		// Attempt to update a member
-		uassert.ErrorIs(t, m.UpdateMember(members[0].Address, members[0]), errMissingMember)
+		uassert.ErrorIs(t, m.UpdateMember(members[0].Address, members[0]), ErrMissingMember)
 	})
 
 	t.Run("overwrite member attempt", func(t *testing.T) {
@@ -245,7 +245,7 @@ func TestMembStore_UpdateMember(t *testing.T) {
 		m := NewMembStore(WithInitialMembers(members))
 
 		// Attempt to update a member
-		uassert.ErrorIs(t, m.UpdateMember(members[0].Address, members[1]), errInvalidAddressUpdate)
+		uassert.ErrorIs(t, m.UpdateMember(members[0].Address, members[1]), ErrInvalidAddressUpdate)
 	})
 
 	t.Run("successful update", func(t *testing.T) {

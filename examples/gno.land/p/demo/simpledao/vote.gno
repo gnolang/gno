@@ -7,7 +7,7 @@ import (
 	"gno.land/p/gov/dao"
 )
 
-var errAlreadyVoted = errors.New("vote already cast")
+var ErrAlreadyVoted = errors.New("vote already cast")
 
 // votes is a simple weighted voting system
 type votes struct {
@@ -34,7 +34,7 @@ func (v *votes) castVote(member dao.Member, option dao.VoteOption) error {
 
 	_, voted := v.voters.Get(address)
 	if voted {
-		return errAlreadyVoted
+		return ErrAlreadyVoted
 	}
 
 	// Update the tally

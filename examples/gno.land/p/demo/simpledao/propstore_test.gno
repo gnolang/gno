@@ -184,7 +184,7 @@ func TestProposal_Data(t *testing.T) {
 		urequire.Equal(t, 0, len(votes))
 
 		_, err := p.GetVoteByMember(testutils.TestAddress("dummy"))
-		uassert.ErrorIs(t, err, errMissingVote)
+		uassert.ErrorIs(t, err, ErrMissingVote)
 	})
 }
 
@@ -248,7 +248,7 @@ func TestPropStore_GetProposalByID(t *testing.T) {
 		p := NewPropStore()
 
 		_, err := p.GetProposalByID(0)
-		uassert.ErrorIs(t, err, errMissingProposal)
+		uassert.ErrorIs(t, err, ErrMissingProposal)
 	})
 
 	t.Run("proposal found", func(t *testing.T) {

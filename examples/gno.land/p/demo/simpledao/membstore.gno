@@ -10,9 +10,9 @@ import (
 )
 
 var (
-	errAlreadyMember        = errors.New("address is already a member")
-	errMissingMember        = errors.New("address is not a member")
-	errInvalidAddressUpdate = errors.New("invalid address update")
+	ErrAlreadyMember        = errors.New("address is already a member")
+	ErrMissingMember        = errors.New("address is not a member")
+	ErrInvalidAddressUpdate = errors.New("invalid address update")
 )
 
 type MembStoreOption func(*MembStore)
@@ -57,12 +57,12 @@ func NewMembStore(opts ...MembStoreOption) *MembStore {
 
 func (m *MembStore) AddMember(member dao.Member) error {
 	if !isCallerGOVDAO() {
-		return errNotGovDAO
+		return ErrNotGovDAO
 	}
 
 	// Check if the member exists
 	if m.IsMember(member.Address) {
-		return errAlreadyMember
+		return ErrAlreadyMember
 	}
 
 	// Add the member
@@ -77,12 +77,12 @@ func (m *MembStore) AddMember(member dao.Member) error {
 
 func (m *MembStore) UpdateMember(address std.Address, member dao.Member) error {
 	if !isCallerGOVDAO() {
-		return errNotGovDAO
+		return ErrNotGovDAO
 	}
 
 	// Check if the member exists
 	if !m.IsMember(address) {
-		return errMissingMember
+		return ErrMissingMember
 	}
 
 	// Check if this is a removal request
@@ -96,7 +96,7 @@ func (m *MembStore) UpdateMember(address std.Address, member dao.Member) error {
 	// overwriting an existing one
 	isAddressUpdate := address != member.Address
 	if isAddressUpdate && m.IsMember(member.Address) {
-		return errInvalidAddressUpdate
+		return ErrInvalidAddressUpdate
 	}
 
 	// Remove the old member info
@@ -120,7 +120,7 @@ func (m *MembStore) IsMember(address std.Address) bool {
 func (m *MembStore) GetMember(address std.Address) (dao.Member, error) {
 	member, exists := m.members.Get(address.String())
 	if !exists {
-		return dao.Member{}, errMissingMember
+		return dao.Member{}, ErrMissingMember
 	}
 
 	return member.(dao.Member), nil

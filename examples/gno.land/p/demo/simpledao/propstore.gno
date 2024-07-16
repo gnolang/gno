@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	errMissingProposal = errors.New("proposal is missing")
-	errMissingVote     = errors.New("member has not voted")
+	ErrMissingProposal = errors.New("proposal is missing")
+	ErrMissingVote     = errors.New("member has not voted")
 )
 
 const (
@@ -105,7 +105,7 @@ func (p *proposal) GetVoteByMember(address std.Address) (dao.Vote, error) {
 
 	optionRaw, exists := voters.Get(address.String())
 	if !exists {
-		return dao.Vote{}, errMissingVote
+		return dao.Vote{}, ErrMissingVote
 	}
 
 	vote := dao.Vote{
@@ -187,7 +187,7 @@ func (p *PropStore) GetProposals(offset, count uint64) []dao.Proposal {
 func (p *PropStore) GetProposalByID(id uint64) (dao.Proposal, error) {
 	prop, exists := p.proposals.Get(getProposalID(id))
 	if !exists {
-		return nil, errMissingProposal
+		return nil, ErrMissingProposal
 	}
 
 	return prop.(*proposal), nil
