@@ -251,35 +251,37 @@ func EndBlocker(
 	req abci.RequestEndBlock,
 ) abci.ResponseEndBlock {
 	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
-		// Check if there was a valset change
-		if len(collector.getEvents()) == 0 {
-			// No valset updates
-			return abci.ResponseEndBlock{}
-		}
+		return abci.ResponseEndBlock{}
 
-		// Run the VM to get the updates from the chain
-		response, err := vmk.QueryEval(
-			ctx,
-			valRealm,
-			fmt.Sprintf("%s(%d)", valChangesFn, app.LastBlockHeight()),
-		)
-		if err != nil {
-			app.Logger().Error("unable to call VM during EndBlocker", "err", err)
+		// // Check if there was a valset change
+		// if len(collector.getEvents()) == 0 {
+		// 	// No valset updates
+		// 	return abci.ResponseEndBlock{}
+		// }
 
-			return abci.ResponseEndBlock{}
-		}
-
-		// Extract the updates from the VM response
-		updates, err := extractUpdatesFromResponse(response)
-		if err != nil {
-			app.Logger().Error("unable to extract updates from response", "err", err)
-
-			return abci.ResponseEndBlock{}
-		}
-
-		return abci.ResponseEndBlock{
-			ValidatorUpdates: updates,
-		}
+		// // Run the VM to get the updates from the chain
+		// response, err := vmk.QueryEval(
+		// 	ctx,
+		// 	valRealm,
+		// 	fmt.Sprintf("%s(%d)", valChangesFn, app.LastBlockHeight()),
+		// )
+		// if err != nil {
+		// 	app.Logger().Error("unable to call VM during EndBlocker", "err", err)
+		//
+		// 	return abci.ResponseEndBlock{}
+		// }
+		//
+		// // Extract the updates from the VM response
+		// updates, err := extractUpdatesFromResponse(response)
+		// if err != nil {
+		// 	app.Logger().Error("unable to extract updates from response", "err", err)
+		//
+		// 	return abci.ResponseEndBlock{}
+		// }
+		//
+		// return abci.ResponseEndBlock{
+		// 	ValidatorUpdates: updates,
+		// }
 	}
 }
 
@@ -306,7 +308,7 @@ func getValidatorsRealm(ctx sdk.Context, vmk vm.VMKeeperI) (string, string, erro
 }
 
 func extractValValuesFromResponse(response string) (string, string, error) {
-
+	return "", "", nil
 }
 
 // extractUpdatesFromResponse extracts the validator set updates

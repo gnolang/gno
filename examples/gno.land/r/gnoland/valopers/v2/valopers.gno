@@ -9,6 +9,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	pVals "gno.land/p/sys/validators"
 	govdao "gno.land/r/gov/dao/v2"
+	validators "gno.land/r/sys/validators/v2"
 )
 
 const (
