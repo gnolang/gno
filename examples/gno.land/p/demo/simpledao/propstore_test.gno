@@ -110,6 +110,32 @@ func TestProposal_Data(t *testing.T) {
 		uassert.Equal(t, p.status.String(), p.Status().String())
 	})
 
+	t.Run("executor", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			numCalled = 0
+			cb        = func() error {
+				numCalled++
+
+				return nil
+			}
+
+			ex = &mockExecutor{
+				executeFn: cb,
+			}
+
+			p = &proposal{
+				executor: ex,
+			}
+		)
+
+		urequire.NoError(t, p.executor.Execute())
+		urequire.NoError(t, p.Executor().Execute())
+
+		uassert.Equal(t, 2, numCalled)
+	})
+
 	t.Run("no votes", func(t *testing.T) {
 		t.Parallel()
 

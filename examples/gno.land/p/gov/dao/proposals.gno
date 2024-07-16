@@ -43,6 +43,9 @@ type Proposal interface {
 	// Status returns the status of the proposal
 	Status() ProposalStatus
 
+	// Executor returns the proposal executor
+	Executor() Executor
+
 	// Votes returns the votes of the proposal
 	Votes(offset, count uint64) []Vote
 

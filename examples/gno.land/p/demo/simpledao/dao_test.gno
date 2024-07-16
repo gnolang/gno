@@ -20,7 +20,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 
 		s := &SimpleDAO{}
 
-		_, err := s.Propose("", nil)
+		_, err := s.Propose(dao.ProposalRequest{})
 		uassert.ErrorIs(
 			t,
 			err,
@@ -56,7 +56,9 @@ func TestSimpleDAO_Propose(t *testing.T) {
 		// than the proposal fee
 		std.TestSetOrigSend(sentCoins, std.Coins{})
 
-		_, err := s.Propose("", ex)
+		_, err := s.Propose(dao.ProposalRequest{
+			Executor: ex,
+		})
 		uassert.ErrorIs(
 			t,
 			err,
@@ -100,7 +102,10 @@ func TestSimpleDAO_Propose(t *testing.T) {
 		std.TestSetOrigCaller(proposer)
 
 		// Make sure the proposal was added
-		id, err := s.Propose(description, ex)
+		id, err := s.Propose(dao.ProposalRequest{
+			Description: description,
+			Executor:    ex,
+		})
 		uassert.NoError(t, err)
 		uassert.False(t, called)
 

@@ -52,6 +52,10 @@ func (p *proposal) Status() dao.ProposalStatus {
 	return p.status
 }
 
+func (p *proposal) Executor() dao.Executor {
+	return p.executor
+}
+
 func (p *proposal) Votes(offset, count uint64) []dao.Vote {
 	// Calculate the left and right bounds
 	if count < 1 || offset >= uint64(p.votes.voters.Size()) {

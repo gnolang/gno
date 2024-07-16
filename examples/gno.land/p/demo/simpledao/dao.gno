@@ -41,9 +41,9 @@ func New(membStore *MembStore, propStore *PropStore) *SimpleDAO {
 	}
 }
 
-func (s *SimpleDAO) Propose(description string, executor dao.Executor) (uint64, error) {
+func (s *SimpleDAO) Propose(request dao.ProposalRequest) (uint64, error) {
 	// Make sure the executor is set
-	if executor == nil {
+	if request.Executor == nil {
 		return 0, ErrInvalidExecutor
 	}
 
@@ -61,8 +61,8 @@ func (s *SimpleDAO) Propose(description string, executor dao.Executor) (uint64, 
 	// Create the wrapped proposal
 	prop := &proposal{
 		author:                caller,
-		description:           description,
-		executor:              executor,
+		description:           request.Description,
+		executor:              request.Executor,
 		status:                dao.Active,
 		votes:                 newVotes(),
 		getTotalVotingPowerFn: s.membStore.getTotalPower,

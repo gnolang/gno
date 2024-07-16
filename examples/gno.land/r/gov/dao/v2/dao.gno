@@ -39,8 +39,8 @@ func init() {
 
 // Propose is designed to be called by another contract or with
 // `maketx run`, not by a `maketx call`.
-func Propose(comment string, executor dao.Executor) uint64 {
-	idx, err := d.Propose(comment, executor)
+func Propose(request dao.ProposalRequest) uint64 {
+	idx, err := d.Propose(request)
 	if err != nil {
 		panic(err)
 	}
