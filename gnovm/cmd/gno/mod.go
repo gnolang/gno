@@ -14,19 +14,15 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"go.uber.org/multierr"
 )
-
-type modDownloadCfg struct {
-	remote  string
-	verbose bool
-}
 
 func newModCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "mod",
 			ShortUsage: "mod <command>",
-			ShortHelp:  "Manage gno.mod",
+			ShortHelp:  "manage gno.mod",
 		},
 		commands.NewEmptyConfig(),
 		commands.HelpExec,
@@ -36,6 +32,7 @@ func newModCmd(io commands.IO) *commands.Command {
 		newModDownloadCmd(io),
 		newModInitCmd(),
 		newModTidy(io),
+		newModWhy(io),
 	)
 
 	return cmd
@@ -48,7 +45,7 @@ func newModDownloadCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "download",
 			ShortUsage: "download [flags]",
-			ShortHelp:  "Download modules to local cache",
+			ShortHelp:  "download modules to local cache",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -62,7 +59,7 @@ func newModInitCmd() *commands.Command {
 		commands.Metadata{
 			Name:       "init",
 			ShortUsage: "init [module-path]",
-			ShortHelp:  "Initialize gno.mod file in current directory",
+			ShortHelp:  "initialize gno.mod file in current directory",
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
@@ -72,30 +69,75 @@ func newModInitCmd() *commands.Command {
 }
 
 func newModTidy(io commands.IO) *commands.Command {
+	cfg := &modTidyCfg{}
+
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "tidy",
-			ShortUsage: "tidy",
-			ShortHelp:  "Add missing and remove unused modules",
+			ShortUsage: "tidy [flags]",
+			ShortHelp:  "add missing and remove unused modules",
+		},
+		cfg,
+		func(_ context.Context, args []string) error {
+			return execModTidy(cfg, args, io)
+		},
+	)
+}
+
+func newModWhy(io commands.IO) *commands.Command {
+	return commands.NewCommand(
+		commands.Metadata{
+			Name:       "why",
+			ShortUsage: "why <package> [<package>...]",
+			ShortHelp:  "Explains why modules are needed",
+			LongHelp: `Explains why modules are needed.
+
+gno mod why shows a list of files where specified packages or modules are
+being used, explaining why those specified packages or modules are being
+kept by gno mod tidy.
+
+The output is a sequence of stanzas, one for each module/package name
+specified, separated by blank lines. Each stanza begins with a
+comment line "# module" giving the target module/package. Subsequent lines
+show files that import the specified module/package, one filename per line.
+If the package or module is not being used/needed/imported, the stanza
+will display a single parenthesized note indicating that fact.
+
+For example:
+
+	$ gno mod why gno.land/p/demo/avl gno.land/p/demo/users
+	# gno.land/p/demo/avl
+	[FILENAME_1.gno]
+	[FILENAME_2.gno]
+
+	# gno.land/p/demo/users
+	(module [MODULE_NAME] does not need package gno.land/p/demo/users)
+	$
+`,
 		},
 		commands.NewEmptyConfig(),
 		func(_ context.Context, args []string) error {
-			return execModTidy(args, io)
+			return execModWhy(args, io)
 		},
 	)
+}
+
+type modDownloadCfg struct {
+	remote  string
+	verbose bool
 }
 
 func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.remote,
 		"remote",
-		"test3.gno.land:36657",
+		"test3.gno.land:26657",
 		"remote for fetching gno modules",
 	)
 
 	fs.BoolVar(
 		&c.verbose,
-		"verbose",
+		"v",
 		false,
 		"verbose output when running",
 	)
@@ -172,8 +214,94 @@ func execModInit(args []string) error {
 	return nil
 }
 
-func execModTidy(args []string, io commands.IO) error {
+type modTidyCfg struct {
+	verbose   bool
+	recursive bool
+}
+
+func (c *modTidyCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.verbose,
+		"v",
+		false,
+		"verbose output when running",
+	)
+	fs.BoolVar(
+		&c.recursive,
+		"recursive",
+		false,
+		"walk subdirs for gno.mod files",
+	)
+}
+
+func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 	if len(args) > 0 {
+		return flag.ErrHelp
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	if cfg.recursive {
+		pkgs, err := gnomod.ListPkgs(wd)
+		if err != nil {
+			return err
+		}
+		var errs error
+		for _, pkg := range pkgs {
+			err := modTidyOnce(cfg, wd, pkg.Dir, io)
+			errs = multierr.Append(errs, err)
+		}
+		return errs
+	}
+
+	// XXX: recursively check parents if no $PWD/gno.mod
+	return modTidyOnce(cfg, wd, wd, io)
+}
+
+func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
+	fname := filepath.Join(pkgdir, "gno.mod")
+	relpath, err := filepath.Rel(wd, fname)
+	if err != nil {
+		return err
+	}
+	if cfg.verbose {
+		io.ErrPrintfln("%s", relpath)
+	}
+
+	gm, err := gnomod.ParseGnoMod(fname)
+	if err != nil {
+		return err
+	}
+
+	// Drop all existing requires
+	for _, r := range gm.Require {
+		gm.DropRequire(r.Mod.Path)
+	}
+
+	imports, err := getGnoPackageImports(pkgdir)
+	if err != nil {
+		return err
+	}
+	for _, im := range imports {
+		// skip if importpath is modulepath
+		if im == gm.Module.Mod.Path {
+			continue
+		}
+		gm.AddRequire(im, "v0.0.0-latest")
+		if cfg.verbose {
+			io.ErrPrintfln("   %s", im)
+		}
+	}
+
+	gm.Write(fname)
+	return nil
+}
+
+func execModWhy(args []string, io commands.IO) error {
+	if len(args) < 1 {
 		return flag.ErrHelp
 	}
 
@@ -187,28 +315,70 @@ func execModTidy(args []string, io commands.IO) error {
 		return err
 	}
 
-	// Drop all existing requires
-	for _, r := range gm.Require {
-		gm.DropRequire(r.Mod.Path)
-	}
-
-	imports, err := getGnoImports(wd)
+	importToFilesMap, err := getImportToFilesMap(wd)
 	if err != nil {
 		return err
 	}
-	for _, im := range imports {
-		// skip if importpath is modulepath
-		if im == gm.Module.Mod.Path {
-			continue
-		}
-		gm.AddRequire(im, "v0.0.0-latest")
-	}
 
-	gm.Write(fname)
+	// Format and print `gno mod why` output stanzas
+	out := formatModWhyStanzas(gm.Module.Mod.Path, args, importToFilesMap)
+	io.Printf(out)
+
 	return nil
 }
 
-// getGnoImports returns the list of gno imports from a given path.
+// formatModWhyStanzas returns a formatted output for the go mod why command.
+// It takes three parameters:
+//   - modulePath (the path of the module)
+//   - args (input arguments)
+//   - importToFilesMap (a map of import to files).
+func formatModWhyStanzas(modulePath string, args []string, importToFilesMap map[string][]string) (out string) {
+	for i, arg := range args {
+		out += fmt.Sprintf("# %s\n", arg)
+		files, ok := importToFilesMap[arg]
+		if !ok {
+			out += fmt.Sprintf("(module %s does not need package %s)\n", modulePath, arg)
+		} else {
+			for _, file := range files {
+				out += file + "\n"
+			}
+		}
+		if i < len(args)-1 { // Add a newline if it's not the last stanza
+			out += "\n"
+		}
+	}
+	return
+}
+
+// getImportToFilesMap returns a map where each key is an import path and its
+// value is a list of files importing that package with the specified import path.
+func getImportToFilesMap(pkgPath string) (map[string][]string, error) {
+	entries, err := os.ReadDir(pkgPath)
+	if err != nil {
+		return nil, err
+	}
+	m := make(map[string][]string) // import -> []file
+	for _, e := range entries {
+		filename := e.Name()
+		if ext := filepath.Ext(filename); ext != ".gno" {
+			continue
+		}
+		if strings.HasSuffix(filename, "_filetest.gno") {
+			continue
+		}
+		imports, err := getGnoFileImports(filepath.Join(pkgPath, filename))
+		if err != nil {
+			return nil, err
+		}
+
+		for _, imp := range imports {
+			m[imp] = append(m[imp], filename)
+		}
+	}
+	return m, nil
+}
+
+// getGnoPackageImports returns the list of gno imports from a given path.
 // Note: It ignores subdirs. Since right now we are still deciding on
 // how to handle subdirs.
 // See:
@@ -216,7 +386,7 @@ func execModTidy(args []string, io commands.IO) error {
 // - https://github.com/gnolang/gno/issues/852
 //
 // TODO: move this to better location.
-func getGnoImports(path string) ([]string, error) {
+func getGnoPackageImports(path string) ([]string, error) {
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		return nil, err
@@ -232,28 +402,43 @@ func getGnoImports(path string) ([]string, error) {
 		if strings.HasSuffix(filename, "_filetest.gno") {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(path, filename))
+		imports, err := getGnoFileImports(filepath.Join(path, filename))
 		if err != nil {
 			return nil, err
 		}
-		fs := token.NewFileSet()
-		f, err := parser.ParseFile(fs, filename, data, parser.ImportsOnly)
-		if err != nil {
-			return nil, err
-		}
-		for _, imp := range f.Imports {
-			importPath := strings.TrimPrefix(strings.TrimSuffix(imp.Path.Value, `"`), `"`)
-			if !strings.HasPrefix(importPath, "gno.land/") {
+		for _, im := range imports {
+			if !strings.HasPrefix(im, "gno.land/") {
 				continue
 			}
-			if _, ok := seen[importPath]; ok {
+			if _, ok := seen[im]; ok {
 				continue
 			}
-			allImports = append(allImports, importPath)
-			seen[importPath] = struct{}{}
+			allImports = append(allImports, im)
+			seen[im] = struct{}{}
 		}
 	}
 	sort.Strings(allImports)
 
 	return allImports, nil
+}
+
+func getGnoFileImports(fname string) ([]string, error) {
+	if !strings.HasSuffix(fname, ".gno") {
+		return nil, fmt.Errorf("not a gno file: %q", fname)
+	}
+	data, err := os.ReadFile(fname)
+	if err != nil {
+		return nil, err
+	}
+	fs := token.NewFileSet()
+	f, err := parser.ParseFile(fs, fname, data, parser.ImportsOnly)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]string, 0)
+	for _, im := range f.Imports {
+		importPath := strings.TrimPrefix(strings.TrimSuffix(im.Path.Value, `"`), `"`)
+		res = append(res, importPath)
+	}
+	return res, nil
 }

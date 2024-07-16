@@ -4,7 +4,7 @@ id: go-gno-compatibility
 
 # Go - Gno compatibility
 
-## Native keywords
+## Reserved keywords
 
 | keyword     | support                |
 |-------------|------------------------|
@@ -34,7 +34,14 @@ id: go-gno-compatibility
 
 Generics are currently not implemented.
 
-## Native types
+Note that Gno does not support shadowing of built-in types.
+While the following built-in typecasting assignment would work in Go, this is not supported in Gno.
+
+```go
+rune := rune('a')
+```
+
+## Builtin types
 
 | type                                          | usage                  | persistency                                                |
 |-----------------------------------------------|------------------------|------------------------------------------------------------|
@@ -57,7 +64,7 @@ Generics are currently not implemented.
 
 **\*:** depends on `T`/`T1`/`T2`
 
-Additional native types:
+Additional builtin types:
 
 | type     | comment                                                                                    |
 |----------|--------------------------------------------------------------------------------------------|
@@ -117,7 +124,7 @@ Legend:
 | crypto/dsa                                  | `tbd`    |
 | crypto/ecdh                                 | `tbd`    |
 | crypto/ecdsa                                | `tbd`    |
-| crypto/ed25519                              | `tbd`    |
+| crypto/ed25519                              | `part`[^8] |
 | crypto/elliptic                             | `tbd`    |
 | crypto/hmac                                 | `todo`   |
 | crypto/md5                                  | `test`[^2] |
@@ -198,7 +205,7 @@ Legend:
 | math/big                                    | `tbd`    |
 | math/bits                                   | `full`   |
 | math/cmplx                                  | `tbd`    |
-| math/rand                                   | `todo`   |
+| math/rand                                   | `full`[^9] |
 | mime                                        | `tbd`    |
 | mime/multipart                              | `tbd`    |
 | mime/quotedprintable                        | `tbd`    |
@@ -258,7 +265,7 @@ Legend:
 | time                                        | `full`[^7] |
 | time/tzdata                                 | `tbd`    |
 | unicode                                     | `full`   |
-| unicode/utf16                               | `tbd`    |
+| unicode/utf16                               | `full`   |
 | unicode/utf8                                | `full`   |
 | unsafe                                      | `nondet` |
 
@@ -282,33 +289,37 @@ Legend:
   bit of boilerplate, but you can use `sort.Interface` + `sort.Sort`!
 [^7]: `time.Now` returns the block time rather than the system time, for
   determinism. Concurrent functionality (such as `time.Ticker`) is not implemented.
+[^8]: `crypto/ed25519` is currently only implemented for `Verify`, which should
+  still cover a majority of use cases. A full implementation is welcome.
+[^9]: `math/rand` in Gno ports over Go's `math/rand/v2`.
 
 ## Tooling (`gno` binary)
 
-| go command        | gno command      | comment                                                               |
-|-------------------|------------------|-----------------------------------------------------------------------|
-| go bug            |                  | see https://github.com/gnolang/gno/issues/733                         |
-| go build          | gno build        | same intention, limited compatibility                                 |
-| go clean          | gno clean        | same intention, limited compatibility                                 |
-| go doc            | gno doc          | limited compatibility; see https://github.com/gnolang/gno/issues/522  |
-| go env            |                  |                                                                       |
-| go fix            |                  |                                                                       |
-| go fmt            |                  | gofmt (& similar tools, like gofumpt) works on gno code.              |
-| go generate       |                  |                                                                       |
-| go get            |                  | see `gno mod download`.                                               |
-| go help           | gno $cmd --help  | ie. `gno doc --help`                                                  |
-| go install        |                  |                                                                       |
-| go list           |                  |                                                                       |
-| go mod            | gno mod          |                                                                       |
-| + go mod init     | gno mod init     | same behavior                                                         |
-| + go mod download | gno mod download | same behavior                                                         |
-| + go mod tidy     | gno mod tidy     | same behavior                                                         |
-|                   | gno precompile   |                                                                       |
-| go work           |                  |                                                                       |
-|                   | gno repl         |                                                                       |
-| go run            | gno run          |                                                                       |
-| go test           | gno test         | limited compatibility                                                 |
-| go tool           |                  |                                                                       |
-| go version        |                  |                                                                       |
-| go vet            |                  |                                                                       |
-| golint            | gno lint         | same intention                                                        |
+| go command        | gno command               | comment                                                               |
+|-------------------|---------------------------|-----------------------------------------------------------------------|
+| go bug            | gno bug                   | same behavior                                                         |
+| go build          | gno transpile -gobuild    | same intention, limited compatibility                                 |
+| go clean          | gno clean                 | same intention, limited compatibility                                 |
+| go doc            | gno doc                   | limited compatibility; see https://github.com/gnolang/gno/issues/522  |
+| go env            |                           |                                                                       |
+| go fix            |                           |                                                                       |
+| go fmt            |                           | gofmt (& similar tools, like gofumpt) works on gno code.              |
+| go generate       |                           |                                                                       |
+| go get            |                           | see `gno mod download`.                                               |
+| go help           | gno $cmd --help           | ie. `gno doc --help`                                                  |
+| go install        |                           |                                                                       |
+| go list           |                           |                                                                       |
+| go mod            | gno mod                   |                                                                       |
+| + go mod init     | gno mod init              | same behavior                                                         |
+| + go mod download | gno mod download          | same behavior                                                         |
+| + go mod tidy     | gno mod tidy              | same behavior                                                         |
+| + go mod why      | gno mod why               | same intention                                                        |
+|                   | gno transpile             |                                                                       |
+| go work           |                           |                                                                       |
+|                   | gno repl                  |                                                                       |
+| go run            | gno run                   |                                                                       |
+| go test           | gno test                  | limited compatibility                                                 |
+| go tool           |                           |                                                                       |
+| go version        |                           |                                                                       |
+| go vet            |                           |                                                                       |
+| golint            | gno lint                  | same intention                                                        |

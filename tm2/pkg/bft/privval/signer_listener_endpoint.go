@@ -2,11 +2,10 @@ package privval
 
 import (
 	"fmt"
+	"log/slog"
 	"net"
 	"sync"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/service"
 )

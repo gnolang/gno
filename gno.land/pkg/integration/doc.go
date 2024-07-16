@@ -16,10 +16,40 @@
 //   - Supports most of the common commands.
 //   - `--remote`, `--insecure-password-stdin`, and `--home` flags are set automatically to
 //     communicate with the gnoland node.
+//   - In order to handle escape sequences like `\n` within arguments, you can enclose the argument
+//     in `"`
 //
 // 3. `adduser`:
-//   - Creates a new user in the default keybase directory.
 //   - Must be run before `gnoland start`.
+//   - Creates a new user in the default keybase directory.
+//
+// 4. `adduserfrom`:
+//   - Must be run before `gnoland start`.
+//   - Creates a new user in the default keybase directory from a given seed. ( Optionally, account and index can be provided )
+//
+// 5. `loadpkg`:
+//   - Must be run before `gnoland start`.
+//   - Loads a specific package from the 'examples' directory or from the working ($WORK) directory.
+//   - Can be used to load a single package or all packages within a directory.
+//   - If the target package has a `gno.mod`, all its dependencies (and their respective
+//     dependencies) will also be loaded.
+//   - The command takes either one or two arguments. The first argument is the name of the package(s),
+//     and the second (optional) argument is the path to the package(s).
+//     Examples:
+//     -- # Load a package from the 'examples' directory:
+//     -- loadpkg gno.land/p/demo/ufmt
+//     -- # Load a package `./bar` from the testscript's working directory with the name `gno.land/r/foobar/bar`:
+//     -- loadpkg gno.land/r/foobar/bar $WORK/bar
+//   - If the path is not prefixed with the working directory, it is assumed to be relative to the
+//     examples directory.
+//   - It's important to note that the load order is significant when using multiple `loadpkg`
+//     command; packages should be loaded in the order they are dependent upon.
+//
+// 6. `patchpkg`:
+//   - Patches any loaded files by package by replacing all occurrences of the first argument with the second.
+//   - This is mostly used to replace hardcoded addresses from loaded packages.
+//   - NOTE: this command may only be temporary, as it's not best approach to
+//     solve the above problem
 //
 // Logging:
 //

@@ -4,7 +4,7 @@ gno test .
 
 gno test ./run_test.gno
 
-gno test -verbose .
+gno test -v .
 
 ! stdout .+
 stderr '=== RUN   TestRun/hello'
@@ -13,7 +13,7 @@ stderr '=== RUN   TestRun/hi_me'
 stderr '=== RUN   TestRun'
 stderr '--- PASS: TestRun'
 
-gno test -verbose -run .* .
+gno test -v -run .* .
 
 ! stdout .+
 stderr '=== RUN   TestRun/hello'
@@ -22,12 +22,12 @@ stderr '=== RUN   TestRun/hi_me'
 stderr '=== RUN   TestRun'
 stderr '--- PASS: TestRun'
 
-gno test -verbose -run NotExists .
+gno test -v -run NotExists .
 
 ! stdout .+
 ! stderr '=== RUN   TestRun'
 
-gno test -verbose -run .*/hello .
+gno test -v -run .*/hello .
 
 ! stdout .+
 stderr '=== RUN   TestRun/hello'
@@ -36,7 +36,7 @@ stderr '=== RUN   TestRun/hello'
 stderr '=== RUN   TestRun'
 stderr '--- PASS: TestRun'
 
-gno test -verbose -run .*/hi .
+gno test -v -run .*/hi .
 
 ! stdout .+
 ! stderr '=== RUN   TestRun/hello'
@@ -45,22 +45,13 @@ stderr '=== RUN   TestRun/hi_me'
 stderr '=== RUN   TestRun'
 stderr '--- PASS: TestRun'
 
-gno test -verbose -run .*/NotExists .
+gno test -v -run .*/NotExists .
 
 ! stdout .+
 stderr '=== RUN   TestRun'
 stderr '--- PASS: TestRun'
 
-gno test -verbose -run Run/.* .
-
-! stdout .+
-stderr '=== RUN   TestRun/hello'
-stderr '=== RUN   TestRun/hi_you'
-stderr '=== RUN   TestRun/hi_me'
-stderr '=== RUN   TestRun'
-stderr '--- PASS: TestRun'
-
-gno test -verbose -run Run/ .
+gno test -v -run Run/.* .
 
 ! stdout .+
 stderr '=== RUN   TestRun/hello'
@@ -69,7 +60,16 @@ stderr '=== RUN   TestRun/hi_me'
 stderr '=== RUN   TestRun'
 stderr '--- PASS: TestRun'
 
-gno test -verbose -run Run/hello .
+gno test -v -run Run/ .
+
+! stdout .+
+stderr '=== RUN   TestRun/hello'
+stderr '=== RUN   TestRun/hi_you'
+stderr '=== RUN   TestRun/hi_me'
+stderr '=== RUN   TestRun'
+stderr '--- PASS: TestRun'
+
+gno test -v -run Run/hello .
 
 ! stdout .+
 stderr '=== RUN   TestRun/hello'

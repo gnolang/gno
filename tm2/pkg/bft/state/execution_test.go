@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/async"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
@@ -32,7 +33,7 @@ func TestApplyBlock(t *testing.T) {
 	t.Parallel()
 
 	cc := proxy.NewLocalClientCreator(kvstore.NewKVStoreApplication())
-	proxyApp := proxy.NewAppConns(cc)
+	proxyApp := appconn.NewAppConns(cc)
 	err := proxyApp.Start()
 	require.Nil(t, err)
 	defer proxyApp.Stop()
@@ -59,7 +60,7 @@ func TestBeginBlockValidators(t *testing.T) {
 
 	app := &testApp{}
 	cc := proxy.NewLocalClientCreator(app)
-	proxyApp := proxy.NewAppConns(cc)
+	proxyApp := appconn.NewAppConns(cc)
 	err := proxyApp.Start()
 	require.Nil(t, err)
 	defer proxyApp.Stop()
@@ -266,7 +267,7 @@ func TestEndBlockValidatorUpdates(t *testing.T) {
 
 	app := &testApp{}
 	cc := proxy.NewLocalClientCreator(app)
-	proxyApp := proxy.NewAppConns(cc)
+	proxyApp := appconn.NewAppConns(cc)
 	err := proxyApp.Start()
 	require.Nil(t, err)
 	defer proxyApp.Stop()
@@ -334,7 +335,7 @@ func TestEndBlockValidatorUpdatesResultingInEmptySet(t *testing.T) {
 
 	app := &testApp{}
 	cc := proxy.NewLocalClientCreator(app)
-	proxyApp := proxy.NewAppConns(cc)
+	proxyApp := appconn.NewAppConns(cc)
 	err := proxyApp.Start()
 	require.Nil(t, err)
 	defer proxyApp.Stop()

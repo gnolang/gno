@@ -52,18 +52,18 @@ Likewise, if you have an idea on how to improve this guide, go for it as well.
 
 ### Environment
 
-The gno repository is primarily based on Golang (Go) and Gnolang (Gno).
+The gno repository is primarily based on Go (Golang) and Gno.
 
 The primary tech stack for working on the repository:
 
-- Go (version 1.20+)
+- Go (version 1.22+)
 - make (for using Makefile configurations)
 
 It is recommended to work on a Unix environment, as most of the tooling is built around ready-made tools in Unix (WSL2
 for Windows / Linux / macOS).
 
 For Gno, there is no specific tooling that needs to be installed, that’s not already provided with the repo itself.
-You can utilize the `gno` command to facilitate Gnolang support when writing Smart Contracts in Gno, by installing it
+You can utilize the `gno` command to facilitate Gno support when writing Smart Contracts in Gno, by installing it
 with `make install_gno`.
 
 If you are working on Go source code on this repository, `pkg.go.dev` will not
@@ -149,16 +149,16 @@ if (executable('gnols'))
 else
 	echomsg 'gnols binary not found: LSP disabled for Gno files'
 endif
-	
+
 function! s:on_lsp_buffer_enabled() abort
     " Autocompletion
     setlocal omnifunc=lsp#complete
     " Format on save
     autocmd BufWritePre <buffer> LspDocumentFormatSync
     " Some optional mappings
-    nmap <buffer> <leader>i <Plug>(lsp-hover) 
+    nmap <buffer> <leader>i <Plug>(lsp-hover)
     " Following mappings are not supported yet by gnols
-    " nmap <buffer> gd <plug>(lsp-definition)     
+    " nmap <buffer> gd <plug>(lsp-definition)
     " nmap <buffer> <leader>rr <plug>(lsp-rename)
 endfunction
 augroup lsp_install
@@ -290,7 +290,7 @@ If you wish to test a `.gno` Realm or Package, you can utilize the `gno` tool.
 
 2. Now, you can point to the directory containing the `*_test.gno` files:
 
-    gno test <path-to-dir> --verbose
+    gno test <path-to-dir> -v
 
 
 To learn more about how `gno` can help you when developing gno code, you can look into the available

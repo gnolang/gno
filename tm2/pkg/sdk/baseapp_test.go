@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"os"
 	"reflect"
 	"testing"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,6 +16,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -74,7 +74,7 @@ func newBaseApp(name string, db dbm.DB, options ...func(*BaseApp)) *BaseApp {
 func setupBaseApp(t *testing.T, options ...func(*BaseApp)) *BaseApp {
 	t.Helper()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(t.Name(), db, options...)
 	require.Equal(t, t.Name(), app.Name())
 	err := app.LoadLatestVersion()
@@ -101,7 +101,7 @@ func TestLoadVersion(t *testing.T) {
 
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
 	name := t.Name()
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(name, db, pruningOpt)
 
 	// make a cap key and mount the store
@@ -150,7 +150,7 @@ func TestAppVersionSetterGetter(t *testing.T) {
 
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
 	name := t.Name()
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(name, db, pruningOpt)
 
 	require.Equal(t, "", app.AppVersion())
@@ -171,7 +171,7 @@ func TestLoadVersionInvalid(t *testing.T) {
 
 	pruningOpt := SetPruningOptions(store.PruneSyncable)
 	name := t.Name()
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(name, db, pruningOpt)
 
 	err := app.LoadLatestVersion()
@@ -211,7 +211,7 @@ func testLoadVersionHelper(t *testing.T, app *BaseApp, expectedHeight int64, exp
 func TestOptionFunction(t *testing.T) {
 	t.Parallel()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	bap := newBaseApp("starting name", db, testChangeNameHelper("new name"))
 	require.Equal(t, bap.name, "new name", "BaseApp should have had name changed via option function")
 }
@@ -226,7 +226,7 @@ func testChangeNameHelper(name string) func(*BaseApp) {
 func TestInfo(t *testing.T) {
 	t.Parallel()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(t.Name(), db)
 
 	// ----- test an empty response -------
@@ -279,7 +279,7 @@ func TestSetMinGasPrices(t *testing.T) {
 
 	minGasPrices, err := ParseGasPrices("5000stake/10gas")
 	require.Nil(t, err)
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(t.Name(), db, SetMinGasPrices("5000stake/10gas"))
 	require.Equal(t, minGasPrices, app.minGasPrices)
 }
@@ -290,7 +290,7 @@ func TestInitChainer(t *testing.T) {
 	name := t.Name()
 	// keep the db and logger ourselves so
 	// we can reload the same  app later
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	app := newBaseApp(name, db)
 
 	// set a value in the store on init chain

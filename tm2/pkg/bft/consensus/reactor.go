@@ -2,11 +2,10 @@ package consensus
 
 import (
 	"fmt"
+	"log/slog"
 	"reflect"
 	"sync"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
@@ -876,26 +875,14 @@ var (
 
 // PeerState contains the known state of a peer, including its connection and
 // threadsafe access to its PeerRoundState.
-// NOTE: THIS GETS DUMPED WITH rpc/core/consensus.go.
+// NOTE: PeerStateExposed gets dumped with rpc/core/consensus.go.
 // Be mindful of what you Expose.
 type PeerState struct {
 	peer   p2p.Peer
 	logger *slog.Logger
 
-	mtx   sync.Mutex             // NOTE: Modify below using setters, never directly.
-	PRS   cstypes.PeerRoundState `json:"round_state"` // Exposed.
-	Stats *peerStateStats        `json:"stats"`       // Exposed.
-}
-
-// peerStateStats holds internal statistics for a peer.
-type peerStateStats struct {
-	Votes      int `json:"votes"`
-	BlockParts int `json:"block_parts"`
-}
-
-func (pss peerStateStats) String() string {
-	return fmt.Sprintf("peerStateStats{votes: %d, blockParts: %d}",
-		pss.Votes, pss.BlockParts)
+	mtx sync.Mutex // NOTE: Modify below using setters, never directly.
+	cstypes.PeerStateExposed
 }
 
 // NewPeerState returns a new PeerState for the given Peer
@@ -903,13 +890,15 @@ func NewPeerState(peer p2p.Peer) *PeerState {
 	return &PeerState{
 		peer:   peer,
 		logger: log.NewNoopLogger(),
-		PRS: cstypes.PeerRoundState{
-			Round:              -1,
-			ProposalPOLRound:   -1,
-			LastCommitRound:    -1,
-			CatchupCommitRound: -1,
+		PeerStateExposed: cstypes.PeerStateExposed{
+			PRS: cstypes.PeerRoundState{
+				Round:              -1,
+				ProposalPOLRound:   -1,
+				LastCommitRound:    -1,
+				CatchupCommitRound: -1,
+			},
+			Stats: &cstypes.PeerStateStats{},
 		},
-		Stats: &peerStateStats{},
 	}
 }
 
@@ -930,12 +919,14 @@ func (ps *PeerState) GetRoundState() *cstypes.PeerRoundState {
 	return &prs
 }
 
-// ToJSON returns a json of PeerState, marshalled using go-amino.
-func (ps *PeerState) ToJSON() ([]byte, error) {
+// GetExposed returns the PeerStateExposed. This method is type-asserted for
+// working with rpc/core.go without an import.
+// The returned value is read-only.
+func (ps *PeerState) GetExposed() cstypes.PeerStateExposed {
 	ps.mtx.Lock()
 	defer ps.mtx.Unlock()
 
-	return amino.MarshalJSON(ps)
+	return ps.PeerStateExposed
 }
 
 // GetHeight returns an atomic snapshot of the PeerRoundState's height

@@ -2,14 +2,14 @@ package log
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/jaekwon/testify/require"
-	"golang.org/x/exp/slog"
+	"github.com/stretchr/testify/require"
 )
 
 // NewTestingLogger returns a new testing logger

@@ -1,0 +1,92 @@
+syntax = "proto3";
+
+option go_package = "/messages/types";
+
+// MessageType defines the types of messages
+// that are related to the consensus process
+enum MessageType {
+  PROPOSAL = 0;
+  PREVOTE = 1;
+  PRECOMMIT = 2;
+}
+
+// View is the consensus state associated with the message
+message View {
+  // height represents the number of the proposal
+  uint64 height = 1;
+
+  // round represents the round number within a
+  // specific height (starts from 0)
+  uint64 round = 2;
+}
+
+// ProposalMessage is the message containing
+// the consensus proposal for the view
+// <PROPOSAL, hP, roundP, proposal, validRoundP>
+message ProposalMessage {
+  // view is the current view for the message
+  // (the view in which the message was sent)
+  View view = 1;
+
+  // sender is the message sender (unique identifier)
+  bytes sender = 2;
+
+  // signature is the message signature of the sender
+  bytes signature = 3;
+
+  // proposal is the actual consensus proposal
+  bytes proposal = 4;
+
+  // proposalRound is the round associated with the
+  // proposal in the PROPOSE message.
+  // NOTE: this round value DOES NOT have
+  // to match the message view (proposal from an earlier round)
+  int64 proposalRound = 5;
+}
+
+// PrevoteMessage is the message
+// containing the consensus proposal prevote.
+// The prevote message is pretty light,
+// apart from containing the view, it just
+// contains a unique identifier of the proposal
+// for which this prevote is meant for (ex. proposal hash)
+// <PREVOTE, hP, roundP, id(v)>
+message PrevoteMessage {
+  // view is the current view for the message
+  // (the view in which the message was sent)
+  View view = 1;
+
+  // sender is the message sender (unique identifier)
+  bytes sender = 2;
+
+  // signature is the message signature of the sender
+  bytes signature = 3;
+
+  // identifier is the unique identifier for
+  // the proposal associated with this
+  // prevote message (ex. proposal hash)
+  bytes identifier = 4;
+}
+
+// PrecommitMessage is the message
+// containing the consensus proposal precommit.
+// The precommit message, same as the prevote message,
+// contains a unique identifier for the proposal
+// for which this precommit is meant for (ex. proposal hash)
+// <PRECOMMIT, hP, roundP, id(v)>
+message PrecommitMessage {
+  // view is the current view for the message
+  // (the view in which the message was sent)
+  View view = 1;
+
+  // sender is the message sender (unique identifier)
+  bytes sender = 2;
+
+  // signature is the message signature of the sender
+  bytes signature = 3;
+
+  // identifier is the unique identifier for
+  // the proposal associated with this
+  // precommit message (ex. proposal hash)
+  bytes identifier = 4;
+}

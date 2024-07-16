@@ -1,6 +1,6 @@
 # Test skipping a test
 
-gno test -verbose .
+gno test -v .
 
 ! stdout .+
 stderr 'Hey'

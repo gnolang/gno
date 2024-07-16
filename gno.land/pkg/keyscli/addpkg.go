@@ -32,7 +32,7 @@ func NewMakeAddPkgCmd(rootCfg *client.MakeTxCfg, io commands.IO) *commands.Comma
 		commands.Metadata{
 			Name:       "addpkg",
 			ShortUsage: "addpkg [flags] <key-name>",
-			ShortHelp:  "Uploads a new package",
+			ShortHelp:  "uploads a new package",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -101,12 +101,6 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 		panic(fmt.Sprintf("found an empty package %q", cfg.PkgPath))
 	}
 
-	// precompile and validate syntax
-	err = gno.PrecompileAndCheckMempkg(memPkg)
-	if err != nil {
-		panic(err)
-	}
-
 	// parse gas wanted & fee.
 	gaswanted := cfg.RootCfg.GasWanted
 	gasfee, err := std.ParseCoin(cfg.RootCfg.GasFee)
@@ -132,7 +126,7 @@ func execMakeAddPkg(cfg *MakeAddPkgCfg, args []string, io commands.IO) error {
 			return err
 		}
 	} else {
-		fmt.Println(string(amino.MustMarshalJSON(tx)))
+		io.Println(string(amino.MustMarshalJSON(tx)))
 	}
 	return nil
 }

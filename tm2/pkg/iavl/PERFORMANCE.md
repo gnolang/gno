@@ -79,7 +79,7 @@ Some guides:
 
 Some ideas for speedups:
 
-  * [Speedup SHA256 100x on ARM](https://blog.minio.io/accelerating-sha256-by-100x-in-golang-on-arm-1517225f5ff4#.pybt7bb3w)
+  * [Speedup SHA256 100x on ARM](https://blog.min.io/accelerating-sha256-by-100x-in-golang-on-arm/)
   * [Faster SHA256 golang implementation](https://github.com/minio/sha256-simd)
   * [Data structure alignment](http://stackoverflow.com/questions/39063530/optimising-datastructure-word-alignment-padding-in-golang)
   * [Slice alignment](http://blog.chewxy.com/2016/07/25/on-the-memory-alignment-of-go-slice-values/)

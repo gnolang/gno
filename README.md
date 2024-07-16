@@ -10,7 +10,7 @@
 
 Gno is an interpreted and fully-deterministic implementation of the Go
 programming language, designed to build succinct and composable smart contracts.
-The first blockchain to use it is Gno.land, a
+The first blockchain to use it is gno.land, a
 [Proof of Contribution](./docs/concepts/proof-of-contribution.md)-based chain, backed by
 a variation of the [Tendermint](https://docs.tendermint.com/v0.34/introduction/what-is-tendermint.html)
 consensus engine.
@@ -47,7 +47,7 @@ repository offers more resources to dig into. We are eager to see your first PR!
 </a>
 </br></br>
 
-[Gno Playground](https://play.gno.land), available at [play.gno.land](https://play.gno.land), is a web app that allows users to write, share, and deploy Gno code. Developers can seamlessly test, debug, and deploy realms and packages on Gno.land, while being able to collaborate with peers to work on projects together and seek assistance. A key feature of Gno Playground is the ability to get started without the need to install any tools or manage any services, offering immediate access and convenience for users.
+[Gno Playground](https://play.gno.land), available at [play.gno.land](https://play.gno.land), is a web app that allows users to write, share, and deploy Gno code. Developers can seamlessly test, debug, and deploy realms and packages on gno.land, while being able to collaborate with peers to work on projects together and seek assistance. A key feature of Gno Playground is the ability to get started without the need to install any tools or manage any services, offering immediate access and convenience for users.
 
 ## Repository structure
 
@@ -83,10 +83,9 @@ repository offers more resources to dig into. We are eager to see your first PR!
   Developer commands:
 
   * [gno](./gnovm/cmd/gno) - handy tool for developing gno packages & realms
-  * [gnotxsync](./gno.land/cmd/gnotxsync) - importing/exporting transactions from local blockchain node storage
   * [goscan](./misc/goscan) - dumps imports from specified file’s AST
   * [genproto](./misc/genproto) - helper for generating .proto implementations
-  * [gnofaucet](./gno.land/cmd/gnofaucet) - serves GNOT faucet
+  * [gnofaucet](./contribs/gnofaucet) - serves GNOT faucet
 </details>
 
 <details><summary>CI/CD/Tools badges and links</summary>

@@ -8,22 +8,30 @@ func TestLintApp(t *testing.T) {
 			args:        []string{"lint"},
 			errShouldBe: "flag: help requested",
 		}, {
-			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/run-main/"},
-			stderrShouldContain: "./../../tests/integ/run-main: missing 'gno.mod' file (code=1).",
+			args:                []string{"lint", "../../tests/integ/run_main/"},
+			stderrShouldContain: "./../../tests/integ/run_main: missing 'gno.mod' file (code=1).",
+			errShouldBe:         "exit code: 1",
 		}, {
-			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/undefined-variable-test/undefined_variables_test.gno"},
+			args:                []string{"lint", "../../tests/integ/undefined_variable_test/undefined_variables_test.gno"},
 			stderrShouldContain: "undefined_variables_test.gno:6: name toto not declared (code=2)",
+			errShouldBe:         "exit code: 1",
 		}, {
-			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/package-not-declared/main.gno"},
+			args:                []string{"lint", "../../tests/integ/package_not_declared/main.gno"},
 			stderrShouldContain: "main.gno:4: name fmt not declared (code=2).",
+			errShouldBe:         "exit code: 1",
 		}, {
-			args:                []string{"lint", "--set-exit-status=0", "../../tests/integ/run-main/"},
-			stderrShouldContain: "./../../tests/integ/run-main: missing 'gno.mod' file (code=1).",
+			args:                []string{"lint", "../../tests/integ/several-lint-errors/main.gno"},
+			stderrShouldContain: "../../tests/integ/several-lint-errors/main.gno:5: expected ';', found example (code=2).\n../../tests/integ/several-lint-errors/main.gno:6",
+			errShouldBe:         "exit code: 1",
 		}, {
-			args: []string{"lint", "--set-exit-status=0", "../../tests/integ/minimalist-gnomod/"},
+			args:                []string{"lint", "../../tests/integ/run_main/"},
+			stderrShouldContain: "./../../tests/integ/run_main: missing 'gno.mod' file (code=1).",
+			errShouldBe:         "exit code: 1",
+		}, {
+			args: []string{"lint", "../../tests/integ/minimalist_gnomod/"},
 			// TODO: raise an error because there is a gno.mod, but no .gno files
 		}, {
-			args: []string{"lint", "--set-exit-status=0", "../../tests/integ/invalid-module-name/"},
+			args: []string{"lint", "../../tests/integ/invalid_module_name/"},
 			// TODO: raise an error because gno.mod is invalid
 		},
 
@@ -31,7 +39,7 @@ func TestLintApp(t *testing.T) {
 		// TODO: is gno source valid?
 		// TODO: are dependencies valid?
 		// TODO: is gno source using unsafe/discouraged features?
-		// TODO: consider making `gno precompile; go lint *gen.go`
+		// TODO: consider making `gno transpile; go lint *gen.go`
 		// TODO: check for imports of native libs from non _test.gno files
 	}
 	testMainCaseRun(t, tc)

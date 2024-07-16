@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"flag"
-	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -30,7 +29,7 @@ func NewMakeSendCmd(rootCfg *MakeTxCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "send",
 			ShortUsage: "send [flags] <key-name or address>",
-			ShortHelp:  "Sends native currency",
+			ShortHelp:  "sends native currency",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -124,7 +123,7 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 			return err
 		}
 	} else {
-		fmt.Println(string(amino.MustMarshalJSON(tx)))
+		io.Println(string(amino.MustMarshalJSON(tx)))
 	}
 	return nil
 }

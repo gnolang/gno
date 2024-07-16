@@ -4,7 +4,7 @@ import (
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -20,7 +20,7 @@ type testEnv struct {
 }
 
 func setupTestEnv() testEnv {
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 
 	authCapKey := store.NewStoreKey("authCapKey")
 

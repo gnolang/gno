@@ -2,13 +2,12 @@ package store
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime/debug"
 	"strings"
 	"testing"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,6 +18,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 )
@@ -45,13 +45,13 @@ func makeBlock(height int64, state sm.State, lastCommit *types.Commit) *types.Bl
 	return block
 }
 
-func makeStateAndBlockStore(logger *slog.Logger) (sm.State, *BlockStore, cleanupFunc) {
-	config := cfg.ResetTestRoot("blockchain_reactor_test")
-	// blockDB := dbm.NewDebugDB("blockDB", dbm.NewMemDB())
-	// stateDB := dbm.NewDebugDB("stateDB", dbm.NewMemDB())
-	blockDB := dbm.NewMemDB()
-	stateDB := dbm.NewMemDB()
-	state, err := sm.LoadStateFromDBOrGenesisFile(stateDB, config.GenesisFile())
+func makeStateAndBlockStore(_ *slog.Logger) (sm.State, *BlockStore, cleanupFunc) {
+	config, genesisFile := cfg.ResetTestRoot("blockchain_reactor_test")
+	// blockDB := dbm.NewDebugDB("blockDB", memdb.NewMemDB())
+	// stateDB := dbm.NewDebugDB("stateDB", memdb.NewMemDB())
+	blockDB := memdb.NewMemDB()
+	stateDB := memdb.NewMemDB()
+	state, err := sm.LoadStateFromDBOrGenesisFile(stateDB, genesisFile)
 	if err != nil {
 		panic(errors.Wrap(err, "error constructing state from genesis file"))
 	}
@@ -61,7 +61,7 @@ func makeStateAndBlockStore(logger *slog.Logger) (sm.State, *BlockStore, cleanup
 func TestLoadBlockStoreStateJSON(t *testing.T) {
 	t.Parallel()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 
 	bsj := &BlockStoreStateJSON{Height: 1000}
 	bsj.Save(db)
@@ -74,7 +74,7 @@ func TestLoadBlockStoreStateJSON(t *testing.T) {
 func TestNewBlockStore(t *testing.T) {
 	t.Parallel()
 
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	db.Set(blockStoreKey, []byte(`{"height": "10000"}`))
 	bs := NewBlockStore(db)
 	require.Equal(t, int64(10000), bs.Height(), "failed to properly parse blockstore")
@@ -105,7 +105,7 @@ func TestNewBlockStore(t *testing.T) {
 }
 
 func freshBlockStore() (*BlockStore, dbm.DB) {
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	return NewBlockStore(db), db
 }
 

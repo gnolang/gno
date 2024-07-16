@@ -5,20 +5,23 @@ import (
 	"errors"
 	"fmt"
 	"hash/crc32"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/log"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
@@ -28,7 +31,11 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-const numTestAccounts int = 4
+const (
+	envKeyGenesis int = iota
+	envKeyLogger
+	envKeyPkgsLoader
+)
 
 type tSeqShim struct{ *testing.T }
 
@@ -82,10 +89,6 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 	// Testscripts run concurrently by default, so we need to be prepared for that.
 	nodes := map[string]*testNode{}
 
-	// Track new user balances added via the `adduser` command. These are added to the genesis
-	// state when the node is started.
-	var newUserBalances []gnoland.Balance
-
 	updateScripts, _ := strconv.ParseBool(os.Getenv("UPDATE_SCRIPTS"))
 	persistWorkDir, _ := strconv.ParseBool(os.Getenv("TESTWORK"))
 	return testscript.Params{
@@ -119,7 +122,15 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					}
 				}
 
-				env.Values["_logger"] = logger
+				env.Values[envKeyLogger] = logger
+			}
+
+			// Track new user balances added via the `adduser`
+			// command and packages added with the `loadpkg` command.
+			// This genesis will be use when node is started.
+			genesis := &gnoland.GnoGenesisState{
+				Balances: LoadDefaultGenesisBalanceFile(t, gnoRootDir),
+				Txs:      []std.Tx{},
 			}
 
 			// test1 must be created outside of the loop below because it is already included in genesis so
@@ -129,17 +140,8 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
 			env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
 
-			// Create test accounts starting from test2.
-			for i := 1; i < numTestAccounts; i++ {
-				accountName := "test" + strconv.Itoa(i+1)
-
-				balance, err := createAccount(env, kb, accountName)
-				if err != nil {
-					return fmt.Errorf("error creating account %s: %w", accountName, err)
-				}
-
-				newUserBalances = append(newUserBalances, balance)
-			}
+			env.Values[envKeyGenesis] = genesis
+			env.Values[envKeyPkgsLoader] = newPkgsLoader()
 
 			env.Setenv("GNOROOT", gnoRootDir)
 			env.Setenv("GNOHOME", gnoHomeDir)
@@ -153,8 +155,8 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					return
 				}
 
-				logger := ts.Value("_logger").(*slog.Logger) // grab logger
-				sid := getNodeSID(ts)                        // grab session id
+				logger := ts.Value(envKeyLogger).(*slog.Logger) // grab logger
+				sid := getNodeSID(ts)                           // grab session id
 
 				var cmd string
 				cmd, args = args[0], args[1:]
@@ -167,27 +169,32 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						break
 					}
 
+					// get packages
+					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
+					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
+					defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+					pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil)
+					if err != nil {
+						ts.Fatalf("unable to load packages txs: %s", err)
+					}
+
 					// Warp up `ts` so we can pass it to other testing method
 					t := TSTestingT(ts)
 
 					// Generate config and node
-					cfg, _ := TestingNodeConfig(t, gnoRootDir)
+					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
+					genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+					genesis.Txs = append(pkgsTxs, genesis.Txs...)
 
-					// Add balances for users added via the `adduser` command.
-					genesis := cfg.Genesis
-					genesisState := gnoland.GnoGenesisState{
-						Balances: genesis.AppState.(gnoland.GnoGenesisState).Balances,
-						Txs:      genesis.AppState.(gnoland.GnoGenesisState).Txs,
-					}
-					genesisState.Balances = append(genesisState.Balances, newUserBalances...)
-					cfg.Genesis.AppState = genesisState
+					// setup genesis state
+					cfg.Genesis.AppState = *genesis
 
 					n, remoteAddr := TestingInMemoryNode(t, logger, cfg)
 
 					// Register cleanup
 					nodes[sid] = &testNode{Node: n}
 
-					// Add default environements
+					// Add default environments
 					ts.Setenv("RPC_ADDR", remoteAddr)
 
 					fmt.Fprintln(ts.Stdout(), "node started successfully")
@@ -197,11 +204,10 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						err = fmt.Errorf("node not started cannot be stopped")
 						break
 					}
-
 					if err = n.Stop(); err == nil {
 						delete(nodes, sid)
 
-						// Unset gnoland environements
+						// Unset gnoland environments
 						ts.Setenv("RPC_ADDR", "")
 						fmt.Fprintln(ts.Stdout(), "node stopped successfully")
 					}
@@ -212,8 +218,14 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				tsValidateError(ts, "gnoland "+cmd, neg, err)
 			},
 			"gnokey": func(ts *testscript.TestScript, neg bool, args []string) {
-				logger := ts.Value("_logger").(*slog.Logger) // grab logger
-				sid := ts.Getenv("SID")                      // grab session id
+				logger := ts.Value(envKeyLogger).(*slog.Logger) // grab logger
+				sid := ts.Getenv("SID")                         // grab session id
+
+				// Unquote args enclosed in `"` to correctly handle `\n` or similar escapes.
+				args, err := unquote(args)
+				if err != nil {
+					tsValidateError(ts, "gnokey", neg, err)
+				}
 
 				// Setup IO command
 				io := commands.NewTestIO()
@@ -245,11 +257,10 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				// user provided.
 				args = append(defaultArgs, args...)
 
-				err := cmd.ParseAndRun(context.Background(), args)
-
+				err = cmd.ParseAndRun(context.Background(), args)
 				tsValidateError(ts, "gnokey", neg, err)
 			},
-			// adduser commands must be executed before starting the node; it errors out otherwise.
+			// adduser command must be executed before starting the node; it errors out otherwise.
 			"adduser": func(ts *testscript.TestScript, neg bool, args []string) {
 				if nodeIsRunning(nodes, getNodeSID(ts)) {
 					tsValidateError(ts, "adduser", neg, errors.New("adduser must be used before starting node"))
@@ -270,10 +281,192 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					ts.Fatalf("error creating account %s: %s", args[0], err)
 				}
 
-				newUserBalances = append(newUserBalances, balance)
+				// Add balance to genesis
+				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+				genesis.Balances = append(genesis.Balances, balance)
+			},
+			// adduserfrom commands must be executed before starting the node; it errors out otherwise.
+			"adduserfrom": func(ts *testscript.TestScript, neg bool, args []string) {
+				if nodeIsRunning(nodes, getNodeSID(ts)) {
+					tsValidateError(ts, "adduserfrom", neg, errors.New("adduserfrom must be used before starting node"))
+					return
+				}
+
+				var account, index uint64
+				var err error
+
+				switch len(args) {
+				case 2:
+					// expected user input
+					// adduserfrom 'username 'menmonic'
+					// no need to do anything
+
+				case 4:
+					// expected user input
+					// adduserfrom 'username 'menmonic' 'account' 'index'
+
+					// parse 'index' first, then fallghrough to `case 3` to parse 'account'
+					index, err = strconv.ParseUint(args[3], 10, 32)
+					if err != nil {
+						ts.Fatalf("invalid index number %s", args[3])
+					}
+
+					fallthrough // parse 'account'
+				case 3:
+					// expected user input
+					// adduserfrom 'username 'menmonic' 'account'
+
+					account, err = strconv.ParseUint(args[2], 10, 32)
+					if err != nil {
+						ts.Fatalf("invalid account number %s", args[2])
+					}
+				default:
+					ts.Fatalf("to create account from metadatas, user name and mnemonic are required ( account and index are optional )")
+				}
+
+				kb, err := keys.NewKeyBaseFromDir(gnoHomeDir)
+				if err != nil {
+					ts.Fatalf("unable to get keybase")
+				}
+
+				balance, err := createAccountFrom(ts, kb, args[0], args[1], uint32(account), uint32(index))
+				if err != nil {
+					ts.Fatalf("error creating wallet %s", err)
+				}
+
+				// Add balance to genesis
+				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+				genesis.Balances = append(genesis.Balances, balance)
+
+				fmt.Fprintf(ts.Stdout(), "Added %s(%s) to genesis", args[0], balance.Address)
+			},
+			// `patchpkg` Patch any loaded files by packages by replacing all occurrences of the
+			// first argument with the second.
+			// This is mostly use to replace hardcoded address inside txtar file.
+			"patchpkg": func(ts *testscript.TestScript, neg bool, args []string) {
+				args, err := unquote(args)
+				if err != nil {
+					tsValidateError(ts, "patchpkg", neg, err)
+				}
+
+				if len(args) != 2 {
+					ts.Fatalf("`patchpkg`: should have exactly 2 arguments")
+				}
+
+				pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)
+				replace, with := args[0], args[1]
+				pkgs.SetPatch(replace, with)
+			},
+			// `loadpkg` load a specific package from the 'examples' or working directory.
+			"loadpkg": func(ts *testscript.TestScript, neg bool, args []string) {
+				// special dirs
+				workDir := ts.Getenv("WORK")
+				examplesDir := filepath.Join(gnoRootDir, "examples")
+
+				pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)
+
+				var path, name string
+				switch len(args) {
+				case 2:
+					name = args[0]
+					path = filepath.Clean(args[1])
+				case 1:
+					path = filepath.Clean(args[0])
+				case 0:
+					ts.Fatalf("`loadpkg`: no arguments specified")
+				default:
+					ts.Fatalf("`loadpkg`: too many arguments specified")
+				}
+
+				// If `all` is specified, fully load 'examples' directory.
+				// NOTE: In 99% of cases, this is not needed, and
+				// packages should be loaded individually.
+				if path == "all" {
+					ts.Logf("warning: loading all packages")
+					if err := pkgs.LoadAllPackagesFromDir(examplesDir); err != nil {
+						ts.Fatalf("unable to load packages from %q: %s", examplesDir, err)
+					}
+
+					return
+				}
+
+				if !strings.HasPrefix(path, workDir) {
+					path = filepath.Join(examplesDir, path)
+				}
+
+				if err := pkgs.LoadPackage(examplesDir, path, name); err != nil {
+					ts.Fatalf("`loadpkg` unable to load package(s) from %q: %s", args[0], err)
+				}
+
+				ts.Logf("%q package was added to genesis", args[0])
 			},
 		},
 	}
+}
+
+// `unquote` takes a slice of strings, resulting from splitting a string block by spaces, and
+// processes them. The function handles quoted phrases and escape characters within these strings.
+func unquote(args []string) ([]string, error) {
+	const quote = '"'
+
+	parts := []string{}
+	var inQuote bool
+
+	var part strings.Builder
+	for _, arg := range args {
+		var escaped bool
+		for _, c := range arg {
+			if escaped {
+				// If the character is meant to be escaped, it is processed with Unquote.
+				// We use `Unquote` here for two main reasons:
+				// 1. It will validate that the escape sequence is correct
+				// 2. It converts the escaped string to its corresponding raw character.
+				//    For example, "\\t" becomes '\t'.
+				uc, err := strconv.Unquote(`"\` + string(c) + `"`)
+				if err != nil {
+					return nil, fmt.Errorf("unhandled escape sequence `\\%c`: %w", c, err)
+				}
+
+				part.WriteString(uc)
+				escaped = false
+				continue
+			}
+
+			// If we are inside a quoted string and encounter an escape character,
+			// flag the next character as `escaped`
+			if inQuote && c == '\\' {
+				escaped = true
+				continue
+			}
+
+			// Detect quote and toggle inQuote state
+			if c == quote {
+				inQuote = !inQuote
+				continue
+			}
+
+			// Handle regular character
+			part.WriteRune(c)
+		}
+
+		// If we're inside a quote, add a single space.
+		// It reflects one or multiple spaces between args in the original string.
+		if inQuote {
+			part.WriteRune(' ')
+			continue
+		}
+
+		// Finalize part, add to parts, and reset for next part
+		parts = append(parts, part.String())
+		part.Reset()
+	}
+
+	// Check if a quote is left open
+	if inQuote {
+		return nil, errors.New("unfinished quote")
+	}
+
+	return parts, nil
 }
 
 func getNodeSID(ts *testscript.TestScript) string {
@@ -369,6 +562,169 @@ func createAccount(env envSetter, kb keys.Keybase, accountName string) (gnoland.
 
 	return gnoland.Balance{
 		Address: address,
-		Amount:  std.Coins{std.NewCoin("ugnot", 1000000000000000000)},
+		Amount:  std.Coins{std.NewCoin("ugnot", 10e6)},
 	}, nil
+}
+
+// createAccountFrom creates a new account with the given metadata and adds it to the keybase.
+func createAccountFrom(env envSetter, kb keys.Keybase, accountName, mnemonic string, account, index uint32) (gnoland.Balance, error) {
+	var balance gnoland.Balance
+
+	// check if mnemonic is valid
+	if !bip39.IsMnemonicValid(mnemonic) {
+		return balance, fmt.Errorf("invalid mnemonic")
+	}
+
+	keyInfo, err := kb.CreateAccount(accountName, mnemonic, "", "", account, index)
+	if err != nil {
+		return balance, fmt.Errorf("unable to create account: %w", err)
+	}
+
+	address := keyInfo.GetAddress()
+	env.Setenv("USER_SEED_"+accountName, mnemonic)
+	env.Setenv("USER_ADDR_"+accountName, address.String())
+
+	return gnoland.Balance{
+		Address: address,
+		Amount:  std.Coins{std.NewCoin("ugnot", 10e6)},
+	}, nil
+}
+
+type pkgsLoader struct {
+	pkgs    []gnomod.Pkg
+	visited map[string]struct{}
+
+	// list of occurrences to patchs with the given value
+	// XXX: find a better way
+	patchs map[string]string
+}
+
+func newPkgsLoader() *pkgsLoader {
+	return &pkgsLoader{
+		pkgs:    make([]gnomod.Pkg, 0),
+		visited: make(map[string]struct{}),
+		patchs:  make(map[string]string),
+	}
+}
+
+func (pl *pkgsLoader) List() gnomod.PkgList {
+	return pl.pkgs
+}
+
+func (pl *pkgsLoader) SetPatch(replace, with string) {
+	pl.patchs[replace] = with
+}
+
+func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
+	pkgslist, err := pl.List().Sort() // sorts packages by their dependencies.
+	if err != nil {
+		return nil, fmt.Errorf("unable to sort packages: %w", err)
+	}
+
+	txs := make([]std.Tx, len(pkgslist))
+	for i, pkg := range pkgslist {
+		tx, err := gnoland.LoadPackage(pkg, creator, fee, deposit)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load pkg %q: %w", pkg.Name, err)
+		}
+
+		// If any replace value is specified, apply them
+		if len(pl.patchs) > 0 {
+			for _, msg := range tx.Msgs {
+				addpkg, ok := msg.(vm.MsgAddPackage)
+				if !ok {
+					continue
+				}
+
+				if addpkg.Package == nil {
+					continue
+				}
+
+				for _, file := range addpkg.Package.Files {
+					for replace, with := range pl.patchs {
+						file.Body = strings.ReplaceAll(file.Body, replace, with)
+					}
+				}
+			}
+		}
+
+		txs[i] = tx
+	}
+
+	return txs, nil
+}
+
+func (pl *pkgsLoader) LoadAllPackagesFromDir(path string) error {
+	// list all packages from target path
+	pkgslist, err := gnomod.ListPkgs(path)
+	if err != nil {
+		return fmt.Errorf("listing gno packages: %w", err)
+	}
+
+	for _, pkg := range pkgslist {
+		if !pl.exist(pkg) {
+			pl.add(pkg)
+		}
+	}
+
+	return nil
+}
+
+func (pl *pkgsLoader) LoadPackage(modroot string, path, name string) error {
+	// Initialize a queue with the root package
+	queue := []gnomod.Pkg{{Dir: path, Name: name}}
+
+	for len(queue) > 0 {
+		// Dequeue the first package
+		currentPkg := queue[0]
+		queue = queue[1:]
+
+		if currentPkg.Dir == "" {
+			return fmt.Errorf("no path specified for package")
+		}
+
+		if currentPkg.Name == "" {
+			// Load `gno.mod` information
+			gnoModPath := filepath.Join(currentPkg.Dir, "gno.mod")
+			gm, err := gnomod.ParseGnoMod(gnoModPath)
+			if err != nil {
+				return fmt.Errorf("unable to load %q: %w", gnoModPath, err)
+			}
+			gm.Sanitize()
+
+			// Override package info with mod infos
+			currentPkg.Name = gm.Module.Mod.Path
+			currentPkg.Draft = gm.Draft
+			for _, req := range gm.Require {
+				currentPkg.Requires = append(currentPkg.Requires, req.Mod.Path)
+			}
+		}
+
+		if currentPkg.Draft {
+			continue // Skip draft package
+		}
+
+		if pl.exist(currentPkg) {
+			continue
+		}
+		pl.add(currentPkg)
+
+		// Add requirements to the queue
+		for _, pkgPath := range currentPkg.Requires {
+			fullPath := filepath.Join(modroot, pkgPath)
+			queue = append(queue, gnomod.Pkg{Dir: fullPath})
+		}
+	}
+
+	return nil
+}
+
+func (pl *pkgsLoader) add(pkg gnomod.Pkg) {
+	pl.visited[pkg.Name] = struct{}{}
+	pl.pkgs = append(pl.pkgs, pkg)
+}
+
+func (pl *pkgsLoader) exist(pkg gnomod.Pkg) (ok bool) {
+	_, ok = pl.visited[pkg.Name]
+	return
 }

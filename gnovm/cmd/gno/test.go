@@ -33,7 +33,6 @@ type testCfg struct {
 	rootDir             string
 	run                 string
 	timeout             time.Duration
-	precompile          bool // TODO: precompile should be the default, but it needs to automatically precompile dependencies in memory.
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	withNativeFallback  bool
@@ -46,7 +45,7 @@ func newTestCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "test",
 			ShortUsage: "test [flags] <package> [<package>...]",
-			ShortHelp:  "Runs the tests for the specified packages",
+			ShortHelp:  "runs the tests for the specified packages",
 			LongHelp: `Runs the tests for the specified packages.
 
 'gno test' recompiles each package along with any files with names matching the
@@ -104,16 +103,9 @@ instruction with the actual content of the test instead of failing.
 func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.BoolVar(
 		&c.verbose,
-		"verbose",
+		"v",
 		false,
 		"verbose output when running",
-	)
-
-	fs.BoolVar(
-		&c.precompile,
-		"precompile",
-		false,
-		"precompile gno to go before testing",
 	)
 
 	fs.BoolVar(
@@ -164,21 +156,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	verbose := cfg.verbose
-
-	tempdirRoot, err := os.MkdirTemp("", "gno-precompile")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(tempdirRoot)
-
-	// go.mod
-	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = makeTestGoMod(modPath, gno.ImportPrefix, "1.20")
-	if err != nil {
-		return fmt.Errorf("write .mod file: %w", err)
-	}
-
 	// guess opts.RootDir
 	if cfg.rootDir == "" {
 		cfg.rootDir = gnoenv.RootDir()
@@ -208,43 +185,6 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	buildErrCount := 0
 	testErrCount := 0
 	for _, pkg := range subPkgs {
-		if cfg.precompile {
-			if verbose {
-				io.ErrPrintfln("=== PREC  %s", pkg.Dir)
-			}
-			precompileOpts := newPrecompileOptions(&precompileCfg{
-				output: tempdirRoot,
-			})
-			err := precompilePkg(importPath(pkg.Dir), precompileOpts)
-			if err != nil {
-				io.ErrPrintln(err)
-				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkg.Dir)
-				io.ErrPrintln("FAIL")
-
-				buildErrCount++
-				continue
-			}
-
-			if verbose {
-				io.ErrPrintfln("=== BUILD %s", pkg.Dir)
-			}
-			tempDir, err := ResolvePath(tempdirRoot, importPath(pkg.Dir))
-			if err != nil {
-				return errors.New("cannot resolve build dir")
-			}
-			err = goBuildFileOrPkg(tempDir, defaultPrecompileCfg)
-			if err != nil {
-				io.ErrPrintln(err)
-				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkg.Dir)
-				io.ErrPrintln("FAIL")
-
-				buildErrCount++
-				continue
-			}
-		}
-
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
 			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
 			continue
@@ -317,13 +257,22 @@ func gnoTestPkg(
 			gnoPkgPath = pkgPathFromRootDir(pkgPath, rootDir)
 			if gnoPkgPath == "" {
 				// unable to read pkgPath from gno.mod, generate a random realm path
-				gnoPkgPath = gno.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
+				gnoPkgPath = gno.RealmPathPrefix + random.RandStr(8)
 			}
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
-		tfiles, ifiles := parseMemPackageTests(memPkg)
+		var tfiles, ifiles *gno.FileSet
+
+		hasError := catchRuntimeError(gnoPkgPath, stderr, func() {
+			tfiles, ifiles = parseMemPackageTests(memPkg)
+		})
+
+		if hasError {
+			return commands.ExitCodeError(1)
+		}
 		testPkgName := getPkgNameFromFileset(ifiles)
 
 		// run test files in pkg
@@ -637,7 +586,7 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 		}
 		n, err := gno.ParseFile(mfile.Name, mfile.Body)
 		if err != nil {
-			panic(errors.Wrap(err, "parsing file "+mfile.Name))
+			panic(err)
 		}
 		if n == nil {
 			panic("should not happen")

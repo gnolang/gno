@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	banktestAddr := std.DerivePkgAddr("gno.land/r/banktest")
+	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/banktest")
 
 	// simulate a Deposit call.
 	std.TestSetOrigPkgAddr(banktestAddr)

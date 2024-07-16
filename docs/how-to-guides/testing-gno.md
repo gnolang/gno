@@ -12,7 +12,7 @@ testing techniques that involve data mocking.
 
 ## Prerequisites
 
-- **`gno` set up. Reference the [Installation](../getting-started/local-setup.md#3-installing-other-gno-tools) guide
+- **`gno` set up. Reference the [Installation](../getting-started/local-setup/local-setup.md#3-installing-other-gno-tools) guide
   for steps**
 
 ## Example Realm
@@ -145,12 +145,12 @@ Simply point it to the location containing our testing source code, and the test
 For example, we can run the following command from the `counter-app/r/counter` directory:
 
 ```bash
-gno test -verbose -root-dir /Users/zmilos/Work/gno .
+gno test -v .
 ```
 
 Let's look into the different parts of this command:
 
-- `-verbose` enables the verbose output.
+- `-v` enables the verbose output.
 - `-root-dir` specifies the root directory to our cloned `gno` GitHub repository
 - `.` specifies the location containing our test files. Since we are already located in that directory, we specify
   a `.`.
@@ -177,7 +177,7 @@ Luckily, the Gno standard library provides ample support for functionality such 
 time, such as the request caller address, or the calling package address.
 
 You can learn more about these methods, that are importable using the `std` import declaration,
-in the [Standard Library](../concepts/standard-library/overview.md) reference section.
+in the [Standard Library](../concepts/stdlibs/stdlibs.md) reference section.
 
 ## Conclusion
 

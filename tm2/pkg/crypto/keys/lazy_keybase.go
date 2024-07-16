@@ -7,6 +7,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/os"
+
+	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 )
 
 const dbBackend = db.GoLevelDBBackend

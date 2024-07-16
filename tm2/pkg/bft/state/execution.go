@@ -2,14 +2,13 @@ package state
 
 import (
 	"fmt"
-
-	"golang.org/x/exp/slog"
+	"log/slog"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	"github.com/gnolang/gno/tm2/pkg/bft/fail"
 	mempl "github.com/gnolang/gno/tm2/pkg/bft/mempool"
-	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	typesver "github.com/gnolang/gno/tm2/pkg/bft/types/version"
 	tmver "github.com/gnolang/gno/tm2/pkg/bft/version"
@@ -29,7 +28,7 @@ type BlockExecutor struct {
 	db dbm.DB
 
 	// execute the app against this
-	proxyApp proxy.AppConnConsensus
+	proxyApp appconn.Consensus
 
 	// events
 	evsw events.EventSwitch
@@ -45,7 +44,7 @@ type BlockExecutorOption func(executor *BlockExecutor)
 
 // NewBlockExecutor returns a new BlockExecutor with a NopEventBus.
 // Call SetEventBus to provide one.
-func NewBlockExecutor(db dbm.DB, logger *slog.Logger, proxyApp proxy.AppConnConsensus, mempool mempl.Mempool, options ...BlockExecutorOption) *BlockExecutor {
+func NewBlockExecutor(db dbm.DB, logger *slog.Logger, proxyApp appconn.Consensus, mempool mempl.Mempool, options ...BlockExecutorOption) *BlockExecutor {
 	res := &BlockExecutor{
 		db:       db,
 		proxyApp: proxyApp,
@@ -109,6 +108,18 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	// Save the results before we commit.
 	saveABCIResponses(blockExec.db, block.Height, abciResponses)
+
+	// Save the transaction results
+	for index, tx := range block.Txs {
+		saveTxResultIndex(
+			blockExec.db,
+			tx.Hash(),
+			TxResultIndex{
+				BlockNum: block.Height,
+				TxIndex:  uint32(index),
+			},
+		)
+	}
 
 	fail.Fail() // XXX
 
@@ -208,7 +219,7 @@ func (blockExec *BlockExecutor) Commit(
 // Returns a list of transaction results and updates to the validator set
 func execBlockOnProxyApp(
 	logger *slog.Logger,
-	proxyAppConn proxy.AppConnConsensus,
+	proxyAppConn appconn.Consensus,
 	block *types.Block,
 	stateDB dbm.DB,
 ) (*ABCIResponses, error) {
@@ -416,7 +427,7 @@ func fireEvents(evsw events.EventSwitch, block *types.Block, abciResponses *ABCI
 			Height:   block.Height,
 			Index:    uint32(i),
 			Tx:       tx,
-			Response: (abciResponses.DeliverTxs[i]),
+			Response: abciResponses.DeliverTxs[i],
 		}})
 	}
 
@@ -432,7 +443,7 @@ func fireEvents(evsw events.EventSwitch, block *types.Block, abciResponses *ABCI
 // ExecCommitBlock executes and commits a block on the proxyApp without validating or mutating the state.
 // It returns the application root hash (result of abci.Commit).
 func ExecCommitBlock(
-	appConnConsensus proxy.AppConnConsensus,
+	appConnConsensus appconn.Consensus,
 	block *types.Block,
 	logger *slog.Logger,
 	stateDB dbm.DB,

@@ -594,7 +594,7 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 	cdc.typeInfos[rt] = info
 
 	info.Type = rt
-	info.PtrToType = reflect.PtrTo(rt)
+	info.PtrToType = reflect.PointerTo(rt)
 	info.ZeroValue = reflect.Zero(rt)
 	var isAminoMarshaler bool
 	var reprType reflect.Type
@@ -602,7 +602,7 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 		isAminoMarshaler = true
 		reprType = marshalAminoReprType(rm)
 	}
-	if rm, ok := reflect.PtrTo(rt).MethodByName("UnmarshalAmino"); ok {
+	if rm, ok := reflect.PointerTo(rt).MethodByName("UnmarshalAmino"); ok {
 		if !isAminoMarshaler {
 			panic("Must implement both (o).MarshalAmino and (*o).UnmarshalAmino")
 		}

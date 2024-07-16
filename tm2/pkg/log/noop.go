@@ -2,8 +2,7 @@ package log
 
 import (
 	"context"
-
-	"golang.org/x/exp/slog"
+	"log/slog"
 )
 
 // NewNoopLogger returns a new no-op logger

@@ -22,6 +22,6 @@ This enables non-web3 developers to contribute without requiring an understandin
 
 ## Getting started
 
-Install [`gno`](../getting-started/local-setup.md) and refer to the [`examples`](https://github.com/gnolang/gno/tree/master/examples) folder to start developing contracts.
+Install [`gno`](../getting-started/local-setup/local-setup.md) and refer to the [`examples`](https://github.com/gnolang/gno/tree/master/examples) folder to start developing contracts.
 
 Check the [Makefile](https://github.com/gnolang/gno/blob/master/gnovm/Makefile) to enhance GnoVM, Gno, and stdlibs.

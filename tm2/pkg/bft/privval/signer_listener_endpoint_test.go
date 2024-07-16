@@ -1,11 +1,10 @@
 package privval
 
 import (
+	"log/slog"
 	"net"
 	"testing"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

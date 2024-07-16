@@ -27,7 +27,7 @@ func newCleanCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "clean",
 			ShortUsage: "clean [flags]",
-			ShortHelp:  "Removes generated files and cached data",
+			ShortHelp:  "removes generated files and cached data",
 		},
 		cfg,
 		func(ctx context.Context, args []string) error {

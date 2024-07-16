@@ -10,40 +10,41 @@ import (
 // ConsensusConfig
 
 const (
-	defaultDataDir = "data"
+	defaultWALDir = "wal"
 )
 
 // ConsensusConfig defines the configuration for the Tendermint consensus service,
 // including timeouts and details about the WAL and the block structure.
 type ConsensusConfig struct {
-	RootDir string `toml:"home"`
-	WalPath string `toml:"wal_file"`
-	walFile string // overrides WalPath if set
+	RootDir     string `json:"home" toml:"home"`
+	WALPath     string `json:"wal_file" toml:"wal_file"`
+	WALDisabled bool   `json:"-" toml:"-"`
+	walFile     string // overrides WalPath if set
 
-	TimeoutPropose        time.Duration `toml:"timeout_propose"`
-	TimeoutProposeDelta   time.Duration `toml:"timeout_propose_delta"`
-	TimeoutPrevote        time.Duration `toml:"timeout_prevote"`
-	TimeoutPrevoteDelta   time.Duration `toml:"timeout_prevote_delta"`
-	TimeoutPrecommit      time.Duration `toml:"timeout_precommit"`
-	TimeoutPrecommitDelta time.Duration `toml:"timeout_precommit_delta"`
-	TimeoutCommit         time.Duration `toml:"timeout_commit"`
+	TimeoutPropose        time.Duration `json:"timeout_propose" toml:"timeout_propose"`
+	TimeoutProposeDelta   time.Duration `json:"timeout_propose_delta" toml:"timeout_propose_delta"`
+	TimeoutPrevote        time.Duration `json:"timeout_prevote" toml:"timeout_prevote"`
+	TimeoutPrevoteDelta   time.Duration `json:"timeout_prevote_delta" toml:"timeout_prevote_delta"`
+	TimeoutPrecommit      time.Duration `json:"timeout_precommit" toml:"timeout_precommit"`
+	TimeoutPrecommitDelta time.Duration `json:"timeout_precommit_delta" toml:"timeout_precommit_delta"`
+	TimeoutCommit         time.Duration `json:"timeout_commit" toml:"timeout_commit"`
 
 	// Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)
-	SkipTimeoutCommit bool `toml:"skip_timeout_commit" comment:"Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)"`
+	SkipTimeoutCommit bool `json:"skip_timeout_commit" toml:"skip_timeout_commit" comment:"Make progress as soon as we have all the precommits (as if TimeoutCommit = 0)"`
 
 	// EmptyBlocks mode and possible interval between empty blocks
-	CreateEmptyBlocks         bool          `toml:"create_empty_blocks" comment:"EmptyBlocks mode and possible interval between empty blocks"`
-	CreateEmptyBlocksInterval time.Duration `toml:"create_empty_blocks_interval"`
+	CreateEmptyBlocks         bool          `json:"create_empty_blocks" toml:"create_empty_blocks" comment:"EmptyBlocks mode and possible interval between empty blocks"`
+	CreateEmptyBlocksInterval time.Duration `json:"create_empty_blocks_interval" toml:"create_empty_blocks_interval"`
 
 	// Reactor sleep duration parameters
-	PeerGossipSleepDuration     time.Duration `toml:"peer_gossip_sleep_duration" comment:"Reactor sleep duration parameters"`
-	PeerQueryMaj23SleepDuration time.Duration `toml:"peer_query_maj23_sleep_duration"`
+	PeerGossipSleepDuration     time.Duration `json:"peer_gossip_sleep_duration" toml:"peer_gossip_sleep_duration" comment:"Reactor sleep duration parameters"`
+	PeerQueryMaj23SleepDuration time.Duration `json:"peer_query_maj_23_sleep_duration" toml:"peer_query_maj23_sleep_duration"`
 }
 
 // DefaultConsensusConfig returns a default configuration for the consensus service
 func DefaultConsensusConfig() *ConsensusConfig {
 	return &ConsensusConfig{
-		WalPath:                     filepath.Join(defaultDataDir, "cs.wal", "wal"),
+		WALPath:                     filepath.Join(defaultWALDir, "cs.wal", "wal"),
 		TimeoutPropose:              3000 * time.Millisecond,
 		TimeoutProposeDelta:         500 * time.Millisecond,
 		TimeoutPrevote:              1000 * time.Millisecond,
@@ -111,7 +112,8 @@ func (cfg *ConsensusConfig) WalFile() string {
 	if cfg.walFile != "" {
 		return cfg.walFile
 	}
-	return join(cfg.RootDir, cfg.WalPath)
+
+	return filepath.Join(cfg.RootDir, cfg.WALPath)
 }
 
 // SetWalFile sets the path to the write-ahead log file

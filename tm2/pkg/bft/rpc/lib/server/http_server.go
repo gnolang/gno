@@ -5,13 +5,12 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/http"
 	"runtime/debug"
 	"strings"
 	"time"
-
-	"golang.org/x/exp/slog"
 
 	"golang.org/x/net/netutil"
 
@@ -119,7 +118,7 @@ func WriteRPCResponseHTTP(w http.ResponseWriter, res types.RPCResponse) {
 // WriteRPCResponseArrayHTTP will do the same as WriteRPCResponseHTTP, except it
 // can write arrays of responses for batched request/response interactions via
 // the JSON RPC.
-func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res []types.RPCResponse) {
+func WriteRPCResponseArrayHTTP(w http.ResponseWriter, res types.RPCResponses) {
 	if len(res) == 1 {
 		WriteRPCResponseHTTP(w, res[0])
 	} else {

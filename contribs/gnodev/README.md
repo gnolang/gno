@@ -2,6 +2,8 @@
 
 `gnodev` is designed to be a robust and user-friendly tool in your realm package development journey, streamlining your workflow and enhancing productivity.
 
+We will only give a quick overview below. You may find the official documentation at [docs/gno-tooling/gnodev.md](../../docs/gno-tooling/cli/gnodev.md).
+
 ### Synopsis
 **gnodev** [**-minimal**] [**-no-watch**] [**PKG_PATH ...**]
 
@@ -21,8 +23,8 @@ the following combinations:
 - **Ctrl+R**: Reset the current node state.
 - **Ctrl+C**: Exit `gnodev`.
 
-### Example Folder Loading
-The **example** package folder is loaded automatically. If working within this folder, you don't have to specify any additional paths to `gnodev`. Use `--minimal` to prevent this.
+### Loading 'examples'
+The **examples** directory is loaded automatically. If working within this folder, you don't have to specify any additional paths to `gnodev`. Use `--minimal` to prevent this.
 
 ### Installation
 Run `make install` to install `gnodev`.

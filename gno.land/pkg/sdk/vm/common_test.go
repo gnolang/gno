@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	authm "github.com/gnolang/gno/tm2/pkg/sdk/auth"
@@ -25,7 +25,15 @@ type testEnv struct {
 }
 
 func setupTestEnv() testEnv {
-	db := dbm.NewMemDB()
+	return _setupTestEnv(true)
+}
+
+func setupTestEnvCold() testEnv {
+	return _setupTestEnv(false)
+}
+
+func _setupTestEnv(cacheStdlibs bool) testEnv {
+	db := memdb.NewMemDB()
 
 	baseCapKey := store.NewStoreKey("baseCapKey")
 	iavlCapKey := store.NewStoreKey("iavlCapKey")
@@ -39,9 +47,11 @@ func setupTestEnv() testEnv {
 	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
 	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
-	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir, 10_000_000)
+	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir, 100_000_000)
 
-	vmk.Initialize(ms.MultiCacheWrap())
+	mcw := ms.MultiCacheWrap()
+	vmk.Initialize(log.NewNoopLogger(), mcw, cacheStdlibs)
+	mcw.MultiWrite()
 
 	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}
 }

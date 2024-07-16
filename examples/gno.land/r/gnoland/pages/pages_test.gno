@@ -1,7 +1,6 @@
 package gnopages
 
 import (
-	"std"
 	"strings"
 	"testing"
 )
@@ -10,7 +9,6 @@ func TestHome(t *testing.T) {
 	printedOnce := false
 	got := Render("")
 	expectedSubtrings := []string{
-		"/r/gnoland/pages:p/events",
 		"/r/gnoland/pages:p/tokenomics",
 		"/r/gnoland/pages:p/start",
 		"/r/gnoland/pages:p/gor",
@@ -32,8 +30,8 @@ func TestAbout(t *testing.T) {
 	printedOnce := false
 	got := Render("p/about")
 	expectedSubtrings := []string{
-		"# About Gno.land",
-		"Gno.land is a platform to write smart contracts in Gnolang (Gno).",
+		"Gno.land Is A Platform To Write Smart Contracts In Gno",
+		"Gno.land is a next-generation smart contract platform using Gno, an interpreted version of the general-purpose Go\nprogramming language.",
 	}
 	for _, substring := range expectedSubtrings {
 		if !strings.Contains(got, substring) {

@@ -6,82 +6,133 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-type SampleResult struct {
-	Value string
-}
-
-type responseTest struct {
-	id       jsonrpcid
-	expected string
-}
-
-var responseTests = []responseTest{
-	{JSONRPCStringID("1"), `"1"`},
-	{JSONRPCStringID("alphabet"), `"alphabet"`},
-	{JSONRPCStringID(""), `""`},
-	{JSONRPCStringID("àáâ"), `"àáâ"`},
-	{JSONRPCIntID(-1), "-1"},
-	{JSONRPCIntID(0), "0"},
-	{JSONRPCIntID(1), "1"},
-	{JSONRPCIntID(100), "100"},
-}
-
-func TestResponses(t *testing.T) {
+func TestJSONRPCID_Marshal_Unmarshal(t *testing.T) {
 	t.Parallel()
 
-	assert := assert.New(t)
-	for _, tt := range responseTests {
-		jsonid := tt.id
-		a := NewRPCSuccessResponse(jsonid, &SampleResult{"hello"})
-		b, _ := json.Marshal(a)
-		s := fmt.Sprintf(`{"jsonrpc":"2.0","id":%v,"result":{"Value":"hello"}}`, tt.expected)
-		assert.Equal(s, string(b))
-
-		d := RPCParseError(jsonid, errors.New("Hello world"))
-		e, _ := json.Marshal(d)
-		f := fmt.Sprintf(`{"jsonrpc":"2.0","id":%v,"error":{"code":-32700,"message":"Parse error. Invalid JSON","data":"Hello world"}}`, tt.expected)
-		assert.Equal(f, string(e))
-
-		g := RPCMethodNotFoundError(jsonid)
-		h, _ := json.Marshal(g)
-		i := fmt.Sprintf(`{"jsonrpc":"2.0","id":%v,"error":{"code":-32601,"message":"Method not found"}}`, tt.expected)
-		assert.Equal(string(h), i)
+	testTable := []struct {
+		name       string
+		id         JSONRPCID
+		expectedID string
+	}{
+		{
+			"short string",
+			JSONRPCStringID("1"),
+			`"1"`,
+		},
+		{
+			"long string",
+			JSONRPCStringID("alphabet"),
+			`"alphabet"`,
+		},
+		{
+			"empty string",
+			JSONRPCStringID(""),
+			`""`,
+		},
+		{
+			"unicode string",
+			JSONRPCStringID("àáâ"),
+			`"àáâ"`,
+		},
+		{
+			"negative number",
+			JSONRPCIntID(-1),
+			"-1",
+		},
+		{
+			"zero ID",
+			JSONRPCIntID(0),
+			"0",
+		},
+		{
+			"non-zero ID",
+			JSONRPCIntID(100),
+			"100",
+		},
 	}
-}
 
-func TestUnmarshallResponses(t *testing.T) {
-	t.Parallel()
+	for _, testCase := range testTable {
+		testCase := testCase
 
-	assert := assert.New(t)
-	for _, tt := range responseTests {
-		response := &RPCResponse{}
-		err := json.Unmarshal([]byte(fmt.Sprintf(`{"jsonrpc":"2.0","id":%v,"result":{"Value":"hello"}}`, tt.expected)), response)
-		assert.Nil(err)
-		a := NewRPCSuccessResponse(tt.id, &SampleResult{"hello"})
-		assert.Equal(*response, a)
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			t.Run("marshal", func(t *testing.T) {
+				t.Parallel()
+
+				data, err := json.Marshal(
+					NewRPCSuccessResponse(testCase.id, struct {
+						Value string
+					}{
+						Value: "hello",
+					},
+					),
+				)
+				require.NoError(t, err)
+
+				assert.Equal(
+					t,
+					fmt.Sprintf(
+						`{"jsonrpc":"2.0","id":%v,"result":{"Value":"hello"}}`,
+						testCase.expectedID,
+					),
+					string(data),
+				)
+
+				data, err = json.Marshal(RPCParseError(testCase.id, errors.New("Hello world")))
+				require.NoError(t, err)
+
+				assert.Equal(
+					t,
+					fmt.Sprintf(
+						`{"jsonrpc":"2.0","id":%v,"error":{"code":-32700,"message":"Parse error. Invalid JSON","data":"Hello world"}}`,
+						testCase.expectedID,
+					),
+					string(data),
+				)
+
+				data, err = json.Marshal(RPCMethodNotFoundError(testCase.id))
+				require.NoError(t, err)
+
+				assert.Equal(
+					t,
+					fmt.Sprintf(
+						`{"jsonrpc":"2.0","id":%v,"error":{"code":-32601,"message":"Method not found"}}`,
+						testCase.expectedID,
+					),
+					string(data),
+				)
+			})
+
+			t.Run("unmarshal", func(t *testing.T) {
+				t.Parallel()
+
+				var expectedResponse RPCResponse
+
+				assert.NoError(
+					t,
+					json.Unmarshal(
+						[]byte(fmt.Sprintf(`{"jsonrpc":"2.0","id":%v,"result":{"Value":"hello"}}`, testCase.expectedID)),
+						&expectedResponse,
+					),
+				)
+
+				successResponse := NewRPCSuccessResponse(
+					testCase.id,
+					struct {
+						Value string
+					}{
+						Value: "hello",
+					},
+				)
+
+				assert.Equal(t, expectedResponse, successResponse)
+			})
+		})
 	}
-	response := &RPCResponse{}
-	err := json.Unmarshal([]byte(`{"jsonrpc":"2.0","id":true,"result":{"Value":"hello"}}`), response)
-	assert.NotNil(err)
-}
-
-func TestRPCError(t *testing.T) {
-	t.Parallel()
-
-	assert.Equal(t, "RPC error 12 - Badness: One worse than a code 11",
-		fmt.Sprintf("%v", &RPCError{
-			Code:    12,
-			Message: "Badness",
-			Data:    "One worse than a code 11",
-		}))
-
-	assert.Equal(t, "RPC error 12 - Badness",
-		fmt.Sprintf("%v", &RPCError{
-			Code:    12,
-			Message: "Badness",
-		}))
 }

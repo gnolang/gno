@@ -1,16 +1,16 @@
 package blockchain
 
 import (
+	"log/slog"
 	"os"
 	"sort"
 	"testing"
 	"time"
 
-	"golang.org/x/exp/slog"
-
 	"github.com/stretchr/testify/assert"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
@@ -18,7 +18,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/store"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	tmtime "github.com/gnolang/gno/tm2/pkg/bft/types/time"
-	dbm "github.com/gnolang/gno/tm2/pkg/db"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
@@ -49,7 +49,7 @@ func randGenesisDoc(numValidators int, randPower bool, minPower int64) (*types.G
 
 type BlockchainReactorPair struct {
 	reactor *BlockchainReactor
-	app     proxy.AppConns
+	app     appconn.AppConns
 }
 
 func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVals []types.PrivValidator, maxBlockHeight int64) BlockchainReactorPair {
@@ -59,14 +59,14 @@ func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVal
 
 	app := &testApp{}
 	cc := proxy.NewLocalClientCreator(app)
-	proxyApp := proxy.NewAppConns(cc)
+	proxyApp := appconn.NewAppConns(cc)
 	err := proxyApp.Start()
 	if err != nil {
 		panic(errors.Wrap(err, "error start app"))
 	}
 
-	blockDB := dbm.NewMemDB()
-	stateDB := dbm.NewMemDB()
+	blockDB := memdb.NewMemDB()
+	stateDB := memdb.NewMemDB()
 	blockStore := store.NewBlockStore(blockDB)
 
 	state, err := sm.LoadStateFromDBOrGenesisDoc(stateDB, genDoc)
@@ -78,7 +78,7 @@ func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVal
 	// NOTE we have to create and commit the blocks first because
 	// pool.height is determined from the store.
 	fastSync := true
-	db := dbm.NewMemDB()
+	db := memdb.NewMemDB()
 	blockExec := sm.NewBlockExecutor(db, logger, proxyApp.Consensus(), mock.Mempool{})
 	sm.SaveState(db, state)
 
@@ -119,7 +119,7 @@ func newBlockchainReactor(logger *slog.Logger, genDoc *types.GenesisDoc, privVal
 func TestNoBlockResponse(t *testing.T) {
 	t.Parallel()
 
-	config = cfg.ResetTestRoot("blockchain_reactor_test")
+	config, _ = cfg.ResetTestRoot("blockchain_reactor_test")
 	defer os.RemoveAll(config.RootDir)
 	genDoc, privVals := randGenesisDoc(1, false, 30)
 
@@ -182,7 +182,7 @@ func TestFlappyBadBlockStopsPeer(t *testing.T) {
 
 	testutils.FilterStability(t, testutils.Flappy)
 
-	config = cfg.ResetTestRoot("blockchain_reactor_test")
+	config, _ = cfg.ResetTestRoot("blockchain_reactor_test")
 	defer os.RemoveAll(config.RootDir)
 	genDoc, privVals := randGenesisDoc(1, false, 30)
 

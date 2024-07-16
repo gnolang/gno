@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"reflect"
 	"time"
 
-	"golang.org/x/exp/slog"
-
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
+	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/mempool/mock"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
@@ -233,7 +233,7 @@ func (h *Handshaker) NBlocks() int {
 }
 
 // TODO: retry the handshake/replay if it fails ?
-func (h *Handshaker) Handshake(proxyApp proxy.AppConns) error {
+func (h *Handshaker) Handshake(proxyApp appconn.AppConns) error {
 	// Handshake is done via ABCI Info on the query conn.
 	res, err := proxyApp.Query().InfoSync(abci.RequestInfo{})
 	if err != nil {
@@ -280,7 +280,7 @@ func (h *Handshaker) ReplayBlocks(
 	state sm.State,
 	appHash []byte,
 	appBlockHeight int64,
-	proxyApp proxy.AppConns,
+	proxyApp appconn.AppConns,
 ) ([]byte, error) {
 	storeBlockHeight := h.store.Height()
 	stateBlockHeight := state.LastBlockHeight
@@ -393,7 +393,7 @@ func (h *Handshaker) ReplayBlocks(
 		appBlockHeight, storeBlockHeight, stateBlockHeight))
 }
 
-func (h *Handshaker) replayBlocks(state sm.State, proxyApp proxy.AppConns, appBlockHeight, storeBlockHeight int64, mutateState bool) ([]byte, error) {
+func (h *Handshaker) replayBlocks(state sm.State, proxyApp appconn.AppConns, appBlockHeight, storeBlockHeight int64, mutateState bool) ([]byte, error) {
 	// App is further behind than it should be, so we need to replay blocks.
 	// We replay all blocks from appBlockHeight+1.
 	//
@@ -440,7 +440,7 @@ func (h *Handshaker) replayBlocks(state sm.State, proxyApp proxy.AppConns, appBl
 }
 
 // ApplyBlock on the proxyApp with the last block.
-func (h *Handshaker) replayBlock(state sm.State, height int64, proxyApp proxy.AppConnConsensus) (sm.State, error) {
+func (h *Handshaker) replayBlock(state sm.State, height int64, proxyApp appconn.Consensus) (sm.State, error) {
 	block := h.store.LoadBlock(height)
 	meta := h.store.LoadBlockMeta(height)
 
@@ -484,7 +484,7 @@ Did you reset Tendermint without resetting your application's data?`,
 // mockProxyApp uses ABCIResponses to give the right results
 // Useful because we don't want to call Commit() twice for the same block on the real app.
 
-func newMockProxyApp(appHash []byte, abciResponses *sm.ABCIResponses) proxy.AppConnConsensus {
+func newMockProxyApp(appHash []byte, abciResponses *sm.ABCIResponses) appconn.Consensus {
 	clientCreator := proxy.NewLocalClientCreator(&mockProxyApp{
 		appHash:       appHash,
 		abciResponses: abciResponses,
@@ -494,7 +494,7 @@ func newMockProxyApp(appHash []byte, abciResponses *sm.ABCIResponses) proxy.AppC
 	if err != nil {
 		panic(err)
 	}
-	return proxy.NewAppConnConsensus(cli)
+	return appconn.Consensus(cli)
 }
 
 type mockProxyApp struct {

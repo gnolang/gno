@@ -14,13 +14,14 @@ import (
 
 func Render(_ string) string {
 	dom := ui.DOM{Prefix: "r/gnoland/home:"}
-	dom.Title = "Welcome to Gno.land"
+	dom.Title = "Welcome to gno.land"
+	dom.Classes = []string{"gno-tmpl-section"}
 
 	// body
 	dom.Body.Append(introSection()...)
-	dom.Body.Append(ui.Jumbotron(worxDAO()))
-	dom.Body.Append(packageStaffPicks()...)
-	dom.Body.Append(ui.HR{})
+
+	dom.Body.Append(ui.Jumbotron(discoverLinks()))
+
 	dom.Body.Append(
 		ui.Columns{3, []ui.Element{
 			lastBlogposts(4),
@@ -28,8 +29,14 @@ func Render(_ string) string {
 			lastContributions(4),
 		}},
 	)
-	dom.Body.Append(ui.Jumbotron(discoverLinks()))
 
+	dom.Body.Append(ui.HR{})
+	dom.Body.Append(playgroundSection()...)
+	dom.Body.Append(ui.HR{})
+	dom.Body.Append(packageStaffPicks()...)
+	dom.Body.Append(ui.HR{})
+	dom.Body.Append(worxDAO()...)
+	dom.Body.Append(ui.HR{})
 	// footer
 	dom.Footer.Append(
 		ui.Columns{2, []ui.Element{
@@ -51,31 +58,32 @@ func Render(_ string) string {
 func lastBlogposts(limit int) ui.Element {
 	posts := blog.RenderLastPostsWidget(limit)
 	return ui.Element{
-		ui.H3("Last Blogposts"),
+		ui.H3("Latest Blogposts"),
 		ui.Text(posts),
 	}
 }
 
 func lastContributions(limit int) ui.Element {
 	return ui.Element{
-		ui.H3("Last Contributions"),
-		ui.Text("TODO: import r/gh"),
-		ui.Link{Text: "#1134", URL: "https://github.com/gnolang/gno/pull/1134"},
+		ui.H3("Latest Contributions"),
+		// TODO: import r/gh to
+		ui.Link{Text: "View latest contributions", URL: "https://github.com/gnolang/gno/pulls"},
 	}
 }
 
 func upcomingEvents(limit int) ui.Element {
 	return ui.Element{
 		ui.H3("Upcoming Events"),
-		ui.Text("TODO: import r/gnoland/events"),
+		// TODO: replace with r/gnoland/events
+		ui.Text("[View upcoming events](/events)"),
 	}
 }
 
 func introSection() ui.Element {
 	return ui.Element{
-		ui.H3("An interpretation of the Golang (Go) programming language for advanced developers and intrepid pioneers to build succinct, composable smart contracts for social coordination."),
-		ui.Paragraph("If you’re concerned about information censorship and want to contribute to the #GnoWorldOrder, follow our socials to find out how."),
-		ui.Paragraph("Gno.land is in building mode. If you want to help lay the foundations of a fairer and freer world through innovative ideas and exceptional code, join us today."),
+		ui.H3("We’re building gno.land, set to become the leading open-source smart contract platform, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts."),
+		ui.Paragraph("With transparent and timeless code, gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse."),
+		ui.Paragraph("Intuitive and easy to use, gno.land lowers the barrier to web3 and makes censorship-resistant platforms accessible to everyone. If you want to help lay the foundations of a fairer and freer world, join us today."),
 	}
 }
 
@@ -107,7 +115,8 @@ func worxDAO() ui.Element {
 	``*/
 	return ui.Element{
 		ui.H3("Contributions (WorxDAO & GoR)"),
-		ui.Text(`TODO: GoR dashboard + WorxDAO topics`),
+		// TODO: GoR dashboard + WorxDAO topics
+		ui.Text(`coming soon`),
 	}
 }
 
@@ -124,7 +133,7 @@ func quoteOfTheBlock() ui.Element {
 	qotb := quotes[idx]
 
 	return ui.Element{
-		ui.H3(ufmt.Sprintf("Quote of the ~Day~Block#%d", height)),
+		ui.H3(ufmt.Sprintf("Quote of the ~Day~ Block#%d", height)),
 		ui.Quote(qotb),
 	}
 }
@@ -143,6 +152,16 @@ func socialLinks() ui.Element {
 	}
 }
 
+func playgroundSection() ui.Element {
+	return ui.Element{
+		ui.H3("[Gno Playground](https://play.gno.land)"),
+		ui.Paragraph(`Gno Playground is a web application designed for building, running, testing, and interacting
+with your Gno code, enhancing your understanding of the Gno language. With Gno Playground, you can share your code,
+execute tests, deploy your realms and packages to gno.land, and explore a multitude of other features.`),
+		ui.Paragraph("Experience the convenience of code sharing and rapid experimentation with [Gno Playground](https://play.gno.land)."),
+	}
+}
+
 func packageStaffPicks() ui.Element {
 	// XXX: make it modifiable from a DAO
 	return ui.Element{
@@ -151,7 +170,7 @@ func packageStaffPicks() ui.Element {
 			3,
 			[]ui.Element{
 				{
-					ui.H4("r/gnoland"),
+					ui.H4("[r/gnoland](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/gnoland)"),
 					ui.BulletList{
 						ui.Link{URL: "r/gnoland/blog"},
 						ui.Link{URL: "r/gnoland/dao"},
@@ -159,14 +178,14 @@ func packageStaffPicks() ui.Element {
 						ui.Link{URL: "r/gnoland/home"},
 						ui.Link{URL: "r/gnoland/pages"},
 					},
-					ui.H4("r/system"),
+					ui.H4("[r/sys](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/sys)"),
 					ui.BulletList{
-						ui.Link{URL: "r/system/names"},
-						ui.Link{URL: "r/system/rewards"},
-						ui.Link{URL: "r/system/validators"},
+						ui.Link{URL: "r/sys/names"},
+						ui.Link{URL: "r/sys/rewards"},
+						ui.Link{URL: "r/sys/validators"},
 					},
 				}, {
-					ui.H4("r/demo"),
+					ui.H4("[r/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo)"),
 					ui.BulletList{
 						ui.Link{URL: "r/demo/boards"},
 						ui.Link{URL: "r/demo/users"},
@@ -176,12 +195,13 @@ func packageStaffPicks() ui.Element {
 						ui.Link{URL: "r/demo/microblog"},
 						ui.Link{URL: "r/demo/nft"},
 						ui.Link{URL: "r/demo/types"},
-						ui.Link{URL: "r/demo/art"},
+						ui.Link{URL: "r/demo/art/gnoface"},
+						ui.Link{URL: "r/demo/art/millipede"},
 						ui.Link{URL: "r/demo/groups"},
 						ui.Text("..."),
 					},
 				}, {
-					ui.H4("p/demo"),
+					ui.H4("[p/demo](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo)"),
 					ui.BulletList{
 						ui.Link{URL: "p/demo/avl"},
 						ui.Link{URL: "p/demo/blog"},
@@ -206,29 +226,29 @@ func discoverLinks() ui.Element {
 		ui.Text(`<div class="columns-3">
 <div class="column">
 
-### Learn about Gno.land
+### Learn about gno.land
 
 - [About](/about)
 - [GitHub](https://github.com/gnolang)
-- [Subscribe](#subscribe)
-- [Tokenomics (soon)](#)
 - [Blog](/blog)
 - [Events](/events)
+- Tokenomics (soon)
 - [Partners, Fund, Grants](/partners)
+- [Explore the Ecosystem](/ecosystem)
+- [Careers](https://jobs.lever.co/allinbits?department=Gno.land)
 
 </div><!-- end column-->
 
 <div class="column">
 
-### Build with Gnolang
+### Build with Gno
 
-- [Gno dev with CLI (soon)](#)
-- [Explore the Universe](/ecosystem)
-- [Test in the browser (soon)](#)
-- [About the Gnolang Language](/gnolang)
-- [Docs/ Tutorials](https://github.com/gnolang)
-- [Gno by example](https://gno-by-example.com/)
-- [Getting started video (soon)](#)
+- [Write Gno in the browser](https://play.gno.land)
+- [Read about the Gno Language](/gnolang)
+- [Visit the official documentation](https://docs.gno.land)
+- [Gno by Example](https://gno-by-example.com/)
+- [Efficient local development for Gno](https://docs.gno.land/gno-tooling/cli/gno-tooling-gnodev)
+- [Get testnet GNOTs](https://faucet.gno.land)
 
 </div><!-- end column-->
 <div class="column">
@@ -236,11 +256,12 @@ func discoverLinks() ui.Element {
 ### Explore the universe
 
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
-- [Install Gno Key instructions](/r/demo/boards:testboard/5)
-- [Testnets 3](https://test3.gno.land/)
-- [Testnets 2](https://test2.gno.land/)
-- [Explorer links(soon)](#)
-- [Testnet Tokens (faucet)](https://test3.gno.land/faucet)
+- [Gnoscan](https://gnoscan.io)
+- [Portal Loop](https://docs.gno.land/concepts/portal-loop)
+- Testnet 4 (upcoming)
+- [Testnet 3](https://test3.gno.land/) (archive)
+- [Testnet 2](https://test2.gno.land/) (archive)
+- Testnet Faucet Hub (soon)
 
 </div><!-- end column-->
 </div><!-- end columns-3-->`),

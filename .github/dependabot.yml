@@ -8,6 +8,10 @@ updates:
       interval: "daily"
     labels:
       - "github_actions"
+    groups:
+      actions:
+        patterns:
+          - "*"
 
   # Maintain dependencies for top level Go modules
   - package-ecosystem: gomod
@@ -21,11 +25,6 @@ updates:
       golang-x:
         patterns:
           - "golang.org/x/*"
-      dbs:
-        patterns:
-          - "github.com/linxGnu/grocksdb"
-          - "go.etcd.io/bbolt"
-          - "github.com/dgraph-io/badger/v3"
       everything-else:
         patterns:
           - "*"
