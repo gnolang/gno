@@ -1,7 +1,7 @@
 package forms
 
 import (
-	"std" 
+	"std"
 
 	"gno.land/p/demo/seqid"
 )
@@ -9,12 +9,12 @@ import (
 type Field struct {
 	Label string
 
-	/* 
-	string: "string";
-	number: "number";
-	boolean: "boolean";
-	choice: "['Pizza', 'Schnitzel', 'Burger']";
-	multi-choice: "{'Pizza', 'Schnitzel', 'Burger'}";
+	/*
+		string: "string";
+		number: "number";
+		boolean: "boolean";
+		choice: "['Pizza', 'Schnitzel', 'Burger']";
+		multi-choice: "{'Pizza', 'Schnitzel', 'Burger'}";
 	*/
 	FieldType string
 
@@ -22,23 +22,23 @@ type Field struct {
 }
 
 type Form struct {
-	ID	 string
+	ID    string
 	Owner std.Address
-	
-	Title string
+
+	Title       string
 	Description string
-	Fields []Field
-	
+	Fields      []Field
+
 	CreatedAt string
-	OpenAt string
-	CloseAt string
+	OpenAt    string
+	CloseAt   string
 }
 
 type Submission struct {
 	FormID string
 
 	Author std.Address
-	
+
 	/* ["Alex", 21, true, 0, [0, 1]] */
 	Answers string // json
 
@@ -47,7 +47,7 @@ type Submission struct {
 
 type FormDatabase struct {
 	Forms []*Form
-	
+
 	Answers []*Submission
 
 	IDCounter seqid.ID
@@ -55,7 +55,7 @@ type FormDatabase struct {
 
 func NewDatabase() *FormDatabase {
 	return &FormDatabase{
-		Forms: make([]*Form, 0),
+		Forms:   make([]*Form, 0),
 		Answers: make([]*Submission, 0),
 	}
-}  
+}

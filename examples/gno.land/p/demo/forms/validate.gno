@@ -2,8 +2,8 @@ package forms
 
 import (
 	"strings"
-	
-	"gno.land/p/demo/json" 
+
+	"gno.land/p/demo/json"
 )
 
 func ValidateBooleanField(node *json.Node, field Field) bool {
@@ -58,8 +58,8 @@ func ValidateNumberField(node *json.Node, field Field) bool {
 }
 
 func ValidateMultiChoiceField(node *json.Node, field Field) bool {
-	choices := strings.Split(field.FieldType[1:len(field.FieldType) - 1], "|")
-	
+	choices := strings.Split(field.FieldType[1:len(field.FieldType)-1], "|")
+
 	if node.IsArray() == false {
 		return false
 	}
@@ -77,7 +77,7 @@ func ValidateMultiChoiceField(node *json.Node, field Field) bool {
 		if err != nil {
 			return false
 		}
-		
+
 		choiceIdx := choiceNode.MustNumeric()
 		if choiceIdx < 0 || int(choiceIdx) >= len(choices) {
 			return false
@@ -88,8 +88,8 @@ func ValidateMultiChoiceField(node *json.Node, field Field) bool {
 }
 
 func ValideChoiceField(node *json.Node, field Field) bool {
-	choices := strings.Split(field.FieldType[1:len(field.FieldType) - 1], "|")
-	
+	choices := strings.Split(field.FieldType[1:len(field.FieldType)-1], "|")
+
 	if node.IsNumber() == false {
 		return false
 	}
@@ -132,12 +132,12 @@ func ValidateAnswers(answers string, fields []Field) bool {
 				return false
 			}
 		}
-		if field.FieldType[0] == '{' && field.FieldType[len(field.FieldType) - 1] == '}' {
+		if field.FieldType[0] == '{' && field.FieldType[len(field.FieldType)-1] == '}' {
 			if ValidateMultiChoiceField(answer, field) == false {
 				return false
 			}
 		}
-		if field.FieldType[0] == '[' && field.FieldType[len(field.FieldType) - 1] == ']' {
+		if field.FieldType[0] == '[' && field.FieldType[len(field.FieldType)-1] == ']' {
 			if ValideChoiceField(answer, field) == false {
 				return false
 			}

@@ -1,9 +1,9 @@
 package forms
 
-import ( 
-	"time" 
+import (
 	"std"
-	
+	"time"
+
 	"gno.land/p/demo/ufmt"
 )
 
@@ -18,9 +18,9 @@ func (db *FormDatabase) SubmitForm(formID string, answers string) {
 	}
 
 	answer := &Submission{
-		FormID: formID,
-		Answers: answers,
-		Author: std.PrevRealm().Addr(),
+		FormID:      formID,
+		Answers:     answers,
+		Author:      std.PrevRealm().Addr(),
 		SubmittedAt: time.Now().String(),
 	}
 

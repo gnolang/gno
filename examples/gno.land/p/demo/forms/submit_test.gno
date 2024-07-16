@@ -2,8 +2,6 @@ package forms
 
 import (
 	"testing"
-
-	"gno.land/p/demo/testutils"
 )
 
 func TestAnswerForm(t *testing.T) {
@@ -53,4 +51,4 @@ func TestAnswerForm(t *testing.T) {
 	if db.Answers[0].Answers != answers {
 		t.Errorf("Expected answers %s, got %s", answers, db.Answers[0].Answers)
 	}
-} 
+}

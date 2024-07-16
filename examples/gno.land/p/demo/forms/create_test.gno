@@ -1,8 +1,8 @@
 package forms
 
 import (
-	"testing"
 	"std"
+	"testing"
 
 	"gno.land/p/demo/testutils"
 )
@@ -44,7 +44,7 @@ func TestCreateForm(t *testing.T) {
 	]`
 	db := NewDatabase()
 	id := db.CreateForm(title, description, openAt, closeAt, data)
- 	if id == "" {
+	if id == "" {
 		t.Error("Form ID is empty")
 	}
 	form := db.GetForm(id)

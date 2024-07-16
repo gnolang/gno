@@ -1,9 +1,9 @@
 package forms
 
 import (
-	"gno.land/p/demo/forms" 
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/forms"
 	"gno.land/p/demo/json"
+	"gno.land/p/demo/ufmt"
 )
 
 var db *forms.FormDatabase
@@ -22,22 +22,22 @@ func GetForms() string {
 		fieldsJson := json.ArrayNode("", []*json.Node{})
 		for _, field := range form.Fields {
 			fieldJson := json.ObjectNode("", map[string]*json.Node{
-				"label": json.StringNode("label", field.Label),
+				"label":     json.StringNode("label", field.Label),
 				"fieldType": json.StringNode("fieldType", field.FieldType),
-				"required": json.BoolNode("required", field.Required),
+				"required":  json.BoolNode("required", field.Required),
 			})
 			fieldsJson.AppendArray(fieldJson)
-		} 
+		}
 
 		formJson := json.ObjectNode("", map[string]*json.Node{
-			"id": json.StringNode("id", form.ID),
-			"owner": json.StringNode("owner", form.Owner.String()),
-			"title": json.StringNode("title", form.Title),
+			"id":          json.StringNode("id", form.ID),
+			"owner":       json.StringNode("owner", form.Owner.String()),
+			"title":       json.StringNode("title", form.Title),
 			"description": json.StringNode("description", form.Description),
-			"createdAt": json.StringNode("createdAt", form.CreatedAt),
-			"openAt": json.StringNode("openAt", form.OpenAt),
-			"closeAt": json.StringNode("closeAt", form.CloseAt),
-			"fields": fieldsJson,
+			"createdAt":   json.StringNode("createdAt", form.CreatedAt),
+			"openAt":      json.StringNode("openAt", form.OpenAt),
+			"closeAt":     json.StringNode("closeAt", form.CloseAt),
+			"fields":      fieldsJson,
 		})
 		formsJson.AppendArray(formJson)
 	}
@@ -59,9 +59,9 @@ func GetFormByID(id string) string {
 	fieldsJson := json.ArrayNode("", []*json.Node{})
 	for _, field := range form.Fields {
 		fieldJson := json.ObjectNode("", map[string]*json.Node{
-			"label": json.StringNode("label", field.Label),
+			"label":     json.StringNode("label", field.Label),
 			"fieldType": json.StringNode("fieldType", field.FieldType),
-			"required": json.BoolNode("required", field.Required),
+			"required":  json.BoolNode("required", field.Required),
 		})
 		fieldsJson.AppendArray(fieldJson)
 	}
@@ -71,15 +71,15 @@ func GetFormByID(id string) string {
 	ufmt.Println("DWADAWDWA")
 
 	jsonRes := json.ObjectNode("", map[string]*json.Node{
-		"id": json.StringNode("id", form.ID),
-		"owner": json.StringNode("owner", form.Owner.String()),
-		"title": json.StringNode("title", form.Title),
+		"id":          json.StringNode("id", form.ID),
+		"owner":       json.StringNode("owner", form.Owner.String()),
+		"title":       json.StringNode("title", form.Title),
 		"description": json.StringNode("description", form.Description),
-		"createdAt": json.StringNode("createdAt", form.CreatedAt),
-		"openAt": json.StringNode("openAt", form.OpenAt),
-		"closeAt": json.StringNode("closeAt", form.CloseAt),
-		"fields": fieldsJson,
-	})	
+		"createdAt":   json.StringNode("createdAt", form.CreatedAt),
+		"openAt":      json.StringNode("openAt", form.OpenAt),
+		"closeAt":     json.StringNode("closeAt", form.CloseAt),
+		"fields":      fieldsJson,
+	})
 
 	encoded, err := json.Marshal(jsonRes)
 	if err != nil {
@@ -108,7 +108,7 @@ func SubmitForm(formID string, answers string) {
 	if form == nil {
 		panic(ufmt.Errorf("Form not found: %s", formID))
 	}
-	
+
 	db.SubmitForm(formID, answers)
 }
 
@@ -119,7 +119,7 @@ func Render(path string) string {
 	}
 	response += "Answers:\n\n"
 	for _, answer := range db.Answers {
-		response += ufmt.Sprintf("- Form ID: %s\nAuthor: %s\nSubmitted At: %s\n>Answers: %s\n\n", answer.FormID, answer.Author, answer.SubmittedAt, answer.Answers)	
+		response += ufmt.Sprintf("- Form ID: %s\nAuthor: %s\nSubmitted At: %s\n>Answers: %s\n\n", answer.FormID, answer.Author, answer.SubmittedAt, answer.Answers)
 	}
 
 	return response

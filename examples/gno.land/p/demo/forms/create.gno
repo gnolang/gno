@@ -1,18 +1,18 @@
 package forms
 
-import ( 
-	"time" 
+import (
 	"std"
-	
+	"time"
+
+	"gno.land/p/demo/json"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/json" 
 )
 
 func (form *Form) AddField(label string, fieldType string, required bool) {
 	field := Field{
-		Label: label,
+		Label:     label,
 		FieldType: fieldType,
-		Required: required,
+		Required:  required,
 	}
 
 	form.Fields = append(form.Fields, field)
@@ -31,21 +31,21 @@ func (db *FormDatabase) CreateForm(title string, description string, openAt stri
 	id := db.IDCounter.Next().String()
 
 	form := &Form{
-		ID: id,
-		Owner: std.PrevRealm().Addr(),
-		Title: title,
+		ID:          id,
+		Owner:       std.PrevRealm().Addr(),
+		Title:       title,
 		Description: description,
-		CreatedAt: time.Now().String(),
-		OpenAt: openAt,
-		CloseAt: closeAt,
+		CreatedAt:   time.Now().String(),
+		OpenAt:      openAt,
+		CloseAt:     closeAt,
 	}
 
 	db.Forms = append(db.Forms, form)
 
-    node, err := json.Unmarshal([]byte(data))
-    if err != nil {
-        ufmt.Errorf("error: %v", err)
-    } 
+	node, err := json.Unmarshal([]byte(data))
+	if err != nil {
+		ufmt.Errorf("error: %v", err)
+	}
 
 	for i := 0; i < node.Size(); i++ {
 		field, err := node.GetIndex(i)
@@ -65,5 +65,5 @@ func (db *FormDatabase) CreateForm(title string, description string, openAt stri
 		form.AddField(label, fieldType, required)
 	}
 
-	return id	
+	return id
 }
