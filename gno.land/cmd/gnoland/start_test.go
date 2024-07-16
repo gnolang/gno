@@ -162,3 +162,18 @@ func TestStart_Lazy(t *testing.T) {
 	assert.FileExists(t, validatorStatePath)
 	assert.FileExists(t, nodeKeyPath)
 }
+
+// some options require lazy as per #2444
+// (those options are deprecated, after they're gone this test can be removed)
+func TestStart_NonLazyWithLazyFlags(t *testing.T) {
+	t.Parallel()
+
+	for _, cfg := range []startCfg{
+		{ lazyInit: false, skipFailingGenesisTxs: true },
+		{ lazyInit: false, genesisBalancesFile: "foo" },
+		{ lazyInit: false, genesisTxsFile: "foo" },
+	} {
+		e := execStart(context.TODO(), &cfg, commands.NewTestIO())
+		require.ErrorContains(t, e, "with -lazy")	
+	}
+}
