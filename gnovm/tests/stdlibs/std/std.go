@@ -15,7 +15,7 @@ type TestExecContext struct {
 	std.ExecContext
 
 	// These are used to set up the result of CurrentRealm() and PrevRealm().
-	RealmFrames map[*gno.Frame]RealmOverride
+	RealmFrames map[int]RealmOverride
 }
 
 var _ std.ExecContexter = &TestExecContext{}
@@ -114,7 +114,7 @@ func X_testSetOrigPkgAddr(m *gno.Machine, addr string) {
 
 func X_testSetRealm(m *gno.Machine, addr, pkgPath string) {
 	// Associate the given Realm with the caller's frame.
-	var frame *gno.Frame
+	frameIdx := -1
 	// When calling this function from Gno, the two top frames are the following:
 	// #6 [FRAME FUNC:testSetRealm RECV:(undefined) (2 args) 17/6/0/10/8 LASTPKG:std ...]
 	// #5 [FRAME FUNC:TestSetRealm RECV:(undefined) (1 args) 14/5/0/8/7 LASTPKG:gno.land/r/tyZ1Vcsta ...]
@@ -122,13 +122,13 @@ func X_testSetRealm(m *gno.Machine, addr, pkgPath string) {
 	for i := m.NumFrames() - 3; i >= 0; i-- {
 		// Must be a frame from calling a function.
 		if fr := m.Frames[i]; fr.Func != nil {
-			frame = &fr
+			frameIdx = i
 			break
 		}
 	}
 
 	ctx := m.Context.(*TestExecContext)
-	ctx.RealmFrames[frame] = RealmOverride{
+	ctx.RealmFrames[frameIdx] = RealmOverride{
 		Addr:    crypto.Bech32Address(addr),
 		PkgPath: pkgPath,
 	}
@@ -147,7 +147,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		override, overridden := ctx.RealmFrames[&m.Frames[max(i-1, 0)]]
+		override, overridden := ctx.RealmFrames[max(i-1, 0)]
 		if !overridden &&
 			(fr.LastPackage == nil || !fr.LastPackage.IsRealm()) {
 			continue

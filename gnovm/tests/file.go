@@ -69,7 +69,7 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	}
 	return &teststd.TestExecContext{
 		ExecContext: ctx,
-		RealmFrames: make(map[*gno.Frame]teststd.RealmOverride),
+		RealmFrames: make(map[int]teststd.RealmOverride),
 	}
 }
 
