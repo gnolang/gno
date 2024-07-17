@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_range_a1.gno:16: cannot assign to (const (6 <untyped> bigint))
+// main/files/types/assign_range_a1.gno:16:2: cannot assign to (const (6 <untyped> bigint))

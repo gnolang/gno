@@ -46,9 +46,12 @@ func TestRoutes(t *testing.T) {
 		{"/%ED%85%8C%EC%8A%A4%ED%8A%B8", notFound, "/테스트"},
 		{"/グノー", notFound, "/グノー"},
 		{"/⚛️", notFound, "/⚛️"},
+		{"/p/demo/flow/LICENSE", ok, "BSD 3-Clause"},
 	}
 
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	rootdir := gnoenv.RootDir()
+	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
+	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
 	defer node.Stop()
 
@@ -67,7 +70,6 @@ func TestRoutes(t *testing.T) {
 			response := httptest.NewRecorder()
 			app.Router.ServeHTTP(response, request)
 			assert.Equal(t, r.status, response.Code)
-
 			assert.Contains(t, response.Body.String(), r.substring)
 		})
 	}
@@ -96,7 +98,9 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	rootdir := gnoenv.RootDir()
+	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
+	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
 	defer node.Stop()
 
