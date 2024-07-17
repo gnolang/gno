@@ -2533,6 +2533,7 @@ func (b *Block) GetPointerToHeapDefine(alloc *Allocator, store Store, path Value
 		V: hiv,
 	}
 
+	debug.Println("---hiv: ", hiv)
 	return PointerValue{
 		TV:    &hiv.Value,
 		Base:  hiv,
@@ -2560,6 +2561,33 @@ func (b *Block) GetPointerToHeapUse(alloc *Allocator, store Store, path ValuePat
 		}
 	} else {
 		return ptr
+	}
+}
+
+func (b *Block) GetPointerToLoopVarDefineUse(alloc *Allocator, store Store, path ValuePath) PointerValue {
+	debug.Println("---GetPointerToLoopVarDefineUse, path: ", path)
+	// get heapItem defined from last iteration,
+	// if first iteration, from Init.
+
+	ptr := b.GetPointerTo(store, path)
+	debug.Println("---ptr got: ", ptr)
+
+	// new heapItem base on last value
+	if h, ok := ptr.TV.V.(*HeapItemValue); ok {
+		hiv := &HeapItemValue{Value: h.Value}
+		*ptr.TV = TypedValue{ // update to new allocated heapItem
+			T: heapItemType{},
+			V: hiv,
+		}
+		debug.Println("---ptr after updated: ", ptr)
+		// return ptr to this new allocated heap item
+		return PointerValue{
+			TV:    &ptr.TV.V.(*HeapItemValue).Value,
+			Base:  ptr.TV.V,
+			Index: 0,
+		}
+	} else {
+		panic("should not happen, it's supposed to be a heapItemValue")
 	}
 }
 

@@ -27,6 +27,6 @@ func main() {
 // You can tell by the preprocess printout of i<!~...> and i<()~...>.
 
 // Output:
-// 3
-// 3
-// 3
+// 0
+// 1
+// 2

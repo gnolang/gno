@@ -12,7 +12,11 @@ func forLoopClosure() {
 	}()
 
 	for i := 0; i < 3; i++ {
-		fs = append(fs, func() { println(i) })
+		fs = append(fs, func() {
+			z := i
+			println(z)
+			z++
+		})
 	}
 }
 
