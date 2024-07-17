@@ -308,7 +308,7 @@ func (h *Handshaker) ReplayBlocks(
 		}
 
 		// Save the results by height
-		abciResponse := sm.NewABCIResponsesFromNum(len(res.TxResponses))
+		abciResponse := sm.NewABCIResponsesFromNum(int64(len(res.TxResponses)))
 		copy(abciResponse.DeliverTxs, res.TxResponses)
 		sm.SaveABCIResponses(h.stateDB, 0, abciResponse)
 

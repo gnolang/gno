@@ -9,7 +9,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
-	"golang.org/x/exp/constraints"
 )
 
 const (
@@ -136,7 +135,7 @@ func NewABCIResponses(block *types.Block) *ABCIResponses {
 }
 
 // NewABCIResponsesFromNum returns a new ABCIResponses with a set number of txs
-func NewABCIResponsesFromNum[N constraints.Integer](numTxs N) *ABCIResponses {
+func NewABCIResponsesFromNum(numTxs int64) *ABCIResponses {
 	resDeliverTxs := make([]abci.ResponseDeliverTx, numTxs)
 	if numTxs == 0 {
 		// This makes Amino encoding/decoding consistent.
