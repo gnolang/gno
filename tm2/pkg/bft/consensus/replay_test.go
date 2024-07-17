@@ -1144,7 +1144,7 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 	clientCreator := proxy.NewLocalClientCreator(app)
 
 	config, genesisFile := ResetConfig("handshake_test_")
-	defer os.RemoveAll(config.RootDir)
+	t.Cleanup(func() { require.NoError(t, os.RemoveAll(config.RootDir)) })
 	stateDB, state, store := makeStateAndStore(config, genesisFile, "v0.0.0-test")
 
 	oldValAddr := state.Validators.Validators[0].Address
@@ -1154,7 +1154,7 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 	handshaker := NewHandshaker(stateDB, state, store, genDoc)
 	proxyApp := appconn.NewAppConns(clientCreator)
 	require.NoError(t, proxyApp.Start(), "Error starting proxy app connections")
-	defer func() { require.NoError(t, proxyApp.Stop()) }()
+	t.Cleanup(func() { require.NoError(t, proxyApp.Stop()) })
 	require.NoError(t, handshaker.Handshake(proxyApp), "Error on abci handshake")
 
 	// reload the state, check the validator set was updated
@@ -1181,7 +1181,7 @@ func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 	clientCreator := proxy.NewLocalClientCreator(app)
 
 	config, genesisFile := ResetConfig("handshake_test_")
-	defer os.RemoveAll(config.RootDir)
+	t.Cleanup(func() { require.NoError(t, os.RemoveAll(config.RootDir)) })
 	stateDB, state, store := makeStateAndStore(config, genesisFile, "v0.0.0-test")
 
 	// now start the app using the handshake - it should sync
@@ -1189,7 +1189,7 @@ func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 	handshaker := NewHandshaker(stateDB, state, store, genDoc)
 	proxyApp := appconn.NewAppConns(clientCreator)
 	require.NoError(t, proxyApp.Start(), "Error starting proxy app connections")
-	defer func() { require.NoError(t, proxyApp.Stop()) }()
+	t.Cleanup(func() { require.NoError(t, proxyApp.Stop()) })
 	require.NoError(t, handshaker.Handshake(proxyApp), "Error on abci handshake")
 
 	// check that the genesis transaction results are saved
