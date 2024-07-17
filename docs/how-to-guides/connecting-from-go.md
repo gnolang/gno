@@ -244,7 +244,7 @@ Before running your code, make sure your keypair has enough funds to send the
 transaction. 
 
 If everything went well, you've just sent a state-changing transaction to a 
-Gno.land chain!
+gno.land chain!
 
 
 ## Reading on-chain state

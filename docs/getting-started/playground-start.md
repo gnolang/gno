@@ -16,7 +16,7 @@ making it the perfect tool to get started with Gno development.
 
 - **A gno.land compatible wallet**
   - Currently, [Adena](https://www.adena.app/) is the preferred wallet for
-Gno.land, with more wallets being introduced in the future.
+gno.land, with more wallets being introduced in the future.
 
 ## Playground Features
 
@@ -94,8 +94,8 @@ It provides a command-line interface for hands-on learning, iterative testing, a
 
 ## Learning about gno.land & writing Gno code
 
-If you're new here, don't worry—content is regularly produced to breakdown
-Gno.land to explain its features. Dive into the essentials of gno.land by 
+If you're new here, don't worry—content is regularly produced to break down
+gno.land to explain its features. Dive into the essentials of gno.land by 
 exploring the [Concepts](../concepts/concepts.md) section.
 
 To get started writing Gno code, check out the
