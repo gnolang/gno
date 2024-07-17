@@ -4,12 +4,13 @@ id: namespaces
 
 # Namespaces
 
-Namespaces provide users with the exclusive capability to publish contracts under their designated namespaces,
-similar to GitHub's user and organization model.
+Namespaces provide users with the exclusive ability to publish contracts under
+their designated namespaces, similar to GitHub's user and organization model.
 
 :::warning Not enabled
 
-This feature isn't enabled by default on the portal loop chain and is currently available only on test4.gno.land.
+This feature is currently only enabled on the [Test4 testnet](./testnets.md#test4).
+Other networks, such as Portal Loop, do not have this feature enabled.
 
 :::
 
@@ -28,8 +29,7 @@ Here's a breakdown of the structure of a package path:
     - `p/`: [Package](packages.md)
     - `r/`: [Realm](realms.md)
 - Namespace: A namespace can be included after the type (e.g., user or organization name). Namespaces are a
-  way to group related packages or realms, but currently ownership cannot be claimed. (see 
-  [Issue#1107](https://github.com/gnolang/gno/issues/1107) for more info)
+way to group related packages or realms, but currently ownership cannot be claimed. 
 - Remaining Path: The remaining part of the path.
     - Can only contain alphanumeric characters (letters and numbers) and underscores.
     - No special characters allowed (except underscore).

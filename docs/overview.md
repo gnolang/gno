@@ -1,7 +1,7 @@
 ---
 id: overview
 slug: /
-description: "Gno.land is a Layer 1 blockchain platform that enables the execution of Smart Contracts using an interpreted
+description: "gno.land is a Layer 1 blockchain platform that enables the execution of Smart Contracts using an interpreted
 version of the Go programming language called Gno."
 ---
 
@@ -9,17 +9,17 @@ version of the Go programming language called Gno."
 
 ## What is gno.land?
 
-Gno.land is a Layer 1 blockchain platform that enables the execution of Smart Contracts using an interpreted
+gno.land is a Layer 1 blockchain platform that enables the execution of Smart Contracts using an interpreted
 version of the Go programming language called Gno.
 
 ### Key Features and Technology
 
-1. **Interpreted Gno**: Gno.land utilizes the Gno programming language, which is based on Go. It is executed
+1. **Interpreted Gno**: gno.land utilizes the Gno programming language, which is based on Go. It is executed
    through a specialized virtual machine called the GnoVM, purpose-built for blockchain development with built-in
    determinism and a modified standard library. While Gno
    shares similarities with Go in terms of syntax, it currently lacks go routine support. However, this feature is
    planned for future development, ensuring deterministic GnoVM executions.
-2. **Consensus Protocol - Tendermint2**: Gno.land achieves consensus between blockchain nodes using the Tendermint2
+2. **Consensus Protocol - Tendermint2**: gno.land achieves consensus between blockchain nodes using the Tendermint2
    consensus protocol. This approach ensures secure and reliable network operation.
 3. **Inter-Blockchain Communication (IBC)**: In the future, gno.land will be able to communicate and exchange data with
    other blockchain networks within the Cosmos ecosystem through the Inter-Blockchain Communication (IBC) protocol.
@@ -37,19 +37,19 @@ The decision to base gno.land's language on Go was influenced by the following f
 
 In comparison to Ethereum, gno.land offers distinct advantages:
 
-1. **Transparent and Auditable Smart Contracts**: Gno.land Smart Contracts are fully transparent and auditable by users
+1. **Transparent and Auditable Smart Contracts**: gno.land Smart Contracts are fully transparent and auditable by users
    because the actual source code is uploaded to the blockchain. In contrast, Ethereum requires contracts to be
    precompiled into bytecode, leading to less transparency as bytecode is stored on the blockchain, not the
    human-readable source code. Smart contracts in gno.land can be used as libraries with a simple import statement, making
    gno.land a defacto source-code repository for the ecosystem.
 
-2. **General-Purpose Language**: Gno.land's Gno is a general-purpose language, similar to Go, extending its
+2. **General-Purpose Language**: gno.land's Gno is a general-purpose language, similar to Go, extending its
    usability beyond the context of blockchain. In contrast, Solidity is designed specifically for Smart Contracts on the
    Ethereum platform.
 
 ## Using the gno.land Documentation
 
-Gno.land's documentation adopts the [Diataxis](https://diataxis.fr/) framework, ensuring structured and predictable content. It includes:
+gno.land's documentation adopts the [Diataxis](https://diataxis.fr/) framework, ensuring structured and predictable content. It includes:
 - A [Getting Started](getting-started/local-setup/local-setup.md) section, covering simple instructions on how to begin your journey into gno.land.
 - Concise how-to guides for specific technical tasks.
 - Conceptual explanations, offering context and usage insights.
