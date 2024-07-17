@@ -2723,57 +2723,7 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 							// else, will be demoted in later clause.
 						}
 					}
-					if n.Type == NameExprTypeHeapUse {
-						debug.Println("---it is heap use confirmed, going to traverse post stmt, n: ", n)
-						Transcribe(dbn,
-							func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-								switch stage {
-								case TRANS_ENTER:
-									switch n := n.(type) {
-									//case *ForStmt:
-									//	debug.Println("---forStmt, n: ", n)
-									case Stmt:
-										if ftype == TRANS_FOR_POST {
-											switch stmt := n.(type) {
-											case *AssignStmt:
-												debug.Println("---assignStmt: ", stmt)
-												// if loopVar is heapDefine in Init
-												if fs, ok := dbn.(*ForStmt); ok {
-													//debug.Println("---fs: ", fs)
-													if as, ok := fs.Init.(*AssignStmt); ok && as.Op == DEFINE {
-														for _, x := range stmt.Lhs {
-															nx := x.(*NameExpr)
-															// init expr
-															for _, x := range as.Lhs {
-																name := x.(*NameExpr).Name
-																if nx.Name == name && x.(*NameExpr).Type == NameExprTypeHeapDefine {
-																	nx.Type = NameExprTypeLoopVar // set type for nx on post stmt of for loop
-																}
-															}
-														}
-													}
-												}
-											case *IncDecStmt:
-												debug.Println("---IncDecStmt: ", stmt)
-												nx, _ := stmt.X.(*NameExpr)
-												if fs, ok := dbn.(*ForStmt); ok {
-													//debug.Println("---fs: ", fs)
-													if as, ok := fs.Init.(*AssignStmt); ok && as.Op == DEFINE {
-														for _, x := range as.Lhs {
-															lnx, _ := x.(*NameExpr)
-															if lnx.Type == NameExprTypeHeapDefine && lnx.Name == nx.Name {
-																nx.Type = NameExprTypeLoopVar // set type for nx on post stmt of for loop
-															}
-														}
-													}
-												}
-											}
-										}
-									}
-								}
-								return n, TRANS_CONTINUE
-							})
-					}
+					// TODO: need this?
 				case NameExprTypeHeapDefine:
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)

@@ -1954,9 +1954,6 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 			// XXX
 			lb := m.LastBlock()
 			return lb.GetPointerTo(m.Store, lx.Path)
-		case NameExprTypeLoopVar:
-			lb := m.LastBlock()
-			return lb.GetPointerToLoopVarDefineUse(m.Alloc, m.Store, lx.Path)
 
 		default:
 			panic("unexpected NameExpr in PopAsPointer")
