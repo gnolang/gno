@@ -68,7 +68,7 @@ validators for their work. All validators fairly receive an equal amount of rewa
 ### How many validators will there be in mainnet?
 
 The exact plans for mainnet are still TBD. Based on the latest discussions between contributors, the mainnet will likely
-have an inital validator set size of 20~50, which will gradually scale with the development and decentralization of the
+have an initial validator set size of 20~50, which will gradually scale with the development and decentralization of the
 gno.land project.
 
 ### How do I make my first contribution?
