@@ -10,6 +10,9 @@ type ProposalRequest struct {
 
 // DAO defines the DAO abstraction
 type DAO interface {
+	// PropStore is the DAO proposal storage
+	PropStore
+
 	// Propose adds a new proposal to the executor-based GOVDAO.
 	// Returns the generated proposal ID
 	Propose(request ProposalRequest) (uint64, error)

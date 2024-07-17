@@ -10,31 +10,23 @@ import (
 )
 
 var (
-	d         dao.DAO         // the current active DAO implementation
-	proposals dao.PropStore   // the proposal store
-	members   dao.MemberStore // the member store
+	d       dao.DAO         // the current active DAO implementation
+	members dao.MemberStore // the member store
 )
 
 func init() {
-	// Example initial member set (just test addresses)
-	set := []dao.Member{
-		{
-			Address:     std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
-			VotingPower: 10,
-		},
-	}
-
 	var (
-		propStore = simpledao.NewPropStore()
+		// Example initial member set (just test addresses)
+		set = []dao.Member{
+			{
+				Address:     std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
+				VotingPower: 10,
+			},
+		}
 		membStore = simpledao.NewMembStore(simpledao.WithInitialMembers(set))
 	)
-
-	// Set the stores
-	proposals = propStore
-	members = membStore
-
 	// Set the DAO implementation
-	d = simpledao.New(membStore, propStore)
+	d = simpledao.New(membStore)
 }
 
 // Propose is designed to be called by another contract or with
@@ -64,7 +56,7 @@ func ExecuteProposal(id uint64) {
 
 // GetPropStore returns the active proposal store
 func GetPropStore() dao.PropStore {
-	return proposals
+	return d
 }
 
 // GetMembStore returns the active member store
@@ -74,7 +66,7 @@ func GetMembStore() dao.MemberStore {
 
 func Render(path string) string {
 	if path == "" {
-		numProposals := proposals.Size()
+		numProposals := d.Size()
 
 		if numProposals == 0 {
 			return "No proposals found :(" // corner case
@@ -88,7 +80,7 @@ func Render(path string) string {
 		}
 
 		// Fetch the last 10 proposals
-		for idx, prop := range proposals.Proposals(offset, uint64(10)) {
+		for idx, prop := range d.Proposals(offset, uint64(10)) {
 			output += ufmt.Sprintf(
 				"- [Proposal #%d](%s:%d) - (**%s**)(by %s)\n",
 				idx,
@@ -109,7 +101,7 @@ func Render(path string) string {
 	}
 
 	// Fetch the proposal
-	prop, err := proposals.ProposalByID(uint64(idx))
+	prop, err := d.ProposalByID(uint64(idx))
 	if err != nil {
 		return ufmt.Sprintf("unable to fetch proposal, %s", err.Error())
 	}

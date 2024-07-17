@@ -4,7 +4,6 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/gov/dao"
 )
@@ -113,30 +112,18 @@ func (p *proposal) VoteByMember(address std.Address) (dao.Vote, error) {
 	return vote, nil
 }
 
-// PropStore implements the dao.PropStore abstraction
-type PropStore struct {
-	proposals *avl.Tree // seqid.ID -> proposal
-}
-
-// NewPropStore returns a new simpledao PropStore
-func NewPropStore() *PropStore {
-	return &PropStore{
-		proposals: avl.NewTree(),
-	}
-}
-
 // addProposal adds a new simpledao proposal to the store
-func (p *PropStore) addProposal(proposal *proposal) (uint64, error) {
+func (s *SimpleDAO) addProposal(proposal *proposal) (uint64, error) {
 	// See what the next proposal number should be
-	nextID := uint64(p.proposals.Size())
+	nextID := uint64(s.proposals.Size())
 
 	// Save the proposal
-	p.proposals.Set(getProposalID(nextID), proposal)
+	s.proposals.Set(getProposalID(nextID), proposal)
 
 	return nextID, nil
 }
 
-func (p *PropStore) Proposals(offset, count uint64) []dao.Proposal {
+func (s *SimpleDAO) Proposals(offset, count uint64) []dao.Proposal {
 	// Check the requested count
 	if count < 1 {
 		return []dao.Proposal{}
@@ -151,7 +138,7 @@ func (p *PropStore) Proposals(offset, count uint64) []dao.Proposal {
 		startIndex = offset
 		endIndex   = startIndex + count
 
-		numProposals = uint64(p.proposals.Size())
+		numProposals = uint64(s.proposals.Size())
 	)
 
 	// Check if the current offset has any proposals
@@ -165,7 +152,7 @@ func (p *PropStore) Proposals(offset, count uint64) []dao.Proposal {
 	}
 
 	props := make([]dao.Proposal, 0)
-	p.proposals.Iterate(
+	s.proposals.Iterate(
 		getProposalID(startIndex),
 		getProposalID(endIndex),
 		func(_ string, val interface{}) bool {
@@ -181,8 +168,8 @@ func (p *PropStore) Proposals(offset, count uint64) []dao.Proposal {
 	return props
 }
 
-func (p *PropStore) ProposalByID(id uint64) (dao.Proposal, error) {
-	prop, exists := p.proposals.Get(getProposalID(id))
+func (s *SimpleDAO) ProposalByID(id uint64) (dao.Proposal, error) {
+	prop, exists := s.proposals.Get(getProposalID(id))
 	if !exists {
 		return nil, ErrMissingProposal
 	}
@@ -190,8 +177,8 @@ func (p *PropStore) ProposalByID(id uint64) (dao.Proposal, error) {
 	return prop.(*proposal), nil
 }
 
-func (p *PropStore) Size() int {
-	return p.proposals.Size()
+func (s *SimpleDAO) Size() int {
+	return s.proposals.Size()
 }
 
 // getProposalID generates a sequential proposal ID

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"std"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/gov/dao"
 )
@@ -29,15 +30,15 @@ var (
 
 // SimpleDAO is a simple DAO implementation
 type SimpleDAO struct {
+	proposals *avl.Tree // seqid.ID -> proposal
 	membStore *MembStore
-	propStore *PropStore
 }
 
 // New creates a new instance of the simpledao DAO
-func New(membStore *MembStore, propStore *PropStore) *SimpleDAO {
+func New(membStore *MembStore) *SimpleDAO {
 	return &SimpleDAO{
+		proposals: avl.NewTree(),
 		membStore: membStore,
-		propStore: propStore,
 	}
 }
 
@@ -69,7 +70,7 @@ func (s *SimpleDAO) Propose(request dao.ProposalRequest) (uint64, error) {
 	}
 
 	// Add the proposal
-	id, err := s.propStore.addProposal(prop)
+	id, err := s.addProposal(prop)
 	if err != nil {
 		return 0, ufmt.Errorf("unable to add proposal, %s", err.Error())
 	}
@@ -85,7 +86,7 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 	}
 
 	// Check if the proposal exists
-	propRaw, err := s.propStore.ProposalByID(id)
+	propRaw, err := s.ProposalByID(id)
 	if err != nil {
 		return ufmt.Errorf("unable to get proposal %d, %s", id, err.Error())
 	}
@@ -155,7 +156,7 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 	}
 
 	// Check if the proposal exists
-	propRaw, err := s.propStore.ProposalByID(id)
+	propRaw, err := s.ProposalByID(id)
 	if err != nil {
 		return ufmt.Errorf("unable to get proposal %d, %s", id, err.Error())
 	}

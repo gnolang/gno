@@ -214,16 +214,16 @@ func TestProposal_Data(t *testing.T) {
 	})
 }
 
-func TestPropStore_GetProposals(t *testing.T) {
+func TestSimpleDAO_GetProposals(t *testing.T) {
 	t.Parallel()
 
 	t.Run("no proposals", func(t *testing.T) {
 		t.Parallel()
 
-		p := NewPropStore()
+		s := New(NewMembStore())
 
-		uassert.Equal(t, 0, p.Size())
-		proposals := p.Proposals(0, 0)
+		uassert.Equal(t, 0, s.Size())
+		proposals := s.Proposals(0, 0)
 
 		uassert.Equal(t, 0, len(proposals))
 	})
@@ -235,20 +235,20 @@ func TestPropStore_GetProposals(t *testing.T) {
 			numProposals = 20
 			halfRange    = numProposals / 2
 
-			p         = NewPropStore()
+			s         = New(NewMembStore())
 			proposals = generateProposals(t, numProposals)
 		)
 
 		// Add initial proposals
 		for _, proposal := range proposals {
-			_, err := p.addProposal(proposal)
+			_, err := s.addProposal(proposal)
 
 			urequire.NoError(t, err)
 		}
 
-		uassert.Equal(t, numProposals, p.Size())
+		uassert.Equal(t, numProposals, s.Size())
 
-		fetchedProposals := p.Proposals(0, uint64(halfRange))
+		fetchedProposals := s.Proposals(0, uint64(halfRange))
 		urequire.Equal(t, halfRange, len(fetchedProposals))
 
 		for index, fetchedProposal := range fetchedProposals {
@@ -256,7 +256,7 @@ func TestPropStore_GetProposals(t *testing.T) {
 		}
 
 		// Fetch the other half
-		fetchedProposals = p.Proposals(uint64(halfRange), uint64(halfRange))
+		fetchedProposals = s.Proposals(uint64(halfRange), uint64(halfRange))
 		urequire.Equal(t, halfRange, len(fetchedProposals))
 
 		for index, fetchedProposal := range fetchedProposals {
@@ -265,15 +265,15 @@ func TestPropStore_GetProposals(t *testing.T) {
 	})
 }
 
-func TestPropStore_GetProposalByID(t *testing.T) {
+func TestSimpleDAO_GetProposalByID(t *testing.T) {
 	t.Parallel()
 
 	t.Run("missing proposal", func(t *testing.T) {
 		t.Parallel()
 
-		p := NewPropStore()
+		s := New(NewMembStore())
 
-		_, err := p.ProposalByID(0)
+		_, err := s.ProposalByID(0)
 		uassert.ErrorIs(t, err, ErrMissingProposal)
 	})
 
@@ -281,16 +281,16 @@ func TestPropStore_GetProposalByID(t *testing.T) {
 		t.Parallel()
 
 		var (
-			p        = NewPropStore()
+			s        = New(NewMembStore())
 			proposal = generateProposals(t, 1)[0]
 		)
 
 		// Add the initial proposal
-		_, err := p.addProposal(proposal)
+		_, err := s.addProposal(proposal)
 		urequire.NoError(t, err)
 
 		// Fetch the proposal
-		fetchedProposal, err := p.ProposalByID(0)
+		fetchedProposal, err := s.ProposalByID(0)
 		urequire.NoError(t, err)
 
 		equalProposals(t, proposal, fetchedProposal)

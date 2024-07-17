@@ -90,10 +90,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 				),
 			)
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(), // empty member store
-				propStore: NewPropStore(),
-			}
+			s = New(NewMembStore())
 		)
 
 		// Set the sent coins to enough
@@ -110,7 +107,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 		uassert.False(t, called)
 
 		// Make sure the proposal exists
-		prop, err := s.propStore.ProposalByID(id)
+		prop, err := s.ProposalByID(id)
 		uassert.NoError(t, err)
 
 		uassert.Equal(t, proposer.String(), prop.Author().String())
@@ -150,14 +147,12 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		var (
 			voter = testutils.TestAddress("voter")
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(
-					WithInitialMembers([]dao.Member{
-						{Address: voter},
-					}),
-				),
-				propStore: NewPropStore(),
-			}
+			ms = NewMembStore(
+				WithInitialMembers([]dao.Member{
+					{Address: voter},
+				}),
+			)
+			s = New(ms)
 		)
 
 		std.TestSetOrigCaller(voter)
@@ -176,14 +171,12 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		var (
 			voter = testutils.TestAddress("voter")
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(
-					WithInitialMembers([]dao.Member{
-						{Address: voter},
-					}),
-				),
-				propStore: NewPropStore(),
-			}
+			ms = NewMembStore(
+				WithInitialMembers([]dao.Member{
+					{Address: voter},
+				}),
+			)
+			s = New(ms)
 
 			prop = &proposal{
 				status: dao.ExecutionSuccessful,
@@ -193,7 +186,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		std.TestSetOrigCaller(voter)
 
 		// Add an initial proposal
-		id, err := s.propStore.addProposal(prop)
+		id, err := s.addProposal(prop)
 		urequire.NoError(t, err)
 
 		// Attempt to vote on the proposal
@@ -210,14 +203,12 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		var (
 			voter = testutils.TestAddress("voter")
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(
-					WithInitialMembers([]dao.Member{
-						{Address: voter},
-					}),
-				),
-				propStore: NewPropStore(),
-			}
+			ms = NewMembStore(
+				WithInitialMembers([]dao.Member{
+					{Address: voter},
+				}),
+			)
+			s = New(ms)
 
 			mockExecutor = &mockExecutor{
 				isExpiredFn: func() bool {
@@ -234,7 +225,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		std.TestSetOrigCaller(voter)
 
 		// Add an initial proposal
-		id, err := s.propStore.addProposal(prop)
+		id, err := s.addProposal(prop)
 		urequire.NoError(t, err)
 
 		// Attempt to vote on the proposal
@@ -255,14 +246,12 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 				VotingPower: 10,
 			}
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(
-					WithInitialMembers([]dao.Member{
-						member,
-					}),
-				),
-				propStore: NewPropStore(),
-			}
+			ms = NewMembStore(
+				WithInitialMembers([]dao.Member{
+					{Address: voter},
+				}),
+			)
+			s = New(ms)
 
 			prop = &proposal{
 				status:   dao.Active,
@@ -277,7 +266,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		urequire.NoError(t, prop.votes.castVote(member, dao.YesVote))
 
 		// Add an initial proposal
-		id, err := s.propStore.addProposal(prop)
+		id, err := s.addProposal(prop)
 		urequire.NoError(t, err)
 
 		// Attempt to vote on the proposal
@@ -294,10 +283,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		var (
 			members = generateMembers(t, 50)
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(WithInitialMembers(members)),
-				propStore: NewPropStore(),
-			}
+			s = New(NewMembStore(WithInitialMembers(members)))
 
 			prop = &proposal{
 				status:   dao.Active,
@@ -307,7 +293,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		)
 
 		// Add an initial proposal
-		id, err := s.propStore.addProposal(prop)
+		id, err := s.addProposal(prop)
 		urequire.NoError(t, err)
 
 		majorityIndex := (len(members)*2)/3 + 1 // 2/3+
@@ -331,10 +317,8 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		var (
 			members = generateMembers(t, 50)
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(WithInitialMembers(members)),
-				propStore: NewPropStore(),
-			}
+			ms = NewMembStore(WithInitialMembers(members))
+			s  = New(ms)
 
 			prop = &proposal{
 				status:   dao.Active,
@@ -344,7 +328,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		)
 
 		// Add an initial proposal
-		id, err := s.propStore.addProposal(prop)
+		id, err := s.addProposal(prop)
 		urequire.NoError(t, err)
 
 		majorityIndex := (len(members)*2)/3 + 1 // 2/3+
@@ -368,10 +352,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		var (
 			members = generateMembers(t, 50)
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(WithInitialMembers(members)),
-				propStore: NewPropStore(),
-			}
+			s = New(NewMembStore(WithInitialMembers(members)))
 
 			prop = &proposal{
 				status:   dao.Active,
@@ -381,7 +362,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		)
 
 		// Add an initial proposal
-		id, err := s.propStore.addProposal(prop)
+		id, err := s.addProposal(prop)
 		urequire.NoError(t, err)
 
 		majorityIndex := (len(members)*2)/3 + 1 // 2/3+
@@ -405,10 +386,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		var (
 			members = generateMembers(t, 50)
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(WithInitialMembers(members)),
-				propStore: NewPropStore(),
-			}
+			s = New(NewMembStore(WithInitialMembers(members)))
 
 			prop = &proposal{
 				status:   dao.Active,
@@ -418,7 +396,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		)
 
 		// Add an initial proposal
-		id, err := s.propStore.addProposal(prop)
+		id, err := s.addProposal(prop)
 		urequire.NoError(t, err)
 
 		// The first half votes yes
@@ -454,10 +432,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		var (
 			members = generateMembers(t, 50)
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(WithInitialMembers(members)),
-				propStore: NewPropStore(),
-			}
+			s = New(NewMembStore(WithInitialMembers(members)))
 
 			prop = &proposal{
 				status:   dao.Active,
@@ -467,7 +442,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		)
 
 		// Add an initial proposal
-		id, err := s.propStore.addProposal(prop)
+		id, err := s.addProposal(prop)
 		urequire.NoError(t, err)
 
 		// The first quarter votes yes
@@ -512,9 +487,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 				),
 			)
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(), // empty member store
-			}
+			s = New(NewMembStore())
 		)
 
 		// Set the sent coins to be lower
@@ -539,10 +512,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 				),
 			)
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(), // empty member store
-				propStore: NewPropStore(), // empty prop store
-			}
+			s = New(NewMembStore())
 		)
 
 		// Set the sent coins to be enough
@@ -562,14 +532,12 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 		var (
 			voter = testutils.TestAddress("voter")
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(
-					WithInitialMembers([]dao.Member{
-						{Address: voter},
-					}),
-				),
-				propStore: NewPropStore(),
-			}
+			ms = NewMembStore(
+				WithInitialMembers([]dao.Member{
+					{Address: voter},
+				}),
+			)
+			s = New(ms)
 
 			prop = &proposal{
 				status: dao.NotAccepted,
@@ -579,7 +547,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 		std.TestSetOrigCaller(voter)
 
 		// Add an initial proposal
-		id, err := s.propStore.addProposal(prop)
+		id, err := s.addProposal(prop)
 		urequire.NoError(t, err)
 
 		// Attempt to vote on the proposal
@@ -616,14 +584,12 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 				var (
 					voter = testutils.TestAddress("voter")
 
-					s = &SimpleDAO{
-						membStore: NewMembStore(
-							WithInitialMembers([]dao.Member{
-								{Address: voter},
-							}),
-						),
-						propStore: NewPropStore(),
-					}
+					ms = NewMembStore(
+						WithInitialMembers([]dao.Member{
+							{Address: voter},
+						}),
+					)
+					s = New(ms)
 
 					prop = &proposal{
 						status: testCase.status,
@@ -633,7 +599,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 				std.TestSetOrigCaller(voter)
 
 				// Add an initial proposal
-				id, err := s.propStore.addProposal(prop)
+				id, err := s.addProposal(prop)
 				urequire.NoError(t, err)
 
 				// Attempt to vote on the proposal
@@ -652,14 +618,12 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 		var (
 			voter = testutils.TestAddress("voter")
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(
-					WithInitialMembers([]dao.Member{
-						{Address: voter},
-					}),
-				),
-				propStore: NewPropStore(),
-			}
+			ms = NewMembStore(
+				WithInitialMembers([]dao.Member{
+					{Address: voter},
+				}),
+			)
+			s = New(ms)
 
 			mockExecutor = &mockExecutor{
 				isExpiredFn: func() bool {
@@ -676,7 +640,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 		std.TestSetOrigCaller(voter)
 
 		// Add an initial proposal
-		id, err := s.propStore.addProposal(prop)
+		id, err := s.addProposal(prop)
 		urequire.NoError(t, err)
 
 		// Attempt to vote on the proposal
@@ -693,14 +657,12 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 		var (
 			voter = testutils.TestAddress("voter")
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(
-					WithInitialMembers([]dao.Member{
-						{Address: voter},
-					}),
-				),
-				propStore: NewPropStore(),
-			}
+			ms = NewMembStore(
+				WithInitialMembers([]dao.Member{
+					{Address: voter},
+				}),
+			)
+			s = New(ms)
 
 			execError = errors.New("exec error")
 
@@ -719,7 +681,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 		std.TestSetOrigCaller(voter)
 
 		// Add an initial proposal
-		id, err := s.propStore.addProposal(prop)
+		id, err := s.addProposal(prop)
 		urequire.NoError(t, err)
 
 		// Attempt to vote on the proposal
@@ -738,14 +700,12 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 		var (
 			voter = testutils.TestAddress("voter")
 
-			s = &SimpleDAO{
-				membStore: NewMembStore(
-					WithInitialMembers([]dao.Member{
-						{Address: voter},
-					}),
-				),
-				propStore: NewPropStore(),
-			}
+			ms = NewMembStore(
+				WithInitialMembers([]dao.Member{
+					{Address: voter},
+				}),
+			)
+			s = New(ms)
 
 			called       = false
 			mockExecutor = &mockExecutor{
@@ -765,7 +725,7 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 		std.TestSetOrigCaller(voter)
 
 		// Add an initial proposal
-		id, err := s.propStore.addProposal(prop)
+		id, err := s.addProposal(prop)
 		urequire.NoError(t, err)
 
 		// Attempt to vote on the proposal
