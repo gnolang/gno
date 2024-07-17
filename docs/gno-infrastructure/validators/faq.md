@@ -113,8 +113,8 @@ manipulate the file.
 
 :::warning
 
-Editing generated genesis.json manually is extremely dangerous. It may corrupt chain initial state which leads chain to
-not start
+Editing generated genesis.json manually is extremely dangerous. It may corrupt the initial chain state which would lead the chain to
+not start.
 
 :::
 
