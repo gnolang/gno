@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -17,19 +18,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/overflow"
 )
-
-// Exception represents a panic that originates from a gno program.
-type Exception struct {
-	// Value is the value passed to panic.
-	Value TypedValue
-	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
-	// currently executing deferred function is able to recover from the panic.
-	Frame *Frame
-}
-
-func (e Exception) Sprint(m *Machine) string {
-	return e.Value.Sprint(m)
-}
 
 //----------------------------------------
 // Machine
@@ -61,13 +49,6 @@ type Machine struct {
 	Store      Store
 	Context    interface{}
 	GasMeter   store.GasMeter
-	// PanicScope is incremented each time a panic occurs and is reset to
-	// zero when it is recovered.
-	PanicScope uint
-	// DeferPanicScope is set to the value of the defer's panic scope before
-	// it is executed. It is reset to zero after the defer functions in the current
-	// scope have finished executing.
-	DeferPanicScope uint
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -2082,15 +2063,17 @@ func (m *Machine) CheckEmpty() error {
 }
 
 func (m *Machine) Panic(ex TypedValue) {
+	// Skip the last frame, as it's the one of the panic() (or native)
+	// function call.
+	panicFrames := slices.Clone(m.Frames[:len(m.Frames)-1])
 	m.Exceptions = append(
 		m.Exceptions,
 		Exception{
-			Value: ex,
-			Frame: m.MustLastCallFrame(1),
+			Value:  ex,
+			Frames: panicFrames,
 		},
 	)
 
-	m.PanicScope++
 	m.PopUntilLastCallFrame()
 	m.PushOp(OpPanic2)
 	m.PushOp(OpReturnCallDefers)

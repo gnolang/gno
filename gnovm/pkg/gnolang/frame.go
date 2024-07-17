@@ -81,14 +81,34 @@ func (fr *Frame) PopDefer() (res Defer, ok bool) {
 // Defer
 
 type Defer struct {
-	Func   *FuncValue   // function value
-	GoFunc *NativeValue // go function value
-	Args   []TypedValue // arguments
-	Source *DeferStmt   // source
-	Parent *Block
+	Func     *FuncValue   // function value
+	GoFunc   *NativeValue // go function value
+	Receiver TypedValue   // for methods
+	Args     []TypedValue // arguments
+	Source   *DeferStmt   // source
+	Parent   *Block
 
 	// PanicScope is set to the value of the Machine's PanicScope when the
 	// defer is created. The PanicScope of the Machine is incremented each time
 	// a panic occurs and is decremented each time a panic is recovered.
 	PanicScope uint
+}
+
+//----------------------------------------
+// Exception
+
+// Exception represents a panic that originates from a gno program.
+type Exception struct {
+	// Value is the value passed to panic.
+	Value TypedValue
+	// Frames is a snapshot of the Machine frames at the time panic() is called.
+	// It is used to determine whether recover() can be called (it may only be
+	// called directly by a referred function) and to determine whether the
+	// current execution of a deferred function is happening in the cotext of
+	// a panic.
+	Frames []*Frame
+}
+
+func (e Exception) Sprint(m *Machine) string {
+	return e.Value.Sprint(m)
 }

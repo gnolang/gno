@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// frame not found
+// panic: frame not found

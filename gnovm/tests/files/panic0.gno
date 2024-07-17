@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// wtf
+// panic: wtf

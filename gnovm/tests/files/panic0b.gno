@@ -15,6 +15,6 @@ func f() {
 }
 
 // Error:
-// first
-// 	second
-// 	third
+// panic: first
+// 	panic: second
+// 	panic: third
