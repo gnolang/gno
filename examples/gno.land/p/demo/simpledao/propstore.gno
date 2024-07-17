@@ -18,10 +18,6 @@ const (
 	// paginated proposals that can be requested
 	maxRequestProposals = 10
 
-	// maxRequestMembers is the maximum number of
-	// paginated members that can be requested
-	maxRequestMembers = 50
-
 	// maxRequestVotes is the maximum number of
 	// paginated votes that can be requested
 	maxRequestVotes = 50

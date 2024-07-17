@@ -17,7 +17,6 @@ var (
 	ErrProposalInactive          = errors.New("proposal is inactive")
 	ErrProposalNotAccepted       = errors.New("proposal is not accepted")
 	ErrExecutorExpired           = errors.New("executor is expired")
-	ErrNotGovDAO                 = errors.New("caller not correct govdao instance")
 )
 
 var (
@@ -31,11 +30,11 @@ var (
 // SimpleDAO is a simple DAO implementation
 type SimpleDAO struct {
 	proposals *avl.Tree // seqid.ID -> proposal
-	membStore *MembStore
+	membStore dao.MemberStore
 }
 
 // New creates a new instance of the simpledao DAO
-func New(membStore *MembStore) *SimpleDAO {
+func New(membStore dao.MemberStore) *SimpleDAO {
 	return &SimpleDAO{
 		proposals: avl.NewTree(),
 		membStore: membStore,
@@ -66,7 +65,7 @@ func (s *SimpleDAO) Propose(request dao.ProposalRequest) (uint64, error) {
 		executor:              request.Executor,
 		status:                dao.Active,
 		votes:                 newVotes(),
-		getTotalVotingPowerFn: s.membStore.getTotalPower,
+		getTotalVotingPowerFn: s.membStore.TotalPower,
 	}
 
 	// Add the proposal
@@ -118,7 +117,7 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 
 	// Check the votes to see if quorum is reached
 	var (
-		totalPower    = s.membStore.getTotalPower()
+		totalPower    = s.membStore.TotalPower()
 		majorityPower = (2 * totalPower) / 3
 	)
 

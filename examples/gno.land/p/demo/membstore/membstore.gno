@@ -1,4 +1,4 @@
-package simpledao
+package membstore
 
 import (
 	"errors"
@@ -13,32 +13,46 @@ var (
 	ErrAlreadyMember        = errors.New("address is already a member")
 	ErrMissingMember        = errors.New("address is not a member")
 	ErrInvalidAddressUpdate = errors.New("invalid address update")
+	ErrNotGovDAO            = errors.New("caller not correct govdao instance")
 )
 
-type MembStoreOption func(*MembStore)
+// maxRequestMembers is the maximum number of
+// paginated members that can be requested
+const maxRequestMembers = 50
 
-// WithInitialMembers initializes the simpledao member store
+type Option func(*MembStore)
+
+// WithInitialMembers initializes the member store
 // with an initial member list
-func WithInitialMembers(members []dao.Member) MembStoreOption {
+func WithInitialMembers(members []dao.Member) Option {
 	return func(store *MembStore) {
 		for _, m := range members {
 			store.members.Set(m.Address.String(), m)
-
 			store.totalVotingPower += m.VotingPower
 		}
 	}
 }
 
+// WithDAOPkgPath initializes the member store
+// with a dao package path guard
+func WithDAOPkgPath(daoPkgPath string) Option {
+	return func(store *MembStore) {
+		store.daoPkgPath = daoPkgPath
+	}
+}
+
 // MembStore implements the dao.MembStore abstraction
 type MembStore struct {
+	daoPkgPath       string    // active dao pkg path, if any
 	members          *avl.Tree // std.Address -> dao.Member
 	totalVotingPower uint64    // cached value for quick lookups
 }
 
 // NewMembStore creates a new simpledao member store
-func NewMembStore(opts ...MembStoreOption) *MembStore {
+func NewMembStore(opts ...Option) *MembStore {
 	m := &MembStore{
-		members:          avl.NewTree(),
+		members:          avl.NewTree(), // empty set
+		daoPkgPath:       "",            // no dao guard
 		totalVotingPower: 0,
 	}
 
@@ -51,7 +65,7 @@ func NewMembStore(opts ...MembStoreOption) *MembStore {
 }
 
 func (m *MembStore) AddMember(member dao.Member) error {
-	if !isCallerGOVDAO() {
+	if !m.isCallerGOVDAO() {
 		return ErrNotGovDAO
 	}
 
@@ -70,7 +84,7 @@ func (m *MembStore) AddMember(member dao.Member) error {
 }
 
 func (m *MembStore) UpdateMember(address std.Address, member dao.Member) error {
-	if !isCallerGOVDAO() {
+	if !m.isCallerGOVDAO() {
 		return ErrNotGovDAO
 	}
 
@@ -160,20 +174,18 @@ func (m *MembStore) Size() int {
 	return m.members.Size()
 }
 
-// getTotalPower returns the total voting power
+// TotalPower returns the total voting power
 // of the member store
-func (m *MembStore) getTotalPower() uint64 {
+func (m *MembStore) TotalPower() uint64 {
 	return m.totalVotingPower
 }
 
-// We need to include a govdao guard here, even if the
+// isCallerGOVDAO returns a flag indicating if the
+// current caller context is the active GOVDAO.
+// We need to include a govdao guard, even if the
 // executor guarantees it, because
 // the API of the member store is public and callable
 // by anyone who has a reference to the member store instance.
-const daoPkgPath = "gno.land/r/gov/dao/v2"
-
-// isCallerGOVDAO returns a flag indicating if the
-// current caller context is the active GOVDAO
-func isCallerGOVDAO() bool {
-	return std.CurrentRealm().PkgPath() == daoPkgPath
+func (m *MembStore) isCallerGOVDAO() bool {
+	return m.daoPkgPath == "" || std.CurrentRealm().PkgPath() == m.daoPkgPath
 }

@@ -1,4 +1,4 @@
-package simpledao
+package membstore
 
 import (
 	"testing"
@@ -140,7 +140,7 @@ func TestMembStore_AddMember(t *testing.T) {
 		t.Parallel()
 
 		// Create an empty store
-		m := NewMembStore()
+		m := NewMembStore(WithDAOPkgPath("gno.land/r/gov/dao"))
 
 		// Attempt to add a member
 		member := generateMembers(t, 1)[0]
@@ -150,13 +150,17 @@ func TestMembStore_AddMember(t *testing.T) {
 	t.Run("member already exists", func(t *testing.T) {
 		t.Parallel()
 
-		// Execute as the /r/gov/dao caller
-		r := std.NewCodeRealm(daoPkgPath)
+		var (
+			// Execute as the /r/gov/dao caller
+			daoPkgPath = "gno.land/r/gov/dao"
+			r          = std.NewCodeRealm(daoPkgPath)
+		)
+
 		std.TestSetRealm(r)
 
 		// Create a non-empty store
 		members := generateMembers(t, 1)
-		m := NewMembStore(WithInitialMembers(members))
+		m := NewMembStore(WithDAOPkgPath(daoPkgPath), WithInitialMembers(members))
 
 		// Attempt to add a member
 		uassert.ErrorIs(t, m.AddMember(members[0]), ErrAlreadyMember)
@@ -165,13 +169,17 @@ func TestMembStore_AddMember(t *testing.T) {
 	t.Run("new member added", func(t *testing.T) {
 		t.Parallel()
 
-		// Execute as the /r/gov/dao caller
-		r := std.NewCodeRealm(daoPkgPath)
+		var (
+			// Execute as the /r/gov/dao caller
+			daoPkgPath = "gno.land/r/gov/dao"
+			r          = std.NewCodeRealm(daoPkgPath)
+		)
+
 		std.TestSetRealm(r)
 
 		// Create an empty store
 		members := generateMembers(t, 1)
-		m := NewMembStore()
+		m := NewMembStore(WithDAOPkgPath(daoPkgPath))
 
 		// Attempt to add a member
 		urequire.NoError(t, m.AddMember(members[0]))
@@ -211,7 +219,7 @@ func TestMembStore_UpdateMember(t *testing.T) {
 		t.Parallel()
 
 		// Create an empty store
-		m := NewMembStore()
+		m := NewMembStore(WithDAOPkgPath("gno.land/r/gov/dao"))
 
 		// Attempt to update a member
 		member := generateMembers(t, 1)[0]
@@ -221,13 +229,17 @@ func TestMembStore_UpdateMember(t *testing.T) {
 	t.Run("non-existing member", func(t *testing.T) {
 		t.Parallel()
 
-		// Execute as the /r/gov/dao caller
-		r := std.NewCodeRealm(daoPkgPath)
+		var (
+			// Execute as the /r/gov/dao caller
+			daoPkgPath = "gno.land/r/gov/dao"
+			r          = std.NewCodeRealm(daoPkgPath)
+		)
+
 		std.TestSetRealm(r)
 
 		// Create an empty store
 		members := generateMembers(t, 1)
-		m := NewMembStore()
+		m := NewMembStore(WithDAOPkgPath(daoPkgPath))
 
 		// Attempt to update a member
 		uassert.ErrorIs(t, m.UpdateMember(members[0].Address, members[0]), ErrMissingMember)
@@ -236,13 +248,17 @@ func TestMembStore_UpdateMember(t *testing.T) {
 	t.Run("overwrite member attempt", func(t *testing.T) {
 		t.Parallel()
 
-		// Execute as the /r/gov/dao caller
-		r := std.NewCodeRealm(daoPkgPath)
+		var (
+			// Execute as the /r/gov/dao caller
+			daoPkgPath = "gno.land/r/gov/dao"
+			r          = std.NewCodeRealm(daoPkgPath)
+		)
+
 		std.TestSetRealm(r)
 
 		// Create a non-empty store
 		members := generateMembers(t, 2)
-		m := NewMembStore(WithInitialMembers(members))
+		m := NewMembStore(WithDAOPkgPath(daoPkgPath), WithInitialMembers(members))
 
 		// Attempt to update a member
 		uassert.ErrorIs(t, m.UpdateMember(members[0].Address, members[1]), ErrInvalidAddressUpdate)
@@ -251,13 +267,17 @@ func TestMembStore_UpdateMember(t *testing.T) {
 	t.Run("successful update", func(t *testing.T) {
 		t.Parallel()
 
-		// Execute as the /r/gov/dao caller
-		r := std.NewCodeRealm(daoPkgPath)
+		var (
+			// Execute as the /r/gov/dao caller
+			daoPkgPath = "gno.land/r/gov/dao"
+			r          = std.NewCodeRealm(daoPkgPath)
+		)
+
 		std.TestSetRealm(r)
 
 		// Create a non-empty store
 		members := generateMembers(t, 1)
-		m := NewMembStore(WithInitialMembers(members))
+		m := NewMembStore(WithDAOPkgPath(daoPkgPath), WithInitialMembers(members))
 
 		oldVotingPower := m.totalVotingPower
 		urequire.Equal(t, members[0].VotingPower, oldVotingPower)
@@ -274,13 +294,17 @@ func TestMembStore_UpdateMember(t *testing.T) {
 	t.Run("member removed", func(t *testing.T) {
 		t.Parallel()
 
-		// Execute as the /r/gov/dao caller
-		r := std.NewCodeRealm(daoPkgPath)
+		var (
+			// Execute as the /r/gov/dao caller
+			daoPkgPath = "gno.land/r/gov/dao"
+			r          = std.NewCodeRealm(daoPkgPath)
+		)
+
 		std.TestSetRealm(r)
 
 		// Create a non-empty store
 		members := generateMembers(t, 1)
-		m := NewMembStore(WithInitialMembers(members))
+		m := NewMembStore(WithDAOPkgPath(daoPkgPath), WithInitialMembers(members))
 
 		votingPower := uint64(0)
 		members[0].VotingPower = votingPower

@@ -4,6 +4,7 @@ import (
 	"std"
 	"strconv"
 
+	"gno.land/p/demo/membstore"
 	"gno.land/p/demo/simpledao"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/gov/dao"
@@ -23,7 +24,8 @@ func init() {
 				VotingPower: 10,
 			},
 		}
-		membStore = simpledao.NewMembStore(simpledao.WithInitialMembers(set))
+
+		membStore = membstore.NewMembStore(membstore.WithInitialMembers(set))
 	)
 	// Set the DAO implementation
 	d = simpledao.New(membStore)

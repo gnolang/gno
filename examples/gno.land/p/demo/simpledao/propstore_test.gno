@@ -220,7 +220,7 @@ func TestSimpleDAO_GetProposals(t *testing.T) {
 	t.Run("no proposals", func(t *testing.T) {
 		t.Parallel()
 
-		s := New(NewMembStore())
+		s := New(nil)
 
 		uassert.Equal(t, 0, s.Size())
 		proposals := s.Proposals(0, 0)
@@ -235,7 +235,7 @@ func TestSimpleDAO_GetProposals(t *testing.T) {
 			numProposals = 20
 			halfRange    = numProposals / 2
 
-			s         = New(NewMembStore())
+			s         = New(nil)
 			proposals = generateProposals(t, numProposals)
 		)
 
@@ -271,7 +271,7 @@ func TestSimpleDAO_GetProposalByID(t *testing.T) {
 	t.Run("missing proposal", func(t *testing.T) {
 		t.Parallel()
 
-		s := New(NewMembStore())
+		s := New(nil)
 
 		_, err := s.ProposalByID(0)
 		uassert.ErrorIs(t, err, ErrMissingProposal)
@@ -281,7 +281,7 @@ func TestSimpleDAO_GetProposalByID(t *testing.T) {
 		t.Parallel()
 
 		var (
-			s        = New(NewMembStore())
+			s        = New(nil)
 			proposal = generateProposals(t, 1)[0]
 		)
 

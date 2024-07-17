@@ -16,6 +16,9 @@ type MemberStore interface {
 	// belongs to a member
 	IsMember(address std.Address) bool
 
+	// TotalPower returns the total voting power of the member store
+	TotalPower() uint64
+
 	// Member returns the requested member
 	Member(address std.Address) (Member, error)
 
