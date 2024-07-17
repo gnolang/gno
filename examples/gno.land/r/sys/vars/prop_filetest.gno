@@ -24,8 +24,14 @@ func init() {
 	executor := vars.NewVarPropExecutor(changesFn)
 
 	// Create the proposal
-	comment := "Example value setting"
-	govdaoMissingVotesPercent(comment, executor)
+	description := "Example value setting"
+
+	prop := dao.ProposalRequest{
+		Description: description,
+		Executor:    executor,
+	}
+
+	govdao.Propose(prop)
 }
 
 func main() {
