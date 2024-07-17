@@ -1002,11 +1002,11 @@ func UverseNode() *PackageNode {
 
 			// If the frame the exception occurred in is not popped, it's possible that
 			// the exception is still in scope and can be recovered.
-			if !exception.Frame.Popped {
+			if !exception.FramePopped {
 				// If the frame is not the current frame, the exception is not in scope; return nil.
 				// This retrieves the second most recent call frame because the first most recent
 				// is the call to recover itself.
-				if frame := m.LastCallFrame(2); frame == nil || (frame != nil && frame != exception.Frame) {
+				if frameIdx := m.LastCallFrameIdx(2); frameIdx == -1 || frameIdx != exception.FrameIndex {
 					m.PushValue(TypedValue{})
 					return
 				}

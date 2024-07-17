@@ -28,7 +28,7 @@ func setupMachine(b *testing.B, numValues, numStmts, numExprs, numBlocks, numFra
 		Exprs:      make([]Expr, numExprs),
 		Stmts:      make([]Stmt, numStmts),
 		Blocks:     make([]*Block, numBlocks),
-		Frames:     make([]*Frame, numFrames),
+		Frames:     make([]Frame, numFrames),
 		Exceptions: make([]Exception, numExceptions),
 	}
 	return m

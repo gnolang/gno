@@ -122,7 +122,7 @@ func X_testSetRealm(m *gno.Machine, addr, pkgPath string) {
 	for i := m.NumFrames() - 3; i >= 0; i-- {
 		// Must be a frame from calling a function.
 		if fr := m.Frames[i]; fr.Func != nil {
-			frame = fr
+			frame = &fr
 			break
 		}
 	}
@@ -147,7 +147,7 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 
 	for i := m.NumFrames() - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		override, overridden := ctx.RealmFrames[m.Frames[max(i-1, 0)]]
+		override, overridden := ctx.RealmFrames[&m.Frames[max(i-1, 0)]]
 		if !overridden &&
 			(fr.LastPackage == nil || !fr.LastPackage.IsRealm()) {
 			continue
