@@ -107,8 +107,6 @@ func (x NameExpr) String() string {
 		return fmt.Sprintf("%s<~%s>", x.Name, x.Path.String())
 	case NameExprTypeHeapClosure:
 		return fmt.Sprintf("%s<()~%s>", x.Name, x.Path.String())
-	case NameExprTypeLoopVar:
-		return fmt.Sprintf("%s<{}~%s>", x.Name, x.Path.String())
 	default:
 		panic("unexpected NameExpr type")
 	}

@@ -2,27 +2,17 @@ package gnolang
 
 import (
 	"fmt"
-	"math/big"
-	"reflect"
-
 	"github.com/cockroachdb/apd/v3"
+	"math/big"
 )
 
 func (m *Machine) doOpInc() {
 	s := m.PopStmt().(*IncDecStmt)
 
-	debug.Println("---doOpInc, s: ", s)
 	// Get reference to lhs.
 	pv := m.PopAsPointer(s.X)
 	lv := pv.TV
 
-	debug.Println("---doOpInc, pv: ", pv, pv.Base)
-	debug.Println("---doOpInc, pv.TV: ", pv.TV)
-	debug.Println("---doOpInc, pv.TV: ", lv, reflect.TypeOf(lv.V))
-	if pv, ok := lv.V.(PointerValue); ok {
-		debug.Println("---pv: ", pv)
-		debug.Println("---pv.Base: ", pv.Base)
-	}
 	// Switch on the base type.  NOTE: this is faster
 	// than computing the kind of kv.T.  TODO: consider
 	// optimizing away this switch by implementing a
@@ -84,7 +74,6 @@ func (m *Machine) doOpInc() {
 		panic(fmt.Sprintf("unexpected type %s in inc/dec operation", lv.T))
 	}
 
-	debug.Println("---after INC, lv: ", lv)
 	// Mark dirty in realm.
 	if m.Realm != nil && pv.Base != nil {
 		m.Realm.DidUpdate(pv.Base.(Object), nil, nil)

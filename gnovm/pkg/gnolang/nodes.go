@@ -155,17 +155,16 @@ func (loc Location) IsZero() bool {
 type GnoAttribute string
 
 const (
-	ATTR_PREPROCESSED    GnoAttribute = "ATTR_PREPROCESSED"
-	ATTR_PREDEFINED      GnoAttribute = "ATTR_PREDEFINED"
-	ATTR_TYPE_VALUE      GnoAttribute = "ATTR_TYPE_VALUE"
-	ATTR_TYPEOF_VALUE    GnoAttribute = "ATTR_TYPEOF_VALUE"
-	ATTR_IOTA            GnoAttribute = "ATTR_IOTA"
-	ATTR_LOCATIONED      GnoAttribute = "ATTR_LOCATIONE" // XXX DELETE
-	ATTR_INJECTED        GnoAttribute = "ATTR_INJECTED"
-	ATTR_GOTOLOOP_STMT   GnoAttribute = "ATTR_GOTOLOOP_STMT"   // XXX delete?
-	ATTR_LOOP_DEFINES    GnoAttribute = "ATTR_LOOP_DEFINES"    // []Name defined within loops.
-	ATTR_LOOP_USES       GnoAttribute = "ATTR_LOOP_USES"       // []Name loop defines actually used.
-	ATTR_LOOP_USES_DEPTH GnoAttribute = "ATTR_LOOP_USES_DEPTH" // []Name loop defines actually used.
+	ATTR_PREPROCESSED  GnoAttribute = "ATTR_PREPROCESSED"
+	ATTR_PREDEFINED    GnoAttribute = "ATTR_PREDEFINED"
+	ATTR_TYPE_VALUE    GnoAttribute = "ATTR_TYPE_VALUE"
+	ATTR_TYPEOF_VALUE  GnoAttribute = "ATTR_TYPEOF_VALUE"
+	ATTR_IOTA          GnoAttribute = "ATTR_IOTA"
+	ATTR_LOCATIONED    GnoAttribute = "ATTR_LOCATIONE" // XXX DELETE
+	ATTR_INJECTED      GnoAttribute = "ATTR_INJECTED"
+	ATTR_GOTOLOOP_STMT GnoAttribute = "ATTR_GOTOLOOP_STMT" // XXX delete?
+	ATTR_LOOP_DEFINES  GnoAttribute = "ATTR_LOOP_DEFINES"  // []Name defined within loops.
+	ATTR_LOOP_USES     GnoAttribute = "ATTR_LOOP_USES"     // []Name loop defines actually used.
 )
 
 type Attributes struct {
@@ -391,7 +390,6 @@ const (
 	NameExprTypeHeapDefine                      // when defining escaped name in loop
 	NameExprTypeHeapUse                         // when above used in non-define lhs/rhs
 	NameExprTypeHeapClosure                     // when closure captures name
-	NameExprTypeLoopVar                         // when closure captures name
 )
 
 type NameExpr struct {
@@ -1818,7 +1816,6 @@ func (sb *StaticBlock) GetValueRef(store Store, n Name, skipPredefined bool) *Ty
 // could go further and store preprocessed constant results here too.  See
 // "anyValue()" and "asValue()" for usage.
 func (sb *StaticBlock) Define(n Name, tv TypedValue) {
-	debug.Println("---Define, n : ", n)
 	sb.Define2(false, n, tv.T, tv)
 }
 
@@ -1853,7 +1850,6 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 		return // ignore
 	}
 	idx, exists := sb.GetLocalIndex(n)
-	debug.Println("---exists:, ", exists)
 	if exists {
 		// Is re-defining.
 		if isConst != sb.getLocalIsConst(n) {
@@ -1893,7 +1889,6 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	} else {
 		// The general case without re-definition.
 		sb.Names = append(sb.Names, n)
-		debug.Println("---sb.Names: ", sb.Names)
 		if isConst {
 			sb.Consts = append(sb.Consts, n)
 		}

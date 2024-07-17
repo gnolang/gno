@@ -59,13 +59,7 @@ func (m *Machine) doOpCall() {
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
-	debug.Println("---clo: ", clo)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
-	debug.Println("---b: ", b)
-	debug.Println("---b.Names: ", b.Source.GetBlockNames())
-	debug.Println("---b.Values before update: ", b.Values)
-	debug.Println("---fv.Captures: ", fv.Captures, len(fv.Captures))
-
 	if len(fv.Captures) != 0 {
 		if len(fv.Captures) > len(b.Values) {
 			panic("should not happen")
@@ -74,8 +68,6 @@ func (m *Machine) doOpCall() {
 			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
 		}
 	}
-
-	debug.Println("---b.Values after update: ", b.Values)
 
 	m.PushBlock(b)
 	if fv.nativeBody == nil && fv.NativePkg != "" {
@@ -86,11 +78,8 @@ func (m *Machine) doOpCall() {
 		}
 	}
 	if fv.nativeBody == nil {
-		debug.Println("---no nativeBody")
 		fbody := fv.GetBodyFromSource(m.Store)
-		debug.Println("---fbody: ", fbody)
 		if len(ft.Results) == 0 {
-			debug.Println("---len of results == 0")
 			// Push final empty *ReturnStmt;
 			// TODO: transform in preprocessor instead to return only
 			// when necessary.
@@ -192,13 +181,10 @@ func (m *Machine) doOpCall() {
 		// as a pointer, *StructValue, for example.
 		b.Values[i] = pv.Copy(m.Alloc)
 	}
-	debug.Println("---b.Names: ", b.Source.GetBlockNames())
-	debug.Println("---b.Values: ", b.Values)
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
 	// XXX I think we can copy into the last len(.Captures) items of b.Values.
 	// XXX actually copy
-	debug.Println("---going to do some update staff")
 }
 
 func (m *Machine) doOpCallNativeBody() {
@@ -292,7 +278,6 @@ func (m *Machine) doOpReturnToBlock() {
 }
 
 func (m *Machine) doOpReturnCallDefers() {
-	debug.Println("---doOpReturnCallDefers")
 	cfr := m.MustLastCallFrame(1)
 	dfr, ok := cfr.PopDefer()
 	if !ok {
@@ -314,7 +299,6 @@ func (m *Machine) doOpReturnCallDefers() {
 	// Convert if variadic argument.
 	if dfr.Func != nil {
 		fv := dfr.Func
-		debug.Println("---defer, fv.Captures: ", fv.Captures)
 		ft := fv.GetType(m.Store)
 		pts := ft.Params
 		numParams := len(ft.Params)
@@ -322,9 +306,6 @@ func (m *Machine) doOpReturnCallDefers() {
 		clo := dfr.Func.GetClosure(m.Store)
 		b := m.Alloc.NewBlock(fv.GetSource(m.Store), clo)
 		// update values from captures
-		debug.Println("---b: ", b)
-		debug.Println("---b.Values before update: ", b.Values)
-		debug.Println("---b.Names before update: ", b.Source.GetBlockNames())
 		if len(fv.Captures) != 0 {
 			if len(fv.Captures) > len(b.Values) {
 				panic("should not happen")
@@ -333,7 +314,6 @@ func (m *Machine) doOpReturnCallDefers() {
 				b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
 			}
 		}
-		debug.Println("---b.Values after update: ", b.Values)
 		m.PushBlock(b)
 		if fv.nativeBody == nil {
 			fbody := fv.GetBodyFromSource(m.Store)

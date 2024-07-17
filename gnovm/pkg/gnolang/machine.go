@@ -741,7 +741,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 // static types and values.
 func (m *Machine) EvalStatic(last BlockNode, x Expr) TypedValue {
 	if debug {
-		//m.Printf("Machine.EvalStatic(%v, %v)\n", last, x)
+		m.Printf("Machine.EvalStatic(%v, %v)\n", last, x)
 	}
 	// X must have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) == nil {
@@ -1969,7 +1969,6 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 		ptr := m.PopValue().V.(PointerValue)
 		return ptr
 	case *CompositeLitExpr: // for *RefExpr
-		debug.Println("---CompositeLitExpr, lx: ", lx)
 		tv := *m.PopValue()
 		hv := m.Alloc.NewHeapItem(tv)
 		debug.Println("---hv: ", hv)
@@ -2171,15 +2170,6 @@ func (m *Machine) String() string {
 func hasName(ns []Name, n Name) bool {
 	for _, n2 := range ns {
 		if n == n2 {
-			return true
-		}
-	}
-	return false
-}
-
-func hasNameX(ns []*NameExpr, nx *NameExpr) bool {
-	for _, n2 := range ns {
-		if nx == n2 {
 			return true
 		}
 	}

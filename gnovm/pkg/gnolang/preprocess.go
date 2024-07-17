@@ -2487,16 +2487,11 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 				case NameExprTypeNormal:
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					debug.Println("---find use1, type normal, dbn: ", dbn)
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-					debug.Println("---lds of dbn: ", lds)
 					if hasName(lds, n.Name) {
 						fle, depth, found := findFirstClosure(stack, dbn)
-						debug.Println("---depth: ", depth)
 						if found {
-							debug.Println("---closure found, n, n.Path: ", n, n.Path)
-							debug.Println("---closure found, fle: ", fle)
 							// TODO: these state change should be defer to trans_leave
 							// If across a closure,
 							// mark name as loop used, `potentially` escaped.
@@ -2515,7 +2510,6 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 							// see XXX in op_call.go
 							n.Path.Depth = uint8(depth)
 							n.Path.Index = idx
-							debug.Println("---n.Path after---: ", n.Path)
 							if false {
 								println(idx) // XXX delete
 							}
@@ -2714,18 +2708,14 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 				}
 				switch n.Type {
 				case NameExprTypeNormal:
-					debug.Println("---find use2, type normal, n: ", n)
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					debug.Println("---dbn: ", dbn)
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-					debug.Println("---find use2, normal name, lds : ", lds)
 					if hasName(lds, n.Name) {
 						// if the name is actually loop used,
 						// TODO: fix this
 						lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
-						debug.Println("---find use2, normal name, lus : ", lds)
 						if hasName(lus, n.Name) {
 							// change type finally to HeapUse.
 							n.Type = NameExprTypeHeapUse
@@ -2733,24 +2723,18 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 							// else, will be demoted in later clause.
 						}
 					}
+					// TODO: need this?
 				case NameExprTypeHeapDefine:
-					debug.Println("---find use2, maybe demote to type define, n: ", n)
 					// Find the block where name is defined
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
-					debug.Println("---dbn: ", dbn)
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-					debug.Println("---lds: ", lds)
 					if hasName(lds, n.Name) {
-						debug.Println("---define has name")
 						// if the name is actually loop used,
 						lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
-						debug.Println("---lus: ", lus)
 						if !hasName(lus, n.Name) {
-							debug.Println("---define NOT has name")
 							// demote type finally to Define.
 							n.Type = NameExprTypeDefine
-							debug.Println("---after demote type: ", n)
 						}
 					}
 				case NameExprTypeHeapClosure:
