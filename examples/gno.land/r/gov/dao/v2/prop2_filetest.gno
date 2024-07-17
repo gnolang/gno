@@ -3,6 +3,7 @@ package main
 import (
 	"time"
 
+	"gno.land/p/gov/dao"
 	gnoblog "gno.land/r/gnoland/blog"
 	govdao "gno.land/r/gov/dao/v2"
 )
@@ -12,14 +13,20 @@ func init() {
 		"hello-from-govdao",                             // slug
 		"Hello from GovDAO!",                            // title
 		"This post was published by a GovDAO proposal.", // body
-		time.Now().Format(time.RFC3339),                 // publidation date
+		time.Now().Format(time.RFC3339),                 // publication date
 		"moul",                                          // authors
 		"govdao,example",                                // tags
 	)
 
-	// Create a proposal.
-	comment := "post a new blogpost about govdao"
-	govdao.Propose(comment, ex)
+	// Create a proposal
+	description := "post a new blogpost about govdao"
+
+	prop := dao.ProposalRequest{
+		Description: description,
+		Executor:    ex,
+	}
+
+	govdao.Propose(prop)
 }
 
 func main() {

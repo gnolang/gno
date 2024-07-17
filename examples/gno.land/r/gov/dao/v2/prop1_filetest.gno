@@ -41,9 +41,15 @@ func init() {
 	// complete governance proposal process.
 	executor := validators.NewPropExecutor(changesFn)
 
-	// Create a proposal.
-	comment := "manual valset changes proposal example"
-	govdao.Propose(comment, executor)
+	// Create a proposal
+	description := "manual valset changes proposal example"
+
+	prop := dao.ProposalRequest{
+		Description: description,
+		Executor:    executor,
+	}
+
+	govdao.Propose(prop)
 }
 
 func main() {

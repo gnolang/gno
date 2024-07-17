@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/gov/dao"
 	pVals "gno.land/p/sys/validators"
 	govdao "gno.land/r/gov/dao/v2"
 	validators "gno.land/r/sys/validators/v2"
@@ -169,14 +170,19 @@ func GovDAOProposal(address std.Address) {
 	// Create the executor
 	executor := validators.NewPropExecutor(changesFn)
 
-	// Craft the proposal comment
-	comment := ufmt.Sprintf(
+	// Craft the proposal description
+	description := ufmt.Sprintf(
 		"Proposal to add valoper %s (Address: %s; PubKey: %s) to the valset",
 		valoper.Name,
 		valoper.Address.String(),
 		valoper.PubKey,
 	)
 
+	prop := dao.ProposalRequest{
+		Description: description,
+		Executor:    executor,
+	}
+
 	// Create the govdao proposal
-	govdao.Propose(comment, executor)
+	govdao.Propose(prop)
 }

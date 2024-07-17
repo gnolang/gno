@@ -25,7 +25,7 @@ func init() {
 
 	// Create the proposal
 	comment := "Example value setting"
-	govdao.Propose(comment, executor)
+	govdaoMissingVotesPercent(comment, executor)
 }
 
 func main() {
