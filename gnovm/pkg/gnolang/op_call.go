@@ -174,11 +174,6 @@ func (m *Machine) doOpCallNativeBody() {
 	m.LastFrame().Func.nativeBody(m)
 }
 
-func (m *Machine) doOpCallDeferNativeBody() {
-	fv := m.PopValue().V.(*FuncValue)
-	fv.nativeBody(m)
-}
-
 // Assumes that result values are pushed onto the Values stack.
 func (m *Machine) doOpReturn() {
 	cfr := m.PopUntilLastCallFrame()
