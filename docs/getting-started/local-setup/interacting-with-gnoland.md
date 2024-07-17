@@ -2,10 +2,10 @@
 id: interacting-with-gnoland
 ---
 
-# Interacting with Gno.land code
+# Interacting with gno.land code
 
 ## Overview
-In this tutorial, you will learn how to interact with Gno.land code.
+In this tutorial, you will learn how to interact with gno.land code.
 You will understand how to use your keypair to send transactions to realms
 and packages, send native coins, and more.
 
@@ -16,7 +16,7 @@ and packages, send native coins, and more.
 [Working with Key Pairs](working-with-key-pairs.md#adding-a-private-key-using-a-mnemonic) guide for steps
 
 ## 1. Get testnet GNOTs
-For interacting with any Gno.land chain, you will need a certain amount of GNOTs
+For interacting with any gno.land chain, you will need a certain amount of GNOTs
 to pay gas fees with. 
 
 For this example, we will use the [Portal Loop](../../concepts/testnets.md#portal-loop) 
