@@ -31,10 +31,10 @@ Here are some examples of package paths:
 
 Namespaces provide users with the exclusive ability to publish code under
 their designated namespaces, similar to GitHub's user and organization model.
-Namespaces have the following rules:
-  - Need to be between 6 and 17 characters.
+A namespace follows these rules:
+  - Needs to be between 6 and 17 characters.
   - Can only contain alphanumeric characters.
-  - No special characters allowed (except underscore).
+  - No special characters are allowed (except underscore).
   - Cannot consist solely of underscores. A namespace must have at least one 
 allowed alphanumeric character.
   - Cannot start with a number. A namespace must begin with a letter.
