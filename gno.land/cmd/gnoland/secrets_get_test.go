@@ -133,12 +133,13 @@ func TestSecrets_Get_ValidatorKeyInfo(t *testing.T) {
 		expected func(t *testing.T, out []byte, s *secrets)
 	}{
 		{
-			name: "2-validator key info",
+			name: "validator key info",
 			args: []string{validatorPrivateKeyKey},
 			expected: func(t *testing.T, out []byte, s *secrets) {
+				t.Helper()
 				var vk validatorKeyInfo
 
-				require.NoError(t, json.Unmarshal([]byte(out), &vk))
+				require.NoError(t, json.Unmarshal(out, &vk))
 
 				// Make sure the private key info is displayed
 				assert.Equal(
@@ -155,9 +156,10 @@ func TestSecrets_Get_ValidatorKeyInfo(t *testing.T) {
 			},
 		},
 		{
-			name: "2-validator key address",
+			name: "validator key address",
 			args: []string{fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "address")},
 			expected: func(t *testing.T, out []byte, s *secrets) {
+				t.Helper()
 				var address string
 
 				require.NoError(t, json.Unmarshal(out, &address))
@@ -167,25 +169,25 @@ func TestSecrets_Get_ValidatorKeyInfo(t *testing.T) {
 					s.ValidatorKeyInfo.Address,
 					address,
 				)
-
 			},
 		},
 		{
-			name: "2-validator key address, raw",
+			name: "validator key address, raw",
 			args: []string{fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "address"), "--raw"},
 			expected: func(t *testing.T, out []byte, s *secrets) {
+				t.Helper()
 				assert.Equal(
 					t,
 					s.ValidatorKeyInfo.Address,
 					escapeNewline(out),
 				)
-
 			},
 		},
 		{
-			name: "2-validator key pubkey",
+			name: "validator key pubkey",
 			args: []string{fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "pub_key")},
 			expected: func(t *testing.T, out []byte, s *secrets) {
+				t.Helper()
 				var address string
 
 				require.NoError(t, json.Unmarshal(out, &address))
@@ -198,9 +200,10 @@ func TestSecrets_Get_ValidatorKeyInfo(t *testing.T) {
 			},
 		},
 		{
-			name: "2-validator key pubkey, raw",
+			name: "validator key pubkey, raw",
 			args: []string{fmt.Sprintf("%s.%s", validatorPrivateKeyKey, "pub_key"), "--raw"},
 			expected: func(t *testing.T, out []byte, s *secrets) {
+				t.Helper()
 				assert.Equal(
 					t,
 					s.ValidatorKeyInfo.PubKey,
@@ -296,7 +299,7 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 		)
 	})
 
-	testsValidatorStates := []struct {
+	tests := []struct {
 		name     string
 		key      string
 		expected func(t *testing.T, out string, s *secrets)
@@ -305,6 +308,7 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 			name: "height",
 			key:  fmt.Sprintf("%s.%s", validatorStateKey, "height"),
 			expected: func(t *testing.T, out string, s *secrets) {
+				t.Helper()
 				assert.Equal(
 					t,
 					fmt.Sprintf("%d\n", s.ValidatorStateInfo.Height),
@@ -316,6 +320,7 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 			name: "round",
 			key:  fmt.Sprintf("%s.%s", validatorStateKey, "round"),
 			expected: func(t *testing.T, out string, s *secrets) {
+				t.Helper()
 				assert.Equal(
 					t,
 					fmt.Sprintf("%d\n", s.ValidatorStateInfo.Round),
@@ -327,6 +332,7 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 			name: "step",
 			key:  fmt.Sprintf("%s.%s", validatorStateKey, "step"),
 			expected: func(t *testing.T, out string, s *secrets) {
+				t.Helper()
 				assert.Equal(
 					t,
 					fmt.Sprintf("%d\n", s.ValidatorStateInfo.Step),
@@ -335,8 +341,8 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 			},
 		},
 	}
-	for _, tests := range testsValidatorStates {
-		t.Run("validator state info "+tests.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run("validator state info "+test.name, func(t *testing.T) {
 			t.Parallel()
 
 			// Create a temporary directory
@@ -356,13 +362,13 @@ func TestSecrets_Get_ValidatorStateInfo(t *testing.T) {
 				"get",
 				"--home",
 				homeDir.Path(),
-				tests.key,
+				test.key,
 			}
 
 			// Run the command
 			require.NoError(t, cmd.ParseAndRun(context.Background(), args))
 
-			tests.expected(t, mockOutput.String(), secrets)
+			test.expected(t, mockOutput.String(), secrets)
 		})
 	}
 }

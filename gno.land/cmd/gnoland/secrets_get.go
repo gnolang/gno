@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"strings"
@@ -13,8 +12,6 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
-
-var errInvalidSecretsGetArgs = errors.New("invalid number of secrets get arguments provided")
 
 type secretsGetCfg struct {
 	commonAllCfg
@@ -131,9 +128,7 @@ func readValidatorState(path string) (*validatorStateInfo, error) {
 
 // readNodeID reads the node p2p info from the given path
 func readNodeID(homeDir homeDirectory) (*nodeIDInfo, error) {
-	var (
-		cfg = config.DefaultConfig()
-	)
+	cfg := config.DefaultConfig()
 
 	nodeKey, err := readSecretData[p2p.NodeKey](homeDir.SecretsNodeKey())
 	if err != nil {
