@@ -1,20 +1,11 @@
 package govdao
 
 import (
-	"errors"
 	"std"
 
 	"gno.land/p/gov/dao"
 	"gno.land/p/gov/executor"
 )
-
-const (
-	daoPkgPath = "gno.land/r/gov/dao/v2"
-
-	errNoChangesProposed = "no set changes proposed"
-)
-
-var errNotGovDAO = errors.New("only r/gov/dao can be the caller")
 
 // NewGovDAOExecutor creates the govdao wrapped callback executor
 func NewGovDAOExecutor(cb func() error) dao.Executor {
@@ -106,13 +97,4 @@ func setDAOImpl(impl dao.DAO) {
 // setMembStoreImpl sets a new dao.MembStore implementation
 func setMembStoreImpl(impl dao.MemberStore) {
 	members = impl
-}
-
-// assertCalledByGovdao asserts that the calling Realm is /r/gov/dao
-func assertCalledByGovdao() {
-	caller := std.CurrentRealm().PkgPath()
-
-	if caller != daoPkgPath {
-		panic(errNotGovDAO)
-	}
 }
