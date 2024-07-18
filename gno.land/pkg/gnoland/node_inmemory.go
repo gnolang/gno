@@ -24,6 +24,7 @@ type InMemoryNodeConfig struct {
 	TMConfig           *tmcfg.Config
 	GenesisTxHandler   GenesisTxHandler
 	GenesisMaxVMCycles int64
+	DB                 *memdb.MemDB // will be initialized if nil
 }
 
 // NewMockedPrivValidator generate a new key
@@ -86,6 +87,11 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 	}
 
 	evsw := events.NewEventSwitch()
+	// initialize db if nil
+	mdb := cfg.DB
+	if mdb == nil {
+		mdb = memdb.NewMemDB()
+	}
 
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
@@ -93,7 +99,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		GnoRootDir:       cfg.TMConfig.RootDir,
 		GenesisTxHandler: cfg.GenesisTxHandler,
 		MaxCycles:        cfg.GenesisMaxVMCycles,
-		DB:               memdb.NewMemDB(),
+		DB:               mdb,
 		EventSwitch:      evsw,
 		CacheStdlibLoad:  true,
 	})

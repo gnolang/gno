@@ -92,31 +92,21 @@ func (vm *VMKeeper) Initialize(
 	if vm.gnoStore != nil {
 		panic("should not happen")
 	}
-	baseSDKStore := ms.GetStore(vm.baseKey)
-	iavlSDKStore := ms.GetStore(vm.iavlKey)
+	baseStore := ms.GetStore(vm.baseKey)
+	iavlStore := ms.GetStore(vm.iavlKey)
 
-	if cacheStdlibLoad {
-		// Testing case (using the cache speeds up starting many nodes)
-		vm.gnoStore = cachedStdlibLoad(vm.stdlibsDir, baseSDKStore, iavlSDKStore)
-	} else {
-		// On-chain case
-		vm.gnoStore = uncachedPackageLoad(logger, vm.stdlibsDir, baseSDKStore, iavlSDKStore)
-	}
-}
-
-func uncachedPackageLoad(
-	logger *slog.Logger,
-	stdlibsDir string,
-	baseStore, iavlStore store.Store,
-) gno.Store {
 	alloc := gno.NewAllocator(maxAllocTx)
-	gnoStore := gno.NewStore(alloc, baseStore, iavlStore)
-	gnoStore.SetNativeStore(stdlibs.NativeStore)
-	if gnoStore.NumMemPackages() == 0 {
+	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
+	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
+	if vm.gnoStore.NumMemPackages() == 0 {
 		// No packages in the store; set up the stdlibs.
 		start := time.Now()
 
-		loadStdlib(stdlibsDir, gnoStore)
+		if cacheStdlibLoad {
+			cachedLoadStdlib(vm.stdlibsDir, vm.gnoStore, baseStore, iavlStore)
+		} else {
+			loadStdlib(vm.stdlibsDir, vm.gnoStore)
+		}
 
 		// XXX Quick and dirty to make this function work on non-validator nodes
 		iter := iavlStore.Iterator(nil, nil)
@@ -149,7 +139,7 @@ func uncachedPackageLoad(
 			gno.MachineOptions{
 				PkgPath: "",
 				Output:  os.Stdout, // XXX
-				Store:   gnoStore,
+				Store:   vm.gnoStore,
 			})
 		defer m2.Release()
 		gno.DisableDebug()
@@ -159,7 +149,6 @@ func uncachedPackageLoad(
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
-	return gnoStore
 }
 
 var iavlBackupPrefix = []byte("init_iavl_backup:")
@@ -173,7 +162,7 @@ func isStoreEmpty(st store.Store) bool {
 	return true
 }
 
-func cachedStdlibLoad(stdlibsDir string, baseStore, iavlStore store.Store) gno.Store {
+func cachedLoadStdlib(stdlibsDir string, gnoStore gno.Store, baseStore, iavlStore store.Store) {
 	cachedStdlibOnce.Do(func() {
 		cachedStdlibBase = memdb.NewMemDB()
 		cachedStdlibIavl = memdb.NewMemDB()
@@ -195,11 +184,7 @@ func cachedStdlibLoad(stdlibsDir string, baseStore, iavlStore store.Store) gno.S
 		iavlStore.Set(itr.Key(), itr.Value())
 	}
 
-	alloc := gno.NewAllocator(maxAllocTx)
-	gs := gno.NewStore(alloc, baseStore, iavlStore)
-	gs.SetNativeStore(stdlibs.NativeStore)
-	gno.CopyCachesFromStore(gs, cachedGnoStore)
-	return gs
+	gno.CopyCachesFromStore(gnoStore, cachedGnoStore)
 }
 
 var (
