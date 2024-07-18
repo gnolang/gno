@@ -2654,18 +2654,39 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) uint16 {
 // returns the depth of first closure, 1 if stop itself is a closure,
 // or 0 if not found.
 func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, depth int, found bool) {
+	debug.Printf("---findFirstClosure, stop %v with type of %v \n", stop, reflect.TypeOf(stop))
+	redundant := 0
+	for i, s := range stack {
+		debug.Printf("---stack[%d] is %v with type of: %v \n", i, s, reflect.TypeOf(s))
+	}
 	for i := len(stack) - 1; i >= 0; i-- {
+		debug.Println("---i: ", i)
 		stbn := stack[i]
+		debug.Println("---stbn: ", stbn)
 		switch stbn := stbn.(type) {
 		case *FuncLitExpr:
+			debug.Println("---found")
 			fle = stbn
-			depth = len(stack) - 1 - i + 1 // +1 since 1 is lowest.
+			depth = len(stack) - 1 - redundant - i + 1 // +1 since 1 is lowest.
 			found = true
 			if stbn == stop {
 				return
 			}
-			// even if found, continue iteration in case
-			// an earlier *FuncLitExpr is found.
+		case *IfCaseStmt, *SwitchClauseStmt:
+			if stbn == stop {
+				return
+			}
+			redundant++
+		//case *IfCaseStmt:
+		//	if _, ok := stack[i-1].(*IfStmt); ok {
+		//		redundant++
+		//	}
+		//case *SwitchClauseStmt:
+		//	if _, ok := stack[i-1].(*SwitchStmt); ok {
+		//		redundant++
+		//	}
+		// even if found, continue iteration in case
+		// an earlier *FuncLitExpr is found.
 		default:
 			if stbn == stop {
 				return

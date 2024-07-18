@@ -2443,10 +2443,7 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
-	debug.Println("---GetPointerToInt, index: ", index)
 	vv := fillValueTV(store, &b.Values[index])
-	debug.Println("---vv: ", vv)
-	debug.Printf("---addr of vv: %p \n", vv)
 	return PointerValue{
 		TV:    vv,
 		Base:  b,

@@ -12,6 +12,7 @@ loop:
 	if c < 10 {
 		goto loop
 	}
+
 	for _, cl := range closures {
 		cl()
 	}
