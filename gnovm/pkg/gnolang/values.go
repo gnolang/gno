@@ -604,7 +604,7 @@ func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
 func (fv *FuncValue) UpdateBodyFromSource() {
 	if fv.Source == nil {
 		panic(fmt.Sprintf(
-			"Source is missing  for FuncValue %s",
+			"Source is missing for FuncValue %q",
 			fv.Name))
 	}
 	fv.body = fv.Source.GetBody()
