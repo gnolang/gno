@@ -2,7 +2,10 @@ package gnolang
 
 import (
 	"fmt"
+	"strings"
 )
+
+const maxStacktraceSize = 128
 
 //----------------------------------------
 // (runtime) Frame
@@ -95,4 +98,39 @@ type Defer struct {
 	// defer is created. The PanicScope of the Machine is incremented each time
 	// a panic occurs and is decremented each time a panic is recovered.
 	PanicScope uint
+}
+
+type Execution struct {
+	Stmt  Stmt
+	Frame *Frame
+}
+type Stacktrace struct {
+	Executions      []Execution
+	NumFramesElided int
+}
+
+func (s Stacktrace) String() string {
+	var builder strings.Builder
+
+	for i, e := range s.Executions {
+		if s.NumFramesElided > 0 && i == maxStacktraceSize/2 {
+			fmt.Fprintf(&builder, "...%d frame(s) elided...\n", s.NumFramesElided)
+		}
+
+		switch {
+		case e.Stmt == nil:
+			fmt.Fprintf(&builder, "%s()\n", e.Frame.Func)
+			fmt.Fprintf(&builder, "    %s/%s:%d\n", e.Frame.Func.PkgPath, e.Frame.Func.FileName, e.Frame.Func.Source.GetLine())
+		case e.Frame.Func != nil && e.Frame.Func.IsNative():
+			fmt.Fprintf(&builder, "%s()\n", e.Frame.Func)
+			fmt.Fprintf(&builder, "    %s.%s\n", e.Frame.Func.NativePkg, e.Frame.Func.NativeName)
+		case e.Frame.Func != nil:
+			fmt.Fprintf(&builder, "%s\n", e.Stmt.String())
+			fmt.Fprintf(&builder, "    %s/%s:%d\n", e.Frame.Func.PkgPath, e.Frame.Func.FileName, e.Stmt.GetLine())
+		default:
+			fmt.Fprintf(&builder, "%s\n", e.Stmt.String())
+			fmt.Fprintf(&builder, "    %s\n", e.Frame.GoFunc.Value.Type())
+		}
+	}
+	return builder.String()
 }
