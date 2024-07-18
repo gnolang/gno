@@ -19,7 +19,7 @@ type Event struct {
 	link        string    // link to a corresponding web2 page, ie eventbrite/luma or conference page
 	location    string    // location of the event
 	startTime   time.Time // start time of the event
-	// add duration/endtime?
+	endTime     time.Time // end time of the event
 }
 
 type eventsSlice []*Event
@@ -42,15 +42,15 @@ func init() {
 	events = make(eventsSlice, 0)
 }
 
-func AddEvent(name, description, link, location string, startTime int64) {
+func AddEvent(name, description, link, location string, startTime, endTime int64) {
 	a.AssertOnAuthList()
 
 	if name == "" {
-		panic(errEmptyName)
+		panic(ErrEmptyName)
 	}
 
 	if startTime <= 0 {
-		panic(errInvalidStartTime)
+		panic(ErrInvalidStartTime)
 	}
 
 	if len(description) > maxDescLength {
@@ -65,6 +65,7 @@ func AddEvent(name, description, link, location string, startTime int64) {
 		link:        link,
 		location:    location,
 		startTime:   time.Unix(startTime, 0), // given in unix seconds
+		endTime:     time.Unix(endTime, 0),   // given in unix seconds
 	}
 
 	events = append(events, e)
@@ -82,11 +83,13 @@ func DelEvent(id seqid.ID) {
 	}
 }
 
-func EditEvent(id seqid.ID, name, description, link, location string, startTime int64) {
+func EditEvent(id seqid.ID, name, description, link, location string, startTime, endTime int64) {
 	a.AssertOnAuthList()
 
 	var prevStartTime time.Time
 	newStartTime := time.Unix(startTime, 0)
+	newEndTime := time.Unix(endTime, 0)
+
 	for i, event := range events {
 		if event.id == id {
 			prevStartTime = event.startTime
@@ -97,6 +100,7 @@ func EditEvent(id seqid.ID, name, description, link, location string, startTime 
 				link:        link,
 				location:    location,
 				startTime:   newStartTime,
+				endTime:     newEndTime,
 			}
 
 			return
@@ -141,14 +145,14 @@ func RenderEventWidget(amt int) string {
 }
 
 func renderHome(admin bool) string {
-	output := "# Gno.land Events\n\n"
+	output := "# gno.land events\n\n"
 
 	if len(events) == 0 {
 		output += "No upcoming or past events."
 		return output
 	}
 
-	output += "Below is a list of all upcoming and past Gno.land events.\n\n"
+	output += "Below is a list of all upcoming and past gno.land events.\n\n"
 
 	output += "---\n\n"
 
@@ -186,6 +190,10 @@ func renderHome(admin bool) string {
 	}
 
 	output += "</div>\n\n"
+
+	output += "---\n\n"
+	output += "#### *All times are local."
+
 	return output
 }
 
@@ -196,14 +204,16 @@ func (e Event) Render(admin bool) string {
 	buf.WriteString(ufmt.Sprintf("### %s\n\n", e.name))
 	buf.WriteString(ufmt.Sprintf("%s\n\n", e.description))
 	buf.WriteString(ufmt.Sprintf("**Location:** %s\n\n", e.location))
-	buf.WriteString(ufmt.Sprintf("**Time & Date:** %s\n\n", e.startTime.Format("02 Jan 2006, 15:04")))
+	buf.WriteString(ufmt.Sprintf("**Start time:** %s\n\n", e.startTime.Format("02 Jan 2006, 03:04 PM")))
+	buf.WriteString(ufmt.Sprintf("**End time:** %s\n\n", e.endTime.Format("02 Jan 2006, 03:04 PM")))
 
 	if admin {
-		buf.WriteString(ufmt.Sprintf("Event ID: %s\n\n", e.id))
 		buf.WriteString(ufmt.Sprintf("[EDIT](/r/gnoland/events?help&__func=EditEvent&id=%s)\n\n", e.id))
+		buf.WriteString(ufmt.Sprintf("[DELETE](/r/gnoland/events?help&__func=DelEvent&id=%s)\n\n", e.id))
+	} else {
+		buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
 	}
 
-	buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
 	buf.WriteString("</div>")
 
 	return buf.String()
