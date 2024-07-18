@@ -5,14 +5,13 @@ import (
 	"std"
 )
 
-const daoPkgPath = "gno.land/r/gov/dao/v2"
-
-var errNotGovDAO = errors.New("only r/gov/dao can be the caller")
+var errInvalidCaller = errors.New("invalid executor caller")
 
 // NewCallbackExecutor creates a new callback executor with the provided callback function
-func NewCallbackExecutor(callback func() error) *CallbackExecutor {
+func NewCallbackExecutor(callback func() error, path string) *CallbackExecutor {
 	return &CallbackExecutor{
-		callback: callback,
+		callback:   callback,
+		daoPkgPath: path,
 	}
 }
 
@@ -20,13 +19,14 @@ func NewCallbackExecutor(callback func() error) *CallbackExecutor {
 // based on a specific callback.
 // The given callback should verify the validity of the govdao call
 type CallbackExecutor struct {
-	callback func() error // the callback to be executed
+	callback   func() error // the callback to be executed
+	daoPkgPath string       // the active pkg path of the govdao
 }
 
 // Execute runs the executor's callback function.
 func (exec *CallbackExecutor) Execute() error {
 	// Verify the executor is r/gov/dao
-	assertCalledByGovdao()
+	assertCaller(exec.daoPkgPath)
 
 	if exec.callback != nil {
 		return exec.callback()
@@ -41,11 +41,11 @@ func (exec *CallbackExecutor) IsExpired() bool {
 	return false
 }
 
-// assertCalledByGovdao asserts that the calling Realm is /r/gov/dao
-func assertCalledByGovdao() {
+// assertCaller asserts that the caller Realm matches the path
+func assertCaller(path string) {
 	caller := std.CurrentRealm().PkgPath()
 
-	if caller != daoPkgPath {
-		panic(errNotGovDAO)
+	if caller != path {
+		panic(errInvalidCaller)
 	}
 }

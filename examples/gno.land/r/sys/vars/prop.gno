@@ -4,7 +4,7 @@ import (
 	"std"
 
 	"gno.land/p/gov/dao"
-	"gno.land/p/gov/executor"
+	govdao "gno.land/r/gov/dao/v2"
 )
 
 const (
@@ -54,5 +54,5 @@ func NewVarPropExecutor(changesFn func() []KV) dao.Executor {
 		return nil
 	}
 
-	return executor.NewCallbackExecutor(cb)
+	return govdao.NewGovDAOExecutor(cb)
 }

@@ -1,11 +1,32 @@
 package govdao
 
 import (
+	"errors"
+	"std"
+
 	"gno.land/p/gov/dao"
 	"gno.land/p/gov/executor"
 )
 
-const errNoChangesProposed = "no set changes proposed"
+const (
+	daoPkgPath = "gno.land/r/gov/dao/v2"
+
+	errNoChangesProposed = "no set changes proposed"
+)
+
+var errNotGovDAO = errors.New("only r/gov/dao can be the caller")
+
+// NewGovDAOExecutor creates the govdao wrapped callback executor
+func NewGovDAOExecutor(cb func() error) dao.Executor {
+	if cb == nil {
+		panic(errNoChangesProposed)
+	}
+
+	return executor.NewCallbackExecutor(
+		cb,
+		std.CurrentRealm().PkgPath(),
+	)
+}
 
 // NewMemberPropExecutor returns the GOVDAO member change executor
 func NewMemberPropExecutor(changesFn func() []dao.Member) dao.Executor {
@@ -46,7 +67,7 @@ func NewMemberPropExecutor(changesFn func() []dao.Member) dao.Executor {
 		return errs
 	}
 
-	return executor.NewCallbackExecutor(callback)
+	return NewGovDAOExecutor(callback)
 }
 
 func NewDAOImplExecutor(changeFn func() dao.DAO) dao.Executor {
@@ -60,7 +81,7 @@ func NewDAOImplExecutor(changeFn func() dao.DAO) dao.Executor {
 		return nil
 	}
 
-	return executor.NewCallbackExecutor(callback)
+	return NewGovDAOExecutor(callback)
 }
 
 func NewMembStoreImplExecutor(changeFn func() dao.MemberStore) dao.Executor {
@@ -74,7 +95,7 @@ func NewMembStoreImplExecutor(changeFn func() dao.MemberStore) dao.Executor {
 		return nil
 	}
 
-	return executor.NewCallbackExecutor(callback)
+	return NewGovDAOExecutor(callback)
 }
 
 // setDAOImpl sets a new DAO implementation
@@ -85,4 +106,13 @@ func setDAOImpl(impl dao.DAO) {
 // setMembStoreImpl sets a new dao.MembStore implementation
 func setMembStoreImpl(impl dao.MemberStore) {
 	members = impl
+}
+
+// assertCalledByGovdao asserts that the calling Realm is /r/gov/dao
+func assertCalledByGovdao() {
+	caller := std.CurrentRealm().PkgPath()
+
+	if caller != daoPkgPath {
+		panic(errNotGovDAO)
+	}
 }

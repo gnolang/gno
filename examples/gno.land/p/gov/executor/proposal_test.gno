@@ -26,10 +26,10 @@ func TestExecutor_Callback(t *testing.T) {
 		)
 
 		// Create the executor
-		e := NewCallbackExecutor(cb)
+		e := NewCallbackExecutor(cb, "gno.land/r/gov/dao")
 
 		// Execute as not the /r/gov/dao caller
-		uassert.PanicsWithMessage(t, errNotGovDAO.Error(), func() {
+		uassert.PanicsWithMessage(t, errInvalidCaller.Error(), func() {
 			_ = e.Execute()
 		})
 
@@ -50,7 +50,8 @@ func TestExecutor_Callback(t *testing.T) {
 		)
 
 		// Create the executor
-		e := NewCallbackExecutor(cb)
+		daoPkgPath := "gno.land/r/gov/dao"
+		e := NewCallbackExecutor(cb, daoPkgPath)
 
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)
@@ -80,7 +81,8 @@ func TestExecutor_Callback(t *testing.T) {
 		)
 
 		// Create the executor
-		e := NewCallbackExecutor(cb)
+		daoPkgPath := "gno.land/r/gov/dao"
+		e := NewCallbackExecutor(cb, daoPkgPath)
 
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)
@@ -117,10 +119,10 @@ func TestExecutor_Context(t *testing.T) {
 		)
 
 		// Create the executor
-		e := NewCtxExecutor(cb)
+		e := NewCtxExecutor(cb, "gno.land/r/gov/dao")
 
 		// Execute as not the /r/gov/dao caller
-		uassert.PanicsWithMessage(t, errNotGovDAO.Error(), func() {
+		uassert.PanicsWithMessage(t, errInvalidCaller.Error(), func() {
 			_ = e.Execute()
 		})
 
@@ -145,7 +147,8 @@ func TestExecutor_Context(t *testing.T) {
 		)
 
 		// Create the executor
-		e := NewCtxExecutor(cb)
+		daoPkgPath := "gno.land/r/gov/dao"
+		e := NewCtxExecutor(cb, daoPkgPath)
 
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)
@@ -179,7 +182,8 @@ func TestExecutor_Context(t *testing.T) {
 		)
 
 		// Create the executor
-		e := NewCtxExecutor(cb)
+		daoPkgPath := "gno.land/r/gov/dao"
+		e := NewCtxExecutor(cb, daoPkgPath)
 
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)

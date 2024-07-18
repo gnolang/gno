@@ -10,7 +10,6 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
 	"gno.land/p/gov/dao"
-	"gno.land/p/gov/executor"
 )
 
 // generateMembers generates dummy govdao members
@@ -55,7 +54,9 @@ func TestSimpleDAO_Propose(t *testing.T) {
 
 				return nil
 			}
-			ex = executor.NewCallbackExecutor(cb)
+			ex = &mockExecutor{
+				executeFn: cb,
+			}
 
 			sentCoins = std.NewCoins(
 				std.NewCoin(
@@ -99,7 +100,9 @@ func TestSimpleDAO_Propose(t *testing.T) {
 				return nil
 			}
 
-			ex          = executor.NewCallbackExecutor(cb)
+			ex = &mockExecutor{
+				executeFn: cb,
+			}
 			description = "Proposal description"
 
 			proposer  = testutils.TestAddress("proposer")

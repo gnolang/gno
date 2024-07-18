@@ -22,19 +22,21 @@ var errNotApproved = errors.New("not approved by govdao")
 // It utilizes the given context to assert the validity of the govdao call
 type CtxExecutor struct {
 	callbackCtx func(ctx context.Context) error // the callback ctx fn, if any
+	daoPkgPath  string                          // the active pkg path of the govdao
 }
 
 // NewCtxExecutor creates a new executor with the provided callback function.
-func NewCtxExecutor(callback func(ctx context.Context) error) *CtxExecutor {
+func NewCtxExecutor(callback func(ctx context.Context) error, path string) *CtxExecutor {
 	return &CtxExecutor{
 		callbackCtx: callback,
+		daoPkgPath:  path,
 	}
 }
 
 // Execute runs the executor's callback function
 func (exec *CtxExecutor) Execute() error {
 	// Verify the executor is r/gov/dao
-	assertCalledByGovdao()
+	assertCaller(exec.daoPkgPath)
 
 	// Create the context
 	ctx := context.WithValue(

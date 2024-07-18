@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/gov/dao"
-	"gno.land/p/gov/executor"
+	govdao "gno.land/r/gov/dao/v2"
 )
 
 var (
@@ -43,14 +43,12 @@ func AdminRemoveModerator(addr std.Address) {
 
 func NewPostExecutor(slug, title, body, publicationDate, authors, tags string) dao.Executor {
 	callback := func() error {
-		caller := std.DerivePkgAddr("gno.land/r/gov/dao/v2")
-
-		addPost(caller, slug, title, body, publicationDate, authors, tags)
+		addPost(std.PrevRealm().Addr(), slug, title, body, publicationDate, authors, tags)
 
 		return nil
 	}
 
-	return executor.NewCallbackExecutor(callback)
+	return govdao.NewGovDAOExecutor(callback)
 }
 
 func ModAddPost(slug, title, body, publicationDate, authors, tags string) {
