@@ -71,7 +71,7 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 		if len(currentGame.SolvedGameBoard) == 16 {
 			flipAmount = 1000 // 1000 uflip = 1 FLIP
 		} else if len(currentGame.SolvedGameBoard) == 64 {
-			flipAmount = 4 // 4000 uflip = 4 FLIP
+			flipAmount = 4000 // 4000 uflip = 4 FLIP
 		}
 		// mint fungible FLIP token
 		MintLocked(player, tidString, std.NewCoin("FLIP", flipAmount))
@@ -358,9 +358,9 @@ func AirdropBasicFlipNFT(airdropAccount,
 		// add NFT to the lockedNFTs avl.Tree
 		var flipAmount int64
 		if gameLevel == "16" {
-			flipAmount = 1
+			flipAmount = 1000
 		} else if gameLevel == "64" {
-			flipAmount = 4
+			flipAmount = 4000
 		}
 		// mint fungible FLIP token
 		MintLocked(toPlayer, tidString, std.NewCoin("FLIP", flipAmount))

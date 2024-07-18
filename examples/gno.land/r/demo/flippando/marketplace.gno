@@ -189,7 +189,6 @@ func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721.TokenID)
     return string(buyResultJSON)
 }
 
-
 // util
 
 func convertPriceStringToUint64(price string) (uint64, error) {

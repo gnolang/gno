@@ -17,7 +17,7 @@ type lockedVault struct {
 }
 
 var (
-	flipToken          = grc20.NewAdminToken("Flippando", "FLIP", 12)
+	flipToken          = grc20.NewBanker("Flippando", "FLIP", 12)
     // 1000 uFLIP = 1 FLIP
     // max denom 1,000,000,000 FLIP
 	totalLockedSupply  std.Coin = std.NewCoin("FLIP", 0)
@@ -101,11 +101,8 @@ func UnlockAndTransferFLIP(recipient std.Address, tokenId string) error {
 }
 
 func Transfer(from, recipient std.Address, fAmount std.Coin) error {
-	totalFLIPBalance, err := flipToken.BalanceOf(from)
-	if err != nil {
-		return errors.New("balance query failed")
-	}
-
+	totalFLIPBalance := flipToken.BalanceOf(from)
+	
 	lockedFLIPBalance := getUserLockedBalances(from)
 
 	if int64(totalFLIPBalance) >= fAmount.Amount && int64(totalFLIPBalance)-int64(lockedFLIPBalance.Amount) >= fAmount.Amount {
@@ -121,11 +118,8 @@ func Transfer(from, recipient std.Address, fAmount std.Coin) error {
 
 func TransferFLIPToSeller(from, recipient std.Address, fPrice std.Coin) (flipPaid string, flipBurned string, err error) {
 	flipToken.Approve(from, std.CurrentRealm().Addr(), uint64(fPrice.Amount))
-	totalFLIPBalance, err := flipToken.BalanceOf(from)
-	if err != nil {
-		return "", "", ErrFlipTokenBalanceOfFailed
-	}
-
+	totalFLIPBalance := flipToken.BalanceOf(from)
+	
 	lockedFLIPBalance := getUserLockedBalances(from)
 
 	if int64(totalFLIPBalance) >= fPrice.Amount && int64(totalFLIPBalance)-lockedFLIPBalance.Amount >= fPrice.Amount {
@@ -148,10 +142,7 @@ func TransferFLIPToSeller(from, recipient std.Address, fPrice std.Coin) (flipPai
 }
 
 func GetFLIPBalance(user std.Address) string {
-	totalFLIPBalance, err := flipToken.BalanceOf(user)
-	if err != nil {
-		panic("BalanceOf should not happen")
-	}
+	totalFLIPBalance := flipToken.BalanceOf(user)
 
 	lockedFLIPBalance := getUserLockedBalances(user)
 	availableFLIPBalance := totalFLIPBalance - uint64(lockedFLIPBalance.Amount)
