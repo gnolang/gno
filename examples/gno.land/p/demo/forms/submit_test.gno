@@ -56,12 +56,12 @@ func TestAnswerForm(t *testing.T) {
 }
 
 func shouldPanic(t *testing.T, f func()) {
-    defer func() {
-        if r := recover(); r == nil {
-            t.Errorf("should have panic")
-        }
-    }()
-    f()
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("should have panic")
+		}
+	}()
+	f()
 }
 
 func TestAnswerFormDates(t *testing.T) {
@@ -79,7 +79,7 @@ func TestAnswerFormDates(t *testing.T) {
 		}
 	]`
 	answers := `["Test"]`
-	
+
 	shouldPanic(t, func() {
 		formID := db.CreateForm("Test Form", "Test Description", tomorrow, "", data)
 		db.SubmitForm(formID, answers)

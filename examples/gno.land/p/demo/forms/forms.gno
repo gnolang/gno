@@ -1,9 +1,9 @@
 package forms
 
 import (
+	"errors"
 	"std"
 	"time"
-	"errors"
 
 	"gno.land/p/demo/seqid"
 )

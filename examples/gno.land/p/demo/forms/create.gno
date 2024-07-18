@@ -54,7 +54,7 @@ func (db *FormDatabase) CreateForm(title string, description string, openAt stri
 
 	fieldsCount := node.Size()
 	fields := make([]Field, fieldsCount)
-	
+
 	// Parsing the json submission to create the gno data structures
 	for i := 0; i < fieldsCount; i++ {
 		field, err := node.GetIndex(i)

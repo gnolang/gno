@@ -46,73 +46,73 @@ func TestAnswerFormInvalidForm(t *testing.T) {
 		name        string
 		answer      string
 		expectPanic bool
-		data 	 	string
+		data        string
 	}{
 		{
 			name:        "correct",
 			answer:      `["Alex", 21, true, 0, [0, 1]]`,
 			expectPanic: false,
-			data: dataAllTypes,
+			data:        dataAllTypes,
 		},
 		{
 			name:        "invalid string",
 			answer:      `[0, 21, true, 0, [0, 1]`,
 			expectPanic: true,
-			data: dataAllTypes,
+			data:        dataAllTypes,
 		},
 		{
 			name:        "invalid number",
 			answer:      `["Alex", "21", true, 0, [0, 1]]`,
 			expectPanic: true,
-			data: dataAllTypes,
+			data:        dataAllTypes,
 		},
 		{
 			name:        "invalid boolean",
 			answer:      `["Alex", 21, 1, 0, [0, 1]]`,
 			expectPanic: true,
-			data: dataAllTypes,
+			data:        dataAllTypes,
 		},
 		{
 			name:        "invalid choice",
 			answer:      `["Alex", 21, true, 10, [0, 1]]`,
 			expectPanic: true,
-			data: dataAllTypes,
+			data:        dataAllTypes,
 		},
 		{
 			name:        "invalid multi-choice 1",
 			answer:      `["Alex", 21, true, 0, [0, 1, 2, 3, 4, 5]]`,
 			expectPanic: true,
-			data: dataAllTypes,
+			data:        dataAllTypes,
 		},
 		{
 			name:        "invalid multi-choice 2",
 			answer:      `["Alex", 21, true, 0, [5]]`,
 			expectPanic: true,
-			data: dataAllTypes,
+			data:        dataAllTypes,
 		},
 		{
 			name:        "invalid multi-choice 3",
 			answer:      `["Alex", 21, true, 0, 0]`,
 			expectPanic: true,
-			data: dataAllTypes,
+			data:        dataAllTypes,
 		},
 		{
 			name:        "required string",
 			answer:      `["", 21, true, 0, [0, 1]]`,
 			expectPanic: true,
-			data: dataAllTypes,
+			data:        dataAllTypes,
 		},
 		{
 			name:        "unrequired number",
 			answer:      `["Alex", null, true, 0, [0, 1]]`,
 			expectPanic: false,
-			data: dataAllTypes,
+			data:        dataAllTypes,
 		},
 		{
-			name: "correct one field",
-			answer: `["Alex"]`,
+			name:        "correct one field",
+			answer:      `["Alex"]`,
 			expectPanic: false,
-			data: dataOneRequiredText,
+			data:        dataOneRequiredText,
 		},
 	}
 

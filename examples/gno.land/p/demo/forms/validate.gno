@@ -115,7 +115,7 @@ func ValidateAnswers(answers string, fields []Field) bool {
 		if err != nil {
 			return false
 		}
-		
+
 		if answer.IsNull() && !field.Required {
 			return true
 		}

@@ -39,4 +39,3 @@ func (db *FormDatabase) SubmitForm(formID string, answers string) {
 	}
 	db.Answers = append(db.Answers, &answer)
 }
-
