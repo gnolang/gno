@@ -1,4 +1,4 @@
-package main
+package browser
 
 import (
 	"errors"
@@ -12,30 +12,26 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 )
 
-const remoteAddr = "http://localhost:36657"
-const qFileStr = "vm/qfile"
-
 var (
 	ErrInternalError  = errors.New("internal error")
 	ErrRenderNotFound = errors.New("render not found")
 )
 
-type BroClient struct {
+type NodeClient struct {
 	base   gnoclient.BaseTxCfg
 	client *gnoclient.Client
 	logger *slog.Logger
 }
 
-func NewBroClient(logger *slog.Logger, base gnoclient.BaseTxCfg, client *gnoclient.Client) *BroClient {
-	return &BroClient{
+func NewNodeClient(logger *slog.Logger, base gnoclient.BaseTxCfg, client *gnoclient.Client) *NodeClient {
+	return &NodeClient{
 		base:   base,
 		client: client,
 		logger: logger,
 	}
 }
 
-// gnokey maketx call -pkgpath "gno.land/r/dev/hello" -func "Inc" -gas-fee 1000000ugnot -gas-wanted 2000000 -send "" -broadcast -chainid "tendermint-test" -remote "http://127.0.0.1:36657" g1jg8mtut
-func (bl *BroClient) Call(path, call string) ([]byte, error) {
+func (bl *NodeClient) Call(path, call string) ([]byte, error) {
 	method, args, err := parseMethodToArgs(call)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse method/args: %w", err)
@@ -66,7 +62,7 @@ func (bl *BroClient) Call(path, call string) ([]byte, error) {
 	return cm.DeliverTx.Data, nil
 }
 
-func (bl *BroClient) Funcs(path string) (vm.FunctionSignatures, error) {
+func (bl *NodeClient) Funcs(path string) (vm.FunctionSignatures, error) {
 	res, err := bl.client.Query(gnoclient.QueryCfg{
 		Path: "vm/qfuncs",
 		Data: []byte(path),
@@ -84,7 +80,7 @@ func (bl *BroClient) Funcs(path string) (vm.FunctionSignatures, error) {
 	return fsigs, nil
 }
 
-func (bl *BroClient) Render(path, args string) ([]byte, error) {
+func (bl *NodeClient) Render(path, args string) ([]byte, error) {
 	data, res, err := bl.client.Render(path, args)
 	if err != nil {
 		return nil, err

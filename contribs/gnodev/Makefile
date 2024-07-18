@@ -5,11 +5,11 @@ GOTEST_FLAGS ?= $(GOBUILD_FLAGS) -v -p 1 -timeout=5m
 rundep := go run -modfile ../../misc/devdeps/go.mod
 golangci_lint := $(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint
 
-install:
+install: install.gnodev install.gnobro
+install.gnodev:
 	go install $(GOBUILD_FLAGS) ./cmd/gnodev
-
-build:
-	go build $(GOBUILD_FLAGS) -o build/gnodev ./cmd/gnodev
+install.gnobro:
+	go install $(GOBUILD_FLAGS) ./cmd/gnobro
 
 lint:
 	$(golangci_lint) --config ../../.github/golangci.yml run ./...

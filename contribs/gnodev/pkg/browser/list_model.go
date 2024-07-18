@@ -1,4 +1,4 @@
-package main
+package browser
 
 import (
 	"fmt"
@@ -32,6 +32,12 @@ func (m *FuncListModel) SetItems(items []list.Item) {
 	m.items = items
 }
 
+func (m FuncListModel) Update(msg tea.Msg) (FuncListModel, tea.Cmd) {
+	var cmd tea.Cmd
+	m.Model, cmd = m.Model.Update(msg)
+	return m, cmd
+}
+
 func (m *FuncListModel) OriginItems() []list.Item {
 	return m.items
 }
@@ -45,6 +51,11 @@ func (m *FuncListModel) Reset() {
 }
 
 func (m *FuncListModel) FilterItems(pattern string) {
+	if pattern == "" {
+		m.Reset()
+		return
+	}
+
 	i := strings.IndexRune(pattern, '(')
 	if i > 0 {
 		pattern = pattern[:i]

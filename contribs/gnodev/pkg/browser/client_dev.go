@@ -1,4 +1,4 @@
-package main
+package browser
 
 import (
 	"context"
@@ -14,8 +14,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const MaxElapsedTime = time.Second * 20
+
 var ErrHandlerNotSet = errors.New("handler not set")
-var MaxElapsedTime = time.Second * 20
 
 type DevClient struct {
 	Logger  *slog.Logger
