@@ -18,9 +18,10 @@ func y() (nat, []int) {
 }
 func main() {
 
-	// if else, for block
+	// else-if, for block
+	if false {
 
-	if true {
+	} else if true {
 		u1, n2 = x()
 		println(u1)
 		println(n2)

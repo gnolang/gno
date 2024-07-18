@@ -436,7 +436,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							_, ok := last.GetLocalIndex(ln)
 							if !ok {
 								// initial declaration to be re-defined.
-								last.Define(ln, anyValue(nil))
+								last.Predefine(false, ln)
 							} else {
 								// do not redeclare.
 							}
@@ -1941,9 +1941,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 								// a,b = .decompose1, .decompose2
 								// assign stmt expression
-								// the right hand side will be converted to  call expr for named/unnamed conversion,
-								// we make a copy of tmpExprs to prevent dsx.Lhs in the previous statement changing by the side effect
-								// when asx.Rhs is converted to const call expr during the preprocess of the next statement
+								// The right-hand side will be converted to a call expression for named/unnamed conversion.
+								// tmpExprs is a []Expr; we make a copy of tmpExprs to prevent dsx.Lhs in the previous statement (dsx) from being changed by side effects.
+								// If we don't copy tmpExprs, when asx.Rhs is converted to a const call expression during the preprocessing of the AssignStmt asx,
+								// dsx.Lhs will change from []NameExpr to []CallExpr.
+								// This side effect would cause a panic when the machine executes the dsx statement, as it expects Lhs to be []NameExpr.
 
 								asx := &AssignStmt{
 									Lhs: n.Lhs,
@@ -3258,7 +3260,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			} else {
 				panic("should not happen")
 			}
-
+			// The body may get altered during preprocessing later.
 			if !dt.TryDefineMethod(&FuncValue{
 				Type:       ft,
 				IsMethod:   true,
@@ -3486,6 +3488,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			pkg := skipFile(last).(*PackageNode)
 			// define a FuncValue w/ above type as d.Name.
 			// fill in later during *FuncDecl:BLOCK.
+			// The body may get altered during preprocessing later.
 			fv := &FuncValue{
 				Type:       ft,
 				IsMethod:   false,

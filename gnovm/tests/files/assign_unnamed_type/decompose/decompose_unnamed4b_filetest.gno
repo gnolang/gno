@@ -2,6 +2,7 @@ package main
 
 type nat []int
 
+// package block
 var n1, n2 nat = x()
 
 func x() (nat, []int) {
