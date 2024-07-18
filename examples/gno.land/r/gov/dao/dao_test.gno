@@ -51,12 +51,17 @@ func TestPackage(t *testing.T) {
 	})
 
 	out = Render("0")
-	expected = `# Prop#0
+	expected = `# Prop #0
 
 dummy proposal
+
 Status: active
+
 Voting status: YES: 1, NO: 0, percent: 33, members: 3
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
+
+Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+
+`
 
 	urequire.Equal(t, expected, out)
 
@@ -69,12 +74,17 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 	})
 
 	out = Render("0")
-	expected = `# Prop#0
+	expected = `# Prop #0
 
 dummy proposal
+
 Status: active
+
 Voting status: YES: 1, NO: 1, percent: 33, members: 3
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
+
+Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+
+`
 
 	urequire.Equal(t, expected, out)
 
@@ -84,12 +94,17 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 	})
 
 	out = Render("0")
-	expected = `# Prop#0
+	expected = `# Prop #0
 
 dummy proposal
+
 Status: accepted
+
 Voting status: YES: 2, NO: 1, percent: 66, members: 3
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
+
+Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+
+`
 
 	urequire.Equal(t, expected, out)
 
@@ -98,12 +113,17 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 	members = append(members, u4)
 
 	out = Render("0")
-	expected = `# Prop#0
+	expected = `# Prop #0
 
 dummy proposal
+
 Status: active
+
 Voting status: YES: 2, NO: 1, percent: 50, members: 4
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
+
+Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+
+`
 
 	urequire.Equal(t, expected, out)
 
@@ -113,12 +133,17 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 	})
 
 	out = Render("0")
-	expected = `# Prop#0
+	expected = `# Prop #0
 
 dummy proposal
+
 Status: accepted
+
 Voting status: YES: 3, NO: 1, percent: 75, members: 4
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
+
+Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+
+`
 
 	urequire.Equal(t, expected, out)
 
@@ -126,12 +151,17 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 	urequire.True(t, called)
 
 	out = Render("0")
-	expected = `# Prop#0
+	expected = `# Prop #0
 
 dummy proposal
+
 Status: succeeded
+
 Voting status: YES: 3, NO: 1, percent: 75, members: 4
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
+
+Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+
+`
 
 	urequire.Equal(t, expected, out)
 
@@ -145,12 +175,17 @@ Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
 
 	// even if we added a new member the executed proposal is showing correctly the members that voted on it
 	out = Render("0")
-	expected = `# Prop#0
+	expected = `# Prop #0
 
 dummy proposal
+
 Status: succeeded
+
 Voting status: YES: 3, NO: 1, percent: 75, members: 4
-Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr`
+
+Author: g1w5c47h6lta047h6lta047h6lta047h6ly5kscr
+
+`
 
 	urequire.Equal(t, expected, out)
 
