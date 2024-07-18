@@ -458,6 +458,90 @@ func Contains(t TestingT, container, element interface{}, msgs ...string) bool {
 			}
 		}
 		return fail(t, msgs, "uassert.Contains: %v does not contain %v", container, element)
+	case []int:
+		for _, item := range c {
+			if item == element {
+				return true
+			}
+		}
+		return fail(t, msgs, "uassert.Contains: %v does not contain %v", container, element)
+	case []int8:
+		for _, item := range c {
+			if item == element {
+				return true
+			}
+		}
+		return fail(t, msgs, "uassert.Contains: %v does not contain %v", container, element)
+	case []int16:
+		for _, item := range c {
+			if item == element {
+				return true
+			}
+		}
+		return fail(t, msgs, "uassert.Contains: %v does not contain %v", container, element)
+	case []int32:
+		for _, item := range c {
+			if item == element {
+				return true
+			}
+		}
+		return fail(t, msgs, "uassert.Contains: %v does not contain %v", container, element)
+	case []int64:
+		for _, item := range c {
+			if item == element {
+				return true
+			}
+		}
+		return fail(t, msgs, "uassert.Contains: %v does not contain %v", container, element)
+	case []uint:
+		for _, item := range c {
+			if item == element {
+				return true
+			}
+		}
+		return fail(t, msgs, "uassert.Contains: %v does not contain %v", container, element)
+	case []uint8:
+		for _, item := range c {
+			if item == element {
+				return true
+			}
+		}
+		return fail(t, msgs, "uassert.Contains: %v does not contain %v", container, element)
+	case []uint16:
+		for _, item := range c {
+			if item == element {
+				return true
+			}
+		}
+		return fail(t, msgs, "uassert.Contains: %v does not contain %v", container, element)
+	case []uint32:
+		for _, item := range c {
+			if item == element {
+				return true
+			}
+		}
+		return fail(t, msgs, "uassert.Contains: %v does not contain %v", container, element)
+	case []uint64:
+		for _, item := range c {
+			if item == element {
+				return true
+			}
+		}
+		return fail(t, msgs, "uassert.Contains: %v does not contain %v", container, element)
+	case []float32:
+		for _, item := range c {
+			if item == element {
+				return true
+			}
+		}
+		return fail(t, msgs, "uassert.Contains: %v does not contain %v", container, element)
+	case []float64:
+		for _, item := range c {
+			if item == element {
+				return true
+			}
+		}
+		return fail(t, msgs, "uassert.Contains: %v does not contain %v", container, element)
 	default:
 		return fail(t, msgs, "uassert.Contains: unsupported type %T", container)
 	}
@@ -477,6 +561,90 @@ func NotContains(t TestingT, container, element interface{}, msgs ...string) boo
 			return true
 		}
 	case []string:
+		for _, item := range c {
+			if item == element {
+				return fail(t, msgs, "uassert.NotContains: %v contains %v", container, element)
+			}
+		}
+		return true
+	case []int:
+		for _, item := range c {
+			if item == element {
+				return fail(t, msgs, "uassert.NotContains: %v contains %v", container, element)
+			}
+		}
+		return true
+	case []int8:
+		for _, item := range c {
+			if item == element {
+				return fail(t, msgs, "uassert.NotContains: %v contains %v", container, element)
+			}
+		}
+		return true
+	case []int16:
+		for _, item := range c {
+			if item == element {
+				return fail(t, msgs, "uassert.NotContains: %v contains %v", container, element)
+			}
+		}
+		return true
+	case []int32:
+		for _, item := range c {
+			if item == element {
+				return fail(t, msgs, "uassert.NotContains: %v contains %v", container, element)
+			}
+		}
+		return true
+	case []int64:
+		for _, item := range c {
+			if item == element {
+				return fail(t, msgs, "uassert.NotContains: %v contains %v", container, element)
+			}
+		}
+		return true
+	case []uint:
+		for _, item := range c {
+			if item == element {
+				return fail(t, msgs, "uassert.NotContains: %v contains %v", container, element)
+			}
+		}
+		return true
+	case []uint8:
+		for _, item := range c {
+			if item == element {
+				return fail(t, msgs, "uassert.NotContains: %v contains %v", container, element)
+			}
+		}
+		return true
+	case []uint16:
+		for _, item := range c {
+			if item == element {
+				return fail(t, msgs, "uassert.NotContains: %v contains %v", container, element)
+			}
+		}
+		return true
+	case []uint32:
+		for _, item := range c {
+			if item == element {
+				return fail(t, msgs, "uassert.NotContains: %v contains %v", container, element)
+			}
+		}
+		return true
+	case []uint64:
+		for _, item := range c {
+			if item == element {
+				return fail(t, msgs, "uassert.NotContains: %v contains %v", container, element)
+			}
+		}
+		return true
+	case []float32:
+		for _, item := range c {
+			if item == element {
+				return fail(t, msgs, "uassert.NotContains: %v contains %v", container, element)
+			}
+		}
+		return true
+	case []float64:
 		for _, item := range c {
 			if item == element {
 				return fail(t, msgs, "uassert.NotContains: %v contains %v", container, element)

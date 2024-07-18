@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"std"
+	"strings"
 	"testing"
 )
 
@@ -281,6 +282,46 @@ func TestContains(t *testing.T) {
 
 	False(t, Contains(mockT, []string{"foo", "bar"}, "baz"))
 	mockT.equals(t, "error: uassert.Contains: [foo bar] does not contain baz")
+
+	True(t, Contains(mockT, []int{1, 2, 3}, 2))
+	mockT.empty(t)
+
+	False(t, Contains(mockT, []int{1, 2, 3}, 4))
+	mockT.equals(t, "error: uassert.Contains: [1 2 3] does not contain 4")
+
+	True(t, Contains(mockT, []float64{1.2, 2.3, 3.4}, 2.3))
+	mockT.empty(t)
+
+	False(t, Contains(mockT, []float64{1.2, 2.3, 3.4}, 4.5))
+	mockT.equals(t, "error: uassert.Contains: [1.2 2.3 3.4] does not contain 4.5")
+}
+
+func TestNotContains(t *testing.T) {
+	mockT := new(mockTestingT)
+
+	True(t, NotContains(mockT, "Hello World", "Foo"))
+	mockT.empty(t)
+
+	False(t, NotContains(mockT, "Hello World", "World"))
+	mockT.equals(t, "error: uassert.NotContains: \"Hello World\" contains \"World\"")
+
+	True(t, NotContains(mockT, []string{"foo", "bar"}, "baz"))
+	mockT.empty(t)
+
+	False(t, NotContains(mockT, []string{"foo", "bar"}, "foo"))
+	mockT.equals(t, "error: uassert.NotContains: [foo bar] contains foo")
+
+	True(t, NotContains(mockT, []int{1, 2, 3}, 4))
+	mockT.empty(t)
+
+	False(t, NotContains(mockT, []int{1, 2, 3}, 2))
+	mockT.equals(t, "error: uassert.NotContains: [1 2 3] contains 2")
+
+	True(t, NotContains(mockT, []float64{1.2, 2.3, 3.4}, 4.5))
+	mockT.empty(t)
+
+	False(t, NotContains(mockT, []float64{1.2, 2.3, 3.4}, 2.3))
+	mockT.equals(t, "error: uassert.NotContains: [1.2 2.3 3.4] contains 2.3")
 }
 
 func TestLen(t *testing.T) {
@@ -363,22 +404,6 @@ func TestLessOrEqual(t *testing.T) {
 
 	False(t, LessOrEqual(mockT, 2, 1))
 	mockT.equals(t, "error: uassert.LessOrEqual: 2 is not less than or equal to 1")
-}
-
-func TestNotContains(t *testing.T) {
-	mockT := new(mockTestingT)
-
-	True(t, NotContains(mockT, "Hello World", "Foo"))
-	mockT.empty(t)
-
-	False(t, NotContains(mockT, "Hello World", "World"))
-	mockT.equals(t, "error: uassert.NotContains: \"Hello World\" contains \"World\"")
-
-	True(t, NotContains(mockT, []string{"foo", "bar"}, "baz"))
-	mockT.empty(t)
-
-	False(t, NotContains(mockT, []string{"foo", "bar"}, "foo"))
-	mockT.equals(t, "error: uassert.NotContains: [foo bar] contains foo")
 }
 
 func TestElementsMatch(t *testing.T) {
