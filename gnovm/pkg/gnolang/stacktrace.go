@@ -21,22 +21,22 @@ func (s Stacktrace) String() string {
 
 	for i, e := range s.Executions {
 		if s.NumFramesElided > 0 && i == maxStacktraceSize/2 {
-			builder.WriteString(fmt.Sprintf("...%d frame(s) elided...\n", s.NumFramesElided))
+			fmt.Fprintf(&builder, "...%d frame(s) elided...\n", s.NumFramesElided)
 		}
 
 		switch {
 		case e.Stmt == nil:
-			builder.WriteString(fmt.Sprintf("%s()\n", e.Frame.Func))
-			builder.WriteString(fmt.Sprintf("    %s/%s:%d\n", e.Frame.Func.PkgPath, e.Frame.Func.FileName, e.Frame.Func.Source.GetLine()))
+			fmt.Fprintf(&builder, "%s()\n", e.Frame.Func)
+			fmt.Fprintf(&builder, "    %s/%s:%d\n", e.Frame.Func.PkgPath, e.Frame.Func.FileName, e.Frame.Func.Source.GetLine())
 		case e.Frame.Func != nil && e.Frame.Func.IsNative():
-			builder.WriteString(fmt.Sprintf("%s()\n", e.Frame.Func))
-			builder.WriteString(fmt.Sprintf("    %s.%s\n", e.Frame.Func.NativePkg, e.Frame.Func.NativeName))
+			fmt.Fprintf(&builder, "%s()\n", e.Frame.Func)
+			fmt.Fprintf(&builder, "    %s.%s\n", e.Frame.Func.NativePkg, e.Frame.Func.NativeName)
 		case e.Frame.Func != nil:
-			builder.WriteString(fmt.Sprintf("%s\n", e.Stmt.String()))
-			builder.WriteString(fmt.Sprintf("    %s/%s:%d\n", e.Frame.Func.PkgPath, e.Frame.Func.FileName, e.Stmt.GetLine()))
+			fmt.Fprintf(&builder, "%s\n", e.Stmt.String())
+			fmt.Fprintf(&builder, "    %s/%s:%d\n", e.Frame.Func.PkgPath, e.Frame.Func.FileName, e.Stmt.GetLine())
 		default:
-			builder.WriteString(fmt.Sprintf("%s\n", e.Frame.GoFunc.Value.Type()))
-			builder.WriteString("    gonative\n")
+			fmt.Fprintf(&builder, "%s\n", e.Stmt.String())
+			fmt.Fprintf(&builder, "    %s\n", e.Frame.GoFunc.Value.Type())
 		}
 	}
 	return builder.String()
