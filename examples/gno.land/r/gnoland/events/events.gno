@@ -53,6 +53,10 @@ func AddEvent(name, description, link, location string, startTime, endTime int64
 		panic(ErrInvalidStartTime)
 	}
 
+	if endTime <= 0 || endTime <= startTime {
+		panic(ErrInvalidEndTime)
+	}
+
 	if len(description) > maxDescLength {
 		str := ufmt.Sprintf("event description is %d chars, while it cannot be more than %d chars", len(description), maxDescLength)
 		panic(str)
@@ -210,7 +214,9 @@ func (e Event) Render(admin bool) string {
 	if admin {
 		buf.WriteString(ufmt.Sprintf("[EDIT](/r/gnoland/events?help&__func=EditEvent&id=%s)\n\n", e.id))
 		buf.WriteString(ufmt.Sprintf("[DELETE](/r/gnoland/events?help&__func=DelEvent&id=%s)\n\n", e.id))
-	} else {
+	}
+
+	if e.link != "" {
 		buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
 	}
 
