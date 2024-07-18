@@ -6,6 +6,7 @@ gno-forms is a package which demonstrates a form editing and sharing application
 - **Form Creation**: Create new forms with specified titles, descriptions, and fields.
 - **Form Submission**: Submit answers to forms.
 - **Form Retrieval**: Retrieve existing forms and their submissions.
+- **Form Deadline**: Set a precise time range during which a form can be interacted with.
 
 ## Field Types
 The system supports the following field types:

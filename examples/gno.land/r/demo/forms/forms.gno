@@ -1,6 +1,9 @@
 package forms
 
 import (
+	"std"
+	"strings"
+
 	"gno.land/p/demo/forms"
 	"gno.land/p/demo/json"
 	"gno.land/p/demo/ufmt"
@@ -34,9 +37,7 @@ func GetForms() string {
 			"owner":       json.StringNode("owner", form.Owner.String()),
 			"title":       json.StringNode("title", form.Title),
 			"description": json.StringNode("description", form.Description),
-			"createdAt":   json.StringNode("createdAt", form.CreatedAt),
-			"openAt":      json.StringNode("openAt", form.OpenAt),
-			"closeAt":     json.StringNode("closeAt", form.CloseAt),
+			"createdAt":   json.StringNode("createdAt", form.CreatedAt.String()),
 			"fields":      fieldsJson,
 		})
 		formsJson.AppendArray(formJson)
@@ -66,20 +67,34 @@ func GetFormByID(id string) string {
 		fieldsJson.AppendArray(fieldJson)
 	}
 
-	encoded, _ := json.Marshal(fieldsJson)
-	ufmt.Println(string(encoded))
-	ufmt.Println("DWADAWDWA")
+	formSubmissions := db.GetSubmissionsByFormID(form.ID)
+	submissionsJson := json.ObjectNode("", map[string]*json.Node{})
+	for _, submission := range formSubmissions {
+		submissionJson := json.ObjectNode("", map[string]*json.Node{
+			"submittedAt": json.StringNode("submittedAt", submission.SubmittedAt.Format("2006-01-02 15:04:05")),
+			"answers":     json.StringNode("answers", strings.ReplaceAll(submission.Answers, "\"", "'")),
+		})
+		submissionsJson.AppendObject(submission.Author.String(), submissionJson)
+	}
 
 	jsonRes := json.ObjectNode("", map[string]*json.Node{
 		"id":          json.StringNode("id", form.ID),
 		"owner":       json.StringNode("owner", form.Owner.String()),
 		"title":       json.StringNode("title", form.Title),
 		"description": json.StringNode("description", form.Description),
-		"createdAt":   json.StringNode("createdAt", form.CreatedAt),
-		"openAt":      json.StringNode("openAt", form.OpenAt),
-		"closeAt":     json.StringNode("closeAt", form.CloseAt),
+		"createdAt":   json.StringNode("createdAt", form.CreatedAt.Format("2006-01-02 15:04:05")),
+		"submissions": submissionsJson,
 		"fields":      fieldsJson,
 	})
+
+	openAt, err := form.OpenAt()
+	if err == nil {
+		jsonRes.AppendObject("openAt", json.StringNode("openAt", openAt.Format("2006-01-02 15:04:05")))
+	}
+	closeAt, err := form.CloseAt()
+	if err == nil {
+		jsonRes.AppendObject("closeAt", json.StringNode("closeAt", closeAt.Format("2006-01-02 15:04:05")))
+	}
 
 	encoded, err := json.Marshal(jsonRes)
 	if err != nil {
@@ -95,7 +110,7 @@ func GetAnswer(formID string, authorID string) string {
 		panic(ufmt.Errorf("Form not found: %s", formID))
 	}
 
-	answer := db.GetAnswer(formID, authorID)
+	answer := db.GetAnswer(formID, std.Address(authorID))
 	if answer == nil {
 		panic(ufmt.Errorf("Answer not found: %s", authorID))
 	}

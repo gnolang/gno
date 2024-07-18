@@ -16,6 +16,7 @@ func ValidateBooleanField(node *json.Node, field Field) bool {
 		return false
 	}
 
+	// If the field is required, checkbox must be checked
 	if field.Required == true && answer == false {
 		return false
 	}
@@ -33,6 +34,7 @@ func ValidateStringField(node *json.Node, field Field) bool {
 		return false
 	}
 
+	// If the field is required, the answer must not be empty
 	if field.Required == true && answer == "" {
 		return false
 	}
@@ -45,12 +47,8 @@ func ValidateNumberField(node *json.Node, field Field) bool {
 		return false
 	}
 
-	answer, err := node.GetNumeric()
+	_, err := node.GetNumeric()
 	if err != nil {
-		return false
-	}
-
-	if field.Required == true && answer == 0 {
 		return false
 	}
 
@@ -117,30 +115,33 @@ func ValidateAnswers(answers string, fields []Field) bool {
 		if err != nil {
 			return false
 		}
+		
+		if answer.IsNull() && !field.Required {
+			return true
+		}
+
 		if field.FieldType == "boolean" {
 			if ValidateBooleanField(answer, field) == false {
 				return false
 			}
-		}
-		if field.FieldType == "string" {
+		} else if field.FieldType == "string" {
 			if ValidateStringField(answer, field) == false {
 				return false
 			}
-		}
-		if field.FieldType == "number" {
+		} else if field.FieldType == "number" {
 			if ValidateNumberField(answer, field) == false {
 				return false
 			}
-		}
-		if field.FieldType[0] == '{' && field.FieldType[len(field.FieldType)-1] == '}' {
+		} else if field.FieldType[0] == '{' && field.FieldType[len(field.FieldType)-1] == '}' {
 			if ValidateMultiChoiceField(answer, field) == false {
 				return false
 			}
-		}
-		if field.FieldType[0] == '[' && field.FieldType[len(field.FieldType)-1] == ']' {
+		} else if field.FieldType[0] == '[' && field.FieldType[len(field.FieldType)-1] == ']' {
 			if ValideChoiceField(answer, field) == false {
 				return false
 			}
+		} else {
+			return false
 		}
 	}
 

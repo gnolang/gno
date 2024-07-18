@@ -8,49 +8,56 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-func (form *Form) AddField(label string, fieldType string, required bool) {
-	field := Field{
+func CreateField(label string, fieldType string, required bool) Field {
+	return Field{
 		Label:     label,
 		FieldType: fieldType,
 		Required:  required,
 	}
-
-	form.Fields = append(form.Fields, field)
 }
 
-func (db *FormDatabase) GetForm(id string) *Form {
-	for _, form := range db.Forms {
-		if form.ID == id {
-			return form
+func ParseDates(openAt string, closeAt string) (*time.Time, *time.Time) {
+	var openAtTime, closeAtTime *time.Time
+
+	dateFormat := "2006-01-02T15:04:05Z"
+
+	// Parse openAt if it's not empty
+	if openAt != "" {
+		res, err := time.Parse(dateFormat, openAt)
+		if err != nil {
+			panic(ufmt.Errorf("invalid date: %v", openAt))
 		}
+		openAtTime = &res
 	}
-	return nil
+
+	// Parse closeAt if it's not empty
+	if closeAt != "" {
+		res, err := time.Parse(dateFormat, closeAt)
+		if err != nil {
+			panic(ufmt.Errorf("invalid date: %v", closeAt))
+		}
+		closeAtTime = &res
+	}
+
+	return openAtTime, closeAtTime
 }
 
 func (db *FormDatabase) CreateForm(title string, description string, openAt string, closeAt string, data string) string {
-	id := db.IDCounter.Next().String()
+	// Parsing dates
+	openAtTime, closeAtTime := ParseDates(openAt, closeAt)
 
-	form := &Form{
-		ID:          id,
-		Owner:       std.PrevRealm().Addr(),
-		Title:       title,
-		Description: description,
-		CreatedAt:   time.Now().String(),
-		OpenAt:      openAt,
-		CloseAt:     closeAt,
-	}
-
-	db.Forms = append(db.Forms, form)
-
+	// Parsing the json submission
 	node, err := json.Unmarshal([]byte(data))
 	if err != nil {
-		ufmt.Errorf("error: %v", err)
+		ufmt.Errorf("invalid json: %v", err)
 	}
 
+	fieldsCount := node.Size()
+	fields := make([]Field, fieldsCount)
+	
 	// Parsing the json submission to create the gno data structures
-	for i := 0; i < node.Size(); i++ {
+	for i := 0; i < fieldsCount; i++ {
 		field, err := node.GetIndex(i)
-
 		if err != nil {
 			ufmt.Errorf("error: %v", err)
 		}
@@ -63,8 +70,26 @@ func (db *FormDatabase) CreateForm(title string, description string, openAt stri
 		fieldType, _ := fieldTypeNode.GetString()
 		required, _ := requiredNode.GetBool()
 
-		form.AddField(label, fieldType, required)
+		fields[i] = CreateField(label, fieldType, required)
 	}
+
+	// Generating the form ID
+	id := db.IDCounter.Next().String()
+
+	// Creating the form
+	form := Form{
+		ID:          id,
+		Owner:       std.PrevRealm().Addr(),
+		Title:       title,
+		Description: description,
+		CreatedAt:   time.Now(),
+		openAt:      openAtTime,
+		closeAt:     closeAtTime,
+		Fields:      fields,
+	}
+
+	// Adding the form to the database
+	db.Forms = append(db.Forms, &form)
 
 	return id
 }

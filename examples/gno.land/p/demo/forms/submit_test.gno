@@ -1,6 +1,8 @@
 package forms
 
 import (
+	"time"
+
 	"testing"
 )
 
@@ -35,7 +37,7 @@ func TestAnswerForm(t *testing.T) {
 		}
 	]`
 
-	formID := db.CreateForm("Test Form", "Test Description", "2020-01-01", "2020-01-02", data)
+	formID := db.CreateForm("Test Form", "Test Description", "", "", data)
 	answers := `["Alex", 21, true, 0, [0, 1]]`
 
 	db.SubmitForm(formID, answers)
@@ -51,4 +53,43 @@ func TestAnswerForm(t *testing.T) {
 	if db.Answers[0].Answers != answers {
 		t.Errorf("Expected answers %s, got %s", answers, db.Answers[0].Answers)
 	}
+}
+
+func shouldPanic(t *testing.T, f func()) {
+    defer func() {
+        if r := recover(); r == nil {
+            t.Errorf("should have panic")
+        }
+    }()
+    f()
+}
+
+func TestAnswerFormDates(t *testing.T) {
+	db := NewDatabase()
+
+	now := time.Now()
+	tomorrow := now.AddDate(0, 0, 1).Format("2006-01-02T15:04:05Z")
+	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02T15:04:05Z")
+
+	data := `[
+		{
+			"label": "Name",
+			"fieldType": "string",
+			"required": true
+		}
+	]`
+	answers := `["Test"]`
+	
+	shouldPanic(t, func() {
+		formID := db.CreateForm("Test Form", "Test Description", tomorrow, "", data)
+		db.SubmitForm(formID, answers)
+	})
+
+	shouldPanic(t, func() {
+		formID := db.CreateForm("Test Form", "Test Description", "", yesterday, data)
+		db.SubmitForm(formID, answers)
+	})
+
+	formID := db.CreateForm("Test Form", "Test Description", yesterday, tomorrow, data)
+	db.SubmitForm(formID, answers)
 }
