@@ -51,6 +51,7 @@ func TestAddEvent(t *testing.T) {
 	if e2Pos < upcomingPos || e2Pos < pastPos || e2Pos < e1Pos {
 		t.Fatalf("Expected to find Event 2 on a different pos")
 	}
+
 }
 
 func TestAddEventErrors(t *testing.T) {

@@ -53,7 +53,7 @@ func AddEvent(name, description, link, location string, startTime, endTime int64
 		panic(ErrInvalidStartTime)
 	}
 
-	if endTime <= 0 || endTime <= startTime {
+	if endTime <= startTime {
 		panic(ErrInvalidEndTime)
 	}
 
