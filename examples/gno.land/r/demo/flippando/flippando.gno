@@ -192,20 +192,38 @@ func addToUser2Games(addr std.Address, game *Game) {
 	user2Games.Set(string(addr), games)
 }
 
+// marketplace wrapper
+
 func GetArtListings() string {
-	return marketplace.GetListings()
+	return marketplace.GetCompositeNFTListings()
 }
 
-func ListMarketplaceNFT(compositeTokenID string, seller std.Address, price string) error {
-	return marketplace.ListNFT(grc721.TokenID(compositeTokenID), seller, price);
+func GetBasicListings() string {
+	return marketplace.GetBasicNFTListings()
 }
 
-func BuyMarketplaceNFT(buyer std.Address, compositeTokenId string, ) (buyNFTResult string) {
-	return marketplace.BuyNFT(buyer, grc721.TokenID(compositeTokenId)) 
+func ListCompositeNFT(compositeTokenID string, seller std.Address, price string) error {
+	return marketplace.ListCompositeNFT(grc721.TokenID(compositeTokenID), seller, price);
 }
 
-func RemoveMarketplaceNFT(compositeTokenID string, seller std.Address) error {
-	return marketplace.RemoveListing(grc721.TokenID(compositeTokenID), seller)
+func ListBasicNFT(basicTokenID string, seller std.Address, price string) error {
+	return marketplace.ListBasicNFT(grc721.TokenID(basicTokenID), seller, price);
+}
+
+func BuyCompositeNFT(buyer std.Address, compositeTokenId string, ) (buyNFTResult string) {
+	return marketplace.BuyCompositeNFT(buyer, grc721.TokenID(compositeTokenId)) 
+}
+
+func BuyBasicNFT(buyer std.Address, basicTokenId string, ) (buyNFTResult string) {
+	return marketplace.BuyBasicNFT(buyer, grc721.TokenID(basicTokenId)) 
+}
+
+func RemoveCompositeNFTListing(compositeTokenID string, seller std.Address) error {
+	return marketplace.RemoveCompositeNFTListing(grc721.TokenID(compositeTokenID), seller)
+}
+
+func RemoveBasicNFTListing(compositeTokenID string, seller std.Address) error {
+	return marketplace.RemoveBasicNFTListing(grc721.TokenID(compositeTokenID), seller)
 }
 
 func ResetGame(gameId string) {

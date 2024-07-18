@@ -49,8 +49,15 @@ type compositeNFTMetaData struct {
 	bTokenIDs []int64  `json:"bTokenIDs"`
 }
 
-type listingResult struct {
+type listingCompositeResult struct {
 	compositeTokenID string `json:"tokenID"`
+    tokenURI    string `json:"tokenURI"`
+    seller           string `json:"seller"`
+    price            string `json:price"` 
+}
+
+type listingBasicResult struct {
+	basicTokenID string `json:"tokenID"`
     tokenURI    string `json:"tokenURI"`
     seller           string `json:"seller"`
     price            string `json:price"` 
@@ -245,27 +252,55 @@ func (cbn compositeNFTMetaData) MarshalJSON() ([]byte,  error) {
 	
 }
 
-func (lr listingResult)MarshalJSON() ([]byte,  error){
+func (lrc listingCompositeResult)MarshalJSON() ([]byte,  error){
 
 	var b bytes.Buffer
 
 	b.WriteByte('{')
 	
 	b.WriteString(`"tokenID":"`)
-	b.WriteString(lr.compositeTokenID)
+	b.WriteString(lrc.compositeTokenID)
 	b.WriteString(`",`)
 
 	// tokenURI is already a string
 	b.WriteString(`"tokenURI":`)
-	b.WriteString(lr.tokenURI)
+	b.WriteString(lrc.tokenURI)
 	b.WriteString(`,`)
 
 	b.WriteString(`"seller":"`)
-	b.WriteString(lr.seller)
+	b.WriteString(lrc.seller)
 	b.WriteString(`",`)
 
 	b.WriteString(`"price":"`)
-	b.WriteString(lr.price)
+	b.WriteString(lrc.price)
+	b.WriteString(`"`)
+
+	b.WriteByte('}')
+
+	return b.Bytes(), nil
+}
+
+func (lrb listingBasicResult)MarshalJSON() ([]byte,  error){
+
+	var b bytes.Buffer
+
+	b.WriteByte('{')
+	
+	b.WriteString(`"tokenID":"`)
+	b.WriteString(lrb.basicTokenID)
+	b.WriteString(`",`)
+
+	// tokenURI is already a string
+	b.WriteString(`"tokenURI":`)
+	b.WriteString(lrb.tokenURI)
+	b.WriteString(`,`)
+
+	b.WriteString(`"seller":"`)
+	b.WriteString(lrb.seller)
+	b.WriteString(`",`)
+
+	b.WriteString(`"price":"`)
+	b.WriteString(lrb.price)
 	b.WriteString(`"`)
 
 	b.WriteByte('}')

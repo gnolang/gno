@@ -11,6 +11,7 @@ import (
 
 type Marketplace struct {
 	listings map[string]Listing // CompositeTokenID -> Listing
+	basicListings map[string]BasicListing // BasicTokenID -> Listing
 }
 
 type Listing struct {
@@ -20,13 +21,20 @@ type Listing struct {
 	Price            uint64         // Sale price
 }
 
+type BasicListing struct {
+	BasicTokenID grc721.TokenID // TokenID of the basic NFT
+	Seller           std.Address    // Address of the seller
+	Price            uint64         // Sale price
+}
+
 func NewMarketplace() *Marketplace {
 	return &Marketplace{
 		listings: make(map[string]Listing),
+		basicListings: make(map[string]BasicListing),
 	}
 }
 
-func (m *Marketplace) ListNFT(compositeTokenID grc721.TokenID, seller std.Address, price string) error {
+func (m *Marketplace) ListCompositeNFT(compositeTokenID grc721.TokenID, seller std.Address, price string) error {
     // approve it for buying
     FlipCompositeNFT.Approve(std.CurrentRealm().Addr(), compositeTokenID)
 	// get tokenURI of the composite NFT
@@ -59,7 +67,10 @@ func (m *Marketplace) ListNFT(compositeTokenID grc721.TokenID, seller std.Addres
 	return nil
 }
 
-func (m *Marketplace) RemoveListing(compositeTokenID grc721.TokenID, seller std.Address) error {
+func (m *Marketplace) ListBasicNFT(basicTokenID grc721.TokenID, seller std.Address, price string) error {
+}
+
+func (m *Marketplace) RemoveCompositeNFTListing(compositeTokenID grc721.TokenID, seller std.Address) error {
 	// Retrieve the listing
 	rawListing, exists := m.listings[string(compositeTokenID)]
 	if !exists {
@@ -78,7 +89,10 @@ func (m *Marketplace) RemoveListing(compositeTokenID grc721.TokenID, seller std.
 	return nil
 }
 
-func (m *Marketplace) GetListings() string {
+func (m *Marketplace) RemoveBasicNFTListing(basicTokenID grc721.TokenID, seller std.Address) error {
+}
+
+func (m *Marketplace) GetCompositeNFTListings() string {
 	var allListings []string
 	for _, value := range m.listings {
 		// Type assert the value to a Listing
@@ -104,7 +118,10 @@ func (m *Marketplace) GetListings() string {
 	return string(marketplaceJSON)
 }
 
-func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721.TokenID) (buyResult string) {
+func (m *Marketplace) GetBasicNFTListings() string {
+}
+
+func (m *Marketplace) BuyCompositeNFT(buyer std.Address, compositeTokenID grc721.TokenID) (buyResult string) {
     var buyError error
     
     flipPaid := ""
@@ -187,6 +204,9 @@ func (m *Marketplace) BuyNFT(buyer std.Address, compositeTokenID grc721.TokenID)
         buyError = errors.New("Error in marshaling buyNFTResult")
     }
     return string(buyResultJSON)
+}
+
+func (m *Marketplace) BuyBasicNFT(buyer std.Address, basicTokenID grc721.TokenID) (buyResult string) {
 }
 
 // util
