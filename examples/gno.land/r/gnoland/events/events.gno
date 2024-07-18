@@ -26,7 +26,7 @@ type eventsSlice []*Event
 
 var (
 	a         *authorizable.Authorizable
-	events    eventsSlice // sorted oldest > newest
+	events    eventsSlice // sorted oldest > newest by startTime
 	idCounter seqid.ID
 )
 

@@ -52,6 +52,9 @@ func TestAddEvent(t *testing.T) {
 		t.Fatalf("Expected to find Event 2 on a different pos")
 	}
 
+	if events[0].startTime.Unix() > events[1].startTime.Unix() {
+		t.Fatalf("expected ordering to be different")
+	}
 }
 
 func TestAddEventErrors(t *testing.T) {
