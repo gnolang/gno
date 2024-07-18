@@ -2,13 +2,17 @@ package main
 
 func main() {
 	var fns []func() int
-	for i := 0; i < 5; i++ {
+
+	for i := 0; i < 2; i++ {
 		x := i
 		f := func() int {
-			x := 5
-			return x
+			if true {
+				if true {
+					return x
+				}
+			}
+			return 0
 		}
-		println(x)
 		fns = append(fns, f)
 	}
 	for _, fn := range fns {
@@ -19,11 +23,3 @@ func main() {
 // Output:
 // 0
 // 1
-// 2
-// 3
-// 4
-// 5
-// 5
-// 5
-// 5
-// 5

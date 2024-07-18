@@ -2492,6 +2492,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 					if hasName(lds, n.Name) {
 						fle, depth, found := findFirstClosure(stack, dbn)
 						if found {
+							debug.Printf("---find use1, depth: %d, fle: %v : \n ", depth, fle)
 							// TODO: these state change should be defer to trans_leave
 							// If across a closure,
 							// mark name as loop used, `potentially` escaped.
@@ -2656,6 +2657,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) uint16 {
 func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, depth int, found bool) {
 	debug.Printf("---findFirstClosure, stop %v with type of %v \n", stop, reflect.TypeOf(stop))
 	redundant := 0
+	var lastFle *FuncLitExpr
 	for i, s := range stack {
 		debug.Printf("---stack[%d] is %v with type of: %v \n", i, s, reflect.TypeOf(s))
 	}
@@ -2666,27 +2668,21 @@ func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, dept
 		switch stbn := stbn.(type) {
 		case *FuncLitExpr:
 			debug.Println("---found")
-			fle = stbn
-			depth = len(stack) - 1 - redundant - i + 1 // +1 since 1 is lowest.
-			found = true
-			if stbn == stop {
+			if stbn == stop { // if fle is stopBn, does not count, use last fle
+				fle = lastFle
 				return
 			}
+			lastFle = stbn
+			fle = lastFle
+			depth = len(stack) - 1 - redundant - i + 1 // +1 since 1 is lowest.
+			found = true
+		// even if found, continue iteration in case
+		// an earlier *FuncLitExpr is found.
 		case *IfCaseStmt, *SwitchClauseStmt:
 			if stbn == stop {
 				return
 			}
 			redundant++
-		//case *IfCaseStmt:
-		//	if _, ok := stack[i-1].(*IfStmt); ok {
-		//		redundant++
-		//	}
-		//case *SwitchClauseStmt:
-		//	if _, ok := stack[i-1].(*SwitchStmt); ok {
-		//		redundant++
-		//	}
-		// even if found, continue iteration in case
-		// an earlier *FuncLitExpr is found.
 		default:
 			if stbn == stop {
 				return
