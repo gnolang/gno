@@ -137,6 +137,7 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 func setLoc(fs *token.FileSet, pos token.Pos, n Node) Node {
 	posn := fs.Position(pos)
 	n.SetLine(posn.Line)
+	n.SetColumn(posn.Column)
 	return n
 }
 
@@ -478,6 +479,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 
 //----------------------------------------
 // type checking (using go/types)
+// XXX move to gotypecheck.go.
 
 // MemPackageGetter implements the GetMemPackage() method. It is a subset of
 // [Store], separated for ease of testing.
@@ -767,6 +769,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Const:     true,
 				}
 				cd.SetAttribute(ATTR_IOTA, si)
+				setLoc(fs, s.Pos(), cd)
 				ds = append(ds, cd)
 			} else {
 				var names []NameExpr
@@ -785,6 +788,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Values:    values,
 					Const:     false,
 				}
+				setLoc(fs, s.Pos(), vd)
 				ds = append(ds, vd)
 			}
 		case *ast.ImportSpec:
@@ -792,16 +796,19 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			if err != nil {
 				panic("unexpected import spec path type")
 			}
-			ds = append(ds, &ImportDecl{
+			im := &ImportDecl{
 				NameExpr: *Nx(toName(s.Name)),
 				PkgPath:  path,
-			})
+			}
+			setLoc(fs, s.Pos(), im)
+			ds = append(ds, im)
 		default:
 			panic(fmt.Sprintf(
 				"unexpected decl spec %v",
 				reflect.TypeOf(s)))
 		}
 	}
+
 	return ds
 }
 

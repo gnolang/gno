@@ -263,8 +263,18 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
 
+					parts := strings.SplitN(errstr, ":\n--- preprocess stack ---", 2)
+					if len(parts) == 2 {
+						fmt.Println(parts[0])
+						errstr = parts[0]
+					}
 					if errstr != errWanted {
-						panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
+						if f.syncWanted {
+							// write error to file
+							replaceWantedInPlace(path, "Error", errstr)
+						} else {
+							panic(fmt.Sprintf("fail on %s: got %q, want: %q", path, errstr, errWanted))
+						}
 					}
 
 					// NOTE: ignores any gno.GetDebugErrors().
@@ -279,12 +289,16 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						} else {
 							errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 						}
+						parts := strings.SplitN(errstr, ":\n--- preprocess stack ---", 2)
+						if len(parts) == 2 {
+							fmt.Println(parts[0])
+							errstr = parts[0]
+						}
 						// check tip line, write to file
-						ctl := fmt.Sprintf(
-							errstr +
-								"\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, " +
-								"DELETE THIS LINE AND RUN TEST AGAIN ***",
-						)
+						ctl := errstr +
+							"\n*** CHECK THE ERR MESSAGES ABOVE, MAKE SURE IT'S WHAT YOU EXPECTED, " +
+							"DELETE THIS LINE AND RUN TEST AGAIN ***"
+						// write error to file
 						replaceWantedInPlace(path, "Error", ctl)
 						panic(fmt.Sprintf("fail on %s: err recorded, check the message and run test again", path))
 					}

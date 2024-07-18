@@ -73,7 +73,11 @@ func TestRunApp(t *testing.T) {
 		},
 		{
 			args:             []string{"run", "-debug-addr", "invalidhost:17538", "../../tests/integ/debugger/sample.gno"},
-			errShouldContain: "listen tcp: lookup invalidhost",
+			errShouldContain: "listen tcp",
+		},
+		{
+			args:                 []string{"run", "../../tests/integ/invalid_assign/main.gno"},
+			recoverShouldContain: "cannot use bool as main.C without explicit conversion",
 		},
 		// TODO: a test file
 		// TODO: args

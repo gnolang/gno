@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// github.com/gnolang/gno/_test/c2/c2.gno:1: import cycle detected: "github.com/gnolang/gno/_test/c1" (through [github.com/gnolang/gno/_test/c1 github.com/gnolang/gno/_test/c2])
+// github.com/gnolang/gno/_test/c2/c2.gno:3:1: import cycle detected: "github.com/gnolang/gno/_test/c1" (through [github.com/gnolang/gno/_test/c1 github.com/gnolang/gno/_test/c2])
