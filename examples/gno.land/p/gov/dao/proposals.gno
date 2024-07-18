@@ -54,4 +54,7 @@ type Proposal interface {
 
 	// VoteByMember returns the proposal vote by the member, if any
 	VoteByMember(address std.Address) (Vote, error)
+
+	// Render renders the proposal in a readable format
+	Render() string
 }

@@ -5,6 +5,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/gov/dao"
 )
 
@@ -106,6 +107,34 @@ func (p *proposal) VoteByMember(address std.Address) (dao.Vote, error) {
 	}
 
 	return vote, nil
+}
+
+func (p *proposal) Render() string {
+	// Fetch the voting stats
+	stats := p.VotingStats()
+
+	output := ""
+	output += ufmt.Sprintf("Author: %s", p.Author().String())
+	output += "\n\n"
+	output += p.Description()
+	output += "\n\n"
+	output += ufmt.Sprintf("Status: %s", p.Status().String())
+	output += "\n\n"
+	output += ufmt.Sprintf(
+		"Voting stats: YAY %d (%d%%), NAY %d (%d%%), ABSTAIN %d (%d%%), HAVEN'T VOTED %d (%d%%)",
+		stats.YayVotes,
+		stats.YayPercent(),
+		stats.NayVotes,
+		stats.NayPercent(),
+		stats.AbstainVotes,
+		stats.AbstainPercent(),
+		stats.MissingVotes(),
+		stats.MissingVotesPercent(),
+	)
+	output += "\n\n"
+	output += ufmt.Sprintf("Threshold met: %t", stats.YayVotes > (2*stats.TotalVotingPower)/3)
+
+	return output
 }
 
 // addProposal adds a new simpledao proposal to the store

@@ -108,31 +108,11 @@ func Render(path string) string {
 		return ufmt.Sprintf("unable to fetch proposal, %s", err.Error())
 	}
 
-	// Fetch the voting stats
-	stats := prop.VotingStats()
-
+	// Render the proposal
 	output := ""
 	output += ufmt.Sprintf("# Prop #%d", idx)
 	output += "\n\n"
-	output += ufmt.Sprintf("Author: %s", prop.Author().String())
-	output += "\n\n"
-	output += prop.Description()
-	output += "\n\n"
-	output += ufmt.Sprintf("Status: %s", prop.Status().String())
-	output += "\n\n"
-	output += ufmt.Sprintf(
-		"Voting stats: YAY %d (%d%%), NAY %d (%d%%), ABSTAIN %d (%d%%), HAVEN'T VOTED %d (%d%%)",
-		stats.YayVotes,
-		stats.YayPercent(),
-		stats.NayVotes,
-		stats.NayPercent(),
-		stats.AbstainVotes,
-		stats.AbstainPercent(),
-		stats.MissingVotes(),
-		stats.MissingVotesPercent(),
-	)
-	output += "\n\n"
-	output += ufmt.Sprintf("Threshold met: %t", stats.YayVotes > (2*stats.TotalVotingPower)/3)
+	output += prop.Render()
 	output += "\n\n"
 
 	return output
