@@ -24,11 +24,13 @@ func init() {
 				VotingPower: 10,
 			},
 		}
-
-		membStore = membstore.NewMembStore(membstore.WithInitialMembers(set))
 	)
+
+	// Set the member store
+	members = membstore.NewMembStore(membstore.WithInitialMembers(set))
+
 	// Set the DAO implementation
-	d = simpledao.New(membStore)
+	d = simpledao.New(members)
 }
 
 // Propose is designed to be called by another contract or with

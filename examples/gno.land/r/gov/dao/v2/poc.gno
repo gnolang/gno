@@ -1,11 +1,14 @@
 package govdao
 
 import (
+	"errors"
 	"std"
 
 	"gno.land/p/gov/dao"
 	"gno.land/p/gov/executor"
 )
+
+var errNoChangesProposed = errors.New("no set changes proposed")
 
 // NewGovDAOExecutor creates the govdao wrapped callback executor
 func NewGovDAOExecutor(cb func() error) dao.Executor {
@@ -27,7 +30,9 @@ func NewMemberPropExecutor(changesFn func() []dao.Member) dao.Executor {
 
 	callback := func() error {
 		errs := &executor.CombinedError{}
-		for _, member := range changesFn() {
+		cbMembers := changesFn()
+
+		for _, member := range cbMembers {
 			switch {
 			case !members.IsMember(member.Address):
 				// Addition request
@@ -91,10 +96,18 @@ func NewMembStoreImplExecutor(changeFn func() dao.MemberStore) dao.Executor {
 
 // setDAOImpl sets a new DAO implementation
 func setDAOImpl(impl dao.DAO) {
+	if impl == nil {
+		panic("invalid member store")
+	}
+
 	d = impl
 }
 
 // setMembStoreImpl sets a new dao.MembStore implementation
 func setMembStoreImpl(impl dao.MemberStore) {
+	if impl == nil {
+		panic("invalid member store")
+	}
+
 	members = impl
 }

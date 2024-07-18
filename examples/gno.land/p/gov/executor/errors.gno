@@ -26,12 +26,12 @@ func (e *CombinedError) Error() string {
 }
 
 // Add adds a new error to the execution error
-func (e *CombinedError) Add(errs ...error) {
-	if len(errs) == 0 {
+func (e *CombinedError) Add(err error) {
+	if err == nil {
 		return
 	}
 
-	e.errors = append(e.errors, errs...)
+	e.errors = append(e.errors, err)
 }
 
 // Size returns a
