@@ -45,6 +45,8 @@ func init() {
 	events = make(eventsSlice, 0)
 }
 
+// AddEvent adds a new event
+// Start time & end time need to be specified in unix seconds
 func AddEvent(name, description, link, location string, startTime, endTime int64) seqid.ID {
 	a.AssertOnAuthList()
 
@@ -87,6 +89,7 @@ func AddEvent(name, description, link, location string, startTime, endTime int64
 	return id
 }
 
+// DelEvent deletes an event with a given ID
 func DelEvent(id seqid.ID) {
 	a.AssertOnAuthList()
 
@@ -103,28 +106,39 @@ func DelEvent(id seqid.ID) {
 	)
 }
 
+// EditEvent edits an event with a given ID
+// It only updates values corresponding to non-empty/non-nil arguments sent with the call
 func EditEvent(id seqid.ID, name, description, link, location string, startTime, endTime int64) {
 	a.AssertOnAuthList()
-
-	var prevStartTime time.Time
-	newStartTime := time.Unix(startTime, 0)
-	newEndTime := time.Unix(endTime, 0)
 
 	e, _, err := GetEventByID(id)
 	if err != nil {
 		panic(err)
 	}
 
-	prevStartTime = e.startTime
+	// Set only valid values
+	if name != "" {
+		e.name = name
+	}
 
-	e = &Event{
-		id:          id,
-		name:        name,
-		description: description,
-		link:        link,
-		location:    location,
-		startTime:   newStartTime,
-		endTime:     newEndTime,
+	if description != "" {
+		e.description = description
+	}
+
+	if link != "" {
+		e.link = link
+	}
+
+	if location != "" {
+		e.location = location
+	}
+
+	if startTime > 0 {
+		e.startTime = time.Unix(startTime, 0)
+	}
+
+	if endTime > 0 {
+		e.endTime = time.Unix(endTime, 0)
 	}
 
 	std.Emit(EditingEvent,
@@ -133,7 +147,7 @@ func EditEvent(id seqid.ID, name, description, link, location string, startTime,
 	)
 
 	// If sort order was disrupted, sort again
-	if newStartTime != prevStartTime {
+	if startTime > 0 {
 		sort.Sort(events)
 	}
 }
