@@ -52,7 +52,8 @@ func TestAddEvent(t *testing.T) {
 		t.Fatalf("Expected to find Event 2 on a different pos")
 	}
 
-	if events[0].startTime.Unix() > events[1].startTime.Unix() {
+	// larger index => smaller startTime (future => past)
+	if events[0].startTime.Unix() < events[1].startTime.Unix() {
 		t.Fatalf("expected ordering to be different")
 	}
 }
@@ -78,8 +79,32 @@ func TestAddEventErrors(t *testing.T) {
 	})
 
 	tooLongDesc := `Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean ma`
-	// figure out a way to check these panics in a better way
+	// figure out a way to check panics with dynamic params in a better way
 	uassert.PanicsWithMessage(t, "event description is 101 chars, while it cannot be more than 100 chars", func() {
 		AddEvent("sample name", tooLongDesc, "gno.land", "gnome land", 123, 456)
 	})
+}
+
+func TestDelEvent(t *testing.T) {
+	events = nil // remove elements from previous tests - see issue #1982
+
+	id := AddEvent("ToDelete", "sample desc", "gno.land", "gnome land", 123, 456)
+	got := renderHome(false)
+
+	if !strings.Contains(got, "ToDelete") {
+		t.Fatalf("Expected to find ToDelete event in render")
+	}
+
+	DelEvent(id)
+	got = renderHome(false)
+
+	if strings.Contains(got, "ToDelete") {
+		t.Fatalf("Did not expect to find ToDelete event in render")
+	}
+}
+
+func TestEditEvent(t *testing.T) {
+	events = nil // remove elements from previous tests - see issue #1982
+	id := AddEvent("ToDelete", "sample desc", "gno.land", "gnome land", 123, 456)
+
 }

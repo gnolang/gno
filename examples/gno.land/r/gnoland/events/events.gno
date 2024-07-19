@@ -26,13 +26,16 @@ type eventsSlice []*Event
 
 var (
 	a         *authorizable.Authorizable
-	events    eventsSlice // sorted oldest > newest by startTime
+	events    eventsSlice // oldest event has the largest index
 	idCounter seqid.ID
 )
 
 const (
 	maxDescLength = 100
 	maxWidgetSize = 5
+	AdditionEvent = "EventAdded"
+	DeletionEvent = "EventDeleted"
+	EditingEvent  = "EventEdited"
 )
 
 func init() {
@@ -42,7 +45,7 @@ func init() {
 	events = make(eventsSlice, 0)
 }
 
-func AddEvent(name, description, link, location string, startTime, endTime int64) {
+func AddEvent(name, description, link, location string, startTime, endTime int64) seqid.ID {
 	a.AssertOnAuthList()
 
 	if name == "" {
@@ -62,8 +65,9 @@ func AddEvent(name, description, link, location string, startTime, endTime int64
 		panic(str)
 	}
 
+	id := idCounter.Next()
 	e := &Event{
-		id:          idCounter.Next(),
+		id:          id,
 		name:        name,
 		description: description,
 		link:        link,
@@ -74,17 +78,29 @@ func AddEvent(name, description, link, location string, startTime, endTime int64
 
 	events = append(events, e)
 	sort.Sort(events)
+
+	std.Emit(AdditionEvent,
+		"id",
+		e.id.String(),
+	)
+
+	return id
 }
 
 func DelEvent(id seqid.ID) {
 	a.AssertOnAuthList()
 
-	for i, event := range events {
-		if event.id == id {
-			events = append(events[:i], events[i+1:]...)
-			return
-		}
+	e, idx, err := GetEventByID(id)
+	if err != nil {
+		panic(err)
 	}
+
+	events = append(events[:idx], events[idx+1:]...)
+
+	std.Emit(DeletionEvent,
+		"id",
+		e.id.String(),
+	)
 }
 
 func EditEvent(id seqid.ID, name, description, link, location string, startTime, endTime int64) {
@@ -94,22 +110,27 @@ func EditEvent(id seqid.ID, name, description, link, location string, startTime,
 	newStartTime := time.Unix(startTime, 0)
 	newEndTime := time.Unix(endTime, 0)
 
-	for i, event := range events {
-		if event.id == id {
-			prevStartTime = event.startTime
-			events[i] = &Event{
-				id:          id,
-				name:        name,
-				description: description,
-				link:        link,
-				location:    location,
-				startTime:   newStartTime,
-				endTime:     newEndTime,
-			}
-
-			return
-		}
+	e, _, err := GetEventByID(id)
+	if err != nil {
+		panic(err)
 	}
+
+	prevStartTime = e.startTime
+
+	e = &Event{
+		id:          id,
+		name:        name,
+		description: description,
+		link:        link,
+		location:    location,
+		startTime:   newStartTime,
+		endTime:     newEndTime,
+	}
+
+	std.Emit(EditingEvent,
+		"id",
+		e.id.String(),
+	)
 
 	// If sort order was disrupted, sort again
 	if newStartTime != prevStartTime {
@@ -140,9 +161,10 @@ func RenderEventWidget(amt int) string {
 
 	output := ""
 
-	// todo check for ordering
 	for _, event := range events[eventNum-amt:] {
-		output += ufmt.Sprintf("- [%s](%s)\n", event.name, event.link)
+		if event.startTime.After(time.Now()) {
+			output += ufmt.Sprintf("- [%s](%s)\n", event.name, event.link)
+		}
 	}
 
 	return output
@@ -157,10 +179,11 @@ func renderHome(admin bool) string {
 	}
 
 	output += "Below is a list of all upcoming and past gno.land events.\n\n"
+	output += ufmt.Sprintf(time.Now().Format(time.RFC850))
 
 	output += "---\n\n"
 
-	// Find position of latest past event
+	// Find position of la1test past event
 	pos := sort.Search(len(events), func(i int) bool {
 		return events[i].startTime.Before(time.Now())
 	})
@@ -229,7 +252,12 @@ func Render(path string) string {
 	if path == "admin" {
 		return renderHome(true)
 	}
-
+	//out := ""
+	//
+	//for _, e := range events {
+	//	out += e.Render(false)
+	//}
+	//return out
 	return renderHome(false)
 }
 
@@ -245,12 +273,23 @@ func AddModerator(mod std.Address) {
 	}
 }
 
+func GetEventByID(id seqid.ID) (*Event, int, error) {
+	for i, event := range events {
+		if event.id == id {
+			return event, i, nil
+		}
+	}
+
+	return nil, -1, ErrNoSuchID
+}
+
 // Len returns the length of the slice
 func (m eventsSlice) Len() int {
 	return len(m)
 }
 
 // Less compares the startTime fields of two elements
+// In this case, events will be sorted by largest startTime first (upcoming > past)
 func (m eventsSlice) Less(i, j int) bool {
 	return m[i].startTime.After(m[j].startTime)
 }
