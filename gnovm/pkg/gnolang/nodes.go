@@ -1785,8 +1785,6 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 // If skipPredefined, skips over names that are only predefined.
 // Returns nil if not defined.
 func (sb *StaticBlock) GetValueRef(store Store, n Name, skipPredefined bool) *TypedValue {
-	debug.Println("---GetValueRef, sb: ", sb)
-	debug.Println("---GetValueRef, n: ", n)
 	idx, ok := sb.GetLocalIndex(n)
 	bb := &sb.Block
 	bp := sb.GetParentNode(store)

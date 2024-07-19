@@ -136,7 +136,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						if ln == blankIdentifier {
 							continue
 						}
-						if isLocallyDefined(last, ln) {
+						if isLocallyDefined2(last, ln) {
 							// already defined, do nothing
 						} else {
 							// if loop extern, will change to
@@ -2551,8 +2551,7 @@ func assertNotHasName(names []Name, name Name) {
 
 func setAttrHeapDefine(bn BlockNode, name Name) {
 	bnLDs, _ := bn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-	// TODO: check this
-	//assertNotHasName(bnLDs, name)
+	assertNotHasName(bnLDs, name)
 	bnLDs = append(bnLDs, name)
 	bn.SetAttribute(ATTR_LOOP_DEFINES, bnLDs)
 }
@@ -4309,6 +4308,16 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 	}
 	t := bn.GetStaticBlock().Types[idx]
 	if t == nil {
+		return false
+	}
+	return true
+}
+
+// r := 0
+// r, ok := 1, true
+func isLocallyDefined2(bn BlockNode, n Name) bool {
+	_, ok := bn.GetLocalIndex(n)
+	if !ok {
 		return false
 	}
 	return true
