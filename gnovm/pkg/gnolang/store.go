@@ -216,7 +216,7 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 					// (for other types, .T == nil even after definition).
 				} else if tv.T.Kind() == TypeKind {
 					t := tv.GetType()
-					ds.SetCacheType(t)
+					ds.SetType(t)
 				}
 			}
 			return pv
@@ -416,7 +416,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 						tid, tt.TypeID()))
 				}
 			}
-			// after setting in cache, fill tt.
+
 			fillType(ds, tt)
 			return tt
 		}
@@ -425,7 +425,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 }
 
 func (ds *defaultStore) SetCacheType(tt Type) {
-	ds.SetType(tt)
+
 }
 
 func (ds *defaultStore) SetType(tt Type) {
@@ -817,7 +817,7 @@ func InitStoreCaches(store Store) {
 		gErrorType, // from uverse.go
 	}
 	for _, tt := range types {
-		store.SetCacheType(tt)
+		store.SetType(tt)
 	}
 	store.SetCachePackage(Uverse())
 }
