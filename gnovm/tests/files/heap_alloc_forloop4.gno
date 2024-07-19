@@ -20,8 +20,7 @@ func main() {
 	forLoopClosure()
 }
 
-// This does make 'i' NameExprTypeHeapDefine.
-// You can tell by the preprocess printout of i<!~...> and i<()~...>.
+// go 1.22 loop var is not supported for now.
 
 // Output:
 // 3

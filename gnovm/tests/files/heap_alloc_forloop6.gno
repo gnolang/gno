@@ -16,6 +16,9 @@ func main() {
 	}
 }
 
+// Preprocessed:
+// file{ package main; func main() { var fns<!VPBlock(1,0)> []func()  (const-type int); for i<!VPBlock(1,0)> := (const (0 int)); i<VPBlock(1,0)> < (const (3 int)); i<VPBlock(1,0)>++ { z<!~VPBlock(1,1)> := i<VPBlock(1,0)>; f<!VPBlock(1,2)> := func func()  (const-type int){ return z<~VPBlock(1,1)> }<z<()~VPBlock(1,1)>>; fns<VPBlock(2,0)> = (const (append func(x []func()( int),args ...func()( int))(res []func()( int))))(fns<VPBlock(2,0)>, f<VPBlock(1,2)>) }; for _<!~VPBlock(0,0)>, fn<!VPBlock(1,0)> := range fns<VPBlock(2,0)> { (const (println func(xs ...interface{})()))(fn<VPBlock(1,0)>()) } } }
+
 // Output:
 // 0
 // 1

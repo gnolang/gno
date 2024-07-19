@@ -15,6 +15,8 @@ func main() {
 	}
 }
 
+// go 1.22 loop var is not supported for now.
+
 // Output:
 // 4
 // 4

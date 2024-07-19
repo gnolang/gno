@@ -19,6 +19,9 @@ loop2:
 
 // This one doesn't because the goto stmt doesn't go back far enough.
 
+// Preprocessed:
+// file{ package main; func main() { c<!VPBlock(1,0)> := (const (0 int)); closures<!VPBlock(1,1)> := []func(){}; i<!VPBlock(1,2)> := (const (1 int)); closures<VPBlock(1,1)> = (const (append func(x []func()(),args ...func()())(res []func()())))(closures<VPBlock(1,1)>, func func(){ (const (println func(xs ...interface{})()))(i<VPBlock(2,2)>) }); c<VPBlock(1,0)> += (const (1 int)); if c<VPBlock(2,0)> < (const (10 int)) { goto loop2<1,3> }; for _<!~VPBlock(0,0)>, cl<!VPBlock(1,0)> := range closures<VPBlock(2,1)> { cl<VPBlock(1,0)>() } } }
+
 // Output:
 // 1
 // 1

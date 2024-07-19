@@ -2,4 +2,4 @@
 
 package gnolang
 
-const debug debugging = true
+const debug debugging = false

@@ -25,6 +25,8 @@ func main() {
 	}
 }
 
+// go 1.22 loop var is not supported for now.
+
 // Output:
 // value of x:  3
 // Factorial of 0 is: 1

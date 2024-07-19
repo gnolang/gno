@@ -17,21 +17,21 @@ func main() {
 		},
 	}
 
+	// tt is heap defined every iteration,
+	// different with for loopvar spec.
 	for _, tt := range s {
-		state := false
-		//f := func() {
-		//	println(tt.num)
-		//}
-		//f()
+		f := func() {
+			println(tt.num)
+		}
+		f()
 		defer func() {
-			println(state)
 			tt.f()
 		}()
 	}
 }
 
 // Output:
-// false
+// 1
+// 2
 // hola
-// false
 // hello

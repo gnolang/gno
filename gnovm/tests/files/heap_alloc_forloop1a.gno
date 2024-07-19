@@ -6,11 +6,6 @@ type Int int
 
 var s1 []*Int
 
-//func (j *Int) inc() {
-//	//return *j + 2 // Just as an example, increment j by 2.
-//	*j = *j + 2 // Just as an example, increment j by 2.
-//}
-
 func inc2(j *Int) {
 	*j = *j + 2 // Just as an example, increment j by 2.
 }
@@ -31,8 +26,7 @@ func main() {
 	forLoopRef()
 }
 
-// This does make 'i' NameExprTypeHeapDefine.
-// You can tell by the preprocess printout of i<!~...> and i<~...>.
+// go 1.22 loop var is not supported for now.
 
 // Output:
 // s1[0] is: 10

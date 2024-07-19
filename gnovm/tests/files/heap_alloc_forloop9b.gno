@@ -10,7 +10,7 @@ func main() {
 	}()
 
 	for i := 0; i < 2; i++ {
-		for j := 0; j < 2; j++ { // every inner loop will create a new block too, see 1_05
+		for j := 0; j < 2; j++ {
 			x := y
 			f = append(f, func() { println(x) })
 			y++

@@ -23,9 +23,6 @@ func main() {
 	forLoopClosure()
 }
 
-// This does make 'i' NameExprTypeHeapDefine.
-// You can tell by the preprocess printout of i<!~...> and i<()~...>.
-
 // Output:
 // 3
 // 3
