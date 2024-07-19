@@ -82,7 +82,6 @@ type defaultStore struct {
 	alloc            *Allocator    // for accounting for cached items
 	pkgGetter        PackageGetter // non-realm packages
 	cacheObjects     map[ObjectID]Object
-	cacheTypes       map[TypeID]Type
 	cacheNodes       map[Location]BlockNode
 	cacheNativeTypes map[reflect.Type]Type // go spec: reflect.Type are comparable
 	baseStore        store.Store           // for objects, types, nodes
@@ -101,7 +100,6 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		alloc:            alloc,
 		pkgGetter:        nil,
 		cacheObjects:     make(map[ObjectID]Object),
-		cacheTypes:       make(map[TypeID]Type),
 		cacheNodes:       make(map[Location]BlockNode),
 		cacheNativeTypes: make(map[reflect.Type]Type),
 		baseStore:        baseStore,
@@ -118,7 +116,6 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 func CopyCachesFromStore(dst, src Store) {
 	ds, ss := dst.(*defaultStore), src.(*defaultStore)
 	ds.cacheObjects = maps.Clone(ss.cacheObjects)
-	ds.cacheTypes = maps.Clone(ss.cacheTypes)
 	ds.cacheNodes = maps.Clone(ss.cacheNodes)
 }
 
@@ -406,10 +403,6 @@ func (ds *defaultStore) GetType(tid TypeID) Type {
 }
 
 func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
-	// check cache.
-	if tt, exists := ds.cacheTypes[tid]; exists {
-		return tt
-	}
 	// check backend.
 	if ds.baseStore != nil {
 		key := backendTypeKey(tid)
@@ -423,8 +416,6 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 						tid, tt.TypeID()))
 				}
 			}
-			// set in cache.
-			ds.cacheTypes[tid] = tt
 			// after setting in cache, fill tt.
 			fillType(ds, tt)
 			return tt
@@ -434,29 +425,11 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 }
 
 func (ds *defaultStore) SetCacheType(tt Type) {
-	tid := tt.TypeID()
-	if tt2, exists := ds.cacheTypes[tid]; exists {
-		if tt != tt2 {
-			// NOTE: not sure why this would happen.
-			panic("should not happen")
-		} else {
-			// already set.
-		}
-	} else {
-		ds.cacheTypes[tid] = tt
-	}
+	ds.SetType(tt)
 }
 
 func (ds *defaultStore) SetType(tt Type) {
 	tid := tt.TypeID()
-	// return if tid already known.
-	if tt2, exists := ds.cacheTypes[tid]; exists {
-		if tt != tt2 {
-			// this can happen for a variety of reasons.
-			// TODO classify them and optimize.
-			return
-		}
-	}
 	// save type to backend.
 	if ds.baseStore != nil {
 		key := backendTypeKey(tid)
@@ -464,8 +437,6 @@ func (ds *defaultStore) SetType(tt Type) {
 		bz := amino.MustMarshalAny(tcopy)
 		ds.baseStore.Set([]byte(key), bz)
 	}
-	// save type to cache.
-	ds.cacheTypes[tid] = tt
 }
 
 func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
@@ -645,7 +616,6 @@ func (ds *defaultStore) Fork() Store {
 
 		// Re-initialize caches. Some are cloned for speed.
 		cacheObjects: make(map[ObjectID]Object),
-		cacheTypes:   maps.Clone(ds.cacheTypes),
 		// XXX: This is bad to say the least (ds.cacheNodes is shared with a
 		// child Store); however, cacheNodes is _not_ a cache, but a proper
 		// data store instead. SetBlockNode does not write anything to
@@ -775,7 +745,6 @@ func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
 
 func (ds *defaultStore) ClearCache() {
 	ds.cacheObjects = make(map[ObjectID]Object)
-	ds.cacheTypes = make(map[TypeID]Type)
 	ds.cacheNodes = make(map[Location]BlockNode)
 	ds.cacheNativeTypes = make(map[reflect.Type]Type)
 	// restore builtin types to cache.
@@ -790,12 +759,6 @@ func (ds *defaultStore) Print() {
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:iavlStore..."))
 	utils.Print(ds.iavlStore)
-	fmt.Println(colors.Yellow("//----------------------------------------"))
-	fmt.Println(colors.Green("defaultStore:cacheTypes..."))
-	for tid, typ := range ds.cacheTypes {
-		fmt.Printf("- %v: %v\n", tid,
-			stringz.TrimN(fmt.Sprintf("%v", typ), 50))
-	}
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:cacheNodes..."))
 	for loc, bn := range ds.cacheNodes {
