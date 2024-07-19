@@ -13,7 +13,7 @@ func inc2(j *Int) {
 func forLoopRef() {
 	defer func() {
 		for i, e := range s1 {
-			fmt.Printf("s1[%d] is: %d \n", i, *e)
+			fmt.Printf("s1[%d] is: %d\n", i, *e)
 		}
 	}()
 

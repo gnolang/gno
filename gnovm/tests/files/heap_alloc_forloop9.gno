@@ -21,7 +21,7 @@ func main() {
 
 	for i, r := range fns {
 		result := r(i)
-		fmt.Printf("Factorial of %d is: %d \n", i, result)
+		fmt.Printf("Factorial of %d is: %d\n", i, result)
 	}
 }
 
