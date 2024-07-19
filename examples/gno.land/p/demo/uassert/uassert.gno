@@ -423,7 +423,8 @@ func NotEmpty(t TestingT, obj interface{}, msgs ...string) bool {
 // Nil asserts that the specified object is nil.
 func Nil(t TestingT, obj interface{}, msgs ...string) bool {
 	t.Helper()
-	if obj != nil {
+
+	if !isNil(obj) {
 		return fail(t, msgs, "uassert.Nil: object should be nil")
 	}
 
@@ -433,7 +434,7 @@ func Nil(t TestingT, obj interface{}, msgs ...string) bool {
 // NotNil asserts that the specified object is not nil.
 func NotNil(t TestingT, obj interface{}, msgs ...string) bool {
 	t.Helper()
-	if obj == nil {
+	if isNil(obj) {
 		return fail(t, msgs, "uassert.NotNil: object should not be nil")
 	}
 

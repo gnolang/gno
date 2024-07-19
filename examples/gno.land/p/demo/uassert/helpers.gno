@@ -162,3 +162,36 @@ func compare(t TestingT, e1, e2 interface{}) int {
 		return 0
 	}
 }
+
+func isNil(object interface{}) bool {
+	if object == nil {
+		return true
+	}
+
+	switch v := object.(type) {
+	case *int, *int8, *int16, *int32, *int64:
+		return v == nil
+	case *uint, *uint8, *uint16, *uint32, *uint64:
+		return v == nil
+	case *float32, *float64:
+		return v == nil
+	case *string:
+		return v == nil
+	case *bool:
+		return v == nil
+	case *[]int, *[]string, *[]float64, *[]bool:
+		return v == nil
+	case *map[string]int, *map[string]string, *map[string]bool:
+		return v == nil
+	case *func():
+		return v == nil
+	case []int, []string, []float64, []bool:
+		return len(v) == 0
+	case map[string]int, map[string]string, map[string]bool:
+		return len(v) == 0
+	case func():
+		return v == nil
+	default:
+		return false
+	}
+}
