@@ -157,20 +157,6 @@ func TransferBasicNFTToBuyer(from, to std.Address, tid grc721.TokenID) error {
     return nil
 }
 
-/*
-func TransferBasicNFTToBuyer(from, to std.Address, tid grc721.TokenID) error {
-	//FlipBasicNFT.SetApprovalForAll(std.PrevRealm().Addr(), true)
-	//FlipBasicNFT.SetApprovalForAll(std.CurrentRealm().Addr(), true)
-	//FlipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
-	//FlipBasicNFT.Approve(to, tid)
-	//FlipBasicNFT.Approve(from, tid)
-	err := FlipBasicNFT.TransferFrom(from, to, tid)
-	if err != nil {
-		return err
-	}
-	return nil
-}*/
-
 // it is used after minting a composite NFT
 func BurnBasicNFTsAfterMinting(tid grc721.TokenID) error {
 	err := FlipBasicNFT.Burn(tid)

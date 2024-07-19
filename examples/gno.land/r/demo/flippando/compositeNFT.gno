@@ -112,8 +112,6 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		//children.Set(tidString, bTokenIDs)
 		// set approval for the realm owner so we can later transfer the NFT
 		FlipCompositeNFT.Approve(std.CurrentRealm().Addr(), tid)
-		//FlipCompositeNFT.SetApprovalForAll(std.CurrentRealm().Addr(), true)
-		//FlipCompositeNFT.SetApprovalForAll(std.PrevRealm().Addr(), true)
 		result = string(flipCompositeNFTMetaDataJSON)
 	}
 	res := &nftResult{

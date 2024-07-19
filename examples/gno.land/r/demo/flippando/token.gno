@@ -24,6 +24,7 @@ var (
 	userFlipNFTs       avl.Tree // onwer -> avl.Tree // []*lockedVault
 )
 
+// mint tokens and locks them, making them unavaialble for spending
 func MintLocked(recipient std.Address, tokenId string, flipAmount std.Coin) error {
 	if err := flipToken.Mint(recipient, uint64(flipAmount.Amount)); err != nil {
 		return err
@@ -54,6 +55,8 @@ func MintLocked(recipient std.Address, tokenId string, flipAmount std.Coin) erro
 	return nil
 }
 
+// unlocks the balance, making it avaialble for spending for recipient
+// no actual transfer is performed
 func UnlockAndTransferFLIP(recipient std.Address, tokenId string) error {
 	var userLockedBalances []*lockedVault
 	var flipAmount std.Coin
@@ -100,6 +103,8 @@ func UnlockAndTransferFLIP(recipient std.Address, tokenId string) error {
 	return nil
 }
 
+// transfers fungible tokens, taking into account the locked balances
+// i.e. only avaialble tokens can be spent
 func Transfer(from, recipient std.Address, fAmount std.Coin) error {
 	totalFLIPBalance := flipToken.BalanceOf(from)
 	
@@ -116,6 +121,8 @@ func Transfer(from, recipient std.Address, fAmount std.Coin) error {
 	return nil
 }
 
+// transfers the FLIP price in a marketplace transaction
+// burning a percentage between 1% anf 50%
 func TransferFLIPToSeller(from, recipient std.Address, fPrice std.Coin) (flipPaid string, flipBurned string, err error) {
 	flipToken.Approve(from, std.CurrentRealm().Addr(), uint64(fPrice.Amount))
 	totalFLIPBalance := flipToken.BalanceOf(from)
@@ -140,6 +147,84 @@ func TransferFLIPToSeller(from, recipient std.Address, fPrice std.Coin) (flipPai
 		return "", "", ErrFlipTokenNotEnoughBalance
 	}
 }
+
+// transfers the locked tokens to a new recipient (toBuyer)
+// used when a basic NFT is sold in the marketplace
+func TransferLockedFLIP(fromSeller, toBuyer std.Address, tokenId string) error {
+    var sellerLockedBalances []*lockedVault
+    var flipAmount std.Coin
+    tokenFound := false
+
+    // Step 1: Unlock the tokens associated with the tokenId for the seller
+    v, found := userFlipNFTs.Get(fromSeller.String())
+    if found {
+        // Assert the type of v to []*lockedVault
+        var ok bool
+        sellerLockedBalances, ok = v.([]*lockedVault)
+        if !ok {
+            return errors.New("invalid type for user locked balances")
+        }
+
+        // Create a new slice for storing balances without the unlocked token
+        var newLockedBalances []*lockedVault
+        for _, lv := range sellerLockedBalances {
+            if lv.tokenId == tokenId {
+                // Record the amount and indicate the token was found
+                flipAmount = lv.lockedFlip
+                tokenFound = true
+            } else {
+                // Add to the new slice if it's not the token to unlock
+                newLockedBalances = append(newLockedBalances, lv)
+            }
+        }
+
+        // Use the new slice if the token was found and removed
+        if tokenFound {
+            sellerLockedBalances = newLockedBalances
+        }
+    }
+
+    if !tokenFound {
+        return ErrInvalidTokenId // Ensure this error is defined
+    }
+
+    // Update the seller's locked balances in userFlipNFTs
+    userFlipNFTs.Set(fromSeller.String(), sellerLockedBalances)
+
+    // Update the total locked supply
+    totalLockedSupply = totalLockedSupply.Sub(flipAmount)
+
+    // Step 2: Transfer the unlocked tokens to the buyer
+    if err := flipToken.Transfer(fromSeller, toBuyer, uint64(flipAmount.Amount)); err != nil {
+        return err
+    }
+
+    // Step 3: Lock the received tokens in the buyer's userFlipNFTs
+    var buyerLockedBalances []*lockedVault
+
+    v, exists := userFlipNFTs.Get(toBuyer.String())
+    if exists {
+        // Assert the type of v to []*lockedVault
+        var ok bool
+        buyerLockedBalances, ok = v.([]*lockedVault)
+        if !ok {
+            return errors.New("invalid type for user locked balances")
+        }
+    }
+
+    lockingBalance := &lockedVault{
+        tokenId:   tokenId,
+        lockedFlip: flipAmount,
+    }
+
+    buyerLockedBalances = append([]*lockedVault{lockingBalance}, buyerLockedBalances...)
+    userFlipNFTs.Set(toBuyer.String(), buyerLockedBalances)
+
+    totalLockedSupply = totalLockedSupply.Add(flipAmount)
+
+    return nil
+}
+
 
 func GetFLIPBalance(user std.Address) string {
 	totalFLIPBalance := flipToken.BalanceOf(user)

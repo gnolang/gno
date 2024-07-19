@@ -68,6 +68,23 @@ func (m *Marketplace) ListCompositeNFT(compositeTokenID grc721.TokenID, seller s
 }
 
 func (m *Marketplace) ListBasicNFT(basicTokenID grc721.TokenID, seller std.Address, price string) error {
+	// approve it for buying
+    FlipBasicNFT.Approve(std.CurrentRealm().Addr(), basicTokenID)
+    // convert price into uflips, multiply by 1000
+    intPrice, ferr := convertPriceStringToUint64(price)
+	if ferr != nil {
+		return ferr
+	}
+	// Create a new listing
+	newBasicListing := BasicListing{
+		BasicTokenID: basicTokenID,
+		Seller:           seller,
+		Price:            intPrice,
+	}
+
+	// Add the new listing to the marketplace
+	m.basicListings[string(basicTokenID)] = newBasicListing
+	return nil
 }
 
 func (m *Marketplace) RemoveCompositeNFTListing(compositeTokenID grc721.TokenID, seller std.Address) error {
@@ -90,6 +107,22 @@ func (m *Marketplace) RemoveCompositeNFTListing(compositeTokenID grc721.TokenID,
 }
 
 func (m *Marketplace) RemoveBasicNFTListing(basicTokenID grc721.TokenID, seller std.Address) error {
+	// Retrieve the listing
+	rawListing, exists := m.basicListings[string(basicTokenID)]
+	if !exists {
+		return errors.New("basic listing does not exist")
+	}
+
+	listing := rawListing
+
+	// Verify that the caller is the seller
+	if listing.Seller != seller {
+		return errors.New("unauthorized - caller is not the seller")
+	}
+
+	// Remove the listing from the marketplace
+	delete(m.basicListings, string(basicTokenID))
+	return nil
 }
 
 func (m *Marketplace) GetCompositeNFTListings() string {
@@ -100,7 +133,7 @@ func (m *Marketplace) GetCompositeNFTListings() string {
 		compositeTokenURI := GetCompositeTokenURI(string(listing.CompositeTokenID))
 		compositeTokenURI = strings.Trim(compositeTokenURI, "\"")
 
-		listingResult := &listingResult{
+		listingResult := &listingCompositeResult{
 			compositeTokenID: string(listing.CompositeTokenID),
 			tokenURI:         compositeTokenURI,
 			seller:           string(listing.Seller),
@@ -119,6 +152,28 @@ func (m *Marketplace) GetCompositeNFTListings() string {
 }
 
 func (m *Marketplace) GetBasicNFTListings() string {
+	var allListings []string
+	for _, value := range m.basicListings {
+		// Type assert the value to a Listing
+		listing := value
+		basicTokenURI := GetBasicTokenURI(string(listing.BasicTokenID))
+		
+		listingBasicResult := &listingBasicResult{
+			basicTokenID: string(listing.BasicTokenID),
+			tokenURI:         basicTokenURI,
+			seller:           string(listing.Seller),
+			price:            strconv.FormatUint(listing.Price, 10),
+		}
+		listingResultJSON, _ := listingBasicResult.MarshalJSON()
+		allListings = append(allListings, string(listingResultJSON))
+	}
+
+	marketplaceListings := &marketplaceListings{
+		marketplaceListings: allListings,
+	}
+	marketplaceJSON, _ := marketplaceListings.MarshalJSON()
+
+	return string(marketplaceJSON)
 }
 
 func (m *Marketplace) BuyCompositeNFT(buyer std.Address, compositeTokenID grc721.TokenID) (buyResult string) {
@@ -207,6 +262,76 @@ func (m *Marketplace) BuyCompositeNFT(buyer std.Address, compositeTokenID grc721
 }
 
 func (m *Marketplace) BuyBasicNFT(buyer std.Address, basicTokenID grc721.TokenID) (buyResult string) {
+	var buyError error
+    
+    flipPaid := ""
+    flipBurned := ""
+    listingRaw, exists := m.basicListings[string(basicTokenID)]
+    if !exists {
+        buyError = ErrMarketplaceListingDoesNotExist
+    }
+    listing := listingRaw
+    
+    basicNFTOwner := GetOwnerOfBasicNFT(string(basicTokenID))
+    
+	// transfer the basic NFT
+	berr := TransferBasicNFTToBuyer(std.Address(listing.Seller), buyer, basicTokenID)
+	if berr != nil {
+		buyError = errors.New(ufmt.Sprintf("TransferBasicNFTToBuyer error: seller=%s, buyer=%s, basicTokenId=%s, owner=%s, error: %s", listing.Seller, buyer, string(basicTokenID), string(basicNFTOwner), berr.Error()))
+	}
+    
+	// if there's an error, revert transfer
+	if buyError != nil {
+		_ = TransferBasicNFTToBuyer(buyer, std.Address(listing.Seller), basicTokenID)    
+	}
+
+	// transfer locked FLIP to buyer
+	if buyError == nil {
+		lerr := TransferLockedFLIP(std.Address(listing.Seller), buyer, string(basicTokenID))
+		if lerr != nil {
+			buyError = errors.New(ufmt.Sprintf("TransferLockedFLIP error: seller=%s, buyer=%s, basicTokenId=%s, owner=%s, error: %s", listing.Seller, buyer, string(basicTokenID), string(basicNFTOwner), berr.Error()))
+		}
+	}
+
+	// if there's an error, revert transfer
+	if buyError != nil {
+		_ = TransferLockedFLIP(buyer, std.Address(listing.Seller), string(basicTokenID)) 
+	}
+
+	// pay the price, including random burning
+    if buyError == nil {
+        fPricePaid, fPriceBurned, terr := TransferFLIPToSeller(buyer, listing.Seller, std.NewCoin("FLIP", int64(listing.Price)))
+        if terr != nil {
+            buyError = terr
+            // Revert the successfully transferred basic NFT
+            _ = TransferBasicNFTToBuyer(buyer, std.Address(listing.Seller), basicTokenID)
+        }
+        flipPaid = fPricePaid
+        flipBurned = fPriceBurned
+    }
+
+    if buyError == nil {
+        delete(m.listings, string(basicTokenID))
+    }
+
+    var buyErrorString string
+    if buyError != nil {
+        buyErrorString = buyError.Error()
+    } else {
+        buyErrorString = ""
+    }
+
+    buyNFTResultObject := &buyNFTResult{
+        flipPaid: flipPaid,
+        flipBurned: flipBurned,
+        buyerror: buyErrorString,
+    }
+    buyResultJSON, merr := buyNFTResultObject.MarshalJSON() 
+
+    if merr != nil {
+        buyError = errors.New("Error in marshaling buyNFTResult")
+    }
+    return string(buyResultJSON)
 }
 
 // util
