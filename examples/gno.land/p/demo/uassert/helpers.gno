@@ -185,9 +185,19 @@ func isNil(object interface{}) bool {
 		return v == nil
 	case *func():
 		return v == nil
-	case []int, []string, []float64, []bool:
+	case []int:
 		return len(v) == 0
-	case map[string]int, map[string]string, map[string]bool:
+	case []string:
+		return len(v) == 0
+	case []float64:
+		return len(v) == 0
+	case []bool:
+		return len(v) == 0
+	case map[string]int:
+		return len(v) == 0
+	case map[string]string:
+		return len(v) == 0
+	case map[string]bool:
 		return len(v) == 0
 	case func():
 		return v == nil
