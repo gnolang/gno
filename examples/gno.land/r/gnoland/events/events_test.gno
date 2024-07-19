@@ -105,6 +105,38 @@ func TestDelEvent(t *testing.T) {
 
 func TestEditEvent(t *testing.T) {
 	events = nil // remove elements from previous tests - see issue #1982
-	id := AddEvent("ToDelete", "sample desc", "gno.land", "gnome land", 123, 456)
+	id := AddEvent("ToEdit", "Desc to edit", "gno.land", "gnome land", 123, 456)
 
+	newName := "New Name"
+	newDesc := "Normal description"
+	newST := int64(1234)
+	newET := int64(4567)
+
+	EditEvent(id, newName, newDesc, "", "", newST, newET)
+	edited, _, _ := GetEventByID(id)
+
+	if edited.name != newName {
+		t.Fatalf("Expected %s, got %s", newName, edited.name)
+	}
+
+	if edited.description != newDesc {
+		t.Fatalf("Expected %s, got %s", newDesc, edited.description)
+	}
+
+	if edited.startTime != time.Unix(newST, 0) {
+		t.Fatalf("Expected %d, got %d", newST, edited.startTime.Unix())
+	}
+
+	if edited.endTime != time.Unix(newET, 0) {
+		t.Fatalf("Expected %d, got %d", newET, edited.endTime.Unix())
+	}
+}
+
+func TestInvalidEdit(t *testing.T) {
+	events = nil // remove elements from previous tests - see issue #1982
+	id := AddEvent("ToEdit", "Desc to edit", "gno.land", "gnome land", 123, 456)
+
+	uassert.PanicsWithMessage(t, ErrInvalidEndTime.Error(), func() {
+		EditEvent(id, "", "", "", "", 0, -5)
+	})
 }

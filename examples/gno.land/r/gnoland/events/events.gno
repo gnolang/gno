@@ -137,8 +137,10 @@ func EditEvent(id seqid.ID, name, description, link, location string, startTime,
 		e.startTime = time.Unix(startTime, 0)
 	}
 
-	if endTime > 0 {
+	if endTime > 0 && endTime > startTime {
 		e.endTime = time.Unix(endTime, 0)
+	} else {
+		panic(ErrInvalidEndTime)
 	}
 
 	std.Emit(EditingEvent,
