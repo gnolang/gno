@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 )
 
 var (
@@ -16,7 +17,7 @@ func TestNew(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
 
-	o := NewOwnable()
+	o := New()
 	got := o.Owner()
 	if alice != got {
 		t.Fatalf("Expected %s, got: %s", alice, got)
@@ -24,7 +25,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestNewWithAddress(t *testing.T) {
-	o := NewOwnableWithAddress(alice)
+	o := NewWithAddress(alice)
 
 	got := o.Owner()
 	if alice != got {
@@ -35,7 +36,7 @@ func TestNewWithAddress(t *testing.T) {
 func TestOwner(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 
-	o := NewOwnable()
+	o := New()
 	expected := alice
 	got := o.Owner()
 	uassert.Equal(t, expected, got)
@@ -44,7 +45,7 @@ func TestOwner(t *testing.T) {
 func TestTransferOwnership(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 
-	o := NewOwnable()
+	o := New()
 
 	err := o.TransferOwnership(bob)
 	if err != nil {
@@ -60,7 +61,7 @@ func TestTransferOwnership(t *testing.T) {
 func TestCallerIsOwner(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 
-	o := NewOwnable()
+	o := New()
 	unauthorizedCaller := bob
 
 	std.TestSetRealm(std.NewUserRealm(unauthorizedCaller))
@@ -73,7 +74,7 @@ func TestCallerIsOwner(t *testing.T) {
 func TestDropOwnership(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 
-	o := NewOwnable()
+	o := New()
 
 	err := o.DropOwnership()
 	uassert.NoError(t, err, "DropOwnership failed")
@@ -88,7 +89,7 @@ func TestErrUnauthorized(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
 
-	o := NewOwnable()
+	o := New()
 
 	std.TestSetRealm(std.NewUserRealm(bob))
 	std.TestSetOrigCaller(bob) // TODO(bug): should not be needed
@@ -105,7 +106,7 @@ func TestErrUnauthorized(t *testing.T) {
 func TestErrInvalidAddress(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 
-	o := NewOwnable()
+	o := New()
 
 	err := o.TransferOwnership("")
 	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
