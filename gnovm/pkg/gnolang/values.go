@@ -2465,12 +2465,9 @@ func (b *Block) GetPointerToMaybeHeapUse(store Store, nx *NameExpr) PointerValue
 	case NameExprTypeNormal:
 		return b.GetPointerTo(store, nx.Path)
 	case NameExprTypeHeapUse:
-		// XXX
 		return b.GetPointerToHeapUse(store, nx.Path)
 	case NameExprTypeHeapClosure:
-		// XXX this should panic after logic is complete,
-		// should not happen.
-		return b.GetPointerTo(store, nx.Path)
+		panic("should not happen with type heap closure")
 	default:
 		panic("unexpected NameExpr type for GetPointerToMaybeHeapUse")
 	}
@@ -2512,14 +2509,17 @@ func (b *Block) GetPointerToHeapDefine(store Store, path ValuePath) PointerValue
 // This gets called from NameExprTypeHeapUse name expressions.
 func (b *Block) GetPointerToHeapUse(store Store, path ValuePath) PointerValue {
 	ptr := b.GetPointerTo(store, path)
-	if _, ok := ptr.TV.T.(heapItemType); ok {
-		return PointerValue{
-			TV:    &ptr.TV.V.(*HeapItemValue).Value,
-			Base:  ptr.TV.V,
-			Index: 0,
-		}
-	} else {
+	if _, ok := ptr.TV.T.(heapItemType); !ok {
 		panic("should not happen, should be heapItemType")
+	}
+	if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
+		panic("should not happen, should be HeapItemValue")
+	}
+
+	return PointerValue{
+		TV:    &ptr.TV.V.(*HeapItemValue).Value,
+		Base:  ptr.TV.V,
+		Index: 0,
 	}
 }
 
