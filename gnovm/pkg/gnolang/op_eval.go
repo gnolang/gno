@@ -36,7 +36,7 @@ func (m *Machine) doOpEval() {
 			// Get value from scope.
 			lb := m.LastBlock()
 			// Push value, done.
-			ptr := lb.GetPointerToMaybeHeapUse(m.Alloc, m.Store, nx)
+			ptr := lb.GetPointerToMaybeHeapUse(m.Store, nx)
 			m.PushValue(ptr.Deref())
 			return
 		}

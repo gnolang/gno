@@ -59,7 +59,7 @@ func (m *Machine) doOpValueDecl() {
 			ConvertUntypedTo(&tv, nil)
 		}
 		nx := &s.NameExprs[i]
-		ptr := lb.GetPointerToMaybeHeapDefine(m.Alloc, m.Store, nx)
+		ptr := lb.GetPointerToMaybeHeapDefine(m.Store, nx)
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, tv, false)
 	}
 }

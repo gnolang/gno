@@ -2,8 +2,9 @@ package gnolang
 
 import (
 	"fmt"
-	"github.com/cockroachdb/apd/v3"
 	"math/big"
+
+	"github.com/cockroachdb/apd/v3"
 )
 
 func (m *Machine) doOpInc() {

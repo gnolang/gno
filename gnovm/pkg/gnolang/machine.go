@@ -1940,7 +1940,6 @@ func (m *Machine) PushForPointer(lx Expr) {
 }
 
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
-	debug.Println("---PopAsPointer, lx: ", lx)
 	switch lx := lx.(type) {
 	case *NameExpr:
 		switch lx.Type {
@@ -1949,7 +1948,7 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 			return lb.GetPointerTo(m.Store, lx.Path)
 		case NameExprTypeHeapUse:
 			lb := m.LastBlock()
-			return lb.GetPointerToHeapUse(m.Alloc, m.Store, lx.Path)
+			return lb.GetPointerToHeapUse(m.Store, lx.Path)
 		case NameExprTypeHeapClosure:
 			// XXX
 			lb := m.LastBlock()
@@ -1971,7 +1970,6 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
 		hv := m.Alloc.NewHeapItem(tv)
-		debug.Println("---hv: ", hv)
 		return PointerValue{
 			TV:    &hv.Value,
 			Base:  hv,
