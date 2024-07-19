@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 )
 
 var (
@@ -109,11 +110,8 @@ func TestAssertOnList(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(bob))
 	std.TestSetOrigCaller(bob)
 
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatalf("AssertCallerIsOnAuthList should have panicked")
-		}
-	}()
+	uassert.PanicsWithMessage(t, ErrNotInAuthList.Error(), func() {
+		a.AssertOnAuthList()
+	})
 
-	a.AssertOnAuthList()
 }
