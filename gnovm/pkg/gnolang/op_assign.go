@@ -2,7 +2,6 @@ package gnolang
 
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
-	debug.Println("---doOpDefine, s: ", s)
 	// Define each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.

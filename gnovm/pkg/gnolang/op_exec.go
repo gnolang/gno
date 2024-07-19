@@ -85,11 +85,9 @@ func (m *Machine) doOpExec(op Op) {
 			return
 		}
 	case OpForLoop:
-		debug.Println("---OpForLoop")
 		bs := m.LastBlock().GetBodyStmt()
 		// evaluate .Cond.
 		if bs.NextBodyIndex == -2 { // init
-			debug.Println("---init---")
 			bs.NumOps = m.NumOps
 			bs.NumValues = m.NumValues
 			bs.NumExprs = len(m.Exprs)
@@ -97,13 +95,11 @@ func (m *Machine) doOpExec(op Op) {
 			bs.NextBodyIndex = -1
 		}
 		if bs.NextBodyIndex == -1 {
-			debug.Println("---cond---")
 			if bs.Cond != nil {
 				cond := m.PopValue()
 				if !cond.GetBool() {
 					// done with loop.
 					m.PopFrameAndReset()
-					debug.Println("---return---")
 					return
 				}
 			}
@@ -111,7 +107,6 @@ func (m *Machine) doOpExec(op Op) {
 		}
 		// execute body statement.
 		if bs.NextBodyIndex < bs.BodyLen {
-			debug.Println("---executing body")
 			next := bs.Body[bs.NextBodyIndex]
 			bs.NextBodyIndex++
 			// continue onto exec stmt.
@@ -498,7 +493,6 @@ EXEC_SWITCH:
 		m.PushExpr(cs.X)
 		m.PushOp(OpEval)
 	case *ForStmt:
-		debug.Println("---ForStmt")
 		m.PushFrameBasic(cs)
 		b := m.Alloc.NewBlock(cs, m.LastBlock())
 		b.bodyStmt = bodyStmt{

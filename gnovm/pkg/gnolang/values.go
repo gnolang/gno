@@ -2433,7 +2433,6 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 	}
 }
 
-// TODO: modify this to get values from heapItems for heap use nxs.
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if path.IsBlockBlankPath() {
 		if debug {
@@ -2714,7 +2713,6 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 				vpv := cb.GetPointerToInt(store, cv.Index)
 				cv.TV = vpv.TV // TODO optimize?
 			case *HeapItemValue:
-				debug.Println("---HeapItemValue")
 				cv.TV = &cb.Value
 			default:
 				panic("should not happen")

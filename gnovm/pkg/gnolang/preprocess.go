@@ -109,7 +109,6 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 
 // Initialize static block info.
 func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
-
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
 	var last BlockNode = ctx
@@ -248,13 +247,17 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				if n.Op == DEFINE {
 					if n.Key != nil {
 						nx := n.Key.(*NameExpr)
-						nx.Type = NameExprTypeDefine
-						last.Predefine(false, nx.Name)
+						if nx.Name != blankIdentifier {
+							nx.Type = NameExprTypeDefine
+							last.Predefine(false, nx.Name)
+						}
 					}
 					if n.Value != nil {
 						nx := n.Value.(*NameExpr)
-						nx.Type = NameExprTypeDefine
-						last.Predefine(false, nx.Name)
+						if nx.Name != blankIdentifier {
+							nx.Type = NameExprTypeDefine
+							last.Predefine(false, nx.Name)
+						}
 					}
 				}
 			case *FuncLitExpr:
@@ -2138,7 +2141,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 					// evaluate typed value for static definition.
-					for i, _ := range n.NameExprs {
+					for i := range n.NameExprs {
 						// consider value if specified.
 						if len(n.Values) > 0 {
 							vx := n.Values[i]
@@ -2334,8 +2337,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 								panic("unexpected inner func decl")
 								return n, TRANS_CONTINUE
 							case *NameExpr:
-								// TODO: _
-								if n.Type == NameExprTypeDefine {
+								if n.Name != blankIdentifier && n.Type == NameExprTypeDefine {
 									n.Type = NameExprTypeHeapDefine
 								}
 							}
@@ -2363,15 +2365,14 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 					// if labelLine >= gotoLine {
 					//	return n, TRANS_SKIP
 					// }
-					var label = n.Label
+					label := n.Label
 					var labelReached bool
-					var origGoto = n
+					origGoto := n
 
 					// Recurse and mark stmts as ATTR_GOTOLOOP_STMT.
 					// NOTE: ATTR_GOTOLOOP_STMT is not used.
 					Transcribe(bn,
 						func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-
 							switch stage {
 							case TRANS_ENTER:
 								// Check to see if label reached.
@@ -2463,7 +2464,6 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 		}
 
 		switch stage {
-
 		// ----------------------------------------
 		case TRANS_BLOCK:
 			pushInitBlock(n.(BlockNode), &last, &stack)
@@ -2486,7 +2486,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 						fle, depth, found := findFirstClosure(stack, dbn)
 						if found {
 							// If across a closure,
-							// mark name as loop used, `potentially` escaped.
+							// mark name as loop used.
 							addAttrHeapUse(dbn, n.Name)
 							// The path must stay same for now,
 							// used later in findLoopUses2.
@@ -2512,13 +2512,10 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 				case NameExprTypeDefine:
 					// nothing to do.
 				case NameExprTypeHeapDefine:
-					//fmt.Println("---name expr, heap define, n: ", n)
 					// Set name in attribute, so later matches
 					// on NameExpr can know that this was loop defined
 					// on this block.
-					if n.Name != blankIdentifier {
-						setAttrHeapDefine(last, n.Name)
-					}
+					setAttrHeapDefine(last, n.Name)
 				case NameExprTypeHeapUse, NameExprTypeHeapClosure:
 					panic("unexpected node type")
 				}
@@ -2579,6 +2576,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) uint16 {
 			return idx // already exists
 		}
 	}
+
 	// define ~name to fle.
 	idx, ok := fle.GetLocalIndex("~" + name)
 	if ok {
@@ -2594,11 +2592,11 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) uint16 {
 	ne := NameExpr{
 		Path: vp,
 		Name: name,
-		Type: NameExprTypeHeapClosure,
+		Type: NameExprTypeHeapClosure, // XXX, this is actually not used, remove?
 	}
 	fle.HeapCaptures = append(fle.HeapCaptures, ne)
 
-	// find real index
+	// find index after define
 	for i, n := range fle.GetBlockNames() {
 		if n == "~"+name {
 			idx = uint16(i)
@@ -2661,7 +2659,6 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 		}
 
 		switch stage {
-
 		// ----------------------------------------
 		case TRANS_BLOCK:
 			pushInitBlock(n.(BlockNode), &last, &stack)
@@ -2746,18 +2743,6 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 		}
 		return n, TRANS_CONTINUE
 	})
-}
-
-func indexOfName(ns []Name, name Name) uint16 {
-	for i, nn := range ns {
-		if nn == name {
-			if i >= math.MaxUint16 {
-				panic("ns is MaxUint16 or greater in length")
-			}
-			return uint16(i)
-		}
-	}
-	panic(fmt.Sprintln("name "+name+" not found in ns", ns))
 }
 
 func isSwitchLabel(ns []Node, label Name) bool {

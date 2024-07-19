@@ -46,23 +46,24 @@ func (m *Machine) doOpPrecall() {
 var gReturnStmt = &ReturnStmt{}
 
 func (m *Machine) doOpCall() {
-	debug.Println("---doOpCall")
 	// NOTE: Frame won't be popped until the statement is complete, to
 	// discard the correct number of results for func calls in ExprStmts.
 	fr := m.LastFrame()
 	fv := fr.Func
-	debug.Println("---fv: ", fv)
 	ft := fr.Func.GetType(m.Store)
-	debug.Println("---ft: ", ft)
 	pts := ft.Params
 	numParams := len(pts)
 	isMethod := 0 // 1 if true
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
+
+	// Copy *FuncValue.Captures into block
+	// NOTE: addHeapCapture in preprocess ensures order.
+	// XXX, actually copy
 	if len(fv.Captures) != 0 {
 		if len(fv.Captures) > len(b.Values) {
-			panic("should not happen")
+			panic("should not happen, length of captured variables must not exceed the number of values")
 		}
 		for i := 0; i < len(fv.Captures); i++ {
 			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
@@ -105,7 +106,6 @@ func (m *Machine) doOpCall() {
 		m.PushOp(OpBody)
 		m.PushStmt(b.GetBodyStmt())
 	} else {
-		debug.Println("---call native  body")
 		// No return exprs and no defers, safe to skip OpEval.
 		// NOTE: m.PushOp(OpReturn) doesn't handle defers.
 		m.PushOp(OpReturn)
@@ -181,10 +181,6 @@ func (m *Machine) doOpCall() {
 		// as a pointer, *StructValue, for example.
 		b.Values[i] = pv.Copy(m.Alloc)
 	}
-	// Copy *FuncValue.Captures into block
-	// NOTE: addHeapCapture in preprocess ensures order.
-	// XXX I think we can copy into the last len(.Captures) items of b.Values.
-	// XXX actually copy
 }
 
 func (m *Machine) doOpCallNativeBody() {
@@ -305,10 +301,10 @@ func (m *Machine) doOpReturnCallDefers() {
 		// Create new block scope for defer.
 		clo := dfr.Func.GetClosure(m.Store)
 		b := m.Alloc.NewBlock(fv.GetSource(m.Store), clo)
-		// update values from captures
+		// copy values from captures
 		if len(fv.Captures) != 0 {
 			if len(fv.Captures) > len(b.Values) {
-				panic("should not happen")
+				panic("should not happen, length of captured variables must not exceed the number of values")
 			}
 			for i := 0; i < len(fv.Captures); i++ {
 				b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
