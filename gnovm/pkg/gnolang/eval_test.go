@@ -15,21 +15,21 @@ func TestEvalFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range files {
-		wantOut, wantErr, wantStackTrace, ok := testData(dir, f)
+		wantOut, wantErr, wantStacktrace, ok := testData(dir, f)
 		if !ok {
 			continue
 		}
 		t.Run(f.Name(), func(t *testing.T) {
-			out, err, stackTrace := evalTest("", "", path.Join(dir, f.Name()))
+			out, err, qtacktrace := evalTest("", "", path.Join(dir, f.Name()))
 
 			if wantErr != "" && !strings.Contains(err, wantErr) ||
 				wantErr == "" && err != "" {
 				t.Fatalf("unexpected error\nWant: %s\n Got: %s", wantErr, err)
 			}
 
-			if wantStackTrace != "" && !strings.Contains(stackTrace, wantStackTrace) ||
-				wantStackTrace == "" && stackTrace != "" {
-				t.Fatalf("unexpected stack trace\nWant: %s\n Got: %s", wantStackTrace, stackTrace)
+			if wantStacktrace != "" && !strings.Contains(qtacktrace, wantStacktrace) ||
+				wantStacktrace == "" && qtacktrace != "" {
+				t.Fatalf("unexpected stacktrace\nWant: %s\n Got: %s", wantStacktrace, qtacktrace)
 			}
 			if wantOut != "" && out != wantOut {
 				t.Fatalf("unexpected output\nWant: %s\n Got: %s", wantOut, out)
@@ -39,7 +39,7 @@ func TestEvalFiles(t *testing.T) {
 }
 
 // testData returns the expected output and error string, and true if entry is valid.
-func testData(dir string, f os.DirEntry) (testOut, testErr, testStackTrace string, ok bool) {
+func testData(dir string, f os.DirEntry) (testOut, testErr, testStacktrace string, ok bool) {
 	if f.IsDir() {
 		return
 	}

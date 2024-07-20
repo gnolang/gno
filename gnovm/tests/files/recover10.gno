@@ -8,10 +8,8 @@ func main() {
 
 // Stacktrace:
 // panic ahhhhh
-// panic((const ("ahhhhh" <untyped> string)))
-//     main/files/recover10.gno:6
 // main()
-//     main/files/recover10.gno:3
+//     main/files/recover10.gno:6
 
 // Error:
 // ahhhhh

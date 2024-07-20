@@ -16,26 +16,20 @@ func f() {
 
 // Stacktrace:
 // panic first
-// panic((const ("first" <untyped> string)))
+// f<VPBlock(3,1)>()
 //     main/files/panic0b.gno:14
-// f<VPBlock(3,1)>()
-//     main/files/panic0b.gno:4
 // main()
-//     main/files/panic0b.gno:3
+//     main/files/panic0b.gno:4
 // panic second
-// panic((const ("second" <untyped> string)))
+// f<VPBlock(3,1)>()
 //     main/files/panic0b.gno:12
-// f<VPBlock(3,1)>()
-//     main/files/panic0b.gno:4
 // main()
-//     main/files/panic0b.gno:3
+//     main/files/panic0b.gno:4
 // panic third
-// panic((const ("third" <untyped> string)))
-//     main/files/panic0b.gno:9
 // f<VPBlock(3,1)>()
-//     main/files/panic0b.gno:4
+//     main/files/panic0b.gno:9
 // main()
-//     main/files/panic0b.gno:3
+//     main/files/panic0b.gno:4
 
 // Error:
 // first

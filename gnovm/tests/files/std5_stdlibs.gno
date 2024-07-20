@@ -13,14 +13,12 @@ func main() {
 
 // Stacktrace:
 // panic frame not found
-// callerAt()
-//     std.callerAt
 // return Address<VPBlock(3,22)>(callerAt<VPBlock(3,44)>(n<VPBlock(1,0)>))
-//     std/native.gno:44
+//     gonative:std.callerAt
 // caller2<VPBlock(1,1)> := std<VPBlock(2,0)>.GetCallerAt((const (2 int)))
-//     main/files/std5_stdlibs.gno:10
+//     std/native.gno:44
 // main()
-//     main/files/std5_stdlibs.gno:7
+//     main/files/std5_stdlibs.gno:10
 
 // Error:
 // frame not found

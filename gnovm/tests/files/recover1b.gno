@@ -12,10 +12,8 @@ func main() {
 
 // Stacktrace:
 // panic other panic
-// panic((const ("other panic" <untyped> string)))
-//     main/files/recover1b.gno:8
 // main()
-//     main/files/recover1b.gno:5
+//     main/files/recover1b.gno:8
 
 // Error:
 // other panic

@@ -13,7 +13,7 @@ func main() {
 
 // Stacktrace:
 // panic here
-// panic((const ("here" <untyped> string)))
+// p<VPBlock(3,0)>(i<VPBlock(1,0)> + (const (1 int)))
 //     main/files/panic2.gno:5
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + (const (1 int)))
 //     main/files/panic2.gno:7
@@ -141,7 +141,7 @@ func main() {
 //     main/files/panic2.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + (const (1 int)))
 //     main/files/panic2.gno:7
-// ...75 frame(s) elided...
+// ...74 frame(s) elided...
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + (const (1 int)))
 //     main/files/panic2.gno:7
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + (const (1 int)))
@@ -267,9 +267,9 @@ func main() {
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + (const (1 int)))
 //     main/files/panic2.gno:7
 // p<VPBlock(3,0)>((const (0 int)))
-//     main/files/panic2.gno:11
+//     main/files/panic2.gno:7
 // main()
-//     main/files/panic2.gno:10
+//     main/files/panic2.gno:11
 
 // Error:
 // here

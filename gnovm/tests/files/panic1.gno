@@ -24,10 +24,8 @@ func main() {
 
 // Stacktrace:
 // panic here
-// panic((const ("here" <untyped> string)))
-//     main/files/panic1.gno:22
 // main()
-//     main/files/panic1.gno:20
+//     main/files/panic1.gno:22
 
 // Error:
 // here

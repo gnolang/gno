@@ -466,14 +466,14 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 		return
 	}
 
-	var calls []StackTraceCall
+	var calls []StacktraceCall
 	nextStmtIndex := len(m.Stmts) - 1
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
 			stm := m.Stmts[nextStmtIndex]
 			bs := stm.(*bodyStmt)
 			stm = bs.Body[bs.NextBodyIndex-1]
-			calls = append(calls, StackTraceCall{
+			calls = append(calls, StacktraceCall{
 				Stmt:  stm,
 				Frame: m.Frames[i],
 			})
@@ -482,11 +482,8 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 		nextStmtIndex = m.Frames[i].NumStmts - 1
 	}
 
-	calls = append(calls, StackTraceCall{
-		Frame: m.Frames[0],
-	})
-
 	stacktrace.Calls = calls
+
 	// if the stacktrace is too long, we trim it down to maxStacktraceSize
 	if len(calls) > maxStacktraceSize {
 		stacktrace.Calls = calls[:maxStacktraceSize/2]

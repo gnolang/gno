@@ -100,35 +100,40 @@ type Defer struct {
 	PanicScope uint
 }
 
-type StackTraceCall struct {
+type StacktraceCall struct {
 	Stmt  Stmt
 	Frame *Frame
 }
 type Stacktrace struct {
-	Calls           []StackTraceCall
+	Calls           []StacktraceCall
 	NumFramesElided int
 }
 
 func (s Stacktrace) String() string {
 	var builder strings.Builder
 
-	for i, call := range s.Calls {
+	for i := 0; i < len(s.Calls); i++ {
 		if s.NumFramesElided > 0 && i == maxStacktraceSize/2 {
 			fmt.Fprintf(&builder, "...%d frame(s) elided...\n", s.NumFramesElided)
 		}
 
+		call := s.Calls[i]
+		var nextCall *StacktraceCall = nil
+		if i+1 < len(s.Calls) {
+			nextCall = &s.Calls[i+1]
+		}
 		switch {
-		case call.Stmt == nil:
+		case nextCall == nil:
 			fmt.Fprintf(&builder, "%s()\n", call.Frame.Func)
-			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, call.Frame.Func.Source.GetLine())
+			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, call.Stmt.GetLine())
 		case call.Frame.Func != nil && call.Frame.Func.IsNative():
-			fmt.Fprintf(&builder, "%s()\n", call.Frame.Func)
-			fmt.Fprintf(&builder, "    %s.%s\n", call.Frame.Func.NativePkg, call.Frame.Func.NativeName)
+			fmt.Fprintf(&builder, "%s\n", nextCall.Stmt.String())
+			fmt.Fprintf(&builder, "    gonative:%s.%s\n", call.Frame.Func.NativePkg, call.Frame.Func.NativeName)
 		case call.Frame.Func != nil:
-			fmt.Fprintf(&builder, "%s\n", call.Stmt.String())
+			fmt.Fprintf(&builder, "%s\n", nextCall.Stmt.String())
 			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, call.Stmt.GetLine())
 		default:
-			fmt.Fprintf(&builder, "%s\n", call.Stmt.String())
+			fmt.Fprintf(&builder, "%s\n", nextCall.Stmt.String())
 			fmt.Fprintf(&builder, "    %s\n", call.Frame.GoFunc.Value.Type())
 		}
 	}
