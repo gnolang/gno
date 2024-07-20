@@ -9,17 +9,16 @@ import (
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
-	"gno.land/p/gov/dao"
 )
 
 // generateMembers generates dummy govdao members
-func generateMembers(t *testing.T, count int) []dao.Member {
+func generateMembers(t *testing.T, count int) []Member {
 	t.Helper()
 
-	members := make([]dao.Member, 0, count)
+	members := make([]Member, 0, count)
 
 	for i := 0; i < count; i++ {
-		members = append(members, dao.Member{
+		members = append(members, Member{
 			Address:     testutils.TestAddress(ufmt.Sprintf("member %d", i)),
 			VotingPower: 10,
 		})
@@ -77,7 +76,7 @@ func TestMembStore_GetMembers(t *testing.T) {
 			members = generateMembers(t, numMembers)
 			m       = NewMembStore(WithInitialMembers(members))
 
-			verifyMembersPresent = func(members, fetchedMembers []dao.Member) {
+			verifyMembersPresent = func(members, fetchedMembers []Member) {
 				for _, fetchedMember := range fetchedMembers {
 					for _, member := range members {
 						if member.Address != fetchedMember.Address {

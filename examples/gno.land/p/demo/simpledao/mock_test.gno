@@ -3,7 +3,7 @@ package simpledao
 import (
 	"std"
 
-	"gno.land/p/gov/dao"
+	"gno.land/p/demo/membstore"
 )
 
 type (
@@ -33,13 +33,13 @@ func (m *mockExecutor) IsExpired() bool {
 }
 
 type (
-	membersDelegate      func(uint64, uint64) []dao.Member
+	membersDelegate      func(uint64, uint64) []membstore.Member
 	sizeDelegate         func() int
 	isMemberDelegate     func(std.Address) bool
 	totalPowerDelegate   func() uint64
-	memberDelegate       func(std.Address) (dao.Member, error)
-	addMemberDelegate    func(dao.Member) error
-	updateMemberDelegate func(std.Address, dao.Member) error
+	memberDelegate       func(std.Address) (membstore.Member, error)
+	addMemberDelegate    func(membstore.Member) error
+	updateMemberDelegate func(std.Address, membstore.Member) error
 )
 
 type mockMemberStore struct {
@@ -52,7 +52,7 @@ type mockMemberStore struct {
 	updateMemberFn updateMemberDelegate
 }
 
-func (m *mockMemberStore) Members(offset, count uint64) []dao.Member {
+func (m *mockMemberStore) Members(offset, count uint64) []membstore.Member {
 	if m.membersFn != nil {
 		return m.membersFn(offset, count)
 	}
@@ -84,15 +84,15 @@ func (m *mockMemberStore) TotalPower() uint64 {
 	return 0
 }
 
-func (m *mockMemberStore) Member(address std.Address) (dao.Member, error) {
+func (m *mockMemberStore) Member(address std.Address) (membstore.Member, error) {
 	if m.memberFn != nil {
 		return m.memberFn(address)
 	}
 
-	return dao.Member{}, nil
+	return membstore.Member{}, nil
 }
 
-func (m *mockMemberStore) AddMember(member dao.Member) error {
+func (m *mockMemberStore) AddMember(member membstore.Member) error {
 	if m.addMemberFn != nil {
 		return m.addMemberFn(member)
 	}
@@ -100,7 +100,7 @@ func (m *mockMemberStore) AddMember(member dao.Member) error {
 	return nil
 }
 
-func (m *mockMemberStore) UpdateMember(address std.Address, member dao.Member) error {
+func (m *mockMemberStore) UpdateMember(address std.Address, member membstore.Member) error {
 	if m.updateMemberFn != nil {
 		return m.updateMemberFn(address, member)
 	}

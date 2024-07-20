@@ -6,7 +6,6 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/gov/dao"
 )
 
 var (
@@ -24,7 +23,7 @@ type Option func(*MembStore)
 
 // WithInitialMembers initializes the member store
 // with an initial member list
-func WithInitialMembers(members []dao.Member) Option {
+func WithInitialMembers(members []Member) Option {
 	return func(store *MembStore) {
 		for _, m := range members {
 			store.members.Set(m.Address.String(), m)
@@ -44,11 +43,11 @@ func WithDAOPkgPath(daoPkgPath string) Option {
 // MembStore implements the dao.MembStore abstraction
 type MembStore struct {
 	daoPkgPath       string    // active dao pkg path, if any
-	members          *avl.Tree // std.Address -> dao.Member
+	members          *avl.Tree // std.Address -> Member
 	totalVotingPower uint64    // cached value for quick lookups
 }
 
-// NewMembStore creates a new simpledao member store
+// NewMembStore creates a new member store
 func NewMembStore(opts ...Option) *MembStore {
 	m := &MembStore{
 		members:          avl.NewTree(), // empty set
@@ -64,7 +63,7 @@ func NewMembStore(opts ...Option) *MembStore {
 	return m
 }
 
-func (m *MembStore) AddMember(member dao.Member) error {
+func (m *MembStore) AddMember(member Member) error {
 	if !m.isCallerGOVDAO() {
 		return ErrNotGovDAO
 	}
@@ -83,7 +82,7 @@ func (m *MembStore) AddMember(member dao.Member) error {
 	return nil
 }
 
-func (m *MembStore) UpdateMember(address std.Address, member dao.Member) error {
+func (m *MembStore) UpdateMember(address std.Address, member Member) error {
 	if !m.isCallerGOVDAO() {
 		return ErrNotGovDAO
 	}
@@ -133,19 +132,19 @@ func (m *MembStore) IsMember(address std.Address) bool {
 	return exists
 }
 
-func (m *MembStore) Member(address std.Address) (dao.Member, error) {
+func (m *MembStore) Member(address std.Address) (Member, error) {
 	member, exists := m.members.Get(address.String())
 	if !exists {
-		return dao.Member{}, ErrMissingMember
+		return Member{}, ErrMissingMember
 	}
 
-	return member.(dao.Member), nil
+	return member.(Member), nil
 }
 
-func (m *MembStore) Members(offset, count uint64) []dao.Member {
+func (m *MembStore) Members(offset, count uint64) []Member {
 	// Calculate the left and right bounds
 	if count < 1 || offset >= uint64(m.members.Size()) {
-		return []dao.Member{}
+		return []Member{}
 	}
 
 	// Limit the maximum number of returned members
@@ -154,12 +153,12 @@ func (m *MembStore) Members(offset, count uint64) []dao.Member {
 	}
 
 	// Gather the members
-	members := make([]dao.Member, 0)
+	members := make([]Member, 0)
 	m.members.IterateByOffset(
 		int(offset),
 		int(count),
 		func(_ string, val interface{}) bool {
-			member := val.(dao.Member)
+			member := val.(Member)
 
 			// Save the member
 			members = append(members, member)

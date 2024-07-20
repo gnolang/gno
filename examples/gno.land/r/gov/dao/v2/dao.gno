@@ -11,14 +11,14 @@ import (
 )
 
 var (
-	d       dao.DAO         // the current active DAO implementation
-	members dao.MemberStore // the member store
+	d       dao.DAO               // the current active DAO implementation
+	members membstore.MemberStore // the member store
 )
 
 func init() {
 	var (
 		// Example initial member set (just test addresses)
-		set = []dao.Member{
+		set = []membstore.Member{
 			{
 				Address:     std.Address("g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"),
 				VotingPower: 10,
@@ -64,7 +64,7 @@ func GetPropStore() dao.PropStore {
 }
 
 // GetMembStore returns the active member store
-func GetMembStore() dao.MemberStore {
+func GetMembStore() membstore.MemberStore {
 	return members
 }
 

@@ -5,6 +5,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/membstore"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/gov/dao"
 )
@@ -30,11 +31,11 @@ var (
 // SimpleDAO is a simple DAO implementation
 type SimpleDAO struct {
 	proposals *avl.Tree // seqid.ID -> proposal
-	membStore dao.MemberStore
+	membStore membstore.MemberStore
 }
 
 // New creates a new instance of the simpledao DAO
-func New(membStore dao.MemberStore) *SimpleDAO {
+func New(membStore membstore.MemberStore) *SimpleDAO {
 	return &SimpleDAO{
 		proposals: avl.NewTree(),
 		membStore: membStore,

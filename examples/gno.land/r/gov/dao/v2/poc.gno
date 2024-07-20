@@ -4,6 +4,7 @@ import (
 	"errors"
 	"std"
 
+	"gno.land/p/demo/membstore"
 	"gno.land/p/gov/dao"
 	"gno.land/p/gov/executor"
 )
@@ -23,7 +24,7 @@ func NewGovDAOExecutor(cb func() error) dao.Executor {
 }
 
 // NewMemberPropExecutor returns the GOVDAO member change executor
-func NewMemberPropExecutor(changesFn func() []dao.Member) dao.Executor {
+func NewMemberPropExecutor(changesFn func() []membstore.Member) dao.Executor {
 	if changesFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -41,7 +42,7 @@ func NewMemberPropExecutor(changesFn func() []dao.Member) dao.Executor {
 				errs.Add(err)
 			case member.VotingPower == 0:
 				// Remove request
-				err := members.UpdateMember(member.Address, dao.Member{
+				err := members.UpdateMember(member.Address, membstore.Member{
 					Address:     member.Address,
 					VotingPower: 0, // 0 indicated removal
 				})
@@ -80,7 +81,7 @@ func NewDAOImplExecutor(changeFn func() dao.DAO) dao.Executor {
 	return NewGovDAOExecutor(callback)
 }
 
-func NewMembStoreImplExecutor(changeFn func() dao.MemberStore) dao.Executor {
+func NewMembStoreImplExecutor(changeFn func() membstore.MemberStore) dao.Executor {
 	if changeFn == nil {
 		panic(errNoChangesProposed)
 	}
@@ -104,7 +105,7 @@ func setDAOImpl(impl dao.DAO) {
 }
 
 // setMembStoreImpl sets a new dao.MembStore implementation
-func setMembStoreImpl(impl dao.MemberStore) {
+func setMembStoreImpl(impl membstore.MemberStore) {
 	if impl == nil {
 		panic("invalid member store")
 	}

@@ -5,6 +5,7 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/membstore"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
@@ -13,13 +14,13 @@ import (
 )
 
 // generateMembers generates dummy govdao members
-func generateMembers(t *testing.T, count int) []dao.Member {
+func generateMembers(t *testing.T, count int) []membstore.Member {
 	t.Helper()
 
-	members := make([]dao.Member, 0, count)
+	members := make([]membstore.Member, 0, count)
 
 	for i := 0; i < count; i++ {
-		members = append(members, dao.Member{
+		members = append(members, membstore.Member{
 			Address:     testutils.TestAddress(ufmt.Sprintf("member %d", i)),
 			VotingPower: 10,
 		})
@@ -156,8 +157,8 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			fetchErr = errors.New("fetch error")
 
 			ms = &mockMemberStore{
-				memberFn: func(_ std.Address) (dao.Member, error) {
-					return dao.Member{
+				memberFn: func(_ std.Address) (membstore.Member, error) {
+					return membstore.Member{
 						Address: voter,
 					}, fetchErr
 				},
@@ -181,12 +182,12 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		var (
 			voter = testutils.TestAddress("voter")
 			ms    = &mockMemberStore{
-				memberFn: func(a std.Address) (dao.Member, error) {
+				memberFn: func(a std.Address) (membstore.Member, error) {
 					if a != voter {
-						return dao.Member{}, errors.New("not found")
+						return membstore.Member{}, errors.New("not found")
 					}
 
-					return dao.Member{
+					return membstore.Member{
 						Address: voter,
 					}, nil
 				},
@@ -212,12 +213,12 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			voter = testutils.TestAddress("voter")
 
 			ms = &mockMemberStore{
-				memberFn: func(a std.Address) (dao.Member, error) {
+				memberFn: func(a std.Address) (membstore.Member, error) {
 					if a != voter {
-						return dao.Member{}, errors.New("not found")
+						return membstore.Member{}, errors.New("not found")
 					}
 
-					return dao.Member{
+					return membstore.Member{
 						Address: voter,
 					}, nil
 				},
@@ -250,12 +251,12 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			voter = testutils.TestAddress("voter")
 
 			ms = &mockMemberStore{
-				memberFn: func(a std.Address) (dao.Member, error) {
+				memberFn: func(a std.Address) (membstore.Member, error) {
 					if a != voter {
-						return dao.Member{}, errors.New("not found")
+						return membstore.Member{}, errors.New("not found")
 					}
 
-					return dao.Member{
+					return membstore.Member{
 						Address: voter,
 					}, nil
 				},
@@ -293,15 +294,15 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 
 		var (
 			voter  = testutils.TestAddress("voter")
-			member = dao.Member{
+			member = membstore.Member{
 				Address:     voter,
 				VotingPower: 10,
 			}
 
 			ms = &mockMemberStore{
-				memberFn: func(a std.Address) (dao.Member, error) {
+				memberFn: func(a std.Address) (membstore.Member, error) {
 					if a != voter {
-						return dao.Member{}, errors.New("not found")
+						return membstore.Member{}, errors.New("not found")
 					}
 
 					return member, nil
@@ -340,14 +341,14 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			members = generateMembers(t, 50)
 
 			ms = &mockMemberStore{
-				memberFn: func(address std.Address) (dao.Member, error) {
+				memberFn: func(address std.Address) (membstore.Member, error) {
 					for _, m := range members {
 						if m.Address == address {
 							return m, nil
 						}
 					}
 
-					return dao.Member{}, errors.New("not found")
+					return membstore.Member{}, errors.New("not found")
 				},
 
 				totalPowerFn: func() uint64 {
@@ -395,14 +396,14 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			members = generateMembers(t, 50)
 
 			ms = &mockMemberStore{
-				memberFn: func(address std.Address) (dao.Member, error) {
+				memberFn: func(address std.Address) (membstore.Member, error) {
 					for _, m := range members {
 						if m.Address == address {
 							return m, nil
 						}
 					}
 
-					return dao.Member{}, errors.New("member not found")
+					return membstore.Member{}, errors.New("member not found")
 				},
 
 				totalPowerFn: func() uint64 {
@@ -450,14 +451,14 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			members = generateMembers(t, 50)
 
 			ms = &mockMemberStore{
-				memberFn: func(address std.Address) (dao.Member, error) {
+				memberFn: func(address std.Address) (membstore.Member, error) {
 					for _, m := range members {
 						if m.Address == address {
 							return m, nil
 						}
 					}
 
-					return dao.Member{}, errors.New("member not found")
+					return membstore.Member{}, errors.New("member not found")
 				},
 
 				totalPowerFn: func() uint64 {
@@ -505,14 +506,14 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			members = generateMembers(t, 50)
 
 			ms = &mockMemberStore{
-				memberFn: func(address std.Address) (dao.Member, error) {
+				memberFn: func(address std.Address) (membstore.Member, error) {
 					for _, m := range members {
 						if m.Address == address {
 							return m, nil
 						}
 					}
 
-					return dao.Member{}, errors.New("member not found")
+					return membstore.Member{}, errors.New("member not found")
 				},
 
 				totalPowerFn: func() uint64 {
@@ -572,14 +573,14 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			members = generateMembers(t, 50)
 
 			ms = &mockMemberStore{
-				memberFn: func(address std.Address) (dao.Member, error) {
+				memberFn: func(address std.Address) (membstore.Member, error) {
 					for _, m := range members {
 						if m.Address == address {
 							return m, nil
 						}
 					}
 
-					return dao.Member{}, errors.New("member not found")
+					return membstore.Member{}, errors.New("member not found")
 				},
 
 				totalPowerFn: func() uint64 {

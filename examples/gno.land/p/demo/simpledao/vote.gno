@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/membstore"
 	"gno.land/p/gov/dao"
 )
 
@@ -28,7 +29,7 @@ func newVotes() *votes {
 }
 
 // castVote casts a single vote in the name of the given member
-func (v *votes) castVote(member dao.Member, option dao.VoteOption) error {
+func (v *votes) castVote(member membstore.Member, option dao.VoteOption) error {
 	// Check if the member voted already
 	address := member.Address.String()
 

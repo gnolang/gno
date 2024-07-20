@@ -3,13 +3,14 @@ package main
 import (
 	"std"
 
+	"gno.land/p/demo/membstore"
 	"gno.land/p/gov/dao"
 	govdao "gno.land/r/gov/dao/v2"
 )
 
 func init() {
-	memberFn := func() []dao.Member {
-		return []dao.Member{
+	memberFn := func() []membstore.Member {
+		return []membstore.Member{
 			{
 				Address:     std.Address("g123"),
 				VotingPower: 10,
