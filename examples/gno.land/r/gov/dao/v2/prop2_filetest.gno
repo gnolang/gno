@@ -3,7 +3,7 @@ package main
 import (
 	"time"
 
-	"gno.land/p/gov/dao"
+	"gno.land/p/demo/dao"
 	gnoblog "gno.land/r/gnoland/blog"
 	govdao "gno.land/r/gov/dao/v2"
 )

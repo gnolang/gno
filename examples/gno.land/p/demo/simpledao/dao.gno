@@ -5,9 +5,9 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/gov/dao"
 )
 
 var (

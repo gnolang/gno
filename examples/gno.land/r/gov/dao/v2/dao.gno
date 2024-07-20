@@ -4,10 +4,10 @@ import (
 	"std"
 	"strconv"
 
+	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
 	"gno.land/p/demo/simpledao"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/gov/dao"
 )
 
 var (

@@ -3,7 +3,7 @@ package vars
 import (
 	"std"
 
-	"gno.land/p/gov/dao"
+	"gno.land/p/demo/dao"
 	govdao "gno.land/r/gov/dao/v2"
 )
 

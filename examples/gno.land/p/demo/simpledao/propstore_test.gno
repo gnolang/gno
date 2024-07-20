@@ -3,11 +3,11 @@ package simpledao
 import (
 	"testing"
 
+	"gno.land/p/demo/dao"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
-	"gno.land/p/gov/dao"
 )
 
 // generateProposals generates dummy proposals

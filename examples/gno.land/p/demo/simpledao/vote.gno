@@ -4,8 +4,8 @@ import (
 	"errors"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
-	"gno.land/p/gov/dao"
 )
 
 var ErrAlreadyVoted = errors.New("vote already cast")

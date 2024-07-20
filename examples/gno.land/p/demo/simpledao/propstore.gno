@@ -4,9 +4,9 @@ import (
 	"errors"
 	"std"
 
+	"gno.land/p/demo/dao"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/gov/dao"
 )
 
 var (

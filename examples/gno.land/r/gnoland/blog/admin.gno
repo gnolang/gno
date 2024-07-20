@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/gov/dao"
+	"gno.land/p/demo/dao"
 	govdao "gno.land/r/gov/dao/v2"
 )
 
