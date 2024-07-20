@@ -176,6 +176,13 @@ func (m *Marketplace) GetBasicNFTListings() string {
 	return string(marketplaceJSON)
 }
 
+func (m *Marketplace) IsBasicTokenIdListed(tokenId string) error {
+	if _, exists := m.basicListings[tokenId]; exists {
+		return errors.New("tokenId is already listed")
+	}
+	return nil
+}
+
 func (m *Marketplace) BuyCompositeNFT(buyer std.Address, compositeTokenID grc721.TokenID) (buyResult string) {
     var buyError error
     
@@ -220,7 +227,7 @@ func (m *Marketplace) BuyCompositeNFT(buyer std.Address, compositeTokenID grc721
     }
 
     if buyError == nil {
-        fPricePaid, fPriceBurned, terr := TransferFLIPToSeller(buyer, listing.Seller, std.NewCoin("FLIP", int64(listing.Price)))
+        fPricePaid, fPriceBurned, terr := PayFLIPToSeller(buyer, listing.Seller, std.NewCoin("FLIP", int64(listing.Price)))
         if terr != nil {
             buyError = terr
             //revert the sale on FLIP transfer error, most likely not enough tokens
@@ -300,11 +307,13 @@ func (m *Marketplace) BuyBasicNFT(buyer std.Address, basicTokenID grc721.TokenID
 
 	// pay the price, including random burning
     if buyError == nil {
-        fPricePaid, fPriceBurned, terr := TransferFLIPToSeller(buyer, listing.Seller, std.NewCoin("FLIP", int64(listing.Price)))
+        fPricePaid, fPriceBurned, terr := PayFLIPToSeller(buyer, listing.Seller, std.NewCoin("FLIP", int64(listing.Price)))
         if terr != nil {
             buyError = terr
             // Revert the successfully transferred basic NFT
             _ = TransferBasicNFTToBuyer(buyer, std.Address(listing.Seller), basicTokenID)
+			// Revert the successfully trasnferred locked FLIP
+			_ = TransferLockedFLIP(buyer, std.Address(listing.Seller), string(basicTokenID)) 
         }
         flipPaid = fPricePaid
         flipBurned = fPriceBurned

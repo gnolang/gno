@@ -80,7 +80,7 @@ func testGenerateColorSquareGrid(t *testing.T) {
 }*/
 
 func testMarshalJSON(t *testing.T) {
-    fbn := basicNFTMetaData{
+    fbn := BasicNFTMetaData{
 		name:     "Flippando - the Game",
 		version:  "1.0.0",
 		gameId:   "game123",
@@ -102,31 +102,31 @@ func TestMintLocked(t *testing.T) {
     // Setup - Initialize your environment, token
     flipToken := grc20.NewAdminToken("Flippando", "FLIP", 6) 
 
-    // Assume userFlipNFTs and other necessary structures are initialized in MintLocked
+    // Assume userFlipNFTs and other necessary structures are initialized in MintAndLockFLIP
 
     // Test 1: Minting for a new user
     recipient := std.Address("user1")
     tokenId := "token1"
     flipAmount := uint64(100)
-    err := MintLocked(recipient, tokenId, flipAmount)
+    err := MintAndLockFLIP(recipient, tokenId, flipAmount)
     if err != nil {
-        t.Errorf("MintLocked returned an error for new user: %v", err)
+        t.Errorf("MintAndLockFLIP returned an error for new user: %v", err)
     }
     lockedBalance := getUserLockedBalances(recipient)
     if lockedBalance != flipAmount {
-        t.Errorf("MintLocked failed to store correct amount for new user, got %v, want %v", lockedBalance, flipAmount)
+        t.Errorf("MintAndLockFLIP failed to store correct amount for new user, got %v, want %v", lockedBalance, flipAmount)
     }
 
     // Test 2: Minting additional tokens for the same user
     additionalAmount := uint64(50)
-    err = MintLocked(recipient, "token2", additionalAmount)
+    err = MintAndLockFLIP(recipient, "token2", additionalAmount)
     if err != nil {
-        t.Errorf("MintLocked returned an error for additional minting: %v", err)
+        t.Errorf("MintAndLockFLIP returned an error for additional minting: %v", err)
     }
     updatedLockedBalance := getUserLockedBalances(recipient)
     expectedTotal := flipAmount + additionalAmount
     if updatedLockedBalance != expectedTotal {
-        t.Errorf("MintLocked failed to store correct additional amount for existing user, got %v, want %v", updatedLockedBalance, expectedTotal)
+        t.Errorf("MintAndLockFLIP failed to store correct additional amount for existing user, got %v, want %v", updatedLockedBalance, expectedTotal)
     }
 }*/
 

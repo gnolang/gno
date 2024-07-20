@@ -30,7 +30,7 @@ type UserGamesResult struct {
 	UserGames []Game `json:"userGames"`
 }
 
-type basicNFTMetaData struct {
+type BasicNFTMetaData struct {
 	tokenID	string	`json:"tokenID"`
 	name	string `json:"name"`
 	version	string	`json:"version"`
@@ -38,6 +38,10 @@ type basicNFTMetaData struct {
 	gameType string `json:"gameType"`
 	gameLevel string `json:"gameLevel"`
 	svgData	string `json:"svgData"`
+	airdropName string `json:"airdropName"`
+	airdropParentID string `json:"airdropParentID"`
+	airdropXPos string `json:"airdropXPos"`
+	airdropYPos string `json:"airdropYPos"`
 }
 
 type compositeNFTMetaData struct {
@@ -176,7 +180,7 @@ func (ugr UserGamesResult) MarshalJSON() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func (fbn basicNFTMetaData) MarshalJSON() ([]byte,  error) {
+func (fbn BasicNFTMetaData) MarshalJSON() ([]byte,  error) {
 	
 	var b bytes.Buffer
 
@@ -208,12 +212,46 @@ func (fbn basicNFTMetaData) MarshalJSON() ([]byte,  error) {
 	
 	b.WriteString(`"svgData":"`)
 	b.WriteString(fbn.svgData) 
+	b.WriteString(`",`)
+
+	b.WriteString(`"airdropName":"`)
+	b.WriteString(fbn.airdropName) 
+	b.WriteString(`",`)
+
+	b.WriteString(`"airdropParentID":"`)
+	b.WriteString(fbn.svgData) 
+	b.WriteString(`",`)
+
+	b.WriteString(`"airdropXPos":"`)
+	b.WriteString(fbn.airdropXPos) 
+	b.WriteString(`",`)
+
+	b.WriteString(`"airdropYPos":"`)
+	b.WriteString(fbn.airdropYPos) 
 	b.WriteString(`"`)
 	
 	b.WriteByte('}')
 
 	return b.Bytes(), nil
 	
+}
+
+func (fbn *BasicNFTMetaData) UnmarshalJSON(data []byte) error {
+	type Alias BasicNFTMetaData
+	aux := &struct {
+		AirdropXPos string `json:"airdropXPos"`
+		AirdropYPos string `json:"airdropYPos"`
+		*Alias
+	}{
+		Alias: (*Alias)(fbn),
+	}
+	err := json.Unmarshal(data, &aux)
+	if err != nil {
+		return err
+	}
+	fbn.airdropXPos = aux.AirdropXPos
+	fbn.airdropYPos = aux.AirdropYPos
+	return nil
 }
 
 func (cbn compositeNFTMetaData) MarshalJSON() ([]byte,  error) {

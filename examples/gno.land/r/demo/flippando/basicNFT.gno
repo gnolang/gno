@@ -15,6 +15,8 @@ var (
 	basicNFTtokenIDCounter	uint64
 	lockedNFTs avl.Tree // tokenId -> flipAmount
 	childOf avl.Tree // tokenId -> parent (composite) tokenId
+	// hardcoding the airdrop account and restricting minting to it
+	validAirdropAccount std.Address = std.Address("g1mphljw4duhzwqs72hv9grm4k6ufkvts3g7t3t4")
 )
 
 func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
@@ -47,7 +49,7 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 			result = "{failedSafetyCheck: svgDataCorrupted}"
 			nftError = "SVG data not generated"
 		}
-		flipBasicNFTMetaData := &basicNFTMetaData{
+		flipBasicNFTMetaData := &BasicNFTMetaData{
 			tokenID: tidString,
 			name: "Flippando - the Game",
 			version: "1.0.0",
@@ -55,6 +57,10 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 			gameType: currentGame.TileType,
 			gameLevel: strconv.Itoa(len(currentGame.SolvedGameBoard)),
 			svgData: gameSVGData,
+			airdropName: "",
+			airdropParentID: "",
+			airdropXPos: "",
+			airdropYPos: "",
 		}
 		flipBasicNFTMetaDataJSON, err := flipBasicNFTMetaData.MarshalJSON()
 		if err != nil {
@@ -74,7 +80,7 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 			flipAmount = 4000 // 4000 uflip = 4 FLIP
 		}
 		// mint fungible FLIP token
-		MintLocked(player, tidString, std.NewCoin("FLIP", flipAmount))
+		MintAndLockFLIP(player, tidString, std.NewCoin("FLIP", flipAmount))
 		lockedNFTs.Set(tidString, flipAmount)
 
 		result = string(flipBasicNFTMetaDataJSON)
@@ -91,6 +97,7 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 	return string(createNFTResult), nftError
 }
 
+// returns a string version of the TokenURI
 func GetBasicTokenURI(tokenID string) string {
 	tid := grc721.TokenID(tokenID)
 	tokenURI, err := FlipBasicNFT.TokenURI(tid)
@@ -98,6 +105,17 @@ func GetBasicTokenURI(tokenID string) string {
 		return "error"
 	}
 	return string(tokenURI);
+}
+
+// basically identical with the other one, but returns BasicNFTMetaData type
+func GetTokenMetadata(tokenId string) (BasicNFTMetaData, error) {
+	uri := FlipBasicNFT.TokenURI(grc721.TokenID(tokenId))
+	var metadata BasicNFTMetaData
+	err := ParseBasicNFTMetaData(uri)
+	if err != nil {
+		return metadata, err
+	}
+	return metadata, nil
 }
 
 func GetParentdOf(tokenId string) string {
@@ -303,28 +321,33 @@ func GetAllUnlockedNFTs() int {
 	return int(totalUnlocked)
 }
 
-func AirdropBasicFlipNFT(airdropAccount, 
+func AirdropBasicFlipNFT( 
 	toPlayer std.Address,
 	 airdropName string, 
+	 airdropParentID string,
+	 airdropXPos string,
+	 airdropYPos string,
 	 gameType string, 
 	 gameLevel string,
 	 svgData string) (string, string) {
-	// - airdropAccount is the airdrop account, it will receive the lockedNFTs tokens when
-	//	someone solves a composite NFT - the initial NFT is  to this account, then transferred
-	//	to toPlayer
-	// - toPlayer is the user receiving the NFT
+	
+	// - toPlayer is the user receiving the NFT, and the locked FLIP
 	// - generates a GRC721 token with the airdropped board SVG as a tokenURI
 	// - returns token metadata as string, to be used in client
 	result := ""
 	nftError := ""
 	
+	if validAirdropAccount.String() != std.GetCaller().String() {
+		return "", "airdrop account not correct"
+	}
+
 	count := FlipBasicNFT.TokenCount()
 	basicNFTtokenIDCounter = count + 1
 	tidString := strconv.FormatUint(basicNFTtokenIDCounter, 10)
 	tid := grc721.TokenID(tidString)
-	mintResultError := FlipBasicNFT.Mint(airdropAccount, tid)
+	mintResultError := FlipBasicNFT.Mint(toPlayer, tid)
 	if mintResultError == nil {
-		flipBasicNFTMetaData := &basicNFTMetaData{
+		flipBasicNFTMetaData := &BasicNFTMetaData{
 			tokenID: tidString,
 			name: "Flippando - the Game",
 			version: "1.0.0",
@@ -332,6 +355,10 @@ func AirdropBasicFlipNFT(airdropAccount,
 			gameType: gameType,
 			gameLevel: gameLevel,
 			svgData: svgData,
+			airdropName: airdropName,
+			airdropParentID: airdropParentID,
+			airdropXPos: airdropXPos,
+			airdropYPos: airdropYPos,
 		}
 		flipBasicNFTMetaDataJSON, err := flipBasicNFTMetaData.MarshalJSON()
 		if err != nil {
@@ -349,14 +376,16 @@ func AirdropBasicFlipNFT(airdropAccount,
 			flipAmount = 4000
 		}
 		// mint fungible FLIP token
-		MintLocked(toPlayer, tidString, std.NewCoin("FLIP", flipAmount))
+		MintAndLockFLIP(toPlayer, tidString, std.NewCoin("FLIP", flipAmount))
 		lockedNFTs.Set(tidString, flipAmount)
+		merr := Mint(airdropAccount, flipAmount)
+		if merr != nil {
+			return "", errors.New(ufmt.Sprintf("error in calling Mint in airdrop function, %s", merr.Error()))
+		}
 		result = string(flipBasicNFTMetaDataJSON)
 	}
-	// transfer the minted NFT to toPlayer
-	err := FlipBasicNFT.TransferFrom(airdropAccount, toPlayer, tid)
-	if err != nil {
-		panic("error in transferring to toPLayer")
+	else {
+		nftError = mintResultError
 	}
 	
 	res := &nftResult{
@@ -366,7 +395,43 @@ func AirdropBasicFlipNFT(airdropAccount,
 	
 	createNFTResult, err := res.MarshalJSON()
 	if(err != nil){
-		panic("error in minting")
+		panic("error in marshaling result")
 	}
 	return string(createNFTResult), nftError
 }
+
+// util
+func ParseBasicNFTMetaData(jsonStr string) (BasicNFTMetaData, error) {
+	var metadata BasicNFTMetaData
+
+	// Helper function to extract a value from the JSON string by key
+	extractValue := func(key string) string {
+		startIndex := strings.Index(jsonStr, `"`+key+`":"`)
+		if startIndex == -1 {
+			return ""
+		}
+		startIndex += len(key) + 4 // Move to the start of the value
+
+		endIndex := strings.Index(jsonStr[startIndex:], `"`)
+		if endIndex == -1 {
+			return ""
+		}
+
+		return jsonStr[startIndex : startIndex+endIndex]
+	}
+
+	metadata.tokenID = extractValue("tokenID")
+	metadata.name = extractValue("name")
+	metadata.version = extractValue("version")
+	metadata.gameId = extractValue("gameId")
+	metadata.gameType = extractValue("gameType")
+	metadata.gameLevel = extractValue("gameLevel")
+	metadata.svgData = extractValue("svgData")
+	metadata.airdropName = extractValue("airdropName")
+	metadata.airdropParentID = extractValue("airdropParentID")
+	metadata.airdropXPos = extractValue("airdropXPos")
+	metadata.airdropYPos = extractValue("airdropYPos")
+
+	return metadata, nil
+}
+

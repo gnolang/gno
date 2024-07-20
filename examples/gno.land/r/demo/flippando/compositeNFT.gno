@@ -23,7 +23,7 @@ var (
 func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, bTokenIDsArray string) (string, string) {
 	result := ""
 	nftError := ""
-	// not used atm
+	
 	bTokenIDs, _ := ParseString(bTokenIDsArray)
 	// Initialize the children map if it's nil
 	if children == nil {
@@ -48,35 +48,93 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 
 	if totalAvailableBasicNFTs <= 50 {
 		if intHeight != 2 && intWidth != 2 {
-			return "", "invalid canvas widht and height for under 50 available basic NFTs"
+			return "", "invalid canvas width and height for under 50 available basic NFTs"
 		}
 	} else if totalAvailableBasicNFTs > 50 && totalAvailableBasicNFTs <= 100 {
 		if intHeight != 3 && intWidth != 3 {
-			return "", "invalid canvas widht and height for under 100 available basic NFTs"
+			return "", "invalid canvas width and height for under 100 available basic NFTs"
 		}
 	} else if totalAvailableBasicNFTs > 100 && totalAvailableBasicNFTs <= 400 {
 		if intHeight != 4 && intWidth != 4 {
-			return "", "invalid canvas widht and height for under 400 available basic NFTs"
+			return "", "invalid canvas width and height for under 400 available basic NFTs"
 		}
 	} else if totalAvailableBasicNFTs > 400 && totalAvailableBasicNFTs <= 600 {
 		if intHeight != 5 && intWidth != 5 {
-			return "", "invalid canvas widht and height for under 600 available basic NFTs"
+			return "", "invalid canvas width and height for under 600 available basic NFTs"
 		}
 	} else if totalAvailableBasicNFTs > 600 && totalAvailableBasicNFTs <= 800 {
 		if intHeight != 6 && intWidth != 6 {
-			return "", "invalid canvas widht and height for under 800 available basic NFTs"
+			return "", "invalid canvas width and height for under 800 available basic NFTs"
 		}
 	} else if totalAvailableBasicNFTs > 800 && totalAvailableBasicNFTs <= 1000 {
 		if intHeight != 7 && intWidth != 7 {
-			return "", "invalid canvas widht and height for under 800 available basic NFTs"
+			return "", "invalid canvas width and height for under 800 available basic NFTs"
 		}
 	} else if totalAvailableBasicNFTs > 1000 {
 		if intHeight != 8 && intWidth != 8 {
-			return "", "invalid canvas widht and height for over 1000 available basic NFTs"
+			return "", "invalid canvas width and height for over 1000 available basic NFTs"
 		}
 	}
 
-	
+	// check if any of the bTokenIds is listed in the marketplace
+	for _, tokenId := range bTokenIDs {
+		if err := IsBasicTokenIdListed(tokenId); err != nil {
+			return "", "one or more tokenIds are already listed"
+		}
+	}
+
+	// check if any of the bTokenIds is part of an airdrop and force the order
+
+	allAirdropNamesIdentical := true
+	firstAirdropName := ""
+	var bTokenMetadata []BasicNFTMetaData
+
+	for _, tokenId := range bTokenIDs {
+		metadata, err := GetTokenMetadata(tokenId)
+		if err != nil {
+			return "", "error retrieving token metadata"
+		}
+		bTokenMetadata = append(bTokenMetadata, metadata)
+
+		if metadata.airdropName != "" {
+			if firstAirdropName == "" {
+				firstAirdropName = metadata.airdropName
+			} else if metadata.airdropName != firstAirdropName {
+				allAirdropNamesIdentical = false
+			}
+		}
+	}
+
+	if allAirdropNamesIdentical && firstAirdropName != "" {
+		expectedXPos := 0
+		expectedYPos := 0
+		gridSize := 0
+
+		// Determine grid size based on gameLevel
+		if bTokenMetadata[0].gameLevel == "16" {
+			gridSize = 4
+		} else if bTokenMetadata[0].gameLevel == "64" {
+			gridSize = 8
+		} else {
+			return "", "unsupported game level"
+		}
+
+		for i, metadata := range bTokenMetadata {
+			if metadata.airdropXPos != strconv.Itoa(expectedXPos) || metadata.airdropYPos != strconv.Itoa(expectedYPos) {
+				return "", "invalid XPos and YPos order for the airdropped NFTs"
+			}
+
+			if expectedXPos == gridSize-1 {
+				expectedXPos = 0
+				expectedYPos++
+			} else {
+				expectedXPos++
+			}
+		}
+	} else if !allAirdropNamesIdentical {
+		return "", "you cannot use an airdropped NFT to build this"
+	}
+
 	count := FlipCompositeNFT.TokenCount()
 	compositeNFTtokenIDCounter = count + 1
 	tidString := strconv.FormatUint(compositeNFTtokenIDCounter, 10)
@@ -102,9 +160,8 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 			basicTidString := strconv.FormatInt(t, 10)
 			flipBasicOwner := GetOwnerOfBasicNFT(basicTidString)
 			UnlockAndTransferNFT(flipBasicOwner, player, basicTidString, tidString)
-			// TODO: account for airdropped tokens, the FLIP in these cases should be sent
-			// to the airdrop account
-			UnlockAndTransferFLIP(flipBasicOwner, basicTidString)
+			// release the locked FLIP and make it available to the flip basic NFT owner
+			ReleaseLockedFLIP(flipBasicOwner, basicTidString)
 		}
 		// set compositeNFT tokenURI
 		FlipCompositeNFT.SetTokenURI(tid, grc721.TokenURI(flipCompositeNFTMetaDataJSON))

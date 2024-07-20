@@ -9,6 +9,7 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/flippandoserver"
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ufmt"
 )
 
 type lockedVault struct {
@@ -21,11 +22,28 @@ var (
     // 1000 uFLIP = 1 FLIP
     // max denom 1,000,000,000 FLIP
 	totalLockedSupply  std.Coin = std.NewCoin("FLIP", 0)
+	// hardcoding the airdrop account and restricting minting to it
+	airdropAccount std.Address = std.Address("g1mphljw4duhzwqs72hv9grm4k6ufkvts3g7t3t4")
 	userFlipNFTs       avl.Tree // onwer -> avl.Tree // []*lockedVault
 )
 
+// overrides the Mint function in the interface, restricts only to airdropAccount calls
+func Mint(recipient std.Address, flipAmount std.Coin) error {
+	if airdropAccount.String() != std.GetCaller().String() {
+		return errors.New("invalid account calling Mint")
+	}
+
+	if airdropAccount.String() != recipient.String() {
+		return errors.New("invalid recipient for Mint")
+	}
+	
+	if err := flipToken.Mint(recipient, uint64(flipAmount.Amount)); err != nil {
+		return errors.New(ufmt.Sprintf("Error minting FLIP to airdrop account: %s", err.Error()))
+	}
+}
+
 // mint tokens and locks them, making them unavaialble for spending
-func MintLocked(recipient std.Address, tokenId string, flipAmount std.Coin) error {
+func MintAndLockFLIP(recipient std.Address, tokenId string, flipAmount std.Coin) error {
 	if err := flipToken.Mint(recipient, uint64(flipAmount.Amount)); err != nil {
 		return err
 	}
@@ -57,7 +75,7 @@ func MintLocked(recipient std.Address, tokenId string, flipAmount std.Coin) erro
 
 // unlocks the balance, making it avaialble for spending for recipient
 // no actual transfer is performed
-func UnlockAndTransferFLIP(recipient std.Address, tokenId string) error {
+func ReleaseLockedFLIP(recipient std.Address, tokenId string) error {
 	var userLockedBalances []*lockedVault
 	var flipAmount std.Coin
 	tokenFound := false
@@ -121,9 +139,9 @@ func Transfer(from, recipient std.Address, fAmount std.Coin) error {
 	return nil
 }
 
-// transfers the FLIP price in a marketplace transaction
+// pays the FLIP price in a marketplace transaction
 // burning a percentage between 1% anf 50%
-func TransferFLIPToSeller(from, recipient std.Address, fPrice std.Coin) (flipPaid string, flipBurned string, err error) {
+func PayFLIPToSeller(from, recipient std.Address, fPrice std.Coin) (flipPaid string, flipBurned string, err error) {
 	flipToken.Approve(from, std.CurrentRealm().Addr(), uint64(fPrice.Amount))
 	totalFLIPBalance := flipToken.BalanceOf(from)
 	
@@ -224,7 +242,6 @@ func TransferLockedFLIP(fromSeller, toBuyer std.Address, tokenId string) error {
 
     return nil
 }
-
 
 func GetFLIPBalance(user std.Address) string {
 	totalFLIPBalance := flipToken.BalanceOf(user)
