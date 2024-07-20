@@ -55,7 +55,7 @@ func main() {
 //                 "Results": [
 //                     {
 //                         "Embedded": false,
-//                         "Name": "",
+//                         "Name": ".res_0",
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.PrimitiveType",
@@ -93,7 +93,7 @@ func main() {
 //                     "Results": [
 //                         {
 //                             "Embedded": false,
-//                             "Name": "",
+//                             "Name": ".res_0",
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.PrimitiveType",
