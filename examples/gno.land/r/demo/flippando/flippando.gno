@@ -226,6 +226,10 @@ func RemoveBasicNFTListing(compositeTokenID string, seller std.Address) error {
 	return marketplace.RemoveBasicNFTListing(grc721.TokenID(compositeTokenID), seller)
 }
 
+func IsBasicTokenIdListed(tokenId string) error {
+	return marketplace.IsBasicTokenIdListed(tokenId)
+}
+
 func ResetGame(gameId string) {
 	//- utility function, nullifies the game[gameId]
 }

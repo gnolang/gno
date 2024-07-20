@@ -236,24 +236,6 @@ func (fbn BasicNFTMetaData) MarshalJSON() ([]byte,  error) {
 	
 }
 
-func (fbn *BasicNFTMetaData) UnmarshalJSON(data []byte) error {
-	type Alias BasicNFTMetaData
-	aux := &struct {
-		AirdropXPos string `json:"airdropXPos"`
-		AirdropYPos string `json:"airdropYPos"`
-		*Alias
-	}{
-		Alias: (*Alias)(fbn),
-	}
-	err := json.Unmarshal(data, &aux)
-	if err != nil {
-		return err
-	}
-	fbn.airdropXPos = aux.AirdropXPos
-	fbn.airdropYPos = aux.AirdropYPos
-	return nil
-}
-
 func (cbn compositeNFTMetaData) MarshalJSON() ([]byte,  error) {
 	
 	var b bytes.Buffer

@@ -78,7 +78,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 
 	// check if any of the bTokenIds is listed in the marketplace
 	for _, tokenId := range bTokenIDs {
-		if err := IsBasicTokenIdListed(tokenId); err != nil {
+		if err := IsBasicTokenIdListed(strconv.FormatInt(tokenId, 10)); err != nil {
 			return "", "one or more tokenIds are already listed"
 		}
 	}
@@ -90,7 +90,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 	var bTokenMetadata []BasicNFTMetaData
 
 	for _, tokenId := range bTokenIDs {
-		metadata, err := GetTokenMetadata(tokenId)
+		metadata, err := GetTokenMetadata(strconv.FormatInt(tokenId, 10))
 		if err != nil {
 			return "", "error retrieving token metadata"
 		}
@@ -119,7 +119,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 			return "", "unsupported game level"
 		}
 
-		for i, metadata := range bTokenMetadata {
+		for _, metadata := range bTokenMetadata {
 			if metadata.airdropXPos != strconv.Itoa(expectedXPos) || metadata.airdropYPos != strconv.Itoa(expectedYPos) {
 				return "", "invalid XPos and YPos order for the airdropped NFTs"
 			}

@@ -29,7 +29,7 @@ var (
 
 // overrides the Mint function in the interface, restricts only to airdropAccount calls
 func Mint(recipient std.Address, flipAmount std.Coin) error {
-	if airdropAccount.String() != std.GetCaller().String() {
+	if airdropAccount.String() != std.GetOrigCaller().String() {
 		return errors.New("invalid account calling Mint")
 	}
 
@@ -40,6 +40,7 @@ func Mint(recipient std.Address, flipAmount std.Coin) error {
 	if err := flipToken.Mint(recipient, uint64(flipAmount.Amount)); err != nil {
 		return errors.New(ufmt.Sprintf("Error minting FLIP to airdrop account: %s", err.Error()))
 	}
+	return nil
 }
 
 // mint tokens and locks them, making them unavaialble for spending

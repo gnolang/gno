@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"std"
 	"errors"
+	"strings"
 
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/avl"
@@ -109,9 +110,13 @@ func GetBasicTokenURI(tokenID string) string {
 
 // basically identical with the other one, but returns BasicNFTMetaData type
 func GetTokenMetadata(tokenId string) (BasicNFTMetaData, error) {
-	uri := FlipBasicNFT.TokenURI(grc721.TokenID(tokenId))
+	uri, gerr := FlipBasicNFT.TokenURI(grc721.TokenID(tokenId))
+	
 	var metadata BasicNFTMetaData
-	err := ParseBasicNFTMetaData(uri)
+	if gerr != nil {
+		return metadata, gerr
+	}
+	metadata, err := ParseBasicNFTMetaData(uri)
 	if err != nil {
 		return metadata, err
 	}
@@ -337,7 +342,7 @@ func AirdropBasicFlipNFT(
 	result := ""
 	nftError := ""
 	
-	if validAirdropAccount.String() != std.GetCaller().String() {
+	if validAirdropAccount.String() != std.GetOrigCaller().String() {
 		return "", "airdrop account not correct"
 	}
 
@@ -378,14 +383,15 @@ func AirdropBasicFlipNFT(
 		// mint fungible FLIP token
 		MintAndLockFLIP(toPlayer, tidString, std.NewCoin("FLIP", flipAmount))
 		lockedNFTs.Set(tidString, flipAmount)
-		merr := Mint(airdropAccount, flipAmount)
+		merr := Mint(airdropAccount, std.NewCoin("FLIP", flipAmount))
 		if merr != nil {
-			return "", errors.New(ufmt.Sprintf("error in calling Mint in airdrop function, %s", merr.Error()))
+			return "", ufmt.Sprintf("error in calling Mint in airdrop function, %s", merr.Error())
 		}
 		result = string(flipBasicNFTMetaDataJSON)
-	}
-	else {
-		nftError = mintResultError
+	} 
+
+	if mintResultError != nil {
+		nftError = ufmt.Sprintf("error in calling Mint in airdrop function, %s", mintResultError.Error())
 	}
 	
 	res := &nftResult{
