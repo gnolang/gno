@@ -109,9 +109,7 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return "TODO: list existing tokens and admins"
-	case path == "total":
-		return ufmt.Sprintf("%d", TotalInstances())
+		return listTokensAndAdmins()
 	case c == 1:
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)

@@ -60,7 +60,6 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 		expected string
 	}{
 		{"", "Token: Foo, Admin: " + admin.String() + "\nToken: Bar, Admin: " + admin.String() + "\n"},
-		{"total", "2"},
 		{"FOO", mustGetInstance("FOO").banker.RenderHome()},
 		{"FOO/balance/g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", "0"},
 		{"unknown", "404\n"},
