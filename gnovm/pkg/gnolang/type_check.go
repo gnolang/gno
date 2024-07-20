@@ -237,14 +237,15 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 			if idt.IsEmptyInterface() { // XXX, can this be merged with IsImplementedBy?
 				// if dt is an empty Gno interface, any x ok.
 				return nil // ok
-			} else if idt.IsImplementedBy(xt) {
+			} else if err := idt.VerifyImplementedBy(xt); err == nil {
 				// if dt implements idt, ok.
 				return nil // ok
 			} else {
 				return errors.New(
-					"%s does not implement %s",
+					"%s does not implement %s (%s)",
 					xt.String(),
-					dt.String())
+					dt.String(),
+					err.Error())
 			}
 		} else if ndt, ok := baseOf(dt).(*NativeType); ok {
 			nidt := ndt.Type

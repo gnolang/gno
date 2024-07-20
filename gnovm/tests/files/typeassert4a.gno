@@ -58,5 +58,5 @@ func main() {
 // interface conversion: interface is nil, not main.Setter
 // interface conversion: interface is nil, not main.Setter
 // ok
-// main.ValueSetter doesn't implement interface{Set func(string)()}
+// main.ValueSetter doesn't implement interface{Set func(string)()} (method Set has pointer receiver)
 // ok
