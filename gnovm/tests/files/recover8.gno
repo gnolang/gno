@@ -20,5 +20,14 @@ func main() {
 	doSomething()
 }
 
+// Stacktrace:
+// panic do something panic
+// panic((const ("do something panic" <untyped> string)))
+//     main/files/recover8.gno:7
+// doSomething<VPBlock(3,0)>()
+//     main/files/recover8.gno:20
+// main()
+//     main/files/recover8.gno:19
+
 // Error:
 // do something panic
