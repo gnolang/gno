@@ -466,14 +466,14 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 		return
 	}
 
-	var executions []Execution
+	var calls []StackTraceCall
 	nextStmtIndex := len(m.Stmts) - 1
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
 			stm := m.Stmts[nextStmtIndex]
 			bs := stm.(*bodyStmt)
 			stm = bs.Body[bs.NextBodyIndex-1]
-			executions = append(executions, Execution{
+			calls = append(calls, StackTraceCall{
 				Stmt:  stm,
 				Frame: m.Frames[i],
 			})
@@ -482,16 +482,16 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 		nextStmtIndex = m.Frames[i].NumStmts - 1
 	}
 
-	executions = append(executions, Execution{
+	calls = append(calls, StackTraceCall{
 		Frame: m.Frames[0],
 	})
 
-	stacktrace.Executions = executions
+	stacktrace.Calls = calls
 	// if the stacktrace is too long, we trim it down to maxStacktraceSize
-	if len(executions) > maxStacktraceSize {
-		stacktrace.Executions = executions[:maxStacktraceSize/2]
-		stacktrace.Executions = append(stacktrace.Executions, executions[len(executions)-maxStacktraceSize/2:]...)
-		stacktrace.NumFramesElided = len(executions) - maxStacktraceSize
+	if len(calls) > maxStacktraceSize {
+		stacktrace.Calls = calls[:maxStacktraceSize/2]
+		stacktrace.Calls = append(stacktrace.Calls, calls[len(calls)-maxStacktraceSize/2:]...)
+		stacktrace.NumFramesElided = len(calls) - maxStacktraceSize
 	}
 
 	return
