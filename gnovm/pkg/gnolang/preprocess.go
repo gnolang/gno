@@ -222,7 +222,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				}
 				for i := range n.Results {
 					r := &n.Results[i]
-					if r.Name == blankIdentifier || r.Name == "" {
+					if r.Name == blankIdentifier {
 						// create a hidden var with leading dot.
 						// NOTE: document somewhere.
 						rn := fmt.Sprintf(".res_%d", i)
@@ -303,10 +303,12 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					}
 					n.Predefine(false, pte.Name)
 				}
-				for _, rte := range n.Type.Results {
-					if rte.Name != "" {
-						n.Predefine(false, rte.Name)
+				for i, rte := range n.Type.Results {
+					if rte.Name == "" {
+						rn := fmt.Sprintf(".res_%d", i)
+						rte.Name = Name(rn)
 					}
+					n.Predefine(false, rte.Name)
 				}
 			}
 			return n, TRANS_CONTINUE

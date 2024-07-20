@@ -33,5 +33,5 @@ func main() {
 }
 
 // Output:
-// (struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil chan main.T),(nil chan *main.T),(nil *main.T),(nil func(.arg_0 main.T)(.res_0 main.T)),(nil func(.arg_0 *main.T)(.res_0 *main.T)),(struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil chan main.T),(nil chan *main.T),(nil *main.T),(nil func(.arg_0 main.T)(.res_0 main.T)),(nil func(.arg_0 *main.T)(.res_0 *main.T))} main.U)} main.T)
-// (struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil chan main.T),(nil chan *main.T),(nil *main.T),(nil func(.arg_0 main.T)(.res_0 main.T)),(nil func(.arg_0 *main.T)(.res_0 *main.T))} main.U)
+// (struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil chan main.T),(nil chan *main.T),(nil *main.T),(nil func(.arg_0 main.T)( main.T)),(nil func(.arg_0 *main.T)( *main.T)),(struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil chan main.T),(nil chan *main.T),(nil *main.T),(nil func(.arg_0 main.T)( main.T)),(nil func(.arg_0 *main.T)( *main.T))} main.U)} main.T)
+// (struct{(nil []main.T),(nil []*main.T),(nil map[string]main.T),(nil map[string]*main.T),(nil chan main.T),(nil chan *main.T),(nil *main.T),(nil func(.arg_0 main.T)( main.T)),(nil func(.arg_0 *main.T)( *main.T))} main.U)

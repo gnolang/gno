@@ -172,7 +172,7 @@ func main() {
 //                                     "Results": [
 //                                         {
 //                                             "Embedded": false,
-//                                             "Name": ".res_0",
+//                                             "Name": "",
 //                                             "Tag": "",
 //                                             "Type": {
 //                                                 "@type": "/gno.PrimitiveType",
@@ -285,7 +285,7 @@ func main() {
 //                 "Results": [
 //                     {
 //                         "Embedded": false,
-//                         "Name": ".res_0",
+//                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.PrimitiveType",
@@ -333,7 +333,7 @@ func main() {
 //                     "Results": [
 //                         {
 //                             "Embedded": false,
-//                             "Name": ".res_0",
+//                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.PrimitiveType",
@@ -396,7 +396,7 @@ func main() {
 //                                 "Results": [
 //                                     {
 //                                         "Embedded": false,
-//                                         "Name": ".res_0",
+//                                         "Name": "",
 //                                         "Tag": "",
 //                                         "Type": {
 //                                             "@type": "/gno.RefType",
@@ -440,7 +440,7 @@ func main() {
 //                                     "Results": [
 //                                         {
 //                                             "Embedded": false,
-//                                             "Name": ".res_0",
+//                                             "Name": "",
 //                                             "Tag": "",
 //                                             "Type": {
 //                                                 "@type": "/gno.RefType",
@@ -521,7 +521,7 @@ func main() {
 //                 "Results": [
 //                     {
 //                         "Embedded": false,
-//                         "Name": ".res_0",
+//                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.RefType",
@@ -559,7 +559,7 @@ func main() {
 //                     "Results": [
 //                         {
 //                             "Embedded": false,
-//                             "Name": ".res_0",
+//                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.RefType",
@@ -583,7 +583,7 @@ func main() {
 //                 "Results": [
 //                     {
 //                         "Embedded": false,
-//                         "Name": ".res_0",
+//                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.RefType",
@@ -621,7 +621,7 @@ func main() {
 //                     "Results": [
 //                         {
 //                             "Embedded": false,
-//                             "Name": ".res_0",
+//                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.RefType",
@@ -639,7 +639,7 @@ func main() {
 //                 "Results": [
 //                     {
 //                         "Embedded": false,
-//                         "Name": ".res_0",
+//                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.RefType",
@@ -677,7 +677,7 @@ func main() {
 //                     "Results": [
 //                         {
 //                             "Embedded": false,
-//                             "Name": ".res_0",
+//                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.RefType",
@@ -737,7 +737,7 @@ func main() {
 //                 "Results": [
 //                     {
 //                         "Embedded": false,
-//                         "Name": ".res_0",
+//                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.PrimitiveType",
@@ -775,7 +775,7 @@ func main() {
 //                     "Results": [
 //                         {
 //                             "Embedded": false,
-//                             "Name": ".res_0",
+//                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.PrimitiveType",
@@ -793,7 +793,7 @@ func main() {
 //                 "Results": [
 //                     {
 //                         "Embedded": false,
-//                         "Name": ".res_0",
+//                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.PrimitiveType",
@@ -831,7 +831,7 @@ func main() {
 //                     "Results": [
 //                         {
 //                             "Embedded": false,
-//                             "Name": ".res_0",
+//                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.PrimitiveType",
@@ -859,7 +859,7 @@ func main() {
 //                 "Results": [
 //                     {
 //                         "Embedded": false,
-//                         "Name": ".res_0",
+//                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.RefType",
@@ -897,7 +897,7 @@ func main() {
 //                     "Results": [
 //                         {
 //                             "Embedded": false,
-//                             "Name": ".res_0",
+//                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.RefType",
@@ -951,7 +951,7 @@ func main() {
 //                 "Results": [
 //                     {
 //                         "Embedded": false,
-//                         "Name": ".res_0",
+//                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.PrimitiveType",
@@ -989,7 +989,7 @@ func main() {
 //                     "Results": [
 //                         {
 //                             "Embedded": false,
-//                             "Name": ".res_0",
+//                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.PrimitiveType",
@@ -1043,7 +1043,7 @@ func main() {
 //                 "Results": [
 //                     {
 //                         "Embedded": false,
-//                         "Name": ".res_0",
+//                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.PrimitiveType",
@@ -1081,7 +1081,7 @@ func main() {
 //                     "Results": [
 //                         {
 //                             "Embedded": false,
-//                             "Name": ".res_0",
+//                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.PrimitiveType",
@@ -1425,7 +1425,7 @@ func main() {
 //                 "Results": [
 //                     {
 //                         "Embedded": false,
-//                         "Name": ".res_0",
+//                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.RefType",
@@ -1463,7 +1463,7 @@ func main() {
 //                     "Results": [
 //                         {
 //                             "Embedded": false,
-//                             "Name": ".res_0",
+//                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.RefType",
@@ -1481,7 +1481,7 @@ func main() {
 //                 "Results": [
 //                     {
 //                         "Embedded": false,
-//                         "Name": ".res_0",
+//                         "Name": "",
 //                         "Tag": "",
 //                         "Type": {
 //                             "@type": "/gno.RefType",
@@ -1519,7 +1519,7 @@ func main() {
 //                     "Results": [
 //                         {
 //                             "Embedded": false,
-//                             "Name": ".res_0",
+//                             "Name": "",
 //                             "Tag": "",
 //                             "Type": {
 //                                 "@type": "/gno.RefType",
