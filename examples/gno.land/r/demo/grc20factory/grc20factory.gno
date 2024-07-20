@@ -45,6 +45,10 @@ type instance struct {
 
 func (inst instance) Token() grc20.Token { return inst.banker.Token() }
 
+func TotalInstances() uint64 {
+	return uint64(instances.Size())
+}
+
 func TotalSupply(symbol string) uint64 {
 	inst := mustGetInstance(symbol)
 	return inst.Token().TotalSupply()
@@ -106,6 +110,8 @@ func Render(path string) string {
 	switch {
 	case path == "":
 		return "TODO: list existing tokens and admins"
+	case path == "total":
+		return ufmt.Sprintf("%d", TotalInstances())
 	case c == 1:
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)
@@ -119,6 +125,17 @@ func Render(path string) string {
 	default:
 		return "404\n"
 	}
+}
+
+func listTokensAndAdmins() string {
+	var result string
+	instances.Iterate("", "", func(key string, value interface{}) bool {
+		symbol := key
+		inst := value.(*instance)
+		result += ufmt.Sprintf("Token: %s, Admin: %s\n", symbol, inst.admin.Owner().String())
+		return true
+	})
+	return result
 }
 
 func mustGetInstance(symbol string) *instance {

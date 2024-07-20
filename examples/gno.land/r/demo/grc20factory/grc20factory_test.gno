@@ -53,4 +53,21 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 			uassert.Equal(t, tc.balance, tc.fn(), "balance does not match")
 		}
 	}
+
+	// check Render
+	renderTests := []struct {
+		path     string
+		expected string
+	}{
+		{"", "Token: Foo, Admin: " + admin.String() + "\nToken: Bar, Admin: " + admin.String() + "\n"},
+		{"total", "2"},
+		{"FOO", mustGetInstance("FOO").banker.RenderHome()},
+		{"FOO/balance/g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj", "0"},
+		{"unknown", "404\n"},
+	}
+
+	for _, tc := range renderTests {
+		result := Render(tc.path)
+		uassert.Equal(t, tc.expected, result, "render output does not match for path %s", tc.path)
+	}
 }
