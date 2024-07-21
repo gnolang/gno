@@ -2270,9 +2270,19 @@ func (m *Machine) String() string {
 func (m *Machine) ExceptionsStacktrace() string {
 	var builder strings.Builder
 
-	for _, ex := range m.Exceptions {
+	i := 0
+	for i < len(m.Exceptions) {
+		ex := m.Exceptions[i]
 		builder.WriteString(fmt.Sprintf("panic %s\n", ex.Sprint(m)))
 		builder.WriteString(fmt.Sprintf("%s", ex.Stacktrace.String()))
+
+		if i == 0 && len(m.Exceptions) > 2 {
+			builder.WriteString(fmt.Sprintf("... %d panic(s) elided ...\n", len(m.Exceptions)-2))
+			i = len(m.Exceptions) - 1
+			continue
+		}
+
+		i++
 	}
 
 	return builder.String()

@@ -178,7 +178,6 @@ func toExprTrace(ex Expr) string {
 }
 
 func toTypeValueTrace(tv TypedValue) string {
-
 	switch val := tv.V.(type) {
 	case StringValue:
 		return val.String()
