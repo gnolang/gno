@@ -2311,7 +2311,6 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 								return n, TRANS_SKIP
 							case *FuncDecl:
 								panic("unexpected inner func decl")
-								return n, TRANS_CONTINUE
 							case *NameExpr:
 								if n.Type == NameExprTypeDefine {
 									n.Type = NameExprTypeHeapDefine
@@ -2331,7 +2330,6 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 								return n, TRANS_SKIP
 							case *FuncDecl:
 								panic("unexpected inner func decl")
-								return n, TRANS_CONTINUE
 							case *NameExpr:
 								if n.Type == NameExprTypeDefine {
 									n.Type = NameExprTypeHeapDefine
