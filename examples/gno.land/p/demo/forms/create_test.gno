@@ -5,12 +5,13 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/urequire"
 )
 
 func TestCreateForm(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	std.TestSetOrigCaller(alice)
-
+	db := NewDB()
 	title := "Simple Form"
 	description := "This is a form"
 	openAt := "2021-01-01T00:00:00Z"
@@ -42,43 +43,28 @@ func TestCreateForm(t *testing.T) {
 			"required": true
 		}
 	]`
-	db := NewDB()
-	id, err := db.CreateForm(title, description, openAt, closeAt, data)
-	if err != nil {
-		t.Error(err)
-	}
-	if id == "" {
-		t.Error("Form ID is empty")
-	}
-	form, err := db.GetForm(id)
-	if err != nil {
-		t.Error(err)
-	}
-	if form.Owner != alice {
-		t.Error("Owner is not correct")
-	}
-	if form.Title != title {
-		t.Error("Title is not correct")
-	}
-	if form.Description != description {
-		t.Error("Description is not correct")
-	}
-	if len(form.Fields) != 5 {
-		t.Error("Not enough fields were provided")
-	}
-	if form.Fields[0].Label != "Name" {
-		t.Error("Field 0 label is not correct")
-	}
-	if form.Fields[0].FieldType != "string" {
-		t.Error("Field 0 type is not correct")
-	}
-	if form.Fields[0].Required != true {
-		t.Error("Field 0 required is not correct")
-	}
-	if form.Fields[1].Label != "Age" {
-		t.Error("Field 1 label is not correct")
-	}
-	if form.Fields[1].FieldType != "number" {
-		t.Error("Field 1 type is not correct")
-	}
+
+	urequire.NotPanics(t, func() {
+		id, err := db.CreateForm(title, description, openAt, closeAt, data)
+		if err != nil {
+			panic(err)
+		}
+		urequire.True(t, id != "", "Form ID is empty")
+
+		form, err := db.GetForm(id)
+		if err != nil {
+			panic(err)
+		}
+
+		urequire.True(t, form.ID == id, "Form ID is not correct")
+		urequire.True(t, form.Owner == alice, "Owner is not correct")
+		urequire.True(t, form.Title == title, "Title is not correct")
+		urequire.True(t, form.Description == description, "Description is not correct")
+		urequire.True(t, len(form.Fields) == 5, "Not enough fields were provided")
+		urequire.True(t, form.Fields[0].Label == "Name", "Field 0 label is not correct")
+		urequire.True(t, form.Fields[0].FieldType == "string", "Field 0 type is not correct")
+		urequire.True(t, form.Fields[0].Required == true, "Field 0 required is not correct")
+		urequire.True(t, form.Fields[1].Label == "Age", "Field 1 label is not correct")
+		urequire.True(t, form.Fields[1].FieldType == "number", "Field 1 type is not correct")
+	})
 }

@@ -3,6 +3,8 @@ package forms
 import (
 	"time"
 	"testing"
+
+	"gno.land/p/demo/urequire"
 )
 
 func TestAnswerForm(t *testing.T) {
@@ -41,29 +43,11 @@ func TestAnswerForm(t *testing.T) {
 		t.Error(err)
 	}
 	answers := `["Alex", 21, true, 0, [0, 1]]`
-
 	db.SubmitForm(formID, answers)
 
-	if len(db.Answers) != 1 {
-		t.Errorf("Expected 1 answer, got %d", len(db.Answers))
-	}
-
-	if db.Answers[0].FormID != formID {
-		t.Errorf("Expected form ID %s, got %s", formID, db.Answers[0].FormID)
-	}
-
-	if db.Answers[0].Answers != answers {
-		t.Errorf("Expected answers %s, got %s", answers, db.Answers[0].Answers)
-	}
-}
-
-func shouldPanic(t *testing.T, f func()) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("should have panic")
-		}
-	}()
-	f()
+	urequire.True(t, len(db.Answers) == 1, "Expected 1 answer, got", string(len(db.Answers)))
+	urequire.True(t, db.Answers[0].FormID == formID, "Expected form ID", formID, "got", db.Answers[0].FormID)
+	urequire.True(t, db.Answers[0].Answers == answers, "Expected answers", answers, "got", db.Answers[0].Answers)
 }
 
 func TestAnswerFormDates(t *testing.T) {
@@ -82,7 +66,7 @@ func TestAnswerFormDates(t *testing.T) {
 	]`
 	answers := `["Test"]`
 
-	shouldPanic(t, func() {
+	urequire.PanicsWithMessage(t, "Form is closed", func() {
 		formID, err := db.CreateForm("Test Form", "Test Description", tomorrow, "", data)
 		if err != nil {
 			t.Error(err)
@@ -90,7 +74,7 @@ func TestAnswerFormDates(t *testing.T) {
 		db.SubmitForm(formID, answers)
 	})
 
-	shouldPanic(t, func() {
+	urequire.PanicsWithMessage(t, "Form is closed", func() {
 		formID, err := db.CreateForm("Test Form", "Test Description", "", yesterday, data)
 		if err != nil {
 			t.Error(err)
@@ -98,9 +82,11 @@ func TestAnswerFormDates(t *testing.T) {
 		db.SubmitForm(formID, answers)
 	})
 
-	formID, err := db.CreateForm("Test Form", "Test Description", yesterday, tomorrow, data)
-	if err != nil {
-		t.Error(err)
-	}
-	db.SubmitForm(formID, answers)
+	urequire.NotPanics(t, func() {
+		formID, err := db.CreateForm("Test Form", "Test Description", yesterday, tomorrow, data)
+		if (err != nil) {
+			panic(err)
+		}
+		db.SubmitForm(formID, answers)
+	})
 }
