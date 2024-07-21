@@ -11,6 +11,8 @@ const (
 	KeyAddedEvent   = "KeyAdded"   // emitted when a key was added to the set
 	KeyRemovedEvent = "KeyRemoved" // emitted when a key was removed from the set
 	KeyUpdatedEvent = "KeyUpdated" // emitted when a key value was updated in the set
+
+	KeyEventNameKey = "name"
 )
 
 type KV struct {
@@ -28,7 +30,10 @@ func NewVarPropExecutor(changesFn func() []KV) dao.Executor {
 				vars.Remove(kv.Key)
 
 				// Emit the key set change
-				std.Emit(KeyRemovedEvent)
+				std.Emit(
+					KeyRemovedEvent,
+					KeyEventNameKey, kv.Key,
+				)
 
 				continue
 			}
@@ -39,7 +44,10 @@ func NewVarPropExecutor(changesFn func() []KV) dao.Executor {
 				vars.Set(kv.Key, kv.Value)
 
 				// Emit the key set change
-				std.Emit(KeyUpdatedEvent)
+				std.Emit(
+					KeyUpdatedEvent,
+					KeyEventNameKey, kv.Key,
+				)
 
 				continue
 			}
@@ -48,7 +56,10 @@ func NewVarPropExecutor(changesFn func() []KV) dao.Executor {
 			vars.Set(kv.Key, kv.Value)
 
 			// Emit the key set change
-			std.Emit(KeyAddedEvent)
+			std.Emit(
+				KeyAddedEvent,
+				KeyEventNameKey, kv.Key,
+			)
 		}
 
 		return nil
