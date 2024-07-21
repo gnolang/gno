@@ -2300,26 +2300,7 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 			}()
 
 			switch n := n.(type) {
-			case *ForStmt:
-				Transcribe(n,
-					func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
-						switch stage {
-						case TRANS_ENTER:
-							switch n := n.(type) {
-							case *FuncLitExpr:
-								// inner funcs.
-								return n, TRANS_SKIP
-							case *FuncDecl:
-								panic("unexpected inner func decl")
-							case *NameExpr:
-								if n.Type == NameExprTypeDefine {
-									n.Type = NameExprTypeHeapDefine
-								}
-							}
-						}
-						return n, TRANS_CONTINUE
-					})
-			case *RangeStmt:
+			case *ForStmt, *RangeStmt:
 				Transcribe(n,
 					func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 						switch stage {
