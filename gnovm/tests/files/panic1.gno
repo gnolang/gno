@@ -24,7 +24,7 @@ func main() {
 
 // Stacktrace:
 // panic here
-// main()
+// main<VPBlock(1,0)>()
 //     main/files/panic1.gno:22
 
 // Error:

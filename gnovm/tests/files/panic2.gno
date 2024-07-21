@@ -268,7 +268,7 @@ func main() {
 //     main/files/panic2.gno:7
 // p<VPBlock(3,0)>((const (0 int)))
 //     main/files/panic2.gno:7
-// main()
+// main<VPBlock(1,0)>()
 //     main/files/panic2.gno:11
 
 // Error:

@@ -16,5 +16,5 @@ func main() {
 // panic
 // ms<VPBlock(1,0)>.Panic()
 //     gno.land/r/test/main.gno:7
-// main()
+// main<VPBlock(1,1)>()
 //     gno.land/r/test/main.gno:12

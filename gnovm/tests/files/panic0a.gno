@@ -20,9 +20,9 @@ func main() {
 
 // Stacktrace:
 // panic wtf
-// f<VPBlock(3,1)>([](const-type string){(const ("a" string)), (const ("b" string))}, S<VPBlock(3,0)>{(const ("c" string))}, map[(const-type string)] (const-type string){(const ("d" string)): (const ("gg" string)), (const ("test" string)): (const ("test" string))}, func func(s (const-type string))  (const-type string){ return s<VPBlock(1,0)> })
+// f<VPBlock(3,1)>([](const-type string)<len=2>,S<VPBlock(3,0)><len=1>,map[(const-type string)] (const-type string)<len=2>,func(s (const-type string))  (const-type string){ ... })
 //     main/files/panic0a.gno:8
-// main()
+// main<VPBlock(1,2)>()
 //     main/files/panic0a.gno:12
 
 // Error:

@@ -20,9 +20,9 @@ func main() {
 
 // Stacktrace:
 // panic wtf
-// f<VPBlock(3,1)>((const (slice[("a" string),("b" string)] []string)), (const (struct{("c" string)} main.S)), (const (map{("d" string):("gg" string),("test" string):("test" string)} map[string]string)), (const ( func(s string)( string))))
+// f<VPBlock(3,1)>([]string<len=2>,main.S,map[string]string<len=2>,func(s string)( string))
 //     main/files/panic0c.gno:8
-// main()
+// main<VPBlock(1,2)>()
 //     main/files/panic0c.gno:18
 
 // Error:

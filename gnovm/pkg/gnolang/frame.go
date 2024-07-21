@@ -118,24 +118,83 @@ func (s Stacktrace) String() string {
 		}
 
 		call := s.Calls[i]
-		var nextCall *StacktraceCall = nil
-		if i+1 < len(s.Calls) {
-			nextCall = &s.Calls[i+1]
-		}
+		cx := call.Frame.Source.(*CallExpr)
 		switch {
-		case nextCall == nil:
-			fmt.Fprintf(&builder, "%s()\n", call.Frame.Func)
-			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, call.Stmt.GetLine())
 		case call.Frame.Func != nil && call.Frame.Func.IsNative():
-			fmt.Fprintf(&builder, "%s\n", nextCall.Stmt.String())
+			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
 			fmt.Fprintf(&builder, "    gonative:%s.%s\n", call.Frame.Func.NativePkg, call.Frame.Func.NativeName)
 		case call.Frame.Func != nil:
-			fmt.Fprintf(&builder, "%s\n", nextCall.Stmt.String())
+			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
 			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, call.Stmt.GetLine())
 		default:
-			fmt.Fprintf(&builder, "%s\n", nextCall.Stmt.String())
+			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
 			fmt.Fprintf(&builder, "    %s\n", call.Frame.GoFunc.Value.Type())
 		}
 	}
 	return builder.String()
+}
+
+func toExprTrace(ex Expr) string {
+	switch ex := ex.(type) {
+	case *CallExpr:
+		s := make([]string, len(ex.Args))
+		for i, arg := range ex.Args {
+			s[i] = toExprTrace(arg)
+		}
+		return fmt.Sprintf("%s(%s)", toExprTrace(ex.Func), strings.Join(s, ","))
+	case *BinaryExpr:
+		return fmt.Sprintf("%s %s %s", toExprTrace(ex.Left), ex.Op.TokenString(), toExprTrace(ex.Right))
+	case *UnaryExpr:
+		return fmt.Sprintf("%s%s", ex.Op, toExprTrace(ex.X))
+	case *SelectorExpr:
+		return fmt.Sprintf("%s.%s", toExprTrace(ex.X), ex.Sel)
+	case *IndexExpr:
+		return fmt.Sprintf("%s[%s]", toExprTrace(ex.X), toExprTrace(ex.Index))
+	case *StarExpr:
+		return fmt.Sprintf("*%s", toExprTrace(ex.X))
+	case *RefExpr:
+		return fmt.Sprintf("&%s", toExprTrace(ex.X))
+	case *CompositeLitExpr:
+		lenEl := len(ex.Elts)
+		if ex.Type == nil {
+			return fmt.Sprintf("<elided><len=%d>", lenEl)
+		}
+
+		return fmt.Sprintf("%s<len=%d>", toExprTrace(ex.Type), lenEl)
+
+	case *KeyValueExpr:
+		return fmt.Sprintf("%s: %s", toExprTrace(ex.Key), toExprTrace(ex.Value))
+	case *FuncLitExpr:
+		return fmt.Sprintf("%s{ ... }", toExprTrace(&ex.Type))
+	case *TypeAssertExpr:
+		return fmt.Sprintf("%s.(%s)", toExprTrace(ex.X), toExprTrace(ex.Type))
+	case *ConstExpr:
+		return toTypeValueTrace(ex.TypedValue)
+	case *NameExpr, *BasicLitExpr, *SliceExpr:
+		return ex.String()
+	}
+
+	return ex.String()
+}
+
+func toTypeValueTrace(tv TypedValue) string {
+
+	switch val := tv.V.(type) {
+	case StringValue:
+		return val.String()
+	case *ArrayValue:
+		return fmt.Sprintf("%s<len=%d>", tv.T.String(), val.GetLength())
+	case *SliceValue:
+		return fmt.Sprintf("%s<len=%d>", tv.T.String(), val.Length)
+	case *StructValue:
+		return fmt.Sprintf("%s", tv.T.String())
+	case *FuncValue:
+		return fmt.Sprintf("%s", tv.T.String())
+	case *MapValue:
+		return fmt.Sprintf("%s<len=%d>", tv.T.String(), val.List.Size)
+	case *PointerValue, BigintValue, BigdecValue:
+		return tv.String()
+	}
+
+	return tv.T.String()
 }

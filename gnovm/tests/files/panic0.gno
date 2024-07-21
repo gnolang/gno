@@ -6,7 +6,7 @@ func main() {
 
 // Stacktrace:
 // panic wtf
-// main()
+// main<VPBlock(1,0)>()
 //     main/files/panic0.gno:4
 
 // Error:

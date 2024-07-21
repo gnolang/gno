@@ -8,7 +8,7 @@ func main() {
 
 // Stacktrace:
 // panic ahhhhh
-// main()
+// main<VPBlock(1,0)>()
 //     main/files/recover10.gno:6
 
 // Error:

@@ -11,7 +11,7 @@ func main() {
 
 // Stacktrace:
 // panic interface conversion: interface is nil, not main.A
-// main()
+// main<VPBlock(1,1)>()
 //     main/files/typeassert1.gno:9
 
 // Error:
