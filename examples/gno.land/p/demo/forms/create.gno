@@ -46,6 +46,7 @@ func parseDates(openAt string, closeAt string) (times, error) {
 	return times{openAtTime, closeAtTime}, nil
 }
 
+// CreateForm creates a new form with the given parameters
 func (db *FormDB) CreateForm(title string, description string, openAt string, closeAt string, data string) (string, error) {
 	// Parsing dates
 	times, err := parseDates(openAt, closeAt)

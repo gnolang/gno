@@ -100,6 +100,7 @@ func validateChoiceField(node *json.Node, field Field) bool {
 	return true
 }
 
+// ValidateAnswers checks if the given answers are valid for the given fields
 func ValidateAnswers(answers string, fields []Field) bool {
 	unmarshalled, err := json.Unmarshal([]byte(answers))
 	if err != nil {

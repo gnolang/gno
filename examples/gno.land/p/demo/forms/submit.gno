@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// This function allows to submit a form
 func (db *FormDB) SubmitForm(formID string, answers string) {
 	// Check if form exists
 	form, err := db.GetForm(formID)

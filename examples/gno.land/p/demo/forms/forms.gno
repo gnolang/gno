@@ -7,6 +7,12 @@ import (
 	"gno.land/p/demo/seqid"
 )
 
+// FieldType examples :
+// - string: "string";
+// - number: "number";
+// - boolean: "boolean";
+// - choice: "['Pizza', 'Schnitzel', 'Burger']";
+// - multi-choice: "{'Pizza', 'Schnitzel', 'Burger'}";
 type Field struct {
 	Label     string
 	FieldType string
@@ -24,6 +30,8 @@ type Form struct {
 	closeAt     *time.Time
 }
 
+// Answers example :
+// - ["Alex", 21, true, 0, [0, 1]]
 type Submission struct {
 	FormID      string
 	Author      std.Address
@@ -44,6 +52,11 @@ func NewDB() *FormDB {
 	}
 }
 
+// This function checks if the form is open by verifying the given dates
+// - If a form doesn't have any dates, it's considered open
+// - If a form has only an open date, it's considered open if the open date is in the past
+// - If a form has only a close date, it's considered open if the close date is in the future
+// - If a form has both open and close dates, it's considered open if the current date is between the open and close dates
 func (form *Form) IsOpen() bool {
 	openAt, errOpen := form.OpenAt()
 	closedAt, errClose := form.CloseAt()
@@ -66,6 +79,7 @@ func (form *Form) IsOpen() bool {
 	return time.Now().After(openAt) && time.Now().Before(closedAt)
 }
 
+// OpenAt returns the open date of the form if it exists
 func (form *Form) OpenAt() (time.Time, error) {
 	if form.openAt == nil {
 		return time.Time{}, errNoOpenDate
@@ -74,6 +88,7 @@ func (form *Form) OpenAt() (time.Time, error) {
 	return *form.openAt, nil
 }
 
+// CloseAt returns the close date of the form if it exists
 func (form *Form) CloseAt() (time.Time, error) {
 	if form.closeAt == nil {
 		return time.Time{}, errNoCloseDate
@@ -82,6 +97,7 @@ func (form *Form) CloseAt() (time.Time, error) {
 	return *form.closeAt, nil
 }
 
+// GetForm returns a form by its ID if it exists
 func (db *FormDB) GetForm(id string) (*Form, error) {
 	for _, form := range db.Forms {
 		if form.ID == id {
@@ -91,6 +107,7 @@ func (db *FormDB) GetForm(id string) (*Form, error) {
 	return nil, errFormNotFound
 }
 
+// GetAnswer returns an answer by its form - and author ids if it exists
 func (db *FormDB) GetAnswer(formID string, author std.Address) (*Submission, error) {
 	for _, answer := range db.Answers {
 		if answer.FormID == formID && answer.Author.String() == author.String() {
@@ -100,6 +117,7 @@ func (db *FormDB) GetAnswer(formID string, author std.Address) (*Submission, err
 	return nil, errAnswerNotFound
 }
 
+// GetSubmissionsByFormID returns a list containing the existing form submissions by the form ID
 func (db *FormDB) GetSubmissionsByFormID(formID string) []*Submission {
 	submissions := make([]*Submission, 0)
 
