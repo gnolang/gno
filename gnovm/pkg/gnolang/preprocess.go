@@ -2697,12 +2697,6 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 							n.Type = NameExprTypeDefine
 						}
 					}
-				case NameExprTypeHeapClosure:
-					// Adjust the ValuePath index based on use.
-					// Actually, was already adjusted in findLoopUses1.
-					// dbn := last.GetBlockNodeForPath(nil, n.Path)
-					// lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
-					// ...
 				}
 			}
 			return n, TRANS_CONTINUE
@@ -2724,17 +2718,14 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 
 			switch n := n.(type) {
 			case BlockNode:
-				// In another clause above for NameExprTypeHeapClosure
-				// we set the index to ATTR_LOOP_USES, so a simple swap
-				// works here.
 				lds, _ := n.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
 				lus, _ := n.GetAttribute(ATTR_LOOP_USES).([]Name)
 				if len(lds) < len(lus) {
 					panic("defines should be a superset of used-defines")
 				}
-				n.SetAttribute(ATTR_LOOP_DEFINES, lus)
-				// XXX implement delete.
-				// n.DelAttribute(ATTR_LOOP_USES)
+				// no need anymore
+				n.DelAttribute(ATTR_LOOP_USES)
+				n.DelAttribute(ATTR_LOOP_DEFINES)
 			}
 			return n, TRANS_CONTINUE
 		}

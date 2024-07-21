@@ -209,6 +209,13 @@ func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {
 	attr.data[key] = value
 }
 
+func (attr *Attributes) DelAttribute(key GnoAttribute) {
+	if attr.data == nil {
+		panic("should not happen, attribute is expected to be non-empty.")
+	}
+	delete(attr.data, key)
+}
+
 // ----------------------------------------
 // Node
 
@@ -223,6 +230,7 @@ type Node interface {
 	HasAttribute(key GnoAttribute) bool
 	GetAttribute(key GnoAttribute) interface{}
 	SetAttribute(key GnoAttribute, value interface{})
+	DelAttribute(key GnoAttribute)
 }
 
 // non-pointer receiver to help make immutable.
