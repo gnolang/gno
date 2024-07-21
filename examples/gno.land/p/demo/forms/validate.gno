@@ -6,7 +6,7 @@ import (
 	"gno.land/p/demo/json"
 )
 
-func ValidateBooleanField(node *json.Node, field Field) bool {
+func validateBooleanField(node *json.Node, field Field) bool {
 	if node.IsBool() == false {
 		return false
 	}
@@ -24,7 +24,7 @@ func ValidateBooleanField(node *json.Node, field Field) bool {
 	return true
 }
 
-func ValidateStringField(node *json.Node, field Field) bool {
+func validateStringField(node *json.Node, field Field) bool {
 	if node.IsString() == false {
 		return false
 	}
@@ -42,7 +42,7 @@ func ValidateStringField(node *json.Node, field Field) bool {
 	return true
 }
 
-func ValidateNumberField(node *json.Node, field Field) bool {
+func validateNumberField(node *json.Node, field Field) bool {
 	if node.IsNumber() == false {
 		return false
 	}
@@ -55,7 +55,7 @@ func ValidateNumberField(node *json.Node, field Field) bool {
 	return true
 }
 
-func ValidateMultiChoiceField(node *json.Node, field Field) bool {
+func validateMultiChoiceField(node *json.Node, field Field) bool {
 	choices := strings.Split(field.FieldType[1:len(field.FieldType)-1], "|")
 
 	if node.IsArray() == false {
@@ -85,7 +85,7 @@ func ValidateMultiChoiceField(node *json.Node, field Field) bool {
 	return true
 }
 
-func ValideChoiceField(node *json.Node, field Field) bool {
+func validateChoiceField(node *json.Node, field Field) bool {
 	choices := strings.Split(field.FieldType[1:len(field.FieldType)-1], "|")
 
 	if node.IsNumber() == false {
@@ -121,23 +121,23 @@ func ValidateAnswers(answers string, fields []Field) bool {
 		}
 
 		if field.FieldType == "boolean" {
-			if ValidateBooleanField(answer, field) == false {
+			if validateBooleanField(answer, field) == false {
 				return false
 			}
 		} else if field.FieldType == "string" {
-			if ValidateStringField(answer, field) == false {
+			if validateStringField(answer, field) == false {
 				return false
 			}
 		} else if field.FieldType == "number" {
-			if ValidateNumberField(answer, field) == false {
+			if validateNumberField(answer, field) == false {
 				return false
 			}
 		} else if field.FieldType[0] == '{' && field.FieldType[len(field.FieldType)-1] == '}' {
-			if ValidateMultiChoiceField(answer, field) == false {
+			if validateMultiChoiceField(answer, field) == false {
 				return false
 			}
 		} else if field.FieldType[0] == '[' && field.FieldType[len(field.FieldType)-1] == ']' {
-			if ValideChoiceField(answer, field) == false {
+			if validateChoiceField(answer, field) == false {
 				return false
 			}
 		} else {

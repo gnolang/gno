@@ -16,7 +16,7 @@ func CreateField(label string, fieldType string, required bool) Field {
 	}
 }
 
-func ParseDates(openAt string, closeAt string) (*time.Time, *time.Time) {
+func parseDates(openAt string, closeAt string) (*time.Time, *time.Time) {
 	var openAtTime, closeAtTime *time.Time
 
 	dateFormat := "2006-01-02T15:04:05Z"
@@ -44,7 +44,7 @@ func ParseDates(openAt string, closeAt string) (*time.Time, *time.Time) {
 
 func (db *FormDB) CreateForm(title string, description string, openAt string, closeAt string, data string) string {
 	// Parsing dates
-	openAtTime, closeAtTime := ParseDates(openAt, closeAt)
+	openAtTime, closeAtTime := parseDates(openAt, closeAt)
 
 	// Parsing the json submission
 	node, err := json.Unmarshal([]byte(data))
