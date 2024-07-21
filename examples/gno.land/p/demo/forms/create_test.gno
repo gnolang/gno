@@ -42,7 +42,7 @@ func TestCreateForm(t *testing.T) {
 			"required": true
 		}
 	]`
-	db := NewDatabase()
+	db := NewDB()
 	id := db.CreateForm(title, description, openAt, closeAt, data)
 	if id == "" {
 		t.Error("Form ID is empty")

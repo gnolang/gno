@@ -5,7 +5,7 @@ import (
 )
 
 func TestAnswerFormInvalidForm(t *testing.T) {
-	db := NewDatabase()
+	db := NewDB()
 
 	dataAllTypes := `[
 		{

@@ -42,7 +42,7 @@ func ParseDates(openAt string, closeAt string) (*time.Time, *time.Time) {
 	return openAtTime, closeAtTime
 }
 
-func (db *FormDatabase) CreateForm(title string, description string, openAt string, closeAt string, data string) string {
+func (db *FormDB) CreateForm(title string, description string, openAt string, closeAt string, data string) string {
 	// Parsing dates
 	openAtTime, closeAtTime := ParseDates(openAt, closeAt)
 

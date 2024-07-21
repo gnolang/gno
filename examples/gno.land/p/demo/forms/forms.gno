@@ -32,14 +32,14 @@ type Submission struct {
 	SubmittedAt time.Time
 }
 
-type FormDatabase struct {
+type FormDB struct {
 	Forms []*Form
 	Answers []*Submission
 	IDCounter seqid.ID
 }
 
-func NewDatabase() *FormDatabase {
-	return &FormDatabase{
+func NewDB() *FormDB {
+	return &FormDB{
 		Forms:   make([]*Form, 0),
 		Answers: make([]*Submission, 0),
 	}
@@ -83,7 +83,7 @@ func (form *Form) CloseAt() (time.Time, error) {
 	return *form.closeAt, nil
 }
 
-func (db *FormDatabase) GetForm(id string) *Form {
+func (db *FormDB) GetForm(id string) *Form {
 	for _, form := range db.Forms {
 		if form.ID == id {
 			return form
@@ -92,7 +92,7 @@ func (db *FormDatabase) GetForm(id string) *Form {
 	return nil
 }
 
-func (db *FormDatabase) GetAnswer(formID string, author std.Address) *Submission {
+func (db *FormDB) GetAnswer(formID string, author std.Address) *Submission {
 	for _, answer := range db.Answers {
 		if answer.FormID == formID && answer.Author.String() == author.String() {
 			return answer
@@ -101,7 +101,7 @@ func (db *FormDatabase) GetAnswer(formID string, author std.Address) *Submission
 	return nil
 }
 
-func (db *FormDatabase) GetSubmissionsByFormID(formID string) []*Submission {
+func (db *FormDB) GetSubmissionsByFormID(formID string) []*Submission {
 	submissions := make([]*Submission, 0)
 
 	for _, answer := range db.Answers {

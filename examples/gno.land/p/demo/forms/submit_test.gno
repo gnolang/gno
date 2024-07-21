@@ -6,7 +6,7 @@ import (
 )
 
 func TestAnswerForm(t *testing.T) {
-	db := NewDatabase()
+	db := NewDB()
 
 	data := `[
 		{
@@ -64,7 +64,7 @@ func shouldPanic(t *testing.T, f func()) {
 }
 
 func TestAnswerFormDates(t *testing.T) {
-	db := NewDatabase()
+	db := NewDB()
 
 	now := time.Now()
 	tomorrow := now.AddDate(0, 0, 1).Format("2006-01-02T15:04:05Z")

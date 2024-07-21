@@ -9,10 +9,10 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-var db *forms.FormDatabase
+var db *forms.FormDB
 
 func init() {
-	db = forms.NewDatabase()
+	db = forms.NewDB()
 }
 
 func CreateForm(title string, description string, openAt string, closeAt string, data string) string {

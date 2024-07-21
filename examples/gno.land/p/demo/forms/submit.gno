@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-func (db *FormDatabase) SubmitForm(formID string, answers string) {
+func (db *FormDB) SubmitForm(formID string, answers string) {
 	// Check if form exists
 	form := db.GetForm(formID)
 	if form == nil {
