@@ -14,12 +14,9 @@ import (
 )
 
 var (
-	listTitleStyle        = lipgloss.NewStyle().MarginLeft(2)
 	listItemStyle         = lipgloss.NewStyle().PaddingLeft(4)
 	listSelectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
 	listPaginationStyle   = list.DefaultStyles().PaginationStyle.PaddingLeft(4)
-	listHelpStyle         = list.DefaultStyles().HelpStyle.PaddingLeft(4).PaddingBottom(1)
-	listQuitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 2, 4)
 )
 
 type FuncListModel struct {
@@ -66,7 +63,7 @@ func (m *FuncListModel) FilterItems(pattern string) {
 		data[i] = item.FilterValue()
 	}
 
-	var ranks = fuzzy.Find(pattern, data)
+	ranks := fuzzy.Find(pattern, data)
 	sort.Stable(ranks)
 	if len(ranks) > 0 && i > 0 {
 		m.Model.SetItems([]list.Item{m.items[ranks[0].Index]})

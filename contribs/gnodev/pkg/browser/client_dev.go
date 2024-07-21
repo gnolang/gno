@@ -118,16 +118,3 @@ func (c *DevClient) handleEvents(ctx context.Context) error {
 		}
 	}
 }
-
-func CheckEndpoint(addr string) error {
-	resp, err := http.Head(addr)
-	if err != nil {
-		return fmt.Errorf("error while checking endpoint: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("endpoint returned status: %v", resp.StatusCode)
-	}
-
-	return nil
-}

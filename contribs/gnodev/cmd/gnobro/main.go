@@ -408,7 +408,7 @@ func getSignerForAccount(io commands.IO, address string, kb keys.Keybase, cfg *b
 			return nil, fmt.Errorf("error while reading password: %w", err)
 		}
 
-		if _, err := kb.ExportPrivKeyUnsafe(address, string(signer.Password)); err != nil {
+		if _, err := kb.ExportPrivKeyUnsafe(address, signer.Password); err != nil {
 			return nil, fmt.Errorf("invalid password: %w", err)
 		}
 	}

@@ -49,15 +49,6 @@ func (m *model) moveHistoryBackward() (string, bool) {
 	return "", false
 }
 
-func (m *model) updateHistoryBackward() {
-	v := m.urlInput.Value()
-	if m.history.Len() == 0 {
-		m.current = m.history.PushBack(v)
-	} else {
-		m.current = m.history.InsertAfter(v, m.current)
-	}
-}
-
 func (m model) fetchRenderView(path string) (view []byte, err error) {
 	rlmpath, args, _ := strings.Cut(path, ":")
 	res, err := m.client.Render(rlmpath, args)

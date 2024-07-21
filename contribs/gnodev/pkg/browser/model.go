@@ -28,9 +28,7 @@ var promptStyle = func(r *lipgloss.Renderer) lipgloss.Style {
 		Foreground(lipgloss.Color("#dd7878"))
 }
 
-var (
-	ErrEmptyRenderer = errors.New("empty rendrer")
-)
+var ErrEmptyRenderer = errors.New("empty rendrer")
 
 type Config struct {
 	URLPrefix       string
@@ -460,7 +458,6 @@ func (m *model) updateKey(msg tea.KeyMsg) tea.Cmd {
 			// handle command input
 			m.commandInput, cmd = m.commandInput.Update(msg)
 		}
-
 	}
 
 	return cmd

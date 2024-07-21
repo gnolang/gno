@@ -46,7 +46,6 @@ func (bl *NodeClient) Call(path, call string) ([]byte, error) {
 		FuncName: method,
 		Args:     args,
 	})
-
 	if err != nil {
 		return nil, err
 	}
