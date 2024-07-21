@@ -2143,7 +2143,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 					// evaluate typed value for static definition.
-					for i := range n.NameExprs {
+					for i, _ := range n.NameExprs {
 						// consider value if specified.
 						if len(n.Values) > 0 {
 							vx := n.Values[i]
@@ -2307,10 +2307,8 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 						case TRANS_ENTER:
 							switch n := n.(type) {
 							case *FuncLitExpr:
-								if len(ns) > 0 {
-									// inner funcs.
-									return n, TRANS_SKIP
-								}
+								// inner funcs.
+								return n, TRANS_SKIP
 								return n, TRANS_CONTINUE
 							case *FuncDecl:
 								panic("unexpected inner func decl")
@@ -2330,16 +2328,14 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 						case TRANS_ENTER:
 							switch n := n.(type) {
 							case *FuncLitExpr:
-								if len(ns) > 0 {
-									// inner funcs.
-									return n, TRANS_SKIP
-								}
+								// inner funcs.
+								return n, TRANS_SKIP
 								return n, TRANS_CONTINUE
 							case *FuncDecl:
 								panic("unexpected inner func decl")
 								return n, TRANS_CONTINUE
 							case *NameExpr:
-								if n.Name != blankIdentifier && n.Type == NameExprTypeDefine {
+								if n.Type == NameExprTypeDefine {
 									n.Type = NameExprTypeHeapDefine
 								}
 							}
@@ -2349,7 +2345,6 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 			case *BranchStmt:
 				switch n.Op {
 				case GOTO:
-					// bn, depth, index := findGotoLabel(last, n.Label)
 					bn, _, _ := findGotoLabel(last, n.Label)
 					// already done in Preprocess:
 					// n.Depth = depth
@@ -2367,9 +2362,11 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 					// if labelLine >= gotoLine {
 					//	return n, TRANS_SKIP
 					// }
-					label := n.Label
-					var labelReached bool
-					origGoto := n
+					var (
+						label        = n.Label
+						labelReached bool
+						origGoto     = n
+					)
 
 					// Recurse and mark stmts as ATTR_GOTOLOOP_STMT.
 					// NOTE: ATTR_GOTOLOOP_STMT is not used.
@@ -2544,7 +2541,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 
 func assertNotHasName(names []Name, name Name) {
 	if hasName(names, name) {
-		panic(fmt.Sprintf("name: %s already contained in names: %v ", name, names))
+		panic(fmt.Sprintf("name: %s already contained in names: %v", name, names))
 	}
 }
 
@@ -2567,20 +2564,21 @@ func addAttrHeapUse(bn BlockNode, name Name) {
 }
 
 // adds ~name to fle static block and to heap captures atomically.
-func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) uint16 {
+func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) (idx uint16) {
 	for _, ne := range fle.HeapCaptures {
 		if ne.Name == name {
 			// assert ~name also already defined.
-			idx, ok := fle.GetLocalIndex("~" + name)
+			var ok bool
+			idx, ok = fle.GetLocalIndex("~" + name)
 			if !ok {
 				panic("~name not added to fle atomically")
 			}
-			return idx // already exists
+			return // already exists
 		}
 	}
 
 	// define ~name to fle.
-	idx, ok := fle.GetLocalIndex("~" + name)
+	_, ok := fle.GetLocalIndex("~" + name)
 	if ok {
 		panic("~name already defined in fle")
 	}
@@ -2602,11 +2600,11 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) uint16 {
 	for i, n := range fle.GetBlockNames() {
 		if n == "~"+name {
 			idx = uint16(i)
-			return idx
+			return
 		}
 	}
 
-	return idx
+	panic("should not happen, idx not found")
 }
 
 // finds the first FuncLitExpr in the stack at or after stop.
@@ -2614,17 +2612,14 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) uint16 {
 // or 0 if not found.
 func findFirstClosure(stack []BlockNode, stop BlockNode) (fle *FuncLitExpr, depth int, found bool) {
 	redundant := 0 // count faux block
-	var lastFle *FuncLitExpr
 	for i := len(stack) - 1; i >= 0; i-- {
 		stbn := stack[i]
 		switch stbn := stbn.(type) {
 		case *FuncLitExpr:
 			if stbn == stop { // if fle is stopBn, does not count, use last fle
-				fle = lastFle
 				return
 			}
-			lastFle = stbn
-			fle = lastFle
+			fle = stbn
 			depth = len(stack) - 1 - redundant - i + 1 // +1 since 1 is lowest.
 			found = true
 		// even if found, continue iteration in case

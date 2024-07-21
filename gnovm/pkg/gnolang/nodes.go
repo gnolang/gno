@@ -607,7 +607,7 @@ func (ftxz FieldTypeExprs) IsNamed() bool {
 	named := false
 	for i, ftx := range ftxz {
 		if i == 0 {
-			if ftx.Name == "" || strings.Contains(string(ftx.Name), ".res_") {
+			if ftx.Name == "" || strings.HasPrefix(string(ftx.Name), ".res_") {
 				named = false
 			} else {
 				named = true
@@ -615,7 +615,7 @@ func (ftxz FieldTypeExprs) IsNamed() bool {
 		} else {
 			if named && ftx.Name == "" {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts named)")
-			} else if !named && (ftx.Name != "" || !strings.Contains(string(ftx.Name), ".res_")) {
+			} else if !named && (ftx.Name != "" || !strings.HasPrefix(string(ftx.Name), ".res_")) {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts unnamed)")
 			}
 		}
@@ -1765,8 +1765,6 @@ func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
-	//fmt.Println("---GetLocalIndex, sb: ", sb)
-	//fmt.Println("---GetLocalIndex, sb.Names: ", sb.Names)
 	for i, name := range sb.Names {
 		if name == n {
 			if debug {
@@ -1900,7 +1898,6 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 		sb.Block.Values = append(sb.Block.Values, tv)
 		sb.Types = append(sb.Types, st)
 	}
-	//fmt.Println("---sb names after define2: ", sb.Names)
 }
 
 // Implements BlockNode
