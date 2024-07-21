@@ -118,7 +118,10 @@ func TestAnswerFormInvalidForm(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			formID := db.CreateForm("Test Form", "Test Description", "", "", tt.data)
+			formID, err := db.CreateForm("Test Form", "Test Description", "", "", tt.data)
+			if err != nil {
+				t.Error(err)
+			}
 
 			defer func() {
 				if r := recover(); r != nil {

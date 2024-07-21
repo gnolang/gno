@@ -16,7 +16,11 @@ func init() {
 }
 
 func CreateForm(title string, description string, openAt string, closeAt string, data string) string {
-	return db.CreateForm(title, description, openAt, closeAt, data)
+	id, err := db.CreateForm(title, description, openAt, closeAt, data)
+	if err != nil {
+		panic(err)
+	}
+	return id
 }
 
 func GetForms() string {
@@ -45,16 +49,16 @@ func GetForms() string {
 
 	encoded, err := json.Marshal(formsJson)
 	if err != nil {
-		panic(ufmt.Errorf("error: %v", err))
+		panic(err)
 	}
 
 	return string(encoded)
 }
 
 func GetFormByID(id string) string {
-	form := db.GetForm(id)
-	if form == nil {
-		panic(ufmt.Errorf("Form not found: %s", id))
+	form, err := db.GetForm(id)
+	if err != nil {
+		panic(err)
 	}
 
 	fieldsJson := json.ArrayNode("", []*json.Node{})
@@ -98,30 +102,30 @@ func GetFormByID(id string) string {
 
 	encoded, err := json.Marshal(jsonRes)
 	if err != nil {
-		panic(ufmt.Errorf("error: %v", err))
+		panic(err)
 	}
 
 	return string(encoded)
 }
 
 func GetAnswer(formID string, authorID string) string {
-	form := db.GetForm(formID)
-	if form == nil {
-		panic(ufmt.Errorf("Form not found: %s", formID))
+	_, err := db.GetForm(formID)
+	if err != nil {
+		panic(err)
 	}
 
-	answer := db.GetAnswer(formID, std.Address(authorID))
-	if answer == nil {
-		panic(ufmt.Errorf("Answer not found: %s", authorID))
+	answer, err := db.GetAnswer(formID, std.Address(authorID))
+	if answer != nil {
+		panic(err)
 	}
 
 	return answer.Answers
 }
 
 func SubmitForm(formID string, answers string) {
-	form := db.GetForm(formID)
-	if form == nil {
-		panic(ufmt.Errorf("Form not found: %s", formID))
+	_, err := db.GetForm(formID)
+	if err != nil {
+		panic(err)
 	}
 
 	db.SubmitForm(formID, answers)

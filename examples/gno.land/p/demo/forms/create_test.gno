@@ -43,13 +43,16 @@ func TestCreateForm(t *testing.T) {
 		}
 	]`
 	db := NewDB()
-	id := db.CreateForm(title, description, openAt, closeAt, data)
+	id, err := db.CreateForm(title, description, openAt, closeAt, data)
+	if err != nil {
+		t.Error(err)
+	}
 	if id == "" {
 		t.Error("Form ID is empty")
 	}
-	form := db.GetForm(id)
-	if form == nil {
-		t.Error("Form is nil")
+	form, err := db.GetForm(id)
+	if err != nil {
+		t.Error(err)
 	}
 	if form.Owner != alice {
 		t.Error("Owner is not correct")

@@ -36,7 +36,10 @@ func TestAnswerForm(t *testing.T) {
 		}
 	]`
 
-	formID := db.CreateForm("Test Form", "Test Description", "", "", data)
+	formID, err := db.CreateForm("Test Form", "Test Description", "", "", data)
+	if err != nil {
+		t.Error(err)
+	}
 	answers := `["Alex", 21, true, 0, [0, 1]]`
 
 	db.SubmitForm(formID, answers)
@@ -80,15 +83,24 @@ func TestAnswerFormDates(t *testing.T) {
 	answers := `["Test"]`
 
 	shouldPanic(t, func() {
-		formID := db.CreateForm("Test Form", "Test Description", tomorrow, "", data)
+		formID, err := db.CreateForm("Test Form", "Test Description", tomorrow, "", data)
+		if err != nil {
+			t.Error(err)
+		}
 		db.SubmitForm(formID, answers)
 	})
 
 	shouldPanic(t, func() {
-		formID := db.CreateForm("Test Form", "Test Description", "", yesterday, data)
+		formID, err := db.CreateForm("Test Form", "Test Description", "", yesterday, data)
+		if err != nil {
+			t.Error(err)
+		}
 		db.SubmitForm(formID, answers)
 	})
 
-	formID := db.CreateForm("Test Form", "Test Description", yesterday, tomorrow, data)
+	formID, err := db.CreateForm("Test Form", "Test Description", yesterday, tomorrow, data)
+	if err != nil {
+		t.Error(err)
+	}
 	db.SubmitForm(formID, answers)
 }

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"gno.land/p/demo/json"
-	"gno.land/p/demo/ufmt"
 )
 
 func CreateField(label string, fieldType string, required bool) Field {
@@ -16,7 +15,12 @@ func CreateField(label string, fieldType string, required bool) Field {
 	}
 }
 
-func parseDates(openAt string, closeAt string) (*time.Time, *time.Time) {
+type times struct {
+	openAt  *time.Time
+	closeAt *time.Time
+}
+
+func parseDates(openAt string, closeAt string) (times, error) {
 	var openAtTime, closeAtTime *time.Time
 
 	dateFormat := "2006-01-02T15:04:05Z"
@@ -25,7 +29,7 @@ func parseDates(openAt string, closeAt string) (*time.Time, *time.Time) {
 	if openAt != "" {
 		res, err := time.Parse(dateFormat, openAt)
 		if err != nil {
-			panic(ufmt.Errorf("invalid date: %v", openAt))
+			return times{}, errInvalidDate
 		}
 		openAtTime = &res
 	}
@@ -34,22 +38,25 @@ func parseDates(openAt string, closeAt string) (*time.Time, *time.Time) {
 	if closeAt != "" {
 		res, err := time.Parse(dateFormat, closeAt)
 		if err != nil {
-			panic(ufmt.Errorf("invalid date: %v", closeAt))
+			return times{}, errInvalidDate
 		}
 		closeAtTime = &res
 	}
 
-	return openAtTime, closeAtTime
+	return times{openAtTime, closeAtTime}, nil
 }
 
-func (db *FormDB) CreateForm(title string, description string, openAt string, closeAt string, data string) string {
+func (db *FormDB) CreateForm(title string, description string, openAt string, closeAt string, data string) (string, error) {
 	// Parsing dates
-	openAtTime, closeAtTime := parseDates(openAt, closeAt)
+	times, err := parseDates(openAt, closeAt)
+	if err != nil {
+		return "", err
+	}
 
 	// Parsing the json submission
 	node, err := json.Unmarshal([]byte(data))
 	if err != nil {
-		ufmt.Errorf("invalid json: %v", err)
+		return "", errInvalidJson
 	}
 
 	fieldsCount := node.Size()
@@ -59,7 +66,7 @@ func (db *FormDB) CreateForm(title string, description string, openAt string, cl
 	for i := 0; i < fieldsCount; i++ {
 		field, err := node.GetIndex(i)
 		if err != nil {
-			ufmt.Errorf("error: %v", err)
+			return "", errInvalidJson
 		}
 
 		labelNode, _ := field.GetKey("label")
@@ -83,13 +90,13 @@ func (db *FormDB) CreateForm(title string, description string, openAt string, cl
 		Title:       title,
 		Description: description,
 		CreatedAt:   time.Now(),
-		openAt:      openAtTime,
-		closeAt:     closeAtTime,
+		openAt:      times.openAt,
+		closeAt:     times.closeAt,
 		Fields:      fields,
 	}
 
 	// Adding the form to the database
 	db.Forms = append(db.Forms, &form)
 
-	return id
+	return id, nil
 }

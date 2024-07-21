@@ -1,7 +1,6 @@
 package forms
 
 import (
-	"errors"
 	"std"
 	"time"
 
@@ -69,7 +68,7 @@ func (form *Form) IsOpen() bool {
 
 func (form *Form) OpenAt() (time.Time, error) {
 	if form.openAt == nil {
-		return time.Time{}, errors.New("Form has no open date")
+		return time.Time{}, errNoOpenDate
 	}
 
 	return *form.openAt, nil
@@ -77,28 +76,28 @@ func (form *Form) OpenAt() (time.Time, error) {
 
 func (form *Form) CloseAt() (time.Time, error) {
 	if form.closeAt == nil {
-		return time.Time{}, errors.New("Form has no close date")
+		return time.Time{}, errNoCloseDate
 	}
 
 	return *form.closeAt, nil
 }
 
-func (db *FormDB) GetForm(id string) *Form {
+func (db *FormDB) GetForm(id string) (*Form, error) {
 	for _, form := range db.Forms {
 		if form.ID == id {
-			return form
+			return form, nil
 		}
 	}
-	return nil
+	return nil, errFormNotFound
 }
 
-func (db *FormDB) GetAnswer(formID string, author std.Address) *Submission {
+func (db *FormDB) GetAnswer(formID string, author std.Address) (*Submission, error) {
 	for _, answer := range db.Answers {
 		if answer.FormID == formID && answer.Author.String() == author.String() {
-			return answer
+			return answer, nil
 		}
 	}
-	return nil
+	return nil, errAnswerNotFound
 }
 
 func (db *FormDB) GetSubmissionsByFormID(formID string) []*Submission {

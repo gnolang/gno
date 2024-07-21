@@ -3,31 +3,29 @@ package forms
 import (
 	"std"
 	"time"
-
-	"gno.land/p/demo/ufmt"
 )
 
 func (db *FormDB) SubmitForm(formID string, answers string) {
 	// Check if form exists
-	form := db.GetForm(formID)
-	if form == nil {
-		panic(ufmt.Errorf("Form not found: %s", formID))
+	form, err := db.GetForm(formID)
+	if err != nil {
+		panic(err)
 	}
 
 	// Check if form was already submitted by this user
-	previousAnswer := db.GetAnswer(formID, std.PrevRealm().Addr())
+	previousAnswer, err := db.GetAnswer(formID, std.PrevRealm().Addr())
 	if previousAnswer != nil {
-		panic("You already submitted this form")
+		panic(errAlreadySubmitted)
 	}
 
 	// Check time restrictions
 	if !form.IsOpen() {
-		panic("Form is closed")
+		panic(errFormClosed)
 	}
 
 	// Check if answers are formatted correctly
 	if ValidateAnswers(answers, form.Fields) == false {
-		panic("Invalid answers")
+		panic(errInvalidAnswers)
 	}
 
 	// Save answers
