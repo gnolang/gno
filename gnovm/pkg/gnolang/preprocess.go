@@ -2309,7 +2309,6 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 							case *FuncLitExpr:
 								// inner funcs.
 								return n, TRANS_SKIP
-								return n, TRANS_CONTINUE
 							case *FuncDecl:
 								panic("unexpected inner func decl")
 								return n, TRANS_CONTINUE
@@ -2330,7 +2329,6 @@ func findGotoLoopDefines(ctx BlockNode, bn BlockNode) {
 							case *FuncLitExpr:
 								// inner funcs.
 								return n, TRANS_SKIP
-								return n, TRANS_CONTINUE
 							case *FuncDecl:
 								panic("unexpected inner func decl")
 								return n, TRANS_CONTINUE
