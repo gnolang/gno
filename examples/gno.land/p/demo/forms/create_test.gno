@@ -61,7 +61,7 @@ func TestCreateForm(t *testing.T) {
 		t.Error("Description is not correct")
 	}
 	if len(form.Fields) != 5 {
-		t.Error("Fields are not correct")
+		t.Error("Not enough fields were provided")
 	}
 	if form.Fields[0].Label != "Name" {
 		t.Error("Field 0 label is not correct")
