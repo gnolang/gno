@@ -58,8 +58,8 @@ func equalProposals(t *testing.T, p1, p2 dao.Proposal) {
 		p2.Status().String(),
 	)
 
-	p1Stats := p1.VotingStats()
-	p2Stats := p2.VotingStats()
+	p1Stats := p1.Stats()
+	p2Stats := p2.Stats()
 
 	uassert.Equal(t, p1Stats.YayVotes, p2Stats.YayVotes)
 	uassert.Equal(t, p1Stats.NayVotes, p2Stats.NayVotes)
@@ -136,7 +136,7 @@ func TestProposal_Data(t *testing.T) {
 			},
 		}
 
-		stats := p.VotingStats()
+		stats := p.Stats()
 
 		uassert.Equal(t, uint64(0), stats.YayVotes)
 		uassert.Equal(t, uint64(0), stats.NayVotes)
@@ -163,7 +163,7 @@ func TestProposal_Data(t *testing.T) {
 			urequire.NoError(t, p.tally.castVote(m, dao.YesVote))
 		}
 
-		stats := p.VotingStats()
+		stats := p.Stats()
 
 		uassert.Equal(t, totalPower, stats.YayVotes)
 		uassert.Equal(t, uint64(0), stats.NayVotes)

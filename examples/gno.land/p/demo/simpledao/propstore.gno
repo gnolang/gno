@@ -49,11 +49,11 @@ func (p *proposal) Executor() dao.Executor {
 	return p.executor
 }
 
-func (p *proposal) VotingStats() dao.VotingStats {
+func (p *proposal) Stats() dao.Stats {
 	// Get the total voting power of the body
 	totalPower := p.getTotalVotingPowerFn()
 
-	return dao.VotingStats{
+	return dao.Stats{
 		YayVotes:         p.tally.yays,
 		NayVotes:         p.tally.nays,
 		AbstainVotes:     p.tally.abstains,
@@ -63,7 +63,7 @@ func (p *proposal) VotingStats() dao.VotingStats {
 
 func (p *proposal) Render() string {
 	// Fetch the voting stats
-	stats := p.VotingStats()
+	stats := p.Stats()
 
 	output := ""
 	output += ufmt.Sprintf("Author: %s", p.Author().String())

@@ -46,8 +46,8 @@ type Proposal interface {
 	// Executor returns the proposal executor
 	Executor() Executor
 
-	// VotingStats returns the voting stats of the proposal
-	VotingStats() VotingStats
+	// Stats returns the voting stats of the proposal
+	Stats() Stats
 
 	// Render renders the proposal in a readable format
 	Render() string
