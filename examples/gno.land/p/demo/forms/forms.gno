@@ -10,27 +10,16 @@ import (
 
 type Field struct {
 	Label string
-
-	/*
-		string: "string";
-		number: "number";
-		boolean: "boolean";
-		choice: "['Pizza', 'Schnitzel', 'Burger']";
-		multi-choice: "{'Pizza', 'Schnitzel', 'Burger'}";
-	*/
 	FieldType string
-
 	Required bool
 }
 
 type Form struct {
 	ID    string
 	Owner std.Address
-
 	Title       string
 	Description string
 	Fields      []Field
-
 	CreatedAt time.Time
 	openAt    *time.Time
 	closeAt   *time.Time
@@ -38,20 +27,14 @@ type Form struct {
 
 type Submission struct {
 	FormID string
-
 	Author std.Address
-
-	/* ["Alex", 21, true, 0, [0, 1]] */
 	Answers string // json
-
 	SubmittedAt time.Time
 }
 
 type FormDatabase struct {
 	Forms []*Form
-
 	Answers []*Submission
-
 	IDCounter seqid.ID
 }
 
