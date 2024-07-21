@@ -9,10 +9,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-var (
-	ErrMissingProposal = errors.New("proposal is missing")
-	ErrMissingVote     = errors.New("member has not voted")
-)
+var ErrMissingProposal = errors.New("proposal is missing")
 
 const (
 	// maxRequestProposals is the maximum number of
@@ -32,8 +29,8 @@ type proposal struct {
 	executor dao.Executor       // executor for the proposal
 	status   dao.ProposalStatus // status of the proposal
 
-	votes                 *votes        // voting mechanism
-	getTotalVotingPowerFn func() uint64 // total voting power of the voting body
+	tally                 *tally        // voting tally
+	getTotalVotingPowerFn func() uint64 // callback for the total voting power
 }
 
 func (p *proposal) Author() std.Address {
@@ -52,61 +49,16 @@ func (p *proposal) Executor() dao.Executor {
 	return p.executor
 }
 
-func (p *proposal) Votes(offset, count uint64) []dao.Vote {
-	// Calculate the left and right bounds
-	if count < 1 || offset >= uint64(p.votes.voters.Size()) {
-		return []dao.Vote{}
-	}
-
-	// Limit the maximum number of returned votes
-	if count > maxRequestVotes {
-		count = maxRequestVotes
-	}
-
-	votes := make([]dao.Vote, 0, p.votes.voters.Size())
-	p.votes.voters.IterateByOffset(
-		int(offset),
-		int(count),
-		func(key string, val interface{}) bool {
-			option := val.(dao.VoteOption)
-
-			vote := dao.Vote{
-				Address: std.Address(key),
-				Option:  option,
-			}
-
-			votes = append(votes, vote)
-
-			return false
-		})
-
-	return votes
-}
-
 func (p *proposal) VotingStats() dao.VotingStats {
 	// Get the total voting power of the body
 	totalPower := p.getTotalVotingPowerFn()
 
 	return dao.VotingStats{
-		YayVotes:         p.votes.yays,
-		NayVotes:         p.votes.nays,
-		AbstainVotes:     p.votes.abstains,
+		YayVotes:         p.tally.yays,
+		NayVotes:         p.tally.nays,
+		AbstainVotes:     p.tally.abstains,
 		TotalVotingPower: totalPower,
 	}
-}
-
-func (p *proposal) VoteByMember(address std.Address) (dao.Vote, error) {
-	optionRaw, exists := p.votes.voters.Get(address.String())
-	if !exists {
-		return dao.Vote{}, ErrMissingVote
-	}
-
-	vote := dao.Vote{
-		Address: address,
-		Option:  optionRaw.(dao.VoteOption),
-	}
-
-	return vote, nil
 }
 
 func (p *proposal) Render() string {

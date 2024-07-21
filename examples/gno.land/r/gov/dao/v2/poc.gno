@@ -67,20 +67,6 @@ func NewMemberPropExecutor(changesFn func() []membstore.Member) dao.Executor {
 	return NewGovDAOExecutor(callback)
 }
 
-func NewDAOImplExecutor(changeFn func() dao.DAO) dao.Executor {
-	if changeFn == nil {
-		panic(errNoChangesProposed)
-	}
-
-	callback := func() error {
-		setDAOImpl(changeFn())
-
-		return nil
-	}
-
-	return NewGovDAOExecutor(callback)
-}
-
 func NewMembStoreImplExecutor(changeFn func() membstore.MemberStore) dao.Executor {
 	if changeFn == nil {
 		panic(errNoChangesProposed)
@@ -93,15 +79,6 @@ func NewMembStoreImplExecutor(changeFn func() membstore.MemberStore) dao.Executo
 	}
 
 	return NewGovDAOExecutor(callback)
-}
-
-// setDAOImpl sets a new DAO implementation
-func setDAOImpl(impl dao.DAO) {
-	if impl == nil {
-		panic("invalid member store")
-	}
-
-	d = impl
 }
 
 // setMembStoreImpl sets a new dao.MembStore implementation

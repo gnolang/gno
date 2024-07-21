@@ -122,7 +122,7 @@ func TestSimpleDAO_Propose(t *testing.T) {
 			s = New(ms)
 		)
 
-		// Set the sent coins to enough
+		// Set the sent coins to be enough
 		// to cover the fee
 		std.TestSetOrigSend(sentCoins, std.Coins{})
 		std.TestSetOrigCaller(proposer)
@@ -142,7 +142,13 @@ func TestSimpleDAO_Propose(t *testing.T) {
 		uassert.Equal(t, proposer.String(), prop.Author().String())
 		uassert.Equal(t, description, prop.Description())
 		uassert.Equal(t, dao.Active.String(), prop.Status().String())
-		uassert.Equal(t, 0, len(prop.Votes(0, maxRequestVotes)))
+
+		stats := prop.VotingStats()
+
+		uassert.Equal(t, uint64(0), stats.YayVotes)
+		uassert.Equal(t, uint64(0), stats.NayVotes)
+		uassert.Equal(t, uint64(0), stats.AbstainVotes)
+		uassert.Equal(t, uint64(0), stats.TotalVotingPower)
 	})
 }
 
@@ -313,14 +319,14 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			prop = &proposal{
 				status:   dao.Active,
 				executor: &mockExecutor{},
-				votes:    newVotes(),
+				tally:    newTally(),
 			}
 		)
 
 		std.TestSetOrigCaller(voter)
 
 		// Cast the initial vote
-		urequire.NoError(t, prop.votes.castVote(member, dao.YesVote))
+		urequire.NoError(t, prop.tally.castVote(member, dao.YesVote))
 
 		// Add an initial proposal
 		id, err := s.addProposal(prop)
@@ -366,7 +372,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			prop = &proposal{
 				status:   dao.Active,
 				executor: &mockExecutor{},
-				votes:    newVotes(),
+				tally:    newTally(),
 			}
 		)
 
@@ -421,7 +427,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			prop = &proposal{
 				status:   dao.Active,
 				executor: &mockExecutor{},
-				votes:    newVotes(),
+				tally:    newTally(),
 			}
 		)
 
@@ -476,7 +482,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			prop = &proposal{
 				status:   dao.Active,
 				executor: &mockExecutor{},
-				votes:    newVotes(),
+				tally:    newTally(),
 			}
 		)
 
@@ -531,7 +537,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			prop = &proposal{
 				status:   dao.Active,
 				executor: &mockExecutor{},
-				votes:    newVotes(),
+				tally:    newTally(),
 			}
 		)
 
@@ -598,7 +604,7 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 			prop = &proposal{
 				status:   dao.Active,
 				executor: &mockExecutor{},
-				votes:    newVotes(),
+				tally:    newTally(),
 			}
 		)
 

@@ -11,7 +11,7 @@ import (
 )
 
 var (
-	d       dao.DAO               // the current active DAO implementation
+	d       *simpledao.SimpleDAO  // the current active DAO implementation
 	members membstore.MemberStore // the member store
 )
 

@@ -46,14 +46,8 @@ type Proposal interface {
 	// Executor returns the proposal executor
 	Executor() Executor
 
-	// Votes returns the votes of the proposal
-	Votes(offset, count uint64) []Vote
-
 	// VotingStats returns the voting stats of the proposal
 	VotingStats() VotingStats
-
-	// VoteByMember returns the proposal vote by the member, if any
-	VoteByMember(address std.Address) (Vote, error)
 
 	// Render renders the proposal in a readable format
 	Render() string

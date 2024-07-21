@@ -24,8 +24,11 @@ func generateProposals(t *testing.T, count int) []*proposal {
 			author:      members[i].Address,
 			description: ufmt.Sprintf("proposal %d", i),
 			status:      dao.Active,
-			votes:       newVotes(),
-			executor:    nil,
+			tally:       newTally(),
+			getTotalVotingPowerFn: func() uint64 {
+				return 0
+			},
+			executor: nil,
 		}
 
 		proposals = append(proposals, proposal)
@@ -55,26 +58,13 @@ func equalProposals(t *testing.T, p1, p2 dao.Proposal) {
 		p2.Status().String(),
 	)
 
-	uassert.Equal(
-		t,
-		len(p1.Votes(0, maxRequestVotes)),
-		len(p2.Votes(0, maxRequestVotes)),
-	)
+	p1Stats := p1.VotingStats()
+	p2Stats := p2.VotingStats()
 
-	p1Votes := p1.Votes(0, maxRequestVotes)
-	for index, v2 := range p2.Votes(0, maxRequestVotes) {
-		uassert.Equal(
-			t,
-			p1Votes[index].Address.String(),
-			v2.Address.String(),
-		)
-
-		uassert.Equal(
-			t,
-			p1Votes[index].Option.String(),
-			v2.Option.String(),
-		)
-	}
+	uassert.Equal(t, p1Stats.YayVotes, p2Stats.YayVotes)
+	uassert.Equal(t, p1Stats.NayVotes, p2Stats.NayVotes)
+	uassert.Equal(t, p1Stats.AbstainVotes, p2Stats.AbstainVotes)
+	uassert.Equal(t, p1Stats.TotalVotingPower, p2Stats.TotalVotingPower)
 }
 
 func TestProposal_Data(t *testing.T) {
@@ -140,77 +130,45 @@ func TestProposal_Data(t *testing.T) {
 		t.Parallel()
 
 		p := &proposal{
-			votes: newVotes(),
+			tally: newTally(),
+			getTotalVotingPowerFn: func() uint64 {
+				return 0
+			},
 		}
 
-		uassert.Equal(t, 0, len(p.Votes(0, maxRequestVotes)))
+		stats := p.VotingStats()
+
+		uassert.Equal(t, uint64(0), stats.YayVotes)
+		uassert.Equal(t, uint64(0), stats.NayVotes)
+		uassert.Equal(t, uint64(0), stats.AbstainVotes)
+		uassert.Equal(t, uint64(0), stats.TotalVotingPower)
 	})
 
 	t.Run("existing votes", func(t *testing.T) {
 		t.Parallel()
 
 		var (
-			members = generateMembers(t, 50)
-			p       = &proposal{
-				votes: newVotes(),
+			members    = generateMembers(t, 50)
+			totalPower = uint64(len(members)) * 10
+
+			p = &proposal{
+				tally: newTally(),
+				getTotalVotingPowerFn: func() uint64 {
+					return totalPower
+				},
 			}
 		)
 
 		for _, m := range members {
-			urequire.NoError(t, p.votes.castVote(m, dao.YesVote))
+			urequire.NoError(t, p.tally.castVote(m, dao.YesVote))
 		}
 
-		votes := p.Votes(0, maxRequestVotes)
+		stats := p.VotingStats()
 
-		urequire.Equal(t, len(members), len(votes))
-
-		for _, v := range votes {
-			for _, m := range members {
-				if m.Address != v.Address {
-					continue
-				}
-
-				uassert.Equal(t, dao.YesVote.String(), v.Option.String())
-			}
-		}
-	})
-
-	t.Run("vote by member", func(t *testing.T) {
-		t.Parallel()
-
-		var (
-			members = generateMembers(t, 50)
-			p       = &proposal{
-				votes: newVotes(),
-			}
-		)
-
-		for _, m := range members {
-			urequire.NoError(t, p.votes.castVote(m, dao.YesVote))
-		}
-
-		votes := p.Votes(0, maxRequestVotes)
-		urequire.Equal(t, len(members), len(votes))
-
-		vote, err := p.VoteByMember(members[0].Address)
-		urequire.NoError(t, err)
-
-		uassert.Equal(t, dao.YesVote.String(), vote.Option.String())
-		uassert.Equal(t, members[0].Address.String(), vote.Address.String())
-	})
-
-	t.Run("missing vote by member", func(t *testing.T) {
-		t.Parallel()
-
-		p := &proposal{
-			votes: newVotes(),
-		}
-
-		votes := p.Votes(0, maxRequestVotes)
-		urequire.Equal(t, 0, len(votes))
-
-		_, err := p.VoteByMember(testutils.TestAddress("dummy"))
-		uassert.ErrorIs(t, err, ErrMissingVote)
+		uassert.Equal(t, totalPower, stats.YayVotes)
+		uassert.Equal(t, uint64(0), stats.NayVotes)
+		uassert.Equal(t, uint64(0), stats.AbstainVotes)
+		uassert.Equal(t, totalPower, stats.TotalVotingPower)
 	})
 }
 

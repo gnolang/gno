@@ -65,7 +65,7 @@ func (s *SimpleDAO) Propose(request dao.ProposalRequest) (uint64, error) {
 		description:           request.Description,
 		executor:              request.Executor,
 		status:                dao.Active,
-		votes:                 newVotes(),
+		tally:                 newTally(),
 		getTotalVotingPowerFn: s.membStore.TotalPower,
 	}
 
@@ -80,7 +80,9 @@ func (s *SimpleDAO) Propose(request dao.ProposalRequest) (uint64, error) {
 
 func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 	// Verify the GOVDAO member
-	member, err := s.membStore.Member(getDAOCaller())
+	caller := getDAOCaller()
+
+	member, err := s.membStore.Member(caller)
 	if err != nil {
 		return ufmt.Errorf("unable to get govdao member, %s", err.Error())
 	}
@@ -112,9 +114,17 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 	}
 
 	// Cast the vote
-	if err = prop.votes.castVote(member, option); err != nil {
+	if err = prop.tally.castVote(member, option); err != nil {
 		return ufmt.Errorf("unable to vote on proposal %d, %s", id, err.Error())
 	}
+
+	// Emit the vote cast event
+	std.Emit(
+		dao.VoteAddedEvent,
+		dao.VoteAddedIDKey, ufmt.Sprintf("%d", id),
+		dao.VoteAddedAuthorKey, caller.String(),
+		dao.VoteAddedOptionKey, option.String(),
+	)
 
 	// Check the votes to see if quorum is reached
 	var (
@@ -122,20 +132,38 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 		majorityPower = (2 * totalPower) / 3
 	)
 
-	switch {
-	case prop.votes.yays > majorityPower:
-		// 2/3+ voted YES
+	acceptProposal := func() {
 		prop.status = dao.Accepted
-	case prop.votes.nays > majorityPower:
+
+		std.Emit(
+			dao.ProposalAcceptedEvent,
+			dao.ProposalEventIDKey, ufmt.Sprintf("%d", id),
+		)
+	}
+
+	declineProposal := func() {
+		prop.status = dao.NotAccepted
+
+		std.Emit(
+			dao.ProposalNotAcceptedEvent,
+			dao.ProposalEventIDKey, ufmt.Sprintf("%d", id),
+		)
+	}
+
+	switch {
+	case prop.tally.yays > majorityPower:
+		// 2/3+ voted YES
+		acceptProposal()
+	case prop.tally.nays > majorityPower:
 		// 2/3+ voted NO
-		prop.status = dao.NotAccepted
-	case prop.votes.abstains > majorityPower:
+		declineProposal()
+	case prop.tally.abstains > majorityPower:
 		// 2/3+ voted ABSTAIN
-		prop.status = dao.NotAccepted
-	case prop.votes.yays+prop.votes.nays+prop.votes.abstains >= totalPower:
+		declineProposal()
+	case prop.tally.yays+prop.tally.nays+prop.tally.abstains >= totalPower:
 		// Everyone voted, but it's undecided,
 		// hence the proposal can't go through
-		prop.status = dao.NotAccepted
+		declineProposal()
 	default:
 		// Quorum not reached
 	}
@@ -180,6 +208,15 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 	if prop.executor.IsExpired() {
 		return ErrExecutorExpired
 	}
+
+	// Emit an event when the execution finishes
+	defer func() {
+		std.Emit(
+			dao.ProposalExecutedEvent,
+			dao.ProposalEventIDKey, ufmt.Sprintf("%d", id),
+			dao.ProposalEventExecutionKey, prop.status.String(),
+		)
+	}()
 
 	// Attempt to execute the proposal
 	if err = prop.executor.Execute(); err != nil {

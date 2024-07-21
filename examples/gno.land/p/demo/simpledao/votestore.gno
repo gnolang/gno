@@ -10,8 +10,8 @@ import (
 
 var ErrAlreadyVoted = errors.New("vote already cast")
 
-// votes is a simple weighted voting system
-type votes struct {
+// tally is a simple vote tally system
+type tally struct {
 	// tally cache to keep track of active
 	// yes / no / abstain votes
 	yays     uint64
@@ -21,19 +21,19 @@ type votes struct {
 	voters *avl.Tree // std.Address -> dao.VoteOption
 }
 
-// newVotes creates a new weighted voting system instance
-func newVotes() *votes {
-	return &votes{
+// newTally creates a new tally system instance
+func newTally() *tally {
+	return &tally{
 		voters: avl.NewTree(),
 	}
 }
 
 // castVote casts a single vote in the name of the given member
-func (v *votes) castVote(member membstore.Member, option dao.VoteOption) error {
+func (t *tally) castVote(member membstore.Member, option dao.VoteOption) error {
 	// Check if the member voted already
 	address := member.Address.String()
 
-	_, voted := v.voters.Get(address)
+	_, voted := t.voters.Get(address)
 	if voted {
 		return ErrAlreadyVoted
 	}
@@ -41,15 +41,15 @@ func (v *votes) castVote(member membstore.Member, option dao.VoteOption) error {
 	// Update the tally
 	switch option {
 	case dao.YesVote:
-		v.yays += member.VotingPower
+		t.yays += member.VotingPower
 	case dao.AbstainVote:
-		v.abstains += member.VotingPower
+		t.abstains += member.VotingPower
 	default:
-		v.nays += member.VotingPower
+		t.nays += member.VotingPower
 	}
 
 	// Save the voting status
-	v.voters.Set(address, option)
+	t.voters.Set(address, option)
 
 	return nil
 }

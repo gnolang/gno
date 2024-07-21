@@ -1,5 +1,15 @@
 package dao
 
+const (
+	ProposalAddedEvent       = "ProposalAdded"       // emitted when a new proposal has been added
+	ProposalAcceptedEvent    = "ProposalAccepted"    // emitted when a proposal has been accepted
+	ProposalNotAcceptedEvent = "ProposalNotAccepted" // emitted when a proposal has not been accepted
+	ProposalExecutedEvent    = "ProposalExecuted"    // emitted when a proposal has been executed
+
+	ProposalEventIDKey        = "proposal-id"
+	ProposalEventExecutionKey = "exec-status"
+)
+
 // ProposalRequest is a single govdao proposal request
 // that contains the necessary information to
 // log and generate a valid proposal
@@ -16,9 +26,6 @@ type DAO interface {
 	// Propose adds a new proposal to the executor-based GOVDAO.
 	// Returns the generated proposal ID
 	Propose(request ProposalRequest) (uint64, error)
-
-	// VoteOnProposal adds a vote to the given proposal ID
-	VoteOnProposal(id uint64, option VoteOption) error
 
 	// ExecuteProposal executes the proposal with the given ID
 	ExecuteProposal(id uint64) error
