@@ -1,8 +1,8 @@
 package forms
 
 import (
-	"time"
 	"testing"
+	"time"
 
 	"gno.land/p/demo/urequire"
 )
@@ -84,7 +84,7 @@ func TestAnswerFormDates(t *testing.T) {
 
 	urequire.NotPanics(t, func() {
 		formID, err := db.CreateForm("Test Form", "Test Description", yesterday, tomorrow, data)
-		if (err != nil) {
+		if err != nil {
 			panic(err)
 		}
 		db.SubmitForm(formID, answers)

@@ -8,32 +8,32 @@ import (
 )
 
 type Field struct {
-	Label string
+	Label     string
 	FieldType string
-	Required bool
+	Required  bool
 }
 
 type Form struct {
-	ID    string
-	Owner std.Address
+	ID          string
+	Owner       std.Address
 	Title       string
 	Description string
 	Fields      []Field
-	CreatedAt time.Time
-	openAt    *time.Time
-	closeAt   *time.Time
+	CreatedAt   time.Time
+	openAt      *time.Time
+	closeAt     *time.Time
 }
 
 type Submission struct {
-	FormID string
-	Author std.Address
-	Answers string // json
+	FormID      string
+	Author      std.Address
+	Answers     string // json
 	SubmittedAt time.Time
 }
 
 type FormDB struct {
-	Forms []*Form
-	Answers []*Submission
+	Forms     []*Form
+	Answers   []*Submission
 	IDCounter seqid.ID
 }
 
