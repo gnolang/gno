@@ -8,9 +8,9 @@ gnoland start
 
 ! gnokey maketx call -pkgpath gno.land/r/demo/panic --func Trigger --gas-fee 1000000ugnot --gas-wanted 2000000 --broadcast -chainid=tendermint_test test1
 
-stderr 'panic\(i\<VPBlock\(1\,0\)\>\)'
-stderr 'gno.land/r/demo/panic/panic.gno:5'
 stderr 'p\<VPBlock\(3\,0\)\>\(\)'
+stderr 'gno.land/r/demo/panic/panic.gno:5'
+stderr 'Trigger\(\)'
 stderr 'gno.land/r/demo/panic/panic.gno:9'
 
 -- panic.gno --
