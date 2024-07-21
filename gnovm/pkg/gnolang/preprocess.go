@@ -4366,7 +4366,7 @@ func setNodeLocations(pkgPath string, fileName string, n Node) {
 // XXX check node lines, uniqueness of locations,
 // and also check location pkgpath and filename.
 func checkNodeLinesLocations(pkgPath string, fileName string, n Node) {
-	// XXX
+	// TODO: XXX
 }
 
 // ----------------------------------------
