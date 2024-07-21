@@ -69,13 +69,31 @@ func (db *FormDB) CreateForm(title string, description string, openAt string, cl
 			return "", errInvalidJson
 		}
 
-		labelNode, _ := field.GetKey("label")
-		fieldTypeNode, _ := field.GetKey("fieldType")
-		requiredNode, _ := field.GetKey("required")
+		labelNode, err := field.GetKey("label")
+		if err != nil {
+			return "", errInvalidJson
+		}
+		fieldTypeNode, err := field.GetKey("fieldType")
+		if err != nil {
+			return "", errInvalidJson
+		}
+		requiredNode, err := field.GetKey("required")
+		if err != nil {
+			return "", errInvalidJson
+		}
 
-		label, _ := labelNode.GetString()
-		fieldType, _ := fieldTypeNode.GetString()
-		required, _ := requiredNode.GetBool()
+		label, err := labelNode.GetString()
+		if err != nil {
+			return "", errInvalidJson
+		}
+		fieldType, err := fieldTypeNode.GetString()
+		if err != nil {
+			return "", errInvalidJson
+		}
+		required, err := requiredNode.GetBool()
+		if err != nil {
+			return "", errInvalidJson
+		}
 
 		fields[i] = CreateField(label, fieldType, required)
 	}
