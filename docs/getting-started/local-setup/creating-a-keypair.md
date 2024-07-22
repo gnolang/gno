@@ -36,18 +36,17 @@ information:
 - Your public key, as well as the Gno address derived from it, starting with `g1...`,
 - Your randomly generated 12-word mnemonic phrase which was used to derive the keypair.
 
-:::warning Mnemonic phrase
+:::warning Safeguard your mnemonic phrase!
 
 A **mnemonic phrase** is like your master password; you can use it over and over
 to derive the same keypair. This is why it is crucial to store it in a safe,
 offline place - writing the phrase on a piece of paper and hiding it is highly
-recommended. If it gets lost, it is unrecoverable.
+recommended. **If it gets lost, it is unrecoverable.**
 
 ::: 
 
 `gnokey` will generate a keybase in which it will store information about your
 keypairs. The keybase directory is stored under the `-home` flag in `gnokey`.
-
 
 ### Gno addresses
 
@@ -56,12 +55,11 @@ in the caller stack of an application, it is included in each transaction you cr
 with your keypair, and anyone who knows your address can send you [coins](../../concepts/stdlibs/coin.md),
 etc.
 
-
 ## Conclusion
 
 That's it 🎉
 
-You've successfully created your first Gno keypair. 
+You've successfully created your first Gno keypair. Let's see how we can use it.
 
 
 

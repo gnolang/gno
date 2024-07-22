@@ -2,29 +2,27 @@
 id: interacting-with-gnoland
 ---
 
-# Interacting with Gno.land code
+# Interacting with gno.land
 
 ## Overview
 
-In this tutorial, you will learn how to interact with Gno.land code.
-You will understand how to use your keypair to send transactions to realms
-and packages, send native coins, and more.
+In this tutorial, you will learn how to interact with gno.land code.
+You will understand how to use your keypair to send transactions to Gno applications.
 
 ## Prerequisites
 
 - **`gnokey` installed.** Reference the
-[Local Setup](installation.md#3-installing-other-gno-tools) guide for steps
+[Local Setup](installation.md) guide for steps
 - **A keypair in `gnokey`.** Reference the 
 [Creating a key pair](creating-a-keypair.md) guide for steps
 
 ## 1. Get testnet GNOTs
-For interacting with any Gno.land chain, you will need a certain amount of GNOTs
+For interacting with any gno.land chain, you will need a certain amount of GNOTs
 to pay gas fees with. 
 
 For this example, we will use the [Portal Loop](../../concepts/testnets.md#portal-loop) 
 testnet. We can access the Portal Loop faucet through the
-[Gno Faucet Hub](https://faucet.gno.land), or by accessing the faucet directly at
-[gno.land/faucet](https://gno.land/faucet). 
+[Gno Faucet Hub](https://faucet.gno.land).
 
 ![faucet-hub](../../assets/getting-started/local-setup/interacting-with-gnoland/faucet-hub.png)
 
@@ -58,8 +56,8 @@ height at which they have signed up.
 
 ![userbook-default](../../assets/getting-started/local-setup/interacting-with-gnoland/userbook-default.png)
 
-> Note: block heights are not correct because of the way the Portal Loop testnet 
-> works.
+> Note: block heights in this case are unreliable because of the way the Portal Loop
+> testnet works.
 > Read more [here](../../concepts/portal-loop.md). 
 
 To see what functions are available to call on the Userbook realm, click
@@ -85,8 +83,8 @@ gnokey maketx call \
 MyKey
 ```
 
-To see what each option and flag in this command does, read the `gnokey` 
-[reference page](../../gno-tooling/cli/gnokey/gnokey.mdokey.md). 
+To see what each option and flag in this command does, check out `gnokey` in the 
+[tooling section](../../gno-tooling/cli/gnokey/gnokey.md). 
 
 ## Conclusion
 

@@ -6,12 +6,12 @@ id: gnokey
 
 ## Overview
 
-In this tutorial section, you will learn how to use the `gnokey` binary.
-`gnokey` allows you to interact with a Gno.land chain - you will learn how manage your keypairs, create
-state-changing calls, run readonly queries without using gas, as well as create, 
-sign, and broadcast airgapped transactions for full security.
-
-// TODO FIX 
+In this section, you will learn how to use the `gnokey` binary. `gnokey` allows
+you to do 4 main things:
+- Manage Gno keypairs
+- Send state-changing calls (transactions)
+- Query a gno.land network
+- Sign and broadcast transactions with [airgap protection](https://en.wikipedia.org/wiki/Air_gap_(networking))
 
 ## Prerequisites
 
