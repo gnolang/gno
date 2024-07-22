@@ -20,7 +20,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/abci/example/kvstore"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	abci_testing "github.com/gnolang/gno/tm2/pkg/bft/abci/types/testing"
 	"github.com/gnolang/gno/tm2/pkg/bft/appconn"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	cstypes "github.com/gnolang/gno/tm2/pkg/bft/consensus/types"
@@ -1134,8 +1133,8 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 	vals := types.NewValidatorSet([]*types.Validator{val})
 	appVals := vals.ABCIValidatorUpdates()
 	// returns the vals on InitChain
-	app := &abci_testing.MockApplication{
-		InitChainFn: func(req abci.RequestInitChain) abci.ResponseInitChain {
+	app := initChainApp{
+		initChain: func(req abci.RequestInitChain) abci.ResponseInitChain {
 			return abci.ResponseInitChain{
 				Validators: appVals,
 			}
@@ -1171,8 +1170,8 @@ func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 
 	const numInitResponses = 42
 
-	app := &abci_testing.MockApplication{
-		InitChainFn: func(req abci.RequestInitChain) abci.ResponseInitChain {
+	app := initChainApp{
+		initChain: func(req abci.RequestInitChain) abci.ResponseInitChain {
 			return abci.ResponseInitChain{
 				TxResponses: make([]abci.ResponseDeliverTx, numInitResponses),
 			}
@@ -1196,4 +1195,13 @@ func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
 	res, err := sm.LoadABCIResponses(stateDB, 0)
 	require.NoError(t, err, "Failed to load genesis ABCI responses")
 	assert.Len(t, res.DeliverTxs, numInitResponses)
+}
+
+type initChainApp struct {
+	abci.BaseApplication
+	initChain func(req abci.RequestInitChain) abci.ResponseInitChain
+}
+
+func (m initChainApp) InitChain(req abci.RequestInitChain) abci.ResponseInitChain {
+	return m.initChain(req)
 }
