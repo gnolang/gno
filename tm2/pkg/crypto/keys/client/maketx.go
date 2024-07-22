@@ -211,6 +211,7 @@ func ExecSignAndBroadcast(
 		return errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
 	}
 	if bres.DeliverTx.IsErr() {
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
 		return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 	}
 
