@@ -672,6 +672,10 @@ func (ss Body) GetBody() Body {
 	return ss
 }
 
+func (ss *Body) SetBody(nb Body) {
+	*ss = nb
+}
+
 func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 	for idx, stmt = range ss {
 		if label == stmt.GetLabel() {
@@ -1098,7 +1102,7 @@ func PackageNameFromFileBody(name, body string) Name {
 // ReadMemPackage initializes a new MemPackage by reading the OS directory
 // at dir, and saving it with the given pkgPath (import path).
 // The resulting MemPackage will contain the names and content of all *.gno files,
-// and additionally README.md, LICENSE, and gno.mod.
+// and additionally README.md, LICENSE.
 //
 // ReadMemPackage does not perform validation aside from the package's name;
 // the files are not parsed but their contents are merely stored inside a MemFile.
@@ -1111,7 +1115,6 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 		panic(err)
 	}
 	allowedFiles := []string{ // make case insensitive?
-		"gno.mod",
 		"LICENSE",
 		"README.md",
 	}
@@ -1376,6 +1379,13 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 			panic("PackageNode.PrepareNewValues() package mismatch")
 		}
 	}
+	// The FuncValue Body may have been altered during the preprocessing.
+	// We need to update body field from the source in the FuncValue accordingly.
+	for _, tv := range x.Values {
+		if fv, ok := tv.V.(*FuncValue); ok {
+			fv.UpdateBodyFromSource()
+		}
+	}
 	pvl := len(block.Values)
 	pnl := len(x.Values)
 	// copy new top-level defined values/types.
@@ -1423,7 +1433,7 @@ func (x *PackageNode) DefineNative(n Name, ps, rs FieldTypeExprs, native func(*M
 			panic("should not happen")
 		}
 	}
-	fv := x.GetValueRef(nil, n).V.(*FuncValue)
+	fv := x.GetValueRef(nil, n, true).V.(*FuncValue)
 	fv.nativeBody = native
 }
 
@@ -1437,7 +1447,7 @@ func (x *PackageNode) DefineNativeOverride(n Name, native func(*Machine)) {
 	if native == nil {
 		panic("DefineNative expects a function, but got nil")
 	}
-	fv := x.GetValueRef(nil, n).V.(*FuncValue)
+	fv := x.GetValueRef(nil, n, true).V.(*FuncValue)
 	fv.nativeBody = native
 }
 
@@ -1474,13 +1484,14 @@ type BlockNode interface {
 	GetPathForName(Store, Name) ValuePath
 	GetIsConst(Store, Name) bool
 	GetLocalIndex(Name) (uint16, bool)
-	GetValueRef(Store, Name) *TypedValue
+	GetValueRef(Store, Name, bool) *TypedValue
 	GetStaticTypeOf(Store, Name) Type
 	GetStaticTypeOfAt(Store, ValuePath) Type
 	Predefine(bool, Name)
 	Define(Name, TypedValue)
 	Define2(bool, Name, Type, TypedValue)
 	GetBody() Body
+	SetBody(Body)
 }
 
 // ----------------------------------------
@@ -1735,17 +1746,19 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 // Implemented BlockNode.
 // This method is too slow for runtime, but it is used
 // during preprocessing to compute types.
+// If skipPredefined, skips over names that are only predefined.
 // Returns nil if not defined.
-func (sb *StaticBlock) GetValueRef(store Store, n Name) *TypedValue {
+func (sb *StaticBlock) GetValueRef(store Store, n Name, skipPredefined bool) *TypedValue {
 	idx, ok := sb.GetLocalIndex(n)
 	bb := &sb.Block
 	bp := sb.GetParentNode(store)
 	for {
-		if ok {
+		if ok && (!skipPredefined || sb.Types[idx] != nil) {
 			return bb.GetPointerToInt(store, int(idx)).TV
 		} else if bp != nil {
 			idx, ok = bp.GetLocalIndex(n)
-			bb = bp.GetStaticBlock().GetBlock()
+			sb = bp.GetStaticBlock()
+			bb = sb.GetBlock()
 			bp = bp.GetParentNode(store)
 		} else {
 			return nil
@@ -1755,8 +1768,8 @@ func (sb *StaticBlock) GetValueRef(store Store, n Name) *TypedValue {
 
 // Implements BlockNode
 // Statically declares a name definition.
-// At runtime, use *Block.GetValueRef() etc which take path
-// values, which are pre-computeed in the preprocessor.
+// At runtime, use *Block.GetPointerTo() which takes a path
+// value, which is pre-computeed in the preprocessor.
 // Once a typed value is defined, it cannot be changed.
 //
 // NOTE: Currently tv.V is only set when the value represents a Type(Value) or
@@ -1768,12 +1781,14 @@ func (sb *StaticBlock) Define(n Name, tv TypedValue) {
 	sb.Define2(false, n, tv.T, tv)
 }
 
+// Set type to nil, only reserving the name.
 func (sb *StaticBlock) Predefine(isConst bool, n Name) {
 	sb.Define2(isConst, n, nil, anyValue(nil))
 }
 
 // The declared type st may not be the same as the static tv;
 // e.g. var x MyInterface = MyStruct{}.
+// Setting st and tv to nil/zero reserves (predefines) name for definition later.
 func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	if debug {
 		debug.Printf(
@@ -1870,7 +1885,15 @@ func (x *IfStmt) GetBody() Body {
 	panic("IfStmt has no body (but .Then and .Else do)")
 }
 
+func (x *IfStmt) SetBody(b Body) {
+	panic("IfStmt has no body (but .Then and .Else do)")
+}
+
 func (x *SwitchStmt) GetBody() Body {
+	panic("SwitchStmt has no body (but its cases do)")
+}
+
+func (x *SwitchStmt) SetBody(b Body) {
 	panic("SwitchStmt has no body (but its cases do)")
 }
 
@@ -1878,7 +1901,15 @@ func (x *FileNode) GetBody() Body {
 	panic("FileNode has no body (but it does have .Decls)")
 }
 
+func (x *FileNode) SetBody(b Body) {
+	panic("FileNode has no body (but it does have .Decls)")
+}
+
 func (x *PackageNode) GetBody() Body {
+	panic("PackageNode has no body")
+}
+
+func (x *PackageNode) SetBody(b Body) {
 	panic("PackageNode has no body")
 }
 
