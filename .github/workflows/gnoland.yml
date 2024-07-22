@@ -5,10 +5,14 @@ on:
     branches:
       - master
   workflow_dispatch:
-  pull_request: 
+  pull_request:
     paths:
       - "gno.land/**"
+      - "tm2/**.go"
+      - "gnovm/**.go"
+      - "go.*" # check on go.mod/sum update
       - ".github/**"
+      - "examples/**"
 
 jobs:
   main:
