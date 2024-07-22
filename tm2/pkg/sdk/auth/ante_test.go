@@ -866,3 +866,58 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
 }
+
+func TestEnsureBlockGasPrice(t *testing.T) {
+
+	var gasPriceGas int64 = 10
+	userFeeCases := []struct {
+		minGasPriceAmount   int64
+		blockGasPriceAmount int64
+		input               std.Fee
+		expectedOK          bool
+	}{
+		// user's gas wanted and gas fee: 0.1ugnot to 0.5ugnot
+		// validator's minGasPrice: 0.3 ugnot
+		// block gas price: 0.2ugnot
+
+		{3, 2, std.NewFee(100, std.NewCoin("ugnot", 10)), false},
+		{3, 2, std.NewFee(100, std.NewCoin("ugnot", 20)), false},
+		{3, 2, std.NewFee(100, std.NewCoin("ugnot", 30)), true},
+		{3, 2, std.NewFee(100, std.NewCoin("ugnot", 40)), true},
+		{3, 2, std.NewFee(100, std.NewCoin("ugnot", 50)), true},
+
+		// validator's minGasPrice: 0.3 ugnot
+		// block gas price: 0.2ugnot
+		{2, 3, std.NewFee(100, std.NewCoin("ugnot", 10)), false},
+		{2, 3, std.NewFee(100, std.NewCoin("ugnot", 20)), false},
+		{2, 3, std.NewFee(100, std.NewCoin("ugnot", 30)), true},
+		{2, 3, std.NewFee(100, std.NewCoin("ugnot", 40)), true},
+		{2, 3, std.NewFee(100, std.NewCoin("ugnot", 50)), true},
+	}
+
+	// setup
+	env := setupTestEnv()
+	ctx := env.ctx
+	// validator min gas price // 0.3 ugnot per gas
+	for i, c := range userFeeCases {
+
+		ctx = ctx.WithMinGasPrices(
+
+			[]std.GasPrice{
+				{Gas: gasPriceGas, Price: std.Coin{Denom: "ugnot", Amount: c.minGasPriceAmount}},
+			},
+		)
+		// block gas price:  0.2 ugnot per gas
+		blockHeader := ctx.BlockHeader().(*bft.Header)
+		blockHeader.GasPriceGas = gasPriceGas
+		blockHeader.GasPriceAmount = c.blockGasPriceAmount
+		blockHeader.GasPriceDenom = "ugnot"
+		ctx = ctx.WithBlockHeader(blockHeader)
+
+		res := EnsureSufficientMempoolFees(ctx, c.input)
+		require.Equal(
+			t, c.expectedOK, res.IsOK(),
+			"unexpected result; case #%d, input: %v, log: %v", i, c.input, res.Log,
+		)
+	}
+}

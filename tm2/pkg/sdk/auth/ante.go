@@ -3,7 +3,6 @@ package auth
 import (
 	"encoding/hex"
 	"fmt"
-	"math/big"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -385,45 +384,47 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 	blockGasPrice := std.GasPrice{
 		Gas: blockHeader.GasPriceGas,
 		Price: std.Coin{
-			Denom:  blockHeader.GasPriceDenom,
 			Amount: blockHeader.GasPriceAmount,
+			Denom:  blockHeader.GasPriceDenom,
 		},
 	}
-	minGasPrices = append(minGasPrices, blockGasPrice)
+
+	feeGasPrice := std.GasPrice{
+		Gas: fee.GasWanted,
+		Price: std.Coin{
+			Amount: fee.GasFee.Amount,
+			Denom:  fee.GasFee.Denom,
+		},
+	}
+	// check the block gas price
+	if blockGasPrice.Price.IsValid() && !blockGasPrice.Price.IsZero() {
+		if feeGasPrice.IsGTE(blockGasPrice) == false {
+			return abciResult(std.ErrInsufficientFee(
+				fmt.Sprintf(
+					"insufficient fees; got: %q required: %q as block gas price", fee.GasFee, blockGasPrice,
+				),
+			))
+		}
+	}
+	// check min gas price set by the node.
 	if len(minGasPrices) == 0 {
 		// no minimum gas price (not recommended)
 		// TODO: allow for selective filtering of 0 fee txs.
 		return sdk.Result{}
 	} else {
-		fgw := big.NewInt(fee.GasWanted)
-		fga := big.NewInt(fee.GasFee.Amount)
-		fgd := fee.GasFee.Denom
-
 		for _, gp := range minGasPrices {
-			gpg := big.NewInt(gp.Gas)
-			gpa := big.NewInt(gp.Price.Amount)
-			gpd := gp.Price.Denom
+			if feeGasPrice.IsGTE(gp) {
+				return sdk.Result{}
+			} else if feeGasPrice.Price.Denom == gp.Price.Denom {
 
-			if fgd == gpd {
-				prod1 := big.NewInt(0).Mul(fga, gpg) // fee amount * price gas
-				prod2 := big.NewInt(0).Mul(fgw, gpa) // fee gas * price amount
-				// This is equivalent to checking
-				// That the Fee / GasWanted ratio is greater than or equal to the minimum GasPrice per gas.
-				// This approach helps us avoid dealing with configurations where the value of
-				// the minimum gas price is set to 0.00001ugnot/gas.
-				if prod1.Cmp(prod2) >= 0 {
-					return sdk.Result{}
-				} else {
-					return abciResult(std.ErrInsufficientFee(
-						fmt.Sprintf(
-							"insufficient fees; got: %q required: %q", fee.GasFee, gp,
-						),
-					))
-				}
+				return abciResult(std.ErrInsufficientFee(
+					fmt.Sprintf(
+						"insufficient fees; got: %q required: %q", fee.GasFee, gp,
+					),
+				))
 			}
 		}
 	}
-
 	return abciResult(std.ErrInsufficientFee(
 		fmt.Sprintf(
 			"insufficient fees; got: %q required (one of): %v", fee.GasFee, minGasPrices,

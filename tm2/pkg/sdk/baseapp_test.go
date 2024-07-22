@@ -1169,3 +1169,86 @@ func TestGetMaximumBlockGas(t *testing.T) {
 	app.setConsensusParams(&abci.ConsensusParams{Block: &abci.BlockParams{MaxGas: -5000000}})
 	require.Panics(t, func() { app.getMaximumBlockGas() })
 }
+
+func TestGasPriceUpdate(t *testing.T) {
+
+	anteOpt := func(bapp *BaseApp) {
+		// this number equals to MaxBlockGas - GasUsed.
+		gasRemainInBlock := int64(100000)
+		bapp.SetAnteHandler(func(ctx Context, tx Tx, simulate bool) (newCtx Context, res Result, abort bool) {
+			// the pass through gas meter stacks a gas meter on top of users gas meter.
+			// the head gas meter is used to limit gas consumption by the tx action is
+			// within the MaxGas limit in a block.
+			gmeter := store.NewPassthroughGasMeter(
+				ctx.GasMeter(),
+				gasRemainInBlock,
+			)
+			newCtx = ctx.WithGasMeter(gmeter)
+
+			count := getCounter(tx)
+			newCtx.GasMeter().ConsumeGas(count, "counter-ante")
+			res = Result{
+				GasWanted: getCounter(tx),
+			}
+			return
+		})
+	}
+
+	routerOpt := func(bapp *BaseApp) {
+		bapp.Router().AddRoute(routeMsgCounter, newTestHandler(func(ctx Context, msg Msg) Result {
+			count := msg.(msgCounter).Counter
+			ctx.GasMeter().ConsumeGas(count, "counter-handler")
+			return Result{}
+		}))
+	}
+
+	app := setupBaseApp(t, anteOpt, routerOpt)
+
+	// set inital gas price in block parameters
+	consParams := &abci.ConsensusParams{
+		Block: &abci.BlockParams{
+			MaxGas:                10000,
+			TargetGas:             600,
+			InitialGasPriceAmount: 10,
+			InitialGasPriceDenom:  "ugnot",
+			InitialGasPriceGas:    100,
+			PriceChangeCompressor: 8,
+		},
+	}
+	// abci inintChain
+	app.InitChain(abci.RequestInitChain{
+		ChainID:         "test-chain",
+		ConsensusParams: consParams,
+	})
+
+	// set gas price in last block header
+	header := &bft.Header{
+		ChainID:        "test-chain",
+		Height:         app.LastBlockHeight() + 1,
+		GasPriceGas:    10,
+		GasPriceAmount: 1,
+		GasPriceDenom:  "ugnot",
+	}
+	// abci BeginBlock
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+	// 700 is counter at Tx level, it will be used as gas consumed at tx level
+	//  10 is counter in countger mesasge, it will used as gas conusemd at message level
+	tx := newTxCounter(700, 0)
+
+	// abci Deliver
+	resDeliver := app.Deliver(tx)
+	require.True(t, resDeliver.IsOK(), fmt.Sprintf("%v", resDeliver))
+
+	resEndBlock := app.EndBlock(abci.RequestEndBlock{})
+	require.True(t, resEndBlock.IsOK(), fmt.Sprintf("%v", resEndBlock))
+
+	// abci Endblock
+	resGasPrice := resEndBlock.Header.(*bft.Header).GasPriceAmount
+	appGasPrice := app.deliverState.ctx.BlockHeader().(*bft.Header).GasPriceAmount
+	// lastest gas price send back to consensus should match with the one set in the app's
+	// deliverState, which will be persisted in the app store later during app.Commit()
+	require.Equal(t, resGasPrice, appGasPrice)
+	// gas price shoud increase by 1 ugnot from 1 ugnot to 2
+	require.Equal(t, int64(2), resGasPrice)
+	app.Commit()
+}
