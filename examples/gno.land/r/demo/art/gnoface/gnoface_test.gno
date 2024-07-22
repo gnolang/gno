@@ -3,6 +3,7 @@ package gnoface
 import (
 	"testing"
 
+	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -64,9 +65,7 @@ D| x   X |O
 		name := ufmt.Sprintf("%d", tc.seed)
 		t.Run(name, func(t *testing.T) {
 			got := Draw(tc.seed)
-			if got != tc.expected {
-				t.Errorf("got %s, expected %s", got, tc.expected)
-			}
+			uassert.Equal(t, string(tc.expected), got)
 		})
 	}
 }
@@ -128,9 +127,7 @@ D| x   X |O
 	for _, tc := range cases {
 		t.Run(tc.path, func(t *testing.T) {
 			got := Render(tc.path)
-			if got != tc.expected {
-				t.Errorf("got %s, expected %s", got, tc.expected)
-			}
+			uassert.Equal(t, tc.expected, got)
 		})
 	}
 }
