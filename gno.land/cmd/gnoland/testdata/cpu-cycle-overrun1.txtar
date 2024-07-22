@@ -19,7 +19,7 @@ gnokey maketx call -pkgpath gno.land/r/cpu_cycle_overrun1 -func AddData -gas-fee
 stdout OK!
 
 # Call Render
-gnokey query vm/qrender --data "gno.land/r/cpu_cycle_overrun1\n"
+gnokey query vm/qrender --data "gno.land/r/cpu_cycle_overrun1:"
 
 -- cpu_cycle_overrun1.gno --
 package cpu_cycle_overrun1
