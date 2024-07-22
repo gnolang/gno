@@ -24,4 +24,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/cmp_iface_5_stdlibs.gno:19: int64 does not implement .uverse.error
+// main/files/types/cmp_iface_5_stdlibs.gno:19:5: int64 does not implement .uverse.error (missing method Error)
