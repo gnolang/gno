@@ -59,6 +59,7 @@ func DisperseGnot(addresses []std.Address, coins std.Coins) {
 	}
 }
 
+// DisperseToken disperses tokens to multiple addresses
 func DisperseToken(addresses []std.Address, coins std.Coins) {
 	caller := std.GetOrigCaller() // get tx sender
 
@@ -89,6 +90,8 @@ func DisperseToken(addresses []std.Address, coins std.Coins) {
 	}
 }
 
+// DisperseTokenString receives a string of addresses and a string of tokens
+// and parses them to be used in DisperseToken
 func DisperseTokenString(addresses string, tokens string) {
 	parsedAddresses, err := parseAddresses(addresses)
 	if err != nil {
@@ -103,6 +106,8 @@ func DisperseTokenString(addresses string, tokens string) {
 	DisperseToken(parsedAddresses, parseTokens)
 }
 
+// DisperseGnotString receives a string of addresses and a string of amounts
+// and parses them to be used in DisperseGnot
 func DisperseGnotString(addresses string, amounts string) {
 	parsedAddresses, err := parseAddresses(addresses)
 	if err != nil {
