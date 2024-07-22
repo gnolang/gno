@@ -58,7 +58,7 @@ func Validators(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultValidato
 	// The latest validator that we know is the
 	// NextValidator of the last block.
 	height := consensusState.GetState().LastBlockHeight + 1
-	height, err := getHeight(height, heightPtr, 1)
+	height, err := getHeight(height, heightPtr)
 	if err != nil {
 		return nil, err
 	}
@@ -344,7 +344,7 @@ func ConsensusState(ctx *rpctypes.Context) (*ctypes.ResultConsensusState, error)
 // ```
 func ConsensusParams(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultConsensusParams, error) {
 	height := consensusState.GetState().LastBlockHeight + 1
-	height, err := getHeight(height, heightPtr, 1)
+	height, err := getHeight(height, heightPtr)
 	if err != nil {
 		return nil, err
 	}

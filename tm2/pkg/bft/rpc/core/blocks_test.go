@@ -79,7 +79,7 @@ func TestGetHeight(t *testing.T) {
 
 	for i, c := range cases {
 		caseString := fmt.Sprintf("test %d failed", i)
-		res, err := getHeight(c.currentHeight, c.heightPtr, c.min)
+		res, err := getHeightWithMin(c.currentHeight, c.heightPtr, c.min)
 		if c.wantErr {
 			require.Error(t, err, caseString)
 		} else {

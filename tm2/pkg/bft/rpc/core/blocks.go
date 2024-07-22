@@ -236,7 +236,7 @@ func filterMinMax(height, low, high, limit int64) (int64, int64, error) {
 // ```
 func Block(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlock, error) {
 	storeHeight := blockStore.Height()
-	height, err := getHeight(storeHeight, heightPtr, 1)
+	height, err := getHeight(storeHeight, heightPtr)
 	if err != nil {
 		return nil, err
 	}
@@ -327,7 +327,7 @@ func Block(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlock, error)
 // ```
 func Commit(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultCommit, error) {
 	storeHeight := blockStore.Height()
-	height, err := getHeight(storeHeight, heightPtr, 1)
+	height, err := getHeight(storeHeight, heightPtr)
 	if err != nil {
 		return nil, err
 	}
@@ -400,7 +400,7 @@ func Commit(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultCommit, erro
 // ```
 func BlockResults(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlockResults, error) {
 	storeHeight := blockStore.Height()
-	height, err := getHeight(storeHeight, heightPtr, 0)
+	height, err := getHeightWithMin(storeHeight, heightPtr, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -417,7 +417,11 @@ func BlockResults(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlockR
 	return res, nil
 }
 
-func getHeight(currentHeight int64, heightPtr *int64, min int64) (int64, error) {
+func getHeight(currentHeight int64, heightPtr *int64) (int64, error) {
+	return getHeightWithMin(currentHeight, heightPtr, 1)
+}
+
+func getHeightWithMin(currentHeight int64, heightPtr *int64, min int64) (int64, error) {
 	if heightPtr != nil {
 		height := *heightPtr
 		if height < min {
