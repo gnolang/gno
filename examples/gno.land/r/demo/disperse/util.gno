@@ -22,14 +22,14 @@ func parseAddresses(addresses string) ([]std.Address, error) {
 }
 
 func splitString(input string) (string, string) {
-    var pos int
-    for i, char := range input {
-        if !unicode.IsDigit(char) {
-            pos = i
-            break
-        }
-    }
-    return input[:pos], input[pos:]
+	var pos int
+	for i, char := range input {
+		if !unicode.IsDigit(char) {
+			pos = i
+			break
+		}
+	}
+	return input[:pos], input[pos:]
 }
 
 func parseTokens(tokens string) ([]std.Coin, error) {

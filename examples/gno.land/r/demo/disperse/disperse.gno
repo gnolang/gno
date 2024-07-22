@@ -11,17 +11,17 @@ func DisperseGnot(addresses []std.Address, coins std.Coins) {
 	coinSent := std.GetOrigSend() // get Coins sent with call
 	caller := std.GetOrigCaller() // get tx sender
 
-  // Check if caller correctly sent positif amount of coins
-  for _, coin := range coins {
-    if coin.Amount <= 0 {
-      panic(ErrNegativeCoinAmount)
-    }
-  }
+	// Check if caller correctly sent positive amount of coins
+	for _, coin := range coins {
+		if coin.Amount <= 0 {
+			panic(ErrNegativeCoinAmount)
+		}
+	}
 
-  // Check if number of addresses and coins match
-  if len(addresses) != len(coins) {
-    panic(ErrNumAddrValMismatch)
-  }
+	// Check if number of addresses and coins match
+	if len(addresses) != len(coins) {
+		panic(ErrNumAddrValMismatch)
+	}
 
 	// Get address of Disperse realm
 	realmAddr := std.CurrentRealm().Addr()
@@ -39,10 +39,10 @@ func DisperseGnot(addresses []std.Address, coins std.Coins) {
 		panic(ErrWrongAmount)
 	}
 
-  // Check if the realm has zero ugnot
-  if banker.GetCoins(realmAddr).AmountOf("ugnot") != coinSent.AmountOf("ugnot") {
-    panic(ErrBalanceNotEqToAmountSent)
-  }
+	// Check if the realm has zero ugnot
+	if banker.GetCoins(realmAddr).AmountOf("ugnot") != coinSent.AmountOf("ugnot") {
+		panic(ErrBalanceNotEqToAmountSent)
+	}
 
 	// Send coins
 	for i, _ := range addresses {
@@ -62,17 +62,17 @@ func DisperseGnot(addresses []std.Address, coins std.Coins) {
 func DisperseToken(addresses []std.Address, coins std.Coins) {
 	caller := std.GetOrigCaller() // get tx sender
 
-	// Check if caller correctly sent positif amount of coins
-  	for _, coin := range coins {
-    	if coin.Amount <= 0 {
-      		panic(ErrNegativeCoinAmount)
-    	}
-  	}
+	// Check if caller correctly sent positive amount of coins
+	for _, coin := range coins {
+		if coin.Amount <= 0 {
+			panic(ErrNegativeCoinAmount)
+		}
+	}
 
-  	// Check if number of addresses and coins match
-  	if len(addresses) != len(coins) {
-    	panic(ErrNumAddrValMismatch)
-  	}
+	// Check if number of addresses and coins match
+	if len(addresses) != len(coins) {
+		panic(ErrNumAddrValMismatch)
+	}
 
 	// Transfer tokens into the realm
 	for _, coin := range coins {
@@ -121,4 +121,3 @@ func DisperseGnotString(addresses string, amounts string) {
 
 	DisperseGnot(parsedAddresses, coins)
 }
-
