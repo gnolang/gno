@@ -32,6 +32,9 @@ func (r *Router) Render(reqPath string) string {
 			patPart := patParts[i]
 			reqPart := reqParts[i]
 
+			if strings.Contains(patPart, "?") {
+				continue
+			}
 			if patPart == "*" {
 				continue
 			}
