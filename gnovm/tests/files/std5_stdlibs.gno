@@ -16,7 +16,7 @@ func main() {
 // panic frame not found
 // callerAt<VPBlock(3,44)>(n<VPBlock(1,0)>)
 //     gonative:std.callerAt
-// std<VPBlock(2,0)>.GetCallerAt(int)
+// std<VPBlock(2,0)>.GetCallerAt(2)
 //     std/native.gno:44
 // main<VPBlock(1,0)>()
 //     main/files/std5_stdlibs.gno:10

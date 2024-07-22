@@ -178,21 +178,54 @@ func toExprTrace(ex Expr) string {
 }
 
 func toTypeValueTrace(tv TypedValue) string {
-	switch val := tv.V.(type) {
-	case StringValue:
-		return val.String()
-	case *ArrayValue:
-		return fmt.Sprintf("%s<len=%d>", tv.T.String(), val.GetLength())
-	case *SliceValue:
-		return fmt.Sprintf("%s<len=%d>", tv.T.String(), val.Length)
-	case *StructValue:
-		return fmt.Sprintf("%s", tv.T.String())
-	case *FuncValue:
-		return fmt.Sprintf("%s", tv.T.String())
-	case *MapValue:
-		return fmt.Sprintf("%s<len=%d>", tv.T.String(), val.List.Size)
-	case *PointerValue, BigintValue, BigdecValue:
-		return tv.String()
+
+	switch bt := baseOf(tv.T).(type) {
+	case PrimitiveType:
+		switch bt {
+		case UntypedBoolType, BoolType:
+			return fmt.Sprintf("%t", tv.GetBool())
+		case UntypedStringType, StringType:
+			return tv.GetString()
+		case IntType:
+			return fmt.Sprintf("%d", tv.GetInt())
+		case Int8Type:
+			return fmt.Sprintf("%d", tv.GetInt8())
+		case Int16Type:
+			return fmt.Sprintf("%d", tv.GetInt16())
+		case UntypedRuneType, Int32Type:
+			return fmt.Sprintf("%d", tv.GetInt32())
+		case Int64Type:
+			return fmt.Sprintf("%d", tv.GetInt64())
+		case UintType:
+			return fmt.Sprintf("%d", tv.GetUint())
+		case Uint8Type:
+			return fmt.Sprintf("%d", tv.GetUint8())
+		case DataByteType:
+			return fmt.Sprintf("%d", tv.GetDataByte())
+		case Uint16Type:
+			return fmt.Sprintf("%d", tv.GetUint16())
+		case Uint32Type:
+			return fmt.Sprintf("%d", tv.GetUint32())
+		case Uint64Type:
+			return fmt.Sprintf("%d", tv.GetUint64())
+		case Float32Type:
+			return fmt.Sprintf("%v", tv.GetFloat32())
+		case Float64Type:
+			return fmt.Sprintf("%v", tv.GetFloat64())
+		case UntypedBigintType, BigintType:
+			return tv.V.(BigintValue).V.String()
+		case UntypedBigdecType, BigdecType:
+			return tv.V.(BigdecValue).V.String()
+		}
+	case *ArrayType:
+		v := tv.V.(*ArrayValue)
+		return fmt.Sprintf("%s<len=%d>", tv.T.String(), v.GetLength())
+	case *SliceType:
+		v := tv.V.(*SliceValue)
+		return fmt.Sprintf("%s<len=%d>", tv.T.String(), v.Length)
+	case *MapType:
+		v := tv.V.(*MapValue)
+		return fmt.Sprintf("%s<len=%d>", tv.T.String(), v.List.Size)
 	}
 
 	return tv.T.String()
