@@ -19,6 +19,9 @@ const (
 	protoHTTP  = "http"
 	protoHTTPS = "https"
 	protoTCP   = "tcp"
+
+	portHTTP  = "80"
+	portHTTPS = "443"
 )
 
 var (
@@ -65,7 +68,7 @@ func (c *Client) SendRequest(ctx context.Context, request types.RPCRequest) (*ty
 	}
 
 	// Make sure the ID matches
-	if response.ID != response.ID {
+	if request.ID != response.ID {
 		return nil, ErrRequestResponseIDMismatch
 	}
 
@@ -260,9 +263,9 @@ func parseRemoteAddr(remoteAddr string) (string, string) {
 	if !strings.Contains(address, ":") {
 		switch protocol {
 		case protoHTTPS:
-			address += ":443"
+			address += ":" + portHTTPS
 		case protoHTTP, protoTCP:
-			address += ":80"
+			address += ":" + portHTTP
 		default: // noop
 		}
 	}

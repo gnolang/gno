@@ -157,53 +157,101 @@ func createTestServer(
 func TestClient_SendRequest(t *testing.T) {
 	t.Parallel()
 
-	var (
-		request = types.RPCRequest{
-			JSONRPC: "2.0",
-			ID:      types.JSONRPCStringID("id"),
-		}
+	t.Run("valid request, response", func(t *testing.T) {
+		t.Parallel()
 
-		handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, http.MethodPost, r.Method)
-			require.Equal(t, "application/json", r.Header.Get("content-type"))
-
-			// Parse the message
-			var req types.RPCRequest
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
-			require.Equal(t, request.ID.String(), req.ID.String())
-
-			// Send an empty response back
-			response := types.RPCResponse{
+		var (
+			request = types.RPCRequest{
 				JSONRPC: "2.0",
-				ID:      req.ID,
+				ID:      types.JSONRPCStringID("id"),
 			}
 
-			// Marshal the response
-			marshalledResponse, err := json.Marshal(response)
-			require.NoError(t, err)
+			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, http.MethodPost, r.Method)
+				require.Equal(t, "application/json", r.Header.Get("content-type"))
 
-			_, err = w.Write(marshalledResponse)
-			require.NoError(t, err)
-		})
+				// Parse the message
+				var req types.RPCRequest
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
+				require.Equal(t, request.ID.String(), req.ID.String())
 
-		server = createTestServer(t, handler)
-	)
+				// Send an empty response back
+				response := types.RPCResponse{
+					JSONRPC: "2.0",
+					ID:      req.ID,
+				}
 
-	// Create the client
-	c, err := NewClient(server.URL)
-	require.NoError(t, err)
+				// Marshal the response
+				marshalledResponse, err := json.Marshal(response)
+				require.NoError(t, err)
 
-	ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancelFn()
+				_, err = w.Write(marshalledResponse)
+				require.NoError(t, err)
+			})
 
-	// Send the request
-	resp, err := c.SendRequest(ctx, request)
-	require.NoError(t, err)
+			server = createTestServer(t, handler)
+		)
 
-	assert.Equal(t, request.ID, resp.ID)
-	assert.Equal(t, request.JSONRPC, resp.JSONRPC)
-	assert.Nil(t, resp.Result)
-	assert.Nil(t, resp.Error)
+		// Create the client
+		c, err := NewClient(server.URL)
+		require.NoError(t, err)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancelFn()
+
+		// Send the request
+		resp, err := c.SendRequest(ctx, request)
+		require.NoError(t, err)
+
+		assert.Equal(t, request.ID, resp.ID)
+		assert.Equal(t, request.JSONRPC, resp.JSONRPC)
+		assert.Nil(t, resp.Result)
+		assert.Nil(t, resp.Error)
+	})
+
+	t.Run("response ID mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			request = types.RPCRequest{
+				JSONRPC: "2.0",
+				ID:      types.JSONRPCStringID("id"),
+			}
+
+			handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				require.Equal(t, http.MethodPost, r.Method)
+				require.Equal(t, "application/json", r.Header.Get("content-type"))
+
+				// Send an empty response back,
+				// with an invalid ID
+				response := types.RPCResponse{
+					JSONRPC: "2.0",
+					ID:      types.JSONRPCStringID("totally random ID"),
+				}
+
+				// Marshal the response
+				marshalledResponse, err := json.Marshal(response)
+				require.NoError(t, err)
+
+				_, err = w.Write(marshalledResponse)
+				require.NoError(t, err)
+			})
+
+			server = createTestServer(t, handler)
+		)
+
+		// Create the client
+		c, err := NewClient(server.URL)
+		require.NoError(t, err)
+
+		ctx, cancelFn := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancelFn()
+
+		// Send the request
+		resp, err := c.SendRequest(ctx, request)
+		assert.Nil(t, resp)
+		assert.ErrorIs(t, err, ErrRequestResponseIDMismatch)
+	})
 }
 
 func TestClient_SendBatchRequest(t *testing.T) {
