@@ -521,11 +521,11 @@ func valName(x int) string {
 
 func benchBytes(b *testing.B, sizes []int, f func(b *testing.B, n int)) {
 	for _, n := range sizes {
-		/* XXX remove testenv
+		// XXX remove testenv
 		if isRaceBuilder && n > 4<<10 {
 			continue
 		}
-		*/
+
 		b.Run(valName(n), func(b *testing.B) {
 			if len(bmbuf) < n {
 				bmbuf = make([]byte, n)
@@ -539,7 +539,7 @@ func benchBytes(b *testing.B, sizes []int, f func(b *testing.B, n int)) {
 var indexSizes = []int{10, 32, 4 << 10, 4 << 20, 64 << 20}
 
 // XXX remove testenv
-// var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
+var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
 
 func BenchmarkIndexByte(b *testing.B) {
 	benchBytes(b, indexSizes, bmIndexByte(bytes.IndexByte))

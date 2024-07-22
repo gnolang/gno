@@ -35,15 +35,15 @@ jobs:
               fail_ci_if_error: true
               flags: ${{ inputs.modulepath }}
     # TODO: We have to fix race conditions before running this job
-    # test-with-race:
-    #     runs-on: ubuntu-latest
-    #     steps:
-    #     - name: Install Go
-    #       uses: actions/setup-go@v5
-    #       with:
-    #           go-version: ${{ inputs.go-version }}
-    #     - name: Checkout code
-    #       uses: actions/checkout@v4
-    #     - name: Go race test
-    #       run: go test -race -timeout ${{ inputs.tests-timeout }} ./...
-    #       working-directory:  ${{ inputs.modulepath }}
+    test-with-race:
+        runs-on: ubuntu-latest
+        steps:
+        - name: Install Go
+          uses: actions/setup-go@v5
+          with:
+              go-version: ${{ inputs.go-version }}
+        - name: Checkout code
+          uses: actions/checkout@v4
+        - name: Go race test
+          run: go test -race -timeout ${{ inputs.tests-timeout }} ./...
+          working-directory:  ${{ inputs.modulepath }}
