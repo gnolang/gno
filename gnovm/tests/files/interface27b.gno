@@ -7,4 +7,4 @@ func main() {
 }
 
 // Output:
-// map{(0 int):(undefined) nil}
+// map{(0 int):(undefined)}

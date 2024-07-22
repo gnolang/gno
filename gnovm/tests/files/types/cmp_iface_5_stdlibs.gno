@@ -13,16 +13,15 @@ func (e Error) Error() string {
 
 var errCmp = errors.New("XXXX")
 
-// specil case:
+// special case:
 // one is interface
 func main() {
-	if Error(0) == errCmp { // this would not convert, errCmp is interface
-		//if errCmp == 1 {
+	if errCmp == int64(1) {
 		println("what the firetruck?")
 	} else {
 		println("something else")
 	}
 }
 
-// Output:
-// something else
+// Error:
+// main/files/types/cmp_iface_5_stdlibs.gno:19: int64 does not implement .uverse.error

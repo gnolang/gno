@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/0a1f_filetest.gno:6: cannot use int as string
+// main/files/types/cmp_slice_4.gno:6: cannot use int as string

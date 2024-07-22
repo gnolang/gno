@@ -412,13 +412,7 @@ func (tv TypedValue) String() string {
 
 func (tv TypedValue) ProtectedString(seen *seenValues) string {
 	if tv.IsUndefined() {
-		var n string
-		if tv.T == nil {
-			n = "nil"
-		} else {
-			n = tv.T.String()
-		}
-		return "(undefined)" + " " + n
+		return "(undefined)"
 	}
 	vs := ""
 	if tv.V == nil {

@@ -44,7 +44,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
-			// both NativeType, use reflect to assert.
 			// convert go-native to gno type (shallow).
 			*tv = go2GnoValue2(alloc, store, tv.V.(*NativeValue).Value, false)
 			ConvertTo(alloc, store, tv, t)
@@ -73,7 +72,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 	}
 GNO_CASE:
 	// special case for interface target
-	// see: go.dev/issue/13061
 	if t.Kind() == InterfaceKind {
 		return
 	}
@@ -870,8 +868,8 @@ GNO_CASE:
 				"cannot convert %s to %s",
 				tv.T.String(), k.String()))
 		}
-	case BigintKind:
-		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
+	//case BigintKind:
+	//	ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	default:
 		panic(fmt.Sprintf(
 			"cannot convert %s to %s",

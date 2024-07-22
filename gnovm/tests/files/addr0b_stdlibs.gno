@@ -20,4 +20,4 @@ func main() {
 }
 
 // Output:
-// (struct{(struct{( string),( string),(0 int),(0 int),(nil github.com/gnolang/gno/_test/net/http.Header),(undefined) nil,(0 int64),(nil []string),(false bool),( string),(nil github.com/gnolang/gno/_test/net/http.Values),(nil github.com/gnolang/gno/_test/net/http.Values),(nil github.com/gnolang/gno/_test/net/http.Header),( string),( string),(nil *github.com/gnolang/gno/_test/net/http.Response)} github.com/gnolang/gno/_test/net/http.Request),( string)} main.extendedRequest)
+// (struct{(struct{( string),( string),(0 int),(0 int),(nil github.com/gnolang/gno/_test/net/http.Header),(undefined),(0 int64),(nil []string),(false bool),( string),(nil github.com/gnolang/gno/_test/net/http.Values),(nil github.com/gnolang/gno/_test/net/http.Values),(nil github.com/gnolang/gno/_test/net/http.Header),( string),( string),(nil *github.com/gnolang/gno/_test/net/http.Response)} github.com/gnolang/gno/_test/net/http.Request),( string)} main.extendedRequest)

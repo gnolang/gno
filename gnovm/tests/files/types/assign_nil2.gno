@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_nil2.gno:7: cannot assign to (const (undefined) nil)
+// main/files/types/assign_nil2.gno:7: cannot assign to (const (undefined))
