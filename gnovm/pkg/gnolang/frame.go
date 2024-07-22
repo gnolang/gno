@@ -178,7 +178,6 @@ func toExprTrace(ex Expr) string {
 }
 
 func toTypeValueTrace(tv TypedValue) string {
-
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		switch bt {
