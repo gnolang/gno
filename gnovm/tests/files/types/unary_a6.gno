@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/unary_a6.gno:7: operator ^ not defined on: Float64Kind
+// main/files/types/unary_a6.gno:7:7: operator ^ not defined on: Float64Kind

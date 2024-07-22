@@ -243,14 +243,14 @@ func (m *Machine) doOpTypeAssert1() {
 
 			// t is Gno interface.
 			// assert that x implements type.
-			var impl bool
-			impl = it.IsImplementedBy(xt)
-			if !impl {
+			err := it.VerifyImplementedBy(xt)
+			if err != nil {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
-					"%s doesn't implement %s",
+					"%s doesn't implement %s (%s)",
 					xt.String(),
-					it.String())
+					it.String(),
+					err.Error())
 				m.Panic(typedString(ex))
 				return
 			}

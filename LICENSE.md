@@ -20,7 +20,7 @@ You should have received a copy of the GNO Network General Public License along
 with this program.  If not, see <https://gno.land/license>.
 
 Attached below are the terms of the GNO Network General Public License, Version
-4 (a fork of the GNU Afferro General Public License 3).
+4 (a fork of the GNU Affero General Public License 3).
 
 ## Additional Terms
 
@@ -409,7 +409,7 @@ that material) supplement the terms of this License with terms:
 -   g) Requiring strong attribution such as notices on any user interfaces
     that run or convey any covered work, such as a prominent link to a URL
     on the header of a website, such that all users of the covered work may
-    become aware of the the notice, for a period no longer than 20 years.
+    become aware of the notice, for a period no longer than 20 years.
 
 All other non-permissive additional terms are considered "further
 restrictions" within the meaning of section 10.  If the Program as you
