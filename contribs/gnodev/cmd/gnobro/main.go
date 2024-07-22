@@ -165,10 +165,9 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("unable to get signer for account %q: %w", address, err)
 	}
 
-	target := resolveUnixOrTCPAddr(cfg.remote)
-	cl, err := client.NewHTTPClient(target)
+	cl, err := client.NewHTTPClient(cfg.remote)
 	if err != nil {
-		return fmt.Errorf("unable to create http client for %q: %w", target, err)
+		return fmt.Errorf("unable to create http client for %q: %w", cfg.remote, err)
 	}
 
 	gnocl := &gnoclient.Client{
