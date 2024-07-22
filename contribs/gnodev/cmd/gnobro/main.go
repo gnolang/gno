@@ -415,29 +415,6 @@ func getSignerForAccount(io commands.IO, address string, kb keys.Keybase, cfg *b
 	return signer, nil
 }
 
-func resolveUnixOrTCPAddr(in string) (out string) {
-	var err error
-	var addr net.Addr
-
-	if strings.HasPrefix(in, "unix://") {
-		in = strings.TrimPrefix(in, "unix://")
-		if addr, err := net.ResolveUnixAddr("unix", in); err == nil {
-			return fmt.Sprintf("%s://%s", addr.Network(), addr.String())
-		}
-
-		err = fmt.Errorf("unable to resolve unix address `unix://%s`: %w", in, err)
-	} else { // don't bother to checking prefix
-		in = strings.TrimPrefix(in, "tcp://")
-		if addr, err = net.ResolveTCPAddr("tcp", in); err == nil {
-			return fmt.Sprintf("%s://%s", addr.Network(), addr.String())
-		}
-
-		err = fmt.Errorf("unable to resolve tcp address `tcp://%s`: %w", in, err)
-	}
-
-	panic(err)
-}
-
 func CommandLimiterMiddleware() wish.Middleware {
 	return func(next ssh.Handler) ssh.Handler {
 		return func(s ssh.Session) {
