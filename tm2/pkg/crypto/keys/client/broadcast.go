@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"os"
 
@@ -88,21 +89,23 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 	if res.CheckTx.IsErr() {
 		return errors.New("transaction failed %#v\nlog %s", res, res.CheckTx.Log)
 	} else if res.DeliverTx.IsErr() {
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
-	} else {
-		switch cfg.Output {
-		case TEXT_FORMAT:
-			io.Println(string(res.DeliverTx.Data))
-			io.Println("OK!")
-			io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
-			io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
-			io.Println("HEIGHT:    ", res.Height)
-			io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
-		case JSON_FORMAT:
-			io.Printf(formatDeliverTxResponse(res.DeliverTx, res.Height))
-		default:
-			return errors.New("Invalid output format")
-		}
+	}
+
+	switch cfg.Output {
+	case TEXT_FORMAT:
+		io.Println(string(res.DeliverTx.Data))
+		io.Println("OK!")
+		io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
+		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
+		io.Println("HEIGHT:    ", res.Height)
+		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+	case JSON_FORMAT:
+		io.Println(formatDeliverTxResponse(res.DeliverTx, res.Hash, res.Height))
+	default:
+		return errors.New("Invalid output format")
 	}
 
 	return nil
