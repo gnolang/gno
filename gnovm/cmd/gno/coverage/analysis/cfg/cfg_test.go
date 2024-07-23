@@ -715,7 +715,7 @@ type CFGWrapper struct {
 	cfg   *CFG
 	exp   map[int]ast.Stmt
 	stmts map[ast.Stmt]int
-	info *types.Info
+	info  *types.Info
 	fset  *token.FileSet
 	f     *ast.File
 }
