@@ -24,7 +24,7 @@ type writeNopCloser struct{ io.Writer }
 func (writeNopCloser) Close() error { return nil }
 
 // TODO (Marc): move evalTest to gnovm/tests package and remove code duplicates
-func evalTest(debugAddr, in, file string) (out, err, qtacktrace string) {
+func evalTest(debugAddr, in, file string) (out, err, stacktrace string) {
 	bout := bytes.NewBufferString("")
 	berr := bytes.NewBufferString("")
 	stdin := bytes.NewBufferString(in)
@@ -59,7 +59,7 @@ func evalTest(debugAddr, in, file string) (out, err, qtacktrace string) {
 
 	defer m.Release()
 	defer func() {
-		qtacktrace = strings.TrimSpace(strings.ReplaceAll(m.ExceptionsStacktrace(), "../../tests/files/", "files/"))
+		stacktrace = strings.TrimSpace(strings.ReplaceAll(m.ExceptionsStacktrace(), "../../tests/files/", "files/"))
 	}()
 
 	if debugAddr != "" {
@@ -72,7 +72,7 @@ func evalTest(debugAddr, in, file string) (out, err, qtacktrace string) {
 	m.RunFiles(f)
 	ex, _ := gnolang.ParseExpr("main()")
 	m.Eval(ex)
-	out, err, qtacktrace = bout.String(), berr.String(), m.ExceptionsStacktrace()
+	out, err, stacktrace = bout.String(), berr.String(), m.ExceptionsStacktrace()
 	return
 }
 

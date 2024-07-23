@@ -20,16 +20,16 @@ func TestEvalFiles(t *testing.T) {
 			continue
 		}
 		t.Run(f.Name(), func(t *testing.T) {
-			out, err, qtacktrace := evalTest("", "", path.Join(dir, f.Name()))
+			out, err, stacktrace := evalTest("", "", path.Join(dir, f.Name()))
 
 			if wantErr != "" && !strings.Contains(err, wantErr) ||
 				wantErr == "" && err != "" {
 				t.Fatalf("unexpected error\nWant: %s\n Got: %s", wantErr, err)
 			}
 
-			if wantStacktrace != "" && !strings.Contains(qtacktrace, wantStacktrace) ||
-				wantStacktrace == "" && qtacktrace != "" {
-				t.Fatalf("unexpected stacktrace\nWant: %s\n Got: %s", wantStacktrace, qtacktrace)
+			if wantStacktrace != "" && !strings.Contains(stacktrace, wantStacktrace) ||
+				wantStacktrace == "" && stacktrace != "" {
+				t.Fatalf("unexpected stacktrace\nWant: %s\n Got: %s", wantStacktrace, stacktrace)
 			}
 			if wantOut != "" && out != wantOut {
 				t.Fatalf("unexpected output\nWant: %s\n Got: %s", wantOut, out)
