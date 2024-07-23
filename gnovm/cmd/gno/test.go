@@ -26,6 +26,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
+
+	_ "github.com/gnolang/gno/gnovm/cmd/gno/coverage/checker"
 )
 
 type testCfg struct {
@@ -36,6 +38,7 @@ type testCfg struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	withNativeFallback  bool
+	withCoverage		bool
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -148,6 +151,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"print-runtime-metrics",
 		false,
 		"print runtime metrics (gas, memory, cpu cycles)",
+	)
+
+	fs.BoolVar(
+		&c.withCoverage,
+		"coverage",
+		false,
+		"print test coverage metrics",
 	)
 }
 
