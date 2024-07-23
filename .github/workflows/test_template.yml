@@ -35,6 +35,9 @@ jobs:
 
             mkdir -p "$GOCOVERDIR" "$TXTARCOVERDIR" "$COVERDIR"
 
+            # filter by modulepath
+            export filter="-pkg=github.com/gnolang/gno/${{ inputs.modulepath }}/..."
+
             # XXX: Simplify coverage of txtar - the current setup is a bit
             # confusing and meticulous. There will be some improvements in Go
             # 1.23 regarding coverage, so we can use this as a workaround until
@@ -42,13 +45,13 @@ jobs:
             go test -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./... -test.gocoverdir=$GOCOVERDIR
             # Print results
             (set +x; echo 'go coverage results:')
-            go tool covdata percent -i=$GOCOVERDIR
+            go tool covdata percent $filter -i=$GOCOVERDIR
             (set +x; echo 'txtar coverage results:')
-            go tool covdata percent -i=$TXTARCOVERDIR
+            go tool covdata percent $filter -i=$TXTARCOVERDIR
 
             # Generate final coverage output
-            go tool covdata textfmt -v 1 -i=$GOCOVERDIR -o gocoverage.out
-            go tool covdata textfmt -v 1 -i=$TXTARCOVERDIR -o txtarcoverage.out
+            go tool covdata textfmt -v 1 $filter -i=$GOCOVERDIR,$TXTARCOVERDIR -o gocoverage.out
+            # go tool covdata textfmt -v 1 $filter -i=$TXTARCOVERDIR -o txtarcoverage.out
 
         - name: Upload go coverage to Codecov
           uses: codecov/codecov-action@v4
@@ -60,15 +63,15 @@ jobs:
             token: ${{ secrets.codecov-token }}
             verbose: true
 
-        - name: Upload txtar coverage to Codecov
-          uses: codecov/codecov-action@v4
-          with:
-            disable_search: true
-            fail_ci_if_error: true
-            file: ${{ inputs.modulepath }}/txtarcoverage.out
-            flags: ${{ inputs.modulepath }}/txtar
-            token: ${{ secrets.codecov-token }}
-            verbose: true
+        # - name: Upload txtar coverage to Codecov
+        #   uses: codecov/codecov-action@v4
+        #   with:
+        #     disable_search: true
+        #     fail_ci_if_error: true
+        #     file: ${{ inputs.modulepath }}/txtarcoverage.out
+        #     flags: ${{ inputs.modulepath }}
+        #     token: ${{ secrets.codecov-token }}
+        #     verbose: true
 
     # TODO: We have to fix race conditions before running this job
     # test-with-race:
