@@ -44,13 +44,10 @@ func (m model) View() string {
 }
 
 func (m model) bannerView() string {
-	if m.width == 0 || m.height == 0 {
-		return "x"
+	banner := m.banner.View()
+	if banner == "" || m.width == 0 || m.height == 0 {
+		return ""
 	}
-
-	banner := m.render.NewStyle().Padding(1, 5).
-		Border(lipgloss.DoubleBorder(), true, false, false).
-		Render(m.banner.View())
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, banner)
 }

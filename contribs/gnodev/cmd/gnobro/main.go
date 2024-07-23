@@ -202,7 +202,7 @@ func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 
 	if cfg.sshListener == "" {
 		if cfg.banner {
-			bcfg.Banner = browser.NewModelBanner(time.Second/100, BannerReader())
+			bcfg.Banner = browser.NewModelBanner(time.Second/50, BannerReader())
 		}
 
 		return runLocal(ctx, cfg, bcfg, cio)
@@ -286,7 +286,7 @@ func runServer(ctx context.Context, cfg *broCfg, bcfg browser.Config, io command
 		bcfgCopy.Renderer = bubbletea.MakeRenderer(s)
 
 		if cfg.banner {
-			bcfgCopy.Banner = browser.NewModelBanner(time.Second/100, BannerReader())
+			bcfgCopy.Banner = browser.NewModelBanner(time.Second/50, BannerReader())
 		}
 
 		if len(s.Command()) > 1 {
