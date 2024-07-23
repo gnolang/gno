@@ -13,21 +13,20 @@ import (
 )
 
 type Branch struct {
-	Pos      token.Pos
-	Taken    bool
-	Filename string
-	Line     int
+	Pos    token.Pos
+	Taken  bool
+	Offset int
 }
 
 type BranchCoverage struct {
-	branches map[token.Pos]*Branch
+	branches map[int]*Branch
 	fset     *token.FileSet
 	debug    bool
 }
 
 func NewBranchCoverage(files []*std.MemFile) *BranchCoverage {
 	bc := &BranchCoverage{
-		branches: make(map[token.Pos]*Branch),
+		branches: make(map[int]*Branch),
 		fset:     token.NewFileSet(),
 		debug:    true,
 	}
@@ -35,48 +34,69 @@ func NewBranchCoverage(files []*std.MemFile) *BranchCoverage {
 	for _, file := range files {
 		if astFile, err := parser.ParseFile(bc.fset, file.Name, file.Body, parser.AllErrors); err == nil {
 			ast.Inspect(astFile, func(n ast.Node) bool {
-				switch stmt := n.(type) {
-				case *ast.IfStmt:
-					pos := stmt.If
-					bc.branches[pos] = &Branch{Pos: pos, Taken: false}
-					if stmt.Else != nil {
-						pos = stmt.Else.Pos()
-						bc.branches[pos] = &Branch{Pos: pos, Taken: false}
-					}
-					// TODO: add more cases
-				}
+				bc.identifyBranch(n)
 				return true
 			})
 		}
 	}
 
+	bc.log("Total branches identified: %d", len(bc.branches))
 	return bc
 }
 
+func (bc *BranchCoverage) identifyBranch(n ast.Node) {
+	switch stmt := n.(type) {
+	case *ast.IfStmt:
+		bc.addBranch(stmt.If)
+		if stmt.Else != nil {
+			switch elseStmt := stmt.Else.(type) {
+			case *ast.BlockStmt:
+				bc.addBranch(elseStmt.Pos())
+			case *ast.IfStmt:
+				bc.addBranch(elseStmt.If)
+			}
+		} else {
+			// implicit else branch
+			bc.addBranch(stmt.Body.End())
+		}
+	case *ast.CaseClause:
+		bc.addBranch(stmt.Pos())
+	case *ast.SwitchStmt:
+		for _, s := range stmt.Body.List {
+			if cc, ok := s.(*ast.CaseClause); ok {
+				bc.addBranch(cc.Pos())
+			}
+		}
+	}
+}
+
+func (bc *BranchCoverage) addBranch(pos token.Pos) {
+	offset := bc.fset.Position(pos).Offset
+	bc.branches[offset] = &Branch{Pos: pos, Taken: false, Offset: offset}
+	bc.log("Branch added at offset %d", offset)
+}
+
 func (bc *BranchCoverage) Instrument(file *std.MemFile) *std.MemFile {
-	bc.log("instrumenting file: %s", file.Name)
 	astFile, err := parser.ParseFile(bc.fset, file.Name, file.Body, parser.AllErrors)
 	if err != nil {
-		bc.log("error parsing file %s: %v", file.Name, err)
+		bc.log("Error parsing file %s: %v", file.Name, err)
 		return file
 	}
 
-	instrumentedFile := astutil.Apply(astFile, nil, func(c *astutil.Cursor) bool {
-		node := c.Node()
-		switch n := node.(type) {
+	astutil.Apply(astFile, func(c *astutil.Cursor) bool {
+		n := c.Node()
+		switch stmt := n.(type) {
 		case *ast.IfStmt:
-			bc.instrumentIfStmt(n)
-		case *ast.SwitchStmt:
-			bc.instrumentSwitchStmt(n)
-		case *ast.ForStmt:
-			bc.instrumentForStmt(n)
+			bc.instrumentIfStmt(stmt)
+		case *ast.CaseClause:
+			bc.instrumentCaseClause(stmt)
 		}
 		return true
-	})
+	}, nil)
 
 	var buf bytes.Buffer
-	if err := printer.Fprint(&buf, bc.fset, instrumentedFile); err != nil {
-		bc.log("error printing instrumented file: %v", err)
+	if err := printer.Fprint(&buf, bc.fset, astFile); err != nil {
+		bc.log("Error printing instrumented file: %v", err)
 		return file
 	}
 
@@ -87,43 +107,25 @@ func (bc *BranchCoverage) Instrument(file *std.MemFile) *std.MemFile {
 }
 
 func (bc *BranchCoverage) instrumentIfStmt(ifStmt *ast.IfStmt) {
-	// instrument if statement
-	ifPos := bc.fset.Position(ifStmt.If)
-	bc.branches[ifStmt.If] = &Branch{Pos: ifStmt.If, Filename: ifPos.Filename, Line: ifPos.Line, Taken: false}
-	ifStmt.Body.List = append([]ast.Stmt{bc.createMarkBranchStmt(ifStmt.If)}, ifStmt.Body.List...)
-
-	// instrument else statement
+	bc.insertMarkBranchStmt(ifStmt.Body, ifStmt.If)
 	if ifStmt.Else != nil {
-		elsePos := bc.fset.Position(ifStmt.Else.Pos())
-		bc.branches[ifStmt.Else.Pos()] = &Branch{Pos: ifStmt.Else.Pos(), Taken: false, Filename: elsePos.Filename, Line: elsePos.Line}
-		switch elseBody := ifStmt.Else.(type) {
+		switch elseStmt := ifStmt.Else.(type) {
 		case *ast.BlockStmt:
-			elseBody.List = append([]ast.Stmt{bc.createMarkBranchStmt(ifStmt.Else.Pos())}, elseBody.List...)
+			bc.insertMarkBranchStmt(elseStmt, ifStmt.Else.Pos())
 		case *ast.IfStmt:
-			// For 'else if', recursively instrument
-			bc.instrumentIfStmt(elseBody)
+			bc.instrumentIfStmt(elseStmt)
 		}
 	}
 }
 
-func (bc *BranchCoverage) instrumentSwitchStmt(switchStmt *ast.SwitchStmt) {
-	for _, stmt := range switchStmt.Body.List {
-		if caseClause, ok := stmt.(*ast.CaseClause); ok {
-			casePos := bc.fset.Position(caseClause.Pos())
-			bc.branches[caseClause.Pos()] = &Branch{Pos: caseClause.Pos(), Taken: false, Filename: casePos.Filename, Line: casePos.Line}
-			caseClause.Body = append([]ast.Stmt{bc.createMarkBranchStmt(caseClause.Pos())}, caseClause.Body...)
-		}
-	}
+func (bc *BranchCoverage) instrumentCaseClause(caseClause *ast.CaseClause) {
+	bc.insertMarkBranchStmt(&ast.BlockStmt{List: caseClause.Body}, caseClause.Pos())
 }
 
-func (bc *BranchCoverage) instrumentForStmt(forStmt *ast.ForStmt) {
-	forPos := bc.fset.Position(forStmt.For)
-	bc.branches[forStmt.For] = &Branch{Pos: forStmt.For, Taken: false, Filename: forPos.Filename, Line: forPos.Line}
-	forStmt.Body.List = append([]ast.Stmt{bc.createMarkBranchStmt(forStmt.For)}, forStmt.Body.List...)
-}
-
-func (bc *BranchCoverage) createMarkBranchStmt(pos token.Pos) ast.Stmt {
-	return &ast.ExprStmt{
+func (bc *BranchCoverage) insertMarkBranchStmt(block *ast.BlockStmt, pos token.Pos) {
+	offset := bc.fset.Position(pos).Offset
+	bc.log("Inserting branch mark at offset %d", offset)
+	markStmt := &ast.ExprStmt{
 		X: &ast.CallExpr{
 			Fun: &ast.SelectorExpr{
 				X:   ast.NewIdent("bc"),
@@ -132,16 +134,20 @@ func (bc *BranchCoverage) createMarkBranchStmt(pos token.Pos) ast.Stmt {
 			Args: []ast.Expr{
 				&ast.BasicLit{
 					Kind:  token.INT,
-					Value: fmt.Sprintf("%d", bc.fset.Position(pos).Offset),
+					Value: fmt.Sprintf("%d", offset),
 				},
 			},
 		},
 	}
+	block.List = append([]ast.Stmt{markStmt}, block.List...)
 }
 
-func (bc *BranchCoverage) MarkBranchTaken(pos token.Pos) {
-	if branch, exists := bc.branches[pos]; exists {
+func (bc *BranchCoverage) MarkBranchTaken(offset int) {
+	if branch, exists := bc.branches[offset]; exists {
 		branch.Taken = true
+		bc.log("Branch taken at offset %d", offset)
+	} else {
+		bc.log("No branch found at offset %d", offset)
 	}
 }
 
@@ -158,7 +164,9 @@ func (bc *BranchCoverage) CalculateCoverage() float64 {
 		}
 	}
 
-	return float64(taken) / float64(total)
+	coverage := float64(taken) / float64(total)
+	bc.log("Total branches: %d, Taken: %d, Coverage: %.2f", total, taken, coverage)
+	return coverage
 }
 
 func (bc *BranchCoverage) log(format string, args ...interface{}) {
