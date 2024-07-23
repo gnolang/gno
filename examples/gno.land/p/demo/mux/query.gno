@@ -15,8 +15,7 @@ func (r *Request) QueryFull() (UrlQuery, string) {
 	urlQueries := UrlQuery{}
 	pathQuery := ""
 	// checking if there is query in r.Path
-	switch {
-	case strings.Contains(r.Path, "?"):
+	if strings.Contains(r.Path, "?") {
 		// get baseUrl and queryString
 		rParts := strings.SplitN(r.Path, "?", 2)
 		if len(rParts) == 1 {
@@ -32,9 +31,8 @@ func (r *Request) QueryFull() (UrlQuery, string) {
 		pathQuery = rTargetPath
 
 		// process the queryString
-		switch {
 		// find the first param index
-		case strings.Contains(queryString, "="):
+		if strings.Contains(queryString, "=") {
 			for _, keyValue := range strings.Split(queryString, "&") {
 				parts := strings.SplitN(keyValue, "=", 2)
 				if len(parts) != 2 {
@@ -43,12 +41,7 @@ func (r *Request) QueryFull() (UrlQuery, string) {
 				key, value := parts[0], parts[1]
 				urlQueries[key] = append(urlQueries[key], value)
 			}
-		default:
-			// continue
 		}
-
-	default:
-		// continue
 	}
 	return urlQueries, pathQuery
 }
