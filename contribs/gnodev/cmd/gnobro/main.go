@@ -200,11 +200,11 @@ func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 	bcfg.URLPrefix = gnoPrefix
 	bcfg.URLPrefix = gnoPrefix
 
-	if cfg.banner {
-		bcfg.Banner = browser.NewModelBanner(time.Second/100, BannerReader())
-	}
-
 	if cfg.sshListener == "" {
+		if cfg.banner {
+			bcfg.Banner = browser.NewModelBanner(time.Second/100, BannerReader())
+		}
+
 		return runLocal(ctx, cfg, bcfg, cio)
 	}
 
@@ -284,6 +284,10 @@ func runServer(ctx context.Context, cfg *broCfg, bcfg browser.Config, io command
 
 		bcfgCopy.Logger = logger.WithGroup(shortid)
 		bcfgCopy.Renderer = bubbletea.MakeRenderer(s)
+
+		if cfg.banner {
+			bcfgCopy.Banner = browser.NewModelBanner(time.Second/100, BannerReader())
+		}
 
 		if len(s.Command()) > 1 {
 			// Erase banner on specifc command
