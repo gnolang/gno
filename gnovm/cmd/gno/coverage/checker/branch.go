@@ -48,6 +48,7 @@ func (bc *BranchCoverage) identifyBranch(n ast.Node) {
 	switch stmt := n.(type) {
 	case *ast.IfStmt:
 		bc.addBranch(stmt.If)
+		bc.handleComplexCondition(stmt.Cond)
 		if stmt.Else != nil {
 			switch elseStmt := stmt.Else.(type) {
 			case *ast.BlockStmt:
@@ -67,6 +68,16 @@ func (bc *BranchCoverage) identifyBranch(n ast.Node) {
 				bc.addBranch(cc.Pos())
 			}
 		}
+	case *ast.FuncDecl:
+		bc.addBranch(stmt.Body.Lbrace)
+	case *ast.ForStmt:
+		if stmt.Cond != nil {
+			bc.addBranch(stmt.Cond.Pos())
+		}
+	case *ast.RangeStmt:
+		bc.addBranch(stmt.For)
+	case *ast.DeferStmt:
+		bc.addBranch(stmt.Defer)
 	}
 }
 
@@ -74,6 +85,25 @@ func (bc *BranchCoverage) addBranch(pos token.Pos) {
 	offset := bc.fset.Position(pos).Offset
 	bc.branches[offset] = &Branch{Pos: pos, Taken: false, Offset: offset}
 	bc.log("Branch added at offset %d", offset)
+}
+
+func (bc *BranchCoverage) handleComplexCondition(expr ast.Expr) {
+	switch e := expr.(type) {
+	case *ast.BinaryExpr:
+		if e.Op == token.LAND || e.Op == token.LOR {
+			bc.addBranch(e.X.Pos())
+			bc.addBranch(e.Y.Pos())
+			bc.handleComplexCondition(e.X)
+			bc.handleComplexCondition(e.Y)
+		}
+	case *ast.ParenExpr:
+		bc.handleComplexCondition(e.X)
+	case *ast.UnaryExpr:
+		if e.Op == token.NOT {
+			bc.addBranch(e.X.Pos())
+			bc.handleComplexCondition(e.X)
+		}
+	}
 }
 
 func (bc *BranchCoverage) Instrument(file *std.MemFile) *std.MemFile {

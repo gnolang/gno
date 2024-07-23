@@ -30,9 +30,9 @@ func test(x int) int {
 `,
 				},
 			},
-			// total branch added offset: 39, 63
+			// total branch added offset: 36, 39, 63
 			executeBranches:  []int{39},
-			expectedCoverage: 0.5, // 1/2
+			expectedCoverage: 0.33,
 		},
 		{
 			name: "If statement with else",
@@ -51,8 +51,9 @@ func test(x int) int {
 }`,
 				},
 			},
+			// total branch added offset: 36, 39, 69
 			executeBranches:  []int{39, 69},
-			expectedCoverage: 1.0,
+			expectedCoverage: 0.67, // 2/3
 		},
 		{
 			name: "Nested if statement",
@@ -75,9 +76,9 @@ func test(x int) int {
 `,
 				},
 			},
-			// total branch added offset: 39, 106, 52, 85
+			// total branch added offset: 36, 39, 106, 52, 85
 			executeBranches:  []int{39, 52, 85},
-			expectedCoverage: 0.75, // 3/4
+			expectedCoverage: 0.60, // 3/5
 		},
 		{
 			name: "Multiple conditions",
@@ -96,9 +97,9 @@ func test(x int, y int) int {
 `,
 				},
 			},
-			// total branch added offset: 46, 83
+			// total branch added offset: 43, 46, 49, 58 83
 			executeBranches:  []int{46},
-			expectedCoverage: 0.5, // 1/2
+			expectedCoverage: 0.20, // 1/5
 		},
 		{
 			name: "Switch statement",
@@ -121,8 +122,98 @@ func test(x int) int {
 `,
 				},
 			},
+			// total branch added offset: 36, 51, 71, 91
 			executeBranches:  []int{51, 71, 91},
+			expectedCoverage: 0.75, // 3/4
+		},
+		{
+			name: "Function coverage",
+			files: []*std.MemFile{
+				{
+					Name: "test.go",
+					Body: `
+package main
+
+func foo() int {
+    return 1
+}
+
+func bar() int {
+    return 2
+}
+
+func main() {
+    foo()
+}
+`,
+				},
+			},
+			// total branch added offset: 30, 63, 93
+			executeBranches:  []int{30, 63},
+			expectedCoverage: 0.67,
+		},
+		{
+			name: "For loop",
+			files: []*std.MemFile{
+				{
+					Name: "test.go",
+					Body: `
+package main
+
+func test() int {
+    sum := 0
+    for i := 0; i < 5; i++ {
+        sum += i
+    }
+    return sum
+}
+`,
+				},
+			},
+			executeBranches:  []int{31, 62}, // 함수 시작과 for 루프 조건
 			expectedCoverage: 1,
+		},
+		{
+			name: "Range loop",
+			files: []*std.MemFile{
+				{
+					Name: "test.go",
+					Body: `
+package main
+
+func test() int {
+    numbers := []int{1, 2, 3, 4, 5}
+    sum := 0
+    for _, num := range numbers {
+        sum += num
+    }
+    return sum
+}
+`,
+				},
+			},
+			executeBranches:  []int{31, 86},
+			expectedCoverage: 1.0,
+		},
+		{
+			name: "Defer statement",
+			files: []*std.MemFile{
+				{
+					Name: "test.go",
+					Body: `
+package main
+
+func test() {
+    defer func() {
+        recover()
+    }()
+    panic("test panic")
+}
+`,
+				},
+			},
+			executeBranches:  []int{27, 33},
+			expectedCoverage: 1.0,
 		},
 	}
 

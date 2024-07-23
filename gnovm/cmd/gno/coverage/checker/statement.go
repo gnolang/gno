@@ -24,7 +24,7 @@ func NewStatementCoverage(files []*std.MemFile) *StatementCoverage {
 		covered: make(map[token.Pos]bool),
 		files:   make(map[string]*ast.File),
 		fset:    token.NewFileSet(),
-		debug:   true,
+		// debug:   true,
 	}
 
 	for _, file := range files {
