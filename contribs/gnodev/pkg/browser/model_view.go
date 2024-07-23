@@ -49,7 +49,15 @@ func (m model) bannerView() string {
 		return ""
 	}
 
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, banner)
+	bannerView := m.render.NewStyle().Margin(1).
+		Render(banner)
+
+	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Center,
+			bannerView,
+			"press <enter> to continue",
+		),
+	)
 }
 
 func (m model) listFuncsView() string {
