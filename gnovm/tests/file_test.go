@@ -141,5 +141,4 @@ func runFileTest(t *testing.T, path string, opts ...RunFileTestOption) {
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
-	// fmt.Printf("GasUsed runFileTest: %v\n", gasUsed)
 }

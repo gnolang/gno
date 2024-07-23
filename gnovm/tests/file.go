@@ -106,7 +106,7 @@ func WithSyncWanted(v bool) RunFileTestOption {
 // the directory where to find the "stdlibs" directory.
 func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64, error) {
 	var f runFileTestOptions
-	gasUsed := int64(0)
+	var gasUsed int64
 	for _, opt := range opts {
 		opt(&f)
 	}
@@ -126,7 +126,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64,
 	store := TestStore(rootDir, "./files", stdin, stdout, stderr, mode)
 	store.SetLogStoreOps(true)
 	m := testMachineCustom(store, pkgPath, stdout, maxAlloc, send)
-	// set a gasMeter for machine that runs the tests, consider the limit of this
+	// Set a gas meter for machine that runs the tests.
 	m.GasMeter = types.NewGasMeter(10000 * 1000 * 1000)
 	beforeGas := m.GasMeter.GasConsumed()
 	// TODO support stdlib groups, but make testing safe;

@@ -235,7 +235,7 @@ func gnoTestPkg(
 		stderr = io.Err()
 		errs   error
 	)
-	gasUsed := int64(0)
+	var gasUsed int64
 	mode := tests.ImportModeStdlibsOnly
 	if cfg.withNativeFallback {
 		// XXX: display a warn?
@@ -289,7 +289,7 @@ func gnoTestPkg(
 
 			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
 			// initial new gasMeter
-			m.GasMeter = store.NewGasMeter(10000 * 1000 * 1000)
+			m.GasMeter = store.NewGasMeter(10_000_000_000)
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
@@ -298,10 +298,10 @@ func gnoTestPkg(
 				m.Alloc = gno.NewAllocator(maxAllocTx)
 			}
 			m.RunMemPackage(memPkg, true)
-			bGasUsed := m.GasMeter.GasConsumed()
+			beforeGasUsed := m.GasMeter.GasConsumed()
 			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, runFlag, io)
-			aGasUsed := m.GasMeter.GasConsumed()
-			gasUsed += (aGasUsed - bGasUsed)
+			afterGasUsed := m.GasMeter.GasConsumed()
+			gasUsed += (afterGasUsed - beforeGasUsed)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}

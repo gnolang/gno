@@ -328,9 +328,6 @@ func tRunner(t *T, fn testingFunc, verbose bool) {
 	if !t.shouldRun(t.name) {
 		return
 	}
-	// m := gno.NewMachine("", nil)
-	// m.GasMeter = store.NewGasMeter(10000 * 1000 * 1000)
-	// gasStart := 0
 	start := unixNano()
 
 	defer func() {
