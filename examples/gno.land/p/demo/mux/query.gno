@@ -2,7 +2,7 @@ package mux
 
 import "strings"
 
-type UrlQuery map[string][]string
+type QueryValues map[string][]string
 
 /*
 Query() returns a full map of key-listValue from request
@@ -11,8 +11,8 @@ to get single param by key, use: req.Query().Get("key")
 to get request path use GetPath()
 */
 
-func (r *Request) QueryFull() (UrlQuery, string) {
-	urlQueries := UrlQuery{}
+func (r *Request) QueryFull() (QueryValues, string) {
+	urlQueries := QueryValues{}
 	pathQuery := ""
 	// checking if there is query in r.Path
 	if strings.Contains(r.Path, "?") {
@@ -48,7 +48,7 @@ func (r *Request) QueryFull() (UrlQuery, string) {
 
 // get the query by key
 // if there is more than one query, returns the very first param
-func (qs UrlQuery) Get(key string) string {
+func (qs QueryValues) Get(key string) string {
 	listMatching, ok := qs[key]
 	if ok {
 		return listMatching[0]
@@ -56,7 +56,7 @@ func (qs UrlQuery) Get(key string) string {
 	return ""
 }
 
-func (r *Request) Query() UrlQuery {
+func (r *Request) Query() QueryValues {
 	uQuery, _ := r.QueryFull()
 	return uQuery
 }
