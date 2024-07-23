@@ -32,7 +32,7 @@ type LoaderModel struct {
 	task    int
 }
 
-func NewTasksManager(tlimit int) LoaderModel {
+func newLoaderModel() LoaderModel {
 	return LoaderModel{
 		spinner: MeterLoader,
 	}

@@ -31,7 +31,7 @@ var (
 )
 
 func (m model) View() string {
-	if m.banner != "" {
+	if !m.bannerDiscarded {
 		return m.bannerView()
 	}
 
@@ -49,8 +49,8 @@ func (m model) bannerView() string {
 	}
 
 	banner := m.render.NewStyle().Padding(1, 5).
-		Border(lipgloss.DoubleBorder(), true, false, true).
-		Render(m.banner)
+		Border(lipgloss.DoubleBorder(), true, false, false).
+		Render(m.banner.View())
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, banner)
 }

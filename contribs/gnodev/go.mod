@@ -1,6 +1,6 @@
 module github.com/gnolang/gno/contribs/gnodev
 
-go 1.22
+go 1.22.1
 
 toolchain go1.22.4
 
@@ -24,6 +24,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/term v0.22.0
+	moul.io/ansicat v0.0.0-20240721080627-fc0662bd47f5
 )
 
 require (

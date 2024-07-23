@@ -6,11 +6,11 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -35,7 +35,7 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
-//go:embed assets/banner_land_1.txt
+//go:embed assets/gnoland-ansi-pink.utf8ans
 var banner string
 
 const gnoPrefix = "gno.land"
@@ -49,6 +49,7 @@ type broCfg struct {
 	defaultRealm   string
 	sshListener    string
 	sshHostKeyPath string
+	banner         bool
 }
 
 var defaultBroOptions = broCfg{
@@ -130,6 +131,13 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
+		&c.banner,
+		"banner",
+		defaultBroOptions.banner,
+		"if enable, display a banner",
+	)
+
+	fs.BoolVar(
 		&c.readonly,
 		"readonly",
 		defaultBroOptions.readonly,
@@ -137,7 +145,7 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 }
 
-func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
+func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -160,7 +168,7 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 		address = integration.DefaultAccount_Name
 	}
 
-	signer, err := getSignerForAccount(io, address, kb, cfg)
+	signer, err := getSignerForAccount(cio, address, kb, cfg)
 	if err != nil {
 		return fmt.Errorf("unable to get signer for account %q: %w", address, err)
 	}
@@ -190,12 +198,17 @@ func execBrowser(cfg *broCfg, args []string, io commands.IO) error {
 	bcfg.GnoClient = gnocl
 	bcfg.URLDefaultValue = path
 	bcfg.URLPrefix = gnoPrefix
+	bcfg.URLPrefix = gnoPrefix
 
-	if cfg.sshListener == "" {
-		return runLocal(ctx, cfg, bcfg, io)
+	if cfg.banner {
+		bcfg.Banner = browser.NewModelBanner(time.Second/100, BannerReader())
 	}
 
-	return runServer(ctx, cfg, bcfg, io)
+	if cfg.sshListener == "" {
+		return runLocal(ctx, cfg, bcfg, cio)
+	}
+
+	return runServer(ctx, cfg, bcfg, cio)
 }
 
 func runLocal(ctx context.Context, cfg *broCfg, bcfg browser.Config, io commands.IO) error {
@@ -272,14 +285,9 @@ func runServer(ctx context.Context, cfg *broCfg, bcfg browser.Config, io command
 		bcfgCopy.Logger = logger.WithGroup(shortid)
 		bcfgCopy.Renderer = bubbletea.MakeRenderer(s)
 
-		switch len(s.Command()) {
-		case 0:
-			bcfgCopy.Banner = fmt.Sprintf(banner, s.User())
-		case 1:
-			// use command argument as path
-			path := filepath.Clean(s.Command()[0])
-			bcfgCopy.URLDefaultValue = path
-		default:
+		if len(s.Command()) > 1 {
+			// Erase banner on specifc command
+			bcfgCopy.Banner = browser.ModelBanner{}
 		}
 
 		bcfgCopy.Logger.Info("session started",
@@ -425,4 +433,17 @@ func CommandLimiterMiddleware() wish.Middleware {
 			}
 		}
 	}
+}
+
+func BannerReader() io.Reader {
+	// XXX: read ans file directly
+	// var buf bytes.Buffer
+	// inputBanner := strings.NewReader(banner)
+	// if err := ansicat.ProcessFile(inputBanner, &buf, 0, 4096); err != nil {
+	// 	panic("unable to process anc file: " + err.Error())
+	// }
+	// read all & convert to delimited bytes reader
+	// return bytes.NewReader(buf.Bytes())
+
+	return strings.NewReader(banner)
 }

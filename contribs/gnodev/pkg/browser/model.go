@@ -34,10 +34,10 @@ type Config struct {
 	URLPrefix       string
 	URLDefaultValue string
 	Logger          *slog.Logger
-	Banner          string
 	Renderer        *lipgloss.Renderer
 	GnoClient       *gnoclient.Client
 	Readonly        bool
+	Banner          ModelBanner
 }
 
 const DefaultGnoLandPrefix = "gno.land/"
@@ -57,7 +57,8 @@ type model struct {
 	logger *slog.Logger
 
 	// misc
-	banner string
+	banner          ModelBanner
+	bannerDiscarded bool
 
 	// Viewport
 	zone           *zone.Manager
@@ -129,17 +130,19 @@ func New(cfg Config) tea.Model {
 	nodeclient := NewNodeClient(cfg.Logger, base, cfg.GnoClient)
 	return &model{
 		logger:     cfg.Logger,
-		banner:     cfg.Banner,
 		render:     cfg.Renderer,
 		readonly:   cfg.Readonly,
 		client:     nodeclient,
-		listFuncs:  newFuncList(),
-		taskLoader: NewTasksManager(3),
+		taskLoader: newLoaderModel(),
+
+		banner:          cfg.Banner,
+		bannerDiscarded: cfg.Banner.Empty(),
 
 		urlInput:  urlinput,
 		urlPrefix: cfg.URLPrefix,
 
 		commandInput: cmdinput,
+		listFuncs:    newFuncList(),
 
 		zone:     zone.New(),
 		pageurls: map[string]string{},
@@ -149,7 +152,7 @@ func New(cfg Config) tea.Model {
 
 func (m model) Init() tea.Cmd {
 	m.history.Init()
-	return nil
+	return m.banner.tick()
 }
 
 type fetchRealmMsg struct {
@@ -377,6 +380,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	cmds := []tea.Cmd{cmd}
 
+	if !m.bannerDiscarded {
+		var bannerCmd tea.Cmd
+		m.banner, bannerCmd = m.banner.Update(msg)
+		cmds = append(cmds, bannerCmd)
+	}
+
 	var viewCmd tea.Cmd
 	m.viewport, viewCmd = m.viewport.Update(msg)
 	cmds = append(cmds, viewCmd)
@@ -390,12 +399,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *model) updateKey(msg tea.KeyMsg) tea.Cmd {
 	var cmd tea.Cmd
-	if m.banner != "" {
+	if !m.bannerDiscarded {
 		switch key := msg.String(); key {
 		case "ctrl+c":
 			return tea.Quit
 		case "enter":
-			m.banner = ""
+			m.bannerDiscarded = true
 		}
 		// Discard other input while banner is active
 		return nil
