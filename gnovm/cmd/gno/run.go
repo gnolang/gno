@@ -188,8 +188,8 @@ func listNonTestFiles(dir string) ([]string, error) {
 func runExpr(m *gno.Machine, expr string) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("panic running expression %s: %v\n%s\n",
-				expr, r, m.ExceptionsStacktrace())
+			fmt.Printf("panic running expression %s: %v\nMachine State:%s\nStacktrace: %s\n",
+				expr, r, m.String(), m.ExceptionsStacktrace())
 			panic(r)
 		}
 	}()

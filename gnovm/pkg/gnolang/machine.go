@@ -773,8 +773,8 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 func (m *Machine) RunFunc(fn Name) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("Machine.RunFunc(%q) panic: %v\n%s\n",
-				fn, r, m.ExceptionsStacktrace())
+			fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				fn, r, m.String(), m.ExceptionsStacktrace())
 			panic(r)
 		}
 	}()
@@ -784,8 +784,8 @@ func (m *Machine) RunFunc(fn Name) {
 func (m *Machine) RunMain() {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("Machine.RunMain() panic: %v\n%s\n",
-				r, m.ExceptionsStacktrace())
+			fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace: %s\n",
+				r, m.String(), m.ExceptionsStacktrace())
 			panic(r)
 		}
 	}()
