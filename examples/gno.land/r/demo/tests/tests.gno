@@ -49,6 +49,8 @@ type TestRealmObject struct {
 	Field string
 }
 
+var TestRealmObjectValue TestRealmObject
+
 func ModifyTestRealmObject(t *TestRealmObject) {
 	t.Field += "_modified"
 }

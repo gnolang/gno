@@ -10,6 +10,7 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	pusers "gno.land/p/demo/users"
+	"gno.land/r/demo/grc20reg"
 	"gno.land/r/demo/users"
 )
 
@@ -24,6 +25,7 @@ func init() {
 	banker = grc20.NewBanker("Foo", "FOO", 4)
 	banker.Mint(admin.Owner(), 1000000*10000) // @administrator (1M)
 	token = banker.Token()
+	grc20reg.Register(token, "")
 }
 
 func TotalSupply() uint64 { return token.TotalSupply() }
