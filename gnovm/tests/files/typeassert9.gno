@@ -17,7 +17,7 @@ func main() {
 }
 
 // Stacktrace:
-// panic interface conversion: interface is nil, not main.Writer
+// panic: interface conversion: interface is nil, not main.Writer
 // main<VPBlock(1,2)>()
 //     main/files/typeassert9.gno:16
 

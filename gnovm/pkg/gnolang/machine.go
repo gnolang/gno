@@ -466,7 +466,7 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 		return
 	}
 
-	var calls []StacktraceCall
+	calls := make([]StacktraceCall, 0, len(m.Stmts))
 	nextStmtIndex := len(m.Stmts) - 1
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
@@ -482,14 +482,16 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 		nextStmtIndex = m.Frames[i].NumStmts - 1
 	}
 
-	stacktrace.Calls = calls
-
 	// if the stacktrace is too long, we trim it down to maxStacktraceSize
 	if len(calls) > maxStacktraceSize {
-		stacktrace.Calls = calls[:maxStacktraceSize/2]
-		stacktrace.Calls = append(stacktrace.Calls, calls[len(calls)-maxStacktraceSize/2:]...)
+		const halfMax = maxStacktraceSize / 2
+
 		stacktrace.NumFramesElided = len(calls) - maxStacktraceSize
+		calls = append(calls[:halfMax], calls[len(calls)-halfMax:]...)
+		calls = calls[:len(calls):len(calls)] // makes remaining part of "calls" GC'able
 	}
+
+	stacktrace.Calls = calls
 
 	return
 }
@@ -2268,21 +2270,24 @@ func (m *Machine) String() string {
 }
 
 func (m *Machine) ExceptionsStacktrace() string {
+	if len(m.Exceptions) == 0 {
+		return ""
+	}
+
 	var builder strings.Builder
 
-	i := 0
-	for i < len(m.Exceptions) {
-		ex := m.Exceptions[i]
-		builder.WriteString(fmt.Sprintf("panic %s\n", ex.Sprint(m)))
-		builder.WriteString(fmt.Sprintf("%s", ex.Stacktrace.String()))
+	ex := m.Exceptions[0]
+	builder.WriteString("panic: " + ex.Sprint(m) + "\n")
+	builder.WriteString(ex.Stacktrace.String())
 
-		if i == 0 && len(m.Exceptions) > 2 {
-			builder.WriteString(fmt.Sprintf("... %d panic(s) elided ...\n", len(m.Exceptions)-2))
-			i = len(m.Exceptions) - 1
-			continue
-		}
-
-		i++
+	switch {
+	case len(m.Exceptions) > 2:
+		fmt.Fprintf(&builder, "... %d panic(s) elided ...\n", len(m.Exceptions)-2)
+		fallthrough // to print last exception
+	case len(m.Exceptions) == 2:
+		ex = m.Exceptions[len(m.Exceptions)-1]
+		builder.WriteString("panic: " + ex.Sprint(m) + "\n")
+		builder.WriteString(ex.Stacktrace.String())
 	}
 
 	return builder.String()

@@ -23,7 +23,7 @@ func main() {
 }
 
 // Stacktrace:
-// panic here
+// panic: here
 // main<VPBlock(1,2)>()
 //     main/files/panic1.gno:22
 

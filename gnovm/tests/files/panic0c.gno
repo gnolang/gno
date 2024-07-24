@@ -19,7 +19,7 @@ func main() {
 }
 
 // Stacktrace:
-// panic wtf
+// panic: wtf
 // f<VPBlock(3,1)>([]string<len=2>,main.S,map[string]string<len=2>,func(s string)( string))
 //     main/files/panic0c.gno:8
 // main<VPBlock(1,2)>()

@@ -11,7 +11,7 @@ func main() {
 }
 
 // Stacktrace:
-// panic other panic
+// panic: other panic
 // main<VPBlock(1,0)>()
 //     main/files/recover1b.gno:8
 

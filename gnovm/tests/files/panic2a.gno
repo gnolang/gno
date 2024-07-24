@@ -12,7 +12,7 @@ func main() {
 }
 
 // Stacktrace:
-// panic here
+// panic: here
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)
 //     main/files/panic2a.gno:5
 // p<VPBlock(3,0)>(i<VPBlock(1,0)> + 1)

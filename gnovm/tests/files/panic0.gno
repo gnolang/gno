@@ -5,7 +5,7 @@ func main() {
 }
 
 // Stacktrace:
-// panic wtf
+// panic: wtf
 // main<VPBlock(1,0)>()
 //     main/files/panic0.gno:4
 

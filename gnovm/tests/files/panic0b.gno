@@ -15,13 +15,13 @@ func f() {
 }
 
 // Stacktrace:
-// panic first
+// panic: first
 // f<VPBlock(3,1)>()
 //     main/files/panic0b.gno:14
 // main<VPBlock(1,0)>()
 //     main/files/panic0b.gno:4
 // ... 1 panic(s) elided ...
-// panic third
+// panic: third
 // f<VPBlock(3,1)>()
 //     main/files/panic0b.gno:9
 // main<VPBlock(1,0)>()

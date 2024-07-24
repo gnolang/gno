@@ -15,7 +15,7 @@ func main() {
 }
 
 // Stacktrace:
-// panic here
+// panic: here
 
 // Error:
 // here

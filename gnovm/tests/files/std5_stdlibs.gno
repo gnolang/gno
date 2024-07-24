@@ -12,8 +12,7 @@ func main() {
 }
 
 // Stacktrace:
-
-// panic frame not found
+// panic: frame not found
 // callerAt<VPBlock(3,44)>(n<VPBlock(1,0)>)
 //     gonative:std.callerAt
 // std<VPBlock(2,0)>.GetCallerAt(2)

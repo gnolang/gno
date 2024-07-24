@@ -126,7 +126,7 @@ func (s Stacktrace) String() string {
 		case call.Frame.Func != nil:
 			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
 			fmt.Fprintf(&builder, "    %s/%s:%d\n", call.Frame.Func.PkgPath, call.Frame.Func.FileName, call.Stmt.GetLine())
-		default:
+		case call.Frame.GoFunc != nil:
 			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
 			fmt.Fprintf(&builder, "    %s\n", call.Frame.GoFunc.Value.Type())
 		}
