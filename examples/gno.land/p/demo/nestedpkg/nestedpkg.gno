@@ -2,6 +2,11 @@
 // It is useful for upgrade patterns relying on namespaces.
 package nestedpkg
 
+// To test this from a realm and have std.CurrentRealm/PrevRealm work correctly,
+// this file is tested from gno.land/r/demo/tests/nestedpkg_test.gno
+// XXX: move test to ths directory once we support testing a package and
+// specifying values for both PrevRealm and CurrentRealm.
+
 import (
 	"std"
 	"strings"
