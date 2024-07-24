@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/groups_test
+// PKGPATH: gno.land/r/demo/groups_test
 package groups_test
 
 import (
@@ -16,4 +16,4 @@ func main() {
 }
 
 // Error:
-// payment must not be less than 200000000
+// payment must not be less than 20000000

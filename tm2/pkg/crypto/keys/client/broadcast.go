@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"os"
 
@@ -40,7 +41,7 @@ func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execBroadcast(cfg, args, commands.NewDefaultIO())
+			return execBroadcast(cfg, args, io)
 		},
 	)
 }
@@ -79,6 +80,7 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 	if res.CheckTx.IsErr() {
 		return errors.New("transaction failed %#v\nlog %s", res, res.CheckTx.Log)
 	} else if res.DeliverTx.IsErr() {
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
 	} else {
 		io.Println(string(res.DeliverTx.Data))
@@ -87,6 +89,7 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
 		io.Println("HEIGHT:    ", res.Height)
 		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 	}
 	return nil
 }
