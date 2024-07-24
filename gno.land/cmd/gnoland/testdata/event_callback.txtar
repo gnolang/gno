@@ -10,7 +10,7 @@ stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED:   [0-9]+'
 stdout 'HEIGHT:     [0-9]+'
 stdout 'EVENTS:     \[{\"type\":\"foo\",\"attrs\":\[{\"key\":\"k1\",\"value\":\"v1\"},{\"key\":\"k2\",\"value\":\"v2\"}],\"pkg_path\":\"gno.land\/r\/demo\/cbee\",\"func\":\"subFoo\"},{\"type\":\"bar\",\"attrs\":\[{\"key\":\"bar\",\"value\":\"baz\"}],\"pkg_path\":\"gno.land\/r\/demo\/cbee\",\"func\":\"subBar\"}]'
-
+stdout 'TX HASH:    '
 
 -- cbee.gno --
 package cbee
