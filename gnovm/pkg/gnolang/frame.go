@@ -129,6 +129,8 @@ func (s Stacktrace) String() string {
 		case call.Frame.GoFunc != nil:
 			fmt.Fprintf(&builder, "%s\n", toExprTrace(cx))
 			fmt.Fprintf(&builder, "    %s\n", call.Frame.GoFunc.Value.Type())
+		default:
+			panic("StacktraceCall has a non-call Frame")
 		}
 	}
 	return builder.String()
@@ -145,7 +147,7 @@ func toExprTrace(ex Expr) string {
 	case *BinaryExpr:
 		return fmt.Sprintf("%s %s %s", toExprTrace(ex.Left), ex.Op.TokenString(), toExprTrace(ex.Right))
 	case *UnaryExpr:
-		return fmt.Sprintf("%s%s", ex.Op, toExprTrace(ex.X))
+		return fmt.Sprintf("%s%s", ex.Op.TokenString(), toExprTrace(ex.X))
 	case *SelectorExpr:
 		return fmt.Sprintf("%s.%s", toExprTrace(ex.X), ex.Sel)
 	case *IndexExpr:
@@ -161,15 +163,12 @@ func toExprTrace(ex Expr) string {
 		}
 
 		return fmt.Sprintf("%s<len=%d>", toExprTrace(ex.Type), lenEl)
-
-	case *KeyValueExpr:
-		return fmt.Sprintf("%s: %s", toExprTrace(ex.Key), toExprTrace(ex.Value))
 	case *FuncLitExpr:
 		return fmt.Sprintf("%s{ ... }", toExprTrace(&ex.Type))
 	case *TypeAssertExpr:
 		return fmt.Sprintf("%s.(%s)", toExprTrace(ex.X), toExprTrace(ex.Type))
 	case *ConstExpr:
-		return toTypeValueTrace(ex.TypedValue)
+		return toConstExpTrace(ex)
 	case *NameExpr, *BasicLitExpr, *SliceExpr:
 		return ex.String()
 	}
@@ -177,7 +176,8 @@ func toExprTrace(ex Expr) string {
 	return ex.String()
 }
 
-func toTypeValueTrace(tv TypedValue) string {
+func toConstExpTrace(cte *ConstExpr) string {
+	tv := cte.TypedValue
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		switch bt {
@@ -216,15 +216,6 @@ func toTypeValueTrace(tv TypedValue) string {
 		case UntypedBigdecType, BigdecType:
 			return tv.V.(BigdecValue).V.String()
 		}
-	case *ArrayType:
-		v := tv.V.(*ArrayValue)
-		return fmt.Sprintf("%s<len=%d>", tv.T.String(), v.GetLength())
-	case *SliceType:
-		v := tv.V.(*SliceValue)
-		return fmt.Sprintf("%s<len=%d>", tv.T.String(), v.Length)
-	case *MapType:
-		v := tv.V.(*MapValue)
-		return fmt.Sprintf("%s<len=%d>", tv.T.String(), v.List.Size)
 	}
 
 	return tv.T.String()
