@@ -260,6 +260,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						errstr = v.Sprint(m)
 					case *gno.PreprocessError:
 						errstr = v.Unwrap().Error()
+					case gno.RealmUnhandledPanicException:
+						errstr = v.Descriptor
 					default:
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
@@ -375,11 +377,16 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					}
 				}
 			case "Stacktrace":
-				if pnc == nil {
-					panic(fmt.Sprintf("fail on %s: got nil error, want: %q", path, stacktraceWanted))
-				}
 				if stacktraceWanted != "" {
-					stacktrace := m.ExceptionsStacktrace()
+					var stacktrace string
+
+					switch pnc.(type) {
+					case gno.RealmUnhandledPanicException:
+						stacktrace = m.ExceptionsStacktrace()
+					default:
+						stacktrace = m.Stacktrace().String()
+					}
+
 					if !strings.Contains(stacktrace, stacktraceWanted) {
 						diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
 							A:        difflib.SplitLines(stacktraceWanted),

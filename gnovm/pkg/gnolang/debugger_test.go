@@ -59,7 +59,16 @@ func evalTest(debugAddr, in, file string) (out, err, stacktrace string) {
 
 	defer m.Release()
 	defer func() {
-		stacktrace = strings.TrimSpace(strings.ReplaceAll(m.ExceptionsStacktrace(), "../../tests/files/", "files/"))
+		if r := recover(); r != nil {
+			switch r.(type) {
+			case gnolang.RealmUnhandledPanicException:
+				stacktrace = m.ExceptionsStacktrace()
+			default:
+				stacktrace = m.Stacktrace().String()
+			}
+			stacktrace = strings.TrimSpace(strings.ReplaceAll(stacktrace, "../../tests/files/", "files/"))
+			panic(r)
+		}
 	}()
 
 	if debugAddr != "" {

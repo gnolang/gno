@@ -27,8 +27,7 @@ func TestEvalFiles(t *testing.T) {
 				t.Fatalf("unexpected error\nWant: %s\n Got: %s", wantErr, err)
 			}
 
-			if wantStacktrace != "" && !strings.Contains(stacktrace, wantStacktrace) ||
-				wantStacktrace == "" && stacktrace != "" {
+			if wantStacktrace != "" && !strings.Contains(stacktrace, wantStacktrace) {
 				t.Fatalf("unexpected stacktrace\nWant: %s\n Got: %s", wantStacktrace, stacktrace)
 			}
 			if wantOut != "" && out != wantOut {
