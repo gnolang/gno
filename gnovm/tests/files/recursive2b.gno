@@ -9,7 +9,7 @@ type B struct {
 }
 
 type C struct {
-	X A
+	X *A
 }
 
 func main() {
@@ -17,5 +17,5 @@ func main() {
 	println(p == q)
 }
 
-// Error:
-// main/files/recursive2.gno:1: type define cycle with name: A
+// Output:
+// true

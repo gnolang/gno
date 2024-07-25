@@ -18,8 +18,8 @@ const (
 // Anything predefined or preprocessed here get skipped during the Preprocess
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
-	var declGraph []*DeclNode
-	loopfindr := make(map[Name]struct{})
+	//var declGraph []*DeclNode
+	//loopfindr := make(map[Name]struct{})
 
 	fmt.Println("---predefineFileSet start")
 	defer func() {
@@ -54,7 +54,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					// dependent)
 				} else {
 					// recursively predefine dependencies.
-					d2, _ := predefineNow(store, fn, d, &declGraph, &loopfindr)
+					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
 				}
 			}
@@ -75,7 +75,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					// dependent)
 				} else {
 					// recursively predefine dependencies.
-					d2, _ := predefineNow(store, fn, d, &declGraph, &loopfindr)
+					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
 				}
 			}
@@ -93,7 +93,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					// dependent)
 				} else {
 					// recursively predefine dependencies.
-					d2, _ := predefineNow(store, fn, d, &declGraph, &loopfindr)
+					d2, _ := predefineNow(store, fn, d)
 					fn.Decls[i] = d2
 				}
 			}
@@ -109,7 +109,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 				// through recursion for a dependent)
 			} else {
 				// recursively predefine dependencies.
-				d2, _ := predefineNow(store, fn, d, &declGraph, &loopfindr)
+				d2, _ := predefineNow(store, fn, d)
 				fn.Decls[i] = d2
 			}
 		}
@@ -157,11 +157,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		SetNodeLocations(pkgPath, fileName, fn)
 	}
 
-	fmt.Println("---preprocess, new declGraph")
+	//fmt.Println("---preprocess, new declGraph")
 	// declGraph represents a slice of declGraph
-	var declGraph []*DeclNode
+	//var declGraph []*DeclNode
 
-	loopfindr := make(map[Name]struct{})
+	//loopfindr := make(map[Name]struct{})
 
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -248,7 +248,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// (e.g. through recursion for a dependent)
 				} else {
 					// recursively predefine dependencies.
-					d2, ppd := predefineNow(store, last, n.(Decl), &declGraph, &loopfindr)
+					d2, ppd := predefineNow(store, last, n.(Decl))
 					if ppd {
 						return d2, TRANS_SKIP
 					} else {
@@ -547,7 +547,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								// recursively predefine
 								// dependencies.
-								d2, _ := predefineNow(store, n, d, &declGraph, &loopfindr)
+								d2, _ := predefineNow(store, n, d)
 								n.Decls[i] = d2
 							}
 						}
@@ -564,7 +564,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								// recursively predefine
 								// dependencies.
-								d2, _ := predefineNow(store, n, d, &declGraph, &loopfindr)
+								d2, _ := predefineNow(store, n, d)
 								n.Decls[i] = d2
 							}
 						}
@@ -581,7 +581,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							} else {
 								// recursively predefine
 								// dependencies.
-								d2, _ := predefineNow(store, n, d, &declGraph, &loopfindr)
+								d2, _ := predefineNow(store, n, d)
 								n.Decls[i] = d2
 							}
 						}
@@ -597,7 +597,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						} else {
 							// recursively predefine
 							// dependencies.
-							d2, _ := predefineNow(store, n, d, &declGraph, &loopfindr)
+							d2, _ := predefineNow(store, n, d)
 							n.Decls[i] = d2
 						}
 					}
@@ -2616,6 +2616,119 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 	}
 }
 
+func findTypeDeclDependency(store Store, last BlockNode, x Expr, g *Graph, indirect bool) {
+	fmt.Printf("---findDependency, x: %v, indirect: %v, type of x: %v \n", x, indirect, reflect.TypeOf(x))
+	if x == nil {
+		return
+	}
+
+	var lastX Expr
+	defer func() {
+		fmt.Println("------defer call, before pop--->>>")
+		g.dump()
+		if _, ok := lastX.(*NameExpr); ok {
+			g.PopNode()
+		}
+		fmt.Println("------defer call, after pop---<<<")
+		g.dump()
+	}()
+
+	switch cx := x.(type) {
+	case *NameExpr:
+		fmt.Println("---found name expr, cx: ", cx)
+		// check cycle before add node
+		if indirect {
+			// not check
+		} else {
+			if g.checkCycle(cx.Name) {
+				panic(fmt.Sprintf("type define cycle with name: %s", cx.Name))
+			}
+		}
+		// add node
+		g.AddNode(cx.Name, indirect)
+		lastX = cx
+		return
+	case *BasicLitExpr:
+		return
+	case *BinaryExpr:
+		findTypeDeclDependency(store, last, cx.Left, g, indirect)
+		findTypeDeclDependency(store, last, cx.Right, g, indirect)
+	case *SelectorExpr:
+		findTypeDeclDependency(store, last, cx.X, g, indirect)
+	case *SliceExpr:
+		findTypeDeclDependency(store, last, cx.X, g, indirect)
+		if cx.Low != nil {
+			findTypeDeclDependency(store, last, cx.Low, g, indirect)
+		}
+		if cx.High != nil {
+			findTypeDeclDependency(store, last, cx.High, g, indirect)
+		}
+		if cx.Max != nil {
+			findTypeDeclDependency(store, last, cx.Max, g, indirect)
+		}
+	case *StarExpr:
+		fmt.Println("---starExpr")
+		findTypeDeclDependency(store, last, cx.X, g, true)
+	case *RefExpr:
+		findTypeDeclDependency(store, last, cx.X, g, indirect)
+	case *TypeAssertExpr:
+		findTypeDeclDependency(store, last, cx.X, g, indirect)
+		findTypeDeclDependency(store, last, cx.Type, g, indirect)
+	case *UnaryExpr:
+		findTypeDeclDependency(store, last, cx.X, g, indirect)
+	case *FuncLitExpr:
+		findTypeDeclDependency(store, last, &cx.Type, g, indirect)
+	case *FieldTypeExpr:
+		findTypeDeclDependency(store, last, cx.Type, g, indirect)
+	case *ArrayTypeExpr:
+		if cx.Len != nil {
+			findTypeDeclDependency(store, last, cx.Len, g, indirect)
+		}
+		findTypeDeclDependency(store, last, cx.Elt, g, indirect)
+	case *SliceTypeExpr:
+		findTypeDeclDependency(store, last, cx.Elt, g, indirect)
+	case *InterfaceTypeExpr:
+		for i := range cx.Methods {
+			findTypeDeclDependency(store, last, &cx.Methods[i], g, indirect)
+		}
+	case *ChanTypeExpr:
+		findTypeDeclDependency(store, last, cx.Value, g, indirect)
+	case *FuncTypeExpr:
+		for i := range cx.Params {
+			findTypeDeclDependency(store, last, &cx.Params[i], g, indirect)
+		}
+		for i := range cx.Results {
+			findTypeDeclDependency(store, last, &cx.Results[i], g, indirect)
+		}
+	case *MapTypeExpr:
+		findTypeDeclDependency(store, last, cx.Key, g, indirect)
+		findTypeDeclDependency(store, last, cx.Value, g, indirect)
+	case *StructTypeExpr:
+		for i := range cx.Fields {
+			findTypeDeclDependency(store, last, &cx.Fields[i], g, indirect)
+		}
+	case *MaybeNativeTypeExpr:
+		findTypeDeclDependency(store, last, cx.Type, g, indirect)
+	case *CallExpr:
+		findTypeDeclDependency(store, last, cx.Func, g, indirect)
+		for i := range cx.Args {
+			findTypeDeclDependency(store, last, cx.Args[i], g, indirect)
+		}
+	case *IndexExpr:
+		findTypeDeclDependency(store, last, cx.X, g, indirect)
+		findTypeDeclDependency(store, last, cx.Index, g, indirect)
+	case *constTypeExpr:
+		return
+	case *ConstExpr:
+		return
+	default:
+		panic(fmt.Sprintf(
+			"unexpected expr: %v (%v)",
+			x, reflect.TypeOf(x)))
+	}
+	return
+}
+
 // Returns any names not yet defined nor predefined in expr.  These happen
 // upon transcribe:enter from the top, so value paths cannot be used.  If no
 // names are un and x is TypeExpr, evalStaticType(store,last, x) must not
@@ -2894,7 +3007,7 @@ func checkIntegerKind(xt Type) {
 // preprocesses function declarations (which may not be completely
 // preprocess-able before other file-level declarations are
 // preprocessed).
-func predefineNow(store Store, last BlockNode, d Decl, declGraph *[]*DeclNode, loopfinder *map[Name]struct{}) (Decl, bool) {
+func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 	fmt.Println("---predefine now, d.line", d.GetLine())
 	defer func() {
 		if r := recover(); r != nil {
@@ -2912,11 +3025,13 @@ func predefineNow(store Store, last BlockNode, d Decl, declGraph *[]*DeclNode, l
 			}
 		}
 	}()
-	m := make(map[Name]struct{})
-	return predefineNow2(store, last, d, m, declGraph, loopfinder)
+	// new dependency graph
+	g := NewGraph()
+	//m := make(map[Name]struct{ direct bool })
+	return predefineNow2(store, last, d, g)
 }
 
-func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}, declGraph *[]*DeclNode, loopfinder *map[Name]struct{}) (Decl, bool) {
+func predefineNow2(store Store, last BlockNode, d Decl, g *Graph) (Decl, bool) {
 	fmt.Println("---predefineNow2, d: ", d)
 	pkg := packageOf(last)
 	// pre-register d.GetName() to detect circular definition.
@@ -2925,16 +3040,28 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}, dec
 			panic(fmt.Sprintf(
 				"builtin identifiers cannot be shadowed: %s", dn))
 		}
-		m[dn] = struct{}{}
 	}
+
+	// check type decl cycle
+	if td, ok := d.(*TypeDecl); ok {
+		fmt.Println("---type decl, find dependency and assert no cycle, td: ", td)
+		fmt.Println("==============check cycle start==================")
+		g.dump()
+
+		g.AddNode(td.Name, false)
+		// recursively check
+		findTypeDeclDependency(store, last, td.Type, g, false)
+		fmt.Println("==============check cycle complete!!!==================")
+	}
+
 	// recursively predefine dependencies.
 	for {
+		fmt.Println("---for loop start, recursively define ")
+		// type decl
 		un := tryPredefine(store, last, d)
-		fmt.Printf("---un: %s after tryPredefine d: %v \n", un, d)
-		fmt.Println("---m: ", m)
 		if un != "" {
 			// check circularity.
-			if _, ok := m[un]; ok {
+			if g.checkCycle(un) {
 				panic(fmt.Sprintf("constant definition loop with %s", un))
 			}
 			// look up dependency declaration from fileset.
@@ -2944,11 +3071,12 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}, dec
 				panic("all types from files in file-set should have already been predefined")
 			}
 			// predefine dependency (recursive).
-			*decl, _ = predefineNow2(store, file, *decl, m, declGraph, loopfinder)
+			*decl, _ = predefineNow2(store, file, *decl, g)
 		} else {
 			break
 		}
 	}
+	fmt.Println("---after for loop")
 	// after recursive define
 	switch cd := d.(type) {
 	case *FuncDecl:
@@ -3037,60 +3165,179 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}, dec
 	case *ValueDecl:
 		return Preprocess(store, last, cd).(Decl), true
 	case *TypeDecl:
-		fmt.Println("---predefineNow2, loopfinder: ", loopfinder)
-
-		fmt.Println("---predefineNow2, cd: ", cd)
-		fmt.Println("---predefineNow2, cd.Type: ", cd.Type)
-		fmt.Println("---predefineNow2, m: ", m)
+		//fmt.Println("---predefineNow2, loopfinder: ", loopfinder)
+		//fmt.Println("---predefineNow2, cd: ", cd)
+		//fmt.Println("---predefineNow2, cd.Type: ", cd.Type)
+		fmt.Println("---going to preprocess type decl")
 		d := Preprocess(store, last, cd).(Decl)
-		fmt.Println("---predefineNow2, d: ", d)
+		fmt.Println("---DONE preprocess type decl!")
+		//fmt.Println("---predefineNow2, d: ", d)
 
 		td := d.(*TypeDecl)
-		fmt.Println("---td: ", td)
-		fmt.Println("---td.Type: ", td.Type)
+		//fmt.Println("---td: ", td)
+		//fmt.Println("---td.Type: ", td.Type)
 
-		tmp := evalStaticType(store, last, cd.Type)
-		dst := last.GetValueRef(store, cd.Name).GetType()
+		//tmp := evalStaticType(store, last, cd.Type)
+		//dst := last.GetValueRef(store, cd.Name).GetType()
 
-		fmt.Println("---dst: ", dst)
-		switch dst := dst.(type) {
-		case *DeclaredType:
-			fmt.Println("---declared type, tmp: ", tmp, reflect.TypeOf(tmp))
-			if dt, ok := tmp.(*DeclaredType); ok {
-				fmt.Println("---dt: ", dt, dt.Name, dt.Base)
-				if st, ok := dt.Base.(*StructType); ok {
-					fmt.Println("---struct type")
-					// check if fields contains declaredType
-					maybeRecursive := false
-					names := make([]Name, 0)
-
-					for _, f := range st.Fields {
-						maybeRecursive = checkFieldReference(st.PkgPath, f.Type, &names)
-					}
-					if maybeRecursive {
-						for _, name := range names {
-							fmt.Println("---name: ", name)
-							//if _, ok := (*loopfinder)[dst.Name]; ok {
-							//	panic(fmt.Sprintf("loop definition: %v ", *loopfinder))
-							//}
-
-							(*loopfinder)[dst.Name] = struct{}{}
-							fmt.Println("---after insert, loopfinder: ", *loopfinder)
-
-							insertDeclNode(declGraph, dst.Name, last.GetLocation(), name)
-						}
-					}
-				}
-			}
-			// do assert
-			assertNoCycle(*declGraph)
-		}
+		//fmt.Println("---dst: ", dst)
+		//switch dst := dst.(type) {
+		//case *DeclaredType:
+		//	fmt.Println("---declared type, tmp: ", tmp, reflect.TypeOf(tmp))
+		//	if dt, ok := tmp.(*DeclaredType); ok {
+		//		fmt.Println("---dt: ", dt, dt.Name, dt.Base)
+		//		if st, ok := dt.Base.(*StructType); ok {
+		//			fmt.Println("---struct type")
+		//			// check if fields contains declaredType
+		//			maybeRecursive := false
+		//			names := make([]Name, 0)
+		//
+		//			for _, f := range st.Fields {
+		//				maybeRecursive = checkFieldReference(st.PkgPath, f.Type, &names)
+		//			}
+		//			if maybeRecursive {
+		//				for _, name := range names {
+		//					fmt.Println("---name: ", name)
+		//					//if _, ok := (*loopfinder)[dst.Name]; ok {
+		//					//	panic(fmt.Sprintf("loop definition: %v ", *loopfinder))
+		//					//}
+		//
+		//					(*loopfinder)[dst.Name] = struct{}{}
+		//					fmt.Println("---after insert, loopfinder: ", *loopfinder)
+		//
+		//					insertDeclNode(declGraph, dst.Name, last.GetLocation(), name)
+		//				}
+		//			}
+		//		}
+		//	}
+		// do assert
+		//assertNoCycle(*declGraph)
+		//}
 
 		return td, true
 		//return Preprocess(store, last, cd).(Decl), true
 	default:
 		return d, false
 	}
+}
+
+func tryPredefineType(store Store, last BlockNode, d Decl) (un Name, indirect bool, undefined bool, complete bool) {
+	fmt.Println("---tryPredefine Type, d: ", d)
+
+	if d.GetAttribute(ATTR_PREDEFINED) == true {
+		panic(fmt.Sprintf("decl node %v already predefined!", d))
+	} else {
+		fmt.Printf("---%v not predefined: \n", d)
+	}
+
+	// If un is blank, it means the predefine succeeded.
+	defer func() {
+		if un == "" {
+			d.SetAttribute(ATTR_PREDEFINED, true)
+			complete = true
+		}
+	}()
+
+	// NOTE: These happen upon enter from the top,
+	// so value paths cannot be used here.
+	switch d := d.(type) {
+	case *TypeDecl:
+		last2 := skipFile(last)
+		_, ok := last2.GetLocalIndex(d.Name)
+		if !ok {
+			// construct empty t type
+			var t Type
+			switch tx := d.Type.(type) {
+			case *FuncTypeExpr:
+				t = &FuncType{}
+			case *ArrayTypeExpr:
+				t = &ArrayType{}
+			case *SliceTypeExpr:
+				t = &SliceType{}
+			case *InterfaceTypeExpr:
+				t = &InterfaceType{}
+			case *ChanTypeExpr:
+				t = &ChanType{}
+			case *MapTypeExpr:
+				t = &MapType{}
+			case *StructTypeExpr:
+				t = &StructType{}
+			case *StarExpr:
+				t = &PointerType{}
+			case *NameExpr:
+				if tv := last.GetValueRef(store, tx.Name); tv != nil {
+					// (file) block name
+					t = tv.GetType()
+					if dt, ok := t.(*DeclaredType); ok {
+						if !dt.sealed {
+							// predefineNow preprocessed dependent types.
+							panic("should not happen")
+						}
+					} else {
+						// all names are declared types.
+						panic("should not happen")
+					}
+				} else if idx, ok := UverseNode().GetLocalIndex(tx.Name); ok {
+					// uverse name
+					path := NewValuePathUverse(idx, tx.Name)
+					tv := Uverse().GetValueAt(nil, path)
+					t = tv.GetType()
+				} else {
+					// yet undefined
+					un = tx.Name
+					return
+				}
+			case *SelectorExpr:
+				// get package value.
+				un = findUndefined(store, last, tx.X)
+				if un != "" {
+					return
+				}
+				pkgName := tx.X.(*NameExpr).Name
+				tv := last.GetValueRef(store, pkgName)
+				pv, ok := tv.V.(*PackageValue)
+				if !ok {
+					panic(fmt.Sprintf(
+						"unknown package name %s in %s",
+						pkgName,
+						tx.String(),
+					))
+				}
+				// check package node for name.
+				pn := pv.GetPackageNode(store)
+				tx.Path = pn.GetPathForName(store, tx.Sel)
+				ptr := pv.GetBlock(store).GetPointerTo(store, tx.Path)
+				t = ptr.TV.T
+			default:
+				panic(fmt.Sprintf(
+					"unexpected type declaration type %v",
+					reflect.TypeOf(d.Type)))
+			}
+			if d.IsAlias {
+				// use t directly.
+			} else {
+				// create new declared type.
+				pn := packageOf(last)
+				t = declareWith(pn.PkgPath, d.Name, t)
+			}
+			// fill in later.
+			last2.Define(d.Name, asValue(t))
+			d.Path = last.GetPathForName(store, d.Name)
+		}
+
+		//name, isIndirect, isUndefined, done := findTypeDeclDependency(store, last, d.Type)
+		//fmt.Printf("after findTypeDeclDependency, name: %v, isIndirect: %v, isUndefined: %v \n", name, isIndirect, isUndefined)
+		//fmt.Println("---done: ", done)
+		//
+		//if name != "" {
+		//	un = name
+		//	indirect = isIndirect
+		//	undefined = isUndefined
+		//	complete = done
+		//	return
+		//}
+	}
+	return "", false, false, complete
 }
 
 // If a dependent name is not yet defined, that name is
@@ -3103,18 +3350,15 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}, dec
 // must be called for name declarations within (non-file,
 // non-package) stmt bodies.
 func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
-	fmt.Println("---tryPredefine, d: ", d)
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic("decl node already predefined!")
 	}
-
 	// If un is blank, it means the predefine succeeded.
 	defer func() {
 		if un == "" {
 			d.SetAttribute(ATTR_PREDEFINED, true)
 		}
 	}()
-
 	// NOTE: These happen upon enter from the top,
 	// so value paths cannot be used here.
 	switch d := d.(type) {
@@ -3142,18 +3386,13 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 		})
 		d.Path = last.GetPathForName(store, d.Name)
 	case *ValueDecl:
-		fmt.Println("---value decl")
 		un = findUndefined(store, last, d.Type)
 		if un != "" {
-			fmt.Println("---return 1")
 			return
 		}
 		for _, vx := range d.Values {
-			fmt.Println("---vx: ", vx)
 			un = findUndefined(store, last, vx)
-			fmt.Println("---un: ", un)
 			if un != "" {
-				fmt.Println("---return 2")
 				return
 			}
 		}
@@ -3168,13 +3407,6 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			}
 		}
 	case *TypeDecl:
-		fmt.Println("---typeDecl")
-		// XXX, before predefine
-		un = findUndefined(store, last, d.Type)
-		fmt.Println("---un for type decl: ", un)
-		if un != "" {
-			return
-		}
 		// before looking for dependencies, predefine empty type.
 		last2 := skipFile(last)
 		_, ok := last2.GetLocalIndex(d.Name)
@@ -3258,12 +3490,12 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			last2.Define(d.Name, asValue(t))
 			d.Path = last.GetPathForName(store, d.Name)
 		}
-		//// after predefinitions, return any undefined declGraph.
-		//un = findUndefined(store, last, d.Type)
-		//fmt.Println("---un for type decl: ", un)
-		//if un != "" {
-		//	return
-		//}
+		// after predefinitions, return any undefined dependencies.
+		// after predefinitions, return any undefined declGraph.
+		un = findUndefined(store, last, d.Type)
+		if un != "" {
+			return
+		}
 	case *FuncDecl:
 		un = findUndefined(store, last, &d.Type)
 		if un != "" {

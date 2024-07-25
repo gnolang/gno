@@ -301,3 +301,54 @@ func checkFieldReference(PkgPath string, t Type, names *[]Name) bool {
 
 	return false
 }
+
+// -----------------dependency graph--------------------
+type Element struct {
+	name     Name
+	indirect bool
+}
+
+type Graph struct {
+	nodes *[]*Element
+}
+
+func NewGraph() *Graph {
+	return &Graph{
+		nodes: &[]*Element{},
+	}
+}
+
+func (g *Graph) AddNode(name Name, indirect bool) {
+	fmt.Printf("---addNode, name: %v, indirect: %v \n", name, indirect)
+	*(g.nodes) = append(*(g.nodes), &Element{name: name, indirect: indirect})
+}
+
+func (g *Graph) PopNode() {
+	fmt.Println("---pop node")
+	*(g.nodes) = (*g.nodes)[:len(*(g.nodes))-1]
+}
+
+func (g *Graph) checkCycle(name Name) bool {
+	fmt.Println("---checkCycle, name: ", name)
+	// if indirect exists, no cycle
+	for _, n := range *(g.nodes) {
+		if n.indirect {
+			return false
+		}
+	}
+	// no indirect, and exists, cycle
+	for _, n := range *(g.nodes) {
+		if name == n.name {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *Graph) dump() {
+	for i, n := range *(g.nodes) {
+		fmt.Printf("---g.nodes[%d] is %+v \n", i, n)
+	}
+}
+
+// -----------------dependency graph--------------------

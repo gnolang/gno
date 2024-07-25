@@ -9,4 +9,4 @@ func main() {
 }
 
 // Error:
-// Cyclic dependency detected: S(File: files/recursive1b.gno) -> S(File: files/recursive1b.gno)
+// main/files/recursive1b.gno:1: type definition loop with S

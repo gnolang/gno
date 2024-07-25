@@ -1,8 +1,11 @@
 package main
 
 type S struct {
-	S
+	T *S
+	B Integer
 }
+
+type Integer int
 
 func main() {
 	var a, b S
@@ -10,4 +13,3 @@ func main() {
 }
 
 // Error:
-// main/files/recursive5.gno:1: type definition loop with S
