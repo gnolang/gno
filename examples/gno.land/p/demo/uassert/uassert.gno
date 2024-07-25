@@ -5,6 +5,8 @@ import (
 	"std"
 	"strconv"
 	"strings"
+
+	"gno.land/p/demo/diff"
 )
 
 // NoError asserts that a function returned no error (i.e. `nil`).
@@ -127,6 +129,10 @@ func Equal(t TestingT, expected, actual interface{}, msgs ...string) bool {
 			equal = ev == av
 			ok_ = true
 			es, as = ev, av
+			if !equal {
+				dif := diff.MyersDiff(ev, av)
+				return fail(t, msgs, "uassert.Equal: strings are different\n\tDiff: %s", diff.Format(dif))
+			}
 		}
 	case std.Address:
 		if av, ok := actual.(std.Address); ok {
