@@ -178,6 +178,7 @@ func toExprTrace(ex Expr) string {
 
 func toConstExpTrace(cte *ConstExpr) string {
 	tv := cte.TypedValue
+
 	switch bt := baseOf(tv.T).(type) {
 	case PrimitiveType:
 		switch bt {
@@ -199,8 +200,6 @@ func toConstExpTrace(cte *ConstExpr) string {
 			return fmt.Sprintf("%d", tv.GetUint())
 		case Uint8Type:
 			return fmt.Sprintf("%d", tv.GetUint8())
-		case DataByteType:
-			return fmt.Sprintf("%d", tv.GetDataByte())
 		case Uint16Type:
 			return fmt.Sprintf("%d", tv.GetUint16())
 		case Uint32Type:
@@ -211,10 +210,6 @@ func toConstExpTrace(cte *ConstExpr) string {
 			return fmt.Sprintf("%v", tv.GetFloat32())
 		case Float64Type:
 			return fmt.Sprintf("%v", tv.GetFloat64())
-		case UntypedBigintType, BigintType:
-			return tv.V.(BigintValue).V.String()
-		case UntypedBigdecType, BigdecType:
-			return tv.V.(BigdecValue).V.String()
 		}
 	}
 

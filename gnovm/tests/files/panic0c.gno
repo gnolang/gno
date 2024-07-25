@@ -7,6 +7,7 @@ type S struct {
 func f(
 	s string,
 	b bool,
+	by byte,
 	it int,
 	it8 int8,
 	it16 int16,
@@ -39,6 +40,8 @@ func main() {
 
 	const b bool = true
 
+	const by byte = 0
+
 	const it int = 1
 	const it8 int8 = 1
 	const it16 int16 = 1
@@ -54,6 +57,7 @@ func main() {
 	f(
 		s,
 		b,
+		by,
 		it,
 		it8,
 		it16,
@@ -74,10 +78,10 @@ func main() {
 
 // Stacktrace:
 // panic: wtf
-// f<VPBlock(3,1)>(a,true,1,1,1,1,1,1,1,1,1,1,1,1,strs<VPBlock(1,0)>,st<VPBlock(1,1)>,m<VPBlock(1,2)>,t<VPBlock(1,3)>)
-//     main/files/panic0c.gno:27
+// f<VPBlock(3,1)>(a,true,0,1,1,1,1,1,1,1,1,1,1,1,1,strs<VPBlock(1,0)>,st<VPBlock(1,1)>,m<VPBlock(1,2)>,t<VPBlock(1,3)>)
+//     main/files/panic0c.gno:28
 // main<VPBlock(1,2)>()
-//     main/files/panic0c.gno:54
+//     main/files/panic0c.gno:57
 
 // Error:
 // wtf
