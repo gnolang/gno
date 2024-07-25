@@ -476,7 +476,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 		}
 	case PointerKind:
 		if lv.T != rv.T &&
-			lv.T != DataByteType &&
+			lv.T.Elem() != DataByteType &&
 			lv.T.TypeID() != rv.T.TypeID() {
 			return false
 		}
