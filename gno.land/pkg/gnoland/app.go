@@ -193,8 +193,6 @@ func InitChainer(
 	resHandler GenesisTxHandler,
 ) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
-		txResponses := []abci.ResponseDeliverTx{}
-
 		if req.AppState != nil {
 			// Get genesis state
 			genState := req.AppState.(GnoGenesisState)
@@ -220,12 +218,6 @@ func InitChainer(
 						"gas-used", res.GasUsed,
 					)
 				}
-
-				txResponses = append(txResponses, abci.ResponseDeliverTx{
-					ResponseBase: res.ResponseBase,
-					GasWanted:    res.GasWanted,
-					GasUsed:      res.GasUsed,
-				})
 
 				resHandler(ctx, tx, res)
 			}

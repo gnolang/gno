@@ -30,7 +30,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 		}
 
 		// Parse send coins
-		send, err := msg.getCoins()
+		send, err := std.ParseCoins(msg.Send)
 		if err != nil {
 			return nil, err
 		}
