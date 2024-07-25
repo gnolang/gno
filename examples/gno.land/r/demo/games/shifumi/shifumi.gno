@@ -15,8 +15,8 @@ const (
 )
 
 type game struct {
-	player1, player2 std.Address  // shifumi is a 2 players game
-	move1, move2 int              // can be empty, rock, paper, or scissors
+	player1, player2 std.Address // shifumi is a 2 players game
+	move1, move2     int         // can be empty, rock, paper, or scissors
 }
 
 var games = []*game{}
@@ -58,7 +58,7 @@ func (g *game) winner() int {
 // A new game index is returned.
 func NewGame(player std.Address) int {
 	games = append(games, &game{player1: std.GetOrigCaller(), player2: player})
-	return len(games)-1
+	return len(games) - 1
 }
 
 // Play executes a move for the game at index idx, where move can be:
@@ -70,9 +70,9 @@ func Play(idx, move int) {
 }
 
 func Render(path string) string {
-	mov1 := []string{ "", " 🤜  ", " 🫱  ", " 👉  "}
-	mov2 := []string{ "", " 🤛  ", " 🫲  ", " 👈  "}
-	win := []string{ "pending", "draw", "player1", "player2" }
+	mov1 := []string{"", " 🤜  ", " 🫱  ", " 👉  "}
+	mov2 := []string{"", " 🤛  ", " 🫲  ", " 👈  "}
+	win := []string{"pending", "draw", "player1", "player2"}
 
 	output := `# 👊  ✋  ✌️  Shifumi
 Actions:
@@ -82,7 +82,7 @@ Actions:
  game  | player1 |     | player2 |       | win 
  --- | --- | --- | --- | --- | ---
 `
-	for i := len(games)-1; i >= 0; i-- {
+	for i := len(games) - 1; i >= 0; i-- {
 		g := games[i]
 		output += strconv.Itoa(i) + " | " +
 			short(g.player1) + " | " + mov1[g.move1] + " | " +
