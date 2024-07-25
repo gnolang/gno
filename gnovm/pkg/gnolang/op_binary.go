@@ -475,7 +475,7 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				rfv.GetClosure(store)
 		}
 	case PointerKind:
-		if lv.T != rv.T || lv.T.TypeID() != rv.T.TypeID() {
+		if lv.T != rv.T && lv.T.TypeID() != rv.T.TypeID() {
 			return false
 		}
 
