@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
@@ -16,11 +15,14 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
-func TestPackages(t *testing.T) {
+func TestStdlibs(t *testing.T) {
+	// NOTE: this test only works using _test.gno files;
+	// filetests are not meant to be used for testing standard libraries.
+	// The examples directory is tested directly using `gno test`u
+
 	// find all packages with *_test.gno files.
 	rootDirs := []string{
 		filepath.Join("..", "stdlibs"),
-		filepath.Join("..", "..", "examples"),
 	}
 	testDirs := map[string]string{} // aggregate here, pkgPath -> dir
 	pkgPaths := []string{}
@@ -45,114 +47,10 @@ func TestPackages(t *testing.T) {
 			return nil
 		})
 	}
-	// Sort pkgPaths for determinism.
-	sort.Strings(pkgPaths)
 	// For each package with testfiles (in testDirs), call Machine.TestMemPackage.
 	for _, pkgPath := range pkgPaths {
 		testDir := testDirs[pkgPath]
 		t.Run(pkgPath, func(t *testing.T) {
-			t.Skip("almost any new package is failing. Ignoring this test for now until we find a solution for this.")
-
-			if pkgPath == "gno.land/p/demo/avl" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/p/demo/flow" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/p/demo/grc/exts/vault" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/p/demo/grc/grc1155" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/p/demo/grc/grc20" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/p/demo/grc/grc721" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/p/demo/memeland" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/p/demo/ownable" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/p/demo/pausable" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/p/demo/rand" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/p/demo/tests" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/p/demo/todolist" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/r/demo/art/gnoface" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/r/demo/foo1155" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/r/demo/foo20" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/r/demo/keystore" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/r/demo/microblog" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/r/demo/tests" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/r/demo/todolist" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/r/demo/userbook" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/r/gnoland/blog" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/r/gnoland/faucet" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/r/x/manfred_outfmt" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/r/x/nir1218_evaluation_proposal" {
-				t.Skip("package failing")
-			}
-
-			if pkgPath == "gno.land/r/gnoland/ghverify" {
-				t.Skip("package failing")
-			}
-
 			runPackageTest(t, testDir, pkgPath)
 		})
 	}

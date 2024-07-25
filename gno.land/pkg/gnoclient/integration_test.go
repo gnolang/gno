@@ -53,11 +53,11 @@ func TestCallSingle_Integration(t *testing.T) {
 
 	// Execute call
 	res, err := client.Call(baseCfg, msg)
+	require.NoError(t, err)
 
 	expected := "(\"hi test argument\" string)\n\n"
 	got := string(res.DeliverTx.Data)
 
-	assert.Nil(t, err)
 	assert.Equal(t, expected, got)
 }
 
@@ -107,9 +107,9 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 	// Execute call
 	res, err := client.Call(baseCfg, msg1, msg2)
+	require.NoError(t, err)
 
 	got := string(res.DeliverTx.Data)
-	assert.Nil(t, err)
 	assert.Equal(t, expected, got)
 }
 
@@ -149,12 +149,12 @@ func TestSendSingle_Integration(t *testing.T) {
 
 	// Execute send
 	res, err := client.Send(baseCfg, msg)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "", string(res.DeliverTx.Data))
 
 	// Get the new account balance
 	account, _, err := client.QueryAccount(toAddress)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
 	expected := std.Coins{{"ugnot", int64(amount)}}
 	got := account.GetCoins()
@@ -205,12 +205,12 @@ func TestSendMultiple_Integration(t *testing.T) {
 
 	// Execute send
 	res, err := client.Send(baseCfg, msg1, msg2)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.Equal(t, "", string(res.DeliverTx.Data))
 
 	// Get the new account balance
 	account, _, err := client.QueryAccount(toAddress)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	expected := std.Coins{{"ugnot", int64(amount1 + amount2)}}
 	got := account.GetCoins()
@@ -409,7 +409,7 @@ func Echo(str string) string {
 
 	// Execute AddPackage
 	_, err = client.AddPackage(baseCfg, msg)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Check for deployed file on the node
 	query, err := client.Query(QueryCfg{
@@ -501,7 +501,7 @@ func Hello(str string) string {
 
 	// Execute AddPackage
 	_, err = client.AddPackage(baseCfg, msg1, msg2)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Check Package #1
 	query, err := client.Query(QueryCfg{

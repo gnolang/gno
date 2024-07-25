@@ -29,7 +29,7 @@ function setMyAddress(addr) {
 function getMyAddress() {
   var myAddr = localStorage.getItem("my_address");
   if (!myAddr) {
-    return "ADDRESS";
+    return "";
   }
   return myAddr;
 }
@@ -45,13 +45,13 @@ function updateCommand(x) {
   ins.each(function(input) {
     vals.push(input.value);
   });
-  var myAddr = getMyAddress();
+  var myAddr = getMyAddress() || "ADDRESS";
   var shell = x.find(".shell_command");
   shell.empty();
 
   // command Z: all in one.
   shell.append(u("<span>").text("### INSECURE BUT QUICK ###")).append(u("<br>"));
-  var args = ["gnokey", "maketx", "call", 
+  var args = ["gnokey", "maketx", "call",
     "-pkgpath", shq(realmPath), "-func", shq(funcName),
     "-gas-fee", "1000000ugnot", "-gas-wanted", "2000000",
     "-send", shq(""),
@@ -84,20 +84,19 @@ function updateCommand(x) {
   });
   args.push(myAddr)
   var command = args.join(" ");
-  command = command + " > unsigned.tx";
+  command = command + " > call.tx";
   shell.append(u("<span>").text(command)).append(u("<br>"));
 
   // command 2: sign tx.
   var args = ["gnokey", "sign",
-    "-txpath", "unsigned.tx", "-chainid", shq(chainid),
-    "-number", "ACCOUNTNUMBER",
-    "-sequence", "SEQUENCENUMBER", myAddr];
+    "-tx-path", "call.tx", "-chainid", shq(chainid),
+    "-account-number", "ACCOUNTNUMBER",
+    "-account-sequence", "SEQUENCENUMBER", myAddr];
   var command = args.join(" ");
-  command = command + " > signed.tx";
   shell.append(u("<span>").text(command)).append(u("<br>"));
 
   // command 3: broadcast tx.
-  var args = ["gnokey", "broadcast", "-remote", shq(remote), "signed.tx"];
+  var args = ["gnokey", "broadcast", "-remote", shq(remote), "call.tx"];
   var command = args.join(" ");
   command = command;
   shell.append(u("<span>").text(command)).append(u("<br>"));

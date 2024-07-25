@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/float0.gno:4: cannot convert (const (1.2 <untyped> bigdec)) to integer type
+// main/files/float0.gno:4:7: cannot convert (const (1.2 <untyped> bigdec)) to integer type

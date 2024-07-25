@@ -15,10 +15,12 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	MsgCall{}, "m_call",
 	MsgRun{}, "m_run",
 	MsgAddPackage{}, "m_addpkg", // TODO rename both to MsgAddPkg?
+	MsgNoop{}, "m_noop",
 
 	// errors
 	InvalidPkgPathError{}, "InvalidPkgPathError",
 	InvalidStmtError{}, "InvalidStmtError",
 	InvalidExprError{}, "InvalidExprError",
 	TypeCheckError{}, "TypeCheckError",
+	UnauthorizedUserError{}, "UnauthorizedUserError",
 ))

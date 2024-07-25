@@ -131,7 +131,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 			return err
 		}
 	} else {
-		fmt.Println(string(amino.MustMarshalJSON(tx)))
+		cmdio.Println(string(amino.MustMarshalJSON(tx)))
 	}
 	return nil
 }

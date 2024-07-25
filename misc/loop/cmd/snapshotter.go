@@ -71,7 +71,7 @@ func NewSnapshotter(dockerClient *client.Client, cfg config) (*snapshotter, erro
 
 // pullLatestImage get latest version of the docker image
 func (s snapshotter) pullLatestImage(ctx context.Context) (bool, error) {
-	reader, err := s.dockerClient.ImagePull(ctx, "ghcr.io/gnolang/gno", types.ImagePullOptions{})
+	reader, err := s.dockerClient.ImagePull(ctx, "ghcr.io/gnolang/gno/gnoland:master", types.ImagePullOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -138,16 +138,17 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 	}
 
 	// Run Docker container
-	container, err := s.dockerClient.ContainerCreate(ctx, &container.Config{
-		Image: "ghcr.io/gnolang/gno",
+	dockerContainer, err := s.dockerClient.ContainerCreate(ctx, &container.Config{
+		Image: "ghcr.io/gnolang/gno/gnoland:master",
 		Labels: map[string]string{
 			"the-portal-loop": s.containerName,
 		},
+		WorkingDir: "/gnoroot",
 		Env: []string{
 			"MONIKER=the-portal-loop",
 			"GENESIS_BACKUP_FILE=/backups/backup.jsonl",
 		},
-		Cmd: []string{"/scripts/start.sh"},
+		Entrypoint: []string{"/scripts/start.sh"},
 		ExposedPorts: nat.PortSet{
 			"26656/tcp": struct{}{},
 			"26657/tcp": struct{}{},
@@ -162,19 +163,19 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 		Binds: []string{
 			fmt.Sprintf("%s/scripts:/scripts", s.cfg.hostPWD),
 			fmt.Sprintf("%s/backups:/backups", s.cfg.hostPWD),
-			fmt.Sprintf("%s:/opt/gno/src/gnoland-data", s.containerName),
+			fmt.Sprintf("%s:/gnoroot/gnoland-data", s.containerName),
 		},
 	}, nil, nil, s.containerName)
 	if err != nil {
 		return nil, err
 	}
 
-	err = s.dockerClient.NetworkConnect(ctx, "portal-loop", container.ID, nil)
+	err = s.dockerClient.NetworkConnect(ctx, "portal-loop", dockerContainer.ID, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.dockerClient.ContainerStart(ctx, container.ID, types.ContainerStartOptions{}); err != nil {
+	if err := s.dockerClient.ContainerStart(ctx, dockerContainer.ID, types.ContainerStartOptions{}); err != nil {
 		return nil, err
 	}
 	time.Sleep(time.Second * 5)
@@ -184,7 +185,7 @@ func (s snapshotter) startPortalLoopContainer(ctx context.Context) (*types.Conta
 		return nil, err
 	}
 	for _, c := range containers {
-		if c.ID == container.ID {
+		if c.ID == dockerContainer.ID {
 			return &c, nil
 		}
 	}
@@ -204,10 +205,14 @@ func (s snapshotter) backupTXs(ctx context.Context, rpcURL string) error {
 	defer instanceBackupFile.Close()
 
 	w := legacy.NewWriter(instanceBackupFile)
-	// client := http.NewClient(s.cfg.rpcAddr)
-	client := http.NewClient(rpcURL)
 
-	backupService := backup.NewService(client, w)
+	// Create the tx-archive backup service
+	c, err := http.NewClient(rpcURL)
+	if err != nil {
+		return fmt.Errorf("could not create tx-archive client, %w", err)
+	}
+
+	backupService := backup.NewService(c, w)
 
 	// Run the backup service
 	if backupErr := backupService.ExecuteBackup(ctx, cfg); backupErr != nil {
