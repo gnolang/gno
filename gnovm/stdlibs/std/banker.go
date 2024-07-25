@@ -37,33 +37,16 @@ const (
 var reDenom = regexp.MustCompile("[a-z][a-z0-9]{2,15}")
 
 func X_bankerGetCoins(m *gno.Machine, bt uint8, addr string) (denoms []string, amounts []int64) {
-	coins := m.Context.(ExecContext).Banker.GetCoins(crypto.Bech32Address(addr))
+	coins := GetContext(m).Banker.GetCoins(crypto.Bech32Address(addr))
 	return ExpandCoins(coins)
 }
 
 func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []string, amounts []int64) {
 	// bt != BankerTypeReadonly (checked in gno)
 
-	ctx := m.Context.(ExecContext)
+	ctx := GetContext(m)
 	amt := CompactCoins(denoms, amounts)
 	from, to := crypto.Bech32Address(fromS), crypto.Bech32Address(toS)
-
-	pkgAddr := ctx.OrigPkgAddr
-	if m.Realm != nil {
-		pkgPath := m.Realm.Path
-		pkgAddr = gno.DerivePkgAddr(pkgPath).Bech32()
-	}
-
-	if bt == btOrigSend || bt == btRealmSend {
-		if from != pkgAddr {
-			m.Panic(typedString(
-				fmt.Sprintf(
-					"can only send from the realm package address %q, but got %q",
-					pkgAddr, from),
-			))
-			return
-		}
-	}
 
 	switch bt {
 	case btOrigSend:
@@ -87,7 +70,7 @@ func X_bankerSendCoins(m *gno.Machine, bt uint8, fromS, toS string, denoms []str
 }
 
 func X_bankerTotalCoin(m *gno.Machine, bt uint8, denom string) int64 {
-	return m.Context.(ExecContext).Banker.TotalCoin(denom)
+	return GetContext(m).Banker.TotalCoin(denom)
 }
 
 func X_bankerIssueCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
@@ -104,7 +87,7 @@ func X_bankerIssueCoin(m *gno.Machine, bt uint8, addr string, denom string, amou
 	// ibc_denom := 'ibc/' + hash('path' + 'base_denom')
 	// gno_realm_denom := '/' + 'pkg_path' + ':' + 'base_denom'
 	newDenom := "/" + m.Realm.Path + ":" + denom
-	m.Context.(ExecContext).Banker.IssueCoin(crypto.Bech32Address(addr), newDenom, amount)
+	GetContext(m).Banker.IssueCoin(crypto.Bech32Address(addr), newDenom, amount)
 }
 
 func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amount int64) {
@@ -117,5 +100,5 @@ func X_bankerRemoveCoin(m *gno.Machine, bt uint8, addr string, denom string, amo
 	}
 
 	newDenom := "/" + m.Realm.Path + ":" + denom
-	m.Context.(ExecContext).Banker.RemoveCoin(crypto.Bech32Address(addr), newDenom, amount)
+	GetContext(m).Banker.RemoveCoin(crypto.Bech32Address(addr), newDenom, amount)
 }

@@ -57,7 +57,7 @@ func (msg MsgAddPackage) ValidateBasic() error {
 		return ErrInvalidPkgPath("missing package path")
 	}
 	if !msg.Deposit.IsValid() {
-		return std.ErrTxDecode("invalid deposit")
+		return std.ErrInvalidCoins("invalid deposit")
 	}
 	// XXX validate files.
 	return nil
@@ -113,8 +113,11 @@ func (msg MsgCall) ValidateBasic() error {
 	if msg.Caller.IsZero() {
 		return std.ErrInvalidAddress("missing caller address")
 	}
-	if msg.PkgPath == "" { // XXX
+	if msg.PkgPath == "" {
 		return ErrInvalidPkgPath("missing package path")
+	}
+	if !gno.IsRealmPath(msg.PkgPath) {
+		return ErrInvalidPkgPath("pkgpath must be of a realm")
 	}
 	if msg.Func == "" { // XXX
 		return ErrInvalidExpr("missing function to call")
@@ -203,4 +206,45 @@ func (msg MsgRun) GetSigners() []crypto.Address {
 // Implements ReceiveMsg.
 func (msg MsgRun) GetReceived() std.Coins {
 	return msg.Send
+}
+
+//----------------------------------------
+// MsgNoop
+
+// MsgNoop - executes nothing
+type MsgNoop struct {
+	Caller crypto.Address `json:"caller" yaml:"caller"`
+}
+
+var _ std.Msg = MsgNoop{}
+
+func NewMsgNoop(caller crypto.Address) MsgNoop {
+	return MsgNoop{
+		Caller: caller,
+	}
+}
+
+// Implements Msg.
+func (msg MsgNoop) Route() string { return RouterKey }
+
+// Implements Msg.
+func (msg MsgNoop) Type() string { return "no_op" }
+
+// Implements Msg.
+func (msg MsgNoop) ValidateBasic() error {
+	if msg.Caller.IsZero() {
+		return std.ErrInvalidAddress("missing caller address")
+	}
+
+	return nil
+}
+
+// Implements Msg.
+func (msg MsgNoop) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+
+// Implements Msg.
+func (msg MsgNoop) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
 }

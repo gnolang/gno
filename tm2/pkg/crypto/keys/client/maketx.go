@@ -1,6 +1,7 @@
 package client
 
 import (
+	"encoding/base64"
 	"flag"
 	"fmt"
 
@@ -23,6 +24,9 @@ type MakeTxCfg struct {
 	// Valid options are SimulateTest, SimulateSkip or SimulateOnly.
 	Simulate string
 	ChainID  string
+
+	// Optional
+	Sponsor string
 }
 
 // These are the valid options for MakeTxConfig.Simulate.
@@ -108,6 +112,13 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 		"dev",
 		"chainid to sign for (only useful with --broadcast)",
 	)
+
+	fs.StringVar(
+		&c.Sponsor,
+		"sponsor",
+		"",
+		"onchain address of the sponsor",
+	)
 }
 
 func SignAndBroadcastHandler(
@@ -130,24 +141,32 @@ func SignAndBroadcastHandler(
 	}
 	accountAddr := info.GetAddress()
 
+	var accountNumber uint64
+	var sequence uint64
+
 	qopts := &QueryCfg{
 		RootCfg: baseopts,
 		Path:    fmt.Sprintf("auth/accounts/%s", accountAddr),
 	}
 	qres, err := QueryHandler(qopts)
 	if err != nil {
-		return nil, errors.Wrap(err, "query account")
-	}
-	var qret struct{ BaseAccount std.BaseAccount }
-	err = amino.UnmarshalJSON(qres.Response.Data, &qret)
-	if err != nil {
-		return nil, err
+		if !tx.IsSponsorTx() {
+			return nil, errors.Wrap(err, "query account")
+		}
+	} else {
+		var qret struct {
+			BaseAccount std.BaseAccount
+		}
+
+		err = amino.UnmarshalJSON(qres.Response.Data, &qret)
+		if err != nil {
+			return nil, err
+		}
+		accountNumber = qret.BaseAccount.AccountNumber
+		sequence = qret.BaseAccount.Sequence
 	}
 
 	// sign tx
-	accountNumber := qret.BaseAccount.AccountNumber
-	sequence := qret.BaseAccount.Sequence
-
 	sOpts := signOpts{
 		chainID:         txopts.ChainID,
 		accountSequence: sequence,
@@ -210,6 +229,7 @@ func ExecSignAndBroadcast(
 		return errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
 	}
 	if bres.DeliverTx.IsErr() {
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
 		return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 	}
 
@@ -219,6 +239,7 @@ func ExecSignAndBroadcast(
 	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
 	io.Println("HEIGHT:    ", bres.Height)
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
+	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
 
 	return nil
 }

@@ -17,6 +17,7 @@ import (
 func TestVMKeeperAddPackage(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
+	vmk := env.vmk
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -30,10 +31,7 @@ func TestVMKeeperAddPackage(t *testing.T) {
 		{
 			Name: "test.gno",
 			Body: `package test
-
-func Echo() string {
-	return "hello world"
-}`,
+func Echo() string {return "hello world"}`,
 		},
 	}
 	pkgPath := "gno.land/r/test"
@@ -49,6 +47,16 @@ func Echo() string {
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, InvalidPkgPathError{}))
+
+	// added package is formatted
+	store := vmk.getGnoStore(ctx)
+	memFile := store.GetMemFile("gno.land/r/test", "test.gno")
+	assert.NotNil(t, memFile)
+	expected := `package test
+
+func Echo() string { return "hello world" }
+`
+	assert.Equal(t, expected, memFile.Body)
 }
 
 // Sending total send amount succeeds.
@@ -366,6 +374,18 @@ func main() {
 // Call Run with stdlibs.
 func TestVMKeeperRunImportStdlibs(t *testing.T) {
 	env := setupTestEnv()
+	testVMKeeperRunImportStdlibs(t, env)
+}
+
+// Call Run with stdlibs, "cold" loading the standard libraries
+func TestVMKeeperRunImportStdlibsColdStdlibLoad(t *testing.T) {
+	env := setupTestEnvCold()
+	testVMKeeperRunImportStdlibs(t, env)
+}
+
+func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
+	t.Helper()
+
 	ctx := env.ctx
 
 	// Give "addr1" some gnots.

@@ -1,8 +1,9 @@
 package millipede
 
 import (
-	"fmt"
 	"testing"
+
+	"gno.land/p/demo/uassert"
 )
 
 func TestRender(t *testing.T) {
@@ -34,7 +35,7 @@ func TestRender(t *testing.T) {
    ╚═(███)═╝
   ╚═(███)═╝
  ╚═(███)═╝
-` + "```\n[19](/r/art/millpede:19)<  >[21](/r/art/millipede:21)",
+` + "```\n[19](/r/demo/art/millpede:19)<  >[21](/r/demo/art/millipede:21)",
 		},
 		{
 			path: "4",
@@ -44,16 +45,14 @@ func TestRender(t *testing.T) {
  ╚═(███)═╝
 ╚═(███)═╝
  ╚═(███)═╝
-` + "```\n[3](/r/art/millpede:3)<  >[5](/r/art/millipede:5)",
+` + "```\n[3](/r/demo/art/millpede:3)<  >[5](/r/demo/art/millipede:5)",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.path, func(t *testing.T) {
 			got := Render(tc.path)
-			if got != tc.expected {
-				t.Errorf("expected %s, got %s.", tc.expected, got)
-			}
+			uassert.Equal(t, tc.expected, got)
 		})
 	}
 }

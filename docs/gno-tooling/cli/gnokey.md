@@ -124,8 +124,8 @@ gnokey query {QUERY_PATH}
 | `bank/balances/{ADDRESS}` | Returns balances of an account.                                    | `gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`                  |
 | `vm/qfuncs`               | Returns public facing function signatures as JSON.                 | `gnokey query vm/qfuncs --data "gno.land/r/demo/boards"`                               |
 | `vm/qfile`                | Returns the file bytes, or list of files if directory.             | `gnokey query vm/qfile --data "gno.land/r/demo/boards"`                                |
-| `vm/qrender`              | Calls .Render(path) in readonly mode.                              | `gnokey query vm/qrender --data "gno.land/r/demo/boards"`                              |
-| `vm/qeval`                | Evaluates any expression in readonly mode and returns the results. | `gnokey query vm/qeval --data "gno.land/r/demo/boards GetBoardIDFromName("my_board")"` |
+| `vm/qrender`              | Calls .Render(path) in readonly mode.                              | `gnokey query vm/qrender --data "gno.land/r/demo/boards:"`                              |
+| `vm/qeval`                | Evaluates any expression in readonly mode and returns the results. | `gnokey query vm/qeval --data "gno.land/r/demo/boards.GetBoardIDFromName("my_board")"` |
 | `vm/store`                | (not yet supported) Fetches items from the store.                  | -                                                                                      |
 | `vm/package`              | (not yet supported) Fetches a package's files.                     | -                                                                                      |
 
@@ -134,8 +134,6 @@ gnokey query {QUERY_PATH}
 | Name     | Type      | Description                              |
 |----------|-----------|------------------------------------------|
 | `data`   | UInt8 \[] | Queries data bytes.                      |
-| `height` | Int64     | (not yet supported) Queries height.      |
-| `prove`  | Boolean   | (not yet supported) Proves query result. |
 
 
 ## Sign and Broadcast a Transaction
@@ -179,6 +177,7 @@ gnokey maketx addpkg \
 | `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
 | `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
 | `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
+| `sponsor`    | String  | Bech32 address of the sponsor who pay gas fee for the transaction                      |
 
 #### **makeTx AddPackage Options**
 
@@ -190,7 +189,7 @@ gnokey maketx addpkg \
 
 ### `call`
 
-This subcommand lets you call a public function.
+This subcommand lets you call any exported function.
 
 ```bash
 # Register
@@ -207,6 +206,20 @@ gnokey maketx call \
     > unsigned.tx
 ```
 
+:::warning `call` is a state-changing message
+
+All exported functions, including `Render()`, can be called in two main ways:
+`call` and [`query vm/qeval`](#query).
+
+With `call`, any state change that happened in the function being called will be
+applied and persisted in on the blockchain, and the gas used for this call will
+be subtracted from the caller balance.
+
+As opposed to this, an ABCI query, such as `vm/qeval` will not persist state
+changes and does not cost gas, only evaluating the expression in read-only mode.
+
+:::
+
 #### **SignBroadcast Options**
 
 | Name         | Type    | Description                                                                            |
@@ -217,6 +230,7 @@ gnokey maketx call \
 | `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
 | `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
 | `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
+| `sponsor`    | String  | Bech32 address of the sponsor who pay gas fee for the transaction                      |
 
 #### **makeTx Call Options**
 
@@ -256,6 +270,7 @@ gnokey maketx send \
 | `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
 | `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
 | `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
+| `sponsor`    | String  | Bech32 address of the sponsor who pay gas fee for the transaction                      |
 
 #### **makeTx Send Options**
 
