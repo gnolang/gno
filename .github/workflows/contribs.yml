@@ -5,16 +5,7 @@ on:
     branches:
       - master
   workflow_dispatch:
-  pull_request: 
-    paths:
-      - "contribs/**"
-      - ".github/**"
-      # Contribs directly depend on gno, so we need to test it whenever changes
-      # are made to one of those
-      - "go.*" # check on go.mod/sum update
-      - "gno.land/**"
-      - "tm2/**.go"
-      - "gnovm/**.go"
+  pull_request:
 
 jobs:
   setup:
