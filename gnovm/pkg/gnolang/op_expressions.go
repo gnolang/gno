@@ -753,6 +753,7 @@ func (m *Machine) doOpFuncLit() {
 	ft := m.PopValue().V.(TypeValue).Type.(*FuncType)
 	lb := m.LastBlock()
 	m.Alloc.AllocateFunc()
+
 	// First copy closure captured heap values
 	// to *FuncValue. Later during doOpCall a block
 	// will be created that copies these values for
@@ -763,6 +764,12 @@ func (m *Machine) doOpFuncLit() {
 		// XXX check that ptr.TV is a heap item value.
 		// it must be in the form of:
 		// {T:heapItemType{},V:HeapItemValue{...}}
+		if _, ok := ptr.TV.T.(heapItemType); !ok {
+			panic("should not happen, should be heapItemType")
+		}
+		if _, ok := ptr.TV.V.(*HeapItemValue); !ok {
+			panic("should not happen, should be heapItemValue")
+		}
 		captures = append(captures, *ptr.TV)
 	}
 	m.PushValue(TypedValue{

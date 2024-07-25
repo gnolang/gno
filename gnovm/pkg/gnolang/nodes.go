@@ -209,6 +209,13 @@ func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {
 	attr.data[key] = value
 }
 
+func (attr *Attributes) DelAttribute(key GnoAttribute) {
+	if attr.data == nil {
+		panic("should not happen, attribute is expected to be non-empty.")
+	}
+	delete(attr.data, key)
+}
+
 // ----------------------------------------
 // Node
 
@@ -223,6 +230,7 @@ type Node interface {
 	HasAttribute(key GnoAttribute) bool
 	GetAttribute(key GnoAttribute) interface{}
 	SetAttribute(key GnoAttribute, value interface{})
+	DelAttribute(key GnoAttribute)
 }
 
 // non-pointer receiver to help make immutable.
@@ -607,11 +615,15 @@ func (ftxz FieldTypeExprs) IsNamed() bool {
 	named := false
 	for i, ftx := range ftxz {
 		if i == 0 {
-			named = ftx.Name != ""
+			if ftx.Name == "" || strings.HasPrefix(string(ftx.Name), ".res_") {
+				named = false
+			} else {
+				named = true
+			}
 		} else {
 			if named && ftx.Name == "" {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts named)")
-			} else if !named && ftx.Name != "" {
+			} else if !named && (ftx.Name != "" || !strings.HasPrefix(string(ftx.Name), ".res_")) {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts unnamed)")
 			}
 		}

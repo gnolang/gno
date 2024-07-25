@@ -1,0 +1,23 @@
+package main
+
+func main() {
+	s := []int{1, 2}
+
+	f := func() {
+		for i, v := range s {
+			println(i)
+			println(v)
+		}
+	}
+
+	f()
+}
+
+// Preprocessed:
+// file{ package main; func main() { s<!VPBlock(1,0)> := [](const-type int){(const (1 int)), (const (2 int))}; f<!VPBlock(1,1)> := func func(){ for i<!VPBlock(1,0)>, v<!VPBlock(1,1)> := range s<VPBlock(3,0)> { (const (println func(xs ...interface{})()))(i<VPBlock(1,0)>); (const (println func(xs ...interface{})()))(v<VPBlock(1,1)>) } }; f<VPBlock(1,1)>() } }
+
+// Output:
+// 0
+// 1
+// 1
+// 2

@@ -1,10 +1,6 @@
 // PKGPATH: gno.land/r/test
 package test
 
-import (
-	"fmt"
-)
-
 type (
 	word uint
 	nat  []word
@@ -225,7 +221,7 @@ func main() {
 //                     "BlockNode": null,
 //                     "Location": {
 //                         "File": "main.gno",
-//                         "Line": "20",
+//                         "Line": "16",
 //                         "Nonce": "0",
 //                         "PkgPath": "gno.land/r/test"
 //                     }

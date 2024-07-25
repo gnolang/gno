@@ -1950,9 +1950,7 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 			lb := m.LastBlock()
 			return lb.GetPointerToHeapUse(m.Store, lx.Path)
 		case NameExprTypeHeapClosure:
-			// XXX
-			lb := m.LastBlock()
-			return lb.GetPointerTo(m.Store, lx.Path)
+			panic("should not happen")
 		default:
 			panic("unexpected NameExpr in PopAsPointer")
 		}

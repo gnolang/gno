@@ -57,6 +57,19 @@ func (m *Machine) doOpCall() {
 	// Create new block scope.
 	clo := fr.Func.GetClosure(m.Store)
 	b := m.Alloc.NewBlock(fr.Func.GetSource(m.Store), clo)
+
+	// Copy *FuncValue.Captures into block
+	// NOTE: addHeapCapture in preprocess ensures order.
+	// XXX, actually copy
+	if len(fv.Captures) != 0 {
+		if len(fv.Captures) > len(b.Values) {
+			panic("should not happen, length of captured variables must not exceed the number of values")
+		}
+		for i := 0; i < len(fv.Captures); i++ {
+			b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
+		}
+	}
+
 	m.PushBlock(b)
 	if fv.nativeBody == nil && fv.NativePkg != "" {
 		// native function, unmarshaled so doesn't have nativeBody yet
@@ -168,10 +181,6 @@ func (m *Machine) doOpCall() {
 		// as a pointer, *StructValue, for example.
 		b.Values[i] = pv.Copy(m.Alloc)
 	}
-	// Copy *FuncValue.Captures into block
-	// NOTE: addHeapCapture in preprocess ensures order.
-	// XXX I think we can copy into the last len(.Captures) items of b.Values.
-	// XXX actually copy
 }
 
 func (m *Machine) doOpCallNativeBody() {
@@ -292,6 +301,15 @@ func (m *Machine) doOpReturnCallDefers() {
 		// Create new block scope for defer.
 		clo := dfr.Func.GetClosure(m.Store)
 		b := m.Alloc.NewBlock(fv.GetSource(m.Store), clo)
+		// copy values from captures
+		if len(fv.Captures) != 0 {
+			if len(fv.Captures) > len(b.Values) {
+				panic("should not happen, length of captured variables must not exceed the number of values")
+			}
+			for i := 0; i < len(fv.Captures); i++ {
+				b.Values[len(b.Values)-len(fv.Captures)+i] = fv.Captures[i].Copy(m.Alloc)
+			}
+		}
 		m.PushBlock(b)
 		if fv.nativeBody == nil {
 			fbody := fv.GetBodyFromSource(m.Store)
