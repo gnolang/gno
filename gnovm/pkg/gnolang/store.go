@@ -97,7 +97,7 @@ type defaultStore struct {
 	parentStore  *defaultStore                      // set only during transactions.
 	cacheObjects map[ObjectID]Object                // this is a real cache, reset with every transaction.
 	cacheTypes   bufferedTxMap[TypeID, Type]        // this re-uses the parent store's.
-	cacheNodes   bufferedTxMap[Location, BlockNode] // until BlockNode persistance is implemented, this is an actual store.
+	cacheNodes   bufferedTxMap[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
 	alloc        *Allocator                         // for accounting for cached items
 
 	// store configuration; cannot be modified in a transaction
@@ -118,10 +118,24 @@ type bufferedTxMap[K comparable, V any] struct {
 	dirty  map[K]deletable[V]
 }
 
-// init should be called when creating the bufferedTxMap, in a non-buffer
+// init should be called when creating the bufferedTxMap, in a non-buffered
 // context.
 func (b *bufferedTxMap[K, V]) init() {
+	if b.dirty != nil {
+		panic("cannot init with a dirty buffer")
+	}
 	b.source = make(map[K]V)
+}
+
+// clone allows to create a shallow clone of b, in a non-buffered context.
+func (b bufferedTxMap[K, V]) clone() bufferedTxMap[K, V] {
+	if b.dirty != nil {
+		panic("cannot clone with a dirty buffer")
+	}
+
+	return bufferedTxMap[K, V]{
+		source: maps.Clone(b.source),
+	}
 }
 
 // buffered creates a copy of b, which has a usable dirty map.
@@ -277,6 +291,16 @@ func (ds *defaultStore) write() {
 	ds.cacheNodes.write()
 }
 
+// CopyCachesFromStore allows to copy a store's internal object, type and
+// BlockNode cache into the dst store.
+// This is mostly useful for testing, where many stores have to be initialized.
+func CopyCachesFromStore(dst, src Store) {
+	ds, ss := dst.(*defaultStore), src.(*defaultStore)
+	ds.cacheObjects = maps.Clone(ss.cacheObjects)
+	ds.cacheTypes = ss.cacheTypes.clone()
+	ds.cacheNodes = ss.cacheNodes.clone()
+}
+
 func (ds *defaultStore) GetAllocator() *Allocator {
 	return ds.alloc
 }
@@ -372,7 +396,10 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			// but packages gotten from the pkgGetter may skip this step,
 			// so fill in store.CacheTypes here.
 			for _, tv := range pv.GetBlock(nil).Values {
-				if tv.T.Kind() == TypeKind {
+				if tv.T == nil {
+					// tv.T is nil here only when only predefined.
+					// (for other types, .T == nil even after definition).
+				} else if tv.T.Kind() == TypeKind {
 					t := tv.GetType()
 					ds.SetCacheType(t)
 				}
@@ -718,21 +745,21 @@ func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
 // GetMemPackage retrieves the MemPackage at the given path.
 // It returns nil if the package could not be found.
 func (ds *defaultStore) GetMemPackage(path string) *std.MemPackage {
-	return getMemPackage(ds, ds.iavlStore, path, false)
+	return ds.getMemPackage(path, false)
 }
 
-func getMemPackage(store Store, iavlStore store.Store, path string, isRetry bool) *std.MemPackage {
+func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage {
 	pathkey := []byte(backendPackagePathKey(path))
-	bz := iavlStore.Get(pathkey)
+	bz := ds.iavlStore.Get(pathkey)
 	if bz == nil {
 		// If this is the first try, attempt using GetPackage to retrieve the
 		// package, first. GetPackage can leverage pkgGetter, which in most
 		// implementations works by running Machine.RunMemPackage with save = true,
 		// which would add the package to the store after running.
 		// Some packages may never be persisted, thus why we only attempt this twice.
-		if !isRetry {
-			if pv := store.GetPackage(path, false); pv != nil {
-				return getMemPackage(store, iavlStore, path, true)
+		if !isRetry && ds.pkgGetter != nil {
+			if pv := ds.GetPackage(path, false); pv != nil {
+				return ds.getMemPackage(path, true)
 			}
 		}
 		return nil
