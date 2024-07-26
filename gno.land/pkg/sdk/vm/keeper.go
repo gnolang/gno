@@ -34,10 +34,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-const (
-	maxAllocTx    = 500 * 1000 * 1000
-	maxAllocQuery = 1500 * 1000 * 1000 // higher limit for queries
-)
+const maxAllocQuery = 1_500_000_000
 
 // vm.VMKeeperI defines a module interface that supports Gno
 // smart contracts programming (scripting).
@@ -47,6 +44,7 @@ type VMKeeperI interface {
 	QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
+	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
 }
 
 var _ VMKeeperI = &VMKeeper{}
@@ -106,52 +104,27 @@ func (vm *VMKeeper) Initialize(
 	return
 }
 
-var iavlBackupPrefix = []byte("init_iavl_backup:")
+var (
+	cachedStdlibOnce sync.Once
+	cachedStdlibBase store.Store
+	cachedStdlibIavl store.Store
+	cachedGnoStore   gno.Store
+)
 
-func isStoreEmpty(st store.Store) bool {
-	iter := st.Iterator(nil, nil)
-	defer iter.Close()
-	for ; iter.Valid(); iter.Next() {
-		return false
-	}
-	return true
-}
-
-func cachedStdlibLoad(stdlibDir string, baseStore, iavlStore store.Store) gno.Store {
+// LoadStdlib loads the Gno standard library into the given store.
+func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 	cachedStdlibOnce.Do(func() {
-		cachedStdlibBase = memdb.NewMemDB()
-		cachedStdlibIavl = memdb.NewMemDB()
+		cachedStdlibBase = dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{})
+		cachedStdlibIavl = dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{})
 
-		cachedGnoStore = gno.NewStore(nil,
-			dbadapter.StoreConstructor(cachedStdlibBase, types.StoreOptions{}),
-			dbadapter.StoreConstructor(cachedStdlibIavl, types.StoreOptions{}))
+		cachedGnoStore = gno.NewStore(nil, cachedStdlibBase, cachedStdlibIavl)
 		cachedGnoStore.SetNativeStore(stdlibs.NativeStore)
 		loadStdlib(cachedGnoStore, stdlibDir)
 	})
 
-	itr := cachedStdlibBase.Iterator(nil, nil)
-	for ; itr.Valid(); itr.Next() {
-		baseStore.Set(itr.Key(), itr.Value())
-	}
-
-	itr = cachedStdlibIavl.Iterator(nil, nil)
-	for ; itr.Valid(); itr.Next() {
-		iavlStore.Set(itr.Key(), itr.Value())
-	}
-
-	alloc := gno.NewAllocator(maxAllocTx)
-	gs := gno.NewStore(alloc, baseStore, iavlStore)
-	gs.SetNativeStore(stdlibs.NativeStore)
-	gno.CopyCachesFromStore(gs, cachedGnoStore)
-	return gs
+	gs := vm.getGnoStore(ctx)
+	gno.CopyFromCachedStore(gs, cachedGnoStore, cachedStdlibBase, cachedStdlibIavl)
 }
-
-var (
-	cachedStdlibOnce sync.Once
-	cachedStdlibBase *memdb.MemDB
-	cachedStdlibIavl *memdb.MemDB
-	cachedGnoStore   gno.Store
-)
 
 // LoadStdlib loads the Gno standard library into the given store.
 func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {

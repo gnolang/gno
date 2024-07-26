@@ -71,10 +71,14 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 	genesis := DefaultTestingGenesisConfig(t, gnoroot, pv.GetPubKey(), tmconfig)
 
 	return &gnoland.InMemoryNodeConfig{
-		PrivValidator:    pv,
-		Genesis:          genesis,
-		TMConfig:         tmconfig,
-		GenesisTxHandler: gnoland.PanicOnFailingTxHandler,
+		PrivValidator: pv,
+		Genesis:       genesis,
+		TMConfig:      tmconfig,
+		InitChainerConfig: gnoland.InitChainerConfig{
+			GenesisTxResultHandler: gnoland.PanicOnFailingTxResultHandler,
+			CacheStdlibLoad:        true,
+			// StdlibDir automatically set
+		},
 	}
 }
 

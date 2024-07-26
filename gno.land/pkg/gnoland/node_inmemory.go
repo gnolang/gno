@@ -3,6 +3,7 @@ package gnoland
 import (
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"time"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -22,8 +23,10 @@ type InMemoryNodeConfig struct {
 	PrivValidator      bft.PrivValidator // identity of the validator
 	Genesis            *bft.GenesisDoc
 	TMConfig           *tmcfg.Config
-	GenesisTxHandler   GenesisTxHandler
 	GenesisMaxVMCycles int64
+
+	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
+	InitChainerConfig
 }
 
 // NewMockedPrivValidator generate a new key
@@ -70,7 +73,7 @@ func (cfg *InMemoryNodeConfig) validate() error {
 		return fmt.Errorf("`TMConfig.RootDir` is required to locate `stdlibs` directory")
 	}
 
-	if cfg.GenesisTxHandler == nil {
+	if cfg.GenesisTxResultHandler == nil {
 		return fmt.Errorf("`GenesisTxHandler` is required but not provided")
 	}
 
@@ -87,15 +90,17 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 
 	evsw := events.NewEventSwitch()
 
+	if cfg.StdlibDir == "" {
+		cfg.StdlibDir = filepath.Join(cfg.TMConfig.RootDir, "gnovm", "stdlibs")
+	}
+
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
-		Logger:           logger,
-		GnoRootDir:       cfg.TMConfig.RootDir,
-		GenesisTxHandler: cfg.GenesisTxHandler,
-		MaxCycles:        cfg.GenesisMaxVMCycles,
-		DB:               memdb.NewMemDB(),
-		EventSwitch:      evsw,
-		CacheStdlibLoad:  true,
+		Logger:            logger,
+		MaxCycles:         cfg.GenesisMaxVMCycles,
+		DB:                memdb.NewMemDB(),
+		EventSwitch:       evsw,
+		InitChainerConfig: cfg.InitChainerConfig,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)

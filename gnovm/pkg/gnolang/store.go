@@ -127,17 +127,6 @@ func (b *bufferedTxMap[K, V]) init() {
 	b.source = make(map[K]V)
 }
 
-// clone allows to create a shallow clone of b, in a non-buffered context.
-func (b bufferedTxMap[K, V]) clone() bufferedTxMap[K, V] {
-	if b.dirty != nil {
-		panic("cannot clone with a dirty buffer")
-	}
-
-	return bufferedTxMap[K, V]{
-		source: maps.Clone(b.source),
-	}
-}
-
 // buffered creates a copy of b, which has a usable dirty map.
 func (b bufferedTxMap[K, V]) buffered() bufferedTxMap[K, V] {
 	if b.dirty != nil {
@@ -294,11 +283,28 @@ func (ds *defaultStore) write() {
 // CopyCachesFromStore allows to copy a store's internal object, type and
 // BlockNode cache into the dst store.
 // This is mostly useful for testing, where many stores have to be initialized.
-func CopyCachesFromStore(dst, src Store) {
-	ds, ss := dst.(*defaultStore), src.(*defaultStore)
-	ds.cacheObjects = maps.Clone(ss.cacheObjects)
-	ds.cacheTypes = ss.cacheTypes.clone()
-	ds.cacheNodes = ss.cacheNodes.clone()
+func CopyFromCachedStore(destStore, cachedStore Store, cachedBase, cachedIavl store.Store) {
+	ds, ss := destStore.(transactionStore), cachedStore.(*defaultStore)
+
+	iter := cachedBase.Iterator(nil, nil)
+	for ; iter.Valid(); iter.Next() {
+		ds.baseStore.Set(iter.Key(), iter.Value())
+	}
+	iter = cachedIavl.Iterator(nil, nil)
+	for ; iter.Valid(); iter.Next() {
+		ds.iavlStore.Set(iter.Key(), iter.Value())
+	}
+
+	if ss.cacheTypes.dirty != nil ||
+		ss.cacheNodes.dirty != nil {
+		panic("cacheTypes and cacheNodes should be unbuffered")
+	}
+	for k, v := range ss.cacheTypes.source {
+		ds.cacheTypes.Set(k, v)
+	}
+	for k, v := range ss.cacheNodes.source {
+		ds.cacheNodes.Set(k, v)
+	}
 }
 
 func (ds *defaultStore) GetAllocator() *Allocator {

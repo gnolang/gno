@@ -53,6 +53,7 @@ type (
 )
 
 type mockVMKeeper struct {
+	vm.VMKeeperI
 	addPackageFn addPackageDelegate
 	callFn       callDelegate
 	queryFn      queryEvalDelegate

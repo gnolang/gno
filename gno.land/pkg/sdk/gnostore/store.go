@@ -4,30 +4,33 @@ package gnostore
 
 import (
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
-	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/cache"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
+// Allocation limit for GnoVM.
+const maxAllocTx = 500_000_000
+
 // StoreConstructor implements store.CommitStoreConstructor.
 // It can be used in conjunction with CommitMultiStore.MountStoreWithDB.
 // initialize should only contain basic setter for the immutable config
 // (like SetNativeStore); it should not initialize packages.
-func StoreConstructor(alloc *gnolang.Allocator, initialize func(gs gnolang.Store)) store.CommitStoreConstructor {
-	return func(db dbm.DB, opts types.StoreOptions) types.CommitStore {
-		iavlStore := iavl.StoreConstructor(db, opts)
-		base := dbadapter.StoreConstructor(db, opts)
-		gno := gnolang.NewStore(alloc, base, iavlStore)
-		initialize(gno)
-		return &Store{
-			Store: iavlStore.(*iavl.Store),
-			opts:  opts,
-			base:  base.(dbadapter.Store),
-			gno:   gno,
-		}
+func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
+	iavlStore := iavl.StoreConstructor(db, opts)
+	base := dbadapter.StoreConstructor(db, opts)
+
+	alloc := gnolang.NewAllocator(maxAllocTx)
+	gno := gnolang.NewStore(alloc, base, iavlStore)
+	gno.SetNativeStore(stdlibs.NativeStore)
+	return &Store{
+		Store: iavlStore.(*iavl.Store),
+		opts:  opts,
+		base:  base.(dbadapter.Store),
+		gno:   gno,
 	}
 }
 
@@ -58,14 +61,6 @@ func (s *Store) SetStoreOptions(opts2 types.StoreOptions) {
 
 func (s *Store) GnoStore() gnolang.Store { return s.gno }
 
-type cacheStore struct {
-	types.Store
-
-	base    types.Store
-	gno     gnolang.TransactionStore
-	rootGno gnolang.Store
-}
-
 func (s *Store) CacheWrap() types.Store {
 	s2 := &cacheStore{
 		Store:   cache.New(s.Store),
@@ -76,16 +71,24 @@ func (s *Store) CacheWrap() types.Store {
 	return s2
 }
 
-func (store *cacheStore) Write() {
-	store.Store.Write()
-	store.base.Write()
-	store.gno.Write()
+type cacheStore struct {
+	types.Store
+
+	base    types.Store
+	gno     gnolang.TransactionStore
+	rootGno gnolang.Store
 }
 
-func (store *cacheStore) Flush() {
-	store.Store.(types.Flusher).Flush()
-	store.base.(types.Flusher).Flush()
-	store.gno.Write()
+func (s *cacheStore) Write() {
+	s.Store.Write()
+	s.base.Write()
+	s.gno.Write()
+}
+
+func (s *cacheStore) Flush() {
+	s.Store.(types.Flusher).Flush()
+	s.base.(types.Flusher).Flush()
+	s.gno.Write()
 }
 
 func (s *cacheStore) CacheWrap() types.Store {

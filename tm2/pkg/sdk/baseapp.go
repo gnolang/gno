@@ -836,20 +836,6 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 	return result
 }
 
-func (app *BaseApp) RunAsDeliverTx(callback func(ctx Context) (ok bool)) {
-	ctx := app.getContextForTx(RunTxModeDeliver, nil)
-
-	// Create a new context based off of the existing context with a cache wrapped
-	// multi-store in case message processing fails.
-	runMsgCtx, msCache := app.cacheTxContext(ctx)
-	ok := callback(runMsgCtx)
-
-	// only update state if all messages pass
-	if ok {
-		msCache.MultiWrite()
-	}
-}
-
 // EndBlock implements the ABCI interface.
 func (app *BaseApp) EndBlock(req abci.RequestEndBlock) (res abci.ResponseEndBlock) {
 	if app.endBlocker != nil {

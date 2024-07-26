@@ -5,6 +5,7 @@ package vm
 import (
 	"path/filepath"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/gnostore"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -14,7 +15,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
-	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 )
 
 type testEnv struct {
@@ -36,21 +36,23 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	db := memdb.NewMemDB()
 
 	baseCapKey := store.NewStoreKey("baseCapKey")
-	iavlCapKey := store.NewStoreKey("iavlCapKey")
+	gnoCapKey := store.NewStoreKey("gnoCapKey")
 
+	// Mount db store and gnostore
 	ms := store.NewCommitMultiStore(db)
 	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
-	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
+	ms.MountStoreWithDB(gnoCapKey, gnostore.StoreConstructor, db)
 	ms.LoadLatestVersion()
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
-	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
+	acck := authm.NewAccountKeeper(gnoCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
-	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
-	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir, 100_000_000)
+	vmk := NewVMKeeper(gnoCapKey, acck, bank, 100_000_000)
 
 	mcw := ms.MultiCacheWrap()
-	vmk.Initialize(log.NewNoopLogger(), mcw, cacheStdlibs)
+	vmk.Initialize(log.NewNoopLogger(), mcw)
+	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
+	vmk.LoadStdlibCached(ctx, stdlibsDir)
 	mcw.MultiWrite()
 
 	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}
