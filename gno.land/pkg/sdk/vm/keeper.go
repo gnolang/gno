@@ -46,6 +46,7 @@ type VMKeeperI interface {
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
 	QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
+	LoadStdlib(ctx sdk.Context, stdlibDir string)
 }
 
 var _ VMKeeperI = &VMKeeper{}
@@ -79,57 +80,14 @@ func NewVMKeeper(
 func (vm *VMKeeper) Initialize(
 	logger *slog.Logger,
 	ms store.MultiStore,
-	cacheStdlibLoad bool,
 ) {
 	gnoStore := gnostore.GetGnoStore(ms.GetStore(vm.gnoStoreKey))
 
-	if cacheStdlibLoad {
-		// Testing case (using the cache speeds up starting many nodes)
-		cachedStdlibLoad(gnoStore, vm.stdlibsDir)
-	} else {
-		// On-chain case
-		uncachedPackageLoad(gnoStore, logger, vm.stdlibsDir)
-	}
-}
-
-func uncachedPackageLoad(
-	gnoStore gno.Store,
-	logger *slog.Logger,
-	stdlibsDir string,
-) gno.Store {
-	alloc := gno.NewAllocator(maxAllocTx)
-	if gnoStore.NumMemPackages() == 0 {
-		// No packages in the store; set up the stdlibs.
-		start := time.Now()
-
-		loadStdlib(stdlibsDir, gnoStore)
-
-		// XXX Quick and dirty to make this function work on non-validator nodes
-		iter := iavlStore.Iterator(nil, nil)
-		for ; iter.Valid(); iter.Next() {
-			baseStore.Set(append(iavlBackupPrefix, iter.Key()...), iter.Value())
-		}
-		iter.Close()
-
-		logger.Debug("Standard libraries initialized",
-			"elapsed", time.Since(start))
-	} else {
+	if gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
 		// TODO remove this, and generally solve for in-mem garbage collection
 		// and memory management across many objects/types/nodes/packages.
 		start := time.Now()
-
-		// XXX Quick and dirty to make this function work on non-validator nodes
-		if isStoreEmpty(iavlStore) {
-			iter := baseStore.Iterator(iavlBackupPrefix, nil)
-			for ; iter.Valid(); iter.Next() {
-				if !bytes.HasPrefix(iter.Key(), iavlBackupPrefix) {
-					break
-				}
-				iavlStore.Set(iter.Key()[len(iavlBackupPrefix):], iter.Value())
-			}
-			iter.Close()
-		}
 
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
@@ -145,7 +103,7 @@ func uncachedPackageLoad(
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
-	return gnoStore
+	return
 }
 
 var iavlBackupPrefix = []byte("init_iavl_backup:")
@@ -159,7 +117,7 @@ func isStoreEmpty(st store.Store) bool {
 	return true
 }
 
-func cachedStdlibLoad(stdlibsDir string, baseStore, iavlStore store.Store) gno.Store {
+func cachedStdlibLoad(stdlibDir string, baseStore, iavlStore store.Store) gno.Store {
 	cachedStdlibOnce.Do(func() {
 		cachedStdlibBase = memdb.NewMemDB()
 		cachedStdlibIavl = memdb.NewMemDB()
@@ -168,7 +126,7 @@ func cachedStdlibLoad(stdlibsDir string, baseStore, iavlStore store.Store) gno.S
 			dbadapter.StoreConstructor(cachedStdlibBase, types.StoreOptions{}),
 			dbadapter.StoreConstructor(cachedStdlibIavl, types.StoreOptions{}))
 		cachedGnoStore.SetNativeStore(stdlibs.NativeStore)
-		loadStdlib(stdlibsDir, cachedGnoStore)
+		loadStdlib(cachedGnoStore, stdlibDir)
 	})
 
 	itr := cachedStdlibBase.Iterator(nil, nil)
@@ -195,7 +153,13 @@ var (
 	cachedGnoStore   gno.Store
 )
 
-func loadStdlib(stdlibsDir string, store gno.Store) {
+// LoadStdlib loads the Gno standard library into the given store.
+func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
+	gs := vm.getGnoStore(ctx)
+	loadStdlib(gs, stdlibDir)
+}
+
+func loadStdlib(store gno.Store, stdlibDir string) {
 	stdlibInitList := stdlibs.InitOrder()
 	for _, lib := range stdlibInitList {
 		if lib == "testing" {
@@ -203,12 +167,12 @@ func loadStdlib(stdlibsDir string, store gno.Store) {
 			// like fmt and encoding/json
 			continue
 		}
-		loadStdlibPackage(lib, stdlibsDir, store)
+		loadStdlibPackage(lib, stdlibDir, store)
 	}
 }
 
-func loadStdlibPackage(pkgPath, stdlibsDir string, store gno.Store) {
-	stdlibPath := filepath.Join(stdlibsDir, pkgPath)
+func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
+	stdlibPath := filepath.Join(stdlibDir, pkgPath)
 	if !osm.DirExists(stdlibPath) {
 		// does not exist.
 		panic(fmt.Sprintf("failed loading stdlib %q: does not exist", pkgPath))

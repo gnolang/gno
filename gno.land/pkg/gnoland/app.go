@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/gnostore"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -23,7 +24,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
-	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 
 	// Only goleveldb is supported for now.
 	_ "github.com/gnolang/gno/tm2/pkg/db/_tags"
@@ -76,32 +76,28 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	}
 
 	// Capabilities keys.
-	mainKey := store.NewStoreKey("main")
 	baseKey := store.NewStoreKey("base")
 	gnoKey := store.NewStoreKey("gno")
 
 	// Create BaseApp.
 	// TODO: Add a consensus based min gas prices for the node, by default it does not check
-	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
+	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, gnoKey)
 	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
-	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
-	// XXX: Embed this ?
-	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
 	baseApp.MountStoreWithDB(gnoKey, gnostore.StoreConstructor(gnolang.NewAllocator(500*1000*1000), func(gs gnolang.Store) {
-		gs.SetPackageGetter(vm.PackageGetter(stdlibsDir))
 		gs.SetNativeStore(stdlibs.NativeStore)
 	}), cfg.DB)
 
 	// Construct keepers.
-	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
+	acctKpr := auth.NewAccountKeeper(gnoKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
 	vmk := vm.NewVMKeeper(gnoKey, acctKpr, bankKpr, cfg.MaxCycles)
 
 	// Set InitChainer
-	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, cfg.GenesisTxHandler))
+	stdlibDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
+	baseApp.SetInitChainer(InitChainer(baseApp, vmk, acctKpr, bankKpr, cfg.GenesisTxHandler, stdlibDir))
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
@@ -150,7 +146,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Initialize the VMKeeper.
 	ms := baseApp.GetCacheMultiStore()
-	vmk.Initialize(cfg.Logger, ms, cfg.CacheStdlibLoad)
+	vmk.Initialize(cfg.Logger, ms)
 	ms.MultiWrite() // XXX why was't this needed?
 
 	return baseApp, nil
@@ -195,11 +191,24 @@ func PanicOnFailingTxHandler(_ sdk.Context, _ std.Tx, res sdk.Result) {
 // InitChainer returns a function that can initialize the chain with genesis.
 func InitChainer(
 	baseApp *sdk.BaseApp,
+	vmKpr vm.VMKeeperI,
 	acctKpr auth.AccountKeeperI,
 	bankKpr bank.BankKeeperI,
 	resHandler GenesisTxHandler,
+	stdlibDir string,
 ) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
+		start := time.Now()
+		ctx.Logger().Debug("InitChainer: started")
+
+		baseApp.RunAsDeliverTx(func(deliverCtx sdk.Context) bool {
+			vmKpr.LoadStdlib(deliverCtx, stdlibDir)
+			return true
+		})
+
+		ctx.Logger().Debug("InitChainer: standard libraries loaded",
+			"elapsed", time.Since(start))
+
 		txResponses := []abci.ResponseDeliverTx{}
 
 		if req.AppState != nil {
@@ -237,6 +246,9 @@ func InitChainer(
 				resHandler(ctx, tx, res)
 			}
 		}
+
+		ctx.Logger().Debug("InitChainer: genesis transactions loaded",
+			"elapsed", time.Since(start))
 
 		// Done!
 		return abci.ResponseInitChain{
