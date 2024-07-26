@@ -68,7 +68,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	}
 
 	// Capabilities keys.
-	mainKey := store.NewStoreKey("iavl")
+	mainKey := store.NewStoreKey("main")
 	baseKey := store.NewStoreKey("base")
 
 	// Create BaseApp.
@@ -102,9 +102,6 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
-			// Create Gno transaction store.
-			ctx = vmk.MakeGnoTransactionStore(ctx)
-
 			// Override auth params.
 			ctx = ctx.
 				WithValue(auth.AuthParamsContextKey{}, auth.DefaultParams())
@@ -113,6 +110,10 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			return
 		},
 	)
+	baseApp.SetBeginTxHook(func(ctx sdk.Context) sdk.Context {
+		// Create Gno transaction store.
+		return vmk.MakeGnoTransactionStore(ctx)
+	})
 	baseApp.SetEndTxHook(func(ctx sdk.Context, result sdk.Result) {
 		if result.IsOK() {
 			vmk.CommitGnoTransactionStore(ctx)

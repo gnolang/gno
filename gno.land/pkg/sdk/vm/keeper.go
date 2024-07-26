@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -96,8 +95,8 @@ func (vm *VMKeeper) Initialize(
 	baseSDKStore := ms.GetStore(vm.baseKey)
 	iavlSDKStore := ms.GetStore(vm.iavlKey)
 
-	alloc := gnolang.NewAllocator(maxAllocTx)
-	vm.gnoStore = gnolang.NewStore(alloc, baseSDKStore, iavlSDKStore)
+	alloc := gno.NewAllocator(maxAllocTx)
+	vm.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
 	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
 
 	if vm.gnoStore.NumMemPackages() > 0 {
@@ -141,7 +140,7 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 		loadStdlib(cachedGnoStore, stdlibDir)
 	})
 
-	gs := vm.gnoStore
+	gs := vm.getGnoTransactionStore(ctx)
 	gno.CopyFromCachedStore(gs, cachedGnoStore, cachedStdlibBase, cachedStdlibIavl)
 }
 
@@ -615,6 +614,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 // QueryFuncs returns public facing function signatures.
 func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionSignatures, err error) {
+	ctx = vm.MakeGnoTransactionStore(ctx) // throwaway (never committed)
 	store := vm.getGnoTransactionStore(ctx)
 	// Ensure pkgPath is realm.
 	if !gno.IsRealmPath(pkgPath) {
@@ -677,6 +677,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 // TODO: modify query protocol to allow MsgEval.
 // TODO: then, rename to "Eval".
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	ctx = vm.MakeGnoTransactionStore(ctx) // throwaway (never committed)
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.getGnoTransactionStore(ctx)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
@@ -744,6 +745,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 // TODO: modify query protocol to allow MsgEval.
 // TODO: then, rename to "EvalString".
 func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
+	ctx = vm.MakeGnoTransactionStore(ctx) // throwaway (never committed)
 	alloc := gno.NewAllocator(maxAllocQuery)
 	gnostore := vm.getGnoTransactionStore(ctx)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
@@ -806,6 +808,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
+	ctx = vm.MakeGnoTransactionStore(ctx) // throwaway (never committed)
 	store := vm.getGnoTransactionStore(ctx)
 	dirpath, filename := std.SplitFilepath(filepath)
 	if filename != "" {

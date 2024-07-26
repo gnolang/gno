@@ -823,6 +823,11 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 	// Create a new context based off of the existing context with a cache wrapped
 	// multi-store in case message processing fails.
 	runMsgCtx, msCache := app.cacheTxContext(ctx)
+
+	if app.beginTxHook != nil {
+		runMsgCtx = app.beginTxHook(runMsgCtx)
+	}
+
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
 
@@ -832,7 +837,7 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 	}
 
 	if app.endTxHook != nil {
-		app.endTxHook(ctx, result)
+		app.endTxHook(runMsgCtx, result)
 	}
 
 	// only update state if all messages pass

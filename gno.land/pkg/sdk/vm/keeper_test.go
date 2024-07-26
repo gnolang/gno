@@ -36,12 +36,12 @@ func Echo() string {return "hello world"}`,
 	}
 	pkgPath := "gno.land/r/test"
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
-	assert.Nil(t, env.vmk.getGnoStore(ctx).GetPackage(pkgPath, false))
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 
 	err := env.vmk.AddPackage(ctx, msg1)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, env.vmk.getGnoStore(ctx).GetPackage(pkgPath, false))
+	assert.NotNil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
 
 	err = env.vmk.AddPackage(ctx, msg1)
 
@@ -49,7 +49,7 @@ func Echo() string {return "hello world"}`,
 	assert.True(t, errors.Is(err, InvalidPkgPathError{}))
 
 	// added package is formatted
-	store := vmk.getGnoStore(ctx)
+	store := vmk.getGnoTransactionStore(ctx)
 	memFile := store.GetMemFile("gno.land/r/test", "test.gno")
 	assert.NotNil(t, memFile)
 	expected := `package test
