@@ -57,7 +57,7 @@ func (msg MsgAddPackage) ValidateBasic() error {
 		return ErrInvalidPkgPath("missing package path")
 	}
 	if !msg.Deposit.IsValid() {
-		return std.ErrInvalidCoins("invalid deposit")
+		return std.ErrInvalidCoins(msg.Deposit.String())
 	}
 	// XXX validate files.
 	return nil
