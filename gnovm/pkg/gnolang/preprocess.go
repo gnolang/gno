@@ -2641,6 +2641,7 @@ func findTypeDeclDependency(store Store, last BlockNode, x Expr, g *Graph, indir
 			// not check
 		} else {
 			if g.checkCycle(cx.Name) {
+				fmt.Println("!!!!!!found circle")
 				panic(fmt.Sprintf("type define cycle with name: %s", cx.Name))
 			}
 		}
@@ -2686,10 +2687,10 @@ func findTypeDeclDependency(store Store, last BlockNode, x Expr, g *Graph, indir
 		}
 		findTypeDeclDependency(store, last, cx.Elt, g, indirect)
 	case *SliceTypeExpr:
-		findTypeDeclDependency(store, last, cx.Elt, g, indirect)
+		findTypeDeclDependency(store, last, cx.Elt, g, true)
 	case *InterfaceTypeExpr:
 		for i := range cx.Methods {
-			findTypeDeclDependency(store, last, &cx.Methods[i], g, indirect)
+			findTypeDeclDependency(store, last, &cx.Methods[i], g, true)
 		}
 	case *ChanTypeExpr:
 		findTypeDeclDependency(store, last, cx.Value, g, indirect)
