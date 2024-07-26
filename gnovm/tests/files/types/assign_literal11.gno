@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_literal11.gno:6: cannot assign to const Pi
+// main/files/types/assign_literal11.gno:6:2: cannot assign to const Pi

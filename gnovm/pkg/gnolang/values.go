@@ -192,7 +192,6 @@ const (
 	PointerIndexNative     = -3 // Base is *NativeValue.
 )
 
-/*
 func (pv *PointerValue) GetBase(store Store) Object {
 	switch cbase := pv.Base.(type) {
 	case nil:
@@ -204,10 +203,9 @@ func (pv *PointerValue) GetBase(store Store) Object {
 	case Object:
 		return cbase
 	default:
-		panic("should not happen")
+		panic(fmt.Sprintf("unexpected pointer base type %T", cbase))
 	}
 }
-*/
 
 // cu: convert untyped; pass false for const definitions
 // TODO: document as something that enables into-native assignment.
@@ -602,6 +600,15 @@ func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
 		return fv.body
 	}
 	return fv.body
+}
+
+func (fv *FuncValue) UpdateBodyFromSource() {
+	if fv.Source == nil {
+		panic(fmt.Sprintf(
+			"Source is missing for FuncValue %q",
+			fv.Name))
+	}
+	fv.body = fv.Source.GetBody()
 }
 
 func (fv *FuncValue) GetSource(store Store) BlockNode {

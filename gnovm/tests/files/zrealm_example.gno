@@ -177,7 +177,7 @@ func main() {
 //     "ObjectInfo": {
 //         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:7",
 //         "ModTime": "0",
-//         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5",
+//         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:6",
 //         "RefCount": "1"
 //     },
 //     "Value": {
@@ -192,7 +192,7 @@ func main() {
 //         }
 //     }
 // }
-// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:5]={
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:6]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -206,7 +206,7 @@ func main() {
 //                 "@type": "/gno.PointerValue",
 //                 "Base": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "11450bd55c5d9d2085545f469439779a9e97b5ba",
+//                     "Hash": "a919087d0eba652876f9a8df18b30ec5ddc8c26e",
 //                     "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:7"
 //                 },
 //                 "Index": "0",
@@ -215,13 +215,13 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5",
+//         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:6",
 //         "ModTime": "6",
-//         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:4",
+//         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5",
 //         "RefCount": "1"
 //     }
 // }
-// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:4]={
+// u[1ffd45e074aa1b8df562907c95ad97526b7ca187:5]={
 //     "Fields": [
 //         {
 //             "T": {
@@ -240,8 +240,8 @@ func main() {
 //             },
 //             "V": {
 //                 "@type": "/gno.RefValue",
-//                 "Hash": "bfc81d577533a36176c73970a9b2067d60f92dcd",
-//                 "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5"
+//                 "Hash": "dfdeb7ed80c5b030c3a5e9701d00c66203de6f57",
+//                 "ObjectID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:6"
 //             }
 //         },
 //         {
@@ -253,9 +253,9 @@ func main() {
 //         }
 //     ],
 //     "ObjectInfo": {
-//         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:4",
+//         "ID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:5",
 //         "ModTime": "6",
-//         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:3",
+//         "OwnerID": "1ffd45e074aa1b8df562907c95ad97526b7ca187:4",
 //         "RefCount": "1"
 //     }
 // }

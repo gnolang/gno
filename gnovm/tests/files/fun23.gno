@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/fun23.gno:3: expected 0 return values; got 1
+// main/files/fun23.gno:3:17: expected 0 return values; got 1

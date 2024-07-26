@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_nil.gno:7: cannot assign to uverse nil
+// main/files/types/assign_nil.gno:7:2: cannot assign to uverse nil
