@@ -3,6 +3,9 @@
 package gnostore
 
 import (
+	"fmt"
+
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
@@ -35,6 +38,12 @@ func StoreConstructor(db dbm.DB, opts types.StoreOptions) types.CommitStore {
 }
 
 func GetGnoStore(s types.Store) gnolang.Store {
+	fmt.Printf("XXXXXXXXX: %T\n", s)
+	if _, ok := s.(interface{ Print() }); ok {
+		(&spew.ConfigState{
+			MaxDepth: 3,
+		}).Dump(s)
+	}
 	gs, ok := s.(interface {
 		GnoStore() gnolang.Store
 	})
