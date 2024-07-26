@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"os"
+	"path/filepath"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -65,24 +66,27 @@ type homeDirectory struct {
 }
 
 func (h homeDirectory) Path() string       { return h.homeDir }
-func (h homeDirectory) ConfigDir() string  { return h.Path() + "/config" }
-func (h homeDirectory) ConfigFile() string { return h.ConfigDir() + "/config.toml" }
+func (h homeDirectory) ConfigDir() string  { return filepath.Join(h.Path(), "/config") }
+func (h homeDirectory) ConfigFile() string { return filepath.Join(h.ConfigDir(), "/config.toml") }
 
 func (h homeDirectory) GenesisFilePath() string {
 	if h.genesisFile != "" {
 		return h.genesisFile
 	}
-	return h.Path() + "/genesis.json"
+	return filepath.Join(h.Path(), "/genesis.json")
 }
 
-func (h homeDirectory) SecretsDir() string     { return h.Path() + "/secrets" }
-func (h homeDirectory) SecretsNodeKey() string { return h.SecretsDir() + "/" + defaultNodeKeyName }
+func (h homeDirectory) SecretsDir() string { return filepath.Join(h.Path(), "/secrets") }
+func (h homeDirectory) SecretsNodeKey() string {
+	return filepath.Join(h.SecretsDir(), defaultNodeKeyName)
+}
+
 func (h homeDirectory) SecretsValidatorKey() string {
-	return h.SecretsDir() + "/" + defaultValidatorKeyName
+	return filepath.Join(h.SecretsDir(), defaultValidatorKeyName)
 }
 
 func (h homeDirectory) SecretsValidatorState() string {
-	return h.SecretsDir() + "/" + defaultValidatorStateName
+	return filepath.Join(h.SecretsDir(), defaultValidatorStateName)
 }
 
 func (h homeDirectory) GetSecrets() (*secrets, error) {
@@ -92,5 +96,3 @@ func (h homeDirectory) GetSecrets() (*secrets, error) {
 func (h homeDirectory) GetConfig() (*config.Config, error) {
 	return config.LoadConfig(h.Path())
 }
-
-// func (h homeDirectory) GetGenesis() (gnoland.)
