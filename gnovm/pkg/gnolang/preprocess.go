@@ -2569,7 +2569,7 @@ func addHeapCapture(dbn BlockNode, fle *FuncLitExpr, name Name) (idx uint16) {
 	ne := NameExpr{
 		Path: vp,
 		Name: name,
-		Type: NameExprTypeHeapClosure, // XXX, this is actually not used, remove?
+		Type: NameExprTypeHeapClosure,
 	}
 	fle.HeapCaptures = append(fle.HeapCaptures, ne)
 

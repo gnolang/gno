@@ -60,7 +60,6 @@ func (m *Machine) doOpCall() {
 
 	// Copy *FuncValue.Captures into block
 	// NOTE: addHeapCapture in preprocess ensures order.
-	// XXX, actually copy
 	if len(fv.Captures) != 0 {
 		if len(fv.Captures) > len(b.Values) {
 			panic("should not happen, length of captured variables must not exceed the number of values")
