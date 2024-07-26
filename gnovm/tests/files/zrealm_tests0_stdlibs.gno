@@ -143,9 +143,9 @@ func main() {
 //         "@type": "/gno.RefNode",
 //         "BlockNode": null,
 //         "Location": {
+//             "Column": "0",
 //             "File": "",
 //             "Line": "0",
-//             "Nonce": "0",
 //             "PkgPath": "gno.land/r/demo/tests"
 //         }
 //     },
@@ -188,6 +188,159 @@ func main() {
 //                     "Methods": [],
 //                     "Name": "Stringer",
 //                     "PkgPath": "gno.land/r/demo/tests"
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.SliceType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/r/demo/tests.Stringer"
+//                 },
+//                 "Vrd": false
+//             },
+//             "V": {
+//                 "@type": "/gno.SliceValue",
+//                 "Base": {
+//                     "@type": "/gno.RefValue",
+//                     "Hash": "ad25f70f66c8c53042afd1377e5ff5ab744bf1a5",
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:16"
+//                 },
+//                 "Length": "3",
+//                 "Maxcap": "3",
+//                 "Offset": "0"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "str",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.RefType",
+//                             "ID": "gno.land/r/demo/tests.Stringer"
+//                         }
+//                     }
+//                 ],
+//                 "Results": []
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:3"
+//                 },
+//                 "FileName": "interfaces.gno",
+//                 "IsMethod": false,
+//                 "Name": "AddStringer",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "interfaces.gno",
+//                         "Line": "13",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "str",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/r/demo/tests.Stringer"
+//                             }
+//                         }
+//                     ],
+//                     "Results": []
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "path",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.PrimitiveType",
+//                             "value": "16"
+//                         }
+//                     }
+//                 ],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.PrimitiveType",
+//                             "value": "16"
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:3"
+//                 },
+//                 "FileName": "interfaces.gno",
+//                 "IsMethod": false,
+//                 "Name": "Render",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "interfaces.gno",
+//                         "Line": "20",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "path",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.PrimitiveType",
+//                                 "value": "16"
+//                             }
+//                         }
+//                     ],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.PrimitiveType",
+//                                 "value": "16"
+//                             }
+//                         }
+//                     ]
 //                 }
 //             }
 //         },
@@ -265,9 +418,9 @@ func main() {
 //                                     "@type": "/gno.RefNode",
 //                                     "BlockNode": null,
 //                                     "Location": {
+//                                         "Column": "1",
 //                                         "File": "realm_method38d.gno",
 //                                         "Line": "5",
-//                                         "Nonce": "0",
 //                                         "PkgPath": "gno.land/r/demo/tests"
 //                                     }
 //                                 },
@@ -306,6 +459,25 @@ func main() {
 //         },
 //         {
 //             "T": {
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/r/demo/tests.Int"
+//                 }
+//             },
+//             "V": {
+//                 "@type": "/gno.PointerValue",
+//                 "Base": {
+//                     "@type": "/gno.RefValue",
+//                     "Hash": "49283398258e135138cd8e234142d5daaa8c661d",
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:4"
+//                 },
+//                 "Index": "0",
+//                 "TV": null
+//             }
+//         },
+//         {
+//             "T": {
 //                 "@type": "/gno.TypeType"
 //             },
 //             "V": {
@@ -339,6 +511,584 @@ func main() {
 //                     "Methods": [],
 //                     "Name": "Int",
 //                     "PkgPath": "gno.land/r/demo/tests"
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.RefType",
+//                             "ID": "gno.land/r/demo/tests.nat"
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:7"
+//                 },
+//                 "FileName": "realm_compositelit.gno",
+//                 "IsMethod": false,
+//                 "Name": "GetZeroType",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "realm_compositelit.gno",
+//                         "Line": "19",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/r/demo/tests.nat"
+//                             }
+//                         }
+//                     ]
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.RefType",
+//                 "ID": "gno.land/r/demo/tests.nat"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.RefType",
+//                             "ID": "gno.land/r/demo/tests.nat"
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:8"
+//                 },
+//                 "FileName": "realm_method38d.gno",
+//                 "IsMethod": false,
+//                 "Name": "GetAbs",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "realm_method38d.gno",
+//                         "Line": "9",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/r/demo/tests.nat"
+//                             }
+//                         }
+//                     ]
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.RefType",
+//                             "ID": "gno.land/r/demo/tests.nat"
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:8"
+//                 },
+//                 "FileName": "realm_method38d.gno",
+//                 "IsMethod": false,
+//                 "Name": "AbsAdd",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "realm_method38d.gno",
+//                         "Line": "15",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/r/demo/tests.nat"
+//                             }
+//                         }
+//                     ]
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.PrimitiveType",
+//                 "value": "32"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": []
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
+//                 },
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "IncCounter",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "tests.gno",
+//                         "Line": "12",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": []
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.PrimitiveType",
+//                             "value": "32"
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
+//                 },
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "Counter",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "tests.gno",
+//                         "Line": "16",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.PrimitiveType",
+//                                 "value": "32"
+//                             }
+//                         }
+//                     ]
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.PrimitiveType",
+//                             "value": "16"
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
+//                 },
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "CurrentRealmPath",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "tests.gno",
+//                         "Line": "20",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.PrimitiveType",
+//                                 "value": "16"
+//                             }
+//                         }
+//                     ]
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.RefType",
+//                 "ID": "std.Address"
+//             },
+//             "V": {
+//                 "@type": "/gno.StringValue",
+//                 "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.RefType",
+//                             "ID": "std.Address"
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
+//                 },
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "InitOrigCaller",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "tests.gno",
+//                         "Line": "26",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "std.Address"
+//                             }
+//                         }
+//                     ]
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": []
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
+//                 },
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "CallAssertOriginCall",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "tests.gno",
+//                         "Line": "30",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": []
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.PrimitiveType",
+//                             "value": "4"
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
+//                 },
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "CallIsOriginCall",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "tests.gno",
+//                         "Line": "34",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.PrimitiveType",
+//                                 "value": "4"
+//                             }
+//                         }
+//                     ]
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": []
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
+//                 },
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "CallSubtestsAssertOriginCall",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "tests.gno",
+//                         "Line": "38",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": []
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.PrimitiveType",
+//                             "value": "4"
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
+//                 },
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "CallSubtestsIsOriginCall",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "tests.gno",
+//                         "Line": "42",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.PrimitiveType",
+//                                 "value": "4"
+//                             }
+//                         }
+//                     ]
 //                 }
 //             }
 //         },
@@ -398,9 +1148,9 @@ func main() {
 //                                     "@type": "/gno.RefNode",
 //                                     "BlockNode": null,
 //                                     "Location": {
+//                                         "Column": "1",
 //                                         "File": "tests.gno",
-//                                         "Line": "56",
-//                                         "Nonce": "0",
+//                                         "Line": "57",
 //                                         "PkgPath": "gno.land/r/demo/tests"
 //                                     }
 //                                 },
@@ -427,6 +1177,68 @@ func main() {
 //                     ],
 //                     "Name": "TestRealmObject",
 //                     "PkgPath": "gno.land/r/demo/tests"
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "t",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.PointerType",
+//                             "Elt": {
+//                                 "@type": "/gno.RefType",
+//                                 "ID": "gno.land/r/demo/tests.TestRealmObject"
+//                             }
+//                         }
+//                     }
+//                 ],
+//                 "Results": []
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
+//                 },
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "ModifyTestRealmObject",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "tests.gno",
+//                         "Line": "53",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "t",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.PointerType",
+//                                 "Elt": {
+//                                     "@type": "/gno.RefType",
+//                                     "ID": "gno.land/r/demo/tests.TestRealmObject"
+//                                 }
+//                             }
+//                         }
+//                     ],
+//                     "Results": []
 //                 }
 //             }
 //         },
@@ -473,301 +1285,28 @@ func main() {
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "str",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.RefType",
-//                             "ID": "gno.land/r/demo/tests.Stringer"
-//                         }
-//                     }
-//                 ],
-//                 "Results": []
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:3"
-//                 },
-//                 "FileName": "interfaces.gno",
-//                 "IsMethod": false,
-//                 "Name": "AddStringer",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "interfaces.gno",
-//                         "Line": "13",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "str",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.RefType",
-//                                 "ID": "gno.land/r/demo/tests.Stringer"
-//                             }
-//                         }
-//                     ],
-//                     "Results": []
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/r/demo/tests.TestNode"
 //                 }
 //             }
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "path",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.PrimitiveType",
-//                             "value": "16"
-//                         }
-//                     }
-//                 ],
-//                 "Results": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.PrimitiveType",
-//                             "value": "16"
-//                         }
-//                     }
-//                 ]
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:3"
-//                 },
-//                 "FileName": "interfaces.gno",
-//                 "IsMethod": false,
-//                 "Name": "Render",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "interfaces.gno",
-//                         "Line": "20",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "path",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.PrimitiveType",
-//                                 "value": "16"
-//                             }
-//                         }
-//                     ],
-//                     "Results": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.PrimitiveType",
-//                                 "value": "16"
-//                             }
-//                         }
-//                     ]
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/r/demo/tests.TestNode"
 //                 }
 //             }
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.RefType",
-//                             "ID": "gno.land/r/demo/tests.nat"
-//                         }
-//                     }
-//                 ]
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:4"
-//                 },
-//                 "FileName": "realm_compositelit.gno",
-//                 "IsMethod": false,
-//                 "Name": "GetZeroType",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "realm_compositelit.gno",
-//                         "Line": "19",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.RefType",
-//                                 "ID": "gno.land/r/demo/tests.nat"
-//                             }
-//                         }
-//                     ]
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.RefType",
-//                             "ID": "gno.land/r/demo/tests.nat"
-//                         }
-//                     }
-//                 ]
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:5"
-//                 },
-//                 "FileName": "realm_method38d.gno",
-//                 "IsMethod": false,
-//                 "Name": "GetAbs",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "realm_method38d.gno",
-//                         "Line": "9",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.RefType",
-//                                 "ID": "gno.land/r/demo/tests.nat"
-//                             }
-//                         }
-//                     ]
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.RefType",
-//                             "ID": "gno.land/r/demo/tests.nat"
-//                         }
-//                     }
-//                 ]
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:5"
-//                 },
-//                 "FileName": "realm_method38d.gno",
-//                 "IsMethod": false,
-//                 "Name": "AbsAdd",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "realm_method38d.gno",
-//                         "Line": "15",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.RefType",
-//                                 "ID": "gno.land/r/demo/tests.nat"
-//                             }
-//                         }
-//                     ]
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/r/demo/tests.TestNode"
 //                 }
 //             }
 //         },
@@ -782,457 +1321,7 @@ func main() {
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
-//                 },
-//                 "FileName": "tests.gno",
-//                 "IsMethod": false,
-//                 "Name": "IncCounter",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "tests.gno",
-//                         "Line": "11",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": []
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.PrimitiveType",
-//                             "value": "32"
-//                         }
-//                     }
-//                 ]
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
-//                 },
-//                 "FileName": "tests.gno",
-//                 "IsMethod": false,
-//                 "Name": "Counter",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "tests.gno",
-//                         "Line": "15",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.PrimitiveType",
-//                                 "value": "32"
-//                             }
-//                         }
-//                     ]
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.PrimitiveType",
-//                             "value": "16"
-//                         }
-//                     }
-//                 ]
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
-//                 },
-//                 "FileName": "tests.gno",
-//                 "IsMethod": false,
-//                 "Name": "CurrentRealmPath",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "tests.gno",
-//                         "Line": "19",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.PrimitiveType",
-//                                 "value": "16"
-//                             }
-//                         }
-//                     ]
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.RefType",
-//                             "ID": "std.Address"
-//                         }
-//                     }
-//                 ]
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
-//                 },
-//                 "FileName": "tests.gno",
-//                 "IsMethod": false,
-//                 "Name": "InitOrigCaller",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "tests.gno",
-//                         "Line": "25",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.RefType",
-//                                 "ID": "std.Address"
-//                             }
-//                         }
-//                     ]
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": []
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
-//                 },
-//                 "FileName": "tests.gno",
-//                 "IsMethod": false,
-//                 "Name": "CallAssertOriginCall",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "tests.gno",
-//                         "Line": "29",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": []
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.PrimitiveType",
-//                             "value": "4"
-//                         }
-//                     }
-//                 ]
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
-//                 },
-//                 "FileName": "tests.gno",
-//                 "IsMethod": false,
-//                 "Name": "CallIsOriginCall",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "tests.gno",
-//                         "Line": "33",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.PrimitiveType",
-//                                 "value": "4"
-//                             }
-//                         }
-//                     ]
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": []
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
-//                 },
-//                 "FileName": "tests.gno",
-//                 "IsMethod": false,
-//                 "Name": "CallSubtestsAssertOriginCall",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "tests.gno",
-//                         "Line": "37",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": []
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.PrimitiveType",
-//                             "value": "4"
-//                         }
-//                     }
-//                 ]
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
-//                 },
-//                 "FileName": "tests.gno",
-//                 "IsMethod": false,
-//                 "Name": "CallSubtestsIsOriginCall",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "tests.gno",
-//                         "Line": "41",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.PrimitiveType",
-//                                 "value": "4"
-//                             }
-//                         }
-//                     ]
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "t",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.PointerType",
-//                             "Elt": {
-//                                 "@type": "/gno.RefType",
-//                                 "ID": "gno.land/r/demo/tests.TestRealmObject"
-//                             }
-//                         }
-//                     }
-//                 ],
-//                 "Results": []
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
-//                 },
-//                 "FileName": "tests.gno",
-//                 "IsMethod": false,
-//                 "Name": "ModifyTestRealmObject",
-//                 "NativeName": "",
-//                 "NativePkg": "",
-//                 "PkgPath": "gno.land/r/demo/tests",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "File": "tests.gno",
-//                         "Line": "52",
-//                         "Nonce": "0",
-//                         "PkgPath": "gno.land/r/demo/tests"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "t",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.PointerType",
-//                                 "Elt": {
-//                                     "@type": "/gno.RefType",
-//                                     "ID": "gno.land/r/demo/tests.TestRealmObject"
-//                                 }
-//                             }
-//                         }
-//                     ],
-//                     "Results": []
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": []
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
 //                 },
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
@@ -1244,9 +1333,9 @@ func main() {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
+//                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "74",
-//                         "Nonce": "0",
+//                         "Line": "75",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1268,7 +1357,7 @@ func main() {
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
 //                 },
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
@@ -1280,9 +1369,9 @@ func main() {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
+//                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "79",
-//                         "Nonce": "0",
+//                         "Line": "80",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1304,7 +1393,7 @@ func main() {
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
 //                 },
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
@@ -1316,9 +1405,9 @@ func main() {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
+//                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "87",
-//                         "Nonce": "0",
+//                         "Line": "88",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1350,7 +1439,7 @@ func main() {
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
 //                 },
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
@@ -1362,9 +1451,9 @@ func main() {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
+//                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "91",
-//                         "Nonce": "0",
+//                         "Line": "92",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1406,7 +1495,7 @@ func main() {
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
 //                 },
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
@@ -1418,9 +1507,9 @@ func main() {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
+//                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "95",
-//                         "Nonce": "0",
+//                         "Line": "96",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1463,7 +1552,7 @@ func main() {
 //                 "Closure": {
 //                     "@type": "/gno.RefValue",
 //                     "Escaped": true,
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:6"
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
 //                 },
 //                 "FileName": "tests.gno",
 //                 "IsMethod": false,
@@ -1475,9 +1564,9 @@ func main() {
 //                     "@type": "/gno.RefNode",
 //                     "BlockNode": null,
 //                     "Location": {
+//                         "Column": "1",
 //                         "File": "tests.gno",
-//                         "Line": "99",
-//                         "Nonce": "0",
+//                         "Line": "100",
 //                         "PkgPath": "gno.land/r/demo/tests"
 //                     }
 //                 },
@@ -1501,90 +1590,169 @@ func main() {
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.SliceType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/demo/tests.Stringer"
-//                 },
-//                 "Vrd": false
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.PrimitiveType",
+//                             "value": "4"
+//                         }
+//                     }
+//                 ]
 //             },
 //             "V": {
-//                 "@type": "/gno.SliceValue",
-//                 "Base": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "ad25f70f66c8c53042afd1377e5ff5ab744bf1a5",
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:16"
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
 //                 },
-//                 "Length": "3",
-//                 "Maxcap": "3",
-//                 "Offset": "0"
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "IsCallerSubPath",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "tests.gno",
+//                         "Line": "104",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.PrimitiveType",
+//                                 "value": "4"
+//                             }
+//                         }
+//                     ]
+//                 }
 //             }
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/demo/tests.Int"
-//                 }
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.PrimitiveType",
+//                             "value": "4"
+//                         }
+//                     }
+//                 ]
 //             },
 //             "V": {
-//                 "@type": "/gno.PointerValue",
-//                 "Base": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
 //                     "@type": "/gno.RefValue",
-//                     "Hash": "b662d2bfde61831128c908a3d1afff97e05e6227",
-//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:7"
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
 //                 },
-//                 "Index": "0",
-//                 "TV": null
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "IsCallerParentPath",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "tests.gno",
+//                         "Line": "108",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.PrimitiveType",
+//                                 "value": "4"
+//                             }
+//                         }
+//                     ]
+//                 }
 //             }
 //         },
 //         {
 //             "T": {
-//                 "@type": "/gno.RefType",
-//                 "ID": "gno.land/r/demo/tests.nat"
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PrimitiveType",
-//                 "value": "32"
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.RefType",
-//                 "ID": "std.Address"
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.PrimitiveType",
+//                             "value": "4"
+//                         }
+//                     }
+//                 ]
 //             },
 //             "V": {
-//                 "@type": "/gno.StringValue",
-//                 "value": "g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm"
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/demo/tests.TestNode"
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/demo/tests.TestNode"
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/demo/tests.TestNode"
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "0ffe7732b4d549b4cf9ec18bd68641cd2c75ad0a:9"
+//                 },
+//                 "FileName": "tests.gno",
+//                 "IsMethod": false,
+//                 "Name": "HasCallerSameNamespace",
+//                 "NativeName": "",
+//                 "NativePkg": "",
+//                 "PkgPath": "gno.land/r/demo/tests",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "tests.gno",
+//                         "Line": "112",
+//                         "PkgPath": "gno.land/r/demo/tests"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.PrimitiveType",
+//                                 "value": "4"
+//                             }
+//                         }
+//                     ]
 //                 }
 //             }
 //         }
