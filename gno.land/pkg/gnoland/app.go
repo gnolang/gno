@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gnolang/gno/gno.land/pkg/sdk/gnostore"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -22,6 +21,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
+	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 
 	// Only goleveldb is supported for now.
 	_ "github.com/gnolang/gno/tm2/pkg/db/_tags"
@@ -68,22 +68,22 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	}
 
 	// Capabilities keys.
+	mainKey := store.NewStoreKey("iavl")
 	baseKey := store.NewStoreKey("base")
-	gnoKey := store.NewStoreKey("gno")
 
 	// Create BaseApp.
 	// TODO: Add a consensus based min gas prices for the node, by default it does not check
-	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, gnoKey)
+	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
 	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
+	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
 	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
-	baseApp.MountStoreWithDB(gnoKey, gnostore.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
-	acctKpr := auth.NewAccountKeeper(gnoKey, ProtoGnoAccount)
+	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
-	vmk := vm.NewVMKeeper(gnoKey, acctKpr, bankKpr, cfg.MaxCycles)
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, cfg.MaxCycles)
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
@@ -102,14 +102,22 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
 		) {
+			// Create Gno transaction store.
+			ctx = vmk.MakeGnoTransactionStore(ctx)
+
 			// Override auth params.
-			ctx = ctx.WithValue(
-				auth.AuthParamsContextKey{}, auth.DefaultParams())
+			ctx = ctx.
+				WithValue(auth.AuthParamsContextKey{}, auth.DefaultParams())
 			// Continue on with default auth ante handler.
 			newCtx, res, abort = authAnteHandler(ctx, tx, simulate)
 			return
 		},
 	)
+	baseApp.SetEndTxHook(func(ctx sdk.Context, result sdk.Result) {
+		if result.IsOK() {
+			vmk.CommitGnoTransactionStore(ctx)
+		}
+	})
 
 	// Set up the event collector
 	c := newCollector[validatorUpdate](
@@ -211,15 +219,19 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	start := time.Now()
 	ctx.Logger().Debug("InitChainer: started")
 
-	// load standard libraries
-	// need to write to the MultiStore directly - so that the standard
-	// libraries are available when we process genesis txs
-	if cfg.CacheStdlibLoad {
-		cfg.vmKpr.LoadStdlibCached(ctx, cfg.StdlibDir)
-	} else {
-		cfg.vmKpr.LoadStdlib(ctx, cfg.StdlibDir)
+	{
+		// load standard libraries
+		// need to write to the MultiStore directly - so that the standard
+		// libraries are available when we process genesis txs
+		stdlibCtx := cfg.vmKpr.MakeGnoTransactionStore(ctx)
+		if cfg.CacheStdlibLoad {
+			cfg.vmKpr.LoadStdlibCached(stdlibCtx, cfg.StdlibDir)
+		} else {
+			cfg.vmKpr.LoadStdlib(stdlibCtx, cfg.StdlibDir)
+		}
+		cfg.vmKpr.CommitGnoTransactionStore(stdlibCtx)
+		stdlibCtx.MultiStore().MultiWrite()
 	}
-	ctx.MultiStore().MultiWrite()
 
 	ctx.Logger().Debug("InitChainer: standard libraries loaded",
 		"elapsed", time.Since(start))

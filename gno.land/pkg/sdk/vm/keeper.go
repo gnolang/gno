@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gnolang/gno/gno.land/pkg/sdk/gnostore"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -34,7 +34,10 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
-const maxAllocQuery = 1_500_000_000
+const (
+	maxAllocTx    = 500_000_000
+	maxAllocQuery = 1_500_000_000 // higher limit for queries
+)
 
 // vm.VMKeeperI defines a module interface that supports Gno
 // smart contracts programming (scripting).
@@ -45,32 +48,40 @@ type VMKeeperI interface {
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 	LoadStdlib(ctx sdk.Context, stdlibDir string)
 	LoadStdlibCached(ctx sdk.Context, stdlibDir string)
+	MakeGnoTransactionStore(ctx sdk.Context) sdk.Context
+	CommitGnoTransactionStore(ctx sdk.Context)
 }
 
 var _ VMKeeperI = &VMKeeper{}
 
 // VMKeeper holds all package code and store state.
 type VMKeeper struct {
-	gnoStoreKey store.StoreKey
-	acck        auth.AccountKeeper
-	bank        bank.BankKeeper
+	baseKey store.StoreKey
+	iavlKey store.StoreKey
+	acck    auth.AccountKeeper
+	bank    bank.BankKeeper
+
+	// cached, the DeliverTx persistent state.
+	gnoStore gno.Store
 
 	maxCycles int64 // max allowed cylces on VM executions
 }
 
 // NewVMKeeper returns a new VMKeeper.
 func NewVMKeeper(
-	gnoStoreKey store.StoreKey,
+	baseKey store.StoreKey,
+	iavlKey store.StoreKey,
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
 	maxCycles int64,
 ) *VMKeeper {
 	// TODO: create an Options struct to avoid too many constructor parameters
 	vmk := &VMKeeper{
-		gnoStoreKey: gnoStoreKey,
-		acck:        acck,
-		bank:        bank,
-		maxCycles:   maxCycles,
+		baseKey:   baseKey,
+		iavlKey:   iavlKey,
+		acck:      acck,
+		bank:      bank,
+		maxCycles: maxCycles,
 	}
 	return vmk
 }
@@ -79,9 +90,17 @@ func (vm *VMKeeper) Initialize(
 	logger *slog.Logger,
 	ms store.MultiStore,
 ) {
-	gnoStore := gnostore.GetGnoStore(ms.GetStore(vm.gnoStoreKey))
+	if vm.gnoStore != nil {
+		panic("should not happen")
+	}
+	baseSDKStore := ms.GetStore(vm.baseKey)
+	iavlSDKStore := ms.GetStore(vm.iavlKey)
 
-	if gnoStore.NumMemPackages() > 0 {
+	alloc := gnolang.NewAllocator(maxAllocTx)
+	vm.gnoStore = gnolang.NewStore(alloc, baseSDKStore, iavlSDKStore)
+	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
+
+	if vm.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
 		// TODO remove this, and generally solve for in-mem garbage collection
 		// and memory management across many objects/types/nodes/packages.
@@ -91,7 +110,7 @@ func (vm *VMKeeper) Initialize(
 			gno.MachineOptions{
 				PkgPath: "",
 				Output:  os.Stdout, // XXX
-				Store:   gnoStore,
+				Store:   vm.gnoStore,
 			})
 		defer m2.Release()
 		gno.DisableDebug()
@@ -122,13 +141,13 @@ func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 		loadStdlib(cachedGnoStore, stdlibDir)
 	})
 
-	gs := vm.getGnoStore(ctx)
+	gs := vm.gnoStore
 	gno.CopyFromCachedStore(gs, cachedGnoStore, cachedStdlibBase, cachedStdlibIavl)
 }
 
 // LoadStdlib loads the Gno standard library into the given store.
 func (vm *VMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
-	gs := vm.getGnoStore(ctx)
+	gs := vm.getGnoTransactionStore(ctx)
 	loadStdlib(gs, stdlibDir)
 }
 
@@ -166,13 +185,24 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 	m.RunMemPackage(memPkg, true)
 }
 
-func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
-	sto := ctx.MultiStore().GetStore(vm.gnoStoreKey)
-	gs := gnostore.GetGnoStore(sto)
-	if gs == nil {
-		panic("could not get gno store")
-	}
-	return gs
+type gnoStoreContextKeyType struct{}
+
+var gnoStoreContextKey gnoStoreContextKeyType
+
+func (vm *VMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
+	ms := ctx.MultiStore()
+	base := ms.GetStore(vm.baseKey)
+	iavl := ms.GetStore(vm.iavlKey)
+	st := vm.gnoStore.BeginTransaction(base, iavl)
+	return ctx.WithValue(gnoStoreContextKey, st)
+}
+
+func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
+	vm.getGnoTransactionStore(ctx).Write()
+}
+
+func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
+	return ctx.Value(gnoStoreContextKey).(gno.TransactionStore)
 }
 
 // Namespace can be either a user or crypto address.
@@ -182,7 +212,7 @@ var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
 	const sysUsersPkg = "gno.land/r/sys/users"
 
-	store := vm.getGnoStore(ctx)
+	store := vm.getGnoTransactionStore(ctx)
 
 	match := reNamespace.FindStringSubmatch(pkgPath)
 	switch len(match) {
@@ -263,7 +293,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	pkgPath := msg.Package.Path
 	memPkg := msg.Package
 	deposit := msg.Deposit
-	gnostore := vm.getGnoStore(ctx)
+	gnostore := vm.getGnoTransactionStore(ctx)
 
 	// Validate arguments.
 	if creator.IsZero() {
@@ -360,7 +390,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
-	gnostore := vm.getGnoStore(ctx)
+	gnostore := vm.getGnoTransactionStore(ctx)
 	// Get the package and function type.
 	pv := gnostore.GetPackage(pkgPath, false)
 	pl := gno.PackageNodeLocation(pkgPath)
@@ -471,7 +501,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	caller := msg.Caller
 	pkgAddr := caller
-	gnostore := vm.getGnoStore(ctx)
+	gnostore := vm.getGnoTransactionStore(ctx)
 	send := msg.Send
 	memPkg := msg.Package
 
@@ -585,7 +615,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 // QueryFuncs returns public facing function signatures.
 func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionSignatures, err error) {
-	store := vm.getGnoStore(ctx)
+	store := vm.getGnoTransactionStore(ctx)
 	// Ensure pkgPath is realm.
 	if !gno.IsRealmPath(pkgPath) {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
@@ -648,7 +678,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 // TODO: then, rename to "Eval".
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
 	alloc := gno.NewAllocator(maxAllocQuery)
-	gnostore := vm.getGnoStore(ctx)
+	gnostore := vm.getGnoTransactionStore(ctx)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.
 	pv := gnostore.GetPackage(pkgPath, false)
@@ -715,7 +745,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 // TODO: then, rename to "EvalString".
 func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
 	alloc := gno.NewAllocator(maxAllocQuery)
-	gnostore := vm.getGnoStore(ctx)
+	gnostore := vm.getGnoTransactionStore(ctx)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.
 	pv := gnostore.GetPackage(pkgPath, false)
@@ -776,7 +806,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
-	store := vm.getGnoStore(ctx)
+	store := vm.getGnoTransactionStore(ctx)
 	dirpath, filename := std.SplitFilepath(filepath)
 	if filename != "" {
 		memFile := store.GetMemFile(dirpath, filename)

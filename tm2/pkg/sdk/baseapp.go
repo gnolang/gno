@@ -42,6 +42,9 @@ type BaseApp struct {
 	beginBlocker BeginBlocker // logic to run before any txs
 	endBlocker   EndBlocker   // logic to run after all txs, and to determine valset changes
 
+	beginTxHook BeginTxHook // BaseApp-specific hook run before running transaction messages.
+	endTxHook   EndTxHook   // BaseApp-specific hook run after a transaction
+
 	// --------------------
 	// Volatile state
 	// checkState is set on initialization and reset on Commit.
@@ -826,6 +829,10 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 	// Safety check: don't write the cache state unless we're in DeliverTx.
 	if mode != RunTxModeDeliver {
 		return result
+	}
+
+	if app.endTxHook != nil {
+		app.endTxHook(ctx, result)
 	}
 
 	// only update state if all messages pass

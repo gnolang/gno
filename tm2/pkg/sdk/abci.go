@@ -16,3 +16,11 @@ type BeginBlocker func(ctx Context, req abci.RequestBeginBlock) abci.ResponseBeg
 // Note: applications which set create_empty_blocks=false will not have regular block timing and should use
 // e.g. BFT timestamps rather than block height for any periodic EndBlock logic
 type EndBlocker func(ctx Context, req abci.RequestEndBlock) abci.ResponseEndBlock
+
+// BeginTxHook is a BaseApp-specific hook, called to modify the context with any
+// additional application-specific information.
+type BeginTxHook func(ctx Context) Context
+
+// EndTxHook is a BaseApp-specific hook, called after all the messages in a
+// transaction have terminated.
+type EndTxHook func(ctx Context, result Result)
