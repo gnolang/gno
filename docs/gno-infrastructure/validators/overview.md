@@ -7,8 +7,8 @@ id: validators-overview
 ## Introduction
 
 Gno.land is a blockchain powered by the Gno tech stack, which consists of
-the [Gno Language](https://docs.gno.land/concepts/gno-language/) (
-Gno), [Tendermint2](https://docs.gno.land/concepts/tendermint2/) (TM2),
+the [Gno Language](https://docs.gno.land/concepts/gno-language/) (Gno),
+[Tendermint2](https://docs.gno.land/concepts/tendermint2/) (TM2),
 and [GnoVM](https://docs.gno.land/concepts/gnovm/). Unlike
 existing [Proof of Stake](https://docs.cosmos.network/v0.46/modules/staking/) (PoS) blockchains in the Cosmos ecosystem,
 Gno.land runs on [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution/) (PoC), a novel
