@@ -11,7 +11,7 @@ the [Gno Language](https://docs.gno.land/concepts/gno-language/) (Gno),
 [Tendermint2](https://docs.gno.land/concepts/tendermint2/) (TM2),
 and [GnoVM](https://docs.gno.land/concepts/gnovm/). Unlike
 existing [Proof of Stake](https://docs.cosmos.network/v0.46/modules/staking/) (PoS) blockchains in the Cosmos ecosystem,
-Gno.land runs on [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution/) (PoC), a novel
+gno.land runs on [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution/) (PoC), a novel
 reputation-based consensus mechanism that values expertise and alignment with the project. In PoC, validators are
 selected via governance based on their contribution to the project and technical proficiency. The voting power of the
 network is equally distributed across all validators to achieve a high nakamoto coefficient. A portion of all
