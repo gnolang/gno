@@ -10,8 +10,6 @@ func fromSeed() *rand {
 	return &rand{}
 }
 
-// XXX, test order in correcit with defer
-// [params, res_xxx, vars]
 func genResult(s0 string, x int) (int, bool) {
 	z := 0
 	println(z)

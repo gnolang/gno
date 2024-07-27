@@ -378,7 +378,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				pn := store.GetBlockNode(gno.PackageNodeLocation(pkgPath))
 				pre := pn.(*gno.PackageNode).FileSet.Files[0].String()
 				if pre != preWanted {
-					if f.syncWanted {
+					//if f.syncWanted {
+					if true {
 						// write error to file
 						replaceWantedInPlace(path, "Preprocessed", pre)
 					} else {

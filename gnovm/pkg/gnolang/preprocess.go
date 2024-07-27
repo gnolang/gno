@@ -248,14 +248,17 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					if n.Key != nil {
 						nx := n.Key.(*NameExpr)
 						if nx.Name != blankIdentifier {
-							nx.Type = NameExprTypeDefine
+							// XXX, temp method to NOT heapDefine loopvar for range,
+							// to make it consistent with `for i:=0;i<3;i++;`,
+							// this should be uncommented when supporting full Go1.22 loopvar.
+							//nx.Type = NameExprTypeDefine
 							last.Predefine(false, nx.Name)
 						}
 					}
 					if n.Value != nil {
 						nx := n.Value.(*NameExpr)
 						if nx.Name != blankIdentifier {
-							nx.Type = NameExprTypeDefine
+							//nx.Type = NameExprTypeDefine // ditto
 							last.Predefine(false, nx.Name)
 						}
 					}
