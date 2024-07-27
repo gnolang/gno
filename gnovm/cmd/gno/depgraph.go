@@ -59,6 +59,7 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 		allPkgs        gnomod.PkgList
 	)
 
+	// first we walk through all the folders and collect all packages
 	for _, arg := range args {
 		pkgs, err := gnomod.ListPkgs(arg)
 		if err != nil {
@@ -68,12 +69,14 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 		allPkgs = append(allPkgs, pkgs...)
 	}
 
-	//make one big graph (eg. for the entire examples/ dir)
+	// make one big graph (eg. for the entire examples/ dir)
 	if !multipleGraphs {
 		nodeData := ""  //nodes
 		graphData := "" //edges
 
-		//subgraph for .../p/...
+		// we need subgraphs to make columns in the layout and for colors
+
+		// subgraph for .../p/...
 		nodeData += "subgraph {\nrank=same\n"
 		for _, pkg := range allPkgs {
 			if strings.Contains(pkg.Name, "gno.land/p") {
@@ -81,7 +84,7 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 			}
 		}
 
-		//subgraph for .../r/...
+		// subgraph for .../r/...
 		nodeData += "}\nsubgraph {\nrank=same\n"
 		for _, pkg := range allPkgs {
 			if strings.Contains(pkg.Name, "gno.land/r") {
@@ -91,7 +94,6 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 		nodeData += "}"
 
 		for _, pkg := range allPkgs {
-
 			err := buildGraphData(pkg, allPkgs, make(map[string]bool), make(map[string]bool), &graphData)
 
 			if err != nil {
@@ -106,13 +108,15 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 		graphFileData := fmt.Sprintf("Digraph G {\nrankdir=\"LR\"\nranksep=20\n%s\n%s\n}", nodeData, graphData)
 		file.Write([]byte(graphFileData))
 		file.Close()
-	} else { //useful for testing - makes a separate graph for each found package
+	} else { // useful for testing - makes a separate graph for each found package
 		if !osm.DirExists(output) {
 			err := os.MkdirAll(output, os.ModePerm)
 			if err != nil {
 				return fmt.Errorf("couldn't make output dir: %w", err)
 			}
 		}
+
+		// decided not to use colors or layouts here since it's a simple graph
 
 		for _, pkg := range allPkgs {
 			pkgPath, err := filepath.Abs(pkg.Dir)
@@ -156,6 +160,7 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 	return nil
 }
 
+// walk through all requires recursively and note dependencies
 func buildGraphData(pkg gnomod.Pkg, allPkgs []gnomod.Pkg, visited map[string]bool, onStack map[string]bool, graphData *string) error {
 	if onStack[pkg.Name] {
 		return fmt.Errorf("cycle detected: %s", pkg.Name)
@@ -178,7 +183,7 @@ func buildGraphData(pkg gnomod.Pkg, allPkgs []gnomod.Pkg, visited map[string]boo
 				return err
 			}
 			found = true
-			//this check is wildly inefficient. should change graph data to map, then convert to string at end
+			// this check is wildly inefficient - change this to not work with strings directly
 			if !strings.Contains(*graphData, "\""+pkg.Name+"\" -> \""+req+"\"\n") {
 				*graphData += "\"" + pkg.Name + "\" -> \"" + req + "\"\n"
 			}
