@@ -91,7 +91,7 @@ improve and complete the implementation are welcome.
 **Links to related efforts:**
 
 - Validator set injection through a Realm [[gnolang/gno #1823]](https://github.com/gnolang/gno/issues/1823)
-- Add Validator Set Realm / Package [[gnolang/gno #1824](https://github.com/gnolang/gno/issues/1824)
+- Add Validator Set Realm / Package [[gnolang/gno #1824]](https://github.com/gnolang/gno/issues/1824)
 - Add `/r/sys/vals` [[gnolang/gno #2130]](https://github.com/gnolang/gno/pull/2130)
 - Add valset injection through `r/sys/vals` [[gnolang/gno #2229]](https://github.com/gnolang/gno/pull/2229)
 
