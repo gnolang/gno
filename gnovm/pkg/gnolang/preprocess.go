@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	tmstore "github.com/gnolang/gno/tm2/pkg/store"
 )
 
 const (
@@ -117,6 +118,10 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 	_ = Transcribe(bn, func(ns []Node, ftype TransField, index int, n Node, stage TransStage) (Node, TransCtrl) {
 		defer func() {
 			if r := recover(); r != nil {
+				// Catch the out-of-gas exception and throw it
+				if _, ok := r.(tmstore.OutOfGasException); ok {
+			 		panic(r)
+				}
 				// before re-throwing the error, append location information to message.
 				loc := last.GetLocation()
 				if nline := n.GetLine(); nline > 0 {
@@ -393,6 +398,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 		defer func() {
 			if r := recover(); r != nil {
+				// Catch the out-of-gas exception and throw it
+				if _, ok := r.(tmstore.OutOfGasException); ok {
+					panic(r)
+				}
 				// before re-throwing the error, append location information to message.
 				loc := last.GetLocation()
 				if nline := n.GetLine(); nline > 0 {
@@ -3169,6 +3178,10 @@ func checkIntegerKind(xt Type) {
 func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 	defer func() {
 		if r := recover(); r != nil {
+			// Catch the out-of-gas exception and throw it
+			if _, ok := r.(tmstore.OutOfGasException); ok {
+			 	panic(r)
+			}
 			// before re-throwing the error, append location information to message.
 			loc := last.GetLocation()
 			if nline := d.GetLine(); nline > 0 {
