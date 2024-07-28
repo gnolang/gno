@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/var19.gno:4:6: assignment mismatch: 3 variable(s) but 2 value(s)
+// main/files/var19.gno:4:6: missing init expr for c<VPUverse(0)>

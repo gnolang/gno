@@ -426,7 +426,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
-
+				checkValDefineMismatch(n)
 			// TRANS_ENTER -----------------------
 			case *ImportDecl, *ValueDecl, *TypeDecl, *FuncDecl:
 				// NOTE func decl usually must happen with a
@@ -440,7 +440,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				} else {
 					d := n.(Decl)
 					if cd, ok := d.(*ValueDecl); ok {
-						checkAssignmentMismatch(cd)
+						checkValDefineMismatch(cd)
 					}
 					// recursively predefine dependencies.
 					d2, ppd := predefineNow(store, last, d)
@@ -3060,20 +3060,6 @@ func checkIntegerKind(xt Type) {
 		panic(fmt.Sprintf(
 			"expected typed integer kind, but got %v",
 			xt.Kind()))
-	}
-}
-
-func checkAssignmentMismatch(cd *ValueDecl) {
-	var (
-		numNames  = len(cd.NameExprs)
-		numValues = len(cd.Values)
-	)
-	if numValues == 0 || numValues == numNames {
-		return
-	}
-
-	if _, ok := cd.Values[0].(*CallExpr); !ok {
-		panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
 	}
 }
 

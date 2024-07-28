@@ -5,10 +5,10 @@ func foo() (int, bool) {
 }
 
 func main() {
-	var a, b, c = 2, foo()
+	var a, b, c = 2, 3, 4, foo()
 
 	println(a, b, c)
 }
 
 // Error:
-// main/files/var22.gno:8:6: missing init expr for c<VPUverse(0)>
+// main/files/var22b.gno:8:6: extra init expr foo<VPUverse(0)>()
