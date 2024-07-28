@@ -35,7 +35,7 @@ jobs:
 
             mkdir -p "$GOCOVERDIR" "$TXTARCOVERDIR" "$COVERDIR"
 
-            # filter by modulepath
+            # Craft a filter flag based on the module path to avoid expanding coverage on unrelated tags.
             export filter="-pkg=github.com/gnolang/gno/${{ inputs.modulepath }}/..."
 
             # XXX: Simplify coverage of txtar - the current setup is a bit
@@ -51,7 +51,6 @@ jobs:
 
             # Generate final coverage output
             go tool covdata textfmt -v 1 $filter -i=$GOCOVERDIR,$TXTARCOVERDIR -o gocoverage.out
-            # go tool covdata textfmt -v 1 $filter -i=$TXTARCOVERDIR -o txtarcoverage.out
 
         - name: Upload go coverage to Codecov
           uses: codecov/codecov-action@v4
