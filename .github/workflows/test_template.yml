@@ -43,6 +43,7 @@ jobs:
             # 1.23 regarding coverage, so we can use this as a workaround until
             # then.
             go test -covermode=atomic -timeout ${{ inputs.tests-timeout }} -v ./... -test.gocoverdir=$GOCOVERDIR
+
             # Print results
             (set +x; echo 'go coverage results:')
             go tool covdata percent $filter -i=$GOCOVERDIR
@@ -60,17 +61,7 @@ jobs:
             file: ${{ inputs.modulepath }}/gocoverage.out
             flags: ${{ inputs.modulepath }}
             token: ${{ secrets.codecov-token }}
-            verbose: true
-
-        # - name: Upload txtar coverage to Codecov
-        #   uses: codecov/codecov-action@v4
-        #   with:
-        #     disable_search: true
-        #     fail_ci_if_error: true
-        #     file: ${{ inputs.modulepath }}/txtarcoverage.out
-        #     flags: ${{ inputs.modulepath }}
-        #     token: ${{ secrets.codecov-token }}
-        #     verbose: true
+            verbose: true # keep this enable as it help debugging when coverage fail randomly on the CI
 
     # TODO: We have to fix race conditions before running this job
     # test-with-race:
