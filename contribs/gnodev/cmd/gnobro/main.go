@@ -2,15 +2,14 @@ package main
 
 import (
 	"context"
-	_ "embed"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -34,9 +33,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
-
-//go:embed assets/gnoland-ansi-pink.utf8ans
-var banner string
 
 const gnoPrefix = "gno.land"
 
@@ -68,9 +64,13 @@ func main() {
 	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "gnobro",
-			ShortUsage: "gnobro [flags]",
-			ShortHelp:  "runs a cli browser.",
-			LongHelp:   `run a cli browser`,
+			ShortUsage: "gnobro [flags] [pkg_path]",
+			ShortHelp:  "Gno Browser, a realm explorer",
+			LongHelp: `Gnobro is a terminal user interface (TUI) that allows you to browse realms within your
+terminal. It automatically connects to Gnodev for real-time development. In
+addition to hot reload, it also has the ability to execute commands and interact
+with your realm.
+`,
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -127,7 +127,7 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.devEndpoint,
 		"dev",
 		defaultBroOptions.devEndpoint,
-		"dev endpoint, if empty will be default to `ws://<target>:8888`",
+		"dev endpoint, if empty will default to `ws://<target>:8888`",
 	)
 
 	fs.BoolVar(
@@ -141,7 +141,7 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.readonly,
 		"readonly",
 		defaultBroOptions.readonly,
-		"readonly mode, no command allowed",
+		"readonly mode, no commands allowed",
 	)
 }
 
@@ -202,7 +202,7 @@ func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 
 	if cfg.sshListener == "" {
 		if cfg.banner {
-			bcfg.Banner = browser.NewModelBanner(time.Second/50, BannerReader())
+			bcfg.Banner = NewBanner_GnoLand()
 		}
 
 		return runLocal(ctx, cfg, bcfg, cio)
@@ -286,7 +286,7 @@ func runServer(ctx context.Context, cfg *broCfg, bcfg browser.Config, io command
 		bcfgCopy.Renderer = bubbletea.MakeRenderer(s)
 
 		if cfg.banner {
-			bcfgCopy.Banner = browser.NewModelBanner(time.Second/50, BannerReader())
+			bcfgCopy.Banner = NewBanner_GnoLand()
 		}
 
 		if len(s.Command()) > 1 {
@@ -319,8 +319,9 @@ func runServer(ctx context.Context, cfg *broCfg, bcfg browser.Config, io command
 			logging.StructuredMiddlewareWithLogger(
 				charmlogger, charmlog.DebugLevel,
 			),
-			activeterm.Middleware(), // Bubble Tea apps usually require a PTY.
-			CommandLimiterMiddleware(),
+			activeterm.Middleware(), // ensure PTY
+			ValidatePathCommandMiddleware(),
+			// XXX: add ip throttler
 		),
 	)
 
@@ -427,27 +428,26 @@ func getSignerForAccount(io commands.IO, address string, kb keys.Keybase, cfg *b
 	return signer, nil
 }
 
-func CommandLimiterMiddleware() wish.Middleware {
+func ValidatePathCommandMiddleware() wish.Middleware {
 	return func(next ssh.Handler) ssh.Handler {
 		return func(s ssh.Session) {
-			if len(s.Command()) > 1 {
-				s.Exit(1)
-			} else {
+			switch cmd := s.Command(); len(cmd) {
+			case 0: // ok
 				next(s)
+				return
+			case 1: // check for valid path
+				path := cmd[0]
+				if filepath.Clean(path) == path {
+					next(s)
+					return
+				}
+
+				fmt.Fprintln(s.Stderr(), "provided path is invalid")
+			default:
+				fmt.Fprintln(s.Stderr(), "too many arguments")
 			}
+
+			s.Exit(1)
 		}
 	}
-}
-
-func BannerReader() io.Reader {
-	// XXX: read ans file directly
-	// var buf bytes.Buffer
-	// inputBanner := strings.NewReader(banner)
-	// if err := ansicat.ProcessFile(inputBanner, &buf, 0, 4096); err != nil {
-	// 	panic("unable to process anc file: " + err.Error())
-	// }
-	// read all & convert to delimited bytes reader
-	// return bytes.NewReader(buf.Bytes())
-
-	return strings.NewReader(banner)
 }

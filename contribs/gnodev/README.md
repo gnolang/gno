@@ -47,6 +47,20 @@ gnodev --add-account <bech32/name1>[:<amount1>] ./myrealm
 automatically connects to `gnodev` for real-time development. In addition to hot reload, it also has the
 ability to execute commands and interact with your realm.
 
+
+#### Usage
+**gnobro** [**options**] [**PKG_PATH **]
+
+Run gnobro followed by any specific options and/or a target pacakge path.
+
+Use `gnobro -h` for a detailed list of options.
+
+Example:
+```
+gnobro gno.land/r/demo/home
+```
+
+
 ### Installation
 Run `make install` to install `gnodev`.
 
