@@ -1,6 +1,11 @@
 package gnolang
 
-import "reflect"
+import (
+	"fmt"
+	"reflect"
+	"runtime"
+	"sync/atomic"
+)
 
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
@@ -102,8 +107,8 @@ func (alloc *Allocator) Allocate(size int64) {
 		return
 	}
 
-	alloc.bytes += size
-	if alloc.bytes > alloc.maxBytes {
+	atomic.AddInt64(&alloc.bytes, size)
+	if atomic.LoadInt64(&alloc.bytes) > alloc.maxBytes {
 		panic("allocation limit exceeded")
 	}
 }
@@ -190,21 +195,50 @@ func (alloc *Allocator) AllocateHeapItem() {
 
 func (alloc *Allocator) NewString(s string) StringValue {
 	alloc.AllocateString(int64(len(s)))
-	return StringValue(s)
+	ss := StringValue(s)
+
+	if alloc != nil {
+		runtime.SetFinalizer(&ss, func(ss *StringValue) {
+			atomic.AddInt64(&alloc.bytes, -int64(len(*ss)))
+			fmt.Printf("deleted string: current bytes used %+v\n", atomic.LoadInt64(&alloc.bytes))
+		})
+	}
+
+	return ss
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 	alloc.AllocateListArray(int64(n))
-	return &ArrayValue{
+
+	arr := &ArrayValue{
 		List: make([]TypedValue, n),
 	}
+
+	if alloc != nil {
+		runtime.SetFinalizer(arr, func(arr *ArrayValue) {
+			atomic.AddInt64(&alloc.bytes, -int64(len(arr.List)))
+			fmt.Printf("deleted list array: current bytes used %+v\n", atomic.LoadInt64(&alloc.bytes))
+		})
+	}
+
+	return arr
 }
 
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 	alloc.AllocateDataArray(int64(n))
-	return &ArrayValue{
+
+	arr := &ArrayValue{
 		Data: make([]byte, n),
 	}
+
+	if alloc != nil {
+		runtime.SetFinalizer(arr, func(arr *ArrayValue) {
+			atomic.AddInt64(&alloc.bytes, -int64(len(arr.Data)))
+			fmt.Printf("deleted data array: current bytes used %+v\n", atomic.LoadInt64(&alloc.bytes))
+		})
+	}
+
+	return arr
 }
 
 func (alloc *Allocator) NewArrayFromData(data []byte) *ArrayValue {
@@ -256,14 +290,34 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 // NOTE: fields must be allocated (e.g. from NewStructFields)
 func (alloc *Allocator) NewStruct(fields []TypedValue) *StructValue {
 	alloc.AllocateStruct()
-	return &StructValue{
+
+	strct := &StructValue{
 		Fields: fields,
 	}
+
+	if alloc != nil {
+		runtime.SetFinalizer(strct, func(strct *StructValue) {
+			atomic.AddInt64(&alloc.bytes, -allocStruct)
+			fmt.Printf("deleted struct: current bytes used %+v\n", atomic.LoadInt64(&alloc.bytes))
+		})
+	}
+
+	return strct
 }
 
 func (alloc *Allocator) NewStructFields(fields int) []TypedValue {
 	alloc.AllocateStructFields(int64(fields))
-	return make([]TypedValue, fields)
+
+	ffs := make([]TypedValue, fields)
+
+	if alloc != nil {
+		runtime.SetFinalizer(ffs, func(ffs *StructValue) {
+			atomic.AddInt64(&alloc.bytes, allocStructField*-int64(fields))
+			fmt.Printf("deleted fields: current bytes used %+v\n", atomic.LoadInt64(&alloc.bytes))
+		})
+	}
+
+	return ffs
 }
 
 // NOTE: fields will be allocated.
