@@ -427,7 +427,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
-
 				checkValDefineMismatch(n)
 
 				if n.Op == DEFINE {
@@ -448,8 +447,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				} else {
 					// nothing defined.
 				}
-
-
 			// TRANS_ENTER -----------------------
 			case *ImportDecl, *ValueDecl, *TypeDecl, *FuncDecl:
 				// NOTE func decl usually must happen with a
