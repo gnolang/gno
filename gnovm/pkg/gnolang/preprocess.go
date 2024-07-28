@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"reflect"
+	"strings"
 	"sync/atomic"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -426,7 +427,29 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
+
 				checkValDefineMismatch(n)
+
+				if n.Op == DEFINE {
+					for _, lx := range n.Lhs {
+						ln := lx.(*NameExpr).Name
+						if ln == blankIdentifier {
+							// ignore.
+						} else if strings.HasPrefix(string(ln), ".decompose_") {
+							_, ok := last.GetLocalIndex(ln)
+							if !ok {
+								// initial declaration to be re-defined.
+								last.Predefine(false, ln)
+							} else {
+								// do not redeclare.
+							}
+						}
+					}
+				} else {
+					// nothing defined.
+				}
+
+
 			// TRANS_ENTER -----------------------
 			case *ImportDecl, *ValueDecl, *TypeDecl, *FuncDecl:
 				// NOTE func decl usually must happen with a
@@ -1876,7 +1899,88 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				} else { // ASSIGN, or assignment operation (+=, -=, <<=, etc.)
 					// NOTE: Keep in sync with DEFINE above.
 					if len(n.Lhs) > len(n.Rhs) {
-						// check is done in assertCompatible
+						// check is done in assertCompatible where we also
+						// asserted we have at lease one element in Rhs
+						if cx, ok := n.Rhs[0].(*CallExpr); ok {
+							// we decompose the a,b = x(...) for named and unamed
+							// type value return in an assignments
+							// Call case: a, b = x(...)
+							ift := evalStaticTypeOf(store, last, cx.Func)
+							cft := getGnoFuncTypeOf(store, ift)
+							// check if we we need to decompose for named typed conversion in the function return results
+							var decompose bool
+
+							for i, rhsType := range cft.Results {
+								lt := evalStaticTypeOf(store, last, n.Lhs[i])
+								if lt != nil && isNamedConversion(rhsType.Type, lt) {
+									decompose = true
+									break
+								}
+							}
+							if decompose {
+								// only enter this section if cft.Results to be converted to Lhs type for named type conversion.
+								// decompose a,b = x()
+								// .decompose1, .decompose2 := x()  assignment statement expression (Op=DEFINE)
+								// a,b = .decompose1, .decompose2   assignment statement expression ( Op=ASSIGN )
+								// add the new statement to last.Body
+
+								// step1:
+								// create a hidden var with leading . (dot) the curBodyLen increase every time when there is a decomposition
+								// because there could be multiple decomposition happens
+								// we use both stmt index and return result number to differentiate the .decompose variables created in each assignment decompostion
+								// ex. .decompose_3_2: this variable is created as the 3rd statement in the block, the 2nd parameter returned from x(),
+								// create .decompose_1_1, .decompose_1_2 .... based on number of result from x()
+								tmpExprs := make(Exprs, 0, len(cft.Results))
+								for i := range cft.Results {
+									rn := fmt.Sprintf(".decompose_%d_%d", index, i)
+									tmpExprs = append(tmpExprs, Nx(rn))
+								}
+								// step2:
+								// .decompose1, .decompose2 := x()
+								dsx := &AssignStmt{
+									Lhs: tmpExprs,
+									Op:  DEFINE,
+									Rhs: n.Rhs,
+								}
+								dsx.SetLine(n.Line)
+								dsx = Preprocess(store, last, dsx).(*AssignStmt)
+
+								// step3:
+
+								// a,b = .decompose1, .decompose2
+								// assign stmt expression
+								// The right-hand side will be converted to a call expression for named/unnamed conversion.
+								// tmpExprs is a []Expr; we make a copy of tmpExprs to prevent dsx.Lhs in the previous statement (dsx) from being changed by side effects.
+								// If we don't copy tmpExprs, when asx.Rhs is converted to a const call expression during the preprocessing of the AssignStmt asx,
+								// dsx.Lhs will change from []NameExpr to []CallExpr.
+								// This side effect would cause a panic when the machine executes the dsx statement, as it expects Lhs to be []NameExpr.
+
+								asx := &AssignStmt{
+									Lhs: n.Lhs,
+									Op:  ASSIGN,
+									Rhs: copyExprs(tmpExprs),
+								}
+								asx.SetLine(n.Line)
+								asx = Preprocess(store, last, asx).(*AssignStmt)
+
+								// step4:
+								// replace the original stmt with two new stmts
+								body := last.GetBody()
+								// we need to do an in-place replacement while leaving the current node
+								n.Attributes = dsx.Attributes
+								n.Lhs = dsx.Lhs
+								n.Op = dsx.Op
+								n.Rhs = dsx.Rhs
+
+								//  insert a assignment statement a,b = .decompose1,.decompose2 AFTER the current statement in the last.Body.
+								body = append(body[:index+1], append(Body{asx}, body[index+1:]...)...)
+								last.SetBody(body)
+							} // end of the decomposition
+
+							// Last step: we need to insert the statements to FuncValue.body of PackageNopde.Values[i].V
+							// updating FuncValue.body=FuncValue.Source.Body in updates := pn.PrepareNewValues(pv) during preprocess.
+							// we updated FuncValue from source.
+						}
 					} else { // len(Lhs) == len(Rhs)
 						if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
 							if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
@@ -3172,7 +3276,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (De
 			} else {
 				panic("should not happen")
 			}
-
+			// The body may get altered during preprocessing later.
 			if !dt.TryDefineMethod(&FuncValue{
 				Type:       ft,
 				IsMethod:   true,
@@ -3355,7 +3459,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 				pn := pv.GetPackageNode(store)
 				tx.Path = pn.GetPathForName(store, tx.Sel)
 				ptr := pv.GetBlock(store).GetPointerTo(store, tx.Path)
-				t = ptr.TV.T
+				t = ptr.TV.GetType()
 			default:
 				panic(fmt.Sprintf(
 					"unexpected type declaration type %v",
@@ -3400,6 +3504,7 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			pkg := skipFile(last).(*PackageNode)
 			// define a FuncValue w/ above type as d.Name.
 			// fill in later during *FuncDecl:BLOCK.
+			// The body may get altered during preprocessing later.
 			fv := &FuncValue{
 				Type:       ft,
 				IsMethod:   false,

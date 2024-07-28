@@ -1,6 +1,10 @@
 package millipede
 
-import "testing"
+import (
+	"testing"
+
+	"gno.land/p/demo/uassert"
+)
 
 func TestRender(t *testing.T) {
 	cases := []struct {
@@ -48,9 +52,7 @@ func TestRender(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.path, func(t *testing.T) {
 			got := Render(tc.path)
-			if got != tc.expected {
-				t.Errorf("expected %s, got %s.", tc.expected, got)
-			}
+			uassert.Equal(t, tc.expected, got)
 		})
 	}
 }
