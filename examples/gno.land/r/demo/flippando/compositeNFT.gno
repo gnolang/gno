@@ -6,7 +6,7 @@ import (
 	"std"
 
 	"gno.land/p/demo/grc/grc721"
-	//"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
 var (
@@ -159,7 +159,11 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		for _, t := range bTokenIDs {
 			basicTidString := strconv.FormatInt(t, 10)
 			flipBasicOwner := GetOwnerOfBasicNFT(basicTidString)
-			UnlockAndTransferNFT(flipBasicOwner, player, basicTidString, tidString)
+			//FlipBasicNFT.Approve(std.CurrentRealm().Addr(), grc721.TokenID(basicTidString))
+			uerr := UnlockAndTransferNFT(flipBasicOwner, player, basicTidString, tidString)
+			if uerr != nil {
+				return "", ufmt.Sprintf("Failed to UnlockAndTransferNFT: %s, for basicTokenId %s, owner by %s ", uerr.Error(), basicTidString, flipBasicOwner.String())
+			}
 			// release the locked FLIP and make it available to the flip basic NFT owner
 			ReleaseLockedFLIP(flipBasicOwner, basicTidString)
 		}
@@ -189,9 +193,7 @@ func TransferCompositeNFT(from, to std.Address, tid grc721.TokenID) error {
 	if err != nil {
 		//panic(err.Error())
 		return err
-		
 	}
-	
 	return nil
 }
 
@@ -258,4 +260,10 @@ func GetUserCompositeFlipNFTs(addr std.Address) string {
 	}
 
 	return string(userNFTs)
+}
+
+// util
+
+func GetCompositeNFTRealmAddress() std.Address {
+	return std.CurrentRealm().Addr()
 }

@@ -18,6 +18,7 @@ var (
 	childOf avl.Tree // tokenId -> parent (composite) tokenId
 	// hardcoding the airdrop account and restricting minting to it
 	validAirdropAccount std.Address = std.Address("g1mphljw4duhzwqs72hv9grm4k6ufkvts3g7t3t4")
+	mintingLock bool
 )
 
 func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
@@ -38,6 +39,12 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 		result = "{failedSafetyCheck: gameCompletion}"
 		nftError = "{error: game is not finished}"
 	}
+	// Check and acquire the lock
+    if mintingLock {
+        return "", "minting in progress"
+    }
+    mintingLock = true
+    defer func() { mintingLock = false }() // Release lock at the end
 	
 	count := FlipBasicNFT.TokenCount()
 	basicNFTtokenIDCounter = count + 1
@@ -133,9 +140,14 @@ func GetParentdOf(tokenId string) string {
 
 func UnlockAndTransferNFT(from, to std.Address, tid string, parentTid string) error {
 	tokenId := grc721.TokenID(tid)
-	err := FlipBasicNFT.TransferFrom(from, to, tokenId)
-	if err != nil {
-		return err
+	/*
+	err := FlipBasicNFT.Approve(std.CurrentRealm().Addr(), tokenId)
+        if err != nil {
+            return errors.New(ufmt.Sprintf("Failed to approve NFT transfer: %s ", err.Error()))
+		}*/
+	terr := FlipBasicNFT.TransferFrom(from, to, tokenId)
+	if terr != nil {
+		return terr
 	}
 	// remove from locked NFTs
 	lockedNFTs.Remove(tid)
@@ -326,85 +338,12 @@ func GetAllUnlockedNFTs() int {
 	return int(totalUnlocked)
 }
 
-func AirdropBasicFlipNFT( 
-	toPlayer std.Address,
-	 airdropName string, 
-	 airdropParentID string,
-	 airdropXPos string,
-	 airdropYPos string,
-	 gameType string, 
-	 gameLevel string,
-	 svgData string) (string, string) {
-	
-	// - toPlayer is the user receiving the NFT, and the locked FLIP
-	// - generates a GRC721 token with the airdropped board SVG as a tokenURI
-	// - returns token metadata as string, to be used in client
-	result := ""
-	nftError := ""
-	
-	if validAirdropAccount.String() != std.GetOrigCaller().String() {
-		return "", "airdrop account not correct"
-	}
+// util
 
-	count := FlipBasicNFT.TokenCount()
-	basicNFTtokenIDCounter = count + 1
-	tidString := strconv.FormatUint(basicNFTtokenIDCounter, 10)
-	tid := grc721.TokenID(tidString)
-	mintResultError := FlipBasicNFT.Mint(toPlayer, tid)
-	if mintResultError == nil {
-		flipBasicNFTMetaData := &BasicNFTMetaData{
-			tokenID: tidString,
-			name: "Flippando - the Game",
-			version: "1.0.0",
-			gameId: "airdrop/hackerville/1", // airdrop name + airdrop edition
-			gameType: gameType,
-			gameLevel: gameLevel,
-			svgData: svgData,
-			airdropName: airdropName,
-			airdropParentID: airdropParentID,
-			airdropXPos: airdropXPos,
-			airdropYPos: airdropYPos,
-		}
-		flipBasicNFTMetaDataJSON, err := flipBasicNFTMetaData.MarshalJSON()
-		if err != nil {
-			panic("error in marhasling flipBasicNFTMetaData");
-		}
-		FlipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flipBasicNFTMetaDataJSON))
-		// set approval for the realm owner so we can later transfer the NFT
-		FlipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
-		
-		// add NFT to the lockedNFTs avl.Tree
-		var flipAmount int64
-		if gameLevel == "16" {
-			flipAmount = 1000
-		} else if gameLevel == "64" {
-			flipAmount = 4000
-		}
-		// mint fungible FLIP token
-		MintAndLockFLIP(toPlayer, tidString, std.NewCoin("FLIP", flipAmount))
-		lockedNFTs.Set(tidString, flipAmount)
-		merr := Mint(airdropAccount, std.NewCoin("FLIP", flipAmount))
-		if merr != nil {
-			return "", ufmt.Sprintf("error in calling Mint in airdrop function, %s", merr.Error())
-		}
-		result = string(flipBasicNFTMetaDataJSON)
-	} 
-
-	if mintResultError != nil {
-		nftError = ufmt.Sprintf("error in calling Mint in airdrop function, %s", mintResultError.Error())
-	}
-	
-	res := &nftResult{
-		result: result,
-		nftError: nftError,
-	}
-	
-	createNFTResult, err := res.MarshalJSON()
-	if(err != nil){
-		panic("error in marshaling result")
-	}
-	return string(createNFTResult), nftError
+func GetBasicNFTRealmAddress() std.Address {
+	return std.CurrentRealm().Addr()
 }
+
 
 // util
 func ParseBasicNFTMetaData(jsonStr string) (BasicNFTMetaData, error) {
@@ -440,4 +379,93 @@ func ParseBasicNFTMetaData(jsonStr string) (BasicNFTMetaData, error) {
 
 	return metadata, nil
 }
+
+// extra
+// TODO mve this into a separate package
+
+func AirdropBasicFlipNFT( 
+	toPlayer std.Address,
+	 airdropName string, 
+	 airdropParentID string,
+	 airdropXPos string,
+	 airdropYPos string,
+	 gameType string, 
+	 gameLevel string,
+	 svgData string) (string, string) {
+	
+	// - toPlayer is the user receiving the NFT, and the locked FLIP
+	// - generates a GRC721 token with the airdropped board SVG as a tokenURI
+	// - returns token metadata as string, to be used in client
+	result := ""
+	nftError := ""
+	
+	if validAirdropAccount.String() != std.GetOrigCaller().String() {
+		return "", "airdrop account not correct"
+	}
+
+	count := FlipBasicNFT.TokenCount()
+	basicNFTtokenIDCounter = count + 1
+	tidString := strconv.FormatUint(basicNFTtokenIDCounter, 10)
+	tid := grc721.TokenID(tidString)
+	mintResultError := FlipBasicNFT.Mint(toPlayer, tid)
+	
+
+	if mintResultError == nil {
+		gameId := "airdrop/" + airdropName + "/1"
+
+		flipBasicNFTMetaData := &BasicNFTMetaData{
+			tokenID: tidString,
+			name: "Flippando - the Game",
+			version: "1.0.0",
+			gameId: gameId, // airdrop name + airdrop edition
+			gameType: gameType,
+			gameLevel: gameLevel,
+			svgData: svgData,
+			airdropName: airdropName,
+			airdropParentID: airdropParentID,
+			airdropXPos: airdropXPos,
+			airdropYPos: airdropYPos,
+		}
+		flipBasicNFTMetaDataJSON, err := flipBasicNFTMetaData.MarshalJSON()
+		if err != nil {
+			panic("error in marhasling flipBasicNFTMetaData");
+		}
+		FlipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flipBasicNFTMetaDataJSON))
+		// set approval for the realm owner so we can later transfer the NFT
+		FlipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
+		
+		// add NFT to the lockedNFTs avl.Tree
+		var flipAmount int64
+		if gameLevel == "16" {
+			flipAmount = 1000
+		} else if gameLevel == "64" {
+			flipAmount = 4000
+		}
+		// mint fungible FLIP token
+		MintAndLockFLIP(toPlayer, tidString, std.NewCoin("FLIP", flipAmount))
+		lockedNFTs.Set(tidString, flipAmount)
+		// mint FLIP for the account airdropping, to create liquidity
+		merr := Mint(airdropAccount, std.NewCoin("FLIP", flipAmount))
+		if merr != nil {
+			return "", ufmt.Sprintf("error in calling Mint in airdrop function, %s", merr.Error())
+		}
+		result = string(flipBasicNFTMetaDataJSON)
+	} 
+
+	if mintResultError != nil {
+		nftError = ufmt.Sprintf("error in calling Mint in airdrop function, %s", mintResultError.Error())
+	}
+	
+	res := &nftResult{
+		result: result,
+		nftError: nftError,
+	}
+	
+	createNFTResult, err := res.MarshalJSON()
+	if(err != nil){
+		panic("error in marshaling result")
+	}
+	return string(createNFTResult), nftError
+}
+
 

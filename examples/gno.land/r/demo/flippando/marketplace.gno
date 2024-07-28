@@ -122,6 +122,9 @@ func (m *Marketplace) RemoveBasicNFTListing(basicTokenID grc721.TokenID, seller 
 
 	// Remove the listing from the marketplace
 	delete(m.basicListings, string(basicTokenID))
+	// move approval to Basic NFT in case the basic NFT is to be used
+	// in the assembly of a composite NFT later on
+	FlipBasicNFT.Approve(GetBasicNFTRealmAddress(), basicTokenID)
 	return nil
 }
 
@@ -194,6 +197,7 @@ func (m *Marketplace) BuyCompositeNFT(buyer std.Address, compositeTokenID grc721
     }
     listing := listingRaw
     
+
     compositeNFTOwner := GetOwnerOfCompositeTokenId(string(compositeTokenID))
     tcerr := TransferCompositeNFT(std.Address(listing.Seller), buyer, compositeTokenID)
     if tcerr != nil {
@@ -206,9 +210,10 @@ func (m *Marketplace) BuyCompositeNFT(buyer std.Address, compositeTokenID grc721
         for _, t := range listing.BasicTokenIDs {
             basicTokenId := grc721.TokenID(strconv.FormatInt(t, 10))
             ownerBasicNFT := GetOwnerOfBasicNFT(string(basicTokenId))
-            berr := TransferBasicNFTToBuyer(std.Address(listing.Seller), buyer, basicTokenId)
+			//FlipBasicNFT.Approve(std.CurrentRealm().Addr(), basicTokenId)
+            berr := FlipBasicNFT.TransferFrom(std.Address(listing.Seller), buyer, basicTokenId)
             if berr != nil {
-                buyError = errors.New(ufmt.Sprintf("TransferBasicNFTToBuyer error: seller=%s, buyer=%s, basicTokenId=%s, owner=%s, error: %s", listing.Seller, buyer, string(basicTokenId), string(ownerBasicNFT), berr.Error()))
+                buyError = errors.New(ufmt.Sprintf("FlipBasicNFT.TransferFrom error: seller=%s, buyer=%s, basicTokenId=%s, owner=%s, error: %s", listing.Seller, buyer, string(basicTokenId), string(ownerBasicNFT), berr.Error()))
                 break
             }
             transferredBasicNFTs = append(transferredBasicNFTs, basicTokenId)
@@ -220,8 +225,9 @@ func (m *Marketplace) BuyCompositeNFT(buyer std.Address, compositeTokenID grc721
                 buyError = errors.New(ufmt.Sprintf("revert TransferCompositeNFT error: seller=%s, buyer=%s, tokenID=%s, owner=%s, error: %s", listing.Seller, buyer, string(compositeTokenID), compositeNFTOwner, tcerr.Error()))
             }
             // Revert any successfully transferred basic NFTs
-            for _, tid := range transferredBasicNFTs {
-                _ = TransferBasicNFTToBuyer(buyer, std.Address(listing.Seller), tid)
+            for _, basicTokenId := range transferredBasicNFTs {
+				//FlipBasicNFT.Approve(std.CurrentRealm().Addr(), basicTokenId)
+                _ = FlipBasicNFT.TransferFrom(buyer, std.Address(listing.Seller), basicTokenId)
             }
         }
     }
@@ -236,8 +242,9 @@ func (m *Marketplace) BuyCompositeNFT(buyer std.Address, compositeTokenID grc721
                 buyError = errors.New(ufmt.Sprintf("revert TransferCompositeNFT on FLIP error: seller=%s, buyer=%s, tokenID=%s, owner=%s, error: %s", listing.Seller, buyer, string(compositeTokenID), compositeNFTOwner, tcerr.Error()))
             }
             // Revert any successfully transferred basic NFTs
-            for _, tid := range transferredBasicNFTs {
-                _ = TransferBasicNFTToBuyer(buyer, std.Address(listing.Seller), tid)
+            for _, basicTokenId := range transferredBasicNFTs {
+				//FlipBasicNFT.Approve(std.CurrentRealm().Addr(), basicTokenId)
+                _ = FlipBasicNFT.TransferFrom(buyer, std.Address(listing.Seller), basicTokenId)
             }
         }
         flipPaid = fPricePaid
@@ -270,77 +277,54 @@ func (m *Marketplace) BuyCompositeNFT(buyer std.Address, compositeTokenID grc721
 
 func (m *Marketplace) BuyBasicNFT(buyer std.Address, basicTokenID grc721.TokenID) (buyResult string) {
 	var buyError error
-    
-    flipPaid := ""
-    flipBurned := ""
-    listingRaw, exists := m.basicListings[string(basicTokenID)]
-    if !exists {
-        buyError = ErrMarketplaceListingDoesNotExist
-    }
-    listing := listingRaw
-    
-    basicNFTOwner := GetOwnerOfBasicNFT(string(basicTokenID))
-    
-	// transfer the basic NFT
-	berr := TransferBasicNFTToBuyer(std.Address(listing.Seller), buyer, basicTokenID)
-	if berr != nil {
-		buyError = errors.New(ufmt.Sprintf("TransferBasicNFTToBuyer error: seller=%s, buyer=%s, basicTokenId=%s, owner=%s, error: %s", listing.Seller, buyer, string(basicTokenID), string(basicNFTOwner), berr.Error()))
+
+	flipPaid := ""
+	flipBurned := ""
+	listingRaw, exists := m.basicListings[string(basicTokenID)]
+	if !exists {
+		buyError = ErrMarketplaceListingDoesNotExist
 	}
-    
-	// if there's an error, revert transfer
-	if buyError != nil {
-		_ = TransferBasicNFTToBuyer(buyer, std.Address(listing.Seller), basicTokenID)    
+	listing := listingRaw
+
+	basicNFTOwner := GetOwnerOfBasicNFT(string(basicTokenID))
+
+	// Pay the price, including random burning
+	if buyError == nil {
+		fPricePaid, fPriceBurned, terr := PayFLIPToSeller(buyer, listing.Seller, std.NewCoin("FLIP", int64(listing.Price)))
+		if terr != nil {
+			buyError = terr
+		}
+		flipPaid = fPricePaid
+		flipBurned = fPriceBurned
 	}
 
-	// transfer locked FLIP to buyer
+	// Transfer the basic NFT
 	if buyError == nil {
-		lerr := TransferLockedFLIP(std.Address(listing.Seller), buyer, string(basicTokenID))
-		if lerr != nil {
-			buyError = errors.New(ufmt.Sprintf("TransferLockedFLIP error: seller=%s, buyer=%s, basicTokenId=%s, owner=%s, error: %s", listing.Seller, buyer, string(basicTokenID), string(basicNFTOwner), berr.Error()))
+		berr := FlipBasicNFT.TransferFrom(std.Address(listing.Seller), buyer, basicTokenID)
+		if berr != nil {
+			buyError = errors.New(ufmt.Sprintf("TransferFrom inside BuyBsicNFT error: seller=%s, buyer=%s, basicTokenId=%s, owner=%s, error: %s", listing.Seller, buyer, string(basicTokenID), string(basicNFTOwner), berr.Error()))
 		}
 	}
 
-	// if there's an error, revert transfer
-	if buyError != nil {
-		_ = TransferLockedFLIP(buyer, std.Address(listing.Seller), string(basicTokenID)) 
+	// Transfer locked FLIP to buyer
+	if buyError == nil {
+		lerr := TransferLockedFLIP(std.Address(listing.Seller), buyer, string(basicTokenID))
+		if lerr != nil {
+			buyError = errors.New(ufmt.Sprintf("TransferLockedFLIP error: seller=%s, buyer=%s, basicTokenId=%s, owner=%s, error: %s", listing.Seller, buyer, string(basicTokenID), string(basicNFTOwner), lerr.Error()))
+		}
 	}
 
-	// pay the price, including random burning
-    if buyError == nil {
-        fPricePaid, fPriceBurned, terr := PayFLIPToSeller(buyer, listing.Seller, std.NewCoin("FLIP", int64(listing.Price)))
-        if terr != nil {
-            buyError = terr
-            // Revert the successfully transferred basic NFT
-            _ = TransferBasicNFTToBuyer(buyer, std.Address(listing.Seller), basicTokenID)
-			// Revert the successfully trasnferred locked FLIP
-			_ = TransferLockedFLIP(buyer, std.Address(listing.Seller), string(basicTokenID)) 
-        }
-        flipPaid = fPricePaid
-        flipBurned = fPriceBurned
-    }
+	// If no errors, remove the listing
+	if buyError == nil {
+		delete(m.basicListings, string(basicTokenID))
+		// move approval to Basic NFT in case the basic NFT is to be used
+		// in the assembly of a composite NFT later on
+		FlipBasicNFT.Approve(GetBasicNFTRealmAddress(), basicTokenID)
+	}
 
-    if buyError == nil {
-        delete(m.listings, string(basicTokenID))
-    }
+	
 
-    var buyErrorString string
-    if buyError != nil {
-        buyErrorString = buyError.Error()
-    } else {
-        buyErrorString = ""
-    }
-
-    buyNFTResultObject := &buyNFTResult{
-        flipPaid: flipPaid,
-        flipBurned: flipBurned,
-        buyerror: buyErrorString,
-    }
-    buyResultJSON, merr := buyNFTResultObject.MarshalJSON() 
-
-    if merr != nil {
-        buyError = errors.New("Error in marshaling buyNFTResult")
-    }
-    return string(buyResultJSON)
+	return prepareBuyResult(flipPaid, flipBurned, buyError)
 }
 
 // util
@@ -376,3 +360,25 @@ func convertPriceStringToUint64(price string) (uint64, error) {
 	combined := uint64(integerPart * 1000 + fractionalPart)
 	return combined, nil
 }
+
+func prepareBuyResult(flipPaid, flipBurned string, buyError error) string {
+	var buyErrorString string
+	if buyError != nil {
+		buyErrorString = buyError.Error()
+	} else {
+		buyErrorString = ""
+	}
+
+	buyNFTResultObject := &buyNFTResult{
+		flipPaid:    flipPaid,
+		flipBurned:  flipBurned,
+		buyerror:    buyErrorString,
+	}
+	buyResultJSON, merr := buyNFTResultObject.MarshalJSON()
+
+	if merr != nil {
+		return errors.New("Error in marshaling buyNFTResult").Error()
+	}
+	return string(buyResultJSON)
+}
+
