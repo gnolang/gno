@@ -4410,6 +4410,7 @@ func setNodeLocations(pkgPath string, fileName string, n Node) {
 			return n, TRANS_CONTINUE
 		}
 		if bn, ok := n.(BlockNode); ok {
+			//fmt.Printf("---setNodeLocations, n: %v  bn.GetColumn: %v \n", n, bn.GetColumn())
 			// ensure unique location of blocknode.
 			loc := Location{
 				PkgPath: pkgPath,

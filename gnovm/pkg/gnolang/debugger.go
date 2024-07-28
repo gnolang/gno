@@ -257,8 +257,10 @@ func debugUpdateLocation(m *Machine) {
 	for i := nx - 1; i >= 0; i-- {
 		expr := m.Exprs[i]
 		if l := expr.GetLine(); l > 0 {
-			m.Debugger.loc.Line = l
-			m.Debugger.loc.Column = expr.GetColumn()
+			if col := expr.GetColumn(); col > 0 {
+				m.Debugger.loc.Line = l
+				m.Debugger.loc.Column = expr.GetColumn()
+			}
 			return
 		}
 	}
@@ -266,8 +268,10 @@ func debugUpdateLocation(m *Machine) {
 	if len(m.Stmts) > 0 {
 		if stmt := m.PeekStmt1(); stmt != nil {
 			if l := stmt.GetLine(); l > 0 {
-				m.Debugger.loc.Line = l
-				m.Debugger.loc.Column = stmt.GetColumn()
+				if col := stmt.GetColumn(); col > 0 {
+					m.Debugger.loc.Line = l
+					m.Debugger.loc.Column = stmt.GetColumn()
+				}
 				return
 			}
 		}
