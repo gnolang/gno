@@ -1599,6 +1599,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *StructTypeExpr:
 				evalStaticType(store, last, n)
+
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
 				n.AssertCompatible(store, last)
@@ -2700,7 +2701,6 @@ func findUndefined(store Store, last BlockNode, x Expr) (un Name) {
 	return findUndefined2(store, last, x, nil)
 }
 
-// TODO: add helpers for type decl
 func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 	if x == nil {
 		return
@@ -3003,7 +3003,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 
 	// recursively predefine dependencies.
 	for {
-		// type decl
 		un := tryPredefine(store, last, d)
 		if un != "" {
 			// check circularity.
@@ -3024,7 +3023,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			break
 		}
 	}
-	// after recursive define
 	switch cd := d.(type) {
 	case *FuncDecl:
 		// *FuncValue/*FuncType is mostly empty still; here
