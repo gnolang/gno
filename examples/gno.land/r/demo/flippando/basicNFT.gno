@@ -381,7 +381,7 @@ func ParseBasicNFTMetaData(jsonStr string) (BasicNFTMetaData, error) {
 }
 
 // extra
-// TODO mve this into a separate package
+// TODO move this into a separate package
 
 func AirdropBasicFlipNFT( 
 	toPlayer std.Address,
@@ -417,11 +417,11 @@ func AirdropBasicFlipNFT(
 			tokenID: tidString,
 			name: "Flippando - the Game",
 			version: "1.0.0",
-			gameId: gameId, // airdrop name + airdrop edition
+			gameId: gameId, 
 			gameType: gameType,
 			gameLevel: gameLevel,
 			svgData: svgData,
-			airdropName: airdropName,
+			airdropName: airdropName, // airdrop name + airdrop edition
 			airdropParentID: airdropParentID,
 			airdropXPos: airdropXPos,
 			airdropYPos: airdropYPos,
