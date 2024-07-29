@@ -13,8 +13,8 @@ import (
 var (
 	// hardcoding the airdrop account and restricting minting to it
 	validAirdropAccount std.Address = std.Address("g1mphljw4duhzwqs72hv9grm4k6ufkvts3g7t3t4")
-	basicNFTtokenIDCounter	uint64
-	mintedNFTs avl.Tree // owner -> []uint64
+	basicNFTtokenIDCounter uint64
+	mintedNFTs avl.Tree // owner -> []string
 )
 
 func AirdropBasicFlipNFT( 
@@ -43,13 +43,14 @@ func AirdropBasicFlipNFT(
 	// Check if the user has already minted the maximum number of NFTs
 	const maxNFTs = 20
 	userMintedNFTs, exists := mintedNFTs.Get(toPlayer.String())
+	var mintedList []string
 	if exists {
-		mintedList := userMintedNFTs.([]uint64)
+		mintedList = userMintedNFTs.([]string)
 		if len(mintedList) >= maxNFTs {
 			return "", "user has already minted the maximum number of NFTs"
 		}
 	} else {
-		mintedList = []uint64{}
+		mintedList = []string{}
 		mintedNFTs.Set(toPlayer.String(), mintedList)
 	}
 
@@ -99,13 +100,13 @@ func AirdropBasicFlipNFT(
 			return "", ufmt.Sprintf("error in calling Mint in airdrop function, %s", merr.Error())
 		}
 
-		// Add minted NFT to the user's minted NFTs list
+		// Add minted NFT to the user's minted NFTs list with the format "basicTokenId:airdropParentId:airdropXPos:airdropYPos"
+		mintedEntry := tidString + ":" + airdropParentID + ":" + airdropXPos + ":" + airdropYPos
 		if exists {
-			mintedList := userMintedNFTs.([]uint64)
-			mintedList = append(mintedList, basicNFTtokenIDCounter)
+			mintedList = append(mintedList, mintedEntry)
 			mintedNFTs.Set(toPlayer.String(), mintedList)
 		} else {
-			mintedNFTs.Set(toPlayer.String(), []uint64{basicNFTtokenIDCounter})
+			mintedNFTs.Set(toPlayer.String(), []string{mintedEntry})
 		}
 
 		result = string(flipBasicNFTMetaDataJSON)
@@ -127,47 +128,48 @@ func AirdropBasicFlipNFT(
 
 // getters, utils
 
+// GetAllMintedAirdropNFTs returns all minted airdrop NFTs in JSON format
 func GetAllMintedAirdropNFTs() string {
-	var allTokenIDs []int64
+	var allTokenIDs []string
 	iterator := mintedNFTs.Iterator()
 	for iterator.HasNext() {
 		_, userMintedNFTs := iterator.Next()
-		mintedList := userMintedNFTs.([]uint64)
-		for _, tokenID := range mintedList {
-			allTokenIDs = append(allTokenIDs, int64(tokenID))
-		}
+		mintedList := userMintedNFTs.([]string)
+		allTokenIDs = append(allTokenIDs, mintedList...)
 	}
 
 	res := &mintedAirdropNFTs{
-		tokenIDs: allTokenIDs,
+		TokenIDs: allTokenIDs,
 	}
 	
 	mintedNFTResult, err := res.MarshalJSON()
-	if(err != nil){
-		panic("error in minting")
+	if err != nil {
+		panic("error in marshalling result")
 	}
 	return string(mintedNFTResult)
 }
 
-
-// marshalling the result
-
-func (man mintedAirdropNFTs)MarshalJSON() ([]byte,  error) {
-	
+// MarshalJSON marshals the mintedAirdropNFTs struct into JSON
+func (man mintedAirdropNFTs) MarshalJSON() ([]byte, error) {
 	var b bytes.Buffer
 
 	b.WriteByte('{')
 
 	b.WriteString(`"tokenIDs":[`)
-	b.WriteString(writeIntSlice(man.tokenIDs))
+	for i, s := range man.TokenIDs {
+		if i > 0 {
+			b.WriteString(",")
+		}
+		b.WriteString(`"` + s + `"`)
+	}
 	b.WriteString(`]`)
 
 	b.WriteByte('}')
 
 	return b.Bytes(), nil
-
 }
 
+// mintedAirdropNFTs struct
 type mintedAirdropNFTs struct {
-	tokenIDs	[]int64 `json:"tokenIDs"`
+	TokenIDs []string `json:"tokenIDs"`
 }
