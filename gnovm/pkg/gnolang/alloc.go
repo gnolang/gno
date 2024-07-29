@@ -311,8 +311,8 @@ func (alloc *Allocator) NewStructFields(fields int) []TypedValue {
 	ffs := make([]TypedValue, fields)
 
 	if alloc != nil {
-		runtime.SetFinalizer(ffs, func(ffs *StructValue) {
-			atomic.AddInt64(&alloc.bytes, allocStructField*-int64(fields))
+		runtime.SetFinalizer(&ffs, func(ffs *[]TypedValue) {
+			atomic.AddInt64(&alloc.bytes, allocStructField*-int64(len(*ffs)))
 			fmt.Printf("deleted fields: current bytes used %+v\n", atomic.LoadInt64(&alloc.bytes))
 		})
 	}
