@@ -21,18 +21,27 @@ const (
 	DefaultAccount_Seed    = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
 )
 
+// Similar to TestingNodeConfig, but allows returning errors instead of panicking through testscript.
+// This allows us to use the returned error to determine whether the error is intended for testing cases or not in the txtar file.
 func TestingInMemoryNodeUpdate(t TestingTS, logger *slog.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string, error) {
-	node, RPCAddress := TestingInMemoryNode(t, logger, config)
-	var returnErr error
 
-	defer func() {
-		if r := recover(); r != nil {
-			if err, ok := r.(error); ok {
-				returnErr = err
-			}
-		}
-	}()
-	return node, RPCAddress, returnErr
+	node, err := gnoland.NewInMemoryNode(logger, config)
+	if err != nil {
+		return nil, "", err
+	}
+
+	err = node.Start()
+	if err != nil {
+		return nil, "", err
+	}
+
+	select {
+	case <-node.Ready():
+	case <-time.After(time.Second * 10):
+		require.FailNow(t, "timeout while waiting for the node to start")
+	}
+
+	return node, node.Config().RPC.ListenAddress, nil
 }
 
 // TestingInMemoryNode initializes and starts an in-memory node for testing.
