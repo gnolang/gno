@@ -124,3 +124,50 @@ func AirdropBasicFlipNFT(
 	}
 	return string(createNFTResult), nftError
 }
+
+// getters, utils
+
+func GetAllMintedAirdropNFTs() string {
+	var allTokenIDs []int64
+	iterator := mintedNFTs.Iterator()
+	for iterator.HasNext() {
+		_, userMintedNFTs := iterator.Next()
+		mintedList := userMintedNFTs.([]uint64)
+		for _, tokenID := range mintedList {
+			allTokenIDs = append(allTokenIDs, int64(tokenID))
+		}
+	}
+
+	res := &mintedAirdropNFTs{
+		tokenIDs: allTokenIDs,
+	}
+	
+	mintedNFTResult, err := res.MarshalJSON()
+	if(err != nil){
+		panic("error in minting")
+	}
+	return string(mintedNFTResult)
+}
+
+
+// marshalling the result
+
+func (man mintedAirdropNFTs)MarshalJSON() ([]byte,  error) {
+	
+	var b bytes.Buffer
+
+	b.WriteByte('{')
+
+	b.WriteString(`"tokenIDs":[`)
+	b.WriteString(writeIntSlice(man.tokenIDs))
+	b.WriteString(`]`)
+
+	b.WriteByte('}')
+
+	return b.Bytes(), nil
+
+}
+
+type mintedAirdropNFTs struct {
+	tokenIDs	[]int64 `json:"tokenIDs"`
+}
