@@ -1,0 +1,41 @@
+# these cases test the block gas price changes according to the gas used in the block
+# if we change the gas settings, we need to adjust the values accordingly otherwise
+# these testing would be not valid anymore.
+loadpkg gno.land/r/gasgauge $WORK
+
+# set inital gas price as 0.1 ugnot per gas
+blockparams MaxGas=100000 TargetGas=60000  InitialGasPriceGas=10 InitialGasPriceAmount=1 InitialGasPriceDenom=ugnot
+gnoland start
+
+
+## execute GasGauge
+
+! gnokey maketx call -pkgpath gno.land/r/gasgauge -func GasGauge -args 1 -gas-fee 1ugnot -gas-wanted 51000 -broadcast -chainid=tendermint_test test1
+stderr '"gnokey" error: --= Error =--\nData: insufficient fee error'
+
+# gas fee should at least equal to gas-wanted * gas-price
+ gnokey maketx call -pkgpath gno.land/r/gasgauge  -func GasGauge -args 1 -gas-fee 9100ugnot -gas-wanted 91000 -broadcast -chainid=tendermint_test test1
+ stderr ''
+
+# more fee is needed since gas used in the last block is more than the target gas
+ gnokey maketx call -pkgpath gno.land/r/gasgauge -func GasGauge -args 1 -gas-fee 9500ugnot -gas-wanted 95000 -broadcast -chainid=tendermint_test test1
+ stderr ''
+
+# gas price increase
+ gnokey maketx call -pkgpath gno.land/r/gasgauge -func GasGauge -args 1 -gas-fee 9500ugnot -gas-wanted 95000 -broadcast -chainid=tendermint_test test1
+
+
+
+
+-- gasgauge.gno --
+package hello
+
+var store []byte
+
+func GasGauge(n int) {
+  bytes := make([]byte, n)
+  for i := range bytes{
+    bytes[i] = byte(0xFF)
+  }
+  store = bytes
+}
