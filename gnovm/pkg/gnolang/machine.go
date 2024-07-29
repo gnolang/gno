@@ -353,7 +353,7 @@ func destar(x Expr) Expr {
 func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 	defer m.injectLocOnPanic()
 	DisableDebug()
-	debug.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
+	fmt.Println("DEBUG DISABLED (FOR TEST DEPENDENCIES INIT)")
 	// parse test files.
 	tfiles, itfiles := ParseMemPackageTests(memPkg)
 	{ // first, tfiles which run in the same package.
@@ -379,7 +379,7 @@ func (m *Machine) TestMemPackage(t *testing.T, memPkg *std.MemPackage) {
 		m.RunFiles(itfiles.Files...)
 		pn.PrepareNewValues(pv)
 		EnableDebug()
-		debug.Println("DEBUG ENABLED")
+		fmt.Println("DEBUG ENABLED")
 		for i := 0; i < len(pvBlock.Values); i++ {
 			tv := pvBlock.Values[i]
 			m.TestFunc(t, tv)
@@ -618,10 +618,8 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 	// order and depend on other files.
 
 	// Run declarations.
-	// XXX, is this only for global vars
 	for _, fn := range fns {
 		for _, decl := range fn.Decls {
-			debug.Println("---machine runDeclareFor, decl: ", decl)
 			runDeclarationFor(fn, decl)
 		}
 	}

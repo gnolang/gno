@@ -137,7 +137,6 @@ func isNumericOrString(t Type) bool {
 
 // ===========================================================
 func assertComparable(xt, dt Type) {
-	//fmt.Println("---assertComparable...")
 	switch baseOf(dt).(type) {
 	case *SliceType, *FuncType, *MapType:
 		if xt != nil {

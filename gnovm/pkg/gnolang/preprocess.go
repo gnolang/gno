@@ -18,20 +18,6 @@ const (
 // Anything predefined or preprocessed here get skipped during the Preprocess
 // phase.
 func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
-	//var declGraph []*DeclNode
-	//loopfindr := make(map[Name]struct{})
-
-	debug.Println("---predefineFileSet start")
-	defer func() {
-		debug.Println("---predefineFileSet end")
-		// Check for cyclic
-		//if len(declGraph) != 0 {
-		//	assertNoCycle()
-		//}
-		if err := recover(); err != nil {
-			panic(err)
-		}
-	}()
 	// First, initialize all file nodes and connect to package node.
 	for _, fn := range fset.Files {
 		SetNodeLocations(pn.PkgPath, string(fn.Name), fn)
@@ -63,12 +49,9 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// Predefine all type decls decls.
 	for _, fn := range fset.Files {
 		for i := 0; i < len(fn.Decls); i++ {
-			debug.Println("---PredefineFileSet, len of decls: ", len(fn.Decls))
-			debug.Println("---PredefineFileSet, fn.Decls: ", fn.Decls)
 			d := fn.Decls[i]
 			switch d.(type) {
 			case *TypeDecl:
-				debug.Println("---predefineFileSet, type decl, d: ", d)
 				if d.GetAttribute(ATTR_PREDEFINED) == true {
 					// skip declarations already predefined
 					// (e.g. through recursion for a
@@ -156,12 +139,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 		fileName := string(fn.Name)
 		SetNodeLocations(pkgPath, fileName, fn)
 	}
-
-	//debug.Println("---preprocess, new declGraph")
-	// declGraph represents a slice of declGraph
-	//var declGraph []*DeclNode
-
-	//loopfindr := make(map[Name]struct{})
 
 	// create stack of BlockNodes.
 	var stack []BlockNode = make([]BlockNode, 0, 32)
@@ -1621,11 +1598,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 			// TRANS_LEAVE -----------------------
 			case *StructTypeExpr:
-				debug.Println("---trans_leave, StructTypeExpr")
 				evalStaticType(store, last, n)
-				// TODO: maxwell can we do something here?
-				//panic("---!!!")
-
 			// TRANS_LEAVE -----------------------
 			case *AssignStmt:
 				n.AssertCompatible(store, last)
@@ -2597,26 +2570,22 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 	}
 }
 
-func findTypeDeclDependency(store Store, last BlockNode, x Expr, stack *[]Name) {
-	findTypeDeclDependency2(store, last, x, stack, false)
+func assertTypeDeclNoCycle(store Store, last BlockNode, x Expr, stack *[]Name) {
+	assertTypeDeclNoCycle2(store, last, x, stack, false)
 }
 
-func findTypeDeclDependency2(store Store, last BlockNode, x Expr, stack *[]Name, indirect bool) {
-	debug.Printf("---findDependency, x: %v, indirect: %v, type of x: %v \n", x, indirect, reflect.TypeOf(x))
+func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, indirect bool) {
 	if x == nil {
+		// XXX, should not happen?
 		return
 	}
 
 	var lastX Expr
 	defer func() {
-		fmt.Println(">>>>>>------defer call, before pop--->>>>>>")
-		fmt.Println("---stack: ", *stack)
 		if _, ok := lastX.(*NameExpr); ok {
 			// pop stack
 			*stack = (*stack)[:len(*stack)-1]
 		}
-		fmt.Println("<<<<<<------defer call, after pop---<<<<<<")
-		fmt.Println("---stack: ", *stack)
 	}()
 
 	switch cx := x.(type) {
@@ -2632,7 +2601,6 @@ func findTypeDeclDependency2(store Store, last BlockNode, x Expr, stack *[]Name,
 						msg += fmt.Sprintf("%s -> ", (*stack)[j])
 					}
 					msg += string(n)
-					fmt.Println("---msg: ", msg)
 					panic(fmt.Sprintf("invalid recursive type: %s", msg))
 				}
 			}
@@ -2643,71 +2611,71 @@ func findTypeDeclDependency2(store Store, last BlockNode, x Expr, stack *[]Name,
 	case *BasicLitExpr:
 		return
 	case *BinaryExpr:
-		findTypeDeclDependency2(store, last, cx.Left, stack, indirect)
-		findTypeDeclDependency2(store, last, cx.Right, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.Left, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.Right, stack, indirect)
 	case *SelectorExpr:
-		findTypeDeclDependency2(store, last, cx.X, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect)
 	case *SliceExpr:
-		findTypeDeclDependency2(store, last, cx.X, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect)
 		if cx.Low != nil {
-			findTypeDeclDependency2(store, last, cx.Low, stack, indirect)
+			assertTypeDeclNoCycle2(store, last, cx.Low, stack, indirect)
 		}
 		if cx.High != nil {
-			findTypeDeclDependency2(store, last, cx.High, stack, indirect)
+			assertTypeDeclNoCycle2(store, last, cx.High, stack, indirect)
 		}
 		if cx.Max != nil {
-			findTypeDeclDependency2(store, last, cx.Max, stack, indirect)
+			assertTypeDeclNoCycle2(store, last, cx.Max, stack, indirect)
 		}
 	case *StarExpr:
-		findTypeDeclDependency2(store, last, cx.X, stack, true)
+		assertTypeDeclNoCycle2(store, last, cx.X, stack, true)
 	case *RefExpr:
-		findTypeDeclDependency2(store, last, cx.X, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect)
 	case *TypeAssertExpr:
-		findTypeDeclDependency2(store, last, cx.X, stack, indirect)
-		findTypeDeclDependency2(store, last, cx.Type, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.Type, stack, indirect)
 	case *UnaryExpr:
-		findTypeDeclDependency2(store, last, cx.X, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect)
 	case *FuncLitExpr:
-		findTypeDeclDependency2(store, last, &cx.Type, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, &cx.Type, stack, indirect)
 	case *FieldTypeExpr:
-		findTypeDeclDependency2(store, last, cx.Type, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.Type, stack, indirect)
 	case *ArrayTypeExpr:
 		if cx.Len != nil {
-			findTypeDeclDependency2(store, last, cx.Len, stack, indirect)
+			assertTypeDeclNoCycle2(store, last, cx.Len, stack, indirect)
 		}
-		findTypeDeclDependency2(store, last, cx.Elt, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.Elt, stack, indirect)
 	case *SliceTypeExpr:
-		findTypeDeclDependency2(store, last, cx.Elt, stack, true)
+		assertTypeDeclNoCycle2(store, last, cx.Elt, stack, true)
 	case *InterfaceTypeExpr:
 		for i := range cx.Methods {
-			findTypeDeclDependency2(store, last, &cx.Methods[i], stack, true)
+			assertTypeDeclNoCycle2(store, last, &cx.Methods[i], stack, true)
 		}
 	case *ChanTypeExpr:
-		findTypeDeclDependency2(store, last, cx.Value, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.Value, stack, indirect)
 	case *FuncTypeExpr:
 		for i := range cx.Params {
-			findTypeDeclDependency2(store, last, &cx.Params[i], stack, true)
+			assertTypeDeclNoCycle2(store, last, &cx.Params[i], stack, true)
 		}
 		for i := range cx.Results {
-			findTypeDeclDependency2(store, last, &cx.Results[i], stack, true)
+			assertTypeDeclNoCycle2(store, last, &cx.Results[i], stack, true)
 		}
 	case *MapTypeExpr:
-		findTypeDeclDependency2(store, last, cx.Key, stack, true)
-		findTypeDeclDependency2(store, last, cx.Value, stack, true)
+		assertTypeDeclNoCycle2(store, last, cx.Key, stack, true)
+		assertTypeDeclNoCycle2(store, last, cx.Value, stack, true)
 	case *StructTypeExpr:
 		for i := range cx.Fields {
-			findTypeDeclDependency2(store, last, &cx.Fields[i], stack, indirect)
+			assertTypeDeclNoCycle2(store, last, &cx.Fields[i], stack, indirect)
 		}
 	case *MaybeNativeTypeExpr:
-		findTypeDeclDependency2(store, last, cx.Type, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.Type, stack, indirect)
 	case *CallExpr:
-		findTypeDeclDependency2(store, last, cx.Func, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.Func, stack, indirect)
 		for i := range cx.Args {
-			findTypeDeclDependency2(store, last, cx.Args[i], stack, indirect)
+			assertTypeDeclNoCycle2(store, last, cx.Args[i], stack, indirect)
 		}
 	case *IndexExpr:
-		findTypeDeclDependency2(store, last, cx.X, stack, indirect)
-		findTypeDeclDependency2(store, last, cx.Index, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.Index, stack, indirect)
 	case *constTypeExpr:
 		return
 	case *ConstExpr:
@@ -2734,21 +2702,18 @@ func findUndefined(store Store, last BlockNode, x Expr) (un Name) {
 
 // TODO: add helpers for type decl
 func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
-	debug.Println("---findUndefined2, x, t: ", x, t)
 	if x == nil {
 		return
 	}
 	switch cx := x.(type) {
 	case *NameExpr:
 		if tv := last.GetValueRef(store, cx.Name); tv != nil {
-			debug.Println("---1")
 			return
 		}
 		if _, ok := UverseNode().GetLocalIndex(cx.Name); ok {
 			// XXX NOTE even if the name is shadowed by a file
 			// level declaration, it is fine to return here as it
 			// will be predefined later.
-			debug.Println("---2")
 			return
 		}
 		return cx.Name
@@ -2766,28 +2731,28 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 	case *SelectorExpr:
 		return findUndefined(store, last, cx.X)
 	case *SliceExpr:
-		//un = findUndefined(store, last, cx.X)
-		//if un != "" {
-		//	return
-		//}
-		//if cx.Low != nil {
-		//	un = findUndefined(store, last, cx.Low)
-		//	if un != "" {
-		//		return
-		//	}
-		//}
-		//if cx.High != nil {
-		//	un = findUndefined(store, last, cx.High)
-		//	if un != "" {
-		//		return
-		//	}
-		//}
-		//if cx.Max != nil {
-		//	un = findUndefined(store, last, cx.Max)
-		//	if un != "" {
-		//		return
-		//	}
-		//}
+		un = findUndefined(store, last, cx.X)
+		if un != "" {
+			return
+		}
+		if cx.Low != nil {
+			un = findUndefined(store, last, cx.Low)
+			if un != "" {
+				return
+			}
+		}
+		if cx.High != nil {
+			un = findUndefined(store, last, cx.High)
+			if un != "" {
+				return
+			}
+		}
+		if cx.Max != nil {
+			un = findUndefined(store, last, cx.Max)
+			if un != "" {
+				return
+			}
+		}
 	case *StarExpr:
 		return findUndefined(store, last, cx.X)
 		return
@@ -2999,7 +2964,6 @@ func checkIntegerKind(xt Type) {
 // preprocess-able before other file-level declarations are
 // preprocessed).
 func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
-	debug.Println("---predefine now, d.line", d.GetLine())
 	defer func() {
 		if r := recover(); r != nil {
 			// before re-throwing the error, append location information to message.
@@ -3021,7 +2985,6 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 }
 
 func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bool) {
-	debug.Println("---predefineNow2, d: ", d)
 	pkg := packageOf(last)
 	// pre-register d.GetName() to detect circular definition.
 	for _, dn := range d.GetDeclNames() {
@@ -3034,17 +2997,12 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 
 	// check type decl cycle
 	if td, ok := d.(*TypeDecl); ok {
-		debug.Println("---type decl, find dependency and assert no cycle, td: ", td)
-		debug.Println("==============check cycle start==================")
-
 		// recursively check
-		findTypeDeclDependency(store, last, td.Type, stack)
-		debug.Println("==============check cycle complete!!!==================")
+		assertTypeDeclNoCycle(store, last, td.Type, stack)
 	}
 
 	// recursively predefine dependencies.
 	for {
-		debug.Println("---for loop start, recursively define ")
 		// type decl
 		un := tryPredefine(store, last, d)
 		if un != "" {
@@ -3066,7 +3024,6 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			break
 		}
 	}
-	debug.Println("---after for loop")
 	// after recursive define
 	switch cd := d.(type) {
 	case *FuncDecl:
@@ -3174,12 +3131,14 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 	if d.GetAttribute(ATTR_PREDEFINED) == true {
 		panic("decl node already predefined!")
 	}
+
 	// If un is blank, it means the predefine succeeded.
 	defer func() {
 		if un == "" {
 			d.SetAttribute(ATTR_PREDEFINED, true)
 		}
 	}()
+
 	// NOTE: These happen upon enter from the top,
 	// so value paths cannot be used here.
 	switch d := d.(type) {
@@ -3312,7 +3271,6 @@ func tryPredefine(store Store, last BlockNode, d Decl) (un Name) {
 			d.Path = last.GetPathForName(store, d.Name)
 		}
 		// after predefinitions, return any undefined dependencies.
-		// after predefinitions, return any undefined declGraph.
 		un = findUndefined(store, last, d.Type)
 		if un != "" {
 			return
