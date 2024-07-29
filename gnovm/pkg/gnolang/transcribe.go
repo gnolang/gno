@@ -371,7 +371,6 @@ func transcribe(t Transform, ns []Node, ftype TransField, index int, n Node, nc 
 			return
 		}
 	case *AssignStmt:
-		// XXX consider RHS, LHS, RHS, LHS, ... order.
 		for idx := range cnn.Lhs {
 			cnn.Lhs[idx] = transcribe(t, nns, TRANS_ASSIGN_LHS, idx, cnn.Lhs[idx], &c).(Expr)
 			if isBreak(c) {
