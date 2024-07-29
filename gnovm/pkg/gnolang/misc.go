@@ -179,22 +179,22 @@ type DeclNode struct {
 
 // dumpGraph prints the current declGraph
 func dumpGraph(declGraph []*DeclNode) {
-	fmt.Println("-----------------------dump declGraph begin-------------------------")
+	debug.Println("-----------------------dump declGraph begin-------------------------")
 	for _, node := range declGraph {
-		fmt.Printf("%s -> ", node.Name)
+		debug.Printf("%s -> ", node.Name)
 		for _, d := range node.Dependencies {
-			fmt.Printf("%s: ", d.Name)
+			debug.Printf("%s: ", d.Name)
 		}
-		fmt.Println()
+		debug.Println()
 	}
-	fmt.Println("-----------------------dump declGraph done-------------------------")
+	debug.Println("-----------------------dump declGraph done-------------------------")
 }
 
 // insertDeclNode inserts a new dependency into the graph
 func insertDeclNode(declGraph *[]*DeclNode, name Name, loc Location, deps ...Name) {
-	fmt.Println("---insertDeclNode, name: ", name)
+	debug.Println("---insertDeclNode, name: ", name)
 	for _, d := range *declGraph {
-		fmt.Println("---insertDeclNode, declGraph: ", *d)
+		debug.Println("---insertDeclNode, declGraph: ", *d)
 	}
 
 	var dep *DeclNode
@@ -230,7 +230,7 @@ func insertDeclNode(declGraph *[]*DeclNode, name Name, loc Location, deps ...Nam
 // assertNoCycle checks if there is a cycle in the declGraph graph
 func assertNoCycle(declGraph []*DeclNode) {
 	for _, d := range declGraph {
-		fmt.Println("---assertNoCycle, declGraph: ", *d)
+		debug.Println("---assertNoCycle, declGraph: ", *d)
 	}
 	defer func() {
 		declGraph = nil
@@ -319,17 +319,20 @@ func NewGraph() *Graph {
 }
 
 func (g *Graph) AddNode(name Name, indirect bool) {
-	fmt.Printf("---addNode, name: %v, indirect: %v \n", name, indirect)
+	debug.Printf("---addNode, name: %v, indirect: %v \n", name, indirect)
 	*(g.nodes) = append(*(g.nodes), &Element{name: name, indirect: indirect})
 }
 
-func (g *Graph) PopNode() {
-	fmt.Println("---pop node")
+func (g *Graph) PopNode() *Element {
+	debug.Println("---pop node")
+	e := (*g.nodes)[len(*g.nodes)-1]
 	*(g.nodes) = (*g.nodes)[:len(*(g.nodes))-1]
+	return e
 }
 
 func (g *Graph) checkCycle(name Name) bool {
-	fmt.Println("---checkCycle, name: ", name)
+	debug.Println("---checkCycle, name: ", name)
+	g.dump()
 	// if indirect exists, no cycle
 	for _, n := range *(g.nodes) {
 		if n.indirect {
@@ -346,8 +349,9 @@ func (g *Graph) checkCycle(name Name) bool {
 }
 
 func (g *Graph) dump() {
+	debug.Println("---len of stack: ", len(*g.nodes))
 	for i, n := range *(g.nodes) {
-		fmt.Printf("---g.nodes[%d] is %+v \n", i, n)
+		debug.Printf("---g.nodes[%d] is %+v \n", i, n)
 	}
 }
 

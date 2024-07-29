@@ -15,4 +15,4 @@ func main() {
 }
 
 // Error:
-// main/files/recursive1c.gno:1: type definition loop with S
+// main/files/recursive1c.gno:1: type define cycle with name: S
