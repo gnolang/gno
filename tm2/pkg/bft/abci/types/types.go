@@ -256,9 +256,7 @@ type BlockParams struct {
 	TimeIotaMS    int64 // must be > 0
 	TargetGas     int64 // must be >= 0 and <= MaxGas
 	// reduce the gas price changes
-	PriceChangeCompressor int64 // must be >0
-	// TODO: use GasPrice amino type
-	// InitialGasPrice std.GasPrice
+	PriceChangeCompressor int64  // must be >0
 	InitialGasPriceAmount int64  // must be >=0
 	InitialGasPriceDenom  string // must not be ""
 	InitialGasPriceGas    int64  // must be >=1

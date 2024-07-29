@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	envKeyGenesis int = iota
+	envKeyNodeConfig int = iota
 	envKeyLogger
 	envKeyPkgsLoader
 )
@@ -125,24 +125,23 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				env.Values[envKeyLogger] = logger
 			}
 
+			cfg := TestingMinimalNodeConfig(t, gnoRootDir)
 			// Track new user balances added via the `adduser`
 			// command and packages added with the `loadpkg` command.
 			// This genesis will be use when node is started.
-			genesis := &gnoland.GnoGenesisState{
+			genState := gnoland.GnoGenesisState{
 				Balances: LoadDefaultGenesisBalanceFile(t, gnoRootDir),
 				Txs:      []std.Tx{},
 			}
-
+			cfg.Genesis.AppState = genState
+			env.Values[envKeyNodeConfig] = cfg
+			env.Values[envKeyPkgsLoader] = newPkgsLoader()
 			// test1 must be created outside of the loop below because it is already included in genesis so
 			// attempting to recreate results in it getting overwritten and breaking existing tests that
 			// rely on its address being static.
 			kb.CreateAccount(DefaultAccount_Name, DefaultAccount_Seed, "", "", 0, 0)
 			env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
 			env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
-
-			env.Values[envKeyGenesis] = genesis
-			env.Values[envKeyPkgsLoader] = newPkgsLoader()
-
 			env.Setenv("GNOROOT", gnoRootDir)
 			env.Setenv("GNOHOME", gnoHomeDir)
 
@@ -173,23 +172,30 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 					defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
-					pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil)
-					if err != nil {
-						ts.Fatalf("unable to load packages txs: %s", err)
+					// we need to define a new err1 otherwise the out err would be shadowed in the case "start":
+					pkgsTxs, err1 := pkgs.LoadPackages(creator, defaultFee, nil)
+					if err1 != nil {
+						ts.Fatalf("unable to load packages txs: %s", err1)
 					}
 
 					// Warp up `ts` so we can pass it to other testing method
 					t := TSTestingT(ts)
 
 					// Generate config and node
-					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
-					genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
-					genesis.Txs = append(pkgsTxs, genesis.Txs...)
+					cfg := ts.Value(envKeyNodeConfig).(*gnoland.InMemoryNodeConfig)
+					// We need to assign a new TMConfig with a new ListenAddress for the node
+					// so that we can start multiple in-memory testing nodes.
+					cfg.TMConfig = DefaultTestingTMConfig(gnoRootDir)
+					// add pkg txs to genesis
+					genState := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
+					genState.Txs = append(pkgsTxs, genState.Txs...)
+					cfg.Genesis.AppState = genState
 
-					// setup genesis state
-					cfg.Genesis.AppState = *genesis
-
-					n, remoteAddr := TestingInMemoryNode(t, logger, cfg)
+					n, remoteAddr, err2 := TestingInMemoryNodeUpdate(t, logger, cfg)
+					if err2 != nil {
+						err = err2
+						break
+					}
 
 					// Register cleanup
 					nodes[sid] = &testNode{Node: n}
@@ -282,8 +288,11 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				}
 
 				// Add balance to genesis
-				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
-				genesis.Balances = append(genesis.Balances, balance)
+				// Add balance to genesis
+				cfg := ts.Value(envKeyNodeConfig).(*gnoland.InMemoryNodeConfig)
+				genState := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
+				genState.Balances = append(genState.Balances, balance)
+				cfg.Genesis.AppState = genState
 			},
 			// adduserfrom commands must be executed before starting the node; it errors out otherwise.
 			"adduserfrom": func(ts *testscript.TestScript, neg bool, args []string) {
@@ -335,8 +344,10 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				}
 
 				// Add balance to genesis
-				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
-				genesis.Balances = append(genesis.Balances, balance)
+				cfg := ts.Value(envKeyNodeConfig).(*gnoland.InMemoryNodeConfig)
+				genState := cfg.Genesis.AppState.(gnoland.GnoGenesisState)
+				genState.Balances = append(genState.Balances, balance)
+				cfg.Genesis.AppState = genState
 
 				fmt.Fprintf(ts.Stdout(), "Added %s(%s) to genesis", args[0], balance.Address)
 			},
@@ -400,7 +411,108 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 				ts.Logf("%q package was added to genesis", args[0])
 			},
+
+			// blockparams commands must be executed before starting the node; it errors out otherwise.
+			// it update default block parameters.
+			// example: blockparams MaxGas=1000000000 TargetGas=60000000 PriceChangeCompressor=8 InitialGasPriceAmount=1 InitialGasPriceDenom=ugnot InitialGasPriceGas=10
+
+			"blockparams": func(ts *testscript.TestScript, neg bool, args []string) {
+				if nodeIsRunning(nodes, getNodeSID(ts)) {
+					tsValidateError(ts, "blockparams", neg, errors.New("block parameters must be configured before starting the node"))
+					return
+				}
+
+				if len(args) == 0 {
+					ts.Fatalf("key=value pairs for block parameters are missing.")
+				}
+
+				cfg := ts.Value(envKeyNodeConfig).(*gnoland.InMemoryNodeConfig)
+				genDoc := cfg.Genesis
+				// update the block parameters
+				updateBlockParams(ts, args, genDoc)
+			},
 		},
+	}
+}
+
+// Update the block parameters in the Genesis document.
+// We do not add value checks here; the value checks should be handled by the node itself.
+
+func updateBlockParams(ts *testscript.TestScript, args []string, genDoc *bft.GenesisDoc) {
+	for _, arg := range args {
+		kv := strings.SplitN(arg, "=", 2)
+		if len(kv) != 2 {
+			ts.Fatalf("invalid argument: %s", kv)
+		}
+		key, value := kv[0], kv[1]
+		switch key {
+		case "MaxTxBytes":
+			v, err := strconv.ParseInt(value, 10, 64)
+			// We do not want to check the validity of the value here (v > 0)
+			// We should leave it for the node to verify and catch when it starts running
+			if err != nil {
+				ts.Fatalf("Can not parse the value of MaxTxBytes %s", value)
+			}
+			genDoc.ConsensusParams.Block.MaxTxBytes = v
+
+		case "MaxDataBytes":
+			v, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				ts.Fatalf("Can not parse the value of MaxDataBytes %s", value)
+			}
+			genDoc.ConsensusParams.Block.MaxDataBytes = v
+		case "MaxBlockBytes":
+			v, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				ts.Fatalf("Can not parse the value of MaxBlockBytes %s", value)
+			}
+			genDoc.ConsensusParams.Block.MaxBlockBytes = v
+		case "MaxGas":
+			v, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				ts.Fatalf("Can not parse the value of MaxGas %s", value)
+			}
+			genDoc.ConsensusParams.Block.MaxGas = v
+		case "TimeIotaMS":
+			v, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				ts.Fatalf("Can not parse the value of TimeIotaMS %s", value)
+			}
+			genDoc.ConsensusParams.Block.TimeIotaMS = v
+		case "TargetGas":
+			v, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				ts.Fatalf("Can not parse the value of TargetGas %s", value)
+			}
+			genDoc.ConsensusParams.Block.TargetGas = v
+		case "PriceChangeCompressor":
+			v, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				ts.Fatalf("Can not parse the value of PriceChangeCompressor %s", value)
+			}
+			genDoc.ConsensusParams.Block.PriceChangeCompressor = v
+		case "InitialGasPriceAmount":
+			v, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				ts.Fatalf("Can not parse the value of InitialGasPriceAmount %s", value)
+			}
+			genDoc.ConsensusParams.Block.InitialGasPriceAmount = v
+		case "InitialGasPriceDenom":
+			// We do not want to check validity of the  value=="" here
+			// We should leave it for the node to verify and catch
+			//	if value == "" {
+			//		ts.Fatalf("InitialGasPriceDenom must not be empty")
+			//	}
+			genDoc.ConsensusParams.Block.InitialGasPriceDenom = value
+		case "InitialGasPriceGas":
+			v, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				ts.Fatalf("Can not parse the value of InitialGasPriceGas %s", value)
+			}
+			genDoc.ConsensusParams.Block.InitialGasPriceGas = v
+		default:
+			ts.Fatalf("unknown parameter: %s", key)
+		}
 	}
 }
 

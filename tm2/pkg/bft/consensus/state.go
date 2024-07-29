@@ -1791,6 +1791,7 @@ func (cs *ConsensusState) logTelemetry(block *types.Block) {
 
 	metrics.BlockTxs.Record(context.Background(), block.TotalTxs)
 	metrics.BlockSizeBytes.Record(context.Background(), int64(block.Size()))
+	metrics.BlockHeaderGasPriceAmount.Record(context.Background(), block.Header.GasPriceAmount)
 }
 
 // ---------------------------------------------------------

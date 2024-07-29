@@ -37,7 +37,7 @@ const (
 	TargetGas int64 = 60000000 // 60M gas
 
 	// Protocol level InitialGasPrice  10token/100gas
-	// TODO: use amino struct type
+	// XXX: use std.GasPrice?
 	InitialGasPriceAmount int64  = 10
 	InitialGasPriceDenom  string = "token"
 	InitialGasPriceGas    int64  = 100
@@ -69,9 +69,11 @@ func DefaultBlockParams() *abci.BlockParams {
 }
 
 func DefaultValidatorParams() *abci.ValidatorParams {
-	return &abci.ValidatorParams{[]string{
-		amino.GetTypeURL(ed25519.PubKeyEd25519{}),
-	}}
+	return &abci.ValidatorParams{
+		PubKeyTypeURLs: []string{
+			amino.GetTypeURL(ed25519.PubKeyEd25519{}),
+		},
+	}
 }
 
 func ValidateConsensusParams(params abci.ConsensusParams) error {

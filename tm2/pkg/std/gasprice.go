@@ -75,5 +75,4 @@ func (gp GasPrice) IsGTE(gpB GasPrice) bool {
 		}
 	}
 	return false
-
 }

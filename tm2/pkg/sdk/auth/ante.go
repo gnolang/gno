@@ -416,7 +416,6 @@ func EnsureSufficientMempoolFees(ctx sdk.Context, fee std.Fee) sdk.Result {
 			if feeGasPrice.IsGTE(gp) {
 				return sdk.Result{}
 			} else if feeGasPrice.Price.Denom == gp.Price.Denom {
-
 				return abciResult(std.ErrInsufficientFee(
 					fmt.Sprintf(
 						"insufficient fees; got: %q required: %q", fee.GasFee, gp,

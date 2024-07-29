@@ -868,7 +868,6 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 }
 
 func TestEnsureBlockGasPrice(t *testing.T) {
-
 	var gasPriceGas int64 = 10
 	userFeeCases := []struct {
 		minGasPriceAmount   int64
@@ -900,9 +899,7 @@ func TestEnsureBlockGasPrice(t *testing.T) {
 	ctx := env.ctx
 	// validator min gas price // 0.3 ugnot per gas
 	for i, c := range userFeeCases {
-
 		ctx = ctx.WithMinGasPrices(
-
 			[]std.GasPrice{
 				{Gas: gasPriceGas, Price: std.Coin{Denom: "ugnot", Amount: c.minGasPriceAmount}},
 			},

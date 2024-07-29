@@ -66,7 +66,6 @@ type State struct {
 	AppHash []byte
 
 	// protocol level min gas price
-	// TODO: use GasPrice in amino proto
 	GasPriceGas    int64
 	GasPriceAmount int64
 	GasPriceDenom  string

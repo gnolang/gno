@@ -21,6 +21,20 @@ const (
 	DefaultAccount_Seed    = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
 )
 
+func TestingInMemoryNodeUpdate(t TestingTS, logger *slog.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string, error) {
+	node, RPCAddress := TestingInMemoryNode(t, logger, config)
+	var returnErr error
+
+	defer func() {
+		if r := recover(); r != nil {
+			if err, ok := r.(error); ok {
+				returnErr = err
+			}
+		}
+	}()
+	return node, RPCAddress, returnErr
+}
+
 // TestingInMemoryNode initializes and starts an in-memory node for testing.
 // It returns the node instance and its RPC remote address.
 func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string) {

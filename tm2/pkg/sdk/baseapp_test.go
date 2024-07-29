@@ -1171,7 +1171,6 @@ func TestGetMaximumBlockGas(t *testing.T) {
 }
 
 func TestGasPriceUpdate(t *testing.T) {
-
 	anteOpt := func(bapp *BaseApp) {
 		// this number equals to MaxBlockGas - GasUsed.
 		gasRemainInBlock := int64(100000)
@@ -1204,7 +1203,7 @@ func TestGasPriceUpdate(t *testing.T) {
 
 	app := setupBaseApp(t, anteOpt, routerOpt)
 
-	// set inital gas price in block parameters
+	// set initial gas price in block parameters
 	consParams := &abci.ConsensusParams{
 		Block: &abci.BlockParams{
 			MaxGas:                10000,

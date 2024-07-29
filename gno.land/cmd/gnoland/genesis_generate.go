@@ -145,9 +145,15 @@ func execGenerate(cfg *generateCfg, io commands.IO) error {
 
 // getDefaultGenesis returns the default genesis config
 func getDefaultGenesis() *types.GenesisDoc {
+	bp := types.DefaultBlockParams()
+	bp.InitialGasPriceAmount = 0
+	bp.InitialGasPriceDenom = "ugnot"
+
+	consParams := types.DefaultConsensusParams()
+	consParams.Block = bp
 	return &types.GenesisDoc{
 		GenesisTime:     time.Now(),
 		ChainID:         defaultChainID,
-		ConsensusParams: types.DefaultConsensusParams(),
+		ConsensusParams: consParams,
 	}
 }

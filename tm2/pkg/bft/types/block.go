@@ -252,9 +252,7 @@ type Header struct {
 	// consensus info
 	ProposerAddress Address `json:"proposer_address"` // original proposer of the block
 
-	// TODO: use amino type
-	// GasPrice       std.GasPrice `json:"gas_price"`
-	// global dynamic GasPrices ex. 10denom/100gas
+	// XXX: use std.GasPrice instead?
 	GasPriceGas    int64  `json:"gas_price_gas"`
 	GasPriceAmount int64  `json:"gas_price_amount"`
 	GasPriceDenom  string `json:"gas_price_denom"`
