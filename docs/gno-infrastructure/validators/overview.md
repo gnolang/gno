@@ -79,7 +79,7 @@ Join the official gno.land community in various channels to receive the latest u
 communicate with other validators and contributors.
 
 - [Gno.land Blog](https://gno.land/r/gnoland/blog)
-- [Gno.land Discord](https://discord.gg/FqnzKsVj4B)
+- [Gno.land Discord](https://discord.gg/YFtMjWwUN7)
 - [Gno.land Twitter](https://x.com/_gnoland)
 
 :::info
