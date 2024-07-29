@@ -69,7 +69,7 @@ go run ./cmd/gno --help
 
 ### `gnodev`
 `gnodev` is the go-to Gno development helper tool - it comes with a built in
-Gno.land node, a `gnoweb` server to display the state of your smart contracts
+gno.land node, a `gnoweb` server to display the state of your smart contracts
 (realms), and a watcher system to actively track changes in your code. Read more
 about `gnodev` [here](../../gno-tooling/cli/gnodev.md).
 
