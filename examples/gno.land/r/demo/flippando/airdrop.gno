@@ -128,7 +128,6 @@ func AirdropBasicFlipNFT(
 
 // getters, utils
 
-// GetAllMintedAirdropNFTs returns all minted airdrop NFTs in JSON format
 func GetAllMintedAirdropNFTs() string {
 	var allTokenIDs []string
 	iterator := mintedNFTs.Iterator()
@@ -149,7 +148,6 @@ func GetAllMintedAirdropNFTs() string {
 	return string(mintedNFTResult)
 }
 
-// MarshalJSON marshals the mintedAirdropNFTs struct into JSON
 func (man mintedAirdropNFTs) MarshalJSON() ([]byte, error) {
 	var b bytes.Buffer
 
@@ -169,7 +167,6 @@ func (man mintedAirdropNFTs) MarshalJSON() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-// mintedAirdropNFTs struct
 type mintedAirdropNFTs struct {
 	TokenIDs []string `json:"tokenIDs"`
 }
