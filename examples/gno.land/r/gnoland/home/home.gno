@@ -3,6 +3,7 @@ package home
 import (
 	"std"
 
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
 	blog "gno.land/r/gnoland/blog"
@@ -12,9 +13,18 @@ import (
 // XXX: use an updatable block system to update content from a DAO
 // XXX: var blocks avl.Tree
 
+var (
+	override string
+	admin    = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred by default
+)
+
 func Render(_ string) string {
+	if override != "" {
+		return override
+	}
+
 	dom := ui.DOM{Prefix: "r/gnoland/home:"}
-	dom.Title = "Welcome to Gno.land"
+	dom.Title = "Welcome to gno.land"
 	dom.Classes = []string{"gno-tmpl-section"}
 
 	// body
@@ -81,9 +91,9 @@ func upcomingEvents(limit int) ui.Element {
 
 func introSection() ui.Element {
 	return ui.Element{
-		ui.H3("We’re building Gno.land, the first open-source smart contract system, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts."),
-		ui.Paragraph("With transparent and timeless code, Gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse."),
-		ui.Paragraph("Intuitive and easy to use, Gno.land lowers the barrier to web3 and makes censorship-resistant platforms accessible to everyone. If you want to help lay the foundations of a fairer and freer world, join us today."),
+		ui.H3("We’re building gno.land, set to become the leading open-source smart contract platform, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts."),
+		ui.Paragraph("With transparent and timeless code, gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse."),
+		ui.Paragraph("Intuitive and easy to use, gno.land lowers the barrier to web3 and makes censorship-resistant platforms accessible to everyone. If you want to help lay the foundations of a fairer and freer world, join us today."),
 	}
 }
 
@@ -157,7 +167,7 @@ func playgroundSection() ui.Element {
 		ui.H3("[Gno Playground](https://play.gno.land)"),
 		ui.Paragraph(`Gno Playground is a web application designed for building, running, testing, and interacting
 with your Gno code, enhancing your understanding of the Gno language. With Gno Playground, you can share your code,
-execute tests, deploy your realms and packages to Gno.land, and explore a multitude of other features.`),
+execute tests, deploy your realms and packages to gno.land, and explore a multitude of other features.`),
 		ui.Paragraph("Experience the convenience of code sharing and rapid experimentation with [Gno Playground](https://play.gno.land)."),
 	}
 }
@@ -226,7 +236,7 @@ func discoverLinks() ui.Element {
 		ui.Text(`<div class="columns-3">
 <div class="column">
 
-### Learn about Gno.land
+### Learn about gno.land
 
 - [About](/about)
 - [GitHub](https://github.com/gnolang)
@@ -235,6 +245,7 @@ func discoverLinks() ui.Element {
 - Tokenomics (soon)
 - [Partners, Fund, Grants](/partners)
 - [Explore the Ecosystem](/ecosystem)
+- [Careers](https://jobs.lever.co/allinbits?department=Gno.land)
 
 </div><!-- end column-->
 
@@ -265,4 +276,14 @@ func discoverLinks() ui.Element {
 </div><!-- end column-->
 </div><!-- end columns-3-->`),
 	}
+}
+
+func AdminSetOverride(content string) {
+	admin.AssertCallerIsOwner()
+	override = content
+}
+
+func AdminTransferOwnership(newAdmin std.Address) {
+	admin.AssertCallerIsOwner()
+	admin.TransferOwnership(newAdmin)
 }

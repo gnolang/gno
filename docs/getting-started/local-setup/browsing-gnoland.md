@@ -2,11 +2,11 @@
 id: browsing-gnoland
 ---
 
-# Browsing Gno.land
+# Browsing gno.land
 
 ## Overview
 In this tutorial, you will learn how to browse [realms](../../concepts/realms.md)
-and [packages](../../concepts/packages.md) deployed to a Gno.land chain. 
+and [packages](../../concepts/packages.md) deployed to a gno.land chain. 
 You will understand how the `Render` method is utilized to achieve realm state
 visibility, and you will learn how to easily access realm APIs.
 
@@ -33,10 +33,10 @@ gno.land home page:
 
 ![homepage](../../assets/getting-started/local-setup/browsing-gno-source-code/gnoland-homepage.png)
 
-## 2. Browsing Gno.land
+## 2. Browsing gno.land
 
 ### Package source code
-Packages in Gno.land usually have names resembling `gno.land/p/<name>`. Since 
+Packages in gno.land usually have names resembling `gno.land/p/<name>`. Since 
 packages do not contain state, only their source code can be viewed on-chain. To
 learn more about packages, check out the [Packages](../../concepts/packages.md) 
 concept page.
@@ -55,7 +55,7 @@ From here, we can open any source code file of the deployed on-chain package
 and inspect its API.
 
 ### Realm source code & state
-In contrast to Packages, Realms in Gno.land usually have names resembling
+In contrast to Packages, Realms in gno.land usually have names resembling
 `gno.land/r/<name>`.
 
 Realms _do_ contain state, and in addition to being able to view their source 

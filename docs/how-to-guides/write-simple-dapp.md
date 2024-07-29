@@ -2,7 +2,7 @@
 id: write-simple-dapp
 ---
 
-# How to write a simple dApp on Gno.land
+# How to write a simple dApp on gno.land
 
 ## Overview
 
