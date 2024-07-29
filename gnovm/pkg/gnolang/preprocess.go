@@ -120,7 +120,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 			if r := recover(); r != nil {
 				// Catch the out-of-gas exception and throw it
 				if _, ok := r.(tmstore.OutOfGasException); ok {
-			 		panic(r)
+					panic(r)
 				}
 				// before re-throwing the error, append location information to message.
 				loc := last.GetLocation()
@@ -3180,7 +3180,7 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 		if r := recover(); r != nil {
 			// Catch the out-of-gas exception and throw it
 			if _, ok := r.(tmstore.OutOfGasException); ok {
-			 	panic(r)
+				panic(r)
 			}
 			// before re-throwing the error, append location information to message.
 			loc := last.GetLocation()
