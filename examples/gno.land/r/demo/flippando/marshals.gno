@@ -219,7 +219,7 @@ func (fbn BasicNFTMetaData) MarshalJSON() ([]byte,  error) {
 	b.WriteString(`",`)
 
 	b.WriteString(`"airdropParentID":"`)
-	b.WriteString(fbn.svgData) 
+	b.WriteString(fbn.airdropParentID) 
 	b.WriteString(`",`)
 
 	b.WriteString(`"airdropXPos":"`)

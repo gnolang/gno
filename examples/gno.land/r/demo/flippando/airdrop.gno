@@ -59,7 +59,9 @@ func AirdropBasicFlipNFT(
 	bNFTtokenIDCounter = count + 1
 	tidString := strconv.FormatUint(bNFTtokenIDCounter, 10)
 	tid := grc721.TokenID(tidString)
-	mintResultError := FlipBasicNFT.Mint(toPlayer, tid)
+	// we first mint to airdrop account, to be able to set TokenURI
+	// then we transfer
+	mintResultError := FlipBasicNFT.Mint(validAirdropAccount, tid)
 	
 	if mintResultError == nil {
 		gameId := "airdrop/" + airdropName + "/1"
@@ -81,7 +83,12 @@ func AirdropBasicFlipNFT(
 		if err != nil {
 			panic("error in marshalling flipBasicNFTMetaData")
 		}
-		FlipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flipBasicNFTMetaDataJSON))
+		_, terr := FlipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flipBasicNFTMetaDataJSON))
+		if terr != nil {
+			return "", ufmt.Sprintf("error in SetTokenUR in airdrop, %s", terr.Error())
+		}
+		// transfer the NFT to player
+		FlipBasicNFT.TransferFrom(validAirdropAccount, toPlayer, tid)
 		FlipBasicNFT.Approve(GetBasicNFTRealmAddress(), tid)
 
 		// Add NFT to the LockedNFTs avl.Tree
