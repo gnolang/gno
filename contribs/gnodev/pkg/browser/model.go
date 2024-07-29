@@ -35,7 +35,6 @@ type Config struct {
 	URLDefaultValue string
 	Logger          *slog.Logger
 	Renderer        *lipgloss.Renderer
-	GnoClient       *gnoclient.Client
 	Readonly        bool
 	Banner          ModelBanner
 }
@@ -106,7 +105,7 @@ func initCommandInput(r *lipgloss.Renderer) textinput.Model {
 	return ti
 }
 
-func New(cfg Config) tea.Model {
+func New(cfg Config, client *gnoclient.Client) tea.Model {
 	renderer := lipgloss.DefaultRenderer()
 	if cfg.Renderer != nil {
 		renderer = cfg.Renderer
@@ -127,7 +126,7 @@ func New(cfg Config) tea.Model {
 		GasWanted: 2000000,
 	}
 
-	nodeclient := NewNodeClient(cfg.Logger, base, cfg.GnoClient)
+	nodeclient := NewNodeClient(cfg.Logger, base, client)
 	return &model{
 		logger:     cfg.Logger,
 		render:     cfg.Renderer,

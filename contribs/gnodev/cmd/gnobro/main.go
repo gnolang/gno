@@ -205,16 +205,16 @@ func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 			bcfg.Banner = NewBanner_GnoLand()
 		}
 
-		return runLocal(ctx, cfg, bcfg, cio)
+		return runLocal(ctx, gnocl, cfg, bcfg, cio)
 	}
 
 	return runServer(ctx, cfg, bcfg, cio)
 }
 
-func runLocal(ctx context.Context, cfg *broCfg, bcfg browser.Config, io commands.IO) error {
+func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg browser.Config, io commands.IO) error {
 	var err error
 
-	model := browser.New(bcfg)
+	model := browser.New(bcfg, gnocl)
 	p := tea.NewProgram(model,
 		tea.WithAltScreen(), // use the full size of the terminal in its "alternate screen buffer"
 
@@ -271,7 +271,7 @@ func runLocal(ctx context.Context, cfg *broCfg, bcfg browser.Config, io commands
 	return context.Cause(ctx)
 }
 
-func runServer(ctx context.Context, cfg *broCfg, bcfg browser.Config, io commands.IO) error {
+func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg browser.Config, io commands.IO) error {
 	// setup logger
 	charmlogger := charmlog.New(io.Out())
 	charmlogger.SetLevel(charmlog.DebugLevel)
@@ -299,7 +299,7 @@ func runServer(ctx context.Context, cfg *broCfg, bcfg browser.Config, io command
 			"path", bcfgCopy.URLDefaultValue,
 			"sid", s.Context().SessionID(),
 			"user", s.User())
-		model := browser.New(bcfgCopy)
+		model := browser.New(bcfgCopy, gnocl)
 		return model, []tea.ProgramOption{
 			tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
 			tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
