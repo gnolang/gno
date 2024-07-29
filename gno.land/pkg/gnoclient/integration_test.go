@@ -59,6 +59,18 @@ func TestCallSingle_Integration(t *testing.T) {
 	got := string(res.DeliverTx.Data)
 
 	assert.Equal(t, expected, got)
+
+	// Test signing separately
+	tx, err := client.MakeCallTx(baseCfg, msg)
+	assert.NoError(t, err)
+	require.NotNil(t, tx)
+	signedTx, err := client.SignTx(*tx, 0, 0)
+	assert.NoError(t, err)
+	require.NotNil(t, signedTx)
+	res, err = client.BroadcastTxCommit(signedTx)
+	require.NoError(t, err)
+	got = string(res.DeliverTx.Data)
+	assert.Equal(t, expected, got)
 }
 
 func TestCallMultiple_Integration(t *testing.T) {
@@ -111,6 +123,18 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 	got := string(res.DeliverTx.Data)
 	assert.Equal(t, expected, got)
+
+	// Test signing separately
+	tx, err := client.MakeCallTx(baseCfg, msg1, msg2)
+	assert.NoError(t, err)
+	require.NotNil(t, tx)
+	signedTx, err := client.SignTx(*tx, 0, 0)
+	assert.NoError(t, err)
+	require.NotNil(t, signedTx)
+	res, err = client.BroadcastTxCommit(signedTx)
+	require.NoError(t, err)
+	got = string(res.DeliverTx.Data)
+	assert.Equal(t, expected, got)
 }
 
 func TestSendSingle_Integration(t *testing.T) {
@@ -160,6 +184,24 @@ func TestSendSingle_Integration(t *testing.T) {
 	got := account.GetCoins()
 
 	assert.Equal(t, expected, got)
+
+	// Test signing separately
+	tx, err := client.MakeSendTx(baseCfg, msg)
+	assert.NoError(t, err)
+	require.NotNil(t, tx)
+	signedTx, err := client.SignTx(*tx, 0, 0)
+	assert.NoError(t, err)
+	require.NotNil(t, signedTx)
+	res, err = client.BroadcastTxCommit(signedTx)
+	require.NoError(t, err)
+	assert.Equal(t, "", string(res.DeliverTx.Data))
+
+	// Get the new account balance
+	account, _, err = client.QueryAccount(toAddress)
+	require.NoError(t, err)
+	expected2 := std.Coins{{"ugnot", int64(2 * amount)}}
+	got = account.GetCoins()
+	assert.Equal(t, expected2, got)
 }
 
 func TestSendMultiple_Integration(t *testing.T) {
@@ -216,6 +258,24 @@ func TestSendMultiple_Integration(t *testing.T) {
 	got := account.GetCoins()
 
 	assert.Equal(t, expected, got)
+
+	// Test signing separately
+	tx, err := client.MakeSendTx(baseCfg, msg1, msg2)
+	assert.NoError(t, err)
+	require.NotNil(t, tx)
+	signedTx, err := client.SignTx(*tx, 0, 0)
+	assert.NoError(t, err)
+	require.NotNil(t, signedTx)
+	res, err = client.BroadcastTxCommit(signedTx)
+	require.NoError(t, err)
+	assert.Equal(t, "", string(res.DeliverTx.Data))
+
+	// Get the new account balance
+	account, _, err = client.QueryAccount(toAddress)
+	require.NoError(t, err)
+	expected2 := std.Coins{{"ugnot", int64(2 * (amount1 + amount2))}}
+	got = account.GetCoins()
+	assert.Equal(t, expected2, got)
 }
 
 // Run tests
@@ -274,6 +334,18 @@ func main() {
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	assert.Equal(t, string(res.DeliverTx.Data), "- before: 0\n- after: 10\n")
+
+	// Test signing separately
+	tx, err := client.MakeRunTx(baseCfg, msg)
+	assert.NoError(t, err)
+	require.NotNil(t, tx)
+	signedTx, err := client.SignTx(*tx, 0, 0)
+	assert.NoError(t, err)
+	require.NotNil(t, signedTx)
+	res, err = client.BroadcastTxCommit(signedTx)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, string(res.DeliverTx.Data), "- before: 10\n- after: 20\n")
 }
 
 // Run tests
@@ -354,6 +426,19 @@ func main() {
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	assert.Equal(t, expected, string(res.DeliverTx.Data))
+
+	// Test signing separately
+	tx, err := client.MakeRunTx(baseCfg, msg1, msg2)
+	assert.NoError(t, err)
+	require.NotNil(t, tx)
+	signedTx, err := client.SignTx(*tx, 0, 0)
+	assert.NoError(t, err)
+	require.NotNil(t, signedTx)
+	res, err = client.BroadcastTxCommit(signedTx)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	expected2 := "- before: 10\n- after: 20\nhi gnoclient!\n"
+	assert.Equal(t, expected2, string(res.DeliverTx.Data))
 }
 
 func TestAddPackageSingle_Integration(t *testing.T) {
