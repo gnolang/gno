@@ -4385,7 +4385,7 @@ func setNodeLines(n Node) {
 		}
 		line := n.GetLine()
 		if line == lastLine {
-		} else if line == 0 {
+		} else if line == 0 { // XXX, should not happen?
 			line = lastLine
 		} else {
 			lastLine = line
