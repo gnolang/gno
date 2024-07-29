@@ -108,7 +108,7 @@ func GetBasicTokenURI(tokenID string) string {
 	tid := grc721.TokenID(tokenID)
 	tokenURI, err := FlipBasicNFT.TokenURI(tid)
 	if err != nil {
-		return "error"
+		return ufmt.Sprintf("error in GetBasicTokenURI in basicNFT, %s", err.Error())
 	}
 	return string(tokenURI);
 }

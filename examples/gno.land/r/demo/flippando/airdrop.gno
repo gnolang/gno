@@ -3,7 +3,7 @@ package flippando
 import (
 	"strconv"
 	"std"
-	"errors"
+	"bytes"
 
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/avl"
@@ -13,7 +13,7 @@ import (
 var (
 	// hardcoding the airdrop account and restricting minting to it
 	validAirdropAccount std.Address = std.Address("g1mphljw4duhzwqs72hv9grm4k6ufkvts3g7t3t4")
-	basicNFTtokenIDCounter uint64
+	bNFTtokenIDCounter uint64
 	mintedNFTs avl.Tree // owner -> []string
 )
 
@@ -56,8 +56,8 @@ func AirdropBasicFlipNFT(
 
 	// Mint the NFT
 	count := FlipBasicNFT.TokenCount()
-	basicNFTtokenIDCounter = count + 1
-	tidString := strconv.FormatUint(basicNFTtokenIDCounter, 10)
+	bNFTtokenIDCounter = count + 1
+	tidString := strconv.FormatUint(bNFTtokenIDCounter, 10)
 	tid := grc721.TokenID(tidString)
 	mintResultError := FlipBasicNFT.Mint(toPlayer, tid)
 	
@@ -130,17 +130,21 @@ func AirdropBasicFlipNFT(
 
 func GetAllMintedAirdropNFTs() string {
 	var allTokenIDs []string
-	iterator := mintedNFTs.Iterator()
-	for iterator.HasNext() {
-		_, userMintedNFTs := iterator.Next()
-		mintedList := userMintedNFTs.([]string)
-		allTokenIDs = append(allTokenIDs, mintedList...)
-	}
+
+	mintedNFTs.Iterate("", "", func(key string, value interface{}) bool {
+		//userMintedNFTs := node.Value.([]string)
+		//allTokenIDs = append(allTokenIDs, userMintedNFTs...)
+		//return false // Continue iteration
+		if tId, ok := value.([]string); ok {
+			allTokenIDs = append(allTokenIDs, tId...)
+		}
+		return false // Continue iteration until all nodes have been visited.
+	})
 
 	res := &mintedAirdropNFTs{
 		TokenIDs: allTokenIDs,
 	}
-	
+
 	mintedNFTResult, err := res.MarshalJSON()
 	if err != nil {
 		panic("error in marshalling result")
