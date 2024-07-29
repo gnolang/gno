@@ -1,12 +1,16 @@
 package main
 
 type S struct {
-	T S
+	T *S
+	B Integer
 }
+
+type Integer int
 
 func main() {
 	var a, b S
+	println(a == b)
 }
 
-// Error:
-// main/files/recursive1b.gno:1: type define cycle with name: S
+// Output:
+// true

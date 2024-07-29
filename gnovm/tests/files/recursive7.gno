@@ -2,4 +2,9 @@ package main
 
 type S []S
 
-func main() {}
+func main() {
+	println("ok")
+}
+
+// Output:
+// ok

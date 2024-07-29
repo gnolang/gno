@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/recursive1f.gno:3: type define cycle with name: S
+// main/files/recursive1f.gno:3: invalid recursive type: S -> S

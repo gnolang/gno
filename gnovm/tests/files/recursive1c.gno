@@ -9,10 +9,9 @@ type S struct {
 func main() {
 	var a, b S
 
-	//println(a == b)
 	fmt.Println(a)
 	fmt.Println(b)
 }
 
 // Error:
-// main/files/recursive1c.gno:1: type define cycle with name: S
+// main/files/recursive1c.gno:1: invalid recursive type: S -> S

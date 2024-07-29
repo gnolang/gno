@@ -18,4 +18,4 @@ func main() {
 }
 
 // Error:
-// main/files/recursive2.gno:1: type define cycle with name: A
+// main/files/recursive2.gno:1: invalid recursive type: A -> B -> C -> A
