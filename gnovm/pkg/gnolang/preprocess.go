@@ -251,14 +251,14 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 							// XXX, temp method to NOT heapDefine loopvar for range,
 							// to make it consistent with `for i:=0;i<3;i++;`,
 							// this should be uncommented when supporting full Go1.22 loopvar.
-							//nx.Type = NameExprTypeDefine
+							// nx.Type = NameExprTypeDefine
 							last.Predefine(false, nx.Name)
 						}
 					}
 					if n.Value != nil {
 						nx := n.Value.(*NameExpr)
 						if nx.Name != blankIdentifier {
-							//nx.Type = NameExprTypeDefine // ditto
+							// nx.Type = NameExprTypeDefine // ditto
 							last.Predefine(false, nx.Name)
 						}
 					}
@@ -2243,7 +2243,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 					// evaluate typed value for static definition.
-					for i, _ := range n.NameExprs {
+					for i := range n.NameExprs {
 						// consider value if specified.
 						if len(n.Values) > 0 {
 							vx := n.Values[i]
@@ -4410,7 +4410,6 @@ func setNodeLocations(pkgPath string, fileName string, n Node) {
 			return n, TRANS_CONTINUE
 		}
 		if bn, ok := n.(BlockNode); ok {
-			//fmt.Printf("---setNodeLocations, n: %v  bn.GetColumn: %v \n", n, bn.GetColumn())
 			// ensure unique location of blocknode.
 			loc := Location{
 				PkgPath: pkgPath,
