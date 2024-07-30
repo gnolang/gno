@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -343,7 +344,7 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 		return
 	}
 	hasReadme := bytes.Contains(dirres.Data, []byte("README.md\n"))
-	
+
 	// linkify querystr.
 	queryParts := strings.Split(querystr, "/")
 	pathLinks := []pathLink{}
