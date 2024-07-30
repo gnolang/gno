@@ -1273,7 +1273,6 @@ func TestLatestBlockHeightErrors(t *testing.T) {
 func TestTransaction(t *testing.T) {
 	t.Parallel()
 
-	// Test cases
 	tests := []struct {
 		name      string
 		hash      string
@@ -1312,7 +1311,7 @@ func TestTransaction(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt // Capture range variable
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -1343,7 +1342,6 @@ func TestTransaction(t *testing.T) {
 func TestPendingTransaction(t *testing.T) {
 	t.Parallel()
 
-	// Mock data
 	unconfirmedTxs := &ctypes.ResultUnconfirmedTxs{
 		Txs: []types.Tx{ /*...*/ },
 	}
@@ -1389,7 +1387,10 @@ func TestPendingTransaction(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			client := &Client{
 				Signer: &mockSigner{},
 				RPCClient: &mockRPCClient{
