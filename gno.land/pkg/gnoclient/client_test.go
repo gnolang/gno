@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
+	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -1269,7 +1270,7 @@ func TestLatestBlockHeightErrors(t *testing.T) {
 }
 
 // Transaction tests
-func TestGetTransaction(t *testing.T) {
+func TestTransaction(t *testing.T) {
 	t.Parallel()
 
 	// Test cases
@@ -1330,10 +1331,93 @@ func TestGetTransaction(t *testing.T) {
 			tx, err := client.Transaction(tt.hash)
 			if tt.wantError != nil {
 				require.Error(t, err)
-				assert.Equal(t, tt.wantError.Error(), err.Error())
+				assert.Equal(t, tt.wantError.Error(), err.Error(), "unexpected error: got %v, want %v", err, tt.wantError)
 			} else {
 				require.NoError(t, err)
-				assert.Equal(t, tt.txResult.Hash, tx.Hash)
+				assert.Equal(t, tt.txResult.Hash, tx.Hash, "unexpected hash: got %s, want %s", tx.Hash, tt.txResult.Hash)
+			}
+		})
+	}
+}
+
+func TestPendingTransaction(t *testing.T) {
+	t.Parallel()
+
+	// Mock data
+	unconfirmedTxs := &ctypes.ResultUnconfirmedTxs{
+		Txs: []types.Tx{ /*...*/ },
+	}
+
+	tests := []struct {
+		name                     string
+		limit                    int
+		expectedLimit            int
+		mockNumUnconfirmedTxsErr error
+		mockUnconfirmedTxsErr    error
+		expectedErr              error
+		expectedResult           *ctypes.ResultUnconfirmedTxs
+	}{
+		{
+			name:                  "Positive limit",
+			limit:                 10,
+			mockUnconfirmedTxsErr: nil,
+			expectedLimit:         10,
+			expectedErr:           nil,
+			expectedResult:        unconfirmedTxs,
+		},
+		{
+			name:                     "Zero limit",
+			limit:                    0,
+			mockNumUnconfirmedTxsErr: nil,
+			mockUnconfirmedTxsErr:    nil,
+			expectedLimit:            5, // Assume NumUnconfirmedTxs returns 5
+			expectedErr:              nil,
+			expectedResult:           unconfirmedTxs,
+		},
+		{
+			name:                     "Error in NumUnconfirmedTxs",
+			limit:                    0,
+			mockNumUnconfirmedTxsErr: errors.New("internal error"),
+			expectedErr:              errors.New("failed to retrieve number of unconfirmed transactions: internal error"),
+		},
+		{
+			name:                  "Error in UnconfirmedTxs",
+			limit:                 10,
+			mockUnconfirmedTxsErr: errors.New("internal error"),
+			expectedErr:           errors.New("failed to retrieve unconfirmed transactions: internal error"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &Client{
+				Signer: &mockSigner{},
+				RPCClient: &mockRPCClient{
+					numUnconfirmedTxs: func() (*ctypes.ResultUnconfirmedTxs, error) {
+						if tt.mockNumUnconfirmedTxsErr != nil {
+							return nil, tt.mockNumUnconfirmedTxsErr
+						}
+
+						return &ctypes.ResultUnconfirmedTxs{Total: tt.expectedLimit}, nil
+					},
+					unconfirmedTxs: func(limit int) (*ctypes.ResultUnconfirmedTxs, error) {
+						if tt.mockUnconfirmedTxsErr != nil {
+							return nil, tt.mockUnconfirmedTxsErr
+						}
+
+						return tt.expectedResult, nil
+					},
+				},
+			}
+
+			result, err := client.PendingTransaction(tt.limit)
+
+			if tt.expectedErr != nil {
+				assert.Error(t, err)
+				assert.Equal(t, err.Error(), tt.expectedErr.Error(), "unexpected error: got %v, want %v", err, tt.expectedErr)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedResult.Total, result.Total, "unexpected total txs: got %d, want %d", result.Total, tt.expectedResult.Total)
 			}
 		})
 	}
