@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1263,6 +1264,77 @@ func TestLatestBlockHeightErrors(t *testing.T) {
 			res, err := tc.client.LatestBlockHeight()
 			assert.Equal(t, int64(0), res)
 			assert.ErrorIs(t, err, tc.expectedError)
+		})
+	}
+}
+
+// Transaction tests
+func TestGetTransaction(t *testing.T) {
+	t.Parallel()
+
+	// Test cases
+	tests := []struct {
+		name      string
+		hash      string
+		txResult  *ctypes.ResultTx
+		mockError error
+		wantError error
+	}{
+		{
+			name:      "valid hash",
+			hash:      "dGhpcyBpcyBhIHRlc3QgaGFzaA==", // "this is a test hash" in base64
+			txResult:  &ctypes.ResultTx{Hash: []byte("dGhpcyBpcyBhIHRlc3QgaGFzaA==")},
+			mockError: nil,
+			wantError: nil,
+		},
+		{
+			name:      "empty hash",
+			hash:      "",
+			txResult:  nil,
+			mockError: nil,
+			wantError: ErrEmptyTxHash,
+		},
+		{
+			name:      "invalid base64 hash",
+			hash:      "invalid-base64",
+			txResult:  nil,
+			mockError: nil,
+			wantError: ErrInvalidTxHashFormat,
+		},
+		{
+			name:      "rpc client error",
+			hash:      "dGhpcyBpcyBhIHRlc3QgaGFzaA==",
+			txResult:  nil,
+			mockError: fmt.Errorf("RPC error"),
+			wantError: fmt.Errorf("transaction query failed: RPC error"),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt // Capture range variable
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := &Client{
+				Signer: &mockSigner{},
+				RPCClient: &mockRPCClient{
+					tx: func(hash []byte) (*ctypes.ResultTx, error) {
+						if tt.mockError != nil {
+							return nil, tt.mockError
+						}
+						return tt.txResult, nil
+					},
+				},
+			}
+
+			tx, err := client.Transaction(tt.hash)
+			if tt.wantError != nil {
+				require.Error(t, err)
+				assert.Equal(t, tt.wantError.Error(), err.Error())
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.txResult.Hash, tx.Hash)
+			}
 		})
 	}
 }

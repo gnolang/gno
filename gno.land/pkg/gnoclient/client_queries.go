@@ -1,6 +1,7 @@
 package gnoclient
 
 import (
+	"encoding/base64"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -11,7 +12,11 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-var ErrInvalidBlockHeight = errors.New("invalid block height provided")
+var (
+	ErrInvalidBlockHeight  = errors.New("invalid block height provided")
+	ErrEmptyTxHash         = errors.New("empty tx hash")
+	ErrInvalidTxHashFormat = errors.New("invalid tx hash format")
+)
 
 // QueryCfg contains configuration options for performing ABCI queries.
 type QueryCfg struct {
@@ -176,4 +181,29 @@ func (c *Client) LatestBlockHeight() (int64, error) {
 	}
 
 	return status.SyncInfo.LatestBlockHeight, nil
+}
+
+// GetTransaction retrieves the transaction details for a given transaction hash
+// The provided hash must be a valid base64 encoded string
+func (c *Client) Transaction(hash string) (*ctypes.ResultTx, error) {
+	// Validate the RPC client
+	if err := c.validateRPCClient(); err != nil {
+		return nil, ErrMissingRPCClient
+	}
+
+	if hash == "" {
+		return nil, ErrEmptyTxHash
+	}
+
+	data, err := base64.StdEncoding.DecodeString(hash)
+	if err != nil {
+		return nil, ErrInvalidTxHashFormat
+	}
+
+	tx, err := c.RPCClient.Tx(data)
+	if err != nil {
+		return nil, fmt.Errorf("transaction query failed: %w", err)
+	}
+
+	return tx, nil
 }
