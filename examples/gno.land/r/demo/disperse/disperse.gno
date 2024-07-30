@@ -3,6 +3,7 @@ package disperse
 import (
 	"std"
 
+	"gno.land/p/demo/ufmt"
 	tokens "gno.land/r/demo/grc20factory"
 )
 
@@ -13,18 +14,21 @@ func checkNumAddrValMatch(addresses []std.Address, coins std.Coins) {
 	}
 }
 
-// DisperseGnot parses receivers and amounts and sends out gnot
-func DisperseGnot(addresses []std.Address, coins std.Coins) {
-	coinSent := std.GetOrigSend() // get Coins sent with call
-	caller := std.GetOrigCaller() // get tx sender
-
-	// Check if caller correctly sent positive amount of coins
+// Check if caller correctly sent positive amount of coins
+func checkCoinAmount(coins std.Coins) {
 	for _, coin := range coins {
 		if coin.Amount <= 0 {
 			panic(ErrNegativeCoinAmount)
 		}
 	}
+}
 
+// DisperseGnot parses receivers and amounts and sends out gnot
+func DisperseGnot(addresses []std.Address, coins std.Coins) {
+	coinSent := std.GetOrigSend() // get Coins sent with call
+	caller := std.GetOrigCaller() // get tx sender
+
+	checkCoinAmount(coins)
 	checkNumAddrValMatch(addresses, coins)
 
 	// Get address of Disperse realm
@@ -44,7 +48,7 @@ func DisperseGnot(addresses []std.Address, coins std.Coins) {
 	}
 
 	// Check if the realm has zero ugnot
-	if banker.GetCoins(realmAddr).AmountOf("ugnot") != coinSent.AmountOf("ugnot") {
+	if banker.GetCoins(realmAddr).AmountOf("ugnot") < coinSent.AmountOf("ugnot") {
 		panic(ErrBalanceNotEqToAmountSent)
 	}
 
@@ -67,13 +71,7 @@ func DisperseGnot(addresses []std.Address, coins std.Coins) {
 func DisperseToken(addresses []std.Address, coins std.Coins) {
 	caller := std.GetOrigCaller() // get tx sender
 
-	// Check if caller correctly sent positive amount of coins
-	for _, coin := range coins {
-		if coin.Amount <= 0 {
-			panic(ErrNegativeCoinAmount)
-		}
-	}
-
+	checkCoinAmount(coins)
 	checkNumAddrValMatch(addresses, coins)
 
 	// Transfer tokens into the realm
