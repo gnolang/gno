@@ -6,6 +6,13 @@ import (
 	tokens "gno.land/r/demo/grc20factory"
 )
 
+// Check if number of addresses and coins match
+func checkNumAddrValMatch(addresses []std.Address, coins std.Coins) {
+	if len(addresses) != len(coins) {
+		panic(ErrNumAddrValMismatch)
+	}
+}
+
 // DisperseGnot parses receivers and amounts and sends out gnot
 func DisperseGnot(addresses []std.Address, coins std.Coins) {
 	coinSent := std.GetOrigSend() // get Coins sent with call
@@ -18,10 +25,7 @@ func DisperseGnot(addresses []std.Address, coins std.Coins) {
 		}
 	}
 
-	// Check if number of addresses and coins match
-	if len(addresses) != len(coins) {
-		panic(ErrNumAddrValMismatch)
-	}
+	checkNumAddrValMatch(addresses, coins)
 
 	// Get address of Disperse realm
 	realmAddr := std.CurrentRealm().Addr()
@@ -70,10 +74,7 @@ func DisperseToken(addresses []std.Address, coins std.Coins) {
 		}
 	}
 
-	// Check if number of addresses and coins match
-	if len(addresses) != len(coins) {
-		panic(ErrNumAddrValMismatch)
-	}
+	checkNumAddrValMatch(addresses, coins)
 
 	// Transfer tokens into the realm
 	for _, coin := range coins {
@@ -81,9 +82,8 @@ func DisperseToken(addresses []std.Address, coins std.Coins) {
 	}
 
 	// Disperse tokens
-	for i := 0; i < len(address); i++ {
-			tokens.Transfer(coins[i].Denom, address[i], uint64(coins[i].Amount))
-		}
+	for i := 0; i < len(addresses); i++ {
+		tokens.Transfer(coins[i].Denom, addresses[i], uint64(coins[i].Amount))
 	}
 }
 
