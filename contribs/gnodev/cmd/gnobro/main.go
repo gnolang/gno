@@ -315,11 +315,11 @@ func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg b
 		wish.WithHostKeyPath(cfg.sshHostKeyPath),
 		wish.WithMiddleware(
 			bubbletea.Middleware(teaHandler),
+			activeterm.Middleware(), // ensure PTY
+			ValidatePathCommandMiddleware(),
 			logging.StructuredMiddlewareWithLogger(
 				charmlogger, charmlog.DebugLevel,
 			),
-			activeterm.Middleware(), // ensure PTY
-			ValidatePathCommandMiddleware(),
 			// XXX: add ip throttler
 		),
 	)
