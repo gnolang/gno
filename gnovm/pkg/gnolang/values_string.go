@@ -258,8 +258,10 @@ func (pv PointerValue) ProtectedWrite(w *limitedValueStringWriter, seen *seenVal
 	seen.Put(pv)
 	defer seen.Pop()
 
+	baseWriter, baseIsProtectedWriter := pv.Base.(protectedWriter)
+
 	// Handle nil TV's, avoiding a nil pointer deref below.
-	if pv.TV == nil {
+	if pv.TV == nil && !baseIsProtectedWriter {
 		return w.WriteValueString("&<nil>")
 	}
 
@@ -267,7 +269,11 @@ func (pv PointerValue) ProtectedWrite(w *limitedValueStringWriter, seen *seenVal
 		return err
 	}
 
-	return pv.TV.ProtectedWrite(w, seen)
+	if !baseIsProtectedWriter {
+		return pv.TV.ProtectedWrite(w, seen)
+	}
+
+	return baseWriter.ProtectedWrite(w, seen)
 }
 
 func (sv *StructValue) String() string {
@@ -409,12 +415,17 @@ func (nv *NativeValue) String() string {
 }
 
 func (v RefValue) String() string {
+	w := newLimitedStringValueWriter(stringByteLimit)
+	v.ProtectedWrite(w, nil)
+	return w.builder.String()
+}
+
+func (v RefValue) ProtectedWrite(w *limitedValueStringWriter, _ *seenValues) error {
 	if v.PkgPath == "" {
-		return fmt.Sprintf("ref(%v)",
-			v.ObjectID)
+		return w.WriteValueString(fmt.Sprintf("ref(%v)", v.ObjectID))
 	}
-	return fmt.Sprintf("ref(%s)",
-		v.PkgPath)
+
+	return w.WriteValueString(fmt.Sprintf("ref(%s)", v.PkgPath))
 }
 
 func (v *HeapItemValue) String() string {
