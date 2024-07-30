@@ -151,7 +151,7 @@ func New(cfg Config, client *gnoclient.Client) tea.Model {
 
 func (m model) Init() tea.Cmd {
 	m.history.Init()
-	return m.banner.tick()
+	return m.banner.Init()
 }
 
 type fetchRealmMsg struct {
@@ -377,6 +377,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
+	// Update other models
 	cmds := []tea.Cmd{cmd}
 
 	if !m.bannerDiscarded {

@@ -49,10 +49,12 @@ func (m model) bannerView() string {
 		return ""
 	}
 
+	// XXX: Encapsulate banner to avoid banner glitchs
 	bannerView := m.render.NewStyle().Margin(1).
 		Render(banner)
+	widthView := m.width + 1
 
-	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
+	return lipgloss.Place(widthView, m.height, lipgloss.Center, lipgloss.Center,
 		lipgloss.JoinVertical(lipgloss.Center,
 			bannerView,
 			"press <enter> to continue",
