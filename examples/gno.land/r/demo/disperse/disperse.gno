@@ -81,11 +81,8 @@ func DisperseToken(addresses []std.Address, coins std.Coins) {
 	}
 
 	// Disperse tokens
-	for i, address := range addresses {
-		for y, coin := range coins {
-			if y == i {
-				tokens.Transfer(coin.Denom, address, uint64(coin.Amount))
-			}
+	for i := 0; i < len(address); i++ {
+			tokens.Transfer(coins[i].Denom, address[i], uint64(coins[i].Amount))
 		}
 	}
 }
