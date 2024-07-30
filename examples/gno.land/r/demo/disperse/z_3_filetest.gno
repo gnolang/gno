@@ -17,15 +17,15 @@ func main() {
 
 	std.TestSetOrigPkgAddr(disperseAddr)
 	std.TestSetOrigCaller(mainaddr)
-	
+
 	banker := std.GetBanker(std.BankerTypeRealmSend)
-	
+
 	tokens.New("test", "TEST", 4, 0, 0)
 	tokens.Mint("TEST", mainaddr, 200)
-	
+
 	mainbal := tokens.BalanceOf("TEST", mainaddr)
 	println("main before:", mainbal)
-	
+
 	tokens.Approve("TEST", disperseAddr, 200)
 
 	disperse.DisperseTokenString("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0,g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c", "150TEST,50TEST")
