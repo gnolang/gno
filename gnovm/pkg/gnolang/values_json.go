@@ -1,7 +1,6 @@
 package gnolang
 
 import (
-	"bytes"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -19,7 +18,7 @@ func (tv *TypedValue) MarshalJSON() ([]byte, error) {
 }
 
 func (tv *TypedValue) MarshalJSONAmino() ([]byte, error) {
-	return MarshalOptions{}.Marshal(tv)
+	return MarshalOptions{AminoFormat: true}.Marshal(tv)
 }
 
 func (tv *TypedValue) UnmarshalJSON(b []byte) error {
@@ -27,7 +26,7 @@ func (tv *TypedValue) UnmarshalJSON(b []byte) error {
 }
 
 func (tv *TypedValue) UnmarshalJSONAmino(b []byte) error {
-	return UnmarshalOptions{}.Unmarshal(b, tv)
+	return UnmarshalOptions{AminoFormat: true}.Unmarshal(b, tv)
 }
 
 // MarshalOptions is a configurable JSON format marshaler.
@@ -59,6 +58,9 @@ type MarshalOptions struct {
 
 // UnmarshalOptions is a configurable JSON format parser.
 type UnmarshalOptions struct {
+	// Format an output compatible with amino
+	AminoFormat bool
+
 	// If AllowPartial is set, input for messages that will result in missing
 	// required fields will not return an error.
 	AllowPartial bool
@@ -141,8 +143,7 @@ func (o MarshalOptions) marshal(b []byte, tv *TypedValue) ([]byte, error) {
 		o.Store = NewStore(o.Alloc, nil, nil)
 	}
 
-	var buff bytes.Buffer
-	internalEnc, err := json.NewEncoder(b, &buff, o.Indent)
+	internalEnc, err := json.NewEncoder(b, o.Indent)
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +159,7 @@ func (o MarshalOptions) marshal(b []byte, tv *TypedValue) ([]byte, error) {
 		return nil, err
 	}
 
-	return buff.Bytes(), nil
+	return internalEnc.Bytes(), nil
 }
 
 type encoder struct {
@@ -817,6 +818,7 @@ func (e encoder) marshalStructValue(tv *TypedValue) error {
 			continue
 		}
 
+		fmt.Println(name)
 		if name != "" {
 			e.WriteName(name)
 		} else {
@@ -888,7 +890,7 @@ func isEmptyValue(tv *TypedValue) bool {
 	case ArrayKind, MapKind, SliceKind, StringKind:
 		return tv.GetLength() == 0
 	default:
-		return tv.V == nil
+		return tv.V == nil && tv.N == [8]byte{}
 	}
 }
 

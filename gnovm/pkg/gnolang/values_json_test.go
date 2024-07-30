@@ -205,11 +205,24 @@ func TestTypedValueMarshalJSON_Struct(t *testing.T) {
 			`{"A":"42","B":"hello gno","C":true}`,
 		},
 
-		// Tag
+		// Tags
 		{
-			`Tags{A:42,B:"hello gno",C:true}`,
-			`{"valueA":42,"valueB":"hello gno","valueC":true}`,
-			`{"valueA":"42","valueB":"hello gno","valueC":true}`,
+			// Tags filled
+			`Tags{A:42, B:"hello gno",C:true,D:&Simple{}}`,
+			`{"valueA":42,"valueB":"hello gno","valueC":true,"valueD":{"A":0,"B":"","C":false}}`,
+			`{"valueA":"42","valueB":"hello gno","valueC":true,"valueD":{"A":0,"B":"","C":false}}`,
+		},
+		{
+			// Tags ommitempty
+			`Tags{A:0,B:"",C:false,D:nil}`,
+			`{"valueA":0,"valueB":""}`,
+			`{"valueA":0,"valueB":""}`,
+		},
+		{
+			// Tags emtpy struct
+			`Tags{}`,
+			`{"valueA":0,"valueB":""}`,
+			`{"valueA":0,"valueB":""}`,
 		},
 
 		// Nested
@@ -222,8 +235,8 @@ func TestTypedValueMarshalJSON_Struct(t *testing.T) {
 		// Interface
 		{
 			`Interface{A:42, I: nil}`,
-			`{"A":42,"I":null}"`,
-			`{"A":"42","I":null}"`,
+			`{"A":42,"I":null}`,
+			`{"A":"42","I":null}`,
 		},
 
 		{
