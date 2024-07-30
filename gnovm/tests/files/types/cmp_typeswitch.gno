@@ -1,16 +1,11 @@
 package main
 
 func main() {
+	var l interface{}
+	l = int64(0)
 
-	s := struct {
-		iface interface{}
-	}{
-		iface: int64(0),
-	}
-
-	switch val := s.iface.(type) {
+	switch val := l.(type) {
 	case int64, int:
-		println(val)
 		if val == 0 {
 			println("l is zero")
 		} else {
@@ -20,5 +15,4 @@ func main() {
 }
 
 // Output:
-// 0
-// l is zero
+// NOT zero
