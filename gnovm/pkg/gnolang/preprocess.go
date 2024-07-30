@@ -1231,9 +1231,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						panic("type conversion requires single argument")
 					}
 					n.NumArgs = 1
+					ct := evalStaticType(store, last, n.Func)
 					if arg0, ok := n.Args[0].(*ConstExpr); ok {
 						var constConverted bool
-						ct := evalStaticType(store, last, n.Func)
 						// As a special case, if a decimal cannot
 						// be represented as an integer, it cannot be converted to one,
 						// and the error is handled here.
@@ -1261,6 +1261,19 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// (const) untyped bigint -> int.
 						if !constConverted {
 							convertConst(store, last, arg0, nil)
+						}
+
+						// check legal type for nil
+						if arg0.IsUndefined() {
+							switch ct.Kind() { // special case for nil conversion check.
+							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind:
+								//dt = ct // convert nil to typed-nil
+								convertConst(store, last, arg0, ct)
+							default:
+								panic(fmt.Sprintf(
+									"cannot convert %v to %v",
+									arg0, ct.Kind()))
+							}
 						}
 
 						// evaluate the new expression.
