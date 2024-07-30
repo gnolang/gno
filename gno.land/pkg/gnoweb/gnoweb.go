@@ -343,7 +343,7 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 		writeError(logger, w, err)
 		return
 	}
-	hasReadme := bytes.Contains(dirres.Data, []byte("README.md\n"))
+	hasReadme := bytes.Contains(append(dirres.Data, '\n'), []byte("README.md\n"))
 
 	// linkify querystr.
 	queryParts := strings.Split(querystr, "/")
