@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -1419,6 +1420,93 @@ func TestPendingTransaction(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expectedResult.Total, result.Total, "unexpected total txs: got %d, want %d", result.Total, tt.expectedResult.Total)
+			}
+		})
+	}
+}
+
+func TestQueryAccount(t *testing.T) {
+	t.Parallel()
+
+	addr, err := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
+	require.NoError(t, err)
+
+	validAccount := std.BaseAccount{Address: addr}
+	responseData, err := amino.MarshalJSON(struct{ BaseAccount std.BaseAccount }{BaseAccount: validAccount})
+	require.NoError(t, err)
+
+	tests := []struct {
+		name             string
+		mockResponseData []byte
+		mockABCIQueryErr error
+		expectedAccount  *std.BaseAccount
+		expectedErr      error
+	}{
+		{
+			name:             "Successful Query",
+			mockResponseData: responseData,
+			mockABCIQueryErr: nil,
+			expectedAccount:  &validAccount,
+			expectedErr:      nil,
+		},
+		{
+			name:             "Unknown Address",
+			mockResponseData: []byte("null"),
+			mockABCIQueryErr: nil,
+			expectedAccount:  nil,
+			expectedErr:      std.ErrUnknownAddress("unknown address: testaddress"),
+		},
+		{
+			name:             "Query Error",
+			mockResponseData: nil,
+			mockABCIQueryErr: errors.New("query error"),
+			expectedAccount:  nil,
+			expectedErr:      errors.Wrap(errors.New("query error"), "query account"),
+		},
+		{
+			name:             "Unmarshal Error",
+			mockResponseData: []byte("invalid json"),
+			mockABCIQueryErr: nil,
+			expectedAccount:  nil,
+			expectedErr:      errors.New("cannot unmarshal JSON into std.BaseAccount: invalid json"),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := &Client{
+				Signer: &mockSigner{},
+				RPCClient: &mockRPCClient{
+					abciQuery: func(path string, data []byte) (*ctypes.ResultABCIQuery, error) {
+						if tt.expectedErr != nil {
+							return nil, tt.expectedErr
+						}
+
+						return &ctypes.ResultABCIQuery{
+							Response: abci.ResponseQuery{
+								ResponseBase: abci.ResponseBase{
+									Data: tt.mockResponseData,
+								},
+							},
+						}, nil
+					},
+				},
+			}
+
+			account, qres, err := client.QueryAccount(addr)
+
+			if tt.expectedErr != nil {
+				require.Error(t, err)
+				assert.Equal(t, tt.expectedErr.Error(), err.Error(), "unexpected error: got %v, want %v", err, tt.expectedErr)
+				assert.Nil(t, account)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expectedAccount.Address, account.Address, "unexpected account address: got %s want %s",
+					account.Address, account.Address)
+				assert.NotNil(t, qres)
 			}
 		})
 	}
