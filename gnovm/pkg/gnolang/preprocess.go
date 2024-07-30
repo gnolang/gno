@@ -1257,7 +1257,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								return n, TRANS_CONTINUE
 							}
 						}
-						// TODO: consider this, need check?
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
 						if !constConverted {
