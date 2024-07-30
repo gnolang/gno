@@ -186,7 +186,6 @@ func (c *Client) LatestBlockHeight() (int64, error) {
 // GetTransaction retrieves the transaction details for a given transaction hash
 // The provided hash must be a valid base64 encoded string
 func (c *Client) Transaction(hash string) (*ctypes.ResultTx, error) {
-	// Validate the RPC client
 	if err := c.validateRPCClient(); err != nil {
 		return nil, ErrMissingRPCClient
 	}
@@ -206,4 +205,29 @@ func (c *Client) Transaction(hash string) (*ctypes.ResultTx, error) {
 	}
 
 	return tx, nil
+}
+
+// PendingTransaction retrieves unconfirmed transactions from the blockchain
+// The `limit` parameter specifies the maximum number of unconfirmed transactions to return
+// If `limit` is 0, it retrieves all unconfirmed transactions
+func (c *Client) PendingTransaction(limit int) (*ctypes.ResultUnconfirmedTxs, error) {
+	if err := c.validateRPCClient(); err != nil {
+		return nil, ErrMissingRPCClient
+	}
+
+	if limit <= 0 {
+		numUnconfirmed, err := c.RPCClient.NumUnconfirmedTxs()
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve number of unconfirmed transactions: %w", err)
+		}
+
+		limit = numUnconfirmed.Total
+	}
+
+	unconfirmedTxs, err := c.RPCClient.UnconfirmedTxs(limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve unconfirmed transactions: %w", err)
+	}
+
+	return unconfirmedTxs, nil
 }
