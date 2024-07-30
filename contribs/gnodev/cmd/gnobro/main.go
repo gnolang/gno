@@ -195,7 +195,6 @@ func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 	bcfg := browser.DefaultConfig()
 	bcfg.Readonly = cfg.readonly
 	bcfg.Renderer = lipgloss.DefaultRenderer()
-	bcfg.GnoClient = gnocl
 	bcfg.URLDefaultValue = path
 	bcfg.URLPrefix = gnoPrefix
 	bcfg.URLPrefix = gnoPrefix
@@ -208,7 +207,7 @@ func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 		return runLocal(ctx, gnocl, cfg, bcfg, cio)
 	}
 
-	return runServer(ctx, cfg, bcfg, cio)
+	return runServer(ctx, gnocl, cfg, bcfg, cio)
 }
 
 func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg browser.Config, io commands.IO) error {
