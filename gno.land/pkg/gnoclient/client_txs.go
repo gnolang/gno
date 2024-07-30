@@ -255,7 +255,7 @@ func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, 
 		return nil, ErrNoMessages
 	}
 
-	// Ensure at least one signer is ready
+	// Ensure at least one signer is available
 	signer, err := c.Signer.Info()
 	if err != nil {
 		return nil, err
