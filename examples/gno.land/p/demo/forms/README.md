@@ -16,8 +16,8 @@ type|example
 string|`{"label": "Name", "fieldType": "string", "required": true}`
 number|`{"label": "Age", "fieldType": "number", "required": true}`
 boolean|`{"label": "Is Student?", "fieldType": "boolean", "required": false}`
-choice|`{"label": "Favorite Food", "fieldType": "['Pizza', 'Schnitzel', 'Burger']", "required": true}`
-multi-choice|`{"label": "Hobbies", "fieldType": "{'Reading', 'Swimming', 'Gaming'}", "required": false}`
+choice|`{"label": "Favorite Food", "fieldType": "[Pizza\|Schnitzel\|Burger]", "required": true}`
+multi-choice|`{"label": "Hobbies", "fieldType": "{Reading\|Swimming\|Gaming}", "required": false}`
 
 ## Web-app
 
