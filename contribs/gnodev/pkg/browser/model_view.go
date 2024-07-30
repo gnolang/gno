@@ -49,7 +49,7 @@ func (m model) bannerView() string {
 		return ""
 	}
 
-	// XXX: Encapsulate banner to avoid banner glitchs
+	// XXX: Encapsulate banner to avoid banner glitches
 	bannerView := m.render.NewStyle().Margin(1).
 		Render(banner)
 	widthView := m.width + 1

@@ -1,7 +1,6 @@
 package browser
 
 import (
-	"bufio"
 	"strings"
 	"time"
 
@@ -11,14 +10,11 @@ import (
 type ModelBanner struct {
 	Banner string
 
-	height     int
 	offset     int
 	frameIndex int
 	frames     [][]string
 
-	enable  bool
-	scanner *bufio.Scanner
-	fps     time.Duration
+	fps time.Duration
 }
 
 func NewModelBanner(fps time.Duration, frames []string) ModelBanner {
@@ -41,8 +37,10 @@ func (m ModelBanner) Empty() bool {
 	return m.frames == nil
 }
 
-type tickBannerMsg struct{}
-type tickBannerOffsetMsg struct{}
+type (
+	tickBannerMsg       struct{}
+	tickBannerOffsetMsg struct{}
+)
 
 func (m ModelBanner) tick() tea.Cmd {
 	return tea.Tick(m.fps, func(_ time.Time) tea.Msg {

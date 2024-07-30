@@ -2,8 +2,6 @@ package main
 
 import (
 	"embed"
-	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -32,8 +30,6 @@ func NewBanner_GnoLand() browser.ModelBanner {
 			panic("unable to read banner frame: " + err.Error())
 		}
 
-		os.Stdout.Write(frame)
-		fmt.Println()
 		frames[i] = string(frame)
 	}
 
