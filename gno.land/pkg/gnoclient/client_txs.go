@@ -12,12 +12,12 @@ import (
 // Call executes one or more MsgCall calls on the blockchain
 func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
-	if err := c.validateClient(); err != nil {
+	if err := c.IsValid(); err != nil {
 		return nil, err
 	}
 
 	// Validate base transaction config
-	if err := cfg.validateBaseTxConfig(); err != nil {
+	if err := cfg.IsValid(); err != nil {
 		return nil, err
 	}
 
@@ -25,7 +25,7 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
 		// Validate MsgCall fields
-		if err := msg.validateMsg(); err != nil {
+		if err := msg.IsValid(); err != nil {
 			return nil, err
 		}
 
@@ -70,12 +70,12 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 // Run executes one or more MsgRun calls on the blockchain
 func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
-	if err := c.validateClient(); err != nil {
+	if err := c.IsValid(); err != nil {
 		return nil, err
 	}
 
 	// Validate base transaction config
-	if err := cfg.validateBaseTxConfig(); err != nil {
+	if err := cfg.IsValid(); err != nil {
 		return nil, err
 	}
 
@@ -83,12 +83,12 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
 		// Validate MsgCall fields
-		if err := msg.validateMsg(); err != nil {
+		if err := msg.IsValid(); err != nil {
 			return nil, err
 		}
 
 		// Parse send coins
-		send, err := msg.getCoins()
+		send, err := msg.GetCoins()
 		if err != nil {
 			return nil, err
 		}
@@ -129,12 +129,12 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 // Send executes one or more MsgSend calls on the blockchain
 func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
-	if err := c.validateClient(); err != nil {
+	if err := c.IsValid(); err != nil {
 		return nil, err
 	}
 
 	// Validate base transaction config
-	if err := cfg.validateBaseTxConfig(); err != nil {
+	if err := cfg.IsValid(); err != nil {
 		return nil, err
 	}
 
@@ -142,7 +142,7 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
 		// Validate MsgSend fields
-		if err := msg.validateMsg(); err != nil {
+		if err := msg.IsValid(); err != nil {
 			return nil, err
 		}
 
@@ -185,12 +185,12 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 // AddPackage executes one or more AddPackage calls on the blockchain
 func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
-	if err := c.validateClient(); err != nil {
+	if err := c.IsValid(); err != nil {
 		return nil, err
 	}
 
 	// Validate base transaction config
-	if err := cfg.validateBaseTxConfig(); err != nil {
+	if err := cfg.IsValid(); err != nil {
 		return nil, err
 	}
 
@@ -198,12 +198,12 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.Resul
 	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
 		// Validate MsgCall fields
-		if err := msg.validateMsg(); err != nil {
+		if err := msg.IsValid(); err != nil {
 			return nil, err
 		}
 
 		// Parse deposit coins
-		deposit, err := msg.getCoins()
+		deposit, err := msg.GetCoins()
 		if err != nil {
 			return nil, err
 		}
@@ -241,12 +241,12 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.Resul
 // CreateTx creates an signed transaction for various types of messages which used for sponsorship
 func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, error) {
 	// Validate required client fields.
-	if err := c.validateClient(); err != nil {
+	if err := c.IsValid(); err != nil {
 		return nil, err
 	}
 
 	// Validate base transaction config
-	if err := cfg.validateSponsorTxConfig(); err != nil {
+	if err := cfg.IsValid(); err != nil {
 		return nil, err
 	}
 
@@ -262,7 +262,7 @@ func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, 
 	}
 
 	// Determine the type of the first user-provided message
-	firstMsgType := msgs[0].getType()
+	firstMsgType := msgs[0].GetType()
 
 	// Parse Msg slice
 	vmMsgs := make([]std.Msg, 0, len(msgs)+1)
@@ -274,17 +274,17 @@ func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, 
 
 	for _, msg := range msgs {
 		// Check if all messages are of the same type
-		if msg.getType() != firstMsgType {
+		if msg.GetType() != firstMsgType {
 			return nil, ErrMixedMessageTypes
 		}
 
 		// Validate msg's fields
-		if err := msg.validateMsg(); err != nil {
+		if err := msg.IsValid(); err != nil {
 			return nil, err
 		}
 
 		// Parse send/deposit coins
-		coins, err := msg.getCoins()
+		coins, err := msg.GetCoins()
 		if err != nil {
 			return nil, err
 		}
@@ -371,7 +371,7 @@ func (c *Client) SignTransaction(tx std.Tx, accountNumber, sequenceNumber uint64
 // from this transaction without incurring any gas costs
 func (c *Client) ExecuteSponsorTransaction(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields
-	if err := c.validateClient(); err != nil {
+	if err := c.IsValid(); err != nil {
 		return nil, err
 	}
 

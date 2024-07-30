@@ -36,9 +36,9 @@ const (
 
 // Msg defines the interface for different types of messages.
 type Msg interface {
-	validateMsg() error           // Validates the message.
-	getCoins() (std.Coins, error) // Retrieves the coins involved in the message.
-	getType() string              // Returns the type of the message.
+	IsValid() error               // Validates the message.
+	GetCoins() (std.Coins, error) // Retrieves the coins involved in the message.
+	GetType() string              // Returns the type of the message.
 }
 
 // BaseTxCfg defines the base transaction configuration shared by all message types.
@@ -51,7 +51,7 @@ type BaseTxCfg struct {
 }
 
 // validateBaseTxConfig validates the base transaction configuration.
-func (cfg BaseTxCfg) validateBaseTxConfig() error {
+func (cfg BaseTxCfg) IsValid() error {
 	if cfg.GasWanted <= 0 {
 		return ErrInvalidGasWanted
 	}
@@ -67,7 +67,7 @@ type SponsorTxCfg struct {
 }
 
 // validateBaseTxConfig validates the base transaction configuration.
-func (cfg SponsorTxCfg) validateSponsorTxConfig() error {
+func (cfg SponsorTxCfg) IsValid() error {
 	if cfg.SponsorAddress.IsZero() {
 		return ErrInvalidSponsorAddress
 	}
@@ -89,12 +89,12 @@ type MsgCall struct {
 }
 
 // getType returns the type of the MsgCall.
-func (msg MsgCall) getType() string {
+func (msg MsgCall) GetType() string {
 	return MSG_CALL
 }
 
 // validateMsg validates the MsgCall.
-func (msg MsgCall) validateMsg() error {
+func (msg MsgCall) IsValid() error {
 	if msg.PkgPath == "" {
 		return ErrEmptyPkgPath
 	}
@@ -105,7 +105,7 @@ func (msg MsgCall) validateMsg() error {
 }
 
 // getCoins retrieves the coins involved in the MsgCall.
-func (msg MsgCall) getCoins() (std.Coins, error) {
+func (msg MsgCall) GetCoins() (std.Coins, error) {
 	coins, err := std.ParseCoins(msg.Send)
 	if err != nil {
 		return nil, ErrInvalidAmount
@@ -120,12 +120,12 @@ type MsgSend struct {
 }
 
 // getType returns the type of the MsgSend.
-func (msg MsgSend) getType() string {
+func (msg MsgSend) GetType() string {
 	return MSG_SEND
 }
 
 // validateMsg validates the MsgSend.
-func (msg MsgSend) validateMsg() error {
+func (msg MsgSend) IsValid() error {
 	if msg.ToAddress.IsZero() {
 		return ErrInvalidToAddress
 	}
@@ -136,7 +136,7 @@ func (msg MsgSend) validateMsg() error {
 }
 
 // getCoins retrieves the coins involved in the MsgSend.
-func (msg MsgSend) getCoins() (std.Coins, error) {
+func (msg MsgSend) GetCoins() (std.Coins, error) {
 	coins, err := std.ParseCoins(msg.Send)
 	if err != nil {
 		return nil, ErrInvalidAmount
@@ -151,12 +151,12 @@ type MsgRun struct {
 }
 
 // getType returns the type of the MsgRun.
-func (msg MsgRun) getType() string {
+func (msg MsgRun) GetType() string {
 	return MSG_RUN
 }
 
 // validateMsg validates the MsgRun.
-func (msg MsgRun) validateMsg() error {
+func (msg MsgRun) IsValid() error {
 	if msg.Package == nil || len(msg.Package.Files) == 0 {
 		return ErrEmptyPackage
 	}
@@ -164,7 +164,7 @@ func (msg MsgRun) validateMsg() error {
 }
 
 // getCoins retrieves the coins involved in the MsgRun.
-func (msg MsgRun) getCoins() (std.Coins, error) {
+func (msg MsgRun) GetCoins() (std.Coins, error) {
 	coins, err := std.ParseCoins(msg.Send)
 	if err != nil {
 		return nil, ErrInvalidAmount
@@ -179,12 +179,12 @@ type MsgAddPackage struct {
 }
 
 // getType returns the type of the MsgAddPackage.
-func (msg MsgAddPackage) getType() string {
+func (msg MsgAddPackage) GetType() string {
 	return MSG_ADD_PKG
 }
 
 // validateMsg validates the MsgAddPackage.
-func (msg MsgAddPackage) validateMsg() error {
+func (msg MsgAddPackage) IsValid() error {
 	if msg.Package == nil || len(msg.Package.Files) == 0 {
 		return ErrEmptyPackage
 	}
@@ -192,7 +192,7 @@ func (msg MsgAddPackage) validateMsg() error {
 }
 
 // getCoins retrieves the coins involved in the MsgAddPackage.
-func (msg MsgAddPackage) getCoins() (std.Coins, error) {
+func (msg MsgAddPackage) GetCoins() (std.Coins, error) {
 	coins, err := std.ParseCoins(msg.Deposit)
 	if err != nil {
 		return nil, ErrInvalidAmount

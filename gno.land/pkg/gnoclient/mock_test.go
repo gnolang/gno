@@ -20,9 +20,9 @@ type (
 	mockMsg struct{}
 )
 
-func (m mockMsg) validateMsg() error { return nil }
-func (m mockMsg) getType() string    { return "mock" }
-func (m mockMsg) getCoins() (std.Coins, error) {
+func (m mockMsg) IsValid() error  { return nil }
+func (m mockMsg) GetType() string { return "mock" }
+func (m mockMsg) GetCoins() (std.Coins, error) {
 	return std.NewCoins(std.MustParseCoin("1000ugnot")), nil
 }
 

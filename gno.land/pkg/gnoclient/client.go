@@ -37,7 +37,7 @@ type IClient interface {
 var _ IClient = (*Client)(nil)
 
 // validateSigner checks that the Client's fields are correctly configured.
-func (c *Client) validateClient() error {
+func (c *Client) IsValid() error {
 	if err := c.validateSigner(); err != nil {
 		return err
 	}
