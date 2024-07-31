@@ -380,10 +380,19 @@ func Empty(t TestingT, obj interface{}, msgs ...string) bool {
 		if val != "" {
 			return fail(t, msgs, "uassert.Empty: not empty string: %s", val)
 		}
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+	case int, int8, int16, int32, uint8, uint16, uint32, uint64:
 		if val != 0 {
 			return fail(t, msgs, "uassert.Empty: not empty number: %d", val)
 		}
+	case int64:
+		if val != 0 {
+			return fail(t, msgs, "uassert.Empty: not empty number: %d", val)
+		}
+	case uint:
+		if val != 0 {
+			return fail(t, msgs, "uassert.Empty: not empty number: %d", val)
+		}
+
 	case std.Address:
 		var zeroAddr std.Address
 		if val != zeroAddr {
@@ -402,10 +411,19 @@ func NotEmpty(t TestingT, obj interface{}, msgs ...string) bool {
 		if val == "" {
 			return fail(t, msgs, "uassert.NotEmpty: empty string: %s", val)
 		}
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+	case int, int8, int16, int32, uint8, uint16, uint32, uint64:
 		if val == 0 {
 			return fail(t, msgs, "uassert.NotEmpty: empty number: %d", val)
 		}
+	case int64:
+		if val == 0 {
+			return fail(t, msgs, "uassert.NotEmpty: empty number: %d", val)
+		}
+	case uint:
+		if val == 0 {
+			return fail(t, msgs, "uassert.NotEmpty: empty number: %d", val)
+		}
+
 	case std.Address:
 		var zeroAddr std.Address
 		if val == zeroAddr {
