@@ -80,12 +80,7 @@ jobs:
 
       - name: "Buid new gnolang/gno image"
         run: |
-          docker build -t ghcr.io/gnolang/gno/gnoland -f Dockerfile --target gnoland .
-
-      - name: "Start new image"
-        run: |
-          cd misc/loop
-          docker compose up -d
+          docker build -t ghcr.io/gnolang/gno/gnoland:master -f Dockerfile --target gnoland .
 
       - name: "Wait for new docker image"
         run: |
