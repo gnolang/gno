@@ -2163,12 +2163,33 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				numNames := len(n.NameExprs)
 				sts := make([]Type, numNames) // static types
 				tvs := make([]TypedValue, numNames)
+
 				if numNames > 1 && len(n.Values) == 1 {
-					// special case if `var a, b, c T? = f()` form.
-					cx := n.Values[0].(*CallExpr)
-					tt := evalStaticTypeOfRaw(store, last, cx).(*tupleType)
-					if rLen := len(tt.Elts); rLen != numNames {
-						panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %s returns %d value(s)", numNames, cx.Func.String(), rLen))
+					// Special cases if one of the following:
+					// - `var a, b, c T = f()`
+					// - `var a, b = n.(T)`
+					// - `var a, b = n[i], where n is a map`
+
+					var tuple *tupleType
+					valueExpr := n.Values[0]
+					switch expr := valueExpr.(type) {
+					case *CallExpr:
+						tuple = evalStaticTypeOfRaw(store, last, expr).(*tupleType)
+					case *TypeAssertExpr, *IndexExpr:
+						valueType := evalStaticTypeOfRaw(store, last, expr)
+						tuple = &tupleType{Elts: []Type{valueType, BoolType}}
+					default:
+						panic(fmt.Sprintf("unexpected ValueDecl value expression type %T", expr))
+
+					}
+
+					if rLen := len(tuple.Elts); rLen != numNames {
+						rhsExprString := valueExpr.String()
+						if cx, ok := valueExpr.(*CallExpr); ok {
+							rhsExprString = cx.Func.String()
+						}
+
+						panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %s returns %d value(s)", numNames, rhsExprString, rLen))
 					}
 					if n.Type != nil {
 						// only a single type can be specified.
@@ -2181,7 +2202,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					} else {
 						// set types as return types.
 						for i := 0; i < numNames; i++ {
-							et := tt.Elts[i]
+							et := tuple.Elts[i]
 							sts[i] = et
 							tvs[i] = anyValue(et)
 						}
