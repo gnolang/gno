@@ -12,13 +12,10 @@ import (
 
 // Sign creates an ECDSA signature on curve Secp256k1, using SHA256 on the msg.
 // The returned signature will be of the form R || S (in lower-S form).
-func (privKey PrivKeySecp256k1) Sign(msg []byte) ([]byte, error) {
+func (privKey PrivKeySecp256k1) Sign(msg []byte) ([]byte, error) { // TODO: remove error
 	priv, _ := btcec.PrivKeyFromBytes(privKey[:])
 
-	sig, err := ecdsa.SignCompact(priv, crypto.Sha256(msg), false) // ref uncompressed pubkey
-	if err != nil {
-		return nil, err
-	}
+	sig := ecdsa.SignCompact(priv, crypto.Sha256(msg), false) // ref uncompressed pubkey
 
 	// remove compact sig recovery code byte at the beginning
 	return sig[1:], nil
