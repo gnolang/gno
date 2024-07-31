@@ -15,7 +15,7 @@ const (
 )
 
 // TestTypedValueMarshal_Primitive tests marshaling of primitive types.
-func TestTypedValueMarshalJSON_Primitive(t *testing.T) {
+func TestTypedValueJSON_Primitive(t *testing.T) {
 	cases := []struct {
 		ValueRep string // Go representation
 		ArgRep   string // string representation
@@ -66,24 +66,30 @@ func TestTypedValueMarshalJSON_Primitive(t *testing.T) {
 			tps := m.Eval(Sel(Nx("testdata"), "Value"))
 			require.Len(t, tps, 1)
 
+			tv := tps[0]
 			t.Run("Marshal", func(t *testing.T) {
 				raw, err := tps[0].MarshalJSON()
 				require.NoError(t, err)
 				assert.Equal(t, tc.ArgRep, string(raw))
 			})
 
-			// t.Run("Unmarshal", func(t *testing.T) {
-			// 	var tv TypedValue
+			t.Run("Unmarshal", func(t *testing.T) {
+				var utv TypedValue
 
-			// 	require.NoError(t, err)
-			// })
+				// copy type
+				utv.T = tv.T
 
+				err := utv.UnmarshalJSON([]byte(tc.ArgRep))
+				require.NoError(t, err)
+
+				require.Equal(t, tv.String(), utv.String())
+			})
 		})
 	}
 }
 
 // TestTypedValueMarshal_Array tests marshaling of array types.
-func TestTypedValueMarshalJSON_Array(t *testing.T) {
+func TestTypedValueJSON_Slice(t *testing.T) {
 	cases := []struct {
 		ValueRep string // Go representation
 		ArgRep   string // string representation
@@ -132,11 +138,17 @@ func TestTypedValueMarshalJSON_Array(t *testing.T) {
 				assert.Equal(t, tc.ArgRep, string(raw))
 			})
 
-			// t.Run("Unmarshal", func(t *testing.T) {
-			// 	err := amino.UnmarshalJSON([]byte(tc.ArgRep), mv)
-			// 	require.NoError(t, err)
-			// })
+			t.Run("Unmarshal", func(t *testing.T) {
+				var utv TypedValue
+				fmt.Println(tv.String())
+				// copy type
+				utv.T = tv.T
 
+				err := utv.UnmarshalJSON([]byte(tc.ArgRep))
+				require.NoError(t, err)
+
+				require.Equal(t, tv.String(), utv.String())
+			})
 		})
 	}
 }

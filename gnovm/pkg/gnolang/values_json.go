@@ -11,7 +11,7 @@ import (
 )
 
 const defaultIndent = "  "
-const defaultRecursionLimit = 10000
+const defaultDepthLimit = 10000
 
 func (tv *TypedValue) MarshalJSON() ([]byte, error) {
 	return MarshalOptions{}.Marshal(tv)
@@ -68,9 +68,9 @@ type UnmarshalOptions struct {
 	// If DiscardUnknown is set, unknown fields and enum name values are ignored.
 	DiscardUnknown bool
 
-	// RecursionLimit limits how deeply messages may be nested.
+	// DepthLimit limits how deeply messages may be nested.
 	// If zero, a default limit is applied.
-	RecursionLimit int
+	DepthLimit int
 
 	// XXX: TODO
 	Store Store
@@ -102,8 +102,8 @@ func (o UnmarshalOptions) unmarshal(b []byte, tv *TypedValue) error {
 		o.Store = NewStore(o.Alloc, nil, nil)
 	}
 
-	if o.RecursionLimit == 0 {
-		o.RecursionLimit = defaultRecursionLimit
+	if o.DepthLimit == 0 {
+		o.DepthLimit = defaultDepthLimit
 	}
 
 	dec := decoder{json.NewDecoder(b), o}
@@ -218,7 +218,7 @@ func (e encoder) marshalValue(tv *TypedValue) error {
 		return e.marshalListValue(tv)
 
 	case InterfaceKind:
-		return e.marshalAny(tv)
+		return e.marshalInterfaceValue(tv)
 
 	case PointerKind:
 		return e.marshalPointerValue(tv)
@@ -289,9 +289,24 @@ func (e encoder) marshalValue(tv *TypedValue) error {
 }
 
 func (d decoder) unmarshalValue(tv *TypedValue) error {
-	d.opts.RecursionLimit--
-	if d.opts.RecursionLimit < 0 {
+	d.opts.DepthLimit--
+	if d.opts.DepthLimit < 0 {
 		return errors.New("exceeded max recursion depth")
+	}
+
+	// XXX: for now skip type guess
+	if tv.T == nil {
+		// Read field name.
+		tok, err := d.Read()
+		if err != nil {
+			return err
+		}
+
+		if tok.Kind() != json.Null {
+			return d.unexpectedTokenError(tok)
+		}
+
+		return nil
 	}
 
 	switch tv.T.Kind() {
@@ -301,6 +316,8 @@ func (d decoder) unmarshalValue(tv *TypedValue) error {
 		Float32Kind, Float64Kind,
 		BigintKind, BigdecKind:
 		return d.unmarshalSingular(tv)
+	case ArrayKind, SliceKind, TupleKind: // List
+		return d.unmarshalListValue(tv)
 
 		// case StructKind:
 		// 	return decoder.unmarshalStructValue
@@ -503,32 +520,32 @@ func (d decoder) unmarshalSingular(tv *TypedValue) error {
 	// 	return nil
 	// }
 
+	var ok bool
 	switch kind := tv.T.Kind(); kind {
 	case BoolKind:
-		if tok.Kind() == json.Bool {
+		if ok = tok.Kind() == json.Bool; ok {
 			tv.SetBool(tok.Bool())
 		}
 	case StringKind:
-		if tok.Kind() == json.String {
+		if ok = tok.Kind() == json.String; ok {
 			tv.SetString(StringValue(tok.ParsedString()))
 		}
 	case IntKind, Int16Kind, Int8Kind, Int32Kind, Int64Kind:
-		if ok := unmarshalInt(tv, tok); ok {
-			return nil
-		}
+		ok = unmarshalInt(tv, tok)
 	case UintKind, Uint16Kind, Uint8Kind, Uint32Kind, Uint64Kind:
-		if ok := unmarshalUint(tv, tok); ok {
-			return nil
-		}
+		ok = unmarshalUint(tv, tok)
 	case Float32Kind, Float64Kind:
-		if ok := unmarshalFloat(tv, tok); ok {
-			return nil
-		}
+		ok = unmarshalFloat(tv, tok)
 	default:
 		panic(fmt.Sprintf("unknown kind: %s", kind.String()))
 	}
 
-	return nil
+	if ok {
+		return nil
+	}
+
+	return d.newError(tok.Pos(), "invalid type %v for %v: %v",
+		tv.T.String(), tok.Kind(), tok.RawString())
 }
 
 func getBitsize(t Type) int {
@@ -617,13 +634,17 @@ func setInt(tv *TypedValue, tok json.Token, bitSize int) bool {
 		if n, ok = tok.Int(bitSize); ok {
 			tv.SetInt(int(n))
 		}
-	case Int32Kind:
+	case Int8Kind:
 		if n, ok = tok.Int(bitSize); ok {
-			tv.SetInt32(int32(n))
+			tv.SetInt8(int8(n))
 		}
 	case Int16Kind:
 		if n, ok = tok.Int(bitSize); ok {
 			tv.SetInt16(int16(n))
+		}
+	case Int32Kind:
+		if n, ok = tok.Int(bitSize); ok {
+			tv.SetInt32(int32(n))
 		}
 	case Int64Kind:
 		if n, ok = tok.Int(bitSize); ok {
@@ -669,6 +690,10 @@ func setUint(tv *TypedValue, tok json.Token, bitSize int) bool {
 		if n, ok = tok.Uint(bitSize); ok {
 			tv.SetUint(uint(n))
 		}
+	case Uint8Kind:
+		if n, ok = tok.Uint(bitSize); ok {
+			tv.SetUint8(uint8(n))
+		}
 	case Uint16Kind:
 		if n, ok = tok.Uint(bitSize); ok {
 			tv.SetUint16(uint16(n))
@@ -697,7 +722,7 @@ func unmarshalFloat(tv *TypedValue, tok json.Token) bool {
 	case json.String:
 		s := tok.ParsedString()
 
-		// XXX: do we need to suport this
+		// XXX: do we need to suport this ?
 		// switch s {
 		// case "NaN":
 		// 	if bitSize == 32 {
@@ -751,12 +776,12 @@ func setFloat(tv *TypedValue, tok json.Token, bitSize int) bool {
 	return ok
 }
 
-// The JSON representation of an Any message uses the regular representation of
+// The JSON representation of an Interface message uses the regular representation of
 // the deserialized, embedded message, with an additional field `@type` which
 // contains the type URL. If the embedded message type is well-known and has a
 // custom JSON representation, that representation will be embedded adding a
 // field `value` which holds the custom JSON in addition to the `@type` field.
-func (e encoder) marshalAny(tv *TypedValue) error {
+func (e encoder) marshalInterfaceValue(tv *TypedValue) error {
 	panic("no implemented")
 }
 
@@ -917,6 +942,32 @@ func (e encoder) marshalListValue(tv *TypedValue) error {
 	return nil
 }
 
+func (d decoder) unmarshalListValue(tv *TypedValue) error {
+	fmt.Println("unmarshal start")
+
+	tok, err := d.Read()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() != json.ArrayOpen {
+		return d.unexpectedTokenError(tok)
+	}
+
+	fmt.Println(tv.String())
+	switch tv.T.Kind() {
+	case ArrayKind:
+		d.unmarshalArrayValue(tv)
+	case SliceKind:
+		d.unmarshalSliceValue(tv)
+	// case TupleKind:
+	// d.unmarshalTupleValue(tv)
+	default:
+		return fmt.Errorf("unknown list type: %s", tv.T.String())
+	}
+
+	return nil
+}
+
 func (e encoder) marshalArrayValue(tv *TypedValue) {
 	av := tv.V.(*ArrayValue)
 	if av.Data != nil {
@@ -931,6 +982,41 @@ func (e encoder) marshalArrayValue(tv *TypedValue) {
 	for i := 0; i < avl; i++ {
 		etv := &av.List[i]
 		e.marshalValue(etv)
+	}
+}
+
+func (d decoder) unmarshalArrayValue(tv *TypedValue) error {
+	at := tv.T.(*ArrayType)
+	list := make([]TypedValue, 0, at.Len)
+
+	// XXX: handle base64 []byte
+
+	// XXX: should we guess the size of the array and alloc before
+	// unmarshling internal value ?
+	for {
+		tok, err := d.Peek()
+		if err != nil {
+			return err
+		}
+
+		if tok.Kind() == json.ArrayClose {
+			d.Read() // discard close token
+
+			// make the actual alloc
+			d.opts.Alloc.AllocateListArray(int64(len(list)))
+			tv.V = &ArrayValue{
+				List: list,
+			}
+			return nil
+		}
+
+		var eltv TypedValue
+		eltv.T = at.Elt // copy type element
+		if err := d.unmarshalValue(&eltv); err != nil {
+			return err
+		}
+
+		list = append(list, eltv)
 	}
 }
 
@@ -961,6 +1047,40 @@ func (e encoder) marshalSliceValue(tv *TypedValue) {
 
 	for i := svo; i < svo+svl; i++ {
 		e.marshalValue(&av.List[i])
+	}
+}
+
+func (d decoder) unmarshalSliceValue(tv *TypedValue) error {
+	st := tv.T.(*SliceType)
+	list := make([]TypedValue, 0)
+
+	// XXX: handle data base64 []byte
+
+	// XXX: should we guess the size of the array and alloc before
+	// unmarshling internal value ?
+	for {
+		tok, err := d.Peek()
+		if err != nil {
+			return err
+		}
+
+		if tok.Kind() == json.ArrayClose {
+			d.Read() // discard close token
+
+			// make the actual alloc
+			tv.V = d.opts.Alloc.NewSliceFromList(list)
+			return nil
+		}
+
+		var eltv TypedValue
+		eltv.T = st.Elt // copy type element
+
+		fmt.Println("unarmshal val:", eltv.T.String())
+		if err := d.unmarshalValue(&eltv); err != nil {
+			return err
+		}
+
+		list = append(list, eltv)
 	}
 }
 
