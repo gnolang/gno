@@ -2,14 +2,14 @@ package main
 
 func main() {
 	var i interface{} = 1
-	a, ok := i.(int)
+	var a, ok = i.(int)
 	println(a, ok)
 
-	b, c := doSomething()
+	var b, c = doSomething()
 	println(b, c)
 
 	m := map[string]int{"a": 1, "b": 2}
-	d, okk := m["d"]
+	var d, okk = m["d"]
 	println(d, okk)
 }
 

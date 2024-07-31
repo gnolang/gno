@@ -2172,15 +2172,20 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 					var tuple *tupleType
 					valueExpr := n.Values[0]
+					valueType := evalStaticTypeOfRaw(store, last, valueExpr)
+
 					switch expr := valueExpr.(type) {
 					case *CallExpr:
-						tuple = evalStaticTypeOfRaw(store, last, expr).(*tupleType)
+						tuple = valueType.(*tupleType)
 					case *TypeAssertExpr, *IndexExpr:
-						valueType := evalStaticTypeOfRaw(store, last, expr)
 						tuple = &tupleType{Elts: []Type{valueType, BoolType}}
+						if ex, ok := expr.(*TypeAssertExpr); ok {
+							ex.HasOK = true
+							break
+						}
+						expr.(*IndexExpr).HasOK = true
 					default:
 						panic(fmt.Sprintf("unexpected ValueDecl value expression type %T", expr))
-
 					}
 
 					if rLen := len(tuple.Elts); rLen != numNames {
