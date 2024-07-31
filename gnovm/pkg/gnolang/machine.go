@@ -621,7 +621,7 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 				}
 			}
 			// if dep already in loopfindr, abort.
-			if hasName(dep, loopfindr) {
+			if hasName(loopfindr, dep) {
 				if _, ok := (*depdecl).(*FuncDecl); ok {
 					// recursive function dependencies
 					// are OK with func decls.
@@ -2024,15 +2024,25 @@ func (m *Machine) PushForPointer(lx Expr) {
 func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 	switch lx := lx.(type) {
 	case *NameExpr:
-		lb := m.LastBlock()
-		return lb.GetPointerTo(m.Store, lx.Path)
+		switch lx.Type {
+		case NameExprTypeNormal:
+			lb := m.LastBlock()
+			return lb.GetPointerTo(m.Store, lx.Path)
+		case NameExprTypeHeapUse:
+			lb := m.LastBlock()
+			return lb.GetPointerToHeapUse(m.Store, lx.Path)
+		case NameExprTypeHeapClosure:
+			panic("should not happen")
+		default:
+			panic("unexpected NameExpr in PopAsPointer")
+		}
 	case *IndexExpr:
 		iv := m.PopValue()
 		xv := m.PopValue()
 		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()
-		return xv.GetPointerTo(m.Alloc, m.Store, lx.Path)
+		return xv.GetPointerToFromTV(m.Alloc, m.Store, lx.Path)
 	case *StarExpr:
 		ptr := m.PopValue().V.(PointerValue)
 		return ptr
@@ -2234,7 +2244,7 @@ func (m *Machine) String() string {
 //----------------------------------------
 // utility
 
-func hasName(n Name, ns []Name) bool {
+func hasName(ns []Name, n Name) bool {
 	for _, n2 := range ns {
 		if n == n2 {
 			return true
