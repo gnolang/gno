@@ -1,7 +1,9 @@
 name: portal-loop
 
 on:
-  pull_request: {}
+  pull_request:
+    branches:
+      - master
   push:
     paths:
       - "misc/loop/**"
@@ -78,7 +80,7 @@ jobs:
 
       - name: "Buid new gnolang/gno image"
         run: |
-          docker build -t ghcr.io/gnolang/gno -f Dockerfile.gnoland.release .
+          docker build -t ghcr.io/gnolang/gno/gnoland -f Dockerfile --target gnoland .
 
       - name: "Wait for new docker image"
         run: |
