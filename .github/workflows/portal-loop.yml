@@ -82,6 +82,11 @@ jobs:
         run: |
           docker build -t ghcr.io/gnolang/gno/gnoland -f Dockerfile --target gnoland .
 
+      - name: "Start new image"
+        run: |
+          cd misc/loop
+          docker compose up -d
+
       - name: "Wait for new docker image"
         run: |
           ip_addr=$(cat misc/loop/traefik/gno.yml | grep -o "http://.*:26657")
