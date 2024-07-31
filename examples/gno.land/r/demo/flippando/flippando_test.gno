@@ -44,41 +44,6 @@ func TestCreateNFT(t *testing.T) {
 
 }
 
-/*
-func testNewBasicNFT(t *testing.T) {
-    name := "TestNFT"
-	symbol := "TNFT"
-
-	nft := NewBasicNFT(name, symbol)
-
-	if nft.name != name || nft.symbol != symbol {
-		t.Errorf("Expected name %s and symbol %s, got name %s and symbol %s", name, symbol, nft.name, nft.symbol)
-	}
-
-	if nft.owners.Size() != 0 || nft.balances.Size() != 0 || nft.tokenApprovals.Size() != 0 ||
-		nft.tokenURIs.Size() != 0 || nft.operatorApprovals.Size() != 0 {
-		t.Error("Expected all AVL trees to be initialized and empty")
-	}
-}
-
-func testGenerateColorSquareGrid(t *testing.T) {
-    solvedBoard := []int64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
-	size := 4
-	expectedOutput, err := GenerateColorSquareGrid(solvedBoard, size)
-	if err != nil {
-		t.Errorf("GenerateColorSquareGrid() error = %v", err)
-		return
-	}
-	output, err := GenerateColorSquareGrid(solvedBoard, size)
-	if err != nil {
-		t.Errorf("GenerateColorSquareGrid() error = %v", err)
-		return
-	}
-	if output != expectedOutput {
-		t.Errorf("GenerateColorSquareGrid() = %v; want %v", output, expectedOutput)
-	}
-}*/
-
 func testMarshalJSON(t *testing.T) {
     fbn := BasicNFTMetaData{
 		name:     "Flippando - the Game",
@@ -97,37 +62,5 @@ func testMarshalJSON(t *testing.T) {
 	}
 }
 
-/*
-func TestMintLocked(t *testing.T) {
-    // Setup - Initialize your environment, token
-    flipToken := grc20.NewAdminToken("Flippando", "FLIP", 6) 
-
-    // Assume userFlipNFTs and other necessary structures are initialized in MintAndLockFLIP
-
-    // Test 1: Minting for a new user
-    recipient := std.Address("user1")
-    tokenId := "token1"
-    flipAmount := uint64(100)
-    err := MintAndLockFLIP(recipient, tokenId, flipAmount)
-    if err != nil {
-        t.Errorf("MintAndLockFLIP returned an error for new user: %v", err)
-    }
-    lockedBalance := getUserLockedBalances(recipient)
-    if lockedBalance != flipAmount {
-        t.Errorf("MintAndLockFLIP failed to store correct amount for new user, got %v, want %v", lockedBalance, flipAmount)
-    }
-
-    // Test 2: Minting additional tokens for the same user
-    additionalAmount := uint64(50)
-    err = MintAndLockFLIP(recipient, "token2", additionalAmount)
-    if err != nil {
-        t.Errorf("MintAndLockFLIP returned an error for additional minting: %v", err)
-    }
-    updatedLockedBalance := getUserLockedBalances(recipient)
-    expectedTotal := flipAmount + additionalAmount
-    if updatedLockedBalance != expectedTotal {
-        t.Errorf("MintAndLockFLIP failed to store correct additional amount for existing user, got %v, want %v", updatedLockedBalance, expectedTotal)
-    }
-}*/
 
 

@@ -17,6 +17,10 @@ var (
 	mintedNFTs avl.Tree // owner -> []string
 )
 
+
+// - generates a GRC721 token with the airdropped board SVG as a tokenURI
+// - returns token metadata as string, to be used in client
+
 func AirdropBasicFlipNFT( 
 	playerRecipient string,
 	airdropName string, 
@@ -30,8 +34,6 @@ func AirdropBasicFlipNFT(
 	// - toPlayer is the user receiving the NFT, and the locked FLIP
 	toPlayer := std.Address(playerRecipient)
 	
-	// - generates a GRC721 token with the airdropped board SVG as a tokenURI
-	// - returns token metadata as string, to be used in client
 	result := ""
 	nftError := ""
 
@@ -139,9 +141,7 @@ func GetAllMintedAirdropNFTs() string {
 	var allTokenIDs []string
 
 	mintedNFTs.Iterate("", "", func(key string, value interface{}) bool {
-		//userMintedNFTs := node.Value.([]string)
-		//allTokenIDs = append(allTokenIDs, userMintedNFTs...)
-		//return false // Continue iteration
+		
 		if tId, ok := value.([]string); ok {
 			allTokenIDs = append(allTokenIDs, tId...)
 		}

@@ -14,18 +14,6 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-/*
-func TestCreateGameBoard(t *testing.T) {
-    tileType := "testTileType"
-    boardSize := 16  // Assuming a 4x4 board
-
-    //expectedGameTilesLength := int(math.Sqrt(float64(boardSize)))
-	expectedGameTilesLength := int(sqrt(float64(boardSize)))
-
-    board, gameTiles, boardSize := CreateGameBoard(tileType, boardSize)
-	
-}*/
-
 func TestCreateGameBoard(t *testing.T) {
 	tests := []struct {
 		name       string

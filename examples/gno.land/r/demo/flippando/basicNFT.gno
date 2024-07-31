@@ -75,8 +75,6 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 		FlipBasicNFT.SetTokenURI(tid, grc721.TokenURI(flipBasicNFTMetaDataJSON))
 		// set approval for the realm owner so we can later transfer the NFT
 		FlipBasicNFT.Approve(std.CurrentRealm().Addr(), tid)
-		//FlipBasicNFT.SetApprovalForAll(std.CurrentRealm().Addr(), true)
-		//FlipBasicNFT.SetApprovalForAll(std.PrevRealm().Addr(), true)
 		
 		// add NFT to the LockedNFTs avl.Tree
 		var flipAmount int64
@@ -138,11 +136,7 @@ func GetParentdOf(tokenId string) string {
 
 func UnlockAndTransferNFT(from, to std.Address, tid string, parentTid string) error {
 	tokenId := grc721.TokenID(tid)
-	/*
-	err := FlipBasicNFT.Approve(std.CurrentRealm().Addr(), tokenId)
-        if err != nil {
-            return errors.New(ufmt.Sprintf("Failed to approve NFT transfer: %s ", err.Error()))
-		}*/
+	
 	terr := FlipBasicNFT.TransferFrom(from, to, tokenId)
 	if terr != nil {
 		return terr
@@ -258,12 +252,10 @@ func GetUserBasicFlipNFTs(addr std.Address, readyToUse string) string {
 }
 
 func GetBasicNFTsByTokenId(bTokenIDs string) string {
-	//tokenCount := FlipBasicNFT.TokenCount()
+	
 	tokenURIs := []string{}
 	bTokenIDsArray, _ := ParseString(bTokenIDs)
-	//userNFTsError := ""
-
-	// Assuming there's a function to get the token ID by index for the given address
+	
 	for i := int64(0); i < int64(len(bTokenIDsArray)); i++ {		
 		tidString := strconv.FormatUint(uint64(bTokenIDsArray[i]), 10)
 		
@@ -288,11 +280,10 @@ func GetAllBasicFlipNFTs(forPlayer std.Address) string {
 	tokenURIs := []string{}
 	userNFTsError := ""
 
-	// Assuming there's a function to get the token ID by index for the given address
 	for i := uint64(1); i < uint64(tokenCount+1); i++ {		
 		tidString := strconv.FormatUint(i, 10)
 		owner, err := FlipBasicNFT.OwnerOf(grc721.TokenID(tidString))
-		// debug
+
 		if err != nil {
 			userNFTsError += err.Error()
 			if err == ErrInvalidTokenId {

@@ -21,33 +21,9 @@ var (
 
 const zeroes = "000000000"
 
-/*
-// test functions
-func TileTest(solvedBoard string, size int) string {
-	solveBoardArray, err := ParseString(solvedBoard);
-	if (err != nil){
-		panic("error in parsing args")
-	}
-
-	testSVGData := flippandoserver.TestTiles(solveBoardArray, size);
-	testBasicNFT := &FlippandoBasicNFT{
-		name: "Flippando - the Game",
-		version: "1.0.0",
-		gameId: "testGameId",
-		gameType: "testGameType",
-		svgData: testSVGData,
-	}
-	testBasicNFTJSON, err := testBasicNFT.MarshalJSON()
-	if err != nil {
-		panic("error in marhasling testBasicNFT");
-	}
-	return string(testBasicNFTJSON)
-}*/
-
 // creates game object and initializes board
 func StartGame(player std.Address, tileType string, boardSize int) string {
 	
-	//games := GetUserGames(player)
 	// Set up Game struct. Save in gameStore and user2games.
 	gameIDCounter++
 	board, gameTiles, boardSize := flippandoserver.CreateGameBoard(tileType, boardSize, time.Now().Unix())
@@ -67,8 +43,7 @@ func StartGame(player std.Address, tileType string, boardSize int) string {
 
 	gameStore.Set(g.ID, g)
 	addToUser2Games(player, g)
-	// write the marshalJSON function for game
-	// call marshall JSON and return the string
+
 	newGameJSON, err := g.MarshalJSON()
 	if err != nil {
 		return "error";
@@ -87,10 +62,9 @@ func FlipTiles(player std.Address, gameID string, positions string) (string) {
 			break // Stop the loop once the game is found
 		}
 	}
-	//currentGame := games[0]
 	currentGamePositions, err := ParseString(positions)
 	
-	// call real FlipTiles on flippandoserver, which does the game mechanics
+	// calls real FlipTiles on flippandoserver, which does the game mechanics
 	// and returns 2 []int64 boards: the GameBoard, and the SolvedGameBoard
 	
 	board, solvedBoard := flippandoserver.FlipTiles(currentGame.GameBoard, 
@@ -112,9 +86,10 @@ func FlipTiles(player std.Address, gameID string, positions string) (string) {
 }
 
 func CreateBasicNFT(player std.Address, gameId string) string {
-	// call CreateBasicFlipNFT from basicNFT.gno
-	// call MintFlipFungibleToken from token,gno
-	// lock the Flip fungible token inside the basicNFT in nft2Flip avl.tree
+	// calls CreateBasicFlipNFT from basicNFT.gno
+	// calls MintFlipFungibleToken from token,gno
+	// locks the Flip fungible token inside the basicNFT in nft2Flip avl.tree
+
 	metadata, errString := CreateBasicFlipNFT(player, gameId)
 	if errString != "" {
 		return errString
@@ -123,7 +98,7 @@ func CreateBasicNFT(player std.Address, gameId string) string {
 }
 
 func GetUserBasicNFTs(addr std.Address, readyToUse string) string {
-	// call GetUserBasicFlipNFTs from basicNFT.gno
+	// calls GetUserBasicFlipNFTs from basicNFT.gno
 	userNFTs := GetUserBasicFlipNFTs(addr, readyToUse)
 	return userNFTs
 }
@@ -228,18 +203,6 @@ func RemoveBasicNFTListing(compositeTokenID string, seller std.Address) error {
 
 func IsBasicTokenIdListed(tokenId string) error {
 	return marketplace.IsBasicTokenIdListed(tokenId)
-}
-
-func ResetGame(gameId string) {
-	//- utility function, nullifies the game[gameId]
-}
-
-func isValidGameLevel(boardSize int) {
-	// - utility function, checks valid game levels
-}
-
-func isValidGameType(tileType string) {
-	//   - utility function, checks valid tile types
 }
 
 func RenderHome() string {
