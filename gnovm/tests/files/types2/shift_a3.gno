@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/shift_a3.gno:5: bigint overflows target kind
+// main/files/types2/shift_a3.gno:4:2: bigint overflows target kind

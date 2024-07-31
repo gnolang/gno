@@ -992,12 +992,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if debug {
 					debug.Printf("Trans_leave, BinaryExpr, OP: %v, lx: %v, rx: %v, lt: %v, rt: %v, isLeftConstExpr: %v, isRightConstExpr %v, isLeftUntyped: %v, isRightUntyped: %v \n", n.Op, n.Left, n.Right, lt, rt, lic, ric, isUntyped(lt), isUntyped(rt))
 				}
+				fmt.Printf("Trans_leave, BinaryExpr, OP: %v, lx: %v, rx: %v, lt: %v, rt: %v, isLeftConstExpr: %v, isRightConstExpr %v, isLeftUntyped: %v, isRightUntyped: %v \n", n.Op, n.Left, n.Right, lt, rt, lic, ric, isUntyped(lt), isUntyped(rt))
 
 				// Special (recursive) case if shift and right isn't uint.
 				isShift := n.Op == SHL || n.Op == SHR
 				if isShift {
 					// check LHS type compatibility
-					n.checkShiftLhs(lt)
+					n.checkShiftLhs(store, last, lt, false)
 					// checkOrConvert RHS
 					if baseOf(rt) != UintType {
 						// convert n.Right to (gno) uint type,
@@ -1016,6 +1017,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					}
+					// if lt is typed, convert shift expr
+					//if !isUntyped(lt) {
+					//	fmt.Println("---lt is typed, lt: ", lt)
+					//n.SetAttribute(ATTR_TYPEOF_VALUE, lt)
+					//}
 					return n, TRANS_CONTINUE
 				}
 
@@ -1075,6 +1081,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					} else if lcx.T == nil { // LHS is nil.
 						// convert n.Left to typed-nil type.
 						checkOrConvertType(store, last, &n.Left, rt, false)
+					} else {
+						if isUntyped(rt) {
+							fmt.Println("---left is untyped, lx: ", n.Left)
+							checkOrConvertType(store, last, &n.Right, lt, false)
+						}
 					}
 				} else if ric { // right is const, left is not
 					if isUntyped(rcx.T) {
@@ -1112,6 +1123,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					} else if rcx.T == nil { // RHS is nil
 						// refer to tests/files/types/eql_0f20.gno
 						checkOrConvertType(store, last, &n.Right, lt, false)
+					} else { // left is not const, right is typed const
+						fmt.Println("---left is not const, right is typed const")
+						if isUntyped(lt) {
+							fmt.Println("---left is untyped, lx: ", n.Left)
+							checkOrConvertType(store, last, &n.Left, rt, false)
+						}
 					}
 				} else {
 					// Left not const, Right not const ------------------
@@ -1223,7 +1240,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
-				debug.Printf("---CallExpr---: %v \n", n)
+				fmt.Printf("---Trans_leave, CallExpr---: %v \n", n)
 
 				// Func type evaluation.
 				var ft *FuncType
@@ -1282,19 +1299,23 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						cx.SetAttribute(ATTR_TYPEOF_VALUE, dt)
 						return cx, TRANS_CONTINUE
 					case *BinaryExpr: // special case to evaluate type of binaryExpr/UnaryExpr which has untyped shift nested
+						fmt.Println("---binary expr")
 						if isUntyped(at) { // only when untyped, this is checked in checkOrConvertType too, but guard here
+							fmt.Println("---untyped, at: ", at)
 							switch arg0.Op {
 							case EQL, NEQ, LSS, GTR, LEQ, GEQ:
 								assertAssignableTo(at, ct, true)
 								break // quick forward
 							default:
-								checkOrConvertType(store, last, &n.Args[0], ct, false, true)
+								checkOrConvertType(store, last, &n.Args[0], ct, false)
 							}
+						} else {
+							fmt.Println("---it's typed")
 						}
 					case *UnaryExpr:
 						debug.Println("---unary expr: ", arg0)
 						if isUntyped(at) {
-							checkOrConvertType(store, last, &n.Args[0], ct, false, true)
+							checkOrConvertType(store, last, &n.Args[0], ct, false)
 						} else {
 							debug.Printf("---unary, at is typed: %v \n", at)
 						}
@@ -1459,17 +1480,17 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 									if len(spts) <= i {
 										panic("expected final vargs slice but got many")
 									}
-									checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true, false)
+									checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true)
 								} else {
 									checkOrConvertType(store, last, &n.Args[i],
-										spts[len(spts)-1].Type.Elem(), true, false)
+										spts[len(spts)-1].Type.Elem(), true)
 								}
 							} else {
-								checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true, false)
+								checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true)
 							}
 						} else {
 							// TODO: check if type bx
-							checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true, false)
+							checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true)
 						}
 					}
 				}
@@ -1895,6 +1916,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// last.Define(ln, undefined) complains, since redefinition.
 							} else {
 								last.Define(ln, anyValue(rt))
+							}
+							// if rhs is untyped
+							if isUntyped(rt) {
+								checkOrConvertType(store, last, &n.Rhs[i], nil, false)
 							}
 						}
 					}
@@ -2769,6 +2794,7 @@ func isConstType(x Expr) bool {
 
 // check before convert type
 func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative bool) {
+	fmt.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	if debug {
 		debug.Printf("checkOrConvertType, *x: %v:, t:%v \n", *x, t)
 	}
@@ -2778,8 +2804,49 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 			assertAssignableTo(cx.T, t, autoNative)
 		}
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
-		// TODO: expand here, check bx...
 
+		// TODO: expand here, check bx...
+		xt := evalStaticTypeOf(store, last, *x)
+
+		fmt.Printf("shift, bx: %v, xt: %v, Op: %v, t: %v \n", bx, xt, bx.Op, t)
+
+		if debug {
+			debug.Printf("shift, xt: %v, Op: %v, t: %v \n", xt, bx.Op, t)
+		}
+
+		if isUntyped(xt) {
+			fmt.Println("---xt is untyped")
+			if t == nil {
+				t = defaultTypeOf(xt)
+			}
+			if t.Kind() == InterfaceKind {
+				t = defaultTypeOf(xt)
+			}
+
+			bx.checkShiftLhs(store, last, t, true)
+			checkOrConvertType(store, last, &bx.Left, t, autoNative)
+		} else {
+			assertAssignableTo(xt, t, autoNative)
+		}
+		// set type
+		//(*x).SetAttribute(ATTR_TYPEOF_VALUE, t)
+
+		return
+	} else if ux, ok := (*x).(*UnaryExpr); ok {
+		fmt.Printf("unary expr: %v, Op: %v, t: %v \n", ux, ux.Op, t)
+
+		xt := evalStaticTypeOf(store, last, *x)
+		ux.AssertCompatible(xt)
+
+		if t == nil {
+			t = defaultTypeOf(xt)
+		}
+		//if t.Kind() == InterfaceKind {
+		//	t = defaultTypeOf(xt)
+		//}
+
+		checkOrConvertType(store, last, &ux.X, t, autoNative)
+		return
 	} else if *x != nil { // XXX if x != nil && t != nil {
 		xt := evalStaticTypeOf(store, last, *x)
 		if t != nil {
@@ -2819,7 +2886,9 @@ func convertType(store Store, last BlockNode, x *Expr, t Type) {
 	if debug {
 		debug.Printf("convertType, *x: %v:, t:%v \n", *x, t)
 	}
+	fmt.Printf("convertType, *x: %v:, t:%v \n", *x, t)
 	if cx, ok := (*x).(*ConstExpr); ok {
+		fmt.Println("---convertType, it's const")
 		convertConst(store, last, cx, t)
 	} else if *x != nil {
 		xt := evalStaticTypeOf(store, last, *x)

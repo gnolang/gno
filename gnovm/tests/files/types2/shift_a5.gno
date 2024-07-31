@@ -6,5 +6,6 @@ func main() {
 	println(1.0 >> 1)
 }
 
-// Error:
-// main/files/types/shift_a5.gno:5:10: operator << not defined on: BigdecKind
+// Output:
+// 2
+// 0

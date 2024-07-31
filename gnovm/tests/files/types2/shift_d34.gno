@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/shift_d34.gno:7: bigint underflows target kind
+// main/files/types2/shift_d34.gno:7:7: bigint underflows target kind

@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/shift_d38.gno:3: cannot convert (const (undefined) nil) to UintKind
+// main/files/types2/shift_d38.gno:3:1: cannot convert (const (undefined) nil) to UintKind

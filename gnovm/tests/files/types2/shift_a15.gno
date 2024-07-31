@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_a15.gno:6:2: operator <<= not defined on: StringKind
+// main/files/types2/shift_a15.gno:6:2: operator <<= not defined on: StringKind

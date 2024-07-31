@@ -19,4 +19,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/shift_c6.gno:16: operator << not defined on: Float32Kind
+// main/files/types2/shift_c6.gno:16:2: operator << not defined on: Float32Kind

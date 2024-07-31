@@ -620,10 +620,23 @@ func (bx *BinaryExpr) checkShiftExpr(store Store, last BlockNode, dt Type, isFin
 }
 
 // ===========================================================
-func (x *BinaryExpr) checkShiftLhs(dt Type) {
+func (x *BinaryExpr) checkShiftLhs(store Store, last BlockNode, dt Type, isFinal bool) {
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if !checker(dt) {
-			panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(dt)))
+			if dt != nil && dt.Kind() == BigdecKind {
+				if lcx, ok := x.Left.(*ConstExpr); ok {
+					if _, ok := x.Right.(*ConstExpr); ok {
+						convertConst(store, last, lcx, BigintType)
+						return
+					}
+				}
+				// not both const
+				if !isFinal {
+					return
+				}
+			} else {
+				panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(dt)))
+			}
 		}
 	} else {
 		panic(fmt.Sprintf("checker for %s does not exist", x.Op))

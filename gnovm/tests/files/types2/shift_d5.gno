@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/shift_d5.gno:5: operator << not defined on: BigdecKind
+// main/files/types2/shift_d5.gno:5:2: operator << not defined on: Float64Kind

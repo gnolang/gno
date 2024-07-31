@@ -36,4 +36,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/shift_b6.gno:31: <untyped> bigint does not implement main.R
+// method foo not found in type int

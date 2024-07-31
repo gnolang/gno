@@ -12,10 +12,10 @@ import "fmt"
 // case of expr in type call
 func main() {
 	x := 2
-	r := float32(1<<x + 1) // 2 step. first binary recursively, second call type
+	r := float32(1<<x + 2) // 2 step. first binary recursively, second call type
 	println(r)
 	fmt.Printf("%T \n", r)
 }
 
 // Error:
-// main/files/types2/shift_b7.gno:15: operator << not defined on: Float32Kind
+// main/files/types2/shift_b7.gno:15:7: operator << not defined on: Float32Kind
