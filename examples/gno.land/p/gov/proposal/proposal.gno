@@ -1,9 +1,14 @@
 // Package proposal provides a structure for executing proposals.
 package proposal
 
-import "std"
+import (
+	"errors"
+	"std"
 
-const daoPkgPath = "gno.land/r/gov/dao" // XXX: make it configurable with r/sys/vars?
+	"gno.land/p/demo/context"
+)
+
+var errNotGovDAO = errors.New("only r/gov/dao can be the caller")
 
 // NewExecutor creates a new executor with the provided callback function.
 func NewExecutor(callback func() error) Executor {
@@ -13,49 +18,89 @@ func NewExecutor(callback func() error) Executor {
 	}
 }
 
-// executorImpl is an implementation of the Executor interface.
-type executorImpl struct {
-	callback func() error
-	done     bool
-	success  bool
+// NewCtxExecutor creates a new executor with the provided callback function.
+func NewCtxExecutor(callback func(ctx context.Context) error) Executor {
+	return &executorImpl{
+		callbackCtx: callback,
+		done:        false,
+	}
 }
 
-// execute runs the executor's callback function.
+// executorImpl is an implementation of the Executor interface.
+type executorImpl struct {
+	callback    func() error
+	callbackCtx func(ctx context.Context) error
+	done        bool
+	success     bool
+}
+
+// Execute runs the executor's callback function.
 func (exec *executorImpl) Execute() error {
 	if exec.done {
 		return ErrAlreadyDone
 	}
+
+	// Verify the executor is r/gov/dao
 	assertCalledByGovdao()
-	err := exec.callback()
+
+	var err error
+	if exec.callback != nil {
+		err = exec.callback()
+	} else if exec.callbackCtx != nil {
+		ctx := context.WithValue(context.Empty(), statusContextKey, approvedStatus)
+		err = exec.callbackCtx(ctx)
+	}
 	exec.done = true
 	exec.success = err == nil
+
 	return err
 }
 
-// Done returns whether the executor has been executed.
-func (exec *executorImpl) Done() bool {
+// IsDone returns whether the executor has been executed.
+func (exec *executorImpl) IsDone() bool {
 	return exec.done
 }
 
-// Success returns whether the execution was successful.
-func (exec *executorImpl) Success() bool {
+// IsSuccessful returns whether the execution was successful.
+func (exec *executorImpl) IsSuccessful() bool {
 	return exec.success
 }
 
-func (exec executorImpl) Status() Status {
-	switch {
-	case exec.success:
-		return Success
-	case exec.done:
-		return Failed
-	default:
-		return NotExecuted
+// IsExpired returns whether the execution had expired or not.
+// This implementation never expires.
+func (exec *executorImpl) IsExpired() bool {
+	return false
+}
+
+func IsApprovedByGovdaoContext(ctx context.Context) bool {
+	v := ctx.Value(statusContextKey)
+	if v == nil {
+		return false
+	}
+	vs, ok := v.(string)
+	return ok && vs == approvedStatus
+}
+
+func AssertContextApprovedByGovDAO(ctx context.Context) {
+	if !IsApprovedByGovdaoContext(ctx) {
+		panic("not approved by govdao")
 	}
 }
 
+// assertCalledByGovdao asserts that the calling Realm is /r/gov/dao
 func assertCalledByGovdao() {
 	caller := std.CurrentRealm().PkgPath()
+
 	if caller != daoPkgPath {
-		panic("only gov/dao can execute proposals")
+		panic(errNotGovDAO)
 	}
 }
+
+type propContextKey string
+
+func (k propContextKey) String() string { return string(k) }
+
+const (
+	statusContextKey = propContextKey("govdao-prop-status")
+	approvedStatus   = "approved"
+)

@@ -215,6 +215,70 @@ func assertAssignableTo(xt, dt Type, autoNative bool) {
 	}
 }
 
+// checkValDefineMismatch checks for mismatch between the number of variables and values in a ValueDecl or AssignStmt.
+func checkValDefineMismatch(n Node) {
+	var (
+		valueDecl *ValueDecl
+		assign    *AssignStmt
+		values    []Expr
+		numNames  int
+		numValues int
+	)
+
+	switch x := n.(type) {
+	case *ValueDecl:
+		valueDecl = x
+		numNames = len(valueDecl.NameExprs)
+		numValues = len(valueDecl.Values)
+		values = valueDecl.Values
+	case *AssignStmt:
+		if x.Op != DEFINE {
+			return
+		}
+
+		assign = x
+		numNames = len(assign.Lhs)
+		numValues = len(assign.Rhs)
+		values = assign.Rhs
+	default:
+		panic(fmt.Sprintf("unexpected node type %T", n))
+	}
+
+	if numValues == 0 || numValues == numNames {
+		return
+	}
+
+	// Special case for single value.
+	// If the value is a call expression, type assertion, or index expression,
+	// it can be assigned to multiple variables.
+	if numValues == 1 {
+		switch values[0].(type) {
+		case *CallExpr:
+			return
+		case *TypeAssertExpr:
+			if numNames != 2 {
+				panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
+			}
+			return
+		case *IndexExpr:
+			if numNames != 2 {
+				panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
+			}
+			return
+		}
+	}
+
+	if valueDecl != nil {
+		if numNames > numValues {
+			panic(fmt.Sprintf("missing init expr for %s", valueDecl.NameExprs[numValues].String()))
+		}
+
+		panic(fmt.Sprintf("extra init expr %s", values[numNames].String()))
+	}
+
+	panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, numValues))
+}
+
 // Assert that xt can be assigned as dt (dest type).
 // If autoNative is true, a broad range of xt can match against
 // a target native dt type, if and only if dt is a native type.
@@ -237,14 +301,15 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 			if idt.IsEmptyInterface() { // XXX, can this be merged with IsImplementedBy?
 				// if dt is an empty Gno interface, any x ok.
 				return nil // ok
-			} else if idt.IsImplementedBy(xt) {
+			} else if err := idt.VerifyImplementedBy(xt); err == nil {
 				// if dt implements idt, ok.
 				return nil // ok
 			} else {
 				return errors.New(
-					"%s does not implement %s",
+					"%s does not implement %s (%s)",
 					xt.String(),
-					dt.String())
+					dt.String(),
+					err.Error())
 			}
 		} else if ndt, ok := baseOf(dt).(*NativeType); ok {
 			nidt := ndt.Type
