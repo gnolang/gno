@@ -24,7 +24,6 @@ const (
 // Similar to TestingNodeConfig, but allows returning errors instead of panicking through testscript.
 // This allows us to use the returned error to determine whether the error is intended for testing cases or not in the txtar file.
 func TestingInMemoryNodeUpdate(t TestingTS, logger *slog.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string, error) {
-
 	node, err := gnoland.NewInMemoryNode(logger, config)
 	if err != nil {
 		return nil, "", err
