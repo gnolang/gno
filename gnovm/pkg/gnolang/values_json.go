@@ -294,7 +294,7 @@ func (d decoder) unmarshalValue(tv *TypedValue) error {
 		return errors.New("exceeded max recursion depth")
 	}
 
-	// XXX: for now skip type guess
+	// XXX: no type / undefined
 	if tv.T == nil {
 		// Read field name.
 		tok, err := d.Read()
@@ -316,147 +316,22 @@ func (d decoder) unmarshalValue(tv *TypedValue) error {
 		Float32Kind, Float64Kind,
 		BigintKind, BigdecKind:
 		return d.unmarshalSingular(tv)
+
 	case ArrayKind, SliceKind, TupleKind: // List
 		return d.unmarshalListValue(tv)
 
-		// case StructKind:
-		// 	return decoder.unmarshalStructValue
-
-		// case ArrayKind, SliceKind, TupleKind: // List
-		// 	return decoder.unmarshalListValue
+	case StructKind:
+		return d.unmarshalStructValue(tv)
 
 		// case InterfaceKind:
 		// 	return decoder.unmarshalAny
 
-		// case PointerKind:
-		// 	return decoder.unmarshalPointerValue
+	case PointerKind:
+		return d.unmarshalPointerValue(tv)
 
 	}
 
 	panic("not implemented")
-
-	// tok, err := d.Read()
-	// if err != nil {
-	// 	return err
-	// }
-	// if tok.Kind() != json.ObjectOpen {
-	// 	return d.unexpectedTokenError(tok)
-	// }
-
-	// messageDesc := m.Descriptor()
-	// if !flags.ProtoLegacy && messageset.IsMessageSet(messageDesc) {
-	// 	return errors.New("no support for proto1 MessageSets")
-	// }
-
-	// var seenNums set.Ints
-	// var seenOneofs set.Ints
-	// fieldDescs := messageDesc.Fields()
-	// for {
-	// 	// Read field name.
-	// 	tok, err := d.Read()
-	// 	if err != nil {
-	// 		return err
-	// 	}
-	// 	switch tok.Kind() {
-	// 	default:
-	// 		return d.unexpectedTokenError(tok)
-	// 	case json.ObjectClose:
-	// 		return nil
-	// 	case json.Name:
-	// 		// Continue below.
-	// 	}
-
-	// 	name := tok.Name()
-	// 	// Unmarshaling a non-custom embedded message in Any will contain the
-	// 	// JSON field "@type" which should be skipped because it is not a field
-	// 	// of the embedded message, but simply an artifact of the Any format.
-	// 	if skipTypeURL && name == "@type" {
-	// 		d.Read()
-	// 		continue
-	// 	}
-
-	// 	// Get the FieldDescriptor.
-	// 	var fd protoreflect.FieldDescriptor
-	// 	if strings.HasPrefix(name, "[") && strings.HasSuffix(name, "]") {
-	// 		// Only extension names are in [name] format.
-	// 		extName := protoreflect.FullName(name[1 : len(name)-1])
-	// 		extType, err := d.opts.Resolver.FindExtensionByName(extName)
-	// 		if err != nil && err != protoregistry.NotFound {
-	// 			return d.newError(tok.Pos(), "unable to resolve %s: %v", tok.RawString(), err)
-	// 		}
-	// 		if extType != nil {
-	// 			fd = extType.TypeDescriptor()
-	// 			if !messageDesc.ExtensionRanges().Has(fd.Number()) || fd.ContainingMessage().FullName() != messageDesc.FullName() {
-	// 				return d.newError(tok.Pos(), "message %v cannot be extended by %v", messageDesc.FullName(), fd.FullName())
-	// 			}
-	// 		}
-	// 	} else {
-	// 		// The name can either be the JSON name or the proto field name.
-	// 		fd = fieldDescs.ByJSONName(name)
-	// 		if fd == nil {
-	// 			fd = fieldDescs.ByTextName(name)
-	// 		}
-	// 	}
-	// 	if flags.ProtoLegacy {
-	// 		if fd != nil && fd.IsWeak() && fd.Message().IsPlaceholder() {
-	// 			fd = nil // reset since the weak reference is not linked in
-	// 		}
-	// 	}
-
-	// 	if fd == nil {
-	// 		// Field is unknown.
-	// 		if d.opts.DiscardUnknown {
-	// 			if err := d.skipJSONValue(); err != nil {
-	// 				return err
-	// 			}
-	// 			continue
-	// 		}
-	// 		return d.newError(tok.Pos(), "unknown field %v", tok.RawString())
-	// 	}
-
-	// 	// Do not allow duplicate fields.
-	// 	num := uint64(fd.Number())
-	// 	if seenNums.Has(num) {
-	// 		return d.newError(tok.Pos(), "duplicate field %v", tok.RawString())
-	// 	}
-	// 	seenNums.Set(num)
-
-	// 	// No need to set values for JSON null unless the field type is
-	// 	// google.protobuf.Value or google.protobuf.NullValue.
-	// 	if tok, _ := d.Peek(); tok.Kind() == json.Null && !isKnownValue(fd) && !isNullValue(fd) {
-	// 		d.Read()
-	// 		continue
-	// 	}
-
-	// 	switch {
-	// 	case fd.IsList():
-	// 		list := m.Mutable(fd).List()
-	// 		if err := d.unmarshalList(list, fd); err != nil {
-	// 			return err
-	// 		}
-	// 	case fd.IsMap():
-	// 		mmap := m.Mutable(fd).Map()
-	// 		if err := d.unmarshalMap(mmap, fd); err != nil {
-	// 			return err
-	// 		}
-	// 	default:
-	// 		// If field is a oneof, check if it has already been set.
-	// 		if od := fd.ContainingOneof(); od != nil {
-	// 			idx := uint64(od.Index())
-	// 			if seenOneofs.Has(idx) {
-	// 				return d.newError(tok.Pos(), "error parsing %s, oneof %v is already set", tok.RawString(), od.FullName())
-	// 			}
-	// 			seenOneofs.Set(idx)
-	// 		}
-
-	// 		// Required or optional fields.
-	// 		if err := d.unmarshalSingular(m, fd); err != nil {
-	// 			return err
-	// 		}
-	// 	}
-	// }
-
-	return nil
 }
 
 // marshalScalar marshals the given non-repeated field value. This includes
@@ -564,6 +439,7 @@ func getBitsize(t Type) int {
 
 }
 
+// XXX: wip guess_number
 // func (d *decoder) unmarshalUnknownNumber(tv *TypedValue, tok json.Token) bool {
 // 	alloc := d.opts.Store.GetAllocator()
 // 	switch tok.Kind() {
@@ -776,12 +652,21 @@ func setFloat(tv *TypedValue, tok json.Token, bitSize int) bool {
 	return ok
 }
 
-// The JSON representation of an Interface message uses the regular representation of
+// XXX: The JSON representation of an Interface message uses the regular representation of
 // the deserialized, embedded message, with an additional field `@type` which
 // contains the type URL. If the embedded message type is well-known and has a
 // custom JSON representation, that representation will be embedded adding a
 // field `value` which holds the custom JSON in addition to the `@type` field.
 func (e encoder) marshalInterfaceValue(tv *TypedValue) error {
+	panic("no implemented")
+}
+
+// XXX: The JSON representation of an Interface message uses the regular representation of
+// the deserialized, embedded message, with an additional field `@type` which
+// contains the type URL. If the embedded message type is well-known and has a
+// custom JSON representation, that representation will be embedded adding a
+// field `value` which holds the custom JSON in addition to the `@type` field.
+func (e decoder) unmarshalInterfaceValue(tv *TypedValue) error {
 	panic("no implemented")
 }
 
@@ -811,6 +696,18 @@ func (e encoder) marshalPointerValue(tv *TypedValue) error {
 	return e.marshalValue(&etv)
 }
 
+func (d decoder) unmarshalPointerValue(tv *TypedValue) error {
+	var eltv TypedValue
+	eltv.T = tv.T.(*PointerType).Elem()
+	if err := d.unmarshalValue(&eltv); err != nil {
+		return err
+	}
+
+	// XXX: Alloc ?
+	tv.V = PointerValue{TV: &eltv}
+	return nil
+}
+
 func (e encoder) marshalStructValue(tv *TypedValue) error {
 	e.StartObject()
 	defer e.EndObject()
@@ -820,21 +717,17 @@ func (e encoder) marshalStructValue(tv *TypedValue) error {
 	sv := tv.V.(*StructValue)
 	for i := range st.Fields {
 		ft := st.Fields[i]
-		jsontag := ft.Tag.Get("json")
-		name, opts, hasOpts := parseTagValue(jsontag)
-		if !isValidTag(name) {
-			name = ""
+
+		name, opts, err := getFieldName(ft)
+		if err != nil {
+			return err
 		}
 
-		if name == "-" && !hasOpts {
-			continue
-		}
-
-		if !ft.IsExported() {
-			if jsontag != "" {
-				return fmt.Errorf("struct field %q has json tag but is not exported", ft.Name)
-			}
-
+		// Empty name mean either:
+		// - unexported field
+		// - tag is invalid
+		// - tag is equal to "-"
+		if name == "" {
 			continue
 		}
 
@@ -858,9 +751,88 @@ func (e encoder) marshalStructValue(tv *TypedValue) error {
 	return nil
 }
 
+func (d *decoder) unmarshalStructValue(tv *TypedValue) error {
+	st := baseOf(tv.T).(*StructType)
+	tok, err := d.Read()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() != json.ObjectOpen {
+		return d.unexpectedTokenError(tok)
+	}
+
+	// Allocate and construct index field reference
+	fvs := d.opts.Alloc.NewStructFields(len(st.Fields))
+	mfvs := make(map[string]int)
+	for i, ft := range st.Fields {
+		name, _, err := getFieldName(ft)
+		if err != nil {
+			return err
+		}
+		mfvs[name] = i
+	}
+
+	for {
+		// Read field name.
+		tok, err := d.Read()
+		if err != nil {
+			return err
+		}
+
+		switch tok.Kind() {
+		default:
+			return d.unexpectedTokenError(tok)
+		case json.ObjectClose:
+			tv.V = d.opts.Alloc.NewStruct(fvs)
+			return nil
+		case json.Name:
+			// Continue below.
+		}
+
+		name := tok.Name()
+
+		i, ok := mfvs[name]
+		if !ok {
+			return d.newError(tok.Pos(), "unknown field name %q", name)
+		}
+
+		fv := &fvs[i]
+		fv.T = st.Fields[i].Type
+		if err := d.unmarshalValue(fv); err != nil {
+			return err
+		}
+	}
+}
+
 // tagOptions is the string following a comma in a struct field's "json"
 // tag, or the empty string. It does not include the leading comma.
 type tagOptions string
+
+func getFieldName(ft FieldType) (string, tagOptions, error) {
+	jsontag := ft.Tag.Get("json")
+	tagname, opts, _ := parseTagValue(jsontag)
+	if tagname == "-" {
+		return "", "", nil
+	}
+
+	if !isValidTag(tagname) { // XXX: should this return an error instead ?
+		tagname = ""
+	}
+
+	if !ft.IsExported() {
+		if jsontag != "" {
+			return "", "", fmt.Errorf("struct field %q has json tag but is not exported", ft.Name)
+		}
+
+		return "", "", nil
+	}
+
+	if tagname != "" {
+		return tagname, opts, nil
+	}
+
+	return string(ft.Name), opts, nil
+}
 
 // parseTag splits a struct field's json tag into its name and
 // comma-separated options.

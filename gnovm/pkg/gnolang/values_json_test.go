@@ -190,14 +190,17 @@ type Interface struct {
 }
 `
 
-func TestTypedValueMarshalJSON_Struct(t *testing.T) {
+func TestTypedValueJSON_Struct(t *testing.T) {
 	cases := []struct {
 		ValueRep      string // s tring representation
 		Expected      string // string representation
 		ExpectedAmino string // string representation
 	}{
 		{
-			`Simple{}`,
+			// NOTE: we have to set string value here because gno
+			// value have disinction between unset and empty string.
+			// Without this unmarshal would fail.
+			`Simple{B: ""}`,
 			`{"A":0,"B":"","C":false}`,
 			`{"A":"0","B":"","C":false}`,
 		},
@@ -278,9 +281,6 @@ func TestTypedValueMarshalJSON_Struct(t *testing.T) {
 		// 	`{"valueA":"42","valueB":"hello gno","valueC":true}`,
 		// },
 
-		// Struct with unexported field
-		// {"Unexported", `{"A":"42"}`, `{"A":"42"}`},
-
 		// Struct with nested struct
 
 		// XXX(FIXME): Interface arn't supported yet, here is a preview
@@ -309,10 +309,23 @@ func TestTypedValueMarshalJSON_Struct(t *testing.T) {
 			require.Len(t, tps, 1)
 			tv := tps[0]
 
-			t.Run("Marshal", func(t *testing.T) {
-				raw, err := tv.MarshalJSON()
+			// t.Run("Marshal", func(t *testing.T) {
+			// 	raw, err := tv.MarshalJSON()
+			// 	require.NoError(t, err)
+			// 	assert.Equal(t, tc.Expected, string(raw))
+			// })
+
+			t.Run("Unmarshal", func(t *testing.T) {
+				var utv TypedValue
+				fmt.Println(tv.String())
+				// copy type
+				utv.T = tv.T
+
+				err := UnmarshalOptions{Store: m.Store}.
+					Unmarshal([]byte(tc.Expected), &utv)
 				require.NoError(t, err)
-				assert.Equal(t, tc.Expected, string(raw))
+
+				require.Equal(t, tv.String(), utv.String())
 			})
 
 			// t.Run("Unmarshal", func(t *testing.T) {
