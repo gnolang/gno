@@ -80,12 +80,8 @@ func (m *Machine) doOpEql() {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
 
-	debug.Printf("---doOpEql: lv: %v, rv: %v \n", lv, rv)
-	debug.Printf("---doOpEql: lv.T: %v, rv.T: %v \n", lv.T, rv.T)
-	debug.Printf("---doOpEql: lv.V: %v, rv.V: %v \n", lv.V, rv.V)
-	debug.Printf("---doOpEql: lv.N: %v, rv.N: %v \n", lv.N, rv.N)
-	var res bool
-	res = isEql(m.Store, lv, rv)
+	// set result in lv.
+	res := isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)

@@ -538,7 +538,6 @@ func (bx *BinaryExpr) checkShiftExpr(store Store, last BlockNode, dt Type, isFin
 	if checker, ok := binaryChecker[bx.Op]; ok {
 		if !checker(dt) {
 			if !isFinal {
-				// see 10a01, 10a02.
 				if dt != nil && dt.Kind() == BigdecKind {
 					if lcx, ok := bx.Left.(*ConstExpr); ok {
 						if _, ok := bx.Right.(*ConstExpr); ok {
