@@ -45,7 +45,7 @@ type MarshalOptions struct {
 	// Indent can only be composed of space or tab characters.
 	Indent string
 
-	// If this is true Object will be Wnwraped when encounter, instead of
+	// XXX: If this is true Object will be Wnwraped when encounter, instead of
 	// producing an {@type: <str>, "oid": <str>} obj
 	FillRefValue bool
 
@@ -61,14 +61,7 @@ type UnmarshalOptions struct {
 	// Format an output compatible with amino
 	AminoFormat bool
 
-	// If AllowPartial is set, input for messages that will result in missing
-	// required fields will not return an error.
-	AllowPartial bool
-
-	// If DiscardUnknown is set, unknown fields and enum name values are ignored.
-	DiscardUnknown bool
-
-	// DepthLimit limits how deeply messages may be nested.
+	// DepthLimit limits how deeply struct may be nested.
 	// If zero, a default limit is applied.
 	DepthLimit int
 
@@ -86,8 +79,9 @@ func (o MarshalOptions) Marshal(tv *TypedValue) ([]byte, error) {
 // Unmarshal reads the given []byte and populates the given [TypedValue]
 // using options in the UnmarshalOptions object.
 // It will clear the Value first.
-// For now Type T must be set to be able to unarshal value from byte.
+// For now, Type T must be set to be able to unmarshal value from byte.
 func (o UnmarshalOptions) Unmarshal(b []byte, tv *TypedValue) error {
+	tv.V = nil
 	return o.unmarshal(b, tv)
 }
 
@@ -148,7 +142,7 @@ func (o MarshalOptions) marshal(b []byte, tv *TypedValue) ([]byte, error) {
 		return nil, err
 	}
 
-	// Treat nil message interface as an empty message,
+	// Treat nil as an empty message,
 	// in which case the output in an empty JSON object.
 	if tv == nil {
 		return append(b, '{', '}'), nil
@@ -225,67 +219,6 @@ func (e encoder) marshalValue(tv *TypedValue) error {
 	default:
 		return fmt.Errorf("unable to marshal unknown type: %q", tv.T.Kind())
 	}
-
-	// fmt.Printf("%+#v\n", tv.V)
-	// // store := e.opts.Store
-
-	// var typeURL string
-	// var oid string
-	// // switch cv := tv.V.(type) {
-	// // case TypeValue:
-
-	// }
-
-	// v := copyValueWithRefs(tv.V)
-	// fmt.Printf("%#v\n", v)
-
-	// if ctv, ok := tv.V.(TypeValue); ok {
-	// 	switch cv := ctv.Type.(type) {
-	// 	case *DeclaredType:
-
-	// 		fmt.Println(cv)
-	// 	}
-	// }
-
-	// default:
-	// 	panic("NOOO")
-
-	// case RefValue:
-	// 	// XXX: check for empty pkgpath
-	// 	typeURL = cv.PkgPath
-	// 	oid = cv.ObjectID.String()
-	// case PointerValue:
-	// 	if ref, ok := cv.Base.(RefValue); ok {
-	// 		base := store.GetObject(ref.ObjectID).(Value)
-
-	// 		cv.Base = base
-	// 		switch cb := base.(type) {
-	// 		case *ArrayValue:
-	// 			et := baseOf(tv.T).(*PointerType).Elt
-	// 			epv := cb.GetPointerAtIndexInt2(store, cv.Index, et)
-	// 			cv.TV = epv.TV // TODO optimize? (epv.* ignored)
-	// 		case *StructValue:
-	// 			fpv := cb.GetPointerToInt(store, cv.Index)
-	// 			cv.TV = fpv.TV // TODO optimize?
-	// 		case *Block:
-	// 			vpv := cb.GetPointerToInt(store, cv.Index)
-	// 			cv.TV = vpv.TV // TODO optimize?
-
-	// 		case *BoundMethodValue:
-	// 			panic("should not happen: not a bound method")
-	// 		case *MapValue:
-	// 			panic("should not happen: not a map value")
-	// 		default:
-	// 			panic("should not happen")
-	// 		}
-	// 		tv.V = cv
-	// 	}
-	// do nothing
-	// }
-
-	// _, _ = oid, typeURL
-
-	return nil
 }
 
 func (d decoder) unmarshalValue(tv *TypedValue) error {
@@ -315,7 +248,7 @@ func (d decoder) unmarshalValue(tv *TypedValue) error {
 		UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind,
 		Float32Kind, Float64Kind,
 		BigintKind, BigdecKind:
-		return d.unmarshalSingular(tv)
+		return d.unmarshalScallar(tv)
 
 	case ArrayKind, SliceKind, TupleKind: // List
 		return d.unmarshalListValue(tv)
@@ -323,8 +256,8 @@ func (d decoder) unmarshalValue(tv *TypedValue) error {
 	case StructKind:
 		return d.unmarshalStructValue(tv)
 
-		// case InterfaceKind:
-		// 	return decoder.unmarshalAny
+	case InterfaceKind:
+		return d.unmarshalInterfaceValue(tv)
 
 	case PointerKind:
 		return d.unmarshalPointerValue(tv)
@@ -378,22 +311,13 @@ func (e encoder) marshalScalar(tv *TypedValue) error {
 	return nil
 }
 
-// marshalSingular marshals the given non-repeated field value. This includes
+// unmarshalScallar unmarshals the given non-repeated field value. This includes
 // all scalar types, enums, messages, and groups.
-func (d decoder) unmarshalSingular(tv *TypedValue) error {
+func (d decoder) unmarshalScallar(tv *TypedValue) error {
 	tok, err := d.Read()
 	if err != nil {
 		return err
 	}
-
-	// XXX: guess unknown type
-	// if tv.T == nil {
-	// 	if !d.unmarshalUnknownNumber(tv, tok) {
-	// 		return d.newError(tok.Pos(), "invalid value for %v field %v: %v", tok.Kind(), tok.Name(), tok.RawString())
-	// 	}
-
-	// 	return nil
-	// }
 
 	var ok bool
 	switch kind := tv.T.Kind(); kind {
@@ -438,44 +362,6 @@ func getBitsize(t Type) int {
 	}
 
 }
-
-// XXX: wip guess_number
-// func (d *decoder) unmarshalUnknownNumber(tv *TypedValue, tok json.Token) bool {
-// 	alloc := d.opts.Store.GetAllocator()
-// 	switch tok.Kind() {
-// 	case json.Number:
-// 		if v, ok := tok.Int(64); ok {
-// 			tv.T = alloc.NewType(IntType)
-// 			tv.SetInt(int(v))
-// 		} else if v, ok := tok.Uint(64); ok {
-// 			tv.T = alloc.NewType(UintType)
-// 			tv.SetUint(uint(v))
-// 		} else if v, ok := tok.Float(64); ok {
-// 			tv.T = alloc.NewType(Float64Type)
-// 			tv.SetFloat64(v)
-// 		} else {
-// 			return false
-// 		}
-
-// 		return true
-
-// 	case json.String:
-// 		// Decode number from string.
-// 		s := strings.TrimSpace(tok.ParsedString())
-// 		if len(s) != len(tok.ParsedString()) {
-// 			return false
-// 		}
-// 		dec := json.NewDecoder([]byte(s))
-// 		tok, err := dec.Read()
-// 		if err != nil {
-// 			return false
-// 		}
-
-// 		return d.unmarshalUnknownNumber(tv, tok)
-// 	}
-
-// 	return false
-// }
 
 func unmarshalInt(tv *TypedValue, tok json.Token) bool {
 	bitSize := getBitsize(tv.T)
@@ -652,22 +538,95 @@ func setFloat(tv *TypedValue, tok json.Token, bitSize int) bool {
 	return ok
 }
 
-// XXX: The JSON representation of an Interface message uses the regular representation of
-// the deserialized, embedded message, with an additional field `@type` which
-// contains the type URL. If the embedded message type is well-known and has a
-// custom JSON representation, that representation will be embedded adding a
-// field `value` which holds the custom JSON in addition to the `@type` field.
 func (e encoder) marshalInterfaceValue(tv *TypedValue) error {
+	// XXX: does this method make sense as there is no InterfaceValue?
 	panic("no implemented")
 }
 
-// XXX: The JSON representation of an Interface message uses the regular representation of
-// the deserialized, embedded message, with an additional field `@type` which
-// contains the type URL. If the embedded message type is well-known and has a
-// custom JSON representation, that representation will be embedded adding a
-// field `value` which holds the custom JSON in addition to the `@type` field.
-func (e decoder) unmarshalInterfaceValue(tv *TypedValue) error {
-	panic("no implemented")
+// XXX: unmarshalInterfaceValue, this is still experimental
+func (d decoder) unmarshalInterfaceValue(itv *TypedValue) error {
+	tok, err := d.Peek()
+	if err != nil {
+		return err
+	}
+
+	it := itv.T.(*InterfaceType)
+
+	// Try to guess type
+	switch tok.Kind() {
+	case json.Null:
+		d.Read()
+		return nil
+	case json.ArrayOpen:
+		if !it.IsEmptyInterface() {
+			return d.newError(tok.Pos(),
+				"unexpected token %v for interface %q", tok.Kind(), itv.T.String())
+		}
+
+		var tv TypedValue
+		at := &ArrayType{}
+		at.Elt = &InterfaceType{}
+		d.opts.Alloc.NewType(at)
+		if err := d.unmarshalArrayValue(&tv); err != nil {
+			return err
+		}
+		*itv = tv
+		return nil
+	case json.Number, json.Bool, json.String: // Scallar
+		if !it.IsEmptyInterface() {
+			return d.newError(tok.Pos(),
+				"unexpected token %v for interface %q", tok.Kind(), itv.T.String())
+		}
+
+		// Guess type for json token
+		var tv TypedValue
+		if tv.T, err = typeFromJSONToken(d.opts.Alloc, tok); err != nil {
+			return err
+		}
+
+		if err := d.unmarshalScallar(&tv); err != nil {
+			return err
+		}
+		*itv = tv
+		return nil
+	case json.ObjectOpen:
+		// XXX: we could allow;
+		// - RefValue {@type, value}
+		// - Anonymous Struct (?)
+	}
+
+	panic("no supported yet")
+}
+
+func typeFromJSONToken(alloc *Allocator, tok json.Token) (t Type, err error) {
+	switch tok.Kind() {
+	case json.Number:
+		if _, ok := tok.Int(64); ok {
+			t = alloc.NewType(IntType)
+		} else if _, ok := tok.Uint(64); ok {
+			t = alloc.NewType(UintType)
+		} else if _, ok := tok.Float(64); ok {
+			t = alloc.NewType(Float64Type)
+		} else {
+			return nil, fmt.Errorf("invalid number: %v", tok.RawString())
+		}
+	case json.Bool:
+		t = alloc.NewType(BoolType)
+	case json.String:
+		t = alloc.NewType(StringType)
+	case json.ObjectOpen:
+		t = alloc.NewType(&StructType{})
+	case json.ArrayOpen:
+		t = alloc.NewType(&ArrayType{})
+	case json.Null: // XXX: not sure about this one
+		t = alloc.NewType(&PointerType{})
+	}
+
+	if t == nil {
+		return nil, fmt.Errorf("invalid json token to type %q", tok.Kind().String())
+	}
+
+	return t, nil
 }
 
 var ErrRecursivePointer = errors.New(`recursive detected`)
@@ -697,6 +656,16 @@ func (e encoder) marshalPointerValue(tv *TypedValue) error {
 }
 
 func (d decoder) unmarshalPointerValue(tv *TypedValue) error {
+	// Check for null token first
+	tok, err := d.Peek()
+	if err != nil {
+		return err
+	}
+	if tok.Kind() == json.Null {
+		d.Read()
+		return nil
+	}
+
 	var eltv TypedValue
 	eltv.T = tv.T.(*PointerType).Elem()
 	if err := d.unmarshalValue(&eltv); err != nil {
@@ -761,10 +730,13 @@ func (d *decoder) unmarshalStructValue(tv *TypedValue) error {
 		return d.unexpectedTokenError(tok)
 	}
 
-	// Allocate and construct index field reference
+	// Allocate struct fields
 	fvs := d.opts.Alloc.NewStructFields(len(st.Fields))
+
+	// Contstruct fields reference, mainly to keep field ordered
 	mfvs := make(map[string]int)
 	for i, ft := range st.Fields {
+		fvs[i].T = ft.Type
 		name, _, err := getFieldName(ft)
 		if err != nil {
 			return err
@@ -796,8 +768,11 @@ func (d *decoder) unmarshalStructValue(tv *TypedValue) error {
 			return d.newError(tok.Pos(), "unknown field name %q", name)
 		}
 
+		// XXX: std json normaly allow to override a field. should we disallow this ?
+		// {"A": 0, "A": 1} <- currently field "A" would equal 1 in the end.
+		// mfvs[name] = -1
+
 		fv := &fvs[i]
-		fv.T = st.Fields[i].Type
 		if err := d.unmarshalValue(fv); err != nil {
 			return err
 		}
@@ -959,7 +934,7 @@ func (e encoder) marshalArrayValue(tv *TypedValue) {
 
 func (d decoder) unmarshalArrayValue(tv *TypedValue) error {
 	at := tv.T.(*ArrayType)
-	list := make([]TypedValue, 0, at.Len)
+	list := make([]TypedValue, tv.GetCapacity(), tv.GetLength())
 
 	// XXX: handle base64 []byte
 

@@ -190,17 +190,14 @@ type Interface struct {
 }
 `
 
-func TestTypedValueJSON_Struct(t *testing.T) {
+func TestTypedValueJSONMarshal_Struct(t *testing.T) {
 	cases := []struct {
-		ValueRep      string // s tring representation
+		GnoValue      string // s tring representation
 		Expected      string // string representation
 		ExpectedAmino string // string representation
 	}{
 		{
-			// NOTE: we have to set string value here because gno
-			// value have disinction between unset and empty string.
-			// Without this unmarshal would fail.
-			`Simple{B: ""}`,
+			`Simple{}`,
 			`{"A":0,"B":"","C":false}`,
 			`{"A":"0","B":"","C":false}`,
 		},
@@ -281,6 +278,9 @@ func TestTypedValueJSON_Struct(t *testing.T) {
 		// 	`{"valueA":"42","valueB":"hello gno","valueC":true}`,
 		// },
 
+		// Struct with unexported field
+		// {"Unexported", `{"A":"42"}`, `{"A":"42"}`},
+
 		// Struct with nested struct
 
 		// XXX(FIXME): Interface arn't supported yet, here is a preview
@@ -294,14 +294,14 @@ func TestTypedValueJSON_Struct(t *testing.T) {
 
 	for _, tc := range cases {
 		tc := tc
-		t.Run(tc.ValueRep, func(t *testing.T) {
+		t.Run(tc.GnoValue, func(t *testing.T) {
 			m := NewMachine(pkgpath, nil)
 			defer m.Release()
 
 			nn := MustParseFile("struct.gno", StructsFile)
 			m.RunFiles(nn)
 			nn = MustParseFile("testdata.gno",
-				fmt.Sprintf(`package testdata; var Value = %s`, tc.ValueRep))
+				fmt.Sprintf(`package testdata; var Value = %s`, tc.GnoValue))
 			m.RunFiles(nn)
 			m.RunDeclaration(ImportD("testdata", pkgpath))
 
@@ -309,24 +309,192 @@ func TestTypedValueJSON_Struct(t *testing.T) {
 			require.Len(t, tps, 1)
 			tv := tps[0]
 
+			t.Run("Marshal", func(t *testing.T) {
+				raw, err := tv.MarshalJSON()
+				require.NoError(t, err)
+				assert.Equal(t, tc.Expected, string(raw))
+			})
+
+			// t.Run("Unmarshal", func(t *testing.T) {
+			// 	err := amino.UnmarshalJSON([]byte(tc.ArgRep), mv)
+			// 	require.NoError(t, err)
+			// })
+
+		})
+	}
+}
+
+func TestTypedValueJSONUnmarshal_Struct(t *testing.T) {
+	cases := []struct {
+		GnoExpectedValue string // Expected value represation after unmarshal
+		JSONValue        string // json string representation
+		JSONAminoValue   string // json amino string representation
+	}{
+		{
+			`(*Simple)(nil)`,
+			`null`,
+			`null`,
+		},
+		{
+			`Simple{}`,
+			`{}`,
+			`{}`,
+		},
+		{
+			`Simple{A:0, B:"",C:false}`,
+			`{"A":0,"B":"","C":false}`,
+			`{"A":"0","B":"","C":false}`,
+		},
+		{
+			// Random postion
+			`Simple{A:42,B:"hello gno",C:true}`,
+			`{"C":true, "B":"hello gno", "A":42}`,
+			`{"C":true, "B":"hello gno", "A":"42"}`,
+		},
+
+		// Nested
+		{
+			`Nested{A:43,B: &Simple{A:42,B:"hello gno",C:true}}`,
+			`{"A":43,"B":{"A":42,"B":"hello gno","C":true}}`,
+			`{"A":"43","B":{"A":42,"B":"hello gno","C":true}}`,
+		},
+		{
+			`Nested{A:43,B: &Simple{}}`,
+			`{"A":43,"B":{}}`,
+			`{"A":"43","B":{}}`,
+		},
+		{
+			`Nested{A:43,B: nil}`,
+			`{"A":43, "B": null}`,
+			`{"A":"43", "B": null}`,
+		},
+		{
+			`Nested{A:43,B: nil}`,
+			`{"A":43}`,
+			`{"A":"43"}`,
+		},
+		{
+			`Nested{A:43,B: &Simple{A:42,B:"hello gno",C:true}}`,
+			`{"A":43,"B":{"A":42,"B":"hello gno","C":true}}`,
+			`{"A":"43","B":{"A":42,"B":"hello gno","C":true}}`,
+		},
+
+		// Tags
+		{
+			// Tags filled
+			`Tags{A:42, B:"hello gno",C:true,D:&Simple{B: ""}}`,
+			`{"valueA":42,"valueB":"hello gno","valueC":true,"valueD":{"A":0,"B":"","C":false}}`,
+			`{"valueA":"42","valueB":"hello gno","valueC":true,"valueD":{"A":0,"B":"","C":false}}`,
+		},
+		{
+			// Tags ommitempty
+			`Tags{A:0,B:"",C:false,D:nil}`,
+			`{"valueA":0,"valueB":""}`,
+			`{"valueA":0,"valueB":""}`,
+		},
+
+		// Interface
+		{
+			`Interface{A:42, I: nil}`,
+			`{"A":42,"I":null}`,
+			`{"A":"42","I":null}`,
+		},
+
+		{
+			`Interface{A:42, I: 43}`,
+			`{"A":42,"I":43}`,
+			`{"A":42,"I":43}`,
+		},
+
+		// {
+		// 	`Interface{A:42, I: &Simple{A: 42}}`,
+		// 	`{"A":42,"I":{"A":42,"B":"","C":false}}`,
+		// 	`{"A":"42","I":{"A":"42","B":"","C":false}}`,
+		// },
+
+		// Unexported
+		// {`Unexported{A:42}`, `{"A":42}`, `{"A":"42"}`},
+
+		// XXX: amino
+		// {
+		// 	`Simple{}`,
+		// 	`{"A":"0","B":"","C":false}`,
+		// },
+		// {
+		// 	`Simple{"A":"0","B":"","C":false}`,
+		// 	`{"A":"0","B":"","C":false}`,
+		// },
+		// {
+		// 	`Simple{"A":"42","B":"hello gno","C":true}`,
+		// 	`{"A":"42","B":"hello gno","C":true}`,
+		// },
+		// {
+		// 	`Tag{"A":"42","B":"hello gno","C":true}`,
+		// 	`{"valueA":"42","valueB":"hello gno","valueC":true}`,
+		// },
+
+		// Struct with unexported field
+		// {"Unexported", `{"A":"42"}`, `{"A":"42"}`},
+
+		// Struct with nested struct
+
+		// XXX(FIXME): Interface arn't supported yet, here is a preview
+		// on how it should works using proto like syntax
+		// {"Interface", `{"A": "42", "I": {"@type": "/gno.StringValue", "value": "Hello"}}`},
+	}
+	// m.RunDeclaration(ImportD("testdata", pkgpath))
+
+	// // Create TypedValue marshaler
+	// tvm := NewTypedValueMarshaler(nil)
+
+	// XXX: REMOVE ME, TESTING BLOCK
+	// m := NewMachine(pkgpath, nil)
+	// defer m.Release()
+
+	// nn := MustParseFile("struct.gno", StructsFile)
+	// m.RunFiles(nn)
+	// nn = MustParseFile("testdata.gno",
+	// 	fmt.Sprintf(`package testdata; var Value interface{} = 2`))
+	// m.RunFiles(nn)
+	// m.RunDeclaration(ImportD("testdata", pkgpath))
+
+	// tps := m.Eval(Sel(Nx("testdata"), "Value"))
+	// require.Len(t, tps, 1)
+	// val := tps[0]
+	// fmt.Printf("typ: %s val: %#v\n", val.T.String(), val)
+	// panic("stop")
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.GnoExpectedValue, func(t *testing.T) {
+			m := NewMachine(pkgpath, nil)
+			defer m.Release()
+
+			nn := MustParseFile("struct.gno", StructsFile)
+			m.RunFiles(nn)
+			nn = MustParseFile("testdata.gno",
+				fmt.Sprintf(`package testdata; var Value = %s`, tc.GnoExpectedValue))
+			m.RunFiles(nn)
+			m.RunDeclaration(ImportD("testdata", pkgpath))
+
+			tps := m.Eval(Sel(Nx("testdata"), "Value"))
+			require.Len(t, tps, 1)
+			expected := tps[0]
+
 			// t.Run("Marshal", func(t *testing.T) {
 			// 	raw, err := tv.MarshalJSON()
 			// 	require.NoError(t, err)
 			// 	assert.Equal(t, tc.Expected, string(raw))
 			// })
 
-			t.Run("Unmarshal", func(t *testing.T) {
-				var utv TypedValue
-				fmt.Println(tv.String())
-				// copy type
-				utv.T = tv.T
+			var utv TypedValue
+			// copy type
+			utv.T = expected.T
 
-				err := UnmarshalOptions{Store: m.Store}.
-					Unmarshal([]byte(tc.Expected), &utv)
-				require.NoError(t, err)
+			err := utv.UnmarshalJSON([]byte(tc.JSONValue))
+			require.NoError(t, err)
 
-				require.Equal(t, tv.String(), utv.String())
-			})
+			require.Equal(t, expected.String(), utv.String())
 
 			// t.Run("Unmarshal", func(t *testing.T) {
 			// 	err := amino.UnmarshalJSON([]byte(tc.ArgRep), mv)
