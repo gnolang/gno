@@ -3,7 +3,6 @@ package rpcserver
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -364,9 +363,14 @@ func httpParamsToArgs(rpcFunc *RPCFunc, r *http.Request) ([]reflect.Value, error
 			continue
 		}
 
-		// Handle base64 string
-		if decoded, err := base64.StdEncoding.DecodeString(arg); err == nil {
-			data, err := amino.MarshalJSON(decoded)
+		// Handle integer string by adding quotes to ensure it is treated as a JSON string
+		if reInt.Match([]byte(arg)) {
+			arg = fmt.Sprintf("%q", arg)
+		}
+
+		// Handle invalid JSON: ensure it's wrapped as a JSON-encoded string
+		if !json.Valid([]byte(arg)) {
+			data, err := amino.MarshalJSON(arg)
 			if err != nil {
 				return nil, errors.Wrap(err, "error marshaling argument to JSON")
 			}
@@ -374,11 +378,6 @@ func httpParamsToArgs(rpcFunc *RPCFunc, r *http.Request) ([]reflect.Value, error
 			paramsMap[argName] = data
 
 			continue
-		}
-
-		// Handle int string
-		if reInt.Match([]byte(arg)) {
-			arg = fmt.Sprintf("%q", arg)
 		}
 
 		// Default: treat the argument as a JSON raw message
