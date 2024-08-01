@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/shift_d4.gno:4:7: cannot convert BoolKind to Uint64Kind
+// main/files/types2/shift_d4.gno:4:7: cannot convert (const (false <untyped> bool)) to integer type

@@ -209,6 +209,7 @@ func checkSame(at, bt Type, msg string) error {
 }
 
 func assertAssignableTo(xt, dt Type, autoNative bool) {
+	fmt.Printf("---asssertAssignableTo, xt: %v, dt: %v \n", xt, dt)
 	err := checkAssignableTo(xt, dt, autoNative)
 	if err != nil {
 		panic(err.Error())
@@ -580,43 +581,6 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 		"cannot use %s as %s",
 		xt.String(),
 		dt.String()).Stacktrace()
-}
-
-// type_check for shift expr is a `delayed check`, it has two stages:
-// stage1. check on first encounter of a shift expr, if it asserts to be good, pass,
-// and if it has const on both side, evalConst, e.g. float32(1 << 4) is legal.
-// or if it fails assertion, e.g. uint64(1.0 << 1), tag it to be delayed, to be handled
-// on stage2.
-// stage2. when an untyped shift expr is used in somewhere, e.g. uint64(1.0 << 1),
-// uint64 is used as the potential type of this expr, so uint64(1.0 << 1) is a
-// valid representation.
-// so dt would be either the type of lhs or the type from outer context.
-// isFinal indicates whether it's first check or final check(this happens in checkOrConvertType)
-
-// XXX, is this logic only for this special case?
-func (bx *BinaryExpr) checkShiftExpr(store Store, last BlockNode, dt Type, isFinal bool) {
-	debug.Printf("---checkShiftExpr: dt: %v, isFinal: %t \n", dt, isFinal)
-	var destKind interface{}
-	if dt != nil {
-		destKind = dt.Kind()
-	}
-	if checker, ok := binaryChecker[bx.Op]; ok {
-		if !checker(dt) {
-			if !isFinal {
-				if dt != nil && dt.Kind() == BigdecKind {
-					if lcx, ok := bx.Left.(*ConstExpr); ok {
-						if _, ok := bx.Right.(*ConstExpr); ok {
-							convertConst(store, last, lcx, BigintType)
-							return
-						}
-					}
-				}
-			}
-			panic(fmt.Sprintf("operator %s not defined on: %v", wordTokenStrings[bx.Op], destKind))
-		}
-	} else {
-		panic("should not happen")
-	}
 }
 
 // ===========================================================

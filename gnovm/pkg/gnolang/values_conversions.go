@@ -14,7 +14,7 @@ import (
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
 func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
-	debug.Printf("---convertTo: tv: %v, t: %v \n", tv, t)
+	fmt.Printf("---convertTo: tv: %v, t: %v \n", tv, t)
 	defer func() {
 		debug.Printf("---after convert: tv: %v \n", tv)
 	}()
@@ -88,12 +88,6 @@ GNO_CASE:
 
 	// XXX, go does not do this, see: go.dev/issue/13061
 	if t.Kind() == InterfaceKind {
-		if tv.IsUndefined() && tv.T == nil { // if tv.T == nil, nil T and nil Value. not a nil interface
-			if _, ok := t.(*NativeType); !ok { // no support for native now
-				debug.Printf("t is interface and not native, t: %v \n", t)
-				tv.T = t
-			}
-		}
 		return
 	}
 	// special case for undefined/nil source

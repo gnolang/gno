@@ -117,16 +117,13 @@ func (m *Machine) doOpSlice() {
 		high = xv.GetLength()
 	}
 	// all low:high:max cases
-	var sv TypedValue
 	if max == -1 {
-		sv = xv.GetSlice(m.Alloc, low, high)
+		sv := xv.GetSlice(m.Alloc, low, high)
+		m.PushValue(sv)
 	} else {
-		sv = xv.GetSlice2(m.Alloc, low, high, max)
+		sv := xv.GetSlice2(m.Alloc, low, high, max)
+		m.PushValue(sv)
 	}
-	if isUntyped(sv.T) {
-		ConvertUntypedTo(&sv, defaultTypeOf(sv.T))
-	}
-	m.PushValue(sv)
 }
 
 // If the referred value is undefined, and the pointer

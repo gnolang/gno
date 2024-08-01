@@ -341,7 +341,7 @@ func go2GnoValue(alloc *Allocator, rv reflect.Value) (tv TypedValue) {
 	}
 	if rv.Kind() == reflect.Interface {
 		if rv.IsNil() {
-			return TypedValue{} // TODO: with type?
+			return TypedValue{}
 		} else {
 			rv = rv.Elem()
 		}
@@ -894,7 +894,6 @@ func gno2GoType(t Type) reflect.Type {
 // This is used for all native function calls, and also
 // for testing whether a native value implements a gno interface.
 func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
-	debug.Printf("---gno2GoTypeMatches, t: %v, rt: %v, type of t: %v \n", t, rt, reflect.TypeOf(t))
 	if rt == nil {
 		panic("should not happen")
 	}
@@ -910,9 +909,6 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 		case BoolType, UntypedBoolType:
 			return rt.Kind() == reflect.Bool
 		case StringType, UntypedStringType:
-			debug.Println("---string type")
-			debug.Println("---rt.Kind: ", rt.Kind())
-			debug.Println(rt.Kind() == reflect.String)
 			return rt.Kind() == reflect.String
 		case IntType:
 			return rt.Kind() == reflect.Int
@@ -964,7 +960,6 @@ func gno2GoTypeMatches(t Type, rt reflect.Type) (result bool) {
 		}
 		return gno2GoTypeMatches(ct.Elt, rt.Elem())
 	case *StructType:
-		//debug.Println("---struct type")
 		// TODO maybe consider automatically skipping private native fields?
 		for i, field := range ct.Fields {
 			rft := rt.Field(i).Type
@@ -1399,7 +1394,6 @@ func (m *Machine) doOpStructLitGoNative() {
 // NOTE: Unlike doOpCall(), doOpCallGoNative() also handles
 // conversions, similarly to doOpConvert().
 func (m *Machine) doOpCallGoNative() {
-	debug.Println("---doOpCallGoNative")
 	fr := m.LastFrame()
 	fv := fr.GoFunc
 	ft := fv.Value.Type()

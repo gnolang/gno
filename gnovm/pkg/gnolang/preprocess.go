@@ -1255,23 +1255,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						panic("type conversion requires single argument")
 					}
 					n.NumArgs = 1
-					var dt Type
 					ct := evalStaticType(store, last, n.Func)
 					at := evalStaticTypeOf(store, last, n.Args[0])
+					fmt.Printf("---at: %v, ct: %v \n", at, ct)
+					var constConverted bool
 					switch arg0 := n.Args[0].(type) {
 					case *ConstExpr:
-						debug.Println("---constExpr: ", arg0)
-						// check legal type for nil
-						if arg0.IsUndefined() {
-							switch ct.Kind() { // special case for nil conversion check. refer to 0f47a
-							case SliceKind, PointerKind, FuncKind, MapKind, InterfaceKind:
-								dt = ct // convert nil to typed-nil
-							default:
-								panic(fmt.Sprintf(
-									"cannot convert %v to %v",
-									arg0, ct.Kind()))
-							}
-						}
+						fmt.Println("---constExpr: ", arg0)
 						// As a special case, if a decimal cannot
 						// be represented as an integer, it cannot be converted to one,
 						// and the error is handled here.
@@ -1287,16 +1277,32 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										arg0))
 								}
 							}
+							if at != nil && at.Kind() == BoolKind {
+								panic(fmt.Sprintf(
+									"cannot convert %s to integer type",
+									arg0))
+							}
+							//checkOrConvertType(store, last, &n.Args[0], ct, true)
+							//assertAssignableTo(at, ct, false)
+							convertConst(store, last, arg0, ct)
+							constConverted = true
+						case SliceKind:
+							if ct.Elem().Kind() == Uint8Kind { // bypass []byte("xxx")
+								n.SetAttribute(ATTR_TYPEOF_VALUE, ct)
+								return n, TRANS_CONTINUE
+							}
 						}
 						// TODO: consider this, need check?
 						// (const) untyped decimal -> float64.
 						// (const) untyped bigint -> int.
-						convertConst(store, last, arg0, dt) // convert to default type if dt is nil
+						if !constConverted {
+							convertConst(store, last, arg0, nil)
+						}
 						// evaluate the new expression.
 						cx := evalConst(store, last, n)
 						// Though cx may be undefined if ct is interface,
 						// the ATTR_TYPEOF_VALUE is still interface.
-						cx.SetAttribute(ATTR_TYPEOF_VALUE, dt)
+						cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return cx, TRANS_CONTINUE
 					case *BinaryExpr: // special case to evaluate type of binaryExpr/UnaryExpr which has untyped shift nested
 						fmt.Println("---binary expr")
@@ -1304,7 +1310,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							fmt.Println("---untyped, at: ", at)
 							switch arg0.Op {
 							case EQL, NEQ, LSS, GTR, LEQ, GEQ:
-								assertAssignableTo(at, ct, true)
+								assertAssignableTo(at, ct, false)
 								break // quick forward
 							default:
 								checkOrConvertType(store, last, &n.Args[0], ct, false)
@@ -1349,6 +1355,29 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								args1 = Call(bsx, args1)
 								args1 = Preprocess(nil, last, args1).(Expr)
 								n.Args[1] = args1
+							}
+						} else {
+							var tx *constTypeExpr // array type expr, lazily initialized
+							// Another special case for append: adding untyped constants.
+							// They must be converted to the array type for consistency.
+							for i, arg := range n.Args[1:] {
+								if _, ok := arg.(*ConstExpr); !ok {
+									// Consider only constant expressions.
+									continue
+								}
+								if t1 := evalStaticTypeOf(store, last, arg); t1 != nil && !isUntyped(t1) {
+									// Consider only untyped values (including nil).
+									continue
+								}
+
+								if tx == nil {
+									// Get the array type from the first argument.
+									s0 := evalStaticTypeOf(store, last, n.Args[0])
+									tx = constType(arg, s0.Elem())
+								}
+								// Convert to the array type.
+								arg1 := Call(tx, arg)
+								n.Args[i+1] = Preprocess(nil, last, arg1).(Expr)
 							}
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "copy" {
@@ -1919,7 +1948,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 							// if rhs is untyped
 							if isUntyped(rt) {
+								//if bx, ok := n.Rhs[i].(*BinaryExpr); ok {
+								//	if bx.Op == SHL || bx.Op == SHR {
 								checkOrConvertType(store, last, &n.Rhs[i], nil, false)
+								//}
+								//}
 							}
 						}
 					}
@@ -2964,6 +2997,7 @@ func convertIfConst(store Store, last BlockNode, x Expr) {
 }
 
 func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
+	fmt.Println("---convertConst, cx: ", cx)
 	if t != nil && t.Kind() == InterfaceKind {
 		if cx.T != nil {
 			assertAssignableTo(cx.T, t, false)

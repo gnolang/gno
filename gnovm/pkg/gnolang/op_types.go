@@ -231,8 +231,6 @@ func (m *Machine) doOpStaticTypeOf() {
 		// NOTE: this code segment similar to that in op_types.go
 		var dxt Type
 		path := x.Path // mutable
-		debug.Printf("---SelectorExpr, path: %v \n", path)
-		debug.Printf("---SelectorExpr, path.Type: %v \n", path.Type)
 		switch path.Type {
 		case VPField:
 			switch path.Depth { // see tests/selector_test.go for cases.
@@ -299,15 +297,6 @@ func (m *Machine) doOpStaticTypeOf() {
 		}
 
 		switch path.Type {
-		case VPUverse:
-			println("---case match vpuverse")
-			switch path.Depth {
-			case 0:
-				println("---depth is 0")
-				dxt = xt
-			default:
-				panic("should not happen")
-			}
 		case VPBlock:
 			switch dxt.(type) {
 			case *PackageType:

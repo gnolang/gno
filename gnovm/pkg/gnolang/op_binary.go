@@ -94,12 +94,12 @@ func (m *Machine) doOpNeq() {
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
 
-	var res bool
 	if debug {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
 
-	res = !isEql(m.Store, lv, rv)
+	// set result in lv.
+	res := !isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
 	lv.V = nil
 	lv.SetBool(res)
@@ -336,7 +336,6 @@ func (m *Machine) doOpBandn() {
 
 // TODO: can be much faster.
 func isEql(store Store, lv, rv *TypedValue) bool {
-	debug.Printf("---isEql, lv: %v, rv: %v \n", lv, rv)
 	// If one is undefined, the other must be as well.
 	// Fields/items are set to defaultValue along the way.
 	lvu := lv.IsUndefined()
@@ -346,10 +345,6 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	} else if rvu {
 		return false
 	}
-	if err := checkSame(lv.T, rv.T, ""); err != nil {
-		return false
-	}
-	debug.Println("---assert to be same types")
 	if lnt, ok := lv.T.(*NativeType); ok {
 		if rnt, ok := rv.T.(*NativeType); ok {
 			if lnt.Type != rnt.Type {
@@ -462,7 +457,6 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				panic("function can only be compared with `nil`")
 			}
 		}
-
 		if _, ok := lv.V.(*BoundMethodValue); ok {
 			// BoundMethodValues are objects so just compare.
 			return lv.V == rv.V

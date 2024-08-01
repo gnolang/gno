@@ -49,6 +49,8 @@ func main() {
 //                 "ID": "gno.land/r/test.Node"
 //             }
 //         }
+//				 {},
+//				 {},
 //     ],
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:4",

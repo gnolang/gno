@@ -7,4 +7,4 @@ func main() {
 }
 
 // Output:
-// slice[(undefined) .uverse.error]
+// slice[(undefined)]
