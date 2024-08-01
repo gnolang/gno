@@ -215,6 +215,19 @@ func assertAssignableTo(xt, dt Type, autoNative bool) {
 	}
 }
 
+// TODO: check operands unary & binary expr are const
+func checkValConstType(d *ValueDecl) {
+	for _, vx := range d.Values {
+		switch vx.(type) {
+		case *BasicLitExpr, *BinaryExpr, *UnaryExpr:
+			// Valid constant expression
+			break
+		default:
+			panic("const type should be a basic type")
+		}
+	}
+}
+
 // checkValDefineMismatch checks for mismatch between the number of variables and values in a ValueDecl or AssignStmt.
 func checkValDefineMismatch(n Node) {
 	var (

@@ -461,6 +461,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					d := n.(Decl)
 					if cd, ok := d.(*ValueDecl); ok {
 						checkValDefineMismatch(cd)
+						if cd.Const {
+							checkValConstType(cd)
+						}
 					}
 					// recursively predefine dependencies.
 					d2, ppd := predefineNow(store, last, d)
