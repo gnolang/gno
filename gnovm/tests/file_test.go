@@ -137,7 +137,7 @@ func runFileTest(t *testing.T, path string, opts ...RunFileTestOption) {
 		logger = t.Log
 	}
 	rootDir := filepath.Join("..", "..")
-	err := RunFileTest(rootDir, path, append(opts, WithLoggerFunc(logger))...)
+	_, err := RunFileTest(rootDir, path, append(opts, WithLoggerFunc(logger))...)
 	if err != nil {
 		t.Fatalf("got error: %v", err)
 	}
