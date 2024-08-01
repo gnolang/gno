@@ -93,7 +93,6 @@ func (m *Machine) doOpNeq() {
 	// get right and left operands.
 	rv := m.PopValue()
 	lv := m.PeekValue(1) // also the result
-
 	if debug {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}

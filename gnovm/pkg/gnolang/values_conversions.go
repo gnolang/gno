@@ -79,16 +79,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 	}
 GNO_CASE:
 	// special case for interface target
-	// TODO: consider interface{}(nil)
-	// var a interface, a == 1
-	// seems the second case is not match with here
-	// the second case should be a empty interface
-	// that both type and data is nil, (0x00)
-	// look line 91
-	// is it specified for nil to typed-nil?
-	// that nil is different with undefined?
-
-	// XXX, go does not do this, see: go.dev/issue/13061
 	if t.Kind() == InterfaceKind {
 		return
 	}

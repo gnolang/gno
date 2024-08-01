@@ -1017,11 +1017,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					}
-					// if lt is typed, convert shift expr
-					//if !isUntyped(lt) {
-					//	debug.Println("---lt is typed, lt: ", lt)
-					//n.SetAttribute(ATTR_TYPEOF_VALUE, lt)
-					//}
 					return n, TRANS_CONTINUE
 				}
 
@@ -1240,7 +1235,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 			// TRANS_LEAVE -----------------------
 			case *CallExpr:
-				debug.Printf("---Trans_leave, CallExpr---: %v \n", n)
+				// debug.Printf("---Trans_leave, CallExpr---: %v \n", n)
 
 				// Func type evaluation.
 				var ft *FuncType
@@ -1261,7 +1256,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					var constConverted bool
 					switch arg0 := n.Args[0].(type) {
 					case *ConstExpr:
-						debug.Println("---constExpr: ", arg0)
+						// fmt.Println("---constExpr: ", arg0)
 						// As a special case, if a decimal cannot
 						// be represented as an integer, it cannot be converted to one,
 						// and the error is handled here.
@@ -1297,9 +1292,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						cx.SetAttribute(ATTR_TYPEOF_VALUE, ct)
 						return cx, TRANS_CONTINUE
 					case *BinaryExpr: // special case to evaluate type of binaryExpr/UnaryExpr which has untyped shift nested
-						debug.Println("---binary expr")
+						// fmt.Println("---binary expr")
 						if isUntyped(at) { // only when untyped, this is checked in checkOrConvertType too, but guard here
-							debug.Println("---untyped, at: ", at)
+							// fmt.Println("---untyped, at: ", at)
 							switch arg0.Op {
 							case EQL, NEQ, LSS, GTR, LEQ, GEQ:
 								assertAssignableTo(at, ct, false)
@@ -1308,10 +1303,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								checkOrConvertType(store, last, &n.Args[0], ct, false)
 							}
 						} else {
-							debug.Println("---it's typed")
+							// fmt.Println("---it's typed")
 						}
 					case *UnaryExpr:
-						debug.Println("---unary expr: ", arg0)
+						// fmt.Println("---unary expr: ", arg0)
 						if isUntyped(at) {
 							checkOrConvertType(store, last, &n.Args[0], ct, false)
 						} else {
@@ -1333,7 +1328,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				// Handle special cases.
 				// NOTE: these appear to be actually special cases in go.
-				// In general, a string is not checkAssignableTo to []bytes
+				// In general, a string is not assignable to []bytes
 				// without conversion.
 				if cx, ok := n.Func.(*ConstExpr); ok {
 					fv := cx.GetFunc()
@@ -1485,12 +1480,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					for i, tv := range argTVs {
 						if hasVarg {
 							if (len(spts) - 1) <= i {
-								checkAssignableTo(tv.T, spts[len(spts)-1].Type.Elem(), true)
+								assertAssignableTo(tv.T, spts[len(spts)-1].Type.Elem(), true)
 							} else {
-								checkAssignableTo(tv.T, spts[i].Type, true)
+								assertAssignableTo(tv.T, spts[i].Type, true)
 							}
 						} else {
-							checkAssignableTo(tv.T, spts[i].Type, true)
+							assertAssignableTo(tv.T, spts[i].Type, true)
 						}
 					}
 				} else {
@@ -2830,7 +2825,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 		}
 	} else if bx, ok := (*x).(*BinaryExpr); ok && (bx.Op == SHL || bx.Op == SHR) {
 		xt := evalStaticTypeOf(store, last, *x)
-		debug.Printf("shift, bx: %v, xt: %v, Op: %v, t: %v \n", bx, xt, bx.Op, t)
+		// debug.Printf("shift, bx: %v, xt: %v, Op: %v, t: %v \n", bx, xt, bx.Op, t)
 		if debug {
 			debug.Printf("shift, xt: %v, Op: %v, t: %v \n", xt, bx.Op, t)
 		}
@@ -2867,7 +2862,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 					// default:
 				}
 			} else if ux, ok := (*x).(*UnaryExpr); ok {
-				debug.Printf("unary expr: %v, Op: %v, t: %v \n", ux, ux.Op, t)
+				// debug.Printf("unary expr: %v, Op: %v, t: %v \n", ux, ux.Op, t)
 				xt := evalStaticTypeOf(store, last, *x)
 				if t == nil {
 					t = defaultTypeOf(xt)
@@ -2972,7 +2967,7 @@ func convertIfConst(store Store, last BlockNode, x Expr) {
 }
 
 func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
-	debug.Println("---convertConst, cx: ", cx)
+	// fmt.Println("---convertConst, cx, t: ", cx, t)
 	if t != nil && t.Kind() == InterfaceKind {
 		if cx.T != nil {
 			assertAssignableTo(cx.T, t, false)

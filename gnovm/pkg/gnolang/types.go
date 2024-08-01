@@ -2288,7 +2288,6 @@ func isDataByte(t Type) bool {
 // TODO move untyped const stuff to preprocess.go.
 // TODO associate with ConvertTo() in documentation.
 func defaultTypeOf(t Type) Type {
-	debug.Printf("---defaultTypeOf, t: %v \n", t)
 	switch t {
 	case UntypedBoolType:
 		return BoolType
@@ -2371,12 +2370,10 @@ func fillEmbeddedName(ft *FieldType) {
 
 // TODO: empty interface? refer to assertAssignableTo
 func IsImplementedBy(it Type, ot Type) bool {
-	debug.Printf("---IsImplementedBy, it: %v, ot: %v \n", it, ot)
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:
 		return cbt.IsImplementedBy(ot)
 	case *NativeType:
-		debug.Println("---native type")
 		return gno2GoTypeMatches(ot, cbt.Type)
 	default:
 		panic("should not happen")

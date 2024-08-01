@@ -1,12 +1,5 @@
 package main
 
-// 1. checkOrConvert is the core logic, to convert type(recursively if needed)
-// 2. shift expr might remain untyped, until reach its use context, assign, func Call, type call
-// 3. assign should be checked, LHS of assign has a type, use it to mutate RHS type if it's untyped;
-//    it's not coerced
-// 4. type call should be checked, it's coerced even RHS is typed.
-// 5. func call should be checked, it's not coerced.
-
 import "fmt"
 
 // case of const in type call
@@ -17,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/shift_c1.gno:14:11: cannot convert StringKind to UintKind
+// main/files/types2/shift_c1.gno:7:11: cannot convert StringKind to UintKind

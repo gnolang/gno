@@ -587,10 +587,10 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 func (x *BinaryExpr) checkShiftLhs(store Store, last BlockNode, dt Type, isFinal bool) {
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if !checker(dt) {
-			if dt != nil && dt.Kind() == BigdecKind {
+			if dt == UntypedBigdecType {
 				if lcx, ok := x.Left.(*ConstExpr); ok {
 					if _, ok := x.Right.(*ConstExpr); ok {
-						convertConst(store, last, lcx, BigintType)
+						convertConst(store, last, lcx, UntypedBigintType)
 						return
 					}
 				}
