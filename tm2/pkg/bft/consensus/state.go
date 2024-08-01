@@ -456,6 +456,9 @@ func (cs *ConsensusState) updateHeight(height int64) {
 }
 
 func (cs *ConsensusState) updateRoundStep(round int, step cstypes.RoundStepType) {
+	cs.mtx.Lock()
+	defer cs.mtx.Unlock()
+
 	cs.Round = round
 	cs.Step = step
 }
