@@ -22,9 +22,11 @@ import (
 type Exception struct {
 	// Value is the value passed to panic.
 	Value TypedValue
-	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
-	// currently executing deferred function is able to recover from the panic.
-	Frame *Frame
+	// FrameIndex is used to compare frame equality. This equality check is only ever used if
+	// the frames being compare have both not been popped yet.
+	FrameIndex int
+	// FramePopped is set to true when the frame where the exception occurred has been popped.
+	FramePopped bool
 }
 
 func (e Exception) Sprint(m *Machine) string {
@@ -43,7 +45,7 @@ type Machine struct {
 	Exprs      []Expr        // pending expressions
 	Stmts      []Stmt        // pending statements
 	Blocks     []*Block      // block (scope) stack
-	Frames     []*Frame      // func call stack
+	Frames     []Frame       // func call stack
 	Package    *PackageValue // active package
 	Realm      *Realm        // active realm
 	Alloc      *Allocator    // memory allocations
@@ -1753,7 +1755,7 @@ func (m *Machine) LastBlock() *Block {
 // Pushes a frame with one less statement.
 func (m *Machine) PushFrameBasic(s Stmt) {
 	label := s.GetLabel()
-	fr := &Frame{
+	fr := Frame{
 		Label:     label,
 		Source:    s,
 		NumOps:    m.NumOps,
@@ -1772,7 +1774,7 @@ func (m *Machine) PushFrameBasic(s Stmt) {
 // ensure the counts are consistent, otherwise we mask
 // bugs with frame pops.
 func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
-	fr := &Frame{
+	fr := Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
 		NumValues:   m.NumValues - cx.NumArgs - 1,
@@ -1824,7 +1826,7 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 }
 
 func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
-	fr := &Frame{
+	fr := Frame{
 		Source:      cx,
 		NumOps:      m.NumOps,
 		NumValues:   m.NumValues - cx.NumArgs - 1,
@@ -1850,17 +1852,27 @@ func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
 func (m *Machine) PopFrame() Frame {
 	numFrames := len(m.Frames)
 	f := m.Frames[numFrames-1]
-	f.Popped = true
+
+	if len(m.Exceptions) != 0 {
+		// If there are exceptions, check if any exceptions reference this
+		// frame index. If one does, mark it as popped.
+		for i := len(m.Exceptions) - 1; i >= 0; i-- {
+			if m.Exceptions[i].FrameIndex == numFrames-1 {
+				m.Exceptions[i].FramePopped = true
+				break
+			}
+		}
+	}
+
 	if debug {
 		m.Printf("-F %#v\n", f)
 	}
 	m.Frames = m.Frames[:numFrames-1]
-	return *f
+	return f
 }
 
 func (m *Machine) PopFrameAndReset() {
 	fr := m.PopFrame()
-	fr.Popped = true
 	m.NumOps = fr.NumOps
 	m.NumValues = fr.NumValues
 	m.Exprs = m.Exprs[:fr.NumExprs]
@@ -1872,7 +1884,6 @@ func (m *Machine) PopFrameAndReset() {
 // TODO: optimize by passing in last frame.
 func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
-	fr.Popped = true
 	if debug {
 		// TODO: optimize with fr.IsCall
 		if fr.Func == nil && fr.GoFunc == nil {
@@ -1928,33 +1939,49 @@ func (m *Machine) NumFrames() int {
 }
 
 func (m *Machine) LastFrame() *Frame {
-	return m.Frames[len(m.Frames)-1]
+	return &m.Frames[len(m.Frames)-1]
 }
 
 // MustLastCallFrame returns the last call frame with an offset of n. It panics if the frame is not found.
 func (m *Machine) MustLastCallFrame(n int) *Frame {
-	return m.lastCallFrame(n, true)
+	frame, _ := m.lastCallFrame(n, true)
+	return frame
 }
 
 // LastCallFrame behaves the same as MustLastCallFrame, but rather than panicking,
 // returns nil if the frame is not found.
 func (m *Machine) LastCallFrame(n int) *Frame {
-	return m.lastCallFrame(n, false)
+	frame, _ := m.lastCallFrame(n, false)
+	return frame
+}
+
+// MustLastCallFrameIndex returns the index of the last call frame. It
+// panics if no call frame is found.
+func (m *Machine) MustLastCallFrameIdx(n int) int {
+	_, idx := m.lastCallFrame(n, true)
+	return idx
+}
+
+// LastCallFrameIdx returns the index of the last call frame. If no
+// call frame is found, it returns -1.
+func (m *Machine) LastCallFrameIdx(n int) int {
+	_, idx := m.lastCallFrame(n, false)
+	return idx
 }
 
 // TODO: this function and PopUntilLastCallFrame() is used in conjunction
 // spanning two disjoint operations upon return. Optimize.
 // If n is 1, returns the immediately last call frame.
-func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
+func (m *Machine) lastCallFrame(n int, mustBeFound bool) (*Frame, int) {
 	if n == 0 {
 		panic("n must be positive")
 	}
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := m.Frames[i]
+		fr := &m.Frames[i]
 		if fr.Func != nil || fr.GoFunc != nil {
 			// TODO: optimize with fr.IsCall
 			if n == 1 {
-				return fr
+				return fr, i
 			} else {
 				n-- // continue
 			}
@@ -1965,27 +1992,35 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 		panic("frame not found")
 	}
 
-	return nil
+	return nil, -1
 }
 
 // pops the last non-call (loop) frames
 // and returns the last call frame (which is left on stack).
 func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
-		fr := m.Frames[i]
+		fr := &m.Frames[i]
 		if fr.Func != nil || fr.GoFunc != nil {
+			if len(m.Exceptions) != 0 {
+				for j := len(m.Exceptions) - 1; j >= 0; j-- {
+					if m.Exceptions[j].FrameIndex <= i {
+						// Exception frame indexes that aren't popped can't be greater
+						// that the current maximum frame index.
+						break
+					}
+
+					if m.Exceptions[j].FrameIndex > i {
+						// This exception has an index in the range of what is
+						// about to be popped so mark it as such.
+						m.Exceptions[j].FramePopped = true
+					}
+				}
+			}
+
 			// TODO: optimize with fr.IsCall
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}
-
-		fr.Popped = true
-	}
-
-	// No frames are popped, so revert all the frames' popped flag.
-	// This is expected to happen infrequently.
-	for _, frame := range m.Frames {
-		frame.Popped = false
 	}
 
 	return nil
@@ -2085,8 +2120,8 @@ func (m *Machine) Panic(ex TypedValue) {
 	m.Exceptions = append(
 		m.Exceptions,
 		Exception{
-			Value: ex,
-			Frame: m.MustLastCallFrame(1),
+			Value:      ex,
+			FrameIndex: m.MustLastCallFrameIdx(1),
 		},
 	)
 
