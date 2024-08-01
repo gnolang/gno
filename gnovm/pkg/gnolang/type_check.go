@@ -209,7 +209,7 @@ func checkSame(at, bt Type, msg string) error {
 }
 
 func assertAssignableTo(xt, dt Type, autoNative bool) {
-	fmt.Printf("---asssertAssignableTo, xt: %v, dt: %v \n", xt, dt)
+	debug.Printf("---asssertAssignableTo, xt: %v, dt: %v \n", xt, dt)
 	err := checkAssignableTo(xt, dt, autoNative)
 	if err != nil {
 		panic(err.Error())

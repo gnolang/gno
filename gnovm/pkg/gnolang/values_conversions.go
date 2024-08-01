@@ -14,7 +14,7 @@ import (
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
 func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
-	fmt.Printf("---convertTo: tv: %v, t: %v \n", tv, t)
+	// fmt.Printf("---convertTo: tv: %v, t: %v \n", tv, t)
 	defer func() {
 		debug.Printf("---after convert: tv: %v \n", tv)
 	}()
