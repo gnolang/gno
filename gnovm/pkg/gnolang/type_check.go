@@ -215,6 +215,7 @@ func assertAssignableTo(xt, dt Type, autoNative bool) {
 	}
 }
 
+// checkValConstType checks the type and values are valid for a ValueDecl of const.
 func checkValConstType(d *ValueDecl) {
 	if d.Type != nil {
 		switch d.Type.(type) {
@@ -225,23 +226,21 @@ func checkValConstType(d *ValueDecl) {
 		}
 	}
 	for _, vx := range d.Values {
-		isBasicExpr(vx)
+		checkValConstValues(vx)
 	}
 }
 
-// Function to validate an operand, which could be another expression
 // TODO: Verify the typed value linked to the expression is a constant
-func isBasicExpr(expr Expr) {
+// checkValConstValues validate an expr is valid as a value for a const
+func checkValConstValues(expr Expr) {
 	switch x := expr.(type) {
 	case *BasicLitExpr, *NameExpr:
-		// Valid, as basic literals are always constant
+		// Valid constant type expression, in case of NameExpr should evaluate if underlying type is a basic type
 	case *BinaryExpr:
-		// Recursively validate the operands of the binary expression
-		isBasicExpr(x.Left)
-		isBasicExpr(x.Right)
+		checkValConstValues(x.Left)
+		checkValConstValues(x.Right)
 	case *UnaryExpr:
-		// Recursively validate the operand of the unary expression
-		isBasicExpr(x.X)
+		checkValConstValues(x.X)
 	default:
 		panic("const values should be basic literals")
 	}
