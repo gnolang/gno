@@ -540,9 +540,9 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			switch r := r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
-			case gno.RealmUnhandledPanicException:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %s\nStacktrace: %s\n",
-					r.Descriptor, m.ExceptionsStacktrace())
+			case gno.UnhandledPanicError:
+				err = errors.Wrap(fmt.Errorf("%v", r.Error()), "VM call panic: %s\nStacktrace: %s\n",
+					r.Error(), m.ExceptionsStacktrace())
 			default:
 				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\nMachine State:%s\nStacktrace: %s\n",
 					r, m.String(), m.Stacktrace().String())

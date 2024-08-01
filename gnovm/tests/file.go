@@ -260,8 +260,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						errstr = v.Sprint(m)
 					case *gno.PreprocessError:
 						errstr = v.Unwrap().Error()
-					case gno.RealmUnhandledPanicException:
-						errstr = v.Descriptor
+					case gno.UnhandledPanicError:
+						errstr = v.Error()
 					default:
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
@@ -381,7 +381,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 					var stacktrace string
 
 					switch pnc.(type) {
-					case gno.RealmUnhandledPanicException:
+					case gno.UnhandledPanicError:
 						stacktrace = m.ExceptionsStacktrace()
 					default:
 						stacktrace = m.Stacktrace().String()

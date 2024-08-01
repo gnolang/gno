@@ -33,12 +33,12 @@ func (e Exception) Sprint(m *Machine) string {
 	return e.Value.Sprint(m)
 }
 
-// RealmUnhandledPanicException represents an error thrown when a panic is not handled in the realm.
-type RealmUnhandledPanicException struct {
+// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
+type UnhandledPanicError struct {
 	Descriptor string // Description of the unhandled panic.
 }
 
-func (e RealmUnhandledPanicException) String() string {
+func (e UnhandledPanicError) Error() string {
 	return e.Descriptor
 }
 
@@ -785,9 +785,9 @@ func (m *Machine) RunFunc(fn Name) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
-			case RealmUnhandledPanicException:
-				fmt.Printf("Machine.RunFunc(%q) panic: %v\nStacktrace: %s\n",
-					fn, r.Descriptor, m.ExceptionsStacktrace())
+			case UnhandledPanicError:
+				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace: %s\n",
+					fn, r.Error(), m.ExceptionsStacktrace())
 			default:
 				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace: %s\n",
 					fn, r, m.String(), m.Stacktrace().String())
@@ -802,9 +802,9 @@ func (m *Machine) RunMain() {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
-			case RealmUnhandledPanicException:
-				fmt.Printf("Machine.RunMain() panic: %v\nStacktrace: %s\n",
-					r.Descriptor, m.ExceptionsStacktrace())
+			case UnhandledPanicError:
+				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace: %s\n",
+					r.Error(), m.ExceptionsStacktrace())
 			default:
 				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace: %s\n",
 					r, m.String(), m.Stacktrace())

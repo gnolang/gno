@@ -427,7 +427,7 @@ func (m *Machine) doOpPanic2() {
 			for i, ex := range m.Exceptions {
 				exs[i] = ex.Sprint(m)
 			}
-			panic(RealmUnhandledPanicException{
+			panic(UnhandledPanicError{
 				Descriptor: strings.Join(exs, "\n\t"),
 			})
 		}

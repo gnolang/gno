@@ -61,7 +61,7 @@ func evalTest(debugAddr, in, file string) (out, err, stacktrace string) {
 	defer func() {
 		if r := recover(); r != nil {
 			switch r.(type) {
-			case gnolang.RealmUnhandledPanicException:
+			case gnolang.UnhandledPanicError:
 				stacktrace = m.ExceptionsStacktrace()
 			default:
 				stacktrace = m.Stacktrace().String()
