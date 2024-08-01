@@ -215,16 +215,35 @@ func assertAssignableTo(xt, dt Type, autoNative bool) {
 	}
 }
 
-// TODO: check operands unary & binary expr are const
 func checkValConstType(d *ValueDecl) {
-	for _, vx := range d.Values {
-		switch vx.(type) {
-		case *BasicLitExpr, *BinaryExpr, *UnaryExpr:
-			// Valid constant expression
-			break
+	if d.Type != nil {
+		switch d.Type.(type) {
+		case *BasicLitExpr, *NameExpr:
+			// Valid constant type expression, in case of NameExpr should evaluate if underlying type is a basic type
 		default:
 			panic("const type should be a basic type")
 		}
+	}
+	for _, vx := range d.Values {
+		isBasicExpr(vx)
+	}
+}
+
+// Function to validate an operand, which could be another expression
+// TODO: Verify the typed value linked to the expression is a constant
+func isBasicExpr(expr Expr) {
+	switch x := expr.(type) {
+	case *BasicLitExpr, *NameExpr:
+		// Valid, as basic literals are always constant
+	case *BinaryExpr:
+		// Recursively validate the operands of the binary expression
+		isBasicExpr(x.Left)
+		isBasicExpr(x.Right)
+	case *UnaryExpr:
+		// Recursively validate the operand of the unary expression
+		isBasicExpr(x.X)
+	default:
+		panic("const values should be basic literals")
 	}
 }
 
