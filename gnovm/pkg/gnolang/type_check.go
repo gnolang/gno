@@ -226,21 +226,21 @@ func checkValConstType(d *ValueDecl) {
 		}
 	}
 	for _, vx := range d.Values {
-		checkValConstValues(vx)
+		checkValConstValue(vx)
 	}
 }
 
 // TODO: Verify the typed value linked to the expression is a constant
-// checkValConstValues validate an expr is valid as a value for a const
-func checkValConstValues(expr Expr) {
+// checkValConstValue validate an expr is valid as a value for a const
+func checkValConstValue(expr Expr) {
 	switch x := expr.(type) {
 	case *BasicLitExpr, *NameExpr:
 		// Valid constant type expression, in case of NameExpr should evaluate if underlying type is a basic type
 	case *BinaryExpr:
-		checkValConstValues(x.Left)
-		checkValConstValues(x.Right)
+		checkValConstValue(x.Left)
+		checkValConstValue(x.Right)
 	case *UnaryExpr:
-		checkValConstValues(x.X)
+		checkValConstValue(x.X)
 	default:
 		panic("const values should be basic literals")
 	}
