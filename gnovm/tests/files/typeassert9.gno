@@ -17,4 +17,4 @@ func main() {
 }
 
 // Error:
-// interface conversion: interface is nil, not main.Writer
+// panic: interface conversion: interface is nil, not main.Writer

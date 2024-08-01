@@ -3,6 +3,7 @@ package gnolang
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -992,24 +993,11 @@ func UverseNode() *PackageNode {
 				return
 			}
 
-			// If the exception is out of scope, this recover can't help; return nil.
-			if m.PanicScope <= m.DeferPanicScope {
-				m.PushValue(TypedValue{})
-				return
-			}
-
 			exception := &m.Exceptions[len(m.Exceptions)-1]
 
-			// If the frame the exception occurred in is not popped, it's possible that
-			// the exception is still in scope and can be recovered.
-			if !exception.Frame.Popped {
-				// If the frame is not the current frame, the exception is not in scope; return nil.
-				// This retrieves the second most recent call frame because the first most recent
-				// is the call to recover itself.
-				if frame := m.LastCallFrame(2); frame == nil || (frame != nil && frame != exception.Frame) {
-					m.PushValue(TypedValue{})
-					return
-				}
+			if frame := m.LastCallFrame(3); !slices.Contains(exception.Frames, frame) {
+				m.PushValue(TypedValue{})
+				return
 			}
 
 			m.PushValue(exception.Value)

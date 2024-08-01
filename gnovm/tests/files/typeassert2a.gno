@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// interface conversion: interface is nil, not main.A
+// panic: interface conversion: interface is nil, not main.A

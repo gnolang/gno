@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// ahhhhh
+// panic: ahhhhh

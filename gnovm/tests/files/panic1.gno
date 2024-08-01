@@ -23,4 +23,4 @@ func main() {
 }
 
 // Error:
-// here
+// panic: here
