@@ -230,7 +230,6 @@ func checkValConstType(d *ValueDecl) {
 	}
 }
 
-// TODO: Verify the typed value linked to the expression is a constant
 // checkValConstValue validate an expr is valid as a value for a const
 func checkValConstValue(expr Expr) {
 	switch x := expr.(type) {
