@@ -240,6 +240,8 @@ func checkValConstValue(expr Expr) {
 		checkValConstValue(x.Right)
 	case *UnaryExpr:
 		checkValConstValue(x.X)
+	case *CallExpr:
+		checkValConstValue(x.Func)
 	default:
 		panic("const values should be basic literals")
 	}
