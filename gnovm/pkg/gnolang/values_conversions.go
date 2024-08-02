@@ -10,13 +10,10 @@ import (
 	"github.com/cockroachdb/apd/v3"
 )
 
-func assertConvertible() {}
-
 // t cannot be nil or untyped or DataByteType.
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
 func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
-	debug.Printf("---convertTo: tv: %v, t: %v \n", tv, t)
 	defer func() {
 		debug.Printf("---after convert: tv: %v \n", tv)
 	}()
@@ -888,7 +885,6 @@ GNO_CASE:
 // Panics if conversion is illegal.
 // TODO: method on TypedValue?
 func ConvertUntypedTo(tv *TypedValue, t Type) {
-	debug.Printf("---ConvertUntypedTo, tv: %v, t: %v \n", tv, t)
 	if debug {
 		defer func() {
 			debug.Printf("ConvertUntypedTo done, tv: %v \n", tv)
@@ -920,7 +916,6 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	}
 	// special case: native
 	if nt, ok := t.(*NativeType); ok {
-		debug.Println("---native")
 		// first convert untyped to typed gno value.
 		gnot := go2GnoBaseType(nt.Type)
 		if debug {
@@ -942,10 +937,8 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	if t == nil {
 		t = defaultTypeOf(tv.T)
 	}
-	debug.Println("---before switch")
 	switch tv.T {
 	case UntypedBoolType:
-		debug.Println("---t.Kind: ", t.Kind())
 		if debug {
 			if t.Kind() != BoolKind {
 				panic("untyped bool can only be converted to bool kind")

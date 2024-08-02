@@ -47,8 +47,8 @@ var (
 		MUL_ASSIGN:      isNumeric,
 		QUO_ASSIGN:      isNumeric,
 		REM_ASSIGN:      isIntNum,
-		SHL_ASSIGN:      isNumeric,
-		SHR_ASSIGN:      isNumeric,
+		SHL_ASSIGN:      isIntNum,
+		SHR_ASSIGN:      isIntNum,
 		BAND_ASSIGN:     isIntNum,
 		XOR_ASSIGN:      isIntNum,
 		BOR_ASSIGN:      isIntNum,
@@ -209,7 +209,6 @@ func checkSame(at, bt Type, msg string) error {
 }
 
 func assertAssignableTo(xt, dt Type, autoNative bool) {
-	debug.Printf("---asssertAssignableTo, xt: %v, dt: %v \n", xt, dt)
 	err := checkAssignableTo(xt, dt, autoNative)
 	if err != nil {
 		panic(err.Error())
@@ -586,22 +585,24 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 // ===========================================================
 func (x *BinaryExpr) checkShiftLhs(store Store, last BlockNode, dt Type, isFinal bool) {
 	if checker, ok := binaryChecker[x.Op]; ok {
-		if !checker(dt) {
-			if dt == UntypedBigdecType {
-				if lcx, ok := x.Left.(*ConstExpr); ok {
-					if _, ok := x.Right.(*ConstExpr); ok {
-						convertConst(store, last, lcx, UntypedBigintType)
-						return
-					}
-				}
-				// not both const
-				if !isFinal {
+		if checker(dt) {
+			return
+		}
+		// SHL, SHR
+		if dt == UntypedBigdecType {
+			// 1.0 << 1
+			if lcx, ok := x.Left.(*ConstExpr); ok {
+				if _, ok := x.Right.(*ConstExpr); ok {
+					convertConst(store, last, lcx, UntypedBigintType)
 					return
 				}
-			} else {
-				panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(dt)))
+			}
+			// not both const, e.g. 1.0 << x
+			if !isFinal {
+				return
 			}
 		}
+		panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(dt)))
 	} else {
 		panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 	}
