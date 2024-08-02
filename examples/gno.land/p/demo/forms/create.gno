@@ -23,7 +23,7 @@ type times struct {
 func parseDates(openAt string, closeAt string) (times, error) {
 	var openAtTime, closeAtTime *time.Time
 
-	dateFormat := "2006-01-02T15:04:05Z"
+	const dateFormat = "2006-01-02T15:04:05Z"
 
 	// Parse openAt if it's not empty
 	if openAt != "" {
