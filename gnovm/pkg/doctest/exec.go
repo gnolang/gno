@@ -32,6 +32,11 @@ const (
 	ASSERT       = "assert"       // Assert the result and expected output are equal
 )
 
+const (
+	goLang  = "go"
+	gnoLang = "gno"
+)
+
 // GetStdlibsDir returns the path to the standard libraries directory.
 func GetStdlibsDir() string {
 	_, filename, _, ok := runtime.Caller(0)
@@ -60,12 +65,12 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 	// Extract the actual language from the lang field
 	lang := strings.Split(c.lang, ",")[0]
 
-	if lang != "go" && lang != "gno" {
+	if lang != goLang && lang != gnoLang {
 		return fmt.Sprintf("SKIPPED (Unsupported language: %s)", lang), nil
 	}
 
-	if lang == "go" {
-		lang = "gno"
+	if lang == goLang {
+		lang = gnoLang
 	}
 
 	hashKey := hashCodeBlock(c)
@@ -111,16 +116,15 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 	acc := acck.NewAccountWithAddress(ctx, addr)
 	acck.SetAccount(ctx, acc)
 
-	coins := std.MustParseCoins("")
-	msg2 := vm.NewMsgRun(addr, coins, files)
+	msg2 := vm.NewMsgRun(addr, std.Coins{}, files)
 
 	res, err := vmk.Run(ctx, msg2)
-	if c.options.ShouldPanic != "" {
+	if c.options.PanicMessage != "" {
 		if err == nil {
-			return "", fmt.Errorf("expected panic with message: %s, but executed successfully", c.options.ShouldPanic)
+			return "", fmt.Errorf("expected panic with message: %s, but executed successfully", c.options.PanicMessage)
 		}
-		if !strings.Contains(err.Error(), c.options.ShouldPanic) {
-			return "", fmt.Errorf("expected panic with message: %s, but got: %s", c.options.ShouldPanic, err.Error())
+		if !strings.Contains(err.Error(), c.options.PanicMessage) {
+			return "", fmt.Errorf("expected panic with message: %s, but got: %s", c.options.PanicMessage, err.Error())
 		}
 		return fmt.Sprintf("panicked as expected: %v", err), nil
 	}

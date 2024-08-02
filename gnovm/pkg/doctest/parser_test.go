@@ -190,7 +190,7 @@ fmt.Println("  Indented")
 // Output:
 //   Indented
 `,
-			wantOutput: "  Indented",
+			wantOutput: "Indented",
 			wantError:  "",
 		},
 		{
@@ -247,9 +247,10 @@ func main() {
 
 func TestGenerateCodeBlockName(t *testing.T) {
 	tests := []struct {
-		name     string
-		content  string
-		expected string
+		name                 string
+		content              string
+		output               string
+		expectedGenerateName string
 	}{
 		{
 			name: "Simple print function",
@@ -262,7 +263,8 @@ func main() {
 // Output:
 // Hello, World!
 `,
-			expected: "Print_main_Hello, World!",
+			output:               "Hello, World!",
+			expectedGenerateName: "Print_main_Hello, World!",
 		},
 		{
 			name: "Explicitly named code block",
@@ -273,7 +275,8 @@ package main
 func main() {
 	println("specified")
 }`,
-			expected: "specified",
+			output:               "specified",
+			expectedGenerateName: "specified",
 		},
 		{
 			name: "Simple calculation",
@@ -292,7 +295,8 @@ func main() {
 // Output:
 // 78.53981633974483
 `,
-			expected: "Calc_math_calculateArea_78.53981633974483",
+			output:               "78.53981633974483",
+			expectedGenerateName: "Calc_calculateArea_78.53981633974483_math",
 		},
 		{
 			name: "Test function",
@@ -308,7 +312,7 @@ func TestSquareRoot(t *testing.T) {
     }
 }
 `,
-			expected: "Test_testing_TestSquareRoot",
+			expectedGenerateName: "Test_TestSquareRoot_testing",
 		},
 		{
 			name: "Multiple imports",
@@ -328,7 +332,8 @@ func main() {
 // 3.141592653589793
 // HELLO
 `,
-			expected: "Print_math_strings_main_3.141592653589793",
+			output:               "3.141592653589793\nHELLO",
+			expectedGenerateName: "Print_main_3.141592653589793_math_strings",
 		},
 		{
 			name: "No function",
@@ -337,15 +342,15 @@ package main
 
 var x = 5
 `,
-			expected: "x",
+			expectedGenerateName: "x",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := generateCodeBlockName(tt.content)
-			if result != tt.expected {
-				t.Errorf("generateCodeBlockName() = %v, want %v", result, tt.expected)
+			result := generateCodeBlockName(tt.content, tt.output)
+			if result != tt.expectedGenerateName {
+				t.Errorf("generateCodeBlockName() = %v, want %v", result, tt.expectedGenerateName)
 			}
 		})
 	}
@@ -356,37 +361,37 @@ func TestParseExecutionOptions(t *testing.T) {
 		name      string
 		language  string
 		firstLine string
-		want      ExecutionOption
+		want      ExecutionOptions
 	}{
 		{
 			name:      "No options",
 			language:  "go",
 			firstLine: "package main",
-			want:      ExecutionOption{},
+			want:      ExecutionOptions{},
 		},
 		{
 			name:      "Ignore option in language tag",
 			language:  "go,ignore",
 			firstLine: "package main",
-			want:      ExecutionOption{Ignore: true},
+			want:      ExecutionOptions{Ignore: true},
 		},
 		{
 			name:      "Should panic option in language tag",
 			language:  "go,should_panic",
 			firstLine: "package main",
-			want:      ExecutionOption{ShouldPanic: ""},
+			want:      ExecutionOptions{PanicMessage: ""},
 		},
 		{
 			name:      "Should panic with message in comment",
 			language:  "go,should_panic",
 			firstLine: "// @should_panic=\"division by zero\"",
-			want:      ExecutionOption{ShouldPanic: "division by zero"},
+			want:      ExecutionOptions{PanicMessage: "division by zero"},
 		},
 		{
 			name:      "Multiple options",
 			language:  "go,ignore,should_panic",
 			firstLine: "// @should_panic=\"runtime error\"",
-			want:      ExecutionOption{Ignore: true, ShouldPanic: "runtime error"},
+			want:      ExecutionOptions{Ignore: true, PanicMessage: "runtime error"},
 		},
 	}
 
@@ -441,12 +446,12 @@ func main() {
 	}
 
 	// Check the second block (should_panic)
-	if blocks[1].options.ShouldPanic != "runtime error: index out of range" {
-		t.Errorf("Expected second block to have ShouldPanic option set to 'runtime error: index out of range', got '%s'", blocks[1].options.ShouldPanic)
+	if blocks[1].options.PanicMessage != "runtime error: index out of range" {
+		t.Errorf("Expected second block to have ShouldPanic option set to 'runtime error: index out of range', got '%s'", blocks[1].options.PanicMessage)
 	}
 
 	// Check the third block (normal execution)
-	if blocks[2].options.Ignore || blocks[2].options.ShouldPanic != "" {
+	if blocks[2].options.Ignore || blocks[2].options.PanicMessage != "" {
 		t.Errorf("Expected third block to have no special options")
 	}
 }

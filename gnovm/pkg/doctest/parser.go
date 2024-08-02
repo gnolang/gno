@@ -1,6 +1,7 @@
 package doctest
 
 import (
+	"bufio"
 	"bytes"
 	"go/ast"
 	"go/parser"
@@ -23,7 +24,7 @@ type codeBlock struct {
 	expectedOutput string // The expected output of the code block.
 	expectedError  string // The expected error of the code block.
 	name           string // The name of the code block.
-	options        ExecutionOption
+	options        ExecutionOptions
 }
 
 // GetCodeBlocks parses the provided markdown text to extract all embedded code blocks.
@@ -38,7 +39,7 @@ func GetCodeBlocks(body string) []codeBlock {
 		if entering {
 			if cb, ok := n.(*mast.FencedCodeBlock); ok {
 				codeBlock := createCodeBlock(cb, body, len(codeBlocks))
-				codeBlock.name = generateCodeBlockName(codeBlock.content)
+				codeBlock.name = generateCodeBlockName(codeBlock.content, codeBlock.expectedOutput)
 				codeBlocks = append(codeBlocks, codeBlock)
 			}
 		}
@@ -142,9 +143,10 @@ func parseExpectedResults(content string) (string, string, error) {
 // If not found, it analyzes the code structure to create meaningful name.
 // The name is constructed based on the code's prefix (Test, Print or Calc),
 // imported packages, main identifier, and expected output.
-func generateCodeBlockName(content string) string {
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
+func generateCodeBlockName(content string, expectedOutput string) string {
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	for scanner.Scan() {
+		line := scanner.Text()
 		if strings.HasPrefix(strings.TrimSpace(line), "// @test:") {
 			return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "// @test:"))
 		}
@@ -158,7 +160,6 @@ func generateCodeBlockName(content string) string {
 
 	prefix := determinePrefix(f)
 	imports := extractImports(f)
-	expectedOutput, _, _ := parseExpectedResults(content)
 	mainIdentifier := extractMainIdentifier(f)
 
 	name := constructName(prefix, imports, expectedOutput, mainIdentifier)
@@ -191,34 +192,34 @@ func determinePrefix(f *ast.File) string {
 // containsPrintStmt checks if the given function declaration contains
 // any print or println statements.
 func containsPrintStmt(fn *ast.FuncDecl) bool {
-	var yes bool
+	var hasPrintStmt bool
 	ast.Inspect(fn, func(n ast.Node) bool {
 		if call, ok := n.(*ast.CallExpr); ok {
 			if ident, ok := call.Fun.(*ast.Ident); ok {
 				if ident.Name == "println" || ident.Name == "print" {
-					yes = true
+					hasPrintStmt = true
 					return false
 				}
 			}
 		}
 		return true
 	})
-	return yes
+	return hasPrintStmt
 }
 
 // containsCalculation checks if the given function declaration contains
 // any binary or unary expressions, which are indicative of calculations.
 func containsCalculation(fn *ast.FuncDecl) bool {
-	var yes bool
+	var hasCalcExpr bool
 	ast.Inspect(fn, func(n ast.Node) bool {
 		switch n.(type) {
 		case *ast.BinaryExpr, *ast.UnaryExpr:
-			yes = true
+			hasCalcExpr = true
 			return false
 		}
 		return true
 	})
-	return yes
+	return hasCalcExpr
 }
 
 // extractImports extracts the names of imported packages from the AST
@@ -229,11 +230,11 @@ func extractImports(f *ast.File) []string {
 	for _, imp := range f.Imports {
 		if imp.Name != nil {
 			imports = append(imports, imp.Name.Name)
-		} else {
-			path := strings.Trim(imp.Path.Value, `"`)
-			parts := strings.Split(path, "/")
-			imports = append(imports, parts[len(parts)-1])
+			continue
 		}
+		path := strings.Trim(imp.Path.Value, `"`)
+		parts := strings.Split(path, "/")
+		imports = append(imports, parts[len(parts)-1])
 	}
 	return imports
 }
@@ -271,9 +272,6 @@ func constructName(
 	if prefix != "" {
 		parts = append(parts, prefix)
 	}
-	if len(imports) > 0 {
-		parts = append(parts, strings.Join(imports, "_"))
-	}
 	if mainIdentifier != "" {
 		parts = append(parts, mainIdentifier)
 	}
@@ -284,6 +282,15 @@ func constructName(
 			outputPart = outputPart[:20] + "..."
 		}
 		parts = append(parts, outputPart)
+	}
+
+	// Add imports last, limiting to a certain number of characters
+	if len(imports) > 0 {
+		importString := strings.Join(imports, "_")
+		if len(importString) > 30 {
+			importString = importString[:30] + "..."
+		}
+		parts = append(parts, importString)
 	}
 
 	name := strings.Join(parts, "_")
@@ -297,9 +304,9 @@ func constructName(
 // generateFallbackName generates a default name for a code block when no other name could be determined.
 // It uses the first significant line of the code that is not a comment or package declaration.
 func generateFallbackName(content string) string {
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	for scanner.Scan() {
+		trimmed := strings.TrimSpace(scanner.Text())
 		if trimmed != "" && !strings.HasPrefix(trimmed, "//") && trimmed != "package main" {
 			if len(trimmed) > 20 {
 				return trimmed[:20] + "..."
@@ -313,12 +320,12 @@ func generateFallbackName(content string) string {
 //////////////////// Execution Options ////////////////////
 
 type ExecutionOptions struct {
-	Ignore      bool
-	ShouldPanic string
+	Ignore       bool
+	PanicMessage string
 	// TODO: add more options
 }
 
-func parseExecutionOptions(language string, firstLine []byte) ExecutionOption {
+func parseExecutionOptions(language string, firstLine []byte) ExecutionOptions {
 	var options ExecutionOptions
 
 	parts := strings.Split(language, ",")
@@ -327,19 +334,22 @@ func parseExecutionOptions(language string, firstLine []byte) ExecutionOption {
 		case "ignore":
 			options.Ignore = true
 		case "should_panic":
-			options.ShouldPanic = "" // specific panic message will be parsed later
+			// specific panic message will be parsed later
 		}
 	}
 
 	// parser options from the first line of the code block
 	if bytes.HasPrefix(firstLine, []byte("//")) {
+		// parse execution options from the first line of the code block
+		// e.g. // @should_panic="some panic message here"
+		//        |-option name-||-----option value-----|
 		re := regexp.MustCompile(`@(\w+)(?:="([^"]*)")?`)
 		matches := re.FindAllSubmatch(firstLine, -1)
 		for _, match := range matches {
 			switch string(match[1]) {
 			case "should_panic":
 				if match[2] != nil {
-					options.ShouldPanic = string(match[2])
+					options.PanicMessage = string(match[2])
 				}
 				// TODO: add more options
 			}

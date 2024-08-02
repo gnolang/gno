@@ -214,7 +214,7 @@ func main() {
 	panic("This should not execute")
 }`,
 				lang: "gno",
-				options: ExecutionOption{
+				options: ExecutionOptions{
 					Ignore: true,
 				},
 			},
@@ -230,8 +230,8 @@ func main() {
 	panic("Expected panic")
 }`,
 				lang: "gno",
-				options: ExecutionOption{
-					ShouldPanic: "Expected panic",
+				options: ExecutionOptions{
+					PanicMessage: "Expected panic",
 				},
 			},
 			expectedResult: "panicked as expected: Expected panic",
@@ -246,8 +246,8 @@ func main() {
 	println("No panic")
 }`,
 				lang: "gno",
-				options: ExecutionOption{
-					ShouldPanic: "Expected panic",
+				options: ExecutionOptions{
+					PanicMessage: "Expected panic",
 				},
 			},
 			expectError: true,
@@ -262,8 +262,8 @@ func main() {
 	panic("Specific error message")
 }`,
 				lang: "gno",
-				options: ExecutionOption{
-					ShouldPanic: "Specific error message",
+				options: ExecutionOptions{
+					PanicMessage: "Specific error message",
 				},
 			},
 			expectedResult: "panicked as expected: Specific error message",

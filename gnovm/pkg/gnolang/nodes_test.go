@@ -1,12 +1,12 @@
+package gnolang
+
 import (
 	"math"
-  "os"
+	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-
-  "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,12 +29,12 @@ func TestStaticBlock_Define2_MaxNames(t *testing.T) {
 		t.Errorf("expected panic when exceeding maximum number of names")
 	}()
 
-	staticBlock := new(gnolang.StaticBlock)
+	staticBlock := new(StaticBlock)
 	staticBlock.NumNames = math.MaxUint16 - 1
-	staticBlock.Names = make([]gnolang.Name, staticBlock.NumNames)
+	staticBlock.Names = make([]Name, staticBlock.NumNames)
 
 	// Adding one more is okay.
-	staticBlock.Define2(false, gnolang.Name("a"), gnolang.BoolType, gnolang.TypedValue{T: gnolang.BoolType})
+	staticBlock.Define2(false, Name("a"), BoolType, TypedValue{T: BoolType})
 	if staticBlock.NumNames != math.MaxUint16 {
 		t.Errorf("expected NumNames to be %d, got %d", math.MaxUint16, staticBlock.NumNames)
 	}
@@ -43,7 +43,7 @@ func TestStaticBlock_Define2_MaxNames(t *testing.T) {
 	}
 
 	// This one should panic because the maximum number of names has been reached.
-	staticBlock.Define2(false, gnolang.Name("a"), gnolang.BoolType, gnolang.TypedValue{T: gnolang.BoolType})
+	staticBlock.Define2(false, Name("a"), BoolType, TypedValue{T: BoolType})
 }
 
 func TestReadMemPackage(t *testing.T) {

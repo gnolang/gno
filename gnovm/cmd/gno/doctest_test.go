@@ -6,7 +6,6 @@ import (
 )
 
 func TestDoctest(t *testing.T) {
-	t.Skip("skipping test")
 	tempDir, err := os.MkdirTemp("", "doctest-test")
 	if err != nil {
 		t.Fatalf("failed to create temp directory: %v", err)

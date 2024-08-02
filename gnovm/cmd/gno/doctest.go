@@ -49,7 +49,7 @@ func (c *doctestCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 	fs.Duration(
 		"timeout",
-		c.timeout,
+		time.Second*30,
 		"timeout for code execution (e.g., 30s, 1m)",
 	)
 }
@@ -64,9 +64,6 @@ func execDoctest(cfg *doctestCfg, _ []string, io commands.IO) error {
 		return fmt.Errorf("failed to read markdown file: %w", err)
 	}
 
-	if cfg.timeout == 0 {
-		cfg.timeout = 30 * time.Second
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.timeout)
 	defer cancel()
 
