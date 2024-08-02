@@ -11,13 +11,13 @@ gno-forms is a package which demonstrates a form editing and sharing application
 ## Field Types
 The system supports the following field types:
 
-type|example
--|-
-string|`{"label": "Name", "fieldType": "string", "required": true}`
-number|`{"label": "Age", "fieldType": "number", "required": true}`
-boolean|`{"label": "Is Student?", "fieldType": "boolean", "required": false}`
-choice|`{"label": "Favorite Food", "fieldType": "[Pizza\|Schnitzel\|Burger]", "required": true}`
-multi-choice|`{"label": "Hobbies", "fieldType": "{Reading\|Swimming\|Gaming}", "required": false}`
+| type         | example                                                                                         |
+|--------------|-------------------------------------------------------------------------------------------------|
+| string       | `{"label": "Name", "fieldType": "string", "required": true}`                                    |
+| number       | `{"label": "Age", "fieldType": "number", "required": true}`                                     |
+| boolean      | `{"label": "Is Student?", "fieldType": "boolean", "required": false}`                           |
+| choice       | `{"label": "Favorite Food", "fieldType": "['Pizza', 'Schnitzel', 'Burger']", "required": true}` |
+| multi-choice | `{"label": "Hobbies", "fieldType": "{'Reading', 'Swimming', 'Gaming'}", "required": false}`     |
 
 ## Web-app
 
