@@ -201,7 +201,9 @@ func (vm *VMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
 }
 
 func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
-	return ctx.Value(gnoStoreContextKey).(gno.TransactionStore)
+	txStore := ctx.Value(gnoStoreContextKey).(gno.TransactionStore)
+	txStore.ClearObjectCache()
+	return txStore
 }
 
 // Namespace can be either a user or crypto address.

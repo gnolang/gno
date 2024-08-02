@@ -65,6 +65,7 @@ type Store interface {
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	IterMemPackage() <-chan *std.MemPackage
+	ClearObjectCache()
 	SetPackageInjector(PackageInjector)                   // for natives
 	SetNativeStore(NativeStore)                           // for "new" natives XXX
 	GetNative(pkgPath string, name Name) func(m *Machine) // for "new" natives XXX
@@ -207,6 +208,16 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 	return ds
 }
 
+// Unstable.
+// This function is used to clear the object cache every transaction.
+// It also sets a new allocator.
+func (ds *defaultStore) ClearObjectCache() {
+	ds.alloc.Reset()
+	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
+	ds.opslog = nil                             // new ops log.
+	ds.SetCachePackage(Uverse())
+}
+
 // If nil baseStore and iavlStore, the baseStores are re-used.
 func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) TransactionStore {
 	if baseStore == nil {
@@ -274,7 +285,7 @@ type transactionStore struct{ *defaultStore }
 
 func (t transactionStore) Write() { t.write() }
 
-// writes to parentStore.
+// writes to parentStore, prepares the transactional ds for a new execution.
 func (ds *defaultStore) write() {
 	ds.cacheTypes.write()
 	ds.cacheNodes.write()
