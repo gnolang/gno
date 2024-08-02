@@ -537,12 +537,15 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	m.SetActivePackage(mpv)
 	defer func() {
 		if r := recover(); r != nil {
-			switch r.(type) {
+			switch r := r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
+			case gno.UnhandledPanicError:
+				err = errors.Wrap(fmt.Errorf("%v", r.Error()), "VM call panic: %s\nStacktrace: %s\n",
+					r.Error(), m.ExceptionsStacktrace())
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
-					r, m.String())
+				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\nMachine State:%s\nStacktrace: %s\n",
+					r, m.String(), m.Stacktrace().String())
 				return
 			}
 		}
