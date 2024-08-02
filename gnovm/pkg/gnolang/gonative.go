@@ -785,7 +785,6 @@ func gno2GoType(t Type) reflect.Type {
 	} else if t == Float64Type {
 		return reflect.TypeOf(float64(0.0))
 	}
-
 	switch ct := baseOf(t).(type) {
 	case PrimitiveType:
 		switch ct {
