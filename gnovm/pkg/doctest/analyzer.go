@@ -61,10 +61,14 @@ func analyzeAndModifyCode(code string) (string, error) {
 		}
 	}
 
-	ensurePackageDeclaration(node)
-	if exist := ensureMainFunction(node); !exist {
+	if node.Name == nil {
+		node.Name = ast.NewIdent("main")
+	}
+
+	if !hasMainFunction(node) {
 		return "", fmt.Errorf("main function is missing")
 	}
+
 	updateImports(node)
 
 	src, err := codePrettier(fset, node)
@@ -75,17 +79,9 @@ func analyzeAndModifyCode(code string) (string, error) {
 	return src, nil
 }
 
-// ensurePackageDeclaration ensures the code block has a package declaration.
-// by adding a package main declaration if missing.
-func ensurePackageDeclaration(node *ast.File) {
-	if node.Name == nil {
-		node.Name = ast.NewIdent("main")
-	}
-}
-
-// ensureMainFunction checks if a main function exists in the AST.
+// hasMainFunction checks if a main function exists in the AST.
 // It returns an error if the main function is missing.
-func ensureMainFunction(node *ast.File) bool {
+func hasMainFunction(node *ast.File) bool {
 	for _, decl := range node.Decls {
 		if fn, isFn := decl.(*ast.FuncDecl); isFn && fn.Name.Name == "main" {
 			return true

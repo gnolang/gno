@@ -47,7 +47,8 @@ func (c *doctestCfg) RegisterFlags(fs *flag.FlagSet) {
 		"",
 		"pattern to match code block names",
 	)
-	fs.Duration(
+	fs.DurationVar(
+		&c.timeout,
 		"timeout",
 		time.Second*30,
 		"timeout for code execution (e.g., 30s, 1m)",

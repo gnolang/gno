@@ -3,6 +3,7 @@ package doctest
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -95,25 +96,13 @@ func parseExpectedResults(content string) (string, string, error) {
 
 	var outputs, errors []string
 
-	cleanSection := func(section string) string {
-		lines := strings.Split(section, "\n")
-		var cleanedLines []string
-		for _, line := range lines {
-			trimmedLine := strings.TrimSpace(strings.TrimPrefix(line, "//"))
-			if len(trimmedLine) > 0 && trimmedLine[0] == ' ' {
-				trimmedLine = trimmedLine[1:]
-			}
-			if trimmedLine != "" {
-				cleanedLines = append(cleanedLines, trimmedLine)
-			}
-		}
-		return strings.Join(cleanedLines, "\n")
-	}
-
 	outputMatches := outputRegex.FindAllStringSubmatch(content, -1)
 	for _, match := range outputMatches {
 		if len(match) > 1 {
-			cleaned := cleanSection(match[1])
+			cleaned, err := cleanSection(match[1])
+			if err != nil {
+				return "", "", err
+			}
 			if cleaned != "" {
 				outputs = append(outputs, cleaned)
 			}
@@ -123,7 +112,10 @@ func parseExpectedResults(content string) (string, string, error) {
 	errorMatches := errorRegex.FindAllStringSubmatch(content, -1)
 	for _, match := range errorMatches {
 		if len(match) > 1 {
-			cleaned := cleanSection(match[1])
+			cleaned, err := cleanSection(match[1])
+			if err != nil {
+				return "", "", err
+			}
 			if cleaned != "" {
 				errors = append(errors, cleaned)
 			}
@@ -134,6 +126,25 @@ func parseExpectedResults(content string) (string, string, error) {
 	expectedError := strings.Join(errors, "\n")
 
 	return expectedOutput, expectedError, nil
+}
+
+func cleanSection(section string) (string, error) {
+	scanner := bufio.NewScanner(strings.NewReader(section))
+	var cleanedLines []string
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(strings.TrimPrefix(scanner.Text(), "//"))
+		line = strings.TrimPrefix(line, " ")
+		if line != "" {
+			cleanedLines = append(cleanedLines, line)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", fmt.Errorf("failed to clean section: %v", err)
+	}
+
+	return strings.Join(cleanedLines, "\n"), nil
 }
 
 //////////////////// Auto-Name Generator ////////////////////

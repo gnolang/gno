@@ -224,9 +224,9 @@ func getCompiledRegex(pattern string) (*regexp.Regexp, error) {
 		return re, nil
 	}
 
-	compiledPattern := regexp.QuoteMeta(pattern)
-	compiledPattern = strings.ReplaceAll(compiledPattern, "\\*", ".*")
-	re, err := regexp.Compile(compiledPattern)
+	compiledPattern := regexp.QuoteMeta(pattern)                       // Escape all regex meta characters
+	compiledPattern = strings.ReplaceAll(compiledPattern, "\\*", ".*") // Replace escaped `*` with `.*` to match any character
+	re, err := regexp.Compile(compiledPattern)                         // Compile the converted pattern
 	if err != nil {
 		return nil, err
 	}
