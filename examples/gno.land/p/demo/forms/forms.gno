@@ -76,7 +76,8 @@ func (form *Form) IsOpen() bool {
 		return time.Now().After(openAt)
 	}
 
-	return time.Now().After(openAt) && time.Now().Before(closedAt)
+	now := time.Now()
+	return now.After(openAt) && now.Before(closedAt)
 }
 
 // OpenAt returns the open date of the form if it exists
