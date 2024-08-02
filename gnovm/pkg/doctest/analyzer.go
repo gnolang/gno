@@ -54,7 +54,7 @@ func analyzeAndModifyCode(code string) (string, error) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, "", code, parser.AllErrors)
 	if err != nil {
-		// append package main to the code and try to parse again
+		// Prepend package main to the code and try to parse again.
 		node, err = parser.ParseFile(fset, "", "package main\n"+code, parser.ParseComments)
 		if err != nil {
 			return "", fmt.Errorf("failed to parse code: %w", err)
