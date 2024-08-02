@@ -52,7 +52,7 @@ func GetCodeBlocks(body string) []codeBlock {
 func createCodeBlock(node *mast.FencedCodeBlock, body string, index int) codeBlock {
 	var buf bytes.Buffer
 	lines := node.Lines()
-	for i := 0; i < node.Lines().Len(); i++ {
+	for i := 0; i < lines.Len(); i++ {
 		line := lines.At(i)
 		buf.Write([]byte(body[line.Start:line.Stop]))
 	}
@@ -98,7 +98,7 @@ func parseExpectedResults(content string) (string, string, error) {
 		lines := strings.Split(section, "\n")
 		var cleanedLines []string
 		for _, line := range lines {
-			trimmedLine := strings.TrimPrefix(line, "//")
+			trimmedLine := strings.TrimSpace(strings.TrimPrefix(line, "//"))
 			if len(trimmedLine) > 0 && trimmedLine[0] == ' ' {
 				trimmedLine = trimmedLine[1:]
 			}
@@ -312,14 +312,14 @@ func generateFallbackName(content string) string {
 
 //////////////////// Execution Options ////////////////////
 
-type ExecutionOption struct {
+type ExecutionOptions struct {
 	Ignore      bool
 	ShouldPanic string
 	// TODO: add more options
 }
 
 func parseExecutionOptions(language string, firstLine []byte) ExecutionOption {
-	options := ExecutionOption{}
+	var options ExecutionOptions
 
 	parts := strings.Split(language, ",")
 	for _, option := range parts[1:] { // skip the first part which is the language
