@@ -13,4 +13,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/shift_d12.gno:12:2: operator >> not defined on: Float32Kind
+// main/files/types/shift_d12.gno:12:2: operator >> not defined on: Float32Kind

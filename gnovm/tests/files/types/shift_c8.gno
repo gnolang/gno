@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/shift_c8.gno:9:2: cannot use int as float32
+// main/files/types/shift_c8.gno:9:2: cannot use int as float32

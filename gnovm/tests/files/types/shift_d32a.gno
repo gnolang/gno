@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/types2/shift_d32a.gno:7:7: cannot convert untyped bigdec to integer -- 1.2 not an exact integer
+// main/files/types/shift_d32a.gno:7:7: cannot convert untyped bigdec to integer -- 1.2 not an exact integer
