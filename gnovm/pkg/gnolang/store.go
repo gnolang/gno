@@ -741,7 +741,7 @@ func (ds *defaultStore) incGetPackageIndexCounter() uint64 {
 func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
 	memPkg.Validate() // NOTE: duplicate validation.
 	ctr := ds.incGetPackageIndexCounter()
-	idxkey := []byte(backendPackageIndexKey(ctr))
+	idxkey := []byte(backendPackageIndexKey(int64(ctr)))
 	bz := amino.MustMarshal(memPkg)
 	ds.baseStore.Set(idxkey, []byte(memPkg.Path))
 	pathkey := []byte(backendPackagePathKey(memPkg.Path))
@@ -801,7 +801,7 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 		ch := make(chan *std.MemPackage, 0)
 		go func() {
 			for i := uint64(1); i <= uint64(ctr); i++ {
-				idxkey := []byte(backendPackageIndexKey(i))
+				idxkey := []byte(backendPackageIndexKey(int64(i)))
 				path := ds.baseStore.Get(idxkey)
 				if path == nil {
 					panic(fmt.Sprintf(
@@ -986,7 +986,7 @@ func backendPackageIndexCtrKey() string {
 	return fmt.Sprintf("pkgidx:counter")
 }
 
-func backendPackageIndexKey(index uint64) string {
+func backendPackageIndexKey(index int64) string {
 	return fmt.Sprintf("pkgidx:%020d", index)
 }
 

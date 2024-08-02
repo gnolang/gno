@@ -1234,7 +1234,7 @@ func copyValueWithRefs(val Value) Value {
 // fillTypes
 
 // (fully) fills the type.
-func fillType(store Store, typ Type) Type {
+func fillType(store TypeStore, typ Type) Type {
 	switch ct := typ.(type) {
 	case nil:
 		return nil
@@ -1317,14 +1317,14 @@ func fillType(store Store, typ Type) Type {
 	}
 }
 
-func fillTypesTV(store Store, tv *TypedValue) {
+func fillTypesTV(store ObjectTypeStore, tv *TypedValue) {
 	tv.T = fillType(store, tv.T)
 	tv.V = fillTypesOfValue(store, tv.V)
 }
 
 // Partially fills loaded objects shallowly, similarly to
 // getUnsavedTypes. Replaces all RefTypes with corresponding types.
-func fillTypesOfValue(store Store, val Value) Value {
+func fillTypesOfValue(store ObjectTypeStore, val Value) Value {
 	switch cv := val.(type) {
 	case nil: // do nothing
 		return cv
