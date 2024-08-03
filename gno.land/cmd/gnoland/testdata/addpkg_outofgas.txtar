@@ -17,7 +17,7 @@ gnokey maketx addpkg -pkgdir $WORK/foo -pkgpath gno.land/r/foo -gas-fee 1000000u
 stderr '--= Error =--'
 stderr 'Data: out of gas error'
 stderr 'Msg Traces:'
-stderr '    0  /Users/b/dev/gnoplay/gno/tm2/pkg/crypto/keys/client/maketx.go:215 - deliver transaction failed: log:out of gas, gasWanted: 60000, gasUsed: 60343 location: ReadFlat'
+stderr '    0  /home/runner/work/gno/gno/tm2/pkg/crypto/keys/client/maketx.go:215 - deliver transaction failed: log:out of gas, gasWanted: 60000, gasUsed: 60343 location: ReadFlat'
 stderr '--= /Error =--'
 
 
@@ -29,7 +29,7 @@ stderr '--= /Error =--'
 stderr '--= Error =--'
 stderr 'Data: out of gas error'
 stderr 'Msg Traces:'
-stderr '    0  /Users/b/dev/gnoplay/gno/tm2/pkg/crypto/keys/client/maketx.go:215 - deliver transaction failed: log:out of gas, gasWanted: 63000, gasUsed: 63363 location: ReadFlat'
+stderr '    0  /home/runner/work/gno/gno/tm2/pkg/crypto/keys/client/maketx.go:215 - deliver transaction failed: log:out of gas, gasWanted: 63000, gasUsed: 63363 location: ReadFlat'
 stderr '--= /Error =--'
 
 
