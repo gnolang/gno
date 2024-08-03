@@ -177,6 +177,18 @@ func constructConcreteType(cinfo *TypeInfo) (crv, irvSet reflect.Value) {
 	return
 }
 
+func typeDescription(rv reflect.Value) (rt reflect.Type) {
+	var twrm reflect.Value
+	if rv.CanAddr() {
+		twrm = rv.Addr().MethodByName("TypeDesc")
+	} else {
+		twrm = rv.MethodByName("TypeDesc")
+	}
+
+	uwouts := twrm.Call([]reflect.Value{})
+	return uwouts[0].Interface().(reflect.Type)
+}
+
 func toReprObject(rv reflect.Value) (rrv reflect.Value, err error) {
 	var mwrm reflect.Value
 	if rv.CanAddr() {
