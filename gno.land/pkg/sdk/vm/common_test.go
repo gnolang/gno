@@ -22,6 +22,7 @@ type testEnv struct {
 	vmk  *VMKeeper
 	bank bankm.BankKeeper
 	acck authm.AccountKeeper
+	vmh  vmHandler
 }
 
 func setupTestEnv() testEnv {
@@ -53,5 +54,5 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	vmk.Initialize(log.NewNoopLogger(), mcw, cacheStdlibs)
 	mcw.MultiWrite()
 
-	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}
+	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck, vmh: vmh}
 }
