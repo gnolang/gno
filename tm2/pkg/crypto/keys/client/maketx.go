@@ -24,6 +24,8 @@ type MakeTxCfg struct {
 	// Valid options are SimulateTest, SimulateSkip or SimulateOnly.
 	Simulate string
 	ChainID  string
+
+	Output string
 }
 
 // These are the valid options for MakeTxConfig.Simulate.
@@ -108,6 +110,13 @@ func (c *MakeTxCfg) RegisterFlags(fs *flag.FlagSet) {
 		"chainid",
 		"dev",
 		"chainid to sign for (only useful with --broadcast)",
+	)
+
+	fs.StringVar(
+		&c.Output,
+		"output",
+		"text",
+		"format of maketx's output",
 	)
 }
 
@@ -215,13 +224,20 @@ func ExecSignAndBroadcast(
 		return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 	}
 
-	io.Println(string(bres.DeliverTx.Data))
-	io.Println("OK!")
-	io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
-	io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
-	io.Println("HEIGHT:    ", bres.Height)
-	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
-	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+	switch cfg.Output {
+	case TEXT_FORMAT:
+		io.Println(string(bres.DeliverTx.Data))
+		io.Println("OK!")
+		io.Println("GAS WANTED:", bres.DeliverTx.GasWanted)
+		io.Println("GAS USED:  ", bres.DeliverTx.GasUsed)
+		io.Println("HEIGHT:    ", bres.Height)
+		io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+	case JSON_FORMAT:
+		io.Println(formatDeliverTxResponse(bres.DeliverTx, bres.Hash, bres.Height))
+	default:
+		return errors.New("Invalid output format")
+	}
 
 	return nil
 }

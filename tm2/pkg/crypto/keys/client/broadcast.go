@@ -26,6 +26,8 @@ type BroadcastCfg struct {
 	// If true, simulation is attempted but not printed;
 	// the result is only returned in case of an error.
 	testSimulate bool
+
+	Output string
 }
 
 func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -52,6 +54,13 @@ func (c *BroadcastCfg) RegisterFlags(fs *flag.FlagSet) {
 		"dry-run",
 		false,
 		"perform a dry-run broadcast",
+	)
+
+	fs.StringVar(
+		&c.Output,
+		"output",
+		TEXT_FORMAT,
+		"format of broadcast's output",
 	)
 }
 
@@ -82,7 +91,10 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 	} else if res.DeliverTx.IsErr() {
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
-	} else {
+	}
+
+	switch cfg.Output {
+	case TEXT_FORMAT:
 		io.Println(string(res.DeliverTx.Data))
 		io.Println("OK!")
 		io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
@@ -90,7 +102,12 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		io.Println("HEIGHT:    ", res.Height)
 		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+	case JSON_FORMAT:
+		io.Println(formatDeliverTxResponse(res.DeliverTx, res.Hash, res.Height))
+	default:
+		return errors.New("Invalid output format")
 	}
+
 	return nil
 }
 
