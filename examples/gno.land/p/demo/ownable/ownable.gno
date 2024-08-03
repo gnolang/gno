@@ -76,6 +76,10 @@ func (o Ownable) CallerIsOwner() error {
 	return ErrUnauthorized
 }
 
+func (o Ownable) Owner() std.Address {
+	return o.owner
+}
+
 func (o Ownable) AssertCallerIsOwner() {
 	if std.PrevRealm().Addr() != o.owner {
 		panic(ErrUnauthorized)
