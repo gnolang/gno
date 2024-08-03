@@ -126,6 +126,10 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 	}
 
 	if cfg.RootCfg.Broadcast {
+		if cfg.RootCfg.Client == nil {
+			return errors.New("rpcClient hasn't been initialized")
+		}
+
 		err := client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, cmdio)
 		if err != nil {
 			return err
