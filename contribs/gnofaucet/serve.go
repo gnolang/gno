@@ -12,6 +12,7 @@ import (
 	tm2Client "github.com/gnolang/faucet/client/http"
 	"github.com/gnolang/faucet/config"
 	"github.com/gnolang/faucet/estimate/static"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -20,7 +21,7 @@ import (
 )
 
 const (
-	defaultGasFee        = "1000000ugnot"
+	defaultGasFee        = "1000000" + ugnot.Denom
 	defaultGasWanted     = "100000"
 	defaultRemote        = "http://127.0.0.1:26657"
 	defaultListenAddress = "127.0.0.1:5050"
@@ -116,7 +117,7 @@ func (c *serveCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.maxSendAmount,
 		"max-send-amount",
-		"10000000ugnot",
+		ugnot.ValueString(10000000),
 		"the static max send amount (native currency)",
 	)
 
