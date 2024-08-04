@@ -37,48 +37,48 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 	
 	intWidth, werr := strconv.Atoi(cWidth)
 	if werr != nil {
-		return "", "not a valid integer representation for canvas width"
+		return "", "{error: not a valid integer representation for canvas width}"
 	}
 
 	intHeight, herr := strconv.Atoi(cWidth)
 	if herr != nil {
-		return "", "not a valid integer representation for canvas height"
+		return "", "{error: not a valid integer representation for canvas height}"
 	}
 
 	if totalAvailableBasicNFTs <= 50 {
 		if intHeight != 2 && intWidth != 2 {
-			return "", "invalid canvas width and height for under 50 available basic NFTs"
+			return "", "{error: invalid canvas width and height for under 50 available basic NFTs}"
 		}
 	} else if totalAvailableBasicNFTs > 50 && totalAvailableBasicNFTs <= 100 {
 		if intHeight != 3 && intWidth != 3 {
-			return "", "invalid canvas width and height for under 100 available basic NFTs"
+			return "", "error: invalid canvas width and height for under 100 available basic NFTs}"
 		}
 	} else if totalAvailableBasicNFTs > 100 && totalAvailableBasicNFTs <= 400 {
 		if intHeight != 4 && intWidth != 4 {
-			return "", "invalid canvas width and height for under 400 available basic NFTs"
+			return "", "{error: invalid canvas width and height for under 400 available basic NFTs}"
 		}
 	} else if totalAvailableBasicNFTs > 400 && totalAvailableBasicNFTs <= 600 {
 		if intHeight != 5 && intWidth != 5 {
-			return "", "invalid canvas width and height for under 600 available basic NFTs"
+			return "", "error: invalid canvas width and height for under 600 available basic NFTs}"
 		}
 	} else if totalAvailableBasicNFTs > 600 && totalAvailableBasicNFTs <= 800 {
 		if intHeight != 6 && intWidth != 6 {
-			return "", "invalid canvas width and height for under 800 available basic NFTs"
+			return "", "{error: invalid canvas width and height for under 800 available basic NFTs}"
 		}
 	} else if totalAvailableBasicNFTs > 800 && totalAvailableBasicNFTs <= 1000 {
 		if intHeight != 7 && intWidth != 7 {
-			return "", "invalid canvas width and height for under 800 available basic NFTs"
+			return "", "{error: invalid canvas width and height for under 800 available basic NFTs}"
 		}
 	} else if totalAvailableBasicNFTs > 1000 {
 		if intHeight != 8 && intWidth != 8 {
-			return "", "invalid canvas width and height for over 1000 available basic NFTs"
+			return "", "{error: invalid canvas width and height for over 1000 available basic NFTs}"
 		}
 	}
 
 	// check if any of the bTokenIds is listed in the marketplace
 	for _, tokenId := range bTokenIDs {
 		if err := IsBasicTokenIdListed(strconv.FormatInt(tokenId, 10)); err != nil {
-			return "", "one or more tokenIds are already listed"
+			return "", "{error: one or more tokenIds are already listed}"
 		}
 	}
 
@@ -91,7 +91,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 	for _, tokenId := range bTokenIDs {
 		metadata, err := GetTokenMetadata(strconv.FormatInt(tokenId, 10))
 		if err != nil {
-			return "", "error retrieving token metadata"
+			return "", "{error: error retrieving basic token metadata}"
 		}
 		bTokenMetadata = append(bTokenMetadata, metadata)
 
@@ -115,12 +115,12 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		} else if bTokenMetadata[0].gameLevel == "64" {
 			gridSize = 8
 		} else {
-			return "", "unsupported game level"
+			return "", "{error: unsupported game level}"
 		}
 
 		for _, metadata := range bTokenMetadata {
 			if metadata.airdropXPos != strconv.Itoa(expectedXPos) || metadata.airdropYPos != strconv.Itoa(expectedYPos) {
-				return "", "invalid XPos and YPos order for the airdropped NFTs"
+				return "", "{error: invalid XPos and YPos order for the airdropped NFTs}"
 			}
 
 			if expectedXPos == gridSize-1 {
@@ -131,7 +131,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 			}
 		}
 	} else if !allAirdropNamesIdentical {
-		return "", "you cannot use an airdropped NFT to build this"
+		return "", "{error: you cannot use an airdropped NFT to build this}"
 	}
 
 	count := FlipCompositeNFT.TokenCount()
@@ -150,7 +150,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		}
 		flipCompositeNFTMetaDataJSON, err := flipCompositeNFTMetaData.MarshalJSON()
 		if err != nil {
-			panic("error in marshaling flipCompositeNFTMetaData");
+			return "", "{error: error in marshaling flipCompositeNFTMetaData}";
 		}
 		
 		// iterate through the array and transfer the nft with tokenID to player
@@ -179,7 +179,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 	
 	createNFTResult, err := res.MarshalJSON()
 	if(err != nil){
-		panic("error in minting")
+		return "" , "{error: error in minting}"
 	}
 	return string(createNFTResult), nftError
 }
