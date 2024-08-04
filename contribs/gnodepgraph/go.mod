@@ -6,7 +6,10 @@ toolchain go1.22.4
 
 replace github.com/gnolang/gno => ../..
 
-require github.com/gnolang/gno v0.1.0-nightly.20240627
+require (
+	github.com/gnolang/gno v0.1.0-nightly.20240627
+	github.com/stretchr/testify v1.9.0
+)
 
 require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.3 // indirect
@@ -25,7 +28,6 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/xid v1.5.0 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
 	go.opentelemetry.io/otel v1.28.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.28.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.28.0 // indirect
