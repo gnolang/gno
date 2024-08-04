@@ -158,10 +158,10 @@ func (b *Blog) NewPost(publisher std.Address, slug, title, body, pubDate string,
 		CreatedAt: parsedTime,
 	}
 
-	return b.prepareAndSetPost(post)
+	return b.prepareAndSetPost(post, false)
 }
 
-func (b *Blog) prepareAndSetPost(post *Post) error {
+func (b *Blog) prepareAndSetPost(post *Post, edit bool) error {
 	post.Title = strings.TrimSpace(post.Title)
 	post.Body = strings.TrimSpace(post.Body)
 
@@ -181,13 +181,15 @@ func (b *Blog) prepareAndSetPost(post *Post) error {
 	trimmedTitleKey := getTitleKey(post.Title)
 	pubDateKey := getPublishedKey(post.CreatedAt)
 
-	// Cannot have two posts with same title key
-	if _, found := b.PostsAlphabetical.Get(trimmedTitleKey); found {
-		return ErrPostTitleExists
-	}
-	// Cannot have two posts with *exact* same timestamp
-	if _, found := b.PostsPublished.Get(pubDateKey); found {
-		return ErrPostPubDateExists
+	if !edit {
+		// Cannot have two posts with same title key
+		if _, found := b.PostsAlphabetical.Get(trimmedTitleKey); found {
+			return ErrPostTitleExists
+		}
+		// Cannot have two posts with *exact* same timestamp
+		if _, found := b.PostsPublished.Get(pubDateKey); found {
+			return ErrPostPubDateExists
+		}
 	}
 
 	// Store post under keys
@@ -248,7 +250,7 @@ func (p *Post) Update(title, body, publicationDate string, authors, tags []strin
 	}
 
 	p.CreatedAt = parsedTime
-	return p.Blog.prepareAndSetPost(p)
+	return p.Blog.prepareAndSetPost(p, true)
 }
 
 func (p *Post) AddComment(author std.Address, comment string) error {

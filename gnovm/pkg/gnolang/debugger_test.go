@@ -23,38 +23,54 @@ type writeNopCloser struct{ io.Writer }
 
 func (writeNopCloser) Close() error { return nil }
 
-func eval(debugAddr, in, file string) (string, string, error) {
-	out := bytes.NewBufferString("")
-	err := bytes.NewBufferString("")
+// TODO (Marc): move evalTest to gnovm/tests package and remove code duplicates
+func evalTest(debugAddr, in, file string) (out, err string) {
+	bout := bytes.NewBufferString("")
+	berr := bytes.NewBufferString("")
 	stdin := bytes.NewBufferString(in)
-	stdout := writeNopCloser{out}
-	stderr := writeNopCloser{err}
+	stdout := writeNopCloser{bout}
+	stderr := writeNopCloser{berr}
+	debug := in != "" || debugAddr != ""
+	mode := tests.ImportModeNativePreferred
+	if strings.HasSuffix(file, "_stdlibs.gno") {
+		mode = tests.ImportModeStdlibsPreferred
+	}
 
-	testStore := tests.TestStore(gnoenv.RootDir(), "", stdin, stdout, stderr, tests.ImportModeStdlibsPreferred)
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Sprintf("%v", r)
+		}
+		out = strings.TrimSpace(out)
+		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
+	}()
+
+	testStore := tests.TestStore(gnoenv.RootDir(), "../../tests/files", stdin, stdout, stderr, mode)
 
 	f := gnolang.MustReadFile(file)
 
 	m := gnolang.NewMachineWithOptions(gnolang.MachineOptions{
-		PkgPath:   string(f.PkgName),
-		Input:     stdin,
-		Output:    stdout,
-		Store:     testStore,
-		Debug:     true,
-		DebugAddr: debugAddr,
+		PkgPath: string(f.PkgName),
+		Input:   stdin,
+		Output:  stdout,
+		Store:   testStore,
+		Context: tests.TestContext(string(f.PkgName), nil),
+		Debug:   debug,
 	})
 
 	defer m.Release()
 
 	if debugAddr != "" {
-		if err := m.Debugger.Serve(debugAddr); err != nil {
-			return "", "", err
+		if e := m.Debugger.Serve(debugAddr); e != nil {
+			err = e.Error()
+			return
 		}
 	}
 
 	m.RunFiles(f)
 	ex, _ := gnolang.ParseExpr("main()")
 	m.Eval(ex)
-	return out.String(), err.String(), nil
+	out, err = bout.String(), berr.String()
+	return
 }
 
 func runDebugTest(t *testing.T, targetPath string, tests []dtest) {
@@ -62,10 +78,10 @@ func runDebugTest(t *testing.T, targetPath string, tests []dtest) {
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			out, err, _ := eval("", test.in, targetPath)
+			out, err := evalTest("", test.in, targetPath)
 			t.Log("in:", test.in, "out:", out, "err:", err)
 			if !strings.Contains(out, test.out) {
-				t.Errorf("result does not contain \"%s\", got \"%s\"", test.out, out)
+				t.Errorf("unexpected output\nwant\"%s\"\n  got \"%s\"", test.out, out)
 			}
 		})
 	}
@@ -77,13 +93,13 @@ func TestDebug(t *testing.T) {
 	cont2 := "break 21\ncontinue\n"
 
 	runDebugTest(t, debugTarget, []dtest{
-		{in: "", out: "Welcome to the Gnovm debugger. Type 'help' for list of commands."},
+		{in: "\n", out: "Welcome to the Gnovm debugger. Type 'help' for list of commands."},
 		{in: "help\n", out: "The following commands are available"},
 		{in: "h\n", out: "The following commands are available"},
 		{in: "help b\n", out: "Set a breakpoint."},
 		{in: "help zzz\n", out: "command not available"},
 		{in: "list " + debugTarget + ":1\n", out: "1: // This is a sample target"},
-		{in: "l 55\n", out: "42: }"},
+		{in: "l 55\n", out: "46: }"},
 		{in: "l xxx:0\n", out: "xxx: no such file or directory"},
 		{in: "l :xxx\n", out: `"xxx": invalid syntax`},
 		{in: brk, out: "Breakpoint 0 at main "},
@@ -101,14 +117,14 @@ func TestDebug(t *testing.T) {
 		{in: "p 'a'\n", out: "(97 int32)"},
 		{in: "p '界'\n", out: "(30028 int32)"},
 		{in: "p \"xxxx\"\n", out: `("xxxx" string)`},
-		{in: "si\n", out: "sample.gno:4"},
-		{in: "s\ns\n", out: "=>   33: 	num := 5"},
+		{in: "si\n", out: "sample.gno:14"},
+		{in: "s\ns\n", out: `=>   14: var global = "test"`},
 		{in: "s\n\n", out: "=>   33: 	num := 5"},
 		{in: "foo", out: "command not available: foo"},
 		{in: "\n\n", out: "dbg> "},
 		{in: "#\n", out: "dbg> "},
 		{in: "p foo", out: "Command failed: could not find symbol value for foo"},
-		{in: "b +7\nc\n", out: "=>   11:"},
+		{in: "b +7\nc\n", out: "=>   21: 	r := t.A[i]"},
 		{in: brk + "clear 0\n", out: "dbg> "},
 		{in: brk + "clear -1\n", out: "Command failed: invalid breakpoint id: -1"},
 		{in: brk + "clear\n", out: "dbg> "},
@@ -131,6 +147,7 @@ func TestDebug(t *testing.T) {
 		{in: "b 37\nc\np b\n", out: "(3 int)"},
 		{in: "b 27\nc\np b\n", out: `("!zero" string)`},
 		{in: "b 22\nc\np t.A[3]\n", out: "Command failed: slice index out of bounds: 3 (len=3)"},
+		{in: "b 43\nc\nc\np i\nd\n", out: "(1 int)"},
 	})
 
 	runDebugTest(t, "../../tests/files/a1.gno", []dtest{
@@ -154,7 +171,7 @@ func TestRemoteDebug(t *testing.T) {
 		retry int
 	)
 
-	go eval(debugAddress, "", debugTarget)
+	go evalTest(debugAddress, "", debugTarget)
 
 	for retry = 100; retry > 0; retry-- {
 		conn, err = net.Dial("tcp", debugAddress)
@@ -177,8 +194,9 @@ func TestRemoteDebug(t *testing.T) {
 }
 
 func TestRemoteError(t *testing.T) {
-	_, _, err := eval(":xxx", "", debugTarget)
-	if !strings.Contains(err.Error(), "tcp/xxx: unknown port") {
+	_, err := evalTest(":xxx", "", debugTarget)
+	t.Log("err:", err)
+	if !strings.Contains(err, "tcp/xxx: unknown port") {
 		t.Error(err)
 	}
 }

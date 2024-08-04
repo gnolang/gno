@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -103,13 +104,14 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 		"/grants":                  "/partners",
 		"/language":                "/gnolang",
 		"/getting-started":         "/start",
+		"/gophercon24":             "https://docs.gno.land",
 	}
 	for from, to := range redirects {
 		app.Router.Handle(from, handlerRedirect(logger, app, &cfg, to))
 	}
 	// realm routes
 	// NOTE: see rePathPart.
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt)$)?}", handlerRealmFile(logger, app, &cfg))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt|mod)$)?}", handlerRealmFile(logger, app, &cfg))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}", handlerRealmMain(logger, app, &cfg))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}:{querystr:.*}", handlerRealmRender(logger, app, &cfg))
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(logger, app, &cfg))
@@ -124,7 +126,7 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 
 	app.Router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.RequestURI
-		handleNotFound(app, &cfg, path, w, r)
+		handleNotFound(logger, app, &cfg, path, w, r)
 	})
 	return app
 }
@@ -450,12 +452,12 @@ func handlerStaticFile(logger *slog.Logger, app gotuna.App, cfg *Config) http.Ha
 		fpath := filepath.Clean(vars["path"])
 		f, err := fs.Open(fpath)
 		if os.IsNotExist(err) {
-			handleNotFound(app, cfg, fpath, w, r)
+			handleNotFound(logger, app, cfg, fpath, w, r)
 			return
 		}
 		stat, err := f.Stat()
 		if err != nil || stat.IsDir() {
-			handleNotFound(app, cfg, fpath, w, r)
+			handleNotFound(logger, app, cfg, fpath, w, r)
 			return
 		}
 
@@ -473,7 +475,7 @@ func handlerFavicon(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handl
 		fpath := "img/favicon.ico"
 		f, err := fs.Open(fpath)
 		if os.IsNotExist(err) {
-			handleNotFound(app, cfg, fpath, w, r)
+			handleNotFound(logger, app, cfg, fpath, w, r)
 			return
 		}
 		w.Header().Set("Content-Type", "image/x-icon")
@@ -482,11 +484,17 @@ func handlerFavicon(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handl
 	})
 }
 
-func handleNotFound(app gotuna.App, cfg *Config, path string, w http.ResponseWriter, r *http.Request) {
+func handleNotFound(logger *slog.Logger, app gotuna.App, cfg *Config, path string, w http.ResponseWriter, r *http.Request) {
+	// decode path for non-ascii characters
+	decodedPath, err := url.PathUnescape(path)
+	if err != nil {
+		logger.Error("failed to decode path", err)
+		decodedPath = path
+	}
 	w.WriteHeader(http.StatusNotFound)
 	app.NewTemplatingEngine().
 		Set("title", "Not found").
-		Set("path", path).
+		Set("path", decodedPath).
 		Set("Config", cfg).
 		Render(w, r, "404.html", "funcs.html")
 }
@@ -507,7 +515,7 @@ func pathOf(diruri string) string {
 	parts := strings.Split(diruri, "/")
 	if parts[0] == "gno.land" {
 		return "/" + strings.Join(parts[1:], "/")
-	} else {
-		panic(fmt.Sprintf("invalid dir-URI %q", diruri))
 	}
+
+	panic(fmt.Sprintf("invalid dir-URI %q", diruri))
 }
