@@ -36,6 +36,7 @@ func TestLoadOpcodesPackage(t *testing.T) {
 	// These are the functions used to benchmark the OpCode in the benchmarking contract.
 	// We call each to benchmark a group of OpCodes.
 	funcValues := []string{
+		"ExprOps",
 		"OpDecl",
 		"OpEvalInt",
 		"OpEvalFloat",
@@ -44,7 +45,6 @@ func TestLoadOpcodesPackage(t *testing.T) {
 		"OpDefer",
 		"OpUnary",
 		"OpBinary",
-		"ExprOps",
 		"OpLor",
 		"OpLand",
 		"OpPanic",

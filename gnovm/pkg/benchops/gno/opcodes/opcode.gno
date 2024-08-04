@@ -1,5 +1,184 @@
 package opcodes
 
+type foo struct {
+	i int
+}
+
+func (f foo) bark() {
+}
+
+type dog interface {
+	bark()
+}
+
+type foofighter struct {
+	f foo
+}
+
+/* func ExprOps()
+OpEval, [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
+OpEval, [(const (2 int))](const-type int)
+OpEval, (const-type int)
+OpEval, (const (2 int))
+OpArrayType, [(const (2 int))](const-type int)
+OpCompositeLit, [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
+OpEval, (const (0 int))
+OpEval, (const (1 int))
+OpArrayLit, [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
+OpDefine, a<VPBlock(1,0)> := [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
+OpExec, bodyStmt[0/0/1]=a2<VPBlock(1,1)> := [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
+OpEval, [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
+OpEval, [(const (2 int))](const-type int)
+OpEval, (const-type int)
+OpEval, (const (2 int))
+OpArrayType, [(const (2 int))](const-type int)
+OpCompositeLit, [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
+OpEval, (const (0 int))
+OpEval, (const (1 int))
+OpArrayLit, [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
+OpDefine, a2<VPBlock(1,1)> := [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
+OpExec, bodyStmt[0/0/2]=m<VPBlock(1,2)> := (const (make func(t type{},z ...interface{})( map[int]int)))(map[(const-type int)] (const-type int))
+OpEval, (const (make func(t type{},z ...interface{})( map[int]int)))(map[(const-type int)] (const-type int))
+OpEval, (const (make func(t type{},z ...interface{})( map[int]int)))
+OpEval, map[(const-type int)] (const-type int)
+OpEval, (const-type int)
+OpEval, (const-type int)
+OpMapType, (typeval{int} type{})
+OpPreCall, (const (make func(t type{},z ...interface{})( map[int]int)))(map[(const-type int)] (const-type int))
+OpCall, make
+OpCallNativeBody, make
+OpReturn, [FRAME FUNC:make RECV:(undefined) (1 args) 4/1/0/2/2 LASTPKG:gno.land/r/x/benchmark LASTRLM:Realm{Path:"gno.land/r/x/benchmark",Time:3}#707D4A13D8A59C3A9220761016E2B0AF5FFCBC5A]
+OpDefine, m<VPBlock(1,2)> := (const (make func(t type{},z ...interface{})( map[int]int)))(map[(const-type int)] (const-type int))
+OpExec, bodyStmt[0/0/3]=s<VPBlock(1,3)> := [](const-type int){(const (0 int)), (const (1 int)), (const (2 int)), (const (3 int)), (const (4 int)), (const (5 int)), (const (6 int)), (const (7 int)), (const (8 int)), (const (9 int))}
+OpEval, [](const-type int){(const (0 int)), (const (1 int)), (const (2 int)), (const (3 int)), (const (4 int)), (const (5 int)), (const (6 int)), (const (7 int)), (const (8 int)), (const (9 int))}
+OpEval, [](const-type int)
+OpEval, (const-type int)
+OpSliceType, [](const-type int)
+OpCompositeLit, [](const-type int){(const (0 int)), (const (1 int)), (const (2 int)), (const (3 int)), (const (4 int)), (const (5 int)), (const (6 int)), (const (7 int)), (const (8 int)), (const (9 int))}
+OpEval, (const (0 int))
+OpEval, (const (1 int))
+OpEval, (const (2 int))
+OpEval, (const (3 int))
+OpEval, (const (4 int))
+OpEval, (const (5 int))
+OpEval, (const (6 int))
+OpEval, (const (7 int))
+OpEval, (const (8 int))
+OpEval, (const (9 int))
+OpSliceLit, [](const-type int){(const (0 int)), (const (1 int)), (const (2 int)), (const (3 int)), (const (4 int)), (const (5 int)), (const (6 int)), (const (7 int)), (const (8 int)), (const (9 int))}
+OpDefine, s<VPBlock(1,3)> := [](const-type int){(const (0 int)), (const (1 int)), (const (2 int)), (const (3 int)), (const (4 int)), (const (5 int)), (const (6 int)), (const (7 int)), (const (8 int)), (const (9 int))}
+OpExec, bodyStmt[0/0/4]=s2<VPBlock(1,4)> := [](const-type int){(const (9 int)): (const (90 int))}
+OpEval, [](const-type int){(const (9 int)): (const (90 int))}
+OpEval, [](const-type int)
+OpEval, (const-type int)
+OpSliceType, [](const-type int)
+OpCompositeLit, [](const-type int){(const (9 int)): (const (90 int))}
+OpEval, (const (9 int))
+OpEval, (const (90 int))
+OpSliceLit2, [](const-type int){(const (9 int)): (const (90 int))}
+OpDefine, s2<VPBlock(1,4)> := [](const-type int){(const (9 int)): (const (90 int))}
+OpExec, bodyStmt[0/0/5]=f<VPBlock(1,5)> := foo<VPBlock(3,0)>{i<VPField(0,0,i)>: (const (1 int))}
+OpEval, foo<VPBlock(3,0)>{i<VPField(0,0,i)>: (const (1 int))}
+OpEval, foo<VPBlock(3,0)>
+OpCompositeLit, foo<VPBlock(3,0)>{i<VPField(0,0,i)>: (const (1 int))}
+OpEval, (const (1 int))
+OpStructLit, foo<VPBlock(3,0)>{i<VPField(0,0,i)>: (const (1 int))}
+OpDefine, f<VPBlock(1,5)> := foo<VPBlock(3,0)>{i<VPField(0,0,i)>: (const (1 int))}
+OpExec, bodyStmt[0/0/6]=ff<VPBlock(1,6)> := foofighter<VPBlock(3,2)>{f<VPField(0,0,f)>: f<VPBlock(1,5)>}
+OpEval, foofighter<VPBlock(3,2)>{f<VPField(0,0,f)>: f<VPBlock(1,5)>}
+OpEval, foofighter<VPBlock(3,2)>
+OpCompositeLit, foofighter<VPBlock(3,2)>{f<VPField(0,0,f)>: f<VPBlock(1,5)>}
+OpEval, f<VPBlock(1,5)>
+OpStructLit, foofighter<VPBlock(3,2)>{f<VPField(0,0,f)>: f<VPBlock(1,5)>}
+OpDefine, ff<VPBlock(1,6)> := foofighter<VPBlock(3,2)>{f<VPField(0,0,f)>: f<VPBlock(1,5)>}
+OpExec, bodyStmt[0/0/7]=b<VPBlock(1,7)> := a<VPBlock(1,0)>[(const (0 int))]
+OpEval, a<VPBlock(1,0)>[(const (0 int))]
+OpEval, a<VPBlock(1,0)>
+OpEval, (const (0 int))
+OpIndex1, (array[(0 int),(1 int)] [2]int)
+OpDefine, b<VPBlock(1,7)> := a<VPBlock(1,0)>[(const (0 int))]
+OpExec, bodyStmt[0/0/8]=b<VPBlock(1,7)>, _<VPBlock(0,0)> = m<VPBlock(1,2)>[(const (0 int))]
+OpEval, m<VPBlock(1,2)>[(const (0 int))]
+OpEval, m<VPBlock(1,2)>
+OpEval, (const (0 int))
+OpIndex2, (map{} map[int]int)
+OpAssgin, b<VPBlock(1,7)>, _<VPBlock(0,0)> = m<VPBlock(1,2)>[(const (0 int))]
+OpExec, bodyStmt[0/0/9]=b<VPBlock(1,7)> = f<VPBlock(1,5)>.i
+OpEval, f<VPBlock(1,5)>.i
+OpEval, f<VPBlock(1,5)>
+OpSelector, f<VPBlock(1,5)>.i
+OpAssgin, b<VPBlock(1,7)> = f<VPBlock(1,5)>.i
+OpExec, bodyStmt[0/0/10]=subs<VPBlock(1,8)> := s<VPBlock(1,3)>[(const (1 int)):(const (5 int)):(const (10 int))]
+OpEval, s<VPBlock(1,3)>[(const (1 int)):(const (5 int)):(const (10 int))]
+OpEval, s<VPBlock(1,3)>
+OpEval, (const (1 int))
+OpEval, (const (5 int))
+OpEval, (const (10 int))
+OpSlice, s<VPBlock(1,3)>[(const (1 int)):(const (5 int)):(const (10 int))]
+OpDefine, subs<VPBlock(1,8)> := s<VPBlock(1,3)>[(const (1 int)):(const (5 int)):(const (10 int))]
+OpExec, bodyStmt[0/0/11]=ptr<VPBlock(1,9)> := &(a2<VPBlock(1,1)>[(const (0 int))])
+OpEval, &(a2<VPBlock(1,1)>[(const (0 int))])
+OpEval, a2<VPBlock(1,1)>
+OpEval, (const (0 int))
+OpRef, &(a2<VPBlock(1,1)>[(const (0 int))])
+OpDefine, ptr<VPBlock(1,9)> := &(a2<VPBlock(1,1)>[(const (0 int))])
+OpExec, bodyStmt[0/0/12]=b<VPBlock(1,7)> = *(ptr<VPBlock(1,9)>)
+OpEval, *(ptr<VPBlock(1,9)>)
+OpEval, ptr<VPBlock(1,9)>
+OpStar, (&0x1400dfd25f0.(*int) *int)
+OpAssgin, b<VPBlock(1,7)> = *(ptr<VPBlock(1,9)>)
+OpExec, bodyStmt[0/0/13]=var d<VPBlock(1,10)> dog<VPBlock(3,1)>
+OpExec, var d<VPBlock(1,10)> dog<VPBlock(3,1)>
+OpEval, dog<VPBlock(3,1)>
+OpValueDecl, var d<VPBlock(1,10)> dog<VPBlock(3,1)>
+OpExec, bodyStmt[0/0/14]=d<VPBlock(1,10)> = f<VPBlock(1,5)>
+OpEval, f<VPBlock(1,5)>
+OpAssgin, d<VPBlock(1,10)> = f<VPBlock(1,5)>
+OpExec, bodyStmt[0/0/15]=f<VPBlock(1,5)> = d<VPBlock(1,10)>.(foo<VPBlock(3,0)>)
+OpEval, d<VPBlock(1,10)>.(foo<VPBlock(3,0)>)
+OpEval, d<VPBlock(1,10)>
+OpEval, foo<VPBlock(3,0)>
+OpTypeAssert1, concrete type (struct{(1 int)} gno.land/r/x/benchmark.foo)
+OpAssgin, f<VPBlock(1,5)> = d<VPBlock(1,10)>.(foo<VPBlock(3,0)>)
+OpExec, bodyStmt[0/0/16]=f<VPBlock(1,5)>, ok<VPBlock(1,11)> := d<VPBlock(1,10)>.(foo<VPBlock(3,0)>)
+OpEval, d<VPBlock(1,10)>.(foo<VPBlock(3,0)>)
+OpEval, d<VPBlock(1,10)>
+OpEval, foo<VPBlock(3,0)>
+OpTypeAssert2, concrete type (struct{(1 int)} gno.land/r/x/benchmark.foo)
+OpDefine, f<VPBlock(1,5)>, ok<VPBlock(1,11)> := d<VPBlock(1,10)>.(foo<VPBlock(3,0)>)
+OpExec, bodyStmt[0/0/17]=(end)
+OpExec, return
+OpReturnFromBlock, [FRAME FUNC:ExprOps RECV:(undefined) (0 args) 1/0/0/0/1 LASTPKG:main LASTRLM:Realm(nil)]
+OpHalt
+*/
+
+func ExprOps() {
+	a := [2]int{0, 1} // OpArrayLit
+
+	a2 := [...]int{0, 1}                     // same as [2]int
+	m := make(map[int]int)                   // OpMapLit
+	s := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9} // OpSliceLit
+
+	s2 := []int{9: 90}     // OpSliceLit2
+	f := foo{i: 1}         // OpStructLit
+	ff := foofighter{f: f} // OpCompositeLit
+
+	b := a[0]   // OpIndex1
+	b, _ = m[0] // OpIndex2
+	b = f.i     // OpSelector
+
+	subs := s[1:5:10] // OpSlice
+
+	ptr := &a2[0] // OpRef
+	b = *ptr      // OpStar
+
+	var d dog
+	d = f
+	f = d.(foo) // OpTypeAssert1 concrete type
+	//	 d = f.(d) // OpTypeAssert1 interface
+	f, ok := d.(foo) // OpTypeAssert2
+}
+
 /*
 func OpDecl()
 
@@ -460,185 +639,6 @@ func OpBinary() {
 	d = a >> 63
 	d = a & b
 	d = a &^ b
-}
-
-type foo struct {
-	i int
-}
-
-func (f foo) bark() {
-}
-
-type dog interface {
-	bark()
-}
-
-type foofighter struct {
-	f foo
-}
-
-/* func ExprOps()
-OpEval, [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
-OpEval, [(const (2 int))](const-type int)
-OpEval, (const-type int)
-OpEval, (const (2 int))
-OpArrayType, [(const (2 int))](const-type int)
-OpCompositeLit, [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
-OpEval, (const (0 int))
-OpEval, (const (1 int))
-OpArrayLit, [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
-OpDefine, a<VPBlock(1,0)> := [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
-OpExec, bodyStmt[0/0/1]=a2<VPBlock(1,1)> := [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
-OpEval, [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
-OpEval, [(const (2 int))](const-type int)
-OpEval, (const-type int)
-OpEval, (const (2 int))
-OpArrayType, [(const (2 int))](const-type int)
-OpCompositeLit, [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
-OpEval, (const (0 int))
-OpEval, (const (1 int))
-OpArrayLit, [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
-OpDefine, a2<VPBlock(1,1)> := [(const (2 int))](const-type int){(const (0 int)), (const (1 int))}
-OpExec, bodyStmt[0/0/2]=m<VPBlock(1,2)> := (const (make func(t type{},z ...interface{})( map[int]int)))(map[(const-type int)] (const-type int))
-OpEval, (const (make func(t type{},z ...interface{})( map[int]int)))(map[(const-type int)] (const-type int))
-OpEval, (const (make func(t type{},z ...interface{})( map[int]int)))
-OpEval, map[(const-type int)] (const-type int)
-OpEval, (const-type int)
-OpEval, (const-type int)
-OpMapType, (typeval{int} type{})
-OpPreCall, (const (make func(t type{},z ...interface{})( map[int]int)))(map[(const-type int)] (const-type int))
-OpCall, make
-OpCallNativeBody, make
-OpReturn, [FRAME FUNC:make RECV:(undefined) (1 args) 4/1/0/2/2 LASTPKG:gno.land/r/x/benchmark LASTRLM:Realm{Path:"gno.land/r/x/benchmark",Time:3}#707D4A13D8A59C3A9220761016E2B0AF5FFCBC5A]
-OpDefine, m<VPBlock(1,2)> := (const (make func(t type{},z ...interface{})( map[int]int)))(map[(const-type int)] (const-type int))
-OpExec, bodyStmt[0/0/3]=s<VPBlock(1,3)> := [](const-type int){(const (0 int)), (const (1 int)), (const (2 int)), (const (3 int)), (const (4 int)), (const (5 int)), (const (6 int)), (const (7 int)), (const (8 int)), (const (9 int))}
-OpEval, [](const-type int){(const (0 int)), (const (1 int)), (const (2 int)), (const (3 int)), (const (4 int)), (const (5 int)), (const (6 int)), (const (7 int)), (const (8 int)), (const (9 int))}
-OpEval, [](const-type int)
-OpEval, (const-type int)
-OpSliceType, [](const-type int)
-OpCompositeLit, [](const-type int){(const (0 int)), (const (1 int)), (const (2 int)), (const (3 int)), (const (4 int)), (const (5 int)), (const (6 int)), (const (7 int)), (const (8 int)), (const (9 int))}
-OpEval, (const (0 int))
-OpEval, (const (1 int))
-OpEval, (const (2 int))
-OpEval, (const (3 int))
-OpEval, (const (4 int))
-OpEval, (const (5 int))
-OpEval, (const (6 int))
-OpEval, (const (7 int))
-OpEval, (const (8 int))
-OpEval, (const (9 int))
-OpSliceLit, [](const-type int){(const (0 int)), (const (1 int)), (const (2 int)), (const (3 int)), (const (4 int)), (const (5 int)), (const (6 int)), (const (7 int)), (const (8 int)), (const (9 int))}
-OpDefine, s<VPBlock(1,3)> := [](const-type int){(const (0 int)), (const (1 int)), (const (2 int)), (const (3 int)), (const (4 int)), (const (5 int)), (const (6 int)), (const (7 int)), (const (8 int)), (const (9 int))}
-OpExec, bodyStmt[0/0/4]=s2<VPBlock(1,4)> := [](const-type int){(const (9 int)): (const (90 int))}
-OpEval, [](const-type int){(const (9 int)): (const (90 int))}
-OpEval, [](const-type int)
-OpEval, (const-type int)
-OpSliceType, [](const-type int)
-OpCompositeLit, [](const-type int){(const (9 int)): (const (90 int))}
-OpEval, (const (9 int))
-OpEval, (const (90 int))
-OpSliceLit2, [](const-type int){(const (9 int)): (const (90 int))}
-OpDefine, s2<VPBlock(1,4)> := [](const-type int){(const (9 int)): (const (90 int))}
-OpExec, bodyStmt[0/0/5]=f<VPBlock(1,5)> := foo<VPBlock(3,0)>{i<VPField(0,0,i)>: (const (1 int))}
-OpEval, foo<VPBlock(3,0)>{i<VPField(0,0,i)>: (const (1 int))}
-OpEval, foo<VPBlock(3,0)>
-OpCompositeLit, foo<VPBlock(3,0)>{i<VPField(0,0,i)>: (const (1 int))}
-OpEval, (const (1 int))
-OpStructLit, foo<VPBlock(3,0)>{i<VPField(0,0,i)>: (const (1 int))}
-OpDefine, f<VPBlock(1,5)> := foo<VPBlock(3,0)>{i<VPField(0,0,i)>: (const (1 int))}
-OpExec, bodyStmt[0/0/6]=ff<VPBlock(1,6)> := foofighter<VPBlock(3,2)>{f<VPField(0,0,f)>: f<VPBlock(1,5)>}
-OpEval, foofighter<VPBlock(3,2)>{f<VPField(0,0,f)>: f<VPBlock(1,5)>}
-OpEval, foofighter<VPBlock(3,2)>
-OpCompositeLit, foofighter<VPBlock(3,2)>{f<VPField(0,0,f)>: f<VPBlock(1,5)>}
-OpEval, f<VPBlock(1,5)>
-OpStructLit, foofighter<VPBlock(3,2)>{f<VPField(0,0,f)>: f<VPBlock(1,5)>}
-OpDefine, ff<VPBlock(1,6)> := foofighter<VPBlock(3,2)>{f<VPField(0,0,f)>: f<VPBlock(1,5)>}
-OpExec, bodyStmt[0/0/7]=b<VPBlock(1,7)> := a<VPBlock(1,0)>[(const (0 int))]
-OpEval, a<VPBlock(1,0)>[(const (0 int))]
-OpEval, a<VPBlock(1,0)>
-OpEval, (const (0 int))
-OpIndex1, (array[(0 int),(1 int)] [2]int)
-OpDefine, b<VPBlock(1,7)> := a<VPBlock(1,0)>[(const (0 int))]
-OpExec, bodyStmt[0/0/8]=b<VPBlock(1,7)>, _<VPBlock(0,0)> = m<VPBlock(1,2)>[(const (0 int))]
-OpEval, m<VPBlock(1,2)>[(const (0 int))]
-OpEval, m<VPBlock(1,2)>
-OpEval, (const (0 int))
-OpIndex2, (map{} map[int]int)
-OpAssgin, b<VPBlock(1,7)>, _<VPBlock(0,0)> = m<VPBlock(1,2)>[(const (0 int))]
-OpExec, bodyStmt[0/0/9]=b<VPBlock(1,7)> = f<VPBlock(1,5)>.i
-OpEval, f<VPBlock(1,5)>.i
-OpEval, f<VPBlock(1,5)>
-OpSelector, f<VPBlock(1,5)>.i
-OpAssgin, b<VPBlock(1,7)> = f<VPBlock(1,5)>.i
-OpExec, bodyStmt[0/0/10]=subs<VPBlock(1,8)> := s<VPBlock(1,3)>[(const (1 int)):(const (5 int)):(const (10 int))]
-OpEval, s<VPBlock(1,3)>[(const (1 int)):(const (5 int)):(const (10 int))]
-OpEval, s<VPBlock(1,3)>
-OpEval, (const (1 int))
-OpEval, (const (5 int))
-OpEval, (const (10 int))
-OpSlice, s<VPBlock(1,3)>[(const (1 int)):(const (5 int)):(const (10 int))]
-OpDefine, subs<VPBlock(1,8)> := s<VPBlock(1,3)>[(const (1 int)):(const (5 int)):(const (10 int))]
-OpExec, bodyStmt[0/0/11]=ptr<VPBlock(1,9)> := &(a2<VPBlock(1,1)>[(const (0 int))])
-OpEval, &(a2<VPBlock(1,1)>[(const (0 int))])
-OpEval, a2<VPBlock(1,1)>
-OpEval, (const (0 int))
-OpRef, &(a2<VPBlock(1,1)>[(const (0 int))])
-OpDefine, ptr<VPBlock(1,9)> := &(a2<VPBlock(1,1)>[(const (0 int))])
-OpExec, bodyStmt[0/0/12]=b<VPBlock(1,7)> = *(ptr<VPBlock(1,9)>)
-OpEval, *(ptr<VPBlock(1,9)>)
-OpEval, ptr<VPBlock(1,9)>
-OpStar, (&0x1400dfd25f0.(*int) *int)
-OpAssgin, b<VPBlock(1,7)> = *(ptr<VPBlock(1,9)>)
-OpExec, bodyStmt[0/0/13]=var d<VPBlock(1,10)> dog<VPBlock(3,1)>
-OpExec, var d<VPBlock(1,10)> dog<VPBlock(3,1)>
-OpEval, dog<VPBlock(3,1)>
-OpValueDecl, var d<VPBlock(1,10)> dog<VPBlock(3,1)>
-OpExec, bodyStmt[0/0/14]=d<VPBlock(1,10)> = f<VPBlock(1,5)>
-OpEval, f<VPBlock(1,5)>
-OpAssgin, d<VPBlock(1,10)> = f<VPBlock(1,5)>
-OpExec, bodyStmt[0/0/15]=f<VPBlock(1,5)> = d<VPBlock(1,10)>.(foo<VPBlock(3,0)>)
-OpEval, d<VPBlock(1,10)>.(foo<VPBlock(3,0)>)
-OpEval, d<VPBlock(1,10)>
-OpEval, foo<VPBlock(3,0)>
-OpTypeAssert1, concrete type (struct{(1 int)} gno.land/r/x/benchmark.foo)
-OpAssgin, f<VPBlock(1,5)> = d<VPBlock(1,10)>.(foo<VPBlock(3,0)>)
-OpExec, bodyStmt[0/0/16]=f<VPBlock(1,5)>, ok<VPBlock(1,11)> := d<VPBlock(1,10)>.(foo<VPBlock(3,0)>)
-OpEval, d<VPBlock(1,10)>.(foo<VPBlock(3,0)>)
-OpEval, d<VPBlock(1,10)>
-OpEval, foo<VPBlock(3,0)>
-OpTypeAssert2, concrete type (struct{(1 int)} gno.land/r/x/benchmark.foo)
-OpDefine, f<VPBlock(1,5)>, ok<VPBlock(1,11)> := d<VPBlock(1,10)>.(foo<VPBlock(3,0)>)
-OpExec, bodyStmt[0/0/17]=(end)
-OpExec, return
-OpReturnFromBlock, [FRAME FUNC:ExprOps RECV:(undefined) (0 args) 1/0/0/0/1 LASTPKG:main LASTRLM:Realm(nil)]
-OpHalt
-*/
-
-func ExprOps() {
-	a := [2]int{0, 1} // OpArrayLit
-
-	a2 := [...]int{0, 1}                     // same as [2]int
-	m := make(map[int]int)                   // OpMapLit
-	s := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9} // OpSliceLit
-
-	s2 := []int{9: 90}     // OpSliceLit2
-	f := foo{i: 1}         // OpStructLit
-	ff := foofighter{f: f} // OpCompositeLit
-
-	b := a[0]   // OpIndex1
-	b, _ = m[0] // OpIndex2
-	b = f.i     // OpSelector
-
-	subs := s[1:5:10] // OpSlice
-
-	ptr := &a2[0] // OpRef
-	b = *ptr      // OpStar
-
-	var d dog
-	d = f
-	f = d.(foo) // OpTypeAssert1 concrete type
-	//	 d = f.(d) // OpTypeAssert1 interface
-	f, ok := d.(foo) // OpTypeAssert2
 }
 
 /*
