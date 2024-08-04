@@ -41,6 +41,7 @@ func (*PackageValue) assertValue()     {}
 func (*NativeValue) assertValue()      {}
 func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
+func (*HeapItemValue) assertValue()    {}
 
 const (
 	nilStr       = "nil"
@@ -64,6 +65,7 @@ var (
 	_ Value = &NativeValue{}
 	_ Value = &Block{}
 	_ Value = RefValue{}
+	_ Value = &HeapItemValue{}
 )
 
 // ----------------------------------------
@@ -166,14 +168,20 @@ func (dbv DataByteValue) SetByte(b byte) {
 // Index is -1 for the shared "_" block var,
 // and -2 for (gno and native) map items.
 //
+// A pointer constructed via a &x{} composite lit expression or constructed via
+// new() or make() will have a virtual HeapItemValue as base.
+//
 // Allocation for PointerValue is not immediate,
 // as usually PointerValues are temporary for assignment
 // or binary operations. When a pointer is to be
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
+//
+// Since PointerValue is used internally for assignment etc,
+// it MUST stay minimal for computational efficiency.
 type PointerValue struct {
 	TV    *TypedValue // escape val if pointer to var.
-	Base  Value       // array/struct/block.
+	Base  Value       // array/struct/block, or heapitem.
 	Index int         // list/fields/values index, or -1 or -2 (see below).
 	Key   *TypedValue `json:",omitempty"` // for maps.
 }
@@ -184,7 +192,6 @@ const (
 	PointerIndexNative     = -3 // Base is *NativeValue.
 )
 
-/*
 func (pv *PointerValue) GetBase(store Store) Object {
 	switch cbase := pv.Base.(type) {
 	case nil:
@@ -196,10 +203,9 @@ func (pv *PointerValue) GetBase(store Store) Object {
 	case Object:
 		return cbase
 	default:
-		panic("should not happen")
+		panic(fmt.Sprintf("unexpected pointer base type %T", cbase))
 	}
 }
-*/
 
 // cu: convert untyped; pass false for const definitions
 // TODO: document as something that enables into-native assignment.
@@ -593,6 +599,15 @@ func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
 		return fv.body
 	}
 	return fv.body
+}
+
+func (fv *FuncValue) UpdateBodyFromSource() {
+	if fv.Source == nil {
+		panic(fmt.Sprintf(
+			"Source is missing for FuncValue %q",
+			fv.Name))
+	}
+	fv.body = fv.Source.GetBody()
 }
 
 func (fv *FuncValue) GetSource(store Store) BlockNode {
@@ -1494,6 +1509,88 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	return tv.V.(BigdecValue).V
 }
 
+// returns true if tv is zero
+func (tv *TypedValue) isZero() bool {
+	if tv.T == nil {
+		panic("type should not be nil")
+	}
+	switch tv.T.Kind() {
+	case IntKind:
+		v := tv.GetInt()
+		if v == 0 {
+			return true
+		}
+	case Int8Kind:
+		v := tv.GetInt8()
+		if v == 0 {
+			return true
+		}
+	case Int16Kind:
+		v := tv.GetInt16()
+		if v == 0 {
+			return true
+		}
+	case Int32Kind:
+		v := tv.GetInt32()
+		if v == 0 {
+			return true
+		}
+	case Int64Kind:
+		v := tv.GetInt64()
+		if v == 0 {
+			return true
+		}
+	case UintKind:
+		v := tv.GetUint()
+		if v == 0 {
+			return true
+		}
+	case Uint8Kind:
+		v := tv.GetUint8()
+		if v == 0 {
+			return true
+		}
+	case Uint16Kind:
+		v := tv.GetUint16()
+		if v == 0 {
+			return true
+		}
+	case Uint32Kind:
+		v := tv.GetUint32()
+		if v == 0 {
+			return true
+		}
+	case Uint64Kind:
+		v := tv.GetUint64()
+		if v == 0 {
+			return true
+		}
+	case Float32Kind:
+		v := tv.GetFloat32()
+		if v == 0 {
+			return true
+		}
+	case Float64Kind:
+		v := tv.GetFloat64()
+		if v == 0 {
+			return true
+		}
+	case BigintKind:
+		v := tv.GetBigInt()
+		if v.Sign() == 0 {
+			return true
+		}
+	case BigdecKind:
+		v := tv.GetBigDec()
+		if v.Sign() == 0 {
+			return true
+		}
+	default:
+		panic("not numeric")
+	}
+	return false
+}
+
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	// Special case when nil: has no separator.
 	if tv.T == nil {
@@ -1594,7 +1691,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 	}
 	*tv = tv2.Copy(alloc)
 	if cu && isUntyped(tv.T) {
-		ConvertUntypedTo(tv, defaultTypeOf(tv.T, tv.V))
+		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}
 }
 
@@ -2002,9 +2099,10 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		}
 	default:
 		panic(fmt.Sprintf(
-			"unexpected index base type %s (%v)",
+			"unexpected index base type %s (%v base %v)",
 			tv.T.String(),
-			reflect.TypeOf(tv.T)))
+			reflect.TypeOf(tv.T),
+			reflect.TypeOf(baseOf(tv.T))))
 	}
 }
 
@@ -2254,12 +2352,12 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 
 // TODO rename to BlockValue.
 type Block struct {
-	ObjectInfo // for closures
-	Source     BlockNode
-	Values     []TypedValue
-	Parent     Value
-	Blank      TypedValue // captures "_" // XXX remove and replace with global instance.
-	bodyStmt   bodyStmt   // XXX expose for persistence, not needed for MVP.
+	ObjectInfo
+	Source   BlockNode
+	Values   []TypedValue
+	Parent   Value
+	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
+	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
@@ -2419,6 +2517,15 @@ type RefValue struct {
 	Hash     ValueHash `json:",omitempty"`
 }
 
+// Base for a detached singleton (e.g. new(int) or &struct{})
+// Conceptually like a Block that holds one value.
+// NOTE: could be renamed to HeapItemBaseValue.
+// See also note in realm.go about auto-unwrapping.
+type HeapItemValue struct {
+	ObjectInfo
+	Value TypedValue
+}
+
 // ----------------------------------------
 
 func defaultStructFields(alloc *Allocator, st *StructType) []TypedValue {
@@ -2547,6 +2654,8 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			case *Block:
 				vpv := cb.GetPointerToInt(store, cv.Index)
 				cv.TV = vpv.TV // TODO optimize?
+			case *HeapItemValue:
+				cv.TV = &cb.Value
 			default:
 				panic("should not happen")
 			}

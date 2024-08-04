@@ -4,13 +4,13 @@
 
 ! stdout .+
 stderr 'panic: unknown import path foobarbaz \[recovered\]'
-stderr '	panic: gno.land/r/\w{8}/contract.gno:3: unknown import path foobarbaz'
+stderr '	panic: gno.land/r/\w{8}/contract.gno:3:1: unknown import path foobarbaz'
 
 ! gno test -v --with-native-fallback .
 
 ! stdout .+
 stderr 'panic: unknown import path foobarbaz \[recovered\]'
-stderr '	panic: gno.land/r/\w{8}/contract.gno:3: unknown import path foobarbaz'
+stderr '	panic: gno.land/r/\w{8}/contract.gno:3:1: unknown import path foobarbaz'
 
 -- contract.gno --
 package contract

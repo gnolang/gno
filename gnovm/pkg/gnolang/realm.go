@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"regexp"
 	"strings"
 
 	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
@@ -76,9 +75,16 @@ func PkgIDFromPkgPath(path string) PkgID {
 	return PkgID{HashBytes([]byte(path))}
 }
 
+// Returns the ObjectID of the PackageValue associated with path.
 func ObjectIDFromPkgPath(path string) ObjectID {
+	pkgID := PkgIDFromPkgPath(path)
+	return ObjectIDFromPkgID(pkgID)
+}
+
+// Returns the ObjectID of the PackageValue associated with pkgID.
+func ObjectIDFromPkgID(pkgID PkgID) ObjectID {
 	return ObjectID{
-		PkgID:   PkgIDFromPkgPath(path),
+		PkgID:   pkgID,
 		NewTime: 1, // by realm logic.
 	}
 }
@@ -154,6 +160,12 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if po.GetObjectID().PkgID != rlm.ID {
 		panic("cannot modify external-realm or non-realm object")
 	}
+
+	// XXX check if this boosts performance
+	// XXX with broad integration benchmarking.
+	// XXX if co == xo {
+	// XXX }
+
 	// From here on, po is real (not new-real).
 	// Updates to .newCreated/.newEscaped /.newDeleted made here. (first gen)
 	// More appends happen during FinalizeRealmTransactions(). (second+ gen)
@@ -734,18 +746,6 @@ func (rlm *Realm) saveObject(store Store, oo Object) {
 	if oid.IsZero() {
 		panic("unexpected zero object id")
 	}
-	/* XXX DELETE
-	// ensure all types were already saved (@ preprocessor).
-	if debug {
-		types := getUnsavedTypes(oo, nil)
-		for _, typ := range types {
-			tid := typ.TypeID()
-			if store.GetType(tid) == nil {
-				panic("missing type")
-			}
-		}
-	}
-	*/
 	// set hash to escape index.
 	if oo.GetIsNewEscaped() {
 		oo.SetIsNewEscaped(false)
@@ -833,11 +833,10 @@ func getChildObjects(val Value, more []Value) []Value {
 	case DataByteValue:
 		panic("cannot get children from data byte objects")
 	case PointerValue:
-		if cv.Base != nil {
-			more = getSelfOrChildObjects(cv.Base, more)
-		} else {
-			more = getSelfOrChildObjects(cv.TV.V, more)
+		if cv.Base == nil {
+			panic("should not happen")
 		}
+		more = getSelfOrChildObjects(cv.Base, more)
 		return more
 	case *ArrayValue:
 		for _, ctv := range cv.List {
@@ -879,7 +878,13 @@ func getChildObjects(val Value, more []Value) []Value {
 		for _, ctv := range cv.Values {
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
+		// Generally the parent block must also be persisted.
+		// Otherwise NamePath may not resolve when referencing
+		// a parent block.
 		more = getSelfOrChildObjects(cv.Parent, more)
+		return more
+	case *HeapItemValue:
+		more = getSelfOrChildObjects(cv.Value.V, more)
 		return more
 	case *NativeValue:
 		panic("native values not supported")
@@ -946,7 +951,7 @@ func copyMethods(methods []TypedValue) []TypedValue {
 		// gets saved (e.g. from *Machine.savePackage()).
 		res[i] = TypedValue{
 			T: copyTypeWithRefs(mtv.T),
-			V: copyValueWithRefs(nil, mtv.V),
+			V: copyValueWithRefs(mtv.V),
 		}
 	}
 	return res
@@ -1065,7 +1070,7 @@ func copyTypeWithRefs(typ Type) Type {
 // persistence bytes serialization.
 // Also checks for integrity of immediate children -- they must already be
 // persistent (real), and not dirty, or else this function panics.
-func copyValueWithRefs(parent Object, val Value) Value {
+func copyValueWithRefs(val Value) Value {
 	switch cv := val.(type) {
 	case nil:
 		return nil
@@ -1078,33 +1083,25 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case DataByteValue:
 		panic("cannot copy data byte value with references")
 	case PointerValue:
-		if cv.Base != nil {
-			return PointerValue{
-				/*
-					already represented in .Base[Index]:
-					TypedValue: &TypedValue{
-						T: cv.TypedValue.T,
-						V: copyValueWithRefs(cv.TypedValue.V),
-					},
-				*/
-				Base:  toRefValue(parent, cv.Base),
-				Index: cv.Index,
-			}
-		} else {
-			etv := refOrCopyValue(parent, *cv.TV)
-			return PointerValue{
-				TV: &etv,
-				/*
-					Base:  nil,
-					Index: 0,
-				*/
-			}
+		if cv.Base == nil {
+			panic("should not happen")
+		}
+		return PointerValue{
+			/*
+				already represented in .Base[Index]:
+				TypedValue: &TypedValue{
+					T: cv.TypedValue.T,
+					V: copyValueWithRefs(cv.TypedValue.V),
+				},
+			*/
+			Base:  toRefValue(cv.Base),
+			Index: cv.Index,
 		}
 	case *ArrayValue:
 		if cv.Data == nil {
 			list := make([]TypedValue, len(cv.List))
 			for i, etv := range cv.List {
-				list[i] = refOrCopyValue(cv, etv)
+				list[i] = refOrCopyValue(etv)
 			}
 			return &ArrayValue{
 				ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1118,7 +1115,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		}
 	case *SliceValue:
 		return &SliceValue{
-			Base:   toRefValue(parent, cv.Base),
+			Base:   toRefValue(cv.Base),
 			Offset: cv.Offset,
 			Length: cv.Length,
 			Maxcap: cv.Maxcap,
@@ -1126,7 +1123,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case *StructValue:
 		fields := make([]TypedValue, len(cv.Fields))
 		for i, ftv := range cv.Fields {
-			fields[i] = refOrCopyValue(cv, ftv)
+			fields[i] = refOrCopyValue(ftv)
 		}
 		return &StructValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1140,7 +1137,7 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		}
 		var closure Value
 		if cv.Closure != nil {
-			closure = toRefValue(parent, cv.Closure)
+			closure = toRefValue(cv.Closure)
 		}
 		// nativeBody funcs which don't come from NativeStore (and thus don't
 		// have NativePkg/Name) can't be persisted, and should not be able
@@ -1161,8 +1158,8 @@ func copyValueWithRefs(parent Object, val Value) Value {
 			NativeName: cv.NativeName,
 		}
 	case *BoundMethodValue:
-		fnc := copyValueWithRefs(cv, cv.Func).(*FuncValue)
-		rtv := refOrCopyValue(cv, cv.Receiver)
+		fnc := copyValueWithRefs(cv.Func).(*FuncValue)
+		rtv := refOrCopyValue(cv.Receiver)
 		return &BoundMethodValue{
 			ObjectInfo: cv.ObjectInfo.Copy(), // XXX ???
 			Func:       fnc,
@@ -1171,8 +1168,8 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case *MapValue:
 		list := &MapList{}
 		for cur := cv.List.Head; cur != nil; cur = cur.Next {
-			key2 := refOrCopyValue(cv, cur.Key)
-			val2 := refOrCopyValue(cv, cur.Value)
+			key2 := refOrCopyValue(cur.Key)
+			val2 := refOrCopyValue(cur.Value)
 			list.Append(nilAllocator, key2).Value = val2
 		}
 		return &MapValue{
@@ -1182,10 +1179,10 @@ func copyValueWithRefs(parent Object, val Value) Value {
 	case TypeValue:
 		return toTypeValue(copyTypeWithRefs(cv.Type))
 	case *PackageValue:
-		block := toRefValue(cv, cv.Block)
+		block := toRefValue(cv.Block)
 		fblocks := make([]Value, len(cv.FBlocks))
 		for i, fb := range cv.FBlocks {
-			fblocks[i] = toRefValue(cv, fb)
+			fblocks[i] = toRefValue(fb)
 		}
 		return &PackageValue{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1200,11 +1197,11 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		source := toRefNode(cv.Source)
 		vals := make([]TypedValue, len(cv.Values))
 		for i, tv := range cv.Values {
-			vals[i] = refOrCopyValue(cv, tv)
+			vals[i] = refOrCopyValue(tv)
 		}
 		var bparent Value
 		if cv.Parent != nil {
-			bparent = toRefValue(parent, cv.Parent)
+			bparent = toRefValue(cv.Parent)
 		}
 		bl := &Block{
 			ObjectInfo: cv.ObjectInfo.Copy(),
@@ -1216,6 +1213,24 @@ func copyValueWithRefs(parent Object, val Value) Value {
 		return bl
 	case RefValue:
 		return cv
+	case *HeapItemValue:
+		// NOTE: While this could be eliminated sometimes with some
+		// intelligence prior to persistence, to unwrap the
+		// HeapItemValue in case where the HeapItemValue only has
+		// refcount of 1,
+		//
+		//  1.  The HeapItemValue is necessary when the .Value is a
+		//    primitive non-object anyways, and
+		//  2. This would mean PointerValue.Base is nil, and we'd need
+		//    additional logic to re-wrap when necessary, and
+		//  3. And with the above point, it's not clear the result
+		//    would be any faster.  But this is something we could
+		//    explore after launch.
+		hiv := &HeapItemValue{
+			ObjectInfo: cv.ObjectInfo.Copy(),
+			Value:      refOrCopyValue(cv.Value),
+		}
+		return hiv
 	case *NativeValue:
 		panic("native values not supported")
 	default:
@@ -1387,6 +1402,9 @@ func fillTypesOfValue(store Store, val Value) Value {
 		panic("native values not supported")
 	case RefValue: // do nothing
 		return cv
+	case *HeapItemValue:
+		fillTypesTV(store, &cv.Value)
+		return cv
 	default:
 		panic(fmt.Sprintf(
 			"unexpected type %v",
@@ -1434,7 +1452,7 @@ func toRefNode(bn BlockNode) RefNode {
 	}
 }
 
-func toRefValue(parent Object, val Value) RefValue {
+func toRefValue(val Value) RefValue {
 	// TODO use type switch stmt.
 	if ref, ok := val.(RefValue); ok {
 		return ref
@@ -1507,35 +1525,21 @@ func ensureUniq(oozz ...[]Object) {
 	}
 }
 
-func refOrCopyValue(parent Object, tv TypedValue) TypedValue {
+func refOrCopyValue(tv TypedValue) TypedValue {
 	if tv.T != nil {
 		tv.T = refOrCopyType(tv.T)
 	}
 	if obj, ok := tv.V.(Object); ok {
-		tv.V = toRefValue(parent, obj)
+		tv.V = toRefValue(obj)
 		return tv
 	} else {
-		tv.V = copyValueWithRefs(parent, tv.V)
+		tv.V = copyValueWithRefs(tv.V)
 		return tv
 	}
 }
 
 func isUnsaved(oo Object) bool {
 	return oo.GetIsNewReal() || oo.GetIsDirty()
-}
-
-// realmPathPrefix is the prefix used to identify pkgpaths which are meant to
-// be realms and as such to have their state persisted. This is used by [IsRealmPath].
-const realmPathPrefix = "gno.land/r/"
-
-var ReGnoRunPath = regexp.MustCompile(`^gno\.land/r/g[a-z0-9]+/run$`)
-
-// IsRealmPath determines whether the given pkgpath is for a realm, and as such
-// should persist the global state.
-func IsRealmPath(pkgPath string) bool {
-	return strings.HasPrefix(pkgPath, realmPathPrefix) &&
-		// MsgRun pkgPath aren't realms
-		!ReGnoRunPath.MatchString(pkgPath)
 }
 
 func prettyJSON(jstr []byte) []byte {

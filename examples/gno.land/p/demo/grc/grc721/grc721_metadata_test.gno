@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
-	"gno.land/p/demo/users"
+	"gno.land/p/demo/uassert"
 )
 
 func TestSetMetadata(t *testing.T) {
@@ -50,9 +50,7 @@ func TestSetMetadata(t *testing.T) {
 	})
 
 	// Check if there was an error setting metadata
-	if derr != nil {
-		t.Errorf("Should not result in error : %s", derr.Error())
-	}
+	uassert.NoError(t, derr, "Should not result in error")
 
 	// Test case: Invalid token ID
 	err := dummy.SetTokenMetadata(TokenID("3"), Metadata{
@@ -68,9 +66,7 @@ func TestSetMetadata(t *testing.T) {
 	})
 
 	// Check if the error returned matches the expected error
-	if err != ErrInvalidTokenId {
-		t.Errorf("Expected error %s, got %s", ErrInvalidTokenId, err)
-	}
+	uassert.ErrorIs(t, err, ErrInvalidTokenId)
 
 	// Set the original caller to addr2
 	std.TestSetOrigCaller(addr2) // addr2
@@ -89,45 +85,23 @@ func TestSetMetadata(t *testing.T) {
 	})
 
 	// Check if the error returned matches the expected error
-	if cerr != ErrCallerIsNotOwner {
-		t.Errorf("Expected error %s, got %s", ErrCallerIsNotOwner, cerr)
-	}
+	uassert.ErrorIs(t, cerr, ErrCallerIsNotOwner)
 
 	// Set the original caller back to addr1
 	std.TestSetOrigCaller(addr1) // addr1
 
 	// Retrieve metadata for token 1
 	dummyMetadata, err := dummy.TokenMetadata(TokenID("1"))
-	if err != nil {
-		t.Errorf("Metadata error: %s", err.Error())
-	}
+	uassert.NoError(t, err, "Metadata error")
 
 	// Check if metadata attributes match expected values
-	if dummyMetadata.Image != image {
-		t.Errorf("Expected Metadata's image %s, got %s", image, dummyMetadata.Image)
-	}
-	if dummyMetadata.ImageData != imageData {
-		t.Errorf("Expected Metadata's imageData %s, got %s", imageData, dummyMetadata.ImageData)
-	}
-	if dummyMetadata.ExternalURL != externalURL {
-		t.Errorf("Expected Metadata's externalURL %s, got %s", externalURL, dummyMetadata.ExternalURL)
-	}
-	if dummyMetadata.Description != description {
-		t.Errorf("Expected Metadata's description %s, got %s", description, dummyMetadata.Description)
-	}
-	if dummyMetadata.Name != name {
-		t.Errorf("Expected Metadata's name %s, got %s", name, dummyMetadata.Name)
-	}
-	if len(dummyMetadata.Attributes) != len(attributes) {
-		t.Errorf("Expected %d Metadata's attributes, got %d", len(attributes), len(dummyMetadata.Attributes))
-	}
-	if dummyMetadata.BackgroundColor != backgroundColor {
-		t.Errorf("Expected Metadata's backgroundColor %s, got %s", backgroundColor, dummyMetadata.BackgroundColor)
-	}
-	if dummyMetadata.AnimationURL != animationURL {
-		t.Errorf("Expected Metadata's animationURL %s, got %s", animationURL, dummyMetadata.AnimationURL)
-	}
-	if dummyMetadata.YoutubeURL != youtubeURL {
-		t.Errorf("Expected Metadata's youtubeURL %s, got %s", youtubeURL, dummyMetadata.YoutubeURL)
-	}
+	uassert.Equal(t, image, dummyMetadata.Image)
+	uassert.Equal(t, imageData, dummyMetadata.ImageData)
+	uassert.Equal(t, externalURL, dummyMetadata.ExternalURL)
+	uassert.Equal(t, description, dummyMetadata.Description)
+	uassert.Equal(t, name, dummyMetadata.Name)
+	uassert.Equal(t, len(attributes), len(dummyMetadata.Attributes))
+	uassert.Equal(t, backgroundColor, dummyMetadata.BackgroundColor)
+	uassert.Equal(t, animationURL, dummyMetadata.AnimationURL)
+	uassert.Equal(t, youtubeURL, dummyMetadata.YoutubeURL)
 }
