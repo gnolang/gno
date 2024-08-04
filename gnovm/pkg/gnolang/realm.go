@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	bm "github.com/gnolang/gno/benchmarking"
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 /*

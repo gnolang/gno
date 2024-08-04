@@ -31,7 +31,7 @@ func TestBenchStoreSet(t *testing.T) {
 			parts := strings.Split(res[0].V.String(), ",")
 			p := strings.Trim(parts[1], `\"`)
 			expected := strings.Repeat("a", 1024)
-			assert.Equal(p, expected, "it should be 1 KB of charactor a")
+			assert.Equal(p, expected, "it should be 1 KB of character a")
 		}
 	}
 }

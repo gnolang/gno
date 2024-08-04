@@ -9,18 +9,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
-	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 )
 
 const maxAllocTx = 500 * 1000 * 1000
-
-func benchmarkMemStore() gno.Store {
-	db := memdb.NewMemDB()
-	return newStore(db)
-}
 
 func benchmarkDiskStore() gno.Store {
 	storeDir, err := filepath.Abs("bench_store")

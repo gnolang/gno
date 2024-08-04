@@ -81,23 +81,16 @@ func FinishStore() {
 
 func FinishRun() {
 	for i := 0; i < 256; i++ {
-
 		if opCounts[i] == 0 {
 			continue
 		}
 		// check unstopped timer
 		if opStartTime[i] != timeZero {
-			if len(stack) > 0 && i == int(PeekOp()) { // exception
-				curOpCode = byte(i)
-				PauseOpCode()
-			} else { // regular check
-				panic("timer should have stopped before FinishRun")
-			}
+			panic("timer should have stopped before FinishRun")
 		}
 
 		code := [2]byte{byte(i), 0x00}
 		fileWriter.export(code, opAccumDur[i]/time.Duration(opCounts[i]), 0)
-
 	}
 	ResetRun()
 }
@@ -111,12 +104,6 @@ func ResetRun() {
 	opStartTime = [256]time.Time{}
 	curOpCode = invalidCode
 	isOpCodeStarted = false
-
-	if len(stack) > 0 {
-		curOpCode = PeekOp()
-		ResumeOpCode()
-		isOpCodeStarted = true
-	}
 }
 
 func Finish() {

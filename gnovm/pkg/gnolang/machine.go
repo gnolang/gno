@@ -12,7 +12,7 @@ import (
 	"sync"
 	"testing"
 
-	bm "github.com/gnolang/gno/benchmarking"
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -1152,13 +1152,13 @@ func (m *Machine) Run() {
 		}
 		op := m.PopOp()
 		if bm.OpsEnabled {
-
 			// benchmark the operation.
 			bm.StartOpCode(byte(OpVoid))
 			bm.StopOpCode()
-
-			bm.StartOpCode(byte(op))
-
+			// we do not benchmark static evaluation.
+			if op != OpStaticTypeOf {
+				bm.StartOpCode(byte(op))
+			}
 		}
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
@@ -1342,13 +1342,7 @@ func (m *Machine) Run() {
 			m.doOpTypeAssert2()
 		case OpStaticTypeOf:
 			m.incrCPU(OpCPUStaticTypeOf)
-			if bm.OpsEnabled {
-				bm.PushOp(byte(op))
-			}
 			m.doOpStaticTypeOf()
-			if bm.OpsEnabled {
-				bm.PopOp()
-			}
 		case OpCompositeLit:
 			m.incrCPU(OpCPUCompositeLit)
 			m.doOpCompositeLit()
@@ -1493,7 +1487,9 @@ func (m *Machine) Run() {
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
 		}
 		if bm.OpsEnabled {
-			bm.StopOpCode()
+			if op != OpStaticTypeOf {
+				bm.StopOpCode()
+			}
 		}
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	bm "github.com/gnolang/gno/benchmarking"
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
@@ -222,7 +222,7 @@ func (ds *defaultStore) SetCachePackage(pv *PackageValue) {
 func (ds *defaultStore) GetPackageRealm(pkgPath string) (rlm *Realm) {
 	var size int
 	if bm.StorageEnabled {
-		bm.StartStore(byte(bm.StoreGetPackageRealm))
+		bm.StartStore(bm.StoreGetPackageRealm)
 		defer func() {
 			bm.StopStore(size)
 		}()
@@ -253,7 +253,7 @@ func (ds *defaultStore) SetPackageRealm(rlm *Realm) {
 
 	var size int
 	if bm.StorageEnabled {
-		bm.StartStore(byte(bm.StoreSetPackageRealm))
+		bm.StartStore(bm.StoreSetPackageRealm)
 		defer func() {
 			bm.StopStore(size)
 		}()
@@ -312,7 +312,7 @@ func (ds *defaultStore) loadObjectSafe(oid ObjectID) Object {
 	var size int
 
 	if bm.StorageEnabled {
-		bm.StartStore(byte(bm.StoreGetObject))
+		bm.StartStore(bm.StoreGetObject)
 		defer func() {
 			bm.StopStore(size)
 		}()
@@ -349,7 +349,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 	}
 	var size int
 	if bm.StorageEnabled {
-		bm.StartStore(byte(bm.StoreSetObject))
+		bm.StartStore(bm.StoreSetObject)
 		defer func() {
 			bm.StopStore(size)
 		}()
@@ -414,7 +414,7 @@ func (ds *defaultStore) DelObject(oo Object) {
 		defer bm.ResumeOpCode()
 	}
 	if bm.StorageEnabled {
-		bm.StartStore(byte(bm.StoreDeleteObject))
+		bm.StartStore(bm.StoreDeleteObject)
 		defer func() {
 			// delete is a signle operation, not a func of size of bytes
 			bm.StopStore(0)
@@ -456,7 +456,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 	var size int
 
 	if bm.StorageEnabled {
-		bm.StartStore(byte(bm.StoreGetType))
+		bm.StartStore(bm.StoreGetType)
 		defer func() {
 			bm.StopStore(size)
 		}()
@@ -511,7 +511,7 @@ func (ds *defaultStore) SetType(tt Type) {
 	var size int
 
 	if bm.StorageEnabled {
-		bm.StartStore(byte(bm.StoreSetType))
+		bm.StartStore(bm.StoreSetType)
 		defer func() {
 			bm.StopStore(size)
 		}()
@@ -554,7 +554,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 	var size int
 
 	if bm.StorageEnabled {
-		bm.StartStore(byte(bm.StoreGetBlockNode))
+		bm.StartStore(bm.StoreGetBlockNode)
 		defer func() {
 			bm.StopStore(size)
 		}()
@@ -641,7 +641,7 @@ func (ds *defaultStore) AddMemPackage(memPkg *std.MemPackage) {
 	var size int
 
 	if bm.StorageEnabled {
-		bm.StartStore(byte(bm.StoreAddMemPackage))
+		bm.StartStore(bm.StoreAddMemPackage)
 		defer func() {
 			bm.StopStore(size)
 		}()
@@ -671,7 +671,7 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 	var size int
 
 	if bm.StorageEnabled {
-		bm.StartStore(byte(bm.StoreGetMemPackage))
+		bm.StartStore(bm.StoreGetMemPackage)
 		defer func() {
 			bm.StopStore(size)
 		}()

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"sync"
 
-	bm "github.com/gnolang/gno/benchmarking"
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 )
 
@@ -100,7 +100,6 @@ func stats(binFile string) {
 		for j := 0; j < n; j++ {
 			inputCh <- buf[j*recordSize : (j+1)*recordSize]
 		}
-
 	}
 
 	close(inputCh)
@@ -124,7 +123,6 @@ func calculateStats(crs []codeRecord) {
 
 	m := make(map[string][]codeRecord)
 	for _, v := range crs {
-
 		crs, ok := m[v.codeName]
 		if ok {
 			crs = append(crs, v)
@@ -134,7 +132,7 @@ func calculateStats(crs []codeRecord) {
 		}
 	}
 
-	var keys []string
+	keys := make([]string, 0, 100)
 
 	for k := range m {
 		keys = append(keys, k)
@@ -171,12 +169,10 @@ func calculate(codeName string, crs []codeRecord) codeStats {
 	var sumTime int64
 	var sumSize int64
 	for _, cr := range crs {
-
 		t := cr.elapsed
 		s := cr.size
 		sumTime += int64(t)
 		sumSize += int64(s)
-
 	}
 	avgTime := float64(sumTime) / float64(len(crs))
 	avgSize := float64(sumSize) / float64(len(crs))
@@ -186,7 +182,7 @@ func calculate(codeName string, crs []codeRecord) codeStats {
 	for _, cr := range crs {
 		varianceSum += math.Pow(float64(cr.elapsed)-avgTime, 2)
 	}
-	variance := float64(varianceSum / float64(len(crs)))
+	variance := varianceSum / float64(len(crs))
 	stdDev := math.Sqrt(variance)
 	return codeStats{codeName, int64(avgTime), int64(avgSize), int64(stdDev), len(crs)}
 }

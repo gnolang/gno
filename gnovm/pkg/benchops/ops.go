@@ -19,7 +19,7 @@ const (
 
 	AminoMarshal    byte = 0x0E // marshal mem package and realm to binary
 	AminoMarshalAny byte = 0x0F // marshal gno object to binary
-	AminoUnmarshal  byte = 0x10 // unmarshl binary to gno object, pacakge and realm
+	AminoUnmarshal  byte = 0x10 // unmarshl binary to gno object, package and realm
 
 	// underlying store
 	StoreGet byte = 0x11 // Get binary value by key

@@ -67,7 +67,7 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	}
 	p := post.(*Post)
 
-    res.Write("<main class='gno-tmpl-page'>" + "\n\n")
+	res.Write("<main class='gno-tmpl-page'>" + "\n\n")
 
 	res.Write("# " + p.Title + "\n\n")
 	res.Write(p.Body + "\n\n")
@@ -88,8 +88,7 @@ func (b Blog) RenderPost(res *mux.ResponseWriter, req *mux.Request) {
 	})
 
 	res.Write("</details>\n")
-    res.Write("</main>")
-
+	res.Write("</main>")
 }
 
 func (b Blog) RenderTag(res *mux.ResponseWriter, req *mux.Request) {

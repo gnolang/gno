@@ -13,7 +13,6 @@ import (
 	"syscall"
 	"time"
 
-	bm "github.com/gnolang/gno/benchmarking"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"

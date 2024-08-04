@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	bm "github.com/gnolang/gno/benchmarking"
+	bm "github.com/gnolang/gno/gnovm/pkg/benchops"
 )
 
 var (
