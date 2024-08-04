@@ -27,8 +27,8 @@ func newDepGraphCmd(io commands.IO) *commands.Command {
 
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:       "depgraph",
-			ShortUsage: "depgraph [flags] <package> [<package>...]",
+			Name:       "gnodepgraph",
+			ShortUsage: "gnodepgraph [flags] <package> [<package>...]",
 			ShortHelp:  "generates dependency graphs for the specified packages",
 		},
 		cfg,
@@ -71,8 +71,8 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 
 	// make one big graph (eg. for the entire examples/ dir)
 	if !multipleGraphs {
-		nodeData := ""  //nodes
-		graphData := "" //edges
+		nodeData := ""  // nodes
+		graphData := "" // edges
 
 		// we need subgraphs to make columns in the layout and for colors
 
@@ -93,9 +93,10 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 		}
 		nodeData += "}"
 
-		for _, pkg := range allPkgs {
-			err := buildGraphData(pkg, allPkgs, make(map[string]bool), make(map[string]bool), &graphData)
+		visited := make(map[string]bool)
 
+		for _, pkg := range allPkgs {
+			err := buildGraphData(pkg, allPkgs, visited, make(map[string]bool), &graphData)
 			if err != nil {
 				return fmt.Errorf("error in building graph: %w", err)
 			}
@@ -108,53 +109,55 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 		graphFileData := fmt.Sprintf("Digraph G {\nrankdir=\"LR\"\nranksep=20\n%s\n%s\n}", nodeData, graphData)
 		file.Write([]byte(graphFileData))
 		file.Close()
-	} else { // useful for testing - makes a separate graph for each found package
-		if !osm.DirExists(output) {
-			err := os.MkdirAll(output, os.ModePerm)
-			if err != nil {
-				return fmt.Errorf("couldn't make output dir: %w", err)
-			}
+		return nil
+	}
+
+	// making multiple graphs
+	// not using colors or layouts here since it's a simple graph
+
+	if !osm.DirExists(output) {
+		err := os.MkdirAll(output, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("couldn't make output dir: %w", err)
+		}
+	}
+
+	for _, pkg := range allPkgs {
+		pkgPath, err := filepath.Abs(pkg.Dir)
+		if err != nil {
+			return fmt.Errorf("error in getting path of pkg: %w", err)
 		}
 
-		// decided not to use colors or layouts here since it's a simple graph
+		pkgPath = strings.TrimPrefix(pkgPath, rootDir)
+		pkgPath = strings.TrimSuffix(pkgPath, string([]rune{os.PathSeparator}))
 
-		for _, pkg := range allPkgs {
-			pkgPath, err := filepath.Abs(pkg.Dir)
-			if err != nil {
-				return fmt.Errorf("error in getting path of pkg: %w", err)
-			}
-
-			pkgPath = strings.TrimPrefix(pkgPath, rootDir)
-			pkgPath = strings.TrimSuffix(pkgPath, string([]rune{os.PathSeparator}))
-
-			if verbose {
-				fmt.Fprintf(io.Err(), "Generating graph for %q...\n", pkgPath)
-			}
-
-			graphData := ""
-			graphPath := filepath.Join(output, pkgPath)
-			graphPath = graphPath + ".dot"
-			basePath := path.Dir(graphPath)
-			err = os.MkdirAll(basePath, os.ModePerm)
-			if err != nil {
-				return fmt.Errorf("error in making dir for graph: %w", err)
-			}
-
-			file, err := os.Create(graphPath)
-			if err != nil {
-				return fmt.Errorf("couldn't create output file: %w", err)
-			}
-
-			err = buildGraphData(pkg, allPkgs, make(map[string]bool), make(map[string]bool), &graphData)
-
-			if err != nil {
-				return fmt.Errorf("error in building graph: %w", err)
-			}
-
-			graphFileData := fmt.Sprintf("Digraph G {%s}\n", graphData)
-			file.Write([]byte(graphFileData))
-			file.Close()
+		if verbose {
+			fmt.Fprintf(io.Err(), "Generating graph for %q...\n", pkgPath)
 		}
+
+		graphData := ""
+		graphPath := filepath.Join(output, pkgPath)
+		graphPath = graphPath + ".dot"
+		basePath := path.Dir(graphPath)
+		err = os.MkdirAll(basePath, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("error in making dir for graph: %w", err)
+		}
+
+		file, err := os.Create(graphPath)
+		if err != nil {
+			return fmt.Errorf("couldn't create output file: %w", err)
+		}
+
+		visited := make(map[string]bool)
+		err = buildGraphData(pkg, allPkgs, visited, make(map[string]bool), &graphData)
+		if err != nil {
+			return fmt.Errorf("error in building graph: %w", err)
+		}
+
+		graphFileData := fmt.Sprintf("Digraph G {%s}\n", graphData)
+		file.Write([]byte(graphFileData))
+		file.Close()
 	}
 
 	return nil
@@ -183,14 +186,12 @@ func buildGraphData(pkg gnomod.Pkg, allPkgs []gnomod.Pkg, visited map[string]boo
 				return err
 			}
 			found = true
-			// this check is wildly inefficient - change this to not work with strings directly
-			if !strings.Contains(*graphData, "\""+pkg.Name+"\" -> \""+req+"\"\n") {
-				*graphData += "\"" + pkg.Name + "\" -> \"" + req + "\"\n"
-			}
+			break
 		}
 		if !found {
 			return fmt.Errorf("couldn't find dependency %q for package %q", req, pkg.Name)
 		}
+		*graphData += "\"" + pkg.Name + "\" -> \"" + req + "\"\n"
 	}
 
 	onStack[pkg.Name] = false
