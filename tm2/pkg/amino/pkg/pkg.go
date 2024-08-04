@@ -118,11 +118,26 @@ func (pkg *Package) WithGoPkgName(name string) *Package {
 	return pkg
 }
 
+// Package dependencies need to be declared (for now).
+// If a package has no dependency, it is conventional to
+// use `.WithDependencies()` with no arguments.
 func (pkg *Package) WithDependencies(deps ...*Package) *Package {
 	pkg.Dependencies = append(pkg.Dependencies, deps...)
 	return pkg
 }
 
+// WithType() specifies which types are encoded and decoded by the package.
+// You must provide a list of instanciated objects in the arguments.
+// Each type declaration may be optionally followed by a string which is then
+// used as its name.
+//
+// E.g. .WithTypes(
+//
+//	StructA{},
+//	&StructB{}, // If pointer receivers are preferred when decoding to interfaces.
+//	NoInputsError{}, "NoInputsError", // Named
+//
+// )
 func (pkg *Package) WithTypes(objs ...interface{}) *Package {
 	var lastType *Type = nil
 	for _, obj := range objs {

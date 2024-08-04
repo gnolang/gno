@@ -85,8 +85,8 @@ var Package = amino.RegisterPackage(
 )
 ```
 
-You can still override global registrations with local \*amino.Codec state.
-This is used by genproto.P3Context, which may help development while writing
+You can still override global registrations with local `*amino.Codec` state.
+This is used by `genproto.P3Context`, which may help development while writing
 migration scripts.  Feedback welcome in the issues section.
 
 ## Unsupported types
