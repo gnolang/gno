@@ -46,10 +46,6 @@ func groupIDKey(gid GroupID) string {
 	return padZero(uint64(gid), 10)
 }
 
-func memberIDKey(mid MemberID) string {
-	return padZero(uint64(mid), 10)
-}
-
 func indentBody(indent string, body string) string {
 	lines := strings.Split(body, "\n")
 	res := ""
