@@ -194,7 +194,7 @@ func (m *Machine) doOpRef() {
 			nv.Value = rv2
 		}
 	}
-	// hen obtaining a pointer of the databyte type, use the ElemType of databyte
+	// when obtaining a pointer of the databyte type, use the ElemType of databyte
 	elt := xv.TV.T
 	if elt == DataByteType {
 		elt = xv.TV.V.(DataByteValue).ElemType
