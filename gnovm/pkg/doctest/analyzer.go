@@ -9,7 +9,6 @@ import (
 	"go/token"
 	"sort"
 	"strconv"
-	"strings"
 )
 
 // supported stdlib packages in gno.
@@ -36,6 +35,8 @@ var stdLibPackages = map[string]bool{
 	"unicode":         true,
 	"unicode/utf16":   true,
 	"unicode/utf8":    true,
+
+	"fmt": true, // for testing purposes
 
 	// partially supported packages
 	"crypto/cipher":   true,
@@ -90,53 +91,69 @@ func hasMainFunction(node *ast.File) bool {
 	return false
 }
 
-// detectUsedPackages inspects the AST and returns a map of used stdlib packages.
 func detectUsedPackages(node *ast.File) map[string]bool {
 	usedPackages := make(map[string]bool)
-	remainingPackages := make(map[string]bool)
-	for pkg := range stdLibPackages {
-		remainingPackages[pkg] = true
-	}
+	localIdentifiers := make(map[string]bool)
 
+	// 1st Pass: Collect local identifiers
 	ast.Inspect(node, func(n ast.Node) bool {
-		if len(remainingPackages) == 0 {
-			return false
-		}
-
-		selectorExpr, ok := n.(*ast.SelectorExpr)
-		if !ok {
-			return true
-		}
-
-		ident, ok := selectorExpr.X.(*ast.Ident)
-		if !ok {
-			return true
-		}
-
-		if remainingPackages[ident.Name] {
-			usedPackages[ident.Name] = true
-			delete(remainingPackages, ident.Name)
-			return false
-		}
-
-		for fullPkg := range stdLibPackages {
-			if isMatchingSubpackage(fullPkg, ident.Name, selectorExpr.Sel.Name) {
-				usedPackages[fullPkg] = true
-				delete(remainingPackages, fullPkg)
-				return false
+		switch x := n.(type) {
+		case *ast.FuncDecl:
+			localIdentifiers[x.Name.Name] = true
+		case *ast.GenDecl:
+			for _, spec := range x.Specs {
+				switch s := spec.(type) {
+				case *ast.ValueSpec:
+					for _, name := range s.Names {
+						localIdentifiers[name.Name] = true
+					}
+				case *ast.TypeSpec:
+					localIdentifiers[s.Name.Name] = true
+				}
+			}
+		case *ast.AssignStmt:
+			for _, expr := range x.Lhs {
+				if ident, ok := expr.(*ast.Ident); ok {
+					localIdentifiers[ident.Name] = true
+				}
 			}
 		}
 		return true
 	})
+
+	// 2nd Pass: Detect package usage
+	ast.Inspect(node, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.SelectorExpr:
+			if ident, ok := x.X.(*ast.Ident); ok {
+				checkAndAddPackage(ident.Name, x.Sel.Name, usedPackages)
+			}
+		case *ast.CallExpr:
+			if selector, ok := x.Fun.(*ast.SelectorExpr); ok {
+				if ident, ok := selector.X.(*ast.Ident); ok {
+					checkAndAddPackage(ident.Name, selector.Sel.Name, usedPackages)
+				}
+			}
+		case *ast.Ident:
+			if stdLibPackages[x.Name] && !localIdentifiers[x.Name] {
+				usedPackages[x.Name] = true
+			}
+		}
+		return true
+	})
+
 	return usedPackages
 }
 
-func isMatchingSubpackage(fullPkg, prefix, suffix string) bool {
-	if !strings.HasPrefix(fullPkg, prefix+"/") {
-		return false
+func checkAndAddPackage(pkg, sel string, usedPackages map[string]bool) {
+	if stdLibPackages[pkg] {
+		usedPackages[pkg] = true
+	} else {
+		fullPkg := pkg + "/" + sel
+		if stdLibPackages[fullPkg] {
+			usedPackages[fullPkg] = true
+		}
 	}
-	parts := strings.SplitN(fullPkg, "/", 2)
-	return len(parts) == 2 && parts[1] == suffix
 }
 
 // updateImports modifies the AST to include all necessary import statements.

@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"sync"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -217,24 +216,15 @@ func ExecuteMatchingCodeBlock(ctx context.Context, content string, pattern strin
 	return results, nil
 }
 
-var (
-	regexCache   = make(map[string]*regexp.Regexp)
-	regexCacheMu sync.RWMutex
-)
+var regexCache = make(map[string]*regexp.Regexp)
 
 // getCompiledRegex retrieves or compiles a regex pattern.
 // it uses a cache to store compiled regex patterns for reuse.
 func getCompiledRegex(pattern string) (*regexp.Regexp, error) {
-	regexCacheMu.RLock()
 	re, exists := regexCache[pattern]
-	regexCacheMu.RUnlock()
-
 	if exists {
 		return re, nil
 	}
-
-	regexCacheMu.Lock()
-	defer regexCacheMu.Unlock()
 
 	// double-check in case another goroutine has compiled the regex
 	if re, exists = regexCache[pattern]; exists {

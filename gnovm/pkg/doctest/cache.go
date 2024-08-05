@@ -2,7 +2,6 @@ package doctest
 
 import (
 	"container/list"
-	"sync"
 )
 
 const maxCacheSize = 25
@@ -16,7 +15,6 @@ type lruCache struct {
 	capacity int
 	items    map[string]*list.Element
 	order    *list.List
-	mutex    sync.RWMutex
 }
 
 func newCache(capacity int) *lruCache {
@@ -28,8 +26,6 @@ func newCache(capacity int) *lruCache {
 }
 
 func (c *lruCache) get(key string) (string, bool) {
-	c.mutex.RLock()
-	defer c.mutex.RUnlock()
 	if elem, ok := c.items[key]; ok {
 		c.order.MoveToFront(elem)
 		return elem.Value.(cacheItem).value, true
@@ -38,8 +34,6 @@ func (c *lruCache) get(key string) (string, bool) {
 }
 
 func (c *lruCache) set(key, value string) {
-	c.mutex.Lock()
-	defer c.mutex.Unlock()
 	if elem, ok := c.items[key]; ok {
 		c.order.MoveToFront(elem)
 		elem.Value = cacheItem{key, value}
