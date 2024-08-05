@@ -2577,9 +2577,7 @@ func assertTypeDeclNoCycle(store Store, last BlockNode, x Expr, stack *[]Name) {
 
 func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, indirect bool) {
 	if x == nil {
-		// XXX, should not happen?
 		panic("should not happen")
-		return
 	}
 
 	var lastX Expr
@@ -2610,35 +2608,10 @@ func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, 
 			lastX = cx
 		}
 		return
-	case *BasicLitExpr:
-		return
-	case *BinaryExpr:
-		assertTypeDeclNoCycle2(store, last, cx.Left, stack, indirect)
-		assertTypeDeclNoCycle2(store, last, cx.Right, stack, indirect)
 	case *SelectorExpr:
 		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect)
-	case *SliceExpr:
-		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect)
-		if cx.Low != nil {
-			assertTypeDeclNoCycle2(store, last, cx.Low, stack, indirect)
-		}
-		if cx.High != nil {
-			assertTypeDeclNoCycle2(store, last, cx.High, stack, indirect)
-		}
-		if cx.Max != nil {
-			assertTypeDeclNoCycle2(store, last, cx.Max, stack, indirect)
-		}
 	case *StarExpr:
 		assertTypeDeclNoCycle2(store, last, cx.X, stack, true)
-	case *RefExpr:
-		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect)
-	case *TypeAssertExpr:
-		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect)
-		assertTypeDeclNoCycle2(store, last, cx.Type, stack, indirect)
-	case *UnaryExpr:
-		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect)
-	case *FuncLitExpr:
-		assertTypeDeclNoCycle2(store, last, &cx.Type, stack, indirect)
 	case *FieldTypeExpr:
 		assertTypeDeclNoCycle2(store, last, cx.Type, stack, indirect)
 	case *ArrayTypeExpr:
@@ -2653,7 +2626,7 @@ func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, 
 			assertTypeDeclNoCycle2(store, last, &cx.Methods[i], stack, true)
 		}
 	case *ChanTypeExpr:
-		assertTypeDeclNoCycle2(store, last, cx.Value, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.Value, stack, true)
 	case *FuncTypeExpr:
 		for i := range cx.Params {
 			assertTypeDeclNoCycle2(store, last, &cx.Params[i], stack, true)
@@ -2668,24 +2641,9 @@ func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, 
 		for i := range cx.Fields {
 			assertTypeDeclNoCycle2(store, last, &cx.Fields[i], stack, indirect)
 		}
-	case *MaybeNativeTypeExpr:
-		assertTypeDeclNoCycle2(store, last, cx.Type, stack, indirect)
-	case *CallExpr:
-		assertTypeDeclNoCycle2(store, last, cx.Func, stack, indirect)
-		for i := range cx.Args {
-			assertTypeDeclNoCycle2(store, last, cx.Args[i], stack, indirect)
-		}
-	case *IndexExpr:
-		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect)
-		assertTypeDeclNoCycle2(store, last, cx.Index, stack, indirect)
 	case *constTypeExpr:
 		return
-	case *ConstExpr:
-		return
 	default:
-		panic(fmt.Sprintf(
-			"unexpected expr: %v (%v)",
-			x, reflect.TypeOf(x)))
 	}
 	return
 }
