@@ -14,7 +14,7 @@ func (e Error) Error() string {
 // typed
 var errCmp error = errors.New("XXXX")
 
-// specil case:
+// special case:
 // one is interface
 func main() {
 	const e Error = Error(0) // typed const
