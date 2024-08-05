@@ -583,13 +583,13 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 }
 
 // ===========================================================
-func (x *BinaryExpr) checkShiftLhs(store Store, last BlockNode, dt Type, isFinal bool) {
+func (x *BinaryExpr) assertShiftExprCompatible(store Store, last BlockNode, xt Type, isFinal bool) {
 	if checker, ok := binaryChecker[x.Op]; ok {
-		if checker(dt) {
+		if checker(xt) {
 			return
 		}
 		// SHL, SHR
-		if dt == UntypedBigdecType {
+		if xt == UntypedBigdecType {
 			// 1.0 << 1
 			if lcx, ok := x.Left.(*ConstExpr); ok {
 				if _, ok := x.Right.(*ConstExpr); ok {
@@ -602,7 +602,7 @@ func (x *BinaryExpr) checkShiftLhs(store Store, last BlockNode, dt Type, isFinal
 				return
 			}
 		}
-		panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(dt)))
+		panic(fmt.Sprintf("operator %s not defined on: %v", x.Op.TokenString(), kindString(xt)))
 	} else {
 		panic(fmt.Sprintf("checker for %s does not exist", x.Op))
 	}
