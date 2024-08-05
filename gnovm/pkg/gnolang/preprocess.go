@@ -2714,7 +2714,6 @@ func findUndefined2(store Store, last BlockNode, x Expr, t Type) (un Name) {
 		}
 	case *StarExpr:
 		return findUndefined(store, last, cx.X)
-		return
 	case *RefExpr:
 		return findUndefined(store, last, cx.X)
 	case *TypeAssertExpr:
