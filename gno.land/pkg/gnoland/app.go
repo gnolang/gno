@@ -28,6 +28,21 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
 
+type App struct {
+	*sdk.BaseApp
+	restrictedDenomsDefiner
+}
+
+type restrictedDenomsDefiner struct {
+	target map[string]struct{}
+}
+
+func (d restrictedDenomsDefiner) DefineDenoms(denoms ...string) {
+	for _, denom := range denoms {
+		d.target[denom] = struct{}{}
+	}
+}
+
 type AppOptions struct {
 	DB dbm.DB
 	// `gnoRootDir` should point to the local location of the gno repository.
@@ -67,7 +82,7 @@ func (c *AppOptions) validate() error {
 }
 
 // NewAppWithOptions creates the GnoLand application with specified options
-func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
+func NewAppWithOptions(cfg *AppOptions) (*App, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
@@ -78,7 +93,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Create BaseApp.
 	// TODO: Add a consensus based min gas prices for the node, by default it does not check
-	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
+	var baseApp App
+	baseApp.BaseApp = sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
 	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
@@ -88,14 +104,15 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	// TODO: set restricted denoms from genesis.
-	bankKpr := bank.NewBankKeeperWithRestrictedDenoms(acctKpr, "ugnot")
+	bankKpr := bank.NewBankKeeper(acctKpr)
+	baseApp.restrictedDenomsDefiner = restrictedDenomsDefiner{bankKpr.RestrictedDenoms}
 
 	// XXX: Embed this ?
 	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
 
 	// Set InitChainer
-	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, cfg.GenesisTxHandler))
+	baseApp.SetInitChainer(InitChainer(baseApp.BaseApp, acctKpr, bankKpr, cfg.GenesisTxHandler))
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
@@ -147,7 +164,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	vmk.Initialize(cfg.Logger, ms, cfg.CacheStdlibLoad)
 	ms.MultiWrite() // XXX why was't this needed?
 
-	return baseApp, nil
+	return &baseApp, nil
 }
 
 // NewApp creates the GnoLand application.
@@ -156,7 +173,7 @@ func NewApp(
 	skipFailingGenesisTxs bool,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
-) (abci.Application, error) {
+) (*App, error) {
 	var err error
 
 	cfg := NewAppOptions()
