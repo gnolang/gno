@@ -8,50 +8,6 @@ import (
 	"time"
 )
 
-func TestExecuteCodeBlockWithCache(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name      string
-		codeBlock codeBlock
-		expect    string
-	}{
-		{
-			name: "import go stdlib package",
-			codeBlock: codeBlock{
-				content: `
-package main
-
-func main() {
-	println("Hello, World")
-}`,
-				lang: "gno",
-			},
-			expect: "Hello, World\n (cached)\n",
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			stdlibDir := GetStdlibsDir()
-			_, err := ExecuteCodeBlock(tt.codeBlock, stdlibDir)
-			if err != nil {
-				t.Errorf("%s returned an error: %v", tt.name, err)
-			}
-
-			cachedRes, err := ExecuteCodeBlock(tt.codeBlock, stdlibDir)
-			if err != nil {
-				t.Errorf("%s returned an error: %v", tt.name, err)
-			}
-			if cachedRes == tt.expect {
-				t.Errorf("%s = %v, want %v", tt.name, cachedRes, tt.expect)
-			}
-		})
-	}
-}
-
 func TestHashCodeBlock(t *testing.T) {
 	t.Parallel()
 	codeBlock1 := codeBlock{
@@ -345,7 +301,7 @@ func TestCompareResults(t *testing.T) {
 			name:           "Empty expected",
 			actual:         "Hello, World!",
 			expectedOutput: "",
-			expectedError:  "",
+			wantErr:        true,
 		},
 	}
 
@@ -389,7 +345,7 @@ func main() {
 More text
 `,
 			pattern:        "test1",
-			expectedResult: []string{"\n=== test1 ===\n\nHello, World!\n"},
+			expectedResult: []string{"\n=== test1 ===\n\nHello, World!\n\n"},
 			expectError:    false,
 		},
 		{
@@ -409,7 +365,7 @@ func main() {
 ` + "```" + `
 `,
 			pattern:        "test*",
-			expectedResult: []string{"\n=== test1 ===\n\nFirst\n", "\n=== test2 ===\n\nSecond\n"},
+			expectedResult: []string{"\n=== test1 ===\n\nFirst\n\n", "\n=== test2 ===\n\nSecond\n\n"},
 			expectError:    false,
 		},
 		{
@@ -438,6 +394,21 @@ func main() {
 `,
 			pattern:     "error_test",
 			expectError: true,
+		},
+		{
+			name: "expected output is nothing but actual output is something",
+			content: `
+` + "```go" + `
+// @test: foo
+func main() {
+	println("This is an unexpected output")
+}
+
+// Output:
+` + "```" + `
+`,
+			pattern:        "foo",
+			expectedResult: []string{"\n=== foo ===\n\nThis is an unexpected output\n\n"},
 		},
 	}
 

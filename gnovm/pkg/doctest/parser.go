@@ -141,7 +141,7 @@ func cleanSection(section string) (string, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return "", fmt.Errorf("failed to clean section: %v", err)
+		return "", fmt.Errorf("failed to clean section: %w", err)
 	}
 
 	return strings.Join(cleanedLines, "\n"), nil
@@ -237,7 +237,7 @@ func containsCalculation(fn *ast.FuncDecl) bool {
 // of a Go file. It returns a slice of strings representing the imported
 // package names or the last part of the import path if no alias is used.
 func extractImports(f *ast.File) []string {
-	var imports []string
+	imports := make([]string, 0)
 	for _, imp := range f.Imports {
 		if imp.Name != nil {
 			imports = append(imports, imp.Name.Name)

@@ -75,12 +75,20 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 
 	hashKey := hashCodeBlock(c)
 
+	// get the result from the cache if it exists
 	if result, found := cache.get(hashKey); found {
-		result, err := compareResults(result, c.expectedOutput, c.expectedError)
+		res := strings.TrimSpace(result)
+
+		if c.expectedOutput == "" && c.expectedError == "" {
+			return fmt.Sprintf("%s (cached)", res), nil
+		}
+
+		res, err := compareResults(res, c.expectedOutput, c.expectedError)
 		if err != nil {
 			return "", err
 		}
-		return fmt.Sprintf("%s (cached)", result), nil
+
+		return fmt.Sprintf("%s (cached)", res), nil
 	}
 
 	src, err := analyzeAndModifyCode(c.content)
@@ -135,6 +143,13 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 
 	cache.set(hashKey, res)
 
+	// If there is no expected output or error, It is considered
+	// a simple code execution and the result is returned as is.
+	if c.expectedOutput == "" && c.expectedError == "" {
+		return res, nil
+	}
+
+	// Otherwise, compare the actual output with the expected output or error.
 	return compareResults(res, c.expectedOutput, c.expectedError)
 }
 
@@ -147,7 +162,10 @@ func compareResults(actual, expectedOutput, expectedError string) (string, error
 	}
 
 	if expected == "" {
-		return actual, nil
+		if actual != "" {
+			return "", fmt.Errorf("expected no output, but got:\n%s", actual)
+		}
+		return "", nil
 	}
 
 	if strings.HasPrefix(expected, "regex:") {
