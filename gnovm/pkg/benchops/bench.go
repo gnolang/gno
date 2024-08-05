@@ -23,7 +23,7 @@ var (
 	curStoreCode   byte
 )
 
-func InitStack() {
+func InitMeasure() {
 	// this will be called to reset each benchmarking
 	opCounts = [256]int64{}
 	opAccumDur = [256]time.Duration{}
@@ -80,7 +80,7 @@ func PauseOpCode() {
 	opStartTime[code] = timeZero
 }
 
-// Resume resumes current measurement on the stack
+// Resume resumes current measurement
 func ResumeOpCode() {
 	if isOpCodeStarted == false {
 		return

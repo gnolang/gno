@@ -265,7 +265,7 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	if bm.OpsEnabled || bm.StorageEnabled {
-		bm.InitStack()
+		bm.InitMeasure()
 	}
 	if bm.StorageEnabled {
 		defer bm.FinishStore()
@@ -833,7 +833,7 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	}
 	if bm.OpsEnabled || bm.StorageEnabled {
 		// reset the benchmark stack
-		bm.InitStack()
+		bm.InitMeasure()
 	}
 	if bm.StorageEnabled {
 		defer bm.FinishStore()

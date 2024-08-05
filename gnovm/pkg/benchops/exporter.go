@@ -96,8 +96,6 @@ func FinishRun() {
 }
 
 // It reset each machine Runs
-// We do not reset stack since there are recursive m.Run and
-// the timer on the stack.
 func ResetRun() {
 	opCounts = [256]int64{}
 	opAccumDur = [256]time.Duration{}
