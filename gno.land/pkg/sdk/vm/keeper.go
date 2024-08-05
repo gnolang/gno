@@ -92,11 +92,11 @@ func (vm *VMKeeper) Initialize(
 	if vm.gnoStore != nil {
 		panic("should not happen")
 	}
-	baseSDKStore := ms.GetStore(vm.baseKey)
-	iavlSDKStore := ms.GetStore(vm.iavlKey)
+	baseStore := ms.GetStore(vm.baseKey)
+	iavlStore := ms.GetStore(vm.iavlKey)
 
 	alloc := gno.NewAllocator(maxAllocTx)
-	vm.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
+	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
 	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
 
 	if vm.gnoStore.NumMemPackages() > 0 {
@@ -119,7 +119,6 @@ func (vm *VMKeeper) Initialize(
 		logger.Debug("GnoVM packages preprocessed",
 			"elapsed", time.Since(start))
 	}
-	return
 }
 
 var (
