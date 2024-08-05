@@ -2,10 +2,9 @@ package main
 
 import "fmt"
 
-// case of expr in type call
 func main() {
 	x := 2
-	r := float32(1 + 1<<x + int(1)) // 2 step. first binary recursively, second call type
+	r := float32(1 + 1<<x + int(1))
 	println(r)
 	fmt.Printf("%T \n", r)
 }

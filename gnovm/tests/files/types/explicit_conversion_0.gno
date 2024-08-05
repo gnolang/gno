@@ -2,7 +2,6 @@ package main
 
 import "fmt"
 
-// case of const in type call
 func main() {
 	r := int(uint(1))
 	println(r)

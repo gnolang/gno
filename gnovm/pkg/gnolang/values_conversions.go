@@ -14,9 +14,6 @@ import (
 // the conversion is forced and overflow/underflow is ignored.
 // TODO: return error, and let caller also print the file and line.
 func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
-	defer func() {
-		debug.Printf("---after convert: tv: %v \n", tv)
-	}()
 	if debug {
 		if t == nil {
 			panic("ConvertTo() requires non-nil type")
@@ -30,6 +27,9 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 		if isDataByte(tv.T) {
 			panic("should not happen")
 		}
+		defer func() {
+			debug.Printf("after convert: tv: %v \n", tv)
+		}()
 	}
 	// special case for go-native conversions
 	ntv, tvIsNat := tv.T.(*NativeType)

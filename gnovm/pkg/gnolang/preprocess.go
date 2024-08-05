@@ -1489,7 +1489,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true)
 							}
 						} else {
-							// TODO: check if type bx
 							checkOrConvertType(store, last, &n.Args[i], spts[i].Type, true)
 						}
 					}

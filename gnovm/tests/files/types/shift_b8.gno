@@ -2,7 +2,6 @@ package main
 
 import "fmt"
 
-// case of expr in type call
 func main() {
 	x := 2
 	r := float32(1<<x + int(1))

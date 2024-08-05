@@ -2,7 +2,6 @@ package main
 
 import "fmt"
 
-// case of expr in type call
 func main() {
 	x := 2
 	var r float32
@@ -12,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_c6.gno:9:2: operator << not defined on: Float32Kind
+// main/files/types/shift_c6.gno:8:2: operator << not defined on: Float32Kind

@@ -2,7 +2,6 @@ package main
 
 import "fmt"
 
-// case of expr in type call
 func main() {
 	x := 2
 	var r float32
@@ -12,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_c8.gno:9:2: cannot use int as float32
+// main/files/types/shift_c8.gno:8:2: cannot use int as float32

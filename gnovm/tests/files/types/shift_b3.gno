@@ -16,11 +16,10 @@ func bar(r R) {
 	r.foo()
 }
 
-// case of expr in type call
 func main() {
 	x := 2
 	var r U64
-	r = U64(1<<x + int(1)) // 2 step. first binary, second call type
+	r = U64(1<<x + int(1))
 
 	// passing params of interface type
 	bar(r)

@@ -16,12 +16,10 @@ func bar(r R) {
 	r.foo()
 }
 
-// case of expr in type call
 func main() {
 	x := 2
 	var r U64
-	// assign to type conform and interface
-	r = 1 << x // 2 step. first binary, second call type
+	r = 1 << x
 
 	r.foo()
 

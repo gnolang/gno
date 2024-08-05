@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_c1.gno:7:11: cannot convert StringKind to UintKind
+// main/files/types/explicit_conversion_1.gno:7:11: cannot convert StringKind to UintKind
