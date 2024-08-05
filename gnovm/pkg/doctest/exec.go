@@ -201,17 +201,16 @@ func ExecuteMatchingCodeBlock(ctx context.Context, content string, pattern strin
 	var results []string
 
 	for _, block := range codeBlocks {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+
 		if matchPattern(block.name, pattern) {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			default:
-				result, err := ExecuteCodeBlock(block, GetStdlibsDir())
-				if err != nil {
-					return nil, fmt.Errorf("failed to execute code block %s: %w", block.name, err)
-				}
-				results = append(results, fmt.Sprintf("\n=== %s ===\n\n%s\n", block.name, result))
+			result, err := ExecuteCodeBlock(block, GetStdlibsDir())
+			if err != nil {
+				return nil, fmt.Errorf("failed to execute code block %s: %w", block.name, err)
 			}
+			results = append(results, fmt.Sprintf("\n=== %s ===\n\n%s\n", block.name, result))
 		}
 	}
 
