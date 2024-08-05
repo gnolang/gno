@@ -432,7 +432,7 @@ func OpDefer() int {
 	a := [1]int{0}
 
 	defer func() {
-		a[0]++
+		//	a[0]++
 	}()
 
 	defer len(a)

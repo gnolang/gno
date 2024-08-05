@@ -59,13 +59,13 @@ func (e *exporter) close() {
 
 func FinishStore() {
 	for i := 0; i < 256; i++ {
-		count := storeCounts[i]
+		count := measure.storeCounts[i]
 
 		if count == 0 {
 			continue
 		}
 		// check unstopped timer
-		if storeStartTime[i] != timeZero {
+		if measure.storeStartTime[i] != measure.timeZero {
 			panic("timer should have stopped before FinishRun")
 		}
 
@@ -73,35 +73,35 @@ func FinishStore() {
 
 		fileWriter.export(
 			code,
-			storeAccumDur[i]/time.Duration(count),
-			int(storeAccumSize[i]/count),
+			measure.storeAccumDur[i]/time.Duration(count),
+			int(measure.storeAccumSize[i]/count),
 		)
 	}
 }
 
 func FinishRun() {
 	for i := 0; i < 256; i++ {
-		if opCounts[i] == 0 {
+		if measure.opCounts[i] == 0 {
 			continue
 		}
 		// check unstopped timer
-		if opStartTime[i] != timeZero {
+		if measure.opStartTime[i] != measure.timeZero {
 			panic("timer should have stopped before FinishRun")
 		}
 
 		code := [2]byte{byte(i), 0x00}
-		fileWriter.export(code, opAccumDur[i]/time.Duration(opCounts[i]), 0)
+		fileWriter.export(code, measure.opAccumDur[i]/time.Duration(measure.opCounts[i]), 0)
 	}
 	ResetRun()
 }
 
 // It reset each machine Runs
 func ResetRun() {
-	opCounts = [256]int64{}
-	opAccumDur = [256]time.Duration{}
-	opStartTime = [256]time.Time{}
-	curOpCode = invalidCode
-	isOpCodeStarted = false
+	measure.opCounts = [256]int64{}
+	measure.opAccumDur = [256]time.Duration{}
+	measure.opStartTime = [256]time.Time{}
+	measure.curOpCode = invalidCode
+	measure.isOpCodeStarted = false
 }
 
 func Finish() {
