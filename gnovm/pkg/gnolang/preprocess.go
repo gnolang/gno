@@ -2578,6 +2578,7 @@ func assertTypeDeclNoCycle(store Store, last BlockNode, x Expr, stack *[]Name) {
 func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, indirect bool) {
 	if x == nil {
 		// XXX, should not happen?
+		panic("should not happen")
 		return
 	}
 
