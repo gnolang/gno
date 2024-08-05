@@ -87,7 +87,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
-	bankKpr := bank.NewBankKeeper(acctKpr)
+	// TODO: set restricted denoms from genesis.
+	bankKpr := bank.NewBankKeeperWithRestrictedDenoms(acctKpr, "ugnot")
 
 	// XXX: Embed this ?
 	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")

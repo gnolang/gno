@@ -30,15 +30,28 @@ var _ BankKeeperI = BankKeeper{}
 type BankKeeper struct {
 	ViewKeeper
 
-	acck auth.AccountKeeper
+	acck             auth.AccountKeeper
+	restrictedDenoms map[string]struct{}
 }
 
 // NewBankKeeper returns a new BankKeeper.
 func NewBankKeeper(acck auth.AccountKeeper) BankKeeper {
 	return BankKeeper{
-		ViewKeeper: NewViewKeeper(acck),
-		acck:       acck,
+		ViewKeeper:       NewViewKeeper(acck),
+		acck:             acck,
+		restrictedDenoms: map[string]struct{}{},
 	}
+}
+
+func NewBankKeeperWithRestrictedDenoms(acck auth.AccountKeeper, restrictedDenoms ...string) BankKeeper {
+	restrictedDenomsStore := make(map[string]struct{}, len(restrictedDenoms))
+	for _, denom := range restrictedDenoms {
+		restrictedDenomsStore[denom] = struct{}{}
+	}
+
+	bankKeeper := NewBankKeeper(acck)
+	bankKeeper.restrictedDenoms = restrictedDenomsStore
+	return bankKeeper
 }
 
 // InputOutputCoins handles a list of inputs and outputs
@@ -50,6 +63,10 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 	}
 
 	for _, in := range inputs {
+		if !bank.canSendCoins(ctx, in.Address, in.Coins) {
+			return std.ErrLockedAccount
+		}
+
 		_, err := bank.SubtractCoins(ctx, in.Address, in.Coins)
 		if err != nil {
 			return err
@@ -84,8 +101,52 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 	return nil
 }
 
+// canSendCoins returns true if the coins can be sent without violating any restriction.
+func (bank BankKeeper) canSendCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
+	// Coins of a restricted denomination cannot be transferred unless the account is unlocked.
+	if amt.ContainOneOfDenom(bank.restrictedDenoms) {
+		if acc := bank.acck.GetAccount(ctx, addr); acc != nil && acc.IsLocked() {
+			return false
+		}
+	}
+
+	return true
+}
+
+// SendCoinsUnrestricted moves coins from one account to another, regardless of any restrictions.
+func (bank BankKeeper) SendCoinsUnrestricted(
+	ctx sdk.Context,
+	fromAddr crypto.Address,
+	toAddr crypto.Address,
+	amt std.Coins,
+) error {
+	return bank.sendCoins(ctx, fromAddr, toAddr, amt, false)
+}
+
+func (bank BankKeeper) SendCoins(
+	ctx sdk.Context,
+	fromAddr crypto.Address,
+	toAddr crypto.Address,
+	amt std.Coins,
+) error {
+	return bank.sendCoins(ctx, fromAddr, toAddr, amt, true)
+}
+
 // SendCoins moves coins from one account to another
-func (bank BankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
+func (bank BankKeeper) sendCoins(
+	ctx sdk.Context,
+	fromAddr crypto.Address,
+	toAddr crypto.Address,
+	amt std.Coins,
+	restricted bool,
+) error {
+	// TODO: updated this comment after the waiver tx has been added.
+	// Locked accounts are restricted from transferrring GNOT until they have agreed to the waiver.
+
+	if restricted && !bank.canSendCoins(ctx, fromAddr, amt) {
+		return std.ErrLockedAccount
+	}
+
 	_, err := bank.SubtractCoins(ctx, fromAddr, amt)
 	if err != nil {
 		return err

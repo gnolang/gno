@@ -20,4 +20,5 @@ var _ AccountKeeperI = AccountKeeper{}
 // Limited interface only needed for auth.
 type BankKeeperI interface {
 	SendCoins(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
+	SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error
 }

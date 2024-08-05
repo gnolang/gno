@@ -12,6 +12,8 @@ import (
 	_ "github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
 
+var ErrLockedAccount = errors.New("account is locked")
+
 // Account is an interface used to store coins at a given address within state.
 // It presumes a notion of sequence numbers for replay protection, a notion of
 // account numbers for replay protection for previously pruned accounts, and a
@@ -34,6 +36,8 @@ type Account interface {
 	GetCoins() Coins
 	SetCoins(Coins) error
 
+	IsLocked() bool
+
 	// Ensure that account implements stringer
 	String() string
 }
@@ -49,6 +53,7 @@ type BaseAccount struct {
 	PubKey        crypto.PubKey  `json:"public_key" yaml:"public_key"`
 	AccountNumber uint64         `json:"account_number" yaml:"account_number"`
 	Sequence      uint64         `json:"sequence" yaml:"sequence"`
+	IsUnlocked    bool           `json:"is_unlocked" yaml:"is_unlocked"`
 }
 
 // NewBaseAccount creates a new BaseAccount object
@@ -150,4 +155,9 @@ func (acc *BaseAccount) GetSequence() uint64 {
 func (acc *BaseAccount) SetSequence(seq uint64) error {
 	acc.Sequence = seq
 	return nil
+}
+
+// IsLocked returns true if the account is not marked as unlocked -- Implements Account.
+func (acc BaseAccount) IsLocked() bool {
+	return !acc.IsUnlocked
 }
