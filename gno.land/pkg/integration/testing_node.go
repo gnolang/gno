@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
@@ -74,10 +75,10 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 		PrivValidator: pv,
 		Genesis:       genesis,
 		TMConfig:      tmconfig,
+		DB:            memdb.NewMemDB(),
 		InitChainerConfig: gnoland.InitChainerConfig{
 			GenesisTxResultHandler: gnoland.PanicOnFailingTxResultHandler,
 			CacheStdlibLoad:        true,
-			// StdlibDir automatically set
 		},
 	}
 }

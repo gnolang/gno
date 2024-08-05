@@ -83,7 +83,7 @@ gnoland restart
     }
   ],
   "fee": {
-    "gas_wanted": "10000000",
+    "gas_wanted": "1000000",
     "gas_fee": "1000000ugnot"
   },
   "signatures": [],

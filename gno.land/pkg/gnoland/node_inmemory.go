@@ -95,16 +95,15 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		cfg.StdlibDir = filepath.Join(cfg.TMConfig.RootDir, "gnovm", "stdlibs")
 	}
 	// initialize db if nil
-	mdb := cfg.DB
-	if mdb == nil {
-		mdb = memdb.NewMemDB()
+	if cfg.DB == nil {
+		cfg.DB = memdb.NewMemDB()
 	}
 
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
 		Logger:            logger,
 		MaxCycles:         cfg.GenesisMaxVMCycles,
-		DB:                mdb,
+		DB:                cfg.DB,
 		EventSwitch:       evsw,
 		InitChainerConfig: cfg.InitChainerConfig,
 	})
@@ -125,7 +124,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 	// Create genesis factory
 	genProvider := func() (*bft.GenesisDoc, error) { return cfg.Genesis, nil }
 
-	dbProvider := func(*node.DBContext) (db.DB, error) { return memdb.NewMemDB(), nil }
+	dbProvider := func(*node.DBContext) (db.DB, error) { return cfg.DB, nil }
 
 	// Generate p2p node identity
 	nodekey := &p2p.NodeKey{PrivKey: ed25519.GenPrivKey()}
