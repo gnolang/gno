@@ -55,3 +55,40 @@ func TestBlockchainInfo(t *testing.T) {
 		}
 	}
 }
+
+func TestGetHeight(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		currentHeight int64
+		heightPtr     *int64
+		min           int64
+		res           int64
+		wantErr       bool
+	}{
+		// height >= min
+		{42, int64Ptr(0), 0, 0, false},
+		{42, int64Ptr(1), 0, 1, false},
+
+		// height < min
+		{42, int64Ptr(0), 1, 0, true},
+
+		// nil height
+		{42, nil, 1, 42, false},
+	}
+
+	for i, c := range cases {
+		caseString := fmt.Sprintf("test %d failed", i)
+		res, err := getHeightWithMin(c.currentHeight, c.heightPtr, c.min)
+		if c.wantErr {
+			require.Error(t, err, caseString)
+		} else {
+			require.NoError(t, err, caseString)
+			require.Equal(t, res, c.res, caseString)
+		}
+	}
+}
+
+func int64Ptr(v int64) *int64 {
+	return &v
+}

@@ -14,6 +14,7 @@ stdout 'main: --- hello from foo ---'
 stdout 'OK!'
 stdout 'GAS WANTED: 200000'
 stdout 'GAS USED: '
+stdout 'TX HASH: '
 
 # should fail if user is added after node is started
 ! adduser test5

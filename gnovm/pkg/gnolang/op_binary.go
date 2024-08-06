@@ -475,6 +475,12 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				rfv.GetClosure(store)
 		}
 	case PointerKind:
+		if lv.T != rv.T &&
+			lv.T.Elem() != DataByteType &&
+			lv.T.TypeID() != rv.T.TypeID() {
+			return false
+		}
+
 		if lv.V != nil && rv.V != nil {
 			lpv := lv.V.(PointerValue)
 			rpv := rv.V.(PointerValue)

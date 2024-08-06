@@ -28,7 +28,7 @@ jobs:
         run: |
           # Ensure Make is installed
           make --version
-          
+
           # Run the tidy target
           make tidy
 

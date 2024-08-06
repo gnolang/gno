@@ -162,7 +162,7 @@ func fmtProcessSingleFile(cfg *fmtCfg, file string, processFile fmtProcessFileFu
 	}
 	if !cfg.write {
 		if !cfg.diff && !cfg.quiet {
-			io.Println(string(out))
+			io.Out().Write(out)
 		}
 		return true
 	}

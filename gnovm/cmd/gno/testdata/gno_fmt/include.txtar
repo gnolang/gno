@@ -27,5 +27,4 @@ package testdata
 import "gno.land/r/test/mypkg"
 
 var myVar = mypkg.HelloFromMyPkg()
-
 -- stderr.golden --

@@ -49,5 +49,4 @@ import (
 func main() {
 	println("a", v1.Get("a"))
 }
-
 -- stderr.golden --
