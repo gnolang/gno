@@ -9,18 +9,18 @@ View concept page [here](../../../concepts/stdlibs/banker.md).
 type BankerType uint8
 
 const (
-BankerTypeReadonly BankerType = iota
-BankerTypeOrigSend
-BankerTypeRealmSend
-BankerTypeRealmIssue
+    BankerTypeReadonly BankerType = iota
+    BankerTypeOrigSend
+    BankerTypeRealmSend
+    BankerTypeRealmIssue
 )
 
 type Banker interface {
-GetCoins(addr Address) (dst Coins)
-SendCoins(from, to Address, coins Coins)
-IssueCoin(addr Address, denom string, amount int64)
-RemoveCoin(addr Address, denom string, amount int64)
-TotalCoin(denom string) int64
+    GetCoins(addr Address) (dst Coins)
+    SendCoins(from, to Address, coins Coins)
+    IssueCoin(addr Address, denom string, amount int64)
+    RemoveCoin(addr Address, denom string, amount int64)
+    TotalCoin(denom string) int64
 }
 ```
 
