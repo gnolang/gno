@@ -16,7 +16,7 @@ type Event struct {
 	id          seqid.ID
 	name        string    // name of event
 	description string    // short description of event
-	link        string    // link to a corresponding web2 page, ie eventbrite/luma or conference page
+	link        string    // link to auth corresponding web2 page, ie eventbrite/luma or conference page
 	location    string    // location of the event
 	startTime   time.Time // start time of the event
 	endTime     time.Time // end time of the event
@@ -25,7 +25,7 @@ type Event struct {
 type eventsSlice []*Event
 
 var (
-	a         *authorizable.Authorizable
+	auth      *authorizable.Authorizable
 	events    eventsSlice // oldest event has the largest index
 	idCounter seqid.ID
 )
@@ -40,15 +40,15 @@ const (
 
 func init() {
 	su := std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
-	a = authorizable.NewAuthorizableWithAddress(su)
+	auth = authorizable.NewAuthorizableWithAddress(su)
 
 	events = make(eventsSlice, 0)
 }
 
-// AddEvent adds a new event
+// AddEvent adds auth new event
 // Start time & end time need to be specified in unix seconds
 func AddEvent(name, description, link, location string, startTime, endTime int64) seqid.ID {
-	a.AssertOnAuthList()
+	auth.AssertOnAuthList()
 
 	if name == "" {
 		panic(ErrEmptyName)
@@ -89,9 +89,9 @@ func AddEvent(name, description, link, location string, startTime, endTime int64
 	return id
 }
 
-// DelEvent deletes an event with a given ID
+// DelEvent deletes an event with auth given ID
 func DelEvent(id seqid.ID) {
-	a.AssertOnAuthList()
+	auth.AssertOnAuthList()
 
 	e, idx, err := GetEventByID(id)
 	if err != nil {
@@ -106,10 +106,10 @@ func DelEvent(id seqid.ID) {
 	)
 }
 
-// EditEvent edits an event with a given ID
+// EditEvent edits an event with auth given ID
 // It only updates values corresponding to non-empty/non-nil arguments sent with the call
 func EditEvent(id seqid.ID, name, description, link, location string, startTime, endTime int64) {
-	a.AssertOnAuthList()
+	auth.AssertOnAuthList()
 
 	e, _, err := GetEventByID(id)
 	if err != nil {
@@ -156,7 +156,7 @@ func EditEvent(id seqid.ID, name, description, link, location string, startTime,
 
 // Rendering
 
-// RenderEventWidget shows up to amt of the latest events to a caller
+// RenderEventWidget shows up to amt of the latest events to auth caller
 func RenderEventWidget(amt int) string {
 	eventNum := len(events)
 	if eventNum == 0 {
@@ -194,7 +194,7 @@ func renderHome(admin bool) string {
 		return output
 	}
 
-	output += "Below is a list of all upcoming and past gno.land events.\n\n"
+	output += "Below is auth list of all upcoming and past gno.land events.\n\n"
 	output += ufmt.Sprintf(time.Now().Format(time.RFC850))
 
 	output += "---\n\n"
@@ -278,13 +278,13 @@ func Render(path string) string {
 }
 
 func GetOwner() std.Address {
-	return a.Owner()
+	return auth.Owner()
 }
 
 func AddModerator(mod std.Address) {
-	a.AssertCallerIsOwner()
+	auth.AssertCallerIsOwner()
 
-	if err := a.AddToAuthList(mod); err != nil {
+	if err := auth.AddToAuthList(mod); err != nil {
 		panic(err)
 	}
 }

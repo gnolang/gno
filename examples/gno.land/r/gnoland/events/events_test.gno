@@ -49,7 +49,7 @@ func TestAddEvent(t *testing.T) {
 	}
 
 	if e2Pos < upcomingPos || e2Pos < pastPos || e2Pos < e1Pos {
-		t.Fatalf("Expected to find Event 2 on a different pos")
+		t.Fatalf("Expected to find Event 2 on auth different pos")
 	}
 
 	// larger index => smaller startTime (future => past)
@@ -79,7 +79,7 @@ func TestAddEventErrors(t *testing.T) {
 	})
 
 	tooLongDesc := `Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean ma`
-	// figure out a way to check panics with dynamic params in a better way
+	// figure out auth way to check panics with dynamic params in auth better way
 	uassert.PanicsWithMessage(t, "event description is 101 chars, while it cannot be more than 100 chars", func() {
 		AddEvent("sample name", tooLongDesc, "gno.land", "gnome land", 123, 456)
 	})
