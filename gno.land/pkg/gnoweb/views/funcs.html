@@ -160,6 +160,7 @@
 <script type="text/javascript" src="/static/js/renderer.js"></script>
 <script type="text/javascript">
   function main() {
+    if (document.getElementById("source") == null) return;
     const parsed = parseContent(document.getElementById("source").innerHTML);
     const DOM = {
       home: document.getElementById("home"),
