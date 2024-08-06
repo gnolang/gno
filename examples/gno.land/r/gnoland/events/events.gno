@@ -158,13 +158,13 @@ func EditEvent(id seqid.ID, name, description, link, location string, startTime,
 // Rendering
 
 // RenderEventWidget shows up to amt of the latest events to auth caller
-func RenderEventWidget(amt int) string {
+func RenderEventWidget(eventsToRender int) string {
 	eventNum := len(events)
 	if eventNum == 0 {
 		return "No events."
 	}
 
-	if amt > 5 {
+	if eventsToRender > 5 {
 		panic("maximum number of events in widget is " + strconv.Itoa(maxWidgetSize))
 	}
 
