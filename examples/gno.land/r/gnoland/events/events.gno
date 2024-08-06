@@ -159,8 +159,8 @@ func EditEvent(id seqid.ID, name, description, link, location string, startTime,
 
 // RenderEventWidget shows up to amt of the latest events to auth caller
 func RenderEventWidget(eventsToRender int) string {
-	eventNum := len(events)
-	if eventNum == 0 {
+	numOfEvents := len(events)
+	if numOfEvents == 0 {
 		return "No events."
 	}
 
@@ -168,12 +168,12 @@ func RenderEventWidget(eventsToRender int) string {
 		panic("maximum number of events in widget is " + strconv.Itoa(maxWidgetSize))
 	}
 
-	if amt < 1 {
-		panic("amt needs to be more than 0")
+	if eventsToRender < 1 {
+		panic("you need to request at least 1 event to render")
 	}
 
-	if amt > eventNum {
-		amt = eventNum
+	if eventsToRender > numOfEvents {
+		eventsToRender = numOfEvents
 	}
 
 	output := ""
