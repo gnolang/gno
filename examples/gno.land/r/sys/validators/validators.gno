@@ -2,15 +2,23 @@ package validators
 
 import (
 	"std"
-	"strconv"
 
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/sys/validators"
 )
 
 var (
 	vp      validators.ValsetProtocol // p is the underlying validator set protocol
-	changes []validators.Validator    // changes are the set changes that happened between scrapes
+	changes *avl.Tree                 // changes holds any valset changes; seqid(block number) -> []change
 )
+
+// change represents a single valset change, tied to a specific block number
+type change struct {
+	blockNum  int64                // the block number associated with the valset change
+	validator validators.Validator // the validator update
+}
 
 // addValidator adds a new validator to the validator set.
 // If the validator is already present, the method errors out
@@ -21,7 +29,12 @@ func addValidator(validator validators.Validator) {
 	}
 
 	// Validator added, note the change
-	changes = append(changes, val)
+	ch := change{
+		blockNum:  std.GetHeight(),
+		validator: val,
+	}
+
+	saveChange(ch)
 
 	// Emit the validator set change
 	std.Emit(validators.ValidatorAddedEvent)
@@ -36,25 +49,69 @@ func removeValidator(address std.Address) {
 	}
 
 	// Validator removed, note the change
-	changes = append(changes, validators.Validator{
-		Address:     val.Address,
-		PubKey:      val.PubKey,
-		VotingPower: 0, // nullified the voting power indicates removal
-	})
+	ch := change{
+		blockNum: std.GetHeight(),
+		validator: validators.Validator{
+			Address:     val.Address,
+			PubKey:      val.PubKey,
+			VotingPower: 0, // nullified the voting power indicates removal
+		},
+	}
+
+	saveChange(ch)
 
 	// Emit the validator set change
 	std.Emit(validators.ValidatorRemovedEvent)
 }
 
+// saveChange saves the valset change
+func saveChange(ch change) {
+	id := getBlockID(ch.blockNum)
+
+	setRaw, exists := changes.Get(id)
+	if !exists {
+		changes.Set(id, []change{ch})
+
+		return
+	}
+
+	// Save the change
+	set := setRaw.([]change)
+	set = append(set, ch)
+
+	changes.Set(id, set)
+}
+
+// getBlockID converts the block number to a sequential ID
+func getBlockID(blockNum int64) string {
+	return seqid.ID(uint64(blockNum)).String()
+}
+
 func Render(_ string) string {
-	if len(changes) == 0 {
+	var (
+		size       = changes.Size()
+		maxDisplay = 10
+	)
+
+	if size == 0 {
 		return "No valset changes to apply."
 	}
 
-	output := "Valset changes to apply:\n"
-	for _, change := range changes {
-		output += "- " + string(change.Address) + " (" + strconv.FormatUint(change.VotingPower, 10) + ")\n"
-	}
+	output := "Valset changes:\n"
+	changes.ReverseIterateByOffset(size-maxDisplay, maxDisplay, func(_ string, value interface{}) bool {
+		chs := value.([]change)
+
+		for _, ch := range chs {
+			output += ufmt.Sprintf(
+				"- #%d: %s (%d)\n",
+				ch.blockNum,
+				ch.validator.Address.String(),
+				ch.validator.VotingPower,
+			)
+		}
+
+		return false
+	})
 
 	return output
 }

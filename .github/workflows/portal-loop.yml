@@ -3,8 +3,8 @@ name: portal-loop
 on:
   push:
     paths:
-      - misc/loop
-      - .github/workflows/portal-loop.yml
+      - "misc/loop/**"
+      - ".github/workflows/portal-loop.yml"
     branches:
       - "master"
       - "ops/portal-loop"
@@ -39,7 +39,7 @@ jobs:
             type=semver,pattern=v{{version}}
 
       - name: Build and push
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./misc/loop
           target: portalloopd
