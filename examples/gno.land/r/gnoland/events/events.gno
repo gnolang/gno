@@ -201,7 +201,7 @@ func renderHome(admin bool) string {
 	output += "---\n\n"
 
 	// Find position of the latest past event
-	pos := sort.Search(len(events), func(i int) bool {
+	pastEventsIdx := sort.Search(len(events), func(i int) bool {
 		return events[i].startTime.Before(time.Now())
 	})
 
@@ -210,8 +210,8 @@ func renderHome(admin bool) string {
 	output += "<div class='columns-3'>"
 
 	// If there are any upcoming events
-	if len(events[:pos]) > 0 {
-		for _, e := range events[:pos] {
+	if len(events[:pastEventsIdx]) > 0 {
+		for _, e := range events[:pastEventsIdx] {
 			output += e.Render(admin)
 		}
 	} else {
@@ -225,8 +225,8 @@ func renderHome(admin bool) string {
 	output += "## Past events\n\n"
 	output += "<div class='columns-3'>"
 
-	if len(events[pos:]) > 0 {
-		for _, e := range events[pos:] {
+	if len(events[pastEventsIdx:]) > 0 {
+		for _, e := range events[pastEventsIdx:] {
 			output += e.Render(admin)
 		}
 	} else {
