@@ -90,11 +90,6 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 		return fmt.Sprintf("%s (cached)", res), nil
 	}
 
-	src, err := analyzeAndModifyCode(c.content)
-	if err != nil {
-		return "", err
-	}
-
 	baseKey := store.NewStoreKey("baseKey")
 	iavlKey := store.NewStoreKey("iavlKey")
 
@@ -116,7 +111,7 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 	mcw.MultiWrite()
 
 	files := []*std.MemFile{
-		{Name: fmt.Sprintf("%d.%s", c.index, lang), Body: src},
+		{Name: fmt.Sprintf("%d.%s", c.index, lang), Body: c.content},
 	}
 
 	addr := crypto.AddressFromPreimage([]byte("addr1"))

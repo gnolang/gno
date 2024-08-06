@@ -338,6 +338,8 @@ func TestExecuteMatchingCodeBlock(t *testing.T) {
 Some text here
 ` + "```go" + `
 // @test: test1
+package main
+
 func main() {
     println("Hello, World!")
 }
@@ -353,12 +355,16 @@ More text
 			content: `
 ` + "```go" + `
 // @test: test1
+package main
+
 func main() {
     println("First")
 }
 ` + "```" + `
 ` + "```go" + `
 // @test: test2
+package main
+
 func main() {
     println("Second")
 }
@@ -387,6 +393,8 @@ func main() {
 			content: `
 ` + "```go" + `
 // @test: error_test
+package main
+
 func main() {
     panic("This should cause an error")
 }
@@ -400,6 +408,8 @@ func main() {
 			content: `
 ` + "```go" + `
 // @test: foo
+package main
+
 func main() {
 	println("This is an unexpected output")
 }
