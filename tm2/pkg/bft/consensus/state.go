@@ -456,11 +456,10 @@ func (cs *ConsensusState) updateHeight(height int64) {
 }
 
 func (cs *ConsensusState) updateRoundStep(round int, step cstypes.RoundStepType) {
-	cs.mtx.Lock()
-	defer cs.mtx.Unlock()
-
+	cs.mtx.RLock()
 	cs.Round = round
 	cs.Step = step
+	cs.mtx.RUnlock()
 }
 
 // enterNewRound(height, 0) at cs.StartTime.
@@ -602,9 +601,10 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 		// priv_val tracks LastSig
 
 		// close wal now that we're done writing to it
+		cs.mtx.Lock()
 		cs.wal.Stop()
 		cs.wal.Wait()
-
+		cs.mtx.Unlock()
 		close(cs.done)
 	}
 

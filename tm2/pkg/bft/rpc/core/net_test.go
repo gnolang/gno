@@ -1,6 +1,7 @@
 package core
 
 import (
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,17 +13,24 @@ import (
 	p2pcfg "github.com/gnolang/gno/tm2/pkg/p2p/config"
 )
 
+var mu sync.Mutex
+
 func TestUnsafeDialSeeds(t *testing.T) {
 	t.Parallel()
-
 	sw := p2p.MakeSwitch(p2pcfg.DefaultP2PConfig(), 1, "testing", "123.123.123",
 		func(n int, sw *p2p.Switch) *p2p.Switch { return sw })
 	err := sw.Start()
 	require.NoError(t, err)
+
+	mu.Lock()
 	defer sw.Stop()
+	mu.Unlock()
 
 	logger = log.NewNoopLogger()
+
+	mu.Lock()
 	p2pPeers = sw
+	mu.Unlock()
 
 	testCases := []struct {
 		seeds []string
@@ -54,7 +62,10 @@ func TestUnsafeDialPeers(t *testing.T) {
 	defer sw.Stop()
 
 	logger = log.NewNoopLogger()
+
+	mu.Lock()
 	p2pPeers = sw
+	mu.Unlock()
 
 	testCases := []struct {
 		peers []string
