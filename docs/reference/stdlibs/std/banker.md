@@ -9,17 +9,18 @@ View concept page [here](../../../concepts/stdlibs/banker.md).
 type BankerType uint8
 
 const (
-    BankerTypeReadonly BankerType = iota
-    BankerTypeOrigSend
-    BankerTypeRealmSend
-    BankerTypeRealmIssue
+BankerTypeReadonly BankerType = iota
+BankerTypeOrigSend
+BankerTypeRealmSend
+BankerTypeRealmIssue
 )
 
 type Banker interface {
-    GetCoins(addr Address) (dst Coins)
-    SendCoins(from, to Address, coins Coins)
-    IssueCoin(addr Address, denom string, amount int64)
-    RemoveCoin(addr Address, denom string, amount int64)
+GetCoins(addr Address) (dst Coins)
+SendCoins(from, to Address, coins Coins)
+IssueCoin(addr Address, denom string, amount int64)
+RemoveCoin(addr Address, denom string, amount int64)
+TotalCoin(denom string) int64
 }
 ```
 
@@ -28,10 +29,10 @@ Returns `Banker` of the specified type.
 
 #### Parameters
 - `BankerType` - type of Banker to get:
-    - `BankerTypeReadonly` - read-only access to coin balances
-    - `BankerTypeOrigSend` - full access to coins sent with the transaction that calls the banker
-    - `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaction
-    - `BankerTypeRealmIssue` - able to issue new coins
+  - `BankerTypeReadonly` - read-only access to coin balances
+  - `BankerTypeOrigSend` - full access to coins sent with the transaction that calls the banker
+  - `BankerTypeRealmSend` - full access to coins that the realm itself owns, including the ones sent with the transaction
+  - `BankerTypeRealmIssue` - able to issue new coins
 
 #### Usage
 
@@ -93,4 +94,17 @@ Removes (burns) `amount` of coin with a denomination `denom` from address `addr`
 #### Usage
 ```go
 banker.RemoveCoin(addr, denom, amount)
+```
+
+---
+
+## TotalCoin
+Returns the total supply of coin with denomination `denom`.
+
+#### Parameters
+- `denom` **string** denomination of coin to get the total supply of
+
+#### Usage
+```go
+banker.TotalCoin(denom)
 ```
