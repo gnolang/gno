@@ -178,7 +178,7 @@ func RenderEventWidget(eventsToRender int) string {
 
 	output := ""
 
-	for _, event := range events[eventNum-amt:] {
+	for _, event := range events[numOfEvents-eventsToRender:] {
 		if event.startTime.After(time.Now()) {
 			output += ufmt.Sprintf("- [%s](%s)\n", event.name, event.link)
 		}
