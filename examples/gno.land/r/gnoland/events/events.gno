@@ -5,6 +5,7 @@ import (
 	"sort"
 	"std"
 	"strconv"
+	"strings"
 	"time"
 
 	"gno.land/p/demo/ownable/exts/authorizable"
@@ -50,7 +51,7 @@ func init() {
 func AddEvent(name, description, link, location string, startTime, endTime int64) seqid.ID {
 	auth.AssertOnAuthList()
 
-	if name == "" {
+	if strings.TrimSpace(name) == "" {
 		panic(ErrEmptyName)
 	}
 
@@ -117,19 +118,19 @@ func EditEvent(id seqid.ID, name, description, link, location string, startTime,
 	}
 
 	// Set only valid values
-	if name != "" {
+	if strings.TrimSpace(name) != "" {
 		e.name = name
 	}
 
-	if description != "" {
+	if strings.TrimSpace(description) != "" {
 		e.description = description
 	}
 
-	if link != "" {
+	if strings.TrimSpace(link) != "" {
 		e.link = link
 	}
 
-	if location != "" {
+	if strings.TrimSpace(location) != "" {
 		e.location = location
 	}
 
