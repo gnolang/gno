@@ -2591,8 +2591,8 @@ func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, 
 	switch cx := x.(type) {
 	case *NameExpr:
 		if indirect {
-			// not check
-			*stack = []Name{} // reset
+			// clear current stack
+			*stack = (*stack)[:0]
 		} else {
 			var msg string
 			for _, n := range *stack {
