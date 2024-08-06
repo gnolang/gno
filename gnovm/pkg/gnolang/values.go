@@ -767,7 +767,7 @@ func (mv *MapValue) GetLength() int {
 // Gno will, but here we just use this method signature as we
 // do for structs and arrays for assigning new entries.  If key
 // doesn't exist, a new slot is created.
-func (mv *MapValue) GetPointerForKey(alloc *Allocator, store Store, key *TypedValue) PointerValue {
+func (mv *MapValue) GetPointerForKey(alloc *Allocator, store ObjectTypeStore, key *TypedValue) PointerValue {
 	kmk := key.ComputeMapKey(store, false)
 	if mli, ok := mv.vmap[kmk]; ok {
 		key2 := key.Copy(alloc)
@@ -829,6 +829,8 @@ type PackageValue struct {
 	Realm      *Realm `json:"-"` // if IsRealmPath(PkgPath), otherwise nil.
 	// NOTE: Realm is persisted separately.
 
+	// Used to map ecah filename to its own FileBlock.
+	// Also used to determine whether a *PackageValue is loaded or not.
 	fBlocksMap map[Name]*Block
 }
 
@@ -845,7 +847,7 @@ func (pv *PackageValue) getFBlocksMap() map[Name]*Block {
 }
 
 // to call after loading *PackageValue.
-func (pv *PackageValue) deriveFBlocksMap(store Store) {
+func (pv *PackageValue) deriveFBlocksMap(store ObjectStore) {
 	if pv.fBlocksMap != nil {
 		panic("should not happen")
 	}
@@ -857,7 +859,7 @@ func (pv *PackageValue) deriveFBlocksMap(store Store) {
 	}
 }
 
-func (pv *PackageValue) GetBlock(store Store) *Block {
+func (pv *PackageValue) GetBlock(store ObjectStore) *Block {
 	bv := pv.Block
 	switch bv := bv.(type) {
 	case RefValue:
@@ -892,7 +894,7 @@ func (pv *PackageValue) AddFileBlock(fn Name, fb *Block) {
 	fb.SetOwner(pv)
 }
 
-func (pv *PackageValue) GetFileBlock(store Store, fname Name) *Block {
+func (pv *PackageValue) GetFileBlock(store ObjectStore, fname Name) *Block {
 	if fb, ex := pv.getFBlocksMap()[fname]; ex {
 		return fb
 	}
@@ -1591,7 +1593,7 @@ func (tv *TypedValue) isZero() bool {
 	return false
 }
 
-func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
+func (tv *TypedValue) ComputeMapKey(store ObjectTypeStore, omitType bool) MapKey {
 	// Special case when nil: has no separator.
 	if tv.T == nil {
 		if debug {
@@ -2620,7 +2622,7 @@ func typedString(s string) TypedValue {
 	return tv
 }
 
-func fillValueTV(store Store, tv *TypedValue) *TypedValue {
+func fillValueTV(store ObjectTypeStore, tv *TypedValue) *TypedValue {
 	switch cv := tv.V.(type) {
 	case RefValue:
 		if cv.PkgPath != "" { // load package
