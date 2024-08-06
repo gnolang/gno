@@ -200,7 +200,7 @@ func renderHome(admin bool) string {
 
 	output += "---\n\n"
 
-	// Find position of la1test past event
+	// Find position of the latest past event
 	pos := sort.Search(len(events), func(i int) bool {
 		return events[i].startTime.Before(time.Now())
 	})
