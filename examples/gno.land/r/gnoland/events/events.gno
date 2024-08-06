@@ -33,9 +33,9 @@ var (
 const (
 	maxDescLength = 100
 	maxWidgetSize = 5
-	AdditionEvent = "EventAdded"
-	DeletionEvent = "EventDeleted"
-	EditingEvent  = "EventEdited"
+	EventAdded    = "EventAdded"
+	EventDeleted  = "EventDeleted"
+	EventEdited   = "EventEdited"
 )
 
 func init() {
@@ -81,7 +81,7 @@ func AddEvent(name, description, link, location string, startTime, endTime int64
 	events = append(events, e)
 	sort.Sort(events)
 
-	std.Emit(AdditionEvent,
+	std.Emit(EventAdded,
 		"id",
 		e.id.String(),
 	)
@@ -100,7 +100,7 @@ func DelEvent(id seqid.ID) {
 
 	events = append(events[:idx], events[idx+1:]...)
 
-	std.Emit(DeletionEvent,
+	std.Emit(EventDeleted,
 		"id",
 		e.id.String(),
 	)
@@ -143,7 +143,7 @@ func EditEvent(id seqid.ID, name, description, link, location string, startTime,
 		panic(ErrInvalidEndTime)
 	}
 
-	std.Emit(EditingEvent,
+	std.Emit(EventEdited,
 		"id",
 		e.id.String(),
 	)
