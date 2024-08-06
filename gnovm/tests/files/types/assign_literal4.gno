@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_literal4.gno:4: cannot assign to [](const-type int){(const (1 int)), (const (2 int))}
+// main/files/types/assign_literal4.gno:4:2: cannot assign to [](const-type int){(const (1 int)), (const (2 int))}

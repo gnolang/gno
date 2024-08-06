@@ -173,7 +173,7 @@ gnoland config set moniker node01
 
 :::warning Modify existing secrets
 
-We can modify existing secrets, or utilize our own (if we have them backed up, for example) for the Gno.land node.
+We can modify existing secrets, or utilize our own (if we have them backed up, for example) for the gno.land node.
 Each secret needs to be placed in the appropriate path within `<data-dir>/secrets`, and it can be replaced or
 regenerated with `gnoland secrets init <key-name> --force`
 
@@ -251,7 +251,7 @@ FLAGS
 
 ## 3. Add the `examples` packages into the `genesis.json` (optional)
 
-This step is not necessarily required, however, using a Gno.land chain without the `examples` packages predeployed can
+This step is not necessarily required, however, using a gno.land chain without the `examples` packages predeployed can
 present challenges with users who expect them to be present.
 
 The `examples` directory is located in the `$GNOROOT` location, or the local gno repository clone.

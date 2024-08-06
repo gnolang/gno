@@ -6,10 +6,6 @@ on:
       - master
   workflow_dispatch:
   pull_request:
-    paths:
-      - "tm2/**"
-      - "go.*" # check on go.mod/sum update
-      - ".github/**"
 
 jobs:
   main:
