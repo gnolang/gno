@@ -14,7 +14,7 @@ var (
 	charlie = testutils.TestAddress("charlie")
 )
 
-func TestNew(t *testing.T) {
+func NewAuthorizable(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(alice))
 	std.TestSetOrigCaller(alice) // TODO(bug, issue #2371): should not be needed
 
@@ -26,7 +26,7 @@ func TestNew(t *testing.T) {
 	}
 }
 
-func TestNewWithAddress(t *testing.T) {
+func NewAuthorizableWithAddress(t *testing.T) {
 	a := NewAuthorizableWithAddress(alice)
 
 	got := a.Owner()
@@ -36,7 +36,7 @@ func TestNewWithAddress(t *testing.T) {
 	}
 }
 
-func TestOnList(t *testing.T) {
+func CallerOnAuthList(t *testing.T) {
 	a := NewAuthorizableWithAddress(alice)
 	std.TestSetRealm(std.NewUserRealm(alice))
 	std.TestSetOrigCaller(alice)
@@ -46,7 +46,7 @@ func TestOnList(t *testing.T) {
 	}
 }
 
-func TestNotOnList(t *testing.T) {
+func TestNotCallerOnAuthList(t *testing.T) {
 	a := NewAuthorizableWithAddress(alice)
 	std.TestSetRealm(std.NewUserRealm(bob))
 	std.TestSetOrigCaller(bob)
