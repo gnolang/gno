@@ -2906,11 +2906,11 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 	}
 }
 
-func assertTypeDeclNoCycle(store Store, last BlockNode, x Expr, stack *[]Name) {
-	assertTypeDeclNoCycle2(store, last, x, stack, false)
+func assertTypeDeclNoCycle(store Store, last BlockNode, td *TypeDecl, stack *[]Name) {
+	assertTypeDeclNoCycle2(store, last, td.Type, stack, false, td.IsAlias)
 }
 
-func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, indirect bool) {
+func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, indirect bool, isAlias bool) {
 	if x == nil {
 		panic("should not happen")
 	}
@@ -2925,59 +2925,68 @@ func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, 
 
 	switch cx := x.(type) {
 	case *NameExpr:
-		if indirect {
-			// clear current stack
-			*stack = (*stack)[:0]
-		} else {
-			var msg string
+		var msg string
+
+		// Function to build the error message
+		buildMessage := func() string {
+			for j := 0; j < len(*stack); j++ {
+				msg += fmt.Sprintf("%s -> ", (*stack)[j])
+			}
+			return msg + string(cx.Name) // Append the current name last
+		}
+
+		// Check for existence of cx.Name in stack
+		findCycle := func() {
 			for _, n := range *stack {
 				if n == cx.Name {
-					for j := 0; j < len(*stack); j++ {
-						msg += fmt.Sprintf("%s -> ", (*stack)[j])
-					}
-					msg += string(n)
+					msg = buildMessage()
 					panic(fmt.Sprintf("invalid recursive type: %s", msg))
 				}
 			}
-			*stack = append(*stack, cx.Name)
-			lastX = cx
 		}
+
+		if indirect && !isAlias {
+			*stack = (*stack)[:0]
+		} else {
+			findCycle()
+			*stack = append(*stack, cx.Name)
+			lastX = cx // Assuming lastX is declared somewhere in this context
+		}
+
 		return
 	case *SelectorExpr:
-		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect, isAlias)
 	case *StarExpr:
-		assertTypeDeclNoCycle2(store, last, cx.X, stack, true)
+		assertTypeDeclNoCycle2(store, last, cx.X, stack, true, isAlias)
 	case *FieldTypeExpr:
-		assertTypeDeclNoCycle2(store, last, cx.Type, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.Type, stack, indirect, isAlias)
 	case *ArrayTypeExpr:
 		if cx.Len != nil {
-			assertTypeDeclNoCycle2(store, last, cx.Len, stack, indirect)
+			assertTypeDeclNoCycle2(store, last, cx.Len, stack, indirect, isAlias)
 		}
-		assertTypeDeclNoCycle2(store, last, cx.Elt, stack, indirect)
+		assertTypeDeclNoCycle2(store, last, cx.Elt, stack, indirect, isAlias)
 	case *SliceTypeExpr:
-		assertTypeDeclNoCycle2(store, last, cx.Elt, stack, true)
+		assertTypeDeclNoCycle2(store, last, cx.Elt, stack, true, isAlias)
 	case *InterfaceTypeExpr:
 		for i := range cx.Methods {
-			assertTypeDeclNoCycle2(store, last, &cx.Methods[i], stack, true)
+			assertTypeDeclNoCycle2(store, last, &cx.Methods[i], stack, indirect, isAlias)
 		}
 	case *ChanTypeExpr:
-		assertTypeDeclNoCycle2(store, last, cx.Value, stack, true)
+		assertTypeDeclNoCycle2(store, last, cx.Value, stack, true, isAlias)
 	case *FuncTypeExpr:
 		for i := range cx.Params {
-			assertTypeDeclNoCycle2(store, last, &cx.Params[i], stack, true)
+			assertTypeDeclNoCycle2(store, last, &cx.Params[i], stack, true, isAlias)
 		}
 		for i := range cx.Results {
-			assertTypeDeclNoCycle2(store, last, &cx.Results[i], stack, true)
+			assertTypeDeclNoCycle2(store, last, &cx.Results[i], stack, true, isAlias)
 		}
 	case *MapTypeExpr:
-		assertTypeDeclNoCycle2(store, last, cx.Key, stack, true)
-		assertTypeDeclNoCycle2(store, last, cx.Value, stack, true)
+		assertTypeDeclNoCycle2(store, last, cx.Key, stack, true, isAlias)
+		assertTypeDeclNoCycle2(store, last, cx.Value, stack, true, isAlias)
 	case *StructTypeExpr:
 		for i := range cx.Fields {
-			assertTypeDeclNoCycle2(store, last, &cx.Fields[i], stack, indirect)
+			assertTypeDeclNoCycle2(store, last, &cx.Fields[i], stack, indirect, isAlias)
 		}
-	case *constTypeExpr:
-		return
 	default:
 	}
 	return
@@ -3292,7 +3301,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 	// check type decl cycle
 	if td, ok := d.(*TypeDecl); ok {
 		// recursively check
-		assertTypeDeclNoCycle(store, last, td.Type, stack)
+		assertTypeDeclNoCycle(store, last, td, stack)
 	}
 
 	// recursively predefine dependencies.
