@@ -10,4 +10,4 @@ func main() {
 }
 
 // Error:
-// main/files/recursive1f.gno:3: invalid recursive type: S -> S
+// main/files/recursive1f.gno:3:1: invalid recursive type: S -> S

@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// main/files/circular_constant.gno:3: constant definition loop with A
+// main/files/circular_constant.gno:3:7: constant definition loop with A
