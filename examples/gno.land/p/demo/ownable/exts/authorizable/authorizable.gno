@@ -54,7 +54,7 @@ func (a *Authorizable) AddToAuthList(addr std.Address) error {
 	return nil
 }
 
-func (a *Authorizable) DelFromAuthList(addr std.Address) error {
+func (a *Authorizable) DeleteFromAuthList(addr std.Address) error {
 	if err := a.CallerIsOwner(); err != nil {
 		return ErrNotSuperuser
 	}
