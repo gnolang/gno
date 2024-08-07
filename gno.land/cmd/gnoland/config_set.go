@@ -36,8 +36,8 @@ func newConfigSetCmd(io commands.IO) *commands.Command {
 
 	// Add subcommand helpers
 	helperGen := metadataHelperGenerator{
-		MetaUpdate: func(meta *commands.Metadata) {
-			meta.ShortUsage = fmt.Sprintf("config set %s <value>", meta.Name)
+		MetaUpdate: func(meta *commands.Metadata, inputType string) {
+			meta.ShortUsage = fmt.Sprintf("config set %s <%s>", meta.Name, inputType)
 		},
 		TagNameSelector: "json",
 		TreeDisplay:     true,

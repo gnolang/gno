@@ -38,8 +38,8 @@ func newConfigGetCmd(io commands.IO) *commands.Command {
 
 	// Add subcommand helpers
 	helperGen := metadataHelperGenerator{
-		MetaUpdate: func(meta *commands.Metadata) {
-			meta.ShortUsage = "config get " + meta.Name
+		MetaUpdate: func(meta *commands.Metadata, inputType string) {
+			meta.ShortUsage = fmt.Sprintf("config get %s <%s>", meta.Name, inputType)
 		},
 		TagNameSelector: "json",
 		TreeDisplay:     true,

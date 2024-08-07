@@ -12,13 +12,14 @@ import (
 
 type metadataHelperGenerator struct {
 	// Optional callback to edit metadata
-	MetaUpdate func(*commands.Metadata)
+	MetaUpdate func(meta *commands.Metadata, inputType string)
 	// Tag to select for name, if empty will use the field Name
 	TagNameSelector string
 	// Will display description with tree representation
 	TreeDisplay bool
 }
 
+// generateSubCommandHelper generates subcommands based on `s` structure fields and their respective tag descriptions
 func generateSubCommandHelper(gen metadataHelperGenerator, s any, exec commands.ExecMethod) []*commands.Command {
 	rv := reflect.ValueOf(s)
 	metas := gen.generateFields(rv, "", 0)
@@ -108,10 +109,14 @@ func (g *metadataHelperGenerator) generateFields(rv reflect.Value, parent string
 
 			// Display full comment as Long Help
 			meta.LongHelp = comment
+		} else {
+			// If the comment is empty, it mostly means that there is no help.
+			// Use a blank space to avoid falling back on short help.
+			meta.LongHelp = " "
 		}
 
 		if g.MetaUpdate != nil {
-			g.MetaUpdate(&meta)
+			g.MetaUpdate(&meta, field.Type.String())
 		}
 
 		metas = append(metas, meta)
