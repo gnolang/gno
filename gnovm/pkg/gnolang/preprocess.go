@@ -997,7 +997,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				isShift := n.Op == SHL || n.Op == SHR
 				if isShift {
 					// check LHS type compatibility
-					n.assertShiftExprCompatible(store, last, lt, false)
+					n.assertShiftExprCompatible1(store, last, lt, rt)
 					// checkOrConvert RHS
 					if baseOf(rt) != UintType {
 						// convert n.Right to (gno) uint type,
@@ -1008,6 +1008,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							Op:    n.Op,
 							Right: rn,
 						}
+						n2.Right.SetAttribute(ATTR_SHIFT_RHS, true)
 						resn := Preprocess(store, last, n2)
 						return resn, TRANS_CONTINUE
 					}
@@ -2009,9 +2010,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					} else { // len(Lhs) == len(Rhs)
 						if n.Op == SHL_ASSIGN || n.Op == SHR_ASSIGN {
-							if len(n.Lhs) != 1 || len(n.Rhs) != 1 {
-								panic("should not happen")
-							}
 							// Special case if shift assign <<= or >>=.
 							convertType(store, last, &n.Rhs[0], UintType)
 						} else if n.Op == ADD_ASSIGN || n.Op == SUB_ASSIGN || n.Op == MUL_ASSIGN || n.Op == QUO_ASSIGN || n.Op == REM_ASSIGN {
@@ -2814,7 +2812,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				t = defaultTypeOf(xt)
 			}
 
-			bx.assertShiftExprCompatible(store, last, t, true)
+			bx.assertShiftExprCompatible2(store, last, t)
 			checkOrConvertType(store, last, &bx.Left, t, autoNative)
 		} else {
 			assertAssignableTo(xt, t, autoNative)

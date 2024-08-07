@@ -1509,86 +1509,50 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	return tv.V.(BigdecValue).V
 }
 
+func signOfBytes(n [8]byte, isUnsigned bool) int {
+	if !isUnsigned {
+		// Check if negative (only makes sense for signed types)
+		if n[0]&0x80 != 0 {
+			return -1
+		}
+	}
+
+	// Check if zero
+	for _, b := range n {
+		if b != 0 {
+			return 1 // The number is positive
+		}
+	}
+
+	return 0 // All bytes are zero, hence the number is zero
+}
+
 // returns true if tv is zero
-func (tv *TypedValue) isZero() bool {
+func (tv *TypedValue) Sign() int {
 	if tv.T == nil {
 		panic("type should not be nil")
 	}
+
 	switch tv.T.Kind() {
-	case IntKind:
-		v := tv.GetInt()
-		if v == 0 {
-			return true
-		}
-	case Int8Kind:
-		v := tv.GetInt8()
-		if v == 0 {
-			return true
-		}
-	case Int16Kind:
-		v := tv.GetInt16()
-		if v == 0 {
-			return true
-		}
-	case Int32Kind:
-		v := tv.GetInt32()
-		if v == 0 {
-			return true
-		}
-	case Int64Kind:
-		v := tv.GetInt64()
-		if v == 0 {
-			return true
-		}
-	case UintKind:
-		v := tv.GetUint()
-		if v == 0 {
-			return true
-		}
-	case Uint8Kind:
-		v := tv.GetUint8()
-		if v == 0 {
-			return true
-		}
-	case Uint16Kind:
-		v := tv.GetUint16()
-		if v == 0 {
-			return true
-		}
-	case Uint32Kind:
-		v := tv.GetUint32()
-		if v == 0 {
-			return true
-		}
-	case Uint64Kind:
-		v := tv.GetUint64()
-		if v == 0 {
-			return true
-		}
-	case Float32Kind:
-		v := tv.GetFloat32()
-		if v == 0 {
-			return true
-		}
-	case Float64Kind:
-		v := tv.GetFloat64()
-		if v == 0 {
-			return true
-		}
+	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+		return signOfBytes(tv.N, true)
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, Float32Kind, Float64Kind:
+		return signOfBytes(tv.N, false)
 	case BigintKind:
 		v := tv.GetBigInt()
-		if v.Sign() == 0 {
-			return true
-		}
+		return v.Sign()
 	case BigdecKind:
 		v := tv.GetBigDec()
-		if v.Sign() == 0 {
-			return true
-		}
+		return v.Sign()
 	default:
-		panic("not numeric")
+		panic("type should be numeric")
 	}
-	return false
+}
+
+func (tv *TypedValue) AssertNonNegative(msg string) {
+	if tv.Sign() < 0 {
+		panic(fmt.Sprintf("%s:%v", msg, tv))
+	}
 }
 
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {

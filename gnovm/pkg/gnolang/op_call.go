@@ -27,6 +27,11 @@ func (m *Machine) doOpPrecall() {
 	case TypeValue:
 		// Do not pop type yet.
 		// No need for frames.
+		xv := m.PeekValue(1)
+		if cx.GetAttribute(ATTR_SHIFT_RHS) == true {
+			xv.AssertNonNegative("runtime error: negative shift amount")
+		}
+
 		m.PushOp(OpConvert)
 		if debug {
 			if len(cx.Args) != 1 {

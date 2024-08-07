@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_a7.gno:3:1: cannot convert StringKind to UintKind
+// main/files/types/shift_a7.gno:5:10: invalid operation: invalid shift count: (const ("a" <untyped> string))
