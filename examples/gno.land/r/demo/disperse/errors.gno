@@ -9,5 +9,4 @@ var (
 	ErrNegativeCoinAmount       = errors.New("disperse: coin amount cannot be negative")
 	ErrBalanceNotEqToAmountSent = errors.New("disperse: balance needs to be equal to amount sent")
 	ErrArgLenAndSentLenMismatch = errors.New("disperse: mismatch between coins sent and args called")
-	ErrWrongAmount              = errors.New("disperse: wrong coin amount")
 )

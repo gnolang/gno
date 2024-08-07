@@ -30,11 +30,6 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 		totalAmount += coin.Amount
 	}
 
-	// Check if total amount of coins sent is bigger or equal to total amount of coins to be sent
-	if totalAmount > coinSent.AmountOf("ugnot") {
-		panic(ErrWrongAmount)
-	}
-
 	// Send coins
 	for i, _ := range addresses {
 		banker.SendCoins(realmAddr, addresses[i], std.NewCoins(coins[i]))
