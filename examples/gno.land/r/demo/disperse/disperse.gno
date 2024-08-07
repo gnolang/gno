@@ -11,6 +11,8 @@ import (
 var realmAddr = std.CurrentRealm().Addr()
 
 // DisperseUgnot parses receivers and amounts and sends out ugnot
+// The function will send out the coins to the addresses and return the leftover coins to the caller
+// if there are any to return
 func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	coinSent := std.GetOrigSend()
 	caller := std.PrevRealm().Addr()
