@@ -3,6 +3,7 @@ package disperse
 import (
 	"std"
 
+	"gno.land/p/demo/ufmt"
 	tokens "gno.land/r/demo/grc20factory"
 )
 
@@ -15,8 +16,8 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	caller := std.PrevRealm().Addr()
 	banker := std.GetBanker(std.BankerTypeOrigSend)
 
-	// Check if caller sent enough coins to match the function call arguments
-	if banker.GetCoins(realmAddr).AmountOf("ugnot") < coinSent.AmountOf("ugnot") {
+	// Check if realm balance is equal to amount sent
+	if banker.GetCoins(realmAddr).AmountOf("ugnot") != coinSent.AmountOf("ugnot") {
 		panic(ErrBalanceNotEqToAmountSent)
 	}
 
