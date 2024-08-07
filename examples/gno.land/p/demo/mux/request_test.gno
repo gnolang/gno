@@ -18,6 +18,9 @@ func TestRequest_GetVar(t *testing.T) {
 		{"a/{b}/c/{d}", "a/42/c/1337", "b", "42"},
 		{"a/{b}/c/{d}", "a/42/c/1337", "d", "1337"},
 		{"{a}", "foo", "a", "foo"},
+		{"/api/v1/{user}", "/api/v1/testuser?name=test", "user", "testuser"},
+		{"/api/{v}/{user}/long/slash", "/api/v1/testuser?name=test/long/slash", "v", "v1"},
+		{"/api/v1/{user}/long/slash", "/api/v1/testuser?name=test/long/slash", "user", "testuser"},
 		// TODO: wildcards: a/*/c
 		// TODO: multiple patterns per slashes: a/{b}-{c}/d
 	}
