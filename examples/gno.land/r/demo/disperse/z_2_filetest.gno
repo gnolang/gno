@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// balance needs to be equal to amount sent
+// disperse: balance needs to be equal to amount sent

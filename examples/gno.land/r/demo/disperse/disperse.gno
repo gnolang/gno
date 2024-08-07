@@ -49,8 +49,8 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	}
 }
 
-// DisperseToken disperses tokens to multiple addresses
-func DisperseToken(addresses []std.Address, coins std.Coins) {
+// DisperseGRC20 disperses tokens to multiple addresses
+func DisperseGRC20(addresses []std.Address, coins std.Coins) {
 	caller := std.PrevRealm().Addr() // get tx sender
 
 	checkCoinAmount(addresses, coins)
@@ -66,9 +66,9 @@ func DisperseToken(addresses []std.Address, coins std.Coins) {
 	}
 }
 
-// DisperseTokenString receives a string of addresses and a string of tokens
-// and parses them to be used in DisperseToken
-func DisperseTokenString(addresses string, tokens string) {
+// DisperseGRC20String receives a string of addresses and a string of tokens
+// and parses them to be used in DisperseGRC20
+func DisperseGRC20String(addresses string, tokens string) {
 	parsedAddresses, err := parseAddresses(addresses)
 	if err != nil {
 		panic(err)
@@ -79,7 +79,7 @@ func DisperseTokenString(addresses string, tokens string) {
 		panic(err)
 	}
 
-	DisperseToken(parsedAddresses, parseTokens)
+	DisperseGRC20(parsedAddresses, parseTokens)
 }
 
 // DisperseUgnotString receives a string of addresses and a string of amounts

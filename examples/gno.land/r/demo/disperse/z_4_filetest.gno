@@ -31,7 +31,7 @@ func main() {
 	tokens.Approve("TEST1", disperseAddr, 200)
 	tokens.Approve("TEST2", disperseAddr, 200)
 
-	disperse.DisperseTokenString("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0,g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c", "200TEST1,200TEST2")
+	disperse.DisperseGRC20String("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0,g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c", "200TEST1,200TEST2")
 
 	mainbal = tokens.BalanceOf("TEST1", mainaddr) + tokens.BalanceOf("TEST2", mainaddr)
 	println("main after:", mainbal)
