@@ -11,13 +11,16 @@ var realmAddr = std.CurrentRealm().Addr()
 
 // DisperseUgnot parses receivers and amounts and sends out ugnot
 func DisperseUgnot(addresses []std.Address, coins std.Coins) {
-	coinSent := std.GetOrigSend() // get Coins sent with call
-	caller := std.PrevRealm().Addr() // get tx sender
+	coinSent := std.GetOrigSend()
+	caller := std.PrevRealm().Addr()
+	banker := std.GetBanker(std.BankerTypeOrigSend)
+
+	// Check if caller sent enough coins to match the function call arguments
+	if banker.GetCoins(realmAddr).AmountOf("ugnot") < coinSent.AmountOf("ugnot") {
+		panic(ErrBalanceNotEqToAmountSent)
+	}
 
 	checkCoinAmount(addresses, coins)
-
-	// Get Banker
-	banker := std.GetBanker(std.BankerTypeOrigSend)
 
 	var totalAmount int64
 	for _, coin := range coins {
@@ -27,11 +30,6 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	// Check if total amount of coins sent is bigger or equal to total amount of coins to be sent
 	if totalAmount > coinSent.AmountOf("ugnot") {
 		panic(ErrWrongAmount)
-	}
-
-	// Check if the realm has zero ugnot
-	if banker.GetCoins(realmAddr).AmountOf("ugnot") < coinSent.AmountOf("ugnot") {
-		panic(ErrBalanceNotEqToAmountSent)
 	}
 
 	// Send coins
