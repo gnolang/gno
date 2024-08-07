@@ -95,7 +95,7 @@ func TestDelEvent(t *testing.T) {
 		t.Fatalf("Expected to find ToDelete event in render")
 	}
 
-	DelEvent(id)
+	DeleteEvent(id)
 	got = renderHome(false)
 
 	if strings.Contains(got, "ToDelete") {

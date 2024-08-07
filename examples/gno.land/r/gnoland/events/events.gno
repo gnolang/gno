@@ -86,8 +86,8 @@ func AddEvent(name, description, link, location string, startTime, endTime int64
 	return id
 }
 
-// DelEvent deletes an event with auth given ID
-func DelEvent(id seqid.ID) {
+// DeleteEvent deletes an event with auth given ID
+func DeleteEvent(id seqid.ID) {
 	auth.AssertOnAuthList()
 
 	e, idx, err := GetEventByID(id)

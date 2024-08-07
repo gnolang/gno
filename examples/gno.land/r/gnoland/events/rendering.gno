@@ -109,7 +109,7 @@ func (e Event) Render(admin bool) string {
 
 	if admin {
 		buf.WriteString(ufmt.Sprintf("[EDIT](/r/gnoland/events?help&__func=EditEvent&id=%s)\n\n", e.id))
-		buf.WriteString(ufmt.Sprintf("[DELETE](/r/gnoland/events?help&__func=DelEvent&id=%s)\n\n", e.id))
+		buf.WriteString(ufmt.Sprintf("[DELETE](/r/gnoland/events?help&__func=DeleteEvent&id=%s)\n\n", e.id))
 	}
 
 	if e.link != "" {
