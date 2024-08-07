@@ -6,6 +6,9 @@ import (
 	tokens "gno.land/r/demo/grc20factory"
 )
 
+// Get address of Disperse realm
+var realmAddr = std.CurrentRealm().Addr()
+
 // DisperseUgnot parses receivers and amounts and sends out ugnot
 func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	coinSent := std.GetOrigSend() // get Coins sent with call
@@ -13,9 +16,6 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 
 	checkCoinAmount(coins)
 	checkNumAddrValMatch(addresses, coins)
-
-	// Get address of Disperse realm
-	realmAddr := std.CurrentRealm().Addr()
 
 	// Get Banker
 	banker := std.GetBanker(std.BankerTypeOrigSend)
