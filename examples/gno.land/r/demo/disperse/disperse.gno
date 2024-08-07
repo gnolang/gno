@@ -14,8 +14,7 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	coinSent := std.GetOrigSend() // get Coins sent with call
 	caller := std.PrevRealm().Addr() // get tx sender
 
-	checkCoinAmount(coins)
-	checkNumAddrValMatch(addresses, coins)
+	checkCoinAmount(addresses, coins)
 
 	// Get Banker
 	banker := std.GetBanker(std.BankerTypeOrigSend)
@@ -54,8 +53,7 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 func DisperseToken(addresses []std.Address, coins std.Coins) {
 	caller := std.PrevRealm().Addr() // get tx sender
 
-	checkCoinAmount(coins)
-	checkNumAddrValMatch(addresses, coins)
+	checkCoinAmount(addresses, coins)
 
 	// Transfer tokens into the realm
 	for _, coin := range coins {
@@ -105,15 +103,13 @@ func DisperseUgnotString(addresses string, amounts string) {
 	DisperseUgnot(parsedAddresses, coins)
 }
 
-// Check if number of addresses and coins match
-func checkNumAddrValMatch(addresses []std.Address, coins std.Coins) {
+
+// Check if caller correctly sent coins
+func checkCoinAmount(addresses []std.Address, coins std.Coins) {
 	if len(addresses) != len(coins) {
 		panic(ErrNumAddrValMismatch)
 	}
-}
 
-// Check if caller correctly sent positive amount of coins
-func checkCoinAmount(coins std.Coins) {
 	for _, coin := range coins {
 		if coin.Amount <= 0 {
 			panic(ErrNegativeCoinAmount)
