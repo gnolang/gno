@@ -21,7 +21,7 @@ func main() {
 	println("main before:", mainbal)
 
 	banker.SendCoins(mainaddr, disperseAddr, std.Coins{{"ugnot", 300}})
-	disperse.DisperseGnotString("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0,g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c", "150,50")
+	disperse.DisperseUgnotString("g1dmt3sa5ucvecxuhf3j6ne5r0e3z4x7h6c03xc0,g1akeqsvhucjt8gf5yupyzjxsjd29wv8fayng37c", "150,50")
 
 	mainbal = banker.GetCoins(mainaddr)
 	println("main after:", mainbal)

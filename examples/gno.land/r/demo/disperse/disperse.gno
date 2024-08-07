@@ -6,8 +6,8 @@ import (
 	tokens "gno.land/r/demo/grc20factory"
 )
 
-// DisperseGnot parses receivers and amounts and sends out gnot
-func DisperseGnot(addresses []std.Address, coins std.Coins) {
+// DisperseUgnot parses receivers and amounts and sends out ugnot
+func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	coinSent := std.GetOrigSend() // get Coins sent with call
 	caller := std.PrevRealm().Addr() // get tx sender
 
@@ -84,9 +84,9 @@ func DisperseTokenString(addresses string, tokens string) {
 	DisperseToken(parsedAddresses, parseTokens)
 }
 
-// DisperseGnotString receives a string of addresses and a string of amounts
-// and parses them to be used in DisperseGnot
-func DisperseGnotString(addresses string, amounts string) {
+// DisperseUgnotString receives a string of addresses and a string of amounts
+// and parses them to be used in DisperseUgnot
+func DisperseUgnotString(addresses string, amounts string) {
 	parsedAddresses, err := parseAddresses(addresses)
 	if err != nil {
 		panic(err)
@@ -102,7 +102,7 @@ func DisperseGnotString(addresses string, amounts string) {
 		coins[i] = std.Coin{"ugnot", amount}
 	}
 
-	DisperseGnot(parsedAddresses, coins)
+	DisperseUgnot(parsedAddresses, coins)
 }
 
 // Check if number of addresses and coins match
