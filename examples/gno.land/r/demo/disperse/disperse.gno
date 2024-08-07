@@ -53,7 +53,7 @@ func DisperseGnot(addresses []std.Address, coins std.Coins) {
 
 	// Send coins
 	for i, _ := range addresses {
-		banker.SendCoins(realmAddr, addresses[i], std.Coins{coins[i]})
+		banker.SendCoins(realmAddr, addresses[i], std.NewCoins(coins[i]))
 	}
 
 	// Return possible leftover coins
