@@ -68,7 +68,7 @@ func DisperseGnot(addresses []std.Address, coins std.Coins) {
 
 // DisperseToken disperses tokens to multiple addresses
 func DisperseToken(addresses []std.Address, coins std.Coins) {
-	caller := std.GetOrigCaller() // get tx sender
+	caller := std.PrevRealm().Addr() // get tx sender
 
 	checkCoinAmount(coins)
 	checkNumAddrValMatch(addresses, coins)
