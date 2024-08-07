@@ -25,6 +25,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	tm2Log "github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
@@ -71,6 +72,7 @@ func RunGnolandTestscripts(t *testing.T, txtarDir string) {
 
 type testNode struct {
 	*node.Node
+	cfg         *gnoland.InMemoryNodeConfig
 	nGnoKeyExec uint // Counter for execution of gnokey.
 }
 
@@ -188,16 +190,38 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 					// setup genesis state
 					cfg.Genesis.AppState = *genesis
+					cfg.DB = memdb.NewMemDB() // so it can be reused when restarting.
 
 					n, remoteAddr := TestingInMemoryNode(t, logger, cfg)
 
 					// Register cleanup
-					nodes[sid] = &testNode{Node: n}
+					nodes[sid] = &testNode{Node: n, cfg: cfg}
 
 					// Add default environments
 					ts.Setenv("RPC_ADDR", remoteAddr)
 
 					fmt.Fprintln(ts.Stdout(), "node started successfully")
+				case "restart":
+					// XXX: unstable, should try to use it in a working scenario
+					n, ok := nodes[sid]
+					if !ok {
+						err = fmt.Errorf("node must be started before being restarted")
+						break
+					}
+
+					if stopErr := n.Stop(); stopErr != nil {
+						err = fmt.Errorf("error stopping node: %w", stopErr)
+						break
+					}
+
+					// Create new node with same config.
+					newNode, newRemoteAddr := TestingInMemoryNode(t, logger, n.cfg)
+
+					// Update testNode and environment variables.
+					n.Node = newNode
+					ts.Setenv("RPC_ADDR", newRemoteAddr)
+
+					fmt.Fprintln(ts.Stdout(), "node restarted successfully")
 				case "stop":
 					n, ok := nodes[sid]
 					if !ok {
