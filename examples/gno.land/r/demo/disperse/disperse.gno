@@ -25,7 +25,7 @@ func checkCoinAmount(coins std.Coins) {
 // DisperseGnot parses receivers and amounts and sends out gnot
 func DisperseGnot(addresses []std.Address, coins std.Coins) {
 	coinSent := std.GetOrigSend() // get Coins sent with call
-	caller := std.GetOrigCaller() // get tx sender
+	caller := std.PrevRealm().Addr() // get tx sender
 
 	checkCoinAmount(coins)
 	checkNumAddrValMatch(addresses, coins)
