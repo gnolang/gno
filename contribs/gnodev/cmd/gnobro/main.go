@@ -9,9 +9,9 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -22,6 +22,7 @@ import (
 	"github.com/charmbracelet/wish/activeterm"
 	"github.com/charmbracelet/wish/bubbletea"
 	"github.com/charmbracelet/wish/logging"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/browser"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
@@ -31,7 +32,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
 const gnoPrefix = "gno.land"
@@ -213,28 +213,21 @@ func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg browser.Config, io commands.IO) error {
 	var err error
 
-	model := browser.New(bcfg, gnocl)
-	p := tea.NewProgram(model,
-		tea.WithAltScreen(), // use the full size of the terminal in its "alternate screen buffer"
-
-		tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
-	)
-
 	devpoint, err := getDevEndpoint(cfg)
 	if err != nil {
 		return fmt.Errorf("unable to parse dev endpoint: %w", err)
 	}
 
-	var wg sync.WaitGroup
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	defer cancel()
 
-	ctx, cancel := context.WithCancelCause(ctx)
-	defer cancel(nil)
+	model := browser.New(bcfg, gnocl)
+	p := tea.NewProgram(model,
+		tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
+		tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
+	)
 
-	// setup trap signal
-	osm.TrapSignal(func() {
-		cancel(nil)
-		p.Quit()
-	})
+	var errgs errgroup.Group
 
 	if devpoint != "" {
 		var devcl browser.DevClient
@@ -248,26 +241,37 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 			return nil
 		}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		errgs.Go(func() error {
+			defer cancel()
+
 			if err := devcl.Run(ctx, devpoint, nil); err != nil {
-				cancel(fmt.Errorf("dev connection failed: %w", err))
+				return fmt.Errorf("dev connection failed: %w", err)
 			}
-		}()
+
+			return nil
+		})
 	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		_, err := p.Run()
-		cancel(err)
-	}()
+	errgs.Go(func() error {
+		defer cancel()
 
-	wg.Wait()
+		_, err := p.Run()
+		return err
+	})
+
+	errgs.Go(func() error {
+		defer p.Quit()
+
+		<-ctx.Done()
+		return ctx.Err()
+	})
+
+	if err := errgs.Wait(); err != nil && !errors.As(err, &context.Canceled) {
+		return err
+	}
 
 	io.Println("Bye!")
-	return context.Cause(ctx)
+	return nil
 }
 
 func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg browser.Config, io commands.IO) error {
@@ -324,33 +328,32 @@ func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg b
 		),
 	)
 
-	ctx, cancelCause := context.WithCancelCause(ctx)
-	defer cancelCause(nil)
+	var errgs errgroup.Group
 
-	// setup trap signal
-	osm.TrapSignal(func() {
-		logger.Info("stopping SSH server")
-		if err := s.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
-			cancelCause(fmt.Errorf("could not stop server: %w", err))
-		} else {
-			cancelCause(nil)
-		}
+	errgs.Go(func() error {
+		logger.Info("starting SSH server", "addr", sshaddr.String())
+		return s.ListenAndServe()
 	})
 
-	go func() {
-		logger.Info("starting SSH server", "addr", sshaddr.String())
-		if err = s.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
-			cancelCause(err)
-		} else {
-			cancelCause(nil)
-		}
-	}()
+	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
+	defer cancel()
 
-	<-ctx.Done()
+	errgs.Go(func() error {
+		<-ctx.Done()
+
+		sctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+
+		logger.Info("stopping SSH server")
+		return s.Shutdown(sctx)
+	})
+
+	if err := errgs.Wait(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
+		return err
+	}
 
 	io.Println("Bye!")
-
-	return context.Cause(ctx)
+	return nil
 }
 
 func getDevEndpoint(cfg *broCfg) (string, error) {
