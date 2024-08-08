@@ -87,7 +87,6 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
-	// TODO: set restricted denoms from genesis.
 	bankKpr := bank.NewBankKeeper(acctKpr)
 
 	// XXX: Embed this ?
@@ -199,7 +198,6 @@ func InitChainer(
 		if req.AppState != nil {
 			// Get genesis state
 			genState := req.AppState.(GnoGenesisState)
-			bankKpr.InitRestrictedDenoms(req.RestrictedDenoms...)
 
 			// Parse and set genesis state balances
 			for _, bal := range genState.Balances {
@@ -231,6 +229,9 @@ func InitChainer(
 
 				resHandler(ctx, tx, res)
 			}
+
+			// Intialize the bank's restricted denominations AFTER executing any genesis transactions.
+			bankKpr.InitRestrictedDenoms(req.RestrictedDenoms...)
 		}
 
 		// Done!
