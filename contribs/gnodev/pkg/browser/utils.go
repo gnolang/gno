@@ -5,14 +5,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoweb"
-	"github.com/muesli/reflow/wordwrap"
 )
-
-func warpLine(str string, width int) string {
-	f := wordwrap.NewWriter(width)
-	f.Write([]byte(str))
-	return f.String()
-}
 
 func redirectWebPath(path string) string {
 	if alias, ok := gnoweb.Aliases[path]; ok {

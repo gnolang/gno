@@ -16,6 +16,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	zone "github.com/lrstanley/bubblezone"
+	"github.com/muesli/reflow/wordwrap"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -251,9 +252,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			path := m.getCurrentPath()
 			m.logger.Info("rendering realm", "path", path)
-			cmd = m.RenderUpdate(m.getCurrentPath())
+			cmd = m.RenderUpdate(path)
 		}
-
 		return m, tea.Sequence(m.taskLoader.Add(1), cmd)
 
 	case execCommandRequestMsg:
@@ -264,26 +264,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case execCommandMsg:
 		m.taskLoader.Done()
 
+		// If any error, display it as message.
 		if msg.Error != nil {
 			m.logger.Warn("command exec", "error", msg.Error)
-			content := fmt.Sprintf(
-				"%s\n\npress [enter] to dismiss",
-				warpLine(msg.Error.Error(), m.viewport.Width),
-			)
-			m.viewport.SetContent(content)
+
+			content := wordwrap.NewWriter(m.viewport.Width)
+			fmt.Fprint(content, msg.Error.Error())
+			fmt.Fprintf(content, "\n\npress [enter] to dismiss error\n")
+			m.viewport.SetContent(content.String())
 			m.messageDisplay = true
-		} else {
-			content := string(msg.Response)
-			if strings.TrimSpace(content) == "" {
-				cmd = RefreshRealm()
-				m.messageDisplay = false
-			} else {
-				m.viewport.SetContent(fmt.Sprintf("%s\n\npress [enter] to dismiss", content))
-				m.messageDisplay = true
-			}
+			return m, nil
 		}
 
-		return m, cmd
+		// If any reponse, display it as message.
+		if res := bytes.TrimSpace(msg.Response); len(res) > 0 {
+			m.logger.Info("command exec", "res", string(res))
+
+			content := wordwrap.NewWriter(m.viewport.Width)
+			content.Write(res)
+			fmt.Fprintf(content, "\n\npress [enter] to dismiss message\n")
+			m.viewport.SetContent(content.String())
+			m.messageDisplay = true
+			return m, nil
+		}
+
+		// If no error or empty response is returned, simply refresh the page.
+		m.messageDisplay = false
+		return m, RefreshRealm()
 
 	case renderUpdateMsg:
 		m.taskLoader.Done()
@@ -313,8 +320,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.viewport.SetContent(content)
-
 		return m, cmd
+
 	case SpinnerTickMsg:
 		if m.taskLoader.Active() {
 			m.taskLoader, cmd = m.taskLoader.Update(msg)
