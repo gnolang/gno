@@ -41,11 +41,12 @@ type RequestSetOption struct {
 
 type RequestInitChain struct {
 	RequestBase
-	Time            time.Time
-	ChainID         string
-	ConsensusParams *ConsensusParams
-	Validators      []ValidatorUpdate
-	AppState        interface{}
+	Time             time.Time
+	ChainID          string
+	ConsensusParams  *ConsensusParams
+	Validators       []ValidatorUpdate
+	RestrictedDenoms []string
+	AppState         interface{}
 }
 
 type RequestQuery struct {

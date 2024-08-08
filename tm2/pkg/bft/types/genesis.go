@@ -48,7 +48,7 @@ type GenesisDoc struct {
 	ChainID          string               `json:"chain_id"`
 	ConsensusParams  abci.ConsensusParams `json:"consensus_params,omitempty"`
 	Validators       []GenesisValidator   `json:"validators,omitempty"`
-	RestrictedTokens []string             `json:"restricted_tokens,omitempty"`
+	RestrictedDenoms []string             `json:"restricted_denoms,omitempty"`
 	AppHash          []byte               `json:"app_hash"`
 	AppState         interface{}          `json:"app_state,omitempty"`
 }

@@ -244,21 +244,16 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 	evsw := events.NewEventSwitch()
 
 	// Create application and node
-	localApp, err := gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, evsw, logger)
+	cfg.LocalApp, err = gnoland.NewApp(nodeDir, c.skipFailingGenesisTxs, evsw, logger)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland app, %w", err)
 	}
-
-	cfg.LocalApp = localApp
 
 	// Create a default node, with the given setup
 	gnoNode, err := node.DefaultNewNode(cfg, genesisPath, evsw, logger)
 	if err != nil {
 		return fmt.Errorf("unable to create the Gnoland node, %w", err)
 	}
-
-	// Apply restricted denoms from genesis to the banker.
-	localApp.DefineDenoms(gnoNode.GenesisDoc().RestrictedTokens...)
 
 	// Start the node (async)
 	if err := gnoNode.Start(); err != nil {

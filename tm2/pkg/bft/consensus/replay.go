@@ -296,11 +296,12 @@ func (h *Handshaker) ReplayBlocks(
 		nextVals := validatorSet.ABCIValidatorUpdates()
 		csParams := h.genDoc.ConsensusParams
 		req := abci.RequestInitChain{
-			Time:            h.genDoc.GenesisTime,
-			ChainID:         h.genDoc.ChainID,
-			ConsensusParams: &csParams,
-			Validators:      nextVals,
-			AppState:        h.genDoc.AppState,
+			Time:             h.genDoc.GenesisTime,
+			ChainID:          h.genDoc.ChainID,
+			ConsensusParams:  &csParams,
+			Validators:       nextVals,
+			AppState:         h.genDoc.AppState,
+			RestrictedDenoms: h.genDoc.RestrictedDenoms,
 		}
 		res, err := proxyApp.Consensus().InitChainSync(req)
 		if err != nil {

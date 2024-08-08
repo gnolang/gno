@@ -28,21 +28,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
 
-type App struct {
-	*sdk.BaseApp
-	restrictedDenomsDefiner
-}
-
-type restrictedDenomsDefiner struct {
-	target map[string]struct{}
-}
-
-func (d restrictedDenomsDefiner) DefineDenoms(denoms ...string) {
-	for _, denom := range denoms {
-		d.target[denom] = struct{}{}
-	}
-}
-
 type AppOptions struct {
 	DB dbm.DB
 	// `gnoRootDir` should point to the local location of the gno repository.
@@ -82,7 +67,7 @@ func (c *AppOptions) validate() error {
 }
 
 // NewAppWithOptions creates the GnoLand application with specified options
-func NewAppWithOptions(cfg *AppOptions) (*App, error) {
+func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
@@ -93,26 +78,24 @@ func NewAppWithOptions(cfg *AppOptions) (*App, error) {
 
 	// Create BaseApp.
 	// TODO: Add a consensus based min gas prices for the node, by default it does not check
-	var baseApp App
-	baseApp.BaseApp = sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
-	baseApp.SetAppVersion("dev")
+	app := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
+	app.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
-	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
-	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
+	app.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
+	app.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	// TODO: set restricted denoms from genesis.
 	bankKpr := bank.NewBankKeeper(acctKpr)
-	baseApp.restrictedDenomsDefiner = restrictedDenomsDefiner{bankKpr.RestrictedDenoms}
 
 	// XXX: Embed this ?
 	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
 
 	// Set InitChainer
-	baseApp.SetInitChainer(InitChainer(baseApp.BaseApp, acctKpr, bankKpr, cfg.GenesisTxHandler))
+	app.SetInitChainer(InitChainer(app, acctKpr, bankKpr, cfg.GenesisTxHandler))
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
@@ -120,7 +103,7 @@ func NewAppWithOptions(cfg *AppOptions) (*App, error) {
 	}
 	authAnteHandler := auth.NewAnteHandler(
 		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer, authOptions)
-	baseApp.SetAnteHandler(
+	app.SetAnteHandler(
 		// Override default AnteHandler with custom logic.
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
@@ -141,30 +124,30 @@ func NewAppWithOptions(cfg *AppOptions) (*App, error) {
 	)
 
 	// Set EndBlocker
-	baseApp.SetEndBlocker(
+	app.SetEndBlocker(
 		EndBlocker(
 			c,
 			vmk,
-			baseApp,
+			app,
 		),
 	)
 
 	// Set a handler Route.
-	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
-	baseApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
-	baseApp.Router().AddRoute("vm", vm.NewHandler(vmk))
+	app.Router().AddRoute("auth", auth.NewHandler(acctKpr))
+	app.Router().AddRoute("bank", bank.NewHandler(bankKpr))
+	app.Router().AddRoute("vm", vm.NewHandler(vmk))
 
 	// Load latest version.
-	if err := baseApp.LoadLatestVersion(); err != nil {
+	if err := app.LoadLatestVersion(); err != nil {
 		return nil, err
 	}
 
 	// Initialize the VMKeeper.
-	ms := baseApp.GetCacheMultiStore()
+	ms := app.GetCacheMultiStore()
 	vmk.Initialize(cfg.Logger, ms, cfg.CacheStdlibLoad)
 	ms.MultiWrite() // XXX why was't this needed?
 
-	return &baseApp, nil
+	return app, nil
 }
 
 // NewApp creates the GnoLand application.
@@ -173,7 +156,7 @@ func NewApp(
 	skipFailingGenesisTxs bool,
 	evsw events.EventSwitch,
 	logger *slog.Logger,
-) (*App, error) {
+) (abci.Application, error) {
 	var err error
 
 	cfg := NewAppOptions()
@@ -216,6 +199,7 @@ func InitChainer(
 		if req.AppState != nil {
 			// Get genesis state
 			genState := req.AppState.(GnoGenesisState)
+			bankKpr.InitRestrictedDenoms(req.RestrictedDenoms...)
 
 			// Parse and set genesis state balances
 			for _, bal := range genState.Balances {

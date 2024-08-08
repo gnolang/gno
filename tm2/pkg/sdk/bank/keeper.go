@@ -21,6 +21,8 @@ type BankKeeperI interface {
 	SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
 	AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
 	SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
+
+	InitRestrictedDenoms(restrictedDenoms ...string)
 }
 
 var _ BankKeeperI = BankKeeper{}
@@ -31,7 +33,7 @@ type BankKeeper struct {
 	ViewKeeper
 
 	acck             auth.AccountKeeper
-	RestrictedDenoms map[string]struct{}
+	restrictedDenoms map[string]struct{}
 }
 
 // NewBankKeeper returns a new BankKeeper.
@@ -39,7 +41,7 @@ func NewBankKeeper(acck auth.AccountKeeper) BankKeeper {
 	return BankKeeper{
 		ViewKeeper:       NewViewKeeper(acck),
 		acck:             acck,
-		RestrictedDenoms: map[string]struct{}{},
+		restrictedDenoms: map[string]struct{}{},
 	}
 }
 
@@ -50,8 +52,14 @@ func NewBankKeeperWithRestrictedDenoms(acck auth.AccountKeeper, restrictedDenoms
 	}
 
 	bankKeeper := NewBankKeeper(acck)
-	bankKeeper.RestrictedDenoms = restrictedDenomsStore
+	bankKeeper.restrictedDenoms = restrictedDenomsStore
 	return bankKeeper
+}
+
+func (bank BankKeeper) InitRestrictedDenoms(restrictedDenoms ...string) {
+	for _, denom := range restrictedDenoms {
+		bank.restrictedDenoms[denom] = struct{}{}
+	}
 }
 
 // InputOutputCoins handles a list of inputs and outputs
@@ -104,7 +112,7 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 // canSendCoins returns true if the coins can be sent without violating any restriction.
 func (bank BankKeeper) canSendCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
 	// Coins of a restricted denomination cannot be transferred unless the account is unlocked.
-	if amt.ContainOneOfDenom(bank.RestrictedDenoms) {
+	if amt.ContainOneOfDenom(bank.restrictedDenoms) {
 		if acc := bank.acck.GetAccount(ctx, addr); acc != nil && acc.IsLocked() {
 			return false
 		}

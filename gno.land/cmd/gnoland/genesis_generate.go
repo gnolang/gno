@@ -20,7 +20,7 @@ type generateCfg struct {
 	blockMaxDataBytes int64
 	blockMaxGas       int64
 	blockTimeIota     int64
-	gnotUnrestricted  bool
+	ugnotUnrestricted bool
 }
 
 // newGenerateCmd creates the genesis generate subcommand
@@ -92,10 +92,10 @@ func (c *generateCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
-		&c.gnotUnrestricted,
-		"gnot-unrestricted",
+		&c.ugnotUnrestricted,
+		"ugnot-unrestricted",
 		false,
-		"allow sending of GNOT from locked accounts",
+		"allow sending of ugnot from locked accounts",
 	)
 }
 
@@ -133,8 +133,8 @@ func execGenerate(cfg *generateCfg, io commands.IO) error {
 		genesis.ConsensusParams.Block.TimeIotaMS = cfg.blockTimeIota
 	}
 
-	if cfg.gnotUnrestricted {
-		genesis.RestrictedTokens = []string{"ugnot"}
+	if cfg.ugnotUnrestricted {
+		genesis.RestrictedDenoms = []string{"ugnot"}
 	}
 
 	// Validate the genesis
