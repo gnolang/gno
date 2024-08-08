@@ -6,25 +6,26 @@ import (
 	"strings"
 	"time"
 
-	"gno.land/p/demo/ownable/exts/authorizable"
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 )
 
-type Event struct {
-	id          seqid.ID
-	name        string    // name of event
-	description string    // short description of event
-	link        string    // link to auth corresponding web2 page, ie eventbrite/luma or conference page
-	location    string    // location of the event
-	startTime   time.Time // start time of the event
-	endTime     time.Time // end time of the event
-}
+type (
+	Event struct {
+		id          seqid.ID
+		name        string    // name of event
+		description string    // short description of event
+		link        string    // link to auth corresponding web2 page, ie eventbrite/luma or conference page
+		location    string    // location of the event
+		startTime   time.Time // given in RFC3339
+		endTime     time.Time // end time of the event, given in RFC3339
+	}
 
-type eventsSlice []*Event
+	eventsSlice []*Event
+)
 
 var (
-	events    eventsSlice // oldest event has the largest index
+	events    = make(eventsSlice, 0) // oldest event has the largest index
 	idCounter seqid.ID
 )
 
@@ -35,32 +36,29 @@ const (
 	EventEdited   = "EventEdited"
 )
 
-func init() {
-	su := std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
-	auth = authorizable.NewAuthorizableWithAddress(su)
-
-	events = make(eventsSlice, 0)
-}
-
 // AddEvent adds auth new event
 // Start time & end time need to be specified in unix seconds
-func AddEvent(name, description, link, location string, startTime, endTime int64) seqid.ID {
+func AddEvent(name, description, link, location, st, et string) seqid.ID {
 	auth.AssertOnAuthList()
 
 	if strings.TrimSpace(name) == "" {
 		panic(ErrEmptyName)
 	}
 
-	if startTime <= 0 {
-		panic(ErrInvalidStartTime)
-	}
-
-	if endTime <= startTime {
-		panic(ErrInvalidEndTime)
-	}
-
 	if len(description) > maxDescLength {
 		str := ufmt.Sprintf("event description is %d chars, while it cannot be more than %d chars", len(description), maxDescLength)
+		panic(str)
+	}
+
+	startTime, err := time.Parse(time.RFC3339, st)
+	if err != nil {
+		str := ufmt.Sprintf("invalid start time: %v", err)
+		panic(str)
+	}
+
+	endTime, err := time.Parse(time.RFC3339, et)
+	if err != nil {
+		str := ufmt.Sprintf("invalid end time: %v", err)
 		panic(str)
 	}
 
@@ -71,8 +69,8 @@ func AddEvent(name, description, link, location string, startTime, endTime int64
 		description: description,
 		link:        link,
 		location:    location,
-		startTime:   time.Unix(startTime, 0), // given in unix seconds
-		endTime:     time.Unix(endTime, 0),   // given in unix seconds
+		startTime:   startTime,
+		endTime:     endTime,
 	}
 
 	events = append(events, e)

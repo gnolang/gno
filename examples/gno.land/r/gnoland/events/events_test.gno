@@ -85,7 +85,7 @@ func TestAddEventErrors(t *testing.T) {
 	})
 }
 
-func TestDelEvent(t *testing.T) {
+func TestDeleteEvent(t *testing.T) {
 	events = nil // remove elements from previous tests - see issue #1982
 
 	id := AddEvent("ToDelete", "sample desc", "gno.land", "gnome land", 123, 456)
