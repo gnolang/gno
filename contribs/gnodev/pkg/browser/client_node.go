@@ -31,7 +31,7 @@ func NewNodeClient(logger *slog.Logger, base gnoclient.BaseTxCfg, client *gnocli
 	}
 }
 
-func (bl *NodeClient) Call(path, call string) ([]byte, error) {
+func (ncl *NodeClient) Call(path, call string) ([]byte, error) {
 	method, args, err := parseMethodToArgs(call)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse method/args: %w", err)
@@ -41,7 +41,7 @@ func (bl *NodeClient) Call(path, call string) ([]byte, error) {
 		args = nil
 	}
 
-	cm, err := bl.client.Call(bl.base, gnoclient.MsgCall{
+	cm, err := ncl.client.Call(ncl.base, gnoclient.MsgCall{
 		PkgPath:  path,
 		FuncName: method,
 		Args:     args,
@@ -61,8 +61,8 @@ func (bl *NodeClient) Call(path, call string) ([]byte, error) {
 	return cm.DeliverTx.Data, nil
 }
 
-func (bl *NodeClient) Funcs(path string) (vm.FunctionSignatures, error) {
-	res, err := bl.client.Query(gnoclient.QueryCfg{
+func (ncl *NodeClient) Funcs(path string) (vm.FunctionSignatures, error) {
+	res, err := ncl.client.Query(gnoclient.QueryCfg{
 		Path: "vm/qfuncs",
 		Data: []byte(path),
 	})
@@ -79,8 +79,8 @@ func (bl *NodeClient) Funcs(path string) (vm.FunctionSignatures, error) {
 	return fsigs, nil
 }
 
-func (bl *NodeClient) Render(path, args string) ([]byte, error) {
-	data, res, err := bl.client.Render(path, args)
+func (ncl *NodeClient) Render(path, args string) ([]byte, error) {
+	data, res, err := ncl.client.Render(path, args)
 	if err != nil {
 		return nil, err
 	}
