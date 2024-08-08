@@ -357,10 +357,10 @@ func getDevEndpoint(cfg *broCfg) (string, error) {
 	var err error
 
 	// use remote address as default
-	host, port1 := cfg.remote, "8888"
+	host, port := cfg.remote, "8888"
 	if cfg.devEndpoint != "" {
 		// if any dev endpoint as been set, fallback on this
-		host, port1, err = net.SplitHostPort(cfg.devEndpoint)
+		host, port, err = net.SplitHostPort(cfg.devEndpoint)
 		if err != nil {
 			return "", fmt.Errorf("unable to parse dev endpoint: %w", err)
 		}
@@ -378,14 +378,14 @@ func getDevEndpoint(cfg *broCfg) (string, error) {
 	}
 
 	host, _, _ = net.SplitHostPort(devpoint.Host)
-	if port1 != "" {
-		devpoint.Host = host + ":" + port1
+	if port != "" {
+		devpoint.Host = host + ":" + port
 	} else {
 		devpoint.Host = host
 	}
 
 	switch devpoint.Scheme {
-	case "ws", "wss":
+	case "ws", "wss": // already good
 	case "https":
 		devpoint.Scheme = "wss"
 	default:
