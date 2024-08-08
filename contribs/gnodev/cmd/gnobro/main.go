@@ -134,7 +134,7 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.banner,
 		"banner",
 		defaultBroOptions.banner,
-		"if enable, display a banner",
+		"if enabled, display a banner",
 	)
 
 	fs.BoolVar(
