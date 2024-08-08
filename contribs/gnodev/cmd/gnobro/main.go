@@ -292,9 +292,12 @@ func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg b
 			bcfgCopy.Banner = NewBanner_GnoLand()
 		}
 
-		if len(s.Command()) > 1 {
+		pval := s.Context().Value("path")
+		if path, ok := pval.(string); ok && len(path) > 0 {
 			// Erase banner on specifc command
 			bcfgCopy.Banner = browser.ModelBanner{}
+			// Set up url
+			bcfgCopy.URLDefaultValue = path
 		}
 
 		bcfgCopy.Logger.Info("session started",
@@ -303,6 +306,7 @@ func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg b
 			"sid", s.Context().SessionID(),
 			"user", s.User())
 		model := browser.New(bcfgCopy, gnocl)
+
 		return model, []tea.ProgramOption{
 			tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
 			tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
@@ -320,7 +324,7 @@ func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg b
 		wish.WithMiddleware(
 			bubbletea.Middleware(teaHandler),
 			activeterm.Middleware(), // ensure PTY
-			ValidatePathCommandMiddleware(),
+			ValidatePathCommandMiddleware(bcfg.URLPrefix),
 			logging.StructuredMiddlewareWithLogger(
 				charmlogger, charmlog.DebugLevel,
 			),
@@ -430,7 +434,7 @@ func getSignerForAccount(io commands.IO, address string, kb keys.Keybase, cfg *b
 	return signer, nil
 }
 
-func ValidatePathCommandMiddleware() wish.Middleware {
+func ValidatePathCommandMiddleware(pathPrefix string) wish.Middleware {
 	return func(next ssh.Handler) ssh.Handler {
 		return func(s ssh.Session) {
 			switch cmd := s.Command(); len(cmd) {
@@ -439,7 +443,8 @@ func ValidatePathCommandMiddleware() wish.Middleware {
 				return
 			case 1: // check for valid path
 				path := cmd[0]
-				if filepath.Clean(path) == path {
+				if strings.HasPrefix(path, pathPrefix) && filepath.Clean(path) == path {
+					s.Context().SetValue("path", path)
 					next(s)
 					return
 				}
