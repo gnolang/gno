@@ -3,7 +3,6 @@ package events
 import (
 	"bytes"
 	"sort"
-	"strconv"
 	"time"
 
 	"gno.land/p/demo/ufmt"
@@ -14,18 +13,18 @@ const (
 )
 
 // RenderEventWidget shows up to amt of the latest events to auth caller
-func RenderEventWidget(eventsToRender int) string {
+func RenderEventWidget(eventsToRender int) (string, error) {
 	numOfEvents := len(events)
 	if numOfEvents == 0 {
-		return "No events."
+		return "No events.", nil
 	}
 
 	if eventsToRender > 5 {
-		panic("maximum number of events in widget is " + strconv.Itoa(maxWidgetSize))
+		return "", ErrWidgetMaxAmt
 	}
 
 	if eventsToRender < 1 {
-		panic("you need to request at least 1 event to render")
+		return "", ErrWidgetMinAmt
 	}
 
 	if eventsToRender > numOfEvents {
@@ -40,7 +39,7 @@ func RenderEventWidget(eventsToRender int) string {
 		}
 	}
 
-	return output
+	return output, nil
 }
 
 func renderHome(admin bool) string {
