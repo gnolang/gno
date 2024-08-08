@@ -23,7 +23,15 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 		panic(ErrBalanceNotEqToAmountSent)
 	}
 
-	checkCoinAmount(addresses, coins)
+	if len(addresses) != len(coins) {
+		panic(ErrNumAddrValMismatch)
+	}
+
+	for _, coin := range coins {
+		if coin.Amount <= 0 {
+			panic(ErrNegativeCoinAmount)
+		}
+	}
 
 	var totalAmount int64
 	for _, coin := range coins {
@@ -46,19 +54,18 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 }
 
 // DisperseGRC20 disperses tokens to multiple addresses
-func DisperseGRC20(addresses []std.Address, coins std.Coins) {
-	caller := std.PrevRealm().Addr() // get tx sender
+func DisperseGRC20(addresses []std.Address, amounts []uint64, symbols []string) {
+	caller := std.PrevRealm().Addr()
 
-	checkCoinAmount(addresses, coins)
-
-	// Transfer tokens into the realm
-	for _, coin := range coins {
-		tokens.TransferFrom(coin.Denom, caller, std.CurrentRealm().Addr(), uint64(coin.Amount))
+	if (len(addresses) != len(amounts)) || (len(amounts) != len(symbols)) {
+		panic(ErrArgLenAndSentLenMismatch)
 	}
 
-	// Disperse tokens
 	for i := 0; i < len(addresses); i++ {
-		tokens.Transfer(coins[i].Denom, addresses[i], uint64(coins[i].Amount))
+		// Transfer tokens into the realm
+		tokens.TransferFrom(symbols[i], caller, std.CurrentRealm().Addr(), amounts[i])
+		// Transfer tokens to the addresses
+		tokens.Transfer(symbols[i], addresses[i], uint64(amounts[i]))
 	}
 }
 
@@ -70,12 +77,12 @@ func DisperseGRC20String(addresses string, tokens string) {
 		panic(err)
 	}
 
-	parseTokens, err := parseTokens(tokens)
+	parsedAmounts, parsedSymbols, err := parseTokens(tokens)
 	if err != nil {
 		panic(err)
 	}
 
-	DisperseGRC20(parsedAddresses, parseTokens)
+	DisperseGRC20(parsedAddresses, parsedAmounts, parsedSymbols)
 }
 
 // DisperseUgnotString receives a string of addresses and a string of amounts
@@ -97,18 +104,4 @@ func DisperseUgnotString(addresses string, amounts string) {
 	}
 
 	DisperseUgnot(parsedAddresses, coins)
-}
-
-
-// Check if caller correctly sent coins
-func checkCoinAmount(addresses []std.Address, coins std.Coins) {
-	if len(addresses) != len(coins) {
-		panic(ErrNumAddrValMismatch)
-	}
-
-	for _, coin := range coins {
-		if coin.Amount <= 0 {
-			panic(ErrNegativeCoinAmount)
-		}
-	}
 }
