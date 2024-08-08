@@ -20,7 +20,7 @@ stdout '}'
 
 
 ## sign
-gnokey sign -tx-path $WORK/multi/multi_msg.tx -chainid=tendermint_test -account-number 0 -account-sequence 0 test1
+gnokey sign -tx-path $WORK/multi/multi_msg.tx -chainid=tendermint_test -account-number 1 -account-sequence 0 test1
 stdout 'Tx successfully signed and saved to '
 
 ## broadcast
