@@ -75,7 +75,10 @@ func (ncl *NodeClient) Funcs(path string) (vm.FunctionSignatures, error) {
 	}
 
 	var fsigs vm.FunctionSignatures
-	amino.MustUnmarshalJSON(res.Response.Data, &fsigs)
+	if err := amino.UnmarshalJSON(res.Response.Data, &fsigs); err != nil {
+		return nil, fmt.Errorf("unable to unmarshal response: %w", err)
+	}
+
 	return fsigs, nil
 }
 
