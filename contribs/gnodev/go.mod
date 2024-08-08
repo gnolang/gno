@@ -1,8 +1,6 @@
 module github.com/gnolang/gno/contribs/gnodev
 
-go 1.22.1
-
-toolchain go1.22.4
+go 1.22
 
 replace github.com/gnolang/gno => ../..
 
