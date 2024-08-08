@@ -133,7 +133,7 @@ func execGenerate(cfg *generateCfg, io commands.IO) error {
 		genesis.ConsensusParams.Block.TimeIotaMS = cfg.blockTimeIota
 	}
 
-	if cfg.ugnotUnrestricted {
+	if !cfg.ugnotUnrestricted {
 		genesis.RestrictedDenoms = []string{"ugnot"}
 	}
 
