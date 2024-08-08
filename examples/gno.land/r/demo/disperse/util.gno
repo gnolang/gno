@@ -15,7 +15,7 @@ func parseAddresses(addresses string) ([]std.Address, error) {
 		if !addr.IsValid() {
 			return nil, ErrInvalidAddress
 		}
-		
+
 		ret = append(ret, addr)
 	}
 

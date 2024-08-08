@@ -3,7 +3,6 @@ package disperse
 import (
 	"std"
 
-	"gno.land/p/demo/ufmt"
 	tokens "gno.land/r/demo/grc20factory"
 )
 

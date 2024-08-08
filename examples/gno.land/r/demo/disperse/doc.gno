@@ -1,6 +1,6 @@
 // Package disperse provides methods to disperse coins or GRC20 tokens among multiple addresses.
 //
-// The disperse package is an implementation of an existing service that allows users to send coins or GRC20 tokens to multiple addresses 
+// The disperse package is an implementation of an existing service that allows users to send coins or GRC20 tokens to multiple addresses
 // on the Ethereum blockchain.
 //
 // Usage:
