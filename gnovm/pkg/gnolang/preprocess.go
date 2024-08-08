@@ -2812,7 +2812,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 				t = defaultTypeOf(xt)
 			}
 
-			bx.assertShiftExprCompatible2(store, last, t)
+			bx.assertShiftExprCompatible2(t)
 			checkOrConvertType(store, last, &bx.Left, t, autoNative)
 		} else {
 			assertAssignableTo(xt, t, autoNative)
