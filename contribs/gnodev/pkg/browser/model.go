@@ -276,7 +276,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// If any reponse, display it as message.
+		// If any response, display it as message.
 		if res := bytes.TrimSpace(msg.Response); len(res) > 0 {
 			m.logger.Info("command exec", "res", string(res))
 
