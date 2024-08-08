@@ -83,9 +83,9 @@ with your realm.
 func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.remote,
-		"target",
+		"remote",
 		defaultBroOptions.remote,
-		"target gnoland address",
+		"remote gno.land URL",
 	)
 
 	fs.StringVar(
