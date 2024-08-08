@@ -583,19 +583,24 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 }
 
 // ===========================================================
+// this check happens while trans_leave binary expression.
+// it checks if type of RHS is valid.
+// Check part of the LHS to ensure it is of a numeric type.
+// More stringent checks will be performed in the subsequent stage in
+// assertShiftExprCompatible2.
 func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt, rt Type) {
-	lcx, lic := x.Left.(*ConstExpr)
-	_, ric := x.Right.(*ConstExpr)
-
 	// check rhs type
 	if rt == nil {
 		panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
 	}
 
+	lcx, lic := x.Left.(*ConstExpr)
+	_, ric := x.Right.(*ConstExpr)
+	// step1, check RHS type
 	// special case when rhs is not integer
-	if !isIntNum(rt) { // check if is num
+	if !isIntNum(rt) {
 		var isIntValue bool
-		// special case for 1.0
+		// special case for num like 1.0, it will be converted to uint later
 		if ric {
 			rv := evalConst(store, last, x.Right)
 			if bd, ok := rv.V.(BigdecValue); ok {
@@ -614,7 +619,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 		}
 	}
 
-	// check lhs type
+	// step2, check lhs type
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if checker(lt) { // check pass
 			return
@@ -627,7 +632,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 				return
 			}
 		}
-		// not both const, e.g. 1.0 << x
+		// not const, e.g. 1.0 << x, see types/shift_d5.gno
 		if isNumeric(lt) {
 			return
 		}
