@@ -26,7 +26,7 @@ gnokey maketx call -pkgpath "gno.land/r/demo/echo" -func "Render" -gas-fee 10000
 cp stdout call.tx
 
 # Sign
-gnokey sign -tx-path $WORK/call.tx -chainid "tendermint_test" -account-number 0 -account-sequence 0 test1
+gnokey sign -tx-path $WORK/call.tx -chainid "tendermint_test" -account-number 1 -account-sequence 0 test1
 cmpenv stdout sign.stdout.golden
 
 gnokey broadcast $WORK/call.tx
