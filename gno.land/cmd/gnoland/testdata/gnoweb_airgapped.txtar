@@ -15,7 +15,7 @@ stdout '  "BaseAccount": {'
 stdout '    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",'
 stdout '    "coins": "[0-9]*ugnot",' # dynamic
 stdout '    "public_key": null,'
-stdout '    "account_number": "0",'
+stdout '    "account_number": "1",'
 stdout '    "sequence": "0"'
 stdout '  }'
 stdout '}'
