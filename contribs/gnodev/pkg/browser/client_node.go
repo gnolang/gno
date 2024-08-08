@@ -99,14 +99,13 @@ var reMethod = regexp.MustCompile(`([^(]+)\(([^)]*)\)`)
 func parseMethodToArgs(call string) (method string, args []string, err error) {
 	matches := reMethod.FindStringSubmatch(call)
 	if len(matches) == 0 {
-		err = fmt.Errorf("invalid call: %w", err)
-		return
+		return "", nil, fmt.Errorf("invalid call: %w", err)
 	}
 
 	method = matches[1]
 	sargs := matches[2]
 	if sargs == "" {
-		return
+		return method, args, err
 	}
 
 	// Splitting arguments by comma
@@ -114,5 +113,6 @@ func parseMethodToArgs(call string) (method string, args []string, err error) {
 	for i, arg := range args {
 		args[i] = strings.Trim(strings.TrimSpace(arg), "\"")
 	}
-	return
+
+	return method, args, err
 }
