@@ -44,7 +44,7 @@ const DefaultGnoLandPrefix = "gno.land/"
 func DefaultConfig() Config {
 	return Config{
 		Logger:          log.NewNoopLogger(),
-		URLPrefix:       "gno.land/",
+		URLPrefix:       DefaultGnoLandPrefix,
 		Renderer:        lipgloss.DefaultRenderer(),
 		URLDefaultValue: "gnoland/home",
 	}
