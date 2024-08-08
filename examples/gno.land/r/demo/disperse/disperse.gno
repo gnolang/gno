@@ -53,6 +53,8 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 }
 
 // DisperseGRC20 disperses tokens to multiple addresses
+// Note that it is necessary to approve the realm to spend the tokens before calling this function
+// see the corresponding filetests for examples
 func DisperseGRC20(addresses []std.Address, amounts []uint64, symbols []string) {
 	caller := std.PrevRealm().Addr()
 
