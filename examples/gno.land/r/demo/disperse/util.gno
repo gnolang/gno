@@ -43,6 +43,7 @@ func parseTokens(tokens string) ([]uint64, []string, error) {
 		if amount < 0 {
 			return nil, nil, ErrNegativeCoinAmount
 		}
+
 		amounts = append(amounts, uint64(amount))
 		symbols = append(symbols, symbol)
 	}
@@ -58,6 +59,7 @@ func parseAmounts(amounts string) ([]int64, error) {
 		if amount < 0 {
 			return nil, ErrNegativeCoinAmount
 		}
+
 		ret = append(ret, int64(amount))
 	}
 
