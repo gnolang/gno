@@ -149,7 +149,7 @@ func (bank BankKeeper) sendCoins(
 	restricted bool,
 ) error {
 	// TODO: updated this comment after the waiver tx has been added.
-	// Locked accounts are restricted from transferrring GNOT until they have agreed to the waiver.
+	// Locked accounts are restricted from transferring GNOT until they have agreed to the waiver.
 
 	if restricted && !bank.canSendCoins(ctx, fromAddr, amt) {
 		return std.ErrLockedAccount
