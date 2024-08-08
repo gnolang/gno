@@ -2912,7 +2912,7 @@ func assertTypeDeclNoCycle(store Store, last BlockNode, td *TypeDecl, stack *[]N
 
 func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, indirect bool, isAlias bool) {
 	if x == nil {
-		panic("should not happen")
+		panic("unexpected nil expression when checking for type declaration cycles")
 	}
 
 	var lastX Expr
