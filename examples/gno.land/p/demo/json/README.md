@@ -71,23 +71,28 @@ Decoding (or Unmarshaling) is the functionality that converts an input byte slic
 
 The converted `Node` type allows you to modify the JSON data or search and extract data that meets specific conditions.
 
+Below is an example of converting a `Node` type into a JSON string, and retrieving all the keys in the JSON data with `json.UniqueKeyLists()`.
+
 ```go
 package main
 
 import (
-    "fmt"
     "gno.land/p/demo/json"
     "gno.land/p/demo/ufmt"
 )
 
 func main() {
-    node, err := json.Unmarshal([]byte(`{"foo": "var"}`))
+    data := []byte(`{"foo": "var", "bar": 123, "baz": [1, 2, 3]}`)
+    node, err := json.Unmarshal(data)
     if err != nil {
         ufmt.Errorf("error: %v", err)
     }
 
-    ufmt.Sprintf("node: %v", node)
+    ufmt.Println(node.UniqueKeyLists())
 }
+
+// Output:
+// slice[("foo" string),("bar" string),("baz" string)]
 ```
 
 ### Encoding
@@ -96,20 +101,21 @@ Encoding (or Marshaling) is the functionality that converts JSON data represente
 
 > ⚠️ Caution: Converting a large `Node` type into a JSON string may _impact performance_. or might be cause _unexpected behavior_.
 
+You can use the `json.Marshal()` method to convert a `Node` type into a JSON string. Below is an example of converting a `Node` type into a JSON string.
+
 ```go
 package main
 
 import (
-    "fmt"
     "gno.land/p/demo/json"
     "gno.land/p/demo/ufmt"
 )
 
 func main() {
-    node := ObjectNode("", map[string]*Node{
-        "foo": StringNode("foo", "bar"),
-        "baz": NumberNode("baz", 100500),
-        "qux": NullNode("qux"),
+    node := json.ObjectNode("", map[string]*json.Node{
+        "foo": json.StringNode("foo", "bar"),
+        "baz": json.NumberNode("baz", 100500),
+        "qux": json.NullNode("qux"),
     })
 
     b, err := json.Marshal(node)
@@ -117,8 +123,11 @@ func main() {
         ufmt.Errorf("error: %v", err)
     }
 
-    ufmt.Sprintf("json: %s", string(b))
+    ufmt.Println(string(b))
 }
+
+// Output:
+// {"foo":"bar","baz":100500,"qux":null}
 ```
 
 ### Searching
@@ -133,13 +142,12 @@ Here is an example of finding data with a specific key. For more examples, pleas
 package main
 
 import (
-    "fmt"
     "gno.land/p/demo/json"
     "gno.land/p/demo/ufmt"
 )
 
 func main() {
-    root, err := Unmarshal([]byte(`{"foo": true, "bar": null}`))
+    root, err := json.Unmarshal([]byte(`{"foo": true, "bar": null}`))
     if err != nil {
         ufmt.Errorf("error: %v", err)
     }
@@ -149,20 +157,63 @@ func main() {
         ufmt.Errorf("error occurred while getting key, %s", err)
     }
 
+    ufmt.Println(value)
+
     if value.MustBool() != true {
         ufmt.Errorf("value is not true")
     }
 
     value, err = root.GetKey("bar")
     if err != nil {
-        t.Errorf("error occurred while getting key, %s", err)
+        ufmt.Errorf("error occurred while getting key, %s", err)
     }
 
-    _, err = root.GetKey("baz")
-    if err == nil {
-        t.Errorf("key baz is not exist. must be failed")
-    }
+    ufmt.Println(value)
 }
+
+// Output:
+// true
+// null
+```
+
+### Modifying
+
+It is not possible to directly modify a JSON string with this package. However, you can modify the data in the desired form using the Node type and then convert it back into a JSON string.
+
+Currently, this package provides basic functionality for creating and deleting specific types of nodes. For example, to change the value of a specific key or to add a new key, you can use the Update method.
+
+```go
+package main
+
+import (
+    "gno.land/p/demo/json"
+    "gno.land/p/demo/ufmt"
+)
+
+func main() {
+    root, err := json.Unmarshal([]byte(`{"foo": true, "bar": null}`))
+
+    ufmt.Println("previous: ", root.String())
+
+    err = root.Update("bar", json.StringNode("bar", "hello"))
+    if err != nil {
+        ufmt.Errorf("error occurred while updating, %s", err)
+    }
+
+    ufmt.Println("updated: ", root.String())
+
+    err = root.Update("baz", json.StringNode("baz", "hello"))
+    if err != nil {
+        ufmt.Errorf("error occurred while updating, %s", err)
+    }
+
+    ufmt.Println("add new field: ", root.String())
+}
+
+// Output:
+// previous:  {"foo": true, "bar": null}
+// updated:  {"foo":true,"bar":"hello"}
+// add new field:  {"foo":true,"bar":"hello","baz":"hello"}
 ```
 
 ## Contributing
