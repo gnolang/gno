@@ -84,7 +84,7 @@ func execStart(cfg *startCfg, args []string, io commands.IO) error {
 		res, err := client.Call(gnoclient.CallCfg{
 			PkgPath:   cfg.realmPath,
 			FuncName:  "Incr",
-			GasFee:    ugnot.ValueString(10000000),
+			GasFee:    "10000000ugnot",
 			GasWanted: 800000,
 			Args:      nil,
 		})
