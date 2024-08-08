@@ -345,10 +345,11 @@ func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg b
 	errgs.Go(func() error {
 		<-ctx.Done()
 
+		logger.Info("stopping SSH server... (5s timeout)")
+
 		sctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 		defer cancel()
 
-		logger.Info("stopping SSH server")
 		return s.Shutdown(sctx)
 	})
 
@@ -408,7 +409,7 @@ func getSignerForAccount(io commands.IO, address string, kb keys.Keybase, cfg *b
 
 	signer.Keybase = kb
 	signer.Account = address
-	signer.ChainID = cfg.chainID // XXX: override this
+	signer.ChainID = cfg.chainID
 
 	if ok, err := kb.HasByNameOrAddress(address); !ok || err != nil {
 		if err != nil {
