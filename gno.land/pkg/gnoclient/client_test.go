@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
@@ -13,6 +14,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+var testGasFee = ugnot.ValueString(10000)
 
 func TestRender(t *testing.T) {
 	t.Parallel()
@@ -88,7 +91,7 @@ func TestCallSingle(t *testing.T) {
 
 	cfg := BaseTxCfg{
 		GasWanted:      100000,
-		GasFee:         "10000ugnot",
+		GasFee:         testGasFee,
 		AccountNumber:  1,
 		SequenceNumber: 1,
 		Memo:           "Test memo",
@@ -99,7 +102,7 @@ func TestCallSingle(t *testing.T) {
 			PkgPath:  "gno.land/r/demo/deep/very/deep",
 			FuncName: "Render",
 			Args:     []string{""},
-			Send:     "100ugnot",
+			Send:     ugnot.ValueString(100),
 		},
 	}
 
@@ -147,7 +150,7 @@ func TestCallMultiple(t *testing.T) {
 
 	cfg := BaseTxCfg{
 		GasWanted:      100000,
-		GasFee:         "10000ugnot",
+		GasFee:         testGasFee,
 		AccountNumber:  1,
 		SequenceNumber: 1,
 		Memo:           "Test memo",
@@ -158,13 +161,13 @@ func TestCallMultiple(t *testing.T) {
 			PkgPath:  "gno.land/r/demo/deep/very/deep",
 			FuncName: "Render",
 			Args:     []string{""},
-			Send:     "100ugnot",
+			Send:     ugnot.ValueString(100),
 		},
 		{
 			PkgPath:  "gno.land/r/demo/wugnot",
 			FuncName: "Deposit",
 			Args:     []string{""},
-			Send:     "1000ugnot",
+			Send:     ugnot.ValueString(1000),
 		},
 		{
 			PkgPath:  "gno.land/r/demo/tamagotchi",
@@ -197,7 +200,7 @@ func TestCallErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -220,7 +223,7 @@ func TestCallErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -264,7 +267,7 @@ func TestCallErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      -1,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -287,7 +290,7 @@ func TestCallErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      0,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -310,7 +313,7 @@ func TestCallErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -333,7 +336,7 @@ func TestCallErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -381,7 +384,7 @@ func TestClient_Send_Errors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -389,7 +392,7 @@ func TestClient_Send_Errors(t *testing.T) {
 			msgs: []MsgSend{
 				{
 					ToAddress: toAddress,
-					Send:      "1ugnot",
+					Send:      ugnot.ValueString(1),
 				},
 			},
 			expectedError: ErrMissingSigner,
@@ -402,7 +405,7 @@ func TestClient_Send_Errors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -410,7 +413,7 @@ func TestClient_Send_Errors(t *testing.T) {
 			msgs: []MsgSend{
 				{
 					ToAddress: toAddress,
-					Send:      "1ugnot",
+					Send:      ugnot.ValueString(1),
 				},
 			},
 			expectedError: ErrMissingRPCClient,
@@ -431,7 +434,7 @@ func TestClient_Send_Errors(t *testing.T) {
 			msgs: []MsgSend{
 				{
 					ToAddress: toAddress,
-					Send:      "1ugnot",
+					Send:      ugnot.ValueString(1),
 				},
 			},
 			expectedError: ErrInvalidGasFee,
@@ -444,7 +447,7 @@ func TestClient_Send_Errors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      -1,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -452,7 +455,7 @@ func TestClient_Send_Errors(t *testing.T) {
 			msgs: []MsgSend{
 				{
 					ToAddress: toAddress,
-					Send:      "1ugnot",
+					Send:      ugnot.ValueString(1),
 				},
 			},
 			expectedError: ErrInvalidGasWanted,
@@ -465,7 +468,7 @@ func TestClient_Send_Errors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      0,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -473,7 +476,7 @@ func TestClient_Send_Errors(t *testing.T) {
 			msgs: []MsgSend{
 				{
 					ToAddress: toAddress,
-					Send:      "1ugnot",
+					Send:      ugnot.ValueString(1),
 				},
 			},
 			expectedError: ErrInvalidGasWanted,
@@ -495,7 +498,7 @@ func TestClient_Send_Errors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -503,7 +506,7 @@ func TestClient_Send_Errors(t *testing.T) {
 			msgs: []MsgSend{
 				{
 					ToAddress: crypto.Address{},
-					Send:      "1ugnot",
+					Send:      ugnot.ValueString(1),
 				},
 			},
 			expectedError: ErrInvalidToAddress,
@@ -525,7 +528,7 @@ func TestClient_Send_Errors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -533,7 +536,7 @@ func TestClient_Send_Errors(t *testing.T) {
 			msgs: []MsgSend{
 				{
 					ToAddress: toAddress,
-					Send:      "-1ugnot",
+					Send:      ugnot.ValueString(-1),
 				},
 			},
 			expectedError: ErrInvalidSendAmount,
@@ -586,7 +589,7 @@ func TestRunSingle(t *testing.T) {
 
 	cfg := BaseTxCfg{
 		GasWanted:      100000,
-		GasFee:         "10000ugnot",
+		GasFee:         testGasFee,
 		AccountNumber:  1,
 		SequenceNumber: 1,
 		Memo:           "Test memo",
@@ -653,7 +656,7 @@ func TestRunMultiple(t *testing.T) {
 
 	cfg := BaseTxCfg{
 		GasWanted:      100000,
-		GasFee:         "10000ugnot",
+		GasFee:         testGasFee,
 		AccountNumber:  1,
 		SequenceNumber: 1,
 		Memo:           "Test memo",
@@ -717,7 +720,7 @@ func TestRunErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -747,7 +750,7 @@ func TestRunErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -793,7 +796,7 @@ func TestRunErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      -1,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -823,7 +826,7 @@ func TestRunErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      0,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -862,7 +865,7 @@ func TestRunErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -908,7 +911,7 @@ func TestAddPackageErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -938,7 +941,7 @@ func TestAddPackageErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -984,7 +987,7 @@ func TestAddPackageErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      -1,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -1014,7 +1017,7 @@ func TestAddPackageErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      0,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",
@@ -1053,7 +1056,7 @@ func TestAddPackageErrors(t *testing.T) {
 			},
 			cfg: BaseTxCfg{
 				GasWanted:      100000,
-				GasFee:         "10000ugnot",
+				GasFee:         testGasFee,
 				AccountNumber:  1,
 				SequenceNumber: 1,
 				Memo:           "Test memo",

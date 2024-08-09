@@ -7,6 +7,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/std"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
@@ -36,7 +37,7 @@ func TestCallSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -80,7 +81,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -132,7 +133,7 @@ func TestSendSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -144,7 +145,7 @@ func TestSendSingle_Integration(t *testing.T) {
 	amount := 10
 	msg := MsgSend{
 		ToAddress: toAddress,
-		Send:      std.Coin{"ugnot", int64(amount)}.String(),
+		Send:      std.Coin{Denom: ugnot.Denom, Amount: int64(amount)}.String(),
 	}
 
 	// Execute send
@@ -156,7 +157,7 @@ func TestSendSingle_Integration(t *testing.T) {
 	account, _, err := client.QueryAccount(toAddress)
 	require.NoError(t, err)
 
-	expected := std.Coins{{"ugnot", int64(amount)}}
+	expected := std.Coins{{Denom: ugnot.Denom, Amount: int64(amount)}}
 	got := account.GetCoins()
 
 	assert.Equal(t, expected, got)
@@ -181,7 +182,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -193,14 +194,14 @@ func TestSendMultiple_Integration(t *testing.T) {
 	amount1 := 10
 	msg1 := MsgSend{
 		ToAddress: toAddress,
-		Send:      std.Coin{"ugnot", int64(amount1)}.String(),
+		Send:      std.Coin{Denom: ugnot.Denom, Amount: int64(amount1)}.String(),
 	}
 
 	// Same send, different argument
 	amount2 := 20
 	msg2 := MsgSend{
 		ToAddress: toAddress,
-		Send:      std.Coin{"ugnot", int64(amount2)}.String(),
+		Send:      std.Coin{Denom: ugnot.Denom, Amount: int64(amount2)}.String(),
 	}
 
 	// Execute send
@@ -212,7 +213,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 	account, _, err := client.QueryAccount(toAddress)
 	assert.NoError(t, err)
 
-	expected := std.Coins{{"ugnot", int64(amount1 + amount2)}}
+	expected := std.Coins{{Denom: ugnot.Denom, Amount: int64(amount1 + amount2)}}
 	got := account.GetCoins()
 
 	assert.Equal(t, expected, got)
@@ -237,7 +238,7 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -295,7 +296,7 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -375,7 +376,7 @@ func TestAddPackageSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -390,7 +391,7 @@ func Echo(str string) string {
 
 	fileName := "echo.gno"
 	deploymentPath := "gno.land/p/demo/integration/test/echo"
-	deposit := "100ugnot"
+	deposit := ugnot.ValueString(100)
 
 	// Make Msg config
 	msg := MsgAddPackage{
@@ -444,14 +445,14 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
 
-	deposit := "100ugnot"
+	deposit := ugnot.ValueString(100)
 	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
 
 	body1 := `package echo

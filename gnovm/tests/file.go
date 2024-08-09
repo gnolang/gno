@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
@@ -53,7 +54,7 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr("user1.gno")
 
-	pkgCoins := std.MustParseCoins("200000000ugnot").Add(send) // >= send.
+	pkgCoins := std.MustParseCoins(ugnot.ValueString(200000000)).Add(send) // >= send.
 	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
 	ctx := stdlibs.ExecContext{
 		ChainID:       "dev",
