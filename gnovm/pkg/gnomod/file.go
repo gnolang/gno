@@ -12,12 +12,8 @@ package gnomod
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
-	"path/filepath"
-	"strings"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
@@ -144,68 +140,6 @@ func (f *File) Resolve(r *modfile.Require) module.Version {
 		return mod
 	}
 	return r.Mod
-}
-
-// FetchDeps fetches and writes gno.mod packages
-// in GOPATH/pkg/gnomod/
-func (f *File) FetchDeps(path string, remote string, verbose bool) error {
-	for _, r := range f.Require {
-		mod := f.Resolve(r)
-		if r.Mod.Path != mod.Path {
-			if modfile.IsDirectoryPath(mod.Path) {
-				continue
-			}
-		}
-		indirect := ""
-		if r.Indirect {
-			indirect = "// indirect"
-		}
-
-		_, err := os.Stat(PackageDir(path, mod))
-		if !os.IsNotExist(err) {
-			if verbose {
-				log.Println("cached", mod.Path, indirect)
-			}
-			continue
-		}
-		if verbose {
-			log.Println("fetching", mod.Path, indirect)
-		}
-		requirements, err := writePackage(remote, path, mod.Path)
-		if err != nil {
-			return fmt.Errorf("writepackage: %w", err)
-		}
-
-		modFile := new(File)
-		modFile.AddModuleStmt(mod.Path)
-		for _, req := range requirements {
-			path := req[1 : len(req)-1] // trim leading and trailing `"`
-			if strings.HasSuffix(path, modFile.Module.Mod.Path) {
-				continue
-			}
-
-			if !gno.IsStdlib(path) {
-				modFile.AddNewRequire(path, "v0.0.0-latest", true)
-			}
-		}
-
-		err = modFile.FetchDeps(path, remote, verbose)
-		if err != nil {
-			return err
-		}
-		goMod, err := GnoToGoMod(*modFile)
-		if err != nil {
-			return err
-		}
-		pkgPath := PackageDir(path, mod)
-		goModFilePath := filepath.Join(pkgPath, "go.mod")
-		err = goMod.Write(goModFilePath)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 // writes file to the given absolute file path

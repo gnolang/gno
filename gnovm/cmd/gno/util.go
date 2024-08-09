@@ -16,11 +16,6 @@ func isGnoFile(f fs.DirEntry) bool {
 	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".gno") && !f.IsDir()
 }
 
-func isFileExist(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
 func gnoFilesFromArgsRecursively(args []string) ([]string, error) {
 	var paths []string
 
