@@ -81,12 +81,12 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Create BaseApp.
 	// TODO: Add a consensus based min gas prices for the node, by default it does not check
-	app := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
-	app.SetAppVersion("dev")
+	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
+	baseApp.SetAppVersion("dev")
 
 	// Set mounts for BaseApp's MultiStore.
-	app.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
-	app.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
+	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
+	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
 
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
@@ -103,7 +103,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
 
 	// Set InitChainer
-	app.SetInitChainer(InitChainer(app, acctKpr, bankKpr, cfg.GenesisTxHandler, cfg.DB))
+	baseApp.SetInitChainer(InitChainer(baseApp, acctKpr, bankKpr, cfg.GenesisTxHandler, cfg.DB))
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
@@ -111,7 +111,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	}
 	authAnteHandler := auth.NewAnteHandler(
 		acctKpr, bankKpr, auth.DefaultSigVerificationGasConsumer, authOptions)
-	app.SetAnteHandler(
+	baseApp.SetAnteHandler(
 		// Override default AnteHandler with custom logic.
 		func(ctx sdk.Context, tx std.Tx, simulate bool) (
 			newCtx sdk.Context, res sdk.Result, abort bool,
@@ -132,30 +132,30 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	)
 
 	// Set EndBlocker
-	app.SetEndBlocker(
+	baseApp.SetEndBlocker(
 		EndBlocker(
 			c,
 			vmk,
-			app,
+			baseApp,
 		),
 	)
 
 	// Set a handler Route.
-	app.Router().AddRoute("auth", auth.NewHandler(acctKpr))
-	app.Router().AddRoute("bank", bank.NewHandler(bankKpr))
-	app.Router().AddRoute("vm", vm.NewHandler(vmk))
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
+	baseApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
+	baseApp.Router().AddRoute("vm", vm.NewHandler(vmk))
 
 	// Load latest version.
-	if err := app.LoadLatestVersion(); err != nil {
+	if err := baseApp.LoadLatestVersion(); err != nil {
 		return nil, err
 	}
 
 	// Initialize the VMKeeper.
-	ms := app.GetCacheMultiStore()
+	ms := baseApp.GetCacheMultiStore()
 	vmk.Initialize(cfg.Logger, ms, cfg.CacheStdlibLoad)
 	ms.MultiWrite() // XXX why was't this needed?
 
-	return app, nil
+	return baseApp, nil
 }
 
 // NewApp creates the GnoLand application.
