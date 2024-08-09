@@ -35,6 +35,13 @@ COPY       ./gnoweb /usr/bin/gnoweb
 EXPOSE      8888
 ENTRYPOINT [ "/usr/bin/gnoweb" ]
 
+#
+## ghcr.io/gnolang/gno/gnofaucet
+FROM base as gnofaucet
+
+COPY       ./gnofaucet /usr/bin/gnofaucet
+EXPOSE     5050
+ENTRYPOINT [ "/usr/bin/gnofaucet" ]
 
 #
 ## ghcr.io/gnolang/gno
