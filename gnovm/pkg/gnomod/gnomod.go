@@ -3,21 +3,15 @@ package gnomod
 import (
 	"errors"
 	"fmt"
-	"go/parser"
-	gotoken "go/token"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/transpiler"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )
-
-const queryPathFile = "vm/qfile"
 
 // GetGnoModPath returns the path for gno modules
 func GetGnoModPath() string {
@@ -35,119 +29,6 @@ func PackageDir(root string, v module.Version) string {
 		root = GetGnoModPath()
 	}
 	return filepath.Join(root, v.Path)
-}
-
-func writePackage(remote, basePath, pkgPath string) (requirements []string, err error) {
-	res, err := queryChain(remote, queryPathFile, []byte(pkgPath))
-	if err != nil {
-		return nil, fmt.Errorf("querychain (%s): %w", pkgPath, err)
-	}
-
-	dirPath, fileName := std.SplitFilepath(pkgPath)
-	if fileName == "" {
-		// Is Dir
-		// Create Dir if not exists
-		dirPath := filepath.Join(basePath, dirPath)
-		if _, err = os.Stat(dirPath); os.IsNotExist(err) {
-			if err = os.MkdirAll(dirPath, 0o755); err != nil {
-				return nil, fmt.Errorf("mkdir %q: %w", dirPath, err)
-			}
-		}
-
-		files := strings.Split(string(res.Data), "\n")
-		for _, file := range files {
-			reqs, err := writePackage(remote, basePath, filepath.Join(pkgPath, file))
-			if err != nil {
-				return nil, fmt.Errorf("writepackage: %w", err)
-			}
-			requirements = append(requirements, reqs...)
-		}
-	} else {
-		// Is File
-		// Transpile and write generated go file
-		file, err := parser.ParseFile(gotoken.NewFileSet(), fileName, res.Data, parser.ImportsOnly)
-		if err != nil {
-			return nil, fmt.Errorf("parse gno file: %w", err)
-		}
-		for _, i := range file.Imports {
-			requirements = append(requirements, i.Path.Value)
-		}
-
-		// Write file
-		fileNameWithPath := filepath.Join(basePath, dirPath, fileName)
-		err = os.WriteFile(fileNameWithPath, res.Data, 0o644)
-		if err != nil {
-			return nil, fmt.Errorf("writefile %q: %w", fileNameWithPath, err)
-		}
-	}
-
-	return removeDuplicateStr(requirements), nil
-}
-
-// GnoToGoMod make necessary modifications in the gno.mod
-// and return go.mod file.
-func GnoToGoMod(f File) (*File, error) {
-	// TODO(morgan): good candidate to move to pkg/transpiler.
-
-	gnoModPath := GetGnoModPath()
-
-	if !gnolang.IsStdlib(f.Module.Mod.Path) {
-		f.AddModuleStmt(transpiler.TranspileImportPath(f.Module.Mod.Path))
-	}
-
-	for i := range f.Require {
-		mod, replaced := isReplaced(f.Require[i].Mod, f.Replace)
-		if replaced {
-			if modfile.IsDirectoryPath(mod.Path) {
-				continue
-			}
-		}
-		path := f.Require[i].Mod.Path
-		if !gnolang.IsStdlib(path) {
-			// Add dependency with a modified import path
-			f.AddRequire(transpiler.TranspileImportPath(path), f.Require[i].Mod.Version)
-		}
-		f.AddReplace(path, f.Require[i].Mod.Version, filepath.Join(gnoModPath, path), "")
-		// Remove the old require since the new dependency was added above
-		f.DropRequire(path)
-	}
-
-	// Remove replacements that are not replaced by directories.
-	//
-	// Explanation:
-	// By this stage every replacement should be replace by dir.
-	// If not replaced by dir, remove it.
-	//
-	// e.g:
-	//
-	// ```
-	// require (
-	//	gno.land/p/demo/avl v1.2.3
-	// )
-	//
-	// replace (
-	//	gno.land/p/demo/avl v1.2.3  => gno.land/p/demo/avl v3.2.1
-	// )
-	// ```
-	//
-	// In above case we will fetch `gno.land/p/demo/avl v3.2.1` and
-	// replace will look something like:
-	//
-	// ```
-	// replace (
-	//	gno.land/p/demo/avl v1.2.3  => gno.land/p/demo/avl v3.2.1
-	//	gno.land/p/demo/avl v3.2.1  => /path/to/avl/version/v3.2.1
-	// )
-	// ```
-	//
-	// Remove `gno.land/p/demo/avl v1.2.3  => gno.land/p/demo/avl v3.2.1`.
-	for _, r := range f.Replace {
-		if !modfile.IsDirectoryPath(r.New.Path) {
-			f.DropReplace(r.Old.Path, r.Old.Version)
-		}
-	}
-
-	return &f, nil
 }
 
 func CreateGnoModFile(rootDir, modPath string) error {
@@ -216,15 +97,4 @@ func isReplaced(mod module.Version, repl []*modfile.Replace) (module.Version, bo
 		}
 	}
 	return module.Version{}, false
-}
-
-func removeDuplicateStr(str []string) (res []string) {
-	m := make(map[string]struct{}, len(str))
-	for _, s := range str {
-		if _, ok := m[s]; !ok {
-			m[s] = struct{}{}
-			res = append(res, s)
-		}
-	}
-	return
 }
