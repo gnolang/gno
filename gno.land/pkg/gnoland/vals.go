@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	valRealm     = "gno.land/r/sys/validators"
+	valRealm     = "gno.land/r/sys/validators/v2"
 	valChangesFn = "GetChanges"
 
 	validatorAddedEvent   = "ValidatorAdded"

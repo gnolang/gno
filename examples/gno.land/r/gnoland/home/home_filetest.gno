@@ -119,7 +119,7 @@ func main() {
 //
 // - [r/sys/names](r/sys/names)
 // - [r/sys/rewards](r/sys/rewards)
-// - [r/sys/validators](r/sys/validators)
+// - [/r/sys/validators/v2](/r/sys/validators/v2)
 //
 // </div><!-- /column-->
 // <div class="column">
