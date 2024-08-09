@@ -26,15 +26,15 @@ type Post struct {
 }
 
 type Memeland struct {
-	*ownable.Ownable
+	ownable.Transferrable
 	Posts       []*Post
 	MemeCounter seqid.ID
 }
 
 func NewMemeland() *Memeland {
 	return &Memeland{
-		Ownable: ownable.New(),
-		Posts:   make([]*Post, 0),
+		Transferrable: ownable.New(),
+		Posts:         make([]*Post, 0),
 	}
 }
 
@@ -160,9 +160,7 @@ func (m *Memeland) RemovePost(id string) string {
 		panic("id cannot be empty")
 	}
 
-	if err := m.CallerIsOwner(); err != nil {
-		panic(err)
-	}
+	m.AssertCallerIsOwner()
 
 	for i, post := range m.Posts {
 		if post.ID == id {
@@ -172,6 +170,13 @@ func (m *Memeland) RemovePost(id string) string {
 	}
 
 	panic("post with specified id does not exist")
+}
+
+// AssertCallerIsOwner panics if the caller is not the Realm's owner
+func (m *Memeland) AssertCallerIsOwner() {
+	if std.PrevRealm().Addr() != m.Owner() {
+		panic("unauthorized; caller is not owner")
+	}
 }
 
 // PostsToJSONString converts a slice of Post structs into a JSON string

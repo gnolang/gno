@@ -1,9 +1,13 @@
 package pausable
 
-import "gno.land/p/demo/ownable"
+import (
+	"std"
+
+	"gno.land/p/demo/ownable"
+)
 
 type Pausable struct {
-	*ownable.Ownable
+	ownable.Ownable
 	paused bool
 }
 
@@ -16,7 +20,7 @@ func New() *Pausable {
 }
 
 // NewFromOwnable is the same as New, but with a pre-existing top-level ownable
-func NewFromOwnable(ownable *ownable.Ownable) *Pausable {
+func NewFromOwnable(ownable ownable.Ownable) *Pausable {
 	return &Pausable{
 		Ownable: ownable,
 		paused:  false,
@@ -46,4 +50,13 @@ func (p *Pausable) Unpause() error {
 
 	p.paused = false
 	return nil
+}
+
+// CallerIsOwner checks if the caller of the function is the Realm's owner
+func (p Pausable) CallerIsOwner() error {
+	if std.PrevRealm().Addr() == p.Owner() {
+		return nil
+	}
+
+	return ErrUnauthorized
 }

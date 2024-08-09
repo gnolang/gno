@@ -54,6 +54,7 @@ func TestCallerIsOwner(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(firstCaller))
 
 	o := New()
+
 	unauthorizedCaller := secondCaller
 
 	std.TestSetRealm(std.NewUserRealm(unauthorizedCaller))
