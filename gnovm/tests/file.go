@@ -547,17 +547,24 @@ func trimTrailingSpaces(result string) string {
 
 type testBanker struct {
 	coinTable map[crypto.Bech32Address]std.Coins
+	totalCoin map[string]int64
 }
 
 func newTestBanker(args ...interface{}) *testBanker {
 	coinTable := make(map[crypto.Bech32Address]std.Coins)
+	totalCoin := make(map[string]int64)
 	if len(args)%2 != 0 {
 		panic("newTestBanker requires even number of arguments; addr followed by coins")
 	}
 	for i := 0; i < len(args); i += 2 {
 		addr := args[i].(crypto.Bech32Address)
-		amount := args[i+1].(std.Coins)
-		coinTable[addr] = amount
+		coins := args[i+1].(std.Coins)
+		coinTable[addr] = coins
+		for _, coin := range coins {
+			if coin.IsValid() {
+				totalCoin[coin.Denom] += coin.Amount
+			}
+		}
 	}
 	return &testBanker{
 		coinTable: coinTable,
@@ -591,17 +598,19 @@ func (tb *testBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
 }
 
 func (tb *testBanker) TotalCoin(denom string) int64 {
-	panic("not yet implemented")
+	return tb.totalCoin[denom]
 }
 
 func (tb *testBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins, _ := tb.coinTable[addr]
 	sum := coins.Add(std.Coins{{denom, amt}})
 	tb.coinTable[addr] = sum
+	tb.totalCoin[denom] += amt
 }
 
 func (tb *testBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins, _ := tb.coinTable[addr]
 	rest := coins.Sub(std.Coins{{denom, amt}})
 	tb.coinTable[addr] = rest
+	tb.totalCoin[denom] -= amt
 }

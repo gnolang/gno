@@ -87,7 +87,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
-	bankKpr := bank.NewBankKeeper(acctKpr)
+	tckpr := bank.NewTotalCoinKeeper(mainKey)
+	bankKpr := bank.NewBankKeeper(acctKpr, tckpr)
 
 	// XXX: Embed this ?
 	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")

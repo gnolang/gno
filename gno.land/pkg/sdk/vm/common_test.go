@@ -45,7 +45,8 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
 	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
-	bank := bankm.NewBankKeeper(acck)
+	tck := bankm.NewTotalCoinKeeper(iavlCapKey)
+	bank := bankm.NewBankKeeper(acck, tck)
 	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir, 100_000_000)
 
