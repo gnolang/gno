@@ -21,4 +21,4 @@ func main() {
 
 // Output:
 // Hello World!
-// r:  unauthorized; caller is not owner
+// r:  ownable: caller is not owner
