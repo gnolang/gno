@@ -19,9 +19,10 @@ func init() {
 
 	mExec := govdao.NewPropExecutor(membersFn)
 
-	comment := "adding someone to vote"
+	title := "adding someone to vote"
+	description := "adding someone to vote"
 
-	id := govdao.Propose(comment, mExec)
+	id := govdao.Propose(title, description, mExec)
 
 	govdao.ExecuteProposal(id)
 
@@ -31,7 +32,7 @@ func init() {
 			"hello-from-govdao",  // slug
 			"Hello from GovDAO!", // title
 			"This post was published by a GovDAO proposal.", // body
-			time.Now().Format(time.RFC3339),                 // publidation date
+			time.Now().Format(time.RFC3339),                 // publication date
 			"moul",                                          // authors
 			"govdao,example",                                // tags
 		)
@@ -40,8 +41,9 @@ func init() {
 
 	// Create a proposal.
 	// XXX: payment
-	comment = "post a new blogpost about govdao"
-	govdao.Propose(comment, executor)
+	title = "post a new blogpost about govdao"
+	description = "post a new blogpost about govdao"
+	govdao.Propose(title, description, executor)
 }
 
 func main() {
@@ -65,51 +67,93 @@ func main() {
 
 // Output:
 // --
-// - [0](/r/gov/dao:0) - adding someone to vote (**succeeded**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
-// - [1](/r/gov/dao:1) - post a new blogpost about govdao (**active**)(by g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm)
+// # GovDAO Proposals
+//
+// ## [Prop #0 - adding someone to vote](/r/gov/dao:0)
+//
+// #### Status: Succeeded
+//
+// ---
+//
+// ## [Prop #1 - post a new blogpost about govdao](/r/gov/dao:1)
+//
+// #### Status: Active
+//
+// ---
+//
 //
 // --
-// # Prop #1
+// # Prop #1 - post a new blogpost about govdao
+//
+// ## Description
 //
 // post a new blogpost about govdao
 //
-// Status: active
+// ## Proposal information
 //
-// Voting status: YES: 0, NO: 0, percent: 0, members: 1
+// #### Status: Active
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// #### Votes:
 //
+// - YAY: 0
 //
+// - NAY: 0
+//
+// - Percent: 0
+//
+// - Members: 1
+//
+// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // --
-// # Prop #1
+// # Prop #1 - post a new blogpost about govdao
+//
+// ## Description
 //
 // post a new blogpost about govdao
 //
-// Status: accepted
+// ## Proposal information
 //
-// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+// #### Status: Accepted
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// #### Votes:
 //
+// - YAY: 1
 //
+// - NAY: 0
+//
+// - Percent: 100
+//
+// - Members: 1
+//
+// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // # Gnoland's Blog
 //
 // No posts.
 // --
 // --
-// # Prop #1
+// # Prop #1 - post a new blogpost about govdao
+//
+// ## Description
 //
 // post a new blogpost about govdao
 //
-// Status: succeeded
+// ## Proposal information
 //
-// Voting status: YES: 1, NO: 0, percent: 100, members: 1
+// #### Status: Succeeded
 //
-// Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
+// #### Votes:
 //
+// - YAY: 1
 //
+// - NAY: 0
+//
+// - Percent: 100
+//
+// - Members: 1
+//
+// #### Author: g1wymu47drhr0kuq2098m792lytgtj2nyx77yrsm
 // --
 // # Gnoland's Blog
 //

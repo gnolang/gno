@@ -26,7 +26,7 @@ func NewPercentageVoter(percent int) *PercentageVoter {
 }
 
 // PercentageVoter is a system based on the amount of received votes.
-// When the specified treshold is reached, the voting process finishes.
+// When the specified threshold is reached, the voting process finishes.
 type PercentageVoter struct {
 	percentage int
 
@@ -34,6 +34,8 @@ type PercentageVoter struct {
 	yes    int
 	no     int
 }
+
+var _ Voter = (*PercentageVoter)(nil)
 
 func (pv *PercentageVoter) IsAccepted(voters []std.Address) bool {
 	if len(voters) == 0 {
@@ -48,7 +50,7 @@ func (pv *PercentageVoter) IsFinished(voters []std.Address) bool {
 }
 
 func (pv *PercentageVoter) Status(voters []std.Address) string {
-	return ufmt.Sprintf("YES: %d, NO: %d, percent: %d, members: %d", pv.yes, pv.no, pv.percent(voters), len(voters))
+	return ufmt.Sprintf("- YAY: %d\n\n- NAY: %d\n\n- Percent: %d\n\n- Members: %d", pv.yes, pv.no, pv.percent(voters), len(voters))
 }
 
 func (pv *PercentageVoter) Vote(voters []std.Address, caller std.Address, flag string) {
