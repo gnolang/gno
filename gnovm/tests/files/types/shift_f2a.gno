@@ -2,7 +2,7 @@ package main
 
 func main() {
 	var s uint = 33
-	var u2 = 1<<s + 1.0
+	var u2 = 1.0<<s != 1
 	println(u2)
 }
 
