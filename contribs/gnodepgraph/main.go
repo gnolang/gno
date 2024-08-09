@@ -8,19 +8,6 @@ import (
 )
 
 func main() {
-	/*cmd := commands.NewCommand(
-		commands.Metadata{
-			ShortUsage: "depgraph [flags] [<arg>...]",
-			LongHelp:   "Generates the dependency graph for gno.land",
-		},
-		commands.NewEmptyConfig(),
-		commands.HelpExec,
-	)
-
-	cmd.AddSubCommands(
-		newDepGraphCmd(commands.NewDefaultIO()),
-	)*/
-
 	cmd := newDepGraphCmd(commands.NewDefaultIO())
 
 	cmd.Execute(context.Background(), os.Args[1:])

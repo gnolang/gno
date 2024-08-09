@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -15,12 +16,12 @@ func TestSimpleRequire(t *testing.T) {
 	for _, pkg := range allPkgs {
 		if pkg.Name == "gno.land/r/gnoland/blog" {
 			visited := make(map[string]bool)
-			graphData := ""
+			var graphData bytes.Buffer
 
 			err = buildGraphData(pkg, allPkgs, visited, make(map[string]bool), &graphData)
 			require.NoError(t, err)
 
-			assert.Contains(t, graphData, "\"gno.land/r/gnoland/blog\" -> \"gno.land/p/demo/blog\"")
+			assert.Contains(t, graphData.String(), "\"gno.land/r/gnoland/blog\" -> \"gno.land/p/demo/blog\"")
 		}
 	}
 }

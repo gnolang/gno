@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -71,27 +73,27 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 
 	// make one big graph (eg. for the entire examples/ dir)
 	if !multipleGraphs {
-		nodeData := ""  // nodes
-		graphData := "" // edges
+		var nodeData bytes.Buffer
+		var graphData bytes.Buffer
 
 		// we need subgraphs to make columns in the layout and for colors
 
 		// subgraph for .../p/...
-		nodeData += "subgraph {\nrank=same\n"
+		nodeData.WriteString("subgraph {\nrank=same\n")
 		for _, pkg := range allPkgs {
 			if strings.Contains(pkg.Name, "gno.land/p") {
-				nodeData += "\"" + pkg.Name + "\" [color=\"blue\"]\n"
+				fmt.Fprintf(&nodeData, "\"%s\" [color=\"blue\"]\n", pkg.Name)
 			}
 		}
 
 		// subgraph for .../r/...
-		nodeData += "}\nsubgraph {\nrank=same\n"
+		nodeData.WriteString("}\nsubgraph {\nrank=same\n")
 		for _, pkg := range allPkgs {
 			if strings.Contains(pkg.Name, "gno.land/r") {
-				nodeData += "\"" + pkg.Name + "\" [color=\"red\"]\n"
+				fmt.Fprintf(&nodeData, "\"%s\" [color=\"red\"]\n", pkg.Name)
 			}
 		}
-		nodeData += "}"
+		nodeData.WriteString("}")
 
 		visited := make(map[string]bool)
 
@@ -106,8 +108,11 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 		if err != nil {
 			return fmt.Errorf("couldn't open output file: %w", err)
 		}
-		graphFileData := fmt.Sprintf("Digraph G {\nrankdir=\"LR\"\nranksep=20\n%s\n%s\n}", nodeData, graphData)
-		file.Write([]byte(graphFileData))
+		graphFileData := fmt.Sprintf("Digraph G {\nrankdir=\"LR\"\nranksep=20\n%s\n%s\n}", nodeData.String(), graphData.String())
+		_, err = file.Write([]byte(graphFileData))
+		if err != nil {
+			return fmt.Errorf("error in writing data to file: %w", err)
+		}
 		file.Close()
 		return nil
 	}
@@ -135,7 +140,7 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 			fmt.Fprintf(io.Err(), "Generating graph for %q...\n", pkgPath)
 		}
 
-		graphData := ""
+		var graphData bytes.Buffer
 		graphPath := filepath.Join(output, pkgPath)
 		graphPath = graphPath + ".dot"
 		basePath := path.Dir(graphPath)
@@ -155,8 +160,11 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 			return fmt.Errorf("error in building graph: %w", err)
 		}
 
-		graphFileData := fmt.Sprintf("Digraph G {%s}\n", graphData)
-		file.Write([]byte(graphFileData))
+		graphFileData := fmt.Sprintf("Digraph G {%s}\n", graphData.String())
+		_, err = file.Write([]byte(graphFileData))
+		if err != nil {
+			return fmt.Errorf("error in writing graph to file: %w", err)
+		}
 		file.Close()
 	}
 
@@ -164,7 +172,7 @@ func execDepGraph(cfg *depGraphCfg, args []string, io commands.IO) error {
 }
 
 // walk through all requires recursively and note dependencies
-func buildGraphData(pkg gnomod.Pkg, allPkgs []gnomod.Pkg, visited map[string]bool, onStack map[string]bool, graphData *string) error {
+func buildGraphData(pkg gnomod.Pkg, allPkgs []gnomod.Pkg, visited map[string]bool, onStack map[string]bool, graphData io.Writer) error {
 	if onStack[pkg.Name] {
 		return fmt.Errorf("cycle detected: %s", pkg.Name)
 	}
@@ -191,7 +199,8 @@ func buildGraphData(pkg gnomod.Pkg, allPkgs []gnomod.Pkg, visited map[string]boo
 		if !found {
 			return fmt.Errorf("couldn't find dependency %q for package %q", req, pkg.Name)
 		}
-		*graphData += "\"" + pkg.Name + "\" -> \"" + req + "\"\n"
+
+		fmt.Fprintf(graphData, "\"%s\" -> \"%s\"\n", pkg.Name, req)
 	}
 
 	onStack[pkg.Name] = false
