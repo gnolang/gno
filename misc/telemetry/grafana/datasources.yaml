@@ -11,3 +11,10 @@ datasources:
     version: 1
     editable: true
     uid: prometheus
+
+  - name: Grafana Pyroscope
+    type: grafana-pyroscope-datasource
+    access: proxy
+    url: http://pyroscope:4040
+    jsonData:
+      minStep: '15s'

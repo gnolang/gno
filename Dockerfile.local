@@ -1,0 +1,44 @@
+# Stage 1: Build the Go binaries
+FROM golang:1.22.5 as builder
+
+WORKDIR /app
+
+COPY ../../ .
+
+ENV CGO_ENABLED=0
+
+RUN go mod tidy
+RUN go get github.com/grafana/pyroscope-go
+
+# Build gno, gnokey, gnoweb, gnoland
+RUN GOOS=linux GOARCH=amd64 go build -o /app/build/gno ./gnovm/cmd/gno
+RUN GOOS=linux GOARCH=amd64 go build -o /app/build/gnokey ./gno.land/cmd/gnokey
+RUN GOOS=linux GOARCH=amd64 go build -o /app/build/gnoweb ./gno.land/cmd/gnoweb
+RUN GOOS=linux GOARCH=amd64 go build -o /app/build/gnoland ./gno.land/cmd/gnoland
+
+# Stage 2: Final image with gnoland only
+FROM alpine AS final
+
+ENV GNOROOT="/gnoroot/"
+WORKDIR /gnoroot/
+
+COPY --from=builder /app/build/gnoland /usr/bin/gnoland
+
+COPY --from=builder /app/build/gno /usr/bin/gno
+COPY --from=builder /app/build/gnokey /usr/bin/gnokey
+COPY --from=builder /app/build/gnoweb /usr/bin/gnoweb
+
+COPY ../../examples /gnoroot/examples/
+COPY ../../gnovm/stdlibs /gnoroot/gnovm/stdlibs/
+COPY ../../gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
+COPY ../../gno.land/genesis/genesis_txs.jsonl /gnoroot/gno.land/genesis/genesis_txs.jsonl
+
+RUN gnoland config init --config-path /gnoroot/gnoland-data/config/config.toml && \
+    gnoland config set --config-path /gnoroot/gnoland-data/config/config.toml consensus.timeout_commit 1s && \
+    gnoland config set --config-path /gnoroot/gnoland-data/config/config.toml rpc.laddr tcp://0.0.0.0:26657 && \
+    gnoland config set --config-path /gnoroot/gnoland-data/config/config.toml telemetry.enabled true && \
+    gnoland config set --config-path /gnoroot/gnoland-data/config/config.toml telemetry.exporter_endpoint collector:4317
+
+EXPOSE 26656 26657 8888
+
+CMD ["gnoland", "start", "--lazy"]
