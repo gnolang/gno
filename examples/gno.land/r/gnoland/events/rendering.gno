@@ -11,14 +11,14 @@ const (
 	maxWidgetSize = 5
 )
 
-// RenderEventWidget shows up to amt of the latest events to auth caller
+// RenderEventWidget shows up to eventsToRender of the latest events to auth caller
 func RenderEventWidget(eventsToRender int) (string, error) {
 	numOfEvents := len(events)
 	if numOfEvents == 0 {
 		return "No events.", nil
 	}
 
-	if eventsToRender > 5 {
+	if eventsToRender > maxWidgetSize {
 		return "", ErrWidgetMaxAmt
 	}
 
@@ -32,7 +32,7 @@ func RenderEventWidget(eventsToRender int) (string, error) {
 
 	output := ""
 
-	for _, event := range events[numOfEvents-eventsToRender:] {
+	for _, event := range events[eventsToRender:] {
 		if event.startTime.After(time.Now()) {
 			output += ufmt.Sprintf("- [%s](%s)\n", event.name, event.link)
 		}

@@ -25,7 +25,7 @@ type (
 )
 
 var (
-	events    = make(eventsSlice, 0)
+	events    = make(eventsSlice, 0) // sorted
 	idCounter seqid.ID
 )
 

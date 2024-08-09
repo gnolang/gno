@@ -83,9 +83,9 @@ func lastContributions(limit int) ui.Element {
 }
 
 func upcomingEvents(limit int) ui.Element {
-	out, err := events.RenderEventWidget(5)
+	out, err := events.RenderEventWidget(limit)
 	if err != nil {
-		panic("sadsa")
+		panic(err)
 	}
 	return ui.Element{
 		ui.H3("[Upcoming Events](/r/gnoland/events)"),
