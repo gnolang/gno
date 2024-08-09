@@ -133,8 +133,8 @@ func execGenerate(cfg *generateCfg, io commands.IO) error {
 		genesis.ConsensusParams.Block.TimeIotaMS = cfg.blockTimeIota
 	}
 
-	if !cfg.ugnotUnrestricted {
-		genesis.ConsensusParams.Account.RestrictedDenoms = []string{"ugnot"}
+	if cfg.ugnotUnrestricted {
+		genesis.ConsensusParams.Account.RestrictedDenoms = []string{}
 	}
 
 	// Validate the genesis
@@ -157,9 +157,12 @@ func execGenerate(cfg *generateCfg, io commands.IO) error {
 
 // getDefaultGenesis returns the default genesis config
 func getDefaultGenesis() *types.GenesisDoc {
-	return &types.GenesisDoc{
+	genDoc := &types.GenesisDoc{
 		GenesisTime:     time.Now(),
 		ChainID:         defaultChainID,
 		ConsensusParams: types.DefaultConsensusParams(),
 	}
+
+	genDoc.ConsensusParams.Account.RestrictedDenoms = []string{"ugnot"}
+	return genDoc
 }
