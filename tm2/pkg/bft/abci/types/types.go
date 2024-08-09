@@ -245,6 +245,7 @@ func (err EventString) Event() string {
 type ConsensusParams struct {
 	Block     *BlockParams
 	Validator *ValidatorParams
+	Account   *AccountParams
 }
 
 type BlockParams struct {
@@ -263,6 +264,10 @@ type ValidatorUpdate struct {
 	Address crypto.Address
 	PubKey  crypto.PubKey
 	Power   int64
+}
+
+type AccountParams struct {
+	RestrictedDenoms []string
 }
 
 type LastCommitInfo struct {

@@ -157,6 +157,7 @@ message StringError {
 message ConsensusParams {
 	BlockParams block = 1 [json_name = "Block"];
 	ValidatorParams validator = 2 [json_name = "Validator"];
+	AccountParams account = 3 [json_name = "Account"];
 }
 
 message BlockParams {
@@ -175,6 +176,10 @@ message ValidatorUpdate {
 	string address = 1 [json_name = "Address"];
 	google.protobuf.Any pub_key = 2 [json_name = "PubKey"];
 	sint64 power = 3 [json_name = "Power"];
+}
+
+message AccountParams {
+	repeated string restricted_denoms = 1 [json_name = "RestrictedDenoms"];
 }
 
 message LastCommitInfo {

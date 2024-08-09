@@ -84,3 +84,7 @@ func (bank DummyBankKeeper) SendCoins(ctx sdk.Context, fromAddr crypto.Address, 
 
 	return nil
 }
+
+func (bank DummyBankKeeper) SendCoinsUnrestricted(ctx sdk.Context, fromAddr crypto.Address, toAddr crypto.Address, amt std.Coins) error {
+	return bank.SendCoins(ctx, fromAddr, toAddr, amt)
+}

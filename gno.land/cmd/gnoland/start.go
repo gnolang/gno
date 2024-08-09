@@ -385,6 +385,9 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 			MaxGas:       100_000_000, // 100M gas
 			TimeIotaMS:   100,         // 100ms
 		},
+		Account: &abci.AccountParams{
+			RestrictedDenoms: []string{"ugnot"},
+		},
 	}
 
 	gen.Validators = []bft.GenesisValidator{

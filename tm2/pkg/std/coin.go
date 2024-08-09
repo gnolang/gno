@@ -222,6 +222,16 @@ func (coins Coins) String() string {
 	return out[:len(out)-1]
 }
 
+func (coins Coins) ContainOneOfDenom(denoms map[string]struct{}) bool {
+	for _, coin := range coins {
+		if _, ok := denoms[coin.Denom]; ok {
+			return true
+		}
+	}
+
+	return false
+}
+
 // IsValid asserts the Coins are sorted, have positive amount,
 // and Denom does not contain upper case characters.
 func (coins Coins) IsValid() bool {

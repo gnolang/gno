@@ -36,8 +36,9 @@ var validatorPubKeyTypeURLs = map[string]struct{}{
 
 func DefaultConsensusParams() abci.ConsensusParams {
 	return abci.ConsensusParams{
-		DefaultBlockParams(),
-		DefaultValidatorParams(),
+		Block:     DefaultBlockParams(),
+		Validator: DefaultValidatorParams(),
+		Account:   &abci.AccountParams{},
 	}
 }
 
@@ -51,9 +52,9 @@ func DefaultBlockParams() *abci.BlockParams {
 }
 
 func DefaultValidatorParams() *abci.ValidatorParams {
-	return &abci.ValidatorParams{[]string{
-		amino.GetTypeURL(ed25519.PubKeyEd25519{}),
-	}}
+	return &abci.ValidatorParams{
+		PubKeyTypeURLs: []string{amino.GetTypeURL(ed25519.PubKeyEd25519{})},
+	}
 }
 
 func ValidateConsensusParams(params abci.ConsensusParams) error {
