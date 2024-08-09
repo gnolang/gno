@@ -12,7 +12,7 @@ stdout '  "BaseAccount": {'
 stdout '    "address": "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",'
 stdout '    "coins": "[0-9]*ugnot",' # dynamic
 stdout '    "public_key": null,'
-stdout '    "account_number": "0",'
+stdout '    "account_number": "1",'
 stdout '    "sequence": "0"'
 stdout '  }'
 stdout '}'
@@ -20,7 +20,7 @@ stdout '}'
 
 
 ## sign
-gnokey sign -tx-path $WORK/multi/multi_msg.tx -chainid=tendermint_test -account-number 0 -account-sequence 0 test1
+gnokey sign -tx-path $WORK/multi/multi_msg.tx -chainid=tendermint_test -account-number 1 -account-sequence 0 test1
 stdout 'Tx successfully signed and saved to '
 
 ## broadcast

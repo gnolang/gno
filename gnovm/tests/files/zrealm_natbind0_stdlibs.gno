@@ -83,7 +83,7 @@ func main() {
 //                     "Location": {
 //                         "Column": "1",
 //                         "File": "native.gno",
-//                         "Line": "13",
+//                         "Line": "17",
 //                         "PkgPath": "std"
 //                     }
 //                 },
