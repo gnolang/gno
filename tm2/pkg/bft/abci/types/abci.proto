@@ -165,6 +165,11 @@ message BlockParams {
 	sint64 max_block_bytes = 3 [json_name = "MaxBlockBytes"];
 	sint64 max_gas = 4 [json_name = "MaxGas"];
 	sint64 time_iota_ms = 5 [json_name = "TimeIotaMS"];
+	sint64 target_gas = 6 [json_name = "TargetGas"];
+	sint64 price_change_compressor = 7 [json_name = "PriceChangeCompressor"];
+	sint64 initial_gas_price_amount = 8 [json_name = "InitialGasPriceAmount"];
+	string initial_gas_price_denom = 9 [json_name = "InitialGasPriceDenom"];
+	sint64 initial_gas_price_gas = 10 [json_name = "InitialGasPriceGas"];
 }
 
 message ValidatorParams {

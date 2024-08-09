@@ -21,6 +21,28 @@ const (
 	DefaultAccount_Seed    = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
 )
 
+// Similar to TestingNodeConfig, but allows returning errors instead of panicking through testscript.
+// This allows us to use the returned error to determine whether the error is intended for testing cases or not in the txtar file.
+func TestingInMemoryNodeUpdate(t TestingTS, logger *slog.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string, error) {
+	node, err := gnoland.NewInMemoryNode(logger, config)
+	if err != nil {
+		return nil, "", err
+	}
+
+	err = node.Start()
+	if err != nil {
+		return nil, "", err
+	}
+
+	select {
+	case <-node.Ready():
+	case <-time.After(time.Second * 10):
+		require.FailNow(t, "timeout while waiting for the node to start")
+	}
+
+	return node, node.Config().RPC.ListenAddress, nil
+}
+
 // TestingInMemoryNode initializes and starts an in-memory node for testing.
 // It returns the node instance and its RPC remote address.
 func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMemoryNodeConfig) (*node.Node, string) {
@@ -79,16 +101,15 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 }
 
 func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey, tmconfig *tmcfg.Config) *bft.GenesisDoc {
+	bp := bft.DefaultBlockParams()
+	bp.InitialGasPriceAmount = 0
+	bp.InitialGasPriceDenom = "ugnot"
+
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     tmconfig.ChainID(),
 		ConsensusParams: abci.ConsensusParams{
-			Block: &abci.BlockParams{
-				MaxTxBytes:   1_000_000,   // 1MB,
-				MaxDataBytes: 2_000_000,   // 2MB,
-				MaxGas:       100_000_000, // 100M gas
-				TimeIotaMS:   100,         // 100ms
-			},
+			Block: bp,
 		},
 		Validators: []bft.GenesisValidator{
 			{

@@ -1,0 +1,36 @@
+
+# blockparams  is a customized testscript command to update the default block parameters in a testing node.
+
+## test invalid setting
+blockparams MaxGas=100 TargetGas=101
+
+## start a new node
+! gnoland start
+stderr '"gnoland start" error: error in genesis file: Block.TargetGas 101 must be greater or equal 0 and smaller than MaxGas 100'
+
+## update block params setting with correct values
+blockparams MaxGas=100 TargetGas=90
+
+## start node with updated block parameters and stop
+gnoland start
+cmp stdout gnoland-start.stdout.golden
+stderr ''
+
+gnoland stop
+cmp stdout gnoland-stop.stdout.golden
+stderr ''
+
+
+## set invalid price denom
+blockparams InitialGasPriceDenom=
+
+! gnoland start
+stderr '"gnoland start" error: error in genesis file: Block.InitialGasPriceDenom is not valid, invalid denom:'
+
+
+## these are textar files used to compare the stdout
+
+-- gnoland-start.stdout.golden --
+node started successfully
+-- gnoland-stop.stdout.golden --
+node stopped successfully

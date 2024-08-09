@@ -155,7 +155,7 @@ func TestGenesis_Generate(t *testing.T) {
 	t.Run("set block max gas", func(t *testing.T) {
 		t.Parallel()
 
-		blockMaxGas := int64(100)
+		blockMaxGas := int64(100000000)
 
 		tempDir, cleanup := testutils.NewTestCaseDir(t)
 		t.Cleanup(cleanup)

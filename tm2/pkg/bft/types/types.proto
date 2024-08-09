@@ -44,6 +44,9 @@ message Header {
 	bytes app_hash = 14;
 	bytes last_results_hash = 15;
 	string proposer_address = 16;
+	sint64 gas_price_gas = 17;
+	sint64 gas_price_amount = 18;
+	string gas_price_denom = 19;
 }
 
 message Data {

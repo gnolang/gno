@@ -623,6 +623,9 @@ var (
 	reCoin      = regexp.MustCompile(fmt.Sprintf(`^(%s)%s(%s)$`, reAmt, reSpc, reDnmString))
 )
 
+// export validateDenom
+var ValidateDenom func(string) error = validateDenom
+
 func validateDenom(denom string) error {
 	if !reDnm.MatchString(denom) {
 		return fmt.Errorf("invalid denom: %s", denom)

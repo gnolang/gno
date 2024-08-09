@@ -251,6 +251,11 @@ type Header struct {
 
 	// consensus info
 	ProposerAddress Address `json:"proposer_address"` // original proposer of the block
+
+	// XXX: use std.GasPrice instead?
+	GasPriceGas    int64  `json:"gas_price_gas"`
+	GasPriceAmount int64  `json:"gas_price_amount"`
+	GasPriceDenom  string `json:"gas_price_denom"`
 }
 
 // Implements abci.Header
@@ -290,6 +295,8 @@ func (h *Header) Populate(
 	valHash, nextValHash []byte,
 	consensusHash, appHash, lastResultsHash []byte,
 	proposerAddress Address,
+	gasPriceGas, gasPriceAmount int64,
+	gasPriceDenom string,
 ) {
 	h.Version = typesver.BlockVersion
 	h.ChainID = chainID
@@ -303,6 +310,9 @@ func (h *Header) Populate(
 	h.AppHash = appHash
 	h.LastResultsHash = lastResultsHash
 	h.ProposerAddress = proposerAddress
+	h.GasPriceGas = gasPriceGas
+	h.GasPriceAmount = gasPriceAmount
+	h.GasPriceDenom = gasPriceDenom
 }
 
 // Hash returns the hash of the header.
@@ -332,6 +342,9 @@ func (h *Header) Hash() []byte {
 		bytesOrNil(h.AppHash),
 		bytesOrNil(h.LastResultsHash),
 		bytesOrNil(h.ProposerAddress),
+		bytesOrNil(h.GasPriceGas),
+		bytesOrNil(h.GasPriceAmount),
+		bytesOrNil(h.GasPriceDenom),
 	})
 }
 
@@ -357,6 +370,9 @@ func (h *Header) StringIndented(indent string) string {
 %s  Consensus:      %v
 %s  Results:        %v
 %s  Proposer:       %v
+%s 	GasPriceGas:    %v
+%s 	GasPriceAmount: %v
+%s 	GasPriceDenom:  %v
 %s}#%v`,
 		indent, h.Version,
 		indent, h.ChainID,
@@ -374,6 +390,9 @@ func (h *Header) StringIndented(indent string) string {
 		indent, h.ConsensusHash,
 		indent, h.LastResultsHash,
 		indent, h.ProposerAddress,
+		indent, h.GasPriceGas,
+		indent, h.GasPriceAmount,
+		indent, h.GasPriceDenom,
 		indent, h.Hash())
 }
 

@@ -33,16 +33,15 @@ func NewMockedPrivValidator() bft.PrivValidator {
 
 // NewDefaultGenesisConfig creates a default configuration for an in-memory node.
 func NewDefaultGenesisConfig(chainid string) *bft.GenesisDoc {
+	bp := bft.DefaultBlockParams()
+	bp.InitialGasPriceAmount = 0
+	bp.InitialGasPriceDenom = "ugnot"
+
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     chainid,
 		ConsensusParams: abci.ConsensusParams{
-			Block: &abci.BlockParams{
-				MaxTxBytes:   1_000_000,   // 1MB,
-				MaxDataBytes: 2_000_000,   // 2MB,
-				MaxGas:       100_000_000, // 100M gas
-				TimeIotaMS:   100,         // 100ms
-			},
+			Block: bp,
 		},
 		AppState: &GnoGenesisState{
 			Balances: []Balance{},

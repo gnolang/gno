@@ -404,6 +404,9 @@ func updateState(
 		LastHeightConsensusParamsChanged: lastHeightParamsChanged,
 		LastResultsHash:                  abciResponses.ResultsHash(),
 		AppHash:                          nil,
+		GasPriceGas:                      header.GasPriceGas,
+		GasPriceAmount:                   header.GasPriceAmount,
+		GasPriceDenom:                    header.GasPriceDenom,
 	}, nil
 }
 

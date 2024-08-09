@@ -3,6 +3,7 @@ package sdk
 import (
 	"fmt"
 	"log/slog"
+	"math/big"
 	"os"
 	"runtime/debug"
 	"sort"
@@ -838,11 +839,91 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 
 // EndBlock implements the ABCI interface.
 func (app *BaseApp) EndBlock(req abci.RequestEndBlock) (res abci.ResponseEndBlock) {
+	// update the minGasPrices in the block header
+	newHeader := app.updateHeader()
 	if app.endBlocker != nil {
 		res = app.endBlocker(app.deliverState.ctx, req)
 	}
-
+	// send updated Header back to consensus
+	res.Header = newHeader
 	return
+}
+
+// it updates the MinGasPrice in BlockHeader of the current block
+// the MiinGasPrice will be used to check transaction for the next block
+func (app *BaseApp) updateHeader() abci.Header {
+	header := app.deliverState.ctx.BlockHeader().(*bft.Header)
+	lastPrice := header.GasPriceAmount
+	gasUsed := app.deliverState.ctx.BlockGasMeter().GasConsumed()
+	// calculate and update the dynamic gas price based on the gas used in the current block
+	header.GasPriceAmount = app.calBlockMinPriceAmount(gasUsed, lastPrice)
+	app.deliverState.ctx = app.deliverState.ctx.WithBlockHeader(header)
+	return header
+}
+
+// it calculates the minGasPrice for the txs to be included in the next block.
+// minGasPrice = lastPrice + lastPrice*(gasUsed-TargetBlockGas)/TargetBlockGas/GasCompressor)
+func (app *BaseApp) calBlockMinPriceAmount(gasUsed int64, lastPrice int64) int64 {
+	// if no last price set
+	if lastPrice == 0 {
+		return 0
+	}
+	// if no gas used, no need to change the lastPrice
+	if gasUsed == 0 {
+		return lastPrice
+	}
+
+	targetGas := app.consensusParams.Block.TargetGas
+	// if used gas is right on target, no need to change
+	if gasUsed == targetGas {
+		return lastPrice
+	}
+
+	var (
+		num   = new(big.Int)
+		denom = new(big.Int)
+	)
+
+	c := app.consensusParams.Block.PriceChangeCompressor
+
+	lastMinPrice := big.NewInt(lastPrice)
+	if gasUsed > targetGas { // increase gas price
+		num = num.SetInt64(gasUsed - targetGas)
+		num.Mul(num, lastMinPrice)
+		num.Div(num, denom.SetInt64(targetGas))
+		num.Div(num, denom.SetInt64(c))
+		// increase at least 1
+		diff := max(num, big.NewInt(1))
+		num.Add(lastMinPrice, diff)
+		// XXX should we set a max gas price?
+	} else { // decrease gas price down to initial gas price
+		minGasPrice := app.consensusParams.Block.InitialGasPriceAmount
+		if lastPrice <= minGasPrice {
+			return minGasPrice
+		}
+		num = num.SetInt64(targetGas - gasUsed)
+		num.Mul(num, lastMinPrice)
+		num.Div(num, denom.SetInt64(targetGas))
+		num.Div(num, denom.SetInt64(c))
+
+		num.Sub(lastMinPrice, num)
+		// min gas price should not be less than the initial gas price,
+		// unless it was never set before.
+		num = max(num, big.NewInt(minGasPrice))
+	}
+
+	if !num.IsInt64() {
+		panic("The min gas price is out of int64 range")
+	}
+	return num.Int64()
+}
+
+// big returns the larger of x or y.
+func max(x, y *big.Int) *big.Int {
+	if x.Cmp(y) < 0 {
+		return y
+	}
+	return x
 }
 
 // Commit implements the ABCI interface. It will commit all state that exists in

@@ -27,6 +27,7 @@ func TestConsensusParamsValidation(t *testing.T) {
 		1: {makeParams(0, 1024, 0, 10, valEd25519), false},
 		2: {makeParams(47*1024*1024, 47*1024*1024+1024, 0, 10, valEd25519), true},
 		3: {makeParams(10, 1024, 0, 10, valEd25519), true},
+
 		4: {makeParams(100*1024*1024, 100*1024*1024+1024, 0, 10, valEd25519), true},
 		5: {makeParams(101*1024*1024, 101*1024*1024+1024, 0, 10, valEd25519), false},
 		6: {makeParams(1024*1024*1024, 1024*1024*1024+1024, 0, 10, valEd25519), false},
@@ -53,10 +54,14 @@ func makeParams(
 ) abci.ConsensusParams {
 	return abci.ConsensusParams{
 		Block: &abci.BlockParams{
-			MaxTxBytes:    dataBytes,
-			MaxBlockBytes: blockBytes,
-			MaxGas:        blockGas,
-			TimeIotaMS:    blockTimeIotaMS,
+			MaxTxBytes:            dataBytes,
+			MaxBlockBytes:         blockBytes,
+			MaxGas:                blockGas,
+			TimeIotaMS:            blockTimeIotaMS,
+			PriceChangeCompressor: 1,
+			TargetGas:             0,
+			InitialGasPriceGas:    1,
+			InitialGasPriceDenom:  "token",
 		},
 		Validator: &abci.ValidatorParams{
 			PubKeyTypeURLs: pubkeyTypeURLs,
@@ -112,10 +117,14 @@ func TestConsensusParamsUpdate(t *testing.T) {
 			makeParams(1, 1024, 2, 10, valEd25519),
 			abci.ConsensusParams{
 				Block: &abci.BlockParams{
-					MaxTxBytes:    100,
-					MaxBlockBytes: 1024,
-					MaxGas:        200,
-					TimeIotaMS:    10,
+					MaxTxBytes:            100,
+					MaxBlockBytes:         1024,
+					MaxGas:                200,
+					TimeIotaMS:            10,
+					PriceChangeCompressor: 1,
+					TargetGas:             0,
+					InitialGasPriceGas:    1,
+					InitialGasPriceDenom:  "token",
 				},
 				Validator: &abci.ValidatorParams{
 					PubKeyTypeURLs: valSecp256k1,

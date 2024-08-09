@@ -64,6 +64,11 @@ type State struct {
 
 	// the latest AppHash we've received from calling abci.Commit()
 	AppHash []byte
+
+	// protocol level min gas price
+	GasPriceGas    int64
+	GasPriceAmount int64
+	GasPriceDenom  string
 }
 
 // Copy makes a copy of the State for mutating.
@@ -92,6 +97,10 @@ func (state State) Copy() State {
 		AppHash: state.AppHash,
 
 		LastResultsHash: state.LastResultsHash,
+
+		GasPriceGas:    state.GasPriceGas,
+		GasPriceAmount: state.GasPriceAmount,
+		GasPriceDenom:  state.GasPriceDenom,
 	}
 }
 
@@ -142,6 +151,9 @@ func (state State) MakeBlock(
 		state.Validators.Hash(), state.NextValidators.Hash(),
 		state.ConsensusParams.Hash(), state.AppHash, state.LastResultsHash,
 		proposerAddress,
+		state.GasPriceGas,
+		state.GasPriceAmount,
+		state.GasPriceDenom,
 	)
 
 	return block, block.MakePartSet(types.BlockPartSizeBytes)
@@ -234,5 +246,9 @@ func MakeGenesisState(genDoc *types.GenesisDoc) (State, error) {
 		LastHeightConsensusParamsChanged: 1,
 
 		AppHash: genDoc.AppHash,
+
+		GasPriceGas:    genDoc.ConsensusParams.Block.InitialGasPriceGas,
+		GasPriceAmount: genDoc.ConsensusParams.Block.InitialGasPriceAmount,
+		GasPriceDenom:  genDoc.ConsensusParams.Block.InitialGasPriceDenom,
 	}, nil
 }

@@ -37,6 +37,7 @@ const (
 	blockIntervalKey        = "block_interval_hist"
 	blockTxsKey             = "block_txs_hist"
 	blockSizeKey            = "block_size_hist"
+	gasPriceKey             = "block_gas_price_hist"
 
 	httpRequestTimeKey = "http_request_time_hist"
 	wsRequestTimeKey   = "ws_request_time_hist"
@@ -103,6 +104,9 @@ var (
 
 	// BlockSizeBytes measures the size of the latest block in bytes
 	BlockSizeBytes metric.Int64Histogram
+
+	// BlockHeaderGasPriceAmount measures the block gas price of the last block
+	BlockHeaderGasPriceAmount metric.Int64Histogram
 
 	// RPC //
 
@@ -283,6 +287,14 @@ func Init(config config.Config) error {
 		blockSizeKey,
 		metric.WithDescription("size of the latest block in bytes"),
 		metric.WithUnit("B"),
+	); err != nil {
+		return fmt.Errorf("unable to create histogram, %w", err)
+	}
+
+	if BlockHeaderGasPriceAmount, err = meter.Int64Histogram(
+		gasPriceKey,
+		metric.WithDescription("block gas price"),
+		metric.WithUnit("token"),
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}
