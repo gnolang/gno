@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	maxWidgetSize = 5
+	MaxWidgetSize = 5
 )
 
 // RenderEventWidget shows up to eventsToRender of the latest events to auth caller
@@ -18,7 +18,7 @@ func RenderEventWidget(eventsToRender int) (string, error) {
 		return "No events.", nil
 	}
 
-	if eventsToRender > maxWidgetSize {
+	if eventsToRender > MaxWidgetSize {
 		return "", ErrWidgetMaxAmt
 	}
 
@@ -33,9 +33,7 @@ func RenderEventWidget(eventsToRender int) (string, error) {
 	output := ""
 
 	for _, event := range events[eventsToRender:] {
-		if event.startTime.After(time.Now()) {
-			output += ufmt.Sprintf("- [%s](%s)\n", event.name, event.link)
-		}
+		output += ufmt.Sprintf("- [%s](%s)\n", event.name, event.link)
 	}
 
 	return output, nil
@@ -50,7 +48,6 @@ func renderHome(admin bool) string {
 	}
 
 	output += "Below is a list of all gno.land events, including in progress, upcoming, and past ones.\n\n"
-
 	output += "---\n\n"
 
 	var (

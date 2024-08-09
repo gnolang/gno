@@ -49,20 +49,10 @@ func AddEvent(name, description, link, location, startTime, endTime string) (int
 		return -1, ufmt.Errorf("%s: provided length is %d, maximum is %d", ErrDescriptionTooLong, len(description), maxDescLength)
 	}
 
-	st, err := time.Parse(time.RFC3339, startTime)
+	// Parse times
+	st, et, err := parseTimes(startTime, endTime)
 	if err != nil {
-		return -1, ufmt.Errorf("%s: %s", ErrInvalidStartTime, err)
-	}
-
-	et, err := time.Parse(time.RFC3339, endTime)
-	if err != nil {
-		return -1, ufmt.Errorf("%s: %s", ErrInvalidEndTime, err)
-	}
-
-	_, stOffset := st.Zone()
-	_, etOffset := et.Zone()
-	if stOffset != etOffset {
-		return -1, ErrStartEndTimezonemMismatch
+		return -1, err
 	}
 
 	id := idCounter.Next()
@@ -105,52 +95,54 @@ func DeleteEvent(id seqid.ID) {
 }
 
 // EditEvent edits an event with auth given ID
-// It only updates values corresponding to non-empty/non-nil arguments sent with the call
-//func EditEvent(id seqid.ID, name, description, link, location string, startTime, endTime int64) {
-//	auth.AssertOnAuthList()
-//
-//	e, _, err := GetEventByID(id)
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	// Set only valid values
-//	if strings.TrimSpace(name) != "" {
-//		e.name = name
-//	}
-//
-//	if strings.TrimSpace(description) != "" {
-//		e.description = description
-//	}
-//
-//	if strings.TrimSpace(link) != "" {
-//		e.link = link
-//	}
-//
-//	if strings.TrimSpace(location) != "" {
-//		e.location = location
-//	}
-//
-//	if startTime > 0 {
-//		e.startTime = time.Unix(startTime, 0)
-//	}
-//
-//	if endTime < 0 || endTime < startTime {
-//		panic(ErrInvalidEndTime)
-//	}
-//
-//	e.endTime = time.Unix(endTime, 0)
-//
-//	std.Emit(EventEdited,
-//		"id",
-//		e.id.String(),
-//	)
-//
-//	// If sort order was disrupted, sort again
-//	if startTime > 0 {
-//		sort.Sort(events)
-//	}
-//}
+// It only updates values corresponding to non-empty arguments sent with the call
+// Note: if you need to update the start time or end time, you need to provide both every time
+func EditEvent(id seqid.ID, name, description, link, location, startTime, endTime string) {
+	auth.AssertOnAuthList()
+
+	e, _, err := GetEventByID(id)
+	if err != nil {
+		panic(err)
+	}
+
+	// Set only valid values
+	if strings.TrimSpace(name) != "" {
+		e.name = name
+	}
+
+	if strings.TrimSpace(description) != "" {
+		e.description = description
+	}
+
+	if strings.TrimSpace(link) != "" {
+		e.link = link
+	}
+
+	if strings.TrimSpace(location) != "" {
+		e.location = location
+	}
+
+	if strings.TrimSpace(startTime) != "" || strings.TrimSpace(endTime) != "" {
+		st, et, err := parseTimes(startTime, endTime)
+		if err != nil {
+			panic(err) // need to also revert other state changes
+		}
+
+		oldStartTime := e.startTime
+		e.startTime = st
+		e.endTime = et
+
+		// If sort order was disrupted, sort again
+		if oldStartTime != e.startTime {
+			sort.Sort(events)
+		}
+	}
+
+	std.Emit(EventEdited,
+		"id",
+		e.id.String(),
+	)
+}
 
 func GetEventByID(id seqid.ID) (*Event, int, error) {
 	for i, event := range events {
@@ -176,4 +168,28 @@ func (m eventsSlice) Less(i, j int) bool {
 // Swap swaps two elements in the slice
 func (m eventsSlice) Swap(i, j int) {
 	m[i], m[j] = m[j], m[i]
+}
+
+func parseTimes(startTime, endTime string) (time.Time, time.Time, error) {
+	st, err := time.Parse(time.RFC3339, startTime)
+	if err != nil {
+		return time.Time{}, time.Time{}, ufmt.Errorf("%s: %s", ErrInvalidStartTime, err.Error())
+	}
+
+	et, err := time.Parse(time.RFC3339, endTime)
+	if err != nil {
+		return time.Time{}, time.Time{}, ufmt.Errorf("%s: %s", ErrInvalidEndTime, err.Error())
+	}
+
+	if et.Before(st) {
+		return time.Time{}, time.Time{}, ErrEndBeforeStart
+	}
+
+	_, stOffset := st.Zone()
+	_, etOffset := et.Zone()
+	if stOffset != etOffset {
+		return time.Time{}, time.Time{}, ErrStartEndTimezonemMismatch
+	}
+
+	return st, et, nil
 }
