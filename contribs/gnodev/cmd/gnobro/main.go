@@ -266,7 +266,7 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 		return ctx.Err()
 	})
 
-	if err := errgs.Wait(); err != nil && !errors.As(err, &context.Canceled) {
+	if err := errgs.Wait(); err != nil && !errors.Is(err, context.Canceled) {
 		return err
 	}
 
