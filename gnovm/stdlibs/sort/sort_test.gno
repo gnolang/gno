@@ -653,7 +653,7 @@ func countOps(t *testing.T, algo func(sort.Interface), name string) {
 func TestCountStableOps(t *testing.T) { countOps(t, sort.Stable, "Stable") }
 func TestCountSortOps(t *testing.T)   { countOps(t, sort.Sort, "Sort  ") }
 
-/* XXX removed due to testenv
+// XXX removed due to testenv
 func bench(b *testing.B, size int, algo func(Interface), name string) {
 	if stringspkg.HasSuffix(testenv.Builder(), "-race") && size > 1e4 {
 		b.Skip("skipping slow benchmark on race builder")
@@ -684,7 +684,7 @@ func bench(b *testing.B, size int, algo func(Interface), name string) {
 		}
 	}
 }
-
+/*
 func BenchmarkSort1e2(b *testing.B)   { bench(b, 1e2, Sort, "Sort") }
 func BenchmarkStable1e2(b *testing.B) { bench(b, 1e2, Stable, "Stable") }
 func BenchmarkSort1e4(b *testing.B)   { bench(b, 1e4, Sort, "Sort") }
@@ -692,4 +692,3 @@ func BenchmarkStable1e4(b *testing.B) { bench(b, 1e4, Stable, "Stable") }
 func BenchmarkSort1e6(b *testing.B)   { bench(b, 1e6, Sort, "Sort") }
 func BenchmarkStable1e6(b *testing.B) { bench(b, 1e6, Stable, "Stable") }
 
-*/
