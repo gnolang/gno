@@ -1,0 +1,36 @@
+# test that we can import two packages with the same declared name as soon as we explicitely name imports manually.
+loadpkg gno.land/r/foo/aaa $WORK/foo/aaa
+loadpkg gno.land/r/bar/aaa $WORK/bar/aaa
+loadpkg gno.land/r/baz     $WORK/baz
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/baz -func Baz -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+-- foo/aaa/aaa.gno --
+package aaa
+
+func Foo() {}
+func Baz() {}
+
+-- bar/aaa/aaa.gno --
+package aaa
+
+func Bar() {}
+func Baz() {}
+
+-- baz/baz.gno --
+package baz
+
+import (
+	foo "gno.land/r/foo/aaa"
+	bar "gno.land/r/bar/aaa"
+)
+
+func Baz() {
+	foo.Foo()
+	foo.Baz()
+	bar.Bar()
+	bar.Baz()
+}
