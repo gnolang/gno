@@ -53,7 +53,7 @@ func (c *balancesRemoveCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execBalancesRemove(cfg *balancesRemoveCfg, io commands.IO) error {
 	// Load the genesis
-	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.genesisPath)
+	genesis, loadErr := types.GenesisDocFromFile(cfg.rootCfg.homeDir.GenesisFilePath())
 	if loadErr != nil {
 		return fmt.Errorf("%w, %w", errUnableToLoadGenesis, loadErr)
 	}
@@ -90,7 +90,7 @@ func execBalancesRemove(cfg *balancesRemoveCfg, io commands.IO) error {
 	genesis.AppState = state
 
 	// Save the updated genesis
-	if err := genesis.SaveAs(cfg.rootCfg.genesisPath); err != nil {
+	if err := genesis.SaveAs(cfg.rootCfg.homeDir.GenesisFilePath()); err != nil {
 		return fmt.Errorf("unable to save genesis.json, %w", err)
 	}
 

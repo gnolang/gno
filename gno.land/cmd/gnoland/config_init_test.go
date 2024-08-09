@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"path/filepath"
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
@@ -14,37 +13,19 @@ import (
 func TestConfig_Init(t *testing.T) {
 	t.Parallel()
 
-	t.Run("invalid output path", func(t *testing.T) {
-		t.Parallel()
-
-		// Create the command
-		cmd := newRootCmd(commands.NewTestIO())
-		args := []string{
-			"config",
-			"init",
-			"--config-path",
-			"",
-		}
-
-		// Run the command
-		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errInvalidConfigOutputPath.Error())
-	})
-
 	t.Run("default config initialized", func(t *testing.T) {
 		t.Parallel()
 
 		// Create a temporary directory
-		tempDir := t.TempDir()
-		path := filepath.Join(tempDir, "config.toml")
+		homeDir := newTestHomeDirectory(t, t.TempDir())
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"config",
 			"init",
-			"--config-path",
-			path,
+			"--home",
+			homeDir.Path(),
 		}
 
 		// Run the command
@@ -52,7 +33,7 @@ func TestConfig_Init(t *testing.T) {
 		require.NoError(t, cmdErr)
 
 		// Verify the config is valid
-		cfg, err := config.LoadConfigFile(path)
+		cfg, err := config.LoadConfigFile(homeDir.ConfigFile())
 		require.NoError(t, err)
 
 		assert.NoError(t, cfg.ValidateBasic())
@@ -63,16 +44,15 @@ func TestConfig_Init(t *testing.T) {
 		t.Parallel()
 
 		// Create a temporary directory
-		tempDir := t.TempDir()
-		path := filepath.Join(tempDir, "config.toml")
+		homeDir := newTestHomeDirectory(t, t.TempDir())
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"config",
 			"init",
-			"--config-path",
-			path,
+			"--home",
+			homeDir.Path(),
 		}
 
 		// Run the command
@@ -80,7 +60,7 @@ func TestConfig_Init(t *testing.T) {
 		require.NoError(t, cmdErr)
 
 		// Verify the config is valid
-		cfg, err := config.LoadConfigFile(path)
+		cfg, err := config.LoadConfigFile(homeDir.ConfigFile())
 		require.NoError(t, err)
 
 		assert.NoError(t, cfg.ValidateBasic())
@@ -97,8 +77,7 @@ func TestConfig_Init(t *testing.T) {
 		t.Parallel()
 
 		// Create a temporary directory
-		tempDir := t.TempDir()
-		path := filepath.Join(tempDir, "config.toml")
+		homeDir := newTestHomeDirectory(t, t.TempDir())
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
@@ -106,8 +85,8 @@ func TestConfig_Init(t *testing.T) {
 			"config",
 			"init",
 			"--force",
-			"--config-path",
-			path,
+			"--home",
+			homeDir.Path(),
 		}
 
 		// Run the command
@@ -115,7 +94,7 @@ func TestConfig_Init(t *testing.T) {
 		require.NoError(t, cmdErr)
 
 		// Verify the config is valid
-		cfg, err := config.LoadConfigFile(path)
+		cfg, err := config.LoadConfigFile(homeDir.ConfigFile())
 		require.NoError(t, err)
 
 		assert.NoError(t, cfg.ValidateBasic())

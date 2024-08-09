@@ -33,7 +33,7 @@ func newTxsListCmd(txsCfg *txsCfg, io commands.IO) *commands.Command {
 }
 
 func execTxsListCmd(io commands.IO, cfg *txsCfg) error {
-	genesis, err := types.GenesisDocFromFile(cfg.genesisPath)
+	genesis, err := types.GenesisDocFromFile(cfg.homeDir.GenesisFilePath())
 	if err != nil {
 		return fmt.Errorf("%w, %w", errUnableToLoadGenesis, err)
 	}
