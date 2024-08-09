@@ -591,8 +591,6 @@ release:
   draft: true
   replace_existing_draft: true
   prerelease: auto
-  # make_latest: {{ if .IsNightly }}true{{ else }}false{{ end }}
-  # make_latest: {{ if eq .Env.TAG_VERSION "master" }}false{{ else }}true{{ end }}
   mode: append
   footer: |
     ### Container Images
