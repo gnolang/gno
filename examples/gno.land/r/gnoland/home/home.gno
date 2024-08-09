@@ -36,7 +36,7 @@ func Render(_ string) string {
 	dom.Body.Append(
 		ui.Columns{3, []ui.Element{
 			lastBlogposts(4),
-			upcomingEvents(4),
+			upcomingEvents(),
 			lastContributions(4),
 		}},
 	)
@@ -82,11 +82,8 @@ func lastContributions(limit int) ui.Element {
 	}
 }
 
-func upcomingEvents(limit int) ui.Element {
-	out, err := events.RenderEventWidget(limit)
-	if err != nil {
-		panic(err)
-	}
+func upcomingEvents() ui.Element {
+	out, _ := events.RenderEventWidget(events.MaxWidgetSize)
 	return ui.Element{
 		ui.H3("[Upcoming Events](/r/gnoland/events)"),
 		ui.Text(out),

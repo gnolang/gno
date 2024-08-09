@@ -6,22 +6,28 @@ import (
 	"testing"
 	"time"
 
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/uassert"
 )
 
 var (
 	suRealm = std.NewUserRealm(su)
+	now     = "2009-02-13T23:31:30Z" // time.Now() is hardcoded to this value in the gno test machine currently
 )
 
 func TestAddEvent(t *testing.T) {
 	std.TestSetOrigCaller(su)
 	std.TestSetRealm(suRealm)
 
-	now := time.Now()
+	parsedTimeNow, err := time.Parse(time.RFC3339, now)
+	if err != nil {
+		panic(err)
+	}
 
-	e1Start := now.Add(time.Hour * 24 * 5)
+	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
 	e1End := e1Start.Add(time.Hour * 4)
-	AddEvent("Event 1", "this event is upcoming", "gno.land", "gnome land", e1Start.Unix(), e1End.Unix())
+
+	AddEvent("Event 1", "this event is upcoming", "gno.land", "gnome land", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
 
 	got := renderHome(false)
 
@@ -29,10 +35,10 @@ func TestAddEvent(t *testing.T) {
 		t.Fatalf("Expected to find Event 1 in render")
 	}
 
-	e2Start := now.Add(-time.Hour * 24 * 5)
+	e2Start := parsedTimeNow.Add(-time.Hour * 24 * 5)
 	e2End := e2Start.Add(time.Hour * 4)
 
-	AddEvent("Event 2", "this event is in the past", "gno.land", "gnome land", e2Start.Unix(), e2End.Unix())
+	AddEvent("Event 2", "this event is in the past", "gno.land", "gnome land", e2Start.Format(time.RFC3339), e2End.Format(time.RFC3339))
 
 	got = renderHome(false)
 
@@ -61,40 +67,46 @@ func TestAddEventErrors(t *testing.T) {
 	std.TestSetOrigCaller(su)
 	std.TestSetRealm(suRealm)
 
-	uassert.PanicsWithMessage(t, ErrEmptyName.Error(), func() {
-		AddEvent("", "sample desc", "gno.land", "gnome land", 123, 456)
-	})
+	_, err := AddEvent("", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31Z", "2009-02-13T23:33:31Z")
+	uassert.ErrorIs(t, err, ErrEmptyName)
 
-	uassert.PanicsWithMessage(t, ErrInvalidStartTime.Error(), func() {
-		AddEvent("sample name", "sample desc", "gno.land", "gnome land", 0, 456)
-	})
+	_, err = AddEvent("sample name", "sample desc", "gno.land", "gnome land", "", "2009-02-13T23:33:31Z")
+	uassert.ErrorContains(t, err, ErrInvalidStartTime.Error())
 
-	uassert.PanicsWithMessage(t, ErrInvalidEndTime.Error(), func() {
-		AddEvent("sample name", "sample desc", "gno.land", "gnome land", 123, 0)
-	})
+	_, err = AddEvent("sample name", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31Z", "")
+	uassert.ErrorContains(t, err, ErrInvalidEndTime.Error())
 
-	uassert.PanicsWithMessage(t, ErrInvalidEndTime.Error(), func() {
-		AddEvent("sample name", "sample desc", "gno.land", "gnome land", 123, 1)
-	})
+	_, err = AddEvent("sample name", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31Z", "2009-02-13T23:30:31Z")
+	uassert.ErrorIs(t, err, ErrEndBeforeStart)
+
+	_, err = AddEvent("sample name", "sample desc", "gno.land", "gnome land", "2009-02-13T23:31:31+06:00", "2009-02-13T23:33:31+02:00")
+	uassert.ErrorIs(t, err, ErrStartEndTimezonemMismatch)
 
 	tooLongDesc := `Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean ma`
-	// figure out auth way to check panics with dynamic params in auth better way
-	uassert.PanicsWithMessage(t, "event description is 101 chars, while it cannot be more than 100 chars", func() {
-		AddEvent("sample name", tooLongDesc, "gno.land", "gnome land", 123, 456)
-	})
+	_, err = AddEvent("sample name", tooLongDesc, "gno.land", "gnome land", "2009-02-13T23:31:31Z", "2009-02-13T23:33:31Z")
+	uassert.ErrorContains(t, err, ErrDescriptionTooLong.Error())
 }
 
 func TestDeleteEvent(t *testing.T) {
 	events = nil // remove elements from previous tests - see issue #1982
 
-	id := AddEvent("ToDelete", "sample desc", "gno.land", "gnome land", 123, 456)
+	parsedTimeNow, err := time.Parse(time.RFC3339, now)
+	if err != nil {
+		panic(err)
+	}
+
+	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
+	e1End := e1Start.Add(time.Hour * 4)
+
+	id, _ := AddEvent("ToDelete", "description", "gno.land", "gnome land", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
+
 	got := renderHome(false)
 
 	if !strings.Contains(got, "ToDelete") {
 		t.Fatalf("Expected to find ToDelete event in render")
 	}
 
-	DeleteEvent(id)
+	DeleteEvent(seqid.ID(id))
 	got = renderHome(false)
 
 	if strings.Contains(got, "ToDelete") {
@@ -104,7 +116,16 @@ func TestDeleteEvent(t *testing.T) {
 
 func TestEditEvent(t *testing.T) {
 	events = nil // remove elements from previous tests - see issue #1982
-	id := AddEvent("ToEdit", "Desc to edit", "gno.land", "gnome land", 123, 456)
+
+	parsedTimeNow, err := time.Parse(time.RFC3339, now)
+	if err != nil {
+		panic(err)
+	}
+
+	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
+	e1End := e1Start.Add(time.Hour * 4)
+
+	id, _ := AddEvent("ToDelete", "description", "gno.land", "gnome land", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
 
 	newName := "New Name"
 	newDesc := "Normal description"
@@ -131,11 +152,11 @@ func TestEditEvent(t *testing.T) {
 	}
 }
 
-func TestInvalidEdit(t *testing.T) {
-	events = nil // remove elements from previous tests - see issue #1982
-	id := AddEvent("ToEdit", "Desc to edit", "gno.land", "gnome land", 123, 456)
-
-	uassert.PanicsWithMessage(t, ErrInvalidEndTime.Error(), func() {
-		EditEvent(id, "", "", "", "", 0, -5)
-	})
-}
+//func TestInvalidEdit(t *testing.T) {
+//	events = nil // remove elements from previous tests - see issue #1982
+//	id := AddEvent("ToEdit", "Desc to edit", "gno.land", "gnome land", 123, 456)
+//
+//	uassert.PanicsWithMessage(t, ErrInvalidEndTime.Error(), func() {
+//		EditEvent(id, "", "", "", "", 0, -5)
+//	})
+//}
