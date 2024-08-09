@@ -39,7 +39,7 @@ jobs:
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
-          version: ~> v2 # v1.26.2-pro
+          version: ~> v2
           args: release --clean --skip publish --config ./.github/goreleaser.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
