@@ -17,20 +17,7 @@ you to do 4 main things:
 
 - **`gno`, `gnokey`, and `gnodev` installed.** Reference the
   [Local Setup](../../../getting-started/local-setup/installation.md#2-installing-the-required-tools-) guide for steps
-- **A Gno.land keypair set up.** Reference the
+- **A gno.land keypair set up.** Reference the
   [Working with Key Pairs](working-with-key-pairs.md) guide for steps
 
-## Interacting with a Gno.land chain
-
-`gnokey` allows you to interact with any Gno.land network, such as the
-[Portal Loop](../../../concepts/portal-loop.md) testnet.
-
-There are multiple ways anyone can interact with the chain:
-- Transactions - state-changing calls which use gas
-- ABCI queries - read-only calls which do not use gas
-
-Both transactions and ABCI queries can be made via `gnokey`'s subcommands,
-`maketx` and `query`.
-
-
-TODO FIX
+To get started, visit the next page.
