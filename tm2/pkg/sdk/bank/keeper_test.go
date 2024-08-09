@@ -141,7 +141,8 @@ func TestBankKeeperWithRestrictions(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
 
-	bankKeeper := NewBankKeeperWithRestrictedDenoms(env.acck, "foocoin")
+	bankKeeper := NewBankKeeper(env.acck)
+	bankKeeper.SetRestrictedDenoms("foocoin")
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	addr2 := crypto.AddressFromPreimage([]byte("addr2"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)

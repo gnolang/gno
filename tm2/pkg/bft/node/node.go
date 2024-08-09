@@ -177,10 +177,6 @@ type Node struct {
 	firstBlockSignal  <-chan struct{}
 }
 
-func (n *Node) GenensisDoc() types.GenesisDoc {
-	return *n.genesisDoc
-}
-
 func initDBs(config *cfg.Config, dbProvider DBProvider) (blockStore *store.BlockStore, stateDB dbm.DB, err error) {
 	var blockStoreDB dbm.DB
 	blockStoreDB, err = dbProvider(&DBContext{"blockstore", config})

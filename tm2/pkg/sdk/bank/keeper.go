@@ -45,17 +45,6 @@ func NewBankKeeper(acck auth.AccountKeeper) BankKeeper {
 	}
 }
 
-func NewBankKeeperWithRestrictedDenoms(acck auth.AccountKeeper, restrictedDenoms ...string) BankKeeper {
-	restrictedDenomsStore := make(map[string]struct{}, len(restrictedDenoms))
-	for _, denom := range restrictedDenoms {
-		restrictedDenomsStore[denom] = struct{}{}
-	}
-
-	bankKeeper := NewBankKeeper(acck)
-	bankKeeper.restrictedDenoms = restrictedDenomsStore
-	return bankKeeper
-}
-
 func (bank BankKeeper) SetRestrictedDenoms(restrictedDenoms ...string) {
 	for _, denom := range restrictedDenoms {
 		bank.restrictedDenoms[denom] = struct{}{}

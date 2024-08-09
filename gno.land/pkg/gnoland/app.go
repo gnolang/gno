@@ -92,7 +92,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
 
-	// If this isn't genesis, then there should be restricted denominations in the database.
+	// If this isn't genesis, then there might be restricted denominations in the database.
 	if rawDenoms := cfg.DB.Get(restrictedDenomsKey); len(rawDenoms) != 0 {
 		denomList := strings.Split(string(rawDenoms), ",")
 		bankKpr.SetRestrictedDenoms(denomList...)
