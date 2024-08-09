@@ -1071,29 +1071,23 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// gno, never with reflect.
 						} else {
 							// right is untyped const, left is not const, typed/untyped
-							checkUntypedShiftExpr := func(x Expr) bool {
+							checkUntypedShiftExpr := func(x Expr) {
 								if bx, ok := x.(*BinaryExpr); ok {
 									slt := evalStaticTypeOf(store, last, bx.Left)
 									if bx.Op == SHL || bx.Op == SHR {
 										srt := evalStaticTypeOf(store, last, bx.Right)
 										bx.assertShiftExprCompatible1(store, last, slt, srt)
-										return true
 									}
 								}
-								return false
 							}
 
 							if !isUntyped(rt) { // right is typed
 								checkOrConvertType(store, last, &n.Left, rt, false)
 							} else {
 								if shouldSwapOnSpecificity(lt, rt) {
-									if !checkUntypedShiftExpr(n.Right) {
-										checkOrConvertType(store, last, &n.Right, lt, false)
-									}
+									checkUntypedShiftExpr(n.Right)
 								} else {
-									if !checkUntypedShiftExpr(n.Right) {
-										checkOrConvertType(store, last, &n.Left, rt, false)
-									}
+									checkUntypedShiftExpr(n.Left)
 								}
 							}
 						}
@@ -2939,7 +2933,6 @@ func convertType(store Store, last BlockNode, x *Expr, t Type) {
 	if debug {
 		debug.Printf("convertType, *x: %v:, t:%v \n", *x, t)
 	}
-	// debug.Printf("convertType, *x: %v:, t:%v \n", *x, t)
 	if cx, ok := (*x).(*ConstExpr); ok {
 		convertConst(store, last, cx, t)
 	} else if *x != nil {
