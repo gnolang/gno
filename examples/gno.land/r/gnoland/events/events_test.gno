@@ -12,17 +12,14 @@ import (
 
 var (
 	suRealm = std.NewUserRealm(su)
-	now     = "2009-02-13T23:31:30Z" // time.Now() is hardcoded to this value in the gno test machine currently
+
+	now              = "2009-02-13T23:31:30Z" // time.Now() is hardcoded to this value in the gno test machine currently
+	parsedTimeNow, _ = time.Parse(time.RFC3339, now)
 )
 
 func TestAddEvent(t *testing.T) {
 	std.TestSetOrigCaller(su)
 	std.TestSetRealm(suRealm)
-
-	parsedTimeNow, err := time.Parse(time.RFC3339, now)
-	if err != nil {
-		panic(err)
-	}
 
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
 	e1End := e1Start.Add(time.Hour * 4)
@@ -90,11 +87,6 @@ func TestAddEventErrors(t *testing.T) {
 func TestDeleteEvent(t *testing.T) {
 	events = nil // remove elements from previous tests - see issue #1982
 
-	parsedTimeNow, err := time.Parse(time.RFC3339, now)
-	if err != nil {
-		panic(err)
-	}
-
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
 	e1End := e1Start.Add(time.Hour * 4)
 
@@ -117,46 +109,54 @@ func TestDeleteEvent(t *testing.T) {
 func TestEditEvent(t *testing.T) {
 	events = nil // remove elements from previous tests - see issue #1982
 
-	parsedTimeNow, err := time.Parse(time.RFC3339, now)
-	if err != nil {
-		panic(err)
-	}
-
 	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
 	e1End := e1Start.Add(time.Hour * 4)
+	loc := "gnome land"
 
-	id, _ := AddEvent("ToDelete", "description", "gno.land", "gnome land", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
+	id, _ := AddEvent("ToDelete", "description", "gno.land", loc, e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
 
 	newName := "New Name"
 	newDesc := "Normal description"
-	newST := int64(1234)
-	newET := int64(4567)
+	newLink := "new Link"
+	newST := e1Start.Add(time.Hour)
+	newET := newST.Add(time.Hour)
 
-	EditEvent(id, newName, newDesc, "", "", newST, newET)
-	edited, _, _ := GetEventByID(id)
+	EditEvent(seqid.ID(id), newName, newDesc, newLink, "", newST.Format(time.RFC3339), newET.Format(time.RFC3339))
+	edited, _, _ := GetEventByID(seqid.ID(id))
 
-	if edited.name != newName {
-		t.Fatalf("Expected %s, got %s", newName, edited.name)
-	}
+	// Check updated values
+	uassert.Equal(t, edited.name, newName)
+	uassert.Equal(t, edited.description, newDesc)
+	uassert.Equal(t, edited.link, newLink)
+	uassert.True(t, edited.startTime.Equal(newST))
+	uassert.True(t, edited.endTime.Equal(newET))
 
-	if edited.description != newDesc {
-		t.Fatalf("Expected %s, got %s", newDesc, edited.description)
-	}
-
-	if edited.startTime != time.Unix(newST, 0) {
-		t.Fatalf("Expected %d, got %d", newST, edited.startTime.Unix())
-	}
-
-	if edited.endTime != time.Unix(newET, 0) {
-		t.Fatalf("Expected %d, got %d", newET, edited.endTime.Unix())
-	}
+	// Check if the old values are the same
+	uassert.Equal(t, edited.location, loc)
 }
 
-//func TestInvalidEdit(t *testing.T) {
-//	events = nil // remove elements from previous tests - see issue #1982
-//	id := AddEvent("ToEdit", "Desc to edit", "gno.land", "gnome land", 123, 456)
-//
-//	uassert.PanicsWithMessage(t, ErrInvalidEndTime.Error(), func() {
-//		EditEvent(id, "", "", "", "", 0, -5)
-//	})
-//}
+func TestInvalidEdit(t *testing.T) {
+	events = nil // remove elements from previous tests - see issue #1982
+
+	uassert.PanicsWithMessage(t, ErrNoSuchID.Error(), func() {
+		EditEvent(seqid.ID(123123), "", "", "", "", "", "")
+	})
+}
+
+func TestParseTimes(t *testing.T) {
+	// times not provided
+	// end time before start time
+	// timezone Missmatch
+
+	_, _, err := parseTimes("", "")
+	uassert.ErrorContains(t, err, ErrInvalidStartTime.Error())
+
+	_, _, err = parseTimes(now, "")
+	uassert.ErrorContains(t, err, ErrInvalidEndTime.Error())
+
+	_, _, err = parseTimes("2009-02-13T23:30:30Z", "2009-02-13T21:30:30Z")
+	uassert.ErrorContains(t, err, ErrEndBeforeStart.Error())
+
+	_, _, err = parseTimes("2009-02-10T23:30:30+02:00", "2009-02-13T21:30:33+05:00")
+	uassert.ErrorContains(t, err, ErrStartEndTimezonemMismatch.Error())
+}
