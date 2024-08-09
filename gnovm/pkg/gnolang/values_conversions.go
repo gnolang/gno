@@ -27,6 +27,9 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 		if isDataByte(tv.T) {
 			panic("should not happen")
 		}
+		defer func() {
+			debug.Printf("after convert: tv: %v \n", tv)
+		}()
 	}
 	// special case for go-native conversions
 	ntv, tvIsNat := tv.T.(*NativeType)
@@ -44,6 +47,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
+			// both NativeType, use reflect to assert.
 			// convert go-native to gno type (shallow).
 			*tv = go2GnoValue2(alloc, store, tv.V.(*NativeValue).Value, false)
 			ConvertTo(alloc, store, tv, t)

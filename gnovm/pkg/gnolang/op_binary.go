@@ -1095,6 +1095,7 @@ func xorAssign(lv, rv *TypedValue) {
 
 // for doOpShl and doOpShlAssign.
 func shlAssign(lv, rv *TypedValue) {
+	rv.AssertNonNegative("runtime error: negative shift amount")
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
 	switch baseOf(lv.T) {
@@ -1134,6 +1135,7 @@ func shlAssign(lv, rv *TypedValue) {
 
 // for doOpShr and doOpShrAssign.
 func shrAssign(lv, rv *TypedValue) {
+	rv.AssertNonNegative("runtime error: negative shift amount")
 	// set the result in lv.
 	// NOTE: baseOf(rv.T) is always UintType.
 	switch baseOf(lv.T) {
