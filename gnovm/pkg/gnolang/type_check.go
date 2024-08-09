@@ -589,7 +589,7 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 // More stringent checks will be performed in the subsequent stage in
 // assertShiftExprCompatible2.
 func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt, rt Type) {
-	//fmt.Printf("---assertShiftExprCompatible1, lt: %v, rt: %v\n", lt, rt)
+	// fmt.Printf("---assertShiftExprCompatible1, lt: %v, rt: %v\n", lt, rt)
 	// check rhs type
 	if rt == nil {
 		panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
@@ -644,7 +644,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 
 // used in checkOrConvertType, only check lhs type
 func (x *BinaryExpr) assertShiftExprCompatible2(t Type) {
-	//fmt.Println("---assertShiftExprCompatible2")
+	// fmt.Println("---assertShiftExprCompatible2")
 	// check lhs type
 	if checker, ok := binaryChecker[x.Op]; ok {
 		if !checker(t) {

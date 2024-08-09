@@ -2281,7 +2281,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						for i, vx := range n.Values {
 							if cx, ok := vx.(*ConstExpr); ok {
 								convertConst(store, last, cx, nil)
-								//convertIfConst(store, last, vx)
+								// convertIfConst(store, last, vx)
 							} else {
 								checkOrConvertType(store, last, &vx, nil, false)
 							}
@@ -2872,7 +2872,7 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 					lt := evalStaticTypeOf(store, last, bx.Left)
 					rt := evalStaticTypeOf(store, last, bx.Right)
 					if t != nil {
-						//push t into bx.Left and bx.Right
+						// push t into bx.Left and bx.Right
 						checkOrConvertType(store, last, &bx.Left, t, autoNative)
 						checkOrConvertType(store, last, &bx.Right, t, autoNative)
 						return

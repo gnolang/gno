@@ -885,10 +885,6 @@ GNO_CASE:
 // Panics if conversion is illegal.
 // TODO: method on TypedValue?
 func ConvertUntypedTo(tv *TypedValue, t Type) {
-	//fmt.Println("---convertUntypedTo, t: ", t)
-	//defer func() {
-	//	fmt.Printf("ConvertUntypedTo done, tv: %v \n", tv)
-	//}()
 	if debug {
 		defer func() {
 			debug.Printf("ConvertUntypedTo done, tv: %v \n", tv)

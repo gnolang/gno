@@ -1527,7 +1527,6 @@ func signOfBytes(n [8]byte, isUnsigned bool) int {
 	return 0 // All bytes are zero, hence the number is zero
 }
 
-// returns true if tv is zero
 func (tv *TypedValue) Sign() int {
 	if tv.T == nil {
 		panic("type should not be nil")
