@@ -100,6 +100,11 @@ func (bank BankKeeper) InputOutputCoins(ctx sdk.Context, inputs []Input, outputs
 
 // canSendCoins returns true if the coins can be sent without violating any restriction.
 func (bank BankKeeper) canSendCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) bool {
+	if len(bank.restrictedDenoms) == 0 {
+		// No restrictions.
+		return true
+	}
+
 	// Coins of a restricted denomination cannot be transferred unless the account is unlocked.
 	if amt.ContainOneOfDenom(bank.restrictedDenoms) {
 		if acc := bank.acck.GetAccount(ctx, addr); acc != nil && acc.IsLocked() {

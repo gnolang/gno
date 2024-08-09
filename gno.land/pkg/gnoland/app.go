@@ -240,7 +240,7 @@ func InitChainer(
 				resHandler(ctx, tx, res)
 			}
 
-			if denoms := req.ConsensusParams.Account.RestrictedDenoms; len(denoms) > 0 {
+			if denoms := req.ConsensusParams.Account.RestrictedDenoms; len(denoms) != 0 {
 				// Set the bank's restricted denominations AFTER executing any genesis transactions.
 				bankKpr.SetRestrictedDenoms(denoms...)
 
