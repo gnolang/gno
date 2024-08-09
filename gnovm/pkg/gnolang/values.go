@@ -20,7 +20,7 @@ import (
 
 type Value interface {
 	assertValue()
-	String() string // for debugging
+	fmt.Stringer
 }
 
 // Fixed size primitive types are represented in TypedValue.N
