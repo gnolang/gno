@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -27,6 +28,8 @@ import (
 	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
+
+var restrictedDenomsKey = []byte("restricted_denoms")
 
 type AppOptions struct {
 	DB dbm.DB
@@ -89,12 +92,18 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
 
+	// If this isn't genesis, then there should be restricted denominations in the database.
+	if rawDenoms := cfg.DB.Get(restrictedDenomsKey); len(rawDenoms) != 0 {
+		denomList := strings.Split(string(rawDenoms), ",")
+		bankKpr.SetRestrictedDenoms(denomList...)
+	}
+
 	// XXX: Embed this ?
 	stdlibsDir := filepath.Join(cfg.GnoRootDir, "gnovm", "stdlibs")
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, stdlibsDir, cfg.MaxCycles)
 
 	// Set InitChainer
-	app.SetInitChainer(InitChainer(app, acctKpr, bankKpr, cfg.GenesisTxHandler))
+	app.SetInitChainer(InitChainer(app, acctKpr, bankKpr, cfg.GenesisTxHandler, cfg.DB))
 
 	// Set AnteHandler
 	authOptions := auth.AnteOptions{
@@ -191,6 +200,7 @@ func InitChainer(
 	acctKpr auth.AccountKeeperI,
 	bankKpr bank.BankKeeperI,
 	resHandler GenesisTxHandler,
+	db dbm.DB,
 ) func(sdk.Context, abci.RequestInitChain) abci.ResponseInitChain {
 	return func(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 		txResponses := []abci.ResponseDeliverTx{}
@@ -230,8 +240,13 @@ func InitChainer(
 				resHandler(ctx, tx, res)
 			}
 
-			// Intialize the bank's restricted denominations AFTER executing any genesis transactions.
-			bankKpr.InitRestrictedDenoms(req.RestrictedDenoms...)
+			if denoms := req.ConsensusParams.Account.RestrictedDenoms; len(denoms) > 0 {
+				// Intialize the bank's restricted denominations AFTER executing any genesis transactions.
+				bankKpr.SetRestrictedDenoms(denoms...)
+
+				// Put the restricted denominations in the database so they are available on restart.
+				db.SetSync(restrictedDenomsKey, []byte(strings.Join(denoms, ",")))
+			}
 		}
 
 		// Done!

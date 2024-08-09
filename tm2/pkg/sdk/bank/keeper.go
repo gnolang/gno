@@ -22,7 +22,7 @@ type BankKeeperI interface {
 	AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
 	SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
 
-	InitRestrictedDenoms(restrictedDenoms ...string)
+	SetRestrictedDenoms(restrictedDenoms ...string)
 }
 
 var _ BankKeeperI = BankKeeper{}
@@ -56,7 +56,7 @@ func NewBankKeeperWithRestrictedDenoms(acck auth.AccountKeeper, restrictedDenoms
 	return bankKeeper
 }
 
-func (bank BankKeeper) InitRestrictedDenoms(restrictedDenoms ...string) {
+func (bank BankKeeper) SetRestrictedDenoms(restrictedDenoms ...string) {
 	for _, denom := range restrictedDenoms {
 		bank.restrictedDenoms[denom] = struct{}{}
 	}

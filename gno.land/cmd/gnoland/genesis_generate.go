@@ -134,7 +134,7 @@ func execGenerate(cfg *generateCfg, io commands.IO) error {
 	}
 
 	if !cfg.ugnotUnrestricted {
-		genesis.RestrictedDenoms = []string{"ugnot"}
+		genesis.ConsensusParams.Account.RestrictedDenoms = []string{"ugnot"}
 	}
 
 	// Validate the genesis

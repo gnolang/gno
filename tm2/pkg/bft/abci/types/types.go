@@ -41,12 +41,11 @@ type RequestSetOption struct {
 
 type RequestInitChain struct {
 	RequestBase
-	Time             time.Time
-	ChainID          string
-	ConsensusParams  *ConsensusParams
-	Validators       []ValidatorUpdate
-	RestrictedDenoms []string
-	AppState         interface{}
+	Time            time.Time
+	ChainID         string
+	ConsensusParams *ConsensusParams
+	Validators      []ValidatorUpdate
+	AppState        interface{}
 }
 
 type RequestQuery struct {
@@ -246,6 +245,7 @@ func (err EventString) Event() string {
 type ConsensusParams struct {
 	Block     *BlockParams
 	Validator *ValidatorParams
+	Account   *AccountParams
 }
 
 type BlockParams struct {
@@ -264,6 +264,10 @@ type ValidatorUpdate struct {
 	Address crypto.Address
 	PubKey  crypto.PubKey
 	Power   int64
+}
+
+type AccountParams struct {
+	RestrictedDenoms []string
 }
 
 type LastCommitInfo struct {
