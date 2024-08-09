@@ -10,12 +10,21 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
-// Signer mock
 type (
+	// Signer mock
 	mockSign     func(cfg SignCfg) (*std.Tx, error)
 	mockInfo     func() (keys.Info, error)
 	mockValidate func() error
+
+	// Msg mock
+	mockMsg struct{}
 )
+
+func (m mockMsg) IsValid() error  { return nil }
+func (m mockMsg) GetType() string { return "mock" }
+func (m mockMsg) GetCoins() (std.Coins, error) {
+	return std.NewCoins(std.MustParseCoin("1000ugnot")), nil
+}
 
 type mockSigner struct {
 	sign     mockSign

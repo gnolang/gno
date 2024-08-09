@@ -177,6 +177,7 @@ gnokey maketx addpkg \
 | `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
 | `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
 | `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
+| `sponsor`    | String  | Bech32 address of the sponsor who pay gas fee for the transaction                      |
 
 #### **makeTx AddPackage Options**
 
@@ -229,6 +230,7 @@ changes and does not cost gas, only evaluating the expression in read-only mode.
 | `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
 | `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
 | `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
+| `sponsor`    | String  | Bech32 address of the sponsor who pay gas fee for the transaction                      |
 
 #### **makeTx Call Options**
 
@@ -268,6 +270,7 @@ gnokey maketx send \
 | `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
 | `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
 | `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
+| `sponsor`    | String  | Bech32 address of the sponsor who pay gas fee for the transaction                      |
 
 #### **makeTx Send Options**
 
