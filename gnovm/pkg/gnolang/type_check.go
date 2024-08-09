@@ -958,9 +958,6 @@ func (x *AssignStmt) AssertCompatible(store Store, last BlockNode) {
 				if ric {
 					rv := evalConst(store, last, x.Rhs[0])
 					rv.AssertNonNegative("invalid operation: negative shift count")
-					//if rv.Sign() < 0 {
-					//	panic(fmt.Sprintf("invalid operation: negative shift count: %v", x.Rhs[0]))
-					//}
 				}
 			default:
 				// do nothing
