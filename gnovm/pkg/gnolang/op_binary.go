@@ -79,7 +79,6 @@ func (m *Machine) doOpEql() {
 	if debug {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
-
 	// set result in lv.
 	res := isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
@@ -342,6 +341,9 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	if lvu {
 		return rvu
 	} else if rvu {
+		return false
+	}
+	if err := checkSame(lv.T, rv.T, ""); err != nil {
 		return false
 	}
 	if lnt, ok := lv.T.(*NativeType); ok {
