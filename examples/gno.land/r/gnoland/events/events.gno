@@ -25,7 +25,7 @@ type (
 )
 
 var (
-	events    = make(eventsSlice, 0) // oldest event has the largest index
+	events    = make(eventsSlice, 0)
 	idCounter seqid.ID
 )
 
@@ -37,29 +37,32 @@ const (
 )
 
 // AddEvent adds auth new event
-// Start time & end time need to be specified in unix seconds
-func AddEvent(name, description, link, location, st, et string) seqid.ID {
+// Start time & end time need to be specified in RFC3339, ie 2024-08-08T12:00:00+02:00
+func AddEvent(name, description, link, location, startTime, endTime string) (int64, error) {
 	auth.AssertOnAuthList()
 
 	if strings.TrimSpace(name) == "" {
-		panic(ErrEmptyName)
+		return -1, ErrEmptyName
 	}
 
 	if len(description) > maxDescLength {
-		str := ufmt.Sprintf("event description is %d chars, while it cannot be more than %d chars", len(description), maxDescLength)
-		panic(str)
+		return -1, ufmt.Errorf("%s: provided length is %d, maximum is %d", ErrDescriptionTooLong, len(description), maxDescLength)
 	}
 
-	startTime, err := time.Parse(time.RFC3339, st)
+	st, err := time.Parse(time.RFC3339, startTime)
 	if err != nil {
-		str := ufmt.Sprintf("invalid start time: %v", err)
-		panic(str)
+		return -1, ufmt.Errorf("%s: %s", ErrInvalidStartTime, err)
 	}
 
-	endTime, err := time.Parse(time.RFC3339, et)
+	et, err := time.Parse(time.RFC3339, endTime)
 	if err != nil {
-		str := ufmt.Sprintf("invalid end time: %v", err)
-		panic(str)
+		return -1, ufmt.Errorf("%s: %s", ErrInvalidEndTime, err)
+	}
+
+	_, stOffset := st.Zone()
+	_, etOffset := et.Zone()
+	if stOffset != etOffset {
+		return -1, ErrStartEndTimezonemMismatch
 	}
 
 	id := idCounter.Next()
@@ -69,8 +72,8 @@ func AddEvent(name, description, link, location, st, et string) seqid.ID {
 		description: description,
 		link:        link,
 		location:    location,
-		startTime:   startTime,
-		endTime:     endTime,
+		startTime:   st,
+		endTime:     et,
 	}
 
 	events = append(events, e)
@@ -81,7 +84,7 @@ func AddEvent(name, description, link, location, st, et string) seqid.ID {
 		e.id.String(),
 	)
 
-	return id
+	return int64(id), nil
 }
 
 // DeleteEvent deletes an event with auth given ID
@@ -103,51 +106,51 @@ func DeleteEvent(id seqid.ID) {
 
 // EditEvent edits an event with auth given ID
 // It only updates values corresponding to non-empty/non-nil arguments sent with the call
-func EditEvent(id seqid.ID, name, description, link, location string, startTime, endTime int64) {
-	auth.AssertOnAuthList()
-
-	e, _, err := GetEventByID(id)
-	if err != nil {
-		panic(err)
-	}
-
-	// Set only valid values
-	if strings.TrimSpace(name) != "" {
-		e.name = name
-	}
-
-	if strings.TrimSpace(description) != "" {
-		e.description = description
-	}
-
-	if strings.TrimSpace(link) != "" {
-		e.link = link
-	}
-
-	if strings.TrimSpace(location) != "" {
-		e.location = location
-	}
-
-	if startTime > 0 {
-		e.startTime = time.Unix(startTime, 0)
-	}
-
-	if endTime < 0 || endTime < startTime {
-		panic(ErrInvalidEndTime)
-	}
-
-	e.endTime = time.Unix(endTime, 0)
-
-	std.Emit(EventEdited,
-		"id",
-		e.id.String(),
-	)
-
-	// If sort order was disrupted, sort again
-	if startTime > 0 {
-		sort.Sort(events)
-	}
-}
+//func EditEvent(id seqid.ID, name, description, link, location string, startTime, endTime int64) {
+//	auth.AssertOnAuthList()
+//
+//	e, _, err := GetEventByID(id)
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	// Set only valid values
+//	if strings.TrimSpace(name) != "" {
+//		e.name = name
+//	}
+//
+//	if strings.TrimSpace(description) != "" {
+//		e.description = description
+//	}
+//
+//	if strings.TrimSpace(link) != "" {
+//		e.link = link
+//	}
+//
+//	if strings.TrimSpace(location) != "" {
+//		e.location = location
+//	}
+//
+//	if startTime > 0 {
+//		e.startTime = time.Unix(startTime, 0)
+//	}
+//
+//	if endTime < 0 || endTime < startTime {
+//		panic(ErrInvalidEndTime)
+//	}
+//
+//	e.endTime = time.Unix(endTime, 0)
+//
+//	std.Emit(EventEdited,
+//		"id",
+//		e.id.String(),
+//	)
+//
+//	// If sort order was disrupted, sort again
+//	if startTime > 0 {
+//		sort.Sort(events)
+//	}
+//}
 
 func GetEventByID(id seqid.ID) (*Event, int, error) {
 	for i, event := range events {

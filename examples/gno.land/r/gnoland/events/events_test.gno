@@ -10,7 +10,6 @@ import (
 )
 
 var (
-	su      = std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
 	suRealm = std.NewUserRealm(su)
 )
 
