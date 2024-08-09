@@ -1,13 +1,17 @@
 name: portal-loop
 
 on:
+  pull_request:
+    branches:
+      - master
   push:
     paths:
       - "misc/loop/**"
       - ".github/workflows/portal-loop.yml"
     branches:
       - "master"
-      - "ops/portal-loop"
+      # NOTE(albttx): branch name to simplify tests for this workflow
+      - "ci/portal-loop"
     tags:
       - "v*"
 
@@ -46,3 +50,57 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  test-portal-loop-docker-compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+
+      - name: "Setup the images"
+        run: |
+          cd misc/loop
+
+          docker compose build
+          docker compose pull
+          docker compose up -d
+
+      - name: "Test1 - Portal loop start gnoland"
+        run: |
+          while
+            block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
+            echo "Current block height: $block_height"
+            [[ "$block_height" -lt 10 ]]
+          do
+            sleep 1
+          done
+
+          curl -s localhost:26657/status | jq
+
+      - name: "Buid new gnolang/gno image"
+        run: |
+          docker build -t ghcr.io/gnolang/gno/gnoland:master -f Dockerfile --target gnoland .
+
+      - name: "Wait for new docker image"
+        run: |
+          ip_addr=$(cat misc/loop/traefik/gno.yml | grep -o "http://.*:26657")
+          while
+            new_ip_addr=$(cat misc/loop/traefik/gno.yml | grep -o "http://.*:26657")
+            echo "${ip_addr} -> ${new_ip_addr}"
+            [[ "${ip_addr}" == ${new_ip_addr} ]]
+          do
+            sleep 5
+          done
+
+      - name: "Test2 - Wait portal-loop start new image"
+        run: |
+          while
+            block_height=$(curl -s localhost:26657/status | jq -r '.result.sync_info.latest_block_height')
+            echo "Current block height: $block_height"
+            [[ "$block_height" -lt 10 ]]
+          do
+            sleep 5
+          done
+          docker ps -a
+          curl -s localhost:26657/status | jq
