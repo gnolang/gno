@@ -215,6 +215,38 @@ func assertAssignableTo(xt, dt Type, autoNative bool) {
 	}
 }
 
+// checkValConstType checks the type and values are valid for a ValueDecl of const.
+func checkValConstType(d *ValueDecl) {
+	if d.Type != nil {
+		switch d.Type.(type) {
+		case *BasicLitExpr, *NameExpr:
+			// Valid constant type expression, in case of NameExpr should evaluate if underlying type is a basic type
+		default:
+			panic("const type should be a basic type")
+		}
+	}
+	for _, vx := range d.Values {
+		checkValConstValue(vx)
+	}
+}
+
+// checkValConstValue validate an expr is valid as a value for a const
+func checkValConstValue(expr Expr) {
+	switch x := expr.(type) {
+	case *BasicLitExpr, *NameExpr:
+		// Valid constant type expression, in case of NameExpr should evaluate if underlying type is a basic type
+	case *BinaryExpr:
+		checkValConstValue(x.Left)
+		checkValConstValue(x.Right)
+	case *UnaryExpr:
+		checkValConstValue(x.X)
+	case *CallExpr:
+		checkValConstValue(x.Func)
+	default:
+		panic("const values should be basic literals")
+	}
+}
+
 // checkValDefineMismatch checks for mismatch between the number of variables and values in a ValueDecl or AssignStmt.
 func checkValDefineMismatch(n Node) {
 	var (
