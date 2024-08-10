@@ -11,10 +11,12 @@ var (
 	auth = authorizable.NewAuthorizableWithAddress(su)
 )
 
+// GetOwner gets the owner of the events realm
 func GetOwner() std.Address {
 	return auth.Owner()
 }
 
+// AddModerator adds a moderator to the events realm
 func AddModerator(mod std.Address) {
 	auth.AssertCallerIsOwner()
 

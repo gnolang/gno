@@ -11,7 +11,7 @@ const (
 	MaxWidgetSize = 5
 )
 
-// RenderEventWidget shows up to eventsToRender of the latest events to auth caller
+// RenderEventWidget shows up to eventsToRender of the latest events to a caller
 func RenderEventWidget(eventsToRender int) (string, error) {
 	numOfEvents := len(events)
 	if numOfEvents == 0 {
@@ -39,6 +39,7 @@ func RenderEventWidget(eventsToRender int) (string, error) {
 	return output, nil
 }
 
+// renderHome renders the home page of the events realm
 func renderHome(admin bool) string {
 	output := "# gno.land events\n\n"
 
@@ -101,6 +102,7 @@ func renderHome(admin bool) string {
 	return output
 }
 
+// Render returns the markdown representation of a single event instance
 func (e Event) Render(admin bool) string {
 	var buf bytes.Buffer
 
@@ -133,6 +135,7 @@ func (e Event) Render(admin bool) string {
 	return buf.String()
 }
 
+// Render is the main rendering entry point
 func Render(path string) string {
 	if path == "admin" {
 		return renderHome(true)

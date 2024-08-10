@@ -1,3 +1,6 @@
+// Package events allows you to upload data about specific IRL/online events
+// It includes dynamic support for updating rendering events based on their
+// status, ie if they are upcoming, in progress, or in the past.
 package events
 
 import (
@@ -170,6 +173,7 @@ func (m eventsSlice) Swap(i, j int) {
 	m[i], m[j] = m[j], m[i]
 }
 
+// parseTimes parses the start and end time for an event and checks for possible errors
 func parseTimes(startTime, endTime string) (time.Time, time.Time, error) {
 	st, err := time.Parse(time.RFC3339, startTime)
 	if err != nil {
