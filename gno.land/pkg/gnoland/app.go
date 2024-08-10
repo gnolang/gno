@@ -204,7 +204,7 @@ func InitChainer(
 			for _, bal := range genState.Balances {
 				acc := acctKpr.NewAccountWithAddress(ctx, bal.Address)
 				acctKpr.SetAccount(ctx, acc)
-				err := bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
+				_, err := bankKpr.AddCoins(ctx, bal.Address, bal.Amount)
 				if err != nil {
 					panic(err)
 				}

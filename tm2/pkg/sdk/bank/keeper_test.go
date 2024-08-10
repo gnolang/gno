@@ -13,133 +13,168 @@ import (
 func TestKeeper(t *testing.T) {
 	t.Parallel()
 
+	// Setup test environment
 	env := setupTestEnv()
 	ctx := env.ctx
 
-	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	// Create multiple accounts
+	addr1 := crypto.AddressFromPreimage([]byte("addr1"))
 	addr2 := crypto.AddressFromPreimage([]byte("addr2"))
 	addr3 := crypto.AddressFromPreimage([]byte("addr3"))
-	acc := env.acck.NewAccountWithAddress(ctx, addr)
 
-	// Test GetCoins/SetCoins
-	env.acck.SetAccount(ctx, acc)
-	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins()))
+	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
+	acc2 := env.acck.NewAccountWithAddress(ctx, addr2)
+	acc3 := env.acck.NewAccountWithAddress(ctx, addr3)
 
-	env.bank.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10)))
-	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
+	// Initialize accounts with initial balances
+	env.acck.SetAccount(ctx, acc1)
+	env.acck.SetAccount(ctx, acc2)
+	env.acck.SetAccount(ctx, acc3)
 
-	// Test HasCoins
-	require.True(t, env.bank.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10))))
-	require.True(t, env.bank.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 5))))
-	require.False(t, env.bank.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15))))
-	require.False(t, env.bank.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5))))
+	// Test GetCoins and AddCoins for multiple accounts
+	require.True(t, env.bank.GetCoins(ctx, addr1).IsEqual(std.NewCoins()), "Initial balance for addr1 should be zero")
+	require.True(t, env.bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins()), "Initial balance for addr2 should be zero")
+	require.True(t, env.bank.GetCoins(ctx, addr3).IsEqual(std.NewCoins()), "Initial balance for addr3 should be zero")
 
-	// Test AddCoins
-	env.bank.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15)))
-	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 25))))
+	// Initial TotalCoin check (should be zero for all denominations)
+	require.Equal(t, int64(0), env.bank.TotalCoin(ctx, "foocoin"), "TotalCoin for 'foocoin' should be zero")
+	require.Equal(t, int64(0), env.bank.TotalCoin(ctx, "barcoin"), "TotalCoin for 'barcoin' should be zero")
 
-	env.bank.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 15)))
-	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 15), std.NewCoin("foocoin", 25))))
+	// Add coins for account 1
+	_, err := env.bank.AddCoins(ctx, addr1, std.NewCoins(std.NewCoin("foocoin", 10)))
+	require.NoError(t, err, "Error should be nil when adding coins to addr1")
+	require.True(t, env.bank.GetCoins(ctx, addr1).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))),
+		"Balance for addr1 should be updated to 10 foocoins")
+	require.Equal(t, int64(10), env.bank.TotalCoin(ctx, "foocoin"), "TotalCoin for 'foocoin' should be 10")
 
-	// Test SubtractCoins
-	env.bank.SubtractCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10)))
-	env.bank.SubtractCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5)))
-	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 15))))
+	// Add coins for account 2
+	_, err = env.bank.AddCoins(ctx, addr2, std.NewCoins(std.NewCoin("barcoin", 20)))
+	require.NoError(t, err, "Error should be nil when adding coins to addr2")
+	require.True(t, env.bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20))),
+		"Balance for addr2 should be updated to 20 barcoins")
+	require.Equal(t, int64(20), env.bank.TotalCoin(ctx, "barcoin"), "TotalCoin for 'barcoin' should be 20")
 
-	env.bank.SubtractCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 11)))
-	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 15))))
+	// Add coins for account 3
+	_, err = env.bank.AddCoins(ctx, addr3, std.NewCoins(std.NewCoin("foocoin", 15), std.NewCoin("barcoin", 5)))
+	require.NoError(t, err, "Error should be nil when adding coins to addr3")
+	require.True(t, env.bank.GetCoins(ctx, addr3).IsEqual(std.NewCoins(std.NewCoin("foocoin", 15), std.NewCoin("barcoin", 5))),
+		"Balance for addr3 should be updated to 15 foocoins and 5 barcoins")
+	require.Equal(t, int64(25), env.bank.TotalCoin(ctx, "foocoin"), "TotalCoin for 'foocoin' should be 25")
+	require.Equal(t, int64(25), env.bank.TotalCoin(ctx, "barcoin"), "TotalCoin for 'barcoin' should be 25")
 
-	env.bank.SubtractCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 10)))
-	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 15))))
-	require.False(t, env.bank.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 1))))
+	// Test HasCoins for account 1
+	require.True(t, env.bank.HasCoins(ctx, addr1, std.NewCoins(std.NewCoin("foocoin", 10))), "addr1 should have exactly 10 foocoins")
+	require.False(t, env.bank.HasCoins(ctx, addr1, std.NewCoins(std.NewCoin("foocoin", 15))), "addr1 should not have 15 foocoins")
+	require.False(t, env.bank.HasCoins(ctx, addr1, std.NewCoins(std.NewCoin("barcoin", 1))), "addr1 should not have any barcoins")
 
-	// Test SendCoins
-	env.bank.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 5)))
-	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
-	require.True(t, env.bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("foocoin", 5))))
+	// Add more coins to account 1
+	_, err = env.bank.AddCoins(ctx, addr1, std.NewCoins(std.NewCoin("foocoin", 10)))
+	require.NoError(t, err, "Error should be nil when adding more coins to addr1")
+	require.True(t, env.bank.GetCoins(ctx, addr1).IsEqual(std.NewCoins(std.NewCoin("foocoin", 20))),
+		"Balance for addr1 should be updated to 20 foocoins")
+	require.Equal(t, int64(35), env.bank.TotalCoin(ctx, "foocoin"), "TotalCoin for 'foocoin' should be 35")
 
-	_ = env.bank.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 50)))
-	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
-	require.True(t, env.bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("foocoin", 5))))
+	// Subtract coins from account 2
+	_, err = env.bank.SubtractCoins(ctx, addr2, std.NewCoins(std.NewCoin("barcoin", 10)))
+	require.NoError(t, err, "Error should be nil when subtracting coins from addr2")
+	require.True(t, env.bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10))),
+		"Balance for addr2 should be updated to 10 barcoins")
+	require.Equal(t, int64(15), env.bank.TotalCoin(ctx, "barcoin"), "TotalCoin for 'barcoin' should be 15")
 
-	env.bank.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 30)))
-	env.bank.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 5)))
-	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 5))))
-	require.True(t, env.bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 10))))
+	// Test SendCoins between accounts
+	err = env.bank.SendCoins(ctx, addr1, addr2, std.NewCoins(std.NewCoin("foocoin", 5)))
+	require.NoError(t, err, "Error should be nil when sending coins from addr1 to addr2")
+	require.True(t, env.bank.GetCoins(ctx, addr1).IsEqual(std.NewCoins(std.NewCoin("foocoin", 15))),
+		"Balance for addr1 should be updated to 15 foocoins")
+	require.True(t, env.bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 5))),
+		"Balance for addr2 should include 5 foocoins")
+	require.Equal(t, int64(35), env.bank.TotalCoin(ctx, "foocoin"), "TotalCoin for 'foocoin' should be 35")
+	require.Equal(t, int64(15), env.bank.TotalCoin(ctx, "barcoin"), "TotalCoin for 'barcoin' should be 15")
 
-	// Test InputOutputCoins
-	input1 := NewInput(addr2, std.NewCoins(std.NewCoin("foocoin", 2)))
-	output1 := NewOutput(addr, std.NewCoins(std.NewCoin("foocoin", 2)))
-	env.bank.InputOutputCoins(ctx, []Input{input1}, []Output{output1})
-	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 7))))
-	require.True(t, env.bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 8))))
+	// Test InputOutputCoins involving all accounts
+	input1 := NewInput(addr1, std.NewCoins(std.NewCoin("foocoin", 5)))
+	input2 := NewInput(addr2, std.NewCoins(std.NewCoin("barcoin", 5)))
 
-	inputs := []Input{
-		NewInput(addr, std.NewCoins(std.NewCoin("foocoin", 3))),
-		NewInput(addr2, std.NewCoins(std.NewCoin("barcoin", 3), std.NewCoin("foocoin", 2))),
-	}
+	output1 := NewOutput(addr3, std.NewCoins(std.NewCoin("foocoin", 5)))
+	output2 := NewOutput(addr1, std.NewCoins(std.NewCoin("barcoin", 5)))
 
-	outputs := []Output{
-		NewOutput(addr, std.NewCoins(std.NewCoin("barcoin", 1))),
-		NewOutput(addr3, std.NewCoins(std.NewCoin("barcoin", 2), std.NewCoin("foocoin", 5))),
-	}
-	env.bank.InputOutputCoins(ctx, inputs, outputs)
-	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 21), std.NewCoin("foocoin", 4))))
-	require.True(t, env.bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 7), std.NewCoin("foocoin", 6))))
-	require.True(t, env.bank.GetCoins(ctx, addr3).IsEqual(std.NewCoins(std.NewCoin("barcoin", 2), std.NewCoin("foocoin", 5))))
+	err = env.bank.InputOutputCoins(ctx, []Input{input1, input2}, []Output{output1, output2})
+	require.NoError(t, err, "Error should be nil when processing input/output coins")
+	require.True(t, env.bank.GetCoins(ctx, addr1).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10), std.NewCoin("barcoin", 5))),
+		"Balance for addr1 should be updated correctly after InputOutputCoins")
+	require.True(t, env.bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("foocoin", 5), std.NewCoin("barcoin", 5))),
+		"Balance for addr2 should be updated correctly after InputOutputCoins")
+	require.True(t, env.bank.GetCoins(ctx, addr3).IsEqual(std.NewCoins(std.NewCoin("foocoin", 20), std.NewCoin("barcoin", 5))),
+		"Balance for addr3 should be updated correctly after InputOutputCoins")
+
+	// Final TotalCoin check
+	require.Equal(t, int64(35), env.bank.TotalCoin(ctx, "foocoin"), "Final TotalCoin for 'foocoin' should be 35")
+	require.Equal(t, int64(15), env.bank.TotalCoin(ctx, "barcoin"), "Final TotalCoin for 'barcoin' should be 15")
 }
 
 func TestBankKeeper(t *testing.T) {
 	t.Parallel()
 
+	// Setup test environment
 	env := setupTestEnv()
 	ctx := env.ctx
-
-	bank := NewBankKeeper(env.acck, env.tck)
 
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	addr2 := crypto.AddressFromPreimage([]byte("addr2"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 
-	// Test GetCoins/SetCoins
+	// Set the account and verify initial balance
 	env.acck.SetAccount(ctx, acc)
-	require.True(t, bank.GetCoins(ctx, addr).IsEqual(std.NewCoins()))
+	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins()), "Initial balance should be zero")
 
-	env.bank.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10)))
-	require.True(t, bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
+	// Test AddCoins
+	_, err := env.bank.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10)))
+	require.NoError(t, err, "Error should be nil when adding coins")
+	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))), "Balance should reflect added coins")
 
 	// Test HasCoins
-	require.True(t, bank.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10))))
-	require.True(t, bank.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 5))))
-	require.False(t, bank.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15))))
-	require.False(t, bank.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5))))
+	require.True(t, env.bank.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10))), "Account should have exactly 10 foocoins")
+	require.True(t, env.bank.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 5))), "Account should have at least 5 foocoins")
+	require.False(t, env.bank.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15))), "Account should not have 15 foocoins")
+	require.False(t, env.bank.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5))), "Account should not have barcoin")
 
-	env.bank.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15)))
+	// Add more coins and test SendCoins
+	_, err = env.bank.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15)))
+	require.NoError(t, err, "Error should be nil when adding more coins")
+	err = env.bank.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 5)))
+	require.NoError(t, err, "Error should be nil when sending coins")
+	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 20))),
+		"Balance should be updated correctly after sending coins")
+	require.True(t, env.bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("foocoin", 5))),
+		"Recipient's balance should reflect the sent amount")
 
-	// Test SendCoins
-	bank.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 5)))
-	require.True(t, bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
-	require.True(t, bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("foocoin", 5))))
+	// Attempt sending more coins than available
+	err = env.bank.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 50)))
+	require.Error(t, err, "Should return an error when trying to send more coins than available")
+	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 20))),
+		"Balance should remain unchanged after failed send")
+	require.True(t, env.bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("foocoin", 5))),
+		"Recipient's balance should remain unchanged after failed send")
 
-	err := bank.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("foocoin", 50)))
-	require.True(t, bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
-	require.True(t, bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("foocoin", 5))))
+	// Test sending multiple denominations
+	_, err = env.bank.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 30)))
+	require.NoError(t, err, "Error should be nil when adding multiple denominations")
+	err = env.bank.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 5)))
+	require.NoError(t, err, "Error should be nil when sending multiple denominations")
+	require.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 15))),
+		"Balance should be updated correctly after sending multiple denominations")
+	require.True(t, env.bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 10))),
+		"Recipient's balance should reflect the sent amounts")
 
-	env.bank.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 30)))
-	bank.SendCoins(ctx, addr, addr2, std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 5)))
-	require.True(t, bank.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("barcoin", 20), std.NewCoin("foocoin", 5))))
-	require.True(t, bank.GetCoins(ctx, addr2).IsEqual(std.NewCoins(std.NewCoin("barcoin", 10), std.NewCoin("foocoin", 10))))
-
-	// validate coins with invalid denoms or negative values cannot be sent
-	// NOTE: We must use the Coin literal as the constructor does not allow
-	// negative values.
-	err = bank.SendCoins(ctx, addr, addr2, sdk.Coins{sdk.Coin{"FOOCOIN", -5}})
-	require.Error(t, err)
+	// Validate coins with invalid denominations or negative values cannot be sent
+	err = env.bank.SendCoins(ctx, addr, addr2, std.Coins{sdk.Coin{"foocoin", -5}})
+	require.Error(t, err, "Should return an error when trying to send negative coin values")
 }
 
 func TestViewKeeper(t *testing.T) {
 	t.Parallel()
 
+	// Setup test environment
 	env := setupTestEnv()
 	ctx := env.ctx
 	view := NewViewKeeper(env.acck, env.tck)
@@ -147,16 +182,22 @@ func TestViewKeeper(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 
-	// Test GetCoins/SetCoins
+	// Set the account and verify initial balance
 	env.acck.SetAccount(ctx, acc)
-	require.True(t, view.GetCoins(ctx, addr).IsEqual(std.NewCoins()))
+	require.True(t, view.GetCoins(ctx, addr).IsEqual(std.NewCoins()), "Initial balance should be zero")
 
-	env.bank.SetCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10)))
-	require.True(t, view.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))))
+	// Test GetCoins and SetCoins
+	_, err := env.bank.AddCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10)))
+	require.NoError(t, err, "Error should be nil when adding coins")
+	require.True(t, view.GetCoins(ctx, addr).IsEqual(std.NewCoins(std.NewCoin("foocoin", 10))), "ViewKeeper should reflect added coins")
 
 	// Test HasCoins
-	require.True(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10))))
-	require.True(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 5))))
-	require.False(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15))))
-	require.False(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5))))
+	require.True(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 10))), "Account should have exactly 10 foocoins")
+	require.True(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 5))), "Account should have at least 5 foocoins")
+	require.False(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("foocoin", 15))), "Account should not have 15 foocoins")
+	require.False(t, view.HasCoins(ctx, addr, std.NewCoins(std.NewCoin("barcoin", 5))), "Account should not have barcoin")
+
+	// Test TotalCoin
+	require.Equal(t, int64(10), env.bank.TotalCoin(ctx, "foocoin"), "TotalCoin should return the correct amount of foocoin")
+	require.Equal(t, int64(0), env.bank.TotalCoin(ctx, "barcoin"), "TotalCoin should return 0 for coins not present")
 }

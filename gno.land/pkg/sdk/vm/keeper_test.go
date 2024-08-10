@@ -23,7 +23,7 @@ func TestVMKeeperAddPackage(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	env.bank.AddCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.
@@ -68,7 +68,7 @@ func TestVMKeeperOrigSend1(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	env.bank.AddCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.
@@ -113,7 +113,7 @@ func TestVMKeeperOrigSend2(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	env.bank.AddCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.
@@ -167,7 +167,7 @@ func TestVMKeeperOrigSend3(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	env.bank.AddCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.
@@ -211,7 +211,7 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	env.bank.AddCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.
@@ -255,7 +255,7 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	env.bank.AddCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.
@@ -299,7 +299,7 @@ func TestVMKeeperOrigCallerInit(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	env.bank.AddCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.
@@ -422,7 +422,7 @@ func TestNumberOfArgsError(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	env.bank.AddCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
 	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
 
 	// Create test package.

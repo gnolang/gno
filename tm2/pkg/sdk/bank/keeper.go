@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
@@ -22,7 +21,6 @@ type BankKeeperI interface {
 
 	SubtractCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
 	AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) (std.Coins, error)
-	SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error
 }
 
 var _ BankKeeperI = BankKeeper{}
@@ -144,7 +142,7 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 		return nil, err
 	}
 
-	err = bank.tck.decreaseTotalCoin(ctx, newCoins)
+	err = bank.tck.decreaseTotalCoin(ctx, amt)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +170,7 @@ func (bank BankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 		return nil, err
 	}
 
-	err = bank.tck.increaseTotalCoin(ctx, newCoins)
+	err = bank.tck.increaseTotalCoin(ctx, amt)
 	if err != nil {
 		return nil, err
 	}
@@ -244,8 +242,9 @@ func (view ViewKeeper) HasCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 	return view.GetCoins(ctx, addr).IsAllGTE(amt)
 }
 
+// TotalCoin returns the total coin for a given denomination.
 func (view ViewKeeper) TotalCoin(ctx sdk.Context, denom string) int64 {
-	return view.tck.totalCoin(ctx, denom)
+	return view.tck.TotalCoin(ctx, denom)
 }
 
 // TotalCoinKeeper manages the total amount of coins for various denominations.
@@ -260,17 +259,29 @@ func NewTotalCoinKeeper(key store.StoreKey) TotalCoinKeeper {
 	}
 }
 
+// TotalCoin returns the total coin for a given denomination.
+func (tck TotalCoinKeeper) TotalCoin(ctx sdk.Context, denom string) int64 {
+	stor := ctx.Store(tck.key)
+	bz := stor.Get(TotalCoinStoreKey(denom))
+	if bz == nil {
+		return 0
+	}
+
+	totalCoin := tck.decodeTotalCoin(bz)
+
+	return totalCoin.Amount
+}
+
 // increaseTotalCoin increases the total coin amounts for the specified denominations.
 func (tck TotalCoinKeeper) increaseTotalCoin(ctx sdk.Context, coins std.Coins) error {
 	stor := ctx.Store(tck.key)
 
 	for _, coin := range coins {
-		var oldTotalCoin std.Coin
+		var oldTotalCoin = std.NewCoin(coin.Denom, 0)
+
 		bz := stor.Get(TotalCoinStoreKey(coin.Denom))
 		if bz != nil {
 			oldTotalCoin = tck.decodeTotalCoin(bz)
-		} else {
-			oldTotalCoin = std.NewCoin(coin.Denom, 0)
 		}
 
 		newTotalCoin := oldTotalCoin.Add(coin)
@@ -311,34 +322,21 @@ func (tck TotalCoinKeeper) decreaseTotalCoin(ctx sdk.Context, coins std.Coins) e
 	return nil
 }
 
-// GetTotalCoin returns the total coin for a given denomination.
-func (tck TotalCoinKeeper) totalCoin(ctx sdk.Context, denom string) int64 {
-	stor := ctx.Store(tck.key)
-	bz := stor.Get(TotalCoinStoreKey(denom))
-	if bz == nil {
-		return 0
-	}
-
-	totalCoin := tck.decodeTotalCoin(bz)
-
-	return totalCoin.Amount
-}
-
 // SetTotalCoin sets the total coin amount for a given denomination.
 func (tck TotalCoinKeeper) setTotalCoin(ctx sdk.Context, totalCoin std.Coin) error {
 	stor := ctx.Store(tck.key)
-	bz, err := amino.MarshalAny(totalCoin)
+	bz, err := totalCoin.MarshalAmino()
 	if err != nil {
 		return err
 	}
-	stor.Set(TotalCoinStoreKey(totalCoin.Denom), bz)
+	stor.Set(TotalCoinStoreKey(totalCoin.Denom), []byte(bz))
 	return nil
 }
 
 // decodeTotalCoin decodes the total coin from a byte slice.
 func (tck TotalCoinKeeper) decodeTotalCoin(bz []byte) std.Coin {
 	var coin std.Coin
-	err := amino.Unmarshal(bz, &coin)
+	err := coin.UnmarshalAmino(string(bz))
 	if err != nil {
 		panic(err)
 	}
