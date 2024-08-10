@@ -10,7 +10,7 @@ import (
 )
 
 type Store interface {
-	// Get returns nil iff key doesn't exist. Panics on nil key.
+	// Get returns nil if key doesn't exist. Panics on nil key.
 	Get(key []byte) []byte
 
 	// Has checks if a key exists. Panics on nil key.

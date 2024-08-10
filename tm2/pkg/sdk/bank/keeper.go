@@ -280,7 +280,7 @@ func (tck TotalCoinKeeper) increaseTotalCoin(ctx sdk.Context, coins std.Coins) e
 		oldTotalCoin := std.NewCoin(coin.Denom, 0)
 
 		bz := stor.Get(TotalCoinStoreKey(coin.Denom))
-		if bz != nil {
+		if len(bz) > 0 {
 			oldTotalCoin = tck.decodeTotalCoin(bz)
 		}
 
@@ -300,7 +300,7 @@ func (tck TotalCoinKeeper) decreaseTotalCoin(ctx sdk.Context, coins std.Coins) e
 
 	for _, coin := range coins {
 		bz := stor.Get(TotalCoinStoreKey(coin.Denom))
-		if bz == nil {
+		if len(bz) == 0 {
 			return std.ErrInvalidCoins(fmt.Sprintf("denomination %s not found", coin.Denom))
 		}
 
