@@ -277,7 +277,7 @@ func (tck TotalCoinKeeper) increaseTotalCoin(ctx sdk.Context, coins std.Coins) e
 	stor := ctx.Store(tck.key)
 
 	for _, coin := range coins {
-		var oldTotalCoin = std.NewCoin(coin.Denom, 0)
+		oldTotalCoin := std.NewCoin(coin.Denom, 0)
 
 		bz := stor.Get(TotalCoinStoreKey(coin.Denom))
 		if bz != nil {

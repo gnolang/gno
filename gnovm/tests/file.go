@@ -568,6 +568,7 @@ func newTestBanker(args ...interface{}) *testBanker {
 	}
 	return &testBanker{
 		coinTable: coinTable,
+		totalCoin: totalCoin,
 	}
 }
 
