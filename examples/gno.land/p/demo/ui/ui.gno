@@ -16,6 +16,8 @@ type DOM struct {
 	Header Element
 	Body   Element
 	Footer Element
+
+	Pager Pager
 }
 
 func (dom DOM) String() string {
@@ -61,6 +63,10 @@ func (dom DOM) String() string {
 		}
 	}
 
+	if pager := dom.Pager.String(dom); pager != "" {
+		output += pager + "\n"
+	}
+	
 	if classes != "" {
 		output += "</main>"
 	}
@@ -137,11 +143,65 @@ type Link struct {
 	Text string
 	Path string
 	URL  string
+  Title string
 }
 
 // TODO: image
 
 // TODO: pager
+type Pager struct {
+	CurrentPage int
+	TotalPages  int
+	PathPrefix  string
+}
+
+func (p Pager) String(dom DOM) string {
+	if p.TotalPages <= 1 {
+		return "" // No need for a pager if there's only one page
+	}
+
+	output := `<nav aria-label="Page navigation">` + "\n"
+	output += `<ul class="pagination">` + "\n"
+
+	
+	if p.CurrentPage > 1 {
+		prevPage := p.CurrentPage - 1
+		output += `<li class="page-item">` +
+			`<a class="page-link" href="` + p.generatePageLink(prevPage) + `" aria-label="Previous">` +
+			`<span aria-hidden="true">&laquo;</span>` +
+			`</a>` +
+			`</li>` + "\n"
+	}
+
+	
+	for i := 1; i <= p.TotalPages; i++ {
+		if i == p.CurrentPage {
+			output += `<li class="page-item active"><span class="page-link">` + strconv.Itoa(i) + `</span></li>` + "\n"
+		} else {
+			output += `<li class="page-item"><a class="page-link" href="` + p.generatePageLink(i) + `">` + strconv.Itoa(i) + `</a></li>` + "\n"
+		}
+	}
+
+	
+	if p.CurrentPage < p.TotalPages {
+		nextPage := p.CurrentPage + 1
+		output += `<li class="page-item">` +
+			`<a class="page-link" href="` + p.generatePageLink(nextPage) + `" aria-label="Next">` +
+			`<span aria-hidden="true">&raquo;</span>` +
+			`</a>` +
+			`</li>` + "\n"
+	}
+
+	output += `</ul>` + "\n"
+	output += `</nav>` + "\n"
+
+	return output
+}
+
+func (p Pager) generatePageLink(page int) string {
+	return p.PathPrefix + strconv.Itoa(page)
+}
+
 
 func (l Link) String(dom DOM) string {
 	url := ""
@@ -159,6 +219,10 @@ func (l Link) String(dom DOM) string {
 		}
 		url = l.URL
 	}
+
+  if l.Title != "" {
+    return "[" + l.Text + "]("+ url + ' "' + l.Title + '")'
+  }
 
 	return "[" + l.Text + "](" + url + ")"
 }
