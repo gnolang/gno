@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"std"
 	"bytes"
+	"strings"
 
 	"gno.land/p/demo/grc/grc721"
 	"gno.land/p/demo/avl"
@@ -42,8 +43,24 @@ func AirdropBasicFlipNFT(
 		return "", "airdrop account not correct"
 	}
 
+	// Check if an NFT with the same airdropParentID, airdropXPos, and airdropYPos has already been minted
+	mintedNFTs.Iterate("", "", func(key string, value interface{}) bool {
+		mintedList := value.([]string)
+		for _, mintedEntry := range mintedList {
+			parts := strings.Split(mintedEntry, ":")
+			if len(parts) == 4 && parts[1] == airdropParentID && parts[2] == airdropXPos && parts[3] == airdropYPos {
+				nftError = "an NFT with this airdropParentID, airdropXPos, and airdropYPos has already been minted"
+				return true // Stop the iteration
+			}
+		}
+		return false // Continue the iteration
+	})
+	if nftError != "" {
+		return "", nftError
+	}
+
 	// Check if the user has already minted the maximum number of NFTs
-	const maxNFTs = 20
+	const maxNFTs = 64
 	userMintedNFTs, exists := mintedNFTs.Get(toPlayer.String())
 	var mintedList []string
 	if exists {
