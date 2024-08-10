@@ -129,7 +129,6 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64,
 	// Set a gas meter for machine that runs the tests.
 	m.GasMeter = types.NewGasMeter(10000 * 1000 * 1000)
 	beforeGas := m.GasMeter.GasConsumed()
-  
 	checkMachineIsEmpty := true
 	// TODO support stdlib groups, but make testing safe;
 	// e.g. not be able to make network connections.
@@ -288,8 +287,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64,
 					// NOTE: ignores any gno.GetDebugErrors().
 					gno.ClearDebugErrors()
 					checkMachineIsEmpty = false // nothing more to do.
-					return gasUsed, nil // nothing more to do.
-          
+					return gasUsed, nil
 				} else {
 					// record errors when errWanted is empty and pnc not nil
 					if pnc != nil {
@@ -319,7 +317,6 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64,
 					// pnc is nil, errWanted empty, no gno debug errors
 					checkMachineIsEmpty = false
 					return gasUsed, nil
-          
 				}
 			case "Output":
 				// panic if got unexpected error
