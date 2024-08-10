@@ -388,7 +388,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	if err := gno.TypeCheckMemPackage(memPkg, gnostore); err != nil {
+	format := true
+	if err := gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
 		return ErrTypeCheck(err)
 	}
 
@@ -536,12 +537,15 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	m.SetActivePackage(mpv)
 	defer func() {
 		if r := recover(); r != nil {
-			switch r.(type) {
+			switch r := r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
+			case gno.UnhandledPanicError:
+				err = errors.Wrap(fmt.Errorf("%v", r.Error()), "VM call panic: %s\nStacktrace: %s\n",
+					r.Error(), m.ExceptionsStacktrace())
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
-					r, m.String())
+				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\nMachine State:%s\nStacktrace: %s\n",
+					r, m.String(), m.Stacktrace().String())
 				return
 			}
 		}
@@ -593,7 +597,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	if err = gno.TypeCheckMemPackage(memPkg, gnostore); err != nil {
+	format := false
+	if err = gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
 		return "", ErrTypeCheck(err)
 	}
 

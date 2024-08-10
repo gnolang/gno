@@ -111,7 +111,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64,
 		opt(&f)
 	}
 
-	directives, pkgPath, resWanted, errWanted, rops, maxAlloc, send := wantedFromComment(path)
+	directives, pkgPath, resWanted, errWanted, rops, stacktraceWanted, maxAlloc, send := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
@@ -129,6 +129,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64,
 	// Set a gas meter for machine that runs the tests.
 	m.GasMeter = types.NewGasMeter(10000 * 1000 * 1000)
 	beforeGas := m.GasMeter.GasConsumed()
+  
+	checkMachineIsEmpty := true
 	// TODO support stdlib groups, but make testing safe;
 	// e.g. not be able to make network connections.
 	// interp.New(interp.Options{GoPath: goPath, Stdout: &stdout, Stderr: &stderr})
@@ -263,6 +265,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64,
 						errstr = v.Sprint(m)
 					case *gno.PreprocessError:
 						errstr = v.Unwrap().Error()
+					case gno.UnhandledPanicError:
+						errstr = v.Error()
 					default:
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
@@ -283,7 +287,9 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64,
 
 					// NOTE: ignores any gno.GetDebugErrors().
 					gno.ClearDebugErrors()
+					checkMachineIsEmpty = false // nothing more to do.
 					return gasUsed, nil // nothing more to do.
+          
 				} else {
 					// record errors when errWanted is empty and pnc not nil
 					if pnc != nil {
@@ -311,7 +317,9 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64,
 						panic(fmt.Sprintf("fail on %s: got unexpected debug error(s): %v", path, gno.GetDebugErrors()))
 					}
 					// pnc is nil, errWanted empty, no gno debug errors
+					checkMachineIsEmpty = false
 					return gasUsed, nil
+          
 				}
 			case "Output":
 				// panic if got unexpected error
@@ -377,7 +385,33 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64,
 						}
 					}
 				}
+			case "Stacktrace":
+				if stacktraceWanted != "" {
+					var stacktrace string
+
+					switch pnc.(type) {
+					case gno.UnhandledPanicError:
+						stacktrace = m.ExceptionsStacktrace()
+					default:
+						stacktrace = m.Stacktrace().String()
+					}
+
+					if !strings.Contains(stacktrace, stacktraceWanted) {
+						diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+							A:        difflib.SplitLines(stacktraceWanted),
+							B:        difflib.SplitLines(stacktrace),
+							FromFile: "Expected",
+							FromDate: "",
+							ToFile:   "Actual",
+							ToDate:   "",
+							Context:  1,
+						})
+						panic(fmt.Sprintf("fail on %s: diff:\n%s\n", path, diff))
+					}
+				}
+				checkMachineIsEmpty = false
 			default:
+				checkMachineIsEmpty = false
 				return gasUsed, nil
 			}
 		}
@@ -385,18 +419,20 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) (int64,
 	afterGas := m.GasMeter.GasConsumed()
 	gasUsed = afterGas - beforeGas
 
-	// Check that machine is empty.
-	err = m.CheckEmpty()
-	if err != nil {
-		if f.logger != nil {
-			f.logger("last state: \n", m.String())
+	if checkMachineIsEmpty {
+		// Check that machine is empty.
+		err = m.CheckEmpty()
+		if err != nil {
+			if f.logger != nil {
+				f.logger("last state: \n", m.String())
+			}
+			panic(fmt.Sprintf("fail on %s: machine not empty after main: %v", path, err))
 		}
-		panic(fmt.Sprintf("fail on %s: machine not empty after main: %v", path, err))
 	}
 	return gasUsed, nil
 }
 
-func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops string, maxAlloc int64, send std.Coins) {
+func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops, stacktrace string, maxAlloc int64, send std.Coins) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -438,6 +474,10 @@ func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops s
 			rops = strings.TrimPrefix(text, "Realm:\n")
 			rops = strings.TrimSpace(rops)
 			directives = append(directives, "Realm")
+		} else if strings.HasPrefix(text, "Stacktrace:\n") {
+			stacktrace = strings.TrimPrefix(text, "Stacktrace:\n")
+			stacktrace = strings.TrimSpace(stacktrace)
+			directives = append(directives, "Stacktrace")
 		} else {
 			// ignore unexpected.
 		}
