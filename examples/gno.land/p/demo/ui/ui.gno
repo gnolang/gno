@@ -220,9 +220,9 @@ func (l Link) String(dom DOM) string {
 		url = l.URL
 	}
 
-  if l.Title != "" {
+ /* if l.Title != "" {
     return "[" + l.Text + "]("+ url + ' "' + l.Title + '")'
-  }
+  } */
 
 	return "[" + l.Text + "](" + url + ")"
 }
