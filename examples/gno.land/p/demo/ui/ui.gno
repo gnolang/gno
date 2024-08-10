@@ -66,7 +66,7 @@ func (dom DOM) String() string {
 	if pager := dom.Pager.String(dom); pager != "" {
 		output += pager + "\n"
 	}
-	
+
 	if classes != "" {
 		output += "</main>"
 	}
@@ -143,7 +143,7 @@ type Link struct {
 	Text string
 	Path string
 	URL  string
-  Title string
+  
 }
 
 // TODO: image
@@ -220,9 +220,7 @@ func (l Link) String(dom DOM) string {
 		url = l.URL
 	}
 
- /* if l.Title != "" {
-    return "[" + l.Text + "]("+ url + ' "' + l.Title + '")'
-  } */
+ 
 
 	return "[" + l.Text + "](" + url + ")"
 }
