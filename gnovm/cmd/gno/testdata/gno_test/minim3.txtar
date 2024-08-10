@@ -3,7 +3,8 @@
 gno test .
 
 ! stdout .+ 
-stderr 'ok      \. 	\d\.\d\ds'
+# expected gasUsed information
+stderr 'ok      . 	total gas used: 10'
 
 -- minim.gno --
 package minim
