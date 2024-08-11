@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/uassert"
 )
 
@@ -98,7 +97,7 @@ func TestDeleteEvent(t *testing.T) {
 		t.Fatalf("Expected to find ToDelete event in render")
 	}
 
-	DeleteEvent(seqid.ID(id))
+	DeleteEvent(id)
 	got = renderHome(false)
 
 	if strings.Contains(got, "ToDelete") {
@@ -121,8 +120,8 @@ func TestEditEvent(t *testing.T) {
 	newST := e1Start.Add(time.Hour)
 	newET := newST.Add(time.Hour)
 
-	EditEvent(seqid.ID(id), newName, newDesc, newLink, "", newST.Format(time.RFC3339), newET.Format(time.RFC3339))
-	edited, _, _ := GetEventByID(seqid.ID(id))
+	EditEvent(id, newName, newDesc, newLink, "", newST.Format(time.RFC3339), newET.Format(time.RFC3339))
+	edited, _, _ := GetEventByID(id)
 
 	// Check updated values
 	uassert.Equal(t, edited.name, newName)
@@ -139,7 +138,7 @@ func TestInvalidEdit(t *testing.T) {
 	events = nil // remove elements from previous tests - see issue #1982
 
 	uassert.PanicsWithMessage(t, ErrNoSuchID.Error(), func() {
-		EditEvent(seqid.ID(123123), "", "", "", "", "", "")
+		EditEvent("123123", "", "", "", "", "", "")
 	})
 }
 

@@ -118,8 +118,8 @@ func (e Event) Render(admin bool) string {
 		sign = "+"
 	}
 
-	buf.WriteString(ufmt.Sprintf("**Start time:** %s UTC%s%d\n\n", e.startTime.Format("02 Jan 2006, 03:04 PM"), sign, hoursOffset))
-	buf.WriteString(ufmt.Sprintf("**End time:** %s UTC%s%d\n\n", e.endTime.Format("02 Jan 2006, 03:04 PM"), sign, hoursOffset))
+	buf.WriteString(ufmt.Sprintf("**Starts:** %s UTC%s%d\n\n", e.startTime.Format("02 Jan 2006, 03:04 PM"), sign, hoursOffset))
+	buf.WriteString(ufmt.Sprintf("**Ends:** %s UTC%s%d\n\n", e.endTime.Format("02 Jan 2006, 03:04 PM"), sign, hoursOffset))
 
 	if admin {
 		buf.WriteString(ufmt.Sprintf("[EDIT](/r/gnoland/events?help&__func=EditEvent&id=%s)\n\n", e.id))
@@ -127,7 +127,7 @@ func (e Event) Render(admin bool) string {
 	}
 
 	if e.link != "" {
-		buf.WriteString(ufmt.Sprintf("[Website](%s)\n\n", e.link))
+		buf.WriteString(ufmt.Sprintf("[See more](%s)\n\n", e.link))
 	}
 
 	buf.WriteString("</div>")

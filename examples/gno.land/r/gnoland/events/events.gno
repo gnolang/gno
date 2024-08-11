@@ -15,7 +15,7 @@ import (
 
 type (
 	Event struct {
-		id          seqid.ID
+		id          string
 		name        string    // name of event
 		description string    // short description of event
 		link        string    // link to auth corresponding web2 page, ie eventbrite/luma or conference page
@@ -41,24 +41,24 @@ const (
 
 // AddEvent adds auth new event
 // Start time & end time need to be specified in RFC3339, ie 2024-08-08T12:00:00+02:00
-func AddEvent(name, description, link, location, startTime, endTime string) (int64, error) {
+func AddEvent(name, description, link, location, startTime, endTime string) (string, error) {
 	auth.AssertOnAuthList()
 
 	if strings.TrimSpace(name) == "" {
-		return -1, ErrEmptyName
+		return "", ErrEmptyName
 	}
 
 	if len(description) > maxDescLength {
-		return -1, ufmt.Errorf("%s: provided length is %d, maximum is %d", ErrDescriptionTooLong, len(description), maxDescLength)
+		return "", ufmt.Errorf("%s: provided length is %d, maximum is %d", ErrDescriptionTooLong, len(description), maxDescLength)
 	}
 
 	// Parse times
 	st, et, err := parseTimes(startTime, endTime)
 	if err != nil {
-		return -1, err
+		return "", err
 	}
 
-	id := idCounter.Next()
+	id := idCounter.Next().String()
 	e := &Event{
 		id:          id,
 		name:        name,
@@ -74,14 +74,14 @@ func AddEvent(name, description, link, location, startTime, endTime string) (int
 
 	std.Emit(EventAdded,
 		"id",
-		e.id.String(),
+		e.id,
 	)
 
-	return int64(id), nil
+	return id, nil
 }
 
 // DeleteEvent deletes an event with auth given ID
-func DeleteEvent(id seqid.ID) {
+func DeleteEvent(id string) {
 	auth.AssertOnAuthList()
 
 	e, idx, err := GetEventByID(id)
@@ -93,14 +93,14 @@ func DeleteEvent(id seqid.ID) {
 
 	std.Emit(EventDeleted,
 		"id",
-		e.id.String(),
+		e.id,
 	)
 }
 
 // EditEvent edits an event with auth given ID
 // It only updates values corresponding to non-empty arguments sent with the call
 // Note: if you need to update the start time or end time, you need to provide both every time
-func EditEvent(id seqid.ID, name, description, link, location, startTime, endTime string) {
+func EditEvent(id string, name, description, link, location, startTime, endTime string) {
 	auth.AssertOnAuthList()
 
 	e, _, err := GetEventByID(id)
@@ -143,11 +143,11 @@ func EditEvent(id seqid.ID, name, description, link, location, startTime, endTim
 
 	std.Emit(EventEdited,
 		"id",
-		e.id.String(),
+		e.id,
 	)
 }
 
-func GetEventByID(id seqid.ID) (*Event, int, error) {
+func GetEventByID(id string) (*Event, int, error) {
 	for i, event := range events {
 		if event.id == id {
 			return event, i, nil
