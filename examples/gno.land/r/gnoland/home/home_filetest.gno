@@ -74,7 +74,7 @@ func main() {
 // </div><!-- /column-->
 // <div class="column">
 //
-// ### [Upcoming Events](/r/gnoland/events)
+// ### [Latest Events](/r/gnoland/events)
 //
 // No events.
 // </div><!-- /column-->

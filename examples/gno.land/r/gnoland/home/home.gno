@@ -85,7 +85,7 @@ func lastContributions(limit int) ui.Element {
 func upcomingEvents() ui.Element {
 	out, _ := events.RenderEventWidget(events.MaxWidgetSize)
 	return ui.Element{
-		ui.H3("[Upcoming Events](/r/gnoland/events)"),
+		ui.H3("[Latest Events](/r/gnoland/events)"),
 		ui.Text(out),
 	}
 }
