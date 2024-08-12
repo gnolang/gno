@@ -13,4 +13,4 @@ func main() {
 }
 
 // Error:
-// main/files/fun27.gno:8:2: <untyped> bigint does not implement main.Foo
+// main/files/fun27.gno:8:2: <untyped> bigint does not implement main.Foo (missing method foo)
