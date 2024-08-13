@@ -1,0 +1,4 @@
+gnoland start --ugnot-locked
+
+! gnokey maketx send -send "9999999ugnot" -to g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -gas-fee 1ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+stderr 'account is locked'
