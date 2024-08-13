@@ -6,14 +6,22 @@ option go_package = "./proto";
 
 // Hub is the stats gathering service (hub)
 service Hub {
-  // GetDataStream returns a stream of fresh data from the stats server
+  // GetDataStream returns a stream of fresh data from the stats hub
   rpc GetDataStream(google.protobuf.Empty) returns (stream DataPoint);
+
+  // Register registers the node instance with the stats hub
+  rpc Register(StaticInfo) returns (google.protobuf.Empty);
+
+  // PushData continuously pushes the node data to the stats hub
+  rpc PushData(stream NodeData) returns (google.protobuf.Empty);
 }
 
-// Node is the individual node service
-service Node {
-  // PullData pulls new node data from the node
-  rpc PullData(google.protobuf.Empty) returns (stream NodeData);
+// StaticInfo is the single node register request with the hub
+message StaticInfo {
+  string address = 1; // the ID of the node
+  string gno_version = 2; // the gno version of the node
+  string os_version = 3; // the OS info of the node
+  string location = 4; // the location of the node (Country)
 }
 
 // NodeData is the single node data push
@@ -50,7 +58,8 @@ message PeerInfo {
 // DataPoint is the newest data point for a specific node,
 // that wraps the node info, along with latency information
 message DataPoint {
-  NodeData node_data = 1; // the node information
-  uint64 latency = 2; // the node request latency
-  uint64 uptime = 3; // the rounded node uptime
+  NodeData node_data = 1; // the node's dynamic info
+  StaticInfo static_info = 2; // the node's static info
+  uint64 latency = 3; // the node request latency
+  uint64 uptime = 4; // the rounded node uptime
 }
