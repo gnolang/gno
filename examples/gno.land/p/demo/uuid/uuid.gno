@@ -4,6 +4,7 @@
 // distributed systems. The package offers a mechanism to convert these IDs
 // to standard UUID format strings, making them compatible with systems
 // requiring UUIDs.
+// add import "gno.land/p/demo/entropy" to use the entropy package. For of the pseudo-random number generator.
 
 package uuid
 
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"gno.land/p/demo/entropy"
 	"gno.land/p/demo/ufmt"
 )
 
@@ -34,13 +36,14 @@ type UUID struct {
 	sequence      uint16
 	StartTime     int64
 	LastTimestamp int64
-	counter       int64 // counter local for simulate the time because time.Now() is not available
+	entropy       *entropy.Instance
 }
 
 func NewUUID() *UUID {
 	u := &UUID{
 		StartTime: time.Date(2008, 11, 10, 23, 0, 0, 0, time.UTC).Unix() * 1000,
-		counter:   0,
+		// counter:   0,
+		entropy: entropy.New(),
 	}
 	u.SetMachineID()
 	return u
@@ -48,7 +51,7 @@ func NewUUID() *UUID {
 
 // ID generates
 func (u *UUID) ID() uint64 {
-	current := u.incrementCounter()
+	current := u.incrementEntropy()
 	elapsedTime := current - u.StartTime
 	u.LastTimestamp = current
 
@@ -67,12 +70,8 @@ func (u *UUID) incrementSequence() uint16 {
 	return u.sequence
 }
 
-func (u *UUID) incrementCounter() int64 {
-	u.counter++
-	if u.counter > int64(MaxTimestamp) {
-		u.counter = 0
-	}
-	return u.counter
+func (u *UUID) incrementEntropy() int64 {
+	return int64(u.entropy.Value())
 }
 
 // SetMachineID sets the machine ID based on the caller’s address.
