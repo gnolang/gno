@@ -16,6 +16,11 @@ func (m *Machine) doOpIndex1() {
 	}
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
+
+	if xv.NotAddressable {
+		panic("not addressable")
+	}
+
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		mv := xv.V.(*MapValue)
@@ -44,6 +49,11 @@ func (m *Machine) doOpIndex2() {
 	}
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
+
+	if xv.NotAddressable {
+		panic("not addressable")
+	}
+
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		vt := ct.Value
@@ -105,6 +115,11 @@ func (m *Machine) doOpSlice() {
 	}
 	// slice base x
 	xv := m.PopValue()
+
+	if xv.NotAddressable {
+		panic("not addressable")
+	}
+
 	// if a is a pointer to an array, a[low : high : max] is
 	// shorthand for (*a)[low : high : max]
 	if xv.T.Kind() == PointerKind &&
@@ -545,8 +560,9 @@ func (m *Machine) doOpArrayLit() {
 	}
 	// push value
 	m.PushValue(TypedValue{
-		T: at,
-		V: av,
+		T:              at,
+		V:              av,
+		NotAddressable: av.NotAddressible,
 	})
 }
 

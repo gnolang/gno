@@ -196,14 +196,16 @@ func (alloc *Allocator) NewString(s string) StringValue {
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 	alloc.AllocateListArray(int64(n))
 	return &ArrayValue{
-		List: make([]TypedValue, n),
+		List:           make([]TypedValue, n),
+		NotAddressible: true,
 	}
 }
 
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 	alloc.AllocateDataArray(int64(n))
 	return &ArrayValue{
-		Data: make([]byte, n),
+		Data:           make([]byte, n),
+		NotAddressible: true,
 	}
 }
 

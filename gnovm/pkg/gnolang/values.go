@@ -315,8 +315,9 @@ func (pv PointerValue) Deref() (tv TypedValue) {
 
 type ArrayValue struct {
 	ObjectInfo
-	List []TypedValue
-	Data []byte
+	List           []TypedValue
+	Data           []byte
+	NotAddressible bool
 }
 
 // NOTE: Result should not be written to,
@@ -392,6 +393,7 @@ func (av *ArrayValue) Copy(alloc *Allocator) *ArrayValue {
 	if av.Data == nil {
 		av2 := alloc.NewListArray(len(av.List))
 		copy(av2.List, av.List)
+		av2.NotAddressible = av.NotAddressible
 		return av2
 	}
 	av2 := alloc.NewDataArray(len(av.Data))
@@ -955,9 +957,10 @@ func (nv *NativeValue) Copy(alloc *Allocator) *NativeValue {
 // TypedValue (is not a value, but a tuple)
 
 type TypedValue struct {
-	T Type    `json:",omitempty"` // never nil
-	V Value   `json:",omitempty"` // an untyped value
-	N [8]byte `json:",omitempty"` // numeric bytes
+	T              Type    `json:",omitempty"` // never nil
+	V              Value   `json:",omitempty"` // an untyped value
+	N              [8]byte `json:",omitempty"` // numeric bytes
+	NotAddressable bool    `json:"-"`
 }
 
 func (tv *TypedValue) IsDefined() bool {
@@ -2589,9 +2592,22 @@ func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 	if t.Kind() == InterfaceKind {
 		return TypedValue{}
 	}
+
+	dv := defaultValue(alloc, t)
+
+	var naddr bool
+
+	switch v := dv.(type) {
+	case *StructValue:
+		naddr = true
+	case *ArrayValue:
+		naddr = v.NotAddressible
+	}
+
 	return TypedValue{
-		T: t,
-		V: defaultValue(alloc, t),
+		T:              t,
+		V:              dv,
+		NotAddressable: naddr,
 	}
 }
 
