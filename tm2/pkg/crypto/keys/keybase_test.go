@@ -111,6 +111,19 @@ func TestKeyManagement(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(keyS))
 
+	// Lookup by original i2 address
+	infoByAddress, err := cstore.GetByAddress(i2.GetAddress())
+	require.NoError(t, err)
+	// GetByAddress should return Info with the corresponding public key
+	require.Equal(t, infoByAddress.GetPubKey(), i2.GetPubKey())
+	// Replace n2 with a new address
+	mn2New := `fancy assault crane note start invite ladder ordinary gold amateur check cousin text mercy speak chuckle wine raw chief isolate swallow cushion wrist piece`
+	_, err = cstore.CreateAccount(n2, mn2New, bip39Passphrase, p2, 0, 0)
+	require.NoError(t, err)
+	// Check that CreateAccount removes the entry for the original address (public key)
+	_, err = cstore.GetByAddress(i2.GetAddress())
+	require.NotNil(t, err)
+
 	// addr cache gets nuked - and test skip flag
 	err = cstore.Delete(n2, "", true)
 	require.NoError(t, err)
