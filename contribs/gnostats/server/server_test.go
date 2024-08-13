@@ -224,22 +224,14 @@ func TestHub_GetDataStream(t *testing.T) {
 		defer wg.Done()
 		defer require.NoError(t, stream.CloseSend())
 
-		ticker := time.NewTicker(5 * time.Second)
-		defer ticker.Stop()
-
 		for {
-			select {
-			case <-ticker.C:
+			data, err := stream.Recv()
+			require.NoError(t, err)
+
+			receivedData = append(receivedData, data)
+
+			if len(receivedData) == len(dataPoints) {
 				return
-			default:
-				data, err := stream.Recv()
-				require.NoError(t, err)
-
-				receivedData = append(receivedData, data)
-
-				if len(receivedData) == len(dataPoints) {
-					return
-				}
 			}
 		}
 	}()
@@ -411,4 +403,113 @@ func TestHub_PushData(t *testing.T) {
 			assert.Equal(t, dynamicInfo[index].BlockInfo.Number, dataPoint.DynamicInfo.BlockInfo.Number)
 		}
 	})
+}
+
+func TestHub_E2E(t *testing.T) {
+	t.Parallel()
+
+	var (
+		hub    = NewHub()
+		client = newMockHubClient(t, hub)
+
+		staticInfo      = generateStaticInfo(t, 100)
+		numDataPoints   = 100
+		totalDataPoints = len(staticInfo) * numDataPoints
+
+		subCh = make(chan *proto.DataPoint, totalDataPoints)
+
+		receivedData          = make([]*proto.DataPoint, 0, totalDataPoints)
+		agentCtx, agentCancel = context.WithCancel(context.Background())
+
+		mockSubscriptions = &mockSubscriptions{
+			subscribeFn: func() (xid.ID, dataStream) {
+				return xid.New(), subCh
+			},
+			notifyFn: func(data *proto.DataPoint) {
+				subCh <- data
+			},
+		}
+	)
+
+	defer agentCancel()
+
+	// Set the subs handler
+	hub.subs = mockSubscriptions
+
+	// Register the agents
+	for _, staticInfo := range staticInfo {
+		_, err := client.Register(context.Background(), staticInfo)
+		require.NoError(t, err)
+	}
+
+	var wg sync.WaitGroup
+
+	// Run the producers (agents)
+	for _, info := range staticInfo {
+		info := info
+
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			// Prepare the dynamic info
+			dynamicInfo := generateDynamicInfo(t, numDataPoints)
+			for _, di := range dynamicInfo {
+				di.Address = info.Address
+			}
+
+			ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancelFn()
+
+			// Initiate the stream
+			stream, err := client.PushData(ctx)
+			require.NoError(t, err)
+
+			// Send the data
+			for _, di := range dynamicInfo {
+				require.NoError(t, stream.Send(di))
+			}
+
+			select {
+			case <-time.After(5 * time.Second):
+			case <-agentCtx.Done():
+				// We need to wait for the data to be
+				// knowingly processed by the stream.Recv
+			}
+		}()
+	}
+
+	// Run the single consumer
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		defer agentCancel()
+
+		// Run the single consumer (hub consumer)
+		ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancelFn()
+
+		// Initiate the stream
+		stream, err := client.GetDataStream(ctx, nil)
+		require.NoError(t, err)
+
+		defer require.NoError(t, stream.CloseSend())
+
+		for {
+			data, err := stream.Recv()
+			require.NoError(t, err)
+
+			receivedData = append(receivedData, data)
+			if len(receivedData) == totalDataPoints {
+				return
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	// Make sure the correct data points were sent out
+	require.Len(t, receivedData, totalDataPoints)
 }
