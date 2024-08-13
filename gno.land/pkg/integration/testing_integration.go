@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -183,6 +184,10 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 					// Generate config and node
 					cfg := TestingMinimalNodeConfig(t, gnoRootDir)
+					if slices.Contains[[]string, string](args, "--ugnot-locked") {
+						cfg.Genesis.ConsensusParams.Account.RestrictedDenoms = []string{"ugnot"}
+					}
+
 					genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 					genesis.Txs = append(pkgsTxs, genesis.Txs...)
 

@@ -89,6 +89,7 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 				MaxGas:       100_000_000, // 100M gas
 				TimeIotaMS:   100,         // 100ms
 			},
+			Account: new(abci.AccountParams),
 		},
 		Validators: []bft.GenesisValidator{
 			{
