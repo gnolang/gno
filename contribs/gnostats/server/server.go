@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/gnolang/gnostats/proto"
+	"github.com/rs/xid"
 	"google.golang.org/protobuf/types/known/emptypb"
 )
 
@@ -16,23 +17,28 @@ var (
 	errInvalidInfoAddress     = errors.New("invalid info address")
 	errInvalidInfoGnoVersion  = errors.New("invalid info gno version")
 	errInvalidInfoOSVersion   = errors.New("invalid info OS version")
-
-	errHubClosed         = errors.New("hub closed")
-	errUnregisteredAgent = errors.New("unregistered agent")
+	errUnregisteredAgent      = errors.New("unregistered agent")
 )
+
+// subscriptions is the active subscription manager abstraction
+type subscriptions interface {
+	subscribe() (xid.ID, dataStream)
+	unsubscribe(xid.ID)
+	notify(*proto.DataPoint)
+}
 
 // Hub is the
 type Hub struct {
 	proto.UnimplementedHubServer
 
-	agents sync.Map // address -> static info
-	subs   subs     // the active data subs
+	agents sync.Map      // address -> static info
+	subs   subscriptions // the active data subs
 }
 
 // NewHub creates a new hub instance
 func NewHub() *Hub {
 	return &Hub{
-		subs: make(subs),
+		subs: &subs{},
 	}
 }
 
@@ -66,7 +72,7 @@ func (h *Hub) GetDataStream(_ *emptypb.Empty, stream proto.Hub_GetDataStreamServ
 			return nil
 		case data, more := <-ch:
 			if !more {
-				return errHubClosed
+				return nil
 			}
 
 			// Forward the data point

@@ -2,11 +2,14 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gnolang/gnostats/proto"
+	"github.com/rs/xid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -155,4 +158,102 @@ func TestHub_Register(t *testing.T) {
 	assert.Equal(t, request.Address, agent.Address)
 	assert.Equal(t, request.GnoVersion, agent.GnoVersion)
 	assert.Equal(t, request.OsVersion, agent.OsVersion)
+}
+
+// generateDataPoints generates dummy data points
+func generateDataPoints(t *testing.T, count int) []*proto.DataPoint {
+	t.Helper()
+
+	dataPoints := make([]*proto.DataPoint, count)
+
+	for i := 0; i < count; i++ {
+		dataPoints[i] = &proto.DataPoint{
+			StaticInfo: &proto.StaticInfo{
+				Address: fmt.Sprintf("address %d", i),
+			},
+		}
+	}
+
+	return dataPoints
+}
+
+func TestHub_GetDataStream(t *testing.T) {
+	t.Parallel()
+
+	var (
+		hub    = NewHub()
+		client = newMockHubClient(t, hub)
+
+		dataPoints   = generateDataPoints(t, 100)
+		receivedData []*proto.DataPoint
+
+		sendCh = make(chan *proto.DataPoint, len(dataPoints))
+		sendID = xid.New()
+
+		mockSubscriptions = &mockSubscriptions{
+			subscribeFn: func() (xid.ID, dataStream) {
+				return sendID, sendCh
+			},
+
+			unsubscribeFn: func(id xid.ID) {
+				require.Equal(t, sendID, id)
+			},
+		}
+	)
+
+	// Set the subs handler
+	hub.subs = mockSubscriptions
+
+	ctx, cancelFn := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelFn()
+
+	// Preload the channel with data points
+	for _, dataPoint := range dataPoints {
+		sendCh <- dataPoint
+	}
+
+	// Initiate the stream
+	stream, err := client.GetDataStream(ctx, nil)
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+		defer require.NoError(t, stream.CloseSend())
+
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				return
+			default:
+				data, err := stream.Recv()
+				require.NoError(t, err)
+
+				receivedData = append(receivedData, data)
+
+				if len(receivedData) == len(dataPoints) {
+					return
+				}
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	// Verify the received data
+	require.Len(t, receivedData, len(dataPoints))
+
+	for index, dataPoint := range receivedData {
+		require.Equal(
+			t,
+			dataPoints[index].StaticInfo.Address,
+			dataPoint.StaticInfo.Address,
+		)
+	}
 }
