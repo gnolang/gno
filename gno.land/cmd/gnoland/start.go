@@ -43,17 +43,18 @@ var startGraphic = strings.ReplaceAll(`
 `, "'", "`")
 
 type startCfg struct {
-	gnoRootDir            string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	skipFailingGenesisTxs bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	genesisBalancesFile   string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	genesisTxsFile        string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	genesisRemote         string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
-	genesisFile           string
-	chainID               string
-	dataDir               string
-	genesisMaxVMCycles    int64
-	config                string
-	lazyInit              bool
+	gnoRootDir               string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	skipFailingGenesisTxs    bool   // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisBalancesFile      string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisTxsFile           string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisRemote            string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
+	genesisFile              string
+	chainID                  string
+	dataDir                  string
+	genesisMaxVMCycles       int64
+	config                   string
+	lazyInit                 bool
+	disableUGNOTRestrictions bool
 
 	logLevel  string
 	logFormat string
@@ -171,6 +172,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"flag indicating if lazy init is enabled. Generates the node secrets, configuration, and genesis.json",
 	)
+
+	fs.BoolVar(
+		&c.disableUGNOTRestrictions,
+		"disable-ugnot-restrictions",
+		false,
+		"if true and genesis file is not provided, disables ugnot sending restrictions",
+	)
 }
 
 func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
@@ -228,6 +236,10 @@ func execStart(ctx context.Context, c *startCfg, io commands.IO) error {
 		if err := lazyInitGenesis(io, c, genesisPath, privateKey.GetPubKey()); err != nil {
 			return fmt.Errorf("unable to initialize genesis.json, %w", err)
 		}
+	} else if c.disableUGNOTRestrictions {
+		// Clearly return an error in this case so the user isn't left wondering why
+		// the restrictions weren't disabled.
+		return errors.New("cannot disable ugnot restrictions when genesis file is provided")
 	}
 
 	// Initialize telemetry
@@ -388,6 +400,10 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 		Account: &abci.AccountParams{
 			RestrictedDenoms: []string{"ugnot"},
 		},
+	}
+
+	if c.disableUGNOTRestrictions {
+		gen.ConsensusParams.Account.RestrictedDenoms = nil
 	}
 
 	gen.Validators = []bft.GenesisValidator{
