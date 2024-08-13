@@ -13,11 +13,10 @@ import (
 )
 
 var (
-	errInvalidRegisterRequest = errors.New("invalid register request")
-	errInvalidInfoAddress     = errors.New("invalid info address")
-	errInvalidInfoGnoVersion  = errors.New("invalid info gno version")
-	errInvalidInfoOSVersion   = errors.New("invalid info OS version")
-	errUnregisteredAgent      = errors.New("unregistered agent")
+	errInvalidInfoAddress    = errors.New("invalid info address")
+	errInvalidInfoGnoVersion = errors.New("invalid info gno version")
+	errInvalidInfoOSVersion  = errors.New("invalid info OS version")
+	errUnregisteredAgent     = errors.New("unregistered agent")
 )
 
 // subscriptions is the active subscription manager abstraction
@@ -109,24 +108,19 @@ func (h *Hub) PushData(stream proto.Hub_PushDataServer) error {
 			}
 
 			// Prepare the data point
-			parsed := &proto.DataPoint{
+			prepared := &proto.DataPoint{
 				DynamicInfo: data,
 				StaticInfo:  info.(*proto.StaticInfo),
 			}
 
 			// Notify the listeners, if any
-			h.subs.notify(parsed)
+			h.subs.notify(prepared)
 		}
 	}
 }
 
 // verifyStaticInfo verifies the node's static info
 func verifyStaticInfo(info *proto.StaticInfo) error {
-	// Check if the request was initialized
-	if info == nil {
-		return errInvalidRegisterRequest
-	}
-
 	// Check if the address was set
 	if info.Address == "" {
 		return errInvalidInfoAddress
