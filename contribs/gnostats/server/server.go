@@ -37,7 +37,7 @@ type Hub struct {
 // NewHub creates a new hub instance
 func NewHub() *Hub {
 	return &Hub{
-		subs: &subs{},
+		subs: make(subs),
 	}
 }
 
