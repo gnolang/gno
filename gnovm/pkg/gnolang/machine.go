@@ -2089,7 +2089,7 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 		xv := m.PopValue()
 
 		if xv.NotAddressable {
-			panic("not addressable")
+			panic(fmt.Sprintf("expr not addressable: %+v\n", xv))
 		}
 
 		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)

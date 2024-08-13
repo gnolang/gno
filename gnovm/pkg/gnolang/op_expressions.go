@@ -18,7 +18,7 @@ func (m *Machine) doOpIndex1() {
 	xv := m.PeekValue(1) // x
 
 	if xv.NotAddressable {
-		panic("not addressable")
+		panic(fmt.Sprintf("expr not addressable: %+v\n", xv))
 	}
 
 	switch ct := baseOf(xv.T).(type) {
@@ -51,7 +51,7 @@ func (m *Machine) doOpIndex2() {
 	xv := m.PeekValue(2) // x
 
 	if xv.NotAddressable {
-		panic("not addressable")
+		panic(fmt.Sprintf("expr not addressable: %+v\n", xv))
 	}
 
 	switch ct := baseOf(xv.T).(type) {
@@ -117,7 +117,7 @@ func (m *Machine) doOpSlice() {
 	xv := m.PopValue()
 
 	if xv.NotAddressable {
-		panic("not addressable")
+		panic(fmt.Sprintf("expr not addressable: %+v\n", xv))
 	}
 
 	// if a is a pointer to an array, a[low : high : max] is
