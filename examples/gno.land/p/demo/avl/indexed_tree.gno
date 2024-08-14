@@ -28,6 +28,23 @@ func NewIndexedTree() *IndexedTree {
 	}
 }
 
+// IndexCount returns the number of indexes currently in the IndexedTree.
+// This method can be used to check how many fields have been indexed.
+func (tree *IndexedTree) IndexCount() int {
+	return len(tree.indexes)
+}
+
+// Size returns the number of key-value pair in the main tree.
+func (tree *IndexedTree) Size() int {
+	return tree.mainTree.Size()
+}
+
+// Has checks whether a key exists in the main tree.
+// It returns true if the key exists, otherwise false.
+func (tree *IndexedTree) Has(key string) (has bool) {
+	return tree.mainTree.Has(key)
+}
+
 // Set inserts or updates a key-value pair in the main tree and updates indexes
 func (tree *IndexedTree) Set(key string, value Indexable) (updated bool) {
 	// Remove the old value from field indexes if it exists
@@ -125,4 +142,32 @@ func (tree *IndexedTree) NewIndex(field string) {
 	if _, exists := tree.indexes[field]; !exists {
 		tree.indexes[field] = &index{Tree: NewTree()}
 	}
+}
+
+// Iterate performs an in-order traversal of the main tree within the specified key range.
+// It calls the provided callback function for each key-value pair encountered.
+// If the callback returns true, the iteration is stopped.
+func (tree *IndexedTree) Iterate(start, end string, cb IterCbFn) bool {
+	return tree.mainTree.Iterate(start, end, cb)
+}
+
+// ReverseIterate performs a reverse in-order traversal of the main tree within the specified key range.
+// It calls the provided callback function for each key-value pair encountered.
+// If the callback returns true, the iteration is stopped.
+func (tree *IndexedTree) ReverseIterate(start, end string, cb IterCbFn) bool {
+	return tree.mainTree.ReverseIterate(start, end, cb)
+}
+
+// IterateByOffset performs an in-order traversal of the main tree starting from the specified offset.
+// It calls the provided callback function for each key-value pair encountered, up to the specified count.
+// If the callback returns true, the iteration is stopped.
+func (tree *IndexedTree) IterateByOffset(offset int, count int, cb IterCbFn) bool {
+	return tree.mainTree.IterateByOffset(offset, count, cb)
+}
+
+// ReverseIterateByOffset performs a reverse in-order traversal of the main tree starting from the specified offset.
+// It calls the provided callback function for each key-value pair encountered, up to the specified count.
+// If the callback returns true, the iteration is stopped.
+func (tree *IndexedTree) ReverseIterateByOffset(offset int, count int, cb IterCbFn) bool {
+	return tree.mainTree.ReverseIterateByOffset(offset, count, cb)
 }
