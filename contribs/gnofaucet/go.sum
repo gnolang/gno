@@ -45,8 +45,8 @@ github.com/fortytw2/leaktest v1.3.0 h1:u8491cBMTQ8ft8aeV+adlcytMZylmA5nnwwkRZjI8
 github.com/fortytw2/leaktest v1.3.0/go.mod h1:jDsjWgpAGjm2CA7WthBh/CdZYEPF31XHquHwclZch5g=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
-github.com/gnolang/faucet v0.3.1 h1:BalLeZNYk9v/+jW6d+2ox1SMWgHtDHZ+9rSD71h4Xcg=
-github.com/gnolang/faucet v0.3.1/go.mod h1:/wbw9h4ooMzzyNBuM0X+ol7CiPH2OFjAFF3bYAXqA7U=
+github.com/gnolang/faucet v0.3.2 h1:3QBrdmnQszRaAZbxgO5xDDm3czNa0L/RFmhnCkbxy5I=
+github.com/gnolang/faucet v0.3.2/go.mod h1:/wbw9h4ooMzzyNBuM0X+ol7CiPH2OFjAFF3bYAXqA7U=
 github.com/gnolang/gno v0.1.1 h1:t41S0SWIUa3syI7XpRAuCneCgRc8gOJ2g8DkUedF72U=
 github.com/gnolang/gno v0.1.1/go.mod h1:BTaBNeaoY/W95NN6QA4RCoQ6Z7mi8M+Zb1I1wMWGg2w=
 github.com/gnolang/overflow v0.0.0-20170615021017-4d914c927216 h1:GKvsK3oLWG9B1GL7WP/VqwM6C92j5tIvB844oggL9Lk=
