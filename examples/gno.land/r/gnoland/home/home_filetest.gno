@@ -68,15 +68,15 @@ func main() {
 // <div class="columns-3">
 // <div class="column">
 //
-// ### Latest Blogposts
+// ### [Latest Blogposts](/r/gnoland/blog)
 //
 // No posts.
 // </div><!-- /column-->
 // <div class="column">
 //
-// ### Upcoming Events
+// ### [Latest Events](/r/gnoland/events)
 //
-// [View upcoming events](/events)
+// No events.
 // </div><!-- /column-->
 // <div class="column">
 //
