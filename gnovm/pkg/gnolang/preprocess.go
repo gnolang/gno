@@ -2449,16 +2449,33 @@ func evalStaticTypeOf(store Store, last BlockNode, x Expr) Type {
 	t := evalStaticTypeOfRaw(store, last, x)
 	if tt, ok := t.(*tupleType); ok {
 		if len(tt.Elts) != 1 {
-			panic(fmt.Sprintf(
-				"evalStaticTypeOf() only supports *CallExpr with 1 result, got %s",
-				tt.String(),
-			))
-		} else {
-			return tt.Elts[0]
+			loc := last.GetLocation()
+			funcName := getFunctionName(x)
+			valueCount := len(tt.Elts)
+
+			var msg string
+			if valueCount == 0 {
+				msg = fmt.Sprintf("%s: %s() (no value) used as value", loc, funcName)
+			} else {
+				msg = fmt.Sprintf("%s: %s() (%d values) used as single value", loc, funcName, valueCount)
+			}
+
+			panic(fmt.Errorf("%s\nHint: Ensure the function returns a single value, or use multiple assignment", msg))
 		}
-	} else {
-		return t
+		return tt.Elts[0]
 	}
+	return t
+}
+
+// getFunctionName attempts to extract the function name from the expression
+func getFunctionName(x Expr) string {
+	switch expr := x.(type) {
+	case *CallExpr:
+		if id, ok := expr.Func.(*NameExpr); ok {
+			return string(id.Name)
+		}
+	}
+	return "<unknown function>"
 }
 
 // like evalStaticTypeOf() but returns the raw *tupleType for *CallExpr.
