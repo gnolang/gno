@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
 var (
@@ -158,4 +159,41 @@ func TestParseTimes(t *testing.T) {
 
 	_, _, err = parseTimes("2009-02-10T23:30:30+02:00", "2009-02-13T21:30:33+05:00")
 	uassert.ErrorContains(t, err, ErrStartEndTimezonemMismatch.Error())
+}
+
+func TestRenderEventWidget(t *testing.T) {
+	events = nil // remove elements from previous tests - see issue #1982
+
+	// No events yet
+	out, err := RenderEventWidget(1)
+	uassert.NoError(t, err)
+	uassert.Equal(t, out, "No events.")
+
+	// Too big of a widget
+	out, err = RenderEventWidget(MaxWidgetSize + 1)
+	uassert.ErrorIs(t, err, ErrMaxWidgetSize)
+
+	out, err = RenderEventWidget(0)
+	uassert.ErrorIs(t, err, ErrMinWidgetSize)
+
+	// Ordering & if requested amt is larger than the num of events that exist
+	e1Start := parsedTimeNow.Add(time.Hour * 24 * 5)
+	e1End := e1Start.Add(time.Hour * 4)
+
+	e2Start := parsedTimeNow.Add(time.Hour * 24 * 10) // event 2 is after event 1
+	e2End := e2Start.Add(time.Hour * 4)
+
+	_, err = AddEvent("Event 1", "description", "gno.land", "loc", e1Start.Format(time.RFC3339), e1End.Format(time.RFC3339))
+	urequire.NoError(t, err)
+
+	_, err = AddEvent("Event 2", "description", "gno.land", "loc", e2Start.Format(time.RFC3339), e2End.Format(time.RFC3339))
+	urequire.NoError(t, err)
+
+	out, err = RenderEventWidget(MaxWidgetSize)
+	urequire.NoError(t, err)
+
+	uniqueSequence := "- [" // sequence that is displayed once per each event to test against
+	uassert.Equal(t, 2, strings.Count(out, uniqueSequence))
+
+	uassert.True(t, strings.Index(out, "Event 1") > strings.Index(out, "Event 2"))
 }

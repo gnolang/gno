@@ -19,11 +19,11 @@ func RenderEventWidget(eventsToRender int) (string, error) {
 	}
 
 	if eventsToRender > MaxWidgetSize {
-		return "", ErrWidgetMaxAmt
+		return "", ErrMaxWidgetSize
 	}
 
 	if eventsToRender < 1 {
-		return "", ErrWidgetMinAmt
+		return "", ErrMinWidgetSize
 	}
 
 	if eventsToRender > numOfEvents {
@@ -32,7 +32,7 @@ func RenderEventWidget(eventsToRender int) (string, error) {
 
 	output := ""
 
-	for _, event := range events[eventsToRender:] {
+	for _, event := range events[:eventsToRender] {
 		output += ufmt.Sprintf("- [%s](%s)\n", event.name, event.link)
 	}
 
