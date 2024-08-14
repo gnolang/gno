@@ -1291,6 +1291,7 @@ func TestLatestBlockHeightErrors(t *testing.T) {
 
 // The same as client.Call, but test signing separately
 func callSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
+	t.Helper()
 	tx, err := client.MakeCallTx(cfg, msgs...)
 	assert.NoError(t, err)
 	require.NotNil(t, tx)
@@ -1305,6 +1306,7 @@ func callSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...M
 
 // The same as client.Run, but test signing separately
 func runSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
+	t.Helper()
 	tx, err := client.MakeRunTx(cfg, msgs...)
 	assert.NoError(t, err)
 	require.NotNil(t, tx)
