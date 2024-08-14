@@ -13,7 +13,7 @@ service Hub {
   rpc Register(StaticInfo) returns (google.protobuf.Empty);
 
   // PushData continuously pushes the node data to the stats hub
-  rpc PushData(stream NodeData) returns (google.protobuf.Empty);
+  rpc PushData(stream DynamicInfo) returns (google.protobuf.Empty);
 }
 
 // StaticInfo is the single node register request with the hub
@@ -24,8 +24,8 @@ message StaticInfo {
   string location = 4; // the location of the node (Country)
 }
 
-// NodeData is the single node data push
-message NodeData {
+// DynamicInfo is the single node data push
+message DynamicInfo {
   string address = 1; // the ID of the node
   string moniker = 2; // the moniker of the node
   bool is_validator = 3; // flag indicating valset inclusion
@@ -56,10 +56,8 @@ message PeerInfo {
 }
 
 // DataPoint is the newest data point for a specific node,
-// that wraps the node info, along with latency information
+// that wraps the dynamic and static node info
 message DataPoint {
-  NodeData node_data = 1; // the node's dynamic info
+  DynamicInfo dynamic_info = 1; // the node's dynamic info
   StaticInfo static_info = 2; // the node's static info
-  uint64 latency = 3; // the node request latency
-  uint64 uptime = 4; // the rounded node uptime
 }
