@@ -7,6 +7,7 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
 	blog "gno.land/r/gnoland/blog"
+	events "gno.land/r/gnoland/events"
 )
 
 // XXX: p/demo/ui API is crappy, we need to make it more idiomatic
@@ -35,7 +36,7 @@ func Render(_ string) string {
 	dom.Body.Append(
 		ui.Columns{3, []ui.Element{
 			lastBlogposts(4),
-			upcomingEvents(4),
+			upcomingEvents(),
 			lastContributions(4),
 		}},
 	)
@@ -68,7 +69,7 @@ func Render(_ string) string {
 func lastBlogposts(limit int) ui.Element {
 	posts := blog.RenderLastPostsWidget(limit)
 	return ui.Element{
-		ui.H3("Latest Blogposts"),
+		ui.H3("[Latest Blogposts](/r/gnoland/blog)"),
 		ui.Text(posts),
 	}
 }
@@ -81,11 +82,11 @@ func lastContributions(limit int) ui.Element {
 	}
 }
 
-func upcomingEvents(limit int) ui.Element {
+func upcomingEvents() ui.Element {
+	out, _ := events.RenderEventWidget(events.MaxWidgetSize)
 	return ui.Element{
-		ui.H3("Upcoming Events"),
-		// TODO: replace with r/gnoland/events
-		ui.Text("[View upcoming events](/events)"),
+		ui.H3("[Latest Events](/r/gnoland/events)"),
+		ui.Text(out),
 	}
 }
 
