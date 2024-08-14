@@ -106,19 +106,13 @@ func TestCallSingle(t *testing.T) {
 	res, err := client.Call(cfg, msg...)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
+	expected := "it works!"
+	assert.Equal(t, string(res.DeliverTx.Data), expected)
 
-	// Test signing separately
-	tx, err := client.MakeCallTx(cfg, msg...)
-	assert.NoError(t, err)
-	require.NotNil(t, tx)
-	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
-	assert.NoError(t, err)
-	require.NotNil(t, signedTx)
-	res, err = client.BroadcastTxCommit(signedTx)
+	res, err = callSigningSeparately(t, client, cfg, msg...)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
+	assert.Equal(t, string(res.DeliverTx.Data), expected)
 }
 
 func TestCallMultiple(t *testing.T) {
@@ -190,16 +184,9 @@ func TestCallMultiple(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
 
-	// Test signing separately
-	tx, err := client.MakeCallTx(cfg, msg...)
+	res, err = callSigningSeparately(t, client, cfg, msg...)
 	assert.NoError(t, err)
-	require.NotNil(t, tx)
-	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
-	assert.NoError(t, err)
-	require.NotNil(t, signedTx)
-	res, err = client.BroadcastTxCommit(signedTx)
-	assert.NoError(t, err)
-	require.NotNil(t, res)
+	assert.NotNil(t, res)
 }
 
 func TestCallErrors(t *testing.T) {
@@ -640,19 +627,13 @@ func main() {
 	res, err := client.Run(cfg, msg)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
+	expected := "hi gnoclient!\n"
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 
-	// Test signing separately
-	tx, err := client.MakeRunTx(cfg, msg)
-	assert.NoError(t, err)
-	require.NotNil(t, tx)
-	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
-	assert.NoError(t, err)
-	require.NotNil(t, signedTx)
-	res, err = client.BroadcastTxCommit(signedTx)
+	res, err = runSigningSeparately(t, client, cfg, msg)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestRunMultiple(t *testing.T) {
@@ -731,19 +712,13 @@ func main() {
 	res, err := client.Run(cfg, msg1, msg2)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\nhi gnoclient!\n", string(res.DeliverTx.Data))
+	expected := "hi gnoclient!\nhi gnoclient!\n"
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 
-	// Test signing separately
-	tx, err := client.MakeRunTx(cfg, msg1, msg2)
-	assert.NoError(t, err)
-	require.NotNil(t, tx)
-	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
-	assert.NoError(t, err)
-	require.NotNil(t, signedTx)
-	res, err = client.BroadcastTxCommit(signedTx)
+	res, err = runSigningSeparately(t, client, cfg, msg1, msg2)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\nhi gnoclient!\n", string(res.DeliverTx.Data))
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestRunErrors(t *testing.T) {
@@ -1312,4 +1287,32 @@ func TestLatestBlockHeightErrors(t *testing.T) {
 			assert.ErrorIs(t, err, tc.expectedError)
 		})
 	}
+}
+
+// The same as client.Call, but test signing separately
+func callSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
+	tx, err := client.MakeCallTx(cfg, msgs...)
+	assert.NoError(t, err)
+	require.NotNil(t, tx)
+	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	assert.NoError(t, err)
+	require.NotNil(t, signedTx)
+	res, err := client.BroadcastTxCommit(signedTx)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	return res, nil
+}
+
+// The same as client.Run, but test signing separately
+func runSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
+	tx, err := client.MakeRunTx(cfg, msgs...)
+	assert.NoError(t, err)
+	require.NotNil(t, tx)
+	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	assert.NoError(t, err)
+	require.NotNil(t, signedTx)
+	res, err := client.BroadcastTxCommit(signedTx)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	return res, nil
 }
