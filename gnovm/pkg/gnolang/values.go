@@ -453,7 +453,8 @@ func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 
 type StructValue struct {
 	ObjectInfo
-	Fields []TypedValue
+	Fields         []TypedValue
+	NotAddressible bool
 }
 
 // TODO handle unexported fields in debug, and also ensure in the preprocessor.
@@ -519,7 +520,10 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 		fields[i] = field.Copy(alloc)
 	}
 
-	return alloc.NewStruct(fields)
+	strct := alloc.NewStruct(fields)
+
+	strct.NotAddressible = sv.NotAddressible
+	return strct
 }
 
 // ----------------------------------------

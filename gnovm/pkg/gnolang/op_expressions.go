@@ -93,6 +93,11 @@ func (m *Machine) doOpSelector() {
 		m.Printf("-v[S] %v\n", xv)
 		m.Printf("+v[S] %v\n", res)
 	}
+
+	if xv.NotAddressable {
+		panic(fmt.Sprintf("expr not addressable: %+v\n", xv))
+	}
+
 	*xv = res // reuse as result
 }
 
@@ -758,9 +763,11 @@ func (m *Machine) doOpStructLit() {
 	// construct and push value.
 	m.PopValue() // baseOf() is st
 	sv := m.Alloc.NewStruct(fs)
+
 	m.PushValue(TypedValue{
-		T: xt,
-		V: sv,
+		T:              xt,
+		V:              sv,
+		NotAddressable: sv.NotAddressible,
 	})
 }
 
