@@ -1904,7 +1904,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 							for i, rhsType := range cft.Results {
 								lt := evalStaticTypeOf(store, last, n.Lhs[i])
-								if lt != nil && isNamedConversion(rhsType.Type, lt) {
+								if lt != nil && isNamedConversion(rhsType.Type, lt, ctx) {
 									decompose = true
 									break
 								}
@@ -2816,7 +2816,7 @@ func convertType(store Store, last BlockNode, x *Expr, t Type) {
 			doConvertType(store, last, x, t)
 		} else {
 			// if one side is declared name type and the other side is unnamed type
-			if isNamedConversion(xt, t) {
+			if isNamedConversion(xt, t, last) {
 				// covert right (xt) to the type of the left (t)
 				doConvertType(store, last, x, t)
 			}
@@ -2841,9 +2841,21 @@ func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
 //	convert to that even if right is a named type.
 //	case 2: isNamedConversion is called within evaluating make() or new()
 //	(uverse functions). It returns TypType (generic) which does have IsNamed appropriate
-func isNamedConversion(xt, t Type) bool {
+//
+// This function also checks for the use of blank identifier "_" as a value or type,
+// which is not allowed. If both xt and t are nil, it panics with an appropriate error message.
+func isNamedConversion(xt, t Type, last BlockNode) bool {
+	if xt == nil && t == nil {
+		loc := last.GetLocation()
+
+		msg := fmt.Sprintf("%s: cannot use _ as value or type", loc)
+		panic(msg)
+	}
 	if t == nil {
 		t = xt
+	}
+	if xt == nil {
+		xt = t
 	}
 
 	// no conversion case 1: the LHS is an interface
