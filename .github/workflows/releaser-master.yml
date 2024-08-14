@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - "master"
-      - "fix/goreleaser2"
   workflow_dispatch:
 
 permissions:
