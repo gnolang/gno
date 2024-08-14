@@ -2189,13 +2189,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 
 					if rLen := len(tuple.Elts); rLen != numNames {
-						rhsExprString := valueExpr.String()
-						if cx, ok := valueExpr.(*CallExpr); ok {
-							rhsExprString = cx.Func.String()
-						}
-
-						panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %s returns %d value(s)", numNames, rhsExprString, rLen))
+						panic(
+							fmt.Sprintf(
+								"assignment mismatch: %d variable(s) but %s returns %d value(s)",
+								numNames,
+								valueExpr.String(),
+								rLen,
+							),
+						)
 					}
+
 					if n.Type != nil {
 						// only a single type can be specified.
 						nt := evalStaticType(store, last, n.Type)
