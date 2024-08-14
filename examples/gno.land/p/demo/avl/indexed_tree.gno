@@ -6,36 +6,36 @@ import (
 
 // Indexable interface for various types
 type Indexable interface {
-	GetFields() map[string]string
+	Value(fieldName string) string
 }
 
-// FieldIndex keeps track of field values to keys
-type FieldIndex struct {
-	index *Tree // AVL tree for field values to keys
+// index is a wrapper around the AVL tree for indexing field values to keys
+type index struct {
+	*Tree // AVL tree for storing keys based on field values
 }
 
-// IndexedTree manages the main tree and field indexes
+// IndexedTree manages the main AVL tree and additional field-based indexes
 type IndexedTree struct {
-	mainTree     *Tree
-	fieldIndexes map[string]*FieldIndex
+	mainTree *Tree
+	indexes  map[string]*index
 }
 
-// NewIndexedTree creates a new empty indexed tree
+// NewIndexedTree creates a new empty IndexedTree
 func NewIndexedTree() *IndexedTree {
 	return &IndexedTree{
-		mainTree:     NewTree(),
-		fieldIndexes: make(map[string]*FieldIndex),
+		mainTree: NewTree(),
+		indexes:  make(map[string]*index),
 	}
 }
 
-// Set inserts or updates a key-value pair
+// Set inserts or updates a key-value pair in the main tree and updates indexes
 func (tree *IndexedTree) Set(key string, value Indexable) (updated bool) {
-	// Remove the old value from field indexes
+	// Remove the old value from field indexes if it exists
 	oldValue, exists := tree.mainTree.Get(key)
 	if exists && oldValue != nil {
 		oldValueIndexable, ok := oldValue.(Indexable)
 		if ok {
-			tree.updateFieldIndexes(key, oldValueIndexable, value, false)
+			tree.updateIndexes(key, oldValueIndexable, value, false)
 		}
 	}
 
@@ -44,59 +44,49 @@ func (tree *IndexedTree) Set(key string, value Indexable) (updated bool) {
 
 	// Add the new value to field indexes
 	if value != nil {
-		tree.updateFieldIndexes(key, nil, value, true)
+		tree.updateIndexes(key, nil, value, true)
 	}
 
 	return updated
 }
 
-// Remove removes a key-value pair
+// Remove deletes a key-value pair from the main tree and updates indexes
 func (tree *IndexedTree) Remove(key string) (value Indexable, removed bool) {
 	val, removed := tree.mainTree.Remove(key)
 	if removed {
 		if val != nil {
 			value, _ = val.(Indexable)
 			if value != nil {
-				tree.updateFieldIndexes(key, value, nil, false)
+				tree.updateIndexes(key, value, nil, false)
 			}
 		}
 	}
 	return value, removed
 }
 
-// updateFieldIndexes updates or removes the field indexes based on the change in value
-func (tree *IndexedTree) updateFieldIndexes(key string, oldValue, newValue Indexable, add bool) {
-	for field, fieldValue := range extractFields(newValue) {
-		if _, indexed := tree.fieldIndexes[field]; !indexed {
-			continue
-		}
+// updateIndexes updates or removes the field indexes based on changes in the value
+func (tree *IndexedTree) updateIndexes(key string, oldValue, newValue Indexable, add bool) {
+	for fieldName, index := range tree.indexes {
 
-		index, _ := tree.fieldIndexes[field]
-
+		// If there's an old value, remove it from the index if the field value changed
 		if oldValue != nil {
-			oldFieldValue := oldValue.GetFields()[field]
-			if oldFieldValue != fieldValue {
-				// Remove the old key if it exists
-				index.index.Remove(ufmt.Sprintf("%s|%s", oldFieldValue, key))
+			oldFieldValue := oldValue.Value(fieldName)
+			if oldFieldValue != "" {
+				index.Remove(ufmt.Sprintf("%s|%s", oldFieldValue, key))
 			}
 		}
 
-		if add {
-			// Add or update the key
-			index.index.Set(ufmt.Sprintf("%s|%s", fieldValue, key), key)
+		// Add the new value to the index if specified
+		if add && newValue != nil {
+			newFieldValue := newValue.Value(fieldName)
+			if newFieldValue != "" {
+				index.Set(ufmt.Sprintf("%s|%s", newFieldValue, key), key)
+			}
 		}
 	}
 }
 
-// extractFields extracts fields from an Indexable and returns them as a map of strings.
-func extractFields(value Indexable) map[string]string {
-	if value == nil {
-		return nil
-	}
-	return value.GetFields()
-}
-
-// Get retrieves the value associated with the given key
+// Get retrieves the value associated with the given key from the main tree
 func (tree *IndexedTree) Get(key string) (value Indexable, exists bool) {
 	v, exists := tree.mainTree.Get(key)
 	if exists && v != nil {
@@ -105,21 +95,21 @@ func (tree *IndexedTree) Get(key string) (value Indexable, exists bool) {
 	return value, exists
 }
 
-// QueryByField retrieves objects based on the field value
+// QueryByField retrieves objects based on a specific field value
 func (tree *IndexedTree) QueryByField(field string, value string) ([]Indexable, bool) {
-	index, ok := tree.fieldIndexes[field]
+	index, ok := tree.indexes[field]
 	if !ok {
 		return nil, false
 	}
 
 	var values []Indexable
 
-	// Use Iterate to collect keys
-	index.index.Iterate("", "", func(key string, obj interface{}) bool {
+	// Iterate through the index tree to find matching objects
+	index.Iterate("", "", func(key string, obj interface{}) bool {
 		// Retrieve the actual object from the main tree using the key
 		if obj, exists := tree.mainTree.Get(obj.(string)); exists {
 			if idxObj, ok := obj.(Indexable); ok {
-				if idxObj.GetFields()[field] == value {
+				if idxObj.Value(field) == value {
 					values = append(values, idxObj)
 				}
 			}
@@ -130,9 +120,9 @@ func (tree *IndexedTree) QueryByField(field string, value string) ([]Indexable, 
 	return values, len(values) > 0
 }
 
-// AddFieldToIndex adds a field to be indexed
-func (tree *IndexedTree) AddFieldToIndex(field string) {
-	if _, exists := tree.fieldIndexes[field]; !exists {
-		tree.fieldIndexes[field] = &FieldIndex{index: NewTree()}
+// AddFieldToIndex creates an index for a specific field if it doesn't already exist
+func (tree *IndexedTree) NewIndex(field string) {
+	if _, exists := tree.indexes[field]; !exists {
+		tree.indexes[field] = &index{Tree: NewTree()}
 	}
 }

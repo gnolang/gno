@@ -14,20 +14,25 @@ type User struct {
 	Email string
 }
 
-func (u User) GetFields() map[string]string {
-	return map[string]string{
-		"Name":  u.Name,
-		"Age":   ufmt.Sprintf("%d", u.Age),
-		"Email": u.Email,
+func (u User) Value(fieldName string) string {
+	switch fieldName {
+	case "Name":
+		return u.Name
+	case "Age":
+		return ufmt.Sprintf("%d", u.Age)
+	case "Email":
+		return u.Email
 	}
+
+	return ""
 }
 
 func TestSet(t *testing.T) {
 	tree := NewIndexedTree()
 
 	// Specify which fields to index
-	tree.AddFieldToIndex("Name")
-	tree.AddFieldToIndex("Age")
+	tree.NewIndex("Name")
+	tree.NewIndex("Age")
 
 	// Test inserting a value
 	obj1 := User{Name: "Alice", Age: 30, Email: "alice@example.com"}
@@ -48,8 +53,8 @@ func TestUpdate(t *testing.T) {
 	tree := NewIndexedTree()
 
 	// Specify which fields to index
-	tree.AddFieldToIndex("Name")
-	tree.AddFieldToIndex("Age")
+	tree.NewIndex("Name")
+	tree.NewIndex("Age")
 
 	// Insert initial value
 	obj1 := User{Name: "Bob", Age: 25, Email: "bob@example.com"}
@@ -73,7 +78,7 @@ func TestRemove(t *testing.T) {
 	tree := NewIndexedTree()
 
 	// Specify which fields to index
-	tree.AddFieldToIndex("Name")
+	tree.NewIndex("Name")
 
 	// Insert value to be removed
 	obj1 := User{Name: "Charlie", Age: 28, Email: "charlie@example.com"}
@@ -93,7 +98,7 @@ func TestQueryByField(t *testing.T) {
 	tree := NewIndexedTree()
 
 	// Specify which fields to index
-	tree.AddFieldToIndex("Age")
+	tree.NewIndex("Age")
 
 	// Insert values
 	obj1 := User{Name: "Alice", Age: 30, Email: "alice@example.com"}
@@ -119,7 +124,7 @@ func TestQueryByNonExistentField(t *testing.T) {
 	tree := NewIndexedTree()
 
 	// Specify which fields to index
-	tree.AddFieldToIndex("Name")
+	tree.NewIndex("Name")
 
 	// Insert values
 	obj1 := User{Name: "Alice", Age: 30, Email: "alice@example.com"}
