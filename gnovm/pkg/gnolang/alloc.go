@@ -259,8 +259,7 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 func (alloc *Allocator) NewStruct(fields []TypedValue) *StructValue {
 	alloc.AllocateStruct()
 	return &StructValue{
-		Fields:         fields,
-		NotAddressible: true,
+		Fields: fields,
 	}
 }
 
