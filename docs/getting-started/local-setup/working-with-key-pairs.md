@@ -40,6 +40,7 @@ SUBCOMMANDS
   export     Exports private key armor
   import     Imports encrypted private key armor
   list       Lists all keys in the keybase
+  update     Update the password of a key in the keybase
   sign       Signs the document
   verify     Verifies the document signature
   query      Makes an ABCI query
@@ -158,6 +159,18 @@ In case you delete or lose access to your private key in the `gnokey` keystore,
 you can recover it using the key's mnemonic, or by importing it if it was exported 
 at a previous point in time.
 :::
+
+
+## Updating the password of a private key
+To update the password of a private key from the `gnokey` keystore, we need to know the name or
+address of the key to remove.
+After we have this information, we can run the following command:
+
+```bash
+gnokey update MyKey
+```
+
+After entering the current key decryption password and the new password, the password of the key will be updated in the keystore.
 
 ## Exporting a private key
 Private keys stored in the `gnokey` keystore can be exported to a desired place
