@@ -169,10 +169,11 @@ func TestRenderEventWidget(t *testing.T) {
 	uassert.NoError(t, err)
 	uassert.Equal(t, out, "No events.")
 
-	// Too big of a widget
+	// Too many events
 	out, err = RenderEventWidget(MaxWidgetSize + 1)
 	uassert.ErrorIs(t, err, ErrMaxWidgetSize)
 
+	// Too little events
 	out, err = RenderEventWidget(0)
 	uassert.ErrorIs(t, err, ErrMinWidgetSize)
 
@@ -192,7 +193,7 @@ func TestRenderEventWidget(t *testing.T) {
 	out, err = RenderEventWidget(MaxWidgetSize)
 	urequire.NoError(t, err)
 
-	uniqueSequence := "- [" // sequence that is displayed once per each event to test against
+	uniqueSequence := "- [" // sequence that is displayed once per each event as per the RenderEventWidget function
 	uassert.Equal(t, 2, strings.Count(out, uniqueSequence))
 
 	uassert.True(t, strings.Index(out, "Event 1") > strings.Index(out, "Event 2"))
