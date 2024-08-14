@@ -588,6 +588,8 @@ sboms:
     artifacts: source
 
 release:
+  disable: "{{ if eq .Env.TAG_VERSION master }}true{{ else }}false{{ end }}"
+  skip_upload: "{{ if eq .Env.TAG_VERSION master }}true{{ else }}false{{ end }}"
   draft: true
   replace_existing_draft: true
   prerelease: auto
