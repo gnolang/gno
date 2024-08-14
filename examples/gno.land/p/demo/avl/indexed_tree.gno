@@ -122,9 +122,9 @@ func (tree *IndexedTree) QueryByField(field string, value string) ([]Indexable, 
 	var values []Indexable
 
 	// Iterate through the index tree to find matching objects
-	index.Iterate("", "", func(key string, obj interface{}) bool {
+	index.Iterate("", "", func(key string, val interface{}) bool {
 		// Retrieve the actual object from the main tree using the key
-		if obj, exists := tree.mainTree.Get(obj.(string)); exists {
+		if obj, exists := tree.mainTree.Get(val.(string)); exists {
 			if idxObj, ok := obj.(Indexable); ok {
 				if idxObj.Value(field) == value {
 					values = append(values, idxObj)

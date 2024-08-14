@@ -135,3 +135,42 @@ func TestQueryByNonExistentField(t *testing.T) {
 	urequire.False(t, found, "Expected field 'NonExistentField' to not be found, but it was found")
 	urequire.Equal(t, 0, len(values), ufmt.Sprintf("Expected 0 values for non-existent field, but got %d", len(values)))
 }
+
+func BenchmarkIndexedTree(b *testing.B) {
+	tree := NewIndexedTree()
+
+	// Specify which fields to index
+	tree.NewIndex("Name")
+
+	// Create a large number of values
+	for i := 0; i < 10000; i++ {
+		user := User{Name: ufmt.Sprintf("User%d", i), Age: i % 100, Email: ufmt.Sprintf("user%d@example.com", i)}
+		tree.Set(ufmt.Sprintf("key%d", i), user)
+	}
+
+	// Benchmark querying by Name
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		tree.QueryByField("Name", "User5000")
+	}
+}
+
+// TestPerformanceRemove benchmarks the performance of removing values from the IndexedTree.
+func BenchmarkIndexedTreeRemove(b *testing.B) {
+	tree := NewIndexedTree()
+
+	// Specify which fields to index
+	tree.NewIndex("Name")
+
+	// Create a large number of values
+	for i := 0; i < 10000; i++ {
+		user := User{Name: ufmt.Sprintf("User%d", i), Age: i % 100, Email: ufmt.Sprintf("user%d@example.com", i)}
+		tree.Set(ufmt.Sprintf("key%d", i), user)
+	}
+
+	// Benchmark removing values
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		tree.Remove(ufmt.Sprintf("key%d", i%10000))
+	}
+}
