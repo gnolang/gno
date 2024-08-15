@@ -35,7 +35,7 @@ func init() {
 		idx += 46 + namelen + xlen + fclen
 
 		if meth != 0 {
-			panic("unsupported compression for " + string(zname) + " in embedded tzdata")
+			panic("unsupported compression for " + zname + " in embedded tzdata")
 		}
 
 		// See time.loadTzinfoFromZip for zip per-file header layout.
