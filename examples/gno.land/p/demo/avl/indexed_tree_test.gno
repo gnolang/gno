@@ -7,46 +7,48 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-// User struct implementing Indexable interface
-type User struct {
-	Name  string
-	Age   int
-	Email string
+// user struct implementing Indexable interface
+type user struct {
+	name  string
+	age   int
+	male  bool
+	email string
 }
 
-func (u User) Value(fieldName string) string {
+func (u user) Value(fieldName string) string {
 	switch fieldName {
-	case "Name":
-		return u.Name
-	case "Age":
-		return ufmt.Sprintf("%d", u.Age)
-	case "Email":
-		return u.Email
+	case "name":
+		return u.name
+	case "age":
+		return ufmt.Sprintf("%d", u.age)
+	case "email":
+		return u.email
+	case "male":
+		return ufmt.Sprintf("%t", u.male)
+	default:
+		return ""
 	}
-
-	return ""
 }
 
 func TestSet(t *testing.T) {
 	tree := NewIndexedTree()
 
 	// Specify which fields to index
-	tree.NewIndex("Name")
-	tree.NewIndex("Age")
+	tree.NewIndex("name")
+	tree.NewIndex("age")
 
 	// Test inserting a value
-	obj1 := User{Name: "Alice", Age: 30, Email: "alice@example.com"}
+	obj1 := user{name: "Alice", age: 30, email: "alice@example.com"}
 	tree.Set("key1", obj1)
 
 	// Verify insertion
 	value, exists := tree.Get("key1")
 	urequire.True(t, exists, "Expected value to be found, but it does not exist")
-	// urequire.NotNil(t, value, "Expected value to be non-nil, but got nil")
 
-	user := value.(User)
-	urequire.Equal(t, "Alice", user.Name, "Expected Name to be 'Alice'")
-	urequire.Equal(t, 30, user.Age, "Expected Age to be 30")
-	urequire.Equal(t, "alice@example.com", user.Email, "Expected Email to be 'alice@example.com'")
+	u := value.(user)
+	urequire.Equal(t, "Alice", u.Name, "Expected Name to be 'Alice'")
+	urequire.Equal(t, 30, u.age, "Expected age to be 30")
+	urequire.Equal(t, "alice@example.com", u.email, "Expected email to be 'alice@example.com'")
 }
 
 func TestUpdate(t *testing.T) {
@@ -54,14 +56,14 @@ func TestUpdate(t *testing.T) {
 
 	// Specify which fields to index
 	tree.NewIndex("Name")
-	tree.NewIndex("Age")
+	tree.NewIndex("age")
 
 	// Insert initial value
-	obj1 := User{Name: "Bob", Age: 25, Email: "bob@example.com"}
+	obj1 := user{Name: "Bob", age: 25, email: "bob@example.com"}
 	tree.Set("key2", obj1)
 
 	// Update the value
-	obj2 := User{Name: "Bob", Age: 26, Email: "bob@example.org"}
+	obj2 := user{Name: "Bob", age: 26, email: "bob@example.org"}
 	updated := tree.Set("key2", obj2)
 	urequire.True(t, updated, "Expected value to be updated")
 
@@ -69,9 +71,9 @@ func TestUpdate(t *testing.T) {
 	value, exists := tree.Get("key2")
 	urequire.True(t, exists, "Expected value to be found, but it does not exist")
 
-	user := value.(User)
-	urequire.Equal(t, 26, user.Age, "Expected Age to be 26")
-	urequire.Equal(t, "bob@example.org", user.Email, "Expected Email to be 'bob@example.org'")
+	u := value.(user)
+	urequire.Equal(t, 26, u.age, "Expected age to be 26")
+	urequire.Equal(t, "bob@example.org", u.email, "Expected email to be 'bob@example.org'")
 }
 
 func TestRemove(t *testing.T) {
@@ -81,7 +83,7 @@ func TestRemove(t *testing.T) {
 	tree.NewIndex("Name")
 
 	// Insert value to be removed
-	obj1 := User{Name: "Charlie", Age: 28, Email: "charlie@example.com"}
+	obj1 := User{Name: "Charlie", age: 28, email: "charlie@example.com"}
 	tree.Set("key3", obj1)
 
 	// Remove the value
@@ -98,25 +100,29 @@ func TestQueryByField(t *testing.T) {
 	tree := NewIndexedTree()
 
 	// Specify which fields to index
-	tree.NewIndex("Age")
+	tree.NewIndex("age")
 
 	// Insert values
-	obj1 := User{Name: "Alice", Age: 30, Email: "alice@example.com"}
-	obj2 := User{Name: "Bob", Age: 30, Email: "bob@example.com"}
+	obj1 := user{Name: "Alice", age: 30, email: "alice@example.com"}
+	obj2 := user{Name: "Bob", age: 30, email: "bob@example.com"}
 	tree.Set("key1", obj1)
 	tree.Set("key2", obj2)
 
-	// Query by Age
-	values, found := tree.QueryByField("Age", "30")
-	urequire.True(t, found, "Expected field 'Age' to be found, but it was not found")
-	urequire.Equal(t, 2, len(values), ufmt.Sprintf("Expected 2 values for Age 30, but got %d", len(values)))
+	// Query by age
+	values, found := tree.QueryByField("age", "30")
+	urequire.True(t, found, "Expected field 'age' to be found, but it was not found")
+	urequire.Equal(t, 2, len(values), ufmt.Sprintf("Expected 2 values for age 30, but got %d", len(values)))
 
 	// Verify returned values
-	expectedNames := map[string]bool{"Alice": true, "Bob": true}
-	for _, v := range values {
-		user, ok := v.(User)
+	expectedNames := []user{
+		{
+			Name: "Alice",
+		},
+	}
+	for i, v := range values {
+		u, ok := v.(User)
 		urequire.True(t, ok, "Expected value to be of type User")
-		// urequire.True(t, expectedNames[user.Name], "Unexpected user: %v", user)
+		urequire.Equal(t, expectedNames[i].Name, u.name)
 	}
 }
 
@@ -127,7 +133,7 @@ func TestQueryByNonExistentField(t *testing.T) {
 	tree.NewIndex("Name")
 
 	// Insert values
-	obj1 := User{Name: "Alice", Age: 30, Email: "alice@example.com"}
+	obj1 := User{Name: "Alice", age: 30, email: "alice@example.com"}
 	tree.Set("key1", obj1)
 
 	// Query by non-existent field
@@ -144,7 +150,7 @@ func BenchmarkIndexedTree(b *testing.B) {
 
 	// Create a large number of values
 	for i := 0; i < 10000; i++ {
-		user := User{Name: ufmt.Sprintf("User%d", i), Age: i % 100, Email: ufmt.Sprintf("user%d@example.com", i)}
+		user := User{Name: ufmt.Sprintf("User%d", i), age: i % 100, email: ufmt.Sprintf("user%d@example.com", i)}
 		tree.Set(ufmt.Sprintf("key%d", i), user)
 	}
 
@@ -164,7 +170,7 @@ func BenchmarkIndexedTreeRemove(b *testing.B) {
 
 	// Create a large number of values
 	for i := 0; i < 10000; i++ {
-		user := User{Name: ufmt.Sprintf("User%d", i), Age: i % 100, Email: ufmt.Sprintf("user%d@example.com", i)}
+		user := User{Name: ufmt.Sprintf("User%d", i), age: i % 100, email: ufmt.Sprintf("user%d@example.com", i)}
 		tree.Set(ufmt.Sprintf("key%d", i), user)
 	}
 

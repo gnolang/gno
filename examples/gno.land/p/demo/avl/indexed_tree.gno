@@ -4,7 +4,41 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-// Indexable interface for various types
+// Indexable interface for various types.
+//
+// The `Indexable` interface is designed to be implemented by objects that
+// will be stored and indexed within the `IndexedTree`. This interface
+// facilitates field-based querying by exposing a method to retrieve the
+// value of a specified field as a string.
+//
+// Restrictions:
+//   - Only primitive data types (string, int, bool, ...) are supported for indexing.
+//   - The `Value` method must return the value of the specified field as a string.
+//     For fields of type int or bool, the method should convert these values to their
+//     string representations using appropriate formatting (e.g., using `ufmt.Sprintf`).
+//   - The `Value` method should return an empty string ("") for unsupported or
+//     non-primitive field types, signaling that such fields cannot be indexed or queried.
+//
+// Example Implementation:
+//
+//	type MyStruct struct {
+//	    Name  string
+//	    Age   int
+//	    IsMale bool
+//	}
+//
+//	func (m MyStruct) Value(fieldName string) string {
+//	    switch fieldName {
+//	    case "Name":
+//	        return m.Name
+//	    case "Age":
+//	        return ufmt.Sprintf("%d", m.Age)
+//	    case "IsMale":
+//	        return ufmt.Sprintf("%t", m.IsMale)
+//	    default:
+//	        return "" // Unsupported field or non-primitive type
+//	    }
+//	}
 type Indexable interface {
 	Value(fieldName string) string
 }
