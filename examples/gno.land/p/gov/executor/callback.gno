@@ -25,8 +25,11 @@ type CallbackExecutor struct {
 
 // Execute runs the executor's callback function.
 func (exec *CallbackExecutor) Execute() error {
-	// Verify the executor is r/gov/dao
-	assertCaller(exec.daoPkgPath)
+	// Verify the caller is an adequate Realm
+	caller := std.CurrentRealm().PkgPath()
+	if caller != exec.daoPkgPath {
+		return errInvalidCaller
+	}
 
 	if exec.callback != nil {
 		return exec.callback()
@@ -39,13 +42,4 @@ func (exec *CallbackExecutor) Execute() error {
 // The CallbackExecutor never expires
 func (exec *CallbackExecutor) IsExpired() bool {
 	return false
-}
-
-// assertCaller asserts that the caller Realm matches the path
-func assertCaller(path string) {
-	caller := std.CurrentRealm().PkgPath()
-
-	if caller != path {
-		panic(errInvalidCaller)
-	}
 }

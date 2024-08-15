@@ -2,6 +2,7 @@ package executor
 
 import (
 	"errors"
+	"std"
 
 	"gno.land/p/demo/context"
 )
@@ -35,8 +36,11 @@ func NewCtxExecutor(callback func(ctx context.Context) error, path string) *CtxE
 
 // Execute runs the executor's callback function
 func (exec *CtxExecutor) Execute() error {
-	// Verify the executor is r/gov/dao
-	assertCaller(exec.daoPkgPath)
+	// Verify the caller is an adequate Realm
+	caller := std.CurrentRealm().PkgPath()
+	if caller != exec.daoPkgPath {
+		return errInvalidCaller
+	}
 
 	// Create the context
 	ctx := context.WithValue(

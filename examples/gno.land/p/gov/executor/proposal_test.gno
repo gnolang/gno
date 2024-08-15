@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/demo/context"
 	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
 func TestExecutor_Callback(t *testing.T) {
@@ -29,10 +30,7 @@ func TestExecutor_Callback(t *testing.T) {
 		e := NewCallbackExecutor(cb, "gno.land/r/gov/dao")
 
 		// Execute as not the /r/gov/dao caller
-		uassert.PanicsWithMessage(t, errInvalidCaller.Error(), func() {
-			_ = e.Execute()
-		})
-
+		uassert.ErrorIs(t, e.Execute(), errInvalidCaller)
 		uassert.False(t, called, "expected proposal to not execute")
 	})
 
@@ -57,12 +55,7 @@ func TestExecutor_Callback(t *testing.T) {
 		r := std.NewCodeRealm(daoPkgPath)
 		std.TestSetRealm(r)
 
-		uassert.NotPanics(t, func() {
-			err := e.Execute()
-
-			uassert.NoError(t, err)
-		})
-
+		uassert.NoError(t, e.Execute())
 		uassert.True(t, called, "expected proposal to execute")
 	})
 
@@ -88,12 +81,7 @@ func TestExecutor_Callback(t *testing.T) {
 		r := std.NewCodeRealm(daoPkgPath)
 		std.TestSetRealm(r)
 
-		uassert.NotPanics(t, func() {
-			err := e.Execute()
-
-			uassert.ErrorIs(t, err, expectedErr)
-		})
-
+		uassert.ErrorIs(t, e.Execute(), expectedErr)
 		uassert.True(t, called, "expected proposal to execute")
 	})
 }
@@ -122,10 +110,7 @@ func TestExecutor_Context(t *testing.T) {
 		e := NewCtxExecutor(cb, "gno.land/r/gov/dao")
 
 		// Execute as not the /r/gov/dao caller
-		uassert.PanicsWithMessage(t, errInvalidCaller.Error(), func() {
-			_ = e.Execute()
-		})
-
+		uassert.ErrorIs(t, e.Execute(), errInvalidCaller)
 		uassert.False(t, called, "expected proposal to not execute")
 	})
 
@@ -154,12 +139,7 @@ func TestExecutor_Context(t *testing.T) {
 		r := std.NewCodeRealm(daoPkgPath)
 		std.TestSetRealm(r)
 
-		uassert.NotPanics(t, func() {
-			err := e.Execute()
-
-			uassert.NoError(t, err)
-		})
-
+		urequire.NoError(t, e.Execute())
 		uassert.True(t, called, "expected proposal to execute")
 	})
 
