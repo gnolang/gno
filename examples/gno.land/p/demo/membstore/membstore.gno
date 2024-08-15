@@ -64,7 +64,7 @@ func NewMembStore(opts ...Option) *MembStore {
 }
 
 func (m *MembStore) AddMember(member Member) error {
-	if !m.isCallerGOVDAO() {
+	if !m.isCallerDAORealm() {
 		return ErrNotGovDAO
 	}
 
@@ -83,7 +83,7 @@ func (m *MembStore) AddMember(member Member) error {
 }
 
 func (m *MembStore) UpdateMember(address std.Address, member Member) error {
-	if !m.isCallerGOVDAO() {
+	if !m.isCallerDAORealm() {
 		return ErrNotGovDAO
 	}
 
@@ -179,12 +179,12 @@ func (m *MembStore) TotalPower() uint64 {
 	return m.totalVotingPower
 }
 
-// isCallerGOVDAO returns a flag indicating if the
-// current caller context is the active GOVDAO.
-// We need to include a govdao guard, even if the
+// isCallerDAORealm returns a flag indicating if the
+// current caller context is the active DAO Realm.
+// We need to include a dao guard, even if the
 // executor guarantees it, because
 // the API of the member store is public and callable
 // by anyone who has a reference to the member store instance.
-func (m *MembStore) isCallerGOVDAO() bool {
+func (m *MembStore) isCallerDAORealm() bool {
 	return m.daoPkgPath == "" || std.CurrentRealm().PkgPath() == m.daoPkgPath
 }
