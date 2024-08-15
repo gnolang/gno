@@ -25,7 +25,6 @@
 package subscription
 
 import (
-	"errors"
 	"std"
 	"time"
 
@@ -65,23 +64,20 @@ func NewRecurringSubscription(duration time.Duration, amount int64) *RecurringSu
 
 // CheckAccess verifies if the caller has an active recurring subscription.
 func (rs *RecurringSubscription) CheckAccess(caller std.Address) {
-	send := std.PrevRealm().Addr()
-	sendAmount := send.AmountOf("ugnot")
-
-	if sendAmount < rs.amount {
-		panic(ufmt.Sprintf("you need to send at least %d units to access this feature", rs.amount))
+	expTime, exists := rs.subs.Get(caller.String())
+	if !exists {
+		return ErrNoSub
 	}
 
-	expTime, exists := rs.subs.Get(caller.String())
-	if !exists || time.Now().After(expTime.(time.Time)) {
-		panic("your subscription has expired or does not exist")
+	if time.Now().After(expTime.(time.Time)) {
+		return ErrSubExpired
 	}
 }
 
 // ProcessPayment processes the payment for a recurring subscription and extends its validity.
 func (rs *RecurringSubscription) ProcessPayment(caller std.Address, paymentAmount int64) {
 	if paymentAmount < rs.amount {
-		panic("insufficient payment")
+		return ErrPayment
 	}
 
 	expiration := time.Now().Add(rs.duration)
@@ -92,7 +88,7 @@ func (rs *RecurringSubscription) ProcessPayment(caller std.Address, paymentAmoun
 func (rs *RecurringSubscription) GetExpiration(caller std.Address) time.Time {
 	expTime, exists := rs.subs.Get(caller.String())
 	if !exists {
-		panic("no subscription found")
+		return ErrNoSub
 	}
 
 	return expTime.(time.Time)
@@ -120,6 +116,6 @@ func (ls *LifetimeSubscription) CheckAccess(caller std.Address) {
 	_, exists := ls.subs.Get(caller.String())
 
 	if !exists {
-		panic("you do not have a lifetime subscription")
+		return ErrNoSub
 	}
 }
