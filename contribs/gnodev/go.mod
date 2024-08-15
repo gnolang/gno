@@ -49,7 +49,7 @@ require (
 	github.com/peterbourgon/ff/v3 v3.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/rivo/uniseg v0.4.3 // indirect
+	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	github.com/rs/cors v1.11.0 // indirect
 	github.com/rs/xid v1.5.0 // indirect
