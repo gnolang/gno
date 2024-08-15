@@ -157,8 +157,20 @@ func TestQueryByField(t *testing.T) {
 	tree.NewIndex("male")
 
 	// Insert values
-	obj1 := user{name: "Alice", age: 30, male: true, email: "alice@example.com"}
-	obj2 := user{name: "Bob", age: 30, male: false, email: "bob@example.com"}
+	obj1 := user{
+		name:  "Alice",
+		age:   30,
+		male:  true,
+		email: "alice@example.com",
+	}
+
+	obj2 := user{
+		name:  "Bob",
+		age:   30,
+		male:  false,
+		email: "bob@example.com",
+	}
+
 	tree.Set("key1", obj1)
 	tree.Set("key2", obj2)
 
@@ -172,6 +184,7 @@ func TestQueryByField(t *testing.T) {
 		{name: "Alice", age: 30, male: true, email: "alice@example.com"},
 		{name: "Bob", age: 30, male: false, email: "bob@example.com"},
 	}
+
 	for i, v := range values {
 		u, ok := v.(user)
 		urequire.True(t, ok, "Expected value to be of type user")
@@ -263,4 +276,31 @@ func BenchmarkIndexedTreeRemove(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		tree.Remove(ufmt.Sprintf("key%d", i%10000))
 	}
+}
+
+// TestRender tests rendering a tree with multiple indexes
+func TestRender(t *testing.T) {
+	tree := NewIndexedTree()
+	tree.NewIndex("name")
+	tree.NewIndex("age")
+
+	user1 := user{
+		name:  "Alice",
+		age:   30,
+		male:  true,
+		email: "alice@example.com",
+	}
+
+	user2 := user{
+		name:  "Bob",
+		age:   25,
+		male:  false,
+		email: "bob@example.com",
+	}
+
+	tree.Set("key1", user1)
+	tree.Set("key2", user2)
+
+	expected := "IndexedTree Status:\nMain Tree Size: 2\nIndex Count: 2\nIndexes:\n  Field: name, Count: 2\n  Field: age, Count: 2\n"
+	urequire.Equal(t, expected, tree.Render())
 }
