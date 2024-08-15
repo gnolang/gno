@@ -1,4 +1,10 @@
 project_name: gno
+version: 2
+
+env:
+  - TAG_VERSION={{ if index .Env "TAG_VERSION"  }}{{ .Env.TAG_VERSION }}{{ else }}latest{{ end }}
+  # supported in next versions -> https://github.com/goreleaser/goreleaser/issues/5059
+  # - TAG_VERSION="{{ envOrDefault "TAG_VERSION" "latest" }}"
 
 before:
   hooks:
@@ -65,6 +71,22 @@ builds:
     goarm:
       - 6
       - 7
+  - id: gnofaucet
+    dir: ./contribs/gnofaucet
+    binary: gnofaucet
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 6
+      - 7
+
 gomod:
   proxy: true
 
@@ -99,7 +121,7 @@ dockers:
     goarch: amd64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-amd64"
-      - "ghcr.io/gnolang/{{ .ProjectName }}:latest-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Env.TAG_VERSION }}-amd64"
     build_flag_templates:
       - "--target=gno"
       - "--platform=linux/amd64"
@@ -119,7 +141,7 @@ dockers:
     goarch: arm64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-arm64v8"
-      - "ghcr.io/gnolang/{{ .ProjectName }}:latest-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Env.TAG_VERSION }}-arm64v8"
     build_flag_templates:
       - "--target=gno"
       - "--platform=linux/arm64/v8"
@@ -140,7 +162,7 @@ dockers:
     goarm: 6
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv6"
-      - "ghcr.io/gnolang/{{ .ProjectName }}:latest-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Env.TAG_VERSION }}-armv6"
     build_flag_templates:
       - "--target=gno"
       - "--platform=linux/arm/v6"
@@ -161,7 +183,7 @@ dockers:
     goarm: 7
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv7"
-      - "ghcr.io/gnolang/{{ .ProjectName }}:latest-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Env.TAG_VERSION }}-armv7"
     build_flag_templates:
       - "--target=gno"
       - "--platform=linux/arm/v7"
@@ -183,7 +205,7 @@ dockers:
     goarch: amd64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-amd64"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Env.TAG_VERSION }}-amd64"
     build_flag_templates:
       - "--target=gnoland"
       - "--platform=linux/amd64"
@@ -204,7 +226,7 @@ dockers:
     goarch: arm64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-arm64v8"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Env.TAG_VERSION }}-arm64v8"
     build_flag_templates:
       - "--target=gnoland"
       - "--platform=linux/arm64/v8"
@@ -226,7 +248,7 @@ dockers:
     goarm: 6
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv6"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Env.TAG_VERSION }}-armv6"
     build_flag_templates:
       - "--target=gnoland"
       - "--platform=linux/arm/v6"
@@ -248,7 +270,7 @@ dockers:
     goarm: 7
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv7"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Env.TAG_VERSION }}-armv7"
     build_flag_templates:
       - "--target=gnoland"
       - "--platform=linux/arm/v7"
@@ -270,7 +292,7 @@ dockers:
     goarch: amd64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-amd64"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-amd64"
     build_flag_templates:
       - "--target=gnokey"
       - "--platform=linux/amd64"
@@ -286,7 +308,7 @@ dockers:
     goarch: arm64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-arm64v8"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-arm64v8"
     build_flag_templates:
       - "--target=gnokey"
       - "--platform=linux/arm64/v8"
@@ -303,7 +325,7 @@ dockers:
     goarm: 6
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv6"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-armv6"
     build_flag_templates:
       - "--target=gnokey"
       - "--platform=linux/arm/v6"
@@ -320,7 +342,7 @@ dockers:
     goarm: 7
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv7"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-armv7"
     build_flag_templates:
       - "--target=gnokey"
       - "--platform=linux/arm/v7"
@@ -338,7 +360,7 @@ dockers:
     goarch: amd64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-amd64"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Env.TAG_VERSION }}-amd64"
     build_flag_templates:
       - "--target=gnoweb"
       - "--platform=linux/amd64"
@@ -354,7 +376,7 @@ dockers:
     goarch: arm64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-arm64v8"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Env.TAG_VERSION }}-arm64v8"
     build_flag_templates:
       - "--target=gnoweb"
       - "--platform=linux/arm64/v8"
@@ -371,7 +393,7 @@ dockers:
     goarm: 6
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv6"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Env.TAG_VERSION }}-armv6"
     build_flag_templates:
       - "--target=gnoweb"
       - "--platform=linux/arm/v6"
@@ -388,7 +410,7 @@ dockers:
     goarm: 7
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv7"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Env.TAG_VERSION }}-armv7"
     build_flag_templates:
       - "--target=gnoweb"
       - "--platform=linux/arm/v7"
@@ -398,6 +420,74 @@ dockers:
       - "--label=org.opencontainers.image.version={{.Version}}"
     ids:
       - gnoweb
+
+  # gnofaucet
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Version }}-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-amd64"
+    build_flag_templates:
+      - "--target=gnofaucet"
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnofaucet"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnofaucet
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Version }}-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-arm64v8"
+    build_flag_templates:
+      - "--target=gnofaucet"
+      - "--platform=linux/arm64/v8"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnofaucet"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnofaucet
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: arm
+    goarm: 6
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Version }}-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-armv6"
+    build_flag_templates:
+      - "--target=gnofaucet"
+      - "--platform=linux/arm/v6"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnofaucet"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnofaucet
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: arm
+    goarm: 7
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Version }}-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-armv7"
+    build_flag_templates:
+      - "--target=gnofaucet"
+      - "--platform=linux/arm/v7"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnofaucet"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnofaucet
 
 docker_manifests:
   # https://goreleaser.com/customization/docker_manifest/
@@ -409,12 +499,12 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv7
-  - name_template: ghcr.io/gnolang/{{ .ProjectName }}:latest
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}:{{ .Env.TAG_VERSION }}
     image_templates:
-      - ghcr.io/gnolang/{{ .ProjectName }}:latest-amd64
-      - ghcr.io/gnolang/{{ .ProjectName }}:latest-arm64v8
-      - ghcr.io/gnolang/{{ .ProjectName }}:latest-armv6
-      - ghcr.io/gnolang/{{ .ProjectName }}:latest-armv7
+      - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Env.TAG_VERSION }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Env.TAG_VERSION }}-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Env.TAG_VERSION }}-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Env.TAG_VERSION }}-armv7
 
   # gnoland
   - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}
@@ -423,12 +513,12 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv7
-  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Env.TAG_VERSION }}
     image_templates:
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-amd64
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-arm64v8
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-armv6
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:latest-armv7
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Env.TAG_VERSION }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Env.TAG_VERSION }}-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Env.TAG_VERSION }}-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Env.TAG_VERSION }}-armv7
 
   # gnokey
   - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}
@@ -437,13 +527,13 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv7
-  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}
     image_templates:
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-amd64
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-arm64v8
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-armv6
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:latest-armv7
-
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-armv7
+ 
   # gnoweb
   - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}
     image_templates:
@@ -451,12 +541,26 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv7
-  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Env.TAG_VERSION }}
     image_templates:
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-amd64
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-arm64v8
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-armv6
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:latest-armv7
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Env.TAG_VERSION }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Env.TAG_VERSION }}-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Env.TAG_VERSION }}-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Env.TAG_VERSION }}-armv7
+
+  # gnofaucet
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Version }}
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Version }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Version }}-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Version }}-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Version }}-armv7
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-armv7
 
 docker_signs:
   - cmd: cosign
@@ -484,6 +588,8 @@ sboms:
     artifacts: source
 
 release:
+  disable: '{{ if eq .Env.TAG_VERSION "master" }}true{{ else }}false{{ end }}'
+  skip_upload: '{{ if eq .Env.TAG_VERSION "master" }}true{{ else }}false{{ end }}'
   draft: true
   replace_existing_draft: true
   prerelease: auto
@@ -494,3 +600,10 @@ release:
     You can find all docker images at:
 
     https://github.com/orgs/gnolang/packages?repo_name={{ .ProjectName }}
+
+# Only valid for nightly build
+nightly:
+  tag_name: nightly
+  publish_release: true
+  keep_single_release: true
+  name_template: "{{ incpatch .Version }}-{{ .ShortCommit }}-{{ .Env.TAG_VERSION }}"

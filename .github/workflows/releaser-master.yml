@@ -39,8 +39,9 @@ jobs:
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
-          version: v1.26.2-pro
-          args: release --clean --nightly --config ./.github/goreleaser-master.yaml
+          version: ~> v2
+          args: release --clean --nightly --config ./.github/goreleaser.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
+          TAG_VERSION: master
