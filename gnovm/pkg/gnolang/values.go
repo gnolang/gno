@@ -15,6 +15,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 )
 
+type Addressable interface {
+	Addressable(b bool)
+}
+
 // ----------------------------------------
 // (runtime) Value
 
@@ -186,6 +190,13 @@ type PointerValue struct {
 	Key   *TypedValue `json:",omitempty"` // for maps.
 }
 
+func (pv PointerValue) Addressable(b bool) {
+	pv.TV.NotAddressable = !b
+	if iface, ok := pv.TV.V.(Addressable); ok {
+		iface.Addressable(b)
+	}
+}
+
 const (
 	PointerIndexBlockBlank = -1 // for the "_" identifier in blocks
 	PointerIndexMap        = -2 // Base is Map, use Key.
@@ -211,6 +222,8 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+	tv2.Addressable(true)
+
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -318,6 +331,14 @@ type ArrayValue struct {
 	List           []TypedValue
 	Data           []byte
 	NotAddressible bool
+}
+
+func (av *ArrayValue) Addressable(b bool) {
+	av.NotAddressible = !b
+
+	for i := range av.List {
+		av.List[i].Addressable(b)
+	}
 }
 
 // NOTE: Result should not be written to,
@@ -961,6 +982,13 @@ type TypedValue struct {
 	V              Value   `json:",omitempty"` // an untyped value
 	N              [8]byte `json:",omitempty"` // numeric bytes
 	NotAddressable bool    `json:"-"`
+}
+
+func (tv *TypedValue) Addressable(b bool) {
+	tv.NotAddressable = !b
+	if iface, ok := tv.V.(Addressable); ok {
+		iface.Addressable(b)
+	}
 }
 
 func (tv *TypedValue) IsDefined() bool {
@@ -2598,8 +2626,6 @@ func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 	var naddr bool
 
 	switch v := dv.(type) {
-	case *StructValue:
-		naddr = true
 	case *ArrayValue:
 		naddr = v.NotAddressible
 	}
