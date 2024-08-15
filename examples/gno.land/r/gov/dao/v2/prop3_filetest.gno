@@ -108,7 +108,7 @@ func main() {
 //
 // Status: execution successful
 //
-// Voting stats: YAY 10 (0%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 30 (0%)
+// Voting stats: YAY 10 (25%), NAY 0 (0%), ABSTAIN 0 (0%), HAVEN'T VOTED 30 (75%)
 //
 // Threshold met: false
 //
