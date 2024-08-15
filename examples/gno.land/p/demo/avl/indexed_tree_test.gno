@@ -95,7 +95,8 @@ func TestUpdate(t *testing.T) {
 	value, exists := tree.Get("key2")
 	urequire.True(t, exists, "Expected value to be found, but it does not exist")
 
-	u := value.(user)
+	u, ok := value.(user)
+	urequire.True(t, ok, "Expected value to be of type user")
 	urequire.Equal(t, "Bob", u.name, "Expected name to be 'Bob'")
 	urequire.Equal(t, 26, u.age, "Expected age to be 26")
 	urequire.Equal(t, "bob@example.org", u.email, "Expected email to be 'bob@example.org'")
@@ -107,7 +108,8 @@ func TestUpdate(t *testing.T) {
 	urequire.Equal(t, 1, len(values), ufmt.Sprintf("Expected 1 value for name 'Bob', but got %d", len(values)))
 
 	// Verify returned value from QueryByField
-	queriedUser := values[0].(user)
+	queriedUser, ok := values[0].(user)
+	urequire.True(t, ok, "Expected queried value to be of type user")
 	urequire.Equal(t, "Bob", queriedUser.name, "Expected queried name to be 'Bob'")
 	urequire.Equal(t, 26, queriedUser.age, "Expected queried age to be 26")
 	urequire.Equal(t, "bob@example.org", queriedUser.email, "Expected queried email to be 'bob@example.org'")

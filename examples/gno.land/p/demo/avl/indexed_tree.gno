@@ -81,22 +81,11 @@ func (tree *IndexedTree) Has(key string) (has bool) {
 
 // Set inserts or updates a key-value pair in the main tree and updates indexes
 func (tree *IndexedTree) Set(key string, value Indexable) (updated bool) {
-	// Remove the old value from field indexes if it exists
-	oldValue, exists := tree.mainTree.Get(key)
-	if exists && oldValue != nil {
-		oldValueIndexable, ok := oldValue.(Indexable)
-		if ok {
-			tree.updateIndexes(key, oldValueIndexable, value, false)
-		}
-	}
-
 	// Set the new value in the main tree
 	updated = tree.mainTree.Set(key, value)
 
-	// Add the new value to field indexes
-	if value != nil {
-		tree.updateIndexes(key, nil, value, true)
-	}
+	// Update indexes with the new value
+	tree.updateIndexes(key, value)
 
 	return updated
 }
@@ -107,32 +96,23 @@ func (tree *IndexedTree) Remove(key string) (value Indexable, removed bool) {
 	if removed {
 		if val != nil {
 			value, _ = val.(Indexable)
-			if value != nil {
-				tree.updateIndexes(key, value, nil, false)
-			}
+			tree.updateIndexes(key, nil)
 		}
 	}
 	return value, removed
 }
 
-// updateIndexes updates or removes the field indexes based on changes in the value
-func (tree *IndexedTree) updateIndexes(key string, oldValue, newValue Indexable, add bool) {
+// updateIndexes handles adding or removing entries from the indexes
+func (tree *IndexedTree) updateIndexes(key string, newValue Indexable) {
 	for fieldName, index := range tree.indexes {
-
-		// If there's an old value, remove it from the index if the field value changed
-		if oldValue != nil {
-			oldFieldValue := oldValue.Value(fieldName)
-			if oldFieldValue != "" {
-				index.Remove(ufmt.Sprintf("%s|%s", oldFieldValue, key))
-			}
-		}
-
-		// Add the new value to the index if specified
-		if add && newValue != nil {
+		if newValue != nil {
 			newFieldValue := newValue.Value(fieldName)
 			if newFieldValue != "" {
 				index.Set(ufmt.Sprintf("%s|%s", newFieldValue, key), key)
 			}
+		} else {
+			// If newValue is nil, remove the key from the indexes
+			index.Remove(ufmt.Sprintf("%s|%s", newValue.Value(fieldName), key))
 		}
 	}
 }
