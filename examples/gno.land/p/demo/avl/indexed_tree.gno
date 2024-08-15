@@ -206,28 +206,15 @@ func (tree *IndexedTree) ReverseIterateByOffset(offset int, count int, cb IterCb
 	return tree.mainTree.ReverseIterateByOffset(offset, count, cb)
 }
 
-// getIndexStats provides statistics about indexes
-func (tree *IndexedTree) getIndexStats() map[string]int {
-	stats := make(map[string]int)
-	for field, index := range tree.indexes {
-		stats[field] = index.Size()
-	}
-	return stats
-}
-
 // Render provides a string representation of the overall status of the IndexedTree
 func (tree *IndexedTree) Render() string {
-	// Get statistics for indexes
-	indexStats := tree.getIndexStats()
-
-	// Initialize the result string with the main tree status
 	result := "IndexedTree Status:\n"
 	result += "Main Tree Size: " + ufmt.Sprintf("%d", tree.Size()) + "\n"
 	result += "Index Count: " + ufmt.Sprintf("%d", tree.IndexCount()) + "\n"
 
-	// Append statistics for each index
 	result += "Indexes:\n"
-	for field, count := range indexStats {
+	for field, index := range tree.indexes {
+		count := index.Size()
 		result += "  Field: " + field + ", Count: " + ufmt.Sprintf("%d", count) + "\n"
 	}
 
