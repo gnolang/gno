@@ -448,6 +448,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_ENTER -----------------------
 			case *AssignStmt:
+				checkValDefineMismatch(n)
+
 				if n.Op == DEFINE {
 					for _, lx := range n.Lhs {
 						ln := lx.(*NameExpr).Name
@@ -477,8 +479,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// skip declarations already predefined
 					// (e.g. through recursion for a dependent)
 				} else {
+					d := n.(Decl)
+					if cd, ok := d.(*ValueDecl); ok {
+						checkValDefineMismatch(cd)
+					}
 					// recursively predefine dependencies.
-					d2, ppd := predefineNow(store, last, n.(Decl))
+					d2, ppd := predefineNow(store, last, d)
 					if ppd {
 						return d2, TRANS_SKIP
 					} else {
@@ -2195,8 +2201,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// special case if `var a, b, c T? = f()` form.
 					cx := n.Values[0].(*CallExpr)
 					tt := evalStaticTypeOfRaw(store, last, cx).(*tupleType)
-					if len(tt.Elts) != numNames {
-						panic("should not happen")
+					if rLen := len(tt.Elts); rLen != numNames {
+						panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %s returns %d value(s)", numNames, cx.Func.String(), rLen))
 					}
 					if n.Type != nil {
 						// only a single type can be specified.
@@ -2215,8 +2221,16 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 				} else if len(n.Values) != 0 && numNames != len(n.Values) {
-					panic("should not happen")
+					panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %d value(s)", numNames, len(n.Values)))
 				} else { // general case
+					for _, v := range n.Values {
+						if cx, ok := v.(*CallExpr); ok {
+							tt, ok := evalStaticTypeOfRaw(store, last, cx).(*tupleType)
+							if ok && len(tt.Elts) != 1 {
+								panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", cx.Func.String(), tt.Elts))
+							}
+						}
+					}
 					// evaluate types and convert consts.
 					if n.Type != nil {
 						// only a single type can be specified.
