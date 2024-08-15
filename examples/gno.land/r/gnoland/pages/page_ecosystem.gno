@@ -34,7 +34,7 @@ Explore the gno.land blockchain at [gnoscan.io](https://gnoscan.io)!
 
 Adena is a user-friendly non-custodial wallet for gno.land. Open-source and developed by Onbloc, Adena allows gnomes to 
 interact easily with the chain. With an emphasis on UX, Adena is built to handle millions of realms and tokens with a
-high-quality interface, support for NFTs and custom tokens, and seamless integration. [Download Adena](https://www.adena.app/)
+high-quality interface, support for NFTs and custom tokens, and seamless integration. Install Adena via the [official website](https://www.adena.app/)
 
 ### Gnoswap
 
