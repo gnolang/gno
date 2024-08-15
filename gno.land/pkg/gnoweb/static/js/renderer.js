@@ -28,7 +28,9 @@ function parseContent(source, isCode) {
           if (lang === "json") {
             try {
               code = JSON.stringify(JSON.parse(code), null, 2);
-            } catch {}
+            } catch {
+                console.error('Error: The provided JSON code is invalid.');
+            }
           }
           const language = hljs.getLanguage(lang) ? lang : "plaintext";
           return hljs.highlight(code, { language }).value;
