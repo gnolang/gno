@@ -79,7 +79,7 @@ func TestUpdate(t *testing.T) {
 		male:  false,
 		email: "bob@example.com",
 	}
-	tree.Set("key2", obj1)
+	tree.Set("key1", obj1)
 
 	// Update the value
 	obj2 := user{
@@ -88,11 +88,11 @@ func TestUpdate(t *testing.T) {
 		male:  true,
 		email: "bob@example.org",
 	}
-	updated := tree.Set("key2", obj2)
+	updated := tree.Set("key1", obj2)
 	urequire.True(t, updated, "Expected value to be updated")
 
 	// Verify update
-	value, exists := tree.Get("key2")
+	value, exists := tree.Get("key1")
 	urequire.True(t, exists, "Expected value to be found, but it does not exist")
 
 	u, ok := value.(user)

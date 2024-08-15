@@ -79,39 +79,50 @@ func (tree *IndexedTree) Has(key string) (has bool) {
 	return tree.mainTree.Has(key)
 }
 
-// Set inserts or updates a key-value pair in the main tree and updates indexes
 func (tree *IndexedTree) Set(key string, value Indexable) (updated bool) {
+	// Retrieve the old value (if exists) before overwriting
+	oldValue, exists := tree.mainTree.Get(key)
+
 	// Set the new value in the main tree
 	updated = tree.mainTree.Set(key, value)
 
+	// If there was an existing value, remove its indexes
+	if exists {
+		oldIndexable, _ := oldValue.(Indexable)
+		tree.updateIndexes(key, oldIndexable, true)
+	}
+
 	// Update indexes with the new value
-	tree.updateIndexes(key, value)
+	tree.updateIndexes(key, value, false)
 
 	return updated
 }
 
 // Remove deletes a key-value pair from the main tree and updates indexes
 func (tree *IndexedTree) Remove(key string) (value Indexable, removed bool) {
+	// Retrieve the value associated with the key
 	val, removed := tree.mainTree.Remove(key)
-	if removed {
+	if removed && val != nil {
 		value, _ = val.(Indexable)
-		tree.updateIndexes(key, nil)
+		// Remove the key's associated indexes
+		tree.updateIndexes(key, value, true)
 	}
 
 	return value, removed
 }
 
 // updateIndexes handles adding or removing entries from the indexes
-func (tree *IndexedTree) updateIndexes(key string, newValue Indexable) {
+func (tree *IndexedTree) updateIndexes(key string, value Indexable, remove bool) {
 	for fieldName, index := range tree.indexes {
-		if newValue != nil {
-			newFieldValue := newValue.Value(fieldName)
-			if newFieldValue != "" {
-				index.Set(ufmt.Sprintf("%s|%s", newFieldValue, key), key)
+		fieldValue := value.Value(fieldName)
+		if fieldValue != "" {
+			// If removing, delete the old index entry
+			if remove {
+				index.Remove(ufmt.Sprintf("%s|%s", fieldValue, key))
+			} else {
+				// Otherwise, add or update the index entry
+				index.Set(ufmt.Sprintf("%s|%s", fieldValue, key), key)
 			}
-		} else {
-			// If newValue is nil, remove the key from the indexes
-			index.Remove(ufmt.Sprintf("%s|%s", newValue.Value(fieldName), key))
 		}
 	}
 }
