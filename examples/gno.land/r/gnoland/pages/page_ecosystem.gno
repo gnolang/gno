@@ -50,7 +50,7 @@ be assembled into bigger, more complex NFTs, creating a digital “painting” w
 
 ### Gno Native Kit
 
-[Gno Native Kit](https://github.com/gnolang/gnonative?tab=readme-ov-file) is a framework that allows developers to build and port gno.land (d)apps written in the (d)app's native language.
+[Gno Native Kit](https://github.com/gnolang/gnonative) is a framework that allows developers to build and port gno.land (d)apps written in the (d)app's native language.
 
 
 `
