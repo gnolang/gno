@@ -210,7 +210,7 @@ func (tree *IndexedTree) ReverseIterateByOffset(offset int, count int, cb IterCb
 func (tree *IndexedTree) getIndexStats() map[string]int {
 	stats := make(map[string]int)
 	for field, index := range tree.indexes {
-		stats[field] = index.Size() // Assuming Size() returns the number of items
+		stats[field] = index.Size()
 	}
 	return stats
 }
