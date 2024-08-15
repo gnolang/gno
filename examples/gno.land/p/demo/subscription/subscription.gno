@@ -22,13 +22,15 @@
 //		lifetimeSub.ProcessPayment(caller, 500)
 //	}
 
-package subscription // import "gno.land/p/demo/subscription"
+package subscription
 
 import (
-	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/avl"
-	"time"
+	"errors"
 	"std"
+	"time"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
 // Subscription interface defines standard methods that all subscription types must implement.
@@ -40,16 +42,16 @@ type Subscription interface {
 // RecurringSubscription represents a subscription that requires periodic payments.
 // It includes the duration of the subscription and the amount required per period.
 type RecurringSubscription struct {
-	duration time.Duration 
+	duration time.Duration
 	amount   int64
-	subs     *avl.Tree      // std.Address -> time.Time
+	subs     *avl.Tree // std.Address -> time.Time
 }
 
 // LifetimeSubscription represents a subscription that requires only a one-time payment.
 // It grants permanent access to a service or product.
 type LifetimeSubscription struct {
 	amount int64
-	subs   *avl.Tree    // std.Address -> bool
+	subs   *avl.Tree // std.Address -> bool
 }
 
 // NewRecurringSubscription creates and returns a new recurring subscription.
@@ -107,7 +109,7 @@ func NewLifetimeSubscription(amount int64) *LifetimeSubscription {
 // ProcessPayment processes the payment for a lifetime subscription.
 func (ls *LifetimeSubscription) ProcessPayment(caller std.Address, paymentAmount int64) {
 	if paymentAmount < ls.amount {
-		panic(ufmt.Sprintf("insufficient payment, required %d units", ls.amount))
+		return ErrPayment
 	}
 
 	ls.subs.Set(caller.String(), true)
