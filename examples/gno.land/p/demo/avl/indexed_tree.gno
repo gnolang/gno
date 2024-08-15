@@ -94,11 +94,10 @@ func (tree *IndexedTree) Set(key string, value Indexable) (updated bool) {
 func (tree *IndexedTree) Remove(key string) (value Indexable, removed bool) {
 	val, removed := tree.mainTree.Remove(key)
 	if removed {
-		if val != nil {
-			value, _ = val.(Indexable)
-			tree.updateIndexes(key, nil)
-		}
+		value, _ = val.(Indexable)
+		tree.updateIndexes(key, nil)
 	}
+
 	return value, removed
 }
 
