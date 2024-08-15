@@ -841,7 +841,7 @@ func assertValidAssignLhs(store Store, last BlockNode, lx Expr) {
 	shouldPanic := true
 	switch clx := lx.(type) {
 	case *NameExpr:
-		if clx.Name == "_" {
+		if clx.Name == blankIdentifier {
 			shouldPanic = false
 		} else if clx.Path.Type == VPUverse {
 			panic(fmt.Sprintf("cannot assign to uverse %v", clx.Name))
