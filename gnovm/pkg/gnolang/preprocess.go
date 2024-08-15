@@ -2950,7 +2950,7 @@ func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, 
 		} else {
 			findCycle()
 			*stack = append(*stack, cx.Name)
-			lastX = cx // Assuming lastX is declared somewhere in this context
+			lastX = cx
 		}
 
 		return
