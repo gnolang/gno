@@ -41,6 +41,18 @@ func newSecretsGetCmd(io commands.IO) *commands.Command {
 		},
 	)
 
+	// Add subcommand helpers
+	helperGen := metadataHelperGenerator{
+		MetaUpdate: func(meta *commands.Metadata, inputType string) {
+			meta.ShortUsage = fmt.Sprintf("secrets get %s <%s>", meta.Name, inputType)
+		},
+		TagNameSelector: "json",
+		TreeDisplay:     false,
+	}
+	cmd.AddSubCommands(generateSubCommandHelper(helperGen, secrets{}, func(_ context.Context, args []string) error {
+		return execSecretsGet(cfg, args, io)
+	})...)
+
 	return cmd
 }
 
