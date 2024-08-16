@@ -5,7 +5,6 @@ package vm
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -154,8 +153,7 @@ func GetAdmin() string {
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
 	assert.Equal(t, "", res)
-	fmt.Println(err.Error())
-	assert.True(t, strings.Contains(err.Error(), "insufficient coins error"))
+	assert.Equal(t, err.Error(), "invalid coins error")
 }
 
 // Sending more than tx send fails.
