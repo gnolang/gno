@@ -29,8 +29,8 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 		if banker.GetCoins(realmAddr).AmountOf(coin.Denom) < coin.Amount {
 			panic(ErrMismatchBetweenSentAndParams)
 		}
-	} 
-	
+	}
+
 	// Send coins
 	for i, _ := range addresses {
 		banker.SendCoins(realmAddr, addresses[i], std.NewCoins(coins[i]))
@@ -56,8 +56,8 @@ func DisperseGRC20(addresses []std.Address, amounts []uint64, symbols []string) 
 		panic(ErrArgLenAndSentLenMismatch)
 	}
 
-	for i := 0; i < len(addresses); i++ { 
-		tokens.TransferFrom(symbols[i], caller, addresses[i], amounts[i]) 
+	for i := 0; i < len(addresses); i++ {
+		tokens.TransferFrom(symbols[i], caller, addresses[i], amounts[i])
 	}
 }
 
