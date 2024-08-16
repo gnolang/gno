@@ -62,11 +62,8 @@ func DisperseGRC20(addresses []std.Address, amounts []uint64, symbols []string) 
 		panic(ErrArgLenAndSentLenMismatch)
 	}
 
-	for i := 0; i < len(addresses); i++ {
-		// Transfer tokens into the realm
-		tokens.TransferFrom(symbols[i], caller, std.CurrentRealm().Addr(), amounts[i])
-		// Transfer tokens to the addresses
-		tokens.Transfer(symbols[i], addresses[i], uint64(amounts[i]))
+	for i := 0; i < len(addresses); i++ { 
+		tokens.TransferFrom(symbols[i], caller, addresses[i], amounts[i]) 
 	}
 }
 
