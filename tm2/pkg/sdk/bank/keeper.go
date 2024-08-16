@@ -130,12 +130,6 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 	}
 
 	newCoins := oldCoins.SubUnsafe(amt)
-	if !newCoins.IsValid() {
-		err := std.ErrInsufficientCoins(
-			fmt.Sprintf("insufficient account funds; %s < %s", oldCoins, amt),
-		)
-		return nil, err
-	}
 
 	err := bank.SetCoins(ctx, addr, newCoins)
 	if err != nil {
@@ -158,12 +152,6 @@ func (bank BankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 
 	oldCoins := bank.GetCoins(ctx, addr)
 	newCoins := oldCoins.Add(amt)
-
-	if !newCoins.IsValid() {
-		return amt, std.ErrInsufficientCoins(
-			fmt.Sprintf("insufficient account funds; %s < %s", oldCoins, amt),
-		)
-	}
 
 	err := bank.SetCoins(ctx, addr, newCoins)
 	if err != nil {
@@ -306,12 +294,6 @@ func (tck TotalCoinKeeper) decreaseTotalCoin(ctx sdk.Context, coins std.Coins) e
 
 		oldTotalCoin := tck.decodeTotalCoin(bz)
 		newTotalCoin := oldTotalCoin.SubUnsafe(coin)
-		if !newTotalCoin.IsValid() {
-			err := std.ErrInsufficientCoins(
-				fmt.Sprintf("insufficient account funds; %s < %s", oldTotalCoin, coin),
-			)
-			return err
-		}
 
 		err := tck.setTotalCoin(ctx, newTotalCoin)
 		if err != nil {
@@ -324,11 +306,16 @@ func (tck TotalCoinKeeper) decreaseTotalCoin(ctx sdk.Context, coins std.Coins) e
 
 // SetTotalCoin sets the total coin amount for a given denomination.
 func (tck TotalCoinKeeper) setTotalCoin(ctx sdk.Context, totalCoin std.Coin) error {
+	if !totalCoin.IsValid() {
+		return std.ErrInvalidCoins(totalCoin.String())
+	}
+
 	stor := ctx.Store(tck.key)
 	bz, err := totalCoin.MarshalAmino()
 	if err != nil {
 		return err
 	}
+
 	stor.Set(TotalCoinStoreKey(totalCoin.Denom), []byte(bz))
 	return nil
 }
