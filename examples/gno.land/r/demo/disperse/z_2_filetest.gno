@@ -22,4 +22,4 @@ func main() {
 }
 
 // Error:
-// disperse: balance needs to be equal to amount sent
+// disperse: mismatch between coins sent and params called

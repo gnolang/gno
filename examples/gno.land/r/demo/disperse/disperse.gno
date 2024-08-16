@@ -17,11 +17,6 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	caller := std.PrevRealm().Addr()
 	banker := std.GetBanker(std.BankerTypeOrigSend)
 
-	// Check if realm balance is equal to amount sent
-	if banker.GetCoins(realmAddr).AmountOf("ugnot") != coinSent.AmountOf("ugnot") {
-		panic(ErrBalanceNotEqToAmountSent)
-	}
-
 	if len(addresses) != len(coins) {
 		panic(ErrNumAddrValMismatch)
 	}
@@ -29,6 +24,10 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	for _, coin := range coins {
 		if coin.Amount <= 0 {
 			panic(ErrNegativeCoinAmount)
+		}
+
+		if banker.GetCoins(realmAddr).AmountOf(coin.Denom) < coin.Amount {
+			panic(ErrMismatchBetweenSentAndParams)
 		}
 	}
 
