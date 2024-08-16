@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
@@ -15,8 +15,12 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
+var errInvalidSecretsGetArgs = errors.New("invalid number of secrets get arguments provided")
+
 type secretsGetCfg struct {
 	commonAllCfg
+
+	raw bool
 }
 
 // newSecretsGetCmd creates the secrets get command
@@ -27,12 +31,9 @@ func newSecretsGetCmd(io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "get",
 			ShortUsage: "secrets get [flags] [<key>]",
-			ShortHelp:  "shows all Gno secrets present in a common directory",
-			LongHelp: fmt.Sprintf(
-				"shows the validator private key, the node p2p key and the validator's last sign state. "+
-					"If a key is provided, it shows the specified key value. Available keys: %s",
-				getAvailableSecretsKeys(),
-			),
+			ShortHelp:  "shows the Gno secrets present in a common directory",
+			LongHelp: "shows the validator private key, the node p2p key and the validator's last sign state at the given path " +
+				"by fetching the option specified at <key>",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -40,11 +41,30 @@ func newSecretsGetCmd(io commands.IO) *commands.Command {
 		},
 	)
 
+	// Add subcommand helpers
+	helperGen := metadataHelperGenerator{
+		MetaUpdate: func(meta *commands.Metadata, inputType string) {
+			meta.ShortUsage = fmt.Sprintf("secrets get %s <%s>", meta.Name, inputType)
+		},
+		TagNameSelector: "json",
+		TreeDisplay:     false,
+	}
+	cmd.AddSubCommands(generateSubCommandHelper(helperGen, secrets{}, func(_ context.Context, args []string) error {
+		return execSecretsGet(cfg, args, io)
+	})...)
+
 	return cmd
 }
 
 func (c *secretsGetCfg) RegisterFlags(fs *flag.FlagSet) {
 	c.commonAllCfg.RegisterFlags(fs)
+
+	fs.BoolVar(
+		&c.raw,
+		"raw",
+		false,
+		"output raw string values, rather than as JSON strings",
+	)
 }
 
 func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
@@ -53,139 +73,105 @@ func execSecretsGet(cfg *secretsGetCfg, args []string, io commands.IO) error {
 		return errInvalidDataDir
 	}
 
-	// Verify the secrets key
-	if err := verifySecretsKey(args); err != nil {
+	// Make sure the get arguments are valid
+	if len(args) > 1 {
+		return errInvalidSecretsGetArgs
+	}
+
+	// Load the secrets from the dir
+	loadedSecrets, err := loadSecrets(cfg.dataDir)
+	if err != nil {
 		return err
 	}
 
-	var key string
-
-	if len(args) > 0 {
-		key = args[0]
+	// Find and print the secrets value, if any
+	if err := printKeyValue(loadedSecrets, cfg.raw, io, args...); err != nil {
+		return fmt.Errorf("unable to get secrets value, %w", err)
 	}
 
-	// Construct the paths
+	return nil
+}
+
+// loadSecrets loads the secrets from the specified data directory
+func loadSecrets(dirPath string) (*secrets, error) {
+	// Construct the file paths
 	var (
-		validatorKeyPath   = filepath.Join(cfg.dataDir, defaultValidatorKeyName)
-		validatorStatePath = filepath.Join(cfg.dataDir, defaultValidatorStateName)
-		nodeKeyPath        = filepath.Join(cfg.dataDir, defaultNodeKeyName)
+		validatorKeyPath   = filepath.Join(dirPath, defaultValidatorKeyName)
+		validatorStatePath = filepath.Join(dirPath, defaultValidatorStateName)
+		nodeKeyPath        = filepath.Join(dirPath, defaultNodeKeyName)
 	)
 
-	switch key {
-	case validatorPrivateKeyKey:
-		// Show the validator's key info
-		return readAndShowValidatorKey(validatorKeyPath, io)
-	case validatorStateKey:
-		// Show the validator's last sign state
-		return readAndShowValidatorState(validatorStatePath, io)
-	case nodeIDKey:
-		// Show the node's p2p info
-		return readAndShowNodeKey(nodeKeyPath, io)
-	default:
-		// Show the node's p2p info
-		if err := readAndShowNodeKey(nodeKeyPath, io); err != nil {
-			return err
-		}
+	var (
+		vkInfo *validatorKeyInfo
+		vsInfo *validatorStateInfo
+		niInfo *nodeIDInfo
 
-		// Show the validator's key info
-		if err := readAndShowValidatorKey(validatorKeyPath, io); err != nil {
-			return err
-		}
+		err error
+	)
 
-		// Show the validator's last sign state
-		return readAndShowValidatorState(validatorStatePath, io)
+	// Load the secrets
+	if osm.FileExists(validatorKeyPath) {
+		vkInfo, err = readValidatorKey(validatorKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load secrets, %w", err)
+		}
 	}
+
+	if osm.FileExists(validatorStatePath) {
+		vsInfo, err = readValidatorState(validatorStatePath)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load secrets, %w", err)
+		}
+	}
+
+	if osm.FileExists(nodeKeyPath) {
+		niInfo, err = readNodeID(nodeKeyPath)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load secrets, %w", err)
+		}
+	}
+
+	return &secrets{
+		ValidatorKeyInfo:   vkInfo,
+		ValidatorStateInfo: vsInfo,
+		NodeIDInfo:         niInfo,
+	}, nil
 }
 
-// readAndShowValidatorKey reads and shows the validator key from the given path
-func readAndShowValidatorKey(path string, io commands.IO) error {
+// readValidatorKey reads the validator key from the given path
+func readValidatorKey(path string) (*validatorKeyInfo, error) {
 	validatorKey, err := readSecretData[privval.FilePVKey](path)
 	if err != nil {
-		return fmt.Errorf("unable to read validator key, %w", err)
+		return nil, fmt.Errorf("unable to read validator key, %w", err)
 	}
 
-	w := tabwriter.NewWriter(io.Out(), 0, 0, 2, ' ', 0)
-
-	if _, err := fmt.Fprintf(w, "[Validator Key Info]\n\n"); err != nil {
-		return err
-	}
-
-	if _, err := fmt.Fprintf(w, "Address:\t%s\n", validatorKey.Address.String()); err != nil {
-		return err
-	}
-
-	if _, err := fmt.Fprintf(w, "Public Key:\t%s\n", validatorKey.PubKey.String()); err != nil {
-		return err
-	}
-
-	return w.Flush()
+	return &validatorKeyInfo{
+		Address: validatorKey.Address.String(),
+		PubKey:  validatorKey.PubKey.String(),
+	}, nil
 }
 
-// readAndShowValidatorState reads and shows the validator state from the given path
-func readAndShowValidatorState(path string, io commands.IO) error {
+// readValidatorState reads the validator state from the given path
+func readValidatorState(path string) (*validatorStateInfo, error) {
 	validatorState, err := readSecretData[privval.FilePVLastSignState](path)
 	if err != nil {
-		return fmt.Errorf("unable to read validator state, %w", err)
+		return nil, fmt.Errorf("unable to read validator state, %w", err)
 	}
 
-	w := tabwriter.NewWriter(io.Out(), 0, 0, 2, ' ', 0)
-
-	if _, err := fmt.Fprintf(w, "[Last Validator Sign State Info]\n\n"); err != nil {
-		return err
-	}
-
-	if _, err := fmt.Fprintf(
-		w,
-		"Height:\t%d\n",
-		validatorState.Height,
-	); err != nil {
-		return err
-	}
-
-	if _, err := fmt.Fprintf(
-		w,
-		"Round:\t%d\n",
-		validatorState.Round,
-	); err != nil {
-		return err
-	}
-
-	if _, err := fmt.Fprintf(
-		w,
-		"Step:\t%d\n",
-		validatorState.Step,
-	); err != nil {
-		return err
-	}
-
-	if validatorState.Signature != nil {
-		if _, err := fmt.Fprintf(
-			w,
-			"Signature:\t%X\n",
-			validatorState.Signature,
-		); err != nil {
-			return err
-		}
-	}
-
-	if validatorState.SignBytes != nil {
-		if _, err := fmt.Fprintf(
-			w,
-			"Sign Bytes:\t%X\n",
-			validatorState.SignBytes,
-		); err != nil {
-			return err
-		}
-	}
-
-	return w.Flush()
+	return &validatorStateInfo{
+		Height:    validatorState.Height,
+		Round:     validatorState.Round,
+		Step:      validatorState.Step,
+		Signature: validatorState.Signature,
+		SignBytes: validatorState.SignBytes,
+	}, nil
 }
 
-// readAndShowNodeKey reads and shows the node p2p key from the given path
-func readAndShowNodeKey(path string, io commands.IO) error {
+// readNodeID reads the node p2p info from the given path
+func readNodeID(path string) (*nodeIDInfo, error) {
 	nodeKey, err := readSecretData[p2p.NodeKey](path)
 	if err != nil {
-		return fmt.Errorf("unable to read node key, %w", err)
+		return nil, fmt.Errorf("unable to read node key, %w", err)
 	}
 
 	// Construct the config path
@@ -201,38 +187,14 @@ func readAndShowNodeKey(path string, io commands.IO) error {
 		// Attempt to grab the config from disk
 		cfg, err = config.LoadConfig(nodeDir)
 		if err != nil {
-			return fmt.Errorf("unable to load config file, %w", err)
+			return nil, fmt.Errorf("unable to load config file, %w", err)
 		}
 	}
 
-	w := tabwriter.NewWriter(io.Out(), 0, 0, 2, ' ', 0)
-
-	if _, err := fmt.Fprintf(w, "[Node P2P Info]\n\n"); err != nil {
-		return err
-	}
-
-	// Print the ID info
-	if _, err := fmt.Fprintf(
-		w,
-		"Node ID:\t%s\n",
-		nodeKey.ID(),
-	); err != nil {
-		return err
-	}
-
-	// Print the P2P address info
-	if _, err := fmt.Fprintf(
-		w,
-		"P2P Address:\t%s\n",
-		constructP2PAddress(
-			nodeKey.ID(),
-			cfg.P2P.ListenAddress,
-		),
-	); err != nil {
-		return err
-	}
-
-	return w.Flush()
+	return &nodeIDInfo{
+		ID:         nodeKey.ID().String(),
+		P2PAddress: constructP2PAddress(nodeKey.ID(), cfg.P2P.ListenAddress),
+	}, nil
 }
 
 // constructP2PAddress constructs the P2P address other nodes can use
