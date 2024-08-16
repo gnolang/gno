@@ -46,7 +46,7 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 	for _, coin := range coinSent {
 		leftoverAmt := banker.GetCoins(realmAddr).AmountOf(coin.Denom)
 		if leftoverAmt > 0 {
-			send := std.Coins{{coin.Denom, leftoverAmt}}
+			send := std.Coins{std.NewCoin(coin.Denom, leftoverAmt)}
 			banker.SendCoins(realmAddr, caller, send)
 		}
 	}
@@ -98,7 +98,7 @@ func DisperseUgnotString(addresses string, amounts string) {
 
 	coins := make(std.Coins, len(parsedAmounts))
 	for i, amount := range parsedAmounts {
-		coins[i] = std.Coin{"ugnot", amount}
+		coins[i] = std.NewCoin("ugnot", amount)
 	}
 
 	DisperseUgnot(parsedAddresses, coins)
