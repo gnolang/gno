@@ -1506,6 +1506,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				checkOrConvertIntegerKind(store, last, n.High)
 				checkOrConvertIntegerKind(store, last, n.Max)
 
+				// if n.X is untyped, convert to corresponding type
+				t := evalStaticTypeOf(store, last, n.X)
+				if isUntyped(t) {
+					dt := defaultTypeOf(t)
+					checkOrConvertType(store, last, &n.X, dt, false)
+				}
+
 			// TRANS_LEAVE -----------------------
 			case *TypeAssertExpr:
 				if n.Type == nil {
@@ -2797,8 +2804,10 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 					// push t into bx.Left
 					checkOrConvertType(store, last, &bx.Left, t, autoNative)
 					return
-					// case EQL, LSS, GTR, NEQ, LEQ, GEQ:
-					// default:
+				case EQL, LSS, GTR, NEQ, LEQ, GEQ:
+					// do nothing
+				default:
+					// do nothing
 				}
 			}
 		}
