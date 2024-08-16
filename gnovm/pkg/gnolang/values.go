@@ -16,7 +16,7 @@ import (
 )
 
 type Addressable interface {
-	Addressable(b bool)
+	Addressable()
 }
 
 // ----------------------------------------
@@ -190,10 +190,10 @@ type PointerValue struct {
 	Key   *TypedValue `json:",omitempty"` // for maps.
 }
 
-func (pv PointerValue) Addressable(b bool) {
-	pv.TV.NotAddressable = !b
+func (pv *PointerValue) Addressable() {
+	pv.TV.NotAddressable = false
 	if iface, ok := pv.TV.V.(Addressable); ok {
-		iface.Addressable(b)
+		iface.Addressable()
 	}
 }
 
@@ -222,7 +222,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
-	tv2.Addressable(true)
+	tv2.Addressable()
 
 	// Special cases.
 	if pv.Index == PointerIndexNative {
@@ -333,11 +333,11 @@ type ArrayValue struct {
 	NotAddressible bool
 }
 
-func (av *ArrayValue) Addressable(b bool) {
-	av.NotAddressible = !b
+func (av *ArrayValue) Addressable() {
+	av.NotAddressible = false
 
 	for i := range av.List {
-		av.List[i].Addressable(b)
+		av.List[i].Addressable()
 	}
 }
 
@@ -432,6 +432,12 @@ type SliceValue struct {
 	Maxcap int
 }
 
+func (sv *SliceValue) Addressable() {
+	if iface, ok := sv.Base.(Addressable); ok {
+		iface.Addressable()
+	}
+}
+
 func (sv *SliceValue) GetBase(store Store) *ArrayValue {
 	switch cv := sv.Base.(type) {
 	case nil:
@@ -475,6 +481,12 @@ func (sv *SliceValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 type StructValue struct {
 	ObjectInfo
 	Fields []TypedValue
+}
+
+func (sv *StructValue) Addressable() {
+	for i := range sv.Fields {
+		sv.Fields[i].Addressable()
+	}
 }
 
 // TODO handle unexported fields in debug, and also ensure in the preprocessor.
@@ -984,10 +996,12 @@ type TypedValue struct {
 	NotAddressable bool    `json:"-"`
 }
 
-func (tv *TypedValue) Addressable(b bool) {
-	tv.NotAddressable = !b
-	if iface, ok := tv.V.(Addressable); ok {
-		iface.Addressable(b)
+func (tv *TypedValue) Addressable() {
+	tv.NotAddressable = false
+	if p, ok := tv.V.(PointerValue); ok {
+		p.Addressable()
+	} else if iface, ok := tv.V.(Addressable); ok {
+		iface.Addressable()
 	}
 }
 
