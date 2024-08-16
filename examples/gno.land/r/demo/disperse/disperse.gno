@@ -29,13 +29,8 @@ func DisperseUgnot(addresses []std.Address, coins std.Coins) {
 		if banker.GetCoins(realmAddr).AmountOf(coin.Denom) < coin.Amount {
 			panic(ErrMismatchBetweenSentAndParams)
 		}
-	}
-
-	var totalAmount int64
-	for _, coin := range coins {
-		totalAmount += coin.Amount
-	}
-
+	} 
+	
 	// Send coins
 	for i, _ := range addresses {
 		banker.SendCoins(realmAddr, addresses[i], std.NewCoins(coins[i]))
