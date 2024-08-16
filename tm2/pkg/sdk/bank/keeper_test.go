@@ -201,6 +201,8 @@ func TestViewKeeper(t *testing.T) {
 }
 
 func TestInputOutputCoins(t *testing.T) {
+	t.Parallel()
+
 	// Setup test environment
 	env := setupTestEnv()
 	ctx := env.ctx
@@ -240,6 +242,8 @@ func TestInputOutputCoins(t *testing.T) {
 }
 
 func TestSendCoins(t *testing.T) {
+	t.Parallel()
+
 	// Setup test environment
 	env := setupTestEnv()
 	ctx := env.ctx
@@ -265,6 +269,8 @@ func TestSendCoins(t *testing.T) {
 }
 
 func TestSubtractCoins(t *testing.T) {
+	t.Parallel()
+
 	// Setup test environment
 	env := setupTestEnv()
 	ctx := env.ctx
@@ -284,6 +290,8 @@ func TestSubtractCoins(t *testing.T) {
 }
 
 func TestAddCoins(t *testing.T) {
+	t.Parallel()
+
 	// Setup test environment
 	env := setupTestEnv()
 	ctx := env.ctx
@@ -299,5 +307,6 @@ func TestAddCoins(t *testing.T) {
 			t.Errorf("AddCoins did not panic on negative coin value")
 		}
 	}()
+
 	env.bank.AddCoins(ctx, addr1, std.NewCoins(std.NewCoin("foocoin", -50)))
 }
