@@ -1,8 +1,6 @@
 package avl
 
 import (
-	"strings"
-
 	"gno.land/p/demo/ufmt"
 )
 
