@@ -216,16 +216,19 @@ func assertAssignableTo(xt, dt Type, autoNative bool) {
 }
 
 func isSpecialConstValueCase(store Store, last BlockNode, expr Expr) bool {
+	fmt.Println(reflect.TypeOf(expr))
 	switch x := expr.(type) {
 	case *CallExpr:
 		if cx, ok := x.Func.(*ConstExpr); ok {
 			fv := cx.GetFunc()
-			if fv.PkgPath == uversePkgPath && fv.Name == "len" && len(x.Args) == 1 && evalStaticTypeOf(store, last, x.Args[0]).Kind() == StringKind {
-				if _, ok := x.Args[0].(*ConstExpr); ok {
+			if fv.PkgPath == uversePkgPath && fv.Name == "len" && len(x.Args) == 1 {
+				if _, ok := x.Args[0].(*ConstExpr); ok || evalStaticTypeOf(store, last, x.Args[0]).Kind() == ArrayKind {
 					return true
 				}
 			}
 		}
+	case *BasicLitExpr:
+		return true
 	default:
 		return false
 	}
