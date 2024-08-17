@@ -9,7 +9,7 @@ import (
 // The `Indexable` interface is designed to be implemented by objects that
 // will be stored and indexed within the `IndexedTree`. This interface
 // facilitates field-based querying by exposing a method to retrieve the
-// value of a specified field as a string.
+// value of a specified field as a string and to retrieve the type of the struct.
 //
 // Restrictions:
 //   - Only primitive data types (string, int, bool, ...) are supported for indexing.
@@ -18,6 +18,8 @@ import (
 //     string representations using appropriate formatting (e.g., using `ufmt.Sprintf`).
 //   - The `Value` method should return an empty string ("") for unsupported or
 //     non-primitive field types, signaling that such fields cannot be indexed or queried.
+//   - The `Type` method must return a unique identifier for the struct type, which helps
+//     distinguish between different structs that might have the same field names.
 //
 // Example Implementation:
 //
@@ -39,8 +41,13 @@ import (
 //	        return "" // Unsupported field or non-primitive type
 //	    }
 //	}
+//
+//	func (m MyStruct) Type() string {
+//	    return "MyStruct"
+//	}
 type Indexable interface {
 	Value(fieldName string) string
+	Type() string // Method to return a unique type identifier for the struct
 }
 
 // index is a wrapper around the AVL tree for indexing field values to keys
@@ -63,18 +70,16 @@ func NewIndexedTree() *IndexedTree {
 }
 
 // IndexCount returns the number of indexes currently in the IndexedTree.
-// This method can be used to check how many fields have been indexed.
 func (tree *IndexedTree) IndexCount() int {
 	return len(tree.indexes)
 }
 
-// Size returns the number of key-value pair in the main tree.
+// Size returns the number of key-value pairs in the main tree.
 func (tree *IndexedTree) Size() int {
 	return tree.mainTree.Size()
 }
 
 // Has checks whether a key exists in the main tree.
-// It returns true if the key exists, otherwise false.
 func (tree *IndexedTree) Has(key string) (has bool) {
 	return tree.mainTree.Has(key)
 }
@@ -116,12 +121,12 @@ func (tree *IndexedTree) updateIndexes(key string, value Indexable, remove bool)
 	for fieldName, index := range tree.indexes {
 		fieldValue := value.Value(fieldName)
 		if fieldValue != "" {
-			// If removing, delete the old index entry
+			// Use both the struct type and the field value for indexing
+			compositeKey := ufmt.Sprintf("%s|%s|%s", value.Type(), fieldValue, key)
 			if remove {
-				index.Remove(ufmt.Sprintf("%s|%s", fieldValue, key))
+				index.Remove(compositeKey)
 			} else {
-				// Otherwise, add or update the index entry
-				index.Set(ufmt.Sprintf("%s|%s", fieldValue, key), key)
+				index.Set(compositeKey, key)
 			}
 		}
 	}
@@ -136,8 +141,19 @@ func (tree *IndexedTree) Get(key string) (value Indexable, exists bool) {
 	return value, exists
 }
 
-// QueryByField retrieves objects based on a specific field value
-func (tree *IndexedTree) QueryByField(field string, value string) ([]Indexable, bool) {
+// QueryByField retrieves objects based on a specific field value.
+// It limits the iteration to keys that start with a specific prefix
+// to improve the performance by reducing the number of keys scanned.
+//
+// Parameters:
+// - typeName: The type of the object being queried.
+// - field: The name of the field to query.
+// - value: The value of the field to search for.
+//
+// Returns:
+// - A slice of Indexable objects that match the query.
+// - A boolean indicating if any matches were found.
+func (tree *IndexedTree) QueryByField(typeName, field, value string) ([]Indexable, bool) {
 	index, ok := tree.indexes[field]
 	if !ok {
 		return nil, false
@@ -145,8 +161,8 @@ func (tree *IndexedTree) QueryByField(field string, value string) ([]Indexable, 
 
 	var values []Indexable
 	// Use prefix-based iteration to limit the range of keys scanned
-	start := value + "|"
-	end := value + string('|'+1)
+	start := ufmt.Sprintf("%s|%s|", typeName, value)
+	end := ufmt.Sprintf("%s|%s|", typeName, value+string('|'+1))
 
 	index.Iterate(start, end, func(key string, val interface{}) bool {
 		// Retrieve the actual object from the main tree using the key
@@ -161,7 +177,7 @@ func (tree *IndexedTree) QueryByField(field string, value string) ([]Indexable, 
 	return values, len(values) > 0
 }
 
-// AddFieldToIndex creates an index for a specific field if it doesn't already exist
+// NewIndex creates an index for a specific field if it doesn't already exist
 func (tree *IndexedTree) NewIndex(field string) {
 	if _, exists := tree.indexes[field]; !exists {
 		tree.indexes[field] = &index{Tree: NewTree()}
@@ -169,29 +185,21 @@ func (tree *IndexedTree) NewIndex(field string) {
 }
 
 // Iterate performs an in-order traversal of the main tree within the specified key range.
-// It calls the provided callback function for each key-value pair encountered.
-// If the callback returns true, the iteration is stopped.
 func (tree *IndexedTree) Iterate(start, end string, cb IterCbFn) bool {
 	return tree.mainTree.Iterate(start, end, cb)
 }
 
 // ReverseIterate performs a reverse in-order traversal of the main tree within the specified key range.
-// It calls the provided callback function for each key-value pair encountered.
-// If the callback returns true, the iteration is stopped.
 func (tree *IndexedTree) ReverseIterate(start, end string, cb IterCbFn) bool {
 	return tree.mainTree.ReverseIterate(start, end, cb)
 }
 
 // IterateByOffset performs an in-order traversal of the main tree starting from the specified offset.
-// It calls the provided callback function for each key-value pair encountered, up to the specified count.
-// If the callback returns true, the iteration is stopped.
 func (tree *IndexedTree) IterateByOffset(offset int, count int, cb IterCbFn) bool {
 	return tree.mainTree.IterateByOffset(offset, count, cb)
 }
 
 // ReverseIterateByOffset performs a reverse in-order traversal of the main tree starting from the specified offset.
-// It calls the provided callback function for each key-value pair encountered, up to the specified count.
-// If the callback returns true, the iteration is stopped.
 func (tree *IndexedTree) ReverseIterateByOffset(offset int, count int, cb IterCbFn) bool {
 	return tree.mainTree.ReverseIterateByOffset(offset, count, cb)
 }

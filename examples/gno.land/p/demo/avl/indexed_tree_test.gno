@@ -30,6 +30,10 @@ func (u user) Value(fieldName string) string {
 	}
 }
 
+func (u user) Type() string {
+	return "user"
+}
+
 func TestSet(t *testing.T) {
 	tree := NewIndexedTree()
 
