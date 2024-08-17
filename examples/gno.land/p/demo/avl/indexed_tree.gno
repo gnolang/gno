@@ -1,6 +1,8 @@
 package avl
 
 import (
+	"strings"
+
 	"gno.land/p/demo/ufmt"
 )
 
@@ -8,18 +10,33 @@ import (
 //
 // The `Indexable` interface is designed to be implemented by objects that
 // will be stored and indexed within the `IndexedTree`. This interface
-// facilitates field-based querying by exposing a method to retrieve the
-// value of a specified field as a string and to retrieve the type of the struct.
+// facilitates field-based querying by exposing methods to retrieve the
+// value of a specified field as a string and to identify the type of the struct.
 //
-// Restrictions:
-//   - Only primitive data types (string, int, bool, ...) are supported for indexing.
-//   - The `Value` method must return the value of the specified field as a string.
-//     For fields of type int or bool, the method should convert these values to their
-//     string representations using appropriate formatting (e.g., using `ufmt.Sprintf`).
-//   - The `Value` method should return an empty string ("") for unsupported or
-//     non-primitive field types, signaling that such fields cannot be indexed or queried.
-//   - The `Type` method must return a unique identifier for the struct type, which helps
-//     distinguish between different structs that might have the same field names.
+// Methods:
+//
+// Value(fieldName string) string:
+//   - This method is responsible for returning the value of the specified field
+//     in the struct as a string. The purpose of this method is to allow the
+//     `IndexedTree` to index and query based on the values of different fields.
+//   - Parameters:
+//   - fieldName: The name of the field whose value is to be retrieved.
+//   - Returns:
+//   - A string representation of the field's value. For fields of primitive
+//     types (e.g., string, int, bool), the method should convert these values
+//     to their string representations (e.g., using `ufmt.Sprintf` for formatting).
+//   - If the field is unsupported or not a primitive type, the method should
+//     return an empty string (""). This signals that the field cannot be indexed
+//     or queried.
+//
+// Type() string:
+//   - This method returns a unique type identifier for the struct. It is used
+//     by the `IndexedTree` to distinguish between different types of structs
+//     that may share the same field names.
+//   - Returns:
+//   - A string that uniquely identifies the type of the struct. This is important
+//     when indexing and querying, as it ensures that different struct types are
+//     handled separately even if they have fields with the same names.
 //
 // Example Implementation:
 //
@@ -47,12 +64,13 @@ import (
 //	}
 type Indexable interface {
 	Value(fieldName string) string
-	Type() string // Method to return a unique type identifier for the struct
+	Type() string
 }
 
 // index is a wrapper around the AVL tree for indexing field values to keys
 type index struct {
-	*Tree // AVL tree for storing keys based on field values
+	field string // The field name associated with this index
+	*Tree        // AVL tree for storing keys based on field values
 }
 
 // IndexedTree manages the main AVL tree and additional field-based indexes
@@ -118,15 +136,17 @@ func (tree *IndexedTree) Remove(key string) (value Indexable, removed bool) {
 
 // updateIndexes handles adding or removing entries from the indexes
 func (tree *IndexedTree) updateIndexes(key string, value Indexable, remove bool) {
-	for fieldName, index := range tree.indexes {
+	for indexkey, idx := range tree.indexes {
+		// Extract the field name from the index key
+		fieldName := idx.field
 		fieldValue := value.Value(fieldName)
 		if fieldValue != "" {
 			// Use both the struct type and the field value for indexing
-			compositeKey := ufmt.Sprintf("%s|%s|%s", value.Type(), fieldValue, key)
+			compositeKey := ufmt.Sprintf("%s|%s|%s", indexkey, fieldValue, key)
 			if remove {
-				index.Remove(compositeKey)
+				idx.Remove(compositeKey)
 			} else {
-				index.Set(compositeKey, key)
+				idx.Set(compositeKey, key)
 			}
 		}
 	}
@@ -154,15 +174,16 @@ func (tree *IndexedTree) Get(key string) (value Indexable, exists bool) {
 // - A slice of Indexable objects that match the query.
 // - A boolean indicating if any matches were found.
 func (tree *IndexedTree) QueryByField(typeName, field, value string) ([]Indexable, bool) {
-	index, ok := tree.indexes[field]
+	indexKey := getIndexKey(typeName, field)
+	index, ok := tree.indexes[indexKey]
 	if !ok {
 		return nil, false
 	}
 
 	var values []Indexable
 	// Use prefix-based iteration to limit the range of keys scanned
-	start := ufmt.Sprintf("%s|%s|", typeName, value)
-	end := ufmt.Sprintf("%s|%s|", typeName, value+string('|'+1))
+	start := ufmt.Sprintf("%s|%s|%s", typeName, field, value)
+	end := ufmt.Sprintf("%s|%s|%s", typeName, field, value+string('|'+1))
 
 	index.Iterate(start, end, func(key string, val interface{}) bool {
 		// Retrieve the actual object from the main tree using the key
@@ -177,10 +198,14 @@ func (tree *IndexedTree) QueryByField(typeName, field, value string) ([]Indexabl
 	return values, len(values) > 0
 }
 
-// NewIndex creates an index for a specific field if it doesn't already exist
-func (tree *IndexedTree) NewIndex(field string) {
-	if _, exists := tree.indexes[field]; !exists {
-		tree.indexes[field] = &index{Tree: NewTree()}
+// NewIndex creates an index for a specific type and field if it doesn't already exist.
+func (tree *IndexedTree) NewIndex(typeName, field string) {
+	indexKey := getIndexKey(typeName, field)
+	if _, exists := tree.indexes[indexKey]; !exists {
+		tree.indexes[indexKey] = &index{
+			field: field,
+			Tree:  NewTree(),
+		}
 	}
 }
 
@@ -213,8 +238,12 @@ func (tree *IndexedTree) Render() string {
 	result += "Indexes:\n"
 	for field, index := range tree.indexes {
 		count := index.Size()
-		result += "  Field: " + field + ", Count: " + ufmt.Sprintf("%d", count) + "\n"
+		result += "  IndexKey: " + field + ", Count: " + ufmt.Sprintf("%d", count) + "\n"
 	}
 
 	return result
+}
+
+func getIndexKey(typeName, field string) string {
+	return ufmt.Sprintf("%s|%s", typeName, field)
 }
