@@ -137,7 +137,6 @@ func (tree *IndexedTree) Get(key string) (value Indexable, exists bool) {
 }
 
 // QueryByField retrieves objects based on a specific field value
-// QueryByField retrieves objects based on a specific field value
 func (tree *IndexedTree) QueryByField(field string, value string) ([]Indexable, bool) {
 	index, ok := tree.indexes[field]
 	if !ok {
