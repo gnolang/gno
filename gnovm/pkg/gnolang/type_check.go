@@ -219,10 +219,10 @@ func assertAssignableTo(xt, dt Type, autoNative bool) {
 func checkValConstType(d *ValueDecl) {
 	if d.Type != nil {
 		switch d.Type.(type) {
-		case *BasicLitExpr, *NameExpr:
+		case *BasicLitExpr, *NameExpr, *constTypeExpr:
 			// Valid constant type expression, in case of NameExpr should evaluate if underlying type is a basic type
 		default:
-			panic("const type should be a basic type")
+			panic(fmt.Sprintf("invalid type for const: %v", d.Type.String()))
 		}
 	}
 	for _, vx := range d.Values {
@@ -243,7 +243,7 @@ func checkValConstValue(expr Expr) {
 	case *CallExpr:
 		checkValConstValue(x.Func)
 	default:
-		panic("const values should be basic literals")
+		panic(fmt.Sprintf("invalid value for const: %v", expr.String()))
 	}
 }
 

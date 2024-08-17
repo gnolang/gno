@@ -461,9 +461,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					d := n.(Decl)
 					if cd, ok := d.(*ValueDecl); ok {
 						checkValDefineMismatch(cd)
-						if cd.Const {
-							checkValConstType(cd)
-						}
 					}
 					// recursively predefine dependencies.
 					d2, ppd := predefineNow(store, last, d)
@@ -1342,6 +1339,17 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					}
+					// } else if fv.PkgPath == uversePkgPath && fv.Name == "len" {
+					// 	if len(n.Args) == 1 {
+					// 		// If the argument is a const string, set it to const expr.
+					// 		if arg0, ok := n.Args[0].(*ConstExpr); ok && evalStaticTypeOf(store, last, n.Args[0]).Kind() == StringKind {
+					// 			ct := evalStaticTypeOf(store, last, n.Args[0])
+					// 			convertConst(store, last, arg0, ct)
+					// 			fmt.Println(reflect.TypeOf(n))
+					// 			evalConst(store, last, n.Func)
+					// 		}
+					// 	}
+					// }
 				}
 
 				// Continue with general case.
@@ -2159,8 +2167,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if n.Const {
 					// NOTE: may or may not be a *ConstExpr,
 					// but if not, make one now.
-					for i, vx := range n.Values {
-						n.Values[i] = evalConst(store, last, vx)
+					for _, vx := range n.Values {
+						if !isConst(vx) {
+							if _, ok := vx.(*CallExpr); !ok {
+								panic(fmt.Sprintf("const expression is not valid %s", vx.String()))
+							}
+						}
 					}
 				} else {
 					// value(s) may already be *ConstExpr, but
