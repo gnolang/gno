@@ -2167,13 +2167,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if n.Const {
 					// NOTE: may or may not be a *ConstExpr,
 					// but if not, make one now.
-					for _, vx := range n.Values {
+					for i, vx := range n.Values {
 						if !isConst(vx) {
 							if _, ok := vx.(*CallExpr); !ok && !isSpecialConstValueCase(store, last, vx) {
 								panic(fmt.Sprintf("const expression is not valid %s", vx.String()))
 							}
 						}
-						evalConst(store, last, vx)
+						n.Values[i] = evalConst(store, last, vx)
 					}
 				} else {
 					// value(s) may already be *ConstExpr, but

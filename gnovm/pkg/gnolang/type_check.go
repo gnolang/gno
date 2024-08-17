@@ -222,7 +222,12 @@ func isSpecialConstValueCase(store Store, last BlockNode, expr Expr) bool {
 		if cx, ok := x.Func.(*ConstExpr); ok {
 			fv := cx.GetFunc()
 			if fv.PkgPath == uversePkgPath && fv.Name == "len" && len(x.Args) == 1 {
-				if _, ok := x.Args[0].(*ConstExpr); ok || evalStaticTypeOf(store, last, x.Args[0]).Kind() == ArrayKind {
+				t := evalStaticTypeOf(store, last, x.Args[0])
+				if _, ok := t.(*PointerType); ok {
+					t = t.Elem()
+				}
+				_, ok := x.Args[0].(*ConstExpr)
+				if (ok && t.Kind() == StringKind) || t.Kind() == ArrayKind {
 					return true
 				}
 			}
