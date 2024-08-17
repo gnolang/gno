@@ -137,6 +137,7 @@ func (tree *IndexedTree) Get(key string) (value Indexable, exists bool) {
 }
 
 // QueryByField retrieves objects based on a specific field value
+// QueryByField retrieves objects based on a specific field value
 func (tree *IndexedTree) QueryByField(field string, value string) ([]Indexable, bool) {
 	index, ok := tree.indexes[field]
 	if !ok {
@@ -144,15 +145,15 @@ func (tree *IndexedTree) QueryByField(field string, value string) ([]Indexable, 
 	}
 
 	var values []Indexable
+	// Use prefix-based iteration to limit the range of keys scanned
+	start := value + "|"
+	end := value + string('|'+1)
 
-	// Iterate through the index tree to find matching objects
-	index.Iterate("", "", func(key string, val interface{}) bool {
+	index.Iterate(start, end, func(key string, val interface{}) bool {
 		// Retrieve the actual object from the main tree using the key
 		if obj, exists := tree.mainTree.Get(val.(string)); exists {
 			if idxObj, ok := obj.(Indexable); ok {
-				if idxObj.Value(field) == value {
-					values = append(values, idxObj)
-				}
+				values = append(values, idxObj)
 			}
 		}
 		return false
