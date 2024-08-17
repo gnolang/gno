@@ -215,6 +215,23 @@ func assertAssignableTo(xt, dt Type, autoNative bool) {
 	}
 }
 
+func isSpecialConstValueCase(store Store, last BlockNode, expr Expr) bool {
+	switch x := expr.(type) {
+	case *CallExpr:
+		if cx, ok := x.Func.(*ConstExpr); ok {
+			fv := cx.GetFunc()
+			if fv.PkgPath == uversePkgPath && fv.Name == "len" && len(x.Args) == 1 && evalStaticTypeOf(store, last, x.Args[0]).Kind() == StringKind {
+				if _, ok := x.Args[0].(*ConstExpr); ok {
+					return true
+				}
+			}
+		}
+	default:
+		return false
+	}
+	return false
+}
+
 // checkValConstType checks the type and values are valid for a ValueDecl of const.
 func checkValConstType(d *ValueDecl) {
 	if d.Type != nil {
