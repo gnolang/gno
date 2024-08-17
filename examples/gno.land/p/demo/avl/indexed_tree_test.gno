@@ -229,7 +229,7 @@ func TestQueryByNonExistentField(t *testing.T) {
 	urequire.Equal(t, 0, len(values), ufmt.Sprintf("Expected 0 values for non-existent field, but got %d", len(values)))
 }
 
-func BenchmarkIndexedTree(b *testing.B) {
+func BenchmarkIndexedTreeQuery(b *testing.B) {
 	tree := NewIndexedTree()
 
 	// Specify which fields to index
