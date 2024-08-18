@@ -191,6 +191,10 @@ type PointerValue struct {
 }
 
 func (pv *PointerValue) Addressable() {
+	if pv.TV == nil {
+		return
+	}
+
 	pv.TV.NotAddressable = false
 	if iface, ok := pv.TV.V.(Addressable); ok {
 		iface.Addressable()
