@@ -310,6 +310,25 @@ func main() {
 //     "Values": [
 //         {
 //             "T": {
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/p/demo/avl.Node"
+//                 }
+//             },
+//             "V": {
+//                 "@type": "/gno.PointerValue",
+//                 "Base": {
+//                     "@type": "/gno.RefValue",
+//                     "Hash": "1faa9fa4ba1935121a6d3f0a623772e9d4499b0a",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10"
+//                 },
+//                 "Index": "0",
+//                 "TV": null
+//             }
+//         },
+//         {
+//             "T": {
 //                 "@type": "/gno.FuncType",
 //                 "Params": [],
 //                 "Results": []
@@ -323,7 +342,7 @@ func main() {
 //                 },
 //                 "FileName": "main.gno",
 //                 "IsMethod": false,
-//                 "Name": "init.0",
+//                 "Name": "init.1",
 //                 "NativeName": "",
 //                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/test",
@@ -378,25 +397,6 @@ func main() {
 //                     "Params": [],
 //                     "Results": []
 //                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/p/demo/avl.Node"
-//                 }
-//             },
-//             "V": {
-//                 "@type": "/gno.PointerValue",
-//                 "Base": {
-//                     "@type": "/gno.RefValue",
-//                     "Hash": "1faa9fa4ba1935121a6d3f0a623772e9d4499b0a",
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:10"
-//                 },
-//                 "Index": "0",
-//                 "TV": null
 //             }
 //         }
 //     ]
