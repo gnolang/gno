@@ -14,6 +14,7 @@ env:
 
 jobs:
   benchmarks:
+    ### TODO: change
     if: ${{ github.repository == 'sw360cab/gno' }}
     runs-on: ubuntu-latest
     steps:
@@ -21,23 +22,37 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 1
+    
     - uses: actions/setup-go@v5
       with:
         go-version: "1.22.x"
-    - name: Run benchmark
-      run: go test -benchmem -bench=. -run=^$ github.com/gnolang/gno/tm2/pkg/db/goleveldb/ -cpu 1,2 ${{ inputs.test-flags }} | tee benchmarks.txt
 
+    - name: Run benchmark
+      run: go test -benchmem -bench=. -run=^$ github.com/gnolang/gno/ -cpu 1,2 ${{ inputs.test-flags }} | tee benchmarks.txt
+
+    - name: Download previous benchmark data
+      uses: actions/cache@v4
+      with:
+        path: ./cache
+        key: ${{ runner.os }}-benchmark
+    
     - name: Store benchmark result - separate results repo
       uses: benchmark-action/github-action-benchmark@v1
+      # see https://github.com/benchmark-action/github-action-benchmark?tab=readme-ov-file#action-inputs
       with:
+        ### TODO: change
         name: Go Benchmark
         tool: 'go'
         output-file-path: benchmarks.txt
+        # Where the previous data file is stored
+        external-data-json-path: ./cache/benchmark-data.json
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        auto-push: true
         # Show alert with commit comment on detecting possible performance regression
-        alert-threshold: '200%'
+        alert-threshold: '150%'
+        fail-on-alert: true
         comment-on-alert: true
-        # fail-on-alert: true
-        # alert-comment-cc-users: '@ajnavarro'
-        # gh-repository: 'github.com/gnolang/benchmarks'
+        # Enable Job Summary for PRs
+        summary-always: true
+        ### gh-repository: 'github.com/gnolang/benchmarks' # on gh-pages branch
+        auto-push: ${{ inputs.publish }}
+        ### alert-comment-cc-users: '@ajnavarro'
