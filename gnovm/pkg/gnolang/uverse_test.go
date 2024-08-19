@@ -209,3 +209,67 @@ func main() {
 		assertOutput(t, tc.code, tc.expected)
 	}
 }
+
+func TestGetCapacityPointerSlice(t *testing.T) {
+	tests := []struct {
+		name     string
+		code     string
+		expected string
+	}{
+		{
+			name: "cap of pointer to array",
+			code: `
+package test
+
+func main() {
+	exp := [...]string{"HELLO"}
+	x := cap(&exp)
+	println(x)
+}`,
+			expected: "1\n",
+		},
+		{
+			name: "cap of array",
+			code: `
+package test
+
+func main() {
+	exp := [...]int{1, 2, 3, 4, 5}
+	println(cap(exp))
+}`,
+			expected: "5\n",
+		},
+		{
+			name: "cap of slice",
+			code: `
+package test
+
+func main() {
+	slice := make([]int, 3, 5)
+	println(cap(slice))
+}`,
+			expected: "5\n",
+		},
+		{
+			name: "cap of nil slice",
+			code: `
+package test
+
+func main() {
+	var slice []int
+	println(cap(slice))
+}`,
+			expected: "0\n",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			m := NewMachine("test", nil)
+			n := MustParseFile("main.go", tc.code)
+			m.RunFiles(n)
+			m.RunMain()
+			assertOutput(t, tc.code, tc.expected)
+		})
+	}
+}

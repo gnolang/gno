@@ -2183,6 +2183,11 @@ func (tv *TypedValue) GetCapacity() int {
 		return cv.GetCapacity()
 	case *NativeValue:
 		return cv.Value.Cap()
+	case PointerValue:
+		if av, ok := cv.TV.V.(*ArrayValue); ok {
+			return av.GetCapacity()
+		}
+		panic(fmt.Sprintf("unexpected pointer value for cap(): %s", tv.T.String()))
 	default:
 		panic(fmt.Sprintf("unexpected type for cap(): %s",
 			tv.T.String()))
