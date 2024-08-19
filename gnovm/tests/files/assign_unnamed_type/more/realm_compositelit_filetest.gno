@@ -40,7 +40,7 @@ func main() {
 //             }
 //         }
 //     ],
-//     "NotAddressible": 0,
+//     "NotAddressable": "0",
 //     "ObjectInfo": {
 //         "ID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6",
 //         "ModTime": "0",
