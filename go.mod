@@ -5,9 +5,9 @@ go 1.22
 toolchain go1.22.4
 
 require (
-	dario.cat/mergo v1.0.0
+	dario.cat/mergo v1.0.1
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4
-	github.com/btcsuite/btcd/btcutil v1.1.5
+	github.com/btcsuite/btcd/btcutil v1.1.6
 	github.com/cockroachdb/apd/v3 v3.2.1
 	github.com/cosmos/ledger-cosmos-go v0.13.3
 	github.com/davecgh/go-spew v1.1.1
