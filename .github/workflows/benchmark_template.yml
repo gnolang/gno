@@ -44,7 +44,7 @@ jobs:
         tool: 'go'
         output-file-path: benchmarks.txt
         # Where the previous data file is stored
-        external-data-json-path: ./cache/benchmark-data.json
+        external-data-json-path: ${{ !inputs.publish }} && "./cache/benchmark-data.json" || ""
         github-token: ${{ secrets.GITHUB_TOKEN }}
         # Show alert with commit comment on detecting possible performance regression
         alert-threshold: '150%'
