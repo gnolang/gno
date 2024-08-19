@@ -2149,6 +2149,11 @@ func (tv *TypedValue) GetLength() int {
 		return cv.GetLength()
 	case *NativeValue:
 		return cv.Value.Len()
+	case PointerValue:
+		if av, ok := cv.TV.V.(*ArrayValue); ok {
+			return av.GetLength()
+		}
+		panic(fmt.Sprintf("unexpected pointer value for len(): %s", tv.T.String()))
 	default:
 		panic(fmt.Sprintf("unexpected type for len(): %s",
 			tv.T.String()))

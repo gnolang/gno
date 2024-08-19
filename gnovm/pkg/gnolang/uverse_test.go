@@ -4,14 +4,14 @@ import (
 	"testing"
 )
 
-type printlnTestCases struct {
+type uverseTestCases struct {
 	name     string
 	code     string
 	expected string
 }
 
 func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
-	test := []printlnTestCases{
+	test := []uverseTestCases{
 		{
 			name: "print empty slice",
 			code: `package test
@@ -156,5 +156,56 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 			m.RunMain()
 			assertOutput(t, tc.code, tc.expected)
 		})
+	}
+}
+
+func TestIssue2707PointerSliceAsParamInLen(t *testing.T) {
+	tests := []uverseTestCases{
+		{
+			name: "pointer slice as param in len",
+			code: `
+package test
+
+func main() {
+	exp := [...]string{"HELLO"}
+	x := len(&exp)
+	println(x)
+}
+			`,
+			expected: "1\n",
+		},
+		{
+			name: "len of array",
+			code: `
+package test
+
+func main() {
+	exp := [...]string{"HELLO", "WORLD"}
+	println(len(exp))
+}
+			`,
+			expected: "2\n",
+		},
+		{
+			name: "len of pointer to array",
+			code: `
+package test
+
+func main() {
+	exp := [...]int{1, 2, 3, 4, 5}
+	ptr := &exp
+	println(len(ptr))
+}
+			`,
+			expected: "5\n",
+		},
+	}
+
+	for _, tc := range tests {
+		m := NewMachine("test", nil)
+		n := MustParseFile("main.go", tc.code)
+		m.RunFiles(n)
+		m.RunMain()
+		assertOutput(t, tc.code, tc.expected)
 	}
 }
