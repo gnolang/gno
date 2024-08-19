@@ -16,10 +16,15 @@ const (
 	KeyCtrlL KeyPress = '\x0c' // Ctrl+L
 	KeyCtrlO KeyPress = '\x0f' // Ctrl+O
 	KeyCtrlR KeyPress = '\x12' // Ctrl+R
+	KeyCtrlS KeyPress = '\x13' // Ctrl+S
 	KeyCtrlT KeyPress = '\x14' // Ctrl+T
 
 	KeyA KeyPress = 'A'
+	KeyE KeyPress = 'E'
 	KeyH KeyPress = 'H'
+	KeyI KeyPress = 'I'
+	KeyN KeyPress = 'N'
+	KeyP KeyPress = 'P'
 	KeyR KeyPress = 'R'
 )
 
@@ -43,6 +48,8 @@ func (k KeyPress) String() string {
 		return "Ctrl+O"
 	case KeyCtrlR:
 		return "Ctrl+R"
+	case KeyCtrlS:
+		return "Ctrl+S"
 	case KeyCtrlT:
 		return "Ctrl+T"
 	default:

@@ -1,9 +1,6 @@
 package bf
 
-import (
-	"bytes"
-	"testing"
-)
+import "testing"
 
 func TestExecuteBrainfuck(t *testing.T) {
 	testCases := []struct {

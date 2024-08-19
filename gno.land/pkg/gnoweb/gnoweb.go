@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -111,7 +112,7 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 	}
 	// realm routes
 	// NOTE: see rePathPart.
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt|mod)$)?}", handlerRealmFile(logger, app, &cfg))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:(?:.*\\.(?:gno|md|txt|mod)$)|(?:LICENSE$))?}", handlerRealmFile(logger, app, &cfg))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}", handlerRealmMain(logger, app, &cfg))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}:{querystr:.*}", handlerRealmRender(logger, app, &cfg))
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(logger, app, &cfg))
@@ -150,7 +151,7 @@ func handlerRealmAlias(logger *slog.Logger, app gotuna.App, cfg *Config, rlmpath
 		}
 		rlmname := strings.TrimPrefix(rlmfullpath, "gno.land/r/")
 		qpath := "vm/qrender"
-		data := []byte(fmt.Sprintf("%s\n%s", rlmfullpath, querystr))
+		data := []byte(fmt.Sprintf("%s:%s", rlmfullpath, querystr))
 		res, err := makeRequest(logger, cfg, qpath, data)
 		if err != nil {
 			writeError(logger, w, fmt.Errorf("gnoweb failed to query gnoland: %w", err))
@@ -323,7 +324,7 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 		return
 	}
 	qpath := "vm/qrender"
-	data := []byte(fmt.Sprintf("%s\n%s", rlmpath, querystr))
+	data := []byte(fmt.Sprintf("%s:%s", rlmpath, querystr))
 	res, err := makeRequest(logger, cfg, qpath, data)
 	if err != nil {
 		// XXX hack
@@ -335,6 +336,15 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 			return
 		}
 	}
+
+	dirdata := []byte(rlmpath)
+	dirres, err := makeRequest(logger, cfg, qFileStr, dirdata)
+	if err != nil {
+		writeError(logger, w, err)
+		return
+	}
+	hasReadme := bytes.Contains(append(dirres.Data, '\n'), []byte("README.md\n"))
+
 	// linkify querystr.
 	queryParts := strings.Split(querystr, "/")
 	pathLinks := []pathLink{}
@@ -354,6 +364,7 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 	tmpl.Set("PathLinks", pathLinks)
 	tmpl.Set("Contents", string(res.Data))
 	tmpl.Set("Config", cfg)
+	tmpl.Set("HasReadme", hasReadme)
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
 }
 
