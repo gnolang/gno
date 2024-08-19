@@ -6,7 +6,8 @@ import (
 
 // Get a list of keys starting from the given prefix. Limit the
 // number of results to maxResults.
-func ListKeysByPrefix(tree avl.Tree, prefix string, maxResults int) []string {
+// The prefix and keys are treated as byte strings, ignoring possible multi-byte Unicode runes.
+func ListByteStringKeysByPrefix(tree avl.Tree, prefix string, maxResults int) []string {
 	end := ""
 	n := len(prefix)
 	// To make the end of the search, increment the final character ASCII by one.

@@ -259,7 +259,7 @@ func GetUserByAddressOrName(input users.AddressOrName) *users.User {
 // Get a list of user names starting from the given prefix. Limit the
 // number of results to maxResults. (This can be used for a name search tool.)
 func ListUsersByPrefix(prefix string, maxResults int) []string {
-	return avlhelpers.ListKeysByPrefix(name2User, prefix, maxResults)
+	return avlhelpers.ListByteStringKeysByPrefix(name2User, prefix, maxResults)
 }
 
 func Resolve(input users.AddressOrName) std.Address {

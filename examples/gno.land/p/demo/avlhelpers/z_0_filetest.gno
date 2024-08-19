@@ -14,7 +14,7 @@ func main() {
 
 	{
 		// Empty tree.
-		matches := avlhelpers.ListKeysByPrefix(tree, "", 10)
+		matches := avlhelpers.ListByteStringKeysByPrefix(tree, "", 10)
 		println(ufmt.Sprintf("# matches: %d", len(matches)))
 	}
 
@@ -24,14 +24,14 @@ func main() {
 
 	{
 		// Match only alice.
-		matches := avlhelpers.ListKeysByPrefix(tree, "al", 10)
+		matches := avlhelpers.ListByteStringKeysByPrefix(tree, "al", 10)
 		println(ufmt.Sprintf("# matches: %d", len(matches)))
 		println("match: " + matches[0])
 	}
 
 	{
 		// Match alice and andy.
-		matches := avlhelpers.ListKeysByPrefix(tree, "a", 10)
+		matches := avlhelpers.ListByteStringKeysByPrefix(tree, "a", 10)
 		println(ufmt.Sprintf("# matches: %d", len(matches)))
 		println("match: " + matches[0])
 		println("match: " + matches[1])
@@ -39,7 +39,7 @@ func main() {
 
 	{
 		// Match alice and andy limited to 1.
-		matches := avlhelpers.ListKeysByPrefix(tree, "a", 1)
+		matches := avlhelpers.ListByteStringKeysByPrefix(tree, "a", 1)
 		println(ufmt.Sprintf("# matches: %d", len(matches)))
 		println("match: " + matches[0])
 	}
@@ -52,14 +52,14 @@ func main() {
 
 	{
 		// Match only "a\xff\xff".
-		matches := avlhelpers.ListKeysByPrefix(tree, "a\xff\xff", 10)
+		matches := avlhelpers.ListByteStringKeysByPrefix(tree, "a\xff\xff", 10)
 		println(ufmt.Sprintf("# matches: %d", len(matches)))
 		println(ufmt.Sprintf("match: %s", hex.EncodeToString([]byte(matches[0]))))
 	}
 
 	{
 		// Match "a\xff" and "a\xff\xff".
-		matches := avlhelpers.ListKeysByPrefix(tree, "a\xff", 10)
+		matches := avlhelpers.ListByteStringKeysByPrefix(tree, "a\xff", 10)
 		println(ufmt.Sprintf("# matches: %d", len(matches)))
 		println(ufmt.Sprintf("match: %s", hex.EncodeToString([]byte(matches[0]))))
 		println(ufmt.Sprintf("match: %s", hex.EncodeToString([]byte(matches[1]))))
@@ -67,7 +67,7 @@ func main() {
 
 	{
 		// Edge case: Match only "\xff\xff\x00".
-		matches := avlhelpers.ListKeysByPrefix(tree, "\xff\xff", 10)
+		matches := avlhelpers.ListByteStringKeysByPrefix(tree, "\xff\xff", 10)
 		println(ufmt.Sprintf("# matches: %d", len(matches)))
 		println(ufmt.Sprintf("match: %s", hex.EncodeToString([]byte(matches[0]))))
 	}
