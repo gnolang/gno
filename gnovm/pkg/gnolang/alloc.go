@@ -197,7 +197,7 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 	alloc.AllocateListArray(int64(n))
 	return &ArrayValue{
 		List:           make([]TypedValue, n),
-		NotAddressible: true,
+		NotAddressable: 1,
 	}
 }
 
@@ -205,7 +205,7 @@ func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 	alloc.AllocateDataArray(int64(n))
 	return &ArrayValue{
 		Data:           make([]byte, n),
-		NotAddressible: true,
+		NotAddressable: 1,
 	}
 }
 

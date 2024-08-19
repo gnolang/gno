@@ -715,7 +715,7 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 				}
 			}
 			tv.V = av
-			tv.NotAddressable = av.NotAddressible
+			tv.NotAddressable = av.NotAddressable
 		}
 	case reflect.Slice:
 		rvl := rv.Len()
