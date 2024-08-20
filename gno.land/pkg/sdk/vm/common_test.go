@@ -35,13 +35,13 @@ func setupTestEnvCold() testEnv {
 func _setupTestEnv(cacheStdlibs bool) testEnv {
 	db := memdb.NewMemDB()
 
-	iavlCapKey := store.NewStoreKey("iavlCapKey")
 	baseCapKey := store.NewStoreKey("baseCapKey")
+	iavlCapKey := store.NewStoreKey("iavlCapKey")
 
 	// Mount db store and iavlstore
 	ms := store.NewCommitMultiStore(db)
-	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
 	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())

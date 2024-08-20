@@ -1,3 +1,4 @@
+// Package gnoland contains the bootstrapping code to launch a gno.land node.
 package gnoland
 
 import (
@@ -26,42 +27,35 @@ import (
 	// Only goleveldb is supported for now.
 	_ "github.com/gnolang/gno/tm2/pkg/db/_tags"
 	_ "github.com/gnolang/gno/tm2/pkg/db/goleveldb"
-	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 )
 
+// AppOptions contains the options to create the gno.land ABCI application.
 type AppOptions struct {
-	DB          dbm.DB
-	Logger      *slog.Logger
-	EventSwitch events.EventSwitch
-	MaxCycles   int64
-	InitChainerConfig
-}
-
-func NewAppOptions() *AppOptions {
-	return &AppOptions{
-		Logger:      log.NewNoopLogger(),
-		DB:          memdb.NewMemDB(),
-		EventSwitch: events.NilEventSwitch(),
-		InitChainerConfig: InitChainerConfig{
-			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
-		},
-	}
+	DB                dbm.DB             // required
+	Logger            *slog.Logger       // defaults to log.NewNoopLogger()
+	EventSwitch       events.EventSwitch // defaults to events.NilEventSwitch()
+	MaxCycles         int64              // defaults to 0 (unlimited)
+	InitChainerConfig                    // options related to InitChainer
 }
 
 func (c *AppOptions) validate() error {
-	if c.Logger == nil {
-		return fmt.Errorf("no logger provided")
-	}
-
+	// Required fields
 	if c.DB == nil {
 		return fmt.Errorf("no db provided")
+	}
+
+	// Set defaults
+	if c.Logger == nil {
+		c.Logger = log.NewNoopLogger()
+	}
+	if c.EventSwitch == nil {
+		c.EventSwitch = events.NilEventSwitch()
 	}
 
 	return nil
 }
 
-// NewAppWithOptions creates the GnoLand application with specified options
+// NewAppWithOptions creates the gno.land application with specified options.
 func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
@@ -110,6 +104,11 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 			return
 		},
 	)
+
+	// Set begin and end transaction hooks.
+	// These are used to create gno transaction stores and commit them when finishing
+	// the tx - in other words, data from a failing transaction won't be persisted
+	// to the gno store caches.
 	baseApp.SetBeginTxHook(func(ctx sdk.Context) sdk.Context {
 		// Create Gno transaction store.
 		return vmk.MakeGnoTransactionStore(ctx)
@@ -162,7 +161,14 @@ func NewApp(
 ) (abci.Application, error) {
 	var err error
 
-	cfg := NewAppOptions()
+	cfg := &AppOptions{
+		Logger:      logger,
+		EventSwitch: evsw,
+		InitChainerConfig: InitChainerConfig{
+			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
+			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
+		},
+	}
 	if skipFailingGenesisTxs {
 		cfg.GenesisTxResultHandler = NoopGenesisTxResultHandler
 	}
@@ -172,9 +178,6 @@ func NewApp(
 	if err != nil {
 		return nil, fmt.Errorf("error initializing database %q using path %q: %w", dbm.GoLevelDBBackend, dataRootDir, err)
 	}
-
-	cfg.Logger = logger
-	cfg.EventSwitch = evsw
 
 	return NewAppWithOptions(cfg)
 }
@@ -195,6 +198,8 @@ func PanicOnFailingTxResultHandler(_ sdk.Context, _ std.Tx, res sdk.Result) {
 }
 
 // InitChainerConfig keeps the configuration for the InitChainer.
+// [NewAppWithOptions] will set [InitChainerConfig.InitChainer] as its InitChainer
+// function.
 type InitChainerConfig struct {
 	// Handles the results of each genesis transaction.
 	GenesisTxResultHandler
