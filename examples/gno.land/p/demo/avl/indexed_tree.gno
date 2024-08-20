@@ -171,8 +171,8 @@ func (tree *IndexedTree) QueryByField(typeName, field, value string) ([]Indexabl
 
 	var values []Indexable
 	// Use prefix-based iteration to limit the range of keys scanned
-	start := typeName + "|" + field + "|" + value
-	end := typeName + "|" + field + "|" + value + string('|'+1)
+	start := indexKey + "|" + value
+	end := start + string('|'+1)
 
 	index.Iterate(start, end, func(key string, val interface{}) bool {
 		// Retrieve the actual object from the main tree using the key
