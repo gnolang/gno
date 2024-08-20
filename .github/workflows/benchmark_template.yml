@@ -62,7 +62,7 @@ jobs:
         comment-on-alert: true
         # Enable Job Summary for PRs
         summary-always: true
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        github-token: ${{ secrets.PAT_TOKEN }}
         gh-repository: 'github.com/sw360cab/tarlz' # on gh-pages branch
         # benchmark-data-dir-path: /bench
         auto-push: ${{ inputs.publish }}
