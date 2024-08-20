@@ -1,10 +1,5 @@
 name: run benchmarks on main branch every day
 
-### TODO: change
-# on:
-#   workflow_dispatch:
-#   schedule:
-#     - cron:  '0 0 * * *' # run on default branch every day
 on:
   workflow_dispatch:
   schedule:
@@ -16,5 +11,4 @@ jobs:
     secrets: inherit
     with:
       publish: true
-      # test-flags: "-timeout 50m"
-      test-flags: "-short"
+      test-flags: "-timeout 50m"
