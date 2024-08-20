@@ -1,5 +1,6 @@
 name: run benchmarks on main branch every day
 
+### TODO: change
 # on:
 #   workflow_dispatch:
 #   schedule:
