@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -57,13 +58,13 @@ func (c *balancesAddCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.balanceSheet,
 		"balance-sheet",
 		"",
-		"the path to the balance file containing addresses in the format <address>=<amount>ugnot",
+		"the path to the balance file containing addresses in the format <address>=<amount>"+ugnot.Denom,
 	)
 
 	fs.Var(
 		&c.singleEntries,
 		"single",
-		"the direct balance addition in the format <address>=<amount>ugnot",
+		"the direct balance addition in the format <address>=<amount>"+ugnot.Denom,
 	)
 
 	fs.StringVar(
@@ -167,7 +168,7 @@ func execBalancesAdd(ctx context.Context, cfg *balancesAddCfg, io commands.IO) e
 	io.Println()
 
 	for address, balance := range finalBalances {
-		io.Printfln("%s:%dugnot", address.String(), balance)
+		io.Printfln("%s:%d%s", address.String(), balance, ugnot.Denom)
 	}
 
 	return nil
@@ -208,7 +209,7 @@ func getBalancesFromTransactions(
 			}
 
 			feeAmount := std.NewCoins(tx.Fee.GasFee)
-			if feeAmount.AmountOf("ugnot") <= 0 {
+			if feeAmount.AmountOf(ugnot.Denom) <= 0 {
 				io.ErrPrintfln(
 					"invalid gas fee amount encountered: %q",
 					tx.Fee.GasFee.String(),
@@ -223,7 +224,7 @@ func getBalancesFromTransactions(
 				msgSend := msg.(bank.MsgSend)
 
 				sendAmount := msgSend.Amount
-				if sendAmount.AmountOf("ugnot") <= 0 {
+				if sendAmount.AmountOf(ugnot.Denom) <= 0 {
 					io.ErrPrintfln(
 						"invalid send amount encountered: %s",
 						msgSend.Amount.String(),
@@ -248,7 +249,7 @@ func getBalancesFromTransactions(
 				if from.IsAllLT(sendAmount) || from.IsAllLT(feeAmount) {
 					// Account cannot cover send amount / fee
 					// (see message above)
-					from = std.NewCoins(std.NewCoin("ugnot", 0))
+					from = std.NewCoins(std.NewCoin(ugnot.Denom, 0))
 				}
 
 				if from.IsAllGT(sendAmount) {
