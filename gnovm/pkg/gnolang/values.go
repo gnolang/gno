@@ -195,15 +195,15 @@ func (pv *PointerValue) Addressable() {
 		return
 	}
 
-	if pv.TV.NotAddressable == -1 {
+	// if addressable
+	if !pv.TV.NotAddressable {
 		return
 	}
 
-	pv.TV.NotAddressable = -1
+	pv.TV.NotAddressable = false
 	if iface, ok := pv.TV.V.(Addressable); ok {
 		iface.Addressable()
 	}
-	pv.TV.NotAddressable = 0
 }
 
 const (
@@ -339,21 +339,20 @@ type ArrayValue struct {
 	ObjectInfo
 	List           []TypedValue
 	Data           []byte
-	NotAddressable int
+	NotAddressable bool
 }
 
 func (av *ArrayValue) Addressable() {
-	if av.NotAddressable == -1 {
+	// if addressable
+	if !av.NotAddressable {
 		return
 	}
 
-	av.NotAddressable = -1
+	av.NotAddressable = false
 
 	for i := range av.List {
 		av.List[i].Addressable()
 	}
-
-	av.NotAddressable = 0
 }
 
 // NOTE: Result should not be written to,
@@ -1008,20 +1007,20 @@ type TypedValue struct {
 	T              Type    `json:",omitempty"` // never nil
 	V              Value   `json:",omitempty"` // an untyped value
 	N              [8]byte `json:",omitempty"` // numeric bytes
-	NotAddressable int     `json:"-"`
+	NotAddressable bool    `json:"-"`
 }
 
 func (tv *TypedValue) Addressable() {
-	if tv.NotAddressable == -1 {
+	// if addressable
+	if !tv.NotAddressable {
 		return
 	}
-	tv.NotAddressable = -1
+	tv.NotAddressable = false
 	if p, ok := tv.V.(PointerValue); ok {
 		p.Addressable()
 	} else if iface, ok := tv.V.(Addressable); ok {
 		iface.Addressable()
 	}
-	tv.NotAddressable = 0
 }
 
 func (tv *TypedValue) IsDefined() bool {
@@ -2656,7 +2655,7 @@ func defaultTypedValue(alloc *Allocator, t Type) TypedValue {
 
 	dv := defaultValue(alloc, t)
 
-	var naddr int
+	var naddr bool
 
 	switch v := dv.(type) {
 	case *ArrayValue:

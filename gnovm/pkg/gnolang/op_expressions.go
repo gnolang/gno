@@ -17,7 +17,7 @@ func (m *Machine) doOpIndex1() {
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
 
-	if xv.NotAddressable != 0 {
+	if xv.NotAddressable {
 		panic(fmt.Sprintf("doOpIndex1: expr not addressable: %+v\n", xv))
 	}
 
@@ -50,7 +50,7 @@ func (m *Machine) doOpIndex2() {
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
 
-	if xv.NotAddressable != 0 {
+	if xv.NotAddressable {
 		panic(fmt.Sprintf("doOpIndex2: expr not addressable: %+v\n", xv))
 	}
 
@@ -116,7 +116,7 @@ func (m *Machine) doOpSlice() {
 	// slice base x
 	xv := m.PopValue()
 
-	if xv.NotAddressable != 0 {
+	if xv.NotAddressable {
 		panic(fmt.Sprintf("doOpSlice: expr not addressable: %+v\n", xv))
 	}
 
