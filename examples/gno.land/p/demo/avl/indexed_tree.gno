@@ -101,17 +101,8 @@ func (tree *IndexedTree) Has(key string) (has bool) {
 }
 
 func (tree *IndexedTree) Set(key string, value Indexable) (updated bool) {
-	// Retrieve the old value (if exists) before overwriting
-	oldValue, exists := tree.mainTree.Get(key)
-
 	// Set the new value in the main tree
 	updated = tree.mainTree.Set(key, value)
-
-	// If there was an existing value, remove its indexes
-	if exists {
-		oldIndexable, _ := oldValue.(Indexable)
-		tree.updateIndexes(key, oldIndexable, true)
-	}
 
 	// Update indexes with the new value
 	tree.updateIndexes(key, value, false)
