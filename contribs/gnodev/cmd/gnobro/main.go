@@ -227,6 +227,7 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 
 	model := browser.New(bcfg, gnocl)
 	p := tea.NewProgram(model,
+		tea.WithContext(ctx),
 		tea.WithAltScreen(),       // use the full size of the terminal in its "alternate screen buffer"
 		tea.WithMouseCellMotion(), // turn on mouse support so we can track the mouse wheel
 	)
@@ -266,13 +267,6 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 
 		_, err := p.Run()
 		return err
-	})
-
-	errgs.Go(func() error {
-		defer p.Quit()
-
-		<-ctx.Done()
-		return ctx.Err()
 	})
 
 	if err := errgs.Wait(); err != nil && !errors.Is(err, context.Canceled) {
