@@ -17,10 +17,6 @@ func (m *Machine) doOpIndex1() {
 	iv := m.PopValue()   // index
 	xv := m.PeekValue(1) // x
 
-	if xv.NotAddressable {
-		panic(fmt.Sprintf("doOpIndex1: expr not addressable: %+v\n", xv))
-	}
-
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
 		mv := xv.V.(*MapValue)
@@ -49,10 +45,6 @@ func (m *Machine) doOpIndex2() {
 	}
 	iv := m.PeekValue(1) // index
 	xv := m.PeekValue(2) // x
-
-	if xv.NotAddressable {
-		panic(fmt.Sprintf("doOpIndex2: expr not addressable: %+v\n", xv))
-	}
 
 	switch ct := baseOf(xv.T).(type) {
 	case *MapType:
