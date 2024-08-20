@@ -35,9 +35,11 @@ jobs:
         go-version: "1.22.x"
 
     - name: Run benchmark
+      # TODO: change
       run: |
         go test -benchmem -bench=. ./... -run=^$ \
         -cpu 1,2 ${{ inputs.test-flags }} | tee benchmarks.txt
+      # go test -benchmem -bench=. ./... -run=^$ -skip=^BenchmarkPreprocess$ \
 
     - name: Download previous benchmark data
       uses: actions/cache@v4
