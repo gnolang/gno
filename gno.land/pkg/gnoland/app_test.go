@@ -1,6 +1,7 @@
 package gnoland
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -8,12 +9,91 @@ import (
 
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
-	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
+	"github.com/gnolang/gno/tm2/pkg/store/iavl"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// Tests that NewAppWithOptions works even when only providing a simple DB.
+func TestNewAppWithOptions(t *testing.T) {
+	app, err := NewAppWithOptions(&AppOptions{DB: memdb.NewMemDB()})
+	require.NoError(t, err)
+	bapp := app.(*sdk.BaseApp)
+	assert.Equal(t, "dev", bapp.AppVersion())
+	assert.Equal(t, "gnoland", bapp.Name())
+}
+
+func TestNewAppWithOptions_ErrNoDB(t *testing.T) {
+	_, err := NewAppWithOptions(&AppOptions{})
+	assert.ErrorContains(t, err, "no db provided")
+}
+
+// Test whether InitChainer calls to load the stdlibs correctly.
+func TestInitChainer_LoadStdlib(t *testing.T) {
+	t.Run("cached", func(t *testing.T) { testInitChainerLoadStdlib(t, true) })
+	t.Run("uncached", func(t *testing.T) { testInitChainerLoadStdlib(t, false) })
+}
+
+func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
+	type gsContextType string
+	const (
+		stdlibDir                   = "test-stdlib-dir"
+		gnoStoreKey   gsContextType = "gno-store-key"
+		gnoStoreValue gsContextType = "gno-store-value"
+	)
+	db := memdb.NewMemDB()
+	ms := store.NewCommitMultiStore(db)
+	baseCapKey := store.NewStoreKey("baseCapKey")
+	iavlCapKey := store.NewStoreKey("iavlCapKey")
+
+	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
+	ms.LoadLatestVersion()
+	testCtx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+
+	containsGnoStore := func(ctx sdk.Context) bool {
+		return ctx.Context().Value(gnoStoreKey) == gnoStoreValue
+	}
+	loadStdlib := func(ctx sdk.Context, dir string) {
+		assert.Equal(t, stdlibDir, dir, "stdlibDir should match provided dir")
+		assert.True(t, containsGnoStore(ctx), "should contain gno store")
+	}
+	mock := &mockVMKeeper{
+		makeGnoTransactionStoreFn: func(ctx sdk.Context) sdk.Context {
+			assert.False(t, containsGnoStore(ctx), "should not already contain gno store")
+			return ctx.WithContext(context.WithValue(ctx.Context(), gnoStoreKey, gnoStoreValue))
+		},
+		commitGnoTransactionStoreFn: func(ctx sdk.Context) {
+			assert.True(t, containsGnoStore(ctx), "should contain gno store")
+		},
+		loadStdlibFn:       loadStdlib,
+		loadStdlibCachedFn: loadStdlib,
+		calls:              make(map[string]int),
+	}
+	cfg := InitChainerConfig{
+		StdlibDir:       stdlibDir,
+		vmKpr:           mock,
+		CacheStdlibLoad: cached,
+	}
+	cfg.InitChainer(testCtx, abci.RequestInitChain{})
+	exp := map[string]int{
+		"MakeGnoTransactionStore":   1,
+		"CommitGnoTransactionStore": 1,
+	}
+	if cached {
+		exp["LoadStdlibCached"] = 1
+	} else {
+		exp["LoadStdlib"] = 1
+	}
+	assert.Equal(t, mock.calls, exp)
+}
 
 // generateValidatorUpdates generates dummy validator updates
 func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
@@ -81,7 +161,7 @@ func TestEndBlocker(t *testing.T) {
 	t.Run("no collector events", func(t *testing.T) {
 		t.Parallel()
 
-		noFilter := func(e events.Event) []validatorUpdate {
+		noFilter := func(_ events.Event) []validatorUpdate {
 			return []validatorUpdate{}
 		}
 
@@ -102,7 +182,7 @@ func TestEndBlocker(t *testing.T) {
 		t.Parallel()
 
 		var (
-			noFilter = func(e events.Event) []validatorUpdate {
+			noFilter = func(_ events.Event) []validatorUpdate {
 				return make([]validatorUpdate, 1) // 1 update
 			}
 
@@ -145,7 +225,7 @@ func TestEndBlocker(t *testing.T) {
 		t.Parallel()
 
 		var (
-			noFilter = func(e events.Event) []validatorUpdate {
+			noFilter = func(_ events.Event) []validatorUpdate {
 				return make([]validatorUpdate, 1) // 1 update
 			}
 
@@ -227,8 +307,8 @@ func TestEndBlocker(t *testing.T) {
 		}
 
 		// Fire the tx result event
-		txEvent := types.EventTx{
-			Result: types.TxResult{
+		txEvent := bft.EventTx{
+			Result: bft.TxResult{
 				Response: abci.ResponseDeliverTx{
 					ResponseBase: abci.ResponseBase{
 						Events: vmEvents,

@@ -33,7 +33,7 @@ import (
 type AppOptions struct {
 	DB                dbm.DB             // required
 	Logger            *slog.Logger       // defaults to log.NewNoopLogger()
-	EventSwitch       events.EventSwitch // defaults to events.NilEventSwitch()
+	EventSwitch       events.EventSwitch // defaults to events.NewEventSwitch()
 	MaxCycles         int64              // defaults to 0 (unlimited)
 	InitChainerConfig                    // options related to InitChainer
 }
@@ -49,7 +49,7 @@ func (c *AppOptions) validate() error {
 		c.Logger = log.NewNoopLogger()
 	}
 	if c.EventSwitch == nil {
-		c.EventSwitch = events.NilEventSwitch()
+		c.EventSwitch = events.NewEventSwitch()
 	}
 
 	return nil
@@ -152,7 +152,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	return baseApp, nil
 }
 
-// NewApp creates the GnoLand application.
+// NewApp creates the gno.land application.
 func NewApp(
 	dataRootDir string,
 	skipFailingGenesisTxs bool,

@@ -121,26 +121,41 @@ func (vm *VMKeeper) Initialize(
 	}
 }
 
+type stdlibCache struct {
+	dir  string
+	base store.Store
+	iavl store.Store
+	gno  gno.Store
+}
+
 var (
 	cachedStdlibOnce sync.Once
-	cachedStdlibBase store.Store
-	cachedStdlibIavl store.Store
-	cachedGnoStore   gno.Store
+	cachedStdlib     stdlibCache
 )
 
 // LoadStdlib loads the Gno standard library into the given store.
 func (vm *VMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
 	cachedStdlibOnce.Do(func() {
-		cachedStdlibBase = dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{})
-		cachedStdlibIavl = dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{})
+		cachedStdlib = stdlibCache{
+			dir:  stdlibDir,
+			base: dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{}),
+			iavl: dbadapter.StoreConstructor(memdb.NewMemDB(), types.StoreOptions{}),
+		}
 
-		cachedGnoStore = gno.NewStore(nil, cachedStdlibBase, cachedStdlibIavl)
-		cachedGnoStore.SetNativeStore(stdlibs.NativeStore)
-		loadStdlib(cachedGnoStore, stdlibDir)
+		gs := gno.NewStore(nil, cachedStdlib.base, cachedStdlib.iavl)
+		gs.SetNativeStore(stdlibs.NativeStore)
+		loadStdlib(gs, stdlibDir)
+		cachedStdlib.gno = gs
 	})
 
+	if stdlibDir != cachedStdlib.dir {
+		panic(fmt.Sprintf(
+			"cannot load cached stdlib: cached stdlib is in dir %q; wanted to load stdlib in dir %q",
+			cachedStdlib.dir, stdlibDir))
+	}
+
 	gs := vm.getGnoTransactionStore(ctx)
-	gno.CopyFromCachedStore(gs, cachedGnoStore, cachedStdlibBase, cachedStdlibIavl)
+	gno.CopyFromCachedStore(gs, cachedStdlib.gno, cachedStdlib.base, cachedStdlib.iavl)
 }
 
 // LoadStdlib loads the Gno standard library into the given store.
