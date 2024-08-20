@@ -3,7 +3,6 @@ package gnoland
 import (
 	"fmt"
 	"log/slog"
-	"sync"
 	"time"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -11,7 +10,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	"github.com/gnolang/gno/tm2/pkg/bft/proxy"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -33,8 +31,8 @@ func NewMockedPrivValidator() bft.PrivValidator {
 	return bft.NewMockPVWithParams(ed25519.GenPrivKey(), false, false)
 }
 
-// NewInMemoryNodeConfig creates a default configuration for an in-memory node.
-func NewDefaultGenesisConfig(pk crypto.PubKey, chainid string) *bft.GenesisDoc {
+// NewDefaultGenesisConfig creates a default configuration for an in-memory node.
+func NewDefaultGenesisConfig(chainid string) *bft.GenesisDoc {
 	return &bft.GenesisDoc{
 		GenesisTime: time.Now(),
 		ChainID:     chainid,
@@ -42,7 +40,7 @@ func NewDefaultGenesisConfig(pk crypto.PubKey, chainid string) *bft.GenesisDoc {
 			Block: &abci.BlockParams{
 				MaxTxBytes:   1_000_000,   // 1MB,
 				MaxDataBytes: 2_000_000,   // 2MB,
-				MaxGas:       100_000_000, // 10M gas
+				MaxGas:       100_000_000, // 100M gas
 				TimeIotaMS:   100,         // 100ms
 			},
 		},
@@ -87,6 +85,8 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		return nil, fmt.Errorf("validate config error: %w", err)
 	}
 
+	evsw := events.NewEventSwitch()
+
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
 		Logger:           logger,
@@ -94,6 +94,8 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		GenesisTxHandler: cfg.GenesisTxHandler,
 		MaxCycles:        cfg.GenesisMaxVMCycles,
 		DB:               memdb.NewMemDB(),
+		EventSwitch:      evsw,
+		CacheStdlibLoad:  true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
@@ -114,8 +116,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 
 	dbProvider := func(*node.DBContext) (db.DB, error) { return memdb.NewMemDB(), nil }
 
-	// generate p2p node identity
-	// XXX: do we need to configur
+	// Generate p2p node identity
 	nodekey := &p2p.NodeKey{PrivKey: ed25519.GenPrivKey()}
 
 	// Create and return the in-memory node instance
@@ -124,32 +125,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 		appClientCreator,
 		genProvider,
 		dbProvider,
+		evsw,
 		logger,
 	)
-}
-
-// GetNodeReadiness waits until the node is ready, signaling via the EventNewBlock event.
-// XXX: This should be replace by https://github.com/gnolang/gno/pull/1216
-func GetNodeReadiness(n *node.Node) <-chan struct{} {
-	const listenerID = "first_block_listener"
-
-	var once sync.Once
-
-	nb := make(chan struct{})
-	ready := func() {
-		close(nb)
-		n.EventSwitch().RemoveListener(listenerID)
-	}
-
-	n.EventSwitch().AddListener(listenerID, func(ev events.Event) {
-		if _, ok := ev.(bft.EventNewBlock); ok {
-			once.Do(ready)
-		}
-	})
-
-	if n.BlockStore().Height() > 0 {
-		once.Do(ready)
-	}
-
-	return nb
 }

@@ -14,12 +14,8 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	"go.uber.org/multierr"
 )
-
-type modDownloadCfg struct {
-	remote  string
-	verbose bool
-}
 
 func newModCmd(io commands.IO) *commands.Command {
 	cmd := commands.NewCommand(
@@ -73,15 +69,17 @@ func newModInitCmd() *commands.Command {
 }
 
 func newModTidy(io commands.IO) *commands.Command {
+	cfg := &modTidyCfg{}
+
 	return commands.NewCommand(
 		commands.Metadata{
 			Name:       "tidy",
-			ShortUsage: "tidy",
+			ShortUsage: "tidy [flags]",
 			ShortHelp:  "add missing and remove unused modules",
 		},
-		commands.NewEmptyConfig(),
+		cfg,
 		func(_ context.Context, args []string) error {
-			return execModTidy(args, io)
+			return execModTidy(cfg, args, io)
 		},
 	)
 }
@@ -124,11 +122,16 @@ For example:
 	)
 }
 
+type modDownloadCfg struct {
+	remote  string
+	verbose bool
+}
+
 func (c *modDownloadCfg) RegisterFlags(fs *flag.FlagSet) {
 	fs.StringVar(
 		&c.remote,
 		"remote",
-		"test3.gno.land:36657",
+		"test3.gno.land:26657",
 		"remote for fetching gno modules",
 	)
 
@@ -211,7 +214,27 @@ func execModInit(args []string) error {
 	return nil
 }
 
-func execModTidy(args []string, io commands.IO) error {
+type modTidyCfg struct {
+	verbose   bool
+	recursive bool
+}
+
+func (c *modTidyCfg) RegisterFlags(fs *flag.FlagSet) {
+	fs.BoolVar(
+		&c.verbose,
+		"v",
+		false,
+		"verbose output when running",
+	)
+	fs.BoolVar(
+		&c.recursive,
+		"recursive",
+		false,
+		"walk subdirs for gno.mod files",
+	)
+}
+
+func execModTidy(cfg *modTidyCfg, args []string, io commands.IO) error {
 	if len(args) > 0 {
 		return flag.ErrHelp
 	}
@@ -220,7 +243,34 @@ func execModTidy(args []string, io commands.IO) error {
 	if err != nil {
 		return err
 	}
-	fname := filepath.Join(wd, "gno.mod")
+
+	if cfg.recursive {
+		pkgs, err := gnomod.ListPkgs(wd)
+		if err != nil {
+			return err
+		}
+		var errs error
+		for _, pkg := range pkgs {
+			err := modTidyOnce(cfg, wd, pkg.Dir, io)
+			errs = multierr.Append(errs, err)
+		}
+		return errs
+	}
+
+	// XXX: recursively check parents if no $PWD/gno.mod
+	return modTidyOnce(cfg, wd, wd, io)
+}
+
+func modTidyOnce(cfg *modTidyCfg, wd, pkgdir string, io commands.IO) error {
+	fname := filepath.Join(pkgdir, "gno.mod")
+	relpath, err := filepath.Rel(wd, fname)
+	if err != nil {
+		return err
+	}
+	if cfg.verbose {
+		io.ErrPrintfln("%s", relpath)
+	}
+
 	gm, err := gnomod.ParseGnoMod(fname)
 	if err != nil {
 		return err
@@ -231,7 +281,7 @@ func execModTidy(args []string, io commands.IO) error {
 		gm.DropRequire(r.Mod.Path)
 	}
 
-	imports, err := getGnoPackageImports(wd)
+	imports, err := getGnoPackageImports(pkgdir)
 	if err != nil {
 		return err
 	}
@@ -241,6 +291,9 @@ func execModTidy(args []string, io commands.IO) error {
 			continue
 		}
 		gm.AddRequire(im, "v0.0.0-latest")
+		if cfg.verbose {
+			io.ErrPrintfln("   %s", im)
+		}
 	}
 
 	gm.Write(fname)

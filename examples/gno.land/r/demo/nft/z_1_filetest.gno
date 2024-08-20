@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/nft_test
+// PKGPATH: gno.land/r/demo/nft_test
 package nft_test
 
 import (

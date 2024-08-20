@@ -69,10 +69,10 @@ func ResetTestRoot(testName string) (*Config, string) {
 	}
 
 	// ensure config and data subdirs are created
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultConfigDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultConfigDir), DefaultDirPerm); err != nil {
 		panic(err)
 	}
-	if err := osm.EnsureDir(filepath.Join(rootDir, defaultSecretsDir), DefaultDirPerm); err != nil {
+	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultSecretsDir), DefaultDirPerm); err != nil {
 		panic(err)
 	}
 	if err := osm.EnsureDir(filepath.Join(rootDir, DefaultDBDir), DefaultDirPerm); err != nil {
@@ -81,7 +81,7 @@ func ResetTestRoot(testName string) (*Config, string) {
 
 	baseConfig := DefaultBaseConfig()
 	configFilePath := filepath.Join(rootDir, defaultConfigPath)
-	// NOTE: this does not match the behaviour of the Gno.land node.
+	// NOTE: this does not match the behaviour of the gno.land node.
 	// However, many tests rely on the fact that they can cleanup the directory
 	// by doing RemoveAll on the rootDir; so to keep compatibility with that
 	// behaviour, we place genesis.json in the rootDir.

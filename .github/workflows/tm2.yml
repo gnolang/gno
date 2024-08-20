@@ -5,10 +5,7 @@ on:
     branches:
       - master
   workflow_dispatch:
-  pull_request: 
-    paths:
-      - "tm2/**"
-      - ".github/**"
+  pull_request:
 
 jobs:
   main:

@@ -34,6 +34,18 @@ func newConfigSetCmd(io commands.IO) *commands.Command {
 		},
 	)
 
+	// Add subcommand helpers
+	helperGen := metadataHelperGenerator{
+		MetaUpdate: func(meta *commands.Metadata, inputType string) {
+			meta.ShortUsage = fmt.Sprintf("config set %s <%s>", meta.Name, inputType)
+		},
+		TagNameSelector: "json",
+		TreeDisplay:     true,
+	}
+	cmd.AddSubCommands(generateSubCommandHelper(helperGen, config.Config{}, func(_ context.Context, args []string) error {
+		return execConfigEdit(cfg, io, args)
+	})...)
+
 	return cmd
 }
 
@@ -41,7 +53,7 @@ func execConfigEdit(cfg *configCfg, io commands.IO, args []string) error {
 	// Load the config
 	loadedCfg, err := config.LoadConfigFile(cfg.configPath)
 	if err != nil {
-		return fmt.Errorf("unable to load config, %w", err)
+		return fmt.Errorf("%s, %w", tryConfigInit, err)
 	}
 
 	// Make sure the edit arguments are valid
