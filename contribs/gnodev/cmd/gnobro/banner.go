@@ -9,12 +9,12 @@ import (
 )
 
 //go:embed assets/*.utf8ans
-var banner_gnoland embed.FS
+var gnoland_banner embed.FS
 
-func NewBanner_GnoLand() browser.ModelBanner {
+func NewGnoLandBanner() browser.ModelBanner {
 	const assets = "assets"
 
-	entries, err := banner_gnoland.ReadDir(assets)
+	entries, err := gnoland_banner.ReadDir(assets)
 	if err != nil {
 		panic("unable to banner dir: " + err.Error())
 	}
@@ -25,7 +25,7 @@ func NewBanner_GnoLand() browser.ModelBanner {
 			continue
 		}
 
-		frame, err := banner_gnoland.ReadFile(filepath.Join(assets, entry.Name()))
+		frame, err := gnoland_banner.ReadFile(filepath.Join(assets, entry.Name()))
 		if err != nil {
 			panic("unable to read banner frame: " + err.Error())
 		}
