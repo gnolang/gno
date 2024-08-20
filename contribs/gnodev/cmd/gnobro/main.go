@@ -220,8 +220,6 @@ func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 }
 
 func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg browser.Config, io commands.IO) error {
-	var err error
-
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
