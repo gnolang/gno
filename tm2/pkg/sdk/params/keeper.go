@@ -23,13 +23,15 @@ func ValueStoreKey(key string) []byte {
 
 // Keeper of the global param store.
 type Keeper struct {
-	key store.StoreKey
+	key       store.StoreKey
+	keyMapper KeyMapper
 }
 
 // NewKeeper constructs a params keeper
-func NewKeeper(key store.StoreKey) Keeper {
+func NewKeeper(key store.StoreKey, keyMapper KeyMapper) Keeper {
 	return Keeper{
-		key: key,
+		key:       key,
+		keyMapper: keyMapper,
 	}
 }
 
@@ -41,6 +43,10 @@ func (k Keeper) Logger(ctx sdk.Context) *slog.Logger {
 // GetParam gets a param value from the global param store.
 func (k Keeper) GetParam(ctx sdk.Context, key string, target interface{}) (bool, error) {
 	stor := ctx.Store(k.key)
+	if k.keyMapper != nil {
+		key = k.keyMapper.Map(key)
+	}
+
 	bz := stor.Get(ValueStoreKey(key))
 	if bz == nil {
 		return false, nil
@@ -51,10 +57,14 @@ func (k Keeper) GetParam(ctx sdk.Context, key string, target interface{}) (bool,
 
 // SetParam sets a param value to the global param store.
 func (k Keeper) SetParam(ctx sdk.Context, key string, param interface{}) error {
-	stor := ctx.Store(k.key)
 	bz, err := amino.Marshal(param)
 	if err != nil {
 		return err
+	}
+
+	stor := ctx.Store(k.key)
+	if k.keyMapper != nil {
+		key = k.keyMapper.Map(key)
 	}
 
 	stor.Set(ValueStoreKey(key), bz)
