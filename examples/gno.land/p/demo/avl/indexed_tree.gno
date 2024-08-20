@@ -140,7 +140,7 @@ func (tree *IndexedTree) updateIndexes(key string, value Indexable, remove bool)
 		fieldValue := value.Value(fieldName)
 		if fieldValue != "" {
 			// Use both the struct type and the field value for indexing
-			compositeKey := ufmt.Sprintf("%s|%s|%s", indexkey, fieldValue, key)
+			compositeKey := indexkey + "|" + fieldValue + "|" + key
 			if remove {
 				idx.Remove(compositeKey)
 			} else {
@@ -180,8 +180,8 @@ func (tree *IndexedTree) QueryByField(typeName, field, value string) ([]Indexabl
 
 	var values []Indexable
 	// Use prefix-based iteration to limit the range of keys scanned
-	start := ufmt.Sprintf("%s|%s|%s", typeName, field, value)
-	end := ufmt.Sprintf("%s|%s|%s", typeName, field, value+string('|'+1))
+	start := typeName + "|" + field + "|" + value
+	end := typeName + "|" + field + "|" + value + string('|'+1)
 
 	index.Iterate(start, end, func(key string, val interface{}) bool {
 		// Retrieve the actual object from the main tree using the key
@@ -243,5 +243,5 @@ func (tree *IndexedTree) Render() string {
 }
 
 func getIndexKey(typeName, field string) string {
-	return ufmt.Sprintf("%s|%s", typeName, field)
+	return typeName + "|" + field
 }
