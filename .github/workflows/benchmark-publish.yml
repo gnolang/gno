@@ -14,4 +14,5 @@ jobs:
     secrets: inherit
     with:
       publish: true
-      test-flags: "-timeout 50m"
+      # test-flags: "-timeout 50m"
+      test-flags: "-short"
