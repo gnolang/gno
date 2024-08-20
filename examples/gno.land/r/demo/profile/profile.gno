@@ -6,11 +6,13 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
+	"gno.land/p/demo/json"
 )
 
 var (
 	fields = avl.NewTree()
 	router = mux.NewRouter()
+	arbitraryFields = avl.NewTree()  // address => *avl.Tree (field => value)
 )
 
 const (
@@ -91,6 +93,32 @@ func SetBoolField(field string, value bool) error {
 	return nil
 }
 
+func SetField(field string, value interface{}) error {
+	addr := std.PrevRealm().Addr()
+
+	if _, ok := boolFields[field]; ok {
+		return SetBoolField(field, value.(bool))
+	}
+
+	if _, ok := intFields[field]; ok {
+		return SetIntField(field, value.(int))
+	}
+
+	if _, ok := stringFields[field]; ok {
+		return SetStringField(field, value.(string))
+	}
+
+	caller := addr.String()
+	userFields, exists := arbitraryFields.Get(caller)
+	if !exists {
+		userFields = avl.NewTree()
+		arbitraryFields.Set(caller, userFields)
+	}
+
+	userFields.(*avl.Tree).Set(field, value)
+	return nil
+}
+
 // Getters
 
 func GetStringField(addr std.Address, field, def string) string {
@@ -118,4 +146,31 @@ func GetIntField(addr std.Address, field string, def int) int {
 	}
 
 	return def
+}
+
+func GetField(addr std.Address, field string, def interface{}) interface{} {
+	if _, ok := boolFields[field]; ok {
+		return GetBoolField(addr, field, def.(bool))
+	}
+
+	if _, ok := intFields[field]; ok {
+		return GetIntField(addr, field, def.(int))
+	}
+
+	if _, ok := stringFields[field]; ok {
+		return GetStringField(addr, field, def.(string))
+	}
+
+	caller := addr.String()
+	userFields, exists := arbitraryFields.Get(caller)
+	if !exists {
+		return nil
+	}
+
+	val, exists :=  userFields.(*avl.Tree).Get(field)
+	if !exists {
+		return nil
+	}
+
+	return val
 }

@@ -3,6 +3,7 @@ package profile
 import (
 	"std"
 	"testing"
+	"errors"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
@@ -115,4 +116,55 @@ func TestMultipleProfiles(t *testing.T) {
 
 	uassert.Equal(t, "User One", name1)
 	uassert.Equal(t, "User Two", name2)
+}
+
+func TestSetMultiFields(t *testing.T) {
+	std.TestSetRealm(std.NewUserRealm(user1))
+
+	// Set new arbitrary string field
+	err := SetField("NewStrField", "This is new string value")
+	uassert.NoError(t, err)
+
+	strVal := GetField(user1, "NewStrField", "")
+	uassert.Equal(t, strVal , "This is new string value")
+
+	// Set new arbitrary int field
+	err = SetField("NewIntField", 40)
+	uassert.NoError(t, err)
+
+	intVal := GetField(user1, "NewIntField", 0)
+	uassert.Equal(t, intVal , 40)
+
+	// Set new arbitrary bool field
+	err = SetField("NewBoolField", true)
+	uassert.NoError(t, err)
+
+	boolVal := GetField(user1, "NewBoolField", false)
+	uassert.Equal(t, boolVal , true)
+
+	// Set reserved field
+	err = SetField("DisplayName", "My Name")
+	uassert.NoError(t, err)
+
+	reservedStrVal := GetStringField(user1, "DisplayName", "")
+	uassert.Equal(t, reservedStrVal , "My Name")
+
+	// Get reserved field
+	err = SetIntField("Age", 40)
+	uassert.NoError(t, err)
+
+	reservedIntVal := GetField(user1, "Age", 0)
+	uassert.Equal(t, reservedIntVal , 40)
+
+	// Get string field that does not exist should return default string
+	inexistStrVal := GetField(user1, "InexistStrField", "default")
+	uassert.Equal(t, inexistStrVal , "default")
+
+	// Get int field that does not exist should return default int
+	inexistIntVal := GetField(user1, "inexistIntField", 0)
+	uassert.Equal(t, inexistIntVal , 0)
+
+	// Get bool field that does not exist should return default bool
+	inexistBoolVal := GetField(user1, "inexistBoolField", false)
+	uassert.Equal(t, inexistBoolVal , false)
 }
