@@ -10,6 +10,12 @@ on:
   schedule:
     - cron:  '0 0 * * *' # run on default branch every day
 
+permissions:
+  # deployments permission to deploy GitHub pages website
+  deployments: write
+  # contents permission to update benchmark contents in gh-pages branch
+  contents: write
+
 jobs:
   publish:
     uses: ./.github/workflows/benchmark_template.yml
