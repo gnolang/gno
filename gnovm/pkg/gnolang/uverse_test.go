@@ -199,6 +199,46 @@ func main() {
 			`,
 			expected: "5\n",
 		},
+		{
+			name: "nil array pointer",
+			code: `
+package test
+
+func main() {
+	printLen(nil)
+}
+
+func printLen(arr *[2]int) {
+	println(len(arr))
+}`,
+			expected: "2\n",
+		},
+		{
+			name: "cap of nil pointer to array",
+			code: `
+package test
+
+func main() {
+	var arr *[3]string
+	println(cap(arr))
+}`,
+			expected: "3\n",
+		},
+		{
+			name: "len and cap of nil pointer to array as function parameter",
+			code: `
+package test
+
+func main() {
+	printLenCap(nil)
+}
+
+func printLenCap(arr *[4]float64) {
+	println(len(arr))
+	println(cap(arr))
+}`,
+			expected: "4\n4\n",
+		},
 	}
 
 	for _, tc := range tests {
@@ -211,11 +251,7 @@ func main() {
 }
 
 func TestGetCapacityPointerSlice(t *testing.T) {
-	tests := []struct {
-		name     string
-		code     string
-		expected string
-	}{
+	tests := []uverseTestCases{
 		{
 			name: "cap of pointer to array",
 			code: `
@@ -260,6 +296,99 @@ func main() {
 	println(cap(slice))
 }`,
 			expected: "0\n",
+		},
+		{
+			name: "cap of nil array pointer",
+			code: `
+package test
+
+func main() {
+	printCap(nil)
+}
+
+func printCap(arr *[2]int) {
+	println(cap(arr))
+}`,
+			expected: "2\n",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			m := NewMachine("test", nil)
+			n := MustParseFile("main.go", tc.code)
+			m.RunFiles(n)
+			m.RunMain()
+			assertOutput(t, tc.code, tc.expected)
+		})
+	}
+}
+
+func TestGetCapacityNilValue(t *testing.T) {
+	tests := []uverseTestCases{
+		{
+			name: "cap of nil array",
+			code: `
+package test
+
+func main() {
+	var arr [5]int
+	println(cap(&arr))
+	var nilArr *[5]int
+	println(cap(nilArr))
+}`,
+			expected: "5\n5\n",
+		},
+		{
+			name: "cap of nil slice",
+			code: `
+package test
+
+func main() {
+	var slice []int
+	println(cap(slice))
+}`,
+			expected: "0\n",
+		},
+		{
+			name: "cap of nil array in function",
+			code: `
+package test
+
+func main() {
+	printCap(nil)
+}
+
+func printCap(arr *[3]string) {
+	println(cap(arr))
+}`,
+			expected: "3\n",
+		},
+		{
+			name: "cap of different nil array types",
+			code: `
+package test
+
+func main() {
+	var nilIntArr *[4]int
+	var nilFloatArr *[6]float64
+	var nilStringArr *[2]string
+	println(cap(nilIntArr))
+	println(cap(nilFloatArr))
+	println(cap(nilStringArr))
+}`,
+			expected: "4\n6\n2\n",
+		},
+		{
+			name: "cap of nil multidimensional array",
+			code: `
+package test
+
+func main() {
+	var nilMultiArr *[2][3]int
+	println(cap(nilMultiArr))
+}`,
+			expected: "2\n",
 		},
 	}
 

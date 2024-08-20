@@ -2132,6 +2132,11 @@ func (tv *TypedValue) GetLength() int {
 			return bt.Len
 		case *SliceType:
 			return 0
+		case *PointerType:
+			if at, ok := bt.Elt.(*ArrayType); ok {
+				return at.Len
+			}
+			panic(fmt.Sprintf("unexpected pointer type for len(): %s", tv.T.String()))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type for len(): %s",
@@ -2162,17 +2167,20 @@ func (tv *TypedValue) GetLength() int {
 
 func (tv *TypedValue) GetCapacity() int {
 	if tv.V == nil {
-		if debug {
-			// assert acceptable type.
-			switch baseOf(tv.T).(type) {
-			// strings have no capacity.
-			case *ArrayType:
-			case *SliceType:
-			default:
-				panic("should not happen")
+		// assert acceptable type.
+		switch bt := baseOf(tv.T).(type) {
+		// strings have no capacity.
+		case *ArrayType:
+		case *SliceType:
+			return 0
+		case *PointerType:
+			if at, ok := bt.Elt.(*ArrayType); ok {
+				return at.Len
 			}
+			panic(fmt.Sprintf("unexpected pointer type for cap(): %s", tv.T.String()))
+		default:
+			panic(fmt.Sprintf("unexpected nil type for cap(): %s", tv.T.String()))
 		}
-		return 0
 	}
 	switch cv := tv.V.(type) {
 	case StringValue:
