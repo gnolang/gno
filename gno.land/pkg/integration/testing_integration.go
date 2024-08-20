@@ -153,7 +153,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"gnoland": func(ts *testscript.TestScript, neg bool, args []string) {
 				if len(args) == 0 {
-					tsValidateError(ts, "gnoland", neg, fmt.Errorf("syntax: gnoland [start|stop]"))
+					tsValidateError(ts, "gnoland", neg, fmt.Errorf("syntax: gnoland [start|stop|restart]"))
 					return
 				}
 
@@ -202,7 +202,6 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 					fmt.Fprintln(ts.Stdout(), "node started successfully")
 				case "restart":
-					// XXX: unstable, should try to use it in a working scenario
 					n, ok := nodes[sid]
 					if !ok {
 						err = fmt.Errorf("node must be started before being restarted")

@@ -8,9 +8,11 @@
 //
 // Additional Command Overview:
 //
-// 1. `gnoland [start|stop]`:
+// 1. `gnoland [start|stop|restart]`:
 //   - The gnoland node doesn't start automatically. This enables the user to do some
 //     pre-configuration or pass custom arguments to the start command.
+//   - `gnoland restart` will simulate restarting a node, as in stopping and
+//     starting it again, recovering state from the persisted database data.
 //
 // 2. `gnokey`:
 //   - Supports most of the common commands.
