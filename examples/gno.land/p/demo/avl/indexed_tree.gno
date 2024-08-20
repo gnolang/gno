@@ -174,7 +174,7 @@ func (tree *IndexedTree) QueryByField(typeName, field, value string) ([]Indexabl
 	start := indexKey + "|" + value
 	end := start + string('|'+1)
 
-	index.Iterate(start, end, func(key string, val interface{}) bool {
+	index.Iterate(start, end, func(_ string, val interface{}) bool {
 		// Retrieve the actual object from the main tree using the key
 		if obj, exists := tree.mainTree.Get(val.(string)); exists {
 			if idxObj, ok := obj.(Indexable); ok {
