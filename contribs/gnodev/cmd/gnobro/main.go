@@ -39,7 +39,8 @@ const gnoPrefix = "gno.land"
 type broCfg struct {
 	readonly       bool
 	remote         string
-	devEndpoint    string
+	dev            bool
+	devRemote      string
 	chainID        string
 	defaultAccount string
 	defaultRealm   string
@@ -50,7 +51,8 @@ type broCfg struct {
 
 var defaultBroOptions = broCfg{
 	remote:         "127.0.0.1:26657",
-	devEndpoint:    "",
+	dev:            true,
+	devRemote:      "",
 	sshListener:    "",
 	defaultRealm:   "gno.land/r/gnoland/home",
 	chainID:        "dev",
@@ -123,10 +125,17 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 		"ssh host key path",
 	)
 
-	fs.StringVar(
-		&c.devEndpoint,
+	fs.BoolVar(
+		&c.dev,
 		"dev",
-		defaultBroOptions.devEndpoint,
+		defaultBroOptions.dev,
+		"enable dev mode and connect to gnodev for realtime update",
+	)
+
+	fs.StringVar(
+		&c.devRemote,
+		"dev-remote",
+		defaultBroOptions.devRemote,
 		"dev endpoint, if empty will default to `ws://<target>:8888`",
 	)
 
@@ -213,11 +222,6 @@ func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg browser.Config, io commands.IO) error {
 	var err error
 
-	devpoint, err := getDevEndpoint(cfg)
-	if err != nil {
-		return fmt.Errorf("unable to parse dev endpoint: %w", err)
-	}
-
 	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt)
 	defer cancel()
 
@@ -229,7 +233,12 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 
 	var errgs errgroup.Group
 
-	if devpoint != "" {
+	if cfg.dev {
+		devpoint, err := getDevEndpoint(cfg)
+		if err != nil {
+			return fmt.Errorf("unable to parse dev endpoint: %w", err)
+		}
+
 		var devcl browser.DevClient
 		devcl.Handler = func(typ events.Type, data any) error {
 			switch typ {
@@ -366,9 +375,9 @@ func getDevEndpoint(cfg *broCfg) (string, error) {
 
 	// use remote address as default
 	host, port := cfg.remote, "8888"
-	if cfg.devEndpoint != "" {
+	if cfg.devRemote != "" {
 		// if any dev endpoint as been set, fallback on this
-		host, port, err = net.SplitHostPort(cfg.devEndpoint)
+		host, port, err = net.SplitHostPort(cfg.devRemote)
 		if err != nil {
 			return "", fmt.Errorf("unable to parse dev endpoint: %w", err)
 		}

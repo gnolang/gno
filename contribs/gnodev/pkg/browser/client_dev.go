@@ -14,7 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const MaxElapsedTime = time.Second * 20
+const MaxBackoff = time.Second * 20
 
 var ErrHandlerNotSet = errors.New("handler not set")
 
@@ -22,8 +22,7 @@ type DevClient struct {
 	Logger  *slog.Logger
 	Handler func(typ events.Type, data any) error
 
-	attempt int
-	conn    *websocket.Conn
+	conn *websocket.Conn
 }
 
 func (c *DevClient) Run(ctx context.Context, addr string, header http.Header) error {
@@ -67,7 +66,6 @@ func (c *DevClient) dialBackoff(ctx context.Context, addr string, header http.He
 
 		c.Logger.Debug("connecting to dev events endpoint", addr, "addr")
 		c.conn, _, err = dialer.DialContext(ctx, addr, header)
-		c.attempt++
 
 		if ctx.Err() != nil {
 			return context.Cause(ctx)
@@ -77,15 +75,10 @@ func (c *DevClient) dialBackoff(ctx context.Context, addr string, header http.He
 			return nil
 		}
 
-		// if fail on first attempt return an error early
-		if c.attempt < 1 {
-			return fmt.Errorf("unable to connect to dev endpoint: %w", err)
-		}
-
 		switch {
-		case backoff > MaxElapsedTime:
-			backoff = MaxElapsedTime
-		case backoff < MaxElapsedTime:
+		case backoff > MaxBackoff:
+			backoff = MaxBackoff
+		case backoff < MaxBackoff:
 			backoff *= 2
 		default:
 		}
