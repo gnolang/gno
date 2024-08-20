@@ -201,7 +201,7 @@ func execBrowser(cfg *broCfg, args []string, cio commands.IO) error {
 
 	if cfg.sshListener == "" {
 		if cfg.banner {
-			bcfg.Banner = NewBanner_GnoLand()
+			bcfg.Banner = NewGnoLandBanner()
 		}
 
 		return runLocal(ctx, gnocl, cfg, bcfg, cio)
@@ -289,7 +289,7 @@ func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg b
 		bcfgCopy.Renderer = bubbletea.MakeRenderer(s)
 
 		if cfg.banner {
-			bcfgCopy.Banner = NewBanner_GnoLand()
+			bcfgCopy.Banner = NewGnoLandBanner()
 		}
 
 		pval := s.Context().Value("path")
