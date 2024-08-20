@@ -207,8 +207,9 @@ func (m *Machine) doOpRef() {
 		elt = xv.TV.V.(DataByteValue).ElemType
 	}
 	m.PushValue(TypedValue{
-		T: m.Alloc.NewType(&PointerType{Elt: elt}),
-		V: xv,
+		T:              m.Alloc.NewType(&PointerType{Elt: elt}),
+		V:              xv,
+		NotAddressable: xv.TV.NotAddressable,
 	})
 }
 
