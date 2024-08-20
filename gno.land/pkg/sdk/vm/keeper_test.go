@@ -9,10 +9,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 var coinsString = ugnot.ValueString(10000000)
@@ -454,4 +460,60 @@ func Echo(msg string) string {
 			env.vmk.Call(ctx, msg2)
 		},
 	)
+}
+
+func TestVMKeeperReinitialize(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// Create test package.
+	files := []*std.MemFile{
+		{"init.gno", `
+package test
+
+func Echo(msg string) string {
+	return "echo:"+msg
+}`},
+	}
+	pkgPath := "gno.land/r/test"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	require.NoError(t, err)
+
+	// Run Echo function.
+	msg2 := NewMsgCall(addr, nil, pkgPath, "Echo", []string{"hello world"})
+	res, err := env.vmk.Call(ctx, msg2)
+	require.NoError(t, err)
+	assert.Equal(t, `("echo:hello world" string)`+"\n\n", res)
+
+	// Clear out gnovm and reinitialize.
+	env.vmk.gnoStore = nil
+	mcw := env.ctx.MultiStore().MultiCacheWrap()
+	env.vmk.Initialize(log.NewNoopLogger(), mcw)
+	mcw.MultiWrite()
+
+	// Run echo again, and it should still work.
+	res, err = env.vmk.Call(ctx, msg2)
+	require.NoError(t, err)
+	assert.Equal(t, `("echo:hello world" string)`+"\n\n", res)
+}
+
+func Test_loadStdlibPackage(t *testing.T) {
+	mdb := memdb.NewMemDB()
+	cs := dbadapter.StoreConstructor(mdb, types.StoreOptions{})
+
+	gs := gnolang.NewStore(nil, cs, cs)
+	assert.PanicsWithValue(t, `failed loading stdlib "notfound": does not exist`, func() {
+		loadStdlibPackage("notfound", "./testdata", gs)
+	})
+	assert.PanicsWithValue(t, `failed loading stdlib "emptystdlib": not a valid MemPackage`, func() {
+		loadStdlibPackage("emptystdlib", "./testdata", gs)
+	})
 }

@@ -4,16 +4,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
@@ -23,11 +30,77 @@ import (
 
 // Tests that NewAppWithOptions works even when only providing a simple DB.
 func TestNewAppWithOptions(t *testing.T) {
-	app, err := NewAppWithOptions(&AppOptions{DB: memdb.NewMemDB()})
+	app, err := NewAppWithOptions(&AppOptions{
+		DB: memdb.NewMemDB(),
+		InitChainerConfig: InitChainerConfig{
+			CacheStdlibLoad:        true,
+			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
+			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
+		},
+	})
 	require.NoError(t, err)
 	bapp := app.(*sdk.BaseApp)
 	assert.Equal(t, "dev", bapp.AppVersion())
 	assert.Equal(t, "gnoland", bapp.Name())
+
+	addr := crypto.AddressFromPreimage([]byte("test1"))
+	resp := bapp.InitChain(abci.RequestInitChain{
+		Time:    time.Now(),
+		ChainID: "dev",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxTxBytes:   1_000_000,   // 1MB,
+				MaxDataBytes: 2_000_000,   // 2MB,
+				MaxGas:       100_000_000, // 100M gas
+				TimeIotaMS:   100,         // 100ms
+			},
+		},
+		Validators: []abci.ValidatorUpdate{},
+		AppState: GnoGenesisState{
+			Balances: []Balance{
+				{
+					Address: addr,
+					Amount:  []std.Coin{{Amount: 1e15, Denom: "ugnot"}},
+				},
+			},
+			Txs: []std.Tx{
+				{
+					Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
+						{
+							Name: "demo.gno",
+							Body: "package demo; func Hello() string { return `hello`; }",
+						},
+					})},
+					Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+					Signatures: []std.Signature{{}}, // one empty signature
+				},
+			},
+		},
+	})
+
+	if !resp.IsOK() {
+		t.Fatal(resp)
+	}
+
+	tx := amino.MustMarshal(std.Tx{
+		Msgs: []std.Msg{vm.NewMsgCall(addr, nil, "gno.land/r/demo", "Hello", nil)},
+		Fee: std.Fee{
+			GasWanted: 100_000,
+			GasFee: std.Coin{
+				Denom:  "ugnot",
+				Amount: 1_000_000,
+			},
+		},
+		Signatures: []std.Signature{{}}, // one empty signature
+		Memo:       "",
+	})
+	dtxResp := bapp.DeliverTx(abci.RequestDeliverTx{
+		RequestBase: abci.RequestBase{},
+		Tx:          tx,
+	})
+	if !dtxResp.IsOK() {
+		t.Fatal(dtxResp)
+	}
 }
 
 func TestNewAppWithOptions_ErrNoDB(t *testing.T) {
@@ -206,7 +279,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(std.GnoEvent{})
+		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, mockVMKeeper, &mockEndBlockerApp{})
@@ -249,7 +322,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](mockEventSwitch, noFilter)
 
 		// Fire a GnoVM event
-		mockEventSwitch.FireEvent(std.GnoEvent{})
+		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
 
 		// Create the EndBlocker
 		eb := EndBlocker(c, mockVMKeeper, &mockEndBlockerApp{})
@@ -288,7 +361,7 @@ func TestEndBlocker(t *testing.T) {
 		// Construct the GnoVM events
 		vmEvents := make([]abci.Event, 0, len(changes))
 		for index := range changes {
-			event := std.GnoEvent{
+			event := gnostd.GnoEvent{
 				Type:    validatorAddedEvent,
 				PkgPath: valRealm,
 			}
@@ -297,7 +370,7 @@ func TestEndBlocker(t *testing.T) {
 			if index%2 == 0 {
 				changes[index].Power = 0
 
-				event = std.GnoEvent{
+				event = gnostd.GnoEvent{
 					Type:    validatorRemovedEvent,
 					PkgPath: valRealm,
 				}
