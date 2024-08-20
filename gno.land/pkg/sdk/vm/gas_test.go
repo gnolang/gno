@@ -141,7 +141,7 @@ func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	addr := crypto.AddressFromPreimage([]byte("test1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
+	env.bank.AddCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
 	// success message
 	var files []*std.MemFile
 	if success {

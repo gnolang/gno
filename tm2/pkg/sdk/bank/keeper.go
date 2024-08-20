@@ -131,7 +131,7 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 
 	newCoins := oldCoins.SubUnsafe(amt)
 
-	err := bank.SetCoins(ctx, addr, newCoins)
+	err := bank.setCoins(ctx, addr, newCoins)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +153,7 @@ func (bank BankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 	oldCoins := bank.GetCoins(ctx, addr)
 	newCoins := oldCoins.Add(amt)
 
-	err := bank.SetCoins(ctx, addr, newCoins)
+	err := bank.setCoins(ctx, addr, newCoins)
 	if err != nil {
 		return nil, err
 	}
@@ -166,8 +166,8 @@ func (bank BankKeeper) AddCoins(ctx sdk.Context, addr crypto.Address, amt std.Co
 	return newCoins, nil
 }
 
-// SetCoins sets the coins at the addr.
-func (bank BankKeeper) SetCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
+// setCoins sets the coins at the addr.
+func (bank BankKeeper) setCoins(ctx sdk.Context, addr crypto.Address, amt std.Coins) error {
 	if !amt.IsValid() {
 		return std.ErrInvalidCoins(amt.String())
 	}
