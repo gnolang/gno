@@ -27,9 +27,8 @@ func NewLifetimeSubscription(amount int64) *LifetimeSubscription {
 
 func (ls *LifetimeSubscription) validatePayment(receiver std.Address) error {
 	amount := std.GetOrigSend()
-	expAmt := std.Coins{{Denom: "ugnot", Amount: ls.amount}}
 
-	if !amount.IsEqual(expAmt) {
+	if amount.AmountOf("ugnot") != ls.amount {
 		return ErrAmt
 	}
 
@@ -50,12 +49,10 @@ func (ls *LifetimeSubscription) ProcessPayment() error {
 	return ls.validatePayment(caller)
 }
 
-// ProcessPaymentGift processes the payement for offer a lifetime subscription
 func (ls *LifetimeSubscription) ProcessPaymentGift(receiver std.Address) error {
 	return ls.validatePayment(receiver)
 }
 
-// CheckAccess verifies if the caller has a lifetime subscription.
 func (ls *LifetimeSubscription) CheckAccess(caller std.Address) error {
 	_, exists := ls.subs.Get(caller.String())
 
@@ -70,7 +67,7 @@ func (ls *LifetimeSubscription) UpdateAmount(newAmount int64) error {
 	caller := std.PrevRealm().Addr()
 
 	if err := ls.CallerIsOwner(); err != nil {
-		return subscription.ErrNotAuthorized
+		return ErrNotAuthorized
 	}
 
 	ls.amount = newAmount
