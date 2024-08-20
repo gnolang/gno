@@ -9,22 +9,22 @@ func main() {
 // Output:
 // <main class='gno-tmpl-section'>
 //
-// # Welcome to Gno.land
+// # Welcome to gno.land
 //
-// ### We’re building Gno.land, the first open-source smart contract system, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts.
-//
-//
-// With transparent and timeless code, Gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse.
+// ### We’re building gno.land, set to become the leading open-source smart contract platform, using Gno, an interpreted and fully deterministic variation of the Go programming language for succinct and composable smart contracts.
 //
 //
-// Intuitive and easy to use, Gno.land lowers the barrier to web3 and makes censorship-resistant platforms accessible to everyone. If you want to help lay the foundations of a fairer and freer world, join us today.
+// With transparent and timeless code, gno.land is the next generation of smart contract platforms, serving as the “GitHub” of the ecosystem, with realms built using fully transparent, auditable code that anyone can inspect and reuse.
+//
+//
+// Intuitive and easy to use, gno.land lowers the barrier to web3 and makes censorship-resistant platforms accessible to everyone. If you want to help lay the foundations of a fairer and freer world, join us today.
 //
 // <div class="jumbotron">
 //
 // <div class="columns-3">
 // <div class="column">
 //
-// ### Learn about Gno.land
+// ### Learn about gno.land
 //
 // - [About](/about)
 // - [GitHub](https://github.com/gnolang)
@@ -33,6 +33,7 @@ func main() {
 // - Tokenomics (soon)
 // - [Partners, Fund, Grants](/partners)
 // - [Explore the Ecosystem](/ecosystem)
+// - [Careers](https://jobs.lever.co/allinbits?department=Gno.land)
 //
 // </div><!-- end column-->
 //
@@ -55,7 +56,7 @@ func main() {
 // - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 // - [Gnoscan](https://gnoscan.io)
 // - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-// - Testnet 4 (upcoming)
+// - [Testnet 4](https://test4.gno.land/) (Launched July 2024!)
 // - [Testnet 3](https://test3.gno.land/) (archive)
 // - [Testnet 2](https://test2.gno.land/) (archive)
 // - Testnet Faucet Hub (soon)
@@ -67,15 +68,15 @@ func main() {
 // <div class="columns-3">
 // <div class="column">
 //
-// ### Latest Blogposts
+// ### [Latest Blogposts](/r/gnoland/blog)
 //
 // No posts.
 // </div><!-- /column-->
 // <div class="column">
 //
-// ### Upcoming Events
+// ### [Latest Events](/r/gnoland/events)
 //
-// [View upcoming events](/events)
+// No events.
 // </div><!-- /column-->
 // <div class="column">
 //
@@ -93,7 +94,7 @@ func main() {
 //
 // Gno Playground is a web application designed for building, running, testing, and interacting
 // with your Gno code, enhancing your understanding of the Gno language. With Gno Playground, you can share your code,
-// execute tests, deploy your realms and packages to Gno.land, and explore a multitude of other features.
+// execute tests, deploy your realms and packages to gno.land, and explore a multitude of other features.
 //
 //
 // Experience the convenience of code sharing and rapid experimentation with [Gno Playground](https://play.gno.land).
@@ -133,7 +134,8 @@ func main() {
 // - [r/demo/microblog](r/demo/microblog)
 // - [r/demo/nft](r/demo/nft)
 // - [r/demo/types](r/demo/types)
-// - [r/demo/art](r/demo/art)
+// - [r/demo/art/gnoface](r/demo/art/gnoface)
+// - [r/demo/art/millipede](r/demo/art/millipede)
 // - [r/demo/groups](r/demo/groups)
 // - ...
 //

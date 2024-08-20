@@ -8,9 +8,9 @@ import (
 
 	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -34,7 +34,8 @@ func TestNewNode_NoPackages(t *testing.T) {
 
 	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
-	node, err := NewDevNode(ctx, logger, &emitter.NoopServer{}, cfg)
+	cfg.Logger = logger
+	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
 
 	assert.Len(t, node.ListPkgs(), 0)
@@ -62,7 +63,8 @@ func Render(_ string) string { return "foo" }
 	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
 	cfg.PackagesPathList = []PackagePath{pkgpath}
-	node, err := NewDevNode(ctx, logger, &emitter.NoopServer{}, cfg)
+	cfg.Logger = logger
+	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), 1)
 
@@ -154,14 +156,14 @@ func Render(_ string) string { return "bar" }
 	require.NoError(t, err)
 
 	// Check reload event
-	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReload)
+	assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
 
 	// After a reload, render should succeed
 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foobar")
 	require.NoError(t, err)
 	require.Equal(t, render, "bar")
 
-	assert.Nil(t, emitter.NextEvent())
+	assert.Equal(t, mock.EvtNull, emitter.NextEvent().Type())
 }
 
 func TestNodeReset(t *testing.T) {
@@ -215,7 +217,7 @@ func Render(_ string) string { return str }
 	require.NoError(t, err)
 	require.Equal(t, render, "foo")
 
-	assert.Nil(t, emitter.NextEvent())
+	assert.Equal(t, mock.EvtNull, emitter.NextEvent().Type())
 }
 
 func testingRenderRealm(t *testing.T, node *Node, rlmpath string) (string, error) {
@@ -245,8 +247,8 @@ func testingCallRealm(t *testing.T, node *Node, msgs ...gnoclient.MsgCall) (*cor
 	}
 
 	txcfg := gnoclient.BaseTxCfg{
-		GasFee:    "1000000ugnot", // Gas fee
-		GasWanted: 2_000_000,      // Gas wanted
+		GasFee:    ugnot.ValueString(1000000), // Gas fee
+		GasWanted: 2_000_000,                  // Gas wanted
 	}
 
 	return cli.Call(txcfg, msgs...)
@@ -286,7 +288,9 @@ func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *mock.Serv
 	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
 	cfg.PackagesPathList = pkgslist
-	node, err := NewDevNode(ctx, logger, emitter, cfg)
+	cfg.Emitter = emitter
+	cfg.Logger = logger
+	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), len(pkgslist))
 

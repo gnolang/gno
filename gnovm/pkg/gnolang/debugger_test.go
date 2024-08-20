@@ -24,16 +24,16 @@ type writeNopCloser struct{ io.Writer }
 func (writeNopCloser) Close() error { return nil }
 
 // TODO (Marc): move evalTest to gnovm/tests package and remove code duplicates
-func evalTest(debugAddr, in, file string) (out, err string) {
+func evalTest(debugAddr, in, file string) (out, err, stacktrace string) {
 	bout := bytes.NewBufferString("")
 	berr := bytes.NewBufferString("")
 	stdin := bytes.NewBufferString(in)
 	stdout := writeNopCloser{bout}
 	stderr := writeNopCloser{berr}
 	debug := in != "" || debugAddr != ""
-	mode := tests.ImportModeNativePreferred
-	if strings.HasSuffix(file, "_stdlibs.gno") {
-		mode = tests.ImportModeStdlibsPreferred
+	mode := tests.ImportModeStdlibsPreferred
+	if strings.HasSuffix(file, "_native.gno") {
+		mode = tests.ImportModeNativePreferred
 	}
 
 	defer func() {
@@ -58,6 +58,18 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 	})
 
 	defer m.Release()
+	defer func() {
+		if r := recover(); r != nil {
+			switch r.(type) {
+			case gnolang.UnhandledPanicError:
+				stacktrace = m.ExceptionsStacktrace()
+			default:
+				stacktrace = m.Stacktrace().String()
+			}
+			stacktrace = strings.TrimSpace(strings.ReplaceAll(stacktrace, "../../tests/files/", "files/"))
+			panic(r)
+		}
+	}()
 
 	if debugAddr != "" {
 		if e := m.Debugger.Serve(debugAddr); e != nil {
@@ -69,7 +81,7 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 	m.RunFiles(f)
 	ex, _ := gnolang.ParseExpr("main()")
 	m.Eval(ex)
-	out, err = bout.String(), berr.String()
+	out, err, stacktrace = bout.String(), berr.String(), m.ExceptionsStacktrace()
 	return
 }
 
@@ -78,7 +90,7 @@ func runDebugTest(t *testing.T, targetPath string, tests []dtest) {
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			out, err := evalTest("", test.in, targetPath)
+			out, err, _ := evalTest("", test.in, targetPath)
 			t.Log("in:", test.in, "out:", out, "err:", err)
 			if !strings.Contains(out, test.out) {
 				t.Errorf("unexpected output\nwant\"%s\"\n  got \"%s\"", test.out, out)
@@ -117,14 +129,14 @@ func TestDebug(t *testing.T) {
 		{in: "p 'a'\n", out: "(97 int32)"},
 		{in: "p '界'\n", out: "(30028 int32)"},
 		{in: "p \"xxxx\"\n", out: `("xxxx" string)`},
-		{in: "si\n", out: "sample.gno:4"},
-		{in: "s\ns\n", out: "=>   33: 	num := 5"},
+		{in: "si\n", out: "sample.gno:14"},
+		{in: "s\ns\n", out: `=>   14: var global = "test"`},
 		{in: "s\n\n", out: "=>   33: 	num := 5"},
 		{in: "foo", out: "command not available: foo"},
 		{in: "\n\n", out: "dbg> "},
 		{in: "#\n", out: "dbg> "},
 		{in: "p foo", out: "Command failed: could not find symbol value for foo"},
-		{in: "b +7\nc\n", out: "=>   11:"},
+		{in: "b +7\nc\n", out: "=>   21: 	r := t.A[i]"},
 		{in: brk + "clear 0\n", out: "dbg> "},
 		{in: brk + "clear -1\n", out: "Command failed: invalid breakpoint id: -1"},
 		{in: brk + "clear\n", out: "dbg> "},
@@ -147,7 +159,7 @@ func TestDebug(t *testing.T) {
 		{in: "b 37\nc\np b\n", out: "(3 int)"},
 		{in: "b 27\nc\np b\n", out: `("!zero" string)`},
 		{in: "b 22\nc\np t.A[3]\n", out: "Command failed: slice index out of bounds: 3 (len=3)"},
-		{in: "b 43\nc\nc\np i\nd\n", out: "(1 int)"},
+		{in: "b 43\nc\nc\nc\np i\ndetach\n", out: "(1 int)"},
 	})
 
 	runDebugTest(t, "../../tests/files/a1.gno", []dtest{
@@ -194,9 +206,10 @@ func TestRemoteDebug(t *testing.T) {
 }
 
 func TestRemoteError(t *testing.T) {
-	_, err := evalTest(":xxx", "", debugTarget)
+	_, err, _ := evalTest(":xxx", "", debugTarget)
 	t.Log("err:", err)
-	if !strings.Contains(err, "tcp/xxx: unknown port") {
+	if !strings.Contains(err, "tcp/xxx: unknown port") &&
+		!strings.Contains(err, "tcp/xxx: nodename nor servname provided, or not known") {
 		t.Error(err)
 	}
 }
