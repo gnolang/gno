@@ -1,11 +1,7 @@
 name: run benchmarks on every PR
 
-### TODO: change
-# on:
-#   pull_request:
 on:
-  push:
-    branches: [ "dummy-benchmark" ]
+  pull_request:
 
 jobs:
   check:
