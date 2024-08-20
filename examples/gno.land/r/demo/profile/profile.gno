@@ -6,7 +6,6 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
-	"gno.land/p/demo/json"
 )
 
 var (
