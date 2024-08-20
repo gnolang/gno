@@ -206,6 +206,13 @@ func (m *Machine) doOpRef() {
 	if elt == DataByteType {
 		elt = xv.TV.V.(DataByteValue).ElemType
 	}
+
+	if array, ok := xv.Base.(*ArrayValue); ok {
+		if array.NotAddressable {
+			panic(fmt.Sprintf("doOpRef: expr not addressable: %+v\n", array))
+		}
+	}
+
 	m.PushValue(TypedValue{
 		T:              m.Alloc.NewType(&PointerType{Elt: elt}),
 		V:              xv,

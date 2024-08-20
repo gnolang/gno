@@ -2088,10 +2088,6 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 		iv := m.PopValue()
 		xv := m.PopValue()
 
-		if xv.NotAddressable {
-			panic(fmt.Sprintf("PopAsPointer: expr not addressable: %+v\n", xv))
-		}
-
 		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()

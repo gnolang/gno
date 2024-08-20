@@ -10,4 +10,4 @@ func getArray() [3]int {
 }
 
 // Error:
-// PopAsPointer: expr not addressable: (array[(1 int),(2 int),(3 int)] [3]int)
+// doOpRef: expr not addressable: array[(1 int),(2 int),(3 int)]
