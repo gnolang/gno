@@ -79,7 +79,6 @@ func (m *Machine) doOpEql() {
 	if debug {
 		debugAssertEqualityTypes(lv.T, rv.T)
 	}
-
 	// set result in lv.
 	res := isEql(m.Store, lv, rv)
 	lv.T = UntypedBoolType
@@ -344,6 +343,9 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 	} else if rvu {
 		return false
 	}
+	if err := checkSame(lv.T, rv.T, ""); err != nil {
+		return false
+	}
 	if lnt, ok := lv.T.(*NativeType); ok {
 		if rnt, ok := rv.T.(*NativeType); ok {
 			if lnt.Type != rnt.Type {
@@ -475,6 +477,12 @@ func isEql(store Store, lv, rv *TypedValue) bool {
 				rfv.GetClosure(store)
 		}
 	case PointerKind:
+		if lv.T != rv.T &&
+			lv.T.Elem() != DataByteType &&
+			lv.T.TypeID() != rv.T.TypeID() {
+			return false
+		}
+
 		if lv.V != nil && rv.V != nil {
 			lpv := lv.V.(PointerValue)
 			rpv := rv.V.(PointerValue)
