@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -107,7 +108,7 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 			Balances: []gnoland.Balance{
 				{
 					Address: crypto.MustAddressFromString(DefaultAccount_Address),
-					Amount:  std.MustParseCoins("10000000000000ugnot"),
+					Amount:  std.MustParseCoins(ugnot.ValueString(10000000000000)),
 				},
 			},
 			Txs: []std.Tx{},
@@ -119,7 +120,7 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []std.Tx {
 	examplesDir := filepath.Join(gnoroot, "examples")
 
-	defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 	txs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee)
 	require.NoError(t, err)
 

@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/log"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
@@ -174,7 +175,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					// get packages
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
-					defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 					pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil)
 					if err != nil {
 						ts.Fatalf("unable to load packages txs: %s", err)
@@ -585,7 +586,7 @@ func createAccount(env envSetter, kb keys.Keybase, accountName string) (gnoland.
 
 	return gnoland.Balance{
 		Address: address,
-		Amount:  std.Coins{std.NewCoin("ugnot", 10e6)},
+		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e6)},
 	}, nil
 }
 
@@ -609,7 +610,7 @@ func createAccountFrom(env envSetter, kb keys.Keybase, accountName, mnemonic str
 
 	return gnoland.Balance{
 		Address: address,
-		Amount:  std.Coins{std.NewCoin("ugnot", 10e6)},
+		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e6)},
 	}, nil
 }
 
