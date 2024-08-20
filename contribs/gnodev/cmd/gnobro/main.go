@@ -375,7 +375,7 @@ func getDevEndpoint(cfg *broCfg) (string, error) {
 	}
 
 	// ensure having a (any) protocol scheme
-	if strings.Index(host, "://") < 0 {
+	if !strings.Contains(host, "://") {
 		host = "http://" + host
 	}
 
