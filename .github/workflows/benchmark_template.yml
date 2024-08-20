@@ -63,7 +63,9 @@ jobs:
         # Enable Job Summary for PRs
         summary-always: true
         github-token: ${{ secrets.PAT_TOKEN }}
+        # NOTE you need to use a separate Personal Access Token that has a write access to the specified repository.
         gh-repository: 'github.com/sw360cab/tarlz' # on gh-pages branch
-        # benchmark-data-dir-path: /bench
+        
+        benchmark-data-dir-path: /bench
         auto-push: ${{ inputs.publish }}
         alert-comment-cc-users: '@ajnavarro,@thehowl,@zivkovicmilos'
