@@ -45,7 +45,7 @@ jobs:
         path: ./cache
         key: ${{ runner.os }}-benchmark
     
-    - name: Store benchmark results into `gnolang/benchmarks` repository
+    - name: Store benchmark results into `gh-benchmarks` branch
       uses: benchmark-action/github-action-benchmark@v1
       # see https://github.com/benchmark-action/github-action-benchmark?tab=readme-ov-file#action-inputs
       with:
@@ -62,7 +62,7 @@ jobs:
         summary-always: true
         github-token: ${{ secrets.GITHUB_TOKEN }}
         # NOTE you need to use a separate GITHUB PAT token that has a write access to the specified repository.
-        ## gh-repository: 'github.com/gnoland/benchmarks' # on gh-pages branch
+        ## gh-repository: 'github.com/gnolang/benchmarks' # on gh-pages branch
         gh-pages-branch: gh-benchmarks
         benchmark-data-dir-path: .
         auto-push: ${{ inputs.publish }}
