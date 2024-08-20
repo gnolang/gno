@@ -2,26 +2,22 @@ package uuid
 
 import (
 	"testing"
+
+	"gno.land/p/demo/uassert"
 )
 
 func TestID(t *testing.T) {
 	u := NewUUID()
-
 	id1 := u.ID()
 	id2 := u.ID()
 	uuid1 := IDToUUID(id1)
 	uuid2 := IDToUUID(id2)
 
-	if uuid1 == uuid2 {
-		t.Errorf("The IDs generated are identical: %d", uuid1)
-	}
+	uassert.NotEqual(t, uuid1, uuid2)
 
-	t.Logf("uuid1: %s , uuid2: %s", uuid1, uuid2)
-
-	const numIDs = 11
 	idMap := make(map[uint64]bool)
 
-	for i := 0; i < numIDs; i++ {
+	for i := 0; i < 11; i++ {
 		id := u.ID()
 		if _, exists := idMap[id]; exists {
 			t.Errorf("Duplicate ID found: %d", id)
@@ -30,11 +26,9 @@ func TestID(t *testing.T) {
 		uuidStr := IDToUUID(id)
 		t.Logf("Generated UUID %d: %s", i, uuidStr)
 	}
-
-	t.Logf("MachineID: %d", u.MachineID)
 }
 
-func TestEntropyIncrement(t *testing.T) {
+func TestGetEntropy(t *testing.T) {
 	u := NewUUID()
 	initialEntropyValue := u.entropy.Value()
 
@@ -42,9 +36,5 @@ func TestEntropyIncrement(t *testing.T) {
 		u.ID()
 	}
 
-	if u.entropy.Value() == initialEntropyValue {
-		t.Errorf("Entropy did not change correctly: expected a different value, got the same")
-	} else {
-		t.Logf("Entropy incremented correctly: initial %d, current %d", initialEntropyValue, u.entropy.Value())
-	}
+	uassert.NotEqual(t, initialEntropyValue, u.entropy.Value())
 }
