@@ -106,7 +106,7 @@ func (c *broCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.defaultRealm,
 		"default-realm",
 		defaultBroOptions.defaultRealm,
-		"default realm to display when gnobro starts and no arguments are provided",
+		"default realm to display when gnobro starts and no argument is provided",
 	)
 
 	fs.StringVar(
