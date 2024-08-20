@@ -3,6 +3,7 @@ package vm
 import (
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -140,7 +141,7 @@ func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	addr := crypto.AddressFromPreimage([]byte("test1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.AddCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
 	// success message
 	var files []*std.MemFile
 	if success {
@@ -172,7 +173,7 @@ func Echo() UnknowType {
 	// create messages and a transaction
 	msg := NewMsgAddPackage(addr, pkgPath, files)
 	msgs := []std.Msg{msg}
-	fee := std.NewFee(500000, std.MustParseCoin("1ugnot"))
+	fee := std.NewFee(500000, std.MustParseCoin(ugnot.ValueString(1)))
 	tx := std.NewTx(msgs, fee, []std.Signature{}, "")
 
 	return ctx, tx, vmHandler
