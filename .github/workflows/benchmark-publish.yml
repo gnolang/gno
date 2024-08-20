@@ -9,12 +9,6 @@ on:
   push:
     branches: [ "dummy-benchmark" ]
 
-permissions:
-  # deployments permission to deploy GitHub pages website
-  deployments: write
-  # contents permission to update benchmark contents in gh-pages branch
-  contents: write
-
 jobs:
   publish:
     uses: ./.github/workflows/benchmark_template.yml
