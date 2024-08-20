@@ -67,6 +67,6 @@ jobs:
         ## gh-repository: 'github.com/gno/benchmarks' # on gh-pages branch
         gh-pages-branch: gh-benchmarks
         # NOTE this option does not work on external repository
-        benchmark-data-dir-path: bench
+        benchmark-data-dir-path: .
         auto-push: ${{ inputs.publish }}
         alert-comment-cc-users: '@ajnavarro,@thehowl,@zivkovicmilos'
