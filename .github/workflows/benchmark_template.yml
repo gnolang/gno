@@ -35,11 +35,9 @@ jobs:
         go-version: "1.22.x"
 
     - name: Run benchmark
-      # TODO: change
       run: |
-        go test -benchmem -bench=. -run=^$ github.com/gnolang/gno/tm2/pkg/db/goleveldb/ \
+        go test -benchmem -bench=. ./... -run=^$ \
         -cpu 1,2 ${{ inputs.test-flags }} | tee benchmarks.txt
-      # go test -benchmem -bench=. ./... -run=^$ -skip=^BenchmarkPreprocess$ \
 
     - name: Download previous benchmark data
       uses: actions/cache@v4
@@ -63,10 +61,9 @@ jobs:
         # Enable Job Summary for PRs
         summary-always: true
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        # NOTE you need to use a separate Personal Access Token that has a write access to the specified repository.
-        ## gh-repository: 'github.com/gno/benchmarks' # on gh-pages branch
+        # NOTE you need to use a separate GITHUB PAT token that has a write access to the specified repository.
+        ## gh-repository: 'github.com/gnoland/benchmarks' # on gh-pages branch
         gh-pages-branch: gh-benchmarks
-        # NOTE this option does not work on external repository
         benchmark-data-dir-path: .
         auto-push: ${{ inputs.publish }}
         alert-comment-cc-users: '@ajnavarro,@thehowl,@zivkovicmilos'
