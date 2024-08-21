@@ -106,79 +106,85 @@ func Test_bufferedTxMap_bufferedErr(t *testing.T) {
 	})
 }
 
-type hashMap[K comparable, V any] interface {
-	Get(K) (V, bool)
-	Set(K, V)
-	Delete(K)
-}
-
-type stackableTxMap[K comparable, V any] struct {
-	source hashMap[K, V]
+// bufferedTxMap is a wrapper around the map type, supporting regular Get, Set
+// and Delete operations. Additionally, it can create a "buffered" version of
+// itself, which will keep track of all write (set and delete) operations to the
+// map; so that they can all be atomically committed when calling "write".
+type bufferedTxMap[K comparable, V any] struct {
+	source map[K]V
 	dirty  map[K]deletable[V]
 }
 
-func newStackable[K comparable, V any](source hashMap[K, V]) stackableTxMap[K, V] {
-	return stackableTxMap[K, V]{
-		source: source,
+// init should be called when creating the bufferedTxMap, in a non-buffered
+// context.
+func (b *bufferedTxMap[K, V]) init() {
+	if b.dirty != nil {
+		panic("cannot init with a dirty buffer")
+	}
+	b.source = make(map[K]V)
+}
+
+// buffered creates a copy of b, which has a usable dirty map.
+func (b bufferedTxMap[K, V]) buffered() bufferedTxMap[K, V] {
+	if b.dirty != nil {
+		panic("cannot stack multiple bufferedTxMap")
+	}
+	return bufferedTxMap[K, V]{
+		source: b.source,
 		dirty:  make(map[K]deletable[V]),
 	}
 }
 
 // write commits the data in dirty to the map in source.
-func (b *stackableTxMap[K, V]) write() {
+func (b *bufferedTxMap[K, V]) write() {
 	for k, v := range b.dirty {
 		if v.deleted {
-			b.source.Delete(k)
+			delete(b.source, k)
 		} else {
-			b.source.Set(k, v.v)
+			b.source[k] = v.v
 		}
 	}
 	b.dirty = make(map[K]deletable[V])
 }
 
-func (b stackableTxMap[K, V]) Get(k K) (V, bool) {
-	if bufValue, ok := b.dirty[k]; ok {
-		if bufValue.deleted {
-			var zeroV V
-			return zeroV, false
+func (b bufferedTxMap[K, V]) Get(k K) (V, bool) {
+	if b.dirty != nil {
+		if bufValue, ok := b.dirty[k]; ok {
+			if bufValue.deleted {
+				var zeroV V
+				return zeroV, false
+			}
+			return bufValue.v, true
 		}
-		return bufValue.v, true
 	}
-
-	return b.source.Get(k)
-}
-
-func (b stackableTxMap[K, V]) Set(k K, v V) {
-	b.dirty[k] = deletable[V]{v: v}
-}
-
-func (b stackableTxMap[K, V]) Delete(k K) {
-	b.dirty[k] = deletable[V]{deleted: true}
-}
-
-type mapWrapper[K comparable, V any] map[K]V
-
-func (m mapWrapper[K, V]) Get(k K) (V, bool) {
-	v, ok := m[k]
+	v, ok := b.source[k]
 	return v, ok
 }
 
-func (m mapWrapper[K, V]) Set(k K, v V) {
-	m[k] = v
+func (b bufferedTxMap[K, V]) Set(k K, v V) {
+	if b.dirty == nil {
+		b.source[k] = v
+		return
+	}
+	b.dirty[k] = deletable[V]{v: v}
 }
 
-func (m mapWrapper[K, V]) Delete(k K) {
-	delete(m, k)
+func (b bufferedTxMap[K, V]) Delete(k K) {
+	if b.dirty == nil {
+		delete(b.source, k)
+		return
+	}
+	b.dirty[k] = deletable[V]{deleted: true}
 }
 
-func Benchmark_stackableTxMapRead(b *testing.B) {
+func Benchmark_txLogMapRead(b *testing.B) {
 	const maxValues = (1 << 10) * 9 // must be multiple of 9
 
 	var (
 		baseMap = make(map[int]int)             // all values filled
 		wrapped = mapWrapper[int, int](baseMap) // wrapper around baseMap
-		stack1  = newStackable(wrapped)         // n+1, n+4, n+7 values filled (n%9 == 0)
-		stack2  = newStackable(stack1)          // n'th values filled (n%9 == 0)
+		stack1  = newTxLog(wrapped)             // n+1, n+4, n+7 values filled (n%9 == 0)
+		stack2  = newTxLog(stack1)              // n'th values filled (n%9 == 0)
 	)
 
 	for i := 0; i < maxValues; i++ {
@@ -212,7 +218,7 @@ func Benchmark_stackableTxMapRead(b *testing.B) {
 	})
 }
 
-func Benchmark_stackableTxMapWrite(b *testing.B) {
+func Benchmark_txLogMapWrite(b *testing.B) {
 	// after this amount of values, the maps are re-initialized.
 	// you can tweak this to see how the benchmarks behave on a variety of
 	// values.
@@ -227,7 +233,7 @@ func Benchmark_stackableTxMapWrite(b *testing.B) {
 
 	b.Run("stack1", func(b *testing.B) {
 		src := mapWrapper[int, int](make(map[int]int))
-		st := newStackable(src)
+		st := newTxLog(src)
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
@@ -239,7 +245,7 @@ func Benchmark_stackableTxMapWrite(b *testing.B) {
 			v, ok = st.Get(k)
 
 			if k == maxValues-1 {
-				st = newStackable(src)
+				st = newTxLog(src)
 			}
 		}
 	})

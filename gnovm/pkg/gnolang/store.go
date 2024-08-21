@@ -73,8 +73,6 @@ type Store interface {
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
 	ClearCache()
 	Print()
-
-	preprocessFork() Store
 }
 
 // TransactionStore is a store where the operations modifying the underlying store's
@@ -94,11 +92,11 @@ type defaultStore struct {
 	iavlStore store.Store // for escaped object hashes
 
 	// transaction-scoped
-	parentStore  *defaultStore                      // set only during transactions.
-	cacheObjects map[ObjectID]Object                // this is a real cache, reset with every transaction.
-	cacheTypes   bufferedTxMap[TypeID, Type]        // this re-uses the parent store's.
-	cacheNodes   bufferedTxMap[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
-	alloc        *Allocator                         // for accounting for cached items
+	parentStore  *defaultStore                // set only during transactions.
+	cacheObjects map[ObjectID]Object          // this is a real cache, reset with every transaction.
+	cacheTypes   hashMap[TypeID, Type]        // this re-uses the parent store's.
+	cacheNodes   hashMap[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
+	alloc        *Allocator                   // for accounting for cached items
 
 	// store configuration; cannot be modified in a transaction
 	pkgGetter        PackageGetter         // non-realm packages
@@ -113,75 +111,109 @@ type defaultStore struct {
 	opslog  []StoreOp // for debugging and testing.
 }
 
-// bufferedTxMap is a wrapper around the map type, supporting regular Get, Set
-// and Delete operations. Additionally, it can create a "buffered" version of
-// itself, which will keep track of all write (set and delete) operations to the
-// map; so that they can all be atomically committed when calling "write".
-type bufferedTxMap[K comparable, V any] struct {
-	source map[K]V
+type hashMap[K comparable, V any] interface {
+	Get(K) (V, bool)
+	Set(K, V)
+	Delete(K)
+	Iterate() func(yield func(K, V) bool)
+}
+
+type txLogMap[K comparable, V any] struct {
+	source hashMap[K, V]
 	dirty  map[K]deletable[V]
 }
 
-// init should be called when creating the bufferedTxMap, in a non-buffered
-// context.
-func (b *bufferedTxMap[K, V]) init() {
-	if b.dirty != nil {
-		panic("cannot init with a dirty buffer")
-	}
-	b.source = make(map[K]V)
-}
-
-// buffered creates a copy of b, which has a usable dirty map.
-func (b bufferedTxMap[K, V]) buffered() bufferedTxMap[K, V] {
-	if b.dirty != nil {
-		panic("cannot stack multiple bufferedTxMap")
-	}
-	return bufferedTxMap[K, V]{
-		source: b.source,
+func newTxLog[K comparable, V any](source hashMap[K, V]) *txLogMap[K, V] {
+	return &txLogMap[K, V]{
+		source: source,
 		dirty:  make(map[K]deletable[V]),
 	}
 }
 
 // write commits the data in dirty to the map in source.
-func (b *bufferedTxMap[K, V]) write() {
+func (b *txLogMap[K, V]) write() {
 	for k, v := range b.dirty {
 		if v.deleted {
-			delete(b.source, k)
+			b.source.Delete(k)
 		} else {
-			b.source[k] = v.v
+			b.source.Set(k, v.v)
 		}
 	}
 	b.dirty = make(map[K]deletable[V])
 }
 
-func (b bufferedTxMap[K, V]) Get(k K) (V, bool) {
-	if b.dirty != nil {
-		if bufValue, ok := b.dirty[k]; ok {
-			if bufValue.deleted {
-				var zeroV V
-				return zeroV, false
-			}
-			return bufValue.v, true
+func (b txLogMap[K, V]) Get(k K) (V, bool) {
+	if bufValue, ok := b.dirty[k]; ok {
+		if bufValue.deleted {
+			var zeroV V
+			return zeroV, false
 		}
+		return bufValue.v, true
 	}
-	v, ok := b.source[k]
-	return v, ok
+
+	return b.source.Get(k)
 }
 
-func (b bufferedTxMap[K, V]) Set(k K, v V) {
-	if b.dirty == nil {
-		b.source[k] = v
-		return
-	}
+func (b txLogMap[K, V]) Set(k K, v V) {
 	b.dirty[k] = deletable[V]{v: v}
 }
 
-func (b bufferedTxMap[K, V]) Delete(k K) {
-	if b.dirty == nil {
-		delete(b.source, k)
-		return
-	}
+func (b txLogMap[K, V]) Delete(k K) {
 	b.dirty[k] = deletable[V]{deleted: true}
+}
+
+func (b txLogMap[K, V]) Iterate() func(yield func(K, V) bool) {
+	return func(yield func(K, V) bool) {
+		b.source.Iterate()(func(k K, v V) bool {
+			if dirty, ok := b.dirty[k]; ok {
+				if dirty.deleted {
+					return true
+				}
+				return yield(k, dirty.v)
+			}
+
+			// not in dirty
+			return yield(k, v)
+		})
+		// yield for new values
+		for k, v := range b.dirty {
+			if v.deleted {
+				continue
+			}
+			_, ok := b.source.Get(k)
+			if ok {
+				continue
+			}
+			if !yield(k, v.v) {
+				break
+			}
+		}
+	}
+}
+
+type mapWrapper[K comparable, V any] map[K]V
+
+func (m mapWrapper[K, V]) Get(k K) (V, bool) {
+	v, ok := m[k]
+	return v, ok
+}
+
+func (m mapWrapper[K, V]) Set(k K, v V) {
+	m[k] = v
+}
+
+func (m mapWrapper[K, V]) Delete(k K) {
+	delete(m, k)
+}
+
+func (m mapWrapper[K, V]) Iterate() func(yield func(K, V) bool) {
+	return func(yield func(K, V) bool) {
+		for k, v := range m {
+			if !yield(k, v) {
+				return
+			}
+		}
+	}
 }
 
 type deletable[V any] struct {
@@ -197,6 +229,8 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 
 		// cacheObjects is set; objects in the store will be copied over for any transaction.
 		cacheObjects: make(map[ObjectID]Object),
+		cacheTypes:   mapWrapper[TypeID, Type](map[TypeID]Type{}),
+		cacheNodes:   mapWrapper[Location, BlockNode](map[Location]BlockNode{}),
 
 		// store configuration
 		pkgGetter:        nil,
@@ -205,8 +239,6 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		nativeStore:      nil,
 		go2gnoStrict:     true,
 	}
-	ds.cacheTypes.init()
-	ds.cacheNodes.init()
 	InitStoreCaches(ds)
 	return ds
 }
@@ -237,8 +269,8 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 		// transaction-scoped
 		parentStore:  ds,
 		cacheObjects: make(map[ObjectID]Object),
-		cacheTypes:   ds.cacheTypes.buffered(),
-		cacheNodes:   ds.cacheNodes.buffered(),
+		cacheTypes:   newTxLog(ds.cacheTypes),
+		cacheNodes:   newTxLog(ds.cacheNodes),
 		alloc:        ds.alloc.Fork().Reset(),
 
 		// store configuration
@@ -257,48 +289,10 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 	return transactionStore{ds2}
 }
 
-func (ds *defaultStore) preprocessFork() Store {
-	// XXX:
-	// This is only used internally, in Preprocess, when using evalStaticType
-	// and evalStaticTypeOfRaw.
-	// Could be joined with BeginTransaction if we allowed for stacking.
-
-	ds2 := &defaultStore{
-		// underlying stores
-		baseStore: ds.baseStore,
-		iavlStore: ds.iavlStore,
-
-		// transaction-scoped
-		parentStore:  ds,
-		cacheObjects: make(map[ObjectID]Object),
-		cacheTypes:   ds.cacheTypes,
-		cacheNodes:   ds.cacheNodes,
-		alloc:        ds.alloc.Fork().Reset(),
-
-		// store configuration
-		pkgGetter:        ds.pkgGetter,
-		cacheNativeTypes: ds.cacheNativeTypes,
-		pkgInjector:      ds.pkgInjector,
-		nativeStore:      ds.nativeStore,
-		go2gnoStrict:     ds.go2gnoStrict,
-
-		// transient
-		current: nil,
-		opslog:  nil,
-	}
-	ds2.SetCachePackage(Uverse())
-
-	return ds2
-}
-
 type transactionStore struct{ *defaultStore }
 
-func (t transactionStore) Write() { t.write() }
-
-// writes to parentStore, prepares the transactional ds for a new execution.
-func (ds *defaultStore) write() {
-	ds.cacheTypes.write()
-	ds.cacheNodes.write()
+func (t transactionStore) Write() {
+	t.cacheNodes.(*txLogMap[Location, BlockNode]).write()
 }
 
 // CopyCachesFromStore allows to copy a store's internal object, type and
@@ -316,16 +310,14 @@ func CopyFromCachedStore(destStore, cachedStore Store, cachedBase, cachedIavl st
 		ds.iavlStore.Set(iter.Key(), iter.Value())
 	}
 
-	if ss.cacheTypes.dirty != nil ||
-		ss.cacheNodes.dirty != nil {
-		panic("cacheTypes and cacheNodes should be unbuffered")
-	}
-	for k, v := range ss.cacheTypes.source {
+	ss.cacheTypes.Iterate()(func(k TypeID, v Type) bool {
 		ds.cacheTypes.Set(k, v)
-	}
-	for k, v := range ss.cacheNodes.source {
+		return true
+	})
+	ss.cacheNodes.Iterate()(func(k Location, v BlockNode) bool {
 		ds.cacheNodes.Set(k, v)
-	}
+		return true
+	})
 }
 
 func (ds *defaultStore) GetAllocator() *Allocator {
@@ -931,8 +923,8 @@ func (ds *defaultStore) ClearCache() {
 		panic("ClearCache can only be called on non-transactional stores")
 	}
 	ds.cacheObjects = make(map[ObjectID]Object)
-	ds.cacheTypes.init()
-	ds.cacheNodes.init()
+	ds.cacheTypes = mapWrapper[TypeID, Type](map[TypeID]Type{})
+	ds.cacheNodes = mapWrapper[Location, BlockNode](map[Location]BlockNode{})
 	ds.cacheNativeTypes = make(map[reflect.Type]Type)
 	// restore builtin types to cache.
 	InitStoreCaches(ds)
@@ -948,38 +940,18 @@ func (ds *defaultStore) Print() {
 	utils.Print(ds.iavlStore)
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:cacheTypes..."))
-	for tid, typ := range ds.cacheTypes.source {
+	ds.cacheTypes.Iterate()(func(tid TypeID, typ Type) bool {
 		fmt.Printf("- %v: %v\n", tid,
 			stringz.TrimN(fmt.Sprintf("%v", typ), 50))
-	}
-	if len(ds.cacheTypes.dirty) > 0 {
-		fmt.Println(colors.Green("defaultStore:cacheTypes (pending)..."))
-		for tid, typ := range ds.cacheTypes.dirty {
-			if typ.deleted {
-				fmt.Printf("- %v (deleted)\n", tid)
-			} else {
-				fmt.Printf("- %v: %v\n", tid,
-					stringz.TrimN(fmt.Sprintf("%v", typ.v), 50))
-			}
-		}
-	}
+		return true
+	})
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:cacheNodes..."))
-	for loc, bn := range ds.cacheNodes.source {
+	ds.cacheNodes.Iterate()(func(loc Location, bn BlockNode) bool {
 		fmt.Printf("- %v: %v\n", loc,
 			stringz.TrimN(fmt.Sprintf("%v", bn), 50))
-	}
-	if len(ds.cacheNodes.dirty) > 0 {
-		fmt.Println(colors.Green("defaultStore:cacheNodes (pending)..."))
-		for tid, typ := range ds.cacheNodes.dirty {
-			if typ.deleted {
-				fmt.Printf("- %v (deleted)\n", tid)
-			} else {
-				fmt.Printf("- %v: %v\n", tid,
-					stringz.TrimN(fmt.Sprintf("%v", typ.v), 50))
-			}
-		}
-	}
+		return true
+	})
 	fmt.Println(colors.Red("//----------------------------------------"))
 }
 
