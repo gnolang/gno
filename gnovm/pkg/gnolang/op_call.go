@@ -165,6 +165,7 @@ func (m *Machine) doOpCall() {
 		// Make a copy so that a reference to the argument isn't used
 		// in cases where the non-primitive value type is represented
 		// as a pointer, *StructValue, for example.
+		pv.Addressable()
 		b.Values[i] = pv.Copy(m.Alloc)
 	}
 }
