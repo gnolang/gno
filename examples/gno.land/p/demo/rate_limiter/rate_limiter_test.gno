@@ -33,7 +33,7 @@ func TestRateLimiter(t *testing.T) {
 	urequire.False(t, rl.AllowAction(addr1), "Expected addr1 to be blocked after exceeding the limit")
 
 	// Fast forward blocks beyond the window size
-	std.TestSkipHeights(150 + 101)
+	std.TestSkipHeights(100)
 
 	// User1 should be allowed again after the window size has passed
 	urequire.True(t, rl.AllowAction(addr1), "Expected addr1 to be allowed after window size passed")
