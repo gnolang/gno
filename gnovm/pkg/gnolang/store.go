@@ -92,7 +92,6 @@ type defaultStore struct {
 	iavlStore store.Store // for escaped object hashes
 
 	// transaction-scoped
-	parentStore  *defaultStore                // set only during transactions.
 	cacheObjects map[ObjectID]Object          // this is a real cache, reset with every transaction.
 	cacheTypes   hashMap[TypeID, Type]        // this re-uses the parent store's.
 	cacheNodes   hashMap[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
@@ -104,7 +103,6 @@ type defaultStore struct {
 	pkgInjector      PackageInjector       // for injecting natives
 	nativeStore      NativeStore           // for injecting natives
 	go2gnoStrict     bool                  // if true, native->gno type conversion must be registered.
-	// XXX panic when changing these and parentStore != nil
 
 	// transient
 	current []string  // for detecting import cycles.
@@ -267,7 +265,6 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 		iavlStore: iavlStore,
 
 		// transaction-scoped
-		parentStore:  ds,
 		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   newTxLog(ds.cacheTypes),
 		cacheNodes:   newTxLog(ds.cacheNodes),
@@ -294,6 +291,33 @@ type transactionStore struct{ *defaultStore }
 func (t transactionStore) Write() {
 	t.cacheTypes.(*txLogMap[TypeID, Type]).write()
 	t.cacheNodes.(*txLogMap[Location, BlockNode]).write()
+}
+
+func (transactionStore) SetPackageGetter(pg PackageGetter) {
+	panic("package getter may not be modified in a transaction store")
+}
+
+func (transactionStore) ClearCache() {
+	panic("ClearCache may not be called in a transaction store")
+}
+
+// XXX: we should block Go2GnoType, because it uses a global cache map;
+// but it's called during preprocess and thus breaks some testing code.
+// let's wait until we remove Go2Gno entirely.
+// func (transactionStore) Go2GnoType(reflect.Type) Type {
+// 	panic("Go2GnoType may not be called in a transaction store")
+// }
+
+func (transactionStore) SetPackageInjector(inj PackageInjector) {
+	panic("SetPackageInjector may not be called in a transaction store")
+}
+
+func (transactionStore) SetNativeStore(ns NativeStore) {
+	panic("SetNativeStore may not be called in a transaction store")
+}
+
+func (transactionStore) SetStrictGo2GnoMapping(strict bool) {
+	panic("SetStrictGo2GnoMapping may not be called in a transaction store")
 }
 
 // CopyCachesFromStore allows to copy a store's internal object, type and
@@ -326,9 +350,6 @@ func (ds *defaultStore) GetAllocator() *Allocator {
 }
 
 func (ds *defaultStore) SetPackageGetter(pg PackageGetter) {
-	if ds.parentStore != nil {
-		panic("package getter cannot be modified in a transaction")
-	}
 	ds.pkgGetter = pg
 }
 
@@ -920,9 +941,6 @@ func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
 }
 
 func (ds *defaultStore) ClearCache() {
-	if ds.parentStore != nil {
-		panic("ClearCache can only be called on non-transactional stores")
-	}
 	ds.cacheObjects = make(map[ObjectID]Object)
 	ds.cacheTypes = mapWrapper[TypeID, Type](map[TypeID]Type{})
 	ds.cacheNodes = mapWrapper[Location, BlockNode](map[Location]BlockNode{})
