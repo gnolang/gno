@@ -52,12 +52,12 @@ func (rl *RateLimiter) AllowAction(address std.Address) bool {
 	return false
 }
 
-// SetmaxActions updates the maximum number of actions allowed within the time window.
-func (rl *RateLimiter) SetmaxActions(maxActions int) {
+// SetMaxActions updates the maximum number of actions allowed within the time window.
+func (rl *RateLimiter) SetMaxActions(maxActions int) {
 	rl.maxActions = maxActions
 }
 
-// SetwindowSize updates the size of the time window in blocks.
-func (rl *RateLimiter) SetwindowSize(windowSize int) {
+// SetWindowSize updates the size of the time window in blocks.
+func (rl *RateLimiter) SetWindowSize(windowSize int) {
 	rl.windowSize = windowSize
 }
