@@ -1,3 +1,7 @@
+# This txtar is a regression test for a bug, whereby a type is committed to
+# the defaultStore.cacheTypes map, but not to the underlying store (due to a
+# failing transaction).
+# For more information: https://github.com/gnolang/gno/pull/2605
 loadpkg gno.land/p/demo/avl
 gnoland start
 

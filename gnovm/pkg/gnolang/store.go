@@ -2,7 +2,6 @@ package gnolang
 
 import (
 	"fmt"
-	"maps"
 	"reflect"
 	"slices"
 	"strconv"
@@ -114,6 +113,10 @@ type defaultStore struct {
 	opslog  []StoreOp // for debugging and testing.
 }
 
+// bufferedTxMap is a wrapper around the map type, supporting regular Get, Set
+// and Delete operations. Additionally, it can create a "buffered" version of
+// itself, which will keep track of all write (set and delete) operations to the
+// map; so that they can all be atomically committed when calling "write".
 type bufferedTxMap[K comparable, V any] struct {
 	source map[K]V
 	dirty  map[K]deletable[V]
@@ -131,7 +134,7 @@ func (b *bufferedTxMap[K, V]) init() {
 // buffered creates a copy of b, which has a usable dirty map.
 func (b bufferedTxMap[K, V]) buffered() bufferedTxMap[K, V] {
 	if b.dirty != nil {
-		panic("cannot stack buffered tx maps")
+		panic("cannot stack multiple bufferedTxMap")
 	}
 	return bufferedTxMap[K, V]{
 		source: b.source,
@@ -233,7 +236,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 
 		// transaction-scoped
 		parentStore:  ds,
-		cacheObjects: maps.Clone(ds.cacheObjects),
+		cacheObjects: make(map[ObjectID]Object),
 		cacheTypes:   ds.cacheTypes.buffered(),
 		cacheNodes:   ds.cacheNodes.buffered(),
 		alloc:        ds.alloc.Fork().Reset(),
@@ -249,11 +252,17 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 		current: nil,
 		opslog:  nil,
 	}
+	ds2.SetCachePackage(Uverse())
+
 	return transactionStore{ds2}
 }
 
 func (ds *defaultStore) preprocessFork() Store {
-	// XXX IMPROVE
+	// XXX:
+	// This is only used internally, in Preprocess, when using evalStaticType
+	// and evalStaticTypeOfRaw.
+	// Could be joined with BeginTransaction if we allowed for stacking.
+
 	ds2 := &defaultStore{
 		// underlying stores
 		baseStore: ds.baseStore,
@@ -278,6 +287,7 @@ func (ds *defaultStore) preprocessFork() Store {
 		opslog:  nil,
 	}
 	ds2.SetCachePackage(Uverse())
+
 	return ds2
 }
 
