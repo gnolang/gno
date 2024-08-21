@@ -108,7 +108,7 @@ func (m *Machine) doOpSlice() {
 	// slice base x
 	xv := m.PopValue()
 
-	if xv.NotAddressable {
+	if _, ok := xv.V.(Addressable); ok && xv.NotAddressable {
 		panic(fmt.Sprintf("doOpSlice: expr not addressable: %+v\n", xv))
 	}
 
