@@ -8,17 +8,17 @@ import (
 
 // RateLimiter struct to hold the configuration and state of rate limiting
 type RateLimiter struct {
-	MaxActions     int                              // Maximum actions allowed within the window
-	WindowSize     int                              // The size of the window in blocks
-	OnchainActions map[std.Address]*dequeue.Dequeue // Maps onchain addresses to action history queue
+	maxActions     int                              // Maximum actions allowed within the window
+	windowSize     int                              // The size of the window in blocks
+	onchainActions map[std.Address]*dequeue.Dequeue // Maps onchain addresses to action history queue
 }
 
 // New creates a new RateLimiter with the given max actions and window size (in blocks)
 func New(maxActions, windowSize int) *RateLimiter {
 	return &RateLimiter{
-		MaxActions:     maxActions,
-		WindowSize:     windowSize,
-		OnchainActions: make(map[std.Address]*dequeue.Dequeue),
+		maxActions:     maxActions,
+		windowSize:     windowSize,
+		onchainActions: make(map[std.Address]*dequeue.Dequeue),
 	}
 }
 
@@ -27,16 +27,16 @@ func (rl *RateLimiter) AllowAction(address std.Address) bool {
 	currentBlockHeight := std.GetHeight()
 
 	// Get or create the onchain address's action history queue
-	actionDeque, exists := rl.OnchainActions[address]
+	actionDeque, exists := rl.onchainActions[address]
 	if !exists {
 		actionDeque = dequeue.New()
-		rl.OnchainActions[address] = actionDeque
+		rl.onchainActions[address] = actionDeque
 	}
 
 	// Remove actions that are outside the window
 	for !actionDeque.Empty() {
 		earliestBlockHeight, _ := actionDeque.Front()
-		if earliestBlockHeight.(int64) <= currentBlockHeight-int64(rl.WindowSize) {
+		if earliestBlockHeight.(int64) <= currentBlockHeight-int64(rl.windowSize) {
 			actionDeque.PopFront()
 		} else {
 			break
@@ -44,10 +44,20 @@ func (rl *RateLimiter) AllowAction(address std.Address) bool {
 	}
 
 	// If the number of valid actions is below the maximum, allow the action
-	if actionDeque.Length() < uint64(rl.MaxActions) {
+	if actionDeque.Length() < uint64(rl.maxActions) {
 		actionDeque.PushBack(currentBlockHeight)
 		return true
 	}
 
 	return false
+}
+
+// SetmaxActions updates the maximum number of actions allowed within the time window.
+func (rl *RateLimiter) SetmaxActions(maxActions int) {
+	rl.maxActions = maxActions
+}
+
+// SetwindowSize updates the size of the time window in blocks.
+func (rl *RateLimiter) SetwindowSize(windowSize int) {
+	rl.windowSize = windowSize
 }
