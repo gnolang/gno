@@ -1,19 +1,19 @@
-// Package subscription provides a flexible system for managing both recurring and 
-// lifetime subscriptions in Gno applications. It enables developers to handle 
-// payment-based access control for services or products. The library supports 
-// both subscriptions requiring periodic payments (recurring) and one-time payments 
-// (lifetime). Subscriptions are tracked using an AVL tree for efficient management 
+// Package subscription provides a flexible system for managing both recurring and
+// lifetime subscriptions in Gno applications. It enables developers to handle
+// payment-based access control for services or products. The library supports
+// both subscriptions requiring periodic payments (recurring) and one-time payments
+// (lifetime). Subscriptions are tracked using an AVL tree for efficient management
 // of subscription statuses.
 //
 // Usage:
 //
-// Import the required sub-packages (`recurring` and/or `lifetime`) to manage specific 
-// subscription types. The methods provided allow users to subscribe, check subscription 
+// Import the required sub-packages (`recurring` and/or `lifetime`) to manage specific
+// subscription types. The methods provided allow users to subscribe, check subscription
 // status, and manage payments.
 //
 // Recurring Subscription:
 //
-// Recurring subscriptions require periodic payments to maintain access. 
+// Recurring subscriptions require periodic payments to maintain access.
 // Users pay to extend their access for a specific duration.
 //
 // Example:
@@ -41,7 +41,7 @@
 //
 // Lifetime Subscription:
 //
-// Lifetime subscriptions require a one-time payment for permanent access. 
+// Lifetime subscriptions require a one-time payment for permanent access.
 // Once paid, users have indefinite access without further payments.
 //
 // Example:
@@ -63,3 +63,4 @@
 //
 //	// Get the current lifetime subscription amount
 //	lifeSub.GetAmount()
+package subscription
