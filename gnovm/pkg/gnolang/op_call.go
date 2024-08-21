@@ -134,6 +134,9 @@ func (m *Machine) doOpCall() {
 			list := m.PopCopyValues(nvar)
 			vart := pts[numParams-1].Type.(*SliceType)
 			varg := m.Alloc.NewSliceFromList(list)
+
+			varg.Addressable()
+
 			m.PushValue(TypedValue{
 				T: vart,
 				V: varg,
