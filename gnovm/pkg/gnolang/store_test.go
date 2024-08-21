@@ -7,6 +7,84 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_txLogMap(t *testing.T) {
+	type Value struct{}
+
+	// Full "integration test" of the txLogMap + mapwrapper.
+	source := mapWrapper[int, *Value](map[int]*Value{})
+
+	vs := [...]*Value{
+		{},
+		{},
+		{},
+		{},
+	}
+	source.Set(0, vs[0])
+	source.Set(1, vs[1])
+	source.Set(2, vs[2])
+
+	{
+		// Attempt getting, and deleting an item.
+		v, ok := source.Get(0)
+		assert.True(t, ok, "should be successful Get")
+		assert.True(t, vs[0] == v, "pointer returned should be ==")
+
+		source.Delete(0)
+		v, ok = source.Get(0)
+		assert.False(t, ok, "should be unsuccessful Get")
+		assert.Nil(t, v, "pointer returned should be nil")
+	}
+
+	saved := mapWrapper[int, *Value](maps.Clone(source))
+	txm := newTxLog(source)
+
+	{
+		// Attempt getting, deleting an item on a buffered map;
+		// then creating a new one.
+		v, ok := txm.Get(1)
+		assert.True(t, ok, "should be successful Get")
+		assert.True(t, vs[1] == v, "pointer returned should be ==")
+
+		txm.Delete(1)
+		v, ok = txm.Get(1)
+		assert.False(t, ok, "should be unsuccessful Get")
+		assert.Nil(t, v, "pointer returned should be nil")
+
+		txm.Set(3, vs[3])
+		v, ok = txm.Get(3)
+		assert.True(t, ok, "should be successful Get")
+		assert.True(t, vs[3] == v, "pointer returned should be ==")
+
+		// The original bufferedTxMap should still not know about the
+		// new value, and the internal "source" map should still be the
+		// same.
+		v, ok = source.Get(3)
+		assert.Nil(t, v)
+		assert.False(t, ok)
+		v, ok = source.Get(1)
+		assert.True(t, vs[1] == v)
+		assert.True(t, ok)
+		assert.Equal(t, saved, source)
+		assert.Equal(t, saved, txm.source)
+	}
+
+	{
+		// Using write() should cause bm's internal buffer to be cleared;
+		// and for all changes to show up on the source map.
+		txm.write()
+		assert.Empty(t, txm.dirty)
+		assert.Equal(t, source, txm.source)
+		assert.NotEqual(t, saved, source)
+
+		v, ok := source.Get(3)
+		assert.True(t, vs[3] == v)
+		assert.True(t, ok)
+		v, ok = source.Get(1)
+		assert.Nil(t, v)
+		assert.False(t, ok)
+	}
+}
+
 func Test_bufferedTxMap(t *testing.T) {
 	type Value struct{}
 
