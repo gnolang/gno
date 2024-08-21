@@ -1,4 +1,4 @@
-module ratelimiter
+module gno.land/p/demo/ratelimiter
 
 require (
 	gno.land/p/demo/dequeue v0.0.0-latest
