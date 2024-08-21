@@ -17,7 +17,7 @@ func TestID(t *testing.T) {
 
 	idMap := make(map[uint64]bool)
 
-	for i := 0; i < 11; i++ {
+	for i := 0; i < 101; i++ {
 		id := u.ID()
 		if _, exists := idMap[id]; exists {
 			t.Errorf("Duplicate ID found: %d", id)

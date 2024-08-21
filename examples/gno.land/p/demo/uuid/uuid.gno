@@ -5,6 +5,8 @@
 // to standard UUID format strings, making them compatible with systems
 // requiring UUIDs.
 // Add import "gno.land/p/demo/entropy" to use the entropy package. For of the pseudo-random number generator.
+// TimesTampLength is 32 because entropy.Value() returns a uint32.
+// 32 it's the maximum value that can be returned "4 294 967 295", It's represent 136 years (4 294 967 295 secondes)
 
 package uuid
 
@@ -18,25 +20,26 @@ import (
 )
 
 const (
-	TimestampLength uint8  = 41
+	TimestampLength uint8  = 32
 	MachineIDLength uint64 = 10
 	SequenceLength  uint64 = 12
 	MaxSequence     uint16 = 1<<SequenceLength - 1
-	MaxTimestamp    uint64 = 1<<TimestampLength - 1
+	MaxTimestamp    uint32 = 1<<TimestampLength - 1
 	MaxMachineID    uint64 = 1<<MachineIDLength - 1
 
 	machineIDMoveLength = SequenceLength
 	timestampMoveLength = MachineIDLength + SequenceLength
 
-	startTime int64 = 1226354400000 // 10 Nov 2008 23:00:00 UTC in milliseconds (Snowflake epoch)
+	startTime uint32 = 1226354400 // 10 Nov 2008 23:00:00 UTC in seconds (Snowflake epoch)
 )
 
 // UUID struct for generating unique identifiers.
 type UUID struct {
 	machineID     uint64
 	sequence      uint16
-	startTime     int64
-	lastTimestamp int64
+	startTime     uint32
+	lastTimestamp uint32
+	counter       int64
 	entropy       *entropy.Instance
 }
 
@@ -55,7 +58,7 @@ func (u *UUID) ID() uint64 {
 	elapsedTime := current - u.startTime
 	u.lastTimestamp = current
 
-	if uint64(elapsedTime) < MaxTimestamp {
+	if elapsedTime < 0 || elapsedTime > MaxTimestamp {
 		panic("Exceeding the time limit")
 	}
 
@@ -70,8 +73,8 @@ func (u *UUID) incrementSequence() uint16 {
 	return u.sequence
 }
 
-func (u *UUID) getEntropy() int64 {
-	return int64(u.entropy.Value())
+func (u *UUID) getEntropy() uint32 {
+	return u.entropy.Value()
 }
 
 // SetMachineID sets the machine ID based on the caller’s address.
