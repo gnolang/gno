@@ -3,7 +3,6 @@ package ratelimiter
 import (
 	"std"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/dequeue"
 )
 
