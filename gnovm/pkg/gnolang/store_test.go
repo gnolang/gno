@@ -35,7 +35,7 @@ func Test_txLogMap(t *testing.T) {
 		assert.Nil(t, v, "pointer returned should be nil")
 	}
 
-	saved := mapWrapper[int, *Value](maps.Clone(source))
+	saved := maps.Clone(source)
 	txm := newTxLog(source)
 
 	{

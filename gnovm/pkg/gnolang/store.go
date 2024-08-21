@@ -292,6 +292,7 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 type transactionStore struct{ *defaultStore }
 
 func (t transactionStore) Write() {
+	t.cacheTypes.(*txLogMap[TypeID, Type]).write()
 	t.cacheNodes.(*txLogMap[Location, BlockNode]).write()
 }
 
