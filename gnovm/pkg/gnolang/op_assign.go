@@ -20,6 +20,7 @@ func (m *Machine) doOpDefine() {
 				}
 			}
 		}
+		rvs[i].Addressable()
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
 }
@@ -41,6 +42,8 @@ func (m *Machine) doOpAssign() {
 				}
 			}
 		}
+
+		rvs[i].Addressable()
 		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
 }

@@ -247,10 +247,6 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
-	if cu {
-		tv2.Addressable()
-	}
-
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
