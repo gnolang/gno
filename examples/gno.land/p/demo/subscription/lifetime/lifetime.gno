@@ -5,7 +5,6 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/subscription"
 )
 
 // LifetimeSubscription represents a subscription that requires only a one-time payment.
@@ -64,8 +63,6 @@ func (ls *LifetimeSubscription) CheckAccess(caller std.Address) error {
 }
 
 func (ls *LifetimeSubscription) UpdateAmount(newAmount int64) error {
-	caller := std.PrevRealm().Addr()
-
 	if err := ls.CallerIsOwner(); err != nil {
 		return ErrNotAuthorized
 	}

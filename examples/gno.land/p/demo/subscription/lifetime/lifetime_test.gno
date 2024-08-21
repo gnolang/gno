@@ -48,7 +48,7 @@ func TestUpdateAmountAuthorization(t *testing.T) {
 	err := ls.UpdateAmount(2000)
 	uassert.NoError(t, err, "Expected Alice to succeed in updating amount")
 
-	std.TestSetRealm(std.NewUserRealm(bob))
+	std.TestSetOrigCaller(bob)
 
 	err = ls.UpdateAmount(3000)
 	uassert.Error(t, err, "Expected Bob to fail when updating amount")
