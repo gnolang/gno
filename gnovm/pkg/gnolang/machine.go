@@ -1954,6 +1954,8 @@ func (m *Machine) PopFrameAndReturn() {
 		if res.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {
 			res.T = rtypes[i].Type
 		}
+
+		res.Unaddressable()
 		m.Values[fr.NumValues+i] = res
 	}
 	m.NumValues = fr.NumValues + numRes

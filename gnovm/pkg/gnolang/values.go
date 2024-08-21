@@ -17,6 +17,7 @@ import (
 
 type Addressable interface {
 	Addressable()
+	Unaddressable()
 }
 
 // ----------------------------------------
@@ -206,6 +207,21 @@ func (pv *PointerValue) Addressable() {
 	}
 }
 
+func (pv *PointerValue) Unaddressable() {
+	if pv.TV == nil {
+		return
+	}
+
+	if pv.TV.NotAddressable {
+		return
+	}
+
+	pv.TV.NotAddressable = true
+	if iface, ok := pv.TV.V.(Addressable); ok {
+		iface.Unaddressable()
+	}
+}
+
 const (
 	PointerIndexBlockBlank = -1 // for the "_" identifier in blocks
 	PointerIndexMap        = -2 // Base is Map, use Key.
@@ -357,6 +373,18 @@ func (av *ArrayValue) Addressable() {
 	}
 }
 
+func (av *ArrayValue) Unaddressable() {
+	if av.NotAddressable {
+		return
+	}
+
+	av.NotAddressable = true
+
+	for i := range av.List {
+		av.List[i].Unaddressable()
+	}
+}
+
 // NOTE: Result should not be written to,
 // behavior is unexpected when .List bytes.
 func (av *ArrayValue) GetReadonlyBytes() []byte {
@@ -454,6 +482,12 @@ func (sv *SliceValue) Addressable() {
 	}
 }
 
+func (sv *SliceValue) Unaddressable() {
+	if iface, ok := sv.Base.(Addressable); ok {
+		iface.Unaddressable()
+	}
+}
+
 func (sv *SliceValue) GetBase(store Store) *ArrayValue {
 	switch cv := sv.Base.(type) {
 	case nil:
@@ -502,6 +536,12 @@ type StructValue struct {
 func (sv *StructValue) Addressable() {
 	for i := range sv.Fields {
 		sv.Fields[i].Addressable()
+	}
+}
+
+func (sv *StructValue) Unaddressable() {
+	for i := range sv.Fields {
+		sv.Fields[i].Unaddressable()
 	}
 }
 
@@ -1022,6 +1062,19 @@ func (tv *TypedValue) Addressable() {
 		p.Addressable()
 	} else if iface, ok := tv.V.(Addressable); ok {
 		iface.Addressable()
+	}
+}
+
+func (tv *TypedValue) Unaddressable() {
+	// if addressable
+	if tv.NotAddressable {
+		return
+	}
+	tv.NotAddressable = true
+	if p, ok := tv.V.(PointerValue); ok {
+		p.Unaddressable()
+	} else if iface, ok := tv.V.(Addressable); ok {
+		iface.Unaddressable()
 	}
 }
 
