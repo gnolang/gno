@@ -10,6 +10,7 @@ import (
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -246,8 +247,8 @@ func testingCallRealm(t *testing.T, node *Node, msgs ...gnoclient.MsgCall) (*cor
 	}
 
 	txcfg := gnoclient.BaseTxCfg{
-		GasFee:    "1000000ugnot", // Gas fee
-		GasWanted: 2_000_000,      // Gas wanted
+		GasFee:    ugnot.ValueString(1000000), // Gas fee
+		GasWanted: 2_000_000,                  // Gas wanted
 	}
 
 	return cli.Call(txcfg, msgs...)
