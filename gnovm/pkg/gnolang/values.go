@@ -1046,6 +1046,7 @@ type TypedValue struct {
 	V              Value   `json:",omitempty"` // an untyped value
 	N              [8]byte `json:",omitempty"` // numeric bytes
 	NotAddressable bool    `json:"-"`
+	NotRef         bool    `json:"-"`
 }
 
 func (tv *TypedValue) Addressable() {

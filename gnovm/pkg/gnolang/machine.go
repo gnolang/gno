@@ -2095,7 +2095,10 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 		return xv.GetPointerAtIndex(m.Alloc, m.Store, iv)
 	case *SelectorExpr:
 		xv := m.PopValue()
-		return xv.GetPointerTo(m.Alloc, m.Store, lx.Path)
+		nxv := xv.GetPointerTo(m.Alloc, m.Store, lx.Path)
+		nxv.TV.NotRef = xv.NotRef
+
+		return nxv
 	case *StarExpr:
 		ptr := m.PopValue().V.(PointerValue)
 		return ptr

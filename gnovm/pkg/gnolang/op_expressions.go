@@ -213,6 +213,10 @@ func (m *Machine) doOpRef() {
 		}
 	}
 
+	if xv.TV.NotRef {
+		panic(fmt.Sprintf("doOpRef: expr not addressable: %+v\n", xv.TV))
+	}
+
 	m.PushValue(TypedValue{
 		T:              m.Alloc.NewType(&PointerType{Elt: elt}),
 		V:              xv,
@@ -229,6 +233,11 @@ func (m *Machine) doOpTypeAssert1() {
 	// peek x for re-use
 	xv := m.PeekValue(1) // value result / value to assert
 	xt := xv.T           // underlying value's type
+
+	defer func() {
+		xv.Unaddressable()
+		xv.NotRef = true
+	}()
 
 	// xt may be nil, but we need to wait to return because the value of xt that is set
 	// will depend on whether we are trying to assert to an interface or concrete type.
@@ -336,6 +345,11 @@ func (m *Machine) doOpTypeAssert2() {
 	// peek x for re-use
 	xv := m.PeekValue(2) // value result / value to assert
 	xt := xv.T           // underlying value's type
+
+	defer func() {
+		xv.Unaddressable()
+		xv.NotRef = true
+	}()
 
 	// xt may be nil, but we need to wait to return because the value of xt that is set
 	// will depend on whether we are trying to assert to an interface or concrete type.
