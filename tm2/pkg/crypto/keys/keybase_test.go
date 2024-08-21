@@ -293,7 +293,7 @@ func TestAdvancedKeyManagement(t *testing.T) {
 	bip39Passphrase := ""
 
 	// make sure key works with initial password
-	_, err := cstore.CreateAccount(n1, mn1, bip39Passphrase, p1, 0, 0)
+	info, err := cstore.CreateAccount(n1, mn1, bip39Passphrase, p1, 0, 0)
 	require.Nil(t, err, "%+v", err)
 	assertPassword(t, cstore, n1, p1, p2)
 
@@ -328,6 +328,19 @@ func TestAdvancedKeyManagement(t *testing.T) {
 	// second import fails
 	err = cstore.Import(n2, exported)
 	require.NotNil(t, err)
+
+	// import into a new Keybase
+	cstore2 := NewInMemory()
+	err = cstore2.Import(n2, exported)
+	require.NoError(t, err)
+
+	// can get the imported key by name
+	_, err = cstore2.GetByName(n2)
+	require.NoError(t, err)
+
+	// can get the imported key by address
+	_, err = cstore2.GetByAddress(info.GetAddress())
+	require.NoError(t, err)
 }
 
 // TestSeedPhrase verifies restoring from a seed phrase
