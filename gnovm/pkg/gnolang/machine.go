@@ -1955,7 +1955,9 @@ func (m *Machine) PopFrameAndReturn() {
 			res.T = rtypes[i].Type
 		}
 
-		res.Unaddressable()
+		if _, ok := res.V.(*ArrayValue); ok {
+			res.Unaddressable()
+		}
 		m.Values[fr.NumValues+i] = res
 	}
 	m.NumValues = fr.NumValues + numRes
