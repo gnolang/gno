@@ -24,7 +24,8 @@ func NewLifetimeSubscription(amount int64) *LifetimeSubscription {
 	}
 }
 
-func (ls *LifetimeSubscription) validatePayment(receiver std.Address) error {
+// processSubscription handles the subscription process for a given receiver.
+func (ls *LifetimeSubscription) processSubscription(receiver std.Address) error {
 	amount := std.GetOrigSend()
 
 	if amount.AmountOf("ugnot") != ls.amount {
@@ -42,18 +43,20 @@ func (ls *LifetimeSubscription) validatePayment(receiver std.Address) error {
 	return nil
 }
 
-// ProcessPayment processes the payment for a lifetime subscription.
-func (ls *LifetimeSubscription) ProcessPayment() error {
+// Subscribe processes the payment for a lifetime subscription.
+func (ls *LifetimeSubscription) Subscribe() error {
 	caller := std.PrevRealm().Addr()
-	return ls.validatePayment(caller)
+	return ls.processSubscription(caller)
 }
 
-func (ls *LifetimeSubscription) ProcessPaymentGift(receiver std.Address) error {
-	return ls.validatePayment(receiver)
+// GiftSubscription allows the caller to pay for a lifetime subscription for another user.
+func (ls *LifetimeSubscription) GiftSubscription(receiver std.Address) error {
+	return ls.processSubscription(receiver)
 }
 
-func (ls *LifetimeSubscription) CheckAccess(caller std.Address) error {
-	_, exists := ls.subs.Get(caller.String())
+// HasValidSubscription checks if the given address has an active lifetime subscription.
+func (ls *LifetimeSubscription) HasValidSubscription(addr std.Address) error {
+	_, exists := ls.subs.Get(addr.String())
 
 	if !exists {
 		return ErrNoSub
@@ -62,6 +65,7 @@ func (ls *LifetimeSubscription) CheckAccess(caller std.Address) error {
 	return nil
 }
 
+// UpdateAmount allows the owner of the LifetimeSubscription contract to update the subscription price.
 func (ls *LifetimeSubscription) UpdateAmount(newAmount int64) error {
 	if err := ls.CallerIsOwner(); err != nil {
 		return ErrNotAuthorized
@@ -71,6 +75,7 @@ func (ls *LifetimeSubscription) UpdateAmount(newAmount int64) error {
 	return nil
 }
 
+// GetAmount returns the current subscription price.
 func (ls *LifetimeSubscription) GetAmount() int64 {
 	return ls.amount
 }

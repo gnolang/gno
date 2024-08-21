@@ -3,8 +3,8 @@ package lifetime
 import "errors"
 
 var (
-	ErrNoSub         = errors.New("subscription lifetime: no subscription found")
-	ErrAmt           = errors.New("subscription lifetime: the amount does not correspond")
-	ErrAlreadySub    = errors.New("subscription lifetime: this address already has a lifetime subscription")
-	ErrNotAuthorized = errors.New("subscription lifetime: action not authorized")
+	ErrNoSub         = errors.New("lifetime subscription: no active subscription found")
+	ErrAmt           = errors.New("lifetime subscription: payment amount does not match the required subscription amount")
+	ErrAlreadySub    = errors.New("lifetime subscription: this address already has an active lifetime subscription")
+	ErrNotAuthorized = errors.New("lifetime subscription: action not authorized")
 )
