@@ -4,6 +4,7 @@ import (
 	"errors"
 	"std"
 
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
 )
@@ -54,68 +55,49 @@ var boolFields = map[string]bool{
 
 // Setters
 
-func SetStringField(field, value string) error {
+func SetStringField(field, value string) bool {
 	addr := std.PrevRealm().Addr()
-	if _, ok := stringFields[field]; !ok {
-		return errors.New("invalid string field")
+	key := addr.String() + ":" + field
+	updated := fields.Set(key, value)
+
+	event := "ProfileFieldCreated"
+	if updated {
+		event = "ProfileFieldUpdated"
 	}
 
-	key := addr.String() + ":" + field
-	fields.Set(key, value)
+	std.Emit(event, "type", "String", field, value)
 
-	return nil
+	return updated
 }
 
-func SetIntField(field string, value int) error {
+func SetIntField(field string, value int) bool {
 	addr := std.PrevRealm().Addr()
+	key := addr.String() + ":" + field
+	updated := fields.Set(key, value)
 
-	if _, ok := intFields[field]; !ok {
-		return errors.New("invalid int field")
+	event := "ProfileFieldCreated"
+	if updated {
+		event = "ProfileFieldUpdated"
 	}
 
-	key := addr.String() + ":" + field
-	fields.Set(key, value)
+	std.Emit(event, "type", "Int", field, string(value))
 
-	return nil
+	return updated
 }
 
-func SetBoolField(field string, value bool) error {
+func SetBoolField(field string, value bool) bool {
 	addr := std.PrevRealm().Addr()
-
-	if _, ok := boolFields[field]; !ok {
-		return errors.New("invalid bool field")
-	}
-
 	key := addr.String() + ":" + field
-	fields.Set(key, value)
+	updated := fields.Set(key, value)
 
-	return nil
-}
-
-func SetField(field string, value interface{}) error {
-	addr := std.PrevRealm().Addr()
-
-	if _, ok := boolFields[field]; ok {
-		return SetBoolField(field, value.(bool))
+	event := "ProfileFieldCreated"
+	if updated {
+		event = "ProfileFieldUpdated"
 	}
 
-	if _, ok := intFields[field]; ok {
-		return SetIntField(field, value.(int))
-	}
+	std.Emit(event, "type", "Bool", field, ufmt.Sprintf("%t", value))
 
-	if _, ok := stringFields[field]; ok {
-		return SetStringField(field, value.(string))
-	}
-
-	caller := addr.String()
-	userFields, exists := arbitraryFields.Get(caller)
-	if !exists {
-		userFields = avl.NewTree()
-		arbitraryFields.Set(caller, userFields)
-	}
-
-	userFields.(*avl.Tree).Set(field, value)
-	return nil
+	return updated		
 }
 
 // Getters
@@ -145,31 +127,4 @@ func GetIntField(addr std.Address, field string, def int) int {
 	}
 
 	return def
-}
-
-func GetField(addr std.Address, field string, def interface{}) interface{} {
-	if _, ok := boolFields[field]; ok {
-		return GetBoolField(addr, field, def.(bool))
-	}
-
-	if _, ok := intFields[field]; ok {
-		return GetIntField(addr, field, def.(int))
-	}
-
-	if _, ok := stringFields[field]; ok {
-		return GetStringField(addr, field, def.(string))
-	}
-
-	caller := addr.String()
-	userFields, exists := arbitraryFields.Get(caller)
-	if !exists {
-		return nil
-	}
-
-	val, exists :=  userFields.(*avl.Tree).Get(field)
-	if !exists {
-		return nil
-	}
-
-	return val
 }

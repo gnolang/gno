@@ -28,11 +28,15 @@ func TestStringFields(t *testing.T) {
 	name := GetStringField(alice, DisplayName, "anon")
 	uassert.Equal(t, "anon", name)
 
-	// Set
-	err := SetStringField(DisplayName, "Alice foo")
-	uassert.NoError(t, err)
-	err = SetStringField(Homepage, "https://example.com")
-	uassert.NoError(t, err)
+	// Set new key
+	updated := SetStringField(DisplayName, "Alice foo")
+	uassert.Equal(t, updated, false)
+	updated = SetStringField(Homepage, "https://example.com")
+	uassert.Equal(t, updated, false)
+
+	// Update the key
+	updated = SetStringField(DisplayName, "Alice foo")
+	uassert.Equal(t, updated, true)
 
 	// Get after setting
 	name = GetStringField(alice, DisplayName, "anon")
@@ -51,9 +55,13 @@ func TestIntFields(t *testing.T) {
 	age := GetIntField(bob, Age, 25)
 	uassert.Equal(t, 25, age)
 
-	// Set
-	err := SetIntField(Age, 30)
-	uassert.NoError(t, err)
+	// Set new key
+	updated := SetIntField(Age, 30)
+	uassert.Equal(t, updated, false)
+
+	// Update the key
+	updated = SetIntField(Age, 30)
+	uassert.Equal(t, updated, true)
 
 	// Get after setting
 	age = GetIntField(bob, Age, 25)
@@ -68,45 +76,28 @@ func TestBoolFields(t *testing.T) {
 	uassert.Equal(t, false, hiring)
 
 	// Set
-	err := SetBoolField(AvailableForHiring, true)
-	uassert.NoError(t, err)
+	updated := SetBoolField(AvailableForHiring, true)
+	uassert.Equal(t, updated, false)
+
+	// Update the key
+	updated = SetBoolField(AvailableForHiring, true)
+	uassert.Equal(t, updated, true)
 
 	// Get after setting
 	hiring = GetBoolField(charlie, AvailableForHiring, false)
 	uassert.Equal(t, true, hiring)
 }
 
-func TestInvalidStringField(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(dave))
-
-	err := SetStringField(InvalidField, "test")
-	uassert.Error(t, err)
-}
-
-func TestInvalidIntField(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(eve))
-
-	err := SetIntField(InvalidField, 123)
-	uassert.Error(t, err)
-}
-
-func TestInvalidBoolField(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(frank))
-
-	err := SetBoolField(InvalidField, true)
-	uassert.Error(t, err)
-}
-
 func TestMultipleProfiles(t *testing.T) {
 	// Set profile for user1
 	std.TestSetRealm(std.NewUserRealm(user1))
-	err := SetStringField(DisplayName, "User One")
-	uassert.NoError(t, err)
+	updated := SetStringField(DisplayName, "User One")
+	uassert.Equal(t, updated, false)
 
 	// Set profile for user2
 	std.TestSetRealm(std.NewUserRealm(user2))
-	err = SetStringField(DisplayName, "User Two")
-	uassert.NoError(t, err)
+	updated = SetStringField(DisplayName, "User Two")
+	uassert.Equal(t, updated, false)
 
 	// Get profiles
 	std.TestSetRealm(std.NewUserRealm(user1)) // Switch back to user1
@@ -118,53 +109,36 @@ func TestMultipleProfiles(t *testing.T) {
 	uassert.Equal(t, "User Two", name2)
 }
 
-func TestSetMultiFields(t *testing.T) {
+func TestArbitraryStringField(t *testing.T) {
 	std.TestSetRealm(std.NewUserRealm(user1))
 
-	// Set new arbitrary string field
-	err := SetField("NewStrField", "This is new string value")
-	uassert.NoError(t, err)
+	// Set arbitrary string field
+	updated := SetStringField("MyEmail", "my@email.com")
+	uassert.Equal(t, updated, false)
 
-	strVal := GetField(user1, "NewStrField", "")
-	uassert.Equal(t, strVal , "This is new string value")
-
-	// Set new arbitrary int field
-	err = SetField("NewIntField", 40)
-	uassert.NoError(t, err)
-
-	intVal := GetField(user1, "NewIntField", 0)
-	uassert.Equal(t, intVal , 40)
-
-	// Set new arbitrary bool field
-	err = SetField("NewBoolField", true)
-	uassert.NoError(t, err)
-
-	boolVal := GetField(user1, "NewBoolField", false)
-	uassert.Equal(t, boolVal , true)
-
-	// Set reserved field
-	err = SetField("DisplayName", "My Name")
-	uassert.NoError(t, err)
-
-	reservedStrVal := GetStringField(user1, "DisplayName", "")
-	uassert.Equal(t, reservedStrVal , "My Name")
-
-	// Get reserved field
-	err = SetIntField("Age", 40)
-	uassert.NoError(t, err)
-
-	reservedIntVal := GetField(user1, "Age", 0)
-	uassert.Equal(t, reservedIntVal , 40)
-
-	// Get string field that does not exist should return default string
-	inexistStrVal := GetField(user1, "InexistStrField", "default")
-	uassert.Equal(t, inexistStrVal , "default")
-
-	// Get int field that does not exist should return default int
-	inexistIntVal := GetField(user1, "inexistIntField", 0)
-	uassert.Equal(t, inexistIntVal , 0)
-
-	// Get bool field that does not exist should return default bool
-	inexistBoolVal := GetField(user1, "inexistBoolField", false)
-	uassert.Equal(t, inexistBoolVal , false)
+	val := GetStringField(user1, "MyEmail", "")
+	uassert.Equal(t, val, "my@email.com")
 }
+
+func TestArbitraryIntField(t *testing.T) {
+	std.TestSetRealm(std.NewUserRealm(user1))
+
+	// Set arbitrary int field
+	updated := SetIntField("MyIncome", 100_000)
+	uassert.Equal(t, updated, false)
+
+	val := GetIntField(user1, "MyIncome", 0)
+	uassert.Equal(t, val, 100_000)
+}
+
+func TestArbitraryBoolField(t *testing.T) {
+	std.TestSetRealm(std.NewUserRealm(user1))
+
+	// Set arbitrary int field
+	updated := SetBoolField("IsWinner", true)
+	uassert.Equal(t, updated, false)
+
+	val := GetBoolField(user1, "IsWinner", false)
+	uassert.Equal(t, val, true)
+}
+
