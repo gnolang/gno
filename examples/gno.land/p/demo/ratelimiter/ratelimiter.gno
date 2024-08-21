@@ -35,8 +35,8 @@ func (rl *RateLimiter) AllowAction(address std.Address) bool {
 
 	// Remove actions that are outside the window
 	for !actionDeque.Empty() {
-		frontBlockHeight, _ := actionDeque.Front()
-		if frontBlockHeight.(int64) <= currentBlockHeight-int64(rl.WindowSize) {
+		earliestBlockHeight, _ := actionDeque.Front()
+		if earliestBlockHeight.(int64) <= currentBlockHeight-int64(rl.WindowSize) {
 			actionDeque.PopFront()
 		} else {
 			break
