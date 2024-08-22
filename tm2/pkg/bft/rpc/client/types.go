@@ -42,7 +42,6 @@ type ABCIClient interface {
 	ABCIQuery(path string, data []byte) (*ctypes.ResultABCIQuery, error)
 	ABCIQueryWithOptions(path string, data []byte,
 		opts ABCIQueryOptions) (*ctypes.ResultABCIQuery, error)
-	ABCIHeight(height int64) (*ctypes.ResultABCIQuery, error)
 	// Writing to abci app
 	BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error)
 	BroadcastTxAsync(tx types.Tx) (*ctypes.ResultBroadcastTx, error)

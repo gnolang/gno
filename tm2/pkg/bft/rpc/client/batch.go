@@ -161,21 +161,6 @@ func (b *RPCBatch) ABCIQueryWithOptions(path string, data []byte, opts ABCIQuery
 	return nil
 }
 
-func (b *RPCBatch) ABCIHeight(height int64) error {
-	// Prepare the RPC request
-	request, err := newRequest(
-		abciHeightMethod,
-		map[string]any{"height": height},
-	)
-	if err != nil {
-		return fmt.Errorf("unable to create request, %w", err)
-	}
-
-	b.addRequest(request, &ctypes.ResultABCIQuery{})
-
-	return nil
-}
-
 func (b *RPCBatch) BroadcastTxCommit(tx types.Tx) error {
 	// Prepare the RPC request
 	request, err := newRequest(

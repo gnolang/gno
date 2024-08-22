@@ -32,7 +32,6 @@ var Routes = map[string]*rpc.RPCFunc{
 	// abci API
 	"abci_query":  rpc.NewRPCFunc(ABCIQuery, "path,data,height,prove"),
 	"abci_info":   rpc.NewRPCFunc(ABCIInfo, ""),
-	"abci_height": rpc.NewRPCFunc(ABCIHeight, "height"),
 }
 
 func AddUnsafeRoutes() {

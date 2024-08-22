@@ -22,7 +22,6 @@ const (
 	statusMethod             = "status"
 	abciInfoMethod           = "abci_info"
 	abciQueryMethod          = "abci_query"
-	abciHeightMethod         = "abci_height"
 	broadcastTxCommitMethod  = "broadcast_tx_commit"
 	broadcastTxAsyncMethod   = "broadcast_tx_async"
 	broadcastTxSyncMethod    = "broadcast_tx_sync"
@@ -141,15 +140,6 @@ func (c *RPCClient) ABCIQueryWithOptions(path string, data []byte, opts ABCIQuer
 			"height": opts.Height,
 			"prove":  opts.Prove,
 		},
-	)
-}
-
-func (c *RPCClient) ABCIHeight(height int64) (*ctypes.ResultABCIQuery, error) {
-	return sendRequestCommon[ctypes.ResultABCIQuery](
-		c.caller,
-		c.requestTimeout,
-		abciHeightMethod,
-		map[string]any{"height": height},
 	)
 }
 

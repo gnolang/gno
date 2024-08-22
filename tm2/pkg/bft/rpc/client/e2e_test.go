@@ -210,21 +210,6 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 			},
 		},
 		{
-			abciHeightMethod,
-			&ctypes.ResultABCIQuery{
-				Response: abci.ResponseQuery{
-					Value:  []byte("dummy"),
-					Height: 1000,
-				},
-			},
-			func(client *RPCClient, expectedResult any) {
-				result, err := client.ABCIHeight(1000)
-				require.NoError(t, err)
-
-				assert.Equal(t, expectedResult, result)
-			},
-		},
-		{
 			broadcastTxCommitMethod,
 			&ctypes.ResultBroadcastTxCommit{
 				Hash: []byte("dummy"),
