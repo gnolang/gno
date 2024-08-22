@@ -248,13 +248,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case fetchRealmMsg:
 		if msg.realmPath != "" {
-			cmd = m.moveToRealm(msg.realmPath)
-		} else {
-			path := m.getCurrentPath()
-			m.logger.Info("rendering realm", "path", path)
-			cmd = m.RenderUpdate(path)
+			return m, tea.Sequence(m.taskLoader.Add(1), m.moveToRealm(msg.realmPath))
 		}
-		return m, tea.Sequence(m.taskLoader.Add(1), cmd)
+
+		// If no realm path is given simply refresh the current realm
+		path := m.getCurrentPath()
+		m.logger.Info("rendering realm", "path", path)
+
+		return m, tea.Sequence(m.taskLoader.Add(1), m.RenderUpdate(path))
 
 	case execCommandRequestMsg:
 		m.logger.Info("requesting command", "path", msg.Path, "cmd", msg.Command)
