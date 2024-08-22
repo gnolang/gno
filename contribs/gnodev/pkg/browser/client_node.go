@@ -41,10 +41,16 @@ func (ncl *NodeClient) Call(path, call string) ([]byte, error) {
 		args = nil
 	}
 
-	cm, err := ncl.client.Call(ncl.base, gnoclient.MsgCall{
-		PkgPath:  path,
-		FuncName: method,
-		Args:     args,
+	infos, err := ncl.client.Signer.Info()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get signer infos: %w", err)
+	}
+
+	cm, err := ncl.client.Call(ncl.base, vm.MsgCall{
+		Caller:  infos.GetAddress(),
+		PkgPath: path,
+		Func:    method,
+		Args:    args,
 	})
 	if err != nil {
 		return nil, err
