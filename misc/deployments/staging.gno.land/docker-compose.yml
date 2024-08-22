@@ -29,7 +29,7 @@ services:
 
   gnoland:
     image: ghcr.io/gnolang/gno/gnoland:master
-    restart: on-failure
+    restart: unless-stopped
     entrypoint: /entrypoint.sh
     working_dir: /gnoroot
     environment:
@@ -75,6 +75,7 @@ services:
 
   gnofaucet:
     image: ghcr.io/gnolang/gno/gnofaucet-slim
+    restart: unless-stopped
     command:
       - "serve"
       - "--listen-address=0.0.0.0:5050"
@@ -100,6 +101,7 @@ services:
 
   watchtower:
     image: containrrr/watchtower
+    restart: unless-stopped
     command: --interval 30 --http-api-metrics --label-enable
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
