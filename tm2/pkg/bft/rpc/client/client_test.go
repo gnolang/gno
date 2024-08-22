@@ -218,6 +218,43 @@ func TestRPCClient_ABCIQuery(t *testing.T) {
 	assert.Equal(t, expectedQuery, query)
 }
 
+func TestRPCClient_ABCIHeight(t *testing.T) {
+	t.Parallel()
+
+	var (
+		height = int64(10)
+
+		expectedResult = &ctypes.ResultABCIQuery{
+			Response: abci.ResponseQuery{
+				Value:  []byte("dummy"),
+				Height: height,
+			},
+		}
+
+		verifyFn = func(t *testing.T, params map[string]any) {
+			t.Helper()
+
+			assert.Equal(t, fmt.Sprintf("%d", height), params["height"])
+		}
+
+		mockClient = generateMockRequestClient(
+			t,
+			abciHeightMethod,
+			verifyFn,
+			expectedResult,
+		)
+	)
+
+	c := NewRPCClient(mockClient)
+
+	// Get the query result from given height
+	result, err := c.ABCIHeight(height)
+	require.NoError(t, err)
+
+	assert.Equal(t, expectedResult, result)
+	t.Log(result)
+}
+
 func TestRPCClient_BroadcastTxCommit(t *testing.T) {
 	t.Parallel()
 

@@ -66,6 +66,10 @@ func (c *Local) ABCIQueryWithOptions(path string, data []byte, opts ABCIQueryOpt
 	return core.ABCIQuery(c.ctx, path, data, opts.Height, opts.Prove)
 }
 
+func (c *Local) ABCIHeight(height int64) (*ctypes.ResultABCIQuery, error) {
+	return core.ABCIHeight(c.ctx, height)
+}
+
 func (c *Local) BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 	return core.BroadcastTxCommit(c.ctx, tx)
 }

@@ -102,6 +102,7 @@ type (
 	mockABCIQuery            func(path string, data []byte) (*ctypes.ResultABCIQuery, error)
 	mockABCIInfo             func() (*ctypes.ResultABCIInfo, error)
 	mockABCIQueryWithOptions func(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error)
+	mockABCIHeight           func(height int64) (*ctypes.ResultABCIQuery, error)
 	mockBroadcastTxAsync     func(tx types.Tx) (*ctypes.ResultBroadcastTx, error)
 	mockBroadcastTxSync      func(tx types.Tx) (*ctypes.ResultBroadcastTx, error)
 	mockGenesis              func() (*ctypes.ResultGenesis, error)
@@ -126,6 +127,7 @@ type mockRPCClient struct {
 	abciQuery            mockABCIQuery
 	abciInfo             mockABCIInfo
 	abciQueryWithOptions mockABCIQueryWithOptions
+	abciHeight           mockABCIHeight
 	broadcastTxAsync     mockBroadcastTxAsync
 	broadcastTxSync      mockBroadcastTxSync
 	genesis              mockGenesis
@@ -169,6 +171,13 @@ func (m *mockRPCClient) ABCIInfo() (*ctypes.ResultABCIInfo, error) {
 func (m *mockRPCClient) ABCIQueryWithOptions(path string, data []byte, opts client.ABCIQueryOptions) (*ctypes.ResultABCIQuery, error) {
 	if m.abciQueryWithOptions != nil {
 		return m.abciQueryWithOptions(path, data, opts)
+	}
+	return nil, nil
+}
+
+func (m *mockRPCClient) ABCIHeight(height int64) (*ctypes.ResultABCIQuery, error) {
+	if m.abciHeight != nil {
+		return m.abciHeight(height)
 	}
 	return nil, nil
 }

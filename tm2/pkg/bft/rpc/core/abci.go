@@ -1,6 +1,8 @@
 package core
 
 import (
+	"fmt"
+
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	rpctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/lib/types"
@@ -66,6 +68,63 @@ func ABCIQuery(ctx *rpctypes.Context, path string, data []byte, height int64, pr
 		return nil, err
 	}
 	logger.Info("ABCIQuery", "path", path, "data", data, "result", resQuery)
+	return &ctypes.ResultABCIQuery{Response: resQuery}, nil
+}
+
+// Query at a specific block height.
+//
+// ```shell
+// curl 'localhost:26657/abci_height?height=100'
+// ```
+//
+// ```go
+// client := client.NewHTTP("tcp://0.0.0.0:26657", "/websocket")
+//
+// err := client.Start()
+//
+//	if err != nil {
+//	  // handle error
+//	}
+//
+// defer client.Stop()
+// result, err := client.ABCIHeight(100)
+// ```
+//
+// > The above command returns JSON structured like this:
+//
+// ```json
+//
+//	{
+//		"error": "",
+//		"result": {
+//			"response": {
+//				"log": "exists",
+//				"height": "100",
+//				// ...
+//			}
+//		},
+//		"id": "",
+//		"jsonrpc": "2.0"
+//	}
+//
+// ```
+//
+// ### Query Parameter
+//
+// - height (int64): The height to query at.
+func ABCIHeight(ctx *rpctypes.Context, height int64) (*ctypes.ResultABCIQuery, error) {
+	if height <= 0 {
+		return nil, fmt.Errorf("height must be greater than 0")
+	}
+
+	resQuery, err := proxyAppQuery.QuerySync(abci.RequestQuery{
+		Height: height,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Info("ABCIAtHeight", "height", height, "result", resQuery)
 	return &ctypes.ResultABCIQuery{Response: resQuery}, nil
 }
 

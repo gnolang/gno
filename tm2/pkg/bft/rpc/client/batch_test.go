@@ -209,6 +209,24 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 			},
 		},
 		{
+			abciHeightMethod,
+			&ctypes.ResultABCIQuery{
+				Response: abci.ResponseQuery{
+					Value:  []byte("dummy"),
+					Height: 10,
+				},
+			},
+			func(batch *RPCBatch) {
+				require.NoError(t, batch.ABCIHeight(10))
+			},
+			func(result any) any {
+				castResult, ok := result.(*ctypes.ResultABCIQuery)
+				require.True(t, ok)
+
+				return castResult
+			},
+		},
+		{
 			broadcastTxCommitMethod,
 			&ctypes.ResultBroadcastTxCommit{
 				Hash: []byte("dummy"),
