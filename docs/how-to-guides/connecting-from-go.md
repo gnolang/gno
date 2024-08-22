@@ -233,7 +233,7 @@ import (
 
 ```go
 msg := vm.MsgCall{
-    Caller:  accountRes.GetAddress(),                                 // address of the caller (signer)
+    Caller:  addr,                                                    // address of the caller (signer)
     PkgPath: "gno.land/r/demo/wugnot",                                // wrapped ugnot realm path
     Func:    "Deposit",                                               // function to call
     Args:    nil,                                                     // arguments in string format
