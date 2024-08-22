@@ -69,7 +69,7 @@ var done bool
 
 // Always returns a new copy from the latest state of source.
 func Uverse() *PackageValue {
-	if uverseValue == nil || !done {
+	if uverseValue == nil {
 		pn := UverseNode()
 		uverseValue = pn.NewPackage()
 	}
