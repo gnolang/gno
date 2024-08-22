@@ -1,7 +1,6 @@
 package profile
 
 import (
-	"errors"
 	"std"
 
 	"gno.land/p/demo/ufmt"
@@ -12,7 +11,6 @@ import (
 var (
 	fields = avl.NewTree()
 	router = mux.NewRouter()
-	arbitraryFields = avl.NewTree()  // address => *avl.Tree (field => value)
 )
 
 const (
