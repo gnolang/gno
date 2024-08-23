@@ -43,7 +43,10 @@ func (c *AppOptions) validate() error {
 	if c.DB == nil {
 		return fmt.Errorf("no db provided")
 	}
+	return nil
+}
 
+func (c *AppOptions) setDefaults() {
 	// Set defaults
 	if c.Logger == nil {
 		c.Logger = log.NewNoopLogger()
@@ -51,8 +54,6 @@ func (c *AppOptions) validate() error {
 	if c.EventSwitch == nil {
 		c.EventSwitch = events.NewEventSwitch()
 	}
-
-	return nil
 }
 
 // NewAppWithOptions creates the gno.land application with specified options.
@@ -60,6 +61,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
+	cfg.setDefaults()
 
 	// Capabilities keys.
 	mainKey := store.NewStoreKey("main")

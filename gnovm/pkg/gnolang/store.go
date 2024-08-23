@@ -64,7 +64,7 @@ type Store interface {
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	IterMemPackage() <-chan *std.MemPackage
-	ClearObjectCache()
+	ClearObjectCache()                                    // run before processing a message
 	SetPackageInjector(PackageInjector)                   // for natives
 	SetNativeStore(NativeStore)                           // for "new" natives XXX
 	GetNative(pkgPath string, name Name) func(m *Machine) // for "new" natives XXX
@@ -239,16 +239,6 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 	}
 	InitStoreCaches(ds)
 	return ds
-}
-
-// Unstable.
-// This function is used to clear the object cache every transaction.
-// It also sets a new allocator.
-func (ds *defaultStore) ClearObjectCache() {
-	ds.alloc.Reset()
-	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
-	ds.opslog = nil                             // new ops log.
-	ds.SetCachePackage(Uverse())
 }
 
 // If nil baseStore and iavlStore, the baseStores are re-used.
@@ -851,10 +841,14 @@ func (ds *defaultStore) IterMemPackage() <-chan *std.MemPackage {
 	}
 }
 
-// TODO: consider a better/faster/simpler way of achieving the overall same goal?
-func (ds *defaultStore) SwapStores(baseStore, iavlStore store.Store) {
-	ds.baseStore = baseStore
-	ds.iavlStore = iavlStore
+// Unstable.
+// This function is used to clear the object cache every transaction.
+// It also sets a new allocator.
+func (ds *defaultStore) ClearObjectCache() {
+	ds.alloc.Reset()
+	ds.cacheObjects = make(map[ObjectID]Object) // new cache.
+	ds.opslog = nil                             // new ops log.
+	ds.SetCachePackage(Uverse())
 }
 
 func (ds *defaultStore) SetPackageInjector(inj PackageInjector) {

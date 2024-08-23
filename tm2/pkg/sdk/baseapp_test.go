@@ -200,6 +200,8 @@ func TestLoadVersionInvalid(t *testing.T) {
 }
 
 func TestOptionSetters(t *testing.T) {
+	t.Parallel()
+
 	tt := []struct {
 		// Calling BaseApp.[method]([value]) should change BaseApp.[fieldName] to [value].
 		method    string

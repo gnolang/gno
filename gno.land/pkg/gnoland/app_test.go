@@ -30,6 +30,8 @@ import (
 
 // Tests that NewAppWithOptions works even when only providing a simple DB.
 func TestNewAppWithOptions(t *testing.T) {
+	t.Parallel()
+
 	app, err := NewAppWithOptions(&AppOptions{
 		DB: memdb.NewMemDB(),
 		InitChainerConfig: InitChainerConfig{
@@ -77,10 +79,7 @@ func TestNewAppWithOptions(t *testing.T) {
 			},
 		},
 	})
-
-	if !resp.IsOK() {
-		t.Fatal(resp)
-	}
+	require.True(t, resp.IsOK(), "InitChain response: %v", resp)
 
 	tx := amino.MustMarshal(std.Tx{
 		Msgs: []std.Msg{vm.NewMsgCall(addr, nil, "gno.land/r/demo", "Hello", nil)},
@@ -98,23 +97,27 @@ func TestNewAppWithOptions(t *testing.T) {
 		RequestBase: abci.RequestBase{},
 		Tx:          tx,
 	})
-	if !dtxResp.IsOK() {
-		t.Fatal(dtxResp)
-	}
+	require.True(t, dtxResp.IsOK(), "DeliverTx response: %v", dtxResp)
 }
 
 func TestNewAppWithOptions_ErrNoDB(t *testing.T) {
+	t.Parallel()
+
 	_, err := NewAppWithOptions(&AppOptions{})
 	assert.ErrorContains(t, err, "no db provided")
 }
 
 // Test whether InitChainer calls to load the stdlibs correctly.
 func TestInitChainer_LoadStdlib(t *testing.T) {
+	t.Parallel()
+
 	t.Run("cached", func(t *testing.T) { testInitChainerLoadStdlib(t, true) })
 	t.Run("uncached", func(t *testing.T) { testInitChainerLoadStdlib(t, false) })
 }
 
 func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
+	t.Parallel()
+
 	type gsContextType string
 	const (
 		stdlibDir                   = "test-stdlib-dir"

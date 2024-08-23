@@ -8,6 +8,8 @@ import (
 )
 
 func Test_txLogMap(t *testing.T) {
+	t.Parallel()
+
 	type Value struct{}
 
 	// Full "integration test" of the txLogMap + mapwrapper.
@@ -86,6 +88,8 @@ func Test_txLogMap(t *testing.T) {
 }
 
 func Test_bufferedTxMap(t *testing.T) {
+	t.Parallel()
+
 	type Value struct{}
 
 	// Full "integration test" of the bufferedTxMap.
@@ -165,6 +169,8 @@ func Test_bufferedTxMap(t *testing.T) {
 }
 
 func Test_bufferedTxMap_initErr(t *testing.T) {
+	t.Parallel()
+
 	var b bufferedTxMap[bool, bool]
 	b.init()
 
@@ -175,6 +181,8 @@ func Test_bufferedTxMap_initErr(t *testing.T) {
 }
 
 func Test_bufferedTxMap_bufferedErr(t *testing.T) {
+	t.Parallel()
+
 	var b bufferedTxMap[bool, bool]
 	b.init()
 	buf := b.buffered()
