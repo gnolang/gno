@@ -60,10 +60,10 @@ func (msg NoopMsg) GetSignBytes() []byte {
 	}
 	return std.MustSortJSON(bz)
 }
+func (msg NoopMsg) ValidateBasic() error { return nil }
 func (msg NoopMsg) GetSigners() []crypto.Address {
 	return []crypto.Address{msg.Caller}
 }
-func (msg NoopMsg) ValidateBasic() error { return nil }
 
 // ----------------------------------------
 // Utility Methods
