@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -116,109 +117,6 @@ type hashMap[K comparable, V any] interface {
 	Iterate() func(yield func(K, V) bool)
 }
 
-type txLogMap[K comparable, V any] struct {
-	source hashMap[K, V]
-	dirty  map[K]deletable[V]
-}
-
-func newTxLog[K comparable, V any](source hashMap[K, V]) *txLogMap[K, V] {
-	return &txLogMap[K, V]{
-		source: source,
-		dirty:  make(map[K]deletable[V]),
-	}
-}
-
-// write commits the data in dirty to the map in source.
-func (b *txLogMap[K, V]) write() {
-	for k, v := range b.dirty {
-		if v.deleted {
-			b.source.Delete(k)
-		} else {
-			b.source.Set(k, v.v)
-		}
-	}
-	b.dirty = make(map[K]deletable[V])
-}
-
-func (b txLogMap[K, V]) Get(k K) (V, bool) {
-	if bufValue, ok := b.dirty[k]; ok {
-		if bufValue.deleted {
-			var zeroV V
-			return zeroV, false
-		}
-		return bufValue.v, true
-	}
-
-	return b.source.Get(k)
-}
-
-func (b txLogMap[K, V]) Set(k K, v V) {
-	b.dirty[k] = deletable[V]{v: v}
-}
-
-func (b txLogMap[K, V]) Delete(k K) {
-	b.dirty[k] = deletable[V]{deleted: true}
-}
-
-func (b txLogMap[K, V]) Iterate() func(yield func(K, V) bool) {
-	return func(yield func(K, V) bool) {
-		b.source.Iterate()(func(k K, v V) bool {
-			if dirty, ok := b.dirty[k]; ok {
-				if dirty.deleted {
-					return true
-				}
-				return yield(k, dirty.v)
-			}
-
-			// not in dirty
-			return yield(k, v)
-		})
-		// yield for new values
-		for k, v := range b.dirty {
-			if v.deleted {
-				continue
-			}
-			_, ok := b.source.Get(k)
-			if ok {
-				continue
-			}
-			if !yield(k, v.v) {
-				break
-			}
-		}
-	}
-}
-
-type mapWrapper[K comparable, V any] map[K]V
-
-func (m mapWrapper[K, V]) Get(k K) (V, bool) {
-	v, ok := m[k]
-	return v, ok
-}
-
-func (m mapWrapper[K, V]) Set(k K, v V) {
-	m[k] = v
-}
-
-func (m mapWrapper[K, V]) Delete(k K) {
-	delete(m, k)
-}
-
-func (m mapWrapper[K, V]) Iterate() func(yield func(K, V) bool) {
-	return func(yield func(K, V) bool) {
-		for k, v := range m {
-			if !yield(k, v) {
-				return
-			}
-		}
-	}
-}
-
-type deletable[V any] struct {
-	v       V
-	deleted bool
-}
-
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
 	ds := &defaultStore{
 		baseStore: baseStore,
@@ -227,8 +125,8 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 
 		// cacheObjects is set; objects in the store will be copied over for any transaction.
 		cacheObjects: make(map[ObjectID]Object),
-		cacheTypes:   mapWrapper[TypeID, Type](map[TypeID]Type{}),
-		cacheNodes:   mapWrapper[Location, BlockNode](map[Location]BlockNode{}),
+		cacheTypes:   txlog.GoMap[TypeID, Type](map[TypeID]Type{}),
+		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
 
 		// store configuration
 		pkgGetter:        nil,
@@ -256,8 +154,8 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 
 		// transaction-scoped
 		cacheObjects: make(map[ObjectID]Object),
-		cacheTypes:   newTxLog(ds.cacheTypes),
-		cacheNodes:   newTxLog(ds.cacheNodes),
+		cacheTypes:   txlog.Wrap(ds.cacheTypes),
+		cacheNodes:   txlog.Wrap(ds.cacheNodes),
 		alloc:        ds.alloc.Fork().Reset(),
 
 		// store configuration
@@ -279,8 +177,8 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 type transactionStore struct{ *defaultStore }
 
 func (t transactionStore) Write() {
-	t.cacheTypes.(*txLogMap[TypeID, Type]).write()
-	t.cacheNodes.(*txLogMap[Location, BlockNode]).write()
+	t.cacheTypes.(txlog.MapCommitter[TypeID, Type]).Commit()
+	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
 }
 
 func (transactionStore) SetPackageGetter(pg PackageGetter) {
@@ -936,8 +834,8 @@ func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
 
 func (ds *defaultStore) ClearCache() {
 	ds.cacheObjects = make(map[ObjectID]Object)
-	ds.cacheTypes = mapWrapper[TypeID, Type](map[TypeID]Type{})
-	ds.cacheNodes = mapWrapper[Location, BlockNode](map[Location]BlockNode{})
+	ds.cacheTypes = txlog.GoMap[TypeID, Type](map[TypeID]Type{})
+	ds.cacheNodes = txlog.GoMap[Location, BlockNode](map[Location]BlockNode{})
 	ds.cacheNativeTypes = make(map[reflect.Type]Type)
 	// restore builtin types to cache.
 	InitStoreCaches(ds)
