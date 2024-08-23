@@ -37,6 +37,34 @@ func (msg *TestMsg) GetSigners() []crypto.Address {
 	return msg.Signers
 }
 
+// NoopMsg - executes nothing
+type NoopMsg struct {
+	Caller crypto.Address
+}
+
+var _ std.Msg = &NoopMsg{}
+
+func NewNoopMsg(caller crypto.Address) *NoopMsg {
+	return &NoopMsg{
+		Caller: caller,
+	}
+}
+
+// Implements Msg
+func (msg NoopMsg) Route() string { return "TestMsg" }
+func (msg NoopMsg) Type() string  { return "no_op" }
+func (msg NoopMsg) GetSignBytes() []byte {
+	bz, err := amino.MarshalJSON(msg.Caller)
+	if err != nil {
+		panic(err)
+	}
+	return std.MustSortJSON(bz)
+}
+func (msg NoopMsg) ValidateBasic() error { return nil }
+func (msg NoopMsg) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
+}
+
 // ----------------------------------------
 // Utility Methods
 
