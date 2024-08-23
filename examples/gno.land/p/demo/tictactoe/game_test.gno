@@ -1,7 +1,6 @@
 package tictactoe
 
 import (
-	"strings"
 	"testing"
 
 	"gno.land/p/demo/testutils"
@@ -23,7 +22,7 @@ func TestGame(t *testing.T) {
 
 	uassert.False(t, game.IsOver())
 	uassert.False(t, game.IsDraw())
-	game.start()
+	game.Start()
 	uassert.Error(t, game.Play(addr3, 0, 0))   // addr2's turn
 	uassert.Error(t, game.Play(addr2, -1, 0))  // invalid location
 	uassert.Error(t, game.Play(addr2, 3, 0))   // invalid location

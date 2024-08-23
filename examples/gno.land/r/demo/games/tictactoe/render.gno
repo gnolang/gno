@@ -27,9 +27,9 @@ var prng *rand.Rand
 
 func Intn(n int) int {
 	if prng == nil {
-		// Note: our prng is not stateful as calling Render is not going
+		// Note: our PRNG is not stateful as calling Render is not going
 		// to modify this stateless realm. We initialize it here when still nil
-		// this create the randomness we need (seeded from blockchain's height)
+		// this creates the randomness we need (seeded from blockchain's height)
 		prng = rand.New(rand.NewPCG(uint64(std.GetHeight()), uint64(9)))
 	}
 	return prng.IntN(n)
