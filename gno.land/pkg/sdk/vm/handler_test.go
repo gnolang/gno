@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -61,4 +62,22 @@ func TestProcessNoopMsg(t *testing.T) {
 
 	res := vmHandler.Process(ctx, msg)
 	assert.Empty(t, res)
+}
+
+func TestProcessInvalidMsg(t *testing.T) {
+
+	// setup
+	env := setupTestEnv()
+	ctx := env.ctx
+	vmHandler := NewHandler(env.vmk)
+
+	type InvalidMsg struct {
+		std.Msg
+	}
+
+	msg := InvalidMsg{}
+
+	res := vmHandler.Process(ctx, msg)
+	assert.NotEmpty(t, res)
+	assert.Equal(t, res.Error, std.UnknownRequestError{})
 }
