@@ -222,7 +222,7 @@ func TestOptionSetters(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.method, func(t *testing.T) {
-			t.Helper()
+			t.Parallel()
 
 			var ba BaseApp
 			rv := reflect.ValueOf(&ba)
