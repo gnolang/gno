@@ -11,15 +11,10 @@ import (
 )
 
 var (
-	ErrEmptyPackage      = errors.New("empty package to run")
-	ErrEmptyPkgPath      = errors.New("empty pkg path")
-	ErrEmptyFuncName     = errors.New("empty function name")
-	ErrInvalidGasWanted  = errors.New("invalid gas wanted")
-	ErrInvalidGasFee     = errors.New("invalid gas fee")
-	ErrMissingSigner     = errors.New("missing Signer")
-	ErrMissingRPCClient  = errors.New("missing RPCClient")
-	ErrInvalidToAddress  = errors.New("invalid send to address")
-	ErrInvalidSendAmount = errors.New("invalid send amount")
+	ErrInvalidGasWanted = errors.New("invalid gas wanted")
+	ErrInvalidGasFee    = errors.New("invalid gas fee")
+	ErrMissingSigner    = errors.New("missing Signer")
+	ErrMissingRPCClient = errors.New("missing RPCClient")
 )
 
 // BaseTxCfg defines the base transaction configuration, shared by all message types
@@ -32,34 +27,8 @@ type BaseTxCfg struct {
 	CallerAddress  crypto.Address // The caller Address if known
 }
 
-// MsgCall - syntax sugar for vm.MsgCall
-type MsgCall struct {
-	PkgPath  string   // Package path
-	FuncName string   // Function name
-	Args     []string // Function arguments
-	Send     string   // Send amount
-}
-
-// MsgSend - syntax sugar for bank.MsgSend
-type MsgSend struct {
-	ToAddress crypto.Address // Send to address
-	Send      string         // Send amount
-}
-
-// MsgRun - syntax sugar for vm.MsgRun
-type MsgRun struct {
-	Package *std.MemPackage // Package to run
-	Send    string          // Send amount
-}
-
-// MsgAddPackage - syntax sugar for vm.MsgAddPackage
-type MsgAddPackage struct {
-	Package *std.MemPackage // Package to add
-	Deposit string          // Coin deposit
-}
-
 // Call executes one or more MsgCall calls on the blockchain
-func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) Call(cfg BaseTxCfg, msgs ...vm.MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	// MakeCallTx calls validateSigner().
 	if err := c.validateRPCClient(); err != nil {
@@ -88,37 +57,14 @@ func (c *Client) MakeCallTx(cfg BaseTxCfg, msgs ...MsgCall) (*std.Tx, error) {
 		return nil, err
 	}
 
-	// Parse MsgCall slice
 	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
 		// Validate MsgCall fields
-		if err := msg.validateMsgCall(); err != nil {
+		if err := msg.ValidateBasic(); err != nil {
 			return nil, err
 		}
 
-		// Parse send coins
-		send, err := std.ParseCoins(msg.Send)
-		if err != nil {
-			return nil, err
-		}
-
-		callerAddress := cfg.CallerAddress
-		if callerAddress.IsZero() {
-			caller, err := c.Signer.Info()
-			if err != nil {
-				return nil, err
-			}
-			callerAddress = caller.GetAddress()
-		}
-
-		// Unwrap syntax sugar to vm.MsgCall slice
-		vmMsgs = append(vmMsgs, std.Msg(vm.MsgCall{
-			Caller:  callerAddress,
-			PkgPath: msg.PkgPath,
-			Func:    msg.FuncName,
-			Args:    msg.Args,
-			Send:    send,
-		}))
+		vmMsgs = append(vmMsgs, std.Msg(msg))
 	}
 
 	// Parse gas fee
@@ -137,7 +83,7 @@ func (c *Client) MakeCallTx(cfg BaseTxCfg, msgs ...MsgCall) (*std.Tx, error) {
 }
 
 // Run executes one or more MsgRun calls on the blockchain
-func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) Run(cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	// MakeRunTx calls validateSigner().
 	if err := c.validateRPCClient(); err != nil {
@@ -166,38 +112,14 @@ func (c *Client) MakeRunTx(cfg BaseTxCfg, msgs ...MsgRun) (*std.Tx, error) {
 		return nil, err
 	}
 
-	// Parse MsgRun slice
 	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
-		// Validate MsgCall fields
-		if err := msg.validateMsgRun(); err != nil {
+		// Validate MsgRun fields
+		if err := msg.ValidateBasic(); err != nil {
 			return nil, err
 		}
 
-		// Parse send coins
-		send, err := std.ParseCoins(msg.Send)
-		if err != nil {
-			return nil, err
-		}
-
-		callerAddress := cfg.CallerAddress
-		if callerAddress.IsZero() {
-			caller, err := c.Signer.Info()
-			if err != nil {
-				return nil, err
-			}
-			callerAddress = caller.GetAddress()
-		}
-
-		msg.Package.Name = "main"
-		msg.Package.Path = ""
-
-		// Unwrap syntax sugar to vm.MsgCall slice
-		vmMsgs = append(vmMsgs, std.Msg(vm.MsgRun{
-			Caller:  callerAddress,
-			Package: msg.Package,
-			Send:    send,
-		}))
+		vmMsgs = append(vmMsgs, std.Msg(msg))
 	}
 
 	// Parse gas fee
@@ -216,7 +138,7 @@ func (c *Client) MakeRunTx(cfg BaseTxCfg, msgs ...MsgRun) (*std.Tx, error) {
 }
 
 // Send executes one or more MsgSend calls on the blockchain
-func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) Send(cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	// MakeSendTx calls validateSigner().
 	if err := c.validateRPCClient(); err != nil {
@@ -245,35 +167,14 @@ func (c *Client) MakeSendTx(cfg BaseTxCfg, msgs ...MsgSend) (*std.Tx, error) {
 		return nil, err
 	}
 
-	// Parse MsgSend slice
 	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
 		// Validate MsgSend fields
-		if err := msg.validateMsgSend(); err != nil {
+		if err := msg.ValidateBasic(); err != nil {
 			return nil, err
 		}
 
-		// Parse send coins
-		send, err := std.ParseCoins(msg.Send)
-		if err != nil {
-			return nil, err
-		}
-
-		callerAddress := cfg.CallerAddress
-		if callerAddress.IsZero() {
-			caller, err := c.Signer.Info()
-			if err != nil {
-				return nil, err
-			}
-			callerAddress = caller.GetAddress()
-		}
-
-		// Unwrap syntax sugar to vm.MsgSend slice
-		vmMsgs = append(vmMsgs, std.Msg(bank.MsgSend{
-			FromAddress: callerAddress,
-			ToAddress:   msg.ToAddress,
-			Amount:      send,
-		}))
+		vmMsgs = append(vmMsgs, std.Msg(msg))
 	}
 
 	// Parse gas fee
@@ -292,7 +193,7 @@ func (c *Client) MakeSendTx(cfg BaseTxCfg, msgs ...MsgSend) (*std.Tx, error) {
 }
 
 // AddPackage executes one or more AddPackage calls on the blockchain
-func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
 	// MakeAddPackageTx calls validateSigner().
 	if err := c.validateRPCClient(); err != nil {
@@ -321,35 +222,14 @@ func (c *Client) MakeAddPackageTx(cfg BaseTxCfg, msgs ...MsgAddPackage) (*std.Tx
 		return nil, err
 	}
 
-	// Parse MsgRun slice
 	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
-		// Validate MsgCall fields
-		if err := msg.validateMsgAddPackage(); err != nil {
+		// Validate MsgAddPackage fields
+		if err := msg.ValidateBasic(); err != nil {
 			return nil, err
 		}
 
-		// Parse deposit coins
-		deposit, err := std.ParseCoins(msg.Deposit)
-		if err != nil {
-			return nil, err
-		}
-
-		callerAddress := cfg.CallerAddress
-		if callerAddress.IsZero() {
-			caller, err := c.Signer.Info()
-			if err != nil {
-				return nil, err
-			}
-			callerAddress = caller.GetAddress()
-		}
-
-		// Unwrap syntax sugar to vm.MsgCall slice
-		vmMsgs = append(vmMsgs, std.Msg(vm.MsgAddPackage{
-			Creator: callerAddress,
-			Package: msg.Package,
-			Deposit: deposit,
-		}))
+		vmMsgs = append(vmMsgs, std.Msg(msg))
 	}
 
 	// Parse gas fee

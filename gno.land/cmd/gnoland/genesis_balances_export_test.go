@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
@@ -18,7 +19,7 @@ func getDummyBalances(t *testing.T, count int) []gnoland.Balance {
 	t.Helper()
 
 	dummyKeys := getDummyKeys(t, count)
-	amount := std.NewCoins(std.NewCoin("ugnot", 10))
+	amount := std.NewCoins(std.NewCoin(ugnot.Denom, 10))
 
 	balances := make([]gnoland.Balance, len(dummyKeys))
 
