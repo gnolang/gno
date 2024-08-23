@@ -3,6 +3,7 @@ package vm
 import (
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,4 +48,17 @@ func Test_parseQueryEval_panic(t *testing.T) {
 	assert.PanicsWithValue(t, panicInvalidQueryEvalData, func() {
 		parseQueryEvalData("gno.land/r/demo/users")
 	})
+}
+
+func TestProcessNoopMsg(t *testing.T) {
+	// setup
+	env := setupTestEnv()
+	ctx := env.ctx
+	vmHandler := NewHandler(env.vmk)
+
+	addr := crypto.AddressFromPreimage([]byte("test1"))
+	msg := NewMsgNoop(addr)
+
+	res := vmHandler.Process(ctx, msg)
+	assert.Empty(t, res)
 }
