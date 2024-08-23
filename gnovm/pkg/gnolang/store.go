@@ -503,7 +503,6 @@ func (ds *defaultStore) DelObject(oo Object) {
 func (ds *defaultStore) GetType(tid TypeID) Type {
 	tt := ds.GetTypeSafe(tid)
 	if tt == nil {
-		ds.Print()
 		panic(fmt.Sprintf("unexpected type with id %s", tid.String()))
 	}
 	return tt
