@@ -284,7 +284,7 @@ func (t transactionStore) Write() {
 }
 
 func (transactionStore) SetPackageGetter(pg PackageGetter) {
-	panic("package getter may not be modified in a transaction store")
+	panic("SetPackageGetter may not be called in a transaction store")
 }
 
 func (transactionStore) ClearCache() {

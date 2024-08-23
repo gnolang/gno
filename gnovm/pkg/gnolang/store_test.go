@@ -10,11 +10,12 @@ import (
 func Test_txLogMap(t *testing.T) {
 	t.Parallel()
 
-	type Value struct{}
+	type Value = struct{}
 
 	// Full "integration test" of the txLogMap + mapwrapper.
 	source := mapWrapper[int, *Value](map[int]*Value{})
 
+	// create 4 empty values (we'll just use the pointers)
 	vs := [...]*Value{
 		{},
 		{},
@@ -35,6 +36,8 @@ func Test_txLogMap(t *testing.T) {
 		v, ok = source.Get(0)
 		assert.False(t, ok, "should be unsuccessful Get")
 		assert.Nil(t, v, "pointer returned should be nil")
+
+		verifyHashMapValues(t, source, map[int]*Value{1: vs[1], 2: vs[2]})
 	}
 
 	saved := maps.Clone(source)
@@ -52,6 +55,13 @@ func Test_txLogMap(t *testing.T) {
 		assert.False(t, ok, "should be unsuccessful Get")
 		assert.Nil(t, v, "pointer returned should be nil")
 
+		// Update an existing value to another value.
+		txm.Set(2, vs[0])
+		v, ok = txm.Get(2)
+		assert.True(t, ok, "should be successful Get")
+		assert.True(t, vs[0] == v, "pointer returned should be ==")
+
+		// Add a new value
 		txm.Set(3, vs[3])
 		v, ok = txm.Get(3)
 		assert.True(t, ok, "should be successful Get")
@@ -68,6 +78,10 @@ func Test_txLogMap(t *testing.T) {
 		assert.True(t, ok)
 		assert.Equal(t, saved, source)
 		assert.Equal(t, saved, txm.source)
+
+		// double-check on the iterators.
+		verifyHashMapValues(t, source, map[int]*Value{1: vs[1], 2: vs[0]})
+		verifyHashMapValues(t, txm, map[int]*Value{2: vs[2], 3: vs[3]})
 	}
 
 	{
@@ -84,7 +98,25 @@ func Test_txLogMap(t *testing.T) {
 		v, ok = source.Get(1)
 		assert.Nil(t, v)
 		assert.False(t, ok)
+
+		// double-check on the iterators.
+		verifyHashMapValues(t, source, map[int]*Value{2: vs[0], 3: vs[3]})
+		verifyHashMapValues(t, txm, map[int]*Value{2: vs[0], 3: vs[3]})
 	}
+}
+
+func verifyHashMapValues(t *testing.T, m hashMap[int, *struct{}], expectedReadonly map[int]*struct{}) {
+	t.Helper()
+
+	expected := maps.Clone(expectedReadonly)
+	m.Iterate()(func(k int, v *struct{}) bool {
+		ev, eok := expected[k]
+		_ = assert.True(t, eok, "mapping %d:%v should exist in expected map", k, v) &&
+			assert.Equal(t, ev, v, "values should match")
+		delete(expected, k)
+		return true
+	})
+	assert.Empty(t, expected, "(some) expected values not found in the hashMap")
 }
 
 func Test_bufferedTxMap(t *testing.T) {
