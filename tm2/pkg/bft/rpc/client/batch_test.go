@@ -209,6 +209,24 @@ func TestRPCBatch_Endpoints(t *testing.T) {
 			},
 		},
 		{
+			abciQueryMethod,
+			&ctypes.ResultABCIQuery{
+				Response: abci.ResponseQuery{
+					Value:  []byte("dummy"),
+					Height: 10,
+				},
+			},
+			func(batch *RPCBatch) {
+				require.NoError(t, batch.ABCIQueryWithOptions("path", []byte("dummy"), ABCIQueryOptions{Height: 10, Prove: false}))
+			},
+			func(result any) any {
+				castResult, ok := result.(*ctypes.ResultABCIQuery)
+				require.True(t, ok)
+				assert.Equal(t, int64(10), castResult.Response.Height)
+				return castResult
+			},
+		},
+		{
 			broadcastTxCommitMethod,
 			&ctypes.ResultBroadcastTxCommit{
 				Hash: []byte("dummy"),

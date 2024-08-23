@@ -142,16 +142,16 @@ func (b *RPCBatch) ABCIQuery(path string, data []byte) error {
 }
 
 func (b *RPCBatch) ABCIQueryWithOptions(path string, data []byte, opts ABCIQueryOptions) error {
+	params := map[string]any{
+		"path":  path,
+		"data":  data,
+		"prove": opts.Prove,
+	}
+	if opts.Height != 0 {
+		params["height"] = opts.Height
+	}
 	// Prepare the RPC request
-	request, err := newRequest(
-		abciQueryMethod,
-		map[string]any{
-			"path":   path,
-			"data":   data,
-			"height": opts.Height,
-			"prove":  opts.Prove,
-		},
-	)
+	request, err := newRequest(abciQueryMethod, params)
 	if err != nil {
 		return fmt.Errorf("unable to create request, %w", err)
 	}

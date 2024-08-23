@@ -49,6 +49,7 @@ type BaseApp struct {
 	// See methods setCheckState and setDeliverState.
 	checkState   *state          // for CheckTx
 	deliverState *state          // for DeliverTx
+	currentState *state          // current state, set after Commit
 	voteInfos    []abci.VoteInfo // absent validators from begin block
 
 	// consensus params
@@ -240,6 +241,7 @@ func (app *BaseApp) setCheckState(header abci.Header) {
 		ms:  ms,
 		ctx: NewContext(RunTxModeCheck, ms, header, app.logger).WithMinGasPrices(app.minGasPrices),
 	}
+	app.currentState = nil // reset the current state
 }
 
 // setDeliverState sets deliverState with the cached multistore and
@@ -252,6 +254,7 @@ func (app *BaseApp) setDeliverState(header abci.Header) {
 		ms:  ms,
 		ctx: NewContext(RunTxModeDeliver, ms, header, app.logger),
 	}
+	app.currentState = nil // reset the current state
 }
 
 // setConsensusParams memoizes the consensus params.
@@ -389,10 +392,6 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	default:
 		return handleQueryCustom(app, path, req)
 	}
-
-	msg := "unknown query path " + req.Path
-	res.Error = ABCIError(std.ErrUnknownRequest(msg))
-	return
 }
 
 func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
@@ -474,6 +473,8 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 		return
 	}
 
+	state := app.CurrentState()
+
 	cacheMS, err := app.cms.MultiImmutableCacheWrapWithVersion(req.Height)
 	if err != nil {
 		res.Error = ABCIError(std.ErrInternal(
@@ -487,7 +488,11 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 
 	// cache wrap the commit-multistore for safety
 	// XXX RunTxModeQuery?
-	ctx := NewContext(RunTxModeCheck, cacheMS, app.checkState.ctx.BlockHeader(), app.logger).WithMinGasPrices(app.minGasPrices)
+	// ctx := NewContext(RunTxModeCheck, cacheMS, app.checkState.ctx.BlockHeader(), app.logger).WithMinGasPrices(app.minGasPrices)
+	ctx := state.ctx.
+		WithMultiStore(cacheMS).
+		WithMode(RunTxModeCheck).
+		WithMinGasPrices(app.minGasPrices)
 
 	// Passes the query to the handler.
 	res = handler.Query(ctx, req)
@@ -898,6 +903,9 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 	// empty/reset the deliver state
 	app.deliverState = nil
 
+	// Reset current state
+	app.currentState = nil
+
 	// return.
 	res.Data = commitID.Hash
 	return
@@ -933,9 +941,10 @@ func (app *BaseApp) Close() error {
 // ----------------------------------------------------------------------------
 // State
 
+// state represents the application state at a given point.
 type state struct {
-	ms  store.MultiStore
-	ctx Context
+	ms  store.MultiStore // The multi-store containing the application state
+	ctx Context          // The context associated with the state
 }
 
 func (st *state) MultiCacheWrap() store.MultiStore {
@@ -944,4 +953,19 @@ func (st *state) MultiCacheWrap() store.MultiStore {
 
 func (st *state) Context() Context {
 	return st.ctx
+}
+
+// CurrentState returns the current state of the application.
+// It returns the deliver state if it exists, otherwise it returns the check state.
+func (app *BaseApp) CurrentState() state {
+	if app.deliverState != nil {
+		return state{
+			ms:  app.deliverState.ms,
+			ctx: app.checkState.ctx,
+		}
+	}
+	return state{
+		ms:  app.checkState.ms,
+		ctx: app.checkState.ctx,
+	}
 }
