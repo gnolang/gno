@@ -10,8 +10,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+// Signer mock
 type (
-	// Signer mock
 	mockSign     func(cfg SignCfg) (*std.Tx, error)
 	mockInfo     func() (keys.Info, error)
 	mockValidate func() error
