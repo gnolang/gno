@@ -129,6 +129,31 @@ func GetUserGames(user std.Address) []*Game {
 	return val.([]*Game)
 }
 
+func GetGameByIDForUser(userAddress std.Address, gameID string) (*Game, error) {
+	// Retrieve the list of games for the specified user
+	gamesInterface, exists := user2Games.Get(userAddress.String())
+	if !exists {
+		return nil, ErrUserHasNoGames
+	}
+
+	// Type assertion to convert from interface{} to []*Game
+	games, ok := gamesInterface.([]*Game)
+	if !ok {
+		return nil, ErrInvalidGameType
+	}
+
+	// Iterate through the slice of games to find the one with the matching ID
+	for _, game := range games {
+		if game.ID == gameID {
+			return game, nil
+		}
+	}
+
+	// Return error if the game is not found
+	return nil, ErrGameWithIdNotFound
+}
+
+
 func GetUserGamesByStatus(user std.Address, status string) string {
 	val, exist := user2Games.Get(user.String())
 	if !exist {

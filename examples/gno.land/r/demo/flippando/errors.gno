@@ -11,4 +11,7 @@ var (
 	ErrMarketplaceListingDoesNotExist	= errors.New("This listing does not exist")
 	ErrFlipTokenBalanceOfFailed			= errors.New("Error in calling BalanceOf for FLIP")
 	ErrFlipTokenNotEnoughBalance		= errors.New("Not enough FLIP balance for this trade")
+	ErrUserHasNoGames					= errors.New("This user has no games")
+	ErrInvalidGameType					= errors.New("Invalid game type")
+	ErrGameWithIdNotFound				= errors.New("Game with id not found")
 )

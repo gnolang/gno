@@ -25,13 +25,12 @@ func CreateBasicFlipNFT(player std.Address, gameId string) (string, string) {
 	result := ""
 	nftError := ""
 	
-	games := GetUserGames(player)
-	// safety checks
-	if(len(games) == 0){
-		result = "{failedSafetyCheck: userHasGames}"
-		nftError = "{error: user has zero games}"
+	currentGame, err := GetGameByIDForUser(player, gameId)
+	if err != nil {
+		result = "{failedSafetyCheck: gameRetrieval}"
+		nftError = "{error: no such game}"
+		return result, nftError
 	}
-	currentGame := games[0]
 	hasZeroValues := func(s []int64) bool { for _, v := range s { if v == 0 { return true } }; return false }(currentGame.SolvedGameBoard)
 	if(hasZeroValues){
 		result = "{failedSafetyCheck: gameCompletion}"
