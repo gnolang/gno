@@ -93,10 +93,10 @@ type defaultStore struct {
 	iavlStore store.Store // for escaped object hashes
 
 	// transaction-scoped
-	cacheObjects map[ObjectID]Object          // this is a real cache, reset with every transaction.
-	cacheTypes   hashMap[TypeID, Type]        // this re-uses the parent store's.
-	cacheNodes   hashMap[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
-	alloc        *Allocator                   // for accounting for cached items
+	cacheObjects map[ObjectID]Object            // this is a real cache, reset with every transaction.
+	cacheTypes   txlog.Map[TypeID, Type]        // this re-uses the parent store's.
+	cacheNodes   txlog.Map[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
+	alloc        *Allocator                     // for accounting for cached items
 
 	// store configuration; cannot be modified in a transaction
 	pkgGetter        PackageGetter         // non-realm packages
@@ -108,13 +108,6 @@ type defaultStore struct {
 	// transient
 	current []string  // for detecting import cycles.
 	opslog  []StoreOp // for debugging and testing.
-}
-
-type hashMap[K comparable, V any] interface {
-	Get(K) (V, bool)
-	Set(K, V)
-	Delete(K)
-	Iterate() func(yield func(K, V) bool)
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
