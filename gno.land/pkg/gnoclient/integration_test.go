@@ -1472,7 +1472,7 @@ func Hello(str string) string {
 	// Query package's balance to validate the deposit amount
 	baseAcc, _, err = sponsorClient.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+	assert.Equal(t, baseAcc.GetCoins(), deposit)
 }
 
 func newInMemorySigner(t *testing.T, kb keys.Keybase, mnemonic, accName string) *SignerFromKeybase {

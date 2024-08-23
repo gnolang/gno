@@ -509,7 +509,7 @@ func TestCallErrors(t *testing.T) {
 			msgs: []vm.MsgCall{
 				{
 					Caller:  addr1,
-					PkgPath: "random/path",
+					PkgPath: "gno.land/r/random/path",
 					Func:    "",
 					Send:    nil,
 					Args:    []string{},
