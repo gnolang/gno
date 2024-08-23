@@ -3,9 +3,9 @@ package profile
 import (
 	"std"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
+	"gno.land/p/demo/ufmt"
 )
 
 var (
@@ -13,6 +13,7 @@ var (
 	router = mux.NewRouter()
 )
 
+// Standard fields
 const (
 	DisplayName        = "DisplayName"
 	Homepage           = "Homepage"
@@ -25,13 +26,28 @@ const (
 	InvalidField       = "InvalidField"
 )
 
+// Events
+const (
+	ProfileFieldCreated = "ProfileFieldCreated"
+	ProfileFieldUpdated = "ProfileFieldUpdated"
+)
+
+// Field types used when emitting event
+const FieldType = "FieldType"
+
+const (
+	BoolField   = "BoolField"
+	StringField = "StringField"
+	IntField    = "IntField"
+)
+
 func init() {
 	router.HandleFunc("", homeHandler)
 	router.HandleFunc("u/{addr}", profileHandler)
 	router.HandleFunc("f/{addr}/{field}", fieldHandler)
 }
 
-// list of supported string fields
+// List of supported string fields
 var stringFields = map[string]bool{
 	DisplayName:   true,
 	Homepage:      true,
@@ -41,12 +57,12 @@ var stringFields = map[string]bool{
 	GravatarEmail: true,
 }
 
-// list of support int fields
+// List of support int fields
 var intFields = map[string]bool{
 	Age: true,
 }
 
-// list of support bool fields
+// List of support bool fields
 var boolFields = map[string]bool{
 	AvailableForHiring: true,
 }
@@ -58,12 +74,12 @@ func SetStringField(field, value string) bool {
 	key := addr.String() + ":" + field
 	updated := fields.Set(key, value)
 
-	event := "ProfileFieldCreated"
+	event := ProfileFieldCreated
 	if updated {
-		event = "ProfileFieldUpdated"
+		event = ProfileFieldUpdated
 	}
 
-	std.Emit(event, "type", "String", field, value)
+	std.Emit(event, FieldType, StringField, field, value)
 
 	return updated
 }
@@ -73,12 +89,12 @@ func SetIntField(field string, value int) bool {
 	key := addr.String() + ":" + field
 	updated := fields.Set(key, value)
 
-	event := "ProfileFieldCreated"
+	event := ProfileFieldCreated
 	if updated {
-		event = "ProfileFieldUpdated"
+		event = ProfileFieldUpdated
 	}
 
-	std.Emit(event, "type", "Int", field, string(value))
+	std.Emit(event, FieldType, IntField, field, string(value))
 
 	return updated
 }
@@ -88,14 +104,14 @@ func SetBoolField(field string, value bool) bool {
 	key := addr.String() + ":" + field
 	updated := fields.Set(key, value)
 
-	event := "ProfileFieldCreated"
+	event := ProfileFieldCreated
 	if updated {
-		event = "ProfileFieldUpdated"
+		event = ProfileFieldUpdated
 	}
 
-	std.Emit(event, "type", "Bool", field, ufmt.Sprintf("%t", value))
+	std.Emit(event, FieldType, BoolField, field, ufmt.Sprintf("%t", value))
 
-	return updated		
+	return updated
 }
 
 // Getters
