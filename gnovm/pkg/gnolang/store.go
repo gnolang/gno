@@ -214,7 +214,10 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			// but packages gotten from the pkgGetter may skip this step,
 			// so fill in store.CacheTypes here.
 			for _, tv := range pv.GetBlock(nil).Values {
-				if tv.T.Kind() == TypeKind {
+				if tv.T == nil {
+					// tv.T is nil here only when only predefined.
+					// (for other types, .T == nil even after definition).
+				} else if tv.T.Kind() == TypeKind {
 					t := tv.GetType()
 					ds.SetCacheType(t)
 				}

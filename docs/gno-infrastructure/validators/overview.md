@@ -7,11 +7,11 @@ id: validators-overview
 ## Introduction
 
 Gno.land is a blockchain powered by the Gno tech stack, which consists of
-the [Gno Language](https://docs.gno.land/concepts/gno-language/) (
-Gno), [Tendermint2](https://docs.gno.land/concepts/tendermint2/) (TM2),
+the [Gno Language](https://docs.gno.land/concepts/gno-language/) (Gno),
+[Tendermint2](https://docs.gno.land/concepts/tendermint2/) (TM2),
 and [GnoVM](https://docs.gno.land/concepts/gnovm/). Unlike
 existing [Proof of Stake](https://docs.cosmos.network/v0.46/modules/staking/) (PoS) blockchains in the Cosmos ecosystem,
-Gno.land runs on [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution/) (PoC), a novel
+gno.land runs on [Proof of Contribution](https://docs.gno.land/concepts/proof-of-contribution/) (PoC), a novel
 reputation-based consensus mechanism that values expertise and alignment with the project. In PoC, validators are
 selected via governance based on their contribution to the project and technical proficiency. The voting power of the
 network is equally distributed across all validators to achieve a high nakamoto coefficient. A portion of all
@@ -44,12 +44,12 @@ will be determined following thorough testing and optimization experiments in Te
 
 ## Good Validators
 
-Validators for Gno.land are trusted to demonstrate professionalism and responsibility. Below are best practices that can
+Validators for gno.land are trusted to demonstrate professionalism and responsibility. Below are best practices that can
 be expected from a good, reliable validator.
 
 #### Ecosystem Contribution
 
-- Contributing to the core development of the Gno.land project
+- Contributing to the core development of the gno.land project
 - Providing useful tools or infrastructure services (wallets, explorers, public RPCs, etc.)
 - Creating educational materials to guide new members
 - Localizing documentation or content to lower language or cultural barriers
@@ -75,23 +75,23 @@ be expected from a good, reliable validator.
 
 ## Community
 
-Join the official Gno.land community in various channels to receive the latest updates about the project and actively
+Join the official gno.land community in various channels to receive the latest updates about the project and actively
 communicate with other validators and contributors.
 
 - [Gno.land Blog](https://gno.land/r/gnoland/blog)
-- [Gno.land Discord](https://discord.gg/w2MpVEunxr)
+- [Gno.land Discord](https://discord.gg/YFtMjWwUN7)
 - [Gno.land Twitter](https://x.com/_gnoland)
 
 :::info
 
-The validator set implementation in Gno.land is abstracted away from the consensus mechanism inside the `r/sys/vals`
+The validator set implementation in gno.land is abstracted away from the consensus mechanism inside the `r/sys/vals`
 realm. The realm is not production ready yet, and is still under active development. Proposals and contributions to
 improve and complete the implementation are welcome.
 
 **Links to related efforts:**
 
 - Validator set injection through a Realm [[gnolang/gno #1823]](https://github.com/gnolang/gno/issues/1823)
-- Add Validator Set Realm / Package [[gnolang/gno #1824](https://github.com/gnolang/gno/issues/1824)
+- Add Validator Set Realm / Package [[gnolang/gno #1824]](https://github.com/gnolang/gno/issues/1824)
 - Add `/r/sys/vals` [[gnolang/gno #2130]](https://github.com/gnolang/gno/pull/2130)
 - Add valset injection through `r/sys/vals` [[gnolang/gno #2229]](https://github.com/gnolang/gno/pull/2229)
 
