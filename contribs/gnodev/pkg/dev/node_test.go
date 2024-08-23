@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -189,11 +190,11 @@ func Render(_ string) string { return str }
 	require.Equal(t, render, "foo")
 
 	// Call `UpdateStr` to update `str` value with "bar"
-	msg := gnoclient.MsgCall{
-		PkgPath:  "gno.land/r/dev/foo",
-		FuncName: "UpdateStr",
-		Args:     []string{"bar"},
-		Send:     "",
+	msg := vm.MsgCall{
+		PkgPath: "gno.land/r/dev/foo",
+		Func:    "UpdateStr",
+		Args:    []string{"bar"},
+		Send:    nil,
 	}
 	res, err := testingCallRealm(t, node, msg)
 	require.NoError(t, err)
@@ -236,7 +237,7 @@ func testingRenderRealm(t *testing.T, node *Node, rlmpath string) (string, error
 	return render, err
 }
 
-func testingCallRealm(t *testing.T, node *Node, msgs ...gnoclient.MsgCall) (*core_types.ResultBroadcastTxCommit, error) {
+func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*core_types.ResultBroadcastTxCommit, error) {
 	t.Helper()
 
 	signer := newInMemorySigner(t, node.Config().ChainID())
@@ -258,7 +259,15 @@ func testingCallRealm(t *testing.T, node *Node, msgs ...gnoclient.MsgCall) (*cor
 		SequenceNumber: acc.Sequence,
 	}
 
-	return cli.Call(txcfg, msgs...)
+	// Set Caller in the msgs
+	caller, err := signer.Info()
+	require.NoError(t, err)
+	vmMsgs := make([]vm.MsgCall, 0, len(msgs))
+	for _, msg := range msgs {
+		vmMsgs = append(vmMsgs, vm.NewMsgCall(caller.GetAddress(), msg.Send, msg.PkgPath, msg.Func, msg.Args))
+	}
+
+	return cli.Call(txcfg, vmMsgs...)
 }
 
 func generateTestingPackage(t *testing.T, nameFile ...string) PackagePath {

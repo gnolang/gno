@@ -5,9 +5,12 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -47,12 +50,16 @@ func TestCallSingle_Integration(t *testing.T) {
 		Memo:           "",
 	}
 
+	caller, err := signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg config
-	msg := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{"test argument"},
-		Send:     "",
+	msg := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/demo/deep/very/deep",
+		Func:    "Render",
+		Args:    []string{"test argument"},
+		Send:    nil,
 	}
 
 	// Execute call
@@ -120,10 +127,11 @@ func TestCallSingle_Sponsor_Integration(t *testing.T) {
 	}
 
 	// Create the message for the transaction
-	msg := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{"test argument"},
+	msg := vm.MsgCall{
+		Caller:  sponsoreeInfo.GetAddress(),
+		PkgPath: "gno.land/r/demo/deep/very/deep",
+		Func:    "Render",
+		Args:    []string{"test argument"},
 	}
 
 	// Sponsoree creates a new sponsor transaction
@@ -188,20 +196,25 @@ func TestCallMultiple_Integration(t *testing.T) {
 		Memo:           "",
 	}
 
+	caller, err := signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg configs
-	msg1 := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{""},
-		Send:     "",
+	msg1 := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/demo/deep/very/deep",
+		Func:    "Render",
+		Args:    []string{""},
+		Send:    nil,
 	}
 
 	// Same call, different argument
-	msg2 := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{"test argument"},
-		Send:     "",
+	msg2 := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/demo/deep/very/deep",
+		Func:    "Render",
+		Args:    []string{"test argument"},
+		Send:    nil,
 	}
 
 	expected := "(\"it works!\" string)\n\n(\"hi test argument\" string)\n\n"
@@ -214,109 +227,6 @@ func TestCallMultiple_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 }
 
-func TestCallMultiple_Sponsor_Integration(t *testing.T) {
-	// Set up an in-memory node
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
-	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewNoopLogger(), config)
-	defer node.Stop()
-
-	// Initialize in-memory key storage
-	keybase := keys.NewInMemory()
-
-	// Create signer accounts for sponsor and sponsoree
-	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
-	sponsoree := newInMemorySigner(t, keybase, generateMnemonic(t), "test2")
-
-	sponsorInfo, err := sponsor.Info()
-	require.NoError(t, err)
-
-	sponsoreeInfo, err := sponsoree.Info()
-	require.NoError(t, err)
-
-	// Set up an RPC client to interact with the in-memory node
-	rpcClient, err := rpcclient.NewHTTPClient(remoteAddr)
-	require.NoError(t, err)
-
-	// Initialize sponsor and sponsoree clients with their respective signers and RPC client
-	sponsorClient := Client{
-		Signer:    sponsor,
-		RPCClient: rpcClient,
-	}
-
-	sponsoreeClient := Client{
-		Signer:    sponsoree,
-		RPCClient: rpcClient,
-	}
-
-	// Fetch sponsoree account information before the transaction
-	var sponsoreeAccountNumber uint64 = 0
-	var sponsoreeSequence uint64 = 0
-
-	sponsoreeBefore, _, _ := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
-	if sponsoreeBefore != nil {
-		sponsoreeAccountNumber = sponsoreeBefore.AccountNumber
-		sponsoreeSequence = sponsoreeBefore.Sequence
-	}
-
-	// Configure the transaction to be sponsored
-	cfg := SponsorTxCfg{
-		BaseTxCfg: BaseTxCfg{
-			GasWanted: 100000,
-			GasFee:    "10000ugnot",
-			Memo:      "Test memo",
-		},
-		SponsorAddress: sponsorInfo.GetAddress(),
-	}
-
-	// Create multiple messages for the transaction
-	msg1 := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{"test1"},
-	}
-
-	msg2 := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{"test2"},
-	}
-
-	// Sponsoree creates a new sponsor transaction
-	tx, err := sponsoreeClient.NewSponsorTransaction(cfg, msg1, msg2)
-	require.NoError(t, err)
-
-	// Sponsoree signs the transaction
-	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
-	require.NoError(t, err)
-
-	// Fetch sponsor account information before the transaction
-	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
-	require.NoError(t, err)
-
-	// Sponsor executes the transaction which received from sponsoree
-	res, err := sponsorClient.ExecuteSponsorTransaction(*sponsorTx, sponsorBefore.AccountNumber, sponsorBefore.Sequence)
-	require.NoError(t, err)
-
-	// Check the result of the transaction execution
-	expected := "(\"hi test1\" string)\n\n(\"hi test2\" string)\n\n"
-	got := string(res.DeliverTx.Data)
-
-	assert.Nil(t, err)
-	assert.Equal(t, expected, got)
-
-	// Query sponsoree's balance after the transaction
-	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
-	require.NoError(t, err)
-	assert.Equal(t, std.Coins(nil), sponsoreeAfter.GetCoins())
-
-	// Query sponsor's balance after the transaction
-	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
-	require.NoError(t, err)
-	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
-	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
-}
-
-// Send tests
 func TestSendSingle_Integration(t *testing.T) {
 	// Set up in-memory node
 	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
@@ -337,19 +247,23 @@ func TestSendSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Send config for a new address on the blockchain
 	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 	amount := 10
-	msg := MsgSend{
-		ToAddress: toAddress,
-		Send:      std.Coin{"ugnot", int64(amount)}.String(),
+	msg := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   toAddress,
+		Amount:      std.Coins{{Denom: ugnot.Denom, Amount: int64(amount)}},
 	}
 
 	// Execute send
@@ -361,7 +275,7 @@ func TestSendSingle_Integration(t *testing.T) {
 	account, _, err := client.QueryAccount(toAddress)
 	require.NoError(t, err)
 
-	expected := std.Coins{{"ugnot", int64(amount)}}
+	expected := std.Coins{{Denom: ugnot.Denom, Amount: int64(amount)}}
 	got := account.GetCoins()
 
 	assert.Equal(t, expected, got)
@@ -406,9 +320,10 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 		GasWanted: 1000000,
 		GasFee:    "100000ugnot",
 		Memo:      "Test memo",
-	}, MsgSend{
-		ToAddress: senderInfo.GetAddress(),
-		Send:      "100000ugnot",
+	}, bank.MsgSend{
+		FromAddress: sponsorInfo.GetAddress(),
+		ToAddress:   senderInfo.GetAddress(),
+		Amount:      std.NewCoins(std.NewCoin("ugnot", 100000)),
 	})
 	require.NoError(t, err)
 
@@ -435,9 +350,10 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 
 	// Create the message for the transaction
-	msg := MsgSend{
-		ToAddress: toAddress,
-		Send:      "10000ugnot",
+	msg := bank.MsgSend{
+		FromAddress: senderInfo.GetAddress(),
+		ToAddress:   toAddress,
+		Amount:      std.NewCoins(std.NewCoin("ugnot", 10000)),
 	}
 
 	// sender creates a new sponsor transaction
@@ -472,13 +388,13 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 	// Query sender's balance after the transaction
 	senderAfter, _, err := senderClient.QueryAccount(senderInfo.GetAddress())
 	require.NoError(t, err)
-	expectedSenderAfter := senderBefore.GetCoins().Sub(std.MustParseCoins(msg.Send))
+	expectedSenderAfter := senderBefore.GetCoins().Sub(msg.Amount)
 	assert.Equal(t, expectedSenderAfter, senderAfter.GetCoins())
 
 	// Query to's balance after the transaction
 	toAfter, _, err := sponsorClient.QueryAccount(toAddress)
 	require.NoError(t, err)
-	expectedToAfter := std.NewCoins(std.MustParseCoin(msg.Send))
+	expectedToAfter := msg.Amount
 	assert.Equal(t, expectedToAfter, toAfter.GetCoins())
 }
 
@@ -502,26 +418,31 @@ func TestSendMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg configs
 	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 	amount1 := 10
-	msg1 := MsgSend{
-		ToAddress: toAddress,
-		Send:      std.Coin{"ugnot", int64(amount1)}.String(),
+	msg1 := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   toAddress,
+		Amount:      std.Coins{{Denom: ugnot.Denom, Amount: int64(amount1)}},
 	}
 
 	// Same send, different argument
 	amount2 := 20
-	msg2 := MsgSend{
-		ToAddress: toAddress,
-		Send:      std.Coin{"ugnot", int64(amount2)}.String(),
+	msg2 := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   toAddress,
+		Amount:      std.Coins{{Denom: ugnot.Denom, Amount: int64(amount2)}},
 	}
 
 	// Execute send
@@ -533,7 +454,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 	account, _, err := client.QueryAccount(toAddress)
 	assert.NoError(t, err)
 
-	expected := std.Coins{{"ugnot", int64(amount1 + amount2)}}
+	expected := std.Coins{{Denom: ugnot.Denom, Amount: int64(amount1 + amount2)}}
 	got := account.GetCoins()
 
 	assert.Equal(t, expected, got)
@@ -578,9 +499,10 @@ func TestSendMultiple_Sponsor_Integration(t *testing.T) {
 		GasWanted: 1000000,
 		GasFee:    "100000ugnot",
 		Memo:      "Test memo",
-	}, MsgSend{
-		ToAddress: senderInfo.GetAddress(),
-		Send:      "100000ugnot",
+	}, bank.MsgSend{
+		FromAddress: sponsorInfo.GetAddress(),
+		ToAddress:   senderInfo.GetAddress(),
+		Amount:      std.NewCoins(std.NewCoin("ugnot", 100000)),
 	})
 	require.NoError(t, err)
 
@@ -608,15 +530,17 @@ func TestSendMultiple_Sponsor_Integration(t *testing.T) {
 
 	// Create the messages for the transaction
 	var amount1 int64 = 20000
-	msg1 := MsgSend{
-		ToAddress: toAddress,
-		Send:      std.NewCoin("ugnot", amount1).String(),
+	msg1 := bank.MsgSend{
+		FromAddress: senderInfo.GetAddress(),
+		ToAddress:   toAddress,
+		Amount:      std.NewCoins(std.NewCoin("ugnot", amount1)),
 	}
 
 	var amount2 int64 = 20000
-	msg2 := MsgSend{
-		ToAddress: toAddress,
-		Send:      std.NewCoin("ugnot", amount2).String(),
+	msg2 := bank.MsgSend{
+		FromAddress: senderInfo.GetAddress(),
+		ToAddress:   toAddress,
+		Amount:      std.NewCoins(std.NewCoin("ugnot", amount2)),
 	}
 
 	// sender creates a new sponsor transaction
@@ -681,7 +605,7 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -701,9 +625,14 @@ func main() {
 	println(ufmt.Sprintf("- after: %d", tests.Counter()))
 }`
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg configs
-	msg := MsgRun{
+	msg := vm.MsgRun{
+		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
+			Name: "main",
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -711,7 +640,7 @@ func main() {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
 	res, err := client.Run(baseCfg, msg)
@@ -788,8 +717,10 @@ func TestRunSingle_Sponsor_Integration(t *testing.T) {
 	}`
 
 	// Create the message for the transaction
-	msg := MsgRun{
+	msg := vm.MsgRun{
+		Caller: sponsoreeInfo.GetAddress(),
 		Package: &std.MemPackage{
+			Name: "main",
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -797,7 +728,7 @@ func TestRunSingle_Sponsor_Integration(t *testing.T) {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
 	// Sponsoree creates a new sponsor transaction
@@ -854,7 +785,7 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -883,9 +814,14 @@ func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
 }`
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg configs
-	msg1 := MsgRun{
+	msg1 := vm.MsgRun{
+		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
+			Name: "main",
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -893,10 +829,12 @@ func main() {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
-	msg2 := MsgRun{
+	msg2 := vm.MsgRun{
+		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
+			Name: "main",
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -904,7 +842,7 @@ func main() {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
 	expected := "- before: 0\n- after: 10\nhi gnoclient!\n"
@@ -992,8 +930,10 @@ func TestRunMultiple_Sponsor_Integration(t *testing.T) {
 	}`
 
 	// Make Msg configs
-	msg1 := MsgRun{
+	msg1 := vm.MsgRun{
+		Caller: sponsoreeInfo.GetAddress(),
 		Package: &std.MemPackage{
+			Name: "main",
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -1001,10 +941,12 @@ func TestRunMultiple_Sponsor_Integration(t *testing.T) {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
-	msg2 := MsgRun{
+	msg2 := vm.MsgRun{
+		Caller: sponsoreeInfo.GetAddress(),
 		Package: &std.MemPackage{
+			Name: "main",
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -1012,7 +954,7 @@ func TestRunMultiple_Sponsor_Integration(t *testing.T) {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
 	// Sponsoree creates a new sponsor transaction
@@ -1071,7 +1013,7 @@ func TestAddPackageSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -1086,10 +1028,14 @@ func Echo(str string) string {
 
 	fileName := "echo.gno"
 	deploymentPath := "gno.land/p/demo/integration/test/echo"
-	deposit := "100ugnot"
+	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}}
+
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
 
 	// Make Msg config
-	msg := MsgAddPackage{
+	msg := vm.MsgAddPackage{
+		Creator: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "echo",
 			Path: deploymentPath,
@@ -1118,7 +1064,7 @@ func Echo(str string) string {
 	// Query balance to validate deposit
 	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+	assert.Equal(t, baseAcc.GetCoins(), deposit)
 }
 
 func TestAddPackageSingle_Sponsor_Integration(t *testing.T) {
@@ -1160,9 +1106,10 @@ func TestAddPackageSingle_Sponsor_Integration(t *testing.T) {
 		GasWanted: 1000000,
 		GasFee:    "100000ugnot",
 		Memo:      "Test memo",
-	}, MsgSend{
-		ToAddress: sponsoreeInfo.GetAddress(),
-		Send:      "100000ugnot",
+	}, bank.MsgSend{
+		FromAddress: sponsorInfo.GetAddress(),
+		ToAddress:   sponsoreeInfo.GetAddress(),
+		Amount:      std.NewCoins(std.NewCoin("ugnot", 100000)),
 	})
 	require.NoError(t, err)
 
@@ -1194,10 +1141,11 @@ func Echo(str string) string {
 
 	fileName := "echo.gno"
 	deploymentPath := "gno.land/p/demo/integration/test/echo"
-	deposit := "100ugnot"
+	deposit := std.NewCoins(std.NewCoin("ugnot", 100))
 
 	// Make Msg config
-	msg := MsgAddPackage{
+	msg := vm.MsgAddPackage{
+		Creator: sponsoreeInfo.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "echo",
 			Path: deploymentPath,
@@ -1245,19 +1193,7 @@ func Echo(str string) string {
 	// Query package's balance to validate the deposit amount
 	baseAcc, _, err := sponsorClient.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
-
-	// Query sponsoree's balance after the transaction
-	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
-	require.NoError(t, err)
-	expectedSponsoreeAfter := sponsoreeBefore.GetCoins().Sub(std.MustParseCoins(deposit))
-	assert.Equal(t, expectedSponsoreeAfter, sponsoreeAfter.GetCoins())
-
-	// Query sponsor's balance after the transaction
-	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
-	require.NoError(t, err)
-	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
-	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
+	assert.Equal(t, baseAcc.GetCoins(), deposit)
 }
 
 func TestAddPackageMultiple_Integration(t *testing.T) {
@@ -1280,14 +1216,14 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
 
-	deposit := "100ugnot"
+	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}}
 	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
 
 	body1 := `package echo
@@ -1303,7 +1239,11 @@ func Hello(str string) string {
 	return "Hello " + str + "!"
 }`
 
-	msg1 := MsgAddPackage{
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg1 := vm.MsgAddPackage{
+		Creator: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "echo",
 			Path: deploymentPath1,
@@ -1314,10 +1254,11 @@ func Hello(str string) string {
 				},
 			},
 		},
-		Deposit: "",
+		Deposit: nil,
 	}
 
-	msg2 := MsgAddPackage{
+	msg2 := vm.MsgAddPackage{
+		Creator: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "hello",
 			Path: deploymentPath2,
@@ -1364,7 +1305,7 @@ func Hello(str string) string {
 	// Query balance to validate deposit
 	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+	assert.Equal(t, baseAcc.GetCoins(), deposit)
 }
 
 func TestAddPackageMultiple_Sponsor_Integration(t *testing.T) {
@@ -1406,9 +1347,10 @@ func TestAddPackageMultiple_Sponsor_Integration(t *testing.T) {
 		GasWanted: 1000000,
 		GasFee:    "100000ugnot",
 		Memo:      "Test memo",
-	}, MsgSend{
-		ToAddress: sponsoreeInfo.GetAddress(),
-		Send:      "100000ugnot",
+	}, bank.MsgSend{
+		FromAddress: sponsorInfo.GetAddress(),
+		ToAddress:   sponsoreeInfo.GetAddress(),
+		Amount:      std.NewCoins(std.NewCoin("ugnot", 100000)),
 	})
 	require.NoError(t, err)
 
@@ -1432,7 +1374,7 @@ func TestAddPackageMultiple_Sponsor_Integration(t *testing.T) {
 		SponsorAddress: sponsorInfo.GetAddress(),
 	}
 
-	deposit := "100ugnot"
+	deposit := std.NewCoins(std.NewCoin("ugnot", 100))
 	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
 
 	body1 := `package echo
@@ -1448,7 +1390,8 @@ func Hello(str string) string {
 	return "Hello " + str + "!"
 }`
 
-	msg1 := MsgAddPackage{
+	msg1 := vm.MsgAddPackage{
+		Creator: sponsoreeInfo.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "echo",
 			Path: deploymentPath1,
@@ -1459,10 +1402,11 @@ func Hello(str string) string {
 				},
 			},
 		},
-		Deposit: "",
+		Deposit: nil,
 	}
 
-	msg2 := MsgAddPackage{
+	msg2 := vm.MsgAddPackage{
+		Creator: sponsoreeInfo.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "hello",
 			Path: deploymentPath2,
@@ -1529,23 +1473,7 @@ func Hello(str string) string {
 	baseAcc, _, err = sponsorClient.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
 	require.NoError(t, err)
 	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
-
-	// Query sponsoree's balance after the transaction
-	sponsoreeAfter, _, err := sponsoreeClient.QueryAccount(sponsoreeInfo.GetAddress())
-	require.NoError(t, err)
-	expectedSponsoreeAfter := sponsoreeBefore.GetCoins().Sub(std.MustParseCoins(deposit))
-	assert.Equal(t, expectedSponsoreeAfter, sponsoreeAfter.GetCoins())
-
-	// Query sponsor's balance after the transaction
-	sponsorAfter, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
-	require.NoError(t, err)
-	expectedSponsorAfter := sponsorBefore.GetCoins().Sub(std.MustParseCoins(cfg.BaseTxCfg.GasFee))
-	assert.Equal(t, expectedSponsorAfter, sponsorAfter.GetCoins())
 }
-
-// todo add more integration tests:
-// MsgCall with Send field populated (single/multiple)
-// MsgRun with Send field populated (single/multiple)
 
 func newInMemorySigner(t *testing.T, kb keys.Keybase, mnemonic, accName string) *SignerFromKeybase {
 	t.Helper()

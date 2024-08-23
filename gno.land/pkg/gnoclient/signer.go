@@ -3,6 +3,7 @@ package gnoclient
 import (
 	"fmt"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -50,7 +51,7 @@ func (s SignerFromKeybase) Validate() error {
 	signCfg := SignCfg{
 		Tx: std.Tx{
 			Msgs: []std.Msg{msg},
-			Fee:  std.NewFee(0, std.NewCoin("ugnot", 1000000)),
+			Fee:  std.NewFee(0, std.NewCoin(ugnot.Denom, 1000000)),
 		},
 	}
 	if _, err = s.Sign(signCfg); err != nil {

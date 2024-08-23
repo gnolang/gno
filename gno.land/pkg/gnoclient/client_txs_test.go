@@ -101,12 +101,16 @@ func TestCallSingle(t *testing.T) {
 		Memo:           "Test memo",
 	}
 
-	msg := []MsgCall{
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg := []vm.MsgCall{
 		{
-			PkgPath:  "gno.land/r/demo/deep/very/deep",
-			FuncName: "Render",
-			Args:     []string{""},
-			Send:     "100ugnot",
+			Caller:  caller.GetAddress(),
+			PkgPath: "gno.land/r/demo/deep/very/deep",
+			Func:    "Render",
+			Args:    []string{""},
+			Send:    std.Coins{{Denom: "ugnot", Amount: 100}},
 		},
 	}
 
@@ -158,11 +162,15 @@ func TestCallSingle_Sponsor(t *testing.T) {
 		SponsorAddress: addr2,
 	}
 
-	msg := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{""},
-		Send:     "100ugnot",
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/demo/deep/very/deep",
+		Func:    "Render",
+		Args:    []string{""},
+		Send:    std.Coins{{Denom: "ugnot", Amount: 100}},
 	}
 
 	tx, err := client.NewSponsorTransaction(cfg, msg)
@@ -220,24 +228,30 @@ func TestCallMultiple(t *testing.T) {
 		Memo:           "Test memo",
 	}
 
-	msg := []MsgCall{
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg := []vm.MsgCall{
 		{
-			PkgPath:  "gno.land/r/demo/deep/very/deep",
-			FuncName: "Render",
-			Args:     []string{""},
-			Send:     "100ugnot",
+			Caller:  caller.GetAddress(),
+			PkgPath: "gno.land/r/demo/deep/very/deep",
+			Func:    "Render",
+			Args:    []string{""},
+			Send:    std.Coins{{Denom: "ugnot", Amount: 100}},
 		},
 		{
-			PkgPath:  "gno.land/r/demo/wugnot",
-			FuncName: "Deposit",
-			Args:     []string{""},
-			Send:     "1000ugnot",
+			Caller:  caller.GetAddress(),
+			PkgPath: "gno.land/r/demo/wugnot",
+			Func:    "Deposit",
+			Args:    []string{""},
+			Send:    std.Coins{{Denom: "ugnot", Amount: 100}},
 		},
 		{
-			PkgPath:  "gno.land/r/demo/tamagotchi",
-			FuncName: "Feed",
-			Args:     []string{""},
-			Send:     "",
+			Caller:  caller.GetAddress(),
+			PkgPath: "gno.land/r/demo/tamagotchi",
+			Func:    "Feed",
+			Args:    []string{""},
+			Send:    nil,
 		},
 	}
 
@@ -288,25 +302,31 @@ func TestCallMultiple_Sponsor(t *testing.T) {
 		SponsorAddress: addr2,
 	}
 
-	msg1 := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{""},
-		Send:     "100ugnot",
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg1 := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/demo/deep/very/deep",
+		Func:    "Render",
+		Args:    []string{""},
+		Send:    std.Coins{{Denom: "ugnot", Amount: 100}},
 	}
 
-	msg2 := MsgCall{
-		PkgPath:  "gno.land/r/demo/wugnot",
-		FuncName: "Deposit",
-		Args:     []string{""},
-		Send:     "1000ugnot",
+	msg2 := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/demo/wugnot",
+		Func:    "Deposit",
+		Args:    []string{""},
+		Send:    std.Coins{{Denom: "ugnot", Amount: 100}},
 	}
 
-	msg3 := MsgCall{
-		PkgPath:  "gno.land/r/demo/tamagotchi",
-		FuncName: "Feed",
-		Args:     []string{""},
-		Send:     "",
+	msg3 := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/demo/tamagotchi",
+		Func:    "Feed",
+		Args:    []string{""},
+		Send:    nil,
 	}
 
 	tx, err := client.NewSponsorTransaction(cfg, msg1, msg2, msg3)
@@ -329,7 +349,7 @@ func TestCallErrors(t *testing.T) {
 		name          string
 		client        Client
 		cfg           BaseTxCfg
-		msgs          []MsgCall
+		msgs          []vm.MsgCall
 		expectedError error
 	}{
 		{
@@ -345,12 +365,13 @@ func TestCallErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgCall{
+			msgs: []vm.MsgCall{
 				{
-					PkgPath:  "random/path",
-					FuncName: "RandomName",
-					Send:     "",
-					Args:     []string{},
+					Caller:  addr1,
+					PkgPath: "random/path",
+					Func:    "RandomName",
+					Send:    nil,
+					Args:    []string{},
 				},
 			},
 			expectedError: ErrMissingSigner,
@@ -368,12 +389,13 @@ func TestCallErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgCall{
+			msgs: []vm.MsgCall{
 				{
-					PkgPath:  "random/path",
-					FuncName: "RandomName",
-					Send:     "",
-					Args:     []string{},
+					Caller:  addr1,
+					PkgPath: "random/path",
+					Func:    "RandomName",
+					Send:    nil,
+					Args:    []string{},
 				},
 			},
 			expectedError: ErrMissingRPCClient,
@@ -391,10 +413,10 @@ func TestCallErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgCall{
+			msgs: []vm.MsgCall{
 				{
-					PkgPath:  "random/path",
-					FuncName: "RandomName",
+					PkgPath: "random/path",
+					Func:    "RandomName",
 				},
 			},
 			expectedError: ErrInvalidGasFee,
@@ -412,12 +434,13 @@ func TestCallErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgCall{
+			msgs: []vm.MsgCall{
 				{
-					PkgPath:  "random/path",
-					FuncName: "RandomName",
-					Send:     "",
-					Args:     []string{},
+					Caller:  addr1,
+					PkgPath: "random/path",
+					Func:    "RandomName",
+					Send:    nil,
+					Args:    []string{},
 				},
 			},
 			expectedError: ErrInvalidGasWanted,
@@ -435,12 +458,13 @@ func TestCallErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgCall{
+			msgs: []vm.MsgCall{
 				{
-					PkgPath:  "random/path",
-					FuncName: "RandomName",
-					Send:     "",
-					Args:     []string{},
+					Caller:  addr1,
+					PkgPath: "random/path",
+					Func:    "RandomName",
+					Send:    nil,
+					Args:    []string{},
 				},
 			},
 			expectedError: ErrInvalidGasWanted,
@@ -458,15 +482,16 @@ func TestCallErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgCall{
+			msgs: []vm.MsgCall{
 				{
-					PkgPath:  "",
-					FuncName: "RandomName",
-					Send:     "",
-					Args:     []string{},
+					Caller:  addr1,
+					PkgPath: "",
+					Func:    "RandomName",
+					Send:    nil,
+					Args:    []string{},
 				},
 			},
-			expectedError: ErrEmptyPkgPath,
+			expectedError: vm.InvalidPkgPathError{},
 		},
 		{
 			name: "Invalid FuncName",
@@ -481,15 +506,16 @@ func TestCallErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgCall{
+			msgs: []vm.MsgCall{
 				{
-					PkgPath:  "random/path",
-					FuncName: "",
-					Send:     "",
-					Args:     []string{},
+					Caller:  addr1,
+					PkgPath: "random/path",
+					Func:    "",
+					Send:    nil,
+					Args:    []string{},
 				},
 			},
-			expectedError: ErrEmptyFuncName,
+			expectedError: vm.InvalidExprError{},
 		},
 	}
 
@@ -544,12 +570,16 @@ func TestSendSingle(t *testing.T) {
 		Memo:           "Test memo",
 	}
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	receiver, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 
-	msg := []MsgSend{
+	msg := []bank.MsgSend{
 		{
-			ToAddress: receiver,
-			Send:      "100ugnot",
+			FromAddress: caller.GetAddress(),
+			ToAddress:   receiver,
+			Amount:      std.Coins{{Denom: "ugnot", Amount: 100}},
 		},
 	}
 
@@ -601,11 +631,15 @@ func TestSendSingle_Sponsor(t *testing.T) {
 		SponsorAddress: addr2,
 	}
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	receiver, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 
-	msg := MsgSend{
-		ToAddress: receiver,
-		Send:      "100ugnot",
+	msg := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   receiver,
+		Amount:      std.Coins{{Denom: "ugnot", Amount: 100}},
 	}
 
 	tx, err := client.NewSponsorTransaction(cfg, msg)
@@ -658,16 +692,19 @@ func TestSendMultiple(t *testing.T) {
 		Memo:           "Test memo",
 	}
 
-	receiver, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
 
-	msg1 := MsgSend{
-		ToAddress: receiver,
-		Send:      "100ugnot",
+	msg1 := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   addr2,
+		Amount:      std.Coins{{Denom: "ugnot", Amount: 100}},
 	}
 
-	msg2 := MsgSend{
-		ToAddress: receiver,
-		Send:      "200ugnot",
+	msg2 := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   addr2,
+		Amount:      std.Coins{{Denom: "ugnot", Amount: 200}},
 	}
 
 	res, err := client.Send(cfg, msg1, msg2)
@@ -718,16 +755,21 @@ func TestSendMultiple_Sponsor(t *testing.T) {
 		SponsorAddress: addr2,
 	}
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	receiver, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 
-	msg1 := MsgSend{
-		ToAddress: receiver,
-		Send:      "100ugnot",
+	msg1 := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   receiver,
+		Amount:      std.Coins{{Denom: "ugnot", Amount: 100}},
 	}
 
-	msg2 := MsgSend{
-		ToAddress: receiver,
-		Send:      "200ugnot",
+	msg2 := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   receiver,
+		Amount:      std.Coins{{Denom: "ugnot", Amount: 200}},
 	}
 
 	tx, err := client.NewSponsorTransaction(cfg, msg1, msg2)
@@ -746,12 +788,11 @@ func TestSendMultiple_Sponsor(t *testing.T) {
 func TestSendErrors(t *testing.T) {
 	t.Parallel()
 
-	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 	testCases := []struct {
 		name          string
 		client        Client
 		cfg           BaseTxCfg
-		msgs          []MsgSend
+		msgs          []bank.MsgSend
 		expectedError error
 	}{
 		{
@@ -767,10 +808,11 @@ func TestSendErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgSend{
+			msgs: []bank.MsgSend{
 				{
-					ToAddress: toAddress,
-					Send:      "1ugnot",
+					FromAddress: addr1,
+					ToAddress:   addr2,
+					Amount:      std.Coins{{Denom: "ugnot", Amount: 1}},
 				},
 			},
 			expectedError: ErrMissingSigner,
@@ -788,10 +830,11 @@ func TestSendErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgSend{
+			msgs: []bank.MsgSend{
 				{
-					ToAddress: toAddress,
-					Send:      "1ugnot",
+					FromAddress: addr1,
+					ToAddress:   addr2,
+					Amount:      std.Coins{{Denom: "ugnot", Amount: 1}},
 				},
 			},
 			expectedError: ErrMissingRPCClient,
@@ -809,10 +852,11 @@ func TestSendErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgSend{
+			msgs: []bank.MsgSend{
 				{
-					ToAddress: toAddress,
-					Send:      "1ugnot",
+					FromAddress: addr1,
+					ToAddress:   addr2,
+					Amount:      std.Coins{{Denom: "ugnot", Amount: 1}},
 				},
 			},
 			expectedError: ErrInvalidGasFee,
@@ -830,10 +874,11 @@ func TestSendErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgSend{
+			msgs: []bank.MsgSend{
 				{
-					ToAddress: toAddress,
-					Send:      "1ugnot",
+					FromAddress: addr1,
+					ToAddress:   addr2,
+					Amount:      std.Coins{{Denom: "ugnot", Amount: 1}},
 				},
 			},
 			expectedError: ErrInvalidGasWanted,
@@ -851,10 +896,11 @@ func TestSendErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgSend{
+			msgs: []bank.MsgSend{
 				{
-					ToAddress: toAddress,
-					Send:      "1ugnot",
+					FromAddress: addr1,
+					ToAddress:   addr2,
+					Amount:      std.Coins{{Denom: "ugnot", Amount: 1}},
 				},
 			},
 			expectedError: ErrInvalidGasWanted,
@@ -880,13 +926,14 @@ func TestSendErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgSend{
+			msgs: []bank.MsgSend{
 				{
-					ToAddress: crypto.Address{},
-					Send:      "1ugnot",
+					FromAddress: addr1,
+					ToAddress:   crypto.Address{},
+					Amount:      std.Coins{{Denom: "ugnot", Amount: 1}},
 				},
 			},
-			expectedError: ErrInvalidToAddress,
+			expectedError: std.InvalidAddressError{},
 		},
 		{
 			name: "Invalid Send Coins",
@@ -909,13 +956,14 @@ func TestSendErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgSend{
+			msgs: []bank.MsgSend{
 				{
-					ToAddress: toAddress,
-					Send:      "-1ugnot",
+					FromAddress: addr1,
+					ToAddress:   addr2,
+					Amount:      std.Coins{{Denom: "ugnot", Amount: -1}},
 				},
 			},
-			expectedError: ErrInvalidAmount,
+			expectedError: std.InvalidCoinsError{},
 		},
 	}
 
@@ -980,7 +1028,11 @@ func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
 }`
 
-	msg := MsgRun{
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg := vm.MsgRun{
+		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Files: []*std.MemFile{
 				{
@@ -989,7 +1041,7 @@ func main() {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
 	res, err := client.Run(cfg, msg)
@@ -1050,7 +1102,11 @@ func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
 }`
 
-	msg := MsgRun{
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg := vm.MsgRun{
+		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Files: []*std.MemFile{
 				{
@@ -1059,7 +1115,7 @@ func main() {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
 	tx, err := client.NewSponsorTransaction(cfg, msg)
@@ -1123,7 +1179,11 @@ func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
 }`
 
-	msg1 := MsgRun{
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg1 := vm.MsgRun{
+		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Files: []*std.MemFile{
 				{
@@ -1132,10 +1192,11 @@ func main() {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
-	msg2 := MsgRun{
+	msg2 := vm.MsgRun{
+		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Files: []*std.MemFile{
 				{
@@ -1144,7 +1205,7 @@ func main() {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
 	res, err := client.Run(cfg, msg1, msg2)
@@ -1205,7 +1266,11 @@ func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
 }`
 
-	msg1 := MsgRun{
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg1 := vm.MsgRun{
+		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Files: []*std.MemFile{
 				{
@@ -1214,10 +1279,11 @@ func main() {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
-	msg2 := MsgRun{
+	msg2 := vm.MsgRun{
+		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Files: []*std.MemFile{
 				{
@@ -1226,7 +1292,7 @@ func main() {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
 	tx, err := client.NewSponsorTransaction(cfg, msg1, msg2)
@@ -1249,7 +1315,7 @@ func TestRunErrors(t *testing.T) {
 		name          string
 		client        Client
 		cfg           BaseTxCfg
-		msgs          []MsgRun
+		msgs          []vm.MsgRun
 		expectedError error
 	}{
 		{
@@ -1265,8 +1331,9 @@ func TestRunErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgRun{
+			msgs: []vm.MsgRun{
 				{
+					Caller: addr1,
 					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
@@ -1277,7 +1344,7 @@ func TestRunErrors(t *testing.T) {
 							},
 						},
 					},
-					Send: "",
+					Send: nil,
 				},
 			},
 			expectedError: ErrMissingSigner,
@@ -1295,7 +1362,7 @@ func TestRunErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs:          []MsgRun{},
+			msgs:          []vm.MsgRun{},
 			expectedError: ErrMissingRPCClient,
 		},
 		{
@@ -1311,8 +1378,9 @@ func TestRunErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgRun{
+			msgs: []vm.MsgRun{
 				{
+					Caller: addr1,
 					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
@@ -1323,7 +1391,7 @@ func TestRunErrors(t *testing.T) {
 							},
 						},
 					},
-					Send: "",
+					Send: nil,
 				},
 			},
 			expectedError: ErrInvalidGasFee,
@@ -1341,8 +1409,9 @@ func TestRunErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgRun{
+			msgs: []vm.MsgRun{
 				{
+					Caller: addr1,
 					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
@@ -1353,7 +1422,7 @@ func TestRunErrors(t *testing.T) {
 							},
 						},
 					},
-					Send: "",
+					Send: nil,
 				},
 			},
 			expectedError: ErrInvalidGasWanted,
@@ -1371,8 +1440,9 @@ func TestRunErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgRun{
+			msgs: []vm.MsgRun{
 				{
+					Caller: addr1,
 					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
@@ -1383,7 +1453,7 @@ func TestRunErrors(t *testing.T) {
 							},
 						},
 					},
-					Send: "",
+					Send: nil,
 				},
 			},
 			expectedError: ErrInvalidGasWanted,
@@ -1409,13 +1479,17 @@ func TestRunErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgRun{
+			msgs: []vm.MsgRun{
 				{
-					Package: nil,
-					Send:    "",
+					Caller: addr1,
+					Package: &std.MemPackage{
+						Name: "",
+						Path: " ",
+					},
+					Send: nil,
 				},
 			},
-			expectedError: ErrEmptyPackage,
+			expectedError: vm.InvalidPkgPathError{},
 		},
 	}
 
@@ -1470,7 +1544,11 @@ func TestAddPackageSingle(t *testing.T) {
 		Memo:           "Test memo",
 	}
 
-	msg := MsgAddPackage{
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg := vm.MsgAddPackage{
+		Creator: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "hello",
 			Path: "gno.land/p/demo/hello",
@@ -1481,7 +1559,7 @@ func TestAddPackageSingle(t *testing.T) {
 				},
 			},
 		},
-		Deposit: "",
+		Deposit: nil,
 	}
 
 	res, err := client.AddPackage(cfg, msg)
@@ -1532,7 +1610,11 @@ func TestAddPackageSingle_Sponsor(t *testing.T) {
 		SponsorAddress: addr2,
 	}
 
-	msg := MsgAddPackage{
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg := vm.MsgAddPackage{
+		Creator: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "hello",
 			Path: "gno.land/p/demo/hello",
@@ -1543,7 +1625,7 @@ func TestAddPackageSingle_Sponsor(t *testing.T) {
 				},
 			},
 		},
-		Deposit: "",
+		Deposit: nil,
 	}
 
 	tx, err := client.NewSponsorTransaction(cfg, msg)
@@ -1597,8 +1679,12 @@ func TestAddPackageMultiple(t *testing.T) {
 		Memo:           "Test memo",
 	}
 
-	msgs := []MsgAddPackage{
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msgs := []vm.MsgAddPackage{
 		{
+			Creator: caller.GetAddress(),
 			Package: &std.MemPackage{
 				Name: "hello",
 				Path: "gno.land/p/demo/hello",
@@ -1609,9 +1695,10 @@ func TestAddPackageMultiple(t *testing.T) {
 					},
 				},
 			},
-			Deposit: "",
+			Deposit: nil,
 		},
 		{
+			Creator: caller.GetAddress(),
 			Package: &std.MemPackage{
 				Name: "goodbye",
 				Path: "gno.land/p/demo/goodbye",
@@ -1622,7 +1709,7 @@ func TestAddPackageMultiple(t *testing.T) {
 					},
 				},
 			},
-			Deposit: "",
+			Deposit: nil,
 		},
 	}
 
@@ -1674,7 +1761,11 @@ func TestAddPackageMultiple_Sponsor(t *testing.T) {
 		SponsorAddress: addr2,
 	}
 
-	msg1 := MsgAddPackage{
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg1 := vm.MsgAddPackage{
+		Creator: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "hello",
 			Path: "gno.land/p/demo/hello",
@@ -1685,10 +1776,11 @@ func TestAddPackageMultiple_Sponsor(t *testing.T) {
 				},
 			},
 		},
-		Deposit: "",
+		Deposit: nil,
 	}
 
-	msg2 := MsgAddPackage{
+	msg2 := vm.MsgAddPackage{
+		Creator: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "goodbye",
 			Path: "gno.land/p/demo/goodbye",
@@ -1699,7 +1791,7 @@ func TestAddPackageMultiple_Sponsor(t *testing.T) {
 				},
 			},
 		},
-		Deposit: "",
+		Deposit: nil,
 	}
 
 	tx, err := client.NewSponsorTransaction(cfg, msg1, msg2)
@@ -1722,7 +1814,7 @@ func TestAddPackageErrors(t *testing.T) {
 		name          string
 		client        Client
 		cfg           BaseTxCfg
-		msgs          []MsgAddPackage
+		msgs          []vm.MsgAddPackage
 		expectedError error
 	}{
 		{
@@ -1738,8 +1830,9 @@ func TestAddPackageErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgAddPackage{
+			msgs: []vm.MsgAddPackage{
 				{
+					Creator: addr1,
 					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
@@ -1750,7 +1843,7 @@ func TestAddPackageErrors(t *testing.T) {
 							},
 						},
 					},
-					Deposit: "",
+					Deposit: nil,
 				},
 			},
 			expectedError: ErrMissingSigner,
@@ -1768,7 +1861,7 @@ func TestAddPackageErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs:          []MsgAddPackage{},
+			msgs:          []vm.MsgAddPackage{},
 			expectedError: ErrMissingRPCClient,
 		},
 		{
@@ -1784,8 +1877,9 @@ func TestAddPackageErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgAddPackage{
+			msgs: []vm.MsgAddPackage{
 				{
+					Creator: addr1,
 					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
@@ -1796,7 +1890,7 @@ func TestAddPackageErrors(t *testing.T) {
 							},
 						},
 					},
-					Deposit: "",
+					Deposit: nil,
 				},
 			},
 			expectedError: ErrInvalidGasFee,
@@ -1814,8 +1908,9 @@ func TestAddPackageErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgAddPackage{
+			msgs: []vm.MsgAddPackage{
 				{
+					Creator: addr1,
 					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
@@ -1826,7 +1921,7 @@ func TestAddPackageErrors(t *testing.T) {
 							},
 						},
 					},
-					Deposit: "",
+					Deposit: nil,
 				},
 			},
 			expectedError: ErrInvalidGasWanted,
@@ -1844,8 +1939,9 @@ func TestAddPackageErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgAddPackage{
+			msgs: []vm.MsgAddPackage{
 				{
+					Creator: addr1,
 					Package: &std.MemPackage{
 						Name: "",
 						Path: "",
@@ -1856,7 +1952,7 @@ func TestAddPackageErrors(t *testing.T) {
 							},
 						},
 					},
-					Deposit: "",
+					Deposit: nil,
 				},
 			},
 			expectedError: ErrInvalidGasWanted,
@@ -1882,13 +1978,17 @@ func TestAddPackageErrors(t *testing.T) {
 				SequenceNumber: 1,
 				Memo:           "Test memo",
 			},
-			msgs: []MsgAddPackage{
+			msgs: []vm.MsgAddPackage{
 				{
-					Package: nil,
-					Deposit: "",
+					Creator: addr1,
+					Package: &std.MemPackage{
+						Name: "",
+						Path: "",
+					},
+					Deposit: nil,
 				},
 			},
-			expectedError: ErrEmptyPackage,
+			expectedError: vm.InvalidPkgPathError{},
 		},
 	}
 
@@ -1911,7 +2011,7 @@ func TestNewSponsorTransaction(t *testing.T) {
 		name          string
 		client        Client
 		cfg           SponsorTxCfg
-		msgs          []Msg
+		msgs          []std.Msg
 		expectedError error
 	}{
 		{
@@ -1967,7 +2067,7 @@ func TestNewSponsorTransaction(t *testing.T) {
 				SponsorAddress: addr2,
 			},
 
-			msgs: []Msg{}, // no messages provided
+			msgs: []std.Msg{}, // no messages provided
 
 			expectedError: ErrNoMessages,
 		},
@@ -1992,7 +2092,7 @@ func TestNewSponsorTransaction(t *testing.T) {
 				SponsorAddress: addr2,
 			},
 
-			msgs: []Msg{}, // no messages provided
+			msgs: []std.Msg{}, // no messages provided
 
 			expectedError: ErrNoMessages,
 		},
@@ -2022,16 +2122,18 @@ func TestNewSponsorTransaction(t *testing.T) {
 			},
 
 			// MixedMessage is invalid
-			msgs: []Msg{
-				MsgCall{
-					PkgPath:  "gno.land/r/demo/deep/very/deep",
-					FuncName: "Render",
-					Args:     []string{""},
-					Send:     "100ugnot",
+			msgs: []std.Msg{
+				vm.MsgCall{
+					Caller:  addr1,
+					PkgPath: "gno.land/r/demo/deep/very/deep",
+					Func:    "Render",
+					Args:    []string{""},
+					Send:    std.Coins{{Denom: "ugnot", Amount: 100}},
 				},
-				MsgSend{
-					ToAddress: addr1,
-					Send:      "100ugnot",
+				bank.MsgSend{
+					FromAddress: addr1,
+					ToAddress:   addr2,
+					Amount:      std.Coins{{Denom: "ugnot", Amount: 100}},
 				},
 			},
 			expectedError: ErrMixedMessageTypes,
@@ -2052,61 +2154,15 @@ func TestNewSponsorTransaction(t *testing.T) {
 				},
 				SponsorAddress: addr2,
 			},
-			msgs: []Msg{
+			msgs: []std.Msg{
 				// invalid message send
-				MsgSend{
-					ToAddress: crypto.Address{},
-					Send:      "10000ugnot",
+				bank.MsgSend{
+					FromAddress: addr1,
+					ToAddress:   crypto.Address{},
+					Amount:      std.Coins{{Denom: "ugnot", Amount: 10000}},
 				},
 			},
-			expectedError: ErrInvalidToAddress,
-		},
-		{
-			name: "Failed to parse coin from message",
-			client: Client{
-				Signer:    &mockSigner{},
-				RPCClient: &mockRPCClient{},
-			},
-			cfg: SponsorTxCfg{
-				BaseTxCfg: BaseTxCfg{
-					GasWanted:      100000,
-					GasFee:         "10000ugnot",
-					AccountNumber:  1,
-					SequenceNumber: 1,
-					Memo:           "Test memo",
-				},
-				SponsorAddress: addr2,
-			},
-			msgs: []Msg{
-				MsgCall{
-					PkgPath:  "gno.land/r/demo/deep/very/deep",
-					FuncName: "Render",
-					Args:     []string{""},
-					Send:     "xxx", // invalid coin
-				},
-			},
-			expectedError: ErrInvalidAmount,
-		},
-		{
-			name: "Invalid message type",
-			client: Client{
-				Signer:    &mockSigner{},
-				RPCClient: &mockRPCClient{},
-			},
-			cfg: SponsorTxCfg{
-				BaseTxCfg: BaseTxCfg{
-					GasWanted:      100000,
-					GasFee:         "10000ugnot",
-					AccountNumber:  1,
-					SequenceNumber: 1,
-					Memo:           "Test memo",
-				},
-				SponsorAddress: addr2,
-			},
-			msgs: []Msg{
-				mockMsg{}, // invalid msg type
-			},
-			expectedError: ErrInvalidMsgType,
+			expectedError: std.InvalidAddressError{},
 		},
 		{
 			name: "Failed to parse gas fee",
@@ -2132,12 +2188,13 @@ func TestNewSponsorTransaction(t *testing.T) {
 				},
 				SponsorAddress: addr2,
 			},
-			msgs: []Msg{
-				MsgCall{
-					PkgPath:  "gno.land/r/demo/deep/very/deep",
-					FuncName: "Render",
-					Args:     []string{""},
-					Send:     "100ugnot",
+			msgs: []std.Msg{
+				vm.MsgCall{
+					Caller:  addr1,
+					PkgPath: "gno.land/r/demo/deep/very/deep",
+					Func:    "Render",
+					Args:    []string{""},
+					Send:    std.Coins{{Denom: "ugnot", Amount: 100}},
 				},
 			},
 			expectedError: errors.New("invalid coin expression: xxx"),

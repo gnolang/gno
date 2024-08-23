@@ -10,44 +10,25 @@ import (
 )
 
 // Call executes one or more MsgCall calls on the blockchain
-func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) Call(cfg BaseTxCfg, msgs ...vm.MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
-	if err := c.IsValid(); err != nil {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
 	// Validate base transaction config
-	if err := cfg.IsValid(); err != nil {
+	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
 
-	// Parse MsgCall slice
 	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
 		// Validate MsgCall fields
-		if err := msg.IsValid(); err != nil {
+		if err := msg.ValidateBasic(); err != nil {
 			return nil, err
 		}
 
-		// Parse send coins
-		send, err := std.ParseCoins(msg.Send)
-		if err != nil {
-			return nil, err
-		}
-
-		caller, err := c.Signer.Info()
-		if err != nil {
-			return nil, err
-		}
-
-		// Unwrap syntax sugar to vm.MsgCall slice
-		vmMsgs = append(vmMsgs, std.Msg(vm.MsgCall{
-			Caller:  caller.GetAddress(),
-			PkgPath: msg.PkgPath,
-			Func:    msg.FuncName,
-			Args:    msg.Args,
-			Send:    send,
-		}))
+		vmMsgs = append(vmMsgs, std.Msg(msg))
 	}
 
 	// Parse gas fee
@@ -68,45 +49,25 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTx
 }
 
 // Run executes one or more MsgRun calls on the blockchain
-func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) Run(cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
-	if err := c.IsValid(); err != nil {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
 	// Validate base transaction config
-	if err := cfg.IsValid(); err != nil {
+	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
 
-	// Parse MsgRun slice
 	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
-		// Validate MsgCall fields
-		if err := msg.IsValid(); err != nil {
+		// Validate MsgRun fields
+		if err := msg.ValidateBasic(); err != nil {
 			return nil, err
 		}
 
-		// Parse send coins
-		send, err := msg.GetCoins()
-		if err != nil {
-			return nil, err
-		}
-
-		caller, err := c.Signer.Info()
-		if err != nil {
-			return nil, err
-		}
-
-		msg.Package.Name = "main"
-		msg.Package.Path = ""
-
-		// Unwrap syntax sugar to vm.MsgCall slice
-		vmMsgs = append(vmMsgs, std.Msg(vm.MsgRun{
-			Caller:  caller.GetAddress(),
-			Package: msg.Package,
-			Send:    send,
-		}))
+		vmMsgs = append(vmMsgs, std.Msg(msg))
 	}
 
 	// Parse gas fee
@@ -127,42 +88,25 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCo
 }
 
 // Send executes one or more MsgSend calls on the blockchain
-func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) Send(cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
-	if err := c.IsValid(); err != nil {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
 	// Validate base transaction config
-	if err := cfg.IsValid(); err != nil {
+	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
 
-	// Parse MsgSend slice
 	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
 		// Validate MsgSend fields
-		if err := msg.IsValid(); err != nil {
+		if err := msg.ValidateBasic(); err != nil {
 			return nil, err
 		}
 
-		// Parse send coins
-		send, err := std.ParseCoins(msg.Send)
-		if err != nil {
-			return nil, err
-		}
-
-		caller, err := c.Signer.Info()
-		if err != nil {
-			return nil, err
-		}
-
-		// Unwrap syntax sugar to vm.MsgSend slice
-		vmMsgs = append(vmMsgs, std.Msg(bank.MsgSend{
-			FromAddress: caller.GetAddress(),
-			ToAddress:   msg.ToAddress,
-			Amount:      send,
-		}))
+		vmMsgs = append(vmMsgs, std.Msg(msg))
 	}
 
 	// Parse gas fee
@@ -183,42 +127,25 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTx
 }
 
 // AddPackage executes one or more AddPackage calls on the blockchain
-func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
-	if err := c.IsValid(); err != nil {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
 	// Validate base transaction config
-	if err := cfg.IsValid(); err != nil {
+	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
 
-	// Parse MsgRun slice
 	vmMsgs := make([]std.Msg, 0, len(msgs))
 	for _, msg := range msgs {
-		// Validate MsgCall fields
-		if err := msg.IsValid(); err != nil {
+		// Validate MsgAddPackage fields
+		if err := msg.ValidateBasic(); err != nil {
 			return nil, err
 		}
 
-		// Parse deposit coins
-		deposit, err := msg.GetCoins()
-		if err != nil {
-			return nil, err
-		}
-
-		caller, err := c.Signer.Info()
-		if err != nil {
-			return nil, err
-		}
-
-		// Unwrap syntax sugar to vm.MsgCall slice
-		vmMsgs = append(vmMsgs, std.Msg(vm.MsgAddPackage{
-			Creator: caller.GetAddress(),
-			Package: msg.Package,
-			Deposit: deposit,
-		}))
+		vmMsgs = append(vmMsgs, std.Msg(msg))
 	}
 
 	// Parse gas fee
@@ -239,14 +166,14 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.Resul
 }
 
 // CreateTx creates an signed transaction for various types of messages which used for sponsorship
-func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, error) {
-	// Validate required client fields.
-	if err := c.IsValid(); err != nil {
+func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...std.Msg) (*std.Tx, error) {
+	// validate required client fields
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
 
-	// Validate base transaction config
-	if err := cfg.IsValid(); err != nil {
+	// Validate sponsor transaction config
+	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
 
@@ -255,16 +182,9 @@ func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, 
 		return nil, ErrNoMessages
 	}
 
-	// Ensure at least one signer is available
-	signer, err := c.Signer.Info()
-	if err != nil {
-		return nil, err
-	}
-
 	// Determine the type of the first user-provided message
-	firstMsgType := msgs[0].GetType()
+	firstMsgType := msgs[0].Type()
 
-	// Parse Msg slice
 	vmMsgs := make([]std.Msg, 0, len(msgs)+1)
 
 	// First msg in list must be MsgNoop
@@ -274,62 +194,15 @@ func (c *Client) NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, 
 
 	for _, msg := range msgs {
 		// Check if all messages are of the same type
-		if msg.GetType() != firstMsgType {
+		if msg.Type() != firstMsgType {
 			return nil, ErrMixedMessageTypes
 		}
 
-		// Validate msg's fields
-		if err := msg.IsValid(); err != nil {
+		if err := msg.ValidateBasic(); err != nil {
 			return nil, err
 		}
 
-		// Parse send/deposit coins
-		coins, err := msg.GetCoins()
-		if err != nil {
-			return nil, err
-		}
-
-		switch m := msg.(type) {
-		case MsgCall:
-			// Unwrap syntax sugar to vm.MsgCall slice
-			vmMsgs = append(vmMsgs, vm.MsgCall{
-				Caller:  signer.GetAddress(),
-				PkgPath: m.PkgPath,
-				Func:    m.FuncName,
-				Args:    m.Args,
-				Send:    coins,
-			})
-
-		case MsgSend:
-			// Unwrap syntax sugar to vm.MsgSend slice
-			vmMsgs = append(vmMsgs, bank.MsgSend{
-				FromAddress: signer.GetAddress(),
-				ToAddress:   m.ToAddress,
-				Amount:      coins,
-			})
-
-		case MsgRun:
-			m.Package.Name = "main"
-			m.Package.Path = ""
-
-			// Unwrap syntax sugar to vm.MsgRun slice
-			vmMsgs = append(vmMsgs, vm.MsgRun{
-				Caller:  signer.GetAddress(),
-				Package: m.Package,
-				Send:    coins,
-			})
-
-		case MsgAddPackage:
-			// Unwrap syntax sugar to vm.MsgAddPackage slice
-			vmMsgs = append(vmMsgs, vm.MsgAddPackage{
-				Creator: signer.GetAddress(),
-				Package: m.Package,
-				Deposit: coins,
-			})
-
-		default:
-			return nil, ErrInvalidMsgType
-		}
+		vmMsgs = append(vmMsgs, msg)
 	}
 
 	// Parse gas fee
@@ -371,7 +244,7 @@ func (c *Client) SignTransaction(tx std.Tx, accountNumber, sequenceNumber uint64
 // from this transaction without incurring any gas costs
 func (c *Client) ExecuteSponsorTransaction(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields
-	if err := c.IsValid(); err != nil {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
 

@@ -1,9 +1,11 @@
 package gnoclient
 
 import (
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -24,20 +26,20 @@ type IClient interface {
 	BlockResult(height int64) (*ctypes.ResultBlockResults, error)
 	LatestBlockHeight() (int64, error)
 
-	Call(cfg BaseTxCfg, msgs ...MsgCall) (*ctypes.ResultBroadcastTxCommit, error)
-	Run(cfg BaseTxCfg, msgs ...MsgRun) (*ctypes.ResultBroadcastTxCommit, error)
-	Send(cfg BaseTxCfg, msgs ...MsgSend) (*ctypes.ResultBroadcastTxCommit, error)
-	AddPackage(cfg BaseTxCfg, msgs ...MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error)
+	Call(cfg BaseTxCfg, msgs ...vm.MsgCall) (*ctypes.ResultBroadcastTxCommit, error)
+	Run(cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastTxCommit, error)
+	Send(cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadcastTxCommit, error)
+	AddPackage(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error)
 
-	NewSponsorTransaction(cfg SponsorTxCfg, msgs ...Msg) (*std.Tx, error)
+	NewSponsorTransaction(cfg SponsorTxCfg, msgs ...std.Msg) (*std.Tx, error)
 	SignTransaction(tx std.Tx, accountNumber, sequenceNumber uint64) (*std.Tx, error)
 	ExecuteSponsorTransaction(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error)
 }
 
 var _ IClient = (*Client)(nil)
 
-// validateSigner checks that the Client's fields are correctly configured.
-func (c *Client) IsValid() error {
+// validate checks that the Client's fields are correctly configured.
+func (c *Client) validate() error {
 	if err := c.validateSigner(); err != nil {
 		return err
 	}
