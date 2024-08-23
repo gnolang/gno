@@ -15,16 +15,7 @@ type (
 	mockSign     func(cfg SignCfg) (*std.Tx, error)
 	mockInfo     func() (keys.Info, error)
 	mockValidate func() error
-
-	// Msg mock
-	mockMsg struct{}
 )
-
-func (m mockMsg) IsValid() error  { return nil }
-func (m mockMsg) GetType() string { return "mock" }
-func (m mockMsg) GetCoins() (std.Coins, error) {
-	return std.NewCoins(std.MustParseCoin("1000ugnot")), nil
-}
 
 type mockSigner struct {
 	sign     mockSign
