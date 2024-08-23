@@ -601,6 +601,15 @@ func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
 	return fv.body
 }
 
+func (fv *FuncValue) UpdateBodyFromSource() {
+	if fv.Source == nil {
+		panic(fmt.Sprintf(
+			"Source is missing for FuncValue %q",
+			fv.Name))
+	}
+	fv.body = fv.Source.GetBody()
+}
+
 func (fv *FuncValue) GetSource(store Store) BlockNode {
 	if rn, ok := fv.Source.(RefNode); ok {
 		source := store.GetBlockNode(rn.GetLocation())
@@ -2090,9 +2099,10 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		}
 	default:
 		panic(fmt.Sprintf(
-			"unexpected index base type %s (%v)",
+			"unexpected index base type %s (%v base %v)",
 			tv.T.String(),
-			reflect.TypeOf(tv.T)))
+			reflect.TypeOf(tv.T),
+			reflect.TypeOf(baseOf(tv.T))))
 	}
 }
 

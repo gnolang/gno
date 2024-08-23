@@ -5,9 +5,12 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	rpcclient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -36,28 +39,32 @@ func TestCallSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg config
-	msg := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{"test argument"},
-		Send:     "",
+	msg := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/demo/deep/very/deep",
+		Func:    "Render",
+		Args:    []string{"test argument"},
+		Send:    nil,
 	}
 
 	// Execute call
 	res, err := client.Call(baseCfg, msg)
+	require.NoError(t, err)
 
 	expected := "(\"hi test argument\" string)\n\n"
 	got := string(res.DeliverTx.Data)
 
-	assert.Nil(t, err)
 	assert.Equal(t, expected, got)
 }
 
@@ -80,36 +87,41 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg configs
-	msg1 := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{""},
-		Send:     "",
+	msg1 := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/demo/deep/very/deep",
+		Func:    "Render",
+		Args:    []string{""},
+		Send:    nil,
 	}
 
 	// Same call, different argument
-	msg2 := MsgCall{
-		PkgPath:  "gno.land/r/demo/deep/very/deep",
-		FuncName: "Render",
-		Args:     []string{"test argument"},
-		Send:     "",
+	msg2 := vm.MsgCall{
+		Caller:  caller.GetAddress(),
+		PkgPath: "gno.land/r/demo/deep/very/deep",
+		Func:    "Render",
+		Args:    []string{"test argument"},
+		Send:    nil,
 	}
 
 	expected := "(\"it works!\" string)\n\n(\"hi test argument\" string)\n\n"
 
 	// Execute call
 	res, err := client.Call(baseCfg, msg1, msg2)
+	require.NoError(t, err)
 
 	got := string(res.DeliverTx.Data)
-	assert.Nil(t, err)
 	assert.Equal(t, expected, got)
 }
 
@@ -132,31 +144,35 @@ func TestSendSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Send config for a new address on the blockchain
 	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 	amount := 10
-	msg := MsgSend{
-		ToAddress: toAddress,
-		Send:      std.Coin{"ugnot", int64(amount)}.String(),
+	msg := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   toAddress,
+		Amount:      std.Coins{{Denom: ugnot.Denom, Amount: int64(amount)}},
 	}
 
 	// Execute send
 	res, err := client.Send(baseCfg, msg)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "", string(res.DeliverTx.Data))
 
 	// Get the new account balance
 	account, _, err := client.QueryAccount(toAddress)
-	assert.Nil(t, err)
+	require.NoError(t, err)
 
-	expected := std.Coins{{"ugnot", int64(amount)}}
+	expected := std.Coins{{Denom: ugnot.Denom, Amount: int64(amount)}}
 	got := account.GetCoins()
 
 	assert.Equal(t, expected, got)
@@ -181,26 +197,31 @@ func TestSendMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg configs
 	toAddress, _ := crypto.AddressFromBech32("g14a0y9a64dugh3l7hneshdxr4w0rfkkww9ls35p")
 	amount1 := 10
-	msg1 := MsgSend{
-		ToAddress: toAddress,
-		Send:      std.Coin{"ugnot", int64(amount1)}.String(),
+	msg1 := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   toAddress,
+		Amount:      std.Coins{{Denom: ugnot.Denom, Amount: int64(amount1)}},
 	}
 
 	// Same send, different argument
 	amount2 := 20
-	msg2 := MsgSend{
-		ToAddress: toAddress,
-		Send:      std.Coin{"ugnot", int64(amount2)}.String(),
+	msg2 := bank.MsgSend{
+		FromAddress: caller.GetAddress(),
+		ToAddress:   toAddress,
+		Amount:      std.Coins{{Denom: ugnot.Denom, Amount: int64(amount2)}},
 	}
 
 	// Execute send
@@ -212,7 +233,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 	account, _, err := client.QueryAccount(toAddress)
 	assert.NoError(t, err)
 
-	expected := std.Coins{{"ugnot", int64(amount1 + amount2)}}
+	expected := std.Coins{{Denom: ugnot.Denom, Amount: int64(amount1 + amount2)}}
 	got := account.GetCoins()
 
 	assert.Equal(t, expected, got)
@@ -237,7 +258,7 @@ func TestRunSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -257,9 +278,14 @@ func main() {
 	println(ufmt.Sprintf("- after: %d", tests.Counter()))
 }`
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg configs
-	msg := MsgRun{
+	msg := vm.MsgRun{
+		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
+			Name: "main",
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -267,7 +293,7 @@ func main() {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
 	res, err := client.Run(baseCfg, msg)
@@ -295,7 +321,7 @@ func TestRunMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -324,9 +350,14 @@ func main() {
 	println(ufmt.Sprintf("%s", deep.Render("gnoclient!")))
 }`
 
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
 	// Make Msg configs
-	msg1 := MsgRun{
+	msg1 := vm.MsgRun{
+		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
+			Name: "main",
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -334,10 +365,12 @@ func main() {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
-	msg2 := MsgRun{
+	msg2 := vm.MsgRun{
+		Caller: caller.GetAddress(),
 		Package: &std.MemPackage{
+			Name: "main",
 			Files: []*std.MemFile{
 				{
 					Name: "main.gno",
@@ -345,7 +378,7 @@ func main() {
 				},
 			},
 		},
-		Send: "",
+		Send: nil,
 	}
 
 	expected := "- before: 0\n- after: 10\nhi gnoclient!\n"
@@ -375,7 +408,7 @@ func TestAddPackageSingle_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
@@ -390,10 +423,14 @@ func Echo(str string) string {
 
 	fileName := "echo.gno"
 	deploymentPath := "gno.land/p/demo/integration/test/echo"
-	deposit := "100ugnot"
+	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}}
+
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
 
 	// Make Msg config
-	msg := MsgAddPackage{
+	msg := vm.MsgAddPackage{
+		Creator: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "echo",
 			Path: deploymentPath,
@@ -409,7 +446,7 @@ func Echo(str string) string {
 
 	// Execute AddPackage
 	_, err = client.AddPackage(baseCfg, msg)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Check for deployed file on the node
 	query, err := client.Query(QueryCfg{
@@ -422,7 +459,7 @@ func Echo(str string) string {
 	// Query balance to validate deposit
 	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+	assert.Equal(t, baseAcc.GetCoins(), deposit)
 }
 
 func TestAddPackageMultiple_Integration(t *testing.T) {
@@ -444,14 +481,14 @@ func TestAddPackageMultiple_Integration(t *testing.T) {
 
 	// Make Tx config
 	baseCfg := BaseTxCfg{
-		GasFee:         "10000ugnot",
+		GasFee:         ugnot.ValueString(10000),
 		GasWanted:      8000000,
 		AccountNumber:  0,
 		SequenceNumber: 0,
 		Memo:           "",
 	}
 
-	deposit := "100ugnot"
+	deposit := std.Coins{{Denom: ugnot.Denom, Amount: int64(100)}}
 	deploymentPath1 := "gno.land/p/demo/integration/test/echo"
 
 	body1 := `package echo
@@ -467,7 +504,11 @@ func Hello(str string) string {
 	return "Hello " + str + "!" 
 }`
 
-	msg1 := MsgAddPackage{
+	caller, err := client.Signer.Info()
+	require.NoError(t, err)
+
+	msg1 := vm.MsgAddPackage{
+		Creator: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "echo",
 			Path: deploymentPath1,
@@ -478,10 +519,11 @@ func Hello(str string) string {
 				},
 			},
 		},
-		Deposit: "",
+		Deposit: nil,
 	}
 
-	msg2 := MsgAddPackage{
+	msg2 := vm.MsgAddPackage{
+		Creator: caller.GetAddress(),
 		Package: &std.MemPackage{
 			Name: "hello",
 			Path: deploymentPath2,
@@ -501,7 +543,7 @@ func Hello(str string) string {
 
 	// Execute AddPackage
 	_, err = client.AddPackage(baseCfg, msg1, msg2)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 
 	// Check Package #1
 	query, err := client.Query(QueryCfg{
@@ -528,7 +570,7 @@ func Hello(str string) string {
 	// Query balance to validate deposit
 	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
 	require.NoError(t, err)
-	assert.Equal(t, baseAcc.GetCoins().String(), deposit)
+	assert.Equal(t, baseAcc.GetCoins(), deposit)
 }
 
 // todo add more integration tests:
