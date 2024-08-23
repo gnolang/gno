@@ -43,7 +43,7 @@ type BaseApp struct {
 	endBlocker   EndBlocker   // logic to run after all txs, and to determine valset changes
 
 	beginTxHook BeginTxHook // BaseApp-specific hook run before running transaction messages.
-	endTxHook   EndTxHook   // BaseApp-specific hook run after a transaction
+	endTxHook   EndTxHook   // BaseApp-specific hook run after running transaction messages.
 
 	// --------------------
 	// Volatile state
