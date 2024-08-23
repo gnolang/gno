@@ -68,7 +68,7 @@ func TestCallSingle_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 
 	// Test signing separately
-	tx, err := client.MakeCallTx(baseCfg, msg)
+	tx, err := NewCallTx(baseCfg, msg)
 	assert.NoError(t, err)
 	require.NotNil(t, tx)
 	signedTx, err := client.SignTx(*tx, 0, 0)
@@ -137,7 +137,7 @@ func TestCallMultiple_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 
 	// Test signing separately
-	tx, err := client.MakeCallTx(baseCfg, msg1, msg2)
+	tx, err := NewCallTx(baseCfg, msg1, msg2)
 	assert.NoError(t, err)
 	require.NotNil(t, tx)
 	signedTx, err := client.SignTx(*tx, 0, 0)
@@ -202,7 +202,7 @@ func TestSendSingle_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 
 	// Test signing separately
-	tx, err := client.MakeSendTx(baseCfg, msg)
+	tx, err := NewSendTx(baseCfg, msg)
 	assert.NoError(t, err)
 	require.NotNil(t, tx)
 	signedTx, err := client.SignTx(*tx, 0, 0)
@@ -281,7 +281,7 @@ func TestSendMultiple_Integration(t *testing.T) {
 	assert.Equal(t, expected, got)
 
 	// Test signing separately
-	tx, err := client.MakeSendTx(baseCfg, msg1, msg2)
+	tx, err := NewSendTx(baseCfg, msg1, msg2)
 	assert.NoError(t, err)
 	require.NotNil(t, tx)
 	signedTx, err := client.SignTx(*tx, 0, 0)
@@ -362,7 +362,7 @@ func main() {
 	assert.Equal(t, string(res.DeliverTx.Data), "- before: 0\n- after: 10\n")
 
 	// Test signing separately
-	tx, err := client.MakeRunTx(baseCfg, msg)
+	tx, err := NewRunTx(baseCfg, msg)
 	assert.NoError(t, err)
 	require.NotNil(t, tx)
 	signedTx, err := client.SignTx(*tx, 0, 0)
@@ -461,7 +461,7 @@ func main() {
 	assert.Equal(t, expected, string(res.DeliverTx.Data))
 
 	// Test signing separately
-	tx, err := client.MakeRunTx(baseCfg, msg1, msg2)
+	tx, err := NewRunTx(baseCfg, msg1, msg2)
 	assert.NoError(t, err)
 	require.NotNil(t, tx)
 	signedTx, err := client.SignTx(*tx, 0, 0)

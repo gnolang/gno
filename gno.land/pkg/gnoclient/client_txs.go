@@ -35,16 +35,16 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...vm.MsgCall) (*ctypes.ResultBroadcas
 		return nil, err
 	}
 
-	tx, err := c.MakeCallTx(cfg, msgs...)
+	tx, err := NewCallTx(cfg, msgs...)
 	if err != nil {
 		return nil, err
 	}
 	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
-// MakeCallTx makes an unsigned transaction from one or more MsgCall.
+// NewCallTx makes an unsigned transaction from one or more MsgCall.
 // The Caller field must be set.
-func (c *Client) MakeCallTx(cfg BaseTxCfg, msgs ...vm.MsgCall) (*std.Tx, error) {
+func NewCallTx(cfg BaseTxCfg, msgs ...vm.MsgCall) (*std.Tx, error) {
 	// Validate base transaction config
 	if err := cfg.validateBaseTxConfig(); err != nil {
 		return nil, err
@@ -85,16 +85,16 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastT
 		return nil, err
 	}
 
-	tx, err := c.MakeRunTx(cfg, msgs...)
+	tx, err := NewRunTx(cfg, msgs...)
 	if err != nil {
 		return nil, err
 	}
 	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
-// MakeRunTx makes an unsigned transaction from one or more MsgRun.
+// NewRunTx makes an unsigned transaction from one or more MsgRun.
 // The Caller field must be set.
-func (c *Client) MakeRunTx(cfg BaseTxCfg, msgs ...vm.MsgRun) (*std.Tx, error) {
+func NewRunTx(cfg BaseTxCfg, msgs ...vm.MsgRun) (*std.Tx, error) {
 	// Validate base transaction config
 	if err := cfg.validateBaseTxConfig(); err != nil {
 		return nil, err
@@ -135,16 +135,16 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadc
 		return nil, err
 	}
 
-	tx, err := c.MakeSendTx(cfg, msgs...)
+	tx, err := NewSendTx(cfg, msgs...)
 	if err != nil {
 		return nil, err
 	}
 	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
-// MakeSendTx makes an unsigned transaction from one or more MsgSend.
+// NewSendTx makes an unsigned transaction from one or more MsgSend.
 // The FromAddress field must be set.
-func (c *Client) MakeSendTx(cfg BaseTxCfg, msgs ...bank.MsgSend) (*std.Tx, error) {
+func NewSendTx(cfg BaseTxCfg, msgs ...bank.MsgSend) (*std.Tx, error) {
 	// Validate base transaction config
 	if err := cfg.validateBaseTxConfig(); err != nil {
 		return nil, err
@@ -185,16 +185,16 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.Re
 		return nil, err
 	}
 
-	tx, err := c.MakeAddPackageTx(cfg, msgs...)
+	tx, err := NewAddPackageTx(cfg, msgs...)
 	if err != nil {
 		return nil, err
 	}
 	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
-// MakeAddPackageTx makes an unsigned transaction from one or more MsgAddPackage.
+// NewAddPackageTx makes an unsigned transaction from one or more MsgAddPackage.
 // The Creator field must be set.
-func (c *Client) MakeAddPackageTx(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*std.Tx, error) {
+func NewAddPackageTx(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*std.Tx, error) {
 	// Validate base transaction config
 	if err := cfg.validateBaseTxConfig(); err != nil {
 		return nil, err
