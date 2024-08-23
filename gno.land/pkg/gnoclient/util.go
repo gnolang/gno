@@ -6,9 +6,6 @@ import (
 )
 
 var (
-	// ErrEmptyPackage      = errors.New("empty package to run")
-	// ErrEmptyPkgPath      = errors.New("empty pkg path")
-	// ErrEmptyFuncName     = errors.New("empty function name")
 	ErrInvalidGasWanted  = errors.New("invalid gas wanted")
 	ErrInvalidGasFee     = errors.New("invalid gas fee")
 	ErrMissingSigner     = errors.New("missing Signer")
