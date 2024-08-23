@@ -5,7 +5,7 @@ go 1.22
 toolchain go1.22.4
 
 require (
-	github.com/gnolang/faucet v0.3.1
+	github.com/gnolang/faucet v0.3.2
 	github.com/gnolang/gno v0.1.1
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
