@@ -65,7 +65,6 @@ func TestProcessNoopMsg(t *testing.T) {
 }
 
 func TestProcessInvalidMsg(t *testing.T) {
-
 	// setup
 	env := setupTestEnv()
 	ctx := env.ctx
