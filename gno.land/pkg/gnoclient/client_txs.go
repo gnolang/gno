@@ -4,7 +4,6 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -19,18 +18,19 @@ var (
 
 // BaseTxCfg defines the base transaction configuration, shared by all message types
 type BaseTxCfg struct {
-	GasFee         string         // Gas fee
-	GasWanted      int64          // Gas wanted
-	AccountNumber  uint64         // Account number
-	SequenceNumber uint64         // Sequence number
-	Memo           string         // Memo
-	CallerAddress  crypto.Address // The caller Address if known
+	GasFee         string // Gas fee
+	GasWanted      int64  // Gas wanted
+	AccountNumber  uint64 // Account number
+	SequenceNumber uint64 // Sequence number
+	Memo           string // Memo
 }
 
 // Call executes one or more MsgCall calls on the blockchain
 func (c *Client) Call(cfg BaseTxCfg, msgs ...vm.MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
-	// MakeCallTx calls validateSigner().
+	if err := c.validateSigner(); err != nil {
+		return nil, err
+	}
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}
@@ -43,15 +43,8 @@ func (c *Client) Call(cfg BaseTxCfg, msgs ...vm.MsgCall) (*ctypes.ResultBroadcas
 }
 
 // MakeCallTx makes an unsigned transaction from one or more MsgCall.
-// If cfg.CallerAddress.IsZero() then get it from c.Signer.
-func (c *Client) MakeCallTx(cfg BaseTxCfg, msgs ...MsgCall) (*std.Tx, error) {
-	if cfg.CallerAddress.IsZero() {
-		// Validate required client fields
-		if err := c.validateSigner(); err != nil {
-			return nil, err
-		}
-	}
-
+// The Caller field must be set.
+func (c *Client) MakeCallTx(cfg BaseTxCfg, msgs ...vm.MsgCall) (*std.Tx, error) {
 	// Validate base transaction config
 	if err := cfg.validateBaseTxConfig(); err != nil {
 		return nil, err
@@ -85,7 +78,9 @@ func (c *Client) MakeCallTx(cfg BaseTxCfg, msgs ...MsgCall) (*std.Tx, error) {
 // Run executes one or more MsgRun calls on the blockchain
 func (c *Client) Run(cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
-	// MakeRunTx calls validateSigner().
+	if err := c.validateSigner(); err != nil {
+		return nil, err
+	}
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}
@@ -98,15 +93,8 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastT
 }
 
 // MakeRunTx makes an unsigned transaction from one or more MsgRun.
-// If cfg.CallerAddress.IsZero() then get it from c.Signer.
-func (c *Client) MakeRunTx(cfg BaseTxCfg, msgs ...MsgRun) (*std.Tx, error) {
-	if cfg.CallerAddress.IsZero() {
-		// Validate required client fields
-		if err := c.validateSigner(); err != nil {
-			return nil, err
-		}
-	}
-
+// The Caller field must be set.
+func (c *Client) MakeRunTx(cfg BaseTxCfg, msgs ...vm.MsgRun) (*std.Tx, error) {
 	// Validate base transaction config
 	if err := cfg.validateBaseTxConfig(); err != nil {
 		return nil, err
@@ -140,7 +128,9 @@ func (c *Client) MakeRunTx(cfg BaseTxCfg, msgs ...MsgRun) (*std.Tx, error) {
 // Send executes one or more MsgSend calls on the blockchain
 func (c *Client) Send(cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
-	// MakeSendTx calls validateSigner().
+	if err := c.validateSigner(); err != nil {
+		return nil, err
+	}
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}
@@ -153,15 +143,8 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadc
 }
 
 // MakeSendTx makes an unsigned transaction from one or more MsgSend.
-// If cfg.CallerAddress.IsZero() then get it from c.Signer.
-func (c *Client) MakeSendTx(cfg BaseTxCfg, msgs ...MsgSend) (*std.Tx, error) {
-	if cfg.CallerAddress.IsZero() {
-		// Validate required client fields
-		if err := c.validateSigner(); err != nil {
-			return nil, err
-		}
-	}
-
+// The FromAddress field must be set.
+func (c *Client) MakeSendTx(cfg BaseTxCfg, msgs ...bank.MsgSend) (*std.Tx, error) {
 	// Validate base transaction config
 	if err := cfg.validateBaseTxConfig(); err != nil {
 		return nil, err
@@ -195,7 +178,9 @@ func (c *Client) MakeSendTx(cfg BaseTxCfg, msgs ...MsgSend) (*std.Tx, error) {
 // AddPackage executes one or more AddPackage calls on the blockchain
 func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error) {
 	// Validate required client fields.
-	// MakeAddPackageTx calls validateSigner().
+	if err := c.validateSigner(); err != nil {
+		return nil, err
+	}
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}
@@ -208,15 +193,8 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.Re
 }
 
 // MakeAddPackageTx makes an unsigned transaction from one or more MsgAddPackage.
-// If cfg.CallerAddress.IsZero() then get it from c.Signer.
-func (c *Client) MakeAddPackageTx(cfg BaseTxCfg, msgs ...MsgAddPackage) (*std.Tx, error) {
-	if cfg.CallerAddress.IsZero() {
-		// Validate required client fields
-		if err := c.validateSigner(); err != nil {
-			return nil, err
-		}
-	}
-
+// The Creator field must be set.
+func (c *Client) MakeAddPackageTx(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*std.Tx, error) {
 	// Validate base transaction config
 	if err := cfg.validateBaseTxConfig(); err != nil {
 		return nil, err
