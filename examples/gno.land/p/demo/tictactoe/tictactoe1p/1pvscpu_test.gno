@@ -5,7 +5,6 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/ternary"
 	"gno.land/p/demo/uassert"
 )
 
