@@ -11,13 +11,7 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-var (
-	instances avl.Tree // symbol -> instance
-
-	// Cache variables
-	renderCache  string         // Stores the cached render result.
-	isCacheValid bool   = false // Indicates whether the cache is valid.
-)
+var instances avl.Tree // symbol -> instance
 
 func New(name, symbol string, decimals uint, initialMint, faucet uint64) {
 	caller := std.PrevRealm().Addr()
@@ -42,9 +36,6 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 	}
 
 	instances.Set(symbol, &inst)
-
-	// Invalidate the cache when a new token is added.
-	isCacheValid = false
 }
 
 func SetAdmin(symbol string, newAdmin std.Address) {
