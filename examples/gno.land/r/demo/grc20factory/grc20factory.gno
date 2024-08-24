@@ -37,6 +37,12 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 	instances.Set(symbol, &inst)
 }
 
+func SetAdmin(symbol string, newAdmin std.Address) {
+	inst := mustGetInstance(symbol)
+	inst.admin.AssertCallerIsOwner()
+	inst.admin.TransferOwnership(newAdmin)
+}
+
 type instance struct {
 	banker *grc20.Banker
 	admin  *ownable.Ownable
@@ -131,7 +137,7 @@ func listTokensAndAdmins() string {
 		symbol := key
 		inst := value.(*instance)
 		result += ufmt.Sprintf("Token: %s, Admin: %s\n", symbol, inst.admin.Owner().String())
-		return true
+		return false
 	})
 	return result
 }
@@ -139,7 +145,7 @@ func listTokensAndAdmins() string {
 func mustGetInstance(symbol string) *instance {
 	t, exists := instances.Get(symbol)
 	if !exists {
-		panic("token instance does not exist")
+		panic(ufmt.Sprintf("token with symbol %s does not exist", symbol))
 	}
 	return t.(*instance)
 }
