@@ -6,11 +6,15 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/events"
+	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,6 +39,28 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 	}
 
 	return validators
+}
+
+func TestNewAppWithOptions(t *testing.T) {
+	// Define the default options
+	options := &AppOptions{
+		GenesisTxHandler: PanicOnFailingTxHandler,
+		Logger:           log.NewNoopLogger(),
+		DB:               memdb.NewMemDB(),
+		GnoRootDir:       gnoenv.RootDir(),
+		EventSwitch:      events.NewEventSwitch(),
+		MaxCycles:        10000,
+		CacheStdlibLoad:  true,
+	}
+
+	app, err := NewAppWithOptions(options)
+
+	require.NoError(t, err)
+	require.NotNil(t, app)
+
+	bapp := app.(*sdk.BaseApp)
+	assert.Equal(t, "dev", bapp.AppVersion())
+	assert.Equal(t, "gnoland", bapp.Name())
 }
 
 func TestEndBlocker(t *testing.T) {
