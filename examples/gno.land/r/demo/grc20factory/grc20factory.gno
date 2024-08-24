@@ -11,7 +11,13 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-var instances avl.Tree // symbol -> instance
+var (
+	instances avl.Tree // symbol -> instance
+
+	// Cache variables
+	renderCache  string         // Stores the cached render result.
+	isCacheValid bool   = false // Indicates whether the cache is valid.
+)
 
 func New(name, symbol string, decimals uint, initialMint, faucet uint64) {
 	caller := std.PrevRealm().Addr()
@@ -36,6 +42,9 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 	}
 
 	instances.Set(symbol, &inst)
+
+	// Invalidate the cache when a new token is added.
+	isCacheValid = false
 }
 
 func SetAdmin(symbol string, newAdmin std.Address) {
@@ -111,22 +120,30 @@ func Burn(symbol string, from std.Address, amount uint64) {
 }
 
 func Render(path string) string {
+	// Split the path by '/' to determine the number of parts (e.g., "tokens/0/10").
 	parts := strings.Split(path, "/")
 	c := len(parts)
 
 	switch {
+	// Case 1: If the path is empty, return a list of tokens with their admins (first 10 by default).
 	case path == "":
 		return listTokensAndAdmins(0, 10)
+	// Case 2: If the path contains only the token symbol, show token-specific home information.
+	// Example path: "FOO"
 	case c == 1:
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)
 		return inst.banker.RenderHome()
+	// Case 3: Retrieve the balance of a token for a specific address.
+	// Example path: "FOO/balance/<ownerAddress>"
 	case c == 3 && parts[1] == "balance":
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)
 		owner := std.Address(parts[2])
 		balance := inst.Token().BalanceOf(owner)
 		return ufmt.Sprintf("%d", balance)
+	// Case 4: Pagination for listing tokens.
+	// Example path: "tokens/<page>/<limit>"
 	case c == 3 && parts[0] == "tokens":
 		page, err := strconv.Atoi(parts[1])
 		if err != nil {
@@ -137,6 +154,8 @@ func Render(path string) string {
 			return "Limit is not a number\n"
 		}
 		return listTokensAndAdmins(page, limit)
+	// Default case: Return "404" for unrecognized paths.
+	// Example path: "unknown/path"
 	default:
 		return "404\n"
 	}
@@ -159,13 +178,23 @@ func listTokensAndAdmins(page, limit int) string {
 		}
 
 		if count >= start {
-			symbol := key
 			inst := value.(*instance)
-			result.WriteString(ufmt.Sprintf("Token: %s, Admin: %s\n", symbol, inst.admin.Owner().String()))
+			result.WriteString(ufmt.Sprintf(
+				"Name: %s, Symbol: %s, Decimals: %d, Admin: %s, Total Supply: %d\n",
+				inst.Token().GetName(),
+				key,
+				inst.Token().GetDecimals(),
+				inst.admin.Owner().String(),
+				inst.Token().TotalSupply(),
+			))
 		}
 		count++
 		return false
 	})
+
+	if result.Len() == 0 {
+		return "No tokens found\n"
+	}
 
 	return result.String()
 }

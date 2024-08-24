@@ -62,11 +62,28 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 		path     string
 		expected string
 	}{
-		{"", "Token: BAR, Admin: " + admin.String() + "\nToken: FOO, Admin: " + admin.String() + "\n"},
-		{"FOO", mustGetInstance("FOO").banker.RenderHome()},
-		{"FOO/balance/g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq", "100000000"},
-		{"tokens/0/3", "Token: BAR, Admin: " + admin.String() + "\nToken: FOO, Admin: " + admin.String() + "\n"},
-		{"unknown/path", "404\n"},
+		{
+			"",
+			"Name: Bar, Symbol: BAR, Decimals: 4, Admin: " + admin.String() + ", Total Supply: 10000000\n" +
+				"Name: Foo, Symbol: FOO, Decimals: 4, Admin: " + admin.String() + ", Total Supply: 10100000000\n",
+		},
+		{
+			"FOO",
+			mustGetInstance("FOO").banker.RenderHome(),
+		},
+		{
+			"FOO/balance/g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq",
+			"100000000",
+		},
+		{
+			"tokens/0/10",
+			"Name: Bar, Symbol: BAR, Decimals: 4, Admin: " + admin.String() + ", Total Supply: 10000000\n" +
+				"Name: Foo, Symbol: FOO, Decimals: 4, Admin: " + admin.String() + ", Total Supply: 10100000000\n",
+		},
+		{
+			"unknown/path",
+			"404\n",
+		},
 	}
 	for _, tc := range renderTests {
 		t.Run("Render-"+tc.path, func(t *testing.T) {
