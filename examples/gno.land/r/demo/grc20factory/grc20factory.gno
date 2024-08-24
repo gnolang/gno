@@ -2,6 +2,7 @@ package foo20
 
 import (
 	"std"
+	"strconv"
 	"strings"
 
 	"gno.land/p/demo/avl"
@@ -115,7 +116,7 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return listTokensAndAdmins()
+		return listTokensAndAdmins(0, 10)
 	case c == 1:
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)
@@ -126,20 +127,47 @@ func Render(path string) string {
 		owner := std.Address(parts[2])
 		balance := inst.Token().BalanceOf(owner)
 		return ufmt.Sprintf("%d", balance)
+	case c == 3 && parts[0] == "tokens":
+		page, err := strconv.Atoi(parts[1])
+		if err != nil {
+			return "Page is not a number\n"
+		}
+		limit, err := strconv.Atoi(parts[2])
+		if err != nil {
+			return "Limit is not a number\n"
+		}
+		return listTokensAndAdmins(page, limit)
 	default:
 		return "404\n"
 	}
 }
 
-func listTokensAndAdmins() string {
-	var result string
+// listTokensAndAdmins returns a paginated list of tokens and their admins
+func listTokensAndAdmins(page, limit int) string {
+	if page < 0 || limit <= 0 {
+		return "Invalid page or limit\n"
+	}
+
+	var result strings.Builder
+	start := page * limit
+	end := start + limit
+
+	count := 0
 	instances.Iterate("", "", func(key string, value interface{}) bool {
-		symbol := key
-		inst := value.(*instance)
-		result += ufmt.Sprintf("Token: %s, Admin: %s\n", symbol, inst.admin.Owner().String())
+		if count >= end {
+			return true
+		}
+
+		if count >= start {
+			symbol := key
+			inst := value.(*instance)
+			result.WriteString(ufmt.Sprintf("Token: %s, Admin: %s\n", symbol, inst.admin.Owner().String()))
+		}
+		count++
 		return false
 	})
-	return result
+
+	return result.String()
 }
 
 func mustGetInstance(symbol string) *instance {
