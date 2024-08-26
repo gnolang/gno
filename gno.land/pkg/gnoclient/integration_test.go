@@ -70,6 +70,11 @@ func TestCallSingle_Integration(t *testing.T) {
 	got := string(res.DeliverTx.Data)
 
 	assert.Equal(t, expected, got)
+
+	res, err = callSigningSeparately(t, client, baseCfg, msg)
+	require.NoError(t, err)
+	got = string(res.DeliverTx.Data)
+	assert.Equal(t, expected, got)
 }
 
 func TestCallSingle_Sponsor_Integration(t *testing.T) {
@@ -139,7 +144,7 @@ func TestCallSingle_Sponsor_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Sponsoree signs the transaction
-	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
+	sponsorTx, err := sponsoreeClient.SignTx(*tx, sponsoreeAccountNumber, sponsoreeSequence)
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
@@ -225,6 +230,11 @@ func TestCallMultiple_Integration(t *testing.T) {
 
 	got := string(res.DeliverTx.Data)
 	assert.Equal(t, expected, got)
+
+	res, err = callSigningSeparately(t, client, baseCfg, msg1, msg2)
+	require.NoError(t, err)
+	got = string(res.DeliverTx.Data)
+	assert.Equal(t, expected, got)
 }
 
 func TestSendSingle_Integration(t *testing.T) {
@@ -279,6 +289,17 @@ func TestSendSingle_Integration(t *testing.T) {
 	got := account.GetCoins()
 
 	assert.Equal(t, expected, got)
+
+	res, err = sendSigningSeparately(t, client, baseCfg, msg)
+	require.NoError(t, err)
+	assert.Equal(t, "", string(res.DeliverTx.Data))
+
+	// Get the new account balance
+	account, _, err = client.QueryAccount(toAddress)
+	require.NoError(t, err)
+	expected2 := std.Coins{{Denom: ugnot.Denom, Amount: int64(2 * amount)}}
+	got = account.GetCoins()
+	assert.Equal(t, expected2, got)
 }
 
 func TestSendSingle_Sponsor_Integration(t *testing.T) {
@@ -361,7 +382,7 @@ func TestSendSingle_Sponsor_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// sender signs the transaction
-	sponsorTx, err := senderClient.SignTransaction(*tx, senderAccountNumber, senderSequence)
+	sponsorTx, err := senderClient.SignTx(*tx, senderAccountNumber, senderSequence)
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
@@ -458,6 +479,17 @@ func TestSendMultiple_Integration(t *testing.T) {
 	got := account.GetCoins()
 
 	assert.Equal(t, expected, got)
+
+	res, err = sendSigningSeparately(t, client, baseCfg, msg1, msg2)
+	require.NoError(t, err)
+	assert.Equal(t, "", string(res.DeliverTx.Data))
+
+	// Get the new account balance
+	account, _, err = client.QueryAccount(toAddress)
+	require.NoError(t, err)
+	expected2 := std.Coins{{Denom: ugnot.Denom, Amount: int64(2 * (amount1 + amount2))}}
+	got = account.GetCoins()
+	assert.Equal(t, expected2, got)
 }
 
 func TestSendMultiple_Sponsor_Integration(t *testing.T) {
@@ -548,7 +580,7 @@ func TestSendMultiple_Sponsor_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// sender signs the transaction
-	sponsorTx, err := senderClient.SignTransaction(*tx, senderAccountNumber, senderSequence)
+	sponsorTx, err := senderClient.SignTx(*tx, senderAccountNumber, senderSequence)
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
@@ -647,6 +679,11 @@ func main() {
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	assert.Equal(t, string(res.DeliverTx.Data), "- before: 0\n- after: 10\n")
+
+	res, err = runSigningSeparately(t, client, baseCfg, msg)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, string(res.DeliverTx.Data), "- before: 10\n- after: 20\n")
 }
 
 func TestRunSingle_Sponsor_Integration(t *testing.T) {
@@ -736,7 +773,7 @@ func TestRunSingle_Sponsor_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Sponsoree signs the transaction
-	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
+	sponsorTx, err := sponsoreeClient.SignTx(*tx, sponsoreeAccountNumber, sponsoreeSequence)
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
@@ -851,6 +888,12 @@ func main() {
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	assert.Equal(t, expected, string(res.DeliverTx.Data))
+
+	res, err = runSigningSeparately(t, client, baseCfg, msg1, msg2)
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	expected2 := "- before: 10\n- after: 20\nhi gnoclient!\n"
+	assert.Equal(t, expected2, string(res.DeliverTx.Data))
 }
 
 func TestRunMultiple_Sponsor_Integration(t *testing.T) {
@@ -962,7 +1005,7 @@ func TestRunMultiple_Sponsor_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Sponsoree signs the transaction
-	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
+	sponsorTx, err := sponsoreeClient.SignTx(*tx, sponsoreeAccountNumber, sponsoreeSequence)
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
@@ -1065,6 +1108,18 @@ func Echo(str string) string {
 	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
 	require.NoError(t, err)
 	assert.Equal(t, baseAcc.GetCoins(), deposit)
+
+	// Test signing separately (using a different deployment path)
+	deploymentPathB := "gno.land/p/demo/integration/test/echo2"
+	msg.Package.Path = deploymentPathB
+	_, err = addPackageSigningSeparately(t, client, baseCfg, msg)
+	assert.NoError(t, err)
+	query, err = client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPathB),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, string(query.Response.Data), fileName)
 }
 
 func TestAddPackageSingle_Sponsor_Integration(t *testing.T) {
@@ -1164,7 +1219,7 @@ func Echo(str string) string {
 	require.NoError(t, err)
 
 	// Sponsoree signs the transaction
-	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
+	sponsorTx, err := sponsoreeClient.SignTx(*tx, sponsoreeAccountNumber, sponsoreeSequence)
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction
@@ -1306,6 +1361,27 @@ func Hello(str string) string {
 	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
 	require.NoError(t, err)
 	assert.Equal(t, baseAcc.GetCoins(), deposit)
+
+	// Test signing separately (using a different deployment path)
+	deploymentPath1B := "gno.land/p/demo/integration/test/echo2"
+	deploymentPath2B := "gno.land/p/demo/integration/test/hello2"
+	msg1.Package.Path = deploymentPath1B
+	msg2.Package.Path = deploymentPath2B
+	_, err = addPackageSigningSeparately(t, client, baseCfg, msg1, msg2)
+	assert.NoError(t, err)
+	query, err = client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath1B),
+	})
+	require.NoError(t, err)
+	assert.Equal(t, string(query.Response.Data), "echo.gno")
+	query, err = client.Query(QueryCfg{
+		Path: "vm/qfile",
+		Data: []byte(deploymentPath2B),
+	})
+	require.NoError(t, err)
+	assert.Contains(t, string(query.Response.Data), "hello.gno")
+	assert.Contains(t, string(query.Response.Data), "gno.mod")
 }
 
 func TestAddPackageMultiple_Sponsor_Integration(t *testing.T) {
@@ -1429,7 +1505,7 @@ func Hello(str string) string {
 	require.NoError(t, err)
 
 	// Sponsoree signs the transaction
-	sponsorTx, err := sponsoreeClient.SignTransaction(*tx, sponsoreeAccountNumber, sponsoreeSequence)
+	sponsorTx, err := sponsoreeClient.SignTx(*tx, sponsoreeAccountNumber, sponsoreeSequence)
 	require.NoError(t, err)
 
 	// Fetch sponsor account information before the transaction

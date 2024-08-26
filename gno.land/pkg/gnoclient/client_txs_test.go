@@ -176,7 +176,7 @@ func TestCallSingle_Sponsor(t *testing.T) {
 	tx, err := client.NewSponsorTransaction(cfg, msg)
 	assert.NoError(t, err)
 
-	presignedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	presignedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
 	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
@@ -332,7 +332,7 @@ func TestCallMultiple_Sponsor(t *testing.T) {
 	tx, err := client.NewSponsorTransaction(cfg, msg1, msg2, msg3)
 	assert.NoError(t, err)
 
-	presignedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	presignedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
 	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
@@ -645,7 +645,7 @@ func TestSendSingle_Sponsor(t *testing.T) {
 	tx, err := client.NewSponsorTransaction(cfg, msg)
 	assert.NoError(t, err)
 
-	presignedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	presignedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
 	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
@@ -775,7 +775,7 @@ func TestSendMultiple_Sponsor(t *testing.T) {
 	tx, err := client.NewSponsorTransaction(cfg, msg1, msg2)
 	assert.NoError(t, err)
 
-	presignedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	presignedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
 	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
@@ -1121,7 +1121,7 @@ func main() {
 	tx, err := client.NewSponsorTransaction(cfg, msg)
 	assert.NoError(t, err)
 
-	presignedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	presignedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
 	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
@@ -1298,7 +1298,7 @@ func main() {
 	tx, err := client.NewSponsorTransaction(cfg, msg1, msg2)
 	assert.NoError(t, err)
 
-	presignedTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	presignedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
 	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
@@ -1631,7 +1631,7 @@ func TestAddPackageSingle_Sponsor(t *testing.T) {
 	tx, err := client.NewSponsorTransaction(cfg, msg)
 	assert.NoError(t, err)
 
-	sponsorTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	sponsorTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
 	res, err := client.ExecuteSponsorTransaction(*sponsorTx, cfg.AccountNumber, cfg.SequenceNumber)
@@ -1797,7 +1797,7 @@ func TestAddPackageMultiple_Sponsor(t *testing.T) {
 	tx, err := client.NewSponsorTransaction(cfg, msg1, msg2)
 	assert.NoError(t, err)
 
-	sponsorTx, err := client.SignTransaction(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	sponsorTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 
 	res, err := client.ExecuteSponsorTransaction(*sponsorTx, cfg.AccountNumber, cfg.SequenceNumber)
@@ -2262,7 +2262,7 @@ func TestSignTransaction(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			res, err := tc.client.SignTransaction(tc.tx, 0, 0)
+			res, err := tc.client.SignTx(tc.tx, 0, 0)
 			assert.Nil(t, res)
 			assert.Equal(t, err.Error(), tc.expectedError.Error())
 		})
@@ -2395,4 +2395,64 @@ func TestExecuteSponsorTransaction(t *testing.T) {
 			assert.Equal(t, err.Error(), tc.expectedError.Error())
 		})
 	}
+}
+
+// The same as client.Call, but test signing separately
+func callSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgCall) (*ctypes.ResultBroadcastTxCommit, error) {
+	t.Helper()
+	tx, err := NewCallTx(cfg, msgs...)
+	assert.NoError(t, err)
+	require.NotNil(t, tx)
+	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	assert.NoError(t, err)
+	require.NotNil(t, signedTx)
+	res, err := client.BroadcastTxCommit(signedTx)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	return res, nil
+}
+
+// The same as client.Run, but test signing separately
+func runSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastTxCommit, error) {
+	t.Helper()
+	tx, err := NewRunTx(cfg, msgs...)
+	assert.NoError(t, err)
+	require.NotNil(t, tx)
+	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	assert.NoError(t, err)
+	require.NotNil(t, signedTx)
+	res, err := client.BroadcastTxCommit(signedTx)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	return res, nil
+}
+
+// The same as client.Send, but test signing separately
+func sendSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadcastTxCommit, error) {
+	t.Helper()
+	tx, err := NewSendTx(cfg, msgs...)
+	assert.NoError(t, err)
+	require.NotNil(t, tx)
+	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	assert.NoError(t, err)
+	require.NotNil(t, signedTx)
+	res, err := client.BroadcastTxCommit(signedTx)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	return res, nil
+}
+
+// The same as client.AddPackage, but test signing separately
+func addPackageSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error) {
+	t.Helper()
+	tx, err := NewAddPackageTx(cfg, msgs...)
+	assert.NoError(t, err)
+	require.NotNil(t, tx)
+	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
+	assert.NoError(t, err)
+	require.NotNil(t, signedTx)
+	res, err := client.BroadcastTxCommit(signedTx)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	return res, nil
 }
