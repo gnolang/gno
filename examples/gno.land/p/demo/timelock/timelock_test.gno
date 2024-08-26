@@ -8,6 +8,7 @@ import (
 	"gno.land/p/demo/accesscontrol"
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/uassert"
 )
 
 func TestTimelockUtil(t *testing.T) {
@@ -27,34 +28,30 @@ func TestTimelockUtil(t *testing.T) {
 		id := newID(0)
 		delay := uint64(3) // 3 seconds
 
-		defer func() {
-			if r := recover(); r != nil {
-				t.Errorf("Schedule panicked: %v", r)
-			}
-		}()
-		timelockUtil.Schedule(id, delay)
+		err := timelockUtil.Schedule(id, delay)
 
-		if status, err := timelockUtil.GetOperationStatus(id); err != nil || status.sheduleTime == 0 {
-			t.Errorf("Schedule failed: operation status not set or invalid")
-		}
+		uassert.NoError(t, err, "Schedule failed")
+
+		status, err := timelockUtil.GetOperationStatus(id)
+
+		uassert.NoError(t, err, "failed to get operation status")
+		uassert.NotEmpty(t, status.sheduleTime, "operation status not set or invalid")
 	})
 
 	// Test Cancel
 	t.Run("Cancel", func(t *testing.T) {
 		id := newID(1)
 
-		defer func() {
-			if r := recover(); r != nil {
-				t.Errorf("Cancel panicked: %v", r)
-			}
-		}()
 		// Plan a new operation to ensure it is unique
-		timelockUtil.Schedule(id, uint64(3))
-		timelockUtil.Cancel(id)
+		err := timelockUtil.Schedule(id, uint64(3))
+		uassert.NoError(t, err, "Failed to schedule operation for cancellation")
 
-		if status, err := timelockUtil.GetOperationStatus(id); err == nil && status.sheduleTime != 0 {
-			t.Errorf("Cancel failed: operation status not removed")
-		}
+		err = timelockUtil.Cancel(id)
+		uassert.NoError(t, err, "Cancel failed")
+
+		status, err := timelockUtil.GetOperationStatus(id)
+		uassert.NoError(t, err, "failed to get operation status")
+		uassert.Empty(t, status.sheduleTime, "operation not cancelled")
 	})
 
 	// Test Execute
@@ -64,36 +61,27 @@ func TestTimelockUtil(t *testing.T) {
 		futureTime := time.Now().Unix() + int64(delay)
 
 		// Schedule the operation with a future timestamp
-		timelockUtil.Schedule(id, delay)
+		err := timelockUtil.Schedule(id, delay)
+		uassert.NoError(t, err, "Failed to schedule operation for execution")
 
 		// Simulates the passage of time by setting the timestamp to a future time
 		timestamps.Set(id.Binary(), OperationStatus{sheduleTime: futureTime, isDone: false})
 
-		defer func() {
-			if r := recover(); r != nil {
-				t.Errorf("Execute panicked: %v", r)
-			}
-		}()
-		timelockUtil.Execute(id)
+		err = timelockUtil.Execute(id)
+		uassert.NoError(t, err, "Execute failed")
 
-		if state, err := timelockUtil.GetOperationState(id); state != Done {
-			t.Errorf("Execute failed: state is %v, expected Done", state)
-		}
+		state, err := timelockUtil.GetOperationState(id)
+		uassert.NoError(t, err, "failed to get operation state")
+		uassert.Equal(t, Done.StateToString(), state.StateToString(), "operation not executed")
 	})
 
 	// Test UpdateDelay
 	t.Run("UpdateDelay", func(t *testing.T) {
 		newDelay := uint64(4) // 4 seconds
 
-		defer func() {
-			if r := recover(); r != nil {
-				t.Errorf("UpdateDelay panicked: %v", r)
-			}
-		}()
-		timelockUtil.UpdateDelay(newDelay)
+		err := timelockUtil.UpdateDelay(newDelay)
+		uassert.NoError(t, err, "UpdateDelay failed")
 
-		if timelockUtil.minDelay != newDelay {
-			t.Errorf("UpdateDelay failed: minDelay is %v, expected %v", minDelay, newDelay)
-		}
+		uassert.Equal(t, newDelay, timelockUtil.minDelay, "minDelay not updated")
 	})
 }
