@@ -27,18 +27,30 @@ type Roles struct {
 	Ownable  *ownable.Ownable
 }
 
+func validRoleName(name string) error {
+	if len(name) > 30 || name == "" {
+		return ErrNameRole
+	}
+
+	return nil
+}
+
 // NewRole creates a new instance of Role
-func NewRole(name string, admin std.Address) *Role {
+func NewRole(name string, admin std.Address) (*Role, error) {
+	if err := validRoleName(name); err != nil {
+		return nil, err
+	}
+
 	return &Role{
 		Name:    name,
 		Holders: avl.NewTree(),
 		Ownable: ownable.NewWithAddress(admin),
-	}
+	}, nil
 }
 
 // CreateRole create a new role within the realm
 func (rs *Roles) CreateRole(name string) (*Role, error) {
-	if len(name) > 30 || name == "" {
+	if err := validRoleName(name); err != nil {
 		return nil, ErrNameRole
 	}
 
@@ -52,7 +64,11 @@ func (rs *Roles) CreateRole(name string) (*Role, error) {
 		}
 	}
 
-	role := NewRole(name, rs.Ownable.Owner())
+	role, err := NewRole(name, rs.Ownable.Owner())
+	if err != nil {
+		return nil, err
+	}
+
 	rs.AllRoles = append(rs.AllRoles, role)
 
 	std.Emit(
