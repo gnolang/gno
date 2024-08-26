@@ -30,9 +30,6 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 	}
 
 	// add checks for cWidth, cHeight (enforce canvas size based on number of existing basicNFTs)
-	// 50 / 2 x 2 - 100 / 3 x 3 - 400 / 4 x 4 - 600 / 5 x 5 - 800 / 6 x 6 - 1000 / 7 x 7 - 1200 / 8 x 8 
-	// custom error messages
-
 	totalAvailableBasicNFTs := GetTotalAvailableBasicNFTs()
 	
 	intWidth, werr := strconv.Atoi(cWidth)
@@ -51,7 +48,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		}
 	} else if totalAvailableBasicNFTs > 50 && totalAvailableBasicNFTs <= 100 {
 		if intHeight != 3 && intWidth != 3 {
-			return "", "error: invalid canvas width and height for under 100 available basic NFTs}"
+			return "", "{error: invalid canvas width and height for under 100 available basic NFTs}"
 		}
 	} else if totalAvailableBasicNFTs > 100 && totalAvailableBasicNFTs <= 400 {
 		if intHeight != 4 && intWidth != 4 {
@@ -59,7 +56,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		}
 	} else if totalAvailableBasicNFTs > 400 && totalAvailableBasicNFTs <= 600 {
 		if intHeight != 5 && intWidth != 5 {
-			return "", "error: invalid canvas width and height for under 600 available basic NFTs}"
+			return "", "{error: invalid canvas width and height for under 600 available basic NFTs}"
 		}
 	} else if totalAvailableBasicNFTs > 600 && totalAvailableBasicNFTs <= 800 {
 		if intHeight != 6 && intWidth != 6 {
@@ -82,10 +79,10 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		}
 	}
 
-	// check if any of the bTokenIds is part of an airdrop and force the order
+	// check if the tokens are all airdropped or all organic
+	allAirdrop := true
+	allOrganic := true
 
-	allAirdropNamesIdentical := true
-	firstAirdropName := ""
 	var bTokenMetadata []BasicNFTMetaData
 
 	for _, tokenId := range bTokenIDs {
@@ -95,16 +92,19 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		}
 		bTokenMetadata = append(bTokenMetadata, metadata)
 
-		if metadata.airdropName != "" {
-			if firstAirdropName == "" {
-				firstAirdropName = metadata.airdropName
-			} else if metadata.airdropName != firstAirdropName {
-				allAirdropNamesIdentical = false
-			}
+		if metadata.airdropName == "" {
+			allAirdrop = false
+		} else {
+			allOrganic = false
 		}
 	}
 
-	if allAirdropNamesIdentical && firstAirdropName != "" {
+	if !(allAirdrop || allOrganic) {
+		return "", "{error: cannot mix airdropped and organic NFTs in a composite NFT}"
+	}
+
+	// If all tokens are airdropped, enforce the ordering logic
+	if allAirdrop {
 		expectedXPos := 0
 		expectedYPos := 0
 		gridSize := 0
@@ -130,8 +130,6 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 				expectedXPos++
 			}
 		}
-	} else if !allAirdropNamesIdentical {
-		return "", "{error: you cannot use an airdropped NFT to build this}"
 	}
 
 	count := FlipCompositeNFT.TokenCount()
@@ -154,7 +152,6 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		}
 		
 		// iterate through the array and transfer the nft with tokenID to player
-		// unlock the token and transfer it to basic nftOwner FLIP balance
 		for _, t := range bTokenIDs {
 			basicTidString := strconv.FormatInt(t, 10)
 			flipBasicOwner := GetOwnerOfBasicNFT(basicTidString)
@@ -162,13 +159,10 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 			if uerr != nil {
 				return "", ufmt.Sprintf("Failed to UnlockAndTransferNFT: %s, for basicTokenId %s, owner by %s ", uerr.Error(), basicTidString, flipBasicOwner.String())
 			}
-			// release the locked FLIP and make it available to the flip basic NFT owner
 			ReleaseLockedFLIP(flipBasicOwner, basicTidString)
 		}
-		// set compositeNFT tokenURI
 		FlipCompositeNFT.SetTokenURI(tid, grc721.TokenURI(flipCompositeNFTMetaDataJSON))
 		children[tidString] = bTokenIDsArray
-		// set approval for the realm owner so we can later transfer the NFT
 		FlipCompositeNFT.Approve(std.CurrentRealm().Addr(), tid)
 		result = string(flipCompositeNFTMetaDataJSON)
 	}
@@ -183,6 +177,7 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 	}
 	return string(createNFTResult), nftError
 }
+
 
 // it is used in marketplace
 func TransferCompositeNFT(from, to std.Address, tid grc721.TokenID) error {
