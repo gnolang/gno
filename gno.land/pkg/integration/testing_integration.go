@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"hash/crc32"
 	"log/slog"
@@ -172,6 +173,13 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						break
 					}
 
+					// parse flags
+					fs := flag.NewFlagSet("start", flag.ContinueOnError)
+					nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
+					if err := fs.Parse(args); err != nil {
+						ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
+					}
+
 					// get packages
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
@@ -191,6 +199,18 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 					// setup genesis state
 					cfg.Genesis.AppState = *genesis
+					if *nonVal {
+						pv := gnoland.NewMockedPrivValidator()
+						// remove address from cfg.Genesis.Validators, to start as a non-val.
+						cfg.Genesis.Validators = []bft.GenesisValidator{
+							{
+								Address: pv.GetPubKey().Address(),
+								PubKey:  pv.GetPubKey(),
+								Power:   10,
+								Name:    "none",
+							},
+						}
+					}
 					cfg.DB = memdb.NewMemDB() // so it can be reused when restarting.
 
 					n, remoteAddr := TestingInMemoryNode(t, logger, cfg)

@@ -3,6 +3,7 @@ package integration
 import (
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -32,10 +33,18 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 	err = node.Start()
 	require.NoError(t, err)
 
-	select {
-	case <-node.Ready():
-	case <-time.After(time.Second * 10):
-		require.FailNow(t, "timeout while waiting for the node to start")
+	ourAddress := config.PrivValidator.GetPubKey().Address()
+	isValidator := slices.ContainsFunc(config.Genesis.Validators, func(val bft.GenesisValidator) bool {
+		return val.Address == ourAddress
+	})
+
+	// Wait for first block if we are a validator.
+	if isValidator {
+		select {
+		case <-node.Ready():
+		case <-time.After(time.Second * 10):
+			require.FailNow(t, "timeout while waiting for the node to start")
+		}
 	}
 
 	return node, node.Config().RPC.ListenAddress
