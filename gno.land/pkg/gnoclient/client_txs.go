@@ -68,6 +68,7 @@ func (c *Client) Run(cfg BaseTxCfg, msgs ...vm.MsgRun) (*ctypes.ResultBroadcastT
 	if err != nil {
 		return nil, err
 	}
+
 	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
@@ -115,6 +116,7 @@ func (c *Client) Send(cfg BaseTxCfg, msgs ...bank.MsgSend) (*ctypes.ResultBroadc
 	if err != nil {
 		return nil, err
 	}
+
 	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
@@ -162,6 +164,7 @@ func (c *Client) AddPackage(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.Re
 	if err != nil {
 		return nil, err
 	}
+
 	return c.signAndBroadcastTxCommit(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 }
 
@@ -300,12 +303,12 @@ func (c *Client) signAndBroadcastTxCommit(tx std.Tx, accountNumber, sequenceNumb
 	if err != nil {
 		return nil, err
 	}
-	return c.BroadcastTxCommit(signedTx)
+	return c.BroadcastTx(signedTx)
 }
 
-// BroadcastTxCommit marshals and broadcasts the signed transaction, returning the result.
+// BroadcastTx marshals and broadcasts the signed transaction, returning the result.
 // If the result has a delivery error, then return a wrapped error.
-func (c *Client) BroadcastTxCommit(signedTx *std.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
+func (c *Client) BroadcastTx(signedTx *std.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 	if err := c.validateRPCClient(); err != nil {
 		return nil, err
 	}

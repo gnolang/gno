@@ -26,7 +26,8 @@ var (
 func TestRender(t *testing.T) {
 	t.Parallel()
 	testRealmPath := "gno.land/r/demo/deep/very/deep"
-	expectedRender := []byte("it works!")
+
+	expectedRender := []byte("hi gnoclient!\n")
 
 	client := Client{
 		Signer: &mockSigner{
@@ -66,6 +67,8 @@ func TestRender(t *testing.T) {
 func TestCallSingle(t *testing.T) {
 	t.Parallel()
 
+	expected := "hi gnoclient!\n"
+
 	client := Client{
 		Signer: &mockSigner{
 			sign: func(cfg SignCfg) (*std.Tx, error) {
@@ -84,7 +87,7 @@ func TestCallSingle(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("it works!"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -117,11 +120,18 @@ func TestCallSingle(t *testing.T) {
 	res, err := client.Call(cfg, msg...)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
+
+	res, err = callSigningSeparately(t, client, cfg, msg...)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestCallSingle_Sponsor(t *testing.T) {
 	t.Parallel()
+
+	expected := "hi gnoclient!\n"
 
 	client := Client{
 		Signer: &mockSigner{
@@ -142,7 +152,7 @@ func TestCallSingle_Sponsor(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("it works!"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -182,11 +192,13 @@ func TestCallSingle_Sponsor(t *testing.T) {
 	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestCallMultiple(t *testing.T) {
 	t.Parallel()
+
+	expected := "hi gnoclient!\n"
 
 	client := Client{
 		Signer: &mockSigner{
@@ -204,13 +216,9 @@ func TestCallMultiple(t *testing.T) {
 		RPCClient: &mockRPCClient{
 			broadcastTxCommit: func(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
 				res := &ctypes.ResultBroadcastTxCommit{
-					CheckTx: abci.ResponseCheckTx{
+					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Error:  nil,
-							Data:   nil,
-							Events: nil,
-							Log:    "",
-							Info:   "",
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -258,10 +266,18 @@ func TestCallMultiple(t *testing.T) {
 	res, err := client.Call(cfg, msg...)
 	assert.NoError(t, err)
 	assert.NotNil(t, res)
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
+
+	res, err = callSigningSeparately(t, client, cfg, msg...)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestCallMultiple_Sponsor(t *testing.T) {
 	t.Parallel()
+
+	expected := "hi gnoclient!\n"
 
 	client := Client{
 		Signer: &mockSigner{
@@ -282,7 +298,7 @@ func TestCallMultiple_Sponsor(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("it works!"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -339,7 +355,7 @@ func TestCallMultiple_Sponsor(t *testing.T) {
 	assert.NoError(t, err)
 
 	require.NotNil(t, res)
-	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestCallErrors(t *testing.T) {
@@ -535,6 +551,8 @@ func TestCallErrors(t *testing.T) {
 func TestSendSingle(t *testing.T) {
 	t.Parallel()
 
+	expected := "hi gnoclient!\n"
+
 	client := Client{
 		Signer: &mockSigner{
 			sign: func(cfg SignCfg) (*std.Tx, error) {
@@ -553,7 +571,7 @@ func TestSendSingle(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("it works!"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -586,11 +604,18 @@ func TestSendSingle(t *testing.T) {
 	res, err := client.Send(cfg, msg...)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
+
+	res, err = sendSigningSeparately(t, client, cfg, msg...)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestSendSingle_Sponsor(t *testing.T) {
 	t.Parallel()
+
+	expected := "hi gnoclient!\n"
 
 	client := Client{
 		Signer: &mockSigner{
@@ -611,7 +636,7 @@ func TestSendSingle_Sponsor(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("it works!"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -651,11 +676,13 @@ func TestSendSingle_Sponsor(t *testing.T) {
 	res, err := client.ExecuteSponsorTransaction(*presignedTx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestSendMultiple(t *testing.T) {
 	t.Parallel()
+
+	expected := "hi gnoclient!\n"
 
 	client := Client{
 		Signer: &mockSigner{
@@ -675,7 +702,7 @@ func TestSendMultiple(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("it works!"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -710,11 +737,18 @@ func TestSendMultiple(t *testing.T) {
 	res, err := client.Send(cfg, msg1, msg2)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
+
+	res, err = sendSigningSeparately(t, client, cfg, msg1, msg2)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestSendMultiple_Sponsor(t *testing.T) {
 	t.Parallel()
+
+	expected := "hi gnoclient!\n"
 
 	client := Client{
 		Signer: &mockSigner{
@@ -735,7 +769,7 @@ func TestSendMultiple_Sponsor(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("it works!"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -782,7 +816,7 @@ func TestSendMultiple_Sponsor(t *testing.T) {
 	assert.NoError(t, err)
 
 	require.NotNil(t, res)
-	assert.Equal(t, string(res.DeliverTx.Data), "it works!")
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestSendErrors(t *testing.T) {
@@ -983,6 +1017,8 @@ func TestSendErrors(t *testing.T) {
 func TestRunSingle(t *testing.T) {
 	t.Parallel()
 
+	expected := "hi gnoclient!\n"
+
 	client := Client{
 		Signer: &mockSigner{
 			sign: func(cfg SignCfg) (*std.Tx, error) {
@@ -1001,7 +1037,7 @@ func TestRunSingle(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("hi gnoclient!\n"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -1047,11 +1083,18 @@ func main() {
 	res, err := client.Run(cfg, msg)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
+
+	res, err = runSigningSeparately(t, client, cfg, msg)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestRunSingle_Sponsor(t *testing.T) {
 	t.Parallel()
+
+	expected := "hi gnoclient!\n"
 
 	client := Client{
 		Signer: &mockSigner{
@@ -1128,11 +1171,13 @@ func main() {
 	assert.NoError(t, err)
 
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestRunMultiple(t *testing.T) {
 	t.Parallel()
+
+	expected := "hi gnoclient!\n"
 
 	client := Client{
 		Signer: &mockSigner{
@@ -1152,7 +1197,7 @@ func TestRunMultiple(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("hi gnoclient!\nhi gnoclient!\n"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -1211,11 +1256,18 @@ func main() {
 	res, err := client.Run(cfg, msg1, msg2)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\nhi gnoclient!\n", string(res.DeliverTx.Data))
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
+
+	res, err = runSigningSeparately(t, client, cfg, msg1, msg2)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestRunMultiple_Sponsor(t *testing.T) {
 	t.Parallel()
+
+	expected := "hi gnoclient!\n"
 
 	client := Client{
 		Signer: &mockSigner{
@@ -1236,7 +1288,7 @@ func TestRunMultiple_Sponsor(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("hi gnoclient!\nhi gnoclient!\n"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -1305,7 +1357,7 @@ func main() {
 	assert.NoError(t, err)
 
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\nhi gnoclient!\n", string(res.DeliverTx.Data))
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestRunErrors(t *testing.T) {
@@ -1509,6 +1561,8 @@ func TestRunErrors(t *testing.T) {
 func TestAddPackageSingle(t *testing.T) {
 	t.Parallel()
 
+	expected := "hi gnoclient!\n"
+
 	client := Client{
 		Signer: &mockSigner{
 			sign: func(cfg SignCfg) (*std.Tx, error) {
@@ -1527,7 +1581,7 @@ func TestAddPackageSingle(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("hi gnoclient!\n"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -1565,11 +1619,18 @@ func TestAddPackageSingle(t *testing.T) {
 	res, err := client.AddPackage(cfg, msg)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
+
+	res, err = addPackageSigningSeparately(t, client, cfg, msg)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestAddPackageSingle_Sponsor(t *testing.T) {
 	t.Parallel()
+
+	expected := "hi gnoclient!\n"
 
 	client := Client{
 		Signer: &mockSigner{
@@ -1590,7 +1651,7 @@ func TestAddPackageSingle_Sponsor(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("hi gnoclient!\n"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -1638,11 +1699,13 @@ func TestAddPackageSingle_Sponsor(t *testing.T) {
 	assert.NoError(t, err)
 
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestAddPackageMultiple(t *testing.T) {
 	t.Parallel()
+
+	expected := "hi gnoclient!\n"
 
 	client := Client{
 		Signer: &mockSigner{
@@ -1662,7 +1725,7 @@ func TestAddPackageMultiple(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("hi gnoclient!\n"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -1716,11 +1779,18 @@ func TestAddPackageMultiple(t *testing.T) {
 	res, err := client.AddPackage(cfg, msgs...)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
+
+	res, err = addPackageSigningSeparately(t, client, cfg, msgs...)
+	assert.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestAddPackageMultiple_Sponsor(t *testing.T) {
 	t.Parallel()
+
+	expected := "hi gnoclient!\n"
 
 	client := Client{
 		Signer: &mockSigner{
@@ -1741,7 +1811,7 @@ func TestAddPackageMultiple_Sponsor(t *testing.T) {
 				res := &ctypes.ResultBroadcastTxCommit{
 					DeliverTx: abci.ResponseDeliverTx{
 						ResponseBase: abci.ResponseBase{
-							Data: []byte("hi gnoclient!\n"),
+							Data: []byte(expected),
 						},
 					},
 				}
@@ -1804,7 +1874,7 @@ func TestAddPackageMultiple_Sponsor(t *testing.T) {
 	assert.NoError(t, err)
 
 	require.NotNil(t, res)
-	assert.Equal(t, "hi gnoclient!\n", string(res.DeliverTx.Data))
+	assert.Equal(t, expected, string(res.DeliverTx.Data))
 }
 
 func TestAddPackageErrors(t *testing.T) {
@@ -2208,12 +2278,12 @@ func TestNewSponsorTransaction(t *testing.T) {
 
 			res, err := tc.client.NewSponsorTransaction(tc.cfg, tc.msgs...)
 			assert.Nil(t, res)
-			assert.Equal(t, err.Error(), tc.expectedError.Error())
+			assert.Equal(t, tc.expectedError.Error(), err.Error())
 		})
 	}
 }
 
-func TestSignTransaction(t *testing.T) {
+func TestSignTx(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -2264,7 +2334,7 @@ func TestSignTransaction(t *testing.T) {
 
 			res, err := tc.client.SignTx(tc.tx, 0, 0)
 			assert.Nil(t, res)
-			assert.Equal(t, err.Error(), tc.expectedError.Error())
+			assert.Equal(t, tc.expectedError.Error(), err.Error())
 		})
 	}
 }
@@ -2392,7 +2462,7 @@ func TestExecuteSponsorTransaction(t *testing.T) {
 
 			res, err := tc.client.ExecuteSponsorTransaction(tc.tx, 0, 0)
 			assert.Nil(t, res)
-			assert.Equal(t, err.Error(), tc.expectedError.Error())
+			assert.Equal(t, tc.expectedError.Error(), err.Error())
 		})
 	}
 }
@@ -2406,7 +2476,7 @@ func callSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...v
 	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 	require.NotNil(t, signedTx)
-	res, err := client.BroadcastTxCommit(signedTx)
+	res, err := client.BroadcastTx(signedTx)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	return res, nil
@@ -2421,7 +2491,7 @@ func runSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...vm
 	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 	require.NotNil(t, signedTx)
-	res, err := client.BroadcastTxCommit(signedTx)
+	res, err := client.BroadcastTx(signedTx)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	return res, nil
@@ -2436,7 +2506,7 @@ func sendSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msgs ...b
 	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 	require.NotNil(t, signedTx)
-	res, err := client.BroadcastTxCommit(signedTx)
+	res, err := client.BroadcastTx(signedTx)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	return res, nil
@@ -2451,7 +2521,7 @@ func addPackageSigningSeparately(t *testing.T, client Client, cfg BaseTxCfg, msg
 	signedTx, err := client.SignTx(*tx, cfg.AccountNumber, cfg.SequenceNumber)
 	assert.NoError(t, err)
 	require.NotNil(t, signedTx)
-	res, err := client.BroadcastTxCommit(signedTx)
+	res, err := client.BroadcastTx(signedTx)
 	assert.NoError(t, err)
 	require.NotNil(t, res)
 	return res, nil

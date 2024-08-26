@@ -32,7 +32,7 @@ type IClient interface {
 	AddPackage(cfg BaseTxCfg, msgs ...vm.MsgAddPackage) (*ctypes.ResultBroadcastTxCommit, error)
 
 	SignTx(tx std.Tx, accountNumber, sequenceNumber uint64) (*std.Tx, error)
-	BroadcastTxCommit(signedTx *std.Tx) (*ctypes.ResultBroadcastTxCommit, error)
+	BroadcastTx(signedTx *std.Tx) (*ctypes.ResultBroadcastTxCommit, error)
 
 	NewSponsorTransaction(cfg SponsorTxCfg, msgs ...std.Msg) (*std.Tx, error)
 	ExecuteSponsorTransaction(tx std.Tx, accountNumber, sequenceNumber uint64) (*ctypes.ResultBroadcastTxCommit, error)
