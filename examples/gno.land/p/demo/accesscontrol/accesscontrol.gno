@@ -10,7 +10,7 @@ import (
 // Role struct to store role information
 type Role struct {
 	Name    string
-	Holders *avl.Tree // std.Address -> bool
+	Holders *avl.Tree // std.Address -> struct{}
 	Ownable *ownable.Ownable
 }
 
@@ -81,7 +81,7 @@ func (rs *Roles) GrantRole(name string, account std.Address) error {
 		return err
 	}
 
-	r.Holders.Set(account.String(), true)
+	r.Holders.Set(account.String(), struct{}{})
 
 	std.Emit(
 		"RoleGranted",
