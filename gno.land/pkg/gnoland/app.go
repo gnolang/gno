@@ -229,16 +229,23 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 
 	{
 		// load standard libraries
-		// need to write to the MultiStore directly - so that the standard
-		// libraries are available when we process genesis txs
+		// we write it to store right after loading the libs so that they are
+		// available when loading genesis txs.
+		// cache-wrapping is necessary for non-validator nodes; in the tm2 BaseApp,
+		// this is done in BaseApp.cacheTxContext; so we replicate it here.
+		ms := ctx.MultiStore()
+		msCache := ms.MultiCacheWrap()
+
 		stdlibCtx := cfg.vmKpr.MakeGnoTransactionStore(ctx)
+		stdlibCtx = stdlibCtx.WithMultiStore(msCache)
 		if cfg.CacheStdlibLoad {
 			cfg.vmKpr.LoadStdlibCached(stdlibCtx, cfg.StdlibDir)
 		} else {
 			cfg.vmKpr.LoadStdlib(stdlibCtx, cfg.StdlibDir)
 		}
 		cfg.vmKpr.CommitGnoTransactionStore(stdlibCtx)
-		stdlibCtx.MultiStore().MultiWrite()
+
+		msCache.MultiWrite()
 	}
 
 	ctx.Logger().Debug("InitChainer: standard libraries loaded",

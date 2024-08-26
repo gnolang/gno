@@ -39,6 +39,7 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 	})
 
 	// Wait for first block if we are a validator.
+	// If we are not a validator, we don't produce blocks, so node.Ready() hangs.
 	if isValidator {
 		select {
 		case <-node.Ready():

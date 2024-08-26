@@ -200,8 +200,9 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					// setup genesis state
 					cfg.Genesis.AppState = *genesis
 					if *nonVal {
+						// re-create cfg.Genesis.Validators with a throwaway pv, so we start as a
+						// non-validator.
 						pv := gnoland.NewMockedPrivValidator()
-						// remove address from cfg.Genesis.Validators, to start as a non-val.
 						cfg.Genesis.Validators = []bft.GenesisValidator{
 							{
 								Address: pv.GetPubKey().Address(),
