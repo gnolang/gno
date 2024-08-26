@@ -4,225 +4,190 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 )
 
-// TestAccessControl verifies the access control functionality.
-func TestAccessControl(t *testing.T) {
-	admin := testutils.TestAddress("admin")
-	user1 := testutils.TestAddress("user1")
-	user2 := testutils.TestAddress("user2")
+var (
+	admin    = testutils.TestAddress("admin1")
+	newAdmin = testutils.TestAddress("admin2")
+	user1    = testutils.TestAddress("user1")
+	user2    = testutils.TestAddress("user2")
 
-	// Create new RoleData
-	roleData := NewRole("admin", admin)
+	roleName = "TestRole"
+)
 
-	// Check initial admin role
-	if roleData.AdminRole != admin {
-		t.Fatalf("expected admin role to be %s, got %s", admin.String(), roleData.AdminRole.String())
+func initSetup(admin std.Address) *Roles {
+	return &Roles{
+		AllRoles: []*Role{},
+		Ownable:  ownable.NewWithAddress(admin),
 	}
-	!uassert.Equal(t, roleData.AdminRole, admin)
-
-	// Grant role to user1
-	std.TestSetOrigCaller(admin)
-	roleData.GrantRole(user1)
-	if !roleData.HasRole(user1) {
-		t.Fatalf("expected user1 to have role")
-	}
-
-	// Check that user2 does not have the role
-	if roleData.HasRole(user2) {
-		t.Fatalf("expected user2 not to have role")
-	}
-
-	// Revoke role from user1
-	roleData.RevokeRole(user1)
-	if roleData.HasRole(user1) {
-		t.Fatalf("expected user1 not to have role after revocation")
-	}
-
-	// Grant role to user1 again
-	roleData.GrantRole(user1)
-
-	// User1 renounces the role
-	std.TestSetOrigCaller(user1)
-	roleData.RenounceRole(user1)
-	if roleData.HasRole(user1) {
-		t.Fatalf("expected user1 not to have role after renouncing")
-	}
-
-	// Change admin role to user2
-	std.TestSetOrigCaller(admin)
-	roleData.SetRoleAdmin(user2)
-	if roleData.AdminRole != user2 {
-		t.Fatalf("expected admin role to be %s, got %s", user2.String(), roleData.AdminRole.String())
-	}
-
-	// User1 (now not admin) tries to grant role to user2, should panic
-	std.TestSetOrigCaller(user1)
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatalf("expected panic when non-admin tries to grant role")
-		}
-	}()
-	roleData.GrantRole(user2)
 }
 
-// TestCreateRole tests the CreateRole method of the RoleData struct
 func TestCreateRole(t *testing.T) {
-	// Simulate the administrator as the current caller
-	admin := testutils.TestAddress("admin")
+	roles := initSetup(admin)
+
 	std.TestSetOrigCaller(admin)
 
-	// Create roles with the administrator
-	roles := &Roles{Admin: admin}
+	role, err := roles.CreateRole(roleName)
+	uassert.NoError(t, err)
+	uassert.True(t, role != nil, "role should not be nil")
+	uassert.Equal(t, role.Name, roleName)
 
-	// Create a new role with a new administrator address
-	newRoleName := "newRole"
-	newRole := roles.CreateRole(newRoleName)
-
-	// Check that the new role has been created correctly
-	if newRole.Name != newRoleName {
-		t.Fatalf("expected new role name to be '%s', got '%s'", newRoleName, newRole.Name)
-	}
-	if newRole.AdminRole != admin {
-		t.Fatalf("expected new role admin role to be %s, got %s", admin.String(), newRole.AdminRole.String())
-	}
-
-	// Simulate newAdmin as the current caller
-	std.TestSetOrigCaller(admin)
-
-	// Explicitly add the role to the new administrator to check functionality
-	newRole.GrantRole(admin)
-
-	// Check if the new role has been added to the holder
-	if !newRole.HasRole(admin) {
-		t.Fatalf("expected new role to be added to the holder")
-	}
+	_, err = roles.CreateRole(roleName)
+	uassert.Error(t, err, "should fail on duplicate role creation")
 }
 
-// TestCallerIsAdmin verifies the CallerIsAdmin method.
-func TestCallerIsAdmin(t *testing.T) {
-	adminRole := testutils.TestAddress("admin-address")
-	roleData := NewRole("ExampleRole", adminRole)
-	// Call CallerIsAdmin with admin caller
-	std.TestSetOrigCaller(adminRole)
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("expected no panic, got %v", r)
-		}
-	}()
-	roleData.AssertCallerIsAdmin()
-	// Call CallerIsAdmin with non-admin caller
-	user := testutils.TestAddress("user-address")
-	std.TestSetOrigCaller(user)
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatalf("expected panic, got nil")
-		}
-	}()
-	roleData.AssertCallerIsAdmin()
+func TestGrantRole(t *testing.T) {
+	roles := initSetup(admin)
+
+	_, err := roles.CreateRole(roleName)
+	uassert.NoError(t, err)
+
+	err = roles.GrantRole(roleName, user1)
+	uassert.NoError(t, err)
+
+	role, err := roles.FindRole(roleName)
+	uassert.NoError(t, err)
+	uassert.True(t, role.HasRole(user1), "user1 should have the TestRole")
 }
 
-// Testing the RevokeRole Method for a Non-Admin
-func TestRevokeRoleNonAdmin(t *testing.T) {
-	admin := testutils.TestAddress("admin")
-	user1 := testutils.TestAddress("user1")
-	user2 := testutils.TestAddress("user2")
+func TestGrantRoleByNonOwner(t *testing.T) {
+	roles := initSetup(admin)
 
-	// Create role data with the administrator
-	roleData := NewRole("admin", admin)
+	_, err := roles.CreateRole(roleName)
+	uassert.NoError(t, err)
 
-	// Grant role to user1
-	std.TestSetOrigCaller(admin)
-	roleData.GrantRole(user1)
-	if !roleData.HasRole(user1) {
-		t.Fatalf("expected user1 to have role")
-	}
-
-	// Simulate user2 as the current caller
 	std.TestSetOrigCaller(user2)
+	roles.Ownable.TransferOwnership(user2)
+	err = roles.GrantRole(roleName, user1)
+	uassert.Error(t, err, "non-owner should not be able to grant roles")
 
-	// Attempting to revoke user1's role as user2 (non-admin)
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatalf("expected panic when non-admin tries to revoke role")
-		}
-	}()
-	roleData.RevokeRole(user1)
+	roles.Ownable.TransferOwnership(admin)
 }
 
-// Testing the RenounceRole method with Invalid Confirmation
+func TestRevokeRole(t *testing.T) {
+	roles := initSetup(admin)
+
+	std.TestSetOrigCaller(admin)
+
+	_, err := roles.CreateRole(roleName)
+	uassert.NoError(t, err)
+	err = roles.GrantRole(roleName, user1)
+	uassert.NoError(t, err)
+
+	err = roles.RevokeRole(roleName, user1)
+	uassert.NoError(t, err)
+
+	role, err := roles.FindRole(roleName)
+	uassert.NoError(t, err)
+	uassert.False(t, role.HasRole(user1), "user1 should no longer have the TestRole")
+}
+
 func TestRenounceRole(t *testing.T) {
-	adminRole := testutils.TestAddress("admin-address")
-	roleData := NewRole("ExampleRole", adminRole)
-	account := testutils.TestAddress("user-address")
-	// Simulate the administrator as the current caller
-	std.TestSetOrigCaller(adminRole)
-	// Grant role to the account
-	roleData.GrantRole(account)
-	// Simulate the account as the current caller
-	std.TestSetOrigCaller(account)
-	// Renounce the role
-	err := roleData.RenounceRole(account)
-	if err != nil {
-		t.Fatalf("expected no error, got %v", err)
-	}
-	// Check if the account still has the role
-	hasRole := roleData.HasRole(account)
-	if hasRole {
-		t.Fatalf("expected account not to have role after renouncing")
-	}
+	roles := initSetup(admin)
+
+	std.TestSetOrigCaller(admin)
+
+	_, err := roles.CreateRole(roleName)
+	uassert.NoError(t, err)
+	err = roles.GrantRole(roleName, user1)
+	uassert.NoError(t, err)
+
+	roles.Ownable.TransferOwnership(user1)
+	std.TestSetOrigCaller(user1)
+	err = roles.RenounceRole(roleName)
+	uassert.NoError(t, err)
+
+	role, err := roles.FindRole(roleName)
+	uassert.NoError(t, err)
+	uassert.False(t, role.HasRole(user1), "user1 should have renounced the TestRole")
 }
 
-// Testing the SetRoleAdmin method with a New Administrator Address
 func TestSetRoleAdmin(t *testing.T) {
-	admin := testutils.TestAddress("admin")
-	newAdmin := testutils.TestAddress("newAdmin")
-	user := testutils.TestAddress("user")
+	roles := initSetup(admin)
 
-	// Create role data with the administrator
-	roleData := NewRole("admin", admin)
-
-	// Check that the initial administrator is correct
-	if roleData.AdminRole != admin {
-		t.Fatalf("expected initial admin to be %s, got %s", admin.String(), roleData.AdminRole.String())
-	}
-
-	// Simulate admin as current caller
 	std.TestSetOrigCaller(admin)
 
-	// Change administrator
-	roleData.SetRoleAdmin(newAdmin)
+	role, err := roles.CreateRole(roleName)
+	uassert.NoError(t, err)
 
-	// Check that the new administrator is correct
-	if roleData.AdminRole != newAdmin {
-		t.Fatalf("expected new admin to be %s, got %s", newAdmin.String(), roleData.AdminRole.String())
-	}
+	err = role.SetRoleAdmin(newAdmin)
+	uassert.NoError(t, err, "admin change should succeed")
 
-	// Simulate newAdmin as the current caller
 	std.TestSetOrigCaller(newAdmin)
-	defer func() {
-		if r := recover(); r != nil {
-			t.Fatalf("expected no panic, got %v", r)
-		}
-	}()
-	roleData.AssertCallerIsAdmin()
+	uassert.Equal(t, role.Ownable.Owner(), newAdmin, "the new admin should be newAdmin")
 
-	// Add a role to a user
-	roleData.GrantRole(user)
-	if !roleData.HasRole(user) {
-		t.Fatalf("expected user to have role")
-	}
+	std.TestSetOrigCaller(admin)
+	uassert.NotEqual(t, role.Ownable.Owner(), admin, "the old admin should no longer be the owner")
+}
 
-	// Simulate initial admin as current caller
+func TestCreateRoleInvalidName(t *testing.T) {
+	roles := initSetup(admin)
+
 	std.TestSetOrigCaller(admin)
 
-	// Attempting to revoke a user's role by the former administrator should cause panic
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatalf("expected panic when former admin tries to revoke role")
-		}
-	}()
-	roleData.RevokeRole(user)
+	_, err := roles.CreateRole("")
+	uassert.Error(t, err, "should fail on empty role name")
+
+	longRoleName := "thisisaverylongrolenamethatexceedsthenormallimitfortestingpurposes"
+	_, err = roles.CreateRole(longRoleName)
+	uassert.Error(t, err, "should fail on very long role name")
+}
+
+func TestRevokeRoleByNonOwner(t *testing.T) {
+	roles := initSetup(admin)
+
+	std.TestSetOrigCaller(admin)
+
+	_, err := roles.CreateRole(roleName)
+	uassert.NoError(t, err)
+	err = roles.GrantRole(roleName, user1)
+	uassert.NoError(t, err)
+
+	std.TestSetOrigCaller(user2)
+	err = roles.RevokeRole(roleName, user1)
+	uassert.Error(t, err, "non-owner should not be able to revoke roles")
+}
+
+func TestGrantRoleToNonExistentRole(t *testing.T) {
+	roles := initSetup(admin)
+
+	std.TestSetOrigCaller(admin)
+
+	err := roles.GrantRole("NonExistentRole", user1)
+	uassert.Error(t, err, "should fail when granting non-existent role")
+}
+
+func TestRevokeRoleFromNonExistentRole(t *testing.T) {
+	roles := initSetup(admin)
+
+	std.TestSetOrigCaller(admin)
+
+	err := roles.RevokeRole("NonExistentRole", user1)
+	uassert.Error(t, err, "should fail when revoking non-existent role")
+}
+
+func TestRenounceNonExistentRole(t *testing.T) {
+	roles := initSetup(admin)
+
+	std.TestSetOrigCaller(user1)
+
+	err := roles.RenounceRole("NonExistentRole")
+	uassert.Error(t, err, "should fail when renouncing non-existent role")
+}
+
+func TestDeleteRole(t *testing.T) {
+	roles := initSetup(admin)
+
+	std.TestSetOrigCaller(admin)
+
+	role, err := roles.CreateRole(roleName)
+	uassert.NoError(t, err)
+
+	roles.AllRoles = []*Role{} // Clear roles for testing purpose
+	_, err = roles.FindRole(roleName)
+	uassert.Error(t, err, "should fail when trying to find deleted role")
 }

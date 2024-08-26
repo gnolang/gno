@@ -38,6 +38,10 @@ func NewRole(name string, admin std.Address) *Role {
 
 // CreateRole create a new role within the realm
 func (rs *Roles) CreateRole(name string) (*Role, error) {
+	if len(name) > 30 || name == "" {
+		return nil, ErrNameRole
+	}
+
 	if err := rs.Ownable.CallerIsOwner(); err != nil {
 		return nil, err
 	}
