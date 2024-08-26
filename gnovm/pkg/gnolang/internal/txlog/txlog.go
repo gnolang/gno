@@ -3,7 +3,8 @@
 // data type implementing [Map]).
 //
 // A transaction log keeps track of the write operations performed in a
-// transaction
+// transaction, so that they can be committed together, atomically,
+// when calling [MapCommitter.Commit].
 package txlog
 
 // Map is a generic interface to a key/value map, like Go's builtin map.
@@ -59,15 +60,19 @@ func (m GoMap[K, V]) Iterate() func(yield func(K, V) bool) {
 // Wrap wraps the map m into a data structure to keep a transaction log.
 // To write data to m, use MapCommitter.Commit.
 func Wrap[K comparable, V any](m Map[K, V]) MapCommitter[K, V] {
-	return &txLog[K, V]{source: m, dirty: make(map[K]deletable[V])}
+	return &txLog[K, V]{
+		source: m,
+		dirty:  make(map[K]deletable[V]),
+	}
 }
 
 type txLog[K comparable, V any] struct {
-	source Map[K, V]
-	dirty  map[K]deletable[V]
+	source Map[K, V]          // read-only until Commit()
+	dirty  map[K]deletable[V] // pending writes on source
 }
 
 func (b *txLog[K, V]) Commit() {
+	// copy from b.dirty into b.source; clean b.dirty
 	for k, v := range b.dirty {
 		if v.deleted {
 			b.source.Delete(k)
@@ -100,6 +105,8 @@ func (b txLog[K, V]) Delete(k K) {
 
 func (b txLog[K, V]) Iterate() func(yield func(K, V) bool) {
 	return func(yield func(K, V) bool) {
+		// go through b.source; skip deleted values, and use updated values
+		// for those which exist in b.dirty.
 		b.source.Iterate()(func(k K, v V) bool {
 			if dirty, ok := b.dirty[k]; ok {
 				if dirty.deleted {
@@ -111,7 +118,8 @@ func (b txLog[K, V]) Iterate() func(yield func(K, V) bool) {
 			// not in dirty
 			return yield(k, v)
 		})
-		// yield for new values
+
+		// iterate over all "new" values (ie. exist in b.dirty but not b.source).
 		for k, v := range b.dirty {
 			if v.deleted {
 				continue

@@ -1,11 +1,52 @@
 package txlog
 
 import (
+	"fmt"
 	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func ExampleWrap() {
+	type User struct {
+		ID   int
+		Name string
+	}
+	m := GoMap[int, User](map[int]User{
+		1: {ID: 1, Name: "alice"},
+		2: {ID: 2, Name: "bob"},
+	})
+
+	// Wrap m in a transaction log.
+	txl := Wrap(m)
+	txl.Set(2, User{ID: 2, Name: "carl"})
+
+	// m will still have bob, while txl will have carl.
+	fmt.Println("m.Get(2):")
+	fmt.Println(m.Get(2))
+	fmt.Println("txl.Get(2):")
+	fmt.Println(txl.Get(2))
+
+	// after txl.Commit(), the transaction log will be committed to m.
+	txl.Commit()
+	fmt.Println("--- commit ---")
+	fmt.Println("m.Get(2):")
+	fmt.Println(m.Get(2))
+	fmt.Println("txl.Get(2):")
+	fmt.Println(txl.Get(2))
+
+	// Output:
+	// m.Get(2):
+	// {2 bob} true
+	// txl.Get(2):
+	// {2 carl} true
+	// --- commit ---
+	// m.Get(2):
+	// {2 carl} true
+	// txl.Get(2):
+	// {2 carl} true
+}
 
 func Test_txLog(t *testing.T) {
 	t.Parallel()
