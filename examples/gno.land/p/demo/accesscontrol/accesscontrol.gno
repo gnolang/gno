@@ -7,6 +7,13 @@ import (
 	"gno.land/p/demo/ownable"
 )
 
+const (
+	RoleName     = "roleName"
+	Sender       = "sender"
+	Account      = "account"
+	NewAdminRole = "newAdminRole"
+)
+
 // Role struct to store role information
 type Role struct {
 	Name    string
@@ -46,8 +53,8 @@ func (rs *Roles) CreateRole(name string) (*Role, error) {
 
 	std.Emit(
 		"RoleCreated",
-		"roleName", name,
-		"sender", rs.Ownable.Owner().String(),
+		RoleName, name,
+		Sender, rs.Ownable.Owner().String(),
 	)
 
 	return role, nil
@@ -85,9 +92,9 @@ func (rs *Roles) GrantRole(name string, account std.Address) error {
 
 	std.Emit(
 		"RoleGranted",
-		"roleName", r.Name,
-		"account", account.String(),
-		"sender", std.PrevRealm().Addr().String(),
+		RoleName, r.Name,
+		Account, account.String(),
+		Sender, std.PrevRealm().Addr().String(),
 	)
 
 	return nil
@@ -109,9 +116,9 @@ func (rs *Roles) RevokeRole(name string, account std.Address) error {
 
 	std.Emit(
 		"RoleRevoked",
-		"roleName", r.Name,
-		"account", account.String(),
-		"sender", std.PrevRealm().Addr().String(),
+		RoleName, r.Name,
+		Account, account.String(),
+		Sender, std.PrevRealm().Addr().String(),
 	)
 
 	return nil
@@ -134,9 +141,9 @@ func (rs *Roles) RenounceRole(name string) error {
 
 	std.Emit(
 		"RoleRenounced",
-		"roleName", r.Name,
-		"account", caller.String(),
-		"sender", caller.String(),
+		RoleName, r.Name,
+		Account, caller.String(),
+		Sender, caller.String(),
 	)
 
 	return nil
@@ -150,8 +157,8 @@ func (r *Role) SetRoleAdmin(admin std.Address) error {
 
 	std.Emit(
 		"RoleSet",
-		"roleName", r.Name,
-		"newAdminRole", r.Ownable.Owner().String(),
+		RoleName, r.Name,
+		NewAdminRole, r.Ownable.Owner().String(),
 	)
 
 	return nil
