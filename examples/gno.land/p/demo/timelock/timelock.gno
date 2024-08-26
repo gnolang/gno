@@ -53,7 +53,7 @@ const (
 	Done
 )
 
-func (os OperationState) String() string {
+func (os OperationState) StateToString() string {
 	switch os {
 	case Unset:
 		return "Unset"
