@@ -1,101 +1,86 @@
-// import "gno.land/p/demo/accesscontrol"
-//
-// Create a new role with a specific admin.
-// adminAddr := std.Address("admin-address")
-// role := accesscontrol.NewRole("ExampleRole", adminRole)
-//
-// Check if an account has a specific role.
-// account := std.Address("user-address")
-// hasRole := role.HasRole(account)
-//
-// Grant a role to a specific account.
-// role.GrantRole(account)
-//
-// Revoke a role from a specific account.
-// role.RevokeRole(account)
-//
-// Renounce a role with caller confirmation.
-// role.RenounceRole(std.GetOrigCaller())
-//
-// Change the admin role for a specific role.
-// newAdmin := std.Address("new-admin-address")
-// role.SetRoleAdmin(newAdmin)
 package accesscontrol
 
 import (
-	"errors"
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ownable"
 )
-
-var ErrUnauthorized = errors.New("unauthorized; caller is not admin")
 
 // Role struct to store role information
 type Role struct {
-	Name      string
-	Holders   *avl.Tree // -> std.Address -> bool
-	AdminRole std.Address
+	Name    string
+	Holders *avl.Tree // std.Address -> bool
+	Ownable *ownable.Ownable
 }
 
+// Roles struct to store all Roles information
 type Roles struct {
 	AllRoles []*Role
-	Admin    std.Address
+	Ownable  *ownable.Ownable
 }
 
 // NewRole creates a new instance of Role
-func NewRole(name string, adminRole std.Address) *Role {
+func NewRole(name string, admin std.Address) *Role {
 	return &Role{
-		Name:      name,
-		Holders:   avl.NewTree(),
-		AdminRole: adminRole,
+		Name:    name,
+		Holders: avl.NewTree(),
+		Ownable: ownable.NewWithAddress(admin),
 	}
 }
 
-// Method to check if the caller has the admin role and return an error
-func (r *Role) CallerIsAdmin() error {
-	caller := std.PrevRealm().Addr()
-
-	if r.AdminRole != caller {
-		return ErrUnauthorized
+// CreateRole create a new role within the realm
+func (rs *Roles) CreateRole(name string) (*Role, error) {
+	if err := rs.Ownable.CallerIsOwner(); err != nil {
+		return nil, err
 	}
 
-	return nil
-}
-
-// Method to assert if the caller has the admin role, panics if not
-func (r *Role) AssertCallerIsAdmin() {
-	if err := r.CallerIsAdmin(); err != nil {
-		panic(err)
-	}
-}
-
-// Method to create a new role within the realm
-func (rs *Roles) CreateRole(name string) *Role {
-	if rs.Admin != std.PrevRealm().Addr() {
-		panic("accesscontrol: caller does not have the global admin role")
+	for _, role := range rs.AllRoles {
+		if role.Name == name {
+			return nil, ErrRoleSameName
+		}
 	}
 
-	role := NewRole(name, rs.Admin)
+	role := NewRole(name, rs.Ownable.Owner())
 	rs.AllRoles = append(rs.AllRoles, role)
 
 	std.Emit(
 		"RoleCreated",
 		"roleName", name,
-		"sender", rs.Admin.String(),
+		"sender", rs.Ownable.Owner().String(),
 	)
 
-	return role
+	return role, nil
 }
 
-// Method to check if an account has a specific role
+// HasRole check if an account has a specific role
 func (r *Role) HasRole(account std.Address) bool {
 	return r.Holders.Has(account.String())
 }
 
-// Method to grant a role to an account
-func (r *Role) GrantRole(account std.Address) {
-	r.AssertCallerIsAdmin()
+// FindRole searches for a role by its name
+func (rs *Roles) FindRole(name string) (*Role, error) {
+	for _, role := range rs.AllRoles {
+		if role.Name == name {
+			return role, nil
+		}
+	}
+
+	return nil, ErrRoleNotFound
+}
+
+// GrantRole grants a role to an account
+func (rs *Roles) GrantRole(name string, account std.Address) error {
+	r, err := rs.FindRole(name)
+	if err != nil {
+		return ErrRoleNotFound
+	}
+
+	err = r.Ownable.CallerIsOwner()
+	if err != nil {
+		return err
+	}
+
 	r.Holders.Set(account.String(), true)
 
 	std.Emit(
@@ -104,11 +89,22 @@ func (r *Role) GrantRole(account std.Address) {
 		"account", account.String(),
 		"sender", std.PrevRealm().Addr().String(),
 	)
+
+	return nil
 }
 
-// Method to revoke a role from an account
-func (r *Role) RevokeRole(account std.Address) {
-	r.AssertCallerIsAdmin()
+// RevokeRole revokes a role from an account
+func (rs *Roles) RevokeRole(name string, account std.Address) error {
+	r, err := rs.FindRole(name)
+	if err != nil {
+		return ErrRoleNotFound
+	}
+
+	err = r.Ownable.CallerIsOwner()
+	if err != nil {
+		return err
+	}
+
 	r.Holders.Remove(account.String())
 
 	std.Emit(
@@ -117,14 +113,21 @@ func (r *Role) RevokeRole(account std.Address) {
 		"account", account.String(),
 		"sender", std.PrevRealm().Addr().String(),
 	)
+
+	return nil
 }
 
-// Method to renounce a role with caller confirmation
-func (r *Role) RenounceRole(callerConfirmation std.Address) error {
+// RenounceRole allows an account to renounce a role it holds
+func (rs *Roles) RenounceRole(name string) error {
+	r, err := rs.FindRole(name)
+	if err != nil {
+		return ErrRoleNotFound
+	}
+
 	caller := std.PrevRealm().Addr()
 
-	if callerConfirmation != caller {
-		return errors.New("accesscontrol: caller confirmation does not match account")
+	if !r.HasRole(caller) {
+		return ErrAccountNotRole
 	}
 
 	r.Holders.Remove(caller.String())
@@ -139,17 +142,17 @@ func (r *Role) RenounceRole(callerConfirmation std.Address) error {
 	return nil
 }
 
-// Method to set the admin role for a specific role
-func (r *Role) SetRoleAdmin(adminRole std.Address) {
-	r.AssertCallerIsAdmin()
-
-	previousAdminRole := r.AdminRole
-	r.AdminRole = adminRole
+// SetRoleAdmin transfers the ownership of the role to a new administrator
+func (r *Role) SetRoleAdmin(admin std.Address) error {
+	if err := r.Ownable.TransferOwnership(admin); err != nil {
+		return err
+	}
 
 	std.Emit(
 		"RoleSet",
 		"roleName", r.Name,
-		"previousAdminRole", previousAdminRole.String(),
-		"newAdminRole", adminRole.String(),
+		"newAdminRole", r.Ownable.Owner().String(),
 	)
+
+	return nil
 }
