@@ -41,17 +41,21 @@ func NewDefaultGenesisConfig(chainid string) *bft.GenesisDoc {
 		GenesisTime: time.Now(),
 		ChainID:     chainid,
 		ConsensusParams: abci.ConsensusParams{
-			Block: &abci.BlockParams{
-				MaxTxBytes:   1_000_000,   // 1MB,
-				MaxDataBytes: 2_000_000,   // 2MB,
-				MaxGas:       100_000_000, // 100M gas
-				TimeIotaMS:   100,         // 100ms
-			},
+			Block: defaultBlockParams(),
 		},
 		AppState: &GnoGenesisState{
 			Balances: []Balance{},
 			Txs:      []std.Tx{},
 		},
+	}
+}
+
+func defaultBlockParams() *abci.BlockParams {
+	return &abci.BlockParams{
+		MaxTxBytes:   1_000_000,   // 1MB,
+		MaxDataBytes: 2_000_000,   // 2MB,
+		MaxGas:       100_000_000, // 100M gas
+		TimeIotaMS:   100,         // 100ms
 	}
 }
 

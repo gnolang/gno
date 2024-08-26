@@ -50,12 +50,7 @@ func TestNewAppWithOptions(t *testing.T) {
 		Time:    time.Now(),
 		ChainID: "dev",
 		ConsensusParams: &abci.ConsensusParams{
-			Block: &abci.BlockParams{
-				MaxTxBytes:   1_000_000,   // 1MB,
-				MaxDataBytes: 2_000_000,   // 2MB,
-				MaxGas:       100_000_000, // 100M gas
-				TimeIotaMS:   100,         // 100ms
-			},
+			Block: defaultBlockParams(),
 		},
 		Validators: []abci.ValidatorUpdate{},
 		AppState: GnoGenesisState{
@@ -105,6 +100,29 @@ func TestNewAppWithOptions_ErrNoDB(t *testing.T) {
 
 	_, err := NewAppWithOptions(&AppOptions{})
 	assert.ErrorContains(t, err, "no db provided")
+}
+
+func TestNewApp(t *testing.T) {
+	// NewApp should have good defaults and manage to run InitChain.
+	td := t.TempDir()
+
+	app, err := NewApp(td, true, nil, nil)
+	require.NoError(t, err, "NewApp should be successful")
+
+	resp := app.InitChain(abci.RequestInitChain{
+		RequestBase: abci.RequestBase{},
+		Time:        time.Time{},
+		ChainID:     "dev",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: defaultBlockParams(),
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{},
+			},
+		},
+		Validators: []abci.ValidatorUpdate{},
+		AppState:   nil,
+	})
+	assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
 }
 
 // Test whether InitChainer calls to load the stdlibs correctly.
