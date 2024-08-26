@@ -192,13 +192,13 @@ func BurnBasicNFTsAfterMinting(tid grc721.TokenID) error {
 	return nil
 }
 
-func GetOwnerOfBasicNFT(tid string) std.Address {
+func GetOwnerOfBasicNFT(tid string) (std.Address, error) {
 	tokenId := grc721.TokenID(tid)
 	owner, err := FlipBasicNFT.OwnerOf(tokenId)
 	if err != nil {
-		return "can't get owner"
+		return "", err
 	}
-	return owner
+	return owner, nil
 }
 
 func GetUserBasicFlipNFTs(addr std.Address, readyToUse string) string {

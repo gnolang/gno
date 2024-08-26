@@ -68,6 +68,14 @@ func (m *Marketplace) ListCompositeNFT(compositeTokenID grc721.TokenID, seller s
 }
 
 func (m *Marketplace) ListBasicNFT(basicTokenID grc721.TokenID, seller std.Address, price string) error {
+	// Check if the seller is the owner of the NFT
+	currentOwner, oerr := GetOwnerOfBasicNFT(string(basicTokenID))
+	if oerr != nil {
+		return oerr
+	}
+	if currentOwner != seller {
+		return errors.New(ufmt.Sprintf("ListBasicNFT error: seller=%s, owner=%s, seller is not owner", seller, currentOwner))
+	}
 	// approve it for buying
     FlipBasicNFT.Approve(std.CurrentRealm().Addr(), basicTokenID)
     // convert price into uflips, multiply by 1000
@@ -209,14 +217,18 @@ func (m *Marketplace) BuyCompositeNFT(buyer std.Address, compositeTokenID grc721
     if buyError == nil {
         for _, t := range listing.BasicTokenIDs {
             basicTokenId := grc721.TokenID(strconv.FormatInt(t, 10))
-            ownerBasicNFT := GetOwnerOfBasicNFT(string(basicTokenId))
-			//FlipBasicNFT.Approve(std.CurrentRealm().Addr(), basicTokenId)
-            berr := FlipBasicNFT.TransferFrom(std.Address(listing.Seller), buyer, basicTokenId)
-            if berr != nil {
-                buyError = errors.New(ufmt.Sprintf("FlipBasicNFT.TransferFrom error: seller=%s, buyer=%s, basicTokenId=%s, owner=%s, error: %s", listing.Seller, buyer, string(basicTokenId), string(ownerBasicNFT), berr.Error()))
-                break
-            }
-            transferredBasicNFTs = append(transferredBasicNFTs, basicTokenId)
+            ownerBasicNFT, oerr := GetOwnerOfBasicNFT(string(basicTokenId))
+			if oerr != nil {
+				berr := FlipBasicNFT.TransferFrom(std.Address(listing.Seller), buyer, basicTokenId)
+				if berr != nil {
+					buyError = errors.New(ufmt.Sprintf("FlipBasicNFT.TransferFrom error: seller=%s, buyer=%s, basicTokenId=%s, owner=%s, error: %s", listing.Seller, buyer, string(basicTokenId), string(ownerBasicNFT), berr.Error()))
+					break
+				}
+				transferredBasicNFTs = append(transferredBasicNFTs, basicTokenId)
+			} else {
+				buyError = errors.New(ufmt.Sprintf("FlipBasicNFT.TransferFrom error: seller=%s, buyer=%s, basicTokenId=%s, owner=%s, error: %s", listing.Seller, buyer, string(basicTokenId), string(ownerBasicNFT), oerr.Error()))
+				break
+			}
         }
 
         if buyError != nil {
@@ -286,7 +298,10 @@ func (m *Marketplace) BuyBasicNFT(buyer std.Address, basicTokenID grc721.TokenID
 	}
 	listing := listingRaw
 
-	basicNFTOwner := GetOwnerOfBasicNFT(string(basicTokenID))
+	basicNFTOwner, oerr := GetOwnerOfBasicNFT(string(basicTokenID))
+	if oerr != nil {
+		buyError = oerr
+	}
 
 	// Pay the price, including random burning
 	if buyError == nil {
@@ -321,8 +336,6 @@ func (m *Marketplace) BuyBasicNFT(buyer std.Address, basicTokenID grc721.TokenID
 		// in the assembly of a composite NFT later on
 		FlipBasicNFT.Approve(GetBasicNFTRealmAddress(), basicTokenID)
 	}
-
-	
 
 	return prepareBuyResult(flipPaid, flipBurned, buyError)
 }

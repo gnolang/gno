@@ -154,12 +154,16 @@ func CreateCompositeFlipNFT(player std.Address, cWidth string, cHeight string, b
 		// iterate through the array and transfer the nft with tokenID to player
 		for _, t := range bTokenIDs {
 			basicTidString := strconv.FormatInt(t, 10)
-			flipBasicOwner := GetOwnerOfBasicNFT(basicTidString)
-			uerr := UnlockAndTransferNFT(flipBasicOwner, player, basicTidString, tidString)
-			if uerr != nil {
-				return "", ufmt.Sprintf("Failed to UnlockAndTransferNFT: %s, for basicTokenId %s, owner by %s ", uerr.Error(), basicTidString, flipBasicOwner.String())
+			flipBasicOwner, oerr := GetOwnerOfBasicNFT(basicTidString)
+			if oerr != nil {
+				uerr := UnlockAndTransferNFT(flipBasicOwner, player, basicTidString, tidString)
+				if uerr != nil {
+					return "", ufmt.Sprintf("Failed to UnlockAndTransferNFT: %s, for basicTokenId %s, owned by %s ", uerr.Error(), basicTidString, flipBasicOwner.String())
+				}
+				ReleaseLockedFLIP(flipBasicOwner, basicTidString)
+			} else {
+				return "", ufmt.Sprintf("Failed to UnlockAndTransferNFT: %s, for basicTokenId %s, owned by %s ", oerr.Error(), basicTidString, flipBasicOwner.String())
 			}
-			ReleaseLockedFLIP(flipBasicOwner, basicTidString)
 		}
 		FlipCompositeNFT.SetTokenURI(tid, grc721.TokenURI(flipCompositeNFTMetaDataJSON))
 		children[tidString] = bTokenIDsArray
