@@ -33,7 +33,6 @@
 package timelock
 
 import (
-	"errors"
 	"std"
 	"strconv"
 	"time"
@@ -43,9 +42,6 @@ import (
 	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 )
-
-// Marks operations completed
-const DoneTimestamp = 1
 
 // Represents the status of a planned operation
 type OperationState int
@@ -57,9 +53,30 @@ const (
 	Done
 )
 
+func (os OperationState) StateToString() string {
+	switch os {
+	case Unset:
+		return "Unset"
+	case Pending:
+		return "Pending"
+	case Ready:
+		return "Ready"
+	case Done:
+		return "Done"
+	default:
+		return "Unknown"
+	}
+}
+
+// OperationStatus represents the status of an operation
+type OperationStatus struct {
+	sheduleTime int64
+	isDone      bool
+}
+
 // TimeLockUtil stores the necessary parameters for the timelock operations
 type TimeLockUtil struct {
-	timestamps    *avl.Tree
+	timestamps    *avl.Tree // id -> time.Time
 	accessControl *accesscontrol.Role
 	minDelay      uint64
 }
@@ -67,7 +84,7 @@ type TimeLockUtil struct {
 // New instance of TimeLockUtil
 func NewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.Role, minDelay uint64) (*TimeLockUtil, error) {
 	if timestamps == nil || accessControl == nil {
-		return nil, errors.New("timestamps and accesscontrol values must be different from nil")
+		return nil, ErrNilTimestampsOrAccessControl
 	}
 
 	return &TimeLockUtil{
@@ -80,14 +97,16 @@ func NewTimeLockUtil(timestamps *avl.Tree, accessControl *accesscontrol.Role, mi
 // Schedules an operation to be carried out after a minimum delay
 func (tl *TimeLockUtil) Schedule(id seqid.ID, delay uint64) error {
 	if delay < tl.minDelay {
-		return errors.New("timelockutil: Schedule: insufficient delay")
+		return ErrInsufficientDelay
 	}
 
 	if tl.timestamps.Has(id.Binary()) {
-		return errors.New("timelockutil: Schedule: operation already scheduled")
+		return ErrOperationAlreadyScheduled
 	}
 
-	tl.timestamps.Set(id.Binary(), uint64(time.Now().Unix())+delay)
+	timestamp := time.Now().Unix() + int64(delay)
+	status := OperationStatus{sheduleTime: timestamp, isDone: false}
+	tl.timestamps.Set(id.Binary(), status)
 
 	std.Emit(
 		"TimeLockScheduled",
@@ -111,7 +130,7 @@ func (tl *TimeLockUtil) Remove(id seqid.ID) {
 // Cancels a planned operation
 func (tl *TimeLockUtil) Cancel(id seqid.ID) error {
 	if !tl.IsPending(id) {
-		errors.New("timelock: Cancel: operation not pending")
+		return ErrOperationCancelNotPending
 	}
 
 	tl.timestamps.Remove(id.Binary())
@@ -120,17 +139,21 @@ func (tl *TimeLockUtil) Cancel(id seqid.ID) error {
 		"TimeLockCancelled",
 		"id", id.String(),
 	)
-
 	return nil
 }
 
 // Executes a pending operation
 func (tl *TimeLockUtil) Execute(id seqid.ID) error {
 	if !tl.IsPending(id) {
-		errors.New("timelock: Execute: operation not pending")
+		return ErrOperationExecuteNotPending
 	}
 
-	tl.timestamps.Set(id.Binary(), DoneTimestamp)
+	status, err := tl.GetOperationStatus(id)
+	if err != nil {
+		return err
+	}
+	status.isDone = true
+	tl.timestamps.Set(id.Binary(), status)
 
 	std.Emit(
 		"TimeLockExecuted",
@@ -143,7 +166,7 @@ func (tl *TimeLockUtil) Execute(id seqid.ID) error {
 // Update the minimum lead time for future operations
 func (tl *TimeLockUtil) UpdateDelay(newDelay uint64) error {
 	if std.PrevRealm().Addr() != tl.accessControl.AdminRole {
-		return errors.New("timelock: UpdateDelay: only admin can update delay")
+		return ErrUpadateDelay
 	}
 
 	std.Emit(
@@ -183,36 +206,32 @@ func (tl *TimeLockUtil) IsReady(id seqid.ID) bool {
 
 // Returns the status of an operation
 func (tl *TimeLockUtil) GetOperationState(id seqid.ID) (OperationState, error) {
-	timestamp, err := tl.GetTimestamp(id)
+	status, err := tl.GetOperationStatus(id)
 	if err != nil {
 		return Unset, err
 	}
-
-	if timestamp == 0 {
+	if status.isDone {
+		return Done, nil
+	}
+	if status.sheduleTime == 0 {
 		return Unset, nil
 	}
-	if timestamp == DoneTimestamp {
-		return Done, nil
-	} else if timestamp > time.Now().Unix() {
+	if status.sheduleTime > time.Now().Unix() {
 		return Pending, nil
 	}
 	return Ready, nil
 }
 
-// Returns the timestamp of an operation
-func (tl *TimeLockUtil) GetTimestamp(id seqid.ID) (int64, error) {
+// Returns the status of an operation
+func (tl *TimeLockUtil) GetOperationStatus(id seqid.ID) (OperationStatus, error) {
 	value, ok := tl.timestamps.Get(id.Binary())
 
 	if !ok {
-		return 0, nil // Returning 0 as the timestamp and nil for no error
+		return OperationStatus{}, nil // Return an empty status if the operation is not found
 	}
-
-	switch v := value.(type) {
-	case int:
-		return int64(v), nil
-	case int64:
-		return v, nil
-	default:
-		return 0, errors.New("timelockutil: GetTimestamp: unexpected type")
+	if status, ok := value.(OperationStatus); ok {
+		return status, nil
+	} else {
+		return OperationStatus{}, ErrUnexpectedType
 	}
 }

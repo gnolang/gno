@@ -34,8 +34,8 @@ func TestTimelockUtil(t *testing.T) {
 		}()
 		timelockUtil.Schedule(id, delay)
 
-		if !timestamps.Has(id.Binary()) {
-			t.Errorf("Schedule failed: timestamp not set")
+		if status, err := timelockUtil.GetOperationStatus(id); err != nil || status.sheduleTime == 0 {
+			t.Errorf("Schedule failed: operation status not set or invalid")
 		}
 	})
 
@@ -52,8 +52,8 @@ func TestTimelockUtil(t *testing.T) {
 		timelockUtil.Schedule(id, uint64(3))
 		timelockUtil.Cancel(id)
 
-		if timestamps.Has(id.Binary()) {
-			t.Errorf("Cancel failed: timestamp not removed")
+		if status, err := timelockUtil.GetOperationStatus(id); err == nil && status.sheduleTime != 0 {
+			t.Errorf("Cancel failed: operation status not removed")
 		}
 	})
 
@@ -61,13 +61,13 @@ func TestTimelockUtil(t *testing.T) {
 	t.Run("Execute", func(t *testing.T) {
 		id := newID(2)
 		delay := uint64(3) // 3 seconds
-		futureTime := uint64(time.Now().Unix()) + delay
+		futureTime := time.Now().Unix() + int64(delay)
 
 		// Schedule the operation with a future timestamp
 		timelockUtil.Schedule(id, delay)
 
-		// Simulates the passage of time by setting the timestamp directly in the past
-		timestamps.Set(id.Binary(), futureTime-4)
+		// Simulates the passage of time by setting the timestamp to a future time
+		timestamps.Set(id.Binary(), OperationStatus{sheduleTime: futureTime, isDone: false})
 
 		defer func() {
 			if r := recover(); r != nil {
