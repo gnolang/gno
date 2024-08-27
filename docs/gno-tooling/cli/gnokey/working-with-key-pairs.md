@@ -33,7 +33,7 @@ Example output:
 USAGE
   <subcommand> [flags] [<arg>...]
 
-Manages private keys for the node
+gno.land keychain & client
 
 SUBCOMMANDS
   add        adds key to the keybase

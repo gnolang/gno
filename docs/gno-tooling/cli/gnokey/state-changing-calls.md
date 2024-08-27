@@ -205,7 +205,9 @@ EVENTS:     [{"type":"Transfer","attrs":[{"key":"from","value":""},{"key":"to","
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 ```
 
-In this case, we can see that the Deposit function emitted 
+In this case, we can see that the `Deposit()` function emitted an 
+[event](../../../concepts/stdlibs/events.md) that tells us more about what
+happened during the transaction.
 
 After broadcasting the transaction, we can verify that we have the amount of `wugnot` we expect. We
 can call the `BalanceOf()` function in the same realm:
@@ -223,7 +225,8 @@ gnokey maketx call \
 mykey
 ```
 
-If everything was successful, we should get the following output:
+If everything was successful, we should get something similar to the following 
+output:
 
 ```
 (1000 uint64)
@@ -242,7 +245,7 @@ type of the return argument.
 In this case, we used `maketx call` to call a read-only function, which simply
 checks the `wugnot` balance of a specific address. This is discouraged, as
 `maketx call` actually uses gas. To call a read-only function without spending gas,
-check out the `vm/qeval` query in the [ABCI queries section](./querying-a-network.md#vmqeval).
+check out the `vm/qeval` query in the [Querying a network](./querying-a-network.md#vmqeval) section.
 
 ## `Send`
 
@@ -275,7 +278,7 @@ the publicly-known `test1` address, and `100ugnot` for the coins we want to send
 respectively.
 
 To check the balance of a specific address, check out the `bank/balances` query
-in the [ABCI queries section](./querying-a-network.md#bankbalances).
+in the [Querying a network](./querying-a-network.md#bankbalances) section.
 
 ## `Run`
 
