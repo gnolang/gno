@@ -476,7 +476,7 @@ type SelectorExpr struct { // X.Sel
 }
 
 func (x *SelectorExpr) isAddressable() bool {
-	return x.IsAddressable
+	return x.IsAddressable || x.X.isAddressable()
 }
 
 type SliceExpr struct { // X[Low:High:Max]
