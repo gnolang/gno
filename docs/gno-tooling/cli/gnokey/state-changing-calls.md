@@ -121,8 +121,8 @@ gnokey maketx addpkg \
 -gas-fee 10000000ugnot \
 -gas-wanted 200000 \
 -broadcast \
--chainid dev \
--remote "127.0.0.1:26657" \
+-chainid portal-loop \
+-remote "https://rpc.gno.land:443"
 mykey
 ```
 
