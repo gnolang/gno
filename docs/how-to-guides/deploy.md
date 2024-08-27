@@ -129,7 +129,7 @@ given in the `--gas-wanted` flag to cover the deployment cost.
 Regardless of whether you're deploying a realm or a package, you will be using 
 `gnokey`'s `maketx addpkg` - the usage of `maketx addpkg` in both cases is identical.
 To read more about the `maketx addpkg`
-subcommand, view the `gnokey` [reference](../gno-tooling/cli/gnokey/gnokey.mdokey.md#addpkg).
+subcommand, view the `gnokey` [reference](../gno-tooling/cli/gnokey/state-changing-calls.md#addpackage).
 :::
 
 
