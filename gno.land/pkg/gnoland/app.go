@@ -227,68 +227,29 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	start := time.Now()
 	ctx.Logger().Debug("InitChainer: started")
 
-	{
-		// load standard libraries
-		// we write it to store right after loading the libs so that they are
-		// available when loading genesis txs.
-		// cache-wrapping is necessary for non-validator nodes; in the tm2 BaseApp,
-		// this is done in BaseApp.cacheTxContext; so we replicate it here.
-		ms := ctx.MultiStore()
-		msCache := ms.MultiCacheWrap()
-
-		stdlibCtx := cfg.vmKpr.MakeGnoTransactionStore(ctx)
-		stdlibCtx = stdlibCtx.WithMultiStore(msCache)
-		if cfg.CacheStdlibLoad {
-			cfg.vmKpr.LoadStdlibCached(stdlibCtx, cfg.StdlibDir)
-		} else {
-			cfg.vmKpr.LoadStdlib(stdlibCtx, cfg.StdlibDir)
-		}
-		cfg.vmKpr.CommitGnoTransactionStore(stdlibCtx)
-
-		msCache.MultiWrite()
-	}
-
+	// load standard libraries; immediately committed to store so that they are
+	// available for use when processing the genesis transactions below.
+	cfg.loadStdlibs(ctx)
 	ctx.Logger().Debug("InitChainer: standard libraries loaded",
 		"elapsed", time.Since(start))
 
-	txResponses := []abci.ResponseDeliverTx{}
-
+	// load app state. AppState may be nil mostly in some minimal testing setups;
+	// so log a warning when that happens.
+	var txResponses []abci.ResponseDeliverTx
 	if req.AppState != nil {
-		// Get genesis state
-		genState := req.AppState.(GnoGenesisState)
-
-		// Parse and set genesis state balances
-		for _, bal := range genState.Balances {
-			acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
-			cfg.acctKpr.SetAccount(ctx, acc)
-			err := cfg.bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
-			if err != nil {
-				panic(err)
+		genState, ok := req.AppState.(GnoGenesisState)
+		if !ok {
+			return abci.ResponseInitChain{
+				ResponseBase: abci.ResponseBase{
+					Error: abci.StringError(fmt.Sprintf("invalid AppState of type %T", req.AppState)),
+				},
 			}
 		}
-
-		// Run genesis txs
-		for _, tx := range genState.Txs {
-			res := cfg.baseApp.Deliver(tx)
-			if res.IsErr() {
-				ctx.Logger().Error(
-					"Unable to deliver genesis tx",
-					"log", res.Log,
-					"error", res.Error,
-					"gas-used", res.GasUsed,
-				)
-			}
-
-			txResponses = append(txResponses, abci.ResponseDeliverTx{
-				ResponseBase: res.ResponseBase,
-				GasWanted:    res.GasWanted,
-				GasUsed:      res.GasUsed,
-			})
-
-			cfg.GenesisTxResultHandler(ctx, tx, res)
-		}
+		txResponses = cfg.loadAppState(ctx, genState)
+	} else {
+		ctx.Logger().Warn("InitChainer: initializing chain without AppState (no genesis transactions or balances have been loaded)")
+		txResponses = make([]abci.ResponseDeliverTx, 0)
 	}
-
 	ctx.Logger().Debug("InitChainer: genesis transactions loaded",
 		"elapsed", time.Since(start))
 
@@ -297,6 +258,59 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 		Validators:  req.Validators,
 		TxResponses: txResponses,
 	}
+}
+
+func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
+	// cache-wrapping is necessary for non-validator nodes; in the tm2 BaseApp,
+	// this is done using BaseApp.cacheTxContext; so we replicate it here.
+	ms := ctx.MultiStore()
+	msCache := ms.MultiCacheWrap()
+
+	stdlibCtx := cfg.vmKpr.MakeGnoTransactionStore(ctx)
+	stdlibCtx = stdlibCtx.WithMultiStore(msCache)
+	if cfg.CacheStdlibLoad {
+		cfg.vmKpr.LoadStdlibCached(stdlibCtx, cfg.StdlibDir)
+	} else {
+		cfg.vmKpr.LoadStdlib(stdlibCtx, cfg.StdlibDir)
+	}
+	cfg.vmKpr.CommitGnoTransactionStore(stdlibCtx)
+
+	msCache.MultiWrite()
+}
+
+func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, state GnoGenesisState) []abci.ResponseDeliverTx {
+	// Parse and set genesis state balances
+	for _, bal := range state.Balances {
+		acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
+		cfg.acctKpr.SetAccount(ctx, acc)
+		err := cfg.bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
+	// Run genesis txs
+	for _, tx := range state.Txs {
+		res := cfg.baseApp.Deliver(tx)
+		if res.IsErr() {
+			ctx.Logger().Error(
+				"Unable to deliver genesis tx",
+				"log", res.Log,
+				"error", res.Error,
+				"gas-used", res.GasUsed,
+			)
+		}
+
+		txResponses = append(txResponses, abci.ResponseDeliverTx{
+			ResponseBase: res.ResponseBase,
+			GasWanted:    res.GasWanted,
+			GasUsed:      res.GasUsed,
+		})
+
+		cfg.GenesisTxResultHandler(ctx, tx, res)
+	}
+	return txResponses
 }
 
 // endBlockerApp is the app abstraction required by any EndBlocker

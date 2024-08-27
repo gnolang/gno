@@ -106,8 +106,8 @@ type defaultStore struct {
 	go2gnoStrict     bool                  // if true, native->gno type conversion must be registered.
 
 	// transient
-	current []string  // for detecting import cycles.
 	opslog  []StoreOp // for debugging and testing.
+	current []string  // for detecting import cycles.
 }
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
@@ -185,6 +185,7 @@ func (transactionStore) ClearCache() {
 // XXX: we should block Go2GnoType, because it uses a global cache map;
 // but it's called during preprocess and thus breaks some testing code.
 // let's wait until we remove Go2Gno entirely.
+// https://github.com/gnolang/gno/issues/1361
 // func (transactionStore) Go2GnoType(reflect.Type) Type {
 // 	panic("Go2GnoType may not be called in a transaction store")
 // }
