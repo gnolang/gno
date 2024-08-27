@@ -115,7 +115,7 @@ a keypair name to use to execute the transaction:
 
 ```bash
 gnokey maketx addpkg \                                                                                                                                                                                          
--pkgpath "gno.land/p/leon/hello_world" \
+-pkgpath "gno.land/p/examplenamespace/hello_world" \
 -pkgdir "." \
 -send "" \
 -gas-fee 10000000ugnot \
@@ -134,6 +134,7 @@ GAS WANTED: 200000
 GAS USED:   117564
 HEIGHT:     3990
 EVENTS:     []
+TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
 ```
 
 Let's analyze the output, which is standard for any `gnokey` transaction:
@@ -141,6 +142,7 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `GAS USED:   117564` - the gas used to execute the transaction
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
 - `EVENTS:     []` - [Gno events](../../../concepts/stdlibs/events.md) emitted by the transaction, in this case, none
+- `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
 
 Congratulations! You have just uploaded a pure package to the Portal Loop network.
 If you wish to deploy to a different network, find the list of all network 
@@ -166,7 +168,7 @@ does not use gas.
 
 For this example, we will call the `wugnot` realm, which wraps GNOTs to a
 GRC20-compatible token called `wugnot`. We can find this realm deployed on the
-[Portal Loop](../../../concepts/portal-loop.md) testnet, under the `gno.land/r/demo/wugnot`.
+[Portal Loop](../../../concepts/portal-loop.md) testnet, under the `gno.land/r/demo/wugnot` path.
 
 We will wrap `1000ugnot` into the equivalent in `wugnot`. To do this, we can call
 the `Deposit()` function found in the `wugnot` realm. As previously, we will
@@ -192,6 +194,18 @@ In this command, we have specified three main things:
 
 Apart from this, we have also specified the Portal Loop chain ID, `portal-loop`,
 as well as the Portal Loop remote address, `https://rpc.gno.land:443`.
+
+After running the command, we can expect an output similar to the following:
+```bash
+OK!
+GAS WANTED: 2000000
+GAS USED:   489528
+HEIGHT:     24142
+EVENTS:     [{"type":"Transfer","attrs":[{"key":"from","value":""},{"key":"to","value":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/r/demo/wugnot","func":"Mint"}]
+TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+```
+
+In this case, we can see that the Deposit function emitted 
 
 After broadcasting the transaction, we can verify that we have the amount of `wugnot` we expect. We
 can call the `BalanceOf()` function in the same realm:
@@ -219,6 +233,7 @@ GAS WANTED: 2000000
 GAS USED:   396457
 HEIGHT:     64839
 EVENTS:     []
+TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
 ```
 
 At the top, you will see the output of the transaction, specifying the value and
@@ -227,7 +242,7 @@ type of the return argument.
 In this case, we used `maketx call` to call a read-only function, which simply
 checks the `wugnot` balance of a specific address. This is discouraged, as
 `maketx call` actually uses gas. To call a read-only function without spending gas,
-check out the `vm/qeval` query in the [ABCI queries section](#vmqeval).
+check out the `vm/qeval` query in the [ABCI queries section](./querying-a-network.md#vmqeval).
 
 ## `Send`
 
@@ -260,7 +275,7 @@ the publicly-known `test1` address, and `100ugnot` for the coins we want to send
 respectively.
 
 To check the balance of a specific address, check out the `bank/balances` query
-in the [ABCI queries section](#bankbalances).
+in the [ABCI queries section](./querying-a-network.md#bankbalances).
 
 ## `Run`
 
@@ -372,7 +387,7 @@ func Render(_ string) string {
 }
 ```
 
-This realm is deployed to [`gno.land/r/leon/run/examples/foo`](https://gno.land/r/leon/run/examples/foo)
+This realm is deployed to [`gno.land/r/docs/examples/run/foo`](https://gno.land/r/docs/examples/run/foo/package.gno)
 on the Portal Loop testnet.
 
 1. Calling realm functions multiple times in a loop:
@@ -380,7 +395,7 @@ on the Portal Loop testnet.
 package main
 
 import (
-  "gno.land/r/leon/run/examples/foo"
+  "gno.land/r/docs/examples/run/foo"
 )
 
 func main() {
@@ -403,7 +418,7 @@ we can:
 package main
 
 import (
-  "gno.land/r/leon/run/examples/foo"
+  "gno.land/r/docs/examples/run/foo"
   "strconv"
 )
 
@@ -429,7 +444,7 @@ func main() {
 ```go
 package main
 
-import "gno.land/r/leon/run/examples/foo"
+import "gno.land/r/docs/examples/run/foo"
 
 func main() {
 	println(foo.MainFoo.String())
