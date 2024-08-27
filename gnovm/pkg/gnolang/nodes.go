@@ -500,7 +500,7 @@ type StarExpr struct { // *X
 }
 
 func (x *StarExpr) isAddressable() bool {
-	return false
+	return x.X.isAddressable()
 }
 
 type RefExpr struct { // &X
