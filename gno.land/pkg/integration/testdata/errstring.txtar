@@ -1,0 +1,58 @@
+loadpkg gno.land/p/demo/ufmt
+loadpkg gno.land/r/demo/errs $WORK
+
+gnoland start
+
+gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ErrStr" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'errors.New'
+
+gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ErrErrorF" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'errorf ufmt'
+
+gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ExportedErrFunc" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+gnokey maketx call -pkgpath gno.land/r/demo/errs -func "UnExportedErrFunc" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ConstructedErr" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'constructed error'
+
+-- errs.gno --
+package err
+
+import (
+    "errors"
+    "gno.land/p/demo/ufmt"
+)
+
+type CustomErr struct {
+    msg string
+}
+
+var ExportedErr = errors.New("exported error")
+var unExportedErr = errors.New("unexported error")
+
+func ErrStr() error {
+    return errors.New("errors.New")
+}
+
+func ErrErrorF() error {
+    return ufmt.Errorf("errorf %s", "ufmt")
+}
+
+func ExportedErrFunc() error {
+    return ExportedErr
+}
+
+func UnExportedErrFunc() error {
+    return unExportedErr
+}
+
+func (e *CustomErr) Error() string {
+    return e.msg
+}
+
+func ConstructedErr() error {
+    return &CustomErr{"constructed error"}
+}
+
+
