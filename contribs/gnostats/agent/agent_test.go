@@ -177,8 +177,8 @@ func TestAgent_E2E(t *testing.T) {
 	mockStream := new(mockPushDataClient)
 	mockStream.dynamic = make(chan *proto.DynamicInfo)
 
-	mockHub.On("Register", mock.AnythingOfType("*context.cancelCtx"), mock.AnythingOfType("*proto.StaticInfo")).Return(nil, nil)
-	mockHub.On("PushData", mock.AnythingOfType("*context.cancelCtx")).Return(mockStream, nil)
+	mockHub.On("Register", mock.MatchedBy(func(ctx context.Context) bool { return true }), mock.AnythingOfType("*proto.StaticInfo")).Return(nil, nil)
+	mockHub.On("PushData", mock.MatchedBy(func(ctx context.Context) bool { return true })).Return(mockStream, nil)
 	mockStream.On("Send", mock.AnythingOfType("*proto.DynamicInfo")).Return(nil)
 
 	// Inject both mocks of the clients into a new agent

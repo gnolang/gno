@@ -16,17 +16,12 @@ type config struct {
 }
 
 type agent struct {
-	cfg    config
-	cancel context.CancelFunc
+	cfg config
 }
 
 // Start registers with the Hub using Gno node static info, then pushes dynamic
 // info from the Gno node to the Hub at intervals specified by pollInterval
 func (a *agent) Start(ctx context.Context) error {
-	// Store a cancelFunc to make the agent stoppable using the Stop() method
-	ctx, a.cancel = context.WithCancel(ctx)
-	defer a.cancel()
-
 	collector := NewCollector(a.cfg.rClient)
 
 	// Get static info from the Gno node
@@ -66,11 +61,6 @@ func (a *agent) Start(ctx context.Context) error {
 			return nil
 		}
 	}
-}
-
-// Stop stops the agent
-func (a *agent) Stop() {
-	a.cancel()
 }
 
 // NewAgent creates a new agent using the provided config
