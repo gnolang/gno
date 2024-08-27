@@ -130,7 +130,7 @@ func (bt *BTree) Insert(k Content) {
 	bt.size++
 }
 
-// Insert if the node isn't full
+// insertNonFull inserts if the node isn't full
 func (bt *BTree) insertNonFull(x *BTreeNode, k Content) {
 	i := x.n - 1 // Index for new item
 	if x.leaf {
