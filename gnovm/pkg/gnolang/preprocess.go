@@ -1690,15 +1690,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
-				switch xt.(type) {
-				case *PointerType, *InterfaceType:
+				if xt.Kind() == PointerKind {
 					n.IsAddressable = true
 				}
 
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
 				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-					tr, _, rcvr, _, aerr := findEmbeddedFieldType(lastpn.PkgPath, cxt, n.Sel, nil)
+					tr, _, rcvr, fieldType, aerr := findEmbeddedFieldType(lastpn.PkgPath, cxt, n.Sel, nil)
 					if aerr {
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
 							cxt.String(), n.Sel, lastpn.PkgPath))
@@ -1706,6 +1705,15 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						panic(fmt.Sprintf("missing field %s in %s",
 							n.Sel, cxt.String()))
 					}
+
+					// In the case where n.X is a non-pointer declared type or struct,
+					// only selectors of pointers or slices are addressable. Strings
+					// are not included in this check, but will be marked as addressable
+					// during the TRANS_LEAVE of SliceExpr if this is selecting a string.
+					if fieldType.Kind() == PointerKind || fieldType.Kind() == SliceKind {
+						n.IsAddressable = true
+					}
+
 					if len(tr) > 1 {
 						// (the last vp, tr[len(tr)-1], is for n.Sel)
 						if debug {
