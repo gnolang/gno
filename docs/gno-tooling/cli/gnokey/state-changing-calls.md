@@ -181,7 +181,7 @@ gnokey maketx call \
 -gas-wanted 2000000 \
 -broadcast \
 -chainid portal-loop \
--remote "https://rpc.gno.land:443"" \
+-remote "https://rpc.gno.land:443" \
 mykey
 ```
 

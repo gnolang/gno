@@ -6,8 +6,7 @@ id: full-security-tx
 
 `gnokey` provides a way to create a transaction, sign it, and later
 broadcast it to a chain in an airgapped manner. This approach, while more 
-complicated, grants users full control over the creation, signing, and broadcasting 
-of transactions.
+complicated, grants full control and provides airgap support.
 
 Here are the steps taken in this process:
 1. Fetch account information from the chain
