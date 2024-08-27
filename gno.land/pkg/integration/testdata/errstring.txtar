@@ -1,5 +1,6 @@
 loadpkg gno.land/p/demo/ufmt
-loadpkg gno.land/r/demo/errs $WORK
+loadpkg gno.land/r/demo/other $WORK/other
+loadpkg gno.land/r/demo/errs $WORK/err
 
 gnoland start
 
@@ -9,19 +10,25 @@ stdout 'errors.New'
 gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ErrErrorF" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout 'errorf ufmt'
 
-gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ExportedErrFunc" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-
-gnokey maketx call -pkgpath gno.land/r/demo/errs -func "UnExportedErrFunc" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-
 gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ConstructedErr" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout 'constructed error'
 
--- errs.gno --
+gnokey maketx call -pkgpath gno.land/r/demo/errs -func "OtherPackageErr" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout 'other package error'
+
+## Returning Reference instead of value
+gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ExportedErrFunc" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/errs -func "UnExportedErrFunc" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+gnokey maketx call -pkgpath gno.land/r/demo/errs -func "OtherPackageExportedErr" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+
+-- err/errs.gno --
 package err
 
 import (
     "errors"
     "gno.land/p/demo/ufmt"
+    "gno.land/r/demo/other"
 )
 
 type CustomErr struct {
@@ -55,4 +62,32 @@ func ConstructedErr() error {
     return &CustomErr{"constructed error"}
 }
 
+func OtherPackageErr() error {
+    return other.ErrorFunc()
+}
+
+func OtherPackageExportedErr() error {
+    return other.OtherExportedErr
+}
+
+-- other/other.gno --
+package other
+
+import (
+    "errors"
+)
+
+var OtherExportedErr = errors.New("other exported err")
+
+type CustomErr struct {
+    msg string
+}
+
+func (e *CustomErr) Error() string {
+    return e.msg
+}
+
+func ErrorFunc() error {
+    return &CustomErr{"other package error"}
+}
 
