@@ -124,7 +124,5 @@ gnokey verify -docpath userbook.tx mykey <signature>
 
 That's it! 🎉
 
-In this tutorial, you've learned to use `gnokey` for interacting with a
-gno.land chain. By mastering state-changing calls, read-only queries, and airgapped
-transactions, you're now equipped to manage interactions within the gno.land
-ecosystem securely and efficiently.
+In this tutorial, you've learned to use `gnokey` for creating maximum-security
+transactions in an airgapped manner.
