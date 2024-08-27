@@ -4,6 +4,13 @@ id: querying-a-network
 
 # Querying a gno.land network
 
+## Prerequisites
+
+- **`gnokey` installed.** Reference the
+  [Local Setup](../../../getting-started/local-setup/installation.md#2-installing-the-required-tools) guide for steps
+
+## Overview
+
 `gnokey` supports ABCI queries. Using ABCI queries, you can query the state of 
 a gno.land network without spending any gas. All queries need to be pointed towards 
 a specific remote address from which the state will be retrieved.

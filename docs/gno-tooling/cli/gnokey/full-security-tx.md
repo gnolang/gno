@@ -4,8 +4,15 @@ id: full-security-tx
 
 # Making an airgapped transaction
 
+## Prerequisites
+
+- **`gnokey` installed.** Reference the
+  [Local Setup](../../../getting-started/local-setup/installation.md#2-installing-the-required-tools) guide for steps
+
+## Overview
+
 `gnokey` provides a way to create a transaction, sign it, and later
-broadcast it to a chain in an airgapped manner. This approach, while more 
+broadcast it to a chain in the most secure fashion. This approach, while more 
 complicated, grants full control and provides airgap support.
 
 Here are the steps taken in this process:
@@ -19,7 +26,7 @@ For this example, we will again use the Userbook realm on the Portal Loop testne
 ## Fetching account information from the chain
 
 First, we need to fetch data for the account we are using to sign the transaction,
-using the [auth/accounts](#authaccounts) query:
+using the [auth/accounts](./querying-a-network.md#authaccounts) query:
 
 ```bash
 gnokey query auth/accounts/<your_address> -remote "https://rpc.gno.land:443"
