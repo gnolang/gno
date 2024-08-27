@@ -11,7 +11,7 @@ id: querying-a-network
 
 ## Overview
 
-`gnokey` supports ABCI queries. Using ABCI queries, you can query the state of 
+gno.land and `gnokey` support ABCI queries. Using ABCI queries, you can query the state of 
 a gno.land network without spending any gas. All queries need to be pointed towards 
 a specific remote address from which the state will be retrieved.
 
@@ -195,5 +195,5 @@ To see how this was achieved, check out `wugnot`'s `Render()` function.
 
 That's it! 🎉
 
-In this tutorial, you've learned to use `gnokey` tool to query a gno.land
+In this tutorial, you've learned to use `gnokey` to query a gno.land
 network.
