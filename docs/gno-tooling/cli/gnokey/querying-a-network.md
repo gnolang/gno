@@ -170,36 +170,30 @@ realm, which is also displayed by default on the [realm's page](https://gno.land
 
 ```bash
 height: 0
-data: # Welcome to UserBook!
+data: # wrapped GNOT ($wugnot)
 
-## UserBook - Page #1:
-
-#### User #0 - g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 - signed up at Block #0
-#### User #1 - g125em6arxsnj49vx35f0n0z34putv5ty3376fg5 - signed up at Block #0
-#### User #2 - g1urt7pdmwg2m6z3rsgu4e8peppm4027fvpwkmj8 - signed up at Block #0
-#### User #3 - g1uf8u5jf2m9l80g0zsfq7tufl3qufqc4393jtkl - signed up at Block #0
-#### User #4 - g1lafcru2z2qelxr33gm4znqshmpur6l9sl3g2aw - signed up at Block #0
----
-
-#### Total users: 5
-#### Latest signup: User #4 at Block #0
----
-
-You're viewing page #1
+* **Decimals**: 0
+* **Total supply**: 5012404
+* **Known accounts**: 2
 ```
 
 :::info Specifying a path to `Render()`
 
 To call the `vm/qrender` query with a specific path, use the `<pkgpath>:<renderpath>` syntax. 
-For example, you can ... // TODO
+For example, the `wugnot` realm provides a way to display the balance of a specific
+address in its `Render()` function. We can fetch the balance of an account by 
+providing the following custom pattern to the `wugnot` realm:
 
+```bash
+gnokey query vm/qrender --data "gno.land/r/demo/wugnot:balance/g125em6arxsnj49vx35f0n0z34putv5ty3376fg5" -remote https://rpc.gno.land:443 
+```
+
+To see how this was achieved, check out `wugnot`'s `Render()` function.
 :::
 
 ## Conclusion
 
 That's it! 🎉
 
-In this tutorial, you've learned to use `gnokey` for interacting with a
-gno.land chain. By mastering state-changing calls, read-only queries, and airgapped
-transactions, you're now equipped to manage interactions within the gno.land
-ecosystem securely and efficiently.
+In this tutorial, you've learned to use `gnokey` CLI tool to query a gno.land
+network.

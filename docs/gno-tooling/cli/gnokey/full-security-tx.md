@@ -15,13 +15,18 @@ id: full-security-tx
 broadcast it to a chain in the most secure fashion. This approach, while more 
 complicated, grants full control and provides airgap support.
 
-Here are the steps taken in this process:
-1. Fetch account information from the chain
-2. Create an unsigned transaction locally
-3. Sign the transaction
-4. Broadcast the transaction
+The indented purpose of this functionality is to provide maximum security when 
+signing and broadcasting a transaction. In practice, this procedure should take
+place on two separate machines, one with access to the internet (Machine 1), 
+and the other one without (Machine 2), with the separation of steps as follows:
+1. Machine 1: Fetch account information from the chain
+2. Machine 2: Create an unsigned transaction locally
+3. Machine 2: Sign the transaction
+4. Machine 1: Broadcast the transaction
 
-For this example, we will again use the Userbook realm on the Portal Loop testnet.
+For the sake of simplicity, in this example, we will assume that the procedure 
+is happening on two machines, and we will again use the Userbook 
+realm on the Portal Loop testnet.
 
 ## Fetching account information from the chain
 
