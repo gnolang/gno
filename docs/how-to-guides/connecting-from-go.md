@@ -2,9 +2,9 @@
 id: connect-from-go
 ---
 
-# How to connect a Go app to Gno.land 
+# How to connect a Go app to gno.land 
 
-This guide will show you how to connect to a Gno.land network from your Go application,
+This guide will show you how to connect to a gno.land network from your Go application,
 using the [gnoclient](../reference/gnoclient/gnoclient.md) package.
 
 For this guide, we will build a small Go app that will:
@@ -14,7 +14,7 @@ For this guide, we will build a small Go app that will:
 - Read on-chain state
 
 ## Prerequisites
-- A local Gno.land keypair generated using
+- A local gno.land keypair generated using
 [gnokey](../gno-tooling/cli/gnokey/working-with-key-pairs.md)
 
 ## Setup
@@ -48,7 +48,7 @@ go get github.com/gnolang/gno/gno.land/pkg/gnoclient
 
 The `gnoclient` package exposes a `Client` struct containing a `Signer` and 
 `RPCClient` connector. `Client` exposes all available functionality for talking
-to a Gno.land chain.
+to a gno.land chain.
 
 ```go
 type Client struct {
@@ -59,7 +59,7 @@ type Client struct {
 
 ### Signer
 
-The `Signer` provides functionality to sign transactions with a Gno.land keypair.
+The `Signer` provides functionality to sign transactions with a gno.land keypair.
 The keypair can be accessed from a local keybase, or it can be generated 
 in-memory from a BIP39 mnemonic.
 
@@ -69,7 +69,7 @@ The keybase directory path is set with the `gnokey --home` flag.
 
 ### RPCClient
 
-The `RPCCLient` provides connectivity to a Gno.land network via HTTP or WebSockets.
+The `RPCCLient` provides connectivity to a gno.land network via HTTP or WebSockets.
 
 
 ## Initialize the Signer
@@ -93,7 +93,7 @@ func main() {
 		Keybase:  keybase,
 		Account:  "<keypair_name>",     // Name of your keypair in keybase
 		Password: "<keypair_password>", // Password to decrypt your keypair 
-		ChainID:  "<gno_chainID>",      // id of Gno.land chain
+		ChainID:  "<gno_chainID>",      // id of gno.land chain
 	}
 }
 ```
@@ -107,7 +107,7 @@ function.
 
 ## Initialize the RPC connection & Client
 
-You can initialize the RPC Client used to connect to the Gno.land network with
+You can initialize the RPC Client used to connect to the gno.land network with
 the following line:
 ```go
 rpc, err := rpcclient.NewHTTPClient("<gno.land_remote_endpoint>")
@@ -116,7 +116,7 @@ if err != nil {
 }
 ```
 
-A list of Gno.land network endpoints & chain IDs can be found in the 
+A list of gno.land network endpoints & chain IDs can be found in the 
 [Gno RPC endpoints](../reference/network-config.md) page.
 
 With this, we can initialize the `gnoclient.Client` struct: 
@@ -139,7 +139,7 @@ func main() {
 		Keybase:  keybase,
 		Account:  "<keypair_name>",     // Name of your keypair in keybase
 		Password: "<keypair_password>", // Password to decrypt your keypair 
-		ChainID:  "<gno_chainID>",      // id of Gno.land chain
+		ChainID:  "<gno_chainID>",      // id of gno.land chain
 	}
 
 	// Initialize the RPC client
@@ -156,7 +156,7 @@ func main() {
 }
 ```
 
-We can now communicate with the Gno.land chain. Let's explore some of the functionality
+We can now communicate with the gno.land chain. Let's explore some of the functionality
 `gnoclient` provides.
 
 ## Query account info from a chain
@@ -202,7 +202,7 @@ We are now ready to send a transaction to the chain.
 
 ## Sending a transaction
 
-A Gno.land transaction consists of two main parts:
+A gno.land transaction consists of two main parts:
 - A set of base transaction fields, such as a gas price, gas limit, account &
 sequence number,
 - An array of messages to be executed on the chain.
@@ -223,11 +223,21 @@ message type. We will use the wrapped ugnot realm for this example, wrapping
 `1000000ugnot` (1 $GNOT) for demonstration purposes.
 
 ```go
-msg := gnoclient.MsgCall{
-    PkgPath:  "gno.land/r/demo/wugnot", // wrapped ugnot realm path
-    FuncName: "Deposit",                // function to call
-    Args:     nil,                      // arguments in string format
-    Send:     "1000000ugnot",           // coins to send along with transaction
+import (
+    ...
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
+```
+
+```go
+msg := vm.MsgCall{
+    Caller:  addr,                                                    // address of the caller (signer)
+    PkgPath: "gno.land/r/demo/wugnot",                                // wrapped ugnot realm path
+    Func:    "Deposit",                                               // function to call
+    Args:    nil,                                                     // arguments in string format
+    Send:    std.Coins{{Denom: ugnot.Denom, Amount: int64(1000000)}}, // coins to send along with transaction
 }
 ```
 
@@ -275,7 +285,7 @@ To see all functionality the `gnoclient` package provides, see the gnoclient
 
 Congratulations 🎉
 
-You've just built a small demo app in Go that connects to a Gno.land chain
+You've just built a small demo app in Go that connects to a gno.land chain
 to query account info, send a transaction, and read on-chain state.
 
 Check out the full example app code [here](https://github.com/leohhhn/connect-gno/blob/master/main.go). 

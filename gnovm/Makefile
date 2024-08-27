@@ -53,7 +53,7 @@ lint:
 	$(rundep) github.com/golangci/golangci-lint/cmd/golangci-lint run --config ../.github/golangci.yml ./...
 
 .PHONY: fmt
-fmt: 
+fmt:
 	go run ./cmd/gno fmt $(GNOFMT_FLAGS) ./stdlibs/...
 	$(rundep) mvdan.cc/gofumpt $(GOFMT_FLAGS) .
 

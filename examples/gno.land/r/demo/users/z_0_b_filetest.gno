@@ -1,6 +1,6 @@
 package main
 
-// SEND: 199000000ugnot
+// SEND: 19900000ugnot
 
 import (
 	"gno.land/r/demo/users"
@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// payment must not be less than 200000000
+// payment must not be less than 20000000

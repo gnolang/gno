@@ -21,7 +21,7 @@ For this, check out the [**Deployment from a local environment**](#deployment-fr
 
 ### Prerequisites
 
-- **A Gno.land-compatible wallet, such as [Adena](https://adena.app)**
+- **A gno.land-compatible wallet, such as [Adena](https://adena.app)**
 
 ### Using Gno Playground
 
@@ -137,4 +137,4 @@ subcommand, view the `gnokey` [reference](../gno-tooling/cli/gnokey/gnokey.mdoke
 
 That's it 🎉
 
-You have now successfully deployed a realm/package to a Gno.land chain. 
+You have now successfully deployed a realm/package to a gno.land chain. 

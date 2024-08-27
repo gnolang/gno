@@ -2,19 +2,18 @@
 id: interacting-with-gnoland
 ---
 
-# Interacting with gno.land
+# Interacting with gno.land code
 
 ## Overview
-
 In this tutorial, you will learn how to interact with gno.land code.
-You will understand how to use your keypair to send transactions to Gno applications.
+You will understand how to use your keypair to send transactions to realms
+and packages, send native coins, and more.
 
 ## Prerequisites
 
 - **`gnokey` installed.** Reference the
 [Local Setup](installation.md) guide for steps
-- **A keypair in `gnokey`.** Reference the 
-[Creating a key pair](creating-a-keypair.md) guide for steps
+- **A keypair in `gnokey`.** Reference the [Creating a key pair](creating-a-keypair.md) guide for steps
 
 ## 1. Get testnet GNOTs
 For interacting with any gno.land chain, you will need a certain amount of GNOTs
