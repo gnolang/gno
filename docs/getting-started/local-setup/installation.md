@@ -35,7 +35,7 @@ git clone https://github.com/gnolang/gno.git
 There are three tools that should be used for getting started with Gno development:
 - `gno` - the GnoVM binary
 - `gnodev` - the Gno [development helper](../../gno-tooling/cli/gnodev.md)
-- `gnokey` - the Gno [keypair manager](../../gno-tooling/cli/gnokey/working-with-key-pairs.mdkey/working-with-key-pairs.md)
+- `gnokey` - the Gno [keypair manager](../../gno-tooling/cli/gnokey/working-with-key-pairs.md)
 
 To install all three  tools, simply run the following in the root of the repo:
 ```bash
