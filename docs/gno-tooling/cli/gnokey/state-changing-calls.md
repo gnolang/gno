@@ -4,6 +4,13 @@ id: state-changing-calls
 
 # Making state-changing calls (transactions)
 
+## Prerequisites
+
+- **`gnokey` installed.** Reference the
+  [Local Setup](../../../getting-started/local-setup/installation.md#2-installing-the-required-tools) guide for steps
+
+## Overview
+
 In Gno, there are four types of messages that can change on-chain state:
 - `AddPackage` - adds new code to the chain
 - `Call` - calls a specific path and function on the chain
@@ -23,6 +30,9 @@ We will need some testnet coins (GNOTs) for each state-changing call. Visit the 
 Hub](https://faucet.gno.land) to get GNOTs for the Gno testnets that are currently live.
 
 Let's delve deeper into each of these message types.
+
+
+
 
 ## `AddPackage`
 

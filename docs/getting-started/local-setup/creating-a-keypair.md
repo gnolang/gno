@@ -46,7 +46,7 @@ recommended. **If it gets lost, it is unrecoverable.**
 ::: 
 
 `gnokey` will generate a keybase in which it will store information about your
-keypairs. The keybase directory is stored under the `-home` flag in `gnokey`.
+keypairs. The keybase directory path is stored under the `-home` flag in `gnokey`.
 
 ### Gno addresses
 
