@@ -477,13 +477,14 @@ func (x *RefExpr) isAddressable() bool {
 
 type TypeAssertExpr struct { // X.(Type)
 	Attributes
-	X     Expr // expression.
-	Type  Expr // asserted type, never nil.
-	HasOK bool // if true, is form: `_, ok := <X>.(<Type>)`.
+	X             Expr // expression.
+	Type          Expr // asserted type, never nil.
+	HasOK         bool // if true, is form: `_, ok := <X>.(<Type>)`.
+	IsAddressable bool
 }
 
 func (x *TypeAssertExpr) isAddressable() bool {
-	return x.X.isAddressable()
+	return x.IsAddressable
 }
 
 // A UnaryExpr node represents a unary expression. Unary

@@ -1564,7 +1564,12 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					)
 				}
 
-				evalStaticType(store, last, n.Type)
+				if _, ok := evalStaticType(store, last, n.Type).(*PointerType); ok {
+					// If the type assertion is to a pointer type, the result is addressable.
+					// Type assertions for other types result in a copy of the value or an
+					// interface, both non-addressable.
+					n.IsAddressable = true
+				}
 
 			// TRANS_LEAVE -----------------------
 			case *UnaryExpr:
