@@ -193,7 +193,10 @@ func TestAgent_E2E(t *testing.T) {
 	mockBatch.On("Send", mock.Anything).Return(results, nil)
 
 	// Test if registering with the Hub works as expected
-	go agent.Start(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	go agent.Start(ctx)
 	static := <-mockHub.static
 	osVersion := fmt.Sprintf("%s - %s", status.NodeInfo.Other.OS, status.NodeInfo.Other.Arch)
 	compareStatusRespToStaticInfo(t, status, osVersion, static)
