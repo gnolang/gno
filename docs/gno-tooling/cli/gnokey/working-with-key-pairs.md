@@ -11,6 +11,9 @@ required for interacting with the Gno.land blockchain. You will understand what
 mnemonics are, how they are used, and how you can make interaction seamless with
 Gno.
 
+## Prerequisites
+
+
 ## Listing available keys
 `gnokey` works by creating a local directory in the filesystem for storing 
 (encrypted!) user private keys.

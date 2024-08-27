@@ -59,8 +59,11 @@ etc.
 
 That's it 🎉
 
-You've successfully created your first Gno keypair. Let's see how we can use it.
+You've successfully created your first Gno keypair. Follow the next tutorial to 
+see how you can use it.
 
+If you wish to learn more about `gnokey` specifically, check out the 
+[gnokey section](../../gno-tooling/cli/gnokey/gnokey.md).
 
 
 

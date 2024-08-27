@@ -87,7 +87,7 @@ You should get the following output:
 
 `gnokey` is the Gno.land keypair management CLI tool. It allows you to create
 keypairs, sign transactions, and broadcast them to Gno.land chains. Read more
-about `gnokey` [here](../../gno-tooling/cli/gnokey/gnokey.mdokey.md).
+about `gnokey` [here](../../gno-tooling/cli/gnokey/gnokey.md).
 
 To verify that the `gnokey` binary is installed system-wide, you can run:
 
