@@ -459,7 +459,5 @@ currently possible with the `Call` message.
 
 That's it! 🎉
 
-In this tutorial, you've learned to use `gnokey` for interacting with a
-gno.land chain. By mastering state-changing calls, read-only queries, and airgapped
-transactions, you're now equipped to manage interactions within the gno.land
-ecosystem securely and efficiently.
+In this tutorial, you've learned to use `gnokey` for sending multiple types of 
+state-changing calls to a gno.land chain. 
