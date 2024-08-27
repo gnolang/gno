@@ -1510,8 +1510,23 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				checkOrConvertIntegerKind(store, last, n.High)
 				checkOrConvertIntegerKind(store, last, n.Max)
 
-				// if n.X is untyped, convert to corresponding type
 				t := evalStaticTypeOf(store, last, n.X)
+				n.IsAddressable = true
+
+				// Non-pointer arrays and strings produced by the slice expression are not addressable.
+				// Slices and pointers are addressable.
+				switch t.(type) {
+				case *ArrayType:
+					if !n.X.isAddressable() {
+						panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
+					}
+
+					n.IsAddressable = false
+				case *PrimitiveType:
+					n.IsAddressable = false
+				}
+
+				// if n.X is untyped, convert to corresponding type
 				if isUntyped(t) {
 					dt := defaultTypeOf(t)
 					checkOrConvertType(store, last, &n.X, dt, false)

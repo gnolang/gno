@@ -443,14 +443,15 @@ func (x *SelectorExpr) isAddressable() bool {
 
 type SliceExpr struct { // X[Low:High:Max]
 	Attributes
-	X    Expr // expression
-	Low  Expr // begin of slice range; or nil
-	High Expr // end of slice range; or nil
-	Max  Expr // maximum capacity of slice; or nil; added in Go 1.2
+	X             Expr // expression
+	Low           Expr // begin of slice range; or nil
+	High          Expr // end of slice range; or nil
+	Max           Expr // maximum capacity of slice; or nil; added in Go 1.2
+	IsAddressable bool
 }
 
 func (x *SliceExpr) isAddressable() bool {
-	return x.X.isAddressable()
+	return x.IsAddressable
 }
 
 // A StarExpr node represents an expression of the form
