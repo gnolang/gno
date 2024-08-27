@@ -4,6 +4,11 @@ import (
 	"errors"
 	"std"
 	"strconv"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
+
+	"gno.land/r/demo/users"
 )
 
 const (
@@ -19,7 +24,8 @@ type game struct {
 	move1, move2     int         // can be empty, rock, paper, or scissors
 }
 
-var games = []*game{}
+var games avl.Tree
+var id seqid.ID
 
 func (g *game) play(player std.Address, move int) error {
 	if !(move > empty && move < last) {
@@ -57,14 +63,18 @@ func (g *game) winner() int {
 // NewGame creates a new game where player1 is the caller and player2 the argument.
 // A new game index is returned.
 func NewGame(player std.Address) int {
-	games = append(games, &game{player1: std.GetOrigCaller(), player2: player})
-	return len(games) - 1
+	games.Set(id.Next().String(), &game{player1: std.PrevRealm().Addr(), player2: player})
+	return int(id)
 }
 
 // Play executes a move for the game at index idx, where move can be:
 // 1 (rock), 2 (paper), 3 (scissors).
 func Play(idx, move int) {
-	if err := games[idx].play(std.GetOrigCaller(), move); err != nil {
+	v, ok := games.Get(seqid.ID(idx).String())
+	if !ok {
+		panic("game not found")
+	}
+	if err := v.(*game).play(std.PrevRealm().Addr(), move); err != nil {
 		panic(err)
 	}
 }
@@ -76,23 +86,33 @@ func Render(path string) string {
 
 	output := `# 👊  ✋  ✌️  Shifumi
 Actions:
-* [NewGame](r/demo/games/shifumi?help&__func=NewGame) opponentAddress
-* [Play](r/demo/games/shifumi?help&__func=Play) gameIndex move (1=rock, 2=paper, 3=scissors)
+* [NewGame](shifumi?help&__func=NewGame) opponentAddress
+* [Play](shifumi?help&__func=Play) gameIndex move (1=rock, 2=paper, 3=scissors)
 
  game  | player1 |     | player2 |       | win 
  --- | --- | --- | --- | --- | ---
 `
-	for i := len(games) - 1; i >= 0; i-- {
-		g := games[i]
-		output += strconv.Itoa(i) + " | " +
-			short(g.player1) + " | " + mov1[g.move1] + " | " +
-			short(g.player2) + " | " + mov2[g.move2] + " | " +
+	// Output the 100 most recent games.
+	maxGames := 100
+	for n := int(id); n > 0 && int(id) - n < maxGames; n-- {
+		v, ok := games.Get(seqid.ID(n).String())
+		if !ok {
+			continue
+		}
+		g := v.(*game)
+		output += strconv.Itoa(n) + " | " +
+			shortName(g.player1) + " | " + mov1[g.move1] + " | " +
+			shortName(g.player2) + " | " + mov2[g.move2] + " | " +
 			win[g.winner()+1] + "\n"
 	}
 	return output
 }
 
-func short(addr std.Address) string {
+func shortName(addr std.Address) string {
+	user := users.GetUserByAddress(addr)
+	if user != nil {
+		return user.Name
+	}
 	if len(addr) < 10 {
 		return string(addr)
 	}
