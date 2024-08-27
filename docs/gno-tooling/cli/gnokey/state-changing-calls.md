@@ -86,7 +86,7 @@ The `addpkg` subcommmand uses the following flags and arguments:
 - `-gas-wanted` - the upper limit for units of gas for the execution of the
   transaction
 - `-gas-fee` - amount of GNOTs to pay per gas unit
-- `-chain-id` - id of the chain to connect to
+- `-chain-id` - id of the chain that we are sending the transaction to
 - `-remote` - specifies the remote node RPC listener address
 
 The `-pkgpath` and `-pkgdir` flags are unique to the `addpkg` subcommand, while
