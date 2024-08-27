@@ -1341,6 +1341,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
+				if len(ft.Results) == 1 {
+					switch ft.Results[0].Type.(type) {
+					case *PointerType, *InterfaceType:
+						n.IsAddressable = true
+					}
+				}
+
 				// Continue with general case.
 				hasVarg := ft.HasVarg()
 				isVarg := n.Varg
@@ -1603,6 +1610,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						convertType(store, last, &n.Elts[i].Key, IntType)
 						checkOrConvertType(store, last, &n.Elts[i].Value, cclt.Elt, false)
 					}
+
+					// Slices are always addressable because the underlying array
+					// is added to the heap during initialization.
+					n.IsAddressable = true
 				case *MapType:
 					for i := 0; i < len(n.Elts); i++ {
 						checkOrConvertType(store, last, &n.Elts[i].Key, cclt.Key, false)
@@ -1642,6 +1653,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
+				if ftype == TRANS_REF_X {
+					n.IsAddressable = true
+				}
+
 			// TRANS_LEAVE -----------------------
 			case *KeyValueExpr:
 				// NOTE: For simplicity we just
@@ -1650,6 +1665,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			// TRANS_LEAVE -----------------------
 			case *SelectorExpr:
 				xt := evalStaticTypeOf(store, last, n.X)
+				switch xt.(type) {
+				case *PointerType, *InterfaceType:
+					n.IsAddressable = true
+				}
 
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
@@ -2360,6 +2379,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// Replace the type with *constTypeExpr{},
 				// otherwise methods would be un at runtime.
 				n.Type = constType(n.Type, dst)
+
+			case *RefExpr:
+				if !n.X.isAddressable() {
+					panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
+				}
 			}
 			// end type switch statement
 			// END TRANS_LEAVE -----------------------

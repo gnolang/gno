@@ -328,6 +328,7 @@ var (
 type Expr interface {
 	Node
 	assertExpr()
+	isAddressable() bool
 }
 
 type Exprs []Expr
@@ -374,6 +375,10 @@ type NameExpr struct {
 	Name
 }
 
+func (x *NameExpr) isAddressable() bool {
+	return true
+}
+
 type NameExprs []NameExpr
 
 type BasicLitExpr struct {
@@ -385,6 +390,10 @@ type BasicLitExpr struct {
 	Value string
 }
 
+func (x *BasicLitExpr) isAddressable() bool {
+	return false
+}
+
 type BinaryExpr struct { // (Left Op Right)
 	Attributes
 	Left  Expr // left operand
@@ -392,12 +401,21 @@ type BinaryExpr struct { // (Left Op Right)
 	Right Expr // right operand
 }
 
+func (x *BinaryExpr) isAddressable() bool {
+	return false
+}
+
 type CallExpr struct { // Func(Args<Varg?...>)
 	Attributes
-	Func    Expr  // function expression
-	Args    Exprs // function arguments, if any.
-	Varg    bool  // if true, final arg is variadic.
-	NumArgs int   // len(Args) or len(Args[0].Results)
+	Func          Expr  // function expression
+	Args          Exprs // function arguments, if any.
+	Varg          bool  // if true, final arg is variadic.
+	NumArgs       int   // len(Args) or len(Args[0].Results)
+	IsAddressable bool
+}
+
+func (x *CallExpr) isAddressable() bool {
+	return x.IsAddressable
 }
 
 type IndexExpr struct { // X[Index]
@@ -407,11 +425,20 @@ type IndexExpr struct { // X[Index]
 	HasOK bool // if true, is form: `value, ok := <X>[<Key>]
 }
 
+func (x *IndexExpr) isAddressable() bool {
+	return x.X.isAddressable()
+}
+
 type SelectorExpr struct { // X.Sel
 	Attributes
-	X    Expr      // expression
-	Path ValuePath // set by preprocessor.
-	Sel  Name      // field selector
+	X             Expr      // expression
+	Path          ValuePath // set by preprocessor.
+	Sel           Name      // field selector
+	IsAddressable bool
+}
+
+func (x *SelectorExpr) isAddressable() bool {
+	return x.IsAddressable
 }
 
 type SliceExpr struct { // X[Low:High:Max]
@@ -422,6 +449,10 @@ type SliceExpr struct { // X[Low:High:Max]
 	Max  Expr // maximum capacity of slice; or nil; added in Go 1.2
 }
 
+func (x *SliceExpr) isAddressable() bool {
+	return x.X.isAddressable()
+}
+
 // A StarExpr node represents an expression of the form
 // "*" Expression.  Semantically it could be a unary "*"
 // expression, or a pointer type.
@@ -430,9 +461,17 @@ type StarExpr struct { // *X
 	X Expr // operand
 }
 
+func (x *StarExpr) isAddressable() bool {
+	return false
+}
+
 type RefExpr struct { // &X
 	Attributes
 	X Expr // operand
+}
+
+func (x *RefExpr) isAddressable() bool {
+	return x.X.isAddressable()
 }
 
 type TypeAssertExpr struct { // X.(Type)
@@ -440,6 +479,10 @@ type TypeAssertExpr struct { // X.(Type)
 	X     Expr // expression.
 	Type  Expr // asserted type, never nil.
 	HasOK bool // if true, is form: `_, ok := <X>.(<Type>)`.
+}
+
+func (x *TypeAssertExpr) isAddressable() bool {
+	return x.X.isAddressable()
 }
 
 // A UnaryExpr node represents a unary expression. Unary
@@ -452,12 +495,21 @@ type UnaryExpr struct { // (Op X)
 	Op Word // operator
 }
 
+func (x *UnaryExpr) isAddressable() bool {
+	return x.X.isAddressable()
+}
+
 // MyType{<key>:<value>} struct, array, slice, and map
 // expressions.
 type CompositeLitExpr struct {
 	Attributes
-	Type Expr          // literal type; or nil
-	Elts KeyValueExprs // list of struct fields; if any
+	Type          Expr          // literal type; or nil
+	Elts          KeyValueExprs // list of struct fields; if any
+	IsAddressable bool
+}
+
+func (x *CompositeLitExpr) isAddressable() bool {
+	return x.IsAddressable
 }
 
 // Returns true if any elements are keyed.
@@ -490,6 +542,10 @@ type KeyValueExpr struct {
 	Value Expr // never nil
 }
 
+func (x *KeyValueExpr) isAddressable() bool {
+	return false
+}
+
 type KeyValueExprs []KeyValueExpr
 
 // A FuncLitExpr node represents a function literal.  Here one
@@ -502,12 +558,20 @@ type FuncLitExpr struct {
 	Body              // function body
 }
 
+func (x *FuncLitExpr) isAddressable() bool {
+	return false
+}
+
 // The preprocessor replaces const expressions
 // with *ConstExpr nodes.
 type ConstExpr struct {
 	Attributes
 	Source Expr // (preprocessed) source of this value.
 	TypedValue
+}
+
+func (x *ConstExpr) isAddressable() bool {
+	return false
 }
 
 // ----------------------------------------
@@ -574,6 +638,10 @@ type FieldTypeExpr struct {
 	Tag Expr
 }
 
+func (x *FieldTypeExpr) isAddressable() bool {
+	return false
+}
+
 type FieldTypeExprs []FieldTypeExpr
 
 func (ftxz FieldTypeExprs) IsNamed() bool {
@@ -598,16 +666,28 @@ type ArrayTypeExpr struct {
 	Elt Expr // element type
 }
 
+func (x *ArrayTypeExpr) isAddressable() bool {
+	return false
+}
+
 type SliceTypeExpr struct {
 	Attributes
 	Elt Expr // element type
 	Vrd bool // variadic arg expression
 }
 
+func (x *SliceTypeExpr) isAddressable() bool {
+	return false
+}
+
 type InterfaceTypeExpr struct {
 	Attributes
 	Methods FieldTypeExprs // list of methods
 	Generic Name           // for uverse generics
+}
+
+func (x *InterfaceTypeExpr) isAddressable() bool {
+	return false
 }
 
 type ChanDir int
@@ -627,10 +707,18 @@ type ChanTypeExpr struct {
 	Value Expr    // value type
 }
 
+func (x *ChanTypeExpr) isAddressable() bool {
+	return false
+}
+
 type FuncTypeExpr struct {
 	Attributes
 	Params  FieldTypeExprs // (incoming) parameters, if any.
 	Results FieldTypeExprs // (outgoing) results, if any.
+}
+
+func (x *FuncTypeExpr) isAddressable() bool {
+	return false
 }
 
 type MapTypeExpr struct {
@@ -639,9 +727,17 @@ type MapTypeExpr struct {
 	Value Expr // value type
 }
 
+func (x *MapTypeExpr) isAddressable() bool {
+	return false
+}
+
 type StructTypeExpr struct {
 	Attributes
 	Fields FieldTypeExprs // list of field declarations
+}
+
+func (x *StructTypeExpr) isAddressable() bool {
+	return false
 }
 
 // Like ConstExpr but for types.
@@ -651,10 +747,18 @@ type constTypeExpr struct {
 	Type   Type
 }
 
+func (x *constTypeExpr) isAddressable() bool {
+	return false
+}
+
 // Only used for native func arguments
 type MaybeNativeTypeExpr struct {
 	Attributes
 	Type Expr
+}
+
+func (x *MaybeNativeTypeExpr) isAddressable() bool {
+	return false
 }
 
 // ----------------------------------------
