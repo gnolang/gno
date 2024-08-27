@@ -1292,6 +1292,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if cx, ok := n.Func.(*ConstExpr); ok {
 					fv := cx.GetFunc()
 					if fv.PkgPath == uversePkgPath && fv.Name == "append" {
+						// append returns a slice and slices are always addressable.
+						n.IsAddressable = true
 						if n.Varg && len(n.Args) == 2 {
 							// If the second argument is a string,
 							// convert to byteslice.
@@ -1338,10 +1340,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								n.Args[1] = args1
 							}
 						}
+					} else if fv.PkgPath == uversePkgPath && fv.Name == "new" {
+						// new returns a pointer and pointers are always addressable.
+						n.IsAddressable = true
 					}
 				}
 
-				if len(ft.Results) == 1 {
+				if !n.IsAddressable && len(ft.Results) == 1 {
 					switch ft.Results[0].Type.(type) {
 					case *PointerType, *SliceType:
 						n.IsAddressable = true
