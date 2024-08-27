@@ -2,15 +2,15 @@
 id: querying-a-network
 ---
 
-# Querying a Gno.land network
+# Querying a gno.land network
 
 `gnokey` supports ABCI queries. Using ABCI queries, you can query the state of 
-a Gno.land network without spending any gas. All queries need to be pointed towards 
+a gno.land network without spending any gas. All queries need to be pointed towards 
 a specific remote address from which the state will be retrieved.
 
 To send ABCI queries, you can use the `gnokey query` subcommand, and provide it
 with the appropriate query. The `query` subcommand allows us to send different
-types of queries to a Gno.land network.
+types of queries to a gno.land network.
 
 Below is a list of queries a user can make with `gnokey`:
 - `auth/accounts/{ADDRESS}` - returns information about an account
@@ -61,7 +61,7 @@ to hold account data. It contains the following information:
 - `address` - the address of the account
 - `coins` - the list of coins the account owns
 - `public_key` - the TM2 public key of the account, from which the address is derived
-- `account_number` - a unique identifier for the account on the Gno.land chain
+- `account_number` - a unique identifier for the account on the gno.land chain
 - `sequence` - a nonce, used for protection against replay attacks
 
 ## `bank/balances`
@@ -193,6 +193,6 @@ For example, you can ... // TODO
 That's it! 🎉
 
 In this tutorial, you've learned to use `gnokey` for interacting with a
-Gno.land chain. By mastering state-changing calls, read-only queries, and airgapped
-transactions, you're now equipped to manage interactions within the Gno.land
+gno.land chain. By mastering state-changing calls, read-only queries, and airgapped
+transactions, you're now equipped to manage interactions within the gno.land
 ecosystem securely and efficiently.

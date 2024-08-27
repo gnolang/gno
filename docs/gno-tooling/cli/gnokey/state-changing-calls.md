@@ -17,7 +17,7 @@ In Gno, there are four types of messages that can change on-chain state:
 - `Send` - sends coins from one address to another
 - `Run` - executes a Gno script against on-chain code
 
-A Gno.land transaction contains two main things:
+A gno.land transaction contains two main things:
 - A base configuration where variables such as `gas-fee`, `gas-wanted`, and others
   are defined
 - A list of messages to execute on the chain
@@ -467,6 +467,6 @@ currently possible with the `Call` message.
 That's it! 🎉
 
 In this tutorial, you've learned to use `gnokey` for interacting with a
-Gno.land chain. By mastering state-changing calls, read-only queries, and airgapped
-transactions, you're now equipped to manage interactions within the Gno.land
+gno.land chain. By mastering state-changing calls, read-only queries, and airgapped
+transactions, you're now equipped to manage interactions within the gno.land
 ecosystem securely and efficiently.
