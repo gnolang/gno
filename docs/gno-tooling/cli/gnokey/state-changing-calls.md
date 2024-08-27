@@ -31,9 +31,6 @@ Hub](https://faucet.gno.land) to get GNOTs for the Gno testnets that are current
 
 Let's delve deeper into each of these message types.
 
-
-
-
 ## `AddPackage`
 
 In case you want to upload new code to the chain, you can use the `AddPackage`
@@ -97,28 +94,9 @@ The `-pkgpath` and `-pkgdir` flags are unique to the `addpkg` subcommand, while
 used for setting the base transaction configuration. These flags will be repeated
 throughout the tutorial.
 
-For this specific demonstration, we will run a local Gno node using `gnodev`.
-First, simply start `gnodev`:
-
-```bash
-gnodev
-```
-
-If everything went well, you should see the following output:
-```bash
-❯ gnodev
-Accounts    ┃ I default address imported name=test1 addr=g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
-Node        ┃ I pkgs loaded path="[{<your_monorepo_path> g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 }]"
-Node        ┃ I node started lisn=tcp://127.0.0.1:26657 chainID=dev
-GnoWeb      ┃ I gnoweb started lisn=http://127.0.0.1:8888
--- READY   ┃ I for commands and help, press `h`
-```
-
-Now we have a local Gno node listening on `127.0.0.1:26657` with chain ID `dev`,
-which we can use to upload our code to.
-
-Next, let's configure the `addpkg` subcommand. Assuming we are in the `example/p`
-folder, the command will look like this:
+Next, let's configure the `addpkg` subcommand to publish this package to the
+[Portal Loop](../../../concepts/portal-loop.md) testnet. Assuming we are in
+the `example/p/` folder, the command will look like this:
 
 ```bash
 gnokey maketx addpkg \                                                                                                                                                                                          
@@ -128,11 +106,11 @@ gnokey maketx addpkg \
 -gas-fee 10000000ugnot \
 -gas-wanted 8000000 \
 -broadcast \
--chainid dev \
--remote "127.0.0.1:26657" \
+-chainid portal-loop \
+-remote "https://rpc.gno.land:443"
 ```
 
-Once we have added a desired namespace to upload the package to, we can specify
+Once we have added a desired [namespace](../../../concepts/namespaces.md) to upload the package to, we can specify
 a keypair name to use to execute the transaction:
 
 ```bash
@@ -162,13 +140,11 @@ Let's analyze the output, which is standard for any `gnokey` transaction:
 - `GAS WANTED: 200000` - the original amount of gas specified for the transaction
 - `GAS USED:   117564` - the gas used to execute the transaction
 - `HEIGHT:     3990` - the block number at which the transaction was executed at
-- `EVENTS:     []` - [events](../../../concepts/stdlibs/events.md) emitted by the transaction, in this case, none
+- `EVENTS:     []` - [Gno events](../../../concepts/stdlibs/events.md) emitted by the transaction, in this case, none
 
-Congratulations! You have just uploaded a pure package to your local chain.
-If you wish to upload the package to a remote testnet, make sure to switch out
-the `-chainid` & `-remote` values for the ones matching your desired testnet.
-Find a list of all networks in the [Network Configuration](../../../reference/network-config.md)
-section.
+Congratulations! You have just uploaded a pure package to the Portal Loop network.
+If you wish to deploy to a different network, find the list of all network 
+configurations in the [Network Configuration](../../../reference/network-config.md) section.
 
 ## `Call`
 
@@ -183,7 +159,8 @@ gnokey maketx call
 
 Using `Call` to call an exported function will use up gas, even if the function
 does not modify on-chain state. If you are calling such a function, you can use
-the [`query` functionality](#query) for a read-only call which does not use gas.
+the [`query` functionality](./querying-a-network.md) for a read-only call which
+does not use gas.
 
 :::
 
