@@ -1343,7 +1343,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				if len(ft.Results) == 1 {
 					switch ft.Results[0].Type.(type) {
-					case *PointerType, *InterfaceType:
+					case *PointerType, *SliceType:
 						n.IsAddressable = true
 					}
 				}
