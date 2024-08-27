@@ -145,7 +145,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	alloc := opts.Alloc
 	if alloc == nil {
-		alloc = NewAllocator(opts.MaxAllocBytes)
+		alloc = NewAllocator(opts.MaxAllocBytes, NewHeap())
 	}
 	store := opts.Store
 	if store == nil {
@@ -1939,12 +1939,30 @@ func (m *Machine) PopFrameAndReturn() {
 			panic("unexpected non-call (loop) frame")
 		}
 	}
-	rtypes := fr.Func.GetType(m.Store).Results
+
+	ft := fr.Func.GetType(m.Store)
+	rtypes := ft.Results
 	numRes := len(rtypes)
 	m.NumOps = fr.NumOps
 	m.NumResults = numRes
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
+
+	m.Alloc.DeallocateBlock(int64(m.LastBlock().Source.GetNumNames()))
+
+	if ft.HasVarg() {
+		m.Alloc.DeallocateSlice()
+	}
+
+	for _, value := range m.Blocks[fr.NumBlocks].Values {
+		if pv, ok := value.V.(PointerValue); ok {
+			if hiv, ok := pv.Base.(*HeapItemValue); ok {
+				root := NewObject(hiv.Value)
+				m.Alloc.heap.RemoveRoot(root)
+			}
+		}
+	}
+
 	m.Blocks = m.Blocks[:fr.NumBlocks]
 	// shift and convert results to typed-nil if undefined and not iface
 	// kind.  and not func result type isn't interface kind.
