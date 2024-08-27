@@ -148,7 +148,7 @@ configurations in the [Network Configuration](../../../reference/network-config.
 
 ## `Call`
 
-The `Call` message type is used to call any exported function on the chain.
+The `Call` message type is used to call any exported realm function.
 You can send a `Call` transaction with `gnokey` using the following command:
 
 ```bash
