@@ -195,5 +195,5 @@ To see how this was achieved, check out `wugnot`'s `Render()` function.
 
 That's it! 🎉
 
-In this tutorial, you've learned to use `gnokey` CLI tool to query a gno.land
+In this tutorial, you've learned to use `gnokey` tool to query a gno.land
 network.
