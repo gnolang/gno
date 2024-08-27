@@ -418,8 +418,9 @@ we can:
 package main
 
 import (
-  "gno.land/r/docs/examples/run/foo"
   "strconv"
+  
+  "gno.land/r/docs/examples/run/foo"
 )
 
 func main() {
