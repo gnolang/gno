@@ -29,7 +29,7 @@ type BTree struct {
 func NewBTree(t int) (*BTree, error) {
 	// If t == 1, then it's a binary tree, so we skip this case.
 	if t < 2 {
-		return nil, errors.New("Invalid t")
+		return nil, errors.New("invalid t")
 	}
 	return &BTree{
 		root: &BTreeNode{
