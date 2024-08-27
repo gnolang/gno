@@ -94,7 +94,7 @@ Actions:
 `
 	// Output the 100 most recent games.
 	maxGames := 100
-	for n := int(id); n > 0 && int(id) - n < maxGames; n-- {
+	for n := int(id); n > 0 && int(id)-n < maxGames; n-- {
 		v, ok := games.Get(seqid.ID(n).String())
 		if !ok {
 			continue
