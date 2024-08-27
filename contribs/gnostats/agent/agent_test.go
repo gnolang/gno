@@ -95,9 +95,6 @@ func randomStringOfLengthInRange(t *testing.T, random *mrand.Rand, min, max int)
 func randomNodeInfo(t *testing.T, random *mrand.Rand) p2p.NodeInfo {
 	t.Helper()
 
-	goos := []string{"aix", "android", "darwin", "dragonfly", "freebsd", "illumos", "ios", "js", "linux", "netbsd", "openbsd", "plan9", "solaris", "windows"}
-	goarch := []string{"386", "amd64", "arm", "arm64", "mips", "mips64", "mips64le", "mipsle", "ppc64", "ppc64le", "riscv64", "s390x", "wasm"}
-
 	return p2p.NodeInfo{
 		Moniker: randomStringOfLengthInRange(t, random, 1, 128),
 		NetAddress: p2p.NewNetAddress(
@@ -113,10 +110,6 @@ func randomNodeInfo(t *testing.T, random *mrand.Rand) p2p.NodeInfo {
 				),
 			},
 		),
-		Other: p2p.NodeInfoOther{
-			OS:   goos[randomIntInRange(t, random, 0, len(goos)-1)],
-			Arch: goarch[randomIntInRange(t, random, 0, len(goarch)-1)],
-		},
 	}
 }
 
@@ -198,8 +191,7 @@ func TestAgent_E2E(t *testing.T) {
 
 	go agent.Start(ctx)
 	static := <-mockHub.static
-	osVersion := fmt.Sprintf("%s - %s", status.NodeInfo.Other.OS, status.NodeInfo.Other.Arch)
-	compareStatusRespToStaticInfo(t, status, osVersion, static)
+	compareStatusRespToStaticInfo(t, status, static)
 
 	// Test if the first five data pushes to the Hub work as expected
 	for i := 0; i < 5; i++ {

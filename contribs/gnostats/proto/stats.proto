@@ -21,7 +21,6 @@ message StaticInfo {
   string address = 1; // the ID of the node
   string gno_version = 2; // the gno version of the node
   string os_version = 3; // the OS info of the node
-  string location = 4; // the location of the node (Country)
 }
 
 // DynamicInfo is the single node data push

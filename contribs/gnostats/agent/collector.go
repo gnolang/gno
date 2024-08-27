@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"runtime"
 
 	ctypes "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 
@@ -127,24 +128,11 @@ func (c *collector) CollectStatic(ctx context.Context) (*proto.StaticInfo, error
 	// Cast response to the appropriate type
 	status := results[0].(*ctypes.ResultStatus)
 
-	// Format the OsVersion string
-	var (
-		osVersion = ""
-		os        = status.NodeInfo.Other.OS
-		arch      = status.NodeInfo.Other.Arch
-	)
-	if os != "" && arch != "" {
-		osVersion = fmt.Sprintf("%s - %s", os, arch)
-	} else if os != "" {
-		osVersion = os
-	}
-
 	// Fill the StaticInfo fields with the corresponding values
 	return &proto.StaticInfo{
 		Address:    status.NodeInfo.ID().String(),
 		GnoVersion: status.NodeInfo.Version,
-		OsVersion:  osVersion,
-		Location:   "", // @TODO: see comment in makeNodeInfo
+		OsVersion:  fmt.Sprintf("%s - %s", runtime.GOOS, runtime.GOARCH),
 	}, nil
 }
 

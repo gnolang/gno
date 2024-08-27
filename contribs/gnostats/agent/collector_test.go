@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"testing"
 	"time"
 
@@ -112,11 +113,6 @@ func getBatchResults(t *testing.T) []any {
 						str:     "0.0.0.0",
 					},
 				),
-				Other: p2p.NodeInfoOther{
-					OS:       "plan9",
-					Arch:     "ppc64",
-					Location: "",
-				},
 			},
 		},
 
@@ -199,6 +195,7 @@ func TestCollector_DynamicSuccess(t *testing.T) {
 	mockBatch.On("Block", (*uint64)(nil)).Return(nil)
 	mockBatch.On("BlockResults", (*uint64)(nil)).Return(nil)
 
+	// Get predefined RPC batch results
 	ctx := context.Background()
 	results := getBatchResults(t)
 	mockBatch.On("Send", ctx).Return(results, nil)
@@ -260,69 +257,38 @@ func TestCollector_DynamicTimeout(t *testing.T) {
 	assert.Nil(t, dynamicInfo)
 }
 
-func compareStatusRespToStaticInfo(t *testing.T, status *ctypes.ResultStatus, osExpected string, staticInfo *proto.StaticInfo) {
+func compareStatusRespToStaticInfo(t *testing.T, status *ctypes.ResultStatus, staticInfo *proto.StaticInfo) {
 	t.Helper()
 
 	assert.Equal(t, staticInfo.Address, status.NodeInfo.ID().String())
 	assert.Equal(t, staticInfo.GnoVersion, status.NodeInfo.Version)
-	assert.Equal(t, staticInfo.OsVersion, osExpected)
-	assert.Equal(t, staticInfo.Location, status.NodeInfo.Other.Location)
+	assert.Equal(t, staticInfo.OsVersion, fmt.Sprintf("%s - %s", runtime.GOOS, runtime.GOARCH))
 }
 
 func TestCollector_StaticSuccess(t *testing.T) {
 	t.Parallel()
 
-	// Get predefined OS and Arch values
-	var (
-		status = getBatchResults(t)[0].(*ctypes.ResultStatus)
-		os     = status.NodeInfo.Other.OS
-		arch   = status.NodeInfo.Other.Arch
-	)
+	// Setup RPC mocks
+	mockCaller := new(MockRPCClient)
+	mockBatch := new(MockRPCBatch)
 
-	// Setup multiple test cases (variation of the OsVersion)
-	testCases := []struct {
-		name     string
-		os       string
-		arch     string
-		expected string
-	}{
-		{"Both OS and Arch", os, arch, fmt.Sprintf("%s - %s", os, arch)},
-		{"Only OS", os, "", os},
-		{"Only Arch", "", arch, ""},
-		{"Neither OS or Arch", "", "", ""},
-	}
+	mockCaller.On("NewBatch").Return(mockBatch)
+	mockBatch.On("Status").Return(nil)
 
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
+	// Get predefined RPC batch results
+	ctx := context.Background()
+	results := getBatchResults(t)
+	mockBatch.On("Send", ctx).Return(results, nil)
 
-			// Setup RPC mocks
-			mockCaller := new(MockRPCClient)
-			mockBatch := new(MockRPCBatch)
+	// Call the actual method to test (CollectStatic)
+	c := &collector{caller: mockCaller}
+	staticInfo, err := c.CollectStatic(ctx)
 
-			mockCaller.On("NewBatch").Return(mockBatch)
-			mockBatch.On("Status").Return(nil)
-
-			// Get predefined RPC batch results
-			results := getBatchResults(t)
-			status := results[0].(*ctypes.ResultStatus)
-
-			// Override OS and Arch in the Status RPC results
-			status.NodeInfo.Other.OS = testCase.os
-			status.NodeInfo.Other.Arch = testCase.arch
-			ctx := context.Background()
-			mockBatch.On("Send", ctx).Return(results, nil)
-
-			// Call the actual method to test (CollectStatic)
-			c := &collector{caller: mockCaller}
-			staticInfo, err := c.CollectStatic(ctx)
-
-			// Assert that all expectations were met
-			assert.NoError(t, err)
-			assert.NotNil(t, staticInfo)
-			compareStatusRespToStaticInfo(t, status, testCase.expected, staticInfo)
-		})
-	}
+	// Assert that all expectations were met
+	assert.NoError(t, err)
+	assert.NotNil(t, staticInfo)
+	status := results[0].(*ctypes.ResultStatus)
+	compareStatusRespToStaticInfo(t, status, staticInfo)
 }
 
 func TestCollector_StaticFail(t *testing.T) {

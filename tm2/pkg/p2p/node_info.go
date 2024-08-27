@@ -45,9 +45,6 @@ type NodeInfo struct {
 type NodeInfoOther struct {
 	TxIndex    string `json:"tx_index"`
 	RPCAddress string `json:"rpc_address"`
-	OS         string `json:"os"`
-	Arch       string `json:"arch"`
-	Location   string `json:"location"`
 }
 
 // Validate checks the self-reported NodeInfo is safe.

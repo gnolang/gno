@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -896,12 +895,6 @@ func makeNodeInfo(
 		Other: p2p.NodeInfoOther{
 			TxIndex:    txIndexerStatus,
 			RPCAddress: config.RPC.ListenAddress,
-			OS:         runtime.GOOS,
-			Arch:       runtime.GOARCH,
-			// @TODO: Check with @zivkovicmilos if we need to add a field
-			// to the node config along with a cmd flag to opt-in for
-			// automatic location detection (+ a way to set it manually?)
-			Location: "",
 		},
 	}
 
