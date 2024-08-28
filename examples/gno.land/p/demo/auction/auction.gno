@@ -5,30 +5,33 @@ import (
 	"strconv"
 	"time"
 
-	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
-// Main struct
+// Auction struct
 type Auction struct {
-	title       string
-	owner       std.Address
-	description string
-	begin       time.Time
-	end         time.Time
-	price       uint64
-	bids        *avl.Tree // key: std.Address, value: Bid
+	Title       string
+	Owner       std.Address
+	Description string
+	Begin       time.Time
+	End         time.Time
+	Price       uint64
+	Bids        []*Bid
+	State       string // "upcoming", "ongoing", or "closed"
 }
 
+// Bid struct
 type Bid struct {
-	bidder std.Address
-	amount uint64
+	Bidder std.Address
+	Amount uint64
 }
 
-type EventEnd struct {
-	winner std.Address
-	amount uint64
-}
+var (
+	auctionList []*Auction
+	currentTime time.Time
+)
 
+// NewAuction creates a new auction
 func NewAuction(
 	title string,
 	owner std.Address,
@@ -37,58 +40,16 @@ func NewAuction(
 	end time.Time,
 	minPrice uint64,
 ) *Auction {
-	auction := &Auction{
-		title:       title,
-		description: description,
-		owner:       owner,
-		bids:        avl.NewTree(),
-		begin:       begin,
-		end:         end,
-		price:       minPrice,
+	return &Auction{
+		Title:       title,
+		Description: description,
+		Owner:       owner,
+		Begin:       begin,
+		End:         end,
+		Price:       minPrice,
+		Bids:        []*Bid{},
+		State:       "upcoming",
 	}
-	// Emit AuctionStart event
-	std.Emit("AuctionStart", "title", title, "time", begin.String())
-	return auction
-}
-
-// GetTitle returns the title of the auction.
-func (a Auction) GetTitle() string {
-	return a.title
-}
-
-// GetDescription returns the description of the auction.
-func (a Auction) GetDescription() string {
-	return a.description
-}
-
-// GetOwner returns the address of the auction owner.
-func (a Auction) GetOwner() std.Address {
-	return a.owner
-}
-
-// GetBegin returns the start time of the auction.
-func (a Auction) GetBegin() time.Time {
-	return a.begin
-}
-
-// GetEnd returns the end time of the auction.
-func (a Auction) GetEnd() time.Time {
-	return a.end
-}
-
-// GetPrice returns the current highest bid amount.
-func (a Auction) GetPrice() uint64 {
-	return a.price
-}
-
-// GetBids returns an array of all the bids made in the auction.
-func (a Auction) GetBids() []*Bid {
-	bids := make([]*Bid, 0, a.bids.Size())
-	a.bids.Iterate("", "", func(key string, value interface{}) bool {
-		bids = append(bids, value.(*Bid))
-		return false
-	})
-	return bids
 }
 
 // IsOwner checks if the given address is the owner of the auction.
