@@ -436,8 +436,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// check if both LHS and RHS are blank identifiers in a DEFINE statement.
 							if i < len(n.Rhs) {
 								if rx, ok := n.Rhs[i].(*NameExpr); ok && rx.Name == blankIdentifier {
-									loc := last.GetLocation()
-									panic(fmt.Sprintf("%s: cannot use _ as value or type", loc))
+									panic("cannot use _ as value or type")
 								}
 							}
 						} else if strings.HasPrefix(string(ln), ".decompose_") {
@@ -876,8 +875,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				if n.Name == blankIdentifier {
 					// check if blank identifier is used as a value in a non-assignment context.
 					if ftype != TRANS_ASSIGN_LHS && ftype != TRANS_RANGE_KEY && ftype != TRANS_RANGE_VALUE {
-						loc := last.GetLocation()
-						panic(fmt.Sprintf("%s: cannot use _ as value or type", loc))
+						panic("cannot use _ as value or type")
 					}
 				}
 				// Validity: check that name isn't reserved.
@@ -1531,8 +1529,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				// Type assertions on the blank identifier are illegal.
 				if nx, ok := n.X.(*NameExpr); ok && string(nx.Name) == blankIdentifier {
-					loc := last.GetLocation()
-					panic(fmt.Sprintf("%s: cannot use _ as value or type", loc))
+					panic("cannot use _ as value or type")
 				}
 
 				// ExprStmt of form `x.(<type>)`,
@@ -1866,8 +1863,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								// when LHS is not in a DEFINE statement
 								if i < len(n.Rhs) {
 									if rx, ok := n.Rhs[i].(*NameExpr); ok && rx.Name == blankIdentifier {
-										loc := last.GetLocation()
-										panic(fmt.Sprintf("%s: cannot use _ as value or type", loc))
+										panic("cannot use _ as value or type")
 									}
 								}
 							}
@@ -2926,10 +2922,7 @@ func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
 // which is not allowed. If both xt and t are nil, it panics with an appropriate error message.
 func isNamedConversion(xt, t Type, last BlockNode) bool {
 	if xt == nil && t == nil {
-		loc := last.GetLocation()
-
-		msg := fmt.Sprintf("%s: cannot use _ as value or type", loc)
-		panic(msg)
+		panic("cannot use _ as value or type")
 	}
 	if t == nil {
 		t = xt
