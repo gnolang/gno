@@ -123,8 +123,28 @@ func getRandomBatchResults(t *testing.T, random *mrand.Rand) []any {
 		peers[i] = ctypes.Peer{NodeInfo: randomNodeInfo(t, random)}
 	}
 
+	// Generate random validators
+	validators := make([]*types.Validator, randomIntInRange(t, random, 3, 32))
+	for i := range validators {
+		validators[i], _ = types.RandValidator(false, 42)
+	}
+
+	// Get node validator info from validators list or create a new one
+	var validator *types.Validator
+	if random.Intn(2) == 0 {
+		validator = validators[randomIntInRange(t, random, 0, len(validators)-1)]
+	} else {
+		validator, _ = types.RandValidator(false, 42)
+	}
+	validatorInfo := ctypes.ValidatorInfo{
+		Address:     validator.Address,
+		PubKey:      validator.PubKey,
+		VotingPower: validator.VotingPower,
+	}
+
 	return []any{
-		&ctypes.ResultStatus{NodeInfo: randomNodeInfo(t, random)},
+		&ctypes.ResultStatus{NodeInfo: randomNodeInfo(t, random), ValidatorInfo: validatorInfo},
+		&ctypes.ResultValidators{Validators: validators},
 		&ctypes.ResultNetInfo{Peers: peers},
 		&ctypes.ResultUnconfirmedTxs{Total: randomIntInRange(t, random, 0, 100)},
 
@@ -158,6 +178,7 @@ func TestAgent_E2E(t *testing.T) {
 
 	mockCaller.On("NewBatch").Return(mockBatch)
 	mockBatch.On("Status").Return(nil)
+	mockBatch.On("Validators").Return(nil)
 	mockBatch.On("NetInfo").Return(nil)
 	mockBatch.On("NumUnconfirmedTxs").Return(nil)
 	mockBatch.On("Block", (*uint64)(nil)).Return(nil)

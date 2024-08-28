@@ -23,6 +23,7 @@ type rpcClient interface {
 }
 type rpcBatch interface {
 	Status() error
+	Validators() error
 	NetInfo() error
 	NumUnconfirmedTxs() error
 	Block(*uint64) error
@@ -38,6 +39,8 @@ func (c *collector) CollectDynamic(ctx context.Context) (*proto.DynamicInfo, err
 	for _, request := range [](func() error){
 		// Request Status to get address, moniker and validator info
 		batch.Status,
+		// Request Validators to get the list of validators
+		batch.Validators,
 		// Request NetInfo to get peers info
 		batch.NetInfo,
 		// Request NumUnconfirmedTxs to get pending txs
@@ -60,11 +63,12 @@ func (c *collector) CollectDynamic(ctx context.Context) (*proto.DynamicInfo, err
 
 	// Cast responses to the appropriate types
 	var (
-		status  = results[0].(*ctypes.ResultStatus)
-		netInfo = results[1].(*ctypes.ResultNetInfo)
-		uncTxs  = results[2].(*ctypes.ResultUnconfirmedTxs)
-		blk     = results[3].(*ctypes.ResultBlock)
-		blkRes  = results[4].(*ctypes.ResultBlockResults)
+		status     = results[0].(*ctypes.ResultStatus)
+		validators = results[1].(*ctypes.ResultValidators)
+		netInfo    = results[2].(*ctypes.ResultNetInfo)
+		uncTxs     = results[3].(*ctypes.ResultUnconfirmedTxs)
+		blk        = results[4].(*ctypes.ResultBlock)
+		blkRes     = results[5].(*ctypes.ResultBlockResults)
 	)
 
 	// Convert the list of peers from NetInfo to proto type
@@ -78,9 +82,14 @@ func (c *collector) CollectDynamic(ctx context.Context) (*proto.DynamicInfo, err
 		}
 	}
 
-	// Determine if the node is a validator using validatorInfo
-	// @TODO: Check if this is right with @zivkovicmilos
-	isValidator := status.ValidatorInfo.Address.ID().String() != ""
+	// Determine if the node is a validator for the last block by searching for
+	// own validatorInfo address in validators list
+	isValidator := false
+	for _, validator := range validators.Validators {
+		if validator.Address.Compare(status.ValidatorInfo.Address) == 0 {
+			isValidator = true
+		}
+	}
 
 	// Get gas used / wanted in DeliverTxs (if any)
 	var gasUsed, gasWanted uint64

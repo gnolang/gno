@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gnostats/proto"
 	"github.com/stretchr/testify/assert"
@@ -36,6 +37,11 @@ type MockRPCBatch struct {
 }
 
 func (m *MockRPCBatch) Status() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
+func (m *MockRPCBatch) Validators() error {
 	args := m.Called()
 	return args.Error(0)
 }
@@ -102,6 +108,16 @@ func getBatchResults(t *testing.T) []any {
 		)
 	}
 
+	// Generate validators for Validators request
+	validators := make([]*types.Validator, 3)
+	for i, pubKey := range []crypto.PubKey{
+		ed25519.GenPrivKeyFromSecret([]byte("validator1")).PubKey(),
+		ed25519.GenPrivKeyFromSecret([]byte("validator2")).PubKey(),
+		ed25519.GenPrivKeyFromSecret([]byte("validator3")).PubKey(),
+	} {
+		validators[i] = types.NewValidator(pubKey, 42)
+	}
+
 	return []any{
 		&ctypes.ResultStatus{
 			NodeInfo: p2p.NodeInfo{
@@ -114,6 +130,15 @@ func getBatchResults(t *testing.T) []any {
 					},
 				),
 			},
+			ValidatorInfo: ctypes.ValidatorInfo{
+				Address:     validators[2].Address,
+				PubKey:      validators[2].PubKey,
+				VotingPower: validators[2].VotingPower,
+			},
+		},
+
+		&ctypes.ResultValidators{
+			Validators: validators,
 		},
 
 		&ctypes.ResultNetInfo{
@@ -151,16 +176,24 @@ func compareBatchResultToDynamicInfo(t *testing.T, results []any, dynamicInfo *p
 	t.Helper()
 
 	var (
-		status  = results[0].(*ctypes.ResultStatus)
-		netInfo = results[1].(*ctypes.ResultNetInfo)
-		uncTxs  = results[2].(*ctypes.ResultUnconfirmedTxs)
-		blk     = results[3].(*ctypes.ResultBlock)
-		blkRes  = results[4].(*ctypes.ResultBlockResults)
+		status     = results[0].(*ctypes.ResultStatus)
+		validators = results[1].(*ctypes.ResultValidators)
+		netInfo    = results[2].(*ctypes.ResultNetInfo)
+		uncTxs     = results[3].(*ctypes.ResultUnconfirmedTxs)
+		blk        = results[4].(*ctypes.ResultBlock)
+		blkRes     = results[5].(*ctypes.ResultBlockResults)
 	)
 
 	assert.Equal(t, dynamicInfo.Address, status.NodeInfo.ID().String())
 	assert.Equal(t, dynamicInfo.Moniker, status.NodeInfo.Moniker)
-	assert.Equal(t, dynamicInfo.IsValidator, status.ValidatorInfo.Address.ID().String() != "")
+
+	isValidator := false
+	for _, validator := range validators.Validators {
+		if validator.Address.Compare(status.ValidatorInfo.Address) == 0 {
+			isValidator = true
+		}
+	}
+	assert.Equal(t, dynamicInfo.IsValidator, isValidator)
 
 	assert.NotNil(t, dynamicInfo.NetInfo)
 	assert.Equal(t, dynamicInfo.NetInfo.P2PAddress, status.NodeInfo.NetAddress.String())
@@ -190,6 +223,7 @@ func TestCollector_DynamicSuccess(t *testing.T) {
 
 	mockCaller.On("NewBatch").Return(mockBatch)
 	mockBatch.On("Status").Return(nil)
+	mockBatch.On("Validators").Return(nil)
 	mockBatch.On("NetInfo").Return(nil)
 	mockBatch.On("NumUnconfirmedTxs").Return(nil)
 	mockBatch.On("Block", (*uint64)(nil)).Return(nil)
@@ -238,6 +272,7 @@ func TestCollector_DynamicTimeout(t *testing.T) {
 
 	mockCaller.On("NewBatch").Return(mockBatch)
 	mockBatch.On("Status").Return(nil)
+	mockBatch.On("Validators").Return(nil)
 	mockBatch.On("NetInfo").Return(nil)
 	mockBatch.On("NumUnconfirmedTxs").Return(nil)
 	mockBatch.On("Block", (*uint64)(nil)).Return(nil)
