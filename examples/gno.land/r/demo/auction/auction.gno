@@ -7,128 +7,157 @@ import (
 	"time"
 
 	auctionp "gno.land/p/demo/auction"
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/mux"
 )
 
 var (
-	auctionTree *avl.Tree
+	auctionList []*auctionp.Auction
 	currentTime time.Time
+	// router      *mux.Router
 )
 
-// Initialize the realm with auction tree
+var router = mux.NewRouter()
+
 func init() {
-	auctionTree = avl.NewTree()
+	router.HandleFunc("", renderHomepage)
+	router.HandleFunc("create/", renderCreateAuction)
+	router.HandleFunc("upcoming/", renderUpcomingAuctions)
+	router.HandleFunc("ongoing/", renderOngoingAuctions)
+	router.HandleFunc("/auction/{id}", renderAuctionDetails)
 }
 
-// Mockable function to get current time
-func now() time.Time {
-	if !currentTime.IsZero() {
-		return currentTime
-	}
-	return time.Now()
+// CreateAuction handles the creation of a new auction
+func CreateAuction(title, description string, begin, end int64, price uint64) string {
+	owner := std.GetOrigCaller()
+	beginTime := time.Unix(begin, 0)
+	endTime := time.Unix(end, 0)
+	auction := auctionp.NewAuction(title, owner, description, beginTime, endTime, price)
+	auctionList = append(auctionList, auction)
+	return "Auction created successfully"
 }
 
-// NewAuction creates a new auction in the realm
-func NewAuction(
-	title string,
-	description string,
-	begin int64,
-	end int64,
-	price uint64,
-) *auctionp.Auction {
-	txSender := std.GetOrigCaller()
-
-	if begin < now().Unix() {
-		panic("begin has to be in the future")
+// PlaceBid handles placing a bid on an auction
+func PlaceBid(id int, amount uint64) string {
+	caller := std.GetOrigCaller()
+	if id >= len(auctionList) || id < 0 {
+		panic("Invalid auction ID")
 	}
-	if end <= now().Unix() {
-		panic("end has to be in the future")
+	auction := auctionList[id]
+	if err := auction.AddBid(caller, amount); err != nil {
+		panic(err.Error())
 	}
-	if end <= begin {
-		panic("end has to be after begin")
-	}
-	if price <= 0 {
-		panic("price has to be positive")
-	}
-
-	auc := auctionp.NewAuction(
-		title,
-		txSender,
-		description,
-		time.Unix(begin, 0),
-		time.Unix(end, 0),
-		price,
-	)
-	id := strconv.Itoa(auctionTree.Size())
-	auctionTree.Set(id, auc)
-	return auc
+	return "Bid placed successfully"
 }
 
-// AddBid places a bid in the auction
-func AddBid(auctionID string, price uint64) string {
-	bidder := std.GetOrigCaller()
-	auc, ok := auctionTree.Get(auctionID)
-	if !ok {
-		panic("auction does not exist")
+// EndAuction handles ending an auction
+func EndAuction(id int) string {
+	caller := std.GetOrigCaller()
+	if id >= len(auctionList) || id < 0 {
+		panic("Invalid auction ID")
 	}
-	auction := auc.(*auctionp.Auction)
-	if auction.GetBegin().After(now()) {
-		panic("auction is not open yet")
+	auction := auctionList[id]
+	if err := auction.EndAuction(caller); err != nil {
+		panic(err.Error())
 	}
-	if auction.GetEnd().Before(now()) {
-		panic("auction is closed")
-	}
-	if auction.IsOwner(bidder) {
-		panic("owner cannot bid")
-	}
-	if auction.GetPrice() >= price {
-		panic("price has to be higher than minimum price")
-	}
-
-	auction.AddBid(bidder, price)
-	return "bid placed"
+	return "Auction ended successfully"
 }
 
-// Render renders the state of the realm
+// Render renders the requested page
 func Render(path string) string {
-	if path == "" {
-		return renderHomepage()
-	}
-	return "unknown page"
+	return router.Render(path)
 }
 
-// renderHomepage renders the homepage of the realm
-func renderHomepage() string {
+// renderHomepage renders the homepage with links to different sections
+func renderHomepage(res *mux.ResponseWriter, req *mux.Request) {
 	var b bytes.Buffer
-	b.WriteString("<h1><center>Auctions</center></h1>\n\n")
-	if auctionTree.Size() == 0 {
-		b.WriteString("## No auctions available\n")
-		return b.String()
-	}
-	auctionTree.Iterate("", "", func(key string, value interface{}) bool {
-		auc := value.(*auctionp.Auction)
-		b.WriteString("## " + auc.GetTitle() + "\n")
-		b.WriteString("### Owner: " + auc.GetOwner().String() + "\n")
-		b.WriteString("### Description: " + auc.GetDescription() + "\n\n")
-		b.WriteString("This auction starts on: " + auc.GetBegin().String() + " and ends on: " + auc.GetEnd().String() + "\n\n")
-		b.WriteString(ufmt.Sprintf("### Bids %d \n", auc.GetPrice()))
-		b.WriteString("## Bids\n")
-		bids := auc.GetBids()
-		for _, bid := range bids {
-			b.WriteString("Bidder: " + bid.GetBidder().String() + ", Amount: " + strconv.FormatUint(bid.GetAmount(), 10) + "\n")
+	b.WriteString("<h1><center>Auction Home</center></h1>\n\n")
+	b.WriteString("<h2><a href='/r/demo/auction:create/'>Create New Auction</a></h2>\n\n")
+	b.WriteString("<h2><a href='/r/demo/auction:upcoming/'>Upcoming Auctions</a></h2>\n\n")
+	b.WriteString("<h2><a href='/r/demo/auction:ongoing/'>Ongoing Auctions</a></h2>\n\n")
+	res.Write(b.String())
+}
+
+// renderCreateAuction renders the create auction page
+func renderCreateAuction(res *mux.ResponseWriter, req *mux.Request) {
+	var b bytes.Buffer
+	b.WriteString("<html><body>")
+
+	b.WriteString("#Create New Auction\n")
+	b.WriteString("<form action='/create' method='post'>\n")
+	b.WriteString("Title: <input type='text' name='title'><br>\n")
+	b.WriteString("Description: <input type='text' name='description'><br>\n")
+	b.WriteString("Begin: <input type='datetime-local' name='begin'><br>\n")
+	b.WriteString("End: <input type='datetime-local' name='end'><br>\n")
+	b.WriteString("Starting Price: <input type='number' name='price'><br>\n")
+	b.WriteString("<input type='submit' value='Create Auction'>\n")
+	b.WriteString("</form>\n")
+	b.WriteString("</body></html>")
+	res.Write(b.String())
+}
+
+// renderUpcomingAuctions renders the upcoming auctions page
+func renderUpcomingAuctions(res *mux.ResponseWriter, req *mux.Request) {
+	var b bytes.Buffer
+	b.WriteString("<h1>Upcoming Auctions</h1>\n")
+
+	for i, auc := range auctionList {
+		if auc.State == "upcoming" {
+			b.WriteString("\n\n")
+			b.WriteString("## " + auc.Title)
+			b.WriteString("\n\n")
+			b.WriteString("### Owner: " + auc.Owner.String() + "\n")
+			b.WriteString("### Description: " + auc.Description + "\n\n")
+			b.WriteString("This auction starts on: " + auc.Begin.String() + " and ends on: " + auc.End.String() + "\n\n")
+			b.WriteString("### Starting Price: " + strconv.FormatUint(auc.Price, 10) + "\n")
+			b.WriteString("[View Auction](/auction/" + strconv.Itoa(i) + ")\n")
 		}
-		return false
-	})
-	return b.String()
+	}
+	res.Write(b.String())
 }
 
-// Helper function to set the mock current time
-func setcurrentTime(t time.Time) {
-	currentTime = t
+// renderOngoingAuctions renders the ongoing auctions page
+func renderOngoingAuctions(res *mux.ResponseWriter, req *mux.Request) {
+	var b bytes.Buffer
+	b.WriteString("<h1>Ongoing Auctions</h1>\n")
+
+	for i, auc := range auctionList {
+		if auc.State == "ongoing" {
+			b.WriteString("##" + auc.Title + "\n")
+			b.WriteString("### Owner: " + auc.Owner.String() + "\n")
+			b.WriteString("### Description: " + auc.Description + "\n\n")
+			b.WriteString("This auction started on: " + auc.Begin.String() + " and ends on: " + auc.End.String() + "\n\n")
+			b.WriteString("### Current Price: " + strconv.FormatUint(auc.Price, 10) + "\n")
+			b.WriteString("[View Auction](/auction/" + strconv.Itoa(i) + ")\n")
+		}
+	}
+	res.Write(b.String())
 }
 
-// Helper function to reset the mock current time
-func resetcurrentTime() {
-	currentTime = time.Time{}
+// renderAuctionDetails renders the details of a specific auction
+func renderAuctionDetails(res *mux.ResponseWriter, req *mux.Request) {
+	idStr := req.GetVar("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil || id >= len(auctionList) || id < 0 {
+		res.Write("Invalid auction ID")
+		return
+	}
+	auc := auctionList[id]
+
+	var b bytes.Buffer
+	b.WriteString("<h1>Auction Details</h1>\n")
+	b.WriteString("## " + auc.Title + "\n")
+	b.WriteString("### Owner: " + auc.Owner.String() + "\n")
+	b.WriteString("### Description: " + auc.Description + "\n\n")
+	b.WriteString("This auction starts on: " + auc.Begin.String() + " and ends on: " + auc.End.String() + "\n\n")
+	b.WriteString("### Current Price: " + strconv.FormatUint(auc.Price, 10) + "\n")
+
+	if auc.State == "ongoing" {
+		b.WriteString("<form action='/bid' method='post'>\n")
+		b.WriteString("Amount: <input type='number' name='amount'><br>\n")
+		b.WriteString("<input type='hidden' name='id' value='" + strconv.Itoa(id) + "'>\n")
+		b.WriteString("<input type='submit' value='Place Bid'>\n")
+		b.WriteString("</form>\n")
+	}
+
+	res.Write(b.String())
 }
