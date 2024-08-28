@@ -1498,6 +1498,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// Replace const index with int *ConstExpr,
 					// or if not const, assert integer type..
 					checkOrConvertIntegerKind(store, last, n.Index)
+					if dt.Kind() == StringKind {
+						// A string index is not addressable.
+						n.NotAddressable = true
+					}
 				case MapKind:
 					mt := baseOf(gnoTypeOf(store, dt)).(*MapType)
 					checkOrConvertType(store, last, &n.Index, mt.Key, false)

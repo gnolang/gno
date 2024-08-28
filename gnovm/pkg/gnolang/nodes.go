@@ -420,13 +420,14 @@ func (x *CallExpr) isAddressable() bool {
 
 type IndexExpr struct { // X[Index]
 	Attributes
-	X     Expr // expression
-	Index Expr // index expression
-	HasOK bool // if true, is form: `value, ok := <X>[<Key>]
+	X              Expr // expression
+	Index          Expr // index expression
+	HasOK          bool // if true, is form: `value, ok := <X>[<Key>]
+	NotAddressable bool
 }
 
 func (x *IndexExpr) isAddressable() bool {
-	return x.X.isAddressable()
+	return !x.NotAddressable && x.X.isAddressable()
 }
 
 type SelectorExpr struct { // X.Sel
