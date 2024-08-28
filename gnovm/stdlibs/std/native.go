@@ -59,6 +59,7 @@ func findPrevFuncName(m *gno.Machine, targetIndex int) string {
 			return string(currFunc.Name)
 		}
 	}
+
 	panic("function name not found")
 }
 

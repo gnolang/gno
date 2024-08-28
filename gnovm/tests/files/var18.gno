@@ -1,8 +1,8 @@
 package main
 
 func main() {
-	a, b, c := 1, 2
+	var a, b, c = 1, 2
 }
 
 // Error:
-// main/files/var18.gno:4: should not happen
+// main/files/var18.gno:4:6: missing init expr for c<VPUverse(0)>
