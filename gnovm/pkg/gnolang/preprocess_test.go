@@ -61,7 +61,7 @@ func main() {
 	Preprocess(store, pn, n)
 }
 
-func TestLhsAndRhsAreBothBlankIdentifier(t *testing.T) {
+func TestPanicWhenAssigningBlankIdentifierToBlankIdentifier(t *testing.T) {
 	pn := NewPackageNode("main", "main", nil)
 	pv := pn.NewPackage()
 	store := gonativeTestStore(pn, pv)
@@ -87,7 +87,7 @@ func main() {
 	Preprocess(store, pn, n)
 }
 
-func TestAssignValueToBlankIdentifierRHS(t *testing.T) {
+func TestPanicWhenAssigningBlankIdentifierToVariable(t *testing.T) {
 	pn := NewPackageNode("main", "main", nil)
 	pv := pn.NewPackage()
 	store := gonativeTestStore(pn, pv)
@@ -113,21 +113,86 @@ func main() {
 	Preprocess(store, pn, n)
 }
 
-func TestAssignValueToBlankIdentifierLHS(t *testing.T) {
-	pn := NewPackageNode("main", "main", nil)
-	pv := pn.NewPackage()
-	store := gonativeTestStore(pn, pv)
-	store.SetBlockNode(pn)
-
-	const src = `package main
+func TestAssignmentsToBlankIdentifier(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		src  string
+	}{
+		{
+			name: "ValidAssignmentToBlankIdentifier",
+			src: `package main
 
 func main() {
-	_ = 1
-}`
-	n := MustParseFile("main.go", src)
+    _ = 1
+}`,
+		},
+		{
+			name: "AssignNilInterfaceToBlankIdentifier",
+			src: `package main
 
-	initStaticBlocks(store, pn, n)
+type zilch interface{}
 
-	res := Preprocess(store, pn, n)
-	assert.NotNil(t, res)
+func main() {
+    _ = zilch(nil)
+}`,
+		},
+		{
+			name: "AssignNilMapToBlankIdentifier",
+			src: `package main
+
+type anyMap map[string]interface{}
+
+func main() {
+    _ = anyMap(nil)
+}`,
+		},
+		{
+			name: "AssignNilStructToBlankIdentifier",
+			src: `package main
+
+type empty struct{}
+
+func main() {
+    _ = empty{}
+}`,
+		},
+		{
+			name: "AssignNilSliceToBlankIdentifier",
+			src: `package main
+
+type emptySlice []interface{}
+
+func main() {
+    _ = emptySlice(nil)
+}`,
+		},
+		{
+			name: "AssignNilFunctionToBlankIdentifier",
+			src: `package main
+
+type voidFunc func()
+
+func main() {
+    _ = voidFunc(nil)
+}`,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			pn := NewPackageNode("main", "main", nil)
+			pv := pn.NewPackage()
+			store := gonativeTestStore(pn, pv)
+			store.SetBlockNode(pn)
+
+			n := MustParseFile("main.go", tt.src)
+
+			initStaticBlocks(store, pn, n)
+
+			res := Preprocess(store, pn, n)
+			assert.NotNil(t, res)
+		})
+	}
 }
