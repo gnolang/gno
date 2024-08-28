@@ -198,3 +198,10 @@ After executing the previous command, the `gnokey` keystore will have imported
 `ImportedKey`.
 
 ![gnokey import](../../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-import.gif)
+
+## Conclusion
+
+That's it! 🎉
+
+In this tutorial, you've learned to use `gnokey` for managing Gno keypairs.
+
