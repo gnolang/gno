@@ -15,7 +15,7 @@ type Auction struct {
 	Description string
 	Begin       time.Time
 	End         time.Time
-	Price       uint64
+	StartingBid std.Coin
 	Bids        []*Bid
 	State       string // "upcoming", "ongoing", or "closed"
 }
@@ -23,7 +23,7 @@ type Auction struct {
 // Bid struct
 type Bid struct {
 	Bidder std.Address
-	Amount uint64
+	Amount std.Coin
 }
 
 var (
@@ -38,7 +38,7 @@ func NewAuction(
 	description string,
 	begin time.Time,
 	end time.Time,
-	minPrice uint64,
+	startingBid std.Coin,
 ) *Auction {
 	return &Auction{
 		Title:       title,
@@ -46,27 +46,27 @@ func NewAuction(
 		Owner:       owner,
 		Begin:       begin,
 		End:         end,
-		Price:       minPrice,
+		StartingBid: startingBid,
 		Bids:        []*Bid{},
 		State:       "upcoming",
 	}
 }
 
 // AddBid adds a new bid to the auction
-func (a *Auction) AddBid(bidder std.Address, amount uint64) error {
+func (a *Auction) AddBid(bidder std.Address, amount std.Coin) error {
 	if now().Before(a.Begin) {
 		return ufmt.Errorf("auction: AddBid: auction has not started yet")
 	}
 	if now().After(a.End) {
 		return ufmt.Errorf("auction: AddBid: auction has already ended")
 	}
-	if amount <= a.Price {
+	if !amount.IsGTE(a.StartingBid) {
 		return ufmt.Errorf("auction: AddBid: bid amount must be higher than the current highest bid")
 	}
 	bid := &Bid{Bidder: bidder, Amount: amount}
 	a.Bids = append(a.Bids, bid)
-	a.Price = amount
-	std.Emit("BidPlaced", "auction", a.Title, "bidder", bidder.String(), "amount", strconv.FormatUint(amount, 10))
+	a.StartingBid = amount
+	std.Emit("BidPlaced", "auction", a.Title, "bidder", bidder.String(), "amount", amount.String())
 	return nil
 }
 
@@ -91,9 +91,9 @@ func (a *Auction) EndAuction(caller std.Address) error {
 		return ufmt.Errorf("auction: EndAuction: auction ended with no bids")
 	}
 	a.State = "closed"
-	highestBid := a.Price
+	highestBid := a.StartingBid
 	winner := a.Bids[len(a.Bids)-1].Bidder
-	std.Emit("AuctionEnded", "winner", winner.String(), "amount", strconv.FormatUint(highestBid, 10))
+	std.Emit("AuctionEnded", "winner", winner.String(), "amount", highestBid.String())
 	return nil
 }
 
