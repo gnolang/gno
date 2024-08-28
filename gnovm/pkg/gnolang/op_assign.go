@@ -12,6 +12,14 @@ func (m *Machine) doOpDefine() {
 		nx := s.Lhs[i].(*NameExpr)
 		// Finally, define (or assign if loop block).
 		ptr := lb.GetPointerTo(m.Store, nx.Path)
+
+		if ppv, ok := ptr.TV.V.(PointerValue); ok {
+			if hiv, ok := ppv.Base.(*HeapItemValue); ok {
+				root := NewObject(hiv.Value)
+				m.Alloc.heap.RemoveRoot(root)
+			}
+		}
+
 		// XXX HACK (until value persistence impl'd)
 		if m.ReadOnly {
 			if oo, ok := ptr.Base.(Object); ok {

@@ -111,11 +111,38 @@ func (alloc *Allocator) Allocate(size int64) {
 	fmt.Printf("ALLOCATE: alloc.bytes: %+v\n", alloc.bytes)
 	if alloc.bytes > alloc.maxBytes {
 		if alloc.heap != nil {
-			alloc.heap.MarkAndSweep()
+			deleted := alloc.heap.MarkAndSweep()
+			alloc.DeallocDeleted(deleted)
 			if alloc.bytes > alloc.maxBytes {
 				panic("allocation limit exceeded")
 			}
 		}
+	}
+}
+
+func (alloc *Allocator) DeallocDeleted(objs []*GcObj) {
+	for _, obj := range objs {
+		alloc.DeallocObj(obj.tv)
+	}
+}
+
+func (alloc *Allocator) DeallocObj(tv TypedValue) {
+	switch v := tv.V.(type) {
+	case PointerValue:
+		alloc.DeallocObj(*v.TV)
+	case *StructValue:
+		alloc.DeallocateStruct()
+		alloc.DeallocateStructFields(int64(len(v.Fields)))
+
+		for _, field := range v.Fields {
+			alloc.DeallocObj(field)
+		}
+	case *SliceValue:
+		alloc.DeallocateSlice()
+	case *ArrayValue:
+		alloc.DeallocateDataArray(int64(len(v.Data)))
+	default:
+		fmt.Printf("DeallocDeleted: unimplemented %T\n", v)
 	}
 }
 
@@ -150,6 +177,11 @@ func (alloc *Allocator) AllocateDataArray(size int64) {
 	alloc.Allocate(allocArray + size)
 }
 
+func (alloc *Allocator) DeallocateDataArray(size int64) {
+	println("DeallocateDataArray")
+	alloc.Deallocate(allocArray + size)
+}
+
 func (alloc *Allocator) AllocateListArray(items int64) {
 	println("AllocateListArray")
 	alloc.Allocate(allocArray + allocArrayItem*items)
@@ -171,8 +203,17 @@ func (alloc *Allocator) AllocateStruct() {
 	alloc.Allocate(allocStruct)
 }
 
+func (alloc *Allocator) DeallocateStruct() {
+	println("DeallocateStruct")
+	alloc.Deallocate(allocStruct)
+}
+
 func (alloc *Allocator) AllocateStructFields(fields int64) {
 	alloc.Allocate(allocStructField * fields)
+}
+
+func (alloc *Allocator) DeallocateStructFields(fields int64) {
+	alloc.Deallocate(allocStructField * fields)
 }
 
 func (alloc *Allocator) AllocateFunc() {

@@ -44,8 +44,9 @@ func (h *Heap) RemoveRoot(root *GcObj) {
 	roots := make([]*GcObj, 0, len(h.roots))
 	var deleted bool
 
-	for _, root := range h.roots {
-		if !deleted && root.tv == root.tv {
+	for _, r := range h.roots {
+		if !deleted && r.tv == root.tv {
+			fmt.Printf("REMOVEROOT: %+v\n", root.tv)
 			deleted = true
 			continue
 		}
@@ -60,17 +61,17 @@ func (h *Heap) AddObject(obj *GcObj) {
 }
 
 func (h *Heap) AddRoot(obj *GcObj) {
-	h.roots = append(h.objects, obj)
+	h.roots = append(h.roots, obj)
 }
 
-func (h *Heap) MarkAndSweep() {
+func (h *Heap) MarkAndSweep() []*GcObj {
 	// Mark phase: mark all reachable objects
 	for _, root := range h.roots {
 		h.mark(root)
 	}
 
 	// Sweep phase: remove unmarked objects
-	h.sweep()
+	return h.sweep()
 }
 
 // mark recursively marks all reachable objects starting from a root.
@@ -87,7 +88,8 @@ func (h *Heap) mark(obj *GcObj) {
 }
 
 // sweep removes all unmarked objects from the heap.
-func (h *Heap) sweep() {
+func (h *Heap) sweep() []*GcObj {
+	var deletedObjects []*GcObj
 	var newObjects []*GcObj
 	for _, obj := range h.objects {
 		if obj.marked {
@@ -96,7 +98,9 @@ func (h *Heap) sweep() {
 			newObjects = append(newObjects, obj)
 		} else {
 			fmt.Printf("Sweeping object: %s\n", obj.tv)
+			deletedObjects = append(deletedObjects, obj)
 		}
 	}
 	h.objects = newObjects
+	return deletedObjects
 }
