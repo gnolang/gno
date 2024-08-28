@@ -114,6 +114,7 @@ func main() {
 }
 
 func TestAssignmentsToBlankIdentifier(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		src  string
