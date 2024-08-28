@@ -61,19 +61,18 @@ func main() {
 	Preprocess(store, pn, n)
 }
 
-func TestEvalStaticTypeOf_NoValue(t *testing.T) {
+func TestLhsAndRhsAreBothBlankIdentifier(t *testing.T) {
 	pn := NewPackageNode("main", "main", nil)
 	pv := pn.NewPackage()
 	store := gonativeTestStore(pn, pv)
 	store.SetBlockNode(pn)
 
-	const src = `package main
+	src := `package main
 
 func main() {
-
 	_ = _
-}
-`
+}`
+
 	n := MustParseFile("main.go", src)
 
 	initStaticBlocks(store, pn, n)
@@ -86,4 +85,49 @@ func main() {
 	}()
 
 	Preprocess(store, pn, n)
+}
+
+func TestAssignValueToBlankIdentifierRHS(t *testing.T) {
+	pn := NewPackageNode("main", "main", nil)
+	pv := pn.NewPackage()
+	store := gonativeTestStore(pn, pv)
+	store.SetBlockNode(pn)
+
+	const src = `package main
+
+func main() {
+	a := _
+}`
+
+	n := MustParseFile("main.go", src)
+
+	initStaticBlocks(store, pn, n)
+
+	defer func() {
+		err := recover()
+		assert.NotNil(t, err, "Expected panic")
+		errMsg := fmt.Sprint(err)
+		assert.Contains(t, errMsg, "cannot use _ as value or type")
+	}()
+
+	Preprocess(store, pn, n)
+}
+
+func TestAssignValueToBlankIdentifierLHS(t *testing.T) {
+	pn := NewPackageNode("main", "main", nil)
+	pv := pn.NewPackage()
+	store := gonativeTestStore(pn, pv)
+	store.SetBlockNode(pn)
+
+	const src = `package main
+
+func main() {
+	_ = 1
+}`
+	n := MustParseFile("main.go", src)
+
+	initStaticBlocks(store, pn, n)
+
+	res := Preprocess(store, pn, n)
+	assert.NotNil(t, res)
 }

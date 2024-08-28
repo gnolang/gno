@@ -430,10 +430,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				checkValDefineMismatch(n)
 
 				if n.Op == DEFINE {
-					for _, lx := range n.Lhs {
+					for i, lx := range n.Lhs {
 						ln := lx.(*NameExpr).Name
 						if ln == blankIdentifier {
-							// ignore.
+							// check if both LHS and RHS are blank identifiers in a DEFINE statement.
+							if i < len(n.Rhs) {
+								if rx, ok := n.Rhs[i].(*NameExpr); ok && rx.Name == blankIdentifier {
+									loc := last.GetLocation()
+									panic(fmt.Sprintf("%s: cannot use _ as value or type", loc))
+								}
+							}
 						} else if strings.HasPrefix(string(ln), ".decompose_") {
 							_, ok := last.GetLocalIndex(ln)
 							if !ok {
@@ -867,6 +873,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			switch n := n.(type) {
 			// TRANS_LEAVE -----------------------
 			case *NameExpr:
+				if n.Name == blankIdentifier {
+					// check if blank identifier is used as a value in a non-assignment context.
+					if ftype != TRANS_ASSIGN_LHS && ftype != TRANS_RANGE_KEY && ftype != TRANS_RANGE_VALUE {
+						loc := last.GetLocation()
+						panic(fmt.Sprintf("%s: cannot use _ as value or type", loc))
+					}
+				}
 				// Validity: check that name isn't reserved.
 				if isReservedName(n.Name) {
 					panic(fmt.Sprintf(
@@ -1518,7 +1531,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				// Type assertions on the blank identifier are illegal.
 				if nx, ok := n.X.(*NameExpr); ok && string(nx.Name) == blankIdentifier {
-					panic("cannot use _ as value or type")
+					loc := last.GetLocation()
+					panic(fmt.Sprintf("%s: cannot use _ as value or type", loc))
 				}
 
 				// ExprStmt of form `x.(<type>)`,
@@ -1844,6 +1858,21 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				n.AssertCompatible(store, last)
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
+					if n.Op == DEFINE {
+						for i, lx := range n.Lhs {
+							ln := lx.(*NameExpr).Name
+							if ln != blankIdentifier {
+								// check if RHS is a blank identifier
+								// when LHS is not in a DEFINE statement
+								if i < len(n.Rhs) {
+									if rx, ok := n.Rhs[i].(*NameExpr); ok && rx.Name == blankIdentifier {
+										loc := last.GetLocation()
+										panic(fmt.Sprintf("%s: cannot use _ as value or type", loc))
+									}
+								}
+							}
+						}
+					}
 					// Rhs consts become default *ConstExprs.
 					for _, rx := range n.Rhs {
 						// NOTE: does nothing if rx is "nil".
