@@ -76,6 +76,9 @@ func (h *Heap) MarkAndSweep() []*GcObj {
 
 // mark recursively marks all reachable objects starting from a root.
 func (h *Heap) mark(obj *GcObj) {
+	if obj == nil {
+		return
+	}
 	if obj.marked {
 		return
 	}
