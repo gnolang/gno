@@ -36,6 +36,8 @@ func (m mockMsg) Type() string {
 }
 
 func TestNewTx(t *testing.T) {
+	t.Parallel()
+
 	addr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	msgs := []Msg{
 		mockMsg{
@@ -61,6 +63,8 @@ func TestNewTx(t *testing.T) {
 }
 
 func Test_ValidateBasic(t *testing.T) {
+	t.Parallel()
+
 	addr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	msgs := []Msg{
 		mockMsg{
@@ -68,101 +72,136 @@ func Test_ValidateBasic(t *testing.T) {
 		},
 	}
 
-	fee := NewFee(maxGasWanted, Coin{Denom: "atom", Amount: 10})
-	sigs := []Signature{
+	testCases := []struct {
+		name          string
+		tx            Tx
+		expectedError string
+	}{
 		{
-			Signature: []byte{0x00},
+			name:          "Valid case",
+			tx:            NewTx(msgs, NewFee(maxGasWanted, Coin{Denom: "atom", Amount: 10}), []Signature{{Signature: []byte{0x00}}}, "test memo"),
+			expectedError: "",
+		},
+		{
+			name:          "Invalid gas case",
+			tx:            NewTx(msgs, NewFee(maxGasWanted+1, Coin{Denom: "atom", Amount: 10}), []Signature{{Signature: []byte{0x00}}}, "test memo"),
+			expectedError: "expected gas overflow error",
+		},
+		{
+			name:          "Invalid fee case",
+			tx:            NewTx(msgs, NewFee(1000, Coin{Denom: "atom", Amount: -10}), []Signature{{Signature: []byte{0x00}}}, "test memo"),
+			expectedError: "expected insufficient fee error",
+		},
+		{
+			name:          "No signatures case",
+			tx:            NewTx(msgs, NewFee(maxGasWanted, Coin{Denom: "atom", Amount: 10}), []Signature{}, "test memo"),
+			expectedError: "expected no signatures error",
+		},
+		{
+			name:          "Wrong number of signers case",
+			tx:            NewTx(msgs, NewFee(maxGasWanted, Coin{Denom: "atom", Amount: 10}), []Signature{{Signature: []byte{0x00}}, {Signature: []byte{0x01}}}, "test memo"),
+			expectedError: "expected wrong number of signers error",
 		},
 	}
 
-	tx := NewTx(msgs, fee, sigs, "test memo")
+	for _, tc := range testCases {
+		tc := tc
 
-	// Valid case
-	require.NoError(t, tx.ValidateBasic())
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	// Invalid gas case
-	invalidFee := NewFee(maxGasWanted+1, Coin{Denom: "atom", Amount: 10})
-	txInvalidGas := NewTx(msgs, invalidFee, sigs, "test memo")
-	require.Error(t, txInvalidGas.ValidateBasic(), "expected gas overflow error")
-
-	// Invalid fee case
-	invalidFeeAmount := NewFee(1000, Coin{Denom: "atom", Amount: -10})
-	txInvalidFee := NewTx(msgs, invalidFeeAmount, sigs, "test memo")
-	require.Error(t, txInvalidFee.ValidateBasic(), "expected insufficient fee error")
-
-	// No signatures case
-	txNoSigs := NewTx(msgs, fee, []Signature{}, "test memo")
-	require.Error(t, txNoSigs.ValidateBasic(), "expected no signatures error")
-
-	// Wrong number of signers case
-	wrongSigs := []Signature{
-		{
-			Signature: []byte{0x00},
-		},
-		{
-			Signature: []byte{0x01},
-		},
+			err := tc.tx.ValidateBasic()
+			if tc.expectedError == "" {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err, tc.expectedError)
+			}
+		})
 	}
-	txWrongSigs := NewTx(msgs, fee, wrongSigs, "test memo")
-	require.Error(t, txWrongSigs.ValidateBasic(), "expected wrong number of signers error")
 }
 
 func Test_CountSubKeys(t *testing.T) {
+	t.Parallel()
+
 	// Single key case
 	pubKey := ed25519.GenPrivKey().PubKey()
 	require.Equal(t, 1, CountSubKeys(pubKey))
 
 	// Multi-sig case
-	// Assuming multisig.PubKeyMultisigThreshold is correctly implemented for testing purposes
 	pubKeys := []crypto.PubKey{ed25519.GenPrivKey().PubKey(), ed25519.GenPrivKey().PubKey()}
 	multisigPubKey := multisig.NewPubKeyMultisigThreshold(2, pubKeys)
 	require.Equal(t, len(pubKeys), CountSubKeys(multisigPubKey))
 }
 
 func Test_GetSigners(t *testing.T) {
-	// Single signer case
+	t.Parallel()
+
 	addr, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
-	msgs := []Msg{
-		mockMsg{
-			caller:  addr,
-			msgType: "call",
-		},
-	}
-	tx := NewTx(msgs, Fee{}, []Signature{}, "")
-	require.Equal(t, []crypto.Address{addr}, tx.GetSigners())
-
-	// Duplicate signers case
-	msgs = []Msg{
-		mockMsg{
-			caller:  addr,
-			msgType: "send",
-		},
-		mockMsg{
-			caller:  addr,
-			msgType: "send",
-		},
-	}
-
-	tx = NewTx(msgs, Fee{}, []Signature{}, "")
-	require.Equal(t, []crypto.Address{addr}, tx.GetSigners())
-
-	// Multiple unique signers case
 	addr2, _ := crypto.AddressFromBech32("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
-	msgs = []Msg{
-		mockMsg{
-			caller:  addr,
-			msgType: "call",
+
+	testCases := []struct {
+		name     string
+		msgs     []Msg
+		expected []crypto.Address
+	}{
+		{
+			name: "Single signer case",
+			msgs: []Msg{
+				mockMsg{
+					caller:  addr,
+					msgType: "call",
+				},
+			},
+			expected: []crypto.Address{addr},
 		},
-		mockMsg{
-			caller:  addr2,
-			msgType: "run",
+		{
+			name: "Duplicate signers case",
+			msgs: []Msg{
+				mockMsg{
+					caller:  addr,
+					msgType: "send",
+				},
+				mockMsg{
+					caller:  addr,
+					msgType: "send",
+				},
+			},
+			expected: []crypto.Address{addr},
+		},
+		{
+			name: "Multiple unique signers case",
+			msgs: []Msg{
+				mockMsg{
+					caller:  addr,
+					msgType: "call",
+				},
+				mockMsg{
+					caller:  addr2,
+					msgType: "run",
+				},
+			},
+			expected: []crypto.Address{
+				addr,
+				addr2,
+			},
 		},
 	}
-	tx = NewTx(msgs, Fee{}, []Signature{}, "")
-	require.Equal(t, []crypto.Address{addr, addr2}, tx.GetSigners())
+
+	for _, tc := range testCases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tx := NewTx(tc.msgs, Fee{}, []Signature{}, "")
+			require.Equal(t, tc.expected, tx.GetSigners())
+		})
+	}
 }
 
 func Test_GetSignBytes(t *testing.T) {
+	t.Parallel()
+
 	msgs := []Msg{}
 	fee := NewFee(1000, Coin{Denom: "atom", Amount: 10})
 	sigs := []Signature{}
