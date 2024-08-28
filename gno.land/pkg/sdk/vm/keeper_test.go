@@ -25,8 +25,7 @@ var coinsString = ugnot.ValueString(10000000)
 
 func TestVMKeeperAddPackage(t *testing.T) {
 	env := setupTestEnv()
-	ctx := env.ctx
-	vmk := env.vmk
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -58,7 +57,7 @@ func Echo() string {return "hello world"}`,
 	assert.True(t, errors.Is(err, InvalidPkgPathError{}))
 
 	// added package is formatted
-	store := vmk.getGnoTransactionStore(ctx)
+	store := env.vmk.getGnoTransactionStore(ctx)
 	memFile := store.GetMemFile("gno.land/r/test", "test.gno")
 	assert.NotNil(t, memFile)
 	expected := `package test
@@ -71,7 +70,7 @@ func Echo() string { return "hello world" }
 // Sending total send amount succeeds.
 func TestVMKeeperOrigSend1(t *testing.T) {
 	env := setupTestEnv()
-	ctx := env.ctx
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -116,7 +115,7 @@ func Echo(msg string) string {
 // Sending too much fails
 func TestVMKeeperOrigSend2(t *testing.T) {
 	env := setupTestEnv()
-	ctx := env.ctx
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -170,7 +169,7 @@ func GetAdmin() string {
 // Sending more than tx send fails.
 func TestVMKeeperOrigSend3(t *testing.T) {
 	env := setupTestEnv()
-	ctx := env.ctx
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -214,7 +213,7 @@ func Echo(msg string) string {
 // Sending realm package coins succeeds.
 func TestVMKeeperRealmSend1(t *testing.T) {
 	env := setupTestEnv()
-	ctx := env.ctx
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -258,7 +257,7 @@ func Echo(msg string) string {
 // Sending too much realm package coins fails.
 func TestVMKeeperRealmSend2(t *testing.T) {
 	env := setupTestEnv()
-	ctx := env.ctx
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -302,7 +301,7 @@ func Echo(msg string) string {
 // Assign admin as OrigCaller on deploying the package.
 func TestVMKeeperOrigCallerInit(t *testing.T) {
 	env := setupTestEnv()
-	ctx := env.ctx
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -356,7 +355,7 @@ func GetAdmin() string {
 // Call Run without imports, without variables.
 func TestVMKeeperRunSimple(t *testing.T) {
 	env := setupTestEnv()
-	ctx := env.ctx
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -395,7 +394,7 @@ func TestVMKeeperRunImportStdlibsColdStdlibLoad(t *testing.T) {
 func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
 	t.Helper()
 
-	ctx := env.ctx
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -425,7 +424,7 @@ func main() {
 
 func TestNumberOfArgsError(t *testing.T) {
 	env := setupTestEnv()
-	ctx := env.ctx
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
@@ -464,7 +463,7 @@ func Echo(msg string) string {
 
 func TestVMKeeperReinitialize(t *testing.T) {
 	env := setupTestEnv()
-	ctx := env.ctx
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
