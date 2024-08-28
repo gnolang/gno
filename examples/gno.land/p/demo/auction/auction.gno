@@ -57,14 +57,6 @@ func (a Auction) IsOwnedBy(address std.Address) bool {
 	return address == a.GetOwner()
 }
 
-// NewBid creates a new Bid instance.
-func NewBid(bidder std.Address, amount uint64) *Bid {
-	return &Bid{
-		bidder: bidder,
-		amount: amount,
-	}
-}
-
 // AddBid adds a new bid to the auction.
 func (a *Auction) AddBid(bidder std.Address, amount uint64) {
 	if amount <= a.price {
