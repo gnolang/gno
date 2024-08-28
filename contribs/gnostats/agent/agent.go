@@ -8,25 +8,25 @@ import (
 	"github.com/gnolang/gnostats/proto"
 )
 
-// angent holds both the injected Gno node RPC client and the Hub gRPC client.
-type agent struct {
+// Agent holds both the injected Gno node RPC client and the Hub gRPC client
+type Agent struct {
 	hClient      proto.HubClient
 	rClient      rpcClient
 	pollInterval time.Duration // Minimum time interval between two data points
 }
 
-type Option func(*agent)
+type Option func(*Agent)
 
 // WithPollInterval sets the agent poll interval between two data points
 func WithPollInterval(interval time.Duration) Option {
-	return func(c *agent) {
+	return func(c *Agent) {
 		c.pollInterval = interval
 	}
 }
 
 // Start registers with the Hub using Gno node static info, then pushes dynamic
 // info from the Gno node to the Hub at intervals specified by pollInterval
-func (a *agent) Start(ctx context.Context) error {
+func (a *Agent) Start(ctx context.Context) error {
 	collector := NewCollector(a.rClient)
 
 	// Get static info from the Gno node
@@ -69,18 +69,18 @@ func (a *agent) Start(ctx context.Context) error {
 }
 
 // NewAgent creates a new agent using the provided clients and options
-func NewAgent(hClient proto.HubClient, rClient rpcClient, options ...Option) *agent {
+func NewAgent(hClient proto.HubClient, rClient rpcClient, options ...Option) *Agent {
 	const defaultInverval = time.Second
 
-	a := &agent{
+	agent := &Agent{
 		hClient:      hClient,
 		rClient:      rClient,
 		pollInterval: defaultInverval,
 	}
 
 	for _, opt := range options {
-		opt(a)
+		opt(agent)
 	}
 
-	return a
+	return agent
 }
