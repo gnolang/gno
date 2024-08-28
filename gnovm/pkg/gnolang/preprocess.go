@@ -1820,10 +1820,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// packages may contain constant vars,
 					// so check and evaluate if so.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
-					if isUntyped(tt) {
+					if isUntyped(tt) || pn.GetIsConstAt(store, n.Path) {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					}
+
 				case *TypeType:
 					// unbound method
 					xt := evalStaticType(store, last, n.X)

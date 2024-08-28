@@ -1591,6 +1591,7 @@ type BlockNode interface {
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
 	GetIsConst(Store, Name) bool
+	GetIsConstAt(Store, ValuePath) bool
 	GetLocalIndex(Name) (uint16, bool)
 	GetValueRef(Store, Name, bool) *TypedValue
 	GetStaticTypeOf(Store, Name) Type
@@ -1774,6 +1775,17 @@ func (sb *StaticBlock) GetIsConst(store Store, n Name) bool {
 			bp = bp.GetParentNode(store)
 		} else {
 			panic(fmt.Sprintf("name %s not declared", n))
+		}
+	}
+}
+
+func (sb *StaticBlock) GetIsConstAt(store Store, path ValuePath) bool {
+	for {
+		if path.Depth == 1 {
+			return sb.getLocalIsConst(path.Name)
+		} else {
+			sb = sb.GetParentNode(store).GetStaticBlock()
+			path.Depth -= 1
 		}
 	}
 }
