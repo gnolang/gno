@@ -52,42 +52,60 @@ func NewAuction(
 	}
 }
 
-// IsOwner checks if the given address is the owner of the auction.
-func (a Auction) IsOwnedBy(address std.Address) bool {
-	return address == a.GetOwner()
-}
-
-// AddBid adds a new bid to the auction.
-func (a *Auction) AddBid(bidder std.Address, amount uint64) {
-	if amount <= a.price {
-		panic("bid amount must be higher than current highest bid")
+// AddBid adds a new bid to the auction
+func (a *Auction) AddBid(bidder std.Address, amount uint64) error {
+	if now().Before(a.Begin) {
+		return ufmt.Errorf("auction: AddBid: auction has not started yet")
 	}
-	key := strconv.Itoa(a.bids.Size())
-	bid := NewBid(bidder, amount)
-	a.bids.Set(key, bid)
-	a.price = amount
-	std.Emit("BidPlaced", "bidder", bidder.String(), "amount", strconv.FormatUint(amount, 10))
-}
-
-// GetBidder returns the address of the bidder.
-func (b Bid) GetBidder() std.Address {
-	return b.bidder
-}
-
-// GetAmount returns the amount of the bid.
-func (b Bid) GetAmount() uint64 {
-	return b.amount
-}
-
-// EndAuction ends the auction and emits the AuctionEnded event.
-func (a *Auction) EndAuction() {
-	if time.Now().Before(a.end) {
-		panic("Auction cannot end before the end time")
+	if now().After(a.End) {
+		return ufmt.Errorf("auction: AddBid: auction has already ended")
 	}
-	if a.bids.Size() == 0 {
-		panic("No bids placed")
+	if amount <= a.Price {
+		return ufmt.Errorf("auction: AddBid: bid amount must be higher than the current highest bid")
 	}
-	highestBid := a.GetPrice()
-	winner := a.GetBids()[a.bids.Size()-1].GetBidder()
+	bid := &Bid{Bidder: bidder, Amount: amount}
+	a.Bids = append(a.Bids, bid)
+	a.Price = amount
+	std.Emit("BidPlaced", "auction", a.Title, "bidder", bidder.String(), "amount", strconv.FormatUint(amount, 10))
+	return nil
+}
+
+// IsOwnedBy checks if the given address is the owner of the auction
+func (a *Auction) IsOwnedBy(address std.Address) bool {
+	return a.Owner == address
+}
+
+// EndAuction ends the auction
+func (a *Auction) EndAuction(caller std.Address) error {
+	if caller != a.Owner {
+		return ufmt.Errorf("auction: EndAuction: only the owner can end the auction")
+	}
+	if now().Before(a.End) {
+		return ufmt.Errorf("auction: EndAuction: auction cannot end before the end time")
+	}
+	if a.State == "closed" {
+		return ufmt.Errorf("auction: EndAuction: auction is already closed")
+	}
+	if len(a.Bids) == 0 {
+		std.Emit("AuctionEndedNoBids", "auction", a.Title)
+		return ufmt.Errorf("auction: EndAuction: auction ended with no bids")
+	}
+	a.State = "closed"
+	highestBid := a.Price
+	winner := a.Bids[len(a.Bids)-1].Bidder
 	std.Emit("AuctionEnded", "winner", winner.String(), "amount", strconv.FormatUint(highestBid, 10))
+	return nil
+}
+
+// SetCurrentTime sets the current time for testing purposes
+func SetCurrentTime(t time.Time) {
+	currentTime = t
+}
+
+// now returns the current time, allowing for mocking in tests
+func now() time.Time {
+	if !currentTime.IsZero() {
+		return currentTime
+	}
+	return time.Now()
 }
