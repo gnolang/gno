@@ -1,0 +1,18 @@
+loadpkg gno.land/p/demo/ufmt
+
+# start a new node
+gnoland start
+
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/p/demo/foo/aaaa -gas-fee 1ugnot -gas-wanted 1430000 -broadcast -chainid=tendermint_test test1
+#stdout OK!
+
+-- foo.gno --
+package aaaa
+
+import (
+	"gno.land/p/demo/ufmt"
+)
+
+func Foo() string {
+	return ufmt.Sprintf("foo")
+}
