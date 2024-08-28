@@ -235,21 +235,15 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 
 	// load app state. AppState may be nil mostly in some minimal testing setups;
 	// so log a warning when that happens.
-	var txResponses []abci.ResponseDeliverTx
-	if req.AppState != nil {
-		genState, ok := req.AppState.(GnoGenesisState)
-		if !ok {
-			return abci.ResponseInitChain{
-				ResponseBase: abci.ResponseBase{
-					Error: abci.StringError(fmt.Sprintf("invalid AppState of type %T", req.AppState)),
-				},
-			}
+	txResponses, err := cfg.loadAppState(ctx, req.AppState)
+	if err != nil {
+		return abci.ResponseInitChain{
+			ResponseBase: abci.ResponseBase{
+				Error: abci.StringError(err.Error()),
+			},
 		}
-		txResponses = cfg.loadAppState(ctx, genState)
-	} else {
-		ctx.Logger().Warn("InitChainer: initializing chain without AppState (no genesis transactions or balances have been loaded)")
-		txResponses = make([]abci.ResponseDeliverTx, 0)
 	}
+
 	ctx.Logger().Debug("InitChainer: genesis transactions loaded",
 		"elapsed", time.Since(start))
 
@@ -278,7 +272,12 @@ func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 	msCache.MultiWrite()
 }
 
-func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, state GnoGenesisState) []abci.ResponseDeliverTx {
+func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci.ResponseDeliverTx, error) {
+	state, ok := appState.(GnoGenesisState)
+	if !ok {
+		return nil, fmt.Errorf("invalid AppState of type %T", appState)
+	}
+
 	// Parse and set genesis state balances
 	for _, bal := range state.Balances {
 		acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
@@ -310,7 +309,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, state GnoGenesisState
 
 		cfg.GenesisTxResultHandler(ctx, tx, res)
 	}
-	return txResponses
+	return txResponses, nil
 }
 
 // endBlockerApp is the app abstraction required by any EndBlocker

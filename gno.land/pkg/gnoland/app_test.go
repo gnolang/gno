@@ -120,7 +120,7 @@ func TestNewApp(t *testing.T) {
 			},
 		},
 		Validators: []abci.ValidatorUpdate{},
-		AppState:   nil,
+		AppState:   GnoGenesisState{},
 	})
 	assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
 }
@@ -176,7 +176,9 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 		vmKpr:           mock,
 		CacheStdlibLoad: cached,
 	}
-	cfg.InitChainer(testCtx, abci.RequestInitChain{})
+	cfg.InitChainer(testCtx, abci.RequestInitChain{
+		AppState: GnoGenesisState{},
+	})
 	exp := map[string]int{
 		"MakeGnoTransactionStore":   1,
 		"CommitGnoTransactionStore": 1,
