@@ -163,10 +163,10 @@ func getBatchResults(t *testing.T) []any {
 
 		&ctypes.ResultBlockResults{
 			Results: &state.ABCIResponses{
-				DeliverTxs: []abci.ResponseDeliverTx{{
-					GasUsed:   100,
-					GasWanted: 200,
-				}},
+				DeliverTxs: []abci.ResponseDeliverTx{
+					{GasUsed: 100, GasWanted: 200},
+					{GasUsed: 42, GasWanted: 24},
+				},
 			},
 		},
 	}
@@ -209,8 +209,14 @@ func compareBatchResultToDynamicInfo(t *testing.T, results []any, dynamicInfo *p
 	assert.NotNil(t, dynamicInfo.BlockInfo)
 	assert.Equal(t, dynamicInfo.BlockInfo.Number, uint64(blk.Block.Height))
 	assert.Equal(t, dynamicInfo.BlockInfo.Timestamp, uint64(blk.Block.Time.Unix()))
-	assert.Equal(t, dynamicInfo.BlockInfo.GasUsed, uint64(blkRes.Results.DeliverTxs[0].GasUsed))
-	assert.Equal(t, dynamicInfo.BlockInfo.GasWanted, uint64(blkRes.Results.DeliverTxs[0].GasWanted))
+
+	var gasUsed, gasWanted uint64
+	for _, deliverTx := range blkRes.Results.DeliverTxs {
+		gasUsed += uint64(deliverTx.GasUsed)
+		gasWanted += uint64(deliverTx.GasWanted)
+	}
+	assert.Equal(t, dynamicInfo.BlockInfo.GasUsed, gasUsed)
+	assert.Equal(t, dynamicInfo.BlockInfo.GasWanted, gasWanted)
 	assert.Equal(t, dynamicInfo.BlockInfo.Proposer, blk.Block.ProposerAddress.ID().String())
 }
 

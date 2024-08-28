@@ -142,6 +142,15 @@ func getRandomBatchResults(t *testing.T, random *mrand.Rand) []any {
 		VotingPower: validator.VotingPower,
 	}
 
+	// Generate random deliverTxs
+	deliverTxs := make([]abci.ResponseDeliverTx, randomIntInRange(t, random, 0, 32))
+	for i := range deliverTxs {
+		deliverTxs[i] = abci.ResponseDeliverTx{
+			GasUsed:   int64(randomIntInRange(t, random, 5, 1000)),
+			GasWanted: int64(randomIntInRange(t, random, 5, 1000)),
+		}
+	}
+
 	return []any{
 		&ctypes.ResultStatus{NodeInfo: randomNodeInfo(t, random), ValidatorInfo: validatorInfo},
 		&ctypes.ResultValidators{Validators: validators},
@@ -158,14 +167,7 @@ func getRandomBatchResults(t *testing.T, random *mrand.Rand) []any {
 			},
 		},
 
-		&ctypes.ResultBlockResults{
-			Results: &state.ABCIResponses{
-				DeliverTxs: []abci.ResponseDeliverTx{{
-					GasUsed:   int64(randomIntInRange(t, random, 5, 1000)),
-					GasWanted: int64(randomIntInRange(t, random, 5, 1000)),
-				}},
-			},
-		},
+		&ctypes.ResultBlockResults{Results: &state.ABCIResponses{DeliverTxs: deliverTxs}},
 	}
 }
 

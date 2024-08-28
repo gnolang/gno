@@ -91,11 +91,13 @@ func (c *collector) CollectDynamic(ctx context.Context) (*proto.DynamicInfo, err
 		}
 	}
 
-	// Get gas used / wanted in DeliverTxs (if any)
+	// Sum gas used / wanted for each DeliverTx
 	var gasUsed, gasWanted uint64
-	if blkRes.Results != nil && len(blkRes.Results.DeliverTxs) > 0 {
-		gasUsed = uint64(blkRes.Results.DeliverTxs[0].GasUsed)
-		gasWanted = uint64(blkRes.Results.DeliverTxs[0].GasWanted)
+	if blkRes.Results != nil {
+		for _, deliverTx := range blkRes.Results.DeliverTxs {
+			gasUsed += uint64(deliverTx.GasUsed)
+			gasWanted += uint64(deliverTx.GasWanted)
+		}
 	}
 
 	// Fill the DynamicInfo fields with the corresponding values
