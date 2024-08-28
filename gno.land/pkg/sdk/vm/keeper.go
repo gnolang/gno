@@ -203,9 +203,9 @@ type gnoStoreContextKeyType struct{}
 var gnoStoreContextKey gnoStoreContextKeyType
 
 func (vm *VMKeeper) newGnoTransactionStore(ctx sdk.Context) gno.TransactionStore {
-	ms := ctx.MultiStore()
-	base := ms.GetStore(vm.baseKey)
-	iavl := ms.GetStore(vm.iavlKey)
+	base := ctx.Store(vm.baseKey)
+	iavl := ctx.Store(vm.iavlKey)
+
 	return vm.gnoStore.BeginTransaction(base, iavl)
 }
 
