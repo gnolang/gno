@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/dylan/addressable_5a_err.gno:7:6: cannot take address of (const (255 <untyped> bigint))
+// main/files/addressable_5a_err.gno:7:6: cannot take address of (const (255 <untyped> bigint))

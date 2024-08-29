@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/dylan/addressable_6b_err.gno:10:10: cannot take address of i<VPBlock(1,0)>.(S<VPBlock(3,0)>).a
+// main/files/addressable_6b_err.gno:10:10: cannot take address of i<VPBlock(1,0)>.(S<VPBlock(3,0)>).a

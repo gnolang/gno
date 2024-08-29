@@ -11,4 +11,4 @@ func main() {
 }
 
 // Error:
-// main/dylan/addressable_3a_err.gno:10:6: cannot take address of S<VPBlock(3,0)>{i<VPField(0,0,i)>: (const (4 int))}.i
+// main/files/addressable_3a_err.gno:10:6: cannot take address of S<VPBlock(3,0)>{i<VPField(0,0,i)>: (const (4 int))}.i
