@@ -9,4 +9,4 @@ func getArr() [1]int {
 }
 
 // Error:
-// main/dylan/addressable_1d_err.gno:4:6: cannot take address of getArr<VPBlock(3,1)>()
+// main/files/addressable_1d_err.gno:4:6: cannot take address of getArr<VPBlock(3,1)>()

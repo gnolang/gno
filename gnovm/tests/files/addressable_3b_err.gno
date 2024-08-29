@@ -13,4 +13,4 @@ func getStruct() S {
 }
 
 // Error:
-// main/dylan/addressable_3b_err.gno:8:6: cannot take address of getStruct<VPBlock(3,2)>().i
+// main/files/addressable_3b_err.gno:8:6: cannot take address of getStruct<VPBlock(3,2)>().i
