@@ -8,34 +8,33 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+var coinsString = ugnot.ValueString(10000000)
+
 func TestVMKeeperAddPackage(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.ctx
+	vmk := env.vmk
 
 	// Give "addr1" some gnots.
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*std.MemFile{
 		{
 			Name: "test.gno",
 			Body: `package test
-
-import "std"
-
-func Echo() string {
-	return "hello world"
-}`,
+func Echo() string {return "hello world"}`,
 		},
 	}
 	pkgPath := "gno.land/r/test"
@@ -51,6 +50,16 @@ func Echo() string {
 
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, InvalidPkgPathError{}))
+
+	// added package is formatted
+	store := vmk.getGnoStore(ctx)
+	memFile := store.GetMemFile("gno.land/r/test", "test.gno")
+	assert.NotNil(t, memFile)
+	expected := `package test
+
+func Echo() string { return "hello world" }
+`
+	assert.Equal(t, expected, memFile.Body)
 }
 
 // Sending total send amount succeeds.
@@ -62,8 +71,8 @@ func TestVMKeeperOrigSend1(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -90,11 +99,11 @@ func Echo(msg string) string {
 	assert.NoError(t, err)
 
 	// Run Echo function.
-	coins := std.MustParseCoins("10000000ugnot")
+	coins := std.MustParseCoins(coinsString)
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, res, `("echo:hello world" string)`)
+	assert.Equal(t, `("echo:hello world" string)`+"\n\n", res)
 	// t.Log("result:", res)
 }
 
@@ -107,8 +116,8 @@ func TestVMKeeperOrigSend2(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -143,11 +152,11 @@ func GetAdmin() string {
 	assert.NoError(t, err)
 
 	// Run Echo function.
-	coins := std.MustParseCoins("11000000ugnot")
+	coins := std.MustParseCoins(ugnot.ValueString(11000000))
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.Error(t, err)
-	assert.Equal(t, res, "")
+	assert.Equal(t, "", res)
 	fmt.Println(err.Error())
 	assert.True(t, strings.Contains(err.Error(), "insufficient coins error"))
 }
@@ -161,8 +170,8 @@ func TestVMKeeperOrigSend3(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -189,7 +198,7 @@ func Echo(msg string) string {
 	assert.NoError(t, err)
 
 	// Run Echo function.
-	coins := std.MustParseCoins("9000000ugnot")
+	coins := std.MustParseCoins(ugnot.ValueString(9000000))
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	// XXX change this into an error and make sure error message is descriptive.
 	_, err = env.vmk.Call(ctx, msg2)
@@ -205,8 +214,8 @@ func TestVMKeeperRealmSend1(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -233,11 +242,11 @@ func Echo(msg string) string {
 	assert.NoError(t, err)
 
 	// Run Echo function.
-	coins := std.MustParseCoins("10000000ugnot")
+	coins := std.MustParseCoins(coinsString)
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	res, err := env.vmk.Call(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, res, `("echo:hello world" string)`)
+	assert.Equal(t, `("echo:hello world" string)`+"\n\n", res)
 }
 
 // Sending too much realm package coins fails.
@@ -249,8 +258,8 @@ func TestVMKeeperRealmSend2(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -277,7 +286,7 @@ func Echo(msg string) string {
 	assert.NoError(t, err)
 
 	// Run Echo function.
-	coins := std.MustParseCoins("9000000ugnot")
+	coins := std.MustParseCoins(ugnot.ValueString(9000000))
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world"})
 	// XXX change this into an error and make sure error message is descriptive.
 	_, err = env.vmk.Call(ctx, msg2)
@@ -293,8 +302,8 @@ func TestVMKeeperOrigCallerInit(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*std.MemFile{
@@ -333,9 +342,9 @@ func GetAdmin() string {
 	coins := std.MustParseCoins("")
 	msg2 := NewMsgCall(addr, coins, pkgPath, "GetAdmin", []string{})
 	res, err := env.vmk.Call(ctx, msg2)
-	addrString := fmt.Sprintf("(\"%s\" string)", addr.String())
+	addrString := fmt.Sprintf("(\"%s\" string)\n\n", addr.String())
 	assert.NoError(t, err)
-	assert.Equal(t, res, addrString)
+	assert.Equal(t, addrString, res)
 }
 
 // Call Run without imports, without variables.
@@ -362,12 +371,24 @@ func main() {
 	msg2 := NewMsgRun(addr, coins, files)
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
-	assert.Equal(t, res, "hello world!\n")
+	assert.Equal(t, "hello world!\n", res)
 }
 
 // Call Run with stdlibs.
 func TestVMKeeperRunImportStdlibs(t *testing.T) {
 	env := setupTestEnv()
+	testVMKeeperRunImportStdlibs(t, env)
+}
+
+// Call Run with stdlibs, "cold" loading the standard libraries
+func TestVMKeeperRunImportStdlibsColdStdlibLoad(t *testing.T) {
+	env := setupTestEnvCold()
+	testVMKeeperRunImportStdlibs(t, env)
+}
+
+func testVMKeeperRunImportStdlibs(t *testing.T, env testEnv) {
+	t.Helper()
+
 	ctx := env.ctx
 
 	// Give "addr1" some gnots.
@@ -393,7 +414,7 @@ func main() {
 	res, err := env.vmk.Run(ctx, msg2)
 	assert.NoError(t, err)
 	expectedString := fmt.Sprintf("hello world! %s\n", addr.String())
-	assert.Equal(t, res, expectedString)
+	assert.Equal(t, expectedString, res)
 }
 
 func TestNumberOfArgsError(t *testing.T) {
@@ -404,16 +425,14 @@ func TestNumberOfArgsError(t *testing.T) {
 	addr := crypto.AddressFromPreimage([]byte("addr1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
-	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins("10000000ugnot")))
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
 
 	// Create test package.
 	files := []*std.MemFile{
 		{
 			Name: "test.gno",
 			Body: `package test
-
-import "std"
 
 func Echo(msg string) string {
 	return "echo:"+msg
@@ -426,13 +445,13 @@ func Echo(msg string) string {
 	assert.NoError(t, err)
 
 	// Call Echo function with wrong number of arguments
-	coins := std.MustParseCoins("1ugnot")
+	coins := std.MustParseCoins(ugnot.ValueString(1))
 	msg2 := NewMsgCall(addr, coins, pkgPath, "Echo", []string{"hello world", "extra arg"})
 	assert.PanicsWithValue(
 		t,
+		"wrong number of arguments in call to Echo: want 1 got 2",
 		func() {
 			env.vmk.Call(ctx, msg2)
 		},
-		"wrong number of arguments in call to Echo: want 1 got 2",
 	)
 }

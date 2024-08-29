@@ -1,6 +1,7 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -18,18 +19,25 @@ const (
 	valSetCheckpointInterval = 100000
 )
 
+var errTxResultIndexCorrupted = errors.New("tx result index corrupted")
+
 // ------------------------------------------------------------------------
 
 func calcValidatorsKey(height int64) []byte {
-	return []byte(fmt.Sprintf("validatorsKey:%v", height))
+	return []byte(fmt.Sprintf("validatorsKey:%x", height))
 }
 
 func calcConsensusParamsKey(height int64) []byte {
-	return []byte(fmt.Sprintf("consensusParamsKey:%v", height))
+	return []byte(fmt.Sprintf("consensusParamsKey:%x", height))
 }
 
-func calcABCIResponsesKey(height int64) []byte {
-	return []byte(fmt.Sprintf("abciResponsesKey:%v", height))
+func CalcABCIResponsesKey(height int64) []byte {
+	return []byte(fmt.Sprintf("abciResponsesKey:%x", height))
+}
+
+// CalcTxResultKey calculates the storage key for the transaction result
+func CalcTxResultKey(hash []byte) []byte {
+	return []byte(fmt.Sprintf("txResultKey:%x", hash))
 }
 
 // LoadStateFromDBOrGenesisFile loads the most recent state from the database,
@@ -123,8 +131,13 @@ type ABCIResponses struct {
 
 // NewABCIResponses returns a new ABCIResponses
 func NewABCIResponses(block *types.Block) *ABCIResponses {
-	resDeliverTxs := make([]abci.ResponseDeliverTx, block.NumTxs)
-	if block.NumTxs == 0 {
+	return NewABCIResponsesFromNum(block.NumTxs)
+}
+
+// NewABCIResponsesFromNum returns a new ABCIResponses with a set number of txs
+func NewABCIResponsesFromNum(numTxs int64) *ABCIResponses {
+	resDeliverTxs := make([]abci.ResponseDeliverTx, numTxs)
+	if numTxs == 0 {
 		// This makes Amino encoding/decoding consistent.
 		resDeliverTxs = nil
 	}
@@ -147,7 +160,7 @@ func (arz *ABCIResponses) ResultsHash() []byte {
 // This is useful for recovering from crashes where we called app.Commit and before we called
 // s.Save(). It can also be used to produce Merkle proofs of the result of txs.
 func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
-	buf := db.Get(calcABCIResponsesKey(height))
+	buf := db.Get(CalcABCIResponsesKey(height))
 	if buf == nil {
 		return nil, NoABCIResponsesForHeightError{height}
 	}
@@ -167,8 +180,40 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 // SaveABCIResponses persists the ABCIResponses to the database.
 // This is useful in case we crash after app.Commit and before s.Save().
 // Responses are indexed by height so they can also be loaded later to produce Merkle proofs.
-func saveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
-	db.SetSync(calcABCIResponsesKey(height), abciResponses.Bytes())
+// NOTE: this should only be used internally by the bft package and subpackages.
+func SaveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
+	db.Set(CalcABCIResponsesKey(height), abciResponses.Bytes())
+}
+
+// TxResultIndex keeps the result index information for a transaction
+type TxResultIndex struct {
+	BlockNum int64  // the block number the tx was contained in
+	TxIndex  uint32 // the index of the transaction within the block
+}
+
+func (t *TxResultIndex) Bytes() []byte {
+	return amino.MustMarshal(t)
+}
+
+// LoadTxResultIndex loads the tx result associated with the given
+// tx hash from the database, if any
+func LoadTxResultIndex(db dbm.DB, txHash []byte) (*TxResultIndex, error) {
+	buf := db.Get(CalcTxResultKey(txHash))
+	if buf == nil {
+		return nil, NoTxResultForHashError{txHash}
+	}
+
+	txResultIndex := new(TxResultIndex)
+	if err := amino.Unmarshal(buf, txResultIndex); err != nil {
+		return nil, fmt.Errorf("%w, %w", errTxResultIndexCorrupted, err)
+	}
+
+	return txResultIndex, nil
+}
+
+// saveTxResultIndex persists the transaction result index to the database
+func saveTxResultIndex(db dbm.DB, txHash []byte, resultIndex TxResultIndex) {
+	db.Set(CalcTxResultKey(txHash), resultIndex.Bytes())
 }
 
 // -----------------------------------------------------------------------------

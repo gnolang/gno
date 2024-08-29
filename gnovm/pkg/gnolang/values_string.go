@@ -11,7 +11,7 @@ type protectedStringer interface {
 	ProtectedString(*seenValues) string
 }
 
-// This indicates the maximum ancticipated depth of the stack when printing a Value type.
+// This indicates the maximum anticipated depth of the stack when printing a Value type.
 const defaultSeenValuesSize = 32
 
 type seenValues struct {
@@ -212,8 +212,8 @@ func (mv *MapValue) ProtectedString(seen *seenValues) string {
 	next := mv.List.Head
 	for next != nil {
 		ss = append(ss,
-			next.Key.String()+":"+
-				next.Value.String())
+			next.Key.ProtectedString(seen)+":"+
+				next.Value.ProtectedString(seen))
 		next = next.Next
 	}
 	return "map{" + strings.Join(ss, ",") + "}"
@@ -256,6 +256,11 @@ func (v RefValue) String() string {
 	}
 	return fmt.Sprintf("ref(%s)",
 		v.PkgPath)
+}
+
+func (v *HeapItemValue) String() string {
+	return fmt.Sprintf("heapitem(%v)",
+		v.Value)
 }
 
 // ----------------------------------------
@@ -322,6 +327,8 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 			return fmt.Sprintf("%d", tv.GetUint())
 		case Uint8Type:
 			return fmt.Sprintf("%d", tv.GetUint8())
+		case DataByteType:
+			return fmt.Sprintf("%d", tv.GetDataByte())
 		case Uint16Type:
 			return fmt.Sprintf("%d", tv.GetUint16())
 		case Uint32Type:
@@ -374,7 +381,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 	default:
 		// The remaining types may have a nil value.
 		if tv.V == nil {
-			return nilStr + " " + tv.T.String()
+			return "(" + nilStr + " " + tv.T.String() + ")"
 		}
 
 		// *ArrayType, *SliceType, *StructType, *MapType

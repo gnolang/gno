@@ -147,7 +147,7 @@ func (m *Machine) doOpStar() {
 	case *PointerType:
 		pv := xv.V.(PointerValue)
 		if pv.TV.T == DataByteType {
-			tv := TypedValue{T: xv.T.(*PointerType).Elt}
+			tv := TypedValue{T: bt.Elt}
 			dbv := pv.TV.V.(DataByteValue)
 			tv.SetUint8(dbv.GetByte())
 			m.PushValue(tv)
@@ -163,7 +163,7 @@ func (m *Machine) doOpStar() {
 		t := xv.GetType()
 		var pt Type
 		if nt, ok := t.(*NativeType); ok {
-			pt = &NativeType{Type: reflect.PtrTo(nt.Type)}
+			pt = &NativeType{Type: reflect.PointerTo(nt.Type)}
 		} else {
 			pt = &PointerType{Elt: t}
 		}
@@ -194,8 +194,13 @@ func (m *Machine) doOpRef() {
 			nv.Value = rv2
 		}
 	}
+	// when obtaining a pointer of the databyte type, use the ElemType of databyte
+	elt := xv.TV.T
+	if elt == DataByteType {
+		elt = xv.TV.V.(DataByteValue).ElemType
+	}
 	m.PushValue(TypedValue{
-		T: m.Alloc.NewType(&PointerType{Elt: xv.TV.T}),
+		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
 	})
 }
@@ -204,23 +209,48 @@ func (m *Machine) doOpRef() {
 func (m *Machine) doOpTypeAssert1() {
 	m.PopExpr()
 	// pop type
-	t := m.PopValue().GetType()
+	t := m.PopValue().GetType() // type being asserted
+
 	// peek x for re-use
-	xv := m.PeekValue(1)
-	xt := xv.T
+	xv := m.PeekValue(1) // value result / value to assert
+	xt := xv.T           // underlying value's type
+
+	// xt may be nil, but we need to wait to return because the value of xt that is set
+	// will depend on whether we are trying to assert to an interface or concrete type.
+	// xt can be nil in the case where recover can't find a panic to recover from and
+	// returns a bare TypedValue{}.
 
 	if t.Kind() == InterfaceKind { // is interface assert
+		if xt == nil || xv.IsNilInterface() {
+			// TODO: default panic type?
+			ex := fmt.Sprintf("interface conversion: interface is nil, not %s", t.String())
+			m.Panic(typedString(ex))
+			return
+		}
+
 		if it, ok := baseOf(t).(*InterfaceType); ok {
-			// t is Gno interface.
-			// assert that x implements type.
-			impl := false
-			impl = it.IsImplementedBy(xt)
-			if !impl {
+			// An interface type assertion on a value that doesn't have a concrete base
+			// type should always fail.
+			if _, ok := baseOf(xt).(*InterfaceType); ok {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
-					"%s doesn't implement %s",
+					"non-concrete %s doesn't implement %s",
 					xt.String(),
 					it.String())
+				m.Panic(typedString(ex))
+				return
+			}
+
+			// t is Gno interface.
+			// assert that x implements type.
+			err := it.VerifyImplementedBy(xt)
+			if err != nil {
+				// TODO: default panic type?
+				ex := fmt.Sprintf(
+					"%s doesn't implement %s (%s)",
+					xt.String(),
+					it.String(),
+					err.Error())
 				m.Panic(typedString(ex))
 				return
 			}
@@ -230,16 +260,22 @@ func (m *Machine) doOpTypeAssert1() {
 		} else if nt, ok := baseOf(t).(*NativeType); ok {
 			// t is Go interface.
 			// assert that x implements type.
-			impl := false
+			errPrefix := "non-concrete "
+			var impl bool
 			if nxt, ok := xt.(*NativeType); ok {
-				impl = nxt.Type.Implements(nt.Type)
-			} else {
-				impl = false
+				// If the underlying native type is reflect.Interface kind, then this has no
+				// concrete value and should fail.
+				if nxt.Type.Kind() != reflect.Interface {
+					impl = nxt.Type.Implements(nt.Type)
+					errPrefix = ""
+				}
 			}
+
 			if !impl {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
-					"%s doesn't implement %s",
+					"%s%s doesn't implement %s",
+					errPrefix,
 					xt.String(),
 					nt.String())
 				m.Panic(typedString(ex))
@@ -251,6 +287,12 @@ func (m *Machine) doOpTypeAssert1() {
 			panic("should not happen")
 		}
 	} else { // is concrete assert
+		if xt == nil {
+			ex := fmt.Sprintf("nil is not of type %s", t.String())
+			m.Panic(typedString(ex))
+			return
+		}
+
 		tid := t.TypeID()
 		xtid := xt.TypeID()
 		// assert that x is of type.
@@ -273,17 +315,37 @@ func (m *Machine) doOpTypeAssert1() {
 func (m *Machine) doOpTypeAssert2() {
 	m.PopExpr()
 	// peek type for re-use
-	tv := m.PeekValue(1)
-	t := tv.GetType()
+	tv := m.PeekValue(1) // boolean result
+	t := tv.GetType()    // type being asserted
+
 	// peek x for re-use
-	xv := m.PeekValue(2)
-	xt := xv.T
+	xv := m.PeekValue(2) // value result / value to assert
+	xt := xv.T           // underlying value's type
+
+	// xt may be nil, but we need to wait to return because the value of xt that is set
+	// will depend on whether we are trying to assert to an interface or concrete type.
+	// xt can be nil in the case where recover can't find a panic to recover from and
+	// returns a bare TypedValue{}.
 
 	if t.Kind() == InterfaceKind { // is interface assert
+		if xt == nil {
+			*xv = TypedValue{}
+			*tv = untypedBool(false)
+			return
+		}
+
 		if it, ok := baseOf(t).(*InterfaceType); ok {
+			// An interface type assertion on a value that doesn't have a concrete base
+			// type should always fail.
+			if _, ok := baseOf(xt).(*InterfaceType); ok {
+				*xv = TypedValue{}
+				*tv = untypedBool(false)
+				return
+			}
+
 			// t is Gno interface.
 			// assert that x implements type.
-			impl := false
+			var impl bool
 			impl = it.IsImplementedBy(xt)
 			if impl {
 				// *xv = *xv
@@ -295,14 +357,18 @@ func (m *Machine) doOpTypeAssert2() {
 				*tv = untypedBool(false)
 			}
 		} else if nt, ok := baseOf(t).(*NativeType); ok {
+			// If the value being asserted on is nil, it can't implement an interface.
 			// t is Go interface.
 			// assert that x implements type.
-			impl := false
+			var impl bool
 			if nxt, ok := xt.(*NativeType); ok {
-				impl = nxt.Type.Implements(nt.Type)
-			} else {
-				impl = false
+				// If the underlying native type is reflect.Interface kind, then this has no
+				// concrete value and should fail.
+				if nxt.Type.Kind() != reflect.Interface {
+					impl = nxt.Type.Implements(nt.Type)
+				}
 			}
+
 			if impl {
 				// *xv = *xv
 				*tv = untypedBool(true)
@@ -314,10 +380,20 @@ func (m *Machine) doOpTypeAssert2() {
 			panic("should not happen")
 		}
 	} else { // is concrete assert
+		if xt == nil {
+			*xv = TypedValue{
+				T: t,
+				V: defaultValue(m.Alloc, t),
+			}
+			*tv = untypedBool(false)
+			return
+		}
+
 		tid := t.TypeID()
 		xtid := xt.TypeID()
 		// assert that x is of type.
 		same := tid == xtid
+
 		if same {
 			// *xv = *xv
 			*tv = untypedBool(true)

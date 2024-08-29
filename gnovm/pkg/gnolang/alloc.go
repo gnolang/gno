@@ -62,6 +62,7 @@ const (
 	// allocPackge = 1
 	allocAmino     = _allocBase + _allocPointer + _allocAny
 	allocAminoByte = 10 // XXX
+	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
 )
 
 func NewAllocator(maxBytes int64) *Allocator {
@@ -100,6 +101,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		// this can happen for map items just prior to assignment.
 		return
 	}
+
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
 		panic("allocation limit exceeded")
@@ -177,6 +179,10 @@ func (alloc *Allocator) AllocateType() {
 // NOTE: a reasonable max-bounds calculation for simplicity.
 func (alloc *Allocator) AllocateAmino(l int64) {
 	alloc.Allocate(allocAmino + allocAminoByte*l)
+}
+
+func (alloc *Allocator) AllocateHeapItem() {
+	alloc.Allocate(allocHeapItem)
 }
 
 //----------------------------------------
@@ -289,4 +295,9 @@ func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
 func (alloc *Allocator) NewType(t Type) Type {
 	alloc.AllocateType()
 	return t
+}
+
+func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
+	alloc.AllocateHeapItem()
+	return &HeapItemValue{Value: tv}
 }

@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"os"
 
@@ -21,6 +22,10 @@ type BroadcastCfg struct {
 
 	// internal
 	tx *std.Tx
+	// Set by SignAndBroadcastHandler, similar to DryRun.
+	// If true, simulation is attempted but not printed;
+	// the result is only returned in case of an error.
+	testSimulate bool
 }
 
 func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -36,7 +41,7 @@ func NewBroadcastCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execBroadcast(cfg, args, commands.NewDefaultIO())
+			return execBroadcast(cfg, args, io)
 		},
 	)
 }
@@ -75,12 +80,16 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 	if res.CheckTx.IsErr() {
 		return errors.New("transaction failed %#v\nlog %s", res, res.CheckTx.Log)
 	} else if res.DeliverTx.IsErr() {
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
 	} else {
 		io.Println(string(res.DeliverTx.Data))
 		io.Println("OK!")
 		io.Println("GAS WANTED:", res.DeliverTx.GasWanted)
 		io.Println("GAS USED:  ", res.DeliverTx.GasUsed)
+		io.Println("HEIGHT:    ", res.Height)
+		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
+		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
 	}
 	return nil
 }
@@ -91,7 +100,7 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 	}
 
 	remote := cfg.RootCfg.Remote
-	if remote == "" || remote == "y" {
+	if remote == "" {
 		return nil, errors.New("missing remote url")
 	}
 
@@ -100,10 +109,20 @@ func BroadcastHandler(cfg *BroadcastCfg) (*ctypes.ResultBroadcastTxCommit, error
 		return nil, errors.Wrap(err, "remarshaling tx binary bytes")
 	}
 
-	cli := client.NewHTTP(remote, "/websocket")
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return nil, err
+	}
 
-	if cfg.DryRun {
-		return SimulateTx(cli, bz)
+	// Both for DryRun and testSimulate, we perform simulation.
+	// However, DryRun always returns here, while in case of success
+	// testSimulate continues onto broadcasting the transaction.
+	if cfg.DryRun || cfg.testSimulate {
+		res, err := SimulateTx(cli, bz)
+		hasError := err != nil || res.CheckTx.IsErr() || res.DeliverTx.IsErr()
+		if cfg.DryRun || hasError {
+			return res, err
+		}
 	}
 
 	bres, err := cli.BroadcastTxCommit(bz)

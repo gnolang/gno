@@ -23,7 +23,11 @@
 //   - Must be run before `gnoland start`.
 //   - Creates a new user in the default keybase directory.
 //
-// 4. `loadpkg`:
+// 4. `adduserfrom`:
+//   - Must be run before `gnoland start`.
+//   - Creates a new user in the default keybase directory from a given seed. ( Optionally, account and index can be provided )
+//
+// 5. `loadpkg`:
 //   - Must be run before `gnoland start`.
 //   - Loads a specific package from the 'examples' directory or from the working ($WORK) directory.
 //   - Can be used to load a single package or all packages within a directory.
@@ -40,6 +44,12 @@
 //     examples directory.
 //   - It's important to note that the load order is significant when using multiple `loadpkg`
 //     command; packages should be loaded in the order they are dependent upon.
+//
+// 6. `patchpkg`:
+//   - Patches any loaded files by package by replacing all occurrences of the first argument with the second.
+//   - This is mostly used to replace hardcoded addresses from loaded packages.
+//   - NOTE: this command may only be temporary, as it's not best approach to
+//     solve the above problem
 //
 // Logging:
 //

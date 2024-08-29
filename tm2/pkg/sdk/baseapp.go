@@ -209,14 +209,6 @@ func (app *BaseApp) setMinGasPrices(gasPrices []GasPrice) {
 	app.minGasPrices = gasPrices
 }
 
-func (app *BaseApp) setHaltHeight(haltHeight uint64) {
-	app.haltHeight = haltHeight
-}
-
-func (app *BaseApp) setHaltTime(haltTime uint64) {
-	app.haltTime = haltTime
-}
-
 // Returns a read-only (cache) MultiStore.
 // This may be used by keepers for initialization upon restart.
 func (app *BaseApp) GetCacheMultiStore() store.MultiStore {
@@ -615,6 +607,9 @@ func (app *BaseApp) getContextForTx(mode RunTxMode, txBytes []byte) (ctx Context
 		WithVoteInfos(app.voteInfos).
 		WithConsensusParams(app.consensusParams)
 
+	// NOTE: This is especially required to simulate transactions because
+	// otherwise baseapp writes the antehandler mods (sequence and balance)
+	// to the underlying store for deliver and checktx.
 	if mode == RunTxModeSimulate {
 		ctx, _ = ctx.CacheContext()
 	}
@@ -624,10 +619,13 @@ func (app *BaseApp) getContextForTx(mode RunTxMode, txBytes []byte) (ctx Context
 
 // / runMsgs iterates through all the messages and executes them.
 func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Result) {
+	ctx = ctx.WithEventLogger(NewEventLogger())
+
 	msgLogs := make([]string, 0, len(msgs))
 
 	data := make([]byte, 0, len(msgs))
 	err := error(nil)
+
 	events := []Event{}
 
 	// NOTE: GasWanted is determined by ante handler and GasUsed by the GasMeter.
@@ -641,19 +639,17 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 		}
 
 		var msgResult Result
-		ctx = ctx.WithEventLogger(NewEventLogger())
 
 		// run the message!
 		// skip actual execution for CheckTx mode
 		if mode != RunTxModeCheck {
-			msgResult = handler.Process(ctx, msg)
+			msgResult = handler.Process(ctx, msg) // ctx event logger being updated in handler
 		}
 
 		// Each message result's Data must be length prefixed in order to separate
 		// each result.
 		data = append(data, msgResult.Data...)
 		events = append(events, msgResult.Events...)
-		// TODO append msgevent from ctx. XXX XXX
 
 		// stop execution and return on first failed message
 		if !msgResult.IsOK() {
@@ -668,12 +664,13 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 			fmt.Sprintf("msg:%d,success:%v,log:%s,events:%v",
 				i, true, msgResult.Log, events))
 	}
+	events = append(events, ctx.EventLogger().Events()...)
 
 	result.Error = ABCIError(err)
 	result.Data = data
+	result.Events = events
 	result.Log = strings.Join(msgLogs, "\n")
 	result.GasUsed = ctx.GasMeter().GasConsumed()
-	result.Events = events
 	return result
 }
 
@@ -689,9 +686,7 @@ func (app *BaseApp) getState(mode RunTxMode) *state {
 
 // cacheTxContext returns a new context based off of the provided context with
 // a cache wrapped multi-store.
-func (app *BaseApp) cacheTxContext(ctx Context, txBytes []byte) (
-	Context, store.MultiStore,
-) {
+func (app *BaseApp) cacheTxContext(ctx Context) (Context, store.MultiStore) {
 	ms := ctx.MultiStore()
 	// TODO: https://github.com/tendermint/classic/sdk/issues/2824
 	msCache := ms.MultiCacheWrap()
@@ -796,7 +791,7 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 		// aborted/failed.  This may have some performance
 		// benefits, but it'll be more difficult to get
 		// right.
-		anteCtx, msCache = app.cacheTxContext(ctx, txBytes)
+		anteCtx, msCache = app.cacheTxContext(ctx)
 		// Call AnteHandler.
 		// NOTE: It is the responsibility of the anteHandler
 		// to use something like passthroughGasMeter to
@@ -824,7 +819,7 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 
 	// Create a new context based off of the existing context with a cache wrapped
 	// multi-store in case message processing fails.
-	runMsgCtx, msCache := app.cacheTxContext(ctx, txBytes)
+	runMsgCtx, msCache := app.cacheTxContext(ctx)
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
 

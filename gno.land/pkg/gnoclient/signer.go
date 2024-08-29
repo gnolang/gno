@@ -3,6 +3,7 @@ package gnoclient
 import (
 	"fmt"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -12,7 +13,7 @@ import (
 // Signer provides an interface for signing transactions.
 type Signer interface {
 	Sign(SignCfg) (*std.Tx, error) // Signs a transaction and returns a signed tx ready for broadcasting.
-	Info() keys.Info               // Returns key information, including the address.
+	Info() (keys.Info, error)      // Returns key information, including the address.
 	Validate() error               // Checks whether the signer is properly configured.
 }
 
@@ -24,6 +25,7 @@ type SignerFromKeybase struct {
 	ChainID  string       // Chain ID for transaction signing
 }
 
+// Validate checks if the signer is properly configured.
 func (s SignerFromKeybase) Validate() error {
 	if s.ChainID == "" {
 		return errors.New("missing ChainID")
@@ -34,14 +36,19 @@ func (s SignerFromKeybase) Validate() error {
 		return err
 	}
 
+	caller, err := s.Info()
+	if err != nil {
+		return err
+	}
+
 	// To verify if the password unlocks the account, sign a blank transaction.
 	msg := vm.MsgCall{
-		Caller: s.Info().GetAddress(),
+		Caller: caller.GetAddress(),
 	}
 	signCfg := SignCfg{
 		UnsignedTX: std.Tx{
 			Msgs: []std.Msg{msg},
-			Fee:  std.NewFee(0, std.NewCoin("ugnot", 1000000)),
+			Fee:  std.NewFee(0, std.NewCoin(ugnot.Denom, 1000000)),
 		},
 	}
 	if _, err = s.Sign(signCfg); err != nil {
@@ -51,21 +58,24 @@ func (s SignerFromKeybase) Validate() error {
 	return nil
 }
 
-func (s SignerFromKeybase) Info() keys.Info {
+// Info gets keypair information.
+func (s SignerFromKeybase) Info() (keys.Info, error) {
 	info, err := s.Keybase.GetByNameOrAddress(s.Account)
 	if err != nil {
-		panic("should not happen")
+		return nil, err
 	}
-	return info
+	return info, nil
 }
 
-// Sign implements the Signer interface for SignerFromKeybase.
+// SignCfg provides the signing configuration, containing:
+// unsigned transaction data, account number, and account sequence.
 type SignCfg struct {
 	UnsignedTX     std.Tx
 	SequenceNumber uint64
 	AccountNumber  uint64
 }
 
+// Sign implements the Signer interface for SignerFromKeybase.
 func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error) {
 	tx := cfg.UnsignedTX
 	chainID := s.ChainID
@@ -92,7 +102,10 @@ func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error) {
 	}
 
 	// Derive sign doc bytes.
-	signbz := tx.GetSignBytes(chainID, accountNumber, sequenceNumber)
+	signbz, err := tx.GetSignBytes(chainID, accountNumber, sequenceNumber)
+	if err != nil {
+		return nil, fmt.Errorf("unable to get tx signature payload, %w", err)
+	}
 
 	sig, pub, err := s.Keybase.Sign(account, password, signbz)
 	if err != nil {
@@ -120,10 +133,10 @@ func (s SignerFromKeybase) Sign(cfg SignCfg) (*std.Tx, error) {
 // Ensure SignerFromKeybase implements the Signer interface.
 var _ Signer = (*SignerFromKeybase)(nil)
 
-// SignerFromBip39 creates an in-memory keybase with a single default account.
+// SignerFromBip39 creates a signer from an in-memory keybase with a single default account, derived from the given mnemonic.
 // This can be useful in scenarios where storing private keys in the filesystem isn't feasible.
 //
-// Warning: Using keys.NewKeyBaseFromDir is recommended where possible, as it is more secure.
+// Warning: Using keys.NewKeyBaseFromDir to get a keypair from local storage is recommended where possible, as it is more secure.
 func SignerFromBip39(mnemonic string, chainID string, passphrase string, account uint32, index uint32) (Signer, error) {
 	kb := keys.NewInMemory()
 	name := "default"

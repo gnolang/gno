@@ -32,20 +32,30 @@ package recov
 
 import "testing"
 
+type RecoverySetter struct {
+	value interface{}
+}
+
+func (s *RecoverySetter) Set(v interface{}) {
+	s.value = v
+}
+
 func TestRecover(t *testing.T) {
+	var setter RecoverySetter
 	defer func() {
-		err := testing.Recover()
-		t.Log("recovered", err)
+		t.Log("recovered", setter.value)
 	}()
+	defer testing.Recover(&setter)
 
 	panic("bad panic!")
 }
 
 func TestRecoverSkip(t *testing.T) {
+	var setter RecoverySetter
 	defer func() {
-		err := testing.Recover()
-		t.Log("recovered", err)
+		t.Log("recovered", setter.value)
 	}()
+	defer testing.Recover(&setter)
 
 	t.Skip("skipped")
 	panic("bad panic!")

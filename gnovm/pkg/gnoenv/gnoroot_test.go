@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGuessGnoRootDir_WithSetGnoRoot(t *testing.T) {
@@ -19,7 +19,7 @@ func TestGuessGnoRootDir_WithSetGnoRoot(t *testing.T) {
 	_GNOROOT = testPath
 	root, err := GuessRootDir()
 	require.NoError(t, err)
-	require.Equal(t, root, testPath)
+	require.Equal(t, testPath, root)
 }
 
 func TestGuessGnoRootDir_UsingCallerStack(t *testing.T) {
@@ -37,7 +37,7 @@ func TestGuessGnoRootDir_UsingCallerStack(t *testing.T) {
 	testPath, _ := filepath.Abs(filepath.Join(".", "..", "..", ".."))
 	root, err := GuessRootDir()
 	require.NoError(t, err)
-	require.Equal(t, root, testPath)
+	require.Equal(t, testPath, root)
 }
 
 func TestGuessGnoRootDir_Error(t *testing.T) {
@@ -61,7 +61,7 @@ func TestInferGnoRootFromGoMod(t *testing.T) {
 	t.Run("go is present", func(t *testing.T) {
 		root, err := inferRootFromGoMod()
 		require.NoError(t, err)
-		require.Equal(t, root, testPath)
+		require.Equal(t, testPath, root)
 	})
 
 	t.Run("go is not present", func(t *testing.T) {

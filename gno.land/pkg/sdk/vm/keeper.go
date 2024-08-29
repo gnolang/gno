@@ -4,19 +4,33 @@ package vm
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
+	"github.com/gnolang/gno/tm2/pkg/telemetry"
+	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 const (
@@ -29,6 +43,7 @@ const (
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
+	QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 }
 
@@ -69,40 +84,173 @@ func NewVMKeeper(
 	return vmk
 }
 
-func (vm *VMKeeper) Initialize(ms store.MultiStore) {
+func (vm *VMKeeper) Initialize(
+	logger *slog.Logger,
+	ms store.MultiStore,
+	cacheStdlibLoad bool,
+) {
 	if vm.gnoStore != nil {
 		panic("should not happen")
 	}
-	alloc := gno.NewAllocator(maxAllocTx)
 	baseSDKStore := ms.GetStore(vm.baseKey)
 	iavlSDKStore := ms.GetStore(vm.iavlKey)
-	vm.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
-	vm.initBuiltinPackagesAndTypes(vm.gnoStore)
-	if vm.gnoStore.NumMemPackages() > 0 {
+
+	if cacheStdlibLoad {
+		// Testing case (using the cache speeds up starting many nodes)
+		vm.gnoStore = cachedStdlibLoad(vm.stdlibsDir, baseSDKStore, iavlSDKStore)
+	} else {
+		// On-chain case
+		vm.gnoStore = uncachedPackageLoad(logger, vm.stdlibsDir, baseSDKStore, iavlSDKStore)
+	}
+}
+
+func uncachedPackageLoad(
+	logger *slog.Logger,
+	stdlibsDir string,
+	baseStore, iavlStore store.Store,
+) gno.Store {
+	alloc := gno.NewAllocator(maxAllocTx)
+	gnoStore := gno.NewStore(alloc, baseStore, iavlStore)
+	gnoStore.SetNativeStore(stdlibs.NativeStore)
+	if gnoStore.NumMemPackages() == 0 {
+		// No packages in the store; set up the stdlibs.
+		start := time.Now()
+
+		loadStdlib(stdlibsDir, gnoStore)
+
+		// XXX Quick and dirty to make this function work on non-validator nodes
+		iter := iavlStore.Iterator(nil, nil)
+		for ; iter.Valid(); iter.Next() {
+			baseStore.Set(append(iavlBackupPrefix, iter.Key()...), iter.Value())
+		}
+		iter.Close()
+
+		logger.Debug("Standard libraries initialized",
+			"elapsed", time.Since(start))
+	} else {
 		// for now, all mem packages must be re-run after reboot.
 		// TODO remove this, and generally solve for in-mem garbage collection
 		// and memory management across many objects/types/nodes/packages.
+		start := time.Now()
+
+		// XXX Quick and dirty to make this function work on non-validator nodes
+		if isStoreEmpty(iavlStore) {
+			iter := baseStore.Iterator(iavlBackupPrefix, nil)
+			for ; iter.Valid(); iter.Next() {
+				if !bytes.HasPrefix(iter.Key(), iavlBackupPrefix) {
+					break
+				}
+				iavlStore.Set(iter.Key()[len(iavlBackupPrefix):], iter.Value())
+			}
+			iter.Close()
+		}
+
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
 				PkgPath: "",
 				Output:  os.Stdout, // XXX
-				Store:   vm.gnoStore,
+				Store:   gnoStore,
 			})
 		defer m2.Release()
 		gno.DisableDebug()
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
+
+		logger.Debug("GnoVM packages preprocessed",
+			"elapsed", time.Since(start))
+	}
+	return gnoStore
+}
+
+var iavlBackupPrefix = []byte("init_iavl_backup:")
+
+func isStoreEmpty(st store.Store) bool {
+	iter := st.Iterator(nil, nil)
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		return false
+	}
+	return true
+}
+
+func cachedStdlibLoad(stdlibsDir string, baseStore, iavlStore store.Store) gno.Store {
+	cachedStdlibOnce.Do(func() {
+		cachedStdlibBase = memdb.NewMemDB()
+		cachedStdlibIavl = memdb.NewMemDB()
+
+		cachedGnoStore = gno.NewStore(nil,
+			dbadapter.StoreConstructor(cachedStdlibBase, types.StoreOptions{}),
+			dbadapter.StoreConstructor(cachedStdlibIavl, types.StoreOptions{}))
+		cachedGnoStore.SetNativeStore(stdlibs.NativeStore)
+		loadStdlib(stdlibsDir, cachedGnoStore)
+	})
+
+	itr := cachedStdlibBase.Iterator(nil, nil)
+	for ; itr.Valid(); itr.Next() {
+		baseStore.Set(itr.Key(), itr.Value())
+	}
+
+	itr = cachedStdlibIavl.Iterator(nil, nil)
+	for ; itr.Valid(); itr.Next() {
+		iavlStore.Set(itr.Key(), itr.Value())
+	}
+
+	alloc := gno.NewAllocator(maxAllocTx)
+	gs := gno.NewStore(alloc, baseStore, iavlStore)
+	gs.SetNativeStore(stdlibs.NativeStore)
+	gno.CopyCachesFromStore(gs, cachedGnoStore)
+	return gs
+}
+
+var (
+	cachedStdlibOnce sync.Once
+	cachedStdlibBase *memdb.MemDB
+	cachedStdlibIavl *memdb.MemDB
+	cachedGnoStore   gno.Store
+)
+
+func loadStdlib(stdlibsDir string, store gno.Store) {
+	stdlibInitList := stdlibs.InitOrder()
+	for _, lib := range stdlibInitList {
+		if lib == "testing" {
+			// XXX: testing is skipped for now while it uses testing-only packages
+			// like fmt and encoding/json
+			continue
+		}
+		loadStdlibPackage(lib, stdlibsDir, store)
 	}
 }
 
+func loadStdlibPackage(pkgPath, stdlibsDir string, store gno.Store) {
+	stdlibPath := filepath.Join(stdlibsDir, pkgPath)
+	if !osm.DirExists(stdlibPath) {
+		// does not exist.
+		panic(fmt.Sprintf("failed loading stdlib %q: does not exist", pkgPath))
+	}
+	memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
+	if memPkg.IsEmpty() {
+		// no gno files are present
+		panic(fmt.Sprintf("failed loading stdlib %q: not a valid MemPackage", pkgPath))
+	}
+
+	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
+		// PkgPath: pkgPath, XXX why?
+		Output: os.Stdout,
+		Store:  store,
+	})
+	defer m.Release()
+	m.RunMemPackage(memPkg, true)
+}
+
 func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
-	// construct main gnoStore if nil.
+	// construct main store if nil.
 	if vm.gnoStore == nil {
 		panic("VMKeeper must first be initialized")
 	}
 	switch ctx.Mode() {
 	case sdk.RunTxModeDeliver:
-		// swap sdk store of existing gnoStore.
+		// swap sdk store of existing store.
 		// this is needed due to e.g. gas wrappers.
 		baseSDKStore := ctx.Store(vm.baseKey)
 		iavlSDKStore := ctx.Store(vm.iavlKey)
@@ -131,15 +279,95 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
-var reRunPath = regexp.MustCompile(`gno\.land/r/g[a-z0-9]+/run`)
+// Namespace can be either a user or crypto address.
+var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
+
+// checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
+func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
+	const sysUsersPkg = "gno.land/r/sys/users"
+
+	store := vm.getGnoStore(ctx)
+
+	match := reNamespace.FindStringSubmatch(pkgPath)
+	switch len(match) {
+	case 0:
+		return ErrInvalidPkgPath(pkgPath) // no match
+	case 2: // ok
+	default:
+		panic("invalid pattern while matching pkgpath")
+	}
+	if len(match) != 2 {
+		return ErrInvalidPkgPath(pkgPath)
+	}
+	username := match[1]
+
+	// if `sysUsersPkg` does not exist -> skip validation.
+	usersPkg := store.GetPackage(sysUsersPkg, false)
+	if usersPkg == nil {
+		return nil
+	}
+
+	// Parse and run the files, construct *PV.
+	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	msgCtx := stdlibs.ExecContext{
+		ChainID:       ctx.ChainID(),
+		Height:        ctx.BlockHeight(),
+		Timestamp:     ctx.BlockTime().Unix(),
+		OrigCaller:    creator.Bech32(),
+		OrigSendSpent: new(std.Coins),
+		OrigPkgAddr:   pkgAddr.Bech32(),
+		// XXX: should we remove the banker ?
+		Banker:      NewSDKBanker(vm, ctx),
+		EventLogger: ctx.EventLogger(),
+	}
+
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:   "",
+			Output:    os.Stdout, // XXX
+			Store:     store,
+			Context:   msgCtx,
+			Alloc:     store.GetAllocator(),
+			MaxCycles: vm.maxCycles,
+			GasMeter:  ctx.GasMeter(),
+		})
+	defer m.Release()
+
+	// call $sysUsersPkg.IsAuthorizedAddressForName("<user>")
+	// We only need to check by name here, as address have already been check
+	mpv := gno.NewPackageNode("main", "main", nil).NewPackage()
+	m.SetActivePackage(mpv)
+	m.RunDeclaration(gno.ImportD("users", sysUsersPkg))
+	x := gno.Call(
+		gno.Sel(gno.Nx("users"), "IsAuthorizedAddressForName"),
+		gno.Str(creator.String()),
+		gno.Str(username),
+	)
+
+	ret := m.Eval(x)
+	if len(ret) == 0 {
+		panic("call: invalid response length")
+	}
+
+	useraddress := ret[0]
+	if useraddress.T.Kind() != gno.BoolKind {
+		panic("call: invalid response kind")
+	}
+
+	if isAuthorized := useraddress.GetBool(); !isAuthorized {
+		return ErrUnauthorizedUser(username)
+	}
+
+	return nil
+}
 
 // AddPackage adds a package with given fileset.
-func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
+func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	creator := msg.Creator
 	pkgPath := msg.Package.Path
 	memPkg := msg.Package
 	deposit := msg.Deposit
-	store := vm.getGnoStore(ctx)
+	gnostore := vm.getGnoStore(ctx)
 
 	// Validate arguments.
 	if creator.IsZero() {
@@ -152,12 +380,17 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	if err := msg.Package.Validate(); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
-	if pv := store.GetPackage(pkgPath, false); pv != nil {
+	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
 		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
-
-	if reRunPath.MatchString(pkgPath) {
+	if gno.ReGnoRunPath.MatchString(pkgPath) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
+	}
+
+	// Validate Gno syntax and type check.
+	format := true
+	if err := gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
+		return ErrTypeCheck(err)
 	}
 
 	// Pay deposit from creator.
@@ -166,11 +399,11 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 	// TODO: ACLs.
 	// - if r/system/names does not exists -> skip validation.
 	// - loads r/system/names data state.
-	// - lookup r/system/names.namespaces for `{r,p}/NAMES`.
-	// - check if caller is in Admins or Editors.
-	// - check if namespace is not in pause.
+	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
+		return err
+	}
 
-	err := vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
+	err = vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
 	if err != nil {
 		return err
 	}
@@ -186,34 +419,57 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) error {
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
+		EventLogger:   ctx.EventLogger(),
 	}
 	// Parse and run the files, construct *PV.
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:   "",
 			Output:    os.Stdout, // XXX
-			Store:     store,
-			Alloc:     store.GetAllocator(),
+			Store:     gnostore,
+			Alloc:     gnostore.GetAllocator(),
 			Context:   msgCtx,
 			MaxCycles: vm.maxCycles,
+			GasMeter:  ctx.GasMeter(),
 		})
 	defer m2.Release()
+	defer func() {
+		if r := recover(); r != nil {
+			switch r.(type) {
+			case store.OutOfGasException: // panic in consumeGas()
+				panic(r)
+			default:
+				err = errors.Wrap(fmt.Errorf("%v", r), "VM addpkg panic: %v\n%s\n",
+					r, m2.String())
+				return
+			}
+		}
+	}()
 	m2.RunMemPackage(memPkg, true)
 
-	ctx.Logger().Info("CPUCYCLES", "addpkg", m2.Cycles)
+	// Log the telemetry
+	logTelemetry(
+		m2.GasMeter.GasConsumed(),
+		m2.Cycles,
+		attribute.KeyValue{
+			Key:   "operation",
+			Value: attribute.StringValue("m_addpkg"),
+		},
+	)
+
 	return nil
 }
 
-// Calls calls a public Gno function (for delivertx).
+// Call calls a public Gno function (for delivertx).
 func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
-	store := vm.getGnoStore(ctx)
+	gnostore := vm.getGnoStore(ctx)
 	// Get the package and function type.
-	pv := store.GetPackage(pkgPath, false)
+	pv := gnostore.GetPackage(pkgPath, false)
 	pl := gno.PackageNodeLocation(pkgPath)
-	pn := store.GetBlockNode(pl).(*gno.PackageNode)
-	ft := pn.GetStaticTypeOf(store, gno.Name(fnc)).(*gno.FuncType)
+	pn := gnostore.GetBlockNode(pl).(*gno.PackageNode)
+	ft := pn.GetStaticTypeOf(gnostore, gno.Name(fnc)).(*gno.FuncType)
 	// Make main Package with imports.
 	mpn := gno.NewPackageNode("main", "main", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
@@ -264,34 +520,56 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
+		EventLogger:   ctx.EventLogger(),
 	}
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:   "",
 			Output:    os.Stdout, // XXX
-			Store:     store,
+			Store:     gnostore,
 			Context:   msgCtx,
-			Alloc:     store.GetAllocator(),
+			Alloc:     gnostore.GetAllocator(),
 			MaxCycles: vm.maxCycles,
+			GasMeter:  ctx.GasMeter(),
 		})
+	defer m.Release()
 	m.SetActivePackage(mpv)
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
-				r, m.String())
-			return
+			switch r := r.(type) {
+			case store.OutOfGasException: // panic in consumeGas()
+				panic(r)
+			case gno.UnhandledPanicError:
+				err = errors.Wrap(fmt.Errorf("%v", r.Error()), "VM call panic: %s\nStacktrace: %s\n",
+					r.Error(), m.ExceptionsStacktrace())
+			default:
+				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\nMachine State:%s\nStacktrace: %s\n",
+					r, m.String(), m.Stacktrace().String())
+				return
+			}
 		}
-		m.Release()
 	}()
 	rtvs := m.Eval(xn)
-	ctx.Logger().Info("CPUCYCLES call", "num-cycles", m.Cycles)
 	for i, rtv := range rtvs {
 		res = res + rtv.String()
 		if i < len(rtvs)-1 {
 			res += "\n"
 		}
 	}
+
+	// Log the telemetry
+	logTelemetry(
+		m.GasMeter.GasConsumed(),
+		m.Cycles,
+		attribute.KeyValue{
+			Key:   "operation",
+			Value: attribute.StringValue("m_call"),
+		},
+	)
+
+	res += "\n\n" // use `\n\n` as separator to separate results for single tx with multi msgs
+
 	return res, nil
 	// TODO pay for gas? TODO see context?
 }
@@ -300,7 +578,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	caller := msg.Caller
 	pkgAddr := caller
-	store := vm.getGnoStore(ctx)
+	gnostore := vm.getGnoStore(ctx)
 	send := msg.Send
 	memPkg := msg.Package
 
@@ -316,6 +594,12 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 	if err := msg.Package.Validate(); err != nil {
 		return "", ErrInvalidPkgPath(err.Error())
+	}
+
+	// Validate Gno syntax and type check.
+	format := false
+	if err = gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
+		return "", ErrTypeCheck(err)
 	}
 
 	// Send send-coins to pkg from caller.
@@ -335,6 +619,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		OrigSendSpent: new(std.Coins),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		Banker:        NewSDKBanker(vm, ctx),
+		EventLogger:   ctx.EventLogger(),
 	}
 	// Parse and run the files, construct *PV.
 	buf := new(bytes.Buffer)
@@ -342,38 +627,66 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 		gno.MachineOptions{
 			PkgPath:   "",
 			Output:    buf,
-			Store:     store,
-			Alloc:     store.GetAllocator(),
+			Store:     gnostore,
+			Alloc:     gnostore.GetAllocator(),
 			Context:   msgCtx,
 			MaxCycles: vm.maxCycles,
+			GasMeter:  ctx.GasMeter(),
 		})
+	// XXX MsgRun does not have pkgPath. How do we find it on chain?
 	defer m.Release()
+	defer func() {
+		if r := recover(); r != nil {
+			switch r.(type) {
+			case store.OutOfGasException: // panic in consumeGas()
+				panic(r)
+			default:
+				err = errors.Wrap(fmt.Errorf("%v", r), "VM run main addpkg panic: %v\n%s\n",
+					r, m.String())
+				return
+			}
+		}
+	}()
+
 	_, pv := m.RunMemPackage(memPkg, false)
-	ctx.Logger().Info("CPUCYCLES", "addpkg", m.Cycles)
 
 	m2 := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:   "",
 			Output:    buf,
-			Store:     store,
-			Alloc:     store.GetAllocator(),
+			Store:     gnostore,
+			Alloc:     gnostore.GetAllocator(),
 			Context:   msgCtx,
 			MaxCycles: vm.maxCycles,
+			GasMeter:  ctx.GasMeter(),
 		})
+	defer m2.Release()
 	m2.SetActivePackage(pv)
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
-				r, m2.String())
-			return
+			switch r.(type) {
+			case store.OutOfGasException: // panic in consumeGas()
+				panic(r)
+			default:
+				err = errors.Wrap(fmt.Errorf("%v", r), "VM run main call panic: %v\n%s\n",
+					r, m2.String())
+				return
+			}
 		}
-		m2.Release()
 	}()
 	m2.RunMain()
-	ctx.Logger().Info("CPUCYCLES call",
-		"cycles", m2.Cycles,
-	)
 	res = buf.String()
+
+	// Log the telemetry
+	logTelemetry(
+		m2.GasMeter.GasConsumed(),
+		m2.Cycles,
+		attribute.KeyValue{
+			Key:   "operation",
+			Value: attribute.StringValue("m_run"),
+		},
+	)
+
 	return res, nil
 }
 
@@ -442,10 +755,10 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 // TODO: then, rename to "Eval".
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
 	alloc := gno.NewAllocator(maxAllocQuery)
-	store := vm.getGnoStore(ctx)
+	gnostore := vm.getGnoStore(ctx)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.
-	pv := store.GetPackage(pkgPath, false)
+	pv := gnostore.GetPackage(pkgPath, false)
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
@@ -467,23 +780,30 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		// OrigSendSpent: nil,
 		OrigPkgAddr: pkgAddr.Bech32(),
 		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		EventLogger: ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:   pkgPath,
 			Output:    os.Stdout, // XXX
-			Store:     store,
+			Store:     gnostore,
 			Context:   msgCtx,
 			Alloc:     alloc,
 			MaxCycles: vm.maxCycles,
+			GasMeter:  ctx.GasMeter(),
 		})
+	defer m.Release()
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
-				r, m.String())
-			return
+			switch r.(type) {
+			case store.OutOfGasException: // panic in consumeGas()
+				panic(r)
+			default:
+				err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval panic: %v\n%s\n",
+					r, m.String())
+				return
+			}
 		}
-		m.Release()
 	}()
 	rtvs := m.Eval(xx)
 	res = ""
@@ -502,10 +822,10 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 // TODO: then, rename to "EvalString".
 func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
 	alloc := gno.NewAllocator(maxAllocQuery)
-	store := vm.getGnoStore(ctx)
+	gnostore := vm.getGnoStore(ctx)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.
-	pv := store.GetPackage(pkgPath, false)
+	pv := gnostore.GetPackage(pkgPath, false)
 	if pv == nil {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
 			"package not found: %s", pkgPath))
@@ -527,23 +847,30 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 		// OrigSendSpent: nil,
 		OrigPkgAddr: pkgAddr.Bech32(),
 		Banker:      NewSDKBanker(vm, ctx), // safe as long as ctx is a fork to be discarded.
+		EventLogger: ctx.EventLogger(),
 	}
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
 			PkgPath:   pkgPath,
 			Output:    os.Stdout, // XXX
-			Store:     store,
+			Store:     gnostore,
 			Context:   msgCtx,
 			Alloc:     alloc,
 			MaxCycles: vm.maxCycles,
+			GasMeter:  ctx.GasMeter(),
 		})
+	defer m.Release()
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
-				r, m.String())
-			return
+			switch r.(type) {
+			case store.OutOfGasException: // panic in consumeGas()
+				panic(r)
+			default:
+				err = errors.Wrap(fmt.Errorf("%v", r), "VM query eval string panic: %v\n%s\n",
+					r, m.String())
+				return
+			}
 		}
-		m.Release()
 	}()
 	rtvs := m.Eval(xx)
 	if len(rtvs) != 1 {
@@ -566,6 +893,9 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		return memFile.Body, nil
 	} else {
 		memPkg := store.GetMemPackage(dirpath)
+		if memPkg == nil {
+			return "", fmt.Errorf("package %q is not available", dirpath) // TODO: XSS protection
+		}
 		for i, memfile := range memPkg.Files {
 			if i > 0 {
 				res += "\n"
@@ -574,4 +904,36 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		}
 		return res, nil
 	}
+}
+
+// logTelemetry logs the VM processing telemetry
+func logTelemetry(
+	gasUsed int64,
+	cpuCycles int64,
+	attributes ...attribute.KeyValue,
+) {
+	if !telemetry.MetricsEnabled() {
+		return
+	}
+
+	// Record the operation frequency
+	metrics.VMExecMsgFrequency.Add(
+		context.Background(),
+		1,
+		metric.WithAttributes(attributes...),
+	)
+
+	// Record the CPU cycles
+	metrics.VMCPUCycles.Record(
+		context.Background(),
+		cpuCycles,
+		metric.WithAttributes(attributes...),
+	)
+
+	// Record the gas used
+	metrics.VMGasUsed.Record(
+		context.Background(),
+		gasUsed,
+		metric.WithAttributes(attributes...),
+	)
 }

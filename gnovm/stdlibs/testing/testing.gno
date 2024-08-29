@@ -5,12 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 )
 
-//----------------------------------------
+// ----------------------------------------
 // Top level functions
 
 // skipErr is the type of the panic created by SkipNow
@@ -30,12 +29,18 @@ func (s skipErr) Error() string {
 // (and Skip* functions).
 //
 // NOTE: Recover() is likely to be removed.
-func Recover() interface{} {
+func Recover(result Setter) {
 	r := recover()
-	if _, ok := r.(skipErr); ok {
-		panic(r)
+	if _, ok := r.(skipErr); !ok {
+		result.Set(r)
+		return
 	}
-	return r
+
+	panic(r)
+}
+
+type Setter interface {
+	Set(v interface{})
 }
 
 func Short() bool {
@@ -55,7 +60,7 @@ func AllocsPerRun2(runs int, f func()) (total int) {
 	return 0
 }
 
-//----------------------------------------
+// ----------------------------------------
 // T
 
 type T struct {
@@ -220,7 +225,7 @@ func (t *T) report() Report {
 	}
 }
 
-//----------------------------------------
+// ----------------------------------------
 // B
 // TODO: actually implement
 
@@ -256,7 +261,7 @@ func (b *B) StartTimer()                               { panic("not yet implemen
 func (b *B) StopTimer()                                { panic("not yet implemented") }
 func (b *B) TempDir() string                           { panic("not yet implemented") }
 
-//----------------------------------------
+// ----------------------------------------
 // PB
 // TODO: actually implement
 

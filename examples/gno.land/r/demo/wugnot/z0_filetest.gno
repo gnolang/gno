@@ -7,6 +7,8 @@ import (
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/wugnot"
+
+	pusers "gno.land/p/demo/users"
 )
 
 var (
@@ -37,18 +39,12 @@ func main() {
 
 func printBalances() {
 	printSingleBalance := func(name string, addr std.Address) {
-		wugnotBal := wugnot.BalanceOf(addr)
+		wugnotBal := wugnot.BalanceOf(pusers.AddressOrName(addr))
 		std.TestSetOrigCaller(addr)
-		abanker := std.GetBanker(std.BankerTypeOrigSend)
-		acoins := abanker.GetCoins(addr).AmountOf("ugnot")
-		bbanker := std.GetBanker(std.BankerTypeRealmIssue)
-		bcoins := bbanker.GetCoins(addr).AmountOf("ugnot")
-		cbanker := std.GetBanker(std.BankerTypeRealmSend)
-		ccoins := cbanker.GetCoins(addr).AmountOf("ugnot")
-		dbanker := std.GetBanker(std.BankerTypeReadonly)
-		dcoins := dbanker.GetCoins(addr).AmountOf("ugnot")
-		fmt.Printf("| %-13s | addr=%s | wugnot=%-5d | ugnot=%-9d %-9d %-9d %-9d |\n",
-			name, addr, wugnotBal, acoins, bcoins, ccoins, dcoins)
+		robanker := std.GetBanker(std.BankerTypeReadonly)
+		coins := robanker.GetCoins(addr).AmountOf("ugnot")
+		fmt.Printf("| %-13s | addr=%s | wugnot=%-5d | ugnot=%-9d |\n",
+			name, addr, wugnotBal, coins)
 	}
 	println("-----------")
 	printSingleBalance("wugnot_test", addrt)
@@ -59,17 +55,17 @@ func printBalances() {
 
 // Output:
 // -----------
-// | wugnot_test   | addr=g19rmydykafrqyyegc8uuaxxpzqwzcnxraj2dev9 | wugnot=0     | ugnot=200000000 200000000 200000000 200000000 |
-// | wugnot        | addr=g1pf6dv9fjk3rn0m4jjcne306ga4he3mzmupfjl6 | wugnot=0     | ugnot=100000001 100000001 100000001 100000001 |
-// | addr1         | addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 | wugnot=0     | ugnot=100000001 100000001 100000001 100000001 |
+// | wugnot_test   | addr=g19rmydykafrqyyegc8uuaxxpzqwzcnxraj2dev9 | wugnot=0     | ugnot=200000000 |
+// | wugnot        | addr=g1pf6dv9fjk3rn0m4jjcne306ga4he3mzmupfjl6 | wugnot=0     | ugnot=100000001 |
+// | addr1         | addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 | wugnot=0     | ugnot=100000001 |
 // -----------
 // -----------
-// | wugnot_test   | addr=g19rmydykafrqyyegc8uuaxxpzqwzcnxraj2dev9 | wugnot=123400 | ugnot=200000000 200000000 200000000 200000000 |
-// | wugnot        | addr=g1pf6dv9fjk3rn0m4jjcne306ga4he3mzmupfjl6 | wugnot=0     | ugnot=100000001 100000001 100000001 100000001 |
-// | addr1         | addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 | wugnot=0     | ugnot=100000001 100000001 100000001 100000001 |
+// | wugnot_test   | addr=g19rmydykafrqyyegc8uuaxxpzqwzcnxraj2dev9 | wugnot=123400 | ugnot=200000000 |
+// | wugnot        | addr=g1pf6dv9fjk3rn0m4jjcne306ga4he3mzmupfjl6 | wugnot=0     | ugnot=100000001 |
+// | addr1         | addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 | wugnot=0     | ugnot=100000001 |
 // -----------
 // -----------
-// | wugnot_test   | addr=g19rmydykafrqyyegc8uuaxxpzqwzcnxraj2dev9 | wugnot=119158 | ugnot=200004242 200004242 200004242 200004242 |
-// | wugnot        | addr=g1pf6dv9fjk3rn0m4jjcne306ga4he3mzmupfjl6 | wugnot=0     | ugnot=99995759  99995759  99995759  99995759  |
-// | addr1         | addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 | wugnot=0     | ugnot=100000001 100000001 100000001 100000001 |
+// | wugnot_test   | addr=g19rmydykafrqyyegc8uuaxxpzqwzcnxraj2dev9 | wugnot=119158 | ugnot=200004242 |
+// | wugnot        | addr=g1pf6dv9fjk3rn0m4jjcne306ga4he3mzmupfjl6 | wugnot=0     | ugnot=99995759  |
+// | addr1         | addr=g1w3jhxap3ta047h6lta047h6lta047h6l4mfnm7 | wugnot=0     | ugnot=100000001 |
 // -----------

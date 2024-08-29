@@ -4,17 +4,17 @@ Gno.land is a layer-1 blockchain that integrates various cutting-edge technologi
 
 ## Getting started
 
-Use [`gnokey`](./cmd/gnokey) to interact with Gno.land's testnets, localnet, and upcoming mainnet.
+Use [`gnokey`](./cmd/gnokey) to interact with gno.land's testnets, localnet, and upcoming mainnet.
 
 For localnet setup, use [`gnoland`](./cmd/gnoland).
 
-To add a web interface and faucet to your localnet, use [`gnoweb`](./cmd/gnoweb) and [`gnofaucet`](./cmd/gnofaucet).
+To add a web interface and faucet to your localnet, use [`gnoweb`](./cmd/gnoweb) and [`gnofaucet`](../contribs/gnofaucet).
 
 ## Interchain
 
 Gno.land aims to offer security, high-quality contract libraries, and scalability to other Gnolang chains, while also prioritizing interoperability with existing and emerging chains.
 
-Post mainnet launch, Gno.land aims to integrate IBCv1 to connect with existing Cosmos chains and implement ICS1 for security through the existing chains.
+Post mainnet launch, gno.land aims to integrate IBCv1 to connect with existing Cosmos chains and implement ICS1 for security through the existing chains.
 Afterwards, the platform plans to improve IBC by adding new capabilities for interchain smart-contracts.
 
 ## Under the hood

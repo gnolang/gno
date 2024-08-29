@@ -7,15 +7,14 @@ import (
 	"time"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
 )
 
 func TestPostMeme(t *testing.T) {
 	m := NewMemeland()
 	id := m.PostMeme("Test meme data", time.Now().Unix())
-	if id == "" {
-		t.Error("Expected valid ID, got empty string")
-	}
+	uassert.NotEqual(t, "", string(id), "Expected valid ID, got empty string")
 }
 
 func TestGetPostsInRangePagination(t *testing.T) {
@@ -56,9 +55,7 @@ func TestGetPostsInRangePagination(t *testing.T) {
 
 			// Count posts by how many times id: shows up in JSON string
 			postCount := strings.Count(result, `"id":"`)
-			if postCount != tc.expectedNumOfPosts {
-				t.Errorf("Expected %d posts in the JSON string, but found %d", tc.expectedNumOfPosts, postCount)
-			}
+			uassert.Equal(t, tc.expectedNumOfPosts, postCount)
 		})
 	}
 }
@@ -91,28 +88,22 @@ func TestGetPostsInRangeByTimestamp(t *testing.T) {
 		"DATE_CREATED",        // sort by newest first
 	)
 
-	if jsonStr == "" {
-		t.Error("Expected non-empty JSON string, got empty string")
-	}
+	uassert.NotEmpty(t, jsonStr, "Expected non-empty JSON string, got empty string")
 
 	// Count the number of posts returned in the JSON string as a rudimentary check for correct pagination/filtering
 	postCount := strings.Count(jsonStr, `"id":"`)
-	if postCount != m.MemeCounter {
-		t.Errorf("Expected %d posts in the JSON string, but found %d", m.MemeCounter, postCount)
-	}
+	uassert.Equal(t, uint64(m.MemeCounter), uint64(postCount))
 
 	// Check if data is there
 	for _, expData := range memeData {
-		if !strings.Contains(jsonStr, expData) {
-			t.Errorf("Expected %s in the JSON string, but counld't find it", expData)
-		}
+		check := strings.Contains(jsonStr, expData)
+		uassert.True(t, check, ufmt.Sprintf("Expected %s in the JSON string, but counld't find it", expData))
 	}
 
 	// Check if ordering is correct, sort by created date
 	for i := 0; i < len(memeData)-2; i++ {
-		if strings.Index(jsonStr, memeData[i]) < strings.Index(jsonStr, memeData[i+1]) {
-			t.Errorf("Expected %s to be before %s, but was at %d, and %d", memeData[i], memeData[i+1], i, i+1)
-		}
+		check := strings.Index(jsonStr, memeData[i]) >= strings.Index(jsonStr, memeData[i+1])
+		uassert.True(t, check, ufmt.Sprintf("Expected %s to be before %s, but was at %d, and %d", memeData[i], memeData[i+1], i, i+1))
 	}
 }
 
@@ -151,19 +142,64 @@ func TestGetPostsInRangeByUpvote(t *testing.T) {
 		"UPVOTES",             // sort by upvote
 	)
 
-	if jsonStr == "" {
-		t.Error("Expected non-empty JSON string, got empty string")
-	}
+	uassert.NotEmpty(t, jsonStr, "Expected non-empty JSON string, got empty string")
 
 	// Count the number of posts returned in the JSON string as a rudimentary check for correct pagination/filtering
 	postCount := strings.Count(jsonStr, `"id":"`)
-	if postCount != m.MemeCounter {
-		t.Errorf("Expected %d posts in the JSON string, but found %d", m.MemeCounter, postCount)
-	}
+	uassert.Equal(t, uint64(m.MemeCounter), uint64(postCount))
 
 	// Check if ordering is correct
-	if strings.Index(jsonStr, "Meme #1") > strings.Index(jsonStr, "Meme #2") {
-		t.Errorf("Expected %s to be before %s", memeData1, memeData2)
+	check := strings.Index(jsonStr, "Meme #1") <= strings.Index(jsonStr, "Meme #2")
+	uassert.True(t, check, ufmt.Sprintf("Expected %s to be before %s", memeData1, memeData2))
+}
+
+func TestBadSortBy(t *testing.T) {
+	m := NewMemeland()
+	now := time.Now()
+
+	numOfPosts := 5
+	var memeData []string
+	for i := 1; i <= numOfPosts; i++ {
+		// Prepare meme data
+		nextTime := now.Add(time.Duration(i) * time.Minute)
+		data := ufmt.Sprintf("Meme #%d", i)
+		memeData = append(memeData, data)
+
+		m.PostMeme(data, nextTime.Unix())
+	}
+
+	// Get timestamps
+	beforeEarliest := now.Add(-1 * time.Minute)
+	afterLatest := now.Add(time.Duration(numOfPosts)*time.Minute + time.Minute)
+
+	tests := []struct {
+		name      string
+		sortBy    string
+		wantPanic string
+	}{
+		{
+			name:      "Empty sortBy",
+			sortBy:    "",
+			wantPanic: "runtime error: index out of range",
+		},
+		{
+			name:      "Wrong sortBy",
+			sortBy:    "random string",
+			wantPanic: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("code did not panic when it should have")
+				}
+			}()
+
+			// Panics should be caught
+			_ = m.GetPostsInRange(beforeEarliest.Unix(), afterLatest.Unix(), 1, 1, tc.sortBy)
+		})
 	}
 }
 
@@ -175,9 +211,7 @@ func TestNoPosts(t *testing.T) {
 
 	jsonStr := m.GetPostsInRange(0, now, 1, 1, "DATE_CREATED")
 
-	if jsonStr != "[]" {
-		t.Errorf("Expected 0 posts to return [], got %s", jsonStr)
-	}
+	uassert.Equal(t, jsonStr, "[]")
 }
 
 func TestUpvote(t *testing.T) {
@@ -189,23 +223,15 @@ func TestUpvote(t *testing.T) {
 
 	// Initial upvote count should be 0
 	post := m.getPost(postID)
-
-	if post.UpvoteTracker.Size() != 0 {
-		t.Errorf("Expected initial upvotes to be 0, got %d", post.UpvoteTracker.Size())
-	}
+	uassert.Equal(t, 0, post.UpvoteTracker.Size())
 
 	// Upvote the post
 	upvoteResult := m.Upvote(postID)
-	if upvoteResult != "upvote successful" {
-		t.Errorf("Expected upvote to be successful, got: %s", upvoteResult)
-	}
+	uassert.Equal(t, "upvote successful", upvoteResult)
 
 	// Retrieve the post again and check the upvote count
 	post = m.getPost(postID)
-
-	if post.UpvoteTracker.Size() != 1 {
-		t.Errorf("Expected upvotes to be 1 after upvoting, got %d", post.UpvoteTracker.Size())
-	}
+	uassert.Equal(t, 1, post.UpvoteTracker.Size())
 }
 
 func TestDelete(t *testing.T) {
@@ -227,13 +253,8 @@ func TestDelete(t *testing.T) {
 	std.TestSetOrigCaller(alice)
 
 	id := m.RemovePost(postID)
-	if id != postID {
-		t.Errorf("post IDs not matching")
-	}
-
-	if len(m.Posts) != 0 {
-		t.Errorf("there should be 0 posts after removing")
-	}
+	uassert.Equal(t, postID, id, "post IDs not matching")
+	uassert.Equal(t, 0, len(m.Posts), "there should be 0 posts after removing")
 }
 
 func TestDeleteByNonAdmin(t *testing.T) {
@@ -252,7 +273,7 @@ func TestDeleteByNonAdmin(t *testing.T) {
 
 	defer func() {
 		if r := recover(); r == nil {
-			t.Errorf("code did not panic when in should have")
+			t.Errorf("code did not panic when it should have")
 		}
 	}()
 
