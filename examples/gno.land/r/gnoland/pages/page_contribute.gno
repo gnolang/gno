@@ -69,7 +69,7 @@ TODO: Add link to new repo
 
 ## Join Game of Realms
 
-Game of Realms is the overarching contributor network of gnomes, currently running off-chain, and will eventually transition on-chain. At this stage, a Game of Realm's contribution is comprised of high-impact contributions identified as 'notable contributions'.
+Game of Realms is the overarching contributor network of gnomes, currently running off-chain, and will eventually transition on-chain. At this stage, a Game of Realms contribution is comprised of high-impact contributions identified as 'notable contributions'.
 
 These contributions are not linked to immediate financial rewards, but are notable in nature, in the sense they are a challenge, make a significant addition to the project, and require persistence, with minimal feedback loops from the core team.
 
