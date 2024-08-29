@@ -8,26 +8,53 @@ import (
 
 type CoverageData struct {
 	Files map[string]*FileCoverage
+	Debug bool
 }
 
 type FileCoverage struct {
-	Statements map[int]int // line number -> count
+	Statements map[int]int // line number -> execution count
+	TotalLines int // total number of lines in the file
+	Content []string // each line's content
 }
 
 func NewCoverageData() *CoverageData {
 	return &CoverageData{
 		Files: make(map[string]*FileCoverage),
+		Debug: true,
+	}
+}
+
+func (c *CoverageData) AddFile(file string, totalLines int) {
+	if _, exists := c.Files[file]; !exists {
+		c.Files[file] = &FileCoverage{
+			TotalLines: totalLines,
+			Statements: make(map[int]int),
+		}
+	}
+}
+
+func (c *CoverageData) AddFileContent(file string, content string) {
+	if fc, exists := c.Files[file]; exists {
+		fc.Content = strings.Split(content, "\n")
+	} else {
+		c.Files[file] = &FileCoverage{
+			TotalLines: strings.Count(content, "\n") + 1,
+			Statements: make(map[int]int),
+			Content: strings.Split(content, "\n"),
+		}
 	}
 }
 
 func (c *CoverageData) AddHit(file string, line int) {
 	if c.Files[file] == nil {
-		c.Files[file] = &FileCoverage{
-			Statements: make(map[int]int),
-		}
+		c.AddFile(file, line)
 	}
 
 	c.Files[file].Statements[line]++
+}
+
+func (c *CoverageData) SetDebug(debug bool) {
+	c.Debug = debug
 }
 
 func (c *CoverageData) Report() string {
@@ -46,22 +73,41 @@ func (c *CoverageData) Report() string {
 
 	for _, fileName := range fileNames {
 		fileCoverage := c.Files[fileName]
-		statements := len(fileCoverage.Statements)
+        totalLines := fileCoverage.TotalLines
+        stmts := len(fileCoverage.Statements)
 		covered := 0
-		for _, count := range fileCoverage.Statements {
+
+		var coveredLines []int
+		for line, count := range fileCoverage.Statements {
 			if count > 0 {
 				covered++
+				coveredLines = append(coveredLines, line)
 			}
 		}
 
-		totalStatements += statements
-		totalCovered += covered
+		sort.Ints(coveredLines)
 
-		percentage := calculateCoverage(covered, statements)
-		report.WriteString(fmt.Sprintf("%s:\n", fileName))
-		report.WriteString(fmt.Sprintf("  Statements: %d\n", statements))
-		report.WriteString(fmt.Sprintf("  Covered:    %d\n", covered))
-		report.WriteString(fmt.Sprintf("  Coverage:   %.2f%%\n\n", percentage))
+        percentage := float64(stmts) / float64(totalLines) * 100
+        report.WriteString(fmt.Sprintf("%s:\n", fileName))
+        report.WriteString(fmt.Sprintf("  Total Lines: %d\n", totalLines))
+        report.WriteString(fmt.Sprintf("  Covered:     %d\n", stmts))
+        report.WriteString(fmt.Sprintf("  Coverage:    %.2f%%\n\n", percentage))
+
+        totalStatements += totalLines
+        totalCovered += stmts
+
+		if c.Debug {
+			report.WriteString("  Covered lines: ")
+            for i, line := range coveredLines {
+                if i > 0 {
+                    report.WriteString(", ")
+                }
+                report.WriteString(fmt.Sprintf("%d", line))
+            }
+            report.WriteString("\n")
+		}
+
+		report.WriteString("\n")
 	}
 
 	totalPercentage := calculateCoverage(totalCovered, totalStatements)

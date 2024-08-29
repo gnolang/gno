@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	// "path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -267,6 +268,11 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	// for _, file := range memPkg.Files {
+	// 	if strings.HasSuffix(file.Name, ".gno") {
+	// 		m.AddFileContentToCodeCoverage(filepath.Join(memPkg.Path, file.Name), file.Body)
+	// 	}
+	// }
 	return m.runMemPackage(memPkg, save, false)
 }
 
@@ -1605,6 +1611,14 @@ func (m *Machine) getCurrentLocation() Location {
 		Line:   lastFrame.Source.GetLine(),
 		Column: lastFrame.Source.GetColumn(),
 	}
+}
+
+func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
+	m.Coverage.AddFile(file, totalLines)
+}
+
+func (m *Machine) AddFileContentToCodeCoverage(file string, content string) {
+	m.Coverage.AddFileContent(file, content)
 }
 
 //----------------------------------------
