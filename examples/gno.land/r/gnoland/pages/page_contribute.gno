@@ -30,7 +30,7 @@ Recommendations on participating in the gno.land Bounty Program:
 
 You may make your submission at any time; however we invite you to publish your draft PR very early in the development process. This will make your work public, so you can easily get help by the core team and other community members. Additionally, your work can be continued by other people should you get stuck or no longer be willing to work on the bounty. Likewise, you can continue the abandoned or stuck work that someone else worked on. Don't fear your work being "stolen": if a submission is the result of multiple people's efforts, we will look to split the bounty in a way that is fair and recognises each participant in creating the final outcome.
 
-Participants in the gno.land Bounty Program must meet the legal Terms and Conditions referenced [here](https://docs.google.com/document/d/1aXrZ6japdAykB5FLmHCCeBZTo-2tbZQHSQi79ITaTK0/edit).
+Participants in the gno.land Bounty Program must meet the legal Terms and Conditions referenced [here](https://docs.google.com/document/d/1aXrZ6japdAykB5FLmHCCeBZTo-2tbZQHSQi79ITaTK0).
 
 ### Bounty sizes
 
