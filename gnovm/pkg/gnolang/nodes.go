@@ -328,7 +328,7 @@ var (
 type Expr interface {
 	Node
 	assertExpr()
-	isAddressable() bool
+	addressability() Addressability
 }
 
 type Exprs []Expr
@@ -375,8 +375,8 @@ type NameExpr struct {
 	Name
 }
 
-func (x *NameExpr) isAddressable() bool {
-	return true
+func (x *NameExpr) addressability() Addressability {
+	return AddressabilitySatisfied
 }
 
 type NameExprs []NameExpr
@@ -390,8 +390,8 @@ type BasicLitExpr struct {
 	Value string
 }
 
-func (x *BasicLitExpr) isAddressable() bool {
-	return false
+func (x *BasicLitExpr) addressability() Addressability {
+	return AddressabilityUnsatisfied
 }
 
 type BinaryExpr struct { // (Left Op Right)
@@ -401,21 +401,21 @@ type BinaryExpr struct { // (Left Op Right)
 	Right Expr // right operand
 }
 
-func (x *BinaryExpr) isAddressable() bool {
-	return false
+func (x *BinaryExpr) addressability() Addressability {
+	return AddressabilityUnsatisfied
 }
 
 type CallExpr struct { // Func(Args<Varg?...>)
 	Attributes
-	Func          Expr  // function expression
-	Args          Exprs // function arguments, if any.
-	Varg          bool  // if true, final arg is variadic.
-	NumArgs       int   // len(Args) or len(Args[0].Results)
-	IsAddressable bool
+	Func           Expr  // function expression
+	Args           Exprs // function arguments, if any.
+	Varg           bool  // if true, final arg is variadic.
+	NumArgs        int   // len(Args) or len(Args[0].Results)
+	Addressability Addressability
 }
 
-func (x *CallExpr) isAddressable() bool {
-	return x.IsAddressable
+func (x *CallExpr) addressability() Addressability {
+	return x.Addressability
 }
 
 type IndexExpr struct { // X[Index]
@@ -427,12 +427,16 @@ type IndexExpr struct { // X[Index]
 	XIsString     bool // true if X is a string (never addressable)
 }
 
-func (x *IndexExpr) isAddressable() bool {
+func (x *IndexExpr) addressability() Addressability {
 	if x.XIsString {
-		return false
+		return AddressabilityUnsatisfied
 	}
 
-	return x.IsAddressable || x.X.isAddressable()
+	if x.IsAddressable || x.X.addressability() == AddressabilitySatisfied {
+		return AddressabilitySatisfied
+	}
+
+	return AddressabilityUnsatisfied
 }
 
 type SelectorExpr struct { // X.Sel
@@ -443,8 +447,12 @@ type SelectorExpr struct { // X.Sel
 	IsAddressable bool      // true if X is a pointer
 }
 
-func (x *SelectorExpr) isAddressable() bool {
-	return x.IsAddressable || x.X.isAddressable()
+func (x *SelectorExpr) addressability() Addressability {
+	if x.IsAddressable || x.X.addressability() == AddressabilitySatisfied {
+		return AddressabilitySatisfied
+	}
+
+	return AddressabilityUnsatisfied
 }
 
 type SliceExpr struct { // X[Low:High:Max]
@@ -456,8 +464,12 @@ type SliceExpr struct { // X[Low:High:Max]
 	IsAddressable bool
 }
 
-func (x *SliceExpr) isAddressable() bool {
-	return x.IsAddressable
+func (x *SliceExpr) addressability() Addressability {
+	if x.IsAddressable {
+		return AddressabilitySatisfied
+	}
+
+	return AddressabilityUnsatisfied
 }
 
 // A StarExpr node represents an expression of the form
@@ -468,8 +480,8 @@ type StarExpr struct { // *X
 	X Expr // operand
 }
 
-func (x *StarExpr) isAddressable() bool {
-	return x.X.isAddressable()
+func (x *StarExpr) addressability() Addressability {
+	return x.X.addressability()
 }
 
 type RefExpr struct { // &X
@@ -477,8 +489,8 @@ type RefExpr struct { // &X
 	X Expr // operand
 }
 
-func (x *RefExpr) isAddressable() bool {
-	return x.X.isAddressable()
+func (x *RefExpr) addressability() Addressability {
+	return x.X.addressability()
 }
 
 type TypeAssertExpr struct { // X.(Type)
@@ -489,8 +501,12 @@ type TypeAssertExpr struct { // X.(Type)
 	IsAddressable bool
 }
 
-func (x *TypeAssertExpr) isAddressable() bool {
-	return x.IsAddressable
+func (x *TypeAssertExpr) addressability() Addressability {
+	if x.IsAddressable {
+		return AddressabilitySatisfied
+	}
+
+	return AddressabilityUnsatisfied
 }
 
 // A UnaryExpr node represents a unary expression. Unary
@@ -503,8 +519,8 @@ type UnaryExpr struct { // (Op X)
 	Op Word // operator
 }
 
-func (x *UnaryExpr) isAddressable() bool {
-	return x.X.isAddressable()
+func (x *UnaryExpr) addressability() Addressability {
+	return x.X.addressability()
 }
 
 // MyType{<key>:<value>} struct, array, slice, and map
@@ -516,8 +532,12 @@ type CompositeLitExpr struct {
 	IsAddressable bool
 }
 
-func (x *CompositeLitExpr) isAddressable() bool {
-	return x.IsAddressable
+func (x *CompositeLitExpr) addressability() Addressability {
+	if x.IsAddressable {
+		return AddressabilitySatisfied
+	}
+
+	return AddressabilityUnsatisfied
 }
 
 // Returns true if any elements are keyed.
@@ -550,8 +570,8 @@ type KeyValueExpr struct {
 	Value Expr // never nil
 }
 
-func (x *KeyValueExpr) isAddressable() bool {
-	return false
+func (x *KeyValueExpr) addressability() Addressability {
+	return AddressabilityNotApplicable
 }
 
 type KeyValueExprs []KeyValueExpr
@@ -566,8 +586,8 @@ type FuncLitExpr struct {
 	Body              // function body
 }
 
-func (x *FuncLitExpr) isAddressable() bool {
-	return false
+func (x *FuncLitExpr) addressability() Addressability {
+	return AddressabilityUnsatisfied
 }
 
 // The preprocessor replaces const expressions
@@ -578,8 +598,8 @@ type ConstExpr struct {
 	TypedValue
 }
 
-func (x *ConstExpr) isAddressable() bool {
-	return false
+func (x *ConstExpr) addressability() Addressability {
+	return AddressabilityUnsatisfied
 }
 
 // ----------------------------------------
@@ -646,8 +666,8 @@ type FieldTypeExpr struct {
 	Tag Expr
 }
 
-func (x *FieldTypeExpr) isAddressable() bool {
-	return false
+func (x *FieldTypeExpr) addressability() Addressability {
+	return AddressabilityNotApplicable
 }
 
 type FieldTypeExprs []FieldTypeExpr
@@ -674,8 +694,8 @@ type ArrayTypeExpr struct {
 	Elt Expr // element type
 }
 
-func (x *ArrayTypeExpr) isAddressable() bool {
-	return false
+func (x *ArrayTypeExpr) addressability() Addressability {
+	return AddressabilityNotApplicable
 }
 
 type SliceTypeExpr struct {
@@ -684,8 +704,8 @@ type SliceTypeExpr struct {
 	Vrd bool // variadic arg expression
 }
 
-func (x *SliceTypeExpr) isAddressable() bool {
-	return false
+func (x *SliceTypeExpr) addressability() Addressability {
+	return AddressabilityNotApplicable
 }
 
 type InterfaceTypeExpr struct {
@@ -694,8 +714,8 @@ type InterfaceTypeExpr struct {
 	Generic Name           // for uverse generics
 }
 
-func (x *InterfaceTypeExpr) isAddressable() bool {
-	return false
+func (x *InterfaceTypeExpr) addressability() Addressability {
+	return AddressabilityNotApplicable
 }
 
 type ChanDir int
@@ -715,8 +735,8 @@ type ChanTypeExpr struct {
 	Value Expr    // value type
 }
 
-func (x *ChanTypeExpr) isAddressable() bool {
-	return false
+func (x *ChanTypeExpr) addressability() Addressability {
+	return AddressabilityNotApplicable
 }
 
 type FuncTypeExpr struct {
@@ -725,8 +745,8 @@ type FuncTypeExpr struct {
 	Results FieldTypeExprs // (outgoing) results, if any.
 }
 
-func (x *FuncTypeExpr) isAddressable() bool {
-	return false
+func (x *FuncTypeExpr) addressability() Addressability {
+	return AddressabilityNotApplicable
 }
 
 type MapTypeExpr struct {
@@ -735,8 +755,8 @@ type MapTypeExpr struct {
 	Value Expr // value type
 }
 
-func (x *MapTypeExpr) isAddressable() bool {
-	return false
+func (x *MapTypeExpr) addressability() Addressability {
+	return AddressabilityNotApplicable
 }
 
 type StructTypeExpr struct {
@@ -744,8 +764,8 @@ type StructTypeExpr struct {
 	Fields FieldTypeExprs // list of field declarations
 }
 
-func (x *StructTypeExpr) isAddressable() bool {
-	return false
+func (x *StructTypeExpr) addressability() Addressability {
+	return AddressabilityNotApplicable
 }
 
 // Like ConstExpr but for types.
@@ -755,8 +775,8 @@ type constTypeExpr struct {
 	Type   Type
 }
 
-func (x *constTypeExpr) isAddressable() bool {
-	return false
+func (x *constTypeExpr) addressability() Addressability {
+	return AddressabilityNotApplicable
 }
 
 // Only used for native func arguments
@@ -765,8 +785,8 @@ type MaybeNativeTypeExpr struct {
 	Type Expr
 }
 
-func (x *MaybeNativeTypeExpr) isAddressable() bool {
-	return false
+func (x *MaybeNativeTypeExpr) addressability() Addressability {
+	return AddressabilityNotApplicable
 }
 
 // ----------------------------------------
