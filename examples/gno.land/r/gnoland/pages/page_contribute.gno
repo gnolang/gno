@@ -6,8 +6,6 @@ func init() {
 	// XXX: description := "Be a an early adopter and contributor to gno.land through bounties, grants, and Game of Realm's notoable contributions network."
 	body := `
 
-<div class="jumbotron">
-
 gno.land puts at the center of its identity the contributors that help to create and shape the project into what it is; incentivizing those who contribute the most and help advance its vision. Eventually, contributions will be incentivized directly on-chain; in the meantime, this page serves to illustrate our current off-chain initiatives.
 
 gno.land is still in full-steam development. For now, we're looking for the earliest of adopters; curious to explore a new way to build smart contracts and eager to make an impact. Joining gno.land's development now means you can help to shape the base of its development ecosystem, which will pave the way for the next generation of blockchain programming.
