@@ -5,19 +5,20 @@ import (
 	"strconv"
 	"time"
 
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 )
 
 // Auction struct
 type Auction struct {
-	Title       string
-	Owner       std.Address
-	Description string
-	Begin       time.Time
-	End         time.Time
-	StartingBid std.Coin
-	Bids        []*Bid
-	State       string // "upcoming", "ongoing", or "closed"
+	ownable.Ownable // Embeds Ownable to handle ownership
+	Title           string
+	Description     string
+	Begin           time.Time
+	End             time.Time
+	StartingBid     std.Coin
+	Bids            []*Bid
+	State           string // "upcoming", "ongoing", or "closed"
 }
 
 // Bid struct
@@ -41,9 +42,9 @@ func NewAuction(
 	startingBid std.Coin,
 ) *Auction {
 	return &Auction{
+		Ownable:     *ownable.NewWithAddress(owner), // Initialize Ownable with the owner
 		Title:       title,
 		Description: description,
-		Owner:       owner,
 		Begin:       begin,
 		End:         end,
 		StartingBid: startingBid,
@@ -70,14 +71,9 @@ func (a *Auction) AddBid(bidder std.Address, amount std.Coin) error {
 	return nil
 }
 
-// IsOwnedBy checks if the given address is the owner of the auction
-func (a *Auction) IsOwnedBy(address std.Address) bool {
-	return a.Owner == address
-}
-
 // EndAuction ends the auction
 func (a *Auction) EndAuction(caller std.Address) error {
-	if caller != a.Owner {
+	if err := a.Ownable.CallerIsOwner(); err != nil {
 		return ufmt.Errorf("auction: EndAuction: only the owner can end the auction")
 	}
 	if now().Before(a.End) {

@@ -25,8 +25,8 @@ func TestNewAuction(t *testing.T) {
 	if auction.Title != "Test Auction" {
 		t.Fatalf("expected auction title to be 'Test Auction', got '%s'", auction.Title)
 	}
-	if auction.Owner != owner {
-		t.Fatalf("expected auction owner to be '%s', got '%s'", owner, auction.Owner)
+	if auction.Owner() != owner { // Note the change here to access owner
+		t.Fatalf("expected auction owner to be '%s', got '%s'", owner, auction.Owner())
 	}
 	if auction.Description != "This is a test auction" {
 		t.Fatalf("expected auction description to be 'This is a test auction', got '%s'", auction.Description)
