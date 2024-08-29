@@ -79,6 +79,9 @@ type Machine struct {
 	// it is executed. It is reset to zero after the defer functions in the current
 	// scope have finished executing.
 	DeferPanicScope uint
+
+	// Test Coverage
+	Coverage *CoverageData
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -177,6 +180,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.enabled = opts.Debug
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
+	mm.Coverage = NewCoverageData()
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -1256,6 +1260,10 @@ func (m *Machine) Run() {
 			m.Debug()
 		}
 		op := m.PopOp()
+
+		loc := m.getCurrentLocation()
+		m.Coverage.AddHit(loc.PkgPath, loc.Line)
+
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
 		/* Control operators */
@@ -1579,6 +1587,23 @@ func (m *Machine) Run() {
 		default:
 			panic(fmt.Sprintf("unexpected opcode %s", op.String()))
 		}
+	}
+}
+
+func (m *Machine) getCurrentLocation() Location {
+	if len(m.Frames) == 0 {
+		return Location{}
+	}
+
+	lastFrame := m.Frames[len(m.Frames)-1]
+	if lastFrame.Source == nil {
+		return Location{}
+	}
+
+	return Location{
+		PkgPath: m.Package.PkgPath,
+		Line:   lastFrame.Source.GetLine(),
+		Column: lastFrame.Source.GetColumn(),
 	}
 }
 

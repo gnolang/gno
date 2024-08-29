@@ -36,6 +36,7 @@ type testCfg struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	withNativeFallback  bool
+	coverage            bool
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -149,6 +150,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"print runtime metrics (gas, memory, cpu cycles)",
 	)
+
+	fs.BoolVar(
+		&c.coverage,
+		"cover",
+		false,
+		"enable coverage analysis",
+	)
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
@@ -228,6 +236,7 @@ func gnoTestPkg(
 		rootDir             = cfg.rootDir
 		runFlag             = cfg.run
 		printRuntimeMetrics = cfg.printRuntimeMetrics
+		coverage			= cfg.coverage
 
 		stdin  = io.In()
 		stdout = io.Out()
@@ -295,7 +304,7 @@ func gnoTestPkg(
 				m.Alloc = gno.NewAllocator(maxAllocTx)
 			}
 			m.RunMemPackage(memPkg, true)
-			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, runFlag, io)
+			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, coverage, runFlag, io)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -329,7 +338,7 @@ func gnoTestPkg(
 			memPkg.Path = memPkg.Path + "_test"
 			m.RunMemPackage(memPkg, true)
 
-			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io)
+			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, coverage, runFlag, io)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -419,6 +428,7 @@ func runTestFiles(
 	pkgName string,
 	verbose bool,
 	printRuntimeMetrics bool,
+	coverage bool,
 	runFlag string,
 	io commands.IO,
 ) (errs error) {
@@ -443,9 +453,13 @@ func runTestFiles(
 		log.Fatal(err)
 	}
 
+	coverageData := gno.NewCoverageData()   
+
 	m.RunFiles(files.Files...)
 	n := gno.MustParseFile("main_test.gno", testmain)
 	m.RunFiles(n)
+
+	m.Coverage = coverageData
 
 	for _, test := range testFuncs.Tests {
 		testFuncStr := fmt.Sprintf("%q", test.Name)
@@ -491,6 +505,11 @@ func runTestFiles(
 				imports,
 				allocsVal,
 			)
+		}
+
+		if coverage {
+			report := coverageData.Report()
+			io.Out().Write([]byte(report))
 		}
 	}
 
