@@ -87,5 +87,4 @@ The selection of a notable contribution or the sum of contributions that equal '
 
 To start, we recommend you create an issue in the Game of Realms [repository](https://github.com/gnolang/game-of-realms) to serve as a profile page of all your contributions.`
 
-	_ = b.NewPost("", path, title, body, "2024-06-20T13:17:26Z", nil, nil)
 }
