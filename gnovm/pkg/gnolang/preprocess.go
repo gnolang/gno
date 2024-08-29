@@ -1493,15 +1493,19 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					dt = dt.Elem()
 					n.X = &StarExpr{X: n.X}
 					n.X.SetAttribute(ATTR_PREPROCESSED, true)
+					n.IsAddressable = true
 				}
 				switch dt.Kind() {
 				case StringKind, ArrayKind, SliceKind:
 					// Replace const index with int *ConstExpr,
 					// or if not const, assert integer type..
 					checkOrConvertIntegerKind(store, last, n.Index)
-					if dt.Kind() == StringKind {
+					if dt.Kind() == SliceKind {
 						// A string index is not addressable.
-						n.NotAddressable = true
+						n.IsAddressable = true
+					} else if dt.Kind() == StringKind {
+						// Special case; string indexes are never addressable.
+						n.XIsString = true
 					}
 				case MapKind:
 					mt := baseOf(gnoTypeOf(store, dt)).(*MapType)
@@ -1705,22 +1709,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// Set selector path based on xt's type.
 				switch cxt := xt.(type) {
 				case *PointerType, *DeclaredType, *StructType, *InterfaceType:
-					tr, _, rcvr, fieldType, aerr := findEmbeddedFieldType(lastpn.PkgPath, cxt, n.Sel, nil)
+					tr, _, rcvr, _, aerr := findEmbeddedFieldType(lastpn.PkgPath, cxt, n.Sel, nil)
 					if aerr {
 						panic(fmt.Sprintf("cannot access %s.%s from %s",
 							cxt.String(), n.Sel, lastpn.PkgPath))
 					} else if tr == nil {
 						panic(fmt.Sprintf("missing field %s in %s",
 							n.Sel, cxt.String()))
-					}
-
-					// In the case where n.X is a non-pointer declared type or struct,
-					// only selectors of pointers or slices are addressable. Strings
-					// are not included in this check, but will be marked as addressable
-					// during the TRANS_LEAVE of SliceExpr if this is selecting a string.
-					switch baseOf(fieldType).(type) {
-					case *PointerType, *SliceType:
-						n.IsAddressable = true
 					}
 
 					if len(tr) > 1 {
