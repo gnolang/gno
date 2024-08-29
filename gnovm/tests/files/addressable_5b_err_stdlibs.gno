@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// main/files/addressable_5b_err.gno:7:6: cannot take address of (const (0 std.BankerType))
+// main/files/addressable_5b_err_stdlibs.gno:7:6: cannot take address of (const (0 std.BankerType))
