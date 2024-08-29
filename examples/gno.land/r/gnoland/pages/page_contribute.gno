@@ -85,6 +85,6 @@ How will notable contributions in Game of Realms be selected?
 
 The selection of a notable contribution or the sum of contributions that equal 'notable' is based on the impact it has on the development of the project. For now, it is focused on code contributions, and will evolve over time. The Gno development teams will initially qualify and evaluate notable contributions, and vote off-chain on adding them to the 'notable contributions' folder on GitHub.
 
-To start, we recommend you create an issue in the Game of Realms [repository](https://github.com/gnolang/game-of-realms) to serve as a profile page of all your contributions.`
+To start, we recommend you create a PR in the Game of Realms [repository](https://github.com/gnolang/game-of-realms) to create your profile page for all your contributions.`
 
 }
