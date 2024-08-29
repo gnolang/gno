@@ -1347,7 +1347,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 
 				if !n.IsAddressable && len(ft.Results) == 1 {
-					switch ft.Results[0].Type.(type) {
+					baseType := baseOf(ft.Results[0].Type)
+					switch baseType.(type) {
 					case *PointerType, *SliceType:
 						n.IsAddressable = true
 					}
@@ -1524,7 +1525,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 				// Non-pointer arrays and strings produced by the slice expression are not addressable.
 				// Slices and pointers are addressable.
-				switch t.(type) {
+				switch baseOf(t).(type) {
 				case *ArrayType:
 					if !n.X.isAddressable() {
 						panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
@@ -1717,7 +1718,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// only selectors of pointers or slices are addressable. Strings
 					// are not included in this check, but will be marked as addressable
 					// during the TRANS_LEAVE of SliceExpr if this is selecting a string.
-					if fieldType.Kind() == PointerKind || fieldType.Kind() == SliceKind {
+					switch baseOf(fieldType).(type) {
+					case *PointerType, *SliceType:
 						n.IsAddressable = true
 					}
 
@@ -1823,6 +1825,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// packages may contain constant vars,
 					// so check and evaluate if so.
 					tt := pn.GetStaticTypeOfAt(store, n.Path)
+
+					// Produce a constant expression for both typed and untyped constants.
 					if isUntyped(tt) || pn.GetIsConstAt(store, n.Path) {
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
