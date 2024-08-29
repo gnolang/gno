@@ -1573,10 +1573,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					)
 				}
 
-				if _, ok := evalStaticType(store, last, n.Type).(*PointerType); ok {
-					// If the type assertion is to a pointer type, the result is addressable.
+				targetType := baseOf(evalStaticType(store, last, n.Type))
+				switch targetType.(type) {
+				case *PointerType, *SliceType:
+					// If the type assertion is to a pointer of slice, the result is addressable.
 					// Type assertions for other types result in a copy of the value or an
-					// interface, both non-addressable.
+					// interface, both non-addressable. Slices are addressable because the copy
+					// of the slice still references the underlying array.
 					n.IsAddressable = true
 				}
 
