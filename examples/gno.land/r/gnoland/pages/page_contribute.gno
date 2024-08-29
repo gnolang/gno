@@ -8,8 +8,6 @@ func init() {
 
 <div class="jumbotron">
 
-# Contributor Ecosystem: Call for Contributions
-
 gno.land puts at the center of its identity the contributors that help to create and shape the project into what it is; incentivizing those who contribute the most and help advance its vision. Eventually, contributions will be incentivized directly on-chain; in the meantime, this page serves to illustrate our current off-chain initiatives.
 
 gno.land is still in full-steam development. For now, we're looking for the earliest of adopters; curious to explore a new way to build smart contracts and eager to make an impact. Joining gno.land's development now means you can help to shape the base of its development ecosystem, which will pave the way for the next generation of blockchain programming.
@@ -18,7 +16,7 @@ If you are interested in contributing to gno.land, you can jump on in on our [Gi
 
 ## Gno Bounties
 
-The Gno bounty program is a good way to familiarize yourself with the project, and how Gno code works. We will maintain open and rewardable bounties in the Gnolang repository, and you can search all available bounties by using the ["bounty" label](https://github.com/gnolang/gno/labels/bounty).
+The Gno bounty program is a good way to familiarize yourself with the project, and how Gno code works. We will maintain open and rewardable bounties in the gnolang/gno repository, and you can search all available bounties by using the ["bounty" label](https://github.com/gnolang/gno/labels/bounty).
 
 Recommendations on participating in the gno.land Bounty Program:
 
