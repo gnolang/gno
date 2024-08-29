@@ -53,6 +53,10 @@ func (h *Heap) RemoveRoot(root *GcObj) {
 		roots = append(roots, root)
 	}
 
+	if !deleted {
+		panic("root not found")
+	}
+
 	h.roots = roots
 }
 

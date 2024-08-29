@@ -107,8 +107,9 @@ func (alloc *Allocator) Allocate(size int64) {
 		return
 	}
 
+	fmt.Printf("BEFORE ALLOCATE: alloc.bytes: %+v\n", alloc.bytes)
 	alloc.bytes += size
-	fmt.Printf("ALLOCATE: alloc.bytes: %+v\n", alloc.bytes)
+	fmt.Printf("AFTER ALLOCATE: alloc.bytes: %+v\n", alloc.bytes)
 	if alloc.bytes > alloc.maxBytes {
 		if alloc.heap != nil {
 			deleted := alloc.heap.MarkAndSweep()

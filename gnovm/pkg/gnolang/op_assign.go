@@ -14,8 +14,8 @@ func (m *Machine) doOpDefine() {
 		ptr := lb.GetPointerTo(m.Store, nx.Path)
 
 		if ppv, ok := ptr.TV.V.(PointerValue); ok {
-			if hiv, ok := ppv.Base.(*HeapItemValue); ok {
-				root := NewObject(hiv.Value)
+			if _, ok := ppv.Base.(*HeapItemValue); ok {
+				root := NewObject(*ptr.TV)
 				m.Alloc.heap.RemoveRoot(root)
 			}
 		}
