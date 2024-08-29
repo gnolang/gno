@@ -1617,10 +1617,6 @@ func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
 	m.Coverage.AddFile(file, totalLines)
 }
 
-func (m *Machine) AddFileContentToCodeCoverage(file string, content string) {
-	m.Coverage.AddFileContent(file, content)
-}
-
 //----------------------------------------
 // push pop methods.
 

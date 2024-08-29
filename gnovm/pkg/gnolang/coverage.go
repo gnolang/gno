@@ -1,25 +1,29 @@
 package gnolang
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
 
 type CoverageData struct {
 	Files map[string]*FileCoverage
+	SourceCode map[string][]string
 	Debug bool
 }
 
 type FileCoverage struct {
 	Statements map[int]int // line number -> execution count
 	TotalLines int // total number of lines in the file
-	Content []string // each line's content
 }
 
 func NewCoverageData() *CoverageData {
 	return &CoverageData{
 		Files: make(map[string]*FileCoverage),
+		SourceCode: make(map[string][]string),
 		Debug: true,
 	}
 }
@@ -33,16 +37,30 @@ func (c *CoverageData) AddFile(file string, totalLines int) {
 	}
 }
 
-func (c *CoverageData) AddFileContent(file string, content string) {
-	if fc, exists := c.Files[file]; exists {
-		fc.Content = strings.Split(content, "\n")
-	} else {
-		c.Files[file] = &FileCoverage{
-			TotalLines: strings.Count(content, "\n") + 1,
-			Statements: make(map[int]int),
-			Content: strings.Split(content, "\n"),
+func (c *CoverageData) LoadSourceCode(rootDir string) error {
+	for file := range c.Files {
+		fullPath := filepath.Join(rootDir, file)
+		f, err := os.Open(fullPath)
+		if err != nil {
+			return err
 		}
+		defer f.Close()
+
+		var lines []string
+		scanner := bufio.NewScanner(f)
+		for scanner.Scan() {
+			lines = append(lines, scanner.Text())
+		}
+
+		if err := scanner.Err(); err != nil {
+			return err
+		}
+
+		c.SourceCode[file] = lines
+		c.Files[file].TotalLines = len(lines)
 	}
+
+	return nil
 }
 
 func (c *CoverageData) AddHit(file string, line int) {
