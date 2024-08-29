@@ -1409,7 +1409,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					fv := cx.GetFunc()
 					if fv.PkgPath == uversePkgPath && fv.Name == "append" {
 						// append returns a slice and slices are always addressable.
-						n.IsAddressable = true
+						n.Addressability = AddressabilitySatisfied
 						if n.Varg && len(n.Args) == 2 {
 							// If the second argument is a string,
 							// convert to byteslice.
@@ -1458,15 +1458,17 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "new" {
 						// new returns a pointer and pointers are always addressable.
-						n.IsAddressable = true
+						n.Addressability = AddressabilitySatisfied
 					}
 				}
 
-				if !n.IsAddressable && len(ft.Results) == 1 {
+				if n.Addressability != AddressabilitySatisfied && len(ft.Results) == 1 {
 					baseType := baseOf(ft.Results[0].Type)
 					switch baseType.(type) {
 					case *PointerType, *SliceType:
-						n.IsAddressable = true
+						n.Addressability = AddressabilitySatisfied
+					default:
+						n.Addressability = AddressabilityUnsatisfied
 					}
 				}
 
@@ -1647,7 +1649,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				// Slices and pointers are addressable.
 				switch baseOf(t).(type) {
 				case *ArrayType:
-					if !n.X.isAddressable() {
+					if n.X.addressability() == AddressabilityUnsatisfied {
 						panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
 					}
 
@@ -2402,7 +2404,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				n.Type = constType(n.Type, dst)
 
 			case *RefExpr:
-				if !n.X.isAddressable() {
+				if n.X.addressability() == AddressabilityUnsatisfied {
 					panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
 				}
 			}
