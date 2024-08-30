@@ -7,12 +7,14 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/gnolotto"
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
 )
 
-var lotteries *avl.Tree
-var lotteriesID seqid.ID
+var (
+	lotteries   *avl.Tree
+	lotteriesID seqid.ID
+)
 
 // Replace this address with your address
 var admin std.Address = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
@@ -25,7 +27,7 @@ func init() {
 }
 
 // Creates a new lottery, only callable by admin.
-func CreateLottery(drawTime int64, prizePool int64) (string, string) {
+func CreateLottery(drawTime int64, prizePool int64) string {
 	sentCoins := std.GetOrigSend()
 	amount := sentCoins.AmountOf("ugnot")
 
@@ -37,19 +39,21 @@ func CreateLottery(drawTime int64, prizePool int64) (string, string) {
 		panic("Invalid draw time")
 	}
 
-	if std.GetOrigCaller() != admin {
+	if std.PrevRealm().Addr() != admin {
 		panic("Only the admin can create a lottery")
 	}
 
 	lotteryID := lotteriesID.Next()
+
 	lottery := gnolotto.NewLottery(time.Unix(drawTime, 0), prizePool)
 
 	lotteries.Set(lotteryID.Binary(), lottery)
-	return lotteryID.String(), "Lottery created successfully"
+
+	return ufmt.Sprintf("Lottery with ID: %s created successfully", lotteryID.String())
 }
 
 // Buy ticket for a specific lottery.
-func BuyTicket(lotteryIDStr string, numbersStr string) (int, string) {
+func BuyTicket(lotteryIDStr string, numbersStr string) string {
 	sentCoins := std.GetOrigSend()
 	amount := sentCoins.AmountOf("ugnot")
 
@@ -64,21 +68,13 @@ func BuyTicket(lotteryIDStr string, numbersStr string) (int, string) {
 	// Convert string to slice of integers.
 	numbers, err := gnolotto.StringToIntSlice(numbersStr)
 	if err != nil {
-		panic("Invalid number: " + err.Error()) // Gestion de l'erreur si la conversion échoue.
+		panic("Invalid number: " + err.Error()) // Error handling if conversion fails.
 	}
 
-	//Verify if the amount sent is equal to the ticket price.
+	str := ufmt.Sprintf("Ticket costs %d ugnot", TICKET_PRICE)
+	// Verify if the amount sent is equal to the ticket price.
 	if amount != TICKET_PRICE {
-		panic("Ticket price must be 10 UGNOT")
-	}
-
-	// Verify if the numbers are unique.
-	uniqueNumbers := make(map[int]bool)
-	for _, num := range numbers {
-		if uniqueNumbers[num] {
-			panic("Numbers must be unique")
-		}
-		uniqueNumbers[num] = true
+		panic(str)
 	}
 
 	l, _ := lotteryRaw.(*gnolotto.Lottery)
@@ -97,21 +93,31 @@ func BuyTicket(lotteryIDStr string, numbersStr string) (int, string) {
 		}
 	}
 
-	caller := std.GetOrigCaller()
-	l.AddTicket(numbers, caller)
+	// Verify if the numbers are unique.
+	uniqueNumbers := make(map[int]bool)
+	for _, num := range numbers {
+		if uniqueNumbers[num] {
+			panic("Ticket numbers must be unique")
+		}
+		uniqueNumbers[num] = true
+	}
 
-	return 1, "Ticket purchased successfully"
+	l.AddTicket(numbers, std.PrevRealm().Addr())
+
+	return "Ticket purchased successfully"
 }
 
 // Draws the winning numbers for a specific lottery, only callable by admin the draw time has passed.
-func Draw(lotteryIDStr string) (int, string) {
+func Draw(lotteryIDStr string) string {
 	lotteryID, _ := seqid.FromString(lotteryIDStr)
 	id := lotteryID.Binary()
 
-	if std.GetOrigCaller() != admin {
+	if std.PrevRealm().Addr() != admin {
 		panic("Only the admin can draw the winning numbers")
 	}
+
 	lotteryRaw, exists := lotteries.Get(id)
+
 	if !exists {
 		panic("Lottery not found")
 	}
@@ -123,7 +129,8 @@ func Draw(lotteryIDStr string) (int, string) {
 	}
 
 	l.Draw()
-	return 1, "Winning numbers drawn successfully"
+
+	return "Winning numbers drawn successfully"
 }
 
 func Render(path string) string {
