@@ -6,7 +6,7 @@ import (
 )
 
 func TestBTreeCreation(t *testing.T) {
-	invalid := errors.New("Invalid t")
+	invalid := errors.New("invalid t")
 	tests := []struct {
 		name     string
 		t        int
