@@ -453,18 +453,13 @@ func (x *SelectorExpr) addressability() Addressability {
 
 type SliceExpr struct { // X[Low:High:Max]
 	Attributes
-	X             Expr // expression
-	Low           Expr // begin of slice range; or nil
-	High          Expr // end of slice range; or nil
-	Max           Expr // maximum capacity of slice; or nil; added in Go 1.2
-	IsAddressable bool
+	X    Expr // expression
+	Low  Expr // begin of slice range; or nil
+	High Expr // end of slice range; or nil
+	Max  Expr // maximum capacity of slice; or nil; added in Go 1.2
 }
 
 func (x *SliceExpr) addressability() Addressability {
-	if x.IsAddressable {
-		return AddressabilitySatisfied
-	}
-
 	return AddressabilityUnsatisfied
 }
 

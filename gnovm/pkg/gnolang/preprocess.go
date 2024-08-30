@@ -1347,12 +1347,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				}
 
 				if n.Addressability != AddressabilitySatisfied && len(ft.Results) == 1 {
-					switch ft.Results[0].Type.Kind() {
-					case SliceKind:
-						n.Addressability = AddressabilitySatisfied
-					default:
-						n.Addressability = AddressabilityUnsatisfied
-					}
+					n.Addressability = AddressabilityUnsatisfied
 				}
 
 				// Continue with general case.
@@ -1511,18 +1506,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				case MapKind:
 					mt := baseOf(gnoTypeOf(store, dt)).(*MapType)
 					checkOrConvertType(store, last, &n.Index, mt.Key, false)
-					switch mt.Value.Kind() {
-					case SliceKind:
-						n.Addressability = AddressabilitySatisfied
-					case StringKind:
-						n.Addressability = AddressabilityUnsatisfied
-					case PointerKind:
-						if baseOf(mt.Value).(*PointerType).Elt.Kind() == ArrayKind {
-							n.Addressability = AddressabilitySatisfied
-						}
-					default:
-						n.Addressability = AddressabilityUnsatisfied
-					}
+					n.Addressability = AddressabilityUnsatisfied
 				default:
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",
@@ -1538,19 +1522,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				checkOrConvertIntegerKind(store, last, n.Max)
 
 				t := evalStaticTypeOf(store, last, n.X)
-				n.IsAddressable = true
-
-				// Non-pointer arrays and strings produced by the slice expression are not addressable.
-				// Slices and pointers are addressable.
-				switch baseOf(t).(type) {
-				case *ArrayType:
+				if t.Kind() == ArrayKind {
 					if n.X.addressability() == AddressabilityUnsatisfied {
 						panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
 					}
-
-					n.IsAddressable = false
-				case *PrimitiveType:
-					n.IsAddressable = false
 				}
 
 				// if n.X is untyped, convert to corresponding type
@@ -1589,16 +1564,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							t.String(),
 						),
 					)
-				}
-
-				targetType := baseOf(evalStaticType(store, last, n.Type))
-				switch targetType.(type) {
-				case *PointerType, *SliceType:
-					// If the type assertion is to a pointer of slice, the result is addressable.
-					// Type assertions for other types result in a copy of the value or an
-					// interface, both non-addressable. Slices are addressable because the copy
-					// of the slice still references the underlying array.
-					n.IsAddressable = true
 				}
 
 			// TRANS_LEAVE -----------------------
