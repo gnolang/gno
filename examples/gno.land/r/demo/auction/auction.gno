@@ -27,7 +27,7 @@ func init() {
 }
 
 // CreateAuction handles the creation of a new auction
-func CreateAuction(title, description string, begin, end int64, price uint64) string {
+func CreateAuction(title, description string, begin, end int64, price std.Coin) string {
 	owner := std.GetOrigCaller()
 	beginTime := time.Unix(begin, 0)
 	endTime := time.Unix(end, 0)
@@ -37,7 +37,7 @@ func CreateAuction(title, description string, begin, end int64, price uint64) st
 }
 
 // PlaceBid handles placing a bid on an auction
-func PlaceBid(id int, amount uint64) string {
+func PlaceBid(id int, amount std.Coin) string {
 	caller := std.GetOrigCaller()
 	if id >= len(auctionList) || id < 0 {
 		panic("Invalid auction ID")
