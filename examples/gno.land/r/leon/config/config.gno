@@ -1,4 +1,4 @@
-package leon
+package config
 
 import (
 	"errors"
@@ -24,7 +24,7 @@ func Backup() std.Address {
 
 func SetAddress(a std.Address) error {
 	if !a.IsValid() {
-		return errors.New("invalid address")
+		return errors.New("config: invalid address")
 	}
 
 	if err := checkAuthorized(); err != nil {
@@ -37,7 +37,7 @@ func SetAddress(a std.Address) error {
 
 func SetBackup(a std.Address) error {
 	if !a.IsValid() {
-		return errors.New("invalid address")
+		return errors.New("config: invalid address")
 	}
 
 	if err := checkAuthorized(); err != nil {
@@ -55,4 +55,11 @@ func checkAuthorized() error {
 	}
 
 	return nil
+}
+
+func AssertAuthorized() {
+	caller := std.PrevRealm().Addr()
+	if caller != main || caller != backup {
+		panic("config: unauthorized")
+	}
 }
