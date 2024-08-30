@@ -21,6 +21,7 @@ import (
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/overflow"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -594,7 +595,7 @@ func (tb *testBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
 	tb.coinTable[from] = frest
 	// Second, add to 'to'.
 	// NOTE: even works when from==to, due to 2-step isolation.
-	tcoins, _ := tb.coinTable[to]
+	tcoins := tb.coinTable[to]
 	tsum := tcoins.Add(amt)
 	tb.coinTable[to] = tsum
 }
@@ -604,15 +605,27 @@ func (tb *testBanker) TotalCoin(denom string) int64 {
 }
 
 func (tb *testBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
-	coins, _ := tb.coinTable[addr]
+	coins := tb.coinTable[addr]
 	sum := coins.Add(std.Coins{{denom, amt}})
 	tb.coinTable[addr] = sum
-	tb.totalCoin[denom] += amt
+
+	totalCoin, ok := overflow.Add64(tb.totalCoin[denom], amt)
+	if !ok {
+		panic(fmt.Sprintf("totalCoin overflow/underflow for denom %s while adding %d", denom, amt))
+	}
+
+	tb.totalCoin[denom] = totalCoin
 }
 
 func (tb *testBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
-	coins, _ := tb.coinTable[addr]
+	coins := tb.coinTable[addr]
 	rest := coins.Sub(std.Coins{{denom, amt}})
 	tb.coinTable[addr] = rest
-	tb.totalCoin[denom] -= amt
+
+	totalCoin, ok := overflow.Sub64(tb.totalCoin[denom], amt)
+	if !ok {
+		panic(fmt.Sprintf("totalCoin overflow/underflow for denom %s while adding %d", denom, amt))
+	}
+
+	tb.totalCoin[denom] = totalCoin
 }
