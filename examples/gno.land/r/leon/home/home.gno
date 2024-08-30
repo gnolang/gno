@@ -19,10 +19,17 @@ var (
 
 func init() {
 	pfp = "https://i.imgflip.com/91vskx.jpg"
-	pfpCaption = "[My favourite painting](https://en.wikipedia.org/wiki/Wanderer_above_the_Sea_of_Fog)"
+	pfpCaption = "[My favourite painting & pfp](https://en.wikipedia.org/wiki/Wanderer_above_the_Sea_of_Fog)"
 	abtMe = [2]string{
-		"Hi, I'm Leon, a DevRel Engineer at gno.land.",
-		"I am a tech enthusiast, life-long learner, and sharer of knowledge.",
+		`### About me
+Hi, I'm Leon, a DevRel Engineer at gno.land. I am a tech enthusiast, 
+life-long learner, and sharer of knowledge.`,
+		`### Contributions
+My contributions to gno.land can mainly be found 
+[here](https://github.com/gnolang/gno/issues?q=sort:updated-desc+author:leohhhn).
+
+TODO import r/gh
+`,
 	}
 }
 
@@ -42,9 +49,18 @@ func Render(path string) string {
 	out := "# Leon's Homepage\n\n"
 
 	out += renderAboutMe()
+	out += renderBlogPosts()
 	out += "\n\n"
 	out += renderArt()
 
+	return out
+}
+
+func renderBlogPosts() string {
+	out := "## Leon's Blog Posts"
+
+	// todo fetch blog posts authored by @leohhhn
+	// and render them
 	return out
 }
 
@@ -61,10 +77,9 @@ func renderAboutMe() string {
 
 	out += "<div>\n\n"
 	out += abtMe[1] + "\n\n"
-	out += "\n\n"
 	out += "</div>\n\n"
 
-	out += "</div>\n\n"
+	out += "</div><!-- /columns-3 -->\n\n"
 
 	return out
 }
@@ -79,7 +94,8 @@ func renderArt() string {
 	out += renderMillipede()
 	out += "Empty spot :/"
 
-	out += "</div>\n\n"
+	out += "</div><!-- /columns-3 -->\n\n"
+
 	out += "This art is dynamic; it will change with every new block.\n\n"
 	out += `</div><!-- /jumbotron -->` + "\n"
 
