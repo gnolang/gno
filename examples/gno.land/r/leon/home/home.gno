@@ -4,15 +4,57 @@ import (
 	"std"
 	"strconv"
 
+	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"
+	"gno.land/r/leon/config"
 )
 
-func Render(path string) string {
-	out := ""
+var (
+	pfp string // link to profile picture
+)
 
-	out += "# Leon's Homepage\n\n"
-	out += `<div class="jumbotron">` + "\n\n"
+func init() {
+	pfp = "https://i.imgflip.com/91vskx.jpg"
+}
+
+func UpdatePFP(url string) {
+	config.AssertAuthorized()
+	pfp = url
+}
+
+func Render(path string) string {
+	out := "# Leon's Homepage\n\n"
+
+	out += renderAboutMe()
+	out += "\n\n"
+	out += renderArt()
+
+	return out
+}
+
+func renderAboutMe() string {
+	out := "<div class='columns-3'>"
+
+	out += "<div>\n\n"
+	out += ufmt.Sprintf("![my profile pic](%s)\n\n[My favourite painting](https://en.wikipedia.org/wiki/Wanderer_above_the_Sea_of_Fog)\n\n", pfp)
+	out += "</div>\n\n"
+
+	out += "<div>\n\n"
+	out += "I'm Leon, a DevRel engineer at gno.land!\n\n"
+	out += "</div>\n\n"
+
+	out += "<div>\n\n"
+	out += "I am a tech enthusiast, life-long learner, and sharer of knowledge.\n\n"
+	out += "</div>\n\n"
+
+	out += "</div>\n\n"
+
+	return out
+}
+
+func renderArt() string {
+	out := `<div class="jumbotron">` + "\n\n"
 	out += "# Gno Art\n\n"
 
 	out += "<div class='columns-3'>"
