@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gno.land/p/demo/ufmt"
 )
 
 type Ticket struct {
@@ -58,45 +60,37 @@ func (l *Lottery) Draw() {
 	}
 }
 
-// Iterate over all tickets to identify and return the addresses of the winningOwners
 func (l *Lottery) CheckWinners() []std.Address {
-	var winningOwners []std.Address
+	var winners []std.Address
 
 	for _, ticket := range l.Tickets {
-		isWinner := true
-
-		for i := 0; i < MaxLottoNumbers; i++ {
-			if ticket.Numbers[i] != l.WinningNumbers[i] {
-				isWinner = false
-				break
-			}
-		}
-
-		if isWinner {
-			winningOwners = append(winningOwners, ticket.Owner)
+		if AreNumberMatching(ticket.Numbers, l.WinningNumbers) {
+			winners = append(winners, ticket.Owner)
 		}
 	}
 
-	return winningOwners
+	return winners
 }
 
 // Distributes the prize pool equally among the winning ticket owners
-func (l *Lottery) PayWinners(winningOwners []std.Address) {
-	if len(winningOwners) == 0 {
+func (l *Lottery) PayWinners(winners []std.Address) {
+	if len(winners) == 0 {
 		return
-	} else {
-		// Calculate reward per winner
-		var reward int64 = l.PrizePool / int64(len(winningOwners))
-
-		banker := std.GetBanker(std.BankerTypeRealmSend)
-
-		for _, owner := range winningOwners {
-			send := std.Coins{{"ugnot", reward}}
-			banker.SendCoins(std.GetOrigPkgAddr(), owner, send) // Send reward to each winner
-		}
-
-		l.PrizePool = 0 // Reset the prize pool after distribution
 	}
+
+	var reward int64 = l.PrizePool / int64(len(winners))
+	if reward <= 0 || reward > l.PrizePool {
+		panic("Invalid reward calculation")
+	}
+
+	banker := std.GetBanker(std.BankerTypeRealmSend)
+
+	for _, owner := range winners {
+		send := std.Coins{{"ugnot", reward}}
+		banker.SendCoins(std.GetOrigPkgAddr(), owner, send)
+	}
+
+	l.PrizePool = 0
 }
 
 func StringToIntSlice(numbersStr string) ([]int, error) {
@@ -110,4 +104,14 @@ func StringToIntSlice(numbersStr string) ([]int, error) {
 		numbers[i] = num
 	}
 	return numbers, nil
+}
+
+func AreNumberMatching(ticketNumbers, winningNumbers []int) bool {
+	for i := 0; i < MaxLottoNumbers; i++ {
+		if ticketNumbers[i] != winningNumbers[i] {
+			return false
+		}
+	}
+
+	return true
 }
