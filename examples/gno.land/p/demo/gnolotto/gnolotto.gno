@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"gno.land/p/demo/ufmt"
 )
 
 type Ticket struct {
@@ -79,9 +77,6 @@ func (l *Lottery) PayWinners(winners []std.Address) {
 	}
 
 	var reward int64 = l.PrizePool / int64(len(winners))
-	if reward <= 0 || reward > l.PrizePool {
-		panic("Invalid reward calculation")
-	}
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 
@@ -103,6 +98,7 @@ func StringToIntSlice(numbersStr string) ([]int, error) {
 		}
 		numbers[i] = num
 	}
+
 	return numbers, nil
 }
 
