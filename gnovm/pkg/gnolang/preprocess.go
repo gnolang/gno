@@ -1342,14 +1342,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "new" {
 						// new returns a pointer and pointers are always addressable.
-						n.Addressability = AddressabilitySatisfied
+						n.Addressability = AddressabilityUnsatisfied
 					}
 				}
 
 				if n.Addressability != AddressabilitySatisfied && len(ft.Results) == 1 {
-					baseType := baseOf(ft.Results[0].Type)
-					switch baseType.(type) {
-					case *PointerType, *SliceType:
+					switch ft.Results[0].Type.Kind() {
+					case SliceKind:
 						n.Addressability = AddressabilitySatisfied
 					default:
 						n.Addressability = AddressabilityUnsatisfied
@@ -1495,7 +1494,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					dt = dt.Elem()
 					n.X = &StarExpr{X: n.X}
 					n.X.SetAttribute(ATTR_PREPROCESSED, true)
-					n.IsAddressable = true
+					n.Addressability = AddressabilitySatisfied
 				}
 				switch dt.Kind() {
 				case StringKind, ArrayKind, SliceKind:
@@ -1504,14 +1503,26 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					checkOrConvertIntegerKind(store, last, n.Index)
 					if dt.Kind() == SliceKind {
 						// A string index is not addressable.
-						n.IsAddressable = true
+						n.Addressability = AddressabilitySatisfied
 					} else if dt.Kind() == StringKind {
 						// Special case; string indexes are never addressable.
-						n.XIsString = true
+						n.Addressability = AddressabilityUnsatisfied
 					}
 				case MapKind:
 					mt := baseOf(gnoTypeOf(store, dt)).(*MapType)
 					checkOrConvertType(store, last, &n.Index, mt.Key, false)
+					switch mt.Value.Kind() {
+					case SliceKind:
+						n.Addressability = AddressabilitySatisfied
+					case StringKind:
+						n.Addressability = AddressabilityUnsatisfied
+					case PointerKind:
+						if baseOf(mt.Value).(*PointerType).Elt.Kind() == ArrayKind {
+							n.Addressability = AddressabilitySatisfied
+						}
+					default:
+						n.Addressability = AddressabilityUnsatisfied
+					}
 				default:
 					panic(fmt.Sprintf(
 						"unexpected index base kind for type %s",

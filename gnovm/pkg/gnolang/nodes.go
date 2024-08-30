@@ -420,23 +420,19 @@ func (x *CallExpr) addressability() Addressability {
 
 type IndexExpr struct { // X[Index]
 	Attributes
-	X             Expr // expression
-	Index         Expr // index expression
-	HasOK         bool // if true, is form: `value, ok := <X>[<Key>]
-	IsAddressable bool // true if X is an array pointer or slice
-	XIsString     bool // true if X is a string (never addressable)
+	X              Expr // expression
+	Index          Expr // index expression
+	HasOK          bool // if true, is form: `value, ok := <X>[<Key>]
+	Addressability Addressability
 }
 
 func (x *IndexExpr) addressability() Addressability {
-	if x.XIsString {
-		return AddressabilityUnsatisfied
+	// In this case NotApplicable means that it wasn't set, the default value.
+	if x.Addressability == AddressabilityNotApplicable {
+		return x.X.addressability()
 	}
 
-	if x.IsAddressable || x.X.addressability() == AddressabilitySatisfied {
-		return AddressabilitySatisfied
-	}
-
-	return AddressabilityUnsatisfied
+	return x.Addressability
 }
 
 type SelectorExpr struct { // X.Sel
