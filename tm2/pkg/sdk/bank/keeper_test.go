@@ -6,7 +6,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -166,7 +165,7 @@ func TestBankKeeper(t *testing.T) {
 		"Recipient's balance should reflect the sent amounts")
 
 	// Validate coins with invalid denominations or negative values cannot be sent
-	err = env.bank.SendCoins(ctx, addr1, addr2, std.Coins{sdk.Coin{"foocoin", -5}})
+	err = env.bank.SendCoins(ctx, addr1, addr2, std.Coins{std.Coin{"foocoin", -5}})
 	require.Error(t, err, "Should return an error when trying to send negative coin values")
 }
 
@@ -284,9 +283,21 @@ func TestSubtractCoins(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, std.NewCoins(std.NewCoin("foocoin", 50)), newCoins)
 
-	// Test subtraction with insufficient funds
-	_, err = env.bank.SubtractCoins(ctx, addr1, std.NewCoins(std.NewCoin("foocoin", 100))) // more than available
+	// Test subtraction with insufficient funds (50 < 100)
+	_, err = env.bank.SubtractCoins(ctx, addr1, std.NewCoins(std.NewCoin("foocoin", 100)))
 	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid coins error")
+
+	// Test invalid coin amount
+	_, err = env.bank.SubtractCoins(ctx, addr1, std.Coins{std.Coin{"foocoin", -10}})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid coins error")
+
+	// Test non-existent account
+	nonExistentAddr := addr2
+	_, err = env.bank.SubtractCoins(ctx, nonExistentAddr, std.NewCoins(std.NewCoin("foocoin", 10)))
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown address error")
 }
 
 func TestAddCoins(t *testing.T) {
@@ -301,12 +312,8 @@ func TestAddCoins(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, std.NewCoins(std.NewCoin("foocoin", 50)), newCoins)
 
-	// Test negative coins should cause a panic
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("AddCoins did not panic on negative coin value")
-		}
-	}()
-
-	env.bank.AddCoins(ctx, addr1, std.NewCoins(std.NewCoin("foocoin", -50)))
+	// Test negative coins
+	_, err = env.bank.AddCoins(ctx, addr1, std.Coins{std.Coin{"foocoin", -50}})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid coins error")
 }

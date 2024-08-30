@@ -123,12 +123,12 @@ func (bank BankKeeper) SubtractCoins(ctx sdk.Context, addr crypto.Address, amt s
 		return nil, std.ErrInvalidCoins(amt.String())
 	}
 
-	oldCoins := std.NewCoins()
 	acc := bank.acck.GetAccount(ctx, addr)
-	if acc != nil {
-		oldCoins = acc.GetCoins()
+	if acc == nil {
+		return nil, std.ErrUnknownAddress(fmt.Sprintf("account not found for address %s", addr))
 	}
 
+	oldCoins := acc.GetCoins()
 	newCoins := oldCoins.SubUnsafe(amt)
 
 	err := bank.setCoins(ctx, addr, newCoins)
