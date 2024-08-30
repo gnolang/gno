@@ -57,7 +57,8 @@ func Render(path string) string {
 }
 
 func renderBlogPosts() string {
-	out := "## Leon's Blog Posts"
+	out := ""
+	//out += "## Leon's Blog Posts"
 
 	// todo fetch blog posts authored by @leohhhn
 	// and render them
