@@ -2367,6 +2367,7 @@ type Block struct {
 	ObjectInfo
 	Source   BlockNode
 	Values   []TypedValue
+	Roots    []PointerValue
 	Parent   Value
 	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
 	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.

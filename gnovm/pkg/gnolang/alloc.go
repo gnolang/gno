@@ -143,7 +143,10 @@ func (alloc *Allocator) DeallocObj(tv TypedValue) {
 	case *ArrayValue:
 		alloc.DeallocateDataArray(int64(len(v.Data)))
 	default:
-		fmt.Printf("DeallocDeleted: unimplemented %T\n", v)
+		switch tv.T {
+		default:
+			fmt.Printf("DeallocDeleted: unimplemented %T\n", v)
+		}
 	}
 }
 

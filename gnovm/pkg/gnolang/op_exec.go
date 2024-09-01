@@ -98,6 +98,17 @@ func (m *Machine) doOpExec(op Op) {
 			if bs.Cond != nil {
 				cond := m.PopValue()
 				if !cond.GetBool() {
+					for _, value := range m.LastBlock().Roots {
+						if pv, ok := value.TV.V.(PointerValue); ok {
+							if hiv, ok := pv.Base.(*HeapItemValue); ok {
+								root := NewObject(hiv.Value)
+								m.Alloc.heap.RemoveRoot(root)
+							}
+						} else {
+							m.Alloc.DeallocObj(*value.TV)
+						}
+					}
+
 					// done with loop.
 					m.PopFrameAndReset()
 					return
