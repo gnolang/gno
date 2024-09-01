@@ -76,9 +76,6 @@ Packages are read from the `./examples` folder. However note the following:
 2. One reason to do this is to experiment with the chain or simple to allow 
    people to test a demo of your realms before the PR gets approved and it 
    gets merged to the monorepo.
-3. Once commited to the `master` branch, a package will supersede any
-   previously permissionlessly deployed package with the same `pkgpath`. This
-   is because packages in `./examples` get added before the transactions are
-   replayed, making any subsequent `addpkg` transaction with the same path 
-   rejected.
+3. Once committed to the `master` branch, a package will supersede any
+   previously permissionlessly deployed package with the same `pkgpath`.
 
