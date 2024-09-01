@@ -19,15 +19,14 @@ func renderGames() string {
 		authors     []string
 		desc        string
 	}{
+		{"shifumi", "games/shifumi", []string{"mvertes"}, "a very simple rock, paper, scissors game"},
 		{"tictactoe", "games/tictactoe", []string{"grepsuzette", "moul"}, "CPU vs Human tictactoe, no need for a wallet"},
 	} {
 		b.WriteString(ufmt.Sprintf(
 			"* [%s](%s): %s\n",
 			o.title, o.path,
 			o.desc,
-			// when we have many authors, we can also show them
-			// for now it's not very interesting
-			// RenderAuthors(o.authors, "@"),
+			RenderAuthors(o.authors, "@"),
 		))
 	}
 	return b.String()
