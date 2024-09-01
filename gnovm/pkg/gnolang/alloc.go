@@ -172,43 +172,35 @@ func (alloc *Allocator) AllocateString(size int64) {
 }
 
 func (alloc *Allocator) AllocatePointer() {
-	println("AllocatePointer")
 	alloc.Allocate(allocPointer)
 }
 
 func (alloc *Allocator) AllocateDataArray(size int64) {
-	println("AllocateDataArray")
 	alloc.Allocate(allocArray + size)
 }
 
 func (alloc *Allocator) DeallocateDataArray(size int64) {
-	println("DeallocateDataArray")
 	alloc.Deallocate(allocArray + size)
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
-	println("AllocateListArray")
 	alloc.Allocate(allocArray + allocArrayItem*items)
 }
 
 func (alloc *Allocator) AllocateSlice() {
-	println("AllocateSlice")
 	alloc.Allocate(allocSlice)
 }
 
 func (alloc *Allocator) DeallocateSlice() {
-	println("DeallocateSlice")
 	alloc.Deallocate(allocSlice)
 }
 
 // NOTE: fields must be allocated separately.
 func (alloc *Allocator) AllocateStruct() {
-	println("AllocateStruct")
 	alloc.Allocate(allocStruct)
 }
 
 func (alloc *Allocator) DeallocateStruct() {
-	println("DeallocateStruct")
 	alloc.Deallocate(allocStruct)
 }
 
@@ -221,12 +213,10 @@ func (alloc *Allocator) DeallocateStructFields(fields int64) {
 }
 
 func (alloc *Allocator) AllocateFunc() {
-	println("AllocateFunc")
 	alloc.Allocate(allocFunc)
 }
 
 func (alloc *Allocator) AllocateMap(items int64) {
-	println("AllocateMap")
 	alloc.Allocate(allocMap + allocMapItem*items)
 }
 
@@ -239,12 +229,10 @@ func (alloc *Allocator) AllocateBoundMethod() {
 }
 
 func (alloc *Allocator) AllocateBlock(items int64) {
-	println("AllocateBlock")
 	alloc.Allocate(allocBlock + allocBlockItem*items)
 }
 
 func (alloc *Allocator) DeallocateBlock(items int64) {
-	println("DeallocateBlock")
 	alloc.Deallocate(allocBlock + allocBlockItem*items)
 }
 
@@ -254,7 +242,6 @@ func (alloc *Allocator) AllocateBlockItems(items int64) {
 
 // NOTE: does not allocate for the underlying value.
 func (alloc *Allocator) AllocateNative() {
-	println("AllocateNative")
 	alloc.Allocate(allocNative)
 }
 
@@ -274,7 +261,6 @@ func (alloc *Allocator) AllocateAmino(l int64) {
 }
 
 func (alloc *Allocator) AllocateHeapItem() {
-	println("AllocateHeapItem")
 	alloc.Allocate(allocHeapItem)
 }
 
@@ -282,13 +268,11 @@ func (alloc *Allocator) AllocateHeapItem() {
 // constructor utilities.
 
 func (alloc *Allocator) NewString(s string) StringValue {
-	println("NewString")
 	alloc.AllocateString(int64(len(s)))
 	return StringValue(s)
 }
 
 func (alloc *Allocator) NewListArray(n int) *ArrayValue {
-	println("NewListArray")
 	alloc.AllocateListArray(int64(n))
 	return &ArrayValue{
 		List: make([]TypedValue, n),
@@ -296,7 +280,6 @@ func (alloc *Allocator) NewListArray(n int) *ArrayValue {
 }
 
 func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
-	println("NewDataArray")
 	alloc.AllocateDataArray(int64(n))
 	return &ArrayValue{
 		Data: make([]byte, n),
@@ -304,14 +287,12 @@ func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 }
 
 func (alloc *Allocator) NewArrayFromData(data []byte) *ArrayValue {
-	println("NewArrayFromData")
 	av := alloc.NewDataArray(len(data))
 	copy(av.Data, data)
 	return av
 }
 
 func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceValue {
-	println("NewSlice")
 	alloc.AllocateSlice()
 	return &SliceValue{
 		Base:   base,
@@ -323,7 +304,6 @@ func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceV
 
 // NOTE: also allocates the underlying array from list.
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
-	println("NewSliceFromList")
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
 	fullList := list[:cap(list)]
@@ -339,7 +319,6 @@ func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 
 // NOTE: also allocates the underlying array from data.
 func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
-	println("NewSliceFromData")
 	alloc.AllocateSlice()
 	alloc.AllocateDataArray(int64(cap(data)))
 	fullData := data[:cap(data)]
@@ -355,7 +334,6 @@ func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 
 // NOTE: fields must be allocated (e.g. from NewStructFields)
 func (alloc *Allocator) NewStruct(fields []TypedValue) *StructValue {
-	println("NewStruct")
 	alloc.AllocateStruct()
 	return &StructValue{
 		Fields: fields,
@@ -382,13 +360,11 @@ func (alloc *Allocator) NewMap(size int) *MapValue {
 }
 
 func (alloc *Allocator) NewBlock(source BlockNode, parent *Block) *Block {
-	println("NewBlock")
 	alloc.AllocateBlock(int64(source.GetNumNames()))
 	return NewBlock(source, parent)
 }
 
 func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
-	println("NewNative")
 	alloc.AllocateNative()
 	return &NativeValue{
 		Value: rv,
@@ -396,13 +372,11 @@ func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
 }
 
 func (alloc *Allocator) NewType(t Type) Type {
-	println("NewType")
 	alloc.AllocateType()
 	return t
 }
 
 func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
-	println("NewHeapItem")
 	alloc.AllocateHeapItem()
 
 	gcObj := NewObject(tv)
