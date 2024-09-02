@@ -56,6 +56,8 @@ type Token interface {
 }
 
 const (
+	MintEvent     = "Mint"
+	BurnEvent     = "Burn"
 	TransferEvent = "Transfer"
 	ApprovalEvent = "Approval"
 )
