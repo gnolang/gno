@@ -28,29 +28,6 @@ func (z *Int) Add(x, y *Int) *Int {
 	return z
 }
 
-// func (z *Int) Add(x, y *Int) *Int {
-// 	z.initiateAbs()
-
-// 	neg := x.neg
-
-// 	if x.neg == y.neg {
-// 		// x + y == x + y
-// 		// (-x) + (-y) == -(x + y)
-// 		z.abs = z.abs.Add(x.abs, y.abs)
-// 	} else {
-// 		// x + (-y) == x - y == -(y - x)
-// 		// (-x) + y == y - x == -(x - y)
-// 		if x.abs.Cmp(y.abs) >= 0 {
-// 			z.abs = z.abs.Sub(x.abs, y.abs)
-// 		} else {
-// 			neg = !neg
-// 			z.abs = z.abs.Sub(y.abs, x.abs)
-// 		}
-// 	}
-// 	z.neg = neg // 0 has no sign
-// 	return z
-// }
-
 // AddUint256 set z to the sum x + y, where y is a uint256, and returns z
 func (z *Int) AddUint256(x *Int, y *uint256.Uint) *Int {
 	if x.neg {
