@@ -152,25 +152,39 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 	ms.LoadLatestVersion()
 	testCtx := sdk.NewContext(sdk.RunTxModeDeliver, ms.MultiCacheWrap(), &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
 
+	// mock set-up
+	var (
+		makeCalls             int
+		commitCalls           int
+		loadStdlibCalls       int
+		loadStdlibCachedCalls int
+	)
 	containsGnoStore := func(ctx sdk.Context) bool {
 		return ctx.Context().Value(gnoStoreKey) == gnoStoreValue
 	}
-	loadStdlib := func(ctx sdk.Context, dir string) {
-		assert.Equal(t, stdlibDir, dir, "stdlibDir should match provided dir")
-		assert.True(t, containsGnoStore(ctx), "should contain gno store")
+	// ptr is pointer to either loadStdlibCalls or loadStdlibCachedCalls
+	loadStdlib := func(ptr *int) func(ctx sdk.Context, dir string) {
+		return func(ctx sdk.Context, dir string) {
+			assert.Equal(t, stdlibDir, dir, "stdlibDir should match provided dir")
+			assert.True(t, containsGnoStore(ctx), "should contain gno store")
+			*ptr++
+		}
 	}
 	mock := &mockVMKeeper{
 		makeGnoTransactionStoreFn: func(ctx sdk.Context) sdk.Context {
+			makeCalls++
 			assert.False(t, containsGnoStore(ctx), "should not already contain gno store")
 			return ctx.WithContext(context.WithValue(ctx.Context(), gnoStoreKey, gnoStoreValue))
 		},
 		commitGnoTransactionStoreFn: func(ctx sdk.Context) {
+			commitCalls++
 			assert.True(t, containsGnoStore(ctx), "should contain gno store")
 		},
-		loadStdlibFn:       loadStdlib,
-		loadStdlibCachedFn: loadStdlib,
-		calls:              make(map[string]int),
+		loadStdlibFn:       loadStdlib(&loadStdlibCalls),
+		loadStdlibCachedFn: loadStdlib(&loadStdlibCachedCalls),
 	}
+
+	// call initchainer
 	cfg := InitChainerConfig{
 		StdlibDir:       stdlibDir,
 		vmKpr:           mock,
@@ -179,16 +193,17 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 	cfg.InitChainer(testCtx, abci.RequestInitChain{
 		AppState: GnoGenesisState{},
 	})
-	exp := map[string]int{
-		"MakeGnoTransactionStore":   1,
-		"CommitGnoTransactionStore": 1,
-	}
+
+	// assert number of calls
+	assert.Equal(t, 1, makeCalls, "should call MakeGnoTransactionStore once")
+	assert.Equal(t, 1, commitCalls, "should call CommitGnoTransactionStore once")
 	if cached {
-		exp["LoadStdlibCached"] = 1
+		assert.Equal(t, 0, loadStdlibCalls, "should call LoadStdlib never")
+		assert.Equal(t, 1, loadStdlibCachedCalls, "should call LoadStdlibCached once")
 	} else {
-		exp["LoadStdlib"] = 1
+		assert.Equal(t, 1, loadStdlibCalls, "should call LoadStdlib once")
+		assert.Equal(t, 0, loadStdlibCachedCalls, "should call LoadStdlibCached never")
 	}
-	assert.Equal(t, mock.calls, exp)
 }
 
 // generateValidatorUpdates generates dummy validator updates

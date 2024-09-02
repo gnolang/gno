@@ -54,18 +54,9 @@ type mockVMKeeper struct {
 	loadStdlibCachedFn          func(sdk.Context, string)
 	makeGnoTransactionStoreFn   func(ctx sdk.Context) sdk.Context
 	commitGnoTransactionStoreFn func(ctx sdk.Context)
-
-	calls map[string]int
-}
-
-func (m *mockVMKeeper) call(name string) {
-	if m.calls != nil {
-		m.calls[name]++
-	}
 }
 
 func (m *mockVMKeeper) AddPackage(ctx sdk.Context, msg vm.MsgAddPackage) error {
-	m.call("AddPackage")
 	if m.addPackageFn != nil {
 		return m.addPackageFn(ctx, msg)
 	}
@@ -74,7 +65,6 @@ func (m *mockVMKeeper) AddPackage(ctx sdk.Context, msg vm.MsgAddPackage) error {
 }
 
 func (m *mockVMKeeper) Call(ctx sdk.Context, msg vm.MsgCall) (res string, err error) {
-	m.call("Call")
 	if m.callFn != nil {
 		return m.callFn(ctx, msg)
 	}
@@ -83,7 +73,6 @@ func (m *mockVMKeeper) Call(ctx sdk.Context, msg vm.MsgCall) (res string, err er
 }
 
 func (m *mockVMKeeper) QueryEval(ctx sdk.Context, pkgPath, expr string) (res string, err error) {
-	m.call("QueryEval")
 	if m.queryFn != nil {
 		return m.queryFn(ctx, pkgPath, expr)
 	}
@@ -92,7 +81,6 @@ func (m *mockVMKeeper) QueryEval(ctx sdk.Context, pkgPath, expr string) (res str
 }
 
 func (m *mockVMKeeper) Run(ctx sdk.Context, msg vm.MsgRun) (res string, err error) {
-	m.call("Run")
 	if m.runFn != nil {
 		return m.runFn(ctx, msg)
 	}
@@ -101,21 +89,18 @@ func (m *mockVMKeeper) Run(ctx sdk.Context, msg vm.MsgRun) (res string, err erro
 }
 
 func (m *mockVMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
-	m.call("LoadStdlib")
 	if m.loadStdlibFn != nil {
 		m.loadStdlibFn(ctx, stdlibDir)
 	}
 }
 
 func (m *mockVMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
-	m.call("LoadStdlibCached")
 	if m.loadStdlibCachedFn != nil {
 		m.loadStdlibCachedFn(ctx, stdlibDir)
 	}
 }
 
 func (m *mockVMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
-	m.call("MakeGnoTransactionStore")
 	if m.makeGnoTransactionStoreFn != nil {
 		return m.makeGnoTransactionStoreFn(ctx)
 	}
@@ -123,7 +108,6 @@ func (m *mockVMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
 }
 
 func (m *mockVMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
-	m.call("CommitGnoTransactionStore")
 	if m.commitGnoTransactionStoreFn != nil {
 		m.commitGnoTransactionStoreFn(ctx)
 	}
