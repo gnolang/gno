@@ -730,7 +730,7 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 			switch ex := r.(type) {
 			case store.OutOfGasException:
 				log := fmt.Sprintf(
-					"out of gas, gasWanted: %d, gasUsed: %d location: %v", // <- 여기에서 out of gas가 발생
+					"out of gas, gasWanted: %d, gasUsed: %d location: %v",
 					gasWanted,
 					ctx.GasMeter().GasConsumed(),
 					ex.Descriptor,
