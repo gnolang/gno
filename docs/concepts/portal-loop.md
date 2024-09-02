@@ -72,7 +72,7 @@ block height & timestamp cannot be relied upon.
 
 There are two ways to deploy code to the Portal Loop:
 
-1. *automatic* - all packages in `examples/gno.land/{p,r}/` get added to the
+1. *automatic* - all packages in found in the `examples/gno.land/{p,r}/` directory in the [Gno monorepo](https://github.com/gnolang/gno) get added to the
    new genesis each cycle,
 2. *permissionless* - this includes replayed transactions with `addpkg`, and
    new transactions you can issue with `gnokey maketx addpkg`.
