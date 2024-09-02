@@ -70,20 +70,17 @@ block height & timestamp cannot be relied upon.
 
 ### Deploying to the Portal Loop
 
-There are two kind of deployements to Portal Loop:
+There are two kinds of deployements to Portal Loop:
 
 1. *automatic* - all packages in `examples/gno.land/{p,r}/` get added to the
    new genesis each cycle,
 2. *permissionless* - this includes replayed transactions with `addpkg`, and
    new transactions you can issue with `gnokey maketx addpkg`.
-  * One possible reason for permissionless deployment is to test your realm on
-    Portal Loop before the associated PR gets merged to `examples`. 
 
-Since the packages in `examples/gno.land/{p,r}` are deployed first, and only
-then the recorded transactions get replayed on top, permissionless deployements
-are active only until a package with the same `pkgpath` gets merged onto
-`master`. 
+Since the packages in `examples/gno.land/{p,r}` are deployed first,
+permissionless deployments get superseded when packages with identical `pkgpath` 
+get merged into `examples/`. 
 
-Note that the above mechanism is also how the `examples/` on the Portal Loop
-get collaboratively iterated upon, which is its core purpose.
+The above mechanism is also how the `examples/` on the Portal Loop
+get collaboratively iterated upon, which is its main mission.
 
