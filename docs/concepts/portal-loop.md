@@ -70,7 +70,7 @@ block height & timestamp cannot be relied upon.
 
 ### Deploying to the Portal Loop
 
-There are two kinds of deployements to Portal Loop:
+There are two ways to deploy code to the Portal Loop:
 
 1. *automatic* - all packages in `examples/gno.land/{p,r}/` get added to the
    new genesis each cycle,
