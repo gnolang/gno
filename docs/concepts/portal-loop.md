@@ -68,14 +68,22 @@ Gno will fail to be replayed, meaning **data will be lost**.
 - Since transactions are archived and replayed during genesis, 
 block height & timestamp cannot be relied upon.
 
-### Permissionless deployments to Portal Loop
+### Deploying to the Portal Loop
 
-Packages are read from the `./examples` folder. However note the following:
+There are two kind of deployements to Portal Loop:
 
-1. You **can** permissionlessly deploy packages to Portal Loop.
-2. One reason to do this is to experiment with the chain or simple to allow 
-   people to test a demo of your realms before the PR gets approved and it 
-   gets merged to the monorepo.
-3. Once committed to the `master` branch, a package will supersede any
-   previously permissionlessly deployed package with the same `pkgpath`.
+1. *automatic* - all packages in `examples/gno.land/{p,r}/` get added to the
+   new genesis each cycle,
+2. *permissionless* - this includes replayed transactions with `addpkg`, and
+   new transactions you can issue with `gnokey maketx addpkg`.
+  * One possible reason for permissionless deployment is to test your realm on
+    Portal Loop before the associated PR gets merged to `examples`. 
+
+Since the packages in `examples/gno.land/{p,r}` are deployed first, and only
+then the recorded transactions get replayed on top, permissionless deployements
+are active only until a package with the same `pkgpath` gets merged onto
+`master`. 
+
+Note that the above mechanism is also how the `examples/` on the Portal Loop
+get collaboratively iterated upon, which is its core purpose.
 
