@@ -45,8 +45,7 @@ func (h *Heap) RemoveRoot(root *GcObj) {
 	var deleted bool
 
 	for _, r := range h.roots {
-		if !deleted && r.tv == root.tv {
-			fmt.Printf("REMOVEROOT: %+v\n", root.tv)
+		if !deleted && r.tv.V == root.tv.V {
 			deleted = true
 			continue
 		}

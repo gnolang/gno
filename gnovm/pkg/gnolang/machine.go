@@ -1954,24 +1954,7 @@ func (m *Machine) PopFrameAndReturn() {
 		m.Alloc.DeallocateSlice()
 	}
 
-	for _, value := range m.LastBlock().Values {
-		if pv, ok := value.V.(PointerValue); ok {
-			if hiv, ok := pv.Base.(*HeapItemValue); ok {
-				root := NewObject(hiv.Value)
-				m.Alloc.heap.RemoveRoot(root)
-			}
-		}
-	}
-
-	for _, value := range m.LastBlock().Roots {
-		if pv, ok := value.TV.V.(PointerValue); ok {
-			if hiv, ok := pv.Base.(*HeapItemValue); ok {
-				root := NewObject(hiv.Value)
-				m.Alloc.heap.RemoveRoot(root)
-				println("drop block: remove root")
-			}
-		}
-	}
+	m.Alloc.DropPointers(m.LastBlock().Roots)
 
 	m.Blocks = m.Blocks[:fr.NumBlocks]
 	// shift and convert results to typed-nil if undefined and not iface

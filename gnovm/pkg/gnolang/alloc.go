@@ -1,7 +1,6 @@
 package gnolang
 
 import (
-	"fmt"
 	"reflect"
 )
 
@@ -107,9 +106,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		return
 	}
 
-	fmt.Printf("BEFORE ALLOCATE: alloc.bytes: %+v\n", alloc.bytes)
 	alloc.bytes += size
-	fmt.Printf("AFTER ALLOCATE: alloc.bytes: %+v\n", alloc.bytes)
 	if alloc.bytes > alloc.maxBytes {
 		if alloc.heap != nil {
 			deleted := alloc.heap.MarkAndSweep()
@@ -145,7 +142,7 @@ func (alloc *Allocator) DeallocObj(tv TypedValue) {
 	default:
 		switch tv.T {
 		default:
-			fmt.Printf("DeallocDeleted: unimplemented %T\n", v)
+			//fmt.Printf("DeallocDeleted: unimplemented %T\n", v)
 		}
 	}
 }
@@ -157,7 +154,6 @@ func (alloc *Allocator) Deallocate(size int64) {
 	}
 
 	alloc.bytes -= size
-	fmt.Printf("DEALLOCATE: alloc.bytes: %+v\n", alloc.bytes)
 	if alloc.bytes < 0 {
 		panic("Deallocate called with negative size")
 	}
@@ -379,8 +375,25 @@ func (alloc *Allocator) NewType(t Type) Type {
 func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 	alloc.AllocateHeapItem()
 
-	gcObj := NewObject(tv)
-	alloc.heap.AddObject(gcObj)
+	if alloc != nil {
+		gcObj := NewObject(tv)
+		alloc.heap.AddObject(gcObj)
+	}
 
 	return &HeapItemValue{Value: tv}
+}
+
+func (alloc *Allocator) DropPointers(ptrs []PointerValue) {
+	if alloc == nil {
+		return
+	}
+
+	for _, ptr := range ptrs {
+		if pv, ok := ptr.TV.V.(PointerValue); ok {
+			if _, ok := pv.Base.(*HeapItemValue); ok {
+				root := NewObject(*ptr.TV)
+				alloc.heap.RemoveRoot(root)
+			}
+		}
+	}
 }

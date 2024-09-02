@@ -13,12 +13,15 @@ func (m *Machine) doOpDefine() {
 		// Finally, define (or assign if loop block).
 		ptr := lb.GetPointerTo(m.Store, nx.Path)
 
-		lb.Roots = append(lb.Roots, ptr)
-
-		if ppv, ok := ptr.TV.V.(PointerValue); ok {
-			if _, ok := ppv.Base.(*HeapItemValue); ok {
-				root := NewObject(*ptr.TV)
-				m.Alloc.heap.RemoveRoot(root)
+		//todo only if its redeclared inside the same block
+		if m.Alloc != nil {
+			if ppv, ok := ptr.TV.V.(PointerValue); ok {
+				if _, ok := ppv.Base.(*HeapItemValue); ok {
+					root := NewObject(*ptr.TV)
+					m.Alloc.heap.RemoveRoot(root)
+				}
+			} else {
+				lb.Roots = append(lb.Roots, ptr)
 			}
 		}
 

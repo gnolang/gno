@@ -59,6 +59,7 @@ func main() {
 //         "RefCount": "2"
 //     },
 //     "Parent": null,
+//     "Roots": null,
 //     "Source": {
 //         "@type": "/gno.RefNode",
 //         "BlockNode": null,
