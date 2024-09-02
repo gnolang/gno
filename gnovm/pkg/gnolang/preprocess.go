@@ -430,15 +430,10 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				checkValDefineMismatch(n)
 
 				if n.Op == DEFINE {
-					for i, lx := range n.Lhs {
+					for _, lx := range n.Lhs {
 						ln := lx.(*NameExpr).Name
 						if ln == blankIdentifier {
-							// check if both LHS and RHS are blank identifiers in a DEFINE statement.
-							if i < len(n.Rhs) {
-								if rx, ok := n.Rhs[i].(*NameExpr); ok && rx.Name == blankIdentifier {
-									panic("cannot use _ as value or type")
-								}
-							}
+							// ignore.
 						} else if strings.HasPrefix(string(ln), ".decompose_") {
 							_, ok := last.GetLocalIndex(ln)
 							if !ok {
@@ -1855,20 +1850,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				n.AssertCompatible(store, last)
 				// NOTE: keep DEFINE and ASSIGN in sync.
 				if n.Op == DEFINE {
-					if n.Op == DEFINE {
-						for i, lx := range n.Lhs {
-							ln := lx.(*NameExpr).Name
-							if ln != blankIdentifier {
-								// check if RHS is a blank identifier
-								// when LHS is not in a DEFINE statement
-								if i < len(n.Rhs) {
-									if rx, ok := n.Rhs[i].(*NameExpr); ok && rx.Name == blankIdentifier {
-										panic("cannot use _ as value or type")
-									}
-								}
-							}
-						}
-					}
 					// Rhs consts become default *ConstExprs.
 					for _, rx := range n.Rhs {
 						// NOTE: does nothing if rx is "nil".
