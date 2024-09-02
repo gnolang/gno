@@ -3,6 +3,7 @@ package gnoland
 import (
 	"errors"
 
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -22,4 +23,6 @@ func ProtoGnoAccount() std.Account {
 type GnoGenesisState struct {
 	Balances []Balance `json:"balances"`
 	Txs      []std.Tx  `json:"txs"`
+	// Should match len(Txs), or be null
+	TxContexts []vm.ExecContextCustom `json:"tx_contexts"`
 }

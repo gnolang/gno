@@ -28,52 +28,60 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Tests that NewAppWithOptions works even when only providing a simple DB.
-func TestNewAppWithOptions(t *testing.T) {
-	t.Parallel()
-
-	app, err := NewAppWithOptions(&AppOptions{
+func testAppOptions() *AppOptions {
+	return &AppOptions{
 		DB: memdb.NewMemDB(),
 		InitChainerConfig: InitChainerConfig{
 			CacheStdlibLoad:        true,
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 		},
-	})
-	require.NoError(t, err)
-	bapp := app.(*sdk.BaseApp)
-	assert.Equal(t, "dev", bapp.AppVersion())
-	assert.Equal(t, "gnoland", bapp.Name())
+	}
+}
 
-	addr := crypto.AddressFromPreimage([]byte("test1"))
-	resp := bapp.InitChain(abci.RequestInitChain{
+func testRequestInitChain(genState GnoGenesisState) abci.RequestInitChain {
+	return abci.RequestInitChain{
 		Time:    time.Now(),
 		ChainID: "dev",
 		ConsensusParams: &abci.ConsensusParams{
 			Block: defaultBlockParams(),
 		},
 		Validators: []abci.ValidatorUpdate{},
-		AppState: GnoGenesisState{
-			Balances: []Balance{
-				{
-					Address: addr,
-					Amount:  []std.Coin{{Amount: 1e15, Denom: "ugnot"}},
-				},
-			},
-			Txs: []std.Tx{
-				{
-					Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
-						{
-							Name: "demo.gno",
-							Body: "package demo; func Hello() string { return `hello`; }",
-						},
-					})},
-					Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
-					Signatures: []std.Signature{{}}, // one empty signature
-				},
+		AppState:   genState,
+	}
+}
+
+// Tests that NewAppWithOptions works even when only providing a simple DB.
+func TestNewAppWithOptions(t *testing.T) {
+	t.Parallel()
+
+	app, err := NewAppWithOptions(testAppOptions())
+	require.NoError(t, err)
+	bapp := app.(*sdk.BaseApp)
+	assert.Equal(t, "dev", bapp.AppVersion())
+	assert.Equal(t, "gnoland", bapp.Name())
+
+	addr := crypto.AddressFromPreimage([]byte("test1"))
+	resp := bapp.InitChain(testRequestInitChain(GnoGenesisState{
+		Balances: []Balance{
+			{
+				Address: addr,
+				Amount:  []std.Coin{{Amount: 1e15, Denom: "ugnot"}},
 			},
 		},
-	})
+		Txs: []std.Tx{
+			{
+				Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
+					{
+						Name: "demo.gno",
+						Body: "package demo; func Hello() string { return `hello`; }",
+					},
+				})},
+				Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+				Signatures: []std.Signature{{}}, // one empty signature
+			},
+		},
+	}))
 	require.True(t, resp.IsOK(), "InitChain response: %v", resp)
 
 	tx := amino.MustMarshal(std.Tx{
@@ -123,6 +131,65 @@ func TestNewApp(t *testing.T) {
 		AppState:   GnoGenesisState{},
 	})
 	assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
+}
+
+func TestNewApp_WithTxContexts(t *testing.T) {
+	t.Parallel()
+
+	appOpts := testAppOptions()
+	called := 0
+	appOpts.GenesisTxResultHandler = func(_ sdk.Context, _ std.Tx, res sdk.Result) {
+		if !res.IsOK() {
+			t.Fatal(res)
+		}
+		called++
+		assert.Equal(t, string(res.Data), "time.Now() 7331\nstd.GetHeight() -1337\n")
+	}
+	app, err := NewAppWithOptions(appOpts)
+	require.NoError(t, err)
+	bapp := app.(*sdk.BaseApp)
+
+	const pkgFile = `package main
+
+import (
+	"std"
+	"time"
+)
+
+func main() {
+	println("time.Now()", time.Now().Unix())
+	println("std.GetHeight()", std.GetHeight())
+}
+`
+
+	addr := crypto.AddressFromPreimage([]byte("test1"))
+	resp := bapp.InitChain(testRequestInitChain(GnoGenesisState{
+		Balances: []Balance{
+			{
+				Address: addr,
+				Amount:  []std.Coin{{Amount: 1e15, Denom: "ugnot"}},
+			},
+		},
+		Txs: []std.Tx{
+			{
+				Msgs: []std.Msg{vm.NewMsgRun(addr, std.Coins{}, []*std.MemFile{
+					{
+						Name: "demo.gno",
+						Body: pkgFile,
+					},
+				})},
+				Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+				Signatures: []std.Signature{{}}, // one empty signature
+			},
+		},
+		TxContexts: []vm.ExecContextCustom{
+			{
+				Height:    -1337,
+				Timestamp: 7331,
+			},
+		},
+	}))
+	require.True(t, resp.IsOK(), "InitChain response: %v", resp)
 }
 
 // Test whether InitChainer calls to load the stdlibs correctly.

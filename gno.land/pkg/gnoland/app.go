@@ -2,6 +2,7 @@
 package gnoland
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -112,6 +113,9 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// the tx - in other words, data from a failing transaction won't be persisted
 	// to the gno store caches.
 	baseApp.SetBeginTxHook(func(ctx sdk.Context) sdk.Context {
+		if icc.beginTxHook != nil && ctx.BlockHeight() == 0 {
+			ctx = icc.beginTxHook(ctx)
+		}
 		// Create Gno transaction store.
 		return vmk.MakeGnoTransactionStore(ctx)
 	})
@@ -220,10 +224,16 @@ type InitChainerConfig struct {
 	vmKpr   vm.VMKeeperI
 	acctKpr auth.AccountKeeperI
 	bankKpr bank.BankKeeperI
+
+	// This is used by InitChainer, to set a different beginTxHook on each
+	// transaction. This allows the InitChainer to pass additional data down
+	// to the underlying app, such as custom Time/Height for genesis.
+	// (See [GnoGenesisState]).
+	beginTxHook func(sdk.Context) sdk.Context
 }
 
 // InitChainer is the function that can be used as a [sdk.InitChainer].
-func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
+func (cfg *InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitChain) abci.ResponseInitChain {
 	start := time.Now()
 	ctx.Logger().Debug("InitChainer: started")
 
@@ -254,7 +264,7 @@ func (cfg InitChainerConfig) InitChainer(ctx sdk.Context, req abci.RequestInitCh
 	}
 }
 
-func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
+func (cfg *InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 	// cache-wrapping is necessary for non-validator nodes; in the tm2 BaseApp,
 	// this is done using BaseApp.cacheTxContext; so we replicate it here.
 	ms := ctx.MultiStore()
@@ -272,7 +282,12 @@ func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 	msCache.MultiWrite()
 }
 
-func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci.ResponseDeliverTx, error) {
+func (cfg *InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci.ResponseDeliverTx, error) {
+	defer func() {
+		// Ensure to reset beginTxHook to nil when wrapping up.
+		cfg.beginTxHook = nil
+	}()
+
 	state, ok := appState.(GnoGenesisState)
 	if !ok {
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
@@ -288,9 +303,23 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		}
 	}
 
+	if len(state.TxContexts) != 0 && len(state.Txs) != len(state.TxContexts) {
+		return nil, errors.New("genesis state tx_contexts, if given, should be of same length as txs")
+	}
+
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
 	// Run genesis txs
-	for _, tx := range state.Txs {
+	for idx, tx := range state.Txs {
+		if len(state.TxContexts) > 0 {
+			customExecCtx := state.TxContexts[idx]
+			if customExecCtx.Timestamp == 0 {
+				customExecCtx.Timestamp = ctx.BlockTime().Unix()
+			}
+			cfg.beginTxHook = func(ctx sdk.Context) sdk.Context {
+				return vm.InjectExecContextCustom(ctx, customExecCtx)
+			}
+		}
+
 		res := cfg.baseApp.Deliver(tx)
 		if res.IsErr() {
 			ctx.Logger().Error(
