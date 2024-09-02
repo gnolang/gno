@@ -79,8 +79,6 @@ func (z *Int) Sub(x, y *Int) *Int {
 			z.abs = z.abs.Sub(x.abs, y.abs)
 			z.neg = x.neg
 		} else {
-			// neg = !neg
-			// z.abs = z.abs.Sub(y.abs, x.abs)
 			z.abs.Sub(y.abs, x.abs)
 			z.neg = !x.neg
 		}
@@ -141,12 +139,6 @@ func (z *Int) Div(x, y *Int) *Int {
 	z.abs.Div(x.abs, y.abs)
 	z.neg = (x.neg != y.neg) && !z.abs.IsZero() // 0 has no sign
 
-	// z.abs.Div(x.abs, y.abs)
-	// if x.neg == y.neg {
-	// 	z.neg = false
-	// } else {
-	// 	z.neg = true
-	// }
 	return z
 }
 
