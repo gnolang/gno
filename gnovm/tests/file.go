@@ -624,7 +624,7 @@ func (tb *testBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt in
 
 	totalCoin, ok := overflow.Sub64(tb.totalCoin[denom], amt)
 	if !ok {
-		panic(fmt.Sprintf("totalCoin overflow/underflow for denom %s while adding %d", denom, amt))
+		panic(fmt.Sprintf("totalCoin overflow/underflow for denom %s while removing %d", denom, amt))
 	}
 
 	tb.totalCoin[denom] = totalCoin
