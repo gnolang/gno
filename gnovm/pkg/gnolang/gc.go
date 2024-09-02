@@ -12,7 +12,21 @@ type GcObj struct {
 }
 
 func (obj *GcObj) AddRef(ref *GcObj) {
-	obj.refs = append(obj.refs, ref)
+	switch v := ref.tv.V.(type) {
+	case *StructValue:
+		obj.refs = append(obj.refs, ref)
+
+		for _, field := range v.Fields {
+			if pv, ok := field.V.(PointerValue); ok {
+				if _, ok := pv.Base.(*HeapItemValue); ok {
+					fobj := NewObject(*pv.TV)
+					obj.AddRef(fobj)
+				}
+			}
+		}
+	case *StringValue, *SliceValue:
+		obj.refs = append(obj.refs, ref)
+	}
 }
 
 // NewObject creates a new object with a given name.
@@ -37,7 +51,17 @@ func (h *Heap) FindObjectByTV(tv TypedValue) *GcObj {
 			return object
 		}
 	}
-	return nil
+
+	//println("FindObjectByTV: cannot find heap object")
+	//println("heap:")
+	//for _, object := range h.objects {
+	//	fmt.Printf("%+v\n", object.tv)
+	//}
+	//
+	//println("obj:")
+	//fmt.Printf("%+v\n", tv)
+	//panic(123)
+	panic("FindObjectByTV: Double free or use after free bug")
 }
 
 func (h *Heap) RemoveRoot(root *GcObj) {
@@ -53,7 +77,7 @@ func (h *Heap) RemoveRoot(root *GcObj) {
 	}
 
 	if !deleted {
-		panic("root not found")
+		panic(fmt.Sprintf("Cannot find root from heap: %v\nroot: %+v\n", roots, root.tv.V))
 	}
 
 	h.roots = roots

@@ -12,6 +12,7 @@ type Allocator struct {
 	maxBytes int64
 	bytes    int64
 	heap     *Heap
+	detonate bool
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -111,9 +112,10 @@ func (alloc *Allocator) Allocate(size int64) {
 		if alloc.heap != nil {
 			deleted := alloc.heap.MarkAndSweep()
 			alloc.DeallocDeleted(deleted)
-			if alloc.bytes > alloc.maxBytes {
+			if alloc.detonate && alloc.bytes > alloc.maxBytes {
 				panic("allocation limit exceeded")
 			}
+			alloc.detonate = alloc.bytes > alloc.maxBytes
 		}
 	}
 }

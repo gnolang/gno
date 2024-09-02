@@ -1965,6 +1965,17 @@ func (m *Machine) PopFrameAndReturn() {
 		if res.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {
 			res.T = rtypes[i].Type
 		}
+
+		// set the heap object as marked
+		// this is to prevent it from being garbage collected
+		// before it has been assigned a root
+		if ptr, ok := res.V.(PointerValue); ok {
+			if _, ok := ptr.Base.(*HeapItemValue); ok {
+				obj := m.Alloc.heap.FindObjectByTV(*ptr.TV)
+				obj.marked = true
+			}
+		}
+
 		m.Values[fr.NumValues+i] = res
 	}
 	m.NumValues = fr.NumValues + numRes
