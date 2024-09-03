@@ -126,7 +126,7 @@ gnokey maketx addpkg \
 mykey
 ```
 
-If the transaction was successful, you will get the following output from `gnokey`:
+If the transaction was successful, you will get output from `gnokey` that is similar to the following:
 
 ```
 OK!
