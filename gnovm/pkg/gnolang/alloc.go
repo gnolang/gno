@@ -379,6 +379,7 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 
 	if alloc != nil {
 		gcObj := NewObject(tv)
+		gcObj.marked = true
 		alloc.heap.AddObject(gcObj)
 	}
 
