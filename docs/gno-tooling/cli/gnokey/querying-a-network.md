@@ -131,8 +131,7 @@ To specify the path we want to query, we can use the `-data` flag:
 gnokey query vm/qfile -data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
 ```
 
-The output is a string containing all exported functions for the
-`wugnot` realm:
+The output is a list of all files found within the `wugnot` realm:
 
 ```bash
 height: 0
