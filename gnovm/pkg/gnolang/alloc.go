@@ -128,7 +128,7 @@ func (alloc *Allocator) Allocate(size int64) {
 }
 
 func (alloc *Allocator) ShouldRunGC() bool {
-	return alloc.bytes >= 2*alloc.lastGcRun && alloc.bytes >= alloc.minGcRun
+	return false //return alloc.bytes >= 2*alloc.lastGcRun && alloc.bytes >= alloc.minGcRun
 }
 
 func (alloc *Allocator) DeallocDeleted(objs []*GcObj) {
@@ -140,10 +140,13 @@ func (alloc *Allocator) DeallocDeleted(objs []*GcObj) {
 func (alloc *Allocator) DeallocObj(tv TypedValue) {
 	switch v := tv.V.(type) {
 	case PointerValue:
-		alloc.DeallocObj(*v.TV)
+		alloc.DeallocateType()
+		//alloc.DeallocObj(*v.TV)
 	case *StructValue:
 		alloc.DeallocateStruct()
 		alloc.DeallocateStructFields(int64(len(v.Fields)))
+		alloc.DeallocateType()
+		alloc.DeallocateHeapItem()
 
 		for _, field := range v.Fields {
 			alloc.DeallocObj(field)
@@ -264,6 +267,11 @@ func (alloc *Allocator) AllocateType() {
 	alloc.Allocate(allocType)
 }
 
+func (alloc *Allocator) DeallocateType() {
+	println("DeallocateType")
+	alloc.Deallocate(allocType)
+}
+
 // NOTE: a reasonable max-bounds calculation for simplicity.
 func (alloc *Allocator) AllocateAmino(l int64) {
 	alloc.Allocate(allocAmino + allocAminoByte*l)
@@ -271,6 +279,11 @@ func (alloc *Allocator) AllocateAmino(l int64) {
 
 func (alloc *Allocator) AllocateHeapItem() {
 	alloc.Allocate(allocHeapItem)
+}
+
+func (alloc *Allocator) DeallocateHeapItem() {
+	println("DeallocateHeapItem")
+	alloc.Deallocate(allocHeapItem)
 }
 
 //----------------------------------------
@@ -407,6 +420,7 @@ func (alloc *Allocator) DropPointers(ptrs []PointerValue) {
 			if _, ok := pv.Base.(*HeapItemValue); ok {
 				root := NewObject(*ptr.TV)
 				alloc.heap.RemoveRoot(root)
+				alloc.DeallocatePointer()
 			}
 		}
 	}

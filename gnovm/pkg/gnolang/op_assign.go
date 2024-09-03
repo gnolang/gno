@@ -19,6 +19,7 @@ func (m *Machine) doOpDefine() {
 				if _, ok := ppv.Base.(*HeapItemValue); ok {
 					root := NewObject(*ptr.TV)
 					m.Alloc.heap.RemoveRoot(root)
+					m.Alloc.DeallocatePointer()
 				}
 			} else if _, ok := rvs[i].V.(PointerValue); ok {
 				lb.Roots = append(lb.Roots, ptr)

@@ -103,6 +103,7 @@ func (m *Machine) doOpExec(op Op) {
 							if _, ok := pv.Base.(*HeapItemValue); ok {
 								root := NewObject(*value.TV)
 								m.Alloc.heap.RemoveRoot(root)
+								m.Alloc.DeallocatePointer()
 							}
 						} else {
 							m.Alloc.DeallocObj(*value.TV)
