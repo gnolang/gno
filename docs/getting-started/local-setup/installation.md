@@ -106,5 +106,5 @@ That's it 🎉
 You have successfully built out and installed the necessary tools for Gno
 development!
 
-In further documents, you will gain a better understanding on how they are used
+In further documents, you will gain a better understanding of how they are used
 to make Gno work.
