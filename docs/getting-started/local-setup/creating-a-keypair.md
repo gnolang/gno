@@ -50,10 +50,10 @@ keypairs. The keybase directory path is stored under the `-home` flag in `gnokey
 
 ### Gno addresses
 
-Your **Gno address** is like your username on the network; an address is visible
-in the caller stack of an application, it is included in each transaction you create
-with your keypair, and anyone who knows your address can send you [coins](../../concepts/stdlibs/coin.md),
-etc.
+Your **Gno address** is like your unique identifier on the network; an address
+is visible in the caller stack of an application, it is included in each
+transaction you create with your keypair, and anyone who knows your address can
+send you [coins](../../concepts/stdlibs/coin.md), etc.
 
 ## Conclusion
 
