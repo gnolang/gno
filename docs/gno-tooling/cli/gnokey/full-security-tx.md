@@ -64,7 +64,7 @@ will need these values to sign the transaction later.
 
 ## 2. Creating an unsigned transaction locally
 
-To create the transaction you want, you can use the aforementioned `call` API,
+To create the transaction you want, you can use the [`call` API](./state-changing-calls.md#call),
 without the `-broadcast` flag, while redirecting the output to a local file:
 
 ```bash
