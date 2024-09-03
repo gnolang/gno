@@ -32,10 +32,10 @@ func TestMarkAndSweep(t *testing.T) {
 	h := NewHeap()
 
 	// Create objects
-	obj1 := NewObject(newTestTypedValue()) //root1
-	obj2 := NewObject(newTestTypedValue()) //child1
-	obj3 := NewObject(newTestTypedValue()) //child2
-	obj4 := NewObject(newTestTypedValue()) //unreferenced
+	obj1 := NewObject(newTestTypedValue()) // root1
+	obj2 := NewObject(newTestTypedValue()) // child1
+	obj3 := NewObject(newTestTypedValue()) // child2
+	obj4 := NewObject(newTestTypedValue()) // unreferenced
 
 	// Add objects to heap
 	h.AddObject(obj1)
@@ -66,8 +66,8 @@ func TestCircularReference(t *testing.T) {
 	h := NewHeap()
 
 	// Create objects
-	obj1 := NewObject(newTestTypedValue()) //root1
-	obj2 := NewObject(newTestTypedValue()) //child1
+	obj1 := NewObject(newTestTypedValue()) // root1
+	obj2 := NewObject(newTestTypedValue()) // child1
 
 	// Add objects to heap
 	h.AddObject(obj1)
@@ -97,7 +97,7 @@ func TestDoubleFree(t *testing.T) {
 
 	h := NewHeap()
 
-	obj1 := NewObject(newTestTypedValue()) //root1
+	obj1 := NewObject(newTestTypedValue()) // root1
 	h.AddObject(obj1)
 	h.AddRoot(obj1)
 
@@ -120,8 +120,8 @@ func TestRootNotFound(t *testing.T) {
 
 	h := NewHeap()
 
-	obj1 := NewObject(newTestTypedValue()) //root1
-	obj2 := NewObject(newTestTypedValue()) //root2
+	obj1 := NewObject(newTestTypedValue()) // root1
+	obj2 := NewObject(newTestTypedValue()) // root2
 
 	h.AddObject(obj1)
 	h.AddObject(obj2)

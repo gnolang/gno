@@ -128,7 +128,7 @@ func (alloc *Allocator) Allocate(size int64) {
 }
 
 func (alloc *Allocator) ShouldRunGC() bool {
-	return false //return alloc.bytes >= 2*alloc.lastGcRun && alloc.bytes >= alloc.minGcRun
+	return false // return alloc.bytes >= 2*alloc.lastGcRun && alloc.bytes >= alloc.minGcRun
 }
 
 func (alloc *Allocator) DeallocDeleted(objs []*GcObj) {
@@ -141,7 +141,7 @@ func (alloc *Allocator) DeallocObj(tv TypedValue) {
 	switch v := tv.V.(type) {
 	case PointerValue:
 		alloc.DeallocateType()
-		//alloc.DeallocObj(*v.TV)
+		// alloc.DeallocObj(*v.TV)
 	case *StructValue:
 		alloc.DeallocateStruct()
 		alloc.DeallocateStructFields(int64(len(v.Fields)))
@@ -158,7 +158,7 @@ func (alloc *Allocator) DeallocObj(tv TypedValue) {
 	default:
 		switch tv.T {
 		default:
-			//fmt.Printf("DeallocDeleted: unimplemented %T\n", v)
+			// fmt.Printf("DeallocDeleted: unimplemented %T\n", v)
 		}
 	}
 }

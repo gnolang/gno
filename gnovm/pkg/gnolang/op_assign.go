@@ -13,7 +13,7 @@ func (m *Machine) doOpDefine() {
 		// Finally, define (or assign if loop block).
 		ptr := lb.GetPointerTo(m.Store, nx.Path)
 
-		//todo only if its redeclared inside the same block
+		// todo only if its redeclared inside the same block
 		if m.Alloc != nil {
 			if ppv, ok := ptr.TV.V.(PointerValue); ok {
 				if _, ok := ppv.Base.(*HeapItemValue); ok {
