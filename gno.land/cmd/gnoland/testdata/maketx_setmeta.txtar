@@ -1,0 +1,64 @@
+loadpkg gno.land/r/foo $WORK/foo
+
+gnoland start
+
+# Test setting a single field
+gnokey maketx setmeta -fields "foo=bar" -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   \d+'
+stdout 'HEIGHT:     \d+'
+stdout 'EVENTS:     \[\]'
+stdout 'TX HASH:    '
+
+# Test setting an empty field
+gnokey maketx setmeta -fields "foo=" -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   \d+'
+stdout 'HEIGHT:     \d+'
+stdout 'EVENTS:     \[\]'
+stdout 'TX HASH:    '
+
+# Test setting multiple fields
+gnokey maketx setmeta -fields "a=1" -fields "b=2" -fields "c=3" -fields "d=4" -fields "e=5" -fields "f=6" -fields "g=7" -fields "h=8" -fields "i=9" -fields "j=10" -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   \d+'
+stdout 'HEIGHT:     \d+'
+stdout 'EVENTS:     \[\]'
+stdout 'TX HASH:    '
+
+# Test setting too many fields
+! gnokey maketx setmeta -fields "a=1" -fields "b=2" -fields "c=3" -fields "d=4" -fields "e=5" -fields "f=6" -fields "g=7" -fields "h=8" -fields "i=9" -fields "j=10" -fields "x=11" -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout 'TX HASH:    '
+stderr 'invalid package metadata'
+
+# Test using empty field
+! gnokey maketx setmeta -fields "" -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout ''
+stderr 'invalid metadata field format'
+
+# Test field without name
+! gnokey maketx setmeta -fields "=value" -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout ''
+stderr 'empty metadata field name'
+
+# Test field without name and value
+! gnokey maketx setmeta -fields "=" -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout ''
+stderr 'empty metadata field name'
+
+-- foo/foo.gno --
+package foo
+
+func Render(string) string {
+ 	return ""
+}

@@ -40,6 +40,7 @@ func NewMakeTxCmd(rootCfg *client.BaseCfg, io commands.IO) *commands.Command {
 		NewMakeAddPkgCmd(cfg, io),
 		NewMakeCallCmd(cfg, io),
 		NewMakeRunCmd(cfg, io),
+		NewMakeSetMetaCmd(cfg, io),
 	)
 
 	return cmd
