@@ -39,7 +39,7 @@ information:
 :::warning Safeguard your mnemonic phrase!
 
 A **mnemonic phrase** is like your master password; you can use it over and over
-to derive the same keypair. This is why it is crucial to store it in a safe,
+to derive the same keypairs. This is why it is crucial to store it in a safe,
 offline place - writing the phrase on a piece of paper and hiding it is highly
 recommended. **If it gets lost, it is unrecoverable.**
 
