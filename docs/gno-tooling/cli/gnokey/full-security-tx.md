@@ -24,16 +24,13 @@ internet.
 
 The intended purpose of this functionality is to provide maximum security when 
 signing and broadcasting a transaction. In practice, this procedure should take
-place on two separate machines, one with access to the internet (`Machine A`), 
-and the other one without (`Machine B`), with the separation of steps as follows:
+place on two separate machines controlled by the holder of the keys, one with
+access to the internet (`Machine A`), and the other one without (`Machine B`),
+with the separation of steps as follows:
 1. `Machine A`: Fetch account information from the chain
 2. `Machine B`: Create an unsigned transaction locally
 3. `Machine B`: Sign the transaction
 4. `Machine A`: Broadcast the transaction
-
-For the sake of simplicity, in this example, we will assume that the procedure 
-is happening on two machines controlled by the same person, and we will use the
-Userbook realm on the Portal Loop testnet.
 
 ## 1. Fetching account information from the chain
 
