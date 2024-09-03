@@ -14,7 +14,7 @@ id: full-security-tx
 `gnokey` provides a way to create a transaction, sign it, and later
 broadcast it to a chain in the most secure fashion. This approach, while more 
 complicated than the standard approach shown [in a previous tutorial](./state-changing-calls.md),
-grants full control and provides [airgap](https://en.wikipedia.org/wiki/Air_gap_(networking)
+grants full control and provides [airgap](https://en.wikipedia.org/wiki/Air_gap_(networking))
 support. 
 
 By separating the signing and the broadcasting steps of submitting a transaction,
@@ -57,7 +57,9 @@ data: {
 ```
 
 In this case, the account number is `468`, and the sequence (nonce) is `0`. We
-will need these values to sign the transaction later.
+will need these values to sign the transaction later. These pieces of information
+are crucial during the signing process, as they are included in the signature
+of the transaction, preventing replay attacks.
 
 ## 2. Creating an unsigned transaction locally
 
