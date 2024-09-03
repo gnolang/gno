@@ -10,7 +10,7 @@ In this tutorial, you will learn how to create your Gno keypair using
 [`gnokey`](../../gno-tooling/cli/gnokey/gnokey.md). 
 
 Keypairs are the foundation of how users interact with blockchains; and Gno is 
-no exception. By using a 12-word or 24-word [mnemonic phrase](https://www.zimperium.com/glossary/mnemonic-seed/#:~:text=A%20mnemonic%20seed%2C%20also%20known,wallet%20software%20or%20hardware%20device.) 
+no exception. By using a 12-word or 24-word [mnemonic phrase](https://www.zimperium.com/glossary/mnemonic-seed/)
 as a source of randomness, users can derive a private and a public key.
 These two keys can then be used further; a public key derives an address which is
 a unique identifier of a user on the blockchain, while a private key is used for
