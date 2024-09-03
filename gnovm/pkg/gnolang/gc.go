@@ -73,7 +73,7 @@ func (h *Heap) RemoveRoot(root *GcObj) {
 			deleted = true
 			continue
 		}
-		roots = append(roots, root)
+		roots = append(roots, r)
 	}
 
 	if !deleted {
@@ -127,7 +127,6 @@ func (h *Heap) sweep() []*GcObj {
 			obj.marked = false
 			newObjects = append(newObjects, obj)
 		} else {
-			fmt.Printf("Sweeping object: %s\n", obj.tv)
 			deletedObjects = append(deletedObjects, obj)
 		}
 	}

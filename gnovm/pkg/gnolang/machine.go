@@ -1801,6 +1801,8 @@ func (m *Machine) PopBlock() (b *Block) {
 	numBlocks := len(m.Blocks)
 	b = m.Blocks[numBlocks-1]
 	m.Blocks = m.Blocks[:numBlocks-1]
+
+	m.Alloc.DropPointers(b.Roots)
 	return b
 }
 
@@ -1969,7 +1971,7 @@ func (m *Machine) PopFrameAndReturn() {
 		// set the heap object as marked
 		// this is to prevent it from being garbage collected
 		// before it has been assigned a root
-		if ptr, ok := res.V.(PointerValue); ok {
+		if ptr, ok := res.V.(PointerValue); ok && m.Alloc != nil {
 			if _, ok := ptr.Base.(*HeapItemValue); ok {
 				obj := m.Alloc.heap.FindObjectByTV(*ptr.TV)
 				obj.marked = true
