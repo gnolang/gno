@@ -114,6 +114,7 @@ func _() {
 	_ = x[OpRangeIterMap-213]
 	_ = x[OpRangeIterArrayPtr-214]
 	_ = x[OpReturnCallDefers-215]
+	_ = x[OpVoid-255]
 }
 
 const (
@@ -126,6 +127,7 @@ const (
 	_Op_name_6 = "OpAssignOpAddAssignOpSubAssignOpMulAssignOpQuoAssignOpRemAssignOpBandAssignOpBandnAssignOpBorAssignOpXorAssignOpShlAssignOpShrAssignOpDefineOpIncOpDec"
 	_Op_name_7 = "OpValueDeclOpTypeDecl"
 	_Op_name_8 = "OpStickyOpBodyOpForLoopOpRangeIterOpRangeIterStringOpRangeIterMapOpRangeIterArrayPtrOpReturnCallDefers"
+	_Op_name_9 = "OpVoid"
 )
 
 var (
@@ -168,6 +170,8 @@ func (i Op) String() string {
 	case 208 <= i && i <= 215:
 		i -= 208
 		return _Op_name_8[_Op_index_8[i]:_Op_index_8[i+1]]
+	case i == 255:
+		return _Op_name_9
 	default:
 		return "Op(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
