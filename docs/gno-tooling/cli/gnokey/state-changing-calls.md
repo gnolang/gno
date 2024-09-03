@@ -343,7 +343,7 @@ Specifically, the above example could have been replaced with a simple `maketx c
 call. The full potential of run comes out in three specific cases:
 1. Calling realm functions multiple times in a loop
 2. Calling functions with non-primitive input arguments
-3. Calling functions with receiver objects
+3. Calling methods on exported variables 
 
 Let's look at each of these cases in detail. To demonstrate, we'll make a call
 to the following example realm:
@@ -443,7 +443,7 @@ func main() {
 
 ```
 
-3. Calling functions with receiver objects:
+3. Calling methods on exported variables:
 
 ```go
 package main
@@ -455,8 +455,8 @@ func main() {
 }
 ```
 
-Finally, we can call functions that are on top-level objects, which is not 
-currently possible with the `Call` message.
+Finally, we can call methods that are on top-level objects in case they exist, 
+which is not currently possible with the `Call` message.
 
 ## Conclusion
 
