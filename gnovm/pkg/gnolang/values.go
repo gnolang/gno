@@ -213,13 +213,21 @@ func (pv *PointerValue) GetBase(store Store) Object {
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
 	defer func() {
 		if tvv, ok := tv2.V.(PointerValue); ok && alloc != nil {
-			if hiv, ok := tvv.Base.(*HeapItemValue); ok {
-				root := NewObject(*pv.TV)
-				ho := alloc.heap.FindObjectByTV(hiv.Value)
-				root.AddRef(ho)
+			root := NewObject(*pv.TV)
+			var ho *GcObj
 
-				alloc.heap.AddRoot(root)
+			if hiv, ok := tvv.Base.(*HeapItemValue); ok {
+				ho = alloc.heap.FindObjectByTV(hiv.Value)
+			} else if _, ok := tvv.TV.V.(PointerValue); ok {
+				ho = alloc.heap.FindObjectByTV(*tvv.TV)
 			}
+
+			if ho == nil {
+				panic("should not happen")
+			}
+
+			root.AddRef(ho)
+			alloc.heap.AddRoot(root)
 		}
 	}()
 
