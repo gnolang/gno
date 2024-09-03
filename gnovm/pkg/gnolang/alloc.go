@@ -187,6 +187,10 @@ func (alloc *Allocator) AllocatePointer() {
 	alloc.Allocate(allocPointer)
 }
 
+func (alloc *Allocator) DeallocatePointer() {
+	alloc.Deallocate(allocPointer)
+}
+
 func (alloc *Allocator) AllocateDataArray(size int64) {
 	alloc.Allocate(allocArray + size)
 }
