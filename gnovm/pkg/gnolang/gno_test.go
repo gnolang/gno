@@ -141,6 +141,31 @@ func TestRunEmptyMain(t *testing.T) {
 	m.RunMain()
 }
 
+func TestGCLoopy(t *testing.T) {
+	t.Parallel()
+	m := NewMachine("test", nil)
+	c := `package test
+
+func main() {
+	for i:=0;i<5000;i++ {
+		f := foo(i)
+	}
+}
+
+type Foo struct {
+	b int
+}
+
+func foo(b int) *Foo {
+	return &Foo{b: b}
+}
+`
+	n := MustParseFile("main.go", c)
+	m.RunFiles(n)
+	m.Alloc = NewAllocator(22000, 3000, NewHeap())
+	m.RunMain()
+}
+
 // run main() with a for loop.
 func TestRunLoopyMain(t *testing.T) {
 	t.Parallel()
