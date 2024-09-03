@@ -35,7 +35,7 @@ For the sake of simplicity, in this example, we will assume that the procedure
 is happening on two machines controlled by the same person, and we will use the
 Userbook realm on the Portal Loop testnet.
 
-## Fetching account information from the chain
+## 1. Fetching account information from the chain
 
 First, we need to fetch data for the account we are using to sign the transaction,
 using the [auth/accounts](./querying-a-network.md#authaccounts) query:
@@ -62,7 +62,7 @@ data: {
 In this case, the account number is `468`, and the sequence (nonce) is `0`. We
 will need these values to sign the transaction later.
 
-## Creating an unsigned transaction locally
+## 2. Creating an unsigned transaction locally
 
 To create the transaction you want, you can use the aforementioned `call` API,
 without the `-broadcast` flag, while redirecting the output to a local file:
@@ -79,7 +79,7 @@ mykey > userbook.tx
 This will create a `userbook.tx` file with a null `signature` field.
 Now we are ready to sign the transaction.
 
-## Signing the transaction
+## 3. Signing the transaction
 
 To add a signature to the transaction, we can use the `gnokey sign` subcommand.
 To sign, we must set the correct flags for the subcommand:
@@ -104,7 +104,7 @@ that the signature field has been populated.
 
 We are now ready to broadcast this transaction to the chain.
 
-## Broadcasting the transaction
+## 4. Broadcasting the transaction
 
 To broadcast the signed transaction to the chain, we can use the `gnokey broadcast`
 subcommand, giving it the path to the signed transaction:
