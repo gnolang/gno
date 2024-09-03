@@ -14,16 +14,22 @@ id: full-security-tx
 `gnokey` provides a way to create a transaction, sign it, and later
 broadcast it to a chain in the most secure fashion. This approach, while more 
 complicated than the standard approach shown [in a previous tutorial](./state-changing-calls.md),
-grants full control and provides airgap support.
+grants full control and provides [airgap](https://en.wikipedia.org/wiki/Air_gap_(networking)
+support. 
+
+By separating the signing and the broadcasting steps of submitting a transaction,
+users can make sure that the signing happens in a secure, offline environment,
+keeping private keys away from possible exposure to attacks coming from the 
+internet.
 
 The intended purpose of this functionality is to provide maximum security when 
 signing and broadcasting a transaction. In practice, this procedure should take
-place on two separate machines, one with access to the internet (`Machine 1`), 
-and the other one without (`Machine 2`), with the separation of steps as follows:
-1. `Machine 1`: Fetch account information from the chain
-2. `Machine 2`: Create an unsigned transaction locally
-3. `Machine 2`: Sign the transaction
-4. `Machine 1`: Broadcast the transaction
+place on two separate machines, one with access to the internet (`Machine A`), 
+and the other one without (`Machine B`), with the separation of steps as follows:
+1. `Machine A`: Fetch account information from the chain
+2. `Machine B`: Create an unsigned transaction locally
+3. `Machine B`: Sign the transaction
+4. `Machine A`: Broadcast the transaction
 
 For the sake of simplicity, in this example, we will assume that the procedure 
 is happening on two machines, and we will again use the Userbook 
