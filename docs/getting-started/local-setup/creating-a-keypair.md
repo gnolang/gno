@@ -17,7 +17,7 @@ a unique identifier of a user on the blockchain, while a private key is used for
 signing messages and transactions for the aforementioned address, proving a user 
 has ownership over it. 
 
-Let's see how we can use `gnokey` to generate a keypair.
+Let's see how we can use `gnokey` to generate a Gno keypair locally.
 
 ## Generating a keypair
 
