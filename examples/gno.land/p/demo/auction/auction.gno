@@ -11,14 +11,14 @@ import (
 
 // Auction struct
 type Auction struct {
-	ownable.Ownable // Embeds Ownable to handle ownership
-	Title           string
-	Description     string
-	Begin           time.Time
-	End             time.Time
-	StartingBid     std.Coin
-	Bids            []*Bid
-	State           string // "upcoming", "ongoing", or "closed"
+	Owner       ownable.Ownable // Embeds Ownable to handle ownership
+	Title       string
+	Description string
+	Begin       time.Time
+	End         time.Time
+	StartingBid std.Coin
+	Bids        []*Bid
+	State       string // "upcoming", "ongoing", or "closed"
 }
 
 // Bid struct
@@ -42,7 +42,7 @@ func NewAuction(
 	startingBid std.Coin,
 ) *Auction {
 	return &Auction{
-		Ownable:     *ownable.NewWithAddress(owner), // Initialize Ownable with the owner
+		Owner:       *ownable.NewWithAddress(owner), // Initialize Ownable with the owner
 		Title:       title,
 		Description: description,
 		Begin:       begin,
@@ -55,10 +55,10 @@ func NewAuction(
 
 // AddBid adds a new bid to the auction
 func (a *Auction) AddBid(bidder std.Address, amount std.Coin) error {
-	if now().Before(a.Begin) {
+	if time.Now().Before(a.Begin) {
 		return ufmt.Errorf("auction: AddBid: auction has not started yet")
 	}
-	if now().After(a.End) {
+	if time.Now().After(a.End) {
 		return ufmt.Errorf("auction: AddBid: auction has already ended")
 	}
 	if !amount.IsGTE(a.StartingBid) {
@@ -72,11 +72,11 @@ func (a *Auction) AddBid(bidder std.Address, amount std.Coin) error {
 }
 
 // EndAuction ends the auction
-func (a *Auction) EndAuction(caller std.Address) error {
-	if err := a.Ownable.CallerIsOwner(); err != nil {
-		return ufmt.Errorf("auction: EndAuction: only the owner can end the auction")
+func (a *Auction) EndAuction() error {
+	if err := a.Owner.CallerIsOwner(); err != nil {
+		return err
 	}
-	if now().Before(a.End) {
+	if time.Now().Before(a.End) {
 		return ufmt.Errorf("auction: EndAuction: auction cannot end before the end time")
 	}
 	if a.State == "closed" {
@@ -91,17 +91,4 @@ func (a *Auction) EndAuction(caller std.Address) error {
 	winner := a.Bids[len(a.Bids)-1].Bidder
 	std.Emit("AuctionEnded", "winner", winner.String(), "amount", highestBid.String())
 	return nil
-}
-
-// SetCurrentTime sets the current time for testing purposes
-func SetCurrentTime(t time.Time) {
-	currentTime = t
-}
-
-// now returns the current time, allowing for mocking in tests
-func now() time.Time {
-	if !currentTime.IsZero() {
-		return currentTime
-	}
-	return time.Now()
 }

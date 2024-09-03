@@ -4,6 +4,9 @@ import (
 	"std"
 	"testing"
 	"time"
+
+	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/testutils"
 )
 
 func setCurrentTime(t time.Time) {
@@ -25,8 +28,8 @@ func TestNewAuction(t *testing.T) {
 	if auction.Title != "Test Auction" {
 		t.Fatalf("expected auction title to be 'Test Auction', got '%s'", auction.Title)
 	}
-	if auction.Owner() != owner { // Note the change here to access owner
-		t.Fatalf("expected auction owner to be '%s', got '%s'", owner, auction.Owner())
+	if auction.Owner.Owner() != owner { // Note the change here to access owner
+		t.Fatalf("expected auction owner to be '%s', got '%s'", owner, auction.Owner.Owner())
 	}
 	if auction.Description != "This is a test auction" {
 		t.Fatalf("expected auction description to be 'This is a test auction', got '%s'", auction.Description)
@@ -109,17 +112,18 @@ func TestAddBid(t *testing.T) {
 }
 
 func TestEndAuction(t *testing.T) {
-	owner := std.Address("owner")
-	bidder := std.Address("bidder")
+	owner := testutils.TestAddress("owner")
+	bidder := testutils.TestAddress("bidder")
 	begin := time.Now().Add(1 * time.Hour)
 	end := time.Now().Add(24 * time.Hour)
 	startingBid := std.NewCoin("ugnot", 100)
 
 	auction := NewAuction("Test Auction", owner, "This is a test auction", begin, end, startingBid)
-
+	owner.AssertCallerIsOwner()
 	// Test ending auction before it starts
 	setCurrentTime(begin.Add(-1 * time.Hour))
-	err := auction.EndAuction(owner)
+
+	err := auction.EndAuction()
 	if err == nil || err.Error() != "auction: EndAuction: auction cannot end before the end time" {
 		t.Fatalf("expected error 'auction cannot end before the end time', got '%v'", err)
 	}
@@ -127,7 +131,7 @@ func TestEndAuction(t *testing.T) {
 
 	// Test ending auction with no bids
 	setCurrentTime(end.Add(1 * time.Second))
-	err = auction.EndAuction(owner)
+	err = auction.EndAuction()
 	if err == nil || err.Error() != "auction: EndAuction: auction ended with no bids" {
 		t.Fatalf("expected error 'auction ended with no bids', got '%v'", err)
 	}
@@ -137,7 +141,7 @@ func TestEndAuction(t *testing.T) {
 	setCurrentTime(begin.Add(1 * time.Second))
 	auction.AddBid(bidder, std.NewCoin("ugnot", 200))
 	setCurrentTime(end.Add(1 * time.Second))
-	err = auction.EndAuction(owner)
+	err = auction.EndAuction()
 	resetCurrentTime()
 
 	if err != nil {
@@ -152,4 +156,17 @@ func TestEndAuction(t *testing.T) {
 	if auction.Bids[len(auction.Bids)-1].Bidder != bidder {
 		t.Fatalf("expected winner to be 'bidder', got '%s'", auction.Bids[len(auction.Bids)-1].Bidder)
 	}
+}
+
+// SetCurrentTime sets the current time for testing purposes
+func SetCurrentTime(t time.Time) {
+	currentTime = t
+}
+
+// now returns the current time, allowing for mocking in tests
+func now() time.Time {
+	if !currentTime.IsZero() {
+		return currentTime
+	}
+	return time.Now()
 }
