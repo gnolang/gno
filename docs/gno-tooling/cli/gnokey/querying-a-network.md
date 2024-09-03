@@ -152,7 +152,7 @@ gnokey query vm/qeval -remote https://rpc.gno.land:443 -data "gno.land/r/demo/wu
 This command will return the `wugnot` balance of the above address without using gas.
 Properly escaping quotation marks for string arguments is currently required.
 
-// only primitive types are supported?
+Currently, `vm/qeval` only supports primitive types in expressions.
 
 ## `vm/qrender`
 
