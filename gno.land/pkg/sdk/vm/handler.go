@@ -33,6 +33,8 @@ func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 		return vh.handleMsgCall(ctx, msg)
 	case MsgRun:
 		return vh.handleMsgRun(ctx, msg)
+	case MsgSetMeta:
+		return vh.handleMsgSetMeta(ctx, msg)
 	default:
 		errMsg := fmt.Sprintf("unrecognized vm message type: %T", msg)
 		return abciResult(std.ErrUnknownRequest(errMsg))
@@ -61,6 +63,17 @@ func (vh vmHandler) handleMsgCall(ctx sdk.Context, msg MsgCall) (res sdk.Result)
 // Handle MsgRun.
 func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 	resstr, err := vh.vm.Run(ctx, msg)
+	if err != nil {
+		return abciResult(err)
+	}
+	res.Data = []byte(resstr)
+	return
+}
+
+// Handle MsgSetMeta.
+func (vh vmHandler) handleMsgSetMeta(ctx sdk.Context, msg MsgSetMeta) (res sdk.Result) {
+	// TODO: Add package metadata query support
+	resstr, err := vh.vm.SetMeta(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}

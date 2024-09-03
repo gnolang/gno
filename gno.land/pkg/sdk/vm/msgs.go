@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
@@ -10,6 +11,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+var reMetaFieldName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
 
 //----------------------------------------
 // MsgAddPackage
@@ -205,5 +208,91 @@ func (msg MsgRun) GetSigners() []crypto.Address {
 
 // Implements ReceiveMsg.
 func (msg MsgRun) GetReceived() std.Coins {
+	return msg.Send
+}
+
+//----------------------------------------
+// MsgSetMeta
+
+type (
+	// MsgSetMeta - set package metadata.
+	MsgSetMeta struct {
+		Caller  crypto.Address `json:"caller" yaml:"caller"`
+		Send    std.Coins      `json:"send" yaml:"send"`
+		PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
+		Fields  []*MetaField   `json:"fields" yaml:"fields"`
+	}
+
+	// MetaField defines a package metadata field.
+	MetaField struct {
+		Name  string `json:"name" yaml:"name"`
+		Value []byte `json:"value" yaml:"value"`
+	}
+)
+
+var _ std.Msg = MsgSetMeta{}
+
+func NewMsgSetMeta(caller crypto.Address, send std.Coins, pkgPath string, fields []*MetaField) MsgSetMeta {
+	return MsgSetMeta{
+		Caller:  caller,
+		Send:    send,
+		PkgPath: pkgPath,
+		Fields:  fields,
+	}
+}
+
+// Implements Msg.
+func (msg MsgSetMeta) Route() string { return RouterKey }
+
+// Implements Msg.
+func (msg MsgSetMeta) Type() string { return "meta" }
+
+// Implements Msg.
+func (msg MsgSetMeta) ValidateBasic() error {
+	if msg.Caller.IsZero() {
+		return std.ErrInvalidAddress("missing caller address")
+	}
+
+	if msg.PkgPath == "" {
+		return ErrInvalidPkgPath("missing package path")
+	}
+
+	if !strings.HasPrefix(msg.PkgPath, "gno.land/") {
+		return ErrInvalidPkgPath("pkgpath must be of a realm or package")
+	}
+
+	count := len(msg.Fields)
+	if count == 0 {
+		return ErrInvalidPkgMeta("missing metadata fields")
+	}
+
+	if count > maxMetaFields {
+		return ErrInvalidPkgMeta("maximum number of package metadata fields reached")
+	}
+
+	for _, f := range msg.Fields {
+		if !reMetaFieldName.Match([]byte(f.Name)) {
+			return ErrInvalidPkgMeta("invalid metadata field name")
+		}
+
+		if len(f.Value) > maxMetaFieldValueSize {
+			return ErrInvalidPkgMeta("metadata field value is too large")
+		}
+	}
+	return nil
+}
+
+// Implements Msg.
+func (msg MsgSetMeta) GetSignBytes() []byte {
+	return std.MustSortJSON(amino.MustMarshalJSON(msg))
+}
+
+// Implements Msg.
+func (msg MsgSetMeta) GetSigners() []crypto.Address {
+	return []crypto.Address{msg.Caller}
+}
+
+// Implements ReceiveMsg.
+func (msg MsgSetMeta) GetReceived() std.Coins {
 	return msg.Send
 }

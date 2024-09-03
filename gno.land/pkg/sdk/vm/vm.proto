@@ -27,7 +27,22 @@ message m_addpkg {
 	string deposit = 3;
 }
 
+message m_setmeta {
+	string caller = 1;
+	string send = 2;
+	string pkg_path = 3;
+	repeated MetaField fields = 4;
+}
+
+message MetaField {
+	string name = 1;
+	bytes value = 2;
+}
+
 message InvalidPkgPathError {
+}
+
+message InvalidPkgMetaError {
 }
 
 message InvalidStmtError {

@@ -16,6 +16,7 @@ func (abciError) AssertABCIError() {}
 // NOTE: these are meant to be used in conjunction with pkgs/errors.
 type (
 	InvalidPkgPathError   struct{ abciError }
+	InvalidPkgMetaError   struct{ abciError }
 	InvalidStmtError      struct{ abciError }
 	InvalidExprError      struct{ abciError }
 	UnauthorizedUserError struct{ abciError }
@@ -26,6 +27,7 @@ type (
 )
 
 func (e InvalidPkgPathError) Error() string   { return "invalid package path" }
+func (e InvalidPkgMetaError) Error() string   { return "invalid package metadata" }
 func (e InvalidStmtError) Error() string      { return "invalid statement" }
 func (e InvalidExprError) Error() string      { return "invalid expression" }
 func (e UnauthorizedUserError) Error() string { return "unauthorized user" }
@@ -42,6 +44,10 @@ func ErrUnauthorizedUser(msg string) error {
 
 func ErrInvalidPkgPath(msg string) error {
 	return errors.Wrap(InvalidPkgPathError{}, msg)
+}
+
+func ErrInvalidPkgMeta(msg string) error {
+	return errors.Wrap(InvalidPkgMetaError{}, msg)
 }
 
 func ErrInvalidStmt(msg string) error {

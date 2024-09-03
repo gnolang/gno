@@ -34,8 +34,10 @@ import (
 )
 
 const (
-	maxAllocTx    = 500 * 1000 * 1000
-	maxAllocQuery = 1500 * 1000 * 1000 // higher limit for queries
+	maxAllocTx            = 500 * 1000 * 1000
+	maxAllocQuery         = 1500 * 1000 * 1000 // higher limit for queries
+	maxMetaFields         = 10                 // maximum number of package metadata fields
+	maxMetaFieldValueSize = 1_000_000          // maximum size for package metadata field values in bytes
 )
 
 // vm.VMKeeperI defines a module interface that supports Gno
@@ -688,6 +690,13 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	)
 
 	return res, nil
+}
+
+// SetMeta sets or updates the metadata of a package.
+func (vm *VMKeeper) SetMeta(ctx sdk.Context, msg MsgSetMeta) (res string, err error) {
+	// TODO: Implement set metadata logic
+	// TODO: Handle special "tools" field logic
+	return
 }
 
 // QueryFuncs returns public facing function signatures.
