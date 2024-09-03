@@ -2,7 +2,7 @@
 id: write-simple-dapp
 ---
 
-# How to write a simple dApp on Gno.land
+# How to write a simple dApp on gno.land
 
 ## Overview
 
@@ -94,6 +94,8 @@ func (p Poll) VoteCount() (int, int) {
 		if vote == true {
 			yay = yay + 1
 		}
+
+        return false
 	})
 	return yay, p.Voters().Size() - yay
 }
@@ -133,7 +135,6 @@ The realm will contain the following functionality:
 package poll
 
 import (
-	"bytes"
 	"std"
 
 	"gno.land/p/demo/avl"

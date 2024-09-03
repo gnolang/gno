@@ -1,9 +1,6 @@
 package json
 
-import (
-	"strconv"
-	"testing"
-)
+import "testing"
 
 func TestParseStringLiteral(t *testing.T) {
 	tests := []struct {

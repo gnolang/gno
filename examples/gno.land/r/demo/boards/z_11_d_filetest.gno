@@ -1,7 +1,7 @@
-// PKGPATH: gno.land/r/boards_test
+// PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
-// SEND: 2000000000ugnot
+// SEND: 200000000ugnot
 
 import (
 	"strconv"

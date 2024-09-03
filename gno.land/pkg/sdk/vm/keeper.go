@@ -6,17 +6,27 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
+	"sync"
+	"time"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"
+	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
+	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
+	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 	"go.opentelemetry.io/otel/attribute"
@@ -33,6 +43,7 @@ const (
 type VMKeeperI interface {
 	AddPackage(ctx sdk.Context, msg MsgAddPackage) error
 	Call(ctx sdk.Context, msg MsgCall) (res string, err error)
+	QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error)
 	Run(ctx sdk.Context, msg MsgRun) (res string, err error)
 }
 
@@ -73,30 +84,163 @@ func NewVMKeeper(
 	return vmk
 }
 
-func (vm *VMKeeper) Initialize(ms store.MultiStore) {
+func (vm *VMKeeper) Initialize(
+	logger *slog.Logger,
+	ms store.MultiStore,
+	cacheStdlibLoad bool,
+) {
 	if vm.gnoStore != nil {
 		panic("should not happen")
 	}
-	alloc := gno.NewAllocator(maxAllocTx)
 	baseSDKStore := ms.GetStore(vm.baseKey)
 	iavlSDKStore := ms.GetStore(vm.iavlKey)
-	vm.gnoStore = gno.NewStore(alloc, baseSDKStore, iavlSDKStore)
-	vm.initBuiltinPackagesAndTypes(vm.gnoStore)
-	if vm.gnoStore.NumMemPackages() > 0 {
+
+	if cacheStdlibLoad {
+		// Testing case (using the cache speeds up starting many nodes)
+		vm.gnoStore = cachedStdlibLoad(vm.stdlibsDir, baseSDKStore, iavlSDKStore)
+	} else {
+		// On-chain case
+		vm.gnoStore = uncachedPackageLoad(logger, vm.stdlibsDir, baseSDKStore, iavlSDKStore)
+	}
+}
+
+func uncachedPackageLoad(
+	logger *slog.Logger,
+	stdlibsDir string,
+	baseStore, iavlStore store.Store,
+) gno.Store {
+	alloc := gno.NewAllocator(maxAllocTx)
+	gnoStore := gno.NewStore(alloc, baseStore, iavlStore)
+	gnoStore.SetNativeStore(stdlibs.NativeStore)
+	if gnoStore.NumMemPackages() == 0 {
+		// No packages in the store; set up the stdlibs.
+		start := time.Now()
+
+		loadStdlib(stdlibsDir, gnoStore)
+
+		// XXX Quick and dirty to make this function work on non-validator nodes
+		iter := iavlStore.Iterator(nil, nil)
+		for ; iter.Valid(); iter.Next() {
+			baseStore.Set(append(iavlBackupPrefix, iter.Key()...), iter.Value())
+		}
+		iter.Close()
+
+		logger.Debug("Standard libraries initialized",
+			"elapsed", time.Since(start))
+	} else {
 		// for now, all mem packages must be re-run after reboot.
 		// TODO remove this, and generally solve for in-mem garbage collection
 		// and memory management across many objects/types/nodes/packages.
+		start := time.Now()
+
+		// XXX Quick and dirty to make this function work on non-validator nodes
+		if isStoreEmpty(iavlStore) {
+			iter := baseStore.Iterator(iavlBackupPrefix, nil)
+			for ; iter.Valid(); iter.Next() {
+				if !bytes.HasPrefix(iter.Key(), iavlBackupPrefix) {
+					break
+				}
+				iavlStore.Set(iter.Key()[len(iavlBackupPrefix):], iter.Value())
+			}
+			iter.Close()
+		}
+
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
 				PkgPath: "",
 				Output:  os.Stdout, // XXX
-				Store:   vm.gnoStore,
+				Store:   gnoStore,
 			})
 		defer m2.Release()
 		gno.DisableDebug()
 		m2.PreprocessAllFilesAndSaveBlockNodes()
 		gno.EnableDebug()
+
+		logger.Debug("GnoVM packages preprocessed",
+			"elapsed", time.Since(start))
 	}
+	return gnoStore
+}
+
+var iavlBackupPrefix = []byte("init_iavl_backup:")
+
+func isStoreEmpty(st store.Store) bool {
+	iter := st.Iterator(nil, nil)
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		return false
+	}
+	return true
+}
+
+func cachedStdlibLoad(stdlibsDir string, baseStore, iavlStore store.Store) gno.Store {
+	cachedStdlibOnce.Do(func() {
+		cachedStdlibBase = memdb.NewMemDB()
+		cachedStdlibIavl = memdb.NewMemDB()
+
+		cachedGnoStore = gno.NewStore(nil,
+			dbadapter.StoreConstructor(cachedStdlibBase, types.StoreOptions{}),
+			dbadapter.StoreConstructor(cachedStdlibIavl, types.StoreOptions{}))
+		cachedGnoStore.SetNativeStore(stdlibs.NativeStore)
+		loadStdlib(stdlibsDir, cachedGnoStore)
+	})
+
+	itr := cachedStdlibBase.Iterator(nil, nil)
+	for ; itr.Valid(); itr.Next() {
+		baseStore.Set(itr.Key(), itr.Value())
+	}
+
+	itr = cachedStdlibIavl.Iterator(nil, nil)
+	for ; itr.Valid(); itr.Next() {
+		iavlStore.Set(itr.Key(), itr.Value())
+	}
+
+	alloc := gno.NewAllocator(maxAllocTx)
+	gs := gno.NewStore(alloc, baseStore, iavlStore)
+	gs.SetNativeStore(stdlibs.NativeStore)
+	gno.CopyCachesFromStore(gs, cachedGnoStore)
+	return gs
+}
+
+var (
+	cachedStdlibOnce sync.Once
+	cachedStdlibBase *memdb.MemDB
+	cachedStdlibIavl *memdb.MemDB
+	cachedGnoStore   gno.Store
+)
+
+func loadStdlib(stdlibsDir string, store gno.Store) {
+	stdlibInitList := stdlibs.InitOrder()
+	for _, lib := range stdlibInitList {
+		if lib == "testing" {
+			// XXX: testing is skipped for now while it uses testing-only packages
+			// like fmt and encoding/json
+			continue
+		}
+		loadStdlibPackage(lib, stdlibsDir, store)
+	}
+}
+
+func loadStdlibPackage(pkgPath, stdlibsDir string, store gno.Store) {
+	stdlibPath := filepath.Join(stdlibsDir, pkgPath)
+	if !osm.DirExists(stdlibPath) {
+		// does not exist.
+		panic(fmt.Sprintf("failed loading stdlib %q: does not exist", pkgPath))
+	}
+	memPkg := gno.ReadMemPackage(stdlibPath, pkgPath)
+	if memPkg.IsEmpty() {
+		// no gno files are present
+		panic(fmt.Sprintf("failed loading stdlib %q: not a valid MemPackage", pkgPath))
+	}
+
+	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
+		// PkgPath: pkgPath, XXX why?
+		Output: os.Stdout,
+		Store:  store,
+	})
+	defer m.Release()
+	m.RunMemPackage(memPkg, true)
 }
 
 func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
@@ -135,6 +279,88 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	}
 }
 
+// Namespace can be either a user or crypto address.
+var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
+
+// checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
+func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
+	const sysUsersPkg = "gno.land/r/sys/users"
+
+	store := vm.getGnoStore(ctx)
+
+	match := reNamespace.FindStringSubmatch(pkgPath)
+	switch len(match) {
+	case 0:
+		return ErrInvalidPkgPath(pkgPath) // no match
+	case 2: // ok
+	default:
+		panic("invalid pattern while matching pkgpath")
+	}
+	if len(match) != 2 {
+		return ErrInvalidPkgPath(pkgPath)
+	}
+	username := match[1]
+
+	// if `sysUsersPkg` does not exist -> skip validation.
+	usersPkg := store.GetPackage(sysUsersPkg, false)
+	if usersPkg == nil {
+		return nil
+	}
+
+	// Parse and run the files, construct *PV.
+	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	msgCtx := stdlibs.ExecContext{
+		ChainID:       ctx.ChainID(),
+		Height:        ctx.BlockHeight(),
+		Timestamp:     ctx.BlockTime().Unix(),
+		OrigCaller:    creator.Bech32(),
+		OrigSendSpent: new(std.Coins),
+		OrigPkgAddr:   pkgAddr.Bech32(),
+		// XXX: should we remove the banker ?
+		Banker:      NewSDKBanker(vm, ctx),
+		EventLogger: ctx.EventLogger(),
+	}
+
+	m := gno.NewMachineWithOptions(
+		gno.MachineOptions{
+			PkgPath:   "",
+			Output:    os.Stdout, // XXX
+			Store:     store,
+			Context:   msgCtx,
+			Alloc:     store.GetAllocator(),
+			MaxCycles: vm.maxCycles,
+			GasMeter:  ctx.GasMeter(),
+		})
+	defer m.Release()
+
+	// call $sysUsersPkg.IsAuthorizedAddressForName("<user>")
+	// We only need to check by name here, as address have already been check
+	mpv := gno.NewPackageNode("main", "main", nil).NewPackage()
+	m.SetActivePackage(mpv)
+	m.RunDeclaration(gno.ImportD("users", sysUsersPkg))
+	x := gno.Call(
+		gno.Sel(gno.Nx("users"), "IsAuthorizedAddressForName"),
+		gno.Str(creator.String()),
+		gno.Str(username),
+	)
+
+	ret := m.Eval(x)
+	if len(ret) == 0 {
+		panic("call: invalid response length")
+	}
+
+	useraddress := ret[0]
+	if useraddress.T.Kind() != gno.BoolKind {
+		panic("call: invalid response kind")
+	}
+
+	if isAuthorized := useraddress.GetBool(); !isAuthorized {
+		return ErrUnauthorizedUser(username)
+	}
+
+	return nil
+}
+
 // AddPackage adds a package with given fileset.
 func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	creator := msg.Creator
@@ -157,13 +383,13 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
 		return ErrInvalidPkgPath("package already exists: " + pkgPath)
 	}
-
 	if gno.ReGnoRunPath.MatchString(pkgPath) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)
 	}
 
 	// Validate Gno syntax and type check.
-	if err := gno.TypeCheckMemPackage(memPkg, gnostore); err != nil {
+	format := true
+	if err := gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
 		return ErrTypeCheck(err)
 	}
 
@@ -173,9 +399,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	// TODO: ACLs.
 	// - if r/system/names does not exists -> skip validation.
 	// - loads r/system/names data state.
-	// - lookup r/system/names.namespaces for `{r,p}/NAMES`.
-	// - check if caller is in Admins or Editors.
-	// - check if namespace is not in pause.
+	if err := vm.checkNamespacePermission(ctx, creator, pkgPath); err != nil {
+		return err
+	}
 
 	err = vm.bank.SendCoins(ctx, creator, pkgAddr, deposit)
 	if err != nil {
@@ -311,12 +537,15 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	m.SetActivePackage(mpv)
 	defer func() {
 		if r := recover(); r != nil {
-			switch r.(type) {
+			switch r := r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
+			case gno.UnhandledPanicError:
+				err = errors.Wrap(fmt.Errorf("%v", r.Error()), "VM call panic: %s\nStacktrace: %s\n",
+					r.Error(), m.ExceptionsStacktrace())
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
-					r, m.String())
+				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\nMachine State:%s\nStacktrace: %s\n",
+					r, m.String(), m.Stacktrace().String())
 				return
 			}
 		}
@@ -368,7 +597,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	if err = gno.TypeCheckMemPackage(memPkg, gnostore); err != nil {
+	format := false
+	if err = gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
 		return "", ErrTypeCheck(err)
 	}
 

@@ -27,6 +27,7 @@ OFFICIAL_PACKAGES = ./gno.land/p
 OFFICIAL_PACKAGES += ./gno.land/r/demo
 OFFICIAL_PACKAGES += ./gno.land/r/gnoland
 OFFICIAL_PACKAGES += ./gno.land/r/sys
+OFFICIAL_PACKAGES += ./gno.land/r/gov
 
 ########################################
 # Dev tools
@@ -55,15 +56,10 @@ clean:
 	find . \( -name "*.gno.gen.go" -or -name ".*.gno.gen_test.go" \) -delete
 
 .PHONY: fmt
-GOFMT_FLAGS ?= -w
+GNOFMT_FLAGS ?= -w
 fmt:
-	go run -modfile ../misc/devdeps/go.mod mvdan.cc/gofumpt $(GOFMT_FLAGS) `find . -name "*.gno"`
-
-.PHONY: imports
-GOIMPORTS_FLAGS ?= -w
-imports:
-	$(rundep) golang.org/x/tools/cmd/goimports $(GOIMPORTS_FLAGS) .
+	go run ../gnovm/cmd/gno fmt $(GNOFMT_FLAGS) ./...
 
 .PHONY: tidy
 tidy:
-	find . -name "gno.mod" -execdir go run github.com/gnolang/gno/gnovm/cmd/gno mod tidy \;
+	go run github.com/gnolang/gno/gnovm/cmd/gno mod tidy -v --recursive
