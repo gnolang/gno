@@ -15,7 +15,7 @@ id: full-security-tx
 broadcast it to a chain in the most secure fashion. This approach, while more 
 complicated, grants full control and provides airgap support.
 
-The indented purpose of this functionality is to provide maximum security when 
+The intended purpose of this functionality is to provide maximum security when 
 signing and broadcasting a transaction. In practice, this procedure should take
 place on two separate machines, one with access to the internet (`Machine 1`), 
 and the other one without (`Machine 2`), with the separation of steps as follows:

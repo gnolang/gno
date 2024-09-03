@@ -39,8 +39,7 @@ gnokey query auth/accounts/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5 -remote http
 ```
 
 With this, we are asking the Portal Loop network to deliver information about the
-specified address. If everything went correctly, we should get the following
-output:
+specified address. If everything went correctly, we should get output similar to the following:
 
 ```bash
 height: 0
