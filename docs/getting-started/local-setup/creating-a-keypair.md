@@ -21,8 +21,8 @@ Let's see how we can use `gnokey` to generate a keypair.
 
 ## Generating a keypair
 
-The `gnokey add` command allows you to generate a new keypair. Simply run the 
-command, while adding a name for your keypair:
+The `gnokey add` command allows you to generate a new keypair locally. Simply 
+run the command, while adding a name for your keypair:
 
 ```bash
 gnokey add MyKey
