@@ -272,7 +272,6 @@ func (alloc *Allocator) AllocateType() {
 }
 
 func (alloc *Allocator) DeallocateType() {
-	println("DeallocateType")
 	alloc.Deallocate(allocType)
 }
 
@@ -286,7 +285,6 @@ func (alloc *Allocator) AllocateHeapItem() {
 }
 
 func (alloc *Allocator) DeallocateHeapItem() {
-	println("DeallocateHeapItem")
 	alloc.Deallocate(allocHeapItem)
 }
 
