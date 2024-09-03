@@ -9,10 +9,12 @@ import (
 // (optionally?) condensed (objects to be GC'd will be discarded),
 // but for now, allocations strictly increment across the whole tx.
 type Allocator struct {
-	maxBytes int64
-	bytes    int64
-	heap     *Heap
-	detonate bool
+	maxBytes  int64
+	bytes     int64
+	lastGcRun int64
+	minGcRun  int64
+	heap      *Heap
+	detonate  bool
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -69,13 +71,14 @@ const (
 	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
 )
 
-func NewAllocator(maxBytes int64, heap *Heap) *Allocator {
+func NewAllocator(maxBytes int64, minGcRun int64, heap *Heap) *Allocator {
 	if maxBytes == 0 {
 		return nil
 	}
 	return &Allocator{
 		maxBytes: maxBytes,
 		heap:     heap,
+		minGcRun: minGcRun,
 	}
 }
 
@@ -117,7 +120,15 @@ func (alloc *Allocator) Allocate(size int64) {
 			}
 			alloc.detonate = alloc.bytes > alloc.maxBytes
 		}
+	} else if alloc.ShouldRunGC() {
+		alloc.lastGcRun = alloc.bytes
+		deleted := alloc.heap.MarkAndSweep()
+		alloc.DeallocDeleted(deleted)
 	}
+}
+
+func (alloc *Allocator) ShouldRunGC() bool {
+	return alloc.bytes >= 2*alloc.lastGcRun && alloc.bytes >= alloc.minGcRun
 }
 
 func (alloc *Allocator) DeallocDeleted(objs []*GcObj) {
