@@ -56,7 +56,7 @@ height at which they have signed up.
 ![userbook-default](../../assets/getting-started/local-setup/interacting-with-gnoland/userbook-default.png)
 
 > Note: block heights in this case are unreliable because of the way the Portal Loop
-> testnet works.
+> network works.
 > Read more [here](../../concepts/portal-loop.md). 
 
 To see what functions are available to call on the Userbook realm, click
