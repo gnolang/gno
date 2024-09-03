@@ -32,8 +32,8 @@ and the other one without (`Machine B`), with the separation of steps as follows
 4. `Machine A`: Broadcast the transaction
 
 For the sake of simplicity, in this example, we will assume that the procedure 
-is happening on two machines, and we will again use the Userbook 
-realm on the Portal Loop testnet.
+is happening on two machines controlled by the same person, and we will use the
+Userbook realm on the Portal Loop testnet.
 
 ## Fetching account information from the chain
 
