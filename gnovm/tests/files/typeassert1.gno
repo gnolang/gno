@@ -9,5 +9,10 @@ func main() {
 	_ = a.(A)
 }
 
+// Stacktrace:
+// panic: interface conversion: interface is nil, not main.A
+// main<VPBlock(1,1)>()
+//     main/files/typeassert1.gno:9
+
 // Error:
 // panic: interface conversion: interface is nil, not main.A

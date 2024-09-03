@@ -74,6 +74,7 @@ func execRepl(cfg *replCfg, args []string) error {
 //   gno> import "gno.land/p/demo/avl"     // import the p/demo/avl package
 //   gno> func a() string { return "a" }   // declare a new function named a
 //   gno> /src                             // print current generated source
+//   gno> /debug                           // activate the GnoVM debugger
 //   gno> /editor                          // enter in multi-line mode, end with ';'
 //   gno> /reset                           // remove all previously inserted code
 //   gno> println(a())                     // print the result of calling a()
@@ -141,6 +142,8 @@ func handleInput(r *repl.Repl, input string) error {
 	switch strings.TrimSpace(input) {
 	case "/reset":
 		r.Reset()
+	case "/debug":
+		r.Debug()
 	case "/src":
 		fmt.Fprintln(os.Stdout, r.Src())
 	case "/exit":

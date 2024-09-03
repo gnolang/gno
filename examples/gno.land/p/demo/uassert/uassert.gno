@@ -5,6 +5,8 @@ import (
 	"std"
 	"strconv"
 	"strings"
+
+	"gno.land/p/demo/diff"
 )
 
 // NoError asserts that a function returned no error (i.e. `nil`).
@@ -127,6 +129,10 @@ func Equal(t TestingT, expected, actual interface{}, msgs ...string) bool {
 			equal = ev == av
 			ok_ = true
 			es, as = ev, av
+			if !equal {
+				dif := diff.MyersDiff(ev, av)
+				return fail(t, msgs, "uassert.Equal: strings are different\n\tDiff: %s", diff.Format(dif))
+			}
 		}
 	case std.Address:
 		if av, ok := actual.(std.Address); ok {
@@ -373,46 +379,85 @@ func NotEqual(t TestingT, expected, actual interface{}, msgs ...string) bool {
 	return true
 }
 
+func isNumberEmpty(n interface{}) (isNumber, isEmpty bool) {
+	switch n := n.(type) {
+	// NOTE: the cases are split individually, so that n becomes of the
+	// asserted type; the type of '0' was correctly inferred and converted
+	// to the corresponding type, int, int8, etc.
+	case int:
+		return true, n == 0
+	case int8:
+		return true, n == 0
+	case int16:
+		return true, n == 0
+	case int32:
+		return true, n == 0
+	case int64:
+		return true, n == 0
+	case uint:
+		return true, n == 0
+	case uint8:
+		return true, n == 0
+	case uint16:
+		return true, n == 0
+	case uint32:
+		return true, n == 0
+	case uint64:
+		return true, n == 0
+	case float32:
+		return true, n == 0
+	case float64:
+		return true, n == 0
+	}
+	return false, false
+}
 func Empty(t TestingT, obj interface{}, msgs ...string) bool {
 	t.Helper()
-	switch val := obj.(type) {
-	case string:
-		if val != "" {
-			return fail(t, msgs, "uassert.Empty: not empty string: %s", val)
+
+	isNumber, isEmpty := isNumberEmpty(obj)
+	if isNumber {
+		if !isEmpty {
+			return fail(t, msgs, "uassert.Empty: not empty number: %d", obj)
 		}
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-		if val != 0 {
-			return fail(t, msgs, "uassert.Empty: not empty number: %d", val)
+	} else {
+		switch val := obj.(type) {
+		case string:
+			if val != "" {
+				return fail(t, msgs, "uassert.Empty: not empty string: %s", val)
+			}
+		case std.Address:
+			var zeroAddr std.Address
+			if val != zeroAddr {
+				return fail(t, msgs, "uassert.Empty: not empty std.Address: %s", string(val))
+			}
+		default:
+			return fail(t, msgs, "uassert.Empty: unsupported type")
 		}
-	case std.Address:
-		var zeroAddr std.Address
-		if val != zeroAddr {
-			return fail(t, msgs, "uassert.Empty: not empty std.Address: %s", string(val))
-		}
-	default:
-		return fail(t, msgs, "uassert.Empty: unsupported type")
 	}
 	return true
 }
 
 func NotEmpty(t TestingT, obj interface{}, msgs ...string) bool {
 	t.Helper()
-	switch val := obj.(type) {
-	case string:
-		if val == "" {
-			return fail(t, msgs, "uassert.NotEmpty: empty string: %s", val)
+	isNumber, isEmpty := isNumberEmpty(obj)
+	if isNumber {
+		if isEmpty {
+			return fail(t, msgs, "uassert.NotEmpty: empty number: %d", obj)
 		}
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-		if val == 0 {
-			return fail(t, msgs, "uassert.NotEmpty: empty number: %d", val)
+	} else {
+		switch val := obj.(type) {
+		case string:
+			if val == "" {
+				return fail(t, msgs, "uassert.NotEmpty: empty string: %s", val)
+			}
+		case std.Address:
+			var zeroAddr std.Address
+			if val == zeroAddr {
+				return fail(t, msgs, "uassert.NotEmpty: empty std.Address: %s", string(val))
+			}
+		default:
+			return fail(t, msgs, "uassert.NotEmpty: unsupported type")
 		}
-	case std.Address:
-		var zeroAddr std.Address
-		if val == zeroAddr {
-			return fail(t, msgs, "uassert.NotEmpty: empty std.Address: %s", string(val))
-		}
-	default:
-		return fail(t, msgs, "uassert.NotEmpty: unsupported type")
 	}
 	return true
 }

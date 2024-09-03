@@ -3,6 +3,7 @@ package tests
 import (
 	"std"
 
+	"gno.land/p/demo/nestedpkg"
 	rsubtests "gno.land/r/demo/tests/subtests"
 )
 
@@ -102,4 +103,16 @@ func GetRSubtestsPrevRealm() std.Realm {
 
 func Exec(fn func()) {
 	fn()
+}
+
+func IsCallerSubPath() bool {
+	return nestedpkg.IsCallerSubPath()
+}
+
+func IsCallerParentPath() bool {
+	return nestedpkg.IsCallerParentPath()
+}
+
+func HasCallerSameNamespace() bool {
+	return nestedpkg.IsSameNamespace()
 }

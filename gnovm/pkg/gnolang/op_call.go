@@ -378,7 +378,9 @@ func (m *Machine) doOpPanic2() {
 				bld.WriteString("panic: ")
 				bld.WriteString(ex.Sprint(m))
 			}
-			panic(bld.String())
+			panic(UnhandledPanicError{
+				Descriptor: bld.String(),
+			})
 		}
 		m.PushOp(OpPanic2)
 		m.PushOp(OpReturnCallDefers) // XXX rename, not return?
