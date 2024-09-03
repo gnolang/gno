@@ -13,7 +13,8 @@ id: full-security-tx
 
 `gnokey` provides a way to create a transaction, sign it, and later
 broadcast it to a chain in the most secure fashion. This approach, while more 
-complicated, grants full control and provides airgap support.
+complicated than the standard approach shown [in a previous tutorial](./state-changing-calls.md),
+grants full control and provides airgap support.
 
 The intended purpose of this functionality is to provide maximum security when 
 signing and broadcasting a transaction. In practice, this procedure should take
