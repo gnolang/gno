@@ -1795,15 +1795,28 @@ func (sb *StaticBlock) GetIsConst(store Store, n Name) bool {
 	}
 }
 
-func (sb *StaticBlock) GetIsConstAt(store Store, path ValuePath) bool {
+func (sb *StaticBlock) getAt(store Store, path ValuePath) *StaticBlock {
+	if debug {
+		if path.Type != VPBlock {
+			panic("should not happen")
+		}
+		if path.Depth == 0 {
+			panic("should not happen")
+		}
+	}
+
 	for {
 		if path.Depth == 1 {
-			return sb.getLocalIsConst(path.Name)
+			return sb
 		} else {
 			sb = sb.GetParentNode(store).GetStaticBlock()
 			path.Depth -= 1
 		}
 	}
+}
+
+func (sb *StaticBlock) GetIsConstAt(store Store, path ValuePath) bool {
+	return sb.getAt(store, path).getLocalIsConst(path.Name)
 }
 
 // Returns true iff n is a local const defined name.
@@ -1841,22 +1854,7 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
-	if debug {
-		if path.Type != VPBlock {
-			panic("should not happen")
-		}
-		if path.Depth == 0 {
-			panic("should not happen")
-		}
-	}
-	for {
-		if path.Depth == 1 {
-			return sb.Types[path.Index]
-		} else {
-			sb = sb.GetParentNode(store).GetStaticBlock()
-			path.Depth -= 1
-		}
-	}
+	return sb.getAt(store, path).Types[path.Index]
 }
 
 // Implements BlockNode.
