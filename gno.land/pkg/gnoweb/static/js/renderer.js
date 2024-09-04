@@ -9,13 +9,25 @@ function renderUsernames(raw) {
 
 function parseContent(source, isCode) {
   if (isCode) {
-    // replace &ampr; with & in code blocks
+    // replace &amp; with & in code blocks
     source = source.replace(/&amp;/g, "&");
 
     const highlightedCode = hljs.highlightAuto(source).value;
 
+    // Split the highlighted code into lines
+    const lines = highlightedCode.split('\n');
+
+    // Add line numbers to each line
+    const numberedLines = lines.map((line, index) => {
+      return `<asp class="number">${index + 1}</asp> ${line}`;
+    });
+
+    // Join the lines back into a single string
+    const numberedCode = numberedLines.join('\n');
+
     const parser = new DOMParser();
-    const doc = parser.parseFromString(highlightedCode, "text/html");
+    const doc = parser.parseFromString(numberedCode, "text/html");
+
     // get all span nodes of class hljs-keyword and a value of 'import'
     const nodes = doc.querySelectorAll("span.hljs-keyword");
     for (const node of nodes) {
