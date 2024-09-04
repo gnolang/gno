@@ -9,6 +9,9 @@ function renderUsernames(raw) {
 
 function parseContent(source, isCode) {
   if (isCode) {
+    // replace &ampr; with & in code blocks
+    source = source.replace(/&amp;/g, "&");
+
     const highlightedCode = hljs.highlightAuto(source).value;
     const codeElement = document.createElement("code");
     codeElement.classList.add("hljs");
