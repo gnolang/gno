@@ -53,6 +53,25 @@ func AddressFromBytes(bz []byte) (ret Address) {
 	return
 }
 
+func (addr Address) MarshalJSON() ([]byte, error) {
+	b := AddressToBech32(addr)
+	return []byte(`"` + b + `"`), nil
+}
+
+func (addr *Address) UnmarshalJSON(b []byte) error {
+	if len(b) == 0 {
+		return nil
+	}
+	b = bytes.Trim(b, `"`)
+
+	addr2, err := AddressFromBech32(string(b))
+	if err != nil {
+		return err
+	}
+	copy(addr[:], addr2[:])
+	return nil
+}
+
 func (addr Address) MarshalAmino() (string, error) {
 	return AddressToBech32(addr), nil
 }
