@@ -118,6 +118,13 @@ func uncachedPackageLoad(
 
 		loadStdlib(stdlibsDir, gnoStore)
 
+		// XXX Quick and dirty to make this function work on non-validator nodes
+		iter := iavlStore.Iterator(nil, nil)
+		for ; iter.Valid(); iter.Next() {
+			baseStore.Set(append(iavlBackupPrefix, iter.Key()...), iter.Value())
+		}
+		iter.Close()
+
 		logger.Debug("Standard libraries initialized",
 			"elapsed", time.Since(start))
 	} else {
@@ -125,6 +132,18 @@ func uncachedPackageLoad(
 		// TODO remove this, and generally solve for in-mem garbage collection
 		// and memory management across many objects/types/nodes/packages.
 		start := time.Now()
+
+		// XXX Quick and dirty to make this function work on non-validator nodes
+		if isStoreEmpty(iavlStore) {
+			iter := baseStore.Iterator(iavlBackupPrefix, nil)
+			for ; iter.Valid(); iter.Next() {
+				if !bytes.HasPrefix(iter.Key(), iavlBackupPrefix) {
+					break
+				}
+				iavlStore.Set(iter.Key()[len(iavlBackupPrefix):], iter.Value())
+			}
+			iter.Close()
+		}
 
 		m2 := gno.NewMachineWithOptions(
 			gno.MachineOptions{
@@ -141,6 +160,17 @@ func uncachedPackageLoad(
 			"elapsed", time.Since(start))
 	}
 	return gnoStore
+}
+
+var iavlBackupPrefix = []byte("init_iavl_backup:")
+
+func isStoreEmpty(st store.Store) bool {
+	iter := st.Iterator(nil, nil)
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		return false
+	}
+	return true
 }
 
 func cachedStdlibLoad(stdlibsDir string, baseStore, iavlStore store.Store) gno.Store {
@@ -358,7 +388,8 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	if err := gno.TypeCheckMemPackage(memPkg, gnostore); err != nil {
+	format := true
+	if err := gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
 		return ErrTypeCheck(err)
 	}
 
@@ -506,12 +537,15 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	m.SetActivePackage(mpv)
 	defer func() {
 		if r := recover(); r != nil {
-			switch r.(type) {
+			switch r := r.(type) {
 			case store.OutOfGasException: // panic in consumeGas()
 				panic(r)
+			case gno.UnhandledPanicError:
+				err = errors.Wrap(fmt.Errorf("%v", r.Error()), "VM call panic: %s\nStacktrace: %s\n",
+					r.Error(), m.ExceptionsStacktrace())
 			default:
-				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\n%s\n",
-					r, m.String())
+				err = errors.Wrap(fmt.Errorf("%v", r), "VM call panic: %v\nMachine State:%s\nStacktrace: %s\n",
+					r, m.String(), m.Stacktrace().String())
 				return
 			}
 		}
@@ -563,7 +597,8 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	}
 
 	// Validate Gno syntax and type check.
-	if err = gno.TypeCheckMemPackage(memPkg, gnostore); err != nil {
+	format := false
+	if err = gno.TypeCheckMemPackage(memPkg, gnostore, format); err != nil {
 		return "", ErrTypeCheck(err)
 	}
 
