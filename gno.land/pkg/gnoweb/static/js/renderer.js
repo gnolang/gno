@@ -13,9 +13,38 @@ function parseContent(source, isCode) {
     source = source.replace(/&amp;/g, "&");
 
     const highlightedCode = hljs.highlightAuto(source).value;
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(highlightedCode, "text/html");
+    // get all span nodes of class hljs-keyword and a value of 'import'
+    const nodes = doc.querySelectorAll("span.hljs-keyword");
+    for (const node of nodes) {
+      if (node.textContent === "import") {
+        // skip "("
+        let nextNode = node.nextElementSibling;
+        while (true) {
+          nextNode = nextNode.nextElementSibling;
+          if (nextNode) {
+            if (nextNode.textContent === ")") {
+              break;
+            } else if (nextNode.textContent.includes("/p") || nextNode.textContent.includes("/r")) {
+              const cleanPath = nextNode.textContent.replace(/(https?:\/\/)?gno\.land\/p\//, "/p/").replace(/^"|"$/g, '');
+              const link = document.createElement("a");
+              link.href = cleanPath;
+              link.className = "hljs-link";
+              link.appendChild(nextNode.cloneNode(true));
+              nextNode.replaceWith(link);
+            }
+          } else {
+            break;
+          }
+        }
+      }
+    }
+
     const codeElement = document.createElement("code");
     codeElement.classList.add("hljs");
-    codeElement.innerHTML = highlightedCode;
+    codeElement.innerHTML = doc.body.innerHTML;
 
     const preElement = document.createElement("pre");
     preElement.appendChild(codeElement);
