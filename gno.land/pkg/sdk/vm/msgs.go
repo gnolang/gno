@@ -257,10 +257,6 @@ func (msg MsgSetMeta) ValidateBasic() error {
 		return ErrInvalidPkgPath("missing package path")
 	}
 
-	if !strings.HasPrefix(msg.PkgPath, "gno.land/") {
-		return ErrInvalidPkgPath("pkgpath must be of a realm or package")
-	}
-
 	count := len(msg.Fields)
 	if count == 0 {
 		return ErrInvalidPkgMeta("missing metadata fields")
