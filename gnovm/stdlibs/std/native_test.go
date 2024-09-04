@@ -5,9 +5,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
+
+const DefaultAccount_Seed = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
 
 func TestPrevRealmIsOrigin(t *testing.T) {
 	var (
@@ -190,5 +194,26 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			assert.Equal(tt.expectedPkgPath, pkgPath)
 			assert.Equal(tt.expectedIsOriginCall, isOrigin)
 		})
+	}
+}
+
+func TestVerify(t *testing.T) {
+	kb, _ := keys.NewKeyBaseFromDir(gnoenv.HomeDir())
+	pass := "hardPass"
+	info, err := kb.CreateAccount("user", DefaultAccount_Seed, pass, pass, 0, 0)
+	assert.NoError(t, err)
+
+	publicKey := info.GetPubKey().String() // gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqfzjcj8wph4wl0x7tqu3k7geuqsz2d45eddys0hgf0xd7dr2dupnqukpghs
+	goodMessage := "Verification Ok"
+	maliciousMessage := "Malicious Message"
+	signature, _, err := kb.Sign("user", pass, []byte(goodMessage))
+	assert.NoError(t, err)
+
+	if !X_verifySignature(publicKey, goodMessage, string(signature)) {
+		t.Error("verify failed")
+	}
+
+	if X_verifySignature(publicKey, maliciousMessage, string(signature)) {
+		t.Error("verify worked on malicious message")
 	}
 }

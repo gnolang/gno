@@ -56,6 +56,10 @@ func DecodeBech32(addr Address) (prefix string, bz [20]byte, ok bool) {
 	return decodeBech32(string(addr))
 }
 
+func VerifySignature(pubKeySigner string,msg string, signature string) bool {
+	return verifySignature(pubKeySigner, msg, signature)
+}
+
 // Variations which don't use named types.
 func origSend() (denoms []string, amounts []int64)
 func origCaller() string
@@ -65,3 +69,4 @@ func getRealm(height int) (address string, pkgPath string)
 func derivePkgAddr(pkgPath string) string
 func encodeBech32(prefix string, bz [20]byte) string
 func decodeBech32(addr string) (prefix string, bz [20]byte, ok bool)
+func verifySignature(pubKeySigner string,msg string, signature string) bool

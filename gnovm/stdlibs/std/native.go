@@ -150,6 +150,14 @@ func X_encodeBech32(prefix string, bytes [20]byte) string {
 	return b32
 }
 
+func X_verifySignature(pubKeySigner string, msg string, signature string) bool {
+	key, err := crypto.PubKeyFromBech32(pubKeySigner)
+	if err != nil {
+		panic(err) // should not happen
+	}
+	return key.VerifyBytes([]byte(msg), []byte(signature))
+}
+
 func X_decodeBech32(addr string) (prefix string, bytes [20]byte, ok bool) {
 	prefix, bz, err := bech32.Decode(addr)
 	if err != nil || len(bz) != 20 {
