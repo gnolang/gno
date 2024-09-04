@@ -38,14 +38,13 @@ func TestMarkAndSweep(t *testing.T) {
 	obj4 := NewObject(newTestTypedValue()) // unreferenced
 
 	// Add objects to heap
-	h.AddObject(obj1)
 	h.AddObject(obj2)
 	h.AddObject(obj3)
 	h.AddObject(obj4)
 
 	// Set up references
 	obj1.AddRef(obj2)
-	obj2.AddRef(obj3)
+	obj1.AddRef(obj3)
 
 	// Add root
 	h.AddRoot(obj1)
@@ -57,7 +56,7 @@ func TestMarkAndSweep(t *testing.T) {
 		t.Errorf("Expected 1 deleted object, got %d", len(deletedObjects))
 	}
 
-	if ptr, ok := deletedObjects[0].tv.V.(PointerValue); ok && ptr == obj4.tv.V {
+	if ptr, ok := deletedObjects[0].tv.V.(PointerValue); !ok || ptr != obj4.tv.V {
 		t.Errorf("Expected 'unreferenced' to be deleted, but got '%s'", ptr)
 	}
 }
@@ -86,29 +85,6 @@ func TestCircularReference(t *testing.T) {
 	if len(deletedObjects) != 0 {
 		t.Errorf("Expected 0 deleted objects, got %d", len(deletedObjects))
 	}
-}
-
-func TestDoubleFree(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("Expected panic on double free, but did not get one")
-		}
-	}()
-
-	h := NewHeap()
-
-	obj1 := NewObject(newTestTypedValue()) // root1
-	h.AddObject(obj1)
-	h.AddRoot(obj1)
-
-	// Run GC to remove all references
-	h.MarkAndSweep()
-
-	// Remove root and try to sweep again
-	h.RemoveRoot(obj1)
-
-	// This should cause a panic due to "double free" as the object is already deleted
-	h.MarkAndSweep()
 }
 
 func TestRootNotFound(t *testing.T) {

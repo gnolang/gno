@@ -24,7 +24,7 @@ func (obj *GcObj) AddRef(ref *GcObj) {
 				}
 			}
 		}
-	case *StringValue, *SliceValue:
+	case *StringValue, *SliceValue, PointerValue:
 		obj.refs = append(obj.refs, ref)
 	}
 }
@@ -110,7 +110,6 @@ func (h *Heap) mark(obj *GcObj) {
 		return
 	}
 	obj.marked = true
-	fmt.Printf("Marking object: %s\n", obj.tv)
 
 	for _, ref := range obj.refs {
 		h.mark(ref)
