@@ -419,11 +419,15 @@ func (alloc *Allocator) DropPointers(ptrs []PointerValue) {
 
 	for _, ptr := range ptrs {
 		if pv, ok := ptr.TV.V.(PointerValue); ok {
-			if _, ok := pv.Base.(*HeapItemValue); ok {
-				root := NewObject(*ptr.TV)
-				alloc.heap.RemoveRoot(root)
-				alloc.DeallocatePointer()
+			_, isHeap := pv.Base.(*HeapItemValue)
+			_, isPtr := pv.TV.V.(PointerValue)
+			if !isHeap && !isPtr {
+				panic("invalid ptr")
 			}
+
+			root := NewObject(*ptr.TV)
+			alloc.heap.RemoveRoot(root)
+			alloc.DeallocatePointer()
 		}
 	}
 }
