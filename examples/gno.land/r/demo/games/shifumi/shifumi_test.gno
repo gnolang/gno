@@ -1,8 +1,6 @@
 package shifumi
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"math/rand"
 	"std"
 	"strconv"
