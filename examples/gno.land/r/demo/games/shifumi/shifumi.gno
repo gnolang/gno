@@ -100,7 +100,14 @@ func NewGame(player std.Address) int {
 	return int(id)
 }
 
-// CommitMove allows a player to commit to a move using a hashed value
+// CommitMove allows a player to commit to a move using a hashed value.
+// To use this function, the player must first generate a hash of their move
+// and a random salt off-chain, then pass the hash as the commit parameter.
+// Example call:
+//
+//	CommitMove(gameIndex, hashMove(move, salt))
+//
+// Where gameIndex is the ID of the game, and commit is the hashed move and salt.
 func CommitMove(idx int, commit string) {
 	v, ok := games.Get(seqid.ID(idx).String())
 	if !ok {
@@ -111,7 +118,16 @@ func CommitMove(idx int, commit string) {
 	}
 }
 
-// RevealMove allows a player to reveal their move and salt
+// RevealMove allows a player to reveal their move and salt.
+// To use this function, the player must provide their original move and salt used
+// during the commit phase. The function will verify if the move and salt match the
+// previously committed hash.
+// Example call:
+//
+//	RevealMove(gameIndex, move, salt)
+//
+// Where gameIndex is the ID of the game, move is the player's move (1=rock, 2=paper, 3=scissors),
+// and salt is the random string used during commit.
 func RevealMove(idx, move int, salt string) {
 	v, ok := games.Get(seqid.ID(idx).String())
 	if !ok {
