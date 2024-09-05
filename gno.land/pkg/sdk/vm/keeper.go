@@ -5,6 +5,7 @@ package vm
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -34,11 +35,14 @@ import (
 )
 
 const (
-	maxAllocTx            = 500 * 1000 * 1000
-	maxAllocQuery         = 1500 * 1000 * 1000 // higher limit for queries
-	maxMetaFields         = 10                 // maximum number of package metadata fields
-	maxMetaFieldValueSize = 1_000_000          // maximum size for package metadata field values in bytes
+	maxAllocTx               = 500 * 1000 * 1000
+	maxAllocQuery            = 1500 * 1000 * 1000 // higher limit for queries
+	maxMetaFields            = 10                 // maximum number of package metadata fields
+	maxMetaFieldValueSize    = 1_000_000          // maximum size for package metadata field values in bytes
+	maxToolDescriptionLenght = 100
 )
+
+var reToolName = regexp.MustCompile(`^[a-z]+[_a-z0-9]{5,16}$`)
 
 // vm.VMKeeperI defines a module interface that supports Gno
 // smart contracts programming (scripting).
@@ -693,10 +697,67 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 }
 
 // SetMeta sets or updates the metadata of a package.
-func (vm *VMKeeper) SetMeta(ctx sdk.Context, msg MsgSetMeta) (res string, err error) {
-	// TODO: Implement set metadata logic
-	// TODO: Handle special "tools" field logic
-	return
+func (vm *VMKeeper) SetMeta(ctx sdk.Context, msg MsgSetMeta) error {
+	store := vm.getGnoStore(ctx)
+	if p := store.GetPackage(msg.PkgPath, false); p == nil {
+		return ErrInvalidPkgPath("package doesn't exists: " + msg.PkgPath)
+	}
+
+	// Only the package creator is allowed to change its metadata.
+	// TODO: When gno.land/r/sys/users is not available check silently passes. How to check effectibly?
+	// TODO: Should address based namespaces be checked separately?
+	if err := vm.checkNamespacePermission(ctx, msg.Caller, msg.PkgPath); err != nil {
+		return err
+	}
+
+	// Get current metadata field names
+	fields := make(map[string]struct{})
+	store.IteratePackageMeta(msg.PkgPath, func(name string, _ []byte) bool {
+		fields[name] = struct{}{}
+		return false
+	})
+
+	// Make sure that total number of fields is still valid
+	var toolsValue []byte
+	for _, f := range msg.Fields {
+		// The tools field can be setted only once, after initialization the field is inmutable
+		if f.Name == "tools" {
+			if _, exists := fields[f.Name]; exists {
+				return ErrInvalidPkgMeta("tools package metadata field is already initialized")
+			}
+
+			// Get the tools field value so it can be validated
+			toolsValue = f.Value
+		}
+
+		// Fields with empty values are removed, otherwise they are added
+		if len(f.Value) == 0 {
+			delete(fields, f.Name)
+		} else if _, exists := fields[f.Name]; !exists {
+			fields[f.Name] = struct{}{}
+		}
+	}
+
+	if len(fields) > maxMetaFields {
+		return ErrInvalidPkgMeta("maximum number of package metadata fields exceeded")
+	}
+
+	// Validate tools metadata field value
+	if toolsValue != nil {
+		if err := validateToolsMetaField(toolsValue); err != nil {
+			return ErrInvalidPkgMeta(err.Error())
+		}
+	}
+
+	// Update metadata fields, deleting fields with empty values
+	for _, f := range msg.Fields {
+		if len(f.Value) == 0 {
+			store.DeletePackageMetaField(msg.PkgPath, f.Name)
+		} else {
+			store.SetPackageMetaField(msg.PkgPath, f.Name, f.Value)
+		}
+	}
+	return nil
 }
 
 // QueryFuncs returns public facing function signatures.
@@ -945,4 +1006,43 @@ func logTelemetry(
 		gasUsed,
 		metric.WithAttributes(attributes...),
 	)
+}
+
+func validateToolsMetaField(value []byte) error {
+	var v struct {
+		Tools []struct {
+			Name        string  `json:"name"`
+			Weight      float64 `json:"weight"`
+			Description string  `json:"description,omitempty"`
+		} `json:"tools,omitempty"`
+	}
+
+	if err := json.Unmarshal(value, &v); err != nil {
+		return fmt.Errorf("invalid tools field format: %s", err)
+	}
+
+	if len(v.Tools) == 0 {
+		return errors.New("tools list is empty")
+	}
+
+	var totalWeight float64
+	for _, t := range v.Tools {
+		if len(t.Description) > maxToolDescriptionLenght {
+			return fmt.Errorf("maximum length for tool description is %d", maxToolDescriptionLenght)
+		}
+
+		if !reToolName.MatchString(t.Name) {
+			return fmt.Errorf(
+				"invalid tool name: %s (minimum 6 chars, lowercase alphanumeric with underscore)",
+				t.Name,
+			)
+		}
+
+		totalWeight += t.Weight
+	}
+
+	if totalWeight != 1 {
+		return errors.New("the sum of all tool weights must be 1")
+	}
+	return nil
 }

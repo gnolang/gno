@@ -1,6 +1,7 @@
 package gnolang
 
 import (
+	"bytes"
 	"fmt"
 	"maps"
 	"reflect"
@@ -68,6 +69,9 @@ type Store interface {
 	SetPackageInjector(PackageInjector)                   // for natives
 	SetNativeStore(NativeStore)                           // for "new" natives XXX
 	GetNative(pkgPath string, name Name) func(m *Machine) // for "new" natives XXX
+	SetPackageMetaField(pkgPath, field string, value []byte)
+	DeletePackageMetaField(pkgPath, field string)
+	IteratePackageMeta(pkgPath string, fn func(field string, value []byte) bool) bool
 	SetLogStoreOps(enabled bool)
 	SprintStoreOps() string
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
@@ -693,6 +697,34 @@ func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
 	return nil
 }
 
+func (ds *defaultStore) SetPackageMetaField(pkgPath, field string, value []byte) {
+	key := backendPackageMetaFieldKey(pkgPath, field)
+	ds.iavlStore.Set([]byte(key), value)
+}
+
+func (ds *defaultStore) DeletePackageMetaField(pkgPath, field string) {
+	key := backendPackageMetaFieldKey(pkgPath, field)
+	ds.iavlStore.Delete([]byte(key))
+}
+
+func (ds *defaultStore) IteratePackageMeta(pkgPath string, fn func(field string, value []byte) bool) bool {
+	prefix := []byte(packageMetaFieldKeyPrefix(pkgPath))
+	iter := ds.iavlStore.Iterator(prefix, nil)
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		if !bytes.HasPrefix(iter.Key(), prefix) {
+			// Stop when all package fields are iterated
+			break
+		}
+
+		field := iter.Key()[len(prefix):]
+		if fn(string(field), iter.Value()) {
+			return true
+		}
+	}
+	return false
+}
+
 // Writes one level of cache to store.
 func (ds *defaultStore) Write() {
 	ds.baseStore.(types.Writer).Write()
@@ -835,6 +867,14 @@ func backendPackageIndexKey(index uint64) string {
 
 func backendPackagePathKey(path string) string {
 	return fmt.Sprintf("pkg:" + path)
+}
+
+func backendPackageMetaFieldKey(path, field string) string {
+	return packageMetaFieldKeyPrefix(path) + field
+}
+
+func packageMetaFieldKeyPrefix(path string) string {
+	return "pkgmeta:" + path + "#"
 }
 
 // ----------------------------------------

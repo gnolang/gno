@@ -1,6 +1,41 @@
-loadpkg gno.land/r/foo $WORK/foo
+loadpkg gno.land/r/demo/users
+loadpkg gno.land/r/sys/users
+
+adduser admin
+adduser test2
+
+# Make sure that our admin user address is the one used for gno.land/r/sys/users
+patchpkg "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" $USER_ADDR_admin
 
 gnoland start
+
+# Enable gno.land/r/sys/users realm because is required to validate realm creator address when setting metadata
+gnokey maketx call -pkgpath gno.land/r/sys/users -func AdminEnable -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test admin
+stdout 'OK!'
+
+# Allow test1 user to register a namespace
+gnokey maketx call -pkgpath gno.land/r/demo/users -func Invite -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -args $USER_ADDR_test1 admin
+stdout 'OK!'
+
+# Allow test2 user to register a namespace
+gnokey maketx call -pkgpath gno.land/r/demo/users -func Invite -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -args $USER_ADDR_test2 admin
+stdout 'OK!'
+
+# Register "foo" namespace
+gnokey maketx call -pkgpath gno.land/r/demo/users -func Register -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -args $USER_ADDR_admin -args 'foo' -args '' test1
+stdout 'OK!'
+
+# Register "bar" namespace
+gnokey maketx call -pkgpath gno.land/r/demo/users -func Register -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -args $USER_ADDR_admin -args 'bar' -args '' test2
+stdout 'OK!'
+
+# Add realm using gnokey so it's registered in the sys users realm
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Add realm using a different user
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test2
+stdout OK!
 
 # Test setting a single field
 gnokey maketx setmeta -fields "foo=bar" -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
@@ -56,7 +91,19 @@ stderr 'empty metadata field name'
 stdout ''
 stderr 'empty metadata field name'
 
--- foo/foo.gno --
+# Test setting metadata for a domain that doesn't exists
+! gnokey maketx setmeta -fields "foo=bar" -pkgpath gno.land/r/missing -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout ''
+stderr 'invalid package path'
+
+# Test setting metadata for a domain of another creator
+! gnokey maketx setmeta -fields "foo=bar" -pkgpath gno.land/r/bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout ''
+stderr 'unauthorized user'
+
+-- foo.gno --
 package foo
 
 func Render(string) string {

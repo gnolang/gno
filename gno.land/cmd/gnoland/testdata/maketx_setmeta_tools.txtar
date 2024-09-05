@@ -1,0 +1,60 @@
+loadpkg gno.land/r/demo/users
+loadpkg gno.land/r/sys/users
+
+adduser admin
+
+# Make sure that our admin user address is the one used for gno.land/r/sys/users
+patchpkg "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" $USER_ADDR_admin
+
+gnoland start
+
+# Enable gno.land/r/sys/users realm because is required to validate realm creator address when setting metadata
+gnokey maketx call -pkgpath gno.land/r/sys/users -func AdminEnable -gas-fee 100000ugnot -gas-wanted 2000000 -broadcast -chainid tendermint_test admin
+stdout 'OK!'
+
+# Allow test1 user to register a namespace
+gnokey maketx call -pkgpath gno.land/r/demo/users -func Invite -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -args $USER_ADDR_test1 admin
+stdout 'OK!'
+
+# Register "foo" namespace
+gnokey maketx call -pkgpath gno.land/r/demo/users -func Register -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test -args $USER_ADDR_admin -args 'foo' -args '' test1
+stdout 'OK!'
+
+# Add realm using gnokey so it's registered in the sys users realm
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+stdout OK!
+
+# Test setting an invalid tools field value which is not JSON
+! gnokey maketx setmeta -fields 'tools=xyz' -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout 'TX HASH:    '
+stderr 'invalid package metadata'
+
+# Test setting an invalid tools field value using an empty JSON object
+! gnokey maketx setmeta -fields 'tools={}' -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout 'TX HASH:    '
+stderr 'invalid package metadata'
+
+# Test setting the tools field for the first time
+gnokey maketx setmeta -fields "tools={\"tools\": [{\"name\": \"foobar\", \"weight\": 1.0}]}" -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   \d+'
+stdout 'HEIGHT:     \d+'
+stdout 'EVENTS:     \[\]'
+stdout 'TX HASH:    '
+
+# Test ovewritting the tools field
+! gnokey maketx setmeta -fields "tools={\"tools\": [{\"name\": \"foobaz\", \"weight\": 1.0}]}" -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+
+stdout 'TX HASH:    '
+stderr 'invalid package metadata'
+
+-- foo.gno --
+package foo
+
+func Render(string) string {
+ 	return ""
+}

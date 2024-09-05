@@ -71,14 +71,13 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 }
 
 // Handle MsgSetMeta.
-func (vh vmHandler) handleMsgSetMeta(ctx sdk.Context, msg MsgSetMeta) (res sdk.Result) {
+func (vh vmHandler) handleMsgSetMeta(ctx sdk.Context, msg MsgSetMeta) sdk.Result {
 	// TODO: Add package metadata query support
-	resstr, err := vh.vm.SetMeta(ctx, msg)
+	err := vh.vm.SetMeta(ctx, msg)
 	if err != nil {
 		return abciResult(err)
 	}
-	res.Data = []byte(resstr)
-	return
+	return sdk.Result{}
 }
 
 // ----------------------------------------
