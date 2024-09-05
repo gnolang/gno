@@ -472,7 +472,23 @@ func (ds *defaultStore) SetType(tt Type) {
 }
 
 func (ds *defaultStore) SyncCacheTypes() {
+	types := []Type{
+		BoolType, UntypedBoolType,
+		StringType, UntypedStringType,
+		IntType, Int8Type, Int16Type, Int32Type, Int64Type, UntypedRuneType,
+		UintType, Uint8Type, Uint16Type, Uint32Type, Uint64Type,
+		BigintType, UntypedBigintType,
+		gTypeType,
+		gPackageType,
+		blockType{},
+		Float32Type, Float64Type,
+		gErrorType, // from uverse.go
+	}
+
 	for tid, tt := range ds.cacheTypes {
+		if slices.Contains(types, tt) {
+			continue
+		}
 		key := backendTypeKey(tid)
 		if ds.baseStore.Has([]byte(key)) {
 			continue
