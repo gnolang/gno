@@ -79,7 +79,7 @@ func (z *Int) ToString() string {
 	}
 
 	t := z.abs.Dec()
-	if z.neg && !z.abs.IsZero() {
+	if z.neg {
 		return "-" + t
 	}
 
