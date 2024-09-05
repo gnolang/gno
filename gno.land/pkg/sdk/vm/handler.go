@@ -3,6 +3,8 @@ package vm
 import (
 	"context"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -25,9 +27,19 @@ func NewHandler(vm *VMKeeper) vmHandler {
 	}
 }
 
+var targetHeight = func() int {
+	n, err := strconv.Atoi(os.Getenv("TARGET_HEIGHT"))
+	if err != nil {
+		panic(fmt.Errorf("obtaining env var TARGET_HEIGHT: %w", err))
+	}
+	return n
+}()
+
 func (vh vmHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 	defer func() {
-		vh.vm.gnoStore.SyncCacheTypes()
+		if ctx.BlockHeight() == int64(targetHeight) {
+			vh.vm.gnoStore.SyncCacheTypes()
+		}
 	}()
 	switch msg := msg.(type) {
 	case MsgAddPackage:
