@@ -23,7 +23,7 @@ func renderGames() string {
 		{"tictactoe", "games/tictactoe", []string{"grepsuzette", "moul"}, "CPU vs Human tictactoe, no need for a wallet"},
 	} {
 		b.WriteString(ufmt.Sprintf(
-			"* [%s](%s): %s\n",
+			"* [%s](%s): %s by %s\n",
 			o.title, o.path,
 			o.desc,
 			RenderAuthors(o.authors, "@"),
