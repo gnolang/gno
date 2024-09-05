@@ -67,11 +67,6 @@ func (tx Tx) IsSponsorTx() bool {
 		return false
 	}
 
-	// The first message type is "no_op"
-	if tx.Msgs[0].Type() != "no_op" {
-		return false
-	}
-
 	// More than one signer
 	signers := tx.GetSigners()
 	if len(signers) <= 1 {

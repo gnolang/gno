@@ -6,6 +6,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -200,11 +201,11 @@ func TestIsSponsorTx(t *testing.T) {
 		expected bool
 	}{
 		{
-			name: "no_op message with different signers",
+			name: "message with different signers",
 			msgs: []Msg{
 				mockMsg{
 					caller:  addr1,
-					msgType: "no_op",
+					msgType: "send",
 				},
 				mockMsg{
 					caller:  addr2,
@@ -214,21 +215,21 @@ func TestIsSponsorTx(t *testing.T) {
 			expected: true,
 		},
 		{
-			name: "only have no_op message",
+			name: "single message",
 			msgs: []Msg{
 				mockMsg{
 					caller:  addr1,
-					msgType: "no_op",
+					msgType: "send",
 				},
 			},
 			expected: false,
 		},
 		{
-			name: "no_op message with same signers",
+			name: "messages with same signer",
 			msgs: []Msg{
 				mockMsg{
 					caller:  addr1,
-					msgType: "no_op",
+					msgType: "send",
 				},
 				mockMsg{
 					caller:  addr1,
@@ -238,7 +239,7 @@ func TestIsSponsorTx(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "non no_op message",
+			name: "different message types with different signers",
 			msgs: []Msg{
 				mockMsg{
 					caller:  addr1,
@@ -249,17 +250,21 @@ func TestIsSponsorTx(t *testing.T) {
 					msgType: "send",
 				},
 			},
-			expected: false,
+			expected: true,
 		},
 		{
-			name: "no_op message with single signer",
+			name: "same message type with different signers",
 			msgs: []Msg{
 				mockMsg{
 					caller:  addr1,
-					msgType: "no_op",
+					msgType: "call",
+				},
+				mockMsg{
+					caller:  addr2,
+					msgType: "call",
 				},
 			},
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "empty messages",
@@ -274,7 +279,7 @@ func TestIsSponsorTx(t *testing.T) {
 				Msgs: tt.msgs,
 			}
 			result := tx.IsSponsorTx()
-			require.Equal(t, tt.expected, result)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }

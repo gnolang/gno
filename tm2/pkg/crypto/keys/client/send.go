@@ -119,14 +119,13 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 		}
 
 		tx := std.Tx{
-			Msgs:       []std.Msg{vm.NewMsgNoop(sponsorAddress), msg},
+			Msgs: []std.Msg{
+				vm.NewMsgNoop(sponsorAddress), // sponsored noop msg
+				msg,                           // original msg
+			},
 			Fee:        std.NewFee(gaswanted, gasfee),
 			Signatures: nil,
 			Memo:       cfg.RootCfg.Memo,
-		}
-
-		if cfg.RootCfg.Broadcast {
-			return ExecSignAndBroadcast(cfg.RootCfg, args, tx, io)
 		}
 
 		io.Println(string(amino.MustMarshalJSON(tx)))
