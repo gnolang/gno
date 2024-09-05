@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"fmt"
+	"log"
 	"maps"
 	"reflect"
 	"slices"
@@ -75,6 +76,8 @@ type Store interface {
 	Print()
 	Write()
 	Flush()
+
+	SyncCacheTypes()
 }
 
 // Used to keep track of in-mem objects during tx.
@@ -466,6 +469,21 @@ func (ds *defaultStore) SetType(tt Type) {
 	}
 	// save type to cache.
 	ds.cacheTypes[tid] = tt
+}
+
+func (ds *defaultStore) SyncCacheTypes() {
+	for tid, tt := range ds.cacheTypes {
+		key := backendTypeKey(tid)
+		if ds.baseStore.Has([]byte(key)) {
+			continue
+		}
+
+		tcopy := copyTypeWithRefs(tt)
+		bz := amino.MustMarshalAny(tcopy)
+		ds.baseStore.Set([]byte(key), bz)
+
+		log.Printf("SyncCacheTypes: synced %v to database", tid)
+	}
 }
 
 func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {

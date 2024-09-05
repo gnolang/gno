@@ -99,7 +99,7 @@ dockers:
     goarch: amd64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-amd64"
-      - "ghcr.io/gnolang/{{ .ProjectName }}:master-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:0.1.1-patch-amd64"
     build_flag_templates:
       - "--target=gno"
       - "--platform=linux/amd64"
@@ -119,7 +119,7 @@ dockers:
     goarch: arm64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-arm64v8"
-      - "ghcr.io/gnolang/{{ .ProjectName }}:master-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:0.1.1-patch-arm64v8"
     build_flag_templates:
       - "--target=gno"
       - "--platform=linux/arm64/v8"
@@ -140,7 +140,7 @@ dockers:
     goarm: 6
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv6"
-      - "ghcr.io/gnolang/{{ .ProjectName }}:master-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:0.1.1-patch-armv6"
     build_flag_templates:
       - "--target=gno"
       - "--platform=linux/arm/v6"
@@ -161,7 +161,7 @@ dockers:
     goarm: 7
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv7"
-      - "ghcr.io/gnolang/{{ .ProjectName }}:master-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}:0.1.1-patch-armv7"
     build_flag_templates:
       - "--target=gno"
       - "--platform=linux/arm/v7"
@@ -183,7 +183,7 @@ dockers:
     goarch: amd64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-amd64"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:0.1.1-patch-amd64"
     build_flag_templates:
       - "--target=gnoland"
       - "--platform=linux/amd64"
@@ -204,7 +204,7 @@ dockers:
     goarch: arm64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-arm64v8"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:0.1.1-patch-arm64v8"
     build_flag_templates:
       - "--target=gnoland"
       - "--platform=linux/arm64/v8"
@@ -226,7 +226,7 @@ dockers:
     goarm: 6
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv6"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:0.1.1-patch-armv6"
     build_flag_templates:
       - "--target=gnoland"
       - "--platform=linux/arm/v6"
@@ -248,7 +248,7 @@ dockers:
     goarm: 7
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv7"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoland:0.1.1-patch-armv7"
     build_flag_templates:
       - "--target=gnoland"
       - "--platform=linux/arm/v7"
@@ -270,7 +270,7 @@ dockers:
     goarch: amd64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-amd64"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:0.1.1-patch-amd64"
     build_flag_templates:
       - "--target=gnokey"
       - "--platform=linux/amd64"
@@ -286,7 +286,7 @@ dockers:
     goarch: arm64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-arm64v8"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:0.1.1-patch-arm64v8"
     build_flag_templates:
       - "--target=gnokey"
       - "--platform=linux/arm64/v8"
@@ -303,7 +303,7 @@ dockers:
     goarm: 6
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv6"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:0.1.1-patch-armv6"
     build_flag_templates:
       - "--target=gnokey"
       - "--platform=linux/arm/v6"
@@ -320,7 +320,7 @@ dockers:
     goarm: 7
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv7"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnokey:0.1.1-patch-armv7"
     build_flag_templates:
       - "--target=gnokey"
       - "--platform=linux/arm/v7"
@@ -338,7 +338,7 @@ dockers:
     goarch: amd64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-amd64"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:0.1.1-patch-amd64"
     build_flag_templates:
       - "--target=gnoweb"
       - "--platform=linux/amd64"
@@ -354,7 +354,7 @@ dockers:
     goarch: arm64
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-arm64v8"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:0.1.1-patch-arm64v8"
     build_flag_templates:
       - "--target=gnoweb"
       - "--platform=linux/arm64/v8"
@@ -371,7 +371,7 @@ dockers:
     goarm: 6
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv6"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:0.1.1-patch-armv6"
     build_flag_templates:
       - "--target=gnoweb"
       - "--platform=linux/arm/v6"
@@ -388,7 +388,7 @@ dockers:
     goarm: 7
     image_templates:
       - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv7"
-      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:0.1.1-patch-armv7"
     build_flag_templates:
       - "--target=gnoweb"
       - "--platform=linux/arm/v7"
@@ -409,12 +409,12 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}:{{ .Version }}-armv7
-  - name_template: ghcr.io/gnolang/{{ .ProjectName }}:master
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}:0.1.1-patch
     image_templates:
-      - ghcr.io/gnolang/{{ .ProjectName }}:master-amd64
-      - ghcr.io/gnolang/{{ .ProjectName }}:master-arm64v8
-      - ghcr.io/gnolang/{{ .ProjectName }}:master-armv6
-      - ghcr.io/gnolang/{{ .ProjectName }}:master-armv7
+      - ghcr.io/gnolang/{{ .ProjectName }}:0.1.1-patch-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}:0.1.1-patch-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}:0.1.1-patch-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}:0.1.1-patch-armv7
 
   # gnoland
   - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}
@@ -423,12 +423,12 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:{{ .Version }}-armv7
-  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoland:0.1.1-patch
     image_templates:
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-amd64
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-arm64v8
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-armv6
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:master-armv7
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:0.1.1-patch-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:0.1.1-patch-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:0.1.1-patch-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoland:0.1.1-patch-armv7
 
   # gnokey
   - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}
@@ -437,12 +437,12 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Version }}-armv7
-  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnokey:0.1.1-patch
     image_templates:
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-amd64
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-arm64v8
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-armv6
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:master-armv7
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:0.1.1-patch-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:0.1.1-patch-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:0.1.1-patch-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:0.1.1-patch-armv7
 
   # gnoweb
   - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}
@@ -451,12 +451,12 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}-armv7
-  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:0.1.1-patch
     image_templates:
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-amd64
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-arm64v8
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-armv6
-      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:master-armv7
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:0.1.1-patch-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:0.1.1-patch-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:0.1.1-patch-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:0.1.1-patch-armv7
 
 docker_signs:
   - cmd: cosign
@@ -497,7 +497,7 @@ release:
     https://github.com/orgs/gnolang/packages?repo_name={{ .ProjectName }}
 
 nightly:
-  tag_name: master
-  publish_release: true
-  keep_single_release: true
-  name_template: "{{ incpatch .Version }}-{{ .ShortCommit }}-master"
+  tag_name: 0.1.1-patch
+  publish_release: false
+  keep_single_release: false
+  name_template: "{{ incpatch .Version }}-{{ .ShortCommit }}-0.1.1-patch"

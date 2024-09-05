@@ -1,9 +1,9 @@
-name: Trigger master build
+name: Trigger patch build
 
 on:
   push:
     branches:
-      - "master"
+      - "patch/v0.1.1-sync"
   workflow_dispatch:
 
 permissions:
