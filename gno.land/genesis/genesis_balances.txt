@@ -8,7 +8,6 @@
 g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=10000000000000ugnot # test1
 g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=10000000000000ugnot # test2
 
-
 # Faucet accounts.
 g1f4v282mwyhu29afke4vq5r2xzcm6z3ftnugcnv=1000000000000ugnot # faucet0 (jae)
 g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa=1000000000000ugnot # faucet1 (moul)
