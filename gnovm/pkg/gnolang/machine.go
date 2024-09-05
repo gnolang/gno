@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	// "path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -83,6 +82,8 @@ type Machine struct {
 
 	// Test Coverage
 	Coverage *CoverageData
+	CurrentPackage string
+	CurrentFile string
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -268,9 +269,13 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
+	m.CurrentPackage = memPkg.Path
+
 	// for _, file := range memPkg.Files {
-	// 	if strings.HasSuffix(file.Name, ".gno") {
-	// 		m.AddFileContentToCodeCoverage(filepath.Join(memPkg.Path, file.Name), file.Body)
+	// 	if strings.HasSuffix(file.Name, ".gno") && !(strings.HasSuffix(file.Name, "_test.gno") && strings.HasSuffix(file.Name, "_testing.gno")) {
+	// 		m.CurrentFile = file.Name
+	// 		totalLines := countCodeLines(file.Body)
+	// 		m.AddFileToCodeCoverage(m.CurrentPackage+"/"+m.CurrentFile, totalLines)
 	// 	}
 	// }
 	return m.runMemPackage(memPkg, save, false)
@@ -986,6 +991,10 @@ func (m *Machine) runDeclaration(d Decl) {
 	}
 }
 
+func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
+	m.Coverage.AddFile(file, totalLines)
+}
+
 //----------------------------------------
 // Op
 
@@ -1268,7 +1277,16 @@ func (m *Machine) Run() {
 		op := m.PopOp()
 
 		loc := m.getCurrentLocation()
-		m.Coverage.AddHit(loc.PkgPath, loc.Line)
+		var printedMessages = make(map[string]bool)
+
+		if loc.PkgPath != "" && loc.File != "" {
+			message := fmt.Sprintf("%s/%s:%d", loc.PkgPath, loc.File, loc.Line)
+			if !printedMessages[message] {
+				fmt.Printf("Executing: %s\n", message)
+				m.Coverage.AddHit(loc.PkgPath+"/"+loc.File, loc.Line)
+				printedMessages[message] = true
+			}
+		}
 
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
@@ -1607,14 +1625,11 @@ func (m *Machine) getCurrentLocation() Location {
 	}
 
 	return Location{
-		PkgPath: m.Package.PkgPath,
-		Line:   lastFrame.Source.GetLine(),
+		PkgPath: m.CurrentPackage,
+		File:   m.CurrentFile,
+		Line: lastFrame.Source.GetLine(),
 		Column: lastFrame.Source.GetColumn(),
 	}
-}
-
-func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
-	m.Coverage.AddFile(file, totalLines)
 }
 
 //----------------------------------------
@@ -1916,6 +1931,9 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if rlm != nil && m.Realm != rlm {
 		m.Realm = rlm // enter new realm
 	}
+
+	m.CurrentPackage = fv.PkgPath
+	m.CurrentFile = string(fv.FileName)
 }
 
 func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {

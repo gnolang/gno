@@ -26,7 +26,6 @@ func main(){
 	assert.NotNil(t, n, "ParseFile error")
 	fmt.Printf("CODE:\n%s\n\n", gocode)
 	fmt.Printf("AST:\n%#v\n\n", n)
-	fmt.Printf("AST.String():\n%s\n", n.String())
 }
 
 type mockPackageGetter []*std.MemPackage

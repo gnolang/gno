@@ -236,7 +236,6 @@ func gnoTestPkg(
 		rootDir             = cfg.rootDir
 		runFlag             = cfg.run
 		printRuntimeMetrics = cfg.printRuntimeMetrics
-		coverage			= cfg.coverage
 
 		stdin  = io.In()
 		stdout = io.Out()
@@ -254,6 +253,8 @@ func gnoTestPkg(
 		mockOut := bytes.NewBufferString("")
 		stdout = commands.WriteNopCloser(mockOut)
 	}
+
+	coverageData := gno.NewCoverageData()
 
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
@@ -296,6 +297,14 @@ func gnoTestPkg(
 			}
 
 			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
+			m.Coverage = coverageData
+			m.CurrentPackage = memPkg.Path
+			for _, file := range memPkg.Files {
+				if strings.HasSuffix(file.Name, ".gno") && !(strings.HasSuffix(file.Name, "_test.gno") || strings.HasSuffix(file.Name, "_testing.gno")) {
+					totalLines := countCodeLines(file.Body)
+					m.Coverage.AddFile(m.CurrentPackage+"/"+m.CurrentFile, totalLines)
+				}
+			}
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
@@ -304,7 +313,7 @@ func gnoTestPkg(
 				m.Alloc = gno.NewAllocator(maxAllocTx)
 			}
 			m.RunMemPackage(memPkg, true)
-			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, coverage, runFlag, io)
+			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, runFlag, io, coverageData)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -338,7 +347,7 @@ func gnoTestPkg(
 			memPkg.Path = memPkg.Path + "_test"
 			m.RunMemPackage(memPkg, true)
 
-			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, coverage, runFlag, io)
+			err := runTestFiles(m, ifiles, testPkgName, verbose, printRuntimeMetrics, runFlag, io, coverageData)
 			if err != nil {
 				errs = multierr.Append(errs, err)
 			}
@@ -390,6 +399,10 @@ func gnoTestPkg(
 		}
 	}
 
+	if cfg.coverage {
+		coverageData.PrintResults()
+	}
+
 	return errs
 }
 
@@ -428,9 +441,9 @@ func runTestFiles(
 	pkgName string,
 	verbose bool,
 	printRuntimeMetrics bool,
-	coverage bool,
 	runFlag string,
 	io commands.IO,
+	coverageData *gno.CoverageData,
 ) (errs error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -453,13 +466,9 @@ func runTestFiles(
 		log.Fatal(err)
 	}
 
-	coverageData := gno.NewCoverageData()   
-
 	m.RunFiles(files.Files...)
 	n := gno.MustParseFile("main_test.gno", testmain)
 	m.RunFiles(n)
-
-	m.Coverage = coverageData
 
 	for _, test := range testFuncs.Tests {
 		testFuncStr := fmt.Sprintf("%q", test.Name)
@@ -488,6 +497,18 @@ func runTestFiles(
 			errs = multierr.Append(errs, err)
 		}
 
+		for file, fileCoverage := range m.Coverage.Files {
+			existingCoverage, exists := coverageData.Files[file]
+			if !exists {
+				coverageData.Files[file] = fileCoverage
+			} else {
+				for line, count := range fileCoverage.HitLines {
+					existingCoverage.HitLines[line] += count
+				}
+				coverageData.Files[file] = existingCoverage
+			}
+		}
+
 		if printRuntimeMetrics {
 			imports := m.Store.NumMemPackages() - numPackagesBefore - 1
 			// XXX: store changes
@@ -505,11 +526,6 @@ func runTestFiles(
 				imports,
 				allocsVal,
 			)
-		}
-
-		if coverage {
-			report := coverageData.Report()
-			io.Out().Write([]byte(report))
 		}
 	}
 
@@ -635,4 +651,37 @@ func shouldRun(filter filterMatch, path string) bool {
 	elem := strings.Split(path, "/")
 	ok, _ := filter.matches(elem, matchString)
 	return ok
+}
+
+func countCodeLines(content string) int {
+	lines := strings.Split(content, "\n")
+	codeLines := 0
+	inBlockComment := false
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+
+		if inBlockComment {
+			if strings.Contains(trimmedLine, "*/") {
+				inBlockComment = false
+			}
+			continue
+		}
+
+		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "//") {
+			continue
+		}
+
+		if strings.HasPrefix(trimmedLine, "/*") {
+            inBlockComment = true
+            if strings.Contains(trimmedLine, "*/") {
+                inBlockComment = false
+            }
+            continue
+        }
+
+        codeLines++
+	}
+
+	return codeLines
 }
