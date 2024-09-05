@@ -1,0 +1,93 @@
+# Test for performing a sponsor transaction for an non-existed on-chain account (sponsoree)
+
+# Load the package from $WORK directory
+loadpkg gno.land/r/demo/echo
+
+# Add new sponsor account
+adduser sponsor
+
+# Add new sponsoree key (only create key without creating account)
+addkey sponsoree
+
+# start a new node
+gnoland start
+
+# Query sponsoree's account before
+gnokey query auth/accounts/${USER_ADDR_sponsor}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": '
+stdout '    "coins": "10000000ugnot",'
+stdout '    "public_key": null,'
+stdout '    "account_number": "56",'
+stdout '    "sequence": "0"'
+stdout '  }'
+stdout '}'
+! stderr '.+' # empty
+
+# Query sponsor's account before
+gnokey query auth/accounts/${USER_ADDR_sponsoree}
+stdout 'height: 0'
+stdout 'data: null'
+
+# Sponsoree create transaction
+gnokey maketx call -pkgpath gno.land/r/demo/echo -chainid=tendermint_test -func Render -args "HELLO" -gas-fee 1000000ugnot -gas-wanted 2000000 --sponsor=${USER_ADDR_sponsor} sponsoree
+cp stdout sponsor.tx
+
+# Sponsoree sign transaction
+gnokey sign -tx-path $WORK/sponsor.tx -chainid "tendermint_test" -account-number 0 -account-sequence 0 sponsoree
+cmpenv stdout sign.stdout.golden
+
+# Sponsor countersign transaction
+gnokey sign -tx-path $WORK/sponsor.tx -chainid "tendermint_test" -account-number 0 -account-sequence 0 sponsor
+cmpenv stdout sign.stdout.golden
+
+# Sponsor broadcast transaction
+gnokey broadcast $WORK/sponsor.tx
+
+# Compare output
+stdout OK!
+stdout 'GAS WANTED: 2000000'
+stdout 'GAS USED:   \d+'
+stdout 'HEIGHT:     \d+'
+stdout 'EVENTS:     \[\]'
+stdout 'TX HASH:    '
+
+# Query sponsor's account after
+gnokey query auth/accounts/${USER_ADDR_sponsor}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": '
+stdout '    "coins": "9000000ugnot",'
+stdout '    "public_key": {'
+stdout '      "@type": "/tm.PubKeySecp256k1",'
+stdout '      "value": '
+stdout '    },'
+stdout '    "account_number": "56",'
+stdout '    "sequence": "1"'
+stdout '  }'
+stdout '}'
+! stderr '.+' # empty
+
+# Query sponsoree's account after
+gnokey query auth/accounts/${USER_ADDR_sponsoree}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": '
+stdout '    "coins": "",'
+stdout '    "public_key": {'
+stdout '      "@type": "/tm.PubKeySecp256k1",'
+stdout '      "value": '
+stdout '    },'
+stdout '    "account_number": "62",'
+stdout '    "sequence": "1"'
+stdout '  }'
+stdout '}'
+! stderr '.+' # empty
+
+-- sign.stdout.golden --
+
+Tx successfully signed and saved to $WORK/sponsor.tx

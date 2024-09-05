@@ -261,6 +261,27 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				err = cmd.ParseAndRun(context.Background(), args)
 				tsValidateError(ts, "gnokey", neg, err)
 			},
+			// addkey command must be executed before starting the node; it errors out otherwise.
+			"addkey": func(ts *testscript.TestScript, neg bool, args []string) {
+				if nodeIsRunning(nodes, getNodeSID(ts)) {
+					tsValidateError(ts, "addkey", neg, errors.New("addkey must be used before starting node"))
+					return
+				}
+
+				if len(args) == 0 {
+					ts.Fatalf("new key name required")
+				}
+
+				kb, err := keys.NewKeyBaseFromDir(gnoHomeDir)
+				if err != nil {
+					ts.Fatalf("unable to get keybase")
+				}
+
+				_, err = createAccountKey(ts, kb, args[0])
+				if err != nil {
+					ts.Fatalf("error creating accountKey %s: %s", args[0], err)
+				}
+			},
 			// adduser command must be executed before starting the node; it errors out otherwise.
 			"adduser": func(ts *testscript.TestScript, neg bool, args []string) {
 				if nodeIsRunning(nodes, getNodeSID(ts)) {
@@ -539,30 +560,39 @@ type envSetter interface {
 	Setenv(key, value string)
 }
 
-// createAccount creates a new account with the given name and adds it to the keybase.
-func createAccount(env envSetter, kb keys.Keybase, accountName string) (gnoland.Balance, error) {
-	var balance gnoland.Balance
+// createAccountKey only creates the account within KeyBase.
+func createAccountKey(env envSetter, kb keys.Keybase, accountName string) (keys.Info, error) {
 	entropy, err := bip39.NewEntropy(256)
 	if err != nil {
-		return balance, fmt.Errorf("error creating entropy: %w", err)
+		return nil, fmt.Errorf("error creating entropy: %w", err)
 	}
 
 	mnemonic, err := bip39.NewMnemonic(entropy)
 	if err != nil {
-		return balance, fmt.Errorf("error generating mnemonic: %w", err)
+		return nil, fmt.Errorf("error generating mnemonic: %w", err)
 	}
 
 	var keyInfo keys.Info
 	if keyInfo, err = kb.CreateAccount(accountName, mnemonic, "", "", 0, 0); err != nil {
-		return balance, fmt.Errorf("unable to create account: %w", err)
+		return nil, fmt.Errorf("unable to create account: %w", err)
 	}
 
 	address := keyInfo.GetAddress()
 	env.Setenv("USER_SEED_"+accountName, mnemonic)
 	env.Setenv("USER_ADDR_"+accountName, address.String())
 
+	return keyInfo, nil
+}
+
+// createAccount creates a new account with the given name and adds it to the keybase.
+func createAccount(env envSetter, kb keys.Keybase, accountName string) (gnoland.Balance, error) {
+	keyInfo, err := createAccountKey(env, kb, accountName)
+	if err != nil {
+		return gnoland.Balance{}, err
+	}
+
 	return gnoland.Balance{
-		Address: address,
+		Address: keyInfo.GetAddress(),
 		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e6)},
 	}, nil
 }
