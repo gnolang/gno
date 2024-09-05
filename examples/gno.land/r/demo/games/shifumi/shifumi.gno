@@ -144,22 +144,25 @@ func Render(path string) string {
 	mov2 := []string{"", " 🤛  ", " ✋  ", " 👈  "}
 	win := []string{"pending", "draw", "player1", "player2"}
 
-	output := `# 👊 ✋ 👉 Shifumi 
+	output := `# 👊 ✋ 👉 Shifumi
 
 ## Game Rules:
 Shifumi is a two-player game (rock-paper-scissors). To play:
 1. **Create a game** with an opponent using the [NewGame](shifumi?help&__func=NewGame) command
-2. **Commit your move** as a hashed value (move + salt) using [CommitMove](shifumi?help&__func=CommitMove) with the game index and the hash
-- The **salt** is a randomly generated secret value that you should keep confidential. It ensures the commitment is secure
-3. **Reveal your move** with the move number and the salt using [RevealMove](shifumi?help&__func=RevealMove)
-- Move values: 1 = Rock 🤜, 2 = Paper ✋, 3 = Scissors 👉
+2. **Commit your move** as a hashed value (move + salt) using [CommitMove](shifumi?help&__func=CommitMove) with the game index and the hash.
+   - The **salt** is a randomly generated secret value that you should keep confidential. It ensures the commitment is secure.
+   - You can [compute your commit hash here](https://go.dev/play/p/ueRVMwFOFU1) by entering your move and salt.
+3. **Reveal your move** with the move number and the salt using [RevealMove](shifumi?help&__func=RevealMove).
+   - Move values: 1 = Rock 🤜, 2 = Paper ✋, 3 = Scissors 👉.
+
 ## Actions:
 * [NewGame](shifumi?help&__func=NewGame) opponentAddress
 * [CommitMove](shifumi?help&__func=CommitMove) gameIndex commitHash
 * [RevealMove](shifumi?help&__func=RevealMove) gameIndex move salt (1=rock, 2=paper, 3=scissors)
+
 ## Recent Games:
  game  | player1 |     | player2 |       | win 
- --- | --- | --- | --- | --- | ---
+ ---   | ---      | --- | ---      | ---   | ---
 `
 	// Output the 100 most recent
 	maxGames := 100
