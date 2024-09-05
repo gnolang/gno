@@ -421,7 +421,9 @@ func (alloc *Allocator) DropPointers(ptrs []PointerValue) {
 		if pv, ok := ptr.TV.V.(PointerValue); ok {
 			_, isHeap := pv.Base.(*HeapItemValue)
 			_, isPtr := pv.TV.V.(PointerValue)
-			if !isHeap && !isPtr {
+			_, isArr := pv.Base.(*ArrayValue)
+
+			if !isHeap && !isPtr && !isArr {
 				panic("invalid ptr")
 			}
 

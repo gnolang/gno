@@ -220,6 +220,8 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 				ho = alloc.heap.FindObjectByTV(hiv.Value)
 			} else if _, ok := tvv.TV.V.(PointerValue); ok {
 				ho = alloc.heap.FindObjectByTV(*tvv.TV)
+			} else if _, ok := tvv.Base.(*ArrayValue); ok {
+				ho = alloc.heap.FindObjectByTV(*tvv.TV)
 			}
 
 			if ho == nil {

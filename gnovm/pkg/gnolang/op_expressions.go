@@ -579,10 +579,24 @@ func (m *Machine) doOpSliceLit() {
 		m.PopValue()
 	}
 	sv := m.Alloc.NewSliceFromList(es)
-	m.PushValue(TypedValue{
+	tv := TypedValue{
 		T: st,
 		V: sv,
-	})
+	}
+
+	if m.Alloc != nil {
+		obj := NewObject(tv)
+		m.Alloc.heap.AddObject(obj)
+
+		for _, e := range es {
+			el := NewObject(e)
+			m.Alloc.heap.AddObject(el)
+			obj.AddRef(el)
+			el.AddRef(obj)
+		}
+	}
+
+	m.PushValue(tv)
 }
 
 func (m *Machine) doOpSliceLit2() {
