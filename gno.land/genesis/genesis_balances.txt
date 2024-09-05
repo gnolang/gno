@@ -8,8 +8,6 @@
 g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5=10000000000000ugnot # test1
 g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj=10000000000000ugnot # test2
 
-g1y490harzjqmdngmmaw4tyc4qdm5ma5k0fv3w6p=10000000000000ugnot # linh1
-g1z4dfj9dvknvahykg3rhjrpsexhp4vl8gnde27q=10000000000000ugnot # linh2
 
 # Faucet accounts.
 g1f4v282mwyhu29afke4vq5r2xzcm6z3ftnugcnv=1000000000000ugnot # faucet0 (jae)
