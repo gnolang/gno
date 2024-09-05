@@ -21,27 +21,34 @@ A good place where to start are the issues tagged ["good first issue"](https://g
 
 Additionally, you can look out to help on specific issues labeled as bounties. All contributions will then concur to form your profile for Game of Realms.
 
-The Gno bounty program is a good way to familiarize yourself with the project, and how Gno code works. We will maintain open and rewardable bounties in the gnolang/gno repository, and you can search all available bounties by using the ["bounty" label](https://github.com/gnolang/gno/labels/bounty).
+The Gno bounty program is a good way to find interesting challenges in Gno, and get rewarded for helping us advance the project. We will maintain open and rewardable bounties in the gnolang/gno repository, and you can search all available bounties by using the ["bounty" label](https://github.com/gnolang/gno/labels/bounty).
 
 Recommendations on participating in the gno.land Bounty Program:
 
-- Identify the bounty you want to work on, and first start working in your local environment.
+- Identify the bounty you want to work on, and join in the discussion on the issue for anything that is unclear; or where you want to more clearly define the work to be done. At this stage, you can also start working on an initial implementation in your local enviornment,.
 - Once you have spent time on the code related to the bounty, we recommend submitting a 'draft' PR as soon as possible.
     - The draft PR doesn't indicate that the bounty has been assigned to you, others are free to work on other draft PRs for the bounty.
+    - Make sure to reference the bounty issue on the PR description you're writing.
     - After submitting the 'draft' PR, continue working until you are ready to mark the PR as "ready for review".
-    - The core team will review the bounty PR submission, and determine if it qualifies for the bounty reward.
+    - The core team will review the bounty PR submission after the work on the bounty has been completed, and determine if it qualifies for the bounty reward.
 - Ask for clarification early if an element on the requirements or implementation design is unclear.
-    - Aside from posting the issue as a bounty, keeping regular updates with the core team on the bounty being undertaken is key to being on the right track.
+    - Aside from publishing the PR early, keeping regular updates with the core team on the bounty issue is key to being on the right track.
     - As part of the requirements, you must adhere to the [contributing guidelines](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md); additionally, it is expected that any newly added code or functionality is properly documented, tested and covered, at least in 80% of added code.
     - You're welcome to propose additional features and work on an issue should you envision a plausible expansion or change in scope. The core team may assign a bounty to the additional work, or change the bounty with respect to the changed scope.
 
-You may make your submission at any time; however we invite you to publish your draft PR very early in the development process. This will make your work public, so you can easily get help by the core team and other community members. Additionally, your work can be continued by other people should you get stuck or no longer be willing to work on the bounty. Likewise, you can continue the abandoned or stuck work that someone else worked on. Don't fear your work being "stolen": if a submission is the result of multiple people's efforts, we will look to split the bounty in a way that is fair and recognises each participant in creating the final outcome.
+You may make your submission at any time; however we invite you to publish your draft PR very early in the development process. This will make your work public, so you can easily get help by the core team and other community members. Additionally, your work can be continued by other people should you get stuck or no longer be willing to work on the bounty. Likewise, you can continue the abandoned or stuck work that someone else worked on.
+
+Don't fear your work being "stolen": if a submission is the result of multiple people's efforts, we will look to split the bounty in a way that is fair and recognises each participant in creating the final outcome. Here are some examples of how that can happen:
+
+- If Alice does most of the work and abandons it; then Bob comes around and finishes the job, then Bob's PR will be merged. But the core team will propose a split like 70% for Alice and 30% for Bob (depending, of course, on the relative effort undertaken by both).
+- If Alice makes a PR that does only 50% of the work outlined in the requirements for the original issue, she will get 50%. Someone can still come up and finish the job; and claim the remaining part.
+- If Alice makes a PR that aside from implementing what's required, also undertakes creating useful tools among the way, she may qualify for an "outstanding contribution"; and may be awarded up to 25% more of the original bounty's value. Or she may also ask if the team would be willing to offer a different bounty for the implementation of the tools.
 
 Participants in the gno.land Bounty Program must meet the legal Terms and Conditions referenced [here](https://docs.google.com/document/d/1aXrZ6japdAykB5FLmHCCeBZTo-2tbZQHSQi79ITaTK0).
 
 ### Bounty sizes
 
-Each bounty is associated with a size, to which corresponds the maximum compensation for the work involved on the bounty.
+Each bounty is associated with a size, to which corresponds the maximum compensation for the work involved on the bounty. A bounty size may under rare occasion be revisited to a bigger or smaller size; hence why it's important to talk about your proposed solution with the core team ahead of time.
 
 In some cases, the work associated with a bounty may be outstanding. When that happens, the core team can decide to award up to 25% of the bounty's value to the recipient.
 
@@ -90,6 +97,7 @@ There are a variety of ways to make your contributions count:
 - Realm and pure package development
 - Validator tooling
 - Developer tooling
+- Tutorials and documentation
 
 To start, we recommend you create a PR in the Game of Realms [repository](https://github.com/gnolang/game-of-realms) to create your profile page for all your contributions.`
 
