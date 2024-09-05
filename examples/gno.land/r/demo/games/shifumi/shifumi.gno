@@ -145,14 +145,22 @@ func Render(path string) string {
 	win := []string{"pending", "draw", "player1", "player2"}
 
 	output := `# 👊  ✋  ✌️  Shifumi
-Actions:
-* [NewGame](shifumi?help&__func=NewGame) opponentAddress
-* [CommitMove](shifumi?help&__func=CommitMove) gameIndex commitHash
-* [RevealMove](shifumi?help&__func=RevealMove) gameIndex move salt (1=rock, 2=paper, 3=scissors)
 
- game  | player1 |     | player2 |       | win 
- --- | --- | --- | --- | --- | ---
-`
+	## Game Rules:
+	Shifumi is a two-player game (rock-paper-scissors). To play:
+	1. **Create a game** with an opponent using the [NewGame](shifumi?help&__func=NewGame) command
+	2. **Commit your move** as a hashed value (move + salt) using [CommitMove](shifumi?help&__func=CommitMove) with the game index and the hash
+	3. **Reveal your move** with the move number and the salt using [RevealMove](shifumi?help&__func=RevealMove)
+	- Move values: 1 = Rock 🤜, 2 = Paper 🫱, 3 = Scissors 👉
+
+	Actions:
+	* [NewGame](shifumi?help&__func=NewGame) opponentAddress
+	* [CommitMove](shifumi?help&__func=CommitMove) gameIndex commitHash
+	* [RevealMove](shifumi?help&__func=RevealMove) gameIndex move salt (1=rock, 2=paper, 3=scissors)
+
+	game  | player1 |     | player2 |       | win 
+	--- | --- | --- | --- | --- | ---
+	`
 	// Output the 100 most recent games
 	maxGames := 100
 	for n := int(id); n > 0 && int(id)-n < maxGames; n-- {
