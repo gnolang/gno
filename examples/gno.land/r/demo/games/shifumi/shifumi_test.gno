@@ -14,6 +14,7 @@ import (
 )
 
 func TestShifumi(t *testing.T) {
+	t.Fatal(hashMove(2, "1"))
 	player1 := testutils.TestAddress("alice")
 	player2 := testutils.TestAddress("bob")
 
