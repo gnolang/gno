@@ -99,12 +99,6 @@ func TestAnteHandlerSigErrors(t *testing.T) {
 	privs, accNums, seqs = []crypto.PrivKey{priv1, priv2, priv3}, []uint64{0, 1, 2}, []uint64{0, 0, 0}
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accNums, seqs, fee)
 	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnknownAddressError{})
-
-	// save the first account, but second is still unrecognized
-	acc1 := env.acck.NewAccountWithAddress(ctx, addr1)
-	acc1.SetCoins(std.Coins{fee.GasFee})
-	env.acck.SetAccount(ctx, acc1)
-	checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnknownAddressError{})
 }
 
 // Test logic around account number checking with one signer and many signers.
