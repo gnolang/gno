@@ -9,9 +9,17 @@ gno.land puts at the center of its identity the contributors that help to create
 
 gno.land is still in full-steam development. For now, we're looking for the earliest of adopters; curious to explore a new way to build smart contracts and eager to make an impact. Joining gno.land's development now means you can help to shape the base of its development ecosystem, which will pave the way for the next generation of blockchain programming.
 
-If you are interested in contributing to gno.land, you can jump on in on our [GitHub monorepo](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md) - where most development happens. Additionally, you can look out to help on specific issues labeled as bounties. All contributions will then concur to form your profile for Game of Realms. In the following sections, we delve into these initiatives in a bit more detail.
+As an open-source project, we welcome all contributions. On this page you can find some pointers on where to get started; as well as some incentives for the most valuable and important contributions.
+
+## Where to get started
+
+If you are interested in contributing to gno.land, you can jump on in on our [GitHub monorepo](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md) - where most development happens.
+
+A good place where to start are the issues tagged ["good first issue"](https://github.com/gnolang/gno/issues?q=is%3Aopen+is%3Aissue+label%3A%22good+first+issue%22). They should allow you to make some impact on the Gno repository while you're still exploring the details of how everything works.
 
 ## Gno Bounties
+
+Additionally, you can look out to help on specific issues labeled as bounties. All contributions will then concur to form your profile for Game of Realms.
 
 The Gno bounty program is a good way to familiarize yourself with the project, and how Gno code works. We will maintain open and rewardable bounties in the gnolang/gno repository, and you can search all available bounties by using the ["bounty" label](https://github.com/gnolang/gno/labels/bounty).
 
