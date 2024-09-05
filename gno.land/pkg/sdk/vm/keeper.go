@@ -58,7 +58,7 @@ type VMKeeper struct {
 	stdlibsDir string
 
 	// cached, the DeliverTx persistent state.
-	gnoStore gno.Store
+	GnoStore gno.Store
 
 	maxCycles int64 // max allowed cylces on VM executions
 }
@@ -89,7 +89,7 @@ func (vm *VMKeeper) Initialize(
 	ms store.MultiStore,
 	cacheStdlibLoad bool,
 ) {
-	if vm.gnoStore != nil {
+	if vm.GnoStore != nil {
 		panic("should not happen")
 	}
 	baseSDKStore := ms.GetStore(vm.baseKey)
@@ -97,10 +97,10 @@ func (vm *VMKeeper) Initialize(
 
 	if cacheStdlibLoad {
 		// Testing case (using the cache speeds up starting many nodes)
-		vm.gnoStore = cachedStdlibLoad(vm.stdlibsDir, baseSDKStore, iavlSDKStore)
+		vm.GnoStore = cachedStdlibLoad(vm.stdlibsDir, baseSDKStore, iavlSDKStore)
 	} else {
 		// On-chain case
-		vm.gnoStore = uncachedPackageLoad(logger, vm.stdlibsDir, baseSDKStore, iavlSDKStore)
+		vm.GnoStore = uncachedPackageLoad(logger, vm.stdlibsDir, baseSDKStore, iavlSDKStore)
 	}
 }
 
@@ -245,7 +245,7 @@ func loadStdlibPackage(pkgPath, stdlibsDir string, store gno.Store) {
 
 func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 	// construct main store if nil.
-	if vm.gnoStore == nil {
+	if vm.GnoStore == nil {
 		panic("VMKeeper must first be initialized")
 	}
 	switch ctx.Mode() {
@@ -254,22 +254,22 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 		// this is needed due to e.g. gas wrappers.
 		baseSDKStore := ctx.Store(vm.baseKey)
 		iavlSDKStore := ctx.Store(vm.iavlKey)
-		vm.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
+		vm.GnoStore.SwapStores(baseSDKStore, iavlSDKStore)
 		// clear object cache for every transaction.
 		// NOTE: this is inefficient, but simple.
 		// in the future, replace with more advanced caching strategy.
-		vm.gnoStore.ClearObjectCache()
-		return vm.gnoStore
+		vm.GnoStore.ClearObjectCache()
+		return vm.GnoStore
 	case sdk.RunTxModeCheck:
 		// For query??? XXX Why not RunTxModeQuery?
-		simStore := vm.gnoStore.Fork()
+		simStore := vm.GnoStore.Fork()
 		baseSDKStore := ctx.Store(vm.baseKey)
 		iavlSDKStore := ctx.Store(vm.iavlKey)
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)
 		return simStore
 	case sdk.RunTxModeSimulate:
 		// always make a new store for simulate for isolation.
-		simStore := vm.gnoStore.Fork()
+		simStore := vm.GnoStore.Fork()
 		baseSDKStore := ctx.Store(vm.baseKey)
 		iavlSDKStore := ctx.Store(vm.iavlKey)
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)

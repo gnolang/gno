@@ -3,6 +3,7 @@ package gnoland
 import (
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strconv"
 
@@ -239,6 +240,14 @@ type endBlockerApp interface {
 	Logger() *slog.Logger
 }
 
+var targetHeight = func() int {
+	n, err := strconv.Atoi(os.Getenv("TARGET_HEIGHT"))
+	if err != nil {
+		panic(fmt.Errorf("obtaining env var TARGET_HEIGHT: %w", err))
+	}
+	return n
+}()
+
 // EndBlocker defines the logic executed after every block.
 // Currently, it parses events that happened during execution to calculate
 // validator set changes
@@ -251,6 +260,10 @@ func EndBlocker(
 	req abci.RequestEndBlock,
 ) abci.ResponseEndBlock {
 	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
+		if ctx.BlockHeight() == int64(targetHeight) {
+			vmk.(*vm.VMKeeper).GnoStore.SyncCacheTypes()
+		}
+
 		// Check if there was a valset change
 		if len(collector.getEvents()) == 0 {
 			// No valset updates

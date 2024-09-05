@@ -38,12 +38,12 @@ func Echo() string {
 	}
 	pkgPath := "gno.land/r/test"
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
-	assert.Nil(t, env.vmk.gnoStore.GetPackage(pkgPath, false))
+	assert.Nil(t, env.vmk.GnoStore.GetPackage(pkgPath, false))
 
 	err := env.vmk.AddPackage(ctx, msg1)
 
 	assert.NoError(t, err)
-	assert.NotNil(t, env.vmk.gnoStore.GetPackage(pkgPath, false))
+	assert.NotNil(t, env.vmk.GnoStore.GetPackage(pkgPath, false))
 
 	err = env.vmk.AddPackage(ctx, msg1)
 

@@ -489,11 +489,9 @@ func (ds *defaultStore) SyncCacheTypes() {
 		if slices.Contains(types, tt) {
 			continue
 		}
+		// NOTE: we copy ALL types, because in case of a mismatch the one in the
+		// cache is the most "correct" one, as far as test4 is concerned.
 		key := backendTypeKey(tid)
-		if ds.baseStore.Has([]byte(key)) {
-			continue
-		}
-
 		tcopy := copyTypeWithRefs(tt)
 		bz := amino.MustMarshalAny(tcopy)
 		ds.baseStore.Set([]byte(key), bz)
