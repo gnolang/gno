@@ -71,10 +71,9 @@ func TestShifumi(t *testing.T) {
 	urequire.Equal(t, 1, g.winner(), ufmt.Sprintf("expected player1 to win, but result was %d", g.winner()))
 }
 
-// Note: The hashMoveOffchain function should be executed off-chain by the player,
+// hashMoveOffchain function should be executed off-chain by the player,
 // and it must implement the same logic as this on-chain function to ensure
-// consistency. The player hashes their move and a random salt off-chain,
-// then submits the resulting hash on-chain using the CommitMove function.
+// consistency
 func hashMoveOffchain(move int, salt string) string {
 	return hashMove(move, salt)
 }

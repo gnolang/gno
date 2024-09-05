@@ -32,6 +32,11 @@ var (
 	id    seqid.ID
 )
 
+// hashMove computes the SHA-256 hash of the given move and salt.
+// This function is intended for on-chain use. To ensure consistency,
+// users must implement an off-chain hashing function with the same logic.
+// This means the off-chain implementation should use the same hash algorithm
+// and concatenation of move and salt as shown here to generate the hash value
 func hashMove(move int, salt string) string {
 	hash := sha256.Sum256([]byte(strconv.Itoa(move) + salt))
 	return hex.EncodeToString(hash[:])
