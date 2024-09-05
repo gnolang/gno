@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -32,14 +30,7 @@ import (
 func TestNewAppWithOptions(t *testing.T) {
 	t.Parallel()
 
-	app, err := NewAppWithOptions(&AppOptions{
-		DB: memdb.NewMemDB(),
-		InitChainerConfig: InitChainerConfig{
-			CacheStdlibLoad:        true,
-			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
-		},
-	})
+	app, err := NewAppWithOptions(TestAppOptions(memdb.NewMemDB()))
 	require.NoError(t, err)
 	bapp := app.(*sdk.BaseApp)
 	assert.Equal(t, "dev", bapp.AppVersion())
@@ -106,7 +97,7 @@ func TestNewApp(t *testing.T) {
 	// NewApp should have good defaults and manage to run InitChain.
 	td := t.TempDir()
 
-	app, err := NewApp(td, true, nil, nil)
+	app, err := NewApp(td, true, events.NewEventSwitch(), log.NewNoopLogger())
 	require.NoError(t, err, "NewApp should be successful")
 
 	resp := app.InitChain(abci.RequestInitChain{
