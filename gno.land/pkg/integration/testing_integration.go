@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"hash/crc32"
 	"log/slog"
@@ -26,6 +27,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	tm2Log "github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
@@ -72,6 +74,7 @@ func RunGnolandTestscripts(t *testing.T, txtarDir string) {
 
 type testNode struct {
 	*node.Node
+	cfg         *gnoland.InMemoryNodeConfig
 	nGnoKeyExec uint // Counter for execution of gnokey.
 }
 
@@ -152,7 +155,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"gnoland": func(ts *testscript.TestScript, neg bool, args []string) {
 				if len(args) == 0 {
-					tsValidateError(ts, "gnoland", neg, fmt.Errorf("syntax: gnoland [start|stop]"))
+					tsValidateError(ts, "gnoland", neg, fmt.Errorf("syntax: gnoland [start|stop|restart]"))
 					return
 				}
 
@@ -168,6 +171,13 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					if nodeIsRunning(nodes, sid) {
 						err = fmt.Errorf("node already started")
 						break
+					}
+
+					// parse flags
+					fs := flag.NewFlagSet("start", flag.ContinueOnError)
+					nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
+					if err := fs.Parse(args); err != nil {
+						ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
 					}
 
 					// get packages
@@ -189,16 +199,50 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 					// setup genesis state
 					cfg.Genesis.AppState = *genesis
+					if *nonVal {
+						// re-create cfg.Genesis.Validators with a throwaway pv, so we start as a
+						// non-validator.
+						pv := gnoland.NewMockedPrivValidator()
+						cfg.Genesis.Validators = []bft.GenesisValidator{
+							{
+								Address: pv.GetPubKey().Address(),
+								PubKey:  pv.GetPubKey(),
+								Power:   10,
+								Name:    "none",
+							},
+						}
+					}
+					cfg.DB = memdb.NewMemDB() // so it can be reused when restarting.
 
 					n, remoteAddr := TestingInMemoryNode(t, logger, cfg)
 
 					// Register cleanup
-					nodes[sid] = &testNode{Node: n}
+					nodes[sid] = &testNode{Node: n, cfg: cfg}
 
 					// Add default environments
 					ts.Setenv("RPC_ADDR", remoteAddr)
 
 					fmt.Fprintln(ts.Stdout(), "node started successfully")
+				case "restart":
+					n, ok := nodes[sid]
+					if !ok {
+						err = fmt.Errorf("node must be started before being restarted")
+						break
+					}
+
+					if stopErr := n.Stop(); stopErr != nil {
+						err = fmt.Errorf("error stopping node: %w", stopErr)
+						break
+					}
+
+					// Create new node with same config.
+					newNode, newRemoteAddr := TestingInMemoryNode(t, logger, n.cfg)
+
+					// Update testNode and environment variables.
+					n.Node = newNode
+					ts.Setenv("RPC_ADDR", newRemoteAddr)
+
+					fmt.Fprintln(ts.Stdout(), "node restarted successfully")
 				case "stop":
 					n, ok := nodes[sid]
 					if !ok {
