@@ -160,9 +160,11 @@ func NewAnteHandler(ak AccountKeeper, bank BankKeeperI, sigGasConsumer Signature
 			if isGenesis && !opts.VerifyGenesisSignatures {
 				// No signatures are needed for genesis.
 			} else {
+				// Check if the account is being created for the first time on-chain
+				// e.g., during genesis or as a new account created indirectly through a sponsor transaction
+				newAccount := isGenesis || isNewAccount
 				// Check signature
-				isFirstSign := isGenesis || isNewAccount
-				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, isFirstSign)
+				signBytes, err := GetSignBytes(newCtx.ChainID(), tx, sacc, newAccount)
 				if err != nil {
 					return newCtx, res, true
 				}
