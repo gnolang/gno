@@ -29,11 +29,12 @@ type keyOpts struct {
 type SignCfg struct {
 	RootCfg *BaseCfg
 
-	TxPath        string
-	ChainID       string
-	AccountNumber uint64
-	Sequence      uint64
-	NameOrBech32  string
+	TxPath           string
+	ChainID          string
+	AccountNumber    uint64
+	Sequence         uint64
+	NameOrBech32     string
+	FetchAccountInfo bool
 }
 
 func NewSignCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -81,6 +82,13 @@ func (c *SignCfg) RegisterFlags(fs *flag.FlagSet) {
 		"account-sequence",
 		0,
 		"account sequence to sign with",
+	)
+
+	fs.BoolVar(
+		&c.FetchAccountInfo,
+		"fetch-account-info",
+		false,
+		"fetch account info from the blockchain if account number or sequence is not provided",
 	)
 }
 
@@ -157,8 +165,8 @@ func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 		}
 	}
 
-	// Check if accountNumber or sequence is zero to determine if account information needs to be fetched
-	if cfg.AccountNumber == 0 || cfg.Sequence == 0 {
+	// Check if we need to fetch account information based on the new flag
+	if cfg.FetchAccountInfo && (cfg.AccountNumber == 0 || cfg.Sequence == 0) {
 		accountAddr := info.GetAddress()
 
 		qopts := &QueryCfg{
