@@ -3,7 +3,6 @@ package gnopages
 func init() {
 	path := "contribute"
 	title := "Contributor Ecosystem: Call for Contributions"
-	// XXX: description := "Be a an early adopter and contributor to gno.land through bounties, grants, and Game of Realm's notoable contributions network."
 	body := `
 
 gno.land puts at the center of its identity the contributors that help to create and shape the project into what it is; incentivizing those who contribute the most and help advance its vision. Eventually, contributions will be incentivized directly on-chain; in the meantime, this page serves to illustrate our current off-chain initiatives.
@@ -23,9 +22,9 @@ Recommendations on participating in the gno.land Bounty Program:
     - The draft PR doesn't indicate that the bounty has been assigned to you, others are free to work on other draft PRs for the bounty.
     - After submitting the 'draft' PR, continue working until you are ready to mark the PR as "ready for review".
     - The core team will review the bounty PR submission, and determine if it qualifies for the bounty reward.
-- Ask for clarification early if an element on the DoD or implementation design is unclear.
+- Ask for clarification early if an element on the requirements or implementation design is unclear.
     - Aside from posting the issue as a bounty, keeping regular updates with the core team on the bounty being undertaken is key to being on the right track.
-    - The Definition of Done requires adhesion to the [contributing guidelines](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md); additionally, it is expected that any newly added code or functionality is properly documented, tested and covered, at least in 80% of added code.
+    - As part of the requirements, you must adhere to the [contributing guidelines](https://github.com/gnolang/gno/blob/master/CONTRIBUTING.md); additionally, it is expected that any newly added code or functionality is properly documented, tested and covered, at least in 80% of added code.
     - You're welcome to propose additional features and work on an issue should you envision a plausible expansion or change in scope. The core team may assign a bounty to the additional work, or change the bounty with respect to the changed scope.
 
 You may make your submission at any time; however we invite you to publish your draft PR very early in the development process. This will make your work public, so you can easily get help by the core team and other community members. Additionally, your work can be continued by other people should you get stuck or no longer be willing to work on the bounty. Likewise, you can continue the abandoned or stuck work that someone else worked on. Don't fear your work being "stolen": if a submission is the result of multiple people's efforts, we will look to split the bounty in a way that is fair and recognises each participant in creating the final outcome.
@@ -65,26 +64,27 @@ _[3XL]_ \*   | $ 32000
 
 The gno.land grants program is to encourage and support the growth of the gno.land contributor community, and build out the usability of the platform and smart contract library. The program provides financial resources to contributors to explore the Gno tech stack, and build dApps, tooling, infrastructure, products, and smart contract libraries in gno.land.
 
-TODO: Add link to new repo
+<!-- TODO: Add link to new repo -->
 
 ## Join Game of Realms
 
-Game of Realms is the overarching contributor network of gnomes, currently running off-chain, and will eventually transition on-chain. At this stage, a Game of Realms contribution is comprised of high-impact contributions identified as 'notable contributions'.
+Game of Realms is the overarching contributor network of gnomes, currently running off-chain, and will eventually transition on-chain. At this stage, a Game of Realms contribution is comprised of high-impact contributions identified as ['notable contributions'](https://github.com/gnolang/game-of-realms/tree/main/contributors).
 
 These contributions are not linked to immediate financial rewards, but are notable in nature, in the sense they are a challenge, make a significant addition to the project, and require persistence, with minimal feedback loops from the core team.
+
+The selection of a notable contribution or the sum of contributions that equal 'notable' is based on the impact it has on the development of the project. For now, it is focused on code contributions, and will evolve over time. The Gno development teams will initially qualify and evaluate notable contributions, and vote off-chain on adding them to the 'notable contributions' folder on GitHub.
 
 You can always contribute to the project, and all contributions will be noticed. Contributing now is a way to build your personal contributor profile in gno.land early on in the ecosystem, and signal your commitment to the project, the community, and its future.
 
 There are a variety of ways to make your contributions count:
+
 - Core code contributions
-- Realm development
+- Realm and pure package development
 - Validator tooling
 - Developer tooling
 
-How will notable contributions in Game of Realms be selected?
-
-The selection of a notable contribution or the sum of contributions that equal 'notable' is based on the impact it has on the development of the project. For now, it is focused on code contributions, and will evolve over time. The Gno development teams will initially qualify and evaluate notable contributions, and vote off-chain on adding them to the 'notable contributions' folder on GitHub.
-
 To start, we recommend you create a PR in the Game of Realms [repository](https://github.com/gnolang/game-of-realms) to create your profile page for all your contributions.`
+
+	_ = b.NewPost("", path, title, body, "2024-09-05T00:00:00Z", nil, nil)
 
 }
