@@ -81,9 +81,9 @@ type Machine struct {
 	DeferPanicScope uint
 
 	// Test Coverage
-	Coverage *CoverageData
+	Coverage       *CoverageData
 	CurrentPackage string
-	CurrentFile string
+	CurrentFile    string
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -993,8 +993,8 @@ func (m *Machine) runDeclaration(d Decl) {
 
 func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
 	if isTestFile(file) {
-        return
-    }
+		return
+	}
 	m.Coverage.AddFile(file, totalLines)
 }
 
@@ -1280,16 +1280,7 @@ func (m *Machine) Run() {
 		op := m.PopOp()
 
 		loc := m.getCurrentLocation()
-		var printedMessages = make(map[string]bool)
-
-		if loc.PkgPath != "" && loc.File != "" {
-			message := fmt.Sprintf("%s/%s:%d", loc.PkgPath, loc.File, loc.Line)
-			if !printedMessages[message] {
-				fmt.Printf("Executing: %s\n", message)
-				m.Coverage.AddHit(loc.PkgPath+"/"+loc.File, loc.Line)
-				printedMessages[message] = true
-			}
-		}
+		m.Coverage.AddHit(loc.PkgPath+"/"+loc.File, loc.Line)
 
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {
@@ -1629,9 +1620,9 @@ func (m *Machine) getCurrentLocation() Location {
 
 	return Location{
 		PkgPath: m.CurrentPackage,
-		File:   m.CurrentFile,
-		Line: lastFrame.Source.GetLine(),
-		Column: lastFrame.Source.GetColumn(),
+		File:    m.CurrentFile,
+		Line:    lastFrame.Source.GetLine(),
+		Column:  lastFrame.Source.GetColumn(),
 	}
 }
 

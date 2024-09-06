@@ -15,10 +15,10 @@ func TestAddHit(t *testing.T) {
 		expectedHits int
 	}{
 		{
-			name:        "Add hit to new file",
-			initialData: NewCoverageData(),
-			pkgPath:     "file1.gno",
-			line:        10,
+			name:         "Add hit to new file",
+			initialData:  NewCoverageData(),
+			pkgPath:      "file1.gno",
+			line:         10,
 			expectedHits: 1,
 		},
 		{
@@ -28,8 +28,8 @@ func TestAddHit(t *testing.T) {
 					"file1.gno": {HitLines: map[int]int{10: 1}},
 				},
 			},
-			pkgPath:     "file1.gno",
-			line:        10,
+			pkgPath:      "file1.gno",
+			line:         10,
 			expectedHits: 2,
 		},
 		{
@@ -39,8 +39,8 @@ func TestAddHit(t *testing.T) {
 					"file1.gno": {HitLines: map[int]int{10: 1}},
 				},
 			},
-			pkgPath:     "file1.gno",
-			line:        20,
+			pkgPath:      "file1.gno",
+			line:         20,
 			expectedHits: 1,
 		},
 	}
@@ -58,7 +58,6 @@ func TestAddHit(t *testing.T) {
 	}
 }
 
-
 func TestAddFile(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -68,29 +67,29 @@ func TestAddFile(t *testing.T) {
 		expectedTotal int
 	}{
 		{
-			name: "Add new file",
-			pkgPath: "file1.gno",
-			totalLines: 100,
-			initialData: NewCoverageData(),
+			name:          "Add new file",
+			pkgPath:       "file1.gno",
+			totalLines:    100,
+			initialData:   NewCoverageData(),
 			expectedTotal: 100,
 		},
 		{
-			name: "Do not add test file *_test.gno",
-			pkgPath: "file1_test.gno",
-			totalLines: 100,
-			initialData: NewCoverageData(),
+			name:          "Do not add test file *_test.gno",
+			pkgPath:       "file1_test.gno",
+			totalLines:    100,
+			initialData:   NewCoverageData(),
 			expectedTotal: 0,
 		},
 		{
-			name: "Do not add test file *_testing.gno",
-			pkgPath: "file1_testing.gno",
-			totalLines: 100,
-			initialData: NewCoverageData(),
+			name:          "Do not add test file *_testing.gno",
+			pkgPath:       "file1_testing.gno",
+			totalLines:    100,
+			initialData:   NewCoverageData(),
 			expectedTotal: 0,
 		},
 		{
-			name: "Update existing file's total lines",
-			pkgPath: "file1.gno",
+			name:       "Update existing file's total lines",
+			pkgPath:    "file1.gno",
 			totalLines: 200,
 			initialData: &CoverageData{
 				Files: map[string]FileCoverage{

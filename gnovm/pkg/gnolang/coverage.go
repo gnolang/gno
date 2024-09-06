@@ -7,7 +7,8 @@ import (
 
 // CoverageData stores code coverage information
 type CoverageData struct {
-	Files map[string]FileCoverage
+	Files   map[string]FileCoverage
+	PkgPath string
 }
 
 // FileCoverage stores coverage information for a single file
@@ -18,7 +19,8 @@ type FileCoverage struct {
 
 func NewCoverageData() *CoverageData {
 	return &CoverageData{
-		Files: make(map[string]FileCoverage),
+		Files:   make(map[string]FileCoverage),
+		PkgPath: "",
 	}
 }
 
@@ -38,16 +40,12 @@ func (c *CoverageData) AddHit(pkgPath string, line int) {
 	c.Files[pkgPath] = fileCoverage
 }
 
-func isTestFile(pkgPath string) bool {
-	return strings.HasSuffix(pkgPath, "_test.gno") || strings.HasSuffix(pkgPath, "_testing.gno")
-}
+func (c *CoverageData) AddFile(filePath string, totalLines int) {
+	if isTestFile(filePath) {
+		return
+	}
 
-func (c *CoverageData) AddFile(pkgPath string, totalLines int) {
-	if isTestFile(pkgPath) {
-        return
-    }
-
-	fileCoverage, exists := c.Files[pkgPath]
+	fileCoverage, exists := c.Files[filePath]
 	if !exists {
 		fileCoverage = FileCoverage{
 			HitLines: make(map[int]int),
@@ -55,18 +53,18 @@ func (c *CoverageData) AddFile(pkgPath string, totalLines int) {
 	}
 
 	fileCoverage.TotalLines = totalLines
-	c.Files[pkgPath] = fileCoverage
+	c.Files[filePath] = fileCoverage
 }
 
 func (c *CoverageData) PrintResults() {
-    fmt.Println("Coverage Results:")
-    for file, coverage := range c.Files {
-		if !isTestFile(file) {
+	fmt.Println("Coverage Results:")
+	for file, coverage := range c.Files {
+		if !isTestFile(file) && strings.Contains(file, c.PkgPath) {
 			hitLines := len(coverage.HitLines)
 			percentage := float64(hitLines) / float64(coverage.TotalLines) * 100
 			fmt.Printf("%s: %.2f%% (%d/%d lines)\n", file, percentage, hitLines, coverage.TotalLines)
 		}
-    }
+	}
 }
 
 func countCodeLines(content string) int {
@@ -89,15 +87,19 @@ func countCodeLines(content string) int {
 		}
 
 		if strings.HasPrefix(trimmedLine, "/*") {
-            inBlockComment = true
-            if strings.Contains(trimmedLine, "*/") {
-                inBlockComment = false
-            }
-            continue
-        }
+			inBlockComment = true
+			if strings.Contains(trimmedLine, "*/") {
+				inBlockComment = false
+			}
+			continue
+		}
 
-        codeLines++
+		codeLines++
 	}
 
 	return codeLines
+}
+
+func isTestFile(pkgPath string) bool {
+	return strings.HasSuffix(pkgPath, "_test.gno") || strings.HasSuffix(pkgPath, "_testing.gno")
 }

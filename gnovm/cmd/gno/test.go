@@ -263,6 +263,7 @@ func gnoTestPkg(
 		modfile, err := gnomod.ParseAt(pkgPath)
 		if err == nil {
 			gnoPkgPath = modfile.Module.Mod.Path
+			coverageData.PkgPath = gnoPkgPath
 		} else {
 			gnoPkgPath = pkgPathFromRootDir(pkgPath, rootDir)
 			if gnoPkgPath == "" {
@@ -270,10 +271,10 @@ func gnoTestPkg(
 				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 				gnoPkgPath = gno.RealmPathPrefix + random.RandStr(8)
 			}
+			coverageData.PkgPath = gnoPkgPath
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
-		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
 		var tfiles, ifiles *gno.FileSet
 
 		hasError := catchRuntimeError(gnoPkgPath, stderr, func() {
