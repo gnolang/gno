@@ -91,6 +91,7 @@ const (
 	QueryFuncs   = "qfuncs"
 	QueryEval    = "qeval"
 	QueryFile    = "qfile"
+	QueryMeta    = "qmeta"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
@@ -112,6 +113,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 		res = vh.queryEval(ctx, req)
 	case QueryFile:
 		res = vh.queryFile(ctx, req)
+	case QueryMeta:
+		res = vh.queryMeta(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -236,6 +239,23 @@ func (vh vmHandler) queryFile(ctx sdk.Context, req abci.RequestQuery) (res abci.
 		return
 	}
 	res.Data = []byte(result)
+	return
+}
+
+// queryMeta returns the value for a package metadata field.
+func (vh vmHandler) queryMeta(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	parts := strings.SplitN(string(req.Data), ":", 2)
+	if len(parts) != 2 {
+		panic("expected <pkgpath>:field_name> syntax in query input data")
+	}
+
+	pkgPath, name := parts[0], parts[1]
+	result, err := vh.vm.QueryMeta(ctx, pkgPath, name)
+	if err != nil {
+		res = sdk.ABCIResponseQueryFromError(err)
+		return
+	}
+	res.Data = result
 	return
 }
 

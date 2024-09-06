@@ -5,6 +5,7 @@ package vm
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -974,6 +975,27 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		}
 		return res, nil
 	}
+}
+
+func (vm *VMKeeper) QueryMeta(ctx sdk.Context, pkgPath, name string) ([]byte, error) {
+	var (
+		res   []byte
+		store = vm.getGnoStore(ctx)
+	)
+
+	found := store.IteratePackageMeta(pkgPath, func(field string, value []byte) bool {
+		if field == name {
+			res = make([]byte, base64.StdEncoding.EncodedLen(len(value)))
+			base64.StdEncoding.Encode(res, value)
+			return true
+		}
+		return false
+	})
+
+	if !found {
+		return nil, fmt.Errorf("metadata field for package %s not found: %s", pkgPath, name) // TODO: XSS protection
+	}
+	return res, nil
 }
 
 // logTelemetry logs the VM processing telemetry

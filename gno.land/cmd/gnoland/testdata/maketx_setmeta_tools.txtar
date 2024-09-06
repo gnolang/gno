@@ -46,6 +46,11 @@ stdout 'HEIGHT:     \d+'
 stdout 'EVENTS:     \[\]'
 stdout 'TX HASH:    '
 
+# Test querying the tools field
+gnokey query vm/qmeta --data "gno.land/r/foo:tools"
+
+stdout 'data: eyJ0b29scyI6IFt7Im5hbWUiOiAiZm9vYmFyIiwgIndlaWdodCI6IDEuMH1dfQ=='
+
 # Test ovewritting the tools field
 ! gnokey maketx setmeta -fields "tools={\"tools\": [{\"name\": \"foobaz\", \"weight\": 1.0}]}" -pkgpath gno.land/r/foo -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 
