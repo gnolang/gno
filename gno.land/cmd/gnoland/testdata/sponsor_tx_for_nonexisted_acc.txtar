@@ -32,15 +32,15 @@ stdout 'height: 0'
 stdout 'data: null'
 
 # Sponsoree create transaction
-gnokey maketx call -pkgpath gno.land/r/demo/echo -chainid=tendermint_test -func Render -args "HELLO" -gas-fee 1000000ugnot -gas-wanted 2000000 --sponsor=${USER_ADDR_sponsor} sponsoree
+gnokey maketx call -pkgpath gno.land/r/demo/echo -chainid=tendermint_test -func Render -args "HELLO" -gas-fee 1000000ugnot -gas-wanted 2000000 -sponsor=${USER_ADDR_sponsor} sponsoree
 cp stdout sponsor.tx
 
 # Sponsoree sign transaction
-gnokey sign -tx-path $WORK/sponsor.tx -chainid "tendermint_test" -account-number 0 -account-sequence 0 sponsoree
+gnokey sign -tx-path $WORK/sponsor.tx -chainid  "tendermint_test" -fetch-account-info=true sponsoree
 cmpenv stdout sign.stdout.golden
 
 # Sponsor countersign transaction
-gnokey sign -tx-path $WORK/sponsor.tx -chainid "tendermint_test" -account-number 0 -account-sequence 0 sponsor
+gnokey sign -tx-path $WORK/sponsor.tx -chainid "tendermint_test" -fetch-account-info=true sponsor
 cmpenv stdout sign.stdout.golden
 
 # Sponsor broadcast transaction
