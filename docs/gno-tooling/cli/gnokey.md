@@ -124,8 +124,9 @@ gnokey query {QUERY_PATH}
 | `bank/balances/{ADDRESS}` | Returns balances of an account.                                    | `gnokey query bank/balances/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5`                  |
 | `vm/qfuncs`               | Returns public facing function signatures as JSON.                 | `gnokey query vm/qfuncs --data "gno.land/r/demo/boards"`                               |
 | `vm/qfile`                | Returns the file bytes, or list of files if directory.             | `gnokey query vm/qfile --data "gno.land/r/demo/boards"`                                |
-| `vm/qrender`              | Calls .Render(path) in readonly mode.                              | `gnokey query vm/qrender --data "gno.land/r/demo/boards:"`                              |
+| `vm/qrender`              | Calls .Render(path) in readonly mode.                              | `gnokey query vm/qrender --data "gno.land/r/demo/boards:"`                             |
 | `vm/qeval`                | Evaluates any expression in readonly mode and returns the results. | `gnokey query vm/qeval --data "gno.land/r/demo/boards.GetBoardIDFromName("my_board")"` |
+| `vm/qmeta`                | Returns the value for a package metadata field.                    | `gnokey query vm/qmeta --data "gno.land/r/demo/boards:field_name"`                     |
 | `vm/store`                | (not yet supported) Fetches items from the store.                  | -                                                                                      |
 | `vm/package`              | (not yet supported) Fetches a package's files.                     | -                                                                                      |
 
@@ -146,11 +147,12 @@ gnokey maketx {SUB_COMMAND} {ADDRESS or KeyName}
 
 #### **Subcommands**
 
-| Name     | Description                  |
-|----------|------------------------------|
-| `addpkg` | Uploads a new package.       |
-| `call`   | Calls a public function.     |
-| `send`   | The amount of coins to send. |
+| Name      | Description                  |
+|-----------|------------------------------|
+| `addpkg`  | Uploads a new package.       |
+| `call`    | Calls a public function.     |
+| `send`    | The amount of coins to send. |
+| `setmeta` | Sets package metadata.       |
 
 ### `addpkg`
 
@@ -276,6 +278,40 @@ gnokey maketx send \
 | `send` | String | Amount of coins to send. |
 | `to`   | String | The destination address. |
 
+### `setmeta`
+
+This subcommand lets you set package metadata.
+
+```bash
+gnokey maketx setmeta \
+    -gas-fee="1ugnot" \
+    -gas-wanted="5000000" \
+    -pkgpath={Registered Realm path} \
+    -fields={FIELD_VALUE} \
+    {ADDRESS}
+```
+
+#### **SignBroadcast Options**
+
+| Name         | Type    | Description                                                                            |
+|--------------|---------|----------------------------------------------------------------------------------------|
+| `gas-wanted` | Int64   | The maximum amount of gas to use for the transaction.                                  |
+| `gas-fee`    | String  | The gas fee to pay for the transaction.                                                |
+| `memo`       | String  | Any descriptive text.                                                                  |
+| `broadcast`  | Boolean | Broadcasts the transaction.                                                            |
+| `chainid`    | String  | The chainid to sign for (should only be used with `--broadcast`)                       |
+| `simulate`   | String  | One of `test` (default), `skip` or `only` (should only be used with `--broadcast`)[^1] |
+
+#### **makeTx SetMeta Options**
+
+| Name      | Type   | Description                                                                                                   |
+|-----------|--------|---------------------------------------------------------------------------------------------------------------|
+| `pkgpath` | String | The package path (required).                                                                                  |
+| `fields`  | String | A field and value. Can be used multiple times in a single `setmeta` command to set or update multiple fields. |
+
+:::info
+Each `-fields` parameter must have the format "name=value".
+:::
 
 ## Sign a Document
 
