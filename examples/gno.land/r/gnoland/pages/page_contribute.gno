@@ -103,5 +103,4 @@ There are a variety of ways to make your contributions count:
 To start, we recommend you create a PR in the Game of Realms [repository](https://github.com/gnolang/game-of-realms) to create your profile page for all your contributions.`
 
 	_ = b.NewPost("", path, title, body, "2024-09-05T00:00:00Z", nil, nil)
-
 }
