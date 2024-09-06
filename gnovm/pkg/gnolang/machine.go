@@ -271,13 +271,13 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
 	m.CurrentPackage = memPkg.Path
 
-	// for _, file := range memPkg.Files {
-	// 	if strings.HasSuffix(file.Name, ".gno") && !(strings.HasSuffix(file.Name, "_test.gno") && strings.HasSuffix(file.Name, "_testing.gno")) {
-	// 		m.CurrentFile = file.Name
-	// 		totalLines := countCodeLines(file.Body)
-	// 		m.AddFileToCodeCoverage(m.CurrentPackage+"/"+m.CurrentFile, totalLines)
-	// 	}
-	// }
+	for _, file := range memPkg.Files {
+		if strings.HasSuffix(file.Name, ".gno") && !(strings.HasSuffix(file.Name, "_test.gno") && strings.HasSuffix(file.Name, "_testing.gno")) {
+			m.CurrentFile = file.Name
+			totalLines := countCodeLines(file.Body)
+			m.AddFileToCodeCoverage(m.CurrentPackage+"/"+m.CurrentFile, totalLines)
+		}
+	}
 	return m.runMemPackage(memPkg, save, false)
 }
 
@@ -992,6 +992,9 @@ func (m *Machine) runDeclaration(d Decl) {
 }
 
 func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
+	if isTestFile(file) {
+        return
+    }
 	m.Coverage.AddFile(file, totalLines)
 }
 

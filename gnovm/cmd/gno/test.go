@@ -299,12 +299,7 @@ func gnoTestPkg(
 			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
 			m.Coverage = coverageData
 			m.CurrentPackage = memPkg.Path
-			for _, file := range memPkg.Files {
-				if strings.HasSuffix(file.Name, ".gno") && !(strings.HasSuffix(file.Name, "_test.gno") || strings.HasSuffix(file.Name, "_testing.gno")) {
-					totalLines := countCodeLines(file.Body)
-					m.Coverage.AddFile(m.CurrentPackage+"/"+m.CurrentFile, totalLines)
-				}
-			}
+
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
@@ -651,37 +646,4 @@ func shouldRun(filter filterMatch, path string) bool {
 	elem := strings.Split(path, "/")
 	ok, _ := filter.matches(elem, matchString)
 	return ok
-}
-
-func countCodeLines(content string) int {
-	lines := strings.Split(content, "\n")
-	codeLines := 0
-	inBlockComment := false
-
-	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-
-		if inBlockComment {
-			if strings.Contains(trimmedLine, "*/") {
-				inBlockComment = false
-			}
-			continue
-		}
-
-		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "//") {
-			continue
-		}
-
-		if strings.HasPrefix(trimmedLine, "/*") {
-            inBlockComment = true
-            if strings.Contains(trimmedLine, "*/") {
-                inBlockComment = false
-            }
-            continue
-        }
-
-        codeLines++
-	}
-
-	return codeLines
 }

@@ -1,188 +1,191 @@
 package gnolang
 
-// import (
-// 	"reflect"
-// 	"testing"
-// )
+import (
+	"bytes"
+	"os"
+	"testing"
+)
 
-// func TestNewCoverageData(t *testing.T) {
-// 	cd := NewCoverageData()
-// 	if cd == nil {
-// 		t.Error("NewCoverageData() returned nil")
-// 	}
-// 	if cd == nil || cd.Files == nil {
-// 		t.Error("NewCoverageData() did not initialize Files map")
-// 	}
-// }
+func TestAddHit(t *testing.T) {
+	tests := []struct {
+		name         string
+		initialData  *CoverageData
+		pkgPath      string
+		line         int
+		expectedHits int
+	}{
+		{
+			name:        "Add hit to new file",
+			initialData: NewCoverageData(),
+			pkgPath:     "file1.gno",
+			line:        10,
+			expectedHits: 1,
+		},
+		{
+			name: "Add hit to existing file and line",
+			initialData: &CoverageData{
+				Files: map[string]FileCoverage{
+					"file1.gno": {HitLines: map[int]int{10: 1}},
+				},
+			},
+			pkgPath:     "file1.gno",
+			line:        10,
+			expectedHits: 2,
+		},
+		{
+			name: "Add hit to new line in existing file",
+			initialData: &CoverageData{
+				Files: map[string]FileCoverage{
+					"file1.gno": {HitLines: map[int]int{10: 1}},
+				},
+			},
+			pkgPath:     "file1.gno",
+			line:        20,
+			expectedHits: 1,
+		},
+	}
 
-// func TestCoverageDataAddHit(t *testing.T) {
-// 	tests := []struct {
-// 		name     string
-// 		file     string
-// 		line     int
-// 		expected map[string]*FileCoverage
-// 	}{
-// 		{
-// 			name: "Add hit to new file",
-// 			file: "test.go",
-// 			line: 10,
-// 			expected: map[string]*FileCoverage{
-// 				"test.go": {
-// 					Statements: map[int]int{10: 1},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			name: "Add hit to existing file",
-// 			file: "test.go",
-// 			line: 10,
-// 			expected: map[string]*FileCoverage{
-// 				"test.go": {
-// 					Statements: map[int]int{10: 2},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			name: "Add hit to new line in existing file",
-// 			file: "test.go",
-// 			line: 20,
-// 			expected: map[string]*FileCoverage{
-// 				"test.go": {
-// 					Statements: map[int]int{10: 2, 20: 1},
-// 				},
-// 			},
-// 		},
-// 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.initialData.AddHit(tt.pkgPath, tt.line)
+			fileCoverage := tt.initialData.Files[tt.pkgPath]
 
-// 	cd := NewCoverageData()
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			cd.AddHit(tt.file, tt.line)
-// 			if !reflect.DeepEqual(cd.Files, tt.expected) {
-// 				t.Errorf("AddHit() = %v, want %v", cd.Files, tt.expected)
-// 			}
-// 		})
-// 	}
-// }
+			// Validate the hit count for the specific line
+			if fileCoverage.HitLines[tt.line] != tt.expectedHits {
+				t.Errorf("got %d hits for line %d, want %d", fileCoverage.HitLines[tt.line], tt.line, tt.expectedHits)
+			}
+		})
+	}
+}
 
-// func TestCoverageData(t *testing.T) {
-// 	tests := []struct {
-// 		name string
-// 		hits []struct {
-// 			file string
-// 			line int
-// 		}
-// 		wantReport string
-// 	}{
-// 		{
-// 			name: "Empty coverage",
-// 			hits: []struct {
-// 				file string
-// 				line int
-// 			}{},
-// 			wantReport: `Coverage Report:
-// =================
 
-// Total Coverage:
-//   Statements: 0
-//   Covered:    0
-//   Coverage:   0.00%
-// `,
-// 		},
-// 		{
-// 			name: "Single file, single line",
-// 			hits: []struct {
-// 				file string
-// 				line int
-// 			}{
-// 				{"file1.go", 10},
-// 			},
-// 			wantReport: `Coverage Report:
-// =================
+func TestAddFile(t *testing.T) {
+	tests := []struct {
+		name          string
+		pkgPath       string
+		totalLines    int
+		initialData   *CoverageData
+		expectedTotal int
+	}{
+		{
+			name: "Add new file",
+			pkgPath: "file1.gno",
+			totalLines: 100,
+			initialData: NewCoverageData(),
+			expectedTotal: 100,
+		},
+		{
+			name: "Do not add test file *_test.gno",
+			pkgPath: "file1_test.gno",
+			totalLines: 100,
+			initialData: NewCoverageData(),
+			expectedTotal: 0,
+		},
+		{
+			name: "Do not add test file *_testing.gno",
+			pkgPath: "file1_testing.gno",
+			totalLines: 100,
+			initialData: NewCoverageData(),
+			expectedTotal: 0,
+		},
+		{
+			name: "Update existing file's total lines",
+			pkgPath: "file1.gno",
+			totalLines: 200,
+			initialData: &CoverageData{
+				Files: map[string]FileCoverage{
+					"file1.gno": {TotalLines: 100, HitLines: map[int]int{10: 1}},
+				},
+			},
+			expectedTotal: 200,
+		},
+	}
 
-// file1.go:
-//   Statements: 1
-//   Covered:    1
-//   Coverage:   100.00%
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.initialData.AddFile(tt.pkgPath, tt.totalLines)
+			if tt.pkgPath == "file1_test.gno" && len(tt.initialData.Files) != 0 {
+				t.Errorf("expected no files to be added for test files")
+			} else {
+				if fileCoverage, ok := tt.initialData.Files[tt.pkgPath]; ok {
+					if fileCoverage.TotalLines != tt.expectedTotal {
+						t.Errorf("got %d total lines, want %d", fileCoverage.TotalLines, tt.expectedTotal)
+					}
+				} else if len(tt.initialData.Files) > 0 {
+					t.Errorf("expected file not added")
+				}
+			}
+		})
+	}
+}
 
-// Total Coverage:
-//   Statements: 1
-//   Covered:    1
-//   Coverage:   100.00%
-// `,
-// 		},
-// 		{
-// 			name: "Multiple files, multiple lines",
-// 			hits: []struct {
-// 				file string
-// 				line int
-// 			}{
-// 				{"file1.go", 10},
-// 				{"file1.go", 20},
-// 				{"file1.go", 10},
-// 				{"file2.go", 5},
-// 				{"file2.go", 15},
-// 			},
-// 			wantReport: `Coverage Report:
-// =================
+func TestIsTestFile(t *testing.T) {
+	tests := []struct {
+		pkgPath string
+		want    bool
+	}{
+		{"file1_test.gno", true},
+		{"file1_testing.gno", true},
+		{"file1.gno", false},
+		{"random_test.go", false},
+	}
 
-// file1.go:
-//   Statements: 2
-//   Covered:    2
-//   Coverage:   100.00%
+	for _, tt := range tests {
+		t.Run(tt.pkgPath, func(t *testing.T) {
+			got := isTestFile(tt.pkgPath)
+			if got != tt.want {
+				t.Errorf("isTestFile(%s) = %v, want %v", tt.pkgPath, got, tt.want)
+			}
+		})
+	}
+}
 
-// file2.go:
-//   Statements: 2
-//   Covered:    2
-//   Coverage:   100.00%
+func TestPrintResults(t *testing.T) {
+	tests := []struct {
+		name           string
+		initialData    *CoverageData
+		expectedOutput string
+	}{
+		{
+			name: "Print results with one file",
+			initialData: &CoverageData{
+				Files: map[string]FileCoverage{
+					"file1.gno": {TotalLines: 100, HitLines: map[int]int{10: 1, 20: 1}},
+				},
+			},
+			expectedOutput: "Coverage Results:\nfile1.gno: 2.00% (2/100 lines)\n",
+		},
+		{
+			name: "Print results with multiple files",
+			initialData: &CoverageData{
+				Files: map[string]FileCoverage{
+					"file1.gno": {TotalLines: 100, HitLines: map[int]int{10: 1, 20: 1}},
+					"file2.gno": {TotalLines: 200, HitLines: map[int]int{30: 1}},
+				},
+			},
+			expectedOutput: "Coverage Results:\nfile1.gno: 2.00% (2/100 lines)\nfile2.gno: 0.50% (1/200 lines)\n",
+		},
+	}
 
-// Total Coverage:
-//   Statements: 4
-//   Covered:    4
-//   Coverage:   100.00%
-// `,
-// 		},
-// 		{
-// 			name: "Partial coverage",
-// 			hits: []struct {
-// 				file string
-// 				line int
-// 			}{
-// 				{"file1.go", 10},
-// 				{"file1.go", 20},
-// 				{"file2.go", 5},
-// 			},
-// 			wantReport: `Coverage Report:
-// =================
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			origStdout := os.Stdout
 
-// file1.go:
-//   Statements: 2
-//   Covered:    2
-//   Coverage:   100.00%
+			r, w, _ := os.Pipe()
+			os.Stdout = w
 
-// file2.go:
-//   Statements: 1
-//   Covered:    1
-//   Coverage:   100.00%
+			tt.initialData.PrintResults()
 
-// Total Coverage:
-//   Statements: 3
-//   Covered:    3
-//   Coverage:   100.00%
-// `,
-// 		},
-// 	}
+			w.Close()
+			os.Stdout = origStdout
 
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			cd := NewCoverageData()
-// 			for _, hit := range tt.hits {
-// 				cd.AddHit(hit.file, hit.line)
-// 			}
-// 			got := cd.Report()
-// 			if got != tt.wantReport {
-// 				t.Errorf("CoverageData.Report() =\n%v\nwant:\n%v", got, tt.wantReport)
-// 			}
-// 		})
-// 	}
-// }
+			var buf bytes.Buffer
+			buf.ReadFrom(r)
+
+			got := buf.String()
+			if got != tt.expectedOutput {
+				t.Errorf("got %q, want %q", got, tt.expectedOutput)
+			}
+		})
+	}
+}
