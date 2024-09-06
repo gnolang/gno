@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
@@ -262,6 +263,11 @@ func EndBlocker(
 	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
 		if ctx.BlockHeight() == int64(targetHeight) {
 			vmk.(*vm.VMKeeper).GetGnoStore(ctx).SyncCacheTypes()
+			go func() {
+				time.Sleep(time.Second) // Yes (so the current block finishes committing)
+				app.(*sdk.BaseApp).Halt()
+			}()
+			return abci.ResponseEndBlock{}
 		}
 
 		// Check if there was a valset change

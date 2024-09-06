@@ -866,7 +866,7 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 	}
 
 	if halt {
-		app.halt()
+		app.Halt()
 
 		// Note: State is not actually committed when halted. Logs from Tendermint
 		// can be ignored.
@@ -903,9 +903,9 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 	return
 }
 
-// halt attempts to gracefully shutdown the node via SIGINT and SIGTERM falling
+// Halt attempts to gracefully shutdown the node via SIGINT and SIGTERM falling
 // back on os.Exit if both fail.
-func (app *BaseApp) halt() {
+func (app *BaseApp) Halt() {
 	app.logger.Info("halting node per configuration", "height", app.haltHeight, "time", app.haltTime)
 
 	p, err := os.FindProcess(os.Getpid())
