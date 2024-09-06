@@ -261,7 +261,7 @@ func EndBlocker(
 ) abci.ResponseEndBlock {
 	return func(ctx sdk.Context, _ abci.RequestEndBlock) abci.ResponseEndBlock {
 		if ctx.BlockHeight() == int64(targetHeight) {
-			vmk.(*vm.VMKeeper).GnoStore.SyncCacheTypes()
+			vmk.(*vm.VMKeeper).GetGnoStore(ctx).SyncCacheTypes()
 		}
 
 		// Check if there was a valset change

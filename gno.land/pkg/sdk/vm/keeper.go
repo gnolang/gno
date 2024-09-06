@@ -58,7 +58,7 @@ type VMKeeper struct {
 	stdlibsDir string
 
 	// cached, the DeliverTx persistent state.
-	GnoStore gno.Store
+	gnoStore gno.Store
 
 	maxCycles int64 // max allowed cylces on VM executions
 }
@@ -89,7 +89,7 @@ func (vm *VMKeeper) Initialize(
 	ms store.MultiStore,
 	cacheStdlibLoad bool,
 ) {
-	if vm.GnoStore != nil {
+	if vm.gnoStore != nil {
 		panic("should not happen")
 	}
 	baseSDKStore := ms.GetStore(vm.baseKey)
@@ -97,10 +97,10 @@ func (vm *VMKeeper) Initialize(
 
 	if cacheStdlibLoad {
 		// Testing case (using the cache speeds up starting many nodes)
-		vm.GnoStore = cachedStdlibLoad(vm.stdlibsDir, baseSDKStore, iavlSDKStore)
+		vm.gnoStore = cachedStdlibLoad(vm.stdlibsDir, baseSDKStore, iavlSDKStore)
 	} else {
 		// On-chain case
-		vm.GnoStore = uncachedPackageLoad(logger, vm.stdlibsDir, baseSDKStore, iavlSDKStore)
+		vm.gnoStore = uncachedPackageLoad(logger, vm.stdlibsDir, baseSDKStore, iavlSDKStore)
 	}
 }
 
@@ -243,9 +243,9 @@ func loadStdlibPackage(pkgPath, stdlibsDir string, store gno.Store) {
 	m.RunMemPackage(memPkg, true)
 }
 
-func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
+func (vm *VMKeeper) GetGnoStore(ctx sdk.Context) gno.Store {
 	// construct main store if nil.
-	if vm.GnoStore == nil {
+	if vm.gnoStore == nil {
 		panic("VMKeeper must first be initialized")
 	}
 	switch ctx.Mode() {
@@ -254,22 +254,22 @@ func (vm *VMKeeper) getGnoStore(ctx sdk.Context) gno.Store {
 		// this is needed due to e.g. gas wrappers.
 		baseSDKStore := ctx.Store(vm.baseKey)
 		iavlSDKStore := ctx.Store(vm.iavlKey)
-		vm.GnoStore.SwapStores(baseSDKStore, iavlSDKStore)
+		vm.gnoStore.SwapStores(baseSDKStore, iavlSDKStore)
 		// clear object cache for every transaction.
 		// NOTE: this is inefficient, but simple.
 		// in the future, replace with more advanced caching strategy.
-		vm.GnoStore.ClearObjectCache()
-		return vm.GnoStore
+		vm.gnoStore.ClearObjectCache()
+		return vm.gnoStore
 	case sdk.RunTxModeCheck:
 		// For query??? XXX Why not RunTxModeQuery?
-		simStore := vm.GnoStore.Fork()
+		simStore := vm.gnoStore.Fork()
 		baseSDKStore := ctx.Store(vm.baseKey)
 		iavlSDKStore := ctx.Store(vm.iavlKey)
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)
 		return simStore
 	case sdk.RunTxModeSimulate:
 		// always make a new store for simulate for isolation.
-		simStore := vm.GnoStore.Fork()
+		simStore := vm.gnoStore.Fork()
 		baseSDKStore := ctx.Store(vm.baseKey)
 		iavlSDKStore := ctx.Store(vm.iavlKey)
 		simStore.SwapStores(baseSDKStore, iavlSDKStore)
@@ -286,7 +286,7 @@ var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
 	const sysUsersPkg = "gno.land/r/sys/users"
 
-	store := vm.getGnoStore(ctx)
+	store := vm.GetGnoStore(ctx)
 
 	match := reNamespace.FindStringSubmatch(pkgPath)
 	switch len(match) {
@@ -367,7 +367,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	pkgPath := msg.Package.Path
 	memPkg := msg.Package
 	deposit := msg.Deposit
-	gnostore := vm.getGnoStore(ctx)
+	gnostore := vm.GetGnoStore(ctx)
 
 	// Validate arguments.
 	if creator.IsZero() {
@@ -463,7 +463,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
-	gnostore := vm.getGnoStore(ctx)
+	gnostore := vm.GetGnoStore(ctx)
 	// Get the package and function type.
 	pv := gnostore.GetPackage(pkgPath, false)
 	pl := gno.PackageNodeLocation(pkgPath)
@@ -574,7 +574,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	caller := msg.Caller
 	pkgAddr := caller
-	gnostore := vm.getGnoStore(ctx)
+	gnostore := vm.GetGnoStore(ctx)
 	send := msg.Send
 	memPkg := msg.Package
 
@@ -687,7 +687,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 
 // QueryFuncs returns public facing function signatures.
 func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionSignatures, err error) {
-	store := vm.getGnoStore(ctx)
+	store := vm.GetGnoStore(ctx)
 	// Ensure pkgPath is realm.
 	if !gno.IsRealmPath(pkgPath) {
 		err = ErrInvalidPkgPath(fmt.Sprintf(
@@ -750,7 +750,7 @@ func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionS
 // TODO: then, rename to "Eval".
 func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
 	alloc := gno.NewAllocator(maxAllocQuery)
-	gnostore := vm.getGnoStore(ctx)
+	gnostore := vm.GetGnoStore(ctx)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.
 	pv := gnostore.GetPackage(pkgPath, false)
@@ -817,7 +817,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 // TODO: then, rename to "EvalString".
 func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string) (res string, err error) {
 	alloc := gno.NewAllocator(maxAllocQuery)
-	gnostore := vm.getGnoStore(ctx)
+	gnostore := vm.GetGnoStore(ctx)
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	// Get Package.
 	pv := gnostore.GetPackage(pkgPath, false)
@@ -878,7 +878,7 @@ func (vm *VMKeeper) QueryEvalString(ctx sdk.Context, pkgPath string, expr string
 }
 
 func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err error) {
-	store := vm.getGnoStore(ctx)
+	store := vm.GetGnoStore(ctx)
 	dirpath, filename := std.SplitFilepath(filepath)
 	if filename != "" {
 		memFile := store.GetMemFile(dirpath, filename)
