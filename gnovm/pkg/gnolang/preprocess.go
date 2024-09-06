@@ -1341,7 +1341,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					} else if fv.PkgPath == uversePkgPath && fv.Name == "new" {
-						// new returns a pointer and pointers are always addressable.
+						// The pointer value returned is not addressable, but maybe some selector
+						// will make it addressable. For now mark it as not addressable.
 						n.Addressability = AddressabilityUnsatisfied
 					}
 				}
