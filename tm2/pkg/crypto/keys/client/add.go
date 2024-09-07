@@ -97,7 +97,7 @@ func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
 	// Check if the key name is provided
-	if len(args) != 1 {
+	if len(args) < 1 {
 		return flag.ErrHelp
 	}
 

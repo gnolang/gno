@@ -27,7 +27,7 @@ func NewAddLedgerCmd(cfg *AddCfg, io commands.IO) *commands.Command {
 
 func execAddLedger(cfg *AddCfg, args []string, io commands.IO) error {
 	// Validate a key name was provided
-	if len(args) != 1 {
+	if len(args) < 1 {
 		return flag.ErrHelp
 	}
 

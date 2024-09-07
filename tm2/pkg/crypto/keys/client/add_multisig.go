@@ -69,7 +69,7 @@ func (c *AddMultisigCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execAddMultisig(cfg *AddMultisigCfg, args []string, io commands.IO) error {
 	// Validate a key name was provided
-	if len(args) != 1 {
+	if len(args) < 1 {
 		return flag.ErrHelp
 	}
 

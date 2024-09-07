@@ -76,7 +76,7 @@ func execMakeCall(cfg *MakeCallCfg, args []string, io commands.IO) error {
 	if cfg.FuncName == "" {
 		return errors.New("func not specified")
 	}
-	if len(args) != 1 {
+	if len(args) < 1 {
 		return flag.ErrHelp
 	}
 	if cfg.RootCfg.GasWanted == 0 {

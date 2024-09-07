@@ -56,7 +56,7 @@ func (c *BroadcastCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
-	if len(args) != 1 {
+	if len(args) < 1 {
 		return flag.ErrHelp
 	}
 	filename := args[0]

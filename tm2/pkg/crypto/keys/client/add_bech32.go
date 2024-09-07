@@ -46,7 +46,7 @@ func (c *AddBech32Cfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execAddBech32(cfg *AddBech32Cfg, args []string, io commands.IO) error {
 	// Validate a key name was provided
-	if len(args) != 1 {
+	if len(args) < 1 {
 		return flag.ErrHelp
 	}
 

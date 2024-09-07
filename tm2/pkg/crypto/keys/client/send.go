@@ -55,7 +55,7 @@ func (c *MakeSendCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
-	if len(args) != 1 {
+	if len(args) < 1 {
 		return flag.ErrHelp
 	}
 
