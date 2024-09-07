@@ -3,8 +3,8 @@
 # Add new sponsor account
 adduser sponsor
 
-# Add new sponsoree key (only create key without creating account)
-addkey sponsoree
+# Add new sponsoree account
+adduser sponsoree
 
 # start a new node
 gnoland start
@@ -83,7 +83,7 @@ stdout 'height: 0'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
 stdout '    "address": '
-stdout '    "coins": "",' # Sponsoree's balance remains the same (sponsor paid the fees)
+stdout '    "coins": "10000000ugnot",' # Sponsoree's balance remains the same (sponsor paid the fees)
 stdout '    "public_key": {'
 stdout '      "@type": "/tm.PubKeySecp256k1",'
 stdout '      "value": '
