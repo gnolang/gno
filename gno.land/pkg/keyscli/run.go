@@ -133,10 +133,6 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 			Memo:       cfg.RootCfg.Memo,
 		}
 
-		if cfg.RootCfg.Broadcast {
-			return client.ExecSignAndBroadcast(cfg.RootCfg, args, tx, cmdio)
-		}
-
 		cmdio.Println(string(amino.MustMarshalJSON(tx)))
 
 		return nil
