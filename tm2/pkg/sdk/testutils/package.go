@@ -11,7 +11,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 ).WithDependencies().WithTypes(
 	// ...
 	&TestMsg{}, "TestMsg",
-	&NoopMsg{}, "NoopMsg",
 
 	// testmsgs.go
 	MsgCounter{},
