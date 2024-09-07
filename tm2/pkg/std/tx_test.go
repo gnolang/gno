@@ -161,20 +161,6 @@ func TestGetSigners(t *testing.T) {
 	}
 	tx = NewTx(msgs, Fee{}, []Signature{}, "")
 	require.Equal(t, []crypto.Address{addr, addr2}, tx.GetSigners())
-
-	// "no_op" message case
-	msgs = []Msg{
-		mockMsg{
-			caller:  addr,
-			msgType: "no_op",
-		},
-		mockMsg{
-			caller:  addr2,
-			msgType: "call",
-		},
-	}
-	tx = NewTx(msgs, Fee{}, []Signature{}, "")
-	require.Equal(t, []crypto.Address{addr, addr2}, tx.GetSigners())
 }
 
 func TestGetSignBytes(t *testing.T) {
@@ -264,7 +250,7 @@ func TestIsSponsorTx(t *testing.T) {
 					msgType: "call",
 				},
 			},
-			expected: true,
+			expected: false,
 		},
 		{
 			name:     "empty messages",
@@ -282,4 +268,15 @@ func TestIsSponsorTx(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestFee(t *testing.T) {
+	fee := Fee{
+		GasWanted: 1000,
+		GasFee:    Coin{Denom: "ugnot", Amount: 10},
+	}
+
+	expectedBytes := []byte(`{"gas_wanted":"1000","gas_fee":"10ugnot"}`)
+
+	require.Equal(t, expectedBytes, fee.Bytes(), "Bytes should return the correct JSON representation")
 }

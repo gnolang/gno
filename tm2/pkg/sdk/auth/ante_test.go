@@ -600,6 +600,7 @@ func TestAnteHandlerSponsorTx(t *testing.T) {
 
 	// Test Regular Transaction (will not work since addr2 doesn't exist on-chain)
 	t.Run("Test Regular Transaction", func(t *testing.T) {
+		t.Parallel()
 		// Create a regular transaction with addr2, which doesn't exist yet
 		msg1 := tu.NewTestMsg(addr2)
 		msg2 := tu.NewTestMsg(addr2)
@@ -619,6 +620,7 @@ func TestAnteHandlerSponsorTx(t *testing.T) {
 
 	// Test Sponsor Transaction (addr1 pays gas and addr2 is created if not on-chain)
 	t.Run("Test Sponsor Transaction", func(t *testing.T) {
+		t.Parallel()
 		// Create a sponsor transaction with two signers: addr1 (sponsor) and addr2
 		msg1 := tu.NewTestMsg(addr1)
 		msg2 := tu.NewTestMsg(addr2)
