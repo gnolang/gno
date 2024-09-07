@@ -212,25 +212,21 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
 	defer func() {
-		if tvv, ok := tv2.V.(PointerValue); ok && alloc != nil {
-			root := NewObject(*pv.TV)
-			var ho *GcObj
-
-			if hiv, ok := tvv.Base.(*HeapItemValue); ok {
-				ho = alloc.heap.FindObjectByTV(hiv.Value)
-			} else if _, ok := tvv.TV.V.(PointerValue); ok {
-				ho = alloc.heap.FindObjectByTV(*tvv.TV)
-			} else if _, ok := tvv.Base.(*ArrayValue); ok {
-				ho = alloc.heap.FindObjectByTV(*tvv.TV)
-			}
-
-			if ho == nil {
-				panic("should not happen")
-			}
-
-			root.AddRef(ho)
-			alloc.heap.AddRoot(root)
+		if tv2.V == nil {
+			return
 		}
+
+		u := Unwrap(*pv.TV)
+		ho := alloc.heap.FindObjectByTV(u)
+
+		if ho == nil {
+			return
+		}
+
+		root := NewObject(ho.tv)
+
+		root.AddRef(ho)
+		alloc.heap.AddRoot(root)
 	}()
 
 	// Special cases.

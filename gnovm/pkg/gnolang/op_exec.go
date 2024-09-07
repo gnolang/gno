@@ -99,15 +99,7 @@ func (m *Machine) doOpExec(op Op) {
 				cond := m.PopValue()
 				if !cond.GetBool() {
 					for _, value := range m.LastBlock().Roots {
-						if pv, ok := value.TV.V.(PointerValue); ok {
-							if _, ok := pv.Base.(*HeapItemValue); ok {
-								root := NewObject(*value.TV)
-								m.Alloc.heap.RemoveRoot(root)
-								m.Alloc.DeallocatePointer()
-							}
-						} else {
-							m.Alloc.DeallocObj(*value.TV)
-						}
+						m.Alloc.DeallocObj(*value.TV)
 					}
 
 					// done with loop.

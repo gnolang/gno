@@ -114,6 +114,19 @@ func (m *Machine) doOpCall() {
 		}
 		b.Values[0] = fr.Receiver
 		isMethod = 1
+
+		if m.Alloc != nil {
+			u := Unwrap(fr.Receiver)
+			obj := m.Alloc.heap.FindObjectByTV(u)
+
+			if obj != nil {
+				root := NewObject(u)
+				root.AddRef(obj)
+				m.Alloc.heap.AddRoot(root)
+
+				b.Roots = append(b.Roots, PointerValue{TV: &u})
+			}
+		}
 	}
 	// Convert variadic argument to slice argument.
 	// TODO: more optimizations may be possible here if
@@ -166,6 +179,19 @@ func (m *Machine) doOpCall() {
 		// in cases where the non-primitive value type is represented
 		// as a pointer, *StructValue, for example.
 		b.Values[i] = pv.Copy(m.Alloc)
+
+		if m.Alloc != nil {
+			u := Unwrap(pv)
+			obj := m.Alloc.heap.FindObjectByTV(u)
+
+			if obj != nil {
+				root := NewObject(u)
+				root.AddRef(obj)
+				m.Alloc.heap.AddRoot(root)
+
+				b.Roots = append(b.Roots, PointerValue{TV: &u})
+			}
+		}
 	}
 }
 

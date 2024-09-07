@@ -137,11 +137,36 @@ func (alloc *Allocator) DeallocDeleted(objs []*GcObj) {
 	}
 }
 
+func (alloc *Allocator) AllocateObj(tv TypedValue) {
+	switch v := tv.V.(type) {
+	case PointerValue:
+		alloc.AllocateType()
+
+		if v.TV != nil {
+			alloc.AllocateObj(*v.TV)
+		}
+	case *StructValue:
+		alloc.AllocateStruct()
+		alloc.AllocateStructFields(int64(len(v.Fields)))
+		alloc.AllocateType()
+		alloc.AllocateHeapItem()
+
+		for _, field := range v.Fields {
+			alloc.AllocateObj(field)
+		}
+	case *SliceValue:
+		alloc.AllocateSlice()
+	case *ArrayValue:
+		alloc.AllocateDataArray(int64(len(v.Data)))
+	default:
+	}
+}
+
 func (alloc *Allocator) DeallocObj(tv TypedValue) {
 	switch v := tv.V.(type) {
 	case PointerValue:
 		alloc.DeallocateType()
-		// alloc.DeallocObj(*v.TV)
+		alloc.DeallocatePointer()
 	case *StructValue:
 		alloc.DeallocateStruct()
 		alloc.DeallocateStructFields(int64(len(v.Fields)))
@@ -156,10 +181,6 @@ func (alloc *Allocator) DeallocObj(tv TypedValue) {
 	case *ArrayValue:
 		alloc.DeallocateDataArray(int64(len(v.Data)))
 	default:
-		switch tv.T {
-		default:
-			// fmt.Printf("DeallocDeleted: unimplemented %T\n", v)
-		}
 	}
 }
 
@@ -418,18 +439,9 @@ func (alloc *Allocator) DropPointers(ptrs []PointerValue) {
 	}
 
 	for _, ptr := range ptrs {
-		if pv, ok := ptr.TV.V.(PointerValue); ok {
-			_, isHeap := pv.Base.(*HeapItemValue)
-			_, isPtr := pv.TV.V.(PointerValue)
-			_, isArr := pv.Base.(*ArrayValue)
-
-			if !isHeap && !isPtr && !isArr {
-				panic("invalid ptr")
-			}
-
-			root := NewObject(*ptr.TV)
-			alloc.heap.RemoveRoot(root)
-			alloc.DeallocatePointer()
+		if ptr.TV != nil && ptr.TV.V != nil {
+			alloc.heap.RemoveRoot(*ptr.TV)
 		}
+		alloc.DeallocatePointer()
 	}
 }

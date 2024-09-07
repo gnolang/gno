@@ -15,10 +15,12 @@ func (m *Machine) doOpDefine() {
 
 		// todo only if its redeclared inside the same block
 		if m.Alloc != nil {
-			if ppv, ok := ptr.TV.V.(PointerValue); ok {
-				if _, ok := ppv.Base.(*HeapItemValue); ok {
-					root := NewObject(*ptr.TV)
-					m.Alloc.heap.RemoveRoot(root)
+			if ptr.TV.V != nil {
+				u := Unwrap(*ptr.TV)
+				obj := m.Alloc.heap.FindObjectByTV(u)
+
+				if obj != nil {
+					m.Alloc.heap.RemoveRoot(obj.tv)
 					m.Alloc.DeallocatePointer()
 				}
 			} else if _, ok := rvs[i].V.(PointerValue); ok {

@@ -21,7 +21,7 @@ func TestAddAndRemoveRoot(t *testing.T) {
 		t.Errorf("Expected 1 root, got %d", len(h.roots))
 	}
 
-	h.RemoveRoot(obj1)
+	h.RemoveRoot(obj1.tv)
 
 	if len(h.roots) != 0 {
 		t.Errorf("Expected 0 roots, got %d", len(h.roots))
@@ -104,5 +104,5 @@ func TestRootNotFound(t *testing.T) {
 	h.AddRoot(obj1)
 
 	// Attempt to remove a root that is not in the list
-	h.RemoveRoot(obj2) // This should panic
+	h.RemoveRoot(obj2.tv) // This should panic
 }

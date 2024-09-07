@@ -17,15 +17,40 @@ func (obj *GcObj) AddRef(ref *GcObj) {
 		obj.refs = append(obj.refs, ref)
 
 		for _, field := range v.Fields {
-			if pv, ok := field.V.(PointerValue); ok {
-				if _, ok := pv.Base.(*HeapItemValue); ok {
-					fobj := NewObject(*pv.TV)
-					obj.AddRef(fobj)
-				}
+			fobj := MakeHeapObj(field)
+
+			if fobj != nil {
+				obj.AddRef(fobj)
 			}
 		}
-	case *StringValue, *SliceValue, PointerValue:
+	case StringValue, *SliceValue, PointerValue:
 		obj.refs = append(obj.refs, ref)
+	}
+}
+
+func Unwrap(tv TypedValue) TypedValue {
+	tvv := &tv
+
+	for {
+		ptr, ok := tvv.V.(PointerValue)
+
+		if !ok {
+			return *tvv
+		}
+
+		tvv = ptr.TV
+	}
+}
+
+func MakeHeapObj(tv TypedValue) *GcObj {
+	switch tv.V.(type) {
+	case *SliceValue, *StructValue, *ArrayValue, StringValue:
+		return &GcObj{
+			marked: true,
+			tv:     tv,
+		}
+	default:
+		return nil
 	}
 }
 
@@ -51,25 +76,15 @@ func (h *Heap) FindObjectByTV(tv TypedValue) *GcObj {
 			return object
 		}
 	}
-
-	//println("FindObjectByTV: cannot find heap object")
-	//println("heap:")
-	//for _, object := range h.objects {
-	//	fmt.Printf("%+v\n", object.tv)
-	//}
-	//
-	//println("obj:")
-	//fmt.Printf("%+v\n", tv)
-	//panic(123)
-	panic("FindObjectByTV: Double free or use after free bug")
+	return nil
 }
 
-func (h *Heap) RemoveRoot(root *GcObj) {
+func (h *Heap) RemoveRoot(tv TypedValue) {
 	roots := make([]*GcObj, 0, len(h.roots))
 	var deleted bool
 
 	for _, r := range h.roots {
-		if !deleted && r.tv.V == root.tv.V {
+		if !deleted && len(r.refs) == 1 && r.refs[0].tv == tv {
 			deleted = true
 			continue
 		}
@@ -77,7 +92,7 @@ func (h *Heap) RemoveRoot(root *GcObj) {
 	}
 
 	if !deleted {
-		panic(fmt.Sprintf("Cannot find root from heap: %v\nroot: %+v\n", roots, root.tv.V))
+		panic(fmt.Sprintf("Cannot find root from heap: %v\nroot: %+v\n", roots, tv))
 	}
 
 	h.roots = roots
