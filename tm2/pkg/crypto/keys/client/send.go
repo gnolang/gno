@@ -112,7 +112,7 @@ func execMakeSend(cfg *MakeSendCfg, args []string, io commands.IO) error {
 	}
 
 	// if a sponsor onchain address is specified
-	if cfg.RootCfg.Sponsor != "" && !cfg.RootCfg.Broadcast {
+	if cfg.RootCfg.Sponsor != "" {
 		sponsorAddress, err := crypto.AddressFromBech32(cfg.RootCfg.Sponsor)
 		if err != nil {
 			return errors.Wrap(err, "invalid sponsor address")
