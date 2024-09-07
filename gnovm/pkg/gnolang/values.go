@@ -212,7 +212,7 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
 	defer func() {
-		if tv2.V == nil {
+		if alloc == nil || tv2.V == nil {
 			return
 		}
 
