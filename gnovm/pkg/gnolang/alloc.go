@@ -91,6 +91,8 @@ func (alloc *Allocator) Reset() *Allocator {
 		return nil
 	}
 	alloc.bytes = 0
+	alloc.heap = NewHeap()
+
 	return alloc
 }
 
@@ -101,6 +103,7 @@ func (alloc *Allocator) Fork() *Allocator {
 	return &Allocator{
 		maxBytes: alloc.maxBytes,
 		bytes:    alloc.bytes,
+		heap:     alloc.heap,
 	}
 }
 
