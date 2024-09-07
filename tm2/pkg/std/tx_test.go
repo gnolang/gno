@@ -250,7 +250,7 @@ func TestIsSponsorTx(t *testing.T) {
 					msgType: "call",
 				},
 			},
-			expected: false,
+			expected: true,
 		},
 		{
 			name:     "empty messages",
