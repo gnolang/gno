@@ -127,7 +127,10 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		}
 
 		tx := std.Tx{
-			Msgs:       []std.Msg{vm.NewMsgNoop(sponsorAddress), msg},
+			Msgs: []std.Msg{
+				vm.NewMsgNoop(sponsorAddress),
+				msg,
+			},
 			Fee:        std.NewFee(gaswanted, gasfee),
 			Signatures: nil,
 			Memo:       cfg.RootCfg.Memo,

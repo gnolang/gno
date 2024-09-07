@@ -407,11 +407,13 @@ func TestSign_SignTx(t *testing.T) {
 		t.Parallel()
 
 		var (
-			kbHome      = t.TempDir()
-			baseOptions = BaseOptions{
-				InsecurePasswordStdin: true,
-				Home:                  kbHome,
-				Quiet:                 true,
+			kbHome  = t.TempDir()
+			rootCfg = &BaseCfg{
+				BaseOptions: BaseOptions{
+					InsecurePasswordStdin: true,
+					Home:                  kbHome,
+					Quiet:                 true,
+				},
 			}
 
 			mnemonic        = generateTestMnemonic(t)
@@ -499,16 +501,14 @@ func TestSign_SignTx(t *testing.T) {
 		)
 
 		// Create the command
-		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+		cmd := NewSignCmd(rootCfg, io)
 
 		args := []string{
-			"sign",
-			"--insecure-password-stdin",
-			"--home",
-			kbHome,
-			"--tx-path",
-			txFile.Name(),
 			key1,
+			"-tx-path",
+			txFile.Name(),
+			"-fetch-account-info",
+			"true",
 		}
 
 		// Run the command
@@ -531,11 +531,13 @@ func TestSign_SignTx(t *testing.T) {
 		t.Parallel()
 
 		var (
-			kbHome      = t.TempDir()
-			baseOptions = BaseOptions{
-				InsecurePasswordStdin: true,
-				Home:                  kbHome,
-				Quiet:                 true,
+			kbHome  = t.TempDir()
+			rootCfg = &BaseCfg{
+				BaseOptions: BaseOptions{
+					InsecurePasswordStdin: true,
+					Home:                  kbHome,
+					Quiet:                 true,
+				},
 			}
 
 			mnemonic        = generateTestMnemonic(t)
@@ -620,16 +622,14 @@ func TestSign_SignTx(t *testing.T) {
 		)
 
 		// Create the command
-		cmd := NewRootCmdWithBaseConfig(io, baseOptions)
+		cmd := NewSignCmd(rootCfg, io)
 
 		args := []string{
-			"sign",
-			"--insecure-password-stdin",
-			"--home",
-			kbHome,
-			"--tx-path",
-			txFile.Name(),
 			key1,
+			"-tx-path",
+			txFile.Name(),
+			"-fetch-account-info",
+			"true",
 		}
 
 		// Run the command
