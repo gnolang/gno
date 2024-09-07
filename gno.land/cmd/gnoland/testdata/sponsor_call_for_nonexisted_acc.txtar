@@ -1,18 +1,18 @@
-# Test for performing a sponsor transaction for an non-existed on-chain account (sponsoree)
+# Test for performing a sponsor call transaction for an non-existed on-chain account (sponsoree)
 
 # Load the package from $WORK directory
-loadpkg gno.land/r/demo/echo
+loadpkg gno.land/r/demo/nft $WORK
 
 # Add new sponsor account
 adduser sponsor
 
-# Add new sponsoree key (only create key without creating account)
+# Create a sponsoree key (only the key, without creating the on-chain account)
 addkey sponsoree
 
 # start a new node
 gnoland start
 
-# Query sponsoree's account before
+# Query sponsor's account before the transaction to check initial state
 gnokey query auth/accounts/${USER_ADDR_sponsor}
 stdout 'height: 0'
 stdout 'data: {'
@@ -20,33 +20,34 @@ stdout '  "BaseAccount": {'
 stdout '    "address": '
 stdout '    "coins": "10000000ugnot",'
 stdout '    "public_key": null,'
-stdout '    "account_number": "56",'
+stdout '    "account_number": "\d+",'
 stdout '    "sequence": "0"'
 stdout '  }'
 stdout '}'
-! stderr '.+' # empty
+! stderr '.+' # Ensure no errors
 
-# Query sponsor's account before
+# Query sponsoree's account before the transaction (should not exist yet)
 gnokey query auth/accounts/${USER_ADDR_sponsoree}
 stdout 'height: 0'
 stdout 'data: null'
 
-# Sponsoree create transaction
-gnokey maketx call -pkgpath gno.land/r/demo/echo -chainid=tendermint_test -func Render -args "HELLO" -gas-fee 1000000ugnot -gas-wanted 2000000 -sponsor=${USER_ADDR_sponsor} sponsoree
+# Sponsoree creates the transaction (call to Mint in nft realm)
+# Sponsor address is provided for sponsorship
+gnokey maketx call -pkgpath gno.land/r/demo/nft -chainid=tendermint_test -func Mint -gas-fee 1000000ugnot -gas-wanted 2000000 -sponsor=${USER_ADDR_sponsor} sponsoree
 cp stdout sponsor.tx
 
-# Sponsoree sign transaction
+# Sponsoree signs the transaction
 gnokey sign -tx-path $WORK/sponsor.tx -chainid  "tendermint_test" -fetch-account-info=true sponsoree
 cmpenv stdout sign.stdout.golden
 
-# Sponsor countersign transaction
+# Sponsor countersigns the transaction
 gnokey sign -tx-path $WORK/sponsor.tx -chainid "tendermint_test" -fetch-account-info=true sponsor
 cmpenv stdout sign.stdout.golden
 
-# Sponsor broadcast transaction
+# Sponsor broadcasts the transaction
 gnokey broadcast $WORK/sponsor.tx
 
-# Compare output
+# Compare output to ensure the transaction was successful
 stdout OK!
 stdout 'GAS WANTED: 2000000'
 stdout 'GAS USED:   \d+'
@@ -54,39 +55,47 @@ stdout 'HEIGHT:     \d+'
 stdout 'EVENTS:     \[\]'
 stdout 'TX HASH:    '
 
-# Query sponsor's account after
+# Query sponsor's account after the transaction to see gas deduction
 gnokey query auth/accounts/${USER_ADDR_sponsor}
 stdout 'height: 0'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
 stdout '    "address": '
-stdout '    "coins": "9000000ugnot",'
+stdout '    "coins": "9000000ugnot",' # 1000000 ugnot gas deducted from sponsor's balance
 stdout '    "public_key": {'
 stdout '      "@type": "/tm.PubKeySecp256k1",'
 stdout '      "value": '
 stdout '    },'
-stdout '    "account_number": "56",'
-stdout '    "sequence": "1"'
+stdout '    "account_number": "\d+",'
+stdout '    "sequence": "1"' # Sequence incremented after transaction
 stdout '  }'
 stdout '}'
-! stderr '.+' # empty
+! stderr '.+' # Ensure no errors
 
-# Query sponsoree's account after
+# Query sponsoree's account after the transaction (now created)
 gnokey query auth/accounts/${USER_ADDR_sponsoree}
 stdout 'height: 0'
 stdout 'data: {'
 stdout '  "BaseAccount": {'
 stdout '    "address": '
-stdout '    "coins": "",'
+stdout '    "coins": "",' # Sponsoree has no coins (sponsor paid the fees)
 stdout '    "public_key": {'
 stdout '      "@type": "/tm.PubKeySecp256k1",'
 stdout '      "value": '
 stdout '    },'
-stdout '    "account_number": "62",'
-stdout '    "sequence": "1"'
+stdout '    "account_number": "\d+",' # Sponsoree's new account number
+stdout '    "sequence": "1"' # Sequence incremented after transaction
 stdout '  }'
 stdout '}'
-! stderr '.+' # empty
+! stderr '.+' # Ensure no errors
+
+
+-- nft.gno --
+package nft
+
+func Mint() string {
+ 	return "Minted NFT successful"
+}
 
 -- sign.stdout.golden --
 

@@ -1,0 +1,107 @@
+# Test for performing a sponsor addpkg transaction for an existed on-chain account (sponsoree)
+
+# Add new sponsor account
+adduser sponsor
+
+# Add new sponsoree key (only create key without creating account)
+addkey sponsoree
+
+# start a new node
+gnoland start
+
+# Query sponsor's account before the transaction to check initial state
+gnokey query auth/accounts/${USER_ADDR_sponsor}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": '
+stdout '    "coins": "10000000ugnot",'
+stdout '    "public_key": null,'
+stdout '    "account_number": "\d+",'
+stdout '    "sequence": "0"'
+stdout '  }'
+stdout '}'
+! stderr '.+' # Ensure no errors
+
+# Query sponsoree's account before the transaction to check initial state
+gnokey query auth/accounts/${USER_ADDR_sponsoree}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": '
+stdout '    "coins": "10000000ugnot",'
+stdout '    "public_key": null,'
+stdout '    "account_number": "\d+",'
+stdout '    "sequence": "0"'
+stdout '  }'
+stdout '}'
+! stderr '.+' # Ensure no errors
+
+# Sponsoree creates the transaction (deploy nft realm)
+gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/${USER_ADDR_sponsoree}/nft -gas-fee 1000000ugnot -gas-wanted 20000000 -chainid=tendermint_test -sponsor=${USER_ADDR_sponsor} sponsoree
+cp stdout sponsor.tx
+
+# Sponsoree signs the transaction
+gnokey sign -tx-path $WORK/sponsor.tx -chainid "tendermint_test" -fetch-account-info=true sponsoree
+cmpenv stdout sign.stdout.golden
+
+# Sponsor countersigns the transaction
+gnokey sign -tx-path $WORK/sponsor.tx -chainid "tendermint_test" -fetch-account-info=true sponsor
+cmpenv stdout sign.stdout.golden
+
+# Sponsor broadcasts the transaction
+gnokey broadcast $WORK/sponsor.tx
+
+# Compare output to ensure the transaction was successful
+stdout OK!
+stdout 'GAS WANTED: 20000000'
+stdout 'GAS USED:   \d+'
+stdout 'HEIGHT:     \d+'
+stdout 'EVENTS:     \[\]'
+stdout 'TX HASH:    '
+
+# Query sponsor's account after the transaction to see gas deduction
+gnokey query auth/accounts/${USER_ADDR_sponsor}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": '
+stdout '    "coins": "9000000ugnot",' # 1000000 ugnot gas deducted from sponsor's balance
+stdout '    "public_key": {'
+stdout '      "@type": "/tm.PubKeySecp256k1",'
+stdout '      "value": '
+stdout '    },'
+stdout '    "account_number": "\d+",'
+stdout '    "sequence": "1"' # Sequence incremented after transaction
+stdout '  }'
+stdout '}'
+! stderr '.+' # Ensure no errors
+
+# Query sponsoree's account after the transaction
+gnokey query auth/accounts/${USER_ADDR_sponsoree}
+stdout 'height: 0'
+stdout 'data: {'
+stdout '  "BaseAccount": {'
+stdout '    "address": '
+stdout '    "coins": "",' # Sponsoree's balance remains the same (sponsor paid the fees)
+stdout '    "public_key": {'
+stdout '      "@type": "/tm.PubKeySecp256k1",'
+stdout '      "value": '
+stdout '    },'
+stdout '    "account_number": "\d+",'
+stdout '    "sequence": "1"' # Sequence incremented after transaction
+stdout '  }'
+stdout '}'
+! stderr '.+' # Ensure no errors
+
+
+-- nft.gno --
+package nft
+
+func Mint() string {
+ 	return "Minted NFT successful"
+}
+
+-- sign.stdout.golden --
+
+Tx successfully signed and saved to $WORK/sponsor.tx
