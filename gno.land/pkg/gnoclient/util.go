@@ -26,6 +26,7 @@ type BaseTxCfg struct {
 	Memo           string // Memo
 }
 
+// validate validates the base transaction configuration.
 func (cfg BaseTxCfg) validate() error {
 	if cfg.GasWanted <= 0 {
 		return ErrInvalidGasWanted
@@ -42,16 +43,11 @@ type SponsorTxCfg struct {
 	SponsorAddress crypto.Address
 }
 
-// IsValid validates the base transaction configuration.
+// validate validates the sponsor transaction configuration.
 func (cfg SponsorTxCfg) validate() error {
 	if cfg.SponsorAddress.IsZero() {
 		return ErrInvalidSponsorAddress
 	}
-	if cfg.GasWanted <= 0 {
-		return ErrInvalidGasWanted
-	}
-	if cfg.GasFee == "" {
-		return ErrInvalidGasFee
-	}
-	return nil
+
+	return cfg.BaseTxCfg.validate()
 }
