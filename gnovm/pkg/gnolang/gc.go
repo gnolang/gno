@@ -84,7 +84,7 @@ func (h *Heap) RemoveRoot(tv TypedValue) {
 	var deleted bool
 
 	for _, r := range h.roots {
-		if !deleted && len(r.refs) == 1 && r.refs[0].tv == tv {
+		if !deleted && len(r.refs) == 1 && r.refs[0].tv == Unwrap(tv) {
 			deleted = true
 			continue
 		}
