@@ -1,4 +1,4 @@
-package diceduel
+package diceroller
 
 import (
 	"errors"
