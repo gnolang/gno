@@ -94,7 +94,7 @@ func (c *SignCfg) RegisterFlags(fs *flag.FlagSet) {
 
 func execSign(cfg *SignCfg, args []string, io commands.IO) error {
 	// Make sure the key name is provided
-	if len(args) < 1 {
+	if len(args) != 1 {
 		return flag.ErrHelp
 	}
 
