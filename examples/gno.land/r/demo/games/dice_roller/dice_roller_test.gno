@@ -26,8 +26,10 @@ func resetGameState() {
 func TestNewGame(t *testing.T) {
 	resetGameState()
 
+	maxRounds := 100
+
 	std.TestSetOrigCaller(player1)
-	gameID := NewGame(player2, 3)
+	gameID := NewGame(player2, maxRounds)
 
 	// Verify that the game has been correctly initialized
 	g, err := gameByID(gameID)
@@ -39,7 +41,12 @@ func TestNewGame(t *testing.T) {
 	urequire.Equal(t, 0, g.score1)
 	urequire.Equal(t, 0, g.score2)
 	urequire.Equal(t, 0, g.round)
-	urequire.Equal(t, 3, g.maxRounds)
+	urequire.Equal(t, maxRounds, g.maxRounds)
+
+	// Invalid game with negative rounds
+	urequire.PanicsWithMessage(t, "invalid number of rounds", func() {
+		NewGame(player2, -1)
+	})
 }
 
 // TestPlay tests the dice rolling functionality for both players
