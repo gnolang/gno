@@ -585,14 +585,15 @@ func (m *Machine) doOpSliceLit() {
 	}
 
 	if m.Alloc != nil {
-		obj := NewObject(tv)
+		obj := NewObject(Unwrap(tv))
 		m.Alloc.heap.AddObject(obj)
 
 		for _, e := range es {
-			el := NewObject(e)
-			m.Alloc.heap.AddObject(el)
-			obj.AddRef(el)
-			el.AddRef(obj)
+			el := MakeHeapObj(Unwrap(e))
+			if el != nil {
+				m.Alloc.heap.AddObject(el)
+				m.Alloc.heap.AddRef(obj, el)
+			}
 		}
 	}
 

@@ -43,8 +43,8 @@ func TestMarkAndSweep(t *testing.T) {
 	h.AddObject(obj4)
 
 	// Set up references
-	obj1.AddRef(obj2)
-	obj1.AddRef(obj3)
+	h.AddRef(obj1, obj2)
+	h.AddRef(obj1, obj3)
 
 	// Add root
 	h.AddRoot(obj1)
@@ -73,8 +73,8 @@ func TestCircularReference(t *testing.T) {
 	h.AddObject(obj2)
 
 	// Set up circular reference
-	obj1.AddRef(obj2)
-	obj2.AddRef(obj1)
+	h.AddRef(obj1, obj2)
+	h.AddRef(obj2, obj1)
 
 	// Add root
 	h.AddRoot(obj1)

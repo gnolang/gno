@@ -225,7 +225,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 
 		root := NewObject(ho.tv)
 
-		root.AddRef(ho)
+		alloc.heap.AddRef(root, ho)
 		alloc.heap.AddRoot(root)
 	}()
 

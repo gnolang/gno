@@ -121,7 +121,7 @@ func (m *Machine) doOpCall() {
 
 			if obj != nil {
 				root := NewObject(u)
-				root.AddRef(obj)
+				m.Alloc.heap.AddRef(root, obj)
 				m.Alloc.heap.AddRoot(root)
 
 				b.Roots = append(b.Roots, PointerValue{TV: &u})
@@ -186,7 +186,7 @@ func (m *Machine) doOpCall() {
 
 			if obj != nil {
 				root := NewObject(u)
-				root.AddRef(obj)
+				m.Alloc.heap.AddRef(root, obj)
 				m.Alloc.heap.AddRoot(root)
 
 				b.Roots = append(b.Roots, PointerValue{TV: &u})

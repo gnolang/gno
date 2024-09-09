@@ -11,23 +11,6 @@ type GcObj struct {
 	refs   []*GcObj
 }
 
-func (obj *GcObj) AddRef(ref *GcObj) {
-	switch v := ref.tv.V.(type) {
-	case *StructValue:
-		obj.refs = append(obj.refs, ref)
-
-		for _, field := range v.Fields {
-			fobj := MakeHeapObj(field)
-
-			if fobj != nil {
-				obj.AddRef(fobj)
-			}
-		}
-	case StringValue, *SliceValue, PointerValue:
-		obj.refs = append(obj.refs, ref)
-	}
-}
-
 func Unwrap(tv TypedValue) TypedValue {
 	tvv := &tv
 
@@ -68,6 +51,36 @@ type Heap struct {
 
 func NewHeap() *Heap {
 	return &Heap{}
+}
+
+func (heap *Heap) AddRef(obj *GcObj, ref *GcObj) {
+	switch v := ref.tv.V.(type) {
+	case *StructValue:
+		obj.refs = append(obj.refs, ref)
+
+		for _, field := range v.Fields {
+			fobj := heap.FindObjectByTV(Unwrap(field))
+
+			if fobj != nil {
+				heap.AddRef(ref, fobj)
+			}
+		}
+	case *SliceValue:
+		obj.refs = append(obj.refs, ref)
+		av := v.Base.(*ArrayValue)
+
+		for _, value := range av.List {
+			fobj := heap.FindObjectByTV(Unwrap(value))
+
+			if fobj != nil {
+				heap.AddRef(ref, fobj)
+			}
+		}
+	case StringValue:
+		obj.refs = append(obj.refs, ref)
+	default:
+		panic(fmt.Sprintf("Unhandled type %T", v))
+	}
 }
 
 func (h *Heap) FindObjectByTV(tv TypedValue) *GcObj {

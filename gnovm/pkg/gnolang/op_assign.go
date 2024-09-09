@@ -15,6 +15,8 @@ func (m *Machine) doOpDefine() {
 
 		// todo only if its redeclared inside the same block
 		if m.Alloc != nil {
+			ho := MakeHeapObj(Unwrap(rvs[i]))
+
 			if ptr.TV.V != nil {
 				u := Unwrap(*ptr.TV)
 				obj := m.Alloc.heap.FindObjectByTV(u)
@@ -23,7 +25,7 @@ func (m *Machine) doOpDefine() {
 					m.Alloc.heap.RemoveRoot(obj.tv)
 					m.Alloc.DeallocatePointer()
 				}
-			} else if _, ok := rvs[i].V.(PointerValue); ok {
+			} else if ho != nil {
 				lb.Roots = append(lb.Roots, ptr)
 			}
 		}
