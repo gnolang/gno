@@ -706,7 +706,6 @@ func (vm *VMKeeper) SetMeta(ctx sdk.Context, msg MsgSetMeta) error {
 
 	// Only the package creator is allowed to change its metadata.
 	// TODO: When gno.land/r/sys/users is not available check silently passes. How to check effectibly?
-	// TODO: Should address based namespaces be checked separately?
 	if err := vm.checkNamespacePermission(ctx, msg.Caller, msg.PkgPath); err != nil {
 		return err
 	}

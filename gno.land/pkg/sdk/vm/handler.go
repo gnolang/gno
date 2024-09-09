@@ -72,7 +72,6 @@ func (vh vmHandler) handleMsgRun(ctx sdk.Context, msg MsgRun) (res sdk.Result) {
 
 // Handle MsgSetMeta.
 func (vh vmHandler) handleMsgSetMeta(ctx sdk.Context, msg MsgSetMeta) sdk.Result {
-	// TODO: Add package metadata query support
 	err := vh.vm.SetMeta(ctx, msg)
 	if err != nil {
 		return abciResult(err)
