@@ -99,7 +99,6 @@ func (vm *VMKeeper) Initialize(
 	vm.gnoStore = gno.NewStore(alloc, baseStore, iavlStore)
 	vm.gnoStore.SetNativeStore(stdlibs.NativeStore)
 
-
 	if vm.gnoStore.NumMemPackages() > 0 {
 		// for now, all mem packages must be re-run after reboot.
 		// TODO remove this, and generally solve for in-mem garbage collection
