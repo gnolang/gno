@@ -2,9 +2,11 @@ package gnolang
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -150,4 +152,42 @@ func countCodeLines(content string) int {
 
 func isTestFile(pkgPath string) bool {
 	return strings.HasSuffix(pkgPath, "_test.gno") || strings.HasSuffix(pkgPath, "_testing.gno") || strings.HasSuffix(pkgPath, "_filetest.gno")
+}
+
+type JSONCoverage struct {
+	Files map[string]JSONFileCoverage `json:"files"`
+}
+
+type JSONFileCoverage struct {
+	TotalLines int            `json:"total_lines"`
+	HitLines   map[string]int `json:"hit_lines"`
+}
+
+func (c *CoverageData) ToJSON() ([]byte, error) {
+	jsonCov := JSONCoverage{
+		Files: make(map[string]JSONFileCoverage),
+	}
+
+	for file, coverage := range c.Files {
+		hitLines := make(map[string]int)
+		for line, count := range coverage.HitLines {
+			hitLines[strconv.Itoa(line)] = count
+		}
+
+		jsonCov.Files[file] = JSONFileCoverage{
+			TotalLines: coverage.TotalLines,
+			HitLines:   hitLines,
+		}
+	}
+
+	return json.MarshalIndent(jsonCov, "", "  ")
+}
+
+func (c *CoverageData) SaveJSON(fileName string) error {
+	data, err := c.ToJSON()
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(fileName, data, 0o644)
 }

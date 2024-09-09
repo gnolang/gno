@@ -36,8 +36,11 @@ type testCfg struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	withNativeFallback  bool
+
+	// coverage flags
 	coverage            bool
 	showColoredCoverage bool
+	output              string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -164,6 +167,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"show-colored-coverage",
 		false,
 		"show colored coverage in terminal",
+	)
+
+	fs.StringVar(
+		&c.output,
+		"out",
+		"",
+		"save coverage data as JSON to specified file",
 	)
 }
 
@@ -416,6 +426,14 @@ func gnoTestPkg(
 			}
 		} else {
 			coverageData.Report()
+		}
+
+		if cfg.output != "" {
+			err := coverageData.SaveJSON(cfg.output)
+			if err != nil {
+				return fmt.Errorf("failed to save coverage data: %w", err)
+			}
+			io.Println("coverage data saved to", cfg.output)
 		}
 	}
 
