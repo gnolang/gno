@@ -48,32 +48,6 @@ var (
 	seed = uint64(entropy.New().Seed())
 )
 
-func init() {
-	// Pre-define two players for initial setup
-	addr1 := std.Address("g1y490harzjqmdngmmaw4tyc4qdm5ma5k0fv3w6p")
-	addr2 := std.Address("g1z4dfj9dvknvahykg3rhjrpsexhp4vl8gnde27q")
-
-	// Initialize two players and their initial game stats
-	players.Set(addr1.String(), &player{
-		addr:   addr1,
-		wins:   1,
-		points: 3, // Wins give 3 points
-	})
-
-	players.Set(addr2.String(), &player{
-		addr:   addr2,
-		losses: 1,
-		points: 0, // Losses give 0 points
-	})
-
-	games.Set(gameId.Next().String(), &game{
-		player1: addr1,
-		player2: addr2,
-		roll1:   6,
-		roll2:   5,
-	})
-}
-
 // rollDice generates a random dice roll between 1 and 6
 func rollDice() int {
 	r := rand.New(rand.NewPCG(seed, 0xdeadbeef))
