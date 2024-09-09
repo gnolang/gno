@@ -1,13 +1,17 @@
 package std
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
+
+const DefaultAccount_Seed = "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
 
 func TestPrevRealmIsOrigin(t *testing.T) {
 	var (
@@ -190,5 +194,33 @@ func TestPrevRealmIsOrigin(t *testing.T) {
 			assert.Equal(tt.expectedPkgPath, pkgPath)
 			assert.Equal(tt.expectedIsOriginCall, isOrigin)
 		})
+	}
+}
+
+func TestVerify(t *testing.T) {
+	kb := keys.NewInMemory()
+	pass := "hardPass"
+	info, err := kb.CreateAccount("user", DefaultAccount_Seed, pass, pass, 0, 0)
+	assert.NoError(t, err)
+
+	publicKey := info.GetPubKey().String() // gpub1pgfj7ard9eg82cjtv4u4xetrwqer2dntxyfzxz3pqfzjcj8wph4wl0x7tqu3k7geuqsz2d45eddys0hgf0xd7dr2dupnqukpghs
+	goodMessage := "Verification Ok"
+	maliciousMessage := "Malicious Message"
+	signature, _, err := kb.Sign("user", pass, []byte(goodMessage))
+	assert.NoError(t, err)
+	signatureHex := hex.EncodeToString(signature)
+	signatureValid, signer := X_verifySignature(publicKey, goodMessage, signatureHex)
+
+	if !signatureValid {
+		t.Error("verify failed")
+	}
+
+	if signer != info.GetAddress().String() {
+		t.Error("signer is not equal to address")
+	}
+
+	signatureValid, _ = X_verifySignature(publicKey, maliciousMessage, signatureHex)
+	if signatureValid {
+		t.Error("verify worked on malicious message")
 	}
 }
