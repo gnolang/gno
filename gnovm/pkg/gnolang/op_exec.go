@@ -99,7 +99,7 @@ func (m *Machine) doOpExec(op Op) {
 				cond := m.PopValue()
 				if !cond.GetBool() {
 					for _, value := range m.LastBlock().Roots {
-						m.Alloc.DeallocObj(*value.TV)
+						m.Alloc.DeallocObj(*value.tv)
 					}
 
 					// done with loop.

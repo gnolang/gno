@@ -1974,7 +1974,9 @@ func (m *Machine) PopFrameAndReturn() {
 		if ptr, ok := res.V.(PointerValue); ok && m.Alloc != nil {
 			if _, ok := ptr.Base.(*HeapItemValue); ok {
 				obj := m.Alloc.heap.FindObjectByTV(*ptr.TV)
-				obj.marked = true
+				if obj != nil {
+					obj.marked = true
+				}
 			}
 		}
 

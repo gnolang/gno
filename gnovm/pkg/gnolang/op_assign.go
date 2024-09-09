@@ -26,7 +26,7 @@ func (m *Machine) doOpDefine() {
 					m.Alloc.DeallocatePointer()
 				}
 			} else if ho != nil {
-				lb.Roots = append(lb.Roots, ptr)
+				lb.Roots = append(lb.Roots, RootPtr{ptr.TV})
 			}
 		}
 

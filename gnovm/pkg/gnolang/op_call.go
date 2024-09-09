@@ -124,7 +124,7 @@ func (m *Machine) doOpCall() {
 				m.Alloc.heap.AddRef(root, obj)
 				m.Alloc.heap.AddRoot(root)
 
-				b.Roots = append(b.Roots, PointerValue{TV: &u})
+				b.Roots = append(b.Roots, RootPtr{&u})
 			}
 		}
 	}
@@ -189,7 +189,7 @@ func (m *Machine) doOpCall() {
 				m.Alloc.heap.AddRef(root, obj)
 				m.Alloc.heap.AddRoot(root)
 
-				b.Roots = append(b.Roots, PointerValue{TV: &u})
+				b.Roots = append(b.Roots, RootPtr{&u})
 			}
 		}
 	}

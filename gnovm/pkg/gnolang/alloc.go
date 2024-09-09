@@ -436,15 +436,17 @@ func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 	return &HeapItemValue{Value: tv}
 }
 
-func (alloc *Allocator) DropPointers(ptrs []PointerValue) {
+func (alloc *Allocator) DropPointers(ptrs []RootPtr) {
 	if alloc == nil {
 		return
 	}
 
 	for _, ptr := range ptrs {
-		if ptr.TV != nil && ptr.TV.V != nil {
-			alloc.heap.RemoveRoot(*ptr.TV)
+		if ptr.tv != nil && ptr.tv.V != nil {
+			alloc.heap.RemoveRoot(*ptr.tv)
 		}
-		alloc.DeallocatePointer()
+		if ptr.shoulDeallocate() {
+			alloc.DeallocatePointer()
+		}
 	}
 }

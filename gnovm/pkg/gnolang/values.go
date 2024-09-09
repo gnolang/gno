@@ -2373,10 +2373,27 @@ type Block struct {
 	ObjectInfo
 	Source   BlockNode
 	Values   []TypedValue
-	Roots    []PointerValue
+	Roots    []RootPtr
 	Parent   Value
 	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
 	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
+}
+
+type RootPtr struct {
+	tv *TypedValue
+}
+
+func (rp *RootPtr) shoulDeallocate() bool {
+	if rp == nil {
+		return false
+	}
+
+	switch rp.tv.V.(type) {
+	case StringValue:
+		return false
+	default:
+		return true
+	}
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
