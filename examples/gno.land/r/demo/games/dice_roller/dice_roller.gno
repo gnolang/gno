@@ -170,7 +170,7 @@ func Render(path string) string {
 	output := `# 🎲 Dice Roller
 
 ## Game Rules:
-Dice Roller is a two-player game where each player rolls a dice once.
+Dice Roller is a two-player game where each player rolls a dice once
 1. **Create a game** with an opponent using [NewGame](diceroller?help&__func=NewGame)
 2. **Play** using [Play](diceroller?help&__func=Play), where each player rolls a dice
 
