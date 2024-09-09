@@ -104,10 +104,6 @@ func (h *Heap) RemoveRoot(tv TypedValue) {
 		roots = append(roots, r)
 	}
 
-	if !deleted {
-		panic(fmt.Sprintf("Cannot find root from heap: %v\nroot: %+v\n", roots, tv))
-	}
-
 	h.roots = roots
 }
 
