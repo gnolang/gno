@@ -66,6 +66,9 @@ services:
       traefik.http.routers.gnoweb.tls: "true"
       traefik.http.routers.gnoweb.tls.certresolver: "le"
 
+      traefik.http.middlewares.replacepath-gor.replacepathregex.regex: "^/game-of-realms(.*)"
+      traefik.http.middlewares.replacepath-gor.replacepathregex.replacement: "/r/gnoland/pages:p/contribute$1"
+
   gnofaucet:
     image: ghcr.io/gnolang/gno/gnofaucet-slim
     networks:
