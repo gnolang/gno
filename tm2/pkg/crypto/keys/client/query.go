@@ -66,7 +66,7 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 	// XXX in general, how do we know what to show?
 	// proof := qres.Response.Proof
 	height := qres.Response.Height
-	io.Printf("height: %d\ndata: %s\n",
+	io.Printf("height: %d\ndata:\n%s\n",
 		height,
 		string(resdata))
 	return nil
