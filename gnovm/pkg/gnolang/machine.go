@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
@@ -84,6 +85,7 @@ type Machine struct {
 	Coverage       *CoverageData
 	CurrentPackage string
 	CurrentFile    string
+	currentNode    Node
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -182,7 +184,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	mm.Debugger.enabled = opts.Debug
 	mm.Debugger.in = opts.Input
 	mm.Debugger.out = output
-	mm.Coverage = NewCoverageData()
+	mm.Coverage = NewCoverageData("")
 
 	if pv != nil {
 		mm.SetActivePackage(pv)
@@ -996,6 +998,26 @@ func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
 		return
 	}
 	m.Coverage.AddFile(file, totalLines)
+}
+
+func (m *Machine) recordCoverage(node Node) Location {
+	if node == nil {
+		return Location{}
+	}
+
+	pkgPath := m.CurrentPackage
+	file := m.CurrentFile
+	line := node.GetLine()
+
+	path := filepath.Join(pkgPath, file)
+	m.Coverage.AddHit(path, line)
+
+	return Location{
+		PkgPath: pkgPath,
+		File:    file,
+		Line:    line,
+		Column:  node.GetColumn(),
+	}
 }
 
 //----------------------------------------

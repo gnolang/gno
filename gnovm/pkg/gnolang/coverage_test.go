@@ -16,7 +16,7 @@ func TestAddHit(t *testing.T) {
 	}{
 		{
 			name:         "Add hit to new file",
-			initialData:  NewCoverageData(),
+			initialData:  NewCoverageData(""),
 			pkgPath:      "file1.gno",
 			line:         10,
 			expectedHits: 1,
@@ -70,21 +70,21 @@ func TestAddFile(t *testing.T) {
 			name:          "Add new file",
 			pkgPath:       "file1.gno",
 			totalLines:    100,
-			initialData:   NewCoverageData(),
+			initialData:   NewCoverageData(""),
 			expectedTotal: 100,
 		},
 		{
 			name:          "Do not add test file *_test.gno",
 			pkgPath:       "file1_test.gno",
 			totalLines:    100,
-			initialData:   NewCoverageData(),
+			initialData:   NewCoverageData(""),
 			expectedTotal: 0,
 		},
 		{
 			name:          "Do not add test file *_testing.gno",
 			pkgPath:       "file1_testing.gno",
 			totalLines:    100,
-			initialData:   NewCoverageData(),
+			initialData:   NewCoverageData(""),
 			expectedTotal: 0,
 		},
 		{
@@ -139,7 +139,7 @@ func TestIsTestFile(t *testing.T) {
 	}
 }
 
-func TestPrintResults(t *testing.T) {
+func TestReport(t *testing.T) {
 	tests := []struct {
 		name           string
 		initialData    *CoverageData
@@ -173,7 +173,7 @@ func TestPrintResults(t *testing.T) {
 			r, w, _ := os.Pipe()
 			os.Stdout = w
 
-			tt.initialData.PrintResults()
+			tt.initialData.Report()
 
 			w.Close()
 			os.Stdout = origStdout

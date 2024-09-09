@@ -37,6 +37,7 @@ type testCfg struct {
 	printRuntimeMetrics bool
 	withNativeFallback  bool
 	coverage            bool
+	showColoredCoverage bool
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -157,6 +158,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		false,
 		"enable coverage analysis",
 	)
+
+	fs.BoolVar(
+		&c.showColoredCoverage,
+		"show-colored-coverage",
+		false,
+		"show colored coverage in terminal",
+	)
 }
 
 func execTest(cfg *testCfg, args []string, io commands.IO) error {
@@ -254,7 +262,7 @@ func gnoTestPkg(
 		stdout = commands.WriteNopCloser(mockOut)
 	}
 
-	coverageData := gno.NewCoverageData()
+	coverageData := gno.NewCoverageData(cfg.rootDir)
 
 	// testing with *_test.gno
 	if len(unittestFiles) > 0 {
@@ -396,7 +404,19 @@ func gnoTestPkg(
 	}
 
 	if cfg.coverage {
-		coverageData.PrintResults()
+		if cfg.coverage {
+			coverageData.Report()
+
+			if cfg.showColoredCoverage {
+				for filePath := range coverageData.Files {
+					if err := coverageData.ColoredCoverage(filePath); err != nil {
+						io.ErrPrintfln("Error printing colored coverage for %s: %v", filePath, err)
+					}
+				}
+			}
+		} else {
+			coverageData.Report()
+		}
 	}
 
 	return errs

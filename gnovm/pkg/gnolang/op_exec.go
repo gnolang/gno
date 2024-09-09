@@ -433,6 +433,7 @@ EXEC_SWITCH:
 	}
 	switch cs := s.(type) {
 	case *AssignStmt:
+		m.recordCoverage(cs)
 		switch cs.Op {
 		case ASSIGN:
 			m.PushOp(OpAssign)
@@ -540,6 +541,7 @@ EXEC_SWITCH:
 		// Push eval operations if needed.
 		m.PushForPointer(cs.X)
 	case *ReturnStmt:
+		m.recordCoverage(cs)
 		m.PopStmt()
 		fr := m.MustLastCallFrame(1)
 		ft := fr.Func.GetType(m.Store)
@@ -728,6 +730,7 @@ EXEC_SWITCH:
 			m.PushOp(OpEval)
 		}
 	case *TypeDecl: // SimpleDeclStmt
+		m.recordCoverage(cs)
 		m.PushOp(OpTypeDecl)
 		m.PushExpr(cs.Type)
 		m.PushOp(OpEval)
@@ -786,10 +789,15 @@ EXEC_SWITCH:
 
 func (m *Machine) doOpIfCond() {
 	is := m.PopStmt().(*IfStmt)
+	m.recordCoverage(is) // start record coverage when IfStmt is popped
+
 	b := m.LastBlock()
+
+	m.recordCoverage(is) // record Condition Evaluation Coverage
 	// Test cond and run Body or Else.
 	cond := m.PopValue()
 	if cond.GetBool() {
+		m.recordCoverage(&is.Then)
 		if len(is.Then.Body) != 0 {
 			// expand block size
 			if nn := is.Then.GetNumNames(); int(nn) > len(b.Values) {
@@ -804,7 +812,9 @@ func (m *Machine) doOpIfCond() {
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())
 		}
+		m.recordCoverage(&is.Then)
 	} else {
+		m.recordCoverage(&is.Else)
 		if len(is.Else.Body) != 0 {
 			// expand block size
 			if nn := is.Else.GetNumNames(); int(nn) > len(b.Values) {
@@ -819,7 +829,10 @@ func (m *Machine) doOpIfCond() {
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())
 		}
+		m.recordCoverage(&is.Else)
 	}
+
+	m.recordCoverage(is)
 }
 
 func (m *Machine) doOpTypeSwitch() {
