@@ -46,11 +46,11 @@ var (
 	players avl.Tree // AVL tree for storing player data
 
 	seed = uint64(entropy.New().Seed())
+	r    = rand.New(rand.NewPCG(seed, 0xdeadbeef))
 )
 
 // rollDice generates a random dice roll between 1 and 6
 func rollDice() int {
-	r := rand.New(rand.NewPCG(seed, 0xdeadbeef))
 	return r.IntN(6) + 1
 }
 
