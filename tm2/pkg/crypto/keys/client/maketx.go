@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
@@ -203,15 +204,23 @@ func ExecSignAndBroadcast(
 		return err
 	}
 
+	// Record start time before executing
+	startTime := time.Now()
+
 	bres, err := SignAndBroadcastHandler(cfg, nameOrBech32, tx, pass)
 	if err != nil {
 		return errors.Wrap(err, "broadcast tx")
 	}
+
+	// Calculate execution time
+	duration := time.Since(startTime)
+
 	if bres.CheckTx.IsErr() {
 		return errors.Wrap(bres.CheckTx.Error, "check transaction failed: log:%s", bres.CheckTx.Log)
 	}
 	if bres.DeliverTx.IsErr() {
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+		io.Println("EXECUTION TIME: ", duration.Milliseconds(), "ms")
 		return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 	}
 
@@ -222,6 +231,7 @@ func ExecSignAndBroadcast(
 	io.Println("HEIGHT:    ", bres.Height)
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
 	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
+	io.Println("EXECUTION TIME: ", duration.Milliseconds(), "ms")
 
 	return nil
 }

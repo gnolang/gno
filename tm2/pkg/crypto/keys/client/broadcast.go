@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"flag"
 	"os"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -72,15 +73,22 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 	}
 	cfg.tx = &tx
 
+	// Record start time before executing
+	startTime := time.Now()
+
 	res, err := BroadcastHandler(cfg)
 	if err != nil {
 		return err
 	}
 
+	// Calculate execution time
+	duration := time.Since(startTime)
+
 	if res.CheckTx.IsErr() {
 		return errors.New("transaction failed %#v\nlog %s", res, res.CheckTx.Log)
 	} else if res.DeliverTx.IsErr() {
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+		io.Println("EXECUTION TIME: ", duration.Milliseconds(), "ms")
 		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
 	} else {
 		io.Println(string(res.DeliverTx.Data))
@@ -90,6 +98,7 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		io.Println("HEIGHT:    ", res.Height)
 		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
+		io.Println("EXECUTION TIME: ", duration.Milliseconds(), "ms")
 	}
 	return nil
 }
