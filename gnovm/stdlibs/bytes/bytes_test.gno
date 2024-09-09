@@ -7,14 +7,12 @@ package bytes_test
 import (
 	"bytes"
 	"fmt"
-
-	// "internal/testenv" XXX remove
-	// "reflect" XXX remove
 	"math/rand"
 	"strings"
 	"testing"
 	"unicode"
 	"unicode/utf8"
+	// "reflect" XXX remove
 )
 
 func eq2(a, b [][]byte) bool {
@@ -521,7 +519,6 @@ func valName(x int) string {
 
 func benchBytes(b *testing.B, sizes []int, f func(b *testing.B, n int)) {
 	for _, n := range sizes {
-		// XXX remove testenv
 		if isRaceBuilder && n > 4<<10 {
 			continue
 		}
@@ -538,8 +535,7 @@ func benchBytes(b *testing.B, sizes []int, f func(b *testing.B, n int)) {
 
 var indexSizes = []int{10, 32, 4 << 10, 4 << 20, 64 << 20}
 
-// XXX remove testenv
-var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
+var isRaceBuilder = os.Getenv("RACE") == "true"
 
 func BenchmarkIndexByte(b *testing.B) {
 	benchBytes(b, indexSizes, bmIndexByte(bytes.IndexByte))

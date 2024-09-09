@@ -74,5 +74,7 @@ jobs:
         - name: Checkout code
           uses: actions/checkout@v4
         - name: Go race test
-          run: go test -race -timeout ${{ inputs.tests-timeout }} ./...
-          working-directory:  ${{ inputs.modulepath }}
+          run: |
+            export RACE=true  
+            go test -race -timeout ${{ inputs.tests-timeout }} ./...
+          working-directory:  ${{ inputs.modulepath }}  
