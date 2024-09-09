@@ -911,32 +911,24 @@ func UverseNode() *PackageNode {
 			tt := arg0.TV.GetType()
 			vv := defaultValue(m.Alloc, tt)
 			m.Alloc.AllocatePointer()
+			hi := m.Alloc.NewHeapItem(TypedValue{
+				T: tt,
+				V: vv,
+			})
 			m.PushValue(TypedValue{
 				T: m.Alloc.NewType(&PointerType{
 					Elt: tt,
 				}),
 				V: PointerValue{
-					TV: &TypedValue{
-						T: tt,
-						V: vv,
-					},
-					Base: nil,
+					TV:    &hi.Value,
+					Base:  hi,
+					Index: 0,
 				},
 			})
 			return
 		},
 	)
-	defNative("panic",
-		Flds( // params
-			"err", AnyT(), // args[0]
-		),
-		nil, // results
-		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
-			xv := arg0.Deref()
-			panic(xv.Sprint(m))
-		},
-	)
+	// NOTE: panic is its own statement type, and is not defined as a function.
 	defNative("print",
 		Flds( // params
 			"xs", Vrd(AnyT()), // args[0]

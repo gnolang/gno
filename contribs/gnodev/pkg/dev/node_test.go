@@ -8,10 +8,11 @@ import (
 
 	mock "github.com/gnolang/gno/contribs/gnodev/internal/mock"
 
-	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/integration"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	core_types "github.com/gnolang/gno/tm2/pkg/bft/rpc/core/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -34,7 +35,8 @@ func TestNewNode_NoPackages(t *testing.T) {
 
 	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
-	node, err := NewDevNode(ctx, logger, &emitter.NoopServer{}, cfg)
+	cfg.Logger = logger
+	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
 
 	assert.Len(t, node.ListPkgs(), 0)
@@ -62,7 +64,8 @@ func Render(_ string) string { return "foo" }
 	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
 	cfg.PackagesPathList = []PackagePath{pkgpath}
-	node, err := NewDevNode(ctx, logger, &emitter.NoopServer{}, cfg)
+	cfg.Logger = logger
+	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), 1)
 
@@ -154,14 +157,14 @@ func Render(_ string) string { return "bar" }
 	require.NoError(t, err)
 
 	// Check reload event
-	assert.Equal(t, emitter.NextEvent().Type(), events.EvtReload)
+	assert.Equal(t, events.EvtReload, emitter.NextEvent().Type())
 
 	// After a reload, render should succeed
 	render, err = testingRenderRealm(t, node, "gno.land/r/dev/foobar")
 	require.NoError(t, err)
 	require.Equal(t, render, "bar")
 
-	assert.Nil(t, emitter.NextEvent())
+	assert.Equal(t, mock.EvtNull, emitter.NextEvent().Type())
 }
 
 func TestNodeReset(t *testing.T) {
@@ -188,11 +191,11 @@ func Render(_ string) string { return str }
 	require.Equal(t, render, "foo")
 
 	// Call `UpdateStr` to update `str` value with "bar"
-	msg := gnoclient.MsgCall{
-		PkgPath:  "gno.land/r/dev/foo",
-		FuncName: "UpdateStr",
-		Args:     []string{"bar"},
-		Send:     "",
+	msg := vm.MsgCall{
+		PkgPath: "gno.land/r/dev/foo",
+		Func:    "UpdateStr",
+		Args:    []string{"bar"},
+		Send:    nil,
 	}
 	res, err := testingCallRealm(t, node, msg)
 	require.NoError(t, err)
@@ -215,7 +218,7 @@ func Render(_ string) string { return str }
 	require.NoError(t, err)
 	require.Equal(t, render, "foo")
 
-	assert.Nil(t, emitter.NextEvent())
+	assert.Equal(t, mock.EvtNull, emitter.NextEvent().Type())
 }
 
 func testingRenderRealm(t *testing.T, node *Node, rlmpath string) (string, error) {
@@ -235,7 +238,7 @@ func testingRenderRealm(t *testing.T, node *Node, rlmpath string) (string, error
 	return render, err
 }
 
-func testingCallRealm(t *testing.T, node *Node, msgs ...gnoclient.MsgCall) (*core_types.ResultBroadcastTxCommit, error) {
+func testingCallRealm(t *testing.T, node *Node, msgs ...vm.MsgCall) (*core_types.ResultBroadcastTxCommit, error) {
 	t.Helper()
 
 	signer := newInMemorySigner(t, node.Config().ChainID())
@@ -245,11 +248,19 @@ func testingCallRealm(t *testing.T, node *Node, msgs ...gnoclient.MsgCall) (*cor
 	}
 
 	txcfg := gnoclient.BaseTxCfg{
-		GasFee:    "1000000ugnot", // Gas fee
-		GasWanted: 2_000_000,      // Gas wanted
+		GasFee:    ugnot.ValueString(1000000), // Gas fee
+		GasWanted: 2_000_000,                  // Gas wanted
 	}
 
-	return cli.Call(txcfg, msgs...)
+	// Set Caller in the msgs
+	caller, err := signer.Info()
+	require.NoError(t, err)
+	vmMsgs := make([]vm.MsgCall, 0, len(msgs))
+	for _, msg := range msgs {
+		vmMsgs = append(vmMsgs, vm.NewMsgCall(caller.GetAddress(), msg.Send, msg.PkgPath, msg.Func, msg.Args))
+	}
+
+	return cli.Call(txcfg, vmMsgs...)
 }
 
 func generateTestingPackage(t *testing.T, nameFile ...string) PackagePath {
@@ -286,7 +297,9 @@ func newTestingDevNode(t *testing.T, pkgslist ...PackagePath) (*Node, *mock.Serv
 	// Call NewDevNode with no package should work
 	cfg := DefaultNodeConfig(gnoenv.RootDir())
 	cfg.PackagesPathList = pkgslist
-	node, err := NewDevNode(ctx, logger, emitter, cfg)
+	cfg.Emitter = emitter
+	cfg.Logger = logger
+	node, err := NewDevNode(ctx, cfg)
 	require.NoError(t, err)
 	assert.Len(t, node.ListPkgs(), len(pkgslist))
 

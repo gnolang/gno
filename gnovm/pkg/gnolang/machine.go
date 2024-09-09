@@ -25,10 +25,21 @@ type Exception struct {
 	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
 	// currently executing deferred function is able to recover from the panic.
 	Frame *Frame
+
+	Stacktrace Stacktrace
 }
 
 func (e Exception) Sprint(m *Machine) string {
 	return e.Value.Sprint(m)
+}
+
+// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
+type UnhandledPanicError struct {
+	Descriptor string // Description of the unhandled panic.
+}
+
+func (e UnhandledPanicError) Error() string {
+	return e.Descriptor
 }
 
 //----------------------------------------
@@ -284,14 +295,29 @@ func (m *Machine) runMemPackage(memPkg *std.MemPackage, save, overrides bool) (*
 	}
 	m.SetActivePackage(pv)
 	// run files.
-	m.RunFiles(files.Files...)
-	// maybe save package value and mempackage.
+	updates := m.RunFileDecls(files.Files...)
+	// save package value and mempackage.
+	// XXX save condition will be removed once gonative is removed.
+	var throwaway *Realm
 	if save {
-		// store package values and types
-		m.savePackageValuesAndTypes()
+		// store new package values and types
+		throwaway = m.saveNewPackageValuesAndTypes()
+		if throwaway != nil {
+			m.Realm = throwaway
+		}
+	}
+	// run init functions
+	m.runInitFromUpdates(pv, updates)
+	// save again after init.
+	if save {
+		m.resavePackageValues(throwaway)
 		// store mempackage
 		m.Store.AddMemPackage(memPkg)
+		if throwaway != nil {
+			m.Realm = nil
+		}
 	}
+
 	return pn, pv
 }
 
@@ -442,17 +468,56 @@ func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 	})
 }
 
+// Stacktrace returns the stack trace of the machine.
+// It collects the executions and frames from the machine's frames and statements.
+func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
+	if len(m.Frames) == 0 {
+		return
+	}
+
+	calls := make([]StacktraceCall, 0, len(m.Stmts))
+	nextStmtIndex := len(m.Stmts) - 1
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		if m.Frames[i].IsCall() {
+			stm := m.Stmts[nextStmtIndex]
+			bs := stm.(*bodyStmt)
+			stm = bs.Body[bs.NextBodyIndex-1]
+			calls = append(calls, StacktraceCall{
+				Stmt:  stm,
+				Frame: m.Frames[i],
+			})
+		}
+		// if the frame is a call, the next statement is the last statement of the frame.
+		nextStmtIndex = m.Frames[i].NumStmts - 1
+	}
+
+	// if the stacktrace is too long, we trim it down to maxStacktraceSize
+	if len(calls) > maxStacktraceSize {
+		const halfMax = maxStacktraceSize / 2
+
+		stacktrace.NumFramesElided = len(calls) - maxStacktraceSize
+		calls = append(calls[:halfMax], calls[len(calls)-halfMax:]...)
+		calls = calls[:len(calls):len(calls)] // makes remaining part of "calls" GC'able
+	}
+
+	stacktrace.Calls = calls
+
+	return
+}
+
 // in case of panic, inject location information to exception.
 func (m *Machine) injectLocOnPanic() {
 	if r := recover(); r != nil {
 		// Show last location information.
 		// First, determine the line number of expression or statement if any.
 		lastLine := 0
+		lastColumn := 0
 		if len(m.Exprs) > 0 {
 			for i := len(m.Exprs) - 1; i >= 0; i-- {
 				expr := m.Exprs[i]
 				if expr.GetLine() > 0 {
 					lastLine = expr.GetLine()
+					lastColumn = expr.GetColumn()
 					break
 				}
 			}
@@ -462,6 +527,7 @@ func (m *Machine) injectLocOnPanic() {
 				stmt := m.Stmts[i]
 				if stmt.GetLine() > 0 {
 					lastLine = stmt.GetLine()
+					lastColumn = stmt.GetColumn()
 					break
 				}
 			}
@@ -476,6 +542,7 @@ func (m *Machine) injectLocOnPanic() {
 				lastLoc = loc
 				if lastLine > 0 {
 					lastLoc.Line = lastLine
+					lastLoc.Column = lastColumn
 				}
 				break
 			}
@@ -490,13 +557,27 @@ func (m *Machine) injectLocOnPanic() {
 	}
 }
 
-// Add files to the package's *FileSet and run them.
-// This will also run each init function encountered.
+// Convenience for tests.
+// Production must not use this, because realm package init
+// must happen after persistence and realm finalization,
+// then changes from init persisted again.
 func (m *Machine) RunFiles(fns ...*FileNode) {
-	m.runFiles(fns...)
+	pv := m.Package
+	if pv == nil {
+		panic("RunFiles requires Machine.Package")
+	}
+	updates := m.runFileDecls(fns...)
+	m.runInitFromUpdates(pv, updates)
 }
 
-func (m *Machine) runFiles(fns ...*FileNode) {
+// Add files to the package's *FileSet and run decls in them.
+// This will also run each init function encountered.
+// Returns the updated typed values of package.
+func (m *Machine) RunFileDecls(fns ...*FileNode) []TypedValue {
+	return m.runFileDecls(fns...)
+}
+
+func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 	// Files' package names must match the machine's active one.
 	// if there is one.
 	for _, fn := range fns {
@@ -624,11 +705,15 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 		}
 	}
 
-	// Run new init functions.
-	// Go spec: "To ensure reproducible initialization
-	// behavior, build systems are encouraged to present
-	// multiple files belonging to the same package in
-	// lexical file name order to a compiler."
+	return updates
+}
+
+// Run new init functions.
+// Go spec: "To ensure reproducible initialization
+// behavior, build systems are encouraged to present
+// multiple files belonging to the same package in
+// lexical file name order to a compiler."
+func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 	for _, tv := range updates {
 		if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
 			fv, ok := tv.V.(*FuncValue)
@@ -647,7 +732,10 @@ func (m *Machine) runFiles(fns ...*FileNode) {
 
 // Save the machine's package using realm finalization deep crawl.
 // Also saves declared types.
-func (m *Machine) savePackageValuesAndTypes() {
+// This happens before any init calls.
+// Returns a throwaway realm package is not a realm,
+// such as stdlibs or /p/ packages.
+func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {
@@ -660,6 +748,7 @@ func (m *Machine) savePackageValuesAndTypes() {
 		rlm := NewRealm(pv.PkgPath)
 		rlm.MarkNewReal(pv)
 		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		throwaway = rlm
 	}
 	// save declared types.
 	if bv, ok := pv.Block.(*Block); ok {
@@ -671,13 +760,38 @@ func (m *Machine) savePackageValuesAndTypes() {
 			}
 		}
 	}
+	return
+}
+
+// Resave any changes to realm after init calls.
+// Pass in the realm from m.saveNewPackageValuesAndTypes()
+// in case a throwaway was created.
+func (m *Machine) resavePackageValues(rlm *Realm) {
+	// save package value and dependencies.
+	pv := m.Package
+	if pv.IsRealm() {
+		rlm = pv.Realm
+		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+		// re-save package realm info.
+		m.Store.SetPackageRealm(rlm)
+	} else { // use the throwaway realm.
+		rlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
+	}
+	// types were already saved, and should not change
+	// even after running the init function.
 }
 
 func (m *Machine) RunFunc(fn Name) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("Machine.RunFunc(%q) panic: %v\n%s\n",
-				fn, r, m.String())
+			switch r := r.(type) {
+			case UnhandledPanicError:
+				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace: %s\n",
+					fn, r.Error(), m.ExceptionsStacktrace())
+			default:
+				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace: %s\n",
+					fn, r, m.String(), m.Stacktrace().String())
+			}
 			panic(r)
 		}
 	}()
@@ -687,8 +801,14 @@ func (m *Machine) RunFunc(fn Name) {
 func (m *Machine) RunMain() {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("Machine.RunMain() panic: %v\n%s\n",
-				r, m.String())
+			switch r := r.(type) {
+			case UnhandledPanicError:
+				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace: %s\n",
+					r.Error(), m.ExceptionsStacktrace())
+			default:
+				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace: %s\n",
+					r, m.String(), m.Stacktrace())
+			}
 			panic(r)
 		}
 	}()
@@ -811,6 +931,13 @@ func (m *Machine) RunStatement(s Stmt) {
 // NOTE: to support realm persistence of types, must
 // first require the validation of blocknode locations.
 func (m *Machine) RunDeclaration(d Decl) {
+	if fd, ok := d.(*FuncDecl); ok && fd.Name == "init" {
+		// XXX or, consider running it, but why would this be needed?
+		// from a repl there is no need for init() functions.
+		// Also, there are complications with realms, where
+		// the realm must be persisted before init(), and persisted again.
+		panic("Machine.RunDeclaration cannot be used for init functions")
+	}
 	// Preprocess input using package block.  There should only
 	// be one block right now, and it's a *PackageNode.
 	pn := m.LastBlock().GetSource(m.Store).(*PackageNode)
@@ -1539,11 +1666,11 @@ func (m *Machine) PopStmt() Stmt {
 	}
 	if bs, ok := s.(*bodyStmt); ok {
 		return bs.PopActiveStmt()
-	} else {
-		// general case.
-		m.Stmts = m.Stmts[:numStmts-1]
-		return s
 	}
+
+	m.Stmts = m.Stmts[:numStmts-1]
+
+	return s
 }
 
 func (m *Machine) ForcePopStmt() (s Stmt) {
@@ -1734,8 +1861,23 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 	if pv == nil {
 		panic(fmt.Sprintf("package value missing in store: %s", fv.PkgPath))
 	}
-	m.Package = pv
 	rlm := pv.GetRealm()
+	if rlm == nil && recv.IsDefined() {
+		obj := recv.GetFirstObject(m.Store)
+		if obj == nil {
+			// could be a nil receiver.
+			// just ignore.
+		} else {
+			recvOID := obj.GetObjectInfo().ID
+			if !recvOID.IsZero() {
+				// override the pv and rlm with receiver's.
+				recvPkgOID := ObjectIDFromPkgID(recvOID.PkgID)
+				pv = m.Store.GetObject(recvPkgOID).(*PackageValue)
+				rlm = pv.GetRealm() // done
+			}
+		}
+	}
+	m.Package = pv
 	if rlm != nil && m.Realm != rlm {
 		m.Realm = rlm // enter new realm
 	}
@@ -1773,6 +1915,7 @@ func (m *Machine) PopFrame() Frame {
 		m.Printf("-F %#v\n", f)
 	}
 	m.Frames = m.Frames[:numFrames-1]
+
 	return *f
 }
 
@@ -1792,8 +1935,7 @@ func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
 	fr.Popped = true
 	if debug {
-		// TODO: optimize with fr.IsCall
-		if fr.Func == nil && fr.GoFunc == nil {
+		if !fr.IsCall() {
 			panic("unexpected non-call (loop) frame")
 		}
 	}
@@ -1869,8 +2011,7 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 	}
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		if fr.Func != nil || fr.GoFunc != nil {
-			// TODO: optimize with fr.IsCall
+		if fr.IsCall() {
 			if n == 1 {
 				return fr
 			} else {
@@ -1891,8 +2032,7 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		if fr.Func != nil || fr.GoFunc != nil {
-			// TODO: optimize with fr.IsCall
+		if fr.IsCall() {
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}
@@ -1956,9 +2096,11 @@ func (m *Machine) PopAsPointer(lx Expr) PointerValue {
 		return ptr
 	case *CompositeLitExpr: // for *RefExpr
 		tv := *m.PopValue()
+		hv := m.Alloc.NewHeapItem(tv)
 		return PointerValue{
-			TV:   &tv, // heap alloc
-			Base: nil,
+			TV:    &hv.Value,
+			Base:  hv,
+			Index: 0,
 		}
 	default:
 		panic("should not happen")
@@ -2001,8 +2143,9 @@ func (m *Machine) Panic(ex TypedValue) {
 	m.Exceptions = append(
 		m.Exceptions,
 		Exception{
-			Value: ex,
-			Frame: m.MustLastCallFrame(1),
+			Value:      ex,
+			Frame:      m.MustLastCallFrame(1),
+			Stacktrace: m.Stacktrace(),
 		},
 	)
 
@@ -2071,7 +2214,8 @@ func (m *Machine) String() string {
 
 	builder.WriteString("    Blocks:\n")
 
-	for b := m.LastBlock(); b != nil; {
+	for i := len(m.Blocks) - 1; i > 0; i-- {
+		b := m.Blocks[i]
 		gen := builder.Len()/3 + 1
 		gens := "@" // strings.Repeat("@", gen)
 
@@ -2142,6 +2286,30 @@ func (m *Machine) String() string {
 
 	for _, ex := range m.Exceptions {
 		builder.WriteString(fmt.Sprintf("      %s\n", ex.Sprint(m)))
+	}
+
+	return builder.String()
+}
+
+func (m *Machine) ExceptionsStacktrace() string {
+	if len(m.Exceptions) == 0 {
+		return ""
+	}
+
+	var builder strings.Builder
+
+	ex := m.Exceptions[0]
+	builder.WriteString("panic: " + ex.Sprint(m) + "\n")
+	builder.WriteString(ex.Stacktrace.String())
+
+	switch {
+	case len(m.Exceptions) > 2:
+		fmt.Fprintf(&builder, "... %d panic(s) elided ...\n", len(m.Exceptions)-2)
+		fallthrough // to print last exception
+	case len(m.Exceptions) == 2:
+		ex = m.Exceptions[len(m.Exceptions)-1]
+		builder.WriteString("panic: " + ex.Sprint(m) + "\n")
+		builder.WriteString(ex.Stacktrace.String())
 	}
 
 	return builder.String()

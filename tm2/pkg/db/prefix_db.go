@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"sync"
+
+	"github.com/gnolang/gno/tm2/pkg/colors"
 )
 
 // IteratePrefix is a convenience function for iterating over a key domain
@@ -188,15 +190,10 @@ func (pdb *PrefixDB) Close() {
 
 // Implements DB.
 func (pdb *PrefixDB) Print() {
-	fmt.Printf("prefix: %X\n", pdb.prefix)
-
-	itr := pdb.Iterator(nil, nil)
-	defer itr.Close()
-	for ; itr.Valid(); itr.Next() {
-		key := itr.Key()
-		value := itr.Value()
-		fmt.Printf("[%X]:\t[%X]\n", key, value)
-	}
+	fmt.Println(colors.Blue("prefix ---------------------"))
+	fmt.Printf("prefix: %v\n", colors.DefaultColoredBytes(pdb.prefix))
+	pdb.db.Print()
+	fmt.Println(colors.Blue("prefix --------------------- end"))
 }
 
 // Implements DB.

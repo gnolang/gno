@@ -1,8 +1,6 @@
 package evaluation
 
-import (
-	"std"
-)
+import "std"
 
 const (
 	VoteYes = "YES"
