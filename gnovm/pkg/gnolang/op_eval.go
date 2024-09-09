@@ -19,10 +19,12 @@ var (
 
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
+	m.recordCoverage(x)
+
 	if debug {
 		debug.Printf("EVAL: (%T) %v\n", x, x)
-		// fmt.Println(m.String())
 	}
+
 	// This case moved out of switch for performance.
 	// TODO: understand this better.
 	if nx, ok := x.(*NameExpr); ok {
@@ -45,6 +47,7 @@ func (m *Machine) doOpEval() {
 	// case NameExpr: handled above
 	case *BasicLitExpr:
 		m.PopExpr()
+		m.recordCoverage(x)
 		switch x.Kind {
 		case INT:
 			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
@@ -224,6 +227,7 @@ func (m *Machine) doOpEval() {
 			panic(fmt.Sprintf("unexpected lit kind %v", x.Kind))
 		}
 	case *BinaryExpr:
+		m.recordCoverage(x)
 		switch x.Op {
 		case LAND, LOR:
 			m.PushOp(OpBinary1)
@@ -242,6 +246,7 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 	case *CallExpr:
+		m.recordCoverage(x)
 		m.PushOp(OpPrecall)
 		// Eval args.
 		args := x.Args
@@ -253,6 +258,7 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.Func)
 		m.PushOp(OpEval)
 	case *IndexExpr:
+		m.recordCoverage(x)
 		if x.HasOK {
 			m.PushOp(OpIndex2)
 		} else {
@@ -265,11 +271,13 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *SelectorExpr:
+		m.recordCoverage(x)
 		m.PushOp(OpSelector)
 		// evaluate x
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *SliceExpr:
+		m.recordCoverage(x)
 		m.PushOp(OpSlice)
 		// evaluate max
 		if x.Max != nil {
@@ -290,40 +298,48 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *StarExpr:
+		m.recordCoverage(x)
 		m.PopExpr()
 		m.PushOp(OpStar)
 		// evaluate x.
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *RefExpr:
+		m.recordCoverage(x)
 		m.PushOp(OpRef)
 		// evaluate x
 		m.PushForPointer(x.X)
 	case *UnaryExpr:
+		m.recordCoverage(x)
 		op := word2UnaryOp(x.Op)
 		m.PushOp(op)
 		// evaluate x
 		m.PushExpr(x.X)
 		m.PushOp(OpEval)
 	case *CompositeLitExpr:
+		m.recordCoverage(x)
 		m.PushOp(OpCompositeLit)
 		// evaluate type
 		m.PushExpr(x.Type)
 		m.PushOp(OpEval)
 	case *FuncLitExpr:
+		m.recordCoverage(x)
 		m.PushOp(OpFuncLit)
 		// evaluate func type
 		m.PushExpr(&x.Type)
 		m.PushOp(OpEval)
 	case *ConstExpr:
+		m.recordCoverage(x)
 		m.PopExpr()
 		// push preprocessed value
 		m.PushValue(x.TypedValue)
 	case *constTypeExpr:
+		m.recordCoverage(x)
 		m.PopExpr()
 		// push preprocessed type as value
 		m.PushValue(asValue(x.Type))
 	case *FieldTypeExpr:
+		m.recordCoverage(x)
 		m.PushOp(OpFieldType)
 		// evaluate field type
 		m.PushExpr(x.Type)
@@ -334,6 +350,7 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 	case *ArrayTypeExpr:
+		m.recordCoverage(x)
 		m.PushOp(OpArrayType)
 		// evaluate length if set
 		if x.Len != nil {
@@ -344,11 +361,13 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.Elt)
 		m.PushOp(OpEval) // OpEvalType?
 	case *SliceTypeExpr:
+		m.recordCoverage(x)
 		m.PushOp(OpSliceType)
 		// evaluate elem type
 		m.PushExpr(x.Elt)
 		m.PushOp(OpEval) // OpEvalType?
 	case *InterfaceTypeExpr:
+		m.recordCoverage(x)
 		m.PushOp(OpInterfaceType)
 		// evaluate methods
 		for i := len(x.Methods) - 1; 0 <= i; i-- {
@@ -356,6 +375,7 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 	case *FuncTypeExpr:
+		m.recordCoverage(x)
 		// NOTE params and results are evaluated in
 		// the parent scope.
 		m.PushOp(OpFuncType)
@@ -370,6 +390,7 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 	case *MapTypeExpr:
+		m.recordCoverage(x)
 		m.PopExpr()
 		m.PushOp(OpMapType)
 		// evaluate value type
@@ -379,6 +400,7 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.Key)
 		m.PushOp(OpEval) // OpEvalType?
 	case *StructTypeExpr:
+		m.recordCoverage(x)
 		m.PushOp(OpStructType)
 		// evaluate fields
 		for i := len(x.Fields) - 1; 0 <= i; i-- {
@@ -386,6 +408,7 @@ func (m *Machine) doOpEval() {
 			m.PushOp(OpEval)
 		}
 	case *TypeAssertExpr:
+		m.recordCoverage(x)
 		if x.HasOK {
 			m.PushOp(OpTypeAssert2)
 		} else {
@@ -407,6 +430,10 @@ func (m *Machine) doOpEval() {
 		m.PushExpr(x.Type)
 		m.PushOp(OpEval)
 	default:
+		m.recordCoverage(x) // record coverage for unknown type
 		panic(fmt.Sprintf("unexpected expression %#v", x))
 	}
+
+	// Record coverage after evaluating the expression
+	m.recordCoverage(x)
 }

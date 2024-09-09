@@ -2,12 +2,16 @@ package gnolang
 
 func (m *Machine) doOpDefine() {
 	s := m.PopStmt().(*AssignStmt)
+	m.recordCoverage(s)
+
 	// Define each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
 	lb := m.LastBlock()
 	for i := 0; i < len(s.Lhs); i++ {
+		// Record coverage for each variable being defined
+		m.recordCoverage(s.Lhs[i])
 		// Get name and value of i'th term.
 		nx := s.Lhs[i].(*NameExpr)
 		// Finally, define (or assign if loop block).
@@ -16,33 +20,60 @@ func (m *Machine) doOpDefine() {
 		if m.ReadOnly {
 			if oo, ok := ptr.Base.(Object); ok {
 				if oo.GetIsReal() {
+					m.recordCoverage(s)
 					panic("readonly violation")
 				}
 			}
 		}
+
+		// Record coverage for each right-hand side expression
+        if i < len(s.Rhs) {
+            m.recordCoverage(s.Rhs[i]) // Record coverage for the expression being assigned
+        }
+
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
+
+	// record entire AssignStmt again to mark its completion
+	m.recordCoverage(s)
 }
 
 func (m *Machine) doOpAssign() {
 	s := m.PopStmt().(*AssignStmt)
+	m.recordCoverage(s)
+
 	// Assign each value evaluated for Lhs.
 	// NOTE: PopValues() returns a slice in
 	// forward order, not the usual reverse.
 	rvs := m.PopValues(len(s.Lhs))
 	for i := len(s.Lhs) - 1; 0 <= i; i-- {
+		// Track which variable is assigned
+		// in a compound assignment statement
+		m.recordCoverage(s.Lhs[i])
+
 		// Pop lhs value and desired type.
 		lv := m.PopAsPointer(s.Lhs[i])
 		// XXX HACK (until value persistence impl'd)
 		if m.ReadOnly {
 			if oo, ok := lv.Base.(Object); ok {
 				if oo.GetIsReal() {
+					m.recordCoverage(s)
 					panic("readonly violation")
 				}
 			}
 		}
+
+		// Used to track the source of the assigned value.
+		// However, since the number of expressions on the right-hand side
+		// may be fewer than on the left (e.g., in multiple assignments), add an index check.
+		if i < len(s.Rhs) {
+			m.recordCoverage(s.Rhs[i])
+		}
 		lv.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
+
+	// coverage record for end of assignment.
+	m.recordCoverage(s)
 }
 
 func (m *Machine) doOpAddAssign() {

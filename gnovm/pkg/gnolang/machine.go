@@ -85,7 +85,6 @@ type Machine struct {
 	Coverage       *CoverageData
 	CurrentPackage string
 	CurrentFile    string
-	currentNode    Node
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
