@@ -224,8 +224,8 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		}
 
 		root := NewObject(ho.tv)
-
-		alloc.heap.AddRef(root, ho)
+		visited := make(map[*GcObj]bool)
+		alloc.heap.AddRef(root, ho, visited)
 		alloc.heap.AddRoot(root)
 	}()
 

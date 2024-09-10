@@ -53,7 +53,13 @@ func NewHeap() *Heap {
 	return &Heap{}
 }
 
-func (h *Heap) AddRef(obj *GcObj, ref *GcObj) {
+func (h *Heap) AddRef(obj *GcObj, ref *GcObj, visited map[*GcObj]bool) {
+	if visited[ref] {
+		return
+	}
+
+	visited[ref] = true
+
 	switch v := ref.tv.V.(type) {
 	case *StructValue:
 		obj.refs = append(obj.refs, ref)
@@ -62,7 +68,7 @@ func (h *Heap) AddRef(obj *GcObj, ref *GcObj) {
 			fobj := h.FindObjectByTV(Unwrap(field))
 
 			if fobj != nil {
-				h.AddRef(ref, fobj)
+				h.AddRef(ref, fobj, visited)
 			}
 		}
 	case *SliceValue:
@@ -73,7 +79,7 @@ func (h *Heap) AddRef(obj *GcObj, ref *GcObj) {
 			fobj := h.FindObjectByTV(Unwrap(value))
 
 			if fobj != nil {
-				h.AddRef(ref, fobj)
+				h.AddRef(ref, fobj, visited)
 			}
 		}
 	case StringValue:

@@ -121,7 +121,8 @@ func (m *Machine) doOpCall() {
 
 			if obj != nil {
 				root := NewObject(u)
-				m.Alloc.heap.AddRef(root, obj)
+				visited := make(map[*GcObj]bool)
+				m.Alloc.heap.AddRef(root, obj, visited)
 				m.Alloc.heap.AddRoot(root)
 
 				b.Roots = append(b.Roots, RootPtr{&u})
@@ -186,7 +187,8 @@ func (m *Machine) doOpCall() {
 
 			if obj != nil {
 				root := NewObject(u)
-				m.Alloc.heap.AddRef(root, obj)
+				visited := make(map[*GcObj]bool)
+				m.Alloc.heap.AddRef(root, obj, visited)
 				m.Alloc.heap.AddRoot(root)
 
 				b.Roots = append(b.Roots, RootPtr{&u})

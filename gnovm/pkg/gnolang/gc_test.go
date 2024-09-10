@@ -43,8 +43,10 @@ func TestMarkAndSweep(t *testing.T) {
 	h.AddObject(obj4)
 
 	// Set up references
-	h.AddRef(obj1, obj2)
-	h.AddRef(obj1, obj3)
+	visited := make(map[*GcObj]bool)
+	h.AddRef(obj1, obj2, visited)
+	visited = make(map[*GcObj]bool)
+	h.AddRef(obj1, obj3, visited)
 
 	// Add root
 	h.AddRoot(obj1)
@@ -73,8 +75,10 @@ func TestCircularReference(t *testing.T) {
 	h.AddObject(obj2)
 
 	// Set up circular reference
-	h.AddRef(obj1, obj2)
-	h.AddRef(obj2, obj1)
+	visited := make(map[*GcObj]bool)
+	h.AddRef(obj1, obj2, visited)
+	visited = make(map[*GcObj]bool)
+	h.AddRef(obj2, obj1, visited)
 
 	// Add root
 	h.AddRoot(obj1)

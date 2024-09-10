@@ -592,7 +592,8 @@ func (m *Machine) doOpSliceLit() {
 			el := MakeHeapObj(Unwrap(e))
 			if el != nil {
 				m.Alloc.heap.AddObject(el)
-				m.Alloc.heap.AddRef(obj, el)
+				visited := make(map[*GcObj]bool)
+				m.Alloc.heap.AddRef(obj, el, visited)
 			}
 		}
 	}
