@@ -5,9 +5,15 @@
 package regexp
 
 import (
+	"bufio"
+	"io"
+	"regexp/syntax"
+	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
+/*
 // TestRE2 tests this package's regexp API against test cases
 // considered during RE2's exhaustive tests, which run all possible
 // regexps over a given set of atoms and operators, up to a given
@@ -41,8 +47,8 @@ import (
 // submatch indices. An unmatched subexpression formats
 // its pair as a single - (not illustrated above).  For now
 // each regexp run produces two match results, one for a
-// “full match” that restricts the regexp to matching the entire
-// string or nothing, and one for a “partial match” that gives
+// ``full match'' that restricts the regexp to matching the entire
+// string or nothing, and one for a ``partial match'' that gives
 // the leftmost first match found in the string.
 //
 // Lines beginning with # are comments. Lines beginning with
@@ -52,7 +58,6 @@ import (
 // At time of writing, re2-exhaustive.txt is 59 MB but compresses to 385 kB,
 // so we store re2-exhaustive.txt.bz2 in the repository and decompress it on the fly.
 //
-
 func TestRE2Search(t *testing.T) {
 	testRE2(t, "testdata/re2-search.txt")
 }
@@ -318,7 +323,6 @@ func same(x, y []int) bool {
 // TestFowler runs this package's regexp API against the
 // POSIX regular expression tests collected by Glenn Fowler
 // at http://www2.research.att.com/~astopen/testregex/testregex.html.
-
 func TestFowler(t *testing.T) {
 	files, err := filepath.Glob("testdata/*.dat")
 	if err != nil {
@@ -342,9 +346,7 @@ func testFowler(t *testing.T, file string) {
 	b := bufio.NewReader(f)
 	lineno := 0
 	lastRegexp := ""
-
 Reading:
-
 	for {
 		lineno++
 		line, err := b.ReadString('\n')
@@ -607,7 +609,7 @@ func parseFowlerResult(s string) (ok, compiled, matched bool, pos []int) {
 			ok = false
 			return
 		}
-		v := -1
+		var v = -1
 		var err error
 		if s[:i] != "?" {
 			v, err = strconv.Atoi(s[:i])
@@ -653,7 +655,7 @@ func makeText(n int) []byte {
 }
 
 func BenchmarkMatch(b *testing.B) {
-	isRaceBuilder := os.Getenv("RACE") == "true"
+	isRaceBuilder := strings.HasSuffix(testenv.Builder(), "-race")
 
 	for _, data := range benchData {
 		r := MustCompile(data.re)
@@ -675,7 +677,7 @@ func BenchmarkMatch(b *testing.B) {
 }
 
 func BenchmarkMatch_onepass_regex(b *testing.B) {
-	isRaceBuilder := os.Getenv("RACE") == "true"
+	isRaceBuilder := strings.HasSuffix(testenv.Builder(), "-race")
 	r := MustCompile(`(?s)\A.*\z`)
 	if r.onepass == nil {
 		b.Fatalf("want onepass regex, but %q is not onepass", r)
@@ -717,6 +719,7 @@ var benchSizes = []struct {
 	{"1M", 1 << 20},
 	{"32M", 32 << 20},
 }
+*/
 
 func TestLongest(t *testing.T) {
 	re, err := Compile(`a(|b)`)

@@ -8,12 +8,10 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
-	"os"
 	"strings"
 	"testing"
 	"unicode"
 	"unicode/utf8"
-	// "reflect" XXX remove
 )
 
 func eq2(a, b [][]byte) bool {
@@ -520,9 +518,9 @@ func valName(x int) string {
 
 func benchBytes(b *testing.B, sizes []int, f func(b *testing.B, n int)) {
 	for _, n := range sizes {
-		if isRaceBuilder && n > 4<<10 {
-			continue
-		}
+		// if isRaceBuilder && n > 4<<10 {
+		// 	continue
+		// }
 
 		b.Run(valName(n), func(b *testing.B) {
 			if len(bmbuf) < n {
@@ -536,7 +534,8 @@ func benchBytes(b *testing.B, sizes []int, f func(b *testing.B, n int)) {
 
 var indexSizes = []int{10, 32, 4 << 10, 4 << 20, 64 << 20}
 
-var isRaceBuilder = os.Getenv("RACE") == "true"
+// XXX remove testenv
+// var isRaceBuilder = strings.HasSuffix(testenv.Builder(), "-race")
 
 func BenchmarkIndexByte(b *testing.B) {
 	benchBytes(b, indexSizes, bmIndexByte(bytes.IndexByte))
