@@ -12,51 +12,79 @@ import (
 
 func TestAddHit(t *testing.T) {
 	tests := []struct {
-		name         string
-		initialData  *CoverageData
-		pkgPath      string
-		line         int
-		expectedHits int
+		name            string
+		initialData     *CoverageData
+		pkgPath         string
+		line            int
+		expectedHits    int
+		executableLines map[int]bool
 	}{
 		{
-			name:         "Add hit to new file",
-			initialData:  NewCoverageData(""),
-			pkgPath:      "file1.gno",
-			line:         10,
-			expectedHits: 1,
-		},
-		{
-			name: "Add hit to existing file and line",
+			name: "Add hit to existing file and executable line",
 			initialData: &CoverageData{
 				Files: map[string]FileCoverage{
-					"file1.gno": {HitLines: map[int]int{10: 1}},
+					"file1.gno": {
+						HitLines:        map[int]int{10: 1},
+						ExecutableLines: map[int]bool{10: true, 20: true},
+					},
 				},
 			},
-			pkgPath:      "file1.gno",
-			line:         10,
-			expectedHits: 2,
+			pkgPath:         "file1.gno",
+			line:            10,
+			expectedHits:    2,
+			executableLines: map[int]bool{10: true, 20: true},
 		},
 		{
-			name: "Add hit to new line in existing file",
+			name: "Add hit to new executable line in existing file",
 			initialData: &CoverageData{
 				Files: map[string]FileCoverage{
-					"file1.gno": {HitLines: map[int]int{10: 1}},
+					"file1.gno": {
+						HitLines:        map[int]int{10: 1},
+						ExecutableLines: map[int]bool{10: true, 20: true},
+					},
 				},
 			},
-			pkgPath:      "file1.gno",
-			line:         20,
-			expectedHits: 1,
+			pkgPath:         "file1.gno",
+			line:            20,
+			expectedHits:    1,
+			executableLines: map[int]bool{10: true, 20: true},
+		},
+		{
+			name: "Add hit to non-executable line",
+			initialData: &CoverageData{
+				Files: map[string]FileCoverage{
+					"file1.gno": {
+						HitLines:        map[int]int{10: 1},
+						ExecutableLines: map[int]bool{10: true},
+					},
+				},
+			},
+			pkgPath:         "file1.gno",
+			line:            20,
+			expectedHits:    0,
+			executableLines: map[int]bool{10: true},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.initialData.AddHit(tt.pkgPath, tt.line)
+			// Set executable lines
 			fileCoverage := tt.initialData.Files[tt.pkgPath]
+			fileCoverage.ExecutableLines = tt.executableLines
+			tt.initialData.Files[tt.pkgPath] = fileCoverage
+
+			tt.initialData.AddHit(tt.pkgPath, tt.line)
+			updatedFileCoverage := tt.initialData.Files[tt.pkgPath]
 
 			// Validate the hit count for the specific line
-			if fileCoverage.HitLines[tt.line] != tt.expectedHits {
-				t.Errorf("got %d hits for line %d, want %d", fileCoverage.HitLines[tt.line], tt.line, tt.expectedHits)
+			actualHits := updatedFileCoverage.HitLines[tt.line]
+			if actualHits != tt.expectedHits {
+				t.Errorf("got %d hits for line %d, want %d", actualHits, tt.line, tt.expectedHits)
+			}
+
+			// Check if non-executable lines are not added to HitLines
+			if !tt.executableLines[tt.line] && actualHits > 0 {
+				t.Errorf("non-executable line %d was added to HitLines", tt.line)
 			}
 		})
 	}
@@ -250,10 +278,12 @@ func TestRecordCoverage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			coverage := NewCoverageData("")
+			coverage.CurrentPackage = tt.currentPackage
+			coverage.CurrentFile = tt.currentFile
+
 			m := &Machine{
-				CurrentPackage: tt.currentPackage,
-				CurrentFile:    tt.currentFile,
-				Coverage:       NewCoverageData(""),
+				Coverage: coverage,
 			}
 
 			// First call to set up initial state for "Multiple hits on same line" test

@@ -317,7 +317,7 @@ func gnoTestPkg(
 
 			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
 			m.Coverage = coverageData
-			m.CurrentPackage = memPkg.Path
+			m.Coverage.CurrentPackage = memPkg.Path
 
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go

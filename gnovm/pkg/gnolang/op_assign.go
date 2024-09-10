@@ -78,11 +78,16 @@ func (m *Machine) doOpAssign() {
 
 func (m *Machine) doOpAddAssign() {
 	s := m.PopStmt().(*AssignStmt)
+	m.recordCoverage(s)
+
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
+
+	m.recordCoverage(s.Lhs[0])
+	m.recordCoverage(s.Rhs[0])
 
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -97,15 +102,22 @@ func (m *Machine) doOpAddAssign() {
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
+
+	m.recordCoverage(s)
 }
 
 func (m *Machine) doOpSubAssign() {
 	s := m.PopStmt().(*AssignStmt)
+	m.recordCoverage(s)
+
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
+
+	m.recordCoverage(s.Lhs[0])
+	m.recordCoverage(s.Rhs[0])
 
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -120,15 +132,22 @@ func (m *Machine) doOpSubAssign() {
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
+
+	m.recordCoverage(s)
 }
 
 func (m *Machine) doOpMulAssign() {
 	s := m.PopStmt().(*AssignStmt)
+	m.recordCoverage(s)
+
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
+
+	m.recordCoverage(s.Lhs[0])
+	m.recordCoverage(s.Rhs[0])
 
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -143,15 +162,22 @@ func (m *Machine) doOpMulAssign() {
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
+
+	m.recordCoverage(s)
 }
 
 func (m *Machine) doOpQuoAssign() {
 	s := m.PopStmt().(*AssignStmt)
+	m.recordCoverage(s)
+
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
+
+	m.recordCoverage(s.Lhs[0])
+	m.recordCoverage(s.Rhs[0])
 
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -166,15 +192,22 @@ func (m *Machine) doOpQuoAssign() {
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
+
+	m.recordCoverage(s)
 }
 
 func (m *Machine) doOpRemAssign() {
 	s := m.PopStmt().(*AssignStmt)
+	m.recordCoverage(s)
+
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
+
+	m.recordCoverage(s.Lhs[0])
+	m.recordCoverage(s.Rhs[0])
 
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -189,15 +222,22 @@ func (m *Machine) doOpRemAssign() {
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
+
+	m.recordCoverage(s)
 }
 
 func (m *Machine) doOpBandAssign() {
 	s := m.PopStmt().(*AssignStmt)
+	m.recordCoverage(s)
+
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
+
+	m.recordCoverage(s.Lhs[0])
+	m.recordCoverage(s.Rhs[0])
 
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -212,15 +252,22 @@ func (m *Machine) doOpBandAssign() {
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
+
+	m.recordCoverage(s)
 }
 
 func (m *Machine) doOpBandnAssign() {
 	s := m.PopStmt().(*AssignStmt)
+	m.recordCoverage(s)
+
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
+
+	m.recordCoverage(s.Lhs[0])
+	m.recordCoverage(s.Rhs[0])
 
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -230,20 +277,28 @@ func (m *Machine) doOpBandnAssign() {
 			}
 		}
 	}
+
 	// lv &^= rv
 	bandnAssign(lv.TV, rv)
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
+
+	m.recordCoverage(s)
 }
 
 func (m *Machine) doOpBorAssign() {
 	s := m.PopStmt().(*AssignStmt)
+	m.recordCoverage(s)
+
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
+
+	m.recordCoverage(s.Lhs[0])
+	m.recordCoverage(s.Rhs[0])
 
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -258,15 +313,22 @@ func (m *Machine) doOpBorAssign() {
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
+
+	m.recordCoverage(s)
 }
 
 func (m *Machine) doOpXorAssign() {
 	s := m.PopStmt().(*AssignStmt)
+	m.recordCoverage(s)
+
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
 	if debug {
 		debugAssertSameTypes(lv.TV.T, rv.T)
 	}
+
+	m.recordCoverage(s)
+	m.recordCoverage(s)
 
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -281,12 +343,19 @@ func (m *Machine) doOpXorAssign() {
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
+
+	m.recordCoverage(s)
 }
 
 func (m *Machine) doOpShlAssign() {
 	s := m.PopStmt().(*AssignStmt)
+	m.recordCoverage(s)
+
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
+
+	m.recordCoverage(s.Lhs[0])
+	m.recordCoverage(s.Rhs[0])
 
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -301,12 +370,19 @@ func (m *Machine) doOpShlAssign() {
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
+
+	m.recordCoverage(s)
 }
 
 func (m *Machine) doOpShrAssign() {
 	s := m.PopStmt().(*AssignStmt)
+	m.recordCoverage(s)
+
 	rv := m.PopValue() // only one.
 	lv := m.PopAsPointer(s.Lhs[0])
+
+	m.recordCoverage(s.Lhs[0])
+	m.recordCoverage(s.Rhs[0])
 
 	// XXX HACK (until value persistence impl'd)
 	if m.ReadOnly {
@@ -321,4 +397,6 @@ func (m *Machine) doOpShrAssign() {
 	if lv.Base != nil {
 		m.Realm.DidUpdate(lv.Base.(Object), nil, nil)
 	}
+
+	m.recordCoverage(s)
 }

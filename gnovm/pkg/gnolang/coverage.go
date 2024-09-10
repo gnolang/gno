@@ -22,26 +22,52 @@ const (
 
 // CoverageData stores code coverage information
 type CoverageData struct {
-	Files   map[string]FileCoverage
-	PkgPath string
-	RootDir string
+	Files          map[string]FileCoverage
+	PkgPath        string
+	RootDir        string
+	CurrentPackage string
+	CurrentFile    string
 }
 
 // FileCoverage stores coverage information for a single file
 type FileCoverage struct {
-	TotalLines int
-	HitLines   map[int]int
+	TotalLines      int
+	HitLines        map[int]int
+	ExecutableLines map[int]bool
 }
 
 func NewCoverageData(rootDir string) *CoverageData {
 	return &CoverageData{
-		Files:   make(map[string]FileCoverage),
-		PkgPath: "",
-		RootDir: rootDir,
+		Files:          make(map[string]FileCoverage),
+		PkgPath:        "",
+		RootDir:        rootDir,
+		CurrentPackage: "",
+		CurrentFile:    "",
 	}
 }
 
+func (c *CoverageData) SetExecutableLines(filePath string, executableLines map[int]bool) {
+	cov, exists := c.Files[filePath]
+	if !exists {
+		cov = FileCoverage{
+			TotalLines:      0,
+			HitLines:        make(map[int]int),
+			ExecutableLines: make(map[int]bool),
+		}
+	}
+
+	cov.ExecutableLines = executableLines
+	c.Files[filePath] = cov
+}
+
 func (c *CoverageData) AddHit(pkgPath string, line int) {
+	if !strings.HasSuffix(pkgPath, ".gno") {
+		return
+	}
+	if isTestFile(pkgPath) {
+		return
+	}
+
 	fileCoverage, exists := c.Files[pkgPath]
 	if !exists {
 		fileCoverage = FileCoverage{
@@ -51,7 +77,9 @@ func (c *CoverageData) AddHit(pkgPath string, line int) {
 		c.Files[pkgPath] = fileCoverage
 	}
 
-	fileCoverage.HitLines[line]++
+	if fileCoverage.ExecutableLines[line] {
+		fileCoverage.HitLines[line]++
+	}
 
 	// Only update the file coverage, without incrementing TotalLines
 	c.Files[pkgPath] = fileCoverage
@@ -138,13 +166,6 @@ func (c *CoverageData) ColoredCoverage(filePath string) error {
 // Attempts to determine the full real path based on the filePath alone.
 // It dynamically checks if the file exists in either examples or gnovm/stdlibs directories.
 func (c *CoverageData) determineRealPath(filePath string) (string, error) {
-	if !strings.HasSuffix(filePath, ".gno") {
-		return "", fmt.Errorf("invalid file type: %s (not a .gno file)", filePath)
-	}
-	if isTestFile(filePath) {
-		return "", fmt.Errorf("cannot determine real path for test file: %s", filePath)
-	}
-
 	// Define possible base directories
 	baseDirs := []string{
 		filepath.Join(c.RootDir, "examples"), // p, r packages
@@ -225,8 +246,8 @@ func (m *Machine) recordCoverage(node Node) Location {
 		return Location{}
 	}
 
-	pkgPath := m.CurrentPackage
-	file := m.CurrentFile
+	pkgPath := m.Coverage.CurrentPackage
+	file := m.Coverage.CurrentFile
 	line := node.GetLine()
 
 	path := filepath.Join(pkgPath, file)
@@ -257,7 +278,7 @@ func isExecutableLine(node ast.Node) bool {
 	case *ast.AssignStmt, *ast.ExprStmt, *ast.ReturnStmt, *ast.BranchStmt,
 		*ast.IncDecStmt, *ast.GoStmt, *ast.DeferStmt, *ast.SendStmt:
 		return true
-	case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.SelectStmt:
+	case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.SelectStmt, *ast.CaseClause:
 		return true
 	case *ast.FuncDecl:
 		return false

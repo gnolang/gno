@@ -82,9 +82,7 @@ type Machine struct {
 	DeferPanicScope uint
 
 	// Test Coverage
-	Coverage       *CoverageData
-	CurrentPackage string
-	CurrentFile    string
+	Coverage *CoverageData
 }
 
 // NewMachine initializes a new gno virtual machine, acting as a shorthand
@@ -270,15 +268,21 @@ func (m *Machine) PreprocessAllFilesAndSaveBlockNodes() {
 // and corresponding package node, package value, and types to store. Save
 // is set to false for tests where package values may be native.
 func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode, *PackageValue) {
-	m.CurrentPackage = memPkg.Path
+	m.Coverage.CurrentPackage = memPkg.Path
 
 	for _, file := range memPkg.Files {
 		if strings.HasSuffix(file.Name, ".gno") && !isTestFile(file.Name) {
-			m.CurrentFile = file.Name
+			m.Coverage.CurrentFile = file.Name
 
 			totalLines := countCodeLines(file.Body)
-			path := filepath.Join(m.CurrentPackage, m.CurrentFile)
+			path := filepath.Join(m.Coverage.CurrentPackage, m.Coverage.CurrentFile)
 
+			executableLines, err := detectExecutableLines(file.Body)
+			if err != nil {
+				continue
+			}
+
+			m.Coverage.SetExecutableLines(path, executableLines)
 			m.AddFileToCodeCoverage(path, totalLines)
 		}
 	}
@@ -1617,8 +1621,8 @@ func (m *Machine) getCurrentLocation() Location {
 	}
 
 	return Location{
-		PkgPath: m.CurrentPackage,
-		File:    m.CurrentFile,
+		PkgPath: m.Coverage.CurrentPackage,
+		File:    m.Coverage.CurrentFile,
 		Line:    lastFrame.Source.GetLine(),
 		Column:  lastFrame.Source.GetColumn(),
 	}
@@ -1924,8 +1928,8 @@ func (m *Machine) PushFrameCall(cx *CallExpr, fv *FuncValue, recv TypedValue) {
 		m.Realm = rlm // enter new realm
 	}
 
-	m.CurrentPackage = fv.PkgPath
-	m.CurrentFile = string(fv.FileName)
+	m.Coverage.CurrentPackage = fv.PkgPath
+	m.Coverage.CurrentFile = string(fv.FileName)
 }
 
 func (m *Machine) PushFrameGoNative(cx *CallExpr, fv *NativeValue) {
