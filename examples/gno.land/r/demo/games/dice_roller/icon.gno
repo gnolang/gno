@@ -29,7 +29,7 @@ func resultIcon(result int) string {
 	switch result {
 	case win:
 		return "🏆"
-	case lose:
+	case loss:
 		return "❌"
 	case draw:
 		return "🤝"

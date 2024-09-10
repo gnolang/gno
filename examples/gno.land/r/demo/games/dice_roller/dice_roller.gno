@@ -37,7 +37,7 @@ const (
 	ongoing = iota
 	win
 	draw
-	lose
+	loss
 )
 
 var (
@@ -95,10 +95,10 @@ func Play(idx int) int {
 
 		if g.roll1 > g.roll2 {
 			player1.updateStats(win)
-			player2.updateStats(lose)
+			player2.updateStats(loss)
 		} else if g.roll2 > g.roll1 {
 			player2.updateStats(win)
-			player1.updateStats(lose)
+			player1.updateStats(loss)
 		} else {
 			player1.updateStats(draw)
 			player2.updateStats(draw)
@@ -247,7 +247,7 @@ func (p *player) updateStats(result int) {
 	case win:
 		p.wins++
 		p.points += 3
-	case lose:
+	case loss:
 		p.losses++
 	case draw:
 		p.draws++
@@ -289,9 +289,21 @@ func (r leaderBoard) Len() int {
 }
 
 func (r leaderBoard) Less(i, j int) bool {
-	return r[i].points > r[j].points
+	if r[i].points != r[j].points {
+		return r[i].points > r[j].points
+	}
+
+	if r[i].wins != r[j].wins {
+		return r[i].wins > r[j].wins
+	}
+
+	if r[i].draws != r[j].draws {
+		return r[i].draws > r[j].draws
+	}
+
+	return false
 }
 
 func (r leaderBoard) Swap(i, j int) {
-	r[i].points, r[j].points = r[j].points, r[i].points
+	r[i], r[j] = r[j], r[i]
 }
