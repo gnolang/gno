@@ -27,12 +27,10 @@ func diceIcon(roll int) string {
 // resultIcon returns the icon representing the result of a game
 func resultIcon(result int) string {
 	switch result {
-	case selfPlay:
-		return "❌"
 	case win:
 		return "🏆"
 	case lose:
-		return "🏆"
+		return "❌"
 	case draw:
 		return "🤝"
 	default:

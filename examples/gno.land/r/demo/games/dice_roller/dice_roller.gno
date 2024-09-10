@@ -34,11 +34,10 @@ type (
 
 const (
 	// Constants to represent game result outcomes
-	selfPlay = iota
+	ongoing = iota
 	win
 	draw
 	lose
-	ongoing
 )
 
 var (
@@ -139,20 +138,16 @@ func (g *game) isFinished() bool {
 
 // checkResult returns the game status as a formatted string
 func (g *game) status() string {
-	if g.player1 == g.player2 {
-		return resultIcon(selfPlay) + " No results for self-play"
-	}
-
 	if !g.isFinished() {
 		return resultIcon(ongoing) + " Game still in progress"
 	}
 
 	if g.roll1 > g.roll2 {
-		return resultIcon(win) + shortName(g.player1) + " Wins!"
+		return resultIcon(win) + " Player1 Wins !"
 	} else if g.roll1 < g.roll2 {
-		return resultIcon(lose) + shortName(g.player2) + " Wins!"
+		return resultIcon(lose) + "Player2 Wins !"
 	} else {
-		return resultIcon(draw) + " It's a Draw!"
+		return resultIcon(draw) + " It's a Draw !"
 	}
 }
 
@@ -162,7 +157,7 @@ func Render(path string) string {
 
 	sb.WriteString(`# 🎲 **Dice Roller Game**
 
-Welcome to Dice Roller! Challenge your friends to a simple yet exciting dice rolling game. Roll the dice and see who gets the highest score!
+Welcome to Dice Roller! Challenge your friends to a simple yet exciting dice rolling game. Roll the dice and see who gets the highest score !
 
 ---
 
@@ -187,7 +182,6 @@ Below are the results from the most recent games. Up to 10 recent games are disp
 |------|----------|-----------|----------|-----------|-----------|
 `)
 
-	// Display up to 10 recent games
 	maxGames := 10
 	for n := int(gameId); n > 0 && int(gameId)-n < maxGames; n-- {
 		g, err := getGame(n)
@@ -196,12 +190,11 @@ Below are the results from the most recent games. Up to 10 recent games are disp
 		}
 
 		sb.WriteString(strconv.Itoa(n) + " | " +
-			shortName(g.player1) + " | " + diceIcon(g.roll1) + " | " +
-			shortName(g.player2) + " | " + diceIcon(g.roll2) + " | " +
+			"<span title=\"" + string(g.player1) + "\">" + shortName(g.player1) + "</span>" + " | " + diceIcon(g.roll1) + " | " +
+			"<span title=\"" + string(g.player2) + "\">" + shortName(g.player2) + "</span>" + " | " + diceIcon(g.roll2) + " | " +
 			g.status() + "\n")
 	}
 
-	// Leaderboard
 	sb.WriteString(`
 ---
 
@@ -213,7 +206,7 @@ The top players are ranked by performance. Games played against oneself are not 
 `)
 
 	for i, player := range getLeaderBoard() {
-		sb.WriteString(ufmt.Sprintf("| %s   | %s | %d | %d | %d | %d |\n",
+		sb.WriteString(ufmt.Sprintf("| %s   | <span title=\""+string(player.addr)+"\">**%s**</span> | %d | %d | %d | %d |\n",
 			rankIcon(i+1),
 			shortName(player.addr),
 			player.wins,
@@ -223,7 +216,7 @@ The top players are ranked by performance. Games played against oneself are not 
 		))
 	}
 
-	sb.WriteString("\n---\n**Good luck and have fun!** 🎉")
+	sb.WriteString("\n---\n**Good luck and have fun !** 🎉")
 	return sb.String()
 }
 
