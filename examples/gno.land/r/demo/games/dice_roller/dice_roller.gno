@@ -6,6 +6,7 @@ import (
 	"sort"
 	"std"
 	"strconv"
+	"strings"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/entropy"
@@ -33,10 +34,11 @@ type (
 
 const (
 	// Constants to represent game result outcomes
-	empty = iota
+	selfPlay = iota
 	win
 	draw
 	lose
+	ongoing
 )
 
 var (
@@ -83,7 +85,7 @@ func Play(idx int) int {
 	}
 
 	// If both players have rolled, update the results and leaderboard
-	if g.roll1 != 0 && g.roll2 != 0 {
+	if g.isFinished() {
 		// If the player is playing against themselves, no points are awarded
 		if g.player1 == g.player2 {
 			return roll
@@ -93,14 +95,14 @@ func Play(idx int) int {
 		player2 := getPlayer(g.player2)
 
 		if g.roll1 > g.roll2 {
-			player1.updateResult(win)
-			player2.updateResult(lose)
+			player1.updateStats(win)
+			player2.updateStats(lose)
 		} else if g.roll2 > g.roll1 {
-			player2.updateResult(win)
-			player1.updateResult(lose)
+			player2.updateStats(win)
+			player1.updateStats(lose)
 		} else {
-			player1.updateResult(draw)
-			player2.updateResult(draw)
+			player1.updateStats(draw)
+			player2.updateStats(draw)
 		}
 	}
 
@@ -113,7 +115,7 @@ func (g *game) play(player std.Address, roll int) error {
 		return errors.New("invalid player")
 	}
 
-	if g.roll1 != 0 && g.roll2 != 0 {
+	if g.isFinished() {
 		return errors.New("game over")
 	}
 
@@ -130,68 +132,60 @@ func (g *game) play(player std.Address, roll int) error {
 	return errors.New("already played")
 }
 
-// winner determines the winner based on scores
-func (g *game) winner() string {
-	if g.roll1 == 0 || g.roll2 == 0 {
-		return "Game still in progress"
+// isFinished checks if the game has ended
+func (g *game) isFinished() bool {
+	return g.roll1 != 0 && g.roll2 != 0
+}
+
+// checkResult returns the game status as a formatted string
+func (g *game) status() string {
+	if g.player1 == g.player2 {
+		return resultIcon(selfPlay) + " No results for self-play"
+	}
+
+	if !g.isFinished() {
+		return resultIcon(ongoing) + " Game still in progress"
 	}
 
 	if g.roll1 > g.roll2 {
-		return "Player 1 wins!"
-	} else if g.roll2 > g.roll1 {
-		return "Player 2 wins!"
+		return resultIcon(win) + shortName(g.player1) + " Wins!"
+	} else if g.roll1 < g.roll2 {
+		return resultIcon(lose) + shortName(g.player2) + " Wins!"
 	} else {
-		return "It's a draw!"
-	}
-}
-
-// diceIcon returns an icon of the dice roll
-func diceIcon(roll int) string {
-	switch roll {
-	case 1:
-		return "🎲1"
-	case 2:
-		return "🎲2"
-	case 3:
-		return "🎲3"
-	case 4:
-		return "🎲4"
-	case 5:
-		return "🎲5"
-	case 6:
-		return "🎲6"
-	default:
-		return strconv.Itoa(roll)
+		return resultIcon(draw) + " It's a Draw!"
 	}
 }
 
 // Render provides a summary of the current state of games and leader board
 func Render(path string) string {
-	output := `# 🎲 Dice Roller
+	var sb strings.Builder
 
-## Game Rules:
-Dice Roller is a two-player game where each player rolls a dice once
-1. **Create a game** with an opponent using [NewGame](diceroller?help&__func=NewGame)
-2. **Play** using [Play](diceroller?help&__func=Play), where each player rolls a dice
+	sb.WriteString(`# 🎲 **Dice Roller Game**
 
-## Scoring:
-- Playing against yourself? No points or stats changes for you
-- **Win:** 3 points
-- **Loss:** 0 points
-- **Draw:** 1 point each
+Welcome to Dice Roller! Challenge your friends to a simple yet exciting dice rolling game. Roll the dice and see who gets the highest score!
 
-## Actions:
-* [NewGame](diceroller?help&__func=NewGame) opponentAddress
-  - **opponentAddress**: The address of the opponent player
-* [Play](diceroller?help&__func=Play) gameIndex
-  - **gameIndex**: The unique index of the game you want to play
+---
 
-## Recent Games:
-Displays a summary of the most recent games. Up to 10 recent games are shown
+## **How to Play**:
+1. **Create a game**: Challenge an opponent using [NewGame](diceroller?help&__func=NewGame)
+2. **Roll the dice**: Play your turn by rolling a dice using [Play](diceroller?help&__func=Play)
 
-| Game | Player 1 | Roll 1 | Player 2 | Roll 2 | Winner |
-|------|----------|--------|----------|--------|--------|
-`
+---
+
+## **Scoring Rules**:
+- **Win** 🏆: +3 points
+- **Draw** 🤝: +1 point each
+- **Loss**: No points
+- **Playing against yourself**: No points or stats changes for you
+
+---
+
+## **Recent Games**:
+Below are the results from the most recent games. Up to 10 recent games are displayed. Games where both players are the same (playing against oneself) are not counted in the leaderboard.
+
+| Game | Player 1 | 🎲 Roll 1 | Player 2 | 🎲 Roll 2 | 🏆 Winner |
+|------|----------|-----------|----------|-----------|-----------|
+`)
 
 	// Display up to 10 recent games
 	maxGames := 10
@@ -201,43 +195,36 @@ Displays a summary of the most recent games. Up to 10 recent games are shown
 			continue
 		}
 
-		output += strconv.Itoa(n) + " | " +
+		sb.WriteString(strconv.Itoa(n) + " | " +
 			shortName(g.player1) + " | " + diceIcon(g.roll1) + " | " +
 			shortName(g.player2) + " | " + diceIcon(g.roll2) + " | " +
-			g.winner() + "\n"
+			g.status() + "\n")
 	}
 
-	// Display the leader board
-	output += `
-## Leader board:
-Displays the current ranking of players based on their performance in Dice Roller
+	// Leaderboard
+	sb.WriteString(`
+---
+
+## **Leaderboard**:
+The top players are ranked by performance. Games played against oneself are not counted in the leaderboard
 
 | Rank | Player                | Wins | Losses | Draws | Points |
 |------|-----------------------|------|--------|-------|--------|
-`
+`)
 
 	for i, player := range getLeaderBoard() {
-		rankIcon := strconv.Itoa(i)
-
-		if i == 0 {
-			rankIcon = "🥇"
-		} else if i == 1 {
-			rankIcon = "🥈"
-		} else if i == 2 {
-			rankIcon = "🥉"
-		}
-
-		output += ufmt.Sprintf("| %s   | %s | %d | %d | %d | %d |\n",
-			rankIcon,
+		sb.WriteString(ufmt.Sprintf("| %s   | %s | %d | %d | %d | %d |\n",
+			rankIcon(i+1),
 			shortName(player.addr),
 			player.wins,
 			player.losses,
 			player.draws,
 			player.points,
-		)
+		))
 	}
 
-	return output
+	sb.WriteString("\n---\n**Good luck and have fun!** 🎉")
+	return sb.String()
 }
 
 // shortName returns a shortened name for the given address
@@ -261,8 +248,8 @@ func getGame(idx int) (*game, error) {
 	return v.(*game), nil
 }
 
-// updateResult updates the player's result and points based on the game outcome
-func (p *player) updateResult(result int) {
+// updateResult updates the player's stats and points based on the game outcome
+func (p *player) updateStats(result int) {
 	switch result {
 	case win:
 		p.wins++

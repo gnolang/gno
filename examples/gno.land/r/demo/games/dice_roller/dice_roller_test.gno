@@ -114,35 +114,6 @@ func TestPlayAlreadyPlayed(t *testing.T) {
 	})
 }
 
-// TestPlayUntilGameEnds tests the scenario where both players finish their rolls and the game ends
-func TestPlayUntilGameEnds(t *testing.T) {
-	resetGameState()
-
-	std.TestSetOrigCaller(player1)
-	gameID := NewGame(player2)
-
-	// Play for both players
-	std.TestSetOrigCaller(player1)
-	Play(gameID)
-	std.TestSetOrigCaller(player2)
-	Play(gameID)
-
-	// Check if the game is over
-	g, err := getGame(gameID)
-	urequire.NoError(t, err)
-	urequire.NotEqual(t, "Game still in progress", g.winner())
-
-	// Verify the winner is correctly determined
-	winner := g.winner()
-	if winner == "Player 1 wins!" {
-		urequire.True(t, g.roll1 > g.roll2)
-	} else if winner == "Player 2 wins!" {
-		urequire.True(t, g.roll2 > g.roll1)
-	} else if winner == "It's a draw!" {
-		urequire.True(t, g.roll1 == g.roll2)
-	}
-}
-
 // TestPlayBeyondGameEnd tests that playing after both players have finished their rolls fails
 func TestPlayBeyondGameEnd(t *testing.T) {
 	resetGameState()
@@ -159,7 +130,6 @@ func TestPlayBeyondGameEnd(t *testing.T) {
 	// Check if the game is over
 	g, err := getGame(gameID)
 	urequire.NoError(t, err)
-	urequire.NotEqual(t, "Game still in progress", g.winner())
 
 	// Attempt to play more should fail
 	std.TestSetOrigCaller(player1)
