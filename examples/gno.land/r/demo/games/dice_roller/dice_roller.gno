@@ -24,8 +24,8 @@ type (
 
 	// player holds the information about each player including their stats
 	player struct {
-		addr                              std.Address
-		wins, losses, draws, points, rank int
+		addr                        std.Address
+		wins, losses, draws, points int
 	}
 
 	// leaderBoard is a slice of players, used to sort players by rank
