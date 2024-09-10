@@ -38,13 +38,21 @@ func TestRoutes(t *testing.T) {
 		{"/r/demo/deep/very/deep?help", ok, "exposed"},
 		{"/r/demo/deep/very/deep/", ok, "render.gno"},
 		{"/r/demo/deep/very/deep/render.gno", ok, "func Render("},
-		{"/game-of-realms", ok, "/r/gnoland/pages:p/gor"},
-		{"/gor", found, "/game-of-realms"},
+		{"/contribute", ok, "Game of Realms"},
+		{"/game-of-realms", found, "/contribute"},
+		{"/gor", found, "/contribute"},
 		{"/blog", found, "/r/gnoland/blog"},
 		{"/404-not-found", notFound, "/404-not-found"},
+		{"/아스키문자가아닌경로", notFound, "/아스키문자가아닌경로"},
+		{"/%ED%85%8C%EC%8A%A4%ED%8A%B8", notFound, "/테스트"},
+		{"/グノー", notFound, "/グノー"},
+		{"/⚛️", notFound, "/⚛️"},
+		{"/p/demo/flow/LICENSE", ok, "BSD 3-Clause"},
 	}
 
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	rootdir := gnoenv.RootDir()
+	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
+	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
 	defer node.Stop()
 
@@ -63,9 +71,7 @@ func TestRoutes(t *testing.T) {
 			response := httptest.NewRecorder()
 			app.Router.ServeHTTP(response, request)
 			assert.Equal(t, r.status, response.Code)
-
 			assert.Contains(t, response.Body.String(), r.substring)
-			// println(response.Body.String())
 		})
 	}
 }
@@ -93,7 +99,9 @@ func TestAnalytics(t *testing.T) {
 		"/404-not-found",
 	}
 
-	config, _ := integration.TestingNodeConfig(t, gnoenv.RootDir())
+	rootdir := gnoenv.RootDir()
+	genesis := integration.LoadDefaultGenesisTXsFile(t, "tendermint_test", rootdir)
+	config, _ := integration.TestingNodeConfig(t, rootdir, genesis...)
 	node, remoteAddr := integration.TestingInMemoryNode(t, log.NewTestingLogger(t), config)
 	defer node.Stop()
 

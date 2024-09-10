@@ -5,28 +5,32 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"sort"
+	"regexp"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
+	"github.com/gnolang/gno/tm2/pkg/crypto/hd"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
-	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
+	"github.com/gnolang/gno/tm2/pkg/crypto/secp256k1"
 )
+
+var (
+	errInvalidMnemonic       = errors.New("invalid bip39 mnemonic")
+	errInvalidDerivationPath = errors.New("invalid derivation path")
+)
+
+var reDerivationPath = regexp.MustCompile(`^44'\/118'\/\d+'\/0\/\d+$`)
 
 type AddCfg struct {
 	RootCfg *BaseCfg
 
-	Multisig          commands.StringArr
-	MultisigThreshold int
-	NoSort            bool
-	PublicKey         string
-	UseLedger         bool
-	Recover           bool
-	NoBackup          bool
-	DryRun            bool
-	Account           uint64
-	Index             uint64
+	Recover  bool
+	NoBackup bool
+	Account  uint64
+	Index    uint64
+
+	DerivationPath commands.StringArr
 }
 
 func NewAddCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
@@ -34,7 +38,7 @@ func NewAddCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		RootCfg: rootCfg,
 	}
 
-	return commands.NewCommand(
+	cmd := commands.NewCommand(
 		commands.Metadata{
 			Name:       "add",
 			ShortUsage: "add [flags] <key-name>",
@@ -45,43 +49,17 @@ func NewAddCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 			return execAdd(cfg, args, io)
 		},
 	)
+
+	cmd.AddSubCommands(
+		NewAddMultisigCmd(cfg, io),
+		NewAddLedgerCmd(cfg, io),
+		NewAddBech32Cmd(cfg, io),
+	)
+
+	return cmd
 }
 
 func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.Var(
-		&c.Multisig,
-		"multisig",
-		"construct and store a multisig public key (implies --pubkey)",
-	)
-
-	fs.IntVar(
-		&c.MultisigThreshold,
-		"threshold",
-		1,
-		"K out of N required signatures. For use in conjunction with --multisig",
-	)
-
-	fs.BoolVar(
-		&c.NoSort,
-		"nosort",
-		false,
-		"keys passed to --multisig are taken in the order they're supplied",
-	)
-
-	fs.StringVar(
-		&c.PublicKey,
-		"pubkey",
-		"",
-		"parse a public key in bech32 format and save it to disk",
-	)
-
-	fs.BoolVar(
-		&c.UseLedger,
-		"ledger",
-		false,
-		"store a local reference to a private key on a Ledger device",
-	)
-
 	fs.BoolVar(
 		&c.Recover,
 		"recover",
@@ -94,13 +72,6 @@ func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
 		"nobackup",
 		false,
 		"don't print out seed phrase (if others are watching the terminal)",
-	)
-
-	fs.BoolVar(
-		&c.DryRun,
-		"dryrun",
-		false,
-		"perform action, but don't add key to local keystore",
 	)
 
 	fs.Uint64Var(
@@ -116,170 +87,124 @@ func (c *AddCfg) RegisterFlags(fs *flag.FlagSet) {
 		0,
 		"address index number for HD derivation",
 	)
+
+	fs.Var(
+		&c.DerivationPath,
+		"derivation-path",
+		"derivation path for deriving the address",
+	)
 }
 
-// DryRunKeyPass contains the default key password for genesis transactions
-const DryRunKeyPass = "12345678"
-
-/*
-input
-  - bip39 mnemonic
-  - bip39 passphrase
-  - bip44 path
-  - local encryption password
-
-output
-  - armor encrypted private key (saved to file)
-*/
 func execAdd(cfg *AddCfg, args []string, io commands.IO) error {
-	var (
-		kb              keys.Keybase
-		err             error
-		encryptPassword string
-	)
-
+	// Check if the key name is provided
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
 
-	name := args[0]
-	showMnemonic := !cfg.NoBackup
-
-	if cfg.DryRun {
-		// we throw this away, so don't enforce args,
-		// we want to get a new random seed phrase quickly
-		kb = keys.NewInMemory()
-		encryptPassword = DryRunKeyPass
-	} else {
-		kb, err = keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
-		if err != nil {
-			return err
-		}
-
-		if has, err := kb.HasByName(name); err == nil && has {
-			// account exists, ask for user confirmation
-			response, err2 := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
-			if err2 != nil {
-				return err2
-			}
-			if !response {
-				return errors.New("aborted")
-			}
-		}
-
-		multisigKeys := cfg.Multisig
-		if len(multisigKeys) != 0 {
-			var pks []crypto.PubKey
-
-			multisigThreshold := cfg.MultisigThreshold
-			if err := keys.ValidateMultisigThreshold(multisigThreshold, len(multisigKeys)); err != nil {
-				return err
-			}
-
-			for _, keyname := range multisigKeys {
-				k, err := kb.GetByName(keyname)
-				if err != nil {
-					return err
-				}
-				pks = append(pks, k.GetPubKey())
-			}
-
-			// Handle --nosort
-			if !cfg.NoSort {
-				sort.Slice(pks, func(i, j int) bool {
-					return pks[i].Address().Compare(pks[j].Address()) < 0
-				})
-			}
-
-			pk := multisig.NewPubKeyMultisigThreshold(multisigThreshold, pks)
-			if _, err := kb.CreateMulti(name, pk); err != nil {
-				return err
-			}
-
-			io.Printfln("Key %q saved to disk.\n", name)
-			return nil
-		}
-
-		// ask for a password when generating a local key
-		if cfg.PublicKey == "" && !cfg.UseLedger {
-			encryptPassword, err = io.GetCheckPassword(
-				[2]string{
-					"Enter a passphrase to encrypt your key to disk:",
-					"Repeat the passphrase:",
-				},
-				cfg.RootCfg.InsecurePasswordStdin,
+	// Validate the derivation paths are correct
+	for _, path := range cfg.DerivationPath {
+		// Make sure the path is valid
+		if _, err := hd.NewParamsFromPath(path); err != nil {
+			return fmt.Errorf(
+				"%w, %w",
+				errInvalidDerivationPath,
+				err,
 			)
-			if err != nil {
-				return err
-			}
+		}
+
+		// Make sure the path conforms to the Gno derivation path
+		if !reDerivationPath.MatchString(path) {
+			return errInvalidDerivationPath
 		}
 	}
 
-	if cfg.PublicKey != "" {
-		pk, err := crypto.PubKeyFromBech32(cfg.PublicKey)
-		if err != nil {
-			return err
-		}
-		_, err = kb.CreateOffline(name, pk)
-		if err != nil {
-			return err
-		}
-		return nil
+	name := args[0]
+
+	// Read the keybase from the home directory
+	kb, err := keys.NewKeyBaseFromDir(cfg.RootCfg.Home)
+	if err != nil {
+		return fmt.Errorf("unable to read keybase, %w", err)
 	}
 
-	account := cfg.Account
-	index := cfg.Index
+	// Check if the key exists
+	exists, err := kb.HasByName(name)
+	if err != nil {
+		return fmt.Errorf("unable to fetch key, %w", err)
+	}
 
-	// If we're using ledger, only thing we need is the path and the bech32 prefix.
-	if cfg.UseLedger {
-		bech32PrefixAddr := crypto.Bech32AddrPrefix
-		info, err := kb.CreateLedger(name, keys.Secp256k1, bech32PrefixAddr, uint32(account), uint32(index))
+	// Get overwrite confirmation, if any
+	if exists {
+		overwrite, err := io.GetConfirmation(fmt.Sprintf("Override the existing name %s", name))
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to get confirmation, %w", err)
 		}
 
-		return printCreate(info, false, "", io)
+		if !overwrite {
+			return errOverwriteAborted
+		}
+	}
+
+	// Ask for a password when generating a local key
+	encryptPassword, err := io.GetCheckPassword(
+		[2]string{
+			"Enter a passphrase to encrypt your key to disk:",
+			"Repeat the passphrase:",
+		},
+		cfg.RootCfg.InsecurePasswordStdin,
+	)
+	if err != nil {
+		return fmt.Errorf("unable to parse provided password, %w", err)
 	}
 
 	// Get bip39 mnemonic
-	var mnemonic string
-	const bip39Passphrase string = "" // XXX research.
+	mnemonic, err := GenerateMnemonic(mnemonicEntropySize)
+	if err != nil {
+		return fmt.Errorf("unable to generate mnemonic, %w", err)
+	}
 
 	if cfg.Recover {
 		bip39Message := "Enter your bip39 mnemonic"
 		mnemonic, err = io.GetString(bip39Message)
 		if err != nil {
-			return err
+			return fmt.Errorf("unable to parse mnemonic, %w", err)
 		}
 
+		// Make sure it's valid
 		if !bip39.IsMnemonicValid(mnemonic) {
-			return errors.New("invalid mnemonic")
+			return errInvalidMnemonic
 		}
 	}
 
-	if len(mnemonic) == 0 {
-		mnemonic, err = GenerateMnemonic(mnemonicEntropySize)
-		if err != nil {
-			return err
-		}
-	}
-
-	info, err := kb.CreateAccount(name, mnemonic, bip39Passphrase, encryptPassword, uint32(account), uint32(index))
+	// Save the account
+	info, err := kb.CreateAccount(
+		name,
+		mnemonic,
+		"",
+		encryptPassword,
+		uint32(cfg.Account),
+		uint32(cfg.Index),
+	)
 	if err != nil {
-		return err
+		return fmt.Errorf("unable to save account to keybase, %w", err)
 	}
+
+	// Print the derived address info
+	printDerive(mnemonic, cfg.DerivationPath, io)
 
 	// Recover key from seed passphrase
 	if cfg.Recover {
-		// Hide mnemonic from output
-		showMnemonic = false
-		mnemonic = ""
+		printCreate(info, false, "", io)
+
+		return nil
 	}
 
-	return printCreate(info, showMnemonic, mnemonic, io)
+	// Print the key create info
+	printCreate(info, !cfg.NoBackup, mnemonic, io)
+
+	return nil
 }
 
-func printCreate(info keys.Info, showMnemonic bool, mnemonic string, io commands.IO) error {
+func printCreate(info keys.Info, showMnemonic bool, mnemonic string, io commands.IO) {
 	io.Println("")
 	printNewInfo(info, io)
 
@@ -291,8 +216,6 @@ It is the only way to recover your account if you ever forget your password.
 %v
 `, mnemonic)
 	}
-
-	return nil
 }
 
 func printNewInfo(info keys.Info, io commands.IO) {
@@ -304,4 +227,60 @@ func printNewInfo(info keys.Info, io commands.IO) {
 
 	io.Printfln("* %s (%s) - addr: %v pub: %v, path: %v",
 		keyname, keytype, keyaddr, keypub, keypath)
+}
+
+// printDerive prints the derived accounts, if any
+func printDerive(
+	mnemonic string,
+	paths []string,
+	io commands.IO,
+) {
+	if len(paths) == 0 {
+		// No accounts to print
+		return
+	}
+
+	// Generate the accounts
+	accounts := generateAccounts(
+		mnemonic,
+		paths,
+	)
+
+	io.Printf("[Derived Accounts]\n\n")
+
+	// Print them out
+	for index, path := range paths {
+		io.Printfln(
+			"%d. %s: %s",
+			index,
+			path,
+			accounts[index].String(),
+		)
+	}
+}
+
+// generateAccounts the accounts using the provided mnemonics
+func generateAccounts(mnemonic string, paths []string) []crypto.Address {
+	addresses := make([]crypto.Address, len(paths))
+
+	// Generate the seed
+	seed := bip39.NewSeed(mnemonic, "")
+
+	for index, path := range paths {
+		key := generateKeyFromSeed(seed, path)
+		address := key.PubKey().Address()
+
+		addresses[index] = address
+	}
+
+	return addresses
+}
+
+// generateKeyFromSeed generates a private key from
+// the provided seed and path
+func generateKeyFromSeed(seed []byte, path string) crypto.PrivKey {
+	masterPriv, ch := hd.ComputeMastersFromSeed(seed)
+	derivedPriv, _ := hd.DerivePrivateKeyForPath(masterPriv, ch, path)
+
+	return secp256k1.PrivKeySecp256k1(derivedPriv)
 }

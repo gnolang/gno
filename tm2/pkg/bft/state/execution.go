@@ -106,8 +106,20 @@ func (blockExec *BlockExecutor) ApplyBlock(state State, blockID types.BlockID, b
 
 	fail.Fail() // XXX
 
-	// Save the results before we commit.
-	saveABCIResponses(blockExec.db, block.Height, abciResponses)
+	// Save the results by height
+	SaveABCIResponses(blockExec.db, block.Height, abciResponses)
+
+	// Save the results by tx hash
+	for index, tx := range block.Txs {
+		saveTxResultIndex(
+			blockExec.db,
+			tx.Hash(),
+			TxResultIndex{
+				BlockNum: block.Height,
+				TxIndex:  uint32(index),
+			},
+		)
+	}
 
 	fail.Fail() // XXX
 
@@ -415,7 +427,7 @@ func fireEvents(evsw events.EventSwitch, block *types.Block, abciResponses *ABCI
 			Height:   block.Height,
 			Index:    uint32(i),
 			Tx:       tx,
-			Response: (abciResponses.DeliverTxs[i]),
+			Response: abciResponses.DeliverTxs[i],
 		}})
 	}
 

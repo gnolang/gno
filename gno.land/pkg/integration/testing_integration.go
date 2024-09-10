@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"hash/crc32"
 	"log/slog"
@@ -13,8 +14,10 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
 	"github.com/gnolang/gno/gno.land/pkg/log"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
@@ -24,6 +27,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/bip39"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	tm2Log "github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/rogpeppe/go-internal/testscript"
@@ -70,6 +74,7 @@ func RunGnolandTestscripts(t *testing.T, txtarDir string) {
 
 type testNode struct {
 	*node.Node
+	cfg         *gnoland.InMemoryNodeConfig
 	nGnoKeyExec uint // Counter for execution of gnokey.
 }
 
@@ -150,7 +155,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 		Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 			"gnoland": func(ts *testscript.TestScript, neg bool, args []string) {
 				if len(args) == 0 {
-					tsValidateError(ts, "gnoland", neg, fmt.Errorf("syntax: gnoland [start|stop]"))
+					tsValidateError(ts, "gnoland", neg, fmt.Errorf("syntax: gnoland [start|stop|restart]"))
 					return
 				}
 
@@ -168,10 +173,17 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 						break
 					}
 
-					// get pacakges
+					// parse flags
+					fs := flag.NewFlagSet("start", flag.ContinueOnError)
+					nonVal := fs.Bool("non-validator", false, "set up node as a non-validator")
+					if err := fs.Parse(args); err != nil {
+						ts.Fatalf("unable to parse `gnoland start` flags: %s", err)
+					}
+
+					// get packages
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
-					defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 					pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil)
 					if err != nil {
 						ts.Fatalf("unable to load packages txs: %s", err)
@@ -187,16 +199,50 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 
 					// setup genesis state
 					cfg.Genesis.AppState = *genesis
+					if *nonVal {
+						// re-create cfg.Genesis.Validators with a throwaway pv, so we start as a
+						// non-validator.
+						pv := gnoland.NewMockedPrivValidator()
+						cfg.Genesis.Validators = []bft.GenesisValidator{
+							{
+								Address: pv.GetPubKey().Address(),
+								PubKey:  pv.GetPubKey(),
+								Power:   10,
+								Name:    "none",
+							},
+						}
+					}
+					cfg.DB = memdb.NewMemDB() // so it can be reused when restarting.
 
 					n, remoteAddr := TestingInMemoryNode(t, logger, cfg)
 
 					// Register cleanup
-					nodes[sid] = &testNode{Node: n}
+					nodes[sid] = &testNode{Node: n, cfg: cfg}
 
-					// Add default environements
+					// Add default environments
 					ts.Setenv("RPC_ADDR", remoteAddr)
 
 					fmt.Fprintln(ts.Stdout(), "node started successfully")
+				case "restart":
+					n, ok := nodes[sid]
+					if !ok {
+						err = fmt.Errorf("node must be started before being restarted")
+						break
+					}
+
+					if stopErr := n.Stop(); stopErr != nil {
+						err = fmt.Errorf("error stopping node: %w", stopErr)
+						break
+					}
+
+					// Create new node with same config.
+					newNode, newRemoteAddr := TestingInMemoryNode(t, logger, n.cfg)
+
+					// Update testNode and environment variables.
+					n.Node = newNode
+					ts.Setenv("RPC_ADDR", newRemoteAddr)
+
+					fmt.Fprintln(ts.Stdout(), "node restarted successfully")
 				case "stop":
 					n, ok := nodes[sid]
 					if !ok {
@@ -206,7 +252,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					if err = n.Stop(); err == nil {
 						delete(nodes, sid)
 
-						// Unset gnoland environements
+						// Unset gnoland environments
 						ts.Setenv("RPC_ADDR", "")
 						fmt.Fprintln(ts.Stdout(), "node stopped successfully")
 					}
@@ -259,7 +305,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				err = cmd.ParseAndRun(context.Background(), args)
 				tsValidateError(ts, "gnokey", neg, err)
 			},
-			// adduser commands must be executed before starting the node; it errors out otherwise.
+			// adduser command must be executed before starting the node; it errors out otherwise.
 			"adduser": func(ts *testscript.TestScript, neg bool, args []string) {
 				if nodeIsRunning(nodes, getNodeSID(ts)) {
 					tsValidateError(ts, "adduser", neg, errors.New("adduser must be used before starting node"))
@@ -284,7 +330,79 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
 				genesis.Balances = append(genesis.Balances, balance)
 			},
-			// `loadpkg` load a specific package from the 'examples' or working directory
+			// adduserfrom commands must be executed before starting the node; it errors out otherwise.
+			"adduserfrom": func(ts *testscript.TestScript, neg bool, args []string) {
+				if nodeIsRunning(nodes, getNodeSID(ts)) {
+					tsValidateError(ts, "adduserfrom", neg, errors.New("adduserfrom must be used before starting node"))
+					return
+				}
+
+				var account, index uint64
+				var err error
+
+				switch len(args) {
+				case 2:
+					// expected user input
+					// adduserfrom 'username 'menmonic'
+					// no need to do anything
+
+				case 4:
+					// expected user input
+					// adduserfrom 'username 'menmonic' 'account' 'index'
+
+					// parse 'index' first, then fallghrough to `case 3` to parse 'account'
+					index, err = strconv.ParseUint(args[3], 10, 32)
+					if err != nil {
+						ts.Fatalf("invalid index number %s", args[3])
+					}
+
+					fallthrough // parse 'account'
+				case 3:
+					// expected user input
+					// adduserfrom 'username 'menmonic' 'account'
+
+					account, err = strconv.ParseUint(args[2], 10, 32)
+					if err != nil {
+						ts.Fatalf("invalid account number %s", args[2])
+					}
+				default:
+					ts.Fatalf("to create account from metadatas, user name and mnemonic are required ( account and index are optional )")
+				}
+
+				kb, err := keys.NewKeyBaseFromDir(gnoHomeDir)
+				if err != nil {
+					ts.Fatalf("unable to get keybase")
+				}
+
+				balance, err := createAccountFrom(ts, kb, args[0], args[1], uint32(account), uint32(index))
+				if err != nil {
+					ts.Fatalf("error creating wallet %s", err)
+				}
+
+				// Add balance to genesis
+				genesis := ts.Value(envKeyGenesis).(*gnoland.GnoGenesisState)
+				genesis.Balances = append(genesis.Balances, balance)
+
+				fmt.Fprintf(ts.Stdout(), "Added %s(%s) to genesis", args[0], balance.Address)
+			},
+			// `patchpkg` Patch any loaded files by packages by replacing all occurrences of the
+			// first argument with the second.
+			// This is mostly use to replace hardcoded address inside txtar file.
+			"patchpkg": func(ts *testscript.TestScript, neg bool, args []string) {
+				args, err := unquote(args)
+				if err != nil {
+					tsValidateError(ts, "patchpkg", neg, err)
+				}
+
+				if len(args) != 2 {
+					ts.Fatalf("`patchpkg`: should have exactly 2 arguments")
+				}
+
+				pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)
+				replace, with := args[0], args[1]
+				pkgs.SetPatch(replace, with)
+			},
+			// `loadpkg` load a specific package from the 'examples' or working directory.
 			"loadpkg": func(ts *testscript.TestScript, neg bool, args []string) {
 				// special dirs
 				workDir := ts.Getenv("WORK")
@@ -489,24 +607,57 @@ func createAccount(env envSetter, kb keys.Keybase, accountName string) (gnoland.
 
 	return gnoland.Balance{
 		Address: address,
-		Amount:  std.Coins{std.NewCoin("ugnot", 10e6)},
+		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e6)},
+	}, nil
+}
+
+// createAccountFrom creates a new account with the given metadata and adds it to the keybase.
+func createAccountFrom(env envSetter, kb keys.Keybase, accountName, mnemonic string, account, index uint32) (gnoland.Balance, error) {
+	var balance gnoland.Balance
+
+	// check if mnemonic is valid
+	if !bip39.IsMnemonicValid(mnemonic) {
+		return balance, fmt.Errorf("invalid mnemonic")
+	}
+
+	keyInfo, err := kb.CreateAccount(accountName, mnemonic, "", "", account, index)
+	if err != nil {
+		return balance, fmt.Errorf("unable to create account: %w", err)
+	}
+
+	address := keyInfo.GetAddress()
+	env.Setenv("USER_SEED_"+accountName, mnemonic)
+	env.Setenv("USER_ADDR_"+accountName, address.String())
+
+	return gnoland.Balance{
+		Address: address,
+		Amount:  std.Coins{std.NewCoin(ugnot.Denom, 10e6)},
 	}, nil
 }
 
 type pkgsLoader struct {
 	pkgs    []gnomod.Pkg
 	visited map[string]struct{}
+
+	// list of occurrences to patchs with the given value
+	// XXX: find a better way
+	patchs map[string]string
 }
 
 func newPkgsLoader() *pkgsLoader {
 	return &pkgsLoader{
 		pkgs:    make([]gnomod.Pkg, 0),
 		visited: make(map[string]struct{}),
+		patchs:  make(map[string]string),
 	}
 }
 
 func (pl *pkgsLoader) List() gnomod.PkgList {
 	return pl.pkgs
+}
+
+func (pl *pkgsLoader) SetPatch(replace, with string) {
+	pl.patchs[replace] = with
 }
 
 func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std.Coins) ([]std.Tx, error) {
@@ -521,6 +672,27 @@ func (pl *pkgsLoader) LoadPackages(creator bft.Address, fee std.Fee, deposit std
 		if err != nil {
 			return nil, fmt.Errorf("unable to load pkg %q: %w", pkg.Name, err)
 		}
+
+		// If any replace value is specified, apply them
+		if len(pl.patchs) > 0 {
+			for _, msg := range tx.Msgs {
+				addpkg, ok := msg.(vm.MsgAddPackage)
+				if !ok {
+					continue
+				}
+
+				if addpkg.Package == nil {
+					continue
+				}
+
+				for _, file := range addpkg.Package.Files {
+					for replace, with := range pl.patchs {
+						file.Body = strings.ReplaceAll(file.Body, replace, with)
+					}
+				}
+			}
+		}
+
 		txs[i] = tx
 	}
 

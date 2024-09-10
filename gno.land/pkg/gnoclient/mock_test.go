@@ -13,7 +13,7 @@ import (
 // Signer mock
 type (
 	mockSign     func(cfg SignCfg) (*std.Tx, error)
-	mockInfo     func() keys.Info
+	mockInfo     func() (keys.Info, error)
 	mockValidate func() error
 )
 
@@ -30,11 +30,11 @@ func (m *mockSigner) Sign(cfg SignCfg) (*std.Tx, error) {
 	return nil, nil
 }
 
-func (m *mockSigner) Info() keys.Info {
+func (m *mockSigner) Info() (keys.Info, error) {
 	if m.info != nil {
 		return m.info()
 	}
-	return nil
+	return nil, nil
 }
 
 func (m *mockSigner) Validate() error {
@@ -118,6 +118,7 @@ type (
 	mockStatus               func() (*ctypes.ResultStatus, error)
 	mockUnconfirmedTxs       func(limit int) (*ctypes.ResultUnconfirmedTxs, error)
 	mockNumUnconfirmedTxs    func() (*ctypes.ResultUnconfirmedTxs, error)
+	mockTx                   func(hash []byte) (*ctypes.ResultTx, error)
 )
 
 type mockRPCClient struct {
@@ -141,6 +142,7 @@ type mockRPCClient struct {
 	status               mockStatus
 	unconfirmedTxs       mockUnconfirmedTxs
 	numUnconfirmedTxs    mockNumUnconfirmedTxs
+	tx                   mockTx
 }
 
 func (m *mockRPCClient) BroadcastTxCommit(tx types.Tx) (*ctypes.ResultBroadcastTxCommit, error) {
@@ -280,5 +282,13 @@ func (m *mockRPCClient) NumUnconfirmedTxs() (*ctypes.ResultUnconfirmedTxs, error
 	if m.numUnconfirmedTxs != nil {
 		return m.numUnconfirmedTxs()
 	}
+	return nil, nil
+}
+
+func (m *mockRPCClient) Tx(hash []byte) (*ctypes.ResultTx, error) {
+	if m.tx != nil {
+		return m.tx(hash)
+	}
+
 	return nil, nil
 }

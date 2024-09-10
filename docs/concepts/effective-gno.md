@@ -413,6 +413,73 @@ actual logic. This way, `privateMethod` can only be called from within the
 realm, and it can use the caller's address for authentication or authorization
 checks.
 
+### Emit Gno events to make life off-chain easier
+
+Gno provides users the ability to log specific occurrences that happened in their 
+on-chain apps. An `event` log is stored in the ABCI results of each block, and
+these logs can be indexed, filtered, and searched by external services, allowing 
+them to monitor the behaviour of on-chain apps.
+
+It is good practice to emit events when any major action in your code is 
+triggered. For example, good times to emit an event is after a balance transfer,
+ownership change, profile created, etc. Alternatively, you can view event emission
+as a way to include data for monitoring purposes, given the indexable nature of 
+events.
+
+Events consist of a type and a slice of strings representing `key:value` pairs.
+They are emitted with the `Emit()` function, contained in the `std` package in 
+the Gno standard library:
+
+```go
+package events
+
+import (
+	"std"
+)
+
+var owner std.Address
+
+func init() {
+	owner = std.PrevRealm().Addr()
+}
+
+func ChangeOwner(newOwner std.Address) {
+	caller := std.PrevRealm().Addr()
+
+	if caller != owner {
+		panic("access denied")
+	}
+	
+	owner = newOwner
+	std.Emit("OwnershipChange", "newOwner", newOwner.String())
+}
+
+```
+If `ChangeOwner()` was called in, for example, block #43, getting the `BlockResults`
+of block #43 will contain the following data:
+
+```json
+{
+  "Events": [
+    {
+      "@type": "/tm.gnoEvent",
+      "type": "OwnershipChange",
+      "pkg_path": "gno.",
+      "func": "ChangeOwner",
+      "attrs": [
+        {
+          "key": "newOwner",
+          "value": "g1zzqd6phlfx0a809vhmykg5c6m44ap9756s7cjj"
+        }
+      ]
+    }
+    // other events
+  ]
+}
+```
+
+Read more about events [here](./stdlibs/events.md).
+
 ### Contract-level access control
 
 In Gno, it's a good practice to design your contract as an application with its
@@ -530,7 +597,7 @@ In this example, `GetPost` is a function that retrieves a post from the
 loading any other posts.
 
 In the future, we plan to add built-in "map" support that will match the
-efficienty of an `avl.Tree` while offering a more intuitive API. Until then, if
+efficiency of an `avl.Tree` while offering a more intuitive API. Until then, if
 you're dealing with a compact dataset, it's probably best to use slices.
 For larger datasets where you need to quickly retrieve elements by keys,
 `avl.Tree` is the way to go.
@@ -612,7 +679,7 @@ For example, if you're creating a coin for cross-chain transfers, Coins
 are your best bet. They're IBC-ready and their strict rules offer top-notch
 security.
 
-Read about how to use the Banker module [here](../concepts/standard-library/banker).
+Read about how to use the Banker module [here](stdlibs/banker.md).
 
 #### GRC20 tokens
 
@@ -634,12 +701,11 @@ best of both worlds, you can wrap a Coins into a GRC20 compatible token.
 ```go
 import "gno.land/p/demo/grc/grc20"
 
-var fooToken grc20.AdminToken = grc20.NewAdminToken("Foo Token", "FOO", 4)
+var fooToken = grc20.NewBanker("Foo Token", "FOO", 4)
 
 func MyBalance() uint64 {
 	caller := std.PrevRealm().Addr()
-	balance, _ := fooToken.BalanceOf(caller)
-	return balance
+	return fooToken.BalanceOf(caller)
 }
 ```
 
@@ -656,7 +722,7 @@ See also: https://github.com/gnolang/gno/tree/master/examples/gno.land/r/demo/wu
 
 <!-- TODO:
 
-- packages and realms versionning
+- packages and realms versioning
 - code generation
 - unit tests, fuzzing tests, example tests, txtar
 - shipping non-contract stuff with the realm: client, documentation, assets

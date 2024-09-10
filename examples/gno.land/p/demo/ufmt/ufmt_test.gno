@@ -1,6 +1,7 @@
 package ufmt
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 )
@@ -12,6 +13,7 @@ func (stringer) String() string {
 }
 
 func TestSprintf(t *testing.T) {
+	tru := true
 	cases := []struct {
 		format         string
 		values         []interface{}
@@ -19,6 +21,7 @@ func TestSprintf(t *testing.T) {
 	}{
 		{"hello %s!", []interface{}{"planet"}, "hello planet!"},
 		{"hi %%%s!", []interface{}{"worl%d"}, "hi %worl%d!"},
+		{"%s %c %d %t", []interface{}{"foo", 'α', 421, true}, "foo α 421 true"},
 		{"string [%s]", []interface{}{"foo"}, "string [foo]"},
 		{"int [%d]", []interface{}{int(42)}, "int [42]"},
 		{"int8 [%d]", []interface{}{int8(8)}, "int8 [8]"},
@@ -32,12 +35,36 @@ func TestSprintf(t *testing.T) {
 		{"uint64 [%d]", []interface{}{uint64(64)}, "uint64 [64]"},
 		{"bool [%t]", []interface{}{true}, "bool [true]"},
 		{"bool [%t]", []interface{}{false}, "bool [false]"},
-		{"invalid bool [%t]", []interface{}{"invalid"}, "invalid bool [(unhandled)]"},
-		{"invalid integer [%d]", []interface{}{"invalid"}, "invalid integer [(unhandled)]"},
-		{"invalid string [%s]", []interface{}{1}, "invalid string [(unhandled)]"},
 		{"no args", nil, "no args"},
 		{"finish with %", nil, "finish with %"},
 		{"stringer [%s]", []interface{}{stringer{}}, "stringer [I'm a stringer]"},
+		{"â", nil, "â"},
+		{"Hello, World! 😊", nil, "Hello, World! 😊"},
+		{"unicode formatting: %s", []interface{}{"😊"}, "unicode formatting: 😊"},
+		// mismatch printing
+		{"%s", []interface{}{nil}, "%!s(<nil>)"},
+		{"%s", []interface{}{421}, "%!s(int=421)"},
+		{"%s", []interface{}{"z"}, "z"},
+		{"%s", []interface{}{tru}, "%!s(bool=true)"},
+		{"%s", []interface{}{'z'}, "%!s(int32=122)"},
+
+		{"%c", []interface{}{nil}, "%!c(<nil>)"},
+		{"%c", []interface{}{421}, "ƥ"},
+		{"%c", []interface{}{"z"}, "%!c(string=z)"},
+		{"%c", []interface{}{tru}, "%!c(bool=true)"},
+		{"%c", []interface{}{'z'}, "z"},
+
+		{"%d", []interface{}{nil}, "%!d(<nil>)"},
+		{"%d", []interface{}{421}, "421"},
+		{"%d", []interface{}{"z"}, "%!d(string=z)"},
+		{"%d", []interface{}{tru}, "%!d(bool=true)"},
+		{"%d", []interface{}{'z'}, "122"},
+
+		{"%t", []interface{}{nil}, "%!t(<nil>)"},
+		{"%t", []interface{}{421}, "%!t(int=421)"},
+		{"%t", []interface{}{"z"}, "%!t(string=z)"},
+		{"%t", []interface{}{tru}, "true"},
+		{"%t", []interface{}{'z'}, "%!t(int32=122)"},
 	}
 
 	for _, tc := range cases {
@@ -97,6 +124,14 @@ func TestErrorf(t *testing.T) {
 				t.Errorf("Errorf(%q, %v) = %q, expected %q", tt.format, tt.args, err.Error(), tt.expected)
 			}
 		})
+	}
+}
+
+func TestPrintErrors(t *testing.T) {
+	got := Sprintf("error: %s", errors.New("can I be printed?"))
+	expectedOutput := "error: can I be printed?"
+	if got != expectedOutput {
+		t.Errorf("got %q, want %q.", got, expectedOutput)
 	}
 }
 

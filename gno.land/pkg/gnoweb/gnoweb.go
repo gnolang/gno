@@ -1,6 +1,7 @@
 package gnoweb
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -78,36 +80,16 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 		Static:    static.EmbeddedStatic,
 	}
 
-	// realm aliases
-	aliases := map[string]string{
-		"/":               "/r/gnoland/home",
-		"/about":          "/r/gnoland/pages:p/about",
-		"/gnolang":        "/r/gnoland/pages:p/gnolang",
-		"/ecosystem":      "/r/gnoland/pages:p/ecosystem",
-		"/partners":       "/r/gnoland/pages:p/partners",
-		"/testnets":       "/r/gnoland/pages:p/testnets",
-		"/start":          "/r/gnoland/pages:p/start",
-		"/game-of-realms": "/r/gnoland/pages:p/gor",    // XXX: replace with gor realm
-		"/events":         "/r/gnoland/pages:p/events", // XXX: replace with events realm
-	}
-	for from, to := range aliases {
+	for from, to := range Aliases {
 		app.Router.Handle(from, handlerRealmAlias(logger, app, &cfg, to))
 	}
-	// http redirects
-	redirects := map[string]string{
-		"/r/demo/boards:gnolang/6": "/r/demo/boards:gnolang/3", // XXX: temporary
-		"/blog":                    "/r/gnoland/blog",
-		"/gor":                     "/game-of-realms",
-		"/grants":                  "/partners",
-		"/language":                "/gnolang",
-		"/getting-started":         "/start",
-	}
-	for from, to := range redirects {
+
+	for from, to := range Redirects {
 		app.Router.Handle(from, handlerRedirect(logger, app, &cfg, to))
 	}
 	// realm routes
 	// NOTE: see rePathPart.
-	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:.*\\.(?:gno|md|txt)$)?}", handlerRealmFile(logger, app, &cfg))
+	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}/{filename:(?:(?:.*\\.(?:gno|md|txt|mod)$)|(?:LICENSE$))?}", handlerRealmFile(logger, app, &cfg))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}", handlerRealmMain(logger, app, &cfg))
 	app.Router.Handle("/r/{rlmname:[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+}:{querystr:.*}", handlerRealmRender(logger, app, &cfg))
 	app.Router.Handle("/p/{filepath:.*}", handlerPackageFile(logger, app, &cfg))
@@ -122,7 +104,7 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 
 	app.Router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.RequestURI
-		handleNotFound(app, &cfg, path, w, r)
+		handleNotFound(logger, app, &cfg, path, w, r)
 	})
 	return app
 }
@@ -146,7 +128,7 @@ func handlerRealmAlias(logger *slog.Logger, app gotuna.App, cfg *Config, rlmpath
 		}
 		rlmname := strings.TrimPrefix(rlmfullpath, "gno.land/r/")
 		qpath := "vm/qrender"
-		data := []byte(fmt.Sprintf("%s\n%s", rlmfullpath, querystr))
+		data := []byte(fmt.Sprintf("%s:%s", rlmfullpath, querystr))
 		res, err := makeRequest(logger, cfg, qpath, data)
 		if err != nil {
 			writeError(logger, w, fmt.Errorf("gnoweb failed to query gnoland: %w", err))
@@ -319,7 +301,7 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 		return
 	}
 	qpath := "vm/qrender"
-	data := []byte(fmt.Sprintf("%s\n%s", rlmpath, querystr))
+	data := []byte(fmt.Sprintf("%s:%s", rlmpath, querystr))
 	res, err := makeRequest(logger, cfg, qpath, data)
 	if err != nil {
 		// XXX hack
@@ -331,6 +313,15 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 			return
 		}
 	}
+
+	dirdata := []byte(rlmpath)
+	dirres, err := makeRequest(logger, cfg, qFileStr, dirdata)
+	if err != nil {
+		writeError(logger, w, err)
+		return
+	}
+	hasReadme := bytes.Contains(append(dirres.Data, '\n'), []byte("README.md\n"))
+
 	// linkify querystr.
 	queryParts := strings.Split(querystr, "/")
 	pathLinks := []pathLink{}
@@ -350,6 +341,7 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 	tmpl.Set("PathLinks", pathLinks)
 	tmpl.Set("Contents", string(res.Data))
 	tmpl.Set("Config", cfg)
+	tmpl.Set("HasReadme", hasReadme)
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
 }
 
@@ -421,7 +413,11 @@ func makeRequest(log *slog.Logger, cfg *Config, qpath string, data []byte) (res 
 		// Prove: false, XXX
 	}
 	remote := cfg.RemoteAddr
-	cli := client.NewHTTP(remote, "/websocket")
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create HTTP client, %w", err)
+	}
+
 	qres, err := cli.ABCIQueryWithOptions(
 		qpath, data, opts2)
 	if err != nil {
@@ -444,12 +440,12 @@ func handlerStaticFile(logger *slog.Logger, app gotuna.App, cfg *Config) http.Ha
 		fpath := filepath.Clean(vars["path"])
 		f, err := fs.Open(fpath)
 		if os.IsNotExist(err) {
-			handleNotFound(app, cfg, fpath, w, r)
+			handleNotFound(logger, app, cfg, fpath, w, r)
 			return
 		}
 		stat, err := f.Stat()
 		if err != nil || stat.IsDir() {
-			handleNotFound(app, cfg, fpath, w, r)
+			handleNotFound(logger, app, cfg, fpath, w, r)
 			return
 		}
 
@@ -467,7 +463,7 @@ func handlerFavicon(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handl
 		fpath := "img/favicon.ico"
 		f, err := fs.Open(fpath)
 		if os.IsNotExist(err) {
-			handleNotFound(app, cfg, fpath, w, r)
+			handleNotFound(logger, app, cfg, fpath, w, r)
 			return
 		}
 		w.Header().Set("Content-Type", "image/x-icon")
@@ -476,11 +472,17 @@ func handlerFavicon(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handl
 	})
 }
 
-func handleNotFound(app gotuna.App, cfg *Config, path string, w http.ResponseWriter, r *http.Request) {
+func handleNotFound(logger *slog.Logger, app gotuna.App, cfg *Config, path string, w http.ResponseWriter, r *http.Request) {
+	// decode path for non-ascii characters
+	decodedPath, err := url.PathUnescape(path)
+	if err != nil {
+		logger.Error("failed to decode path", err)
+		decodedPath = path
+	}
 	w.WriteHeader(http.StatusNotFound)
 	app.NewTemplatingEngine().
 		Set("title", "Not found").
-		Set("path", path).
+		Set("path", decodedPath).
 		Set("Config", cfg).
 		Render(w, r, "404.html", "funcs.html")
 }
@@ -501,7 +503,7 @@ func pathOf(diruri string) string {
 	parts := strings.Split(diruri, "/")
 	if parts[0] == "gno.land" {
 		return "/" + strings.Join(parts[1:], "/")
-	} else {
-		panic(fmt.Sprintf("invalid dir-URI %q", diruri))
 	}
+
+	panic(fmt.Sprintf("invalid dir-URI %q", diruri))
 }

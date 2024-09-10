@@ -3,111 +3,114 @@ package ownable
 import (
 	"std"
 	"testing"
+
+	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 )
 
 var (
-	firstCaller  = std.Address("g1l9aypkr8xfvs82zeux486ddzec88ty69lue9de")
-	secondCaller = std.Address("g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa")
+	alice = testutils.TestAddress("alice")
+	bob   = testutils.TestAddress("bob")
 )
 
 func TestNew(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
 
-	result := New()
-	if firstCaller != result.owner {
-		t.Fatalf("Expected %s, got: %s\n", firstCaller, result.owner)
+	o := New()
+	got := o.Owner()
+	if alice != got {
+		t.Fatalf("Expected %s, got: %s", alice, got)
+	}
+}
+
+func TestNewWithAddress(t *testing.T) {
+	o := NewWithAddress(alice)
+
+	got := o.Owner()
+	if alice != got {
+		t.Fatalf("Expected %s, got: %s", alice, got)
 	}
 }
 
 func TestOwner(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetRealm(std.NewUserRealm(alice))
 
-	result := New()
-	resultOwner := result.Owner()
-
-	expected := firstCaller
-	if resultOwner != expected {
-		t.Fatalf("Expected %s, got: %s\n", expected, result)
-	}
+	o := New()
+	expected := alice
+	got := o.Owner()
+	uassert.Equal(t, expected, got)
 }
 
 func TestTransferOwnership(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetRealm(std.NewUserRealm(alice))
+
 	o := New()
 
-	err := o.TransferOwnership(secondCaller)
+	err := o.TransferOwnership(bob)
 	if err != nil {
 		t.Fatalf("TransferOwnership failed, %v", err)
 	}
 
-	result := o.Owner()
-	if secondCaller != result {
-		t.Fatalf("Expected: %s, got: %s\n", secondCaller, result)
+	got := o.Owner()
+	if bob != got {
+		t.Fatalf("Expected: %s, got: %s", bob, got)
 	}
 }
 
 func TestCallerIsOwner(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetRealm(std.NewUserRealm(alice))
 
 	o := New()
-	unauthorizedCaller := secondCaller
+	unauthorizedCaller := bob
 
-	std.TestSetOrigCaller(unauthorizedCaller)
+	std.TestSetRealm(std.NewUserRealm(unauthorizedCaller))
+	std.TestSetOrigCaller(unauthorizedCaller) // TODO(bug): should not be needed
 
 	err := o.CallerIsOwner()
-	if err == nil {
-		t.Fatalf("Expected %s to not be owner\n", unauthorizedCaller)
-	}
+	uassert.Error(t, err) // XXX: IsError(..., unauthorizedCaller)
 }
 
 func TestDropOwnership(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetRealm(std.NewUserRealm(alice))
 
 	o := New()
 
 	err := o.DropOwnership()
-	if err != nil {
-		t.Fatalf("DropOwnership failed, %v", err)
-	}
+	uassert.NoError(t, err, "DropOwnership failed")
 
 	owner := o.Owner()
-	if owner != "" {
-		t.Fatalf("Expected owner to be empty, not %s\n", owner)
-	}
+	uassert.Empty(t, owner, "owner should be empty")
 }
 
 // Errors
 
 func TestErrUnauthorized(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
 
 	o := New()
 
-	std.TestSetOrigCaller(secondCaller)
+	std.TestSetRealm(std.NewUserRealm(bob))
+	std.TestSetOrigCaller(bob) // TODO(bug): should not be needed
 
-	err := o.TransferOwnership(firstCaller)
+	err := o.TransferOwnership(alice)
 	if err != ErrUnauthorized {
 		t.Fatalf("Should've been ErrUnauthorized, was %v", err)
 	}
 
 	err = o.DropOwnership()
-	if err != ErrUnauthorized {
-		t.Fatalf("Should've been ErrUnauthorized, was %v", err)
-	}
+	uassert.ErrorContains(t, err, ErrUnauthorized.Error())
 }
 
 func TestErrInvalidAddress(t *testing.T) {
-	std.TestSetOrigCaller(firstCaller)
+	std.TestSetRealm(std.NewUserRealm(alice))
 
 	o := New()
 
 	err := o.TransferOwnership("")
-	if err != ErrInvalidAddress {
-		t.Fatalf("Should've been ErrInvalidAddress, was %v", err)
-	}
+	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 
 	err = o.TransferOwnership("10000000001000000000100000000010000000001000000000")
-	if err != ErrInvalidAddress {
-		t.Fatalf("Should've been ErrInvalidAddress, was %v", err)
-	}
+	uassert.ErrorContains(t, err, ErrInvalidAddress.Error())
 }

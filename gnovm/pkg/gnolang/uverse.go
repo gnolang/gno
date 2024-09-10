@@ -709,7 +709,24 @@ func UverseNode() *PackageNode {
 			switch cbt := baseOf(arg0.TV.T).(type) {
 			case *MapType:
 				mv := arg0.TV.V.(*MapValue)
+				val, ok := mv.GetValueForKey(m.Store, &itv)
+				if !ok {
+					return
+				}
+
+				// delete
 				mv.DeleteForKey(m.Store, &itv)
+
+				if m.Realm != nil {
+					// mark key as deleted
+					keyObj := itv.GetFirstObject(m.Store)
+					m.Realm.DidUpdate(mv, keyObj, nil)
+
+					// mark value as deleted
+					valObj := val.GetFirstObject(m.Store)
+					m.Realm.DidUpdate(mv, valObj, nil)
+				}
+
 				return
 			case *NativeType:
 				krv := reflect.New(cbt.Type.Key()).Elem()
@@ -894,32 +911,24 @@ func UverseNode() *PackageNode {
 			tt := arg0.TV.GetType()
 			vv := defaultValue(m.Alloc, tt)
 			m.Alloc.AllocatePointer()
+			hi := m.Alloc.NewHeapItem(TypedValue{
+				T: tt,
+				V: vv,
+			})
 			m.PushValue(TypedValue{
 				T: m.Alloc.NewType(&PointerType{
 					Elt: tt,
 				}),
 				V: PointerValue{
-					TV: &TypedValue{
-						T: tt,
-						V: vv,
-					},
-					Base: nil,
+					TV:    &hi.Value,
+					Base:  hi,
+					Index: 0,
 				},
 			})
 			return
 		},
 	)
-	defNative("panic",
-		Flds( // params
-			"err", AnyT(), // args[0]
-		),
-		nil, // results
-		func(m *Machine) {
-			arg0 := m.LastBlock().GetParams1()
-			xv := arg0.Deref()
-			panic(xv.Sprint(m))
-		},
-	)
+	// NOTE: panic is its own statement type, and is not defined as a function.
 	defNative("print",
 		Flds( // params
 			"xs", Vrd(AnyT()), // args[0]
