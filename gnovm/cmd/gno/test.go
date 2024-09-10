@@ -289,7 +289,7 @@ func gnoTestPkg(
 				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
 				gnoPkgPath = gno.RealmPathPrefix + random.RandStr(8)
 			}
-			coverageData.PkgPath = gnoPkgPath
+			coverageData.PkgPath = pkgPath
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
@@ -414,18 +414,13 @@ func gnoTestPkg(
 	}
 
 	if cfg.coverage {
-		if cfg.coverage {
-			coverageData.Report()
-
-			if cfg.showColoredCoverage {
-				for filePath := range coverageData.Files {
-					if err := coverageData.ColoredCoverage(filePath); err != nil {
-						io.ErrPrintfln("Error printing colored coverage for %s: %v", filePath, err)
-					}
+		coverageData.Report()
+		if cfg.showColoredCoverage {
+			for filePath := range coverageData.Files {
+				if err := coverageData.ColoredCoverage(filePath); err != nil {
+					io.ErrPrintfln("Error printing colored coverage for %s: %v", filePath, err)
 				}
 			}
-		} else {
-			coverageData.Report()
 		}
 
 		if cfg.output != "" {

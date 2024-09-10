@@ -273,13 +273,17 @@ func (m *Machine) RunMemPackage(memPkg *std.MemPackage, save bool) (*PackageNode
 	m.CurrentPackage = memPkg.Path
 
 	for _, file := range memPkg.Files {
-		if strings.HasSuffix(file.Name, ".gno") && !(strings.HasSuffix(file.Name, "_test.gno") && strings.HasSuffix(file.Name, "_testing.gno")) {
+		if strings.HasSuffix(file.Name, ".gno") && !isTestFile(file.Name) {
 			m.CurrentFile = file.Name
+
 			totalLines := countCodeLines(file.Body)
-			m.AddFileToCodeCoverage(m.CurrentPackage+"/"+m.CurrentFile, totalLines)
+			path := filepath.Join(m.CurrentPackage, m.CurrentFile)
+
+			m.AddFileToCodeCoverage(path, totalLines)
 		}
 	}
-	return m.runMemPackage(memPkg, save, false)
+	node, val := m.runMemPackage(memPkg, save, false)
+	return node, val
 }
 
 // RunMemPackageWithOverrides works as [RunMemPackage], however after parsing,
@@ -989,33 +993,6 @@ func (m *Machine) runDeclaration(d Decl) {
 		m.Run()
 	default:
 		// Do nothing for package constants.
-	}
-}
-
-func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
-	if isTestFile(file) {
-		return
-	}
-	m.Coverage.AddFile(file, totalLines)
-}
-
-func (m *Machine) recordCoverage(node Node) Location {
-	if node == nil {
-		return Location{}
-	}
-
-	pkgPath := m.CurrentPackage
-	file := m.CurrentFile
-	line := node.GetLine()
-
-	path := filepath.Join(pkgPath, file)
-	m.Coverage.AddHit(path, line)
-
-	return Location{
-		PkgPath: pkgPath,
-		File:    file,
-		Line:    line,
-		Column:  node.GetColumn(),
 	}
 }
 

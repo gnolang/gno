@@ -4,8 +4,12 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -71,7 +75,16 @@ func (c *CoverageData) AddFile(filePath string, totalLines int) {
 
 func (c *CoverageData) Report() {
 	fmt.Println("Coverage Results:")
-	for file, coverage := range c.Files {
+
+	// Sort files by name for consistent output
+	var files []string
+	for file := range c.Files {
+		files = append(files, file)
+	}
+	sort.Strings(files)
+
+	for _, file := range files {
+		coverage := c.Files[file]
 		if !isTestFile(file) && strings.Contains(file, c.PkgPath) {
 			hitLines := len(coverage.HitLines)
 			percentage := float64(hitLines) / float64(coverage.TotalLines) * 100
@@ -81,7 +94,12 @@ func (c *CoverageData) Report() {
 }
 
 func (c *CoverageData) ColoredCoverage(filePath string) error {
-	realPath := filepath.Join(c.RootDir, "examples", filePath)
+	realPath, err := c.determineRealPath(filePath)
+	if err != nil {
+		// skipping invalid file paths
+		return nil
+	}
+
 	if isTestFile(filePath) || !strings.Contains(realPath, c.PkgPath) || !strings.HasSuffix(realPath, ".gno") {
 		return nil
 	}
@@ -117,41 +135,39 @@ func (c *CoverageData) ColoredCoverage(filePath string) error {
 	return nil
 }
 
-func countCodeLines(content string) int {
-	lines := strings.Split(content, "\n")
-	codeLines := 0
-	inBlockComment := false
-
-	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-
-		if inBlockComment {
-			if strings.Contains(trimmedLine, "*/") {
-				inBlockComment = false
-			}
-			continue
-		}
-
-		if trimmedLine == "" || strings.HasPrefix(trimmedLine, "//") {
-			continue
-		}
-
-		if strings.HasPrefix(trimmedLine, "/*") {
-			inBlockComment = true
-			if strings.Contains(trimmedLine, "*/") {
-				inBlockComment = false
-			}
-			continue
-		}
-
-		codeLines++
+// Attempts to determine the full real path based on the filePath alone.
+// It dynamically checks if the file exists in either examples or gnovm/stdlibs directories.
+func (c *CoverageData) determineRealPath(filePath string) (string, error) {
+	if !strings.HasSuffix(filePath, ".gno") {
+		return "", fmt.Errorf("invalid file type: %s (not a .gno file)", filePath)
+	}
+	if isTestFile(filePath) {
+		return "", fmt.Errorf("cannot determine real path for test file: %s", filePath)
 	}
 
-	return codeLines
+	// Define possible base directories
+	baseDirs := []string{
+		filepath.Join(c.RootDir, "examples"), // p, r packages
+		filepath.Join(c.RootDir, "gnovm", "stdlibs"),
+	}
+
+	// Try finding the file in each base directory
+	for _, baseDir := range baseDirs {
+		realPath := filepath.Join(baseDir, filePath)
+
+		// Check if the file exists
+		if _, err := os.Stat(realPath); err == nil {
+			return realPath, nil
+		}
+	}
+
+	return "", fmt.Errorf("file %s not found in known paths", filePath)
 }
 
 func isTestFile(pkgPath string) bool {
-	return strings.HasSuffix(pkgPath, "_test.gno") || strings.HasSuffix(pkgPath, "_testing.gno") || strings.HasSuffix(pkgPath, "_filetest.gno")
+	return strings.HasSuffix(pkgPath, "_test.gno") ||
+		strings.HasSuffix(pkgPath, "_testing.gno") ||
+		strings.HasSuffix(pkgPath, "_filetest.gno")
 }
 
 type JSONCoverage struct {
@@ -190,4 +206,95 @@ func (c *CoverageData) SaveJSON(fileName string) error {
 	}
 
 	return os.WriteFile(fileName, data, 0o644)
+}
+
+func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
+	if isTestFile(file) {
+		return
+	}
+	m.Coverage.AddFile(file, totalLines)
+}
+
+// recordCoverage records the execution of a specific node in the AST.
+// This function tracking which parts of the code have been executed during the runtime.
+//
+// Note: This function assumes that CurrentPackage and CurrentFile are correctly set in the Machine
+// before it's called. These fields provide the context necessary to accurately record the coverage information.
+func (m *Machine) recordCoverage(node Node) Location {
+	if node == nil {
+		return Location{}
+	}
+
+	pkgPath := m.CurrentPackage
+	file := m.CurrentFile
+	line := node.GetLine()
+
+	path := filepath.Join(pkgPath, file)
+	m.Coverage.AddHit(path, line)
+
+	return Location{
+		PkgPath: pkgPath,
+		File:    file,
+		Line:    line,
+		Column:  node.GetColumn(),
+	}
+}
+
+// region Executable Lines Detection
+
+func countCodeLines(content string) int {
+	lines, err := detectExecutableLines(content)
+	if err != nil {
+		return 0
+	}
+
+	return len(lines)
+}
+
+// TODO: use gno Node type
+func isExecutableLine(node ast.Node) bool {
+	switch node.(type) {
+	case *ast.AssignStmt, *ast.ExprStmt, *ast.ReturnStmt, *ast.BranchStmt,
+		*ast.IncDecStmt, *ast.GoStmt, *ast.DeferStmt, *ast.SendStmt:
+		return true
+	case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.SelectStmt:
+		return true
+	case *ast.FuncDecl:
+		return false
+	case *ast.BlockStmt:
+		return false
+	case *ast.DeclStmt:
+		return false
+	case *ast.ImportSpec, *ast.TypeSpec, *ast.ValueSpec:
+		return false
+	case *ast.GenDecl:
+		return false
+	default:
+		return false
+	}
+}
+
+func detectExecutableLines(content string) (map[int]bool, error) {
+	fset := token.NewFileSet()
+	node, err := parser.ParseFile(fset, "", content, parser.ParseComments)
+	if err != nil {
+		return nil, err
+	}
+
+	executableLines := make(map[int]bool)
+
+	ast.Inspect(node, func(n ast.Node) bool {
+		if n == nil {
+			return true
+		}
+
+		if isExecutableLine(n) {
+			line := fset.Position(n.Pos()).Line
+			executableLines[line] = true
+		}
+
+		return true
+	})
+
+	return executableLines, nil
 }

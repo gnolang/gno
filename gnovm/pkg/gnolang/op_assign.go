@@ -27,9 +27,9 @@ func (m *Machine) doOpDefine() {
 		}
 
 		// Record coverage for each right-hand side expression
-        if i < len(s.Rhs) {
-            m.recordCoverage(s.Rhs[i]) // Record coverage for the expression being assigned
-        }
+		if i < len(s.Rhs) {
+			m.recordCoverage(s.Rhs[i]) // Record coverage for the expression being assigned
+		}
 
 		ptr.Assign2(m.Alloc, m.Store, m.Realm, rvs[i], true)
 	}
