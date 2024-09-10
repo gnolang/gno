@@ -833,7 +833,7 @@ func UverseNode() *PackageNode {
 							//
 							// require a bit more work to handle correctly, requiring that
 							// all new TypedValue slice elements be checked to ensure they have
-							// a value for every slice operation, which is desireable.
+							// a value for every slice operation, which is desirable.
 							for i := 0; i < ci; i++ {
 								arrayValue.List[i] = defaultTypedValue(m.Alloc, et)
 							}
