@@ -176,7 +176,7 @@ Welcome to Dice Roller! Challenge your friends to a simple yet exciting dice rol
 ---
 
 ## **Recent Games**:
-Below are the results from the most recent games. Up to 10 recent games are displayed. Games where both players are the same (playing against oneself) are not counted in the leaderboard.
+Below are the results from the most recent games. Up to 10 recent games are displayed
 
 | Game | Player 1 | 🎲 Roll 1 | Player 2 | 🎲 Roll 2 | 🏆 Winner |
 |------|----------|-----------|----------|-----------|-----------|
