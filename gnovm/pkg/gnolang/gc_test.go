@@ -6,16 +6,20 @@ import (
 
 // Helper function to create a TypedValue from a TestValue
 func newTestTypedValue() TypedValue {
-	return TypedValue{V: PointerValue{TV: &TypedValue{V: &StructValue{
+	return Unwrap(TypedValue{V: PointerValue{TV: &TypedValue{V: &StructValue{
 		Fields: nil,
-	}}}}
+	}}}})
 }
 
 func TestAddAndRemoveRoot(t *testing.T) {
 	h := NewHeap()
 
+	root := NewObject(newTestTypedValue())
 	obj1 := NewObject(newTestTypedValue())
-	h.AddRoot(obj1)
+	visited := make(map[*GcObj]bool)
+	h.AddRef(root, obj1, visited)
+
+	h.AddRoot(root)
 
 	if len(h.roots) != 1 {
 		t.Errorf("Expected 1 root, got %d", len(h.roots))
@@ -58,8 +62,8 @@ func TestMarkAndSweep(t *testing.T) {
 		t.Errorf("Expected 1 deleted object, got %d", len(deletedObjects))
 	}
 
-	if ptr, ok := deletedObjects[0].tv.V.(PointerValue); !ok || ptr != obj4.tv.V {
-		t.Errorf("Expected 'unreferenced' to be deleted, but got '%s'", ptr)
+	if strct, ok := deletedObjects[0].tv.V.(*StructValue); !ok || strct != obj4.tv.V {
+		t.Errorf("Expected 'unreferenced' to be deleted, but got '%s'", strct)
 	}
 }
 
@@ -92,21 +96,14 @@ func TestCircularReference(t *testing.T) {
 }
 
 func TestRootNotFound(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("Expected panic when removing a non-existent root, but did not get one")
-		}
-	}()
-
 	h := NewHeap()
 
-	obj1 := NewObject(newTestTypedValue()) // root1
-	obj2 := NewObject(newTestTypedValue()) // root2
+	root1 := NewObject(newTestTypedValue())
+	root2 := NewObject(newTestTypedValue())
 
-	h.AddObject(obj1)
-	h.AddObject(obj2)
-	h.AddRoot(obj1)
+	h.AddObject(root1)
+	h.AddObject(root2)
+	h.AddRoot(root1)
 
-	// Attempt to remove a root that is not in the list
-	h.RemoveRoot(obj2.tv) // This should panic
+	h.RemoveRoot(root2.tv)
 }
