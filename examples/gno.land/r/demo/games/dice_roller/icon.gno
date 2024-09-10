@@ -20,13 +20,15 @@ func diceIcon(roll int) string {
 	case 6:
 		return "🎲6"
 	default:
-		return strconv.Itoa(roll)
+		return "❓"
 	}
 }
 
 // resultIcon returns the icon representing the result of a game
 func resultIcon(result int) string {
 	switch result {
+	case ongoing:
+		return "🔄"
 	case win:
 		return "🏆"
 	case loss:
@@ -34,7 +36,7 @@ func resultIcon(result int) string {
 	case draw:
 		return "🤝"
 	default:
-		return "🔄"
+		return "❓"
 	}
 }
 
