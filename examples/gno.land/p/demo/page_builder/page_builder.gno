@@ -2,77 +2,113 @@ package page_builder
 
 import (
 	"strings"
+	"strconv"
 )
 
-type HTML struct {
-    content []string
+type Div struct {
+	content     []string
+	numColumns  int
 }
 
-func New() *HTML {
-    return &HTML{}
+func New(numColumns int) *Div {
+	return &Div{numColumns: numColumns}
 }
 
-func (html *HTML) H1(text string) {
-	html.content = append(html.content, "<h1>" + text + "</h1>")
+func wrapInTag(tag, text string) string {
+	return "<" + tag + ">" + text + "</" + tag + ">"
 }
 
-func (html *HTML) H2(text string) {
-	html.content = append(html.content, "<h2>" + text + "</h2>")
+func (div *Div) H1(text string) {
+	div.content = append(div.content, wrapInTag("h1", text))
 }
 
-func (html *HTML) H3(text string) {
-	html.content = append(html.content, "<h3>" + text + "</h3>")
+func (div *Div) H2(text string) {
+	div.content = append(div.content, wrapInTag("h2", text))
 }
 
-func (html *HTML) P(text string) {
-	html.content = append(html.content, "<p>" + text + "</p>")
+func (div *Div) H3(text string) {
+	div.content = append(div.content, wrapInTag("h3", text))
 }
 
-func (html *HTML) UL(items []string) {
+func (div *Div) H4(text string) {
+	div.content = append(div.content, wrapInTag("h4", text))
+}
+
+func (div *Div) H5(text string) {
+	div.content = append(div.content, wrapInTag("h5", text))
+}
+
+func (div *Div) H6(text string) {
+	div.content = append(div.content, wrapInTag("h6", text))
+}
+
+func (div *Div) P(text string) {
+	div.content = append(div.content, wrapInTag("p", text))
+}
+
+func (div *Div) UL(items []string) {
+	listItems := wrapListItems(items)
+	div.content = append(div.content, "<ul>\n" + listItems + "\n</ul>")
+}
+
+func (div *Div) OL(items []string) {
+	listItems := wrapListItems(items)
+	div.content = append(div.content, "<ol>\n" + listItems + "\n</ol>")
+}
+
+func wrapListItems(items []string) string {
 	var listItems []string
 	for _, item := range items {
-		listItems = append(listItems, "<li>" + item + "</li>")
+		listItems = append(listItems, wrapInTag("li", item))
 	}
-	html.content = append(html.content, "<ul>\n" + strings.Join(listItems, "\n") + "\n</ul>")
+	return strings.Join(listItems, "\n")
 }
 
-func (html *HTML) OL(items []string) {
-	var listItems []string
-	for _, item := range items {
-		listItems = append(listItems, "<li>" + item + "</li>")
+func (div *Div) CodeBlock(code string) {
+	div.content = append(div.content, "<pre><code>" + code + "</code></pre>")
+}
+
+func (div *Div) Image(src string, alt string) {
+	div.content = append(div.content, `<img src="` + src + `" alt="` + alt + `" />`)
+}
+
+func (div *Div) Link(href string, text string) string {
+	return `<a href="` + href + `">` + text + `</a>`
+}
+
+func (div *Div) Bold(text string) string {
+	return wrapInTag("b", text)
+}
+
+func (div *Div) Italic(text string) string {
+	return wrapInTag("i", text)
+}
+
+func (div *Div) Strikethrough(text string) string {
+	return wrapInTag("s", text)
+}
+
+func (div *Div) HR() {
+	div.content = append(div.content, "<hr>")
+}
+
+func (div *Div) Append(renderedHTML string) {
+	div.content = append(div.content, renderedHTML)
+}
+
+func (div *Div) Render() string {
+	var out strings.Builder
+
+	if div.numColumns > 1 {
+		out.WriteString("<div class='columns-" + strconv.Itoa(div.numColumns) + "'>\n")
+	} else {
+		out.WriteString("<div class='column'>\n")
 	}
-	html.content = append(html.content, "<ol>\n" + strings.Join(listItems, "\n") + "\n</ol>")
-}
 
-// TODO: Implement code highlughting
-func (html *HTML) CodeBlock(code string) {
-	html.content = append(html.content, "<pre><code>" + code + "</code></pre>")
-}
+	for _, c := range div.content {
+		out.WriteString(c + "\n")
+	}
 
-func (html *HTML) Image(src string, alt string) {
-	html.content = append(html.content, `<img src="` + src + `" alt="` + alt + `" />`)
-}
-
-func (html *HTML) Link(href string, text string) {
-	html.content = append(html.content, `<a href="` + href + `">` + text + `</a>`)
-}
-
-func (html *HTML) Bold(text string) string {
-	return "<b>" + text + "</b>"
-}
-
-func (html *HTML) Italic(text string) string {
-	return "<i>" + text + "</i>"
-}
-
-func (html *HTML) Strikethrough(text string) string {
-	return "<s>" + text + "</s>"
-}
-
-func (html *HTML) BreakLine() {
-	html.content = append(html.content, "<br>")
-}
-
-func (html *HTML) Render() string {
-    return strings.Join(html.content, "\n")
+	out.WriteString("</div>")
+	return out.String()
 }
