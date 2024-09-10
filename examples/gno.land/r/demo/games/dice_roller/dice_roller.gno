@@ -144,7 +144,7 @@ func (g *game) status() string {
 
 	if g.roll1 > g.roll2 {
 		return resultIcon(win) + " Player1 Wins !"
-	} else if g.roll2 < g.roll1 {
+	} else if g.roll2 > g.roll1 {
 		return resultIcon(win) + " Player2 Wins !"
 	} else {
 		return resultIcon(draw) + " It's a Draw !"
