@@ -9,11 +9,11 @@ gnokey sign -tx-path $WORK/tx1.tx -chainid tendermint_test -account-sequence 0 t
 ! gnokey broadcast $WORK/tx1.tx
 stderr 'out of gas'
 
-gnokey sign -tx-path $WORK/tx2.tx -chainid tendermint_test -account-sequence 1 test1
+gnokey sign -tx-path $WORK/tx2.tx -chainid tendermint_test -account-sequence 0 test1
 gnokey broadcast $WORK/tx2.tx
 stdout 'OK!'
 
-gnokey sign -tx-path $WORK/tx3.tx -chainid tendermint_test -account-sequence 2 test1
+gnokey sign -tx-path $WORK/tx3.tx -chainid tendermint_test -account-sequence 1 test1
 gnokey broadcast $WORK/tx3.tx
 stdout 'OK!'
 
