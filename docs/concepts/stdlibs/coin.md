@@ -35,4 +35,4 @@ Bankers, which can manipulate them depending on access rights.
 Read more about coins in the [Effective Gno](../effective-gno.md#coins) section. 
 
 The Coin(s) API can be found in under the `std` package 
-[reference](../../reference/standard-library/std/coin.md).
+[reference](../../reference/stdlibs/std/coin.md).

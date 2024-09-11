@@ -5,11 +5,11 @@ id: realms
 # Realms
 
 In gno.land, realms are entities that are addressable and identifiable by a 
-[Gno address](../reference/standard-library/std/address.md). These can be user 
+[Gno address](../reference/stdlibs/std/address.md). These can be user 
 realms (EOAs), as well as smart contract realms. Realms have several 
 properties:
-- They can own, receive & send [Coins](./standard-library/coin.md) through the
-[Banker](./standard-library/banker.md) module
+- They can own, receive & send [Coins](./stdlibs/coin.md) through the
+[Banker](./stdlibs/banker.md) module
 - They can be part of a transaction call stack, as a caller or a callee
 - They can be with or without code - EOAs, or smart contracts
 
@@ -21,7 +21,7 @@ type Realm struct {
 }
 ```
 The full Realm API can be found under the 
-[reference section](../reference/standard-library/std/realm.md).
+[reference section](../reference/stdlibs/std/realm.md).
 
 ## Smart Contract Realms
 
@@ -57,13 +57,14 @@ To learn how to write a realm, see [How to write a simple Gno Smart Contract](..
 
 EOAs, or simply `user realms`, are Gno addresses generated from a BIP39 mnemonic
 phrase in a key management application, such as
-[`gnokey`](../gno-tooling/cli/gnokey.md), and [Adena](https://adena.app).
+[`gnokey`](../gno-tooling/cli/gnokey/gnokey.md), and [Adena](https://adena.app).
 
 Currently, EOAs are the only realms that can initiate a transaction. They can do
 this by calling any of the possible messages in gno.land, such as 
-[Call](../gno-tooling/cli/gnokey.md#call),
-[AddPackage](../gno-tooling/cli/gnokey.md#addpkg),
-[Send](../gno-tooling/cli/gnokey.md#send), or Run.
+[Call](../gno-tooling/cli/gnokey/state-changing-calls.md#call),
+[AddPackage](../gno-tooling/cli/gnokey/state-changing-calls.md#addpackage),
+[Send](../gno-tooling/cli/gnokey/state-changing-calls.md#send), or 
+[Run](../gno-tooling/cli/gnokey/state-changing-calls.md#run).
 
 ## Working with realms
 
