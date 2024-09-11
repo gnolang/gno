@@ -2,27 +2,26 @@
 id: packages
 ---
 
-# Packages
+# Pure Packages
 
-In gno.land, packages are Gno code which is meant to be reused by other Gno code,
-be it by other packages or realms. Here are some defining features of packages:
-- Packages are stored on-chain under the `"gno.land/p/"` path, and can be 
-written & deployed on-chain by anyone
-- Packages are meant to be imported by other packages & realms
-- Packages do not persist state - packages can have global variables & constants,
-but any attempt to change their values will be discarded after a transaction
-is completed
-- Documentation for packages should be contained within package code itself,
+In gno.land, pure packages are Gno code that is meant to be reused by other Gno code,
+be it by other pure packages or realms. Here are some defining features of packages:
+- Pure packages are stored on-chain under the `"gno.land/p/"` path, and can be 
+written & deployed on-chain by anyone, permissionlessly
+- Pure packages are meant to be imported by other packages & realms
+- Pure packages do not persist state - packages can have global variables & constants,
+but any attempt to change their values will be discarded,
+- Documentation for pure packages should be contained within package code itself,
 in the form of comments, following the [Go doc standard](https://tip.golang.org/doc/comment).
 
-To learn how to write a package,
+To learn how to write a pure package,
 see [How to write a simple Gno Library](../how-to-guides/simple-library.md).
 
-## Commonly used packages
+## Commonly used `p/` packages
 
 To better understand how packages work, let's look at a few commonly 
 used ones. Some of the most commonly used packages live in the
-[`examples`](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/)
+[`examples`](https://github.com/gnolang/gno/tree/master/examples/)
 folder on the monorepo, and under the `"gno.land/p/demo"` on-chain path. 
 
 ### Package `avl`
@@ -55,6 +54,7 @@ func Get(key string) int {
   if !exists {
 	  panic("value at given key does not exist")
   }
+  
   // rawValue needs to be converted into the proper type before returning it
   return rawValue.(int)
 }
@@ -76,6 +76,7 @@ View the package on-chain [here](https://gno.land/p/demo/ufmt), or on GitHub,
 [here](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/ufmt).
 
 ### Package `seqid`
+
 Deployed under `gno.land/p/demo/seqid`, the `seqid` package provides a simple 
 way to have sequential IDs in Gno. Its encoding scheme is based on the `cford32`
 package. From [`seqid.gno`](https://gno.land/p/demo/seqid/seqid.gno):
@@ -98,13 +99,13 @@ package seqid
 View the package on-chain [here](https://gno.land/p/demo/seqid), or on GitHub,
 [here](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/seqid).
 
-## Packages vs Standard Libraries
+## Pure packages vs Standard Libraries
 
-Apart from packages, Gno, like Go, has standard libraries. To better
+Apart from pure packages, Gno, like Go, has standard libraries. To better
 understand the difference between these two concepts, let's compare a few
 specific points:
-- Packages can be written and deployed by anyone at any time, while standard
+- Pure packages can be written and deployed by anyone at any time, while standard
 libraries require thorough battle-testing and reviews by the core team & community
 before being added to the language
 - Standard libraries usually provide low-level necessities for the language,
-while packages utilize them to create a broader range of functionality
+while pure packages utilize them to create a broader range of functionality

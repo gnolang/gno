@@ -20,6 +20,7 @@ type Realm struct {
     pkgPath string  // realm's path on-chain
 }
 ```
+
 The full Realm API can be found under the 
 [reference section](../reference/stdlibs/std/realm.md).
 
