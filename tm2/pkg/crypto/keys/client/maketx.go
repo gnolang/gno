@@ -220,7 +220,7 @@ func ExecSignAndBroadcast(
 	}
 	if bres.DeliverTx.IsErr() {
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
-		io.Println("BROADCAST DURATION: ", duration.Milliseconds(), "ms")
+		io.Println("COMMIT DURATION: ", duration.Milliseconds(), "ms")
 		return errors.Wrap(bres.DeliverTx.Error, "deliver transaction failed: log:%s", bres.DeliverTx.Log)
 	}
 
@@ -231,7 +231,7 @@ func ExecSignAndBroadcast(
 	io.Println("HEIGHT:    ", bres.Height)
 	io.Println("EVENTS:    ", string(bres.DeliverTx.EncodeEvents()))
 	io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(bres.Hash))
-	io.Println("BROADCAST DURATION: ", duration.Milliseconds(), "ms")
+	io.Println("COMMIT DURATION: ", duration.Milliseconds(), "ms")
 
 	return nil
 }

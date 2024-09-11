@@ -88,7 +88,7 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		return errors.New("transaction failed %#v\nlog %s", res, res.CheckTx.Log)
 	} else if res.DeliverTx.IsErr() {
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
-		io.Println("BROADCAST DURATION: ", duration.Milliseconds(), "ms")
+		io.Println("COMMIT DURATION: ", duration.Milliseconds(), "ms")
 		return errors.New("transaction failed %#v\nlog %s", res, res.DeliverTx.Log)
 	} else {
 		io.Println(string(res.DeliverTx.Data))
@@ -98,7 +98,7 @@ func execBroadcast(cfg *BroadcastCfg, args []string, io commands.IO) error {
 		io.Println("HEIGHT:    ", res.Height)
 		io.Println("EVENTS:    ", string(res.DeliverTx.EncodeEvents()))
 		io.Println("TX HASH:   ", base64.StdEncoding.EncodeToString(res.Hash))
-		io.Println("BROADCAST DURATION: ", duration.Milliseconds(), "ms")
+		io.Println("COMMIT DURATION: ", duration.Milliseconds(), "ms")
 	}
 	return nil
 }
