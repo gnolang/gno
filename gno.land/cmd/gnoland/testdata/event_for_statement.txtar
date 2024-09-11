@@ -11,6 +11,7 @@ stdout 'GAS USED:   [0-9]+'
 stdout 'HEIGHT:     [0-9]+'
 stdout 'EVENTS:     \[{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"Foo\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"Foo\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"Foo\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"Foo\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"Foo\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"Foo\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"Foo\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"Foo\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"Foo\"},{\"type\":\"testing\",\"attrs\":\[{\"key\":\"foo\",\"value\":\"bar\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"Foo\"}\]'
 stdout 'TX HASH:    '
+stdout 'COMMIT DURATION:  \d+ ms'
 
 gnokey maketx call -pkgpath gno.land/r/demo/foree -func Bar -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 stdout OK!
@@ -19,6 +20,7 @@ stdout 'GAS USED:   [0-9]+'
 stdout 'HEIGHT:     [0-9]+'
 stdout 'EVENTS:     \[{\"type\":\"Foo\",\"attrs\":\[{\"key\":\"k1\",\"value\":\"v1\"},{\"key\":\"k2\",\"value\":\"v2\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"subFoo\"},{\"type\":\"Bar\",\"attrs\":\[{\"key\":\"bar\",\"value\":\"baz\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"subBar\"},{\"type\":\"Foo\",\"attrs\":\[{\"key\":\"k1\",\"value\":\"v1\"},{\"key\":\"k2\",\"value\":\"v2\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"subFoo\"},{\"type\":\"Bar\",\"attrs\":\[{\"key\":\"bar\",\"value\":\"baz\"}\],\"pkg_path\":\"gno.land\/r\/demo\/foree\",\"func\":\"subBar\"}\]'
 stdout 'TX HASH:    '
+stdout 'COMMIT DURATION:  \d+ ms'
 
 -- foree.gno --
 

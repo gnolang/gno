@@ -8,6 +8,7 @@ gnoland start
 
 # check error message
 stdout 'TX HASH:    '
+stdout 'COMMIT DURATION:  \d+ ms'
 stderr 'as string value in return statement'
 stderr '"std" imported and not used'
 

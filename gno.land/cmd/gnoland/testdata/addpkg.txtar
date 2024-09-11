@@ -17,6 +17,7 @@ stdout 'GAS USED:   \d+'
 stdout 'HEIGHT:     \d+'
 stdout 'EVENTS:     \[\]'
 stdout 'TX HASH:    '
+stdout 'COMMIT DURATION:  \d+ ms'
 
 -- hello.gno --
 package hello

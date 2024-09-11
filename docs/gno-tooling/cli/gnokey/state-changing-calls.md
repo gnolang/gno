@@ -135,14 +135,16 @@ GAS USED:   117564
 HEIGHT:     3990
 EVENTS:     []
 TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+COMMIT DURATION:  1000ms
 ```
 
 Let's analyze the output, which is standard for any `gnokey` transaction:
-- `GAS WANTED: 200000` - the original amount of gas specified for the transaction
-- `GAS USED:   117564` - the gas used to execute the transaction
-- `HEIGHT:     3990` - the block number at which the transaction was executed at
-- `EVENTS:     []` - [Gno events](../../../concepts/stdlibs/events.md) emitted by the transaction, in this case, none
-- `TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
+- `GAS WANTED:      200000` - the original amount of gas specified for the transaction
+- `GAS USED:        117564` - the gas used to execute the transaction
+- `HEIGHT:          3990` - the block number at which the transaction was executed at
+- `EVENTS:          []` - [Gno events](../../../concepts/stdlibs/events.md) emitted by the transaction, in this case, none
+- `TX HASH:         Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=` - the hash of the transaction
+- `COMMIT DURATION: 1000ms` - the time from the transaction submission to being committed on-chain
 
 Congratulations! You have just uploaded a pure package to the Portal Loop network.
 If you wish to deploy to a different network, find the list of all network 
@@ -198,11 +200,12 @@ as well as the Portal Loop remote address, `https://rpc.gno.land:443`.
 After running the command, we can expect an output similar to the following:
 ```bash
 OK!
-GAS WANTED: 2000000
-GAS USED:   489528
-HEIGHT:     24142
-EVENTS:     [{"type":"Transfer","attrs":[{"key":"from","value":""},{"key":"to","value":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/r/demo/wugnot","func":"Mint"}]
-TX HASH:    Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+GAS WANTED:       2000000
+GAS USED:         489528
+HEIGHT:           24142
+EVENTS:           [{"type":"Transfer","attrs":[{"key":"from","value":""},{"key":"to","value":"g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"},{"key":"value","value":"1000"}],"pkg_path":"gno.land/r/demo/wugnot","func":"Mint"}]
+TX HASH:          Ni8Oq5dP0leoT/IRkKUKT18iTv8KLL3bH8OFZiV79kM=
+COMMIT DURATION:  1000ms
 ```
 
 In this case, we can see that the `Deposit()` function emitted an 
@@ -232,11 +235,12 @@ output:
 (1000 uint64)
 
 OK!
-GAS WANTED: 2000000
-GAS USED:   396457
-HEIGHT:     64839
-EVENTS:     []
-TX HASH:    gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
+GAS WANTED:       2000000
+GAS USED:         396457
+HEIGHT:           64839
+EVENTS:           []
+TX HASH:          gQP9fJYrZMTK3GgRiio3/V35smzg/jJ62q7t4TLpdV4=
+COMMIT DURATION:  1000ms
 ```
 
 At the top, you will see the output of the transaction, specifying the value and
