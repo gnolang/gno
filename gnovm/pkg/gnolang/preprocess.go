@@ -1207,6 +1207,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										"incompatible types in binary expression: %v %v %v",
 										lt.TypeID(), n.Op, rt.TypeID()))
 								}
+								// convert untyped to typed
+								checkOrConvertType(store, last, &n.Left, defaultTypeOf(lt), false)
+								checkOrConvertType(store, last, &n.Right, defaultTypeOf(rt), false)
 							} else { // left untyped, right typed
 								checkOrConvertType(store, last, &n.Left, rt, false)
 							}
