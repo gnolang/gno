@@ -3,7 +3,6 @@ package profile
 import (
 	"std"
 	"testing"
-	"errors"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
@@ -141,4 +140,3 @@ func TestArbitraryBoolField(t *testing.T) {
 	val := GetBoolField(user1, "IsWinner", false)
 	uassert.Equal(t, val, true)
 }
-
