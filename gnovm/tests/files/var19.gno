@@ -1,14 +1,12 @@
 package main
 
 func main() {
+	var a, b, c = 1, a+1
+
 	println(a)
 	println(b)
 	println(c)
 }
 
-var a, b, c = 1, a + 1, b + 1
-
-// Output:
-// 1
-// 2
-// 3
+// Error:
+// main/files/var19.gno:4:6: missing init expr for c<VPUverse(0)>

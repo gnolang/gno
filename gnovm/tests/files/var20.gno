@@ -1,17 +1,12 @@
 package main
 
-func main() {
-	println(a)
-	println(b)
-	println(c)
-	println(d)
+func r() int {
+	return 1
 }
 
-var a, b, c = 1, a + d, 3
-var d = a
+func main() {
+	var a, b, c = r()
+}
 
-// Output:
-// 1
-// 2
-// 3
-// 1
+// Error:
+// main/files/var20.gno:8:6: assignment mismatch: 3 variable(s) but r<VPBlock(3,0)>() returns 1 value(s)
