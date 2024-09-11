@@ -95,8 +95,7 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 	// Finally, predefine other decls and
 	// preprocess ValueDecls..
 	for _, fn := range fset.Files {
-		lenDecls := len(fn.Decls)
-		for i := 0; i < lenDecls; i++ {
+		for i := 0; i < len(fn.Decls); i++ {
 			d := fn.Decls[i]
 			if d.GetAttribute(ATTR_PREDEFINED) == true {
 				// skip declarations already predefined (e.g.
@@ -124,7 +123,6 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 
 				fn.Decls = append(fn.Decls[:i], append(split, fn.Decls[i+1:]...)...) //nolint:makezero
 				i += len(vd.NameExprs)
-				lenDecls += len(vd.NameExprs) - 1
 				continue
 			}
 
