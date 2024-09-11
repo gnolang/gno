@@ -27,6 +27,9 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 	simulate := false
 	tx.Fee.GasWanted = 3000
 	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	// Has to be set up after gas meter in the context; so the stores are
+	// correctly wrapped in gas stores.
+	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 
 	var res sdk.Result
 	abort := false
@@ -63,6 +66,7 @@ func TestAddPkgDeliverTx(t *testing.T) {
 	simulate = false
 	tx.Fee.GasWanted = 500000
 	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 	msgs := tx.GetMsgs()
 	res := vmHandler.Process(gctx, msgs[0])
 	gasDeliver := gctx.GasMeter().GasConsumed()
@@ -84,6 +88,7 @@ func TestAddPkgDeliverTxFailed(t *testing.T) {
 	simulate = false
 	tx.Fee.GasWanted = 500000
 	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 	msgs := tx.GetMsgs()
 	res := vmHandler.Process(gctx, msgs[0])
 	gasDeliver := gctx.GasMeter().GasConsumed()
@@ -103,6 +108,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 	simulate = false
 	tx.Fee.GasWanted = 2230
 	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 
 	var res sdk.Result
 	abort := false
@@ -129,7 +135,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 	res = vmHandler.Process(gctx, msgs[0])
 }
 
-// Set up a test env for both a successful and a failed tx
+// Set up a test env for both a successful and a failed tx.
 func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	// setup
 	env := setupTestEnv()

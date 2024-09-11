@@ -609,10 +609,7 @@ func (tb *testBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int
 	sum := coins.Add(std.Coins{{denom, amt}})
 	tb.coinTable[addr] = sum
 
-	totalCoin, ok := overflow.Add64(tb.totalCoin[denom], amt)
-	if !ok {
-		panic(fmt.Sprintf("totalCoin overflow/underflow for denom %s while adding %d", denom, amt))
-	}
+	totalCoin := overflow.Add64p(tb.totalCoin[denom], amt)
 
 	tb.totalCoin[denom] = totalCoin
 }
@@ -622,10 +619,7 @@ func (tb *testBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt in
 	rest := coins.Sub(std.Coins{{denom, amt}})
 	tb.coinTable[addr] = rest
 
-	totalCoin, ok := overflow.Sub64(tb.totalCoin[denom], amt)
-	if !ok {
-		panic(fmt.Sprintf("totalCoin overflow/underflow for denom %s while removing %d", denom, amt))
-	}
+	totalCoin := overflow.Sub64p(tb.totalCoin[denom], amt)
 
 	tb.totalCoin[denom] = totalCoin
 }
