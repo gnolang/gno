@@ -101,4 +101,3 @@ import (
 func Call(s string) {
 	base64.StdEncoding.DecodeString("hey")
 }
-
