@@ -1207,6 +1207,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										"incompatible types in binary expression: %v %v %v",
 										lt.TypeID(), n.Op, rt.TypeID()))
 								}
+								// convert untyped to typed
+								checkOrConvertType(store, last, &n.Left, defaultTypeOf(lt), false)
+								checkOrConvertType(store, last, &n.Right, defaultTypeOf(rt), false)
 							} else { // left untyped, right typed
 								checkOrConvertType(store, last, &n.Left, rt, false)
 							}
@@ -2454,7 +2457,7 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	// See comment in evalStaticTypeOfRaw.
 	if store != nil && pn.PkgPath != uversePkgPath {
 		pv := pn.NewPackage() // temporary
-		store = store.Fork()
+		store = store.BeginTransaction(nil, nil)
 		store.SetCachePackage(pv)
 	}
 	m := NewMachine(pn.PkgPath, store)
@@ -2528,7 +2531,7 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// yet predefined this time around.
 		if store != nil && pn.PkgPath != uversePkgPath {
 			pv := pn.NewPackage() // temporary
-			store = store.Fork()
+			store = store.BeginTransaction(nil, nil)
 			store.SetCachePackage(pv)
 		}
 		m := NewMachine(pn.PkgPath, store)
