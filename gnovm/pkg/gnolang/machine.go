@@ -25,10 +25,21 @@ type Exception struct {
 	// Frame is used to reference the frame a panic occurred in so that recover() knows if the
 	// currently executing deferred function is able to recover from the panic.
 	Frame *Frame
+
+	Stacktrace Stacktrace
 }
 
 func (e Exception) Sprint(m *Machine) string {
 	return e.Value.Sprint(m)
+}
+
+// UnhandledPanicError represents an error thrown when a panic is not handled in the realm.
+type UnhandledPanicError struct {
+	Descriptor string // Description of the unhandled panic.
+}
+
+func (e UnhandledPanicError) Error() string {
+	return e.Descriptor
 }
 
 //----------------------------------------
@@ -457,6 +468,43 @@ func (m *Machine) TestFunc(t *testing.T, tv TypedValue) {
 	})
 }
 
+// Stacktrace returns the stack trace of the machine.
+// It collects the executions and frames from the machine's frames and statements.
+func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
+	if len(m.Frames) == 0 {
+		return
+	}
+
+	calls := make([]StacktraceCall, 0, len(m.Stmts))
+	nextStmtIndex := len(m.Stmts) - 1
+	for i := len(m.Frames) - 1; i >= 0; i-- {
+		if m.Frames[i].IsCall() {
+			stm := m.Stmts[nextStmtIndex]
+			bs := stm.(*bodyStmt)
+			stm = bs.Body[bs.NextBodyIndex-1]
+			calls = append(calls, StacktraceCall{
+				Stmt:  stm,
+				Frame: m.Frames[i],
+			})
+		}
+		// if the frame is a call, the next statement is the last statement of the frame.
+		nextStmtIndex = m.Frames[i].NumStmts - 1
+	}
+
+	// if the stacktrace is too long, we trim it down to maxStacktraceSize
+	if len(calls) > maxStacktraceSize {
+		const halfMax = maxStacktraceSize / 2
+
+		stacktrace.NumFramesElided = len(calls) - maxStacktraceSize
+		calls = append(calls[:halfMax], calls[len(calls)-halfMax:]...)
+		calls = calls[:len(calls):len(calls)] // makes remaining part of "calls" GC'able
+	}
+
+	stacktrace.Calls = calls
+
+	return
+}
+
 // in case of panic, inject location information to exception.
 func (m *Machine) injectLocOnPanic() {
 	if r := recover(); r != nil {
@@ -736,8 +784,14 @@ func (m *Machine) resavePackageValues(rlm *Realm) {
 func (m *Machine) RunFunc(fn Name) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("Machine.RunFunc(%q) panic: %v\n%s\n",
-				fn, r, m.String())
+			switch r := r.(type) {
+			case UnhandledPanicError:
+				fmt.Printf("Machine.RunFunc(%q) panic: %s\nStacktrace: %s\n",
+					fn, r.Error(), m.ExceptionsStacktrace())
+			default:
+				fmt.Printf("Machine.RunFunc(%q) panic: %v\nMachine State:%s\nStacktrace: %s\n",
+					fn, r, m.String(), m.Stacktrace().String())
+			}
 			panic(r)
 		}
 	}()
@@ -747,8 +801,14 @@ func (m *Machine) RunFunc(fn Name) {
 func (m *Machine) RunMain() {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("Machine.RunMain() panic: %v\n%s\n",
-				r, m.String())
+			switch r := r.(type) {
+			case UnhandledPanicError:
+				fmt.Printf("Machine.RunMain() panic: %s\nStacktrace: %s\n",
+					r.Error(), m.ExceptionsStacktrace())
+			default:
+				fmt.Printf("Machine.RunMain() panic: %v\nMachine State:%s\nStacktrace: %s\n",
+					r, m.String(), m.Stacktrace())
+			}
 			panic(r)
 		}
 	}()
@@ -1606,11 +1666,11 @@ func (m *Machine) PopStmt() Stmt {
 	}
 	if bs, ok := s.(*bodyStmt); ok {
 		return bs.PopActiveStmt()
-	} else {
-		// general case.
-		m.Stmts = m.Stmts[:numStmts-1]
-		return s
 	}
+
+	m.Stmts = m.Stmts[:numStmts-1]
+
+	return s
 }
 
 func (m *Machine) ForcePopStmt() (s Stmt) {
@@ -1855,6 +1915,7 @@ func (m *Machine) PopFrame() Frame {
 		m.Printf("-F %#v\n", f)
 	}
 	m.Frames = m.Frames[:numFrames-1]
+
 	return *f
 }
 
@@ -1874,8 +1935,7 @@ func (m *Machine) PopFrameAndReturn() {
 	fr := m.PopFrame()
 	fr.Popped = true
 	if debug {
-		// TODO: optimize with fr.IsCall
-		if fr.Func == nil && fr.GoFunc == nil {
+		if !fr.IsCall() {
 			panic("unexpected non-call (loop) frame")
 		}
 	}
@@ -1951,8 +2011,7 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 	}
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		if fr.Func != nil || fr.GoFunc != nil {
-			// TODO: optimize with fr.IsCall
+		if fr.IsCall() {
 			if n == 1 {
 				return fr
 			} else {
@@ -1973,8 +2032,7 @@ func (m *Machine) lastCallFrame(n int, mustBeFound bool) *Frame {
 func (m *Machine) PopUntilLastCallFrame() *Frame {
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		fr := m.Frames[i]
-		if fr.Func != nil || fr.GoFunc != nil {
-			// TODO: optimize with fr.IsCall
+		if fr.IsCall() {
 			m.Frames = m.Frames[:i+1]
 			return fr
 		}
@@ -2085,8 +2143,9 @@ func (m *Machine) Panic(ex TypedValue) {
 	m.Exceptions = append(
 		m.Exceptions,
 		Exception{
-			Value: ex,
-			Frame: m.MustLastCallFrame(1),
+			Value:      ex,
+			Frame:      m.MustLastCallFrame(1),
+			Stacktrace: m.Stacktrace(),
 		},
 	)
 
@@ -2155,7 +2214,8 @@ func (m *Machine) String() string {
 
 	builder.WriteString("    Blocks:\n")
 
-	for b := m.LastBlock(); b != nil; {
+	for i := len(m.Blocks) - 1; i > 0; i-- {
+		b := m.Blocks[i]
 		gen := builder.Len()/3 + 1
 		gens := "@" // strings.Repeat("@", gen)
 
@@ -2226,6 +2286,30 @@ func (m *Machine) String() string {
 
 	for _, ex := range m.Exceptions {
 		builder.WriteString(fmt.Sprintf("      %s\n", ex.Sprint(m)))
+	}
+
+	return builder.String()
+}
+
+func (m *Machine) ExceptionsStacktrace() string {
+	if len(m.Exceptions) == 0 {
+		return ""
+	}
+
+	var builder strings.Builder
+
+	ex := m.Exceptions[0]
+	builder.WriteString("panic: " + ex.Sprint(m) + "\n")
+	builder.WriteString(ex.Stacktrace.String())
+
+	switch {
+	case len(m.Exceptions) > 2:
+		fmt.Fprintf(&builder, "... %d panic(s) elided ...\n", len(m.Exceptions)-2)
+		fallthrough // to print last exception
+	case len(m.Exceptions) == 2:
+		ex = m.Exceptions[len(m.Exceptions)-1]
+		builder.WriteString("panic: " + ex.Sprint(m) + "\n")
+		builder.WriteString(ex.Stacktrace.String())
 	}
 
 	return builder.String()

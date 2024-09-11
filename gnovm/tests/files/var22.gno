@@ -1,18 +1,14 @@
 package main
 
-func main() {}
-
-var foo = func() (bool, bool) {
-	return true, true
+func foo() (int, bool) {
+	return 1, true
 }
 
-var x = func() bool { return a }()
-var a, b = foo()
+func main() {
+	var a, b, c = 2, foo()
 
-var a1 = func() int {
-	type B1 b1
-	x := B1(1)
-	return int(x)
+	println(a, b, c)
 }
 
-type b1 int
+// Error:
+// main/files/var22.gno:8:6: missing init expr for c<VPUverse(0)>

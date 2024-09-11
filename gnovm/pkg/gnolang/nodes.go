@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -672,6 +673,10 @@ func (ss Body) GetBody() Body {
 	return ss
 }
 
+func (ss *Body) SetBody(nb Body) {
+	*ss = nb
+}
+
 func (ss Body) GetLabeledStmt(label Name) (stmt Stmt, idx int) {
 	for idx, stmt = range ss {
 		if label == stmt.GetLabel() {
@@ -1098,7 +1103,7 @@ func PackageNameFromFileBody(name, body string) Name {
 // ReadMemPackage initializes a new MemPackage by reading the OS directory
 // at dir, and saving it with the given pkgPath (import path).
 // The resulting MemPackage will contain the names and content of all *.gno files,
-// and additionally README.md, LICENSE, and gno.mod.
+// and additionally README.md, LICENSE.
 //
 // ReadMemPackage does not perform validation aside from the package's name;
 // the files are not parsed but their contents are merely stored inside a MemFile.
@@ -1111,7 +1116,6 @@ func ReadMemPackage(dir string, pkgPath string) *std.MemPackage {
 		panic(err)
 	}
 	allowedFiles := []string{ // make case insensitive?
-		"gno.mod",
 		"LICENSE",
 		"README.md",
 	}
@@ -1376,6 +1380,13 @@ func (x *PackageNode) PrepareNewValues(pv *PackageValue) []TypedValue {
 			panic("PackageNode.PrepareNewValues() package mismatch")
 		}
 	}
+	// The FuncValue Body may have been altered during the preprocessing.
+	// We need to update body field from the source in the FuncValue accordingly.
+	for _, tv := range x.Values {
+		if fv, ok := tv.V.(*FuncValue); ok {
+			fv.UpdateBodyFromSource()
+		}
+	}
 	pvl := len(block.Values)
 	pnl := len(x.Values)
 	// copy new top-level defined values/types.
@@ -1481,6 +1492,7 @@ type BlockNode interface {
 	Define(Name, TypedValue)
 	Define2(bool, Name, Type, TypedValue)
 	GetBody() Body
+	SetBody(Body)
 }
 
 // ----------------------------------------
@@ -1791,7 +1803,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	if int(sb.NumNames) != len(sb.Names) {
 		panic("StaticBlock.NumNames and len(.Names) mismatch")
 	}
-	if (1<<16 - 1) < sb.NumNames {
+	if sb.NumNames == math.MaxUint16 {
 		panic("too many variables in block")
 	}
 	if tv.T == nil && tv.V != nil {
@@ -1874,7 +1886,15 @@ func (x *IfStmt) GetBody() Body {
 	panic("IfStmt has no body (but .Then and .Else do)")
 }
 
+func (x *IfStmt) SetBody(b Body) {
+	panic("IfStmt has no body (but .Then and .Else do)")
+}
+
 func (x *SwitchStmt) GetBody() Body {
+	panic("SwitchStmt has no body (but its cases do)")
+}
+
+func (x *SwitchStmt) SetBody(b Body) {
 	panic("SwitchStmt has no body (but its cases do)")
 }
 
@@ -1882,7 +1902,15 @@ func (x *FileNode) GetBody() Body {
 	panic("FileNode has no body (but it does have .Decls)")
 }
 
+func (x *FileNode) SetBody(b Body) {
+	panic("FileNode has no body (but it does have .Decls)")
+}
+
 func (x *PackageNode) GetBody() Body {
+	panic("PackageNode has no body")
+}
+
+func (x *PackageNode) SetBody(b Body) {
 	panic("PackageNode has no body")
 }
 
