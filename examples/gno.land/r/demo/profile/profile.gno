@@ -1,11 +1,11 @@
 package profile
 
 import (
-	"errors"
 	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/mux"
+	"gno.land/p/demo/ufmt"
 )
 
 var (
@@ -13,6 +13,7 @@ var (
 	router = mux.NewRouter()
 )
 
+// Standard fields
 const (
 	DisplayName        = "DisplayName"
 	Homepage           = "Homepage"
@@ -25,13 +26,28 @@ const (
 	InvalidField       = "InvalidField"
 )
 
+// Events
+const (
+	ProfileFieldCreated = "ProfileFieldCreated"
+	ProfileFieldUpdated = "ProfileFieldUpdated"
+)
+
+// Field types used when emitting event
+const FieldType = "FieldType"
+
+const (
+	BoolField   = "BoolField"
+	StringField = "StringField"
+	IntField    = "IntField"
+)
+
 func init() {
 	router.HandleFunc("", homeHandler)
 	router.HandleFunc("u/{addr}", profileHandler)
 	router.HandleFunc("f/{addr}/{field}", fieldHandler)
 }
 
-// list of supported string fields
+// List of supported string fields
 var stringFields = map[string]bool{
 	DisplayName:   true,
 	Homepage:      true,
@@ -41,54 +57,61 @@ var stringFields = map[string]bool{
 	GravatarEmail: true,
 }
 
-// list of support int fields
+// List of support int fields
 var intFields = map[string]bool{
 	Age: true,
 }
 
-// list of support bool fields
+// List of support bool fields
 var boolFields = map[string]bool{
 	AvailableForHiring: true,
 }
 
 // Setters
 
-func SetStringField(field, value string) error {
+func SetStringField(field, value string) bool {
 	addr := std.PrevRealm().Addr()
-	if _, ok := stringFields[field]; !ok {
-		return errors.New("invalid string field")
+	key := addr.String() + ":" + field
+	updated := fields.Set(key, value)
+
+	event := ProfileFieldCreated
+	if updated {
+		event = ProfileFieldUpdated
 	}
 
-	key := addr.String() + ":" + field
-	fields.Set(key, value)
+	std.Emit(event, FieldType, StringField, field, value)
 
-	return nil
+	return updated
 }
 
-func SetIntField(field string, value int) error {
+func SetIntField(field string, value int) bool {
 	addr := std.PrevRealm().Addr()
+	key := addr.String() + ":" + field
+	updated := fields.Set(key, value)
 
-	if _, ok := intFields[field]; !ok {
-		return errors.New("invalid int field")
+	event := ProfileFieldCreated
+	if updated {
+		event = ProfileFieldUpdated
 	}
 
-	key := addr.String() + ":" + field
-	fields.Set(key, value)
+	std.Emit(event, FieldType, IntField, field, string(value))
 
-	return nil
+	return updated
 }
 
-func SetBoolField(field string, value bool) error {
+func SetBoolField(field string, value bool) bool {
 	addr := std.PrevRealm().Addr()
+	key := addr.String() + ":" + field
+	updated := fields.Set(key, value)
 
-	if _, ok := boolFields[field]; !ok {
-		return errors.New("invalid bool field")
+	event := ProfileFieldCreated
+	if updated {
+		event = ProfileFieldUpdated
 	}
 
-	key := addr.String() + ":" + field
-	fields.Set(key, value)
+	std.Emit(event, FieldType, BoolField, field, ufmt.Sprintf("%t", value))
 
-	return nil
+	return updated
 }
 
 // Getters
