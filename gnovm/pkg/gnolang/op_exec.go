@@ -730,7 +730,6 @@ EXEC_SWITCH:
 			m.PushOp(OpEval)
 		}
 	case *TypeDecl: // SimpleDeclStmt
-		m.recordCoverage(cs)
 		m.PushOp(OpTypeDecl)
 		m.PushExpr(cs.Type)
 		m.PushOp(OpEval)
@@ -812,7 +811,6 @@ func (m *Machine) doOpIfCond() {
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())
 		}
-		m.recordCoverage(&is.Then)
 	} else {
 		m.recordCoverage(&is.Else)
 		if len(is.Else.Body) != 0 {
@@ -829,10 +827,7 @@ func (m *Machine) doOpIfCond() {
 			m.PushOp(OpBody)
 			m.PushStmt(b.GetBodyStmt())
 		}
-		m.recordCoverage(&is.Else)
 	}
-
-	m.recordCoverage(is)
 }
 
 func (m *Machine) doOpTypeSwitch() {
@@ -920,7 +915,6 @@ func (m *Machine) doOpTypeSwitch() {
 
 func (m *Machine) doOpSwitchClause() {
 	ss := m.PeekStmt1().(*SwitchStmt)
-	m.recordCoverage(ss)
 	// tv := m.PeekValue(1) // switch tag value
 	// caiv := m.PeekValue(2) // switch clause case index (reuse)
 	cliv := m.PeekValue(3) // switch clause index (reuse)
@@ -934,7 +928,6 @@ func (m *Machine) doOpSwitchClause() {
 		// done!
 	} else {
 		cl := ss.Clauses[idx]
-		m.recordCoverage(&cl)
 		if len(cl.Cases) == 0 {
 			// default clause
 			m.PopStmt()  // pop switch stmt
@@ -961,10 +954,7 @@ func (m *Machine) doOpSwitchClause() {
 			m.PushOp(OpEval)
 			m.PushExpr(cl.Cases[0])
 		}
-		m.recordCoverage(&cl)
 	}
-
-	m.recordCoverage(ss)
 }
 
 func (m *Machine) doOpSwitchClauseCase() {

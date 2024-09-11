@@ -1707,6 +1707,7 @@ func (m *Machine) PushStmts(ss ...Stmt) {
 func (m *Machine) PopStmt() Stmt {
 	numStmts := len(m.Stmts)
 	s := m.Stmts[numStmts-1]
+	m.recordCoverage(s)
 	if debug {
 		m.Printf("-s %v\n", s)
 	}
