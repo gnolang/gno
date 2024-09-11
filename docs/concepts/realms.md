@@ -3,7 +3,8 @@ id: realms
 ---
 
 # Realms
-In Gno.land, realms are entities that are addressable and identifiable by a 
+
+In gno.land, realms are entities that are addressable and identifiable by a 
 [Gno address](../reference/standard-library/std/address.md). These can be user 
 realms (EOAs), as well as smart contract realms. Realms have several 
 properties:
@@ -23,6 +24,7 @@ The full Realm API can be found under the
 [reference section](../reference/standard-library/std/realm.md).
 
 ## Smart Contract Realms
+
 Often simply called `realms`, Gno smart contracts contain Gno code and exist
 on-chain at a specific package path. A package path is the defining identifier
 of a realm, while its address is derived from it.
@@ -34,7 +36,8 @@ resulting in the fact that developers do not need to bother with the intricacies
 of state management and persistence, like they do with other languages.
 
 ### On-chain paths
-Since Gno.land is built for full transparency and auditability, all on-chain Gno
+
+Since gno.land is built for full transparency and auditability, all on-chain Gno
 code is open-sourced. You can view realm code with an ABCI query, or simply going
 to its path in your web browser. For example, to take a look at the
 `gno.land/r/demo/users` realm, used for user registration, by visiting
@@ -51,17 +54,19 @@ the domain: [`test3.gno.land/r/demo/users`](https://test3.gno.land/r/demo/users)
 To learn how to write a realm, see [How to write a simple Gno Smart Contract](../how-to-guides/simple-contract.md).
 
 ## Externally Owned Accounts (EOAs)
+
 EOAs, or simply `user realms`, are Gno addresses generated from a BIP39 mnemonic
 phrase in a key management application, such as
 [`gnokey`](../gno-tooling/cli/gnokey.md), and [Adena](https://adena.app).
 
 Currently, EOAs are the only realms that can initiate a transaction. They can do
-this by calling any of the possible messages in Gno.land, such as 
+this by calling any of the possible messages in gno.land, such as 
 [Call](../gno-tooling/cli/gnokey.md#call),
 [AddPackage](../gno-tooling/cli/gnokey.md#addpkg),
 [Send](../gno-tooling/cli/gnokey.md#send), or Run.
 
 ## Working with realms
+
 In Gno, each transaction consists of a call stack, which is made up of `frames`.
 A single frame is a unique realm in the call stack. Every frame and its properties 
 can be accessed via different functions defined in the `std` package in Gno:
@@ -79,6 +84,7 @@ Let's look at return values of these functions in two distinct situations:
 2. EOA calling a sequence of realms
 
 ### 1. EOA calling a realm
+
 Take these two actors in the call stack:
 ```
 EOA:
@@ -118,6 +124,7 @@ std.GetCallerAt(3) => error
 ```
 
 ### 2. EOA calling a sequence of realms
+
 Take these three actors in the call stack:
 ```
 EOA:
@@ -180,6 +187,7 @@ std.GetCallerAt(4) => error
 ```
 
 ## `Render`
+
 A notable feature of non-EOA realms is the ability to have a render function. A
 render function allows the developer of the realm to choose how to render the 
 state of the realm by returning a custom-made valid Markdown string. It also 
@@ -199,7 +207,7 @@ func Render(path string) string {
 
 :::info
 You can see the `Render` function in action by visiting the 
-[home page of Gno.land](https://gno.land/) - it is actually the render of 
+[home page of gno.land](https://gno.land/) - it is actually the render of 
 `r/gnoland/home` realm. The same is true for the
-[Gno.land Blog](https://gno.land/r/gnoland/blog), and most other pages on the domain.
+[gno.land Blog](https://gno.land/r/gnoland/blog), and most other pages on the domain.
 :::

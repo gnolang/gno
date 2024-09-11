@@ -3,7 +3,8 @@ id: packages
 ---
 
 # Packages
-In Gno.land, packages are Gno code which is meant to be reused by other Gno code,
+
+In gno.land, packages are Gno code which is meant to be reused by other Gno code,
 be it by other packages or realms. Here are some defining features of packages:
 - Packages are stored on-chain under the `"gno.land/p/"` path, and can be 
 written & deployed on-chain by anyone
@@ -18,12 +19,14 @@ To learn how to write a package,
 see [How to write a simple Gno Library](../how-to-guides/simple-library.md).
 
 ## Commonly used packages
+
 To better understand how packages work, let's look at a few commonly 
 used ones. Some of the most commonly used packages live in the
 [`examples`](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/)
 folder on the monorepo, and under the `"gno.land/p/demo"` on-chain path. 
 
 ### Package `avl`
+
 Deployed under `gno.land/p/demo/avl`, the AVL package provides a tree structure
 for storing data. Currently, the AVL package is used to replace the functionality
 of the native `map` in Gno, as maps are not fully deterministic and thus do not 
@@ -58,6 +61,7 @@ func Get(key string) int {
 ```
 
 ### Package `ufmt`
+
 Deployed under `gno.land/p/demo/ufmt`, the `ufmt` package is a minimal version of
 the `fmt` package. From [`ufmt.gno`](https://gno.land/p/demo/ufmt/ufmt.gno):
 
@@ -95,6 +99,7 @@ View the package on-chain [here](https://gno.land/p/demo/seqid), or on GitHub,
 [here](https://github.com/gnolang/gno/tree/master/examples/gno.land/p/demo/seqid).
 
 ## Packages vs Standard Libraries
+
 Apart from packages, Gno, like Go, has standard libraries. To better
 understand the difference between these two concepts, let's compare a few
 specific points:
