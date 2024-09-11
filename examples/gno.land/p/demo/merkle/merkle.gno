@@ -14,13 +14,13 @@ type Hashable interface {
 type nodes []Node
 
 type Node struct {
-	hash []byte
+	Hash []byte
 
-	position uint8
+	Position uint8
 }
 
-func (n Node) Hash() string {
-	return hex.EncodeToString(n.hash[:])
+func (n Node) GetHexEncodedHash() string {
+	return hex.EncodeToString(n.Hash[:])
 }
 
 type Tree struct {
@@ -31,7 +31,7 @@ type Tree struct {
 func (t *Tree) Root() string {
 	for _, l := range t.layers {
 		if len(l) == 1 {
-			return l[0].Hash()
+			return l[0].GetHexEncodedHash()
 		}
 	}
 	return ""
@@ -45,7 +45,7 @@ func NewTree(data []Hashable) *Tree {
 
 	for i, d := range data {
 		hash := sha256.Sum256(d.Bytes())
-		leaves[i] = Node{hash: hash[:]}
+		leaves[i] = Node{Hash: hash[:]}
 	}
 
 	tree.layers = []nodes{nodes(leaves)}
@@ -57,11 +57,11 @@ func NewTree(data []Hashable) *Tree {
 			buff.Reset()
 
 			if i < len(leaves)-1 {
-				buff.Write(leaves[i].hash)
-				buff.Write(leaves[i+1].hash)
+				buff.Write(leaves[i].Hash)
+				buff.Write(leaves[i+1].Hash)
 				hash := sha256.Sum256(buff.Bytes())
 				level = append(level, Node{
-					hash: hash[:],
+					Hash: hash[:],
 				})
 			} else {
 				level = append(level, leaves[i])
@@ -79,7 +79,7 @@ func (t *Tree) Proof(data Hashable) ([]Node, error) {
 	targetIndex := -1
 
 	for i, layer := range t.layers[0] {
-		if bytes.Equal(targetHash[:], layer.hash) {
+		if bytes.Equal(targetHash[:], layer.Hash) {
 			targetIndex = i
 			break
 		}
@@ -101,8 +101,8 @@ func (t *Tree) Proof(data Hashable) ([]Node, error) {
 		}
 		if pairIndex < len(layer) {
 			proofs = append(proofs, Node{
-				hash:     layer[pairIndex].hash,
-				position: uint8(targetIndex) % 2,
+				Hash:     layer[pairIndex].Hash,
+				Position: uint8(targetIndex) % 2,
 			})
 		}
 		targetIndex /= 2
@@ -121,10 +121,10 @@ func Verify(root string, leaf Hashable, proofs []Node) bool {
 
 	for i := 0; i < len(proofs); i += 1 {
 		var h []byte
-		if proofs[i].position == 0 {
-			h = append(hash[:], proofs[i].hash...)
+		if proofs[i].Position == 0 {
+			h = append(hash[:], proofs[i].Hash...)
 		} else {
-			h = append(proofs[i].hash, hash[:]...)
+			h = append(proofs[i].Hash, hash[:]...)
 		}
 		hash = sha256.Sum256(h)
 	}
