@@ -38,9 +38,12 @@ type testCfg struct {
 	withNativeFallback  bool
 
 	// coverage flags
-	coverage            bool
-	showColoredCoverage bool
-	output              string
+	coverage   bool
+	listFiles  bool
+	viewFile   string
+	showHits   bool
+	output     string
+	htmlOutput string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -163,10 +166,24 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
-		&c.showColoredCoverage,
-		"show-colored-coverage",
+		&c.listFiles,
+		"ls",
 		false,
-		"show colored coverage in terminal",
+		"list files with coverage results",
+	)
+
+	fs.BoolVar(
+		&c.showHits,
+		"show-hits",
+		false,
+		"show number of times each line was executed",
+	)
+
+	fs.StringVar(
+		&c.viewFile,
+		"view",
+		"",
+		"view coverage for a specific file",
 	)
 
 	fs.StringVar(
@@ -174,6 +191,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"out",
 		"",
 		"save coverage data as JSON to specified file",
+	)
+
+	fs.StringVar(
+		&c.htmlOutput,
+		"html",
+		"",
+		"output coverage report in HTML format",
 	)
 }
 
@@ -414,13 +438,15 @@ func gnoTestPkg(
 	}
 
 	if cfg.coverage {
-		coverageData.Report()
-		if cfg.showColoredCoverage {
-			for filePath := range coverageData.Files {
-				if err := coverageData.ColoredCoverage(filePath); err != nil {
-					io.ErrPrintfln("Error printing colored coverage for %s: %v", filePath, err)
-				}
+		if cfg.listFiles {
+			coverageData.ListFiles(io)
+		} else if cfg.viewFile != "" {
+			err := coverageData.ViewFiles(cfg.viewFile, cfg.showHits, io)
+			if err != nil {
+				return fmt.Errorf("failed to view file coverage: %w", err)
 			}
+		} else {
+			coverageData.Report()
 		}
 
 		if cfg.output != "" {
@@ -429,6 +455,14 @@ func gnoTestPkg(
 				return fmt.Errorf("failed to save coverage data: %w", err)
 			}
 			io.Println("coverage data saved to", cfg.output)
+		}
+
+		if cfg.htmlOutput != "" {
+			err := coverageData.SaveHTML(cfg.htmlOutput)
+			if err != nil {
+				return fmt.Errorf("failed to save coverage data: %w", err)
+			}
+			io.Println("coverage report saved to", cfg.htmlOutput)
 		}
 	}
 

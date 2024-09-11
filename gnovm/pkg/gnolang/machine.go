@@ -1689,6 +1689,7 @@ func (m *Machine) PeekStmt1() Stmt {
 }
 
 func (m *Machine) PushStmt(s Stmt) {
+	m.recordCoverage(s)
 	if debug {
 		m.Printf("+s %v\n", s)
 	}
@@ -1707,7 +1708,6 @@ func (m *Machine) PushStmts(ss ...Stmt) {
 func (m *Machine) PopStmt() Stmt {
 	numStmts := len(m.Stmts)
 	s := m.Stmts[numStmts-1]
-	m.recordCoverage(s)
 	if debug {
 		m.Printf("-s %v\n", s)
 	}
@@ -1740,6 +1740,7 @@ func (m *Machine) PushExpr(x Expr) {
 	if debug {
 		m.Printf("+x %v\n", x)
 	}
+	m.recordCoverage(x)
 	m.Exprs = append(m.Exprs, x)
 }
 
@@ -1775,7 +1776,6 @@ func (m *Machine) PushValue(tv TypedValue) {
 	}
 	m.Values[m.NumValues] = tv
 	m.NumValues++
-	return
 }
 
 // Resulting reference is volatile.

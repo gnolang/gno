@@ -7,17 +7,24 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"html/template"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
 const (
 	colorReset  = "\033[0m"
+	colorOrange = "\033[38;5;208m"
+	colorRed    = "\033[31m"
 	colorGreen  = "\033[32m"
 	colorYellow = "\033[33m"
+	colorWhite  = "\033[37m"
+	boldText    = "\033[1m"
 )
 
 // CoverageData stores code coverage information
@@ -101,6 +108,115 @@ func (c *CoverageData) AddFile(filePath string, totalLines int) {
 	c.Files[filePath] = fileCoverage
 }
 
+// region Reporting
+
+func (c *CoverageData) ViewFiles(pattern string, showHits bool, io commands.IO) error {
+	matchingFiles := c.findMatchingFiles(pattern)
+	if len(matchingFiles) == 0 {
+		return fmt.Errorf("no files found matching pattern %s", pattern)
+	}
+
+	for _, path := range matchingFiles {
+		err := c.viewSingleFileCoverage(path, showHits, io)
+		if err != nil {
+			return err
+		}
+		io.Println() // Add a newline between files
+	}
+
+	return nil
+}
+
+func (c *CoverageData) viewSingleFileCoverage(filePath string, showHits bool, io commands.IO) error {
+	realPath, err := c.determineRealPath(filePath)
+	if err != nil {
+		// skipping invalid file paths
+		return nil
+	}
+
+	file, err := os.Open(realPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lineNumber := 1
+	coverage, exists := c.Files[filePath]
+	if !exists {
+		return fmt.Errorf("no coverage data for file %s", filePath)
+	}
+
+	io.Printfln("%s%s%s:", boldText, filePath, colorReset)
+	for scanner.Scan() {
+		line := scanner.Text()
+		hitCount, covered := coverage.HitLines[lineNumber]
+
+		var hitInfo string
+		if showHits {
+			if covered {
+				hitInfo = fmt.Sprintf("%s%d%s ", colorOrange, hitCount, colorReset)
+			} else {
+				hitInfo = strings.Repeat(" ", 2)
+			}
+		}
+
+		lineNumStr := fmt.Sprintf("%4d", lineNumber)
+
+		if showHits {
+			if covered {
+				io.Printfln("%s%s%s %-4s %s%s%s", colorGreen, lineNumStr, colorReset, hitInfo, colorGreen, line, colorReset)
+			} else if coverage.ExecutableLines[lineNumber] {
+				io.Printfln("%s%s%s %-4s %s%s%s", colorYellow, lineNumStr, colorReset, hitInfo, colorYellow, line, colorReset)
+			} else {
+				io.Printfln("%s%s%s %-4s %s%s", colorWhite, lineNumStr, colorReset, hitInfo, line, colorReset)
+			}
+		} else {
+			if covered {
+				io.Printfln("%s%s %s%s", colorGreen, lineNumStr, line, colorReset)
+			} else if coverage.ExecutableLines[lineNumber] {
+				io.Printfln("%s%s %s%s", colorYellow, lineNumStr, line, colorReset)
+			} else {
+				io.Printfln("%s%s %s%s", colorWhite, lineNumStr, line, colorReset)
+			}
+		}
+		lineNumber++
+	}
+
+	return scanner.Err()
+}
+
+func (c *CoverageData) findMatchingFiles(pattern string) []string {
+	var files []string
+	for file := range c.Files {
+		if strings.Contains(file, pattern) {
+			files = append(files, file)
+		}
+	}
+	return files
+}
+
+func (c *CoverageData) ListFiles(io commands.IO) {
+	for file, cov := range c.Files {
+		hitLines := len(cov.HitLines)
+		totalLines := cov.TotalLines
+		pct := float64(hitLines) / float64(totalLines) * 100
+		color := getCoverageColor(pct)
+		io.Printfln("%s%3.0f%% [%d/%d] %s%s", color, pct, hitLines, totalLines, file, colorReset)
+	}
+}
+
+func getCoverageColor(percentage float64) string {
+	switch {
+	case percentage >= 80:
+		return colorGreen
+	case percentage >= 50:
+		return colorYellow
+	default:
+		return colorRed
+	}
+}
+
 func (c *CoverageData) Report() {
 	fmt.Println("Coverage Results:")
 
@@ -119,48 +235,6 @@ func (c *CoverageData) Report() {
 			fmt.Printf("%s: %.2f%% (%d/%d lines)\n", file, percentage, hitLines, coverage.TotalLines)
 		}
 	}
-}
-
-func (c *CoverageData) ColoredCoverage(filePath string) error {
-	realPath, err := c.determineRealPath(filePath)
-	if err != nil {
-		// skipping invalid file paths
-		return nil
-	}
-
-	if isTestFile(filePath) || !strings.Contains(realPath, c.PkgPath) || !strings.HasSuffix(realPath, ".gno") {
-		return nil
-	}
-	file, err := os.Open(realPath)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	lineNumber := 1
-
-	fileCoverage, exists := c.Files[filePath]
-	if !exists {
-		return fmt.Errorf("no coverage data for file %s", filePath)
-	}
-
-	fmt.Printf("Coverage Results for %s:\n", filePath)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if _, covered := fileCoverage.HitLines[lineNumber]; covered {
-			fmt.Printf("%s%4d: %s%s\n", colorGreen, lineNumber, line, colorReset)
-		} else {
-			fmt.Printf("%s%4d: %s%s\n", colorYellow, lineNumber, line, colorReset)
-		}
-		lineNumber++
-	}
-
-	if err := scanner.Err(); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // Attempts to determine the full real path based on the filePath alone.
@@ -229,6 +303,121 @@ func (c *CoverageData) SaveJSON(fileName string) error {
 	return os.WriteFile(fileName, data, 0o644)
 }
 
+func (c *CoverageData) SaveHTML(outputFileName string) error {
+	tmpl := `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coverage Report</title>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; line-height: 1.5; }
+        .file { margin-bottom: 20px; }
+        .filename { font-weight: bold; margin-bottom: 10px; }
+        pre { margin: 0; }
+        .line { display: flex; }
+        .line-number { color: #999; padding-right: 1em; text-align: right; width: 4em; }
+        .hit-count { color: #666; padding-right: 1em; width: 3em; text-align: right; }
+        .covered { background-color: #90EE90; }
+        .uncovered { background-color: #FFB6C1; }
+    </style>
+</head>
+<body>
+    <h1>Coverage Report</h1>
+    {{range $file, $coverage := .Files}}
+    <div class="file">
+        <div class="filename">{{$file}}</div>
+        <pre>{{range $line, $content := $coverage.Lines}}
+<span class="line{{if $content.Covered}} covered{{else if $content.Executable}} uncovered{{end}}"><span class="line-number">{{$line}}</span><span class="hit-count">{{if $content.Covered}}{{$content.Hits}}{{else}}-{{end}}</span><span class="code">{{$content.Code}}</span></span>{{end}}
+        </pre>
+    </div>
+    {{end}}
+</body>
+</html>`
+
+	t, err := template.New("coverage").Parse(tmpl)
+	if err != nil {
+		return err
+	}
+
+	data := struct {
+		Files map[string]struct {
+			Lines map[int]struct {
+				Code       string
+				Covered    bool
+				Executable bool
+				Hits       int
+			}
+		}
+	}{
+		Files: make(map[string]struct {
+			Lines map[int]struct {
+				Code       string
+				Covered    bool
+				Executable bool
+				Hits       int
+			}
+		}),
+	}
+
+	for path, coverage := range c.Files {
+		realPath, err := c.determineRealPath(path)
+		if err != nil {
+			return err
+		}
+		content, err := os.ReadFile(realPath)
+		if err != nil {
+			return err
+		}
+
+		lines := strings.Split(string(content), "\n")
+		fileData := struct {
+			Lines map[int]struct {
+				Code       string
+				Covered    bool
+				Executable bool
+				Hits       int
+			}
+		}{
+			Lines: make(map[int]struct {
+				Code       string
+				Covered    bool
+				Executable bool
+				Hits       int
+			}),
+		}
+
+		for i, line := range lines {
+			lineNum := i + 1
+			hits, covered := coverage.HitLines[lineNum]
+			executable := coverage.ExecutableLines[lineNum]
+
+			fileData.Lines[lineNum] = struct {
+				Code       string
+				Covered    bool
+				Executable bool
+				Hits       int
+			}{
+				Code:       line,
+				Covered:    covered,
+				Executable: executable,
+				Hits:       hits,
+			}
+		}
+
+		data.Files[path] = fileData
+	}
+
+	file, err := os.Create(outputFileName)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return t.Execute(file, data)
+}
+
 func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
 	if isTestFile(file) {
 		return
@@ -263,6 +452,7 @@ func (m *Machine) recordCoverage(node Node) Location {
 
 // region Executable Lines Detection
 
+// countCodeLines counts the number of executable lines in the given source code content.
 func countCodeLines(content string) int {
 	lines, err := detectExecutableLines(content)
 	if err != nil {
@@ -272,14 +462,26 @@ func countCodeLines(content string) int {
 	return len(lines)
 }
 
-// TODO: use gno Node type
+// isExecutableLine determines whether a given AST node represents an
+// executable line of code for the purpose of code coverage measurement.
+//
+// It returns true for statement nodes that typically contain executable code,
+// such as assignments, expressions, return statements, and control flow statements.
+//
+// It returns false for nodes that represent non-executable lines, such as
+// declarations, blocks, and function definitions.
 func isExecutableLine(node ast.Node) bool {
 	switch node.(type) {
 	case *ast.AssignStmt, *ast.ExprStmt, *ast.ReturnStmt, *ast.BranchStmt,
 		*ast.IncDecStmt, *ast.GoStmt, *ast.DeferStmt, *ast.SendStmt:
 		return true
-	case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.SelectStmt, *ast.CaseClause:
+	case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.SelectStmt:
 		return true
+	case *ast.CaseClause:
+		// Even if a `case` condition (e.g., `case 1:`) in a `switch` statement is executed,
+		// the condition itself is not included in the coverage; coverage only recorded for the
+		// code block inside the corresponding `case` clause.
+		return false
 	case *ast.FuncDecl:
 		return false
 	case *ast.BlockStmt:

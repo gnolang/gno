@@ -789,10 +789,7 @@ EXEC_SWITCH:
 func (m *Machine) doOpIfCond() {
 	is := m.PopStmt().(*IfStmt)
 	m.recordCoverage(is) // start record coverage when IfStmt is popped
-
 	b := m.LastBlock()
-
-	m.recordCoverage(is) // record Condition Evaluation Coverage
 	// Test cond and run Body or Else.
 	cond := m.PopValue()
 	if cond.GetBool() {
