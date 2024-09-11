@@ -42,6 +42,9 @@ type BaseApp struct {
 	beginBlocker BeginBlocker // logic to run before any txs
 	endBlocker   EndBlocker   // logic to run after all txs, and to determine valset changes
 
+	beginTxHook BeginTxHook // BaseApp-specific hook run before running transaction messages.
+	endTxHook   EndTxHook   // BaseApp-specific hook run after running transaction messages.
+
 	// --------------------
 	// Volatile state
 	// checkState is set on initialization and reset on Commit.
@@ -207,14 +210,6 @@ func (app *BaseApp) initFromMainStore() error {
 
 func (app *BaseApp) setMinGasPrices(gasPrices []GasPrice) {
 	app.minGasPrices = gasPrices
-}
-
-func (app *BaseApp) setHaltHeight(haltHeight uint64) {
-	app.haltHeight = haltHeight
-}
-
-func (app *BaseApp) setHaltTime(haltTime uint64) {
-	app.haltTime = haltTime
 }
 
 // Returns a read-only (cache) MultiStore.
@@ -633,6 +628,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 
 	data := make([]byte, 0, len(msgs))
 	err := error(nil)
+
 	events := []Event{}
 
 	// NOTE: GasWanted is determined by ante handler and GasUsed by the GasMeter.
@@ -693,9 +689,7 @@ func (app *BaseApp) getState(mode RunTxMode) *state {
 
 // cacheTxContext returns a new context based off of the provided context with
 // a cache wrapped multi-store.
-func (app *BaseApp) cacheTxContext(ctx Context, txBytes []byte) (
-	Context, store.MultiStore,
-) {
+func (app *BaseApp) cacheTxContext(ctx Context) (Context, store.MultiStore) {
 	ms := ctx.MultiStore()
 	// TODO: https://github.com/tendermint/classic/sdk/issues/2824
 	msCache := ms.MultiCacheWrap()
@@ -800,7 +794,7 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 		// aborted/failed.  This may have some performance
 		// benefits, but it'll be more difficult to get
 		// right.
-		anteCtx, msCache = app.cacheTxContext(ctx, txBytes)
+		anteCtx, msCache = app.cacheTxContext(ctx)
 		// Call AnteHandler.
 		// NOTE: It is the responsibility of the anteHandler
 		// to use something like passthroughGasMeter to
@@ -828,13 +822,22 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 
 	// Create a new context based off of the existing context with a cache wrapped
 	// multi-store in case message processing fails.
-	runMsgCtx, msCache := app.cacheTxContext(ctx, txBytes)
+	runMsgCtx, msCache := app.cacheTxContext(ctx)
+
+	if app.beginTxHook != nil {
+		runMsgCtx = app.beginTxHook(runMsgCtx)
+	}
+
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
 
 	// Safety check: don't write the cache state unless we're in DeliverTx.
 	if mode != RunTxModeDeliver {
 		return result
+	}
+
+	if app.endTxHook != nil {
+		app.endTxHook(runMsgCtx, result)
 	}
 
 	// only update state if all messages pass

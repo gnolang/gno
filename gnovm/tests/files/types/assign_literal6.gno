@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_literal6.gno:4: cannot assign to (const (3 <untyped> bigint))
+// main/files/types/assign_literal6.gno:4:2: cannot assign to (const (3 <untyped> bigint))

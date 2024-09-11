@@ -29,4 +29,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/assign_type_assertion_b.gno:22: cannot use interface{IsSet func()(bool)} as int
+// main/files/types/assign_type_assertion_b.gno:22:2: cannot use interface{IsSet func()(bool)} as int

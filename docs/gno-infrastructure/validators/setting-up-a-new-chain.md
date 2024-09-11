@@ -13,7 +13,7 @@ Additionally, you will see the different options you can use to make your Gno in
 
 - **Git**
 - **`make` (for running Makefiles)**
-- **Go 1.21+**
+- **Go 1.22+**
 - **Go Environment Setup**: Ensure you have Go set up as outlined in
   the [Go official installation documentation](https://go.dev/doc/install) for your environment
 
@@ -93,7 +93,7 @@ Let's break down the most important default settings:
 :::info Resetting the chain
 
 As mentioned, the working directory for the node is located in `data-dir`. To reset the chain, you need
-to delete this directory and start the node up again. If you are using the default node configuration, you can run
+to delete this directory and `genesis.json`, then start the node up again. If you are using the default node configuration, you can run
 `make fclean` from the `gno.land` sub-folder to delete the `gnoland-data` working directory.
 
 :::
@@ -169,9 +169,11 @@ command:
 gnoland config set moniker node01
 ```
 
-:::warn Modify existing secrets
+:::
 
-We can modify existing secrets, or utilize our own (if we have them backed up, for example) for the Gno.land node.
+:::warning Modify existing secrets
+
+We can modify existing secrets, or utilize our own (if we have them backed up, for example) for the gno.land node.
 Each secret needs to be placed in the appropriate path within `<data-dir>/secrets`, and it can be replaced or
 regenerated with `gnoland secrets init <key-name> --force`
 
@@ -249,7 +251,7 @@ FLAGS
 
 ## 3. Add the `examples` packages into the `genesis.json` (optional)
 
-This step is not necessarily required, however, using a Gno.land chain without the `examples` packages predeployed can
+This step is not necessarily required, however, using a gno.land chain without the `examples` packages predeployed can
 present challenges with users who expect them to be present.
 
 The `examples` directory is located in the `$GNOROOT` location, or the local gno repository clone.

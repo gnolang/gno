@@ -2,17 +2,16 @@ package gnolang
 
 import (
 	"fmt"
-	"maps"
 	"reflect"
 	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
-	"github.com/gnolang/gno/tm2/pkg/store/types"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	stringz "github.com/gnolang/gno/tm2/pkg/strings"
 )
@@ -32,8 +31,12 @@ type PackageInjector func(store Store, pn *PackageNode)
 // NativeStore is a function which can retrieve native bodies of native functions.
 type NativeStore func(pkgName string, name Name) func(m *Machine)
 
+// Store is the central interface that specifies the communications between the
+// GnoVM and the underlying data store; currently, generally the Gno.land
+// blockchain, or the file system.
 type Store interface {
 	// STABLE
+	BeginTransaction(baseStore, iavlStore store.Store) TransactionStore
 	SetPackageGetter(PackageGetter)
 	GetPackage(pkgPath string, isImport bool) *PackageValue
 	SetCachePackage(*PackageValue)
@@ -62,9 +65,7 @@ type Store interface {
 	GetMemPackage(path string) *std.MemPackage
 	GetMemFile(path string, name string) *std.MemFile
 	IterMemPackage() <-chan *std.MemPackage
-	ClearObjectCache()                                    // for each delivertx.
-	Fork() Store                                          // for checktx, simulate, and queries.
-	SwapStores(baseStore, iavlStore store.Store)          // for gas wrappers.
+	ClearObjectCache()                                    // run before processing a message
 	SetPackageInjector(PackageInjector)                   // for natives
 	SetNativeStore(NativeStore)                           // for "new" natives XXX
 	GetNative(pkgPath string, name Name) func(m *Machine) // for "new" natives XXX
@@ -73,20 +74,33 @@ type Store interface {
 	LogSwitchRealm(rlmpath string) // to mark change of realm boundaries
 	ClearCache()
 	Print()
-	Write()
-	Flush()
 }
 
-// Used to keep track of in-mem objects during tx.
+// TransactionStore is a store where the operations modifying the underlying store's
+// caches are temporarily held in a buffer, and then executed together after
+// executing Write.
+type TransactionStore interface {
+	Store
+
+	// Write commits the current buffered transaction data to the underlying store.
+	// It also clears the current buffer of the transaction.
+	Write()
+}
+
 type defaultStore struct {
-	alloc            *Allocator    // for accounting for cached items
-	pkgGetter        PackageGetter // non-realm packages
-	cacheObjects     map[ObjectID]Object
-	cacheTypes       map[TypeID]Type
-	cacheNodes       map[Location]BlockNode
-	cacheNativeTypes map[reflect.Type]Type // go spec: reflect.Type are comparable
-	baseStore        store.Store           // for objects, types, nodes
-	iavlStore        store.Store           // for escaped object hashes
+	// underlying stores used to keep data
+	baseStore store.Store // for objects, types, nodes
+	iavlStore store.Store // for escaped object hashes
+
+	// transaction-scoped
+	cacheObjects map[ObjectID]Object            // this is a real cache, reset with every transaction.
+	cacheTypes   txlog.Map[TypeID, Type]        // this re-uses the parent store's.
+	cacheNodes   txlog.Map[Location, BlockNode] // until BlockNode persistence is implemented, this is an actual store.
+	alloc        *Allocator                     // for accounting for cached items
+
+	// store configuration; cannot be modified in a transaction
+	pkgGetter        PackageGetter         // non-realm packages
+	cacheNativeTypes map[reflect.Type]Type // reflect doc: reflect.Type are comparable
 	pkgInjector      PackageInjector       // for injecting natives
 	nativeStore      NativeStore           // for injecting natives
 	go2gnoStrict     bool                  // if true, native->gno type conversion must be registered.
@@ -98,18 +112,119 @@ type defaultStore struct {
 
 func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore {
 	ds := &defaultStore{
-		alloc:            alloc,
+		baseStore: baseStore,
+		iavlStore: iavlStore,
+		alloc:     alloc,
+
+		// cacheObjects is set; objects in the store will be copied over for any transaction.
+		cacheObjects: make(map[ObjectID]Object),
+		cacheTypes:   txlog.GoMap[TypeID, Type](map[TypeID]Type{}),
+		cacheNodes:   txlog.GoMap[Location, BlockNode](map[Location]BlockNode{}),
+
+		// store configuration
 		pkgGetter:        nil,
-		cacheObjects:     make(map[ObjectID]Object),
-		cacheTypes:       make(map[TypeID]Type),
-		cacheNodes:       make(map[Location]BlockNode),
 		cacheNativeTypes: make(map[reflect.Type]Type),
-		baseStore:        baseStore,
-		iavlStore:        iavlStore,
+		pkgInjector:      nil,
+		nativeStore:      nil,
 		go2gnoStrict:     true,
 	}
 	InitStoreCaches(ds)
 	return ds
+}
+
+// If nil baseStore and iavlStore, the baseStores are re-used.
+func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) TransactionStore {
+	if baseStore == nil {
+		baseStore = ds.baseStore
+	}
+	if iavlStore == nil {
+		iavlStore = ds.iavlStore
+	}
+	ds2 := &defaultStore{
+		// underlying stores
+		baseStore: baseStore,
+		iavlStore: iavlStore,
+
+		// transaction-scoped
+		cacheObjects: make(map[ObjectID]Object),
+		cacheTypes:   txlog.Wrap(ds.cacheTypes),
+		cacheNodes:   txlog.Wrap(ds.cacheNodes),
+		alloc:        ds.alloc.Fork().Reset(),
+
+		// store configuration
+		pkgGetter:        ds.pkgGetter,
+		cacheNativeTypes: ds.cacheNativeTypes,
+		pkgInjector:      ds.pkgInjector,
+		nativeStore:      ds.nativeStore,
+		go2gnoStrict:     ds.go2gnoStrict,
+
+		// transient
+		current: nil,
+		opslog:  nil,
+	}
+	ds2.SetCachePackage(Uverse())
+
+	return transactionStore{ds2}
+}
+
+type transactionStore struct{ *defaultStore }
+
+func (t transactionStore) Write() {
+	t.cacheTypes.(txlog.MapCommitter[TypeID, Type]).Commit()
+	t.cacheNodes.(txlog.MapCommitter[Location, BlockNode]).Commit()
+}
+
+func (transactionStore) SetPackageGetter(pg PackageGetter) {
+	panic("SetPackageGetter may not be called in a transaction store")
+}
+
+func (transactionStore) ClearCache() {
+	panic("ClearCache may not be called in a transaction store")
+}
+
+// XXX: we should block Go2GnoType, because it uses a global cache map;
+// but it's called during preprocess and thus breaks some testing code.
+// let's wait until we remove Go2Gno entirely.
+// https://github.com/gnolang/gno/issues/1361
+// func (transactionStore) Go2GnoType(reflect.Type) Type {
+// 	panic("Go2GnoType may not be called in a transaction store")
+// }
+
+func (transactionStore) SetPackageInjector(inj PackageInjector) {
+	panic("SetPackageInjector may not be called in a transaction store")
+}
+
+func (transactionStore) SetNativeStore(ns NativeStore) {
+	panic("SetNativeStore may not be called in a transaction store")
+}
+
+func (transactionStore) SetStrictGo2GnoMapping(strict bool) {
+	panic("SetStrictGo2GnoMapping may not be called in a transaction store")
+}
+
+// CopyCachesFromStore allows to copy a store's internal object, type and
+// BlockNode cache into the dst store.
+// This is mostly useful for testing, where many stores have to be initialized.
+func CopyFromCachedStore(destStore, cachedStore Store, cachedBase, cachedIavl store.Store) {
+	ds, ss := destStore.(transactionStore), cachedStore.(*defaultStore)
+
+	iter := cachedBase.Iterator(nil, nil)
+	for ; iter.Valid(); iter.Next() {
+		ds.baseStore.Set(iter.Key(), iter.Value())
+	}
+	iter = cachedIavl.Iterator(nil, nil)
+	for ; iter.Valid(); iter.Next() {
+		ds.iavlStore.Set(iter.Key(), iter.Value())
+	}
+
+	ss.cacheTypes.Iterate()(func(k TypeID, v Type) bool {
+		ds.cacheTypes.Set(k, v)
+		return true
+	})
+	ss.cacheNodes.Iterate()(func(k Location, v BlockNode) bool {
+		ds.cacheNodes.Set(k, v)
+		return true
+	})
 }
 
 func (ds *defaultStore) GetAllocator() *Allocator {
@@ -204,7 +319,10 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			// but packages gotten from the pkgGetter may skip this step,
 			// so fill in store.CacheTypes here.
 			for _, tv := range pv.GetBlock(nil).Values {
-				if tv.T.Kind() == TypeKind {
+				if tv.T == nil {
+					// tv.T is nil here only when only predefined.
+					// (for other types, .T == nil even after definition).
+				} else if tv.T.Kind() == TypeKind {
 					t := tv.GetType()
 					ds.SetCacheType(t)
 				}
@@ -386,7 +504,6 @@ func (ds *defaultStore) DelObject(oo Object) {
 func (ds *defaultStore) GetType(tid TypeID) Type {
 	tt := ds.GetTypeSafe(tid)
 	if tt == nil {
-		ds.Print()
 		panic(fmt.Sprintf("unexpected type with id %s", tid.String()))
 	}
 	return tt
@@ -394,7 +511,7 @@ func (ds *defaultStore) GetType(tid TypeID) Type {
 
 func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 	// check cache.
-	if tt, exists := ds.cacheTypes[tid]; exists {
+	if tt, exists := ds.cacheTypes.Get(tid); exists {
 		return tt
 	}
 	// check backend.
@@ -411,7 +528,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 				}
 			}
 			// set in cache.
-			ds.cacheTypes[tid] = tt
+			ds.cacheTypes.Set(tid, tt)
 			// after setting in cache, fill tt.
 			fillType(ds, tt)
 			return tt
@@ -422,7 +539,7 @@ func (ds *defaultStore) GetTypeSafe(tid TypeID) Type {
 
 func (ds *defaultStore) SetCacheType(tt Type) {
 	tid := tt.TypeID()
-	if tt2, exists := ds.cacheTypes[tid]; exists {
+	if tt2, exists := ds.cacheTypes.Get(tid); exists {
 		if tt != tt2 {
 			// NOTE: not sure why this would happen.
 			panic("should not happen")
@@ -430,14 +547,14 @@ func (ds *defaultStore) SetCacheType(tt Type) {
 			// already set.
 		}
 	} else {
-		ds.cacheTypes[tid] = tt
+		ds.cacheTypes.Set(tid, tt)
 	}
 }
 
 func (ds *defaultStore) SetType(tt Type) {
 	tid := tt.TypeID()
 	// return if tid already known.
-	if tt2, exists := ds.cacheTypes[tid]; exists {
+	if tt2, exists := ds.cacheTypes.Get(tid); exists {
 		if tt != tt2 {
 			// this can happen for a variety of reasons.
 			// TODO classify them and optimize.
@@ -452,7 +569,7 @@ func (ds *defaultStore) SetType(tt Type) {
 		ds.baseStore.Set([]byte(key), bz)
 	}
 	// save type to cache.
-	ds.cacheTypes[tid] = tt
+	ds.cacheTypes.Set(tid, tt)
 }
 
 func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
@@ -465,7 +582,7 @@ func (ds *defaultStore) GetBlockNode(loc Location) BlockNode {
 
 func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 	// check cache.
-	if bn, exists := ds.cacheNodes[loc]; exists {
+	if bn, exists := ds.cacheNodes.Get(loc); exists {
 		return bn
 	}
 	// check backend.
@@ -481,7 +598,7 @@ func (ds *defaultStore) GetBlockNodeSafe(loc Location) BlockNode {
 						loc, bn.GetLocation()))
 				}
 			}
-			ds.cacheNodes[loc] = bn
+			ds.cacheNodes.Set(loc, bn)
 			return bn
 		}
 	}
@@ -500,7 +617,7 @@ func (ds *defaultStore) SetBlockNode(bn BlockNode) {
 		// ds.backend.Set([]byte(key), bz)
 	}
 	// save node to cache.
-	ds.cacheNodes[loc] = bn
+	ds.cacheNodes.Set(loc, bn)
 	// XXX duplicate?
 	// XXX
 }
@@ -562,13 +679,14 @@ func (ds *defaultStore) getMemPackage(path string, isRetry bool) *std.MemPackage
 		// implementations works by running Machine.RunMemPackage with save = true,
 		// which would add the package to the store after running.
 		// Some packages may never be persisted, thus why we only attempt this twice.
-		if !isRetry {
+		if !isRetry && ds.pkgGetter != nil {
 			if pv := ds.GetPackage(path, false); pv != nil {
 				return ds.getMemPackage(path, true)
 			}
 		}
 		return nil
 	}
+
 	var memPkg *std.MemPackage
 	amino.MustUnmarshal(bz, &memPkg)
 	return memPkg
@@ -624,47 +742,6 @@ func (ds *defaultStore) ClearObjectCache() {
 	ds.SetCachePackage(Uverse())
 }
 
-// Unstable.
-// This function is used to handle queries and checktx transactions.
-func (ds *defaultStore) Fork() Store {
-	ds2 := &defaultStore{
-		alloc: ds.alloc.Fork().Reset(),
-
-		// Re-initialize caches. Some are cloned for speed.
-		cacheObjects: make(map[ObjectID]Object),
-		cacheTypes:   maps.Clone(ds.cacheTypes),
-		// XXX: This is bad to say the least (ds.cacheNodes is shared with a
-		// child Store); however, cacheNodes is _not_ a cache, but a proper
-		// data store instead. SetBlockNode does not write anything to
-		// the underlying baseStore, and cloning this map makes everything run
-		// 4x slower, so here we are, copying the reference.
-		cacheNodes:       ds.cacheNodes,
-		cacheNativeTypes: maps.Clone(ds.cacheNativeTypes),
-
-		// baseStore and iavlStore should generally be changed using SwapStores.
-		baseStore: ds.baseStore,
-		iavlStore: ds.iavlStore,
-
-		// native injections / store "config"
-		pkgGetter:    ds.pkgGetter,
-		pkgInjector:  ds.pkgInjector,
-		nativeStore:  ds.nativeStore,
-		go2gnoStrict: ds.go2gnoStrict,
-
-		// reset opslog and current.
-		opslog:  nil,
-		current: nil,
-	}
-	ds2.SetCachePackage(Uverse())
-	return ds2
-}
-
-// TODO: consider a better/faster/simpler way of achieving the overall same goal?
-func (ds *defaultStore) SwapStores(baseStore, iavlStore store.Store) {
-	ds.baseStore = baseStore
-	ds.iavlStore = iavlStore
-}
-
 func (ds *defaultStore) SetPackageInjector(inj PackageInjector) {
 	ds.pkgInjector = inj
 }
@@ -678,18 +755,6 @@ func (ds *defaultStore) GetNative(pkgPath string, name Name) func(m *Machine) {
 		return ds.nativeStore(pkgPath, name)
 	}
 	return nil
-}
-
-// Writes one level of cache to store.
-func (ds *defaultStore) Write() {
-	ds.baseStore.(types.Writer).Write()
-	ds.iavlStore.(types.Writer).Write()
-}
-
-// Flush cached writes to disk.
-func (ds *defaultStore) Flush() {
-	ds.baseStore.(types.Flusher).Flush()
-	ds.iavlStore.(types.Flusher).Flush()
 }
 
 // ----------------------------------------
@@ -762,8 +827,8 @@ func (ds *defaultStore) LogSwitchRealm(rlmpath string) {
 
 func (ds *defaultStore) ClearCache() {
 	ds.cacheObjects = make(map[ObjectID]Object)
-	ds.cacheTypes = make(map[TypeID]Type)
-	ds.cacheNodes = make(map[Location]BlockNode)
+	ds.cacheTypes = txlog.GoMap[TypeID, Type](map[TypeID]Type{})
+	ds.cacheNodes = txlog.GoMap[Location, BlockNode](map[Location]BlockNode{})
 	ds.cacheNativeTypes = make(map[reflect.Type]Type)
 	// restore builtin types to cache.
 	InitStoreCaches(ds)
@@ -779,16 +844,18 @@ func (ds *defaultStore) Print() {
 	utils.Print(ds.iavlStore)
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:cacheTypes..."))
-	for tid, typ := range ds.cacheTypes {
+	ds.cacheTypes.Iterate()(func(tid TypeID, typ Type) bool {
 		fmt.Printf("- %v: %v\n", tid,
 			stringz.TrimN(fmt.Sprintf("%v", typ), 50))
-	}
+		return true
+	})
 	fmt.Println(colors.Yellow("//----------------------------------------"))
 	fmt.Println(colors.Green("defaultStore:cacheNodes..."))
-	for loc, bn := range ds.cacheNodes {
+	ds.cacheNodes.Iterate()(func(loc Location, bn BlockNode) bool {
 		fmt.Printf("- %v: %v\n", loc,
 			stringz.TrimN(fmt.Sprintf("%v", bn), 50))
-	}
+		return true
+	})
 	fmt.Println(colors.Red("//----------------------------------------"))
 }
 
