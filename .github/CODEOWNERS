@@ -67,7 +67,7 @@
 
 # GnoVM/Gnolang.
 /gnovm/                       @gnolang/tech-staff
-/gnovm/stdlibs/               @thehowl
+/gnovm/stdlibs/               @gnolang/tech-staff @thehowl
 /gnovm/pkg/gnolang/           @gnolang/tech-staff @jaekwon
 /gnovm/pkg/doc/               @thehowl
 /gnovm/pkg/repl/              @mvertes
