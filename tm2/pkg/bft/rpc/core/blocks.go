@@ -400,7 +400,7 @@ func Commit(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultCommit, erro
 // ```
 func BlockResults(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlockResults, error) {
 	storeHeight := blockStore.Height()
-	height, err := getHeight(storeHeight, heightPtr)
+	height, err := getHeightWithMin(storeHeight, heightPtr, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -418,10 +418,14 @@ func BlockResults(ctx *rpctypes.Context, heightPtr *int64) (*ctypes.ResultBlockR
 }
 
 func getHeight(currentHeight int64, heightPtr *int64) (int64, error) {
+	return getHeightWithMin(currentHeight, heightPtr, 1)
+}
+
+func getHeightWithMin(currentHeight int64, heightPtr *int64, min int64) (int64, error) {
 	if heightPtr != nil {
 		height := *heightPtr
-		if height <= 0 {
-			return 0, fmt.Errorf("height must be greater than 0")
+		if height < min {
+			return 0, fmt.Errorf("height must be greater than or equal to %d", min)
 		}
 		if height > currentHeight {
 			return 0, fmt.Errorf("height must be less than or equal to the current blockchain height")
