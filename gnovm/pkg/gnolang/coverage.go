@@ -67,14 +67,26 @@ func (c *CoverageData) SetExecutableLines(filePath string, executableLines map[i
 	c.Files[filePath] = cov
 }
 
-func (c *CoverageData) AddHit(pkgPath string, line int) {
-	if !strings.HasSuffix(pkgPath, ".gno") {
-		return
-	}
-	if isTestFile(pkgPath) {
+func (c *CoverageData) updateHit(pkgPath string, line int) {
+	if !c.isValidFile(pkgPath) {
 		return
 	}
 
+	fileCoverage := c.getOrCreateFileCoverage(pkgPath)
+
+	if fileCoverage.ExecutableLines[line] {
+		fileCoverage.HitLines[line]++
+		c.Files[pkgPath] = fileCoverage
+	}
+}
+
+func (c *CoverageData) isValidFile(pkgPath string) bool {
+	return strings.HasPrefix(pkgPath, c.PkgPath) &&
+		strings.HasSuffix(pkgPath, ".gno") &&
+		!isTestFile(pkgPath)
+}
+
+func (c *CoverageData) getOrCreateFileCoverage(pkgPath string) FileCoverage {
 	fileCoverage, exists := c.Files[pkgPath]
 	if !exists {
 		fileCoverage = FileCoverage{
@@ -83,13 +95,7 @@ func (c *CoverageData) AddHit(pkgPath string, line int) {
 		}
 		c.Files[pkgPath] = fileCoverage
 	}
-
-	if fileCoverage.ExecutableLines[line] {
-		fileCoverage.HitLines[line]++
-	}
-
-	// Only update the file coverage, without incrementing TotalLines
-	c.Files[pkgPath] = fileCoverage
+	return fileCoverage
 }
 
 func (c *CoverageData) AddFile(filePath string, totalLines int) {
@@ -440,7 +446,7 @@ func (m *Machine) recordCoverage(node Node) Location {
 	line := node.GetLine()
 
 	path := filepath.Join(pkgPath, file)
-	m.Coverage.AddHit(path, line)
+	m.Coverage.updateHit(path, line)
 
 	return Location{
 		PkgPath: pkgPath,

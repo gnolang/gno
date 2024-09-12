@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAddHit(t *testing.T) {
+func TestCoverageDataUpdateHit(t *testing.T) {
 	tests := []struct {
 		name            string
 		initialData     *CoverageData
@@ -73,7 +73,7 @@ func TestAddHit(t *testing.T) {
 			fileCoverage.ExecutableLines = tt.executableLines
 			tt.initialData.Files[tt.pkgPath] = fileCoverage
 
-			tt.initialData.AddHit(tt.pkgPath, tt.line)
+			tt.initialData.updateHit(tt.pkgPath, tt.line)
 			updatedFileCoverage := tt.initialData.Files[tt.pkgPath]
 
 			// Validate the hit count for the specific line

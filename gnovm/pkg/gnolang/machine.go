@@ -1282,7 +1282,7 @@ func (m *Machine) Run() {
 		op := m.PopOp()
 
 		loc := m.getCurrentLocation()
-		m.Coverage.AddHit(loc.PkgPath+"/"+loc.File, loc.Line)
+		m.Coverage.updateHit(loc.PkgPath+"/"+loc.File, loc.Line)
 
 		// TODO: this can be optimized manually, even into tiers.
 		switch op {

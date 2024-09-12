@@ -39,7 +39,6 @@ type testCfg struct {
 
 	// coverage flags
 	coverage   bool
-	listFiles  bool
 	viewFile   string
 	showHits   bool
 	output     string
@@ -163,13 +162,6 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"cover",
 		false,
 		"enable coverage analysis",
-	)
-
-	fs.BoolVar(
-		&c.listFiles,
-		"ls",
-		false,
-		"list files with coverage results",
 	)
 
 	fs.BoolVar(
@@ -438,15 +430,11 @@ func gnoTestPkg(
 	}
 
 	if cfg.coverage {
-		if cfg.listFiles {
-			coverageData.ListFiles(io)
-		} else if cfg.viewFile != "" {
+		if cfg.viewFile != "" {
 			err := coverageData.ViewFiles(cfg.viewFile, cfg.showHits, io)
 			if err != nil {
 				return fmt.Errorf("failed to view file coverage: %w", err)
 			}
-		} else {
-			coverageData.Report()
 		}
 
 		if cfg.output != "" {
@@ -464,6 +452,8 @@ func gnoTestPkg(
 			}
 			io.Println("coverage report saved to", cfg.htmlOutput)
 		}
+
+		coverageData.ListFiles(io)
 	}
 
 	return errs
