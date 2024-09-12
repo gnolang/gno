@@ -1,60 +1,63 @@
 package access
 
-import "std"
+import (
+	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
+	"github.com/gnolang/gno/examples/gno.land/p/demo/ownable"
+	"github.com/gnolang/gno/gnovm/stdlibs/std"
+)
 
-// New returns a Set object initialized with the caller as the unique authorized address.
-// It is recommended to use this function in the `init()` function of the calling realm.
-func New() Set {
-	addr := std.GetOrigCaller()
-	return Set{
-		addrs: []std.Address{addr},
-	}
-}
-
-// NewWithAddress returns a Set object initialized with the provided address as authorized.
-func NewWithAddress(addr std.Address) Set {
-	return Set{
-		addrs: []std.Address{addr},
-	}
-}
-
-// Set is an object containing the configuration and allowing the application of filters.
-// It is suited to be used as a contract-side global variable or can be embedded in another Go object.
+// Set is an object containing the configuration and allowing the application of filters
+// It is suited to be used as a contract-side global variable or can be embedded in another Go object
 type Set struct {
-	addrs []std.Address
+	*ownable.Ownable           // owner in ownable is superuser
+	authorized       *avl.Tree // std.Addr > struct{}{}
 }
 
-// List returns a slice containing all the authorized addresses.
-func (s *Set) List() []std.Address {
-	return s.addrs
+// New returns a Set object initialized with the caller as the unique authorized address
+// It is recommended to use this function in the `init()` function of the calling realm
+func New() *Set {
+	a := &Set{
+		ownable.New(),
+		avl.NewTree(),
+	}
+
+	// Add owner to auth list
+	a.authorized.Set(a.Owner().String(), struct{}{})
+	return a
 }
+
+// NewWithAddress returns a Set object initialized with the provided address as authorized
+func NewWithAddress(addr std.Address) *Set {
+	a := &Set{
+		ownable.NewWithAddress(addr),
+		avl.NewTree(),
+	}
+
+	// Add owner to the set
+	a.authorized.Set(a.Owner().String(), struct{}{})
+	return a
+}
+
+//// List returns the AVL tree containing all the authorized addresses
+//func (s Set) List() avl.Tree {
+//	return *s.authorized
+//}
 
 // HasAccess checks if the provided address is in the list of authorized ones.
-func (s *Set) HasAccess(addr std.Address) bool {
-	for _, entry := range s.addrs {
-		if entry == addr {
-			return true
-		}
-	}
-	return false
+func (s Set) HasAccess(addr std.Address) bool {
+	return s.authorized.Has(addr.String())
 }
 
-// CurrentHasAccess checks if the caller or prevRealm is authorized.
-func (s *Set) CurrentHasAccess() bool {
-	if s.HasAccess(std.GetOrigCaller()) {
-		return true
-	}
-
-	// XXX: also check for std.PrevRealm, when merged.
-
-	return false
+// CallerHasAccess checks if the caller or prevRealm is authorized.
+func (s Set) CallerHasAccess() bool {
+	return s.HasAccess(std.PrevRealm().Addr())
 }
 
-// AssertCurrentHasAccess checks whether the std.GetOrigCaller or std.PrevRealm is whitelisted as authorized.
+// AssertCallerHasAccess checks whether the std.GetOrigCaller or std.PrevRealm is whitelisted as authorized.
 // If not, it panics indicating restricted access.
-func (s *Set) AssertCurrentHasAccess() {
-	if !s.CurrentHasAccess() {
-		panic("restricted access.")
+func (s *Set) AssertCallerHasAccess() {
+	if !s.CallerHasAccess() {
+		panic("access: caller not in set")
 	}
 }
 
