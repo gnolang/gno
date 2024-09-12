@@ -33,28 +33,38 @@ import (
 // AppOptions contains the options to create the gno.land ABCI application.
 type AppOptions struct {
 	DB                dbm.DB             // required
-	Logger            *slog.Logger       // defaults to log.NewNoopLogger()
-	EventSwitch       events.EventSwitch // defaults to events.NewEventSwitch()
-	MaxCycles         int64              // defaults to 0 (unlimited)
+	Logger            *slog.Logger       // required
+	EventSwitch       events.EventSwitch // required
+	MaxCycles         int64              // hard limit for cycles in GnoVM
 	InitChainerConfig                    // options related to InitChainer
 }
 
-func (c *AppOptions) validate() error {
-	// Required fields
-	if c.DB == nil {
-		return fmt.Errorf("no db provided")
+// DefaultAppOptions provides a "ready" default [AppOptions] for use with
+// [NewAppWithOptions], using the provided db.
+func TestAppOptions(db dbm.DB) *AppOptions {
+	return &AppOptions{
+		DB:          db,
+		Logger:      log.NewNoopLogger(),
+		EventSwitch: events.NewEventSwitch(),
+		InitChainerConfig: InitChainerConfig{
+			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
+			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
+			CacheStdlibLoad:        true,
+		},
 	}
-	return nil
 }
 
-func (c *AppOptions) setDefaults() {
-	// Set defaults
-	if c.Logger == nil {
-		c.Logger = log.NewNoopLogger()
+func (c AppOptions) validate() error {
+	// Required fields
+	switch {
+	case c.DB == nil:
+		return fmt.Errorf("no db provided")
+	case c.Logger == nil:
+		return fmt.Errorf("no logger provided")
+	case c.EventSwitch == nil:
+		return fmt.Errorf("no event switch provided")
 	}
-	if c.EventSwitch == nil {
-		c.EventSwitch = events.NewEventSwitch()
-	}
+	return nil
 }
 
 // NewAppWithOptions creates the gno.land application with specified options.
