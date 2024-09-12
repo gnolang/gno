@@ -180,6 +180,7 @@ func TestGetSignBytes(t *testing.T) {
 func TestIsSponsorTx(t *testing.T) {
 	addr1, _ := crypto.AddressFromBech32("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5")
 	addr2, _ := crypto.AddressFromBech32("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+	addr3, _ := crypto.AddressFromBech32("g127jydsh6cms3lrtdenydxsckh23a8d6emqcvfa")
 
 	tests := []struct {
 		name     string
@@ -256,6 +257,42 @@ func TestIsSponsorTx(t *testing.T) {
 			name:     "empty messages",
 			msgs:     []Msg{},
 			expected: false,
+		},
+		{
+			name: "multiple messages with at least two having the same signer",
+			msgs: []Msg{
+				mockMsg{
+					caller:  addr1,
+					msgType: "send",
+				},
+				mockMsg{
+					caller:  addr2,
+					msgType: "call",
+				},
+				mockMsg{
+					caller:  addr2,
+					msgType: "send",
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "multiple messages with all different signers",
+			msgs: []Msg{
+				mockMsg{
+					caller:  addr1,
+					msgType: "send",
+				},
+				mockMsg{
+					caller:  addr2,
+					msgType: "call",
+				},
+				mockMsg{
+					caller:  addr3,
+					msgType: "send",
+				},
+			},
+			expected: true,
 		},
 	}
 
