@@ -1700,7 +1700,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 // Get the containing block node for node with path relative to this containing block.
 func (sb *StaticBlock) GetBlockNodeForPath(store Store, path ValuePath) BlockNode {
 	if path.Type != VPBlock {
-		panic("expected block type value path but got something else")
+		panic("expected block type value path but got " + path.Type.String())
 	}
 
 	// NOTE: path.Depth == 1 means it's in bn.
