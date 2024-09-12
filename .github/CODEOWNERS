@@ -29,17 +29,16 @@
 # ...
 
 # Docs & Content.
-/docs/                        @gnolang/devrels
-/docs/**.md                   @gnolang/devrels
-/docs/**.gif                  @gnolang/devrels
-/docs/Makefile                @gnolang/devrels
-/README.md                    @gnolang/devrels @moul
-/**/README.md                 @gnolang/devrels
-/.gitpod.yml                  @gnolang/devrels
+/docs/                        @gnolang/tech-staff @gnolang/devrels
+/docs/**.md                   @gnolang/tech-staff @gnolang/devrels
+/docs/**.gif                  @gnolang/tech-staff @gnolang/devrels
+/docs/Makefile                @gnolang/tech-staff @gnolang/devrels
+/README.md                    @gnolang/tech-staff @gnolang/devrels @moul
+/**/README.md                 @gnolang/tech-staff @gnolang/devrels
+/.gitpod.yml                  @gnolang/tech-staff @gnolang/devrels
 
 # Gno examples and default contracts.
 /examples/                            @gnolang/tech-staff @gnolang/devrels
-/examples/gno.land/p/demo/            @gnolang/tech-staff @gnolang/devrels
 /examples/gno.land/p/demo/bf/         @moul
 /examples/gno.land/p/demo/blog/       @gnolang/devrels
 /examples/gno.land/p/demo/cford32/    @thehowl
@@ -59,6 +58,7 @@
 /examples/gno.land/r/jaekwon/         @jaekwon
 /examples/gno.land/r/manfred/         @moul
 /examples/gno.land/r/morgan/          @thehowl
+/examples/gno.land/r/leon/            @leohhhn
 
 # Gno.land.
 /gno.land/                    @gnolang/tech-staff
