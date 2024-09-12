@@ -1922,7 +1922,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 
 							for i, rhsType := range cft.Results {
 								lt := evalStaticTypeOf(store, last, n.Lhs[i])
-								if lt != nil && isNamedConversion(rhsType.Type, lt, ctx) {
+								if lt != nil && isNamedConversion(rhsType.Type, lt) {
 									decompose = true
 									break
 								}
@@ -2873,7 +2873,7 @@ func convertType(store Store, last BlockNode, x *Expr, t Type) {
 			doConvertType(store, last, x, t)
 		} else {
 			// if one side is declared name type and the other side is unnamed type
-			if isNamedConversion(xt, t, last) {
+			if isNamedConversion(xt, t) {
 				// covert right (xt) to the type of the left (t)
 				doConvertType(store, last, x, t)
 			}
@@ -2901,7 +2901,7 @@ func doConvertType(store Store, last BlockNode, x *Expr, t Type) {
 //
 // This function also checks for the use of blank identifier "_" as a value or type,
 // which is not allowed. If both xt and t are nil, it panics with an appropriate error message.
-func isNamedConversion(xt, t Type, last BlockNode) bool {
+func isNamedConversion(xt, t Type) bool {
 	if xt == nil && t == nil {
 		panic("cannot use _ as value or type")
 	}
