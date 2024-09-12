@@ -1,4 +1,22 @@
 # CODEOWNERS: https://help.github.com/articles/about-codeowners/
+# This file marks who is the "owner" of several files and directory on this GitHub
+# repository. This is mostly used to assign reviews on new PRs.
+#
+# - Directories and files which are assigned to a team should be interepreted as
+#   "collectively owned". GitHub will automatically assign members of the team
+#   to review the PR, in a round-robin fashion.
+# - Directories and files which are owned by one specific user X are to be
+#   interpreted as "primarily maintained by X". Any significant changes to
+#   that given code should be reviewed by X; as if it were another repository
+#   where X is the primary developer. However, ownership here can be ignored if
+#   it arises as a result of refactorings, or other very minor changes to that
+#   specific code.
+# - Directories and files which are owned by a team, and followed by a specific
+#   user Y, are to be interpreted as collectively owned by the team, but where Y
+#   is the main stakeholder in that directory, and should be involved for any
+#   significant changes to ensure alignment with the vision.
+#
+# The list and guidelines are non-definitive and in flux. Use your best judgement.
 
 # Primary repo maintainers.
 *                             @gnolang/tech-staff
