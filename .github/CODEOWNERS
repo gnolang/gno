@@ -11,10 +11,12 @@
 #   where X is the primary developer. However, ownership here can be ignored if
 #   it arises as a result of refactorings, or other very minor changes to that
 #   specific code.
+#   Directories and files owned by one specific user should be for components
+#   that are somewhat decoupled from the rest of the codebase.
 # - Directories and files which are owned by a team, and followed by a specific
 #   user Y, are to be interpreted as collectively owned by the team, but where Y
 #   is the main stakeholder in that directory, and should be involved for any
-#   significant changes to ensure alignment with the vision.
+#   significant changes to ensure alignment with the original vision.
 #
 # The list and guidelines are non-definitive and in flux. Use your best judgement.
 
@@ -69,10 +71,10 @@
 /gnovm/                       @gnolang/tech-staff
 /gnovm/stdlibs/               @gnolang/tech-staff @thehowl
 /gnovm/pkg/gnolang/           @gnolang/tech-staff @jaekwon
-/gnovm/pkg/doc/               @thehowl
-/gnovm/pkg/repl/              @mvertes
-/gnovm/pkg/transpiler/        @thehowl
-/gnovm/pkg/integration/       @gfanton
+/gnovm/pkg/doc/               @gnolang/tech-staff @thehowl
+/gnovm/pkg/repl/              @gnolang/tech-staff @mvertes
+/gnovm/pkg/transpiler/        @gnolang/tech-staff @thehowl
+/gnovm/pkg/integration/       @gnolang/tech-staff @gfanton
 
 # Contribs
 /contribs/                    @gnolang/tech-staff
