@@ -30,9 +30,6 @@
 
 # Docs & Content.
 /docs/                        @gnolang/tech-staff @gnolang/devrels
-/docs/**.md                   @gnolang/tech-staff @gnolang/devrels
-/docs/**.gif                  @gnolang/tech-staff @gnolang/devrels
-/docs/Makefile                @gnolang/tech-staff @gnolang/devrels
 /README.md                    @gnolang/tech-staff @gnolang/devrels @moul
 /**/README.md                 @gnolang/tech-staff @gnolang/devrels
 /.gitpod.yml                  @gnolang/tech-staff @gnolang/devrels
