@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ownable"
 )
 
 func TestSign(t *testing.T) {
@@ -96,12 +97,17 @@ func TestSign_InvalidMessage(t *testing.T) {
 }
 
 func TestAdminDelete(t *testing.T) {
+	const (
+		userAddr  std.Address = "g1user"
+		adminAddr std.Address = "g1admin"
+	)
+
 	guestbook = avl.Tree{}
 	hasSigned = avl.Tree{}
-	adminAddr = "g1admin"
+	owner = ownable.NewWithAddress(adminAddr)
 	signatureID = 0
 
-	std.TestSetRealm(std.NewUserRealm("g1user"))
+	std.TestSetRealm(std.NewUserRealm(userAddr))
 
 	const bad = "Very Bad Message! Nyeh heh heh!"
 	Sign(bad)
