@@ -40,7 +40,7 @@ func evalTest(debugAddr, in, file string) (out, err, stacktrace string) {
 		if r := recover(); r != nil {
 			err = fmt.Sprintf("%v", r)
 		}
-		out = strings.TrimSpace(out)
+		out = strings.TrimSuffix(out, "\n")
 		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
 	}()
 
