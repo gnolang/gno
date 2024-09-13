@@ -45,18 +45,15 @@ func (m *mockEventSwitch) RemoveListener(listenerID string) {
 	}
 }
 
-type (
-	addPackageDelegate func(sdk.Context, vm.MsgAddPackage) error
-	callDelegate       func(sdk.Context, vm.MsgCall) (string, error)
-	queryEvalDelegate  func(sdk.Context, string, string) (string, error)
-	runDelegate        func(sdk.Context, vm.MsgRun) (string, error)
-)
-
 type mockVMKeeper struct {
-	addPackageFn addPackageDelegate
-	callFn       callDelegate
-	queryFn      queryEvalDelegate
-	runFn        runDelegate
+	addPackageFn                func(sdk.Context, vm.MsgAddPackage) error
+	callFn                      func(sdk.Context, vm.MsgCall) (string, error)
+	queryFn                     func(sdk.Context, string, string) (string, error)
+	runFn                       func(sdk.Context, vm.MsgRun) (string, error)
+	loadStdlibFn                func(sdk.Context, string)
+	loadStdlibCachedFn          func(sdk.Context, string)
+	makeGnoTransactionStoreFn   func(ctx sdk.Context) sdk.Context
+	commitGnoTransactionStoreFn func(ctx sdk.Context)
 }
 
 func (m *mockVMKeeper) AddPackage(ctx sdk.Context, msg vm.MsgAddPackage) error {
@@ -89,6 +86,31 @@ func (m *mockVMKeeper) Run(ctx sdk.Context, msg vm.MsgRun) (res string, err erro
 	}
 
 	return "", nil
+}
+
+func (m *mockVMKeeper) LoadStdlib(ctx sdk.Context, stdlibDir string) {
+	if m.loadStdlibFn != nil {
+		m.loadStdlibFn(ctx, stdlibDir)
+	}
+}
+
+func (m *mockVMKeeper) LoadStdlibCached(ctx sdk.Context, stdlibDir string) {
+	if m.loadStdlibCachedFn != nil {
+		m.loadStdlibCachedFn(ctx, stdlibDir)
+	}
+}
+
+func (m *mockVMKeeper) MakeGnoTransactionStore(ctx sdk.Context) sdk.Context {
+	if m.makeGnoTransactionStoreFn != nil {
+		return m.makeGnoTransactionStoreFn(ctx)
+	}
+	return ctx
+}
+
+func (m *mockVMKeeper) CommitGnoTransactionStore(ctx sdk.Context) {
+	if m.commitGnoTransactionStoreFn != nil {
+		m.commitGnoTransactionStoreFn(ctx)
+	}
 }
 
 type (
