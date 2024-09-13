@@ -2125,7 +2125,7 @@ func (tv *TypedValue) GetLength() int {
 		switch bt := baseOf(tv.T).(type) {
 		case PrimitiveType:
 			if bt != StringType {
-				panic("should not happen")
+				panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 			}
 			return 0
 		case *ArrayType:
@@ -2136,7 +2136,7 @@ func (tv *TypedValue) GetLength() int {
 			if at, ok := bt.Elt.(*ArrayType); ok {
 				return at.Len
 			}
-			panic(fmt.Sprintf("unexpected pointer type for len(): %s", tv.T.String()))
+			panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type for len(): %s",
@@ -2158,7 +2158,7 @@ func (tv *TypedValue) GetLength() int {
 		if av, ok := cv.TV.V.(*ArrayValue); ok {
 			return av.GetLength()
 		}
-		panic(fmt.Sprintf("unexpected pointer value for len(): %s", tv.T.String()))
+		panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 	default:
 		panic(fmt.Sprintf("unexpected type for len(): %s",
 			tv.T.String()))
@@ -2171,20 +2171,19 @@ func (tv *TypedValue) GetCapacity() int {
 		switch bt := baseOf(tv.T).(type) {
 		// strings have no capacity.
 		case *ArrayType:
+			return bt.Len
 		case *SliceType:
 			return 0
 		case *PointerType:
 			if at, ok := bt.Elt.(*ArrayType); ok {
 				return at.Len
 			}
-			panic(fmt.Sprintf("unexpected pointer type for cap(): %s", tv.T.String()))
+			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
 		default:
-			panic(fmt.Sprintf("unexpected nil type for cap(): %s", tv.T.String()))
+			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
 		}
 	}
 	switch cv := tv.V.(type) {
-	case StringValue:
-		return len(string(cv))
 	case *ArrayValue:
 		return cv.GetCapacity()
 	case *SliceValue:
@@ -2195,7 +2194,7 @@ func (tv *TypedValue) GetCapacity() int {
 		if av, ok := cv.TV.V.(*ArrayValue); ok {
 			return av.GetCapacity()
 		}
-		panic(fmt.Sprintf("unexpected pointer value for cap(): %s", tv.T.String()))
+		panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
 	default:
 		panic(fmt.Sprintf("unexpected type for cap(): %s",
 			tv.T.String()))
