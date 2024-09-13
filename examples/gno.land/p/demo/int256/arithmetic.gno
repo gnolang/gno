@@ -10,19 +10,16 @@ func (z *Int) Add(x, y *Int) *Int {
 		z.abs.Add(x.abs, y.abs)
 		z.neg = x.neg
 	} else {
-		// If signs are different, subtract the smaller absolute value from the larger
-		if x.abs.Cmp(y.abs) >= 0 {
+		switch x.abs.Cmp(y.abs) {
+		case 1: // x > y
 			z.abs.Sub(x.abs, y.abs)
 			z.neg = x.neg
-		} else {
+		case -1: // x < y
 			z.abs.Sub(y.abs, x.abs)
 			z.neg = y.neg
+		case 0: // x == y
+			z.abs = uint256.NewUint(0)
 		}
-	}
-
-	// Ensure zero is always positive
-	if z.abs.IsZero() {
-		z.neg = false
 	}
 
 	return z
@@ -74,13 +71,15 @@ func (z *Int) Sub(x, y *Int) *Int {
 		z.abs.Add(x.abs, y.abs)
 		z.neg = x.neg
 	} else {
-		// If signs are the same, subtract the smaller absolute value from the larger
-		if x.abs.Cmp(y.abs) >= 0 {
-			z.abs = z.abs.Sub(x.abs, y.abs)
+		switch x.abs.Cmp(y.abs) {
+		case 1: // x > y
+			z.abs.Sub(x.abs, y.abs)
 			z.neg = x.neg
-		} else {
+		case -1: // x < y
 			z.abs.Sub(y.abs, x.abs)
 			z.neg = !x.neg
+		case 0: // x == y
+			z.abs = uint256.NewUint(0)
 		}
 	}
 
