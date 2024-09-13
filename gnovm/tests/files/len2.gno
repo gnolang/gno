@@ -1,11 +1,8 @@
 package main
 
 func main() {
-	printLen(nil)
-}
-
-func printLen(arr *[2]int) {
-	println(len(arr))
+	exp := [...]string{"HELLO", "WORLD"}
+	println(len(exp))
 }
 
 // Output:
