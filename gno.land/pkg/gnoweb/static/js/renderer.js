@@ -9,7 +9,7 @@ function renderUsernames(raw) {
 
 // Create text nodes for the quotes with class names
 const createQuoteNode = (quote) => {
-  const node = document.createElement("span");
+  const node = document.createElement("a");
   node.textContent = quote;
   node.className = "hljs-string";
   return node;
@@ -61,7 +61,7 @@ function parseContent(source, isCode) {
               const closingQuoteNode = createQuoteNode(closingQuote);
 
               // Create a span for the main content and add the hljs-link class
-              const mainContentNode = document.createElement("span");
+              const mainContentNode = document.createElement("a");
               mainContentNode.className = "hljs-link";
               mainContentNode.textContent = mainContent;
               mainContentNode.href = cleanPath;
