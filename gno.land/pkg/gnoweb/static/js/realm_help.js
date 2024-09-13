@@ -155,8 +155,8 @@ function updateCommand(x) {
       value: {
         caller: myAddr,
         send: "",
-        pkg_path: realmPath, // Đường dẫn gói Gnoland
-        func: funcName, // Tên hàm
+        pkg_path: realmPath,
+        func: funcName,
         args: adenaArgs
       }
     }],
