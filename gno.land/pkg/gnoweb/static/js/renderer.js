@@ -7,6 +7,14 @@ function renderUsernames(raw) {
   return raw.replace(/( |\n)@([_a-z0-9]{5,16})/, "$1[@$2](/r/demo/users:$2)");
 }
 
+// Create text nodes for the quotes with class names
+const createQuoteNode = (quote) => {
+  const node = document.createElement("span");
+  node.textContent = quote;
+  node.className = "hljs-string";
+  return node;
+};
+
 function parseContent(source, isCode) {
   if (isCode) {
     // replace &amp; with & in code blocks
@@ -32,24 +40,47 @@ function parseContent(source, isCode) {
     const nodes = doc.querySelectorAll("span.hljs-keyword");
     for (const node of nodes) {
       if (node.textContent === "import") {
-        let nextNode = node;
+        let nextNode = node.nextSibling;
         while (true) {
-          nextNode = nextNode.nextSibling;
           if (nextNode) {
             if (nextNode.textContent.includes(")")) {
               break;
             } else if (nextNode.textContent.includes("/p") || nextNode.textContent.includes("/r")) {
+              const nextSibling = nextNode.nextSibling;
               const cleanPath = nextNode.textContent.replace(/(https?:\/\/)?gno\.land\/p\//, "/p/").replace(/^"|"$/g, '');
-              const link = document.createElement("a");
-              link.href = cleanPath;
-              link.className = "hljs-link";
-              link.appendChild(nextNode.cloneNode(true));
-              nextNode.replaceWith(link);
-              nextNode = link;
+              // Extract the text content
+              const textContent = nextNode.textContent;
+
+              // Split the text content into parts
+              const openingQuote = textContent.charAt(0);
+              const mainContent = textContent.slice(1, -1);
+              const closingQuote = textContent.charAt(textContent.length - 1);
+
+              // Create text nodes for the quotes
+              const openingQuoteNode = createQuoteNode(openingQuote);
+              const closingQuoteNode = createQuoteNode(closingQuote);
+
+              // Create a span for the main content and add the hljs-link class
+              const mainContentNode = document.createElement("span");
+              mainContentNode.className = "hljs-link";
+              mainContentNode.textContent = mainContent;
+              mainContentNode.href = cleanPath;
+
+              // Create a document fragment to hold the new nodes
+              const fragment = document.createElement("span");
+              fragment.appendChild(openingQuoteNode);
+              fragment.appendChild(mainContentNode);
+              fragment.appendChild(closingQuoteNode);
+
+              // Replace the original node with the new nodes
+              nextNode.replaceWith(fragment);
+              nextNode = nextSibling;
+              continue;
             }
           } else {
             break;
           }
+          nextNode = nextNode.nextSibling;
         }
       }
     }
