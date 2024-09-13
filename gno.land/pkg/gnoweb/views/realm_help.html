@@ -17,7 +17,7 @@
         <br />
         These are the realm's exposed functions ("public smart contracts").<br />
         <br />
-        My address: <input id="my_address" placeholder="ADDRESS" width="40" /> (see <a href="https://docs.gno.land/gno-tooling/cli/gno-tooling-gnokey/#list-all-known-keys" target="_blank">`gnokey list`</a>)<br />
+        My address: <input id="my_address" placeholder="ADDRESS" width="40" /> (see <a href="https://docs.gno.land/gno-tooling/cli/gno-tooling-gnokey/#list-all-known-keys" target="_blank">`gnokey list`</a> or <a  id="connect-adena" href="#"> Connect Adena </a>)<br />
         <br />
         <br />
         {{ template "func_specs" . }}
@@ -27,6 +27,14 @@
     </div>
     {{ template "js" . }}
     <script src="/static/js/realm_help.js"></script>
+    <script>
+      // JavaScript để cập nhật href của thẻ <a> với utm_source là URL hiện tại
+      document.addEventListener("DOMContentLoaded", function() {
+        var currentUrl = window.location.href;
+        var adenaLink = document.getElementById("connect-adena");
+        adenaLink.href = currentUrl + "&connect-adena=true";
+      });
+    </script>
   </body>
 </html>
 {{- end -}}

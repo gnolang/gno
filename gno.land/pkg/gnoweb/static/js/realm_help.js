@@ -1,4 +1,4 @@
-function main() {
+async function main() {
   // init
   var myAddr = getMyAddress()
   u("#my_address").first().value = myAddr;
@@ -12,6 +12,49 @@ function main() {
     var x = u(e.currentTarget).closest("div.func_spec");
     updateCommand(x);
   });
+
+  async function fetchAccount() {
+    try {
+      const response = await adena.GetAccount();
+      if (response.code === 0 && response.status === "success") {
+        const address = response.data.address;
+        u("#my_address").first().value = address;
+        setMyAddress(address);
+        u("div.func_spec").each(function (node, i) {
+          updateCommand(u(node));
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching account:", error);
+    }
+  }
+
+  //check url params have wallet_address or not
+  var urlParams = new URLSearchParams(window.location.search);
+  var connectAdena = urlParams.get('connect-adena');
+  if (connectAdena) {
+    if (!window.adena) {
+      //open adena.app in a new tab if the adena object is not found
+      window.open("https://adena.app/", "_blank");
+    } else {
+      //the sample code below displays a method provided by Adena that initiates a connection
+      await adena.AddEstablish("Adena");
+      await fetchAccount();
+    }
+  }
+  //check url params have adena_message or not
+  var adenaMessage = urlParams.get('adena_message');
+  if (adenaMessage) {
+    //get current url
+    var currentUrl = window.location.href;
+    //remove all url params
+    currentUrl = currentUrl.split("?")[0];
+    //redirect to current url
+    window.location.href = currentUrl;
+    var message = JSON.parse(atob(adenaMessage));
+    await adena.DoContract(message);
+  }
+
   // special case: when address changes.
   u("#my_address").on("input", function(e) {
     var value = u("#my_address").first().value;
@@ -99,7 +142,33 @@ function updateCommand(x) {
   var args = ["gnokey", "broadcast", "-remote", shq(remote), "call.tx"];
   var command = args.join(" ");
   command = command;
-  shell.append(u("<span>").text(command)).append(u("<br>"));
+  shell.append(u("<span>").text(command)).append(u("<br>")).append(u("<br>"));;
+
+  // command 4: Sign and broadcast by Adena
+  var adenaArgs = [];
+  vals.forEach(function (arg) {
+    adenaArgs.push(arg);
+  });
+  const message = {
+    messages: [{
+      type: "/vm.m_call",
+      value: {
+        caller: myAddr,
+        send: "",
+        pkg_path: realmPath, // Đường dẫn gói Gnoland
+        func: funcName, // Tên hàm
+        args: adenaArgs
+      }
+    }],
+    gasFee: 1000000,
+    gasWanted: 2000000
+  };
+  //convert message to base64
+  const messageBase64 = btoa(JSON.stringify(message));
+  var currentUrl = window.location.href;
+  adena_href = currentUrl + "&adena_message=" + messageBase64;
+  shell.append(u("<span>").text("### SIGN AND BROACAST BY ADENA")).append(u("<br>"));
+  shell.append(u("<a href=" + adena_href + ">").text("Do Contract")).append(u("<br>"));
 }
 
 // Jae: why isn't this a library somewhere?
