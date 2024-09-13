@@ -32,12 +32,11 @@ function parseContent(source, isCode) {
     const nodes = doc.querySelectorAll("span.hljs-keyword");
     for (const node of nodes) {
       if (node.textContent === "import") {
-        // skip "("
-        let nextNode = node.nextElementSibling;
+        let nextNode = node;
         while (true) {
-          nextNode = nextNode.nextElementSibling;
+          nextNode = nextNode.nextSibling;
           if (nextNode) {
-            if (nextNode.textContent === ")") {
+            if (nextNode.textContent.includes(")")) {
               break;
             } else if (nextNode.textContent.includes("/p") || nextNode.textContent.includes("/r")) {
               const cleanPath = nextNode.textContent.replace(/(https?:\/\/)?gno\.land\/p\//, "/p/").replace(/^"|"$/g, '');
@@ -46,6 +45,7 @@ function parseContent(source, isCode) {
               link.className = "hljs-link";
               link.appendChild(nextNode.cloneNode(true));
               nextNode.replaceWith(link);
+              nextNode = link;
             }
           } else {
             break;
