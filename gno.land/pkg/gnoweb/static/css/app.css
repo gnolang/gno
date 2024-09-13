@@ -825,6 +825,13 @@ code.hljs {
   color: var(--highlight-variable, #54790d);
 }
 
+.hljs-link {
+  text-decoration: none; /* Remove underline by default */
+}
+.hljs-link:hover {
+  text-decoration: underline; /* Add underline on hover */
+}
+
 .hljs-meta,
 .hljs-selector-pseudo {
   color: var(--highlight-keyword, #015692);
