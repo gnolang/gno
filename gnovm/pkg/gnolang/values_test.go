@@ -32,7 +32,7 @@ func TestGetLengthPanic(t *testing.T) {
 					},
 				},
 			},
-			expected: "unexpected pointer value for len(): *struct{}",
+			expected: "unexpected type for len(): *struct{}",
 		},
 		{
 			name: "UnexpectedType",
@@ -48,7 +48,7 @@ func TestGetLengthPanic(t *testing.T) {
 				T: &PointerType{Elt: &StructType{}},
 				V: nil,
 			},
-			expected: "unexpected pointer type for len(): *struct{}",
+			expected: "unexpected type for len(): *struct{}",
 		},
 	}
 
