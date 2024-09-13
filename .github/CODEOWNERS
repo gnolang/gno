@@ -92,5 +92,5 @@
 /CONTRIBUTING.md              @gnolang/tech-staff @moul
 /LICENSE.md                   @jaekwon
 /.github/                     @gnolang/tech-staff
-/.github/workflows            @gnolang/tech-staff
+/.github/workflows            @gnolang/devops
 /.github/CODEOWNERS           @jaekwon @moul
