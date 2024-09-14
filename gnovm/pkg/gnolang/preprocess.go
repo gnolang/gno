@@ -970,7 +970,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						if vb != nil {
 							be := vb.Source.GetAttribute(vr)
 							if be != nil {
-								if lit, ok := be.(*BasicLitExpr); ok && lit != nil {
+								if lit, ok := be.(Expr); ok && lit != nil {
 									ce := evalConst(store, last, lit)
 									return ce, TRANS_CONTINUE
 								}
@@ -2052,6 +2052,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// e.g. a += b, single value for lhs and rhs,
 							lt := evalStaticTypeOf(store, last, n.Lhs[0])
 							checkOrConvertType(store, last, &n.Rhs[0], lt, true)
+
+							if nx, ok := n.Lhs[0].(*NameExpr); ok {
+								bv := last.GetStaticBlock().GetBlockForValue(store, nx.Name)
+								vr := bv.GetValueRef(store, nx.Name, true)
+
+								bv.Source.SetAttribute(vr, nil)
+							}
 						} else { // all else, like BAND_ASSIGN, etc
 							// General case: a, b = x, y.
 							for i, lx := range n.Lhs {
