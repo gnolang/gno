@@ -8,6 +8,7 @@ import (
 	"go/parser"
 	"go/token"
 	"html/template"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -34,6 +35,7 @@ type CoverageData struct {
 	RootDir        string
 	CurrentPackage string
 	CurrentFile    string
+	pathCache      map[string]string // relative path to absolute path
 }
 
 // FileCoverage stores coverage information for a single file
@@ -50,6 +52,7 @@ func NewCoverageData(rootDir string) *CoverageData {
 		RootDir:        rootDir,
 		CurrentPackage: "",
 		CurrentFile:    "",
+		pathCache:      make(map[string]string),
 	}
 }
 
@@ -98,7 +101,7 @@ func (c *CoverageData) getOrCreateFileCoverage(pkgPath string) FileCoverage {
 	return fileCoverage
 }
 
-func (c *CoverageData) AddFile(filePath string, totalLines int) {
+func (c *CoverageData) addFile(filePath string, totalLines int) {
 	if isTestFile(filePath) {
 		return
 	}
@@ -134,7 +137,7 @@ func (c *CoverageData) ViewFiles(pattern string, showHits bool, io commands.IO) 
 }
 
 func (c *CoverageData) viewSingleFileCoverage(filePath string, showHits bool, io commands.IO) error {
-	realPath, err := c.determineRealPath(filePath)
+	realPath, err := c.findAbsoluteFilePath(filePath)
 	if err != nil {
 		// skipping invalid file paths
 		return nil
@@ -202,14 +205,28 @@ func (c *CoverageData) findMatchingFiles(pattern string) []string {
 	return files
 }
 
-func (c *CoverageData) ListFiles(io commands.IO) {
-	for file, cov := range c.Files {
+// Report prints the coverage report to the console
+func (c *CoverageData) Report(io commands.IO) {
+	files := make([]string, 0, len(c.Files))
+	for file := range c.Files {
+		files = append(files, file)
+	}
+
+	sort.Strings(files)
+
+	for _, file := range files {
+		cov := c.Files[file]
 		hitLines := len(cov.HitLines)
 		totalLines := cov.TotalLines
 		pct := float64(hitLines) / float64(totalLines) * 100
 		color := getCoverageColor(pct)
-		io.Printfln("%s%3.0f%% [%d/%d] %s%s", color, pct, hitLines, totalLines, file, colorReset)
+		io.Printfln("%s%.1f%% [%4d/%d] %s%s", color, floor1(pct), hitLines, totalLines, file, colorReset)
 	}
+}
+
+// floor1 round down to one decimal place
+func floor1(v float64) float64 {
+	return math.Floor(v*10) / 10
 }
 
 func getCoverageColor(percentage float64) string {
@@ -223,46 +240,38 @@ func getCoverageColor(percentage float64) string {
 	}
 }
 
-func (c *CoverageData) Report() {
-	fmt.Println("Coverage Results:")
-
-	// Sort files by name for consistent output
-	var files []string
-	for file := range c.Files {
-		files = append(files, file)
+// findAbsoluteFilePath finds the absolute path of a file given its relative path.
+// It starts searching from root directory and recursively traverses directories.
+func (c *CoverageData) findAbsoluteFilePath(filePath string) (string, error) {
+	if cachedPath, ok := c.pathCache[filePath]; ok {
+		return cachedPath, nil
 	}
-	sort.Strings(files)
 
-	for _, file := range files {
-		coverage := c.Files[file]
-		if !isTestFile(file) && strings.Contains(file, c.PkgPath) {
-			hitLines := len(coverage.HitLines)
-			percentage := float64(hitLines) / float64(coverage.TotalLines) * 100
-			fmt.Printf("%s: %.2f%% (%d/%d lines)\n", file, percentage, hitLines, coverage.TotalLines)
+	var result string
+	var found bool
+
+	err := filepath.Walk(c.RootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
 		}
-	}
-}
-
-// Attempts to determine the full real path based on the filePath alone.
-// It dynamically checks if the file exists in either examples or gnovm/stdlibs directories.
-func (c *CoverageData) determineRealPath(filePath string) (string, error) {
-	// Define possible base directories
-	baseDirs := []string{
-		filepath.Join(c.RootDir, "examples"), // p, r packages
-		filepath.Join(c.RootDir, "gnovm", "stdlibs"),
-	}
-
-	// Try finding the file in each base directory
-	for _, baseDir := range baseDirs {
-		realPath := filepath.Join(baseDir, filePath)
-
-		// Check if the file exists
-		if _, err := os.Stat(realPath); err == nil {
-			return realPath, nil
+		if !info.IsDir() && strings.HasSuffix(path, filePath) {
+			result = path
+			found = true
+			return filepath.SkipAll
 		}
+		return nil
+	})
+	if err != nil {
+		return "", err
 	}
 
-	return "", fmt.Errorf("file %s not found in known paths", filePath)
+	if !found {
+		return "", fmt.Errorf("file %s not found", filePath)
+	}
+
+	c.pathCache[filePath] = result
+
+	return result, nil
 }
 
 func isTestFile(pkgPath string) bool {
@@ -368,7 +377,7 @@ func (c *CoverageData) SaveHTML(outputFileName string) error {
 	}
 
 	for path, coverage := range c.Files {
-		realPath, err := c.determineRealPath(path)
+		realPath, err := c.findAbsoluteFilePath(path)
 		if err != nil {
 			return err
 		}
@@ -428,7 +437,7 @@ func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
 	if isTestFile(file) {
 		return
 	}
-	m.Coverage.AddFile(file, totalLines)
+	m.Coverage.addFile(file, totalLines)
 }
 
 // recordCoverage records the execution of a specific node in the AST.

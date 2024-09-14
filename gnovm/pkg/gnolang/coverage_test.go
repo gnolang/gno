@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -68,6 +70,7 @@ func TestCoverageDataUpdateHit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Set executable lines
 			fileCoverage := tt.initialData.Files[tt.pkgPath]
 			fileCoverage.ExecutableLines = tt.executableLines
@@ -134,7 +137,8 @@ func TestAddFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.initialData.AddFile(tt.pkgPath, tt.totalLines)
+			t.Parallel()
+			tt.initialData.addFile(tt.pkgPath, tt.totalLines)
 			if tt.pkgPath == "file1_test.gno" && len(tt.initialData.Files) != 0 {
 				t.Errorf("expected no files to be added for test files")
 			} else {
@@ -163,6 +167,7 @@ func TestIsTestFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.pkgPath, func(t *testing.T) {
+			t.Parallel()
 			got := isTestFile(tt.pkgPath)
 			if got != tt.want {
 				t.Errorf("isTestFile(%s) = %v, want %v", tt.pkgPath, got, tt.want)
@@ -171,54 +176,45 @@ func TestIsTestFile(t *testing.T) {
 	}
 }
 
-func TestReport(t *testing.T) {
-	tests := []struct {
-		name           string
-		initialData    *CoverageData
-		expectedOutput string
-	}{
-		{
-			name: "Print results with one file",
-			initialData: &CoverageData{
-				Files: map[string]FileCoverage{
-					"file1.gno": {TotalLines: 100, HitLines: map[int]int{10: 1, 20: 1}},
-				},
-			},
-			expectedOutput: "Coverage Results:\nfile1.gno: 2.00% (2/100 lines)\n",
-		},
-		{
-			name: "Print results with multiple files",
-			initialData: &CoverageData{
-				Files: map[string]FileCoverage{
-					"file1.gno": {TotalLines: 100, HitLines: map[int]int{10: 1, 20: 1}},
-					"file2.gno": {TotalLines: 200, HitLines: map[int]int{30: 1}},
-				},
-			},
-			expectedOutput: "Coverage Results:\nfile1.gno: 2.00% (2/100 lines)\nfile2.gno: 0.50% (1/200 lines)\n",
+type nopCloser struct {
+	*bytes.Buffer
+}
+
+func (nopCloser) Close() error { return nil }
+
+func TestCoverageData_GenerateReport(t *testing.T) {
+	coverageData := &CoverageData{
+		Files: map[string]FileCoverage{
+			"c.gno": {TotalLines: 100, HitLines: map[int]int{1: 1, 2: 1}},
+			"a.gno": {TotalLines: 50, HitLines: map[int]int{1: 1}},
+			"b.gno": {TotalLines: 75, HitLines: map[int]int{1: 1, 2: 1, 3: 1}},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			origStdout := os.Stdout
+	var buf bytes.Buffer
+	io := commands.NewTestIO()
+	io.SetOut(nopCloser{Buffer: &buf})
 
-			r, w, _ := os.Pipe()
-			os.Stdout = w
+	coverageData.Report(io)
 
-			tt.initialData.Report()
+	output := buf.String()
+	lines := strings.Split(strings.TrimSpace(output), "\n")
 
-			w.Close()
-			os.Stdout = origStdout
+	// check if the output is sorted
+	assert.Equal(t, 3, len(lines))
+	assert.Contains(t, lines[0], "a.gno")
+	assert.Contains(t, lines[1], "b.gno")
+	assert.Contains(t, lines[2], "c.gno")
 
-			var buf bytes.Buffer
-			buf.ReadFrom(r)
-
-			got := buf.String()
-			if got != tt.expectedOutput {
-				t.Errorf("got %q, want %q", got, tt.expectedOutput)
-			}
-		})
+	// check if the format is correct
+	for _, line := range lines {
+		assert.Regexp(t, `^\x1b\[\d+m\d+\.\d+% \[\s*\d+/\d+\] .+\.gno\x1b\[0m$`, line)
 	}
+
+	// check if the coverage percentage is correct
+	assert.Contains(t, lines[0], "2.0% [   1/50] a.gno")
+	assert.Contains(t, lines[1], "4.0% [   3/75] b.gno")
+	assert.Contains(t, lines[2], "2.0% [   2/100] c.gno")
 }
 
 type mockNode struct {
@@ -243,64 +239,104 @@ var _ Node = &mockNode{}
 
 func TestRecordCoverage(t *testing.T) {
 	tests := []struct {
-		name           string
-		node           Node
-		currentPackage string
-		currentFile    string
-		expectedLoc    Location
-		expectedHits   map[string]map[int]int
+		name            string
+		pkgPath         string
+		file            string
+		node            *mockNode
+		initialCoverage *CoverageData
+		expectedHits    map[string]map[int]int
 	}{
 		{
-			name:           "Basic node coverage",
-			node:           &mockNode{line: 10, column: 5},
-			currentPackage: "testpkg",
-			currentFile:    "testfile.gno",
-			expectedLoc:    Location{PkgPath: "testpkg", File: "testfile.gno", Line: 10, Column: 5},
-			expectedHits:   map[string]map[int]int{"testpkg/testfile.gno": {10: 1}},
+			name:    "Record coverage for new file and line",
+			pkgPath: "testpkg",
+			file:    "testfile.gno",
+			node: &mockNode{
+				line:   10,
+				column: 5,
+			},
+			initialCoverage: &CoverageData{
+				Files: map[string]FileCoverage{
+					"testpkg/testfile.gno": {
+						HitLines:        make(map[int]int),
+						ExecutableLines: map[int]bool{10: true}, // Add this line
+					},
+				},
+				PkgPath:        "testpkg",
+				CurrentPackage: "testpkg",
+				CurrentFile:    "testfile.gno",
+			},
+			expectedHits: map[string]map[int]int{
+				"testpkg/testfile.gno": {10: 1},
+			},
 		},
 		{
-			name:           "Nil node",
-			node:           nil,
-			currentPackage: "testpkg",
-			currentFile:    "testfile.gno",
-			expectedLoc:    Location{},
-			expectedHits:   map[string]map[int]int{},
+			name:    "Increment hit count for existing line",
+			pkgPath: "testpkg",
+			file:    "testfile.gno",
+			node: &mockNode{
+				line:   10,
+				column: 5,
+			},
+			initialCoverage: &CoverageData{
+				Files: map[string]FileCoverage{
+					"testpkg/testfile.gno": {
+						HitLines:        map[int]int{10: 1},
+						ExecutableLines: map[int]bool{10: true},
+					},
+				},
+				PkgPath:        "testpkg",
+				CurrentPackage: "testpkg",
+				CurrentFile:    "testfile.gno",
+			},
+			expectedHits: map[string]map[int]int{
+				"testpkg/testfile.gno": {10: 2},
+			},
 		},
 		{
-			name:           "Multiple hits on same line",
-			node:           &mockNode{line: 15, column: 3},
-			currentPackage: "testpkg",
-			currentFile:    "testfile.gno",
-			expectedLoc:    Location{PkgPath: "testpkg", File: "testfile.gno", Line: 15, Column: 3},
-			expectedHits:   map[string]map[int]int{"testpkg/testfile.gno": {15: 2}},
+			name:    "Do not record coverage for non-executable line",
+			pkgPath: "testpkg",
+			file:    "testfile.gno",
+			node: &mockNode{
+				line:   20,
+				column: 5,
+			},
+			initialCoverage: &CoverageData{
+				Files: map[string]FileCoverage{
+					"testpkg/testfile.gno": {
+						HitLines:        map[int]int{},
+						ExecutableLines: map[int]bool{10: true},
+					},
+				},
+				PkgPath:        "testpkg",
+				CurrentPackage: "testpkg",
+				CurrentFile:    "testfile.gno",
+			},
+			expectedHits: map[string]map[int]int{
+				"testpkg/testfile.gno": {},
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			coverage := NewCoverageData("")
-			coverage.CurrentPackage = tt.currentPackage
-			coverage.CurrentFile = tt.currentFile
+			t.Parallel()
 
 			m := &Machine{
-				Coverage: coverage,
-			}
-
-			// First call to set up initial state for "Multiple hits on same line" test
-			if tt.name == "Multiple hits on same line" {
-				m.recordCoverage(tt.node)
+				Coverage: tt.initialCoverage,
 			}
 
 			loc := m.recordCoverage(tt.node)
 
-			assert.Equal(t, tt.expectedLoc, loc, "Location should match")
+			// Check if the returned location is correct
+			assert.Equal(t, tt.pkgPath, loc.PkgPath)
+			assert.Equal(t, tt.file, loc.File)
+			assert.Equal(t, tt.node.line, loc.Line)
+			assert.Equal(t, tt.node.column, loc.Column)
 
-			for file, lines := range tt.expectedHits {
-				for line, hits := range lines {
-					actualHits, exists := m.Coverage.Files[file].HitLines[line]
-					assert.True(t, exists, "Line should be recorded in coverage data")
-					assert.Equal(t, hits, actualHits, "Number of hits should match")
-				}
+			// Check if the coverage data has been updated correctly
+			for file, expectedHits := range tt.expectedHits {
+				actualHits := m.Coverage.Files[file].HitLines
+				assert.Equal(t, expectedHits, actualHits)
 			}
 		})
 	}
@@ -379,6 +415,7 @@ func TestToJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			jsonData, err := tt.coverageData.ToJSON()
 			assert.NoError(t, err)
 
@@ -396,7 +433,7 @@ func TestToJSON(t *testing.T) {
 	}
 }
 
-func TestDetermineRealPath(t *testing.T) {
+func TestFindAbsoluteFilePath(t *testing.T) {
 	rootDir := t.TempDir()
 
 	examplesDir := filepath.Join(rootDir, "examples")
@@ -418,9 +455,7 @@ func TestDetermineRealPath(t *testing.T) {
 		t.Fatalf("failed to create stdlib file: %v", err)
 	}
 
-	c := &CoverageData{
-		RootDir: rootDir,
-	}
+	c := NewCoverageData(rootDir)
 
 	tests := []struct {
 		name         string
@@ -450,7 +485,8 @@ func TestDetermineRealPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			actualPath, err := c.determineRealPath(tt.filePath)
+			t.Parallel()
+			actualPath, err := c.findAbsoluteFilePath(tt.filePath)
 
 			if tt.expectError {
 				if err == nil {
@@ -465,6 +501,41 @@ func TestDetermineRealPath(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestFindAbsoluteFilePathCache(t *testing.T) {
+	t.Parallel()
+
+	tempDir, err := os.MkdirTemp("", "test")
+	if err != nil {
+		t.Fatalf("failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	testFilePath := filepath.Join(tempDir, "example.gno")
+	if err := os.WriteFile(testFilePath, []byte("test content"), 0o644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	covData := NewCoverageData(tempDir)
+
+	// 1st run: search from file system
+	path1, err := covData.findAbsoluteFilePath("example.gno")
+	if err != nil {
+		t.Fatalf("failed to find absolute file path: %v", err)
+	}
+	assert.Equal(t, testFilePath, path1)
+
+	// 2nd run: use cache
+	path2, err := covData.findAbsoluteFilePath("example.gno")
+	if err != nil {
+		t.Fatalf("failed to find absolute file path: %v", err)
+	}
+
+	assert.Equal(t, testFilePath, path2)
+	if len(covData.pathCache) != 1 {
+		t.Fatalf("expected 1 path in cache, got %d", len(covData.pathCache))
 	}
 }
 
@@ -530,7 +601,7 @@ type MyStruct struct {
 			wantErr: false,
 		},
 		{
-			name: "Invalid Go code",
+			name: "Invalid gno code",
 			content: `
 This is not valid Go code
 It should result in an error`,
@@ -541,6 +612,7 @@ It should result in an error`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := detectExecutableLines(tt.content)
 			assert.Equal(t, tt.wantErr, err != nil)
 			assert.Equal(t, tt.want, got)

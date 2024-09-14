@@ -453,7 +453,7 @@ func gnoTestPkg(
 			io.Println("coverage report saved to", cfg.htmlOutput)
 		}
 
-		coverageData.ListFiles(io)
+		coverageData.Report(io)
 	}
 
 	return errs
