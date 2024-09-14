@@ -965,7 +965,19 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						fillNameExprPath(last, n, as.Op == DEFINE)
 					} else {
 						fillNameExprPath(last, n, false)
+						vr := last.GetValueRef(store, n.Name, true)
+						vb := last.GetStaticBlock().GetBlockForValue(store, n.Name)
+						if vb != nil {
+							be := vb.Source.GetAttribute(vr)
+							if be != nil {
+								if lit, ok := be.(*BasicLitExpr); ok && lit != nil {
+									ce := evalConst(store, last, lit)
+									return ce, TRANS_CONTINUE
+								}
+							}
+						}
 					}
+
 					// If uverse, return a *ConstExpr.
 					if n.Path.Depth == 0 { // uverse
 						cx := evalConst(store, last, n)
@@ -1919,15 +1931,28 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					} else {
 						// General case: a, b := x, y
 						for i, lx := range n.Lhs {
-							ln := lx.(*NameExpr).Name
+							lnx := lx.(*NameExpr)
+							ln := lnx.Name
 							rx := n.Rhs[i]
 							rt := evalStaticTypeOf(store, last, rx)
+
 							// re-definition
 							if rt == nil {
 								// e.g. (interface{})(nil), becomes ConstExpr(undefined).
 								// last.Define(ln, undefined) complains, since redefinition.
 							} else {
 								last.Define(ln, anyValue(rt))
+
+								var propagate *BasicLitExpr
+								// if it's a constant value, allow propagation
+								if ce, ok := rx.(*ConstExpr); ok {
+									if be, ok := ce.Source.(*BasicLitExpr); ok {
+										propagate = be
+									}
+								}
+
+								vr := last.GetValueRef(store, lnx.Name, true)
+								last.SetAttribute(vr, propagate)
 							}
 						}
 					}
@@ -2033,6 +2058,19 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 								lt := evalStaticTypeOf(store, last, lx)
 								// if lt is interface, nothing will happen
 								checkOrConvertType(store, last, &n.Rhs[i], lt, true)
+
+								if nx, ok := lx.(*NameExpr); ok {
+									var propagate *BasicLitExpr
+									// if it's a constant value, allow propagation
+									if ce, ok := n.Rhs[i].(*ConstExpr); ok {
+										if be, ok := ce.Source.(*BasicLitExpr); ok {
+											propagate = be
+										}
+									}
+
+									vr := last.GetValueRef(store, nx.Name, true)
+									last.SetAttribute(vr, propagate)
+								}
 							}
 						}
 					}
