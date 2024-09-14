@@ -5,7 +5,7 @@
 // to standard UUID format strings, making them compatible with systems
 // requiring UUIDs.
 // Add import "gno.land/p/demo/entropy" to use the entropy package. For of the pseudo-random number generator.
-// TimesTampLength is 32 because entropy.Value() returns a uint32.
+// TimestampLength is 32-bit because entropy.Value() returns a uint32.
 // 32 it's the maximum value that can be returned "4 294 967 295", It's represent 136 years (4 294 967 295 secondes)
 
 package uuid
