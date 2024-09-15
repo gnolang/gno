@@ -40,10 +40,10 @@ func Render(path string) string {
 
 	output := "```\n" + Draw(size) + "```\n"
 	if size > minSize {
-		output += ufmt.Sprintf("[%d](/r/art/millpede:%d)< ", size-1, size-1)
+		output += ufmt.Sprintf("[%d](/r/demo/art/millipede:%d)< ", size-1, size-1)
 	}
 	if size < maxSize {
-		output += ufmt.Sprintf(" >[%d](/r/art/millipede:%d)", size+1, size+1)
+		output += ufmt.Sprintf(" >[%d](/r/demo/art/millipede:%d)", size+1, size+1)
 	}
 	return output
 }
