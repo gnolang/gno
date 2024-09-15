@@ -968,7 +968,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						vr := last.GetValueRef(store, n.Name, true)
 						vb := last.GetStaticBlock().GetBlockForValue(store, n.Name)
 						if vb != nil {
-							if ftype != TRANS_REF_X {
+							if ftype != TRANS_REF_X && ftype != TRANS_SELECTOR_X {
 								be := vb.Source.GetAttribute(vr)
 								if be != nil {
 									if lit, ok := be.(Expr); ok && lit != nil {
