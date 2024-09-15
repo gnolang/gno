@@ -1,85 +1,67 @@
-package gnofundme
+package gnofundme // Package gnofundme provides a simple crowdfunding system.
 
 import (
-	"std"
 	"strconv"
 	"strings"
 	"time"
-
-	"gno.land/p/demo/avl"
 )
 
+// ctype: Campaign type, will be an int
+// campaign types :
+// 0: Personal, for a person (yourself or another person): can be for humanitarian reason, emergency needs, or other
+// 1: Cause, for a cause: you will manage the funds (based on trust)
+// 2: Organism, for an organism, charity...
+// 3: Donation  Donation Crowdfunding
+// 4: RewardC,  Reward Crowdfunding
+// 5: EquityC, Equity Crowdfunding
+
 type Campaign struct {
-	title        string
-	description  string
-	goal         uint
-	current      uint
-	begin        time.Time
-	deadline     time.Time
-	owner        *User
-	beneficiary  *User
+	// Campaign type
+	Ctype int
+	// Campaign title
+	Title string
+	// Campaign description
+	Description string
+	// Campaign goal
+	Goal int64
+	// Current amount of money raised
+	Current int64
+	// Campaign begin date
+	Begin time.Time
+	// Campaign deadline
+	Deadline time.Time
+	// Campaign owner
+	Owner *User
+	// Campaign beneficiary (can be different from the owner)
+	Beneficiary *User
+	// Campaign contributors
 	contributors []*Contributor
 }
 
-func NewCampaign(title string, description string, goal uint, begin time.Time, deadline time.Time, owner *User, beneficiary *User) *Campaign {
+func NewCampaign(ctype int, title string, description string, goal int64, begin time.Time, deadline time.Time, owner *User, beneficiary *User) *Campaign {
 	return &Campaign{
-		title:        title,
-		description:  description,
-		goal:         goal,
-		current:      0,
-		begin:        begin,
-		deadline:     deadline,
-		owner:        owner,
-		beneficiary:  beneficiary,
+		Ctype:        ctype,
+		Title:        title,
+		Description:  description,
+		Goal:         goal,
+		Current:      0,
+		Begin:        begin,
+		Deadline:     deadline,
+		Owner:        owner,
+		Beneficiary:  beneficiary,
 		contributors: make([]*Contributor, 0),
 	}
 }
 
-func (c Campaign) GetTitle() string {
-	return c.title
-}
-
-func (c Campaign) GetDescription() string {
-	return c.description
-}
-
-func (c Campaign) GetGoal() uint {
-	return c.goal
-}
-
-func (c Campaign) GetCurrent() uint {
-	return c.current
-}
-
-func (c Campaign) GetBegin() time.Time {
-	return c.begin
-}
-
-func (c Campaign) GetDeadline() time.Time {
-	return c.deadline
-}
-
-func (c Campaign) GetOwner() *User {
-	return c.owner
-}
-
-func (c Campaign) GetBeneficiary() *User {
-	return c.beneficiary
-}
-
-func (c *Campaign) AddContributor(user *User, amount uint, display bool) {
-	c.current += amount
-	contributor := &Contributor{
-		user:    user,
-		date:    time.Now(),
-		amount:  amount,
-		display: display,
-	}
-	c.contributors = append(c.contributors, contributor)
-}
-
 func (c Campaign) GetContributors() []*Contributor {
 	return c.contributors
+}
+
+func (c *Campaign) AddContributor(user *User, date time.Time, amount int64, display bool) *Contributor {
+	c.Current += amount
+	contributor := NewContributor(user, date, amount, display)
+	c.contributors = append(c.contributors, contributor)
+	return contributor
 }
 
 // CampaignsToJSONString converts a slice of Campaigns structs into a JSON string
@@ -104,14 +86,15 @@ func CampaignToJSONString(campaign *Campaign) string {
 	var sb strings.Builder
 
 	sb.WriteString("{")
-	sb.WriteString(`"title":"` + campaign.title + `",`)
-	sb.WriteString(`"description":"` + escapeString(campaign.description) + `",`)
-	sb.WriteString(`"goal":"` + strconv.Itoa(int(campaign.goal)) + `",`)
-	sb.WriteString(`"current":"` + strconv.Itoa(int(campaign.current)) + `",`)
-	sb.WriteString(`"begin":"` + strconv.Itoa(int((campaign.begin).Unix())) + `",`)
-	sb.WriteString(`"deadline":"` + strconv.Itoa(int(campaign.deadline.Unix())) + `",`)
-	sb.WriteString(`"owner":"` + campaign.owner.GetAddress().String() + `",`)
-	sb.WriteString(`"beneficiary":"` + campaign.beneficiary.GetAddress().String() + `",`)
+	sb.WriteString(`"ctype":"` + strconv.Itoa(campaign.Ctype) + `",`)
+	sb.WriteString(`"title":"` + campaign.Title + `",`)
+	sb.WriteString(`"description":"` + escapeString(campaign.Description) + `",`)
+	sb.WriteString(`"goal":"` + strconv.Itoa(int(campaign.Goal)) + `",`)
+	sb.WriteString(`"current":"` + strconv.Itoa(int(campaign.Current)) + `",`)
+	sb.WriteString(`"begin":"` + strconv.Itoa(int((campaign.Begin).Unix())) + `",`)
+	sb.WriteString(`"deadline":"` + strconv.Itoa(int(campaign.Deadline.Unix())) + `",`)
+	sb.WriteString(`"owner":"` + campaign.Owner.GetAddress().String() + `",`)
+	sb.WriteString(`"beneficiary":"` + campaign.Beneficiary.GetAddress().String() + `",`)
 	sb.WriteString(`"contributors":"` + strconv.Itoa(len(campaign.contributors)) + `"`)
 	sb.WriteString("}")
 
