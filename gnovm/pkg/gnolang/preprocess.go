@@ -2075,8 +2075,17 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										}
 									}
 
-									vr := last.GetValueRef(store, nx.Name, true)
-									last.SetAttribute(vr, propagate)
+									bl := last.GetStaticBlock().GetBlockForValue(store, nx.Name)
+									vr := bl.GetValueRef(store, nx.Name, true)
+									// if it's in another block than it's defined
+									// better to mark it as can't be propagated
+									// because we don't know if that block will be executed at all
+									// conditionals etc
+									if propagate != nil && last.GetStaticBlock() == bl {
+										bl.Source.SetAttribute(vr, propagate)
+									} else {
+										bl.Source.SetAttribute(vr, nil)
+									}
 								}
 							}
 						}
