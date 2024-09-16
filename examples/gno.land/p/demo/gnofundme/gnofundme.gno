@@ -39,7 +39,7 @@ type Campaign struct {
 }
 
 func NewCampaign(ctype int, title string, description string, goal int64, begin time.Time, deadline time.Time, owner *User, beneficiary *User) *Campaign {
-	return &Campaign{
+	campaign := &Campaign{
 		Ctype:        ctype,
 		Title:        title,
 		Description:  description,
@@ -51,6 +51,8 @@ func NewCampaign(ctype int, title string, description string, goal int64, begin 
 		Beneficiary:  beneficiary,
 		contributors: make([]*Contributor, 0),
 	}
+	owner.campaigns = append(owner.campaigns, campaign)
+	return campaign
 }
 
 func (c Campaign) GetContributors() []*Contributor {

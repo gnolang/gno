@@ -16,6 +16,7 @@ var (
 	campaigns      *avl.Tree
 	users          *avl.Tree
 	campaignPrefix = "/r/demo/gnofundme:"
+	campaignsTotal = make(map[string]int64)
 )
 
 func init() {
@@ -127,6 +128,7 @@ func AddContributor(campaignId string, display bool) string {
 
 	sentCoins := std.GetOrigSend()
 	amount := sentCoins.AmountOf("ugnot")
+	campaignsTotal[campaignId] += amount
 
 	// add the contributor to the campaign
 	contributor := campaign.AddContributor(user.(*GFMpkg.User), time.Unix(time.Now().Unix(), 0), amount, display)
@@ -236,10 +238,10 @@ func renderCampaign(id string) string {
 		ufmt.Sprintf("## Description: %s\n", c.Description),
 	)
 	b.WriteString(
-		ufmt.Sprintf("### Goal: %d ", c.Goal),
+		ufmt.Sprintf("### Goal: %d GNOT", c.Goal),
 	)
 	b.WriteString(
-		ufmt.Sprintf("********** Current: %d\n", c.Current),
+		ufmt.Sprintf("********** Current: %d GNOT\n", c.Current/1_000_000),
 	)
 	b.WriteString(
 		ufmt.Sprintf("### Begin: %s", c.Begin.String()),
