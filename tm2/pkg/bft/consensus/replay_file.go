@@ -30,7 +30,7 @@ func (cs *ConsensusState) ReplayFile(file string, console bool) error {
 	if cs.IsRunning() {
 		return errors.New("cs is already running, cannot replay")
 	}
-	if cs.wal != nil {
+	if cs.wal != nil && (cs.wal != walm.NopWAL{}) {
 		return errors.New("cs wal is open, cannot replay")
 	}
 
@@ -38,8 +38,13 @@ func (cs *ConsensusState) ReplayFile(file string, console bool) error {
 
 	// ensure all new step events are regenerated as expected
 
-	newStepSub := events.SubscribeToEvent(cs.evsw, subscriber, cstypes.EventNewRoundStep{})
-	defer cs.evsw.RemoveListener(subscriber)
+	// XXX:
+	// This doesn't work synchronously (the default), and there seem to be tweaks
+	// to be made to make this work synchronously.
+	//
+	// ch := make(chan events.Event, 1) // asynchronous
+	// newStepSub := events.SubscribeToEventOn(cs.evsw, subscriber, cstypes.EventNewRoundStep{}, ch)
+	// defer cs.evsw.RemoveListener(subscriber)
 
 	// just open the file for reading, no need to use wal
 	fp, err := os.OpenFile(file, os.O_RDONLY, 0o600)
@@ -65,7 +70,7 @@ func (cs *ConsensusState) ReplayFile(file string, console bool) error {
 			return err
 		}
 
-		if err := pb.cs.readReplayMessage(msg, meta, newStepSub); err != nil {
+		if err := pb.cs.readReplayMessage(msg, meta, nil); err != nil {
 			return err
 		}
 
@@ -142,18 +147,15 @@ func (pb *playback) replayReset(count int, newStepSub <-chan events.Event) error
 }
 
 func (cs *ConsensusState) startForReplay() {
-	cs.Logger.Error("Replay commands are disabled until someone updates them and writes tests")
-	/* TODO:!
-	// since we replay tocks we just ignore ticks
-		go func() {
-			for {
-				select {
-				case <-cs.tickChan:
-				case <-cs.Quit:
-					return
-				}
+	go func() {
+		for {
+			select {
+			//case <-cs.timeoutTicker.(*timeoutTicker).tickChan:
+			case <-cs.Quit():
+				return
 			}
-		}()*/
+		}
+	}()
 }
 
 // console function for parsing input and running commands
@@ -197,7 +199,8 @@ func (pb *playback) replayConsoleLoop() int {
 
 			// ensure all new step events are regenerated as expected
 
-			newStepSub := events.SubscribeToEvent(pb.cs.evsw, subscriber, cstypes.EventNewRoundStep{})
+			ch := make(chan events.Event, 1) // asynchronous
+			newStepSub := events.SubscribeToEventOn(pb.cs.evsw, subscriber, cstypes.EventNewRoundStep{}, ch)
 			defer pb.cs.evsw.RemoveListener(subscriber)
 
 			if len(tokens) == 1 {
