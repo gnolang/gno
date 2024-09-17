@@ -38,7 +38,7 @@ type UUID struct {
 	machineID     uint64
 	sequence      uint16
 	startTime     uint32
-	lastTimestamp uint32
+	lastTimestamp uint64
 	entropy       *entropy.Instance
 }
 
@@ -53,13 +53,10 @@ func NewUUID() *UUID {
 
 // ID generates
 func (u *UUID) ID() uint64 {
-	current := u.getEntropy()
-	elapsedTime := uint64(current - u.startTime)
-	u.lastTimestamp = current
+	current := uint64(u.getEntropy())
 
-	if elapsedTime < 0 || elapsedTime > MaxTimestamp {
-		panic("Exceeding the time limit")
-	}
+	elapsedTime := (current - uint64(u.startTime)) % MaxTimestamp
+	u.lastTimestamp = current
 
 	id := (uint64(elapsedTime) << timestampMoveLength) |
 		(uint64(u.machineID) << machineIDMoveLength) |

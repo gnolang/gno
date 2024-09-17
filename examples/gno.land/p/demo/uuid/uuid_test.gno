@@ -10,12 +10,13 @@ func TestID(t *testing.T) {
 	u := NewUUID()
 	id1 := u.ID()
 	id2 := u.ID()
-	uuid1 := IDToUUID(id1)
-	uuid2 := IDToUUID(id2)
+	uuid1 := UUIDIntToUUIDString(id1)
+	uuid2 := UUIDIntToUUIDString(id2)
 
 	uassert.NotEqual(t, uuid1, uuid2)
 
 	idMap := make(map[uint64]bool)
+	uuidMap := make(map[string]bool)
 
 	for i := 0; i < 101; i++ {
 		id := u.ID()
@@ -23,7 +24,12 @@ func TestID(t *testing.T) {
 			t.Errorf("Duplicate ID found: %d", id)
 		}
 		idMap[id] = true
-		uuidStr := IDToUUID(id)
+
+		uuidStr := UUIDIntToUUIDString(id)
+		if _, exists := uuidMap[uuidStr]; exists {
+			t.Errorf("Duplicate UUID found: %s", uuidStr)
+		}
+		uuidMap[uuidStr] = true
 		t.Logf("Generated UUID %d: %s", i, uuidStr)
 	}
 }
