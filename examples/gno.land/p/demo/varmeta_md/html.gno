@@ -1,18 +1,3 @@
-//
-// Blackfriday Markdown Processor
-// Available at http://github.com/russross/blackfriday
-//
-// Copyright © 2011 Russ Ross <russ@russross.com>.
-// Distributed under the Simplified BSD License.
-// See README.md for details.
-//
-
-//
-//
-// HTML rendering backend
-//
-//
-
 package varmeta_md
 
 import (
@@ -24,28 +9,21 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-// Html renderer configuration options.
 const (
-	HTML_SKIP_HTML                 = 1 << iota // skip preformatted HTML blocks
-	HTML_SKIP_STYLE                            // skip embedded <style> elements
-	HTML_SKIP_IMAGES                           // skip embedded images
-	HTML_SKIP_LINKS                            // skip all links
-	HTML_SAFELINK                              // only link to trusted protocols
-	HTML_NOFOLLOW_LINKS                        // only link with rel="nofollow"
-	HTML_NOREFERRER_LINKS                      // only link with rel="noreferrer"
-	HTML_NOOPENER_LINKS                        // only link with rel="noopener"
-	HTML_HREF_TARGET_BLANK                     // add a blank target
-	HTML_TOC                                   // generate a table of contents
-	HTML_OMIT_CONTENTS                         // skip the main contents (for a standalone table of contents)
-	HTML_COMPLETE_PAGE                         // generate a complete HTML page
-	HTML_USE_XHTML                             // generate XHTML output instead of HTML
-	HTML_USE_SMARTYPANTS                       // enable smart punctuation substitutions
-	HTML_SMARTYPANTS_FRACTIONS                 // enable smart fractions (with HTML_USE_SMARTYPANTS)
-	HTML_SMARTYPANTS_DASHES                    // enable smart dashes (with HTML_USE_SMARTYPANTS)
-	HTML_SMARTYPANTS_LATEX_DASHES              // enable LaTeX-style dashes (with HTML_USE_SMARTYPANTS and HTML_SMARTYPANTS_DASHES)
-	HTML_SMARTYPANTS_ANGLED_QUOTES             // enable angled double quotes (with HTML_USE_SMARTYPANTS) for double quotes rendering
-	HTML_SMARTYPANTS_QUOTES_NBSP               // enable "French guillemets" (with HTML_USE_SMARTYPANTS)
-	HTML_FOOTNOTE_RETURN_LINKS                 // generate a link at the end of a footnote to return to the source
+	HTML_SKIP_HTML             = 1 << iota // skip preformatted HTML blocks
+	HTML_SKIP_STYLE                        // skip embedded <style> elements
+	HTML_SKIP_IMAGES                       // skip embedded images
+	HTML_SKIP_LINKS                        // skip all links
+	HTML_SAFELINK                          // only link to trusted protocols
+	HTML_NOFOLLOW_LINKS                    // only link with rel="nofollow"
+	HTML_NOREFERRER_LINKS                  // only link with rel="noreferrer"
+	HTML_NOOPENER_LINKS                    // only link with rel="noopener"
+	HTML_HREF_TARGET_BLANK                 // add a blank target
+	HTML_TOC                               // generate a table of contents
+	HTML_OMIT_CONTENTS                     // skip the main contents (for a standalone table of contents)
+	HTML_COMPLETE_PAGE                     // generate a complete HTML page
+	HTML_USE_XHTML                         // generate XHTML output instead of HTML
+	HTML_FOOTNOTE_RETURN_LINKS             // generate a link at the end of a footnote to return to the source
 )
 
 var (
@@ -55,29 +33,17 @@ var (
 		"center",
 	}
 
-	// TODO: improve this regexp to catch all possible entities:
 	htmlEntity = regexp.MustCompile(`&[a-z]{2,5};`)
 )
 
 type HtmlRendererParameters struct {
-	// Prepend this text to each relative URL.
-	AbsolutePrefix string
-	// Add this text to each footnote anchor, to ensure uniqueness.
-	FootnoteAnchorPrefix string
-	// Show this text inside the <a> tag for a footnote return link, if the
-	// HTML_FOOTNOTE_RETURN_LINKS flag is enabled. If blank, the string
-	// <sup>[return]</sup> is used.
+	AbsolutePrefix             string
+	FootnoteAnchorPrefix       string
 	FootnoteReturnLinkContents string
-	// If set, add this text to the front of each Header ID, to ensure
-	// uniqueness.
-	HeaderIDPrefix string
-	// If set, add this text to the back of each Header ID, to ensure uniqueness.
-	HeaderIDSuffix string
+	HeaderIDPrefix             string
+	HeaderIDSuffix             string
 }
 
-// Html is a type that implements the Renderer interface for HTML output.
-//
-// Do not create this directly, instead use the HtmlRenderer function.
 type Html struct {
 	flags    int    // HTML_* options
 	closeTag string // how to end singleton tags: either " />" or ">"
@@ -86,13 +52,11 @@ type Html struct {
 
 	parameters HtmlRendererParameters
 
-	// table of contents data
 	tocMarker    int
 	headerCount  int
 	currentLevel int
 	toc          *bytes.Buffer
 
-	// Track header IDs to prevent ID collision in a single generation.
 	headerIDs map[string]int
 }
 
@@ -101,13 +65,6 @@ const (
 	htmlClose  = ">"
 )
 
-// HtmlRenderer creates and configures an Html object, which
-// satisfies the Renderer interface.
-//
-// flags is a set of HTML_* options ORed together.
-// title is the title of the document, and css is a URL for the document's
-// stylesheet.
-// title and css are only used when HTML_COMPLETE_PAGE is selected.
 func HtmlRenderer(flags int, title string, css string) Renderer {
 	return HtmlRendererWithParameters(flags, title, css, HtmlRendererParameters{})
 }
@@ -115,7 +72,6 @@ func HtmlRenderer(flags int, title string, css string) Renderer {
 func HtmlRendererWithParameters(flags int, title string,
 	css string, renderParameters HtmlRendererParameters,
 ) Renderer {
-	// configure the rendering engine
 	closeTag := htmlClose
 	if flags&HTML_USE_XHTML != 0 {
 		closeTag = xhtmlClose
@@ -140,10 +96,6 @@ func HtmlRendererWithParameters(flags int, title string,
 	}
 }
 
-// Using if statements is a bit faster than a switch statement. As the compiler
-// improves, this should be unnecessary this is only worthwhile because
-// attrEscape is the single largest CPU user in normal use.
-// Also tried using map, but that gave a ~3x slowdown.
 func escapeSingleChar(char byte) (string, bool) {
 	if char == '"' {
 		return "&quot;", true
@@ -165,7 +117,6 @@ func attrEscape(out *bytes.Buffer, src []byte) {
 	for i, ch := range src {
 		if entity, ok := escapeSingleChar(ch); ok {
 			if i > org {
-				// copy all the normal characters since the last escape
 				out.Write(src[org:i])
 			}
 			org = i + 1
@@ -229,7 +180,6 @@ func (options *Html) Header(out *bytes.Buffer, text func() bool, level int, id s
 		return
 	}
 
-	// are we building a table of contents?
 	if options.flags&HTML_TOC != 0 {
 		options.TocHeaderWithAnchor(out.Bytes()[tocMarker:], level, id)
 	}
@@ -421,7 +371,6 @@ func (options *Html) Paragraph(out *bytes.Buffer, text func() bool) {
 func (options *Html) AutoLink(out *bytes.Buffer, link []byte, kind int) {
 	skipRanges := htmlEntity.FindAllIndex(link, -1)
 	if options.flags&HTML_SAFELINK != 0 && !isSafeLink(link) && kind != LINK_TYPE_EMAIL {
-		// mark it but don't link it if it is not a safe link: no smartypants
 		out.WriteString("<tt>")
 		entityEscapeWithSkip(out, link, skipRanges)
 		out.WriteString("</tt>")
@@ -451,16 +400,12 @@ func (options *Html) AutoLink(out *bytes.Buffer, link []byte, kind int) {
 		out.WriteString(ufmt.Sprintf("\" rel=\"%s", strings.Join(relAttrs, " ")))
 	}
 
-	// blank target only add to external link
 	if options.flags&HTML_HREF_TARGET_BLANK != 0 && !isRelativeLink(link) {
 		out.WriteString("\" target=\"_blank")
 	}
 
 	out.WriteString("\">")
 
-	// Pretty print: if we get an email address as
-	// an actual URI, e.g. `mailto:foo@bar.com`, we don't
-	// want to print the `mailto:` prefix
 	switch {
 	case bytes.HasPrefix(link, []byte("mailto://")):
 		attrEscape(out, link[len("mailto://"):])
@@ -532,7 +477,6 @@ func (options *Html) LineBreak(out *bytes.Buffer) {
 
 func (options *Html) Link(out *bytes.Buffer, link []byte, title []byte, content []byte) {
 	if options.flags&HTML_SKIP_LINKS != 0 {
-		// write the link text out but don't link it, just mark it with typewriter font
 		out.WriteString("<tt>")
 		attrEscape(out, content)
 		out.WriteString("</tt>")
@@ -540,7 +484,6 @@ func (options *Html) Link(out *bytes.Buffer, link []byte, title []byte, content 
 	}
 
 	if options.flags&HTML_SAFELINK != 0 && !isSafeLink(link) {
-		// write the link text out but don't link it, just mark it with typewriter font
 		out.WriteString("<tt>")
 		attrEscape(out, content)
 		out.WriteString("</tt>")
@@ -568,7 +511,6 @@ func (options *Html) Link(out *bytes.Buffer, link []byte, title []byte, content 
 		out.WriteString(ufmt.Sprintf("\" rel=\"%s", strings.Join(relAttrs, " ")))
 	}
 
-	// blank target only add to external link
 	if options.flags&HTML_HREF_TARGET_BLANK != 0 && !isRelativeLink(link) {
 		out.WriteString("\" target=\"_blank")
 	}
@@ -671,35 +613,27 @@ func (options *Html) DocumentHeader(out *bytes.Buffer) {
 }
 
 func (options *Html) DocumentFooter(out *bytes.Buffer) {
-	// finalize and insert the table of contents
 	if options.flags&HTML_TOC != 0 {
 		options.TocFinalize()
 
-		// now we have to insert the table of contents into the document
 		var temp bytes.Buffer
 
-		// start by making a copy of everything after the document header
 		temp.Write(out.Bytes()[options.tocMarker:])
 
-		// now clear the copied material from the main output buffer
 		out.Truncate(options.tocMarker)
 
-		// corner case spacing issue
 		if options.flags&HTML_COMPLETE_PAGE != 0 {
 			out.WriteByte('\n')
 		}
 
-		// insert the table of contents
 		out.WriteString("<nav>\n")
 		out.Write(options.toc.Bytes())
 		out.WriteString("</nav>\n")
 
-		// corner case spacing issue
 		if options.flags&HTML_COMPLETE_PAGE == 0 && options.flags&HTML_OMIT_CONTENTS == 0 {
 			out.WriteByte('\n')
 		}
 
-		// write out everything that came after it
 		if options.flags&HTML_OMIT_CONTENTS == 0 {
 			out.Write(temp.Bytes())
 		}
@@ -715,7 +649,6 @@ func (options *Html) TocHeaderWithAnchor(text []byte, level int, anchor string) 
 	for level > options.currentLevel {
 		switch {
 		case bytes.HasSuffix(options.toc.Bytes(), []byte("</li>\n")):
-			// this sublist can nest underneath a header
 			size := options.toc.Len()
 			options.toc.Truncate(size - len("</li>\n"))
 
@@ -772,8 +705,6 @@ func isHtmlTag(tag []byte, tagname string) bool {
 	return found
 }
 
-// Look for a character, but ignore it when it's in any kind of quotes, it
-// might be JavaScript
 func skipUntilCharIgnoreQuotes(html []byte, start int, char byte) int {
 	inSingleQuote := false
 	inDoubleQuote := false
@@ -861,27 +792,22 @@ func doubleSpace(out *bytes.Buffer) {
 }
 
 func isRelativeLink(link []byte) (yes bool) {
-	// a tag begin with '#'
 	if link[0] == '#' {
 		return true
 	}
 
-	// link begin with '/' but not '//', the second maybe a protocol relative link
 	if len(link) >= 2 && link[0] == '/' && link[1] != '/' {
 		return true
 	}
 
-	// only the root '/'
 	if len(link) == 1 && link[0] == '/' {
 		return true
 	}
 
-	// current directory : begin with "./"
 	if bytes.HasPrefix(link, []byte("./")) {
 		return true
 	}
 
-	// parent directory : begin with "../"
 	if bytes.HasPrefix(link, []byte("../")) {
 		return true
 	}

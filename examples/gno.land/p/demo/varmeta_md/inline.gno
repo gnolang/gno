@@ -1,16 +1,3 @@
-//
-// Blackfriday Markdown Processor
-// Available at http://github.com/russross/blackfriday
-//
-// Copyright © 2011 Russ Ross <russ@russross.com>.
-// Distributed under the Simplified BSD License.
-// See README.md for details.
-//
-
-//
-// Functions to parse inline elements.
-//
-
 package varmeta_md
 
 import (
@@ -24,13 +11,7 @@ var (
 	anchorRe = regexp.MustCompile(`^(<a\shref="` + urlRe + `"(\stitle="[^"<>]+")?\s?>` + urlRe + `<\/a>)`)
 )
 
-// Functions to parse text within a block
-// Each function returns the number of chars taken care of
-// data is the complete block being rendered
-// offset is the number of valid chars before the current cursor
-
 func (p *parser) inline(out *bytes.Buffer, data []byte) {
-	// this is called recursively: enforce a maximum depth
 	if p.nesting >= p.maxNesting {
 		return
 	}
@@ -38,7 +19,6 @@ func (p *parser) inline(out *bytes.Buffer, data []byte) {
 
 	i, end := 0, 0
 	for i < len(data) {
-		// copy inactive chars into the output
 		for end < len(data) && p.inlineCallback[data[end]] == nil {
 			end++
 		}
@@ -50,13 +30,10 @@ func (p *parser) inline(out *bytes.Buffer, data []byte) {
 		}
 		i = end
 
-		// call the trigger
 		handler := p.inlineCallback[data[end]]
 		if consumed := handler(p, out, data, i); consumed == 0 {
-			// no action from the callback; buffer the byte for later
 			end = i + 1
 		} else {
-			// skip past whatever the callback used
 			i += consumed
 			end = i
 		}
@@ -65,15 +42,12 @@ func (p *parser) inline(out *bytes.Buffer, data []byte) {
 	p.nesting--
 }
 
-// single and double emphasis parsing
 func emphasis(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	data = data[offset:]
 	c := data[0]
 	ret := 0
 
 	if len(data) > 2 && data[1] != c {
-		// whitespace cannot follow an opening emphasis;
-		// strikethrough only takes two characters '~~'
 		if c == '~' || isspace(data[1]) {
 			return 0
 		}
@@ -114,12 +88,10 @@ func codeSpan(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 
 	nb := 0
 
-	// count the number of backticks in the delimiter
 	for nb < len(data) && data[nb] == '`' {
 		nb++
 	}
 
-	// find the next delimiter
 	i, end := 0, 0
 	for end = nb; end < len(data) && i < nb; end++ {
 		if data[end] == '`' {
@@ -129,12 +101,10 @@ func codeSpan(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 		}
 	}
 
-	// no matching delimiter?
 	if i < nb && end >= len(data) {
 		return 0
 	}
 
-	// trim outside whitespace
 	fBegin := nb
 	for fBegin < end && data[fBegin] == ' ' {
 		fBegin++
@@ -145,7 +115,6 @@ func codeSpan(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 		fEnd--
 	}
 
-	// render the code span
 	if fBegin != fEnd {
 		p.r.CodeSpan(out, data[fBegin:fEnd])
 	}
@@ -153,10 +122,7 @@ func codeSpan(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	return end
 }
 
-// newline preceded by two spaces becomes <br>
-// newline without two spaces works when EXTENSION_HARD_LINE_BREAK is enabled
 func lineBreak(p *parser, out *bytes.Buffer, data []byte, offset int) int {
-	// remove trailing spaces from out
 	outBytes := out.Bytes()
 	end := len(outBytes)
 	eol := end
@@ -166,14 +132,13 @@ func lineBreak(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	out.Truncate(eol)
 
 	precededByTwoSpaces := offset >= 2 && data[offset-2] == ' ' && data[offset-1] == ' '
-	precededByBackslash := offset >= 1 && data[offset-1] == '\\' // see http://spec.commonmark.org/0.18/#example-527
+	precededByBackslash := offset >= 1 && data[offset-1] == '\\'
 	precededByBackslash = precededByBackslash && p.flags&EXTENSION_BACKSLASH_LINE_BREAK != 0
 
 	if p.flags&EXTENSION_JOIN_LINES != 0 {
 		return 1
 	}
 
-	// should there be a hard line break here?
 	if p.flags&EXTENSION_HARD_LINE_BREAK == 0 && !precededByTwoSpaces && !precededByBackslash {
 		return 0
 	}
@@ -201,31 +166,23 @@ func isReferenceStyleLink(data []byte, pos int, t linkType) bool {
 	return pos < len(data)-1 && data[pos] == '[' && data[pos+1] != '^'
 }
 
-// '[': parse a link or an image or a footnote
 func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
-	// no links allowed inside regular links, footnote, and deferred footnotes
 	if p.insideLink && (offset > 0 && data[offset-1] == '[' || len(data)-1 > offset && data[offset+1] == '^') {
 		return 0
 	}
 
 	var t linkType
 	switch {
-	// special case: ![^text] == deferred footnote (that follows something with
-	// an exclamation point)
 	case p.flags&EXTENSION_FOOTNOTES != 0 && len(data)-1 > offset && data[offset+1] == '^':
 		t = linkDeferredFootnote
-	// ![alt] == image
 	case offset > 0 && data[offset-1] == '!':
 		t = linkImg
-	// ^[text] == inline footnote
-	// [^refId] == deferred footnote
 	case p.flags&EXTENSION_FOOTNOTES != 0:
 		if offset > 0 && data[offset-1] == '^' {
 			t = linkInlineFootnote
 		} else if len(data)-1 > offset && data[offset+1] == '^' {
 			t = linkDeferredFootnote
 		}
-	// [text] == regular link
 	default:
 		t = linkNormal
 	}
@@ -245,7 +202,6 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 
 	brace := 0
 
-	// look for the matching closing bracket
 	for level := 1; level > 0 && i < len(data); i++ {
 		switch {
 		case data[i] == '\n':
@@ -260,7 +216,7 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 		case data[i] == ']':
 			level--
 			if level <= 0 {
-				i-- // compensate for extra i++ in for loop
+				i--
 			}
 		}
 	}
@@ -272,16 +228,12 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	txtE := i
 	i++
 
-	// skip any amount of whitespace or newline
-	// (this is much more lax than original markdown syntax)
 	for i < len(data) && isspace(data[i]) {
 		i++
 	}
 
 	switch {
-	// inline style link
 	case i < len(data) && data[i] == '(':
-		// skip initial whitespace
 		i++
 
 		for i < len(data) && isspace(data[i]) {
@@ -290,9 +242,6 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 
 		linkB := i
 
-		// look for link end: ' " ), check for new opening braces and take this
-		// into account, this may lead for overshooting and probably will require
-		// some fine-tuning.
 	findlinkend:
 		for i < len(data) {
 			switch {
@@ -323,7 +272,6 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 		}
 		linkE := i
 
-		// look for title end if present
 		titleB, titleE := 0, 0
 		if data[i] == '\'' || data[i] == '"' {
 			i++
@@ -347,25 +295,21 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 				return 0
 			}
 
-			// skip whitespace after title
 			titleE = i - 1
 			for titleE > titleB && isspace(data[titleE]) {
 				titleE--
 			}
 
-			// check for closing quote presence
 			if data[titleE] != '\'' && data[titleE] != '"' {
 				titleB, titleE = 0, 0
 				linkE = i
 			}
 		}
 
-		// remove whitespace at the end of the link
 		for linkE > linkB && isspace(data[linkE-1]) {
 			linkE--
 		}
 
-		// remove optional angle brackets around the link
 		if data[linkB] == '<' {
 			linkB++
 		}
@@ -373,7 +317,6 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 			linkE--
 		}
 
-		// build escaped link and title
 		if linkE > linkB {
 			link = data[linkB:linkE]
 		}
@@ -384,12 +327,10 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 
 		i++
 
-	// reference style link
 	case isReferenceStyleLink(data, i, t):
 		var id []byte
 		altContentConsidered := false
 
-		// look for the id
 		i++
 		linkB := i
 		for i < len(data) && data[i] != ']' {
@@ -400,7 +341,6 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 		}
 		linkE := i
 
-		// find the reference
 		if linkB == linkE {
 			if textHasNl {
 				var b bytes.Buffer
@@ -423,13 +363,11 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 			id = data[linkB:linkE]
 		}
 
-		// find the reference with matching id
 		lr, ok := p.getRef(string(id))
 		if !ok {
 			return 0
 		}
 
-		// keep link and title from reference
 		link = lr.link
 		title = lr.title
 		if altContentConsidered {
@@ -437,11 +375,9 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 		}
 		i++
 
-	// shortcut reference style link or reference or inline footnote
 	default:
 		var id []byte
 
-		// craft the id
 		if textHasNl {
 			var b bytes.Buffer
 
@@ -457,14 +393,13 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 			id = b.Bytes()
 		} else {
 			if t == linkDeferredFootnote {
-				id = data[2:txtE] // get rid of the ^
+				id = data[2:txtE]
 			} else {
 				id = data[1:txtE]
 			}
 		}
 
 		if t == linkInlineFootnote {
-			// create a new reference
 			noteId = len(p.notes) + 1
 
 			var fragment []byte
@@ -492,7 +427,6 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 			link = ref.link
 			title = ref.title
 		} else {
-			// find the reference with matching id
 			lr, ok := p.getRef(string(id))
 			if !ok {
 				return 0
@@ -504,24 +438,19 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 				p.notesRecord[string(lr.link)] = struct{}{}
 			}
 
-			// keep link and title from reference
 			link = lr.link
-			// if inline footnote, title == footnote contents
 			title = lr.title
 			noteId = lr.noteId
 		}
 
-		// rewind the whitespace
 		i = txtE + 1
 	}
 
-	// build content: img alt is escaped, link content is parsed
 	var content bytes.Buffer
 	if txtE > 1 {
 		if t == linkImg {
 			content.Write(data[1:txtE])
 		} else {
-			// links cannot contain other links, so turn off link parsing temporarily
 			insideLink := p.insideLink
 			p.insideLink = true
 			p.inline(&content, data[1:txtE])
@@ -537,13 +466,11 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 			uLink = uLinkBuf.Bytes()
 		}
 
-		// links need something to click on and somewhere to go
 		if len(uLink) == 0 || (t == linkNormal && content.Len() == 0) {
 			return 0
 		}
 	}
 
-	// call the relevant rendering function
 	switch t {
 	case linkNormal:
 		if len(altContent) > 0 {
@@ -588,18 +515,15 @@ func (p *parser) inlineHTMLComment(out *bytes.Buffer, data []byte) int {
 		return 0
 	}
 	i := 5
-	// scan for an end-of-comment marker, across lines if necessary
 	for i < len(data) && !(data[i-2] == '-' && data[i-1] == '-' && data[i] == '>') {
 		i++
 	}
-	// no end-of-comment marker
 	if i >= len(data) {
 		return 0
 	}
 	return i + 1
 }
 
-// '<' when tags or autolinks are allowed
 func leftAngle(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	data = data[offset:]
 	altype := LINK_TYPE_NOT_AUTOLINK
@@ -622,7 +546,6 @@ func leftAngle(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	return end
 }
 
-// '\\' backslash escape
 var escapeChars = []byte("\\`*_{}[]()#+-.!:|&<>~")
 
 func escape(p *parser, out *bytes.Buffer, data []byte, offset int) int {
@@ -660,8 +583,6 @@ func unescapeText(ob *bytes.Buffer, src []byte) {
 	}
 }
 
-// '&' escaped when it doesn't belong to an entity
-// valid entities are assumed to be anything matching &#?[A-Za-z0-9]+;
 func entity(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	data = data[offset:]
 
@@ -676,9 +597,9 @@ func entity(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	}
 
 	if end < len(data) && data[end] == ';' {
-		end++ // real entity
+		end++
 	} else {
-		return 0 // lone '&'
+		return 0
 	}
 
 	p.r.Entity(out, data[:end])
@@ -692,12 +613,10 @@ func linkEndsWithEntity(data []byte, linkEnd int) bool {
 }
 
 func autoLink(p *parser, out *bytes.Buffer, data []byte, offset int) int {
-	// quick check to rule out most false hits on ':'
 	if p.insideLink || len(data) < offset+3 || data[offset+1] != '/' || data[offset+2] != '/' {
 		return 0
 	}
 
-	// Now a more expensive check to see if we're not inside an anchor element
 	anchorStart := offset
 	offsetFromAnchor := 0
 	for anchorStart > 0 && data[anchorStart] != '<' {
@@ -711,12 +630,11 @@ func autoLink(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 		return len(anchorStr) - offsetFromAnchor
 	}
 
-	// scan backward for a word boundary
 	rewind := 0
 	for offset-rewind > 0 && rewind <= 7 && isletter(data[offset-rewind-1]) {
 		rewind++
 	}
-	if rewind > 6 { // longest supported protocol is "mailto" which has 6 letters
+	if rewind > 6 {
 		return 0
 	}
 
@@ -732,17 +650,14 @@ func autoLink(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 		linkEnd++
 	}
 
-	// Skip punctuation at the end of the link
 	if (data[linkEnd-1] == '.' || data[linkEnd-1] == ',') && data[linkEnd-2] != '\\' {
 		linkEnd--
 	}
 
-	// But don't skip semicolon if it's a part of escaped entity:
 	if data[linkEnd-1] == ';' && data[linkEnd-2] != '\\' && !linkEndsWithEntity(data, linkEnd) {
 		linkEnd--
 	}
 
-	// See if the link finishes with a punctuation sign that can be closed.
 	var copen byte
 	switch data[linkEnd-1] {
 	case '"':
@@ -764,26 +679,6 @@ func autoLink(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 
 		openDelim := 1
 
-		/* Try to close the final punctuation sign in this same line;
-		 * if we managed to close it outside of the URL, that means that it's
-		 * not part of the URL. If it closes inside the URL, that means it
-		 * is part of the URL.
-		 *
-		 * Examples:
-		 *
-		 *      foo http://www.pokemon.com/Pikachu_(Electric) bar
-		 *              => http://www.pokemon.com/Pikachu_(Electric)
-		 *
-		 *      foo (http://www.pokemon.com/Pikachu_(Electric)) bar
-		 *              => http://www.pokemon.com/Pikachu_(Electric)
-		 *
-		 *      foo http://www.pokemon.com/Pikachu_(Electric)) bar
-		 *              => http://www.pokemon.com/Pikachu_(Electric))
-		 *
-		 *      (foo http://www.pokemon.com/Pikachu_(Electric)) bar
-		 *              => foo http://www.pokemon.com/Pikachu_(Electric)
-		 */
-
 		for bufEnd >= 0 && origData[bufEnd] != '\n' && openDelim != 0 {
 			if origData[bufEnd] == data[linkEnd-1] {
 				openDelim++
@@ -801,7 +696,6 @@ func autoLink(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 		}
 	}
 
-	// we were triggered on the ':', so we need to rewind the output a bit
 	if out.Len() >= rewind {
 		out.Truncate(len(out.Bytes()) - rewind)
 	}
@@ -837,8 +731,6 @@ func isSafeLink(link []byte) bool {
 	}
 
 	for _, prefix := range validUris {
-		// TODO: handle unicode here
-		// case-insensitive prefix test
 		if len(link) > len(prefix) && bytes.Equal(bytes.ToLower(link[:len(prefix)]), prefix) && isalnum(link[len(prefix)]) {
 			return true
 		}
@@ -847,16 +739,13 @@ func isSafeLink(link []byte) bool {
 	return false
 }
 
-// return the length of the given tag, or 0 is it's not valid
 func tagLength(data []byte, autolink *int) int {
 	var i, j int
 
-	// a valid tag can't be shorter than 3 chars
 	if len(data) < 3 {
 		return 0
 	}
 
-	// begins with a '<' optionally followed by '/', followed by letter or number
 	if data[0] != '<' {
 		return 0
 	}
@@ -870,10 +759,8 @@ func tagLength(data []byte, autolink *int) int {
 		return 0
 	}
 
-	// scheme test
 	*autolink = LINK_TYPE_NOT_AUTOLINK
 
-	// try to find the beginning of an URI
 	for i < len(data) && (isalnum(data[i]) || data[i] == '.' || data[i] == '+' || data[i] == '-') {
 		i++
 	}
@@ -890,7 +777,6 @@ func tagLength(data []byte, autolink *int) int {
 		i++
 	}
 
-	// complete autolink test: no whitespace or ' or "
 	switch {
 	case i >= len(data):
 		*autolink = LINK_TYPE_NOT_AUTOLINK
@@ -914,11 +800,9 @@ func tagLength(data []byte, autolink *int) int {
 			return i + 1
 		}
 
-		// one of the forbidden chars has been found
 		*autolink = LINK_TYPE_NOT_AUTOLINK
 	}
 
-	// look for something looking like a tag end
 	for i < len(data) && data[i] != '>' {
 		i++
 	}
@@ -928,12 +812,9 @@ func tagLength(data []byte, autolink *int) int {
 	return i + 1
 }
 
-// look for the address part of a mail autolink and '>'
-// this is less strict than the original markdown e-mail address matching
 func isMailtoAutoLink(data []byte) int {
 	nb := 0
 
-	// address is assumed to be: [-@._a-zA-Z0-9]+ with exactly one '@'
 	for i := 0; i < len(data); i++ {
 		if isalnum(data[i]) {
 			continue
@@ -944,7 +825,6 @@ func isMailtoAutoLink(data []byte) int {
 			nb++
 
 		case '-', '.', '_':
-			// Do nothing.
 
 		case '>':
 			if nb == 1 {
@@ -960,7 +840,6 @@ func isMailtoAutoLink(data []byte) int {
 	return 0
 }
 
-// look for the next emph char, skipping other constructs
 func helperFindEmphChar(data []byte, c byte) int {
 	i := 0
 
@@ -971,7 +850,6 @@ func helperFindEmphChar(data []byte, c byte) int {
 		if i >= len(data) {
 			return 0
 		}
-		// do not count escaped chars
 		if i != 0 && data[i-1] == '\\' {
 			i++
 			continue
@@ -981,7 +859,6 @@ func helperFindEmphChar(data []byte, c byte) int {
 		}
 
 		if data[i] == '`' {
-			// skip a code span
 			tmpI := 0
 			i++
 			for i < len(data) && data[i] != '`' {
@@ -995,7 +872,6 @@ func helperFindEmphChar(data []byte, c byte) int {
 			}
 			i++
 		} else if data[i] == '[' {
-			// skip a link
 			tmpI := 0
 			i++
 			for i < len(data) && data[i] != ']' {
@@ -1011,7 +887,7 @@ func helperFindEmphChar(data []byte, c byte) int {
 			if i >= len(data) {
 				return tmpI
 			}
-			if data[i] != '[' && data[i] != '(' { // not a link
+			if data[i] != '[' && data[i] != '(' {
 				if tmpI > 0 {
 					return tmpI
 				} else {
@@ -1038,7 +914,6 @@ func helperFindEmphChar(data []byte, c byte) int {
 func helperEmphasis(p *parser, out *bytes.Buffer, data []byte, c byte) int {
 	i := 0
 
-	// skip one symbol if coming from emph3
 	if len(data) > 1 && data[0] == c && data[1] == c {
 		i = 1
 	}
@@ -1091,7 +966,6 @@ func helperDoubleEmphasis(p *parser, out *bytes.Buffer, data []byte, c byte) int
 			p.inline(&work, data[:i])
 
 			if work.Len() > 0 {
-				// pick the right renderer
 				if c == '~' {
 					p.r.StrikeThrough(out, work.Bytes())
 				} else {
@@ -1117,14 +991,12 @@ func helperTripleEmphasis(p *parser, out *bytes.Buffer, data []byte, offset int,
 		}
 		i += length
 
-		// skip whitespace preceded symbols
 		if data[i] != c || isspace(data[i-1]) {
 			continue
 		}
 
 		switch {
 		case i+2 < len(data) && data[i+1] == c && data[i+2] == c:
-			// triple symbol found
 			var work bytes.Buffer
 
 			p.inline(&work, data[:i])
@@ -1133,7 +1005,6 @@ func helperTripleEmphasis(p *parser, out *bytes.Buffer, data []byte, offset int,
 			}
 			return i + 3
 		case (i+1 < len(data) && data[i+1] == c):
-			// double symbol found, hand over to emph1
 			length = helperEmphasis(p, out, origData[offset-2:], c)
 			if length == 0 {
 				return 0
@@ -1141,7 +1012,6 @@ func helperTripleEmphasis(p *parser, out *bytes.Buffer, data []byte, offset int,
 				return length - 2
 			}
 		default:
-			// single symbol found, hand over to emph2
 			length = helperDoubleEmphasis(p, out, origData[offset-1:], c)
 			if length == 0 {
 				return 0

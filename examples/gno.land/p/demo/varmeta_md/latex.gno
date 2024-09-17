@@ -1,18 +1,3 @@
-//
-// Blackfriday Markdown Processor
-// Available at http://github.com/russross/blackfriday
-//
-// Copyright © 2011 Russ Ross <russ@russross.com>.
-// Distributed under the Simplified BSD License.
-// See README.md for details.
-//
-
-//
-//
-// LaTeX rendering backend
-//
-//
-
 package varmeta_md
 
 import (
@@ -20,16 +5,8 @@ import (
 	"strings"
 )
 
-// Latex is a type that implements the Renderer interface for LaTeX output.
-//
-// Do not create this directly, instead use the LatexRenderer function.
 type Latex struct{}
 
-// LatexRenderer creates and configures a Latex object, which
-// satisfies the Renderer interface.
-//
-// flags is a set of LATEX_* options ORed together (currently no such options
-// are defined).
 func LatexRenderer(flags int) Renderer {
 	return &Latex{}
 }
@@ -38,7 +15,6 @@ func (options *Latex) GetFlags() int {
 	return 0
 }
 
-// render code chunks using verbatim, or listings if we have a language
 func (options *Latex) BlockCode(out *bytes.Buffer, text []byte, info string) {
 	if info == "" {
 		out.WriteString("\n\\begin{verbatim}\n")
@@ -66,7 +42,6 @@ func (options *Latex) BlockQuote(out *bytes.Buffer, text []byte) {
 }
 
 func (options *Latex) BlockHtml(out *bytes.Buffer, text []byte) {
-	// a pretty lame thing to do...
 	out.WriteString("\n\\begin{verbatim}\n")
 	out.Write(text)
 	out.WriteString("\n\\end{verbatim}\n")
@@ -173,7 +148,6 @@ func (options *Latex) TableCell(out *bytes.Buffer, text []byte, align int) {
 	out.Write(text)
 }
 
-// TODO: this
 func (options *Latex) Footnotes(out *bytes.Buffer, text func() bool) {
 }
 
@@ -211,7 +185,6 @@ func (options *Latex) Emphasis(out *bytes.Buffer, text []byte) {
 
 func (options *Latex) Image(out *bytes.Buffer, link []byte, title []byte, alt []byte) {
 	if bytes.HasPrefix(link, []byte("http://")) || bytes.HasPrefix(link, []byte("https://")) {
-		// treat it like a link
 		out.WriteString("\\href{")
 		out.Write(link)
 		out.WriteString("}{")
@@ -251,7 +224,6 @@ func (options *Latex) StrikeThrough(out *bytes.Buffer, text []byte) {
 	out.WriteString("}")
 }
 
-// TODO: this
 func (options *Latex) FootnoteRef(out *bytes.Buffer, ref []byte, id int) {
 }
 
@@ -266,7 +238,6 @@ func needsBackslash(c byte) bool {
 
 func escapeSpecialChars(out *bytes.Buffer, text []byte) {
 	for i := 0; i < len(text); i++ {
-		// directly copy normal characters
 		org := i
 
 		for i < len(text) && !needsBackslash(text[i]) {
@@ -276,7 +247,6 @@ func escapeSpecialChars(out *bytes.Buffer, text []byte) {
 			out.Write(text[org:i])
 		}
 
-		// escape a character
 		if i >= len(text) {
 			break
 		}
@@ -286,7 +256,6 @@ func escapeSpecialChars(out *bytes.Buffer, text []byte) {
 }
 
 func (options *Latex) Entity(out *bytes.Buffer, entity []byte) {
-	// TODO: convert this into a unicode character or something
 	out.Write(entity)
 }
 
@@ -294,7 +263,6 @@ func (options *Latex) NormalText(out *bytes.Buffer, text []byte) {
 	escapeSpecialChars(out, text)
 }
 
-// header and footer
 func (options *Latex) DocumentHeader(out *bytes.Buffer) {
 	out.WriteString("\\documentclass{article}\n")
 	out.WriteString("\n")

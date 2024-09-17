@@ -1,16 +1,3 @@
-//
-// Blackfriday Markdown Processor
-// Available at http://github.com/russross/blackfriday
-//
-// Copyright © 2011 Russ Ross <russ@russross.com>.
-// Distributed under the Simplified BSD License.
-// See README.md for details.
-//
-
-//
-// Unit tests for block parsing
-//
-
 package varmeta_md
 
 import (
@@ -47,7 +34,6 @@ func doTestsBlock(t *testing.T, tests []string, extensions int) {
 }
 
 func doTestsBlockWithRunner(t *testing.T, tests []string, extensions int, runner func(string, int) string) {
-	// catch and report panics
 	var candidate string
 	defer func() {
 		if err := recover(); err != nil {
@@ -65,7 +51,6 @@ func doTestsBlockWithRunner(t *testing.T, tests []string, extensions int, runner
 				candidate, expected, actual)
 		}
 
-		// now test every substring to stress test bounds checking
 		if !testing.Short() {
 			for start := 0; start < len(input); start++ {
 				for end := start + 1; end <= len(input); end++ {
@@ -1172,7 +1157,6 @@ func TestFencedCodeInsideBlockquotes(t *testing.T) {
 </code></pre>
 </blockquote>
 `,
-		// -------------------------------------------
 		cat("> foo",
 			"> ",
 			"> ```go",
@@ -1190,7 +1174,6 @@ func TestFencedCodeInsideBlockquotes(t *testing.T) {
 <p>goo.</p>
 </blockquote>
 `,
-		// -------------------------------------------
 		cat("> foo",
 			"> ",
 			"> quote",
@@ -1205,7 +1188,6 @@ continues
 ` + "```" + `</p>
 </blockquote>
 `,
-		// -------------------------------------------
 		cat("> foo",
 			"> ",
 			"> ```go",
@@ -1236,7 +1218,6 @@ continues
 `,
 	}
 
-	// These 2 alternative forms of blockquoted fenced code blocks should produce same output.
 	forms := [2]string{
 		cat("> plain quoted text",
 			"> ```fenced",
@@ -1602,7 +1583,6 @@ func TestListWithFencedCodeBlock(t *testing.T) {
 	tests := []string{
 		"1. one\n\n    ```\n    code\n    ```\n\n2. two\n",
 		"<ol>\n<li><p>one</p>\n\n<pre><code>code\n</code></pre></li>\n\n<li><p>two</p></li>\n</ol>\n",
-		// https://github.com/russross/blackfriday/issues/239
 		"1. one\n\n    ```\n    - code\n    ```\n\n2. two\n",
 		"<ol>\n<li><p>one</p>\n\n<pre><code>- code\n</code></pre></li>\n\n<li><p>two</p></li>\n</ol>\n",
 	}
@@ -1610,9 +1590,6 @@ func TestListWithFencedCodeBlock(t *testing.T) {
 }
 
 func TestListWithMalformedFencedCodeBlock(t *testing.T) {
-	// Ensure that in the case of an unclosed fenced code block in a list,
-	// no source gets ommitted (even if it is malformed).
-	// See russross/blackfriday#372 for context.
 	tests := []string{
 		"1. one\n\n    ```\n    code\n\n2. two\n",
 		"<ol>\n<li>one\n\n```\ncode\n\n2. two</li>\n</ol>\n",
@@ -1624,8 +1601,6 @@ func TestListWithMalformedFencedCodeBlock(t *testing.T) {
 }
 
 func TestListWithFencedCodeBlockNoExtensions(t *testing.T) {
-	// If there is a fenced code block in a list, and FencedCode is not set,
-	// lists should be processed normally.
 	tests := []string{
 		"1. one\n\n    ```\n    code\n    ```\n\n2. two\n",
 		"<ol>\n<li><p>one</p>\n\n<p><code>\ncode\n</code></p></li>\n\n<li><p>two</p></li>\n</ol>\n",

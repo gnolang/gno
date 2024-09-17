@@ -1,18 +1,3 @@
-//
-// Blackfriday Markdown Processor
-// Available at http://github.com/russross/blackfriday
-//
-// Copyright © 2011 Russ Ross <russ@russross.com>.
-// Distributed under the Simplified BSD License.
-// See README.md for details.
-//
-
-//
-//
-// Markdown parsing and processing
-//
-//
-
 package varmeta_md
 
 import (
@@ -25,8 +10,6 @@ import (
 
 const VERSION = "1.5"
 
-// These are the supported markdown parsing extensions.
-// OR these values together to select multiple extensions.
 const (
 	EXTENSION_NO_INTRA_EMPHASIS          = 1 << iota // ignore emphasis markers inside words
 	EXTENSION_TABLES                                 // render tables
@@ -47,11 +30,7 @@ const (
 	EXTENSION_JOIN_LINES                             // delete newline and join lines
 
 	commonHtmlFlags = 0 |
-		HTML_USE_XHTML |
-		HTML_USE_SMARTYPANTS |
-		HTML_SMARTYPANTS_FRACTIONS |
-		HTML_SMARTYPANTS_DASHES |
-		HTML_SMARTYPANTS_LATEX_DASHES
+		HTML_USE_XHTML
 
 	commonExtensions = 0 |
 		EXTENSION_NO_INTRA_EMPHASIS |
@@ -65,18 +44,12 @@ const (
 		EXTENSION_DEFINITION_LISTS
 )
 
-// These are the possible flag values for the link renderer.
-// Only a single one of these values will be used; they are not ORed together.
-// These are mostly of interest if you are writing a new output format.
 const (
 	LINK_TYPE_NOT_AUTOLINK = iota
 	LINK_TYPE_NORMAL
 	LINK_TYPE_EMAIL
 )
 
-// These are the possible flag values for the ListItem renderer.
-// Multiple flag values may be ORed together.
-// These are mostly of interest if you are writing a new output format.
 const (
 	LIST_TYPE_ORDERED = 1 << iota
 	LIST_TYPE_DEFINITION
@@ -86,23 +59,17 @@ const (
 	LIST_ITEM_END_OF_LIST
 )
 
-// These are the possible flag values for the table cell renderer.
-// Only a single one of these values will be used; they are not ORed together.
-// These are mostly of interest if you are writing a new output format.
 const (
 	TABLE_ALIGNMENT_LEFT = 1 << iota
 	TABLE_ALIGNMENT_RIGHT
 	TABLE_ALIGNMENT_CENTER = (TABLE_ALIGNMENT_LEFT | TABLE_ALIGNMENT_RIGHT)
 )
 
-// The size of a tab stop.
 const (
 	TAB_SIZE_DEFAULT = 4
 	TAB_SIZE_EIGHT   = 8
 )
 
-// blockTags is a set of tags that are recognized as HTML block tags.
-// Any of these can be included in markdown text without special escaping.
 var blockTags = map[string]struct{}{
 	"blockquote": {},
 	"del":        {},
@@ -128,7 +95,6 @@ var blockTags = map[string]struct{}{
 	"table":      {},
 	"ul":         {},
 
-	// HTML5
 	"address":    {},
 	"article":    {},
 	"aside":      {},
@@ -148,20 +114,7 @@ var blockTags = map[string]struct{}{
 	"video":      {},
 }
 
-// Renderer is the rendering interface.
-// This is mostly of interest if you are implementing a new rendering format.
-//
-// When a byte slice is provided, it contains the (rendered) contents of the
-// element.
-//
-// When a callback is provided instead, it will write the contents of the
-// respective element directly to the output buffer and return true on success.
-// If the callback returns false, the rendering function should reset the
-// output buffer as though it had never been called.
-//
-// Currently Html and Latex implementations are provided
 type Renderer interface {
-	// block-level callbacks
 	BlockCode(out *bytes.Buffer, text []byte, infoString string)
 	BlockQuote(out *bytes.Buffer, text []byte)
 	BlockHtml(out *bytes.Buffer, text []byte)
@@ -178,7 +131,6 @@ type Renderer interface {
 	FootnoteItem(out *bytes.Buffer, name, text []byte, flags int)
 	TitleBlock(out *bytes.Buffer, text []byte)
 
-	// Span-level callbacks
 	AutoLink(out *bytes.Buffer, link []byte, kind int)
 	CodeSpan(out *bytes.Buffer, text []byte)
 	DoubleEmphasis(out *bytes.Buffer, text []byte)
@@ -191,23 +143,17 @@ type Renderer interface {
 	StrikeThrough(out *bytes.Buffer, text []byte)
 	FootnoteRef(out *bytes.Buffer, ref []byte, id int)
 
-	// Low-level callbacks
 	Entity(out *bytes.Buffer, entity []byte)
 	NormalText(out *bytes.Buffer, text []byte)
 
-	// Header and footer
 	DocumentHeader(out *bytes.Buffer)
 	DocumentFooter(out *bytes.Buffer)
 
 	GetFlags() int
 }
 
-// Callback functions for inline parsing. One such function is defined
-// for each character that triggers a response when parsing inline data.
 type inlineParser func(p *parser, out *bytes.Buffer, data []byte, offset int) int
 
-// Parser holds runtime state used by the parser.
-// This is constructed by the Markdown function.
 type parser struct {
 	r              Renderer
 	refOverride    ReferenceOverrideFunc
@@ -218,9 +164,6 @@ type parser struct {
 	maxNesting     int
 	insideLink     bool
 
-	// Footnotes need to be ordered as well as available to quickly check for
-	// presence. If a ref is also a footnote, it's stored both in refs and here
-	// in notes. Slice is nil if footnotes not enabled.
 	notes       []*reference
 	notesRecord map[string]struct{}
 }
@@ -241,7 +184,6 @@ func (p *parser) getRef(refid string) (ref *reference, found bool) {
 			}, true
 		}
 	}
-	// refs are case insensitive
 	ref, found = p.refs[strings.ToLower(refid)]
 	return ref, found
 }
@@ -251,116 +193,46 @@ func (p *parser) isFootnote(ref *reference) bool {
 	return ok
 }
 
-//
-//
-// Public interface
-//
-//
-
-// Reference represents the details of a link.
-// See the documentation in Options for more details on use-case.
 type Reference struct {
-	// Link is usually the URL the reference points to.
-	Link string
-	// Title is the alternate text describing the link in more detail.
+	Link  string
 	Title string
-	// Text is the optional text to override the ref with if the syntax used was
-	// [refid][]
-	Text string
+	Text  string
 }
 
-// ReferenceOverrideFunc is expected to be called with a reference string and
-// return either a valid Reference type that the reference string maps to or
-// nil. If overridden is false, the default reference logic will be executed.
-// See the documentation in Options for more details on use-case.
 type ReferenceOverrideFunc func(reference string) (ref *Reference, overridden bool)
 
-// Options represents configurable overrides and callbacks (in addition to the
-// extension flag set) for configuring a Markdown parse.
 type Options struct {
-	// Extensions is a flag set of bit-wise ORed extension bits. See the
-	// EXTENSION_* flags defined in this package.
-	Extensions int
-
-	// ReferenceOverride is an optional function callback that is called every
-	// time a reference is resolved.
-	//
-	// In Markdown, the link reference syntax can be made to resolve a link to
-	// a reference instead of an inline URL, in one of the following ways:
-	//
-	//  * [link text][refid]
-	//  * [refid][]
-	//
-	// Usually, the refid is defined at the bottom of the Markdown document. If
-	// this override function is provided, the refid is passed to the override
-	// function first, before consulting the defined refids at the bottom. If
-	// the override function indicates an override did not occur, the refids at
-	// the bottom will be used to fill in the link details.
+	Extensions        int
 	ReferenceOverride ReferenceOverrideFunc
 }
 
-// MarkdownBasic is a convenience function for simple rendering.
-// It processes markdown input with no extensions enabled.
 func MarkdownBasic(input []byte) []byte {
-	// set up the HTML renderer
 	htmlFlags := HTML_USE_XHTML
 	renderer := HtmlRenderer(htmlFlags, "", "")
 
-	// set up the parser
 	return MarkdownOptions(input, renderer, Options{Extensions: 0})
 }
 
-// Call Markdown with most useful extensions enabled
-// MarkdownCommon is a convenience function for simple rendering.
-// It processes markdown input with common extensions enabled, including:
-//
-// * Smartypants processing with smart fractions and LaTeX dashes
-//
-// * Intra-word emphasis suppression
-//
-// * Tables
-//
-// * Fenced code blocks
-//
-// * Autolinking
-//
-// * Strikethrough support
-//
-// * Strict header parsing
-//
-// * Custom Header IDs
 func MarkdownCommon(input []byte) []byte {
-	// set up the HTML renderer
 	renderer := HtmlRenderer(commonHtmlFlags, "", "")
 	return MarkdownOptions(input, renderer, Options{
 		Extensions: commonExtensions,
 	})
 }
 
-// Markdown is the main rendering function.
-// It parses and renders a block of markdown-encoded text.
-// The supplied Renderer is used to format the output, and extensions dictates
-// which non-standard extensions are enabled.
-//
-// To use the supplied Html or LaTeX renderers, see HtmlRenderer and
-// LatexRenderer, respectively.
 func Markdown(input []byte, renderer Renderer, extensions int) []byte {
 	return MarkdownOptions(input, renderer, Options{
 		Extensions: extensions,
 	})
 }
 
-// MarkdownOptions is just like Markdown but takes additional options through
-// the Options struct.
 func MarkdownOptions(input []byte, renderer Renderer, opts Options) []byte {
-	// no point in parsing if we can't render
 	if renderer == nil {
 		return nil
 	}
 
 	extensions := opts.Extensions
 
-	// fill in the render structure
 	p := new(parser)
 	p.r = renderer
 	p.flags = extensions
@@ -369,7 +241,6 @@ func MarkdownOptions(input []byte, renderer Renderer, opts Options) []byte {
 	p.maxNesting = 16
 	p.insideLink = false
 
-	// register inline parsers
 	p.inlineCallback['*'] = emphasis
 	p.inlineCallback['_'] = emphasis
 	if extensions&EXTENSION_STRIKETHROUGH != 0 {
@@ -396,11 +267,6 @@ func MarkdownOptions(input []byte, renderer Renderer, opts Options) []byte {
 	return second
 }
 
-// first pass:
-// - normalize newlines
-// - extract references (outside of fenced code blocks)
-// - expand tabs (outside of fenced code blocks)
-// - copy everything else
 func firstPass(p *parser, input []byte) []byte {
 	var out bytes.Buffer
 	tabSize := TAB_SIZE_DEFAULT
@@ -410,15 +276,12 @@ func firstPass(p *parser, input []byte) []byte {
 	beg := 0
 	lastFencedCodeBlockEnd := 0
 	for beg < len(input) {
-		// Find end of this line, then process the line.
 		end := beg
 		for end < len(input) && input[end] != '\n' && input[end] != '\r' {
 			end++
 		}
 
 		if p.flags&EXTENSION_FENCED_CODE != 0 {
-			// track fenced code block boundaries to suppress tab expansion
-			// and reference extraction inside them:
 			if beg >= lastFencedCodeBlockEnd {
 				if i := p.fencedCodeBlock(&out, input[beg:], false); i > 0 {
 					lastFencedCodeBlockEnd = beg + i
@@ -426,9 +289,8 @@ func firstPass(p *parser, input []byte) []byte {
 			}
 		}
 
-		// add the line body if present
 		if end > beg {
-			if end < lastFencedCodeBlockEnd { // Do not expand tabs while inside fenced code blocks.
+			if end < lastFencedCodeBlockEnd {
 				out.Write(input[beg:end])
 			} else if refEnd := isReference(p, input[beg:], tabSize); refEnd > 0 {
 				beg += refEnd
@@ -449,7 +311,6 @@ func firstPass(p *parser, input []byte) []byte {
 		beg = end
 	}
 
-	// empty input?
 	if out.Len() == 0 {
 		out.WriteByte('\n')
 	}
@@ -457,7 +318,6 @@ func firstPass(p *parser, input []byte) []byte {
 	return out.Bytes()
 }
 
-// second pass: actual rendering
 func secondPass(p *parser, input []byte) []byte {
 	var output bytes.Buffer
 
@@ -493,40 +353,10 @@ func secondPass(p *parser, input []byte) []byte {
 	return output.Bytes()
 }
 
-//
-// Link references
-//
-// This section implements support for references that (usually) appear
-// as footnotes in a document, and can be referenced anywhere in the document.
-// The basic format is:
-//
-//    [1]: http://www.google.com/ "Google"
-//    [2]: http://www.github.com/ "Github"
-//
-// Anywhere in the document, the reference can be linked by referring to its
-// label, i.e., 1 and 2 in this example, as in:
-//
-//    This library is hosted on [Github][2], a git hosting site.
-//
-// Actual footnotes as specified in Pandoc and supported by some other Markdown
-// libraries such as php-markdown are also taken care of. They look like this:
-//
-//    This sentence needs a bit of further explanation.[^note]
-//
-//    [^note]: This is the explanation.
-//
-// Footnotes should be placed at the end of the document in an ordered list.
-// Inline footnotes such as:
-//
-//    Inline footnotes^[Not supported.] also exist.
-//
-// are not yet supported.
-
-// References are parsed and stored in this struct.
 type reference struct {
 	link     []byte
 	title    []byte
-	noteId   int // 0 if not a footnote ref
+	noteId   int
 	hasBlock bool
 	text     []byte
 }
@@ -536,13 +366,7 @@ func (r *reference) String() string {
 		r.link, r.title, r.text, r.noteId, r.hasBlock)
 }
 
-// Check whether or not data starts with a reference link.
-// If so, it is parsed and stored in the list of references
-// (in the render struct).
-// Returns the number of bytes to skip to move past it,
-// or zero if the first line is not a reference.
 func isReference(p *parser, data []byte, tabSize int) int {
-	// up to 3 optional leading spaces
 	if len(data) < 4 {
 		return 0
 	}
@@ -553,15 +377,12 @@ func isReference(p *parser, data []byte, tabSize int) int {
 
 	noteId := 0
 
-	// id part: anything but a newline between brackets
 	if data[i] != '[' {
 		return 0
 	}
 	i++
 	if p.flags&EXTENSION_FOOTNOTES != 0 {
 		if i < len(data) && data[i] == '^' {
-			// we can set it to anything here because the proper noteIds will
-			// be assigned later during the second pass. It just has to be != 0
 			noteId = 1
 			i++
 		}
@@ -575,7 +396,6 @@ func isReference(p *parser, data []byte, tabSize int) int {
 	}
 	idEnd := i
 
-	// spacer: colon (space | tab)* newline? (space | tab)*
 	i++
 	if i >= len(data) || data[i] != ':' {
 		return 0
@@ -615,24 +435,19 @@ func isReference(p *parser, data []byte, tabSize int) int {
 		return 0
 	}
 
-	// a valid ref has been found
-
 	ref := &reference{
 		noteId:   noteId,
 		hasBlock: hasBlock,
 	}
 
 	if noteId > 0 {
-		// reusing the link field for the id since footnotes don't have links
 		ref.link = data[idOffset:idEnd]
-		// if footnote, it's not really a title, it's the contained text
 		ref.title = raw
 	} else {
 		ref.link = data[linkOffset:linkEnd]
 		ref.title = data[titleOffset:titleEnd]
 	}
 
-	// id matches are case-insensitive
 	id := string(bytes.ToLower(data[idOffset:idEnd]))
 
 	p.refs[id] = ref
@@ -641,7 +456,6 @@ func isReference(p *parser, data []byte, tabSize int) int {
 }
 
 func scanLinkRef(p *parser, data []byte, i int) (linkOffset, linkEnd, titleOffset, titleEnd, lineEnd int) {
-	// link: whitespace-free sequence, optionally between angle brackets
 	if data[i] == '<' {
 		i++
 	}
@@ -658,7 +472,6 @@ func scanLinkRef(p *parser, data []byte, i int) (linkOffset, linkEnd, titleOffse
 		linkEnd--
 	}
 
-	// optional spacer: (space | tab)* (newline | '\'' | '"' | '(' )
 	for i < len(data) && (data[i] == ' ' || data[i] == '\t') {
 		i++
 	}
@@ -666,7 +479,6 @@ func scanLinkRef(p *parser, data []byte, i int) (linkOffset, linkEnd, titleOffse
 		return
 	}
 
-	// compute end-of-line
 	if i >= len(data) || data[i] == '\r' || data[i] == '\n' {
 		lineEnd = i
 	}
@@ -674,7 +486,6 @@ func scanLinkRef(p *parser, data []byte, i int) (linkOffset, linkEnd, titleOffse
 		lineEnd++
 	}
 
-	// optional (space|tab)* spacer after a newline
 	if lineEnd > 0 {
 		i = lineEnd + 1
 		for i < len(data) && (data[i] == ' ' || data[i] == '\t') {
@@ -682,12 +493,10 @@ func scanLinkRef(p *parser, data []byte, i int) (linkOffset, linkEnd, titleOffse
 		}
 	}
 
-	// optional title: any non-newline sequence enclosed in '"() alone on its line
 	if i+1 < len(data) && (data[i] == '\'' || data[i] == '"' || data[i] == '(') {
 		i++
 		titleOffset = i
 
-		// look for EOL
 		for i < len(data) && data[i] != '\n' && data[i] != '\r' {
 			i++
 		}
@@ -697,7 +506,6 @@ func scanLinkRef(p *parser, data []byte, i int) (linkOffset, linkEnd, titleOffse
 			titleEnd = i
 		}
 
-		// step back
 		i--
 		for i > titleOffset && (data[i] == ' ' || data[i] == '\t') {
 			i--
@@ -711,51 +519,37 @@ func scanLinkRef(p *parser, data []byte, i int) (linkOffset, linkEnd, titleOffse
 	return
 }
 
-// The first bit of this logic is the same as (*parser).listItem, but the rest
-// is much simpler. This function simply finds the entire block and shifts it
-// over by one tab if it is indeed a block (just returns the line if it's not).
-// blockEnd is the end of the section in the input buffer, and contents is the
-// extracted text that was shifted over one tab. It will need to be rendered at
-// the end of the document.
 func scanFootnote(p *parser, data []byte, i, indentSize int) (blockStart, blockEnd int, contents []byte, hasBlock bool) {
 	if i == 0 || len(data) == 0 {
 		return
 	}
 
-	// skip leading whitespace on first line
 	for i < len(data) && data[i] == ' ' {
 		i++
 	}
 
 	blockStart = i
 
-	// find the end of the line
 	blockEnd = i
 	for i < len(data) && data[i-1] != '\n' {
 		i++
 	}
 
-	// get working buffer
 	var raw bytes.Buffer
 
-	// put the first line into the working buffer
 	raw.Write(data[blockEnd:i])
 	blockEnd = i
 
-	// process the following lines
 	containsBlankLine := false
 
 gatherLines:
 	for blockEnd < len(data) {
 		i++
 
-		// find the end of this line
 		for i < len(data) && data[i-1] != '\n' {
 			i++
 		}
 
-		// if it is an empty line, guess that it is part of this item
-		// and move on to the next line
 		if p.isEmpty(data[blockEnd:i]) > 0 {
 			containsBlankLine = true
 			blockEnd = i
@@ -764,18 +558,14 @@ gatherLines:
 
 		n := 0
 		if n = isIndented(data[blockEnd:i], indentSize); n == 0 {
-			// this is the end of the block.
-			// we don't want to include this last line in the index.
 			break gatherLines
 		}
 
-		// if there were blank lines before this one, insert a new one now
 		if containsBlankLine {
 			raw.WriteByte('\n')
 			containsBlankLine = false
 		}
 
-		// get rid of that first tab, write to buffer
 		raw.Write(data[blockEnd+n : i])
 		hasBlock = true
 
@@ -791,14 +581,6 @@ gatherLines:
 	return
 }
 
-//
-//
-// Miscellaneous helper functions
-//
-//
-
-// Test if a character is a punctuation symbol.
-// Taken from a private function in regexp in the stdlib.
 func ispunct(c byte) bool {
 	for _, r := range []byte("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~") {
 		if c == r {
@@ -808,36 +590,27 @@ func ispunct(c byte) bool {
 	return false
 }
 
-// Test if a character is a whitespace character.
 func isspace(c byte) bool {
 	return ishorizontalspace(c) || isverticalspace(c)
 }
 
-// Test if a character is a horizontal whitespace character.
 func ishorizontalspace(c byte) bool {
 	return c == ' ' || c == '\t'
 }
 
-// Test if a character is a vertical whitespace character.
 func isverticalspace(c byte) bool {
 	return c == '\n' || c == '\r' || c == '\f' || c == '\v'
 }
 
-// Test if a character is letter.
 func isletter(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
-// Test if a character is a letter or a digit.
-// TODO: check when this is looking for ASCII alnum and when it should use unicode
 func isalnum(c byte) bool {
 	return (c >= '0' && c <= '9') || isletter(c)
 }
 
-// Replace tab characters with spaces, aligning to the next TAB_SIZE column.
-// always ends output with a newline
 func expandTabs(out *bytes.Buffer, line []byte, tabSize int) {
-	// first, check for common cases: no tabs, or only tabs at beginning of line
 	i, prefix := 0, 0
 	slowcase := false
 	for i = 0; i < len(line); i++ {
@@ -851,7 +624,6 @@ func expandTabs(out *bytes.Buffer, line []byte, tabSize int) {
 		}
 	}
 
-	// no need to decode runes if all tabs are at the beginning of the line
 	if !slowcase {
 		for i = 0; i < prefix*tabSize; i++ {
 			out.WriteByte(' ')
@@ -860,8 +632,6 @@ func expandTabs(out *bytes.Buffer, line []byte, tabSize int) {
 		return
 	}
 
-	// the slow case: we need to count runes to figure out how
-	// many spaces to insert for each tab
 	column := 0
 	i = 0
 	for i < len(line) {
@@ -892,8 +662,6 @@ func expandTabs(out *bytes.Buffer, line []byte, tabSize int) {
 	}
 }
 
-// Find if a line counts as indented or not.
-// Returns number of characters the indent is (0 = not indented).
 func isIndented(data []byte, indentSize int) int {
 	if len(data) == 0 {
 		return 0
@@ -912,7 +680,6 @@ func isIndented(data []byte, indentSize int) int {
 	return indentSize
 }
 
-// Create a url-safe slug for fragments
 func slugify(in []byte) []byte {
 	if len(in) == 0 {
 		return in
