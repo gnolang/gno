@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
@@ -53,7 +54,7 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr("user1.gno")
 
-	pkgCoins := std.MustParseCoins("200000000ugnot").Add(send) // >= send.
+	pkgCoins := std.MustParseCoins(ugnot.ValueString(200000000)).Add(send) // >= send.
 	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
 	ctx := stdlibs.ExecContext{
 		ChainID:       "dev",
@@ -109,7 +110,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 		opt(&f)
 	}
 
-	directives, pkgPath, resWanted, errWanted, rops, maxAlloc, send := wantedFromComment(path)
+	directives, pkgPath, resWanted, errWanted, rops, stacktraceWanted, maxAlloc, send := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
@@ -124,6 +125,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	store := TestStore(rootDir, "./files", stdin, stdout, stderr, mode)
 	store.SetLogStoreOps(true)
 	m := testMachineCustom(store, pkgPath, stdout, maxAlloc, send)
+	checkMachineIsEmpty := true
 
 	// TODO support stdlib groups, but make testing safe;
 	// e.g. not be able to make network connections.
@@ -259,6 +261,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						errstr = v.Sprint(m)
 					case *gno.PreprocessError:
 						errstr = v.Unwrap().Error()
+					case gno.UnhandledPanicError:
+						errstr = v.Error()
 					default:
 						errstr = strings.TrimSpace(fmt.Sprintf("%v", pnc))
 					}
@@ -279,7 +283,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 
 					// NOTE: ignores any gno.GetDebugErrors().
 					gno.ClearDebugErrors()
-					return nil // nothing more to do.
+					checkMachineIsEmpty = false // nothing more to do.
 				} else {
 					// record errors when errWanted is empty and pnc not nil
 					if pnc != nil {
@@ -307,6 +311,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						panic(fmt.Sprintf("fail on %s: got unexpected debug error(s): %v", path, gno.GetDebugErrors()))
 					}
 					// pnc is nil, errWanted empty, no gno debug errors
+					checkMachineIsEmpty = false
 				}
 			case "Output":
 				// panic if got unexpected error
@@ -372,24 +377,51 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						}
 					}
 				}
+			case "Stacktrace":
+				if stacktraceWanted != "" {
+					var stacktrace string
+
+					switch pnc.(type) {
+					case gno.UnhandledPanicError:
+						stacktrace = m.ExceptionsStacktrace()
+					default:
+						stacktrace = m.Stacktrace().String()
+					}
+
+					if !strings.Contains(stacktrace, stacktraceWanted) {
+						diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+							A:        difflib.SplitLines(stacktraceWanted),
+							B:        difflib.SplitLines(stacktrace),
+							FromFile: "Expected",
+							FromDate: "",
+							ToFile:   "Actual",
+							ToDate:   "",
+							Context:  1,
+						})
+						panic(fmt.Sprintf("fail on %s: diff:\n%s\n", path, diff))
+					}
+				}
+				checkMachineIsEmpty = false
 			default:
-				return nil
+				checkMachineIsEmpty = false
 			}
 		}
 	}
 
-	// Check that machine is empty.
-	err = m.CheckEmpty()
-	if err != nil {
-		if f.logger != nil {
-			f.logger("last state: \n", m.String())
+	if checkMachineIsEmpty {
+		// Check that machine is empty.
+		err = m.CheckEmpty()
+		if err != nil {
+			if f.logger != nil {
+				f.logger("last state: \n", m.String())
+			}
+			panic(fmt.Sprintf("fail on %s: machine not empty after main: %v", path, err))
 		}
-		panic(fmt.Sprintf("fail on %s: machine not empty after main: %v", path, err))
 	}
 	return nil
 }
 
-func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops string, maxAlloc int64, send std.Coins) {
+func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops, stacktrace string, maxAlloc int64, send std.Coins) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -431,6 +463,10 @@ func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops s
 			rops = strings.TrimPrefix(text, "Realm:\n")
 			rops = strings.TrimSpace(rops)
 			directives = append(directives, "Realm")
+		} else if strings.HasPrefix(text, "Stacktrace:\n") {
+			stacktrace = strings.TrimPrefix(text, "Stacktrace:\n")
+			stacktrace = strings.TrimSpace(stacktrace)
+			directives = append(directives, "Stacktrace")
 		} else {
 			// ignore unexpected.
 		}

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
 )
 
 func TestReadOnlyPublicMethods(t *testing.T) {
@@ -35,9 +36,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 			{"BalanceOf(carl)", 0, func() uint64 { return BalanceOf("FOO", carl) }},
 		}
 		for _, tc := range tests {
-			if tc.fn() != tc.balance {
-				t.Errorf("%s: have: %d want: %d", tc.name, tc.fn(), tc.balance)
-			}
+			uassert.Equal(t, tc.balance, tc.fn(), "balance does not match")
 		}
 	}
 
@@ -57,9 +56,7 @@ func TestReadOnlyPublicMethods(t *testing.T) {
 			{"BalanceOf(carl)", 10_000, func() uint64 { return BalanceOf("FOO", carl) }},
 		}
 		for _, tc := range tests {
-			if tc.fn() != tc.balance {
-				t.Errorf("%s: have: %d want: %d", tc.name, tc.fn(), tc.balance)
-			}
+			uassert.Equal(t, tc.balance, tc.fn(), "balance does not match")
 		}
 	}
 }
