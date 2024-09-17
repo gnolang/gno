@@ -625,11 +625,12 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 	ctx = ctx.WithEventLogger(NewEventLogger())
 
 	msgLogs := make([]string, 0, len(msgs))
-
 	data := make([]byte, 0, len(msgs))
-	err := error(nil)
 
-	events := []Event{}
+	var (
+		err    error
+		events []Event
+	)
 
 	// NOTE: GasWanted is determined by ante handler and GasUsed by the GasMeter.
 	for i, msg := range msgs {
@@ -660,6 +661,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 				fmt.Sprintf("msg:%d,success:%v,log:%s,events:%v",
 					i, false, msgResult.Log, events))
 			err = msgResult.Error
+			events = nil
 			break
 		}
 
@@ -667,7 +669,10 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 			fmt.Sprintf("msg:%d,success:%v,log:%s,events:%v",
 				i, true, msgResult.Log, events))
 	}
-	events = append(events, ctx.EventLogger().Events()...)
+
+	if err == nil {
+		events = append(events, ctx.EventLogger().Events()...)
+	}
 
 	result.Error = ABCIError(err)
 	result.Data = data
