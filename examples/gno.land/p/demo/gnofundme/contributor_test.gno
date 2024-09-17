@@ -9,20 +9,21 @@ import (
 
 func TestNewContributor(t *testing.T) {
 	user := NewUser("User", "", testutils.TestAddress("user"))
-	amount := uint(500)
+	amount := int64(500)
 	display := true
-	contributor := NewContributor(user, amount, display)
+	date := time.Unix(time.Now().Unix(), 0)
+	contributor := NewContributor(user, date, amount, display)
 
 	if contributor.GetUser() != user {
 		t.Errorf("Expected contributor user to be %s, got %s", user, contributor.GetUser())
 	}
 
-	if contributor.GetDate().IsZero() {
+	if contributor.Date.IsZero() {
 		t.Error("Expected contributor date to be non-zero")
 	}
 
-	if contributor.GetAmount() != amount {
-		t.Errorf("Expected contributor amount to be %d, got %d", amount, contributor.GetAmount())
+	if contributor.Amount != amount {
+		t.Errorf("Expected contributor amount to be %d, got %d", amount, contributor.Amount)
 	}
 
 	if contributor.GetDisplay() != display {

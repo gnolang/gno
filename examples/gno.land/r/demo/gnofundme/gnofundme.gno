@@ -15,6 +15,8 @@ import (
 var (
 	campaigns      *avl.Tree
 	users          *avl.Tree
+	banker         std.Banker
+	balance        int64
 	campaignPrefix = "/r/demo/gnofundme:"
 	campaignsTotal = make(map[string]int64)
 )
@@ -22,6 +24,8 @@ var (
 func init() {
 	campaigns = avl.NewTree()
 	users = avl.NewTree()
+	banker = std.GetBanker(std.BankerTypeRealmIssue)
+	// banker.IssueCoin(std.CurrentRealm().Addr(), "ugnot", 350000000)
 }
 
 func NewUser(name string, email string) string {
@@ -110,7 +114,7 @@ func AddContributor(campaignId string, display bool) string {
 	campaign := camp.(*GFMpkg.Campaign)
 	// Verfiy that the dates are correct
 	if time.Now().Unix() < campaign.Begin.Unix() {
-		panic(ufmt.Sprintf("%d, %d,the campaign didn't start yet", time.Now().Unix(), campaign.Begin.Unix())) // added the execution date and the beginning date in unix format to the error message to do verfications, sometimes the execution time is the same even when testing several minutes after!!!
+		panic(ufmt.Sprintf("Now: %d, Begin: %d,the campaign didn't start yet", time.Now().Unix(), campaign.Begin.Unix())) // added the execution date and the beginning date in unix format to the error message to do verfications, sometimes the execution time is the same even when testing several minutes after!!!
 	}
 	if time.Now().Unix() > campaign.Deadline.Unix() {
 		panic("the campaign is over")
@@ -157,6 +161,43 @@ func IsUserRegistered(userAddress string) bool {
 	return ok
 }
 
+func Withdraw(campaignId string) {
+	// get the campaign if it exists
+	camp, ok := campaigns.Get(campaignId)
+	if !ok {
+		panic("campaign not found")
+	}
+
+	campaign := camp.(*GFMpkg.Campaign)
+	// get the user address
+	callerAddress := std.GetOrigCaller()
+
+	// verify that the user is the owner of the campaign
+	if callerAddress != campaign.Owner.GetAddress() {
+		panic("you are not the owner of the campaign")
+	}
+
+	// verify that the campaign is over
+	if time.Now().Unix() < campaign.Deadline.Unix() {
+		panic("the campaign is not over yet")
+	}
+
+	// XXX TO BE DISCUSSED: the funds can be withdrawn even if the goal is not reached or not?
+	// verify that the campaign is successful
+	// if campaign.Current < campaign.Goal {
+	// 	panic("the campaign is not successful")
+	// }
+
+	// get the beneficiary address
+	beneficiaryAddress := campaign.Beneficiary.GetAddress()
+	// get the amount to withdraw
+	amount := campaignsTotal[campaignId]
+	campaignsTotal[campaignId] = 0
+	// transfer the amount to the beneficiary
+	banker.SendCoins(std.CurrentRealm().Addr(), beneficiaryAddress, std.Coins{std.NewCoin("ugnot", amount)})
+	std.Emit("Withdraw", "withdraw", "withdrawn successfully")
+}
+
 func Render(path string) string {
 	if path == "" {
 		return renderHomePage()
@@ -172,16 +213,14 @@ func Render(path string) string {
 }
 
 func renderHomePage() string {
-	banker := std.GetBanker(std.BankerTypeReadonly)
-	// banker.IssueCoin(std.CurrentRealm().Addr(), "ugnot", 350000000)
-	balance := banker.GetCoins(std.CurrentRealm().Addr())
+	balance = banker.GetCoins(std.CurrentRealm().Addr()).AmountOf("ugnot")
 	// define empty buffer
 	var b bytes.Buffer
 
 	// users counter
 	userc := 1
 	b.WriteString("# Welcome to GnoFundMe\n\n")
-	b.WriteString(ufmt.Sprintf("Balance: %s.\n", balance.String()))
+	b.WriteString(ufmt.Sprintf("Balance: %d ugnot.\n", balance))
 
 	b.WriteString("# Campaigns :\n\n")
 	campaigns.Iterate("", "", func(key string, value interface{}) bool {
