@@ -30,14 +30,14 @@ const (
 	machineIDMoveLength = SequenceBits
 	timestampMoveLength = MachineIDBits + SequenceBits
 
-	startTime uint32 = 1226354400 // 10 Nov 2008 23:00:00 UTC in seconds (Snowflake epoch)
+	startTime uint64 = 1226354400000 // 10 Nov 2008 23:00:00 UTC in ms (Snowflake epoch)
 )
 
 // UUID struct for generating unique identifiers.
 type UUID struct {
 	machineID     uint64
 	sequence      uint16
-	startTime     uint32
+	startTime     uint64
 	lastTimestamp uint64
 	entropy       *entropy.Instance
 }
@@ -55,7 +55,7 @@ func NewUUID() *UUID {
 func (u *UUID) ID() uint64 {
 	current := uint64(u.getEntropy())
 
-	elapsedTime := (current - uint64(u.startTime)) % MaxTimestamp
+	elapsedTime := (current - u.startTime) % MaxTimestamp
 	u.lastTimestamp = current
 
 	id := (uint64(elapsedTime) << timestampMoveLength) |
