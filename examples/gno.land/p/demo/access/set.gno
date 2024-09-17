@@ -16,32 +16,44 @@ type Set struct {
 // New returns a Set object initialized with the caller as the unique authorized address
 // It is recommended to use this function in the `init()` function of the calling realm
 func New() *Set {
-	a := &Set{
+	s := &Set{
 		ownable.New(),
 		avl.NewTree(),
 	}
 
 	// Add owner to auth list
-	a.authorized.Set(a.Owner().String(), struct{}{})
-	return a
+	s.authorized.Set(a.Owner().String(), struct{}{})
+	return s
 }
 
 // NewWithAddress returns a Set object initialized with the provided address as authorized
 func NewWithAddress(addr std.Address) *Set {
-	a := &Set{
+	s := &Set{
 		ownable.NewWithAddress(addr),
 		avl.NewTree(),
 	}
 
 	// Add owner to the set
-	a.authorized.Set(a.Owner().String(), struct{}{})
-	return a
+	s.authorized.Set(a.Owner().String(), struct{}{})
+	return s
 }
 
-//// List returns the AVL tree containing all the authorized addresses
-//func (s Set) List() avl.Tree {
-//	return *s.authorized
-//}
+// List returns a list containing all the authorized addresses
+func (s Set) List() []std.Address {
+	var addrs []std.Address
+	if s.authorized.Size() == 0 {
+		return addrs
+	}
+	// todo test
+	s.authorized.Iterate("", "", func(key string, value interface{}) bool {
+		if value == struct{}{} {
+			addrs = append(addrs, std.Address(key))
+		}
+		return false
+	})
+
+	return addrs
+}
 
 // HasAccess checks if the provided address is in the list of authorized ones.
 func (s Set) HasAccess(addr std.Address) bool {
@@ -57,7 +69,7 @@ func (s Set) CallerHasAccess() bool {
 // If not, it panics indicating restricted access.
 func (s *Set) AssertCallerHasAccess() {
 	if !s.CallerHasAccess() {
-		panic("access: caller not in set")
+		panic("access: caller is not authorized")
 	}
 }
 
@@ -65,39 +77,35 @@ func (s *Set) AssertCallerHasAccess() {
 // It requires the caller or prevRealm to be authorized, otherwise, it panics.
 func (s *Set) Add(addr std.Address) {
 	if s.HasAccess(addr) {
-		// XXX: Consider panicking or handling duplicate addition differently.
-		return
+		panic("access: addr already has access")
 	}
-	s.addrs = append(s.addrs, addr)
-}
 
-// ForceDel removes an address from the list of authorized addresses.
-// It won't panic if there is only one address.
-// It requires the caller or prevRealm to be authorized, otherwise, it panics.
-func (s *Set) ForceDel(addr std.Address) (success bool) {
-	for i, entry := range s.addrs {
-		if entry == addr {
-			s.addrs = append(s.addrs[:i], s.addrs[i+1:]...)
-			return true
-		}
-	}
-	return false
+	s.authorized.Set(addr.String(), struct{}{})
 }
 
 // Del removes an address from the list of authorized addresses.
 // It requires the caller or prevRealm to be authorized, otherwise, it panics.
-func (s *Set) Del(addr std.Address) (success bool) {
-	if len(s.addrs) == 0 {
-		panic("should not happen")
+func (s *Set) Del(addr std.Address) error {
+	if s.authorized.Size() == 0 {
+		return ErrNoMembersInSet
 	}
 
-	// XXX: should we prevent deleting self?
-
-	// Prevent deleting the last authorized address.
-	if len(s.addrs) == 1 {
-		panic("cannot have no authorized address.")
+	if s.authorized.Size() == 1 {
+		return ErrLastMember
 	}
+
 	return s.ForceDel(addr)
+}
+
+// ForceDel removes an address from the list of authorized addresses.
+// It will not panic if the last member of the set is removed
+// WARN: In this case, the ownership of the set is fully removed.
+func (s *Set) ForceDel(addr std.Address) error {
+	if _, removed := s.authorized.Remove(addr.String()); !removed {
+		return ErrNotInSet
+	}
+
+	return nil
 }
 
 // ReplaceAll removes all existing authorized addresses and replaces them with a new one.
