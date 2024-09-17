@@ -5,8 +5,8 @@
 // to standard UUID format strings, making them compatible with systems
 // requiring UUIDs.
 // Add import "gno.land/p/demo/entropy" to use the entropy package. For of the pseudo-random number generator.
-// TimestampLength is 32-bit because entropy.Value() returns a uint32.
-// 32 it's the maximum value that can be returned "4 294 967 295", It's represent 136 years (4 294 967 295 secondes)
+// TimestampLength is 42-bit.
+// 42 it's the maximum value that can be returned "2^42", It's represent 139 years (2^42 secondes)
 
 package uuid
 
@@ -20,15 +20,15 @@ import (
 )
 
 const (
-	TimestampLength uint8  = 32
-	MachineIDLength uint64 = 10
-	SequenceLength  uint64 = 12
-	MaxSequence     uint16 = 1<<SequenceLength - 1
-	MaxTimestamp    uint32 = 1<<TimestampLength - 1
-	MaxMachineID    uint64 = 1<<MachineIDLength - 1
+	TimestampBits uint8  = 42
+	MachineIDBits uint64 = 10
+	SequenceBits  uint64 = 12
+	MaxSequence   uint16 = 1<<SequenceBits - 1
+	MaxTimestamp  uint64 = 1<<TimestampBits - 1
+	MaxMachineID  uint64 = 1<<MachineIDBits - 1
 
-	machineIDMoveLength = SequenceLength
-	timestampMoveLength = MachineIDLength + SequenceLength
+	machineIDMoveLength = SequenceBits
+	timestampMoveLength = MachineIDBits + SequenceBits
 
 	startTime uint32 = 1226354400 // 10 Nov 2008 23:00:00 UTC in seconds (Snowflake epoch)
 )
@@ -39,7 +39,6 @@ type UUID struct {
 	sequence      uint16
 	startTime     uint32
 	lastTimestamp uint32
-	counter       int64
 	entropy       *entropy.Instance
 }
 
@@ -55,7 +54,7 @@ func NewUUID() *UUID {
 // ID generates
 func (u *UUID) ID() uint64 {
 	current := u.getEntropy()
-	elapsedTime := current - u.startTime
+	elapsedTime := uint64(current - u.startTime)
 	u.lastTimestamp = current
 
 	if elapsedTime < 0 || elapsedTime > MaxTimestamp {
@@ -88,7 +87,7 @@ func (u *UUID) SetMachineID() {
 	u.machineID = machineID
 }
 
-func IDToUUID(id uint64) string {
+func UUIDIntToUUIDString(id uint64) string {
 	bytes := make([]byte, 16)
 
 	// Copy transformed ID into the second half of the array
