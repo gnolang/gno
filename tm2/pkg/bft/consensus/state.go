@@ -599,10 +599,10 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 		// priv_val tracks LastSig
 
 		// close wal now that we're done writing to it
-		// cs.mtx.Lock()
+		cs.mtx.Lock()
 		cs.wal.Stop()
 		cs.wal.Wait()
-		// cs.mtx.Unlock()
+		cs.mtx.Unlock()
 		close(cs.done)
 	}
 
