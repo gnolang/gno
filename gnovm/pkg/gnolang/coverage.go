@@ -18,14 +18,15 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
+// color scheme for coverage report
 const (
 	colorReset  = "\033[0m"
-	colorOrange = "\033[38;5;208m"
-	colorRed    = "\033[31m"
-	colorGreen  = "\033[32m"
-	colorYellow = "\033[33m"
-	colorWhite  = "\033[37m"
-	boldText    = "\033[1m"
+	colorOrange = "\033[38;5;208m" // orange indicates a number of hits
+	colorRed    = "\033[31m"       // red indicates no hits
+	colorGreen  = "\033[32m"       // green indicates full coverage, or executed lines
+	colorYellow = "\033[33m"       // yellow indicates partial coverage, or executable but not executed lines
+	colorWhite  = "\033[37m"       // white indicates non-executable lines
+	boldText    = "\033[1m"        // bold text
 )
 
 // CoverageData stores code coverage information
@@ -56,6 +57,8 @@ func NewCoverageData(rootDir string) *CoverageData {
 	}
 }
 
+// SetExecutableLines sets the executable lines for a given file path in the coverage data.
+// It updates the ExecutableLines map for the given file path with the provided executable lines.
 func (c *CoverageData) SetExecutableLines(filePath string, executableLines map[int]bool) {
 	cov, exists := c.Files[filePath]
 	if !exists {
@@ -70,6 +73,9 @@ func (c *CoverageData) SetExecutableLines(filePath string, executableLines map[i
 	c.Files[filePath] = cov
 }
 
+// updateHit updates the hit count for a given line in the coverage data.
+// This function is used to update the hit count for a specific line in the coverage data.
+// It increments the hit count for the given line in the HitLines map for the specified file path.
 func (c *CoverageData) updateHit(pkgPath string, line int) {
 	if !c.isValidFile(pkgPath) {
 		return
@@ -119,6 +125,8 @@ func (c *CoverageData) addFile(filePath string, totalLines int) {
 
 // region Reporting
 
+// ViewFiles displays the coverage information for files matching the given pattern.
+// It shows hit counts if showHits is true.
 func (c *CoverageData) ViewFiles(pattern string, showHits bool, io commands.IO) error {
 	matchingFiles := c.findMatchingFiles(pattern)
 	if len(matchingFiles) == 0 {
@@ -139,8 +147,12 @@ func (c *CoverageData) ViewFiles(pattern string, showHits bool, io commands.IO) 
 func (c *CoverageData) viewSingleFileCoverage(filePath string, showHits bool, io commands.IO) error {
 	realPath, err := c.findAbsoluteFilePath(filePath)
 	if err != nil {
-		// skipping invalid file paths
-		return nil
+		return nil // ignore invalid file paths
+	}
+
+	coverage, exists := c.Files[filePath]
+	if !exists {
+		return fmt.Errorf("no coverage data for file %s", filePath)
 	}
 
 	file, err := os.Open(realPath)
@@ -149,50 +161,60 @@ func (c *CoverageData) viewSingleFileCoverage(filePath string, showHits bool, io
 	}
 	defer file.Close()
 
+	io.Printfln("%s%s%s:", boldText, filePath, colorReset)
+
+	return c.printFileContent(file, coverage, showHits, io)
+}
+
+func (c *CoverageData) printFileContent(file *os.File, coverage FileCoverage, showHits bool, io commands.IO) error {
 	scanner := bufio.NewScanner(file)
 	lineNumber := 1
-	coverage, exists := c.Files[filePath]
-	if !exists {
-		return fmt.Errorf("no coverage data for file %s", filePath)
-	}
 
-	io.Printfln("%s%s%s:", boldText, filePath, colorReset)
 	for scanner.Scan() {
 		line := scanner.Text()
 		hitCount, covered := coverage.HitLines[lineNumber]
 
-		var hitInfo string
-		if showHits {
-			if covered {
-				hitInfo = fmt.Sprintf("%s%d%s ", colorOrange, hitCount, colorReset)
-			} else {
-				hitInfo = strings.Repeat(" ", 2)
-			}
-		}
+		lineInfo := c.formatLineInfo(lineNumber, line, hitCount, covered, coverage.ExecutableLines[lineNumber], showHits)
+		io.Printfln(lineInfo)
 
-		lineNumStr := fmt.Sprintf("%4d", lineNumber)
-
-		if showHits {
-			if covered {
-				io.Printfln("%s%s%s %-4s %s%s%s", colorGreen, lineNumStr, colorReset, hitInfo, colorGreen, line, colorReset)
-			} else if coverage.ExecutableLines[lineNumber] {
-				io.Printfln("%s%s%s %-4s %s%s%s", colorYellow, lineNumStr, colorReset, hitInfo, colorYellow, line, colorReset)
-			} else {
-				io.Printfln("%s%s%s %-4s %s%s", colorWhite, lineNumStr, colorReset, hitInfo, line, colorReset)
-			}
-		} else {
-			if covered {
-				io.Printfln("%s%s %s%s", colorGreen, lineNumStr, line, colorReset)
-			} else if coverage.ExecutableLines[lineNumber] {
-				io.Printfln("%s%s %s%s", colorYellow, lineNumStr, line, colorReset)
-			} else {
-				io.Printfln("%s%s %s%s", colorWhite, lineNumStr, line, colorReset)
-			}
-		}
 		lineNumber++
 	}
 
 	return scanner.Err()
+}
+
+func (c *CoverageData) formatLineInfo(lineNumber int, line string, hitCount int, covered, executable, showHits bool) string {
+	lineNumStr := fmt.Sprintf("%4d", lineNumber)
+
+	color := c.getLineColor(covered, executable)
+
+	hitInfo := c.getHitInfo(hitCount, covered, showHits)
+
+	format := "%s%s%s %s%s%s%s"
+	return fmt.Sprintf(format, color, lineNumStr, colorReset, hitInfo, color, line, colorReset)
+}
+
+func (c *CoverageData) getLineColor(covered, executable bool) string {
+	switch {
+	case covered:
+		return colorGreen
+	case executable:
+		return colorYellow
+	default:
+		return colorWhite
+	}
+}
+
+func (c *CoverageData) getHitInfo(hitCount int, covered, showHits bool) string {
+	if !showHits {
+		return ""
+	}
+
+	if covered {
+		return fmt.Sprintf("%s%-4d%s ", colorOrange, hitCount, colorReset)
+	}
+
+	return strings.Repeat(" ", 5)
 }
 
 func (c *CoverageData) findMatchingFiles(pattern string) []string {
@@ -512,6 +534,8 @@ func isExecutableLine(node ast.Node) bool {
 	}
 }
 
+// detectExecutableLines analyzes the given source code content and returns a map
+// of line numbers to boolean values indicating whether each line is executable.
 func detectExecutableLines(content string) (map[int]bool, error) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, "", content, parser.ParseComments)

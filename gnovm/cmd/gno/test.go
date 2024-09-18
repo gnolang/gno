@@ -296,6 +296,7 @@ func gnoTestPkg(
 		var gnoPkgPath string
 		modfile, err := gnomod.ParseAt(pkgPath)
 		if err == nil {
+			// TODO: use pkgPathFromRootDir?
 			gnoPkgPath = modfile.Module.Mod.Path
 			coverageData.PkgPath = gnoPkgPath
 		} else {
@@ -430,6 +431,7 @@ func gnoTestPkg(
 	}
 
 	if cfg.coverage {
+		// TODO: consider cache
 		if cfg.viewFile != "" {
 			err := coverageData.ViewFiles(cfg.viewFile, cfg.showHits, io)
 			if err != nil {

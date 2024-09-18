@@ -13,6 +13,7 @@ import (
 )
 
 func TestCoverageDataUpdateHit(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		initialData     *CoverageData
@@ -69,6 +70,7 @@ func TestCoverageDataUpdateHit(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			// Set executable lines
@@ -94,6 +96,7 @@ func TestCoverageDataUpdateHit(t *testing.T) {
 }
 
 func TestAddFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		pkgPath       string
@@ -136,6 +139,7 @@ func TestAddFile(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			tt.initialData.addFile(tt.pkgPath, tt.totalLines)
@@ -155,6 +159,7 @@ func TestAddFile(t *testing.T) {
 }
 
 func TestIsTestFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		pkgPath string
 		want    bool
@@ -166,6 +171,7 @@ func TestIsTestFile(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.pkgPath, func(t *testing.T) {
 			t.Parallel()
 			got := isTestFile(tt.pkgPath)
@@ -238,6 +244,7 @@ func (m *mockNode) SetColumn(c int)                           {}
 var _ Node = &mockNode{}
 
 func TestRecordCoverage(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		pkgPath         string
@@ -318,6 +325,7 @@ func TestRecordCoverage(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -343,6 +351,7 @@ func TestRecordCoverage(t *testing.T) {
 }
 
 func TestToJSON(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		coverageData *CoverageData
@@ -414,6 +423,7 @@ func TestToJSON(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			jsonData, err := tt.coverageData.ToJSON()
@@ -457,6 +467,7 @@ func TestFindAbsoluteFilePath(t *testing.T) {
 
 	c := NewCoverageData(rootDir)
 
+	t.Parallel()
 	tests := []struct {
 		name         string
 		filePath     string
@@ -484,6 +495,7 @@ func TestFindAbsoluteFilePath(t *testing.T) {
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			actualPath, err := c.findAbsoluteFilePath(tt.filePath)
@@ -540,6 +552,7 @@ func TestFindAbsoluteFilePathCache(t *testing.T) {
 }
 
 func TestDetectExecutableLines(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		content string
@@ -611,6 +624,7 @@ It should result in an error`,
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := detectExecutableLines(tt.content)
