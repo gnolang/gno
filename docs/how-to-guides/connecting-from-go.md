@@ -15,7 +15,7 @@ For this guide, we will build a small Go app that will:
 
 ## Prerequisites
 - A local gno.land keypair generated using
-[gnokey](../getting-started/local-setup/working-with-key-pairs.md)
+[gnokey](../gno-tooling/cli/gnokey/working-with-key-pairs.md)
 
 ## Setup
 
@@ -223,11 +223,21 @@ message type. We will use the wrapped ugnot realm for this example, wrapping
 `1000000ugnot` (1 $GNOT) for demonstration purposes.
 
 ```go
-msg := gnoclient.MsgCall{
-    PkgPath:  "gno.land/r/demo/wugnot", // wrapped ugnot realm path
-    FuncName: "Deposit",                // function to call
-    Args:     nil,                      // arguments in string format
-    Send:     "1000000ugnot",           // coins to send along with transaction
+import (
+    ...
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
+	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/gno/tm2/pkg/std"
+)
+```
+
+```go
+msg := vm.MsgCall{
+    Caller:  addr,                                                    // address of the caller (signer)
+    PkgPath: "gno.land/r/demo/wugnot",                                // wrapped ugnot realm path
+    Func:    "Deposit",                                               // function to call
+    Args:    nil,                                                     // arguments in string format
+    Send:    std.Coins{{Denom: ugnot.Denom, Amount: int64(1000000)}}, // coins to send along with transaction
 }
 ```
 

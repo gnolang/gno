@@ -27,6 +27,7 @@ func main() {
 }
 
 // Output:
+// func(n int)( int){...}
 // 1
-// ( main.op)
+// (func(n int)( int){...} main.op)
 // -1
