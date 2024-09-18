@@ -236,7 +236,7 @@ func TestCallMultiple_Sponsor_Integration(t *testing.T) {
 	// Initialize in-memory key storage
 	keybase := keys.NewInMemory()
 
-	// Create signer accounts for the sponsor and 2 sponsorees
+	// Create signer accounts for the sponsor and 2 sponsoree
 	sponsor := newInMemorySigner(t, keybase, integration.DefaultAccount_Seed, integration.DefaultAccount_Name)
 	sponsoree1 := newInMemorySigner(t, keybase, generateMnemonic(t), "sponsoree1")
 	sponsoree2 := newInMemorySigner(t, keybase, generateMnemonic(t), "sponsoree2")
@@ -310,7 +310,7 @@ func TestCallMultiple_Sponsor_Integration(t *testing.T) {
 
 	msg2 := vm.MsgCall{
 		Caller:  sponsoree1Info.GetAddress(),
-		PkgPath: "gno.land/r/demo/deep/very/deep",
+		PkgPath: "gno.land/r/demo/tests",
 		Func:    "Render",
 		Args:    []string{"goodbye sponsoree1"},
 	}
@@ -345,7 +345,7 @@ func TestCallMultiple_Sponsor_Integration(t *testing.T) {
 	sponsorBefore, _, err := sponsorClient.QueryAccount(sponsorInfo.GetAddress())
 	require.NoError(t, err)
 
-	// Sponsor executes the transaction which received from sponsoree
+	// Sponsor executes the transaction which received from the sponsoree
 	res, err := sponsorClient.ExecuteSponsorTransaction(*sponsorTx, sponsorBefore.AccountNumber, sponsorBefore.Sequence)
 	require.NoError(t, err)
 
