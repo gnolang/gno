@@ -325,7 +325,7 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 		return ErrInvalidPkgPath(err.Error())
 	}
 	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
-		return ErrInvalidPkgPath("package already exists: " + pkgPath)
+		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
 	}
 	if gno.ReGnoRunPath.MatchString(pkgPath) {
 		return ErrInvalidPkgPath("reserved package name: " + pkgPath)

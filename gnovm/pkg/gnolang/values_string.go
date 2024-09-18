@@ -170,6 +170,9 @@ func (fv *FuncValue) String() string {
 	if fv.Type == nil {
 		return fmt.Sprintf("incomplete-func ?%s(?)?", name)
 	}
+	if name == "" {
+		return fmt.Sprintf("%s{...}", fv.Type.String())
+	}
 	return name
 }
 
