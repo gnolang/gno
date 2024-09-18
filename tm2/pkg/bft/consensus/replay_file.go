@@ -55,6 +55,8 @@ func (cs *ConsensusState) ReplayFile(file string, console bool) error {
 	pb := newPlayback(file, fp, cs, cs.state.Copy())
 	defer pb.fp.Close() //nolint: errcheck
 
+	cs.Logger.Debug("Replay: playing back from file", "filename", file)
+
 	var nextN int // apply N msgs in a row
 	var msg *walm.TimedWALMessage
 	var meta *walm.MetaMessage
