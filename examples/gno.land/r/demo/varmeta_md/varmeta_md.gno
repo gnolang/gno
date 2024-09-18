@@ -78,7 +78,7 @@ func worxDAO() string {
 	return runMarkdown(markdown)
 }
 
-func Render(path string) string {
+func RenderHome() string {
 	out := introSection()
 	out += discoverLinks()
 	out += playgroundSection()
@@ -89,6 +89,136 @@ func Render(path string) string {
 	out += "\n---\n"
 	out += SocialsAndQuotes()
 	out += "\n---\n"
-	out += runMarkdown("**This is a testnet.** Package names are not guaranteed to be available for production.")
+	out += runMarkdown("**This is a testnet.** Package names are not guaranteed to be available for production.\n")
+	out += runMarkdown("**This page was built using Markdown. Check more examples [here](/r/demo/varmeta_md:example)**")
 	return out
+}
+
+func RenderExampleLists() string {
+	input := `
+# Unordered List
+
+* Item 1
+    * Subitem 1.1
+    	* Subitem 1.1.1
+* Item 2
+    * Subitem 2.1
+    	* Subitem 2.1.1
+
+
+# Ordered List
+
+1. First item
+   1. Subitem 1.1
+      1. Subitem 1.1.1
+2. Second item
+   1. Subitem 2.1
+      1. Subitem 2.1.1
+`
+
+	out := runMarkdown(input)
+
+	return out
+}
+
+func RenderExampleHeader() string {
+	input := `
+# Heading Level 1
+## Heading Level 2
+### Heading Level 3
+#### Heading Level 4
+##### Heading Level 5
+###### Heading Level 6
+`
+	out := runMarkdown(input)
+	return out
+}
+
+func RenderExampleCode() string {
+	input := `# Code Block
+Here is an inline code example: ` + "`" + `fmt.Println("Hello Gno!")` + "`" + `.
+
+` + "``` go\n" + `func foo() bool {
+	return true;
+	}
+` + "```\n"
+
+	out := runMarkdown(input)
+
+	return out
+}
+
+func RenderExampleBlockquote() string {
+	input := `# Blockquote #
+> This is a blockquote.
+
+> Here is another blockquote with **bold** and _italic_ text.
+`
+
+	out := runMarkdown(input)
+
+	return out
+}
+
+func RenderExampleLinkAndImage() string {
+	input := `
+# Link And Image
+Here is a [link to VarMeta](https://www.var-meta.com/).
+![Gno logo](https://www.var-meta.com/favicon-16x16.png)
+`
+
+	out := runMarkdown(input)
+
+	return out
+}
+
+func RenderExampleEmphasis() string {
+	input := `# Emphasis
+This is **bold** text, and this is _italic_ text.
+`
+	out := runMarkdown(input)
+	return out
+}
+
+func RenderExampleTable() string {
+	// Markdown string containing a table
+	input := `# Table
+| Header 1 | Header 2 |
+| -------- | -------- |
+| Cell 1   | Cell 2   |
+| Cell 3   | Cell 4   |
+`
+	// Call runMarkdown to convert the input Markdown to HTML
+	out := runMarkdown(input)
+
+	// Return the rendered HTML
+	return out
+}
+
+func RenderExample() string {
+	out := RenderExampleHeader()
+	out += "\n---\n"
+	out += RenderExampleLists()
+	out += "\n---\n"
+	out += RenderExampleLinkAndImage()
+	out += "\n---\n"
+	out += RenderExampleCode()
+	out += "\n---\n"
+	out += RenderExampleEmphasis()
+	out += "\n---\n"
+	out += RenderExampleBlockquote()
+	out += "\n---\n"
+	out += RenderExampleTable()
+	return out
+}
+
+func Render(path string) string {
+	switch {
+	case path == "":
+		return RenderHome()
+	case path == "example":
+		return RenderExample()
+	default:
+		return "404\n"
+	}
 }
