@@ -1,0 +1,39 @@
+# test for a bug involving printing stacktraces with missing statements;
+# when dumping out information for a test.
+
+loadpkg gno.land/p/demo/avl
+gnoland start
+
+! gnokey maketx addpkg -pkgdir $WORK -pkgpath gno.land/r/pkg1 -gas-fee 1000000ugnot -gas-wanted 10000000 -broadcast -chainid=tendermint_test test1
+
+stderr 'out of gas'
+
+
+-- pkg1.gno --
+package hello
+
+import (
+	"strconv"
+
+	"gno.land/p/demo/avl"
+)
+
+var hello avl.Tree
+
+var helloMap = make(map[string]string)
+
+func init() {
+	for i := 0; i < 1000; i++ {
+		s := strconv.Itoa(i)
+		hello.Set(s, "123")
+		helloMap[s] = "123"
+	}
+}
+
+func Render(s string) string {
+	if s == "map" {
+		return helloMap["100"]
+	}
+	res, _ := hello.Get("100")
+	return res.(string)
+}

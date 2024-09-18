@@ -479,9 +479,12 @@ func (m *Machine) Stacktrace() (stacktrace Stacktrace) {
 	nextStmtIndex := len(m.Stmts) - 1
 	for i := len(m.Frames) - 1; i >= 0; i-- {
 		if m.Frames[i].IsCall() {
-			stm := m.Stmts[nextStmtIndex]
-			bs := stm.(*bodyStmt)
-			stm = bs.Body[bs.NextBodyIndex-1]
+			var stm Stmt
+			if nextStmtIndex >= 0 {
+				stm = m.Stmts[nextStmtIndex]
+				bs := stm.(*bodyStmt)
+				stm = bs.Body[bs.NextBodyIndex-1]
+			}
 			calls = append(calls, StacktraceCall{
 				Stmt:  stm,
 				Frame: m.Frames[i],
