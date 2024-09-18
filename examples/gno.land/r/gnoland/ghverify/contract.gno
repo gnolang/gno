@@ -10,13 +10,17 @@ import (
 	"gno.land/p/demo/gnorkle/message"
 )
 
+// add an example agent
+// add example messages which the agent can send
+// update rendering to show possible verification requests :)
+
 const (
 	// The agent should send this value if it has verified the github handle.
 	verifiedResult = "OK"
 )
 
 var (
-	ownerAddress = std.GetOrigCaller()
+	ownerAddress = std.Address("g1le0nkphlasm4vftr8vd5rkr5644cq5lh3dl656")
 	oracle       *gnorkle.Instance
 	postHandler  postGnorkleMessageHandler
 
@@ -26,7 +30,7 @@ var (
 
 func init() {
 	oracle = gnorkle.NewInstance()
-	oracle.AddToWhitelist("", []string{string(ownerAddress)})
+	oracle.AddToWhitelist("", []string{ownerAddress.String()})
 }
 
 type postGnorkleMessageHandler struct{}
