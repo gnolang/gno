@@ -181,17 +181,13 @@ This is **bold** text, and this is _italic_ text.
 }
 
 func RenderExampleTable() string {
-	// Markdown string containing a table
 	input := `# Table
 | Header 1 | Header 2 |
 | -------- | -------- |
 | Cell 1   | Cell 2   |
 | Cell 3   | Cell 4   |
 `
-	// Call runMarkdown to convert the input Markdown to HTML
 	out := runMarkdown(input)
-
-	// Return the rendered HTML
 	return out
 }
 
