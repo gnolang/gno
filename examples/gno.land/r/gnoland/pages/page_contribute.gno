@@ -25,7 +25,7 @@ The Gno bounty program is a good way to find interesting challenges in Gno, and 
 
 Recommendations on participating in the gno.land Bounty Program:
 
-- Identify the bounty you want to work on, and join in the discussion on the issue for anything that is unclear; or where you want to more clearly define the work to be done. At this stage, you can also start working on an initial implementation in your local enviornment,.
+- Identify the bounty you want to work on, and join in the discussion on the issue for anything that is unclear; or where you want to more clearly define the work to be done. At this stage, you can also start working on an initial implementation in your local enviornment.
 - Once you have spent time on the code related to the bounty, we recommend submitting a 'draft' PR as soon as possible.
     - The draft PR doesn't indicate that the bounty has been assigned to you, others are free to work on other draft PRs for the bounty.
     - Make sure to reference the bounty issue on the PR description you're writing.
@@ -42,6 +42,7 @@ Don't fear your work being "stolen": if a submission is the result of multiple p
 
 - If Alice does most of the work and abandons it; then Bob comes around and finishes the job, then Bob's PR will be merged. But the core team will propose a split like 70% for Alice and 30% for Bob (depending, of course, on the relative effort undertaken by both).
 - If Alice makes a PR that does only 50% of the work outlined in the requirements for the original issue, she will get 50%. Someone can still come up and finish the job; and claim the remaining part.
+	- If you, for instance, cannot complete the entirety of the task or, as a non-developer, can only contribute a part of the specification/implementation, you may still be awarded a bounty for your input in the contribution.
 - If Alice makes a PR that aside from implementing what's required, also undertakes creating useful tools among the way, she may qualify for an "outstanding contribution"; and may be awarded up to 25% more of the original bounty's value. Or she may also ask if the team would be willing to offer a different bounty for the implementation of the tools.
 
 Participants in the gno.land Bounty Program must meet the legal Terms and Conditions referenced [here](https://docs.google.com/document/d/1aXrZ6japdAykB5FLmHCCeBZTo-2tbZQHSQi79ITaTK0).
@@ -65,11 +66,11 @@ t-shirt size | expected compensation
 _[XXL]_ \*   | $ 16000
 _[3XL]_ \*   | $ 32000
 
-[XS]: https://github.com/gnolang/gno/labels/bounty%2FXS
-[S]: https://github.com/gnolang/gno/labels/bounty%2FS
-[M]: https://github.com/gnolang/gno/labels/bounty%2FM
-[L]: https://github.com/gnolang/gno/labels/bounty%2FL
-[XL]: https://github.com/gnolang/gno/labels/bounty%2FXL
+[XS]:  https://github.com/gnolang/gno/labels/bounty%2FXS
+[S]:   https://github.com/gnolang/gno/labels/bounty%2FS
+[M]:   https://github.com/gnolang/gno/labels/bounty%2FM
+[L]:   https://github.com/gnolang/gno/labels/bounty%2FL
+[XL]:  https://github.com/gnolang/gno/labels/bounty%2FXL
 [XXL]: https://github.com/gnolang/gno/labels/bounty%2FXXL
 [3XL]: https://github.com/gnolang/gno/labels/bounty%2F3XL
 
@@ -102,5 +103,4 @@ There are a variety of ways to make your contributions count:
 To start, we recommend you create a PR in the Game of Realms [repository](https://github.com/gnolang/game-of-realms) to create your profile page for all your contributions.`
 
 	_ = b.NewPost("", path, title, body, "2024-09-05T00:00:00Z", nil, nil)
-
 }
