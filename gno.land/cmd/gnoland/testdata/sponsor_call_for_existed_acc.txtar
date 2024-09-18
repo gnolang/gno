@@ -41,7 +41,7 @@ stdout '}'
 ! stderr '.+' # Ensure no errors
 
 
-# Sponsoree creates the transaction (call to Render in echo package) 
+# Sponsoree creates the transaction (call to Mint in nft realm) 
 # Sponsor address is provided for sponsorship
 gnokey maketx call -pkgpath gno.land/r/demo/nft -chainid=tendermint_test -func Mint -gas-fee 1000000ugnot -gas-wanted 2000000 -sponsor=${USER_ADDR_sponsor} sponsoree
 cp stdout sponsor.tx
