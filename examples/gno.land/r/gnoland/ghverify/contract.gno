@@ -20,9 +20,9 @@ const (
 )
 
 var (
-	ownerAddress = std.Address("g1le0nkphlasm4vftr8vd5rkr5644cq5lh3dl656")
-	oracle       *gnorkle.Instance
-	postHandler  postGnorkleMessageHandler
+	ownable     *ownable.Ownable
+	oracle      *gnorkle.Instance
+	postHandler postGnorkleMessageHandler
 
 	handleToAddressMap = avl.NewTree()
 	addressToHandleMap = avl.NewTree()
@@ -30,12 +30,13 @@ var (
 
 func init() {
 	oracle = gnorkle.NewInstance()
-	oracle.AddToWhitelist("", []string{ownerAddress.String()})
+	ownable = ownable.NewWithAddress("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5") // @leohhhn
+	oracle.AddToWhitelist("", []string{ownable.Owner().String()})
 }
 
 type postGnorkleMessageHandler struct{}
 
-// Handle does post processing after a message is ingested by the oracle feed. It extracts the value to realm
+// Handle does post-processing after a message is ingested by the oracle feed. It extracts the value to realm
 // storage and removes the feed from the oracle.
 func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.FuncType, feed gnorkle.Feed) error {
 	if funcType != message.FuncTypeIngest {
@@ -99,17 +100,13 @@ func GnorkleEntrypoint(message string) string {
 	return result
 }
 
-// SetOwner transfers ownership of the contract to the given address.
-func SetOwner(owner std.Address) {
-	if ownerAddress != std.GetOrigCaller() {
-		panic("only the owner can set a new owner")
-	}
-
-	ownerAddress = owner
+// TransferOwnership transfers ownership of the contract to the given address.
+func TransferOwnership(newOwner std.Address) {
+	ownable.TransferOwnership(newOwner)
 
 	// In the context of this contract, the owner is the only one that can
 	// add new feeds to the oracle.
-	oracle.ClearWhitelist("")
+	oracle.ClearWhitelist("") // why does this take an argument? not obvious
 	oracle.AddToWhitelist("", []string{string(ownerAddress)})
 }
 

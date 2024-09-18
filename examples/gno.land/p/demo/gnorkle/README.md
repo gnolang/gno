@@ -1,6 +1,6 @@
 # gnorkle
 
-gnorkle is an attempt at a generalized oracle implementation. The gnorkle `Instance` definitions lives in the `gnorkle` directory. It can be effectively initialized by using the `gnorkle.NewInstance` constructor. The owner of the instance is then able to add feeds with or without whitelists, manage the instance's own whitelist, remove feeds, get the latest feed values, and handle incoming message requests that result in some type of action taking place.
+gnorkle is an attempt at a generalized oracle implementation. The gnorkle `Instance` definitions lives in the `gnorkle` directory. It can be effectively initialized by using the `gnorkle.NewInstance` constructor. The owner of the instance is then able to add feeds with or without whitelisted agents, manage the instance's own whitelist, remove feeds, get the latest feed values, and handle incoming message requests that result in some type of action taking place.
 
 An example of gnorkle in action can be found in the `examples/gno.land/r/gnoland/ghverify` realm. Any realm that wishes to integrate the minimum oracle functionality should include functions that relay incoming messages to the oracle instance's message handler and that can produce the latest feed values.
 

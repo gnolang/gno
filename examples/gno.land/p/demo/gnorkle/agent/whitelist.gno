@@ -33,7 +33,7 @@ func (m *Whitelist) RemoveAddress(address string) {
 	m.store.Remove(address)
 }
 
-// HasDefinition returns true if the whitelist has a definition. It retuns false if
+// HasDefinition returns true if the whitelist has a definition. It returns false if
 // `ClearAddresses` has been called without any subsequent `AddAddresses` calls, or
 // if `AddAddresses` has never been called.
 func (m Whitelist) HasDefinition() bool {
