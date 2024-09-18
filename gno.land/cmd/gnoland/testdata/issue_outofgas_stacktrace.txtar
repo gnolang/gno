@@ -1,5 +1,6 @@
 # test for a bug involving printing stacktraces with missing statements;
 # when dumping out information for a test.
+# more info: https://github.com/gnolang/gno/pull/2813
 
 loadpkg gno.land/p/demo/avl
 gnoland start
