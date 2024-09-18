@@ -305,28 +305,28 @@ func TestCallMultiple_Sponsor_Integration(t *testing.T) {
 		Caller:  sponsoree1Info.GetAddress(),
 		PkgPath: "gno.land/r/demo/deep/very/deep",
 		Func:    "Render",
-		Args:    []string{"hello sponsoree1"},
+		Args:    []string{"sponsoree1"},
 	}
 
 	msg2 := vm.MsgCall{
 		Caller:  sponsoree1Info.GetAddress(),
-		PkgPath: "gno.land/r/demo/tests",
+		PkgPath: "gno.land/r/demo/deep/very/deep",
 		Func:    "Render",
-		Args:    []string{"goodbye sponsoree1"},
+		Args:    []string{"sponsoree1 again"},
 	}
 
 	msg3 := vm.MsgCall{
 		Caller:  sponsoree2Info.GetAddress(),
 		PkgPath: "gno.land/r/demo/deep/very/deep",
 		Func:    "Render",
-		Args:    []string{"hello sponsoree2"},
+		Args:    []string{"sponsoree2"},
 	}
 
 	msg4 := vm.MsgCall{
 		Caller:  sponsoree2Info.GetAddress(),
 		PkgPath: "gno.land/r/demo/deep/very/deep",
 		Func:    "Render",
-		Args:    []string{"goodbye sponsoree2"},
+		Args:    []string{"sponsoree2 again"},
 	}
 
 	// Sponsoree1 creates a new sponsor transaction
@@ -350,7 +350,7 @@ func TestCallMultiple_Sponsor_Integration(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check the result of the transaction execution
-	expected := "(\"hi hello sponsoree1\" string)\n\n(\"hi goodbye sponsoree1\" string)\n\n(\"hi hello sponsoree2\" string)\n\n(\"hi goodbye sponsoree2\" string)\n\n"
+	expected := "(\"hi sponsoree1\" string)\n\n(\"hi sponsoree1 again\" string)\n\n(\"hi sponsoree2\" string)\n\n(\"hi sponsoree2 again\" string)\n\n"
 	got := string(res.DeliverTx.Data)
 
 	assert.Nil(t, err)
