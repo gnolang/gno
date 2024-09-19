@@ -147,7 +147,7 @@ func (b *RPCBatch) ABCIQueryWithOptions(path string, data []byte, opts ABCIQuery
 		"data":  data,
 		"prove": opts.Prove,
 	}
-	if opts.Height != 0 {
+	if opts.Height > 0 {
 		params["height"] = opts.Height
 	}
 	// Prepare the RPC request
