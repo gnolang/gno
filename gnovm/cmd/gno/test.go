@@ -447,6 +447,7 @@ func gnoTestPkg(
 			if err != nil {
 				return fmt.Errorf("failed to view file coverage: %w", err)
 			}
+			return nil // prevent printing out coverage report
 		}
 
 		if cfg.output != "" {
@@ -455,6 +456,7 @@ func gnoTestPkg(
 				return fmt.Errorf("failed to save coverage data: %w", err)
 			}
 			io.Println("coverage data saved to", cfg.output)
+			return nil
 		}
 
 		if cfg.htmlOutput != "" {
@@ -463,6 +465,7 @@ func gnoTestPkg(
 				return fmt.Errorf("failed to save coverage data: %w", err)
 			}
 			io.Println("coverage report saved to", cfg.htmlOutput)
+			return nil
 		}
 
 		if cfg.funcFilter != "" {

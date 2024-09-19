@@ -150,7 +150,9 @@ func (c *CoverageData) Report(io commands.IO) {
 		totalLines := cov.TotalLines
 		pct := calculateCoverage(hitLines, totalLines)
 		color := getCoverageColor(pct)
-		io.Printfln("%s%.1f%% [%4d/%d] %s%s", color, floor1(pct), hitLines, totalLines, file, colorReset)
+		if totalLines != 0 {
+			io.Printfln("%s%.1f%% [%4d/%d] %s%s", color, floor1(pct), hitLines, totalLines, file, colorReset)
+		}
 	}
 }
 
@@ -559,7 +561,7 @@ func countCodeLines(content string) int {
 // It returns false for nodes that represent non-executable lines, such as
 // declarations, blocks, and function definitions.
 func isExecutableLine(node ast.Node) bool {
-	switch node.(type) {
+	switch n := node.(type) {
 	case *ast.AssignStmt, *ast.ExprStmt, *ast.ReturnStmt, *ast.BranchStmt,
 		*ast.IncDecStmt, *ast.GoStmt, *ast.DeferStmt, *ast.SendStmt:
 		return true
@@ -578,8 +580,15 @@ func isExecutableLine(node ast.Node) bool {
 		return false
 	case *ast.ImportSpec, *ast.TypeSpec, *ast.ValueSpec:
 		return false
-	case *ast.GenDecl:
+	case *ast.InterfaceType:
 		return false
+	case *ast.GenDecl:
+		switch n.Tok {
+		case token.VAR, token.CONST, token.TYPE, token.IMPORT:
+			return false
+		default:
+			return true
+		}
 	default:
 		return false
 	}
