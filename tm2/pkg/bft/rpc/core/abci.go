@@ -1,7 +1,6 @@
 package core
 
 import (
-	"errors"
 	"fmt"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -61,7 +60,7 @@ import (
 // | prove     | bool   | false   | false    | Includes proof if true                         |
 func ABCIQuery(ctx *rpctypes.Context, path string, data []byte, height int64, prove bool) (*ctypes.ResultABCIQuery, error) {
 	if height < 0 {
-		return nil, errors.New("height cannot be negative")
+		return nil, fmt.Errorf("height cannot be negative: %d", height)
 	}
 	currentHeight := blockStore.Height()
 
@@ -78,7 +77,7 @@ func ABCIQuery(ctx *rpctypes.Context, path string, data []byte, height int64, pr
 	if err != nil {
 		return nil, err
 	}
-	logger.Info("ABCIQuery", "path", path, "data", data, "result", resQuery)
+
 	return &ctypes.ResultABCIQuery{Response: resQuery}, nil
 }
 

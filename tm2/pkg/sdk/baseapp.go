@@ -49,7 +49,6 @@ type BaseApp struct {
 	// See methods setCheckState and setDeliverState.
 	checkState   *state          // for CheckTx
 	deliverState *state          // for DeliverTx
-	currentState *state          // current state, set after Commit
 	voteInfos    []abci.VoteInfo // absent validators from begin block
 
 	// consensus params
@@ -241,7 +240,6 @@ func (app *BaseApp) setCheckState(header abci.Header) {
 		ms:  ms,
 		ctx: NewContext(RunTxModeCheck, ms, header, app.logger).WithMinGasPrices(app.minGasPrices),
 	}
-	app.currentState = nil // reset the current state
 }
 
 // setDeliverState sets deliverState with the cached multistore and
@@ -254,7 +252,6 @@ func (app *BaseApp) setDeliverState(header abci.Header) {
 		ms:  ms,
 		ctx: NewContext(RunTxModeDeliver, ms, header, app.logger),
 	}
-	app.currentState = nil // reset the current state
 }
 
 // setConsensusParams memoizes the consensus params.
@@ -488,7 +485,6 @@ func handleQueryCustom(app *BaseApp, path []string, req abci.RequestQuery) (res 
 
 	// cache wrap the commit-multistore for safety
 	// XXX RunTxModeQuery?
-	// ctx := NewContext(RunTxModeCheck, cacheMS, app.checkState.ctx.BlockHeader(), app.logger).WithMinGasPrices(app.minGasPrices)
 	ctx := state.ctx.
 		WithMultiStore(cacheMS).
 		WithMode(RunTxModeCheck).
@@ -902,9 +898,6 @@ func (app *BaseApp) Commit() (res abci.ResponseCommit) {
 
 	// empty/reset the deliver state
 	app.deliverState = nil
-
-	// Reset current state
-	app.currentState = nil
 
 	// return.
 	res.Data = commitID.Hash
