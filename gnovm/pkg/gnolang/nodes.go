@@ -327,28 +327,10 @@ var (
 
 type Expr interface {
 	Node
-	assertExpr()
 	addressability() addressabilityStatus
 }
 
 type Exprs []Expr
-
-// non-pointer receiver to help make immutable.
-func (*NameExpr) assertExpr()         {}
-func (*BasicLitExpr) assertExpr()     {}
-func (*BinaryExpr) assertExpr()       {}
-func (*CallExpr) assertExpr()         {}
-func (*IndexExpr) assertExpr()        {}
-func (*SelectorExpr) assertExpr()     {}
-func (*SliceExpr) assertExpr()        {}
-func (*StarExpr) assertExpr()         {}
-func (*RefExpr) assertExpr()          {}
-func (*TypeAssertExpr) assertExpr()   {}
-func (*UnaryExpr) assertExpr()        {}
-func (*CompositeLitExpr) assertExpr() {}
-func (*KeyValueExpr) assertExpr()     {}
-func (*FuncLitExpr) assertExpr()      {}
-func (*ConstExpr) assertExpr()        {}
 
 var (
 	_ Expr = &NameExpr{}
@@ -622,17 +604,6 @@ func (x *MapTypeExpr) assertTypeExpr()         {}
 func (x *StructTypeExpr) assertTypeExpr()      {}
 func (x *constTypeExpr) assertTypeExpr()       {}
 func (x *MaybeNativeTypeExpr) assertTypeExpr() {}
-
-func (x *FieldTypeExpr) assertExpr()       {}
-func (x *ArrayTypeExpr) assertExpr()       {}
-func (x *SliceTypeExpr) assertExpr()       {}
-func (x *InterfaceTypeExpr) assertExpr()   {}
-func (x *ChanTypeExpr) assertExpr()        {}
-func (x *FuncTypeExpr) assertExpr()        {}
-func (x *MapTypeExpr) assertExpr()         {}
-func (x *StructTypeExpr) assertExpr()      {}
-func (x *constTypeExpr) assertExpr()       {}
-func (x *MaybeNativeTypeExpr) assertExpr() {}
 
 var (
 	_ TypeExpr = &FieldTypeExpr{}
