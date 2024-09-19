@@ -3,8 +3,10 @@ package teams
 import "errors"
 
 var (
-	ErrTeamAddressAlreadyExists	= errors.New("Team address already exists")
-	ErrTeamNotFound 			= errors.New("team not found")
-	ErrUserAlreadyMember 		= errors.New("user already a member")
-	ErrUserNotMember 			= errors.New("user not a member")
+	ErrNotOwner               = errors.New("not the owner")
+	ErrNotAuthorized          = errors.New("not authorized")
+	ErrTeamNotFound           = errors.New("team not found")
+	ErrUserNotMember          = errors.New("user not a member")
+	ErrUserAlreadyMember      = errors.New("user is already a member")
+	ErrTeamAddressAlreadyExists = errors.New("team address already exists")
 )
