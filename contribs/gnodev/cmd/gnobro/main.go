@@ -285,7 +285,7 @@ func runLocal(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg br
 
 func runServer(ctx context.Context, gnocl *gnoclient.Client, cfg *broCfg, bcfg browser.Config, io commands.IO) error {
 	// setup logger
-	logger := newlogger(io.Out(), cfg.jsonlog)
+	logger := newLogger(io.Out(), cfg.jsonlog)
 
 	teaHandler := func(s ssh.Session) (tea.Model, []tea.ProgramOption) {
 		shortid := fmt.Sprintf("%.10s", s.Context().SessionID())
@@ -501,7 +501,7 @@ func StructuredMiddlewareWithLogger(ctx context.Context, logger *slog.Logger, le
 	}
 }
 
-func newlogger(out io.Writer, json bool) *slog.Logger {
+func newLogger(out io.Writer, json bool) *slog.Logger {
 	if json {
 		return slog.New(slog.NewJSONHandler(out, &slog.HandlerOptions{
 			Level: slog.LevelDebug,
