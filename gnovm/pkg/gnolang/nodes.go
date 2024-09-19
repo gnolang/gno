@@ -409,7 +409,7 @@ type IndexExpr struct { // X[Index]
 }
 
 func (x *IndexExpr) addressability() addressabilityStatus {
-	// In this case NotApplicable means that it wasn't set, the default value.
+	// If not set in TRANS_LEAVE, defer to the the child expression's addressability.
 	if x.Addressability == addressabilityStatusNotApplicable {
 		return x.X.addressability()
 	}
