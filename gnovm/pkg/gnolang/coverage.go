@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,6 +38,7 @@ type CoverageData struct {
 	CurrentPackage string
 	CurrentFile    string
 	pathCache      map[string]string // relative path to absolute path
+	Functions      map[string][]FuncCoverage
 }
 
 // FileCoverage stores coverage information for a single file
@@ -54,6 +56,7 @@ func NewCoverageData(rootDir string) *CoverageData {
 		CurrentPackage: "",
 		CurrentFile:    "",
 		pathCache:      make(map[string]string),
+		Functions:      make(map[string][]FuncCoverage),
 	}
 }
 
@@ -86,6 +89,13 @@ func (c *CoverageData) updateHit(pkgPath string, line int) {
 	if fileCoverage.ExecutableLines[line] {
 		fileCoverage.HitLines[line]++
 		c.Files[pkgPath] = fileCoverage
+	}
+
+	for i, fc := range c.Functions[pkgPath] {
+		if line >= fc.StartLine && line <= fc.EndLine {
+			c.Functions[pkgPath][i].Covered++
+			break
+		}
 	}
 }
 
@@ -124,6 +134,61 @@ func (c *CoverageData) addFile(filePath string, totalLines int) {
 }
 
 // region Reporting
+
+// Report prints the coverage report to the console
+func (c *CoverageData) Report(io commands.IO) {
+	files := make([]string, 0, len(c.Files))
+	for file := range c.Files {
+		files = append(files, file)
+	}
+
+	sort.Strings(files)
+
+	for _, file := range files {
+		cov := c.Files[file]
+		hitLines := len(cov.HitLines)
+		totalLines := cov.TotalLines
+		pct := calculateCoverage(hitLines, totalLines)
+		color := getCoverageColor(pct)
+		io.Printfln("%s%.1f%% [%4d/%d] %s%s", color, floor1(pct), hitLines, totalLines, file, colorReset)
+	}
+}
+
+func (c *CoverageData) ReportFuncCoverage(io commands.IO, funcFilter string) {
+	io.Printfln("Function Coverage:")
+
+	var regex *regexp.Regexp
+	var err error
+	if funcFilter != "" {
+		regex, err = regexp.Compile(funcFilter)
+		if err != nil {
+			io.Printf("error compiling regex: %s\n", err)
+			return
+		}
+	}
+
+	for file, funcs := range c.Functions {
+		filePrinted := false
+		for _, fc := range funcs {
+			if matchesRegexFilter(fc.Name, regex) {
+				if !filePrinted {
+					io.Printfln("File %s:", file)
+					filePrinted = true
+				}
+				pct := calculateCoverage(fc.Covered, fc.Total)
+				color := getCoverageColor(pct)
+				io.Printfln("%s%-20s %4d/%d %s%.1f%%%s", color, fc.Name, fc.Covered, fc.Total, colorOrange, floor1(pct), colorReset)
+			}
+		}
+	}
+}
+
+func matchesRegexFilter(name string, regex *regexp.Regexp) bool {
+	if regex == nil {
+		return true
+	}
+	return regex.MatchString(name)
+}
 
 // ViewFiles displays the coverage information for files matching the given pattern.
 // It shows hit counts if showHits is true.
@@ -227,25 +292,6 @@ func (c *CoverageData) findMatchingFiles(pattern string) []string {
 	return files
 }
 
-// Report prints the coverage report to the console
-func (c *CoverageData) Report(io commands.IO) {
-	files := make([]string, 0, len(c.Files))
-	for file := range c.Files {
-		files = append(files, file)
-	}
-
-	sort.Strings(files)
-
-	for _, file := range files {
-		cov := c.Files[file]
-		hitLines := len(cov.HitLines)
-		totalLines := cov.TotalLines
-		pct := float64(hitLines) / float64(totalLines) * 100
-		color := getCoverageColor(pct)
-		io.Printfln("%s%.1f%% [%4d/%d] %s%s", color, floor1(pct), hitLines, totalLines, file, colorReset)
-	}
-}
-
 // floor1 round down to one decimal place
 func floor1(v float64) float64 {
 	return math.Floor(v*10) / 10
@@ -260,6 +306,10 @@ func getCoverageColor(percentage float64) string {
 	default:
 		return colorRed
 	}
+}
+
+func calculateCoverage(covered, total int) float64 {
+	return float64(covered) / float64(total) * 100
 }
 
 // findAbsoluteFilePath finds the absolute path of a file given its relative path.
@@ -460,6 +510,7 @@ func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
 		return
 	}
 	m.Coverage.addFile(file, totalLines)
+	m.Coverage.ParseFile(file)
 }
 
 // recordCoverage records the execution of a specific node in the AST.

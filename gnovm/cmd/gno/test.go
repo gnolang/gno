@@ -43,6 +43,7 @@ type testCfg struct {
 	showHits   bool
 	output     string
 	htmlOutput string
+	funcFilter string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -157,6 +158,8 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"print runtime metrics (gas, memory, cpu cycles)",
 	)
 
+	// test coverage flags
+
 	fs.BoolVar(
 		&c.coverage,
 		"cover",
@@ -190,6 +193,13 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"html",
 		"",
 		"output coverage report in HTML format",
+	)
+
+	fs.StringVar(
+		&c.funcFilter,
+		"func",
+		"",
+		"output coverage profile information for each function (comma separated list or regex)",
 	)
 }
 
@@ -453,6 +463,11 @@ func gnoTestPkg(
 				return fmt.Errorf("failed to save coverage data: %w", err)
 			}
 			io.Println("coverage report saved to", cfg.htmlOutput)
+		}
+
+		if cfg.funcFilter != "" {
+			coverageData.ReportFuncCoverage(io, cfg.funcFilter)
+			return nil
 		}
 
 		coverageData.Report(io)
