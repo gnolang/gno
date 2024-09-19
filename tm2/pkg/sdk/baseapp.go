@@ -629,7 +629,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 
 	var (
 		err    error
-		events []Event
+		events = []Event{}
 	)
 
 	// NOTE: GasWanted is determined by ante handler and GasUsed by the GasMeter.
