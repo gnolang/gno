@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -79,7 +78,7 @@ func TestBalance_Parse(t *testing.T) {
 func TestBalance_AminoUnmarshalJSON(t *testing.T) {
 	expected := Balance{
 		Address: crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-		Amount:  std.MustParseCoins(ugnot.ValueString(100)),
+		Amount:  std.MustParseCoins("100ugnot"),
 	}
 	value := fmt.Sprintf("[%q]", expected.String())
 
@@ -96,7 +95,7 @@ func TestBalance_AminoUnmarshalJSON(t *testing.T) {
 func TestBalance_AminoMarshalJSON(t *testing.T) {
 	expected := Balance{
 		Address: crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"),
-		Amount:  std.MustParseCoins(ugnot.ValueString(100)),
+		Amount:  std.MustParseCoins("100ugnot"),
 	}
 	expectedJSON := fmt.Sprintf("[%q]", expected.String())
 
@@ -113,15 +112,15 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 
 		// Generate dummy keys
 		dummyKeys := getDummyKeys(t, 2)
-		amount := std.NewCoins(std.NewCoin(ugnot.Denom, 10))
+		amount := std.NewCoins(std.NewCoin("ugnot", 10))
 
 		entries := make([]string, len(dummyKeys))
 
 		for index, key := range dummyKeys {
 			entries[index] = fmt.Sprintf(
-				"%s=%s",
+				"%s=%dugnot",
 				key.Address().String(),
-				ugnot.ValueString(amount.AmountOf(ugnot.Denom)),
+				amount.AmountOf("ugnot"),
 			)
 		}
 
@@ -151,7 +150,7 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 		t.Parallel()
 
 		balances := []string{
-			"dummyaddress=" + ugnot.ValueString(10),
+			"dummyaddress=10ugnot",
 		}
 
 		balanceMap, err := GetBalancesFromEntries(balances...)
@@ -166,10 +165,9 @@ func TestBalances_GetBalancesFromEntries(t *testing.T) {
 
 		balances := []string{
 			fmt.Sprintf(
-				"%s=%s%s",
+				"%s=%sugnot",
 				dummyKey.Address().String(),
 				strconv.FormatUint(math.MaxUint64, 10),
-				ugnot.Denom,
 			),
 		}
 
@@ -187,15 +185,15 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 
 		// Generate dummy keys
 		dummyKeys := getDummyKeys(t, 2)
-		amount := std.NewCoins(std.NewCoin(ugnot.Denom, 10))
+		amount := std.NewCoins(std.NewCoin("ugnot", 10))
 
 		balances := make([]string, len(dummyKeys))
 
 		for index, key := range dummyKeys {
 			balances[index] = fmt.Sprintf(
-				"%s=%s",
+				"%s=%dugnot",
 				key.Address().String(),
-				ugnot.ValueString(amount.AmountOf(ugnot.Denom)),
+				amount.AmountOf("ugnot"),
 			)
 		}
 
@@ -217,10 +215,9 @@ func TestBalances_GetBalancesFromSheet(t *testing.T) {
 
 		balances := []string{
 			fmt.Sprintf(
-				"%s=%s%s",
+				"%s=%sugnot",
 				dummyKey.Address().String(),
 				strconv.FormatUint(math.MaxUint64, 10),
-				ugnot.Denom,
 			),
 		}
 

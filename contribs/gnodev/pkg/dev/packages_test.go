@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/assert"
@@ -27,60 +26,33 @@ func TestResolvePackagePathQuery(t *testing.T) {
 		ExpectedPackagePath PackagePath
 		ShouldFail          bool
 	}{
-		{
+		{".", PackagePath{
 			Path: ".",
-			ExpectedPackagePath: PackagePath{
-				Path: ".",
-			},
-		},
-		{
+		}, false},
+		{"/simple/path", PackagePath{
 			Path: "/simple/path",
-			ExpectedPackagePath: PackagePath{
-				Path: "/simple/path",
-			},
-		},
-		{
-			Path: "/ambiguo/u//s/path///",
-			ExpectedPackagePath: PackagePath{
-				Path: "/ambiguo/u/s/path",
-			},
-		},
-		{
-			Path: "/path/with/creator?creator=testAccount",
-			ExpectedPackagePath: PackagePath{
-				Path:    "/path/with/creator",
-				Creator: testingAddress,
-			},
-		},
-		{
-			Path: "/path/with/deposit?deposit=" + ugnot.ValueString(100),
-			ExpectedPackagePath: PackagePath{
-				Path:    "/path/with/deposit",
-				Deposit: std.MustParseCoins(ugnot.ValueString(100)),
-			},
-		},
-		{
-			Path: ".?creator=g1hr3dl82qdy84a5h3dmckh0suc7zgwm5rnns6na&deposit=" + ugnot.ValueString(100),
-			ExpectedPackagePath: PackagePath{
-				Path:    ".",
-				Creator: testingAddress,
-				Deposit: std.MustParseCoins(ugnot.ValueString(100)),
-			},
-		},
+		}, false},
+		{"/ambiguo/u//s/path///", PackagePath{
+			Path: "/ambiguo/u/s/path",
+		}, false},
+		{"/path/with/creator?creator=testAccount", PackagePath{
+			Path:    "/path/with/creator",
+			Creator: testingAddress,
+		}, false},
+		{"/path/with/deposit?deposit=100ugnot", PackagePath{
+			Path:    "/path/with/deposit",
+			Deposit: std.MustParseCoins("100ugnot"),
+		}, false},
+		{".?creator=g1hr3dl82qdy84a5h3dmckh0suc7zgwm5rnns6na&deposit=100ugnot", PackagePath{
+			Path:    ".",
+			Creator: testingAddress,
+			Deposit: std.MustParseCoins("100ugnot"),
+		}, false},
 
 		// errors cases
-		{
-			Path:       "/invalid/account?creator=UnknownAccount",
-			ShouldFail: true,
-		},
-		{
-			Path:       "/invalid/address?creator=zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",
-			ShouldFail: true,
-		},
-		{
-			Path:       "/invalid/deposit?deposit=abcd",
-			ShouldFail: true,
-		},
+		{"/invalid/account?creator=UnknownAccount", PackagePath{}, true},
+		{"/invalid/address?creator=zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz", PackagePath{}, true},
+		{"/invalid/deposit?deposit=abcd", PackagePath{}, true},
 	}
 
 	for _, tc := range cases {

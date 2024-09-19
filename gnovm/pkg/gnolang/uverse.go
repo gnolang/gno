@@ -193,32 +193,32 @@ func UverseNode() *PackageNode {
 						return
 					} else if arg0Type.Elem().Kind() == Uint8Kind {
 						// append(nil, *SliceValue) new data bytes ---
-						arrayValue := m.Alloc.NewDataArray(arg1Length)
+						data := make([]byte, arg1Length)
 						if arg1Base.Data == nil {
 							copyListToData(
-								arrayValue.Data[:arg1Length],
+								data[:arg1Length],
 								arg1Base.List[arg1Offset:arg1EndIndex])
 						} else {
 							copy(
-								arrayValue.Data[:arg1Length],
+								data[:arg1Length],
 								arg1Base.Data[arg1Offset:arg1EndIndex])
 						}
 						m.PushValue(TypedValue{
 							T: arg0Type,
-							V: m.Alloc.NewSlice(arrayValue, 0, arg1Length, arg1Length),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
 						// append(nil, *SliceValue) new list ---------
-						arrayValue := m.Alloc.NewListArray(arg1Length)
-						if arg1Length > 0 {
+						list := make([]TypedValue, arg1Length)
+						if 0 < arg1Length {
 							for i := 0; i < arg1Length; i++ {
-								arrayValue.List[i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
+								list[i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
 							}
 						}
 						m.PushValue(TypedValue{
 							T: arg0Type,
-							V: m.Alloc.NewSlice(arrayValue, 0, arg1Length, arg1Length),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -236,27 +236,27 @@ func UverseNode() *PackageNode {
 						return
 					} else if arg0Type.Elem().Kind() == Uint8Kind {
 						// append(nil, *NativeValue) new data bytes --
-						arrayValue := m.Alloc.NewDataArray(arg1NativeValueLength)
+						data := make([]byte, arg1NativeValueLength)
 						copyNativeToData(
-							arrayValue.Data[:arg1NativeValueLength],
+							data[:arg1NativeValueLength],
 							arg1NativeValue, arg1NativeValueLength)
 						m.PushValue(TypedValue{
 							T: arg0Type,
-							V: m.Alloc.NewSlice(arrayValue, 0, arg1NativeValueLength, arg1NativeValueLength),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
 						// append(nil, *NativeValue) new list --------
-						arrayValue := m.Alloc.NewListArray(arg1NativeValueLength)
-						if arg1NativeValueLength > 0 {
+						list := make([]TypedValue, arg1NativeValueLength)
+						if 0 < arg1NativeValueLength {
 							copyNativeToList(
 								m.Alloc,
-								arrayValue.List[:arg1NativeValueLength],
+								list[:arg1NativeValueLength],
 								arg1NativeValue, arg1NativeValueLength)
 						}
 						m.PushValue(TypedValue{
 							T: arg0Type,
-							V: m.Alloc.NewSlice(arrayValue, 0, arg1NativeValueLength, arg1NativeValueLength),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -344,57 +344,55 @@ func UverseNode() *PackageNode {
 						}
 					} else if arg0Type.Elem().Kind() == Uint8Kind {
 						// append(*SliceValue, *SliceValue) new data bytes ---
-						newLength := arg0Length + arg1Length
-						arrayValue := m.Alloc.NewDataArray(newLength)
+						data := make([]byte, arg0Length+arg1Length)
 						if 0 < arg0Length {
 							if arg0Base.Data == nil {
 								copyListToData(
-									arrayValue.Data[:arg0Length],
+									data[:arg0Length],
 									arg0Base.List[arg0Offset:arg0Offset+arg0Length])
 							} else {
 								copy(
-									arrayValue.Data[:arg0Length],
+									data[:arg0Length],
 									arg0Base.Data[arg0Offset:arg0Offset+arg0Length])
 							}
 						}
 						if 0 < arg1Length {
 							if arg1Base.Data == nil {
 								copyListToData(
-									arrayValue.Data[arg0Length:newLength],
+									data[arg0Length:arg0Length+arg1Length],
 									arg1Base.List[arg1Offset:arg1Offset+arg1Length])
 							} else {
 								copy(
-									arrayValue.Data[arg0Length:newLength],
+									data[arg0Length:arg0Length+arg1Length],
 									arg1Base.Data[arg1Offset:arg1Offset+arg1Length])
 							}
 						}
 						m.PushValue(TypedValue{
 							T: arg0Type,
-							V: m.Alloc.NewSlice(arrayValue, 0, newLength, newLength),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
 						// append(*SliceValue, *SliceValue) new list ---------
-						arrayLen := arg0Length + arg1Length
-						arrayValue := m.Alloc.NewListArray(arrayLen)
-						if arg0Length > 0 {
+						list := make([]TypedValue, arg0Length+arg1Length)
+						if 0 < arg0Length {
 							if arg0Base.Data == nil {
 								for i := 0; i < arg0Length; i++ {
-									arrayValue.List[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
+									list[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
 								}
 							} else {
 								panic("should not happen")
 							}
 						}
 
-						if arg1Length > 0 {
+						if 0 < arg1Length {
 							if arg1Base.Data == nil {
 								for i := 0; i < arg1Length; i++ {
-									arrayValue.List[arg0Length+i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
+									list[arg0Length+i] = arg1Base.List[arg1Offset+i].unrefCopy(m.Alloc, m.Store)
 								}
 							} else {
 								copyDataToList(
-									arrayValue.List[arg0Length:arg0Length+arg1Length],
+									list[arg0Length:arg0Length+arg1Length],
 									arg1Base.Data[arg1Offset:arg1Offset+arg1Length],
 									arg1Type.Elem(),
 								)
@@ -402,7 +400,7 @@ func UverseNode() *PackageNode {
 						}
 						m.PushValue(TypedValue{
 							T: arg0Type,
-							V: m.Alloc.NewSlice(arrayValue, 0, arrayLen, arrayLen),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -443,47 +441,46 @@ func UverseNode() *PackageNode {
 						}
 					} else if arg0Type.Elem().Kind() == Uint8Kind {
 						// append(*SliceValue, *NativeValue) new data bytes --
-						newLength := arg0Length + arg1NativeValueLength
-						arrayValue := m.Alloc.NewDataArray(newLength)
+						data := make([]byte, arg0Length+arg1NativeValueLength)
 						if 0 < arg0Length {
 							if arg0Base.Data == nil {
 								copyListToData(
-									arrayValue.Data[:arg0Length],
+									data[:arg0Length],
 									arg0Base.List[arg0Offset:arg0Offset+arg0Length])
 							} else {
 								copy(
-									arrayValue.Data[:arg0Length],
+									data[:arg0Length],
 									arg0Base.Data[arg0Offset:arg0Offset+arg0Length])
 							}
 						}
 						if 0 < arg1NativeValueLength {
 							copyNativeToData(
-								arrayValue.Data[arg0Length:newLength],
+								data[arg0Length:arg0Length+arg1NativeValueLength],
 								arg1NativeValue, arg1NativeValueLength)
 						}
 						m.PushValue(TypedValue{
 							T: arg0Type,
-							V: m.Alloc.NewSlice(arrayValue, 0, newLength, newLength),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
 						// append(*SliceValue, *NativeValue) new list --------
 						listLen := arg0Length + arg1NativeValueLength
-						arrayValue := m.Alloc.NewListArray(listLen)
+						list := make([]TypedValue, listLen)
 						if 0 < arg0Length {
 							for i := 0; i < listLen; i++ {
-								arrayValue.List[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
+								list[i] = arg0Base.List[arg0Offset+i].unrefCopy(m.Alloc, m.Store)
 							}
 						}
 						if 0 < arg1NativeValueLength {
 							copyNativeToList(
 								m.Alloc,
-								arrayValue.List[arg0Length:listLen],
+								list[arg0Length:listLen],
 								arg1NativeValue, arg1NativeValueLength)
 						}
 						m.PushValue(TypedValue{
 							T: arg0Type,
-							V: m.Alloc.NewSlice(arrayValue, 0, listLen, listLen),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -782,25 +779,25 @@ func UverseNode() *PackageNode {
 					lv := vargs.TV.GetPointerAtIndexInt(m.Store, 0).Deref()
 					li := lv.ConvertGetInt()
 					if et.Kind() == Uint8Kind {
-						arrayValue := m.Alloc.NewDataArray(li)
+						data := make([]byte, li)
 						m.PushValue(TypedValue{
 							T: tt,
-							V: m.Alloc.NewSlice(arrayValue, 0, li, li),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
-						arrayValue := m.Alloc.NewListArray(li)
+						list := make([]TypedValue, li)
 						if et.Kind() == InterfaceKind {
 							// leave as is
 						} else {
 							// init zero elements with concrete type.
 							for i := 0; i < li; i++ {
-								arrayValue.List[i] = defaultTypedValue(m.Alloc, et)
+								list[i] = defaultTypedValue(m.Alloc, et)
 							}
 						}
 						m.PushValue(TypedValue{
 							T: tt,
-							V: m.Alloc.NewSlice(arrayValue, 0, li, li),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -810,37 +807,30 @@ func UverseNode() *PackageNode {
 					cv := vargs.TV.GetPointerAtIndexInt(m.Store, 1).Deref()
 					ci := cv.ConvertGetInt()
 					if et.Kind() == Uint8Kind {
-						arrayValue := m.Alloc.NewDataArray(ci)
+						data := make([]byte, li, ci)
 						m.PushValue(TypedValue{
 							T: tt,
-							V: m.Alloc.NewSlice(arrayValue, 0, li, ci),
+							V: m.Alloc.NewSliceFromData(data),
 						})
 						return
 					} else {
-						arrayValue := m.Alloc.NewListArray(ci)
+						list := make([]TypedValue, li, ci)
 						if et := bt.Elem(); et.Kind() == InterfaceKind {
 							// leave as is
 						} else {
-							// Initialize all elements within capacity with default
-							// type values. These need to be initialized because future
-							// slice operations could get messy otherwise. Simple capacity
-							// expansions like `a = a[:cap(a)]` would make it trivial to
-							// initialize zero values at the time of the slice operation.
-							// But sequences of operations like:
-							// 		a := make([]int, 1, 10)
-							// 		a = a[7:cap(a)]
-							// 		a = a[3:5]
-							//
-							// require a bit more work to handle correctly, requiring that
-							// all new TypedValue slice elements be checked to ensure they have
-							// a value for every slice operation, which is not desirable.
+							// init zero elements with concrete type.
+							// the elements beyond len l within cap c
+							// must also be initialized, for a future
+							// slice operation may refer to them.
+							// XXX can this be removed?
+							list2 := list[:ci]
 							for i := 0; i < ci; i++ {
-								arrayValue.List[i] = defaultTypedValue(m.Alloc, et)
+								list2[i] = defaultTypedValue(m.Alloc, et)
 							}
 						}
 						m.PushValue(TypedValue{
 							T: tt,
-							V: m.Alloc.NewSlice(arrayValue, 0, li, ci),
+							V: m.Alloc.NewSliceFromList(list),
 						})
 						return
 					}
@@ -938,7 +928,17 @@ func UverseNode() *PackageNode {
 			return
 		},
 	)
-	// NOTE: panic is its own statement type, and is not defined as a function.
+	defNative("panic",
+		Flds( // params
+			"err", AnyT(), // args[0]
+		),
+		nil, // results
+		func(m *Machine) {
+			arg0 := m.LastBlock().GetParams1()
+			xv := arg0.Deref()
+			panic(xv.Sprint(m))
+		},
+	)
 	defNative("print",
 		Flds( // params
 			"xs", Vrd(AnyT()), // args[0]

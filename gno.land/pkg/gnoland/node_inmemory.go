@@ -3,7 +3,6 @@ package gnoland
 import (
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"time"
 
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -23,11 +22,8 @@ type InMemoryNodeConfig struct {
 	PrivValidator      bft.PrivValidator // identity of the validator
 	Genesis            *bft.GenesisDoc
 	TMConfig           *tmcfg.Config
+	GenesisTxHandler   GenesisTxHandler
 	GenesisMaxVMCycles int64
-	DB                 *memdb.MemDB // will be initialized if nil
-
-	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
-	InitChainerConfig
 }
 
 // NewMockedPrivValidator generate a new key
@@ -41,21 +37,17 @@ func NewDefaultGenesisConfig(chainid string) *bft.GenesisDoc {
 		GenesisTime: time.Now(),
 		ChainID:     chainid,
 		ConsensusParams: abci.ConsensusParams{
-			Block: defaultBlockParams(),
+			Block: &abci.BlockParams{
+				MaxTxBytes:   1_000_000,   // 1MB,
+				MaxDataBytes: 2_000_000,   // 2MB,
+				MaxGas:       100_000_000, // 100M gas
+				TimeIotaMS:   100,         // 100ms
+			},
 		},
 		AppState: &GnoGenesisState{
 			Balances: []Balance{},
 			Txs:      []std.Tx{},
 		},
-	}
-}
-
-func defaultBlockParams() *abci.BlockParams {
-	return &abci.BlockParams{
-		MaxTxBytes:   1_000_000,   // 1MB,
-		MaxDataBytes: 2_000_000,   // 2MB,
-		MaxGas:       100_000_000, // 100M gas
-		TimeIotaMS:   100,         // 100ms
 	}
 }
 
@@ -78,7 +70,7 @@ func (cfg *InMemoryNodeConfig) validate() error {
 		return fmt.Errorf("`TMConfig.RootDir` is required to locate `stdlibs` directory")
 	}
 
-	if cfg.GenesisTxResultHandler == nil {
+	if cfg.GenesisTxHandler == nil {
 		return fmt.Errorf("`GenesisTxHandler` is required but not provided")
 	}
 
@@ -95,21 +87,15 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 
 	evsw := events.NewEventSwitch()
 
-	if cfg.StdlibDir == "" {
-		cfg.StdlibDir = filepath.Join(cfg.TMConfig.RootDir, "gnovm", "stdlibs")
-	}
-	// initialize db if nil
-	if cfg.DB == nil {
-		cfg.DB = memdb.NewMemDB()
-	}
-
 	// Initialize the application with the provided options
 	gnoApp, err := NewAppWithOptions(&AppOptions{
-		Logger:            logger,
-		MaxCycles:         cfg.GenesisMaxVMCycles,
-		DB:                cfg.DB,
-		EventSwitch:       evsw,
-		InitChainerConfig: cfg.InitChainerConfig,
+		Logger:           logger,
+		GnoRootDir:       cfg.TMConfig.RootDir,
+		GenesisTxHandler: cfg.GenesisTxHandler,
+		MaxCycles:        cfg.GenesisMaxVMCycles,
+		DB:               memdb.NewMemDB(),
+		EventSwitch:      evsw,
+		CacheStdlibLoad:  true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing new app: %w", err)
@@ -128,7 +114,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 	// Create genesis factory
 	genProvider := func() (*bft.GenesisDoc, error) { return cfg.Genesis, nil }
 
-	dbProvider := func(*node.DBContext) (db.DB, error) { return cfg.DB, nil }
+	dbProvider := func(*node.DBContext) (db.DB, error) { return memdb.NewMemDB(), nil }
 
 	// Generate p2p node identity
 	nodekey := &p2p.NodeKey{PrivKey: ed25519.GenPrivKey()}

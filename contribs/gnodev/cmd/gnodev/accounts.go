@@ -10,7 +10,6 @@ import (
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -51,7 +50,7 @@ func (va varPremineAccounts) String() string {
 
 func generateBalances(bk *address.Book, cfg *devCfg) (gnoland.Balances, error) {
 	bls := gnoland.NewBalances()
-	premineBalance := std.Coins{std.NewCoin(ugnot.Denom, 10e12)}
+	premineBalance := std.Coins{std.NewCoin("ugnot", 10e12)}
 
 	entries := bk.List()
 

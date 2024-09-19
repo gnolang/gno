@@ -93,7 +93,7 @@ Let's break down the most important default settings:
 :::info Resetting the chain
 
 As mentioned, the working directory for the node is located in `data-dir`. To reset the chain, you need
-to delete this directory and `genesis.json`, then start the node up again. If you are using the default node configuration, you can run
+to delete this directory and start the node up again. If you are using the default node configuration, you can run
 `make fclean` from the `gno.land` sub-folder to delete the `gnoland-data` working directory.
 
 :::

@@ -4,7 +4,7 @@ import "fmt"
 
 func main() {
 	var r uint64 = 1 << int8(1)
-	fmt.Printf("%T\n", r)
+	fmt.Printf("%T \n", r)
 	println(r)
 }
 

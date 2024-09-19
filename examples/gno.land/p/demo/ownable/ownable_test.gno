@@ -9,60 +9,52 @@ import (
 )
 
 var (
-	alice = testutils.TestAddress("alice")
-	bob   = testutils.TestAddress("bob")
+	firstCaller  = testutils.TestAddress("first")
+	secondCaller = testutils.TestAddress("second")
 )
 
 func TestNew(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
+	std.TestSetRealm(std.NewUserRealm(firstCaller))
+	std.TestSetOrigCaller(firstCaller) // TODO(bug): should not be needed
 
 	o := New()
 	got := o.Owner()
-	if alice != got {
-		t.Fatalf("Expected %s, got: %s", alice, got)
-	}
+	uassert.Equal(t, firstCaller, got)
 }
 
 func TestNewWithAddress(t *testing.T) {
-	o := NewWithAddress(alice)
+	o := NewWithAddress(firstCaller)
 
 	got := o.Owner()
-	if alice != got {
-		t.Fatalf("Expected %s, got: %s", alice, got)
-	}
+	uassert.Equal(t, firstCaller, got)
 }
 
 func TestOwner(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetRealm(std.NewUserRealm(firstCaller))
 
 	o := New()
-	expected := alice
+	expected := firstCaller
 	got := o.Owner()
 	uassert.Equal(t, expected, got)
 }
 
 func TestTransferOwnership(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetRealm(std.NewUserRealm(firstCaller))
 
 	o := New()
 
-	err := o.TransferOwnership(bob)
-	if err != nil {
-		t.Fatalf("TransferOwnership failed, %v", err)
-	}
+	err := o.TransferOwnership(secondCaller)
+	uassert.NoError(t, err, "TransferOwnership failed")
 
 	got := o.Owner()
-	if bob != got {
-		t.Fatalf("Expected: %s, got: %s", bob, got)
-	}
+	uassert.Equal(t, secondCaller, got)
 }
 
 func TestCallerIsOwner(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetRealm(std.NewUserRealm(firstCaller))
 
 	o := New()
-	unauthorizedCaller := bob
+	unauthorizedCaller := secondCaller
 
 	std.TestSetRealm(std.NewUserRealm(unauthorizedCaller))
 	std.TestSetOrigCaller(unauthorizedCaller) // TODO(bug): should not be needed
@@ -72,7 +64,7 @@ func TestCallerIsOwner(t *testing.T) {
 }
 
 func TestDropOwnership(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetRealm(std.NewUserRealm(firstCaller))
 
 	o := New()
 
@@ -86,25 +78,23 @@ func TestDropOwnership(t *testing.T) {
 // Errors
 
 func TestErrUnauthorized(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
-	std.TestSetOrigCaller(alice) // TODO(bug): should not be needed
+	std.TestSetRealm(std.NewUserRealm(firstCaller))
+	std.TestSetOrigCaller(firstCaller) // TODO(bug): should not be needed
 
 	o := New()
 
-	std.TestSetRealm(std.NewUserRealm(bob))
-	std.TestSetOrigCaller(bob) // TODO(bug): should not be needed
+	std.TestSetRealm(std.NewUserRealm(secondCaller))
+	std.TestSetOrigCaller(secondCaller) // TODO(bug): should not be needed
 
-	err := o.TransferOwnership(alice)
-	if err != ErrUnauthorized {
-		t.Fatalf("Should've been ErrUnauthorized, was %v", err)
-	}
+	err := o.TransferOwnership(firstCaller)
+	uassert.ErrorContains(t, err, ErrUnauthorized.Error())
 
 	err = o.DropOwnership()
 	uassert.ErrorContains(t, err, ErrUnauthorized.Error())
 }
 
 func TestErrInvalidAddress(t *testing.T) {
-	std.TestSetRealm(std.NewUserRealm(alice))
+	std.TestSetRealm(std.NewUserRealm(firstCaller))
 
 	o := New()
 

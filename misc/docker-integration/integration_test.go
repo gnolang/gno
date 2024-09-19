@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -56,10 +55,7 @@ func runSuite(t *testing.T, tempdir string) {
 	var acc gnoland.GnoAccount
 	dockerExec_gnokeyQuery(t, "auth/accounts/"+test1Addr, &acc)
 	require.Equal(t, test1Addr, acc.Address.String(), "test1 account not found")
-
-	// This value is chosen arbitrarily and may not be optimal.
-	// Feel free to update it to a more suitable amount.
-	minCoins := std.MustParseCoins(ugnot.ValueString(9990000000000))
+	minCoins := std.MustParseCoins("9990000000000ugnot") // This value is chosen arbitrarily and may not be optimal. Feel free to update it to a more suitable amount
 	require.True(t, acc.Coins.IsAllGTE(minCoins),
 		"test1 account coins expected at least %s, got %s", minCoins, acc.Coins)
 

@@ -6,8 +6,8 @@ func main() {
 	users := make(map[string]string)
 
 	v := users["a"]
-	fmt.Println("v:", v, ";")
+	fmt.Println("v:", v)
 }
 
 // Output:
-// v:  ;
+// v:

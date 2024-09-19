@@ -38,7 +38,6 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	baseCapKey := store.NewStoreKey("baseCapKey")
 	iavlCapKey := store.NewStoreKey("iavlCapKey")
 
-	// Mount db store and iavlstore
 	ms := store.NewCommitMultiStore(db)
 	ms.MountStoreWithDB(baseCapKey, dbadapter.StoreConstructor, db)
 	ms.MountStoreWithDB(iavlCapKey, iavl.StoreConstructor, db)
@@ -47,18 +46,11 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
 	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
-	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, 100_000_000)
+	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
+	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, stdlibsDir, 100_000_000)
 
 	mcw := ms.MultiCacheWrap()
-	vmk.Initialize(log.NewNoopLogger(), mcw)
-	stdlibCtx := vmk.MakeGnoTransactionStore(ctx.WithMultiStore(mcw))
-	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
-	if cacheStdlibs {
-		vmk.LoadStdlibCached(stdlibCtx, stdlibsDir)
-	} else {
-		vmk.LoadStdlib(stdlibCtx, stdlibsDir)
-	}
-	vmk.CommitGnoTransactionStore(stdlibCtx)
+	vmk.Initialize(log.NewNoopLogger(), mcw, cacheStdlibs)
 	mcw.MultiWrite()
 
 	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}

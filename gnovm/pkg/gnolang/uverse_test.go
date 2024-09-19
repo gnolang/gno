@@ -4,14 +4,14 @@ import (
 	"testing"
 )
 
-type uverseTestCases struct {
+type printlnTestCases struct {
 	name     string
 	code     string
 	expected string
 }
 
 func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
-	test := []uverseTestCases{
+	test := []printlnTestCases{
 		{
 			name: "print empty slice",
 			code: `package test

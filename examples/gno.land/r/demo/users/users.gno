@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"gno.land/p/demo/avl"
-	"gno.land/p/demo/avlhelpers"
 	"gno.land/p/demo/users"
 )
 
@@ -254,12 +253,6 @@ func GetUserByAddressOrName(input users.AddressOrName) *users.User {
 		return GetUserByName(name)
 	}
 	return GetUserByAddress(std.Address(input))
-}
-
-// Get a list of user names starting from the given prefix. Limit the
-// number of results to maxResults. (This can be used for a name search tool.)
-func ListUsersByPrefix(prefix string, maxResults int) []string {
-	return avlhelpers.ListByteStringKeysByPrefix(name2User, prefix, maxResults)
 }
 
 func Resolve(input users.AddressOrName) std.Address {

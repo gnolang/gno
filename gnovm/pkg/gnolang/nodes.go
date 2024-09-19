@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
-	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -1803,7 +1802,7 @@ func (sb *StaticBlock) Define2(isConst bool, n Name, st Type, tv TypedValue) {
 	if int(sb.NumNames) != len(sb.Names) {
 		panic("StaticBlock.NumNames and len(.Names) mismatch")
 	}
-	if sb.NumNames == math.MaxUint16 {
+	if (1<<16 - 1) < sb.NumNames {
 		panic("too many variables in block")
 	}
 	if tv.T == nil && tv.V != nil {

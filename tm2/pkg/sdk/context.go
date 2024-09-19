@@ -147,21 +147,31 @@ func (c Context) WithEventLogger(em *EventLogger) Context {
 	return c
 }
 
-// WithValue is shorthand for:
+// WithValue is deprecated, provided for backwards compatibility
+// Please use
 //
-//	c.WithContext(context.WithValue(c.Context(), key, value))
+//	ctx = ctx.WithContext(context.WithValue(ctx.Context(), key, false))
 //
-// It adds a value to the [context.Context].
+// instead of
+//
+//	ctx = ctx.WithValue(key, false)
+//
+// NOTE: why?
 func (c Context) WithValue(key, value interface{}) Context {
 	c.ctx = context.WithValue(c.ctx, key, value)
 	return c
 }
 
-// Value is shorthand for:
+// Value is deprecated, provided for backwards compatibility
+// Please use
 //
-//	c.Context().Value(key)
+//	ctx.Context().Value(key)
 //
-// It retrieves a value from the [context.Context].
+// instead of
+//
+//	ctx.Value(key)
+//
+// NOTE: why?
 func (c Context) Value(key interface{}) interface{} {
 	return c.ctx.Value(key)
 }

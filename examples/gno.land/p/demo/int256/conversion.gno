@@ -82,6 +82,5 @@ func (z *Int) ToString() string {
 	if z.neg {
 		return "-" + t
 	}
-
 	return t
 }

@@ -22,10 +22,5 @@ func main() {
 	panic("here")
 }
 
-// Stacktrace:
-// panic: here
-// main<VPBlock(1,2)>()
-//     main/files/panic1.gno:22
-
 // Error:
 // here

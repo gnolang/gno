@@ -40,7 +40,7 @@ func TestServer_ServeHTTP(t *testing.T) {
 	sendEvt := events.Custom("TEST")
 	svr.Emit(sendEvt) // simulate reload
 
-	var recvEvt EventJSON
+	var recvEvt eventJSON
 	err = c.ReadJSON(&recvEvt)
 	require.NoError(t, err)
 	assert.Equal(t, sendEvt.Type(), recvEvt.Type)

@@ -45,12 +45,11 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					// skip declarations already predefined
 					// (e.g. through recursion for a
 					// dependent)
-					continue
+				} else {
+					// recursively predefine dependencies.
+					d2, _ := predefineNow(store, fn, d)
+					fn.Decls[i] = d2
 				}
-
-				// recursively predefine dependencies.
-				d2, _ := predefineNow(store, fn, d)
-				fn.Decls[i] = d2
 			}
 		}
 	}
@@ -64,12 +63,11 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					// skip declarations already predefined
 					// (e.g. through recursion for a
 					// dependent)
-					continue
+				} else {
+					// recursively predefine dependencies.
+					d2, _ := predefineNow(store, fn, d)
+					fn.Decls[i] = d2
 				}
-
-				// recursively predefine dependencies.
-				d2, _ := predefineNow(store, fn, d)
-				fn.Decls[i] = d2
 			}
 		}
 	}
@@ -83,12 +81,11 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 					// skip declarations already predefined
 					// (e.g. through recursion for a
 					// dependent)
-					continue
+				} else {
+					// recursively predefine dependencies.
+					d2, _ := predefineNow(store, fn, d)
+					fn.Decls[i] = d2
 				}
-
-				// recursively predefine dependencies.
-				d2, _ := predefineNow(store, fn, d)
-				fn.Decls[i] = d2
 			}
 		}
 	}
@@ -100,36 +97,11 @@ func PredefineFileSet(store Store, pn *PackageNode, fset *FileSet) {
 			if d.GetAttribute(ATTR_PREDEFINED) == true {
 				// skip declarations already predefined (e.g.
 				// through recursion for a dependent)
-				continue
+			} else {
+				// recursively predefine dependencies.
+				d2, _ := predefineNow(store, fn, d)
+				fn.Decls[i] = d2
 			}
-
-			if vd, ok := d.(*ValueDecl); ok && len(vd.NameExprs) > 1 && len(vd.Values) == len(vd.NameExprs) {
-				split := make([]Decl, len(vd.NameExprs))
-
-				for j := 0; j < len(vd.NameExprs); j++ {
-					base := vd.Copy().(*ValueDecl)
-					base.NameExprs = NameExprs{NameExpr{
-						Attributes: base.NameExprs[j].Attributes,
-						Path:       base.NameExprs[j].Path,
-						Name:       base.NameExprs[j].Name,
-					}}
-
-					if j < len(base.Values) {
-						base.Values = Exprs{base.Values[j].Copy().(Expr)}
-					}
-
-					split[j], _ = predefineNow(store, fn, base)
-				}
-
-				fn.Decls = append(fn.Decls[:i], append(split, fn.Decls[i+1:]...)...) //nolint:makezero
-				i += len(vd.NameExprs)
-				continue
-			}
-
-			// recursively predefine dependencies.
-			d2, _ := predefineNow(store, fn, d)
-
-			fn.Decls[i] = d2
 		}
 	}
 }
@@ -1235,9 +1207,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 										"incompatible types in binary expression: %v %v %v",
 										lt.TypeID(), n.Op, rt.TypeID()))
 								}
-								// convert untyped to typed
-								checkOrConvertType(store, last, &n.Left, defaultTypeOf(lt), false)
-								checkOrConvertType(store, last, &n.Right, defaultTypeOf(rt), false)
 							} else { // left untyped, right typed
 								checkOrConvertType(store, last, &n.Left, rt, false)
 							}
@@ -1533,13 +1502,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				checkOrConvertIntegerKind(store, last, n.Low)
 				checkOrConvertIntegerKind(store, last, n.High)
 				checkOrConvertIntegerKind(store, last, n.Max)
-
-				// if n.X is untyped, convert to corresponding type
-				t := evalStaticTypeOf(store, last, n.X)
-				if isUntyped(t) {
-					dt := defaultTypeOf(t)
-					checkOrConvertType(store, last, &n.X, dt, false)
-				}
 
 			// TRANS_LEAVE -----------------------
 			case *TypeAssertExpr:
@@ -2201,42 +2163,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				numNames := len(n.NameExprs)
 				sts := make([]Type, numNames) // static types
 				tvs := make([]TypedValue, numNames)
-
 				if numNames > 1 && len(n.Values) == 1 {
-					// Special cases if one of the following:
-					// - `var a, b, c T = f()`
-					// - `var a, b = n.(T)`
-					// - `var a, b = n[i], where n is a map`
-
-					var tuple *tupleType
-					valueExpr := n.Values[0]
-					valueType := evalStaticTypeOfRaw(store, last, valueExpr)
-
-					switch expr := valueExpr.(type) {
-					case *CallExpr:
-						tuple = valueType.(*tupleType)
-					case *TypeAssertExpr, *IndexExpr:
-						tuple = &tupleType{Elts: []Type{valueType, BoolType}}
-						if ex, ok := expr.(*TypeAssertExpr); ok {
-							ex.HasOK = true
-							break
-						}
-						expr.(*IndexExpr).HasOK = true
-					default:
-						panic(fmt.Sprintf("unexpected ValueDecl value expression type %T", expr))
+					// special case if `var a, b, c T? = f()` form.
+					cx := n.Values[0].(*CallExpr)
+					tt := evalStaticTypeOfRaw(store, last, cx).(*tupleType)
+					if rLen := len(tt.Elts); rLen != numNames {
+						panic(fmt.Sprintf("assignment mismatch: %d variable(s) but %s returns %d value(s)", numNames, cx.Func.String(), rLen))
 					}
-
-					if rLen := len(tuple.Elts); rLen != numNames {
-						panic(
-							fmt.Sprintf(
-								"assignment mismatch: %d variable(s) but %s returns %d value(s)",
-								numNames,
-								valueExpr.String(),
-								rLen,
-							),
-						)
-					}
-
 					if n.Type != nil {
 						// only a single type can be specified.
 						nt := evalStaticType(store, last, n.Type)
@@ -2248,7 +2181,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					} else {
 						// set types as return types.
 						for i := 0; i < numNames; i++ {
-							et := tuple.Elts[i]
+							et := tt.Elts[i]
 							sts[i] = et
 							tvs[i] = anyValue(et)
 						}
@@ -2485,7 +2418,7 @@ func evalStaticType(store Store, last BlockNode, x Expr) Type {
 	// See comment in evalStaticTypeOfRaw.
 	if store != nil && pn.PkgPath != uversePkgPath {
 		pv := pn.NewPackage() // temporary
-		store = store.BeginTransaction(nil, nil)
+		store = store.Fork()
 		store.SetCachePackage(pv)
 	}
 	m := NewMachine(pn.PkgPath, store)
@@ -2559,7 +2492,7 @@ func evalStaticTypeOfRaw(store Store, last BlockNode, x Expr) (t Type) {
 		// yet predefined this time around.
 		if store != nil && pn.PkgPath != uversePkgPath {
 			pv := pn.NewPackage() // temporary
-			store = store.BeginTransaction(nil, nil)
+			store = store.Fork()
 			store.SetCachePackage(pv)
 		}
 		m := NewMachine(pn.PkgPath, store)
@@ -2861,10 +2794,8 @@ func checkOrConvertType(store Store, last BlockNode, x *Expr, t Type, autoNative
 					// push t into bx.Left
 					checkOrConvertType(store, last, &bx.Left, t, autoNative)
 					return
-				case EQL, LSS, GTR, NEQ, LEQ, GEQ:
-					// do nothing
-				default:
-					// do nothing
+					// case EQL, LSS, GTR, NEQ, LEQ, GEQ:
+					// default:
 				}
 			}
 		}
@@ -2973,92 +2904,6 @@ func convertConst(store Store, last BlockNode, cx *ConstExpr, t Type) {
 		ConvertTo(nilAllocator, store, &cx.TypedValue, t)
 		setConstAttrs(cx)
 	}
-}
-
-func assertTypeDeclNoCycle(store Store, last BlockNode, td *TypeDecl, stack *[]Name) {
-	assertTypeDeclNoCycle2(store, last, td.Type, stack, false, td.IsAlias)
-}
-
-func assertTypeDeclNoCycle2(store Store, last BlockNode, x Expr, stack *[]Name, indirect bool, isAlias bool) {
-	if x == nil {
-		panic("unexpected nil expression when checking for type declaration cycles")
-	}
-
-	var lastX Expr
-	defer func() {
-		if _, ok := lastX.(*NameExpr); ok {
-			// pop stack
-			*stack = (*stack)[:len(*stack)-1]
-		}
-	}()
-
-	switch cx := x.(type) {
-	case *NameExpr:
-		var msg string
-
-		// Function to build the error message
-		buildMessage := func() string {
-			for j := 0; j < len(*stack); j++ {
-				msg += fmt.Sprintf("%s -> ", (*stack)[j])
-			}
-			return msg + string(cx.Name) // Append the current name last
-		}
-
-		// Check for existence of cx.Name in stack
-		findCycle := func() {
-			for _, n := range *stack {
-				if n == cx.Name {
-					msg = buildMessage()
-					panic(fmt.Sprintf("invalid recursive type: %s", msg))
-				}
-			}
-		}
-
-		if indirect && !isAlias {
-			*stack = (*stack)[:0]
-		} else {
-			findCycle()
-			*stack = append(*stack, cx.Name)
-			lastX = cx
-		}
-
-		return
-	case *SelectorExpr:
-		assertTypeDeclNoCycle2(store, last, cx.X, stack, indirect, isAlias)
-	case *StarExpr:
-		assertTypeDeclNoCycle2(store, last, cx.X, stack, true, isAlias)
-	case *FieldTypeExpr:
-		assertTypeDeclNoCycle2(store, last, cx.Type, stack, indirect, isAlias)
-	case *ArrayTypeExpr:
-		if cx.Len != nil {
-			assertTypeDeclNoCycle2(store, last, cx.Len, stack, indirect, isAlias)
-		}
-		assertTypeDeclNoCycle2(store, last, cx.Elt, stack, indirect, isAlias)
-	case *SliceTypeExpr:
-		assertTypeDeclNoCycle2(store, last, cx.Elt, stack, true, isAlias)
-	case *InterfaceTypeExpr:
-		for i := range cx.Methods {
-			assertTypeDeclNoCycle2(store, last, &cx.Methods[i], stack, indirect, isAlias)
-		}
-	case *ChanTypeExpr:
-		assertTypeDeclNoCycle2(store, last, cx.Value, stack, true, isAlias)
-	case *FuncTypeExpr:
-		for i := range cx.Params {
-			assertTypeDeclNoCycle2(store, last, &cx.Params[i], stack, true, isAlias)
-		}
-		for i := range cx.Results {
-			assertTypeDeclNoCycle2(store, last, &cx.Results[i], stack, true, isAlias)
-		}
-	case *MapTypeExpr:
-		assertTypeDeclNoCycle2(store, last, cx.Key, stack, true, isAlias)
-		assertTypeDeclNoCycle2(store, last, cx.Value, stack, true, isAlias)
-	case *StructTypeExpr:
-		for i := range cx.Fields {
-			assertTypeDeclNoCycle2(store, last, &cx.Fields[i], stack, indirect, isAlias)
-		}
-	default:
-	}
-	return
 }
 
 // Returns any names not yet defined nor predefined in expr.  These happen
@@ -3352,11 +3197,11 @@ func predefineNow(store Store, last BlockNode, d Decl) (Decl, bool) {
 			}
 		}
 	}()
-	stack := &[]Name{}
-	return predefineNow2(store, last, d, stack)
+	m := make(map[Name]struct{})
+	return predefineNow2(store, last, d, m)
 }
 
-func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bool) {
+func predefineNow2(store Store, last BlockNode, d Decl, m map[Name]struct{}) (Decl, bool) {
 	pkg := packageOf(last)
 	// pre-register d.GetName() to detect circular definition.
 	for _, dn := range d.GetDeclNames() {
@@ -3364,24 +3209,15 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 			panic(fmt.Sprintf(
 				"builtin identifiers cannot be shadowed: %s", dn))
 		}
-		*stack = append(*stack, dn)
+		m[dn] = struct{}{}
 	}
-
-	// check type decl cycle
-	if td, ok := d.(*TypeDecl); ok {
-		// recursively check
-		assertTypeDeclNoCycle(store, last, td, stack)
-	}
-
 	// recursively predefine dependencies.
 	for {
 		un := tryPredefine(store, last, d)
 		if un != "" {
 			// check circularity.
-			for _, n := range *stack {
-				if n == un {
-					panic(fmt.Sprintf("constant definition loop with %s", un))
-				}
+			if _, ok := m[un]; ok {
+				panic(fmt.Sprintf("constant definition loop with %s", un))
 			}
 			// look up dependency declaration from fileset.
 			file, decl := pkg.FileSet.GetDeclFor(un)
@@ -3390,7 +3226,7 @@ func predefineNow2(store Store, last BlockNode, d Decl, stack *[]Name) (Decl, bo
 				panic("all types from files in file-set should have already been predefined")
 			}
 			// predefine dependency (recursive).
-			*decl, _ = predefineNow2(store, file, *decl, stack)
+			*decl, _ = predefineNow2(store, file, *decl, m)
 		} else {
 			break
 		}

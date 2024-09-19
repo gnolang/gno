@@ -5,5 +5,4 @@ require (
 	gno.land/p/demo/ufmt v0.0.0-latest
 	gno.land/p/demo/ui v0.0.0-latest
 	gno.land/r/gnoland/blog v0.0.0-latest
-	gno.land/r/gnoland/events v0.0.0-latest
 )

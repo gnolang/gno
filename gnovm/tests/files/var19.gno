@@ -2,7 +2,6 @@ package main
 
 func main() {
 	var a, b, c = 1, a+1
-
 	println(a)
 	println(b)
 	println(c)

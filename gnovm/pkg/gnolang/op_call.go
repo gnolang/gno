@@ -427,9 +427,7 @@ func (m *Machine) doOpPanic2() {
 			for i, ex := range m.Exceptions {
 				exs[i] = ex.Sprint(m)
 			}
-			panic(UnhandledPanicError{
-				Descriptor: strings.Join(exs, "\n\t"),
-			})
+			panic(strings.Join(exs, "\n\t"))
 		}
 		m.PushOp(OpPanic2)
 		m.PushOp(OpReturnCallDefers) // XXX rename, not return?

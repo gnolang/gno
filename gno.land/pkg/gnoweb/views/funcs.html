@@ -15,7 +15,7 @@
           <li><a href="/blog">Blog</a></li>
           <li><a href="https://docs.gno.land/">Docs</a></li>
           <li><a href="https://play.gno.land/">Playground</a></li>
-          <li><a href="/contribute">Contribute</a></li>
+          <li><a href="/gor">Game of Realms</a></li>
         </ul>
 
         <div class="buttons">
@@ -144,11 +144,11 @@
     </g>
   </svg>
 </a>
-{{- end -}}
+{{- end -}} 
 
 {{- define "footer" -}}
 <footer class="footer">
-    {{ template "logo" }}
+    {{ template "logo" }} 
 </footer>
 {{- end -}}
 
@@ -160,20 +160,18 @@
 <script type="text/javascript" src="/static/js/renderer.js"></script>
 <script type="text/javascript">
   function main() {
+    const parsed = parseContent(document.getElementById("source").innerHTML);
     const DOM = {
       home: document.getElementById("home"),
       realm_render: document.getElementById("realm_render"),
-      package_render: document.getElementById("package_file"),
     };
 
     for (const [key, el] of Object.entries(DOM)) {
-      if (el === null) continue;
-
-      const extension = window.location.pathname.split(".").pop();
-      const isCode = key === "package_render" && extension !== "md";
-
-      const parsed = parseContent(document.getElementById("source").innerHTML, isCode);
-      el.innerHTML = DOMPurify.sanitize(parsed, { USE_PROFILES: { html: true } });
+      if (el !== null) {
+        el.innerHTML = DOMPurify.sanitize(parsed, {
+          USE_PROFILES: { html: true },
+        });
+      }
     }
   }
 </script>

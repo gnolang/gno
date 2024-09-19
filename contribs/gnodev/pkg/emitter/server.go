@@ -60,7 +60,7 @@ func (s *Server) Emit(evt events.Event) {
 	go s.emit(evt)
 }
 
-type EventJSON struct {
+type eventJSON struct {
 	Type events.Type `json:"type"`
 	Data any         `json:"data"`
 }
@@ -69,7 +69,7 @@ func (s *Server) emit(evt events.Event) {
 	s.muClients.Lock()
 	defer s.muClients.Unlock()
 
-	jsonEvt := EventJSON{evt.Type(), evt}
+	jsonEvt := eventJSON{evt.Type(), evt}
 
 	s.logger.Info("sending event to clients",
 		"clients", len(s.clients),

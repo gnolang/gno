@@ -188,14 +188,8 @@ func listNonTestFiles(dir string) ([]string, error) {
 func runExpr(m *gno.Machine, expr string) {
 	defer func() {
 		if r := recover(); r != nil {
-			switch r := r.(type) {
-			case gno.UnhandledPanicError:
-				fmt.Printf("panic running expression %s: %v\nStacktrace: %s\n",
-					expr, r.Error(), m.ExceptionsStacktrace())
-			default:
-				fmt.Printf("panic running expression %s: %v\nMachine State:%s\nStacktrace: %s\n",
-					expr, r, m.String(), m.Stacktrace().String())
-			}
+			fmt.Printf("panic running expression %s: %v\n%s\n",
+				expr, r, m.String())
 			panic(r)
 		}
 	}()

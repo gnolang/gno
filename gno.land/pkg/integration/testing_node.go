@@ -3,17 +3,14 @@ package integration
 import (
 	"log/slog"
 	"path/filepath"
-	"slices"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	tmcfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
@@ -33,19 +30,10 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 	err = node.Start()
 	require.NoError(t, err)
 
-	ourAddress := config.PrivValidator.GetPubKey().Address()
-	isValidator := slices.ContainsFunc(config.Genesis.Validators, func(val bft.GenesisValidator) bool {
-		return val.Address == ourAddress
-	})
-
-	// Wait for first block if we are a validator.
-	// If we are not a validator, we don't produce blocks, so node.Ready() hangs.
-	if isValidator {
-		select {
-		case <-node.Ready():
-		case <-time.After(time.Second * 10):
-			require.FailNow(t, "timeout while waiting for the node to start")
-		}
+	select {
+	case <-node.Ready():
+	case <-time.After(time.Second * 10):
+		require.FailNow(t, "timeout while waiting for the node to start")
 	}
 
 	return node, node.Config().RPC.ListenAddress
@@ -83,14 +71,10 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 	genesis := DefaultTestingGenesisConfig(t, gnoroot, pv.GetPubKey(), tmconfig)
 
 	return &gnoland.InMemoryNodeConfig{
-		PrivValidator: pv,
-		Genesis:       genesis,
-		TMConfig:      tmconfig,
-		DB:            memdb.NewMemDB(),
-		InitChainerConfig: gnoland.InitChainerConfig{
-			GenesisTxResultHandler: gnoland.PanicOnFailingTxResultHandler,
-			CacheStdlibLoad:        true,
-		},
+		PrivValidator:    pv,
+		Genesis:          genesis,
+		TMConfig:         tmconfig,
+		GenesisTxHandler: gnoland.PanicOnFailingTxHandler,
 	}
 }
 
@@ -118,7 +102,7 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 			Balances: []gnoland.Balance{
 				{
 					Address: crypto.MustAddressFromString(DefaultAccount_Address),
-					Amount:  std.MustParseCoins(ugnot.ValueString(10000000000000)),
+					Amount:  std.MustParseCoins("10000000000000ugnot"),
 				},
 			},
 			Txs: []std.Tx{},
@@ -130,7 +114,7 @@ func DefaultTestingGenesisConfig(t TestingTS, gnoroot string, self crypto.PubKey
 func LoadDefaultPackages(t TestingTS, creator bft.Address, gnoroot string) []std.Tx {
 	examplesDir := filepath.Join(gnoroot, "examples")
 
-	defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
+	defaultFee := std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
 	txs, err := gnoland.LoadPackagesFromDir(examplesDir, creator, defaultFee)
 	require.NoError(t, err)
 

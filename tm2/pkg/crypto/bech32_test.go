@@ -1,7 +1,6 @@
 package crypto_test
 
 import (
-	"encoding/json"
 	"math/rand"
 	"testing"
 
@@ -60,7 +59,6 @@ func TestRandBech32AddrConsistency(t *testing.T) {
 		addr := crypto.AddressFromBytes(pub.Address().Bytes())
 		testMarshal(t, addr, amino.Marshal, amino.Unmarshal)
 		testMarshal(t, addr, amino.MarshalJSON, amino.UnmarshalJSON)
-		testMarshal(t, addr, json.Marshal, json.Unmarshal)
 
 		str := addr.String()
 		res, err := crypto.AddressFromBech32(str)

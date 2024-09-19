@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -101,16 +100,16 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			tempGenesis.Name(),
 		}
 
-		amount := std.NewCoins(std.NewCoin(ugnot.Denom, 10))
+		amount := std.NewCoins(std.NewCoin("ugnot", 10))
 
 		for _, dummyKey := range dummyKeys {
 			args = append(args, "--single")
 			args = append(
 				args,
 				fmt.Sprintf(
-					"%s=%s",
+					"%s=%dugnot",
 					dummyKey.Address().String(),
-					ugnot.ValueString(amount.AmountOf(ugnot.Denom)),
+					amount.AmountOf("ugnot"),
 				),
 			)
 		}
@@ -159,7 +158,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 		require.NoError(t, genesis.SaveAs(tempGenesis.Name()))
 
 		dummyKeys := getDummyKeys(t, 10)
-		amount := std.NewCoins(std.NewCoin(ugnot.Denom, 10))
+		amount := std.NewCoins(std.NewCoin("ugnot", 10))
 
 		balances := make([]string, len(dummyKeys))
 
@@ -168,9 +167,9 @@ func TestGenesis_Balances_Add(t *testing.T) {
 
 		for index, key := range dummyKeys {
 			balances[index] = fmt.Sprintf(
-				"%s=%s",
+				"%s=%dugnot",
 				key.Address().String(),
-				ugnot.ValueString(amount.AmountOf(ugnot.Denom)),
+				amount.AmountOf("ugnot"),
 			)
 		}
 
@@ -238,9 +237,9 @@ func TestGenesis_Balances_Add(t *testing.T) {
 
 		var (
 			dummyKeys   = getDummyKeys(t, 10)
-			amount      = std.NewCoins(std.NewCoin(ugnot.Denom, 10))
-			amountCoins = std.NewCoins(std.NewCoin(ugnot.Denom, 10))
-			gasFee      = std.NewCoin(ugnot.Denom, 1000000)
+			amount      = std.NewCoins(std.NewCoin("ugnot", 10))
+			amountCoins = std.NewCoins(std.NewCoin("ugnot", 10))
+			gasFee      = std.NewCoin("ugnot", 1000000)
 			txs         = make([]std.Tx, 0)
 		)
 
@@ -317,7 +316,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 				if index == 0 {
 					// the first address should
 					// have a balance of 0
-					checkAmount = std.NewCoins(std.NewCoin(ugnot.Denom, 0))
+					checkAmount = std.NewCoins(std.NewCoin("ugnot", 0))
 				}
 
 				if dummyKey.Address().String() == balance.Address.String() {
@@ -348,7 +347,7 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			Balances: []gnoland.Balance{
 				{
 					Address: dummyKeys[0].Address(),
-					Amount:  std.NewCoins(std.NewCoin(ugnot.Denom, 100)),
+					Amount:  std.NewCoins(std.NewCoin("ugnot", 100)),
 				},
 			},
 		}
@@ -365,16 +364,16 @@ func TestGenesis_Balances_Add(t *testing.T) {
 			tempGenesis.Name(),
 		}
 
-		amount := std.NewCoins(std.NewCoin(ugnot.Denom, 10))
+		amount := std.NewCoins(std.NewCoin("ugnot", 10))
 
 		for _, dummyKey := range dummyKeys {
 			args = append(args, "--single")
 			args = append(
 				args,
 				fmt.Sprintf(
-					"%s=%s",
+					"%s=%dugnot",
 					dummyKey.Address().String(),
-					ugnot.ValueString(amount.AmountOf(ugnot.Denom)),
+					amount.AmountOf("ugnot"),
 				),
 			)
 		}
@@ -422,9 +421,9 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 
 		var (
 			dummyKeys   = getDummyKeys(t, 10)
-			amount      = std.NewCoins(std.NewCoin(ugnot.Denom, 10))
-			amountCoins = std.NewCoins(std.NewCoin(ugnot.Denom, 10))
-			gasFee      = std.NewCoin(ugnot.Denom, 1000000)
+			amount      = std.NewCoins(std.NewCoin("ugnot", 10))
+			amountCoins = std.NewCoins(std.NewCoin("ugnot", 10))
+			gasFee      = std.NewCoin("ugnot", 1000000)
 			txs         = make([]std.Tx, 0)
 		)
 
@@ -480,7 +479,7 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 
 		var (
 			dummyKeys   = getDummyKeys(t, 10)
-			amountCoins = std.NewCoins(std.NewCoin(ugnot.Denom, 10))
+			amountCoins = std.NewCoins(std.NewCoin("ugnot", 10))
 			gasFee      = std.NewCoin("gnos", 1) // invalid fee
 			txs         = make([]std.Tx, 0)
 		)
@@ -533,7 +532,7 @@ func TestBalances_GetBalancesFromTransactions(t *testing.T) {
 		var (
 			dummyKeys   = getDummyKeys(t, 10)
 			amountCoins = std.NewCoins(std.NewCoin("gnogno", 10)) // invalid send amount
-			gasFee      = std.NewCoin(ugnot.Denom, 1)
+			gasFee      = std.NewCoin("ugnot", 1)
 			txs         = make([]std.Tx, 0)
 		)
 

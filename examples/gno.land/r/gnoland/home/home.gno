@@ -7,7 +7,6 @@ import (
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
 	blog "gno.land/r/gnoland/blog"
-	events "gno.land/r/gnoland/events"
 )
 
 // XXX: p/demo/ui API is crappy, we need to make it more idiomatic
@@ -36,7 +35,7 @@ func Render(_ string) string {
 	dom.Body.Append(
 		ui.Columns{3, []ui.Element{
 			lastBlogposts(4),
-			upcomingEvents(),
+			upcomingEvents(4),
 			lastContributions(4),
 		}},
 	)
@@ -69,7 +68,7 @@ func Render(_ string) string {
 func lastBlogposts(limit int) ui.Element {
 	posts := blog.RenderLastPostsWidget(limit)
 	return ui.Element{
-		ui.H3("[Latest Blogposts](/r/gnoland/blog)"),
+		ui.H3("Latest Blogposts"),
 		ui.Text(posts),
 	}
 }
@@ -82,11 +81,11 @@ func lastContributions(limit int) ui.Element {
 	}
 }
 
-func upcomingEvents() ui.Element {
-	out, _ := events.RenderEventWidget(events.MaxWidgetSize)
+func upcomingEvents(limit int) ui.Element {
 	return ui.Element{
-		ui.H3("[Latest Events](/r/gnoland/events)"),
-		ui.Text(out),
+		ui.H3("Upcoming Events"),
+		// TODO: replace with r/gnoland/events
+		ui.Text("[View upcoming events](/events)"),
 	}
 }
 
@@ -269,7 +268,7 @@ func discoverLinks() ui.Element {
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
 - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-- [Testnet 4](https://test4.gno.land/) (Launched July 2024!)
+- Testnet 4 (upcoming)
 - [Testnet 3](https://test3.gno.land/) (archive)
 - [Testnet 2](https://test2.gno.land/) (archive)
 - Testnet Faucet Hub (soon)

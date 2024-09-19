@@ -85,17 +85,3 @@ func (app *BaseApp) SetAnteHandler(ah AnteHandler) {
 	}
 	app.anteHandler = ah
 }
-
-func (app *BaseApp) SetBeginTxHook(beginTx BeginTxHook) {
-	if app.sealed {
-		panic("SetBeginTxHook() on sealed BaseApp")
-	}
-	app.beginTxHook = beginTx
-}
-
-func (app *BaseApp) SetEndTxHook(endTx EndTxHook) {
-	if app.sealed {
-		panic("SetEndTxHook() on sealed BaseApp")
-	}
-	app.endTxHook = endTx
-}

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -31,12 +30,12 @@ func generateDummyTxs(t *testing.T, count int) []std.Tx {
 				bank.MsgSend{
 					FromAddress: crypto.Address{byte(i)},
 					ToAddress:   crypto.Address{byte((i + 1) % count)},
-					Amount:      std.NewCoins(std.NewCoin(ugnot.Denom, 1)),
+					Amount:      std.NewCoins(std.NewCoin("ugnot", 1)),
 				},
 			},
 			Fee: std.Fee{
 				GasWanted: 1,
-				GasFee:    std.NewCoin(ugnot.Denom, 1000000),
+				GasFee:    std.NewCoin("ugnot", 1000000),
 			},
 			Memo: fmt.Sprintf("tx %d", i),
 		}

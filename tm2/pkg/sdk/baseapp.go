@@ -42,9 +42,6 @@ type BaseApp struct {
 	beginBlocker BeginBlocker // logic to run before any txs
 	endBlocker   EndBlocker   // logic to run after all txs, and to determine valset changes
 
-	beginTxHook BeginTxHook // BaseApp-specific hook run before running transaction messages.
-	endTxHook   EndTxHook   // BaseApp-specific hook run after running transaction messages.
-
 	// --------------------
 	// Volatile state
 	// checkState is set on initialization and reset on Commit.
@@ -823,21 +820,12 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 	// Create a new context based off of the existing context with a cache wrapped
 	// multi-store in case message processing fails.
 	runMsgCtx, msCache := app.cacheTxContext(ctx)
-
-	if app.beginTxHook != nil {
-		runMsgCtx = app.beginTxHook(runMsgCtx)
-	}
-
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
 
 	// Safety check: don't write the cache state unless we're in DeliverTx.
 	if mode != RunTxModeDeliver {
 		return result
-	}
-
-	if app.endTxHook != nil {
-		app.endTxHook(runMsgCtx, result)
 	}
 
 	// only update state if all messages pass

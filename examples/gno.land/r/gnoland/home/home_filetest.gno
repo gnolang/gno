@@ -56,7 +56,7 @@ func main() {
 // - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 // - [Gnoscan](https://gnoscan.io)
 // - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-// - [Testnet 4](https://test4.gno.land/) (Launched July 2024!)
+// - Testnet 4 (upcoming)
 // - [Testnet 3](https://test3.gno.land/) (archive)
 // - [Testnet 2](https://test2.gno.land/) (archive)
 // - Testnet Faucet Hub (soon)
@@ -68,15 +68,15 @@ func main() {
 // <div class="columns-3">
 // <div class="column">
 //
-// ### [Latest Blogposts](/r/gnoland/blog)
+// ### Latest Blogposts
 //
 // No posts.
 // </div><!-- /column-->
 // <div class="column">
 //
-// ### [Latest Events](/r/gnoland/events)
+// ### Upcoming Events
 //
-// No events.
+// [View upcoming events](/events)
 // </div><!-- /column-->
 // <div class="column">
 //

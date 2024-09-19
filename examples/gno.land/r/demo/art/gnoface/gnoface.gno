@@ -2,15 +2,15 @@ package gnoface
 
 import (
 	"math/rand"
+	"std"
 	"strconv"
 	"strings"
 
-	"gno.land/p/demo/entropy"
 	"gno.land/p/demo/ufmt"
 )
 
 func Render(path string) string {
-	seed := uint64(entropy.New().Value())
+	seed := uint64(std.GetHeight())
 
 	path = strings.TrimSpace(path)
 	if path != "" {

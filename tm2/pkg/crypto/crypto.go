@@ -2,7 +2,6 @@ package crypto
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 
 	"github.com/gnolang/gno/tm2/pkg/bech32"
@@ -54,25 +53,11 @@ func AddressFromBytes(bz []byte) (ret Address) {
 	return
 }
 
-func (addr Address) MarshalJSON() ([]byte, error) {
-	b := AddressToBech32(addr)
-	return []byte(`"` + b + `"`), nil
-}
-
-func (addr *Address) UnmarshalJSON(b []byte) error {
-	var s string
-	if err := json.Unmarshal(b, &s); err != nil {
-		return err
-	}
-	return addr.UnmarshalAmino(s)
-}
-
 func (addr Address) MarshalAmino() (string, error) {
 	return AddressToBech32(addr), nil
 }
 
 func (addr *Address) UnmarshalAmino(b32str string) (err error) {
-	// NOTE: also used to unmarshal normal JSON, through UnmarshalJSON.
 	if b32str == "" {
 		return nil // leave addr as zero.
 	}

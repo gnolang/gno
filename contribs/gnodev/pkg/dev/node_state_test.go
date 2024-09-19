@@ -8,8 +8,8 @@ import (
 
 	emitter "github.com/gnolang/gno/contribs/gnodev/internal/mock"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/events"
+	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,10 +87,10 @@ func TestSaveCurrentState(t *testing.T) {
 	require.NoError(t, err)
 
 	// Send a new tx
-	msg := vm.MsgCall{
-		PkgPath: testCounterRealm,
-		Func:    "Inc",
-		Args:    []string{"10"},
+	msg := gnoclient.MsgCall{
+		PkgPath:  testCounterRealm,
+		FuncName: "Inc",
+		Args:     []string{"10"},
 	}
 
 	res, err := testingCallRealm(t, node, msg)
@@ -169,10 +169,10 @@ func Render(_ string) string { return strconv.Itoa(value) }
 	for i := 0; i < inc; i++ {
 		t.Logf("call %d", i)
 		// Craft `Inc` msg
-		msg := vm.MsgCall{
-			PkgPath: testCounterRealm,
-			Func:    "Inc",
-			Args:    []string{"1"},
+		msg := gnoclient.MsgCall{
+			PkgPath:  testCounterRealm,
+			FuncName: "Inc",
+			Args:     []string{"1"},
 		}
 
 		res, err := testingCallRealm(t, node, msg)

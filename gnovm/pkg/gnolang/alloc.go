@@ -223,12 +223,7 @@ func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceV
 	}
 }
 
-// NewSliceFromList allocates a new slice with the underlying array value
-// populated from `list`. This should not be called from areas in the codebase
-// that are doing allocations with potentially large user provided values, e.g.
-// `make()` and `append()`. Using `Alloc.NewListArray` can be used is most cases
-// to allocate the space for the `TypedValue` list before doing the allocation
-// in the go runtime -- see the `make()` code in uverse.go.
+// NOTE: also allocates the underlying array from list.
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
@@ -243,9 +238,7 @@ func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	}
 }
 
-// NewSliceFromData allocates a new slice with the underlying data array
-// value populated from `data`. See the doc for `NewSliceFromList` for
-// correct usage notes.
+// NOTE: also allocates the underlying array from data.
 func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateDataArray(int64(cap(data)))

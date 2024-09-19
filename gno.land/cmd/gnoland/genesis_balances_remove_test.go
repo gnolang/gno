@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
-	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -76,7 +75,7 @@ func TestGenesis_Balances_Remove(t *testing.T) {
 			Balances: []gnoland.Balance{
 				{
 					Address: dummyKey.Address(),
-					Amount:  std.NewCoins(std.NewCoin(ugnot.Denom, 100)),
+					Amount:  std.NewCoins(std.NewCoin("ugnot", 100)),
 				},
 			},
 		}

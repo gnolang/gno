@@ -85,7 +85,7 @@ Returns the original signer of the transaction.
 
 #### Usage
 ```go
-caller := std.GetOrigCaller()
+caller := std.GetOrigSend()
 ```
 ---
 
