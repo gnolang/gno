@@ -1614,7 +1614,8 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					// or if not const, assert integer type..
 					checkOrConvertIntegerKind(store, last, n.Index)
 					if dt.Kind() == SliceKind {
-						// A string index is not addressable.
+						// A value at a slice index is always addressable because the underlying
+						// array is addressable.
 						n.Addressability = addressabilityStatusSatisfied
 					} else if dt.Kind() == StringKind {
 						// Special case; string indexes are never addressable.
