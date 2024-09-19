@@ -11,8 +11,7 @@ import (
 // Replacer replaces a list of strings with replacements.
 // It is safe for concurrent use by multiple goroutines.
 type Replacer struct {
-	// Custom code: initialized bool was before sync.Once on golang package
-	initialized bool // guards buildOnce method
+	// Custom code: remove variable once of type sync.Once on golang package
 	// End of custom code
 	r      replacer
 	oldnew []string
@@ -38,11 +37,10 @@ func NewReplacer(oldnew ...string) *Replacer {
 }
 
 func (r *Replacer) buildOnce() {
-	// Custom code: only build once without sync.Once
-	if r.initialized {
+	// Custom code: check replacer is null instead of call sync.Once
+	if r.r != nil {
 		return
 	}
-	r.initialized = true
 	// End of custom code
 	r.r = r.build()
 	r.oldnew = nil
@@ -590,7 +588,7 @@ func (r *byteStringReplacer) WriteString(w io.Writer, s string) (n int, err erro
 
 // Custom code: these test functions are normally placed on export_test.go file but it seems like we do not recognize
 // methods declared on test files as part of the structure. For example:
-// Replacer.printTrie() was not recognized so I added here directl
+// Replacer.printTrie() was not recognized so I added here directly
 func (r *Replacer) PrintTrie() string {
 	r.buildOnce()
 	gen := r.r.(*genericReplacer)
