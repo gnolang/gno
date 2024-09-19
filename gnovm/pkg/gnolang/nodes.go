@@ -328,7 +328,7 @@ var (
 type Expr interface {
 	Node
 	assertExpr()
-	addressability() Addressability
+	addressability() addressabilityStatus
 }
 
 type Exprs []Expr
@@ -375,8 +375,8 @@ type NameExpr struct {
 	Name
 }
 
-func (x *NameExpr) addressability() Addressability {
-	return AddressabilitySatisfied
+func (x *NameExpr) addressability() addressabilityStatus {
+	return addressabilityStatusSatisfied
 }
 
 type NameExprs []NameExpr
@@ -390,8 +390,8 @@ type BasicLitExpr struct {
 	Value string
 }
 
-func (x *BasicLitExpr) addressability() Addressability {
-	return AddressabilityUnsatisfied
+func (x *BasicLitExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
 }
 
 type BinaryExpr struct { // (Left Op Right)
@@ -401,8 +401,8 @@ type BinaryExpr struct { // (Left Op Right)
 	Right Expr // right operand
 }
 
-func (x *BinaryExpr) addressability() Addressability {
-	return AddressabilityUnsatisfied
+func (x *BinaryExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
 }
 
 type CallExpr struct { // Func(Args<Varg?...>)
@@ -411,10 +411,10 @@ type CallExpr struct { // Func(Args<Varg?...>)
 	Args           Exprs // function arguments, if any.
 	Varg           bool  // if true, final arg is variadic.
 	NumArgs        int   // len(Args) or len(Args[0].Results)
-	Addressability Addressability
+	Addressability addressabilityStatus
 }
 
-func (x *CallExpr) addressability() Addressability {
+func (x *CallExpr) addressability() addressabilityStatus {
 	return x.Addressability
 }
 
@@ -423,12 +423,12 @@ type IndexExpr struct { // X[Index]
 	X              Expr // expression
 	Index          Expr // index expression
 	HasOK          bool // if true, is form: `value, ok := <X>[<Key>]
-	Addressability Addressability
+	Addressability addressabilityStatus
 }
 
-func (x *IndexExpr) addressability() Addressability {
+func (x *IndexExpr) addressability() addressabilityStatus {
 	// In this case NotApplicable means that it wasn't set, the default value.
-	if x.Addressability == AddressabilityNotApplicable {
+	if x.Addressability == addressabilityStatusNotApplicable {
 		return x.X.addressability()
 	}
 
@@ -443,12 +443,12 @@ type SelectorExpr struct { // X.Sel
 	IsAddressable bool      // true if X is a pointer
 }
 
-func (x *SelectorExpr) addressability() Addressability {
-	if x.IsAddressable || x.X.addressability() == AddressabilitySatisfied {
-		return AddressabilitySatisfied
+func (x *SelectorExpr) addressability() addressabilityStatus {
+	if x.IsAddressable || x.X.addressability() == addressabilityStatusSatisfied {
+		return addressabilityStatusSatisfied
 	}
 
-	return AddressabilityUnsatisfied
+	return addressabilityStatusUnsatisfied
 }
 
 type SliceExpr struct { // X[Low:High:Max]
@@ -459,8 +459,8 @@ type SliceExpr struct { // X[Low:High:Max]
 	Max  Expr // maximum capacity of slice; or nil; added in Go 1.2
 }
 
-func (x *SliceExpr) addressability() Addressability {
-	return AddressabilityUnsatisfied
+func (x *SliceExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
 }
 
 // A StarExpr node represents an expression of the form
@@ -471,7 +471,7 @@ type StarExpr struct { // *X
 	X Expr // operand
 }
 
-func (x *StarExpr) addressability() Addressability {
+func (x *StarExpr) addressability() addressabilityStatus {
 	return x.X.addressability()
 }
 
@@ -480,7 +480,7 @@ type RefExpr struct { // &X
 	X Expr // operand
 }
 
-func (x *RefExpr) addressability() Addressability {
+func (x *RefExpr) addressability() addressabilityStatus {
 	return x.X.addressability()
 }
 
@@ -492,12 +492,12 @@ type TypeAssertExpr struct { // X.(Type)
 	IsAddressable bool
 }
 
-func (x *TypeAssertExpr) addressability() Addressability {
+func (x *TypeAssertExpr) addressability() addressabilityStatus {
 	if x.IsAddressable {
-		return AddressabilitySatisfied
+		return addressabilityStatusSatisfied
 	}
 
-	return AddressabilityUnsatisfied
+	return addressabilityStatusUnsatisfied
 }
 
 // A UnaryExpr node represents a unary expression. Unary
@@ -510,7 +510,7 @@ type UnaryExpr struct { // (Op X)
 	Op Word // operator
 }
 
-func (x *UnaryExpr) addressability() Addressability {
+func (x *UnaryExpr) addressability() addressabilityStatus {
 	return x.X.addressability()
 }
 
@@ -523,12 +523,12 @@ type CompositeLitExpr struct {
 	IsAddressable bool
 }
 
-func (x *CompositeLitExpr) addressability() Addressability {
+func (x *CompositeLitExpr) addressability() addressabilityStatus {
 	if x.IsAddressable {
-		return AddressabilitySatisfied
+		return addressabilityStatusSatisfied
 	}
 
-	return AddressabilityUnsatisfied
+	return addressabilityStatusUnsatisfied
 }
 
 // Returns true if any elements are keyed.
@@ -561,8 +561,8 @@ type KeyValueExpr struct {
 	Value Expr // never nil
 }
 
-func (x *KeyValueExpr) addressability() Addressability {
-	return AddressabilityNotApplicable
+func (x *KeyValueExpr) addressability() addressabilityStatus {
+	return addressabilityStatusNotApplicable
 }
 
 type KeyValueExprs []KeyValueExpr
@@ -577,8 +577,8 @@ type FuncLitExpr struct {
 	Body              // function body
 }
 
-func (x *FuncLitExpr) addressability() Addressability {
-	return AddressabilityUnsatisfied
+func (x *FuncLitExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
 }
 
 // The preprocessor replaces const expressions
@@ -589,8 +589,8 @@ type ConstExpr struct {
 	TypedValue
 }
 
-func (x *ConstExpr) addressability() Addressability {
-	return AddressabilityUnsatisfied
+func (x *ConstExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
 }
 
 // ----------------------------------------
@@ -657,8 +657,8 @@ type FieldTypeExpr struct {
 	Tag Expr
 }
 
-func (x *FieldTypeExpr) addressability() Addressability {
-	return AddressabilityNotApplicable
+func (x *FieldTypeExpr) addressability() addressabilityStatus {
+	return addressabilityStatusNotApplicable
 }
 
 type FieldTypeExprs []FieldTypeExpr
@@ -685,8 +685,8 @@ type ArrayTypeExpr struct {
 	Elt Expr // element type
 }
 
-func (x *ArrayTypeExpr) addressability() Addressability {
-	return AddressabilityNotApplicable
+func (x *ArrayTypeExpr) addressability() addressabilityStatus {
+	return addressabilityStatusNotApplicable
 }
 
 type SliceTypeExpr struct {
@@ -695,8 +695,8 @@ type SliceTypeExpr struct {
 	Vrd bool // variadic arg expression
 }
 
-func (x *SliceTypeExpr) addressability() Addressability {
-	return AddressabilityNotApplicable
+func (x *SliceTypeExpr) addressability() addressabilityStatus {
+	return addressabilityStatusNotApplicable
 }
 
 type InterfaceTypeExpr struct {
@@ -705,8 +705,8 @@ type InterfaceTypeExpr struct {
 	Generic Name           // for uverse generics
 }
 
-func (x *InterfaceTypeExpr) addressability() Addressability {
-	return AddressabilityNotApplicable
+func (x *InterfaceTypeExpr) addressability() addressabilityStatus {
+	return addressabilityStatusNotApplicable
 }
 
 type ChanDir int
@@ -726,8 +726,8 @@ type ChanTypeExpr struct {
 	Value Expr    // value type
 }
 
-func (x *ChanTypeExpr) addressability() Addressability {
-	return AddressabilityNotApplicable
+func (x *ChanTypeExpr) addressability() addressabilityStatus {
+	return addressabilityStatusNotApplicable
 }
 
 type FuncTypeExpr struct {
@@ -736,8 +736,8 @@ type FuncTypeExpr struct {
 	Results FieldTypeExprs // (outgoing) results, if any.
 }
 
-func (x *FuncTypeExpr) addressability() Addressability {
-	return AddressabilityNotApplicable
+func (x *FuncTypeExpr) addressability() addressabilityStatus {
+	return addressabilityStatusNotApplicable
 }
 
 type MapTypeExpr struct {
@@ -746,8 +746,8 @@ type MapTypeExpr struct {
 	Value Expr // value type
 }
 
-func (x *MapTypeExpr) addressability() Addressability {
-	return AddressabilityNotApplicable
+func (x *MapTypeExpr) addressability() addressabilityStatus {
+	return addressabilityStatusNotApplicable
 }
 
 type StructTypeExpr struct {
@@ -755,8 +755,8 @@ type StructTypeExpr struct {
 	Fields FieldTypeExprs // list of field declarations
 }
 
-func (x *StructTypeExpr) addressability() Addressability {
-	return AddressabilityNotApplicable
+func (x *StructTypeExpr) addressability() addressabilityStatus {
+	return addressabilityStatusNotApplicable
 }
 
 // Like ConstExpr but for types.
@@ -766,8 +766,8 @@ type constTypeExpr struct {
 	Type   Type
 }
 
-func (x *constTypeExpr) addressability() Addressability {
-	return AddressabilityNotApplicable
+func (x *constTypeExpr) addressability() addressabilityStatus {
+	return addressabilityStatusNotApplicable
 }
 
 // Only used for native func arguments
@@ -776,8 +776,8 @@ type MaybeNativeTypeExpr struct {
 	Type Expr
 }
 
-func (x *MaybeNativeTypeExpr) addressability() Addressability {
-	return AddressabilityNotApplicable
+func (x *MaybeNativeTypeExpr) addressability() addressabilityStatus {
+	return addressabilityStatusNotApplicable
 }
 
 // ----------------------------------------
@@ -2263,3 +2263,11 @@ func validatePkgName(name string) {
 		panic(fmt.Sprintf("cannot create package with invalid name %q", name))
 	}
 }
+
+type addressabilityStatus int
+
+const (
+	addressabilityStatusNotApplicable addressabilityStatus = iota
+	addressabilityStatusSatisfied
+	addressabilityStatusUnsatisfied
+)
