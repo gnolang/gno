@@ -5,18 +5,23 @@ import (
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/entropy"
 	"gno.land/p/demo/gnorkle/feeds/static"
 	"gno.land/p/demo/gnorkle/gnorkle"
 	"gno.land/p/demo/gnorkle/message"
+	"gno.land/p/demo/ufmt"
 )
 
-// add an example agent
+// add an example agent > hackerspace PR
 // add example messages which the agent can send
 // update rendering to show possible verification requests :)
 
 const (
 	// The agent should send this value if it has verified the github handle.
 	verifiedResult = "OK"
+	verifyMsg      = `Verification request submitted!
+Using the GitHub account you want to verify, please create a 
+public repo with the following name:`
 )
 
 var (
@@ -74,7 +79,7 @@ func (h postGnorkleMessageHandler) Handle(i *gnorkle.Instance, funcType message.
 
 // RequestVerification creates a new static feed with a single task that will
 // instruct an agent to verify the github handle / gno address pair.
-func RequestVerification(githubHandle string) {
+func RequestVerification(githubHandle string) string {
 	gnoAddress := string(std.GetOrigCaller())
 	if err := oracle.AddFeeds(
 		static.NewSingleValueFeed(
@@ -88,6 +93,9 @@ func RequestVerification(githubHandle string) {
 	); err != nil {
 		panic(err)
 	}
+
+	return ufmt.Sprintf(`%s\n%d`, verifyMsg, entropy.New().Value()+uint32(std.GetHeight()))
+
 }
 
 // GnorkleEntrypoint is the entrypoint to the gnorkle oracle handler.
@@ -144,4 +152,8 @@ func Render(_ string) string {
 	})
 
 	return result + "}"
+}
+
+func genVerifyRepoName(owner, addr string) string {
+
 }
