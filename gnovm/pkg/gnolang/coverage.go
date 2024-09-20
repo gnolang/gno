@@ -38,7 +38,7 @@ type CoverageData struct {
 	CurrentPackage string
 	CurrentFile    string
 	pathCache      map[string]string // relative path to absolute path
-	Functions      map[string][]FuncCoverage
+	// Functions      map[string][]FuncCoverage
 }
 
 // FileCoverage stores coverage information for a single file
@@ -56,7 +56,7 @@ func NewCoverageData(rootDir string) *CoverageData {
 		CurrentPackage: "",
 		CurrentFile:    "",
 		pathCache:      make(map[string]string),
-		Functions:      make(map[string][]FuncCoverage),
+		// Functions:      make(map[string][]FuncCoverage),
 	}
 }
 
@@ -89,13 +89,6 @@ func (c *CoverageData) updateHit(pkgPath string, line int) {
 	if fileCoverage.ExecutableLines[line] {
 		fileCoverage.HitLines[line]++
 		c.Files[pkgPath] = fileCoverage
-	}
-
-	for i, fc := range c.Functions[pkgPath] {
-		if line >= fc.StartLine && line <= fc.EndLine {
-			c.Functions[pkgPath][i].Covered++
-			break
-		}
 	}
 }
 
@@ -152,35 +145,6 @@ func (c *CoverageData) Report(io commands.IO) {
 		color := getCoverageColor(pct)
 		if totalLines != 0 {
 			io.Printfln("%s%.1f%% [%4d/%d] %s%s", color, floor1(pct), hitLines, totalLines, file, colorReset)
-		}
-	}
-}
-
-func (c *CoverageData) ReportFuncCoverage(io commands.IO, funcFilter string) {
-	io.Printfln("Function Coverage:")
-
-	var regex *regexp.Regexp
-	var err error
-	if funcFilter != "" {
-		regex, err = regexp.Compile(funcFilter)
-		if err != nil {
-			io.Printf("error compiling regex: %s\n", err)
-			return
-		}
-	}
-
-	for file, funcs := range c.Functions {
-		filePrinted := false
-		for _, fc := range funcs {
-			if matchesRegexFilter(fc.Name, regex) {
-				if !filePrinted {
-					io.Printfln("File %s:", file)
-					filePrinted = true
-				}
-				pct := calculateCoverage(fc.Covered, fc.Total)
-				color := getCoverageColor(pct)
-				io.Printfln("%s%-20s %4d/%d %s%.1f%%%s", color, fc.Name, fc.Covered, fc.Total, colorOrange, floor1(pct), colorReset)
-			}
 		}
 	}
 }
@@ -512,7 +476,6 @@ func (m *Machine) AddFileToCodeCoverage(file string, totalLines int) {
 		return
 	}
 	m.Coverage.addFile(file, totalLines)
-	m.Coverage.ParseFile(file)
 }
 
 // recordCoverage records the execution of a specific node in the AST.

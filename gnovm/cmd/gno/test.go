@@ -43,7 +43,6 @@ type testCfg struct {
 	showHits   bool
 	output     string
 	htmlOutput string
-	funcFilter string
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
@@ -193,13 +192,6 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 		"html",
 		"",
 		"output coverage report in HTML format",
-	)
-
-	fs.StringVar(
-		&c.funcFilter,
-		"func",
-		"",
-		"output coverage profile information for each function (comma separated list or regex)",
 	)
 }
 
@@ -467,12 +459,6 @@ func gnoTestPkg(
 			io.Println("coverage report saved to", cfg.htmlOutput)
 			return nil
 		}
-
-		if cfg.funcFilter != "" {
-			coverageData.ReportFuncCoverage(io, cfg.funcFilter)
-			return nil
-		}
-
 		coverageData.Report(io)
 	}
 
