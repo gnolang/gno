@@ -1,4 +1,4 @@
-// SEND: 1234567890ugnot
+// SEND: 10000000ugnot
 package main
 
 import "std"
@@ -63,4 +63,4 @@ func main() {
 }
 
 // Output:
-// 1434567890ugnot
+// 210000000ugnot

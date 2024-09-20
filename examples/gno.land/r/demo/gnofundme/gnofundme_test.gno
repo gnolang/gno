@@ -5,9 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/avl"
 	"gno.land/p/demo/testutils"
-	"gno.land/r/demo/gnofundme"
 )
 
 func TestWithdraw(t *testing.T) {
