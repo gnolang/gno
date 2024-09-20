@@ -11,7 +11,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -147,13 +146,6 @@ func (c *CoverageData) Report(io commands.IO) {
 			io.Printfln("%s%.1f%% [%4d/%d] %s%s", color, floor1(pct), hitLines, totalLines, file, colorReset)
 		}
 	}
-}
-
-func matchesRegexFilter(name string, regex *regexp.Regexp) bool {
-	if regex == nil {
-		return true
-	}
-	return regex.MatchString(name)
 }
 
 // ViewFiles displays the coverage information for files matching the given pattern.
