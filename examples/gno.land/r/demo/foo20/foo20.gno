@@ -20,7 +20,7 @@ var (
 )
 
 func init() {
-	admin = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @moul
+	admin = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
 	banker = grc20.NewBanker("Foo", "FOO", 4)
 	banker.Mint(admin.Owner(), 1000000*10000) // @administrator (1M)
 	token = banker.Token()
