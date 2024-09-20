@@ -119,6 +119,7 @@ html[data-theme="dark"] {
 .logo-hat {fill: var(--logo-hat, #ffffff); }
 
 #theme-toggle {
+  cursor: pointer;
   display: inline-block;
   padding: 0;
   color: var(--header-forground, #ffffff);
@@ -239,13 +240,22 @@ a[href="#"] {
   color: var(--muted-color, #757575);
 }
 
-ul {
+.gno-tmpl-section ul {
   padding: 0;
 }
 
-li {
+.gno-tmpl-section li ,
+#header li ,
+.footer li {
   list-style: none;
-  margin-bottom: 0.4rem;
+}
+
+.gno-tmpl-section blockquote {
+  margin-inline: 0;
+}
+
+li { 
+    margin-bottom: 0.4rem;
 }
 
 li > * {
@@ -303,6 +313,11 @@ code {
 .container p > img:only-child {
   max-width: 100%;
 }
+.gno-tmpl-page p img:only-child  {
+    margin-inline: auto;
+    display: block;
+    max-width: 100%;
+}
 
 .inline-list {
   padding: 1rem;
@@ -352,7 +367,7 @@ code {
 }
 
 .footer > .logo {
-  display: block;
+  display: inline-block;
   margin: 1rem;
   height: 1.2rem;
 }

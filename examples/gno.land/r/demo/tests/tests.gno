@@ -3,6 +3,7 @@ package tests
 import (
 	"std"
 
+	"gno.land/p/demo/nestedpkg"
 	rsubtests "gno.land/r/demo/tests/subtests"
 )
 
@@ -26,12 +27,20 @@ func InitOrigCaller() std.Address {
 	return initOrigCaller
 }
 
-func AssertOriginCall() {
+func CallAssertOriginCall() {
 	std.AssertOriginCall()
 }
 
-func IsOriginCall() bool {
+func CallIsOriginCall() bool {
 	return std.IsOriginCall()
+}
+
+func CallSubtestsAssertOriginCall() {
+	rsubtests.CallAssertOriginCall()
+}
+
+func CallSubtestsIsOriginCall() bool {
+	return rsubtests.CallIsOriginCall()
 }
 
 //----------------------------------------
@@ -90,4 +99,16 @@ func GetRSubtestsPrevRealm() std.Realm {
 
 func Exec(fn func()) {
 	fn()
+}
+
+func IsCallerSubPath() bool {
+	return nestedpkg.IsCallerSubPath()
+}
+
+func IsCallerParentPath() bool {
+	return nestedpkg.IsCallerParentPath()
+}
+
+func HasCallerSameNamespace() bool {
+	return nestedpkg.IsSameNamespace()
 }

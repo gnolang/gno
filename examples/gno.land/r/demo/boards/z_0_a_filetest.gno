@@ -1,4 +1,4 @@
-// PKGPATH: gno.land/r/boards_test
+// PKGPATH: gno.land/r/demo/boards_test
 package boards_test
 
 import (

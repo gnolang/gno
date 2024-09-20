@@ -15,8 +15,9 @@ func TestAdd(t *testing.T) {
 		{"1", "1", "2"},
 		{"1", "2", "3"},
 		// NEGATIVE
-		{"-1", "1", "-0"}, // TODO: remove negative sign for 0 ??
+		{"-1", "1", "0"},
 		{"1", "-1", "0"},
+		{"3", "-3", "0"},
 		{"-1", "-1", "-2"},
 		{"-1", "-2", "-3"},
 		{"-1", "3", "2"},
@@ -188,10 +189,10 @@ func TestSub(t *testing.T) {
 		{"1", "1", "0"},
 		{"-1", "1", "-2"},
 		{"1", "-1", "2"},
-		{"-1", "-1", "-0"},
-		{"-115792089237316195423570985008687907853269984665640564039457584007913129639935", "-115792089237316195423570985008687907853269984665640564039457584007913129639935", "-0"},
+		{"-1", "-1", "0"},
+		{"-115792089237316195423570985008687907853269984665640564039457584007913129639935", "-115792089237316195423570985008687907853269984665640564039457584007913129639935", "0"},
 		{"-115792089237316195423570985008687907853269984665640564039457584007913129639935", "0", "-115792089237316195423570985008687907853269984665640564039457584007913129639935"},
-		{x: "-115792089237316195423570985008687907853269984665640564039457584007913129639935", y: "1", want: "-0"},
+		{x: "-115792089237316195423570985008687907853269984665640564039457584007913129639935", y: "1", want: "0"},
 	}
 
 	for _, tc := range tests {
@@ -351,46 +352,45 @@ func TestMulUint256(t *testing.T) {
 
 func TestDiv(t *testing.T) {
 	tests := []struct {
-		x, y, want string
+		x, y, expected string
 	}{
+		{"1", "1", "1"},
 		{"0", "1", "0"},
-		{"0", "-1", "-0"},
-		{"10", "0", "0"},
-		{"10", "1", "10"},
-		{"10", "-1", "-10"},
-		{"-10", "0", "-0"},
-		{"-10", "1", "-10"},
-		{"-10", "-1", "10"},
-		{"10", "-3", "-3"},
-		{"10", "3", "3"},
+		{"-1", "1", "-1"},
+		{"1", "-1", "-1"},
+		{"-1", "-1", "1"},
+		{"-6", "3", "-2"},
+		{"10", "-2", "-5"},
+		{"-10", "3", "-3"},
+		{"7", "3", "2"},
+		{"-7", "3", "-2"},
+		{"115792089237316195423570985008687907853269984665640564039457584007913129639935", "2", "57896044618658097711785492504343953926634992332820282019728792003956564819967"}, // Max uint256 / 2
 	}
 
-	for _, tc := range tests {
-		x, err := FromDecimal(tc.x)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		y, err := FromDecimal(tc.y)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		want, err := FromDecimal(tc.want)
-		if err != nil {
-			t.Error(err)
-			continue
-		}
-
-		got := New()
-		got.Div(x, y)
-
-		if got.Neq(want) {
-			t.Errorf("Div(%s, %s) = %v, want %v", tc.x, tc.y, got.ToString(), want.ToString())
-		}
+	for _, tt := range tests {
+		t.Run(tt.x+"/"+tt.y, func(t *testing.T) {
+			x := MustFromDecimal(tt.x)
+			y := MustFromDecimal(tt.y)
+			result := Zero().Div(x, y)
+			if result.ToString() != tt.expected {
+				t.Errorf("Div(%s, %s) = %s, want %s", tt.x, tt.y, result.ToString(), tt.expected)
+			}
+			if result.abs.IsZero() && result.neg {
+				t.Errorf("Div(%s, %s) resulted in negative zero", tt.x, tt.y)
+			}
+		})
 	}
+
+	t.Run("Division by zero", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("Div(1, 0) did not panic")
+			}
+		}()
+		x := MustFromDecimal("1")
+		y := MustFromDecimal("0")
+		Zero().Div(x, y)
+	})
 }
 
 func TestDivUint256(t *testing.T) {

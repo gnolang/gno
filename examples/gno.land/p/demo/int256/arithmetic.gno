@@ -1,29 +1,27 @@
 package int256
 
-import (
-	"gno.land/p/demo/uint256"
-)
+import "gno.land/p/demo/uint256"
 
 func (z *Int) Add(x, y *Int) *Int {
 	z.initiateAbs()
 
-	neg := x.neg
-
 	if x.neg == y.neg {
-		// x + y == x + y
-		// (-x) + (-y) == -(x + y)
-		z.abs = z.abs.Add(x.abs, y.abs)
+		// If both numbers have the same sign, add their absolute values
+		z.abs.Add(x.abs, y.abs)
+		z.neg = x.neg
 	} else {
-		// x + (-y) == x - y == -(y - x)
-		// (-x) + y == y - x == -(x - y)
-		if x.abs.Cmp(y.abs) >= 0 {
-			z.abs = z.abs.Sub(x.abs, y.abs)
-		} else {
-			neg = !neg
-			z.abs = z.abs.Sub(y.abs, x.abs)
+		switch x.abs.Cmp(y.abs) {
+		case 1: // x > y
+			z.abs.Sub(x.abs, y.abs)
+			z.neg = x.neg
+		case -1: // x < y
+			z.abs.Sub(y.abs, x.abs)
+			z.neg = y.neg
+		case 0: // x == y
+			z.abs = uint256.NewUint(0)
 		}
 	}
-	z.neg = neg // 0 has no sign
+
 	return z
 }
 
@@ -68,22 +66,27 @@ func AddDeltaOverflow(z, x *uint256.Uint, y *Int) bool {
 func (z *Int) Sub(x, y *Int) *Int {
 	z.initiateAbs()
 
-	neg := x.neg
 	if x.neg != y.neg {
-		// x - (-y) == x + y
-		// (-x) - y == -(x + y)
-		z.abs = z.abs.Add(x.abs, y.abs)
+		// If sign are different, add the absolute values
+		z.abs.Add(x.abs, y.abs)
+		z.neg = x.neg
 	} else {
-		// x - y == x - y == -(y - x)
-		// (-x) - (-y) == y - x == -(x - y)
-		if x.abs.Cmp(y.abs) >= 0 {
-			z.abs = z.abs.Sub(x.abs, y.abs)
-		} else {
-			neg = !neg
-			z.abs = z.abs.Sub(y.abs, x.abs)
+		switch x.abs.Cmp(y.abs) {
+		case 1: // x > y
+			z.abs.Sub(x.abs, y.abs)
+			z.neg = x.neg
+		case -1: // x < y
+			z.abs.Sub(y.abs, x.abs)
+			z.neg = !x.neg
+		case 0: // x == y
+			z.abs = uint256.NewUint(0)
 		}
 	}
-	z.neg = neg // 0 has no sign
+
+	// Ensure zero is always positive
+	if z.abs.IsZero() {
+		z.neg = false
+	}
 	return z
 }
 
@@ -109,7 +112,7 @@ func (z *Int) Mul(x, y *Int) *Int {
 	z.initiateAbs()
 
 	z.abs = z.abs.Mul(x.abs, y.abs)
-	z.neg = x.neg != y.neg // 0 has no sign
+	z.neg = x.neg != y.neg && !z.abs.IsZero() // 0 has no sign
 	return z
 }
 
@@ -128,12 +131,13 @@ func (z *Int) MulUint256(x *Int, y *uint256.Uint) *Int {
 func (z *Int) Div(x, y *Int) *Int {
 	z.initiateAbs()
 
-	z.abs.Div(x.abs, y.abs)
-	if x.neg == y.neg {
-		z.neg = false
-	} else {
-		z.neg = true
+	if y.abs.IsZero() {
+		panic("division by zero")
 	}
+
+	z.abs.Div(x.abs, y.abs)
+	z.neg = (x.neg != y.neg) && !z.abs.IsZero() // 0 has no sign
+
 	return z
 }
 

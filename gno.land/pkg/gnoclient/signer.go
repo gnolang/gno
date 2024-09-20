@@ -3,6 +3,7 @@ package gnoclient
 import (
 	"fmt"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -12,7 +13,7 @@ import (
 // Signer provides an interface for signing transactions.
 type Signer interface {
 	Sign(SignCfg) (*std.Tx, error) // Signs a transaction and returns a signed tx ready for broadcasting.
-	Info() keys.Info               // Returns key information, including the address.
+	Info() (keys.Info, error)      // Returns key information, including the address.
 	Validate() error               // Checks whether the signer is properly configured.
 }
 
@@ -35,14 +36,19 @@ func (s SignerFromKeybase) Validate() error {
 		return err
 	}
 
+	caller, err := s.Info()
+	if err != nil {
+		return err
+	}
+
 	// To verify if the password unlocks the account, sign a blank transaction.
 	msg := vm.MsgCall{
-		Caller: s.Info().GetAddress(),
+		Caller: caller.GetAddress(),
 	}
 	signCfg := SignCfg{
 		UnsignedTX: std.Tx{
 			Msgs: []std.Msg{msg},
-			Fee:  std.NewFee(0, std.NewCoin("ugnot", 1000000)),
+			Fee:  std.NewFee(0, std.NewCoin(ugnot.Denom, 1000000)),
 		},
 	}
 	if _, err = s.Sign(signCfg); err != nil {
@@ -53,12 +59,12 @@ func (s SignerFromKeybase) Validate() error {
 }
 
 // Info gets keypair information.
-func (s SignerFromKeybase) Info() keys.Info {
+func (s SignerFromKeybase) Info() (keys.Info, error) {
 	info, err := s.Keybase.GetByNameOrAddress(s.Account)
 	if err != nil {
-		panic("should not happen")
+		return nil, err
 	}
-	return info
+	return info, nil
 }
 
 // SignCfg provides the signing configuration, containing:

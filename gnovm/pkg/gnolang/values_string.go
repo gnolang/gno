@@ -170,6 +170,9 @@ func (fv *FuncValue) String() string {
 	if fv.Type == nil {
 		return fmt.Sprintf("incomplete-func ?%s(?)?", name)
 	}
+	if name == "" {
+		return fmt.Sprintf("%s{...}", fv.Type.String())
+	}
 	return name
 }
 
@@ -256,6 +259,11 @@ func (v RefValue) String() string {
 	}
 	return fmt.Sprintf("ref(%s)",
 		v.PkgPath)
+}
+
+func (v *HeapItemValue) String() string {
+	return fmt.Sprintf("heapitem(%v)",
+		v.Value)
 }
 
 // ----------------------------------------
@@ -376,7 +384,7 @@ func (tv *TypedValue) ProtectedSprint(seen *seenValues, considerDeclaredType boo
 	default:
 		// The remaining types may have a nil value.
 		if tv.V == nil {
-			return nilStr + " " + tv.T.String()
+			return "(" + nilStr + " " + tv.T.String() + ")"
 		}
 
 		// *ArrayType, *SliceType, *StructType, *MapType

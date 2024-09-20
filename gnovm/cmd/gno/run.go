@@ -163,7 +163,7 @@ func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 	}
 
 	if hasError {
-		os.Exit(1)
+		return nil, commands.ExitCodeError(1)
 	}
 	return files, nil
 }
@@ -188,8 +188,14 @@ func listNonTestFiles(dir string) ([]string, error) {
 func runExpr(m *gno.Machine, expr string) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("panic running expression %s: %v\n%s\n",
-				expr, r, m.String())
+			switch r := r.(type) {
+			case gno.UnhandledPanicError:
+				fmt.Printf("panic running expression %s: %v\nStacktrace: %s\n",
+					expr, r.Error(), m.ExceptionsStacktrace())
+			default:
+				fmt.Printf("panic running expression %s: %v\nMachine State:%s\nStacktrace: %s\n",
+					expr, r, m.String(), m.Stacktrace().String())
+			}
 			panic(r)
 		}
 	}()

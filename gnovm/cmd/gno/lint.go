@@ -20,9 +20,8 @@ import (
 )
 
 type lintCfg struct {
-	verbose       bool
-	rootDir       string
-	setExitStatus int
+	verbose bool
+	rootDir string
 	// min_confidence: minimum confidence of a problem to print it (default 0.8)
 	// auto-fix: apply suggested fixes automatically.
 }
@@ -48,7 +47,6 @@ func (c *lintCfg) RegisterFlags(fs *flag.FlagSet) {
 
 	fs.BoolVar(&c.verbose, "v", false, "verbose output when lintning")
 	fs.StringVar(&c.rootDir, "root-dir", rootdir, "clone location of github.com/gnolang/gno (gno tries to guess it)")
-	fs.IntVar(&c.setExitStatus, "set-exit-status", 1, "set exit status to 1 if any issues are found")
 }
 
 func execLint(cfg *lintCfg, args []string, io commands.IO) error {
@@ -64,7 +62,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	pkgPaths, err := gnoPackagesFromArgs(args)
+	pkgPaths, err := gnoPackagesFromArgsRecursively(args)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
@@ -135,8 +133,8 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		// TODO: Add more checkers
 	}
 
-	if hasError && cfg.setExitStatus != 0 {
-		os.Exit(cfg.setExitStatus)
+	if hasError {
+		return commands.ExitCodeError(1)
 	}
 
 	return nil

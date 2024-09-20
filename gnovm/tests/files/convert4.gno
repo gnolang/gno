@@ -4,4 +4,5 @@ func main() {
 	println(int(nil))
 }
 
-// error: cannot convert (undefined) to int
+// Error:
+// main/files/convert4.gno:4:10: cannot convert (undefined) to int
