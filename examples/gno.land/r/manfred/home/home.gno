@@ -1,11 +1,15 @@
 package home
 
-import "gno.land/r/manfred/config"
+import (
+	"gno.land/p/moul/web25"
+	"gno.land/r/manfred/config"
+)
 
 var (
-	todos      []string
-	status     string
-	memeImgURL string
+	todos       []string
+	status      string
+	memeImgURL  string
+	web25config = web25.Config{CID: "12345678"}
 )
 
 func init() {
@@ -15,7 +19,9 @@ func init() {
 }
 
 func Render(path string) string {
-	content := "# Manfred's (gn)home Dashboard\n\n"
+	content := web25config.Render(path)
+
+	content += "# Manfred's (gn)home Dashboard\n\n"
 
 	content += "## Meme\n"
 	content += "![](" + memeImgURL + ")\n\n"
