@@ -1,6 +1,6 @@
 package home
 
-import "gno.land/r/manfred/config"
+import "gno.land/r/moul/config"
 
 var (
 	todos      []string

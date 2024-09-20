@@ -1,3 +1,3 @@
-module gno.land/r/manfred/home
+module gno.land/r/moul/home
 
-require gno.land/r/manfred/config v0.0.0-latest
+require gno.land/r/moul/config v0.0.0-latest
