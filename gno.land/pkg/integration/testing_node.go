@@ -3,6 +3,7 @@ package integration
 import (
 	"log/slog"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
@@ -12,6 +13,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/node"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/stretchr/testify/require"
 )
@@ -31,10 +33,19 @@ func TestingInMemoryNode(t TestingTS, logger *slog.Logger, config *gnoland.InMem
 	err = node.Start()
 	require.NoError(t, err)
 
-	select {
-	case <-node.Ready():
-	case <-time.After(time.Second * 10):
-		require.FailNow(t, "timeout while waiting for the node to start")
+	ourAddress := config.PrivValidator.GetPubKey().Address()
+	isValidator := slices.ContainsFunc(config.Genesis.Validators, func(val bft.GenesisValidator) bool {
+		return val.Address == ourAddress
+	})
+
+	// Wait for first block if we are a validator.
+	// If we are not a validator, we don't produce blocks, so node.Ready() hangs.
+	if isValidator {
+		select {
+		case <-node.Ready():
+		case <-time.After(time.Second * 10):
+			require.FailNow(t, "timeout while waiting for the node to start")
+		}
 	}
 
 	return node, node.Config().RPC.ListenAddress
@@ -72,10 +83,14 @@ func TestingMinimalNodeConfig(t TestingTS, gnoroot string) *gnoland.InMemoryNode
 	genesis := DefaultTestingGenesisConfig(t, gnoroot, pv.GetPubKey(), tmconfig)
 
 	return &gnoland.InMemoryNodeConfig{
-		PrivValidator:    pv,
-		Genesis:          genesis,
-		TMConfig:         tmconfig,
-		GenesisTxHandler: gnoland.PanicOnFailingTxHandler,
+		PrivValidator: pv,
+		Genesis:       genesis,
+		TMConfig:      tmconfig,
+		DB:            memdb.NewMemDB(),
+		InitChainerConfig: gnoland.InitChainerConfig{
+			GenesisTxResultHandler: gnoland.PanicOnFailingTxResultHandler,
+			CacheStdlibLoad:        true,
+		},
 	}
 }
 

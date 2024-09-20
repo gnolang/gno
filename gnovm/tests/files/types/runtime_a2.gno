@@ -8,7 +8,7 @@ func gen() interface{} {
 
 func main() {
 	r := gen()
-	fmt.Printf("%T \n", r)
+	fmt.Printf("%T\n", r)
 }
 
 // Output:
