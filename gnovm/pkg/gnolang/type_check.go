@@ -215,6 +215,115 @@ func assertAssignableTo(xt, dt Type, autoNative bool) {
 	}
 }
 
+func checkConstantExpr(store Store, last BlockNode, vx Expr) {
+Main:
+	switch vx := vx.(type) {
+	case *NameExpr:
+		t := evalStaticTypeOf(store, last, vx)
+		if _, ok := t.(*ArrayType); ok {
+			break Main
+		}
+		panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.Name, t))
+	case *TypeAssertExpr:
+		panic(fmt.Sprintf("%s (comma, ok expression of type %s) is not constant", vx.String(), vx.Type))
+	case *IndexExpr:
+		panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), vx.X))
+	case *CallExpr:
+		ift := evalStaticTypeOf(store, last, vx.Func)
+		switch baseOf(ift).(type) {
+		case *FuncType:
+			tup := evalStaticTypeOfRaw(store, last, vx).(*tupleType)
+
+			// check for built-in functions
+			if cx, ok := vx.Func.(*ConstExpr); ok {
+				if fv, ok := cx.V.(*FuncValue); ok {
+					if fv.PkgPath == uversePkgPath {
+						// TODO: should support min, max
+						switch {
+						case fv.Name == "len":
+							checkConstantExpr(store, last, vx.Args[0])
+							break Main
+						case fv.Name == "cap":
+							checkConstantExpr(store, last, vx.Args[0])
+							break Main
+						}
+					}
+				}
+			}
+
+			switch {
+			case len(tup.Elts) == 0:
+				panic(fmt.Sprintf("%s (no value) used as value", vx.String()))
+			case len(tup.Elts) == 1:
+				panic(fmt.Sprintf("%s (value of type %s) is not constant", vx.String(), tup.Elts[0]))
+			default:
+				panic(fmt.Sprintf("multiple-value %s (value of type %s) in single-value context", vx.String(), tup.Elts))
+			}
+		case *TypeType:
+			for _, arg := range vx.Args {
+				checkConstantExpr(store, last, arg)
+			}
+		case *NativeType:
+			panic("NativeType\n")
+		default:
+			panic(fmt.Sprintf(
+				"unexpected func type %v (%v)",
+				ift, reflect.TypeOf(ift)))
+		}
+	case *BinaryExpr:
+		checkConstantExpr(store, last, vx.Left)
+		checkConstantExpr(store, last, vx.Right)
+	case *SelectorExpr:
+		xt := evalStaticTypeOf(store, last, vx.X)
+		switch xt := xt.(type) {
+		case *PackageType:
+			// Todo: check if the package is const after the fix of https://github.com/gnolang/gno/issues/2836
+			// var pv *PackageValue
+			// if cx, ok := vx.X.(*ConstExpr); ok {
+			// 	// NOTE: *Machine.TestMemPackage() needs this
+			// 	// to pass in an imported package as *ConstEzpr.
+			// 	pv = cx.V.(*PackageValue)
+			// } else {
+			// 	// otherwise, packages can only be referred to by
+			// 	// *NameExprs, and cannot be copied.
+			// 	pvc := evalConst(store, last, vx.X)
+			// 	pv_, ok := pvc.V.(*PackageValue)
+			// 	if !ok {
+			// 		panic(fmt.Sprintf(
+			// 			"missing package in selector expr %s",
+			// 			vx.String()))
+			// 	}
+			// 	pv = pv_
+			// }
+			// if pv.GetBlock(store).Source.GetIsConst(store, vx.Sel) {
+			// 	break Main
+			// }
+			// panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), xt))
+		case *PointerType, *DeclaredType, *StructType, *InterfaceType:
+			ty := evalStaticTypeOf(store, last, vx.X)
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), ty))
+		case *TypeType:
+			ty := evalStaticType(store, last, vx.X)
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), ty))
+		case *NativeType:
+			panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), xt))
+		default:
+			panic(fmt.Sprintf(
+				"unexpected selector expression type %v",
+				reflect.TypeOf(xt)))
+		}
+
+	case *ArrayTypeExpr:
+	case *ConstExpr:
+	case *BasicLitExpr:
+	case *CompositeLitExpr:
+		checkConstantExpr(store, last, vx.Type)
+	default:
+		ift := evalStaticTypeOf(store, last, vx)
+		panic(fmt.Sprintf("%s (variable of type %s) is not constant", vx.String(), ift))
+	}
+}
+
 // checkValDefineMismatch checks for mismatch between the number of variables and values in a ValueDecl or AssignStmt.
 func checkValDefineMismatch(n Node) {
 	var (

@@ -2188,6 +2188,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// NOTE: may or may not be a *ConstExpr,
 					// but if not, make one now.
 					for i, vx := range n.Values {
+						checkConstantExpr(store, last, vx)
 						n.Values[i] = evalConst(store, last, vx)
 					}
 				} else {
@@ -2268,6 +2269,16 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					if n.Type != nil {
 						// only a single type can be specified.
 						nt := evalStaticType(store, last, n.Type)
+						if n.Const {
+							if xnt, ok := nt.(*NativeType); ok {
+								nt = go2GnoBaseType(xnt.Type)
+							}
+
+							if _, ok := baseOf(nt).(PrimitiveType); !ok {
+								panic(fmt.Sprintf("invalid constant type %s", nt.String()))
+							}
+						}
+
 						for i := 0; i < numNames; i++ {
 							sts[i] = nt
 						}
@@ -2279,6 +2290,13 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// derive static type from values.
 						for i, vx := range n.Values {
 							vt := evalStaticTypeOf(store, last, vx)
+							if xnt, ok := vt.(*NativeType); ok {
+								vt = go2GnoBaseType(xnt.Type)
+							}
+
+							if _, ok := baseOf(vt).(PrimitiveType); !ok {
+								panic(fmt.Sprintf("invalid constant type  %s", vt.String()))
+							}
 							sts[i] = vt
 						}
 					} else {
