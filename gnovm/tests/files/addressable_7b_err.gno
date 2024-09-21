@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/addressable_7c_err.gno:4:9: cannot take address of (const (9 int))
+// main/files/addressable_7b_err.gno:4:9: cannot take address of (const (9 int))
