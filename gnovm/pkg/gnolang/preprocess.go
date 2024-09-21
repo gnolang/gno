@@ -1791,6 +1791,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
+				// If ftype is TRANS_REF_X, then this composite literal being created looks
+				// something like this in the code: `&MyStruct{}`. It is marked as addressable here
+				// because on TRANS_LEAVE for a RefExpr, it defers to the addressability of the
+				// expression it is referencing. When a composite literal is created with a preceding
+				// '&', it means the value is assigned to an address and that address is returned,
+				// so the value is addressable.
 				if ftype == TRANS_REF_X {
 					n.IsAddressable = true
 				}
@@ -2387,7 +2393,10 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 				n.Type = constType(n.Type, dst)
 
 			case *RefExpr:
-				if n.X.addressability() == addressabilityStatusUnsatisfied {
+				// If ftype is TRANS_REF_X, then this expression is something like:
+				// &(&value). The resulting pointer value of the first reference is not
+				// addressable. Otherwise fall back to the target expression's addressability.
+				if ftype == TRANS_REF_X || n.X.addressability() == addressabilityStatusUnsatisfied {
 					panic(fmt.Sprintf("cannot take address of %s", n.X.String()))
 				}
 			}
