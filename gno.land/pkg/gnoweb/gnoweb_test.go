@@ -31,7 +31,7 @@ func TestRoutes(t *testing.T) {
 		{"/r/gnoland/blog/", ok, "admin.gno"},
 		{"/r/gnoland/blog/admin.gno", ok, "func "},
 		{"/r/demo/users:administrator", ok, "address"},
-		{"/r/demo/users", ok, "manfred"},
+		{"/r/demo/users", ok, "moul"},
 		{"/r/demo/users/users.gno", ok, "// State"},
 		{"/r/demo/deep/very/deep", ok, "it works!"},
 		{"/r/demo/deep/very/deep:bob", ok, "hi bob"},
