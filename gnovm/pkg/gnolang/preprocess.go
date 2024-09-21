@@ -1497,6 +1497,11 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// Replace const index with int *ConstExpr,
 					// or if not const, assert integer type..
 					checkOrConvertIntegerKind(store, last, n.Index)
+
+					// Addressability of this index expression can only be known for slice and
+					// strings, explanations below in the respective blocks. If this is an index
+					// on an array, do nothing. This will defer to the array's addresability when
+					// the `addressability` method is called on this index expression.
 					if dt.Kind() == SliceKind {
 						// A value at a slice index is always addressable because the underlying
 						// array is addressable.
@@ -2396,7 +2401,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 				// We need to replace all references of the new
 				// Type with old Type, including in attributes.
 				n.Type.SetAttribute(ATTR_TYPE_VALUE, dst)
-				// Replace the type with *constTypeExpr{},
+				// Replace the type with *{},
 				// otherwise methods would be un at runtime.
 				n.Type = constType(n.Type, dst)
 
