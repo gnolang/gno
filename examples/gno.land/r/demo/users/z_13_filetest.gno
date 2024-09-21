@@ -20,4 +20,3 @@ func main() {
 // Output:
 // # names: 1
 // name: test1
-
