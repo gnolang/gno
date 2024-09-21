@@ -598,9 +598,8 @@ func TestAnteHandlerSponsorTx(t *testing.T) {
 	require.NoError(t, acc1.SetAccountNumber(0))
 	env.acck.SetAccount(ctx, acc1)
 
-	// Test Regular Transaction (will not work since addr2 doesn't exist on-chain)
+	// Test Regular Transaction (will fail since addr2 doesn't exist on-chain)
 	t.Run("Test Regular Transaction", func(t *testing.T) {
-		t.Parallel()
 		// Create a regular transaction with addr2, which doesn't exist yet
 		msg1 := tu.NewTestMsg(addr2)
 		msg2 := tu.NewTestMsg(addr2)
@@ -611,14 +610,15 @@ func TestAnteHandlerSponsorTx(t *testing.T) {
 		tx := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
 
 		// Regular transactions will fail if addr2 has no account on-chain
+		// Expecting std.UnknownAddressError since addr2 does not exist
 		checkInvalidTx(t, anteHandler, ctx, tx, false, std.UnknownAddressError{})
 
 		// Account for addr2 (acc2) has not been created yet
 		acc2 := env.acck.GetAccount(ctx, addr2)
-		require.Nil(t, acc2)
+		require.Nil(t, acc2, "Expected addr2 account to be nil since it should not exist yet")
 	})
 
-	// Test Sponsor Transaction (addr1 pays gas and addr2 is created if not on-chain)
+	// Test Sponsor Transaction (addr1 pays gas, addr2 is created if not on-chain)
 	t.Run("Test Sponsor Transaction", func(t *testing.T) {
 		t.Parallel()
 		// Create a sponsor transaction with two signers: addr1 (sponsor) and addr2
@@ -630,21 +630,22 @@ func TestAnteHandlerSponsorTx(t *testing.T) {
 		fee := tu.NewTestFee()
 		tx := tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
 
-		// Sponsor transaction will work since addr1 pays gas and addr2 will be created if needed
+		// Sponsor transaction will succeed because addr1 pays for gas
+		// and addr2 will be created if it does not already exist
 		checkValidTx(t, anteHandler, ctx, tx, false)
 
-		// Check if acc1 has the expected values
+		// Check if acc1 (addr1) has the expected values after the transaction
 		acc1 = env.acck.GetAccount(ctx, addr1)
 		require.Equal(t, acc1.GetPubKey(), priv1.PubKey())
 		require.Equal(t, acc1.GetAccountNumber(), uint64(0))
-		require.Equal(t, acc1.GetSequence(), uint64(1))
+		require.Equal(t, acc1.GetSequence(), uint64(1), "Expected addr1's sequence to increment")
 
-		// Account for addr2 (acc2) is created and its public key is set
+		// Account for addr2 (acc2) should be created and its public key should be set
 		acc2 := env.acck.GetAccount(ctx, addr2)
-		require.NotNil(t, acc2)
+		require.NotNil(t, acc2, "Expected addr2 account to be created by sponsor transaction")
 		require.Equal(t, acc2.GetPubKey(), priv2.PubKey())
 		require.Equal(t, acc2.GetAccountNumber(), uint64(2))
-		require.Equal(t, acc2.GetSequence(), uint64(1))
+		require.Equal(t, acc2.GetSequence(), uint64(1), "Expected addr2's sequence to be initialized to 1")
 	})
 }
 
