@@ -581,6 +581,8 @@ func TestAnteHandlerSetPubKey(t *testing.T) {
 }
 
 func TestAnteHandlerSponsorTx(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
@@ -646,6 +648,8 @@ func TestAnteHandlerSponsorTx(t *testing.T) {
 }
 
 func TestAnteHandlerSponsorTxMultipleSigners(t *testing.T) {
+	t.Parallel()
+
 	// setup
 	env := setupTestEnv()
 	anteHandler := NewAnteHandler(env.acck, env.bank, DefaultSigVerificationGasConsumer, defaultAnteOptions())
