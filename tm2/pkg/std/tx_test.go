@@ -6,6 +6,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/crypto/multisig"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -120,7 +121,7 @@ func Test_ValidateBasic(t *testing.T) {
 	}
 }
 
-func Test_CountSubKeys(t *testing.T) {
+func TestCountSubKeys(t *testing.T) {
 	t.Parallel()
 
 	// Single key case
@@ -203,14 +204,18 @@ func Test_GetSignBytes(t *testing.T) {
 	t.Parallel()
 
 	msgs := []Msg{}
-	fee := NewFee(1000, Coin{Denom: "atom", Amount: 10})
+	fee := NewFee(1000, Coin{Denom: "ugnot", Amount: 10})
 	sigs := []Signature{}
 	tx := NewTx(msgs, fee, sigs, "test memo")
 	chainID := "test-chain"
 	accountNumber := uint64(1)
 	sequence := uint64(1)
 
+	// Generate the signBytes
 	signBytes, err := tx.GetSignBytes(chainID, accountNumber, sequence)
 	require.NoError(t, err)
-	require.NotEmpty(t, signBytes)
+
+	expectedResult := "{\"account_number\":\"1\",\"chain_id\":\"test-chain\",\"fee\":{\"gas_fee\":\"10ugnot\",\"gas_wanted\":\"1000\"},\"memo\":\"test memo\",\"msgs\":[],\"sequence\":\"1\"}"
+
+	assert.Equal(t, expectedResult, string(signBytes), "signBytes did not match the expected output")
 }
