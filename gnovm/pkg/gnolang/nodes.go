@@ -632,6 +632,8 @@ type TypeExpr interface {
 	assertTypeExpr()
 }
 
+const typeExprAddressability = "the addressability method should not be called on Type Expressions"
+
 // non-pointer receiver to help make immutable.
 func (x *FieldTypeExpr) assertTypeExpr()       {}
 func (x *ArrayTypeExpr) assertTypeExpr()       {}
@@ -668,7 +670,7 @@ type FieldTypeExpr struct {
 }
 
 func (x *FieldTypeExpr) addressability() addressabilityStatus {
-	return addressabilityStatusNotApplicable
+	panic(typeExprAddressability)
 }
 
 type FieldTypeExprs []FieldTypeExpr
@@ -700,7 +702,7 @@ type ArrayTypeExpr struct {
 }
 
 func (x *ArrayTypeExpr) addressability() addressabilityStatus {
-	return addressabilityStatusNotApplicable
+	panic(typeExprAddressability)
 }
 
 type SliceTypeExpr struct {
@@ -710,7 +712,7 @@ type SliceTypeExpr struct {
 }
 
 func (x *SliceTypeExpr) addressability() addressabilityStatus {
-	return addressabilityStatusNotApplicable
+	panic(typeExprAddressability)
 }
 
 type InterfaceTypeExpr struct {
@@ -720,7 +722,7 @@ type InterfaceTypeExpr struct {
 }
 
 func (x *InterfaceTypeExpr) addressability() addressabilityStatus {
-	return addressabilityStatusNotApplicable
+	panic(typeExprAddressability)
 }
 
 type ChanDir int
@@ -741,7 +743,7 @@ type ChanTypeExpr struct {
 }
 
 func (x *ChanTypeExpr) addressability() addressabilityStatus {
-	return addressabilityStatusNotApplicable
+	panic(typeExprAddressability)
 }
 
 type FuncTypeExpr struct {
@@ -751,7 +753,7 @@ type FuncTypeExpr struct {
 }
 
 func (x *FuncTypeExpr) addressability() addressabilityStatus {
-	return addressabilityStatusNotApplicable
+	panic(typeExprAddressability)
 }
 
 type MapTypeExpr struct {
@@ -761,7 +763,7 @@ type MapTypeExpr struct {
 }
 
 func (x *MapTypeExpr) addressability() addressabilityStatus {
-	return addressabilityStatusNotApplicable
+	panic(typeExprAddressability)
 }
 
 type StructTypeExpr struct {
@@ -770,7 +772,7 @@ type StructTypeExpr struct {
 }
 
 func (x *StructTypeExpr) addressability() addressabilityStatus {
-	return addressabilityStatusNotApplicable
+	panic(typeExprAddressability)
 }
 
 // Like ConstExpr but for types.
@@ -781,7 +783,7 @@ type constTypeExpr struct {
 }
 
 func (x *constTypeExpr) addressability() addressabilityStatus {
-	return addressabilityStatusNotApplicable
+	panic(typeExprAddressability)
 }
 
 // Only used for native func arguments
@@ -791,7 +793,7 @@ type MaybeNativeTypeExpr struct {
 }
 
 func (x *MaybeNativeTypeExpr) addressability() addressabilityStatus {
-	return addressabilityStatusNotApplicable
+	panic(typeExprAddressability)
 }
 
 // ----------------------------------------
