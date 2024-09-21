@@ -46,6 +46,7 @@ func main() {
 //  * [nt](/r/demo/users:nt)
 //  * [satoshi](/r/demo/users:satoshi)
 //  * [sys](/r/demo/users:sys)
+//  * [test1](/r/demo/users:test1)
 //  * [x](/r/demo/users:x)
 //
 // ========================================
