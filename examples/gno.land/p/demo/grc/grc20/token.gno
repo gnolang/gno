@@ -7,7 +7,7 @@ import (
 // token implements the Token interface.
 //
 // It is generated with Banker.Token().
-// It can safely be explosed publicly.
+// It can safely be exposed publicly.
 type token struct {
 	banker *Banker
 }
