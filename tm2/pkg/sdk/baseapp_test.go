@@ -19,9 +19,9 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
-	store "github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
 var (
@@ -199,6 +199,47 @@ func TestLoadVersionInvalid(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestOptionSetters(t *testing.T) {
+	t.Parallel()
+
+	tt := []struct {
+		// Calling BaseApp.[method]([value]) should change BaseApp.[fieldName] to [value].
+		method    string
+		fieldName string
+		value     any
+	}{
+		{"SetName", "name", "hello"},
+		{"SetAppVersion", "appVersion", "12345"},
+		{"SetDB", "db", memdb.NewMemDB()},
+		{"SetCMS", "cms", store.NewCommitMultiStore(memdb.NewMemDB())},
+		{"SetInitChainer", "initChainer", func(Context, abci.RequestInitChain) abci.ResponseInitChain { panic("not implemented") }},
+		{"SetBeginBlocker", "beginBlocker", func(Context, abci.RequestBeginBlock) abci.ResponseBeginBlock { panic("not implemented") }},
+		{"SetEndBlocker", "endBlocker", func(Context, abci.RequestEndBlock) abci.ResponseEndBlock { panic("not implemented") }},
+		{"SetAnteHandler", "anteHandler", func(Context, Tx, bool) (Context, Result, bool) { panic("not implemented") }},
+		{"SetBeginTxHook", "beginTxHook", func(Context) Context { panic("not implemented") }},
+		{"SetEndTxHook", "endTxHook", func(Context, Result) { panic("not implemented") }},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.method, func(t *testing.T) {
+			t.Parallel()
+
+			var ba BaseApp
+			rv := reflect.ValueOf(&ba)
+
+			rv.MethodByName(tc.method).Call([]reflect.Value{reflect.ValueOf(tc.value)})
+			changed := rv.Elem().FieldByName(tc.fieldName)
+
+			if reflect.TypeOf(tc.value).Kind() == reflect.Func {
+				assert.Equal(t, reflect.ValueOf(tc.value).Pointer(), changed.Pointer(), "%s(%#v): function value should have changed", tc.method, tc.value)
+			} else {
+				assert.True(t, reflect.ValueOf(tc.value).Equal(changed), "%s(%#v): wanted %v got %v", tc.method, tc.value, tc.value, changed)
+			}
+			assert.False(t, changed.IsZero(), "%s(%#v): field's new value should not be zero value", tc.method, tc.value)
+		})
+	}
+}
+
 func testLoadVersionHelper(t *testing.T, app *BaseApp, expectedHeight int64, expectedID store.CommitID) {
 	t.Helper()
 
@@ -271,6 +312,12 @@ func TestBaseAppOptionSeal(t *testing.T) {
 	})
 	require.Panics(t, func() {
 		app.SetAnteHandler(nil)
+	})
+	require.Panics(t, func() {
+		app.SetBeginTxHook(nil)
+	})
+	require.Panics(t, func() {
+		app.SetEndTxHook(nil)
 	})
 }
 
@@ -927,7 +974,6 @@ func TestMaxBlockGasLimits(t *testing.T) {
 	}
 
 	for i, tc := range testCases {
-		fmt.Printf("debug i: %v\n", i)
 		tx := tc.tx
 
 		// reset the block gas

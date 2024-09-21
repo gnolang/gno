@@ -1,8 +1,6 @@
 package ownable
 
-import (
-	"std"
-)
+import "std"
 
 const OwnershipTransferEvent = "OwnershipTransfer"
 
@@ -10,6 +8,7 @@ const OwnershipTransferEvent = "OwnershipTransfer"
 // being embedded in a Gno object to manage per-object ownership.
 type Ownable interface {
 	Owner() std.Address
+	CallerIsOwner() error
 	AssertCallerIsOwner()
 }
 
@@ -63,6 +62,7 @@ func (o *transferrable) TransferOwnership(newOwner std.Address) error {
 		"from", string(prevOwner),
 		"to", string(newOwner),
 	)
+
 	return nil
 }
 
@@ -86,6 +86,7 @@ func (o *transferrable) DropOwnership() error {
 	return nil
 }
 
+// Owner returns the owner address from transferrable
 func (o transferrable) Owner() std.Address {
 	return o.owner
 }
@@ -99,6 +100,7 @@ func (o transferrable) CallerIsOwner() error {
 	return ErrUnauthorized
 }
 
+// AssertCallerIsOwner panics if the caller is not the owner
 func (o transferrable) AssertCallerIsOwner() {
 	if std.PrevRealm().Addr() != o.owner {
 		panic(ErrUnauthorized)
