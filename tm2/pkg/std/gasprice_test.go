@@ -7,6 +7,8 @@ import (
 )
 
 func TestParseGasPrice(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name           string
 		input          string
@@ -52,9 +54,11 @@ func TestParseGasPrice(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := ParseGasPrice(tc.input)
+			t.Parallel()
 
+			result, err := ParseGasPrice(tc.input)
 			assert.Equal(t, tc.expectedResult, result)
 			if err != nil {
 				assert.ErrorContains(t, err, tc.expectedError)
@@ -104,9 +108,11 @@ func TestParseGasPrices(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			result, err := ParseGasPrices(tc.input)
+			t.Parallel()
 
+			result, err := ParseGasPrices(tc.input)
 			assert.Equal(t, tc.expectedResult, result)
 			if err != nil {
 				assert.ErrorContains(t, err, tc.expectedError)
