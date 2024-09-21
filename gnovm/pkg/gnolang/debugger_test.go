@@ -24,7 +24,7 @@ type writeNopCloser struct{ io.Writer }
 func (writeNopCloser) Close() error { return nil }
 
 // TODO (Marc): move evalTest to gnovm/tests package and remove code duplicates
-func evalTest(debugAddr, in, file string) (out, err string) {
+func evalTest(debugAddr, in, file string) (out, err, stacktrace string) {
 	bout := bytes.NewBufferString("")
 	berr := bytes.NewBufferString("")
 	stdin := bytes.NewBufferString(in)
@@ -40,7 +40,7 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 		if r := recover(); r != nil {
 			err = fmt.Sprintf("%v", r)
 		}
-		out = strings.TrimSpace(out)
+		out = strings.TrimSuffix(out, "\n")
 		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
 	}()
 
@@ -58,6 +58,18 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 	})
 
 	defer m.Release()
+	defer func() {
+		if r := recover(); r != nil {
+			switch r.(type) {
+			case gnolang.UnhandledPanicError:
+				stacktrace = m.ExceptionsStacktrace()
+			default:
+				stacktrace = m.Stacktrace().String()
+			}
+			stacktrace = strings.TrimSpace(strings.ReplaceAll(stacktrace, "../../tests/files/", "files/"))
+			panic(r)
+		}
+	}()
 
 	if debugAddr != "" {
 		if e := m.Debugger.Serve(debugAddr); e != nil {
@@ -69,7 +81,7 @@ func evalTest(debugAddr, in, file string) (out, err string) {
 	m.RunFiles(f)
 	ex, _ := gnolang.ParseExpr("main()")
 	m.Eval(ex)
-	out, err = bout.String(), berr.String()
+	out, err, stacktrace = bout.String(), berr.String(), m.ExceptionsStacktrace()
 	return
 }
 
@@ -78,7 +90,7 @@ func runDebugTest(t *testing.T, targetPath string, tests []dtest) {
 
 	for _, test := range tests {
 		t.Run("", func(t *testing.T) {
-			out, err := evalTest("", test.in, targetPath)
+			out, err, _ := evalTest("", test.in, targetPath)
 			t.Log("in:", test.in, "out:", out, "err:", err)
 			if !strings.Contains(out, test.out) {
 				t.Errorf("unexpected output\nwant\"%s\"\n  got \"%s\"", test.out, out)
@@ -194,7 +206,7 @@ func TestRemoteDebug(t *testing.T) {
 }
 
 func TestRemoteError(t *testing.T) {
-	_, err := evalTest(":xxx", "", debugTarget)
+	_, err, _ := evalTest(":xxx", "", debugTarget)
 	t.Log("err:", err)
 	if !strings.Contains(err, "tcp/xxx: unknown port") &&
 		!strings.Contains(err, "tcp/xxx: nodename nor servname provided, or not known") {

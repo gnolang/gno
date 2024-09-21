@@ -218,6 +218,7 @@ func TestEmpty(t *testing.T) {
 		{"", true},
 		{0, true},
 		{int(0), true},
+		{int32(0), true},
 		{int64(0), true},
 		{uint(0), true},
 		// XXX: continue
@@ -247,6 +248,83 @@ func TestEmpty(t *testing.T) {
 	}
 }
 
+func TestEqualWithStringDiff(t *testing.T) {
+	cases := []struct {
+		name        string
+		expected    string
+		actual      string
+		shouldPass  bool
+		expectedMsg string
+	}{
+		{
+			name:        "Identical strings",
+			expected:    "Hello, world!",
+			actual:      "Hello, world!",
+			shouldPass:  true,
+			expectedMsg: "",
+		},
+		{
+			name:        "Different strings - simple",
+			expected:    "Hello, world!",
+			actual:      "Hello, World!",
+			shouldPass:  false,
+			expectedMsg: "error: uassert.Equal: strings are different\n\tDiff: Hello, [-w][+W]orld!",
+		},
+		{
+			name:        "Different strings - complex",
+			expected:    "The quick brown fox jumps over the lazy dog",
+			actual:      "The quick brown cat jumps over the lazy dog",
+			shouldPass:  false,
+			expectedMsg: "error: uassert.Equal: strings are different\n\tDiff: The quick brown [-fox][+cat] jumps over the lazy dog",
+		},
+		{
+			name:        "Different strings - prefix",
+			expected:    "prefix_string",
+			actual:      "string",
+			shouldPass:  false,
+			expectedMsg: "error: uassert.Equal: strings are different\n\tDiff: [-prefix_]string",
+		},
+		{
+			name:        "Different strings - suffix",
+			expected:    "string",
+			actual:      "string_suffix",
+			shouldPass:  false,
+			expectedMsg: "error: uassert.Equal: strings are different\n\tDiff: string[+_suffix]",
+		},
+		{
+			name:        "Empty string vs non-empty string",
+			expected:    "",
+			actual:      "non-empty",
+			shouldPass:  false,
+			expectedMsg: "error: uassert.Equal: strings are different\n\tDiff: [+non-empty]",
+		},
+		{
+			name:        "Non-empty string vs empty string",
+			expected:    "non-empty",
+			actual:      "",
+			shouldPass:  false,
+			expectedMsg: "error: uassert.Equal: strings are different\n\tDiff: [-non-empty]",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			mockT := &mockTestingT{}
+			result := Equal(mockT, tc.expected, tc.actual)
+
+			if result != tc.shouldPass {
+				t.Errorf("Expected Equal to return %v, but got %v", tc.shouldPass, result)
+			}
+
+			if tc.shouldPass {
+				mockT.empty(t)
+			} else {
+				mockT.equals(t, tc.expectedMsg)
+			}
+		})
+	}
+}
+
 func TestNotEmpty(t *testing.T) {
 	mockT := new(mockTestingT)
 
@@ -258,6 +336,7 @@ func TestNotEmpty(t *testing.T) {
 		{"", false},
 		{0, false},
 		{int(0), false},
+		{int32(0), false},
 		{int64(0), false},
 		{uint(0), false},
 		{std.Address(""), false},
