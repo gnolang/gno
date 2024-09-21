@@ -6,4 +6,4 @@ func main() {
 }
 
 // Output:
-// &( func()())
+// &(func()(){...} func()())
