@@ -667,6 +667,8 @@ func TestAnteHandlerSponsorTxMultipleSigners(t *testing.T) {
 	env.acck.SetAccount(ctx, acc1)
 
 	t.Run("TestSponsorTransactionMultipleSigners", func(t *testing.T) {
+		t.Parallel()
+
 		// Create multiple messages for multiple signers
 		msg1 := tu.NewTestMsg(addr1) // First message by addr1 (sponsor)
 		msg2 := tu.NewTestMsg(addr2) // Second message by addr2
