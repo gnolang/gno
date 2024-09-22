@@ -165,7 +165,6 @@ func TestValidateValidatorUpdates(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-
 			err := sm.ValidateValidatorUpdates(tc.abciUpdates, tc.validatorParams)
 			if tc.shouldErr {
 				assert.Error(t, err)
@@ -232,7 +231,6 @@ func TestUpdateValidators(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-
 			err := tc.currentSet.UpdateWithABCIValidatorUpdates(tc.abciUpdates)
 			if tc.shouldErr {
 				assert.Error(t, err)

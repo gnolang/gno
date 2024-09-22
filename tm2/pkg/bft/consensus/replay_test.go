@@ -153,7 +153,6 @@ func TestWALCrash(t *testing.T) {
 		tc := tc
 		consensusReplayConfig, genesisFile := ResetConfig(fmt.Sprintf("%s_%d", t.Name(), i))
 		t.Run(tc.name, func(t *testing.T) {
-
 			crashWALandCheckLiveness(
 				t,
 				consensusReplayConfig,
