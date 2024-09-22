@@ -16,7 +16,6 @@ import (
 var mu sync.Mutex
 
 func TestUnsafeDialSeeds(t *testing.T) {
-	t.Parallel()
 	sw := p2p.MakeSwitch(p2pcfg.DefaultP2PConfig(), 1, "testing", "123.123.123",
 		func(n int, sw *p2p.Switch) *p2p.Switch { return sw })
 	err := sw.Start()
@@ -53,7 +52,6 @@ func TestUnsafeDialSeeds(t *testing.T) {
 }
 
 func TestUnsafeDialPeers(t *testing.T) {
-	t.Parallel()
 
 	sw := p2p.MakeSwitch(p2pcfg.DefaultP2PConfig(), 1, "testing", "123.123.123",
 		func(n int, sw *p2p.Switch) *p2p.Switch { return sw })

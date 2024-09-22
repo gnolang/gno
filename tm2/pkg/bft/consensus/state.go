@@ -88,7 +88,7 @@ type txNotifier interface {
 // The internal state machine receives input from peers, the internal validator, and from a timer.
 type ConsensusState struct {
 	service.BaseService
-
+	mu sync.Mutex
 	// config details
 	config        *cnscfg.ConsensusConfig
 	privValidator types.PrivValidator // for signing votes
@@ -231,8 +231,8 @@ func (cs *ConsensusState) GetLastHeight() int64 {
 // GetRoundState returns a shallow copy of the internal consensus state.
 func (cs *ConsensusState) GetRoundState() *cstypes.RoundState {
 	cs.mtx.RLock()
+	defer cs.mtx.RUnlock()
 	rs := cs.RoundState // copy
-	cs.mtx.RUnlock()
 	return &rs
 }
 
@@ -291,6 +291,9 @@ func (cs *ConsensusState) LoadCommit(height int64) *types.Commit {
 // OnStart implements service.Service.
 // It loads the latest state via the WAL, and starts the timeout and receive routines.
 func (cs *ConsensusState) OnStart() error {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+
 	cs.done = make(chan struct{})
 
 	if err := cs.evsw.Start(); err != nil && !goerrors.Is(err, service.ErrAlreadyStarted) {
@@ -321,7 +324,9 @@ func (cs *ConsensusState) OnStart() error {
 	// we may have lost some votes if the process crashed
 	// reload from consensus log to catchup
 	if cs.doWALCatchup {
+		cs.mu.Unlock()
 		if err := cs.catchupReplay(cs.Height); err != nil {
+			cs.mu.Lock()
 			// don't try to recover from data corruption error
 			if walm.IsDataCorruptionError(err) {
 				cs.Logger.Error("Encountered corrupt WAL file", "err", err.Error())
@@ -637,7 +642,9 @@ func (cs *ConsensusState) receiveRoutine(maxSteps int) {
 			cs.wal.Write(mi)
 			// handles proposals, block parts, votes
 			// may generate internal events (votes, complete proposals, 2/3 majorities)
+			cs.mu.Lock()
 			cs.handleMsg(mi)
+			cs.mu.Unlock()
 		case mi = <-cs.internalMsgQueue:
 			err := cs.wal.WriteSync(mi) // NOTE: fsync
 			if err != nil {
@@ -1221,6 +1228,9 @@ func (cs *ConsensusState) enterPrecommitWait(height int64, round int) {
 
 // Enter: +2/3 precommits for block
 func (cs *ConsensusState) enterCommit(height int64, commitRound int) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+
 	logger := cs.Logger.With("height", height, "commitRound", commitRound)
 
 	if cs.Height != height || cstypes.RoundStepCommit <= cs.Step {
@@ -1273,6 +1283,9 @@ func (cs *ConsensusState) enterCommit(height int64, commitRound int) {
 
 // If we have the block AND +2/3 commits for it, finalize.
 func (cs *ConsensusState) tryFinalizeCommit(height int64) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+
 	logger := cs.Logger.With("height", height)
 
 	if cs.Height != height {
@@ -1297,6 +1310,8 @@ func (cs *ConsensusState) tryFinalizeCommit(height int64) {
 
 // Increment height and goto cstypes.RoundStepNewHeight
 func (cs *ConsensusState) finalizeCommit(height int64) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
 	if cs.Height != height || cs.Step != cstypes.RoundStepCommit {
 		cs.Logger.Debug(fmt.Sprintf("finalizeCommit(%v): Invalid args. Current step: %v/%v/%v", height, cs.Height, cs.Round, cs.Step))
 		return
@@ -1516,6 +1531,9 @@ func (cs *ConsensusState) addProposalBlockPart(msg *BlockPartMessage, peerID p2p
 
 // Attempt to add the vote. if its a duplicate signature, dupeout the validator
 func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, error) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+
 	added, err := cs.addVote(vote, peerID)
 	if err != nil {
 		// If the vote height is off, we'll just ignore it,
@@ -1549,6 +1567,9 @@ func (cs *ConsensusState) tryAddVote(vote *types.Vote, peerID p2p.ID) (bool, err
 // -----------------------------------------------------------------------------
 
 func (cs *ConsensusState) addVote(vote *types.Vote, peerID p2p.ID) (added bool, err error) {
+	cs.mu.Lock()
+	defer cs.mu.Unlock()
+
 	cs.Logger.Debug("addVote", "voteHeight", vote.Height, "voteType", vote.Type, "valIndex", vote.ValidatorIndex, "csHeight", cs.Height)
 
 	// A precommit for the previous height?

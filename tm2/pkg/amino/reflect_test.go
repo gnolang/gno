@@ -22,64 +22,54 @@ import (
 // Non-interface Google fuzz tests
 
 func TestCodecStruct(t *testing.T) {
-	t.Parallel()
 
 	for _, ptr := range tests.StructTypes {
 		t.Logf("case %v", reflect.TypeOf(ptr))
 		rt := getTypeFromPointer(ptr)
 		name := rt.Name()
 		t.Run(name+":binary", func(t *testing.T) {
-			t.Parallel()
 			_testCodec(t, rt, "binary")
 		})
 		t.Run(name+":json", func(t *testing.T) {
-			t.Parallel()
 			_testCodec(t, rt, "json")
 		})
 	}
 }
 
 func TestCodecDef(t *testing.T) {
-	t.Parallel()
 
 	for _, ptr := range tests.DefTypes {
 		t.Logf("case %v", reflect.TypeOf(ptr))
 		rt := getTypeFromPointer(ptr)
 		name := rt.Name()
 		t.Run(name+":binary", func(t *testing.T) {
-			t.Parallel()
 			_testCodec(t, rt, "binary")
 		})
 		t.Run(name+":json", func(t *testing.T) {
-			t.Parallel()
 			_testCodec(t, rt, "json")
 		})
 	}
 }
 
 func TestDeepCopyStruct(t *testing.T) {
-	t.Parallel()
 
 	for _, ptr := range tests.StructTypes {
 		t.Logf("case %v", reflect.TypeOf(ptr))
 		rt := getTypeFromPointer(ptr)
 		name := rt.Name()
 		t.Run(name+":deepcopy", func(t *testing.T) {
-			t.Parallel()
 			_testDeepCopy(t, rt)
 		})
 	}
 }
 
 func TestDeepCopyDef(t *testing.T) {
-	t.Parallel()
 
 	for _, ptr := range tests.DefTypes {
 		t.Logf("case %v", reflect.TypeOf(ptr))
 		rt := getTypeFromPointer(ptr)
 		name := rt.Name()
 		t.Run(name+":deepcopy", func(t *testing.T) {
-			t.Parallel()
 			_testDeepCopy(t, rt)
 		})
 	}
@@ -220,7 +210,6 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 // Register/interface tests
 
 func TestCodecMashalFailsOnUnregisteredConcrete(t *testing.T) {
-	t.Parallel()
 
 	cdc := amino.NewCodec()
 
@@ -230,7 +219,6 @@ func TestCodecMashalFailsOnUnregisteredConcrete(t *testing.T) {
 }
 
 func TestCodecMarshalPassesOnRegistered(t *testing.T) {
-	t.Parallel()
 
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.Concrete1{}), tests.Package)
@@ -249,7 +237,6 @@ func TestCodecMarshalPassesOnRegistered(t *testing.T) {
 }
 
 func TestCodecRegisterAndMarshalMultipleConcrete(t *testing.T) {
-	t.Parallel()
 
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.Concrete1{}), tests.Package)
@@ -286,7 +273,6 @@ func TestCodecRegisterAndMarshalMultipleConcrete(t *testing.T) {
 
 // Serialize and deserialize a registered typedef.
 func TestCodecRoundtripNonNilRegisteredTypeDef(t *testing.T) {
-	t.Parallel()
 
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteTypeDef{}), tests.Package)
@@ -361,7 +347,6 @@ func TestCodecRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 // Exactly like TestCodecRoundtripNonNilRegisteredTypeDef but with struct
 // around the value instead of a type def.
 func TestCodecRoundtripNonNilRegisteredWrappedValue(t *testing.T) {
-	t.Parallel()
 
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteWrappedBytes{}), tests.Package)
@@ -393,7 +378,6 @@ func TestCodecRoundtripNonNilRegisteredWrappedValue(t *testing.T) {
 
 // MarshalAny(msg) and Marshal(&msg) are the same.
 func TestCodecMarshalAny(t *testing.T) {
-	t.Parallel()
 
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteWrappedBytes{}), tests.Package)
@@ -412,7 +396,6 @@ func TestCodecMarshalAny(t *testing.T) {
 
 // Like TestCodecRoundtripNonNilRegisteredTypeDef, but JSON.
 func TestCodecJSONRoundtripNonNilRegisteredTypeDef(t *testing.T) {
-	t.Parallel()
 
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteTypeDef{}), tests.Package)
@@ -434,7 +417,6 @@ func TestCodecJSONRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 
 // Like TestCodecRoundtripNonNilRegisteredTypeDef, but serialize the concrete value directly.
 func TestCodecRoundtripMarshalOnConcreteNonNilRegisteredTypeDef(t *testing.T) {
-	t.Parallel()
 
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteTypeDef{}), tests.Package)
@@ -467,7 +449,6 @@ func TestCodecRoundtripMarshalOnConcreteNonNilRegisteredTypeDef(t *testing.T) {
 
 // Like TestCodecRoundtripNonNilRegisteredTypeDef but read into concrete var.
 func TestCodecRoundtripUnmarshalOnConcreteNonNilRegisteredTypeDef(t *testing.T) {
-	t.Parallel()
 
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteTypeDef{}), tests.Package)
@@ -488,7 +469,6 @@ func TestCodecRoundtripUnmarshalOnConcreteNonNilRegisteredTypeDef(t *testing.T) 
 }
 
 func TestCodecBinaryStructFieldNilInterface(t *testing.T) {
-	t.Parallel()
 
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.InterfaceFieldsStruct{}), tests.Package)

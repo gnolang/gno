@@ -7,6 +7,8 @@ package bytes_test
 import (
 	"bytes"
 	"fmt"
+	// "internal/testenv" XXX remove
+	// "reflect" XXX remove
 	"math/rand"
 	"strings"
 	"testing"
@@ -518,9 +520,11 @@ func valName(x int) string {
 
 func benchBytes(b *testing.B, sizes []int, f func(b *testing.B, n int)) {
 	for _, n := range sizes {
-		// if isRaceBuilder && n > 4<<10 {
-		// 	continue
-		// }
+		/* XXX remove testenv
+		if isRaceBuilder && n > 4<<10 {
+			continue
+		}
+		*/
 
 		b.Run(valName(n), func(b *testing.B) {
 			if len(bmbuf) < n {

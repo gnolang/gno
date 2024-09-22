@@ -105,7 +105,6 @@ func initSwitchFunc(i int, sw *Switch) *Switch {
 }
 
 func TestSwitches(t *testing.T) {
-	t.Parallel()
 
 	s1, s2 := MakeSwitchPair(t, initSwitchFunc)
 	defer s1.Stop()
@@ -154,7 +153,6 @@ func assertMsgReceivedWithTimeout(t *testing.T, msgBytes []byte, channel byte, r
 }
 
 func TestSwitchFiltersOutItself(t *testing.T) {
-	t.Parallel()
 
 	s1 := MakeSwitch(cfg, 1, "127.0.0.1", "123.123.123", initSwitchFunc)
 
@@ -180,7 +178,6 @@ func TestSwitchFiltersOutItself(t *testing.T) {
 }
 
 func TestSwitchPeerFilter(t *testing.T) {
-	t.Parallel()
 
 	var (
 		filters = []PeerFilterFunc{
@@ -225,7 +222,6 @@ func TestSwitchPeerFilter(t *testing.T) {
 }
 
 func TestSwitchPeerFilterTimeout(t *testing.T) {
-	t.Parallel()
 
 	var (
 		filters = []PeerFilterFunc{
@@ -268,7 +264,6 @@ func TestSwitchPeerFilterTimeout(t *testing.T) {
 }
 
 func TestSwitchPeerFilterDuplicate(t *testing.T) {
-	t.Parallel()
 
 	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
 	sw.Start()
@@ -313,7 +308,6 @@ func assertNoPeersAfterTimeout(t *testing.T, sw *Switch, timeout time.Duration) 
 }
 
 func TestSwitchStopsNonPersistentPeerOnError(t *testing.T) {
-	t.Parallel()
 
 	assert, require := assert.New(t), require.New(t)
 
@@ -350,7 +344,6 @@ func TestSwitchStopsNonPersistentPeerOnError(t *testing.T) {
 }
 
 func TestSwitchStopPeerForError(t *testing.T) {
-	t.Parallel()
 
 	// make two connected switches
 	sw1, sw2 := MakeSwitchPair(t, func(i int, sw *Switch) *Switch {
@@ -374,7 +367,6 @@ func TestSwitchStopPeerForError(t *testing.T) {
 }
 
 func TestSwitchReconnectsToOutboundPersistentPeer(t *testing.T) {
-	t.Parallel()
 
 	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
 	err := sw.Start()
@@ -421,7 +413,6 @@ func TestSwitchReconnectsToOutboundPersistentPeer(t *testing.T) {
 }
 
 func TestSwitchReconnectsToInboundPersistentPeer(t *testing.T) {
-	t.Parallel()
 
 	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
 	err := sw.Start()
@@ -448,7 +439,6 @@ func TestSwitchReconnectsToInboundPersistentPeer(t *testing.T) {
 }
 
 func TestSwitchDialPeersAsync(t *testing.T) {
-	t.Parallel()
 
 	if testing.Short() {
 		return
@@ -480,7 +470,6 @@ func waitUntilSwitchHasAtLeastNPeers(sw *Switch, n int) {
 }
 
 func TestSwitchFullConnectivity(t *testing.T) {
-	t.Parallel()
 
 	switches := MakeConnectedSwitches(cfg, 3, initSwitchFunc, Connect2Switches)
 	defer func() {
@@ -497,7 +486,6 @@ func TestSwitchFullConnectivity(t *testing.T) {
 }
 
 func TestSwitchAcceptRoutine(t *testing.T) {
-	t.Parallel()
 
 	cfg.MaxNumInboundPeers = 5
 
@@ -571,7 +559,6 @@ func (errorTransport) Cleanup(Peer) {
 }
 
 func TestSwitchAcceptRoutineErrorCases(t *testing.T) {
-	t.Parallel()
 
 	sw := NewSwitch(cfg, errorTransport{FilterTimeoutError{}})
 	assert.NotPanics(t, func() {
@@ -625,7 +612,6 @@ func (r *mockReactor) InitCalledBeforeRemoveFinished() bool {
 
 // see stopAndRemovePeer
 func TestFlappySwitchInitPeerIsNotCalledBeforeRemovePeer(t *testing.T) {
-	t.Parallel()
 
 	testutils.FilterStability(t, testutils.Flappy)
 

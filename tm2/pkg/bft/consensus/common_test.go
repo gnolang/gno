@@ -144,6 +144,8 @@ func (vss ValidatorStubsByAddress) Swap(i, j int) {
 
 func startFrom(cs *ConsensusState, height int64, round int) {
 	go func() {
+		cs.mu.Lock()
+		defer cs.mu.Unlock()
 		cs.enterNewRound(height, round)
 		cs.StartWithoutWALCatchup()
 	}()

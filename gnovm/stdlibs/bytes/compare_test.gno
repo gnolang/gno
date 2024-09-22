@@ -72,7 +72,7 @@ func TestCompareBytes(t *testing.T) {
 	}
 	lengths = append(lengths, 256, 512, 1024, 1333, 4095, 4096, 4097)
 
-	if !testing.Short() {
+	if !testing.Short() { // XXX remove testenv: || testenv.Builder() != "" {
 		lengths = append(lengths, 65535, 65536, 65537, 99999)
 	}
 
