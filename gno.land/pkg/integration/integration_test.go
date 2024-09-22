@@ -9,12 +9,10 @@ import (
 )
 
 func TestTestdata(t *testing.T) {
-
 	RunGnolandTestscripts(t, "testdata")
 }
 
 func TestUnquote(t *testing.T) {
-
 	cases := []struct {
 		Input      string
 		Expected   []string
@@ -38,7 +36,6 @@ func TestUnquote(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.Input, func(t *testing.T) {
-
 			// split by whitespace to simulate command-line arguments
 			args := strings.Split(tc.Input, " ")
 			unquotedArgs, err := unquote(args)

@@ -22,7 +22,6 @@ import (
 // Non-interface Google fuzz tests
 
 func TestCodecStruct(t *testing.T) {
-
 	for _, ptr := range tests.StructTypes {
 		t.Logf("case %v", reflect.TypeOf(ptr))
 		rt := getTypeFromPointer(ptr)
@@ -37,7 +36,6 @@ func TestCodecStruct(t *testing.T) {
 }
 
 func TestCodecDef(t *testing.T) {
-
 	for _, ptr := range tests.DefTypes {
 		t.Logf("case %v", reflect.TypeOf(ptr))
 		rt := getTypeFromPointer(ptr)
@@ -52,7 +50,6 @@ func TestCodecDef(t *testing.T) {
 }
 
 func TestDeepCopyStruct(t *testing.T) {
-
 	for _, ptr := range tests.StructTypes {
 		t.Logf("case %v", reflect.TypeOf(ptr))
 		rt := getTypeFromPointer(ptr)
@@ -64,7 +61,6 @@ func TestDeepCopyStruct(t *testing.T) {
 }
 
 func TestDeepCopyDef(t *testing.T) {
-
 	for _, ptr := range tests.DefTypes {
 		t.Logf("case %v", reflect.TypeOf(ptr))
 		rt := getTypeFromPointer(ptr)
@@ -77,7 +73,6 @@ func TestDeepCopyDef(t *testing.T) {
 
 func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 	t.Helper()
-
 	err := error(nil)
 	bz := []byte{}
 	cdc := amino.NewCodec()
@@ -178,7 +173,6 @@ func _testCodec(t *testing.T, rt reflect.Type, codecType string) {
 
 func _testDeepCopy(t *testing.T, rt reflect.Type) {
 	t.Helper()
-
 	err := error(nil)
 	f := fuzz.New()
 	rv := reflect.New(rt)
@@ -210,7 +204,6 @@ func _testDeepCopy(t *testing.T, rt reflect.Type) {
 // Register/interface tests
 
 func TestCodecMashalFailsOnUnregisteredConcrete(t *testing.T) {
-
 	cdc := amino.NewCodec()
 
 	bz, err := cdc.Marshal(struct{ tests.Interface1 }{tests.Concrete1{}})
@@ -219,7 +212,6 @@ func TestCodecMashalFailsOnUnregisteredConcrete(t *testing.T) {
 }
 
 func TestCodecMarshalPassesOnRegistered(t *testing.T) {
-
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.Concrete1{}), tests.Package)
 
@@ -237,7 +229,6 @@ func TestCodecMarshalPassesOnRegistered(t *testing.T) {
 }
 
 func TestCodecRegisterAndMarshalMultipleConcrete(t *testing.T) {
-
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.Concrete1{}), tests.Package)
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.Concrete2{}), tests.Package)
@@ -273,7 +264,6 @@ func TestCodecRegisterAndMarshalMultipleConcrete(t *testing.T) {
 
 // Serialize and deserialize a registered typedef.
 func TestCodecRoundtripNonNilRegisteredTypeDef(t *testing.T) {
-
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteTypeDef{}), tests.Package)
 
@@ -347,7 +337,6 @@ func TestCodecRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 // Exactly like TestCodecRoundtripNonNilRegisteredTypeDef but with struct
 // around the value instead of a type def.
 func TestCodecRoundtripNonNilRegisteredWrappedValue(t *testing.T) {
-
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteWrappedBytes{}), tests.Package)
 
@@ -378,7 +367,6 @@ func TestCodecRoundtripNonNilRegisteredWrappedValue(t *testing.T) {
 
 // MarshalAny(msg) and Marshal(&msg) are the same.
 func TestCodecMarshalAny(t *testing.T) {
-
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteWrappedBytes{}), tests.Package)
 
@@ -417,7 +405,6 @@ func TestCodecJSONRoundtripNonNilRegisteredTypeDef(t *testing.T) {
 
 // Like TestCodecRoundtripNonNilRegisteredTypeDef, but serialize the concrete value directly.
 func TestCodecRoundtripMarshalOnConcreteNonNilRegisteredTypeDef(t *testing.T) {
-
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteTypeDef{}), tests.Package)
 
@@ -449,7 +436,6 @@ func TestCodecRoundtripMarshalOnConcreteNonNilRegisteredTypeDef(t *testing.T) {
 
 // Like TestCodecRoundtripNonNilRegisteredTypeDef but read into concrete var.
 func TestCodecRoundtripUnmarshalOnConcreteNonNilRegisteredTypeDef(t *testing.T) {
-
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteTypeDef{}), tests.Package)
 
@@ -469,7 +455,6 @@ func TestCodecRoundtripUnmarshalOnConcreteNonNilRegisteredTypeDef(t *testing.T) 
 }
 
 func TestCodecBinaryStructFieldNilInterface(t *testing.T) {
-
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.InterfaceFieldsStruct{}), tests.Package)
 

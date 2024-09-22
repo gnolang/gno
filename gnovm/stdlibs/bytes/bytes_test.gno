@@ -7,6 +7,7 @@ package bytes_test
 import (
 	"bytes"
 	"fmt"
+
 	// "internal/testenv" XXX remove
 	// "reflect" XXX remove
 	"math/rand"
