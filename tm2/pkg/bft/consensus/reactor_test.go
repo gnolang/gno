@@ -102,7 +102,6 @@ func TestReactorBasic(t *testing.T) {
 
 // Ensure a testnet makes blocks when there are txs
 func TestReactorCreatesBlockWhenEmptyBlocksFalse(t *testing.T) {
-
 	N := 4
 	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter,
 		func(c *cfg.Config) {
@@ -124,7 +123,6 @@ func TestReactorCreatesBlockWhenEmptyBlocksFalse(t *testing.T) {
 }
 
 func TestReactorReceiveDoesNotPanicIfAddPeerHasntBeenCalledYet(t *testing.T) {
-
 	N := 1
 	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter)
 	defer cleanup()
@@ -147,7 +145,6 @@ func TestReactorReceiveDoesNotPanicIfAddPeerHasntBeenCalledYet(t *testing.T) {
 }
 
 func TestReactorReceivePanicsIfInitPeerHasntBeenCalledYet(t *testing.T) {
-
 	N := 1
 	css, cleanup := randConsensusNet(N, "consensus_reactor_test", newMockTickerFunc(true), newCounter)
 	defer cleanup()
@@ -170,7 +167,6 @@ func TestReactorReceivePanicsIfInitPeerHasntBeenCalledYet(t *testing.T) {
 
 // Test we record stats about votes and block parts from other peers.
 func TestFlappyReactorRecordsVotesAndBlockParts(t *testing.T) {
-
 	testutils.FilterStability(t, testutils.Flappy)
 
 	N := 4
@@ -197,7 +193,6 @@ func TestFlappyReactorRecordsVotesAndBlockParts(t *testing.T) {
 // ensure we can make blocks despite cycling a validator set
 
 func TestReactorVotingPowerChange(t *testing.T) {
-
 	nVals := 4
 	logger := log.NewTestingLogger(t)
 	css, cleanup := randConsensusNet(nVals, "consensus_voting_power_changes_test", newMockTickerFunc(true), newPersistentKVStore)
@@ -260,7 +255,6 @@ func TestReactorVotingPowerChange(t *testing.T) {
 }
 
 func TestReactorValidatorSetChanges(t *testing.T) {
-
 	nPeers := 7
 	nVals := 4
 	css, _, _, cleanup := randConsensusNetWithPeers(nVals, nPeers, "consensus_val_set_changes_test", newMockTickerFunc(true), newPersistentKVStoreWithPath)
@@ -357,7 +351,6 @@ func TestReactorValidatorSetChanges(t *testing.T) {
 
 // Check we can make blocks with skip_timeout_commit=false
 func TestReactorWithTimeoutCommit(t *testing.T) {
-
 	N := 4
 	css, cleanup := randConsensusNet(N, "consensus_reactor_with_timeout_commit_test", newMockTickerFunc(false), newCounter)
 	defer cleanup()
@@ -518,7 +511,6 @@ func timeoutWaitGroup(t *testing.T, n int, f func(int), css []*ConsensusState) {
 // Ensure basic validation of structs is functioning
 
 func TestNewRoundStepMessageValidateBasic(t *testing.T) {
-
 	testCases := []struct {
 		testName               string
 		messageHeight          int64
@@ -552,7 +544,6 @@ func TestNewRoundStepMessageValidateBasic(t *testing.T) {
 }
 
 func TestNewValidBlockMessageValidateBasic(t *testing.T) {
-
 	testCases := []struct {
 		malleateFn func(*NewValidBlockMessage)
 		expErr     string
@@ -600,7 +591,6 @@ func TestNewValidBlockMessageValidateBasic(t *testing.T) {
 }
 
 func TestProposalPOLMessageValidateBasic(t *testing.T) {
-
 	testCases := []struct {
 		malleateFn func(*ProposalPOLMessage)
 		expErr     string
@@ -635,7 +625,6 @@ func TestProposalPOLMessageValidateBasic(t *testing.T) {
 }
 
 func TestBlockPartMessageValidateBasic(t *testing.T) {
-
 	testPart := new(types.Part)
 	testPart.Proof.LeafHash = tmhash.Sum([]byte("leaf"))
 	testCases := []struct {
@@ -671,7 +660,6 @@ func TestBlockPartMessageValidateBasic(t *testing.T) {
 }
 
 func TestHasVoteMessageValidateBasic(t *testing.T) {
-
 	const (
 		validSignedMsgType   types.SignedMsgType = 0x01
 		invalidSignedMsgType types.SignedMsgType = 0x03
@@ -709,7 +697,6 @@ func TestHasVoteMessageValidateBasic(t *testing.T) {
 }
 
 func TestVoteSetMaj23MessageValidateBasic(t *testing.T) {
-
 	const (
 		validSignedMsgType   types.SignedMsgType = 0x01
 		invalidSignedMsgType types.SignedMsgType = 0x03
@@ -756,7 +743,6 @@ func TestVoteSetMaj23MessageValidateBasic(t *testing.T) {
 }
 
 func TestVoteSetBitsMessageValidateBasic(t *testing.T) {
-
 	testCases := []struct { //nolint: maligned
 		malleateFn func(*VoteSetBitsMessage)
 		expErr     string

@@ -105,7 +105,6 @@ func initSwitchFunc(i int, sw *Switch) *Switch {
 }
 
 func TestSwitches(t *testing.T) {
-
 	s1, s2 := MakeSwitchPair(t, initSwitchFunc)
 	defer s1.Stop()
 	defer s2.Stop()
@@ -153,7 +152,6 @@ func assertMsgReceivedWithTimeout(t *testing.T, msgBytes []byte, channel byte, r
 }
 
 func TestSwitchFiltersOutItself(t *testing.T) {
-
 	s1 := MakeSwitch(cfg, 1, "127.0.0.1", "123.123.123", initSwitchFunc)
 
 	// simulate s1 having a public IP by creating a remote peer with the same ID
@@ -178,7 +176,6 @@ func TestSwitchFiltersOutItself(t *testing.T) {
 }
 
 func TestSwitchPeerFilter(t *testing.T) {
-
 	var (
 		filters = []PeerFilterFunc{
 			func(_ IPeerSet, _ Peer) error { return nil },
@@ -222,7 +219,6 @@ func TestSwitchPeerFilter(t *testing.T) {
 }
 
 func TestSwitchPeerFilterTimeout(t *testing.T) {
-
 	var (
 		filters = []PeerFilterFunc{
 			func(_ IPeerSet, _ Peer) error {
@@ -264,7 +260,6 @@ func TestSwitchPeerFilterTimeout(t *testing.T) {
 }
 
 func TestSwitchPeerFilterDuplicate(t *testing.T) {
-
 	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
 	sw.Start()
 	defer sw.Stop()
@@ -308,7 +303,6 @@ func assertNoPeersAfterTimeout(t *testing.T, sw *Switch, timeout time.Duration) 
 }
 
 func TestSwitchStopsNonPersistentPeerOnError(t *testing.T) {
-
 	assert, require := assert.New(t), require.New(t)
 
 	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
@@ -344,7 +338,6 @@ func TestSwitchStopsNonPersistentPeerOnError(t *testing.T) {
 }
 
 func TestSwitchStopPeerForError(t *testing.T) {
-
 	// make two connected switches
 	sw1, sw2 := MakeSwitchPair(t, func(i int, sw *Switch) *Switch {
 		return initSwitchFunc(i, sw)
@@ -367,7 +360,6 @@ func TestSwitchStopPeerForError(t *testing.T) {
 }
 
 func TestSwitchReconnectsToOutboundPersistentPeer(t *testing.T) {
-
 	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
 	err := sw.Start()
 	require.NoError(t, err)
@@ -413,7 +405,6 @@ func TestSwitchReconnectsToOutboundPersistentPeer(t *testing.T) {
 }
 
 func TestSwitchReconnectsToInboundPersistentPeer(t *testing.T) {
-
 	sw := MakeSwitch(cfg, 1, "testing", "123.123.123", initSwitchFunc)
 	err := sw.Start()
 	require.NoError(t, err)
@@ -439,7 +430,6 @@ func TestSwitchReconnectsToInboundPersistentPeer(t *testing.T) {
 }
 
 func TestSwitchDialPeersAsync(t *testing.T) {
-
 	if testing.Short() {
 		return
 	}
@@ -470,7 +460,6 @@ func waitUntilSwitchHasAtLeastNPeers(sw *Switch, n int) {
 }
 
 func TestSwitchFullConnectivity(t *testing.T) {
-
 	switches := MakeConnectedSwitches(cfg, 3, initSwitchFunc, Connect2Switches)
 	defer func() {
 		for _, sw := range switches {
@@ -486,7 +475,6 @@ func TestSwitchFullConnectivity(t *testing.T) {
 }
 
 func TestSwitchAcceptRoutine(t *testing.T) {
-
 	cfg.MaxNumInboundPeers = 5
 
 	// make switch
@@ -559,7 +547,6 @@ func (errorTransport) Cleanup(Peer) {
 }
 
 func TestSwitchAcceptRoutineErrorCases(t *testing.T) {
-
 	sw := NewSwitch(cfg, errorTransport{FilterTimeoutError{}})
 	assert.NotPanics(t, func() {
 		err := sw.Start()
@@ -612,7 +599,6 @@ func (r *mockReactor) InitCalledBeforeRemoveFinished() bool {
 
 // see stopAndRemovePeer
 func TestFlappySwitchInitPeerIsNotCalledBeforeRemovePeer(t *testing.T) {
-
 	testutils.FilterStability(t, testutils.Flappy)
 
 	// make reactor

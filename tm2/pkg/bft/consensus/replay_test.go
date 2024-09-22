@@ -130,7 +130,6 @@ func sendTxs(ctx context.Context, cs *ConsensusState) {
 
 // TestWALCrash uses crashing WAL to test we can recover from any WAL failure.
 func TestWALCrash(t *testing.T) {
-
 	testCases := []struct {
 		name            string
 		initFn          func(dbm.DB, *ConsensusState, context.Context)
@@ -338,7 +337,6 @@ var modes = []uint{0, 1, 2}
 // Caller should call `defer sim.CleanupFunc()`
 func makeTestSim(t *testing.T, name string) (sim testSim) {
 	t.Helper()
-
 	nPeers := 7
 	nVals := 4
 	css, genDoc, config, cleanup := randConsensusNetWithPeers(nVals, nPeers, "replay_test_"+name, newMockTickerFunc(true), newPersistentKVStoreWithPath)
@@ -525,7 +523,6 @@ func makeTestSim(t *testing.T, name string) (sim testSim) {
 
 // Sync from scratch
 func TestHandshakeReplayAll(t *testing.T) {
-
 	for _, m := range modes {
 		testHandshakeReplay(t, config, 0, m, nil)
 	}
@@ -538,7 +535,6 @@ func TestHandshakeReplayAll(t *testing.T) {
 
 // Sync many, not from scratch
 func TestHandshakeReplaySome(t *testing.T) {
-
 	for _, m := range modes {
 		testHandshakeReplay(t, config, 1, m, nil)
 	}
@@ -551,7 +547,6 @@ func TestHandshakeReplaySome(t *testing.T) {
 
 // Sync from lagging by one
 func TestHandshakeReplayOne(t *testing.T) {
-
 	for _, m := range modes {
 		testHandshakeReplay(t, config, numBlocks-1, m, nil)
 	}
@@ -564,7 +559,6 @@ func TestHandshakeReplayOne(t *testing.T) {
 
 // Sync from caught up
 func TestFlappyHandshakeReplayNone(t *testing.T) {
-
 	testutils.FilterStability(t, testutils.Flappy)
 
 	for _, m := range modes {
@@ -579,7 +573,6 @@ func TestFlappyHandshakeReplayNone(t *testing.T) {
 
 // Test mockProxyApp should not panic when app return ABCIResponses with some empty ResponseDeliverTx
 func TestMockProxyApp(t *testing.T) {
-
 	logger := log.NewTestingLogger(t)
 	validTxs, invalidTxs := 0, 0
 	txIndex := 0
@@ -644,7 +637,6 @@ func tempWALWithData(data []byte) string {
 // Make some blocks. Start a fresh app and apply nBlocks blocks. Then restart the app and sync it up with the remaining blocks
 func testHandshakeReplay(t *testing.T, config *cfg.Config, nBlocks int, mode uint, sim *testSim) {
 	t.Helper()
-
 	var (
 		chain        []*types.Block
 		commits      []*types.Commit
@@ -839,7 +831,6 @@ func buildTMStateFromChain(config *cfg.Config, stateDB dbm.DB, state sm.State, c
 }
 
 func TestHandshakePanicsIfAppReturnsWrongAppHash(t *testing.T) {
-
 	// 1. Initialize tendermint and commit 3 blocks with the following app hashes:
 	//		- 0x01
 	//		- 0x02
@@ -1119,7 +1110,6 @@ func (bs *mockBlockStore) LoadSeenCommit(height int64) *types.Commit {
 // Test handshake/init chain
 
 func TestHandshakeUpdatesValidators(t *testing.T) {
-
 	val, _ := types.RandValidator(true, 10)
 	vals := types.NewValidatorSet([]*types.Validator{val})
 	appVals := vals.ABCIValidatorUpdates()
@@ -1157,7 +1147,6 @@ func TestHandshakeUpdatesValidators(t *testing.T) {
 }
 
 func TestHandshakeGenesisResponseDeliverTx(t *testing.T) {
-
 	const numInitResponses = 42
 
 	app := initChainApp{

@@ -384,7 +384,6 @@ func TestCodecMarshalAny(t *testing.T) {
 
 // Like TestCodecRoundtripNonNilRegisteredTypeDef, but JSON.
 func TestCodecJSONRoundtripNonNilRegisteredTypeDef(t *testing.T) {
-
 	cdc := amino.NewCodec()
 	cdc.RegisterTypeFrom(reflect.TypeOf(tests.ConcreteTypeDef{}), tests.Package)
 
