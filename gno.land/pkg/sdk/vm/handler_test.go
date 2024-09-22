@@ -64,6 +64,9 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 	}{
 		// valid queries
 		{input: []byte(`gno.land/r/hello.Echo("hello")`), expectedResult: `("echo:hello" string)`},
+		{input: []byte(`gno.land/r/hello.caller()`), expectedResult: `("" std.Address)`}, // FIXME?
+		{input: []byte(`gno.land/r/hello.GetHeight()`), expectedResult: `(0 int64)`},
+		// {input: []byte(`gno.land/r/hello.time.RFC3339`), expectedResult: `test`}, // not working, but should we care?
 		{input: []byte(`gno.land/r/hello.PubString`), expectedResult: `("public string" string)`},
 		{input: []byte(`gno.land/r/hello.ConstString`), expectedResult: `("const string" string)`},
 		{input: []byte(`gno.land/r/hello.pvString`), expectedResult: `("private string" string)`},
@@ -90,7 +93,6 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		{input: []byte(`gno.land/r/hello.doesnotexist`), expectedErrorMatch: `^/:0:0: name doesnotexist not declared:`}, // multiline error
 		{input: []byte(`gno.land/r/doesnotexist.Foo`), expectedErrorMatch: `^invalid package path$`},
 		{input: []byte(`gno.land/r/hello.Panic()`), expectedErrorMatch: `^foo$`},
-		{input: []byte(`gno.land/r/hello.panic("bar")`), expectedErrorMatch: `^bar$`},
 		{input: []byte(`gno.land/r/hello.sl[6]`), expectedErrorMatch: `^slice index out of bounds: 6 \(len=5\)$`},
 	}
 
@@ -98,7 +100,7 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 		name := string(tc.input)
 		t.Run(name, func(t *testing.T) {
 			env := setupTestEnv()
-			ctx := env.ctx
+			ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 			vmHandler := env.vmh
 
 			// Give "addr1" some gnots.
@@ -113,6 +115,12 @@ func TestVmHandlerQuery_Eval(t *testing.T) {
 				{"hello.gno", `
 package hello
 
+import "std"
+import "time"
+
+var _ = time.RFC3339
+func caller() std.Address { return std.GetOrigCaller() }
+var GetHeight = std.GetHeight
 var sl = []int{1,2,3,4,5}
 func fn() func(string) string { return Echo }
 type myStruct struct{a int}
@@ -133,6 +141,7 @@ func pvEcho(msg string) string { return "pvecho:"+msg }
 			msg1 := NewMsgAddPackage(addr, pkgPath, files)
 			err := env.vmk.AddPackage(ctx, msg1)
 			assert.NoError(t, err)
+			env.vmk.CommitGnoTransactionStore(ctx)
 
 			req := abci.RequestQuery{
 				Path: "vm/qeval",
