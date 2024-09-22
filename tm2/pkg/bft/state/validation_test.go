@@ -19,8 +19,6 @@ import (
 const validationTestsStopHeight int64 = 10
 
 func TestValidateBlockHeader(t *testing.T) {
-	t.Parallel()
-
 	proxyApp := newTestApp()
 	require.NoError(t, proxyApp.Start())
 	defer proxyApp.Stop()
@@ -82,8 +80,6 @@ func TestValidateBlockHeader(t *testing.T) {
 }
 
 func TestValidateBlockCommit(t *testing.T) {
-	t.Parallel()
-
 	proxyApp := newTestApp()
 	require.NoError(t, proxyApp.Start())
 	defer proxyApp.Stop()
