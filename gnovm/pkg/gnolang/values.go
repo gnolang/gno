@@ -193,14 +193,17 @@ const (
 )
 
 func (pv *PointerValue) GetBase(store Store) Object {
+	fmt.Printf("GetBase, pv.Base: %v\n", pv.Base)
 	switch cbase := pv.Base.(type) {
 	case nil:
 		return nil
 	case RefValue:
+		println("---RefValue")
 		base := store.GetObject(cbase.ObjectID).(Object)
 		pv.Base = base
 		return base
 	case Object:
+		fmt.Println("---Object, cbase: ", cbase)
 		return cbase
 	default:
 		panic(fmt.Sprintf("unexpected pointer base type %T", cbase))
@@ -211,6 +214,9 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+	fmt.Println("---Assign2, pv: ", pv)
+	fmt.Println("---Assign2, tv2: ", tv2)
+	fmt.Println("---Assign2, realm: ", rlm)
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -1701,6 +1707,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
 func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath) PointerValue {
+	fmt.Println("---GetPointerTo, tv, rt of tv: ", tv, reflect.TypeOf(tv))
 	if debug {
 		if tv.IsUndefined() {
 			panic("GetPointerTo() on undefined value")
@@ -1867,11 +1874,18 @@ func (tv *TypedValue) GetPointerTo(alloc *Allocator, store Store, path ValuePath
 				panic("should not happen")
 			}
 		}
+		fmt.Println("---dtv: ", dtv)
+		fmt.Printf("---dtv addr: %p\n", dtv)
 		dtv2 := dtv.Copy(alloc)
+
+		fmt.Println("---dtv2: ", dtv2)
+		fmt.Printf("---dtv2 addr: %p\n", dtv2)
+
 		alloc.AllocateBoundMethod()
 		bmv := &BoundMethodValue{
 			Func:     mv,
 			Receiver: dtv2,
+			//Receiver: *dtv,
 		}
 		return PointerValue{
 			TV: &TypedValue{
@@ -2431,7 +2445,9 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
+	fmt.Println("---GetPointerToInt")
 	vv := fillValueTV(store, &b.Values[index])
+	fmt.Println("---vv: ", vv)
 	return PointerValue{
 		TV:    vv,
 		Base:  b,
@@ -2440,7 +2456,9 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
+	fmt.Println("---GetPointerTo, path: ", path)
 	if path.IsBlockBlankPath() {
+		println("---isBlockBlankPath")
 		if debug {
 			if path.Name != blankIdentifier {
 				panic(fmt.Sprintf(
@@ -2621,13 +2639,17 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
+	fmt.Println("---fillValueTV, tv: ", tv)
 	switch cv := tv.V.(type) {
 	case RefValue:
+		println("---tv.V RefValue")
+		fmt.Println("---cv: ", cv)
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)
 		} else { // load object
 			// XXX XXX allocate object.
 			tv.V = store.GetObject(cv.ObjectID)
+			fmt.Println("---tv.V: ", tv.V)
 		}
 	case PointerValue:
 		// As a special case, cv.Base is filled
