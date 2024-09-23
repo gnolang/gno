@@ -2,15 +2,15 @@
 id: realm-abi
 ---
 
-# GNO Realm ABI specification
+# Gno Realm ABI specification
 
-The GNO Realm Application Binary Interface (ABI) specifies the interface between realms (GNO smart contracts) and clients interacting with the realms.
+The Gno Realm Application Binary Interface (ABI) specifies the interface between realms (Gno smart contracts) and clients interacting with the realms.
 
 ## Overview and concepts
 
 Realms implement live programs on the blockchain, also called smart contracts.
 
-Each realm exists as a package, identified by its URL, and containing the realm source files. A realm has the following properties:
+Each realm exists as a package, identified by its package path, and containing the package source files. A realm has the following properties:
 - Once deployed, the realm is autonomous and permanent: its code can not be modified, and it can not be stopped, but it may internally self-terminate (to be clarified).
 - The realm state (i.e. the set of its global variables, public and private) is persistent (i.e. stored on the blockchain).
 - The realm must execute in a deterministic way, so its execution on mutiple nodes always result in the same state and a consensus can be achieved.
@@ -99,7 +99,7 @@ In JSON, contains a first field `"@type": "/vm.m_call"`.
 
 ### MsgRun
 
-Load and execute a GNO program. The code resides in a `main` package with no exports (can not be called externally), it is only executed once.
+Load and execute a Gno program. The code resides in a `main` package with no exports (can not be called externally), it is only executed once.
 
 In JSON, contains a first field `"@type": "/vm.m_run"`.
 
@@ -176,7 +176,28 @@ In JSON, contains a first field `"@type": "/gno.SliceValue"`.
 
 ### StructValue
 
+In JSON, contains a first field `"@type": "/gno.StructValue"`.
+
+| Name       | Type                               | Description   | Field Number |
+|------------|------------------------------------|---------------|--------------|
+| ObjectInfo | [ObjectInfo](#objectinfo)          | object info   | 1            |
+| Fields     | repeated [TypedValue](#typedvalue) | struct fields | 2            |
+
 ### FuncValue
+
+In JSON, contains a first field `"@type": "/gno.StructValue"`.
+
+| Name       | Type   | Description                         | Field Number |
+|------------|--------|-------------------------------------|--------------|
+| Type       | Any    | normally a [FuncType](#functype)    | 1            |
+| IsMethod   | bool   | true if function is a method        | 2            |
+| Source     | Any    | normally a [BlockNode](#blocknode)  | 3            |
+| Name       | string | function name                       | 4            |
+| Closure    | Any    | normally a [RefValue](#refvalue)    | 5            |
+| FileName   | string | file name where function is defined | 6            |
+| PkgPath    | string | package path                        | 7            |
+| NativePkg  | string | native package path                 | 8            |
+| NativeName | string | native file name                    | 9            |
 
 ### MapValue
 
@@ -195,7 +216,7 @@ In JSON, contains a first field `"@type": "/gno.SliceValue"`.
 ### DeclaredType
 
 ### InterfaceType
-`
+
 [ABCI]: https://github.com/tendermint/tendermint/tree/master/spec/abci
 [CheckTx]: https://github.com/tendermint/spec/blob/master/spec/abci/abci.md#checktx-1
 [DeliverTx]: https://github.com/tendermint/spec/blob/master/spec/abci/abci.md#delivertx-1
