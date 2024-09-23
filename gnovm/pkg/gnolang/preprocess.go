@@ -1521,7 +1521,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					dt = dt.Elem()
 					n.X = &StarExpr{X: n.X}
 					n.X.SetAttribute(ATTR_PREPROCESSED, true)
-					n.Addressability = addressabilityStatusSatisfied
 				}
 				switch dt.Kind() {
 				case StringKind, ArrayKind, SliceKind:
