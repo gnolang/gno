@@ -1,6 +1,6 @@
 package ownable
 
-import "std"
+import "github.com/gnolang/gno/gnovm/stdlibs/std"
 
 const OwnershipTransferEvent = "OwnershipTransfer"
 
@@ -71,17 +71,13 @@ func (o Ownable) Owner() std.Address {
 }
 
 // CallerIsOwner checks if the caller of the function is the Realm's owner
-func (o Ownable) CallerIsOwner() error {
-	if std.PrevRealm().Addr() == o.owner {
-		return nil
-	}
-
-	return ErrUnauthorized
+func (o Ownable) CallerIsOwner() bool {
+	return std.PrevRealm().Addr() == o.owner
 }
 
 // AssertCallerIsOwner panics if the caller is not the owner
 func (o Ownable) AssertCallerIsOwner() {
-	if std.PrevRealm().Addr() != o.owner {
+	if !o.CallerIsOwner() {
 		panic(ErrUnauthorized)
 	}
 }

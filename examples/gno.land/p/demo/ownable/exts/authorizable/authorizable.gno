@@ -6,22 +6,33 @@
 package authorizable
 
 import (
-	"std"
-
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/ufmt"
+	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
+	"github.com/gnolang/gno/examples/gno.land/p/demo/ownable"
+	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
+	"github.com/gnolang/gno/gnovm/stdlibs/std"
 )
 
 type Authorizable struct {
 	*ownable.Ownable           // owner in ownable is superuser
 	authorized       *avl.Tree // std.Addr > struct{}{}
+	pendingOps       *avl.Tree // std.Addr > vote
+	addThreshold     int       // number of votes needed to add another member
+	delThreshold     int       // number of votes needed to delete a member
+}
+
+// vote stores number of signatures for an operation on an address
+type vote struct {
+	del int
+	add int
 }
 
 func NewAuthorizable() *Authorizable {
 	a := &Authorizable{
 		ownable.New(),
 		avl.NewTree(),
+		avl.NewTree(),
+		0,
+		0,
 	}
 
 	// Add owner to auth list
@@ -33,6 +44,9 @@ func NewAuthorizableWithAddress(addr std.Address) *Authorizable {
 	a := &Authorizable{
 		ownable.NewWithAddress(addr),
 		avl.NewTree(),
+		avl.NewTree(),
+		0,
+		0,
 	}
 
 	// Add owner to auth list
