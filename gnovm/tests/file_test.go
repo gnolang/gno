@@ -23,19 +23,19 @@ func TestFileStr(t *testing.T) {
 // to native go standard library.
 func TestFilesNative(t *testing.T) {
 	baseDir := filepath.Join(".", "files")
-	runFileTests(t, baseDir, []string{"*_stdlibs*"}, WithNativeLibs())
+	runFileTests(t, baseDir, []string{"*_stdlibs*"}, "", WithNativeLibs())
 }
 
 // Test files using standard library in stdlibs/.
 func TestFiles(t *testing.T) {
 	baseDir := filepath.Join(".", "files")
-	runFileTests(t, baseDir, []string{"*_native*"})
+	runFileTests(t, baseDir, []string{"*_native*"}, "")
 }
 
 func TestChallenges(t *testing.T) {
 	t.Skip("Challenge tests, skipping.")
 	baseDir := filepath.Join(".", "challenges")
-	runFileTests(t, baseDir, nil)
+	runFileTests(t, baseDir, nil, "")
 }
 
 type testFile struct {
@@ -43,8 +43,9 @@ type testFile struct {
 	fs.DirEntry
 }
 
-// ignore are glob patterns to ignore
-func runFileTests(t *testing.T, baseDir string, ignore []string, opts ...RunFileTestOption) {
+// ignore are glob patterns to ignore. If includePrefix is a non-empty string,
+// only test names with the prefix will be executed.
+func runFileTests(t *testing.T, baseDir string, ignore []string, includePrefix string, opts ...RunFileTestOption) {
 	t.Helper()
 
 	opts = append([]RunFileTestOption{WithSyncWanted(*withSync)}, opts...)
@@ -54,7 +55,7 @@ func runFileTests(t *testing.T, baseDir string, ignore []string, opts ...RunFile
 		t.Fatal(err)
 	}
 
-	files = filterFileTests(t, files, ignore)
+	files = filterFileTests(t, files, ignore, includePrefix)
 	var path string
 	var name string
 	for _, file := range files {
@@ -86,7 +87,7 @@ func readFiles(t *testing.T, dir string) ([]testFile, error) {
 	return files, err
 }
 
-func filterFileTests(t *testing.T, files []testFile, ignore []string) []testFile {
+func filterFileTests(t *testing.T, files []testFile, ignore []string, includePrefix string) []testFile {
 	t.Helper()
 	filtered := make([]testFile, 0, 1000)
 	var name string
@@ -97,10 +98,17 @@ func filterFileTests(t *testing.T, files []testFile, ignore []string) []testFile
 		if filepath.Ext(name) != ".gno" {
 			continue
 		}
+
+		// Skip if a prefix is specified and this file does not have the prefix.
+		if includePrefix != "" && !strings.HasPrefix(name, includePrefix) {
+			continue
+		}
+
 		// skip ignored files
 		if isIgnored(t, name, ignore) {
 			continue
 		}
+
 		// skip _long file if we only want to test regular file.
 		if testing.Short() && strings.Contains(name, "_long") {
 			t.Logf("skipping test %s in short mode.", name)
