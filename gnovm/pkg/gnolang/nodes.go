@@ -492,7 +492,7 @@ type StarExpr struct { // *X
 }
 
 func (x *StarExpr) addressability() addressabilityStatus {
-	return x.X.addressability()
+	return addressabilityStatusSatisfied
 }
 
 type RefExpr struct { // &X
