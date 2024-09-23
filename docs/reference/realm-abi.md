@@ -201,21 +201,100 @@ In JSON, contains a first field `"@type": "/gno.StructValue"`.
 
 ### MapValue
 
+In JSON, contains a first field `"@type": "/gno.MapValue"`.
+
+| Name       | Type                      | Description | Field Number |
+|------------|---------------------------|-------------|--------------|
+| ObjectInfo | [ObjectInfo](#objectinfo) | object info | 1            |
+| MapList    | [MapList](#maplist)       | map list    | 2            |
+
 ### MapList
+
+| Name | Type                                 | Description       | Field Number |
+|------|--------------------------------------|-------------------|--------------|
+| List | repeated [MapListItem](#maplistitem) | list of map items | 1            |
 
 ### MapListItem
 
+| Name       | Type                      | Description    | Field Number |
+|------------|---------------------------|----------------|--------------|
+| Key        | [TypedValue](#typedvalue) | map item key   | 1            |
+| Value      | [TypedValue](#typedvalue) | map item value | 2            |
+
+### ObjectInfo
+
+| Name      | Type   | Description                  | Field Number |
+|-----------|--------|------------------------------|--------------|
+| ID        | string | object identificator         | 1            |
+| Hash      | string | value hash                   | 2            |
+| OwnerId   | string | parent in the ownership tree | 3            |
+| ModTime   | uint64 | last update time             | 4            |
+| RefCount  | int64  | for persistence              | 5            |
+| IsEscaped | bool   | true if hash is in store     | 6            |
+
 ### TypeValue
 
-### TypeType
+In JSON, contains a first field `"@type": "/gno.TypeValue"`.
+
+| Name | Type | Description             | Field Number |
+|------|------|-------------------------|--------------|
+| Type | Any  | one of type definitions | 1            |
 
 ### RefType
 
+In JSON, contains a first field `"@type": "/gno.RefType"`.
+
+| Name | Type    | Description             | Field Number |
+|------|---------|-------------------------|--------------|
+| ID   | string  | object identificator    | 1            |
+
 ### StructType
+
+In JSON, contains a first field `"@type": "/gno.StructType"`.
+
+| Name    | Type                             | Description            | Field Number |
+|---------|----------------------------------|------------------------|--------------|
+| PkgPath | string                           | package path           | 1            |
+| Fields  | repeated [FieldType](#fieldtype) | list of struct fields  | 2            |
+
+### FieldType
+
+| Name     | Type   | Description                   | Field Number |
+|----------|--------|-------------------------------|--------------|
+| Name     | string | field name                    | 1            |
+| Type     | Any    | one of type definitions       | 2            |
+| Embedded | bool   | true if field can be embedded | 3            |
+| Tag      | string | json tag                      | 4            |
 
 ### DeclaredType
 
+In JSON, contains a first field `"@type": "/gno.DeclaredType"`.
+
+| Name    | Type                             | Description                        | Field Number |
+|---------|----------------------------------|------------------------------------|--------------|
+| PkgPath | string                           | package path                       | 1            |
+| Name    | string                           | type name                          | 2            |
+| Base    | Any                              | the base type (not a DeclaredType) | 3            |
+| Methods | repeated [TypeValue](#typevalue) | methods functions as TV            | 4            |
+
+### FuncType
+
+In JSON, contains a first field `"@type": "/gno.FuncType"`.
+
+| Name    | Type                             | Description                                    | Field Number |
+|---------|----------------------------------|------------------------------------------------|--------------|
+| Params  | repeated [FieldType](#fieldtype) | function parameters, including method receiver | 1            |
+| Results | repeated [FieldType](#fieldtype) | function results                               | 2            |
+
 ### InterfaceType
+
+In JSON, contains a first field `"@type": "/gno.InterfaceType"`.
+
+| Name    | Type                             | Description                | Field Number |
+|---------|----------------------------------|----------------------------|--------------|
+| PkgPath | string                           | package path               | 1            |
+| Methods | repeated [FieldType](#fieldtype) | interface methods          | 2            |
+| Generic | string                           | ??                         | 3            |
 
 [ABCI]: https://github.com/tendermint/tendermint/tree/master/spec/abci
 [CheckTx]: https://github.com/tendermint/spec/blob/master/spec/abci/abci.md#checktx-1
