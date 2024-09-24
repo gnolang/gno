@@ -328,8 +328,7 @@ func Render(fullPath string) string {
 func renderHome(path string) string {
 	doc := ""
 
-	p := pager.NewPager(&name2User)
-	page := p.MustGetPageByPath(path)
+	page := pager.NewPager(&name2User).MustGetPageByPath(path)
 
 	for _, item := range page.Items {
 		user := item.Value.(*users.User)
