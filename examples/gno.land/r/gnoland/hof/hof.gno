@@ -1,4 +1,4 @@
-// Package hof represents the gno.land hall of fame realm.
+// Package hof is the gno.land hall of fame realm.
 // It contains a permanent exhibition of items in the hall of fame,
 // a possibility to host temporary ones created by its admins.
 package hof
@@ -6,24 +6,31 @@ package hof
 import (
 	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
 	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
+	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"time"
 )
 
 var (
+	idCounter seqid.ID
 	permanent *Exhibition
 	temporary *avl.Tree
-	idCounter seqid.ID
 )
 
-type Exhibition struct {
-	id seqid.ID
+type (
+	Exhibition struct {
+		id          seqid.ID
+		title       string
+		description string
+		startTime   time.Time // given in RFC3339
+		endTime     time.Time // end time of the event, given in RFC3339
+		items       *avl.Tree // submission id >
+	}
 
-	title       string
-	description string
-	startTime   time.Time // given in RFC3339
-	endTime     time.Time // end time of the event, given in RFC3339
-	items       *avl.Tree
-}
+	pair struct {
+		deployer          std.Address
+		renderDescription func() string
+	}
+)
 
 func init() {
 	permanent = &Exhibition{
@@ -36,14 +43,33 @@ func init() {
 	}
 
 	temporary = avl.NewTree()
+}
+
+func Register(rDesc func() string) {
+	submission := std.PrevRealm()
+	pkgpath := submission.PkgPath()
+
+	// must not exist and must be called from code
+	if permanent.items.Has(pkgpath) || submission.IsUser() {
+		return
+	}
+
+	permanent.items.Set(pkgpath, pair{
+		deployer:          std.GetOrigCaller(),
+		renderDescription: rDesc,
+	})
 
 }
 
-func Register() {
-	permanent
+func Render(_ string) string {
+	out := ""
 
-}
+	permanent.items.Iterate("", "", func(key string, value interface{}) bool {
+		rFunc := value.(rndr)
+		out += rFunc("")
 
-func RegisterTemp(id seqid.ID) {
+		return false
+	})
 
+	return out
 }
