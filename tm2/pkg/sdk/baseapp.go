@@ -179,7 +179,13 @@ func (app *BaseApp) initFromMainStore() error {
 	// Load the consensus params from the main store. If the consensus params are
 	// nil, it will be saved later during InitChain.
 	//
-	// TODO: assert that InitChain hasn't yet been called.
+	// assert that InitChain hasn't yet been called.
+	// the app.checkState will be set in InitChain.
+	// We assert that InitChain hasn't yet been called so
+	// we don't over write the consensus params in the app.
+	if app.checkState != nil {
+		panic("Consensus Params are already set in app, we should not overwrite it here")
+	}
 	consensusParamsBz := mainStore.Get(mainConsensusParamsKey)
 	if consensusParamsBz != nil {
 		consensusParams := &abci.ConsensusParams{}
@@ -353,7 +359,10 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 			}
 		}
 	}
-
+	// In initChainer(), We set the initial parameter values in the params keeper.
+	// These values need to be written to the multi-store so that CheckTx
+	// can access the information stored in the params keeper.
+	app.deliverState.ctx.ms.MultiWrite()
 	// NOTE: We don't commit, but BeginBlock for block 1 starts from this
 	// deliverState.
 	return
@@ -856,7 +865,10 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 // EndBlock implements the ABCI interface.
 func (app *BaseApp) EndBlock(req abci.RequestEndBlock) (res abci.ResponseEndBlock) {
 	if app.endBlocker != nil {
-		res = app.endBlocker(app.deliverState.ctx, req)
+		// we need to load consensusParams to the end blocker Context
+		// end blocker use consensusParams to calculat the gas price changes.
+		ctx := app.deliverState.ctx.WithConsensusParams(app.consensusParams)
+		res = app.endBlocker(ctx, req)
 	}
 
 	return

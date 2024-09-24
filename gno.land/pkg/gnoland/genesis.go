@@ -12,8 +12,11 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
+
+const InitGasPrice = "10ugnot/100gas"
 
 // LoadGenesisBalancesFile loads genesis balances from the provided file path.
 func LoadGenesisBalancesFile(path string) ([]Balance, error) {
@@ -137,4 +140,21 @@ func LoadPackage(pkg gnomod.Pkg, creator bft.Address, fee std.Fee, deposit std.C
 	tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
 
 	return tx, nil
+}
+
+func DefaultGenState() GnoGenesisState {
+	authGen := auth.DefaultGenesisState()
+	gp, err := std.ParseGasPrice(InitGasPrice)
+	if err != nil {
+		panic(err)
+	}
+	authGen.Params.InitialGasPrice = gp
+
+	gs := GnoGenesisState{
+		Balances: []Balance{},
+		Txs:      []std.Tx{},
+		Auth:     authGen,
+	}
+
+	return gs
 }

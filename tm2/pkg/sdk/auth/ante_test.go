@@ -809,6 +809,8 @@ func TestEnsureSufficientMempoolFees(t *testing.T) {
 		{std.NewFee(200000, std.NewCoin("stake", 2)), true},
 		{std.NewFee(200000, std.NewCoin("atom", 5)), false},
 	}
+	// Do not set the block gas price
+	ctx = ctx.WithValue(GasPriceContextKey{}, std.GasPrice{})
 
 	for i, tc := range testCases {
 		res := EnsureSufficientMempoolFees(ctx, tc.input)
@@ -865,4 +867,54 @@ func TestCustomSignatureVerificationGasConsumer(t *testing.T) {
 	msgs = []std.Msg{msg}
 	tx = tu.NewTestTx(t, ctx.ChainID(), msgs, privs, accnums, seqs, fee)
 	checkValidTx(t, anteHandler, ctx, tx, false)
+}
+
+func TestEnsureBlockGasPrice(t *testing.T) {
+	p1, err := std.ParseGasPrice("3ugnot/10gas") // 0.3ugnot
+	require.NoError(t, err)
+
+	p2, err := std.ParseGasPrice("400ugnot/2000gas") // 0.2ugnot
+	require.NoError(t, err)
+
+	userFeeCases := []struct {
+		minGasPrice   std.GasPrice
+		blockGasPrice std.GasPrice
+		input         std.Fee
+		expectedOK    bool
+	}{
+		// user's gas wanted and gas fee: 0.1ugnot to 0.5ugnot
+		// validator's minGasPrice: 0.3 ugnot
+		// block gas price: 0.2ugnot
+
+		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 10)), false},
+		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 20)), false},
+		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 30)), true},
+		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 40)), true},
+		{p1, p2, std.NewFee(100, std.NewCoin("ugnot", 50)), true},
+
+		// validator's minGasPrice: 0.2 ugnot
+		// block gas price2: 0.3ugnot
+		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 10)), false},
+		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 20)), false},
+		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 30)), true},
+		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 40)), true},
+		{p2, p1, std.NewFee(100, std.NewCoin("ugnot", 50)), true},
+	}
+
+	// setup
+	env := setupTestEnv()
+	ctx := env.ctx
+	// validator min gas price // 0.3 ugnot per gas
+	for i, c := range userFeeCases {
+		ctx = ctx.WithMinGasPrices(
+			[]std.GasPrice{c.minGasPrice},
+		)
+		ctx = ctx.WithValue(GasPriceContextKey{}, c.blockGasPrice)
+
+		res := EnsureSufficientMempoolFees(ctx, c.input)
+		require.Equal(
+			t, c.expectedOK, res.IsOK(),
+			"unexpected result; case #%d, input: %v, log: %v", i, c.input, res.Log,
+		)
+	}
 }
