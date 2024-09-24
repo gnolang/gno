@@ -32,6 +32,8 @@ type Safe interface {
 	ApproveProposal(p Proposal) error
 	ExecuteProposal(p Proposal) error
 	CancelProposal(p Proposal) error // XXX: should be ProposeToCancel?
+
+	Render(path string) string
 }
 
 type Proposal interface {
@@ -59,8 +61,14 @@ type safe struct {
 	nextProps avl.Tree // pid -> Proposal
 }
 
+func (s safe) String() string { panic("not implemented") }
+
 func (s safe) Members() []std.Address { return s.members }
 func (s safe) Threshold() uint        { return s.threshold }
 func (s safe) Size() uint             { return len(s.members) }
 func (s *safe) AddMember(addr std.Address, newThreshold uint) error {
 }
+
+type proposal struct{}
+
+func (p proposal) String() string { panic("not implemented") }
