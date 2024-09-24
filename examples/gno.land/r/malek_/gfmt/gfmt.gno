@@ -12,9 +12,10 @@ import (
 )
 
 var (
-	banker *grc20.Banker
-	admin  *ownable.Ownable
-	Token  grc20.Token
+	banker           *grc20.Banker
+	admin            *ownable.Ownable
+	Token            grc20.Token
+	ErrInvalidUint64 = errors.New("invalid uint64, must be between 0 and 18446744073709551615")
 )
 
 func init() {
@@ -39,6 +40,11 @@ func Deposit() {
 }
 
 func Withdraw(amount uint64) {
+	// check for overflow
+	// if amount < 0 || amount > 18446744073709551615 {
+	// 	panic("Invalid amount: Overflow uint64")
+	// }
+
 	require(amount >= gfmtMinDeposit, ufmt.Sprintf("Deposit below minimum: %d/%d gfmt.", amount, gfmtMinDeposit))
 
 	caller := std.PrevRealm().Addr()
