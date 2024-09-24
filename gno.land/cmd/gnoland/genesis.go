@@ -24,6 +24,7 @@ func newGenesisCmd(io commands.IO) *commands.Command {
 		newVerifyCmd(io),
 		newBalancesCmd(io),
 		newTxsCmd(io),
+		newDownloadCmd(io),
 	)
 
 	return cmd
