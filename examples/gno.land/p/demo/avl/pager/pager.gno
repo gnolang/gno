@@ -13,6 +13,7 @@ import (
 type Pager struct {
 	Tree            *avl.Tree
 	PageQueryParam  string
+	SizeQueryParam  string
 	DefaultPageSize int
 }
 
@@ -39,6 +40,7 @@ func NewPager(tree *avl.Tree) *Pager {
 	return &Pager{
 		Tree:            tree,
 		PageQueryParam:  "page",
+		SizeQueryParam:  "size",
 		DefaultPageSize: 10,
 	}
 }
@@ -115,8 +117,11 @@ func (p *Pager) GetPageByPath(rawURL string) (*Page, error) {
 	return p.GetPage(pageNumber, pageSize), nil
 }
 
-// RenderSelector generates the Markdown for the page selector.
-func (p *Page) RenderSelector() string {
+// UI generates the Markdown UI for the page selector.
+func (p *Page) Selector() string {
+	pageNumber := p.PageNumber
+	pageNumber = max(pageNumber, 1)
+
 	if p.TotalPages <= 1 {
 		return ""
 	}
@@ -128,9 +133,7 @@ func (p *Page) RenderSelector() string {
 		md += ufmt.Sprintf("[%d](?%s=%d) | ", 1, p.Pager.PageQueryParam, 1)
 
 		// Before
-		if p.PageNumber == 5 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", 2, p.Pager.PageQueryParam, 2)
-		} else if p.PageNumber > 4 {
+		if p.PageNumber > 4 {
 			md += "… | "
 		}
 
@@ -143,8 +146,12 @@ func (p *Page) RenderSelector() string {
 		}
 	}
 
-	// Current page
-	md += ufmt.Sprintf("**%d**", p.PageNumber)
+	if p.PageNumber > 0 && p.PageNumber <= p.TotalPages {
+		// Current page
+		md += ufmt.Sprintf("**%d**", p.PageNumber)
+	} else {
+		md += ufmt.Sprintf("_%d_", p.PageNumber)
+	}
 
 	if p.HasNext {
 		md += " | "
@@ -157,9 +164,7 @@ func (p *Page) RenderSelector() string {
 			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+2, p.Pager.PageQueryParam, p.PageNumber+2)
 		}
 
-		if p.PageNumber == p.TotalPages-4 {
-			md += ufmt.Sprintf("[%d](?%s=%d) | ", p.PageNumber+3, p.Pager.PageQueryParam, p.PageNumber+3)
-		} else if p.PageNumber < p.TotalPages-3 {
+		if p.PageNumber < p.TotalPages-3 {
 			md += "… | "
 		}
 
@@ -181,32 +186,36 @@ func (p *Pager) ParseQuery(rawURL string) (int, int, error) {
 	pageNumber := 1
 	pageSize := p.DefaultPageSize
 
-	if pageStr := query.Get(p.PageQueryParam); pageStr != "" {
-		pageNumber, err = strconv.Atoi(pageStr)
-		if err != nil || pageNumber < 1 {
-			pageNumber = 1
+	if p.PageQueryParam != "" {
+		if pageStr := query.Get(p.PageQueryParam); pageStr != "" {
+			pageNumber, err = strconv.Atoi(pageStr)
+			if err != nil || pageNumber < 1 {
+				pageNumber = 1
+			}
 		}
 	}
 
-	if sizeStr := query.Get("size"); sizeStr != "" {
-		pageSize, err = strconv.Atoi(sizeStr)
-		if err != nil || pageSize < 1 {
-			pageSize = p.DefaultPageSize
+	if p.SizeQueryParam != "" {
+		if sizeStr := query.Get(p.SizeQueryParam); sizeStr != "" {
+			pageSize, err = strconv.Atoi(sizeStr)
+			if err != nil || pageSize < 1 {
+				pageSize = p.DefaultPageSize
+			}
 		}
 	}
 
 	return pageNumber, pageSize, nil
 }
 
-func max(a, b int) int {
-	if a > b {
+func min(a, b int) int {
+	if a < b {
 		return a
 	}
 	return b
 }
 
-func min(a, b int) int {
-	if a < b {
+func max(a, b int) int {
+	if a > b {
 		return a
 	}
 	return b

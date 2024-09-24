@@ -80,7 +80,7 @@ func TestPager_GetPageByPath(t *testing.T) {
 	}
 }
 
-func TestPage_RenderSelector(t *testing.T) {
+func TestPage_Selector(t *testing.T) {
 	// Create a new AVL tree and populate it with some key-value pairs.
 	tree := avl.NewTree()
 	tree.Set("a", 1)
@@ -106,12 +106,12 @@ func TestPage_RenderSelector(t *testing.T) {
 	for _, tt := range tests {
 		page := pager.GetPage(tt.pageNumber, tt.pageSize)
 
-		md := page.RenderSelector()
-		uassert.Equal(t, tt.expected, md)
+		ui := page.Selector()
+		uassert.Equal(t, tt.expected, ui)
 	}
 }
 
-func TestPager_RenderSelector_WithManyPages(t *testing.T) {
+func TestPager_UI_WithManyPages(t *testing.T) {
 	// Create a new AVL tree and populate it with many key-value pairs.
 	tree := avl.NewTree()
 	for i := 0; i < 100; i++ {
@@ -127,23 +127,26 @@ func TestPager_RenderSelector_WithManyPages(t *testing.T) {
 		pageSize   int
 		expected   string
 	}{
+		// XXX: -1
+		// XXX: 0
 		{1, 10, "**1** | [2](?page=2) | [3](?page=3) | … | [10](?page=10)"},
 		{2, 10, "[1](?page=1) | **2** | [3](?page=3) | [4](?page=4) | … | [10](?page=10)"},
 		{3, 10, "[1](?page=1) | [2](?page=2) | **3** | [4](?page=4) | [5](?page=5) | … | [10](?page=10)"},
 		{4, 10, "[1](?page=1) | [2](?page=2) | [3](?page=3) | **4** | [5](?page=5) | [6](?page=6) | … | [10](?page=10)"},
-		{5, 10, "[1](?page=1) | [2](?page=2) | [3](?page=3) | [4](?page=4) | **5** | [6](?page=6) | [7](?page=7) | … | [10](?page=10)"},
-		{6, 10, "[1](?page=1) | … | [4](?page=4) | [5](?page=5) | **6** | [7](?page=7) | [8](?page=8) | [9](?page=9) | [10](?page=10)"},
+		{5, 10, "[1](?page=1) | … | [3](?page=3) | [4](?page=4) | **5** | [6](?page=6) | [7](?page=7) | … | [10](?page=10)"},
+		{6, 10, "[1](?page=1) | … | [4](?page=4) | [5](?page=5) | **6** | [7](?page=7) | [8](?page=8) | … | [10](?page=10)"},
 		{7, 10, "[1](?page=1) | … | [5](?page=5) | [6](?page=6) | **7** | [8](?page=8) | [9](?page=9) | [10](?page=10)"},
 		{8, 10, "[1](?page=1) | … | [6](?page=6) | [7](?page=7) | **8** | [9](?page=9) | [10](?page=10)"},
 		{9, 10, "[1](?page=1) | … | [7](?page=7) | [8](?page=8) | **9** | [10](?page=10)"},
 		{10, 10, "[1](?page=1) | … | [8](?page=8) | [9](?page=9) | **10**"},
+		// XXX: 11
 	}
 
 	for _, tt := range tests {
 		page := pager.GetPage(tt.pageNumber, tt.pageSize)
 
-		md := page.RenderSelector()
-		uassert.Equal(t, tt.expected, md)
+		ui := page.Selector()
+		uassert.Equal(t, tt.expected, ui)
 	}
 }
 
