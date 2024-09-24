@@ -1,6 +1,7 @@
 package gfmt
 
 import (
+	"errors"
 	"std"
 	"strings"
 
