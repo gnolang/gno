@@ -49,7 +49,7 @@ func TestGenesis_Download(t *testing.T) {
 		t.Parallel()
 
 		tempDir := t.TempDir()
-		require.NoError(t, os.MkdirAll(tempDir, 0755))
+		require.NoError(t, os.MkdirAll(tempDir, 0o755))
 
 		genesisPath := fmt.Sprintf("%s/genesis.json", t.TempDir())
 
