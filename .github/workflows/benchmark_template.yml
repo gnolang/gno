@@ -15,7 +15,7 @@ env:
 jobs:
   benchmarks:
     if: ${{ github.repository == 'gnolang/gno' }}
-    runs-on: [self-hosted, Linux, X64, benchmark-v1]
+    runs-on: [self-hosted, Linux, X64, benchmarks]
     steps:
     - name: checkout
       uses: actions/checkout@v4
