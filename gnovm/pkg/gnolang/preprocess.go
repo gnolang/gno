@@ -1463,6 +1463,12 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					}
 				}
 
+				// If addressability is not satisfied at this point and the function call returns only one
+				// result, then mark addressability as unsatisfied. Otherwise, this expression has already
+				// been explicitly marked as satisfied, or the function returns multiple results, rendering
+				// addressability NotApplicable for this situation -- it should fallback to the error produced
+				// when trying to take a reference or slice the result of a call expression that returns
+				// multiple values.
 				if n.Addressability != addressabilityStatusSatisfied && len(ft.Results) == 1 {
 					n.Addressability = addressabilityStatusUnsatisfied
 				}
