@@ -6,6 +6,7 @@ package hof
 import (
 	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
 	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
+	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"time"
 )
@@ -13,7 +14,6 @@ import (
 var (
 	idCounter seqid.ID
 	permanent *Exhibition
-	temporary *avl.Tree
 )
 
 type (
@@ -23,12 +23,15 @@ type (
 		description string
 		startTime   time.Time // given in RFC3339
 		endTime     time.Time // end time of the event, given in RFC3339
-		items       *avl.Tree // submission id >
+		items       *avl.Tree // Item id > Item
 	}
 
-	pair struct {
-		deployer          std.Address
-		renderDescription func() string
+	Item struct {
+		pkgpath  string
+		deployer std.Address
+		blockNum int64
+		likes    int
+		dislikes int
 	}
 )
 
@@ -41,35 +44,62 @@ func init() {
 		endTime:     time.Now(),
 		items:       avl.NewTree(),
 	}
-
-	temporary = avl.NewTree()
 }
 
-func Register(rDesc func() string) {
+func Register() {
 	submission := std.PrevRealm()
 	pkgpath := submission.PkgPath()
 
 	// must not exist and must be called from code
 	if permanent.items.Has(pkgpath) || submission.IsUser() {
-		return
+		panic("item exists or not code call")
 	}
 
-	permanent.items.Set(pkgpath, pair{
-		deployer:          std.GetOrigCaller(),
-		renderDescription: rDesc,
-	})
-
+	permanent.items.Set(
+		idCounter.Next().String(),
+		&Item{
+			pkgpath:  pkgpath,
+			deployer: std.GetOrigCaller(),
+			blockNum: std.GetHeight(),
+			likes:    0,
+			dislikes: 0,
+		})
 }
 
 func Render(_ string) string {
-	out := ""
+	out := "# Hall of Fame\n\n"
 
-	permanent.items.Iterate("", "", func(key string, value interface{}) bool {
-		rFunc := value.(rndr)
-		out += rFunc("")
+	out += permanent.Render()
+
+	// render temp exhibitions
+
+	return out
+}
+
+func (e Exhibition) Render() string {
+	out := ufmt.Sprintf("# %s\n\n", e.title)
+	out += ufmt.Sprintf("%s\n\n", e.description)
+
+	out += "<div class='columns-3'>\n\n"
+
+	e.items.Iterate("", "", func(key string, value interface{}) bool {
+		out += "<div>"
+		//out += ufmt.Sprintf("Submission #%s", key)
+		out += value.(*Item).Render()
+		out += "</div>"
 
 		return false
 	})
 
+	out += "</div><!-- /columns-3 -->\n\n"
+
+	return out
+}
+
+func (i Item) Render() string {
+	out := ufmt.Sprintf("`%s`\n\n", i.pkgpath)
+	out += ufmt.Sprintf("Published at block #%d\n\n", i.blockNum)
+	out += ufmt.Sprintf("Publisher: %s\n\n", i.deployer.String())
+	out += ufmt.Sprintf("%d 👍 ---- %d 👎\n\n", i.likes, i.dislikes)
 	return out
 }
