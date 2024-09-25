@@ -4,46 +4,44 @@
 package hof
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
 	"std"
-	"strings"
 	"time"
 )
 
 var (
-	idCounter seqid.ID
-	permanent *Exhibition
+	exhibCounter seqid.ID
+	permanent    *Exhibition
 )
 
 type (
 	Exhibition struct {
-		id          seqid.ID
+		id          seqid.ID // fixed
+		itemCounter seqid.ID //
 		title       string
 		description string
-		startTime   time.Time // given in RFC3339
-		endTime     time.Time // end time of the event, given in RFC3339
-		items       *avl.Tree // Item id > Item
+		startTime   *time.Time // given in RFC3339
+		endTime     *time.Time // end time of the event, given in RFC3339
+		items       *avl.Tree  // Item id > Item
 	}
 
 	Item struct {
+		id       seqid.ID
 		pkgpath  string
 		deployer std.Address
 		blockNum int64
-		likes    int
-		dislikes int
+		upvote   *avl.Tree // std.Addr > struct{}{}
+		downvote *avl.Tree // std.Addr > struct{}{}
 	}
 )
 
 func init() {
 	permanent = &Exhibition{
-		id:          idCounter.Next(),
-		title:       "Permanent Exhibition",
-		description: ``,
-		startTime:   time.Now(),
-		endTime:     time.Now(),
-		items:       avl.NewTree(),
+		id:    exhibCounter.Next(),
+		title: "Permanent Exhibition",
+		items: avl.NewTree(),
 	}
 }
 
@@ -56,14 +54,16 @@ func Register() {
 		panic("item exists or not code call")
 	}
 
+	id := permanent.itemCounter.Next()
 	permanent.items.Set(
-		idCounter.Next().String(),
+		id.String(),
 		&Item{
+			id:       id,
 			pkgpath:  pkgpath,
 			deployer: std.GetOrigCaller(),
 			blockNum: std.GetHeight(),
-			likes:    0,
-			dislikes: 0,
+			upvote:   avl.NewTree(),
+			downvote: avl.NewTree(),
 		})
 }
 
@@ -78,14 +78,15 @@ func Render(_ string) string {
 }
 
 func (e Exhibition) Render() string {
-	out := ufmt.Sprintf("## %s\n\n", e.title)
-	out += ufmt.Sprintf("%s\n\n", e.description)
+	//out := ufmt.Sprintf("## %s\n\n", e.title)
+	//out += ufmt.Sprintf("%s\n\n", e.description)
 
-	out += "<div class='columns-2'>\n\n"
+	out := "<div class='columns-2'>\n\n"
 
-	e.items.Iterate("", "", func(key string, value interface{}) bool {
+	e.items.ReverseIterate("", "", func(key string, value interface{}) bool {
 		out += "<div>\n\n"
-		out += ufmt.Sprintf("### Submission #%s\n\n", strings.Replace(key, "0", "", -1))
+		id, _ := seqid.FromString(key)
+		out += ufmt.Sprintf("### Submission #%d\n\n", int(id))
 		out += value.(*Item).Render()
 		out += "</div>"
 
@@ -103,7 +104,52 @@ func (i Item) Render() string {
 	out := ufmt.Sprintf("\n```\n%s\n```\n\n", i.pkgpath)
 	out += ufmt.Sprintf("by %s\n\n", i.deployer.String())
 	out += ufmt.Sprintf("Published at Block #%d\n\n", i.blockNum)
-	out += ufmt.Sprintf("%d 👍 ---- %d 👎\n\n", i.likes, i.dislikes)
+	out += ufmt.Sprintf(`
+#### [%d 👍](/r/gnoland/hof?help&__func=Upvote&exhibitionID=0&itemID=%s) - [%d 👎](/r/gnoland/hof?help&__func=Downvote&exhibitionID=0&itemID=%s)`, i.upvote.Size(), i.id.String(), i.downvote.Size(), i.id.String())
 
 	return out
+}
+
+func Upvote(exhibitionID, itemID seqid.ID) error {
+	if exhibitionID == seqid.ID(0) {
+		raw, ok := permanent.items.Get(itemID.String())
+		if !ok {
+			return ErrNoSuchItem
+		}
+
+		item := raw.(*Item)
+		caller := std.PrevRealm().Addr().String()
+
+		if item.upvote.Has(caller) {
+			return ErrDoubleUpvote
+		}
+
+		item.upvote.Set(caller, struct{}{})
+		return nil
+	}
+
+	// todo add temp exh
+	return nil
+}
+
+func Downvote(exhibitionID, itemID seqid.ID) error {
+	if exhibitionID == seqid.ID(0) {
+		raw, ok := permanent.items.Get(itemID.String())
+		if !ok {
+			return ErrNoSuchItem
+		}
+
+		item := raw.(*Item)
+		caller := std.PrevRealm().Addr().String()
+
+		if item.downvote.Has(caller) {
+			return ErrDoubleDownvote
+		}
+
+		item.downvote.Set(caller, struct{}{})
+		return nil
+	}
+
+	// todo add temp exh
+	return nil
 }
