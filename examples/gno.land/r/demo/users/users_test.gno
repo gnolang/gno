@@ -2,7 +2,6 @@ package users
 
 import (
 	"testing"
-	"strconv"
 
 	"gno.land/p/demo/uassert"
 )
