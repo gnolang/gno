@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -60,7 +61,7 @@ func execGenesisDownload(
 	args []string,
 ) error {
 	// Make sure the chain ID is specified
-	if len(args) != 1 {
+	if len(args) < 1 {
 		return errNoChainID
 	}
 
@@ -119,15 +120,22 @@ func downloadFile(
 
 	defer resp.Body.Close()
 
-	tempPath := "genesis.json.tmp"
-	f, err := os.Create(tempPath)
+	f, err := os.Create(
+		fmt.Sprintf(
+			"%s/genesis.json.tmp",
+			filepath.Dir(outPath),
+		),
+	)
 	if err != nil {
 		return fmt.Errorf("unable to create file, %w", err)
 	}
 
+	// Save the temp path for cleanup
+	tempPath := f.Name()
+
 	defer func() {
 		_ = f.Close()
-		_ = os.Remove(tempPath)
+		_ = os.RemoveAll(tempPath)
 	}()
 
 	if _, err = io.Copy(f, resp.Body); err != nil {
