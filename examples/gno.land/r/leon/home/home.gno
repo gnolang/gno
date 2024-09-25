@@ -8,6 +8,7 @@ import (
 
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"
+	"gno.land/r/gnoland/hof"
 	"gno.land/r/leon/config"
 )
 
@@ -31,6 +32,8 @@ My contributions to gno.land can mainly be found
 TODO import r/gh
 `,
 	}
+
+	hof.Register()
 }
 
 func UpdatePFP(url, caption string) {

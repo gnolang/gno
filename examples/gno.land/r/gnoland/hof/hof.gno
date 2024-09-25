@@ -7,7 +7,8 @@ import (
 	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
 	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
 	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"std"
+	"strings"
 	"time"
 )
 
@@ -38,8 +39,8 @@ type (
 func init() {
 	permanent = &Exhibition{
 		id:          idCounter.Next(),
-		title:       "Hall Of Fame",
-		description: "gno.land's hall of fame!",
+		title:       "Permanent Exhibition",
+		description: ``,
 		startTime:   time.Now(),
 		endTime:     time.Now(),
 		items:       avl.NewTree(),
@@ -71,35 +72,38 @@ func Render(_ string) string {
 
 	out += permanent.Render()
 
-	// render temp exhibitions
+	// todo render temp exhibitions
 
 	return out
 }
 
 func (e Exhibition) Render() string {
-	out := ufmt.Sprintf("# %s\n\n", e.title)
+	out := ufmt.Sprintf("## %s\n\n", e.title)
 	out += ufmt.Sprintf("%s\n\n", e.description)
 
-	out += "<div class='columns-3'>\n\n"
+	out += "<div class='columns-2'>\n\n"
 
 	e.items.Iterate("", "", func(key string, value interface{}) bool {
-		out += "<div>"
-		//out += ufmt.Sprintf("Submission #%s", key)
+		out += "<div>\n\n"
+		out += ufmt.Sprintf("### Submission #%s\n\n", strings.Replace(key, "0", "", -1))
 		out += value.(*Item).Render()
 		out += "</div>"
 
 		return false
 	})
 
-	out += "</div><!-- /columns-3 -->\n\n"
+	out += "</div><!-- /columns-2 -->\n\n"
 
 	return out
 }
 
 func (i Item) Render() string {
-	out := ufmt.Sprintf("`%s`\n\n", i.pkgpath)
-	out += ufmt.Sprintf("Published at block #%d\n\n", i.blockNum)
-	out += ufmt.Sprintf("Publisher: %s\n\n", i.deployer.String())
+	//subpath := i.pkgpath[strings.Index(i.pkgpath, "/"):]
+
+	out := ufmt.Sprintf("\n```\n%s\n```\n\n", i.pkgpath)
+	out += ufmt.Sprintf("by %s\n\n", i.deployer.String())
+	out += ufmt.Sprintf("Published at Block #%d\n\n", i.blockNum)
 	out += ufmt.Sprintf("%d 👍 ---- %d 👎\n\n", i.likes, i.dislikes)
+
 	return out
 }
