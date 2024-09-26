@@ -22,7 +22,7 @@ env:
 
 jobs:
   benchmarks:
-    if: ${{ github.repository == 'sw360cab/gno' }}
+    if: ${{ github.repository == 'gnolang/gno' }}
     runs-on: [self-hosted, Linux, X64, benchmarks]
     steps:
     - name: Checkout
@@ -55,7 +55,7 @@ jobs:
         # Where the previous data file is stored
         external-data-json-path: ${{ inputs.external-data-json-path }}
         # Show alert with commit comment on detecting possible performance regression
-        alert-threshold: '200%'
+        alert-threshold: '20%'
         fail-on-alert: true
         comment-on-alert: true
         # Enable Job Summary for PRs
