@@ -69,7 +69,7 @@ func TestRunApp(t *testing.T) {
 		},
 		{
 			args:                []string{"run", "-debug", "../../tests/integ/debugger/sample.gno"},
-			stdoutShouldContain: "in main\nhello 3\n!zero\n2\nbye 4",
+			stdoutShouldContain: "Welcome to the Gnovm debugger",
 		},
 		{
 			args:             []string{"run", "-debug-addr", "invalidhost:17538", "../../tests/integ/debugger/sample.gno"},
