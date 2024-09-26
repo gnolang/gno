@@ -67,6 +67,28 @@ func Register() {
 		})
 }
 
+func RegisterFor(exhibID string) {
+	submission := std.PrevRealm()
+	pkgpath := submission.PkgPath()
+
+	// must not exist and must be called from code
+	if permanent.items.Has(pkgpath) || submission.IsUser() {
+		panic("item exists or not code call")
+	}
+
+	id := permanent.itemCounter.Next()
+	permanent.items.Set(
+		id.String(),
+		&Item{
+			id:       id,
+			pkgpath:  pkgpath,
+			deployer: std.GetOrigCaller(),
+			blockNum: std.GetHeight(),
+			upvote:   avl.NewTree(),
+			downvote: avl.NewTree(),
+		})
+}
+
 func Render(_ string) string {
 	out := "# Hall of Fame\n\n"
 
@@ -110,8 +132,8 @@ func (i Item) Render() string {
 	return out
 }
 
-func Upvote(exhibitionID, itemID seqid.ID) error {
-	if exhibitionID == seqid.ID(0) {
+func Upvote(exhibID, itemID seqid.ID) error {
+	if exhibID == seqid.ID(0) {
 		raw, ok := permanent.items.Get(itemID.String())
 		if !ok {
 			return ErrNoSuchItem
@@ -132,8 +154,8 @@ func Upvote(exhibitionID, itemID seqid.ID) error {
 	return nil
 }
 
-func Downvote(exhibitionID, itemID seqid.ID) error {
-	if exhibitionID == seqid.ID(0) {
+func Downvote(exhibID, itemID seqid.ID) error {
+	if exhibID == seqid.ID(0) {
 		raw, ok := permanent.items.Get(itemID.String())
 		if !ok {
 			return ErrNoSuchItem
