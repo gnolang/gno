@@ -69,7 +69,7 @@ func TestRunApp(t *testing.T) {
 		},
 		{
 			args:                []string{"run", "-debug", "../../tests/integ/debugger/sample.gno"},
-			stdoutShouldContain: "Welcome to the Gnovm debugger",
+			stdoutShouldContain: "in main\nhello 3\n!zero\n2\nbye 4",
 		},
 		{
 			args:             []string{"run", "-debug-addr", "invalidhost:17538", "../../tests/integ/debugger/sample.gno"},
@@ -78,6 +78,10 @@ func TestRunApp(t *testing.T) {
 		{
 			args:                 []string{"run", "../../tests/integ/invalid_assign/main.gno"},
 			recoverShouldContain: "cannot use bool as main.C without explicit conversion",
+		},
+		{
+			args:			[]string{"run", "-expr", "Context()", "./run_tests/context.gno"},
+			stdoutShouldContain: "Context worked",
 		},
 		// TODO: a test file
 		// TODO: args
