@@ -170,9 +170,14 @@ func BenchmarkMedium(b *testing.B) {
 }
 
 func BenchmarkLarge(b *testing.B) {
+	b.Skip("large is too large")
+
 	ls := db.BackendList()
 	bs := make([]benchmark, 0, len(ls))
 	for _, backend := range ls {
+		if backend == db.BoltDBBackend {
+			continue
+		}
 		bs = append(bs, benchmark{backend, 1_000_000, 100, 16, 40})
 	}
 	runBenchmarks(b, bs)
