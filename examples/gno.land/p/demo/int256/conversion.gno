@@ -1,121 +1,108 @@
 package int256
 
-import "gno.land/p/demo/uint256"
+import (
+	"math"
 
-// // SetInt64 sets z to x and returns z.
-// func (z *Int) SetInt64(x int64) *Int {
-// 	z.initiateAbs()
+	"gno.land/p/demo/uint256"
+)
 
-// 	neg := false
-// 	if x < 0 {
-// 		neg = true
-// 		x = -x
-// 	}
-// 	if z.abs == nil {
-// 		panic("abs is nil")
-// 	}
-// 	z.abs = z.abs.SetUint64(uint64(x))
-// 	z.neg = neg
-// 	return z
-// }
+// SetInt64 sets the Int to the value of the provided int64.
+//
+// This method allows for easy conversion from standard Go integer types
+// to Int, correctly handling both positive and negative values.
+func (z *Int) SetInt64(v int64) *Int {
+	if v >= 0 {
+		z.value.SetUint64(uint64(v))
+	} else {
+		z.value.SetUint64(uint64(-v)).Neg(&z.value)
+	}
+	return z
+}
 
-// // SetUint64 sets z to x and returns z.
-// func (z *Int) SetUint64(x uint64) *Int {
-// 	z.initiateAbs()
+// SetUint64 sets the Int to the value of the provided uint64.
+func (z *Int) SetUint64(v uint64) *Int {
+	z.value.SetUint64(v)
+	return z
+}
 
-// 	if z.abs == nil {
-// 		panic("abs is nil")
-// 	}
-// 	z.abs = z.abs.SetUint64(x)
-// 	z.neg = false
-// 	return z
-// }
+// Uint64 returns the lower 64-bits of z
+func (z *Int) Uint64() uint64 {
+	if z.Sign() < 0 {
+		panic("cannot convert negative int256 to uint64")
+	}
+	if z.value.Gt(uint256.NewUint(0).SetUint64(math.MaxUint64)) {
+		panic("overflow: int256 does not fit in uint64 type")
+	}
+	return z.value.Uint64()
+}
 
-// // Uint64 returns the lower 64-bits of z
-// func (z *Int) Uint64() uint64 {
-// 	return z.abs.Uint64()
-// }
+// Int64 returns the lower 64-bits of z
+func (z *Int) Int64() int64 {
+	if z.Sign() >= 0 {
+		if z.value.BitLen() > 64 {
+			panic("overflow: int256 does not fit in int64 type")
+		}
+		return int64(z.value.Uint64())
+	} else {
+		var temp uint256.Uint
+		temp.Sub(uint256.NewUint(0), &z.value) // temp = -z.value
+		if temp.BitLen() > 64 {
+			panic("overflow: int256 does not fit in int64 type")
+		}
+		return -int64(temp.Uint64())
+	}
+}
 
-// // Int64 returns the lower 64-bits of z
-// func (z *Int) Int64() int64 {
-// 	_abs := z.abs.Clone()
+// Neg sets z to -x and returns z.)
+func (z *Int) Neg(x *Int) *Int {
+	if x.IsZero() {
+		z.value.Clear()
+	} else {
+		z.value.Neg(&x.value)
+	}
+	return z
+}
 
-// 	if z.neg {
-// 		return -int64(_abs.Uint64())
-// 	}
-// 	return int64(_abs.Uint64())
-// }
+// Set sets z to x and returns z.
+func (z *Int) Set(x *Int) *Int {
+	z.value.Set(&x.value)
+	return z
+}
 
-// // Neg sets z to -x and returns z.)
-// func (z *Int) Neg(x *Int) *Int {
-// 	z.abs.Set(x.abs)
-// 	if z.abs.IsZero() {
-// 		z.neg = false
-// 	} else {
-// 		z.neg = !x.neg
-// 	}
-// 	return z
-// }
-
-// // Set sets z to x and returns z.
-// func (z *Int) Set(x *Int) *Int {
-// 	z.abs.Set(x.abs)
-// 	z.neg = x.neg
-// 	return z
-// }
-
-// // SetFromUint256 converts a uint256.Uint to Int and sets the value to z.
-// func (z *Int) SetUint256(x *uint256.Uint) *Int {
-// 	z.abs.Set(x)
-// 	z.neg = false
-// 	return z
-// }
-
-// // OBS, differs from original mempooler int256
-// // ToString returns the decimal representation of z.
-// func (z *Int) ToString() string {
-// 	if z == nil {
-// 		panic("int256: nil pointer to ToString()")
-// 	}
-
-// 	t := z.abs.Dec()
-// 	if z.neg {
-// 		return "-" + t
-// 	}
-
-// 	return t
-// }
+// SetFromUint256 converts a uint256.Uint to Int and sets the value to z.
+func (z *Int) SetUint256(x *uint256.Uint) *Int {
+	z.value.Set(x)
+	return z
+}
 
 // ToString returns a string representation of z in base 10.
 // The string is prefixed with a minus sign if z is negative.
-//
-// TODO: fix
 func (z *Int) ToString() string {
-	// Check if the number is zero
 	if z.value.IsZero() {
 		return "0"
 	}
-
-	// Check if the number is negative
-	isNegative := z.Sign() < 0
-
-	// Create a copy of z.value to avoid modifying the original
-	var absValue uint256.Uint
-	if isNegative {
-		// For negative numbers, we need to compute the absolute value
-		// by performing two's complement negation
-		absValue.Sub(uint256.Zero(), &z.value)
+	sign := z.Sign()
+	var temp uint256.Uint
+	if sign >= 0 {
+		temp.Set(&z.value)
 	} else {
-		absValue.Set(&z.value)
+		// temp = -z.value
+		temp.Sub(uint256.NewUint(0), &z.value)
 	}
-
-	// Convert the absolute value to a decimal string
-	str := absValue.ToString()
-
-	// Add a minus sign for negative numbers
-	if isNegative {
-		return "-" + str
+	s := temp.Dec()
+	if sign < 0 {
+		return "-" + s
 	}
+	return s
+}
 
-	return str
+// NilToZero returns the Int if it's not nil, or a new zero-valued Int otherwise.
+//
+// This method is useful for safely handling potentially nil Int pointers,
+// ensuring that operations always have a valid Int to work with.
+func (z *Int) NilToZero() *Int {
+	if z == nil {
+		return Zero()
+	}
+	return z
 }

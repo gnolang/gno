@@ -149,21 +149,18 @@ func TestFromUint256(t *testing.T) {
 	}
 }
 
-func TestNilToZero(t *testing.T) {
-	z := New().NilToZero()
-	if z.Sign() != 0 {
-		t.Errorf("NilToZero() = %d, want %d", z.Sign(), 0)
-	}
-}
-
 func TestSign(t *testing.T) {
 	tests := []struct {
 		x    string
 		want int
 	}{
 		{"0", 0},
+		{"-0", 0},
+		{"+0", 0},
 		{"1", 1},
 		{"-1", -1},
+		{"9223372036854775807", 1},
+		{"-9223372036854775808", -1},
 	}
 
 	for _, tt := range tests {
@@ -175,23 +172,11 @@ func TestSign(t *testing.T) {
 	}
 }
 
-func TestSetInt64(t *testing.T) {
-	tests := []struct {
-		v      int64
-		expect int
-	}{
-		{0, 0},
-		{1, 1},
-		{-1, -1},
-		{9223372036854775807, 1},   // overflow (max int64)
-		{-9223372036854775808, -1}, // underflow (min int64)
-	}
-
-	for _, tt := range tests {
-		z := New().SetInt64(tt.v)
-		if z.Sign() != tt.expect {
-			t.Errorf("SetInt64(%d) = %d, want %d", tt.v, z.Sign(), tt.expect)
-		}
+func BenchmarkSign(b *testing.B) {
+	z := New()
+	for i := 0; i < b.N; i++ {
+		z.SetUint64(uint64(i))
+		z.Sign()
 	}
 }
 

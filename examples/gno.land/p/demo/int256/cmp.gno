@@ -14,8 +14,7 @@ func (z *Int) Neq(x *Int) bool {
 //   - 0 if z == x
 //   - -1 if z < x
 func (z *Int) Cmp(x *Int) int {
-	zSign := z.Sign()
-	xSign := x.Sign()
+	zSign, xSign := z.Sign(), x.Sign()
 
 	if zSign == xSign {
 		return z.value.Cmp(&x.value)
@@ -30,7 +29,7 @@ func (z *Int) Cmp(x *Int) int {
 
 // IsZero returns true if z == 0
 func (z *Int) IsZero() bool {
-	return z.Sign() == 0
+	return z.value.IsZero()
 }
 
 // IsNeg returns true if z < 0

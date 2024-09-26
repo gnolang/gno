@@ -23,30 +23,26 @@ func New() *Int {
 
 // NewInt allocates and returns a new Int set to the value of the provided int64.
 func NewInt(x int64) *Int {
-	return new(Int).SetInt64(x)
+	return New().SetInt64(x)
 }
 
 // Zero returns a new Int initialized to 0.
 //
 // This function is useful for creating a starting point for calculations or
 // when an explicit zero value is needed.
-func Zero() *Int {
-	return &Int{}
-}
+func Zero() *Int { return &Int{} }
 
 // One returns a new Int initialized to one.
 //
 // This function is convenient for operations that require a unit value,
 // such as incrementing or serving as an identity element in multiplication.
-func One() *Int {
-	return new(Int).SetInt64(1)
-}
+func One() *Int { return int1 }
 
 // Sign determines the sign of the Int.
 //
 // It returns -1 for negative numbers, 0 for zero, and +1 for positive numbers.
 func (z *Int) Sign() int {
-	if z.value.IsZero() {
+	if z.IsZero() {
 		return 0
 	}
 	// Right shift the value by 255 bits to check the sign bit.
@@ -65,8 +61,7 @@ func (z *Int) Sign() int {
 	// including the minimum possible negative number (which in two's complement
 	// doesn't have a positive counterpart in the same bit range).
 	var temp uint256.Uint
-	temp.Rsh(&z.value, 255)
-	if temp.IsZero() {
+	if temp.Rsh(&z.value, 255).IsZero() {
 		return 1
 	}
 	return -1
@@ -78,7 +73,7 @@ func (z *Int) Sign() int {
 // This function is useful for parsing user input or reading numeric data
 // from text-based formats.
 func FromDecimal(s string) (*Int, error) {
-	return new(Int).SetString(s)
+	return New().SetString(s)
 }
 
 // MustFromDecimal is similar to FromDecimal but panics if the input string
@@ -120,42 +115,11 @@ func (z *Int) SetString(s string) (*Int, error) {
 	return z, nil
 }
 
-// SetInt64 sets the Int to the value of the provided int64.
-//
-// This method allows for easy conversion from standard Go integer types
-// to Int, correctly handling both positive and negative values.
-func (z *Int) SetInt64(v int64) *Int {
-	if v >= 0 {
-		z.value.SetUint64(uint64(v))
-	} else {
-		z.value.SetUint64(uint64(-v))
-		z.value.Not(&z.value).Add(&z.value, uint1)
-	}
-	return z
-}
-
-// SetUint64 sets the Int to the value of the provided uint64.
-func (z *Int) SetUint64(v uint64) *Int {
-	z.value.SetUint64(v)
-	return z
-}
-
 // FromUint256 sets the Int to the value of the provided Uint256.
 //
 // This method allows for conversion from unsigned 256-bit integers
 // to signed integers.
 func (z *Int) FromUint256(v *uint256.Uint) *Int {
 	z.value.Set(v)
-	return z
-}
-
-// NilToZero returns the Int if it's not nil, or a new zero-valued Int otherwise.
-//
-// This method is useful for safely handling potentially nil Int pointers,
-// ensuring that operations always have a valid Int to work with.
-func (z *Int) NilToZero() *Int {
-	if z == nil {
-		return Zero()
-	}
 	return z
 }
