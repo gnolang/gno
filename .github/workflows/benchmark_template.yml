@@ -8,6 +8,9 @@ on:
       test-flags:
         required: true
         type: string
+      runner-additional-tag:
+        type: string
+        default: benchmarks
       external-data-json-path:
         type: string
 
@@ -22,8 +25,12 @@ env:
 
 jobs:
   benchmarks:
+<<<<<<< Updated upstream
     if: ${{ github.repository == 'sw360cab/gno' }}
     runs-on: [self-hosted, Linux, X64, benchmarks]
+=======
+    if: ${{ github.repository == 'gnolang/gno' }}
+    runs-on: [self-hosted, Linux, X64, "${{ inputs.runner-additional-tag }}"]
     steps:
     - name: Checkout
       uses: actions/checkout@v4
