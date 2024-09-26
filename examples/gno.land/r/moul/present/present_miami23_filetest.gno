@@ -1,7 +1,7 @@
 package main
 
 import (
-	"gno.land/r/manfred/present"
+	"gno.land/r/moul/present"
 )
 
 func main() {

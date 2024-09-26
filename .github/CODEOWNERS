@@ -34,6 +34,7 @@
 /examples/gno.land/p/demo/svg/        @moul
 /examples/gno.land/p/demo/tamagotchi/ @moul
 /examples/gno.land/p/demo/ui/         @moul
+/examples/gno.land/p/moul/            @moul
 /examples/gno.land/r/demo/            @gnolang/tech-staff @gnolang/devrels
 /examples/gno.land/r/demo/art/        @moul
 /examples/gno.land/r/demo/memeland/   @leohhhn
@@ -42,7 +43,7 @@
 /examples/gno.land/r/gnoland/         @moul
 /examples/gno.land/r/sys/             @moul
 /examples/gno.land/r/jaekwon/         @jaekwon
-/examples/gno.land/r/manfred/         @moul
+/examples/gno.land/r/moul/            @moul
 
 # Gno.land.
 /gno.land/                    @moul @zivkovicmilos
