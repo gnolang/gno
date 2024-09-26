@@ -9,7 +9,7 @@ import (
 	"gno.land/r/demo/users"
 )
 
-const admin = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
+const admin = std.Address("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
 
 func main() {
 	caller := std.GetOrigCaller() // main
@@ -46,6 +46,7 @@ func main() {
 //  * [nt](/r/demo/users:nt)
 //  * [satoshi](/r/demo/users:satoshi)
 //  * [sys](/r/demo/users:sys)
+//  * [test1](/r/demo/users:test1)
 //  * [x](/r/demo/users:x)
 //
 // ========================================
