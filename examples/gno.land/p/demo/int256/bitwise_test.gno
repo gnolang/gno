@@ -30,7 +30,7 @@ func TestBitwise_Or(t *testing.T) {
 	tests := []struct {
 		x, y, want string
 	}{
-		{"5", "1", "5"},  // 0101 | 0001 = 0101
+		{"5", "1", "5"},   // 0101 | 0001 = 0101
 		{"-1", "1", "-1"}, // 1111 | 0001 = 1111
 		{"-5", "3", "-5"}, // 1111...1011 | 0000...0011 = 1111...1011
 	}
@@ -72,7 +72,7 @@ func TestBitwise_Xor(t *testing.T) {
 	tests := []struct {
 		x, y, want string
 	}{
-		{"5", "1", "4"}, // 0101 ^ 0001 = 0100
+		{"5", "1", "4"},   // 0101 ^ 0001 = 0100
 		{"-1", "1", "-2"}, // 1111...1111 ^ 0000...0001 = 1111...1110
 		{"-5", "3", "-8"}, // 1111...1011 ^ 0000...0011 = 1111...1000
 	}
@@ -92,11 +92,11 @@ func TestBitwise_Xor(t *testing.T) {
 
 func TestBitwise_Rsh(t *testing.T) {
 	tests := []struct {
-		x string
-		n      uint
+		x    string
+		n    uint
 		want string
 	}{
-		{"5", 1, "2"}, // 0101 >> 1 = 0010
+		{"5", 1, "2"},  // 0101 >> 1 = 0010
 		{"42", 3, "5"}, // 00101010 >> 3 = 00000101
 	}
 
@@ -114,11 +114,11 @@ func TestBitwise_Rsh(t *testing.T) {
 
 func TestBitwise_Lsh(t *testing.T) {
 	tests := []struct {
-		x  		string
-		n      	uint
-		want 	string
+		x    string
+		n    uint
+		want string
 	}{
-		{"5", 2, "20"}, // 0101 << 2 = 10100
+		{"5", 2, "20"},    // 0101 << 2 = 10100
 		{"42", 5, "1344"}, // 00101010 << 5 = 10101000000
 	}
 

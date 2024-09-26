@@ -31,6 +31,14 @@ func (z *Int) Mul(x, y *Int) *Int {
 	return z
 }
 
+func (z *Int) Abs() *uint256.Uint {
+	var absValue uint256.Uint
+	if z.Sign() >= 0 {
+		return absValue.Set(&z.value)
+	}
+	return absValue.Sub(uint0, &z.value)
+}
+
 /* +--------------------------------------------------------------------------+
 // |Division and modulus operations                                           |
 // +--------------------------------------------------------------------------+
@@ -120,16 +128,16 @@ func (z *Int) Div(x, y *Int) *Int {
 	}
 
 	// Step 2, 3: Calculate the absolute values of x and y
-	xAbs, xSign := abs(x)
-	yAbs, ySign := abs(y)
+	xAbs, xSign := x.Abs(), x.Sign()
+	yAbs, ySign := y.Abs(), y.Sign()
 
 	// perform unsigned division on the absolute values
-	z.value.Div(&xAbs, &yAbs)
+	z.value.Div(xAbs, yAbs)
 
 	// Step 5: Adjust the sign of the result
 	// if x and y have different signs, the result must be negative
 	if xSign != ySign {
-		z.value.Not(&z.value).Add(&z.value, uint1)
+		z.value.Neg(&z.value)
 	}
 
 	return z
@@ -190,11 +198,8 @@ func (z *Int) Quo(x, y *Int) *Int {
 	}
 
 	// Step 2, 3: Calculate the absolute values of x and y
-	var xAbs, yAbs, q, r uint256.Uint
-	var xSign, ySign int
-
-	xAbs, xSign = abs(x)
-	yAbs, ySign = abs(y)
+	xAbs, xSign := x.Abs(), x.Sign()
+	yAbs, ySign := y.Abs(), y.Sign()
 
 	// Step 4: Perform unsigned division and get the remainder
 	//
@@ -205,7 +210,8 @@ func (z *Int) Quo(x, y *Int) *Int {
 	// crucial for correct truncation towards zero in subsequent steps.
 	// By using this method here, we can easily adjust the quotient in _Step 5_
 	// to achieve truncated division semantics.
-	q.DivMod(&xAbs, &yAbs, &r)
+	var q, r uint256.Uint
+	q.DivMod(xAbs, yAbs, &r)
 
 	// Step 5: Adjust the quotient for truncation towards zero.
 	//
@@ -217,7 +223,7 @@ func (z *Int) Quo(x, y *Int) *Int {
 
 	// Step 6: Adjust the sign of the result
 	if xSign != ySign {
-		q.Not(&q).Add(&q, uint1)
+		q.Neg(&q)
 	}
 
 	z.value.Set(&q)
@@ -272,18 +278,16 @@ func (z *Int) Rem(x, y *Int) *Int {
 	}
 
 	// Step 2, 3
-	var xAbs, yAbs, q, r uint256.Uint
-	var xSign int
-
-	xAbs, xSign = abs(x)
-	yAbs, _ = abs(y)
+	xAbs, xSign := x.Abs(), x.Sign()
+	yAbs := y.Abs()
 
 	// Step 4: Perform unsigned division and get the remainder
-	q.DivMod(&xAbs, &yAbs, &r)
+	var q, r uint256.Uint
+	q.DivMod(xAbs, yAbs, &r)
 
 	// Step 5: Adjust the sign of the remainder
-	if xSign < 0 && !r.IsZero() {
-		r.Not(&r).Add(&r, uint1)
+	if xSign < 0 {
+		r.Neg(&r)
 	}
 
 	z.value.Set(&r)
@@ -313,8 +317,12 @@ func (z *Int) DivE(x, y *Int) *Int {
 	r := new(Int).Rem(x, y)
 
 	// Adjust the quotient if necessary
-	if r.Sign() >= 0 { return z }
-	if y.Sign() > 0  { return z.Sub(z, int1) }
+	if r.Sign() >= 0 {
+		return z
+	}
+	if y.Sign() > 0 {
+		return z.Sub(z, int1)
+	}
 
 	return z.Add(z, int1)
 }
@@ -364,54 +372,35 @@ func (z *Int) ModE(x, y *Int) *Int {
 	z.Rem(x, y)
 
 	// Adjust the remainder if necessary
-	if z.Sign() >= 0 { return z }
-	if y.Sign() > 0  { return z.Add(z, y) }
+	if z.Sign() >= 0 {
+		return z
+	}
+	if y.Sign() > 0 {
+		return z.Add(z, y)
+	}
 
 	return z.Sub(z, y)
 }
 
-func abs(x *Int) (uint256.Uint, int) {
-	sign := x.Sign()
-
-	if sign >= 0 {
-		return x.value, 1
+// Sets z to the sum x + y, where z and x are uint256s and y is an int256.
+func AddDelta(z, x *uint256.Uint, y *Int) {
+	if y.Sign() >= 0 {
+		z.Add(x, &y.value)
+	} else {
+		z.Sub(x, y.Abs())
 	}
-
-	var absVal uint256.Uint
-	absVal.Set(&x.value).Not(&absVal).Add(&absVal, uint1)
-	return absVal, -1
 }
 
-// not implemented yet
-
-// DivUint256 sets z to the quotient x/y, where y is a uint256, and returns z
-// If y == 0, z is set to 0
-// func (z *Int) DivUint256(x *Int, y *uint256.Uint) *Int {
-// 	z.abs.Div(x.abs, y)
-// 	if z.abs.IsZero() {
-// 		z.neg = false
-// 	} else {
-// 		z.neg = x.neg
-// 	}
-// 	return z
-// }
-
 // Sets z to the sum x + y, where z and x are uint256s and y is an int256.
-// func AddDelta(z, x *uint256.Uint, y *Int) {
-// 	if y.neg {
-// 		z.Sub(x, y.abs)
-// 	} else {
-// 		z.Add(x, y.abs)
-// 	}
-// }
+func AddDeltaOverflow(z, x *uint256.Uint, y *Int) bool {
+	var overflow bool
+	if y.Sign() >= 0 {
+		_, overflow = z.AddOverflow(x, &y.value)
+	} else {
+		var absY uint256.Uint
+		absY.Sub(uint0, &y.value) // absY = -y.value
+		_, overflow = z.SubOverflow(x, &absY)
+	}
 
-// Sets z to the sum x + y, where z and x are uint256s and y is an int256.
-// func AddDeltaOverflow(z, x *uint256.Uint, y *Int) bool {
-// 	var overflow bool
-// 	if y.neg {
-// 		_, overflow = z.SubOverflow(x, y.abs)
-// 	} else {
-// 		_, overflow = z.AddOverflow(x, y.abs)
-// 	}
-// 	return overflow
-// }
+	return overflow
+}

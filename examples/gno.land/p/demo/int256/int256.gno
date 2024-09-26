@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	int1 = NewInt(1)
+	int1  = NewInt(1)
+	uint0 = uint256.NewUint(0)
 	uint1 = uint256.NewUint(1)
 )
 

@@ -83,8 +83,8 @@ func TestFromDecimal(t *testing.T) {
 
 func TestMustFromDecimal(t *testing.T) {
 	tests := []struct {
-		input    string
-		expected int
+		input       string
+		expected    int
 		shouldPanic bool
 	}{
 		{"0", 0, false},
@@ -183,7 +183,7 @@ func TestSetInt64(t *testing.T) {
 		{0, 0},
 		{1, 1},
 		{-1, -1},
-		{9223372036854775807, 1}, // overflow (max int64)
+		{9223372036854775807, 1},   // overflow (max int64)
 		{-9223372036854775808, -1}, // underflow (min int64)
 	}
 
