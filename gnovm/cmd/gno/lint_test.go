@@ -24,6 +24,10 @@ func TestLintApp(t *testing.T) {
 			stderrShouldContain: "../../tests/integ/several-lint-errors/main.gno:5: expected ';', found example (code=2).\n../../tests/integ/several-lint-errors/main.gno:6",
 			errShouldBe:         "exit code: 1",
 		}, {
+			args:                []string{"lint", "../../tests/integ/several-files-multiple-errors/main.gno"},
+			stderrShouldContain: "../../tests/integ/several-files-multiple-errors/file2.gno:3: expected 'IDENT', found '{' (code=2).\n../../tests/integ/several-files-multiple-errors/file2.gno:5: expected type, found '}' (code=2).\n../../tests/integ/several-files-multiple-errors/main.gno:5: expected ';', found example (code=2).\n../../tests/integ/several-files-multiple-errors/main.gno:6: expected '}', found 'EOF' (code=2).\n",
+			errShouldBe:         "exit code: 1",
+		}, {
 			args:                []string{"lint", "../../tests/integ/run_main/"},
 			stderrShouldContain: "./../../tests/integ/run_main: missing 'gno.mod' file (code=1).",
 			errShouldBe:         "exit code: 1",

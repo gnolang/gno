@@ -180,6 +180,15 @@ func catchRuntimeError(pkgPath string, stderr io.WriteCloser, action func()) (ha
 			}
 		case error:
 			fmt.Fprint(stderr, issueFromError(pkgPath, verr).String()+"\n")
+		case []error:
+			for _, err := range verr {
+				errList, ok := err.(scanner.ErrorList)
+				if ok {
+					for _, errorInList := range errList {
+						fmt.Fprint(stderr, issueFromError(pkgPath, errorInList).String()+"\n")
+					}
+				}
+			}
 		case string:
 			fmt.Fprint(stderr, issueFromError(pkgPath, errors.New(verr)).String()+"\n")
 		default:
