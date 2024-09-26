@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
+	"github.com/stretchr/testify/require"
 )
 
 var defaultNodeName = "host_peer"
@@ -63,9 +64,10 @@ func TestTransportMultiplexConnFilter(t *testing.T) {
 	errc := make(chan error)
 
 	go func() {
-		addr := NewNetAddress(id, mt.listener.Addr())
+		addr, err := NewNetAddress(id, mt.listener.Addr())
+		require.NoError(t, err)
 
-		_, err := addr.Dial()
+		_, err = addr.DialTimeout(5 * time.Second)
 		if err != nil {
 			errc <- err
 			return
@@ -119,9 +121,10 @@ func TestTransportMultiplexConnFilterTimeout(t *testing.T) {
 	errc := make(chan error)
 
 	go func() {
-		addr := NewNetAddress(id, mt.listener.Addr())
+		addr, err := NewNetAddress(id, mt.listener.Addr())
+		require.NoError(t, err)
 
-		_, err := addr.Dial()
+		_, err = addr.DialTimeout(5 * time.Second)
 		if err != nil {
 			errc <- err
 			return
@@ -144,7 +147,8 @@ func TestTransportMultiplexAcceptMultiple(t *testing.T) {
 	t.Parallel()
 
 	mt := testSetupMultiplexTransport(t)
-	laddr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+	laddr, err := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+	require.NoError(t, err)
 
 	var (
 		seed     = rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -234,9 +238,10 @@ func TestFlappyTransportMultiplexAcceptNonBlocking(t *testing.T) {
 
 	// Simulate slow Peer.
 	go func() {
-		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+		addr, err := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+		require.NoError(t, err)
 
-		c, err := addr.Dial()
+		c, err := addr.DialTimeout(5 * time.Second)
 		if err != nil {
 			errc <- err
 			return
@@ -279,9 +284,10 @@ func TestFlappyTransportMultiplexAcceptNonBlocking(t *testing.T) {
 				PrivKey: fastNodePV,
 			},
 		)
-		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+		addr, err := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+		require.NoError(t, err)
 
-		_, err := dialer.Dial(*addr, peerConfig{})
+		_, err = dialer.Dial(*addr, peerConfig{})
 		if err != nil {
 			errc <- err
 			return
@@ -323,9 +329,10 @@ func TestTransportMultiplexValidateNodeInfo(t *testing.T) {
 			)
 		)
 
-		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+		addr, err := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+		require.NoError(t, err)
 
-		_, err := dialer.Dial(*addr, peerConfig{})
+		_, err = dialer.Dial(*addr, peerConfig{})
 		if err != nil {
 			errc <- err
 			return
@@ -364,9 +371,10 @@ func TestTransportMultiplexRejectMismatchID(t *testing.T) {
 				PrivKey: ed25519.GenPrivKey(),
 			},
 		)
-		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+		addr, err := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+		require.NoError(t, err)
 
-		_, err := dialer.Dial(*addr, peerConfig{})
+		_, err = dialer.Dial(*addr, peerConfig{})
 		if err != nil {
 			errc <- err
 			return
@@ -405,9 +413,10 @@ func TestTransportMultiplexDialRejectWrongID(t *testing.T) {
 	)
 
 	wrongID := ed25519.GenPrivKey().PubKey().Address().ID()
-	addr := NewNetAddress(wrongID, mt.listener.Addr())
+	addr, err := NewNetAddress(wrongID, mt.listener.Addr())
+	require.NoError(t, err)
 
-	_, err := dialer.Dial(*addr, peerConfig{})
+	_, err = dialer.Dial(*addr, peerConfig{})
 	if err != nil {
 		t.Logf("connection failed: %v", err)
 		if err, ok := err.(RejectedError); ok {
@@ -437,9 +446,10 @@ func TestTransportMultiplexRejectIncompatible(t *testing.T) {
 				},
 			)
 		)
-		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+		addr, err := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+		require.NoError(t, err)
 
-		_, err := dialer.Dial(*addr, peerConfig{})
+		_, err = dialer.Dial(*addr, peerConfig{})
 		if err != nil {
 			errc <- err
 			return
@@ -466,9 +476,10 @@ func TestTransportMultiplexRejectSelf(t *testing.T) {
 	errc := make(chan error)
 
 	go func() {
-		addr := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+		addr, err := NewNetAddress(mt.nodeKey.ID(), mt.listener.Addr())
+		require.NoError(t, err)
 
-		_, err := mt.Dial(*addr, peerConfig{})
+		_, err = mt.Dial(*addr, peerConfig{})
 		if err != nil {
 			errc <- err
 			return

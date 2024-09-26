@@ -5,7 +5,6 @@
 package p2p
 
 import (
-	"flag"
 	"fmt"
 	"net"
 	"strconv"
@@ -16,83 +15,93 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
+const (
+	nilNetAddress = "<nil-NetAddress>"
+	badNetAddress = "<bad-NetAddress>"
+)
+
+var (
+	errInvalidTCPAddress = errors.New("invalid TCP address")
+	errUnsetIPAddress    = errors.New("unset IP address")
+	errInvalidIP         = errors.New("invalid IP address")
+	errUnspecifiedIP     = errors.New("unspecified IP address")
+)
+
 type ID = crypto.ID
 
 // NetAddress defines information about a peer on the network
-// including its Address, IP address, and port.
-// NOTE: NetAddress is not meant to be mutated due to memoization.
-// @amino2: immutable XXX
+// including its ID, IP address, and port
 type NetAddress struct {
-	ID   ID     `json:"id"`   // authenticated identifier (TODO)
+	ID   ID     `json:"id"`   // authenticated identifier
 	IP   net.IP `json:"ip"`   // part of "addr"
 	Port uint16 `json:"port"` // part of "addr"
-
-	// TODO:
-	// Name string `json:"name"` // optional DNS name
-
-	// memoize .String()
-	str string
 }
 
 // NetAddressString returns id@addr. It strips the leading
 // protocol from protocolHostPort if it exists.
 func NetAddressString(id ID, protocolHostPort string) string {
-	addr := removeProtocolIfDefined(protocolHostPort)
-	return fmt.Sprintf("%s@%s", id, addr)
+	return fmt.Sprintf(
+		"%s@%s",
+		id,
+		removeProtocolIfDefined(protocolHostPort),
+	)
 }
 
 // NewNetAddress returns a new NetAddress using the provided TCP
-// address. When testing, other net.Addr (except TCP) will result in
-// using 0.0.0.0:0. When normal run, other net.Addr (except TCP) will
-// panic. Panics if ID is invalid.
-// TODO: socks proxies?
-func NewNetAddress(id ID, addr net.Addr) *NetAddress {
+// address
+func NewNetAddress(id ID, addr net.Addr) (*NetAddress, error) {
+	// Make sure the address is valid
 	tcpAddr, ok := addr.(*net.TCPAddr)
 	if !ok {
-		if flag.Lookup("test.v") == nil { // normal run
-			panic(fmt.Sprintf("Only TCPAddrs are supported. Got: %v", addr))
-		} else { // in testing
-			netAddr := NewNetAddressFromIPPort("", net.IP("0.0.0.0"), 0)
-			netAddr.ID = id
-			return netAddr
-		}
+		return nil, errInvalidTCPAddress
 	}
 
+	// Validate the ID
 	if err := id.Validate(); err != nil {
-		panic(fmt.Sprintf("Invalid ID %v: %v (addr: %v)", id, err, addr))
+		return nil, fmt.Errorf("unable to verify ID, %w", err)
 	}
 
-	ip := tcpAddr.IP
-	port := uint16(tcpAddr.Port)
-	na := NewNetAddressFromIPPort("", ip, port)
+	na := NewNetAddressFromIPPort(
+		tcpAddr.IP,
+		uint16(tcpAddr.Port),
+	)
+
+	// Set the ID
 	na.ID = id
-	return na
+
+	return na, nil
 }
 
 // NewNetAddressFromString returns a new NetAddress using the provided address in
 // the form of "ID@IP:Port".
 // Also resolves the host if host is not an IP.
-// Errors are of type ErrNetAddressXxx where Xxx is in (NoID, Invalid, Lookup)
 func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
-	idaddr = removeProtocolIfDefined(idaddr)
-	spl := strings.Split(idaddr, "@")
+	var (
+		prunedAddr = removeProtocolIfDefined(idaddr)
+		spl        = strings.Split(prunedAddr, "@")
+	)
+
 	if len(spl) != 2 {
-		return nil, NetAddressNoIDError{idaddr}
+		return nil, NetAddressNoIDError{prunedAddr}
 	}
 
-	// get ID
-	id := crypto.ID(spl[0])
+	var (
+		id   = crypto.ID(spl[0])
+		addr = spl[1]
+	)
+
+	// Validate the ID
 	if err := id.Validate(); err != nil {
-		return nil, NetAddressInvalidError{idaddr, err}
+		return nil, NetAddressInvalidError{prunedAddr, err}
 	}
-	addr := spl[1]
 
-	// get host and port
+	// Extract the host and port
 	host, portStr, err := net.SplitHostPort(addr)
 	if err != nil {
 		return nil, NetAddressInvalidError{addr, err}
 	}
-	if len(host) == 0 {
+
+	if host == "" {
 		return nil, NetAddressInvalidError{
 			addr,
 			errors.New("host is empty"),
@@ -105,6 +114,7 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 		if err != nil {
 			return nil, NetAddressLookupError{host, err}
 		}
+
 		ip = ips[0]
 	}
 
@@ -113,32 +123,38 @@ func NewNetAddressFromString(idaddr string) (*NetAddress, error) {
 		return nil, NetAddressInvalidError{portStr, err}
 	}
 
-	na := NewNetAddressFromIPPort("", ip, uint16(port))
+	na := NewNetAddressFromIPPort(ip, uint16(port))
 	na.ID = id
+
 	return na, nil
 }
 
 // NewNetAddressFromStrings returns an array of NetAddress'es build using
 // the provided strings.
 func NewNetAddressFromStrings(idaddrs []string) ([]*NetAddress, []error) {
-	netAddrs := make([]*NetAddress, 0)
-	errs := make([]error, 0)
+	var (
+		netAddrs = make([]*NetAddress, 0, len(idaddrs))
+		errs     = make([]error, 0, len(idaddrs))
+	)
+
 	for _, addr := range idaddrs {
 		netAddr, err := NewNetAddressFromString(addr)
 		if err != nil {
 			errs = append(errs, err)
-		} else {
-			netAddrs = append(netAddrs, netAddr)
+
+			continue
 		}
+
+		netAddrs = append(netAddrs, netAddr)
 	}
+
 	return netAddrs, errs
 }
 
-// NewNetAddressIPPort returns a new NetAddress using the provided IP
+// NewNetAddressFromIPPort returns a new NetAddress using the provided IP
 // and port number.
-func NewNetAddressFromIPPort(id ID, ip net.IP, port uint16) *NetAddress {
+func NewNetAddressFromIPPort(ip net.IP, port uint16) *NetAddress {
 	return &NetAddress{
-		ID:   id,
 		IP:   ip,
 		Port: port,
 	}
@@ -146,88 +162,76 @@ func NewNetAddressFromIPPort(id ID, ip net.IP, port uint16) *NetAddress {
 
 // Equals reports whether na and other are the same addresses,
 // including their ID, IP, and Port.
-func (na *NetAddress) Equals(other interface{}) bool {
-	if o, ok := other.(*NetAddress); ok {
-		return na.String() == o.String()
-	}
-	return false
+func (na *NetAddress) Equals(other *NetAddress) bool {
+	return na.String() == other.String()
 }
 
 // Same returns true is na has the same non-empty ID or DialString as other.
-func (na *NetAddress) Same(other interface{}) bool {
-	if o, ok := other.(*NetAddress); ok {
-		if na.DialString() == o.DialString() {
-			return true
-		}
-		if na.ID != "" && na.ID == o.ID {
-			return true
-		}
-	}
-	return false
+func (na *NetAddress) Same(other *NetAddress) bool {
+	var (
+		dialsSame = na.DialString() == other.DialString()
+		IDsSame   = na.ID != "" && na.ID == other.ID
+	)
+
+	return dialsSame || IDsSame
 }
 
 // String representation: <ID>@<IP>:<PORT>
 func (na *NetAddress) String() string {
 	if na == nil {
-		return "<nil-NetAddress>"
+		return nilNetAddress
 	}
-	if na.str != "" {
-		return na.str
-	}
+
 	str, err := na.MarshalAmino()
 	if err != nil {
-		return "<bad-NetAddress>"
+		return badNetAddress
 	}
+
 	return str
 }
 
+// MarshalAmino stringifies a NetAddress.
 // Needed because (a) IP doesn't encode, and (b) the intend of this type is to
 // serialize to a string anyways.
 func (na NetAddress) MarshalAmino() (string, error) {
-	if na.str == "" {
-		addrStr := na.DialString()
-		if na.ID != "" {
-			addrStr = NetAddressString(na.ID, addrStr)
-		}
-		na.str = addrStr
+	addrStr := na.DialString()
+
+	if na.ID != "" {
+		return NetAddressString(na.ID, addrStr), nil
 	}
-	return na.str, nil
+
+	return addrStr, nil
 }
 
-func (na *NetAddress) UnmarshalAmino(str string) (err error) {
-	na2, err := NewNetAddressFromString(str)
+func (na *NetAddress) UnmarshalAmino(raw string) (err error) {
+	netAddress, err := NewNetAddressFromString(raw)
 	if err != nil {
 		return err
 	}
-	*na = *na2
+
+	*na = *netAddress
+
 	return nil
 }
 
 func (na *NetAddress) DialString() string {
 	if na == nil {
-		return "<nil-NetAddress>"
+		return nilNetAddress
 	}
+
 	return net.JoinHostPort(
 		na.IP.String(),
 		strconv.FormatUint(uint64(na.Port), 10),
 	)
 }
 
-// Dial calls net.Dial on the address.
-func (na *NetAddress) Dial() (net.Conn, error) {
-	conn, err := net.Dial("tcp", na.DialString())
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
-}
-
 // DialTimeout calls net.DialTimeout on the address.
 func (na *NetAddress) DialTimeout(timeout time.Duration) (net.Conn, error) {
 	conn, err := net.DialTimeout("tcp", na.DialString(), timeout)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to dial address, %w", err)
 	}
+
 	return conn, nil
 }
 
@@ -236,102 +240,44 @@ func (na *NetAddress) Routable() bool {
 	if err := na.Validate(); err != nil {
 		return false
 	}
+
 	// TODO(oga) bitcoind doesn't include RFC3849 here, but should we?
-	return !(na.RFC1918() || na.RFC3927() || na.RFC4862() ||
-		na.RFC4193() || na.RFC4843() || na.Local())
+	return !(na.RFC1918() ||
+		na.RFC3927() ||
+		na.RFC4862() ||
+		na.RFC4193() ||
+		na.RFC4843() ||
+		na.Local())
 }
 
-func (na *NetAddress) ValidateLocal() error {
-	if err := na.ID.Validate(); err != nil {
-		return err
-	}
-	if na.IP == nil {
-		return errors.New("no IP")
-	}
-	if len(na.IP) != 4 && len(na.IP) != 16 {
-		return fmt.Errorf("invalid IP bytes: %v", len(na.IP))
-	}
-	if na.RFC3849() || na.IP.Equal(net.IPv4bcast) {
-		return errors.New("invalid IP", na.IP.IsUnspecified())
-	}
-	return nil
-}
-
+// Validate validates the NetAddress params
 func (na *NetAddress) Validate() error {
+	// Validate the ID
 	if err := na.ID.Validate(); err != nil {
-		return err
+		return fmt.Errorf("unable to validate ID, %w", err)
 	}
-	if na.IP == nil {
-		return errors.New("no IP")
-	}
-	if len(na.IP) != 4 && len(na.IP) != 16 {
-		return fmt.Errorf("invalid IP bytes: %v", len(na.IP))
-	}
-	if na.IP.IsUnspecified() || na.RFC3849() || na.IP.Equal(net.IPv4bcast) {
-		return errors.New("invalid IP", na.IP.IsUnspecified())
-	}
-	return nil
-}
 
-// HasID returns true if the address has an ID.
-// NOTE: It does not check whether the ID is valid or not.
-func (na *NetAddress) HasID() bool {
-	return !na.ID.IsZero()
+	// Make sure the IP is set
+	if na.IP == nil {
+		return errUnsetIPAddress
+	}
+
+	// Make sure the IP is valid
+	if len(na.IP) != 4 && len(na.IP) != 16 {
+		return errInvalidIP
+	}
+
+	// Check if the IP is unspecified
+	if na.IP.IsUnspecified() || na.RFC3849() || na.IP.Equal(net.IPv4bcast) {
+		return errUnspecifiedIP
+	}
+
+	return nil
 }
 
 // Local returns true if it is a local address.
 func (na *NetAddress) Local() bool {
 	return na.IP.IsLoopback() || zero4.Contains(na.IP)
-}
-
-// ReachabilityTo checks whenever o can be reached from na.
-func (na *NetAddress) ReachabilityTo(o *NetAddress) int {
-	const (
-		Unreachable = 0
-		Default     = iota
-		Teredo
-		Ipv6_weak
-		Ipv4
-		Ipv6_strong
-	)
-	switch {
-	case !na.Routable():
-		return Unreachable
-	case na.RFC4380():
-		switch {
-		case !o.Routable():
-			return Default
-		case o.RFC4380():
-			return Teredo
-		case o.IP.To4() != nil:
-			return Ipv4
-		default: // ipv6
-			return Ipv6_weak
-		}
-	case na.IP.To4() != nil:
-		if o.Routable() && o.IP.To4() != nil {
-			return Ipv4
-		}
-		return Default
-	default: /* ipv6 */
-		var tunnelled bool
-		// Is our v6 is tunnelled?
-		if o.RFC3964() || o.RFC6052() || o.RFC6145() {
-			tunnelled = true
-		}
-		switch {
-		case !o.Routable():
-			return Default
-		case o.RFC4380():
-			return Teredo
-		case o.IP.To4() != nil:
-			return Ipv4
-		case tunnelled:
-			// only prioritise ipv6 if we aren't tunnelling it.
-			return Ipv6_weak
-		}
-		return Ipv6_strong
-	}
 }
 
 // RFC1918: IPv4 Private networks (10.0.0.0/8, 192.168.0.0/16, 172.16.0.0/12)
@@ -376,9 +322,12 @@ func (na *NetAddress) RFC4862() bool { return rfc4862.Contains(na.IP) }
 func (na *NetAddress) RFC6052() bool { return rfc6052.Contains(na.IP) }
 func (na *NetAddress) RFC6145() bool { return rfc6145.Contains(na.IP) }
 
+// removeProtocolIfDefined removes the protocol part of the given address
 func removeProtocolIfDefined(addr string) string {
-	if strings.Contains(addr, "://") {
-		return strings.Split(addr, "://")[1]
+	if !strings.Contains(addr, "://") {
+		// No protocol part
+		return addr
 	}
-	return addr
+
+	return strings.Split(addr, "://")[1]
 }

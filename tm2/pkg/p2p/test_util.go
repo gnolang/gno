@@ -222,9 +222,9 @@ func testVersionSet() versionset.VersionSet {
 }
 
 func testNodeInfoWithNetwork(id ID, name, network string) NodeInfo {
-	return NodeInfo{
+	info := NodeInfo{
 		VersionSet: testVersionSet(),
-		NetAddress: NewNetAddressFromIPPort(id, net.ParseIP("127.0.0.1"), 0),
+		NetAddress: NewNetAddressFromIPPort(net.ParseIP("127.0.0.1"), 0),
 		Network:    network,
 		Software:   "p2ptest",
 		Version:    "v1.2.3-rc.0-deadbeef",
@@ -235,4 +235,8 @@ func testNodeInfoWithNetwork(id ID, name, network string) NodeInfo {
 			RPCAddress: fmt.Sprintf("127.0.0.1:%d", 0),
 		},
 	}
+
+	info.NetAddress.ID = id
+
+	return info
 }

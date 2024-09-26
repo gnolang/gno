@@ -47,10 +47,10 @@ type Reactor interface {
 	Receive(chID byte, peer Peer, msgBytes []byte)
 }
 
-//--------------------------------------
+// --------------------------------------
 
 type BaseReactor struct {
-	service.BaseService // Provides Start, Stop, .Quit
+	service.BaseService // Provides Start, Stop, Quit
 	Switch              *Switch
 }
 

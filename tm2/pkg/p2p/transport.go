@@ -314,7 +314,7 @@ func (mt *MultiplexTransport) acceptPeers() {
 				if err == nil {
 					addr := c.RemoteAddr()
 					id := secretConn.RemotePubKey().Address().ID()
-					netAddr = NewNetAddress(id, addr)
+					netAddr, _ = NewNetAddress(id, addr)
 				}
 			}
 
@@ -454,8 +454,16 @@ func (mt *MultiplexTransport) upgrade(
 
 	// Reject self.
 	if mt.nodeInfo.ID() == nodeInfo.ID() {
+		addr, err := NewNetAddress(nodeInfo.ID(), c.RemoteAddr())
+		if err != nil {
+			return nil, NodeInfo{}, NetAddressInvalidError{
+				Addr: c.RemoteAddr().String(),
+				Err:  err,
+			}
+		}
+
 		return nil, NodeInfo{}, RejectedError{
-			addr:   *NewNetAddress(nodeInfo.ID(), c.RemoteAddr()),
+			addr:   *addr,
 			conn:   c,
 			id:     nodeInfo.ID(),
 			isSelf: true,

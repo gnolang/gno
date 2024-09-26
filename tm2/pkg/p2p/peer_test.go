@@ -157,21 +157,30 @@ func (rp *remotePeer) ID() ID {
 	return rp.PrivKey.PubKey().Address().ID()
 }
 
-func (rp *remotePeer) Start() {
+func (rp *remotePeer) Start() error {
 	if rp.listenAddr == "" {
 		rp.listenAddr = "127.0.0.1:0"
 	}
 
-	l, e := net.Listen("tcp", rp.listenAddr) // any available address
-	if e != nil {
-		golog.Fatalf("net.Listen tcp :0: %+v", e)
+	l, err := net.Listen("tcp", rp.listenAddr) // any available address
+	if err != nil {
+		golog.Fatalf("net.Listen tcp :0: %+v", err)
+
+		return err
 	}
+
 	rp.listener = l
-	rp.addr = NewNetAddress(rp.PrivKey.PubKey().Address().ID(), l.Addr())
+	rp.addr, err = NewNetAddress(rp.PrivKey.PubKey().Address().ID(), l.Addr())
+	if err != nil {
+		return err
+	}
+
 	if rp.channels == nil {
 		rp.channels = []byte{testCh}
 	}
 	go rp.accept()
+
+	return nil
 }
 
 func (rp *remotePeer) Stop() {
