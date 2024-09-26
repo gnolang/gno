@@ -201,9 +201,5 @@ func generateLastSignValidatorState() *privval.FilePVLastSignState {
 
 // generateNodeKey generates the p2p node key
 func generateNodeKey() *p2p.NodeKey {
-	privKey := ed25519.GenPrivKey()
-
-	return &p2p.NodeKey{
-		PrivKey: privKey,
-	}
+	return p2p.GenerateNodeKey()
 }
