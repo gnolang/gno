@@ -48,11 +48,11 @@ func main() {
 //  * [nt](/r/demo/users:nt)
 //  * [satoshi](/r/demo/users:satoshi)
 //  * [sys](/r/demo/users:sys)
-// **1** | [2](?page=2)
-// ========================================
 //  * [test1](/r/demo/users:test1)
 //  * [x](/r/demo/users:x)
-// [1](?page=1) | **2**
+//
+// ========================================
+//
 // ========================================
 // ## user gnouser
 //

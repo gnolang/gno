@@ -19,7 +19,7 @@ func TestPager_GetPage(t *testing.T) {
 	tree.Set("e", 5)
 
 	// Create a new pager.
-	pager := NewPager(tree)
+	pager := NewPager(tree, 10)
 
 	// Define test cases.
 	tests := []struct {
@@ -37,7 +37,7 @@ func TestPager_GetPage(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		page := pager.GetPage(tt.pageNumber, tt.pageSize)
+		page := pager.GetPageWithSize(tt.pageNumber, tt.pageSize)
 
 		uassert.Equal(t, len(tt.expected), len(page.Items))
 
@@ -56,7 +56,7 @@ func TestPager_GetPageByPath(t *testing.T) {
 	}
 
 	// Create a new pager.
-	pager := NewPager(tree)
+	pager := NewPager(tree, 10)
 
 	// Define test cases.
 	tests := []struct {
@@ -90,7 +90,7 @@ func TestPage_Selector(t *testing.T) {
 	tree.Set("e", 5)
 
 	// Create a new pager.
-	pager := NewPager(tree)
+	pager := NewPager(tree, 10)
 
 	// Define test cases.
 	tests := []struct {
@@ -104,7 +104,7 @@ func TestPage_Selector(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		page := pager.GetPage(tt.pageNumber, tt.pageSize)
+		page := pager.GetPageWithSize(tt.pageNumber, tt.pageSize)
 
 		ui := page.Selector()
 		uassert.Equal(t, tt.expected, ui)
@@ -119,7 +119,7 @@ func TestPager_UI_WithManyPages(t *testing.T) {
 	}
 
 	// Create a new pager.
-	pager := NewPager(tree)
+	pager := NewPager(tree, 10)
 
 	// Define test cases for a large number of pages.
 	tests := []struct {
@@ -143,7 +143,7 @@ func TestPager_UI_WithManyPages(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		page := pager.GetPage(tt.pageNumber, tt.pageSize)
+		page := pager.GetPageWithSize(tt.pageNumber, tt.pageSize)
 
 		ui := page.Selector()
 		uassert.Equal(t, tt.expected, ui)
@@ -160,7 +160,7 @@ func TestPager_ParseQuery(t *testing.T) {
 	tree.Set("e", 5)
 
 	// Create a new pager.
-	pager := NewPager(tree)
+	pager := NewPager(tree, 10)
 
 	// Define test cases.
 	tests := []struct {

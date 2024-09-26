@@ -16,10 +16,10 @@ func main() {
 	}
 
 	// Create a new pager.
-	pager := pager.NewPager(tree)
+	pager := pager.NewPager(tree, 7)
 
 	for pn := -1; pn < 8; pn++ {
-		page := pager.GetPage(pn, 7)
+		page := pager.GetPage(pn)
 
 		println(ufmt.Sprintf("## Page %d of %d", page.PageNumber, page.TotalPages))
 		for idx, item := range page.Items {

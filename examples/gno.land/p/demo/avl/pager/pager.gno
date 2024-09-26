@@ -36,19 +36,36 @@ type Item struct {
 }
 
 // NewPager creates a new Pager with default values.
-func NewPager(tree *avl.Tree) *Pager {
+func NewPager(tree *avl.Tree, defaultPageSize int) *Pager {
 	return &Pager{
 		Tree:            tree,
 		PageQueryParam:  "page",
 		SizeQueryParam:  "size",
-		DefaultPageSize: 10,
+		DefaultPageSize: defaultPageSize,
 	}
 }
 
 // GetPage retrieves a page of results from the AVL tree.
-func (p *Pager) GetPage(pageNumber int, pageSize int) *Page {
+func (p *Pager) GetPage(pageNumber int) *Page {
+	return p.GetPageWithSize(pageNumber, p.DefaultPageSize)
+}
+
+func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 	totalItems := p.Tree.Size()
 	totalPages := int(math.Ceil(float64(totalItems) / float64(pageSize)))
+
+	if pageSize < 1 {
+		return &Page{
+			Items:      []Item{},
+			PageNumber: 0,
+			PageSize:   0,
+			TotalItems: totalItems,
+			TotalPages: totalPages,
+			HasPrev:    false,
+			HasNext:    false,
+			Pager:      p,
+		}
+	}
 
 	if pageNumber < 1 {
 		return &Page{
@@ -114,7 +131,7 @@ func (p *Pager) GetPageByPath(rawURL string) (*Page, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.GetPage(pageNumber, pageSize), nil
+	return p.GetPageWithSize(pageNumber, pageSize), nil
 }
 
 // UI generates the Markdown UI for the page selector.
