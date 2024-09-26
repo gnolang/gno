@@ -10,10 +10,16 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/tests"
+	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type runCfg struct {
@@ -112,13 +118,13 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 		return errors.New("no files to run")
 	}
 
-	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: string(files[0].PkgName),
-		Input:   stdin,
-		Output:  stdout,
-		Store:   testStore,
-		Debug:   cfg.debug || cfg.debugAddr != "",
-	})
+	m := runMachine(
+		testStore,
+		stdin,
+		stdout,
+		string(files[0].PkgName),
+		cfg.debug || cfg.debugAddr != "",
+	)
 
 	defer m.Release()
 
@@ -134,6 +140,114 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	runExpr(m, cfg.expr)
 
 	return nil
+}
+
+func runMachine(store gno.Store, stdin io.Reader, stdout io.Writer, pkgPath string, debug bool) *gno.Machine {
+	var (
+		send     std.Coins
+		maxAlloc int64
+	)
+
+	return runMachineCustom(store, pkgPath, stdin, stdout, maxAlloc, send, debug)
+}
+
+func runMachineCustom(store gno.Store, pkgPath string, stdin io.Reader, stdout io.Writer, maxAlloc int64, send std.Coins, debug bool) *gno.Machine {
+	ctx := runContext(pkgPath, send)
+	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		PkgPath:       pkgPath,
+		Output:        stdout,
+		Store:         store,
+		Context:       ctx,
+		MaxAllocBytes: maxAlloc,
+	})
+	return m
+}
+
+// runContext() creates the context for gno run. It has been intentially setup to mirror the context that is
+// created for gno test, so that behavior remains consistent between running code and testing code.
+func runContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
+	pkgAddr := gno.DerivePkgAddr(pkgPath)
+	caller := gno.DerivePkgAddr("user1.gno")
+
+	pkgCoins := std.MustParseCoins(ugnot.ValueString(200000000)).Add(send) // >= send.
+	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
+	ctx := stdlibs.ExecContext{
+		ChainID:       "run",
+		Height:        123,
+		Timestamp:     1234567890,
+		Msg:           nil,
+		OrigCaller:    caller.Bech32(),
+		OrigPkgAddr:   pkgAddr.Bech32(),
+		OrigSend:      send,
+		OrigSendSpent: new(std.Coins),
+		Banker:        banker,
+		EventLogger:   sdk.NewEventLogger(),
+	}
+	return &teststd.TestExecContext{
+		ExecContext: ctx,
+		RealmFrames: make(map[*gno.Frame]teststd.RealmOverride),
+	}
+}
+
+type testBanker struct {
+	coinTable map[crypto.Bech32Address]std.Coins
+}
+
+func newTestBanker(args ...interface{}) *testBanker {
+	coinTable := make(map[crypto.Bech32Address]std.Coins)
+	if len(args)%2 != 0 {
+		panic("newTestBanker requires even number of arguments; addr followed by coins")
+	}
+	for i := 0; i < len(args); i += 2 {
+		addr := args[i].(crypto.Bech32Address)
+		amount := args[i+1].(std.Coins)
+		coinTable[addr] = amount
+	}
+	return &testBanker{
+		coinTable: coinTable,
+	}
+}
+
+func (tb *testBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
+	return tb.coinTable[addr]
+}
+
+func (tb *testBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
+	fcoins, fexists := tb.coinTable[from]
+	if !fexists {
+		panic(fmt.Sprintf(
+			"source address %s does not exist",
+			from.String()))
+	}
+	if !fcoins.IsAllGTE(amt) {
+		panic(fmt.Sprintf(
+			"source address %s has %s; cannot send %s",
+			from.String(), fcoins, amt))
+	}
+	// First, subtract from 'from'.
+	frest := fcoins.Sub(amt)
+	tb.coinTable[from] = frest
+	// Second, add to 'to'.
+	// NOTE: even works when from==to, due to 2-step isolation.
+	tcoins, _ := tb.coinTable[to]
+	tsum := tcoins.Add(amt)
+	tb.coinTable[to] = tsum
+}
+
+func (tb *testBanker) TotalCoin(denom string) int64 {
+	panic("not yet implemented")
+}
+
+func (tb *testBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
+	coins, _ := tb.coinTable[addr]
+	sum := coins.Add(std.Coins{{denom, amt}})
+	tb.coinTable[addr] = sum
+}
+
+func (tb *testBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
+	coins, _ := tb.coinTable[addr]
+	rest := coins.Sub(std.Coins{{denom, amt}})
+	tb.coinTable[addr] = rest
 }
 
 func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error) {
