@@ -1,10 +1,15 @@
 package int256
 
 import (
+	"errors"
+
 	"gno.land/p/demo/uint256"
 )
 
-var one = uint256.NewUint(1)
+var (
+	int1 = NewInt(1)
+	uint1 = uint256.NewUint(1)
+)
 
 type Int struct {
 	value uint256.Uint
@@ -33,9 +38,7 @@ func Zero() *Int {
 // This function is convenient for operations that require a unit value,
 // such as incrementing or serving as an identity element in multiplication.
 func One() *Int {
-	z := &Int{}
-	z.value.SetUint64(1)
-	return z
+	return new(Int).SetInt64(1)
 }
 
 // Sign determines the sign of the Int.
@@ -90,46 +93,26 @@ func MustFromDecimal(s string) *Int {
 // SetString sets the Int to the value represented by the input string.
 // This method supports decimal string representations of integers and handles
 // both positive and negative values.
-//
-// For negative numbers, it uses the two's complement representation:
-// 1. Convert the absolute value to binary
-// 2. Invert all bits (NOT operation)
-// 3. Add 1 to the result
-//
-// This process ensures correct representation and arithmetic for negative numbers.
 func (z *Int) SetString(s string) (*Int, error) {
-	neg := false
-	if len(s) > 0 && (s[0] == '+' || s[0] == '-') {
-		if s[0] == '-' {
-			neg = true
-		}
-		// remove the sign character from the string
-		// and take only the numeric part
+	if len(s) == 0 {
+		return nil, errors.New("cannot set int256 from empty string")
+	}
+
+	// Check for negative sign
+	neg := s[0] == '-'
+	if neg || s[0] == '+' {
 		s = s[1:]
 	}
 
+	// Convert string to uint256
 	temp, err := uint256.FromDecimal(s)
 	if err != nil {
 		return nil, err
 	}
 
-	// for negative numbers, apply two's complement
+	// If negative, negate the uint256 value
 	if neg {
-		// invert all bits (NOT operation)
-		temp.Not(temp)
-		// add one (two's complement)
-		temp.Add(temp, uint256.NewUint(1))
-		// Example of two's complement for 8-bit number -5:
-		//
-		// Decimal: 5
-		// Step 0 (binary):        0000 0101
-		// Step 1 (NOT):           1111 1010
-		// Step 2 (Add 1):         1111 1011
-		//
-		// Result: 1111 1011 (binary representation of -5 in two's complement)
-		//
-		// This process scales to our 256-bit integers, allowing
-		// for correct representation and arithmetic of negative numbers.
+		temp.Neg(temp)
 	}
 
 	z.value.Set(temp)
@@ -145,8 +128,7 @@ func (z *Int) SetInt64(v int64) *Int {
 		z.value.SetUint64(uint64(v))
 	} else {
 		z.value.SetUint64(uint64(-v))
-		z.value.Not(&z.value)
-		z.value.Add(&z.value, one)
+		z.value.Not(&z.value).Add(&z.value, uint1)
 	}
 	return z
 }

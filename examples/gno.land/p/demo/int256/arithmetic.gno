@@ -1,6 +1,10 @@
 package int256
 
-import "gno.land/p/demo/uint256"
+import (
+	"gno.land/p/demo/uint256"
+)
+
+var divisionByZeroError = "division by zero"
 
 func (z *Int) Add(x, y *Int) *Int {
 	z.value.Add(&x.value, &y.value)
@@ -27,9 +31,9 @@ func (z *Int) Mul(x, y *Int) *Int {
 	return z
 }
 
-/* ----------------------------------------------------------------------------
-// Division and modulus operations
-// ----------------------------------------------------------------------------
+/* +--------------------------------------------------------------------------+
+// |Division and modulus operations                                           |
+// +--------------------------------------------------------------------------+
 //
 // This package provides three different division and modulus operations:
 //  - Div and Rem: Truncated division (T-division)
@@ -111,15 +115,11 @@ func (z *Int) Mul(x, y *Int) *Int {
 // Note: This implementation rounds towards zero, as is standard in Go.
 func (z *Int) Div(x, y *Int) *Int {
 	// Step 1: Check for division by zero
-	if y.value.IsZero() {
-		panic("division by zero")
+	if y.IsZero() {
+		panic(divisionByZeroError)
 	}
 
-	// Step 2: Determine the signs of x and y
-	xSign := x.Sign()
-	ySign := y.Sign()
-
-	// Step 3: Calculate the absolute values of x and y
+	// Step 2, 3: Calculate the absolute values of x and y
 	xAbs, xSign := abs(x)
 	yAbs, ySign := abs(y)
 
@@ -129,8 +129,7 @@ func (z *Int) Div(x, y *Int) *Int {
 	// Step 5: Adjust the sign of the result
 	// if x and y have different signs, the result must be negative
 	if xSign != ySign {
-		// convert the positive result to negative using two's complement
-		setNegative(&z.value, &z.value)
+		z.value.Not(&z.value).Add(&z.value, uint1)
 	}
 
 	return z
@@ -186,22 +185,21 @@ func (z *Int) Div(x, y *Int) *Int {
 // Note: This implementation ensures correct truncation towards zero for negative dividends.
 func (z *Int) Quo(x, y *Int) *Int {
 	// Step 1: Check for division by zero
-	if y.value.IsZero() {
-		panic("division by zero")
+	if y.IsZero() {
+		panic(divisionByZeroError)
 	}
 
-	// Step 2: Determine the signs of x and y
-	xSign := x.Sign()
-	ySign := y.Sign()
-
-	// Step 3: Calculate the absolute values of x and y
+	// Step 2, 3: Calculate the absolute values of x and y
 	var xAbs, yAbs, q, r uint256.Uint
+	var xSign, ySign int
+
 	xAbs, xSign = abs(x)
 	yAbs, ySign = abs(y)
 
 	// Step 4: Perform unsigned division and get the remainder
-	//  q = xAbs / yAbs
-	//  r = xAbs % yAbs
+	//
+	//   q = xAbs / yAbs
+	//   r = xAbs % yAbs
 	//
 	// Use Euclidean division to always yields a non-negative remainder, which is
 	// crucial for correct truncation towards zero in subsequent steps.
@@ -214,12 +212,12 @@ func (z *Int) Quo(x, y *Int) *Int {
 	// If x and y have different signs and there's a non-zero remainder,
 	// we need to round towards zero by adding 1 to the quotient magnitude.
 	if (xSign < 0) != (ySign < 0) && !r.IsZero() {
-		q.Add(&q, one)
+		q.Add(&q, uint1)
 	}
 
 	// Step 6: Adjust the sign of the result
 	if xSign != ySign {
-		setNegative(&q, &q)
+		q.Not(&q).Add(&q, uint1)
 	}
 
 	z.value.Set(&q)
@@ -269,28 +267,23 @@ func (z *Int) Quo(x, y *Int) *Int {
 // Note: The sign of the remainder is always the same as the sign of the dividend (x).
 func (z *Int) Rem(x, y *Int) *Int {
 	// Step 1: Check for division by zero
-	if y.value.IsZero() {
-		panic("division by zero")
+	if y.IsZero() {
+		panic(divisionByZeroError)
 	}
 
-	// Step 2: Determine the signs of x and y
-	xSign := x.Sign()
-	ySign := y.Sign()
-
-	// Step 3: Calculate the absolute values of x and y
+	// Step 2, 3
 	var xAbs, yAbs, q, r uint256.Uint
+	var xSign int
+
 	xAbs, xSign = abs(x)
-	yAbs, ySign = abs(y)
+	yAbs, _ = abs(y)
 
 	// Step 4: Perform unsigned division and get the remainder
 	q.DivMod(&xAbs, &yAbs, &r)
 
 	// Step 5: Adjust the sign of the remainder
-	if xSign < 0 {
-		if !r.IsZero() {
-			// convert positive remainder to negative
-			setNegative(&r, &r)
-		}
+	if xSign < 0 && !r.IsZero() {
+		r.Not(&r).Add(&r, uint1)
 	}
 
 	z.value.Set(&r)
@@ -310,8 +303,8 @@ func (z *Int) Mod(x, y *Int) *Int {
 //  1. The remainder is always non-negative: 0 <= x mod y < |y|
 //  2. It follows the identity: x = y * (x div y) + (x mod y)
 func (z *Int) DivE(x, y *Int) *Int {
-	if y.value.IsZero() {
-		panic("division by zero")
+	if y.IsZero() {
+		panic(divisionByZeroError)
 	}
 
 	z.Div(x, y)
@@ -320,14 +313,10 @@ func (z *Int) DivE(x, y *Int) *Int {
 	r := new(Int).Rem(x, y)
 
 	// Adjust the quotient if necessary
-	if r.Sign() < 0 {
-		if y.Sign() > 0 {
-			return z.Sub(z, NewInt(1))
-		}
-		return z.Add(z, NewInt(1))
-	}
+	if r.Sign() >= 0 { return z }
+	if y.Sign() > 0  { return z.Sub(z, int1) }
 
-	return z
+	return z.Add(z, int1)
 }
 
 // ModE computes the Euclidean modulus of x by y, setting z to the result and returning z.
@@ -367,39 +356,30 @@ func (z *Int) DivE(x, y *Int) *Int {
 // Note: This implementation ensures that the result always has the same sign as y,
 // which is different from the Rem operation.
 func (z *Int) ModE(x, y *Int) *Int {
-	if y.value.IsZero() {
-		panic("division by zero")
+	if y.IsZero() {
+		panic(divisionByZeroError)
 	}
 
 	// Perform T-division to get the remainder
 	z.Rem(x, y)
 
 	// Adjust the remainder if necessary
-	if z.Sign() < 0 {
-		if y.Sign() > 0 {
-			return z.Add(z, y)
-		}
-		return z.Sub(z, y)
-	}
+	if z.Sign() >= 0 { return z }
+	if y.Sign() > 0  { return z.Add(z, y) }
 
-	return z
+	return z.Sub(z, y)
 }
 
 func abs(x *Int) (uint256.Uint, int) {
 	sign := x.Sign()
-	var absVal uint256.Uint
-	absVal.Set(&x.value)
-	if sign < 0 {
-		setNegative(&absVal, &x.value)
-		sign = -1
-	} else {
-		sign = 1
-	}
-	return absVal, sign
-}
 
-func setNegative(z, x *uint256.Uint) {
-	z.Set(x).Not(z).Add(z, one)
+	if sign >= 0 {
+		return x.value, 1
+	}
+
+	var absVal uint256.Uint
+	absVal.Set(&x.value).Not(&absVal).Add(&absVal, uint1)
+	return absVal, -1
 }
 
 // not implemented yet
