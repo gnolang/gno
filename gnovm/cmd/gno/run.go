@@ -154,12 +154,12 @@ func runMachine(store gno.Store, stdin io.Reader, stdout io.Writer, pkgPath stri
 func runMachineCustom(store gno.Store, pkgPath string, stdin io.Reader, stdout io.Writer, maxAlloc int64, send std.Coins, debug bool) *gno.Machine {
 	ctx := runContext(pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath:       pkgPath,
-		Output:        stdout,
-		Input:         stdin,
-		Store:         store,
-		Context:       ctx,
-		Debug:         debug,
+		PkgPath: pkgPath,
+		Output:  stdout,
+		Input:   stdin,
+		Store:   store,
+		Context: ctx,
+		Debug:   debug,
 	})
 	return m
 }
