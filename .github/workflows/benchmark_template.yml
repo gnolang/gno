@@ -8,6 +8,14 @@ on:
       test-flags:
         required: true
         type: string
+      external-data-json-path:
+        type: string
+
+permissions:
+  # deployments permission to deploy GitHub pages website
+  deployments: write
+  # contents permission to update benchmark contents in gh-pages branch
+  contents: write
 
 env:
   CGO_ENABLED: 0
@@ -15,22 +23,47 @@ env:
 jobs:
   benchmarks:
     if: ${{ github.repository == 'gnolang/gno' }}
-    runs-on: [self-hosted, Linux, X64, benchmark-v1]
+    runs-on: [self-hosted, Linux, X64, benchmarks]
     steps:
-    - name: checkout
+    - name: Checkout
       uses: actions/checkout@v4
       with:
         fetch-depth: 1
+    
     - uses: actions/setup-go@v5
       with:
         go-version: "1.22.x"
-    - name: "gobenchdata publish: ${{ inputs.publish }}"
-      run: go run go.bobheadxi.dev/gobenchdata@v1 action
-      env:
-        INPUT_PRUNE_COUNT: 30
-        INPUT_GO_TEST_FLAGS: "${{ inputs.test-flags }} -run=^$ -cpu 1,2" # executing only using one and two CPUs to not be dependant on the machine cores.
-        INPUT_PUBLISH: ${{ inputs.publish }}
-        INPUT_PUBLISH_BRANCH: gh-benchmarks
-        INPUT_BENCHMARKS_OUT: benchmarks.json
-        INPUT_CHECKS: ${{ !inputs.publish }}
-        INPUT_CHECKS_CONFIG: .benchmarks/gobenchdata-checks.yml
+
+    - name: Run benchmark
+      run: |
+        go test -benchmem -bench=. ./... -run=^$ \
+        -cpu 1,2 ${{ inputs.test-flags }} | tee benchmarks.txt
+
+    - name: Download previous benchmark data
+      uses: actions/cache@v4
+      with:
+        path: ./cache
+        key: ${{ runner.os }}-benchmark
+    
+    - name: Store benchmark results into `gh-benchmarks` branch
+      uses: benchmark-action/github-action-benchmark@v1
+      # see https://github.com/benchmark-action/github-action-benchmark?tab=readme-ov-file#action-inputs
+      with:
+        name: Go Benchmarks
+        tool: 'go'
+        output-file-path: benchmarks.txt
+        # Where the previous data file is stored
+        external-data-json-path: ${{ inputs.external-data-json-path }}
+        # Show alert with commit comment on detecting possible performance regression
+        alert-threshold: '20%'
+        fail-on-alert: true
+        comment-on-alert: true
+        # Enable Job Summary for PRs
+        summary-always: true
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        # NOTE you need to use a separate GITHUB PAT token that has a write access to the specified repository.
+        # gh-repository: 'github.com/gnolang/benchmarks' # on gh-pages branch
+        gh-pages-branch: gh-benchmarks
+        benchmark-data-dir-path: .
+        auto-push: ${{ inputs.publish }}
+        alert-comment-cc-users: '@ajnavarro,@thehowl,@zivkovicmilos'
