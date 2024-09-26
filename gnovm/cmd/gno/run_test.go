@@ -80,7 +80,7 @@ func TestRunApp(t *testing.T) {
 			recoverShouldContain: "cannot use bool as main.C without explicit conversion",
 		},
 		{
-			args:			[]string{"run", "-expr", "Context()", "./run_tests/context.gno"},
+			args:                []string{"run", "-expr", "Context()", "./run_tests/context.gno"},
 			stdoutShouldContain: "Context worked",
 		},
 		// TODO: a test file
