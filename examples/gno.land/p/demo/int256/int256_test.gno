@@ -32,7 +32,7 @@ func TestInitializers(t *testing.T) {
 }
 
 func TestNewInt(t *testing.T) {
-	testCases := []struct {
+	tests := []struct {
 		input    int64
 		expected int
 	}{
@@ -43,10 +43,10 @@ func TestNewInt(t *testing.T) {
 		{-9223372036854775808, -1}, // min int64
 	}
 
-	for _, tc := range testCases {
-		z := NewInt(tc.input)
-		if z.Sign() != tc.expected {
-			t.Errorf("NewInt(%d) = %d, want %d", tc.input, z.Sign(), tc.expected)
+	for _, tt := range tests {
+		z := NewInt(tt.input)
+		if z.Sign() != tt.expected {
+			t.Errorf("NewInt(%d) = %d, want %d", tt.input, z.Sign(), tt.expected)
 		}
 	}
 }

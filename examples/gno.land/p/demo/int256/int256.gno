@@ -36,7 +36,11 @@ func Zero() *Int { return &Int{} }
 //
 // This function is convenient for operations that require a unit value,
 // such as incrementing or serving as an identity element in multiplication.
-func One() *Int { return int1 }
+func One() *Int {
+	return &Int{
+		value: *uint256.NewUint(1),
+	}
+}
 
 // Sign determines the sign of the Int.
 //

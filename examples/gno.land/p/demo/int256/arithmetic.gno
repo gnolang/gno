@@ -6,31 +6,47 @@ import (
 
 var divisionByZeroError = "division by zero"
 
+// Add adds two int256 values and saves the result in z.
 func (z *Int) Add(x, y *Int) *Int {
 	z.value.Add(&x.value, &y.value)
 	return z
 }
 
+// AddUint256 adds int256 and uint256 values and saves the result in z.
 func (z *Int) AddUint256(x *Int, y *uint256.Uint) *Int {
 	z.value.Add(&x.value, y)
 	return z
 }
 
+// Sub subtracts two int256 values and saves the result in z.
 func (z *Int) Sub(x, y *Int) *Int {
 	z.value.Sub(&x.value, &y.value)
 	return z
 }
 
+// SubUint256 subtracts uint256 and int256 values and saves the result in z.
 func (z *Int) SubUint256(x *Int, y *uint256.Uint) *Int {
 	z.value.Sub(&x.value, y)
 	return z
 }
 
+// Mul multiplies two int256 values and saves the result in z.
+//
+// It considers the signs of the operands to determine the sign of the result.
 func (z *Int) Mul(x, y *Int) *Int {
-	z.value.Mul(&x.value, &y.value)
+	xAbs, xSign := x.Abs(), x.Sign()
+	yAbs, ySign := y.Abs(), y.Sign()
+
+	z.value.Mul(xAbs, yAbs)
+
+	if xSign != ySign {
+		z.value.Neg(&z.value)
+	}
+
 	return z
 }
 
+// Abs returns the absolute value of z.
 func (z *Int) Abs() *uint256.Uint {
 	var absValue uint256.Uint
 	if z.Sign() >= 0 {
@@ -131,7 +147,7 @@ func (z *Int) Div(x, y *Int) *Int {
 	xAbs, xSign := x.Abs(), x.Sign()
 	yAbs, ySign := y.Abs(), y.Sign()
 
-	// perform unsigned division on the absolute values
+	// Step 4: Perform unsigned division on the absolute values
 	z.value.Div(xAbs, yAbs)
 
 	// Step 5: Adjust the sign of the result
@@ -143,17 +159,6 @@ func (z *Int) Div(x, y *Int) *Int {
 	return z
 }
 
-// Quo sets z to the quotient x/y for y != 0 and returns z.
-// It implements truncated division (or T-division).
-//
-// The function performs the following steps:
-//  1. Check for division by zero
-//  2. Determine the signs of x and y
-//  3. Calculate the absolute values of x and y
-//  4. Perform unsigned division and get the remainder
-//  5. Adjust the quotient for truncation towards zero
-//  6. Adjust the sign of the result
-//
 // Example visualization for 8-bit integers (scaled down from 256-bit for simplicity):
 //
 // Let x = -7 (11111001 in two's complement) and y = 3 (00000011)
@@ -173,24 +178,17 @@ func (z *Int) Div(x, y *Int) *Int {
 //
 // Step 4: Unsigned division
 //
-//	7 / 3 = 2 remainder 1
-//	q = 2:  00000010
-//	r = 1:  00000001
+//	7 / 3 = 2:  00000010
 //
-// Step 5: Adjust for truncation
+// Step 5: Adjust sign (x and y have different signs)
 //
-//	Signs are different and r != 0, so add 1 to q
-//	q = 3:  00000011
+//	-2:  00000010 -> 11111110
+//	     NOT: 11111101
+//	     +1:  11111110
 //
-// Step 6: Adjust sign (x and y have different signs)
+// Final result: -2 (11111110 in two's complement)
 //
-//	-3:  00000011 -> 11111101
-//	     NOT: 11111100
-//	     +1:  11111101
-//
-// Final result: -3 (11111101 in two's complement)
-//
-// Note: This implementation ensures correct truncation towards zero for negative dividends.
+// Note: This implementation rounds towards zero, as is standard in Go.
 func (z *Int) Quo(x, y *Int) *Int {
 	// Step 1: Check for division by zero
 	if y.IsZero() {
@@ -201,32 +199,15 @@ func (z *Int) Quo(x, y *Int) *Int {
 	xAbs, xSign := x.Abs(), x.Sign()
 	yAbs, ySign := y.Abs(), y.Sign()
 
-	// Step 4: Perform unsigned division and get the remainder
-	//
-	//   q = xAbs / yAbs
-	//   r = xAbs % yAbs
-	//
-	// Use Euclidean division to always yields a non-negative remainder, which is
-	// crucial for correct truncation towards zero in subsequent steps.
-	// By using this method here, we can easily adjust the quotient in _Step 5_
-	// to achieve truncated division semantics.
-	var q, r uint256.Uint
-	q.DivMod(xAbs, yAbs, &r)
+	// perform unsigned division on the absolute values
+	z.value.Div(xAbs, yAbs)
 
-	// Step 5: Adjust the quotient for truncation towards zero.
-	//
-	// If x and y have different signs and there's a non-zero remainder,
-	// we need to round towards zero by adding 1 to the quotient magnitude.
-	if (xSign < 0) != (ySign < 0) && !r.IsZero() {
-		q.Add(&q, uint1)
-	}
-
-	// Step 6: Adjust the sign of the result
+	// Step 5: Adjust the sign of the result
+	// if x and y have different signs, the result must be negative
 	if xSign != ySign {
-		q.Neg(&q)
+		z.value.Neg(&z.value)
 	}
 
-	z.value.Set(&q)
 	return z
 }
 
@@ -311,20 +292,22 @@ func (z *Int) DivE(x, y *Int) *Int {
 		panic(divisionByZeroError)
 	}
 
-	z.Div(x, y)
+	// Compute the truncated division quotient
+	z.Quo(x, y)
 
-	// Get the remainder using T-division
+	// Compute the remainder
 	r := new(Int).Rem(x, y)
 
-	// Adjust the quotient if necessary
-	if r.Sign() >= 0 {
-		return z
-	}
-	if y.Sign() > 0 {
-		return z.Sub(z, int1)
+	// If the remainder is negative, adjust the quotient
+	if r.Sign() < 0 {
+		if y.Sign() > 0 {
+			z.Sub(z, NewInt(1))
+		} else {
+			z.Add(z, NewInt(1))
+		}
 	}
 
-	return z.Add(z, int1)
+	return z
 }
 
 // ModE computes the Euclidean modulus of x by y, setting z to the result and returning z.
@@ -383,6 +366,8 @@ func (z *Int) ModE(x, y *Int) *Int {
 }
 
 // Sets z to the sum x + y, where z and x are uint256s and y is an int256.
+//
+// If the y is positive, it adds y.value to x. otherwise, it subtracts y.Abs() from x.
 func AddDelta(z, x *uint256.Uint, y *Int) {
 	if y.Sign() >= 0 {
 		z.Add(x, &y.value)
@@ -392,6 +377,8 @@ func AddDelta(z, x *uint256.Uint, y *Int) {
 }
 
 // Sets z to the sum x + y, where z and x are uint256s and y is an int256.
+//
+// This function returns true if the addition overflows, false otherwise.
 func AddDeltaOverflow(z, x *uint256.Uint, y *Int) bool {
 	var overflow bool
 	if y.Sign() >= 0 {
