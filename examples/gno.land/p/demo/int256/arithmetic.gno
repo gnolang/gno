@@ -48,11 +48,14 @@ func (z *Int) Mul(x, y *Int) *Int {
 
 // Abs returns the absolute value of z.
 func (z *Int) Abs() *uint256.Uint {
-	var absValue uint256.Uint
 	if z.Sign() >= 0 {
-		return absValue.Set(&z.value)
+		return &z.value
 	}
-	return absValue.Sub(uint0, &z.value)
+
+	var absValue uint256.Uint
+	absValue.Sub(uint0, &z.value).Neg(&z.value)
+
+	return &absValue
 }
 
 /* +--------------------------------------------------------------------------+
