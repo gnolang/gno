@@ -113,7 +113,7 @@ type Object interface {
 	SetIsDeleted(bool, uint64)
 	GetIsNewReal() bool
 	SetIsNewReal(bool)
-	GetIsCrossRealm() bool
+	GetIsCrossRealm() bool // XXX, does escape imply this?
 	SetIsCrossRealm(bool)
 	GetIsNewEscaped() bool
 	SetIsNewEscaped(bool)
@@ -341,6 +341,7 @@ func (oi *ObjectInfo) GetIsTransient() bool {
 	return false
 }
 
+// XXX, get first accessible object, maybe containing(parent) object, maybe itself.
 func (tv *TypedValue) GetFirstObject(store Store) Object {
 	fmt.Println("---GetFirstObject---, tv: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {

@@ -186,6 +186,8 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if po == nil || !po.GetIsReal() { // XXX, make sure po is attached
 		return // do nothing.
 	}
+
+	// XXX, cross realm check
 	fmt.Println("---po.GetObjectID(): ", po.GetObjectID())
 	if po.GetObjectID().PkgID != rlm.ID {
 		fmt.Printf("po.GetObjectID().PkgID: %v, rlm.ID: %v\n", po.GetObjectID().PkgID, rlm.ID)
@@ -205,15 +207,16 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	if co != nil {
 		fmt.Println("---co: ", co)
 		fmt.Println("---co.GetRefCount: ", co.GetRefCount())
+		// XXX, inc ref count everytime assignment happens
 		co.IncRefCount()
-		if co.GetRefCount() > 1 {
+		if co.GetRefCount() > 1 { // XXX, associated more the once? how this happen?
 			if co.GetIsEscaped() {
 				// already escaped
 			} else {
-				rlm.MarkNewEscapedCheckCrossRealm(co)
+				rlm.MarkNewEscapedCheckCrossRealm(co) // XXX, track which realm escape from
 				//rlm.MarkNewEscaped(co)
 			}
-		} else if co.GetIsReal() {
+		} else if co.GetIsReal() { // XXX, attached in .init?
 			println("---co is real")
 			rlm.MarkDirty(co)
 		} else {
@@ -248,12 +251,12 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(oo Object) {
 		// see below.
 		return
 	}
-	if !oi.GetIsReal() { // e.g. attach object initialized in 'init', mark it as new real/attached, thus it has an object ID.
+	if !oi.GetIsReal() { // XXX, this seems to be wrong -- an object escapes to other realm before it's attached(no objectID)
 		fmt.Println("---oi Not real, oi: ", oi.ID)
 		// this can happen if a ref +1
 		// new object gets passed into
 		// an external realm function.
-		oi.lastNewRealEscapedRealm = rlm.ID
+		oi.lastNewRealEscapedRealm = rlm.ID // XXX, where the object escape from.
 		oi.SetIsNewReal(false)
 		rlm.MarkNewReal(oo)
 	} else {
@@ -296,6 +299,7 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 	rlm.newCreated = append(rlm.newCreated, oo)
 }
 
+// mark dirty == updated
 func (rlm *Realm) MarkDirty(oo Object) {
 	fmt.Printf("rlm: %v MarkDirty: %v\n", rlm, oo)
 	if debug {
@@ -491,7 +495,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 		return
 	}
 	rlm.assignNewObjectID(oo)
-	rlm.created = append(rlm.created, oo)
+	rlm.created = append(rlm.created, oo) // XXX, here it becomes real.
 	// RECURSE GUARD END
 
 	// recurse for children.
