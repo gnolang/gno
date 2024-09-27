@@ -53,12 +53,6 @@ func TestNodeInfoValidate(t *testing.T) {
 		{"Empty Moniker", func(ni *NodeInfo) { ni.Moniker = "" }, true},
 		{"Good Moniker", func(ni *NodeInfo) { ni.Moniker = "hey its me" }, false},
 
-		{"Non-ASCII TxIndex", func(ni *NodeInfo) { ni.Other.TxIndex = nonAscii }, true},
-		{"Empty tab TxIndex", func(ni *NodeInfo) { ni.Other.TxIndex = emptyTab }, true},
-		{"Empty space TxIndex", func(ni *NodeInfo) { ni.Other.TxIndex = emptySpace }, true},
-		{"Empty TxIndex", func(ni *NodeInfo) { ni.Other.TxIndex = "" }, false},
-		{"Off TxIndex", func(ni *NodeInfo) { ni.Other.TxIndex = "off" }, false},
-
 		{"Non-ASCII RPCAddress", func(ni *NodeInfo) { ni.Other.RPCAddress = nonAscii }, true},
 		{"Empty tab RPCAddress", func(ni *NodeInfo) { ni.Other.RPCAddress = emptyTab }, true},
 		{"Empty space RPCAddress", func(ni *NodeInfo) { ni.Other.RPCAddress = emptySpace }, true},
