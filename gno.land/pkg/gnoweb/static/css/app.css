@@ -32,6 +32,33 @@
     src: local("Roboto Mono Bold Italic"), url("/static/font/roboto/RobotoMono-BoldItalic.woff") format("woff");
   }
   
+/* ############################################## SEARCH-BAR AND ICON */
+.text-Area {
+  display: none;
+  width: 10em;
+  height: 30px;
+  background-color: var(--border-color);
+  border-radius: 5px;
+  border: 1px solid var(--border-color);
+  z-index: 1;
+  position: relative;
+  padding: 5px;
+  color: white;
+  margin-right: 2rem;
+}
+.search-icon {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  display: block;
+}
+.text-Area.show {
+  display: block;
+}
+.searchDiv {
+  width: max-content;
+  padding-right: 20px;
+}
 
 /*** DARK/LIGHT THEME COLORS ***/
 
@@ -268,7 +295,7 @@ input {
   color: var(--text-color, #000);
   width: 25em;
   padding: 0.4rem 0.5rem;
-  max-width: 100%;x
+  max-width: 100%;
 }
 
 blockquote {
