@@ -76,9 +76,6 @@ type P2PConfig struct {
 	// Testing params.
 	// Force dial to fail
 	TestDialFail bool `json:"test_dial_fail" toml:"test_dial_fail"`
-	// FUzz connection
-	TestFuzz       bool            `json:"test_fuzz" toml:"test_fuzz"`
-	TestFuzzConfig *FuzzConnConfig `json:"test_fuzz_config" toml:"test_fuzz_config"`
 }
 
 // DefaultP2PConfig returns a default configuration for the peer-to-peer layer
@@ -99,8 +96,6 @@ func DefaultP2PConfig() *P2PConfig {
 		HandshakeTimeout:        20 * time.Second,
 		DialTimeout:             3 * time.Second,
 		TestDialFail:            false,
-		TestFuzz:                false,
-		TestFuzzConfig:          DefaultFuzzConnConfig(),
 	}
 }
 
@@ -135,24 +130,4 @@ func (cfg *P2PConfig) ValidateBasic() error {
 		return errors.New("recv_rate can't be negative")
 	}
 	return nil
-}
-
-// FuzzConnConfig is a FuzzedConnection configuration.
-type FuzzConnConfig struct {
-	Mode         int
-	MaxDelay     time.Duration
-	ProbDropRW   float64
-	ProbDropConn float64
-	ProbSleep    float64
-}
-
-// DefaultFuzzConnConfig returns the default config.
-func DefaultFuzzConnConfig() *FuzzConnConfig {
-	return &FuzzConnConfig{
-		Mode:         FuzzModeDrop,
-		MaxDelay:     3 * time.Second,
-		ProbDropRW:   0.2,
-		ProbDropConn: 0.00,
-		ProbSleep:    0.00,
-	}
 }
