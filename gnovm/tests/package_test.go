@@ -16,6 +16,8 @@ import (
 )
 
 func TestStdlibs(t *testing.T) {
+	t.Parallel()
+
 	// NOTE: this test only works using _test.gno files;
 	// filetests are not meant to be used for testing standard libraries.
 	// The examples directory is tested directly using `gno test`u
