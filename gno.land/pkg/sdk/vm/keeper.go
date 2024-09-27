@@ -409,15 +409,18 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	pkgPath := msg.PkgPath // to import
 	fnc := msg.Func
 	gnostore := vm.getGnoTransactionStore(ctx)
+
 	// Get the package and function type.
 	pv := gnostore.GetPackage(pkgPath, false)
 	pl := gno.PackageNodeLocation(pkgPath)
 	pn := gnostore.GetBlockNode(pl).(*gno.PackageNode)
 	ft := pn.GetStaticTypeOf(gnostore, gno.Name(fnc)).(*gno.FuncType)
+
 	// Make main Package with imports.
 	mpn := gno.NewPackageNode("main", "main", nil)
 	mpn.Define("pkg", gno.TypedValue{T: &gno.PackageType{}, V: pv})
 	mpv := mpn.NewPackage()
+
 	// Parse expression.
 	argslist := ""
 	for i := range msg.Args {
@@ -428,6 +431,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}
 	expr := fmt.Sprintf(`pkg.%s(%s)`, fnc, argslist)
 	xn := gno.MustParseExpr(expr)
+
 	// Send send-coins to pkg from caller.
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	caller := msg.Caller
@@ -436,6 +440,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	if err != nil {
 		return "", err
 	}
+
 	// Convert Args to gno values.
 	cx := xn.(*gno.CallExpr)
 	if cx.Varg {
@@ -451,6 +456,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			TypedValue: atv,
 		}
 	}
+
 	// Make context.
 	// NOTE: if this is too expensive,
 	// could it be safely partially memoized?
@@ -466,6 +472,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 		Banker:        NewSDKBanker(vm, ctx),
 		EventLogger:   ctx.EventLogger(),
 	}
+
 	// Construct machine and evaluate.
 	m := gno.NewMachineWithOptions(
 		gno.MachineOptions{
@@ -477,8 +484,9 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			MaxCycles: vm.maxCycles,
 			GasMeter:  ctx.GasMeter(),
 		})
-	defer m.Release()
 	m.SetActivePackage(mpv)
+	defer m.Release()
+
 	defer func() {
 		if r := recover(); r != nil {
 			switch r := r.(type) {
@@ -494,13 +502,9 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			}
 		}
 	}()
+
 	rtvs := m.Eval(xn)
-	for i, rtv := range rtvs {
-		res = res + rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
-	}
+	res = JSONValues(m, rtvs...)
 
 	// Log the telemetry
 	logTelemetry(
@@ -510,9 +514,11 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			Key:   "operation",
 			Value: attribute.StringValue("m_call"),
 		},
+		attribute.KeyValue{
+			Key:   "func",
+			Value: attribute.StringValue(msg.Func),
+		},
 	)
-
-	res += "\n\n" // use `\n\n` as separator to separate results for single tx with multi msgs
 
 	return res, nil
 	// TODO pay for gas? TODO see context?
@@ -750,13 +756,8 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 		}
 	}()
 	rtvs := m.Eval(xx)
-	res = ""
-	for i, rtv := range rtvs {
-		res += rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
-	}
+
+	res = JSONValues(m, rtvs...)
 	return res, nil
 }
 
@@ -834,20 +835,24 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 		if memFile == nil {
 			return "", fmt.Errorf("file %q is not available", filepath) // TODO: XSS protection
 		}
+
 		return memFile.Body, nil
-	} else {
-		memPkg := store.GetMemPackage(dirpath)
-		if memPkg == nil {
-			return "", fmt.Errorf("package %q is not available", dirpath) // TODO: XSS protection
-		}
-		for i, memfile := range memPkg.Files {
-			if i > 0 {
-				res += "\n"
-			}
-			res += memfile.Name
-		}
-		return res, nil
 	}
+
+	memPkg := store.GetMemPackage(dirpath)
+	if memPkg == nil {
+		return "", fmt.Errorf("package %q is not available", dirpath) // TODO: XSS protection
+	}
+
+	for i, memfile := range memPkg.Files {
+		if i > 0 {
+			res += "\n"
+		}
+		res += memfile.Name
+	}
+
+	return res, nil
+
 }
 
 // logTelemetry logs the VM processing telemetry

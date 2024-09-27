@@ -651,6 +651,9 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 
 		// Each message result's Data must be length prefixed in order to separate
 		// each result.
+		if i > 0 {
+			data = append(data, '\n')
+		}
 		data = append(data, msgResult.Data...)
 		events = append(events, msgResult.Events...)
 
