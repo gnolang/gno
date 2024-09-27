@@ -51,6 +51,8 @@ func TestStdlibs(t *testing.T) {
 	for _, pkgPath := range pkgPaths {
 		testDir := testDirs[pkgPath]
 		t.Run(pkgPath, func(t *testing.T) {
+			pkgPath := pkgPath
+			t.Parallel()
 			runPackageTest(t, testDir, pkgPath)
 		})
 	}
