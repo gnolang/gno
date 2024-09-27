@@ -3,20 +3,27 @@ package main
 import "fmt"
 
 type Role struct {
-	name        string
-	permissions []string
-	users       []string 
-	next        *Role 
-	prev        *Role 
+	Name        string
+	Permissions []string
+	Users       []string
+	Next        *Role
+	Prev        *Role
+	PermissionData *Permission
+}
+
+type Permission struct {
+ Name string
+ Resource string
 }
 
 func main() {
 	userRole := &Role{
-		name:        "user",
-		permissions: []string{},
-		users:       []string{},
-		next:        nil,
-		prev:        nil,
+		Name:        "user",
+		Permissions: []string{},
+		Users:       []string{},
+		Next:        nil,
+		Prev:        nil,
+		PermissionData: &Permission{"Hello", "Test"},
 	}
 
 	fmt.Printf("%v", userRole)

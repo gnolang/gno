@@ -834,7 +834,11 @@ func gno2GoType(t Type) reflect.Type {
 		et := gno2GoType(ct.Elem())
 		return reflect.SliceOf(et)
 	case *StructType:
+		if ct.seen {
+			return reflect.StructOf([]reflect.StructField{})
+		}
 		gfs := make([]reflect.StructField, len(ct.Fields))
+		ct.seen = true
 		for i, field := range ct.Fields {
 			gft := gno2GoType(field.Type)
 			fn := string(field.Name)
