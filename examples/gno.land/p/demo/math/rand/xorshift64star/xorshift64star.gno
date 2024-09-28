@@ -28,10 +28,10 @@ package xorshift64star
 
 import (
 	"errors"
-	"fmt"
 	"math"
 
 	"gno.land/p/demo/entropy"
+	"gno.land/p/demo/ufmt"
 )
 
 // Xorshift64Star is a PRNG that implements the Xorshift64* algorithm.
@@ -130,7 +130,7 @@ func benchmarkXorshift64Star(_iterations ...int) {
 	for i := 0; i < iterations; i++ {
 		_ = xs64s.Uint64()
 	}
-	fmt.Printf("Xorshift64*: generate %d uint64\n", iterations)
+	ufmt.Println(ufmt.Sprintf("Xorshift64*: generate %d uint64\n", iterations))
 }
 
 // The averageXorshift64Star() function is a simple benchmarking helper to demonstrate
@@ -140,10 +140,11 @@ func averageXorshift64Star(_iterations ...int) {
 	iterations := 1000000
 	var squares [1000000]uint64
 
-	fmt.Printf(
-		"Averaging %d random numbers. The average should be very close to %d.\n",
-		iterations,
-		target)
+	ufmt.Println(
+		ufmt.Sprintf(
+			"Averaging %d random numbers. The average should be very close to %d.\n",
+			iterations,
+			target))
 
 	if len(_iterations) > 0 {
 		iterations = _iterations[0]
@@ -165,7 +166,7 @@ func averageXorshift64Star(_iterations ...int) {
 		sum_of_squares += square
 	}
 
-	fmt.Printf("Xorshift64* average of %d uint64: %f\n", iterations, average)
-	fmt.Printf("Xorshift64* standard deviation  : %f\n", math.Sqrt(float64(sum_of_squares)/float64(iterations)))
-	fmt.Printf("Xorshift64* theoretical perfect deviation: %f\n", (float64(target*2)-1)/math.Sqrt(12))
+	ufmt.Println(ufmt.Sprintf("Xorshift64* average of %d uint64: %f\n", iterations, average))
+	ufmt.Println(ufmt.Sprintf("Xorshift64* standard deviation  : %f\n", math.Sqrt(float64(sum_of_squares)/float64(iterations))))
+	ufmt.Println(ufmt.Sprintf("Xorshift64* theoretical perfect deviation: %f\n", (float64(target*2)-1)/math.Sqrt(12)))
 }

@@ -28,10 +28,10 @@ package xorshiftr128plus
 
 import (
 	"errors"
-	"fmt"
 	"math"
 
 	"gno.land/p/demo/entropy"
+	"gno.land/p/demo/ufmt"
 )
 
 type Xorshiftr128Plus struct {
@@ -144,7 +144,7 @@ func benchmarkXorshiftr128Plus(_iterations ...int) {
 	for i := 0; i < iterations; i++ {
 		_ = xs128p.Uint64()
 	}
-	fmt.Printf("Xorshiftr128Plus: generate %d uint64\n", iterations)
+	ufmt.Println(ufmt.Sprintf("Xorshiftr128Plus: generate %d uint64\n", iterations))
 }
 
 // The averageXorshiftr128Plus() function is a simple benchmarking helper to demonstrate
@@ -154,10 +154,11 @@ func averageXorshiftr128Plus(_iterations ...int) {
 	iterations := 1000000
 	var squares [1000000]uint64
 
-	fmt.Printf(
-		"Averaging %d random numbers. The average should be very close to %d.\n",
-		iterations,
-		target)
+	ufmt.Println(
+		ufmt.Sprintf(
+			"Averaging %d random numbers. The average should be very close to %d.\n",
+			iterations,
+			target))
 
 	if len(_iterations) > 0 {
 		iterations = _iterations[0]
@@ -179,7 +180,7 @@ func averageXorshiftr128Plus(_iterations ...int) {
 		sum_of_squares += square
 	}
 
-	fmt.Printf("Xorshiftr128+ average of %d uint64: %f\n", iterations, average)
-	fmt.Printf("Xorshiftr128+ standard deviation  : %f\n", math.Sqrt(float64(sum_of_squares)/float64(iterations)))
-	fmt.Printf("Xorshiftr128+ theoretical perfect deviation: %f\n", (float64(target*2)-1)/math.Sqrt(12))
+	ufmt.Println(ufmt.Sprintf("Xorshiftr128+ average of %d uint64: %f\n", iterations, average))
+	ufmt.Println(ufmt.Sprintf("Xorshiftr128+ standard deviation  : %f\n", math.Sqrt(float64(sum_of_squares)/float64(iterations))))
+	ufmt.Println(ufmt.Sprintf("Xorshiftr128+ theoretical perfect deviation: %f\n", (float64(target*2)-1)/math.Sqrt(12)))
 }
