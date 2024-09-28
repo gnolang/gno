@@ -54,7 +54,7 @@ func Echo() string {return "hello world"}`,
 	err = env.vmk.AddPackage(ctx, msg1)
 
 	assert.Error(t, err)
-	assert.True(t, errors.Is(err, InvalidPkgPathError{}))
+	assert.True(t, errors.Is(err, PkgExistError{}))
 
 	// added package is formatted
 	store := env.vmk.getGnoTransactionStore(ctx)

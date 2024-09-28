@@ -204,7 +204,7 @@ func BenchmarkIfStatement(b *testing.B) {
 func main() {
 	for i:=0; i<10000; i++ {
 		if i > 10 {
-			
+
 		}
 	}
 }`
@@ -381,6 +381,7 @@ func BenchmarkPreprocess(b *testing.B) {
 			Inc("i"),
 		),
 	))
+	pn := NewPackageNode("hey", "gno.land/p/hey", nil)
 	copies := make([]*FuncDecl, b.N)
 	for i := 0; i < b.N; i++ {
 		copies[i] = main.Copy().(*FuncDecl)
@@ -388,6 +389,8 @@ func BenchmarkPreprocess(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
+		// initStaticBlocks is always performed before a Preprocess
+		initStaticBlocks(nil, pn, copies[i])
 		main = Preprocess(nil, pkg, copies[i]).(*FuncDecl)
 	}
 }

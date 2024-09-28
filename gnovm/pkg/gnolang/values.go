@@ -2143,13 +2143,18 @@ func (tv *TypedValue) GetLength() int {
 		switch bt := baseOf(tv.T).(type) {
 		case PrimitiveType:
 			if bt != StringType {
-				panic("should not happen")
+				panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 			}
 			return 0
 		case *ArrayType:
 			return bt.Len
 		case *SliceType:
 			return 0
+		case *PointerType:
+			if at, ok := bt.Elt.(*ArrayType); ok {
+				return at.Len
+			}
+			panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type for len(): %s",
@@ -2167,6 +2172,11 @@ func (tv *TypedValue) GetLength() int {
 		return cv.GetLength()
 	case *NativeValue:
 		return cv.Value.Len()
+	case PointerValue:
+		if av, ok := cv.TV.V.(*ArrayValue); ok {
+			return av.GetLength()
+		}
+		panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 	default:
 		panic(fmt.Sprintf("unexpected type for len(): %s",
 			tv.T.String()))
@@ -2175,27 +2185,34 @@ func (tv *TypedValue) GetLength() int {
 
 func (tv *TypedValue) GetCapacity() int {
 	if tv.V == nil {
-		if debug {
-			// assert acceptable type.
-			switch baseOf(tv.T).(type) {
-			// strings have no capacity.
-			case *ArrayType:
-			case *SliceType:
-			default:
-				panic("should not happen")
+		// assert acceptable type.
+		switch bt := baseOf(tv.T).(type) {
+		// strings have no capacity.
+		case *ArrayType:
+			return bt.Len
+		case *SliceType:
+			return 0
+		case *PointerType:
+			if at, ok := bt.Elt.(*ArrayType); ok {
+				return at.Len
 			}
+			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
+		default:
+			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
 		}
-		return 0
 	}
 	switch cv := tv.V.(type) {
-	case StringValue:
-		return len(string(cv))
 	case *ArrayValue:
 		return cv.GetCapacity()
 	case *SliceValue:
 		return cv.GetCapacity()
 	case *NativeValue:
 		return cv.Value.Cap()
+	case PointerValue:
+		if av, ok := cv.TV.V.(*ArrayValue); ok {
+			return av.GetCapacity()
+		}
+		panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
 	default:
 		panic(fmt.Sprintf("unexpected type for cap(): %s",
 			tv.T.String()))
@@ -2218,13 +2235,13 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			"invalid slice index %d > %d",
 			low, high))
 	}
-	if tv.GetCapacity() < high {
-		panic(fmt.Sprintf(
-			"slice bounds out of range [%d:%d] with capacity %d",
-			low, high, tv.GetCapacity()))
-	}
 	switch t := baseOf(tv.T).(type) {
 	case PrimitiveType:
+		if tv.GetLength() < high {
+			panic(fmt.Sprintf(
+				"slice bounds out of range [%d:%d] with string length %d",
+				low, high, tv.GetLength()))
+		}
 		if t == StringType || t == UntypedStringType {
 			return TypedValue{
 				T: tv.T,
@@ -2233,6 +2250,11 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 		}
 		panic("non-string primitive type cannot be sliced")
 	case *ArrayType:
+		if tv.GetLength() < high {
+			panic(fmt.Sprintf(
+				"slice bounds out of range [%d:%d] with array length %d",
+				low, high, tv.GetLength()))
+		}
 		av := tv.V.(*ArrayValue)
 		st := alloc.NewType(&SliceType{
 			Elt: t.Elt,
@@ -2248,6 +2270,11 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			),
 		}
 	case *SliceType:
+		if tv.GetCapacity() < high {
+			panic(fmt.Sprintf(
+				"slice bounds out of range [%d:%d] with capacity %d",
+				low, high, tv.GetCapacity()))
+		}
 		if tv.V == nil {
 			if low != 0 || high != 0 {
 				panic("nil slice index out of range")
