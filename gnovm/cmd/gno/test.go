@@ -290,7 +290,7 @@ func gnoTestPkg(
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
-				maxAllocTx := int64(500 * 1000 * 1000)
+				maxAllocTx := int64(50 * 1000 * 1000)
 
 				m.Alloc = gno.NewAllocator(maxAllocTx, 10000, gno.NewHeap())
 			}
