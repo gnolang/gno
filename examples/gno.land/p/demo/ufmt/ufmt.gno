@@ -22,6 +22,8 @@ func Println(args ...interface{}) {
 			strs = append(strs, v.String())
 		case error:
 			strs = append(strs, v.Error())
+		case float64:
+			strs = append(strs, Sprintf("%f", v))
 		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 			strs = append(strs, Sprintf("%d", v))
 		case bool:
@@ -153,6 +155,13 @@ func Sprintf(format string, args ...interface{}) string {
 			default:
 				buf += fallback(verb, v)
 			}
+		case "f":
+			switch v := arg.(type) {
+			case float64:
+				buf += strconv.FormatFloat(v, byte('f'), -1, 64)
+			default:
+				buf += fallback(verb, v)
+			}
 		case "t":
 			switch v := arg.(type) {
 			case bool:
@@ -244,6 +253,8 @@ func fallback(verb string, arg interface{}) string {
 	case error:
 		// note: also "string=" in Go fmt
 		s = "string=" + v.Error()
+	case float64:
+		s = "float64=" + Sprintf("%f", v)
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		// note: rune, byte would be dups, being aliases
 		if typename, e := typeToString(v); e != nil {
