@@ -24,9 +24,9 @@
 //		---------
 //		PCG:         1000000 Uint64 generated in 15.58s
 //		ISAAC:       1000000 Uint64 generated in 8.95s
-//	     ISAAC:       1000000 Uint32 generated in 7.66s
+//	        ISAAC:       1000000 Uint32 generated in 7.66s
 //		Ratio:       x1.74 times faster than PCG (uint64)
-//	     Ratio:       x2.03 times faster than PCG (uint32)
+//	        Ratio:       x2.03 times faster than PCG (uint32)
 //
 // Use it directly:
 //
@@ -41,11 +41,11 @@ package isaac64
 
 import (
 	"errors"
-	"fmt"
 	"math"
 
 	"gno.land/p/demo/entropy"
 	"gno.land/p/demo/math/rand/xorshiftr128plus"
+	"gno.land/p/demo/ufmt"
 )
 
 const (
@@ -387,7 +387,7 @@ func benchmarkISAAC(_iterations ...int) {
 	for i := 0; i < iterations; i++ {
 		_ = isaac.Uint64()
 	}
-	fmt.Printf("ISAAC: generated %d uint64\n", iterations)
+	ufmt.Println(ufmt.Sprintf("ISAAC: generated %d uint64\n", iterations))
 }
 
 // The averageISAAC() function is a simple benchmarking helper to demonstrate
@@ -396,10 +396,11 @@ func averageISAAC(_iterations ...int) {
 	target := uint64(500000)
 	iterations := 1000000
 
-	fmt.Printf(
-		"Averaging %d random numbers. The average should be very close to %d.\n",
-		iterations,
-		target)
+	ufmt.Println(
+		ufmt.Sprintf(
+			"Averaging %d random numbers. The average should be very close to %d.\n",
+			iterations,
+			target))
 
 	if len(_iterations) > 0 {
 		iterations = _iterations[0]
@@ -422,7 +423,7 @@ func averageISAAC(_iterations ...int) {
 		sum_of_squares += square
 	}
 
-	fmt.Printf("ISAAC average of %d uint64: %f\n", iterations, average)
-	fmt.Printf("ISAAC standard deviation  : %f\n", math.Sqrt(float64(sum_of_squares)/float64(iterations)))
-	fmt.Printf("ISAAC theoretical perfect deviation: %f\n", (float64(target*2)-1)/math.Sqrt(12))
+	ufmt.Println(ufmt.Sprintf("ISAAC average of %d uint64: %f\n", iterations, average))
+	ufmt.Println(ufmt.Sprintf("ISAAC standard deviation  : %f\n", math.Sqrt(float64(sum_of_squares)/float64(iterations))))
+	ufmt.Println(ufmt.Sprintf("ISAAC theoretical perfect deviation: %f\n", (float64(target*2)-1)/math.Sqrt(12)))
 }

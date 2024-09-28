@@ -86,6 +86,21 @@ builds:
     goarm:
       - 6
       - 7
+  - id: gnobro
+    dir: ./contribs/gnodev/cmd/gnobro
+    binary: gnobro
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 6
+      - 7
 
 gomod:
   proxy: true
@@ -489,6 +504,74 @@ dockers:
     ids:
       - gnofaucet
 
+  # gnobro
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: amd64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Version }}-amd64"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Env.TAG_VERSION }}-amd64"
+    build_flag_templates:
+      - "--target=gnobro"
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnobro"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnobro
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: arm64
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Version }}-arm64v8"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Env.TAG_VERSION }}-arm64v8"
+    build_flag_templates:
+      - "--target=gnobro"
+      - "--platform=linux/arm64/v8"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnobro"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnobro
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: arm
+    goarm: 6
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Version }}-armv6"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Env.TAG_VERSION }}-armv6"
+    build_flag_templates:
+      - "--target=gnobro"
+      - "--platform=linux/arm/v6"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnobro"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnobro
+  - use: buildx
+    dockerfile: Dockerfile.release
+    goos: linux
+    goarch: arm
+    goarm: 7
+    image_templates:
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Version }}-armv7"
+      - "ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Env.TAG_VERSION }}-armv7"
+    build_flag_templates:
+      - "--target=gnobro"
+      - "--platform=linux/arm/v7"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title={{.ProjectName}}/gnobro"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+    ids:
+      - gnobro
+
 docker_manifests:
   # https://goreleaser.com/customization/docker_manifest/
 
@@ -561,6 +644,20 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}/gnofaucet:{{ .Env.TAG_VERSION }}-armv7
+
+  # gnobro
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Version }}
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Version }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Version }}-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Version }}-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Version }}-armv7
+  - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Env.TAG_VERSION }}
+    image_templates:
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Env.TAG_VERSION }}-amd64
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Env.TAG_VERSION }}-arm64v8
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Env.TAG_VERSION }}-armv6
+      - ghcr.io/gnolang/{{ .ProjectName }}/gnobro:{{ .Env.TAG_VERSION }}-armv7
 
 docker_signs:
   - cmd: cosign
