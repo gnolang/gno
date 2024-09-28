@@ -17,9 +17,6 @@ const createQuoteNode = (quote) => {
 
 function parseContent(source, isCode) {
   if (isCode) {
-    // replace &amp; with & in code blocks
-    source = source.replace(/&amp;/g, "&");
-
     const highlightedCode = hljs.highlightAuto(source).value;
 
     // Split the highlighted code into lines
