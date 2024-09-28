@@ -27,7 +27,7 @@ function parseContent(source, isCode) {
 
     // Add line numbers to each line
     const numberedLines = lines.map((line, index) => {
-      return `<asp class="number">${index + 1}</asp> ${line}`;
+      return `<span class="not-selectable">${index + 1} </span>${line}`;
     });
 
     // Join the lines back into a single string
