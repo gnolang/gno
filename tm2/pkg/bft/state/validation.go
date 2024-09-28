@@ -63,7 +63,7 @@ func validateBlock(stateDB dbm.DB, state State, block *types.Block) error {
 
 	// Validate app info
 	if !bytes.Equal(block.AppHash, state.AppHash) {
-		return fmt.Errorf("wrong Block.Header.AppHash.  Expected %X, got %v",
+		return fmt.Errorf("wrong Block.Header.AppHash.  Expected %X, got %X",
 			state.AppHash,
 			block.AppHash,
 		)

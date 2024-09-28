@@ -8,102 +8,106 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-// VersionInfo is used to negotiate between clients.
+// VersionInfo represents a specific version of a component.
 type VersionInfo struct {
-	Name     string // abci, p2p, app, block, etc.
-	Version  string // semver.
-	Optional bool   // default required.
+	Name     string
+	Version  string
+	Optional bool
 }
 
+// VersionSet is a collection of VersionInfo.
 type VersionSet []VersionInfo
 
-func (pvs VersionSet) Sort() {
-	sort.Slice(pvs, func(i, j int) bool {
-		if pvs[i].Name < pvs[j].Name {
-			return true
-		} else if pvs[i].Name == pvs[j].Name {
-			panic("should not happen")
-		} else {
-			return false
-		}
+// Sort arranges the VersionSet in ascending order by Name.
+func (vs VersionSet) Sort() {
+	sort.Slice(vs, func(i, j int) bool {
+		return vs[i].Name < vs[j].Name
 	})
 }
 
-func (pvs *VersionSet) Set(pv VersionInfo) {
-	for i, pv2 := range *pvs {
-		if pv2.Name == pv.Name {
-			(*pvs)[i] = pv
+// Set updates or adds a VersionInfo to the VersionSet.
+func (vs *VersionSet) Set(v VersionInfo) {
+	for i, existing := range *vs {
+		if existing.Name == v.Name {
+			(*vs)[i] = v
 			return
 		}
 	}
-	*pvs = append(*pvs, pv)
-	pvs.Sort()
-	return
+	*vs = append(*vs, v)
+	vs.Sort()
 }
 
-func (pvs VersionSet) Get(name string) (pv VersionInfo, ok bool) {
-	for _, pv := range pvs {
-		if pv.Name == name {
-			return pv, true
+// Get retrieves a VersionInfo by name.
+func (vs VersionSet) Get(name string) (VersionInfo, bool) {
+	for _, v := range vs {
+		if v.Name == name {
+			return v, true
 		}
 	}
-	ok = false
-	return
+	return VersionInfo{}, false
 }
 
-// Returns an error if not compatible.
-// Otherwise, returns the set of compatible interfaces.
-// Only the Major and Minor versions are returned; Patch, Prerelease, and Build
-// portions of Semver2.0 are discarded in the resulting intersection
-// VersionSet.
-// TODO: test
-func (pvs VersionSet) CompatibleWith(other VersionSet) (res VersionSet, err error) {
-	var errs []string
-	type pvpair [2]*VersionInfo
-	name2Pair := map[string]*pvpair{}
-	for _, pv := range pvs {
-		pv := pv
-		name2Pair[pv.Name] = &pvpair{&pv, nil}
+// CompatibleWith checks compatibility between two VersionSets.
+func (vs VersionSet) CompatibleWith(other VersionSet) (VersionSet, error) {
+	result := make(VersionSet, 0)
+	incompatibilities := make([]string, 0)
+
+	vMap := make(map[string]VersionInfo)
+	for _, v := range vs {
+		vMap[v.Name] = v
 	}
-	for _, pv := range other {
-		pv := pv
-		item, ok := name2Pair[pv.Name]
-		if ok {
-			item[1] = &pv
+
+	for _, otherV := range other {
+		v, exists := vMap[otherV.Name]
+		if !exists {
+			if !otherV.Optional {
+				incompatibilities = append(incompatibilities, fmt.Sprintf("Missing required version: %s", otherV.Name))
+			}
+			continue
+		}
+
+		compatible, resultV := compareVersions(v, otherV)
+		if compatible {
+			result = append(result, resultV)
 		} else {
-			name2Pair[pv.Name] = &pvpair{nil, &pv}
+			incompatibilities = append(incompatibilities, fmt.Sprintf("Incompatible versions for %s: %s vs %s", v.Name, v.Version, otherV.Version))
+		}
+
+		delete(vMap, otherV.Name)
+	}
+
+	for _, v := range vMap {
+		if !v.Optional {
+			incompatibilities = append(incompatibilities, fmt.Sprintf("Missing required version: %s", v.Name))
 		}
 	}
-	for _, pair := range name2Pair {
-		pv1, pv2 := pair[0], pair[1]
-		if pv1 == nil {
-			if pv2.Optional {
-				// fine
-			} else {
-				errs = append(errs, fmt.Sprintf("Other VersionSet requires %v", pv2))
-			}
-		} else if pv2 == nil {
-			if pv1.Optional {
-				// fine
-			} else {
-				errs = append(errs, fmt.Sprintf("Our VersionSet requires %v", pv1))
-			}
-		} else {
-			pv1mm := semver.MajorMinor(pv1.Version)
-			pv2mm := semver.MajorMinor(pv2.Version)
-			if semver.Major(pv1mm) == semver.Major(pv2mm) {
-				if semver.Compare(semver.Major(pv1mm), semver.Major(pv2mm)) > 0 {
-					res = append(res, VersionInfo{Name: pv1.Name, Version: pv2mm, Optional: pv1.Optional && pv2.Optional})
-				} else {
-					res = append(res, VersionInfo{Name: pv1.Name, Version: pv1mm, Optional: pv1.Optional && pv2.Optional})
-				}
-			} else {
-				errs = append(errs, fmt.Sprintf("VersionInfos not compatible: %v vs %v", pv1, pv2))
-			}
-		}
+
+	if len(incompatibilities) > 0 {
+		return nil, fmt.Errorf("incompatibilities found:\n%s", strings.Join(incompatibilities, "\n"))
 	}
-	if errs != nil {
-		return res, fmt.Errorf("VersionSet not compatible...\n%s", strings.Join(errs, "\n"))
+
+	return result, nil
+}
+
+// compareVersions checks compatibility between two VersionInfos.
+func compareVersions(v1, v2 VersionInfo) (bool, VersionInfo) {
+	v1MM := semver.MajorMinor(v1.Version)
+	v2MM := semver.MajorMinor(v2.Version)
+
+	if semver.Major(v1MM) != semver.Major(v2MM) {
+		return false, VersionInfo{}
 	}
-	return res, nil
+
+	resultV := VersionInfo{
+		Name:     v1.Name,
+		Optional: v1.Optional && v2.Optional,
+	}
+
+	if semver.Compare(v1MM, v2MM) > 0 {
+		resultV.Version = v2.Version
+	} else {
+		resultV.Version = v1.Version
+	}
+
+	return true, resultV
 }
