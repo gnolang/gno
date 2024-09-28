@@ -36,55 +36,6 @@ function parseContent(source, isCode) {
     const parser = new DOMParser();
     const doc = parser.parseFromString(numberedCode, "text/html");
 
-    // get all span nodes of class hljs-keyword and a value of 'import'
-    const nodes = doc.querySelectorAll("span.hljs-keyword");
-    for (const node of nodes) {
-      if (node.textContent === "import") {
-        let nextNode = node.nextSibling;
-        while (true) {
-          if (nextNode) {
-            if (nextNode.textContent.includes(")")) {
-              break;
-            } else if (nextNode.textContent.includes("/p") || nextNode.textContent.includes("/r")) {
-              const nextSibling = nextNode.nextSibling;
-              const cleanPath = nextNode.textContent.replace(/(https?:\/\/)?gno\.land\/p\//, "/p/").replace(/^"|"$/g, '');
-              // Extract the text content
-              const textContent = nextNode.textContent;
-
-              // Split the text content into parts
-              const openingQuote = textContent.charAt(0);
-              const mainContent = textContent.slice(1, -1);
-              const closingQuote = textContent.charAt(textContent.length - 1);
-
-              // Create text nodes for the quotes
-              const openingQuoteNode = createQuoteNode(openingQuote);
-              const closingQuoteNode = createQuoteNode(closingQuote);
-
-              // Create a span for the main content and add the hljs-link class
-              const mainContentNode = document.createElement("a");
-              mainContentNode.className = "hljs-link";
-              mainContentNode.textContent = mainContent;
-              mainContentNode.href = cleanPath;
-
-              // Create a document fragment to hold the new nodes
-              const fragment = document.createElement("span");
-              fragment.appendChild(openingQuoteNode);
-              fragment.appendChild(mainContentNode);
-              fragment.appendChild(closingQuoteNode);
-
-              // Replace the original node with the new nodes
-              nextNode.replaceWith(fragment);
-              nextNode = nextSibling;
-              continue;
-            }
-          } else {
-            break;
-          }
-          nextNode = nextNode.nextSibling;
-        }
-      }
-    }
-
     const codeElement = document.createElement("code");
     codeElement.classList.add("hljs");
     codeElement.innerHTML = doc.body.innerHTML;
