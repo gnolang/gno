@@ -33,6 +33,7 @@ func TestSprintf(t *testing.T) {
 		{"uint16 [%d]", []interface{}{uint16(16)}, "uint16 [16]"},
 		{"uint32 [%d]", []interface{}{uint32(32)}, "uint32 [32]"},
 		{"uint64 [%d]", []interface{}{uint64(64)}, "uint64 [64]"},
+		{"float64 [%f]", []interface{}{float64(64.0)}, "float64 [64.0]"},
 		{"bool [%t]", []interface{}{true}, "bool [true]"},
 		{"bool [%t]", []interface{}{false}, "bool [false]"},
 		{"no args", nil, "no args"},
