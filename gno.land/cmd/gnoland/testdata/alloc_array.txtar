@@ -11,6 +11,6 @@ package alloc
 var buffer interface{}
 
 func DoAlloc() {
-	var arr [1_000_000_000_000_000]byte
+	var arr [1_000_000_000_000]byte
 	buffer = arr
 }
