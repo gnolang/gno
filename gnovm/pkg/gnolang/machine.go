@@ -146,7 +146,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	alloc := opts.Alloc
 	if alloc == nil {
-		alloc = NewAllocator(opts.MaxAllocBytes, 10000, NewHeap())
+		alloc = NewAllocator(opts.MaxAllocBytes, NewHeap())
 	}
 	store := opts.Store
 	if store == nil {

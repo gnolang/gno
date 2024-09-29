@@ -162,7 +162,7 @@ func foo(b int) *Foo {
 `
 	n := MustParseFile("main.go", c)
 	m.RunFiles(n)
-	m.Alloc = NewAllocator(22000, 3000, NewHeap())
+	m.Alloc = NewAllocator(22000, NewHeap())
 	m.RunMain()
 }
 
