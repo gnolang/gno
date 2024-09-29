@@ -67,6 +67,74 @@ func TestMarkAndSweep(t *testing.T) {
 	}
 }
 
+func TestAddRef(t *testing.T) {
+	h := NewHeap()
+
+	t.Run("StructValue", func(t *testing.T) {
+		root := NewObject(TypedValue{T: nil, V: &StructValue{
+			Fields: []TypedValue{
+				{T: nil, V: StringValue("field1")},
+				{T: nil, V: StringValue("field2")},
+			},
+		}})
+		child := NewObject(newTestTypedValue())
+		visited := make(map[*GcObj]bool)
+		h.AddRef(root, child, visited)
+
+		if len(root.refs) != 1 {
+			t.Errorf("Expected 1 ref for StructValue, got %d", len(root.refs))
+		}
+		if root.refs[0] != child {
+			t.Errorf("Expected child to be added as a reference")
+		}
+	})
+
+	t.Run("SliceValue", func(t *testing.T) {
+		root := NewObject(TypedValue{T: nil, V: &SliceValue{
+			Base: &ArrayValue{
+				List: []TypedValue{
+					{T: nil, V: StringValue("test1")},
+					{T: nil, V: StringValue("test2")},
+				},
+			},
+		}})
+		visited := make(map[*GcObj]bool)
+		h.AddRef(root, root, visited)
+
+		if len(root.refs) != 1 {
+			t.Errorf("Expected 1 ref for SliceValue, got %d", len(root.refs))
+		}
+		if root.refs[0] != root {
+			t.Errorf("Expected root to be added as a self-reference")
+		}
+	})
+
+	t.Run("StringValue", func(t *testing.T) {
+		root := NewObject(newTestTypedValue())
+		stringObj := NewObject(TypedValue{T: nil, V: StringValue("test")})
+		visited := make(map[*GcObj]bool)
+		h.AddRef(root, stringObj, visited)
+
+		if len(root.refs) != 1 {
+			t.Errorf("Expected 1 ref for StringValue, got %d", len(root.refs))
+		}
+		if root.refs[0] != stringObj {
+			t.Errorf("Expected stringObj to be added as a reference")
+		}
+	})
+
+	t.Run("Default case (panic)", func(t *testing.T) {
+		root := NewObject(TypedValue{T: nil, V: BigintValue{}})
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("Expected panic for unhandled type, but no panic occurred")
+			}
+		}()
+		visited := make(map[*GcObj]bool)
+		h.AddRef(root, root, visited)
+	})
+}
+
 func TestCircularReference(t *testing.T) {
 	h := NewHeap()
 
