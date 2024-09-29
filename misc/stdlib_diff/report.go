@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"os"
+	"slices"
 )
 
 var (
@@ -133,7 +134,7 @@ func (builder *ReportBuilder) listSrcDirectories() ([]string, error) {
 
 	directories := make([]string, 0)
 	for _, dirEntry := range dirEntries {
-		if dirEntry.IsDir() {
+		if dirEntry.IsDir() && !slices.Contains([]string{"cmd", "vendor"}, dirEntry.Name()) {
 			directories = append(directories, dirEntry.Name())
 		}
 	}

@@ -1,8 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"errors"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -155,26 +157,28 @@ func (p *PackageDiffChecker) hasSameNumberOfFiles() bool {
 
 // listDirFiles returns a list of file names in the specified directory.
 func listDirFiles(dirPath string) ([]string, error) {
-	f, err := os.Open(dirPath)
-	if err != nil {
-		return []string{}, nil
-	}
-
-	defer func() {
-		if err := f.Close(); err != nil {
-			fmt.Fprintln(os.Stderr, "can't close "+dirPath)
-		}
-	}()
-
-	filesInfo, err := f.Readdir(0)
-	if err != nil {
-		return nil, fmt.Errorf("can't list file in directory :%w", err)
-	}
-
 	fileNames := make([]string, 0)
-	for _, info := range filesInfo {
-		fileNames = append(fileNames, info.Name())
-	}
+	err := filepath.WalkDir(dirPath, func(path string, dirEntry fs.DirEntry, err error) error {
+		if err != nil {
+			// Avoid returning an error if the file does not exists on source or destination.
+			if errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
+			return err
+		}
 
-	return fileNames, nil
+		// Only list .go and .gno files
+		if !strings.Contains(path, ".go") && !strings.Contains(path, ".gno") {
+			return nil
+		}
+
+		if dirEntry != nil && !dirEntry.IsDir() {
+			filenameWithSubfolder := strings.TrimPrefix(path, dirPath+"/")
+			fileNames = append(fileNames, filenameWithSubfolder)
+		}
+
+		return nil
+	})
+
+	return fileNames, err
 }

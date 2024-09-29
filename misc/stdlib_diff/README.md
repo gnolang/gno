@@ -7,13 +7,13 @@ Stdlibs_diff is a tool that generates an html report indicating differences betw
 Compare the `go` standard libraries the `gno` standard libraries
 
 ```shell
-./stdlibs_diff --src <path to go standard libraries> --dst <path to gno standard libraries> --out <output directory>
+./stdlibs_diff -src <path to go standard libraries> -dst <path to gno standard libraries> -out <output directory>
 ```
 
 Compare the `gno` standard libraries the `go` standard libraries
 
 ```shell
-./stdlibs_diff --src <path to gno standard libraries> --dst <path to go standard libraries> --out <output directory> --src_is_gno
+./stdlibs_diff -src <path to gno standard libraries> -dst <path to go standard libraries> -out <output directory> -src_is_gno
 ```
 
 
