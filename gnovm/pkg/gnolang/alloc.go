@@ -118,7 +118,7 @@ func (alloc *Allocator) Allocate(size int64) {
 			alloc.DeallocDeleted(deleted)
 
 			ca := canAllocate(size)
-			if (alloc.detonate || ca) && alloc.bytes > alloc.maxBytes {
+			if (alloc.detonate || !ca) && alloc.bytes > alloc.maxBytes {
 				panic("allocation limit exceeded")
 			}
 			alloc.detonate = alloc.bytes > alloc.maxBytes
