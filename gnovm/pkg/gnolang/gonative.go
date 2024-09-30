@@ -840,7 +840,6 @@ func gno2GoType(t Type, seen map[Type]reflect.Type) reflect.Type {
 
 		placeholder := reflect.TypeOf(struct{}{})
 		seen[t] = placeholder
-
 		gfs := make([]reflect.StructField, len(ct.Fields))
 		for i, field := range ct.Fields {
 			gft := gno2GoType(field.Type, seen)
