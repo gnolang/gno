@@ -86,6 +86,21 @@ builds:
     goarm:
       - 6
       - 7
+  - id: gnobro
+    dir: ./contribs/gnodev/cmd/gnobro
+    binary: gnobro
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 6
+      - 7
 
 gomod:
   proxy: true
@@ -602,8 +617,8 @@ release:
     https://github.com/orgs/gnolang/packages?repo_name={{ .ProjectName }}
 
 # Only valid for nightly build
-nightly:
-  tag_name: nightly
-  publish_release: true
-  keep_single_release: true
-  name_template: "{{ incpatch .Version }}-{{ .ShortCommit }}-{{ .Env.TAG_VERSION }}"
+# nightly:
+#   tag_name: nightly
+#   publish_release: true
+#   keep_single_release: true
+#   name_template: "{{ incpatch .Version }}-{{ .ShortCommit }}-{{ .Env.TAG_VERSION }}"

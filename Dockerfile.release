@@ -44,6 +44,14 @@ EXPOSE     5050
 ENTRYPOINT [ "/usr/bin/gnofaucet" ]
 
 #
+## ghcr.io/gnolang/gno/gnobro
+FROM base as gnobro
+
+COPY       ./gnobro /usr/bin/gnobro
+EXPOSE     22
+ENTRYPOINT [ "/usr/bin/gnobro" ]
+
+#
 ## ghcr.io/gnolang/gno
 FROM base as gno
 
