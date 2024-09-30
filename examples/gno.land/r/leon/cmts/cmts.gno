@@ -28,10 +28,14 @@ func NewCommentSet() *CommentSet {
 	}
 }
 
-// NewCommentSetWithOwnable can be used to set the same ownable to multiple items
+// NewCommentSetWithOwnable can be used to set the same ownable to make multiple sets
 func NewCommentSetWithOwnable(o *ownable.Ownable) *CommentSet {
 	return &CommentSet{
 		owner: o,
 		set:   avl.NewTree(),
 	}
+}
+
+func (cs *CommentSet) AddComment() {
+
 }
