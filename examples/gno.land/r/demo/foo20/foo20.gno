@@ -10,49 +10,50 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	pusers "gno.land/p/demo/users"
+	"gno.land/r/demo/grc20reg"
 	"gno.land/r/demo/users"
 )
 
 var (
-	banker *grc20.Banker
-	admin  *ownable.Ownable
-	token  grc20.Token
+	Bank, adm  = grc20.NewBank("Foo", "FOO", 4)
+	UserBanker = grc20.PrevRealmBanker(Bank)
+	owner      = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
 )
 
 func init() {
-	admin = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
-	banker = grc20.NewBanker("Foo", "FOO", 4)
-	banker.Mint(admin.Owner(), 1000000*10000) // @administrator (1M)
-	token = banker.Token()
+	adm.Mint(owner.Owner(), 1_000_000*10_000) // @administrator (1M)
+	grc20reg.Register(Bank, "")
 }
 
-func TotalSupply() uint64 { return token.TotalSupply() }
+func TotalSupply() uint64 {
+	return UserBanker.TotalSupply()
+}
 
 func BalanceOf(owner pusers.AddressOrName) uint64 {
 	ownerAddr := users.Resolve(owner)
-	return token.BalanceOf(ownerAddr)
+	return UserBanker.BalanceOf(ownerAddr)
 }
 
 func Allowance(owner, spender pusers.AddressOrName) uint64 {
 	ownerAddr := users.Resolve(owner)
 	spenderAddr := users.Resolve(spender)
-	return token.Allowance(ownerAddr, spenderAddr)
+	return UserBanker.Allowance(ownerAddr, spenderAddr)
 }
 
 func Transfer(to pusers.AddressOrName, amount uint64) {
 	toAddr := users.Resolve(to)
-	checkErr(token.Transfer(toAddr, amount))
+	checkErr(UserBanker.Transfer(toAddr, amount))
 }
 
 func Approve(spender pusers.AddressOrName, amount uint64) {
 	spenderAddr := users.Resolve(spender)
-	checkErr(token.Approve(spenderAddr, amount))
+	checkErr(UserBanker.Approve(spenderAddr, amount))
 }
 
 func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
 	fromAddr := users.Resolve(from)
 	toAddr := users.Resolve(to)
-	checkErr(token.TransferFrom(fromAddr, toAddr, amount))
+	checkErr(UserBanker.TransferFrom(fromAddr, toAddr, amount))
 }
 
 // Faucet is distributing foo20 tokens without restriction (unsafe).
@@ -60,19 +61,19 @@ func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
 func Faucet() {
 	caller := std.PrevRealm().Addr()
 	amount := uint64(1_000 * 10_000) // 1k
-	checkErr(banker.Mint(caller, amount))
+	checkErr(adm.Mint(caller, amount))
 }
 
 func Mint(to pusers.AddressOrName, amount uint64) {
-	admin.AssertCallerIsOwner()
+	owner.AssertCallerIsOwner()
 	toAddr := users.Resolve(to)
-	checkErr(banker.Mint(toAddr, amount))
+	checkErr(adm.Mint(toAddr, amount))
 }
 
 func Burn(from pusers.AddressOrName, amount uint64) {
-	admin.AssertCallerIsOwner()
+	owner.AssertCallerIsOwner()
 	fromAddr := users.Resolve(from)
-	checkErr(banker.Burn(fromAddr, amount))
+	checkErr(adm.Burn(fromAddr, amount))
 }
 
 func Render(path string) string {
@@ -81,11 +82,11 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return banker.RenderHome()
+		return Bank.RenderHome()
 	case c == 2 && parts[0] == "balance":
 		owner := pusers.AddressOrName(parts[1])
 		ownerAddr := users.Resolve(owner)
-		balance := banker.BalanceOf(ownerAddr)
+		balance := UserBanker.BalanceOf(ownerAddr)
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"

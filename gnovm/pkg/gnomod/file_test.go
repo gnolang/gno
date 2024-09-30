@@ -16,6 +16,7 @@ import (
 
 const testRemote string = "test3.gno.land:26657"
 
+// XXX this test fails when the network is offline.
 func TestFetchDeps(t *testing.T) {
 	for _, tc := range []struct {
 		desc                 string

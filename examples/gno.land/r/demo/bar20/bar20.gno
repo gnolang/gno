@@ -9,21 +9,21 @@ import (
 
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/grc20reg"
 )
 
 var (
-	banker *grc20.Banker // private banker.
-	Token  grc20.Token   // public safe-object.
+	Bank, adm  = grc20.NewBank("Bar", "BAR", 4)
+	UserBanker = grc20.PrevRealmBanker(Bank)
 )
 
 func init() {
-	banker = grc20.NewBanker("Bar", "BAR", 4)
-	Token = banker.Token()
+	grc20reg.Register(Bank, "")
 }
 
 func Faucet() string {
 	caller := std.PrevRealm().Addr()
-	if err := banker.Mint(caller, 1_000_000); err != nil {
+	if err := adm.Mint(caller, 1_000_000); err != nil {
 		return "error: " + err.Error()
 	}
 	return "OK"
@@ -35,10 +35,10 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return banker.RenderHome() // XXX: should be Token.RenderHome()
+		return Bank.RenderHome() // XXX: should be Token.RenderHome()
 	case c == 2 && parts[0] == "balance":
 		owner := std.Address(parts[1])
-		balance := Token.BalanceOf(owner)
+		balance := Bank.BalanceOf(owner)
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"
