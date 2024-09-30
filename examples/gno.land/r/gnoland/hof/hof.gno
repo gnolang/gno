@@ -6,20 +6,21 @@ package hof
 import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
 	"std"
+	"strings"
 	"time"
 )
 
 var (
 	exhibCounter seqid.ID
 	permanent    *Exhibition
+	temporary    *avl.Tree // id > *Exhibition
 )
 
 type (
 	Exhibition struct {
-		id          seqid.ID // fixed
-		itemCounter seqid.ID //
+		id          seqid.ID // fixed per exhibition
+		itemCounter seqid.ID
 		title       string
 		description string
 		startTime   *time.Time // given in RFC3339
@@ -43,8 +44,11 @@ func init() {
 		title: "Permanent Exhibition",
 		items: avl.NewTree(),
 	}
+
+	temporary = avl.NewTree()
 }
 
+// Register registers your realm to the permanent exhibition
 func Register() {
 	submission := std.PrevRealm()
 	pkgpath := submission.PkgPath()
@@ -67,73 +71,56 @@ func Register() {
 		})
 }
 
-func RegisterFor(exhibID string) {
-	submission := std.PrevRealm()
-	pkgpath := submission.PkgPath()
+// CreateTemporaryExhibition creates a temporary exhibition to be displayed while it's active
+func CreateTemporaryExhibition(title, description string, start, end *time.Time) error {
+	// todo add admin checks
 
-	// must not exist and must be called from code
-	if permanent.items.Has(pkgpath) || submission.IsUser() {
-		panic("item exists or not code call")
+	if strings.TrimSpace(title) == "" {
+		return ErrInvalidTitle
 	}
 
-	id := permanent.itemCounter.Next()
-	permanent.items.Set(
-		id.String(),
-		&Item{
-			id:       id,
-			pkgpath:  pkgpath,
-			deployer: std.GetOrigCaller(),
-			blockNum: std.GetHeight(),
-			upvote:   avl.NewTree(),
-			downvote: avl.NewTree(),
-		})
+	id := exhibCounter.Next()
+	e := &Exhibition{
+		id:          id,
+		title:       title,
+		description: description,
+		items:       avl.NewTree(),
+		startTime:   start,
+		endTime:     end,
+	}
+
+	temporary.Set(id.String(), e)
+
+	return nil
 }
 
-func Render(_ string) string {
-	out := "# Hall of Fame\n\n"
-
-	out += permanent.Render()
-
-	// todo render temp exhibitions
-
-	return out
-}
-
-func (e Exhibition) Render() string {
-	//out := ufmt.Sprintf("## %s\n\n", e.title)
-	//out += ufmt.Sprintf("%s\n\n", e.description)
-
-	out := "<div class='columns-2'>\n\n"
-
-	e.items.ReverseIterate("", "", func(key string, value interface{}) bool {
-		out += "<div>\n\n"
-		id, _ := seqid.FromString(key)
-		out += ufmt.Sprintf("### Submission #%d\n\n", int(id))
-		out += value.(*Item).Render()
-		out += "</div>"
-
-		return false
-	})
-
-	out += "</div><!-- /columns-2 -->\n\n"
-
-	return out
-}
-
-func (i Item) Render() string {
-	//subpath := i.pkgpath[strings.Index(i.pkgpath, "/"):]
-
-	out := ufmt.Sprintf("\n```\n%s\n```\n\n", i.pkgpath)
-	out += ufmt.Sprintf("by %s\n\n", i.deployer.String())
-	out += ufmt.Sprintf("Published at Block #%d\n\n", i.blockNum)
-	out += ufmt.Sprintf(`
-#### [%d 👍](/r/gnoland/hof?help&__func=Upvote&exhibitionID=0&itemID=%s) - [%d 👎](/r/gnoland/hof?help&__func=Downvote&exhibitionID=0&itemID=%s)`, i.upvote.Size(), i.id.String(), i.downvote.Size(), i.id.String())
-
-	return out
-}
+// RegisterFor registers your realm for a specific exhibition
+//func RegisterFor(exhibID string) {
+//	submission := std.PrevRealm()
+//	pkgpath := submission.PkgPath()
+//
+//	raw, ok := temporary
+//
+//	// must not exist and must be called from code
+//	if permanent.items.Has(pkgpath) || submission.IsUser() {
+//		panic("item exists or not code call")
+//	}
+//
+//	id := permanent.itemCounter.Next()
+//	permanent.items.Set(
+//		id.String(),
+//		&Item{
+//			id:       id,
+//			pkgpath:  pkgpath,
+//			deployer: std.GetOrigCaller(),
+//			blockNum: std.GetHeight(),
+//			upvote:   avl.NewTree(),
+//			downvote: avl.NewTree(),
+//		})
+//}
 
 func Upvote(exhibID, itemID seqid.ID) error {
-	if exhibID == seqid.ID(0) {
+	if exhibID == seqid.ID(0) { // permanent exhibition
 		raw, ok := permanent.items.Get(itemID.String())
 		if !ok {
 			return ErrNoSuchItem
@@ -155,7 +142,7 @@ func Upvote(exhibID, itemID seqid.ID) error {
 }
 
 func Downvote(exhibID, itemID seqid.ID) error {
-	if exhibID == seqid.ID(0) {
+	if exhibID == seqid.ID(0) { // permanent exhibition
 		raw, ok := permanent.items.Get(itemID.String())
 		if !ok {
 			return ErrNoSuchItem
