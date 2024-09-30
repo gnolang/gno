@@ -8,8 +8,9 @@ import (
 )
 
 type CommentSet struct {
-	owner *ownable.Ownable
-	set   *avl.Tree
+	owner     *ownable.Ownable
+	set       *avl.Tree
+	idCounter *avl.Tree
 }
 
 type Comment struct {
@@ -23,6 +24,14 @@ type Comment struct {
 func NewCommentSet() *CommentSet {
 	return &CommentSet{
 		owner: ownable.New(),
+		set:   avl.NewTree(),
+	}
+}
+
+// NewCommentSetWithOwnable can be used to set the same ownable to multiple items
+func NewCommentSetWithOwnable(o *ownable.Ownable) *CommentSet {
+	return &CommentSet{
+		owner: o,
 		set:   avl.NewTree(),
 	}
 }
