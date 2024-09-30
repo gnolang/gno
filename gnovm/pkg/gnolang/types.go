@@ -734,7 +734,6 @@ type StructType struct {
 	PkgPath string
 	Fields  []FieldType
 
-	seen   bool
 	typeid TypeID
 }
 

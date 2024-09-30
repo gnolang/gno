@@ -778,7 +778,7 @@ func go2GnoValue2(alloc *Allocator, store Store, rv reflect.Value, recursive boo
 // NOTE: Recursive types are not supported, as named types are not
 // supported.  See https://github.com/golang/go/issues/20013 and
 // https://github.com/golang/go/issues/39717.
-func gno2GoType(t Type) reflect.Type {
+func gno2GoType(t Type, seen map[Type]reflect.Type) reflect.Type {
 	// special case if t == Float32Type or Float64Type
 	if t == Float32Type {
 		return reflect.TypeOf(float32(0.0))
@@ -824,23 +824,26 @@ func gno2GoType(t Type) reflect.Type {
 			panic("should not happen")
 		}
 	case *PointerType:
-		et := gno2GoType(ct.Elem())
+		et := gno2GoType(ct.Elem(), seen)
 		return reflect.PointerTo(et)
 	case *ArrayType:
 		ne := ct.Len
-		et := gno2GoType(ct.Elem())
+		et := gno2GoType(ct.Elem(), seen)
 		return reflect.ArrayOf(ne, et)
 	case *SliceType:
-		et := gno2GoType(ct.Elem())
+		et := gno2GoType(ct.Elem(), seen)
 		return reflect.SliceOf(et)
 	case *StructType:
-		if ct.seen {
-			return reflect.StructOf([]reflect.StructField{})
+		if val, ok := seen[t]; ok {
+			return val
 		}
+
+		placeholder := reflect.TypeOf(struct{}{})
+		seen[t] = placeholder
+
 		gfs := make([]reflect.StructField, len(ct.Fields))
-		ct.seen = true
 		for i, field := range ct.Fields {
-			gft := gno2GoType(field.Type)
+			gft := gno2GoType(field.Type, seen)
 			fn := string(field.Name)
 			pkgPath := ""
 			if !isUpper(fn) {
@@ -858,8 +861,8 @@ func gno2GoType(t Type) reflect.Type {
 		}
 		return reflect.StructOf(gfs)
 	case *MapType:
-		kt := gno2GoType(ct.Key)
-		vt := gno2GoType(ct.Value)
+		kt := gno2GoType(ct.Key, seen)
+		vt := gno2GoType(ct.Value, seen)
 		return reflect.MapOf(kt, vt)
 	case *FuncType:
 		panic("not yet supported")
@@ -1054,7 +1057,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 	var rt reflect.Type
 	bt := baseOf(tv.T)
 	if !rv.IsValid() {
-		rt = gno2GoType(bt)
+		rt = gno2GoType(bt, make(map[Type]reflect.Type))
 		rv = reflect.New(rt).Elem()
 		ret = rv
 	} else if rv.Kind() == reflect.Interface {
@@ -1063,7 +1066,7 @@ func gno2GoValue(tv *TypedValue, rv reflect.Value) (ret reflect.Value) {
 				panic("should not happen")
 			}
 		}
-		rt = gno2GoType(bt)
+		rt = gno2GoType(bt, make(map[Type]reflect.Type))
 		rv1 := rv
 		rv2 := reflect.New(rt).Elem()
 		rv = rv2       // swaparoo

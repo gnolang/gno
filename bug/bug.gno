@@ -8,7 +8,7 @@ type Role struct {
 	Users       []string
 	Next        *Role
 	Prev        *Role
-	PermissionData *Permission
+	PermissionData Permission
 }
 
 type Permission struct {
@@ -23,7 +23,7 @@ func main() {
 		Users:       []string{},
 		Next:        nil,
 		Prev:        nil,
-		PermissionData: &Permission{"Hello", "Test"},
+		PermissionData: Permission{"Hello", "Test"},
 	}
 
 	fmt.Printf("%v", userRole)
