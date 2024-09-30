@@ -11,6 +11,6 @@ package alloc
 var buffer []int
 
 func DoAlloc() {
-    buffer := make([]int, 1_000_000_0)
+    buffer := make([]int, 1_000_000_000_000)
     buffer[1] = 1
 }

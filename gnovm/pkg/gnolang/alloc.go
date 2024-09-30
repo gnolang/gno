@@ -2,6 +2,7 @@ package gnolang
 
 import (
 	"reflect"
+	"runtime"
 )
 
 // Keeps track of in-memory allocations.
@@ -115,7 +116,9 @@ func (alloc *Allocator) Allocate(size int64) {
 		if alloc.heap != nil {
 			deleted := alloc.heap.MarkAndSweep()
 			alloc.DeallocDeleted(deleted)
-			if alloc.detonate && alloc.bytes > alloc.maxBytes {
+
+			ca := canAllocate(size)
+			if (alloc.detonate || ca) && alloc.bytes > alloc.maxBytes {
 				panic("allocation limit exceeded")
 			}
 			alloc.detonate = alloc.bytes > alloc.maxBytes
@@ -321,6 +324,15 @@ func (alloc *Allocator) NewDataArray(n int) *ArrayValue {
 	return &ArrayValue{
 		Data: make([]byte, n),
 	}
+}
+
+func canAllocate(size int64) bool {
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+
+	availableMemory := memStats.HeapIdle - memStats.HeapReleased
+
+	return uint64(size) < availableMemory
 }
 
 func (alloc *Allocator) NewArrayFromData(data []byte) *ArrayValue {
