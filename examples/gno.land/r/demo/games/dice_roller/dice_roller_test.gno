@@ -1,4 +1,4 @@
-package diceroller
+package dice_roller
 
 import (
 	"std"
