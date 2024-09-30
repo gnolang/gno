@@ -10,11 +10,13 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/tx-archive/backup/client"
 	"github.com/gnolang/tx-archive/backup/writer/standard"
 	"github.com/gnolang/tx-archive/log/noop"
 	"github.com/gnolang/tx-archive/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestBackup_DetermineRightBound(t *testing.T) {
@@ -96,17 +98,23 @@ func TestBackup_ExecuteBackup_FixedRange(t *testing.T) {
 
 		cfg = DefaultConfig()
 
+		blockTime = time.Date(1987, 0o6, 24, 6, 32, 11, 0, time.FixedZone("Europe/Madrid", 0))
+
 		mockClient = &mockClient{
 			getLatestBlockNumberFn: func() (uint64, error) {
 				return toBlock, nil
 			},
-			getBlockTransactionsFn: func(blockNum uint64) ([]std.Tx, error) {
+			getBlockFn: func(blockNum uint64) (*client.Block, error) {
 				// Sanity check
 				if blockNum < fromBlock && blockNum > toBlock {
 					t.Fatal("invalid block number requested")
 				}
 
-				return []std.Tx{exampleTx}, nil // 1 tx per block
+				return &client.Block{
+					Height:    blockNum,
+					Timestamp: blockTime.Add(time.Duration(blockNum) * time.Minute).UnixMilli(),
+					Txs:       []std.Tx{exampleTx},
+				}, nil // 1 tx per block
 			},
 		}
 	)
@@ -152,6 +160,7 @@ func TestBackup_ExecuteBackup_FixedRange(t *testing.T) {
 
 		assert.Equal(t, expectedBlock, txData.BlockNum)
 		assert.Equal(t, exampleTx, txData.Tx)
+		assert.Equal(t, blockTime.Add(time.Duration(expectedBlock)*time.Minute).Local(), time.UnixMilli(txData.Timestamp))
 
 		expectedBlock++
 	}
@@ -183,11 +192,13 @@ func TestBackup_ExecuteBackup_Watch(t *testing.T) {
 
 		cfg = DefaultConfig()
 
+		blockTime = time.Date(1987, 0o6, 24, 6, 32, 11, 0, time.FixedZone("Europe/Madrid", 0))
+
 		mockClient = &mockClient{
 			getLatestBlockNumberFn: func() (uint64, error) {
 				return toBlock, nil
 			},
-			getBlockTransactionsFn: func(blockNum uint64) ([]std.Tx, error) {
+			getBlockFn: func(blockNum uint64) (*client.Block, error) {
 				// Sanity check
 				if blockNum < fromBlock && blockNum > toBlock {
 					t.Fatal("invalid block number requested")
@@ -198,7 +209,11 @@ func TestBackup_ExecuteBackup_Watch(t *testing.T) {
 					cancelFn()
 				}
 
-				return []std.Tx{exampleTx}, nil // 1 tx per block
+				return &client.Block{
+					Height:    blockNum,
+					Timestamp: blockTime.Add(time.Duration(blockNum) * time.Minute).UnixMilli(),
+					Txs:       []std.Tx{exampleTx},
+				}, nil // 1 tx per block
 			},
 		}
 	)
@@ -246,6 +261,7 @@ func TestBackup_ExecuteBackup_Watch(t *testing.T) {
 
 		assert.Equal(t, expectedBlock, txData.BlockNum)
 		assert.Equal(t, exampleTx, txData.Tx)
+		assert.Equal(t, blockTime.Add(time.Duration(expectedBlock)*time.Minute).Local(), time.UnixMilli(txData.Timestamp))
 
 		expectedBlock++
 	}

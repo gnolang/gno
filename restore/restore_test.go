@@ -7,9 +7,14 @@ import (
 	"testing"
 	"time"
 
+	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm" // this is needed to load amino types
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/tx-archive/log/noop"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/gnolang/tx-archive/log/noop"
+	"github.com/gnolang/tx-archive/types"
 )
 
 func TestRestore_ExecuteRestore(t *testing.T) {
@@ -144,4 +149,38 @@ func TestRestore_ExecuteRestore_Watch(t *testing.T) {
 	for _, tx := range sentTxs {
 		assert.Equal(t, exampleTx, tx)
 	}
+}
+
+func TestRestore_BackwardCompatible(t *testing.T) {
+	t.Parallel()
+
+	oldTx := `{"tx":{"msg":[{"@type":"/vm.m_call","caller":"g1ngywvql2ql7t8uzl63w60eqcejkwg4rm4lxdw9",
+	"send":"","pkg_path":"gno.land/r/demo/wugnot","func":"Approve","args":
+	["g126swhfaq2vyvvjywevhgw7lv9hg8qan93dasu8","18446744073709551615"]},{"@type":"/vm.m_call","caller":
+	"g1ngywvql2ql7t8uzl63w60eqcejkwg4rm4lxdw9","send":"","pkg_path":"gno.land/r/gnoswap/v2/gns","func":
+	"Approve","args":["g126swhfaq2vyvvjywevhgw7lv9hg8qan93dasu8","18446744073709551615"]},
+	{"@type":"/vm.m_call","caller":"g1ngywvql2ql7t8uzl63w60eqcejkwg4rm4lxdw9","send":"","pkg_path":
+	"gno.land/r/demo/wugnot","func":"Approve","args":["g14fclvfqynndp0l6kpyxkpgn4sljw9rr96hz46l",
+	"18446744073709551615"]},{"@type":"/vm.m_call","caller":
+	"g1ngywvql2ql7t8uzl63w60eqcejkwg4rm4lxdw9","send":"","pkg_path":"gno.land/r/gnoswap/v2/position",
+	"func":"CollectFee","args":["26"]},{"@type":"/vm.m_call","caller":"g1ngywvql2ql7t8uzl63w60eqcejkwg4rm4lxdw9",
+	"send":"","pkg_path":"gno.land/r/gnoswap/v2/staker","func":"CollectReward","args":["26","true"]},
+	{"@type":"/vm.m_call","caller":"g1ngywvql2ql7t8uzl63w60eqcejkwg4rm4lxdw9","send":"","pkg_path":
+	"gno.land/r/demo/wugnot","func":"Approve","args":["g126swhfaq2vyvvjywevhgw7lv9hg8qan93dasu8",
+	"18446744073709551615"]},{"@type":"/vm.m_call","caller":"g1ngywvql2ql7t8uzl63w60eqcejkwg4rm4lxdw9",
+	"send":"","pkg_path":"gno.land/r/gnoswap/v2/gns","func":"Approve","args":["g126swhfaq2vyvvjywevhgw7lv9hg8qan93dasu8",
+	"18446744073709551615"]},{"@type":"/vm.m_call","caller":"g1ngywvql2ql7t8uzl63w60eqcejkwg4rm4lxdw9","send":"",
+	"pkg_path":"gno.land/r/gnoswap/v2/position","func":"CollectFee","args":["146"]}],"fee":{"gas_wanted":"100000000",
+	"gas_fee":"1ugnot"},"signatures":[{"pub_key":{"@type":"/tm.PubKeySecp256k1",
+	"value":"Atgv/+TCwlR+jzjx94p4Ik0IuGET4J/q2q9ciaL4UOQh"}, 
+	"signature":"iVfxsF37nRtgqyq9tMRMhyFLxp5RVdpI1r0mSHLmdg5aly0w82/in0ECey2PSpRk2UQ/fCtMpyOzaqIXiVKC4Q=="}],
+	"memo":""},"blockNum":"1194460"}`
+
+	var out types.TxData
+	err := amino.UnmarshalJSON([]byte(oldTx), &out)
+	require.NoError(t, err)
+
+	require.Zero(t, out.Timestamp)
+	require.Equal(t, uint64(0x1239dc), out.BlockNum)
+	require.Len(t, out.Tx.Msgs, 8)
 }

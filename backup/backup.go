@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"time"
 
+	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+
 	"github.com/gnolang/tx-archive/backup/client"
 	"github.com/gnolang/tx-archive/backup/writer"
 	"github.com/gnolang/tx-archive/log"
 	"github.com/gnolang/tx-archive/log/noop"
 	"github.com/gnolang/tx-archive/types"
-
-	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 )
 
 // Service is the chain backup service
@@ -56,22 +56,23 @@ func (s *Service) ExecuteBackup(ctx context.Context, cfg Config) error {
 	// Keep track of total txs backed up
 	totalTxs := uint64(0)
 
-	fetchAndWrite := func(block uint64) error {
-		txs, txErr := s.client.GetBlockTransactions(block)
+	fetchAndWrite := func(height uint64) error {
+		block, txErr := s.client.GetBlock(height)
 		if txErr != nil {
 			return fmt.Errorf("unable to fetch block transactions, %w", txErr)
 		}
 
 		// Skip empty blocks
-		if len(txs) == 0 {
+		if len(block.Txs) == 0 {
 			return nil
 		}
 
 		// Save the block transaction data, if any
-		for _, tx := range txs {
+		for _, tx := range block.Txs {
 			data := &types.TxData{
-				Tx:       tx,
-				BlockNum: block,
+				Tx:        tx,
+				BlockNum:  block.Height,
+				Timestamp: block.Timestamp,
 			}
 
 			// Write the tx data to the file

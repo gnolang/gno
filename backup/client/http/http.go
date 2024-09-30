@@ -4,12 +4,15 @@ package http
 import (
 	"fmt"
 
+	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	rpcClient "github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
 	"github.com/gnolang/gno/tm2/pkg/std"
 
-	_ "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
+	"github.com/gnolang/tx-archive/backup/client"
 )
+
+var _ client.Client = &Client{}
 
 // Client is the TM2 HTTP client
 type Client struct {
@@ -40,7 +43,7 @@ func (c *Client) GetLatestBlockNumber() (uint64, error) {
 	return uint64(status.SyncInfo.LatestBlockHeight), nil
 }
 
-func (c *Client) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
+func (c *Client) GetBlock(blockNum uint64) (*client.Block, error) {
 	// Fetch the block
 	blockNumInt64 := int64(blockNum)
 
@@ -68,5 +71,9 @@ func (c *Client) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
 		txs = append(txs, tx)
 	}
 
-	return txs, nil
+	return &client.Block{
+		Timestamp: block.Block.Time.UnixMilli(),
+		Height:    blockNum,
+		Txs:       txs,
+	}, nil
 }
