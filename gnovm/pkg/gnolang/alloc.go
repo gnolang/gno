@@ -1,8 +1,9 @@
 package gnolang
 
 import (
-	"github.com/shirou/gopsutil/v4/mem"
 	"reflect"
+
+	"github.com/shirou/gopsutil/v4/mem"
 )
 
 // Keeps track of in-memory allocations.
