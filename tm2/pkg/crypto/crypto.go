@@ -129,7 +129,7 @@ func (addr *Address) DecodeString(str string) error {
 // ----------------------------------------
 // ID
 
-var errZeroID = errors.New("address ID is zero")
+var ErrZeroID = errors.New("address ID is zero")
 
 // The bech32 representation w/ bech32 prefix.
 type ID string
@@ -144,7 +144,7 @@ func (id ID) String() string {
 
 func (id ID) Validate() error {
 	if id.IsZero() {
-		return errZeroID
+		return ErrZeroID
 	}
 
 	var addr Address

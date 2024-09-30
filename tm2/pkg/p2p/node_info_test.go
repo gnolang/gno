@@ -5,124 +5,363 @@ import (
 	"net"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/crypto/ed25519"
+	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/versionset"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestNodeInfoValidate(t *testing.T) {
+func TestNodeInfo_Validate(t *testing.T) {
 	t.Parallel()
 
-	// empty fails
-	ni := NodeInfo{}
-	assert.Error(t, ni.Validate())
+	generateNetAddress := func() *NetAddress {
+		tcpAddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:8080")
+		require.NoError(t, err)
 
-	channels := make([]byte, maxNumChannels)
-	for i := 0; i < maxNumChannels; i++ {
-		channels[i] = byte(i)
-	}
-	dupChannels := make([]byte, 5)
-	copy(dupChannels, channels[:5])
-	dupChannels = append(dupChannels, testCh)
+		address, err := NewNetAddress(GenerateNodeKey().ID(), tcpAddr)
+		require.NoError(t, err)
 
-	nonAscii := "¢§µ"
-	emptyTab := fmt.Sprintf("\t")
-	emptySpace := fmt.Sprintf("  ")
-
-	testCases := []struct {
-		testName         string
-		malleateNodeInfo func(*NodeInfo)
-		expectErr        bool
-	}{
-		{"Too Many Channels", func(ni *NodeInfo) { ni.Channels = append(channels, byte(maxNumChannels)) }, true}, //nolint: gocritic
-		{"Duplicate Channel", func(ni *NodeInfo) { ni.Channels = dupChannels }, true},
-		{"Good Channels", func(ni *NodeInfo) { ni.Channels = ni.Channels[:5] }, false},
-
-		{"Nil NetAddress", func(ni *NodeInfo) { ni.NetAddress = nil }, true},
-		{"Zero NetAddress ID", func(ni *NodeInfo) { ni.NetAddress.ID = "" }, true},
-		{"Invalid NetAddress IP", func(ni *NodeInfo) { ni.NetAddress.IP = net.IP([]byte{0x00}) }, true},
-
-		{"Non-ASCII Version", func(ni *NodeInfo) { ni.Version = nonAscii }, true},
-		{"Empty tab Version", func(ni *NodeInfo) { ni.Version = emptyTab }, true},
-		{"Empty space Version", func(ni *NodeInfo) { ni.Version = emptySpace }, true},
-		{"Empty Version", func(ni *NodeInfo) { ni.Version = "" }, false},
-
-		{"Non-ASCII Moniker", func(ni *NodeInfo) { ni.Moniker = nonAscii }, true},
-		{"Empty tab Moniker", func(ni *NodeInfo) { ni.Moniker = emptyTab }, true},
-		{"Empty space Moniker", func(ni *NodeInfo) { ni.Moniker = emptySpace }, true},
-		{"Empty Moniker", func(ni *NodeInfo) { ni.Moniker = "" }, true},
-		{"Good Moniker", func(ni *NodeInfo) { ni.Moniker = "hey its me" }, false},
-
-		{"Non-ASCII RPCAddress", func(ni *NodeInfo) { ni.Other.RPCAddress = nonAscii }, true},
-		{"Empty tab RPCAddress", func(ni *NodeInfo) { ni.Other.RPCAddress = emptyTab }, true},
-		{"Empty space RPCAddress", func(ni *NodeInfo) { ni.Other.RPCAddress = emptySpace }, true},
-		{"Empty RPCAddress", func(ni *NodeInfo) { ni.Other.RPCAddress = "" }, false},
-		{"Good RPCAddress", func(ni *NodeInfo) { ni.Other.RPCAddress = "0.0.0.0:26657" }, false},
+		return address
 	}
 
-	nodeKey := NodeKey{PrivKey: ed25519.GenPrivKey()}
-	name := "testing"
+	t.Run("invalid net address", func(t *testing.T) {
+		t.Parallel()
 
-	// test case passes
-	ni = testNodeInfo(nodeKey.ID(), name)
-	ni.Channels = channels
-	assert.NoError(t, ni.Validate())
-
-	for _, tc := range testCases {
-		ni := testNodeInfo(nodeKey.ID(), name)
-		ni.Channels = channels
-		tc.malleateNodeInfo(&ni)
-		err := ni.Validate()
-		if tc.expectErr {
-			assert.Error(t, err, tc.testName)
-		} else {
-			assert.NoError(t, err, tc.testName)
+		testTable := []struct {
+			name        string
+			address     *NetAddress
+			expectedErr error
+		}{
+			{
+				"unset net address",
+				nil,
+				errInvalidNetworkAddress,
+			},
+			{
+				"zero net address ID",
+				&NetAddress{
+					ID: "", // zero
+				},
+				crypto.ErrZeroID,
+			},
+			{
+				"invalid net address IP",
+				&NetAddress{
+					ID: GenerateNodeKey().ID(),
+					IP: net.IP([]byte{0x00}),
+				},
+				errInvalidIP,
+			},
 		}
-	}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				info := &NodeInfo{
+					NetAddress: testCase.address,
+				}
+
+				assert.ErrorIs(t, info.Validate(), testCase.expectedErr)
+			})
+		}
+	})
+
+	t.Run("invalid version", func(t *testing.T) {
+		t.Parallel()
+
+		testTable := []struct {
+			name    string
+			version string
+		}{
+			{
+				"non-ascii version",
+				"¢§µ",
+			},
+			{
+				"empty tab version",
+				fmt.Sprintf("\t"),
+			},
+			{
+				"empty space version",
+				fmt.Sprintf("  "),
+			},
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				info := &NodeInfo{
+					NetAddress: generateNetAddress(),
+					Version:    testCase.version,
+				}
+
+				assert.ErrorIs(t, info.Validate(), errInvalidVersion)
+			})
+		}
+	})
+
+	t.Run("invalid moniker", func(t *testing.T) {
+		t.Parallel()
+
+		testTable := []struct {
+			name    string
+			moniker string
+		}{
+			{
+				"empty moniker",
+				"",
+			},
+			{
+				"non-ascii moniker",
+				"¢§µ",
+			},
+			{
+				"empty tab moniker",
+				fmt.Sprintf("\t"),
+			},
+			{
+				"empty space moniker",
+				fmt.Sprintf("  "),
+			},
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				info := &NodeInfo{
+					NetAddress: generateNetAddress(),
+					Moniker:    testCase.moniker,
+				}
+
+				assert.ErrorIs(t, info.Validate(), errInvalidMoniker)
+			})
+		}
+	})
+
+	t.Run("invalid RPC Address", func(t *testing.T) {
+		t.Parallel()
+
+		testTable := []struct {
+			name       string
+			rpcAddress string
+		}{
+			{
+				"non-ascii moniker",
+				"¢§µ",
+			},
+			{
+				"empty tab RPC address",
+				fmt.Sprintf("\t"),
+			},
+			{
+				"empty space RPC address",
+				fmt.Sprintf("  "),
+			},
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				info := &NodeInfo{
+					NetAddress: generateNetAddress(),
+					Moniker:    "valid moniker",
+					Other: NodeInfoOther{
+						RPCAddress: testCase.rpcAddress,
+					},
+				}
+
+				assert.ErrorIs(t, info.Validate(), errInvalidRPCAddress)
+			})
+		}
+	})
+
+	t.Run("invalid channels", func(t *testing.T) {
+		t.Parallel()
+
+		testTable := []struct {
+			name        string
+			channels    []byte
+			expectedErr error
+		}{
+			{
+				"too many channels",
+				make([]byte, maxNumChannels+1),
+				errExcessiveChannels,
+			},
+			{
+				"duplicate channels",
+				[]byte{
+					byte(10),
+					byte(20),
+					byte(10),
+				},
+				errDuplicateChannels,
+			},
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				info := &NodeInfo{
+					NetAddress: generateNetAddress(),
+					Moniker:    "valid moniker",
+					Channels:   testCase.channels,
+				}
+
+				assert.ErrorIs(t, info.Validate(), testCase.expectedErr)
+			})
+		}
+	})
+
+	t.Run("valid node info", func(t *testing.T) {
+		t.Parallel()
+
+		info := &NodeInfo{
+			NetAddress: generateNetAddress(),
+			Moniker:    "valid moniker",
+			Channels:   []byte{10, 20, 30},
+			Other: NodeInfoOther{
+				RPCAddress: "0.0.0.0:26657",
+			},
+		}
+
+		assert.NoError(t, info.Validate())
+	})
 }
 
-func TestNodeInfoCompatible(t *testing.T) {
+func TestNodeInfo_CompatibleWith(t *testing.T) {
 	t.Parallel()
 
-	nodeKey1 := NodeKey{PrivKey: ed25519.GenPrivKey()}
-	nodeKey2 := NodeKey{PrivKey: ed25519.GenPrivKey()}
-	name := "testing"
+	t.Run("incompatible version sets", func(t *testing.T) {
+		t.Parallel()
 
-	var newTestChannel byte = 0x2
+		var (
+			name = "Block"
 
-	// test NodeInfo is compatible
-	ni1 := testNodeInfo(nodeKey1.ID(), name)
-	ni2 := testNodeInfo(nodeKey2.ID(), name)
-	assert.NoError(t, ni1.CompatibleWith(ni2))
+			infoOne = &NodeInfo{
+				VersionSet: []versionset.VersionInfo{
+					{
+						Name:    name,
+						Version: "badversion",
+					},
+				},
+			}
 
-	// add another channel; still compatible
-	ni2.Channels = []byte{newTestChannel, testCh}
-	assert.NoError(t, ni1.CompatibleWith(ni2))
+			infoTwo = &NodeInfo{
+				VersionSet: []versionset.VersionInfo{
+					{
+						Name:    name,
+						Version: "v0.0.0",
+					},
+				},
+			}
+		)
 
-	// wrong NodeInfo type is not compatible
-	_, netAddr := CreateRoutableAddr()
-	ni3 := NodeInfo{NetAddress: netAddr}
-	assert.Error(t, ni1.CompatibleWith(ni3))
+		assert.Error(t, infoTwo.CompatibleWith(*infoOne))
+	})
 
-	testCases := []struct {
-		testName         string
-		malleateNodeInfo func(*NodeInfo)
-	}{
-		{"Bad block version", func(ni *NodeInfo) {
-			ni.VersionSet.Set(versionset.VersionInfo{Name: "Block", Version: "badversion"})
-		}},
-		{"Wrong block version", func(ni *NodeInfo) {
-			ni.VersionSet.Set(versionset.VersionInfo{Name: "Block", Version: "v999.999.999-wrong"})
-		}},
-		{"Wrong network", func(ni *NodeInfo) { ni.Network += "-wrong" }},
-		{"No common channels", func(ni *NodeInfo) { ni.Channels = []byte{newTestChannel} }},
-	}
+	t.Run("incompatible networks", func(t *testing.T) {
+		t.Parallel()
 
-	for i, tc := range testCases {
-		t.Logf("case #%v", i)
-		ni := testNodeInfo(nodeKey2.ID(), name)
-		tc.malleateNodeInfo(&ni)
-		fmt.Printf("case #%v\n", i)
-		assert.Error(t, ni1.CompatibleWith(ni))
-	}
+		var (
+			name    = "Block"
+			version = "v0.0.0"
+
+			infoOne = &NodeInfo{
+				Network: "+wrong",
+				VersionSet: []versionset.VersionInfo{
+					{
+						Name:    name,
+						Version: version,
+					},
+				},
+			}
+
+			infoTwo = &NodeInfo{
+				Network: "gno",
+				VersionSet: []versionset.VersionInfo{
+					{
+						Name:    name,
+						Version: version,
+					},
+				},
+			}
+		)
+
+		assert.ErrorIs(t, infoTwo.CompatibleWith(*infoOne), errIncompatibleNetworks)
+	})
+
+	t.Run("no common channels", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			name    = "Block"
+			version = "v0.0.0"
+			network = "gno"
+
+			infoOne = &NodeInfo{
+				Network: network,
+				VersionSet: []versionset.VersionInfo{
+					{
+						Name:    name,
+						Version: version,
+					},
+				},
+				Channels: []byte{10},
+			}
+
+			infoTwo = &NodeInfo{
+				Network: network,
+				VersionSet: []versionset.VersionInfo{
+					{
+						Name:    name,
+						Version: version,
+					},
+				},
+				Channels: []byte{20},
+			}
+		)
+
+		assert.ErrorIs(t, infoTwo.CompatibleWith(*infoOne), errNoCommonChannels)
+	})
+
+	t.Run("fully compatible node infos", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			name     = "Block"
+			version  = "v0.0.0"
+			network  = "gno"
+			channels = []byte{10, 20, 30}
+
+			infoOne = &NodeInfo{
+				Network: network,
+				VersionSet: []versionset.VersionInfo{
+					{
+						Name:    name,
+						Version: version,
+					},
+				},
+				Channels: channels,
+			}
+
+			infoTwo = &NodeInfo{
+				Network: network,
+				VersionSet: []versionset.VersionInfo{
+					{
+						Name:    name,
+						Version: version,
+					},
+				},
+				Channels: channels[1:],
+			}
+		)
+
+		assert.NoError(t, infoTwo.CompatibleWith(*infoOne))
+	})
 }

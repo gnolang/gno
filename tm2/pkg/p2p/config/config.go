@@ -6,16 +6,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-// -----------------------------------------------------------------------------
-// P2PConfig
-
-const (
-	// FuzzModeDrop is a mode in which we randomly drop reads/writes, connections or sleep
-	FuzzModeDrop = iota
-	// FuzzModeDelay is a mode in which we randomly sleep
-	FuzzModeDelay
-)
-
 // P2PConfig defines the configuration options for the Tendermint peer-to-peer networking layer
 type P2PConfig struct {
 	RootDir string `json:"rpc" toml:"home"`

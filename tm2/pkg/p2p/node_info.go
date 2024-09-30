@@ -13,7 +13,16 @@ const (
 	maxNumChannels  = 16    // plenty of room for upgrades, for now
 )
 
-var errInvalidNetworkAddress = errors.New("invalid network address")
+var (
+	errInvalidNetworkAddress = errors.New("invalid node network address")
+	errInvalidVersion        = errors.New("invalid node version")
+	errInvalidMoniker        = errors.New("invalid node moniker")
+	errInvalidRPCAddress     = errors.New("invalid node RPC address")
+	errExcessiveChannels     = errors.New("excessive node channels")
+	errDuplicateChannels     = errors.New("duplicate node channels")
+	errIncompatibleNetworks  = errors.New("incompatible networks")
+	errNoCommonChannels      = errors.New("no common channels")
+)
 
 // Max size of the NodeInfo struct
 func MaxNodeInfoSize() int {
@@ -68,18 +77,18 @@ func (info NodeInfo) Validate() error {
 	if len(info.Version) > 0 &&
 		(!strings.IsASCIIText(info.Version) ||
 			strings.ASCIITrim(info.Version) == "") {
-		return fmt.Errorf("info.Version must be valid ASCII text without tabs, but got %s", info.Version)
+		return errInvalidVersion
 	}
 
 	// Validate Channels - ensure max and check for duplicates.
 	if len(info.Channels) > maxNumChannels {
-		return fmt.Errorf("info.Channels is too long (%d). Max is %d", len(info.Channels), maxNumChannels)
+		return errExcessiveChannels
 	}
 
 	channelMap := make(map[byte]struct{}, len(info.Channels))
 	for _, ch := range info.Channels {
 		if _, ok := channelMap[ch]; ok {
-			return fmt.Errorf("info.Channels contains duplicate channel id %v", ch)
+			return errDuplicateChannels
 		}
 
 		// Mark the channel as present
@@ -88,13 +97,13 @@ func (info NodeInfo) Validate() error {
 
 	// Validate Moniker.
 	if !strings.IsASCIIText(info.Moniker) || strings.ASCIITrim(info.Moniker) == "" {
-		return fmt.Errorf("info.Moniker must be valid non-empty ASCII text without tabs, but got %s", info.Moniker)
+		return errInvalidMoniker
 	}
 
 	// XXX: Should we be more strict about address formats?
 	rpcAddr := info.Other.RPCAddress
 	if len(rpcAddr) > 0 && (!strings.IsASCIIText(rpcAddr) || strings.ASCIITrim(rpcAddr) == "") {
-		return fmt.Errorf("info.Other.RPCAddress=%s must be valid ASCII text without tabs", rpcAddr)
+		return errInvalidRPCAddress
 	}
 
 	return nil
@@ -116,11 +125,7 @@ func (info NodeInfo) CompatibleWith(other NodeInfo) error {
 
 	// Make sure nodes are on the same network
 	if info.Network != other.Network {
-		return fmt.Errorf(
-			"peer is on a different network. Got %q, expected %q",
-			other.Network,
-			info.Network,
-		)
+		return errIncompatibleNetworks
 	}
 
 	// Make sure there is at least 1 channel in common
@@ -140,11 +145,7 @@ func (info NodeInfo) CompatibleWith(other NodeInfo) error {
 	}
 
 	if !commonFound {
-		return fmt.Errorf(
-			"peer has no common channels. Our channels: %v ; Peer channels: %v",
-			info.Channels,
-			other.Channels,
-		)
+		return errNoCommonChannels
 	}
 
 	return nil
