@@ -1,4 +1,4 @@
-module gno.land/r/moul/present
+module gno.land/r/manfred/present
 
 require (
 	gno.land/p/demo/avl v0.0.0-latest
