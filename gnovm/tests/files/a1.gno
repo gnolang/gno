@@ -1,26 +1,19 @@
 package main
 
-import "fmt"
-
-type Role struct {
-	Name        string
-	Permissions []string
-	Users       []string
-	Next        *Role
-	Prev        *Role
-}
-
 func main() {
-	userRole := &Role{
-		Name:        "user",
-		Permissions: []string{},
-		Users:       []string{},
-		Next:        nil,
-		Prev:        nil,
+	a := [6]int{1, 2, 3, 4, 5, 6}
+	println(a[1]) // 2
+	for i, v := range a {
+		println(v)
+		if i == 3 {
+			break
+		}
 	}
-
-	fmt.Printf("%v", userRole)
 }
 
 // Output:
-// &{user [] [] <nil> <nil>}
+// 2
+// 1
+// 2
+// 3
+// 4
