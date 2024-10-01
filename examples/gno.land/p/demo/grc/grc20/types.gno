@@ -12,7 +12,7 @@ var (
 	ErrInsufficientAllowance = errors.New("insufficient allowance")
 	ErrInvalidAddress        = errors.New("invalid address")
 	ErrCannotTransferToSelf  = errors.New("cannot send transfer to self")
-	ErrUnderflow			 = errors.New("the amount is higher than the total supply")
+	ErrUnderflow             = errors.New("the amount is higher than the total supply")
 )
 
 type Token interface {
