@@ -27,8 +27,6 @@ var (
 	errUnspecifiedIP     = errors.New("unspecified IP address")
 )
 
-type ID = crypto.ID
-
 // NetAddress defines information about a peer on the network
 // including its ID, IP address, and port
 type NetAddress struct {

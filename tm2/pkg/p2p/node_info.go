@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	maxNodeInfoSize = 10240 // 10KB
-	maxNumChannels  = 16    // plenty of room for upgrades, for now
+	MaxNodeInfoSize = int64(10240) // 10KB
+	maxNumChannels  = 16           // plenty of room for upgrades, for now
 )
 
 var (
@@ -23,13 +23,6 @@ var (
 	errIncompatibleNetworks  = errors.New("incompatible networks")
 	errNoCommonChannels      = errors.New("no common channels")
 )
-
-// Max size of the NodeInfo struct
-func MaxNodeInfoSize() int {
-	return maxNodeInfoSize
-}
-
-// -------------------------------------------------------------
 
 // NodeInfo is the basic node information exchanged
 // between two peers during the Tendermint P2P handshake.

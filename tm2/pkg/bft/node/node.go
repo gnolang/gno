@@ -367,7 +367,7 @@ func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.Nod
 		peerFilters = append(
 			peerFilters,
 			// ABCI query for ID filtering.
-			func(_ p2p.IPeerSet, p p2p.Peer) error {
+			func(_ p2p.PeerSet, p p2p.Peer) error {
 				res, err := proxyApp.Query().QuerySync(abci.RequestQuery{
 					Path: fmt.Sprintf("/p2p/filter/id/%s", p.ID()),
 				})

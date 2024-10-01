@@ -62,10 +62,6 @@ type P2PConfig struct {
 	// Peer connection configuration.
 	HandshakeTimeout time.Duration `json:"handshake_timeout" toml:"handshake_timeout" comment:"Peer connection configuration."`
 	DialTimeout      time.Duration `json:"dial_timeout" toml:"dial_timeout"`
-
-	// Testing params.
-	// Force dial to fail
-	TestDialFail bool `json:"test_dial_fail" toml:"test_dial_fail"`
 }
 
 // DefaultP2PConfig returns a default configuration for the peer-to-peer layer
@@ -85,7 +81,6 @@ func DefaultP2PConfig() *P2PConfig {
 		AllowDuplicateIP:        false,
 		HandshakeTimeout:        20 * time.Second,
 		DialTimeout:             3 * time.Second,
-		TestDialFail:            false,
 	}
 }
 

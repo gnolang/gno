@@ -46,7 +46,7 @@ func MConnConfig(cfg *config.P2PConfig) conn.MConnConfig {
 
 // PeerFilterFunc to be implemented by filter hooks after a new Peer has been
 // fully setup.
-type PeerFilterFunc func(IPeerSet, Peer) error
+type PeerFilterFunc func(PeerSet, Peer) error
 
 // -----------------------------------------------------------------------------
 
@@ -61,7 +61,7 @@ type Switch struct {
 	reactors     map[string]Reactor
 	chDescs      []*conn.ChannelDescriptor
 	reactorsByCh map[byte]Reactor
-	peers        *PeerSet
+	peers        PeerSet
 	dialing      *cmap.CMap
 	reconnecting *cmap.CMap
 	nodeInfo     NodeInfo // our node info
@@ -97,7 +97,7 @@ func NewSwitch(
 		reactors:             make(map[string]Reactor),
 		chDescs:              make([]*conn.ChannelDescriptor, 0),
 		reactorsByCh:         make(map[byte]Reactor),
-		peers:                NewPeerSet(),
+		peers:                NewSet(),
 		dialing:              cmap.NewCMap(),
 		reconnecting:         cmap.NewCMap(),
 		transport:            transport,
@@ -297,7 +297,7 @@ func (sw *Switch) MaxNumOutboundPeers() int {
 }
 
 // Peers returns the set of peers that are connected to the switch.
-func (sw *Switch) Peers() IPeerSet {
+func (sw *Switch) Peers() PeerSet {
 	return sw.peers
 }
 
@@ -338,7 +338,7 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 	// reconnect to our node and the switch calls InitPeer before
 	// RemovePeer is finished.
 	// https://github.com/tendermint/classic/issues/3338
-	sw.peers.Remove(peer)
+	sw.peers.Remove(peer.ID())
 }
 
 // reconnectToPeer tries to reconnect to the addr, first repeatedly
@@ -603,12 +603,6 @@ func (sw *Switch) addOutboundPeerWithConfig(
 ) error {
 	sw.Logger.Info("Dialing peer", "address", addr)
 
-	// XXX(xla): Remove the leakage of test concerns in implementation.
-	if cfg.TestDialFail {
-		go sw.reconnectToPeer(addr)
-		return fmt.Errorf("dial err (peerConfig.DialFail == true)")
-	}
-
 	p, err := sw.transport.Dial(*addr, peerConfig{
 		chDescs:      sw.chDescs,
 		onPeerError:  sw.StopPeerForError,
@@ -705,10 +699,7 @@ func (sw *Switch) addPeer(p Peer) error {
 
 	// Add the peer to PeerSet. Do this before starting the reactors
 	// so that if Receive errors, we will find the peer and remove it.
-	// Add should not err since we already checked peers.Has().
-	if err := sw.peers.Add(p); err != nil {
-		return err
-	}
+	sw.peers.Add(p)
 
 	// Start all the reactor protocols on the peer.
 	for _, reactor := range sw.reactors {

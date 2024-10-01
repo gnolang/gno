@@ -498,14 +498,26 @@ func (mt *MultiplexTransport) wrapPeer(
 		}
 	}
 
-	peerConn := newPeerConn(
-		cfg.outbound,
-		persistent,
-		c,
-		socketAddr,
-	)
+	// Extract the host
+	host, _, err := net.SplitHostPort(c.RemoteAddr().String())
+	if err != nil {
+		panic(err) // TODO propagate
+	}
 
-	p := newPeer(
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		panic(err) // TODO propagate
+	}
+
+	peerConn := &ConnInfo{
+		Outbound:   cfg.outbound,
+		Persistent: persistent,
+		Conn:       c,
+		RemoteIP:   ips[0],
+		SocketAddr: socketAddr,
+	}
+
+	p := New(
 		peerConn,
 		mt.mConfig,
 		ni,
@@ -541,7 +553,7 @@ func handshake(
 		_, err := amino.UnmarshalSizedReader(
 			c,
 			&peerNodeInfo,
-			int64(MaxNodeInfoSize()),
+			int64(MaxNodeInfoSize),
 		)
 		errc <- err
 	}(errc, c)

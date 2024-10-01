@@ -3,9 +3,8 @@ package core_types
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/gnolang/gno/tm2/pkg/p2p"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStatusIndexer(t *testing.T) {
