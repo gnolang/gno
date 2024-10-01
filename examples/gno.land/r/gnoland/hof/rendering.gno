@@ -15,10 +15,19 @@ const (
 func Render(path string) string {
 	out := "# Hall of Fame\n\n"
 
-	exhibitions.Iterate("", "", func(key string, value interface{}) bool {
+	// Render permanent exhib
+	permanent, _ := exhibitions.Get(seqid.ID(0).String())
+	out += permanent.(*Exhibition).Render(path == "dashboard")
+
+	if exhibitions.Size() > 1 {
+		out += "---\n\n"
+	}
+
+	exhibitions.Iterate(seqid.ID(1).String(), "", func(key string, value interface{}) bool {
 		e := value.(*Exhibition)
 		out += e.Render(path == "dashboard")
 
+		out += "---\n\n"
 		return false
 	})
 
@@ -28,9 +37,11 @@ func Render(path string) string {
 func (e Exhibition) Render(dashboard bool) string {
 	out := ufmt.Sprintf("## %s\n\n", e.title)
 	out += ufmt.Sprintf("%s\n\n", e.description)
+	out += ufmt.Sprintf("Exhibition ID: %s\n\n", e.id.String())
 
 	if e.items.Size() == 0 {
-		return "No exhibits for now."
+		out += "No items in this exhibition currently.\n\n"
+		return out
 	}
 
 	out += "<div class='columns-2'>\n\n"

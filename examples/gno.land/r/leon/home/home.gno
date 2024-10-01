@@ -4,6 +4,7 @@ import (
 	"std"
 	"strconv"
 
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 
 	"gno.land/r/demo/art/gnoface"
@@ -33,7 +34,7 @@ TODO import r/gh
 `,
 	}
 
-	_, _ = hof.Register()
+	_, _ = hof.RegisterFor(seqid.ID(1))
 }
 
 func UpdatePFP(url, caption string) {
