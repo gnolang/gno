@@ -32,20 +32,22 @@ func RenderExhibWidget(exhibID seqid.ID, itemsToRender int) (string, error) {
 	out := ""
 	i := 0
 
-	if exhibID == seqid.ID(0) {
-		permanent.items.Iterate("", "", func(key string, value interface{}) bool {
-			item := value.(Item)
-			out += ufmt.Sprintf("- %s", fqname.RenderLink(item.pkgpath, ""))
-
-			i++
-			return i >= itemsToRender
-		})
-
-		return out, nil
+	e, ok := exhibitions.Get(exhibID.String())
+	if !ok {
+		return "", ErrNoSuchExhibition
 	}
 
-	// todo render temp exhibs
-	return "", nil
+	e.(*Exhibition).items.Iterate("", "", func(key string, value interface{}) bool {
+		item := value.(*Item)
+
+		out += ufmt.Sprintf("- %s\n", fqname.RenderLink(item.pkgpath, ""))
+
+		i++
+		return i >= itemsToRender
+	})
+
+	return out, nil
+
 }
 
 func (e Exhibition) Render() string {
@@ -70,8 +72,6 @@ func (e Exhibition) Render() string {
 }
 
 func (i Item) Render() string {
-	//subpath := i.pkgpath[strings.Index(i.pkgpath, "/"):]
-
 	out := ufmt.Sprintf("\n```\n%s\n```\n\n", i.pkgpath)
 	out += ufmt.Sprintf("by %s\n\n", i.deployer.String())
 	out += ufmt.Sprintf("Published at Block #%d\n\n", i.blockNum)

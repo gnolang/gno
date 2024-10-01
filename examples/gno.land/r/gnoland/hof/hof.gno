@@ -6,6 +6,7 @@ package hof
 import (
 	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
 	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
+	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
 	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"strings"
 	"time"
@@ -13,8 +14,7 @@ import (
 
 var (
 	exhibCounter seqid.ID
-	permanent    *Exhibition
-	temporary    *avl.Tree // id > *Exhibition
+	exhibitions  *avl.Tree // id > *Exhibition
 )
 
 type (
@@ -39,34 +39,12 @@ type (
 )
 
 func init() {
-	permanent = &Exhibition{
-		id:    exhibCounter.Next(),
-		items: avl.NewTree(),
-	}
+	exhibitions = avl.NewTree()
 
-	temporary = avl.NewTree()
-}
-
-// Register registers your realm to the permanent exhibition
-func Register() {
-	submission := std.PrevRealm()
-	pkgpath := submission.PkgPath()
-
-	// must not exist and must be called from code
-	if permanent.items.Has(pkgpath) || submission.IsUser() {
-		panic("item exists or not code call")
-	}
-
-	id := permanent.itemCounter.Next()
-	permanent.items.Set(
-		id.String(),
-		&Item{
-			id:       id,
-			pkgpath:  pkgpath,
-			deployer: std.GetOrigCaller(),
-			blockNum: std.GetHeight(),
-			upvote:   avl.NewTree(),
-			downvote: avl.NewTree(),
+	exhibitions.Set(exhibCounter.Next().String(),
+		&Exhibition{ // permanent exhibition, ID=0
+			id:    exhibCounter.Next(),
+			items: avl.NewTree(),
 		})
 }
 
@@ -88,76 +66,92 @@ func CreateTemporaryExhibition(title, description string, start, end *time.Time)
 		endTime:     end,
 	}
 
-	temporary.Set(id.String(), e)
+	exhibitions.Set(id.String(), e)
 
 	return nil
 }
 
+// Register registers to the permanent exhibition
+func Register() (string, error) {
+	return RegisterFor(seqid.ID(0))
+}
+
 // RegisterFor registers your realm for a specific exhibition
-//func RegisterFor(exhibID string) {
-//	submission := std.PrevRealm()
-//	pkgpath := submission.PkgPath()
-//
-//	raw, ok := temporary
-//
-//	// must not exist and must be called from code
-//	if permanent.items.Has(pkgpath) || submission.IsUser() {
-//		panic("item exists or not code call")
-//	}
-//
-//	id := permanent.itemCounter.Next()
-//	permanent.items.Set(
-//		id.String(),
-//		&Item{
-//			id:       id,
-//			pkgpath:  pkgpath,
-//			deployer: std.GetOrigCaller(),
-//			blockNum: std.GetHeight(),
-//			upvote:   avl.NewTree(),
-//			downvote: avl.NewTree(),
-//		})
-//}
+func RegisterFor(exhibID seqid.ID) (string, error) {
+	submission := std.PrevRealm()
+	pkgpath := submission.PkgPath()
 
-func Upvote(exhibID, itemID seqid.ID) error {
-	if exhibID == seqid.ID(0) { // permanent exhibition
-		raw, ok := permanent.items.Get(itemID.String())
-		if !ok {
-			return ErrNoSuchItem
-		}
-
-		item := raw.(*Item)
-		caller := std.PrevRealm().Addr().String()
-
-		if item.upvote.Has(caller) {
-			return ErrDoubleUpvote
-		}
-
-		item.upvote.Set(caller, struct{}{})
-		return nil
+	raw, ok := exhibitions.Get(exhibID.String())
+	if !ok {
+		return "", ErrNoSuchExhibition
 	}
 
-	// todo add temp exh
+	e := raw.(*Exhibition)
+
+	// Must not already exist and must be called from code
+	if e.items.Has(pkgpath) || submission.IsUser() {
+		return "", ErrNonCodeCall
+	}
+
+	id := e.itemCounter.Next()
+	e.items.Set(
+		id.String(),
+		&Item{
+			id:       id,
+			pkgpath:  pkgpath,
+			deployer: std.GetOrigCaller(),
+			blockNum: std.GetHeight(),
+			upvote:   avl.NewTree(),
+			downvote: avl.NewTree(),
+		})
+
+	return ufmt.Sprintf("Registered %s at ID %s for exhibition %s", pkgpath, id.String(), e.title), nil
+}
+
+func Upvote(exhibID, itemID seqid.ID) error {
+	raw, ok := exhibitions.Get(exhibID.String())
+	if !ok {
+		return ErrNoSuchExhibition
+	}
+
+	e := raw.(*Exhibition)
+
+	rawItem, ok := e.items.Get(itemID.String())
+	if !ok {
+		return ErrNoSuchItem
+	}
+
+	item := rawItem.(*Item)
+	caller := std.PrevRealm().Addr().String()
+
+	if item.upvote.Has(caller) {
+		return ErrDoubleUpvote
+	}
+
+	item.upvote.Set(caller, struct{}{})
 	return nil
 }
 
 func Downvote(exhibID, itemID seqid.ID) error {
-	if exhibID == seqid.ID(0) { // permanent exhibition
-		raw, ok := permanent.items.Get(itemID.String())
-		if !ok {
-			return ErrNoSuchItem
-		}
-
-		item := raw.(*Item)
-		caller := std.PrevRealm().Addr().String()
-
-		if item.downvote.Has(caller) {
-			return ErrDoubleDownvote
-		}
-
-		item.downvote.Set(caller, struct{}{})
-		return nil
+	raw, ok := exhibitions.Get(exhibID.String())
+	if !ok {
+		return ErrNoSuchExhibition
 	}
 
-	// todo add temp exh
+	e := raw.(*Exhibition)
+
+	rawItem, ok := e.items.Get(itemID.String())
+	if !ok {
+		return ErrNoSuchItem
+	}
+
+	item := rawItem.(*Item)
+	caller := std.PrevRealm().Addr().String()
+
+	if item.downvote.Has(caller) {
+		return ErrDoubleDownvote
+	}
+
+	item.downvote.Set(caller, struct{}{})
 	return nil
 }
