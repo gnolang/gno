@@ -140,12 +140,10 @@ func TestValidateBlockHeader(t *testing.T) {
 		   Invalid blocks don't pass
 		*/
 		for _, tc := range testCases {
-			t.Run(tc.name, func(t *testing.T) {
-				block, _ := state.MakeBlock(height, makeTxs(height), lastCommit, proposerAddr)
-				tc.malleateBlock(block)
-				err := blockExec.ValidateBlock(state, block)
-				assert.ErrorContains(t, err, tc.expectedError, tc.name)
-			})
+			block, _ := state.MakeBlock(height, makeTxs(height), lastCommit, proposerAddr)
+			tc.malleateBlock(block)
+			err := blockExec.ValidateBlock(state, block)
+			assert.ErrorContains(t, err, tc.expectedError, tc.name)
 		}
 
 		/*
