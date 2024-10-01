@@ -300,6 +300,10 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 		http.Redirect(w, r, "/r/"+rlmname, http.StatusFound)
 		return
 	}
+	if len(r.URL.RawQuery) > 0 {
+		q := filterQueryValues(r.URL.Query())
+		querystr = querystr + "?" + q.Encode()
+	}
 	qpath := "vm/qrender"
 	data := []byte(fmt.Sprintf("%s:%s", rlmpath, querystr))
 	res, err := makeRequest(logger, cfg, qpath, data)
@@ -506,4 +510,17 @@ func pathOf(diruri string) string {
 	}
 
 	panic(fmt.Sprintf("invalid dir-URI %q", diruri))
+}
+
+func filterQueryValues(values url.Values) url.Values {
+	filtered := url.Values{}
+	for k, v := range values {
+		// Filter out private gnoweb arguments
+		if strings.HasPrefix(k, "__") {
+			continue
+		}
+
+		filtered[k] = v
+	}
+	return filtered
 }
