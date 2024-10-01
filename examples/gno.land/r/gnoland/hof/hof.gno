@@ -30,6 +30,7 @@ type (
 
 	Item struct {
 		id       seqid.ID
+		exhibID  seqid.ID
 		pkgpath  string
 		deployer std.Address
 		blockNum int64
@@ -41,10 +42,11 @@ type (
 func init() {
 	exhibitions = avl.NewTree()
 
-	exhibitions.Set(exhibCounter.Next().String(),
+	exhibitions.Set(seqid.ID(0).String(),
 		&Exhibition{ // permanent exhibition, ID=0
-			id:    exhibCounter.Next(),
+			id:    seqid.ID(0),
 			items: avl.NewTree(),
+			title: "Permanent Exhibition",
 		})
 }
 
@@ -98,6 +100,7 @@ func RegisterFor(exhibID seqid.ID) (string, error) {
 		id.String(),
 		&Item{
 			id:       id,
+			exhibID:  e.id,
 			pkgpath:  pkgpath,
 			deployer: std.GetOrigCaller(),
 			blockNum: std.GetHeight(),
@@ -153,5 +156,18 @@ func Downvote(exhibID, itemID seqid.ID) error {
 	}
 
 	item.downvote.Set(caller, struct{}{})
+	return nil
+}
+
+func Delete(exhibID, itemID seqid.ID) error {
+	raw, ok := exhibitions.Get(exhibID.String())
+	if !ok {
+		return ErrNoSuchExhibition
+	}
+
+	if _, removed := raw.(*Exhibition).items.Remove(itemID.String()); !removed {
+		return ErrNoSuchItem
+	}
+
 	return nil
 }
