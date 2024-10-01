@@ -59,8 +59,8 @@ func (b *Banker) Mint(address std.Address, amount uint64) error {
 	}
 
 	// check for overflow
-	if uint64_max - b.totalSupply < amount   {
-		err := ufmt.Sprintf("you can't mint more than %d tokens", uint64_max - b.totalSupply)
+	if uint64_max-b.totalSupply < amount {
+		err := ufmt.Sprintf("you can't mint more than %d tokens", uint64_max-b.totalSupply)
 		return errors.New(err)
 	}
 
