@@ -1,15 +1,15 @@
 package home
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
-	"github.com/gnolang/gno/examples/gno.land/r/gnoland/hof"
 	"std"
 
 	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
 	blog "gno.land/r/gnoland/blog"
 	events "gno.land/r/gnoland/events"
+	"gno.land/r/gnoland/hof"
 )
 
 // XXX: p/demo/ui API is crappy, we need to make it more idiomatic
@@ -39,7 +39,7 @@ func Render(_ string) string {
 		ui.Columns{3, []ui.Element{
 			lastBlogposts(4),
 			upcomingEvents(),
-			lastContributions(4),
+			latestHOFItems(5),
 		}},
 	)
 
@@ -92,8 +92,8 @@ func upcomingEvents() ui.Element {
 	}
 }
 
-func latestHOFItems() ui.Element {
-	submissions, _ := hof.RenderExhibWidget(seqid.ID(0), 5)
+func latestHOFItems(num int) ui.Element {
+	submissions, _ := hof.RenderExhibWidget(seqid.ID(0), num)
 
 	return ui.Element{
 		ui.H3("[Hall of Fame](/r/gnoland/hof)"),

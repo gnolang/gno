@@ -33,7 +33,7 @@ TODO import r/gh
 `,
 	}
 
-	hof.Register()
+	_, _ = hof.Register()
 }
 
 func UpdatePFP(url, caption string) {

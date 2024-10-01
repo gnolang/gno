@@ -7,7 +7,6 @@ import (
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/context"
 	"gno.land/p/gov/proposal"
-	"gno.land/r/gnoland/hof"
 )
 
 var (
@@ -20,7 +19,6 @@ var (
 func init() {
 	// adminAddr = std.GetOrigCaller() // FIXME: find a way to use this from the main's genesis.
 	adminAddr = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
-	hof.Register()
 }
 
 func AdminSetAdminAddr(addr std.Address) {
