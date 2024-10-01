@@ -109,21 +109,6 @@
     <script id="main-script">
       'use strict';
       (function() {
-        // Colors from https://github.com/github/linguist/blob/master/lib/linguist/languages.yml
-        const toolColors = {
-          cargo: '#dea584',
-          go: '#00add8',
-          benchmarkjs: '#f1e05a',
-          pytest: '#3572a5',
-          googlecpp: '#f34b7d',
-          catch2: '#f34b7d',
-          julia: '#a270ba',
-          benchmarkdotnet: '#178600',
-          customBiggerIsBetter: '#38ff38',
-          customSmallerIsBetter: '#ff3838',
-          _: '#333333'
-        };
-
         function init() {
           function collectBenchesPerTestCase(entries) {
             const map = new Map();
@@ -167,23 +152,36 @@
         }
 
         function renderAllChars(dataSets) {
-
-          function renderGraph(parent, name, dataset) {
+          function renderGraph(parent, name, datasets) {
             const canvas = document.createElement('canvas');
             canvas.className = 'benchmark-chart';
             parent.appendChild(canvas);
 
-            const color = toolColors[dataset.length > 0 ? dataset[0].tool : '_'];
-            const data = {
-              labels: dataset.map(d => d.commit.id.slice(0, 7)),
-              datasets: [
-                {
-                  label: name,
+           var colors =  {
+            "1": '#00add8',
+            "2": '#a270ba',
+           }
+
+            var labels;
+            var labelString;
+            var graphDatasets = [];
+            Object.entries(datasets).forEach(([key, dataset]) => {
+              if (key == "1") {
+                labels = dataset.map(d => d.commit.id.slice(0, 7))
+                labelString = dataset.length > 0 ? dataset[0].bench.unit : ''
+              }
+
+              graphDatasets.push({
+                  label: name + "_" + key + " procs",
                   data: dataset.map(d => d.bench.value),
-                  borderColor: color,
-                  backgroundColor: color + '60', // Add alpha for #rrggbbaa
-                }
-              ],
+                  borderColor: colors[key],
+                  backgroundColor: colors[key] + '60', // Add alpha for #rrggbbaa
+                });
+            });
+            
+            const data = {
+              labels: labels,
+              datasets: graphDatasets,
             };
             const options = {
               scales: {
@@ -199,7 +197,7 @@
                   {
                     scaleLabel: {
                       display: true,
-                      labelString: dataset.length > 0 ? dataset[0].bench.unit : '',
+                      labelString: labelString,
                     },
                     ticks: {
                       beginAtZero: true,
@@ -211,12 +209,12 @@
                 callbacks: {
                   afterTitle: items => {
                     const {index} = items[0];
-                    const data = dataset[index];
+                    const data = datasets["1"][index];
                     return '\n' + data.commit.message + '\n\n' + data.commit.timestamp + ' committed by @' + data.commit.committer.username + '\n';
                   },
                   label: item => {
                     let label = item.value;
-                    const { range, unit } = dataset[item.index].bench;
+                    const { range, unit } = datasets["1"][item.index].bench;
                     label += ' ' + unit;
                     if (range) {
                       label += ' (' + range + ')';
@@ -224,7 +222,7 @@
                     return label;
                   },
                   afterLabel: item => {
-                    const { extra } = dataset[item.index].bench;
+                    const { extra } = datasets["1"][item.index].bench;
                     return extra ? '\n' + extra : '';
                   }
                 }
@@ -235,7 +233,7 @@
                 }
                 // XXX: Undocumented. How can we know the index?
                 const index = activeElems[0]._index;
-                const url = dataset[index].commit.url;
+                const url = datasets["1"][index].commit.url;
                 window.open(url, '_blank');
               },
             };
@@ -262,7 +260,18 @@
             setElem.appendChild(graphsElem);
 
             for (const [benchName, benches] of benchSet.entries()) {
-              renderGraph(graphsElem, benchName, benches)
+
+              // group by number of procs
+              const out = Object.groupBy(benches,(o) => {
+                const matches = o.bench.extra.match(/(\d) procs/)
+                if (matches == null || matches.length < 2) {
+                  return "1"
+                }
+
+                return matches[1]
+              })
+
+              renderGraph(graphsElem, benchName, out)
             }
           }
 
