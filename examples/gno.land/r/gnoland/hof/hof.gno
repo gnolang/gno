@@ -4,10 +4,10 @@
 package hof
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
-	"github.com/gnolang/gno/gnovm/stdlibs/std"
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
+	"std"
 	"strings"
 	"time"
 )

@@ -1,9 +1,9 @@
 package hof
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/fqname"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
-	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
+	"gno.land/p/demo/fqname"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
 )
 
 const (
@@ -13,9 +13,11 @@ const (
 func Render(_ string) string {
 	out := "# Hall of Fame\n\n"
 
-	out += permanent.Render()
-
-	// todo render temp exhibitions
+	exhibitions.Iterate("", "", func(key string, value interface{}) bool {
+		e := value.(*Exhibition)
+		out += e.Render()
+		return false
+	})
 
 	return out
 }
