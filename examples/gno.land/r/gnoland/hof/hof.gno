@@ -4,12 +4,13 @@
 package hof
 
 import (
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
 	"std"
 	"strings"
 	"time"
+
+	"gno.land/p/demo/avl"
+	"gno.land/p/demo/seqid"
+	"gno.land/p/demo/ufmt"
 )
 
 var (
