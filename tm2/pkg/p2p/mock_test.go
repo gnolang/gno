@@ -1,7 +1,9 @@
 package p2p
 
 import (
+	"log/slog"
 	"net"
+	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
 	"github.com/gnolang/gno/tm2/pkg/service"
@@ -149,4 +151,159 @@ func (m *mockPeer) Get(key string) any {
 	}
 
 	return nil
+}
+
+type (
+	readDelegate        func([]byte) (int, error)
+	writeDelegate       func([]byte) (int, error)
+	closeDelegate       func() error
+	localAddrDelegate   func() net.Addr
+	setDeadlineDelegate func(time.Time) error
+)
+
+type mockConn struct {
+	readFn             readDelegate
+	writeFn            writeDelegate
+	closeFn            closeDelegate
+	localAddrFn        localAddrDelegate
+	remoteAddrFn       remoteAddrDelegate
+	setDeadlineFn      setDeadlineDelegate
+	setReadDeadlineFn  setDeadlineDelegate
+	setWriteDeadlineFn setDeadlineDelegate
+}
+
+func (m *mockConn) Read(b []byte) (int, error) {
+	if m.readFn != nil {
+		return m.readFn(b)
+	}
+
+	return 0, nil
+}
+
+func (m *mockConn) Write(b []byte) (int, error) {
+	if m.writeFn != nil {
+		return m.writeFn(b)
+	}
+
+	return 0, nil
+}
+
+func (m *mockConn) Close() error {
+	if m.closeFn != nil {
+		return m.closeFn()
+	}
+
+	return nil
+}
+
+func (m *mockConn) LocalAddr() net.Addr {
+	if m.localAddrFn != nil {
+		return m.localAddrFn()
+	}
+
+	return nil
+}
+
+func (m *mockConn) RemoteAddr() net.Addr {
+	if m.remoteAddrFn != nil {
+		return m.remoteAddrFn()
+	}
+
+	return nil
+}
+
+func (m *mockConn) SetDeadline(t time.Time) error {
+	if m.setDeadlineFn != nil {
+		return m.setDeadlineFn(t)
+	}
+
+	return nil
+}
+
+func (m *mockConn) SetReadDeadline(t time.Time) error {
+	if m.setReadDeadlineFn != nil {
+		return m.setReadDeadlineFn(t)
+	}
+
+	return nil
+}
+
+func (m *mockConn) SetWriteDeadline(t time.Time) error {
+	if m.setWriteDeadlineFn != nil {
+		return m.setWriteDeadlineFn(t)
+	}
+
+	return nil
+}
+
+type (
+	startDelegate  func() error
+	stopDelegate   func() error
+	stringDelegate func() string
+)
+
+type mockMConn struct {
+	flushFn   flushStopDelegate
+	startFn   startDelegate
+	stopFn    stopDelegate
+	sendFn    sendDelegate
+	trySendFn trySendDelegate
+	statusFn  statusDelegate
+	stringFn  stringDelegate
+}
+
+func (m *mockMConn) FlushStop() {
+	if m.flushFn != nil {
+		m.flushFn()
+	}
+}
+
+func (m *mockMConn) Start() error {
+	if m.startFn != nil {
+		return m.startFn()
+	}
+
+	return nil
+}
+
+func (m *mockMConn) Stop() error {
+	if m.stopFn != nil {
+		return m.stopFn()
+	}
+
+	return nil
+}
+
+func (m *mockMConn) Send(ch byte, data []byte) bool {
+	if m.sendFn != nil {
+		return m.sendFn(ch, data)
+	}
+
+	return false
+}
+
+func (m *mockMConn) TrySend(ch byte, data []byte) bool {
+	if m.trySendFn != nil {
+		return m.trySendFn(ch, data)
+	}
+
+	return false
+}
+
+func (m *mockMConn) SetLogger(_ *slog.Logger) {}
+
+func (m *mockMConn) Status() conn.ConnectionStatus {
+	if m.statusFn != nil {
+		return m.statusFn()
+	}
+
+	return conn.ConnectionStatus{}
+}
+
+func (m *mockMConn) String() string {
+	if m.stringFn != nil {
+		return m.stringFn()
+	}
+
+	return ""
 }

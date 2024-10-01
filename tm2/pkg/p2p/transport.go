@@ -517,16 +517,14 @@ func (mt *MultiplexTransport) wrapPeer(
 		SocketAddr: socketAddr,
 	}
 
-	p := New(
-		peerConn,
-		mt.mConfig,
-		ni,
-		cfg.reactorsByCh,
-		cfg.chDescs,
-		cfg.onPeerError,
-	)
+	mConfig := &MultiplexConnConfig{
+		MConfig:      mt.mConfig,
+		ReactorsByCh: cfg.reactorsByCh,
+		ChDescs:      cfg.chDescs,
+		OnPeerError:  cfg.onPeerError,
+	}
 
-	return p
+	return NewPeer(peerConn, ni, mConfig)
 }
 
 func handshake(

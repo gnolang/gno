@@ -10,6 +10,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
 
+type MultiplexConnConfig struct {
+	MConfig      connm.MConnConfig
+	ReactorsByCh map[byte]Reactor
+	ChDescs      []*connm.ChannelDescriptor
+	OnPeerError  func(Peer, interface{})
+}
+
 // ConnInfo wraps the remote peer connection
 type ConnInfo struct {
 	Outbound   bool     // flag indicating if the connection is dialed
@@ -19,40 +26,43 @@ type ConnInfo struct {
 	SocketAddr *NetAddress
 }
 
+type multiplexConn interface {
+	FlushStop()
+	Start() error
+	Stop() error
+	Send(byte, []byte) bool
+	TrySend(byte, []byte) bool
+	SetLogger(*slog.Logger)
+	Status() connm.ConnectionStatus
+	String() string
+}
+
 // peer is a wrapper for a remote peer
 // Before using a peer, you will need to perform a handshake on connection.
 type peer struct {
 	service.BaseService
 
-	connInfo *ConnInfo
-	remoteIP net.IP
-	mconn    *connm.MConnection
+	connInfo *ConnInfo     // Metadata about the connection
+	nodeInfo NodeInfo      // Information about the peer's node
+	mConn    multiplexConn // The multiplexed connection
 
-	nodeInfo NodeInfo
-	data     *cmap.CMap
+	data *cmap.CMap // Arbitrary data store associated with the peer
 }
 
-// TODO cleanup
-func New(
+// NewPeer creates an uninitialized peer instance
+func NewPeer(
 	connInfo *ConnInfo,
-	mConfig connm.MConnConfig,
 	nodeInfo NodeInfo,
-	reactorsByCh map[byte]Reactor,
-	chDescs []*connm.ChannelDescriptor,
-	onPeerError func(Peer, interface{}),
-) *peer {
+	mConfig *MultiplexConnConfig,
+) Peer {
 	p := &peer{
 		connInfo: connInfo,
 		nodeInfo: nodeInfo,
 		data:     cmap.NewCMap(),
 	}
 
-	p.mconn = createMConnection(
+	p.mConn = p.createMConnection(
 		connInfo.Conn,
-		p,
-		reactorsByCh,
-		chDescs,
-		onPeerError,
 		mConfig,
 	)
 
@@ -73,53 +83,10 @@ func (p *peer) RemoteAddr() net.Addr {
 
 func (p *peer) String() string {
 	if p.connInfo.Outbound {
-		return fmt.Sprintf("Peer{%s %s out}", p.mconn, p.ID())
+		return fmt.Sprintf("Peer{%s %s out}", p.mConn, p.ID())
 	}
 
-	return fmt.Sprintf("Peer{%s %s in}", p.mconn, p.ID())
-}
-
-func (p *peer) SetLogger(l *slog.Logger) {
-	p.Logger = l
-	p.mconn.SetLogger(l)
-}
-
-func (p *peer) OnStart() error {
-	if err := p.BaseService.OnStart(); err != nil {
-		return err
-	}
-
-	if err := p.mconn.Start(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// FlushStop mimics OnStop but additionally ensures that all successful
-// .Send() calls will get flushed before closing the connection.
-// NOTE: it is not safe to call this method more than once.
-func (p *peer) FlushStop() {
-	p.BaseService.OnStop()
-	p.mconn.FlushStop() // stop everything and close the conn
-}
-
-// OnStop implements BaseService.
-func (p *peer) OnStop() {
-	p.BaseService.OnStop()
-
-	if err := p.mconn.Stop(); err != nil {
-		p.Logger.Error(
-			"unable to gracefully close mconn",
-			"err",
-			err,
-		)
-	}
-}
-
-// ID returns the peer's ID - the hex encoded hash of its pubkey.
-func (p *peer) ID() ID {
-	return p.nodeInfo.NetAddress.ID
+	return fmt.Sprintf("Peer{%s %s in}", p.mConn, p.ID())
 }
 
 // IsOutbound returns true if the connection is outbound, false otherwise.
@@ -132,11 +99,6 @@ func (p *peer) IsPersistent() bool {
 	return p.connInfo.Persistent
 }
 
-// NodeInfo returns a copy of the peer's NodeInfo.
-func (p *peer) NodeInfo() NodeInfo {
-	return p.nodeInfo
-}
-
 // SocketAddr returns the address of the socket.
 // For outbound peers, it's the address dialed (after DNS resolution).
 // For inbound peers, it's the address returned by the underlying connection
@@ -145,9 +107,63 @@ func (p *peer) SocketAddr() *NetAddress {
 	return p.connInfo.SocketAddr
 }
 
+// CloseConn closes original connection.
+// Used for cleaning up in cases where the peer had not been started at all.
+func (p *peer) CloseConn() error {
+	return p.connInfo.Conn.Close()
+}
+
+func (p *peer) SetLogger(l *slog.Logger) {
+	p.Logger = l
+	p.mConn.SetLogger(l)
+}
+
+func (p *peer) OnStart() error {
+	if err := p.BaseService.OnStart(); err != nil {
+		return fmt.Errorf("unable to start base service, %w", err)
+	}
+
+	if err := p.mConn.Start(); err != nil {
+		return fmt.Errorf("unable to start multiplex connection, %w", err)
+	}
+
+	return nil
+}
+
+// FlushStop mimics OnStop but additionally ensures that all successful
+// .Send() calls will get flushed before closing the connection.
+// NOTE: it is not safe to call this method more than once.
+func (p *peer) FlushStop() {
+	p.BaseService.OnStop()
+	p.mConn.FlushStop() // stop everything and close the conn
+}
+
+// OnStop implements BaseService.
+func (p *peer) OnStop() {
+	p.BaseService.OnStop()
+
+	if err := p.mConn.Stop(); err != nil {
+		p.Logger.Error(
+			"unable to gracefully close mConn",
+			"err",
+			err,
+		)
+	}
+}
+
+// ID returns the peer's ID - the hex encoded hash of its pubkey.
+func (p *peer) ID() ID {
+	return p.nodeInfo.NetAddress.ID
+}
+
+// NodeInfo returns a copy of the peer's NodeInfo.
+func (p *peer) NodeInfo() NodeInfo {
+	return p.nodeInfo
+}
+
 // Status returns the peer's ConnectionStatus.
 func (p *peer) Status() connm.ConnectionStatus {
-	return p.mconn.Status()
+	return p.mConn.Status()
 }
 
 // Send msg bytes to the channel identified by chID byte. Returns false if the
@@ -159,7 +175,7 @@ func (p *peer) Send(chID byte, msgBytes []byte) bool {
 		return false
 	}
 
-	return p.mconn.Send(chID, msgBytes)
+	return p.mConn.Send(chID, msgBytes)
 }
 
 // TrySend msg bytes to the channel identified by chID byte. Immediately returns
@@ -169,16 +185,16 @@ func (p *peer) TrySend(chID byte, msgBytes []byte) bool {
 		return false
 	}
 
-	return p.mconn.TrySend(chID, msgBytes)
+	return p.mConn.TrySend(chID, msgBytes)
 }
 
 // Get the data for a given key.
-func (p *peer) Get(key string) interface{} {
+func (p *peer) Get(key string) any {
 	return p.data.Get(key)
 }
 
 // Set sets the data for the given key.
-func (p *peer) Set(key string, data interface{}) {
+func (p *peer) Set(key string, data any) {
 	p.data.Set(key, data)
 }
 
@@ -190,50 +206,35 @@ func (p *peer) hasChannel(chID byte) bool {
 			return true
 		}
 	}
-	// NOTE: probably will want to remove this
-	// but could be helpful while the feature is new
-	p.Logger.Debug(
-		"Unknown channel for peer",
-		"channel",
-		chID,
-		"channels",
-		p.nodeInfo.Channels,
-	)
+
 	return false
 }
 
-// CloseConn closes original connection. Used for cleaning up in cases where the peer had not been started at all.
-func (p *peer) CloseConn() error {
-	return p.connInfo.Conn.Close()
-}
-
-func createMConnection(
+// TODO cover
+func (p *peer) createMConnection(
 	conn net.Conn,
-	p Peer,
-	reactorsByCh map[byte]Reactor,
-	chDescs []*connm.ChannelDescriptor,
-	onPeerError func(Peer, interface{}),
-	config connm.MConnConfig,
+	config *MultiplexConnConfig,
 ) *connm.MConnection {
 	onReceive := func(chID byte, msgBytes []byte) {
-		reactor := reactorsByCh[chID]
+		reactor := config.ReactorsByCh[chID]
 		if reactor == nil {
 			// Note that its ok to panic here as it's caught in the connm._recover,
 			// which does onPeerError.
 			panic(fmt.Sprintf("Unknown channel %X", chID))
 		}
+
 		reactor.Receive(chID, p, msgBytes)
 	}
 
-	onError := func(r interface{}) {
-		onPeerError(p, r)
+	onError := func(r any) {
+		config.OnPeerError(p, r)
 	}
 
 	return connm.NewMConnectionWithConfig(
 		conn,
-		chDescs,
+		config.ChDescs,
 		onReceive,
 		onError,
-		config,
+		config.MConfig,
 	)
 }
