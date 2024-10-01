@@ -1,8 +1,13 @@
 package hof
 
 import (
+	"github.com/gnolang/gno/examples/gno.land/p/demo/fqname"
 	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
 	"github.com/gnolang/gno/examples/gno.land/p/demo/ufmt"
+)
+
+const (
+	MaxWidgetSize = 5
 )
 
 func Render(_ string) string {
@@ -13,6 +18,34 @@ func Render(_ string) string {
 	// todo render temp exhibitions
 
 	return out
+}
+
+func RenderExhibWidget(exhibID seqid.ID, itemsToRender int) (string, error) {
+	if itemsToRender > MaxWidgetSize {
+		return "", ErrMaxWidgetSize
+	}
+
+	if itemsToRender < 1 {
+		return "", ErrMinWidgetSize
+	}
+
+	out := ""
+	i := 0
+
+	if exhibID == seqid.ID(0) {
+		permanent.items.Iterate("", "", func(key string, value interface{}) bool {
+			item := value.(Item)
+			out += ufmt.Sprintf("- %s", fqname.RenderLink(item.pkgpath, ""))
+
+			i++
+			return i >= itemsToRender
+		})
+
+		return out, nil
+	}
+
+	// todo render temp exhibs
+	return "", nil
 }
 
 func (e Exhibition) Render() string {

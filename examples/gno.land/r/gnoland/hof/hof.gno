@@ -4,9 +4,9 @@
 package hof
 
 import (
-	"gno.land/p/demo/avl"
-	"gno.land/p/demo/seqid"
-	"std"
+	"github.com/gnolang/gno/examples/gno.land/p/demo/avl"
+	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
+	"github.com/gnolang/gno/gnovm/stdlibs/std"
 	"strings"
 	"time"
 )
@@ -41,7 +41,6 @@ type (
 func init() {
 	permanent = &Exhibition{
 		id:    exhibCounter.Next(),
-		title: "Permanent Exhibition",
 		items: avl.NewTree(),
 	}
 

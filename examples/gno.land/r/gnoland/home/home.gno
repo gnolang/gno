@@ -1,6 +1,8 @@
 package home
 
 import (
+	"github.com/gnolang/gno/examples/gno.land/p/demo/seqid"
+	"github.com/gnolang/gno/examples/gno.land/r/gnoland/hof"
 	"std"
 
 	"gno.land/p/demo/ownable"
@@ -87,6 +89,15 @@ func upcomingEvents() ui.Element {
 	return ui.Element{
 		ui.H3("[Latest Events](/r/gnoland/events)"),
 		ui.Text(out),
+	}
+}
+
+func latestHOFItems() ui.Element {
+	submissions, _ := hof.RenderExhibWidget(seqid.ID(0), 5)
+
+	return ui.Element{
+		ui.H3("[Hall of Fame](/r/gnoland/hof)"),
+		ui.Text(submissions),
 	}
 }
 

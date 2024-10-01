@@ -63,10 +63,13 @@ func RenderLink(pkgPath, slug string) string {
 		if slug != "" {
 			return "[" + pkgPath + "](" + pkgLink + ")." + slug
 		}
+
 		return "[" + pkgPath + "](" + pkgLink + ")"
 	}
+
 	if slug != "" {
 		return pkgPath + "." + slug
 	}
+
 	return pkgPath
 }
