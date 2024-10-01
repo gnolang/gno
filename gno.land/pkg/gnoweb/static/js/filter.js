@@ -11,11 +11,10 @@ function toggleSearch() {
     }
   }
   
-  // Filter function to show/hide elements based on the input value
+  
   function filterContent(event) {
     const filterText = event.target.value.toLowerCase(); // Get search input text in lowercase
-    const contentElements = document.querySelectorAll('.filtrable'); // Get all elements with class 'filtrable'
-
+    const contentElements = document.querySelectorAll('.filtrable');
   
     contentElements.forEach(element => {
         const text = element.textContent.toLowerCase();

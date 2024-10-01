@@ -33,31 +33,64 @@
   }
   
 /* ############################################## SEARCH-BAR AND ICON */
+
 .text-Area {
   display: none;
-  width: 10em;
-  height: 30px;
-  background-color: var(--border-color);
+  width: 100%;
+  max-width: 20em;
+  height: 35px;
+  background-color: var(--background-color, #f9f9f9);
   border-radius: 5px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-color, #ccc);
   z-index: 1;
   position: relative;
-  padding: 5px;
-  color: white;
+  padding: 8px;
+  color: var(--text-color, #333);
   margin-right: 2rem;
+  font-size: 1em;
+  transition: all 0.3s ease-in-out;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+ .text-Area:hover {
+  border-color: var(--hover-border-color, #888);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
 }
+
+.text-Area:focus {
+  outline: none;
+  border-color: var(--focus-border-color, #007bff);
+  background-color: var(--focus-background-color, #fff);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+/* Placeholder styling */
+.text-Area::placeholder {
+  color: var(--placeholder-color, #aaa);
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .text-Area {
+  width: 90%;
+  margin-right: 1rem;
+  }
+}
+
 .search-icon {
-  width: 24px;
-  height: 24px;
+  width: 40px;
+  height: 40px;
   cursor: pointer;
   display: block;
+  border-color: white;
+  background-color: var(--docsearch-searchbox-background);
 }
+
 .text-Area.show {
   display: block;
 }
 .searchDiv {
-  width: max-content;
-  padding-right: 20px;
+  width: fit-content;
+  padding: .6rem;
 }
 
 /*** DARK/LIGHT THEME COLORS ***/
