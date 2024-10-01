@@ -94,6 +94,19 @@ func RenderHome() string {
 	return out
 }
 
+func RenderExampleHeader() string {
+	input := `
+# Heading Level 1
+## Heading Level 2
+### Heading Level 3
+#### Heading Level 4
+##### Heading Level 5
+###### Heading Level 6
+`
+	out := runMarkdown(input)
+	return out
+}
+
 func RenderExampleLists() string {
 	input := `
 # Unordered List
@@ -121,16 +134,15 @@ func RenderExampleLists() string {
 	return out
 }
 
-func RenderExampleHeader() string {
+func RenderExampleLinkAndImage() string {
 	input := `
-# Heading Level 1
-## Heading Level 2
-### Heading Level 3
-#### Heading Level 4
-##### Heading Level 5
-###### Heading Level 6
+# Link And Image
+Here is a [link to VarMeta](https://www.var-meta.com/).
+![Gno logo](https://www.var-meta.com/favicon-16x16.png)
 `
+
 	out := runMarkdown(input)
+
 	return out
 }
 
@@ -148,6 +160,14 @@ Here is an inline code example: ` + "`" + `fmt.Println("Hello Gno!")` + "`" + `.
 	return out
 }
 
+func RenderExampleEmphasis() string {
+	input := `# Emphasis
+This is **bold** text, and this is _italic_ text.
+`
+	out := runMarkdown(input)
+	return out
+}
+
 func RenderExampleBlockquote() string {
 	input := `# Blockquote #
 > This is a blockquote.
@@ -157,26 +177,6 @@ func RenderExampleBlockquote() string {
 
 	out := runMarkdown(input)
 
-	return out
-}
-
-func RenderExampleLinkAndImage() string {
-	input := `
-# Link And Image
-Here is a [link to VarMeta](https://www.var-meta.com/).
-![Gno logo](https://www.var-meta.com/favicon-16x16.png)
-`
-
-	out := runMarkdown(input)
-
-	return out
-}
-
-func RenderExampleEmphasis() string {
-	input := `# Emphasis
-This is **bold** text, and this is _italic_ text.
-`
-	out := runMarkdown(input)
 	return out
 }
 
