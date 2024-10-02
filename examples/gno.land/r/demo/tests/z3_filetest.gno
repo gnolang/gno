@@ -2,9 +2,7 @@
 package test_test
 
 import (
-	"fmt"
 	"std"
-	"testing"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/tests"
