@@ -330,6 +330,15 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 	queryParts := strings.Split(querystr, "/")
 	pathLinks := []pathLink{}
 	for i, part := range queryParts {
+		// Unescape query arguments when present in the last render path part
+		if i == len(queryParts)-1 {
+			part, err = unescapeQueryArgs(part)
+			if err != nil {
+				writeError(logger, w, err)
+				return
+			}
+		}
+
 		pathLinks = append(pathLinks, pathLink{
 			URL:  "/r/" + rlmname + ":" + strings.Join(queryParts[:i+1], "/"),
 			Text: part,
@@ -347,6 +356,19 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 	tmpl.Set("Config", cfg)
 	tmpl.Set("HasReadme", hasReadme)
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
+}
+
+func unescapeQueryArgs(s string) (string, error) {
+	prefix, query, found := strings.Cut(s, "?")
+	if !found {
+		return s, nil
+	}
+
+	q, err := url.QueryUnescape(query)
+	if err != nil {
+		return "", err
+	}
+	return prefix + "?" + q, nil
 }
 
 func handlerRealmFile(logger *slog.Logger, app gotuna.App, cfg *Config) http.Handler {
