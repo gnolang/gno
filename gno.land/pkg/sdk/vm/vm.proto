@@ -30,6 +30,9 @@ message m_addpkg {
 message InvalidPkgPathError {
 }
 
+message PkgExistError {
+}
+
 message InvalidStmtError {
 }
 

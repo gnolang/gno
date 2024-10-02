@@ -79,6 +79,10 @@ func TestRunApp(t *testing.T) {
 			args:                 []string{"run", "../../tests/integ/invalid_assign/main.gno"},
 			recoverShouldContain: "cannot use bool as main.C without explicit conversion",
 		},
+		{
+			args:                []string{"run", "-expr", "Context()", "../../tests/integ/context/context.gno"},
+			stdoutShouldContain: "Context worked",
+		},
 		// TODO: a test file
 		// TODO: args
 		// TODO: nativeLibs VS stdlibs

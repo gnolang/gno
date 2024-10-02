@@ -19,7 +19,7 @@ func (e Error) Error() string {
 func main() {
 	var e0 E
 	e0 = Error(0)
-	fmt.Printf("%T \n", e0)
+	fmt.Printf("%T\n", e0)
 	if e0 == Error(0) {
 		println("what the firetruck?")
 	} else {
