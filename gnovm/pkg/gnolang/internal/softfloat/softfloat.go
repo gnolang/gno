@@ -36,6 +36,8 @@ func Feq32(f, g uint32) bool    { return feq32(f, g) }
 func Fgt32(f, g uint32) bool    { return fgt32(f, g) }
 func Fge32(f, g uint32) bool    { return fge32(f, g) }
 
+func Fcmp64(f, g uint64) (cmp int32, isnan bool) { return fcmp64(f, g) }
+
 func Fneg32(f uint32) uint32 {
 	// Not defined in runtime - this is a copy similar to fneg64.
 	return f ^ (1 << (mantbits32 + expbits32))
