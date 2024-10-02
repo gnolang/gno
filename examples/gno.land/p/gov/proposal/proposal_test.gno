@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/urequire"
 )
 
 func TestExecutor(t *testing.T) {
@@ -14,19 +15,11 @@ func TestExecutor(t *testing.T) {
 	verifyProposalFailed := func(e Executor) {
 		uassert.True(t, e.IsDone(), "expected proposal to be done")
 		uassert.False(t, e.IsSuccessful(), "expected proposal to fail")
-
-		if e.GetStatus() != Failed {
-			t.Fatal("expected status to be Failed")
-		}
 	}
 
 	verifyProposalSucceeded := func(e Executor) {
 		uassert.True(t, e.IsDone(), "expected proposal to be done")
 		uassert.True(t, e.IsSuccessful(), "expected proposal to be successful")
-
-		if e.GetStatus() != Succeeded {
-			t.Fatal("expected status to be Succeeded")
-		}
 	}
 
 	t.Run("govdao not caller", func(t *testing.T) {
@@ -45,9 +38,7 @@ func TestExecutor(t *testing.T) {
 		// Create the executor
 		e := NewExecutor(cb)
 
-		if e.GetStatus() != NotExecuted {
-			t.Fatal("expected status to be NotExecuted")
-		}
+		urequire.False(t, e.IsDone(), "expected status to be NotExecuted")
 
 		// Execute as not the /r/gov/dao caller
 		uassert.PanicsWithMessage(t, errNotGovDAO.Error(), func() {
@@ -73,9 +64,7 @@ func TestExecutor(t *testing.T) {
 		// Create the executor
 		e := NewExecutor(cb)
 
-		if e.GetStatus() != NotExecuted {
-			t.Fatal("expected status to be NotExecuted")
-		}
+		urequire.False(t, e.IsDone(), "expected status to be NotExecuted")
 
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)
@@ -110,10 +99,6 @@ func TestExecutor(t *testing.T) {
 		// Create the executor
 		e := NewExecutor(cb)
 
-		if e.GetStatus() != NotExecuted {
-			t.Fatal("expected status to be NotExecuted")
-		}
-
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)
 		std.TestSetRealm(r)
@@ -146,9 +131,7 @@ func TestExecutor(t *testing.T) {
 		// Create the executor
 		e := NewExecutor(cb)
 
-		if e.GetStatus() != NotExecuted {
-			t.Fatal("expected status to be NotExecuted")
-		}
+		urequire.False(t, e.IsDone(), "expected status to be NotExecuted")
 
 		// Execute as the /r/gov/dao caller
 		r := std.NewCodeRealm(daoPkgPath)

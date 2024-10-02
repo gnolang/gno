@@ -52,6 +52,62 @@ func main() {
 //             "T": {
 //                 "@type": "/gno.FuncType",
 //                 "Params": [],
+//                 "Results": [
+//                     {
+//                         "Embedded": false,
+//                         "Name": "",
+//                         "Tag": "",
+//                         "Type": {
+//                             "@type": "/gno.PrimitiveType",
+//                             "value": "16"
+//                         }
+//                     }
+//                 ]
+//             },
+//             "V": {
+//                 "@type": "/gno.FuncValue",
+//                 "Closure": {
+//                     "@type": "/gno.RefValue",
+//                     "Escaped": true,
+//                     "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:8"
+//                 },
+//                 "FileName": "native.gno",
+//                 "IsMethod": false,
+//                 "Name": "GetChainID",
+//                 "NativeName": "GetChainID",
+//                 "NativePkg": "std",
+//                 "PkgPath": "std",
+//                 "Source": {
+//                     "@type": "/gno.RefNode",
+//                     "BlockNode": null,
+//                     "Location": {
+//                         "Column": "1",
+//                         "File": "native.gno",
+//                         "Line": "13",
+//                         "PkgPath": "std"
+//                     }
+//                 },
+//                 "Type": {
+//                     "@type": "/gno.FuncType",
+//                     "Params": [],
+//                     "Results": [
+//                         {
+//                             "Embedded": false,
+//                             "Name": "",
+//                             "Tag": "",
+//                             "Type": {
+//                                 "@type": "/gno.PrimitiveType",
+//                                 "value": "16"
+//                             }
+//                         }
+//                     ]
+//                 }
+//             }
+//         },
+//         {
+//             "T": {
+//                 "@type": "/gno.FuncType",
+//                 "Params": [],
 //                 "Results": []
 //             },
 //             "V": {
@@ -63,7 +119,7 @@ func main() {
 //                 },
 //                 "FileName": "main.gno",
 //                 "IsMethod": false,
-//                 "Name": "init.0",
+//                 "Name": "init.1",
 //                 "NativeName": "",
 //                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/test",
@@ -117,62 +173,6 @@ func main() {
 //                     "@type": "/gno.FuncType",
 //                     "Params": [],
 //                     "Results": []
-//                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.FuncType",
-//                 "Params": [],
-//                 "Results": [
-//                     {
-//                         "Embedded": false,
-//                         "Name": "",
-//                         "Tag": "",
-//                         "Type": {
-//                             "@type": "/gno.PrimitiveType",
-//                             "value": "16"
-//                         }
-//                     }
-//                 ]
-//             },
-//             "V": {
-//                 "@type": "/gno.FuncValue",
-//                 "Closure": {
-//                     "@type": "/gno.RefValue",
-//                     "Escaped": true,
-//                     "ObjectID": "a7f5397443359ea76c50be82c77f1f893a060925:8"
-//                 },
-//                 "FileName": "native.gno",
-//                 "IsMethod": false,
-//                 "Name": "GetChainID",
-//                 "NativeName": "GetChainID",
-//                 "NativePkg": "std",
-//                 "PkgPath": "std",
-//                 "Source": {
-//                     "@type": "/gno.RefNode",
-//                     "BlockNode": null,
-//                     "Location": {
-//                         "Column": "1",
-//                         "File": "native.gno",
-//                         "Line": "13",
-//                         "PkgPath": "std"
-//                     }
-//                 },
-//                 "Type": {
-//                     "@type": "/gno.FuncType",
-//                     "Params": [],
-//                     "Results": [
-//                         {
-//                             "Embedded": false,
-//                             "Name": "",
-//                             "Tag": "",
-//                             "Type": {
-//                                 "@type": "/gno.PrimitiveType",
-//                                 "value": "16"
-//                             }
-//                         }
-//                     ]
 //                 }
 //             }
 //         }

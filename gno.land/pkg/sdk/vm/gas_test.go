@@ -3,6 +3,7 @@ package vm
 import (
 	"testing"
 
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
@@ -26,6 +27,9 @@ func TestAddPkgDeliverTxInsuffGas(t *testing.T) {
 	simulate := false
 	tx.Fee.GasWanted = 3000
 	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	// Has to be set up after gas meter in the context; so the stores are
+	// correctly wrapped in gas stores.
+	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 
 	var res sdk.Result
 	abort := false
@@ -62,12 +66,15 @@ func TestAddPkgDeliverTx(t *testing.T) {
 	simulate = false
 	tx.Fee.GasWanted = 500000
 	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 	msgs := tx.GetMsgs()
 	res := vmHandler.Process(gctx, msgs[0])
 	gasDeliver := gctx.GasMeter().GasConsumed()
 
 	assert.True(t, res.IsOK())
-	assert.Equal(t, int64(91825), gasDeliver)
+
+	// NOTE: let's try to keep this bellow 100_000 :)
+	assert.Equal(t, int64(92825), gasDeliver)
 }
 
 // Enough gas for a failed transaction.
@@ -81,6 +88,7 @@ func TestAddPkgDeliverTxFailed(t *testing.T) {
 	simulate = false
 	tx.Fee.GasWanted = 500000
 	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 	msgs := tx.GetMsgs()
 	res := vmHandler.Process(gctx, msgs[0])
 	gasDeliver := gctx.GasMeter().GasConsumed()
@@ -100,6 +108,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 	simulate = false
 	tx.Fee.GasWanted = 2230
 	gctx := auth.SetGasMeter(simulate, ctx, tx.Fee.GasWanted)
+	gctx = vmHandler.vm.MakeGnoTransactionStore(gctx)
 
 	var res sdk.Result
 	abort := false
@@ -126,7 +135,7 @@ func TestAddPkgDeliverTxFailedNoGas(t *testing.T) {
 	res = vmHandler.Process(gctx, msgs[0])
 }
 
-// Set up a test env for both a successful and a failed tx
+// Set up a test env for both a successful and a failed tx.
 func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	// setup
 	env := setupTestEnv()
@@ -138,7 +147,7 @@ func setupAddPkg(success bool) (sdk.Context, sdk.Tx, vmHandler) {
 	addr := crypto.AddressFromPreimage([]byte("test1"))
 	acc := env.acck.NewAccountWithAddress(ctx, addr)
 	env.acck.SetAccount(ctx, acc)
-	env.bank.SetCoins(ctx, addr, std.MustParseCoins("10000000ugnot"))
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(ugnot.ValueString(10000000)))
 	// success message
 	var files []*std.MemFile
 	if success {
@@ -170,7 +179,7 @@ func Echo() UnknowType {
 	// create messages and a transaction
 	msg := NewMsgAddPackage(addr, pkgPath, files)
 	msgs := []std.Msg{msg}
-	fee := std.NewFee(500000, std.MustParseCoin("1ugnot"))
+	fee := std.NewFee(500000, std.MustParseCoin(ugnot.ValueString(1)))
 	tx := std.NewTx(msgs, fee, []std.Signature{}, "")
 
 	return ctx, tx, vmHandler

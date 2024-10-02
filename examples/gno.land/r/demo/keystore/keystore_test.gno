@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+	"gno.land/p/demo/ufmt"
 )
 
 func TestRender(t *testing.T) {
@@ -69,9 +71,8 @@ func TestRender(t *testing.T) {
 			} else {
 				act = strings.TrimSpace(Render(p))
 			}
-			if act != tc.exp {
-				t.Errorf("%v -> '%s', got '%s', wanted '%s'", tc.ps, p, act, tc.exp)
-			}
+
+			uassert.Equal(t, tc.exp, act, ufmt.Sprintf("%v -> '%s'", tc.ps, p))
 		})
 	}
 }

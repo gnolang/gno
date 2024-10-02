@@ -5,11 +5,7 @@ on:
     branches:
       - master
   workflow_dispatch:
-  pull_request: 
-    paths:
-      - "gnovm/**"
-      - "go.*" # check on go.mod/sum update
-      - ".github/**"
+  pull_request:
 
 jobs:
   main:

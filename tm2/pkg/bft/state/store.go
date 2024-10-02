@@ -131,8 +131,13 @@ type ABCIResponses struct {
 
 // NewABCIResponses returns a new ABCIResponses
 func NewABCIResponses(block *types.Block) *ABCIResponses {
-	resDeliverTxs := make([]abci.ResponseDeliverTx, block.NumTxs)
-	if block.NumTxs == 0 {
+	return NewABCIResponsesFromNum(block.NumTxs)
+}
+
+// NewABCIResponsesFromNum returns a new ABCIResponses with a set number of txs
+func NewABCIResponsesFromNum(numTxs int64) *ABCIResponses {
+	resDeliverTxs := make([]abci.ResponseDeliverTx, numTxs)
+	if numTxs == 0 {
 		// This makes Amino encoding/decoding consistent.
 		resDeliverTxs = nil
 	}
@@ -175,7 +180,8 @@ func LoadABCIResponses(db dbm.DB, height int64) (*ABCIResponses, error) {
 // SaveABCIResponses persists the ABCIResponses to the database.
 // This is useful in case we crash after app.Commit and before s.Save().
 // Responses are indexed by height so they can also be loaded later to produce Merkle proofs.
-func saveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
+// NOTE: this should only be used internally by the bft package and subpackages.
+func SaveABCIResponses(db dbm.DB, height int64, abciResponses *ABCIResponses) {
 	db.Set(CalcABCIResponsesKey(height), abciResponses.Bytes())
 }
 

@@ -104,6 +104,25 @@ func main() {
 //     "Values": [
 //         {
 //             "T": {
+//                 "@type": "/gno.PointerType",
+//                 "Elt": {
+//                     "@type": "/gno.RefType",
+//                     "ID": "gno.land/r/test.Node"
+//                 }
+//             },
+//             "V": {
+//                 "@type": "/gno.PointerValue",
+//                 "Base": {
+//                     "@type": "/gno.RefValue",
+//                     "Hash": "8197b7c5b4f2c7bf9c12b1c614f6b4dc6e7ce8dd",
+//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
+//                 },
+//                 "Index": "0",
+//                 "TV": null
+//             }
+//         },
+//         {
+//             "T": {
 //                 "@type": "/gno.TypeType"
 //             },
 //             "V": {
@@ -190,7 +209,7 @@ func main() {
 //                 },
 //                 "FileName": "main.gno",
 //                 "IsMethod": false,
-//                 "Name": "init.2",
+//                 "Name": "init.3",
 //                 "NativeName": "",
 //                 "NativePkg": "",
 //                 "PkgPath": "gno.land/r/test",
@@ -245,25 +264,6 @@ func main() {
 //                     "Params": [],
 //                     "Results": []
 //                 }
-//             }
-//         },
-//         {
-//             "T": {
-//                 "@type": "/gno.PointerType",
-//                 "Elt": {
-//                     "@type": "/gno.RefType",
-//                     "ID": "gno.land/r/test.Node"
-//                 }
-//             },
-//             "V": {
-//                 "@type": "/gno.PointerValue",
-//                 "Base": {
-//                     "@type": "/gno.RefValue",
-//                     "Hash": "8197b7c5b4f2c7bf9c12b1c614f6b4dc6e7ce8dd",
-//                     "ObjectID": "a8ada09dee16d791fd406d629fe29bb0ed084a30:6"
-//                 },
-//                 "Index": "0",
-//                 "TV": null
 //             }
 //         }
 //     ]

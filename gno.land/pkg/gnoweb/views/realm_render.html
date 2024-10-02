@@ -16,6 +16,9 @@
           {{- end -}}
         </span>
         <span id="realm_links">
+          {{ if .Data.HasReadme }}
+          <a href="/r/{{ .Data.RealmName }}/README.md">[readme]</a>
+          {{ end }}
           <a href="/r/{{ .Data.RealmName }}/">[source]</a>
           <a href="/r/{{ .Data.RealmName }}?help">[help]</a>
         </span>
