@@ -585,36 +585,3 @@ func (r *byteStringReplacer) WriteString(w io.Writer, s string) (n int, err erro
 	}
 	return
 }
-
-// Custom code: these test functions are normally placed on export_test.go file but it seems like we do not recognize
-// methods declared on test files as part of the structure. For example:
-// Replacer.printTrie() was not recognized so I added here directly
-func (r *Replacer) PrintTrie() string {
-	r.buildOnce()
-	gen := r.r.(*genericReplacer)
-	return gen.printNode(&gen.root, 0)
-}
-
-func (r *genericReplacer) printNode(t *trieNode, depth int) (s string) {
-	if t.priority > 0 {
-		s += "+"
-	} else {
-		s += "-"
-	}
-	s += "\n"
-
-	if t.prefix != "" {
-		s += Repeat(".", depth) + t.prefix
-		s += r.printNode(t.next, depth+len(t.prefix))
-	} else if t.table != nil {
-		for b, m := range r.mapping {
-			if int(m) != r.tableSize && t.table[m] != nil {
-				s += Repeat(".", depth) + string([]byte{byte(b)})
-				s += r.printNode(t.table[m], depth+1)
-			}
-		}
-	}
-	return
-}
-
-// End of custom code
