@@ -30,11 +30,11 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 	cmd.AddSubCommands(
 		client.NewAddCmd(cfg, io),
 		client.NewDeleteCmd(cfg, io),
+		client.NewUpdateCmd(cfg, io),
 		client.NewGenerateCmd(cfg, io),
 		client.NewExportCmd(cfg, io),
 		client.NewImportCmd(cfg, io),
 		client.NewListCmd(cfg, io),
-		client.NewUpdateCmd(cfg, io),
 		client.NewSignCmd(cfg, io),
 		client.NewVerifyCmd(cfg, io),
 		client.NewQueryCmd(cfg, io),
