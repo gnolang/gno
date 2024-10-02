@@ -14,7 +14,7 @@ func TestBugApp(t *testing.T) {
 		},
 		{
 			args:                []string{"bug", "-skip-browser"},
-			stdoutShouldContain: "go version go1.",
+			stdoutShouldContain: "Go version: go1.",
 		},
 	}
 	testMainCaseRun(t, tc)

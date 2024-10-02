@@ -1,8 +1,8 @@
 package ownable
 
-import (
-	"std"
-)
+import "std"
+
+const OwnershipTransferEvent = "OwnershipTransfer"
 
 // Ownable is meant to be used as a top-level object to make your contract ownable OR
 // being embedded in a Gno object to manage per-object ownership.
@@ -12,7 +12,13 @@ type Ownable struct {
 
 func New() *Ownable {
 	return &Ownable{
-		owner: std.GetOrigCaller(),
+		owner: std.PrevRealm().Addr(),
+	}
+}
+
+func NewWithAddress(addr std.Address) *Ownable {
+	return &Ownable{
+		owner: addr,
 	}
 }
 
@@ -27,7 +33,14 @@ func (o *Ownable) TransferOwnership(newOwner std.Address) error {
 		return ErrInvalidAddress
 	}
 
+	prevOwner := o.owner
 	o.owner = newOwner
+	std.Emit(
+		OwnershipTransferEvent,
+		"from", string(prevOwner),
+		"to", string(newOwner),
+	)
+
 	return nil
 }
 
@@ -40,18 +53,35 @@ func (o *Ownable) DropOwnership() error {
 		return err
 	}
 
+	prevOwner := o.owner
 	o.owner = ""
+
+	std.Emit(
+		OwnershipTransferEvent,
+		"from", string(prevOwner),
+		"to", "",
+	)
+
 	return nil
 }
 
+// Owner returns the owner address from Ownable
+func (o Ownable) Owner() std.Address {
+	return o.owner
+}
+
 // CallerIsOwner checks if the caller of the function is the Realm's owner
-func (o *Ownable) CallerIsOwner() error {
-	if std.GetOrigCaller() == o.owner {
+func (o Ownable) CallerIsOwner() error {
+	if std.PrevRealm().Addr() == o.owner {
 		return nil
 	}
+
 	return ErrUnauthorized
 }
 
-func (o *Ownable) Owner() std.Address {
-	return o.owner
+// AssertCallerIsOwner panics if the caller is not the owner
+func (o Ownable) AssertCallerIsOwner() {
+	if std.PrevRealm().Addr() != o.owner {
+		panic(ErrUnauthorized)
+	}
 }

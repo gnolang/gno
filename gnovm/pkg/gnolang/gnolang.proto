@@ -58,6 +58,8 @@ message FuncValue {
 	google.protobuf.Any closure = 5 [json_name = "Closure"];
 	string file_name = 6 [json_name = "FileName"];
 	string pkg_path = 7 [json_name = "PkgPath"];
+	string native_pkg = 8 [json_name = "NativePkg"];
+	string native_name = 9 [json_name = "NativeName"];
 }
 
 message MapValue {
@@ -140,7 +142,7 @@ message Location {
 	string pkg_path = 1 [json_name = "PkgPath"];
 	string file = 2 [json_name = "File"];
 	sint64 line = 3 [json_name = "Line"];
-	sint64 nonce = 4 [json_name = "Nonce"];
+	sint64 column = 4 [json_name = "Column"];
 }
 
 message Attributes {

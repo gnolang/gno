@@ -168,14 +168,14 @@ func verifySecretsKey(args []string) error {
 	// Verify the set key
 	key := args[0]
 
-	if key != nodeKeyKey &&
+	if key != nodeIDKey &&
 		key != validatorPrivateKeyKey &&
 		key != validatorStateKey {
 		return fmt.Errorf(
 			"invalid secrets key value [%s, %s, %s]",
 			validatorPrivateKeyKey,
 			validatorStateKey,
-			nodeKeyKey,
+			nodeIDKey,
 		)
 	}
 
@@ -187,7 +187,7 @@ func getAvailableSecretsKeys() string {
 	return fmt.Sprintf(
 		"[%s, %s, %s]",
 		validatorPrivateKeyKey,
-		nodeKeyKey,
+		nodeIDKey,
 		validatorStateKey,
 	)
 }

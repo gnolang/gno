@@ -43,7 +43,7 @@ install.gno:
 	@printf "\033[0;32m[+] 'gno' has been installed. Read more in ./gnovm/\033[0m\n"
 .PHONY: install.gnodev
 install.gnodev:
-	$(MAKE) --no-print-directory -C ./contribs install.gnodev
+	$(MAKE) --no-print-directory -C ./contribs/gnodev install
 	@printf "\033[0;32m[+] 'gnodev' has been installed. Read more in ./contribs/gnodev/\033[0m\n"
 
 # old aliases

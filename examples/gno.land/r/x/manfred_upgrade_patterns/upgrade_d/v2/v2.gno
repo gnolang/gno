@@ -1,4 +1,4 @@
-package v1
+package v2
 
 import (
 	"gno.land/p/demo/avl"

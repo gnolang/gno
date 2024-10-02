@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// main/files/assign_unnamed_type/more/return_interface1_filetest.gno:10: cannot use interface{} as uint
+// main/files/assign_unnamed_type/more/return_interface1_filetest.gno:10:2: cannot use interface{} as uint

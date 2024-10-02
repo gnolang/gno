@@ -93,7 +93,7 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 
 		// Initialize and save the validator's private key
 		return initAndSaveValidatorKey(validatorKeyPath, io)
-	case nodeKeyKey:
+	case nodeIDKey:
 		if osm.FileExists(nodeKeyPath) && !cfg.forceOverwrite {
 			return fmt.Errorf("unable to overwrite the node' p2p key, %w", errOverwriteNotEnabled)
 		}

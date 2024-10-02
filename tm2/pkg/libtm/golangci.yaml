@@ -1,0 +1,116 @@
+run:
+  concurrency: 8
+  timeout: 10m
+  issue-exit-code: 1
+  tests: true
+  skip-dirs-use-default: true
+  modules-download-mode: readonly
+  allow-parallel-runners: false
+  go: ""
+
+output:
+  uniq-by-line: false
+  path-prefix: ""
+  sort-results: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false
+  fix: false
+  exclude-rules:
+    - path: (.+)_test.go
+      linters:
+        - nilnil
+        - gosec
+
+linters:
+  fast: false
+  disable-all: true
+  enable:
+    - asasalint # Check for pass []any as any in variadic func(...any)
+    - asciicheck # Detects funky ASCII characters
+    - bidichk # Checks for dangerous unicode character sequences
+    - durationcheck # Check for two durations multiplied together
+    - errcheck # Forces to not skip error check
+    - exportloopref # Checks for pointers to enclosing loop variables
+    - gocritic # Bundles different linting checks
+    - godot # Checks for periods at the end of comments
+    - gomoddirectives # Allow or ban replace directives in go.mod
+    - gosimple # Code simplification
+    - govet # Official Go tool
+    - ineffassign # Detects when assignments to existing variables are not used
+    - nakedret # Finds naked/bare returns and requires change them
+    - nilerr # Requires explicit returns
+    - nilnil # Requires explicit returns
+    - promlinter # Lints Prometheus metrics names
+    - reassign # Checks that package variables are not reassigned
+    - revive # Drop-in replacement for golint
+    - tenv # Detects using os.Setenv instead of t.Setenv
+    - testableexamples # Checks if examples are testable (have expected output)
+    - unparam # Finds unused params
+    - usestdlibvars # Detects the possibility to use variables/constants from stdlib
+    - wastedassign # Finds wasted assignment statements
+    - loggercheck # Checks the odd number of key and value pairs for common logger libraries
+    - nestif # Finds deeply nested if statements
+    - nonamedreturns # Reports all named returns
+    - decorder # Check declaration order of types, consts, vars and funcs
+    - gocheckcompilerdirectives # Checks that compiler directive comments (//go:) are valid
+    - gochecknoinits # Checks for init methods
+    - whitespace # Tool for detection of leading and trailing whitespace
+    - wsl # Forces you to use empty lines
+    - unconvert # Unnecessary type conversions
+    - tparallel # Detects inappropriate usage of t.Parallel() method in your Go test codes
+    - thelper # Detects golang test helpers without t.Helper() call and checks the consistency of test helpers
+    - stylecheck # Stylecheck is a replacement for golint
+    - prealloc # Finds slice declarations that could potentially be pre-allocated
+    - predeclared # Finds code that shadows one of Go's predeclared identifiers
+    - nolintlint # Ill-formed or insufficient nolint directives
+    - nlreturn # Checks for a new line before return and branch statements to increase code clarity
+    - misspell # Misspelled English words in comments
+    - makezero # Finds slice declarations with non-zero initial length
+    - lll # Long lines
+    - importas # Enforces consistent import aliases
+    - gosec # Security problems
+    - gofmt # Whether the code was gofmt-ed
+    - gofumpt # Stricter gofmt
+    - goimports # Unused imports
+    - goconst # Repeated strings that could be replaced by a constant
+    - dogsled # Checks assignments with too many blank identifiers (e.g. x, , , _, := f())
+    - errname # Checks that sentinel errors are prefixed with the Err and error types are suffixed with the Error
+    - errorlint # errorlint is a linter for that can be used to find code that will cause problems with the error wrapping scheme introduced in Go 1.13
+    - unused # Checks Go code for unused constants, variables, functions and types
+
+linters-settings:
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - hugeParam
+      - rangeExprCopy
+      - rangeValCopy
+      - importShadow
+      - unnamedResult
+  errcheck:
+    check-type-assertions: false
+    check-blank: true
+    exclude-functions:
+      - io/ioutil.ReadFile
+      - io.Copy(*bytes.Buffer)
+      - io.Copy(os.Stdout)
+  nakedret:
+    max-func-lines: 1
+  govet:
+    enable-all: true
+  gofmt:
+    simplify: true
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  godot:
+    scope: all
+    period: false

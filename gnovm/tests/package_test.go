@@ -18,7 +18,7 @@ import (
 func TestStdlibs(t *testing.T) {
 	// NOTE: this test only works using _test.gno files;
 	// filetests are not meant to be used for testing standard libraries.
-	// The examples directory is tested directly using `gno test`.
+	// The examples directory is tested directly using `gno test`u
 
 	// find all packages with *_test.gno files.
 	rootDirs := []string{

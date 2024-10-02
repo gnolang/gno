@@ -194,8 +194,13 @@ func (m *Machine) doOpRef() {
 			nv.Value = rv2
 		}
 	}
+	// when obtaining a pointer of the databyte type, use the ElemType of databyte
+	elt := xv.TV.T
+	if elt == DataByteType {
+		elt = xv.TV.V.(DataByteValue).ElemType
+	}
 	m.PushValue(TypedValue{
-		T: m.Alloc.NewType(&PointerType{Elt: xv.TV.T}),
+		T: m.Alloc.NewType(&PointerType{Elt: elt}),
 		V: xv,
 	})
 }
@@ -238,14 +243,14 @@ func (m *Machine) doOpTypeAssert1() {
 
 			// t is Gno interface.
 			// assert that x implements type.
-			var impl bool
-			impl = it.IsImplementedBy(xt)
-			if !impl {
+			err := it.VerifyImplementedBy(xt)
+			if err != nil {
 				// TODO: default panic type?
 				ex := fmt.Sprintf(
-					"%s doesn't implement %s",
+					"%s doesn't implement %s (%s)",
 					xt.String(),
-					it.String())
+					it.String(),
+					err.Error())
 				m.Panic(typedString(ex))
 				return
 			}

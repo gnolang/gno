@@ -1,11 +1,10 @@
-// PKGPATH: gno.land/r/groups_test
+// PKGPATH: gno.land/r/demo/groups_test
 package groups_test
 
 // SEND: 200000000ugnot
 
 import (
 	"std"
-	"strconv"
 
 	"gno.land/p/demo/testutils"
 	"gno.land/r/demo/groups"
@@ -14,7 +13,7 @@ import (
 
 var gid groups.GroupID
 
-const admin = std.Address("g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj")
+const admin = std.Address("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
 
 func main() {
 	caller := std.GetOrigCaller() // main

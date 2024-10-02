@@ -13,7 +13,7 @@ import (
 // Signer mock
 type (
 	mockSign     func(cfg SignCfg) (*std.Tx, error)
-	mockInfo     func() keys.Info
+	mockInfo     func() (keys.Info, error)
 	mockValidate func() error
 )
 
@@ -30,11 +30,11 @@ func (m *mockSigner) Sign(cfg SignCfg) (*std.Tx, error) {
 	return nil, nil
 }
 
-func (m *mockSigner) Info() keys.Info {
+func (m *mockSigner) Info() (keys.Info, error) {
 	if m.info != nil {
 		return m.info()
 	}
-	return nil
+	return nil, nil
 }
 
 func (m *mockSigner) Validate() error {
