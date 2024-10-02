@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMsgAddPackage(t *testing.T) {
+func TestMsgAddPackage_ValidateBasic(t *testing.T) {
 	t.Parallel()
 
 	creator := crypto.AddressFromPreimage([]byte("addr1"))
@@ -30,20 +30,9 @@ func TestMsgAddPackage(t *testing.T) {
 	}{
 		{
 			name: "valid message",
-			msg: MsgAddPackage{
-				Creator: creator,
-				Package: &std.MemPackage{
-					Name:  pkgName,
-					Path:  pkgPath,
-					Files: files,
-				},
-				Deposit: std.Coins{std.Coin{
-					Denom:  "ugnot",
-					Amount: 1000,
-				}},
-			},
-			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt",` +
-				`"deposit":"1000ugnot","package":{"files":[{"body":"package test\n\t\tfunc Echo() string {return \"hello world\"}",` +
+			msg:  NewMsgAddPackage(creator, pkgPath, files),
+			expectSignBytes: `{"creator":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt","deposit":"",` +
+				`"package":{"files":[{"body":"package test\n\t\tfunc Echo() string {return \"hello world\"}",` +
 				`"name":"test.gno"}],"name":"test","path":"gno.land/r/namespace/test"}}`,
 			expectErr: nil,
 		},
@@ -111,7 +100,7 @@ func TestMsgAddPackage(t *testing.T) {
 	}
 }
 
-func TestMsgCall(t *testing.T) {
+func TestMsgCall_ValidateBasic(t *testing.T) {
 	t.Parallel()
 
 	caller := crypto.AddressFromPreimage([]byte("addr1"))
@@ -127,16 +116,7 @@ func TestMsgCall(t *testing.T) {
 	}{
 		{
 			name: "valid message",
-			msg: MsgCall{
-				Caller:  caller,
-				PkgPath: pkgPath,
-				Func:    funcName,
-				Args:    args,
-				Send: std.Coins{std.Coin{
-					Denom:  "ugnot",
-					Amount: 1000,
-				}},
-			},
+			msg:  NewMsgCall(caller, std.NewCoins(std.NewCoin("ugnot", 1000)), pkgPath, funcName, args),
 			expectSignBytes: `{"args":["arg1","arg2"],"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt",` +
 				`"func":"MyFunction","pkg_path":"gno.land/r/namespace/test","send":"1000ugnot"}`,
 			expectErr: nil,
@@ -213,7 +193,7 @@ func TestMsgCall(t *testing.T) {
 	}
 }
 
-func TestMsgRun(t *testing.T) {
+func TestMsgRun_ValidateBasic(t *testing.T) {
 	t.Parallel()
 
 	caller := crypto.AddressFromPreimage([]byte("addr1"))
@@ -235,21 +215,10 @@ func TestMsgRun(t *testing.T) {
 	}{
 		{
 			name: "valid message",
-			msg: MsgRun{
-				Caller: caller,
-				Package: &std.MemPackage{
-					Name:  pkgName,
-					Path:  pkgPath,
-					Files: pkgFiles,
-				},
-				Send: std.Coins{std.Coin{
-					Denom:  "ugnot",
-					Amount: 1000,
-				}},
-			},
+			msg:  NewMsgRun(caller, std.NewCoins(std.NewCoin("ugnot", 1000)), pkgFiles),
 			expectSignBytes: `{"caller":"g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt",` +
 				`"package":{"files":[{"body":"package main\n\t\tfunc Echo() string {return \"hello world\"}",` +
-				`"name":"main.gno"}],"name":"main","path":"gno.land/r/g14ch5q26mhx3jk5cxl88t278nper264ces4m8nt/run"},` +
+				`"name":"main.gno"}],"name":"main","path":""},` +
 				`"send":"1000ugnot"}`,
 			expectErr: nil,
 		},
