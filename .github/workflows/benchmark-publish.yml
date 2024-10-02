@@ -12,3 +12,4 @@ jobs:
     with:
       publish: true
       test-flags: "-timeout 50m"
+      runner-additional-tag: "benchmarks-large"
