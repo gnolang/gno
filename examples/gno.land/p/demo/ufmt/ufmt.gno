@@ -168,19 +168,6 @@ func Sprintf(format string, args ...interface{}) string {
 			switch v := arg.(type) {
 			case uint8:
 				buf += strconv.FormatUint(uint64(v), 16)
-			case []uint8, [32]uint8:
-				for _, b := range v {
-					buf += strconv.FormatUint(uint64(b), 16)
-				}
-			default:
-				buf += "(unhandled)"
-			}
-		case "c":
-			switch v := arg.(type) {
-			case rune:
-				buf += string(v)
-			case int:
-				buf += string(rune(v))
 			default:
 				buf += "(unhandled)"
 			}
