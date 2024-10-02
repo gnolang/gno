@@ -12,10 +12,11 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/gnolang/overflow"
+
 	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
-	"github.com/gnolang/overflow"
 )
 
 // Exception represents a panic that originates from a gno program.
@@ -2214,7 +2215,12 @@ func (m *Machine) String() string {
 
 	builder.WriteString("    Blocks:\n")
 
-	for b := m.LastBlock(); b != nil; {
+	for i := len(m.Blocks) - 1; i > 0; i-- {
+		b := m.Blocks[i]
+		if b == nil {
+			continue
+		}
+
 		gen := builder.Len()/3 + 1
 		gens := "@" // strings.Repeat("@", gen)
 
