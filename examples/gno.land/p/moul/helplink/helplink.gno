@@ -7,6 +7,10 @@
 // ecosystem.
 package helplink
 
+// XXX: support advanced help options like field type
+// XXX: follow https://github.com/gnolang/gno/issues/2602
+// XXX: follow https://github.com/gnolang/gno/pull/2876
+
 // Link creates a markdown link for a help page.
 func Link(title string, fn string, args ...string) string {
 	return "[" + title + "](" + URL(fn, args...) + ")"
