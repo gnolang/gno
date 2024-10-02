@@ -23,7 +23,7 @@ Below is a list of queries a user can make with `gnokey`:
 - `auth/accounts/{ADDRESS}` - returns information about an account
 - `bank/balances/{ADDRESS}` - returns balances of an account
 - `vm/qfuncs` - returns the exported functions for a given pkgpath
-- `vm/qfile` - returns the list of files for a given pkgpath
+- `vm/qfile` - returns package contents for a given pkgpath
 - `vm/qeval` - evaluates an expression in read-only mode on and returns the results
 - `vm/qrender` - shorthand for evaluating `vm/qeval Render("")` for a given pkgpath
 
@@ -124,20 +124,56 @@ data: [
 
 ## `vm/qfile`
 
-With the `vm/qfile` query, we can fetch files found on a specific package path.
-To specify the path we want to query, we can use the `-data` flag:
+With the `vm/qfile` query, we can fetch files and their content found on a 
+specific package path. To specify the path we want to query, we can use the 
+`-data` flag:
 
 ```bash
 gnokey query vm/qfile -data "gno.land/r/demo/wugnot" -remote https://rpc.gno.land:443
 ```
 
-The output is a list of all files found within the `wugnot` realm:
+If the `-data` field contains only the package path, the output is a list of all
+files found within the `wugnot` realm:
 
 ```bash
 height: 0
 data: gno.mod
 wugnot.gno
 z0_filetest.gno
+```
+
+If the `-data` field also specifies a file name after the path, the source code
+of the file will be retrieved:
+
+```bash
+gnokey query vm/qfile -data "gno.land/r/demo/wugnot/wugnot.gno" -remote https://rpc.gno.land:443
+```
+
+Output: 
+```bash
+height: 0
+data: package wugnot
+
+import (
+        "std"
+        "strings"
+
+        "gno.land/p/demo/grc/grc20"
+        "gno.land/p/demo/ufmt"
+        pusers "gno.land/p/demo/users"
+        "gno.land/r/demo/users"
+)
+
+var (
+        banker *grc20.Banker = grc20.NewBanker("wrapped GNOT", "wugnot", 0)
+        Token                = banker.Token()
+)
+
+const (
+        ugnotMinDeposit  uint64 = 1000
+        wugnotMinDeposit uint64 = 1
+)
+...
 ```
 
 ## `vm/qeval`

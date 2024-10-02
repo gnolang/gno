@@ -58,7 +58,8 @@ your `ACCOUNT_ADDR` and `KEYNAME`
 
 Instead of editing `gno.land/genesis/genesis_balances.txt`, a more general solution (with more steps)
 is to run a local "faucet" and use the web browser to add $GNOT. (This can be done at any time.)
-See this page: https://github.com/gnolang/gno/blob/master/gno.land/cmd/gnofaucet/README.md
+See this page: https://github.com/gnolang/gno/blob/master/contribs/gnofaucet/README.md
+
 
 ### Start the `gnoland` node.
 
