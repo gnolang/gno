@@ -1,3 +1,5 @@
+// Package transpiler implements a source-to-source compiler for translating Gno
+// code into Go code.
 package transpiler
 
 import (
@@ -9,102 +11,52 @@ import (
 	goscanner "go/scanner"
 	"go/token"
 	"os"
-	"os/exec"
+	"path"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/stdlibs"
 	"golang.org/x/tools/go/ast/astutil"
 )
 
-const (
-	GnoRealmPkgsPrefixBefore = "gno.land/r/"
-	GnoRealmPkgsPrefixAfter  = "github.com/gnolang/gno/examples/gno.land/r/"
-	GnoPurePkgsPrefixBefore  = "gno.land/p/"
-	GnoPurePkgsPrefixAfter   = "github.com/gnolang/gno/examples/gno.land/p/"
-	GnoStdPkgBefore          = "std"
-	GnoStdPkgAfter           = "github.com/gnolang/gno/gnovm/stdlibs/stdshim"
-)
-
-var stdlibWhitelist = []string{
-	// go
-	"bufio",
-	"bytes",
-	"compress/gzip",
-	"context",
-	"crypto/md5",
-	"crypto/sha1",
-	"crypto/chacha20",
-	"crypto/cipher",
-	"crypto/sha256",
-	"encoding/base64",
-	"encoding/binary",
-	"encoding/hex",
-	"encoding/json",
-	"encoding/xml",
-	"errors",
-	"hash",
-	"hash/adler32",
-	"internal/bytealg",
-	"internal/os",
-	"flag",
-	"fmt",
-	"io",
-	"io/util",
-	"math",
-	"math/big",
-	"math/bits",
-	"math/rand",
-	"net/url",
-	"path",
-	"regexp",
-	"sort",
-	"strconv",
-	"strings",
-	"text/template",
-	"time",
-	"unicode",
-	"unicode/utf8",
-	"unicode/utf16",
-
-	// gno
-	"std",
-}
-
-var importPrefixWhitelist = []string{
-	"github.com/gnolang/gno/_test",
-}
-
+// ImportPrefix is the import path to the root of the gno repository, which should
+// be used to create go import paths.
 const ImportPrefix = "github.com/gnolang/gno"
 
-type transpileResult struct {
+// TranspileImportPath takes an import path s, and converts it into the full
+// import path relative to the Gno repository.
+func TranspileImportPath(s string) string {
+	return ImportPrefix + "/" + PackageDirLocation(s)
+}
+
+// PackageDirLocation provides the supposed directory of the package, relative to the root dir.
+//
+// TODO(morgan): move out, this should go in a "resolver" package.
+func PackageDirLocation(s string) string {
+	switch {
+	case !gno.IsStdlib(s):
+		return "examples/" + s
+	default:
+		return "gnovm/stdlibs/" + s
+	}
+}
+
+// Result is returned by Transpile, returning the file's imports and output
+// out the transpilation.
+type Result struct {
 	Imports    []*ast.ImportSpec
 	Translated string
+	File       *ast.File
 }
 
 // TODO: func TranspileFile: supports caching.
 // TODO: func TranspilePkg: supports directories.
 
-func guessRootDir(fileOrPkg string, goBinary string) (string, error) {
-	abs, err := filepath.Abs(fileOrPkg)
-	if err != nil {
-		return "", err
-	}
-	args := []string{"list", "-m", "-mod=mod", "-f", "{{.Dir}}", ImportPrefix}
-	cmd := exec.Command(goBinary, args...)
-	cmd.Dir = abs
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("can't guess --root-dir")
-	}
-	rootDir := strings.TrimSpace(string(out))
-	return rootDir, nil
-}
-
-// GetTranspileFilenameAndTags returns the filename and tags for transpiled files.
-func GetTranspileFilenameAndTags(gnoFilePath string) (targetFilename, tags string) {
+// TranspiledFilenameAndTags returns the filename and tags for transpiled files.
+func TranspiledFilenameAndTags(gnoFilePath string) (targetFilename, tags string) {
 	nameNoExtension := strings.TrimSuffix(filepath.Base(gnoFilePath), ".gno")
 	switch {
 	case strings.HasSuffix(gnoFilePath, "_filetest.gno"):
@@ -120,17 +72,43 @@ func GetTranspileFilenameAndTags(gnoFilePath string) (targetFilename, tags strin
 	return
 }
 
-func Transpile(source string, tags string, filename string) (*transpileResult, error) {
+// Transpile performs transpilation on the given source code. tags can be used
+// to specify build tags; and filename helps generate useful error messages and
+// discriminate between test and normal source files.
+func Transpile(source, tags, filename string) (*Result, error) {
 	fset := token.NewFileSet()
-	f, err := parser.ParseFile(fset, filename, source, parser.ParseComments)
+	f, err := parser.ParseFile(fset, filename, source,
+		// SkipObjectResolution -- unused here.
+		// ParseComments -- so that they show up when re-building the AST.
+		parser.SkipObjectResolution|parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("parse: %w", err)
 	}
 
 	isTestFile := strings.HasSuffix(filename, "_test.gno") || strings.HasSuffix(filename, "_filetest.gno")
-	shouldCheckWhitelist := !isTestFile
+	ctx := &transpileCtx{
+		rootDir: gnoenv.RootDir(),
+	}
+	stdlibPrefix := filepath.Join(ctx.rootDir, "gnovm", "stdlibs")
+	if isTestFile {
+		// XXX(morgan): this disables checking that a package exists (in examples or stdlibs)
+		// when transpiling a test file. After all Gno functions, including those in
+		// tests/imports.go are converted to native bindings, support should
+		// be added for transpiling stdlibs only available in tests/stdlibs, and
+		// enable as such "package checking" also on test files.
+		ctx.rootDir = ""
+	}
+	if strings.HasPrefix(filename, stdlibPrefix) {
+		// this is a standard library. Mark it in the options so the native
+		// bindings resolve correctly.
+		path := strings.TrimPrefix(filename, stdlibPrefix)
+		path = filepath.ToSlash(filepath.Dir(path))
+		path = strings.TrimLeft(path, "/")
 
-	transformed, err := transpileAST(fset, f, shouldCheckWhitelist)
+		ctx.stdlibPath = path
+	}
+
+	transformed, err := ctx.transformFile(fset, f)
 	if err != nil {
 		return nil, fmt.Errorf("transpileAST: %w", err)
 	}
@@ -152,190 +130,64 @@ func Transpile(source string, tags string, filename string) (*transpileResult, e
 		return nil, fmt.Errorf("format.Node: %w", err)
 	}
 
-	res := &transpileResult{
+	res := &Result{
 		Imports:    f.Imports,
 		Translated: out.String(),
+		File:       transformed,
 	}
 	return res, nil
 }
 
-// TranspileVerifyFile tries to run `go fmt` against a transpiled .go file.
-//
-// This is fast and won't look the imports.
-func TranspileVerifyFile(path string, gofmtBinary string) error {
-	// TODO: use cmd/parser instead of exec?
+type transpileCtx struct {
+	// If rootDir is given, we will check that the directory of the import path
+	// exists (using rootDir/packageDirLocation()).
+	rootDir string
+	// This should be set if we're working with a file from a standard library.
+	// This allows us to easily check if a function has a native binding, and as
+	// such modify its call expressions appropriately.
+	stdlibPath string
 
-	args := strings.Split(gofmtBinary, " ")
-	args = append(args, []string{"-l", "-e", path}...)
-	cmd := exec.Command(args[0], args[1:]...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, string(out))
-		return fmt.Errorf("%s: %w", gofmtBinary, err)
-	}
-	return nil
+	stdlibImports map[string]string // symbol -> import path
 }
 
-// TranspileBuildPackage tries to run `go build` against the transpiled .go files.
-//
-// This method is the most efficient to detect errors but requires that
-// all the import are valid and available.
-func TranspileBuildPackage(fileOrPkg, goBinary string) error {
-	// TODO: use cmd/compile instead of exec?
-	// TODO: find the nearest go.mod file, chdir in the same folder, rim prefix?
-	// TODO: temporarily create an in-memory go.mod or disable go modules for gno?
-	// TODO: ignore .go files that were not generated from gno?
-	// TODO: automatically transpile if not yet done.
-
-	files := []string{}
-
-	info, err := os.Stat(fileOrPkg)
-	if err != nil {
-		return fmt.Errorf("invalid file or package path %s: %w", fileOrPkg, err)
-	}
-	if !info.IsDir() {
-		file := fileOrPkg
-		files = append(files, file)
-	} else {
-		pkgDir := fileOrPkg
-		goGlob := filepath.Join(pkgDir, "*.go")
-		goMatches, err := filepath.Glob(goGlob)
-		if err != nil {
-			return fmt.Errorf("glob %s: %w", goGlob, err)
-		}
-		for _, goMatch := range goMatches {
-			switch {
-			case strings.HasPrefix(goMatch, "."): // skip
-			case strings.HasSuffix(goMatch, "_filetest.go"): // skip
-			case strings.HasSuffix(goMatch, "_filetest.gno.gen.go"): // skip
-			case strings.HasSuffix(goMatch, "_test.go"): // skip
-			case strings.HasSuffix(goMatch, "_test.gno.gen.go"): // skip
-			default:
-				files = append(files, goMatch)
-			}
-		}
-	}
-
-	sort.Strings(files)
-	args := append([]string{"build", "-v", "-tags=gno"}, files...)
-	cmd := exec.Command(goBinary, args...)
-	rootDir, err := guessRootDir(fileOrPkg, goBinary)
-	if err == nil {
-		cmd.Dir = rootDir
-	}
-	out, err := cmd.CombinedOutput()
-	if _, ok := err.(*exec.ExitError); ok {
-		// exit error
-		return parseGoBuildErrors(string(out))
-	}
-	return err
-}
-
-var reGoBuildError = regexp.MustCompile(`(?m)^(\S+):(\d+):(\d+): (.+)$`)
-
-// parseGoBuildErrors returns a scanner.ErrorList filled with all errors found
-// in out, which is supposed to be the output of the `go build` command.
-//
-// TODO(tb): update when `go build -json` is released to replace regexp usage.
-// See https://github.com/golang/go/issues/62067
-func parseGoBuildErrors(out string) error {
-	var errList goscanner.ErrorList
-	matches := reGoBuildError.FindAllStringSubmatch(out, -1)
-	for _, match := range matches {
-		filename := match[1]
-		line, err := strconv.Atoi(match[2])
-		if err != nil {
-			return fmt.Errorf("parse line go build error %s: %w", match, err)
-		}
-
-		column, err := strconv.Atoi(match[3])
-		if err != nil {
-			return fmt.Errorf("parse column go build error %s: %w", match, err)
-		}
-		msg := match[4]
-		errList.Add(token.Position{
-			Filename: filename,
-			Line:     line,
-			Column:   column,
-		}, msg)
-	}
-	return errList.Err()
-}
-
-func transpileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.Node, error) {
+func (ctx *transpileCtx) transformFile(fset *token.FileSet, f *ast.File) (*ast.File, error) {
 	var errs goscanner.ErrorList
 
 	imports := astutil.Imports(fset, f)
+	ctx.stdlibImports = make(map[string]string)
 
-	// import whitelist
-	if checkWhitelist {
-		for _, paragraph := range imports {
-			for _, importSpec := range paragraph {
-				importPath := strings.TrimPrefix(strings.TrimSuffix(importSpec.Path.Value, `"`), `"`)
-
-				if strings.HasPrefix(importPath, GnoRealmPkgsPrefixBefore) {
-					continue
-				}
-
-				if strings.HasPrefix(importPath, GnoPurePkgsPrefixBefore) {
-					continue
-				}
-
-				valid := false
-				for _, whitelisted := range stdlibWhitelist {
-					if importPath == whitelisted {
-						valid = true
-						break
-					}
-				}
-				if valid {
-					continue
-				}
-
-				for _, whitelisted := range importPrefixWhitelist {
-					if strings.HasPrefix(importPath, whitelisted) {
-						valid = true
-						break
-					}
-				}
-				if valid {
-					continue
-				}
-
-				errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("import %q is not in the whitelist", importPath))
-			}
-		}
-	}
-
-	// rewrite imports
+	// rewrite imports to point to stdlibs/ or examples/
 	for _, paragraph := range imports {
 		for _, importSpec := range paragraph {
-			importPath := strings.TrimPrefix(strings.TrimSuffix(importSpec.Path.Value, `"`), `"`)
+			importPath, err := strconv.Unquote(importSpec.Path.Value)
+			if err != nil {
+				errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("can't unquote import path %s: %v", importSpec.Path.Value, err))
+				continue
+			}
 
-			// std package
-			if importPath == GnoStdPkgBefore {
-				if !astutil.RewriteImport(fset, f, GnoStdPkgBefore, GnoStdPkgAfter) {
-					errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("failed to replace the %q package with %q", GnoStdPkgBefore, GnoStdPkgAfter))
+			if ctx.rootDir != "" {
+				dirPath := filepath.Join(ctx.rootDir, PackageDirLocation(importPath))
+				if _, err := os.Stat(dirPath); err != nil {
+					if !os.IsNotExist(err) {
+						return nil, err
+					}
+					errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("import %q does not exist", importPath))
+					continue
 				}
 			}
 
-			// p/pkg packages
-			if strings.HasPrefix(importPath, GnoPurePkgsPrefixBefore) {
-				target := GnoPurePkgsPrefixAfter + strings.TrimPrefix(importPath, GnoPurePkgsPrefixBefore)
-
-				if !astutil.RewriteImport(fset, f, importPath, target) {
-					errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("failed to replace the %q package with %q", importPath, target))
+			// Create mapping
+			if gno.IsStdlib(importPath) {
+				if importSpec.Name != nil {
+					ctx.stdlibImports[importSpec.Name.Name] = importPath
+				} else {
+					// XXX: imperfect, see comment on transformCallExpr
+					ctx.stdlibImports[path.Base(importPath)] = importPath
 				}
 			}
 
-			// r/realm packages
-			if strings.HasPrefix(importPath, GnoRealmPkgsPrefixBefore) {
-				target := GnoRealmPkgsPrefixAfter + strings.TrimPrefix(importPath, GnoRealmPkgsPrefixBefore)
-
-				if !astutil.RewriteImport(fset, f, importPath, target) {
-					errs.Add(fset.Position(importSpec.Pos()), fmt.Sprintf("failed to replace the %q package with %q", importPath, target))
-				}
-			}
+			transp := TranspileImportPath(importPath)
+			importSpec.Path.Value = strconv.Quote(transp)
 		}
 	}
 
@@ -343,14 +195,72 @@ func transpileAST(fset *token.FileSet, f *ast.File, checkWhitelist bool) (ast.No
 	node := astutil.Apply(f,
 		// pre
 		func(c *astutil.Cursor) bool {
-			// do things here
+			node := c.Node()
+			// is function declaration without body?
+			// -> delete (native binding)
+			if fd, ok := node.(*ast.FuncDecl); ok && fd.Body == nil {
+				c.Delete()
+				return false // don't attempt to traverse children
+			}
+
+			// is function call to a native function?
+			// -> rename if unexported, apply `nil,` for the first arg if necessary
+			if ce, ok := node.(*ast.CallExpr); ok {
+				return ctx.transformCallExpr(c, ce)
+			}
+
 			return true
 		},
+
 		// post
 		func(c *astutil.Cursor) bool {
-			// and here
 			return true
 		},
 	)
-	return node, errs.Err()
+	return node.(*ast.File), errs.Err()
+}
+
+func (ctx *transpileCtx) transformCallExpr(_ *astutil.Cursor, ce *ast.CallExpr) bool {
+	switch fe := ce.Fun.(type) {
+	case *ast.SelectorExpr:
+		// XXX: This is not correct in 100% of cases. If I shadow the `std` symbol, and
+		// its replacement is a type with the method AssertOriginCall, this system
+		// will incorrectly add a `nil` as the first argument.
+		// A full fix requires understanding scope; the Go standard library recommends
+		// using go/types, which for proper functioning requires an importer
+		// which can work with Gno. This is deferred for a future PR.
+		id, ok := fe.X.(*ast.Ident)
+		if !ok {
+			break
+		}
+		ip, ok := ctx.stdlibImports[id.Name]
+		if !ok {
+			break
+		}
+		nat := stdlibs.FindNative(ip, gno.Name(fe.Sel.Name))
+		if nat != nil && nat.HasMachineParam() {
+			// Because it's an import, the symbol is always exported, so no need for the
+			// X_ prefix we add below.
+			ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
+		}
+
+	case *ast.Ident:
+		// Is this a native binding?
+		// Note: this is only useful within packages like `std` and `math`.
+		// The logic here is not robust to be generic. It does not account for locally
+		// defined scope. However, because native bindings have a narrowly defined and
+		// controlled scope (standard libraries) this will work for our usecase.
+		nat := stdlibs.FindNative(ctx.stdlibPath, gno.Name(fe.Name))
+		if ctx.stdlibPath != "" && nat != nil {
+			if nat.HasMachineParam() {
+				ce.Args = append([]ast.Expr{ast.NewIdent("nil")}, ce.Args...)
+			}
+			if !fe.IsExported() {
+				// Prefix unexported names with X_, per native binding convention
+				// (to export the symbol within Go).
+				fe.Name = "X_" + fe.Name
+			}
+		}
+	}
+	return true
 }

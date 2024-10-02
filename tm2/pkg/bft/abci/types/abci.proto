@@ -112,6 +112,7 @@ message ResponseInitChain {
 	ResponseBase response_base = 1 [json_name = "ResponseBase"];
 	ConsensusParams consensus_params = 2 [json_name = "ConsensusParams"];
 	repeated ValidatorUpdate validators = 3 [json_name = "Validators"];
+	repeated ResponseDeliverTx tx_responses = 4 [json_name = "TxResponses"];
 }
 
 message ResponseQuery {

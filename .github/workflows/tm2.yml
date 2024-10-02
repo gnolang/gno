@@ -6,9 +6,6 @@ on:
       - master
   workflow_dispatch:
   pull_request:
-    paths:
-      - "tm2/**"
-      - ".github/**"
 
 jobs:
   main:

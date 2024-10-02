@@ -17,6 +17,7 @@ import (
 
 // NodeKey is the persistent peer key.
 // It contains the nodes private key for authentication.
+// NOTE: keep in sync with gno.land/cmd/gnoland/secrets.go
 type NodeKey struct {
 	crypto.PrivKey `json:"priv_key"` // our priv key
 }

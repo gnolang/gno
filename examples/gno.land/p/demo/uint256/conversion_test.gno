@@ -1,8 +1,6 @@
 package uint256
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestIsUint64(t *testing.T) {
 	tests := []struct {
