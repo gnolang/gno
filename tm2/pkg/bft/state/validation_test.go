@@ -80,7 +80,7 @@ func TestValidateBlockHeader(t *testing.T) {
 			tc.malleateBlock(block)
 			err := blockExec.ValidateBlock(state, block)
 
-			require.Error(t, err, "%s", tc.name)
+			require.Error(t, err, tc.name)
 
 			if tc.expectedError != "" {
 				require.Equal(t, tc.expectedError, err.Error(), "Error mismatch for test case: %s", tc.name)
