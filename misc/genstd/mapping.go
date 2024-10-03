@@ -7,12 +7,12 @@ import (
 	"path"
 )
 
-const gnoPackagePath = "github.com/gnolang/gno/gnovm/pkg/gnolang"
+const gnoPackagePath = "github.com/gnolang/gno/gno/pkg/vm"
 
 type mapping struct {
 	GnoImportPath string // time
 	GnoFunc       string // now
-	GoImportPath  string // github.com/gnolang/gno/gnovm/stdlibs/time
+	GoImportPath  string // github.com/gnolang/gno/gno/stdlibs/time
 	GoFunc        string // X_now
 	Params        []mappingType
 	Results       []mappingType

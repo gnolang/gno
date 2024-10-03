@@ -62,4 +62,4 @@ fmt:
 
 .PHONY: tidy
 tidy:
-	go run github.com/gnolang/gno/gnovm/cmd/gno mod tidy -v --recursive
+	go run github.com/gnolang/gno/gno/cmd/gno mod tidy -v --recursive

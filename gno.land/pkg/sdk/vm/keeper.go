@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/stdlibs"
+	gno "github.com/gnolang/gno/gno/pkg/vm"
+	"github.com/gnolang/gno/gno/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/errors"

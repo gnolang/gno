@@ -44,7 +44,7 @@ bindings, which are the following:
   `func X_sum256(b []byte)`).
 - The Go function declaration may specify as the first argument
   `m *gno.Machine`, where `gno` is an import for
-  `github.com/gnolang/gno/gnovm/pkg/gnolang`. This gives the function access to
+  `github.com/gnolang/gno/gno/pkg/vm`. This gives the function access to
   the Virtual Machine state, and is used by functions like `std.AssertOriginCall()`.
 - The Go function may change the type of any parameter or result to
   `gno.TypedValue`, where `gno` is an import for the above import path. This
@@ -63,7 +63,7 @@ bindings, which are the following:
   For example, if a package is in `foo/bar`, but declares `package xyz`, when importing
   foo/bar the generator will assume the name to be `bar` instead of `xyz`.
   You can add an identifier to the import to fix this and use the identifier
-  you want/need, such as `import gno "github.com/gnolang/gno/gnovm/pkg/gnolang"`.
+  you want/need, such as `import gno "github.com/gnolang/gno/gno/pkg/vm"`.
 
 ## Adding new standard libraries
 

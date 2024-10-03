@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/apd/v3"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gno "github.com/gnolang/gno/gno/pkg/vm"
 )
 
 func assertNoPlusPrefix(s string) {

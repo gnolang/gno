@@ -8,8 +8,8 @@ import (
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	gno "github.com/gnolang/gno/gno/pkg/vm"
+	"github.com/gnolang/gno/gno/pkg/gnomod"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )

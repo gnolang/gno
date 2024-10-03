@@ -19,9 +19,9 @@ func Test_pkgNameFromPath(t *testing.T) {
 
 		{"github.com/gnolang/gno/misc/test", "repo_misc_test"},
 		{"github.com/gnolang/gno/tm2/pkg/crypto", "tm2_crypto"},
-		{"github.com/gnolang/gno/gnovm/test", "vm_test"},
-		{"github.com/gnolang/gno/gnovm/stdlibs/std", "libs_std"},
-		{"github.com/gnolang/gno/gnovm/tests/stdlibs/std", "testlibs_std"},
+		{"github.com/gnolang/gno/gno/test", "vm_test"},
+		{"github.com/gnolang/gno/gno/stdlibs/std", "libs_std"},
+		{"github.com/gnolang/gno/gno/tests/stdlibs/std", "testlibs_std"},
 	}
 	for i, tv := range tt {
 		t.Run(fmt.Sprintf("n%d", i+1), func(t *testing.T) {

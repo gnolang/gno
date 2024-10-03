@@ -11,7 +11,7 @@ import (
 
 	// TODO: move these out.
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gno "github.com/gnolang/gno/gno/pkg/vm"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/blockchain"
 	"github.com/gnolang/gno/tm2/pkg/bft/consensus"

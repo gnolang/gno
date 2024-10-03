@@ -3,7 +3,7 @@ package gnoland
 import (
 	"regexp"
 
-	gnovm "github.com/gnolang/gno/gnovm/stdlibs/std"
+	gnovm "github.com/gnolang/gno/gno/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/events"
 )
