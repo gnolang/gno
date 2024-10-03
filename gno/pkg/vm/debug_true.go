@@ -1,5 +1,5 @@
 //go:build debug
 
-package gnolang
+package vm
 
 const debug debugging = true

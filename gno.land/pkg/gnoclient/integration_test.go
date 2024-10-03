@@ -3,7 +3,7 @@ package gnoclient
 import (
 	"testing"
 
-	"github.com/gnolang/gno/gno/pkg/vm"
+	gnovm "github.com/gnolang/gno/gno/pkg/vm"
 
 	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -500,7 +500,7 @@ func Echo(str string) string {
 	assert.Equal(t, string(query.Response.Data), fileName)
 
 	// Query balance to validate deposit
-	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath))
+	baseAcc, _, err := client.QueryAccount(gnovm.DerivePkgAddr(deploymentPath))
 	require.NoError(t, err)
 	assert.Equal(t, baseAcc.GetCoins(), deposit)
 
@@ -556,7 +556,7 @@ func Echo(str string) string {
 	body2 := `package hello
 
 func Hello(str string) string {
-	return "Hello " + str + "!" 
+	return "Hello " + str + "!"
 }`
 
 	caller, err := client.Signer.Info()
@@ -609,7 +609,7 @@ func Hello(str string) string {
 	assert.Equal(t, string(query.Response.Data), "echo.gno")
 
 	// Query balance to validate deposit
-	baseAcc, _, err := client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath1))
+	baseAcc, _, err := client.QueryAccount(gnovm.DerivePkgAddr(deploymentPath1))
 	require.NoError(t, err)
 	assert.Equal(t, baseAcc.GetCoins().String(), "")
 
@@ -623,7 +623,7 @@ func Hello(str string) string {
 	assert.Contains(t, string(query.Response.Data), "gno.mod")
 
 	// Query balance to validate deposit
-	baseAcc, _, err = client.QueryAccount(gnolang.DerivePkgAddr(deploymentPath2))
+	baseAcc, _, err = client.QueryAccount(gnovm.DerivePkgAddr(deploymentPath2))
 	require.NoError(t, err)
 	assert.Equal(t, baseAcc.GetCoins(), deposit)
 

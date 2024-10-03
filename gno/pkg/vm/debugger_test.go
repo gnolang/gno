@@ -1,4 +1,4 @@
-package gnolang_test
+package vm_test
 
 import (
 	"bufio"

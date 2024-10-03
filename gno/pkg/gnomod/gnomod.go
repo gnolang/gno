@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gno/pkg/gnoenv"
-	"github.com/gnolang/gno/gno/pkg/vm"
 	"github.com/gnolang/gno/gno/pkg/transpiler"
+	"github.com/gnolang/gno/gno/pkg/vm"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
@@ -91,7 +91,7 @@ func GnoToGoMod(f File) (*File, error) {
 
 	gnoModPath := GetGnoModPath()
 
-	if !gnolang.IsStdlib(f.Module.Mod.Path) {
+	if !vm.IsStdlib(f.Module.Mod.Path) {
 		f.AddModuleStmt(transpiler.TranspileImportPath(f.Module.Mod.Path))
 	}
 
@@ -103,7 +103,7 @@ func GnoToGoMod(f File) (*File, error) {
 			}
 		}
 		path := f.Require[i].Mod.Path
-		if !gnolang.IsStdlib(path) {
+		if !vm.IsStdlib(path) {
 			// Add dependency with a modified import path
 			f.AddRequire(transpiler.TranspileImportPath(path), f.Require[i].Mod.Version)
 		}
@@ -168,7 +168,7 @@ func CreateGnoModFile(rootDir, modPath string) error {
 			return fmt.Errorf("read dir %q: %w", rootDir, err)
 		}
 
-		var pkgName gnolang.Name
+		var pkgName vm.Name
 		for _, file := range files {
 			if file.IsDir() || !strings.HasSuffix(file.Name(), ".gno") || strings.HasSuffix(file.Name(), "_filetest.gno") {
 				continue
@@ -180,7 +180,7 @@ func CreateGnoModFile(rootDir, modPath string) error {
 				return fmt.Errorf("read file %q: %w", fpath, err)
 			}
 
-			pn := gnolang.PackageNameFromFileBody(file.Name(), string(bz))
+			pn := vm.PackageNameFromFileBody(file.Name(), string(bz))
 			if strings.HasSuffix(string(pkgName), "_test") {
 				pkgName = pkgName[:len(pkgName)-len("_test")]
 			}

@@ -1,4 +1,4 @@
-package gnolang
+package vm
 
 // Copy should happen before any preprocessing.
 // * Attributes are not copied.

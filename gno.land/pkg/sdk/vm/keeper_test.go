@@ -508,7 +508,7 @@ func Test_loadStdlibPackage(t *testing.T) {
 	mdb := memdb.NewMemDB()
 	cs := dbadapter.StoreConstructor(mdb, types.StoreOptions{})
 
-	gs := gnolang.NewStore(nil, cs, cs)
+	gs := vm.NewStore(nil, cs, cs)
 	assert.PanicsWithValue(t, `failed loading stdlib "notfound": does not exist`, func() {
 		loadStdlibPackage("notfound", "./testdata", gs)
 	})

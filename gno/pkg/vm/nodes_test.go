@@ -1,4 +1,4 @@
-package gnolang_test
+package vm_test
 
 import (
 	"math"
@@ -26,12 +26,12 @@ func TestStaticBlock_Define2_MaxNames(t *testing.T) {
 		t.Errorf("expected panic when exceeding maximum number of names")
 	}()
 
-	staticBlock := new(gnolang.StaticBlock)
+	staticBlock := new(vm.StaticBlock)
 	staticBlock.NumNames = math.MaxUint16 - 1
-	staticBlock.Names = make([]gnolang.Name, staticBlock.NumNames)
+	staticBlock.Names = make([]vm.Name, staticBlock.NumNames)
 
 	// Adding one more is okay.
-	staticBlock.Define2(false, gnolang.Name("a"), gnolang.BoolType, gnolang.TypedValue{T: gnolang.BoolType})
+	staticBlock.Define2(false, vm.Name("a"), vm.BoolType, vm.TypedValue{T: vm.BoolType})
 	if staticBlock.NumNames != math.MaxUint16 {
 		t.Errorf("expected NumNames to be %d, got %d", math.MaxUint16, staticBlock.NumNames)
 	}
@@ -40,5 +40,5 @@ func TestStaticBlock_Define2_MaxNames(t *testing.T) {
 	}
 
 	// This one should panic because the maximum number of names has been reached.
-	staticBlock.Define2(false, gnolang.Name("a"), gnolang.BoolType, gnolang.TypedValue{T: gnolang.BoolType})
+	staticBlock.Define2(false, vm.Name("a"), vm.BoolType, vm.TypedValue{T: vm.BoolType})
 }

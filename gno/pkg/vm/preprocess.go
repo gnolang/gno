@@ -1,4 +1,4 @@
-package gnolang
+package vm
 
 import (
 	"fmt"
