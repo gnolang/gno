@@ -333,7 +333,7 @@ func createConsensusReactor(config *cfg.Config,
 
 func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey, proxyApp appconn.AppConns) (*p2p.MultiplexTransport, []p2p.PeerFilterFunc) {
 	var (
-		mConnConfig = p2p.MConnConfig(config.P2P)
+		mConnConfig = p2p.MultiplexConfigFromP2P(config.P2P)
 		transport   = p2p.NewMultiplexTransport(nodeInfo, *nodeKey, mConnConfig)
 		connFilters = []p2p.ConnFilterFunc{}
 		peerFilters = []p2p.PeerFilterFunc{}
@@ -400,15 +400,14 @@ func createSwitch(config *cfg.Config,
 	sw := p2p.NewSwitch(
 		config.P2P,
 		transport,
-		p2p.SwitchPeerFilters(peerFilters...),
+		p2p.WithPeerFilters(peerFilters...),
+		p2p.WithNodeInfo(nodeInfo),
+		p2p.WithNodeKey(nodeKey),
 	)
 	sw.SetLogger(p2pLogger)
 	sw.AddReactor("MEMPOOL", mempoolReactor)
 	sw.AddReactor("BLOCKCHAIN", bcReactor)
 	sw.AddReactor("CONSENSUS", consensusReactor)
-
-	sw.SetNodeInfo(nodeInfo)
-	sw.SetNodeKey(nodeKey)
 
 	p2pLogger.Info("P2P Node ID", "ID", nodeKey.ID(), "file", config.NodeKeyFile())
 	return sw

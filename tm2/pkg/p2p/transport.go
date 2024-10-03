@@ -54,7 +54,7 @@ type peerConfig struct {
 // the transport. Each transport is also responsible to filter establishing
 // peers specific to its domain.
 type Transport interface {
-	// Listening address.
+	// NetAddress returns the associated net address of the transport
 	NetAddress() NetAddress
 
 	// Accept returns a newly connected Peer.
@@ -65,13 +65,9 @@ type Transport interface {
 
 	// Cleanup any resources associated with Peer.
 	Cleanup(Peer)
-}
 
-// TransportLifecycle bundles the methods for callers to control start and stop
-// behaviour.
-type TransportLifecycle interface {
+	// Close closes the transport
 	Close() error
-	Listen(NetAddress) error
 }
 
 // ConnFilterFunc to be implemented by filter hooks after a new connection has
@@ -149,10 +145,7 @@ type MultiplexTransport struct {
 }
 
 // Test multiplexTransport for interface completeness.
-var (
-	_ Transport          = (*MultiplexTransport)(nil)
-	_ TransportLifecycle = (*MultiplexTransport)(nil)
-)
+var _ Transport = (*MultiplexTransport)(nil)
 
 // NewMultiplexTransport returns a tcp connected multiplexed peer.
 func NewMultiplexTransport(

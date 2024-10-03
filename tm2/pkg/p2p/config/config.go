@@ -26,10 +26,10 @@ type P2PConfig struct {
 	UPNP bool `json:"upnp" toml:"upnp" comment:"UPNP port forwarding"`
 
 	// Maximum number of inbound peers
-	MaxNumInboundPeers int `json:"max_num_inbound_peers" toml:"max_num_inbound_peers" comment:"Maximum number of inbound peers"`
+	MaxNumInboundPeers uint64 `json:"max_num_inbound_peers" toml:"max_num_inbound_peers" comment:"Maximum number of inbound peers"`
 
 	// Maximum number of outbound peers to connect to, excluding persistent peers
-	MaxNumOutboundPeers int `json:"max_num_outbound_peers" toml:"max_num_outbound_peers" comment:"Maximum number of outbound peers to connect to, excluding persistent peers"`
+	MaxNumOutboundPeers uint64 `json:"max_num_outbound_peers" toml:"max_num_outbound_peers" comment:"Maximum number of outbound peers to connect to, excluding persistent peers"`
 
 	// Time to wait before flushing messages out on the connection
 	FlushThrottleTimeout time.Duration `json:"flush_throttle_timeout" toml:"flush_throttle_timeout" comment:"Time to wait before flushing messages out on the connection"`

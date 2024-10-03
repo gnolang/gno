@@ -617,7 +617,7 @@ func TestPeer_NewPeer(t *testing.T) {
 		}
 
 		mConfig = &MultiplexConnConfig{
-			MConfig:      MConnConfig(config.DefaultP2PConfig()),
+			MConfig:      MultiplexConfigFromP2P(config.DefaultP2PConfig()),
 			ReactorsByCh: make(map[byte]Reactor),
 			ChDescs:      make([]*conn.ChannelDescriptor, 0),
 			OnPeerError:  nil,

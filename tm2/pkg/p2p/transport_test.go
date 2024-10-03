@@ -7,7 +7,7 @@ package p2p
 // }
 //
 // // newMultiplexTransport returns a tcp connected multiplexed peer
-// // using the default MConnConfig. It's a convenience function used
+// // using the default MultiplexConfigFromP2P. It's a convenience function used
 // // for testing.
 // func newMultiplexTransport(
 // 	nodeInfo NodeInfo,

@@ -142,7 +142,7 @@ package p2p
 // 	rp.Start()
 //
 // 	// addr should be rejected in addPeer based on the same ID
-// 	err := s1.DialPeerWithAddress(rp.Addr())
+// 	err := s1.dialPeerWithAddress(rp.Addr())
 // 	if assert.Error(t, err) {
 // 		if err, ok := err.(RejectedError); ok {
 // 			if !err.IsSelf() {
@@ -173,7 +173,7 @@ package p2p
 // 			"testing",
 // 			"123.123.123",
 // 			initSwitchFunc,
-// 			SwitchPeerFilters(filters...),
+// 			WithPeerFilters(filters...),
 // 		)
 // 	)
 // 	defer sw.Stop()
@@ -220,7 +220,7 @@ package p2p
 // 			"123.123.123",
 // 			initSwitchFunc,
 // 			SwitchFilterTimeout(5*time.Millisecond),
-// 			SwitchPeerFilters(filters...),
+// 			WithPeerFilters(filters...),
 // 		)
 // 	)
 // 	defer sw.Stop()
@@ -368,7 +368,7 @@ package p2p
 // 	err = sw.AddPersistentPeers([]string{rp.Addr().String()})
 // 	require.NoError(t, err)
 //
-// 	err = sw.DialPeerWithAddress(rp.Addr())
+// 	err = sw.dialPeerWithAddress(rp.Addr())
 // 	require.Nil(t, err)
 // 	require.NotNil(t, sw.Peers().Get(rp.ID()))
 //

@@ -16,8 +16,7 @@ import (
 )
 
 const (
-	broadcastTxTimerKey = "broadcast_tx_hist"
-	buildBlockTimerKey  = "build_block_hist"
+	buildBlockTimerKey = "build_block_hist"
 
 	inboundPeersKey  = "inbound_peers_hist"
 	outboundPeersKey = "outbound_peers_hist"
@@ -43,11 +42,6 @@ const (
 )
 
 var (
-	// Misc //
-
-	// BroadcastTxTimer measures the transaction broadcast duration
-	BroadcastTxTimer metric.Int64Histogram
-
 	// Networking //
 
 	// InboundPeers measures the active number of inbound peers

@@ -210,7 +210,6 @@ func (p *peer) hasChannel(chID byte) bool {
 	return false
 }
 
-// TODO cover
 func (p *peer) createMConnection(
 	conn net.Conn,
 	config *MultiplexConnConfig,

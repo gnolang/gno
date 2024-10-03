@@ -95,7 +95,7 @@ package p2p
 //
 // 	p := peer.newPeer(
 // 		pc,
-// 		MConnConfig(sw.config),
+// 		MultiplexConfigFromP2P(sw.config),
 // 		ni,
 // 		sw.reactorsByCh,
 // 		sw.chDescs,
@@ -134,7 +134,7 @@ package p2p
 // 	}
 // 	nodeInfo := testNodeInfo(nodeKey.ID(), fmt.Sprintf("node%d", i))
 //
-// 	t := NewMultiplexTransport(nodeInfo, nodeKey, MConnConfig(cfg))
+// 	t := NewMultiplexTransport(nodeInfo, nodeKey, MultiplexConfigFromP2P(cfg))
 //
 // 	if err := t.Listen(*nodeInfo.NetAddress); err != nil {
 // 		panic(err)
