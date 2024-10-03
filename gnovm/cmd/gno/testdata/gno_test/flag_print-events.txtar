@@ -1,6 +1,6 @@
-# Test-print-events flag
+# test verbose flag to print event
 
-gno test -print-events=true . 
+gno test -v=true . 
 
 ! stdout .+
 stderr '---       event: +'
