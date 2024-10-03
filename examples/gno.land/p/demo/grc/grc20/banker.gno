@@ -2,6 +2,7 @@ package grc20
 
 import (
 	"errors"
+	"math"
 	"std"
 	"strconv"
 
@@ -24,8 +25,6 @@ type Banker struct {
 	allowances  avl.Tree // string(owner+":"+spender) -> uint64
 	token       *token   // to share the same pointer
 }
-
-const uint64_max = 1<<64 - 1
 
 func NewBanker(name, symbol string, decimals uint) *Banker {
 	if name == "" {
@@ -59,8 +58,8 @@ func (b *Banker) Mint(address std.Address, amount uint64) error {
 	}
 
 	// check for overflow
-	if uint64_max-b.totalSupply < amount {
-		err := ufmt.Sprintf("you can't mint more than %d tokens", uint64_max-b.totalSupply)
+	if diff := math.MaxUint64 - b.totalSupply; diff < amount {
+		err := ufmt.Sprintf("you can't mint more than %d tokens", diff)
 		return errors.New(err)
 	}
 
