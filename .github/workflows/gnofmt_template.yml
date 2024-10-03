@@ -21,4 +21,4 @@ jobs:
       - name: Fmt
         env:
           GNOFMT_PATH: ${{ inputs.path }}
-        run: go run ./gnovm/cmd/gno fmt -v -diff $GNOFMT_PATH
+        run: go run ./gno/cmd/gno fmt -v -diff $GNOFMT_PATH

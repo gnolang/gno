@@ -6,9 +6,9 @@ package stdlibs
 import (
 	"reflect"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gno "github.com/gnolang/gno/gno/pkg/vm"
 	repo_misc_genstd_testdata_integration_bytes "github.com/gnolang/gno/misc/genstd/testdata/integration/bytes"
-	vm_pkg_gnolang "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	vm_pkg_gnolang "github.com/gnolang/gno/gno/pkg/vm"
 )
 
 // NativeFunc represents a function in the standard library which has a native

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gno/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -47,7 +47,7 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 		EventSwitch: events.NewEventSwitch(),
 		InitChainerConfig: InitChainerConfig{
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
+			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gno", "stdlibs"),
 			CacheStdlibLoad:        true,
 		},
 	}
@@ -177,7 +177,7 @@ func NewApp(
 		EventSwitch: evsw,
 		InitChainerConfig: InitChainerConfig{
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
+			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gno", "stdlibs"),
 		},
 	}
 	if skipFailingGenesisTxs {

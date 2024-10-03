@@ -62,17 +62,17 @@
 #...
 
 # GnoVM/Gnolang.
-/gnovm/                       @jaekwon @moul @piux2 @thehowl
-/gnovm/stdlibs/               @thehowl
-/gnovm/tests/                 @jaekwon @deelawn @thehowl @mvertes
-/gnovm/cmd/gno/               @moul @thehowl
-/gnovm/pkg/gnolang/           @jaekwon @moul @piux2 @deelawn
-/gnovm/pkg/doc/               @thehowl
-/gnovm/pkg/repl/              @mvertes @ajnavarro
-/gnovm/pkg/gnomod/            @thehowl
-/gnovm/pkg/gnoenv/            @gfanton
-/gnovm/pkg/transpiler/        @thehowl
-/gnovm/pkg/integration/       @gfanton
+/gno/                         @jaekwon @moul @piux2 @thehowl
+/gno/stdlibs/                 @thehowl
+/gno/tests/                   @jaekwon @deelawn @thehowl @mvertes
+/gno/cmd/gno/                 @moul @thehowl
+/gno/pkg/vm/                  @jaekwon @moul @piux2 @deelawn
+/gno/pkg/doc/                 @thehowl
+/gno/pkg/repl/                @mvertes @ajnavarro
+/gno/pkg/gnomod/              @thehowl
+/gno/pkg/gnoenv/              @gfanton
+/gno/pkg/transpiler/          @thehowl
+/gno/pkg/integration/         @gfanton
 
 # Contribs
 /contribs/                    @gnolang/tech-staff

@@ -22,7 +22,7 @@ Apart from the official documentation you are currently reading, you can also ac
 libraries in several other different ways. You can obtain a list of all the available standard libraries with the following commands:
 
 ```console
-$ cd gnovm/stdlibs # go to correct directory
+$ cd gno/stdlibs # go to correct directory
 
 $ find -type d
 ./testing

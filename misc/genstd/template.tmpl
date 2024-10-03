@@ -6,7 +6,7 @@ package stdlibs
 import (
 	"reflect"
 
-	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gno "github.com/gnolang/gno/gno/pkg/vm"
 {{- range .Imports }}
 	{{ .Name }} {{ printf "%q" .Path }}
 {{- end }}

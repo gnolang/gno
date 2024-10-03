@@ -23,8 +23,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.goversion }}
-      - run: go install -v ./gnovm/cmd/gno
-      - run: go run ./gnovm/cmd/gno transpile -v --gobuild ./examples
+      - run: go install -v ./gno/cmd/gno
+      - run: go run ./gno/cmd/gno transpile -v --gobuild ./examples
   test:
     strategy:
       fail-fast: false
@@ -46,8 +46,8 @@ jobs:
           mkdir -p $LOG_PATH_DIR
           echo "LOG_LEVEL=debug" >> $GITHUB_ENV
           echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
-      - run: go install -v ./gnovm/cmd/gno
-      - run: go run ./gnovm/cmd/gno test -v ./examples/...
+      - run: go install -v ./gno/cmd/gno
+      - run: go run ./gno/cmd/gno test -v ./examples/...
   lint:
     strategy:
       fail-fast: false
@@ -96,7 +96,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - uses: actions/checkout@v4
       - run: |
-          GNO_CMD="$(pwd)/gnovm/cmd/gno"
+          GNO_CMD="$(pwd)/gno/cmd/gno"
           # Find all directories containing gno.mod file
           find ./examples -name "gno.mod" -execdir go run "$GNO_CMD" mod tidy \;
           # Check if there are changes after running gno mod tidy

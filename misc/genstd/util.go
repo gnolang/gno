@@ -95,7 +95,7 @@ func findDirs() (gitRoot string, relPath string, err error) {
 func pkgNameFromPath(path string) string {
 	const (
 		repoPrefix     = "github.com/gnolang/gno/"
-		vmPrefix       = repoPrefix + "gnovm/"
+		vmPrefix       = repoPrefix + "gno/"
 		tm2Prefix      = repoPrefix + "tm2/pkg/"
 		libsPrefix     = vmPrefix + "stdlibs/"
 		testlibsPrefix = vmPrefix + "tests/stdlibs/"

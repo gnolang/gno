@@ -5,7 +5,7 @@ import (
 	"os"
 
 	"github.com/gnolang/gno/gno.land/pkg/keyscli"
-	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/gno/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys/client"
 )

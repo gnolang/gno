@@ -52,7 +52,7 @@ repository offers more resources to dig into. We are eager to see your first PR!
 ## Repository structure
 
 * [examples](./examples) - Smart-contract examples and guides for new Gno developers.
-* [gnovm](./gnovm) - GnoVM and Gnolang.
+* [gno](./gno) - GnoVM and Gnolang.
 * [gno.land](./gno.land) - Gno.land blockchain and tools.
 * [tm2](./tm2) - Tendermint2.
 * [docs](./docs) - Official documentation, deployed under [docs.gno.land](https://docs.gno.land).
@@ -82,7 +82,7 @@ repository offers more resources to dig into. We are eager to see your first PR!
 
   Developer commands:
 
-  * [gno](./gnovm/cmd/gno) - handy tool for developing gno packages & realms
+  * [gno](./gno/cmd/gno) - handy tool for developing gno packages & realms
   * [goscan](./misc/goscan) - dumps imports from specified file’s AST
   * [genproto](./misc/genproto) - helper for generating .proto implementations
   * [gnofaucet](./contribs/gnofaucet) - serves GNOT faucet
@@ -93,7 +93,7 @@ repository offers more resources to dig into. We are eager to see your first PR!
   GitHub Actions:
 
   * [![gno.land](https://github.com/gnolang/gno/actions/workflows/gnoland.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/gnoland.yml)
-  * [![gnovm](https://github.com/gnolang/gno/actions/workflows/gnovm.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/gnovm.yml)
+  * [![gno](https://github.com/gnolang/gno/actions/workflows/gno.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/gno.yml)
   * [![tm2](https://github.com/gnolang/gno/actions/workflows/tm2.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/tm2.yml)
   * [![examples](https://github.com/gnolang/gno/actions/workflows/examples.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/examples.yml)
   * [![docker](https://github.com/gnolang/gno/actions/workflows/docker.yml/badge.svg)](https://github.com/gnolang/gno/actions/workflows/docker.yml)
@@ -102,14 +102,14 @@ repository offers more resources to dig into. We are eager to see your first PR!
 
   * General: [![codecov](https://codecov.io/gh/gnolang/gno/branch/master/graph/badge.svg?token=HPP82HR1P4)](https://codecov.io/gh/gnolang/gno)
   * tm2: [![codecov](https://codecov.io/gh/gnolang/gno/branch/master/graph/badge.svg?token=HPP82HR1P4&flag=tm2)](https://codecov.io/gh/gnolang/gno/tree/master/tm2)
-  * gnovm: [![codecov](https://codecov.io/gh/gnolang/gno/branch/master/graph/badge.svg?token=HPP82HR1P4&flag=gnovm)](https://codecov.io/gh/gnolang/gno/tree/master/gnovm)
+  * gno: [![codecov](https://codecov.io/gh/gnolang/gno/branch/master/graph/badge.svg?token=HPP82HR1P4&flag=gno)](https://codecov.io/gh/gnolang/gno/tree/master/gno)
   * gno.land: [![codecov](https://codecov.io/gh/gnolang/gno/branch/master/graph/badge.svg?token=HPP82HR1P4&flag=gno.land)](https://codecov.io/gh/gnolang/gno/tree/master/gno.land)
   * examples: TODO
 
   Go Report Card:
 
   * [![Go Report Card](https://goreportcard.com/badge/github.com/gnolang/gno)](https://goreportcard.com/report/github.com/gnolang/gno)
-  * tm2, gnovm, gno.land: TODO (blocked by tm2 split, because we need go mod workspaces)
+  * tm2, gno, gno.land: TODO (blocked by tm2 split, because we need go mod workspaces)
 
   Pkg.go.dev
 

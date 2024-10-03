@@ -323,8 +323,8 @@ centralized here.
 - `examples` - contains the example `.gno` realms and packages. This is the central point for adding user-defined realms
   and packages.
 - `gno.land` - contains the base source code for bootstrapping the Gnoland node,
-  using `tm2` and `gnovm`.
-- `gnovm` - contains the implementation of the Gno programming language and its
+  using `tm2` and `gno`.
+- `gno` - contains the implementation of the Gno programming language and its
   Virtual Machine, together with their standard libraries and tests.
 - `tm2` - contains a fork of the [Tendermint consensus engine](https://docs.tendermint.com/v0.34/introduction/what-is-tendermint.html) with different expectations.
 

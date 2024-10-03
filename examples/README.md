@@ -10,12 +10,12 @@ While sharing contracts here can enhance engine testing, it's not mandatory. If 
 
 **Personal Realms Inclusion:** We're open to personal realms, but they must exemplify best practices and inspire others. To maintain our repository's organization, we may decline some realms. If so, consider uploading onchain and keeping source code separately. For higher acceptance odds, offer useful or original examples.
 
-**Recommended Approach:** 
+**Recommended Approach:**
 - Use `r/demo` and `p/demo` for generic examples and components that can be imported by others. These are meant to be easily referenced and utilized by the community.
-- Personal realms are welcomed if they are easily maintainable with the Continuous Integration (CI) system. If a personal realm becomes cumbersome to maintain or doesn't align with the CI's checks, it might be relocated to a less prominent location or even removed. 
+- Personal realms are welcomed if they are easily maintainable with the Continuous Integration (CI) system. If a personal realm becomes cumbersome to maintain or doesn't align with the CI's checks, it might be relocated to a less prominent location or even removed.
 
 ## Usage
 
-Our recommendation is to use the [gno](../gnovm/cmd/gno) utility to develop contracts locally before publishing them on-chain. This approach offers a faster and streamlined workflow, along with additional debugging features. Simply fork or create new contracts and refer to the Makefile. Once everything looks good locally, you can then publish it on a localnet or testnet.
+Our recommendation is to use the [gno](../gno/cmd/gno) utility to develop contracts locally before publishing them on-chain. This approach offers a faster and streamlined workflow, along with additional debugging features. Simply fork or create new contracts and refer to the Makefile. Once everything looks good locally, you can then publish it on a localnet or testnet.
 
 For further guidance and insights, please refer to the [`awesome-gno` tutorials](https://github.com/gnolang/awesome-gno#tutorials).

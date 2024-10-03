@@ -6,7 +6,7 @@ before:
 
 builds:
   - id: gno
-    main: ./gnovm/cmd/gno
+    main: ./gno/cmd/gno
     binary: gno
     env:
       - CGO_ENABLED=0
@@ -111,8 +111,8 @@ dockers:
       - gno
     extra_files:
       - examples
-      - gnovm/stdlibs
-      - gnovm/tests/stdlibs
+      - gno/stdlibs
+      - gno/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -131,8 +131,8 @@ dockers:
       - gno
     extra_files:
       - examples
-      - gnovm/stdlibs
-      - gnovm/tests/stdlibs
+      - gno/stdlibs
+      - gno/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -152,8 +152,8 @@ dockers:
       - gno
     extra_files:
       - examples
-      - gnovm/stdlibs
-      - gnovm/tests/stdlibs
+      - gno/stdlibs
+      - gno/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -173,8 +173,8 @@ dockers:
       - gno
     extra_files:
       - examples
-      - gnovm/stdlibs
-      - gnovm/tests/stdlibs
+      - gno/stdlibs
+      - gno/tests/stdlibs
 
   # gnoland
   - use: buildx
@@ -197,7 +197,7 @@ dockers:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
       - examples
-      - gnovm/stdlibs
+      - gno/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -218,7 +218,7 @@ dockers:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
       - examples
-      - gnovm/stdlibs
+      - gno/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -240,7 +240,7 @@ dockers:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
       - examples
-      - gnovm/stdlibs
+      - gno/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -262,7 +262,7 @@ dockers:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
       - examples
-      - gnovm/stdlibs
+      - gno/stdlibs
   # gnokey
   - use: buildx
     dockerfile: Dockerfile.release

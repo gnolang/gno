@@ -31,7 +31,7 @@ There are three components to a natively bound function in Gno:
    name and signature, i.e. `crypto/sha256/sha256.go`.
 3. When the two above are present and valid, the native binding can be created
    by executing the code generator: either by executing `go generate` from the
-   `stdlibs` directory, or run `make generate` from the `gnovm` directory.
+   `stdlibs` directory, or run `make generate` from the `gno` directory.
    This generates the `native.go` file available in the `stdlibs` directory,
    which provides the binding itself to then be used by the GnoVM.
 
@@ -44,7 +44,7 @@ bindings, which are the following:
   `func X_sum256(b []byte)`).
 - The Go function declaration may specify as the first argument
   `m *gno.Machine`, where `gno` is an import for
-  `github.com/gnolang/gno/gnovm/pkg/gnolang`. This gives the function access to
+  `github.com/gnolang/gno/gno/pkg/vm`. This gives the function access to
   the Virtual Machine state, and is used by functions like `std.AssertOriginCall()`.
 - The Go function may change the type of any parameter or result to
   `gno.TypedValue`, where `gno` is an import for the above import path. This
@@ -63,7 +63,7 @@ bindings, which are the following:
   For example, if a package is in `foo/bar`, but declares `package xyz`, when importing
   foo/bar the generator will assume the name to be `bar` instead of `xyz`.
   You can add an identifier to the import to fix this and use the identifier
-  you want/need, such as `import gno "github.com/gnolang/gno/gnovm/pkg/gnolang"`.
+  you want/need, such as `import gno "github.com/gnolang/gno/gno/pkg/vm"`.
 
 ## Adding new standard libraries
 
@@ -79,7 +79,7 @@ extensions:
 ```sh
 for i in *.go; do mv $i "$(echo $i | sed 's/\.go$/.gno/')"; done
 ```
-:::  
+:::
 
 Following that, the suggested approach is to iteratively try running `gno test .`,
 while fixing any errors that may come out of trying to test the package.

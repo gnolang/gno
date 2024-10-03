@@ -39,8 +39,8 @@ install.gnokey:
 	@printf "\033[0;32m[+] 'gnokey' has been installed. Read more in ./gno.land/\033[0m\n"
 .PHONY: install.gno
 install.gno:
-	$(MAKE) --no-print-directory -C ./gnovm	install
-	@printf "\033[0;32m[+] 'gno' has been installed. Read more in ./gnovm/\033[0m\n"
+	$(MAKE) --no-print-directory -C ./gno	install
+	@printf "\033[0;32m[+] 'gno' has been installed. Read more in ./gno/\033[0m\n"
 .PHONY: install.gnodev
 install.gnodev:
 	$(MAKE) --no-print-directory -C ./contribs/gnodev install
@@ -58,7 +58,7 @@ test: test.components test.docker
 .PHONY: test.components
 test.components:
 	$(MAKE) --no-print-directory -C tm2      test
-	$(MAKE) --no-print-directory -C gnovm    test
+	$(MAKE) --no-print-directory -C gno      test
 	$(MAKE) --no-print-directory -C gno.land test
 	$(MAKE) --no-print-directory -C examples test
 	$(MAKE) --no-print-directory -C misc     test
@@ -74,8 +74,8 @@ test.docker:
 .PHONY: fmt
 fmt:
 	$(MAKE) --no-print-directory -C tm2      fmt imports
-	$(MAKE) --no-print-directory -C gnovm    fmt imports
 	$(MAKE) --no-print-directory -C gno.land fmt imports
+	$(MAKE) --no-print-directory -C gno      fmt imports
 	$(MAKE) --no-print-directory -C examples fmt
 
 .PHONY: lint

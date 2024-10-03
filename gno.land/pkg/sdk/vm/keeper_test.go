@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
-	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gno/pkg/vm"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
@@ -508,7 +508,7 @@ func Test_loadStdlibPackage(t *testing.T) {
 	mdb := memdb.NewMemDB()
 	cs := dbadapter.StoreConstructor(mdb, types.StoreOptions{})
 
-	gs := gnolang.NewStore(nil, cs, cs)
+	gs := vm.NewStore(nil, cs, cs)
 	assert.PanicsWithValue(t, `failed loading stdlib "notfound": does not exist`, func() {
 		loadStdlibPackage("notfound", "./testdata", gs)
 	})

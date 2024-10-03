@@ -178,12 +178,12 @@ func Test_linkFunctions_noMatchSig(t *testing.T) {
 var typesEqualMapping = &mapping{
 	GnoImportPath: "std",
 	GnoFunc:       "Fn",
-	GoImportPath:  "github.com/gnolang/gno/gnovm/stdlibs/std",
+	GoImportPath:  "github.com/gnolang/gno/gno/stdlibs/std",
 	GoFunc:        "Fn",
 	goImports: []*ast.ImportSpec{
 		{
 			Name: &ast.Ident{Name: "gno"},
-			Path: &ast.BasicLit{Value: `"github.com/gnolang/gno/gnovm/pkg/gnolang"`},
+			Path: &ast.BasicLit{Value: `"github.com/gnolang/gno/gno/pkg/vm"`},
 		},
 		{
 			Path: &ast.BasicLit{Value: `"github.com/gnolang/gno/tm2/pkg/crypto"`},

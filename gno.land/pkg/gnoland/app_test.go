@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
-	gnostd "github.com/gnolang/gno/gnovm/stdlibs/std"
+	gnostd "github.com/gnolang/gno/gno/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"

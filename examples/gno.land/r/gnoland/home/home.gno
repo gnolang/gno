@@ -114,7 +114,7 @@ func worxDAO() ui.Element {
 
 	* gno.land (owned by group)
 	  *
-	* gnovm
+	* gno
 	  * gnolang (language)
 	  * gnovm
 	    - current challenges / concerns / issues

@@ -13,7 +13,7 @@ import (
 	events "github.com/gnolang/gno/contribs/gnodev/pkg/events"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gno/pkg/gnomod"
 )
 
 type PackageWatcher struct {

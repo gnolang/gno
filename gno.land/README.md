@@ -1,6 +1,6 @@
 # Gno.land
 
-Gno.land is a layer-1 blockchain that integrates various cutting-edge technologies, including [Tendermint2](../tm2), [GnoVM](../gnovm), Proof-of-Contributions consensus mechanism, on-chain governance through a new DAO framework with support for sub-DAOs, and a unique licensing model that allows open-source code to be monetized by default.
+Gno.land is a layer-1 blockchain that integrates various cutting-edge technologies, including [Tendermint2](../tm2), [GnoVM](../gno), Proof-of-Contributions consensus mechanism, on-chain governance through a new DAO framework with support for sub-DAOs, and a unique licensing model that allows open-source code to be monetized by default.
 
 ## Getting started
 
@@ -20,7 +20,7 @@ Afterwards, the platform plans to improve IBC by adding new capabilities for int
 ## Under the hood
 
 * [Tendermint2](../tm2): a secure and stable consensus engine
-* [GnoVM](../gnovm): a Virtual-Machine that provides transparency and security
+* [GnoVM](../gno): a Virtual-Machine that provides transparency and security
 * Proof-of-Contributions: a new consensus mechanism secured by contributors
 * On-chain governance: managed by a new DAO framework with support for sub-DAOs
 * Licensing model: a unique approach that allows open-source code to be monetized by default

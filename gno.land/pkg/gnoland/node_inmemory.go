@@ -26,7 +26,7 @@ type InMemoryNodeConfig struct {
 	GenesisMaxVMCycles int64
 	DB                 *memdb.MemDB // will be initialized if nil
 
-	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gnovm", "stdlibs")
+	// If StdlibDir not set, then it's filepath.Join(TMConfig.RootDir, "gno", "stdlibs")
 	InitChainerConfig
 }
 
@@ -96,7 +96,7 @@ func NewInMemoryNode(logger *slog.Logger, cfg *InMemoryNodeConfig) (*node.Node, 
 	evsw := events.NewEventSwitch()
 
 	if cfg.StdlibDir == "" {
-		cfg.StdlibDir = filepath.Join(cfg.TMConfig.RootDir, "gnovm", "stdlibs")
+		cfg.StdlibDir = filepath.Join(cfg.TMConfig.RootDir, "gno", "stdlibs")
 	}
 	// initialize db if nil
 	if cfg.DB == nil {

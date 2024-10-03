@@ -1,7 +1,7 @@
 ---
 name: Bug Report Template
 about: Create a bug report
-# NOTE: keep in sync with gnovm/cmd/gno/bug.go
+# NOTE: keep in sync with gno/cmd/gno/bug.go
 ---
 
 ## [Subject of the issue]
