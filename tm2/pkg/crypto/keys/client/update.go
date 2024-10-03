@@ -9,34 +9,34 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
 )
 
-type UpdateCfg struct {
+type RotateCfg struct {
 	RootCfg *BaseCfg
 
 	Force bool
 }
 
-func NewUpdateCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
-	cfg := &UpdateCfg{
+func NewRotateCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
+	cfg := &RotateCfg{
 		RootCfg: rootCfg,
 	}
 
 	return commands.NewCommand(
 		commands.Metadata{
-			Name:       "update",
-			ShortUsage: "update [flags] <key-name>",
-			ShortHelp:  "update the password of a key in the keybase",
+			Name:       "rotate",
+			ShortUsage: "rotate [flags] <key-name>",
+			ShortHelp:  "rotate the password of a key in the keybase to a new password",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
-			return execUpdate(cfg, args, io)
+			return execRotate(cfg, args, io)
 		},
 	)
 }
 
-func (c *UpdateCfg) RegisterFlags(fs *flag.FlagSet) {
+func (c *RotateCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
-func execUpdate(cfg *UpdateCfg, args []string, io commands.IO) error {
+func execRotate(cfg *RotateCfg, args []string, io commands.IO) error {
 	if len(args) != 1 {
 		return flag.ErrHelp
 	}
@@ -65,11 +65,11 @@ func execUpdate(cfg *UpdateCfg, args []string, io commands.IO) error {
 	}
 
 	getNewpass := func() (string, error) { return newpass, nil }
-	err = kb.Update(nameOrBech32, oldpass, getNewpass)
+	err = kb.Rotate(nameOrBech32, oldpass, getNewpass)
 	if err != nil {
 		return err
 	}
-	io.ErrPrintln("Password updated")
+	io.ErrPrintln("Password rotated")
 
 	return nil
 }

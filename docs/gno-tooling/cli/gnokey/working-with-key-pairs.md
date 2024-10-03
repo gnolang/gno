@@ -38,7 +38,7 @@ gno.land keychain & client
 SUBCOMMANDS
   add        adds key to the keybase
   delete     deletes a key from the keybase
-  update     update the password of a key in the keybase
+  rotate     rotate the password of a key in the keybase to a new password
   generate   generates a bip39 mnemonic
   export     exports private key armor
   import     imports encrypted private key armor
@@ -163,13 +163,13 @@ at a previous point in time.
 :::
 
 
-## Updating the password of a private key
-To update the password of a private key from the `gnokey` keystore, we need to know the name or
+## Rotating the password of a private key to a new password
+To rotate the password of a private key from the `gnokey` keystore to a new password, we need to know the name or
 address of the key to remove.
 After we have this information, we can run the following command:
 
 ```bash
-gnokey update MyKey
+gnokey rotate MyKey
 ```
 
 After entering the current key decryption password and the new password, the password of the key will be updated in the keystore.

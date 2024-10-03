@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_execUpdate(t *testing.T) {
+func Test_execRotate(t *testing.T) {
 	t.Parallel()
 
 	// make new test dir
@@ -19,7 +19,7 @@ func Test_execUpdate(t *testing.T) {
 	defer kbCleanUp()
 
 	// initialize test options
-	cfg := &UpdateCfg{
+	cfg := &RotateCfg{
 		RootCfg: &BaseCfg{
 			BaseOptions: BaseOptions{
 				Home:                  kbHome,
@@ -34,7 +34,7 @@ func Test_execUpdate(t *testing.T) {
 	kb, err := keys.NewKeyBaseFromDir(kbHome)
 	assert.NoError(t, err)
 
-	keyName := "updateApp_Key1"
+	keyName := "rotateApp_Key1"
 	p1, p2 := "1234", "foobar"
 	mnemonic := "equip will roof matter pink blind book anxiety banner elbow sun young"
 
@@ -45,7 +45,7 @@ func Test_execUpdate(t *testing.T) {
 		// test: Key not found
 		args := []string{"blah"}
 		io.SetIn(strings.NewReader(p1 + "\n" + p2 + "\n" + p2 + "\n"))
-		err = execUpdate(cfg, args, io)
+		err = execRotate(cfg, args, io)
 		require.Error(t, err)
 		require.Equal(t, "Key blah not found", err.Error())
 	}
@@ -54,7 +54,7 @@ func Test_execUpdate(t *testing.T) {
 		// test: Wrong password
 		args := []string{keyName}
 		io.SetIn(strings.NewReader("blah" + "\n" + p2 + "\n" + p2 + "\n"))
-		err = execUpdate(cfg, args, io)
+		err = execRotate(cfg, args, io)
 		require.Error(t, err)
 		require.Equal(t, "invalid account password", err.Error())
 	}
@@ -63,16 +63,16 @@ func Test_execUpdate(t *testing.T) {
 		// test: New passwords don't match
 		args := []string{keyName}
 		io.SetIn(strings.NewReader(p1 + "\n" + p2 + "\n" + "blah" + "\n"))
-		err = execUpdate(cfg, args, io)
+		err = execRotate(cfg, args, io)
 		require.Error(t, err)
 		require.Equal(t, "unable to parse provided password, passphrases don't match", err.Error())
 	}
 
 	{
-		// Update the password
+		// Rotate the password
 		args := []string{keyName}
 		io.SetIn(strings.NewReader(p1 + "\n" + p2 + "\n" + p2 + "\n"))
-		err = execUpdate(cfg, args, io)
+		err = execRotate(cfg, args, io)
 		require.NoError(t, err)
 	}
 
@@ -80,7 +80,7 @@ func Test_execUpdate(t *testing.T) {
 		// test: The old password shouldn't work
 		args := []string{keyName}
 		io.SetIn(strings.NewReader(p1 + "\n" + p1 + "\n" + p1 + "\n"))
-		err = execUpdate(cfg, args, io)
+		err = execRotate(cfg, args, io)
 		require.Error(t, err)
 		require.Equal(t, "invalid account password", err.Error())
 	}
@@ -89,7 +89,7 @@ func Test_execUpdate(t *testing.T) {
 		// Updating the new password to itself should work
 		args := []string{keyName}
 		io.SetIn(strings.NewReader(p2 + "\n" + p2 + "\n" + p2 + "\n"))
-		err = execUpdate(cfg, args, io)
+		err = execRotate(cfg, args, io)
 		require.NoError(t, err)
 	}
 }
