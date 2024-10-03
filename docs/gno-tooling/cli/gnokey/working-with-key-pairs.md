@@ -5,14 +5,16 @@ id: working-with-key-pairs
 # Working with Key Pairs
 
 ## Overview
+
 In this tutorial, you will learn how to manage private user keys, which are
 required for interacting with the gno.land blockchain. You will understand what
 mnemonics are, how they are used, and how you can make interaction seamless with
 Gno.
 
 ## Prerequisites
-- **`gnokey` installed.** Reference the 
-[Local Setup](installation.md#2-installing-the-required-tools-) guide for steps
+
+- **`gnokey` installed.** Reference the
+  [Local Setup](../../../getting-started/local-setup/installation.md#2-installing-the-required-tools) guide for steps
 
 ## Listing available keys
 `gnokey` works by creating a local directory in the filesystem for storing 
@@ -31,27 +33,27 @@ Example output:
 USAGE
   <subcommand> [flags] [<arg>...]
 
-Manages private keys for the node
+gno.land keychain & client
 
 SUBCOMMANDS
-  add        Adds key to the keybase
-  delete     Deletes a key from the keybase
-  generate   Generates a bip39 mnemonic
-  export     Exports private key armor
-  import     Imports encrypted private key armor
-  list       Lists all keys in the keybase
-  sign       Signs the document
-  verify     Verifies the document signature
-  query      Makes an ABCI query
-  broadcast  Broadcasts a signed document
-  maketx     Composes a tx document to sign
+  add        adds key to the keybase
+  delete     deletes a key from the keybase
+  generate   generates a bip39 mnemonic
+  export     exports private key armor
+  import     imports encrypted private key armor
+  list       lists all keys in the keybase
+  sign       signs the given tx document and saves it to disk
+  verify     verifies the document signature
+  query      makes an ABCI query
+  broadcast  broadcasts a signed document
+  maketx     composes a tx document to sign
 
 FLAGS
-  -config ...                                          config file (optional)
-  -home $XDG_CONFIG/gno  home directory
-  -insecure-password-stdin=false                       WARNING! take password from stdin
-  -quiet=false                                         suppress output during execution
-  -remote 127.0.0.1:26657                              remote node URL
+  -config ...                     config file (optional)
+  -home $XDG_CONFIG/gno           home directory
+  -insecure-password-stdin=false  WARNING! take password from stdin
+  -quiet=false                    suppress output during execution
+  -remote 127.0.0.1:26657         remote node URL
 ```
 
 In this example, the directory where `gnokey` will store working data
@@ -97,7 +99,7 @@ To generate the mnemonic phrase in the console, you can run:
 gnokey generate
 ```
 
-![gnokey generate](../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-generate.gif)
+![gnokey generate](../../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-generate.gif)
 
 ## Adding a random private key
 If we wanted to add a new private key to the keystore, we can run the following 
@@ -115,7 +117,7 @@ After you enter the password, the `gnokey` tool will add the key to the keystore
 and return the accompanying [mnemonic phrase](https://en.bitcoin.it/wiki/Seed_phrase), which you should remember 
 somewhere if you want to recover the key at a future point in time.
 
-![gnokey add random](../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-add-random.gif)
+![gnokey add random](../../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-add-random.gif)
 
 You can check that the key was indeed added to the keystore, by listing available
 keys:
@@ -124,7 +126,7 @@ keys:
 gnokey list
 ```
 
-![gnokey list](../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-list.gif)
+![gnokey list](../../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-list.gif)
 
 ## Adding a private key using a mnemonic
 To add a private key to the `gnokey` keystore [using an existing mnemonic](#generating-a-bip39-mnemonic),
@@ -140,7 +142,7 @@ Of course, you can replace `MyKey` with whatever name you want for your key.
 By following the prompts to encrypt the key on disk, and providing a BIP39 
 mnemonic, we can successfully add the key to the keystore.
 
-![gnokey add mnemonic](../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-add-mnemonic.gif)
+![gnokey add mnemonic](../../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-add-mnemonic.gif)
 
 ## Deleting a private key
 To delete a private key from the `gnokey` keystore, we need to know the name or
@@ -175,7 +177,7 @@ Follow the prompts presented in the terminal. Namely, you will be asked to
 decrypt the key in the keystore, and later to encrypt the armor file on disk.
 It is worth noting that you can also export unencrypted key armor, using the `--unsafe` flag.
 
-![gnokey export](../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-export.gif)
+![gnokey export](../../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-export.gif)
 
 ## Importing a private key
 If you have an exported private key file, you can import it into `gnokey` fairly
@@ -195,4 +197,11 @@ encryption password for storing the key in the keystore.
 After executing the previous command, the `gnokey` keystore will have imported 
 `ImportedKey`.
 
-![gnokey import](../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-import.gif)
+![gnokey import](../../../assets/getting-started/local-setup/creating-a-key-pair/gnokey-import.gif)
+
+## Conclusion
+
+That's it! 🎉
+
+In this tutorial, you've learned to use `gnokey` for managing Gno keypairs.
+
