@@ -26,6 +26,10 @@ jobs:
         with:
           fetch-depth: 1
 
+    - uses: actions/setup-go@v5
+      with:
+        go-version: "1.22.x"
+
     - name: Run benchmark
       run: |
         go test -benchmem -bench=. ./... -run=^$ \
