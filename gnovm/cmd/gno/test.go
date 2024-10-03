@@ -38,7 +38,6 @@ type testCfg struct {
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	withNativeFallback  bool
-	printEvents         bool
 }
 
 func newTestCmd(io commands.IO) *commands.Command {
