@@ -457,6 +457,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *AssignStmt:
 				checkValDefineMismatch(n)
 
+				for _, rx := range n.Rhs {
+					checkExprIsAssignable(rx)
+				}
 				if n.Op == DEFINE {
 					for _, lx := range n.Lhs {
 						ln := lx.(*NameExpr).Name
@@ -489,6 +492,9 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					d := n.(Decl)
 					if cd, ok := d.(*ValueDecl); ok {
 						checkValDefineMismatch(cd)
+						for _, rx := range cd.Values {
+							checkExprIsAssignable(rx)
+						}
 					}
 					// recursively predefine dependencies.
 					d2, ppd := predefineNow(store, last, d)
