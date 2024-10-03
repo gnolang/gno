@@ -45,6 +45,7 @@ package isaac
 import (
 	"errors"
 	"math"
+	"math/rand"
 
 	"gno.land/p/demo/entropy"
 	"gno.land/p/demo/math/rand/xorshiftr128plus"
@@ -395,4 +396,40 @@ func averageISAAC(_iterations ...int) {
 	ufmt.Println(ufmt.Sprintf("ISAAC average of %d uint64: %f\n", iterations, average))
 	ufmt.Println(ufmt.Sprintf("ISAAC standard deviation  : %f\n", math.Sqrt(float64(sum_of_squares)/float64(iterations))))
 	ufmt.Println(ufmt.Sprintf("ISAAC theoretical perfect deviation: %f\n", (float64(target*2)-1)/math.Sqrt(12)))
+}
+
+func averagePCG(_iterations ...int) {
+	target := uint64(500000)
+	iterations := 1000000
+	var squares [1000000]uint64
+
+	ufmt.Println(
+		ufmt.Sprintf(
+			"Averaging %d random numbers. The average should be very close to %d.\n",
+			iterations,
+			target))
+
+	if len(_iterations) > 0 {
+		iterations = _iterations[0]
+	}
+	isaac := rand.NewPCG(987654321, 123456789)
+
+	var average float64 = 0
+	for i := 0; i < iterations; i++ {
+		n := isaac.Uint64()%(target*2) + 1
+		average += (float64(n) - average) / float64(i+1)
+		squares[i] = n
+	}
+
+	sum_of_squares := uint64(0)
+	// transform numbers into their squares of the distance from the average
+	for i := 0; i < iterations; i++ {
+		difference := average - float64(squares[i])
+		square := uint64(difference * difference)
+		sum_of_squares += square
+	}
+
+	ufmt.Println(ufmt.Sprintf("PCG average of %d uint64: %f\n", iterations, average))
+	ufmt.Println(ufmt.Sprintf("PCG standard deviation  : %f\n", math.Sqrt(float64(sum_of_squares)/float64(iterations))))
+	ufmt.Println(ufmt.Sprintf("PCG theoretical perfect deviation: %f\n", (float64(target*2)-1)/math.Sqrt(12)))
 }
