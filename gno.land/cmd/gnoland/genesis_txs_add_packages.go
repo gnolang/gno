@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -16,7 +17,7 @@ var errInvalidPackageDir = errors.New("invalid package directory")
 
 var (
 	genesisDeployAddress = crypto.MustAddressFromString("g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5") // test1
-	genesisDeployFee     = std.NewFee(50000, std.MustParseCoin("1000000ugnot"))
+	genesisDeployFee     = std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
 )
 
 // newTxsAddPackagesCmd creates the genesis txs add packages subcommand
