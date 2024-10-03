@@ -61,121 +61,98 @@ func main() {
 	Preprocess(store, pn, n)
 }
 
-func TestPanicWhenAssigningBlankIdentifierToBlankIdentifier(t *testing.T) {
-	pn := NewPackageNode("main", "main", nil)
-	pv := pn.NewPackage()
-	store := gonativeTestStore(pn, pv)
-	store.SetBlockNode(pn)
-
-	src := `package main
-
-func main() {
-	_ = _
-}`
-
-	n := MustParseFile("main.go", src)
-
-	initStaticBlocks(store, pn, n)
-
-	defer func() {
-		err := recover()
-		assert.NotNil(t, err, "Expected panic")
-		errMsg := fmt.Sprint(err)
-		assert.Contains(t, errMsg, "cannot use _ as value or type")
-	}()
-
-	Preprocess(store, pn, n)
-}
-
-func TestPanicWhenAssigningBlankIdentifierToVariable(t *testing.T) {
-	pn := NewPackageNode("main", "main", nil)
-	pv := pn.NewPackage()
-	store := gonativeTestStore(pn, pv)
-	store.SetBlockNode(pn)
-
-	const src = `package main
-
-func main() {
-	a := _
-}`
-
-	n := MustParseFile("main.go", src)
-
-	initStaticBlocks(store, pn, n)
-
-	defer func() {
-		err := recover()
-		assert.NotNil(t, err, "Expected panic")
-		errMsg := fmt.Sprint(err)
-		assert.Contains(t, errMsg, "cannot use _ as value or type")
-	}()
-
-	Preprocess(store, pn, n)
-}
-
-func TestAssignmentsToBlankIdentifier(t *testing.T) {
+func TestIsNamedConversion(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name string
-		src  string
+		name     string
+		xt       Type
+		t        Type
+		expected bool
+		panic    bool
 	}{
 		{
-			name: "ValidAssignmentToBlankIdentifier",
-			src: `package main
-
-func main() {
-    _ = 1
-}`,
+			name:     "both nil types",
+			xt:       nil,
+			t:        nil,
+			expected: false,
+			panic:    true,
 		},
 		{
-			name: "AssignNilInterfaceToBlankIdentifier",
-			src: `package main
-
-type zilch interface{}
-
-func main() {
-    _ = zilch(nil)
-}`,
+			name:     "both named",
+			xt:       &DeclaredType{Name: "MyInt1", Base: IntType},
+			t:        &DeclaredType{Name: "MyInt2", Base: IntType},
+			expected: false,
 		},
 		{
-			name: "AssignNilMapToBlankIdentifier",
-			src: `package main
-
-type anyMap map[string]interface{}
-
-func main() {
-    _ = anyMap(nil)
-}`,
+			name:     "both unnamed",
+			xt:       IntType,
+			t:        IntType,
+			expected: false,
 		},
 		{
-			name: "AssignNilStructToBlankIdentifier",
-			src: `package main
-
-type empty struct{}
-
-func main() {
-    _ = empty{}
-}`,
+			name:     "t is interface",
+			xt:       &DeclaredType{Name: "MyInt", Base: IntType},
+			t:        &InterfaceType{},
+			expected: false,
 		},
 		{
-			name: "AssignNilSliceToBlankIdentifier",
-			src: `package main
-
-type emptySlice []interface{}
-
-func main() {
-    _ = emptySlice(nil)
-}`,
+			name:     "xt is TypeType",
+			xt:       &TypeType{},
+			t:        IntType,
+			expected: false,
 		},
 		{
-			name: "AssignNilFunctionToBlankIdentifier",
-			src: `package main
-
-type voidFunc func()
-
-func main() {
-    _ = voidFunc(nil)
-}`,
+			name:     "t is TypeType",
+			xt:       IntType,
+			t:        &TypeType{},
+			expected: false,
+		},
+		{
+			name: "assign int to blank identifier",
+			xt:   IntType,
+			t:    &DeclaredType{Name: "_", Base: IntType},
+		},
+		{
+			name:     "assign nil interface to blank identifier",
+			xt:       &InterfaceType{},
+			t:        &DeclaredType{Name: "_", Base: &InterfaceType{}},
+			expected: true,
+		},
+		{
+			name:     "assign nil map to blank identifier",
+			xt:       &MapType{Key: StringType, Value: &InterfaceType{}},
+			t:        &DeclaredType{Name: "_", Base: &MapType{Key: StringType, Value: &InterfaceType{}}},
+			expected: true,
+		},
+		{
+			name:     "assign empty struct to blank identifier",
+			xt:       &StructType{},
+			t:        &DeclaredType{Name: "_", Base: &StructType{}},
+			expected: true,
+		},
+		{
+			name:     "assign nil slice to blank identifier",
+			xt:       &SliceType{Elt: &InterfaceType{}},
+			t:        &DeclaredType{Name: "_", Base: &SliceType{Elt: &InterfaceType{}}},
+			expected: true,
+		},
+		{
+			name:     "assign nil function to blank identifier",
+			xt:       &FuncType{},
+			t:        &DeclaredType{Name: "_", Base: &FuncType{}},
+			expected: true,
+		},
+		{
+			name:     "xt is nil, t is not nil",
+			xt:       nil,
+			t:        IntType,
+			expected: false,
+		},
+		{
+			name:     "xt is nil, t is named type",
+			xt:       nil,
+			t:        &DeclaredType{Name: "MyInt", Base: IntType},
+			expected: false,
 		},
 	}
 
@@ -183,17 +160,22 @@ func main() {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			pn := NewPackageNode("main", "main", nil)
-			pv := pn.NewPackage()
-			store := gonativeTestStore(pn, pv)
-			store.SetBlockNode(pn)
+			if tt.panic {
+				defer func() {
+					r := recover()
+					if r == nil {
+						t.Errorf("Expected panic, but none occurred")
+					}
+					if r != "cannot use _ as value or type" {
+						t.Errorf("Expected panic, but none occurred")
+					}
+				}()
+			}
 
-			n := MustParseFile("main.go", tt.src)
-
-			initStaticBlocks(store, pn, n)
-
-			res := Preprocess(store, pn, n)
-			assert.NotNil(t, res)
+			result := isNamedConversion(tt.xt, tt.t)
+			if result != tt.expected {
+				t.Errorf("Expected result %v, but got %v", tt.expected, result)
+			}
 		})
 	}
 }

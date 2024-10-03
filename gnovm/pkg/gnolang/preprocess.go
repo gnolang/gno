@@ -2954,7 +2954,6 @@ func isNamedConversion(xt, t Type) bool {
 	_, oktt2 := xt.(*TypeType)
 	c2 := oktt || oktt2
 
-	//
 	if !c1 && !c2 { // carve out above two cases
 		// covert right to the type of left if one side is unnamed type and the other side is not
 
