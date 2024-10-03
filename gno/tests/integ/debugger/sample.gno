@@ -36,7 +36,7 @@ func main() {
 		b := 3
 		g("hello", b)
 	}
-	t := T{A: []int{1, 2, 3} }
+	t := T{A: []int{1, 2, 3}}
 	println(t.get(1))
 	x := 0
 	for i := 0; i < 5; i++ {

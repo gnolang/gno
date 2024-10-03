@@ -42,7 +42,7 @@ func SetupGno(p *testscript.Params, buildDir string) error {
 		}
 
 		// Append the path to the gno command source
-		gnoArgsBuilder = append(gnoArgsBuilder, filepath.Join(gnoroot, "gnovm", "cmd", "gno"))
+		gnoArgsBuilder = append(gnoArgsBuilder, filepath.Join(gnoroot, "gno", "cmd", "gno"))
 
 		if err = exec.Command("go", gnoArgsBuilder...).Run(); err != nil {
 			return fmt.Errorf("unable to build gno binary: %w", err)

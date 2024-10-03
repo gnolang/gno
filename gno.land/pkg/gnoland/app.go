@@ -47,7 +47,7 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 		EventSwitch: events.NewEventSwitch(),
 		InitChainerConfig: InitChainerConfig{
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
+			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gno", "stdlibs"),
 			CacheStdlibLoad:        true,
 		},
 	}
@@ -177,7 +177,7 @@ func NewApp(
 		EventSwitch: evsw,
 		InitChainerConfig: InitChainerConfig{
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
-			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
+			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gno", "stdlibs"),
 		},
 	}
 	if skipFailingGenesisTxs {

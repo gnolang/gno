@@ -8,7 +8,7 @@ RUN         --mount=type=cache,target=/root/.cache/go-build       go mod downloa
 RUN         --mount=type=cache,target=/root/.cache/go-build       go build -o ./build/gnoland   ./gno.land/cmd/gnoland
 RUN         --mount=type=cache,target=/root/.cache/go-build       go build -o ./build/gnokey    ./gno.land/cmd/gnokey
 RUN         --mount=type=cache,target=/root/.cache/go-build       go build -o ./build/gnoweb    ./gno.land/cmd/gnoweb
-RUN         --mount=type=cache,target=/root/.cache/go-build       go build -o ./build/gno       ./gnovm/cmd/gno
+RUN         --mount=type=cache,target=/root/.cache/go-build       go build -o ./build/gno       ./gno/cmd/gno
 
 # Base image
 FROM        alpine:3.17 AS base
@@ -22,7 +22,7 @@ CMD         [ "" ]
 FROM        base AS gnoland
 COPY        --from=build-gno /gnoroot/build/gnoland /usr/bin/gnoland
 COPY        --from=build-gno /gnoroot/examples      /gnoroot/examples
-COPY        --from=build-gno /gnoroot/gnovm/stdlibs /gnoroot/gnovm/stdlibs
+COPY        --from=build-gno /gnoroot/gno/stdlibs /gnoroot/gno/stdlibs
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 EXPOSE      26656 26657
@@ -51,7 +51,7 @@ ENTRYPOINT  ["/usr/bin/gnoweb"]
 FROM        base AS all
 COPY        --from=build-gno /gnoroot/build/* /usr/bin/
 COPY        --from=build-gno /gnoroot/examples      /gnoroot/examples
-COPY        --from=build-gno /gnoroot/gnovm/stdlibs /gnoroot/gnovm/stdlibs
+COPY        --from=build-gno /gnoroot/gno/stdlibs /gnoroot/gno/stdlibs
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_txs.jsonl    /gnoroot/gno.land/genesis/genesis_txs.jsonl
 COPY        --from=build-gno /gnoroot/gno.land/genesis/genesis_balances.txt /gnoroot/gno.land/genesis/genesis_balances.txt
 # gofmt is required by `gnokey maketx addpkg`

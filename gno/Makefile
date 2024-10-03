@@ -74,7 +74,7 @@ _test.cmd:
 # GOTEST_COVER_PROFILE.
 .PHONY: test.cmd.coverage
 test.cmd.coverage:
-	$(eval export TXTARCOVERDIR := $(shell mktemp -d --tmpdir gnovm-make.XXXXXXX))
+	$(eval export TXTARCOVERDIR := $(shell mktemp -d --tmpdir gno-make.XXXXXXX))
 	go test ./cmd/... -covermode atomic -test.gocoverdir='$(TXTARCOVERDIR)' $(GOTEST_FLAGS)
 	@echo "coverage results:"
 	go tool covdata percent -i="$(TXTARCOVERDIR)"
@@ -117,12 +117,12 @@ generate: _dev.stringer _dev.generate
 stringer_cmd=$(rundep) golang.org/x/tools/cmd/stringer
 .PHONY: _dev.stringer
 _dev.stringer:
-	$(stringer_cmd) -type=Kind       ./pkg/gnolang
-	$(stringer_cmd) -type=Op         ./pkg/gnolang
-	$(stringer_cmd) -type=TransCtrl  ./pkg/gnolang
-	$(stringer_cmd) -type=TransField ./pkg/gnolang
-	$(stringer_cmd) -type=VPType     ./pkg/gnolang
-	$(stringer_cmd) -type=Word       ./pkg/gnolang
+	$(stringer_cmd) -type=Kind       ./pkg/vm
+	$(stringer_cmd) -type=Op         ./pkg/vm
+	$(stringer_cmd) -type=TransCtrl  ./pkg/vm
+	$(stringer_cmd) -type=TransField ./pkg/vm
+	$(stringer_cmd) -type=VPType     ./pkg/vm
+	$(stringer_cmd) -type=Word       ./pkg/vm
 
 .PHONY: _dev.generate
 _dev.generate:

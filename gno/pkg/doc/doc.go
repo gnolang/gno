@@ -161,7 +161,7 @@ var fpAbs = filepath.Abs
 // packages in dirs could not be parsed correctly.
 //
 // dirs specifies the gno system directories to scan which specify full import paths
-// in their directories, such as @/examples and @/gnovm/stdlibs; modDirs specifies
+// in their directories, such as @/examples and @/gno/stdlibs; modDirs specifies
 // directories which contain a gno.mod file.
 func ResolveDocumentable(dirs, modDirs, args []string, unexported bool) (Documentable, error) {
 	d := newDirs(dirs, modDirs)

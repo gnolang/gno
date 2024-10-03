@@ -31,7 +31,7 @@ There are three components to a natively bound function in Gno:
    name and signature, i.e. `crypto/sha256/sha256.go`.
 3. When the two above are present and valid, the native binding can be created
    by executing the code generator: either by executing `go generate` from the
-   `stdlibs` directory, or run `make generate` from the `gnovm` directory.
+   `stdlibs` directory, or run `make generate` from the `gno` directory.
    This generates the `native.go` file available in the `stdlibs` directory,
    which provides the binding itself to then be used by the GnoVM.
 
@@ -79,7 +79,7 @@ extensions:
 ```sh
 for i in *.go; do mv $i "$(echo $i | sed 's/\.go$/.gno/')"; done
 ```
-:::  
+:::
 
 Following that, the suggested approach is to iteratively try running `gno test .`,
 while fixing any errors that may come out of trying to test the package.

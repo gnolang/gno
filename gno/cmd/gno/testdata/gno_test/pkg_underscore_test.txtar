@@ -1,8 +1,8 @@
 # Test a pkg name with _test as suffix
 
 # Set up GNOROOT in the current directory.
-mkdir $WORK/gnovm
-symlink $WORK/gnovm/stdlibs -> $GNOROOT/gnovm/stdlibs
+mkdir $WORK/gno
+symlink $WORK/gno/stdlibs -> $GNOROOT/gno/stdlibs
 env GNOROOT=$WORK
 
 gno test -v ./examples/gno.land/p/demo/hello

@@ -334,7 +334,7 @@ func foo() { _ = regexp.MatchString }
 		},
 		{
 			name:     "natbind-func",
-			filename: filepath.Join(gnoenv.RootDir(), "gnovm/stdlibs/math/math.gno"),
+			filename: filepath.Join(gnoenv.RootDir(), "gno/stdlibs/math/math.gno"),
 			source: `
 package math
 
@@ -384,7 +384,7 @@ func otherFunc() {
 		},
 		{
 			name:     "natbind-std",
-			filename: filepath.Join(gnoenv.RootDir(), "gnovm/stdlibs/std/std.gno"),
+			filename: filepath.Join(gnoenv.RootDir(), "gno/stdlibs/std/std.gno"),
 			source: `
 package std
 

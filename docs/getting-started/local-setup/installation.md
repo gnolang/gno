@@ -63,7 +63,7 @@ Alternatively, if you don't want to have the binary callable system-wide, you
 can run the binary directly:
 
 ```bash
-cd gnovm
+cd gno
 go run ./cmd/gno --help
 ```
 

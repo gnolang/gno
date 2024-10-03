@@ -33,7 +33,7 @@ func TestGuessGnoRootDir_UsingCallerStack(t *testing.T) {
 	_, err := exec.LookPath("go")
 	require.Error(t, err)
 
-	// gno/ .. /gnovm/ .. /pkg/ .. /gnoenv/gnoroot.go
+	// gno/ .. /gno/ .. /pkg/ .. /gnoenv/gnoroot.go
 	testPath, _ := filepath.Abs(filepath.Join(".", "..", "..", ".."))
 	root, err := GuessRootDir()
 	require.NoError(t, err)
@@ -55,7 +55,7 @@ func TestGuessGnoRootDir_WithGoModList(t *testing.T) {
 }
 
 func TestInferGnoRootFromGoMod(t *testing.T) {
-	// gno/ .. /gnovm/ .. /pkg/ .. /gnoenv/gnoroot.go
+	// gno/ .. /gno/ .. /pkg/ .. /gnoenv/gnoroot.go
 	testPath, _ := filepath.Abs(filepath.Join(".", "..", "..", ".."))
 
 	t.Run("go is present", func(t *testing.T) {

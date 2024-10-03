@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gnolang/gno/gno/pkg/gnoenv"
-	"github.com/gnolang/gno/gno/pkg/vm"
+	gnolang "github.com/gnolang/gno/gno/pkg/vm"
 	"github.com/gnolang/gno/gno/tests"
 )
 
@@ -23,7 +23,7 @@ type writeNopCloser struct{ io.Writer }
 
 func (writeNopCloser) Close() error { return nil }
 
-// TODO (Marc): move evalTest to gnovm/tests package and remove code duplicates
+// TODO (Marc): move evalTest to gno/tests package and remove code duplicates
 func evalTest(debugAddr, in, file string) (out, err, stacktrace string) {
 	bout := bytes.NewBufferString("")
 	berr := bytes.NewBufferString("")

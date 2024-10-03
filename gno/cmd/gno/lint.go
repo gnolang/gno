@@ -164,7 +164,7 @@ var reParseRecover = regexp.MustCompile(`^([^:]+):(\d+)(?::\d+)?:? *(.*)$`)
 
 func catchRuntimeError(pkgPath string, stderr io.WriteCloser, action func()) (hasError bool) {
 	defer func() {
-		// Errors catched here mostly come from: gnovm/pkg/gnolang/preprocess.go
+		// Errors catched here mostly come from: gno/pkg/vm/preprocess.go
 		r := recover()
 		if r == nil {
 			return

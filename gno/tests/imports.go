@@ -426,9 +426,9 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 func loadStdlib(rootDir, pkgPath string, store gno.Store, stdout io.Writer) (*gno.PackageNode, *gno.PackageValue) {
 	dirs := [...]string{
 		// normal stdlib path.
-		filepath.Join(rootDir, "gnovm", "stdlibs", pkgPath),
+		filepath.Join(rootDir, "gno", "stdlibs", pkgPath),
 		// override path. definitions here override the previous if duplicate.
-		filepath.Join(rootDir, "gnovm", "tests", "stdlibs", pkgPath),
+		filepath.Join(rootDir, "gno", "tests", "stdlibs", pkgPath),
 	}
 	files := make([]string, 0, 32) // pre-alloc 32 as a likely high number of files
 	for _, path := range dirs {

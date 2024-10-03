@@ -65,7 +65,7 @@ func guessRootDir() (string, error) {
 	if _, filename, _, ok := runtime.Caller(1); ok && filepath.IsAbs(filename) {
 		if currentDir := filepath.Dir(filename); currentDir != "" {
 			// Deduce Gno root directory relative from the current file's path.
-			// gno/ .. /gnovm/ .. /pkg/ .. /gnoenv/gnoenv.go
+			// gno/ .. /gno/ .. /pkg/ .. /gnoenv/gnoenv.go
 			rootdir, err := filepath.Abs(filepath.Join(currentDir, "..", "..", ".."))
 			if err == nil {
 				return rootdir, nil

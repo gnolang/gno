@@ -33,23 +33,23 @@ OFFICIAL_PACKAGES += ./gno.land/r/gov
 # Dev tools
 .PHONY: transpile
 transpile:
-	go run ../gnovm/cmd/gno transpile -v .
+	go run ../gno/cmd/gno transpile -v .
 
 .PHONY: build
 build:
-	go run ../gnovm/cmd/gno transpile -v --gobuild .
+	go run ../gno/cmd/gno transpile -v --gobuild .
 
 .PHONY: test
 test:
-	go run ../gnovm/cmd/gno test -v ./...
+	go run ../gno/cmd/gno test -v ./...
 
 .PHONY: lint
 lint:
-	go run ../gnovm/cmd/gno lint $(OFFICIAL_PACKAGES)
+	go run ../gno/cmd/gno lint $(OFFICIAL_PACKAGES)
 
 .PHONY: test.sync
 test.sync:
-	go run ../gnovm/cmd/gno test -v --update-golden-tests ./...
+	go run ../gno/cmd/gno test -v --update-golden-tests ./...
 
 .PHONY: clean
 clean:
@@ -58,7 +58,7 @@ clean:
 .PHONY: fmt
 GNOFMT_FLAGS ?= -w
 fmt:
-	go run ../gnovm/cmd/gno fmt $(GNOFMT_FLAGS) ./...
+	go run ../gno/cmd/gno fmt $(GNOFMT_FLAGS) ./...
 
 .PHONY: tidy
 tidy:

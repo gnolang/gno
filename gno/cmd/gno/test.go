@@ -18,8 +18,8 @@ import (
 	"go.uber.org/multierr"
 
 	"github.com/gnolang/gno/gno/pkg/gnoenv"
-	gno "github.com/gnolang/gno/gno/pkg/vm"
 	"github.com/gnolang/gno/gno/pkg/gnomod"
+	gno "github.com/gnolang/gno/gno/pkg/vm"
 	"github.com/gnolang/gno/gno/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -403,8 +403,8 @@ func pkgPathFromRootDir(pkgPath, rootDir string) string {
 	impPath := strings.ReplaceAll(abPkgPath[len(abRootDir):], string(filepath.Separator), "/")
 	for _, prefix := range [...]string{
 		"examples/",
-		"gnovm/stdlibs/",
-		"gnovm/tests/stdlibs/",
+		"gno/stdlibs/",
+		"gno/tests/stdlibs/",
 	} {
 		if strings.HasPrefix(impPath, prefix) {
 			return impPath[len(prefix):]

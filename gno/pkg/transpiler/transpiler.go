@@ -40,7 +40,7 @@ func PackageDirLocation(s string) string {
 	case !gno.IsStdlib(s):
 		return "examples/" + s
 	default:
-		return "gnovm/stdlibs/" + s
+		return "gno/stdlibs/" + s
 	}
 }
 
@@ -89,7 +89,7 @@ func Transpile(source, tags, filename string) (*Result, error) {
 	ctx := &transpileCtx{
 		rootDir: gnoenv.RootDir(),
 	}
-	stdlibPrefix := filepath.Join(ctx.rootDir, "gnovm", "stdlibs")
+	stdlibPrefix := filepath.Join(ctx.rootDir, "gno", "stdlibs")
 	if isTestFile {
 		// XXX(morgan): this disables checking that a package exists (in examples or stdlibs)
 		// when transpiling a test file. After all Gno functions, including those in

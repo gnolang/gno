@@ -33,7 +33,7 @@ type bfsDirs struct {
 }
 
 // newDirs begins scanning the given stdlibs directory.
-// dirs are "gopath-like" directories, such as @/gnovm/stdlibs, whose path
+// dirs are "gopath-like" directories, such as @/gno/stdlibs, whose path
 // relative to the root specify the import path.
 // modDirs are user directories, expected to have gno.mod files
 func newDirs(dirs []string, modDirs []string) *bfsDirs {

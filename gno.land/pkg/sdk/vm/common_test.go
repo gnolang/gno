@@ -52,7 +52,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	mcw := ms.MultiCacheWrap()
 	vmk.Initialize(log.NewNoopLogger(), mcw)
 	stdlibCtx := vmk.MakeGnoTransactionStore(ctx.WithMultiStore(mcw))
-	stdlibsDir := filepath.Join("..", "..", "..", "..", "gnovm", "stdlibs")
+	stdlibsDir := filepath.Join("..", "..", "..", "..", "gno", "stdlibs")
 	if cacheStdlibs {
 		vmk.LoadStdlibCached(stdlibCtx, stdlibsDir)
 	} else {
