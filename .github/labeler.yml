@@ -6,7 +6,7 @@
 ":package: :robot: gnovm":
 - changed-files:
   - any-glob-to-any-file:
-    - gnovm/**/*
+    - gno/**/*
 
 ":package: :globe_with_meridians:  tendermint v2":
 - changed-files:

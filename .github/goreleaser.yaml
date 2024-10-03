@@ -12,7 +12,7 @@ before:
 
 builds:
   - id: gno
-    main: ./gnovm/cmd/gno
+    main: ./gno/cmd/gno
     binary: gno
     env:
       - CGO_ENABLED=0
@@ -148,8 +148,8 @@ dockers:
       - gno
     extra_files:
       - examples
-      - gnovm/stdlibs
-      - gnovm/tests/stdlibs
+      - gno/stdlibs
+      - gno/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -168,8 +168,8 @@ dockers:
       - gno
     extra_files:
       - examples
-      - gnovm/stdlibs
-      - gnovm/tests/stdlibs
+      - gno/stdlibs
+      - gno/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -189,8 +189,8 @@ dockers:
       - gno
     extra_files:
       - examples
-      - gnovm/stdlibs
-      - gnovm/tests/stdlibs
+      - gno/stdlibs
+      - gno/tests/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -210,8 +210,8 @@ dockers:
       - gno
     extra_files:
       - examples
-      - gnovm/stdlibs
-      - gnovm/tests/stdlibs
+      - gno/stdlibs
+      - gno/tests/stdlibs
 
   # gnoland
   - use: buildx
@@ -234,7 +234,7 @@ dockers:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
       - examples
-      - gnovm/stdlibs
+      - gno/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -255,7 +255,7 @@ dockers:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
       - examples
-      - gnovm/stdlibs
+      - gno/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -277,7 +277,7 @@ dockers:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
       - examples
-      - gnovm/stdlibs
+      - gno/stdlibs
   - use: buildx
     dockerfile: Dockerfile.release
     goos: linux
@@ -299,7 +299,7 @@ dockers:
       - gno.land/genesis/genesis_balances.txt
       - gno.land/genesis/genesis_txs.jsonl
       - examples
-      - gnovm/stdlibs
+      - gno/stdlibs
   # gnokey
   - use: buildx
     dockerfile: Dockerfile.release
@@ -616,7 +616,7 @@ docker_manifests:
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-arm64v8
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-armv6
       - ghcr.io/gnolang/{{ .ProjectName }}/gnokey:{{ .Env.TAG_VERSION }}-armv7
- 
+
   # gnoweb
   - name_template: ghcr.io/gnolang/{{ .ProjectName }}/gnoweb:{{ .Version }}
     image_templates:
