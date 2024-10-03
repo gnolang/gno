@@ -70,7 +70,7 @@ func (b *Banker) Mint(address std.Address, amount uint64) error {
 	b.balances.Set(string(address), newBalance)
 
 	std.Emit(
-		TransferEvent,
+		MintEvent,
 		"from", "",
 		"to", string(address),
 		"value", strconv.Itoa(int(amount)),
@@ -96,7 +96,7 @@ func (b *Banker) Burn(address std.Address, amount uint64) error {
 	b.balances.Set(string(address), newBalance)
 
 	std.Emit(
-		TransferEvent,
+		BurnEvent,
 		"from", string(address),
 		"to", "",
 		"value", strconv.Itoa(int(amount)),
@@ -152,9 +152,6 @@ func (b *Banker) Transfer(from, to std.Address, amount uint64) error {
 	toBalance := b.BalanceOf(to)
 	fromBalance := b.BalanceOf(from)
 
-	// debug.
-	// println("from", from, "to", to, "amount", amount, "fromBalance", fromBalance, "toBalance", toBalance)
-
 	if fromBalance < amount {
 		return ErrInsufficientBalance
 	}
@@ -171,6 +168,7 @@ func (b *Banker) Transfer(from, to std.Address, amount uint64) error {
 		"to", to.String(),
 		"value", strconv.Itoa(int(amount)),
 	)
+
 	return nil
 }
 
