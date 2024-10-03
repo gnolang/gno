@@ -20,8 +20,8 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/gnovm/tests"
+	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/colors"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -458,7 +458,7 @@ func runTestFiles(
 
 		eval := m.Eval(res) // NOTE: verbose prints get here
 		if verbose {
-			ctx := m.Context.(stdlibs.ExecContext)
+			ctx := m.Context.(*teststd.TestExecContext)
 
 			events := ctx.EventLogger.Events()
 			for _, ev := range events[printedEvents:] {
