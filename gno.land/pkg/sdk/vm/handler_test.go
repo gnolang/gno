@@ -191,7 +191,7 @@ func TestVmHandlerQuery_Funcs(t *testing.T) {
 		name := string(tc.input)
 		t.Run(name, func(t *testing.T) {
 			env := setupTestEnv()
-			ctx := env.ctx
+			ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 			vmHandler := env.vmh
 
 			// Give "addr1" some gnots.
@@ -257,7 +257,7 @@ func TestVmHandlerQuery_File(t *testing.T) {
 		// XXX: expectedEvents
 	}{
 		// valid queries
-		{input: []byte(`gno.land/r/hello/hello.gno`), expectedResult: "package hello\nfunc Hello() string { return \"hello\" }"},
+		{input: []byte(`gno.land/r/hello/hello.gno`), expectedResult: "package hello\n\nfunc Hello() string { return \"hello\" }\n"},
 		{input: []byte(`gno.land/r/hello/README.md`), expectedResult: "# Hello"},
 		{input: []byte(`gno.land/r/hello/doesnotexist.gno`), expectedErrorMatch: `file "gno.land/r/hello/doesnotexist.gno" is not available`},
 		{input: []byte(`gno.land/r/hello`), expectedResult: "README.md\nhello.gno"},
@@ -269,7 +269,7 @@ func TestVmHandlerQuery_File(t *testing.T) {
 		name := string(tc.input)
 		t.Run(name, func(t *testing.T) {
 			env := setupTestEnv()
-			ctx := env.ctx
+			ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
 			vmHandler := env.vmh
 
 			// Give "addr1" some gnots.
@@ -282,7 +282,7 @@ func TestVmHandlerQuery_File(t *testing.T) {
 			// Create test package.
 			files := []*std.MemFile{
 				{"README.md", "# Hello"},
-				{"hello.gno", "package hello\nfunc Hello() string { return \"hello\" }"},
+				{"hello.gno", "package hello\n\nfunc Hello() string { return \"hello\" }\n"},
 			}
 			pkgPath := "gno.land/r/hello"
 			msg1 := NewMsgAddPackage(addr, pkgPath, files)
