@@ -47,7 +47,7 @@ func (c *VerifyCfg) RegisterFlags(fs *flag.FlagSet) {
 		"path of document file to verify",
 	)
 
-	// info to recontruct the message
+	// info to reconstruct the message
 	fs.StringVar(
 		&c.ChainID,
 		"chainid",
