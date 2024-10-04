@@ -10,8 +10,6 @@ import (
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/merkle"
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/foo20"
-	"gno.land/r/demo/users"
 )
 
 var (
