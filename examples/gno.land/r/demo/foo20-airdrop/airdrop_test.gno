@@ -4,38 +4,30 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/airdrop"
 	"gno.land/p/demo/airdrop/grc20_merkle_airdrop"
 	"gno.land/p/demo/merkle"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
 	"gno.land/p/demo/users"
 	"gno.land/r/demo/foo20"
 )
 
-func getLeaves() []merkle.Hashable {
-	var leaves = []grc20_merkle_airdrop.AirdropData{
-		{
-			Address: "g1sw5xklxjjuv0yvuxy5f5s3l3mnj0nqq626a9wr", // albttx.gno
-			Amount:  10000,
-		},
-		{
-			Address: "g1zyvskpxg5lv4qpygtuvp93zprrrjpk2exa9rfx",
-			Amount:  10000,
-		},
-		{
-			Address: "g14szvkruznx49sxe4m9dmg3m8606sm6yp4a0wv8",
-			Amount:  10000,
-		},
+func getLeaves(size int) []merkle.Hashable {
+	leaves := make([]merkle.Hashable, size)
+
+	for i := 0; i < size; i++ {
+		leaves[i] = airdrop.NewData(
+			std.DerivePkgAddr(ufmt.Sprintf("gno.land/test/%d", i)),
+			10000,
+		)
 	}
 
-	resp := make([]merkle.Hashable, len(leaves))
-	for i, leave := range leaves {
-		resp[i] = leave
-	}
-	return resp
+	return leaves
 }
 
 func TestRegisterMerkle(t *testing.T) {
-	leaves := getLeaves()
+	leaves := getLeaves(5)
 
 	tree := merkle.NewTree(leaves)
 	root := tree.Root()
@@ -44,7 +36,7 @@ func TestRegisterMerkle(t *testing.T) {
 }
 
 func TestClaimAirdrop(t *testing.T) {
-	leaves := getLeaves()
+	leaves := getLeaves(5)
 
 	contractAddr := std.DerivePkgAddr("gno.land/r/demo/foo20-airdrop")
 	std.TestSetOrigCaller(contractAddr)
@@ -60,9 +52,9 @@ func TestClaimAirdrop(t *testing.T) {
 
 	sumClaimed := uint64(0)
 	for _, leaf := range leaves {
-		data := leaf.(grc20_merkle_airdrop.AirdropData)
-		user := data.Address
-		sumClaimed += data.Amount
+		data := leaf.(airdrop.Data)
+		user := data.Address()
+		sumClaimed += data.Amount()
 
 		proofs, err := tree.Proof(leaf)
 		urequire.NoError(t, err)
@@ -70,10 +62,10 @@ func TestClaimAirdrop(t *testing.T) {
 		// claim airdrop
 		Claim(data, proofs)
 
-		balance := foo20.BalanceOf(users.AddressOrName(data.Address))
+		addr := users.AddressOrName(data.Address())
+		balance := foo20.BalanceOf(addr)
 		urequire.Equal(t, balance, uint64(10000))
 	}
 
-	ttClaimed := TotalClaimed()
-	urequire.Equal(t, ttClaimed, sumClaimed)
+	urequire.Equal(t, TotalClaimed(), sumClaimed)
 }

@@ -3,37 +3,20 @@ package grc20_merkle_airdrop
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"std"
 
+	"gno.land/p/demo/airdrop"
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/merkle"
-	"gno.land/p/demo/ufmt"
 )
 
 var (
 	ErrAlreadyClaimed = errors.New("already claimed")
 	ErrInvalidProof   = errors.New("invalid merkle proof")
 )
-
-type AirdropData struct {
-	Address std.Address
-	// TODO: use std.Coin
-	Amount uint64
-	// Amount std.Coin
-}
-
-func (data AirdropData) Bytes() []byte {
-	// TODO: use binary.Write
-	// var buf bytes.Buffer
-	// binary.Write(&buf, binary.BigEndian, d)
-	// return buf.Bytes()
-	// OR: use json.Marshal for frontend compatibilities
-
-	s := ufmt.Sprintf("%v", data)
-	return []byte(s)
-}
 
 type MerkleAirdrop struct {
 	root string
@@ -55,7 +38,7 @@ func (ma *MerkleAirdrop) Root() string {
 	return ma.root
 }
 
-func (ma *MerkleAirdrop) Claim(data AirdropData, proofs []merkle.Node) error {
+func (ma *MerkleAirdrop) Claim(data airdrop.AirdropData, proofs []merkle.Node) error {
 	shasum := sha256.Sum256(data.Bytes())
 	hash := hex.EncodeToString(shasum[:])
 
@@ -73,12 +56,12 @@ func (ma *MerkleAirdrop) Claim(data AirdropData, proofs []merkle.Node) error {
 	// THIS DOES NOT WORK
 	// foo20.GRC20().Transfer(data.Address, data.Amount)
 
-	err := ma.token.Transfer(data.Address, data.Amount)
+	err := ma.token.Transfer(data.Address(), data.Amount())
 	if err != nil {
 		return err
 	}
 
-	ma.claimed.Set(hash, data.Amount)
+	ma.claimed.Set(hash, data.Amount())
 	return nil
 }
 

@@ -4,36 +4,29 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/airdrop"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/merkle"
+	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
+	"gno.land/p/demo/users"
 )
 
-func getLeaves() []merkle.Hashable {
-	var leaves = []AirdropData{
-		{
-			Address: "g1sw5xklxjjuv0yvuxy5f5s3l3mnj0nqq626a9wr", // albttx.gno
-			Amount:  10000,
-		},
-		{
-			Address: "g1zyvskpxg5lv4qpygtuvp93zprrrjpk2exa9rfx",
-			Amount:  10000,
-		},
-		{
-			Address: "g14szvkruznx49sxe4m9dmg3m8606sm6yp4a0wv8",
-			Amount:  10000,
-		},
+func getLeaves(size int) []merkle.Hashable {
+	leaves := make([]merkle.Hashable, size)
+
+	for i := 0; i < size; i++ {
+		leaves[i] = airdrop.NewData(
+			std.DerivePkgAddr(ufmt.Sprintf("gno.land/test/%d", i)),
+			10000,
+		)
 	}
 
-	resp := make([]merkle.Hashable, len(leaves))
-	for i, leave := range leaves {
-		resp[i] = leave
-	}
-	return resp
+	return leaves
 }
 
 func TestRegisterMerkle(t *testing.T) {
-	leaves := getLeaves()
+	leaves := getLeaves(3)
 	tree := merkle.NewTree(leaves)
 	root := tree.Root()
 	contractAddr := std.DerivePkgAddr("gno.land/r/demo/tok20-airdrop")
@@ -49,7 +42,7 @@ func TestClaimAirdrop(t *testing.T) {
 	contractAddr := std.DerivePkgAddr("gno.land/r/demo/tok20-airdrop")
 	std.TestSetOrigCaller(contractAddr)
 
-	leaves := getLeaves()
+	leaves := getLeaves(5)
 	tree := merkle.NewTree(leaves)
 	root := tree.Root()
 
@@ -61,10 +54,9 @@ func TestClaimAirdrop(t *testing.T) {
 
 	sumClaimed := uint64(0)
 	for _, leaf := range leaves {
-		data := leaf.(AirdropData)
-		println(data)
+		data := leaf.(airdrop.Data)
 
-		sumClaimed += data.Amount
+		sumClaimed += data.Amount()
 
 		proofs, err := tree.Proof(leaf)
 		urequire.NoError(t, err)
@@ -72,6 +64,9 @@ func TestClaimAirdrop(t *testing.T) {
 		// claim airdrop
 		err = tok20airdrop.Claim(data, proofs)
 		urequire.NoError(t, err)
+
+		balance := token.BalanceOf(data.Address())
+		urequire.Equal(t, balance, uint64(10000))
 	}
 
 	ttClaimed := tok20airdrop.TotalClaimed()
@@ -79,7 +74,7 @@ func TestClaimAirdrop(t *testing.T) {
 }
 
 func TestDoubleClaim(t *testing.T) {
-	leaves := getLeaves()
+	leaves := getLeaves(5)
 
 	contractAddr := std.DerivePkgAddr("gno.land/r/demo/tok20-airdrop")
 	std.TestSetOrigCaller(contractAddr)
@@ -94,9 +89,9 @@ func TestDoubleClaim(t *testing.T) {
 	proofs, err := tree.Proof(leaf)
 	urequire.NoError(t, err)
 
-	err = tok20airdrop.Claim(leaf.(AirdropData), proofs)
+	err = tok20airdrop.Claim(leaf.(airdrop.Data), proofs)
 	urequire.NoError(t, err)
 
-	err = tok20airdrop.Claim(leaf.(AirdropData), proofs)
+	err = tok20airdrop.Claim(leaf.(airdrop.Data), proofs)
 	urequire.Error(t, err, ErrAlreadyClaimed.Error())
 }
