@@ -7,6 +7,7 @@ import (
 
 var (
 	ErrNoSuchItem       = errors.New("hof: no such item exists")
+	ErrAlreadyExists    = errors.New("hof: alerady exists")
 	ErrNoSuchExhibition = errors.New("hof: no such exhibition exists")
 	ErrInvalidTitle     = errors.New("hof: invalid title")
 	ErrDoubleUpvote     = errors.New("hof: cannot upvote twice")

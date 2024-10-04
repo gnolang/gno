@@ -10,7 +10,6 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/seqid"
-	"gno.land/p/demo/ufmt"
 )
 
 var (
@@ -51,8 +50,8 @@ func init() {
 		})
 }
 
-// CreateTemporaryExhibition creates a temporary exhibition to be displayed while it's active
-func CreateTemporaryExhibition(title, description string, start, end *time.Time) error {
+// CreateExhibition creates a temporary exhibition to be displayed while it's active
+func CreateExhibition(title, description string, start, end *time.Time) error {
 	// todo add admin checks
 
 	if strings.TrimSpace(title) == "" {
@@ -75,25 +74,29 @@ func CreateTemporaryExhibition(title, description string, start, end *time.Time)
 }
 
 // Register registers to the permanent exhibition
-func Register() (string, error) {
-	return RegisterFor(seqid.ID(0))
+func Register() {
+	RegisterFor(seqid.ID(0))
 }
 
 // RegisterFor registers your realm for a specific exhibition
-func RegisterFor(exhibID seqid.ID) (string, error) {
+func RegisterFor(exhibID seqid.ID) {
 	submission := std.PrevRealm()
 	pkgpath := submission.PkgPath()
 
 	raw, ok := exhibitions.Get(exhibID.String())
 	if !ok {
-		return "", ErrNoSuchExhibition
+		panic(ErrNoSuchExhibition.Error())
 	}
 
 	e := raw.(*Exhibition)
 
 	// Must not already exist and must be called from code
-	if e.items.Has(pkgpath) || submission.IsUser() {
-		return "", ErrNonCodeCall
+	if submission.IsUser() {
+		panic(ErrNonCodeCall.Error())
+	}
+
+	if e.items.Has(pkgpath) {
+		panic(ErrAlreadyExists.Error())
 	}
 
 	id := e.itemCounter.Next()
@@ -108,8 +111,6 @@ func RegisterFor(exhibID seqid.ID) (string, error) {
 			upvote:   avl.NewTree(),
 			downvote: avl.NewTree(),
 		})
-
-	return ufmt.Sprintf("Registered %s at ID %s for exhibition %s", pkgpath, id.String(), e.title), nil
 }
 
 func Upvote(exhibID, itemID seqid.ID) error {
