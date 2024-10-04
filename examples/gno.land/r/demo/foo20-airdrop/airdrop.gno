@@ -1,8 +1,6 @@
 package foo20airdrop
 
 import (
-	"std"
-
 	"gno.land/p/demo/airdrop/grc20_merkle_airdrop"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/merkle"
