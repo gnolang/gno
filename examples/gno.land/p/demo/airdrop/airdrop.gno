@@ -1,8 +1,9 @@
 package airdrop
 
 import (
-	"encoding/json"
 	"std"
+
+	"gno.land/p/demo/ufmt"
 )
 
 type AirdropData interface {
@@ -27,10 +28,7 @@ func NewData(addr std.Address, amount uint64) Data {
 }
 
 func (d Data) Bytes() []byte {
-	out, err := json.Marshal(d.data)
-	if err != nil {
-		panic(err)
-	}
+	out := ufmt.Sprintf(`{"address":"%s","amount":"%s"}`, d.data.Address, d.data.Amount)
 	return []byte(out)
 }
 
