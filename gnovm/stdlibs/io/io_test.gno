@@ -540,3 +540,70 @@ func TestNopCloserWriterToForwarding(t *testing.T) {
 // 		}
 // 	})
 // }
+
+// TODO: The original test uses `os.CreateTemp`, but here
+// to work around it by using `bytes.Buffer`.
+// When `os.CreateTemp` is available in the future, we should change the test
+// to use the original approach instead of this method. (just un-comment the test above)
+func TestOffsetWriter_Seek(t *testing.T) {
+	buf := new(bytes.Buffer)
+	w := io.NewOffsetWriter(testWriterAt{buf}, 0)
+
+	// Should throw error errWhence if whence is not valid
+	t.Run("errWhence", func(t *testing.T) {
+		for _, whence := range []int{-3, -2, -1, 3, 4, 5} {
+			var offset int64 = 0
+			gotOff, gotErr := w.Seek(offset, whence)
+			if gotOff != 0 || gotErr != io.ErrWhence {
+				t.Errorf("For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, %v)",
+					whence, offset, gotOff, gotErr, 0, io.ErrWhence)
+			}
+		}
+	})
+
+	// Should throw error errOffset if offset is negative
+	t.Run("errOffset", func(t *testing.T) {
+		for _, whence := range []int{io.SeekStart, io.SeekCurrent} {
+			for offset := int64(-3); offset < 0; offset++ {
+				gotOff, gotErr := w.Seek(offset, whence)
+				if gotOff != 0 || gotErr != io.ErrOffset {
+					t.Errorf("For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, %v)",
+						whence, offset, gotOff, gotErr, 0, io.ErrOffset)
+				}
+			}
+		}
+	})
+
+	t.Run("normal", func(t *testing.T) {
+		tests := []struct {
+			offset    int64
+			whence    int
+			returnOff int64
+		}{
+			{whence: io.SeekStart, offset: 1, returnOff: 1},
+			{whence: io.SeekStart, offset: 2, returnOff: 2},
+			{whence: io.SeekStart, offset: 3, returnOff: 3},
+			{whence: io.SeekCurrent, offset: 1, returnOff: 4},
+			{whence: io.SeekCurrent, offset: 2, returnOff: 6},
+			{whence: io.SeekCurrent, offset: 3, returnOff: 9},
+		}
+		for idx, tt := range tests {
+			gotOff, gotErr := w.Seek(tt.offset, tt.whence)
+			if gotOff != tt.returnOff || gotErr != nil {
+				t.Errorf("%d:: For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, <nil>)",
+					idx+1, tt.whence, tt.offset, gotOff, gotErr, tt.returnOff)
+			}
+		}
+	})
+}
+
+type testWriterAt struct {
+	buf *bytes.Buffer
+}
+
+func (w testWriterAt) WriteAt(p []byte, off int64) (n int, err error) {
+	if int64(w.buf.Len()) < off+int64(len(p)) {
+		w.buf.Grow(int(off + int64(len(p)) - int64(w.buf.Len())))
+	}
+	return copy(w.buf.Bytes()[off:], p), nil
+}

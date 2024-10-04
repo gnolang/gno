@@ -29,8 +29,8 @@ const (
 // but failed to return an explicit error.
 var ErrShortWrite = errors.New("short write")
 
-// errInvalidWrite means that a write returned an impossible count.
-var errInvalidWrite = errors.New("invalid write result")
+// ErrInvalidWrite means that a write returned an impossible count.
+var ErrInvalidWrite = errors.New("invalid write result")
 
 // ErrShortBuffer means that a read required a longer buffer than was provided.
 var ErrShortBuffer = errors.New("short buffer")
@@ -427,7 +427,7 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 			if nw < 0 || nr < nw {
 				nw = 0
 				if ew == nil {
-					ew = errInvalidWrite
+					ew = ErrInvalidWrite
 				}
 			}
 			written += int64(nw)
@@ -514,14 +514,14 @@ func (s *SectionReader) Read(p []byte) (n int, err error) {
 }
 
 var (
-	errWhence = errors.New("Seek: invalid whence")
-	errOffset = errors.New("Seek: invalid offset")
+	ErrWhence = errors.New("Seek: invalid whence")
+	ErrOffset = errors.New("Seek: invalid offset")
 )
 
 func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
 	default:
-		return 0, errWhence
+		return 0, ErrWhence
 	case SeekStart:
 		offset += s.base
 	case SeekCurrent:
@@ -530,7 +530,7 @@ func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
 		offset += s.limit
 	}
 	if offset < s.base {
-		return 0, errOffset
+		return 0, ErrOffset
 	}
 	s.off = offset
 	return offset - s.base, nil
@@ -585,7 +585,7 @@ func (o *OffsetWriter) Write(p []byte) (n int, err error) {
 
 func (o *OffsetWriter) WriteAt(p []byte, off int64) (n int, err error) {
 	if off < 0 {
-		return 0, errOffset
+		return 0, ErrOffset
 	}
 
 	off += o.base
@@ -595,7 +595,7 @@ func (o *OffsetWriter) WriteAt(p []byte, off int64) (n int, err error) {
 func (o *OffsetWriter) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
 	default:
-		return 0, errWhence
+		return 0, ErrWhence
 	case SeekStart:
 		offset += o.base
 	case SeekCurrent:
@@ -603,7 +603,7 @@ func (o *OffsetWriter) Seek(offset int64, whence int) (int64, error) {
 	}
 
 	if offset < o.base {
-		return 0, errOffset
+		return 0, ErrOffset
 	}
 
 	o.off = offset
