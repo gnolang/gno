@@ -9,7 +9,6 @@ import (
 	"gno.land/p/demo/merkle"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/urequire"
-	"gno.land/p/demo/users"
 )
 
 func getLeaves(size int) []merkle.Hashable {
