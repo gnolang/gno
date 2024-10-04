@@ -1,6 +1,7 @@
 package foo20airdrop
 
 import (
+	"gno.land/p/demo/airdrop"
 	"gno.land/p/demo/airdrop/grc20_merkle_airdrop"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/merkle"
@@ -25,16 +26,11 @@ func RegisterMerkleRoot(root string) {
 	foo20airdrop = grc20_merkle_airdrop.NewMerkleAirdrop(root, token)
 }
 
-func Claim(data grc20_merkle_airdrop.AirdropData, proofs []merkle.Node) {
+func Claim(data airdrop.AirdropData, proofs []merkle.Node) {
 	err := foo20airdrop.Claim(data, proofs)
 	if err != nil {
 		panic(err.Error())
 	}
-
-	// err = token.Transfer(data.Address, data.Amount)
-	// if err != nil {
-	// 	panic(err.Error())
-	// }
 }
 
 func TotalClaimed() uint64 {
