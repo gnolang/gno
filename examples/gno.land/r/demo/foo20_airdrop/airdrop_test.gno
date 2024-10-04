@@ -1,4 +1,4 @@
-package foo20airdrop
+package foo20_airdrop
 
 import (
 	"std"
