@@ -4,12 +4,9 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/airdrop/grc20_merkle_airdrop"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/merkle"
 	"gno.land/p/demo/urequire"
-	"gno.land/r/demo/foo20"
-	"gno.land/r/demo/users"
 )
 
 func getLeaves() []merkle.Hashable {
