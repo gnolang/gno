@@ -4,12 +4,12 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/merkle"
+	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/foo20"
 	"gno.land/r/demo/users"
 )
@@ -33,7 +33,7 @@ func (data AirdropData) Bytes() []byte {
 	// return buf.Bytes()
 	// OR: use json.Marshal for frontend compatibilities
 
-	s := fmt.Sprintf("%v", data)
+	s := ufmt.Sprintf("%v", data)
 	return []byte(s)
 }
 
