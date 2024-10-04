@@ -5,12 +5,12 @@ import (
 	replyplugin "gno.land/demo/p/boardsv2/post/plugins/content/reply"
 )
 
-type Post struct {
+type Thread struct {
 	post post.Post
 	st   Store
 }
 
-func (p *Post) Comment(creator std.Address, message string) (id string, err error) {
+func (p *Thread) Comment(creator std.Address, message string) (id string, err error) {
 	pp := p.New(replyplugin.MessageContent{
 		Message: message,
 	})
@@ -21,10 +21,10 @@ func (p *Post) Comment(creator std.Address, message string) (id string, err erro
 	return id, nil
 }
 
-func (p *Post) Upvote() error {
+func (p *Thread) Upvote() error {
 
 }
 
-func (p *Post) Downvote() error {
+func (p *Thread) Downvote() error {
 
 }
