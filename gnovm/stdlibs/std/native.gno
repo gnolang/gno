@@ -22,6 +22,7 @@ func GetOrigSend() Coins {
 	return coins
 }
 
+// Deprecated: Unsecure and limiting pattern
 func GetOrigCaller() Address {
 	return Address(origCaller())
 }
