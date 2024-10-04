@@ -1,4 +1,4 @@
-package io_test
+package io
 
 // Copyright 2009 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"strings"
 	"testing"
 )
@@ -16,8 +15,8 @@ import (
 // A version of bytes.Buffer without ReadFrom and WriteTo
 type Buffer struct {
 	bytes.Buffer
-	io.ReaderFrom // conflicts with and hides bytes.Buffer's ReaderFrom.
-	io.WriterTo   // conflicts with and hides bytes.Buffer's WriterTo.
+	ReaderFrom // conflicts with and hides bytes.Buffer's ReaderFrom.
+	WriterTo   // conflicts with and hides bytes.Buffer's WriterTo.
 }
 
 // Simple tests, primarily to verify the ReadFrom and WriteTo callouts inside Copy, CopyBuffer and CopyN.
@@ -26,7 +25,7 @@ func TestCopy(t *testing.T) {
 	rb := new(Buffer)
 	wb := new(Buffer)
 	rb.WriteString("hello, world.")
-	io.Copy(wb, rb)
+	Copy(wb, rb)
 	if wb.String() != "hello, world." {
 		t.Errorf("Copy did not work properly")
 	}
@@ -36,12 +35,12 @@ func TestCopyNegative(t *testing.T) {
 	rb := new(Buffer)
 	wb := new(Buffer)
 	rb.WriteString("hello")
-	io.Copy(wb, &io.LimitedReader{R: rb, N: -1})
+	Copy(wb, &LimitedReader{R: rb, N: -1})
 	if wb.String() != "" {
 		t.Errorf("Copy on LimitedReader with N<0 copied data")
 	}
 
-	io.CopyN(wb, rb, -1)
+	CopyN(wb, rb, -1)
 	if wb.String() != "" {
 		t.Errorf("CopyN with N<0 copied data")
 	}
@@ -51,7 +50,7 @@ func TestCopyBuffer(t *testing.T) {
 	rb := new(Buffer)
 	wb := new(Buffer)
 	rb.WriteString("hello, world.")
-	io.CopyBuffer(wb, rb, make([]byte, 1)) // Tiny buffer to keep it honest.
+	CopyBuffer(wb, rb, make([]byte, 1)) // Tiny buffer to keep it honest.
 	if wb.String() != "hello, world." {
 		t.Errorf("CopyBuffer did not work properly")
 	}
@@ -61,7 +60,7 @@ func TestCopyBufferNil(t *testing.T) {
 	rb := new(Buffer)
 	wb := new(Buffer)
 	rb.WriteString("hello, world.")
-	io.CopyBuffer(wb, rb, nil) // Should allocate a buffer.
+	CopyBuffer(wb, rb, nil) // Should allocate a buffer.
 	if wb.String() != "hello, world." {
 		t.Errorf("CopyBuffer did not work properly")
 	}
@@ -71,7 +70,7 @@ func TestCopyReadFrom(t *testing.T) {
 	rb := new(Buffer)
 	wb := new(bytes.Buffer) // implements ReadFrom.
 	rb.WriteString("hello, world.")
-	io.Copy(wb, rb)
+	Copy(wb, rb)
 	if wb.String() != "hello, world." {
 		t.Errorf("Copy did not work properly")
 	}
@@ -81,7 +80,7 @@ func TestCopyWriteTo(t *testing.T) {
 	rb := new(bytes.Buffer) // implements WriteTo.
 	wb := new(Buffer)
 	rb.WriteString("hello, world.")
-	io.Copy(wb, rb)
+	Copy(wb, rb)
 	if wb.String() != "hello, world." {
 		t.Errorf("Copy did not work properly")
 	}
@@ -93,7 +92,7 @@ type writeToChecker struct {
 	writeToCalled bool
 }
 
-func (wt *writeToChecker) WriteTo(w io.Writer) (int64, error) {
+func (wt *writeToChecker) WriteTo(w Writer) (int64, error) {
 	wt.writeToCalled = true
 	return wt.Buffer.WriteTo(w)
 }
@@ -105,7 +104,7 @@ func TestCopyPriority(t *testing.T) {
 	rb := new(writeToChecker)
 	wb := new(bytes.Buffer)
 	rb.WriteString("hello, world.")
-	io.Copy(wb, rb)
+	Copy(wb, rb)
 	if wb.String() != "hello, world." {
 		t.Errorf("Copy did not work properly")
 	} else if !rb.writeToCalled {
@@ -135,7 +134,7 @@ func (w errWriter) Write([]byte) (int, error) {
 func TestCopyReadErrWriteErr(t *testing.T) {
 	er, ew := errors.New("readError"), errors.New("writeError")
 	r, w := zeroErrReader{err: er}, errWriter{err: ew}
-	n, err := io.Copy(w, r)
+	n, err := Copy(w, r)
 	if n != 0 || err != ew {
 		t.Errorf("Copy(zeroErrReader, errWriter) = %d, %v; want 0, writeError", n, err)
 	}
@@ -145,7 +144,7 @@ func TestCopyN(t *testing.T) {
 	rb := new(Buffer)
 	wb := new(Buffer)
 	rb.WriteString("hello, world.")
-	io.CopyN(wb, rb, 5)
+	CopyN(wb, rb, 5)
 	if wb.String() != "hello" {
 		t.Errorf("CopyN did not work properly")
 	}
@@ -155,7 +154,7 @@ func TestCopyNReadFrom(t *testing.T) {
 	rb := new(Buffer)
 	wb := new(bytes.Buffer) // implements ReadFrom.
 	rb.WriteString("hello")
-	io.CopyN(wb, rb, 5)
+	CopyN(wb, rb, 5)
 	if wb.String() != "hello" {
 		t.Errorf("CopyN did not work properly")
 	}
@@ -165,7 +164,7 @@ func TestCopyNWriteTo(t *testing.T) {
 	rb := new(bytes.Buffer) // implements WriteTo.
 	wb := new(Buffer)
 	rb.WriteString("hello, world.")
-	io.CopyN(wb, rb, 5)
+	CopyN(wb, rb, 5)
 	if wb.String() != "hello" {
 		t.Errorf("CopyN did not work properly")
 	}
@@ -178,7 +177,7 @@ func BenchmarkCopyNSmall(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		io.CopyN(buf, rd, 512)
+		CopyN(buf, rd, 512)
 		rd.Reset(bs)
 	}
 }
@@ -190,13 +189,13 @@ func BenchmarkCopyNLarge(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		io.CopyN(buf, rd, 32*1024)
+		CopyN(buf, rd, 32*1024)
 		rd.Reset(bs)
 	}
 }
 
 type noReadFrom struct {
-	w io.Writer
+	w Writer
 }
 
 func (w *noReadFrom) Write(p []byte) (n int, err error) {
@@ -215,32 +214,32 @@ func TestCopyNEOF(t *testing.T) {
 
 	b := new(bytes.Buffer)
 
-	n, err := io.CopyN(&noReadFrom{b}, strings.NewReader("foo"), 3)
+	n, err := CopyN(&noReadFrom{b}, strings.NewReader("foo"), 3)
 	if n != 3 || err != nil {
 		t.Errorf("CopyN(noReadFrom, foo, 3) = %d, %v; want 3, nil", n, err)
 	}
 
-	n, err = io.CopyN(&noReadFrom{b}, strings.NewReader("foo"), 4)
-	if n != 3 || err != io.EOF {
+	n, err = CopyN(&noReadFrom{b}, strings.NewReader("foo"), 4)
+	if n != 3 || err != EOF {
 		t.Errorf("CopyN(noReadFrom, foo, 4) = %d, %v; want 3, EOF", n, err)
 	}
 
-	n, err = io.CopyN(b, strings.NewReader("foo"), 3) // b has read from
+	n, err = CopyN(b, strings.NewReader("foo"), 3) // b has read from
 	if n != 3 || err != nil {
 		t.Errorf("CopyN(bytes.Buffer, foo, 3) = %d, %v; want 3, nil", n, err)
 	}
 
-	n, err = io.CopyN(b, strings.NewReader("foo"), 4) // b has read from
-	if n != 3 || err != io.EOF {
+	n, err = CopyN(b, strings.NewReader("foo"), 4) // b has read from
+	if n != 3 || err != EOF {
 		t.Errorf("CopyN(bytes.Buffer, foo, 4) = %d, %v; want 3, EOF", n, err)
 	}
 
-	n, err = io.CopyN(b, wantedAndErrReader{}, 5)
+	n, err = CopyN(b, wantedAndErrReader{}, 5)
 	if n != 5 || err != nil {
 		t.Errorf("CopyN(bytes.Buffer, wantedAndErrReader, 5) = %d, %v; want 5, nil", n, err)
 	}
 
-	n, err = io.CopyN(&noReadFrom{b}, wantedAndErrReader{}, 5)
+	n, err = CopyN(&noReadFrom{b}, wantedAndErrReader{}, 5)
 	if n != 5 || err != nil {
 		t.Errorf("CopyN(noReadFrom, wantedAndErrReader, 5) = %d, %v; want 5, nil", n, err)
 	}
@@ -268,7 +267,7 @@ func (r *dataAndErrorBuffer) Read(p []byte) (n int, err error) {
 
 func TestReadAtLeastWithDataAndEOF(t *testing.T) {
 	var rb dataAndErrorBuffer
-	rb.err = io.EOF
+	rb.err = EOF
 	testReadAtLeast(t, &rb)
 }
 
@@ -278,41 +277,41 @@ func TestReadAtLeastWithDataAndError(t *testing.T) {
 	testReadAtLeast(t, &rb)
 }
 
-func testReadAtLeast(t *testing.T, rb io.ReadWriter) {
+func testReadAtLeast(t *testing.T, rb ReadWriter) {
 	rb.Write([]byte("0123"))
 	buf := make([]byte, 2)
-	n, err := io.ReadAtLeast(rb, buf, 2)
+	n, err := ReadAtLeast(rb, buf, 2)
 	if err != nil {
 		t.Error(err)
 	}
 	if n != 2 {
 		t.Errorf("expected to have read 2 bytes, got %v", n)
 	}
-	n, err = io.ReadAtLeast(rb, buf, 4)
-	if err != io.ErrShortBuffer {
-		t.Errorf("expected ErrShortBuffer got %v", err)
+	n, err = ReadAtLeast(rb, buf, 4)
+	if err != errShortBuffer {
+		t.Errorf("expected `errShortBuffer` got %v", err)
 	}
 	if n != 0 {
 		t.Errorf("expected to have read 0 bytes, got %v", n)
 	}
-	n, err = io.ReadAtLeast(rb, buf, 1)
+	n, err = ReadAtLeast(rb, buf, 1)
 	if err != nil {
 		t.Error(err)
 	}
 	if n != 2 {
 		t.Errorf("expected to have read 2 bytes, got %v", n)
 	}
-	n, err = io.ReadAtLeast(rb, buf, 2)
-	if err != io.EOF {
+	n, err = ReadAtLeast(rb, buf, 2)
+	if err != EOF {
 		t.Errorf("expected EOF, got %v", err)
 	}
 	if n != 0 {
 		t.Errorf("expected to have read 0 bytes, got %v", n)
 	}
 	rb.Write([]byte("4"))
-	n, err = io.ReadAtLeast(rb, buf, 2)
-	want := io.ErrUnexpectedEOF
-	if rb, ok := rb.(*dataAndErrorBuffer); ok && rb.err != io.EOF {
+	n, err = ReadAtLeast(rb, buf, 2)
+	want := ErrUnexpectedEOF
+	if rb, ok := rb.(*dataAndErrorBuffer); ok && rb.err != EOF {
 		want = rb.err
 	}
 	if err != want {
@@ -323,14 +322,14 @@ func testReadAtLeast(t *testing.T, rb io.ReadWriter) {
 	}
 }
 
-/* XXX no io.Pipe() no chan
+/* XXX no Pipe() no chan
 func TestTeeReader(t *testing.T) {
 	src := []byte("hello, world")
 	dst := make([]byte, len(src))
 	rb := bytes.NewBuffer(src)
 	wb := new(bytes.Buffer)
-	r := io.TeeReader(rb, wb)
-	if n, err := io.ReadFull(r, dst); err != nil || n != len(src) {
+	r := TeeReader(rb, wb)
+	if n, err := ReadFull(r, dst); err != nil || n != len(src) {
 		t.Fatalf("ReadFull(r, dst) = %d, %v; want %d, nil", n, err, len(src))
 	}
 	if !bytes.Equal(dst, src) {
@@ -339,14 +338,14 @@ func TestTeeReader(t *testing.T) {
 	if !bytes.Equal(wb.Bytes(), src) {
 		t.Errorf("bytes written = %q want %q", wb.Bytes(), src)
 	}
-	if n, err := r.Read(dst); n != 0 || err != io.EOF {
+	if n, err := r.Read(dst); n != 0 || err != EOF {
 		t.Errorf("r.Read at EOF = %d, %v want 0, EOF", n, err)
 	}
 	rb = bytes.NewBuffer(src)
-	pr, pw := io.Pipe()
+	pr, pw := Pipe()
 	pr.Close()
-	r = io.TeeReader(rb, pw)
-	if n, err := io.ReadFull(r, dst); n != 0 || err != io.ErrClosedPipe {
+	r = TeeReader(rb, pw)
+	if n, err := ReadFull(r, dst); n != 0 || err != ErrClosedPipe {
 		t.Errorf("closed tee: ReadFull(r, dst) = %d, %v; want 0, EPIPE", n, err)
 	}
 }
@@ -363,22 +362,22 @@ func TestSectionReader_ReadAt(t *testing.T) {
 		exp    string
 		err    error
 	}{
-		{data: "", off: 0, n: 10, bufLen: 2, at: 0, exp: "", err: io.EOF},
+		{data: "", off: 0, n: 10, bufLen: 2, at: 0, exp: "", err: EOF},
 		{data: dat, off: 0, n: len(dat), bufLen: 0, at: 0, exp: "", err: nil},
-		{data: dat, off: len(dat), n: 1, bufLen: 1, at: 0, exp: "", err: io.EOF},
+		{data: dat, off: len(dat), n: 1, bufLen: 1, at: 0, exp: "", err: EOF},
 		{data: dat, off: 0, n: len(dat) + 2, bufLen: len(dat), at: 0, exp: dat, err: nil},
 		{data: dat, off: 0, n: len(dat), bufLen: len(dat) / 2, at: 0, exp: dat[:len(dat)/2], err: nil},
 		{data: dat, off: 0, n: len(dat), bufLen: len(dat), at: 0, exp: dat, err: nil},
 		{data: dat, off: 0, n: len(dat), bufLen: len(dat) / 2, at: 2, exp: dat[2 : 2+len(dat)/2], err: nil},
 		{data: dat, off: 3, n: len(dat), bufLen: len(dat) / 2, at: 2, exp: dat[5 : 5+len(dat)/2], err: nil},
 		{data: dat, off: 3, n: len(dat) / 2, bufLen: len(dat)/2 - 2, at: 2, exp: dat[5 : 5+len(dat)/2-2], err: nil},
-		{data: dat, off: 3, n: len(dat) / 2, bufLen: len(dat)/2 + 2, at: 2, exp: dat[5 : 5+len(dat)/2-2], err: io.EOF},
-		{data: dat, off: 0, n: 0, bufLen: 0, at: -1, exp: "", err: io.EOF},
-		{data: dat, off: 0, n: 0, bufLen: 0, at: 1, exp: "", err: io.EOF},
+		{data: dat, off: 3, n: len(dat) / 2, bufLen: len(dat)/2 + 2, at: 2, exp: dat[5 : 5+len(dat)/2-2], err: EOF},
+		{data: dat, off: 0, n: 0, bufLen: 0, at: -1, exp: "", err: EOF},
+		{data: dat, off: 0, n: 0, bufLen: 0, at: 1, exp: "", err: EOF},
 	}
 	for i, tt := range tests {
 		r := strings.NewReader(tt.data)
-		s := io.NewSectionReader(r, int64(tt.off), int64(tt.n))
+		s := NewSectionReader(r, int64(tt.off), int64(tt.n))
 		buf := make([]byte, tt.bufLen)
 		if n, err := s.ReadAt(buf, int64(tt.at)); n != len(tt.exp) || string(buf[:n]) != tt.exp || err != tt.err {
 			t.Fatalf("%d: ReadAt(%d) = %q, %v; expected %q, %v", i, tt.at, buf[:n], err, tt.exp, tt.err)
@@ -389,9 +388,9 @@ func TestSectionReader_ReadAt(t *testing.T) {
 func TestSectionReader_Seek(t *testing.T) {
 	// Verifies that NewSectionReader's Seeker behaves like bytes.NewReader (which is like strings.NewReader)
 	br := bytes.NewReader([]byte("foo"))
-	sr := io.NewSectionReader(br, 0, int64(len("foo")))
+	sr := NewSectionReader(br, 0, int64(len("foo")))
 
-	for _, whence := range []int{io.SeekStart, io.SeekCurrent, io.SeekEnd} {
+	for _, whence := range []int{SeekStart, SeekCurrent, SeekEnd} {
 		for offset := int64(-3); offset <= 4; offset++ {
 			brOff, brErr := br.Seek(offset, whence)
 			srOff, srErr := sr.Seek(offset, whence)
@@ -403,13 +402,13 @@ func TestSectionReader_Seek(t *testing.T) {
 	}
 
 	// And verify we can just seek past the end and get an EOF
-	got, err := sr.Seek(100, io.SeekStart)
+	got, err := sr.Seek(100, SeekStart)
 	if err != nil || got != 100 {
 		t.Errorf("Seek = %v, %v; want 100, nil", got, err)
 	}
 
 	n, err := sr.Read(make([]byte, 10))
-	if n != 0 || err != io.EOF {
+	if n != 0 || err != EOF {
 		t.Errorf("Read = %v, %v; want 0, EOF", n, err)
 	}
 }
@@ -425,7 +424,7 @@ func TestSectionReader_Size(t *testing.T) {
 
 	for _, tt := range tests {
 		r := strings.NewReader(tt.data)
-		sr := io.NewSectionReader(r, 0, int64(len(tt.data)))
+		sr := NewSectionReader(r, 0, int64(len(tt.data)))
 		if got := sr.Size(); got != tt.want {
 			t.Errorf("Size = %v; want %v", got, tt.want)
 		}
@@ -443,11 +442,11 @@ func (w largeWriter) Write(p []byte) (int, error) {
 }
 
 func TestCopyLargeWriter(t *testing.T) {
-	want := io.ErrInvalidWrite
+	want := errInvalidWrite
 	rb := new(Buffer)
 	wb := largeWriter{}
 	rb.WriteString("hello, world.")
-	if _, err := io.Copy(wb, rb); err != want {
+	if _, err := Copy(wb, rb); err != want {
 		t.Errorf("Copy error: got %v, want %v", err, want)
 	}
 
@@ -455,7 +454,7 @@ func TestCopyLargeWriter(t *testing.T) {
 	rb = new(Buffer)
 	wb = largeWriter{err: want}
 	rb.WriteString("hello, world.")
-	if _, err := io.Copy(wb, rb); err != want {
+	if _, err := Copy(wb, rb); err != want {
 		t.Errorf("Copy error: got %v, want %v", err, want)
 	}
 }
@@ -463,18 +462,18 @@ func TestCopyLargeWriter(t *testing.T) {
 func TestNopCloserWriterToForwarding(t *testing.T) {
 	for _, tc := range [...]struct {
 		Name string
-		r    io.Reader
+		r    Reader
 	}{
-		{"not a WriterTo", io.Reader(nil)},
+		{"not a WriterTo", Reader(nil)},
 		{"a WriterTo", struct {
-			io.Reader
-			io.WriterTo
+			Reader
+			WriterTo
 		}{}},
 	} {
-		nc := io.NopCloser(tc.r)
+		nc := NopCloser(tc.r)
 
-		_, expected := tc.r.(io.WriterTo)
-		_, got := nc.(io.WriterTo)
+		_, expected := tc.r.(WriterTo)
+		_, got := nc.(WriterTo)
 		if expected != got {
 			t.Errorf("NopCloser incorrectly forwards WriterTo for %s, got %t want %t", tc.Name, got, expected)
 		}
@@ -496,9 +495,9 @@ func TestNopCloserWriterToForwarding(t *testing.T) {
 // 		for _, whence := range []int{-3, -2, -1, 3, 4, 5} {
 // 			var offset int64 = 0
 // 			gotOff, gotErr := w.Seek(offset, whence)
-// 			if gotOff != 0 || gotErr != ErrWhence {
+// 			if gotOff != 0 || gotErr != errWhence {
 // 				t.Errorf("For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, %v)",
-// 					whence, offset, gotOff, gotErr, 0, ErrWhence)
+// 					whence, offset, gotOff, gotErr, 0, errWhence)
 // 			}
 // 		}
 // 	})
@@ -508,7 +507,7 @@ func TestNopCloserWriterToForwarding(t *testing.T) {
 // 		for _, whence := range []int{SeekStart, SeekCurrent} {
 // 			for offset := int64(-3); offset < 0; offset++ {
 // 				gotOff, gotErr := w.Seek(offset, whence)
-// 				if gotOff != 0 || gotErr != ErrOffset {
+// 				if gotOff != 0 || gotErr != errOffset {
 // 					t.Errorf("For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, %v)",
 // 						whence, offset, gotOff, gotErr, 0, ErrOffset)
 // 				}
@@ -547,28 +546,28 @@ func TestNopCloserWriterToForwarding(t *testing.T) {
 // to use the original approach instead of this method. (just un-comment the test above)
 func TestOffsetWriter_Seek(t *testing.T) {
 	buf := new(bytes.Buffer)
-	w := io.NewOffsetWriter(testWriterAt{buf}, 0)
+	w := NewOffsetWriter(testWriterAt{buf}, 0)
 
 	// Should throw error errWhence if whence is not valid
 	t.Run("errWhence", func(t *testing.T) {
 		for _, whence := range []int{-3, -2, -1, 3, 4, 5} {
 			var offset int64 = 0
 			gotOff, gotErr := w.Seek(offset, whence)
-			if gotOff != 0 || gotErr != io.ErrWhence {
+			if gotOff != 0 || gotErr != errWhence {
 				t.Errorf("For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, %v)",
-					whence, offset, gotOff, gotErr, 0, io.ErrWhence)
+					whence, offset, gotOff, gotErr, 0, errWhence)
 			}
 		}
 	})
 
 	// Should throw error errOffset if offset is negative
 	t.Run("errOffset", func(t *testing.T) {
-		for _, whence := range []int{io.SeekStart, io.SeekCurrent} {
+		for _, whence := range []int{SeekStart, SeekCurrent} {
 			for offset := int64(-3); offset < 0; offset++ {
 				gotOff, gotErr := w.Seek(offset, whence)
-				if gotOff != 0 || gotErr != io.ErrOffset {
+				if gotOff != 0 || gotErr != errOffset {
 					t.Errorf("For whence %d, offset %d, OffsetWriter.Seek got: (%d, %v), want: (%d, %v)",
-						whence, offset, gotOff, gotErr, 0, io.ErrOffset)
+						whence, offset, gotOff, gotErr, 0, errOffset)
 				}
 			}
 		}
@@ -580,12 +579,12 @@ func TestOffsetWriter_Seek(t *testing.T) {
 			whence    int
 			returnOff int64
 		}{
-			{whence: io.SeekStart, offset: 1, returnOff: 1},
-			{whence: io.SeekStart, offset: 2, returnOff: 2},
-			{whence: io.SeekStart, offset: 3, returnOff: 3},
-			{whence: io.SeekCurrent, offset: 1, returnOff: 4},
-			{whence: io.SeekCurrent, offset: 2, returnOff: 6},
-			{whence: io.SeekCurrent, offset: 3, returnOff: 9},
+			{whence: SeekStart, offset: 1, returnOff: 1},
+			{whence: SeekStart, offset: 2, returnOff: 2},
+			{whence: SeekStart, offset: 3, returnOff: 3},
+			{whence: SeekCurrent, offset: 1, returnOff: 4},
+			{whence: SeekCurrent, offset: 2, returnOff: 6},
+			{whence: SeekCurrent, offset: 3, returnOff: 9},
 		}
 		for idx, tt := range tests {
 			gotOff, gotErr := w.Seek(tt.offset, tt.whence)

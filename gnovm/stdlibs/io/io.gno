@@ -29,11 +29,11 @@ const (
 // but failed to return an explicit error.
 var ErrShortWrite = errors.New("short write")
 
-// ErrInvalidWrite means that a write returned an impossible count.
-var ErrInvalidWrite = errors.New("invalid write result")
+// errInvalidWrite means that a write returned an impossible count.
+var errInvalidWrite = errors.New("invalid write result")
 
-// ErrShortBuffer means that a read required a longer buffer than was provided.
-var ErrShortBuffer = errors.New("short buffer")
+// errShortBuffer means that a read required a longer buffer than was provided.
+var errShortBuffer = errors.New("short buffer")
 
 // EOF is the error returned by Read when no more input is available.
 // (Read must return EOF itself, not an error wrapping EOF,
@@ -317,12 +317,12 @@ func WriteString(w Writer, s string) (n int, err error) {
 // The error is EOF only if no bytes were read.
 // If an EOF happens after reading fewer than min bytes,
 // ReadAtLeast returns ErrUnexpectedEOF.
-// If min is greater than the length of buf, ReadAtLeast returns ErrShortBuffer.
+// If min is greater than the length of buf, ReadAtLeast returns errShortBuffer.
 // On return, n >= min if and only if err == nil.
 // If r returns an error having read at least min bytes, the error is dropped.
 func ReadAtLeast(r Reader, buf []byte, min int) (n int, err error) {
 	if len(buf) < min {
-		return 0, ErrShortBuffer
+		return 0, errShortBuffer
 	}
 	for n < min && err == nil {
 		var nn int
@@ -427,7 +427,7 @@ func copyBuffer(dst Writer, src Reader, buf []byte) (written int64, err error) {
 			if nw < 0 || nr < nw {
 				nw = 0
 				if ew == nil {
-					ew = ErrInvalidWrite
+					ew = errInvalidWrite
 				}
 			}
 			written += int64(nw)
@@ -514,14 +514,14 @@ func (s *SectionReader) Read(p []byte) (n int, err error) {
 }
 
 var (
-	ErrWhence = errors.New("Seek: invalid whence")
-	ErrOffset = errors.New("Seek: invalid offset")
+	errWhence = errors.New("Seek: invalid whence")
+	errOffset = errors.New("Seek: invalid offset")
 )
 
 func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
 	default:
-		return 0, ErrWhence
+		return 0, errWhence
 	case SeekStart:
 		offset += s.base
 	case SeekCurrent:
@@ -530,7 +530,7 @@ func (s *SectionReader) Seek(offset int64, whence int) (int64, error) {
 		offset += s.limit
 	}
 	if offset < s.base {
-		return 0, ErrOffset
+		return 0, errOffset
 	}
 	s.off = offset
 	return offset - s.base, nil
@@ -585,7 +585,7 @@ func (o *OffsetWriter) Write(p []byte) (n int, err error) {
 
 func (o *OffsetWriter) WriteAt(p []byte, off int64) (n int, err error) {
 	if off < 0 {
-		return 0, ErrOffset
+		return 0, errOffset
 	}
 
 	off += o.base
@@ -595,7 +595,7 @@ func (o *OffsetWriter) WriteAt(p []byte, off int64) (n int, err error) {
 func (o *OffsetWriter) Seek(offset int64, whence int) (int64, error) {
 	switch whence {
 	default:
-		return 0, ErrWhence
+		return 0, errWhence
 	case SeekStart:
 		offset += o.base
 	case SeekCurrent:
@@ -603,7 +603,7 @@ func (o *OffsetWriter) Seek(offset int64, whence int) (int64, error) {
 	}
 
 	if offset < o.base {
-		return 0, ErrOffset
+		return 0, errOffset
 	}
 
 	o.off = offset
