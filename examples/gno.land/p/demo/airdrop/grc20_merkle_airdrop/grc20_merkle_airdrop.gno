@@ -3,9 +3,7 @@ package grc20_merkle_airdrop
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"std"
 
 	"gno.land/p/demo/airdrop"
 	"gno.land/p/demo/avl"
