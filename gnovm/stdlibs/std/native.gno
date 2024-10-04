@@ -22,7 +22,7 @@ func GetOrigSend() Coins {
 	return coins
 }
 
-// Deprecated: Unsecure and limiting pattern
+// Deprecated: Unsecure and limiting pattern, use `std.PrevRealm().Addr()` instead
 func GetOrigCaller() Address {
 	return Address(origCaller())
 }
