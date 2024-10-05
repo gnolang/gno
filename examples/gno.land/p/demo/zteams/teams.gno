@@ -72,7 +72,7 @@ func (tm *TeamManager) RemoveAdmin(teamAddress std.Address, userAddress std.Addr
         return err
     }
 
-    if !teamm.isOwner(requester) {
+    if !team.isOwner(requester) {
         return ErrNotOwner
     }
 

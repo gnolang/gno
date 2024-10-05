@@ -2,6 +2,7 @@ package zteams
 
 import (
 	"std"
+	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/users"
 	"testing"
 )
@@ -9,22 +10,22 @@ import (
 // Helper function to create a sample user.
 func createUser(address string) users.User {
 	return users.User{
-		Address: std.Address(address),
+		Address: testutils.TestAddress(address),
 		Name:    "Test User",
 		Profile: "Sample profile",
 		Number:  1,
 		Invites: 1,
-		Inviter: std.Address("inviter"),
+		Inviter: testutils.TestAddress("inviter"),
 	}
 }
 
 // Helper function to create a sample team.
 func createTeam(address, owner string) *Team {
 	return &Team{
-		Address:     std.Address(address),
+		Address:     testutils.TestAddress(address),
 		TeamName:    "Test Team",
 		TeamProfile: "This is a test team profile",
-		Owner:       std.Address(owner),
+		Owner:       testutils.TestAddress(owner),
 		Admins:      make(map[string]bool), // Updated to use string keys
 		Disbursers:  make(map[string]bool), // Updated to use string keys
 	}
