@@ -73,7 +73,7 @@ func NewVMKeeper(
 	iavlKey store.StoreKey,
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
-	domain string,
+	chainDomain string,
 	maxCycles int64,
 ) *VMKeeper {
 	// TODO: create an Options struct to avoid too many constructor parameters
@@ -82,7 +82,7 @@ func NewVMKeeper(
 		iavlKey:   iavlKey,
 		acck:      acck,
 		bank:      bank,
-		domain:    domain,
+		domain:    chainDomain,
 		maxCycles: maxCycles,
 	}
 	return vmk
