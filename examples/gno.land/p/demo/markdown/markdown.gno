@@ -59,7 +59,7 @@ func (m *MarkdownBuilder) H3(text string) *MarkdownBuilder {
 	return m
 }
 
-// UnorderedList adds an unordered list to the markdown.
+// UnorderedList adds an unordered list to the markdown
 func (m *MarkdownBuilder) UnorderedList(items []string) *MarkdownBuilder {
 	for _, item := range items {
 		m.body = append(m.body, ufmt.Sprintf("- %s", item))
@@ -67,7 +67,7 @@ func (m *MarkdownBuilder) UnorderedList(items []string) *MarkdownBuilder {
 	return m
 }
 
-// OrderedList adds an ordered list to the markdown.
+// OrderedList adds an ordered list to the markdown
 func (m *MarkdownBuilder) OrderedList(items []string) *MarkdownBuilder {
 	for i, item := range items {
 		m.body = append(m.body, ufmt.Sprintf("%d. %s", i+1, item))
