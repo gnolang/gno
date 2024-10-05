@@ -34,7 +34,7 @@ func NewTeamManager() *TeamManager {
 func (tm *TeamManager) GetTeam(teamAddress std.Address) (*Team, error) {
     team, found := tm.Teams.Get(teamAddress.String())
     if !found {
-        return nil, ErrTeamNotFound
+        return nil, errTeamNotFound
     }
     return team.(*Team), nil
 }
@@ -57,7 +57,7 @@ func (tm *TeamManager) DesignateAdmin(teamAddress std.Address, userAddress std.A
     }
 
     if !team.isOwner(requester) {
-        return ErrNotOwner
+        return errNotOwner
     }
 
     team.Admins[userAddress.String()] = true
@@ -73,7 +73,7 @@ func (tm *TeamManager) RemoveAdmin(teamAddress std.Address, userAddress std.Addr
     }
 
     if !team.isOwner(requester) {
-        return ErrNotOwner
+        return errNotOwner
     }
 
     delete(team.Admins, userAddress.String())
@@ -90,7 +90,7 @@ func (tm *TeamManager) AssignDisbursePermission(teamAddress std.Address, userAdd
 
     // Only Owner or Admin can assign disburse permissions.
     if !team.isOwner(requester) && !team.isAdmin(requester) {
-        return ErrNotAuthorized
+        return errNotAuthorized
     }
 
     // Assign disburse permission.
@@ -108,12 +108,12 @@ func (tm *TeamManager) RemoveDisbursePermission(teamAddress std.Address, userAdd
 
     // Only Owner or Admin can remove disburse permissions.
     if !team.isOwner(requester) && !team.isAdmin(requester) {
-        return ErrNotAuthorized
+        return errNotAuthorized
     }
 
     // Check if the user has disburse permission.
     if !team.Disbursers[userAddress.String()] {
-        return ErrUserNotDisburser // Use a specific error message.
+        return errUserNotDisburser // Use a specific error message.
     }
 
     // Remove disburse permission.
@@ -135,7 +135,7 @@ func (tm *TeamManager) CanDisburse(teamAddress std.Address, userAddress std.Addr
 func (tm *TeamManager) AddTeam(t *Team) error {
     _, found := tm.Teams.Get(t.Address.String())
     if found {
-        return ErrTeamAddressAlreadyExists
+        return errTeamAddressAlreadyExists
     }
 
     // Initialize Admins and Disbursers maps.
@@ -154,7 +154,7 @@ func (tm *TeamManager) AddUserToTeam(teamAddress std.Address, user users.User, r
     }
 
     if !team.isOwner(requester) && !team.isAdmin(requester) {
-        return ErrNotAuthorized
+        return errNotAuthorized
     }
 
     // Retrieve current members or initialize an empty slice if nil.
@@ -167,7 +167,7 @@ func (tm *TeamManager) AddUserToTeam(teamAddress std.Address, user users.User, r
     // Check if the user is already a member.
     for _, member := range memberList {
         if member.Address == user.Address {
-            return ErrUserAlreadyMember
+            return errUserAlreadyMember
         }
     }
 
@@ -185,14 +185,14 @@ func (tm *TeamManager) RemoveUserFromTeam(teamAddress std.Address, userAddress s
     }
 
     if !team.isOwner(requester) && !team.isAdmin(requester) {
-        return ErrNotAuthorized
+        return errNotAuthorized
     }
 
     // Retrieve current members or initialize an empty slice if nil.
     members, _ := tm.Members.Get(teamAddress.String())
     memberList, ok := members.([]*users.User)
     if !ok || memberList == nil {
-        return ErrUserNotMember
+        return errUserNotMember
     }
 
     // Remove the user from the member list.
@@ -206,7 +206,7 @@ func (tm *TeamManager) RemoveUserFromTeam(teamAddress std.Address, userAddress s
     }
 
     if !userFound {
-        return ErrUserNotMember
+        return errUserNotMember
     }
 
     // Remove user roles and permissions.
