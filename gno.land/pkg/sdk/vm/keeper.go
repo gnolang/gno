@@ -332,6 +332,9 @@ func (vm *VMKeeper) AddPackage(ctx sdk.Context, msg MsgAddPackage) (err error) {
 	if err := msg.Package.Validate(); err != nil {
 		return ErrInvalidPkgPath(err.Error())
 	}
+	if path := msg.Package.Path; !strings.HasPrefix(path, vm.domain+"/") {
+		return ErrInvalidPkgPath("invalid domain")
+	}
 	if pv := gnostore.GetPackage(pkgPath, false); pv != nil {
 		return ErrPkgAlreadyExists("package already exists: " + pkgPath)
 	}
