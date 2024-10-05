@@ -547,7 +547,7 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	return
 }
 
-func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
+func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
 	genesis := gnoland.NewDefaultGenesisConfig(chainid)
@@ -564,10 +564,12 @@ func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesi
 		},
 	}
 
-	return &gnoland.InMemoryNodeConfig{
+	cfg := &gnoland.InMemoryNodeConfig{
 		PrivValidator:      pv,
 		TMConfig:           tmc,
 		Genesis:            genesis,
 		GenesisMaxVMCycles: 100_000_000,
 	}
+	cfg.InitChainerConfig.ChainDomain = chaindomain
+	return cfg
 }
