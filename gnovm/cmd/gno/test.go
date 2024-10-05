@@ -258,7 +258,7 @@ func gnoTestPkg(
 			if gnoPkgPath == "" {
 				// unable to read pkgPath from gno.mod, generate a random realm path
 				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = "gno.land/r/" + random.RandStr(8)
+				gnoPkgPath = "gno.land/r/" + random.RandStr(8) // XXX: "gno.land" hardcoded for convenience
 			}
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
