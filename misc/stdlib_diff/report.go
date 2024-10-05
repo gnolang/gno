@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"html/template"
 	"os"
-	"slices"
 )
 
 var (
@@ -45,6 +44,7 @@ type IndexTemplate struct {
 type LinkToReport struct {
 	PathToReport string
 	PackageName  string
+	WasFound     bool
 }
 
 // NewReportBuilder creates a new ReportBuilder instance with the specified
@@ -86,35 +86,37 @@ func (builder *ReportBuilder) Build() error {
 	}
 
 	for _, directory := range directories {
-		srcPackagePath := builder.SrcPath + "/" + directory
-		dstPackagePath := builder.DstPath + "/" + directory
+		if directory.FoundInDest {
+			srcPackagePath := builder.SrcPath + "/" + directory.Path
+			dstPackagePath := builder.DstPath + "/" + directory.Path
+			packageChecker, err := NewPackageDiffChecker(srcPackagePath, dstPackagePath, builder.SrcIsGno)
+			if err != nil {
+				return fmt.Errorf("can't create new PackageDiffChecker: %w", err)
+			}
 
-		packageChecker, err := NewPackageDiffChecker(srcPackagePath, dstPackagePath, builder.SrcIsGno)
-		if err != nil {
-			return fmt.Errorf("can't create new PackageDiffChecker: %w", err)
-		}
+			differences, err := packageChecker.Differences()
+			if err != nil {
+				return fmt.Errorf("can't compute differences: %w", err)
+			}
 
-		differences, err := packageChecker.Differences()
-		if err != nil {
-			return fmt.Errorf("can't compute differences: %w", err)
-		}
+			data := &PackageDiffTemplateData{
+				PackageName:        directory.Path,
+				SrcFilesCount:      len(packageChecker.SrcFiles),
+				SrcPackageLocation: srcPackagePath,
+				DstFileCount:       len(packageChecker.DstFiles),
+				DstPackageLocation: dstPackagePath,
+				FilesDifferences:   differences.FilesDifferences,
+			}
 
-		data := &PackageDiffTemplateData{
-			PackageName:        directory,
-			SrcFilesCount:      len(packageChecker.SrcFiles),
-			SrcPackageLocation: srcPackagePath,
-			DstFileCount:       len(packageChecker.DstFiles),
-			DstPackageLocation: dstPackagePath,
-			FilesDifferences:   differences.FilesDifferences,
-		}
-
-		if err := builder.writePackageTemplate(data, directory); err != nil {
-			return err
+			if err := builder.writePackageTemplate(data, directory.Path); err != nil {
+				return err
+			}
 		}
 
 		indexTemplateData.Reports = append(indexTemplateData.Reports, LinkToReport{
-			PathToReport: "./" + directory + "/report.html",
-			PackageName:  directory,
+			PathToReport: "./" + directory.Path + "/report.html",
+			PackageName:  directory.Path,
+			WasFound:     directory.FoundInDest,
 		})
 	}
 
@@ -125,20 +127,44 @@ func (builder *ReportBuilder) Build() error {
 	return nil
 }
 
+type Directory struct {
+	Path        string
+	FoundInDest bool
+}
+
 // listSrcDirectories retrieves a list of directories in the source path.
-func (builder *ReportBuilder) listSrcDirectories() ([]string, error) {
+func (builder *ReportBuilder) listSrcDirectories() ([]Directory, error) {
 	dirEntries, err := os.ReadDir(builder.SrcPath)
 	if err != nil {
 		return nil, err
 	}
 
-	directories := make([]string, 0)
-	for _, dirEntry := range dirEntries {
-		if dirEntry.IsDir() && !slices.Contains([]string{"cmd", "vendor"}, dirEntry.Name()) {
-			directories = append(directories, dirEntry.Name())
-		}
+	destDirectories, err := builder.getSrcDirectories()
+	if err != nil {
+		return nil, err
 	}
 
+	directories := make([]Directory, 0)
+	for _, dirEntry := range dirEntries {
+		if dirEntry.IsDir() {
+			directories = append(directories, Directory{FoundInDest: destDirectories[dirEntry.Name()], Path: dirEntry.Name()})
+		}
+	}
+	return directories, nil
+}
+
+func (builder *ReportBuilder) getSrcDirectories() (map[string]bool, error) {
+	dirEntries, err := os.ReadDir(builder.DstPath)
+	if err != nil {
+		return nil, err
+	}
+
+	directories := make(map[string]bool)
+	for _, dirEntry := range dirEntries {
+		if dirEntry.IsDir() {
+			directories[dirEntry.Name()] = true
+		}
+	}
 	return directories, nil
 }
 

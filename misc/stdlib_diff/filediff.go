@@ -69,8 +69,7 @@ func (f *FileDiff) Differences() (src, dst []LineDifferrence) {
 		return f.srcEmpty()
 	}
 
-	/* printUntil prints all the lines thar are equal
-	because they do not appear on the computed edits from gotextdiff
+	/* printUntil prints all the lines than do not appear on the computed edits from gotextdiff
 	so we need to add them manually looping always from the current value of
 	srcIndex until the line before the start of the hunk computed diff, hunk.FromLine-1
 
@@ -112,6 +111,7 @@ func (f *FileDiff) Differences() (src, dst []LineDifferrence) {
 	}
 
 	printUntil(len(f.srcLines))
+
 	return srcDiff, dstDiff
 }
 

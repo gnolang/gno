@@ -45,7 +45,11 @@
     <H1>List of packages processed</H1>
     <ul style="margin-bottom: 2rem;">
     {{- range .Reports}}
-    <li><a href="{{.PathToReport}}">{{.PackageName}}</a>
+    {{- if .WasFound}}
+        <li><a href="{{.PathToReport}}">{{.PackageName}}</a>
+    {{- else}}
+        <li style="display: flex;" ><p style="color: red;">{{.PackageName}}</p>: missing in gno</a>
+    {{- end}}
     </li>
     {{- end}}
     </ul>
