@@ -63,7 +63,8 @@ type VMKeeper struct {
 	// cached, the DeliverTx persistent state.
 	gnoStore gno.Store
 
-	maxCycles int64 // max allowed cylces on VM executions
+	domain    string // chain domain
+	maxCycles int64  // max allowed cylces on VM executions
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -72,6 +73,7 @@ func NewVMKeeper(
 	iavlKey store.StoreKey,
 	acck auth.AccountKeeper,
 	bank bank.BankKeeper,
+	domain string,
 	maxCycles int64,
 ) *VMKeeper {
 	// TODO: create an Options struct to avoid too many constructor parameters
@@ -80,6 +82,7 @@ func NewVMKeeper(
 		iavlKey:   iavlKey,
 		acck:      acck,
 		bank:      bank,
+		domain:    domain,
 		maxCycles: maxCycles,
 	}
 	return vmk
@@ -255,6 +258,7 @@ func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Add
 	pkgAddr := gno.DerivePkgAddr(pkgPath)
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
+		ChainDomain:   vm.domain,
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
 		OrigCaller:    creator.Bech32(),
