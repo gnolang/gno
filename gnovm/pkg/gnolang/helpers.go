@@ -10,18 +10,18 @@ import (
 // ----------------------------------------
 // Functions centralizing definitions
 
-// RealmPathPrefix is the regex used to identify pkgpaths which are meant to
+// ReGnoRealmPath is the regex used to identify pkgpaths which are meant to
 // be realms and as such to have their state persisted. This is used by [IsRealmPath].
-var RealmPathPrefix = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/`)
+var ReGnoRealmPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/`)
 
 // ReGnoRunPath is the path used for realms executed in maketx run.
-// These are not considered realms, as an exception to the RealmPathPrefix rule.
+// These are not considered realms, as an exception to the ReGnoRealmPath rule.
 var ReGnoRunPath = regexp.MustCompile(`^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/r/g[a-z0-9]+/run$`)
 
 // IsRealmPath determines whether the given pkgpath is for a realm, and as such
 // should persist the global state.
 func IsRealmPath(pkgPath string) bool {
-	return RealmPathPrefix.MatchString(pkgPath) &&
+	return ReGnoRealmPath.MatchString(pkgPath) &&
 		!ReGnoRunPath.MatchString(pkgPath)
 }
 
