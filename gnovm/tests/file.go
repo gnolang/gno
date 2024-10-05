@@ -15,13 +15,13 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/std"
+	gnostd "github.com/gnolang/gno/gnovm/pkg/std"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
-	tm2std "github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/pmezard/go-difflib/difflib"
 )
 
@@ -30,14 +30,14 @@ type loggerFunc func(args ...interface{})
 func TestMachine(store gno.Store, stdout io.Writer, pkgPath string) *gno.Machine {
 	// default values
 	var (
-		send     tm2std.Coins
+		send     std.Coins
 		maxAlloc int64
 	)
 
 	return testMachineCustom(store, pkgPath, stdout, maxAlloc, send)
 }
 
-func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAlloc int64, send tm2std.Coins) *gno.Machine {
+func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAlloc int64, send std.Coins) *gno.Machine {
 	ctx := TestContext(pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
 		PkgPath:       "", // set later.
@@ -50,12 +50,12 @@ func testMachineCustom(store gno.Store, pkgPath string, stdout io.Writer, maxAll
 }
 
 // TestContext returns a TestExecContext. Usable for test purpose only.
-func TestContext(pkgPath string, send tm2std.Coins) *teststd.TestExecContext {
+func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	// FIXME: create a better package to manage this, with custom constructors
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr("user1.gno")
 
-	pkgCoins := tm2std.MustParseCoins(ugnot.ValueString(200000000)).Add(send) // >= send.
+	pkgCoins := std.MustParseCoins(ugnot.ValueString(200000000)).Add(send) // >= send.
 	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
 	ctx := stdlibs.ExecContext{
 		ChainID:       "dev",
@@ -65,7 +65,7 @@ func TestContext(pkgPath string, send tm2std.Coins) *teststd.TestExecContext {
 		OrigCaller:    caller.Bech32(),
 		OrigPkgAddr:   pkgAddr.Bech32(),
 		OrigSend:      send,
-		OrigSendSpent: new(tm2std.Coins),
+		OrigSendSpent: new(std.Coins),
 		Banker:        banker,
 		EventLogger:   sdk.NewEventLogger(),
 	}
@@ -187,10 +187,10 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				store.SetStrictGo2GnoMapping(true) // in gno.land, natives must be registered.
 				gno.DisableDebug()                 // until main call.
 				// save package using realm crawl procedure.
-				memPkg := &std.MemPackage{
+				memPkg := &gnostd.MemPackage{
 					Name: string(pkgName),
 					Path: pkgPath,
-					Files: []*std.MemFile{
+					Files: []*gnostd.MemFile{
 						{
 							Name: "main.gno", // dontcare
 							Body: string(bz),
@@ -422,7 +422,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	return nil
 }
 
-func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops, stacktrace string, maxAlloc int64, send tm2std.Coins) {
+func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops, stacktrace string, maxAlloc int64, send std.Coins) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -447,7 +447,7 @@ func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops, 
 		} else if strings.HasPrefix(text, "SEND:") {
 			line := strings.SplitN(text, "\n", 2)[0]
 			sendstr := strings.TrimSpace(strings.TrimPrefix(line, "SEND:"))
-			send = tm2std.MustParseCoins(sendstr)
+			send = std.MustParseCoins(sendstr)
 		} else if strings.HasPrefix(text, "Output:\n") {
 			res = strings.TrimPrefix(text, "Output:\n")
 			res = strings.TrimSpace(res)
@@ -548,17 +548,17 @@ func trimTrailingSpaces(result string) string {
 // testBanker
 
 type testBanker struct {
-	coinTable map[crypto.Bech32Address]tm2std.Coins
+	coinTable map[crypto.Bech32Address]std.Coins
 }
 
 func newTestBanker(args ...interface{}) *testBanker {
-	coinTable := make(map[crypto.Bech32Address]tm2std.Coins)
+	coinTable := make(map[crypto.Bech32Address]std.Coins)
 	if len(args)%2 != 0 {
 		panic("newTestBanker requires even number of arguments; addr followed by coins")
 	}
 	for i := 0; i < len(args); i += 2 {
 		addr := args[i].(crypto.Bech32Address)
-		amount := args[i+1].(tm2std.Coins)
+		amount := args[i+1].(std.Coins)
 		coinTable[addr] = amount
 	}
 	return &testBanker{
@@ -566,11 +566,11 @@ func newTestBanker(args ...interface{}) *testBanker {
 	}
 }
 
-func (tb *testBanker) GetCoins(addr crypto.Bech32Address) (dst tm2std.Coins) {
+func (tb *testBanker) GetCoins(addr crypto.Bech32Address) (dst std.Coins) {
 	return tb.coinTable[addr]
 }
 
-func (tb *testBanker) SendCoins(from, to crypto.Bech32Address, amt tm2std.Coins) {
+func (tb *testBanker) SendCoins(from, to crypto.Bech32Address, amt std.Coins) {
 	fcoins, fexists := tb.coinTable[from]
 	if !fexists {
 		panic(fmt.Sprintf(
@@ -598,12 +598,12 @@ func (tb *testBanker) TotalCoin(denom string) int64 {
 
 func (tb *testBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins, _ := tb.coinTable[addr]
-	sum := coins.Add(tm2std.Coins{{denom, amt}})
+	sum := coins.Add(std.Coins{{denom, amt}})
 	tb.coinTable[addr] = sum
 }
 
 func (tb *testBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins, _ := tb.coinTable[addr]
-	rest := coins.Sub(tm2std.Coins{{denom, amt}})
+	rest := coins.Sub(std.Coins{{denom, amt}})
 	tb.coinTable[addr] = rest
 }
