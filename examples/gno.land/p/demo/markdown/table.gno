@@ -1,14 +1,15 @@
 package markdown
 
 import (
-	"gno.land/p/demo/ufmt"
 	"strings"
+
+	"gno.land/p/demo/ufmt"
 )
 
 // Table defines the structure for a markdown table
 type Table struct {
 	header []string
-	rows   [][]string 
+	rows   [][]string
 }
 
 // ValidateColumns checks if the number of columns in each row matches the number of columns in the header

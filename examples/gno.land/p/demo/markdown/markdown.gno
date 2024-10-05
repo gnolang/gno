@@ -1,8 +1,9 @@
 package markdown
 
 import (
-	"gno.land/p/demo/ufmt"
 	"strings"
+
+	"gno.land/p/demo/ufmt"
 )
 
 // Bold returns bold text for markdown
@@ -55,8 +56,8 @@ func OrderedList(items []string) string {
 
 // TodoItem represents a single todo item
 type TodoItem struct {
-	Item string 
-	Done bool  
+	Item string
+	Done bool
 }
 
 // TodoList returns a list of todo items with checkboxes for markdown
@@ -64,9 +65,9 @@ func TodoList(items []TodoItem) string {
 	var sb strings.Builder
 
 	for _, item := range items {
-		checkbox := " " 
+		checkbox := " "
 		if item.Done {
-			checkbox = "x" 
+			checkbox = "x"
 		}
 		sb.WriteString(ufmt.Sprintf("- [%s] %s\n", checkbox, item.Item))
 	}

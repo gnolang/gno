@@ -129,10 +129,10 @@ func Test_ValidateColumns(t *testing.T) {
 	header := []string{"Name", "Age", "Country"}
 	rows := [][]string{
 		{"Alice", "30", "USA"},
-		{"Bob", "25"}, 
+		{"Bob", "25"},
 	}
 
-	table, err := NewTable(header, rows[:1]) 
+	table, err := NewTable(header, rows[:1])
 	urequire.NoError(t, err)
 
 	// Validate columns should pass
