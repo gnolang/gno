@@ -55,11 +55,11 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 	totalPages := int(math.Ceil(float64(totalItems) / float64(pageSize)))
 
 	page := &Page{
-			TotalItems: totalItems,
-			TotalPages: totalPages,
-			PageSize: pageSize,
-			Pager:      p,
-		}
+		TotalItems: totalItems,
+		TotalPages: totalPages,
+		PageSize:   pageSize,
+		Pager:      p,
+	}
 
 	// pages without content
 	if pageSize < 1 {
@@ -68,16 +68,14 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 
 	// page number provided is not available
 	if pageNumber < 1 {
-		page.HasNext = pageNumber < totalPages 
-		
+		page.HasNext = totalPages > 0
 		return page
 	}
 
 	// page number provided is outside the range of total pages
 	if pageNumber > totalPages {
 		page.PageNumber = pageNumber
-		page.HasPrev = totalPages > 0
-		
+		page.HasPrev = pageNumber > 0
 		return page
 	}
 
@@ -93,16 +91,11 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 		return false
 	})
 
-	return &Page{
-		Items:      items,
-		PageNumber: pageNumber,
-		PageSize:   pageSize,
-		TotalItems: totalItems,
-		TotalPages: totalPages,
-		HasPrev:    pageNumber > 1,
-		HasNext:    pageNumber < totalPages,
-		Pager:      p,
-	}
+	page.Items = items
+	page.PageNumber = pageNumber
+	page.HasPrev = pageNumber > 1
+	page.HasNext = pageNumber < totalPages
+	return page
 }
 
 func (p *Pager) MustGetPageByPath(rawURL string) *Page {
