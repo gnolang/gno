@@ -54,43 +54,31 @@ func (p *Pager) GetPageWithSize(pageNumber, pageSize int) *Page {
 	totalItems := p.Tree.Size()
 	totalPages := int(math.Ceil(float64(totalItems) / float64(pageSize)))
 
+	page := &Page{
+			TotalItems: totalItems,
+			TotalPages: totalPages,
+			PageSize: pageSize,
+			Pager:      p,
+		}
+
+	// pages without content
 	if pageSize < 1 {
-		return &Page{
-			Items:      []Item{},
-			PageNumber: 0,
-			PageSize:   0,
-			TotalItems: totalItems,
-			TotalPages: totalPages,
-			HasPrev:    false,
-			HasNext:    false,
-			Pager:      p,
-		}
+		return page
 	}
 
+	// page number provided is not available
 	if pageNumber < 1 {
-		return &Page{
-			Items:      []Item{},
-			PageNumber: 0,
-			PageSize:   pageSize,
-			TotalItems: totalItems,
-			TotalPages: totalPages,
-			HasPrev:    false,
-			HasNext:    pageNumber < totalPages,
-			Pager:      p,
-		}
+		page.HasNext = pageNumber < totalPages 
+		
+		return page
 	}
 
+	// page number provided is outside the range of total pages
 	if pageNumber > totalPages {
-		return &Page{
-			Items:      []Item{},
-			PageNumber: pageNumber,
-			PageSize:   pageSize,
-			TotalItems: totalItems,
-			TotalPages: totalPages,
-			HasPrev:    totalPages > 0,
-			HasNext:    false,
-			Pager:      p,
-		}
+		page.PageNumber = pageNumber
+		page.HasPrev = totalPages > 0
+		
+		return page
 	}
 
 	startIndex := (pageNumber - 1) * pageSize
