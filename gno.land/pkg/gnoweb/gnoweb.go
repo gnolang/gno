@@ -17,10 +17,10 @@ import (
 	"strings"
 	"time"
 
+	gnostd "github.com/gnolang/gno/gnovm/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gorilla/mux"
 	"github.com/gotuna/gotuna"
 
@@ -358,7 +358,7 @@ func handlerPackageFile(logger *slog.Logger, app gotuna.App, cfg *Config) http.H
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		pkgpath := "gno.land/p/" + vars["filepath"]
-		diruri, filename := std.SplitFilepath(pkgpath)
+		diruri, filename := gnostd.SplitFilepath(pkgpath)
 		if filename == "" && diruri == pkgpath {
 			// redirect to diruri + "/"
 			http.Redirect(w, r, "/p/"+vars["filepath"]+"/", http.StatusFound)

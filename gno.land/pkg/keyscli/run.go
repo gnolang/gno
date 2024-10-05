@@ -9,6 +9,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gnostd "github.com/gnolang/gno/gnovm/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/crypto/keys"
@@ -73,13 +74,13 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 		return errors.Wrap(err, "parsing gas fee coin")
 	}
 
-	memPkg := &std.MemPackage{}
+	memPkg := &gnostd.MemPackage{}
 	if sourcePath == "-" { // stdin
 		data, err := io.ReadAll(cmdio.In())
 		if err != nil {
 			return fmt.Errorf("could not read stdin: %w", err)
 		}
-		memPkg.Files = []*std.MemFile{
+		memPkg.Files = []*gnostd.MemFile{
 			{
 				Name: "stdin.gno",
 				Body: string(data),
@@ -97,7 +98,7 @@ func execMakeRun(cfg *MakeRunCfg, args []string, cmdio commands.IO) error {
 			if err != nil {
 				return fmt.Errorf("could not read %q: %w", sourcePath, err)
 			}
-			memPkg.Files = []*std.MemFile{
+			memPkg.Files = []*gnostd.MemFile{
 				{
 					Name: info.Name(),
 					Body: string(b),
