@@ -50,8 +50,8 @@ type startCfg struct {
 	genesisRemote         string // TODO: remove as part of https://github.com/gnolang/gno/issues/1952
 	genesisFile           string
 	chainID               string
+	chainDomain           string
 	dataDir               string
-	genesisMaxVMCycles    int64
 	config                string
 	lazyInit              bool
 
@@ -117,6 +117,13 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.StringVar(
+		&c.chainDomain,
+		"chaindomain",
+		"gno.land",
+		"the domain of the chain for packages",
+	)
+
+	fs.StringVar(
 		&c.gnoRootDir,
 		"gnoroot-dir",
 		gnoroot,
@@ -135,13 +142,6 @@ func (c *startCfg) RegisterFlags(fs *flag.FlagSet) {
 		"genesis-remote",
 		"localhost:26657",
 		"replacement for '%%REMOTE%%' in genesis",
-	)
-
-	fs.Int64Var(
-		&c.genesisMaxVMCycles,
-		"genesis-max-vm-cycles",
-		100_000_000,
-		"set maximum allowed vm cycles per operation. Zero means no limit.",
 	)
 
 	fs.StringVar(
