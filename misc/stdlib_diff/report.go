@@ -5,7 +5,10 @@ import (
 	_ "embed"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 var (
@@ -42,9 +45,10 @@ type IndexTemplate struct {
 }
 
 type LinkToReport struct {
-	PathToReport string
-	PackageName  string
-	WasFound     bool
+	PathToReport   string
+	PackageName    string
+	WasFound       bool
+	Subdirectories []LinkToReport
 }
 
 // NewReportBuilder creates a new ReportBuilder instance with the specified
@@ -86,38 +90,28 @@ func (builder *ReportBuilder) Build() error {
 	}
 
 	for _, directory := range directories {
-		if directory.FoundInDest {
-			srcPackagePath := builder.SrcPath + "/" + directory.Path
-			dstPackagePath := builder.DstPath + "/" + directory.Path
-			packageChecker, err := NewPackageDiffChecker(srcPackagePath, dstPackagePath, builder.SrcIsGno)
-			if err != nil {
-				return fmt.Errorf("can't create new PackageDiffChecker: %w", err)
-			}
-
-			differences, err := packageChecker.Differences()
-			if err != nil {
-				return fmt.Errorf("can't compute differences: %w", err)
-			}
-
-			data := &PackageDiffTemplateData{
-				PackageName:        directory.Path,
-				SrcFilesCount:      len(packageChecker.SrcFiles),
-				SrcPackageLocation: srcPackagePath,
-				DstFileCount:       len(packageChecker.DstFiles),
-				DstPackageLocation: dstPackagePath,
-				FilesDifferences:   differences.FilesDifferences,
-			}
-
-			if err := builder.writePackageTemplate(data, directory.Path); err != nil {
+		if err := builder.ExecuteDiffTemplate(directory); err != nil {
+			return err
+		}
+		report := LinkToReport{
+			PathToReport:   "./" + directory.Path + "/report.html",
+			PackageName:    directory.Path,
+			WasFound:       directory.FoundInDest,
+			Subdirectories: make([]LinkToReport, 0),
+		}
+		for _, subDirectory := range directory.Children {
+			if err := builder.ExecuteDiffTemplate(subDirectory); err != nil {
 				return err
 			}
-		}
+			report.Subdirectories = append(report.Subdirectories, LinkToReport{
+				PathToReport: "./" + subDirectory.Path + "/report.html",
+				PackageName:  subDirectory.Path,
+				WasFound:     subDirectory.FoundInDest,
+			})
 
-		indexTemplateData.Reports = append(indexTemplateData.Reports, LinkToReport{
-			PathToReport: "./" + directory.Path + "/report.html",
-			PackageName:  directory.Path,
-			WasFound:     directory.FoundInDest,
-		})
+		}
+		indexTemplateData.Reports = append(indexTemplateData.Reports, report)
+
 	}
 
 	if err := builder.writeIndexTemplate(indexTemplateData); err != nil {
@@ -127,45 +121,112 @@ func (builder *ReportBuilder) Build() error {
 	return nil
 }
 
+func (builder *ReportBuilder) ExecuteDiffTemplate(directory *Directory) error {
+	if !directory.FoundInDest {
+		return nil
+	}
+
+	srcPackagePath := builder.SrcPath + "/" + directory.Path
+	dstPackagePath := builder.DstPath + "/" + directory.Path
+	packageChecker, err := NewPackageDiffChecker(srcPackagePath, dstPackagePath, builder.SrcIsGno)
+	if err != nil {
+		return fmt.Errorf("can't create new PackageDiffChecker: %w", err)
+	}
+
+	differences, err := packageChecker.Differences()
+	if err != nil {
+		return fmt.Errorf("can't compute differences: %w", err)
+	}
+
+	data := &PackageDiffTemplateData{
+		PackageName:        directory.Path,
+		SrcFilesCount:      len(packageChecker.SrcFiles),
+		SrcPackageLocation: srcPackagePath,
+		DstFileCount:       len(packageChecker.DstFiles),
+		DstPackageLocation: dstPackagePath,
+		FilesDifferences:   differences.FilesDifferences,
+	}
+
+	return builder.writePackageTemplate(data, directory.Path)
+}
+
 type Directory struct {
 	Path        string
 	FoundInDest bool
+	Children    []*Directory
 }
 
 // listSrcDirectories retrieves a list of directories in the source path.
-func (builder *ReportBuilder) listSrcDirectories() ([]Directory, error) {
-	dirEntries, err := os.ReadDir(builder.SrcPath)
+func (builder *ReportBuilder) listSrcDirectories() ([]*Directory, error) {
+	destDirectories, err := builder.getDstDirectories()
 	if err != nil {
 		return nil, err
 	}
 
-	destDirectories, err := builder.getSrcDirectories()
-	if err != nil {
-		return nil, err
-	}
-
-	directories := make([]Directory, 0)
-	for _, dirEntry := range dirEntries {
-		if dirEntry.IsDir() {
-			directories = append(directories, Directory{FoundInDest: destDirectories[dirEntry.Name()], Path: dirEntry.Name()})
+	notfoundInDest := []string{}
+	directories := make(map[string]*Directory)
+	res := make([]*Directory, 0)
+	err = filepath.WalkDir(builder.SrcPath, func(path string, dirEntry fs.DirEntry, err error) error {
+		if path == builder.SrcPath {
+			return nil
 		}
-	}
-	return directories, nil
+
+		folderName := strings.TrimPrefix(path, builder.SrcPath+"/")
+
+		// skip directories that are not found in the destination
+		for _, prefix := range notfoundInDest {
+			if strings.HasPrefix(folderName, prefix) {
+				return nil
+			}
+		}
+
+		if err != nil {
+			return err
+		}
+
+		if !dirEntry.IsDir() {
+			return nil
+		}
+
+		newDir := &Directory{
+			Path:        folderName,
+			FoundInDest: destDirectories[folderName],
+			Children:    make([]*Directory, 0),
+		}
+
+		if isRootFolder(folderName) {
+			directories[folderName] = newDir
+			res = append(res, newDir)
+		} else {
+			directory := directories[getRootFolder(folderName)]
+			directory.Children = append(directory.Children, newDir)
+			directories[getRootFolder(folderName)] = directory
+		}
+
+		if !destDirectories[dirEntry.Name()] {
+			notfoundInDest = append(notfoundInDest, folderName)
+		}
+		return nil
+	})
+
+	return res, err
 }
-
-func (builder *ReportBuilder) getSrcDirectories() (map[string]bool, error) {
-	dirEntries, err := os.ReadDir(builder.DstPath)
-	if err != nil {
-		return nil, err
-	}
-
+func isRootFolder(path string) bool {
+	return !strings.Contains(path, "/")
+}
+func getRootFolder(path string) string {
+	return strings.Split(path, "/")[0]
+}
+func (builder *ReportBuilder) getDstDirectories() (map[string]bool, error) {
 	directories := make(map[string]bool)
-	for _, dirEntry := range dirEntries {
+	err := filepath.WalkDir(builder.DstPath, func(path string, dirEntry fs.DirEntry, err error) error {
 		if dirEntry.IsDir() {
-			directories[dirEntry.Name()] = true
+			folderName := strings.TrimPrefix(path, builder.DstPath+"/")
+			directories[folderName] = true
 		}
-	}
-	return directories, nil
+		return nil
+	})
+	return directories, err
 }
 
 // writeIndexTemplate generates and writes the index template with the given output paths.

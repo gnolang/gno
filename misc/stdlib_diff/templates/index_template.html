@@ -46,7 +46,28 @@
     <ul style="margin-bottom: 2rem;">
     {{- range .Reports}}
     {{- if .WasFound}}
-        <li><a href="{{.PathToReport}}">{{.PackageName}}</a>
+        {{if .Subdirectories}}
+            <details>
+                <summary>{{.PackageName}}</summary>
+                <ul>
+                    <li><a href="{{.PathToReport}}">{{.PackageName}}</a></li>
+                </ul>
+                {{- range .Subdirectories}}
+                    {{- if .WasFound}}
+                        <ul>
+                            <li><a href="{{.PathToReport}}">{{.PackageName}}</a></li>
+                        </ul>
+                    {{- else}}
+                        <ul>
+                            <li style="display: flex;" ><p style="color: red;">{{.PackageName}}</p>: missing in go</a></li>
+                        </ul>
+                    {{- end}}
+                {{- end}}
+            </details>
+        {{- else}}
+        <a href="{{.PathToReport}}">{{.PackageName}}</a>
+
+        {{- end}}
     {{- else}}
         <li style="display: flex;" ><p style="color: red;">{{.PackageName}}</p>: missing in gno</a>
     {{- end}}
