@@ -31,7 +31,7 @@ func NewTeamManager() *TeamManager {
 }
 
 // Helper function to retrieve a team and check for errors.
-func (tm *TeamManager) getTeam(teamAddress std.Address) (*Team, error) {
+func (tm *TeamManager) GetTeam(teamAddress std.Address) (*Team, error) {
     team, found := tm.Teams.Get(teamAddress.String())
     if !found {
         return nil, ErrTeamNotFound
@@ -51,7 +51,7 @@ func (tm *TeamManager) isAdmin(team *Team, userAddress std.Address) bool {
 
 // Designates a user as an Admin; only the Owner can do this.
 func (tm *TeamManager) DesignateAdmin(teamAddress std.Address, userAddress std.Address, requester std.Address) error {
-    team, err := tm.getTeam(teamAddress)
+    team, err := tm.GetTeam(teamAddress)
     if err != nil {
         return err
     }
@@ -67,7 +67,7 @@ func (tm *TeamManager) DesignateAdmin(teamAddress std.Address, userAddress std.A
 
 // Removes an Admin; only the Owner can do this.
 func (tm *TeamManager) RemoveAdmin(teamAddress std.Address, userAddress std.Address, requester std.Address) error {
-    team, err := tm.getTeam(teamAddress)
+    team, err := tm.GetTeam(teamAddress)
     if err != nil {
         return err
     }
@@ -83,7 +83,7 @@ func (tm *TeamManager) RemoveAdmin(teamAddress std.Address, userAddress std.Addr
 
 // Assigns disburse permission to a user; only the Owner or Admin can do this.
 func (tm *TeamManager) AssignDisbursePermission(teamAddress std.Address, userAddress std.Address, requester std.Address) error {
-    team, err := tm.getTeam(teamAddress)
+    team, err := tm.GetTeam(teamAddress)
     if err != nil {
         return err
     }
@@ -101,7 +101,7 @@ func (tm *TeamManager) AssignDisbursePermission(teamAddress std.Address, userAdd
 
 // Removes disburse permission from a user; only the Owner or Admin can do this.
 func (tm *TeamManager) RemoveDisbursePermission(teamAddress std.Address, userAddress std.Address, requester std.Address) error {
-    team, err := tm.getTeam(teamAddress)
+    team, err := tm.GetTeam(teamAddress)
     if err != nil {
         return err
     }
@@ -124,7 +124,7 @@ func (tm *TeamManager) RemoveDisbursePermission(teamAddress std.Address, userAdd
 
 // Checks if a user can disburse (either Owner, Admin, or a designated Disburser).
 func (tm *TeamManager) CanDisburse(teamAddress std.Address, userAddress std.Address) bool {
-    team, err := tm.getTeam(teamAddress)
+    team, err := tm.GetTeam(teamAddress)
     if err != nil {
         return false
     }
@@ -148,7 +148,7 @@ func (tm *TeamManager) AddTeam(t *Team) error {
 
 // Adds a user to a team; only the Owner or Admin can do this.
 func (tm *TeamManager) AddUserToTeam(teamAddress std.Address, user users.User, requester std.Address) error {
-    team, err := tm.getTeam(teamAddress)
+    team, err := tm.GetTeam(teamAddress)
     if err != nil {
         return err
     }
@@ -179,7 +179,7 @@ func (tm *TeamManager) AddUserToTeam(teamAddress std.Address, user users.User, r
 
 // Removes a user from a team; only the Owner or Admin can do this.
 func (tm *TeamManager) RemoveUserFromTeam(teamAddress std.Address, userAddress std.Address, requester std.Address) error {
-    team, err := tm.getTeam(teamAddress)
+    team, err := tm.GetTeam(teamAddress)
     if err != nil {
         return err
     }
@@ -219,7 +219,7 @@ func (tm *TeamManager) RemoveUserFromTeam(teamAddress std.Address, userAddress s
 
 // Gets all users in a team.
 func (tm *TeamManager) GetAllUsersInTeam(teamAddress std.Address) ([]users.User, error) {
-    _, err := tm.getTeam(teamAddress)
+    _, err := tm.GetTeam(teamAddress)
     if err != nil {
         return nil, err
     }
