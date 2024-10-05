@@ -3,6 +3,7 @@ package gnolang
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -350,6 +351,188 @@ func TestRecordCoverage(t *testing.T) {
 	}
 }
 
+func TestViewFilesE2E(t *testing.T) {
+	t.Parallel()
+	tempDir := t.TempDir()
+
+	files := map[string]string{
+		"file1.gno": "package main\n\nfunc main() {\n\tprintln(\"Hello\")\n}\n",
+		"file2.gno": "package utils\n\nfunc Add(a, b int) int {\n\treturn a + b\n}\n",
+	}
+
+	for name, content := range files {
+		err := os.WriteFile(filepath.Join(tempDir, name), []byte(content), 0o644)
+		assert.NoError(t, err)
+	}
+
+	coverage := NewCoverageData(tempDir)
+	for name, content := range files {
+		execLines, err := detectExecutableLines(content)
+		assert.NoError(t, err)
+		coverage.SetExecutableLines(name, execLines)
+		coverage.addFile(name, len(strings.Split(content, "\n")))
+		coverage.updateHit(name, 4)
+	}
+
+	var buf bytes.Buffer
+	io := commands.NewTestIO()
+	io.SetOut(nopCloser{Buffer: &buf})
+
+	err := coverage.ViewFiles("", true, io)
+	assert.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "file1.gno")
+	assert.Contains(t, output, "file2.gno")
+	assert.Contains(t, output, "println(\"Hello\")")
+	assert.Contains(t, output, "return a + b")
+	assert.Contains(t, output, string(colorGreen))
+	assert.Contains(t, output, string(colorWhite))
+	// colorYellow은 이 테스트 케이스에서는 나타나지 않을 수 있으므로 제거
+
+	buf.Reset()
+	err = coverage.ViewFiles("file1", true, io)
+	assert.NoError(t, err)
+	output = buf.String()
+	assert.Contains(t, output, "file1.gno")
+	assert.NotContains(t, output, "file2.gno")
+
+	err = coverage.ViewFiles("nonexistent", true, io)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "no files found matching pattern")
+
+	buf.Reset()
+	err = coverage.ViewFiles("", false, io)
+	assert.NoError(t, err)
+	output = buf.String()
+	assert.NotContains(t, output, string(colorOrange))
+}
+
+func TestFormatLineInfoE2E(t *testing.T) {
+	t.Parallel()
+	coverage := NewCoverageData("")
+
+	tests := []struct {
+		name       string
+		lineNumber int
+		line       string
+		hitCount   int
+		covered    bool
+		executable bool
+		showHits   bool
+		want       string
+	}{
+		{
+			name:       "Covered line with hits",
+			lineNumber: 1,
+			line:       "println(\"Hello\")",
+			hitCount:   2,
+			covered:    true,
+			executable: true,
+			showHits:   true,
+			want: fmt.Sprintf(
+				"%s   1%s %s2   %s %sprintln(\"Hello\")%s",
+				colorGreen, colorReset, colorOrange, colorReset, colorGreen, colorReset,
+			),
+		},
+		{
+			name:       "Executable but not covered line",
+			lineNumber: 2,
+			line:       "if x > 0 {",
+			hitCount:   0,
+			covered:    false,
+			executable: true,
+			showHits:   true,
+			want: fmt.Sprintf(
+				"%s   2%s      %sif x > 0 {%s",
+				colorYellow, colorReset, colorYellow, colorReset,
+			),
+		},
+		{
+			name:       "Non-executable line",
+			lineNumber: 3,
+			line:       "package main",
+			hitCount:   0,
+			covered:    false,
+			executable: false,
+			showHits:   true,
+			want: fmt.Sprintf(
+				"%s   3%s      %spackage main%s",
+				colorWhite, colorReset, colorWhite, colorReset,
+			),
+		},
+		{
+			name:       "Covered line without showing hits",
+			lineNumber: 4,
+			line:       "return x + y",
+			hitCount:   1,
+			covered:    true,
+			executable: true,
+			showHits:   false,
+			want: fmt.Sprintf(
+				"%s   4%s %sreturn x + y%s",
+				colorGreen, colorReset, colorGreen, colorReset,
+			),
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := coverage.formatLineInfo(tt.lineNumber, tt.line, tt.hitCount, tt.covered, tt.executable, tt.showHits)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestFindMatchingFilesE2E(t *testing.T) {
+	t.Parallel()
+	coverage := &CoverageData{
+		Files: map[string]FileCoverage{
+			"file1.gno":     {},
+			"file2.gno":     {},
+			"other_file.go": {},
+		},
+	}
+
+	tests := []struct {
+		name    string
+		pattern string
+		want    []string
+	}{
+		{
+			name:    "Match all .gno files",
+			pattern: ".gno",
+			want:    []string{"file1.gno", "file2.gno"},
+		},
+		{
+			name:    "Match specific file",
+			pattern: "file1",
+			want:    []string{"file1.gno"},
+		},
+		{
+			name:    "Match non-existent pattern",
+			pattern: "nonexistent",
+			want:    []string{},
+		},
+		{
+			name:    "Match all files",
+			pattern: "",
+			want:    []string{"file1.gno", "file2.gno", "other_file.go"},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := coverage.findMatchingFiles(tt.pattern)
+			assert.ElementsMatch(t, tt.want, got)
+		})
+	}
+}
+
 func TestToJSON(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -440,6 +623,236 @@ func TestToJSON(t *testing.T) {
 
 			assert.Equal(t, expected, got)
 		})
+	}
+}
+
+func createTempFile(t *testing.T, dir, name, content string) string {
+	t.Helper()
+	filePath := filepath.Join(dir, name)
+	err := os.WriteFile(filePath, []byte(content), 0o644)
+	if err != nil {
+		t.Fatalf("Failed to create temp file %s: %v", filePath, err)
+	}
+	return filePath
+}
+
+func readFileContent(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("Failed to read file %s: %v", path, err)
+	}
+	return string(data)
+}
+
+func TestSaveHTML(t *testing.T) {
+	tempDir := t.TempDir()
+
+	source1 := `package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello, World!")
+}`
+
+	source2 := `package utils
+
+func Add(a, b int) int {
+	return a + b
+}`
+
+	file1 := createTempFile(t, tempDir, "main.gno", source1)
+	file2 := createTempFile(t, tempDir, "utils.gno", source2)
+
+	coverage := NewCoverageData(tempDir)
+
+	execLines1, err := detectExecutableLines(source1)
+	if err != nil {
+		t.Fatalf("Failed to detect executable lines for %s: %v", file1, err)
+	}
+	execLines2, err := detectExecutableLines(source2)
+	if err != nil {
+		t.Fatalf("Failed to detect executable lines for %s: %v", file2, err)
+	}
+
+	// Set executable lines
+	relPath1, err := filepath.Rel(tempDir, file1)
+	if err != nil {
+		t.Fatalf("Failed to get relative path for %s: %v", file1, err)
+	}
+	relPath2, err := filepath.Rel(tempDir, file2)
+	if err != nil {
+		t.Fatalf("Failed to get relative path for %s: %v", file2, err)
+	}
+	coverage.SetExecutableLines(relPath1, execLines1)
+	coverage.SetExecutableLines(relPath2, execLines2)
+
+	// Add files with total executable lines
+	totalExecLines1 := len(execLines1)
+	totalExecLines2 := len(execLines2)
+	coverage.addFile(relPath1, totalExecLines1)
+	coverage.addFile(relPath2, totalExecLines2)
+
+	// Simulate hits
+	coverage.updateHit(relPath1, 6) // fmt.Println line
+	coverage.updateHit(relPath2, 4) // return a + b
+
+	// Define output HTML file
+	outputHTML := filepath.Join(tempDir, "coverage.html")
+
+	// Run SaveHTML
+	err = coverage.SaveHTML(outputHTML)
+	if err != nil {
+		t.Fatalf("SaveHTML failed: %v", err)
+	}
+
+	// Read and verify the HTML content
+	htmlContent := readFileContent(t, outputHTML)
+
+	// Basic checks
+	if !strings.Contains(htmlContent, "main.gno") {
+		t.Errorf("HTML does not contain main.gno")
+	}
+	if !strings.Contains(htmlContent, "utils.gno") {
+		t.Errorf("HTML does not contain utils.gno")
+	}
+
+	// Check for hit counts
+	if !strings.Contains(htmlContent, ">1</span>") {
+		t.Errorf("Expected hit count '1' for main.gno, but not found")
+	}
+	if !strings.Contains(htmlContent, ">1</span>") {
+		t.Errorf("Expected hit count '1' for utils.gno, but not found")
+	}
+}
+
+func TestSaveHTML_EmptyCoverage(t *testing.T) {
+	tempDir := t.TempDir()
+
+	coverage := NewCoverageData(tempDir)
+
+	outputHTML := filepath.Join(tempDir, "coverage_empty.html")
+
+	err := coverage.SaveHTML(outputHTML)
+	if err != nil {
+		t.Fatalf("SaveHTML failed: %v", err)
+	}
+
+	htmlContent := readFileContent(t, outputHTML)
+	if !strings.Contains(htmlContent, "<h1>Coverage Report</h1>") {
+		t.Errorf("HTML does not contain the main heading")
+	}
+	if strings.Contains(htmlContent, "class=\"filename\"") {
+		t.Errorf("HTML should not contain any filenames, but found some")
+	}
+}
+
+func TestSaveHTML_MultipleFiles(t *testing.T) {
+	tempDir := t.TempDir()
+
+	sources := map[string]string{
+		"file1.gno": `package a
+
+func A() {
+	// Line 3
+}`,
+		"file2.gno": `package b
+
+func B() {
+	// Line 3
+	// Line 4
+}`,
+		"file3.gno": `package c
+
+func C() {
+	// Line 3
+	// Line 4
+	// Line 5
+}`,
+	}
+
+	for name, content := range sources {
+		createTempFile(t, tempDir, name, content)
+	}
+
+	coverage := NewCoverageData(tempDir)
+
+	for name, content := range sources {
+		relPath := name
+		execLines, err := detectExecutableLines(content)
+		if err != nil {
+			t.Fatalf("Failed to detect executable lines for %s: %v", name, err)
+		}
+		coverage.SetExecutableLines(relPath, execLines)
+		totalExecLines := len(execLines)
+		coverage.addFile(relPath, totalExecLines)
+	}
+
+	coverage.updateHit("file1.gno", 3) // Line 3
+	coverage.updateHit("file2.gno", 3) // Line 3
+	coverage.updateHit("file2.gno", 4) // Line 4
+	coverage.updateHit("file3.gno", 3) // Line 3
+
+	outputHTML := filepath.Join(tempDir, "coverage_multiple.html")
+
+	err := coverage.SaveHTML(outputHTML)
+	if err != nil {
+		t.Fatalf("SaveHTML failed: %v", err)
+	}
+
+	htmlContent := readFileContent(t, outputHTML)
+
+	for name := range sources {
+		if !strings.Contains(htmlContent, name) {
+			t.Errorf("HTML does not contain %s", name)
+		}
+	}
+}
+
+func TestSaveHTML_FileNotFound(t *testing.T) {
+	tempDir := t.TempDir()
+
+	coverage := NewCoverageData(tempDir)
+	coverage.SetExecutableLines("nonexistent.gno", map[int]bool{1: true, 2: true})
+	coverage.addFile("nonexistent.gno", 2)
+	coverage.updateHit("nonexistent.gno", 1)
+
+	outputHTML := filepath.Join(tempDir, "coverage_notfound.html")
+
+	err := coverage.SaveHTML(outputHTML)
+	if err == nil {
+		t.Fatalf("Expected SaveHTML to fail due to missing file, but it succeeded")
+	}
+
+	if !strings.Contains(err.Error(), "file nonexistent.gno not found") {
+		t.Errorf("Unexpected error message: %v", err)
+	}
+}
+
+func TestSaveHTML_FileCreationError(t *testing.T) {
+	tempDir := t.TempDir()
+
+	createTempFile(t, tempDir, "file.gno", `package main
+
+func main() {}`)
+
+	coverage := NewCoverageData(tempDir)
+	coverage.Files["file.gno"] = FileCoverage{
+		TotalLines:      2, // Assuming 2 executable lines
+		HitLines:        map[int]int{1: 1},
+		ExecutableLines: map[int]bool{1: true, 2: true},
+	}
+
+	outputHTML := tempDir
+
+	err := coverage.SaveHTML(outputHTML)
+	if err == nil {
+		t.Fatalf("Expected SaveHTML to fail due to invalid file path, but it succeeded")
+	}
+
+	if !strings.Contains(err.Error(), "is a directory") {
+		t.Errorf("Unexpected error message: %v", err)
 	}
 }
 

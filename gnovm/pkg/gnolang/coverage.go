@@ -8,12 +8,14 @@ import (
 	"go/parser"
 	"go/token"
 	"html/template"
+	"io/fs"
 	"math"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -37,7 +39,7 @@ type CoverageData struct {
 	CurrentPackage string
 	CurrentFile    string
 	pathCache      map[string]string // relative path to absolute path
-	// Functions      map[string][]FuncCoverage
+	mu             sync.RWMutex
 }
 
 // FileCoverage stores coverage information for a single file
@@ -55,13 +57,15 @@ func NewCoverageData(rootDir string) *CoverageData {
 		CurrentPackage: "",
 		CurrentFile:    "",
 		pathCache:      make(map[string]string),
-		// Functions:      make(map[string][]FuncCoverage),
 	}
 }
 
 // SetExecutableLines sets the executable lines for a given file path in the coverage data.
 // It updates the ExecutableLines map for the given file path with the provided executable lines.
 func (c *CoverageData) SetExecutableLines(filePath string, executableLines map[int]bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	cov, exists := c.Files[filePath]
 	if !exists {
 		cov = FileCoverage{
@@ -79,6 +83,8 @@ func (c *CoverageData) SetExecutableLines(filePath string, executableLines map[i
 // This function is used to update the hit count for a specific line in the coverage data.
 // It increments the hit count for the given line in the HitLines map for the specified file path.
 func (c *CoverageData) updateHit(pkgPath string, line int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if !c.isValidFile(pkgPath) {
 		return
 	}
@@ -110,6 +116,9 @@ func (c *CoverageData) getOrCreateFileCoverage(pkgPath string) FileCoverage {
 }
 
 func (c *CoverageData) addFile(filePath string, totalLines int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if isTestFile(filePath) {
 		return
 	}
@@ -124,8 +133,6 @@ func (c *CoverageData) addFile(filePath string, totalLines int) {
 	fileCoverage.TotalLines = totalLines
 	c.Files[filePath] = fileCoverage
 }
-
-// region Reporting
 
 // Report prints the coverage report to the console
 func (c *CoverageData) Report(io commands.IO) {
@@ -170,7 +177,7 @@ func (c *CoverageData) ViewFiles(pattern string, showHits bool, io commands.IO) 
 func (c *CoverageData) viewSingleFileCoverage(filePath string, showHits bool, io commands.IO) error {
 	realPath, err := c.findAbsoluteFilePath(filePath)
 	if err != nil {
-		return nil // ignore invalid file paths
+		return err
 	}
 
 	coverage, exists := c.Files[filePath]
@@ -273,20 +280,20 @@ func calculateCoverage(covered, total int) float64 {
 // findAbsoluteFilePath finds the absolute path of a file given its relative path.
 // It starts searching from root directory and recursively traverses directories.
 func (c *CoverageData) findAbsoluteFilePath(filePath string) (string, error) {
-	if cachedPath, ok := c.pathCache[filePath]; ok {
+	c.mu.RLock()
+	cachedPath, ok := c.pathCache[filePath]
+	c.mu.RUnlock()
+	if ok {
 		return cachedPath, nil
 	}
 
 	var result string
-	var found bool
-
-	err := filepath.Walk(c.RootDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(c.RootDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && strings.HasSuffix(path, filePath) {
+		if !d.IsDir() && strings.HasSuffix(path, filePath) {
 			result = path
-			found = true
 			return filepath.SkipAll
 		}
 		return nil
@@ -295,11 +302,13 @@ func (c *CoverageData) findAbsoluteFilePath(filePath string) (string, error) {
 		return "", err
 	}
 
-	if !found {
+	if result == "" {
 		return "", fmt.Errorf("file %s not found", filePath)
 	}
 
+	c.mu.Lock()
 	c.pathCache[filePath] = result
+	c.mu.Unlock()
 
 	return result, nil
 }
@@ -495,8 +504,6 @@ func (m *Machine) recordCoverage(node Node) Location {
 	}
 }
 
-// region Executable Lines Detection
-
 // countCodeLines counts the number of executable lines in the given source code content.
 func countCodeLines(content string) int {
 	lines, err := detectExecutableLines(content)
@@ -520,18 +527,32 @@ func isExecutableLine(node ast.Node) bool {
 	case *ast.AssignStmt, *ast.ExprStmt, *ast.ReturnStmt, *ast.BranchStmt,
 		*ast.IncDecStmt, *ast.GoStmt, *ast.DeferStmt, *ast.SendStmt:
 		return true
-	case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.SelectStmt:
+	case *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt,
+		*ast.TypeSwitchStmt, *ast.SelectStmt:
 		return true
 	case *ast.CaseClause:
 		// Even if a `case` condition (e.g., `case 1:`) in a `switch` statement is executed,
 		// the condition itself is not included in the coverage; coverage only recorded for the
 		// code block inside the corresponding `case` clause.
 		return false
+	case *ast.LabeledStmt:
+		return isExecutableLine(n.Stmt)
 	case *ast.FuncDecl:
 		return false
 	case *ast.BlockStmt:
 		return false
 	case *ast.DeclStmt:
+		// check inner declarations in the DeclStmt (e.g. `var a, b = 1, 2`)
+		// if there is a value initialization, then the line is executable
+		genDecl, ok := n.Decl.(*ast.GenDecl)
+		if ok && (genDecl.Tok == token.VAR || genDecl.Tok == token.CONST) {
+			for _, spec := range genDecl.Specs {
+				valueSpec, ok := spec.(*ast.ValueSpec)
+				if ok && len(valueSpec.Values) > 0 {
+					return true
+				}
+			}
+		}
 		return false
 	case *ast.ImportSpec, *ast.TypeSpec, *ast.ValueSpec:
 		return false
@@ -539,7 +560,15 @@ func isExecutableLine(node ast.Node) bool {
 		return false
 	case *ast.GenDecl:
 		switch n.Tok {
-		case token.VAR, token.CONST, token.TYPE, token.IMPORT:
+		case token.VAR, token.CONST:
+			for _, spec := range n.Specs {
+				valueSpec, ok := spec.(*ast.ValueSpec)
+				if ok && len(valueSpec.Values) > 0 {
+					return true
+				}
+			}
+			return false
+		case token.TYPE, token.IMPORT:
 			return false
 		default:
 			return true
