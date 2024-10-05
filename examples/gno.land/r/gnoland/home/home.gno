@@ -16,7 +16,7 @@ import (
 
 var (
 	override string
-	admin    = ownable.NewWithAddress("g1manfred47kzduec920z88wfr64ylksmdcedlf5") // @moul
+	admin    = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred by default
 )
 
 func Render(_ string) string {
@@ -269,9 +269,7 @@ func discoverLinks() ui.Element {
 - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 - [Gnoscan](https://gnoscan.io)
 - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-- [Testnet 4](https://test4.gno.land/) (Launched July 2024!)
-- [Testnet 3](https://test3.gno.land/) (archive)
-- [Testnet 2](https://test2.gno.land/) (archive)
+- [Testnet 4](https://test4.gno.land/)
 - Testnet Faucet Hub (soon)
 
 </div><!-- end column-->

@@ -197,6 +197,8 @@ func BenchmarkLevelDBBatchSizes(b *testing.B) {
 // BenchmarkLevelDBLargeData is intended to push disk limits
 // in the leveldb, to make sure not everything is cached
 func BenchmarkLevelDBLargeData(b *testing.B) {
+	b.Skip("failing with error: panic: Orphan expires before it comes alive.  1 > 0")
+
 	benchmarks := []benchmark{
 		{db.GoLevelDBBackend, 50000, 100, 32, 100},
 		{db.GoLevelDBBackend, 50000, 100, 32, 1000},

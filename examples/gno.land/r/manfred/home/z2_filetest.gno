@@ -3,11 +3,11 @@ package main
 import (
 	"std"
 
-	"gno.land/r/moul/home"
+	"gno.land/r/manfred/home"
 )
 
 func main() {
-	std.TestSetOrigCaller("g1manfred47kzduec920z88wfr64ylksmdcedlf5")
+	std.TestSetOrigCaller("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq")
 	home.AddNewTodo("aaa")
 	home.AddNewTodo("bbb")
 	home.AddNewTodo("ccc")
