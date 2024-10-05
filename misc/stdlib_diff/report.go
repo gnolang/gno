@@ -66,9 +66,10 @@ func NewReportBuilder(srcPath, dstPath, outDir string, srcIsGno bool) (*ReportBu
 	}
 
 	return &ReportBuilder{
-		SrcPath:         srcPath,
-		DstPath:         dstPath,
-		OutDir:          outDir,
+		// Trim suffix / in order to standardize paths accept path with or without `/`
+		SrcPath:         strings.TrimSuffix(srcPath, `/`),
+		DstPath:         strings.TrimSuffix(dstPath, `/`),
+		OutDir:          strings.TrimSuffix(outDir, `/`),
 		SrcIsGno:        srcIsGno,
 		packageTemplate: packageTemplate,
 		indexTemplate:   indexTemplate,
