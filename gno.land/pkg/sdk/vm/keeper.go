@@ -65,6 +65,9 @@ type VMKeeper struct {
 
 	domain    string // chain domain
 	maxCycles int64  // max allowed cylces on VM executions
+
+	// internal
+	reNamespace *regexp.Regexp
 }
 
 // NewVMKeeper returns a new VMKeeper.
@@ -85,6 +88,9 @@ func NewVMKeeper(
 		domain:    chainDomain,
 		maxCycles: maxCycles,
 	}
+
+	// Namespace can be either a user or crypto address.
+	vmk.reNamespace = regexp.MustCompile(`^` + chainDomain + `/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 	return vmk
 }
 
@@ -192,6 +198,7 @@ func loadStdlibPackage(pkgPath, stdlibDir string, store gno.Store) {
 	}
 
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
+		// XXX: gno.land, vm.domain, other?
 		PkgPath: "gno.land/r/stdlibs/" + pkgPath,
 		// PkgPath: pkgPath, XXX why?
 		Output: os.Stdout,
@@ -226,16 +233,13 @@ func (vm *VMKeeper) getGnoTransactionStore(ctx sdk.Context) gno.TransactionStore
 	return txStore
 }
 
-// Namespace can be either a user or crypto address.
-var reNamespace = regexp.MustCompile(`^gno.land/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
-
 // checkNamespacePermission check if the user as given has correct permssion to on the given pkg path
 func (vm *VMKeeper) checkNamespacePermission(ctx sdk.Context, creator crypto.Address, pkgPath string) error {
-	const sysUsersPkg = "gno.land/r/sys/users"
+	sysUsersPkg := vm.domain + "/r/sys/users" // configurable through sys/params
 
 	store := vm.getGnoTransactionStore(ctx)
 
-	match := reNamespace.FindStringSubmatch(pkgPath)
+	match := vm.reNamespace.FindStringSubmatch(pkgPath)
 	switch len(match) {
 	case 0:
 		return ErrInvalidPkgPath(pkgPath) // no match
@@ -533,7 +537,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	// coerce path to right one.
 	// the path in the message must be "" or the following path.
 	// this is already checked in MsgRun.ValidateBasic
-	memPkg.Path = "gno.land/r/" + msg.Caller.String() + "/run"
+	memPkg.Path = vm.domain + "/r/" + msg.Caller.String() + "/run"
 
 	// Validate arguments.
 	callerAcc := vm.acck.GetAccount(ctx, caller)
@@ -559,6 +563,7 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	// Parse and run the files, construct *PV.
 	msgCtx := stdlibs.ExecContext{
 		ChainID:       ctx.ChainID(),
+		ChainDomain:   vm.domain,
 		Height:        ctx.BlockHeight(),
 		Timestamp:     ctx.BlockTime().Unix(),
 		Msg:           msg,
