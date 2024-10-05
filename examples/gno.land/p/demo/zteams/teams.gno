@@ -40,12 +40,12 @@ func (tm *TeamManager) GetTeam(teamAddress std.Address) (*Team, error) {
 }
 
 // Helper function to check if a user is the Owner of a team.
-func (tm *TeamManager) isOwner(team *Team, userAddress std.Address) bool {
+func (team *Team) isOwner(userAddress std.Address) bool {
     return team.Owner == userAddress
 }
 
 // Helper function to check if a user is an Admin of a team.
-func (tm *TeamManager) isAdmin(team *Team, userAddress std.Address) bool {
+func (team *Team) isAdmin(userAddress std.Address) bool {
     return team.Admins[userAddress.String()]
 }
 
@@ -56,7 +56,7 @@ func (tm *TeamManager) DesignateAdmin(teamAddress std.Address, userAddress std.A
         return err
     }
 
-    if !tm.isOwner(team, requester) {
+    if !team.isOwner(requester) {
         return ErrNotOwner
     }
 
@@ -72,7 +72,7 @@ func (tm *TeamManager) RemoveAdmin(teamAddress std.Address, userAddress std.Addr
         return err
     }
 
-    if !tm.isOwner(team, requester) {
+    if !teamm.isOwner(requester) {
         return ErrNotOwner
     }
 
@@ -89,7 +89,7 @@ func (tm *TeamManager) AssignDisbursePermission(teamAddress std.Address, userAdd
     }
 
     // Only Owner or Admin can assign disburse permissions.
-    if !tm.isOwner(team, requester) && !tm.isAdmin(team, requester) {
+    if !team.isOwner(requester) && !team.isAdmin(requester) {
         return ErrNotAuthorized
     }
 
@@ -107,7 +107,7 @@ func (tm *TeamManager) RemoveDisbursePermission(teamAddress std.Address, userAdd
     }
 
     // Only Owner or Admin can remove disburse permissions.
-    if !tm.isOwner(team, requester) && !tm.isAdmin(team, requester) {
+    if !team.isOwner(requester) && !team.isAdmin(requester) {
         return ErrNotAuthorized
     }
 
@@ -128,7 +128,7 @@ func (tm *TeamManager) CanDisburse(teamAddress std.Address, userAddress std.Addr
     if err != nil {
         return false
     }
-    return tm.isOwner(team, userAddress) || tm.isAdmin(team, userAddress) || team.Disbursers[userAddress.String()]
+    return team.isOwner(userAddress) || team.isAdmin(userAddress) || team.Disbursers[userAddress.String()]
 }
 
 // Adds a team to the TeamManager.
@@ -153,7 +153,7 @@ func (tm *TeamManager) AddUserToTeam(teamAddress std.Address, user users.User, r
         return err
     }
 
-    if !tm.isOwner(team, requester) && !tm.isAdmin(team, requester) {
+    if !team.isOwner(requester) && !team.isAdmin(requester) {
         return ErrNotAuthorized
     }
 
@@ -184,7 +184,7 @@ func (tm *TeamManager) RemoveUserFromTeam(teamAddress std.Address, userAddress s
         return err
     }
 
-    if !tm.isOwner(team, requester) && !tm.isAdmin(team, requester) {
+    if !team.isOwner(requester) && !team.isAdmin(requester) {
         return ErrNotAuthorized
     }
 
