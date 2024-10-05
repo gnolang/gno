@@ -1,7 +1,7 @@
 package markdown
 
 import (
-	"fmt"
+	"gno.land/p/demo/ufmt"
 	"strings"
 )
 
@@ -16,7 +16,7 @@ func (t *Table) ValidateColumns() error {
 	numCols := len(t.header)
 	for _, row := range t.rows {
 		if len(row) != numCols {
-			return fmt.Errorf("row %v does not match header length %d", row, numCols)
+			return ufmt.Errorf("row %v does not match header length %d", row, numCols)
 		}
 	}
 	return nil
@@ -57,7 +57,7 @@ func (t *Table) String() string {
 // AddRow adds a new row to the table
 func (t *Table) AddRow(row []string) error {
 	if len(row) != len(t.header) {
-		return fmt.Errorf("row %v does not match header length %d", row, len(t.header))
+		return ufmt.Errorf("row %v does not match header length %d", row, len(t.header))
 	}
 	t.rows = append(t.rows, row)
 	return nil
@@ -66,7 +66,7 @@ func (t *Table) AddRow(row []string) error {
 // AddColumn adds a new column to the table with the specified values
 func (t *Table) AddColumn(header string, values []string) error {
 	if len(values) != len(t.rows) {
-		return fmt.Errorf("values length %d does not match the number of rows %d", len(values), len(t.rows))
+		return ufmt.Errorf("values length %d does not match the number of rows %d", len(values), len(t.rows))
 	}
 
 	// Add the new header
@@ -82,7 +82,7 @@ func (t *Table) AddColumn(header string, values []string) error {
 // RemoveRow removes a row from the table by its index
 func (t *Table) RemoveRow(index int) error {
 	if index < 0 || index >= len(t.rows) {
-		return fmt.Errorf("index %d is out of range", index)
+		return ufmt.Errorf("index %d is out of range", index)
 	}
 	t.rows = append(t.rows[:index], t.rows[index+1:]...)
 	return nil
@@ -91,7 +91,7 @@ func (t *Table) RemoveRow(index int) error {
 // RemoveColumn removes a column from the table by its index
 func (t *Table) RemoveColumn(index int) error {
 	if index < 0 || index >= len(t.header) {
-		return fmt.Errorf("index %d is out of range", index)
+		return ufmt.Errorf("index %d is out of range", index)
 	}
 
 	// Remove the column from the header
