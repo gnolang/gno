@@ -28,11 +28,14 @@ func IsRealmPath(pkgPath string) bool {
 
 // IsStdlib determines whether s is a pkgpath for a standard library.
 func IsStdlib(s string) bool {
-	// NOTE(morgan): this is likely to change in the future as we add support for
-	// IBC/ICS and we allow import paths to other chains. It might be good to
-	// (eventually) follow the same rule as Go, which is: does the first
-	// element of the import path contain a dot?
-	return !strings.HasPrefix(s, "gno.land/")
+	parts := strings.Split(s, "/")
+	if len(parts) > 0 {
+		// Check if the first part contains a dot
+		if strings.Contains(parts[0], ".") {
+			return false // It's a domain, so it's not part of the standard library
+		}
+	}
+	return true
 }
 
 // ----------------------------------------
