@@ -17,7 +17,7 @@ func BenchmarkCoinsAdditionIntersect(b *testing.B) {
 			if numCoinsB > numCoinsA {
 				maxCoins = numCoinsB
 			}
-			denomLength := len(fmt.Sprintf("%d", maxCoins-1))
+			denomLength := len(fmt.Sprint(maxCoins))
 
 			for i := 0; i < numCoinsA; i++ {
 				denom := fmt.Sprintf("coinz_%0*d", denomLength, i)
@@ -56,7 +56,7 @@ func BenchmarkCoinsAdditionNoIntersect(b *testing.B) {
 			if numCoinsB > numCoinsA {
 				maxCoins = numCoinsB
 			}
-			denomLength := len(fmt.Sprintf("%d", maxCoins-1))
+			denomLength := len(fmt.Sprint(maxCoins))
 
 			for i := 0; i < numCoinsA; i++ {
 				denom := fmt.Sprintf("coinz_%0*d", denomLength, i)
