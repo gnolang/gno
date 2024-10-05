@@ -3,16 +3,20 @@
     {{- range .}}
     {{- if eq .Operation 1}}
     <div style="display: flex; color: #07ca07;">
-    <span style="user-select: none;">-</span><p>{{.Line}}</p> 
+    <span style="user-select: none; min-width: 50px;">{{.Number}} </span><p>{{.Line}}</p> 
     </div>
     {{- else if eq .Operation 2}}
     <div style="display: flex; color: red;">
-        <span style="user-select: none;">+</span><p>{{.Line}}</p> 
+        <span style="user-select: none; min-width: 50px;">{{.Number}} </span><p>{{.Line}}</p> 
     </div>
-    {{- else if eq .Line ""}}
-    <br />
+   
+    {{- else if eq .Operation 3}}
+    <div div style="display: flex;">
+        <span style="user-select: none; min-width: 50px;">{{.Number}}</span>
+        <p style="opacity: 0.75;">{{.Line}}</p>
+    </div>
     {{- else}}
-    <p style="opacity: 0.75;">{{.Line}}</p>
+    <span style="user-select: none;"></span><p>{{.Line}}</p> 
     {{- end}}
     {{- end}}
 </div>
