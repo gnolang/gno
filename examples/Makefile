@@ -45,7 +45,7 @@ test:
 
 .PHONY: lint
 lint:
-	go run ../gnovm/cmd/gno lint $(OFFICIAL_PACKAGES)
+	go run ../gnovm/cmd/gno lint -v $(OFFICIAL_PACKAGES)
 
 .PHONY: test.sync
 test.sync:
