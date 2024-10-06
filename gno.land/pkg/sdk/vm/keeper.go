@@ -90,7 +90,7 @@ func NewVMKeeper(
 	}
 
 	// Namespace can be either a user or crypto address.
-	vmk.reNamespace = regexp.MustCompile(`^` + chainDomain + `/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
+	vmk.reNamespace = regexp.MustCompile(`^` + regexp.QuoteMeta(chainDomain) + `/(?:r|p)/([\.~_a-zA-Z0-9]+)`)
 	return vmk
 }
 
