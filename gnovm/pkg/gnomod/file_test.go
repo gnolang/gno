@@ -14,7 +14,7 @@ import (
 	"golang.org/x/mod/module"
 )
 
-const testRemote string = "test3.gno.land:26657"
+const testRemote string = "gno.land:26657" // XXX(race condition): test with a local node so that this test is consistent with git and not with a deploy
 
 func TestFetchDeps(t *testing.T) {
 	for _, tc := range []struct {
@@ -68,7 +68,7 @@ func TestFetchDeps(t *testing.T) {
 				"cached gno.land/p/demo/avl",
 			},
 		}, {
-			desc: "fetch_gno.land/p/demo/blog",
+			desc: "fetch_gno.land/p/demo/blog6",
 			modFile: File{
 				Module: &modfile.Module{
 					Mod: module.Version{
@@ -84,7 +84,7 @@ func TestFetchDeps(t *testing.T) {
 					},
 				},
 			},
-			requirements: []string{"avl", "blog", "ufmt"},
+			requirements: []string{"avl", "blog", "ufmt", "mux"},
 			stdOutContains: []string{
 				"fetching gno.land/p/demo/blog",
 				"fetching gno.land/p/demo/avl // indirect",

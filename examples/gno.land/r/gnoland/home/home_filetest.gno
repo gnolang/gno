@@ -56,9 +56,7 @@ func main() {
 // - [Discover demo packages](https://github.com/gnolang/gno/tree/master/examples)
 // - [Gnoscan](https://gnoscan.io)
 // - [Portal Loop](https://docs.gno.land/concepts/portal-loop)
-// - [Testnet 4](https://test4.gno.land/) (Launched July 2024!)
-// - [Testnet 3](https://test3.gno.land/) (archive)
-// - [Testnet 2](https://test2.gno.land/) (archive)
+// - [Testnet 4](https://test4.gno.land/)
 // - Testnet Faucet Hub (soon)
 //
 // </div><!-- end column-->
