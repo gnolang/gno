@@ -21,7 +21,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store/types"
 )
 
-var coinsString = ugnot.ValueString(10000000)
+var coinsString = ugnot.ValueString(10_000_000)
 
 func TestVMKeeperAddPackage(t *testing.T) {
 	env := setupTestEnv()
@@ -65,6 +65,43 @@ func Echo() string {return "hello world"}`,
 func Echo() string { return "hello world" }
 `
 	assert.Equal(t, expected, memFile.Body)
+}
+
+func TestVMKeeperAddPackage_InvalidDomain(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// Create test package.
+	files := []*std.MemFile{
+		{
+			Name: "test.gno",
+			Body: `package test
+func Echo() string {return "hello world"}`,
+		},
+	}
+	pkgPath := "anotherdomain.land/r/test"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+
+	err := env.vmk.AddPackage(ctx, msg1)
+
+	assert.Error(t, err, ErrInvalidPkgPath("invalid domain: anotherdomain.land/r/test"))
+	assert.Nil(t, env.vmk.getGnoTransactionStore(ctx).GetPackage(pkgPath, false))
+
+	err = env.vmk.AddPackage(ctx, msg1)
+	assert.Error(t, err, ErrInvalidPkgPath("invalid domain: anotherdomain.land/r/test"))
+
+	// added package is formatted
+	store := env.vmk.getGnoTransactionStore(ctx)
+	memFile := store.GetMemFile("gno.land/r/test", "test.gno")
+	assert.Nil(t, memFile)
 }
 
 // Sending total send amount succeeds.
