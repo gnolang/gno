@@ -1,5 +1,10 @@
 package p2p
 
+import "fmt"
+
+// SwitchOption is a callback used for configuring the p2p Switch
+type SwitchOption func(*Switch)
+
 // WithPeerFilters sets the filters for rejection of new peers.
 func WithPeerFilters(filters ...PeerFilterFunc) SwitchOption {
 	return func(sw *Switch) {
@@ -7,16 +12,31 @@ func WithPeerFilters(filters ...PeerFilterFunc) SwitchOption {
 	}
 }
 
-// WithNodeInfo sets the node info for the p2p switch
-func WithNodeInfo(ni NodeInfo) SwitchOption {
+// WithReactor sets the p2p switch reactors
+func WithReactor(name string, reactor Reactor) SwitchOption {
 	return func(sw *Switch) {
-		sw.nodeInfo = ni
+		for _, chDesc := range reactor.GetChannels() {
+			chID := chDesc.ID
+			// No two reactors can share the same channel
+			if sw.reactorsByCh[chID] != nil {
+				panic(fmt.Sprintf("Channel %X has multiple reactors %v & %v", chID, sw.reactorsByCh[chID], reactor))
+			}
+
+			sw.chDescs = append(sw.chDescs, chDesc)
+			sw.reactorsByCh[chID] = reactor
+		}
+
+		sw.reactors[name] = reactor
+
+		reactor.SetSwitch(sw)
 	}
 }
 
-// WithNodeKey sets the node p2p key, utilized by the switch
-func WithNodeKey(key *NodeKey) SwitchOption {
+// WithPersistentPeers sets the p2p switch's persistent peer set
+func WithPersistentPeers(peerAddrs []*NetAddress) SwitchOption {
 	return func(sw *Switch) {
-		sw.nodeKey = key
+		for _, addr := range peerAddrs {
+			sw.persistentPeers.Store(addr.ID, addr)
+		}
 	}
 }

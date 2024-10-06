@@ -14,7 +14,7 @@ type MultiplexConnConfig struct {
 	MConfig      connm.MConnConfig
 	ReactorsByCh map[byte]Reactor
 	ChDescs      []*connm.ChannelDescriptor
-	OnPeerError  func(Peer, interface{})
+	OnPeerError  func(Peer, error)
 }
 
 // ConnInfo wraps the remote peer connection
@@ -225,7 +225,7 @@ func (p *peer) createMConnection(
 		reactor.Receive(chID, p, msgBytes)
 	}
 
-	onError := func(r any) {
+	onError := func(r error) {
 		config.OnPeerError(p, r)
 	}
 

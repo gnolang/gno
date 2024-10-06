@@ -20,7 +20,6 @@ const (
 
 	inboundPeersKey  = "inbound_peers_hist"
 	outboundPeersKey = "outbound_peers_hist"
-	dialingPeersKey  = "dialing_peers_hist"
 
 	numMempoolTxsKey = "num_mempool_txs_hist"
 	numCachedTxsKey  = "num_cached_txs_hist"
@@ -49,9 +48,6 @@ var (
 
 	// OutboundPeers measures the active number of outbound peers
 	OutboundPeers metric.Int64Histogram
-
-	// DialingPeers measures the active number of peers in the dialing state
-	DialingPeers metric.Int64Histogram
 
 	// Mempool //
 
@@ -154,14 +150,6 @@ func Init(config config.Config) error {
 	otel.SetMeterProvider(provider)
 	meter := provider.Meter(config.MeterName)
 
-	if BroadcastTxTimer, err = meter.Int64Histogram(
-		broadcastTxTimerKey,
-		metric.WithDescription("broadcast tx duration"),
-		metric.WithUnit("ms"),
-	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
-	}
-
 	if BuildBlockTimer, err = meter.Int64Histogram(
 		buildBlockTimerKey,
 		metric.WithDescription("block build duration"),
@@ -181,13 +169,6 @@ func Init(config config.Config) error {
 	if OutboundPeers, err = meter.Int64Histogram(
 		outboundPeersKey,
 		metric.WithDescription("outbound peer count"),
-	); err != nil {
-		return fmt.Errorf("unable to create histogram, %w", err)
-	}
-
-	if DialingPeers, err = meter.Int64Histogram(
-		dialingPeersKey,
-		metric.WithDescription("dialing peer count"),
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}

@@ -2,36 +2,18 @@ package p2p
 
 import (
 	"context"
-	"crypto/rand"
 	"fmt"
-	"math"
-	"math/big"
 	"sync"
 	"time"
 
-	"github.com/gnolang/gno/tm2/pkg/cmap"
 	"github.com/gnolang/gno/tm2/pkg/p2p/config"
 	"github.com/gnolang/gno/tm2/pkg/p2p/conn"
+	"github.com/gnolang/gno/tm2/pkg/p2p/dial"
+	"github.com/gnolang/gno/tm2/pkg/p2p/events"
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
 	"golang.org/x/sync/errgroup"
-)
-
-const (
-	// wait a random amount of time from this interval
-	// before dialing peers or reconnecting to help prevent DoS
-	dialRandomizerIntervalMilliseconds = 3000
-
-	// repeatedly try to reconnect for a few minutes
-	// ie. 5 * 20 = 100s
-	reconnectAttempts = 20
-	reconnectInterval = 5 * time.Second
-
-	// then move into exponential backoff mode for ~1day
-	// ie. 3**10 = 16hrs
-	reconnectBackOffAttempts    = 10
-	reconnectBackOffBaseSeconds = 3
 )
 
 // MultiplexConfigFromP2P returns a multiplex connection configuration
@@ -56,16 +38,11 @@ type PeerFilterFunc func(PeerSet, Peer) error
 type Switch struct {
 	service.BaseService
 
-	config       *config.P2PConfig // TODO remove this dependency
-	reactors     map[string]Reactor
-	chDescs      []*conn.ChannelDescriptor
-	reactorsByCh map[byte]Reactor
+	config *config.P2PConfig // TODO remove this dependency
 
-	dialing      *cmap.CMap
-	reconnecting *cmap.CMap
-
-	nodeInfo NodeInfo // our node info
-	nodeKey  *NodeKey // our node privkey
+	reactors     map[string]Reactor        // TODO wrap
+	chDescs      []*conn.ChannelDescriptor // TODO wrap
+	reactorsByCh map[byte]Reactor          // TODO wrap
 
 	peers           PeerSet  // currently active peer set
 	persistentPeers sync.Map // ID -> *NetAddress; peers whose connections are constant
@@ -73,17 +50,10 @@ type Switch struct {
 
 	filterTimeout time.Duration
 	peerFilters   []PeerFilterFunc
+
+	dialQueue *dial.Queue
+	events    *events.Events
 }
-
-// NetAddress returns the address the switch is listening on.
-func (sw *Switch) NetAddress() *NetAddress {
-	addr := sw.transport.NetAddress()
-
-	return &addr
-}
-
-// SwitchOption sets an optional parameter on the Switch.
-type SwitchOption func(*Switch)
 
 // NewSwitch creates a new Switch with the given config.
 func NewSwitch(
@@ -97,10 +67,10 @@ func NewSwitch(
 		chDescs:       make([]*conn.ChannelDescriptor, 0),
 		reactorsByCh:  make(map[byte]Reactor),
 		peers:         NewSet(),
-		dialing:       cmap.NewCMap(),
-		reconnecting:  cmap.NewCMap(),
 		transport:     transport,
 		filterTimeout: defaultFilterTimeout,
+		dialQueue:     dial.NewQueue(),
+		events:        events.New(),
 	}
 
 	sw.BaseService = *service.NewBaseService(nil, "P2P Switch", sw)
@@ -112,57 +82,17 @@ func NewSwitch(
 	return sw
 }
 
-// AddReactor adds the given reactor to the switch.
-// NOTE: Not goroutine safe.
-func (sw *Switch) AddReactor(name string, reactor Reactor) Reactor {
-	for _, chDesc := range reactor.GetChannels() {
-		chID := chDesc.ID
-		// No two reactors can share the same channel.
-		if sw.reactorsByCh[chID] != nil {
-			panic(fmt.Sprintf("Channel %X has multiple reactors %v & %v", chID, sw.reactorsByCh[chID], reactor))
-		}
+// NetAddress returns the address the switch is listening on.
+func (sw *Switch) NetAddress() *NetAddress {
+	addr := sw.transport.NetAddress()
 
-		sw.chDescs = append(sw.chDescs, chDesc)
-		sw.reactorsByCh[chID] = reactor
-	}
-
-	sw.reactors[name] = reactor
-
-	reactor.SetSwitch(sw)
-
-	return reactor
+	return &addr
 }
 
-// RemoveReactor removes the given Reactor from the Switch.
-// NOTE: Not goroutine safe.
-func (sw *Switch) RemoveReactor(name string, reactor Reactor) {
-	for _, chDesc := range reactor.GetChannels() {
-		// remove channel description
-		for i := 0; i < len(sw.chDescs); i++ {
-			if chDesc.ID == sw.chDescs[i].ID {
-				sw.chDescs = append(sw.chDescs[:i], sw.chDescs[i+1:]...)
-				break
-			}
-		}
-
-		delete(sw.reactorsByCh, chDesc.ID)
-	}
-
-	delete(sw.reactors, name)
-
-	reactor.SetSwitch(nil)
-}
-
-// Reactor returns the reactor with the given name.
-// NOTE: Not goroutine safe.
-func (sw *Switch) Reactor(name string) Reactor {
-	return sw.reactors[name]
-}
-
-// NodeInfo returns the switch's NodeInfo.
-// NOTE: Not goroutine safe.
-func (sw *Switch) NodeInfo() NodeInfo {
-	return sw.nodeInfo
+// Subscribe registers to live events happening on the p2p Switch.
+// Returns the notification channel, along with an unsubscribe method
+func (sw *Switch) Subscribe(filterFn events.EventFilter) (<-chan events.Event, func()) {
+	return sw.events.Subscribe(filterFn)
 }
 
 // ---------------------------------------------------------------------
@@ -180,6 +110,14 @@ func (sw *Switch) OnStart() error {
 	// Run the peer accept routine
 	// TODO propagate ctx down
 	go sw.runAcceptLoop(context.Background())
+
+	// Run the dial routine
+	// TODO propagate ctx down
+	go sw.runDialLoop(context.Background())
+
+	// Run the redial routine
+	// TODO propagate ctx down
+	go sw.runRedialLoop(context.Background())
 
 	return nil
 }
@@ -241,27 +179,43 @@ func (sw *Switch) Peers() PeerSet {
 // StopPeerForError disconnects from a peer due to external error.
 // If the peer is persistent, it will attempt to reconnect.
 // TODO: make record depending on reason.
-func (sw *Switch) StopPeerForError(peer Peer, reason interface{}) {
-	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", reason)
-	sw.stopAndRemovePeer(peer, reason)
+func (sw *Switch) StopPeerForError(peer Peer, err error) {
+	sw.Logger.Error("Stopping peer for error", "peer", peer, "err", err)
 
-	if peer.IsPersistent() {
-		var addr *NetAddress
-		if peer.IsOutbound() { // socket address for outbound peers
-			addr = peer.SocketAddr()
-		} else { // self-reported address for inbound peers
-			addr = peer.NodeInfo().NetAddress
-		}
-		go sw.reconnectToPeer(addr)
+	sw.stopAndRemovePeer(peer, err)
+
+	if !peer.IsPersistent() {
+		return
 	}
+
+	// socket address for outbound peers
+	addr := peer.SocketAddr()
+
+	if !peer.IsOutbound() {
+		// self-reported address for inbound peers
+		addr = peer.NodeInfo().NetAddress
+	}
+
+	// Add the peer to the dial queue
+	sw.DialPeers(addr)
 }
 
-func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
+func (sw *Switch) stopAndRemovePeer(peer Peer, err error) {
+	// Remove the peer from the transport
 	sw.transport.Cleanup(peer)
-	peer.Stop()
 
+	// Stop the peer connection multiplexing
+	if stopErr := peer.Stop(); stopErr != nil {
+		sw.Logger.Error(
+			"unable to gracefully stop peer",
+			"peer", peer,
+			"err", err,
+		)
+	}
+
+	// Alert the reactors of a peer removal
 	for _, reactor := range sw.reactors {
-		reactor.RemovePeer(peer, reason)
+		reactor.RemovePeer(peer, err)
 	}
 
 	// Removing a peer should go last to avoid a situation where a peer
@@ -271,184 +225,136 @@ func (sw *Switch) stopAndRemovePeer(peer Peer, reason interface{}) {
 	sw.peers.Remove(peer.ID())
 }
 
-// reconnectToPeer tries to reconnect to the addr, first repeatedly
-// with a fixed interval, then with exponential backoff.
-// If no success after all that, it stops trying.
-// NOTE: this will keep trying even if the handshake or auth fails.
-// TODO: be more explicit with error types so we only retry on certain failures
-//   - ie. if we're getting ErrDuplicatePeer we can stop
-func (sw *Switch) reconnectToPeer(addr *NetAddress) {
-	if sw.reconnecting.Has(addr.ID.String()) {
-		return
-	}
-	sw.reconnecting.Set(addr.ID.String(), addr)
-	defer sw.reconnecting.Delete(addr.ID.String())
-
-	start := time.Now()
-	sw.Logger.Info("Reconnecting to peer", "addr", addr)
-	for i := 0; i < reconnectAttempts; i++ {
-		if !sw.IsRunning() {
-			return
-		}
-
-		err := sw.dialPeerWithAddress(addr)
-		if err == nil {
-			return // success
-		} else if _, ok := err.(CurrentlyDialingOrExistingAddressError); ok {
-			return
-		}
-
-		sw.Logger.Info("Error reconnecting to peer. Trying again", "tries", i, "err", err, "addr", addr)
-		// sleep a set amount
-		sw.randomSleep(reconnectInterval)
-		continue
-	}
-
-	sw.Logger.Error("Failed to reconnect to peer. Beginning exponential backoff",
-		"addr", addr, "elapsed", time.Since(start))
-	for i := 0; i < reconnectBackOffAttempts; i++ {
-		if !sw.IsRunning() {
-			return
-		}
-
-		// sleep an exponentially increasing amount
-		sleepIntervalSeconds := math.Pow(reconnectBackOffBaseSeconds, float64(i))
-		sw.randomSleep(time.Duration(sleepIntervalSeconds) * time.Second)
-
-		err := sw.dialPeerWithAddress(addr)
-		if err == nil {
-			return // success
-		} else if _, ok := err.(CurrentlyDialingOrExistingAddressError); ok {
-			return
-		}
-		sw.Logger.Info("Error reconnecting to peer. Trying again", "tries", i, "err", err, "addr", addr)
-	}
-	sw.Logger.Error("Failed to reconnect to peer. Giving up", "addr", addr, "elapsed", time.Since(start))
-}
-
 // ---------------------------------------------------------------------
 // Dialing
 
-// DialPeersAsync dials a list of peers asynchronously in random order.
-// Used to dial peers from config on startup or from unsafe-RPC (trusted sources).
-// It ignores NetAddressLookupError. However, if there are other errors, first
-// encounter is returned.
-// Nop if there are no peers.
-func (sw *Switch) DialPeersAsync(peers []string) error {
-	netAddrs, errs := NewNetAddressFromStrings(peers)
-	// report all the errors
-	for _, err := range errs {
-		sw.Logger.Error("Error in peer's address", "err", err)
-	}
-	// return first non-NetAddressLookupError error
-	for _, err := range errs {
-		if _, ok := err.(NetAddressLookupError); ok {
-			continue
-		}
-		return err
-	}
-	sw.dialPeersAsync(netAddrs)
-	return nil
-}
+func (sw *Switch) runDialLoop(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			sw.Logger.Debug("dial context canceled")
 
-func (sw *Switch) dialPeersAsync(netAddrs []*NetAddress) {
-	var (
-		ourAddr = sw.NetAddress()
+			return
+		default:
+			// Grab a dial item
+			item := sw.dialQueue.Peek()
+			if item == nil {
+				// Nothing to dial
+				continue
+			}
 
-		wg sync.WaitGroup
-	)
+			// Check if the dial time is right
+			// for the item
+			if time.Now().Before(item.Time) {
+				// Nothing to dial
+				continue
+			}
 
-	wg.Add(len(netAddrs))
+			// Dial the peer
+			sw.Logger.Info(
+				"dialing peer",
+				"address", item.Address.String(),
+			)
 
-	for _, peerAddr := range netAddrs {
-		go func(addr *NetAddress) {
-			defer wg.Done()
+			peerAddr := item.Address
 
-			if addr.Same(ourAddr) {
-				sw.Logger.Debug(
-					"ignoring self-dial attempt",
-					"addr",
-					addr,
+			// TODO pass context to dial
+			p, err := sw.transport.Dial(*peerAddr, peerConfig{
+				chDescs:     sw.chDescs,
+				onPeerError: sw.StopPeerForError,
+				isPersistent: func(address *NetAddress) bool {
+					return sw.isPersistentPeer(address.ID)
+				},
+				reactorsByCh: sw.reactorsByCh,
+			})
+			if err != nil {
+				sw.Logger.Error(
+					"unable to dial peer",
+					"peer", peerAddr,
+					"err", err,
 				)
 
-				return
+				continue
 			}
 
-			sw.randomSleep(0) // TODO remove this
+			// Register the peer with the switch
+			if err = sw.addPeer(p); err != nil {
+				sw.Logger.Error(
+					"unable to add peer",
+					"peer", p,
+					"err", err,
+				)
 
-			if err := sw.dialPeerWithAddress(addr); err != nil {
-				sw.Logger.Debug("Error dialing peer", "err", err)
+				sw.transport.Cleanup(p)
+
+				if !p.IsRunning() {
+					// TODO check if this check is even required
+					continue
+				}
+
+				if stopErr := p.Stop(); stopErr != nil {
+					sw.Logger.Error(
+						"unable to gracefully stop peer",
+						"peer", p,
+						"err", stopErr,
+					)
+				}
 			}
-		}(peerAddr)
-	}
 
-	wg.Wait()
-}
-
-// dialPeerWithAddress dials the given peer and runs sw.addPeer if it connects
-// and authenticates successfully.
-// If we're currently dialing this address or it belongs to an existing peer,
-// CurrentlyDialingOrExistingAddressError is returned.
-func (sw *Switch) dialPeerWithAddress(addr *NetAddress) error {
-	if sw.isDialingOrExistingAddress(addr) {
-		return CurrentlyDialingOrExistingAddressError{addr.String()}
-	}
-
-	// TODO clean up
-	sw.dialing.Set(addr.ID.String(), addr)
-	defer sw.dialing.Delete(addr.ID.String())
-
-	return sw.addOutboundPeerWithConfig(addr)
-}
-
-// sleep for interval plus some random amount of ms on [0, dialRandomizerIntervalMilliseconds]
-func (sw *Switch) randomSleep(interval time.Duration) {
-	r, err := rand.Int(rand.Reader, big.NewInt(dialRandomizerIntervalMilliseconds))
-	if err != nil {
-		sw.Logger.Error("unable to generate random sleep value", "err", err)
-
-		return
-	}
-
-	duration := time.Duration(r.Uint64()) * time.Millisecond
-
-	time.Sleep(duration + interval)
-}
-
-// isDialingOrExistingAddress returns true if switch has a peer with the given
-// address or dialing it at the moment.
-func (sw *Switch) isDialingOrExistingAddress(addr *NetAddress) bool {
-	return sw.dialing.Has(addr.ID.String()) ||
-		sw.peers.Has(addr.ID) ||
-		(!sw.config.AllowDuplicateIP && sw.peers.HasIP(addr.IP))
-}
-
-// AddPersistentPeers allows you to set persistent peers. It ignores
-// NetAddressLookupError. However, if there are other errors, first encounter is
-// returned.
-// TODO change to net addresses
-// TODO make an option
-func (sw *Switch) AddPersistentPeers(addrs []string) error {
-	sw.Logger.Info("Adding persistent peers", "addrs", addrs)
-	netAddrs, errs := NewNetAddressFromStrings(addrs)
-	// report all the errors
-	for _, err := range errs {
-		sw.Logger.Error("Error in peer's address", "err", err)
-	}
-	// return first non-NetAddressLookupError error
-	for _, err := range errs {
-		if _, ok := err.(NetAddressLookupError); ok {
-			continue
+			// Log the telemetry
+			sw.logTelemetry()
 		}
-		return err
 	}
+}
 
-	// Set the persistent peers
-	for _, peerAddr := range netAddrs {
-		sw.persistentPeers.Store(peerAddr.ID, peerAddr)
+// runRedialLoop starts the persistent peer redial loop
+func (sw *Switch) runRedialLoop(ctx context.Context) {
+	// Set up the event subscription for persistent peer disconnects
+	subCh, unsubFn := sw.Subscribe(func(event events.Event) bool {
+		// Make sure the peer event relates to a peer disconnect
+		if event.Type() != events.PeerDisconnected {
+			return false
+		}
+
+		disconnectEv, ok := event.(*events.PeerDisconnectedEvent)
+		if !ok {
+			return false
+		}
+
+		return sw.isPersistentPeer(disconnectEv.PeerID)
+	})
+	defer unsubFn()
+
+	for {
+		select {
+		case <-ctx.Done():
+			sw.Logger.Debug("redial context canceled")
+
+			return
+		case ev := <-subCh:
+			disconnectEv, ok := ev.(*events.PeerDisconnectedEvent)
+			if !ok {
+				continue
+			}
+
+			// Dial the disconnected peer
+			// TODO add backoff mechanism
+			sw.DialPeers(&disconnectEv.Address)
+		}
 	}
+}
 
-	return nil
+// DialPeers adds the peers to the dial queue for async dialing.
+// To monitor dial progress, subscribe to adequate p2p Switch events
+func (sw *Switch) DialPeers(peerAddrs ...*NetAddress) {
+	for _, peerAddr := range peerAddrs {
+		item := dial.Item{
+			Time:    time.Now(),
+			Address: peerAddr,
+		}
+
+		sw.dialQueue.Push(item)
+	}
 }
 
 // isPersistentPeer returns a flag indicating if a peer
@@ -478,7 +384,6 @@ func (sw *Switch) runAcceptLoop(ctx context.Context) {
 					return sw.isPersistentPeer(address.ID)
 				},
 			})
-
 			if err != nil {
 				sw.Logger.Error(
 					"error encountered during peer connection accept",
@@ -518,50 +423,6 @@ func (sw *Switch) runAcceptLoop(ctx context.Context) {
 			}
 		}
 	}
-}
-
-// dial the peer; make secret connection; authenticate against the dialed ID;
-// add the peer.
-// if dialing fails, start the reconnect loop. If handshake fails, it's over.
-// If peer is started successfully, reconnectLoop will start when
-// StopPeerForError is called.
-func (sw *Switch) addOutboundPeerWithConfig(addr *NetAddress) error {
-	sw.Logger.Info("Dialing peer", "address", addr)
-
-	p, err := sw.transport.Dial(*addr, peerConfig{
-		chDescs:     sw.chDescs,
-		onPeerError: sw.StopPeerForError,
-		isPersistent: func(address *NetAddress) bool {
-			return sw.isPersistentPeer(address.ID)
-		},
-		reactorsByCh: sw.reactorsByCh,
-	})
-	if err != nil {
-		if e, ok := err.(RejectedError); ok {
-			if e.IsSelf() {
-				// TODO: warn?
-				return err
-			}
-		}
-
-		// retry persistent peers after
-		// any dial error besides IsSelf()
-		if sw.isPersistentPeer(addr.ID) {
-			go sw.reconnectToPeer(addr)
-		}
-
-		return err
-	}
-
-	if err := sw.addPeer(p); err != nil {
-		sw.transport.Cleanup(p)
-		if p.IsRunning() {
-			_ = p.Stop()
-		}
-		return err
-	}
-
-	return nil
 }
 
 // TODO remove this entirely
@@ -634,9 +495,6 @@ func (sw *Switch) addPeer(p Peer) error {
 
 	sw.Logger.Info("Added peer", "peer", p)
 
-	// Update the telemetry data
-	sw.logTelemetry()
-
 	return nil
 }
 
@@ -656,7 +514,4 @@ func (sw *Switch) logTelemetry() {
 
 	// Log the inbound peer count
 	metrics.InboundPeers.Record(context.Background(), int64(inbound))
-
-	// Log the dialing peer count
-	metrics.DialingPeers.Record(context.Background(), int64(sw.dialing.Size()))
 }
