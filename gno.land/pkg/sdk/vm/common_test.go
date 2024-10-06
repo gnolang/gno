@@ -22,6 +22,7 @@ type testEnv struct {
 	vmk  *VMKeeper
 	bank bankm.BankKeeper
 	acck authm.AccountKeeper
+	vmh  vmHandler
 }
 
 func setupTestEnv() testEnv {
@@ -60,6 +61,7 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	}
 	vmk.CommitGnoTransactionStore(stdlibCtx)
 	mcw.MultiWrite()
+	vmh := NewHandler(vmk)
 
-	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck}
+	return testEnv{ctx: ctx, vmk: vmk, bank: bank, acck: acck, vmh: vmh}
 }
