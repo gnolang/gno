@@ -27,7 +27,9 @@ type TypeInfo struct {
 	StructInfo
 }
 
-type InterfaceInfo struct{}
+type InterfaceInfo struct {
+	HasTypeDescription bool // Implements TypeDesc() reflect.Type.
+}
 
 type ConcreteInfo struct {
 	Registered            bool      // Registered with Register*().
@@ -611,6 +613,21 @@ func (cdc *Codec) newTypeInfoUnregisteredWLocked(rt reflect.Type) *TypeInfo {
 			panic("Must match MarshalAmino and UnmarshalAmino repr types")
 		}
 	}
+
+	// Check if this type implement `TypeDesc` so it can descript is own type
+	reflectType := reflect.TypeOf(new(reflect.Type)).Elem()
+	if rm, ok := rt.MethodByName("TypeDesc"); ok {
+		if rm.Type.NumOut() != 1 {
+			panic(fmt.Sprintf("TypeDesc should have 2 output parameters; got %v", rm.Type))
+		}
+
+		if out := rm.Type.Out(0); out != reflectType {
+			panic(fmt.Sprintf("TypeDesc should have second output parameter of reflect.Type type, got %v", out))
+		}
+
+		info.InterfaceInfo.HasTypeDescription = true
+	}
+
 	/*
 		NOTE: this could used by genproto typeToP3Type,
 		but it isn't quite right... we don't want them to
