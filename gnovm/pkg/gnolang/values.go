@@ -1550,7 +1550,7 @@ func (tv *TypedValue) Sign() int {
 
 func (tv *TypedValue) AssertNonNegative(msg string) {
 	if tv.Sign() < 0 {
-		panic(fmt.Sprintf("%s:%v", msg, tv))
+		panic(fmt.Sprintf("%s: %v", msg, tv))
 	}
 }
 
