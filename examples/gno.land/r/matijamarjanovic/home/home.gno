@@ -3,29 +3,30 @@ package home
 import (
 	"std"
 	"strconv"
+
 	"gno.land/p/demo/ufmt"
 )
 
 var (
 	pfp          string // link to profile picture
 	pfpCaption   string // profile picture caption
-	abtMe      	 string
+	abtMe        string
 	currentColor string
 
-	redVotes     int64
-	blueVotes 	 int64
-	greenVotes 	 int64
+	redVotes   int64
+	blueVotes  int64
+	greenVotes int64
 
-	blueLink 	 string
-	redLink 	 string
-	greenLink 	 string
+	blueLink  string
+	redLink   string
+	greenLink string
 )
 
 func init() {
 	pfp = "https://muaythairecords.com/fighters/rodtang-jitmuangnon/ogimage"
 	pfpCaption = "My profile picture - Rodtang Jitmuangnon (Muay Thai fighter)"
-	abtMe = 
-`### About me
+	abtMe =
+		`### About me
 Motivated Computer Science student with strong
 analytical and problem-solving skills. Proficient in
 programming and version control, with a high level of
@@ -55,14 +56,14 @@ func UpdateAboutMe(col1 string) {
 }
 
 func maxOfThree(a, b, c int64) int64 {
-    max := a
-    if b > max {
-        max = b
-    }
-    if c > max {
-        max = c
-    }
-    return max
+	max := a
+	if b > max {
+		max = b
+	}
+	if c > max {
+		max = c
+	}
+	return max
 }
 
 func calculateRGB(red, green, blue int64) (int, int, int) {
@@ -116,7 +117,6 @@ func CollectBalance() {
 
 func Render(path string) string {
 
-
 	out := ufmt.Sprintf("<div style='font-family: \"Trebuchet MS\", sans-serif;font-size: 5rem; color: %s;'>\n\n", currentColor)
 	out += ufmt.Sprintf("# Matija's Homepage \n\n%s", "")
 	out += "</div>\n\n"
@@ -137,7 +137,7 @@ func renderAboutMe() string {
 
 	out += "<div>\n\n"
 	out += ufmt.Sprintf(
-		`<img src='%s' alt='Profile Picture' style='border-radius: 50%%; width: 200px; transition: transform 0.3s ease; outline: 5px solid %s;' />`, 
+		`<img src='%s' alt='Profile Picture' style='border-radius: 50%%; width: 200px; transition: transform 0.3s ease; outline: 5px solid %s;' />`,
 		pfp, currentColor)
 	out += ufmt.Sprintf("<p style='color: %s'>%s</p>\n\n", currentColor, pfpCaption)
 	out += "</div>\n\n"
@@ -148,13 +148,12 @@ func renderAboutMe() string {
 
 	out += "</div>\n\n"
 
-
 	return out
 }
 
 func renderGitHubProjects() string {
 	out := `<div style="display: flex; justify-content: center; gap: 10px;">`
-	
+
 	// GitHub Button
 	out += `<a href="https://github.com/matijamarjanovic" target="_blank" style="text-decoration: none;">`
 	out += `<button style="background-color: black; color: white; padding: 8px 16px; border: none; border-radius: 5px; cursor: pointer; display: flex; align-items: center; font-size: 14px;">`
@@ -176,8 +175,6 @@ func renderGitHubProjects() string {
 	return out
 }
 
-
-
 func renderButtons() string {
 	red, green, blue := calculateRGB(redVotes, greenVotes, blueVotes)
 
@@ -186,7 +183,7 @@ func renderButtons() string {
 	// Red Button
 	out += "<div>\n"
 	out += ufmt.Sprintf(
-		"<a href='%s' target='_blank' style='text-decoration: none;'>\n<button style='background-color: darkred; color: white; padding: 20px 40px; font-size: 24px; border: none; border-radius: 5px; cursor: pointer;'>Vote Red</button>\n</a>\n", 
+		"<a href='%s' target='_blank' style='text-decoration: none;'>\n<button style='background-color: darkred; color: white; padding: 20px 40px; font-size: 24px; border: none; border-radius: 5px; cursor: pointer;'>Vote Red</button>\n</a>\n",
 		redLink)
 	out += ufmt.Sprintf("<p style='color: %s; text-align: center;'>Red Votes: %d</p>\n", "darkred", redVotes) // Show red votes
 	out += "</div>\n\n"
@@ -194,7 +191,7 @@ func renderButtons() string {
 	// Green Button
 	out += "<div>\n"
 	out += ufmt.Sprintf(
-		"<a href='%s' target='_blank' style='text-decoration: none;'>\n<button style='background-color: teal; color: white; padding: 20px 40px; font-size: 24px; border: none; border-radius: 5px; cursor: pointer;'>Vote Green</button>\n</a>\n", 
+		"<a href='%s' target='_blank' style='text-decoration: none;'>\n<button style='background-color: teal; color: white; padding: 20px 40px; font-size: 24px; border: none; border-radius: 5px; cursor: pointer;'>Vote Green</button>\n</a>\n",
 		greenLink)
 	out += ufmt.Sprintf("<p style='color: %s; text-align: center;'>Green Votes: %d</p>\n", "teal", greenVotes) // Show green votes
 	out += "</div>\n\n"
@@ -202,7 +199,7 @@ func renderButtons() string {
 	// Blue Button
 	out += "<div>\n"
 	out += ufmt.Sprintf(
-		"<a href='%s' target='_blank' style='text-decoration: none;'>\n<button style='background-color: navy; color: white; padding: 20px 40px; font-size: 24px; border: none; border-radius: 5px; cursor: pointer;'>Vote Blue</button>\n</a>\n", 
+		"<a href='%s' target='_blank' style='text-decoration: none;'>\n<button style='background-color: navy; color: white; padding: 20px 40px; font-size: 24px; border: none; border-radius: 5px; cursor: pointer;'>Vote Blue</button>\n</a>\n",
 		blueLink)
 	out += ufmt.Sprintf("<p style='color: %s; text-align: center;'>Blue Votes: %d</p>\n", "navy", blueVotes) // Show blue votes
 	out += "</div>\n\n"
@@ -217,18 +214,17 @@ func renderButtons() string {
 	return out
 }
 
-
-func UpdateBlueLink(link string){
+func UpdateBlueLink(link string) {
 	AssertAuthorized()
 	blueLink = link
 }
 
-func UpdateRedLink(link string){
-	AssertAuthorized()	
+func UpdateRedLink(link string) {
+	AssertAuthorized()
 	redLink = link
 }
 
-func UpdateGreenLink(link string){
+func UpdateGreenLink(link string) {
 	AssertAuthorized()
 	greenLink = link
 }

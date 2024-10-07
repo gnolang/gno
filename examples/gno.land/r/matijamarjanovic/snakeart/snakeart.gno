@@ -59,7 +59,6 @@ func drawSnakeTail() string {
 	return "    🐍 TAIL\n"
 }
 
-
 // Render processes the input and generates the full snake
 func Render(path string) string {
 	size := defaultSize

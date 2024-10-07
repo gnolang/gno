@@ -60,6 +60,6 @@ func checkAuthorized() error {
 func AssertAuthorized() {
 	caller := std.GetOrigCaller()
 	if caller != main && caller != backup {
-			panic("config: unauthorized")
+		panic("config: unauthorized")
 	}
 }
