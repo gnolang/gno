@@ -22,7 +22,7 @@ type (
 		itemCounter seqid.ID
 		description string
 		items       *avl.Tree // pkgPath > Item
-		itemsNewest *avl.Tree // same data but sorted
+		itemsSorted *avl.Tree // same data but sorted, storing pointers
 		*pausable.Pausable
 	}
 
@@ -39,7 +39,7 @@ type (
 func init() {
 	exhibition = &Exhibition{
 		items:       avl.NewTree(),
-		itemsNewest: avl.NewTree(),
+		itemsSorted: avl.NewTree(),
 	}
 
 	owner = ownable.NewWithAddress(std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"))
@@ -76,7 +76,7 @@ func Register() {
 	}
 
 	exhibition.items.Set(pkgpath, i)
-	exhibition.itemsNewest.Set(id.String(), i)
+	exhibition.itemsSorted.Set(id.String(), i)
 }
 
 func Upvote(pkgpath string) {
@@ -121,7 +121,7 @@ func Delete(pkgpath string) {
 		panic(ErrNoSuchItem.Error())
 	}
 
-	if _, removed := exhibition.itemsNewest.Remove(i.(*Item).id.String()); !removed {
+	if _, removed := exhibition.itemsSorted.Remove(i.(*Item).id.String()); !removed {
 		panic(ErrNoSuchItem.Error())
 	}
 

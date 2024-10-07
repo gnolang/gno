@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	likesBar = "#### [%d 👍](/r/demo/hof?help&__func=Upvote&itemID=%s) - [%d 👎](/r/demo/hof?help&__func=Downvote&itemID=%s)\n\n"
+	likesBar = "#### [%d 👍](/r/demo/hof?help&__func=Upvote&pkgpath=%s) - [%d 👎](/r/demo/hof?help&__func=Downvote&pkgPath=%s)\n\n"
 	delBar   = "[Delete](/r/demo/hof?help&__func=Delete&pkgpath=%s)\n\n"
 )
 
@@ -28,7 +28,7 @@ func (e Exhibition) Render(dashboard bool) string {
 
 	out += "<div class='columns-2'>\n\n"
 
-	e.itemsNewest.ReverseIterate("", "", func(key string, value interface{}) bool {
+	e.itemsSorted.ReverseIterate("", "", func(key string, value interface{}) bool {
 		out += "<div>\n\n"
 		id, _ := seqid.FromString(key)
 		out += ufmt.Sprintf("### Submission #%d\n\n", int(id))
@@ -51,9 +51,9 @@ func (i Item) Render(dashboard bool) string {
 	out += ufmt.Sprintf(
 		likesBar,
 		i.upvote.Size(),
-		i.id.String(),
+		i.pkgpath,
 		i.downvote.Size(),
-		i.id.String(),
+		i.pkgpath,
 	)
 
 	if dashboard {
