@@ -165,17 +165,14 @@ func TestConvertJSONValuesList(t *testing.T) {
 			defer m.Release()
 
 			nn := gnolang.MustParseFile("testdata.gno",
-				fmt.Sprintf(`package testdata; var Value = []interface{%s}`, strings.Join(tc.ValueRep, ",")))
+				fmt.Sprintf(`package testdata; var Value = []interface{}{%s}`, strings.Join(tc.ValueRep, ",")))
 			m.RunFiles(nn)
 			m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
 
 			tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
-			unwarp := tps[0].T.(*gnolang.TypeType)
-			fmt.Println(unwarp.String())
 			require.Len(t, tps, 1)
-			// require.Equal(t, gnolang.ArrayKind.String(), unwarp.T.Kind().String())
-			fmt.Println(tps[0].T.Kind())
-			tpvs := tps[0].V.(*gnolang.ArrayValue).List
+			require.Equal(t, gnolang.SliceKind.String(), tps[0].T.Kind().String())
+			tpvs := tps[0].V.(*gnolang.SliceValue).Base.(*gnolang.ArrayValue).List
 			rep := JSONValues(m, tpvs)
 			require.Equal(t, tc.Expected, rep)
 		})
