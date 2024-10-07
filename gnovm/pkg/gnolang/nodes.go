@@ -210,7 +210,7 @@ func (attr *Attributes) SetAttribute(key GnoAttribute, value interface{}) {
 }
 
 func (attr *Attributes) DelAttribute(key GnoAttribute) {
-	if attr.data == nil {
+	if debug && attr.data == nil {
 		panic("should not happen, attribute is expected to be non-empty.")
 	}
 	delete(attr.data, key)
