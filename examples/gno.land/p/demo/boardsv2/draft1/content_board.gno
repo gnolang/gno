@@ -1,5 +1,7 @@
 package boardsv2
 
+// TODO: Move content types to `boardsv2` API
+
 const ContentTypeBoard = "boards:board"
 
 var _ Content = (*BoardContent)(nil)
@@ -9,7 +11,7 @@ type BoardContent struct {
 }
 
 func NewBoard() *Post {
-	return &Post{
+	return &Post{ // TODO: Use a contructor to be able to use private fields (use options), NewPost
 		// ...
 		Level:   LevelBoard,
 		Content: &BoardContent{

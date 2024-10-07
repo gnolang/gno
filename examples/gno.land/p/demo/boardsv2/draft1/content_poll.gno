@@ -13,7 +13,7 @@ type PollContent struct {
 	}
 }
 
-func NewPoll() *Post {
+func NewPoll( /* ... */ ) *Post {
 	return &Post{
 		// ...
 		Level:   LevelPost,

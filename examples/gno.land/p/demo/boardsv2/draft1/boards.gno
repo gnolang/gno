@@ -1,24 +1,28 @@
 package boardsv2
 
 import (
-	"errors"
 	"strconv"
 )
 
-// NOTE: Boards type should be a realm type
+// TODO: Locking
+// - Locking a board means, you can not create new threads, and you can not comment in existing ones
+// - Locking a thread means, you can not comment in this thread anymore
+
+// TODO: Move boards (or App) to `boardsv2`
 type Boards struct {
-	// NOTE: Most of all types could be saved within the same AVL tree, prefixing the level
 	// NOTE: We might want different AVL trees to avoid using level prefixes
-	// NOTE: We could introduce the stores concept for the posts type instead
-	// NOTE: Again, we could consider using Node instead of Post, and tree instead of posts (semantics)
-	posts avl.Tree // string(Post.Level + slug) -> *Post (post, comment, poll)
+	posts         avl.Tree // string(Post.Level + Post.CreatedAt + slug) -> *Post (post, comment, poll)
+	lockingPlugin lockingplugin.Pugin
 }
 
-// NOTE: Iterating only Post type is confusing semantically
-// NOTE: Potential need cast/switch/type-check when iterating.
-func (b Boards) Iterate(path string, fn func(*Post) bool) bool         {}
-func (b Boards) IteratePosts(path string, fn func(*Post) bool) bool    {}
-func (b Boards) IterateComments(path string, fn func(*Post) bool) bool {}
+// TODO: Support pagination Start/End (see pager implementation)
+func (b Boards) Iterate(level int, path string, fn func(*Post) bool) bool        {}
+func (b Boards) ReverseIterate(level int, path string, fn func(*Post) bool) bool {}
+
+func (b *Boards) Lock(path string) {
+	post := b.Get(LevelBoard, path) // Otherwise we try LevelPost
+	b.lockingPlugin.Lock(post)
+}
 
 // How to map render paths to actual post instances?
 //
@@ -30,6 +34,11 @@ func (b Boards) IterateComments(path string, fn func(*Post) bool) bool {}
 // HOW TO GUESS PREFIX FROM SLUG
 // User enters a SLUG => (one part => 1_BOARD)(more than one part => 1_BOARD/POST)
 // How to recognize comments? Should be URL accesible? We could use ":" as separator (not optimal)
+//
+// LEVEL_BOARD/POST/POST-2/COMMENT/COMMENT-2 (deprecated)
+// LEVEL_TIMESTAMP_BOARD/POST/COMMENT
+//
+// :board/post/comment
 
 func (b *Boards) Set(p *Post) (updated bool) {
 	key := newKey(p.Level, p.Slug())
@@ -53,5 +62,6 @@ func (b Boards) Get(level int, path string) (_ *Post, found bool) {
 }
 
 func newKey(level int, path string) string {
+	// TODO: Add timestamp to key
 	return strconv.Itoa(level) + "_" + path
 }

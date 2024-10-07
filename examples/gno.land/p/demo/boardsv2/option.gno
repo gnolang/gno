@@ -9,3 +9,5 @@ func LinearReputationPolicy() Option {}
 // TokenBasedReputationPolicy allows upvoting or downvoting a post propotional
 // to the specified tokens that an account holds.
 func TokenBasedReputationPolicy() Option {}
+
+// TODO: make it configurable how many levels allowed
