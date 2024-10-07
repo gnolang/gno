@@ -1771,7 +1771,7 @@ func (sb *StaticBlock) GetIsConst(store Store, n Name) bool {
 func (sb *StaticBlock) getAt(store Store, path ValuePath) *StaticBlock {
 	if debug {
 		if path.Type != VPBlock {
-			panic("should not happen")
+			panic("expected block type value path but got " + path.Type.String())
 		}
 		if path.Depth == 0 {
 			panic("should not happen")
