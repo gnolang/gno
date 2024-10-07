@@ -7,7 +7,6 @@ import (
 
 var b0 *crossrealm.Bar
 
-// XXX, should work to attach by reference
 func init() {
 	b0 = &crossrealm.Bar{A: 1}
 }
@@ -16,7 +15,8 @@ func main() {
 	print(".")
 }
 
+// XXX, should work to attach by reference to
+// type defined in another realm.
+
 // Output:
 // .
-
-// Error:

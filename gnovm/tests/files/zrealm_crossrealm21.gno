@@ -7,9 +7,6 @@ import (
 
 var b0 crossrealm.Bar
 
-// XXX, this should fail while trying to attach
-// value of type defined in another realm.
-// NOTE: the check can be in runtime or in preprocess(by simply checkin edge cases).
 func init() {
 	b0 = crossrealm.Bar{A: 1}
 }
@@ -18,7 +15,8 @@ func main() {
 	print(".")
 }
 
-// Output:
-// .
+// XXX, this should fail while trying to attach
+// value of type defined in another realm.
+// NOTE: the check can be in runtime or in preprocess(by simply checkin edge cases).
 
 // Error:

@@ -27,7 +27,7 @@ func main() {
 	// XXX, this associate a pointer to a value(not attached)
 	// to external realm, no attachment happens to the external realm.
 
-	// XXX, attach to un-attached external realm
+	// XXX, associate to un-attached external realm
 	//crossrealm.AttachContainer() // this attach container first
 	crossrealm.SetContainer(&f)
 	print(".")
