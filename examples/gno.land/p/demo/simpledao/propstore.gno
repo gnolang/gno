@@ -11,15 +11,9 @@ import (
 
 var ErrMissingProposal = errors.New("proposal is missing")
 
-const (
-	// maxRequestProposals is the maximum number of
-	// paginated proposals that can be requested
-	maxRequestProposals = 10
-
-	// maxRequestVotes is the maximum number of
-	// paginated votes that can be requested
-	maxRequestVotes = 50
-)
+// maxRequestProposals is the maximum number of
+// paginated proposals that can be requested
+const maxRequestProposals = 10
 
 // proposal is the internal simpledao proposal implementation
 type proposal struct {
