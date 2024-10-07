@@ -6,4 +6,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_e7.gno:5:2: invalid operation: negative shift count:(-1 <untyped> bigint)
+// main/files/types/shift_e7.gno:5:2: invalid operation: negative shift count: (-1 <untyped> bigint)

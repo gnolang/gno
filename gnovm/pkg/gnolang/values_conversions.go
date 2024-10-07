@@ -27,9 +27,6 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 		if isDataByte(tv.T) {
 			panic("should not happen")
 		}
-		defer func() {
-			debug.Printf("after convert: tv: %v \n", tv)
-		}()
 	}
 	// special case for go-native conversions
 	ntv, tvIsNat := tv.T.(*NativeType)

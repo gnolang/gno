@@ -8,4 +8,4 @@ func main() {
 }
 
 // Error:
-// runtime error: negative shift amount:(-1 int)
+// runtime error: negative shift amount: (-1 int)
