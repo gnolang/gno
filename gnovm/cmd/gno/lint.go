@@ -65,26 +65,29 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	pkgPaths, err := importer.Match(args)
+	pkgs, err := importer.ResolvePackages(args...)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
 
 	hasError := false
 
-	for _, pkgPath := range pkgPaths {
+	for _, pkg := range pkgs {
+		pkgDir := pkg.Dir
+		pkgPath := pkg.ImportPath
+
 		if verbose {
 			fmt.Fprintf(io.Err(), "Linting %q...\n", pkgPath)
 		}
 
 		// Check if 'gno.mod' exists
-		gnoModPath := filepath.Join(pkgPath, "gno.mod")
+		gnoModPath := filepath.Join(pkgDir, "gno.mod")
 		if !osm.FileExists(gnoModPath) {
 			hasError = true
 			issue := lintIssue{
 				Code:       lintNoGnoMod,
 				Confidence: 1,
-				Location:   pkgPath,
+				Location:   pkgDir,
 				Msg:        "missing 'gno.mod' file",
 			}
 			fmt.Fprint(io.Err(), issue.String()+"\n")
@@ -99,10 +102,10 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 				tests.ImportModeStdlibsOnly,
 			)
 
-			targetPath := pkgPath
-			info, err := os.Stat(pkgPath)
+			targetPath := pkgDir
+			info, err := os.Stat(pkgDir)
 			if err == nil && !info.IsDir() {
-				targetPath = filepath.Dir(pkgPath)
+				targetPath = filepath.Dir(pkgDir)
 			}
 
 			memPkg := gno.ReadMemPackage(targetPath, targetPath)
