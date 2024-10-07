@@ -52,48 +52,13 @@ func findModDir(dir string) (string, error) {
 	return filepath.Clean(dir), nil
 }
 
-func ListPackages(paths ...string) ([]string, error) {
-	details, _, err := ListPackagesDetails(paths...)
-	if err != nil {
-		return nil, err
-	}
-	res := make([]string, len(details))
-	for i, p := range details {
-		res[i] = p.PkgPath
-	}
-	return res, nil
-}
-
-func ListPackagesDetails(paths ...string) ([]PackageDetails, *modfile.File, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get workdir: %w", err)
-	}
-
-	modDir, err := findModDir(wd)
-	if os.IsNotExist(err) {
-		return nil, nil, errors.New("gno.mod file not found in current directory or any parent directory")
-	} else if err != nil {
-		return nil, nil, fmt.Errorf("failed to find parent module: %w", err)
-	}
-	modFilePath := filepath.Join(modDir, modFileBaseName)
-	modFileBytes, err := os.ReadFile(modFilePath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read modfile: %w", err)
-	}
-	modFile, err := modfile.ParseLax(modFilePath, modFileBytes, nil)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse modfile: %w", err)
-	}
-
-	pkgPath := modFile.Module.Mod.Path
-
+func DiscoverPackages(paths ...string) ([]PackageSummary, error) {
 	toVisit := []string{}
 	for _, p := range paths {
 		toVisit = append(toVisit, filepath.Clean(p))
 	}
 	visited := map[string]struct{}{}
-	packages := []PackageDetails{}
+	packages := []PackageSummary{}
 	errs := []error{}
 
 	for len(toVisit) > 0 {
@@ -105,16 +70,32 @@ func ListPackagesDetails(paths ...string) ([]PackageDetails, *modfile.File, erro
 
 		if !isRecursivePath(p) {
 			if p != "." && strings.ContainsRune(p, '.') {
-				packages = append(packages, PackageDetails{
+				packages = append(packages, PackageSummary{
 					PkgPath: p,
 					Remote:  true,
 				})
 				continue
 			}
-			p = path.Join(pkgPath, p)
-			packages = append(packages, PackageDetails{
-				PkgPath: p,
+			modDir, err := findModDir(root)
+			if os.IsNotExist(err) {
+				continue
+			} else if err != nil {
+				return nil, fmt.Errorf("failed to find parent module: %w", err)
+			}
+			modFilePath := filepath.Join(modDir, modFileBaseName)
+			modFileBytes, err := os.ReadFile(modFilePath)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read modfile: %w", err)
+			}
+			modFile, err := modfile.ParseLax(modFilePath, modFileBytes, nil)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse modfile: %w", err)
+			}
+			globalPkgPath := modFile.Module.Mod.Path
+			packages = append(packages, PackageSummary{
+				PkgPath: path.Join(globalPkgPath, p),
 				Root:    root,
+				ModFile: modFile,
 			})
 			continue
 		}
@@ -146,26 +127,27 @@ func ListPackagesDetails(paths ...string) ([]PackageDetails, *modfile.File, erro
 		}
 	}
 
-	return packages, modFile, errors.Join(errs...)
+	return packages, errors.Join(errs...)
 }
 
-type PackageDetails struct {
+type PackageSummary struct {
 	PkgPath string
 	Root    string
 	Remote  bool
+	ModFile *modfile.File
 }
 
-func ResolvePackages(paths ...string) ([]*Package, error) {
-	pkgs, modFile, err := ListPackagesDetails(paths...)
+func Load(paths ...string) (map[string]*Package, error) {
+	pkgs, err := DiscoverPackages(paths...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list packages: %w", err)
 	}
 
-	res := make([]*Package, len(pkgs))
+	res := make(map[string]*Package, len(pkgs))
 	errs := []error{}
-	for i, meta := range pkgs {
+	for _, meta := range pkgs {
 		if meta.Remote {
-			res[i], err = ResolveRemote(meta.PkgPath)
+			res[meta.PkgPath], err = ResolveRemote(meta.PkgPath)
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -176,14 +158,16 @@ func ResolvePackages(paths ...string) ([]*Package, error) {
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to find absolute root %q: %w", meta.Root, err))
 		}
-
 		pkgPath := meta.PkgPath
-		pkg, err := fillPackage(pkgPath, absRoot, modFile)
+		if meta.ModFile == nil {
+			return nil, errors.New("unexpected nil modfile")
+		}
+		pkg, err := fillPackage(pkgPath, absRoot, meta.ModFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fill Package %q: %w", pkgPath, err)
 		}
 
-		res[i] = pkg
+		res[meta.PkgPath] = pkg
 	}
 	return res, errors.Join(errs...)
 }
@@ -195,8 +179,22 @@ func ResolveRemote(pkgPath string) (*Package, error) {
 	if err := DownloadModule(pkgPath, pkgDir); err != nil {
 		return nil, fmt.Errorf("failed to download module %q: %w", pkgPath, err)
 	}
-
-	pkg, err := fillPackage(pkgPath, pkgDir, nil)
+	modDir, err := findModDir(pkgDir)
+	if os.IsNotExist(err) {
+		return nil, errors.New("failed to clone mod")
+	} else if err != nil {
+		return nil, fmt.Errorf("failed to find parent module: %w", err)
+	}
+	modFilePath := filepath.Join(modDir, modFileBaseName)
+	modFileBytes, err := os.ReadFile(modFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read modfile: %w", err)
+	}
+	modFile, err := modfile.ParseLax(modFilePath, modFileBytes, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse modfile: %w", err)
+	}
+	pkg, err := fillPackage(pkgPath, pkgDir, modFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fill Package %q: %w", pkgPath, err)
 	}
