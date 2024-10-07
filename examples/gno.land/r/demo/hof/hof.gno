@@ -1,6 +1,6 @@
-// Package hof is the gno.land hall of fame realm.
-// It contains a permanent exhibition of items in the hall of fame,
-// a possibility to host temporary ones created by its admins.
+// Package hof is the hall of fame realm.
+// The Hall of Fame is an exhibition that holds items. Users can add their realms to the Hall of Fame by
+// importing the Hall of Fame realm and calling hof.Register() from their init function.
 package hof
 
 import (
