@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/avl"
-	GFMpkg "gno.land/p/demo/gnofundme" // GnoFundMe package
+	gfm "gno.land/p/demo/gnofundme" // GnoFundMe package
 	"gno.land/p/demo/ufmt"
 )
 
@@ -32,7 +32,7 @@ func NewUser(name string, email string) string {
 	// get the user address
 	address := std.GetOrigCaller()
 	// create the user
-	user := GFMpkg.NewUser(name, email, address)
+	user := gfm.NewUser(name, email, address)
 
 	// the avl.tree key will be the address to simplify the fetching
 	users.Set(address.String(), user)
@@ -45,7 +45,7 @@ func NewCampaign(ctype int, title string, description string, goal int64, beginT
 		panic("invalid campaign type")
 	}
 
-	var owner, beneficiaryU *GFMpkg.User
+	var owner, beneficiaryU *gfm.User
 	// gets the caller address (owner of the campaign)
 	caller := std.GetOrigCaller()
 
@@ -56,13 +56,13 @@ func NewCampaign(ctype int, title string, description string, goal int64, beginT
 		// XXX TO BE MODIFIED: temporarily creates the user if he doesn't exist. In the final version,
 		// the user will have to be registered using the user struct of this project, or maybe I'll use
 		// the profile pkg that is still a "work in progress"
-		user := GFMpkg.NewUser("user1", "email1", caller)
+		user := gfm.NewUser("user1", "email1", caller)
 		// the avl.tree key will be address to simplify the fetching
 		users.Set(caller.String(), user)
 		owner = user
 	} else {
-		// cast the owner and beneficiary to *GFMpkg.User
-		owner = o.(*GFMpkg.User)
+		// cast the owner and beneficiary to *gfm.User
+		owner = o.(*gfm.User)
 	}
 
 	// verify that the benefeciary exists if it's different from caller
@@ -70,11 +70,11 @@ func NewCampaign(ctype int, title string, description string, goal int64, beginT
 		b, ok := users.Get(beneficiary.String())
 		if !ok {
 			// panic("beneficiary not found")
-			user := GFMpkg.NewUser("user2", "email2", beneficiary)
+			user := gfm.NewUser("user2", "email2", beneficiary)
 			users.Set(beneficiary.String(), user)
 			beneficiaryU = user
 		} else {
-			beneficiaryU = b.(*GFMpkg.User)
+			beneficiaryU = b.(*gfm.User)
 		}
 	} else {
 		beneficiaryU = owner
@@ -95,12 +95,12 @@ func NewCampaign(ctype int, title string, description string, goal int64, beginT
 	begin := time.Unix(beginT, 0)
 	deadline := time.Unix(deadlineT, 0)
 	// create the campaign
-	campaign := GFMpkg.NewCampaign(ctype, title, description, goal, begin, deadline, owner, beneficiaryU)
+	campaign := gfm.NewCampaign(ctype, title, description, goal, begin, deadline, owner, beneficiaryU)
 
 	// the key will be the size of the tree
 	key := campaigns.Size()
 	campaigns.Set(strconv.Itoa(key), campaign)
-	std.Emit("Campaign Creation", "campaign_created", GFMpkg.CampaignToJSONString(campaign))
+	std.Emit("Campaign Creation", "campaign_created", gfm.CampaignToJSONString(campaign))
 	return "Campaign N°" + strconv.Itoa(key) + " created successfully"
 }
 
@@ -111,7 +111,7 @@ func AddContributor(campaignId string, display bool) string {
 		panic("campaign not found")
 	}
 
-	campaign := camp.(*GFMpkg.Campaign)
+	campaign := camp.(*gfm.Campaign)
 	// Verfiy that the dates are correct
 	if time.Now().Unix() < campaign.Begin.Unix() {
 		panic(ufmt.Sprintf("Now: %d, Begin: %d,the campaign didn't start yet", time.Now().Unix(), campaign.Begin.Unix())) // added the execution date and the beginning date in unix format to the error message to do verfications, sometimes the execution time is the same even when testing several minutes after!!!
@@ -135,7 +135,7 @@ func AddContributor(campaignId string, display bool) string {
 	campaignsTotal[campaignId] += amount
 
 	// add the contributor to the campaign
-	contributor := campaign.AddContributor(user.(*GFMpkg.User), time.Unix(time.Now().Unix(), 0), amount, display)
+	contributor := campaign.AddContributor(user.(*gfm.User), time.Unix(time.Now().Unix(), 0), amount, display)
 	std.Emit("Add Contributor", "contributor_added", contributor.String())
 	return "contributor added successfully"
 }
@@ -144,13 +144,13 @@ func GetCampaigns() string {
 	if campaigns.Size() == 0 {
 		return "[]"
 	}
-	campaignsArray := make([]*GFMpkg.Campaign, 0, campaigns.Size())
+	campaignsArray := make([]*gfm.Campaign, 0, campaigns.Size())
 	campaigns.Iterate("", "", func(key string, value interface{}) bool {
-		c := value.(*GFMpkg.Campaign)
+		c := value.(*gfm.Campaign)
 		campaignsArray = append(campaignsArray, c)
 		return false
 	})
-	return GFMpkg.CampaignsToJSONString(campaignsArray)
+	return gfm.CampaignsToJSONString(campaignsArray)
 }
 
 func IsUserRegistered(userAddress string) bool {
@@ -168,7 +168,7 @@ func Withdraw(campaignId string) {
 		panic("campaign not found")
 	}
 
-	campaign := camp.(*GFMpkg.Campaign)
+	campaign := camp.(*gfm.Campaign)
 	// get the user address
 	callerAddress := std.GetOrigCaller()
 
@@ -224,7 +224,7 @@ func renderHomePage() string {
 
 	b.WriteString("# Campaigns :\n\n")
 	campaigns.Iterate("", "", func(key string, value interface{}) bool {
-		c := value.(*GFMpkg.Campaign)
+		c := value.(*gfm.Campaign)
 		campaignURL := ufmt.Sprintf("%scampaign/%s", campaignPrefix, key)
 		b.WriteString(
 			ufmt.Sprintf("## [Campaign %s](%s)\n", key, campaignURL),
@@ -240,7 +240,7 @@ func renderHomePage() string {
 	b.WriteString("# Users:\n")
 
 	users.Iterate("", "", func(key string, value interface{}) bool {
-		u := value.(*GFMpkg.User)
+		u := value.(*gfm.User)
 		b.WriteString(
 			ufmt.Sprintf(
 				"## User #%d: %s, Key: %s\n", userc, u.GetName(), key,
@@ -266,7 +266,7 @@ func renderCampaign(id string) string {
 
 	// define an empty buffer
 	var b bytes.Buffer
-	c := campaign.(*GFMpkg.Campaign)
+	c := campaign.(*gfm.Campaign)
 	b.WriteString(
 		ufmt.Sprintf("# Campaign %s\n", id),
 	)
