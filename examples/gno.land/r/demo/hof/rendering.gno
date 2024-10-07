@@ -70,6 +70,7 @@ func RenderExhibWidget(itemsToRender int) string {
 	if itemsToRender < 1 {
 		return ""
 	}
+
 	if exhibition.items.Size() == 0 {
 		return ""
 	}
