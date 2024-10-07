@@ -39,7 +39,7 @@ func (p *Pausable) Pause() error {
 	}
 
 	p.paused = true
-	std.Emit("Paused", "account", p.GetOwner())
+	std.Emit("Paused", "account", p.Owner().String())
 
 	return nil
 }
@@ -51,7 +51,7 @@ func (p *Pausable) Unpause() error {
 	}
 
 	p.paused = false
-	std.Emit("Unpaused", "account", p.GetOwner())
+	std.Emit("Unpaused", "account", p.Owner().String())
 
 	return nil
 }

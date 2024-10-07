@@ -58,7 +58,7 @@ func (o *Ownable) DropOwnership() error {
 
 	std.Emit(
 		OwnershipTransferEvent,
-		"from", string(prevOwner),
+		"from", prevOwner.String(),
 		"to", "",
 	)
 

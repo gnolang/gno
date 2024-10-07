@@ -4,7 +4,6 @@ import (
 	"std"
 
 	"gno.land/p/demo/ownable"
-	"gno.land/p/demo/seqid"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
 	blog "gno.land/r/gnoland/blog"
@@ -93,7 +92,7 @@ func upcomingEvents() ui.Element {
 }
 
 func latestHOFItems(num int) ui.Element {
-	submissions, _ := hof.RenderExhibWidget(seqid.ID(0), num)
+	submissions := hof.RenderExhibWidget(num)
 
 	return ui.Element{
 		ui.H3("[Hall of Fame](/r/gnoland/hof)"),
