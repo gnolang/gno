@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -669,7 +670,7 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 				}
 			}
 			// if dep already in loopfindr, abort.
-			if hasName(loopfindr, dep) {
+			if slices.Contains(loopfindr, dep) {
 				if _, ok := (*depdecl).(*FuncDecl); ok {
 					// recursive function dependencies
 					// are OK with func decls.
@@ -2322,16 +2323,4 @@ func (m *Machine) ExceptionsStacktrace() string {
 	}
 
 	return builder.String()
-}
-
-//----------------------------------------
-// utility
-
-func hasName(ns []Name, n Name) bool {
-	for _, n2 := range ns {
-		if n == n2 {
-			return true
-		}
-	}
-	return false
 }

@@ -187,7 +187,6 @@ func (attr *Attributes) GetLabel() Name {
 	return attr.Label
 }
 
-// XXX I think should be AddLabel instead.
 func (attr *Attributes) SetLabel(label Name) {
 	attr.Label = label
 }
@@ -618,7 +617,7 @@ func (ftxz FieldTypeExprs) IsNamed() bool {
 	named := false
 	for i, ftx := range ftxz {
 		if i == 0 {
-			if ftx.Name == "" || strings.HasPrefix(string(ftx.Name), ".res_") {
+			if ftx.Name == "" || isHiddenResultVariable(string(ftx.Name)) {
 				named = false
 			} else {
 				named = true
@@ -626,7 +625,7 @@ func (ftxz FieldTypeExprs) IsNamed() bool {
 		} else {
 			if named && ftx.Name == "" {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts named)")
-			} else if !named && (ftx.Name != "" || !strings.HasPrefix(string(ftx.Name), ".res_")) {
+			} else if !named && (ftx.Name != "" || !isHiddenResultVariable(string(ftx.Name))) {
 				panic("[]FieldTypeExpr has inconsistent namedness (starts unnamed)")
 			}
 		}
@@ -2178,4 +2177,13 @@ func validatePkgName(name string) {
 	if !rePkgName.MatchString(name) {
 		panic(fmt.Sprintf("cannot create package with invalid name %q", name))
 	}
+}
+
+const hiddenResultVariable = ".res_"
+
+func isHiddenResultVariable(name string) bool {
+	if strings.HasPrefix(name, hiddenResultVariable) {
+		return true
+	}
+	return false
 }

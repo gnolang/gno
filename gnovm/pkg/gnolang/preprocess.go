@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"slices"
 	"strings"
 	"sync/atomic"
 
@@ -225,7 +226,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 					if r.Name == blankIdentifier {
 						// create a hidden var with leading dot.
 						// NOTE: document somewhere.
-						rn := fmt.Sprintf(".res_%d", i)
+						rn := fmt.Sprintf("%s%d", hiddenResultVariable, i)
 						r.Name = Name(rn)
 					}
 				}
@@ -308,7 +309,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 				}
 				for i, rte := range n.Type.Results {
 					if rte.Name == "" {
-						rn := fmt.Sprintf(".res_%d", i)
+						rn := fmt.Sprintf("%s%d", hiddenResultVariable, i)
 						rte.Name = Name(rn)
 					}
 					n.Predefine(false, rte.Name)
@@ -617,7 +618,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 					} else {
 						// create a hidden var with leading dot.
 						// NOTE: document somewhere.
-						rn := fmt.Sprintf(".res_%d", i)
+						rn := fmt.Sprintf("%s%d", hiddenResultVariable, i)
 						last.Define(Name(rn), anyValue(rf.Type))
 					}
 				}
@@ -743,7 +744,7 @@ func preprocess1(store Store, ctx BlockNode, n Node) Node {
 						last.Define(rf.Name, anyValue(rf.Type))
 					} else {
 						// create a hidden var with leading dot.
-						rn := fmt.Sprintf(".res_%d", i)
+						rn := fmt.Sprintf("%s%d", hiddenResultVariable, i)
 						last.Define(Name(rn), anyValue(rf.Type))
 					}
 				}
@@ -2571,7 +2572,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-					if hasName(lds, n.Name) {
+					if slices.Contains(lds, n.Name) {
 						fle, depth, found := findFirstClosure(stack, dbn)
 						if found {
 							// If across a closure,
@@ -2630,7 +2631,7 @@ func findLoopUses1(ctx BlockNode, bn BlockNode) {
 }
 
 func assertNotHasName(names []Name, name Name) {
-	if hasName(names, name) {
+	if slices.Contains(names, name) {
 		panic(fmt.Sprintf("name: %s already contained in names: %v", name, names))
 	}
 }
@@ -2644,7 +2645,7 @@ func setAttrHeapDefine(bn BlockNode, name Name) {
 
 func addAttrHeapUse(bn BlockNode, name Name) {
 	bnLUs, _ := bn.GetAttribute(ATTR_LOOP_USES).([]Name)
-	if hasName(bnLUs, name) {
+	if slices.Contains(bnLUs, name) {
 		return
 	} else {
 		bnLUs = append(bnLUs, name)
@@ -2764,10 +2765,10 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-					if hasName(lds, n.Name) {
+					if slices.Contains(lds, n.Name) {
 						// if the name is actually loop used,
 						lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
-						if hasName(lus, n.Name) {
+						if slices.Contains(lus, n.Name) {
 							// change type finally to HeapUse.
 							n.Type = NameExprTypeHeapUse
 						} else {
@@ -2779,10 +2780,10 @@ func findLoopUses2(ctx BlockNode, bn BlockNode) {
 					dbn := last.GetBlockNodeForPath(nil, n.Path)
 					// if the name is loop defined,
 					lds, _ := dbn.GetAttribute(ATTR_LOOP_DEFINES).([]Name)
-					if hasName(lds, n.Name) {
+					if slices.Contains(lds, n.Name) {
 						// if the name is actually loop used,
 						lus, _ := dbn.GetAttribute(ATTR_LOOP_USES).([]Name)
-						if !hasName(lus, n.Name) {
+						if !slices.Contains(lus, n.Name) {
 							// demote type finally to Define.
 							n.Type = NameExprTypeDefine
 						}
