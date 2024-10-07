@@ -17,9 +17,13 @@ const (
 	// for an organism, charity... (beneficiary != owner)
 	// the next types are for companies(startup projects...) crowdfunding
 	Donation
-	RewardC
-	EquityC
+	Reward
+	Equity
 )
+
+func (c ctype) String() string {
+	return [...]string{"Personal", "Cause", "Organism", "Donation", "Reward", "Equity"}[c]
+}
 
 type Campaign struct {
 	// Campaign type
@@ -49,6 +53,7 @@ func NewCampaign(ct int, title string, description string, goal int64, begin tim
 		Beneficiary:  beneficiary,
 		contributors: make([]*Contributor, 0),
 	}
+
 	owner.campaigns = append(owner.campaigns, campaign)
 	return campaign
 }
@@ -61,6 +66,7 @@ func (c *Campaign) AddContributor(user *User, date time.Time, amount int64, disp
 	c.Current += amount
 	contributor := NewContributor(user, date, amount, display)
 	c.contributors = append(c.contributors, contributor)
+
 	return contributor
 }
 
@@ -86,9 +92,9 @@ func CampaignToJSONString(campaign *Campaign) string {
 	var sb strings.Builder
 
 	sb.WriteString("{")
-	sb.WriteString(`"ctype":"` + strconv.Itoa(campaign.Ctype) + `",`)
+	sb.WriteString(`"ctype":"` + campaign.Ctype.String() + `",`)
 	sb.WriteString(`"title":"` + campaign.Title + `",`)
-	sb.WriteString(`"description":"` + escapeString(campaign.Description) + `",`)
+	sb.WriteString(`"description":"` + campaign.Description + `",`)
 	sb.WriteString(`"goal":"` + strconv.Itoa(int(campaign.Goal)) + `",`)
 	sb.WriteString(`"current":"` + strconv.Itoa(int(campaign.Current)) + `",`)
 	sb.WriteString(`"begin":"` + strconv.Itoa(int((campaign.Begin).Unix())) + `",`)
@@ -99,9 +105,4 @@ func CampaignToJSONString(campaign *Campaign) string {
 	sb.WriteString("}")
 
 	return sb.String()
-}
-
-// escapeString escapes quotes in a string for JSON compatibility.
-func escapeString(s string) string {
-	return strings.ReplaceAll(s, `"`, `\"`)
 }
