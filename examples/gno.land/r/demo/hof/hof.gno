@@ -21,7 +21,8 @@ type (
 	Exhibition struct {
 		itemCounter seqid.ID
 		description string
-		items       *avl.Tree // Item id > Item
+		items       *avl.Tree // pkgPath > Item
+		itemsNewest *avl.Tree // same data but sorted
 		*pausable.Pausable
 	}
 
@@ -37,7 +38,8 @@ type (
 
 func init() {
 	exhibition = &Exhibition{
-		items: avl.NewTree(),
+		items:       avl.NewTree(),
+		itemsNewest: avl.NewTree(),
 	}
 
 	owner = ownable.NewWithAddress(std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5"))
@@ -64,60 +66,66 @@ func Register() {
 	}
 
 	id := exhibition.itemCounter.Next()
-	exhibition.items.Set(
-		id.String(),
-		&Item{
-			id:       id,
-			pkgpath:  pkgpath,
-			deployer: std.GetOrigCaller(),
-			blockNum: std.GetHeight(),
-			upvote:   avl.NewTree(),
-			downvote: avl.NewTree(),
-		})
+	i := &Item{
+		id:       id,
+		pkgpath:  pkgpath,
+		deployer: std.GetOrigCaller(),
+		blockNum: std.GetHeight(),
+		upvote:   avl.NewTree(),
+		downvote: avl.NewTree(),
+	}
+
+	exhibition.items.Set(pkgpath, i)
+	exhibition.itemsNewest.Set(id.String(), i)
 }
 
-func Upvote(itemID seqid.ID) error {
-	rawItem, ok := exhibition.items.Get(itemID.String())
+func Upvote(pkgpath string) {
+	rawItem, ok := exhibition.items.Get(pkgpath)
 	if !ok {
-		return ErrNoSuchItem
+		panic(ErrNoSuchItem.Error())
 	}
 
 	item := rawItem.(*Item)
 	caller := std.PrevRealm().Addr().String()
 
 	if item.upvote.Has(caller) {
-		return ErrDoubleUpvote
+		panic(ErrDoubleUpvote.Error())
 	}
 
 	item.upvote.Set(caller, struct{}{})
-	return nil
 }
 
-func Downvote(itemID seqid.ID) error {
-	rawItem, ok := exhibition.items.Get(itemID.String())
+func Downvote(pkgpath string) {
+	rawItem, ok := exhibition.items.Get(pkgpath)
 	if !ok {
-		return ErrNoSuchItem
+		panic(ErrNoSuchItem.Error())
 	}
 
 	item := rawItem.(*Item)
 	caller := std.PrevRealm().Addr().String()
 
 	if item.downvote.Has(caller) {
-		return ErrDoubleDownvote
+		panic(ErrDoubleDownvote.Error())
 	}
 
 	item.downvote.Set(caller, struct{}{})
-	return nil
 }
 
-func Delete(itemID seqid.ID) error {
+func Delete(pkgpath string) {
 	if err := owner.CallerIsOwner(); err != nil {
 		panic(err)
 	}
 
-	if _, removed := exhibition.items.Remove(itemID.String()); !removed {
-		return ErrNoSuchItem
+	i, ok := exhibition.items.Get(pkgpath)
+	if !ok {
+		panic(ErrNoSuchItem.Error())
 	}
 
-	return nil
+	if _, removed := exhibition.itemsNewest.Remove(i.(*Item).id.String()); !removed {
+		panic(ErrNoSuchItem.Error())
+	}
+
+	if _, removed := exhibition.items.Remove(pkgpath); !removed {
+		panic(ErrNoSuchItem.Error())
+	}
 }
