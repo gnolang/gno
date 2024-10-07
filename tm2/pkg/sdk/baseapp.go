@@ -359,10 +359,13 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 			}
 		}
 	}
-	// In initChainer(), We set the initial parameter values in the params keeper.
-	// These values need to be written to the multi-store so that CheckTx
-	// can access the information stored in the params keeper.
-	app.deliverState.ctx.ms.MultiWrite()
+	// In app.initChainer(), we set the initial parameter values in the params keeper.
+	// The params keeper store needs to be accessible in the CheckTx state so that
+	// the first CheckTx can verify the gas price set right after the chain is initialized
+	// with the genesis state.
+	app.checkState.ctx.ms = app.deliverState.ctx.ms
+	app.checkState.ms = app.deliverState.ms
+
 	// NOTE: We don't commit, but BeginBlock for block 1 starts from this
 	// deliverState.
 	return
