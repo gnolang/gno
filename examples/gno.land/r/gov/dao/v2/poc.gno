@@ -4,6 +4,7 @@ import (
 	"errors"
 	"std"
 
+	"gno.land/p/combinederr"
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/membstore"
 	"gno.land/p/gov/executor"
@@ -30,7 +31,7 @@ func NewMemberPropExecutor(changesFn func() []membstore.Member) dao.Executor {
 	}
 
 	callback := func() error {
-		errs := &executor.CombinedError{}
+		errs := &combinederr.CombinedError{}
 		cbMembers := changesFn()
 
 		for _, member := range cbMembers {
