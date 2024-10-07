@@ -136,9 +136,7 @@ func initStaticBlocks(store Store, ctx BlockNode, bn BlockNode) {
 						if ln == blankIdentifier {
 							continue
 						}
-						if isLocallyDefined2(last, ln) {
-							// already defined, do nothing
-						} else {
+						if !isLocallyDefined2(last, ln) {
 							// if loop extern, will change to
 							// NameExprTypeHeapDefine later.
 							nx.Type = NameExprTypeDefine
@@ -4382,11 +4380,8 @@ func isLocallyDefined(bn BlockNode, n Name) bool {
 // r := 0
 // r, ok := 1, true
 func isLocallyDefined2(bn BlockNode, n Name) bool {
-	_, ok := bn.GetLocalIndex(n)
-	if !ok {
-		return false
-	}
-	return true
+	_, isLocal := bn.GetLocalIndex(n)
+	return isLocal
 }
 
 // ----------------------------------------
