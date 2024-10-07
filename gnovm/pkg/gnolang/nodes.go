@@ -971,6 +971,7 @@ func (x *FuncDecl) assertDecl()   {}
 func (x *ImportDecl) assertDecl() {}
 func (x *ValueDecl) assertDecl()  {}
 func (x *TypeDecl) assertDecl()   {}
+func (x *GenDecl) assertDecl()    {}
 
 var (
 	_ Decl = &FuncDecl{}
@@ -1031,11 +1032,44 @@ func (x *ValueDecl) GetDeclNames() []Name {
 	return ns
 }
 
+type GenParam struct {
+	name NameExpr
+	t    Expr
+}
+
+type GenDecl struct {
+	Attributes
+	parent Decl
+	param  GenParam
+}
+
+func (x *GenDecl) Copy() Node {
+	return &GenDecl{
+		Attributes: x.Attributes,
+		parent:     x.parent.Copy().(Decl),
+		param: GenParam{
+			name: x.param.name,
+			t:    x.param.t.Copy().(Expr),
+		},
+	}
+}
+
+func (x *GenDecl) assertNode() {}
+
+func (x *GenDecl) String() string {
+	return fmt.Sprintf("parent: %+v param: %+v\n", x.parent, x.param)
+}
+
+func (x *GenDecl) GetDeclNames() []Name {
+	return []Name{x.param.name.Name}
+}
+
 type TypeDecl struct {
 	Attributes
 	NameExpr
 	Type    Expr // Name, SelectorExpr, StarExpr, or XxxTypes
 	IsAlias bool // type alias since Go 1.9
+	Params  []GenParam
 }
 
 func (x *TypeDecl) GetDeclNames() []Name {
@@ -1648,7 +1682,7 @@ func (sb *StaticBlock) GetPathForName(store Store, n Name) ValuePath {
 		return NewValuePathUverse(idx, n)
 	}
 	// Name does not exist.
-	panic(fmt.Sprintf("name %s not declared", n))
+	panic(fmt.Sprintf("GetPathForName: name %s not declared", n))
 }
 
 // Returns whether a name defined here in in ancestry is a const.
@@ -1666,7 +1700,7 @@ func (sb *StaticBlock) GetIsConst(store Store, n Name) bool {
 			sb = bp.GetStaticBlock()
 			bp = bp.GetParentNode(store)
 		} else {
-			panic(fmt.Sprintf("name %s not declared", n))
+			panic(fmt.Sprintf("GetIsConst: name %s not declared", n))
 		}
 	}
 }
@@ -1699,7 +1733,7 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 			tv := Uverse().GetValueAt(store, path)
 			return tv.T
 		} else {
-			panic(fmt.Sprintf("name %s not declared", n))
+			panic(fmt.Sprintf("GetStaticTypeOf: name %s not declared", n))
 		}
 	}
 }
