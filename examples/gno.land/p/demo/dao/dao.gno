@@ -7,6 +7,7 @@ const (
 	ProposalExecutedEvent    = "ProposalExecuted"    // emitted when a proposal has been executed
 
 	ProposalEventIDKey        = "proposal-id"
+	ProposalEventAuthorKey    = "proposal-author"
 	ProposalEventExecutionKey = "exec-status"
 )
 

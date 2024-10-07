@@ -75,6 +75,9 @@ func (s *SimpleDAO) Propose(request dao.ProposalRequest) (uint64, error) {
 		return 0, ufmt.Errorf("unable to add proposal, %s", err.Error())
 	}
 
+	// Emit the proposal added event
+	dao.EmitProposalAdded(id, caller)
+
 	return id, nil
 }
 

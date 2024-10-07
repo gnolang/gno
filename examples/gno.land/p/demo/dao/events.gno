@@ -6,6 +6,16 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
+// EmitProposalAdded emits an event signaling that
+// a given proposal was added
+func EmitProposalAdded(id uint64, proposer std.Address) {
+	std.Emit(
+		ProposalAddedEvent,
+		ProposalEventIDKey, ufmt.Sprintf("%d", id),
+		ProposalEventAuthorKey, proposer.String(),
+	)
+}
+
 // EmitProposalAccepted emits an event signaling that
 // a given proposal was accepted
 func EmitProposalAccepted(id uint64) {
