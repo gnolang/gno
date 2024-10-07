@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	valRealm     = "gno.land/r/sys/validators/v2"
+	valRealm     = "gno.land/r/sys/validators/v2" // XXX: make it configurable from GovDAO
 	valChangesFn = "GetChanges"
 
 	validatorAddedEvent   = "ValidatorAdded"
