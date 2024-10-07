@@ -30,7 +30,7 @@ func init() {
 
 func NewUser(name string, email string) string {
 	// get the user address
-	address := std.GetOrigCaller()
+	address := std.PrevRealm().Addr()
 	// create the user
 	user := gfm.NewUser(name, email, address)
 
@@ -47,7 +47,7 @@ func NewCampaign(ctype int, title string, description string, goal int64, beginT
 
 	var owner, beneficiaryU *gfm.User
 	// gets the caller address (owner of the campaign)
-	caller := std.GetOrigCaller()
+	caller := std.PrevRealm().Addr()
 
 	// verify that the user owner exists
 	o, ok := users.Get(caller.String())
@@ -121,7 +121,7 @@ func AddContributor(campaignId string, display bool) string {
 	}
 
 	// get the user address
-	userAddress := std.GetOrigCaller()
+	userAddress := std.PrevRealm().Addr()
 
 	// get the user if he exists
 	user, ok := users.Get(userAddress.String())
@@ -154,8 +154,6 @@ func GetCampaigns() string {
 }
 
 func IsUserRegistered(userAddress string) bool {
-	// get the user address
-	// userAddress := std.GetOrigCaller()
 	// verify if the user exists
 	_, ok := users.Get(userAddress)
 	return ok
@@ -170,7 +168,7 @@ func Withdraw(campaignId string) {
 
 	campaign := camp.(*gfm.Campaign)
 	// get the user address
-	callerAddress := std.GetOrigCaller()
+	callerAddress := std.PrevRealm().Addr()
 
 	// verify that the user is the owner of the campaign
 	if callerAddress != campaign.Owner.GetAddress() {
@@ -263,57 +261,7 @@ func renderCampaign(id string) string {
 	if !ok {
 		return "campaign not found"
 	}
-
-	// define an empty buffer
-	var b bytes.Buffer
 	c := campaign.(*gfm.Campaign)
-	b.WriteString(
-		ufmt.Sprintf("# Campaign %s\n", id),
-	)
-	b.WriteString(
-		ufmt.Sprintf("## Title: %s\n", c.Title),
-	)
-	b.WriteString(
-		ufmt.Sprintf("## Description: %s\n", c.Description),
-	)
-	b.WriteString(
-		ufmt.Sprintf("### Goal: %d GNOT", c.Goal),
-	)
-	b.WriteString(
-		ufmt.Sprintf("********** Current: %d GNOT\n", c.Current/1_000_000),
-	)
-	b.WriteString(
-		ufmt.Sprintf("### Begin: %s", c.Begin.String()),
-	)
-	b.WriteString(
-		ufmt.Sprintf("  ------------->  Deadline: %s\n", c.Deadline.String()),
-	)
-	b.WriteString(
-		ufmt.Sprintf("### Owner: %s, %s\n", c.Owner.GetName(), c.Owner.GetAddress()),
-	)
-	b.WriteString(
-		ufmt.Sprintf("### Beneficiary: %s, %s\n", c.Beneficiary.GetName(), c.Beneficiary.GetAddress()),
-	)
-	b.WriteString(
-		ufmt.Sprintf("## Contributors: %d\n", len(c.GetContributors())),
-	)
-	if len(c.GetContributors()) != 0 {
-		contributors := c.GetContributors()
-		for _, contributor := range contributors {
-			if contributor.GetDisplay() {
-				b.WriteString(
-					ufmt.Sprintf(
-						"### %s: %dugnot, %s\n", contributor.GetUser().GetName(), contributor.Amount, contributor.Date.String(),
-					), // added the date of contribution in the display, but adds "m=+1726419880.000000001" after the date =>> the problems comes from time.now(), had to modify and use time.Unix(time.Now().Unix(), 0) to solve the problem.
-				)
-			} else {
-				b.WriteString(
-					ufmt.Sprintf(
-						"### Anonymous: %dugnot\n", contributor.Amount,
-					),
-				)
-			}
-		}
-	}
-	return b.String()
+
+	return c.Render(id)
 }

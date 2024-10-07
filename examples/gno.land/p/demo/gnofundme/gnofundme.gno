@@ -1,9 +1,12 @@
 package gnofundme // Package gnofundme provides a simple crowdfunding system.
 
 import (
+	"bytes"
 	"strconv"
 	"strings"
 	"time"
+
+	"gno.land/p/demo/ufmt"
 )
 
 type ctype int
@@ -105,4 +108,61 @@ func CampaignToJSONString(campaign *Campaign) string {
 	sb.WriteString("}")
 
 	return sb.String()
+}
+
+func (c Campaign) Render(id string) string {
+	var b bytes.Buffer
+	b.WriteString(
+		ufmt.Sprintf("# Campaign %s\n", id),
+	)
+	b.WriteString(
+		ufmt.Sprintf("## Title: %s\n", c.Title),
+	)
+	b.WriteString(
+		ufmt.Sprintf("## Description: %s\n", c.Description),
+	)
+	b.WriteString(
+		ufmt.Sprintf("### Goal: %d GNOT", c.Goal),
+	)
+	b.WriteString(
+		ufmt.Sprintf("********** Current: %d GNOT\n", c.Current/1_000_000),
+	)
+	b.WriteString(
+		ufmt.Sprintf("### Begin: %s", c.Begin.String()),
+	)
+	b.WriteString(
+		ufmt.Sprintf("  ------------->  Deadline: %s\n", c.Deadline.String()),
+	)
+	b.WriteString(
+		ufmt.Sprintf("### Owner: %s, %s\n", c.Owner.GetName(), c.Owner.GetAddress()),
+	)
+	b.WriteString(
+		ufmt.Sprintf("### Beneficiary: %s, %s\n", c.Beneficiary.GetName(), c.Beneficiary.GetAddress()),
+	)
+	b.WriteString(
+		ufmt.Sprintf("## Last contributors: %d\n", len(c.GetContributors())),
+	)
+	if contributors := c.GetContributors(); len(c.GetContributors()) != 0 {
+		length := len(c.GetContributors())
+		if length > 10 {
+			length = 10
+		}
+
+		for i := length; i >= 0; i-- {
+			if contributors[i].GetDisplay() {
+				b.WriteString(
+					ufmt.Sprintf(
+						"### %s: %dugnot, %s\n", contributors[i].GetUser().GetName(), contributors[i].Amount, contributors[i].Date.String(),
+					), // added the date of contribution in the display, but adds "m=+1726419880.000000001" after the date =>> the problems comes from time.now(), had to modify and use time.Unix(time.Now().Unix(), 0) to solve the problem.
+				)
+			} else {
+				b.WriteString(
+					ufmt.Sprintf(
+						"### Anonymous: %dugnot\n", contributors[i].Amount,
+					),
+				)
+			}
+		}
+	}
+	return b.String()
 }
