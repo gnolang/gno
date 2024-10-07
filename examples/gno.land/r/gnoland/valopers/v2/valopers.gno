@@ -172,7 +172,7 @@ func GovDAOProposal(address std.Address) {
 
 	// Craft the proposal description
 	description := ufmt.Sprintf(
-		"Proposal to add valoper %s (Address: %s; PubKey: %s) to the valset",
+		"Add valoper %s (Address: %s; PubKey: %s) to the valset",
 		valoper.Name,
 		valoper.Address.String(),
 		valoper.PubKey,
