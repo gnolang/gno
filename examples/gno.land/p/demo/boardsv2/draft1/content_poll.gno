@@ -11,6 +11,7 @@ type PollContent struct {
 		Address std.Adress
 		Option  string
 	}
+	Tags []string
 }
 
 func NewPoll( /* ... */ ) *Post {

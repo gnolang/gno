@@ -8,6 +8,7 @@ var _ Content = (*BoardContent)(nil)
 
 type BoardContent struct {
 	Name string
+	Tags []string
 }
 
 func NewBoard() *Post {
