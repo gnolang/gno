@@ -4,11 +4,11 @@
 package hof
 
 import (
-	"github.com/gnolang/gno/examples/gno.land/p/demo/pausable"
 	"std"
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
+	"gno.land/p/demo/pausable"
 	"gno.land/p/demo/seqid"
 )
 
@@ -111,6 +111,9 @@ func Downvote(itemID seqid.ID) error {
 }
 
 func Delete(itemID seqid.ID) error {
+	if err := owner.CallerIsOwner(); err != nil {
+		panic(err)
+	}
 
 	if _, removed := exhibition.items.Remove(itemID.String()); !removed {
 		return ErrNoSuchItem
