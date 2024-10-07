@@ -6,11 +6,11 @@ import "std"
 // Should not be needed as soon as MsgCall supports calling methods on exported variables
 
 func Pause() error {
-	return exhibition.Pausable.Pause()
+	return exhibition.Pause()
 }
 
 func Unpause() error {
-	return exhibition.Pausable.Unpause()
+	return exhibition.Unpause()
 }
 
 func GetOwner() std.Address {

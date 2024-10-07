@@ -50,7 +50,7 @@ func init() {
 // Should be called from within code
 func Register() {
 	if exhibition.IsPaused() {
-		panic("hof: registering is paused")
+		panic(ErrPaused.Error())
 	}
 
 	submission := std.PrevRealm()

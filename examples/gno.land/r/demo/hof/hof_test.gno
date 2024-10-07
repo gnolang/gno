@@ -1,18 +1,16 @@
 package hof
 
 import (
-	"gno.land/p/demo/uassert"
 	"std"
 	"testing"
 
+	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
 )
 
 const rlm1Path = "gno.land/r/leon/home"
 
-var (
-	admin = std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
-)
+var admin = std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
 
 func TestRegister(t *testing.T) {
 	userRealm := std.NewUserRealm(admin)
@@ -30,6 +28,11 @@ func TestRegister(t *testing.T) {
 
 	_, ok = exhibition.itemsSorted.Get(i.(*Item).id.String())
 	uassert.True(t, ok)
+
+	// Check paused
+	std.TestSetRealm(userRealm)
+	urequire.NotPanics(t, func() { exhibition.Pause() })
+	uassert.PanicsWithMessage(t, ErrPaused.Error(), Register)
 }
 
 func TestUpvote(t *testing.T) {
