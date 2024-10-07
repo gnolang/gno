@@ -2,10 +2,10 @@ package membstore
 
 import (
 	"errors"
-
 	"std"
 
 	"gno.land/p/demo/avl"
+	"gno.land/p/demo/ufmt"
 )
 
 var (
@@ -26,7 +26,14 @@ type Option func(*MembStore)
 func WithInitialMembers(members []Member) Option {
 	return func(store *MembStore) {
 		for _, m := range members {
-			store.members.Set(m.Address.String(), m)
+			memberAddr := m.Address.String()
+
+			// Check if the member already exists
+			if store.members.Has(memberAddr) {
+				panic(ufmt.Errorf("%s, %s", memberAddr, ErrAlreadyMember))
+			}
+
+			store.members.Set(memberAddr, m)
 			store.totalVotingPower += m.VotingPower
 		}
 	}
