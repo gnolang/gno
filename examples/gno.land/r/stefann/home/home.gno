@@ -1,14 +1,13 @@
 package home
 
 import (
-    "std"
-    "sort"
+	"sort"
+	"std"
 
-    "gno.land/p/demo/ufmt"
+	"gno.land/p/demo/ufmt"
 
-    "gno.land/r/stefann/config"
+	"gno.land/r/stefann/config"
 )
-
 
 type City struct {
 	Name string
@@ -21,49 +20,49 @@ type Sponsor struct {
 }
 
 var (
-    pfp              string
-    cities           []City
-    currentCityIndex int
-    aboutMe          [2]string
-    jarLink          string
-    maxSponsors      int
-    sponsors         []Sponsor
+	pfp              string
+	cities           []City
+	currentCityIndex int
+	aboutMe          [2]string
+	jarLink          string
+	maxSponsors      int
+	sponsors         []Sponsor
 	totalDonated     std.Coins
 	totalDonations   int
 )
 
 func init() {
-    pfp = "https://i.ibb.co/Bc5YNCx/DSC-0095a.jpg"
-    cities = []City{
-        {Name: "Venice", URL: "https://i.ibb.co/1mcZ7b1/venice.jpg"},
-        {Name: "Tokyo", URL: "https://i.ibb.co/wNDJv3H/tokyo.jpg"},
-        {Name: "São Paulo", URL: "https://i.ibb.co/yWMq2Sn/sao-paulo.jpg"},
-        {Name: "Toronto", URL: "https://i.ibb.co/pb95HJB/toronto.jpg"},
-        {Name: "Bangkok", URL: "https://i.ibb.co/pQy3w2g/bangkok.jpg"},
-        {Name: "New York", URL: "https://i.ibb.co/6JWLm0h/new-york.jpg"},
-        {Name: "Paris", URL: "https://i.ibb.co/q9vf6Hs/paris.jpg"},
-        {Name: "Kandersteg", URL: "https://i.ibb.co/60DzywD/kandersteg.jpg"},
-        {Name: "Rothenburg", URL: "https://i.ibb.co/cr8d2rQ/rothenburg.jpg"},
-        {Name: "Capetown", URL: "https://i.ibb.co/bPGn0v3/capetown.jpg"},
-        {Name: "Sydney", URL: "https://i.ibb.co/TBNzqfy/sydney.jpg"},
-        {Name: "Oeschinen Lake", URL: "https://i.ibb.co/QJQwp2y/oeschinen-lake.jpg"},
-        {Name: "Barra Grande", URL: "https://i.ibb.co/z4RXKc1/barra-grande.jpg"},
-        {Name: "London", URL: "https://i.ibb.co/CPGtvgr/london.jpg"},
-    }
-    currentCityIndex = 0
-    jarLink = "https://TODO"
-    maxSponsors = 5
-    aboutMe = [2]string{
-        `<h3 style="font-size: 1.4em;">About Me</h3>
+	pfp = "https://i.ibb.co/Bc5YNCx/DSC-0095a.jpg"
+	cities = []City{
+		{Name: "Venice", URL: "https://i.ibb.co/1mcZ7b1/venice.jpg"},
+		{Name: "Tokyo", URL: "https://i.ibb.co/wNDJv3H/tokyo.jpg"},
+		{Name: "São Paulo", URL: "https://i.ibb.co/yWMq2Sn/sao-paulo.jpg"},
+		{Name: "Toronto", URL: "https://i.ibb.co/pb95HJB/toronto.jpg"},
+		{Name: "Bangkok", URL: "https://i.ibb.co/pQy3w2g/bangkok.jpg"},
+		{Name: "New York", URL: "https://i.ibb.co/6JWLm0h/new-york.jpg"},
+		{Name: "Paris", URL: "https://i.ibb.co/q9vf6Hs/paris.jpg"},
+		{Name: "Kandersteg", URL: "https://i.ibb.co/60DzywD/kandersteg.jpg"},
+		{Name: "Rothenburg", URL: "https://i.ibb.co/cr8d2rQ/rothenburg.jpg"},
+		{Name: "Capetown", URL: "https://i.ibb.co/bPGn0v3/capetown.jpg"},
+		{Name: "Sydney", URL: "https://i.ibb.co/TBNzqfy/sydney.jpg"},
+		{Name: "Oeschinen Lake", URL: "https://i.ibb.co/QJQwp2y/oeschinen-lake.jpg"},
+		{Name: "Barra Grande", URL: "https://i.ibb.co/z4RXKc1/barra-grande.jpg"},
+		{Name: "London", URL: "https://i.ibb.co/CPGtvgr/london.jpg"},
+	}
+	currentCityIndex = 0
+	jarLink = "https://TODO"
+	maxSponsors = 5
+	aboutMe = [2]string{
+		`<h3 style="font-size: 1.4em;">About Me</h3>
         <p style="font-size: 1.1em;">Hey there! I’m Stefan, a student of Computer Science. I’m all about exploring and adventure — whether it’s diving into the latest tech or discovering a new city, I’m always up for the challenge!</p>`,
-        `<h3 style="font-size: 1.4em;">Contributions</h3>
+		`<h3 style="font-size: 1.4em;">Contributions</h3>
         <p style="font-size: 1.1em;">I'm just getting started, but you can follow my journey through Gno.land right here <a href="https://github.com/gnolang/hackerspace/issues/94" target="_blank">🔗</a></p>`,
-    }
+	}
 }
 
 func UpdateMaxSponsors(newMax int) {
-    config.AssertAuthorized()
-    maxSponsors = newMax
+	config.AssertAuthorized()
+	maxSponsors = newMax
 }
 
 func UpdateCities(newCities []City) {
@@ -88,39 +87,39 @@ func UpdateAboutMe(col1, col2 string) {
 }
 
 func Donate() {
-    address := std.GetOrigCaller()
-    amount := std.GetOrigSend()
-    
-    if amount.AmountOf("ugnot") == 0 {
-        panic("Donation must include GNOT")
-    }
+	address := std.GetOrigCaller()
+	amount := std.GetOrigSend()
 
-    found := false
+	if amount.AmountOf("ugnot") == 0 {
+		panic("Donation must include GNOT")
+	}
 
-    for i, sponsor := range sponsors {
-        if sponsor.Address == address {
-            sponsors[i].Amount = sponsors[i].Amount.Add(amount)
-            found = true
-            break
-        }
-    }
+	found := false
 
-    if !found {
-        sponsors = append(sponsors, Sponsor{Address: address, Amount: amount})
-    }
+	for i, sponsor := range sponsors {
+		if sponsor.Address == address {
+			sponsors[i].Amount = sponsors[i].Amount.Add(amount)
+			found = true
+			break
+		}
+	}
 
-    totalDonated = totalDonated.Add(amount)
+	if !found {
+		sponsors = append(sponsors, Sponsor{Address: address, Amount: amount})
+	}
 
-    totalDonations++
+	totalDonated = totalDonated.Add(amount)
 
-    sortSponsorsByAmount()
+	totalDonations++
 
-    if len(cities) > 0 {
-        currentCityIndex++
-        if currentCityIndex >= len(cities) {
-            currentCityIndex = 0
-        }
-    }
+	sortSponsorsByAmount()
+
+	if len(cities) > 0 {
+		currentCityIndex++
+		if currentCityIndex >= len(cities) {
+			currentCityIndex = 0
+		}
+	}
 }
 
 type SponsorSlice []Sponsor
@@ -205,10 +204,10 @@ func renderTips() string {
 
 	out += renderTipsJar() + "\n"
 
-    out += ufmt.Sprintf(`<strong style="font-size: 1.2em;">I am currently in %s, <br> tip the jar to send me somewhere else!</strong>`, cities[currentCityIndex].Name)
-    
-    out += `<br><span style="font-size: 1.2em; font-style: italic; margin-top: 10px; display: inline-block;">Click the jar, tip in GNOT coins, and watch my background change as I head to a new adventure!</span></p>` + "\n\n"
-    
+	out += ufmt.Sprintf(`<strong style="font-size: 1.2em;">I am currently in %s, <br> tip the jar to send me somewhere else!</strong>`, cities[currentCityIndex].Name)
+
+	out += `<br><span style="font-size: 1.2em; font-style: italic; margin-top: 10px; display: inline-block;">Click the jar, tip in GNOT coins, and watch my background change as I head to a new adventure!</span></p>` + "\n\n"
+
 	out += renderSponsors()
 
 	out += `</div><!-- /rows-2 -->` + "\n\n"
@@ -219,49 +218,49 @@ func renderTips() string {
 }
 
 func formatAddress(address string) string {
-    if len(address) <= 8 {
-        return address
-    }
-    return address[:4] + "..." + address[len(address)-4:]
+	if len(address) <= 8 {
+		return address
+	}
+	return address[:4] + "..." + address[len(address)-4:]
 }
 
 func renderSponsors() string {
-    out := `<h3 style="margin-top: 5px; margin-bottom: 20px">Sponsor Leaderboard</h3>` + "\n"
+	out := `<h3 style="margin-top: 5px; margin-bottom: 20px">Sponsor Leaderboard</h3>` + "\n"
 
-    if len(sponsors) == 0 {
-        out += `<p style="text-align: center;">No sponsors yet. Be the first to tip the jar!</p>` + "\n"
-    } else {
-        numSponsors := len(sponsors)
-        if numSponsors > maxSponsors {
-            numSponsors = maxSponsors
-        }
+	if len(sponsors) == 0 {
+		out += `<p style="text-align: center;">No sponsors yet. Be the first to tip the jar!</p>` + "\n"
+	} else {
+		numSponsors := len(sponsors)
+		if numSponsors > maxSponsors {
+			numSponsors = maxSponsors
+		}
 
-        out += `<ul style="list-style-type: none; padding: 0; border: 1px solid #ddd; border-radius: 8px; width: 100%; max-width: 300px; margin: 0 auto;">` + "\n"
+		out += `<ul style="list-style-type: none; padding: 0; border: 1px solid #ddd; border-radius: 8px; width: 100%; max-width: 300px; margin: 0 auto;">` + "\n"
 
-        for i := 0; i < numSponsors; i++ {
-            sponsor := sponsors[i]
-            isLastItem := (i == numSponsors-1)
+		for i := 0; i < numSponsors; i++ {
+			sponsor := sponsors[i]
+			isLastItem := (i == numSponsors-1)
 
-            padding := "10px 5px"
-            border := "border-bottom: 1px solid #ddd;"
+			padding := "10px 5px"
+			border := "border-bottom: 1px solid #ddd;"
 
-            if isLastItem {
-                padding = "8px 5px"
-                border = ""
-            }
+			if isLastItem {
+				padding = "8px 5px"
+				border = ""
+			}
 
-            out += ufmt.Sprintf(
-                `<li style="padding: %s; %s text-align: left;">
+			out += ufmt.Sprintf(
+				`<li style="padding: %s; %s text-align: left;">
                     <strong style="padding-left: 5px;">%d. %s</strong> 
                     <span style="float: right; padding-right: 5px;">%s</span>
                 </li>`,
-                padding, border, i+1, formatAddress(sponsor.Address.String()), sponsor.Amount.String(),
-            )
-        }
+				padding, border, i+1, formatAddress(sponsor.Address.String()), sponsor.Amount.String(),
+			)
+		}
 
-    }
+	}
 
-    return out
+	return out
 }
 
 func renderTipsJar() string {
