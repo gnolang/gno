@@ -1,9 +1,5 @@
 package dao
 
-import (
-	"std"
-)
-
 const (
 	VoteAddedEvent = "VoteAdded" // emitted when a vote was cast for a proposal
 
@@ -22,12 +18,6 @@ const (
 
 func (v VoteOption) String() string {
 	return string(v)
-}
-
-// Vote encompasses a single GOVDAO vote
-type Vote struct {
-	Address std.Address // the address of the voter
-	Option  VoteOption  // the voting option
 }
 
 // Stats encompasses the proposal voting stats
