@@ -111,11 +111,6 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 		return ErrProposalInactive
 	}
 
-	// Check if the proposal is expired
-	if prop.IsExpired() {
-		return ErrProposalExpired
-	}
-
 	// Cast the vote
 	if err = prop.tally.castVote(member, option); err != nil {
 		return ufmt.Errorf("unable to vote on proposal %d, %s", id, err.Error())
@@ -194,11 +189,6 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 	if prop.Status() != dao.Accepted {
 		// Proposal is not accepted, cannot be executed
 		return ErrProposalNotAccepted
-	}
-
-	// Check if the proposal is expired
-	if prop.IsExpired() {
-		return ErrProposalExpired
 	}
 
 	// Emit an event when the execution finishes
