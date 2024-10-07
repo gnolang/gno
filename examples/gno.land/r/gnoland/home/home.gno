@@ -6,9 +6,9 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
+	"gno.land/r/demo/hof"
 	blog "gno.land/r/gnoland/blog"
 	events "gno.land/r/gnoland/events"
-	"gno.land/r/gnoland/hof"
 )
 
 // XXX: p/demo/ui API is crappy, we need to make it more idiomatic
@@ -95,7 +95,7 @@ func latestHOFItems(num int) ui.Element {
 	submissions := hof.RenderExhibWidget(num)
 
 	return ui.Element{
-		ui.H3("[Hall of Fame](/r/gnoland/hof)"),
+		ui.H3("[Hall of Fame](/r/demo/hof)"),
 		ui.Text(submissions),
 	}
 }

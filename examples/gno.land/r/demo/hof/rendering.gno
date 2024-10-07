@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	likesBar = "#### [%d 👍](/r/gnoland/hof?help&__func=Upvote&itemID=%s) - [%d 👎](/r/gnoland/hof?help&__func=Downvote&itemID=%s)\n\n"
-	delBar   = "[Delete](/r/gnoland/hof?help&__func=Delete&itemID=%s)\n\n"
+	likesBar = "#### [%d 👍](/r/demo/hof?help&__func=Upvote&itemID=%s) - [%d 👎](/r/demo/hof?help&__func=Downvote&itemID=%s)\n\n"
+	delBar   = "[Delete](/r/demo/hof?help&__func=Delete&itemID=%s)\n\n"
 )
 
 func Render(path string) string {
@@ -46,6 +46,7 @@ func (e Exhibition) Render(dashboard bool) string {
 func (i Item) Render(dashboard bool) string {
 	out := ufmt.Sprintf("\n```\n%s\n```\n\n", i.pkgpath)
 	out += ufmt.Sprintf("by %s\n\n", i.deployer.String())
+	out += ufmt.Sprintf("[View realm](%s)\n\n", fqname.ShortPath(i.pkgpath))
 	out += ufmt.Sprintf("Published at Block #%d\n\n", i.blockNum)
 	out += ufmt.Sprintf(
 		likesBar,

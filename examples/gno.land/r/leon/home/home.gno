@@ -8,7 +8,7 @@ import (
 
 	"gno.land/r/demo/art/gnoface"
 	"gno.land/r/demo/art/millipede"
-	"gno.land/r/gnoland/hof"
+	"gno.land/r/demo/hof"
 	"gno.land/r/leon/config"
 )
 

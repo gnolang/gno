@@ -1,4 +1,4 @@
-module gno.land/r/gnoland/hof
+module gno.land/r/demo/hof
 
 require (
 	gno.land/p/demo/avl v0.0.0-latest
