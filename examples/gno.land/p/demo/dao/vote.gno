@@ -1,5 +1,13 @@
 package dao
 
+// NOTE:
+// This voting pods will be removed in a future version of the
+// p/demo/dao package. A DAO shouldn't have to comply with or define how the voting mechanism works internally;
+// it should be viewed as an entity that makes decisions
+//
+// The extent of "votes being enforced" in this implementation is just in the context
+// of types a DAO can use (import), and in the context of "Stats", where
+// there is a notion of "Yay", "Nay" and "Abstain" votes.
 const (
 	VoteAddedEvent = "VoteAdded" // emitted when a vote was cast for a proposal
 
