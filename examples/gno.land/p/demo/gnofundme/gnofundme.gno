@@ -6,14 +6,20 @@ import (
 	"time"
 )
 
-// ctype: Campaign type, will be an int
-// campaign types :
-// 0: Personal, for a person (yourself or another person): can be for humanitarian reason, emergency needs, or other
-// 1: Cause, for a cause: you will manage the funds (based on trust)
-// 2: Organism, for an organism, charity...
-// 3: Donation  Donation Crowdfunding
-// 4: RewardC,  Reward Crowdfunding
-// 5: EquityC, Equity Crowdfunding
+type ctype int
+
+const (
+	Personal ctype = iota
+	// for a person (yourself or another person): can be for humanitarian reason, emergency needs, or other (beneficiary = owner)
+	Cause
+	// for a cause: you will manage the funds (based on trust) (beneficiary = owner)
+	Organism
+	// for an organism, charity... (beneficiary != owner)
+	// the next types are for companies(startup projects...) crowdfunding
+	Donation
+	RewardC
+	EquityC
+)
 
 type Campaign struct {
 	// Campaign type
