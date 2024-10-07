@@ -7,37 +7,19 @@ import (
 )
 
 const (
-	MaxWidgetSize = 5
-	likesBar      = "#### [%d 👍](/r/gnoland/hof?help&__func=Upvote&exhibID=%s&itemID=%s) - [%d 👎](/r/gnoland/hof?help&__func=Downvote&exhibID=%s&itemID=%s)\n\n"
-	delBar        = "[Delete](/r/gnoland/hof?help&__func=Delete&exhibID=%s&itemID=%s)\n\n"
+	likesBar = "#### [%d 👍](/r/gnoland/hof?help&__func=Upvote&exhibID=%s&itemID=%s) - [%d 👎](/r/gnoland/hof?help&__func=Downvote&exhibID=%s&itemID=%s)\n\n"
+	delBar   = "[Delete](/r/gnoland/hof?help&__func=Delete&exhibID=%s&itemID=%s)\n\n"
 )
 
 func Render(path string) string {
 	out := "# Hall of Fame\n\n"
-
-	// Render permanent exhib
-	permanent, _ := exhibitions.Get(seqid.ID(0).String())
-	out += permanent.(*Exhibition).Render(path == "dashboard")
-
-	if exhibitions.Size() > 1 {
-		out += "---\n\n"
-	}
-
-	exhibitions.Iterate(seqid.ID(1).String(), "", func(key string, value interface{}) bool {
-		e := value.(*Exhibition)
-		out += e.Render(path == "dashboard")
-
-		out += "---\n\n"
-		return false
-	})
+	out += exhibition.Render(path == "dashboard")
 
 	return out
 }
 
 func (e Exhibition) Render(dashboard bool) string {
-	out := ufmt.Sprintf("## %s\n\n", e.title)
-	out += ufmt.Sprintf("%s\n\n", e.description)
-	out += ufmt.Sprintf("Exhibition ID: %s\n\n", e.id.String())
+	out := ufmt.Sprintf("%s\n\n", e.description)
 
 	if e.items.Size() == 0 {
 		out += "No items in this exhibition currently.\n\n"
@@ -86,13 +68,10 @@ func (i Item) Render(dashboard bool) string {
 	return out
 }
 
-func RenderExhibWidget(exhibID seqid.ID, itemsToRender int) (string, error) {
-	if itemsToRender > MaxWidgetSize {
-		return "", ErrMaxWidgetSize
-	}
+func RenderExhibWidget(exhibID seqid.ID, itemsToRender int) string {
 
 	if itemsToRender < 1 {
-		return "", ErrMinWidgetSize
+		return ""
 	}
 
 	e, ok := exhibitions.Get(exhibID.String())
