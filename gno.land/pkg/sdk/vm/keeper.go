@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -504,7 +505,15 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}()
 
 	rtvs := m.Eval(xn)
-	res = JSONValues(m, rtvs...)
+
+	res = JSONValues(m, rtvs)
+
+	for i, rtv := range rtvs {
+		res = res + rtv.String()
+		if i < len(rtvs)-1 {
+			res += "\n"
+		}
+	}
 
 	// Log the telemetry
 	logTelemetry(
@@ -757,7 +766,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	}()
 	rtvs := m.Eval(xx)
 
-	res = JSONValues(m, rtvs...)
+	res = JSONValues(m, rtvs)
 	return res, nil
 }
 
@@ -853,6 +862,26 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 
 	return res, nil
 
+}
+
+func stringifyResult(m *gno.Machine, format Format, values ...gnolang.TypedValue) string {
+	switch format {
+	case FormatJSON:
+		return JSONValues(m, values)
+	case FormatDefault, "":
+		var res strings.Builder
+
+		for i, v := range values {
+			if i > 0 {
+				res.WriteRune('\n')
+			}
+			res.WriteString(v.String())
+		}
+
+		return res.String()
+	default:
+		panic("unsuported formata")
+	}
 }
 
 // logTelemetry logs the VM processing telemetry

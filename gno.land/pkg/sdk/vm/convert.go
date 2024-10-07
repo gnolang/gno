@@ -192,7 +192,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	}
 }
 
-func JSONValues(m *gno.Machine, tvs ...gno.TypedValue) string {
+func JSONValues(m *gno.Machine, tvs []gno.TypedValue) string {
 	var str strings.Builder
 
 	str.WriteRune('[')
@@ -209,7 +209,7 @@ func JSONValues(m *gno.Machine, tvs ...gno.TypedValue) string {
 
 func JSONValue(m *gno.Machine, tv gno.TypedValue) string {
 	if tv.T == nil {
-		panic("empty type")
+		return "null"
 	}
 
 	switch bt := gno.BaseOf(tv.T).(type) {
@@ -252,22 +252,40 @@ func JSONValue(m *gno.Machine, tv gno.TypedValue) string {
 		default:
 			panic("invalid primitive type - should not happen")
 		}
+	case *gno.PointerType:
+		// Check if Pointer we type implement Stringer / Error
+
+		// If implements .Error(), return it.
+		if tv.IsError() {
+			res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "Error")))
+			return strconv.Quote(res[0].GetString())
+		}
+		// If implements .String(), return it.
+		if tv.IsStringer() {
+			res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "String")))
+			return strconv.Quote(res[0].GetString())
+		}
+	default:
+		// Check if pointer wraped value can implement Stringer / Error
+		ptv := gno.TypedValue{
+			T: &gno.PointerType{Elt: tv.T},
+			V: gno.PointerValue{TV: &tv, Base: tv.V},
+		}
+
+		// If implements .Error(), return it.
+		if ptv.IsError() {
+			res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: ptv}, "Error")))
+			return strconv.Quote(res[0].GetString())
+		}
+		// If implements .String(), return it.
+		if ptv.IsStringer() {
+			res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: ptv}, "String")))
+			return strconv.Quote(res[0].GetString())
+		}
 	}
 
 	if tv.V == nil {
-		return "<nil>"
-	}
-
-	// if implements .String(), return it.
-	if tv.IsStringer() {
-		panic("nooo")
-		res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "String")))
-		return strconv.Quote(res[0].GetString())
-	}
-	// if implements .Error(), return it.
-	if tv.IsError() {
-		res := m.Eval(gno.Call(gno.Sel(&gno.ConstExpr{TypedValue: tv}, "Error")))
-		return strconv.Quote(res[0].GetString())
+		return "null"
 	}
 
 	var id string

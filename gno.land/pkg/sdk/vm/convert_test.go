@@ -2,10 +2,13 @@ package vm
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConvertEmptyNumbers(t *testing.T) {
@@ -34,6 +37,147 @@ func TestConvertEmptyNumbers(t *testing.T) {
 				_ = convertArgToGno("", tt.argT)
 			}
 			assert.PanicsWithValue(t, tt.expectedErr, run)
+		})
+	}
+}
+
+func TestConvertJSONValuePrimtive(t *testing.T) {
+	cases := []struct {
+		ValueRep string // Go representation
+		Expected string // string representation
+	}{
+		// Boolean
+		{"nil", "null"},
+
+		// Boolean
+		{"true", "true"},
+		{"false", "false"},
+
+		// int types
+		{"int(42)", `42`}, // Needs to be quoted for amino
+		{"int8(42)", `42`},
+		{"int16(42)", `42`},
+		{"int32(42)", `42`},
+		{"int64(42)", `42`},
+
+		// uint types
+		{"uint(42)", `42`},
+		{"uint8(42)", `42`},
+		{"uint16(42)", `42`},
+		{"uint32(42)", `42`},
+		{"uint64(42)", `42`},
+
+		// Float types // XXX: Require amino unsafe
+		// {"float32(3.14)", "3.14"},
+		// {"float64(3.14)", "3.14"},
+
+		// String type
+		{`"hello world"`, `"hello world"`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.ValueRep, func(t *testing.T) {
+			m := gnolang.NewMachine("testdata", nil)
+			defer m.Release()
+
+			nn := gnolang.MustParseFile("testdata.gno",
+				fmt.Sprintf(`package testdata; var Value = %s`, tc.ValueRep))
+			m.RunFiles(nn)
+			m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+			tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+			require.Len(t, tps, 1)
+
+			tv := tps[0]
+
+			rep := JSONValue(m, tv)
+			require.Equal(t, tc.Expected, rep)
+		})
+	}
+}
+
+func TestConvertJSONValueStruct(t *testing.T) {
+	const StructsFile = `
+package testdata
+
+// S struct
+type S struct { B string }
+
+func (s *S) String() string { return s.B }
+`
+
+	t.Run("with pointer", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		const expected = "Hello World"
+		nn := gnolang.MustParseFile("struct.gno", StructsFile)
+		m.RunFiles(nn)
+		nn = gnolang.MustParseFile("testdata.gno",
+			fmt.Sprintf(`package testdata; var Value = S{%q}`, expected))
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tps, 1)
+
+		tv := tps[0]
+		rep := JSONValue(m, tv)
+		require.Equal(t, strconv.Quote(expected), rep)
+	})
+
+	t.Run("without pointer", func(t *testing.T) {
+		m := gnolang.NewMachine("testdata", nil)
+		defer m.Release()
+
+		const expected = "Hello World"
+		nn := gnolang.MustParseFile("struct.gno", StructsFile)
+		m.RunFiles(nn)
+		nn = gnolang.MustParseFile("testdata.gno",
+			fmt.Sprintf(`package testdata; var Value = &S{%q}`, expected))
+		m.RunFiles(nn)
+		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+		tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+		require.Len(t, tps, 1)
+
+		tv := tps[0]
+		rep := JSONValue(m, tv)
+		require.Equal(t, strconv.Quote(expected), rep)
+	})
+
+}
+
+func TestConvertJSONValuesList(t *testing.T) {
+	cases := []struct {
+		ValueRep []string // Go representation
+		Expected string   // string representation
+	}{
+		// Boolean
+		{[]string{}, "[]"},
+		{[]string{"42"}, "[42]"},
+		{[]string{"42", `"hello world"`}, `[42, "hello world"]`},
+	}
+
+	for _, tc := range cases {
+		t.Run(strings.Join(tc.ValueRep, "-"), func(t *testing.T) {
+			m := gnolang.NewMachine("testdata", nil)
+			defer m.Release()
+
+			nn := gnolang.MustParseFile("testdata.gno",
+				fmt.Sprintf(`package testdata; var Value = []interface{%s}`, strings.Join(tc.ValueRep, ",")))
+			m.RunFiles(nn)
+			m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
+
+			tps := m.Eval(gnolang.Sel(gnolang.Nx("testdata"), "Value"))
+			unwarp := tps[0].T.(*gnolang.TypeType)
+			fmt.Println(unwarp.String())
+			require.Len(t, tps, 1)
+			// require.Equal(t, gnolang.ArrayKind.String(), unwarp.T.Kind().String())
+			fmt.Println(tps[0].T.Kind())
+			tpvs := tps[0].V.(*gnolang.ArrayValue).List
+			rep := JSONValues(m, tpvs)
+			require.Equal(t, tc.Expected, rep)
 		})
 	}
 }

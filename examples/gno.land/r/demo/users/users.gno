@@ -32,6 +32,7 @@ var (
 func Register(inviter std.Address, name string, profile string) {
 	// assert CallTx call.
 	std.AssertOriginCall()
+
 	// assert invited or paid.
 	caller := std.GetCallerAt(2)
 	if caller != std.GetOrigCaller() {
