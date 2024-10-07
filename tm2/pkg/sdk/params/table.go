@@ -1,9 +1,10 @@
-package types
+package params
+
+// This file closely mirrors the original implementation from the Cosmos SDK, with only minor modifications.
 
 import (
 	"reflect"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"regexp"
 )
 
 type attribute struct {
@@ -15,9 +16,6 @@ type attribute struct {
 type KeyTable struct {
 	m map[string]attribute
 }
-
-// IsOnePerModuleType implements depinject.OnePerModuleType
-func (KeyTable) IsOnePerModuleType() {}
 
 func NewKeyTable(pairs ...ParamSetPair) KeyTable {
 	keyTable := KeyTable{
@@ -36,15 +34,14 @@ func (t KeyTable) RegisterType(psp ParamSetPair) KeyTable {
 	if len(psp.Key) == 0 {
 		panic("cannot register ParamSetPair with an parameter empty key")
 	}
-	if !sdk.IsAlphaNumeric(string(psp.Key)) {
+	if !isAlphaNumeric(psp.Key) {
 		panic("cannot register ParamSetPair with a non-alphanumeric parameter key")
 	}
 	if psp.ValidatorFn == nil {
 		panic("cannot register ParamSetPair without a value validation function")
 	}
 
-	keystr := string(psp.Key)
-	if _, ok := t.m[keystr]; ok {
+	if _, ok := t.m[psp.Key]; ok {
 		panic("duplicate parameter key")
 	}
 
@@ -55,7 +52,7 @@ func (t KeyTable) RegisterType(psp ParamSetPair) KeyTable {
 		rty = rty.Elem()
 	}
 
-	t.m[keystr] = attribute{
+	t.m[psp.Key] = attribute{
 		vfn: psp.ValidatorFn,
 		ty:  rty,
 	}
@@ -71,13 +68,4 @@ func (t KeyTable) RegisterParamSet(ps ParamSet) KeyTable {
 	return t
 }
 
-func (t KeyTable) maxKeyLength() (res int) {
-	for k := range t.m {
-		l := len(k)
-		if l > res {
-			res = l
-		}
-	}
-
-	return
-}
+var isAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString
