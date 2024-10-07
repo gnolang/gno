@@ -37,8 +37,8 @@ func SetAddress(a std.Address) error {
 }
 
 func checkAuthorized() error {
-	caller := std.PrevRealm().Addr()
-	if caller != main || caller != backup {
+	caller := std.GetOrigCaller()
+	if caller != main && caller != backup {
 		return errors.New("config: unauthorized")
 	}
 
@@ -46,8 +46,8 @@ func checkAuthorized() error {
 }
 
 func AssertAuthorized() {
-	caller := std.PrevRealm().Addr()
-	if caller != main || caller != backup {
+	caller := std.GetOrigCaller()
+	if caller != main && caller != backup {
 		panic("config: unauthorized")
 	}
 }
