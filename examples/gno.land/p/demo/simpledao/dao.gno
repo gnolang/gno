@@ -119,12 +119,7 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 	}
 
 	// Emit the vote cast event
-	std.Emit(
-		dao.VoteAddedEvent,
-		dao.VoteAddedIDKey, ufmt.Sprintf("%d", id),
-		dao.VoteAddedAuthorKey, caller.String(),
-		dao.VoteAddedOptionKey, option.String(),
-	)
+	dao.EmitVoteAdded(id, caller, option)
 
 	// Check the votes to see if quorum is reached
 	var (
@@ -135,19 +130,13 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 	acceptProposal := func() {
 		prop.status = dao.Accepted
 
-		std.Emit(
-			dao.ProposalAcceptedEvent,
-			dao.ProposalEventIDKey, ufmt.Sprintf("%d", id),
-		)
+		dao.EmitProposalAccepted(id)
 	}
 
 	declineProposal := func() {
 		prop.status = dao.NotAccepted
 
-		std.Emit(
-			dao.ProposalNotAcceptedEvent,
-			dao.ProposalEventIDKey, ufmt.Sprintf("%d", id),
-		)
+		dao.EmitProposalNotAccepted(id)
 	}
 
 	switch {
@@ -210,13 +199,7 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 	}
 
 	// Emit an event when the execution finishes
-	defer func() {
-		std.Emit(
-			dao.ProposalExecutedEvent,
-			dao.ProposalEventIDKey, ufmt.Sprintf("%d", id),
-			dao.ProposalEventExecutionKey, prop.status.String(),
-		)
-	}()
+	defer dao.EmitProposalExecuted(id, prop.status)
 
 	// Attempt to execute the proposal
 	if err = prop.executor.Execute(); err != nil {
