@@ -23,30 +23,22 @@ const (
 
 type Campaign struct {
 	// Campaign type
-	Ctype int
-	// Campaign title
-	Title string
-	// Campaign description
+	Ctype       ctype
+	Title       string
 	Description string
-	// Campaign goal
-	Goal int64
-	// Current amount of money raised
-	Current int64
-	// Campaign begin date
-	Begin time.Time
-	// Campaign deadline
-	Deadline time.Time
-	// Campaign owner
-	Owner *User
-	// Campaign beneficiary (can be different from the owner)
-	Beneficiary *User
-	// Campaign contributors
+	Goal        int64
+	Current     int64
+	Begin       time.Time
+	Deadline    time.Time
+	Owner       *User
+	// Campaign beneficiary (can be the owner or another address)
+	Beneficiary  *User
 	contributors []*Contributor
 }
 
-func NewCampaign(ctype int, title string, description string, goal int64, begin time.Time, deadline time.Time, owner *User, beneficiary *User) *Campaign {
+func NewCampaign(ct int, title string, description string, goal int64, begin time.Time, deadline time.Time, owner *User, beneficiary *User) *Campaign {
 	campaign := &Campaign{
-		Ctype:        ctype,
+		Ctype:        ctype(ct),
 		Title:        title,
 		Description:  description,
 		Goal:         goal,
