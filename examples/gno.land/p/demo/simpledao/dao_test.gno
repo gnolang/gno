@@ -250,51 +250,6 @@ func TestSimpleDAO_VoteOnProposal(t *testing.T) {
 		)
 	})
 
-	t.Run("proposal expired", func(t *testing.T) {
-		t.Parallel()
-
-		var (
-			voter = testutils.TestAddress("voter")
-
-			ms = &mockMemberStore{
-				memberFn: func(a std.Address) (membstore.Member, error) {
-					if a != voter {
-						return membstore.Member{}, errors.New("not found")
-					}
-
-					return membstore.Member{
-						Address: voter,
-					}, nil
-				},
-			}
-			s = New(ms)
-
-			mockExecutor = &mockExecutor{
-				isExpiredFn: func() bool {
-					return true
-				},
-			}
-
-			prop = &proposal{
-				status:   dao.Active,
-				executor: mockExecutor,
-			}
-		)
-
-		std.TestSetOrigCaller(voter)
-
-		// Add an initial proposal
-		id, err := s.addProposal(prop)
-		urequire.NoError(t, err)
-
-		// Attempt to vote on the proposal
-		uassert.ErrorIs(
-			t,
-			s.VoteOnProposal(id, dao.YesVote),
-			ErrExecutorExpired,
-		)
-	})
-
 	t.Run("double vote on proposal", func(t *testing.T) {
 		t.Parallel()
 
@@ -788,46 +743,6 @@ func TestSimpleDAO_ExecuteProposal(t *testing.T) {
 				)
 			})
 		}
-	})
-
-	t.Run("proposal expired", func(t *testing.T) {
-		t.Parallel()
-
-		var (
-			voter = testutils.TestAddress("voter")
-
-			ms = &mockMemberStore{
-				isMemberFn: func(_ std.Address) bool {
-					return true
-				},
-			}
-
-			s = New(ms)
-
-			mockExecutor = &mockExecutor{
-				isExpiredFn: func() bool {
-					return true
-				},
-			}
-
-			prop = &proposal{
-				status:   dao.Accepted,
-				executor: mockExecutor,
-			}
-		)
-
-		std.TestSetOrigCaller(voter)
-
-		// Add an initial proposal
-		id, err := s.addProposal(prop)
-		urequire.NoError(t, err)
-
-		// Attempt to vote on the proposal
-		uassert.ErrorIs(
-			t,
-			s.ExecuteProposal(id),
-			ErrExecutorExpired,
-		)
 	})
 
 	t.Run("execution error", func(t *testing.T) {

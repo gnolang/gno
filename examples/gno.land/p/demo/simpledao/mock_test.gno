@@ -6,14 +6,10 @@ import (
 	"gno.land/p/demo/membstore"
 )
 
-type (
-	executeDelegate   func() error
-	isExpiredDelegate func() bool
-)
+type executeDelegate func() error
 
 type mockExecutor struct {
-	executeFn   executeDelegate
-	isExpiredFn isExpiredDelegate
+	executeFn executeDelegate
 }
 
 func (m *mockExecutor) Execute() error {
@@ -22,14 +18,6 @@ func (m *mockExecutor) Execute() error {
 	}
 
 	return nil
-}
-
-func (m *mockExecutor) IsExpired() bool {
-	if m.isExpiredFn != nil {
-		return m.isExpiredFn()
-	}
-
-	return false
 }
 
 type (

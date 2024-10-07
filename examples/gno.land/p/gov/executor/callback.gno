@@ -37,9 +37,3 @@ func (exec *CallbackExecutor) Execute() error {
 
 	return nil
 }
-
-// IsExpired returns a flag indicating if the executor is expired.
-// The CallbackExecutor never expires
-func (exec *CallbackExecutor) IsExpired() bool {
-	return false
-}

@@ -55,6 +55,10 @@ func (p *proposal) Stats() dao.Stats {
 	}
 }
 
+func (p *proposal) IsExpired() bool {
+	return false // this proposal never expires
+}
+
 func (p *proposal) Render() string {
 	// Fetch the voting stats
 	stats := p.Stats()

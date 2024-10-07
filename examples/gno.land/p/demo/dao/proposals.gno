@@ -49,6 +49,9 @@ type Proposal interface {
 	// Stats returns the voting stats of the proposal
 	Stats() Stats
 
+	// IsExpired returns a flag indicating if the proposal expired
+	IsExpired() bool
+
 	// Render renders the proposal in a readable format
 	Render() string
 }

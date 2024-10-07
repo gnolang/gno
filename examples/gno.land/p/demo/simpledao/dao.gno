@@ -17,7 +17,7 @@ var (
 	ErrProposalExecuted          = errors.New("proposal already executed")
 	ErrProposalInactive          = errors.New("proposal is inactive")
 	ErrProposalNotAccepted       = errors.New("proposal is not accepted")
-	ErrExecutorExpired           = errors.New("executor is expired")
+	ErrProposalExpired           = errors.New("proposal is expired")
 )
 
 var (
@@ -111,9 +111,9 @@ func (s *SimpleDAO) VoteOnProposal(id uint64, option dao.VoteOption) error {
 		return ErrProposalInactive
 	}
 
-	// Check if the executor is expired
-	if prop.executor.IsExpired() {
-		return ErrExecutorExpired
+	// Check if the proposal is expired
+	if prop.IsExpired() {
+		return ErrProposalExpired
 	}
 
 	// Cast the vote
@@ -196,9 +196,9 @@ func (s *SimpleDAO) ExecuteProposal(id uint64) error {
 		return ErrProposalNotAccepted
 	}
 
-	// Check if the executor is expired
-	if prop.executor.IsExpired() {
-		return ErrExecutorExpired
+	// Check if the proposal is expired
+	if prop.IsExpired() {
+		return ErrProposalExpired
 	}
 
 	// Emit an event when the execution finishes
