@@ -72,3 +72,22 @@ func TestRenderLink(t *testing.T) {
 		uassert.Equal(t, tt.expected, result, "Rendered link did not match expected")
 	}
 }
+
+func TestShortPath(t *testing.T) {
+	tests := []struct {
+		pkgPath  string
+		expected string
+	}{
+		{"gno.land/p/demo/avl", "/p/demo/avl"},
+		{"github.com/a/b", "/a/b"},
+		{"example.com/pkg", "/pkg"},
+		{"gno.land/r/demo/foo20", "/r/demo/foo20"},
+		{"gno.land/r/demo/foo20", "/r/demo/foo20"},
+		{"", ""},
+	}
+
+	for _, tt := range tests {
+		result := ShortPath(tt.pkgPath)
+		uassert.Equal(t, tt.expected, result, "Rendered link did not match expected")
+	}
+}
