@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	likesBar = "#### [%d 👍](/r/gnoland/hof?help&__func=Upvote&exhibID=%s&itemID=%s) - [%d 👎](/r/gnoland/hof?help&__func=Downvote&exhibID=%s&itemID=%s)\n\n"
-	delBar   = "[Delete](/r/gnoland/hof?help&__func=Delete&exhibID=%s&itemID=%s)\n\n"
+	likesBar = "#### [%d 👍](/r/gnoland/hof?help&__func=Upvote&itemID=%s) - [%d 👎](/r/gnoland/hof?help&__func=Downvote&itemID=%s)\n\n"
+	delBar   = "[Delete](/r/gnoland/hof?help&__func=Delete&itemID=%s)\n\n"
 )
 
 func Render(path string) string {
@@ -50,17 +50,14 @@ func (i Item) Render(dashboard bool) string {
 	out += ufmt.Sprintf(
 		likesBar,
 		i.upvote.Size(),
-		i.exhibID.String(),
 		i.id.String(),
 		i.downvote.Size(),
-		i.exhibID.String(),
 		i.id.String(),
 	)
 
 	if dashboard {
 		out += ufmt.Sprintf(
 			delBar,
-			i.exhibID.String(),
 			i.id.String(),
 		)
 	}
@@ -68,26 +65,17 @@ func (i Item) Render(dashboard bool) string {
 	return out
 }
 
-func RenderExhibWidget(exhibID seqid.ID, itemsToRender int) string {
-
+func RenderExhibWidget(itemsToRender int) string {
 	if itemsToRender < 1 {
 		return ""
 	}
-
-	e, ok := exhibitions.Get(exhibID.String())
-	if !ok {
-		return "", ErrNoSuchExhibition
-	}
-
-	exhib := e.(*Exhibition)
-	if exhib.items.Size() == 0 {
-		return "No items in this exhibition.", nil
+	if exhibition.items.Size() == 0 {
+		return ""
 	}
 
 	out := ""
 	i := 0
-
-	exhib.items.Iterate("", "", func(key string, value interface{}) bool {
+	exhibition.items.Iterate("", "", func(key string, value interface{}) bool {
 		item := value.(*Item)
 
 		out += ufmt.Sprintf("- %s\n", fqname.RenderLink(item.pkgpath, ""))
@@ -96,5 +84,5 @@ func RenderExhibWidget(exhibID seqid.ID, itemsToRender int) string {
 		return i >= itemsToRender
 	})
 
-	return out, nil
+	return out
 }

@@ -1,5 +1,7 @@
 package hof
 
+import "std"
+
 // Exposing the ownable & pausable APIs
 // Should not be needed as soon as MsgCall supports calling methods on exported variables
 
