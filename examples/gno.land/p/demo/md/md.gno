@@ -125,3 +125,14 @@ func Footnote(reference, text string) string {
 func Paragraph(content string) string {
 	return ufmt.Sprintf("\n%s\n", content)
 }
+
+// MdTable is an interface for table types that can be converted to Markdown format
+// Implementing ToMarkdown() allows seamless integration with the Table function
+type MdTable interface {
+	ToMarkdown() string
+}
+
+// Table takes any MdTable implementation and returns its markdown representation
+func Table(table MdTable) string {
+	return table.ToMarkdown()
+}
