@@ -1509,24 +1509,6 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	return tv.V.(BigdecValue).V
 }
 
-func signOfBytes(n [8]byte, isUnsigned bool) int {
-	if !isUnsigned {
-		// Check if negative (only makes sense for signed types)
-		if n[0]&0x80 != 0 {
-			return -1
-		}
-	}
-
-	// Check if zero
-	for _, b := range n {
-		if b != 0 {
-			return 1 // The number is positive
-		}
-	}
-
-	return 0 // All bytes are zero, hence the number is zero
-}
-
 func (tv *TypedValue) Sign() int {
 	if tv.T == nil {
 		panic("type should not be nil")
@@ -1534,9 +1516,9 @@ func (tv *TypedValue) Sign() int {
 
 	switch tv.T.Kind() {
 	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
-		return signOfBytes(tv.N, true)
+		return signOfUnsignedBytes(tv.N)
 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, Float32Kind, Float64Kind:
-		return signOfBytes(tv.N, false)
+		return signOfSignedBytes(tv.N)
 	case BigintKind:
 		v := tv.GetBigInt()
 		return v.Sign()
@@ -2628,4 +2610,25 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		// do nothing
 	}
 	return tv
+}
+
+// ----------------------------------------
+// Utility
+func signOfSignedBytes(n [8]byte) int {
+	si := *(*int64)(unsafe.Pointer(&n[0]))
+	switch {
+	case si == 0:
+		return 0
+	case si < 0:
+		return -1
+	default:
+		return 1
+	}
+}
+
+func signOfUnsignedBytes(n [8]byte) int {
+	if *(*uint64)(unsafe.Pointer(&n[0])) == 0 {
+		return 0
+	}
+	return 1
 }
