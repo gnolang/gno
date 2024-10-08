@@ -30,20 +30,19 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 
 	out += "<div class='columns-2'>\n\n"
 
-	p := pager.NewPager(e.itemsSorted, 3).MustGetPageByPath(path)
+	page := pager.NewPager(e.itemsSorted, 3).MustGetPageByPath(path)
 
-	for _, pgItem := range p.Items {
-		i := pgItem.Value.(*Item)
+	for _, item := range page.Items {
 		out += "<div>\n\n"
-		id, _ := seqid.FromString(pgItem.Key)
+		id, _ := seqid.FromString(item.Key)
 		out += ufmt.Sprintf("### Submission #%d\n\n", int(id))
-		out += i.Render(dashboard)
+		out += item.Value.(*Item).Render(dashboard)
 		out += "</div>"
 	}
 
 	out += "</div><!-- /columns-2 -->\n\n"
 
-	out += p.Selector()
+	out += page.Selector()
 
 	return out
 }
