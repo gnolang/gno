@@ -15,7 +15,7 @@ import (
 
 var (
 	banker *grc20.Banker
-	admin  *ownable.Ownable
+	admin  ownable.Ownable
 	token  grc20.Token
 )
 
