@@ -608,6 +608,7 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 					isIntValue = true
 				}
 			}
+			// XXX, check if is num
 		}
 		if !isIntValue {
 			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
