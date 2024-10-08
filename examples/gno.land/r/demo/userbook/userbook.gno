@@ -2,7 +2,6 @@
 package userbook
 
 import (
-	"gno.land/r/demo/hof"
 	"std"
 	"strconv"
 
@@ -41,7 +40,6 @@ func init() {
 	router.HandleFunc("", renderHelper)
 	router.HandleFunc(subPath, renderHelper)
 
-	hof.Register()
 	// Sign up the deployer
 	SignUp()
 }

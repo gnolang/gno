@@ -3,7 +3,6 @@
 package guestbook
 
 import (
-	"gno.land/r/demo/hof"
 	"std"
 	"strconv"
 	"strings"
@@ -34,7 +33,6 @@ var (
 
 func init() {
 	Sign("You reached the end of the guestbook!")
-	hof.Register()
 }
 
 const (

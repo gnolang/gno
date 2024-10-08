@@ -29,7 +29,6 @@ type (
 	Item struct {
 		id       seqid.ID
 		pkgpath  string
-		deployer std.Address
 		blockNum int64
 		upvote   *avl.Tree // std.Addr > struct{}{}
 		downvote *avl.Tree // std.Addr > struct{}{}
@@ -69,7 +68,6 @@ func Register() {
 	i := &Item{
 		id:       id,
 		pkgpath:  pkgpath,
-		deployer: std.GetOrigCaller(),
 		blockNum: std.GetHeight(),
 		upvote:   avl.NewTree(),
 		downvote: avl.NewTree(),

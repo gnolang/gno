@@ -4,6 +4,7 @@ import (
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/seqid"
+	"strings"
 
 	"gno.land/p/demo/ufmt"
 )
@@ -11,6 +12,7 @@ import (
 const (
 	likesBar = "#### [%d 👍](/r/demo/hof?help&__func=Upvote&pkgpath=%s) - [%d 👎](/r/demo/hof?help&__func=Downvote&pkgPath=%s)\n\n"
 	delBar   = "[Delete](/r/demo/hof?help&__func=Delete&pkgpath=%s)\n\n"
+	pageSize = 20
 )
 
 func Render(path string) string {
@@ -30,7 +32,7 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 
 	out += "<div class='columns-2'>\n\n"
 
-	page := pager.NewPager(e.itemsSorted, 3).MustGetPageByPath(path)
+	page := pager.NewPager(e.itemsSorted, pageSize).MustGetPageByPath(path)
 
 	for _, item := range page.Items {
 		out += "<div>\n\n"
@@ -49,7 +51,7 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 
 func (i Item) Render(dashboard bool) string {
 	out := ufmt.Sprintf("\n```\n%s\n```\n\n", i.pkgpath)
-	out += ufmt.Sprintf("by %s\n\n", i.deployer.String())
+	out += ufmt.Sprintf("by %s\n\n", strings.Split(i.pkgpath, "/")[2])
 	out += ufmt.Sprintf("[View realm](%s)\n\n", fqname.ShortPath(i.pkgpath))
 	out += ufmt.Sprintf("Published at Block #%d\n\n", i.blockNum)
 	out += ufmt.Sprintf(
