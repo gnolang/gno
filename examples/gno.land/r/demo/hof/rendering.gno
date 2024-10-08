@@ -1,10 +1,11 @@
 package hof
 
 import (
+	"strings"
+
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/seqid"
-	"strings"
 
 	"gno.land/p/demo/ufmt"
 )
@@ -34,7 +35,9 @@ func (e Exhibition) Render(path string, dashboard bool) string {
 
 	page := pager.NewPager(e.itemsSorted, pageSize).MustGetPageByPath(path)
 
-	for _, item := range page.Items {
+	for i := len(page.Items) - 1; i >= 0; i-- {
+		item := page.Items[i]
+
 		out += "<div>\n\n"
 		id, _ := seqid.FromString(item.Key)
 		out += ufmt.Sprintf("### Submission #%d\n\n", int(id))
