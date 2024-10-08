@@ -11,8 +11,8 @@ import (
 // TODO: Move boards (or App) to `boardsv2`
 type Boards struct {
 	// NOTE: We might want different AVL trees to avoid using level prefixes
-	posts         avl.Tree // string(Post.Level + Post.CreatedAt + slug) -> *Post (post, comment, poll)
-	lockingPlugin lockingplugin.Pugin
+	posts   avl.Tree // string(Post.Level + Post.CreatedAt + slug) -> *Post (post, comment, poll)
+	locking lockingplugin.Plugin
 }
 
 // TODO: Support pagination Start/End (see pager implementation)
@@ -21,7 +21,9 @@ func (b Boards) ReverseIterate(level int, path string, fn func(*Post) bool) bool
 
 func (b *Boards) Lock(path string) {
 	post := b.Get(LevelBoard, path) // Otherwise we try LevelPost
-	b.lockingPlugin.Lock(post)
+	if err := b.locking.Lock(post); err != nil {
+		panic(err)
+	}
 }
 
 // How to map render paths to actual post instances?

@@ -13,17 +13,15 @@ const (
 
 type (
 	Content interface {
-		Type() string // NOTE: The idea is to avoid casting
+		Type() string
 		Render() string
 	}
 
-	// TODO: ID is the full path to the post
-
 	Post struct {
-		ID            string   // NOTE: It would be nice to use a type alias for the ID field type
-		Content       Content  // NOTE: Maybe should be called Type (board as content is odd)
-		PluginContent avl.Tree // string(plugin name) -> interface{}
-		Parent        *Post    // NOTE: If all is a post we need to have a parent
+		ID            string
+		Content       Content
+		PluginStorage avl.Tree // string(plugin name) -> interface{}(plugin storage)
+		Parent        *Post
 		Level         int
 		Base          *Post
 		Children      []*Post
@@ -33,6 +31,14 @@ type (
 		Creator       std.Address
 	}
 )
+
+func (p Post) MustGetPluginStorage(name string) interface{} {
+	if v, found := p.pluginStorage.Get(name); found {
+		return v
+	}
+
+	panic("plugin storage not found: " + name)
+}
 
 func (p Post) NextIncrementalKey(baseKey string) string {
 	return baseKey + "/" + strconv.Itoa(len(p.Children))
