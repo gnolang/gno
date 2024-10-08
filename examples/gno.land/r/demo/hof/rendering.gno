@@ -6,7 +6,6 @@ import (
 	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/seqid"
-
 	"gno.land/p/demo/ufmt"
 )
 
