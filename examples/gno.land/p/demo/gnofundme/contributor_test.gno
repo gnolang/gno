@@ -4,11 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/r/demo/users"
 )
 
 func TestNewContributor(t *testing.T) {
-	user := NewUser("User", "", testutils.TestAddress("user"))
+	user := users.GetUserByName("demo")
 	amount := int64(500)
 	display := true
 	date := time.Unix(time.Now().Unix(), 0)
@@ -29,4 +29,6 @@ func TestNewContributor(t *testing.T) {
 	if contributor.GetDisplay() != display {
 		t.Errorf("Expected contributor display to be %t, got %t", display, contributor.GetDisplay())
 	}
+	js := contributor.String()
+	println(js)
 }

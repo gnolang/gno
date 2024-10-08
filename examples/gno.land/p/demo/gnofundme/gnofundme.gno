@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/ufmt"
-	"gno.land/r/demo/users"
+	pusers "gno.land/p/demo/users"
 )
 
 type ctype int
@@ -38,13 +38,13 @@ type Campaign struct {
 	Current     int64
 	Begin       time.Time
 	Deadline    time.Time
-	Owner       *users.User
+	Owner       *pusers.User
 	// Campaign beneficiary (can be the owner or another address)
-	Beneficiary  *users.User
+	Beneficiary  *pusers.User
 	contributors []*Contributor
 }
 
-func NewCampaign(ct int, title string, description string, goal int64, begin time.Time, deadline time.Time, owner *users.User, beneficiary *users.User) *Campaign {
+func NewCampaign(ct int, title string, description string, goal int64, begin time.Time, deadline time.Time, owner *pusers.User, beneficiary *pusers.User) *Campaign {
 	campaign := &Campaign{
 		Ctype:        ctype(ct),
 		Title:        title,
@@ -58,7 +58,7 @@ func NewCampaign(ct int, title string, description string, goal int64, begin tim
 		contributors: make([]*Contributor, 0),
 	}
 
-	owner.campaigns = append(owner.campaigns, campaign)
+	// owner.campaigns = append(owner.campaigns, campaign)
 	return campaign
 }
 
@@ -66,7 +66,7 @@ func (c Campaign) GetContributors() []*Contributor {
 	return c.contributors
 }
 
-func (c *Campaign) AddContributor(user *users.User, date time.Time, amount int64, display bool) *Contributor {
+func (c *Campaign) AddContributor(user *pusers.User, date time.Time, amount int64, display bool) *Contributor {
 	c.Current += amount
 	contributor := NewContributor(user, date, amount, display)
 	c.contributors = append(c.contributors, contributor)
@@ -103,8 +103,8 @@ func CampaignToJSONString(campaign *Campaign) string {
 	sb.WriteString(`"current":"` + strconv.Itoa(int(campaign.Current)) + `",`)
 	sb.WriteString(`"begin":"` + strconv.Itoa(int((campaign.Begin).Unix())) + `",`)
 	sb.WriteString(`"deadline":"` + strconv.Itoa(int(campaign.Deadline.Unix())) + `",`)
-	sb.WriteString(`"owner":"` + campaign.Owner.GetAddress().String() + `",`)
-	sb.WriteString(`"beneficiary":"` + campaign.Beneficiary.GetAddress().String() + `",`)
+	sb.WriteString(`"owner":"` + campaign.Owner.Address.String() + `",`)
+	sb.WriteString(`"beneficiary":"` + campaign.Beneficiary.Address.String() + `",`)
 	sb.WriteString(`"contributors":"` + strconv.Itoa(len(campaign.contributors)) + `"`)
 	sb.WriteString("}")
 
@@ -135,10 +135,10 @@ func (c Campaign) Render(id string) string {
 		ufmt.Sprintf("  ------------->  Deadline: %s\n", c.Deadline.String()),
 	)
 	b.WriteString(
-		ufmt.Sprintf("### Owner: %s, %s\n", c.Owner.GetName(), c.Owner.GetAddress()),
+		ufmt.Sprintf("### Owner: %s, %s\n", c.Owner.Name, c.Owner.Address.String()),
 	)
 	b.WriteString(
-		ufmt.Sprintf("### Beneficiary: %s, %s\n", c.Beneficiary.GetName(), c.Beneficiary.GetAddress()),
+		ufmt.Sprintf("### Beneficiary: %s, %s\n", c.Beneficiary.Name, c.Beneficiary.Address.String()),
 	)
 	b.WriteString(
 		ufmt.Sprintf("## Last contributors: %d\n", len(c.GetContributors())),
@@ -149,11 +149,11 @@ func (c Campaign) Render(id string) string {
 			length = 10
 		}
 
-		for i := length; i >= 0; i-- {
+		for i := length - 1; i >= 0; i-- {
 			if contributors[i].GetDisplay() {
 				b.WriteString(
 					ufmt.Sprintf(
-						"### %s: %dugnot, %s\n", contributors[i].GetUser().GetName(), contributors[i].Amount, contributors[i].Date.String(),
+						"### %s: %dugnot, %s\n", contributors[i].user.Name, contributors[i].Amount, contributors[i].Date.String(),
 					), // added the date of contribution in the display, but adds "m=+1726419880.000000001" after the date =>> the problems comes from time.now(), had to modify and use time.Unix(time.Now().Unix(), 0) to solve the problem.
 				)
 			} else {

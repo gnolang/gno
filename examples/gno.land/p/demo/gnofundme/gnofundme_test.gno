@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/testutils"
+	"gno.land/r/demo/users"
 )
 
 const (
@@ -15,8 +16,8 @@ const (
 	goal               = 1000
 	ownerAddress       = testutils.TestAddress("owner")
 	beneficiaryAddress = testutils.TestAddress("beneficiary")
-	owner              = NewUser("Owner", "", ownerAddress)
-	beneficiary        = NewUser("Beneficiary", "", beneficiaryAddress)
+	owner              = users.GetUserByName("demo")
+	beneficiary        = users.GetUserByName("gno")
 	// Test case 1 Valid campaign
 	begin    = time.Now()
 	deadline = begin.Add(time.Hour * 24)
@@ -60,7 +61,7 @@ func TestNewCampaign(t *testing.T) {
 
 func TestAddContributor(t *testing.T) {
 	contributorAddress := testutils.TestAddress("contributor")
-	user := NewUser("Contributor", "", contributorAddress)
+	user := users.GetUserByName("demo")
 	var amount int64 = 500
 	display := true
 	date := time.Unix(time.Now().Unix(), 0)
@@ -86,9 +87,9 @@ func TestAddContributor(t *testing.T) {
 
 func TestCampaignsToJSONString(t *testing.T) {
 	campaigns := []*Campaign{
-		NewCampaign(0, "Campaign 1", "Description 1", 1000, time.Now(), time.Now(), NewUser("Owner", "", ownerAddress), NewUser("Beneficiary", "", beneficiaryAddress)),
-		NewCampaign(1, "Campaign 2", "Description 2", 2000, time.Now(), time.Now(), NewUser("Owner", "", ownerAddress), NewUser("Beneficiary", "", beneficiaryAddress)),
-		NewCampaign(2, "Campaign 3", "Description 3", 3000, time.Now(), time.Now(), NewUser("Owner", "", ownerAddress), NewUser("Beneficiary", "", beneficiaryAddress)),
+		NewCampaign(0, "Campaign 1", "Description 1", 1000, time.Now(), time.Now(), users.GetUserByName("demo"), users.GetUserByName("demo")),
+		NewCampaign(1, "Campaign 2", "Description 2", 2000, time.Now(), time.Now(), users.GetUserByName("demo"), users.GetUserByName("demo")),
+		NewCampaign(2, "Campaign 3", "Description 3", 3000, time.Now(), time.Now(), users.GetUserByName("demo"), users.GetUserByName("demo")),
 	}
 
 	expected := `[{"ctype":"Personal","title":"Campaign 1","description":"Description 1","goal":"1000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"},{"ctype":"Cause","title":"Campaign 2","description":"Description 2","goal":"2000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"},{"ctype":"Organism","title":"Campaign 3","description":"Description 3","goal":"3000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"}]`
@@ -100,7 +101,7 @@ func TestCampaignsToJSONString(t *testing.T) {
 }
 
 func TestCampaignToJSONString(t *testing.T) {
-	campaign := NewCampaign(0, "Campaign 1", "Description 1", 1000, time.Now(), time.Now(), NewUser("Owner", "", ownerAddress), NewUser("Beneficiary", "", beneficiaryAddress))
+	campaign := NewCampaign(0, "Campaign 1", "Description 1", 1000, time.Now(), time.Now(), users.GetUserByName("demo"), users.GetUserByName("demo"))
 
 	expected := `{"ctype":"Personal","title":"Campaign 1","description":"Description 1","goal":"1000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"}`
 
