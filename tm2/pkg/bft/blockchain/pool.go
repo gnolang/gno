@@ -12,7 +12,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/flow"
 	"github.com/gnolang/gno/tm2/pkg/log"
-	"github.com/gnolang/gno/tm2/pkg/p2p"
+	types2 "github.com/gnolang/gno/tm2/pkg/p2p"
 	"github.com/gnolang/gno/tm2/pkg/service"
 )
 
@@ -69,7 +69,7 @@ type BlockPool struct {
 	requesters map[int64]*bpRequester
 	height     int64 // the lowest key in requesters.
 	// peers
-	peers         map[p2p.ID]*bpPeer
+	peers         map[types2.ID]*bpPeer
 	maxPeerHeight int64 // the biggest reported height
 
 	// atomic
@@ -83,7 +83,7 @@ type BlockPool struct {
 // requests and errors will be sent to requestsCh and errorsCh accordingly.
 func NewBlockPool(start int64, requestsCh chan<- BlockRequest, errorsCh chan<- peerError) *BlockPool {
 	bp := &BlockPool{
-		peers: make(map[p2p.ID]*bpPeer),
+		peers: make(map[types2.ID]*bpPeer),
 
 		requesters: make(map[int64]*bpRequester),
 		height:     start,
@@ -226,13 +226,13 @@ func (pool *BlockPool) PopRequest() {
 // RedoRequest invalidates the block at pool.height,
 // Remove the peer and redo request from others.
 // Returns the ID of the removed peer.
-func (pool *BlockPool) RedoRequest(height int64) p2p.ID {
+func (pool *BlockPool) RedoRequest(height int64) types2.ID {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 
 	request := pool.requesters[height]
 	peerID := request.getPeerID()
-	if peerID != p2p.ID("") {
+	if peerID != types2.ID("") {
 		// RemovePeer will redo all requesters associated with this peer.
 		pool.removePeer(peerID)
 	}
@@ -241,7 +241,7 @@ func (pool *BlockPool) RedoRequest(height int64) p2p.ID {
 
 // AddBlock validates that the block comes from the peer it was expected from and calls the requester to store it.
 // TODO: ensure that blocks come in order for each peer.
-func (pool *BlockPool) AddBlock(peerID p2p.ID, block *types.Block, blockSize int) {
+func (pool *BlockPool) AddBlock(peerID types2.ID, block *types.Block, blockSize int) {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 
@@ -278,7 +278,7 @@ func (pool *BlockPool) MaxPeerHeight() int64 {
 }
 
 // SetPeerHeight sets the peer's alleged blockchain height.
-func (pool *BlockPool) SetPeerHeight(peerID p2p.ID, height int64) {
+func (pool *BlockPool) SetPeerHeight(peerID types2.ID, height int64) {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 
@@ -298,14 +298,14 @@ func (pool *BlockPool) SetPeerHeight(peerID p2p.ID, height int64) {
 
 // RemovePeer removes the peer with peerID from the pool. If there's no peer
 // with peerID, function is a no-op.
-func (pool *BlockPool) RemovePeer(peerID p2p.ID) {
+func (pool *BlockPool) RemovePeer(peerID types2.ID) {
 	pool.mtx.Lock()
 	defer pool.mtx.Unlock()
 
 	pool.removePeer(peerID)
 }
 
-func (pool *BlockPool) removePeer(peerID p2p.ID) {
+func (pool *BlockPool) removePeer(peerID types2.ID) {
 	for _, requester := range pool.requesters {
 		if requester.getPeerID() == peerID {
 			requester.redo(peerID)
@@ -386,14 +386,14 @@ func (pool *BlockPool) requestersLen() int64 {
 	return int64(len(pool.requesters))
 }
 
-func (pool *BlockPool) sendRequest(height int64, peerID p2p.ID) {
+func (pool *BlockPool) sendRequest(height int64, peerID types2.ID) {
 	if !pool.IsRunning() {
 		return
 	}
 	pool.requestsCh <- BlockRequest{height, peerID}
 }
 
-func (pool *BlockPool) sendError(err error, peerID p2p.ID) {
+func (pool *BlockPool) sendError(err error, peerID types2.ID) {
 	if !pool.IsRunning() {
 		return
 	}
@@ -424,7 +424,7 @@ func (pool *BlockPool) debug() string {
 
 type bpPeer struct {
 	pool        *BlockPool
-	id          p2p.ID
+	id          types2.ID
 	recvMonitor *flow.Monitor
 
 	height     int64
@@ -435,7 +435,7 @@ type bpPeer struct {
 	logger *slog.Logger
 }
 
-func newBPPeer(pool *BlockPool, peerID p2p.ID, height int64) *bpPeer {
+func newBPPeer(pool *BlockPool, peerID types2.ID, height int64) *bpPeer {
 	peer := &bpPeer{
 		pool:       pool,
 		id:         peerID,
@@ -499,10 +499,10 @@ type bpRequester struct {
 	pool       *BlockPool
 	height     int64
 	gotBlockCh chan struct{}
-	redoCh     chan p2p.ID // redo may send multitime, add peerId to identify repeat
+	redoCh     chan types2.ID // redo may send multitime, add peerId to identify repeat
 
 	mtx    sync.Mutex
-	peerID p2p.ID
+	peerID types2.ID
 	block  *types.Block
 }
 
@@ -511,7 +511,7 @@ func newBPRequester(pool *BlockPool, height int64) *bpRequester {
 		pool:       pool,
 		height:     height,
 		gotBlockCh: make(chan struct{}, 1),
-		redoCh:     make(chan p2p.ID, 1),
+		redoCh:     make(chan types2.ID, 1),
 
 		peerID: "",
 		block:  nil,
@@ -526,7 +526,7 @@ func (bpr *bpRequester) OnStart() error {
 }
 
 // Returns true if the peer matches and block doesn't already exist.
-func (bpr *bpRequester) setBlock(block *types.Block, peerID p2p.ID) bool {
+func (bpr *bpRequester) setBlock(block *types.Block, peerID types2.ID) bool {
 	bpr.mtx.Lock()
 	if bpr.block != nil || bpr.peerID != peerID {
 		bpr.mtx.Unlock()
@@ -548,7 +548,7 @@ func (bpr *bpRequester) getBlock() *types.Block {
 	return bpr.block
 }
 
-func (bpr *bpRequester) getPeerID() p2p.ID {
+func (bpr *bpRequester) getPeerID() types2.ID {
 	bpr.mtx.Lock()
 	defer bpr.mtx.Unlock()
 	return bpr.peerID
@@ -570,7 +570,7 @@ func (bpr *bpRequester) reset() {
 // Tells bpRequester to pick another peer and try again.
 // NOTE: Nonblocking, and does nothing if another redo
 // was already requested.
-func (bpr *bpRequester) redo(peerID p2p.ID) {
+func (bpr *bpRequester) redo(peerID types2.ID) {
 	select {
 	case bpr.redoCh <- peerID:
 	default:
@@ -631,5 +631,5 @@ OUTER_LOOP:
 // delivering the block
 type BlockRequest struct {
 	Height int64
-	PeerID p2p.ID
+	PeerID types2.ID
 }

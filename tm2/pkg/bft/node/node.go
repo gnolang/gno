@@ -118,30 +118,6 @@ func DefaultNewNode(
 // Option sets a parameter for the node.
 type Option func(*Node)
 
-// CustomReactors allows you to add custom reactors (name -> p2p.Reactor) to
-// the node's Switch.
-//
-// WARNING: using any name from the below list of the existing reactors will
-// result in replacing it with the custom one.
-//
-//   - MEMPOOL
-//   - BLOCKCHAIN
-//   - CONSENSUS
-//   - EVIDENCE
-//   - PEX
-func CustomReactors(reactors map[string]p2p.Reactor) Option {
-	return func(n *Node) {
-		for name, reactor := range reactors {
-			if existingReactor := n.sw.Reactor(name); existingReactor != nil {
-				n.sw.Logger.Info("Replacing existing reactor with a custom one",
-					"name", name, "existing", existingReactor, "custom", reactor)
-				n.sw.RemoveReactor(name, existingReactor)
-			}
-			n.sw.AddReactor(name, reactor)
-		}
-	}
-}
-
 // ------------------------------------------------------------------------------
 
 // Node is the highest level interface to a full Tendermint node.
@@ -289,14 +265,21 @@ func createMempoolAndMempoolReactor(config *cfg.Config, proxyApp appconn.AppConn
 	return mempoolReactor, mempool
 }
 
-func createBlockchainReactor(config *cfg.Config,
+func createBlockchainReactor(
 	state sm.State,
 	blockExec *sm.BlockExecutor,
 	blockStore *store.BlockStore,
 	fastSync bool,
+	switchToConsensusFn bc.SwitchToConsensusFn,
 	logger *slog.Logger,
 ) (bcReactor p2p.Reactor, err error) {
-	bcReactor = bc.NewBlockchainReactor(state.Copy(), blockExec, blockStore, fastSync)
+	bcReactor = bc.NewBlockchainReactor(
+		state.Copy(),
+		blockExec,
+		blockStore,
+		fastSync,
+		switchToConsensusFn,
+	)
 
 	bcReactor.SetLogger(logger.With("module", "blockchain"))
 	return bcReactor, nil
@@ -333,7 +316,7 @@ func createConsensusReactor(config *cfg.Config,
 
 func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey, proxyApp appconn.AppConns) (*p2p.MultiplexTransport, []p2p.PeerFilterFunc) {
 	var (
-		mConnConfig = p2p.MConnConfig(config.P2P)
+		mConnConfig = p2p.MultiplexConfigFromP2P(config.P2P)
 		transport   = p2p.NewMultiplexTransport(nodeInfo, *nodeKey, mConnConfig)
 		connFilters = []p2p.ConnFilterFunc{}
 		peerFilters = []p2p.PeerFilterFunc{}
@@ -367,7 +350,7 @@ func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.Nod
 		peerFilters = append(
 			peerFilters,
 			// ABCI query for ID filtering.
-			func(_ p2p.IPeerSet, p p2p.Peer) error {
+			func(_ p2p.PeerSet, p p2p.Peer) error {
 				res, err := proxyApp.Query().QuerySync(abci.RequestQuery{
 					Path: fmt.Sprintf("/p2p/filter/id/%s", p.ID()),
 				})
@@ -385,33 +368,6 @@ func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.Nod
 
 	p2p.MultiplexTransportConnFilters(connFilters...)(transport)
 	return transport, peerFilters
-}
-
-func createSwitch(config *cfg.Config,
-	transport *p2p.MultiplexTransport,
-	peerFilters []p2p.PeerFilterFunc,
-	mempoolReactor *mempl.Reactor,
-	bcReactor p2p.Reactor,
-	consensusReactor *cs.ConsensusReactor,
-	nodeInfo p2p.NodeInfo,
-	nodeKey *p2p.NodeKey,
-	p2pLogger *slog.Logger,
-) *p2p.Switch {
-	sw := p2p.NewSwitch(
-		config.P2P,
-		transport,
-		p2p.SwitchPeerFilters(peerFilters...),
-	)
-	sw.SetLogger(p2pLogger)
-	sw.AddReactor("MEMPOOL", mempoolReactor)
-	sw.AddReactor("BLOCKCHAIN", bcReactor)
-	sw.AddReactor("CONSENSUS", consensusReactor)
-
-	sw.SetNodeInfo(nodeInfo)
-	sw.SetNodeKey(nodeKey)
-
-	p2pLogger.Info("P2P Node ID", "ID", nodeKey.ID(), "file", config.NodeKeyFile())
-	return sw
 }
 
 // NewNode returns a new, ready to go, Tendermint Node.
@@ -506,17 +462,24 @@ func NewNode(config *cfg.Config,
 		mempool,
 	)
 
-	// Make BlockchainReactor
-	bcReactor, err := createBlockchainReactor(config, state, blockExec, blockStore, fastSync, logger)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not create blockchain reactor")
-	}
-
 	// Make ConsensusReactor
 	consensusReactor, consensusState := createConsensusReactor(
 		config, state, blockExec, blockStore, mempool,
 		privValidator, fastSync, evsw, consensusLogger,
 	)
+
+	// Make BlockchainReactor
+	bcReactor, err := createBlockchainReactor(
+		state,
+		blockExec,
+		blockStore,
+		fastSync,
+		consensusReactor.SwitchToConsensus,
+		logger,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create blockchain reactor")
+	}
 
 	nodeInfo, err := makeNodeInfo(config, nodeKey, txEventStore, genDoc, state)
 	if err != nil {
@@ -528,15 +491,25 @@ func NewNode(config *cfg.Config,
 
 	// Setup Switch.
 	p2pLogger := logger.With("module", "p2p")
-	sw := createSwitch(
-		config, transport, peerFilters, mempoolReactor, bcReactor,
-		consensusReactor, nodeInfo, nodeKey, p2pLogger,
+
+	peerAddrs, errs := p2p.NewNetAddressFromStrings(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
+	for _, err := range errs {
+		p2pLogger.Error("invalid persistent peer address", "err", err)
+	}
+
+	sw := p2p.NewSwitch(
+		config.P2P,
+		transport,
+		p2p.WithPeerFilters(peerFilters...),
+		p2p.WithReactor("MEMPOOL", mempoolReactor),
+		p2p.WithReactor("BLOCKCHAIN", bcReactor),
+		p2p.WithReactor("CONSENSUS", consensusReactor),
+		p2p.WithPersistentPeers(peerAddrs),
 	)
 
-	err = sw.AddPersistentPeers(splitAndTrimEmpty(config.P2P.PersistentPeers, ",", " "))
-	if err != nil {
-		return nil, errors.Wrap(err, "could not add peers from persistent_peers field")
-	}
+	sw.SetLogger(p2pLogger)
+
+	p2pLogger.Info("P2P Node ID", "ID", nodeKey.ID(), "file", config.NodeKeyFile())
 
 	if config.ProfListenAddress != "" {
 		server := &http.Server{
@@ -639,10 +612,13 @@ func (n *Node) OnStart() error {
 	}
 
 	// Always connect to persistent peers
-	err = n.sw.DialPeersAsync(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
-	if err != nil {
-		return errors.Wrap(err, "could not dial peers from persistent_peers field")
+	peerAddrs, errs := p2p.NewNetAddressFromStrings(splitAndTrimEmpty(n.config.P2P.PersistentPeers, ",", " "))
+	for _, err := range errs {
+		n.Logger.Error("invalid persistent peer address", "err", err)
 	}
+
+	// Dial the persistent peers
+	n.sw.DialPeers(peerAddrs...)
 
 	return nil
 }

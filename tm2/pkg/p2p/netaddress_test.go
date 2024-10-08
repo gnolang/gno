@@ -1,178 +1,323 @@
 package p2p
 
 import (
-	"encoding/hex"
+	"fmt"
 	"net"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestAddress2ID(t *testing.T) {
-	t.Parallel()
+func BenchmarkNetAddress_String(b *testing.B) {
+	key := GenerateNodeKey()
 
-	idbz, _ := hex.DecodeString("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
-	id := crypto.AddressFromBytes(idbz).ID()
-	assert.Equal(t, crypto.ID("g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6"), id)
+	na, err := NewNetAddressFromString(NetAddressString(key.ID(), "127.0.0.1:0"))
+	require.NoError(b, err)
 
-	idbz, _ = hex.DecodeString("deadbeefdeadbeefdeadbeefdeadbeefdead0000")
-	id = crypto.AddressFromBytes(idbz).ID()
-	assert.Equal(t, crypto.ID("g1m6kmam774klwlh4dhmhaatd7al026qqqq9c22r"), id)
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		_ = na.String()
+	}
 }
 
 func TestNewNetAddress(t *testing.T) {
 	t.Parallel()
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:8080")
-	require.Nil(t, err)
+	t.Run("invalid TCP address", func(t *testing.T) {
+		t.Parallel()
 
-	assert.Panics(t, func() {
-		NewNetAddress("", tcpAddr)
+		var (
+			key     = GenerateNodeKey()
+			address = "127.0.0.1:8080"
+		)
+
+		udpAddr, err := net.ResolveUDPAddr("udp", address)
+		require.NoError(t, err)
+
+		_, err = NewNetAddress(key.ID(), udpAddr)
+		require.Error(t, err)
 	})
 
-	idbz, _ := hex.DecodeString("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
-	id := crypto.AddressFromBytes(idbz).ID()
-	// ^-- is "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6"
+	t.Run("invalid ID", func(t *testing.T) {
+		t.Parallel()
 
-	addr := NewNetAddress(id, tcpAddr)
-	assert.Equal(t, "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", addr.String())
+		var (
+			id      = "" // zero ID
+			address = "127.0.0.1:8080"
+		)
 
-	assert.NotPanics(t, func() {
-		NewNetAddress("", &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8000})
-	}, "Calling NewNetAddress with UDPAddr should not panic in testing")
+		tcpAddr, err := net.ResolveTCPAddr("tcp", address)
+		require.NoError(t, err)
+
+		_, err = NewNetAddress(ID(id), tcpAddr)
+		require.Error(t, err)
+	})
+
+	t.Run("valid net address", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			key     = GenerateNodeKey()
+			address = "127.0.0.1:8080"
+		)
+
+		tcpAddr, err := net.ResolveTCPAddr("tcp", address)
+		require.NoError(t, err)
+
+		addr, err := NewNetAddress(key.ID(), tcpAddr)
+		require.NoError(t, err)
+
+		assert.Equal(t, fmt.Sprintf("%s@%s", key.ID(), address), addr.String())
+	})
 }
 
 func TestNewNetAddressFromString(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct {
-		name     string
-		addr     string
-		expected string
-		correct  bool
-	}{
-		{"no node id and no protocol", "127.0.0.1:8080", "", false},
-		{"no node id w/ tcp input", "tcp://127.0.0.1:8080", "", false},
-		{"no node id w/ udp input", "udp://127.0.0.1:8080", "", false},
+	t.Run("valid net address", func(t *testing.T) {
+		t.Parallel()
 
-		{"no protocol", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", true},
-		{"tcp input", "tcp://g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", true},
-		{"udp input", "udp://g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", true},
-		{"malformed tcp input", "tcp//g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "", false},
-		{"malformed udp input", "udp//g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "", false},
+		testTable := []struct {
+			name     string
+			addr     string
+			expected string
+		}{
+			{"no protocol", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080"},
+			{"tcp input", "tcp://g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080"},
+			{"udp input", "udp://g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080"},
+			{"no protocol", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080"},
+			{"tcp input", "tcp://g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080"},
+			{"udp input", "udp://g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080"},
+			{"correct nodeId w/tcp", "tcp://g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080"},
+		}
 
-		// {"127.0.0:8080", false},
-		{"invalid host", "notahost", "", false},
-		{"invalid port", "127.0.0.1:notapath", "", false},
-		{"invalid host w/ port", "notahost:8080", "", false},
-		{"just a port", "8082", "", false},
-		{"non-existent port", "127.0.0:8080000", "", false},
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
 
-		{"too short nodeId", "deadbeef@127.0.0.1:8080", "", false},
-		{"too short, not hex nodeId", "this-isnot-hex@127.0.0.1:8080", "", false},
-		{"not bech32 nodeId", "xxxm6kmam774klwlh4dhmhaatd7al02m0h0hdap9l@127.0.0.1:8080", "", false},
+				addr, err := NewNetAddressFromString(testCase.addr)
+				require.NoError(t, err)
 
-		{"too short nodeId w/tcp", "tcp://deadbeef@127.0.0.1:8080", "", false},
-		{"too short notHex nodeId w/tcp", "tcp://this-isnot-hex@127.0.0.1:8080", "", false},
-		{"not bech32 nodeId w/tcp", "tcp://xxxxm6kmam774klwlh4dhmhaatd7al02m0h0hdap9l@127.0.0.1:8080", "", false},
-		{"correct nodeId w/tcp", "tcp://g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", true},
+				assert.Equal(t, testCase.expected, addr.String())
+			})
+		}
+	})
 
-		{"no node id", "tcp://@127.0.0.1:8080", "", false},
-		{"no node id or IP", "tcp://@", "", false},
-		{"tcp no host, w/ port", "tcp://:26656", "", false},
-		{"empty", "", "", false},
-		{"node id delimiter 1", "@", "", false},
-		{"node id delimiter 2", " @", "", false},
-		{"node id delimiter 3", " @ ", "", false},
-	}
+	t.Run("invalid net address", func(t *testing.T) {
+		t.Parallel()
 
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+		testTable := []struct {
+			name string
+			addr string
+		}{
+			{"no node id and no protocol", "127.0.0.1:8080"},
+			{"no node id w/ tcp input", "tcp://127.0.0.1:8080"},
+			{"no node id w/ udp input", "udp://127.0.0.1:8080"},
 
-			addr, err := NewNetAddressFromString(tc.addr)
-			if tc.correct {
-				if assert.Nil(t, err, tc.addr) {
-					assert.Equal(t, tc.expected, addr.String())
-				}
-			} else {
-				assert.NotNil(t, err, tc.addr)
-			}
-		})
-	}
+			{"malformed tcp input", "tcp//g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080"},
+			{"malformed udp input", "udp//g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080"},
+
+			{"invalid host", "notahost"},
+			{"invalid port", "127.0.0.1:notapath"},
+			{"invalid host w/ port", "notahost:8080"},
+			{"just a port", "8082"},
+			{"non-existent port", "127.0.0:8080000"},
+
+			{"too short nodeId", "deadbeef@127.0.0.1:8080"},
+			{"too short, not hex nodeId", "this-isnot-hex@127.0.0.1:8080"},
+			{"not bech32 nodeId", "xxxm6kmam774klwlh4dhmhaatd7al02m0h0hdap9l@127.0.0.1:8080"},
+
+			{"too short nodeId w/tcp", "tcp://deadbeef@127.0.0.1:8080"},
+			{"too short notHex nodeId w/tcp", "tcp://this-isnot-hex@127.0.0.1:8080"},
+			{"not bech32 nodeId w/tcp", "tcp://xxxxm6kmam774klwlh4dhmhaatd7al02m0h0hdap9l@127.0.0.1:8080"},
+
+			{"no node id", "tcp://@127.0.0.1:8080"},
+			{"no node id or IP", "tcp://@"},
+			{"tcp no host, w/ port", "tcp://:26656"},
+			{"empty", ""},
+			{"node id delimiter 1", "@"},
+			{"node id delimiter 2", " @"},
+			{"node id delimiter 3", " @ "},
+		}
+
+		for _, testCase := range testTable {
+			t.Run(testCase.name, func(t *testing.T) {
+				t.Parallel()
+
+				addr, err := NewNetAddressFromString(testCase.addr)
+
+				assert.Nil(t, addr)
+				assert.Error(t, err)
+			})
+		}
+	})
 }
 
 func TestNewNetAddressFromStrings(t *testing.T) {
 	t.Parallel()
 
-	addrs, errs := NewNetAddressFromStrings([]string{
-		"127.0.0.1:8080",
-		"g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080",
-		"g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.2:8080",
+	t.Run("invalid addresses", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			keys = generateKeys(t, 10)
+			strs = make([]string, 0, len(keys))
+		)
+
+		for index, key := range keys {
+			if index%2 != 0 {
+				strs = append(
+					strs,
+					fmt.Sprintf("%s@:8080", key.ID()), // missing host
+				)
+
+				continue
+			}
+
+			strs = append(
+				strs,
+				fmt.Sprintf("%s@127.0.0.1:8080", key.ID()),
+			)
+		}
+
+		// Convert the strings
+		addrs, errs := NewNetAddressFromStrings(strs)
+
+		assert.Len(t, errs, len(keys)/2)
+		assert.Equal(t, len(keys)/2, len(addrs))
+
+		for index, addr := range addrs {
+			assert.Contains(t, addr.String(), keys[index*2].ID())
+		}
 	})
-	assert.Len(t, errs, 1)
-	assert.Equal(t, 2, len(addrs))
+
+	t.Run("valid addresses", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			keys = generateKeys(t, 10)
+			strs = make([]string, 0, len(keys))
+		)
+
+		for _, key := range keys {
+			strs = append(
+				strs,
+				fmt.Sprintf("%s@127.0.0.1:8080", key.ID()),
+			)
+		}
+
+		// Convert the strings
+		addrs, errs := NewNetAddressFromStrings(strs)
+
+		assert.Len(t, errs, 0)
+		assert.Equal(t, len(keys), len(addrs))
+
+		for index, addr := range addrs {
+			assert.Contains(t, addr.String(), keys[index].ID())
+		}
+	})
 }
 
 func TestNewNetAddressFromIPPort(t *testing.T) {
 	t.Parallel()
 
-	addr := NewNetAddressFromIPPort("", net.ParseIP("127.0.0.1"), 8080)
-	assert.Equal(t, "127.0.0.1:8080", addr.String())
+	var (
+		host = "127.0.0.1"
+		port = uint16(8080)
+	)
+
+	addr := NewNetAddressFromIPPort(net.ParseIP(host), port)
+
+	assert.Equal(
+		t,
+		fmt.Sprintf("%s:%d", host, port),
+		addr.String(),
+	)
 }
 
-func TestNetAddressProperties(t *testing.T) {
+func TestNetAddress_Local(t *testing.T) {
 	t.Parallel()
 
-	// TODO add more test cases
-	testCases := []struct {
-		addr     string
-		valid    bool
-		local    bool
-		routable bool
+	testTable := []struct {
+		name    string
+		addr    string
+		isLocal bool
 	}{
-		{"g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", true, true, false},
-		{"g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@ya.ru:80", true, false, true},
+		{
+			"local loopback",
+			"127.0.0.1:8080",
+			true,
+		},
+		{
+			"local loopback, zero",
+			"0.0.0.0:8080",
+			true,
+		},
+		{
+			"non-local address",
+			"200.100.200.100:8080",
+			false,
+		},
 	}
 
-	for _, tc := range testCases {
-		addr, err := NewNetAddressFromString(tc.addr)
-		require.Nil(t, err)
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 
-		err = addr.Validate()
-		if tc.valid {
-			assert.NoError(t, err)
-		} else {
-			assert.Error(t, err)
-		}
-		assert.Equal(t, tc.local, addr.Local())
-		assert.Equal(t, tc.routable, addr.Routable())
+			key := GenerateNodeKey()
+
+			addr, err := NewNetAddressFromString(
+				fmt.Sprintf(
+					"%s@%s",
+					key.ID(),
+					testCase.addr,
+				),
+			)
+			require.NoError(t, err)
+
+			assert.Equal(t, testCase.isLocal, addr.Local())
+		})
 	}
 }
 
-func TestNetAddressReachabilityTo(t *testing.T) {
+func TestNetAddress_Routable(t *testing.T) {
 	t.Parallel()
 
-	// TODO add more test cases
-	testCases := []struct {
-		addr         string
-		other        string
-		reachability int
+	testTable := []struct {
+		name       string
+		addr       string
+		isRoutable bool
 	}{
-		{"g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8081", 0},
-		{"g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@ya.ru:80", "g1m6kmam774klwlh4dhmhaatd7al02m0h0jwnyc6@127.0.0.1:8080", 1},
+		{
+			"local loopback",
+			"127.0.0.1:8080",
+			false,
+		},
+		{
+			"routable address",
+			"gno.land:80",
+			true,
+		},
 	}
 
-	for _, tc := range testCases {
-		addr, err := NewNetAddressFromString(tc.addr)
-		require.Nil(t, err)
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 
-		other, err := NewNetAddressFromString(tc.other)
-		require.Nil(t, err)
+			key := GenerateNodeKey()
 
-		assert.Equal(t, tc.reachability, addr.ReachabilityTo(other))
+			addr, err := NewNetAddressFromString(
+				fmt.Sprintf(
+					"%s@%s",
+					key.ID(),
+					testCase.addr,
+				),
+			)
+			require.NoError(t, err)
+
+			assert.Equal(t, testCase.isRoutable, addr.Routable())
+		})
 	}
 }

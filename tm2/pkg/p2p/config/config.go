@@ -6,16 +6,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-// -----------------------------------------------------------------------------
-// P2PConfig
-
-const (
-	// FuzzModeDrop is a mode in which we randomly drop reads/writes, connections or sleep
-	FuzzModeDrop = iota
-	// FuzzModeDelay is a mode in which we randomly sleep
-	FuzzModeDelay
-)
-
 // P2PConfig defines the configuration options for the Tendermint peer-to-peer networking layer
 type P2PConfig struct {
 	RootDir string `json:"rpc" toml:"home"`
@@ -36,10 +26,10 @@ type P2PConfig struct {
 	UPNP bool `json:"upnp" toml:"upnp" comment:"UPNP port forwarding"`
 
 	// Maximum number of inbound peers
-	MaxNumInboundPeers int `json:"max_num_inbound_peers" toml:"max_num_inbound_peers" comment:"Maximum number of inbound peers"`
+	MaxNumInboundPeers uint64 `json:"max_num_inbound_peers" toml:"max_num_inbound_peers" comment:"Maximum number of inbound peers"`
 
 	// Maximum number of outbound peers to connect to, excluding persistent peers
-	MaxNumOutboundPeers int `json:"max_num_outbound_peers" toml:"max_num_outbound_peers" comment:"Maximum number of outbound peers to connect to, excluding persistent peers"`
+	MaxNumOutboundPeers uint64 `json:"max_num_outbound_peers" toml:"max_num_outbound_peers" comment:"Maximum number of outbound peers to connect to, excluding persistent peers"`
 
 	// Time to wait before flushing messages out on the connection
 	FlushThrottleTimeout time.Duration `json:"flush_throttle_timeout" toml:"flush_throttle_timeout" comment:"Time to wait before flushing messages out on the connection"`
@@ -72,13 +62,6 @@ type P2PConfig struct {
 	// Peer connection configuration.
 	HandshakeTimeout time.Duration `json:"handshake_timeout" toml:"handshake_timeout" comment:"Peer connection configuration."`
 	DialTimeout      time.Duration `json:"dial_timeout" toml:"dial_timeout"`
-
-	// Testing params.
-	// Force dial to fail
-	TestDialFail bool `json:"test_dial_fail" toml:"test_dial_fail"`
-	// FUzz connection
-	TestFuzz       bool            `json:"test_fuzz" toml:"test_fuzz"`
-	TestFuzzConfig *FuzzConnConfig `json:"test_fuzz_config" toml:"test_fuzz_config"`
 }
 
 // DefaultP2PConfig returns a default configuration for the peer-to-peer layer
@@ -98,9 +81,6 @@ func DefaultP2PConfig() *P2PConfig {
 		AllowDuplicateIP:        false,
 		HandshakeTimeout:        20 * time.Second,
 		DialTimeout:             3 * time.Second,
-		TestDialFail:            false,
-		TestFuzz:                false,
-		TestFuzzConfig:          DefaultFuzzConnConfig(),
 	}
 }
 
@@ -135,24 +115,4 @@ func (cfg *P2PConfig) ValidateBasic() error {
 		return errors.New("recv_rate can't be negative")
 	}
 	return nil
-}
-
-// FuzzConnConfig is a FuzzedConnection configuration.
-type FuzzConnConfig struct {
-	Mode         int
-	MaxDelay     time.Duration
-	ProbDropRW   float64
-	ProbDropConn float64
-	ProbSleep    float64
-}
-
-// DefaultFuzzConnConfig returns the default config.
-func DefaultFuzzConnConfig() *FuzzConnConfig {
-	return &FuzzConnConfig{
-		Mode:         FuzzModeDrop,
-		MaxDelay:     3 * time.Second,
-		ProbDropRW:   0.2,
-		ProbDropConn: 0.00,
-		ProbSleep:    0.00,
-	}
 }

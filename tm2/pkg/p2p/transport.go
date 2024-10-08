@@ -41,7 +41,7 @@ type accept struct {
 // TODO(xla): Refactor out with more static Reactor setup and PeerBehaviour.
 type peerConfig struct {
 	chDescs     []*conn.ChannelDescriptor
-	onPeerError func(Peer, interface{})
+	onPeerError func(Peer, error)
 	outbound    bool
 	// isPersistent allows you to set a function, which, given socket address
 	// (for outbound peers) OR self-reported address (for inbound peers), tells
@@ -54,7 +54,7 @@ type peerConfig struct {
 // the transport. Each transport is also responsible to filter establishing
 // peers specific to its domain.
 type Transport interface {
-	// Listening address.
+	// NetAddress returns the associated net address of the transport
 	NetAddress() NetAddress
 
 	// Accept returns a newly connected Peer.
@@ -65,13 +65,9 @@ type Transport interface {
 
 	// Cleanup any resources associated with Peer.
 	Cleanup(Peer)
-}
 
-// TransportLifecycle bundles the methods for callers to control start and stop
-// behaviour.
-type TransportLifecycle interface {
+	// Close closes the transport
 	Close() error
-	Listen(NetAddress) error
 }
 
 // ConnFilterFunc to be implemented by filter hooks after a new connection has
@@ -149,10 +145,7 @@ type MultiplexTransport struct {
 }
 
 // Test multiplexTransport for interface completeness.
-var (
-	_ Transport          = (*MultiplexTransport)(nil)
-	_ TransportLifecycle = (*MultiplexTransport)(nil)
-)
+var _ Transport = (*MultiplexTransport)(nil)
 
 // NewMultiplexTransport returns a tcp connected multiplexed peer.
 func NewMultiplexTransport(
@@ -314,7 +307,7 @@ func (mt *MultiplexTransport) acceptPeers() {
 				if err == nil {
 					addr := c.RemoteAddr()
 					id := secretConn.RemotePubKey().Address().ID()
-					netAddr = NewNetAddress(id, addr)
+					netAddr, _ = NewNetAddress(id, addr)
 				}
 			}
 
@@ -454,8 +447,16 @@ func (mt *MultiplexTransport) upgrade(
 
 	// Reject self.
 	if mt.nodeInfo.ID() == nodeInfo.ID() {
+		addr, err := NewNetAddress(nodeInfo.ID(), c.RemoteAddr())
+		if err != nil {
+			return nil, NodeInfo{}, NetAddressInvalidError{
+				Addr: c.RemoteAddr().String(),
+				Err:  err,
+			}
+		}
+
 		return nil, NodeInfo{}, RejectedError{
-			addr:   *NewNetAddress(nodeInfo.ID(), c.RemoteAddr()),
+			addr:   *addr,
 			conn:   c,
 			id:     nodeInfo.ID(),
 			isSelf: true,
@@ -490,23 +491,33 @@ func (mt *MultiplexTransport) wrapPeer(
 		}
 	}
 
-	peerConn := newPeerConn(
-		cfg.outbound,
-		persistent,
-		c,
-		socketAddr,
-	)
+	// Extract the host
+	host, _, err := net.SplitHostPort(c.RemoteAddr().String())
+	if err != nil {
+		panic(err) // TODO propagate
+	}
 
-	p := newPeer(
-		peerConn,
-		mt.mConfig,
-		ni,
-		cfg.reactorsByCh,
-		cfg.chDescs,
-		cfg.onPeerError,
-	)
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		panic(err) // TODO propagate
+	}
 
-	return p
+	peerConn := &ConnInfo{
+		Outbound:   cfg.outbound,
+		Persistent: persistent,
+		Conn:       c,
+		RemoteIP:   ips[0],
+		SocketAddr: socketAddr,
+	}
+
+	mConfig := &MultiplexConnConfig{
+		MConfig:      mt.mConfig,
+		ReactorsByCh: cfg.reactorsByCh,
+		ChDescs:      cfg.chDescs,
+		OnPeerError:  cfg.onPeerError,
+	}
+
+	return NewPeer(peerConn, ni, mConfig)
 }
 
 func handshake(
@@ -533,7 +544,7 @@ func handshake(
 		_, err := amino.UnmarshalSizedReader(
 			c,
 			&peerNodeInfo,
-			int64(MaxNodeInfoSize()),
+			int64(MaxNodeInfoSize),
 		)
 		errc <- err
 	}(errc, c)
