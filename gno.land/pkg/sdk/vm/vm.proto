@@ -27,6 +27,10 @@ message m_addpkg {
 	string deposit = 3;
 }
 
+message m_noop {
+	string caller = 1;
+}
+
 message InvalidPkgPathError {
 }
 

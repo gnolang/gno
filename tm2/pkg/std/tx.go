@@ -60,6 +60,29 @@ func (tx Tx) ValidateBasic() error {
 	return nil
 }
 
+// IsSponsorTx checks if the transaction is a valid sponsor transaction
+func (tx Tx) IsSponsorTx() bool {
+	// At least two message in the transaction
+	if len(tx.Msgs) <= 1 {
+		return false
+	}
+
+	// More than one signer
+	signers := tx.GetSigners()
+	if len(signers) <= 1 {
+		return false
+	}
+
+	// The first signer is different from all other signers
+	for i := 1; i < len(signers); i++ {
+		if signers[0] == signers[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 // CountSubKeys counts the total number of keys for a multi-sig public key.
 func CountSubKeys(pub crypto.PubKey) int {
 	v, ok := pub.(multisig.PubKeyMultisigThreshold)
