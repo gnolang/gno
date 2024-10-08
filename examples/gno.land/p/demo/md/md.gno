@@ -123,5 +123,5 @@ func Footnote(reference, text string) string {
 
 // Paragraph wraps the given text in a Markdown paragraph
 func Paragraph(content string) string {
-	return ufmt.Sprintf("%s\n\n", content)
+	return ufmt.Sprintf("\n%s\n", content)
 }

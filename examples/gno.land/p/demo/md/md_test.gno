@@ -108,7 +108,7 @@ func Test_Footnote(t *testing.T) {
 
 func Test_Paragraph(t *testing.T) {
 	result := Paragraph("This is a paragraph.")
-	uassert.Equal(t, result, "This is a paragraph.\n\n")
+	uassert.Equal(t, result, "\nThis is a paragraph.\n")
 }
 
 func Test_Table(t *testing.T) {
