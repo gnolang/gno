@@ -11,8 +11,8 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/std"
 	"github.com/gnolang/gno/gnovm/pkg/transpiler"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/mod/modfile"
 	"golang.org/x/mod/module"
 )

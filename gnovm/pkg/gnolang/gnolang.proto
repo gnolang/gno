@@ -110,6 +110,11 @@ message RefValue {
 	string hash = 4 [json_name = "Hash"];
 }
 
+message HeapItemValue {
+	ObjectInfo object_info = 1 [json_name = "ObjectInfo"];
+	TypedValue value = 2 [json_name = "Value"];
+}
+
 message ObjectID {
 	string value = 1;
 }
@@ -147,7 +152,8 @@ message Location {
 
 message Attributes {
 	sint64 line = 1 [json_name = "Line"];
-	string label = 2 [json_name = "Label"];
+	sint64 column = 2 [json_name = "Column"];
+	string label = 3 [json_name = "Label"];
 }
 
 message NameExpr {

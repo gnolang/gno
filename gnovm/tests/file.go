@@ -15,6 +15,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	gnostd "github.com/gnolang/gno/gnovm/pkg/std"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -186,10 +187,10 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 				store.SetStrictGo2GnoMapping(true) // in gno.land, natives must be registered.
 				gno.DisableDebug()                 // until main call.
 				// save package using realm crawl procedure.
-				memPkg := &std.MemPackage{
+				memPkg := &gnostd.MemPackage{
 					Name: string(pkgName),
 					Path: pkgPath,
-					Files: []*std.MemFile{
+					Files: []*gnostd.MemFile{
 						{
 							Name: "main.gno", // dontcare
 							Body: string(bz),

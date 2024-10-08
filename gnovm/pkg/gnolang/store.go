@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnolang/internal/txlog"
+	"github.com/gnolang/gno/gnovm/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/colors"
-	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/utils"
 	stringz "github.com/gnolang/gno/tm2/pkg/strings"
