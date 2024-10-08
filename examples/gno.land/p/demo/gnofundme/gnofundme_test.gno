@@ -8,8 +8,8 @@ import (
 	"gno.land/p/demo/testutils"
 )
 
-var (
-	ctype              = 0
+const (
+	ct                 = 0
 	title              = "Campaign 1"
 	description        = "Description 1"
 	goal               = 1000
@@ -20,11 +20,12 @@ var (
 	// Test case 1 Valid campaign
 	begin    = time.Now()
 	deadline = begin.Add(time.Hour * 24)
-	campaign = NewCampaign(ctype, title, description, 1000, begin, deadline, owner, beneficiary)
 )
 
+var campaign = NewCampaign(ct, title, description, 1000, begin, deadline, owner, beneficiary)
+
 func TestNewCampaign(t *testing.T) {
-	if campaign.Ctype != ctype {
+	if campaign.Ctype != ct {
 		t.Errorf("Expected campaign type to be Personal, got %s", campaign.Ctype)
 	}
 
@@ -90,7 +91,7 @@ func TestCampaignsToJSONString(t *testing.T) {
 		NewCampaign(2, "Campaign 3", "Description 3", 3000, time.Now(), time.Now(), NewUser("Owner", "", ownerAddress), NewUser("Beneficiary", "", beneficiaryAddress)),
 	}
 
-	expected := `[{"ctype":"0","title":"Campaign 1","description":"Description 1","goal":"1000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"},{"ctype":"1","title":"Campaign 2","description":"Description 2","goal":"2000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"},{"ctype":"2","title":"Campaign 3","description":"Description 3","goal":"3000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"}]`
+	expected := `[{"ctype":"Personal","title":"Campaign 1","description":"Description 1","goal":"1000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"},{"ctype":"Cause","title":"Campaign 2","description":"Description 2","goal":"2000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"},{"ctype":"Organism","title":"Campaign 3","description":"Description 3","goal":"3000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"}]`
 
 	result := CampaignsToJSONString(campaigns)
 	if result != expected {
@@ -101,7 +102,7 @@ func TestCampaignsToJSONString(t *testing.T) {
 func TestCampaignToJSONString(t *testing.T) {
 	campaign := NewCampaign(0, "Campaign 1", "Description 1", 1000, time.Now(), time.Now(), NewUser("Owner", "", ownerAddress), NewUser("Beneficiary", "", beneficiaryAddress))
 
-	expected := `{"ctype":"0","title":"Campaign 1","description":"Description 1","goal":"1000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"}`
+	expected := `{"ctype":"Personal","title":"Campaign 1","description":"Description 1","goal":"1000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"}`
 
 	result := CampaignToJSONString(campaign)
 	if result != expected {
