@@ -1,3 +1,3 @@
-package contenttext
+package plugintext
 
 const Name = "post-text"

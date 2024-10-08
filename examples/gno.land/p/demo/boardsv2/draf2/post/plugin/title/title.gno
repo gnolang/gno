@@ -1,4 +1,4 @@
-package contenttitle
+package plugintitle
 
 const Name = "post-title-only"
 
