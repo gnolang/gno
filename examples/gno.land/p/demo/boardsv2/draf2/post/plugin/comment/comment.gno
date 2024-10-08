@@ -6,28 +6,29 @@ func New(st Storage) Plugin {
 }
 
 type Plugin struct {
-	st Storage
+	postStorage Storage
 }
 
-type Content struct {
-	Title string
+type Content struct { // Content of the comment.
+	Title       string
 	Description string
-	Tags []string
+	Tags        []string
 }
 
-func NewPost(id string, c Content, level int) (*Post, error) {
-	post := &Post{
-		ID: id,
+func (p Plugin) CreateComment(id string, c Content, level int) *post.Post {
+	pp := &post.Post{
+		ID:    id,
 		Level: level,
 	}
-	return post, p.SetContent(post, c)
+	p.EditCommentContent(pp, c)
+	return pp
 }
 
-func (p Plugin) Content(post *Post) Content {
-	return post.Body[Name].(Content)
+func (p Plugin) Content(pst *post.Post) Content {
+	return pst.PluginStorage[Name].(Content)
 }
 
-func (p Plugin) SetContent(post *Post, c Content) error {
-	post.Body[Name] = c
-	return p.st.Set(post.ID, post)
+func (p Plugin) EditCommentContent(pp *Post, c Content) (updated bool) {
+	pp.PluginStorage[Name] = c
+	return p.postStorage.Set(post.ID, pp)
 }
