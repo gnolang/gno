@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gno.land/p/demo/ufmt"
+	"gno.land/r/demo/users"
 )
 
 type ctype int
@@ -37,13 +38,13 @@ type Campaign struct {
 	Current     int64
 	Begin       time.Time
 	Deadline    time.Time
-	Owner       *User
+	Owner       *users.User
 	// Campaign beneficiary (can be the owner or another address)
-	Beneficiary  *User
+	Beneficiary  *users.User
 	contributors []*Contributor
 }
 
-func NewCampaign(ct int, title string, description string, goal int64, begin time.Time, deadline time.Time, owner *User, beneficiary *User) *Campaign {
+func NewCampaign(ct int, title string, description string, goal int64, begin time.Time, deadline time.Time, owner *users.User, beneficiary *users.User) *Campaign {
 	campaign := &Campaign{
 		Ctype:        ctype(ct),
 		Title:        title,
@@ -65,7 +66,7 @@ func (c Campaign) GetContributors() []*Contributor {
 	return c.contributors
 }
 
-func (c *Campaign) AddContributor(user *User, date time.Time, amount int64, display bool) *Contributor {
+func (c *Campaign) AddContributor(user *users.User, date time.Time, amount int64, display bool) *Contributor {
 	c.Current += amount
 	contributor := NewContributor(user, date, amount, display)
 	c.contributors = append(c.contributors, contributor)
