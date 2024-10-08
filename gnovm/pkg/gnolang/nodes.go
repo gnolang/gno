@@ -327,27 +327,10 @@ var (
 
 type Expr interface {
 	Node
-	assertExpr()
+	addressability() addressabilityStatus
 }
 
 type Exprs []Expr
-
-// non-pointer receiver to help make immutable.
-func (*NameExpr) assertExpr()         {}
-func (*BasicLitExpr) assertExpr()     {}
-func (*BinaryExpr) assertExpr()       {}
-func (*CallExpr) assertExpr()         {}
-func (*IndexExpr) assertExpr()        {}
-func (*SelectorExpr) assertExpr()     {}
-func (*SliceExpr) assertExpr()        {}
-func (*StarExpr) assertExpr()         {}
-func (*RefExpr) assertExpr()          {}
-func (*TypeAssertExpr) assertExpr()   {}
-func (*UnaryExpr) assertExpr()        {}
-func (*CompositeLitExpr) assertExpr() {}
-func (*KeyValueExpr) assertExpr()     {}
-func (*FuncLitExpr) assertExpr()      {}
-func (*ConstExpr) assertExpr()        {}
 
 var (
 	_ Expr = &NameExpr{}
@@ -374,6 +357,10 @@ type NameExpr struct {
 	Name
 }
 
+func (x *NameExpr) addressability() addressabilityStatus {
+	return addressabilityStatusSatisfied
+}
+
 type NameExprs []NameExpr
 
 type BasicLitExpr struct {
@@ -385,6 +372,10 @@ type BasicLitExpr struct {
 	Value string
 }
 
+func (x *BasicLitExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
+}
+
 type BinaryExpr struct { // (Left Op Right)
 	Attributes
 	Left  Expr // left operand
@@ -392,26 +383,54 @@ type BinaryExpr struct { // (Left Op Right)
 	Right Expr // right operand
 }
 
+func (x *BinaryExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
+}
+
 type CallExpr struct { // Func(Args<Varg?...>)
 	Attributes
-	Func    Expr  // function expression
-	Args    Exprs // function arguments, if any.
-	Varg    bool  // if true, final arg is variadic.
-	NumArgs int   // len(Args) or len(Args[0].Results)
+	Func           Expr  // function expression
+	Args           Exprs // function arguments, if any.
+	Varg           bool  // if true, final arg is variadic.
+	NumArgs        int   // len(Args) or len(Args[0].Results)
+	Addressability addressabilityStatus
+}
+
+func (x *CallExpr) addressability() addressabilityStatus {
+	return x.Addressability
 }
 
 type IndexExpr struct { // X[Index]
 	Attributes
-	X     Expr // expression
-	Index Expr // index expression
-	HasOK bool // if true, is form: `value, ok := <X>[<Key>]
+	X              Expr // expression
+	Index          Expr // index expression
+	HasOK          bool // if true, is form: `value, ok := <X>[<Key>]
+	Addressability addressabilityStatus
+}
+
+func (x *IndexExpr) addressability() addressabilityStatus {
+	// If not set in TRANS_LEAVE, defer to the the child expression's addressability.
+	if x.Addressability == addressabilityStatusNotApplicable {
+		return x.X.addressability()
+	}
+
+	return x.Addressability
 }
 
 type SelectorExpr struct { // X.Sel
 	Attributes
-	X    Expr      // expression
-	Path ValuePath // set by preprocessor.
-	Sel  Name      // field selector
+	X             Expr      // expression
+	Path          ValuePath // set by preprocessor.
+	Sel           Name      // field selector
+	IsAddressable bool      // true if X is a pointer
+}
+
+func (x *SelectorExpr) addressability() addressabilityStatus {
+	if x.IsAddressable || x.X.addressability() == addressabilityStatusSatisfied {
+		return addressabilityStatusSatisfied
+	}
+
+	return addressabilityStatusUnsatisfied
 }
 
 type SliceExpr struct { // X[Low:High:Max]
@@ -422,6 +441,10 @@ type SliceExpr struct { // X[Low:High:Max]
 	Max  Expr // maximum capacity of slice; or nil; added in Go 1.2
 }
 
+func (x *SliceExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
+}
+
 // A StarExpr node represents an expression of the form
 // "*" Expression.  Semantically it could be a unary "*"
 // expression, or a pointer type.
@@ -430,16 +453,33 @@ type StarExpr struct { // *X
 	X Expr // operand
 }
 
+func (x *StarExpr) addressability() addressabilityStatus {
+	return addressabilityStatusSatisfied
+}
+
 type RefExpr struct { // &X
 	Attributes
 	X Expr // operand
 }
 
+func (x *RefExpr) addressability() addressabilityStatus {
+	return x.X.addressability()
+}
+
 type TypeAssertExpr struct { // X.(Type)
 	Attributes
-	X     Expr // expression.
-	Type  Expr // asserted type, never nil.
-	HasOK bool // if true, is form: `_, ok := <X>.(<Type>)`.
+	X             Expr // expression.
+	Type          Expr // asserted type, never nil.
+	HasOK         bool // if true, is form: `_, ok := <X>.(<Type>)`.
+	IsAddressable bool
+}
+
+func (x *TypeAssertExpr) addressability() addressabilityStatus {
+	if x.IsAddressable {
+		return addressabilityStatusSatisfied
+	}
+
+	return addressabilityStatusUnsatisfied
 }
 
 // A UnaryExpr node represents a unary expression. Unary
@@ -452,12 +492,25 @@ type UnaryExpr struct { // (Op X)
 	Op Word // operator
 }
 
+func (x *UnaryExpr) addressability() addressabilityStatus {
+	return x.X.addressability()
+}
+
 // MyType{<key>:<value>} struct, array, slice, and map
 // expressions.
 type CompositeLitExpr struct {
 	Attributes
-	Type Expr          // literal type; or nil
-	Elts KeyValueExprs // list of struct fields; if any
+	Type          Expr          // literal type; or nil
+	Elts          KeyValueExprs // list of struct fields; if any
+	IsAddressable bool
+}
+
+func (x *CompositeLitExpr) addressability() addressabilityStatus {
+	if x.IsAddressable {
+		return addressabilityStatusSatisfied
+	}
+
+	return addressabilityStatusUnsatisfied
 }
 
 // Returns true if any elements are keyed.
@@ -490,6 +543,10 @@ type KeyValueExpr struct {
 	Value Expr // never nil
 }
 
+func (x *KeyValueExpr) addressability() addressabilityStatus {
+	return addressabilityStatusNotApplicable
+}
+
 type KeyValueExprs []KeyValueExpr
 
 // A FuncLitExpr node represents a function literal.  Here one
@@ -502,12 +559,20 @@ type FuncLitExpr struct {
 	Body              // function body
 }
 
+func (x *FuncLitExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
+}
+
 // The preprocessor replaces const expressions
 // with *ConstExpr nodes.
 type ConstExpr struct {
 	Attributes
 	Source Expr // (preprocessed) source of this value.
 	TypedValue
+}
+
+func (x *ConstExpr) addressability() addressabilityStatus {
+	return addressabilityStatusUnsatisfied
 }
 
 // ----------------------------------------
@@ -528,6 +593,8 @@ type TypeExpr interface {
 	assertTypeExpr()
 }
 
+const typeExprAddressability = "the addressability method should not be called on Type Expressions"
+
 // non-pointer receiver to help make immutable.
 func (x *FieldTypeExpr) assertTypeExpr()       {}
 func (x *ArrayTypeExpr) assertTypeExpr()       {}
@@ -539,17 +606,6 @@ func (x *MapTypeExpr) assertTypeExpr()         {}
 func (x *StructTypeExpr) assertTypeExpr()      {}
 func (x *constTypeExpr) assertTypeExpr()       {}
 func (x *MaybeNativeTypeExpr) assertTypeExpr() {}
-
-func (x *FieldTypeExpr) assertExpr()       {}
-func (x *ArrayTypeExpr) assertExpr()       {}
-func (x *SliceTypeExpr) assertExpr()       {}
-func (x *InterfaceTypeExpr) assertExpr()   {}
-func (x *ChanTypeExpr) assertExpr()        {}
-func (x *FuncTypeExpr) assertExpr()        {}
-func (x *MapTypeExpr) assertExpr()         {}
-func (x *StructTypeExpr) assertExpr()      {}
-func (x *constTypeExpr) assertExpr()       {}
-func (x *MaybeNativeTypeExpr) assertExpr() {}
 
 var (
 	_ TypeExpr = &FieldTypeExpr{}
@@ -572,6 +628,10 @@ type FieldTypeExpr struct {
 	// Currently only BasicLitExpr allowed.
 	// NOTE: In Go, only struct fields can have tags.
 	Tag Expr
+}
+
+func (x *FieldTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
 }
 
 type FieldTypeExprs []FieldTypeExpr
@@ -598,16 +658,28 @@ type ArrayTypeExpr struct {
 	Elt Expr // element type
 }
 
+func (x *ArrayTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
+}
+
 type SliceTypeExpr struct {
 	Attributes
 	Elt Expr // element type
 	Vrd bool // variadic arg expression
 }
 
+func (x *SliceTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
+}
+
 type InterfaceTypeExpr struct {
 	Attributes
 	Methods FieldTypeExprs // list of methods
 	Generic Name           // for uverse generics
+}
+
+func (x *InterfaceTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
 }
 
 type ChanDir int
@@ -627,10 +699,18 @@ type ChanTypeExpr struct {
 	Value Expr    // value type
 }
 
+func (x *ChanTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
+}
+
 type FuncTypeExpr struct {
 	Attributes
 	Params  FieldTypeExprs // (incoming) parameters, if any.
 	Results FieldTypeExprs // (outgoing) results, if any.
+}
+
+func (x *FuncTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
 }
 
 type MapTypeExpr struct {
@@ -639,9 +719,17 @@ type MapTypeExpr struct {
 	Value Expr // value type
 }
 
+func (x *MapTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
+}
+
 type StructTypeExpr struct {
 	Attributes
 	Fields FieldTypeExprs // list of field declarations
+}
+
+func (x *StructTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
 }
 
 // Like ConstExpr but for types.
@@ -651,10 +739,18 @@ type constTypeExpr struct {
 	Type   Type
 }
 
+func (x *constTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
+}
+
 // Only used for native func arguments
 type MaybeNativeTypeExpr struct {
 	Attributes
 	Type Expr
+}
+
+func (x *MaybeNativeTypeExpr) addressability() addressabilityStatus {
+	panic(typeExprAddressability)
 }
 
 // ----------------------------------------
@@ -1484,6 +1580,7 @@ type BlockNode interface {
 	GetParentNode(Store) BlockNode
 	GetPathForName(Store, Name) ValuePath
 	GetIsConst(Store, Name) bool
+	GetIsConstAt(Store, ValuePath) bool
 	GetLocalIndex(Name) (uint16, bool)
 	GetValueRef(Store, Name, bool) *TypedValue
 	GetStaticTypeOf(Store, Name) Type
@@ -1671,6 +1768,30 @@ func (sb *StaticBlock) GetIsConst(store Store, n Name) bool {
 	}
 }
 
+func (sb *StaticBlock) getAt(store Store, path ValuePath) *StaticBlock {
+	if debug {
+		if path.Type != VPBlock {
+			panic("expected block type value path but got " + path.Type.String())
+		}
+		if path.Depth == 0 {
+			panic("should not happen")
+		}
+	}
+
+	for {
+		if path.Depth == 1 {
+			return sb
+		} else {
+			sb = sb.GetParentNode(store).GetStaticBlock()
+			path.Depth -= 1
+		}
+	}
+}
+
+func (sb *StaticBlock) GetIsConstAt(store Store, path ValuePath) bool {
+	return sb.getAt(store, path).getLocalIsConst(path.Name)
+}
+
 // Returns true iff n is a local const defined name.
 func (sb *StaticBlock) getLocalIsConst(n Name) bool {
 	for _, name := range sb.Consts {
@@ -1706,22 +1827,7 @@ func (sb *StaticBlock) GetStaticTypeOf(store Store, n Name) Type {
 
 // Implements BlockNode.
 func (sb *StaticBlock) GetStaticTypeOfAt(store Store, path ValuePath) Type {
-	if debug {
-		if path.Type != VPBlock {
-			panic("should not happen")
-		}
-		if path.Depth == 0 {
-			panic("should not happen")
-		}
-	}
-	for {
-		if path.Depth == 1 {
-			return sb.Types[path.Index]
-		} else {
-			sb = sb.GetParentNode(store).GetStaticBlock()
-			path.Depth -= 1
-		}
-	}
+	return sb.getAt(store, path).Types[path.Index]
 }
 
 // Implements BlockNode.
@@ -2130,3 +2236,11 @@ func validatePkgName(name string) {
 		panic(fmt.Sprintf("cannot create package with invalid name %q", name))
 	}
 }
+
+type addressabilityStatus int
+
+const (
+	addressabilityStatusNotApplicable addressabilityStatus = iota
+	addressabilityStatusSatisfied
+	addressabilityStatusUnsatisfied
+)
