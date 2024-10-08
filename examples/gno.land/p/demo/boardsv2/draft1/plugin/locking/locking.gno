@@ -2,6 +2,8 @@ package lockingplugin
 
 import "errors"
 
+const Name = "boards:locking"
+
 var ErrInvalidPostType = errors.New("post type is not a board or thread")
 
 type (
@@ -16,7 +18,7 @@ func New() Plugin {
 }
 
 func (p Plugin) Name() string {
-	return "boards:locking"
+	return Name
 }
 
 func (p *Plugin) Lock(p *Post) error {

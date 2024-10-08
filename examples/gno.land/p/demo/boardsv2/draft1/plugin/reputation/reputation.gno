@@ -1,9 +1,13 @@
 package reputationplugin
 
+import "errors"
+
 const (
 	PolicyLinear = iota
 	PolicyTokenBase
 )
+
+const Name = "boards:reputation"
 
 var ErrNotSupported = errors.New("reputation not supported")
 
@@ -29,7 +33,7 @@ func NewReputationPlugin(o ...Option) Plugin {
 }
 
 func (p Plugin) Name() string {
-	return "boards:reputation"
+	return Name
 }
 
 func (p Plugin) HasReputationSupport(p *Post) bool {
