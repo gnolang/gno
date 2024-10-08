@@ -505,16 +505,7 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 	}()
 
 	rtvs := m.Eval(xn)
-
-	res = JSONValues(m, rtvs)
-
-	for i, rtv := range rtvs {
-		res = res + rtv.String()
-		if i < len(rtvs)-1 {
-			res += "\n"
-		}
-	}
-
+	stringifyResultValues(m, msg.Format, rtvs)
 	// Log the telemetry
 	logTelemetry(
 		m.GasMeter.GasConsumed(),
@@ -766,7 +757,7 @@ func (vm *VMKeeper) QueryEval(ctx sdk.Context, pkgPath string, expr string) (res
 	}()
 	rtvs := m.Eval(xx)
 
-	res = JSONValues(m, rtvs)
+	res = stringifyResultValues(m, msg.Format, rtvs)
 	return res, nil
 }
 
@@ -864,10 +855,10 @@ func (vm *VMKeeper) QueryFile(ctx sdk.Context, filepath string) (res string, err
 
 }
 
-func stringifyResult(m *gno.Machine, format Format, values ...gnolang.TypedValue) string {
+func stringifyResultValues(m *gno.Machine, format Format, values []gnolang.TypedValue) string {
 	switch format {
 	case FormatJSON:
-		return JSONValues(m, values)
+		return JSONPrimitiveValues(m, values)
 	case FormatDefault, "":
 		var res strings.Builder
 
@@ -880,7 +871,7 @@ func stringifyResult(m *gno.Machine, format Format, values ...gnolang.TypedValue
 
 		return res.String()
 	default:
-		panic("unsuported formata")
+		panic("unsuported stringify format ")
 	}
 }
 

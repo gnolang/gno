@@ -192,7 +192,7 @@ func convertArgToGno(arg string, argT gno.Type) (tv gno.TypedValue) {
 	}
 }
 
-func JSONValues(m *gno.Machine, tvs []gno.TypedValue) string {
+func JSONPrimitiveValues(m *gno.Machine, tvs []gno.TypedValue) string {
 	var str strings.Builder
 
 	str.WriteRune('[')
@@ -200,14 +200,14 @@ func JSONValues(m *gno.Machine, tvs []gno.TypedValue) string {
 		if i > 0 {
 			str.WriteRune(',')
 		}
-		str.WriteString(JSONValue(m, tv))
+		str.WriteString(JSONPrimitiveValue(m, tv))
 	}
 	str.WriteRune(']')
 
 	return str.String()
 }
 
-func JSONValue(m *gno.Machine, tv gno.TypedValue) string {
+func JSONPrimitiveValue(m *gno.Machine, tv gno.TypedValue) string {
 	if tv.T == nil {
 		return "null"
 	}

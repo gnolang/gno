@@ -67,9 +67,9 @@ func TestConvertJSONValuePrimtive(t *testing.T) {
 		{"uint32(42)", `42`},
 		{"uint64(42)", `42`},
 
-		// Float types // XXX: Require amino unsafe
-		// {"float32(3.14)", "3.14"},
-		// {"float64(3.14)", "3.14"},
+		// Float types
+		{"float32(3.14)", "3.14"},
+		{"float64(3.14)", "3.14"},
 
 		// String type
 		{`"hello world"`, `"hello world"`},
@@ -90,7 +90,7 @@ func TestConvertJSONValuePrimtive(t *testing.T) {
 
 			tv := tps[0]
 
-			rep := JSONValue(m, tv)
+			rep := JSONPrimitiveValue(m, tv)
 			require.Equal(t, tc.Expected, rep)
 		})
 	}
@@ -100,10 +100,10 @@ func TestConvertJSONValueStruct(t *testing.T) {
 	const StructsFile = `
 package testdata
 
-// S struct
-type S struct { B string }
+// E struct, impement error
+type E struct { S string }
 
-func (s *S) String() string { return s.B }
+func (e *E) Error() string { return e.S }
 `
 
 	t.Run("with pointer", func(t *testing.T) {
@@ -114,7 +114,7 @@ func (s *S) String() string { return s.B }
 		nn := gnolang.MustParseFile("struct.gno", StructsFile)
 		m.RunFiles(nn)
 		nn = gnolang.MustParseFile("testdata.gno",
-			fmt.Sprintf(`package testdata; var Value = S{%q}`, expected))
+			fmt.Sprintf(`package testdata; var Value = E{%q}`, expected))
 		m.RunFiles(nn)
 		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
 
@@ -122,7 +122,7 @@ func (s *S) String() string { return s.B }
 		require.Len(t, tps, 1)
 
 		tv := tps[0]
-		rep := JSONValue(m, tv)
+		rep := JSONPrimitiveValue(m, tv)
 		require.Equal(t, strconv.Quote(expected), rep)
 	})
 
@@ -134,7 +134,7 @@ func (s *S) String() string { return s.B }
 		nn := gnolang.MustParseFile("struct.gno", StructsFile)
 		m.RunFiles(nn)
 		nn = gnolang.MustParseFile("testdata.gno",
-			fmt.Sprintf(`package testdata; var Value = &S{%q}`, expected))
+			fmt.Sprintf(`package testdata; var Value = &E{%q}`, expected))
 		m.RunFiles(nn)
 		m.RunDeclaration(gnolang.ImportD("testdata", "testdata"))
 
@@ -142,10 +142,9 @@ func (s *S) String() string { return s.B }
 		require.Len(t, tps, 1)
 
 		tv := tps[0]
-		rep := JSONValue(m, tv)
+		rep := JSONPrimitiveValue(m, tv)
 		require.Equal(t, strconv.Quote(expected), rep)
 	})
-
 }
 
 func TestConvertJSONValuesList(t *testing.T) {
@@ -156,7 +155,8 @@ func TestConvertJSONValuesList(t *testing.T) {
 		// Boolean
 		{[]string{}, "[]"},
 		{[]string{"42"}, "[42]"},
-		{[]string{"42", `"hello world"`}, `[42, "hello world"]`},
+		{[]string{"42", `"hello world"`}, `[42,"hello world"]`},
+		{[]string{"42", `"hello world"`, "[]int{42}"}, `[42,"hello world"]`},
 	}
 
 	for _, tc := range cases {
@@ -173,7 +173,7 @@ func TestConvertJSONValuesList(t *testing.T) {
 			require.Len(t, tps, 1)
 			require.Equal(t, gnolang.SliceKind.String(), tps[0].T.Kind().String())
 			tpvs := tps[0].V.(*gnolang.SliceValue).Base.(*gnolang.ArrayValue).List
-			rep := JSONValues(m, tpvs)
+			rep := JSONPrimitiveValues(m, tpvs)
 			require.Equal(t, tc.Expected, rep)
 		})
 	}

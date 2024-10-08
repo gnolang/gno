@@ -92,12 +92,14 @@ func (msg MsgAddPackage) GetReceived() std.Coins {
 
 // MsgCall - executes a Gno statement.
 type MsgCall struct {
-	Format  string         `json:"format" yaml:"format"`
 	Caller  crypto.Address `json:"caller" yaml:"caller"`
 	Send    std.Coins      `json:"send" yaml:"send"`
 	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
 	Func    string         `json:"func" yaml:"func"`
 	Args    []string       `json:"args" yaml:"args"`
+
+	// XXX: This field is experimental, use with care as output is likely to change
+	Format Format `json:"format" yaml:"format"`
 }
 
 var _ std.Msg = MsgCall{}
