@@ -1,4 +1,4 @@
-module table
+module gno.land/p/demo/table
 
 require (
 	gno.land/p/demo/uassert v0.0.0-latest
