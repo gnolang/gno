@@ -36,6 +36,21 @@ func H3(text string) string {
 	return ufmt.Sprintf("### %s", text)
 }
 
+// H4 returns a level 4 header for markdown
+func H4(text string) string {
+	return ufmt.Sprintf("#### %s", text)
+}
+
+// H5 returns a level 5 header for markdown
+func H5(text string) string {
+	return ufmt.Sprintf("##### %s", text)
+}
+
+// H6 returns a level 6 header for markdown
+func H6(text string) string {
+	return ufmt.Sprintf("###### %s", text)
+}
+
 // BulletList returns an bullet list for markdown
 func BulletList(items []string) string {
 	var sb strings.Builder
@@ -75,6 +90,7 @@ func Blockquote(text string) string {
 	for _, line := range lines {
 		sb.WriteString(ufmt.Sprintf("> %s\n", line))
 	}
+
 	return sb.String()
 }
 

@@ -3,8 +3,8 @@ package md
 import (
 	"testing"
 
-	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/table"
+	"gno.land/p/demo/uassert"
 )
 
 func Test_Bold(t *testing.T) {
@@ -29,6 +29,18 @@ func Test_H2(t *testing.T) {
 
 func Test_H3(t *testing.T) {
 	uassert.Equal(t, H3("Header 3"), "### Header 3")
+}
+
+func Test_H4(t *testing.T) {
+	uassert.Equal(t, H1("Header 4"), "#### Header 4")
+}
+
+func Test_H5(t *testing.T) {
+	uassert.Equal(t, H5("Header 5"), "##### Header 5")
+}
+
+func Test_H6(t *testing.T) {
+	uassert.Equal(t, H6("Header 6"), "###### Header 6")
 }
 
 func Test_BulletList(t *testing.T) {
