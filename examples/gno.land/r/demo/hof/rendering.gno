@@ -1,8 +1,10 @@
 package hof
 
 import (
+	"gno.land/p/demo/avl/pager"
 	"gno.land/p/demo/fqname"
 	"gno.land/p/demo/seqid"
+
 	"gno.land/p/demo/ufmt"
 )
 
@@ -13,12 +15,12 @@ const (
 
 func Render(path string) string {
 	out := "# Hall of Fame\n\n"
-	out += exhibition.Render(path == "dashboard")
+	out += exhibition.Render(path, path == "dashboard")
 
 	return out
 }
 
-func (e Exhibition) Render(dashboard bool) string {
+func (e Exhibition) Render(path string, dashboard bool) string {
 	out := ufmt.Sprintf("%s\n\n", e.description)
 
 	if e.items.Size() == 0 {
@@ -28,17 +30,20 @@ func (e Exhibition) Render(dashboard bool) string {
 
 	out += "<div class='columns-2'>\n\n"
 
-	e.itemsSorted.ReverseIterate("", "", func(key string, value interface{}) bool {
-		out += "<div>\n\n"
-		id, _ := seqid.FromString(key)
-		out += ufmt.Sprintf("### Submission #%d\n\n", int(id))
-		out += value.(*Item).Render(dashboard)
-		out += "</div>"
+	p := pager.NewPager(e.itemsSorted, 3).MustGetPageByPath(path)
 
-		return false
-	})
+	for _, pgItem := range p.Items {
+		i := pgItem.Value.(*Item)
+		out += "<div>\n\n"
+		id, _ := seqid.FromString(pgItem.Key)
+		out += ufmt.Sprintf("### Submission #%d\n\n", int(id))
+		out += i.Render(dashboard)
+		out += "</div>"
+	}
 
 	out += "</div><!-- /columns-2 -->\n\n"
+
+	out += p.Selector()
 
 	return out
 }

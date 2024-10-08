@@ -328,13 +328,14 @@ func Render(fullPath string) string {
 func renderHome(path string) string {
 	doc := ""
 
-	page := pager.NewPager(&name2User, 50).MustGetPageByPath(path)
+	page := pager.NewPager(&name2User, 4).MustGetPageByPath(path)
 
 	for _, item := range page.Items {
 		user := item.Value.(*users.User)
 		doc += " * [" + user.Name + "](/r/demo/users:" + user.Name + ")\n"
 	}
 
+	doc += "\n"
 	doc += page.Selector()
 	return doc
 }

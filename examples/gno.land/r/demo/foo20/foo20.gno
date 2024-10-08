@@ -3,6 +3,7 @@
 package foo20
 
 import (
+	"gno.land/r/demo/hof"
 	"std"
 	"strings"
 
@@ -24,6 +25,7 @@ func init() {
 	banker = grc20.NewBanker("Foo", "FOO", 4)
 	banker.Mint(admin.Owner(), 1000000*10000) // @administrator (1M)
 	token = banker.Token()
+	hof.Register()
 }
 
 func TotalSupply() uint64 { return token.TotalSupply() }
