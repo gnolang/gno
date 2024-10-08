@@ -1,4 +1,4 @@
-module gno.land/p/demo/markdown
+module table
 
 require (
 	gno.land/p/demo/uassert v0.0.0-latest

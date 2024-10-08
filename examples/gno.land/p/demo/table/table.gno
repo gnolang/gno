@@ -1,4 +1,4 @@
-package markdown
+package table
 
 import (
 	"strings"
@@ -12,8 +12,8 @@ type Table struct {
 	rows   [][]string
 }
 
-// ValidateColumns checks if the number of columns in each row matches the number of columns in the header
-func (t *Table) ValidateColumns() error {
+// Validate checks if the number of columns in each row matches the number of columns in the header
+func (t *Table) Validate() error {
 	numCols := len(t.header)
 	for _, row := range t.rows {
 		if len(row) != numCols {
@@ -23,14 +23,14 @@ func (t *Table) ValidateColumns() error {
 	return nil
 }
 
-// NewTable creates a new Table instance, ensuring the header and rows match in size
-func NewTable(header []string, rows [][]string) (*Table, error) {
+// New creates a new Table instance, ensuring the header and rows match in size
+func New(header []string, rows [][]string) (*Table, error) {
 	t := &Table{
 		header: header,
 		rows:   rows,
 	}
 
-	if err := t.ValidateColumns(); err != nil {
+	if err := t.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -38,8 +38,8 @@ func NewTable(header []string, rows [][]string) (*Table, error) {
 }
 
 // Table returns a markdown string for the given Table
-func (t *Table) String() string {
-	if err := t.ValidateColumns(); err != nil {
+func (t *Table) ToMarkdown() string {
+	if err := t.Validate(); err != nil {
 		panic(err)
 	}
 

@@ -1,4 +1,4 @@
-package markdown
+package table
 
 import (
 	"testing"
@@ -125,7 +125,7 @@ func Test_RemoveColumn(t *testing.T) {
 	uassert.Error(t, err)
 }
 
-func Test_ValidateColumns(t *testing.T) {
+func Test_Validate(t *testing.T) {
 	header := []string{"Name", "Age", "Country"}
 	rows := [][]string{
 		{"Alice", "30", "USA"},
@@ -135,12 +135,12 @@ func Test_ValidateColumns(t *testing.T) {
 	table, err := NewTable(header, rows[:1])
 	urequire.NoError(t, err)
 
-	// Validate columns should pass
-	err = table.ValidateColumns()
+	// Validate should pass
+	err = table.Validate()
 	urequire.NoError(t, err)
 
 	// Add an invalid row and validate again
 	table.rows = append(table.rows, rows[1])
-	err = table.ValidateColumns()
+	err = table.Validate()
 	uassert.Error(t, err)
 }
