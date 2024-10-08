@@ -112,7 +112,7 @@ func CollectBalance() {
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 	ownerAddr := Address()
 
-	banker.SendCoins(std.GetOrigPkgAddr(), ownerAddr, banker.GetCoins(std.GetOrigPkgAddr()))
+	banker.SendCoins(std.CurrentRealm().Addr(), ownerAddr, banker.GetCoins(std.CurrentRealm().Addr()))
 }
 
 func Render(path string) string {
