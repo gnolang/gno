@@ -83,12 +83,14 @@ func InlineCode(code string) string {
 	return ufmt.Sprintf("`%s`", code)
 }
 
-// CodeBlock returns a code block for markdown, optionally specifying the language
-func CodeBlock(code string, language string) string {
-	if language != "" {
-		return ufmt.Sprintf("```%s\n%s\n```", language, code)
-	}
-	return ufmt.Sprintf("```\n%s\n```", code)
+// CodeBlock creates a markdown code block
+func CodeBlock(content string) string {
+	return ufmt.Sprintf("```\n%s\n```", content)
+}
+
+// LanguageCodeBlock creates a markdown code block with language-specific syntax highlighting
+func LanguageCodeBlock(language, content string) string {
+	return ufmt.Sprintf("```%s\n%s\n```", language, content)
 }
 
 // LineBreak returns the specified number of line breaks for markdown
@@ -117,4 +119,9 @@ func Image(altText, url string) string {
 // Footnote returns a footnote for markdown
 func Footnote(reference, text string) string {
 	return ufmt.Sprintf("[%s]: %s", reference, text)
+}
+
+// Paragraph wraps the given text in a Markdown paragraph
+func Paragraph(content string) string {
+	return ufmt.Sprintf("%s\n\n", content)
 }

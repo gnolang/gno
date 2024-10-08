@@ -64,13 +64,15 @@ func Test_InlineCode(t *testing.T) {
 	uassert.Equal(t, result, "`code`")
 }
 
-func Test_CodeBlock(t *testing.T) {
-	result := CodeBlock("print('Hello')", "python")
+func Test_LanguageCodeBlock(t *testing.T) {
+	result := LanguageCodeBlock("python", "print('Hello')")
 	expected := "```python\nprint('Hello')\n```"
 	uassert.Equal(t, result, expected)
+}
 
-	result = CodeBlock("print('Hello')", "")
-	expected = "```\nprint('Hello')\n```"
+func Test_CodeBlock(t *testing.T) {
+	result := CodeBlock("print('Hello')")
+	expected := "```\nprint('Hello')\n```"
 	uassert.Equal(t, result, expected)
 }
 
@@ -102,6 +104,11 @@ func Test_Image(t *testing.T) {
 func Test_Footnote(t *testing.T) {
 	result := Footnote("1", "This is a footnote.")
 	uassert.Equal(t, result, "[1]: This is a footnote.")
+}
+
+func Test_Paragraph(t *testing.T) {
+	result := Paragraph("This is a paragraph.")
+	uassert.Equal(t, result, "This is a paragraph.\n\n")
 }
 
 func Test_Table(t *testing.T) {
