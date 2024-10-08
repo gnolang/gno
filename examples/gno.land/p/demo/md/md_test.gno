@@ -32,7 +32,7 @@ func Test_H3(t *testing.T) {
 }
 
 func Test_H4(t *testing.T) {
-	uassert.Equal(t, H1("Header 4"), "#### Header 4")
+	uassert.Equal(t, H4("Header 4"), "#### Header 4")
 }
 
 func Test_H5(t *testing.T) {
