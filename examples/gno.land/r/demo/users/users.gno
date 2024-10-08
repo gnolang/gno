@@ -334,7 +334,7 @@ func renderHome(path string) string {
 		user := item.Value.(*users.User)
 		doc += " * [" + user.Name + "](/r/demo/users:" + user.Name + ")\n"
 	}
-
+doc += "\n"
 	doc += page.Selector()
 	return doc
 }
