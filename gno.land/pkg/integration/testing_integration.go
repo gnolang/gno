@@ -132,10 +132,9 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			// Track new user balances added via the `adduser`
 			// command and packages added with the `loadpkg` command.
 			// This genesis will be use when node is started.
-			genesis := &gnoland.GnoGenesisState{
-				Balances: LoadDefaultGenesisBalanceFile(t, gnoRootDir),
-				Txs:      []std.Tx{},
-			}
+			genesis := gnoland.DefaultGenState()
+			genesis.Balances = LoadDefaultGenesisBalanceFile(t, gnoRootDir)
+			genesis.Auth.Params.InitialGasPrice = std.GasPrice{Gas: 0, Price: std.Coin{Amount: 0, Denom: "ugnot"}}
 
 			// test1 must be created outside of the loop below because it is already included in genesis so
 			// attempting to recreate results in it getting overwritten and breaking existing tests that
@@ -144,7 +143,7 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 			env.Setenv("USER_SEED_"+DefaultAccount_Name, DefaultAccount_Seed)
 			env.Setenv("USER_ADDR_"+DefaultAccount_Name, DefaultAccount_Address)
 
-			env.Values[envKeyGenesis] = genesis
+			env.Values[envKeyGenesis] = &genesis
 			env.Values[envKeyPkgsLoader] = newPkgsLoader()
 
 			env.Setenv("GNOROOT", gnoRootDir)
@@ -184,8 +183,10 @@ func setupGnolandTestScript(t *testing.T, txtarDir string) testscript.Params {
 					pkgs := ts.Value(envKeyPkgsLoader).(*pkgsLoader)                // grab logger
 					creator := crypto.MustAddressFromString(DefaultAccount_Address) // test1
 					defaultFee := std.NewFee(50000, std.MustParseCoin(ugnot.ValueString(1000000)))
-					pkgsTxs, err := pkgs.LoadPackages(creator, defaultFee, nil)
-					if err != nil {
+					// we need to define a new err1 otherwise the out err would be shadowed in the case "start":
+					pkgsTxs, err1 := pkgs.LoadPackages(creator, defaultFee, nil)
+
+					if err1 != nil {
 						ts.Fatalf("unable to load packages txs: %s", err)
 					}
 

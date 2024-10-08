@@ -418,10 +418,10 @@ func generateGenesisFile(genesisFile string, pk crypto.PubKey, c *startCfg) erro
 	genesisTxs = append(pkgsTxs, genesisTxs...)
 
 	// Construct genesis AppState.
-	gen.AppState = gnoland.GnoGenesisState{
-		Balances: balances,
-		Txs:      genesisTxs,
-	}
+	defaultGenState := gnoland.DefaultGenState()
+	defaultGenState.Balances = balances
+	defaultGenState.Txs = genesisTxs
+	gen.AppState = defaultGenState
 
 	// Write genesis state
 	if err := gen.SaveAs(genesisFile); err != nil {

@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 func TestAccountMapperGetSet(t *testing.T) {
@@ -70,4 +71,29 @@ func TestAccountMapperRemoveAccount(t *testing.T) {
 	acc2 = env.acck.GetAccount(env.ctx, addr2)
 	require.NotNil(t, acc2)
 	require.Equal(t, accSeq2, acc2.GetSequence())
+}
+
+func TestAccountKeeperParams(t *testing.T) {
+	env := setupTestEnv()
+
+	dp := DefaultParams()
+	err := env.acck.SetParams(env.ctx, dp)
+	require.NoError(t, err)
+
+	dp2 := env.acck.GetParams(env.ctx)
+	require.True(t, dp.Equals(dp2))
+}
+
+func TestGasPrice(t *testing.T) {
+	env := setupTestEnv()
+	gp := std.GasPrice{
+		Gas: 100,
+		Price: std.Coin{
+			Denom:  "token",
+			Amount: 10,
+		},
+	}
+	env.gk.setGasPrice(env.ctx, gp)
+	gp2 := env.gk.LastGasPrice(env.ctx)
+	require.True(t, gp == gp2)
 }

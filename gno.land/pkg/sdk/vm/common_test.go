@@ -11,6 +11,7 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/sdk"
 	authm "github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	bankm "github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -45,7 +46,8 @@ func _setupTestEnv(cacheStdlibs bool) testEnv {
 	ms.LoadLatestVersion()
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
-	acck := authm.NewAccountKeeper(iavlCapKey, std.ProtoBaseAccount)
+	paramk := params.NewKeeper(iavlCapKey, nil)
+	acck := authm.NewAccountKeeper(iavlCapKey, paramk, std.ProtoBaseAccount)
 	bank := bankm.NewBankKeeper(acck)
 	vmk := NewVMKeeper(baseCapKey, iavlCapKey, acck, bank, 100_000_000)
 

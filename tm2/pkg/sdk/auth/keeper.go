@@ -3,10 +3,12 @@ package auth
 import (
 	"fmt"
 	"log/slog"
+	"math/big"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -15,7 +17,8 @@ import (
 type AccountKeeper struct {
 	// The (unexposed) key used to access the store from the Context.
 	key store.StoreKey
-
+	// The keeper used to store auth parameters
+	paramk params.Keeper
 	// The prototypical Account constructor.
 	proto func() std.Account
 }
@@ -23,11 +26,12 @@ type AccountKeeper struct {
 // NewAccountKeeper returns a new AccountKeeper that uses go-amino to
 // (binary) encode and decode concrete std.Accounts.
 func NewAccountKeeper(
-	key store.StoreKey, proto func() std.Account,
+	key store.StoreKey, pk params.Keeper, proto func() std.Account,
 ) AccountKeeper {
 	return AccountKeeper{
-		key:   key,
-		proto: proto,
+		key:    key,
+		paramk: pk,
+		proto:  proto,
 	}
 }
 
@@ -159,4 +163,149 @@ func (ak AccountKeeper) decodeAccount(bz []byte) (acc std.Account) {
 		panic(err)
 	}
 	return
+}
+
+type GasPriceContextKey struct{}
+
+type GasPriceKeeper struct {
+	key store.StoreKey
+}
+
+// GasPriceKeeper
+// The GasPriceKeeper stores the history of gas prices and calculates
+// new gas price with formula parameters
+func NewGasPriceKeeper(key store.StoreKey) GasPriceKeeper {
+	return GasPriceKeeper{
+		key: key,
+	}
+}
+
+// setGasPrice is called in InitChainer to store initial gas price set in the genesis
+
+func (gk GasPriceKeeper) setGasPrice(ctx sdk.Context, gp std.GasPrice) {
+	if (gp == std.GasPrice{}) {
+		return
+	}
+	stor := ctx.Store(gk.key)
+	bz, err := amino.Marshal(gp)
+	if err != nil {
+		panic(err)
+	}
+	stor.Set([]byte(GasPriceKey), bz)
+}
+
+// We store the history. If the formula changes, we can replay blocks
+// and apply the formula to a specific block range. The new gas price is
+// calculated in EndBlock().
+func (gk GasPriceKeeper) updateGasPrice(ctx sdk.Context) {
+	params := ctx.Value(AuthParamsContextKey{}).(Params)
+	gasUsed := ctx.BlockGasMeter().GasConsumed()
+	maxBlockGas := ctx.ConsensusParams().Block.MaxGas
+	lgp := gk.LastGasPrice(ctx)
+	newGasPrice := gk.calcBlockGasPrice(lgp, gasUsed, maxBlockGas, params)
+	gk.setGasPrice(ctx, newGasPrice)
+}
+
+// calcBlockGasPrice calculates the minGasPrice for the txs to be included in the next block.
+// newGasPrice = lastPrice + lastPrice*(gasUsed-TargetBlockGas)/TargetBlockGas/GasCompressor)
+//
+// The math formula is an abstraction of a simple solution for the underlying problem we're trying to solve.
+// 1. What do we do if the gas used is less than the target gas in a block?
+// 2. How do we bring the gas used back to the target level, if gas used is more than the target?
+// We simplify the solution with a one-line formula to explain the idea. However, in reality, we need to treat
+// two scenarios differently. For example, in the first case, we need to increase the gas by at least 1 unit,
+// instead of round down for the integer divisions, and in the second case, we should set a floor
+// as the target gas price. This is just a starting point. Down the line, the solution might not be even
+// representable by one simple formula
+
+func (gk GasPriceKeeper) calcBlockGasPrice(lastGasPrice std.GasPrice, gasUsed int64, maxGas int64, params Params) std.GasPrice {
+	// If no block gas price is set, there is no need to change the last gas price.
+	if lastGasPrice.Price.Amount == 0 {
+		return lastGasPrice
+	}
+
+	// This is also a configuration to indicate that there is no need to change the last gas price.
+	if params.TargetGasRatio == 0 {
+		return lastGasPrice
+	}
+	// if no gas used, no need to change the lastPrice
+	if gasUsed == 0 {
+		return lastGasPrice
+	}
+	var (
+		num   = new(big.Int)
+		denom = new(big.Int)
+	)
+
+	// targetGas = maxGax*TargetGasRatio/100
+
+	num.Mul(big.NewInt(maxGas), big.NewInt(params.TargetGasRatio))
+	num.Div(num, big.NewInt(int64(100)))
+	targetGasInt := new(big.Int).Set(num)
+
+	// if used gas is right on target, no need to change
+	gasUsedInt := big.NewInt(gasUsed)
+	if targetGasInt.Cmp(gasUsedInt) == 0 {
+		return lastGasPrice
+	}
+
+	c := params.GasPricesChangeCompressor
+	lastPriceInt := big.NewInt(lastGasPrice.Price.Amount)
+
+	if gasUsedInt.Cmp(targetGasInt) == 1 { // gas used is more than the target
+		// increase gas price
+		num = num.Sub(gasUsedInt, targetGasInt)
+		num.Mul(num, lastPriceInt)
+		num.Div(num, targetGasInt)
+		num.Div(num, denom.SetInt64(c))
+		// increase at least 1
+		diff := max(num, big.NewInt(1))
+		num.Add(lastPriceInt, diff)
+		// XXX should we cap it with a max gas price?
+	} else { // gas used is less than the target
+		// decrease gas price down to initial gas price
+		initPriceInt := big.NewInt(params.InitialGasPrice.Price.Amount)
+		if lastPriceInt.Cmp(initPriceInt) == -1 {
+			return params.InitialGasPrice
+		}
+		num.Sub(targetGasInt, gasUsedInt)
+		num.Mul(num, lastPriceInt)
+		num.Div(num, targetGasInt)
+		num.Div(num, denom.SetInt64(c))
+
+		num.Sub(lastPriceInt, num)
+		// gas price should not be less than the initial gas price,
+		num = max(num, initPriceInt)
+	}
+
+	if !num.IsInt64() {
+		panic("The min gas price is out of int64 range")
+	}
+
+	lastGasPrice.Price.Amount = num.Int64()
+	return lastGasPrice
+}
+
+// max returns the larger of x or y.
+func max(x, y *big.Int) *big.Int {
+	if x.Cmp(y) < 0 {
+		return y
+	}
+	return x
+}
+
+// It returns the gas price for the last block.
+func (gk GasPriceKeeper) LastGasPrice(ctx sdk.Context) std.GasPrice {
+	stor := ctx.Store(gk.key)
+	bz := stor.Get([]byte(GasPriceKey))
+	if bz == nil {
+		return std.GasPrice{}
+	}
+
+	gp := std.GasPrice{}
+	err := amino.Unmarshal(bz, &gp)
+	if err != nil {
+		panic(err)
+	}
+	return gp
 }
