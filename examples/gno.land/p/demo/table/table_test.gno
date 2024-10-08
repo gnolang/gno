@@ -7,14 +7,14 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-func TestNewTable(t *testing.T) {
+func TestNew(t *testing.T) {
 	header := []string{"Name", "Age", "Country"}
 	rows := [][]string{
 		{"Alice", "30", "USA"},
 		{"Bob", "25", "UK"},
 	}
 
-	table, err := NewTable(header, rows)
+	table, err := New(header, rows)
 	urequire.NoError(t, err)
 
 	uassert.Equal(t, len(header), len(table.header))
@@ -28,7 +28,7 @@ func Test_AddRow(t *testing.T) {
 		{"Bob", "25"},
 	}
 
-	table, err := NewTable(header, rows)
+	table, err := New(header, rows)
 	urequire.NoError(t, err)
 
 	// Add a valid row
@@ -54,7 +54,7 @@ func Test_AddColumn(t *testing.T) {
 		{"Bob", "25"},
 	}
 
-	table, err := NewTable(header, rows)
+	table, err := New(header, rows)
 	urequire.NoError(t, err)
 
 	// Add a valid column
@@ -81,7 +81,7 @@ func Test_RemoveRow(t *testing.T) {
 		{"Bob", "25", "UK"},
 	}
 
-	table, err := NewTable(header, rows)
+	table, err := New(header, rows)
 	urequire.NoError(t, err)
 
 	// Remove the first row
@@ -105,7 +105,7 @@ func Test_RemoveColumn(t *testing.T) {
 		{"Bob", "25", "UK"},
 	}
 
-	table, err := NewTable(header, rows)
+	table, err := New(header, rows)
 	urequire.NoError(t, err)
 
 	// Remove the second column (Age)
@@ -132,7 +132,7 @@ func Test_Validate(t *testing.T) {
 		{"Bob", "25"},
 	}
 
-	table, err := NewTable(header, rows[:1])
+	table, err := New(header, rows[:1])
 	urequire.NoError(t, err)
 
 	// Validate should pass

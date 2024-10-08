@@ -113,13 +113,13 @@ func Test_Paragraph(t *testing.T) {
 }
 
 func Test_Table(t *testing.T) {
-	table, err := table.New([]string{"Header1", "Header2"}, [][]string{
+	tb, err := table.New([]string{"Header1", "Header2"}, [][]string{
 		{"Row1Col1", "Row1Col2"},
 		{"Row2Col1", "Row2Col2"},
 	})
 	uassert.NoError(t, err)
 
-	result := Table(table)
+	result := Table(tb)
 	expected := "| Header1 | Header2 |\n| ---|---|\n| Row1Col1 | Row1Col2 |\n| Row2Col1 | Row2Col2 |\n"
 	uassert.Equal(t, result, expected)
 }
