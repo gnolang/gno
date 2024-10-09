@@ -46,36 +46,19 @@ func verifyNodeKey(t *testing.T, path string) {
 func TestSecrets_Init_All(t *testing.T) {
 	t.Parallel()
 
-	t.Run("invalid data directory", func(t *testing.T) {
-		t.Parallel()
-
-		// Create the command
-		cmd := newRootCmd(commands.NewTestIO())
-		args := []string{
-			"secrets",
-			"init",
-			"--data-dir",
-			"",
-		}
-
-		// Run the command
-		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, errInvalidDataDir.Error())
-	})
-
 	t.Run("all secrets initialized", func(t *testing.T) {
 		t.Parallel()
 
-		// Create a temporary directory
-		tempDir := t.TempDir()
+		// Setup the test config
+		homeDir := newTestHomeDirectory(t, t.TempDir())
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"secrets",
 			"init",
-			"--data-dir",
-			tempDir,
+			"--home",
+			homeDir.Path(),
 		}
 
 		// Run the command
@@ -83,28 +66,28 @@ func TestSecrets_Init_All(t *testing.T) {
 		require.NoError(t, cmdErr)
 
 		// Verify the validator key is saved
-		verifyValidatorKey(t, filepath.Join(tempDir, defaultValidatorKeyName))
+		verifyValidatorKey(t, homeDir.SecretsValidatorKey())
 
 		// Verify the last sign validator state is saved
-		verifyValidatorState(t, filepath.Join(tempDir, defaultValidatorStateName))
+		verifyValidatorState(t, homeDir.SecretsValidatorState())
 
 		// Verify the node p2p key is saved
-		verifyNodeKey(t, filepath.Join(tempDir, defaultNodeKeyName))
+		verifyNodeKey(t, homeDir.SecretsNodeKey())
 	})
 
 	t.Run("no secrets overwritten", func(t *testing.T) {
 		t.Parallel()
 
 		// Create a temporary directory
-		tempDir := t.TempDir()
+		homeDir := newTestHomeDirectory(t, t.TempDir())
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"secrets",
 			"init",
-			"--data-dir",
-			tempDir,
+			"--home",
+			homeDir.Path(),
 		}
 
 		// Run the command
@@ -112,13 +95,13 @@ func TestSecrets_Init_All(t *testing.T) {
 		require.NoError(t, cmdErr)
 
 		// Verify the validator key is saved
-		verifyValidatorKey(t, filepath.Join(tempDir, defaultValidatorKeyName))
+		verifyValidatorKey(t, homeDir.SecretsValidatorKey())
 
 		// Verify the last sign validator state is saved
-		verifyValidatorState(t, filepath.Join(tempDir, defaultValidatorStateName))
+		verifyValidatorState(t, homeDir.SecretsValidatorState())
 
 		// Verify the node p2p key is saved
-		verifyNodeKey(t, filepath.Join(tempDir, defaultNodeKeyName))
+		verifyNodeKey(t, homeDir.SecretsNodeKey())
 
 		// Attempt to reinitialize the secrets, without the overwrite permission
 		cmdErr = cmd.ParseAndRun(context.Background(), args)
@@ -161,19 +144,18 @@ func TestSecrets_Init_Single(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			var (
-				tempDir = t.TempDir()
+			// Create a temporary directory
+			homeDir := newTestHomeDirectory(t, t.TempDir())
 
-				expectedPath = filepath.Join(tempDir, testCase.expectedFile)
-			)
+			expectedPath := filepath.Join(homeDir.SecretsDir(), testCase.expectedFile)
 
 			// Create the command
 			cmd := newRootCmd(commands.NewTestIO())
 			args := []string{
 				"secrets",
 				"init",
-				"--data-dir",
-				tempDir,
+				"--home",
+				homeDir.Path(),
 				testCase.keyValue,
 			}
 
@@ -218,15 +200,16 @@ func TestSecrets_Init_Single_Overwrite(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			tempDir := t.TempDir()
+			// Create a temporary directory
+			homeDir := newTestHomeDirectory(t, t.TempDir())
 
 			// Create the command
 			cmd := newRootCmd(commands.NewTestIO())
 			args := []string{
 				"secrets",
 				"init",
-				"--data-dir",
-				tempDir,
+				"--home",
+				homeDir.Path(),
 				testCase.keyValue,
 			}
 

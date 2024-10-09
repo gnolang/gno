@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -57,11 +56,6 @@ func (c *secretsInitCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
-	// Check the data output directory path
-	if cfg.dataDir == "" {
-		return errInvalidDataDir
-	}
-
 	// Verify the secrets key
 	if err := verifySecretsKey(args); err != nil {
 		return err
@@ -74,45 +68,38 @@ func execSecretsInit(cfg *secretsInitCfg, args []string, io commands.IO) error {
 	}
 
 	// Make sure the directory is there
-	if err := os.MkdirAll(cfg.dataDir, 0o755); err != nil {
+	if err := os.MkdirAll(cfg.homeDir.SecretsDir(), 0o755); err != nil {
 		return fmt.Errorf("unable to create secrets dir, %w", err)
 	}
 
-	// Construct the paths
-	var (
-		validatorKeyPath   = filepath.Join(cfg.dataDir, defaultValidatorKeyName)
-		validatorStatePath = filepath.Join(cfg.dataDir, defaultValidatorStateName)
-		nodeKeyPath        = filepath.Join(cfg.dataDir, defaultNodeKeyName)
-	)
-
 	switch key {
 	case validatorPrivateKeyKey:
-		if osm.FileExists(validatorKeyPath) && !cfg.forceOverwrite {
+		if osm.FileExists(cfg.homeDir.SecretsValidatorKey()) && !cfg.forceOverwrite {
 			return fmt.Errorf("unable to overwrite validator key, %w", errOverwriteNotEnabled)
 		}
 
 		// Initialize and save the validator's private key
-		return initAndSaveValidatorKey(validatorKeyPath, io)
+		return initAndSaveValidatorKey(cfg.homeDir.SecretsValidatorKey(), io)
 	case nodeIDKey:
-		if osm.FileExists(nodeKeyPath) && !cfg.forceOverwrite {
+		if osm.FileExists(cfg.homeDir.SecretsNodeKey()) && !cfg.forceOverwrite {
 			return fmt.Errorf("unable to overwrite the node' p2p key, %w", errOverwriteNotEnabled)
 		}
 
 		// Initialize and save the node's p2p key
-		return initAndSaveNodeKey(nodeKeyPath, io)
+		return initAndSaveNodeKey(cfg.homeDir.SecretsNodeKey(), io)
 	case validatorStateKey:
-		if osm.FileExists(validatorStatePath) && !cfg.forceOverwrite {
+		if osm.FileExists(cfg.homeDir.SecretsValidatorState()) && !cfg.forceOverwrite {
 			return fmt.Errorf("unable to overwrite validator last sign state, %w", errOverwriteNotEnabled)
 		}
 
 		// Initialize and save the validator's last sign state
-		return initAndSaveValidatorState(validatorStatePath, io)
+		return initAndSaveValidatorState(cfg.homeDir.SecretsValidatorState(), io)
 	default:
 		// No key provided, initialize everything
 		return errors.Join(
-			overwriteGuard(validatorKeyPath, initAndSaveValidatorKey, cfg.forceOverwrite, io),
-			overwriteGuard(validatorStatePath, initAndSaveValidatorState, cfg.forceOverwrite, io),
-			overwriteGuard(nodeKeyPath, initAndSaveNodeKey, cfg.forceOverwrite, io),
+			overwriteGuard(cfg.homeDir.SecretsValidatorKey(), initAndSaveValidatorKey, cfg.forceOverwrite, io),
+			overwriteGuard(cfg.homeDir.SecretsValidatorState(), initAndSaveValidatorState, cfg.forceOverwrite, io),
+			overwriteGuard(cfg.homeDir.SecretsNodeKey(), initAndSaveNodeKey, cfg.forceOverwrite, io),
 		)
 	}
 }

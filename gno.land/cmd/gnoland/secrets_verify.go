@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"path/filepath"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/privval"
 	"github.com/gnolang/gno/tm2/pkg/commands"
@@ -42,11 +41,6 @@ func (c *secretsVerifyCfg) RegisterFlags(fs *flag.FlagSet) {
 }
 
 func execSecretsVerify(cfg *secretsVerifyCfg, args []string, io commands.IO) error {
-	// Make sure the directory is there
-	if cfg.dataDir == "" || !isValidDirectory(cfg.dataDir) {
-		return errInvalidDataDir
-	}
-
 	// Verify the secrets key
 	if err := verifySecretsKey(args); err != nil {
 		return err
@@ -58,28 +52,20 @@ func execSecretsVerify(cfg *secretsVerifyCfg, args []string, io commands.IO) err
 		key = args[0]
 	}
 
-	// Construct the paths
-	var (
-		validatorKeyPath   = filepath.Join(cfg.dataDir, defaultValidatorKeyName)
-		validatorStatePath = filepath.Join(cfg.dataDir, defaultValidatorStateName)
-		nodeKeyPath        = filepath.Join(cfg.dataDir, defaultNodeKeyName)
-	)
-
 	switch key {
 	case validatorPrivateKeyKey:
 		// Validate the validator's private key
-		_, err := readAndVerifyValidatorKey(validatorKeyPath, io)
-
+		_, err := readAndVerifyValidatorKey(cfg.homeDir.SecretsValidatorKey(), io)
 		return err
 	case validatorStateKey:
 		// Validate the validator's last sign state
-		validatorState, err := readAndVerifyValidatorState(validatorStatePath, io)
+		validatorState, err := readAndVerifyValidatorState(cfg.homeDir.SecretsValidatorState(), io)
 		if err != nil {
 			return err
 		}
 
 		// Attempt to read the validator key
-		if validatorKey, err := readAndVerifyValidatorKey(validatorKeyPath, io); validatorKey != nil && err == nil {
+		if validatorKey, err := readAndVerifyValidatorKey(cfg.homeDir.SecretsValidatorKey(), io); validatorKey != nil && err == nil {
 			// Validate the signature bytes
 			return validateValidatorStateSignature(validatorState, validatorKey.PubKey)
 		} else {
@@ -88,16 +74,16 @@ func execSecretsVerify(cfg *secretsVerifyCfg, args []string, io commands.IO) err
 
 		return nil
 	case nodeIDKey:
-		return readAndVerifyNodeKey(nodeKeyPath, io)
+		return readAndVerifyNodeKey(cfg.homeDir.SecretsNodeKey(), io)
 	default:
 		// Validate the validator's private key
-		validatorKey, err := readAndVerifyValidatorKey(validatorKeyPath, io)
+		validatorKey, err := readAndVerifyValidatorKey(cfg.homeDir.SecretsValidatorKey(), io)
 		if err != nil {
 			return err
 		}
 
 		// Validate the validator's last sign state
-		validatorState, err := readAndVerifyValidatorState(validatorStatePath, io)
+		validatorState, err := readAndVerifyValidatorState(cfg.homeDir.SecretsValidatorState(), io)
 		if err != nil {
 			return err
 		}
@@ -108,7 +94,7 @@ func execSecretsVerify(cfg *secretsVerifyCfg, args []string, io commands.IO) err
 		}
 
 		// Validate the node's p2p key
-		return readAndVerifyNodeKey(nodeKeyPath, io)
+		return readAndVerifyNodeKey(cfg.homeDir.SecretsNodeKey(), io)
 	}
 }
 

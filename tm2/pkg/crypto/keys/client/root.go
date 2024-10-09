@@ -28,7 +28,6 @@ func NewRootCmdWithBaseConfig(io commands.IO, base BaseOptions) *commands.Comman
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
 			LongHelp:   "Manages private keys for the node",
 			Options: []ff.Option{
-				ff.WithConfigFileFlag("config"),
 				ff.WithConfigFileParser(fftoml.Parser),
 			},
 		},

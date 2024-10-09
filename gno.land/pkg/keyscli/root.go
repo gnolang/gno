@@ -19,7 +19,6 @@ func NewRootCmd(io commands.IO, base client.BaseOptions) *commands.Command {
 			ShortUsage: "<subcommand> [flags] [<arg>...]",
 			LongHelp:   "gno.land keychain & client",
 			Options: []ff.Option{
-				ff.WithConfigFileFlag("config"),
 				ff.WithConfigFileParser(fftoml.Parser),
 			},
 		},

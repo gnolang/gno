@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -16,19 +15,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// initializeTestConfig initializes a default configuration
-// at a temporary path
-func initializeTestConfig(t *testing.T) string {
-	t.Helper()
-
-	path := filepath.Join(t.TempDir(), "config.toml")
-	cfg := config.DefaultConfig()
-
-	require.NoError(t, config.WriteConfigFile(path, cfg))
-
-	return path
-}
 
 // testSetCase outlines the single test case for config set
 type testSetCase struct {
@@ -49,16 +35,17 @@ func verifySetTestTableCommon(t *testing.T, testTable []testSetCase) {
 			t.Parallel()
 
 			// Setup the test config
-			path := initializeTestConfig(t)
-			args := []string{
-				"config",
-				"set",
-				"--config-path",
-				path,
-			}
+			homeDir := newTestHomeDirectory(t, t.TempDir(), withConfig)
 
 			// Create the command
 			cmd := newRootCmd(commands.NewTestIO())
+
+			args := []string{
+				"config",
+				"set",
+				"--home",
+				homeDir.Path(),
+			}
 			args = append(args, testCase.flags...)
 
 			// Run the command
@@ -66,7 +53,7 @@ func verifySetTestTableCommon(t *testing.T, testTable []testSetCase) {
 			require.NoError(t, cmdErr)
 
 			// Make sure the config was updated
-			loadedCfg, err := config.LoadConfigFile(path)
+			loadedCfg, err := config.LoadConfigFile(homeDir.ConfigFile())
 			require.NoError(t, err)
 
 			testCase.verifyFn(loadedCfg, testCase.flags[len(testCase.flags)-1])
@@ -77,36 +64,19 @@ func verifySetTestTableCommon(t *testing.T, testTable []testSetCase) {
 func TestConfig_Set_Invalid(t *testing.T) {
 	t.Parallel()
 
-	t.Run("invalid config path", func(t *testing.T) {
-		t.Parallel()
-
-		// Create the command
-		cmd := newRootCmd(commands.NewTestIO())
-		args := []string{
-			"config",
-			"set",
-			"--config-path",
-			"",
-		}
-
-		// Run the command
-		cmdErr := cmd.ParseAndRun(context.Background(), args)
-		assert.ErrorContains(t, cmdErr, tryConfigInit)
-	})
-
 	t.Run("invalid config change", func(t *testing.T) {
 		t.Parallel()
 
 		// Setup the test config
-		path := initializeTestConfig(t)
+		homeDir := newTestHomeDirectory(t, t.TempDir(), withConfig)
 
 		// Create the command
 		cmd := newRootCmd(commands.NewTestIO())
 		args := []string{
 			"config",
 			"set",
-			"--config-path",
-			path,
+			"--home",
+			homeDir.Path(),
 			"db_backend",
 			"random db backend",
 		}
