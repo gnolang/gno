@@ -1,12 +1,10 @@
 package zteams
 
 import (
-	"std"
 	"testing"
-	
+
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/users"
-	
 )
 
 // Helper function to create a sample user.
