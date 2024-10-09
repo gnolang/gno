@@ -210,6 +210,22 @@ func TestRPCClient_E2E_Endpoints(t *testing.T) {
 			},
 		},
 		{
+			abciQueryMethod,
+			&ctypes.ResultABCIQuery{
+				Response: abci.ResponseQuery{
+					Value:  []byte("dummy"),
+					Height: 10,
+				},
+			},
+			func(client *RPCClient, expectedResult any) {
+				result, err := client.ABCIQueryWithOptions("path", []byte("dummy"), ABCIQueryOptions{Height: 10, Prove: false})
+				require.NoError(t, err)
+
+				assert.Equal(t, expectedResult, result)
+				assert.Equal(t, int64(10), result.Response.Height)
+			},
+		},
+		{
 			broadcastTxCommitMethod,
 			&ctypes.ResultBroadcastTxCommit{
 				Hash: []byte("dummy"),
