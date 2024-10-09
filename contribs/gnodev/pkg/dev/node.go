@@ -41,9 +41,10 @@ type NodeConfig struct {
 	NoReplay              bool
 	MaxGasPerBlock        int64
 	ChainID               string
+	ChainDomain           string
 }
 
-func DefaultNodeConfig(rootdir string) *NodeConfig {
+func DefaultNodeConfig(rootdir, domain string) *NodeConfig {
 	tmc := gnoland.NewDefaultTMConfig(rootdir)
 	tmc.Consensus.SkipTimeoutCommit = false // avoid time drifting, see issue #1507
 	tmc.Consensus.WALDisabled = true
@@ -63,6 +64,7 @@ func DefaultNodeConfig(rootdir string) *NodeConfig {
 		DefaultDeployer:       defaultDeployer,
 		BalancesList:          balances,
 		ChainID:               tmc.ChainID(),
+		ChainDomain:           domain,
 		TMConfig:              tmc,
 		SkipFailingGenesisTxs: true,
 		MaxGasPerBlock:        10_000_000_000,
@@ -468,7 +470,7 @@ func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState)
 	}
 
 	// Setup node config
-	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, genesis)
+	nodeConfig := newNodeConfig(n.config.TMConfig, n.config.ChainID, n.config.ChainDomain, genesis)
 	nodeConfig.GenesisTxResultHandler = n.genesisTxResultHandler
 	// Speed up stdlib loading after first start (saves about 2-3 seconds on each reload).
 	nodeConfig.CacheStdlibLoad = true
@@ -547,7 +549,7 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	return
 }
 
-func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
+func newNodeConfig(tmc *tmcfg.Config, chainid, chaindomain string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
 	genesis := gnoland.NewDefaultGenesisConfig(chainid)
@@ -564,10 +566,12 @@ func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesi
 		},
 	}
 
-	return &gnoland.InMemoryNodeConfig{
+	cfg := &gnoland.InMemoryNodeConfig{
 		PrivValidator:      pv,
 		TMConfig:           tmc,
 		Genesis:            genesis,
 		GenesisMaxVMCycles: 100_000_000,
 	}
+	cfg.InitChainerConfig.ChainDomain = chaindomain
+	return cfg
 }

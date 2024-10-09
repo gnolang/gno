@@ -158,13 +158,13 @@ func TestMemPackage_Validate(t *testing.T) {
 			"invalid package/realm path",
 		},
 		{
-			"Invalid path",
+			"Custom domain",
 			&MemPackage{
 				Name:  "hey",
 				Path:  "github.com/p/path/path",
 				Files: []*MemFile{{Name: "a.gno"}},
 			},
-			"invalid package/realm path",
+			"",
 		},
 		{
 			"Special character",
