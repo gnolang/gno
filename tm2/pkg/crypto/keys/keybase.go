@@ -115,33 +115,32 @@ func (kb dbKeybase) CreateLedger(name string, algo SigningAlgo, hrp string, acco
 	pub := priv.PubKey()
 
 	// Note: Once Cosmos App v1.3.1 is compulsory, it could be possible to check that pubkey and addr match
-	return kb.writeLedgerKey(name, pub, *hdPath), nil
+	return kb.writeLedgerKey(name, pub, *hdPath)
 }
 
 // CreateOffline creates a new reference to an offline keypair. It returns the
 // created key info.
 func (kb dbKeybase) CreateOffline(name string, pub crypto.PubKey) (Info, error) {
-	return kb.writeOfflineKey(name, pub), nil
+	return kb.writeOfflineKey(name, pub)
 }
 
 // CreateMulti creates a new reference to a multisig (offline) keypair. It
 // returns the created key info.
 func (kb dbKeybase) CreateMulti(name string, pub crypto.PubKey) (Info, error) {
-	return kb.writeMultisigKey(name, pub), nil
+	return kb.writeMultisigKey(name, pub)
 }
 
-func (kb *dbKeybase) persistDerivedKey(seed []byte, passwd, name, fullHdPath string) (info Info, err error) {
+func (kb *dbKeybase) persistDerivedKey(seed []byte, passwd, name, fullHdPath string) (Info, error) {
 	// create master key and derive first key:
 	masterPriv, ch := hd.ComputeMastersFromSeed(seed)
 	derivedPriv, err := hd.DerivePrivateKeyForPath(masterPriv, ch, fullHdPath)
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	// use possibly blank password to encrypt the private
 	// key and store it. User must enforce good passwords.
-	info = kb.writeLocalKey(name, secp256k1.PrivKeySecp256k1(derivedPriv), passwd)
-	return
+	return kb.writeLocalKey(name, secp256k1.PrivKeySecp256k1(derivedPriv), passwd)
 }
 
 // List returns the keys from storage in alphabetical order.
@@ -475,41 +474,60 @@ func (kb dbKeybase) CloseDB() {
 	kb.db.Close()
 }
 
-func (kb dbKeybase) writeLocalKey(name string, priv crypto.PrivKey, passphrase string) Info {
+func (kb dbKeybase) writeLocalKey(name string, priv crypto.PrivKey, passphrase string) (Info, error) {
 	// encrypt private key using passphrase
 	privArmor := armor.EncryptArmorPrivKey(priv, passphrase)
 	// make Info
 	pub := priv.PubKey()
 	info := newLocalInfo(name, pub, privArmor)
-	kb.writeInfo(name, info)
-	return info
+	if err := kb.writeInfo(name, info); err != nil {
+		return nil, err
+	}
+	return info, nil
 }
 
-func (kb dbKeybase) writeLedgerKey(name string, pub crypto.PubKey, path hd.BIP44Params) Info {
+func (kb dbKeybase) writeLedgerKey(name string, pub crypto.PubKey, path hd.BIP44Params) (Info, error) {
 	info := newLedgerInfo(name, pub, path)
-	kb.writeInfo(name, info)
-	return info
+	if err := kb.writeInfo(name, info); err != nil {
+		return nil, err
+	}
+	return info, nil
 }
 
-func (kb dbKeybase) writeOfflineKey(name string, pub crypto.PubKey) Info {
+func (kb dbKeybase) writeOfflineKey(name string, pub crypto.PubKey) (Info, error) {
 	info := newOfflineInfo(name, pub)
-	kb.writeInfo(name, info)
-	return info
+	if err := kb.writeInfo(name, info); err != nil {
+		return nil, err
+	}
+	return info, nil
 }
 
-func (kb dbKeybase) writeMultisigKey(name string, pub crypto.PubKey) Info {
+func (kb dbKeybase) writeMultisigKey(name string, pub crypto.PubKey) (Info, error) {
 	info := NewMultiInfo(name, pub)
-	kb.writeInfo(name, info)
-	return info
+	if err := kb.writeInfo(name, info); err != nil {
+		return nil, err
+	}
+	return info, nil
 }
 
-func (kb dbKeybase) writeInfo(name string, info Info) {
+func (kb dbKeybase) writeInfo(name string, info Info) error {
 	// write the info by key
 	key := infoKey(name)
+	oldInfob := kb.db.Get(key)
+	if len(oldInfob) > 0 {
+		// Enforce 1-to-1 name to address. Remove the lookup by the old address
+		oldInfo, err := readInfo(oldInfob)
+		if err != nil {
+			return err
+		}
+		kb.db.DeleteSync(addrKey(oldInfo.GetAddress()))
+	}
+
 	serializedInfo := writeInfo(info)
 	kb.db.SetSync(key, serializedInfo)
 	// store a pointer to the infokey by address for fast lookup
 	kb.db.SetSync(addrKey(info.GetAddress()), key)
+	return nil
 }
 
 func addrKey(address crypto.Address) []byte {
