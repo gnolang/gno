@@ -7,12 +7,35 @@ function renderUsernames(raw) {
   return raw.replace(/( |\n)@([_a-z0-9]{5,16})/, "$1[@$2](/r/demo/users:$2)");
 }
 
+// Create text nodes for the quotes with class names
+const createQuoteNode = (quote) => {
+  const node = document.createElement("a");
+  node.textContent = quote;
+  node.className = "hljs-string";
+  return node;
+};
+
 function parseContent(source, isCode) {
   if (isCode) {
     const highlightedCode = hljs.highlightAuto(source).value;
+
+    // Split the highlighted code into lines
+    const lines = highlightedCode.split('\n');
+
+    // Add line numbers to each line
+    const numberedLines = lines.map((line, index) => {
+      return `<span class="not-selectable">${index + 1} </span>${line}`;
+    });
+
+    // Join the lines back into a single string
+    const numberedCode = numberedLines.join('\n');
+
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(numberedCode, "text/html");
+
     const codeElement = document.createElement("code");
     codeElement.classList.add("hljs");
-    codeElement.innerHTML = highlightedCode;
+    codeElement.innerHTML = doc.body.innerHTML;
 
     const preElement = document.createElement("pre");
     preElement.appendChild(codeElement);
