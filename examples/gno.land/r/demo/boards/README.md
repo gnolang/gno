@@ -8,8 +8,8 @@ name ["gno.land/r/demo/boards"](https://gno.land/r/demo/boards/)
 ## Build `gnokey`, create your account, and interact with Gno.
 
 NOTE: Where you see `-remote localhost:26657` here, that flag can be replaced
-with `-remote test3.gno.land:26657` if you have $GNOT on the testnet.
-(To use the testnet, also replace `-chainid dev` with `-chainid test3` .)
+with `-remote gno.land:26657` if you have $GNOT on the testnet.
+(To use the testnet, also replace `-chainid dev` with `-chainid portal-loop` .)
 
 ### Build `gnokey` (and other tools).
 
@@ -85,7 +85,7 @@ The `USERNAME` for posting can different than your `KEYNAME`. It is internally l
 ./build/gnokey maketx call -pkgpath "gno.land/r/demo/users" -func "Register" -args "" -args "USERNAME" -args "Profile description" -gas-fee "10000000ugnot" -gas-wanted "2000000" -send "200000000ugnot" -broadcast -chainid dev -remote 127.0.0.1:26657 KEYNAME
 ```
 
-Interactive documentation: https://test3.gno.land/r/demo/users?help&__func=Register
+Interactive documentation: https://gno.land/r/demo/users?help&__func=Register
 
 ### Create a board with a smart contract call.
 
@@ -93,7 +93,7 @@ Interactive documentation: https://test3.gno.land/r/demo/users?help&__func=Regis
 ./build/gnokey maketx call -pkgpath "gno.land/r/demo/boards" -func "CreateBoard" -args "BOARDNAME" -gas-fee "1000000ugnot" -gas-wanted "10000000" -broadcast -chainid dev -remote localhost:26657 KEYNAME
 ```
 
-Interactive documentation: https://test3.gno.land/r/demo/boards?help&__func=CreateBoard
+Interactive documentation: https://gno.land/r/demo/boards?help&__func=CreateBoard
 
 Next, query for the permanent board ID by querying (you need this to create a new post):
 
@@ -109,7 +109,7 @@ NOTE: If a board was created successfully, your SEQUENCE_NUMBER would have incre
 ./build/gnokey maketx call -pkgpath "gno.land/r/demo/boards" -func "CreateThread" -args BOARD_ID -args "Hello gno.land" -args "Text of the post" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid dev -remote localhost:26657 KEYNAME
 ```
 
-Interactive documentation: https://test3.gno.land/r/demo/boards?help&__func=CreateThread
+Interactive documentation: https://gno.land/r/demo/boards?help&__func=CreateThread
 
 ### Create a comment to a post.
 
@@ -117,7 +117,7 @@ Interactive documentation: https://test3.gno.land/r/demo/boards?help&__func=Crea
 ./build/gnokey maketx call -pkgpath "gno.land/r/demo/boards" -func "CreateReply" -args BOARD_ID -args "1" -args "1" -args "Nice to meet you too." -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid dev -remote localhost:26657 KEYNAME
 ```
 
-Interactive documentation: https://test3.gno.land/r/demo/boards?help&__func=CreateReply
+Interactive documentation: https://gno.land/r/demo/boards?help&__func=CreateReply
 
 ```bash
 ./build/gnokey query "vm/qrender" -data "gno.land/r/demo/boards:BOARDNAME/1" -remote localhost:26657
