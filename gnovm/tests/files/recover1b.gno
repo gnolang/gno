@@ -16,4 +16,4 @@ func main() {
 //     main/files/recover1b.gno:8
 
 // Error:
-// other panic
+// panic: other panic

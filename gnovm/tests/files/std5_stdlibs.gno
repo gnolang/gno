@@ -21,4 +21,4 @@ func main() {
 //     main/files/std5_stdlibs.gno:10
 
 // Error:
-// frame not found
+// panic: frame not found
