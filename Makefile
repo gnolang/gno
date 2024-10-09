@@ -13,8 +13,9 @@ rundep=go run -modfile misc/devdeps/go.mod
 # NOTE: these are not very useful in this makefile, but they serve as
 # documentation for sub-makefiles.
 
-# disable cgo by default. cgo requires some additional dependencies in some
-# cases, and is not strictly required by any tm2 code.
+# Enable cgo by default. cgo is needed to enable HID enumeration and thus ledger support.
+# However cgo requires some additional dependencies in some
+# cases, and is not required by any tm2 code so disable if you don't need ledger support.
 CGO_ENABLED ?= 1
 export CGO_ENABLED
 # flags for `make fmt`. -w will write the result to the destination files.
