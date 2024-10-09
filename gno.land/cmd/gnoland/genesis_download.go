@@ -23,10 +23,17 @@ var (
 
 const test4ID = "test4"
 
-const deploymentPathFormat = "https://raw.githubusercontent.com/gnolang/gno/refs/heads/master/misc/deployments/%s.gno.land/genesis.json"
+type genesisMetadata struct {
+	source   string
+	checksum string
+}
 
-var genesisSHAMap = map[string]string{
-	test4ID: "beb781dffc09b96e3114fb7439fa85c4fe8ea796f64ec0cd3801a6b518ab023c",
+// genesisSHAMap maps the chain ID to the genesis metadata
+var genesisSHAMap = map[string]genesisMetadata{
+	test4ID: {
+		source:   "https://github.com/gnolang/gno/raw/912a5dbf5c1d7118472a4f46b26bfcd7f4072856/misc/deployments/test4.gno.land/genesis.json",
+		checksum: "beb781dffc09b96e3114fb7439fa85c4fe8ea796f64ec0cd3801a6b518ab023c",
+	},
 }
 
 type downloadCfg struct {
@@ -68,15 +75,13 @@ func execGenesisDownload(
 	// Make sure the chain ID is supported
 	chainID := args[0]
 
-	genesisSHA, exists := genesisSHAMap[chainID]
+	metadata, exists := genesisSHAMap[chainID]
 	if !exists {
 		return errChainNotSupported
 	}
 
 	// Fetch the genesis file
-	downloadURL := fmt.Sprintf(deploymentPathFormat, chainID)
-
-	if err := downloadFile(ctx, downloadURL, cfg.genesisPath); err != nil {
+	if err := downloadFile(ctx, metadata.source, cfg.genesisPath); err != nil {
 		return fmt.Errorf("unable to download genesis.json, %w", err)
 	}
 
@@ -86,8 +91,8 @@ func execGenesisDownload(
 		return fmt.Errorf("unable to compute genesis.json SHA, %w", err)
 	}
 
-	if genesisSHA != computedSHA {
-		return fmt.Errorf("expected genesis SHA %s, got %s", genesisSHA, computedSHA)
+	if metadata.checksum != computedSHA {
+		return fmt.Errorf("expected genesis SHA %s, got %s", metadata.checksum, computedSHA)
 	}
 
 	io.Printfln("Successfully downloaded %s genesis.json", chainID)

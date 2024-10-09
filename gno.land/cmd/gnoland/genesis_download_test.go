@@ -70,6 +70,6 @@ func TestGenesis_Download(t *testing.T) {
 		sha, err := computeSHA256(genesisPath)
 		require.NoError(t, err)
 
-		assert.EqualValues(t, genesisSHAMap[test4ID], sha)
+		assert.EqualValues(t, genesisSHAMap[test4ID].checksum, sha)
 	})
 }
