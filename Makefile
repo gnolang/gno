@@ -15,7 +15,7 @@ rundep=go run -modfile misc/devdeps/go.mod
 
 # disable cgo by default. cgo requires some additional dependencies in some
 # cases, and is not strictly required by any tm2 code.
-CGO_ENABLED ?= 0
+CGO_ENABLED ?= 1
 export CGO_ENABLED
 # flags for `make fmt`. -w will write the result to the destination files.
 GOFMT_FLAGS ?= -w
