@@ -1509,86 +1509,31 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	return tv.V.(BigdecValue).V
 }
 
-// returns true if tv is zero
-func (tv *TypedValue) isZero() bool {
+func (tv *TypedValue) Sign() int {
 	if tv.T == nil {
 		panic("type should not be nil")
 	}
+
 	switch tv.T.Kind() {
-	case IntKind:
-		v := tv.GetInt()
-		if v == 0 {
-			return true
-		}
-	case Int8Kind:
-		v := tv.GetInt8()
-		if v == 0 {
-			return true
-		}
-	case Int16Kind:
-		v := tv.GetInt16()
-		if v == 0 {
-			return true
-		}
-	case Int32Kind:
-		v := tv.GetInt32()
-		if v == 0 {
-			return true
-		}
-	case Int64Kind:
-		v := tv.GetInt64()
-		if v == 0 {
-			return true
-		}
-	case UintKind:
-		v := tv.GetUint()
-		if v == 0 {
-			return true
-		}
-	case Uint8Kind:
-		v := tv.GetUint8()
-		if v == 0 {
-			return true
-		}
-	case Uint16Kind:
-		v := tv.GetUint16()
-		if v == 0 {
-			return true
-		}
-	case Uint32Kind:
-		v := tv.GetUint32()
-		if v == 0 {
-			return true
-		}
-	case Uint64Kind:
-		v := tv.GetUint64()
-		if v == 0 {
-			return true
-		}
-	case Float32Kind:
-		v := tv.GetFloat32()
-		if v == 0 {
-			return true
-		}
-	case Float64Kind:
-		v := tv.GetFloat64()
-		if v == 0 {
-			return true
-		}
+	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+		return signOfUnsignedBytes(tv.N)
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, Float32Kind, Float64Kind:
+		return signOfSignedBytes(tv.N)
 	case BigintKind:
 		v := tv.GetBigInt()
-		if v.Sign() == 0 {
-			return true
-		}
+		return v.Sign()
 	case BigdecKind:
 		v := tv.GetBigDec()
-		if v.Sign() == 0 {
-			return true
-		}
+		return v.Sign()
 	default:
-		panic("not numeric")
+		panic("type should be numeric")
 	}
-	return false
+}
+
+func (tv *TypedValue) AssertNonNegative(msg string) {
+	if tv.Sign() < 0 {
+		panic(fmt.Sprintf("%s: %v", msg, tv))
+	}
 }
 
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
@@ -2692,4 +2637,25 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		// do nothing
 	}
 	return tv
+}
+
+// ----------------------------------------
+// Utility
+func signOfSignedBytes(n [8]byte) int {
+	si := *(*int64)(unsafe.Pointer(&n[0]))
+	switch {
+	case si == 0:
+		return 0
+	case si < 0:
+		return -1
+	default:
+		return 1
+	}
+}
+
+func signOfUnsignedBytes(n [8]byte) int {
+	if *(*uint64)(unsafe.Pointer(&n[0])) == 0 {
+		return 0
+	}
+	return 1
 }
