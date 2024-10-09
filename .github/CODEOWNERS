@@ -1,29 +1,43 @@
 # CODEOWNERS: https://help.github.com/articles/about-codeowners/
+# This file marks who is the "owner" of several files and directory on this GitHub
+# repository. This is mostly used to assign reviews on new PRs.
+#
+# - Directories and files which are assigned to a team should be interepreted as
+#   "collectively owned". GitHub will automatically assign members of the team
+#   to review the PR, in a round-robin fashion.
+# - Directories and files which are owned by one specific user X are to be
+#   interpreted as "primarily maintained by X". Any significant changes to
+#   that given code should be reviewed by X; as if it were another repository
+#   where X is the primary developer. However, ownership here can be ignored if
+#   it arises as a result of refactorings, or other very minor changes to that
+#   specific code.
+#   Directories and files owned by one specific user should be for components
+#   that are somewhat decoupled from the rest of the codebase.
+# - Directories and files which are owned by a team, and followed by a specific
+#   user Y, are to be interpreted as collectively owned by the team, but where Y
+#   is the main stakeholder in that directory, and should be involved for any
+#   significant changes to ensure alignment with the original vision.
+#
+# The list and guidelines are non-definitive and in flux. Use your best judgement.
 
 # Primary repo maintainers.
 *                             @gnolang/tech-staff
 
 # Tendermint2.
-/tm2/                         @jaekwon @moul @piux2 @zivkovicmilos
-/tm2/pkg/crypto/              @jaekwon @moul @gnolang/security
-/tm2/pkg/crypto/keys/client/  @jaekwon @gnolang/security
-/tm2/pkg/db/                  @ajnavarro
+/tm2/                         @gnolang/tech-staff
+/tm2/pkg/crypto/              @gnolang/tech-staff @gnolang/security
+/tm2/pkg/crypto/keys/client/  @gnolang/tech-staff @gnolang/security @jaekwon
 # TODO: add per package exceptions
 # ...
 
 # Docs & Content.
-/docs/                        @moul
-/docs/**.md                   @gnolang/devrels
-/docs/**.gif                  @gnolang/devrels
-/docs/Makefile                @gnolang/devrels
-/README.md                    @moul @gnolang/devrels
-/**/README.md                 @gnolang/devrels
-/.gitpod.yml                  @gnolang/devrels
+/docs/                        @gnolang/tech-staff @gnolang/devrels
+/README.md                    @gnolang/tech-staff @gnolang/devrels @moul
+/**/README.md                 @gnolang/tech-staff @gnolang/devrels
+/.gitpod.yml                  @gnolang/tech-staff @gnolang/devrels
 
 # Gno examples and default contracts.
 /examples/                            @gnolang/tech-staff @gnolang/devrels
-/examples/gno.land/p/demo/            @gnolang/tech-staff @gnolang/devrels
-/examples/gno.land/p/demo/avl/        @jaekwon
 /examples/gno.land/p/demo/bf/         @moul
 /examples/gno.land/p/demo/blog/       @gnolang/devrels
 /examples/gno.land/p/demo/boardsv2/   @ilgooz @jeronimoalbi @moul
@@ -35,44 +49,32 @@
 /examples/gno.land/p/demo/svg/        @moul
 /examples/gno.land/p/demo/tamagotchi/ @moul
 /examples/gno.land/p/demo/ui/         @moul
-/examples/gno.land/r/demo/            @gnolang/tech-staff @gnolang/devrels
 /examples/gno.land/r/demo/art/        @moul
 /examples/gno.land/r/demo/boardsv2/   @ilgooz @jeronimoalbi @moul
 /examples/gno.land/r/demo/memeland/   @leohhhn
 /examples/gno.land/r/demo/tamagotchi/ @moul
 /examples/gno.land/r/demo/userbook/   @leohhhn
 /examples/gno.land/r/gnoland/         @moul
+/examples/gno.land/r/gnoland/events/  @gnolang/devrels
 /examples/gno.land/r/sys/             @moul
 /examples/gno.land/r/jaekwon/         @jaekwon
 /examples/gno.land/r/manfred/         @moul
+/examples/gno.land/r/morgan/          @thehowl
+/examples/gno.land/r/leon/            @leohhhn
 
 # Gno.land.
-/gno.land/                    @moul @zivkovicmilos
-/gno.land/cmd/genesis/        @zivkovicmilos
-/gno.land/cmd/gnokey/         @jaekwon @moul @gfanton
-/gno.land/cmd/gnoland/        @zivkovicmilos @gnolang/devops
-/gno.land/cmd/gnoweb/         @gfanton @thehowl
-/gno.land/pkg/gnoclient/      @zivkovicmilos @leohhhn @gfanton
-/gno.land/pkg/gnoland/        @zivkovicmilos @gfanton
-/gno.land/pkg/keyscli/        @jaekwon @moul @gfanton
-/gno.land/pkg/log/            @zivkovicmilos @gfanton
-/gno.land/pkg/sdk/vm/         @moul @gfanton @thehowl
-/gno.land/pkg/integration/    @gfanton
+/gno.land/                    @gnolang/tech-staff
 /gno.land/genesis/            @moul
 #...
 
 # GnoVM/Gnolang.
-/gnovm/                       @jaekwon @moul @piux2 @thehowl
-/gnovm/stdlibs/               @thehowl
-/gnovm/tests/                 @jaekwon @deelawn @thehowl @mvertes
-/gnovm/cmd/gno/               @moul @thehowl
-/gnovm/pkg/gnolang/           @jaekwon @moul @piux2 @deelawn
-/gnovm/pkg/doc/               @thehowl
-/gnovm/pkg/repl/              @mvertes @ajnavarro
-/gnovm/pkg/gnomod/            @thehowl
-/gnovm/pkg/gnoenv/            @gfanton
-/gnovm/pkg/transpiler/        @thehowl
-/gnovm/pkg/integration/       @gfanton
+/gnovm/                       @gnolang/tech-staff
+/gnovm/stdlibs/               @gnolang/tech-staff @thehowl
+/gnovm/pkg/gnolang/           @gnolang/tech-staff @jaekwon
+/gnovm/pkg/doc/               @gnolang/tech-staff @thehowl
+/gnovm/pkg/repl/              @gnolang/tech-staff @mvertes
+/gnovm/pkg/transpiler/        @gnolang/tech-staff @thehowl
+/gnovm/pkg/integration/       @gnolang/tech-staff @gfanton
 
 # Contribs
 /contribs/                    @gnolang/tech-staff
@@ -82,16 +84,15 @@
 
 # Misc
 /misc/                        @gnolang/tech-staff
-/misc/loop/                   @moul @gnolang/devops
-/misc/deployments/            @moul @gnolang/devops
+/misc/loop/                   @gnolang/devops
+/misc/deployments/            @gnolang/devops
 /misc/genstd/                 @thehowl
 
 # Special files.
 /PLAN.md                      @jaekwon @moul
 /PHILOSOPHY.md                @jaekwon
-/CONTRIBUTING.md              @jaekwon @moul @gnolang/tech-staff
+/CONTRIBUTING.md              @gnolang/tech-staff @moul
 /LICENSE.md                   @jaekwon
-/.github/                     @moul @gnolang/tech-staff
-/.github/workflows            @ajnavarro @moul
+/.github/                     @gnolang/tech-staff
+/.github/workflows            @gnolang/devops
 /.github/CODEOWNERS           @jaekwon @moul
-/go.mod                       @gnolang/tech-staff # no unnecessary dependencies
