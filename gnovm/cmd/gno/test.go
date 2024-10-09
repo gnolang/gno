@@ -290,9 +290,9 @@ func gnoTestPkg(
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
-				maxAllocTx := int64(500 * 1000 * 1000)
+				maxAllocTx := int64(50 * 1000 * 1000)
 
-				m.Alloc = gno.NewAllocator(maxAllocTx)
+				m.Alloc = gno.NewAllocator(maxAllocTx, gno.NewHeap())
 			}
 			m.RunMemPackage(memPkg, true)
 			err := runTestFiles(m, tfiles, memPkg.Name, verbose, printRuntimeMetrics, runFlag, io)

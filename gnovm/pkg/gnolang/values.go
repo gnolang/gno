@@ -211,6 +211,24 @@ func (pv *PointerValue) GetBase(store Store) Object {
 // TODO: document as something that enables into-native assignment.
 // TODO: maybe consider this as entrypoint for DataByteValue too?
 func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 TypedValue, cu bool) {
+	defer func() {
+		if alloc == nil || tv2.V == nil {
+			return
+		}
+
+		u := Unwrap(*pv.TV)
+		ho := alloc.heap.FindObjectByTV(u)
+
+		if ho == nil {
+			return
+		}
+
+		root := NewObject(ho.tv)
+		visited := make(map[*GcObj]bool)
+		alloc.heap.AddRef(root, ho, visited)
+		alloc.heap.AddRoot(root)
+	}()
+
 	// Special cases.
 	if pv.Index == PointerIndexNative {
 		// Special case if extended object && native.
@@ -2382,9 +2400,27 @@ type Block struct {
 	ObjectInfo
 	Source   BlockNode
 	Values   []TypedValue
+	Roots    []RootPtr
 	Parent   Value
 	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
 	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
+}
+
+type RootPtr struct {
+	tv *TypedValue
+}
+
+func (rp *RootPtr) shoulDeallocate() bool {
+	if rp == nil {
+		return false
+	}
+
+	switch rp.tv.V.(type) {
+	case StringValue:
+		return false
+	default:
+		return true
+	}
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.

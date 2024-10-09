@@ -1,6 +1,10 @@
 package gnolang
 
-import "reflect"
+import (
+	"reflect"
+
+	"github.com/shirou/gopsutil/v4/mem"
+)
 
 // Keeps track of in-memory allocations.
 // In the future, allocations within realm boundaries will be
@@ -9,6 +13,8 @@ import "reflect"
 type Allocator struct {
 	maxBytes int64
 	bytes    int64
+	heap     *Heap
+	detonate bool
 }
 
 // for gonative, which doesn't consider the allocator.
@@ -65,12 +71,13 @@ const (
 	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
 )
 
-func NewAllocator(maxBytes int64) *Allocator {
+func NewAllocator(maxBytes int64, heap *Heap) *Allocator {
 	if maxBytes == 0 {
 		return nil
 	}
 	return &Allocator{
 		maxBytes: maxBytes,
+		heap:     heap,
 	}
 }
 
@@ -83,6 +90,8 @@ func (alloc *Allocator) Reset() *Allocator {
 		return nil
 	}
 	alloc.bytes = 0
+	alloc.heap = NewHeap()
+
 	return alloc
 }
 
@@ -93,6 +102,7 @@ func (alloc *Allocator) Fork() *Allocator {
 	return &Allocator{
 		maxBytes: alloc.maxBytes,
 		bytes:    alloc.bytes,
+		heap:     alloc.heap,
 	}
 }
 
@@ -104,8 +114,88 @@ func (alloc *Allocator) Allocate(size int64) {
 
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
-		panic("allocation limit exceeded")
+		if alloc.heap != nil {
+			deleted := alloc.heap.MarkAndSweep()
+			alloc.DeallocDeleted(deleted)
+
+			v, _ := mem.VirtualMemory()
+			ca := uint64(size) > v.Available
+
+			if (alloc.detonate || ca) && alloc.bytes > alloc.maxBytes {
+				panic("allocation limit exceeded")
+			}
+			alloc.detonate = alloc.bytes > alloc.maxBytes
+		}
 	}
+}
+
+func (alloc *Allocator) DeallocDeleted(objs []*GcObj) {
+	for _, obj := range objs {
+		alloc.DeallocObj(obj.tv)
+	}
+}
+
+func (alloc *Allocator) AllocateObj(tv TypedValue) {
+	switch v := tv.V.(type) {
+	case PointerValue:
+		alloc.AllocateType()
+
+		if v.TV != nil {
+			alloc.AllocateObj(*v.TV)
+		}
+	case *StructValue:
+		alloc.AllocateStruct()
+		alloc.AllocateStructFields(int64(len(v.Fields)))
+		alloc.AllocateType()
+		alloc.AllocateHeapItem()
+
+		for _, field := range v.Fields {
+			alloc.AllocateObj(field)
+		}
+	case *SliceValue:
+		alloc.AllocateSlice()
+	case *ArrayValue:
+		alloc.AllocateDataArray(int64(len(v.Data)))
+	default:
+	}
+}
+
+func (alloc *Allocator) DeallocObj(tv TypedValue) {
+	switch v := tv.V.(type) {
+	case PointerValue:
+		alloc.DeallocateType()
+		alloc.DeallocatePointer()
+	case *StructValue:
+		alloc.DeallocateStruct()
+		alloc.DeallocateStructFields(int64(len(v.Fields)))
+		alloc.DeallocateType()
+		alloc.DeallocateHeapItem()
+
+		for _, field := range v.Fields {
+			alloc.DeallocObj(field)
+		}
+	case *SliceValue:
+		alloc.DeallocateSlice()
+	case *ArrayValue:
+		alloc.DeallocateDataArray(int64(len(v.Data)))
+	default:
+	}
+}
+
+func (alloc *Allocator) Deallocate(size int64) {
+	if alloc == nil {
+		// this can happen for map items just prior to assignment.
+		return
+	}
+
+	alloc.bytes -= size
+	if alloc.bytes < 0 {
+		panic("Deallocate called with negative size")
+	}
+}
+
+func (alloc *Allocator) DeallocateString(size int64) {
+	alloc.Deallocate(allocString + allocStringByte*size)
 }
 
 func (alloc *Allocator) AllocateString(size int64) {
@@ -116,8 +206,16 @@ func (alloc *Allocator) AllocatePointer() {
 	alloc.Allocate(allocPointer)
 }
 
+func (alloc *Allocator) DeallocatePointer() {
+	alloc.Deallocate(allocPointer)
+}
+
 func (alloc *Allocator) AllocateDataArray(size int64) {
 	alloc.Allocate(allocArray + size)
+}
+
+func (alloc *Allocator) DeallocateDataArray(size int64) {
+	alloc.Deallocate(allocArray + size)
 }
 
 func (alloc *Allocator) AllocateListArray(items int64) {
@@ -128,13 +226,25 @@ func (alloc *Allocator) AllocateSlice() {
 	alloc.Allocate(allocSlice)
 }
 
+func (alloc *Allocator) DeallocateSlice() {
+	alloc.Deallocate(allocSlice)
+}
+
 // NOTE: fields must be allocated separately.
 func (alloc *Allocator) AllocateStruct() {
 	alloc.Allocate(allocStruct)
 }
 
+func (alloc *Allocator) DeallocateStruct() {
+	alloc.Deallocate(allocStruct)
+}
+
 func (alloc *Allocator) AllocateStructFields(fields int64) {
 	alloc.Allocate(allocStructField * fields)
+}
+
+func (alloc *Allocator) DeallocateStructFields(fields int64) {
+	alloc.Deallocate(allocStructField * fields)
 }
 
 func (alloc *Allocator) AllocateFunc() {
@@ -157,6 +267,10 @@ func (alloc *Allocator) AllocateBlock(items int64) {
 	alloc.Allocate(allocBlock + allocBlockItem*items)
 }
 
+func (alloc *Allocator) DeallocateBlock(items int64) {
+	alloc.Deallocate(allocBlock + allocBlockItem*items)
+}
+
 func (alloc *Allocator) AllocateBlockItems(items int64) {
 	alloc.Allocate(allocBlockItem * items)
 }
@@ -176,6 +290,10 @@ func (alloc *Allocator) AllocateType() {
 	alloc.Allocate(allocType)
 }
 
+func (alloc *Allocator) DeallocateType() {
+	alloc.Deallocate(allocType)
+}
+
 // NOTE: a reasonable max-bounds calculation for simplicity.
 func (alloc *Allocator) AllocateAmino(l int64) {
 	alloc.Allocate(allocAmino + allocAminoByte*l)
@@ -183,6 +301,10 @@ func (alloc *Allocator) AllocateAmino(l int64) {
 
 func (alloc *Allocator) AllocateHeapItem() {
 	alloc.Allocate(allocHeapItem)
+}
+
+func (alloc *Allocator) DeallocateHeapItem() {
+	alloc.Deallocate(allocHeapItem)
 }
 
 //----------------------------------------
@@ -306,5 +428,27 @@ func (alloc *Allocator) NewType(t Type) Type {
 
 func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
 	alloc.AllocateHeapItem()
+
+	if alloc != nil {
+		gcObj := NewObject(tv)
+		gcObj.marked = true
+		alloc.heap.AddObject(gcObj)
+	}
+
 	return &HeapItemValue{Value: tv}
+}
+
+func (alloc *Allocator) DropPointers(ptrs []RootPtr) {
+	if alloc == nil {
+		return
+	}
+
+	for _, ptr := range ptrs {
+		if ptr.tv != nil && ptr.tv.V != nil {
+			alloc.heap.RemoveRoot(*ptr.tv)
+		}
+		if ptr.shoulDeallocate() {
+			alloc.DeallocatePointer()
+		}
+	}
 }

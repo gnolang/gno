@@ -146,7 +146,7 @@ func NewMachineWithOptions(opts MachineOptions) *Machine {
 	}
 	alloc := opts.Alloc
 	if alloc == nil {
-		alloc = NewAllocator(opts.MaxAllocBytes)
+		alloc = NewAllocator(opts.MaxAllocBytes, NewHeap())
 	}
 	store := opts.Store
 	if store == nil {
@@ -1802,6 +1802,8 @@ func (m *Machine) PopBlock() (b *Block) {
 	numBlocks := len(m.Blocks)
 	b = m.Blocks[numBlocks-1]
 	m.Blocks = m.Blocks[:numBlocks-1]
+
+	m.Alloc.DropPointers(b.Roots)
 	return b
 }
 
@@ -1940,12 +1942,23 @@ func (m *Machine) PopFrameAndReturn() {
 			panic("unexpected non-call (loop) frame")
 		}
 	}
-	rtypes := fr.Func.GetType(m.Store).Results
+
+	ft := fr.Func.GetType(m.Store)
+	rtypes := ft.Results
 	numRes := len(rtypes)
 	m.NumOps = fr.NumOps
 	m.NumResults = numRes
 	m.Exprs = m.Exprs[:fr.NumExprs]
 	m.Stmts = m.Stmts[:fr.NumStmts]
+
+	m.Alloc.DeallocateBlock(int64(m.LastBlock().Source.GetNumNames()))
+
+	if ft.HasVarg() {
+		m.Alloc.DeallocateSlice()
+	}
+
+	m.Alloc.DropPointers(m.LastBlock().Roots)
+
 	m.Blocks = m.Blocks[:fr.NumBlocks]
 	// shift and convert results to typed-nil if undefined and not iface
 	// kind.  and not func result type isn't interface kind.
@@ -1955,6 +1968,19 @@ func (m *Machine) PopFrameAndReturn() {
 		if res.IsUndefined() && rtypes[i].Type.Kind() != InterfaceKind {
 			res.T = rtypes[i].Type
 		}
+
+		// set the heap object as marked
+		// this is to prevent it from being garbage collected
+		// before it has been assigned a root
+		if ptr, ok := res.V.(PointerValue); ok && m.Alloc != nil {
+			if _, ok := ptr.Base.(*HeapItemValue); ok {
+				obj := m.Alloc.heap.FindObjectByTV(*ptr.TV)
+				if obj != nil {
+					obj.marked = true
+				}
+			}
+		}
+
 		m.Values[fr.NumValues+i] = res
 	}
 	m.NumValues = fr.NumValues + numRes
