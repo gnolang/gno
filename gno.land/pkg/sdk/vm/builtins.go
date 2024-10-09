@@ -3,6 +3,7 @@ package vm
 import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -55,3 +56,52 @@ func (bnk *SDKBanker) RemoveCoin(b32addr crypto.Bech32Address, denom string, amo
 		panic(err)
 	}
 }
+
+// ----------------------------------------
+// SDKParams
+
+type SDKParams struct {
+	vmk *VMKeeper
+	ctx sdk.Context
+}
+
+func NewSDKParams(vmk *VMKeeper, ctx sdk.Context) *SDKParams {
+	return &SDKParams{
+		vmk: vmk,
+		ctx: ctx,
+	}
+}
+
+// SetXXX helpers:
+// - dynamically register a new key with the corresponding type in the paramset table (only once).
+// - set the value.
+
+func (prm *SDKParams) SetString(key, value string) {
+	if !prm.vmk.prmk.Has(prm.ctx, key) {
+		prm.vmk.prmk.RegisterType(params.NewParamSetPair(key, "", validateNoOp))
+	}
+	prm.vmk.prmk.Set(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) SetBool(key string, value bool) {
+	if !prm.vmk.prmk.Has(prm.ctx, key) {
+		prm.vmk.prmk.RegisterType(params.NewParamSetPair(key, true, validateNoOp))
+	}
+	prm.vmk.prmk.Set(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) SetInt64(key string, value int64) {
+	if !prm.vmk.prmk.Has(prm.ctx, key) {
+		prm.vmk.prmk.RegisterType(params.NewParamSetPair(key, int64(0), validateNoOp))
+	}
+	prm.vmk.prmk.Set(prm.ctx, key, value)
+}
+
+func (prm *SDKParams) SetUint64(key string, value uint64) {
+	if !prm.vmk.prmk.Has(prm.ctx, key) {
+		prm.vmk.prmk.RegisterType(params.NewParamSetPair(key, uint64(0), validateNoOp))
+	}
+	prm.vmk.prmk.Set(prm.ctx, key, value)
+}
+
+func validateNoOp(_ interface{}) error { return nil }

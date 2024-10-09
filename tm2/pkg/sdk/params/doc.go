@@ -10,4 +10,6 @@
 // transient store and .Modified helper have also been removed but can be
 // implemented later if needed. Keys are represented as strings instead of
 // []byte.
+//
+// XXX: removes isAlphaNum validation for keys.
 package params
