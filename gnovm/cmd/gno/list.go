@@ -14,6 +14,7 @@ import (
 
 type listCfg struct {
 	json bool
+	deps bool
 }
 
 func newListCmd(io commands.IO) *commands.Command {
@@ -33,7 +34,16 @@ func newListCmd(io commands.IO) *commands.Command {
 }
 
 func (c *listCfg) RegisterFlags(fs *flag.FlagSet) {
-	fs.BoolVar(&c.json, "json", false, "verbose output when listning")
+	fs.BoolVar(&c.json, "json", false, `The -json flag causes the package data to be printed in JSON format
+instead of using the template format. The JSON flag can optionally be
+provided with a set of comma-separated required field names to be output.
+If so, those required fields will always appear in JSON output, but
+others may be omitted to save work in computing the JSON struct.`)
+	fs.BoolVar(&c.deps, "deps", false, `The -deps flag causes list to iterate over not just the named packages
+but also all their dependencies. It visits them in a depth-first post-order
+traversal, so that a package is listed only after all its dependencies.
+Packages not explicitly listed on the command line will have the DepOnly
+field set to true`)
 }
 
 func execList(cfg *listCfg, args []string, _ commands.IO) error {
@@ -60,11 +70,17 @@ func execList(cfg *listCfg, args []string, _ commands.IO) error {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	pkgsBytes, err := json.MarshalIndent(pkgs, "", "\t")
-	if err != nil {
-		panic(err)
+	for _, pkg := range pkgs {
+		if len(pkg.Match) == 0 && !cfg.deps {
+			continue
+		}
+
+		pkgBytes, err := json.MarshalIndent(pkg, "", "\t")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(string(pkgBytes))
 	}
-	fmt.Println(string(pkgsBytes))
 
 	return nil
 }

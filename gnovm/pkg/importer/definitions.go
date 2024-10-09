@@ -1,5 +1,10 @@
 package importer
 
+import (
+	"os"
+	"strings"
+)
+
 // This file contains "definitions"; it attempts to centralize some common
 // answers to common questions like "Is this a gno file?", "What is the import
 // path to the gno repository?", "Is this import path of a realm?".
@@ -10,6 +15,12 @@ const (
 
 	// GnolangImport is the import path to the gnolang package.
 	GnolangImport = RepoImport + "/gnovm/pkg/gnolang"
+
+	// ModfileName is the name of the module file.
+	ModfileName = "gno.mod"
+
+	// RecursiveSuffix is the os-dependent suffix marking a recursive target
+	RecursiveSuffix = string(os.PathSeparator) + "..."
 )
 
 // IsGnoFile determines whether the given files matches all of the given patterns,
@@ -27,4 +38,11 @@ func IsGnoFile(name string, patterns ...string) bool {
 		panic(err)
 	}
 	return m
+}
+
+func IsGnoTestFile(p string) bool {
+	if !IsGnoFile(p) {
+		return false
+	}
+	return strings.HasSuffix(p, "_test.gno") || strings.HasSuffix(p, "_filetest.gno")
 }

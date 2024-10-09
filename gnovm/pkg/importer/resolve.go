@@ -18,61 +18,32 @@ import (
 )
 
 const recursiveSuffix = string(os.PathSeparator) + "..."
-const modFileBaseName = "gno.mod"
 
-func isRecursivePath(p string) bool {
-	return strings.HasSuffix(p, recursiveSuffix) || p == "..."
-}
-
-func convertRecursivePathToDir(p string) string {
-	if p == "..." {
-		return "."
-	}
-	if !strings.HasSuffix(p, recursiveSuffix) {
-		return p
-	}
-	return p[:len(p)-4]
-}
-
-func findModDir(dir string) (string, error) {
-	dir = filepath.Clean(dir)
-
-	potentialMod := filepath.Join(dir, modFileBaseName)
-
-	if _, err := os.Stat(potentialMod); os.IsNotExist(err) {
-		parent, file := filepath.Split(dir)
-		if file == "" {
-			return "", os.ErrNotExist
-		}
-		return findModDir(parent)
-	} else if err != nil {
-		return "", err
-	}
-
-	return filepath.Clean(dir), nil
-}
-
-func DiscoverPackages(paths ...string) ([]PackageSummary, error) {
+// TODO: match mapping
+func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
 	toVisit := []string{}
 	for _, p := range paths {
 		toVisit = append(toVisit, filepath.Clean(p))
 	}
 	visited := map[string]struct{}{}
-	packages := []PackageSummary{}
+	packages := []*PackageSummary{}
 	errs := []error{}
 
 	for len(toVisit) > 0 {
 		p := toVisit[0]
-		visited[p] = struct{}{}
 		toVisit = toVisit[1:]
+
+		if _, ok := visited[p]; ok {
+			continue
+		}
+		visited[p] = struct{}{}
 
 		root := convertRecursivePathToDir(p)
 
 		if !isRecursivePath(p) {
 			if p != "." && strings.ContainsRune(p, '.') {
-				packages = append(packages, PackageSummary{
+				packages = append(packages, &PackageSummary{
 					PkgPath: p,
-					Remote:  true,
 				})
 				continue
 			}
@@ -82,7 +53,7 @@ func DiscoverPackages(paths ...string) ([]PackageSummary, error) {
 			} else if err != nil {
 				return nil, fmt.Errorf("failed to find parent module: %w", err)
 			}
-			modFilePath := filepath.Join(modDir, modFileBaseName)
+			modFilePath := filepath.Join(modDir, ModfileName)
 			modFileBytes, err := os.ReadFile(modFilePath)
 			if err != nil {
 				return nil, fmt.Errorf("failed to read modfile: %w", err)
@@ -92,9 +63,18 @@ func DiscoverPackages(paths ...string) ([]PackageSummary, error) {
 				return nil, fmt.Errorf("failed to parse modfile: %w", err)
 			}
 			globalPkgPath := modFile.Module.Mod.Path
-			packages = append(packages, PackageSummary{
-				PkgPath: path.Join(globalPkgPath, p),
-				Root:    root,
+			relfpath, err := filepath.Rel(modDir, p)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get pkg path relative to mod root: %w", err)
+			}
+			relpath := strings.Join(filepath.SplitList(relfpath), "/")
+			absroot, err := filepath.Abs(root)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get absolute pkg root")
+			}
+			packages = append(packages, &PackageSummary{
+				PkgPath: path.Join(globalPkgPath, relpath),
+				Root:    absroot,
 				ModFile: modFile,
 			})
 			continue
@@ -111,9 +91,7 @@ func DiscoverPackages(paths ...string) ([]PackageSummary, error) {
 			fileName := entry.Name()
 			if entry.IsDir() {
 				dirPath := filepath.Join(root, fileName) + recursiveSuffix
-				if _, ok := visited[dirPath]; !ok {
-					toVisit = append(toVisit, dirPath)
-				}
+				toVisit = append(toVisit, dirPath)
 			}
 			if !hasGnoFiles && IsGnoFile(fileName) {
 				hasGnoFiles = true
@@ -121,9 +99,7 @@ func DiscoverPackages(paths ...string) ([]PackageSummary, error) {
 		}
 
 		if hasGnoFiles {
-			if _, ok := visited[root]; !ok {
-				toVisit = append(toVisit, root)
-			}
+			toVisit = append(toVisit, root)
 		}
 	}
 
@@ -133,8 +109,8 @@ func DiscoverPackages(paths ...string) ([]PackageSummary, error) {
 type PackageSummary struct {
 	PkgPath string
 	Root    string
-	Remote  bool
 	ModFile *modfile.File
+	Match   []string
 }
 
 func Load(paths ...string) (map[string]*Package, error) {
@@ -143,37 +119,94 @@ func Load(paths ...string) (map[string]*Package, error) {
 		return nil, fmt.Errorf("failed to list packages: %w", err)
 	}
 
-	res := make(map[string]*Package, len(pkgs))
+	visited := map[string]struct{}{}
+	cache := make(map[string]*Package)
 	errs := []error{}
-	for _, meta := range pkgs {
-		if meta.Remote {
-			res[meta.PkgPath], err = ResolveRemote(meta.PkgPath)
-			if err != nil {
-				errs = append(errs, err)
-			}
+	for pile := pkgs; len(pile) > 0; pile = pile[1:] {
+		pkgSum := pile[0]
+		if _, ok := visited[pkgSum.PkgPath]; ok {
+			continue
+		}
+		visited[pkgSum.PkgPath] = struct{}{}
+
+		pkg, err := resolvePackage(pkgSum)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to resolve package %q: %w", pkgSum.PkgPath, err))
 			continue
 		}
 
-		absRoot, err := filepath.Abs(meta.Root)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to find absolute root %q: %w", meta.Root, err))
-		}
-		pkgPath := meta.PkgPath
-		if meta.ModFile == nil {
-			return nil, errors.New("unexpected nil modfile")
-		}
-		pkg, err := fillPackage(pkgPath, absRoot, meta.ModFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fill Package %q: %w", pkgPath, err)
+		// TODO: what about TestImports
+		for _, imp := range pkg.Imports {
+			pile = append(pile, &PackageSummary{
+				PkgPath: imp,
+			})
 		}
 
-		res[meta.PkgPath] = pkg
+		cache[pkg.ImportPath] = pkg
 	}
-	return res, errors.Join(errs...)
+
+	for _, pkg := range cache {
+		// TODO: this could be optimized
+		pkg.Deps = listDeps(pkg.ImportPath, cache)
+	}
+
+	return cache, errors.Join(errs...)
+}
+
+func listDeps(target string, pkgs map[string]*Package) []string {
+	deps := []string{}
+	listDepsRecursive(target, pkgs, &deps, make(map[string]struct{}))
+	return deps
+}
+
+func listDepsRecursive(target string, pkgs map[string]*Package, deps *[]string, visited map[string]struct{}) {
+	if _, ok := visited[target]; ok {
+		return
+	}
+	pkg, ok := pkgs[target]
+	if !ok {
+		panic(fmt.Errorf("%s not found in cache", target))
+	}
+	visited[target] = struct{}{}
+	for _, imp := range pkg.Imports {
+		listDepsRecursive(imp, pkgs, deps, visited)
+	}
+	(*deps) = append(*deps, target)
+}
+
+func resolvePackage(meta *PackageSummary) (*Package, error) {
+	if !strings.ContainsRune(meta.PkgPath, '.') {
+		return resolveStdlib(meta.PkgPath)
+	}
+
+	if meta.Root == "" {
+		return resolveRemote(meta.PkgPath)
+	}
+
+	if meta.ModFile == nil {
+		return nil, errors.New("unexpected nil modfile")
+	}
+
+	absRoot, err := filepath.Abs(meta.Root)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find absolute root %q: %w", meta.Root, err)
+	}
+
+	return fillPackage(meta.PkgPath, absRoot, meta.ModFile)
+}
+
+func resolveStdlib(pkgPath string) (*Package, error) {
+	gnoRoot, err := gnoenv.GuessRootDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to guess gno root dir: %w", err)
+	}
+	parts := strings.Split(pkgPath, "/")
+	libDir := filepath.Join(append([]string{gnoRoot, "gnovm", "stdlibs"}, parts...)...)
+	return fillPackage(pkgPath, libDir, nil)
 }
 
 // Does not fill deps
-func ResolveRemote(pkgPath string) (*Package, error) {
+func resolveRemote(pkgPath string) (*Package, error) {
 	modCache := filepath.Join(gnoenv.HomeDir(), "pkg", "mod")
 	pkgDir := filepath.Join(modCache, pkgPath)
 	if err := DownloadModule(pkgPath, pkgDir); err != nil {
@@ -185,7 +218,7 @@ func ResolveRemote(pkgPath string) (*Package, error) {
 	} else if err != nil {
 		return nil, fmt.Errorf("failed to find parent module: %w", err)
 	}
-	modFilePath := filepath.Join(modDir, modFileBaseName)
+	modFilePath := filepath.Join(modDir, ModfileName)
 	modFileBytes, err := os.ReadFile(modFilePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read modfile: %w", err)
@@ -254,9 +287,9 @@ func fillPackage(pkgPath, pkgDir string, modFile *modfile.File) (*Package, error
 }
 
 func DownloadModule(pkgPath string, dst string) error {
-	modFilePath := filepath.Join(dst, modFileBaseName)
+	modFilePath := filepath.Join(dst, ModfileName)
 	if _, err := os.Stat(modFilePath); os.IsNotExist(err) {
-		fmt.Println("gno: downloading", pkgPath)
+		fmt.Fprintln(os.Stderr, "gno: downloading", pkgPath)
 
 		// create client from pkgpath
 		parts := strings.Split(pkgPath, "/")
@@ -295,7 +328,7 @@ func DownloadModule(pkgPath string, dst string) error {
 		}
 
 		// write gno.mod
-		if err := os.WriteFile(modFilePath, []byte("package "+pkgPath+"\n"), 0644); err != nil {
+		if err := os.WriteFile(modFilePath, []byte("module "+pkgPath+"\n"), 0644); err != nil {
 			return fmt.Errorf("failed to write modfile at %q: %w", modFilePath, err)
 		}
 	} else if err != nil {
@@ -303,13 +336,6 @@ func DownloadModule(pkgPath string, dst string) error {
 	}
 
 	return nil
-}
-
-func IsGnoTestFile(p string) bool {
-	if !IsGnoFile(p) {
-		return false
-	}
-	return strings.HasSuffix(p, "_test.gno") || strings.HasSuffix(p, "_filetest.gno")
 }
 
 type Package struct {
@@ -375,4 +401,36 @@ func resolveNameAndImports(gnoFiles []string) (string, []string, error) {
 		i++
 	}
 	return bestName, importsSlice, nil
+}
+
+func isRecursivePath(p string) bool {
+	return strings.HasSuffix(p, recursiveSuffix) || p == "..."
+}
+
+func convertRecursivePathToDir(p string) string {
+	if p == "..." {
+		return "."
+	}
+	if !strings.HasSuffix(p, recursiveSuffix) {
+		return p
+	}
+	return p[:len(p)-4]
+}
+
+func findModDir(dir string) (string, error) {
+	dir = filepath.Clean(dir)
+
+	potentialMod := filepath.Join(dir, ModfileName)
+
+	if _, err := os.Stat(potentialMod); os.IsNotExist(err) {
+		parent, file := filepath.Split(dir)
+		if file == "" {
+			return "", os.ErrNotExist
+		}
+		return findModDir(parent)
+	} else if err != nil {
+		return "", err
+	}
+
+	return filepath.Clean(dir), nil
 }
