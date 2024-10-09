@@ -591,13 +591,16 @@ func checkAssignableTo(xt, dt Type, autoNative bool) error {
 func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt, rt Type) {
 	// check rhs type
 	if rt == nil {
-		panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))
+		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
 	}
 
 	lcx, lic := x.Left.(*ConstExpr)
 	_, ric := x.Right.(*ConstExpr)
 	// step1, check RHS type
 	// special case when rhs is not integer
+	if !isNumeric(rt) {
+		panic(fmt.Sprintf("cannot convert %v to type uint", x.Right))
+	}
 	if !isIntNum(rt) {
 		var isIntValue bool
 		// special case for num like 1.0, it will be converted to uint later
@@ -608,7 +611,6 @@ func (x *BinaryExpr) assertShiftExprCompatible1(store Store, last BlockNode, lt,
 					isIntValue = true
 				}
 			}
-			// XXX, check if is num
 		}
 		if !isIntValue {
 			panic(fmt.Sprintf("invalid operation: invalid shift count: %v", x.Right))

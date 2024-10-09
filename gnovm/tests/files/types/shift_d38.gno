@@ -5,4 +5,4 @@ func main() {
 }
 
 // Error:
-// main/files/types/shift_d38.gno:4:10: invalid operation: invalid shift count: (const (undefined))
+// main/files/types/shift_d38.gno:4:10: cannot convert (const (undefined)) to type uint
