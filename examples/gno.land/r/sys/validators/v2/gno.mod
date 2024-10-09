@@ -9,5 +9,5 @@ require (
 	gno.land/p/demo/ufmt v0.0.0-latest
 	gno.land/p/nt/poa v0.0.0-latest
 	gno.land/p/sys/validators v0.0.0-latest
-	gno.land/r/gov/dao/v2 v0.0.0-latest
+	gno.land/r/gov/dao/bridge v0.0.0-latest
 )

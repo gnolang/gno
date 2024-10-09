@@ -6,7 +6,7 @@ import (
 
 	"gno.land/p/demo/avl"
 	"gno.land/p/demo/dao"
-	govdao "gno.land/r/gov/dao/v2"
+	"gno.land/r/gov/dao/bridge"
 )
 
 var (
@@ -48,7 +48,7 @@ func NewPostExecutor(slug, title, body, publicationDate, authors, tags string) d
 		return nil
 	}
 
-	return govdao.NewGovDAOExecutor(callback)
+	return bridge.GovDAO().NewGovDAOExecutor(callback)
 }
 
 func ModAddPost(slug, title, body, publicationDate, authors, tags string) {

@@ -5,7 +5,7 @@ import (
 
 	"gno.land/p/demo/dao"
 	"gno.land/p/sys/validators"
-	govdao "gno.land/r/gov/dao/v2"
+	"gno.land/r/gov/dao/bridge"
 )
 
 const errNoChangesProposed = "no set changes proposed"
@@ -37,7 +37,7 @@ func NewPropExecutor(changesFn func() []validators.Validator) dao.Executor {
 		return nil
 	}
 
-	return govdao.NewGovDAOExecutor(callback)
+	return bridge.GovDAO().NewGovDAOExecutor(callback)
 }
 
 // IsValidator returns a flag indicating if the given bech32 address

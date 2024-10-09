@@ -9,7 +9,7 @@ import (
 	"gno.land/p/demo/dao"
 	"gno.land/p/demo/ufmt"
 	pVals "gno.land/p/sys/validators"
-	govdao "gno.land/r/gov/dao/v2"
+	"gno.land/r/gov/dao/bridge"
 	validators "gno.land/r/sys/validators/v2"
 )
 
@@ -184,5 +184,5 @@ func GovDAOProposal(address std.Address) {
 	}
 
 	// Create the govdao proposal
-	govdao.Propose(prop)
+	bridge.GovDAO().Propose(prop)
 }
