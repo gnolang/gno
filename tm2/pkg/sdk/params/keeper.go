@@ -145,6 +145,10 @@ func (pk ParamsKeeper) WithKeyTable(table KeyTable) ParamsKeeper {
 	return pk
 }
 
+func (pk ParamsKeeper) RegisterType(psp ParamSetPair) {
+	pk.table.RegisterType(psp)
+}
+
 // XXX: GetAllKeys
 // XXX: GetAllParams
 // XXX: ViewKeeper
