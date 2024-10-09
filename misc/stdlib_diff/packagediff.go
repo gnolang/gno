@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"slices"
 	"strings"
 )
 
@@ -24,11 +23,10 @@ type Differences struct {
 
 // FileDifference represents the differences between source and destination files.
 type FileDifference struct {
-	Status          string            // Diff status of the processed files.
-	SourceName      string            // Name of the source file.
-	DestinationName string            // Name of the destination file.
-	SrcLineDiff     []LineDifferrence // Differences in source file lines.
-	DstLineDiff     []LineDifferrence // Differences in destination file lines.
+	Status            string            // Diff status of the processed files.
+	SourceName        string            // Name of the source file.
+	DestinationName   string            // Name of the destination file.
+	LineDiffferrences []LineDifferrence // Differences in source file lines.
 }
 
 // NewPackageDiffChecker creates a new PackageDiffChecker instance with the specified
@@ -71,19 +69,18 @@ func (p *PackageDiffChecker) Differences() (*Differences, error) {
 		dstFileName := trimmedFileName + dstFileExt
 		dstFilePath := p.DstPath + "/" + dstFileName
 
-		fileDiff, err := NewFileDiff(srcFilePath, dstFilePath)
+		diffChecker, err := NewDiffChecker(srcFilePath, dstFilePath)
 		if err != nil {
 			return nil, err
 		}
 
-		srcDiff, dstDiff := fileDiff.Differences()
+		diff := diffChecker.Differences()
 
 		d.FilesDifferences = append(d.FilesDifferences, FileDifference{
-			Status:          p.getStatus(srcDiff, dstDiff).String(),
-			SourceName:      srcFileName,
-			DestinationName: dstFileName,
-			SrcLineDiff:     srcDiff,
-			DstLineDiff:     dstDiff,
+			Status:            p.getStatus(diff).String(),
+			SourceName:        srcFileName,
+			DestinationName:   dstFileName,
+			LineDiffferrences: diff.Diffs,
 		})
 	}
 
@@ -126,25 +123,22 @@ func (p *PackageDiffChecker) inferFileExtensions() (string, string) {
 
 // getStatus determines the diff status based on the differences in source and destination.
 // It returns a diffStatus indicating whether there is no difference, missing in source, missing in destination, or differences exist.
-func (p *PackageDiffChecker) getStatus(srcDiff, dstDiff []LineDifferrence) diffStatus {
-	slicesAreEquals := slices.Equal(srcDiff, dstDiff)
-	if slicesAreEquals {
-		return noDiff
-	}
-
-	if len(srcDiff) == 0 {
+func (p *PackageDiffChecker) getStatus(diff *Diff) diffStatus {
+	if diff.MissingSrc {
 		return missingInSrc
 	}
 
-	if len(dstDiff) == 0 {
+	if diff.MissingDst {
 		return missingInDst
 	}
 
-	if !slicesAreEquals {
-		return hasDiff
+	for _, diff := range diff.Diffs {
+		if diff.SrcOperation == delete || diff.DestOperation == insert {
+			return hasDiff
+		}
 	}
 
-	return 0
+	return noDiff
 }
 
 // hasSameNumberOfFiles checks if the source and destination have the same number of files.

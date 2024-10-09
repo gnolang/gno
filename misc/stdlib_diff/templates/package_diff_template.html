@@ -1,24 +1,42 @@
 {{define "file-viewer" }}
 <div class="file-viewer">
-    {{- range .}}
-    {{- if eq .Operation 1}}
-    <div style="display: flex; color: #07ca07;">
-    <span style="user-select: none; min-width: 50px;">{{.Number}} </span><p>{{.Line}}</p> 
+    <div name="gno_file_container" class="file-container" style="margin-right: 1rem;">
+        {{- range .}}
+            {{- if eq .SrcOperation 2}}
+            <div style="display: flex; color: red;">
+                <span style="user-select: none; min-width: 50px;">{{.SrcNumber}} </span><p>{{.SrcLine}}</p> 
+            </div>
+        
+            {{- else if eq .SrcOperation 3}}
+            <div div style="display: flex;">
+                <span style="user-select: none; min-width: 50px;">{{.SrcNumber}}</span>
+                <p style="opacity: 0.75;">{{.SrcLine}}</p>
+            </div>
+            {{- else}}
+            <div div style="display: flex;">
+                <p style="user-select: none; width: 100%;"> </p>
+            </div>
+            {{- end}}
+        {{- end}}
     </div>
-    {{- else if eq .Operation 2}}
-    <div style="display: flex; color: red;">
-        <span style="user-select: none; min-width: 50px;">{{.Number}} </span><p>{{.Line}}</p> 
+</div>
+<div class="file-viewer">
+    <div name="go_file_container" class="file-container">
+        {{- range .}}
+            {{- if eq .DestOperation 1}}
+            <div style="display: flex; color: #07ca07;">
+            <span style="user-select: none; min-width: 50px;">{{.DestNumber}} </span><p>{{.DestLine}}</p> 
+            </div>
+            {{- else if eq .DestOperation 3}}
+            <div div style="display: flex;">
+                <span style="user-select: none; min-width: 50px;">{{.DestNumber}}</span>
+                <p style="opacity: 0.75;">{{.DestLine}}</p>
+            </div>
+            {{- else}}
+                <p style="user-select: none; width: 100%;"> </p>
+            {{- end}}
+        {{- end}}
     </div>
-   
-    {{- else if eq .Operation 3}}
-    <div div style="display: flex;">
-        <span style="user-select: none; min-width: 50px;">{{.Number}}</span>
-        <p style="opacity: 0.75;">{{.Line}}</p>
-    </div>
-    {{- else}}
-    <span style="user-select: none;"></span><p>{{.Line}}</p> 
-    {{- end}}
-    {{- end}}
 </div>
 {{end}}
 
@@ -87,18 +105,21 @@
     </ul>
 
     {{- range .FilesDifferences}}
-    <details>
-        <summary>{{.SourceName}} ({{.Status}})</summary>
+        {{- if eq .Status "files differ"}}
+            <details open>
+            <summary>{{.SourceName}} ({{.Status}})</summary>
+        {{- else if eq .Status "missing in dst"}}
+            <details>
+            <summary style="color: red;">{{.SourceName}} ({{.Status}}) ➖</summary>
+        {{- else if eq .Status "missing in src"}}
+            <details>
+            <summary style="color:forestgreen;">{{.SourceName}} ({{.Status}}) ➕</summary>
+        {{- else}}
+            <details>
+            <summary style="opacity: 45%;">{{.SourceName}} ({{.Status}})</summary>
+        {{- end}}
         <div style="display: flex; flex-direction: row; align-items: stretch; padding-bottom: 2rem;"> 
-            <div name="gno_file_container" class="file-container" style="margin-right: 1rem;">
-                <h2>{{.SourceName}}</h2>
-                {{template "file-viewer" .SrcLineDiff}}
-            </div>
-
-            <div name="go_file_container" class="file-container">
-                <h2>{{.DestinationName}}</h2>
-                {{template "file-viewer" .DstLineDiff}}
-            </div>
+            {{template "file-viewer" .LineDiffferrences}}
         </div>
     </details>
     {{- end}}

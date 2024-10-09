@@ -10,28 +10,35 @@ import (
 	"github.com/hexops/gotextdiff/span"
 )
 
-// FileDiff is a struct for comparing differences between two files.
-type FileDiff struct {
+// DiffChecker is a struct for comparing differences between two files.
+type DiffChecker struct {
 	Src        string   // Name of the source file.
 	Dst        string   // Name of the destination file.
 	srcContent string   // Content of the source file.
 	dstContent string   // Content of the destination file.
 	srcLines   []string // Lines of the source file.
 	dstLines   []string // Lines of the destination file.
-
 }
 
 // LineDifferrence represents a difference in a line during file comparison.
 type LineDifferrence struct {
-	Line      string    // The line content.
-	Operation operation // The operation performed on the line (e.g., "add", "delete", "equal").
-	Number    int
+	SrcLine       string    // The line on Src.
+	DestLine      string    // The line on Src.
+	SrcOperation  operation // The operation performed on the line (e.g., "add", "delete", "equal").
+	DestOperation operation
+	SrcNumber     int
+	DestNumber    int
+}
+type Diff struct {
+	Diffs      []LineDifferrence
+	MissingSrc bool
+	MissingDst bool
 }
 
-// NewFileDiff creates a new FileDiff instance for comparing differences between
+// NewDiffChecker creates a new DiffChecker instance for comparing differences between
 // the specified source and destination files. It initializes the source and
 // destination file lines .
-func NewFileDiff(srcPath, dstPath string) (*FileDiff, error) {
+func NewDiffChecker(srcPath, dstPath string) (*DiffChecker, error) {
 	src, err := getFileContent(srcPath)
 	if err != nil {
 		return nil, fmt.Errorf("can't read src file: %w", err)
@@ -42,7 +49,7 @@ func NewFileDiff(srcPath, dstPath string) (*FileDiff, error) {
 		return nil, fmt.Errorf("can't read dst file: %w", err)
 	}
 
-	return &FileDiff{
+	return &DiffChecker{
 		srcContent: src,
 		dstContent: dst,
 		srcLines:   strings.Split(src, "\n"),
@@ -54,11 +61,11 @@ func NewFileDiff(srcPath, dstPath string) (*FileDiff, error) {
 
 // Differences returns the differences in lines between the source and
 // destination files using the configured diff algorithm.
-func (f *FileDiff) Differences() (src, dst []LineDifferrence) {
+func (f *DiffChecker) Differences() *Diff {
 	var (
 		srcIndex, dstIndex       int
 		insertCount, deleteCount int
-		dstDiff, srcDiff         []LineDifferrence
+		diff                     []LineDifferrence
 	)
 
 	if len(f.dstContent) == 0 {
@@ -77,8 +84,15 @@ func (f *FileDiff) Differences() (src, dst []LineDifferrence) {
 	*/
 	printUntil := func(until int) {
 		for i := srcIndex; i < until; i++ {
-			dstDiff = append(dstDiff, LineDifferrence{Line: f.srcLines[srcIndex], Operation: equal, Number: dstIndex + 1})
-			srcDiff = append(srcDiff, LineDifferrence{Line: f.srcLines[srcIndex], Operation: equal, Number: srcIndex + 1})
+			diff = append(diff, LineDifferrence{
+				SrcLine:       f.srcLines[srcIndex],
+				DestLine:      f.srcLines[srcIndex],
+				DestOperation: equal,
+				SrcOperation:  equal,
+				SrcNumber:     srcIndex + 1,
+				DestNumber:    dstIndex + 1,
+			})
+
 			srcIndex++
 			dstIndex++
 		}
@@ -89,48 +103,84 @@ func (f *FileDiff) Differences() (src, dst []LineDifferrence) {
 	for _, hunk := range unified.Hunks {
 		printUntil(hunk.FromLine - 1)
 
+		currentLine := LineDifferrence{}
 		for _, line := range hunk.Lines {
 			switch line.Kind {
 			case gotextdiff.Insert:
+				if currentLine.DestLine != "" {
+					diff = append(diff, currentLine)
+					currentLine = LineDifferrence{}
+				}
+
 				insertCount++
 				dstIndex++
-				dstDiff = append(dstDiff, LineDifferrence{Line: line.Content, Operation: insert, Number: dstIndex})
+
+				currentLine.DestLine = line.Content
+				currentLine.DestOperation = insert
+				currentLine.DestNumber = dstIndex
 
 			case gotextdiff.Equal:
+				if currentLine.DestLine != "" || currentLine.SrcLine != "" {
+					diff = append(diff, currentLine)
+					currentLine = LineDifferrence{}
+				}
+
 				srcIndex++
 				dstIndex++
-				dstDiff = append(dstDiff, LineDifferrence{Line: line.Content, Operation: equal, Number: dstIndex})
-				srcDiff = append(srcDiff, LineDifferrence{Line: line.Content, Operation: equal, Number: srcIndex})
+
+				currentLine = LineDifferrence{
+					SrcLine:       line.Content,
+					DestLine:      line.Content,
+					DestOperation: equal,
+					SrcOperation:  equal,
+					SrcNumber:     srcIndex,
+					DestNumber:    dstIndex,
+				}
 
 			case gotextdiff.Delete:
+				if currentLine.SrcLine != "" {
+					diff = append(diff, currentLine)
+					currentLine = LineDifferrence{}
+				}
 				srcIndex++
 				deleteCount++
-				srcDiff = append(srcDiff, LineDifferrence{Line: line.Content, Operation: delete, Number: srcIndex})
+				currentLine.SrcLine = line.Content
+				currentLine.SrcOperation = delete
+				currentLine.SrcNumber = srcIndex
 			}
 		}
+		diff = append(diff, currentLine)
 	}
 
 	printUntil(len(f.srcLines))
 
-	return srcDiff, dstDiff
+	return &Diff{
+		Diffs: diff,
+	}
 }
 
-func (f *FileDiff) destEmpty() ([]LineDifferrence, []LineDifferrence) {
-	srcDiff := []LineDifferrence{}
+func (f *DiffChecker) destEmpty() *Diff {
+	diffs := []LineDifferrence{}
 	for index, line := range f.srcLines {
-		srcDiff = append(srcDiff, LineDifferrence{Line: line, Operation: delete, Number: index + 1})
+		diffs = append(diffs, LineDifferrence{SrcLine: line, SrcOperation: delete, SrcNumber: index + 1})
 	}
 
-	return srcDiff, make([]LineDifferrence, 0)
+	return &Diff{
+		Diffs:      diffs,
+		MissingDst: true,
+	}
 }
 
-func (f *FileDiff) srcEmpty() ([]LineDifferrence, []LineDifferrence) {
-	destDiff := []LineDifferrence{}
+func (f *DiffChecker) srcEmpty() *Diff {
+	diffs := []LineDifferrence{}
 	for index, line := range f.dstLines {
-		destDiff = append(destDiff, LineDifferrence{Line: line, Operation: insert, Number: index + 1})
+		diffs = append(diffs, LineDifferrence{DestLine: line, DestOperation: insert, DestNumber: index + 1})
 	}
 
-	return make([]LineDifferrence, 0), destDiff
+	return &Diff{
+		Diffs:      diffs,
+		MissingSrc: true,
+	}
 }
 
 // getFileContent reads and returns the lines of a file given its path.

@@ -65,11 +65,25 @@ func NewReportBuilder(srcPath, dstPath, outDir string, srcIsGno bool) (*ReportBu
 		return nil, err
 	}
 
+	realSrcPath, err := getRealPath(srcPath)
+	if err != nil {
+		return nil, err
+	}
+
+	realDstPath, err := getRealPath(dstPath)
+	if err != nil {
+		return nil, err
+	}
+
+	realOutPath, err := getRealPath(outDir)
+	if err != nil {
+		return nil, err
+	}
 	return &ReportBuilder{
 		// Trim suffix / in order to standardize paths accept path with or without `/`
-		SrcPath:         strings.TrimSuffix(srcPath, `/`),
-		DstPath:         strings.TrimSuffix(dstPath, `/`),
-		OutDir:          strings.TrimSuffix(outDir, `/`),
+		SrcPath:         strings.TrimSuffix(realSrcPath, `/`),
+		DstPath:         strings.TrimSuffix(realDstPath, `/`),
+		OutDir:          strings.TrimSuffix(realOutPath, `/`),
 		SrcIsGno:        srcIsGno,
 		packageTemplate: packageTemplate,
 		indexTemplate:   indexTemplate,
@@ -261,4 +275,23 @@ func (builder *ReportBuilder) writePackageTemplate(templateData any, packageName
 	}
 
 	return nil
+}
+
+// getRealPath will check if the directory is a symbolic link and resolve if path before returning it
+func getRealPath(path string) (string, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return "", err
+	}
+
+	if info.Mode()&fs.ModeSymlink != 0 {
+		// File is symbolic link, no need to resolve
+		link, err := os.Readlink(path)
+		if err != nil {
+			return "", fmt.Errorf("can't resolve symbolic link: %w", err)
+		}
+		return link, nil
+	}
+
+	return path, nil
 }
