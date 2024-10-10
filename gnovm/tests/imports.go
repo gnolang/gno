@@ -38,6 +38,7 @@ import (
 	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/importer"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -61,7 +62,7 @@ const (
 )
 
 // NOTE: this isn't safe, should only be used for testing.
-func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (resStore gno.Store) {
+func TestStore(rootDir, filesPath string, pkgs map[string]*importer.Package, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (resStore gno.Store) {
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))
@@ -70,6 +71,23 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 			mode != ImportModeStdlibsPreferred &&
 			mode != ImportModeNativePreferred {
 			panic(fmt.Sprintf("unrecognized import mode"))
+		}
+
+		if pkg, ok := pkgs[pkgPath]; ok {
+			memPkg, err := pkg.MemPkg()
+			if err != nil {
+				panic(fmt.Errorf("failed to convert imported pkg to mem pkg: %w", err))
+			}
+			send := std.Coins{}
+			ctx := TestContext(pkgPath, send)
+			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+				PkgPath: "test",
+				Output:  stdout,
+				Store:   store,
+				Context: ctx,
+			})
+			pn, pv = m2.RunMemPackage(memPkg, true)
+			return
 		}
 
 		if filesPath != "" {

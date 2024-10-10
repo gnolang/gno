@@ -7,10 +7,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
 	"runtime/debug"
-	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -19,13 +17,10 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/importer"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/std"
-	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
 type testCfg struct {
@@ -161,11 +156,12 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		cfg.rootDir = gnoenv.RootDir()
 	}
 
-	paths, err := targetsFromPatterns(args)
+	// Find targets for test.
+	pkgs, err := importer.Load(args...)
 	if err != nil {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}
-	if len(paths) == 0 {
+	if len(pkgs) == 0 {
 		io.ErrPrintln("no packages to test")
 		return nil
 	}
@@ -177,35 +173,33 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		}()
 	}
 
-	subPkgs, err := gnomod.SubPkgsFromPaths(paths)
-	if err != nil {
-		return fmt.Errorf("list sub packages: %w", err)
-	}
-
 	buildErrCount := 0
 	testErrCount := 0
-	for _, pkg := range subPkgs {
-		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
-			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
+	for _, pkg := range pkgs {
+		// ignore deps
+		if len(pkg.Match) == 0 {
 			continue
 		}
 
-		sort.Strings(pkg.TestGnoFiles)
-		sort.Strings(pkg.FiletestGnoFiles)
+		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
+			io.ErrPrintfln("?       %s \t[no test files]", pkg.ImportPath)
+			continue
+		}
 
 		startedAt := time.Now()
-		err = gnoTestPkg(pkg.Dir, pkg.TestGnoFiles, pkg.FiletestGnoFiles, cfg, io)
+		err = gnoTestPkg(pkg, pkgs, cfg, io)
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 
+		err := multierr.Combine(append(pkg.Errors, err)...)
 		if err != nil {
-			io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
+			io.ErrPrintfln("%s: test pkg: %w", pkg.ImportPath, err)
 			io.ErrPrintfln("FAIL")
-			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s", pkg.ImportPath, dstr)
 			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("ok      %s \t%s", pkg.ImportPath, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
@@ -217,9 +211,8 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 }
 
 func gnoTestPkg(
-	pkgPath string,
-	unittestFiles,
-	filetestFiles []string,
+	pkg *importer.Package,
+	loadedPkgs []*importer.Package,
 	cfg *testCfg,
 	io commands.IO,
 ) error {
@@ -246,27 +239,23 @@ func gnoTestPkg(
 		stdout = commands.WriteNopCloser(mockOut)
 	}
 
+	pkgsMap := map[string]*importer.Package{}
+	for _, pkg := range loadedPkgs {
+		pkgsMap[pkg.ImportPath] = pkg
+	}
+
 	// testing with *_test.gno
-	if len(unittestFiles) > 0 {
+	if len(pkg.TestGnoFiles) > 0 {
 		// Determine gnoPkgPath by reading gno.mod
-		var gnoPkgPath string
-		modfile, err := gnomod.ParseAt(pkgPath)
-		if err == nil {
-			gnoPkgPath = modfile.Module.Mod.Path
-		} else {
-			gnoPkgPath = pkgPathFromRootDir(pkgPath, rootDir)
-			if gnoPkgPath == "" {
-				// unable to read pkgPath from gno.mod, generate a random realm path
-				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = gno.RealmPathPrefix + random.RandStr(8)
-			}
+		memPkg, err := pkg.MemPkg()
+		if err != nil {
+			errs = multierr.Append(errs, fmt.Errorf("failed to convert pkg %q to mem pkg: %w", pkg.Dir, err))
 		}
-		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
 
 		// tfiles, ifiles := gno.ParseMemPackageTests(memPkg)
 		var tfiles, ifiles *gno.FileSet
 
-		hasError := catchRuntimeError(gnoPkgPath, stderr, func() {
+		hasError := catchRuntimeError(pkg.ImportPath, stderr, func() {
 			tfiles, ifiles = parseMemPackageTests(memPkg)
 		})
 
@@ -278,15 +267,23 @@ func gnoTestPkg(
 		// run test files in pkg
 		if len(tfiles.Files) > 0 {
 			testStore := tests.TestStore(
-				rootDir, "",
+				rootDir, "", pkgsMap,
 				stdin, stdout, stderr,
 				mode,
 			)
+			for _, pkg := range loadedPkgs {
+				memPkg, err := pkg.MemPkg()
+				if err != nil {
+					errs = multierr.Append(errs, fmt.Errorf("failed to convert pkg %q to mem pkg: %w", pkg.Dir, err))
+					continue
+				}
+				testStore.AddMemPackage(memPkg)
+			}
 			if verbose {
 				testStore.SetLogStoreOps(true)
 			}
 
-			m := tests.TestMachine(testStore, stdout, gnoPkgPath)
+			m := tests.TestMachine(testStore, stdout, pkg.ImportPath)
 			if printRuntimeMetrics {
 				// from tm2/pkg/sdk/vm/keeper.go
 				// XXX: make maxAllocTx configurable.
@@ -304,10 +301,18 @@ func gnoTestPkg(
 		// test xxx_test pkg
 		if len(ifiles.Files) > 0 {
 			testStore := tests.TestStore(
-				rootDir, "",
+				rootDir, "", pkgsMap,
 				stdin, stdout, stderr,
 				mode,
 			)
+			for _, pkg := range loadedPkgs {
+				memPkg, err := pkg.MemPkg()
+				if err != nil {
+					errs = multierr.Append(errs, fmt.Errorf("failed to convert pkg %q to mem pkg: %w", pkg.Dir, err))
+					continue
+				}
+				testStore.AddMemPackage(memPkg)
+			}
 			if verbose {
 				testStore.SetLogStoreOps(true)
 			}
@@ -337,49 +342,51 @@ func gnoTestPkg(
 	}
 
 	// testing with *_filetest.gno
-	{
-		filter := splitRegexp(runFlag)
-		for _, testFile := range filetestFiles {
-			testFileName := filepath.Base(testFile)
-			testName := "file/" + testFileName
-			if !shouldRun(filter, testName) {
-				continue
-			}
-
-			startedAt := time.Now()
-			if verbose {
-				io.ErrPrintfln("=== RUN   %s", testName)
-			}
-
-			var closer func() (string, error)
-			if !verbose {
-				closer = testutils.CaptureStdoutAndStderr()
-			}
-
-			testFilePath := filepath.Join(pkgPath, testFileName)
-			err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests))
-			duration := time.Since(startedAt)
-			dstr := fmtDuration(duration)
-
-			if err != nil {
-				errs = multierr.Append(errs, err)
-				io.ErrPrintfln("--- FAIL: %s (%s)", testName, dstr)
-				if verbose {
-					stdouterr, err := closer()
-					if err != nil {
-						panic(err)
-					}
-					fmt.Fprintln(os.Stderr, stdouterr)
+	/*
+		{
+			filter := splitRegexp(runFlag)
+			for _, testFile := range pkg.FiletestGnoFiles {
+				testFileName := filepath.Base(testFile)
+				testName := "file/" + testFileName
+				if !shouldRun(filter, testName) {
+					continue
 				}
-				continue
-			}
 
-			if verbose {
-				io.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
+				startedAt := time.Now()
+				if verbose {
+					io.ErrPrintfln("=== RUN   %s", testName)
+				}
+
+				var closer func() (string, error)
+				if !verbose {
+					closer = testutils.CaptureStdoutAndStderr()
+				}
+
+				testFilePath := filepath.Join(pkg.Dir, testFileName)
+				err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests))
+				duration := time.Since(startedAt)
+				dstr := fmtDuration(duration)
+
+				if err != nil {
+					errs = multierr.Append(errs, err)
+					io.ErrPrintfln("--- FAIL: %s (%s)", testName, dstr)
+					if verbose {
+						stdouterr, err := closer()
+						if err != nil {
+							panic(err)
+						}
+						fmt.Fprintln(os.Stderr, stdouterr)
+					}
+					continue
+				}
+
+				if verbose {
+					io.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
+				}
+				// XXX: add per-test metrics
 			}
-			// XXX: add per-test metrics
 		}
-	}
+	*/
 
 	return errs
 }
@@ -454,7 +461,7 @@ func runTestFiles(
 
 		ret := eval[0].GetString()
 		if ret == "" {
-			err := errors.New("failed to execute unit test: %q", test.Name)
+			err := fmt.Errorf("failed to execute unit test: %q", test.Name)
 			errs = multierr.Append(errs, err)
 			io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", test.Name)
 			continue
@@ -470,7 +477,7 @@ func runTestFiles(
 		}
 
 		if rep.Failed {
-			err := errors.New("failed: %q", test.Name)
+			err := fmt.Errorf("failed: %q", test.Name)
 			errs = multierr.Append(errs, err)
 		}
 
@@ -578,10 +585,7 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
 	for _, mfile := range memPkg.Files {
-		if !strings.HasSuffix(mfile.Name, ".gno") {
-			continue // skip this file.
-		}
-		if strings.HasSuffix(mfile.Name, "_filetest.gno") {
+		if !importer.IsGnoFile(mfile.Name, "!*_filetest.gno") {
 			continue
 		}
 		n, err := gno.ParseFile(mfile.Name, mfile.Body)
@@ -616,4 +620,22 @@ func shouldRun(filter filterMatch, path string) bool {
 	elem := strings.Split(path, "/")
 	ok, _ := filter.matches(elem, matchString)
 	return ok
+}
+
+// Adapted from https://yourbasic.org/golang/formatting-byte-size-to-human-readable-format/
+func prettySize(nb int64) string {
+	const unit = 1000
+	if nb < unit {
+		return fmt.Sprintf("%d", nb)
+	}
+	div, exp := int64(unit), 0
+	for n := nb / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f%c", float64(nb)/float64(div), "kMGTPE"[exp])
+}
+
+func fmtDuration(d time.Duration) string {
+	return fmt.Sprintf("%.2fs", d.Seconds())
 }

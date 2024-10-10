@@ -14,9 +14,9 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/importer"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
 type lintCfg struct {
@@ -62,26 +62,38 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	pkgPaths, err := gnoPackagesFromArgsRecursively(args)
+	pkgs, err := importer.Load(args...)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
 
+	pkgsMap := map[string]*importer.Package{}
+	for _, pkg := range pkgs {
+		pkgsMap[pkg.ImportPath] = pkg
+	}
+
 	hasError := false
 
-	for _, pkgPath := range pkgPaths {
+	for _, pkg := range pkgs {
+		// ignore deps
+		if len(pkg.Match) == 0 {
+			continue
+		}
+
+		pkgDir := pkg.Dir
+		pkgPath := pkg.ImportPath
+
 		if verbose {
 			fmt.Fprintf(io.Err(), "Linting %q...\n", pkgPath)
 		}
 
 		// Check if 'gno.mod' exists
-		gnoModPath := filepath.Join(pkgPath, "gno.mod")
-		if !osm.FileExists(gnoModPath) {
+		if pkg.Module.Path == "" {
 			hasError = true
 			issue := lintIssue{
 				Code:       lintNoGnoMod,
 				Confidence: 1,
-				Location:   pkgPath,
+				Location:   pkgDir,
 				Msg:        "missing 'gno.mod' file",
 			}
 			fmt.Fprint(io.Err(), issue.String()+"\n")
@@ -91,18 +103,15 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		hasError = catchRuntimeError(pkgPath, io.Err(), func() {
 			stdout, stdin, stderr := io.Out(), io.In(), io.Err()
 			testStore := tests.TestStore(
-				rootDir, "",
+				rootDir, "", pkgsMap,
 				stdin, stdout, stderr,
 				tests.ImportModeStdlibsOnly,
 			)
 
-			targetPath := pkgPath
-			info, err := os.Stat(pkgPath)
-			if err == nil && !info.IsDir() {
-				targetPath = filepath.Dir(pkgPath)
+			memPkg, err := pkg.MemPkg()
+			if err != nil {
+				panic(fmt.Errorf("failed to convert pkg to mempkg: %w", err))
 			}
-
-			memPkg := gno.ReadMemPackage(targetPath, targetPath)
 			tm := tests.TestMachine(testStore, stdout, memPkg.Name)
 
 			// Check package

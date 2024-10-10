@@ -8,13 +8,9 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
-)
 
-func isGnoFile(f fs.DirEntry) bool {
-	name := f.Name()
-	return !strings.HasPrefix(name, ".") && strings.HasSuffix(name, ".gno") && !f.IsDir()
-}
+	"github.com/gnolang/gno/gnovm/pkg/importer"
+)
 
 func isFileExist(path string) bool {
 	_, err := os.Stat(path)
@@ -31,7 +27,8 @@ func gnoFilesFromArgsRecursively(args []string) ([]string, error) {
 		}
 
 		if !info.IsDir() {
-			if isGnoFile(fs.FileInfoToDirEntry(info)) {
+			path := filepath.Join(argPath, fs.FileInfoToDirEntry(info).Name())
+			if importer.IsGnoFile(path) {
 				paths = append(paths, ensurePathPrefix(argPath))
 			}
 
@@ -60,7 +57,8 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 		}
 
 		if !info.IsDir() {
-			if isGnoFile(fs.FileInfoToDirEntry(info)) {
+			path := filepath.Join(argPath, fs.FileInfoToDirEntry(info).Name())
+			if importer.IsGnoFile(path) {
 				paths = append(paths, ensurePathPrefix(argPath))
 			}
 			continue
@@ -71,8 +69,8 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 			return nil, err
 		}
 		for _, f := range files {
-			if isGnoFile(f) {
-				path := filepath.Join(argPath, f.Name())
+			path := filepath.Join(argPath, f.Name())
+			if importer.IsGnoFile(path) {
 				paths = append(paths, ensurePathPrefix(path))
 			}
 		}
@@ -100,7 +98,8 @@ func walkDirForGnoFiles(root string, addPath func(path string)) error {
 			return fmt.Errorf("%s: walk dir: %w", root, err)
 		}
 
-		if f.IsDir() || !isGnoFile(f) {
+		path := filepath.Join(currPath, f.Name())
+		if f.IsDir() || !importer.IsGnoFile(path) {
 			return nil
 		}
 
@@ -187,7 +186,8 @@ func targetsFromPatterns(patterns []string) ([]string, error) {
 				return fmt.Errorf("%s: walk dir: %w", dirToSearch, err)
 			}
 			// Skip directories and non ".gno" files.
-			if f.IsDir() || !isGnoFile(f) {
+			path := filepath.Join(dirToSearch, curpath)
+			if f.IsDir() || !importer.IsGnoFile(path) {
 				return nil
 			}
 
@@ -227,10 +227,6 @@ func matchPattern(pattern string) func(name string) bool {
 	return func(name string) bool {
 		return reg.MatchString(name)
 	}
-}
-
-func fmtDuration(d time.Duration) string {
-	return fmt.Sprintf("%.2fs", d.Seconds())
 }
 
 // ResolvePath determines the path where to place output files.
@@ -337,18 +333,4 @@ func copyFile(src, dst string) error {
 	}
 
 	return nil
-}
-
-// Adapted from https://yourbasic.org/golang/formatting-byte-size-to-human-readable-format/
-func prettySize(nb int64) string {
-	const unit = 1000
-	if nb < unit {
-		return fmt.Sprintf("%d", nb)
-	}
-	div, exp := int64(unit), 0
-	for n := nb / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f%c", float64(nb)/float64(div), "kMGTPE"[exp])
 }

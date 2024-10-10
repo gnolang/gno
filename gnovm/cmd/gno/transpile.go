@@ -18,6 +18,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
+	"github.com/gnolang/gno/gnovm/pkg/importer"
 	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -134,53 +135,60 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	}
 
 	// transpile .gno packages and files.
-	paths, err := gnoFilesFromArgsRecursively(args)
+	pkgs, err := importer.Load(args...)
 	if err != nil {
-		return fmt.Errorf("list paths: %w", err)
+		return fmt.Errorf("load pkgs: %w", err)
+	}
+
+	pkgsMap := map[string]*importer.Package{}
+	for _, pkg := range pkgs {
+		pkgsMap[pkg.ImportPath] = pkg
 	}
 
 	opts := newTranspileOptions(cfg, io)
 	var errlist scanner.ErrorList
-	for _, path := range paths {
-		st, err := os.Stat(path)
+	for _, pkg := range pkgs {
+		// ignore deps
+		if len(pkg.Match) == 0 {
+			continue
+		}
+
+		st, err := os.Stat(pkg.Dir)
 		if err != nil {
 			return err
 		}
 		if st.IsDir() {
-			err = transpilePkg(path, opts)
+			err = transpilePkg(pkg, pkgsMap, opts)
 		} else {
+			panic("should ot try to transpile file yet")
+
 			if opts.cfg.verbose {
-				io.ErrPrintln(filepath.Clean(path))
+				io.ErrPrintln(filepath.Clean(pkg.Dir))
 			}
 
-			err = transpileFile(path, opts)
+			err = transpileFile(pkg.Dir, pkgsMap, opts)
 		}
 		if err != nil {
 			var fileErrlist scanner.ErrorList
 			if !errors.As(err, &fileErrlist) {
 				// Not an scanner.ErrorList: return immediately.
-				return fmt.Errorf("%s: transpile: %w", path, err)
+				return fmt.Errorf("%s: transpile: %w", pkg.ImportPath, err)
 			}
 			errlist = append(errlist, fileErrlist...)
 		}
 	}
 
 	if errlist.Len() == 0 && cfg.gobuild {
-		for _, pkgPath := range paths {
-			if slices.Contains(opts.skipped, pkgPath) {
+		for _, pkg := range pkgs {
+			if slices.Contains(opts.skipped, pkg.Dir) {
 				continue
 			}
-			if cfg.output != "." {
-				if pkgPath, err = ResolvePath(cfg.output, pkgPath); err != nil {
-					return fmt.Errorf("resolve output path: %w", err)
-				}
-			}
-			err := goBuildFileOrPkg(io, pkgPath, cfg)
+			err := goBuildFileOrPkg(io, pkg.Dir, cfg)
 			if err != nil {
 				var fileErrlist scanner.ErrorList
 				if !errors.As(err, &fileErrlist) {
 					// Not an scanner.ErrorList: return immediately.
-					return fmt.Errorf("%s: build: %w", pkgPath, err)
+					return fmt.Errorf("%s: build: %w", pkg.ImportPath, err)
 				}
 				errlist = append(errlist, fileErrlist...)
 			}
@@ -199,7 +207,8 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 // transpilePkg transpiles all non-test files at the given location.
 // Additionally, it checks the gno.mod in said location, and skips it if it is
 // a draft module
-func transpilePkg(dirPath string, opts *transpileOptions) error {
+func transpilePkg(pkg *importer.Package, pkgs map[string]*importer.Package, opts *transpileOptions) error {
+	dirPath := pkg.Dir
 	if opts.isTranspiled(dirPath) {
 		return nil
 	}
@@ -221,16 +230,12 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 	// The transpiler doesn't currently support "test stdlibs", and even if it
 	// did all packages like "fmt" would have to exist as standard libraries to work.
 	// Easier to skip for now.
-	files, err := listNonTestFiles(dirPath)
-	if err != nil {
-		return err
-	}
-
 	if opts.cfg.verbose {
 		opts.io.ErrPrintln(filepath.Clean(dirPath))
 	}
-	for _, file := range files {
-		if err := transpileFile(file, opts); err != nil {
+	for _, file := range pkg.GnoFiles {
+		fpath := filepath.Join(pkg.Dir, file)
+		if err := transpileFile(fpath, pkgs, opts); err != nil {
 			return fmt.Errorf("%s: %w", file, err)
 		}
 	}
@@ -238,7 +243,7 @@ func transpilePkg(dirPath string, opts *transpileOptions) error {
 	return nil
 }
 
-func transpileFile(srcPath string, opts *transpileOptions) error {
+func transpileFile(srcPath string, pkgs map[string]*importer.Package, opts *transpileOptions) error {
 	flags := opts.getFlags()
 
 	// parse .gno.
@@ -277,12 +282,18 @@ func transpileFile(srcPath string, opts *transpileOptions) error {
 	// transpile imported packages, if `SkipImports` sets to false
 	if !flags.skipImports &&
 		!strings.HasSuffix(srcPath, "_filetest.gno") && !strings.HasSuffix(srcPath, "_test.gno") {
-		dirPaths, err := getPathsFromImportSpec(opts.cfg.rootDir, transpileRes.Imports)
-		if err != nil {
-			return err
-		}
-		for _, path := range dirPaths {
-			if err := transpilePkg(path, opts); err != nil {
+		for _, imp := range transpileRes.Imports {
+			pkgPath, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				return fmt.Errorf("failed to unquote pkg path %v", imp.Path.Value)
+			}
+			pkgPath = strings.TrimPrefix(pkgPath, "github.com/gnolang/gno/gnovm/stdlibs/")
+			pkgPath = strings.TrimPrefix(pkgPath, "github.com/gnolang/gno/examples/")
+			dep := pkgs[pkgPath]
+			if dep == nil {
+				return fmt.Errorf("failed to find matching package for %q", pkgPath)
+			}
+			if err := transpilePkg(dep, pkgs, opts); err != nil {
 				return err
 			}
 		}
