@@ -43,7 +43,7 @@ func (t KeyTable) RegisterType(psp ParamSetPair) KeyTable {
 	}
 
 	if _, ok := t.m[psp.Key]; ok {
-		panic("duplicate parameter key")
+		panic("duplicate parameter key: " + psp.Key)
 	}
 
 	rty := reflect.TypeOf(psp.Value)
@@ -67,6 +67,11 @@ func (t KeyTable) RegisterParamSet(ps ParamSet) KeyTable {
 		t = t.RegisterType(psp)
 	}
 	return t
+}
+
+func (t KeyTable) HasKey(key string) bool {
+	_, ok := t.m[key]
+	return ok
 }
 
 var isAlphaNumeric = regexp.MustCompile(`^[a-zA-Z0-9]+$`).MatchString

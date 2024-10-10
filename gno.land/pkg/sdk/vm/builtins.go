@@ -77,28 +77,33 @@ func NewSDKParams(vmk *VMKeeper, ctx sdk.Context) *SDKParams {
 // - set the value.
 
 func (prm *SDKParams) SetString(key, value string) {
-	if !prm.vmk.prmk.Has(prm.ctx, key) {
+	// if !prm.vmk.prmk.Has(prm.ctx, key) {
+	// XXX: bad workaround, maybe we should have a dedicated "dynamic keeper" allowing to create keys on the go?
+	if !prm.vmk.prmk.HasTypeKey(key) {
 		prm.vmk.prmk.RegisterType(params.NewParamSetPair(key, "", validateNoOp))
 	}
 	prm.vmk.prmk.Set(prm.ctx, key, value)
 }
 
 func (prm *SDKParams) SetBool(key string, value bool) {
-	if !prm.vmk.prmk.Has(prm.ctx, key) {
+	// if !prm.vmk.prmk.Has(prm.ctx, key) {
+	if !prm.vmk.prmk.HasTypeKey(key) {
 		prm.vmk.prmk.RegisterType(params.NewParamSetPair(key, true, validateNoOp))
 	}
 	prm.vmk.prmk.Set(prm.ctx, key, value)
 }
 
 func (prm *SDKParams) SetInt64(key string, value int64) {
-	if !prm.vmk.prmk.Has(prm.ctx, key) {
+	// if !prm.vmk.prmk.Has(prm.ctx, key) {
+	if !prm.vmk.prmk.HasTypeKey(key) {
 		prm.vmk.prmk.RegisterType(params.NewParamSetPair(key, int64(0), validateNoOp))
 	}
 	prm.vmk.prmk.Set(prm.ctx, key, value)
 }
 
 func (prm *SDKParams) SetUint64(key string, value uint64) {
-	if !prm.vmk.prmk.Has(prm.ctx, key) {
+	// if !prm.vmk.prmk.Has(prm.ctx, key) {
+	if !prm.vmk.prmk.HasTypeKey(key) {
 		prm.vmk.prmk.RegisterType(params.NewParamSetPair(key, uint64(0), validateNoOp))
 	}
 	prm.vmk.prmk.Set(prm.ctx, key, value)

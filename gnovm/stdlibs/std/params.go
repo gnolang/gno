@@ -18,7 +18,6 @@ type ParamsInterface interface {
 	SetInt64(key string, val int64)
 	SetUint64(key string, val uint64)
 	// XXX: GetString(key string) (string, error)?
-
 }
 
 func X_setConfigString(m *gno.Machine, key, val string) {

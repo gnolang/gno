@@ -27,11 +27,9 @@ func (bh paramsHandler) Process(ctx sdk.Context, msg std.Msg) sdk.Result {
 //----------------------------------------
 // Query
 
-const QueryParams = "params"
-
 func (bh paramsHandler) Query(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
 	switch secondPart(req.Path) {
-	case QueryParams:
+	case bh.params.prefix:
 		return bh.queryParam(ctx, req)
 	default:
 		res = sdk.ABCIResponseQueryFromError(
@@ -49,10 +47,11 @@ func (bh paramsHandler) queryParam(ctx sdk.Context, req abci.RequestQuery) (res 
 			std.ErrUnknownRequest("param key is empty"))
 	}
 
-	// XXX: validate
+	// XXX: validate?
 
-	panic("not implemented")
+	val := bh.params.GetRaw(ctx, key)
 
+	res.Data = val
 	return
 }
 
@@ -79,5 +78,5 @@ func thirdPartWithSlashes(path string) string {
 	if secondSlash == -1 {
 		return "" // Return original if less than two slashes
 	}
-	return path[strings.Index(path, "/")+secondSlash+1:]
+	return path[strings.Index(path, "/")+secondSlash+2:]
 }

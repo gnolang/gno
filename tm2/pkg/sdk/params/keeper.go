@@ -11,6 +11,13 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
 
+type ParamsKeeperI interface {
+	Get(ctx sdk.Context, key string, ptr interface{})
+	Set(ctx sdk.Context, key string, value interface{})
+}
+
+var _ ParamsKeeperI = ParamsKeeper{}
+
 // global paramstore Keeper.
 type ParamsKeeper struct {
 	key    store.StoreKey
@@ -145,8 +152,14 @@ func (pk ParamsKeeper) WithKeyTable(table KeyTable) ParamsKeeper {
 	return pk
 }
 
+// XXX: added, should we remove?
 func (pk ParamsKeeper) RegisterType(psp ParamSetPair) {
 	pk.table.RegisterType(psp)
+}
+
+// XXX: added, should we remove?
+func (pk ParamsKeeper) HasTypeKey(key string) bool {
+	return pk.table.HasKey(key)
 }
 
 // XXX: GetAllKeys
