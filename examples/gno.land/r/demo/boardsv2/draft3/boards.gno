@@ -33,7 +33,6 @@ func Lock(path string) {
 
 	assertOrigCallerIsCreator(post)
 
-	// NOTE: If app supports generic Post methods API is simpler, otherwise we need LockBoard & LockThread
 	if err := app.Lock(post); err != nil {
 		panic(err)
 	}
