@@ -13,10 +13,14 @@ package subtle
 import (
 	"bytes"
 	"io"
+	// "crypto/rand" XX: replaced with math/rand for deterministic behavior for test data
+	// "fmt" XX: removed due to fmt dependency, not needed for testing, it was only used for benchmarks
 	"math/rand"
 	"testing"
 )
 
+// XX: added testRandomReader struct to generate random data for testing.
+// to keep the tests deterministic but allowing for minimal changes
 type testRandomReader struct{}
 
 // Read fills the provided buffer with psuedo random bytes.
@@ -28,7 +32,9 @@ func (r *testRandomReader) Read(b []byte) (n int, err error) {
 }
 
 func TestXORBytes(t *testing.T) {
+	// XX: added testRandomReader to generate random data for testing.
 	reader := &testRandomReader{}
+	// XX: reduced n from 1024 to 12 for faster testing
 	for n := 1; n <= 12; n++ {
 		for alignP := 0; alignP < 8; alignP++ {
 			for alignQ := 0; alignQ < 8; alignQ++ {
@@ -40,9 +46,11 @@ func TestXORBytes(t *testing.T) {
 					} else {
 						q = q[:n]
 					}
+					// XX: replaced crypto rand.Reader with testRandomReader
 					if _, err := io.ReadFull(reader, p); err != nil {
 						t.Fatal(err)
 					}
+					// XX: replaced crypto rand.Reader with testRandomReader
 					if _, err := io.ReadFull(reader, q); err != nil {
 						t.Fatal(err)
 					}

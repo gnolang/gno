@@ -10,8 +10,9 @@
 package subtle
 
 import (
-	"bytes"
+	"bytes" // XX: added for bytes.Equal support when replacing testing/quick
 	"testing"
+	// "testing/quick" // XX: removed due to dependency on reflection
 )
 
 type TestConstantTimeCompareStruct struct {
@@ -62,6 +63,13 @@ func TestConstantTimeByteEq(t *testing.T) {
 		}
 	}
 
+	/* XX: removed due to dependency on testing/quick and replaced with table-driven tests
+	err := quick.CheckEqual(ConstantTimeByteEq, byteEq, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	*/
+
 	tt := []struct {
 		a, b uint8
 	}{
@@ -75,8 +83,10 @@ func TestConstantTimeByteEq(t *testing.T) {
 	}
 
 	for i, test := range tt {
-		if r := ConstantTimeByteEq(test.a, test.b); r != byteEq(test.a, test.b) {
-			t.Errorf("#%d bad result (got %x, want %x)", i, r, byteEq(test.a, test.b))
+		r := ConstantTimeByteEq(test.a, test.b)
+		want := byteEq(test.a, test.b)
+		if r != want {
+			t.Errorf("#%d bad result (got %x, want %x)", i, r, want)
 		}
 	}
 }
@@ -89,6 +99,13 @@ func eq(a, b int32) int {
 }
 
 func TestConstantTimeEq(t *testing.T) {
+	/* XX: removed due to dependency on testing/quick and replaced with table-driven tests
+	err := quick.CheckEqual(ConstantTimeEq, eq, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	*/
+
 	tt := []struct {
 		a, b int32
 	}{
@@ -135,6 +152,12 @@ func constantTimeCopyWrapper(v int, x, y []byte) []byte {
 }
 
 func TestConstantTimeCopy(t *testing.T) {
+	/* XX: removed due to dependency on testing/quick and replaced with table-driven tests
+	err := quick.CheckEqual(constantTimeCopyWrapper, makeCopy, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	*/
 	tt := []struct {
 		v    int
 		x, y []byte
@@ -159,9 +182,9 @@ func TestConstantTimeCopy(t *testing.T) {
 
 	for i, test := range tt {
 		r := constantTimeCopyWrapper(test.v, test.x, test.y)
-		expected := makeCopy(test.v, test.x, test.y)
-		if !bytes.Equal(r, expected) {
-			t.Errorf("#%d bad result (got %x, want %x)", i, r, expected)
+		want := makeCopy(test.v, test.x, test.y)
+		if !bytes.Equal(r, want) {
+			t.Errorf("#%d bad result (got %x, want %x)", i, r, want)
 		}
 	}
 }

@@ -15,10 +15,17 @@ package subtle
 // If dst does not have length at least n,
 // XORBytes panics without writing anything to dst.
 func XORBytes(dst, x, y []byte) int {
+	/* XXX: removed due to min function dependency on generics.
+	n := min(len(x), len(y))
+	*/
+
+	// XXX: reverted to go1.22 behavior
+	// https://cs.opensource.google/go/go/+/refs/tags/go1.22.0:src/crypto/subtle/xor.go;l=12
 	n := len(x)
 	if len(y) < n {
 		n = len(y)
 	}
+
 	if n == 0 {
 		return 0
 	}
@@ -26,6 +33,12 @@ func XORBytes(dst, x, y []byte) int {
 		panic("subtle.XORBytes: dst too short")
 	}
 
+	/* XXX: removed due to dependencies on runtime and unsafe packages
+	        https://cs.opensource.google/go/go/+/refs/tags/go1.22.0:src/crypto/subtle/xor_generic.go
+	xorBytes(&dst[0], &x[0], &y[0], n) // arch-specific
+	*/
+
+	// XXX: replaced with pure Go implementation.
 	for i := 0; i < n; i++ {
 		dst[i] = x[i] ^ y[i]
 	}
