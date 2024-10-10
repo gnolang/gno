@@ -71,6 +71,11 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 	hasError := false
 
 	for _, pkg := range pkgs {
+		// ignore deps
+		if len(pkg.Match) == 0 {
+			continue
+		}
+
 		pkgDir := pkg.Dir
 		pkgPath := pkg.ImportPath
 

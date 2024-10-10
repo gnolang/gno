@@ -143,6 +143,11 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	opts := newTranspileOptions(cfg, io)
 	var errlist scanner.ErrorList
 	for _, pkg := range pkgs {
+		// ignore deps
+		if len(pkg.Match) == 0 {
+			continue
+		}
+
 		st, err := os.Stat(pkg.Dir)
 		if err != nil {
 			return err

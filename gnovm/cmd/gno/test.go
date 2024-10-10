@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -22,7 +23,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/importer"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	"github.com/gnolang/gno/tm2/pkg/errors"
 	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/testutils"
@@ -181,8 +181,13 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	buildErrCount := 0
 	testErrCount := 0
 	for _, pkg := range pkgs {
+		// ignore deps
+		if len(pkg.Match) == 0 {
+			continue
+		}
+
 		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
-			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
+			io.ErrPrintfln("?       %s \t[no test files]", pkg.ImportPath)
 			continue
 		}
 
@@ -191,14 +196,15 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 
+		err := errors.Join(append(pkg.Errors, err)...)
 		if err != nil {
-			io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
+			io.ErrPrintfln("%s: test pkg: %w", pkg.ImportPath, err)
 			io.ErrPrintfln("FAIL")
-			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s", pkg.ImportPath, dstr)
 			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
+			io.ErrPrintfln("ok      %s \t%s", pkg.ImportPath, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
@@ -447,7 +453,7 @@ func runTestFiles(
 
 		ret := eval[0].GetString()
 		if ret == "" {
-			err := errors.New("failed to execute unit test: %q", test.Name)
+			err := fmt.Errorf("failed to execute unit test: %q", test.Name)
 			errs = multierr.Append(errs, err)
 			io.ErrPrintfln("--- FAIL: %s [internal gno testing error]", test.Name)
 			continue
@@ -463,7 +469,7 @@ func runTestFiles(
 		}
 
 		if rep.Failed {
-			err := errors.New("failed: %q", test.Name)
+			err := fmt.Errorf("failed: %q", test.Name)
 			errs = multierr.Append(errs, err)
 		}
 

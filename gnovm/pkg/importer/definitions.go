@@ -44,5 +44,12 @@ func IsGnoTestFile(p string) bool {
 	if !IsGnoFile(p) {
 		return false
 	}
-	return strings.HasSuffix(p, "_test.gno") || strings.HasSuffix(p, "_filetest.gno")
+	return strings.HasSuffix(p, "_test.gno")
+}
+
+func IsGnoFiletestFile(p string) bool {
+	if !IsGnoFile(p) {
+		return false
+	}
+	return strings.HasSuffix(p, "_filetest.gno")
 }

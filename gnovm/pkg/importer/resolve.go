@@ -19,32 +19,57 @@ import (
 
 const recursiveSuffix = string(os.PathSeparator) + "..."
 
-// TODO: match mapping
+type visitTarget struct {
+	path  string
+	match string
+}
+
 func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
-	toVisit := []string{}
+	toVisit := []visitTarget{}
 	for _, p := range paths {
-		toVisit = append(toVisit, filepath.Clean(p))
+		toVisit = append(toVisit, visitTarget{path: p, match: p})
 	}
-	visited := map[string]struct{}{}
+	visited := map[visitTarget]struct{}{}
+	cache := map[string]*PackageSummary{}
 	packages := []*PackageSummary{}
 	errs := []error{}
 
 	for len(toVisit) > 0 {
-		p := toVisit[0]
+		tgt := toVisit[0]
 		toVisit = toVisit[1:]
 
-		if _, ok := visited[p]; ok {
+		if _, ok := visited[tgt]; ok {
 			continue
 		}
-		visited[p] = struct{}{}
+		visited[tgt] = struct{}{}
 
-		root := convertRecursivePathToDir(p)
+		if tgt.path == "" {
+			continue
+		}
 
-		if !isRecursivePath(p) {
-			if p != "." && strings.ContainsRune(p, '.') {
-				packages = append(packages, &PackageSummary{
-					PkgPath: p,
-				})
+		if tgt.path[0] == '.' {
+			absPath, err := filepath.Abs(tgt.path)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed to get absolute path for %q: %w", tgt, err))
+			}
+			toVisit = append(toVisit, visitTarget{path: absPath, match: tgt.match})
+			continue
+		}
+
+		root := convertRecursivePathToDir(tgt.path)
+
+		if !isRecursivePath(tgt.path) {
+			if tgt.path[0] != '/' {
+				pkgPath := tgt.path
+				if pkg, ok := cache[pkgPath]; ok {
+					pkg.Match = append(pkg.Match, tgt.match)
+				} else {
+					cache[pkgPath] = &PackageSummary{
+						PkgPath: pkgPath,
+						Match:   []string{tgt.match},
+					}
+					packages = append(packages, cache[pkgPath])
+				}
 				continue
 			}
 			modDir, err := findModDir(root)
@@ -66,7 +91,7 @@ func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
 				continue
 			}
 			globalPkgPath := modFile.Module.Mod.Path
-			relfpath, err := filepath.Rel(modDir, p)
+			relfpath, err := filepath.Rel(modDir, tgt.path)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get pkg path relative to mod root: %w", err)
 			}
@@ -75,11 +100,18 @@ func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to get absolute pkg root")
 			}
-			packages = append(packages, &PackageSummary{
-				PkgPath: path.Join(globalPkgPath, relpath),
-				Root:    absroot,
-				ModFile: modFile,
-			})
+			pkgPath := path.Join(globalPkgPath, relpath)
+			if pkg, ok := cache[pkgPath]; ok {
+				pkg.Match = append(pkg.Match, tgt.match)
+			} else {
+				cache[pkgPath] = &PackageSummary{
+					PkgPath: path.Join(globalPkgPath, relpath),
+					Root:    absroot,
+					ModFile: modFile,
+					Match:   []string{tgt.match},
+				}
+				packages = append(packages, cache[pkgPath])
+			}
 			continue
 		}
 
@@ -94,7 +126,7 @@ func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
 			fileName := entry.Name()
 			if entry.IsDir() {
 				dirPath := filepath.Join(root, fileName) + recursiveSuffix
-				toVisit = append(toVisit, dirPath)
+				toVisit = append(toVisit, visitTarget{path: dirPath, match: tgt.match})
 			}
 			if !hasGnoFiles && IsGnoFile(fileName) {
 				hasGnoFiles = true
@@ -102,7 +134,7 @@ func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
 		}
 
 		if hasGnoFiles {
-			toVisit = append(toVisit, root)
+			toVisit = append(toVisit, visitTarget{path: root, match: tgt.match})
 		}
 	}
 
@@ -116,7 +148,7 @@ type PackageSummary struct {
 	Match   []string
 }
 
-func Load(paths ...string) (map[string]*Package, error) {
+func Load(paths ...string) ([]*Package, error) {
 	pkgs, err := DiscoverPackages(paths...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list packages: %w", err)
@@ -124,6 +156,7 @@ func Load(paths ...string) (map[string]*Package, error) {
 
 	visited := map[string]struct{}{}
 	cache := make(map[string]*Package)
+	list := []*Package{}
 	errs := []error{}
 	for pile := pkgs; len(pile) > 0; pile = pile[1:] {
 		pkgSum := pile[0]
@@ -134,8 +167,12 @@ func Load(paths ...string) (map[string]*Package, error) {
 
 		pkg, err := resolvePackage(pkgSum)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to resolve package %q: %w", pkgSum.PkgPath, err))
-			continue
+			pkg = &Package{
+				ImportPath: pkgSum.PkgPath,
+				Dir:        pkgSum.Root,
+				Match:      pkgSum.Match,
+			}
+			pkg.Errors = append(pkg.Errors, fmt.Errorf("failed to resolve package %q: %w", pkgSum.PkgPath, err))
 		}
 
 		// TODO: what about TestImports
@@ -146,44 +183,56 @@ func Load(paths ...string) (map[string]*Package, error) {
 		}
 
 		cache[pkg.ImportPath] = pkg
+		list = append(list, pkg)
 	}
 
-	for _, pkg := range cache {
+	for _, pkg := range list {
+		if len(pkg.Errors) > 0 {
+			continue
+		}
 		// TODO: this could be optimized
-		pkg.Deps = listDeps(pkg.ImportPath, cache)
+		pkg.Deps, err = listDeps(pkg.ImportPath, cache)
+		if err != nil {
+			pkg.Errors = append(pkg.Errors, err)
+		}
 	}
 
-	return cache, errors.Join(errs...)
+	return list, errors.Join(errs...)
 }
 
-func listDeps(target string, pkgs map[string]*Package) []string {
+func listDeps(target string, pkgs map[string]*Package) ([]string, error) {
 	deps := []string{}
-	listDepsRecursive(target, pkgs, &deps, make(map[string]struct{}))
-	return deps
+	err := listDepsRecursive(target, pkgs, &deps, make(map[string]struct{}))
+	return deps, err
 }
 
-func listDepsRecursive(target string, pkgs map[string]*Package, deps *[]string, visited map[string]struct{}) {
+func listDepsRecursive(target string, pkgs map[string]*Package, deps *[]string, visited map[string]struct{}) error {
 	if _, ok := visited[target]; ok {
-		return
+		return nil
 	}
 	pkg, ok := pkgs[target]
 	if !ok {
-		panic(fmt.Errorf("%s not found in cache", target))
+		return fmt.Errorf("%s not found in cache", target)
 	}
 	visited[target] = struct{}{}
+	var errs []error
 	for _, imp := range pkg.Imports {
-		listDepsRecursive(imp, pkgs, deps, visited)
+		err := listDepsRecursive(imp, pkgs, deps, visited)
+		if err != nil {
+			errs = append(errs, err)
+		}
 	}
 	(*deps) = append(*deps, target)
+	return errors.Join(errs...)
 }
 
 func resolvePackage(meta *PackageSummary) (*Package, error) {
 	if !strings.ContainsRune(meta.PkgPath, '.') {
-		return resolveStdlib(meta.PkgPath)
+		return resolveStdlib(meta.PkgPath, meta.Match)
 	}
 
 	if meta.Root == "" {
-		return resolveRemote(meta.PkgPath)
+		return resolveRemote(meta.PkgPath, meta.Match)
 	}
 
 	if meta.ModFile == nil {
@@ -195,21 +244,21 @@ func resolvePackage(meta *PackageSummary) (*Package, error) {
 		return nil, fmt.Errorf("failed to find absolute root %q: %w", meta.Root, err)
 	}
 
-	return fillPackage(meta.PkgPath, absRoot, meta.ModFile)
+	return fillPackage(meta.PkgPath, absRoot, meta.ModFile, meta.Match)
 }
 
-func resolveStdlib(pkgPath string) (*Package, error) {
+func resolveStdlib(pkgPath string, match []string) (*Package, error) {
 	gnoRoot, err := gnoenv.GuessRootDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to guess gno root dir: %w", err)
 	}
 	parts := strings.Split(pkgPath, "/")
 	libDir := filepath.Join(append([]string{gnoRoot, "gnovm", "stdlibs"}, parts...)...)
-	return fillPackage(pkgPath, libDir, nil)
+	return fillPackage(pkgPath, libDir, nil, match)
 }
 
 // Does not fill deps
-func resolveRemote(pkgPath string) (*Package, error) {
+func resolveRemote(pkgPath string, match []string) (*Package, error) {
 	modCache := filepath.Join(gnoenv.HomeDir(), "pkg", "mod")
 	pkgDir := filepath.Join(modCache, pkgPath)
 	if err := DownloadModule(pkgPath, pkgDir); err != nil {
@@ -230,7 +279,7 @@ func resolveRemote(pkgPath string) (*Package, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse modfile: %w", err)
 	}
-	pkg, err := fillPackage(pkgPath, pkgDir, modFile)
+	pkg, err := fillPackage(pkgPath, pkgDir, modFile, match)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fill Package %q: %w", pkgPath, err)
 	}
@@ -238,11 +287,13 @@ func resolveRemote(pkgPath string) (*Package, error) {
 	return pkg, nil
 }
 
-func fillPackage(pkgPath, pkgDir string, modFile *modfile.File) (*Package, error) {
+func fillPackage(pkgPath, pkgDir string, modFile *modfile.File, match []string) (*Package, error) {
 	fsFiles := []string{}
 	modFiles := []string{}
 	fsTestFiles := []string{}
 	testFiles := []string{}
+	fsFiletestFiles := []string{}
+	filetestFiles := []string{}
 	dir, err := os.ReadDir(pkgDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read module files list: %w", err)
@@ -256,6 +307,9 @@ func fillPackage(pkgPath, pkgDir string, modFile *modfile.File) (*Package, error
 		if IsGnoTestFile(fileName) {
 			fsTestFiles = append(fsTestFiles, filepath.Join(pkgDir, fileName))
 			testFiles = append(testFiles, fileName)
+		} else if IsGnoFiletestFile(fileName) {
+			fsTestFiles = append(fsFiletestFiles, filepath.Join(pkgDir, fileName))
+			testFiles = append(filetestFiles, fileName)
 		} else if IsGnoFile(fileName) {
 			fsFiles = append(fsFiles, filepath.Join(pkgDir, fileName))
 			modFiles = append(modFiles, fileName)
@@ -267,7 +321,11 @@ func fillPackage(pkgPath, pkgDir string, modFile *modfile.File) (*Package, error
 	}
 	_, testImports, err := resolveNameAndImports(fsTestFiles)
 	if err != nil {
-		return nil, fmt.Errorf("failed to resolve name test imports for %q: %w", pkgPath, err)
+		return nil, fmt.Errorf("failed to resolve test name and imports for %q: %w", pkgPath, err)
+	}
+	_, filetestImports, err := resolveNameAndImports(filetestFiles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve filetest name and imports for %q: %w", pkgPath, err)
 	}
 
 	module := Module{}
@@ -278,14 +336,17 @@ func fillPackage(pkgPath, pkgDir string, modFile *modfile.File) (*Package, error
 	}
 
 	return &Package{
-		ImportPath:   pkgPath,
-		Dir:          pkgDir,
-		Name:         name,
-		Module:       module,
-		GnoFiles:     modFiles,
-		Imports:      imports,
-		TestGnoFiles: testFiles,
-		TestImports:  testImports,
+		ImportPath:       pkgPath,
+		Dir:              pkgDir,
+		Name:             name,
+		Module:           module,
+		Match:            match,
+		GnoFiles:         modFiles,
+		Imports:          imports,
+		TestGnoFiles:     testFiles,
+		TestImports:      testImports,
+		FiletestGnoFiles: filetestFiles,
+		FiletestImports:  filetestImports,
 	}, nil
 }
 
@@ -355,6 +416,7 @@ type Package struct {
 	TestImports      []string `json:",omitempty"`
 	FiletestGnoFiles []string `json:",omitempty"`
 	FiletestImports  []string `json:",omitempty"`
+	Errors           []error  `json:",omitempty"`
 }
 
 type Module struct {
