@@ -50,7 +50,7 @@ func SetBackup(a std.Address) error {
 
 func checkAuthorized() error {
 	caller := std.PrevRealm().Addr()
-	if caller != main || caller != backup {
+	if caller != main && caller != backup {
 		return errors.New("config: unauthorized")
 	}
 
