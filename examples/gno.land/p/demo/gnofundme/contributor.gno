@@ -14,12 +14,12 @@ type Contributor struct {
 	// the date of the contribution
 	Date time.Time
 	// the amount of the contribution
-	Amount int64
+	Amount uint64
 	// whether the contributor wants to be displayed (Anonymous in case of false)
 	display bool
 }
 
-func NewContributor(user *pusers.User, date time.Time, amount int64, display bool) *Contributor {
+func NewContributor(user *pusers.User, date time.Time, amount uint64, display bool) *Contributor {
 	return &Contributor{
 		user:    user,
 		Date:    date,

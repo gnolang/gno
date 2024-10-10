@@ -35,8 +35,8 @@ type Campaign struct {
 	Ctype       ctype
 	Title       string
 	Description string
-	Goal        int64
-	Current     int64
+	Goal        uint64
+	Current     uint64
 	Begin       time.Time
 	Deadline    time.Time
 	Owner       *pusers.User
@@ -45,7 +45,7 @@ type Campaign struct {
 	contributors []*Contributor
 }
 
-func NewCampaign(ct int, title string, description string, goal int64, begin time.Time, deadline time.Time, owner *pusers.User, beneficiary *pusers.User) *Campaign {
+func NewCampaign(ct int, title string, description string, goal uint64, begin time.Time, deadline time.Time, owner *pusers.User, beneficiary *pusers.User) *Campaign {
 	campaign := &Campaign{
 		Ctype:        ctype(ct),
 		Title:        title,
@@ -67,7 +67,7 @@ func (c Campaign) GetContributors() []*Contributor {
 	return c.contributors
 }
 
-func (c *Campaign) AddContributor(user *pusers.User, date time.Time, amount int64, display bool) *Contributor {
+func (c *Campaign) AddContributor(user *pusers.User, date time.Time, amount uint64, display bool) *Contributor {
 	c.Current += amount
 	contributor := NewContributor(user, date, amount, display)
 	c.contributors = append(c.contributors, contributor)

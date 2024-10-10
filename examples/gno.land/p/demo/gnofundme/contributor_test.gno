@@ -10,7 +10,7 @@ import (
 
 func TestNewContributor(t *testing.T) {
 	user := users.GetUserByName("demo")
-	amount := int64(500)
+	amount := uint64(500)
 	display := true
 	date := time.Unix(time.Now().Unix(), 0)
 	contributor := NewContributor(user, date, amount, display)
