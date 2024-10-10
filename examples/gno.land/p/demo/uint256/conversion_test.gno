@@ -120,7 +120,7 @@ func TestUint_Scan(t *testing.T) {
 			}
 		})
 	}
-}가
+}
 
 func TestSetBytes(t *testing.T) {
 	tests := []struct {
