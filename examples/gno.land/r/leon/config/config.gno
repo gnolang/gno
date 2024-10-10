@@ -58,8 +58,7 @@ func checkAuthorized() error {
 }
 
 func AssertAuthorized() {
-	caller := std.PrevRealm().Addr()
-	if caller != main || caller != backup {
-		panic("config: unauthorized")
+	if err := checkAuthorized(); err != nil {
+		panic(err)
 	}
 }
