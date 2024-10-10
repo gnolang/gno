@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"gno.land/p/demo/uassert"
 	"gno.land/r/demo/users"
 )
 
@@ -14,21 +15,15 @@ func TestNewContributor(t *testing.T) {
 	date := time.Unix(time.Now().Unix(), 0)
 	contributor := NewContributor(user, date, amount, display)
 
-	if contributor.GetUser() != user {
-		t.Errorf("Expected contributor user to be %s, got %s", user, contributor.GetUser())
-	}
+	uassert.Equal(t, contributor.GetUser().Address, user.Address)
 
-	if contributor.Date.IsZero() {
-		t.Error("Expected contributor date to be non-zero")
-	}
+	uassert.False(t, contributor.Date.IsZero())
 
-	if contributor.Amount != amount {
-		t.Errorf("Expected contributor amount to be %d, got %d", amount, contributor.Amount)
-	}
+	uassert.Equal(t, contributor.Amount, amount)
 
-	if contributor.GetDisplay() != display {
-		t.Errorf("Expected contributor display to be %t, got %t", display, contributor.GetDisplay())
-	}
-	js := contributor.String()
-	println(js)
+	uassert.Equal(t, contributor.GetDisplay(), display)
+
+	json := `{"Address":"g13ek2zz9qurzynzvssyc4sthwppnruhnp0gdz8n","date":"13 Feb 09 23:31 UTC","amount":500,"display":"true"}`
+
+	uassert.Equal(t, contributor.String(), json)
 }

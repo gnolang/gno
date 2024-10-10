@@ -113,36 +113,16 @@ func CampaignToJSONString(campaign *Campaign) string {
 
 func (c Campaign) Render(id string) string {
 	var b bytes.Buffer
-	b.WriteString(
-		ufmt.Sprintf("# Campaign %s\n", id),
-	)
-	b.WriteString(
-		ufmt.Sprintf("## Title: %s\n", c.Title),
-	)
-	b.WriteString(
-		ufmt.Sprintf("## Description: %s\n", c.Description),
-	)
-	b.WriteString(
-		ufmt.Sprintf("### Goal: %d GNOT", c.Goal),
-	)
-	b.WriteString(
-		ufmt.Sprintf("********** Current: %d GNOT\n", c.Current/1_000_000),
-	)
-	b.WriteString(
-		ufmt.Sprintf("### Begin: %s", c.Begin.String()),
-	)
-	b.WriteString(
-		ufmt.Sprintf("  ------------->  Deadline: %s\n", c.Deadline.String()),
-	)
-	b.WriteString(
-		ufmt.Sprintf("### Owner: %s, %s\n", c.Owner.Name, c.Owner.Address.String()),
-	)
-	b.WriteString(
-		ufmt.Sprintf("### Beneficiary: %s, %s\n", c.Beneficiary.Name, c.Beneficiary.Address.String()),
-	)
-	b.WriteString(
-		ufmt.Sprintf("## Last contributors: %d\n", len(c.GetContributors())),
-	)
+	b.WriteString(ufmt.Sprintf("# Campaign %s\n", id))
+	b.WriteString(ufmt.Sprintf("## Title: %s\n", c.Title))
+	b.WriteString(ufmt.Sprintf("## Description: %s\n", c.Description))
+	b.WriteString(ufmt.Sprintf("### Goal: %d GNOT", c.Goal))
+	b.WriteString(ufmt.Sprintf("********** Current: %d GNOT\n", c.Current/1_000_000))
+	b.WriteString(ufmt.Sprintf("### Begin: %s", c.Begin.String()))
+	b.WriteString(ufmt.Sprintf("  ------------->  Deadline: %s\n", c.Deadline.String()))
+	b.WriteString(ufmt.Sprintf("### Owner: %s, %s\n", c.Owner.Name, c.Owner.Address.String()))
+	b.WriteString(ufmt.Sprintf("### Beneficiary: %s, %s\n", c.Beneficiary.Name, c.Beneficiary.Address.String()))
+	b.WriteString(ufmt.Sprintf("## Last contributors: %d\n", len(c.GetContributors())))
 	if contributors := c.GetContributors(); len(c.GetContributors()) != 0 {
 		length := len(c.GetContributors())
 		if length > 10 {
