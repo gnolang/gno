@@ -122,7 +122,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	if f.nativeLibs {
 		mode = ImportModeNativePreferred
 	}
-	store := TestStore(rootDir, "./files", stdin, stdout, stderr, mode)
+	store := TestStore(rootDir, "./files", nil, stdin, stdout, stderr, mode)
 	store.SetLogStoreOps(true)
 	m := testMachineCustom(store, pkgPath, stdout, maxAlloc, send)
 	checkMachineIsEmpty := true

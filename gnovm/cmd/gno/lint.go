@@ -67,6 +67,11 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
 
+	pkgsMap := map[string]*importer.Package{}
+	for _, pkg := range pkgs {
+		pkgsMap[pkg.ImportPath] = pkg
+	}
+
 	hasError := false
 
 	for _, pkg := range pkgs {
@@ -98,7 +103,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		hasError = catchRuntimeError(pkgPath, io.Err(), func() {
 			stdout, stdin, stderr := io.Out(), io.In(), io.Err()
 			testStore := tests.TestStore(
-				rootDir, "",
+				rootDir, "", pkgsMap,
 				stdin, stdout, stderr,
 				tests.ImportModeStdlibsOnly,
 			)
