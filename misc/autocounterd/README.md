@@ -2,7 +2,7 @@
 
 ## What is it?
 
-`autcounterd` is a simple binary that increments a simple counter every x seconds to analyse and test a network.
+`autocounterd` is a simple binary that increments a simple counter every x seconds to analyse and test a network.
 
 ## How to use
 

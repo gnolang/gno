@@ -26,9 +26,7 @@ type Error struct {
 }
 
 func (e *Error) Unwrap() error { return e.Err }
-func (e *Error) Error() string {
-	return e.Op + " " + strconv.Quote(e.URL) + ": " + e.Err
-}
+func (e *Error) Error() string { return e.Op + " \"" + e.URL + "\": " + e.Err.Error() } // "%s %q: %s"
 
 func (e *Error) Timeout() bool {
 	t, ok := e.Err.(interface {
@@ -624,7 +622,7 @@ func parseHost(host string) (string, error) {
 		}
 		colonPort := host[i+1:]
 		if !validOptionalPort(colonPort) {
-			return "", errors.New("invalid port " + strconv.Quote(colonPort) + " after host")
+			return "", errors.New("invalid port \"" + colonPort + "\" after host")
 		}
 
 		// RFC 6874 defines that %25 (%-encoded percent) introduces
@@ -652,7 +650,7 @@ func parseHost(host string) (string, error) {
 	} else if i := strings.LastIndex(host, ":"); i != -1 {
 		colonPort := host[i:]
 		if !validOptionalPort(colonPort) {
-			return "", errors.New("invalid port " + strconv.Quote(colonPort) + " after host")
+			return "", errors.New("invalid port \"" + colonPort + "\" after host")
 		}
 	}
 

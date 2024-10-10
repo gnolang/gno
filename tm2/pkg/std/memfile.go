@@ -8,8 +8,8 @@ import (
 )
 
 type MemFile struct {
-	Name string
-	Body string
+	Name string `json:"name" yaml:"name"`
+	Body string `json:"body" yaml:"body"`
 }
 
 // MemPackage represents the information and files of a package which will be
@@ -19,9 +19,9 @@ type MemFile struct {
 // NOTE: in the future, a MemPackage may represent
 // updates/additional-files for an existing package.
 type MemPackage struct {
-	Name  string // package name as declared by `package`
-	Path  string // import path
-	Files []*MemFile
+	Name  string     `json:"name" yaml:"name"` // package name as declared by `package`
+	Path  string     `json:"path" yaml:"path"` // import path
+	Files []*MemFile `json:"files" yaml:"files"`
 }
 
 func (mempkg *MemPackage) GetFile(name string) *MemFile {
@@ -36,6 +36,8 @@ func (mempkg *MemPackage) GetFile(name string) *MemFile {
 func (mempkg *MemPackage) IsEmpty() bool {
 	return len(mempkg.Files) == 0
 }
+
+const pathLengthLimit = 256
 
 var (
 	rePkgName      = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
@@ -52,9 +54,14 @@ func (mempkg *MemPackage) Validate() error {
 		return fmt.Errorf("no files found within package %q", mempkg.Name)
 	}
 
+	if len(mempkg.Path) > pathLengthLimit {
+		return fmt.Errorf("path length %d exceeds limit %d", len(mempkg.Path), pathLengthLimit)
+	}
+
 	if !rePkgName.MatchString(mempkg.Name) {
 		return fmt.Errorf("invalid package name %q, failed to match %q", mempkg.Name, rePkgName)
 	}
+
 	if !rePkgOrRlmPath.MatchString(mempkg.Path) {
 		return fmt.Errorf("invalid package/realm path %q, failed to match %q", mempkg.Path, rePkgOrRlmPath)
 	}
@@ -83,18 +90,23 @@ func (mempkg *MemPackage) Validate() error {
 	return nil
 }
 
+const licenseName = "LICENSE"
+
 // Splits a path into the dirpath and filename.
 func SplitFilepath(filepath string) (dirpath string, filename string) {
 	parts := strings.Split(filepath, "/")
 	if len(parts) == 1 {
 		return parts[0], ""
 	}
-	last := parts[len(parts)-1]
-	if strings.Contains(last, ".") {
+
+	switch last := parts[len(parts)-1]; {
+	case strings.Contains(last, "."):
 		return strings.Join(parts[:len(parts)-1], "/"), last
-	} else if last == "" {
+	case last == "":
 		return strings.Join(parts[:len(parts)-1], "/"), ""
-	} else {
-		return strings.Join(parts, "/"), ""
+	case last == licenseName:
+		return strings.Join(parts[:len(parts)-1], "/"), licenseName
 	}
+
+	return strings.Join(parts, "/"), ""
 }

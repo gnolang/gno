@@ -10,24 +10,51 @@ import (
 	gnodev "github.com/gnolang/gno/contribs/gnodev/pkg/dev"
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
 	"github.com/gnolang/gno/gno.land/pkg/gnoland"
+	"github.com/gnolang/gno/tm2/pkg/bft/types"
 )
 
 // setupDevNode initializes and returns a new DevNode.
 func setupDevNode(
 	ctx context.Context,
-	logger *slog.Logger,
-	cfg *devCfg,
-	remitter emitter.Emitter,
-	balances gnoland.Balances,
-	pkgspath []gnodev.PackagePath,
+	devCfg *devCfg,
+	nodeConfig *gnodev.NodeConfig,
 ) (*gnodev.Node, error) {
-	config := setupDevNodeConfig(cfg, balances, pkgspath)
-	return gnodev.NewDevNode(ctx, logger, remitter, config)
+	logger := nodeConfig.Logger
+
+	if devCfg.txsFile != "" { // Load txs files
+		var err error
+		nodeConfig.InitialTxs, err = parseTxs(devCfg.txsFile)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load transactions: %w", err)
+		}
+	} else if devCfg.genesisFile != "" { // Load genesis file
+		state, err := extractAppStateFromGenesisFile(devCfg.genesisFile)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load genesis file %q: %w", devCfg.genesisFile, err)
+		}
+
+		// Override balances and txs
+		nodeConfig.BalancesList = state.Balances
+		nodeConfig.InitialTxs = state.Txs
+
+		logger.Info("genesis file loaded", "path", devCfg.genesisFile, "txs", len(nodeConfig.InitialTxs))
+	}
+
+	return gnodev.NewDevNode(ctx, nodeConfig)
 }
 
 // setupDevNodeConfig creates and returns a new dev.NodeConfig.
-func setupDevNodeConfig(cfg *devCfg, balances gnoland.Balances, pkgspath []gnodev.PackagePath) *gnodev.NodeConfig {
+func setupDevNodeConfig(
+	cfg *devCfg,
+	logger *slog.Logger,
+	emitter emitter.Emitter,
+	balances gnoland.Balances,
+	pkgspath []gnodev.PackagePath,
+) *gnodev.NodeConfig {
 	config := gnodev.DefaultNodeConfig(cfg.root)
+
+	config.Logger = logger
+	config.Emitter = emitter
 	config.BalancesList = balances.List()
 	config.PackagesPathList = pkgspath
 	config.TMConfig.RPC.ListenAddress = resolveUnixOrTCPAddr(cfg.nodeRPCListenerAddr)
@@ -40,6 +67,20 @@ func setupDevNodeConfig(cfg *devCfg, balances gnoland.Balances, pkgspath []gnode
 	config.TMConfig.ProxyApp = defaultDevOptions.nodeProxyAppListenerAddr
 
 	return config
+}
+
+func extractAppStateFromGenesisFile(path string) (*gnoland.GnoGenesisState, error) {
+	doc, err := types.GenesisDocFromFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse doc file: %w", err)
+	}
+
+	state, ok := doc.AppState.(gnoland.GnoGenesisState)
+	if !ok {
+		return nil, fmt.Errorf("invalid `GnoGenesisState` app state")
+	}
+
+	return &state, nil
 }
 
 func resolveUnixOrTCPAddr(in string) (out string) {

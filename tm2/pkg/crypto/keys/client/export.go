@@ -105,7 +105,7 @@ func execExport(cfg *ExportCfg, io commands.IO) error {
 			panic(err)
 		}
 
-		fmt.Printf("privk:\n%x\n", privk.Bytes())
+		io.Printf("privk:\n%x\n", privk.Bytes())
 	} else {
 		// Get the armor encrypt password
 		encryptPassword, err := io.GetCheckPassword(

@@ -14,4 +14,4 @@ func main() {
 }
 
 // Error:
-// main/files/type37e.gno:8: invalid receiver type main.Int2 (base type is pointer type)
+// main/files/type37e.gno:8:1: invalid receiver type main.Int2 (base type is pointer type)

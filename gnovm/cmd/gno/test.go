@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
@@ -21,7 +20,6 @@ import (
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
 	"github.com/gnolang/gno/gnovm/pkg/importer"
-	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -35,7 +33,6 @@ type testCfg struct {
 	rootDir             string
 	run                 string
 	timeout             time.Duration
-	transpile           bool // TODO: transpile should be the default, but it needs to automatically transpile dependencies in memory.
 	updateGoldenTests   bool
 	printRuntimeMetrics bool
 	withNativeFallback  bool
@@ -112,13 +109,6 @@ func (c *testCfg) RegisterFlags(fs *flag.FlagSet) {
 	)
 
 	fs.BoolVar(
-		&c.transpile,
-		"transpile",
-		false,
-		"transpile gno to go before testing",
-	)
-
-	fs.BoolVar(
 		&c.updateGoldenTests,
 		"update-golden-tests",
 		false,
@@ -166,32 +156,17 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 		return flag.ErrHelp
 	}
 
-	verbose := cfg.verbose
-
-	tempdirRoot, err := os.MkdirTemp("", "gno-transpile")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(tempdirRoot)
-
-	// Create go.mod to build the precompiled files.
-	modPath := filepath.Join(tempdirRoot, "go.mod")
-	err = makeTestGoMod(modPath, transpiler.ImportPrefix, "1.21")
-	if err != nil {
-		return fmt.Errorf("write .mod file: %w", err)
-	}
-
-	// Determine root directory.
+	// guess opts.RootDir
 	if cfg.rootDir == "" {
 		cfg.rootDir = gnoenv.RootDir()
 	}
 
 	// Find targets for test.
-	targets, err := importer.Match(args)
+	pkgs, err := importer.Load(args...)
 	if err != nil {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}
-	if len(targets) == 0 {
+	if len(pkgs) == 0 {
 		io.ErrPrintln("no packages to test")
 		return nil
 	}
@@ -205,74 +180,25 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 
 	buildErrCount := 0
 	testErrCount := 0
-	for _, target := range targets {
-		pkgFiles, err := importer.Match([]string{target}, importer.MatchFiles())
-		if err != nil {
-			return err
-		}
-		pkgDir := target
-		if len(pkgFiles) == 1 && pkgFiles[0] == target {
-			// single-file
-			pkgDir = path.Dir(target)
-		}
-		if cfg.transpile {
-			if verbose {
-				io.ErrPrintfln("=== PREC  %s", pkgDir)
-			}
-			transpileOpts := newTranspileOptions(&transpileCfg{
-				output: tempdirRoot,
-			})
-			err := transpilePkg(importPath(pkgDir), transpileOpts)
-			if err != nil {
-				io.ErrPrintln(err)
-				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkgDir)
-				io.ErrPrintln("FAIL")
-
-				buildErrCount++
-				continue
-			}
-
-			if verbose {
-				io.ErrPrintfln("=== BUILD %s", pkgDir)
-			}
-			tempDir, err := ResolvePath(tempdirRoot, importPath(pkgDir))
-			if err != nil {
-				return errors.New("cannot resolve build dir")
-			}
-			err = goBuildFileOrPkg(tempDir, defaultTranspileCfg)
-			if err != nil {
-				io.ErrPrintln(err)
-				io.ErrPrintln("FAIL")
-				io.ErrPrintfln("FAIL    %s", pkgDir)
-				io.ErrPrintln("FAIL")
-
-				buildErrCount++
-				continue
-			}
-		}
-
-		testFiles := importer.Filter(pkgFiles, "*_test.gno")
-		ftestFiles := importer.Filter(pkgFiles, "*_filetest.gno")
-
-		if len(testFiles) == 0 && len(ftestFiles) == 0 {
-			io.ErrPrintfln("?       %s \t[no test files]", pkgDir)
+	for _, pkg := range pkgs {
+		if len(pkg.TestGnoFiles) == 0 && len(pkg.FiletestGnoFiles) == 0 {
+			io.ErrPrintfln("?       %s \t[no test files]", pkg.Dir)
 			continue
 		}
 
 		startedAt := time.Now()
-		err = gnoTestPkg(pkgDir, testFiles, ftestFiles, cfg, io)
+		err = gnoTestPkg(pkg.Dir, pkg.TestGnoFiles, pkg.FiletestGnoFiles, cfg, io)
 		duration := time.Since(startedAt)
 		dstr := fmtDuration(duration)
 
 		if err != nil {
-			io.ErrPrintfln("%s: test pkg: %v", pkgDir, err)
+			io.ErrPrintfln("%s: test pkg: %v", pkg.Dir, err)
 			io.ErrPrintfln("FAIL")
-			io.ErrPrintfln("FAIL    %s \t%s", pkgDir, dstr)
+			io.ErrPrintfln("FAIL    %s \t%s", pkg.Dir, dstr)
 			io.ErrPrintfln("FAIL")
 			testErrCount++
 		} else {
-			io.ErrPrintfln("ok      %s \t%s", pkgDir, dstr)
+			io.ErrPrintfln("ok      %s \t%s", pkg.Dir, dstr)
 		}
 	}
 	if testErrCount > 0 || buildErrCount > 0 {
@@ -325,7 +251,7 @@ func gnoTestPkg(
 			if gnoPkgPath == "" {
 				// unable to read pkgPath from gno.mod, generate a random realm path
 				io.ErrPrintfln("--- WARNING: unable to read package path from gno.mod or gno root directory; try creating a gno.mod file")
-				gnoPkgPath = transpiler.GnoRealmPkgsPrefixBefore + random.RandStr(8)
+				gnoPkgPath = gno.RealmPathPrefix + random.RandStr(8)
 			}
 		}
 		memPkg := gno.ReadMemPackage(pkgPath, gnoPkgPath)
@@ -338,7 +264,7 @@ func gnoTestPkg(
 		})
 
 		if hasError {
-			os.Exit(1)
+			return commands.ExitCodeError(1)
 		}
 		testPkgName := getPkgNameFromFileset(ifiles)
 
@@ -680,4 +606,22 @@ func shouldRun(filter filterMatch, path string) bool {
 	elem := strings.Split(path, "/")
 	ok, _ := filter.matches(elem, matchString)
 	return ok
+}
+
+// Adapted from https://yourbasic.org/golang/formatting-byte-size-to-human-readable-format/
+func prettySize(nb int64) string {
+	const unit = 1000
+	if nb < unit {
+		return fmt.Sprintf("%d", nb)
+	}
+	div, exp := int64(unit), 0
+	for n := nb / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f%c", float64(nb)/float64(div), "kMGTPE"[exp])
+}
+
+func fmtDuration(d time.Duration) string {
+	return fmt.Sprintf("%.2fs", d.Seconds())
 }

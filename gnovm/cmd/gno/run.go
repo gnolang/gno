@@ -6,13 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/importer"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
+	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
 type runCfg struct {
@@ -111,11 +111,15 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 		return errors.New("no files to run")
 	}
 
+	var send std.Coins
+	pkgPath := string(files[0].PkgName)
+	ctx := tests.TestContext(pkgPath, send)
 	m := gno.NewMachineWithOptions(gno.MachineOptions{
-		PkgPath: string(files[0].PkgName),
-		Input:   stdin,
+		PkgPath: pkgPath,
 		Output:  stdout,
+		Input:   stdin,
 		Store:   testStore,
+		Context: ctx,
 		Debug:   cfg.debug || cfg.debugAddr != "",
 	})
 
@@ -149,7 +153,7 @@ func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 		}) || hasError
 	}
 	if hasError {
-		os.Exit(1)
+		return nil, commands.ExitCodeError(1)
 	}
 	return files, nil
 }
@@ -157,8 +161,14 @@ func parseFiles(fnames []string, stderr io.WriteCloser) ([]*gno.FileNode, error)
 func runExpr(m *gno.Machine, expr string) {
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("panic running expression %s: %v\n%s\n",
-				expr, r, m.String())
+			switch r := r.(type) {
+			case gno.UnhandledPanicError:
+				fmt.Printf("panic running expression %s: %v\nStacktrace: %s\n",
+					expr, r.Error(), m.ExceptionsStacktrace())
+			default:
+				fmt.Printf("panic running expression %s: %v\nMachine State:%s\nStacktrace: %s\n",
+					expr, r, m.String(), m.Stacktrace().String())
+			}
 			panic(r)
 		}
 	}()

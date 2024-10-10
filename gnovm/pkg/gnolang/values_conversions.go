@@ -882,6 +882,11 @@ GNO_CASE:
 // TODO: method on TypedValue?
 func ConvertUntypedTo(tv *TypedValue, t Type) {
 	if debug {
+		defer func() {
+			debug.Printf("ConvertUntypedTo done, tv: %v \n", tv)
+		}()
+	}
+	if debug {
 		if !isUntyped(tv.T) {
 			panic(fmt.Sprintf(
 				"ConvertUntypedTo expects untyped const source but got %s",

@@ -6,4 +6,5 @@ func main() {
 	println(ints)
 }
 
-// error: cannot convert (undefined) to int
+// Error:
+// main/files/convert5.gno:3:1: cannot convert (undefined) to int

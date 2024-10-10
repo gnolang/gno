@@ -62,6 +62,9 @@ func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse modfile: %w", err)
 			}
+			if modFile == nil || modFile.Module == nil {
+				continue
+			}
 			globalPkgPath := modFile.Module.Mod.Path
 			relfpath, err := filepath.Rel(modDir, p)
 			if err != nil {
@@ -339,17 +342,19 @@ func DownloadModule(pkgPath string, dst string) error {
 }
 
 type Package struct {
-	Dir          string   `json:",omitempty"`
-	ImportPath   string   `json:",omitempty"`
-	Name         string   `json:",omitempty"`
-	Root         string   `json:",omitempty"`
-	Module       Module   `json:",omitempty"`
-	Match        []string `json:",omitempty"`
-	GnoFiles     []string `json:",omitempty"`
-	Imports      []string `json:",omitempty"`
-	Deps         []string `json:",omitempty"`
-	TestGnoFiles []string `json:",omitempty"`
-	TestImports  []string `json:",omitempty"`
+	Dir              string   `json:",omitempty"`
+	ImportPath       string   `json:",omitempty"`
+	Name             string   `json:",omitempty"`
+	Root             string   `json:",omitempty"`
+	Module           Module   `json:",omitempty"`
+	Match            []string `json:",omitempty"`
+	GnoFiles         []string `json:",omitempty"`
+	Imports          []string `json:",omitempty"`
+	Deps             []string `json:",omitempty"`
+	TestGnoFiles     []string `json:",omitempty"`
+	TestImports      []string `json:",omitempty"`
+	FiletestGnoFiles []string `json:",omitempty"`
+	FiletestImports  []string `json:",omitempty"`
 }
 
 type Module struct {
@@ -424,7 +429,7 @@ func findModDir(dir string) (string, error) {
 
 	if _, err := os.Stat(potentialMod); os.IsNotExist(err) {
 		parent, file := filepath.Split(dir)
-		if file == "" {
+		if file == "" || (parent == "" && file == ".") {
 			return "", os.ErrNotExist
 		}
 		return findModDir(parent)

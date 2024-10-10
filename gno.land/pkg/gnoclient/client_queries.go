@@ -90,7 +90,7 @@ func (c *Client) Render(pkgPath string, args string) (string, *ctypes.ResultABCI
 	}
 
 	path := "vm/qrender"
-	data := []byte(fmt.Sprintf("%s\n%s", pkgPath, args))
+	data := []byte(fmt.Sprintf("%s:%s", pkgPath, args))
 
 	qres, err := c.RPCClient.ABCIQuery(path, data)
 	if err != nil {
@@ -113,7 +113,7 @@ func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.Resul
 	}
 
 	path := "vm/qeval"
-	data := []byte(fmt.Sprintf("%s\n%s", pkgPath, expression))
+	data := []byte(fmt.Sprintf("%s.%s", pkgPath, expression))
 
 	qres, err := c.RPCClient.ABCIQuery(path, data)
 	if err != nil {
