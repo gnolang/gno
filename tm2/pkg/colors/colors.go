@@ -173,3 +173,15 @@ func ColoredBytes(data []byte, textColor, bytesColor func(...interface{}) string
 func DefaultColoredBytes(data []byte) string {
 	return ColoredBytes(data, Blue, Green)
 }
+
+func ColoredBytesOnlyAscii(data []byte, textColor func(...interface{}) string) string {
+	s := ""
+	for _, b := range data {
+		if 0x21 <= b && b < 0x7F {
+			s += textColor(string(b))
+		} else {
+			s += string(b)
+		}
+	}
+	return s
+}
