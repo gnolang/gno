@@ -142,7 +142,8 @@ func (z *Uint) fromDecimal(bs string) error {
 	for i, mult := range multipliers {
 		if remaining <= 0 {
 			return nil // Done
-		} else if remaining > 19 {
+		}
+		if remaining > 19 {
 			num, err = parseUint(bs[remaining-19:remaining], 10, 64)
 		} else {
 			// Final round
