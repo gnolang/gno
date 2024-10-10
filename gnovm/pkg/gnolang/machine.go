@@ -825,6 +825,8 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	if debug {
 		m.Printf("Machine.Eval(%v)\n", x)
 	}
+	fmt.Println(x)
+
 	// X must not have been preprocessed.
 	if x.GetAttribute(ATTR_PREPROCESSED) != nil {
 		panic(fmt.Sprintf(
@@ -854,6 +856,12 @@ func (m *Machine) Eval(x Expr) []TypedValue {
 	m.PushOp(OpEval)
 	m.Run()
 	res := m.ReapValues(start)
+	for _, r := range res {
+		fmt.Println(r.T.Kind())
+		fmt.Println(r.T.Elem())
+		fmt.Println(r.V.String())
+	}
+
 	return res
 }
 

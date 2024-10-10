@@ -428,9 +428,6 @@ func (m *Machine) doOpExec(op Op) {
 	}
 
 EXEC_SWITCH:
-	if debug {
-		debug.Printf("EXEC: %v\n", s)
-	}
 	switch cs := s.(type) {
 	case *AssignStmt:
 		switch cs.Op {
@@ -568,6 +565,7 @@ EXEC_SWITCH:
 		// Evaluate results in order, if any.
 		for i := len(cs.Results) - 1; 0 <= i; i-- {
 			res := cs.Results[i]
+			//fmt.Println(res)
 			m.PushExpr(res)
 			m.PushOp(OpEval)
 		}

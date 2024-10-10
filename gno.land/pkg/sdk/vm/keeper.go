@@ -494,7 +494,10 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			}
 		}
 	}()
+
 	rtvs := m.Eval(xn)
+
+	res = "RES:\n"
 	for i, rtv := range rtvs {
 		res = res + rtv.String()
 		if i < len(rtvs)-1 {

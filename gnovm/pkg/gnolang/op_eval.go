@@ -249,6 +249,7 @@ func (m *Machine) doOpEval() {
 			m.PushExpr(args[i])
 			m.PushOp(OpEval)
 		}
+
 		// evaluate func
 		m.PushExpr(x.Func)
 		m.PushOp(OpEval)
@@ -351,6 +352,7 @@ func (m *Machine) doOpEval() {
 	case *InterfaceTypeExpr:
 		m.PushOp(OpInterfaceType)
 		// evaluate methods
+
 		for i := len(x.Methods) - 1; 0 <= i; i-- {
 			m.PushExpr(&x.Methods[i])
 			m.PushOp(OpEval)
