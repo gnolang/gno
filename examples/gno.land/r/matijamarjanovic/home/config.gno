@@ -6,8 +6,8 @@ import (
 )
 
 var (
-	main   std.Address // tony's main address
-	backup std.Address // backup address
+	mainAddr   std.Address // tony's main address
+	backupAddr std.Address // backup address
 )
 
 func init() {
