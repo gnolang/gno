@@ -27,8 +27,8 @@ func Backup() std.Address {
 	return backup
 }
 
-func SetAddress(a std.Address) error {
-	if !a.IsValid() {
+func SetAddress(newAddress std.Address) error {
+	if !newAddress.IsValid() {
 		return errors.New(errorInvalidAddr)
 	}
 
@@ -36,12 +36,12 @@ func SetAddress(a std.Address) error {
 		return err
 	}
 
-	main = a
+	main = newAddress
 	return nil
 }
 
-func SetBackup(a std.Address) error {
-	if !a.IsValid() {
+func SetBackup(newAddress std.Address) error {
+	if !newAddress.IsValid() {
 		return errors.New(errorInvalidAddr)
 	}
 
@@ -49,7 +49,7 @@ func SetBackup(a std.Address) error {
 		return err
 	}
 
-	backup = a
+	backup = newAddress
 	return nil
 }
 
