@@ -346,12 +346,19 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 	fmt.Println("---GetFirstObject---, tv: ", tv, reflect.TypeOf(tv.V))
 	switch cv := tv.V.(type) {
 	case PointerValue:
+		println("---pointer value, get base")
+		if v, ok := cv.TV.V.(Object); ok {
+			fmt.Println("---v: ", v)
+			rc := v.GetRefCount()
+			fmt.Println("---rc: ", rc)
+		}
 		return cv.GetBase(store)
 	case *ArrayValue:
 		return cv
 	case *SliceValue:
 		return cv.GetBase(store)
 	case *StructValue:
+		println("---struct value")
 		return cv
 	case *FuncValue:
 		return cv.GetClosure(store)

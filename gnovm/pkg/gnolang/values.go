@@ -290,8 +290,10 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 	// General case
 	if rlm != nil && pv.Base != nil {
 		oo1 := pv.TV.GetFirstObject(store)
+		fmt.Println("---oo1: ", oo1)
 		pv.TV.Assign(alloc, tv2, cu)
 		oo2 := pv.TV.GetFirstObject(store)
+		fmt.Println("---oo2: ", oo2)
 		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)
@@ -508,6 +510,7 @@ func (sv *StructValue) GetSubrefPointerTo(store Store, st *StructType, path Valu
 }
 
 func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
+	fmt.Println("---StructValue copy, sv: ", sv)
 	/* TODO consider second refcount field
 	if sv.GetRefCount() == 0 {
 		return sv
@@ -523,7 +526,10 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 		fields[i] = field.Copy(alloc)
 	}
 
-	return alloc.NewStruct(fields)
+	nsv := alloc.NewStruct(fields)
+	nsv.ObjectInfo = sv.ObjectInfo.Copy()
+	return nsv
+	//return alloc.NewStruct(fields)
 }
 
 // ----------------------------------------
@@ -1695,7 +1701,7 @@ func (tv *TypedValue) Assign(alloc *Allocator, tv2 TypedValue, cu bool) {
 			panic("should not happen")
 		}
 	}
-	*tv = tv2.Copy(alloc)
+	*tv = tv2.Copy(alloc) // TODO: why copy?
 	if cu && isUntyped(tv.T) {
 		ConvertUntypedTo(tv, defaultTypeOf(tv.T))
 	}

@@ -753,6 +753,7 @@ func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 // Returns a throwaway realm package is not a realm,
 // such as stdlibs or /p/ packages.
 func (m *Machine) saveNewPackageValuesAndTypes() (throwaway *Realm) {
+	fmt.Println("---saveNewPackageValuesAndTypes")
 	// save package value and dependencies.
 	pv := m.Package
 	if pv.IsRealm() {

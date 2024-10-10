@@ -135,14 +135,27 @@ func (rlm *Realm) String() string {
 // associated object.
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	fmt.Println("---DidUpdate---")
-	fmt.Println("---xo: ", xo, reflect.TypeOf(xo))
-	fmt.Println("---co: ", co, reflect.TypeOf(co))
-	fmt.Println("---po: ", po, reflect.TypeOf(po))
+	fmt.Printf("---xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
+	fmt.Printf("---co: %v, type of co: %v\n", co, reflect.TypeOf(co))
+	fmt.Printf("---po: %v, type of po: %v\n", po, reflect.TypeOf(po))
+
+	fmt.Printf("xo: %p\n", xo)
+	if co != nil && co.GetIsCrossRealm() {
+		panic("!!!cross realm")
+	}
+
+	if co != nil {
+		fmt.Println("--co isReal(attached): ", co.GetIsReal())
+		fmt.Println("---co objectID: ", co.GetObjectID())
+	}
 
 	if co != nil {
 		fmt.Println("co.GetObjectInfo:", co.GetObjectInfo())
+		fmt.Printf("co: %p\n", co)
 	}
 
+	// XXX, these can be improved by attach type info with co.
+	// the following does not work
 	if sv, ok := po.(*StructValue); ok {
 		fmt.Println("---sv: ", sv)
 		fmt.Println("---sv.ID: ", sv.ObjectInfo.ID)
@@ -159,6 +172,8 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 					if dt, ok := tv.T.(*DeclaredType); ok {
 						fmt.Println("---dt: ", dt, dt.PkgPath)
 						if IsRealmPath(dt.PkgPath) && dt.PkgPath != rlm.Path {
+							fmt.Println("---set co to be cross realm object, co: ", co)
+							fmt.Printf("---%p\n", co)
 							co.SetIsCrossRealm(true)
 							//panic("!!!")
 						}
@@ -183,6 +198,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 			panic("cannot attach to a deleted object")
 		}
 	}
+	fmt.Println("---po.GetIsReal: ", po.GetIsReal())
 	if po == nil || !po.GetIsReal() { // XXX, make sure po is attached
 		return // do nothing.
 	}
@@ -209,8 +225,10 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		fmt.Println("---co.GetRefCount: ", co.GetRefCount())
 		// XXX, inc ref count everytime assignment happens
 		co.IncRefCount()
-		if co.GetRefCount() > 1 { // XXX, associated more the once? how this happen?
+		fmt.Println("---after inc, co.GetRefCount: ", co.GetRefCount())
+		if co.GetRefCount() > 1 { // XXX, associated more the once? how this happens?
 			if co.GetIsEscaped() {
+				println("---already escaped, should check cross realm?")
 				// already escaped
 			} else {
 				rlm.MarkNewEscapedCheckCrossRealm(co) // XXX, track which realm escape from
@@ -228,6 +246,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 
 	if xo != nil {
 		xo.DecRefCount()
+		fmt.Println("---xo refCount after dec: ", xo.GetRefCount())
 		if xo.GetRefCount() == 0 {
 			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
@@ -243,8 +262,17 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(oo Object) {
 	fmt.Println("---MarkNewEscapedCheckCrossRealm---, oo: ", oo)
 	oi := oo.GetObjectInfo()
 	fmt.Println("----oi: ", oi)
+	fmt.Println("----oi: ", oi)
 	fmt.Println("----oi.lastNewRealEscapedRealm: ", oi.lastNewRealEscapedRealm)
 	fmt.Println("----rlm.ID: ", rlm.ID)
+	fmt.Println("oi.GetIsReal: ", oi.GetIsReal())
+	if oi.GetIsReal() {
+		lastRealmID := oi.GetObjectID().PkgID
+		fmt.Println("lastRealmID: ", lastRealmID)
+		if lastRealmID != rlm.ID {
+			panic("should not happen, cross realm!!!")
+		}
+	}
 
 	if oi.lastNewRealEscapedRealm == rlm.ID {
 		// already processed for this realm,
@@ -262,6 +290,7 @@ func (rlm *Realm) MarkNewEscapedCheckCrossRealm(oo Object) {
 	} else {
 		fmt.Println("---oo is real, oi:", oi.ID)
 		// TODO: set last escape realm?
+		println("---set last escape realm?")
 	}
 	rlm.MarkNewEscaped(oo)
 }
@@ -288,7 +317,7 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 		}
 	}
 	if oo.GetIsNewReal() {
-		println("---markNewReal---, oo: ", oo)
+		println("---isNewReal---, oo: ", oo)
 		return // already marked.
 	}
 	oo.SetIsNewReal(true)
@@ -296,7 +325,9 @@ func (rlm *Realm) MarkNewReal(oo Object) {
 	if rlm.newCreated == nil {
 		rlm.newCreated = make([]Object, 0, 256)
 	}
+	fmt.Println("---append oo to newCreated object: ", oo)
 	rlm.newCreated = append(rlm.newCreated, oo)
+	fmt.Println("---len of new created: ", len(rlm.newCreated))
 }
 
 // mark dirty == updated
@@ -444,7 +475,19 @@ func (rlm *Realm) processNewCreatedMarks(store Store) {
 	//for _, oo := range rlm.newCreated {
 	for i := 0; i < len(rlm.newCreated); i++ {
 		oo := rlm.newCreated[i]
-		fmt.Println("---oo: ", oo)
+		fmt.Printf("---oo[%d] is %v:\n", i, oo)
+		// TODO: here check embedded object cross
+		more := getChildObjects2(store, oo)
+		fmt.Println("---children of oo: ", more)
+		for _, c := range more {
+			fmt.Printf("---%p\n", c)
+			if c.GetIsCrossRealm() {
+				panic("---cross realm")
+			} else {
+				println("---not cross realm")
+			}
+		}
+		fmt.Println("---oo.GetRefCount(): ", oo.GetRefCount())
 		if oo.GetIsCrossRealm() {
 			fmt.Println("---should not attach value with type defined in other realm")
 			//panic("---!!!")
@@ -502,7 +545,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 	more := getChildObjects2(store, oo)
 	fmt.Println("---more: ", more)
 	for _, child := range more {
-		fmt.Println("---child: ", child)
+		fmt.Printf("---child: %v, type of child: %v \n", child, reflect.TypeOf(child))
 		fmt.Printf("---child addr: %p\n", child)
 		if _, ok := child.(*PackageValue); ok {
 			if debug {
@@ -561,6 +604,7 @@ func (rlm *Realm) incRefCreatedDescendants(store Store, oo Object) {
 func (rlm *Realm) processNewDeletedMarks(store Store) {
 	fmt.Println("---processNewDeletedMarks---")
 	for _, oo := range rlm.newDeleted {
+		fmt.Println("---oo: ", oo, oo.GetRefCount())
 		if debug {
 			if oo.GetObjectID().IsZero() {
 				panic("new deleted mark should have an object ID")
@@ -905,9 +949,12 @@ func (rlm *Realm) clearMarks() {
 // Value is either Object or RefValue.
 // Shallow; doesn't recurse into objects.
 func getSelfOrChildObjects(val Value, more []Value) []Value {
+	fmt.Println("---getSelfOrChildObjects, val: ", val)
 	if _, ok := val.(RefValue); ok {
+		println("---ref value")
 		return append(more, val)
 	} else if _, ok := val.(Object); ok {
+		println("---not ref value")
 		return append(more, val)
 	} else {
 		return getChildObjects(val, more)
@@ -917,6 +964,7 @@ func getSelfOrChildObjects(val Value, more []Value) []Value {
 // Gets child objects.
 // Shallow; doesn't recurse into objects.
 func getChildObjects(val Value, more []Value) []Value {
+	fmt.Println("---getChildObjects, val: ", val, reflect.TypeOf(val))
 	switch cv := val.(type) {
 	case nil:
 		return more
@@ -943,7 +991,10 @@ func getChildObjects(val Value, more []Value) []Value {
 		more = getSelfOrChildObjects(cv.Base, more)
 		return more
 	case *StructValue:
+		println("---struct value")
 		for _, ctv := range cv.Fields {
+			// TODO: we have type infos here, so check check cross realm logic
+			fmt.Println("---ctv: ", ctv)
 			more = getSelfOrChildObjects(ctv.V, more)
 		}
 		return more
@@ -993,13 +1044,17 @@ func getChildObjects(val Value, more []Value) []Value {
 
 // like getChildObjects() but loads RefValues into objects.
 func getChildObjects2(store Store, val Value) []Object {
+	fmt.Println("---getChildObjects2, val: ", val)
 	chos := getChildObjects(val, nil)
+	fmt.Println("---chos: ", chos)
 	objs := make([]Object, 0, len(chos))
 	for _, child := range chos {
 		if ref, ok := child.(RefValue); ok {
+			println("---ref value")
 			oo := store.GetObject(ref.ObjectID)
 			objs = append(objs, oo)
 		} else if oo, ok := child.(Object); ok {
+			println("---not ref value")
 			objs = append(objs, oo)
 		}
 	}
@@ -1530,7 +1585,7 @@ func (rlm *Realm) nextObjectID() ObjectID {
 // Object gets its id set (panics if already set), and becomes
 // marked as new and real.
 func (rlm *Realm) assignNewObjectID(oo Object) ObjectID {
-	fmt.Printf("---assignNewObjectID, rlm: %v, oo: %v\n", rlm, oo)
+	fmt.Printf("---assignNewObjectID, rlm: %v, oo: %v, oo: %p\n", rlm, oo, oo)
 	oid := oo.GetObjectID()
 	fmt.Println("---oid: ", oid)
 	if !oid.IsZero() {

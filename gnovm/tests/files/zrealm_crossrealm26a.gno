@@ -19,6 +19,6 @@ func init() {
 
 func main() {
 	crossrealm.AttachContainer() // this attaches container first
-	crossrealm.SetContainer(f)
+	crossrealm.SetContainer(&f)
 	print(".")
 }

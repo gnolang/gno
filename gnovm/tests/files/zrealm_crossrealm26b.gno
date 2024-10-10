@@ -11,14 +11,11 @@ type fooer struct{ name string }
 
 func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
-var f fooer
-
-func init() {
-	f = fooer{name: "local_fooer"}
-}
+var f fooer // this already attached
 
 func main() {
-	crossrealm.AttachContainer() // this attaches container first
-	crossrealm.SetContainer(f)
+	crossrealm.AttachContainer()   // this attaches container first
+	f = fooer{name: "local_fooer"} // update to an already attached object
+	crossrealm.SetContainer(&f)
 	print(".")
 }

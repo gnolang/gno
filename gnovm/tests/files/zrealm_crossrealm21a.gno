@@ -7,14 +7,15 @@ import (
 
 // associate to a containing object
 type Container struct {
-	b crossrealm.Bar
+	name string
+	b    crossrealm.Bar
 }
 
 var c Container
 
 func init() {
-	b0 := crossrealm.Bar{A: 1}
-	c = Container{b: b0}
+	b0 := crossrealm.Bar{A: 1}              // this is valid association
+	c = Container{name: "container", b: b0} // XXX, check recursively while finalize here
 }
 
 func main() {

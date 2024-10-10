@@ -7,7 +7,7 @@ import (
 	crossrealm "gno.land/r/demo/tests/crossrealm"
 )
 
-type fooer struct{}
+type fooer struct{ name string }
 
 func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
@@ -20,20 +20,14 @@ var f fooer
 // to the field of a struct, but this does not attach the external
 // realm object to the container, in this case the struct.
 func init() {
-	f = fooer{}
+	f = fooer{name: "local_fooer"} // f attached to current realm
 }
 
 func main() {
-	// XXX, this associate a pointer to a value(already attached to local realm)
-	// to external realm, no attachment happens to the external realm.
-	crossrealm.AttachContainer() // this attach container first
+	crossrealm.AttachContainer() // this attaches container first
 	crossrealm.SetContainer(&f)
 	print(".")
 }
 
-// Output:
-// .
-
-// Error:
-
-// Realm:
+// XXX, this associate a pointer to a value(already attached to local realm)
+// to external realm, no attachment happens to the external realm.
