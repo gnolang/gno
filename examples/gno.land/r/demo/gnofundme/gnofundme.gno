@@ -27,7 +27,7 @@ func init() {
 	banker = std.GetBanker(std.BankerTypeRealmIssue)
 }
 
-func NewCampaign(ctype int, title string, description string, goal int64, beginT int64, deadlineT int64, beneficiary std.Address) string {
+func NewCampaign(ctype int, title string, description string, goal uint64, beginT int64, deadlineT int64, beneficiary std.Address) string {
 	if ctype < 0 || ctype > 5 {
 		panic("invalid campaign type")
 	}
@@ -69,7 +69,7 @@ func NewCampaign(ctype int, title string, description string, goal int64, beginT
 	// the key will be the size of the tree
 	key := campaigns.Size()
 	campaigns.Set(strconv.Itoa(key), campaign)
-	std.Emit("Campaign Creation", "campaign_created", gfm.CampaignToJSONString(campaign))
+	std.Emit("Campaign Creation", "campaign_created", campaign.CampaignToJSONString())
 	return "Campaign N°" + strconv.Itoa(key) + " created successfully"
 }
 
@@ -104,7 +104,7 @@ func AddContributor(campaignId string, display bool) string {
 	campaignsTotal[campaignId] += amount
 
 	// add the contributor to the campaign
-	contributor := campaign.AddContributor(user, time.Unix(time.Now().Unix(), 0), amount, display)
+	contributor := campaign.AddContributor(user, time.Unix(time.Now().Unix(), 0), uint64(amount), display)
 	std.Emit("Add Contributor", "contributor_added", contributor.String())
 	return "contributor added successfully"
 }
