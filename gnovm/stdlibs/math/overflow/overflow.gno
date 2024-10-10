@@ -32,6 +32,13 @@ import "math"
 
 //go:generate ./overflow_template.sh
 
+const (
+	PanicAddOverflow = "addition overflow"
+	PanicSubOverflow = "subtraction overflow"
+	PanicMulOverflow = "multiplication overflow"
+	PanicDivFailure  = "division failure"
+)
+
 var is64Bit = _is64Bit()
 
 func _is64Bit() bool {
@@ -52,7 +59,7 @@ So, FEEL FREE to carefully review the code visually.
 
 // Abs get absolute value of an int, returning the result and a ok result indicating whether the operation is safe.
 func Abs(x int) (int, bool) {
-	if _is64Bit() {
+	if is64Bit {
 		r64, ok := Abs64(int64(x))
 		return int(r64), ok
 	}
@@ -62,7 +69,7 @@ func Abs(x int) (int, bool) {
 
 // Add sums two ints, returning the result and a boolean status.
 func Add(a, b int) (int, bool) {
-	if _is64Bit() {
+	if is64Bit {
 		r64, ok := Add64(int64(a), int64(b))
 		return int(r64), ok
 	}
@@ -72,7 +79,7 @@ func Add(a, b int) (int, bool) {
 
 // UAdd sums two uints, returning the result and a ok result indicating whether the operation is safe.
 func UAdd(a, b uint) (uint, bool) {
-	if _is64Bit() {
+	if is64Bit {
 		r64, ok := UAdd64(uint64(a), uint64(b))
 		return uint(r64), ok
 	}
@@ -82,7 +89,7 @@ func UAdd(a, b uint) (uint, bool) {
 
 // Sub returns the difference of two ints and a boolean status.
 func Sub(a, b int) (int, bool) {
-	if _is64Bit() {
+	if is64Bit {
 		r64, ok := Sub64(int64(a), int64(b))
 		return int(r64), ok
 	}
@@ -92,7 +99,7 @@ func Sub(a, b int) (int, bool) {
 
 // USub returns the difference of two uints and a ok result indicating whether the operation is safe.
 func USub(a, b uint) (uint, bool) {
-	if _is64Bit() {
+	if is64Bit {
 		r64, ok := USub64(uint64(a), uint64(b))
 		return uint(r64), ok
 	}
@@ -102,7 +109,7 @@ func USub(a, b uint) (uint, bool) {
 
 // Mul returns the product of two ints and a boolean status.
 func Mul(a, b int) (int, bool) {
-	if _is64Bit() {
+	if is64Bit {
 		r64, ok := Mul64(int64(a), int64(b))
 		return int(r64), ok
 	}
@@ -112,7 +119,7 @@ func Mul(a, b int) (int, bool) {
 
 // UMul returns the product of two uints and a ok result indicating whether the operation is safe.
 func UMul(a, b uint) (uint, bool) {
-	if _is64Bit() {
+	if is64Bit {
 		r64, ok := UMul64(uint64(a), uint64(b))
 		return uint(r64), ok
 	}
@@ -122,7 +129,7 @@ func UMul(a, b uint) (uint, bool) {
 
 // Div returns the quotient of two ints and a boolean status
 func Div(a, b int) (int, bool) {
-	if _is64Bit() {
+	if is64Bit {
 		r64, ok := Div64(int64(a), int64(b))
 		return int(r64), ok
 	}
@@ -132,7 +139,7 @@ func Div(a, b int) (int, bool) {
 
 // UDiv returns the quotient of two uints and a ok result indicating whether the operation is safe.
 func UDiv(a, b uint) (uint, bool) {
-	if _is64Bit() {
+	if is64Bit {
 		r64, ok := UDiv64(uint64(a), uint64(b))
 		return uint(r64), ok
 	}
@@ -142,7 +149,7 @@ func UDiv(a, b uint) (uint, bool) {
 
 // Quo returns the quotient, remainder and status of two ints
 func Quo(a, b int) (int, int, bool) {
-	if _is64Bit() {
+	if is64Bit {
 		q64, r64, ok := Quo64(int64(a), int64(b))
 		return int(q64), int(r64), ok
 	}
@@ -152,7 +159,7 @@ func Quo(a, b int) (int, int, bool) {
 
 // UQuo returns the quotient, remainder and ok result indicating whether the operation is safe.
 func UQuo(a, b uint) (uint, uint, bool) {
-	if _is64Bit() {
+	if is64Bit {
 		uq64, ur64, ok := UQuo64(uint64(a), uint64(b))
 		return uint(uq64), uint(ur64), ok
 	}
@@ -175,7 +182,7 @@ func Absp(x int) int {
 func Addp(a, b int) int {
 	r, ok := Add(a, b)
 	if !ok {
-		panic("addition overflow")
+		panic(PanicAddOverflow)
 	}
 	return r
 }
@@ -184,7 +191,7 @@ func Addp(a, b int) int {
 func UAddp(a, b uint) uint {
 	r, ok := UAdd(a, b)
 	if !ok {
-		panic("addition overflow")
+		panic(PanicAddOverflow)
 	}
 	return r
 }
@@ -193,7 +200,7 @@ func UAddp(a, b uint) uint {
 func Subp(a, b int) int {
 	r, ok := Sub(a, b)
 	if !ok {
-		panic("subtraction overflow")
+		panic(PanicSubOverflow)
 	}
 	return r
 }
@@ -202,7 +209,7 @@ func Subp(a, b int) int {
 func USubp(a, b uint) uint {
 	r, ok := USub(a, b)
 	if !ok {
-		panic("subtraction overflow")
+		panic(PanicSubOverflow)
 	}
 	return r
 }
@@ -211,7 +218,7 @@ func USubp(a, b uint) uint {
 func Mulp(a, b int) int {
 	r, ok := Mul(a, b)
 	if !ok {
-		panic("multiplication overflow")
+		panic(PanicMulOverflow)
 	}
 	return r
 }
@@ -220,7 +227,7 @@ func Mulp(a, b int) int {
 func UMulp(a, b uint) uint {
 	r, ok := UMul(a, b)
 	if !ok {
-		panic("multiplication overflow")
+		panic(PanicMulOverflow)
 	}
 	return r
 }
@@ -229,7 +236,7 @@ func UMulp(a, b uint) uint {
 func Divp(a, b int) int {
 	r, ok := Div(a, b)
 	if !ok {
-		panic("division failure")
+		panic(PanicDivFailure)
 	}
 	return r
 }
@@ -238,7 +245,7 @@ func Divp(a, b int) int {
 func UDivp(a, b uint) uint {
 	r, ok := UDiv(a, b)
 	if !ok {
-		panic("division failure")
+		panic(PanicDivFailure)
 	}
 	return r
 }
@@ -273,7 +280,7 @@ func Add8(a, b int8) (int8, bool) {
 func Add8p(a, b int8) int8 {
 	r, ok := Add8(a, b)
 	if !ok {
-		panic("addition overflow")
+		panic(PanicAddOverflow)
 	}
 	return r
 }
@@ -292,7 +299,7 @@ func UAdd8(a, b uint8) (uint8, bool) {
 func UAdd8p(a, b uint8) uint8 {
 	r, ok := UAdd8(a, b)
 	if !ok {
-		panic("addition overflow")
+		panic(PanicAddOverflow)
 	}
 	return r
 }
@@ -311,7 +318,7 @@ func Sub8(a, b int8) (int8, bool) {
 func Sub8p(a, b int8) int8 {
 	r, ok := Sub8(a, b)
 	if !ok {
-		panic("subtraction overflow")
+		panic(PanicSubOverflow)
 	}
 	return r
 }
@@ -330,7 +337,7 @@ func USub8(a, b uint8) (uint8, bool) {
 func USub8p(a, b uint8) uint8 {
 	r, ok := USub8(a, b)
 	if !ok {
-		panic("subtraction overflow")
+		panic(PanicSubOverflow)
 	}
 	return r
 }
@@ -354,7 +361,7 @@ func Mul8(a, b int8) (int8, bool) {
 func Mul8p(a, b int8) int8 {
 	r, ok := Mul8(a, b)
 	if !ok {
-		panic("multiplication overflow")
+		panic(PanicMulOverflow)
 	}
 	return r
 }
@@ -376,7 +383,7 @@ func UMul8(a, b uint8) (uint8, bool) {
 func UMul8p(a, b uint8) uint8 {
 	r, ok := UMul8(a, b)
 	if !ok {
-		panic("multiplication overflow")
+		panic(PanicMulOverflow)
 	}
 	return r
 }
@@ -392,7 +399,7 @@ func Div8(a, b int8) (int8, bool) {
 func Div8p(a, b int8) int8 {
 	r, ok := Div8(a, b)
 	if !ok {
-		panic("division failure")
+		panic(PanicDivFailure)
 	}
 	return r
 }
@@ -408,7 +415,7 @@ func UDiv8(a, b uint8) (uint8, bool) {
 func UDiv8p(a, b uint8) uint8 {
 	r, ok := UDiv8(a, b)
 	if !ok {
-		panic("division failure")
+		panic(PanicDivFailure)
 	}
 	return r
 }
@@ -461,7 +468,7 @@ func Add16(a, b int16) (int16, bool) {
 func Add16p(a, b int16) int16 {
 	r, ok := Add16(a, b)
 	if !ok {
-		panic("addition overflow")
+		panic(PanicAddOverflow)
 	}
 	return r
 }
@@ -480,7 +487,7 @@ func UAdd16(a, b uint16) (uint16, bool) {
 func UAdd16p(a, b uint16) uint16 {
 	r, ok := UAdd16(a, b)
 	if !ok {
-		panic("addition overflow")
+		panic(PanicAddOverflow)
 	}
 	return r
 }
@@ -499,7 +506,7 @@ func Sub16(a, b int16) (int16, bool) {
 func Sub16p(a, b int16) int16 {
 	r, ok := Sub16(a, b)
 	if !ok {
-		panic("subtraction overflow")
+		panic(PanicSubOverflow)
 	}
 	return r
 }
@@ -518,7 +525,7 @@ func USub16(a, b uint16) (uint16, bool) {
 func USub16p(a, b uint16) uint16 {
 	r, ok := USub16(a, b)
 	if !ok {
-		panic("subtraction overflow")
+		panic(PanicSubOverflow)
 	}
 	return r
 }
@@ -542,7 +549,7 @@ func Mul16(a, b int16) (int16, bool) {
 func Mul16p(a, b int16) int16 {
 	r, ok := Mul16(a, b)
 	if !ok {
-		panic("multiplication overflow")
+		panic(PanicMulOverflow)
 	}
 	return r
 }
@@ -564,7 +571,7 @@ func UMul16(a, b uint16) (uint16, bool) {
 func UMul16p(a, b uint16) uint16 {
 	r, ok := UMul16(a, b)
 	if !ok {
-		panic("multiplication overflow")
+		panic(PanicMulOverflow)
 	}
 	return r
 }
@@ -580,7 +587,7 @@ func Div16(a, b int16) (int16, bool) {
 func Div16p(a, b int16) int16 {
 	r, ok := Div16(a, b)
 	if !ok {
-		panic("division failure")
+		panic(PanicDivFailure)
 	}
 	return r
 }
@@ -596,7 +603,7 @@ func UDiv16(a, b uint16) (uint16, bool) {
 func UDiv16p(a, b uint16) uint16 {
 	r, ok := UDiv16(a, b)
 	if !ok {
-		panic("division failure")
+		panic(PanicDivFailure)
 	}
 	return r
 }
@@ -649,7 +656,7 @@ func Add32(a, b int32) (int32, bool) {
 func Add32p(a, b int32) int32 {
 	r, ok := Add32(a, b)
 	if !ok {
-		panic("addition overflow")
+		panic(PanicAddOverflow)
 	}
 	return r
 }
@@ -668,7 +675,7 @@ func UAdd32(a, b uint32) (uint32, bool) {
 func UAdd32p(a, b uint32) uint32 {
 	r, ok := UAdd32(a, b)
 	if !ok {
-		panic("addition overflow")
+		panic(PanicAddOverflow)
 	}
 	return r
 }
@@ -687,7 +694,7 @@ func Sub32(a, b int32) (int32, bool) {
 func Sub32p(a, b int32) int32 {
 	r, ok := Sub32(a, b)
 	if !ok {
-		panic("subtraction overflow")
+		panic(PanicSubOverflow)
 	}
 	return r
 }
@@ -706,7 +713,7 @@ func USub32(a, b uint32) (uint32, bool) {
 func USub32p(a, b uint32) uint32 {
 	r, ok := USub32(a, b)
 	if !ok {
-		panic("subtraction overflow")
+		panic(PanicSubOverflow)
 	}
 	return r
 }
@@ -730,7 +737,7 @@ func Mul32(a, b int32) (int32, bool) {
 func Mul32p(a, b int32) int32 {
 	r, ok := Mul32(a, b)
 	if !ok {
-		panic("multiplication overflow")
+		panic(PanicMulOverflow)
 	}
 	return r
 }
@@ -752,7 +759,7 @@ func UMul32(a, b uint32) (uint32, bool) {
 func UMul32p(a, b uint32) uint32 {
 	r, ok := UMul32(a, b)
 	if !ok {
-		panic("multiplication overflow")
+		panic(PanicMulOverflow)
 	}
 	return r
 }
@@ -768,7 +775,7 @@ func Div32(a, b int32) (int32, bool) {
 func Div32p(a, b int32) int32 {
 	r, ok := Div32(a, b)
 	if !ok {
-		panic("division failure")
+		panic(PanicDivFailure)
 	}
 	return r
 }
@@ -784,7 +791,7 @@ func UDiv32(a, b uint32) (uint32, bool) {
 func UDiv32p(a, b uint32) uint32 {
 	r, ok := UDiv32(a, b)
 	if !ok {
-		panic("division failure")
+		panic(PanicDivFailure)
 	}
 	return r
 }
@@ -837,7 +844,7 @@ func Add64(a, b int64) (int64, bool) {
 func Add64p(a, b int64) int64 {
 	r, ok := Add64(a, b)
 	if !ok {
-		panic("addition overflow")
+		panic(PanicAddOverflow)
 	}
 	return r
 }
@@ -856,7 +863,7 @@ func UAdd64(a, b uint64) (uint64, bool) {
 func UAdd64p(a, b uint64) uint64 {
 	r, ok := UAdd64(a, b)
 	if !ok {
-		panic("addition overflow")
+		panic(PanicAddOverflow)
 	}
 	return r
 }
@@ -875,7 +882,7 @@ func Sub64(a, b int64) (int64, bool) {
 func Sub64p(a, b int64) int64 {
 	r, ok := Sub64(a, b)
 	if !ok {
-		panic("subtraction overflow")
+		panic(PanicSubOverflow)
 	}
 	return r
 }
@@ -894,7 +901,7 @@ func USub64(a, b uint64) (uint64, bool) {
 func USub64p(a, b uint64) uint64 {
 	r, ok := USub64(a, b)
 	if !ok {
-		panic("subtraction overflow")
+		panic(PanicSubOverflow)
 	}
 	return r
 }
@@ -918,7 +925,7 @@ func Mul64(a, b int64) (int64, bool) {
 func Mul64p(a, b int64) int64 {
 	r, ok := Mul64(a, b)
 	if !ok {
-		panic("multiplication overflow")
+		panic(PanicMulOverflow)
 	}
 	return r
 }
@@ -940,7 +947,7 @@ func UMul64(a, b uint64) (uint64, bool) {
 func UMul64p(a, b uint64) uint64 {
 	r, ok := UMul64(a, b)
 	if !ok {
-		panic("multiplication overflow")
+		panic(PanicMulOverflow)
 	}
 	return r
 }
@@ -956,7 +963,7 @@ func Div64(a, b int64) (int64, bool) {
 func Div64p(a, b int64) int64 {
 	r, ok := Div64(a, b)
 	if !ok {
-		panic("division failure")
+		panic(PanicDivFailure)
 	}
 	return r
 }
@@ -972,7 +979,7 @@ func UDiv64(a, b uint64) (uint64, bool) {
 func UDiv64p(a, b uint64) uint64 {
 	r, ok := UDiv64(a, b)
 	if !ok {
-		panic("division failure")
+		panic(PanicDivFailure)
 	}
 	return r
 }
