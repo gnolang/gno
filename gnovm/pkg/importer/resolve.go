@@ -149,6 +149,7 @@ type PackageSummary struct {
 	Match   []string
 }
 
+// FIXME: support files
 func Load(paths ...string) ([]*Package, error) {
 	pkgs, err := DiscoverPackages(paths...)
 	if err != nil {

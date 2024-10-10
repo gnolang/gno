@@ -140,6 +140,11 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 		return fmt.Errorf("load pkgs: %w", err)
 	}
 
+	pkgsMap := map[string]*importer.Package{}
+	for _, pkg := range pkgs {
+		pkgsMap[pkg.ImportPath] = pkg
+	}
+
 	opts := newTranspileOptions(cfg, io)
 	var errlist scanner.ErrorList
 	for _, pkg := range pkgs {
@@ -153,19 +158,21 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 			return err
 		}
 		if st.IsDir() {
-			err = transpilePkg(pkg, opts)
+			err = transpilePkg(pkg, pkgsMap, opts)
 		} else {
+			panic("should ot try to transpile file yet")
+
 			if opts.cfg.verbose {
 				io.ErrPrintln(filepath.Clean(pkg.Dir))
 			}
 
-			err = transpileFile(pkg.Dir, opts)
+			err = transpileFile(pkg.Dir, pkgsMap, opts)
 		}
 		if err != nil {
 			var fileErrlist scanner.ErrorList
 			if !errors.As(err, &fileErrlist) {
 				// Not an scanner.ErrorList: return immediately.
-				return fmt.Errorf("%s: transpile: %w", pkg, err)
+				return fmt.Errorf("%s: transpile: %w", pkg.ImportPath, err)
 			}
 			errlist = append(errlist, fileErrlist...)
 		}
@@ -181,7 +188,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 				var fileErrlist scanner.ErrorList
 				if !errors.As(err, &fileErrlist) {
 					// Not an scanner.ErrorList: return immediately.
-					return fmt.Errorf("%s: build: %w", pkg, err)
+					return fmt.Errorf("%s: build: %w", pkg.ImportPath, err)
 				}
 				errlist = append(errlist, fileErrlist...)
 			}
@@ -200,7 +207,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 // transpilePkg transpiles all non-test files at the given location.
 // Additionally, it checks the gno.mod in said location, and skips it if it is
 // a draft module
-func transpilePkg(pkg *importer.Package, opts *transpileOptions) error {
+func transpilePkg(pkg *importer.Package, pkgs map[string]*importer.Package, opts *transpileOptions) error {
 	dirPath := pkg.Dir
 	if opts.isTranspiled(dirPath) {
 		return nil
@@ -227,7 +234,8 @@ func transpilePkg(pkg *importer.Package, opts *transpileOptions) error {
 		opts.io.ErrPrintln(filepath.Clean(dirPath))
 	}
 	for _, file := range pkg.GnoFiles {
-		if err := transpileFile(file, opts); err != nil {
+		fpath := filepath.Join(pkg.Dir, file)
+		if err := transpileFile(fpath, pkgs, opts); err != nil {
 			return fmt.Errorf("%s: %w", file, err)
 		}
 	}
@@ -235,7 +243,7 @@ func transpilePkg(pkg *importer.Package, opts *transpileOptions) error {
 	return nil
 }
 
-func transpileFile(srcPath string, opts *transpileOptions) error {
+func transpileFile(srcPath string, pkgs map[string]*importer.Package, opts *transpileOptions) error {
 	flags := opts.getFlags()
 
 	// parse .gno.
@@ -274,27 +282,18 @@ func transpileFile(srcPath string, opts *transpileOptions) error {
 	// transpile imported packages, if `SkipImports` sets to false
 	if !flags.skipImports &&
 		!strings.HasSuffix(srcPath, "_filetest.gno") && !strings.HasSuffix(srcPath, "_test.gno") {
-		dirPaths, err := getPathsFromImportSpec(opts.cfg.rootDir, transpileRes.Imports)
-		if err != nil {
-			return err
-		}
-		deps, err := importer.Load(dirPaths...)
-		if err != nil {
-			return err
-		}
-		for _, path := range dirPaths {
-			dep := (*importer.Package)(nil)
-			for _, elem := range deps {
-				abspath, _ := filepath.Abs(path)
-				if abspath == elem.Dir {
-					dep = elem
-					break
-				}
+		for _, imp := range transpileRes.Imports {
+			pkgPath, err := strconv.Unquote(imp.Path.Value)
+			if err != nil {
+				return fmt.Errorf("failed to unquote pkg path %v", imp.Path.Value)
 			}
+			pkgPath = strings.TrimPrefix(pkgPath, "github.com/gnolang/gno/gnovm/stdlibs/")
+			pkgPath = strings.TrimPrefix(pkgPath, "github.com/gnolang/gno/examples/")
+			dep := pkgs[pkgPath]
 			if dep == nil {
-				return fmt.Errorf("failed to find matching package for %q", path)
+				return fmt.Errorf("failed to find matching package for %q", pkgPath)
 			}
-			if err := transpilePkg(dep, opts); err != nil {
+			if err := transpilePkg(dep, pkgs, opts); err != nil {
 				return err
 			}
 		}
