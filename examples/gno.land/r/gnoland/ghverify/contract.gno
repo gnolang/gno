@@ -139,7 +139,7 @@ func Render(_ string) string {
 		result += `"` + handle + `": "` + address.(string) + `"`
 		appendComma = true
 
-		return true
+		return false
 	})
 
 	return result + "}"
