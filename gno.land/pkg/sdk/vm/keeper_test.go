@@ -461,6 +461,7 @@ func Echo(msg string) string {
 	)
 }
 
+<<<<<<< Updated upstream
 func TestVMKeeperReinitialize(t *testing.T) {
 	env := setupTestEnv()
 	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
@@ -480,10 +481,33 @@ package test
 func Echo(msg string) string {
 	return "echo:"+msg
 }`},
+=======
+// Sending too much realm package coins fails.
+func TestVMKeeperDerefErrors(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.ctx
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+
+	files := []*std.MemFile{
+		{"main.gno", `
+package test
+
+import "errors"
+
+var Err = errors.New("MY ERROR")
+
+func GetError() error {
+	return Err
+}
+`},
+>>>>>>> Stashed changes
 	}
 	pkgPath := "gno.land/r/test"
 	msg1 := NewMsgAddPackage(addr, pkgPath, files)
 	err := env.vmk.AddPackage(ctx, msg1)
+<<<<<<< Updated upstream
 	require.NoError(t, err)
 
 	// Run Echo function.
@@ -515,4 +539,12 @@ func Test_loadStdlibPackage(t *testing.T) {
 	assert.PanicsWithValue(t, `failed loading stdlib "emptystdlib": not a valid MemPackage`, func() {
 		loadStdlibPackage("emptystdlib", "./testdata", gs)
 	})
+=======
+	assert.NoError(t, err)
+
+	msg2 := NewMsgCall(addr, std.Coins{}, pkgPath, "GetError", []string{})
+	res, err := env.vmk.Call(ctx, msg2)
+
+	fmt.Println(res)
+>>>>>>> Stashed changes
 }
