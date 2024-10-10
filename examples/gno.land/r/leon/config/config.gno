@@ -52,7 +52,9 @@ func SetBackup(a std.Address) error {
 
 func checkAuthorized() error {
 	caller := std.PrevRealm().Addr()
-	if caller != main && caller != backup {
+	isAuthorized := caller == main || caller == backup
+
+	if !isAuthorized {
 		return ErrUnauthorized
 	}
 
