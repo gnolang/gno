@@ -170,7 +170,7 @@ func UQuo(a, b uint) (uint, uint, bool) {
 /************* Panic versions for int ****************/
 
 // Absp returns the absolute value, panicking on overflow
-func Absp(x int) int {
+func MustAbs(x int) int {
 	r, ok := Abs(x)
 	if !ok {
 		panic("absolute value overflow")
@@ -179,7 +179,7 @@ func Absp(x int) int {
 }
 
 // Addp returns the sum of two ints, panicking on overflow
-func Addp(a, b int) int {
+func MustAdd(a, b int) int {
 	r, ok := Add(a, b)
 	if !ok {
 		panic(PanicAddOverflow)
@@ -188,7 +188,7 @@ func Addp(a, b int) int {
 }
 
 // UAddp returns the sum of two uints, panicking on overflow
-func UAddp(a, b uint) uint {
+func MustUAdd(a, b uint) uint {
 	r, ok := UAdd(a, b)
 	if !ok {
 		panic(PanicAddOverflow)
@@ -197,7 +197,7 @@ func UAddp(a, b uint) uint {
 }
 
 // Subp returns the difference of two ints, panicking on overflow.
-func Subp(a, b int) int {
+func MustSub(a, b int) int {
 	r, ok := Sub(a, b)
 	if !ok {
 		panic(PanicSubOverflow)
@@ -206,7 +206,7 @@ func Subp(a, b int) int {
 }
 
 // USubp returns the difference of two uints, panicking on overflow.
-func USubp(a, b uint) uint {
+func MustUSub(a, b uint) uint {
 	r, ok := USub(a, b)
 	if !ok {
 		panic(PanicSubOverflow)
@@ -215,7 +215,7 @@ func USubp(a, b uint) uint {
 }
 
 // Mulp returns the product of two ints, panicking on overflow.
-func Mulp(a, b int) int {
+func MustMul(a, b int) int {
 	r, ok := Mul(a, b)
 	if !ok {
 		panic(PanicMulOverflow)
@@ -224,7 +224,7 @@ func Mulp(a, b int) int {
 }
 
 // UMulp returns the product of two uints, panicking on overflow.
-func UMulp(a, b uint) uint {
+func MustUMul(a, b uint) uint {
 	r, ok := UMul(a, b)
 	if !ok {
 		panic(PanicMulOverflow)
@@ -233,7 +233,7 @@ func UMulp(a, b uint) uint {
 }
 
 // Divp returns the quotient of two ints, panicking on overflow.
-func Divp(a, b int) int {
+func MustDiv(a, b int) int {
 	r, ok := Div(a, b)
 	if !ok {
 		panic(PanicDivFailure)
@@ -242,7 +242,7 @@ func Divp(a, b int) int {
 }
 
 // UDivp returns the quotient of two uints, panicking on overflow.
-func UDivp(a, b uint) uint {
+func MustUDiv(a, b uint) uint {
 	r, ok := UDiv(a, b)
 	if !ok {
 		panic(PanicDivFailure)
@@ -277,7 +277,7 @@ func Add8(a, b int8) (int8, bool) {
 }
 
 // Add8p is the unchecked panicking version of Add8
-func Add8p(a, b int8) int8 {
+func MustAdd8(a, b int8) int8 {
 	r, ok := Add8(a, b)
 	if !ok {
 		panic(PanicAddOverflow)
@@ -295,8 +295,8 @@ func UAdd8(a, b uint8) (uint8, bool) {
 	return c, false
 }
 
-// UAdd8p is the unchecked panicing version of UAdd8
-func UAdd8p(a, b uint8) uint8 {
+// UAdd8p is the unchecked panicking version of UAdd8
+func MustUAdd8(a, b uint8) uint8 {
 	r, ok := UAdd8(a, b)
 	if !ok {
 		panic(PanicAddOverflow)
@@ -315,7 +315,7 @@ func Sub8(a, b int8) (int8, bool) {
 }
 
 // Sub8p is the unchecked panicking version of Sub8
-func Sub8p(a, b int8) int8 {
+func MustSub8(a, b int8) int8 {
 	r, ok := Sub8(a, b)
 	if !ok {
 		panic(PanicSubOverflow)
@@ -333,8 +333,8 @@ func USub8(a, b uint8) (uint8, bool) {
 	return c, false
 }
 
-// USub8p is the unchecked panicing version of USub8
-func USub8p(a, b uint8) uint8 {
+// USub8p is the unchecked panicking version of USub8
+func MustUSub8(a, b uint8) uint8 {
 	r, ok := USub8(a, b)
 	if !ok {
 		panic(PanicSubOverflow)
@@ -358,7 +358,7 @@ func Mul8(a, b int8) (int8, bool) {
 }
 
 // Mul8p is the unchecked panicking version of Mul8
-func Mul8p(a, b int8) int8 {
+func MustMul8(a, b int8) int8 {
 	r, ok := Mul8(a, b)
 	if !ok {
 		panic(PanicMulOverflow)
@@ -379,8 +379,8 @@ func UMul8(a, b uint8) (uint8, bool) {
 	return c, false
 }
 
-// UMul8p is the unchecked panicing version of UMul8
-func UMul8p(a, b uint8) uint8 {
+// UMul8p is the unchecked panicking version of UMul8
+func MustUMul8(a, b uint8) uint8 {
 	r, ok := UMul8(a, b)
 	if !ok {
 		panic(PanicMulOverflow)
@@ -396,7 +396,7 @@ func Div8(a, b int8) (int8, bool) {
 }
 
 // Div8p is the unchecked panicking version of Div8
-func Div8p(a, b int8) int8 {
+func MustDiv8(a, b int8) int8 {
 	r, ok := Div8(a, b)
 	if !ok {
 		panic(PanicDivFailure)
@@ -411,8 +411,8 @@ func UDiv8(a, b uint8) (uint8, bool) {
 	return q, ok
 }
 
-// UDiv8p is the unchecked panicing version of UDiv8
-func UDiv8p(a, b uint8) uint8 {
+// UDiv8p is the unchecked panicking version of UDiv8
+func MustUDiv8(a, b uint8) uint8 {
 	r, ok := UDiv8(a, b)
 	if !ok {
 		panic(PanicDivFailure)
@@ -465,7 +465,7 @@ func Add16(a, b int16) (int16, bool) {
 }
 
 // Add16p is the unchecked panicking version of Add16
-func Add16p(a, b int16) int16 {
+func MustAdd16(a, b int16) int16 {
 	r, ok := Add16(a, b)
 	if !ok {
 		panic(PanicAddOverflow)
@@ -483,8 +483,8 @@ func UAdd16(a, b uint16) (uint16, bool) {
 	return c, false
 }
 
-// UAdd16p is the unchecked panicing version of UAdd16
-func UAdd16p(a, b uint16) uint16 {
+// UAdd16p is the unchecked panicking version of UAdd16
+func MustUAdd16(a, b uint16) uint16 {
 	r, ok := UAdd16(a, b)
 	if !ok {
 		panic(PanicAddOverflow)
@@ -503,7 +503,7 @@ func Sub16(a, b int16) (int16, bool) {
 }
 
 // Sub16p is the unchecked panicking version of Sub16
-func Sub16p(a, b int16) int16 {
+func MustSub16(a, b int16) int16 {
 	r, ok := Sub16(a, b)
 	if !ok {
 		panic(PanicSubOverflow)
@@ -521,8 +521,8 @@ func USub16(a, b uint16) (uint16, bool) {
 	return c, false
 }
 
-// USub16p is the unchecked panicing version of USub16
-func USub16p(a, b uint16) uint16 {
+// USub16p is the unchecked panicking version of USub16
+func MustUSub16(a, b uint16) uint16 {
 	r, ok := USub16(a, b)
 	if !ok {
 		panic(PanicSubOverflow)
@@ -546,7 +546,7 @@ func Mul16(a, b int16) (int16, bool) {
 }
 
 // Mul16p is the unchecked panicking version of Mul16
-func Mul16p(a, b int16) int16 {
+func MustMul16(a, b int16) int16 {
 	r, ok := Mul16(a, b)
 	if !ok {
 		panic(PanicMulOverflow)
@@ -567,8 +567,8 @@ func UMul16(a, b uint16) (uint16, bool) {
 	return c, false
 }
 
-// UMul16p is the unchecked panicing version of UMul16
-func UMul16p(a, b uint16) uint16 {
+// UMul16p is the unchecked panicking version of UMul16
+func MustUMul16(a, b uint16) uint16 {
 	r, ok := UMul16(a, b)
 	if !ok {
 		panic(PanicMulOverflow)
@@ -584,7 +584,7 @@ func Div16(a, b int16) (int16, bool) {
 }
 
 // Div16p is the unchecked panicking version of Div16
-func Div16p(a, b int16) int16 {
+func MustDiv16(a, b int16) int16 {
 	r, ok := Div16(a, b)
 	if !ok {
 		panic(PanicDivFailure)
@@ -599,8 +599,8 @@ func UDiv16(a, b uint16) (uint16, bool) {
 	return q, ok
 }
 
-// UDiv16p is the unchecked panicing version of UDiv16
-func UDiv16p(a, b uint16) uint16 {
+// UDiv16p is the unchecked panicking version of UDiv16
+func MustUDiv16(a, b uint16) uint16 {
 	r, ok := UDiv16(a, b)
 	if !ok {
 		panic(PanicDivFailure)
@@ -653,7 +653,7 @@ func Add32(a, b int32) (int32, bool) {
 }
 
 // Add32p is the unchecked panicking version of Add32
-func Add32p(a, b int32) int32 {
+func MustAdd32(a, b int32) int32 {
 	r, ok := Add32(a, b)
 	if !ok {
 		panic(PanicAddOverflow)
@@ -671,8 +671,8 @@ func UAdd32(a, b uint32) (uint32, bool) {
 	return c, false
 }
 
-// UAdd32p is the unchecked panicing version of UAdd32
-func UAdd32p(a, b uint32) uint32 {
+// UAdd32p is the unchecked panicking version of UAdd32
+func MustUAdd32(a, b uint32) uint32 {
 	r, ok := UAdd32(a, b)
 	if !ok {
 		panic(PanicAddOverflow)
@@ -691,7 +691,7 @@ func Sub32(a, b int32) (int32, bool) {
 }
 
 // Sub32p is the unchecked panicking version of Sub32
-func Sub32p(a, b int32) int32 {
+func MustSub32(a, b int32) int32 {
 	r, ok := Sub32(a, b)
 	if !ok {
 		panic(PanicSubOverflow)
@@ -709,8 +709,8 @@ func USub32(a, b uint32) (uint32, bool) {
 	return c, false
 }
 
-// USub32p is the unchecked panicing version of USub32
-func USub32p(a, b uint32) uint32 {
+// USub32p is the unchecked panicking version of USub32
+func MustUSub32(a, b uint32) uint32 {
 	r, ok := USub32(a, b)
 	if !ok {
 		panic(PanicSubOverflow)
@@ -734,7 +734,7 @@ func Mul32(a, b int32) (int32, bool) {
 }
 
 // Mul32p is the unchecked panicking version of Mul32
-func Mul32p(a, b int32) int32 {
+func MustMul32(a, b int32) int32 {
 	r, ok := Mul32(a, b)
 	if !ok {
 		panic(PanicMulOverflow)
@@ -755,8 +755,8 @@ func UMul32(a, b uint32) (uint32, bool) {
 	return c, false
 }
 
-// UMul32p is the unchecked panicing version of UMul32
-func UMul32p(a, b uint32) uint32 {
+// UMul32p is the unchecked panicking version of UMul32
+func MustUMul32(a, b uint32) uint32 {
 	r, ok := UMul32(a, b)
 	if !ok {
 		panic(PanicMulOverflow)
@@ -772,7 +772,7 @@ func Div32(a, b int32) (int32, bool) {
 }
 
 // Div32p is the unchecked panicking version of Div32
-func Div32p(a, b int32) int32 {
+func MustDiv32(a, b int32) int32 {
 	r, ok := Div32(a, b)
 	if !ok {
 		panic(PanicDivFailure)
@@ -787,8 +787,8 @@ func UDiv32(a, b uint32) (uint32, bool) {
 	return q, ok
 }
 
-// UDiv32p is the unchecked panicing version of UDiv32
-func UDiv32p(a, b uint32) uint32 {
+// UDiv32p is the unchecked panicking version of UDiv32
+func MustUDiv32(a, b uint32) uint32 {
 	r, ok := UDiv32(a, b)
 	if !ok {
 		panic(PanicDivFailure)
@@ -841,7 +841,7 @@ func Add64(a, b int64) (int64, bool) {
 }
 
 // Add64p is the unchecked panicking version of Add64
-func Add64p(a, b int64) int64 {
+func MustAdd64(a, b int64) int64 {
 	r, ok := Add64(a, b)
 	if !ok {
 		panic(PanicAddOverflow)
@@ -859,8 +859,8 @@ func UAdd64(a, b uint64) (uint64, bool) {
 	return c, false
 }
 
-// UAdd64p is the unchecked panicing version of UAdd64
-func UAdd64p(a, b uint64) uint64 {
+// UAdd64p is the unchecked panicking version of UAdd64
+func MustUAdd64(a, b uint64) uint64 {
 	r, ok := UAdd64(a, b)
 	if !ok {
 		panic(PanicAddOverflow)
@@ -879,7 +879,7 @@ func Sub64(a, b int64) (int64, bool) {
 }
 
 // Sub64p is the unchecked panicking version of Sub64
-func Sub64p(a, b int64) int64 {
+func MustSub64(a, b int64) int64 {
 	r, ok := Sub64(a, b)
 	if !ok {
 		panic(PanicSubOverflow)
@@ -897,8 +897,8 @@ func USub64(a, b uint64) (uint64, bool) {
 	return c, false
 }
 
-// USub64p is the unchecked panicing version of USub64
-func USub64p(a, b uint64) uint64 {
+// USub64p is the unchecked panicking version of USub64
+func MustUSub64(a, b uint64) uint64 {
 	r, ok := USub64(a, b)
 	if !ok {
 		panic(PanicSubOverflow)
@@ -922,7 +922,7 @@ func Mul64(a, b int64) (int64, bool) {
 }
 
 // Mul64p is the unchecked panicking version of Mul64
-func Mul64p(a, b int64) int64 {
+func MustMul64(a, b int64) int64 {
 	r, ok := Mul64(a, b)
 	if !ok {
 		panic(PanicMulOverflow)
@@ -943,8 +943,8 @@ func UMul64(a, b uint64) (uint64, bool) {
 	return c, false
 }
 
-// UMul64p is the unchecked panicing version of UMul64
-func UMul64p(a, b uint64) uint64 {
+// UMul64p is the unchecked panicking version of UMul64
+func MustUMul64(a, b uint64) uint64 {
 	r, ok := UMul64(a, b)
 	if !ok {
 		panic(PanicMulOverflow)
@@ -960,7 +960,7 @@ func Div64(a, b int64) (int64, bool) {
 }
 
 // Div64p is the unchecked panicking version of Div64
-func Div64p(a, b int64) int64 {
+func MustDiv64(a, b int64) int64 {
 	r, ok := Div64(a, b)
 	if !ok {
 		panic(PanicDivFailure)
@@ -975,8 +975,8 @@ func UDiv64(a, b uint64) (uint64, bool) {
 	return q, ok
 }
 
-// UDiv64p is the unchecked panicing version of UDiv64
-func UDiv64p(a, b uint64) uint64 {
+// UDiv64p is the unchecked panicking version of UDiv64
+func MustUDiv64(a, b uint64) uint64 {
 	r, ok := UDiv64(a, b)
 	if !ok {
 		panic(PanicDivFailure)
