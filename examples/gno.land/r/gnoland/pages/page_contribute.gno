@@ -80,7 +80,7 @@ _[3XL]_ \*   | $ 32000
 
 The gno.land grants program is to encourage and support the growth of the gno.land contributor community, and build out the usability of the platform and smart contract library. The program provides financial resources to contributors to explore the Gno tech stack, and build dApps, tooling, infrastructure, products, and smart contract libraries in gno.land.
 
-<!-- TODO: Add link to new repo -->
+For more details on gno.land grants, suggested topics, and how to apply, visit our grants [repository](https://github.com/gnolang/grants). 
 
 ## Join Game of Realms
 
