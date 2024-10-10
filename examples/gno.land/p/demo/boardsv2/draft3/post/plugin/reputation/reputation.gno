@@ -3,8 +3,8 @@ package pluginreputation
 import "errors"
 
 const (
-	PolicyLinear = iota
-	PolicyTokenBase
+	PolicyLinear Policy = iota
+	PolicyTokenBased
 )
 
 const Name = "reputation"
@@ -12,9 +12,11 @@ const Name = "reputation"
 var ErrNotSupported = errors.New("reputation not supported")
 
 type (
+	Policy int
+
 	// TODO: Implement reputation plugin
 	Plugin struct {
-		Policy            int
+		Policy            Policy
 		AllowedPostLevels []int
 	}
 
@@ -24,7 +26,7 @@ type (
 	}
 )
 
-func NewReputationPlugin(o ...Option) Plugin {
+func New(o ...Option) Plugin {
 	var p Plugin
 	for _, apply := range o {
 		apply(&p)

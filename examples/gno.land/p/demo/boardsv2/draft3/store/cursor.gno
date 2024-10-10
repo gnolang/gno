@@ -1,5 +1,6 @@
 package store
 
+// TODO: Define how cursors should be used alongside stores
 type Cursor struct {
 	FromID string
 	Count  int

@@ -1,9 +1,10 @@
 package boards
 
 import (
-	"plugin"
-
-	"golang.org/x/mod/sumdb/storage"
+	"gno.land/p/demo/boards/post"
+	"gno.land/p/demo/boards/post/plugin"
+	pluginreputation "gno.land/p/demo/boards/post/plugin/reputation"
+	plugintitle "gno.land/p/demo/boards/post/plugin/title"
 )
 
 const (
@@ -12,44 +13,64 @@ const (
 	LevelComment
 )
 
+// App is the boards application.
 type App struct {
-	cntx Context
+	posts            post.Store
+	plugins          *plugin.Registry
+	maxCommentsDepth int
+	disableComments  bool
+	reputationPolicy pluginreputation.Policy
 }
 
-func New(st post.Store, o ...Option) App {
-	 // TODO: avl.Tree feels wrong here but maybe get rid of the map anyway
-	p := map[string]plugin.Plugin{
-		plugintitle.Name: plugintitle.New(st), // content for boards
-		plugintext.Name: plugintext.New(st),// content for text based threads
-		pluginpoll.Name: pluginpoll.New(st),// content for poll based threads
-		plugincomment.Name: plugincomment.New(st),// content for comments to the threads
-		pluginreputation.Name: pluginreputation.New(
-			pluginreputation.UseTokenBasePolicy(),
+// New creates a new boards application.
+func New(st post.Store, options ...Option) App {
+	app := App{posts: st}
+	for _, apply := range options {
+		apply(&app)
+	}
+
+	app.plugins := plugin.NewRegistry(
+		plugintitle.New(st),   // Plugin for boards
+		plugintext.New(st),    // Plugin for text based threads
+		pluginpoll.New(st),    // Plugin for poll based threads
+		plugincomment.New(st), // Plugin for comments to the threads
+		pluginreputation.New(
+			pluginreputation.UsePolicy(app.reputationPolicy),
 			pluginreputation.AllowedPostLevels(post.LevelPost, post.LevelComment),
 		),
+	)
+	return app
+}
+
+func (a App) GetPost(path string) (_ *post.Post, found bool) {
+	return a.post.Get(path) // NOTE: Allowing this enables us to have generic functions like Lock
+}
+
+func (a App) GetBoard(path string) (_ Board, found bool) {
+	p, found := a.posts.Get(path)
+	if !found || p.Level != LevelBoard {
+		return Board{}, false
 	}
+	return Board{p}, true
+}
 
-	return App{
-		cntx: Context{
-			storage: st,
-			plugins: p,
-		},
+func (a App) GetThread(path string) (_ Thread, found bool) {
+	p, found := a.posts.Get(path)
+	if !found || p.Level != LevelThread {
+		return Thread{}, false
 	}
+	return Thread{p}, true
 }
 
-func (a App) Board(path string) (Board, error) {
-	a.c.Get(level, path func(){})
+func (a App) GetComment(path string) (_ Comment, found bool) {
+	p, found := a.posts.Get(path)
+	if !found || p.Level != LevelComment {
+		return Comment{}, false
+	}
+	return Comment{p}, true
 }
 
-func (a App) Boards(c post.Cursor) ([]Board, error) {
-
-}
-
-func (a App) CreateBoard(c BoardContent) (Board, error) {}
-
-func (b App) Thread(path string) (Thread, error) {
-	return ThreadWithComments(path, nil)
-}
+func (a App) CreateBoard(slug, title, description string, tags []string) (Board, error) {}
 
 // Fork forks either a board or a thread by their path.
 func (a App) Fork(path, newPath string) error {}
@@ -60,6 +81,14 @@ func (a App) Fork(path, newPath string) error {}
 // Once a thread is locked new comments to the thread won't be allowed.
 func (a App) Lock(path string) error {}
 
+// ---- TODO: Review the following list of app methods ----- //
+
+func (a App) Boards(c post.Cursor) ([]Board, error) {
+}
+
+func (b App) Thread(path string) (Thread, error) {
+	return ThreadWithComments(path, nil)
+}
 
 // ThreadWithComments returns a thread with its comments with the comment depth
 // configured with commentDepth for direct and child comments.
@@ -73,13 +102,14 @@ func (a App) Lock(path string) error {}
 // By default the configuration is as follows:
 // - []int{20, 3}
 func (b App) ThreadWithComments(path string, commentDepth []int) (Thread, error) {}
-func (b App) Threads(c post.Cursor) ([]Thread, error) {}
-func (b App) CreateTextThread(c ThreadTextContent) (Thread, error) {}
-func (b App) CreatePollThread(c ThreadPollContent) (Thread, error) {}
+func (b App) Threads(c post.Cursor) ([]Thread, error)                            {}
+func (b App) CreateTextThread(c ThreadTextContent) (Thread, error)               {}
+func (b App) CreatePollThread(c ThreadPollContent) (Thread, error)               {}
 
 // parentPath could be a path to thread (root), or path to any of the
 // nested comments.
 func (b App) Comments(parentPath string, c Cursor) ([]Comment, error) {}
+
 func (b App) CreateComment(path string, c plugincomment.Content) (Comment, error) {
 	post, err := a.c.Plugin(plugincomment.Name).NewPost(c, LevelComment)
 	if err != nil {

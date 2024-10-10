@@ -2,9 +2,9 @@ package pluginreputation
 
 type Option func(*Plugin)
 
-func UseTokenBasePolicy() Option {
+func UsePolicy(v Policy) Option {
 	return func(p *Plugin) {
-		p.Policy = PolicyTokenBase
+		p.Policy = v
 	}
 }
 
