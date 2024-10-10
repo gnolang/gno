@@ -8,8 +8,6 @@ import (
 
 type validatorCfg struct {
 	commonCfg
-
-	address string
 }
 
 // newValidatorCmd creates the genesis validator subcommand
@@ -31,6 +29,7 @@ func newValidatorCmd(io commands.IO) *commands.Command {
 
 	cmd.AddSubCommands(
 		newValidatorAddCmd(cfg, io),
+		newValidatorListCmd(cfg, io),
 		newValidatorRemoveCmd(cfg, io),
 	)
 
@@ -39,11 +38,4 @@ func newValidatorCmd(io commands.IO) *commands.Command {
 
 func (c *validatorCfg) RegisterFlags(fs *flag.FlagSet) {
 	c.commonCfg.RegisterFlags(fs)
-
-	fs.StringVar(
-		&c.address,
-		"address",
-		"",
-		"the gno bech32 address of the validator",
-	)
 }
