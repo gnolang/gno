@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"gno.land/p/demo/json"
 	"gno.land/p/demo/ufmt"
 	pusers "gno.land/p/demo/users"
 )
@@ -84,7 +85,7 @@ func CampaignsToJSONString(campaigns []*Campaign) string {
 			sb.WriteString(",")
 		}
 
-		sb.WriteString(CampaignToJSONString(campaign))
+		sb.WriteString(campaign.CampaignToJSONString())
 	}
 	sb.WriteString("]")
 
@@ -92,23 +93,25 @@ func CampaignsToJSONString(campaigns []*Campaign) string {
 }
 
 // CampaignToJSONString returns a Campaign formatted as a JSON string
-func CampaignToJSONString(campaign *Campaign) string {
-	var sb strings.Builder
+func (c *Campaign) CampaignToJSONString() string {
+	node := json.ObjectNode("", map[string]*json.Node{
+		"Ctype":        json.StringNode("Ctype", c.Ctype.String()),
+		"Title":        json.StringNode("Title", c.Title),
+		"Description":  json.StringNode("Description", c.Description),
+		"Goal":         json.NumberNode("Goal", float64(c.Goal)),
+		"Current":      json.NumberNode("Current", float64(c.Current)),
+		"Begin":        json.StringNode("Begin", strconv.Itoa(int(c.Begin.Unix()))),
+		"Deadline":     json.StringNode("Deadline", strconv.Itoa(int(c.Deadline.Unix()))),
+		"Owner":        json.StringNode("Owner", c.Owner.Address.String()),
+		"Beneficiary":  json.StringNode("Beneficiary", c.Beneficiary.Address.String()),
+		"Contributors": json.NumberNode("Contributors", float64(len(c.contributors))),
+	})
+	value, err := json.Marshal(node)
+	if err != nil {
+		panic(ufmt.Sprintf("unexpected error: %s", err))
+	}
 
-	sb.WriteString("{")
-	sb.WriteString(`"ctype":"` + campaign.Ctype.String() + `",`)
-	sb.WriteString(`"title":"` + campaign.Title + `",`)
-	sb.WriteString(`"description":"` + campaign.Description + `",`)
-	sb.WriteString(`"goal":"` + strconv.Itoa(int(campaign.Goal)) + `",`)
-	sb.WriteString(`"current":"` + strconv.Itoa(int(campaign.Current)) + `",`)
-	sb.WriteString(`"begin":"` + strconv.Itoa(int((campaign.Begin).Unix())) + `",`)
-	sb.WriteString(`"deadline":"` + strconv.Itoa(int(campaign.Deadline.Unix())) + `",`)
-	sb.WriteString(`"owner":"` + campaign.Owner.Address.String() + `",`)
-	sb.WriteString(`"beneficiary":"` + campaign.Beneficiary.Address.String() + `",`)
-	sb.WriteString(`"contributors":"` + strconv.Itoa(len(campaign.contributors)) + `"`)
-	sb.WriteString("}")
-
-	return sb.String()
+	return string(value)
 }
 
 func (c Campaign) Render(id string) string {

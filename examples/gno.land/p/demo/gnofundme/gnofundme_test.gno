@@ -92,7 +92,7 @@ func TestCampaignsToJSONString(t *testing.T) {
 		NewCampaign(2, "Campaign 3", "Description 3", 3000, time.Now(), time.Now(), users.GetUserByName("demo"), users.GetUserByName("demo")),
 	}
 
-	expected := `[{"ctype":"Personal","title":"Campaign 1","description":"Description 1","goal":"1000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"},{"ctype":"Cause","title":"Campaign 2","description":"Description 2","goal":"2000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"},{"ctype":"Organism","title":"Campaign 3","description":"Description 3","goal":"3000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"}]`
+	expected := `[{"Ctype":"Personal","Title":"Campaign 1","Description":"Description 1","Goal":1000,"Current":0,"Begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","Deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","Owner":"` + owner.Address.String() + `","Beneficiary":"` + owner.Address.String() + `","Contributors":0},{"Ctype":"Cause","Title":"Campaign 2","Description":"Description 2","Goal":2000,"Current":0,"Begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","Deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","Owner":"` + owner.Address.String() + `","Beneficiary":"` + owner.Address.String() + `","Contributors":0},{"Ctype":"Organism","Title":"Campaign 3","Description":"Description 3","Goal":3000,"Current":0,"Begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","Deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","Owner":"` + owner.Address.String() + `","Beneficiary":"` + owner.Address.String() + `","Contributors":0}]`
 
 	result := CampaignsToJSONString(campaigns)
 	if result != expected {
@@ -101,11 +101,11 @@ func TestCampaignsToJSONString(t *testing.T) {
 }
 
 func TestCampaignToJSONString(t *testing.T) {
-	campaign := NewCampaign(0, "Campaign 1", "Description 1", 1000, time.Now(), time.Now(), users.GetUserByName("demo"), users.GetUserByName("demo"))
+	campaign := NewCampaign(0, "Campaign 1", "Description 1", 1000, time.Now(), time.Now(), owner, owner)
 
-	expected := `{"ctype":"Personal","title":"Campaign 1","description":"Description 1","goal":"1000","current":"0","begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","owner":"` + ownerAddress.String() + `","beneficiary":"` + beneficiaryAddress.String() + `","contributors":"0"}`
+	expected := `{"Ctype":"Personal","Title":"Campaign 1","Description":"Description 1","Goal":1000,"Current":0,"Begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","Deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","Owner":"` + owner.Address.String() + `","Beneficiary":"` + owner.Address.String() + `","Contributors":0}`
 
-	result := CampaignToJSONString(campaign)
+	result := campaign.CampaignToJSONString()
 	if result != expected {
 		t.Errorf("Expected JSON string: %s, \ngot: %s", expected, result)
 	}
