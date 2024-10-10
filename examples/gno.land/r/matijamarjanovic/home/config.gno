@@ -14,17 +14,17 @@ var (
 )
 
 func init() {
-	main = "g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"
+	mainAddr = "g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"
 	errorInvalidAddr = "config: invalid address"
 	errorUnauthorized = "config: unauthorized"
 }
 
 func Address() std.Address {
-	return main
+	return mainAddr
 }
 
 func Backup() std.Address {
-	return backup
+	return backupAddr
 }
 
 func SetAddress(newAddress std.Address) error {
@@ -36,7 +36,7 @@ func SetAddress(newAddress std.Address) error {
 		return err
 	}
 
-	main = newAddress
+	mainAddr= newAddress
 	return nil
 }
 
@@ -49,13 +49,13 @@ func SetBackup(newAddress std.Address) error {
 		return err
 	}
 
-	backup = newAddress
+	backupAddr= newAddress
 	return nil
 }
 
 func checkAuthorized() error {
 	caller := std.PrevRealm().Addr()
-	if caller != main || caller != backup {
+	if caller != mainAddr|| caller != backupAddr{
 		return errors.New(errorUnauthorized)
 	}
 
@@ -64,7 +64,7 @@ func checkAuthorized() error {
 
 func AssertAuthorized() {
 	caller := std.PrevRealm().Addr()
-	if caller != main && caller != backup {
+	if caller != mainAddr && caller != backupAddr{
 		panic(errorUnauthorized)
 	}
 }
