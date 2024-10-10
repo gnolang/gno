@@ -13,10 +13,10 @@ package subtle
 import (
 	"bytes"
 	"io"
-	// "crypto/rand" XX: replaced with math/rand for deterministic behavior for test data
-	// "fmt" XX: removed due to fmt dependency, not needed for testing, it was only used for benchmarks
 	"math/rand"
 	"testing"
+	// "crypto/rand" XX: replaced with math/rand for deterministic behavior for test data
+	// "fmt" XX: removed due to fmt dependency, not needed for testing, it was only used for benchmarks
 )
 
 // XX: added testRandomReader struct to generate random data for testing.
