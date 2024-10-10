@@ -17,7 +17,6 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/importer"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
-	osm "github.com/gnolang/gno/tm2/pkg/os"
 )
 
 type lintCfg struct {
@@ -84,8 +83,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		}
 
 		// Check if 'gno.mod' exists
-		gnoModPath := filepath.Join(pkgDir, "gno.mod")
-		if !osm.FileExists(gnoModPath) {
+		if pkg.Module.Path == "" {
 			hasError = true
 			issue := lintIssue{
 				Code:       lintNoGnoMod,
@@ -105,13 +103,10 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 				tests.ImportModeStdlibsOnly,
 			)
 
-			targetPath := pkgDir
-			info, err := os.Stat(pkgDir)
-			if err == nil && !info.IsDir() {
-				targetPath = filepath.Dir(pkgDir)
+			memPkg, err := pkg.MemPkg()
+			if err != nil {
+				panic(fmt.Errorf("failed to convert pkg to mempkg: %w", err))
 			}
-
-			memPkg := gno.ReadMemPackage(targetPath, targetPath)
 			tm := tests.TestMachine(testStore, stdout, memPkg.Name)
 
 			// Check package

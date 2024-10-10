@@ -14,6 +14,7 @@ import (
 	"github.com/gnolang/gno/gno.land/pkg/gnoclient"
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/mod/modfile"
 )
 
@@ -202,11 +203,11 @@ func Load(paths ...string) ([]*Package, error) {
 
 func listDeps(target string, pkgs map[string]*Package) ([]string, error) {
 	deps := []string{}
-	err := listDepsRecursive(target, pkgs, &deps, make(map[string]struct{}))
+	err := listDepsRecursive(target, target, pkgs, &deps, make(map[string]struct{}))
 	return deps, err
 }
 
-func listDepsRecursive(target string, pkgs map[string]*Package, deps *[]string, visited map[string]struct{}) error {
+func listDepsRecursive(rootTarget string, target string, pkgs map[string]*Package, deps *[]string, visited map[string]struct{}) error {
 	if _, ok := visited[target]; ok {
 		return nil
 	}
@@ -217,34 +218,31 @@ func listDepsRecursive(target string, pkgs map[string]*Package, deps *[]string, 
 	visited[target] = struct{}{}
 	var errs []error
 	for _, imp := range pkg.Imports {
-		err := listDepsRecursive(imp, pkgs, deps, visited)
+		err := listDepsRecursive(rootTarget, imp, pkgs, deps, visited)
 		if err != nil {
 			errs = append(errs, err)
 		}
 	}
-	(*deps) = append(*deps, target)
+	if target != rootTarget {
+		(*deps) = append(*deps, target)
+	}
 	return errors.Join(errs...)
 }
 
 func resolvePackage(meta *PackageSummary) (*Package, error) {
-	if !strings.ContainsRune(meta.PkgPath, '.') {
-		return resolveStdlib(meta.PkgPath, meta.Match)
-	}
-
 	if meta.Root == "" {
-		return resolveRemote(meta.PkgPath, meta.Match)
+		if !strings.ContainsRune(meta.PkgPath, '.') {
+			return resolveStdlib(meta.PkgPath, meta.Match)
+		} else {
+			return resolveRemote(meta.PkgPath, meta.Match)
+		}
 	}
 
 	if meta.ModFile == nil {
 		return nil, errors.New("unexpected nil modfile")
 	}
 
-	absRoot, err := filepath.Abs(meta.Root)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find absolute root %q: %w", meta.Root, err)
-	}
-
-	return fillPackage(meta.PkgPath, absRoot, meta.ModFile, meta.Match)
+	return fillPackage(meta.PkgPath, meta.Root, meta.ModFile, meta.Match)
 }
 
 func resolveStdlib(pkgPath string, match []string) (*Package, error) {
@@ -289,7 +287,7 @@ func resolveRemote(pkgPath string, match []string) (*Package, error) {
 
 func fillPackage(pkgPath, pkgDir string, modFile *modfile.File, match []string) (*Package, error) {
 	fsFiles := []string{}
-	modFiles := []string{}
+	files := []string{}
 	fsTestFiles := []string{}
 	testFiles := []string{}
 	fsFiletestFiles := []string{}
@@ -308,11 +306,11 @@ func fillPackage(pkgPath, pkgDir string, modFile *modfile.File, match []string) 
 			fsTestFiles = append(fsTestFiles, filepath.Join(pkgDir, fileName))
 			testFiles = append(testFiles, fileName)
 		} else if IsGnoFiletestFile(fileName) {
-			fsTestFiles = append(fsFiletestFiles, filepath.Join(pkgDir, fileName))
-			testFiles = append(filetestFiles, fileName)
+			fsFiletestFiles = append(fsFiletestFiles, filepath.Join(pkgDir, fileName))
+			filetestFiles = append(filetestFiles, fileName)
 		} else if IsGnoFile(fileName) {
 			fsFiles = append(fsFiles, filepath.Join(pkgDir, fileName))
-			modFiles = append(modFiles, fileName)
+			files = append(files, fileName)
 		}
 	}
 	name, imports, err := resolveNameAndImports(fsFiles)
@@ -323,7 +321,7 @@ func fillPackage(pkgPath, pkgDir string, modFile *modfile.File, match []string) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve test name and imports for %q: %w", pkgPath, err)
 	}
-	_, filetestImports, err := resolveNameAndImports(filetestFiles)
+	_, filetestImports, err := resolveNameAndImports(fsFiletestFiles)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve filetest name and imports for %q: %w", pkgPath, err)
 	}
@@ -341,7 +339,7 @@ func fillPackage(pkgPath, pkgDir string, modFile *modfile.File, match []string) 
 		Name:             name,
 		Module:           module,
 		Match:            match,
-		GnoFiles:         modFiles,
+		GnoFiles:         files,
 		Imports:          imports,
 		TestGnoFiles:     testFiles,
 		TestImports:      testImports,
@@ -417,6 +415,27 @@ type Package struct {
 	FiletestGnoFiles []string `json:",omitempty"`
 	FiletestImports  []string `json:",omitempty"`
 	Errors           []error  `json:",omitempty"`
+}
+
+func (p *Package) MemPkg() (*std.MemPackage, error) {
+	allFiles := append(p.GnoFiles, p.TestGnoFiles...)
+	allFiles = append(allFiles, p.FiletestGnoFiles...)
+	files := make([]*std.MemFile, len(allFiles))
+	for i, f := range allFiles {
+		body, err := os.ReadFile(filepath.Join(p.Dir, f))
+		if err != nil {
+			return nil, err
+		}
+		files[i] = &std.MemFile{
+			Name: f,
+			Body: string(body),
+		}
+	}
+	return &std.MemPackage{
+		Name:  p.Name,
+		Path:  p.ImportPath,
+		Files: files,
+	}, nil
 }
 
 type Module struct {
