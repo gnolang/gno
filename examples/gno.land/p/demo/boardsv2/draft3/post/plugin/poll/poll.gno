@@ -4,7 +4,7 @@ const Name = "post-poll"
 
 type (
 	Plugin struct {
-		posts post.Storage // TODO: Implement posts storage
+		posts post.Store
 	}
 
 	Poll struct {
@@ -18,10 +18,18 @@ type (
 	}
 )
 
-func New(st post.Storage) Plugin {
+func New(st post.Store) Plugin {
 	return Plugin{
 		posts: st,
 	}
+}
+
+func (p Plugin) Name() string {
+	return Name
+}
+
+func (p Plugin) Render() string {
+	return ""
 }
 
 func (p Plugin) CreatePoll(id string, v Poll) *post.Post {
@@ -34,6 +42,6 @@ func (p Plugin) CreatePoll(id string, v Poll) *post.Post {
 }
 
 func (p Plugin) SetPoll(pst *post.Post, v Poll) (updated bool) {
-	pst.PluginStorage[Name] = v
+	pst.PluginStore[Name] = v
 	return p.posts.Set(pst.ID, pst)
 }

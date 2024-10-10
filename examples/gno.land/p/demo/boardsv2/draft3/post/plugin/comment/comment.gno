@@ -4,7 +4,7 @@ const Name = "post-comment"
 
 type (
 	Plugin struct {
-		posts Storage // TODO: Maybe it should be "post.Storage" or in that line
+		posts post.Store
 	}
 
 	// Content is the comment's content.
@@ -15,13 +15,17 @@ type (
 	}
 )
 
-func New(st Storage) Plugin {
+func New(st post.Store) Plugin {
 	return Plugin{
 		posts: st,
 	}
 }
 
-func (p Plugin) Render() string { // TODO: Add render method to other plugins
+func (p Plugin) Name() string {
+	return Name
+}
+
+func (p Plugin) Render() string {
 	// TODO: Implement render support for comments
 	return ""
 }
@@ -36,11 +40,11 @@ func (p Plugin) CreateComment(id string, c Content, level int) *post.Post {
 }
 
 func (p Plugin) Content(pst *post.Post) (_ *Content, ok bool) {
-	c, ok := pst.PluginStorage[Name].(*Content)
+	c, ok := pst.PluginStore[Name].(*Content)
 	return c, ok
 }
 
-func (p Plugin) SetContent(pst *Post, c Content) (updated bool) {
-	ps.PluginStorage[Name] = c
+func (p Plugin) SetContent(pst *post.Post, c Content) (updated bool) {
+	ps.PluginStore[Name] = c
 	return p.posts.Set(pst)
 }

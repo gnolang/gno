@@ -4,16 +4,14 @@ import "plugin"
 
 type Context struct {
 	opts  []Option
-	st    post.Storage
+	st    post.Store
 	plugs map[post.PluginName]plugin.Plugin
 }
 
 func newContext() Context {
-
 }
 
 func (c Context) Plugin(n post.PluginName) post.Plugin {
-
 }
 
 func (c Context) Set(p *Post) (updated bool) {

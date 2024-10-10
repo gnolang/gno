@@ -21,6 +21,10 @@ func (p Plugin) Name() string {
 	return Name
 }
 
+func (p Plugin) Render() string {
+	return ""
+}
+
 func (p *Plugin) Lock(pst *post.Post) error {
 	if !isBoardOrThread(pst) {
 		return ErrInvalidPostType

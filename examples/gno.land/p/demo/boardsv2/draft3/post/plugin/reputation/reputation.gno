@@ -36,6 +36,10 @@ func (p Plugin) Name() string {
 	return Name
 }
 
+func (p Plugin) Render() string {
+	return ""
+}
+
 func (p Plugin) HasReputationSupport(pst *post.Post) bool {
 	if len(p.AllowedPostLevels) == 0 {
 		return true
@@ -64,7 +68,7 @@ func (p *Plugin) Upvote(pst *post.Post) error {
 
 	// TODO: Modify global state
 	// TODO: Modify local state
-	r := p.MustGetPluginStorage(p.Name()).(*Reputation)
+	r := pst.PluginStore[Name].(*Reputation)
 }
 
 func (p *Plugin) Downvote(pst *post.Post) error {

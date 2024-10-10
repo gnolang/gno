@@ -16,6 +16,15 @@ func New() Plugin {
 	return Plugin{}
 }
 
+func (p Plugin) Name() string {
+	return Name
+}
+
+func (p Plugin) Render() string {
+	// TODO: Implement render support for text
+	return ""
+}
+
 func (p Plugin) Content(pst *post.Post) Content {
 	return pst.Body[Name].(*Text)
 }

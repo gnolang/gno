@@ -16,7 +16,7 @@ type App struct {
 	cntx Context
 }
 
-func New(st storage.PostStorage, o ...Option) App {
+func New(st post.Store, o ...Option) App {
 	 // TODO: avl.Tree feels wrong here but maybe get rid of the map anyway
 	p := map[string]plugin.Plugin{
 		plugintitle.Name: plugintitle.New(st), // content for boards
