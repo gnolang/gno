@@ -25,8 +25,8 @@ type BankKeeperI interface {
 
 var _ BankKeeperI = BankKeeper{}
 
-// BBankKeeper only allows transfers between accounts without the possibility of
-// creating coins. It implements the BankKeeper interface.
+// BankKeeper only allows transfers between accounts without the possibility of
+// creating coins. It implements the BankKeeperI interface.
 type BankKeeper struct {
 	ViewKeeper
 
