@@ -1072,6 +1072,7 @@ var initOrder = [...]string{
 	"crypto/chacha20/rand",
 	"crypto/ed25519",
 	"crypto/sha256",
+	"crypto/subtle",
 	"encoding",
 	"encoding/base64",
 	"encoding/hex",
