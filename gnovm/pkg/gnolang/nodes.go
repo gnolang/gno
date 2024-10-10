@@ -1744,6 +1744,22 @@ func (sb *StaticBlock) GetLocalIndex(n Name) (uint16, bool) {
 	return 0, false
 }
 
+func (sb *StaticBlock) GetBlockForValue(store Store, n Name) *StaticBlock {
+	for sb != nil {
+		_, ok := sb.GetLocalIndex(n)
+		if ok {
+			return sb
+		}
+		psb := sb.GetParentNode(store)
+
+		if psb == nil {
+			return nil
+		}
+		sb = psb.GetStaticBlock()
+	}
+	return nil
+}
+
 // Implemented BlockNode.
 // This method is too slow for runtime, but it is used
 // during preprocessing to compute types.

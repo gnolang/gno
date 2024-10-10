@@ -965,7 +965,23 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						fillNameExprPath(last, n, as.Op == DEFINE)
 					} else {
 						fillNameExprPath(last, n, false)
+						vr := last.GetValueRef(store, n.Name, true)
+						vb := last.GetStaticBlock().GetBlockForValue(store, n.Name)
+						if vb != nil {
+							if ftype != TRANS_REF_X && ftype != TRANS_SELECTOR_X {
+								be := vb.Source.GetAttribute(vr)
+								if be != nil {
+									if lit, ok := be.(Expr); ok && lit != nil {
+										ce := evalConst(store, last, lit)
+										return ce, TRANS_CONTINUE
+									}
+								}
+							} else {
+								vb.Source.SetAttribute(vr, nil)
+							}
+						}
 					}
+
 					// If uverse, return a *ConstExpr.
 					if n.Path.Depth == 0 { // uverse
 						cx := evalConst(store, last, n)
@@ -1919,15 +1935,28 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					} else {
 						// General case: a, b := x, y
 						for i, lx := range n.Lhs {
-							ln := lx.(*NameExpr).Name
+							lnx := lx.(*NameExpr)
+							ln := lnx.Name
 							rx := n.Rhs[i]
 							rt := evalStaticTypeOf(store, last, rx)
+
 							// re-definition
 							if rt == nil {
 								// e.g. (interface{})(nil), becomes ConstExpr(undefined).
 								// last.Define(ln, undefined) complains, since redefinition.
 							} else {
 								last.Define(ln, anyValue(rt))
+
+								var propagate *BasicLitExpr
+								// if it's a constant value, allow propagation
+								if ce, ok := rx.(*ConstExpr); ok {
+									if be, ok := ce.Source.(*BasicLitExpr); ok {
+										propagate = be
+									}
+								}
+
+								vr := last.GetValueRef(store, lnx.Name, true)
+								last.SetAttribute(vr, propagate)
 							}
 						}
 					}
@@ -2027,12 +2056,41 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							// e.g. a += b, single value for lhs and rhs,
 							lt := evalStaticTypeOf(store, last, n.Lhs[0])
 							checkOrConvertType(store, last, &n.Rhs[0], lt, true)
+
+							if nx, ok := n.Lhs[0].(*NameExpr); ok {
+								bv := last.GetStaticBlock().GetBlockForValue(store, nx.Name)
+								vr := bv.GetValueRef(store, nx.Name, true)
+
+								bv.Source.SetAttribute(vr, nil)
+							}
 						} else { // all else, like BAND_ASSIGN, etc
 							// General case: a, b = x, y.
 							for i, lx := range n.Lhs {
 								lt := evalStaticTypeOf(store, last, lx)
 								// if lt is interface, nothing will happen
 								checkOrConvertType(store, last, &n.Rhs[i], lt, true)
+
+								if nx, ok := lx.(*NameExpr); ok {
+									var propagate *BasicLitExpr
+									// if it's a constant value, allow propagation
+									if ce, ok := n.Rhs[i].(*ConstExpr); ok {
+										if be, ok := ce.Source.(*BasicLitExpr); ok {
+											propagate = be
+										}
+									}
+
+									bl := last.GetStaticBlock().GetBlockForValue(store, nx.Name)
+									vr := bl.GetValueRef(store, nx.Name, true)
+									// if it's in another block than it's defined
+									// better to mark it as can't be propagated
+									// because we don't know if that block will be executed at all
+									// conditionals etc
+									if propagate != nil && last.GetStaticBlock() == bl {
+										bl.Source.SetAttribute(vr, propagate)
+									} else {
+										bl.Source.SetAttribute(vr, nil)
+									}
+								}
 							}
 						}
 					}
