@@ -108,11 +108,11 @@ func TestUint_Scan(t *testing.T) {
 
 			if tt.wantErr {
 				if err == nil {
-					t.Errorf("Scan() 오류 = %v, wantErr %v", err, tt.wantErr)
+					t.Errorf("Scan() error = %v, wantErr %v", err, tt.wantErr)
 				}
 			} else {
 				if err != nil {
-					t.Errorf("Scan() 오류 = %v, wantErr %v", err, tt.wantErr)
+					t.Errorf("Scan() error = %v, wantErr %v", err, tt.wantErr)
 				}
 				if !z.Eq(tt.want) {
 					t.Errorf("Scan() = %v, want %v", z, tt.want)
@@ -120,7 +120,7 @@ func TestUint_Scan(t *testing.T) {
 			}
 		})
 	}
-}
+}가
 
 func TestSetBytes(t *testing.T) {
 	tests := []struct {
