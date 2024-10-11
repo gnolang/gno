@@ -2,7 +2,6 @@ package json
 
 import (
 	"bytes"
-	"errors"
 	"unicode/utf8"
 )
 
@@ -269,7 +268,7 @@ func unquoteBytes(s []byte, border byte) ([]byte, bool) {
 // converts standard escape sequences (e.g., \n) to their corresponding special characters.
 func processEscapedUTF8(in, out []byte) (int, int, error) {
 	if len(in) < 2 || in[0] != backSlash {
-		return -1, -1, errors.New("invalid escape sequence")
+		return -1, -1, errInvalidEscapeSequence
 	}
 
 	escapeSeqLen := 2
@@ -278,7 +277,7 @@ func processEscapedUTF8(in, out []byte) (int, int, error) {
 	if escapeChar != 'u' {
 		val := escapeByteSet[escapeChar]
 		if val == 0 {
-			return -1, -1, errors.New("invalid escape sequence")
+			return -1, -1, errInvalidEscapeSequence
 		}
 
 		out[0] = val
@@ -287,7 +286,7 @@ func processEscapedUTF8(in, out []byte) (int, int, error) {
 
 	r, size := decodeUnicodeEscape(in)
 	if size == -1 {
-		return -1, -1, errors.New("invalid escape sequence")
+		return -1, -1, errInvalidEscapeSequence
 	}
 
 	outLen := utf8.EncodeRune(out, r)

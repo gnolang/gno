@@ -17,13 +17,13 @@ const (
 const unescapeStackBufSize = 64
 
 const (
-	errInvalidStringInput    = "invalid string input"
-	errMalformedBooleanValue = "malformed boolean value"
-	errEmptyByteSlice        = "empty byte slice"
-	errInvalidExponentValue  = "invalid exponent value"
-	errNonDigitCharacters    = "non-digit characters found"
-	errNumericRangeExceeded  = "numeric value exceeds the range limit"
-	errMultipleDecimalPoints = "multiple decimal points found"
+	errInvalidStringInput    = errors.New("invalid string input")
+	errMalformedBooleanValue = errors.New("malformed boolean value")
+	errEmptyByteSlice        = errors.New("empty byte slice")
+	errInvalidExponentValue  = errors.New("invalid exponent value")
+	errNonDigitCharacters    = errors.New("non-digit characters found")
+	errNumericRangeExceeded  = errors.New("numeric value exceeds the range limit")
+	errMultipleDecimalPoints = errors.New("multiple decimal points found")
 )
 
 // PaseStringLiteral parses a string from the given byte slice.
@@ -32,7 +32,7 @@ func ParseStringLiteral(data []byte) (string, error) {
 
 	bf, err := Unescape(data, buf[:])
 	if err != nil {
-		return "", errors.New(errInvalidStringInput)
+		return "", errInvalidStringInput
 	}
 
 	return string(bf), nil
@@ -46,7 +46,7 @@ func ParseBoolLiteral(data []byte) (bool, error) {
 	case bytes.Equal(data, falseLiteral):
 		return false, nil
 	default:
-		return false, errors.New(errMalformedBooleanValue)
+		return false, errMalformedBooleanValue
 	}
 }
 
@@ -56,7 +56,7 @@ func ParseBoolLiteral(data []byte) (bool, error) {
 // by the IEEE 754 standard, providing a decimal precision of approximately 15 digits.
 func ParseFloatLiteral(bytes []byte) (float64, error) {
 	if len(bytes) == 0 {
-		return -1, errors.New(errEmptyByteSlice)
+		return -1, errEmptyByteSlice
 	}
 
 	neg, bytes := trimNegativeSign(bytes)
@@ -78,7 +78,7 @@ func ParseFloatLiteral(bytes []byte) (float64, error) {
 	if len(exponentPart) > 0 {
 		exp, err := strconv.Atoi(string(exponentPart))
 		if err != nil {
-			return -1, errors.New(errInvalidExponentValue)
+			return -1, errInvalidExponentValue
 		}
 		exp10 += exp
 	}
@@ -94,7 +94,7 @@ func ParseFloatLiteral(bytes []byte) (float64, error) {
 
 func ParseIntLiteral(bytes []byte) (int64, error) {
 	if len(bytes) == 0 {
-		return 0, errors.New(errEmptyByteSlice)
+		return 0, errEmptyByteSlice
 	}
 
 	neg, bytes := trimNegativeSign(bytes)
@@ -102,18 +102,18 @@ func ParseIntLiteral(bytes []byte) (int64, error) {
 	var n uint64 = 0
 	for _, c := range bytes {
 		if notDigit(c) {
-			return 0, errors.New(errNonDigitCharacters)
+			return 0, errNonDigitCharacters
 		}
 
 		if n > maxUint64/10 {
-			return 0, errors.New(errNumericRangeExceeded)
+			return 0, errNumericRangeExceeded
 		}
 
 		n *= 10
 
 		n1 := n + uint64(c-'0')
 		if n1 < n {
-			return 0, errors.New(errNumericRangeExceeded)
+			return 0, errNumericRangeExceeded
 		}
 
 		n = n1
@@ -124,7 +124,7 @@ func ParseIntLiteral(bytes []byte) (int64, error) {
 			return -absMinInt64, nil
 		}
 
-		return 0, errors.New(errNumericRangeExceeded)
+		return 0, errNumericRangeExceeded
 	}
 
 	if neg {
@@ -151,20 +151,20 @@ func extractMantissaAndExp10(bytes []byte) (uint64, int, error) {
 	for _, c := range bytes {
 		if c == dot {
 			if decimalFound {
-				return 0, 0, errors.New(errMultipleDecimalPoints)
+				return 0, 0, errMultipleDecimalPoints
 			}
 			decimalFound = true
 			continue
 		}
 
 		if notDigit(c) {
-			return 0, 0, errors.New(errNonDigitCharacters)
+			return 0, 0, errNonDigitCharacters
 		}
 
 		digit := uint64(c - '0')
 
 		if man > (maxUint64-digit)/10 {
-			return 0, 0, errors.New(errNumericRangeExceeded)
+			return 0, 0, errNumericRangeExceeded
 		}
 
 		man = man*10 + digit
