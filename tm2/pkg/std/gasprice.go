@@ -53,16 +53,16 @@ func ParseGasPrices(gasprices string) (res []GasPrice, err error) {
 // IsGTE compares the GasPrice with another gas price B. If coin denom matches AND fee per gas is
 // greater or equal to the gas price B return true, other wise return false,
 func (gp GasPrice) IsGTE(gpB GasPrice) bool {
+	if gp.Price.Denom != gpB.Price.Denom {
+		return false
+	}
+
 	gpg := big.NewInt(gp.Gas)
 	gpa := big.NewInt(gp.Price.Amount)
-	gpd := gp.Price.Denom
 
 	gpBg := big.NewInt(gpB.Gas)
 	gpBa := big.NewInt(gpB.Price.Amount)
-	gpBd := gpB.Price.Denom
-	if gpd != gpBd {
-		return false
-	}
+
 	prod1 := big.NewInt(0).Mul(gpa, gpBg) // gp's price amount * gpB's gas
 	prod2 := big.NewInt(0).Mul(gpg, gpBa) // gpB's gas * pg's price amount
 	// This is equivalent to checking
