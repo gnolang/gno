@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
@@ -21,6 +22,7 @@ import (
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
+	"github.com/gnolang/gno/tm2/pkg/testutils"
 )
 
 type testCfg struct {
@@ -342,51 +344,49 @@ func gnoTestPkg(
 	}
 
 	// testing with *_filetest.gno
-	/*
-		{
-			filter := splitRegexp(runFlag)
-			for _, testFile := range pkg.FiletestGnoFiles {
-				testFileName := filepath.Base(testFile)
-				testName := "file/" + testFileName
-				if !shouldRun(filter, testName) {
-					continue
-				}
-
-				startedAt := time.Now()
-				if verbose {
-					io.ErrPrintfln("=== RUN   %s", testName)
-				}
-
-				var closer func() (string, error)
-				if !verbose {
-					closer = testutils.CaptureStdoutAndStderr()
-				}
-
-				testFilePath := filepath.Join(pkg.Dir, testFileName)
-				err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests))
-				duration := time.Since(startedAt)
-				dstr := fmtDuration(duration)
-
-				if err != nil {
-					errs = multierr.Append(errs, err)
-					io.ErrPrintfln("--- FAIL: %s (%s)", testName, dstr)
-					if verbose {
-						stdouterr, err := closer()
-						if err != nil {
-							panic(err)
-						}
-						fmt.Fprintln(os.Stderr, stdouterr)
-					}
-					continue
-				}
-
-				if verbose {
-					io.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
-				}
-				// XXX: add per-test metrics
+	{
+		filter := splitRegexp(runFlag)
+		for _, testFile := range pkg.FiletestGnoFiles {
+			testFileName := filepath.Base(testFile)
+			testName := "file/" + testFileName
+			if !shouldRun(filter, testName) {
+				continue
 			}
+
+			startedAt := time.Now()
+			if verbose {
+				io.ErrPrintfln("=== RUN   %s", testName)
+			}
+
+			var closer func() (string, error)
+			if !verbose {
+				closer = testutils.CaptureStdoutAndStderr()
+			}
+
+			testFilePath := filepath.Join(pkg.Dir, testFileName)
+			err := tests.RunFileTest(rootDir, testFilePath, tests.WithSyncWanted(cfg.updateGoldenTests))
+			duration := time.Since(startedAt)
+			dstr := fmtDuration(duration)
+
+			if err != nil {
+				errs = multierr.Append(errs, err)
+				io.ErrPrintfln("--- FAIL: %s (%s)", testName, dstr)
+				if verbose {
+					stdouterr, err := closer()
+					if err != nil {
+						panic(err)
+					}
+					fmt.Fprintln(os.Stderr, stdouterr)
+				}
+				continue
+			}
+
+			if verbose {
+				io.ErrPrintfln("--- PASS: %s (%s)", testName, dstr)
+			}
+			// XXX: add per-test metrics
 		}
-	*/
+	}
 
 	return errs
 }

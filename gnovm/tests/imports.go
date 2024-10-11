@@ -73,23 +73,6 @@ func TestStore(rootDir, filesPath string, pkgs map[string]*importer.Package, std
 			panic(fmt.Sprintf("unrecognized import mode"))
 		}
 
-		if pkg, ok := pkgs[pkgPath]; ok {
-			memPkg, err := pkg.MemPkg()
-			if err != nil {
-				panic(fmt.Errorf("failed to convert imported pkg to mem pkg: %w", err))
-			}
-			send := std.Coins{}
-			ctx := TestContext(pkgPath, send)
-			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
-				PkgPath: "test",
-				Output:  stdout,
-				Store:   store,
-				Context: ctx,
-			})
-			pn, pv = m2.RunMemPackage(memPkg, true)
-			return
-		}
-
 		if filesPath != "" {
 			// if _test package...
 			const testPath = "github.com/gnolang/gno/_test/"
@@ -406,6 +389,24 @@ func TestStore(rootDir, filesPath string, pkgs map[string]*importer.Package, std
 			if pn != nil {
 				return
 			}
+		}
+
+		// packages from resolver
+		if pkg, ok := pkgs[pkgPath]; ok {
+			memPkg, err := pkg.MemPkg()
+			if err != nil {
+				panic(fmt.Errorf("failed to convert imported pkg to mem pkg: %w", err))
+			}
+			send := std.Coins{}
+			ctx := TestContext(pkgPath, send)
+			m2 := gno.NewMachineWithOptions(gno.MachineOptions{
+				PkgPath: "test",
+				Output:  stdout,
+				Store:   store,
+				Context: ctx,
+			})
+			pn, pv = m2.RunMemPackage(memPkg, true)
+			return
 		}
 
 		// if examples package...

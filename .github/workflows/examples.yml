@@ -3,7 +3,7 @@ name: examples
 on:
   pull_request:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -24,7 +24,7 @@ jobs:
         with:
           go-version: ${{ matrix.goversion }}
       - run: go install -v ./gnovm/cmd/gno
-      - run: go run ./gnovm/cmd/gno transpile -v --gobuild ./examples/...
+      - run: go run ./gnovm/cmd/gno transpile -v --gobuild ./examples/gno.land/...
   test:
     strategy:
       fail-fast: false
@@ -47,7 +47,7 @@ jobs:
           echo "LOG_LEVEL=debug" >> $GITHUB_ENV
           echo "LOG_PATH_DIR=$LOG_PATH_DIR" >> $GITHUB_ENV
       - run: go install -v ./gnovm/cmd/gno
-      - run: go run ./gnovm/cmd/gno test -v ./examples/...
+      - run: go run ./gnovm/cmd/gno test -v ./examples/gno.land/...
   lint:
     strategy:
       fail-fast: false
@@ -70,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        goversion: [ "1.22.x" ]
+        goversion: ["1.22.x"]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -86,7 +86,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: [ "1.22.x" ]
+        go-version: ["1.22.x"]
         # unittests: TODO: matrix with contracts
     runs-on: ubuntu-latest
     timeout-minutes: 10
