@@ -1,6 +1,7 @@
 package std
 
 import (
+	"fmt"
 	"math/big"
 	"strings"
 
@@ -29,6 +30,9 @@ func ParseGasPrice(gasprice string) (GasPrice, error) {
 	if gas.Denom != "gas" {
 		return GasPrice{}, errors.New("invalid gas price: %s (invalid gas denom)", gasprice)
 	}
+	if gas.Amount == 0 {
+		return GasPrice{}, errors.New("invalid gas price: %s (gas can not be zero)", gasprice)
+	}
 	return GasPrice{
 		Gas:   gas.Amount,
 		Price: price,
@@ -54,7 +58,10 @@ func ParseGasPrices(gasprices string) (res []GasPrice, err error) {
 // greater or equal to the gas price B return true, other wise return false,
 func (gp GasPrice) IsGTE(gpB GasPrice) bool {
 	if gp.Price.Denom != gpB.Price.Denom {
-		return false
+		panic(fmt.Sprintf("gas price denominations should be equal; %s, %s", gp.Price.Denom, gpB.Price.Denom))
+	}
+	if gp.Gas == 0 || gpB.Gas == 0 {
+		panic(fmt.Sprintf("GasPrice.Gas cannot be zero; %+v, %+v", gp, gpB))
 	}
 
 	gpg := big.NewInt(gp.Gas)
