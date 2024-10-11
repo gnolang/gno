@@ -22,7 +22,7 @@ services:
     networks:
       - gnoland-net
   grafana:
-    image: grafana/grafana-enterprise
+    image: grafana/grafana
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
@@ -33,22 +33,32 @@ services:
     networks:
       - gnoland-net
   gnoland:
-    build:
-      context: ./gnoland
-      dockerfile: Dockerfile
-    ports:
-      - "26657:26657"
+    image: ghcr.io/gnolang/gno/gnoland:master
+    # image: forked-gno/gnoland-slim
     networks:
       - gnoland-net
+    volumes:
+      - ./gnoland:/gnoroot/gnoland-data
+    entrypoint:
+      - sh
+      - -c
+      - |
+        gnoland config init
+        gnoland config set consensus.timeout_commit 1s
+        gnoland config set rpc.laddr tcp://0.0.0.0:26657
+        gnoland config set telemetry.enabled true
+        gnoland config set telemetry.exporter_endpoint collector:4317
+        gnoland config set persistent_peers "g18vg9lgndagym626q8jsgv2peyjatscykde3xju@devx-sen-1.test4.gnodevx.network:26656,g1fnwswr6p5nqfvusglv7g2vy0tzwt5npwe7stvv@devx-sen-2.test4.gnodevx.network:26656,g1xa78fprcqcejfpk8xeycd4hzxtg56w9qe29xky@103.219.168.237:26656,g1h8dsnzlv7r4skfuud38runjuk4dnxenpr79meg@103.106.59.205:26656,g1ppdm4s90txrxu027j5et4crmxmmr3qr3g4wgrp@186.233.184.76:26656,g1hta5u3vmt4k2gklu5ashsl9q0my8ykzqu60vme@103.14.26.13:26656"
+        gnoland start --lazy
+    ports:
+      - "26657:26657"
   supernova:
-    build:
-      dockerfile: supernova.Dockerfile
-      args:
-        supernova_version: v1.2.1
+    image: ghcr.io/gnolang/supernova:1.3.1
     command: >
-      -sub-accounts 10 -transactions 200 -url http://gnoland:26657
+      -sub-accounts 10 -transactions 100 -url http://gnoland:26657
       -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
-    restart: always
+      -mode REALM_CALL
+    restart: unless-stopped
     networks:
       - gnoland-net
 
