@@ -8,7 +8,7 @@ type Package struct {
 	Root             string   `json:",omitempty"` // Gno root, Gno path dir, or module root dir containing this package
 	Module           Module   `json:",omitempty"` // info about package's module, if any
 	Match            []string `json:",omitempty"` // command-line patterns matching this package
-	GnoFiles         []string `json:",omitempty"` // .gno source files (TestGnoFiles, FiletestGnoFiles)
+	GnoFiles         []string `json:",omitempty"` // .gno source files (excluding TestGnoFiles, FiletestGnoFiles)
 	Imports          []string `json:",omitempty"` // import paths used by this package
 	Deps             []string `json:",omitempty"` // all (recursively) imported dependencies
 	TestGnoFiles     []string `json:",omitempty"` // _test.gno files in package
