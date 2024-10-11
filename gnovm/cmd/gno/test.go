@@ -391,35 +391,6 @@ func gnoTestPkg(
 	return errs
 }
 
-// attempts to determine the full gno pkg path by analyzing the directory.
-func pkgPathFromRootDir(pkgPath, rootDir string) string {
-	abPkgPath, err := filepath.Abs(pkgPath)
-	if err != nil {
-		log.Printf("could not determine abs path: %v", err)
-		return ""
-	}
-	abRootDir, err := filepath.Abs(rootDir)
-	if err != nil {
-		log.Printf("could not determine abs path: %v", err)
-		return ""
-	}
-	abRootDir += string(filepath.Separator)
-	if !strings.HasPrefix(abPkgPath, abRootDir) {
-		return ""
-	}
-	impPath := strings.ReplaceAll(abPkgPath[len(abRootDir):], string(filepath.Separator), "/")
-	for _, prefix := range [...]string{
-		"examples/",
-		"gnovm/stdlibs/",
-		"gnovm/tests/stdlibs/",
-	} {
-		if strings.HasPrefix(impPath, prefix) {
-			return impPath[len(prefix):]
-		}
-	}
-	return ""
-}
-
 func runTestFiles(
 	m *gno.Machine,
 	files *gno.FileSet,

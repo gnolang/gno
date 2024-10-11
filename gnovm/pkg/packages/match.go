@@ -235,7 +235,7 @@ func Match(paths []string, opts ...MatchOption) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		err = walkDir(c.fs, pathTrim, &statDirEntry{fi}, func(fsPath string, entry fs.DirEntry, err error) error {
+		err = walkDir(c.fs, pathTrim, &statDirEntry{fi}, func(fsPath string, entry fs.DirEntry, _ error) error {
 			// BFS guarantees that we get a dir, its files, then its subdirs.
 			if entry.IsDir() {
 				if !re.MatchString(fsPath) {

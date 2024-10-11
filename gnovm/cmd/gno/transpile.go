@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"go/ast"
 	"go/scanner"
 	"go/token"
 	"os"
@@ -311,23 +310,6 @@ func goBuildFileOrPkg(io commands.IO, fileOrPkg string, cfg *transpileCfg) error
 	}
 
 	return buildTranspiledPackage(fileOrPkg, goBinary)
-}
-
-// getPathsFromImportSpec returns the directory paths where the code for each
-// importSpec is stored (assuming they start with [transpiler.ImportPrefix]).
-func getPathsFromImportSpec(rootDir string, importSpec []*ast.ImportSpec) (dirs []string, err error) {
-	for _, i := range importSpec {
-		path, err := strconv.Unquote(i.Path.Value)
-		if err != nil {
-			return nil, err
-		}
-		if strings.HasPrefix(path, transpiler.ImportPrefix) {
-			res := strings.TrimPrefix(path, transpiler.ImportPrefix)
-
-			dirs = append(dirs, rootDir+filepath.FromSlash(res))
-		}
-	}
-	return
 }
 
 // buildTranspiledPackage tries to run `go build` against the transpiled .go files.

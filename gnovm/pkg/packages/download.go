@@ -37,7 +37,7 @@ func DownloadModule(pkgPath string, dst string) error {
 		if err != nil {
 			return fmt.Errorf("failed to query files list for pkg %q: %w", pkgPath, err)
 		}
-		if err := os.MkdirAll(dst, 0744); err != nil {
+		if err := os.MkdirAll(dst, 0o744); err != nil {
 			return fmt.Errorf("failed to create cache dir for %q at %q: %w", pkgPath, dst, err)
 		}
 		files := strings.Split(string(data), "\n")
@@ -48,13 +48,13 @@ func DownloadModule(pkgPath string, dst string) error {
 				return fmt.Errorf("failed to query package file %q: %w", filePath, err)
 			}
 			dst := filepath.Join(dst, file)
-			if err := os.WriteFile(dst, data, 0644); err != nil {
+			if err := os.WriteFile(dst, data, 0o644); err != nil {
 				return fmt.Errorf("failed to write file at %q: %w", dst, err)
 			}
 		}
 
 		// write gno.mod
-		if err := os.WriteFile(modFilePath, []byte("module "+pkgPath+"\n"), 0644); err != nil {
+		if err := os.WriteFile(modFilePath, []byte("module "+pkgPath+"\n"), 0o644); err != nil {
 			return fmt.Errorf("failed to write modfile at %q: %w", modFilePath, err)
 		}
 	} else if err != nil {
