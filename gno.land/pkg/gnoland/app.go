@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
@@ -286,6 +287,37 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	if !ok {
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
+
+	// TODO move to the initchainer implementation
+	superBeginTxHook := cfg.baseApp.BeginTxHook()
+	beginTxHook := func(ctx sdk.Context) sdk.Context {
+		retCtx := ctx
+
+		if superBeginTxHook != nil {
+			// Run the initially-set hook first
+			retCtx = superBeginTxHook(ctx)
+		}
+
+		if true { // TODO change to check if there is a genesis context
+			return retCtx
+		}
+
+		// TODO Modify the beginTx hook to give you the transaction,
+		// so metadata will be extracted
+
+		// Create a copy of the header, in
+		// which only the timestamp information is modified
+		header := retCtx.BlockHeader().(*bft.Header).Copy()
+		header.Time = time.Now().Add(time.Hour * 72) // TODO modify based on tx metadata
+
+		// Save the modified header
+		return retCtx.WithBlockHeader(header)
+	}
+
+	cfg.baseApp.SetBeginTxHook(beginTxHook)
+
+	// Restore the original beginTx hook
+	defer cfg.baseApp.SetBeginTxHook(superBeginTxHook)
 
 	// Parse and set genesis state balances
 	for _, bal := range state.Balances {
