@@ -4,13 +4,13 @@ import (
 	"errors"
 	"std"
 
-	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ownable"
 )
 
 var (
 	mainAddr   std.Address
 	backupAddr std.Address
+	owner      *ownable.Ownable
 )
 
 func init() {

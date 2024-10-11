@@ -4,8 +4,8 @@ import (
 	"sort"
 	"std"
 
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
-    "gno.land/p/demo/ownable"
 
 	"gno.land/r/stefann/registar"
 )
@@ -30,10 +30,11 @@ var (
 	sponsors         []Sponsor
 	totalDonated     std.Coins
 	totalDonations   int
+	owner            *ownable.Ownable
 )
 
 func init() {
-    owner = ownable.NewWithAddress(registar.MainAddr)
+	owner = ownable.NewWithAddress(registar.MainAddr())
 	pfp = "https://i.ibb.co/Bc5YNCx/DSC-0095a.jpg"
 	cities = []City{
 		{Name: "Venice", URL: "https://i.ibb.co/1mcZ7b1/venice.jpg"},
@@ -77,7 +78,7 @@ func UpdateJarLink(newLink string) {
 	jarLink = newLink
 }
 
-func UpdatePFP(url) {
+func UpdatePFP(url string) {
 	owner.AssertCallerIsOwner()
 	pfp = url
 }
@@ -151,7 +152,7 @@ func CollectDonations() {
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 
-	ownerAddr := config.Address()
+	ownerAddr := registar.MainAddr()
 	banker.SendCoins(std.CurrentRealm().Addr(), ownerAddr, banker.GetCoins(std.CurrentRealm().Addr()))
 }
 
