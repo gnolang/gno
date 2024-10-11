@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/gnolang/gno/gnovm/pkg/packages"
 )
@@ -27,8 +28,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 		}
 
 		if !info.IsDir() {
-			path := filepath.Join(argPath, fs.FileInfoToDirEntry(info).Name())
-			if packages.IsGnoFile(path) {
+			if packages.IsGnoFile(info.Name()) {
 				paths = append(paths, ensurePathPrefix(argPath))
 			}
 			continue
@@ -39,8 +39,8 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 			return nil, err
 		}
 		for _, f := range files {
-			path := filepath.Join(argPath, f.Name())
-			if packages.IsGnoFile(path) {
+			if packages.IsGnoFile(f.Name()) {
+				path := filepath.Join(argPath, f.Name())
 				paths = append(paths, ensurePathPrefix(path))
 			}
 		}
@@ -101,8 +101,7 @@ func targetsFromPatterns(patterns []string) ([]string, error) {
 				return fmt.Errorf("%s: walk dir: %w", dirToSearch, err)
 			}
 			// Skip directories and non ".gno" files.
-			path := filepath.Join(dirToSearch, curpath)
-			if f.IsDir() || !packages.IsGnoFile(path) {
+			if f.IsDir() || !packages.IsGnoFile(f.Name()) {
 				return nil
 			}
 
@@ -142,6 +141,10 @@ func matchPattern(pattern string) func(name string) bool {
 	return func(name string) bool {
 		return reg.MatchString(name)
 	}
+}
+
+func fmtDuration(d time.Duration) string {
+	return fmt.Sprintf("%.2fs", d.Seconds())
 }
 
 // ResolvePath determines the path where to place output files.
@@ -248,4 +251,18 @@ func copyFile(src, dst string) error {
 	}
 
 	return nil
+}
+
+// Adapted from https://yourbasic.org/golang/formatting-byte-size-to-human-readable-format/
+func prettySize(nb int64) string {
+	const unit = 1000
+	if nb < unit {
+		return fmt.Sprintf("%d", nb)
+	}
+	div, exp := int64(unit), 0
+	for n := nb / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f%c", float64(nb)/float64(div), "kMGTPE"[exp])
 }
