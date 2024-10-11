@@ -58,24 +58,18 @@ func TestAddContributor(t *testing.T) {
 	uassert.Equal(t, contributors[0].Amount, uint64(500))
 }
 
-func TestCampaignsToJSONString(t *testing.T) {
-	campaigns := []*Campaign{
-		NewCampaign(0, "Campaign 1", "Description 1", 1000, time.Now(), time.Now(), users.GetUserByName("demo"), users.GetUserByName("demo")),
-		NewCampaign(1, "Campaign 2", "Description 2", 2000, time.Now(), time.Now(), users.GetUserByName("demo"), users.GetUserByName("demo")),
-		NewCampaign(2, "Campaign 3", "Description 3", 3000, time.Now(), time.Now(), users.GetUserByName("demo"), users.GetUserByName("demo")),
-	}
+func TestCampaignToJSONString(t *testing.T) {
+	expected := `{"Ctype":"Personal","Title":"Campaign 1","Description":"Description 1","Goal":1000,"Current":500,"Begin":"` + strconv.Itoa(int(begin.Unix())) + `","Deadline":"` + strconv.Itoa(int(deadline.Unix())) + `","Owner":"` + owner.Address.String() + `","Beneficiary":"` + owner.Address.String() + `","Contributors":1}`
 
-	expected := `[{"Ctype":"Personal","Title":"Campaign 1","Description":"Description 1","Goal":1000,"Current":0,"Begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","Deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","Owner":"` + owner.Address.String() + `","Beneficiary":"` + owner.Address.String() + `","Contributors":0},{"Ctype":"Cause","Title":"Campaign 2","Description":"Description 2","Goal":2000,"Current":0,"Begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","Deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","Owner":"` + owner.Address.String() + `","Beneficiary":"` + owner.Address.String() + `","Contributors":0},{"Ctype":"Organism","Title":"Campaign 3","Description":"Description 3","Goal":3000,"Current":0,"Begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","Deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","Owner":"` + owner.Address.String() + `","Beneficiary":"` + owner.Address.String() + `","Contributors":0}]`
-
-	result := CampaignsToJSONString(campaigns)
+	result := campaign.CampaignToJSONString()
 	uassert.Equal(t, result, expected)
 }
 
-func TestCampaignToJSONString(t *testing.T) {
-	campaign := NewCampaign(0, "Campaign 1", "Description 1", 1000, time.Now(), time.Now(), owner, owner)
+func TestCampaignsToJSONString(t *testing.T) {
+	campaigns := []*Campaign{campaign, campaign}
+	campaignjson := `{"Ctype":"Personal","Title":"Campaign 1","Description":"Description 1","Goal":1000,"Current":500,"Begin":"` + strconv.Itoa(int(begin.Unix())) + `","Deadline":"` + strconv.Itoa(int(deadline.Unix())) + `","Owner":"` + owner.Address.String() + `","Beneficiary":"` + owner.Address.String() + `","Contributors":1}`
+	expected := `[` + campaignjson + `,` + campaignjson + `]`
 
-	expected := `{"Ctype":"Personal","Title":"Campaign 1","Description":"Description 1","Goal":1000,"Current":0,"Begin":"` + strconv.Itoa(int(time.Now().Unix())) + `","Deadline":"` + strconv.Itoa(int(time.Now().Unix())) + `","Owner":"` + owner.Address.String() + `","Beneficiary":"` + owner.Address.String() + `","Contributors":0}`
-
-	result := campaign.CampaignToJSONString()
+	result := CampaignsToJSONString(campaigns)
 	uassert.Equal(t, result, expected)
 }
