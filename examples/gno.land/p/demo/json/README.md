@@ -75,7 +75,6 @@ The converted `Node` type allows you to modify the JSON data or search and extra
 package main
 
 import (
-    "fmt"
     "gno.land/p/demo/json"
     "gno.land/p/demo/ufmt"
 )
@@ -100,7 +99,6 @@ Encoding (or Marshaling) is the functionality that converts JSON data represente
 package main
 
 import (
-    "fmt"
     "gno.land/p/demo/json"
     "gno.land/p/demo/ufmt"
 )
@@ -133,7 +131,6 @@ Here is an example of finding data with a specific key. For more examples, pleas
 package main
 
 import (
-    "fmt"
     "gno.land/p/demo/json"
     "gno.land/p/demo/ufmt"
 )
