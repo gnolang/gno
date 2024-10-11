@@ -165,7 +165,7 @@ func (b *buffer) skipUntil(endTokens map[byte]bool) (int, error) {
 
 // significantTokens is a map where the keys are the significant characters in a JSON path.
 // The values in the map are all true, which allows us to use the map as a set for quick lookups.
-var significantTokens = map[byte]bool{
+var significantTokens = [256]bool{
 	dot:          true, // access properties of an object
 	dollarSign:   true, // root object
 	atSign:       true, // current object
@@ -174,7 +174,7 @@ var significantTokens = map[byte]bool{
 }
 
 // filterTokens stores the filter expression tokens.
-var filterTokens = map[byte]bool{
+var filterTokens = [256]bool{
 	aesterisk: true, // wildcard
 	andSign:   true,
 	orSign:    true,
@@ -186,7 +186,7 @@ func (b *buffer) skipToNextSignificantToken() {
 	for b.index < b.length {
 		current := b.data[b.index]
 
-		if _, ok := significantTokens[current]; ok {
+		if significantTokens[current] {
 			break
 		}
 
@@ -199,23 +199,13 @@ func (b *buffer) skipToNextSignificantToken() {
 // This is used to check if the current character is escaped. However, unlike the "unescape" function,
 // "backslash" only serves to check the number of backslashes.
 func (b *buffer) backslash() bool {
-	if b.index == 0 {
-		return false
-	}
-
 	count := 0
-	for i := b.index - 1; ; i-- {
-		if i >= b.length || b.data[i] != backSlash {
+	for i := b.index - 1; i >= 0; i-- {
+		if b.data[i] != backSlash {
 			break
 		}
-
 		count++
-
-		if i == 0 {
-			break
-		}
 	}
-
 	return count%2 != 0
 }
 
@@ -315,15 +305,15 @@ end:
 }
 
 func pathStateContainsValidPathToken(c byte) bool {
-	if _, ok := significantTokens[c]; ok {
+	if significantTokens[c] {
 		return true
 	}
 
-	if _, ok := filterTokens[c]; ok {
+	if filterTokens[c] {
 		return true
 	}
 
-	if _, ok := numIndex[c]; ok {
+	if numIndex[c] {
 		return true
 	}
 
