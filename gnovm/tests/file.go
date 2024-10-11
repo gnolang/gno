@@ -15,6 +15,7 @@ import (
 
 	"github.com/gnolang/gno/gno.land/pkg/gnoland/ugnot"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -122,7 +123,8 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	if f.nativeLibs {
 		mode = ImportModeNativePreferred
 	}
-	store := TestStore(rootDir, "./files", nil, stdin, stdout, stderr, mode)
+	pkgsMap := map[string]*packages.Package{}
+	store := TestStore(rootDir, "./files", pkgsMap, stdin, stdout, stderr, mode)
 	store.SetLogStoreOps(true)
 	m := testMachineCustom(store, pkgPath, stdout, maxAlloc, send)
 	checkMachineIsEmpty := true

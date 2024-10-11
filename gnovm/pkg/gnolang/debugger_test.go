@@ -12,6 +12,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/tests"
 )
 
@@ -44,7 +45,8 @@ func evalTest(debugAddr, in, file string) (out, err, stacktrace string) {
 		err = strings.TrimSpace(strings.ReplaceAll(err, "../../tests/files/", "files/"))
 	}()
 
-	testStore := tests.TestStore(gnoenv.RootDir(), "../../tests/files", nil, stdin, stdout, stderr, mode)
+	pkgsMap := map[string]*packages.Package{}
+	testStore := tests.TestStore(gnoenv.RootDir(), "../../tests/files", pkgsMap, stdin, stdout, stderr, mode)
 
 	f := gnolang.MustReadFile(file)
 

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 )
 
 func TestMachineTestMemPackage(t *testing.T) {
@@ -40,7 +41,8 @@ func TestMachineTestMemPackage(t *testing.T) {
 					Name: tt.name,
 					F: func(t2 *testing.T) { //nolint:thelper
 						rootDir := filepath.Join("..", "..")
-						store := TestStore(rootDir, "test", nil, os.Stdin, os.Stdout, os.Stderr, ImportModeStdlibsOnly)
+						pkgsMap := map[string]*packages.Package{}
+						store := TestStore(rootDir, "test", pkgsMap, os.Stdin, os.Stdout, os.Stderr, ImportModeStdlibsOnly)
 						store.SetLogStoreOps(true)
 						m := gno.NewMachineWithOptions(gno.MachineOptions{
 							PkgPath: "test",

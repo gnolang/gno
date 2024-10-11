@@ -90,8 +90,9 @@ func execRun(cfg *runCfg, args []string, io commands.IO) error {
 	stderr := io.Err()
 
 	// init store and machine
+	pkgsMap := map[string]*packages.Package{}
 	testStore := tests.TestStore(cfg.rootDir,
-		"", nil, stdin, stdout, stderr,
+		"", pkgsMap, stdin, stdout, stderr,
 		tests.ImportModeStdlibsPreferred)
 	if cfg.verbose {
 		testStore.SetLogStoreOps(true)
