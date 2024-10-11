@@ -62,7 +62,7 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	pkgs, err := packages.Load(args...)
+	pkgs, err := packages.Load(io, args...)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}

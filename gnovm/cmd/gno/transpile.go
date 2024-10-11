@@ -134,7 +134,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	}
 
 	// transpile .gno packages and files.
-	pkgs, err := packages.Load(args...)
+	pkgs, err := packages.Load(io, args...)
 	if err != nil {
 		return fmt.Errorf("load pkgs: %w", err)
 	}

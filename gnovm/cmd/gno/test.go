@@ -159,7 +159,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	}
 
 	// Find targets for test.
-	pkgs, err := packages.Load(args...)
+	pkgs, err := packages.Load(io, args...)
 	if err != nil {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}

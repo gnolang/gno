@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
+	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"golang.org/x/mod/modfile"
 )
@@ -151,7 +152,7 @@ type PackageSummary struct {
 }
 
 // FIXME: support files
-func Load(paths ...string) ([]*Package, error) {
+func Load(io commands.IO, paths ...string) ([]*Package, error) {
 	pkgs, err := DiscoverPackages(paths...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list packages: %w", err)
@@ -168,7 +169,7 @@ func Load(paths ...string) ([]*Package, error) {
 		}
 		visited[pkgSum.PkgPath] = struct{}{}
 
-		pkg, err := resolvePackage(pkgSum)
+		pkg, err := resolvePackage(io, pkgSum)
 		if err != nil {
 			pkg = &Package{
 				ImportPath: pkgSum.PkgPath,
@@ -231,12 +232,12 @@ func listDepsRecursive(rootTarget string, target string, pkgs map[string]*Packag
 	return errors.Join(errs...)
 }
 
-func resolvePackage(meta *PackageSummary) (*Package, error) {
+func resolvePackage(io commands.IO, meta *PackageSummary) (*Package, error) {
 	if meta.Root == "" {
 		if !strings.ContainsRune(meta.PkgPath, '.') {
 			return resolveStdlib(meta)
 		} else {
-			return resolveRemote(meta)
+			return resolveRemote(io, meta)
 		}
 	}
 
@@ -259,12 +260,12 @@ func resolveStdlib(ometa *PackageSummary) (*Package, error) {
 }
 
 // Does not fill deps
-func resolveRemote(ometa *PackageSummary) (*Package, error) {
+func resolveRemote(io commands.IO, ometa *PackageSummary) (*Package, error) {
 	meta := *ometa
 
 	modCache := filepath.Join(gnoenv.HomeDir(), "pkg", "mod")
 	meta.Root = filepath.Join(modCache, meta.PkgPath)
-	if err := DownloadModule(meta.PkgPath, meta.Root); err != nil {
+	if err := DownloadModule(io, meta.PkgPath, meta.Root); err != nil {
 		return nil, fmt.Errorf("failed to download module %q: %w", meta.PkgPath, err)
 	}
 	modDir, err := findModDir(meta.Root)

@@ -46,7 +46,7 @@ Packages not explicitly listed on the command line will have the DepOnly
 field set to true`)
 }
 
-func execList(cfg *listCfg, args []string, _ commands.IO) error {
+func execList(cfg *listCfg, args []string, io commands.IO) error {
 	if len(args) < 1 {
 		return flag.ErrHelp
 	}
@@ -65,7 +65,7 @@ func execList(cfg *listCfg, args []string, _ commands.IO) error {
 		return nil
 	}
 
-	pkgs, err := packages.Load(args...)
+	pkgs, err := packages.Load(io, args...)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

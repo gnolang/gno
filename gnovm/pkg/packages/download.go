@@ -9,13 +9,14 @@ import (
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/bft/rpc/client"
+	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/errors"
 )
 
-func DownloadModule(pkgPath string, dst string) error {
+func DownloadModule(io commands.IO, pkgPath string, dst string) error {
 	modFilePath := filepath.Join(dst, ModfileName)
 	if _, err := os.Stat(modFilePath); os.IsNotExist(err) {
-		fmt.Fprintln(os.Stderr, "gno: downloading", pkgPath)
+		io.ErrPrintfln("gno: downloading %s", pkgPath)
 
 		// create client from pkgpath
 		parts := strings.Split(pkgPath, "/")
