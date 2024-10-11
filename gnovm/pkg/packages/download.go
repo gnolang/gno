@@ -22,6 +22,7 @@ func DownloadModule(pkgPath string, dst string) error {
 		if len(parts) < 1 {
 			return fmt.Errorf("bad pkg path %q", pkgPath)
 		}
+		// XXX: retrieve host/port from r/sys/zones.
 		rpcURL := (&url.URL{
 			Scheme: "https",
 			Host:   "rpc." + parts[0] + ":443",
