@@ -8,6 +8,13 @@
 // original behavior can be found here:
 // https://cs.opensource.google/go/go/+/master:src/crypto/subtle/xor.go
 
+// XXX: this implementation is a compatibility layer implimentation for gno,
+// due to the nature of the gno interpreter, this implementation is not
+// guarantee constant time it is only meant for internal use for compatibility
+// with cryptographic libraries that require it. It should only be used for
+// acceptable use cases such as Equal and Verify functions in crypto libraries
+// that require constant time compatible comparison.
+
 package subtle
 
 // XORBytes sets dst[i] = x[i] ^ y[i] for all i < n = min(len(x), len(y)),

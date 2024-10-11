@@ -4,6 +4,14 @@
 
 // Package subtle implements functions that are often useful in cryptographic
 // code but require careful thought to use correctly.
+
+// XXX: this implementation is a compatibility layer implimentation for gno,
+// due to the nature of the gno interpreter, this implementation is not
+// guarantee constant time it is only meant for internal use for compatibility
+// with cryptographic libraries that require it. It should only be used for
+// acceptable use cases such as Equal and Verify functions in crypto libraries
+// that require constant time compatible comparison.
+
 package subtle
 
 // ConstantTimeCompare returns 1 if the two slices, x and y, have equal contents
