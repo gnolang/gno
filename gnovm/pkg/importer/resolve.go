@@ -108,8 +108,12 @@ func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
 				cache[pkgPath] = &PackageSummary{
 					PkgPath: path.Join(globalPkgPath, relpath),
 					Root:    absroot,
-					ModFile: modFile,
-					Match:   []string{tgt.match},
+					Module: &Module{
+						Path:   globalPkgPath,
+						Dir:    modDir,
+						GnoMod: modFilePath,
+					},
+					Match: []string{tgt.match},
 				}
 				packages = append(packages, cache[pkgPath])
 			}
@@ -145,7 +149,7 @@ func DiscoverPackages(paths ...string) ([]*PackageSummary, error) {
 type PackageSummary struct {
 	PkgPath string
 	Root    string
-	ModFile *modfile.File
+	Module  *Module
 	Match   []string
 }
 
@@ -233,37 +237,40 @@ func listDepsRecursive(rootTarget string, target string, pkgs map[string]*Packag
 func resolvePackage(meta *PackageSummary) (*Package, error) {
 	if meta.Root == "" {
 		if !strings.ContainsRune(meta.PkgPath, '.') {
-			return resolveStdlib(meta.PkgPath, meta.Match)
+			return resolveStdlib(meta)
 		} else {
-			return resolveRemote(meta.PkgPath, meta.Match)
+			return resolveRemote(meta)
 		}
 	}
 
-	if meta.ModFile == nil {
-		return nil, errors.New("unexpected nil modfile")
+	if meta.Module == nil {
+		return nil, errors.New("unexpected nil module")
 	}
 
-	return fillPackage(meta.PkgPath, meta.Root, meta.ModFile, meta.Match)
+	return fillPackage(meta)
 }
 
-func resolveStdlib(pkgPath string, match []string) (*Package, error) {
+func resolveStdlib(ometa *PackageSummary) (*Package, error) {
+	meta := *ometa
 	gnoRoot, err := gnoenv.GuessRootDir()
 	if err != nil {
 		return nil, fmt.Errorf("failed to guess gno root dir: %w", err)
 	}
-	parts := strings.Split(pkgPath, "/")
-	libDir := filepath.Join(append([]string{gnoRoot, "gnovm", "stdlibs"}, parts...)...)
-	return fillPackage(pkgPath, libDir, nil, match)
+	parts := strings.Split(meta.PkgPath, "/")
+	meta.Root = filepath.Join(append([]string{gnoRoot, "gnovm", "stdlibs"}, parts...)...)
+	return fillPackage(&meta)
 }
 
 // Does not fill deps
-func resolveRemote(pkgPath string, match []string) (*Package, error) {
+func resolveRemote(ometa *PackageSummary) (*Package, error) {
+	meta := *ometa
+
 	modCache := filepath.Join(gnoenv.HomeDir(), "pkg", "mod")
-	pkgDir := filepath.Join(modCache, pkgPath)
-	if err := DownloadModule(pkgPath, pkgDir); err != nil {
-		return nil, fmt.Errorf("failed to download module %q: %w", pkgPath, err)
+	meta.Root = filepath.Join(modCache, meta.PkgPath)
+	if err := DownloadModule(meta.PkgPath, meta.Root); err != nil {
+		return nil, fmt.Errorf("failed to download module %q: %w", meta.PkgPath, err)
 	}
-	modDir, err := findModDir(pkgDir)
+	modDir, err := findModDir(meta.Root)
 	if os.IsNotExist(err) {
 		return nil, errors.New("failed to clone mod")
 	} else if err != nil {
@@ -278,21 +285,31 @@ func resolveRemote(pkgPath string, match []string) (*Package, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse modfile: %w", err)
 	}
-	pkg, err := fillPackage(pkgPath, pkgDir, modFile, match)
+	meta.Module = &Module{
+		Path:   modFile.Module.Mod.Path,
+		Dir:    modDir,
+		GnoMod: modFilePath,
+	}
+
+	pkg, err := fillPackage(&meta)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fill Package %q: %w", pkgPath, err)
+		return nil, fmt.Errorf("failed to fill Package %q: %w", meta.PkgPath, err)
 	}
 
 	return pkg, nil
 }
 
-func fillPackage(pkgPath, pkgDir string, modFile *modfile.File, match []string) (*Package, error) {
+func fillPackage(meta *PackageSummary) (*Package, error) {
 	fsFiles := []string{}
 	files := []string{}
 	fsTestFiles := []string{}
 	testFiles := []string{}
 	fsFiletestFiles := []string{}
 	filetestFiles := []string{}
+
+	pkgDir := meta.Root
+	pkgPath := meta.PkgPath
+
 	dir, err := os.ReadDir(pkgDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read module files list: %w", err)
@@ -328,10 +345,8 @@ func fillPackage(pkgPath, pkgDir string, modFile *modfile.File, match []string) 
 	}
 
 	module := Module{}
-	if modFile != nil {
-		module = Module{
-			Path: modFile.Module.Mod.Path,
-		}
+	if meta.Module != nil {
+		module = *meta.Module
 	}
 
 	return &Package{
@@ -339,7 +354,7 @@ func fillPackage(pkgPath, pkgDir string, modFile *modfile.File, match []string) 
 		Dir:              pkgDir,
 		Name:             name,
 		Module:           module,
-		Match:            match,
+		Match:            meta.Match,
 		GnoFiles:         files,
 		Imports:          imports,
 		TestGnoFiles:     testFiles,
@@ -440,11 +455,9 @@ func (p *Package) MemPkg() (*std.MemPackage, error) {
 }
 
 type Module struct {
-	Path      string `json:",omitempty"`
-	Main      bool   `json:",omitempty"`
-	Dir       string `json:",omitempty"`
-	GoMod     string `json:",omitempty"`
-	GoVersion string `json:",omitempty"`
+	Path   string `json:",omitempty"`
+	Dir    string `json:",omitempty"`
+	GnoMod string `json:",omitempty"`
 }
 
 func resolveNameAndImports(gnoFiles []string) (string, []string, error) {
