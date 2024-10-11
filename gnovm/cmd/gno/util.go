@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/importer"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 )
 
 func isFileExist(path string) bool {
@@ -28,7 +28,7 @@ func gnoFilesFromArgsRecursively(args []string) ([]string, error) {
 
 		if !info.IsDir() {
 			path := filepath.Join(argPath, fs.FileInfoToDirEntry(info).Name())
-			if importer.IsGnoFile(path) {
+			if packages.IsGnoFile(path) {
 				paths = append(paths, ensurePathPrefix(argPath))
 			}
 
@@ -58,7 +58,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 
 		if !info.IsDir() {
 			path := filepath.Join(argPath, fs.FileInfoToDirEntry(info).Name())
-			if importer.IsGnoFile(path) {
+			if packages.IsGnoFile(path) {
 				paths = append(paths, ensurePathPrefix(argPath))
 			}
 			continue
@@ -70,7 +70,7 @@ func gnoFilesFromArgs(args []string) ([]string, error) {
 		}
 		for _, f := range files {
 			path := filepath.Join(argPath, f.Name())
-			if importer.IsGnoFile(path) {
+			if packages.IsGnoFile(path) {
 				paths = append(paths, ensurePathPrefix(path))
 			}
 		}
@@ -99,7 +99,7 @@ func walkDirForGnoFiles(root string, addPath func(path string)) error {
 		}
 
 		path := filepath.Join(currPath, f.Name())
-		if f.IsDir() || !importer.IsGnoFile(path) {
+		if f.IsDir() || !packages.IsGnoFile(path) {
 			return nil
 		}
 
@@ -187,7 +187,7 @@ func targetsFromPatterns(patterns []string) ([]string, error) {
 			}
 			// Skip directories and non ".gno" files.
 			path := filepath.Join(dirToSearch, curpath)
-			if f.IsDir() || !importer.IsGnoFile(path) {
+			if f.IsDir() || !packages.IsGnoFile(path) {
 				return nil
 			}
 

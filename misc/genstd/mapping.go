@@ -251,7 +251,7 @@ func resolveImport(imports []*ast.ImportSpec, ident string) string {
 
 		// TODO: for simplicity, if i.Name is nil we assume the name to be ==
 		// to the last part of the import path.
-		// ideally, use importer to resolve package directory on user's FS and
+		// ideally, use packages to resolve package directory on user's FS and
 		// resolve by parsing and reading package clause
 		var name string
 		if i.Name != nil {

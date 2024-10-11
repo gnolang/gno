@@ -18,7 +18,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
-	"github.com/gnolang/gno/gnovm/pkg/importer"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/pkg/transpiler"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -135,12 +135,12 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 	}
 
 	// transpile .gno packages and files.
-	pkgs, err := importer.Load(args...)
+	pkgs, err := packages.Load(args...)
 	if err != nil {
 		return fmt.Errorf("load pkgs: %w", err)
 	}
 
-	pkgsMap := map[string]*importer.Package{}
+	pkgsMap := map[string]*packages.Package{}
 	for _, pkg := range pkgs {
 		pkgsMap[pkg.ImportPath] = pkg
 	}
@@ -207,7 +207,7 @@ func execTranspile(cfg *transpileCfg, args []string, io commands.IO) error {
 // transpilePkg transpiles all non-test files at the given location.
 // Additionally, it checks the gno.mod in said location, and skips it if it is
 // a draft module
-func transpilePkg(pkg *importer.Package, pkgs map[string]*importer.Package, opts *transpileOptions) error {
+func transpilePkg(pkg *packages.Package, pkgs map[string]*packages.Package, opts *transpileOptions) error {
 	dirPath := pkg.Dir
 	if opts.isTranspiled(dirPath) {
 		return nil
@@ -243,7 +243,7 @@ func transpilePkg(pkg *importer.Package, pkgs map[string]*importer.Package, opts
 	return nil
 }
 
-func transpileFile(srcPath string, pkgs map[string]*importer.Package, opts *transpileOptions) error {
+func transpileFile(srcPath string, pkgs map[string]*packages.Package, opts *transpileOptions) error {
 	flags := opts.getFlags()
 
 	// parse .gno.

@@ -18,7 +18,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/importer"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	"github.com/gnolang/gno/tm2/pkg/std"
@@ -159,7 +159,7 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 	}
 
 	// Find targets for test.
-	pkgs, err := importer.Load(args...)
+	pkgs, err := packages.Load(args...)
 	if err != nil {
 		return fmt.Errorf("list targets from patterns: %w", err)
 	}
@@ -213,8 +213,8 @@ func execTest(cfg *testCfg, args []string, io commands.IO) error {
 }
 
 func gnoTestPkg(
-	pkg *importer.Package,
-	loadedPkgs []*importer.Package,
+	pkg *packages.Package,
+	loadedPkgs []*packages.Package,
 	cfg *testCfg,
 	io commands.IO,
 ) error {
@@ -241,7 +241,7 @@ func gnoTestPkg(
 		stdout = commands.WriteNopCloser(mockOut)
 	}
 
-	pkgsMap := map[string]*importer.Package{}
+	pkgsMap := map[string]*packages.Package{}
 	for _, pkg := range loadedPkgs {
 		pkgsMap[pkg.ImportPath] = pkg
 	}
@@ -585,7 +585,7 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 	tset = &gno.FileSet{}
 	itset = &gno.FileSet{}
 	for _, mfile := range memPkg.Files {
-		if !importer.IsGnoFile(mfile.Name, "!*_filetest.gno") {
+		if !packages.IsGnoFile(mfile.Name, "!*_filetest.gno") {
 			continue
 		}
 		n, err := gno.ParseFile(mfile.Name, mfile.Body)

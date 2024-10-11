@@ -14,7 +14,7 @@ import (
 
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/importer"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
@@ -62,12 +62,12 @@ func execLint(cfg *lintCfg, args []string, io commands.IO) error {
 		rootDir = gnoenv.RootDir()
 	}
 
-	pkgs, err := importer.Load(args...)
+	pkgs, err := packages.Load(args...)
 	if err != nil {
 		return fmt.Errorf("list packages from args: %w", err)
 	}
 
-	pkgsMap := map[string]*importer.Package{}
+	pkgsMap := map[string]*packages.Package{}
 	for _, pkg := range pkgs {
 		pkgsMap[pkg.ImportPath] = pkg
 	}

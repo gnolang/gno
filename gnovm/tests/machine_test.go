@@ -40,7 +40,7 @@ func TestMachineTestMemPackage(t *testing.T) {
 					Name: tt.name,
 					F: func(t2 *testing.T) { //nolint:thelper
 						rootDir := filepath.Join("..", "..")
-						store := TestStore(rootDir, "test", os.Stdin, os.Stdout, os.Stderr, ImportModeStdlibsOnly)
+						store := TestStore(rootDir, "test", nil, os.Stdin, os.Stdout, os.Stderr, ImportModeStdlibsOnly)
 						store.SetLogStoreOps(true)
 						m := gno.NewMachineWithOptions(gno.MachineOptions{
 							PkgPath: "test",

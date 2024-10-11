@@ -227,7 +227,7 @@ func (ctx *transpileCtx) transformCallExpr(_ *astutil.Cursor, ce *ast.CallExpr) 
 		// its replacement is a type with the method AssertOriginCall, this system
 		// will incorrectly add a `nil` as the first argument.
 		// A full fix requires understanding scope; the Go standard library recommends
-		// using go/types, which for proper functioning requires an importer
+		// using go/types, which for proper functioning requires an packages
 		// which can work with Gno. This is deferred for a future PR.
 		id, ok := fe.X.(*ast.Ident)
 		if !ok {

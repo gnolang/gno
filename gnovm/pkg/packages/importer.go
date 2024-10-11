@@ -1,6 +1,6 @@
-// Package importer allows to match an import path to a directory, and select
+// Package packages allows to match an import path to a directory, and select
 // a set of files within that directory which are Gno files.
-package importer
+package packages
 
 import (
 	"sync"
@@ -8,7 +8,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 )
 
-// Config defines the configuration for the importer.
+// Config defines the configuration for the packages.
 type Config struct {
 	// RootDir should point to the directory of the gno repository.
 	// This is used to resolve import paths of packages and realms in

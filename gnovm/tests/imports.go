@@ -38,7 +38,7 @@ import (
 	"unicode/utf8"
 
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
-	"github.com/gnolang/gno/gnovm/pkg/importer"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	teststdlibs "github.com/gnolang/gno/gnovm/tests/stdlibs"
 	teststd "github.com/gnolang/gno/gnovm/tests/stdlibs/std"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
@@ -62,7 +62,7 @@ const (
 )
 
 // NOTE: this isn't safe, should only be used for testing.
-func TestStore(rootDir, filesPath string, pkgs map[string]*importer.Package, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (resStore gno.Store) {
+func TestStore(rootDir, filesPath string, pkgs map[string]*packages.Package, stdin io.Reader, stdout, stderr io.Writer, mode importMode) (resStore gno.Store) {
 	getPackage := func(pkgPath string, store gno.Store) (pn *gno.PackageNode, pv *gno.PackageValue) {
 		if pkgPath == "" {
 			panic(fmt.Sprintf("invalid zero package path in testStore().pkgGetter"))

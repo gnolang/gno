@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/gnolang/gno/gnovm/pkg/importer"
+	"github.com/gnolang/gno/gnovm/pkg/packages"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 )
 
@@ -52,7 +52,7 @@ func execList(cfg *listCfg, args []string, _ commands.IO) error {
 	}
 
 	if !cfg.json {
-		pkgs, err := importer.DiscoverPackages(args...)
+		pkgs, err := packages.DiscoverPackages(args...)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -65,7 +65,7 @@ func execList(cfg *listCfg, args []string, _ commands.IO) error {
 		return nil
 	}
 
-	pkgs, err := importer.Load(args...)
+	pkgs, err := packages.Load(args...)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)

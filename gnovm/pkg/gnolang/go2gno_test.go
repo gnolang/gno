@@ -294,7 +294,7 @@ func TestTypeCheckMemPackage(t *testing.T) {
 
 	tt = append(tt, testCase{
 		"ImportWithCache",
-		// This test will make use of the importer's internal cache for package `std`.
+		// This test will make use of the packages's internal cache for package `std`.
 		&std.MemPackage{
 			Name: "hello",
 			Path: "gno.land/p/demo/hello",

@@ -126,26 +126,6 @@ func (c *Client) QEval(pkgPath string, expression string) (string, *ctypes.Resul
 	return string(qres.Response.Data), qres, nil
 }
 
-// QFile ???
-func (c *Client) QFile(pkgPath string) (string, *ctypes.ResultABCIQuery, error) {
-	if err := c.validateRPCClient(); err != nil {
-		return "", nil, err
-	}
-
-	path := "vm/qfile"
-	data := []byte(pkgPath)
-
-	qres, err := c.RPCClient.ABCIQuery(path, data)
-	if err != nil {
-		return "", nil, errors.Wrap(err, "query qfile")
-	}
-	if qres.Response.Error != nil {
-		return "", nil, errors.Wrap(qres.Response.Error, "QFile failed: log:%s", qres.Response.Log)
-	}
-
-	return string(qres.Response.Data), qres, nil
-}
-
 // Block gets the latest block at height, if any
 // Height must be larger than 0
 func (c *Client) Block(height int64) (*ctypes.ResultBlock, error) {
