@@ -7,7 +7,7 @@ import (
 
 func TestRender(t *testing.T) {
 	output := Render("")
-	if !strings.Contains(output, "Markdown rendering") {
+	if !strings.Contains(output, "Exploring markdown functions in the gno.land/p/md library") {
 		t.Errorf("invalid output")
 	}
 }
