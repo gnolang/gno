@@ -91,7 +91,7 @@ func Test_CodeBlock(t *testing.T) {
 
 func Test_LineBreak(t *testing.T) {
 	result := LineBreak(2)
-	expected := "\n\n"
+	expected := "\n\n\n"
 	uassert.Equal(t, result, expected)
 
 	result = LineBreak(0)
@@ -121,7 +121,7 @@ func Test_Footnote(t *testing.T) {
 
 func Test_Paragraph(t *testing.T) {
 	result := Paragraph("This is a paragraph.")
-	uassert.Equal(t, result, "\nThis is a paragraph.\n")
+	uassert.Equal(t, result, "This is a paragraph.\n")
 }
 
 func Test_Table(t *testing.T) {
@@ -134,4 +134,9 @@ func Test_Table(t *testing.T) {
 	result := Table(tb)
 	expected := "| Header1 | Header2 |\n| ---|---|\n| Row1Col1 | Row1Col2 |\n| Row2Col1 | Row2Col2 |\n"
 	uassert.Equal(t, result, expected)
+}
+
+func Test_EscapeMarkdown(t *testing.T) {
+	result := EscapeMarkdown("- This is `code`")
+	uassert.Equal(t, result, "``- This is `code```")
 }

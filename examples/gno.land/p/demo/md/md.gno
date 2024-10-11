@@ -112,7 +112,7 @@ func LanguageCodeBlock(language, content string) string {
 // LineBreak returns the specified number of line breaks for markdown
 func LineBreak(count uint) string {
 	if count > 0 {
-		return strings.Repeat("\n", int(count))
+		return strings.Repeat("\n", int(count)+1)
 	}
 	return ""
 }
@@ -139,7 +139,7 @@ func Footnote(reference, text string) string {
 
 // Paragraph wraps the given text in a Markdown paragraph
 func Paragraph(content string) string {
-	return ufmt.Sprintf("\n%s\n", content)
+	return ufmt.Sprintf("%s\n", content)
 }
 
 // MdTable is an interface for table types that can be converted to Markdown format
@@ -151,4 +151,9 @@ type MdTable interface {
 // Table takes any MdTable implementation and returns its markdown representation
 func Table(table MdTable) string {
 	return table.ToMarkdown()
+}
+
+// EscapeMarkdown escapes special markdown characters in a string
+func EscapeMarkdown(text string) string {
+	return ufmt.Sprintf("``%s``", text)
 }
