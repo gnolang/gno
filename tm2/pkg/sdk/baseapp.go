@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -337,38 +336,7 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 	app.deliverState.ctx = app.deliverState.ctx.
 		WithBlockGasMeter(store.NewInfiniteGasMeter())
 
-	// Inject a custom
-	superBeginTxHook := app.beginTxHook
-	app.beginTxHook = func(ctx Context) Context {
-		retCtx := ctx
-
-		if superBeginTxHook != nil {
-			// Run the initially-set hook first
-			retCtx = superBeginTxHook(ctx)
-		}
-
-		if true { // TODO change to check if there is a genesis context
-			return retCtx
-		}
-
-		// TODO Modify the beginTx hook to give you the transaction,
-		// so metadata will be extracted
-
-		// Create a copy of the header, in
-		// which only the timestamp information is modified
-		header := initHeader.Copy()
-		header.Time = time.Now().Add(time.Hour * 72) // TODO modify based on tx metadata
-
-		// Save the modified header
-		retCtx.header = header
-
-		return retCtx
-	}
-
 	res = app.initChainer(app.deliverState.ctx, req)
-
-	// Restore the original beginTx hook
-	app.beginTxHook = superBeginTxHook
 
 	// sanity check
 	if len(req.Validators) > 0 {
@@ -977,6 +945,10 @@ func (app *BaseApp) halt() {
 // TODO implement cleanup
 func (app *BaseApp) Close() error {
 	return nil // XXX
+}
+
+func (app *BaseApp) BeginTxHook() BeginTxHook {
+	return app.beginTxHook
 }
 
 // ----------------------------------------------------------------------------
