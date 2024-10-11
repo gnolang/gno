@@ -1,4 +1,4 @@
-## Overview
+# Open Telemetry overview
 
 The purpose of this Telemetry documentation is to showcase the different node metrics exposed by the Gno node through
 OpenTelemetry, without having to do extraneous setup.
@@ -18,7 +18,7 @@ The containerized setup is the following:
 Make sure you have Docker installed and running on your system. After that, within the `misc/telemetry` folder run the
 following command:
 
-```shell
+```bash
 make up
 ```
 
@@ -26,15 +26,13 @@ This will build out the required Docker images for this simulation, and start th
 
 ### Step 2: Open Grafana
 
-When you've verified that the `telemetry` containers are up and running, head on over to http://localhost:3000 to open
+When you've verified that the `telemetry` containers are up and running, head on over to <http://localhost:3000> to open
 the Grafana dashboard.
 
 Default login details:
 
-```
-username: admin
-password: admin
-```
+- username: admin
+- password: admin
 
 After you've logged in (you can skip setting a new password), on the left hand side, click on
 `Dashboards -> Gno -> Gno Node Metrics`:

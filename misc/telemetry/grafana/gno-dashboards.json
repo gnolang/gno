@@ -19,7 +19,6 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 2,
   "links": [],
   "panels": [
     {
@@ -70,6 +69,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -81,7 +81,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -134,6 +134,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -145,7 +146,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -165,6 +166,7 @@
     },
     {
       "datasource": {
+        "default": true,
         "type": "prometheus",
         "uid": "prometheus"
       },
@@ -198,6 +200,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -209,7 +212,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -217,14 +220,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(vm_gas_used_hist_sum[$__rate_interval])/rate(vm_gas_used_hist_count[$__rate_interval])",
+          "expr": "rate(vm_gas_used_hist_sum{operation=~\"${operation}\"}[$__rate_interval])/rate(vm_gas_used_hist_count{operation=~\"${operation}\"}[$__rate_interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average Gas Used by VM execution [10min]",
+      "title": "Average Gas Used by VM execution - operation: ${operation}",
       "type": "stat"
     },
     {
@@ -262,6 +265,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -273,7 +277,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -281,14 +285,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(vm_cpu_cycles_hist_sum[$__rate_interval])/rate(vm_cpu_cycles_hist_count[$__rate_interval])",
+          "expr": "rate(vm_cpu_cycles_hist_sum{operation=~\"${operation}\"}[$__rate_interval])/rate(vm_cpu_cycles_hist_count{operation=~\"${operation}\"}[$__rate_interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average CPU Cycles in VM execution [10min]",
+      "title": "Average CPU Cycles in VM execution - operation: ${operation}",
       "type": "stat"
     },
     {
@@ -337,6 +341,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -348,7 +353,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -401,6 +406,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -412,7 +418,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -479,6 +485,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -490,7 +497,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -545,6 +552,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -556,7 +564,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -611,6 +619,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -622,7 +631,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -687,6 +696,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -698,7 +708,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -752,6 +762,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -763,7 +774,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -825,6 +836,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -836,7 +848,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -855,7 +867,7 @@
           "useBackend": false
         }
       ],
-      "title": "Average Block Build Time [10min]",
+      "title": "Average Block Build Time",
       "type": "stat"
     },
     {
@@ -897,6 +909,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -908,7 +921,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -927,7 +940,7 @@
           "useBackend": false
         }
       ],
-      "title": "Average Block Interval [10min]",
+      "title": "Average Block Interval",
       "type": "stat"
     },
     {
@@ -991,7 +1004,7 @@
           "reverse": false
         }
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -1010,7 +1023,7 @@
           "useBackend": false
         }
       ],
-      "title": "Average Block Tx Count [10min]",
+      "title": "Average Block Tx Count",
       "type": "heatmap"
     },
     {
@@ -1049,6 +1062,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -1060,7 +1074,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -1079,7 +1093,7 @@
           "useBackend": false
         }
       ],
-      "title": "Average Block Size [10min]",
+      "title": "Average Block Size",
       "type": "stat"
     },
     {
@@ -1136,6 +1150,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -1147,7 +1162,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -1166,7 +1181,7 @@
           "useBackend": false
         }
       ],
-      "title": "Average Transaction Broadcast Duration [10min]",
+      "title": "Average Transaction Broadcast Duration",
       "type": "stat"
     },
     {
@@ -1227,6 +1242,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -1238,7 +1254,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -1258,7 +1274,7 @@
           "useBackend": false
         }
       ],
-      "title": "Average HTTP Request Round Trip Time [10min]",
+      "title": "Average HTTP Request Round Trip Time",
       "type": "stat"
     },
     {
@@ -1306,6 +1322,7 @@
         "graphMode": "area",
         "justifyMode": "auto",
         "orientation": "auto",
+        "percentChangeColorMode": "standard",
         "reduceOptions": {
           "calcs": [
             "mean"
@@ -1317,7 +1334,7 @@
         "textMode": "auto",
         "wideLayout": true
       },
-      "pluginVersion": "10.4.2",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -1337,7 +1354,7 @@
           "useBackend": false
         }
       ],
-      "title": "Average WS Request Round Trip Time [10min]",
+      "title": "Average WS Request Round Trip Time",
       "type": "stat"
     }
   ],
@@ -1345,10 +1362,34 @@
   "schemaVersion": 39,
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {
+          "selected": true,
+          "text": "m_addpkg",
+          "value": "m_addpkg"
+        },
+        "definition": "label_values(vm_gas_used_hist_sum,operation)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "operation",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(vm_gas_used_hist_sum,operation)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      }
+    ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-8h",
     "to": "now"
   },
   "timepicker": {},
