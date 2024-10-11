@@ -12,6 +12,7 @@ import (
 	"github.com/gnolang/gno/gnovm/pkg/gnoenv"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	"github.com/gnolang/gno/tm2/pkg/bft/config"
+	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/events"
@@ -300,7 +301,18 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
 	// Run genesis txs
 	for _, tx := range state.Txs {
-		res := cfg.baseApp.Deliver(tx)
+		// Create a custom context modifier
+		ctxFn := func(ctx sdk.Context) sdk.Context {
+			// Create a copy of the header, in
+			// which only the timestamp information is modified
+			header := ctx.BlockHeader().(*bft.Header).Copy()
+			header.Time = time.Now().Add(time.Hour * 72) // TODO modify based on tx metadata
+
+			// Save the modified header
+			return ctx.WithBlockHeader(header)
+		}
+
+		res := cfg.baseApp.Deliver(tx, ctxFn)
 		if res.IsErr() {
 			ctx.Logger().Error(
 				"Unable to deliver genesis tx",
