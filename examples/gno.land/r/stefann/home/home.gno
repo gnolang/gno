@@ -5,8 +5,9 @@ import (
 	"std"
 
 	"gno.land/p/demo/ufmt"
+    "gno.land/p/demo/ownable"
 
-	"gno.land/r/stefann/config"
+	"gno.land/r/stefann/registar"
 )
 
 type City struct {
@@ -32,6 +33,7 @@ var (
 )
 
 func init() {
+    owner = ownable.NewWithAddress(registar.MainAddr)
 	pfp = "https://i.ibb.co/Bc5YNCx/DSC-0095a.jpg"
 	cities = []City{
 		{Name: "Venice", URL: "https://i.ibb.co/1mcZ7b1/venice.jpg"},
@@ -50,7 +52,7 @@ func init() {
 		{Name: "London", URL: "https://i.ibb.co/CPGtvgr/london.jpg"},
 	}
 	currentCityIndex = 0
-	jarLink = "https://TODO"
+	jarLink = "https://TODO" // This value should be injected through UpdateJarLink after deployment.
 	maxSponsors = 5
 	aboutMe = [2]string{
 		`<h3 style="font-size: 1.4em;">About Me</h3>
@@ -61,27 +63,27 @@ func init() {
 }
 
 func UpdateMaxSponsors(newMax int) {
-	config.AssertAuthorized()
+	owner.AssertCallerIsOwner()
 	maxSponsors = newMax
 }
 
 func UpdateCities(newCities []City) {
-	config.AssertAuthorized()
+	owner.AssertCallerIsOwner()
 	cities = newCities
 }
 
 func UpdateJarLink(newLink string) {
-	config.AssertAuthorized()
+	owner.AssertCallerIsOwner()
 	jarLink = newLink
 }
 
-func UpdatePFP(url, caption string) {
-	config.AssertAuthorized()
+func UpdatePFP(url) {
+	owner.AssertCallerIsOwner()
 	pfp = url
 }
 
 func UpdateAboutMe(col1, col2 string) {
-	config.AssertAuthorized()
+	owner.AssertCallerIsOwner()
 	aboutMe[0] = col1
 	aboutMe[1] = col2
 }
@@ -145,12 +147,12 @@ func GetTopSponsors() []Sponsor {
 }
 
 func CollectDonations() {
-	config.AssertAuthorized()
+	owner.AssertCallerIsOwner()
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 
 	ownerAddr := config.Address()
-	banker.SendCoins(std.GetOrigPkgAddr(), ownerAddr, banker.GetCoins(std.GetOrigPkgAddr()))
+	banker.SendCoins(std.CurrentRealm().Addr(), ownerAddr, banker.GetCoins(std.CurrentRealm().Addr()))
 }
 
 func GetTotalDonations() std.Coins {
