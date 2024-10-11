@@ -1,4 +1,4 @@
-package registar
+package registry
 
 import (
 	"errors"

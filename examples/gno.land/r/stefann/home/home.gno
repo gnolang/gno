@@ -7,7 +7,7 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 
-	"gno.land/r/stefann/registar"
+	"gno.land/r/stefann/registry"
 )
 
 type City struct {
@@ -34,7 +34,7 @@ var (
 )
 
 func init() {
-	owner = ownable.NewWithAddress(registar.MainAddr())
+	owner = ownable.NewWithAddress(registry.MainAddr())
 	pfp = "https://i.ibb.co/Bc5YNCx/DSC-0095a.jpg"
 	cities = []City{
 		{Name: "Venice", URL: "https://i.ibb.co/1mcZ7b1/venice.jpg"},
@@ -152,7 +152,7 @@ func CollectDonations() {
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 
-	ownerAddr := registar.MainAddr()
+	ownerAddr := registry.MainAddr()
 	banker.SendCoins(std.CurrentRealm().Addr(), ownerAddr, banker.GetCoins(std.CurrentRealm().Addr()))
 }
 
