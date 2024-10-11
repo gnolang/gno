@@ -180,9 +180,9 @@ func NewGasPriceKeeper(key store.StoreKey) GasPriceKeeper {
 	}
 }
 
-// setGasPrice is called in InitChainer to store initial gas price set in the genesis
+// SetGasPrice is called in InitChainer to store initial gas price set in the genesis
 
-func (gk GasPriceKeeper) setGasPrice(ctx sdk.Context, gp std.GasPrice) {
+func (gk GasPriceKeeper) SetGasPrice(ctx sdk.Context, gp std.GasPrice) {
 	if (gp == std.GasPrice{}) {
 		return
 	}
@@ -197,13 +197,13 @@ func (gk GasPriceKeeper) setGasPrice(ctx sdk.Context, gp std.GasPrice) {
 // We store the history. If the formula changes, we can replay blocks
 // and apply the formula to a specific block range. The new gas price is
 // calculated in EndBlock().
-func (gk GasPriceKeeper) updateGasPrice(ctx sdk.Context) {
+func (gk GasPriceKeeper) UpdateGasPrice(ctx sdk.Context) {
 	params := ctx.Value(AuthParamsContextKey{}).(Params)
 	gasUsed := ctx.BlockGasMeter().GasConsumed()
 	maxBlockGas := ctx.ConsensusParams().Block.MaxGas
 	lgp := gk.LastGasPrice(ctx)
 	newGasPrice := gk.calcBlockGasPrice(lgp, gasUsed, maxBlockGas, params)
-	gk.setGasPrice(ctx, newGasPrice)
+	gk.SetGasPrice(ctx, newGasPrice)
 }
 
 // calcBlockGasPrice calculates the minGasPrice for the txs to be included in the next block.

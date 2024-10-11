@@ -94,7 +94,7 @@ func TestGasPrice(t *testing.T) {
 			Amount: 10,
 		},
 	}
-	env.gk.setGasPrice(env.ctx, gp)
+	env.gk.SetGasPrice(env.ctx, gp)
 	gp2 := env.gk.LastGasPrice(env.ctx)
 	require.True(t, gp == gp2)
 }

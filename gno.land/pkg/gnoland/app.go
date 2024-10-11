@@ -362,7 +362,7 @@ func EndBlocker(
 			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctKpr.GetParams(ctx))
 		}
 		if acctKpr != nil && gpKpr != nil {
-			auth.EndBlocker(ctx, gpKpr.(auth.GasPriceKeeper))
+			auth.EndBlocker(ctx, gpKpr)
 		}
 		// Check if there was a valset change
 		if len(collector.getEvents()) == 0 {

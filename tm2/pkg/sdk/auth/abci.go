@@ -7,13 +7,13 @@ import (
 
 // EndBlocker is called in the EndBlock(), it calcuates the minimum gas price
 // for the next gas price
-func EndBlocker(ctx sdk.Context, gk GasPriceKeeper) {
-	gk.updateGasPrice(ctx)
+func EndBlocker(ctx sdk.Context, gk GasPriceKeeperI) {
+	gk.UpdateGasPrice(ctx)
 }
 
 // InitChainer is called in the InitChain(), it set the initial gas price in the
 // GasPriceKeeper store
 // for the next gas price
 func InitChainer(ctx sdk.Context, gk GasPriceKeeper, gp std.GasPrice) {
-	gk.setGasPrice(ctx, gp)
+	gk.SetGasPrice(ctx, gp)
 }

@@ -26,6 +26,8 @@ type BankKeeperI interface {
 
 type GasPriceKeeperI interface {
 	LastGasPrice(ctx sdk.Context) std.GasPrice
+	SetGasPrice(ctx sdk.Context, gp std.GasPrice)
+	UpdateGasPrice(ctx sdk.Context)
 }
 
 var _ GasPriceKeeperI = GasPriceKeeper{}
