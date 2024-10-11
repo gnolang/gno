@@ -111,7 +111,7 @@ func Donate() {
 		sponsors = append(sponsors, Sponsor{Address: address, Amount: amount})
 	}
 
-	totalDonated = totalDonated.Add(amount)
+	totalDonated.Add(amount)
 
 	totalDonations++
 
