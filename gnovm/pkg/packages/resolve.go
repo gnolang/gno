@@ -361,23 +361,6 @@ func fillPackage(meta *PackageSummary) (*Package, error) {
 	}, nil
 }
 
-type Package struct {
-	Dir              string   `json:",omitempty"`
-	ImportPath       string   `json:",omitempty"`
-	Name             string   `json:",omitempty"`
-	Root             string   `json:",omitempty"`
-	Module           Module   `json:",omitempty"`
-	Match            []string `json:",omitempty"`
-	GnoFiles         []string `json:",omitempty"`
-	Imports          []string `json:",omitempty"`
-	Deps             []string `json:",omitempty"`
-	TestGnoFiles     []string `json:",omitempty"`
-	TestImports      []string `json:",omitempty"`
-	FiletestGnoFiles []string `json:",omitempty"`
-	FiletestImports  []string `json:",omitempty"`
-	Errors           []error  `json:",omitempty"`
-}
-
 func (p *Package) MemPkg() (*std.MemPackage, error) {
 	allFiles := append(p.GnoFiles, p.TestGnoFiles...)
 	allFiles = append(allFiles, p.FiletestGnoFiles...)
@@ -397,12 +380,6 @@ func (p *Package) MemPkg() (*std.MemPackage, error) {
 		Path:  p.ImportPath,
 		Files: files,
 	}, nil
-}
-
-type Module struct {
-	Path   string `json:",omitempty"`
-	Dir    string `json:",omitempty"`
-	GnoMod string `json:",omitempty"`
 }
 
 func resolveNameAndImports(gnoFiles []string) (string, []string, error) {
