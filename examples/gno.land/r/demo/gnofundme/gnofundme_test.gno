@@ -5,61 +5,34 @@ import (
 	"testing"
 	"time"
 
-	"gno.land/p/demo/testutils"
+	"gno.land/p/demo/uassert"
+	"gno.land/r/demo/users"
 )
 
 func TestWithdraw(t *testing.T) {
-	// Setup
 	banktestAddr := std.DerivePkgAddr("gno.land/r/demo/gnofundme")
 	mainaddr := std.DerivePkgAddr("main")
 	std.TestSetOrigCaller(mainaddr)
 	std.TestSetOrigPkgAddr(banktestAddr)
 
-	// get and print balance of mainaddr.
-	// with the SEND, + 200 gnot given by the TestContext, main should have 300gnot.
 	banker := std.GetBanker(std.BankerTypeRealmSend)
-	mainbal := banker.GetCoins(mainaddr)
-	ctype := 0
-	title := "Campaign for Withdrawal"
-	description := "Description for Withdrawal"
-	goal := int64(1000)
-	begin := time.Now()
-	deadline := begin.Add(time.Second * 1)
-	ownerAddress := testutils.TestAddress("owner")
-	beneficiaryAddress := testutils.TestAddress("beneficiary")
-	std.TestSetOrigCaller(beneficiaryAddress)
-	NewUser("Beneficiary", "")
-	std.TestSetOrigCaller(ownerAddress)
-	NewUser("Owner", "")
-	NewCampaign(ctype, title, description, goal, begin.Unix(), deadline.Unix(), beneficiaryAddress)
+	owner := users.GetUserByName("demo")
+	beneficiary := users.GetUserByName("test1")
+	std.TestSetOrigCaller(owner.Address)
+	NewCampaign(0, "Campaign for Withdrawal", "Description for Withdrawal", 1000, time.Now().Unix(), time.Now().Add(time.Second*1).Unix(), beneficiary.Address)
 
-	// Add contributions to the campaign
-	contributorAddress := testutils.TestAddress("contributor")
-	std.TestSetOrigCaller(contributorAddress)
-	NewUser("Contributor", "")
+	// Add a contribution to the campaign by owner
 	var amount int64 = 500
 	display := true
-	// date := time.Unix(time.Now().Unix(), 0)
-	banker.SendCoins(banktestAddr, mainaddr, std.Coins{{"ugnot", 500}})
-	std.TestSetOrigSend(std.Coins{{"ugnot", 500}}, nil)
+	std.TestSetOrigSend(std.Coins{{"ugnot", amount}}, nil)
 	AddContributor("0", display)
-
-	// Fast forward time to after the campaign deadline
-	// Simulate time passing
-	// time.Sleep(time.Second * 2)
-	// deadline = time.Now().Add(-time.Second * 1)
-	std.TestSetOrigCaller(ownerAddress)
 	std.TestSkipHeights(1)
 	// Withdraw funds
 	Withdraw("0")
 
 	// Verify
-	if campaignsTotal["0"] != 0 {
-		t.Errorf("Expected campaignsTotal to be 0 after withdrawal, got %d", campaignsTotal["0"])
-	}
+	uassert.Equal(t, campaignsTotal["0"], int64(0))
 
-	beneficiaryBalance := banker.GetCoins(beneficiaryAddress).AmountOf("ugnot")
-	if beneficiaryBalance != amount {
-		t.Errorf("Expected beneficiary balance to be %d, got %d", amount, beneficiaryBalance)
-	}
+	beneficiaryBalance := banker.GetCoins(beneficiary.Address).AmountOf("ugnot")
+	uassert.Equal(t, beneficiaryBalance, amount)
 }

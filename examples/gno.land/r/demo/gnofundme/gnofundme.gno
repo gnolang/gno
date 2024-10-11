@@ -27,8 +27,8 @@ func init() {
 	banker = std.GetBanker(std.BankerTypeRealmIssue)
 }
 
-func NewCampaign(ctype int, title string, description string, goal uint64, beginT int64, deadlineT int64, beneficiary std.Address) string {
-	if ctype < 0 || ctype > 5 {
+func NewCampaign(ct int, title string, description string, goal uint64, beginT int64, deadlineT int64, beneficiary std.Address) string {
+	if ct < 0 || ct > 5 {
 		panic("invalid campaign type")
 	}
 
@@ -44,7 +44,7 @@ func NewCampaign(ctype int, title string, description string, goal uint64, begin
 
 	// verify that the benefeciary exists if it's different from caller
 	if beneficiary != caller {
-		beneficiaryU := users.GetUserByAddress(beneficiary)
+		beneficiaryU = users.GetUserByAddress(beneficiary)
 		if beneficiaryU == nil {
 			panic("beneficiary not registered in 'gno.land/r/demo/users'")
 		}
@@ -64,7 +64,7 @@ func NewCampaign(ctype int, title string, description string, goal uint64, begin
 	begin := time.Unix(beginT, 0)
 	deadline := time.Unix(deadlineT, 0)
 	// create the campaign
-	campaign := gfm.NewCampaign(ctype, title, description, goal, begin, deadline, owner, beneficiaryU)
+	campaign := gfm.NewCampaign(ct, title, description, goal, begin, deadline, owner, beneficiaryU)
 
 	// the key will be the size of the tree
 	key := campaigns.Size()
