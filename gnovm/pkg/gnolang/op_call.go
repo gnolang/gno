@@ -409,7 +409,7 @@ func (m *Machine) doOpPanic1() {
 	// Pop exception
 	var ex TypedValue = m.PopValue().Copy(m.Alloc)
 	// Panic
-	m.Panic(ex)
+	m.Panic(typedString(ex.Sprint(m)))
 }
 
 func (m *Machine) doOpPanic2() {
