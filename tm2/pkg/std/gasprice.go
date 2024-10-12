@@ -23,7 +23,7 @@ func ParseGasPrice(gasprice string) (GasPrice, error) {
 	}
 	gas, err := ParseCoin(parts[1])
 	if err != nil {
-		return GasPrice{}, errors.Wrap(err, "invalid gas price: %s (invalid gas denom)", gasprice)
+		return GasPrice{}, errors.Wrap(err, "invalid gas price: %s (invalid gas)", gasprice)
 	}
 	if gas.Denom != "gas" {
 		return GasPrice{}, errors.New("invalid gas price: %s (invalid gas denom)", gasprice)
