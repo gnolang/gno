@@ -206,11 +206,17 @@ func unquoteBytes(s []byte, border byte) ([]byte, bool) {
 		return s, true
 	}
 
-	var buf bytes.Buffer
-	buf.Grow(len(s)) // Preallocate buffer with the estimated size.
-	buf.Write(s[:r]) // Write the initial unescaped part.
+	utfDoubleMax := utf8.UTFMax * 2
+	b := make([]byte, len(s)+utfDoubleMax)
+	w := copy(b, s[0:r])
 
 	for r < len(s) {
+		if w >= len(b)-utf8.UTFMax {
+			nb := make([]byte, utfDoubleMax+(2*len(b)))
+			copy(nb, b)
+			b = nb
+		}
+
 		c := s[r]
 		if c == backSlash {
 			r++
@@ -218,49 +224,47 @@ func unquoteBytes(s []byte, border byte) ([]byte, bool) {
 				return nil, false
 			}
 
-			switch s[r] {
-			case 'u':
-				// Handle Unicode escape sequences.
-				if r+5 > len(s) {
+			if s[r] == 'u' {
+				rr, res := decodeUnicodeEscape(s[r-1:])
+				if res < 0 {
 					return nil, false
 				}
-				rr, size := decodeUnicodeEscape(s[r-1:])
-				if size < 0 {
-					return nil, false
-				}
-				buf.WriteRune(rr)
+
+				w += utf8.EncodeRune(b[w:], rr)
 				r += 5
-			case '"', '\\', '/', 'b', 'f', 'n', 'r', 't':
-				// Handle simple escape sequences.
+			} else {
 				decode := escapeByteSet[s[r]]
 				if decode == 0 {
 					return nil, false
 				}
-				buf.WriteByte(decode)
+
+				if decode == doubleQuote || decode == backSlash || decode == slash {
+					decode = s[r]
+				}
+
+				b[w] = decode
 				r++
-			default:
-				// Invalid escape character.
-				return nil, false
+				w++
 			}
 		} else if c == border || c < 0x20 {
-			// Invalid character in string.
 			return nil, false
 		} else if c < utf8.RuneSelf {
-			// ASCII characters.
-			buf.WriteByte(c)
+			b[w] = c
 			r++
+			w++
 		} else {
-			// Non-ASCII characters.
 			rr, size := utf8.DecodeRune(s[r:])
+
 			if rr == utf8.RuneError && size == 1 {
 				return nil, false
 			}
-			buf.WriteRune(rr)
+
 			r += size
+			w += utf8.EncodeRune(b[w:], rr)
 		}
 	}
 
-	return buf.Bytes(), true
+	return b[:w], true
 }
 
 // processEscapedUTF8 converts escape sequences to UTF-8 characters.
