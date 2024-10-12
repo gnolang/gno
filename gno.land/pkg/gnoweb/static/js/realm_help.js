@@ -8,7 +8,7 @@ function main() {
     updateCommand(u(x));
   });
   // main hooks
-  u("div.func_spec input").on("input", function(e) {
+  u("div.func_spec input, div.func_spec textarea").on("input", function(e) {
     var x = u(e.currentTarget).closest("div.func_spec");
     updateCommand(x);
   });
@@ -40,10 +40,10 @@ function updateCommand(x) {
   var remote = u("#data").data("remote");
   var chainid = u("#data").data("chainid");
   var funcName = x.data("func-name");
-  var ins = x.find("table>tbody>tr.func_params input");
+  var ins = x.find("table>tbody>tr.func_params input, table>tbody>tr.func_params textarea");
   var vals = [];
-  ins.each(function(input) {
-    vals.push(input.value);
+  ins.each(function(inputOrTextarea) {
+    vals.push(inputOrTextarea.value);
   });
   var myAddr = getMyAddress() || "ADDRESS";
   var shell = x.find(".shell_command");
