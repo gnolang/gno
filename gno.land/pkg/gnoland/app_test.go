@@ -205,7 +205,7 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 
 	for i := 0; i < count; i++ {
 		// Generate a random private key
-		key := getDummyKey(t)
+		key := getDummyKey(t).PubKey()
 
 		validator := abci.ValidatorUpdate{
 			Address: key.Address(),
@@ -217,6 +217,145 @@ func generateValidatorUpdates(t *testing.T, count int) []abci.ValidatorUpdate {
 	}
 
 	return validators
+}
+
+func createAndSignTx(
+	t *testing.T,
+	msgs []std.Msg,
+	chainID string,
+	key crypto.PrivKey,
+) std.Tx {
+	t.Helper()
+
+	tx := std.Tx{
+		Msgs: msgs,
+		Fee: std.Fee{
+			GasFee:    std.NewCoin("ugnot", 2000000),
+			GasWanted: 10000000,
+		},
+	}
+
+	signBytes, err := tx.GetSignBytes(chainID, 0, 0)
+	require.NoError(t, err)
+
+	// Sign the tx
+	signedTx, err := key.Sign(signBytes)
+	require.NoError(t, err)
+
+	tx.Signatures = []std.Signature{
+		{
+			PubKey:    key.PubKey(),
+			Signature: signedTx,
+		},
+	}
+
+	return tx
+}
+
+func TestInitChainer_MetadataTxs(t *testing.T) {
+	t.Parallel()
+
+	var (
+		db = memdb.NewMemDB()
+
+		key       = getDummyKey(t)                      // user account, and genesis deployer
+		timestamp = time.Now().Add(10 * 24 * time.Hour) // 10 days
+		chainID   = "test"
+
+		path = "gno.land/r/demo/metadatatx"
+		body = `package metadatatx
+
+	import "time"
+
+	// Time is initialized on deployment (genesis)
+	var t time.Time = time.Now()
+
+	// GetT returns the time that was saved from genesis
+	func GetT() int64 { return t.Unix() }
+`
+	)
+
+	// Create a fresh app instance
+	app, err := NewAppWithOptions(TestAppOptions(db))
+	require.NoError(t, err)
+
+	// Prepare the deploy transaction
+	msg := vm.MsgAddPackage{
+		Creator: key.PubKey().Address(),
+		Package: &std.MemPackage{
+			Name: "metadatatx",
+			Path: path,
+			Files: []*std.MemFile{
+				{
+					Name: "file.gno",
+					Body: body,
+				},
+			},
+		},
+		Deposit: nil,
+	}
+
+	// Create the initial genesis tx
+	tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
+
+	// Run the top-level init chain process
+	app.InitChain(abci.RequestInitChain{
+		ChainID: chainID,
+		Time:    time.Now(),
+		ConsensusParams: &abci.ConsensusParams{
+			Block: defaultBlockParams(),
+			Validator: &abci.ValidatorParams{
+				PubKeyTypeURLs: []string{},
+			},
+		},
+		AppState: MetadataGenesisState{
+			// Set the package deployment as the genesis tx
+			Txs: []MetadataTx{
+				{
+					GenesisTx: tx,
+					TxMetadata: GenesisTxMetadata{
+						Timestamp: timestamp.Unix(),
+					},
+				},
+			},
+			// Make sure the deployer account has a balance
+			Balances: []Balance{
+				{
+					Address: key.PubKey().Address(),
+					Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+				},
+			},
+		},
+	})
+
+	// Prepare the call transaction
+	callMsg := vm.MsgCall{
+		Caller:  key.PubKey().Address(),
+		PkgPath: path,
+		Func:    "GetT",
+	}
+
+	tx = createAndSignTx(t, []std.Msg{callMsg}, chainID, key)
+
+	// Marshal the transaction to Amino binary
+	marshalledTx, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	// Execute the call to the "GetT" method
+	// on the deployed Realm
+	resp := app.DeliverTx(abci.RequestDeliverTx{
+		Tx: marshalledTx,
+	})
+
+	require.True(t, resp.IsOK())
+
+	// Make sure the initialized Realm state is
+	// the injected context timestamp from the tx metadata
+	assert.Contains(
+		t,
+		string(resp.Data),
+		fmt.Sprintf("(%d int64)", timestamp.Unix()),
+	)
 }
 
 func TestEndBlocker(t *testing.T) {
