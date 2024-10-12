@@ -10,20 +10,15 @@ import (
 )
 
 var (
-	adminAddr     std.Address
-	moderatorList avl.Tree
-	commenterList avl.Tree
-	inPause       bool
+	admins     access.Set
+	moderators access.Set
+	commenters access.Set
+	inPause    bool
 )
 
 func init() {
-	// adminAddr = std.GetOrigCaller() // FIXME: find a way to use this from the main's genesis.
-	adminAddr = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
-}
-
-func AdminSetAdminAddr(addr std.Address) {
-	assertIsAdmin()
-	adminAddr = addr
+	admins = access.New()
+	admins.Add("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
 }
 
 func AdminSetInPause(state bool) {
@@ -31,14 +26,24 @@ func AdminSetInPause(state bool) {
 	inPause = state
 }
 
-func AdminAddModerator(addr std.Address) {
+func AdminAddAdmin(addr std.Address) {
 	assertIsAdmin()
-	moderatorList.Set(addr.String(), true)
+	admins.Add(addr)
 }
 
-func AdminRemoveModerator(addr std.Address) {
+func AdminDelAdmin(addr std.Address) {
 	assertIsAdmin()
-	moderatorList.Set(addr.String(), false) // FIXME: delete instead?
+	admins.Del(addr)
+}
+
+func AdminAddModerator(addr std.Address) {
+	assertIsAdmin()
+	moderators.Add(addr)
+}
+
+func AdminDelModerator(addr std.Address) {
+	assertIsAdmin()
+	moderators.Del(addr)
 }
 
 func DaoAddPost(ctx context.Context, slug, title, body, publicationDate, authors, tags string) {
@@ -86,12 +91,12 @@ func ModRemovePost(slug string) {
 
 func ModAddCommenter(addr std.Address) {
 	assertIsModerator()
-	commenterList.Set(addr.String(), true)
+	commenters.Add(addr)
 }
 
 func ModDelCommenter(addr std.Address) {
 	assertIsModerator()
-	commenterList.Set(addr.String(), false) // FIXME: delete instead?
+	commenters.Del(addr)
 }
 
 func ModDelComment(slug string, index int) {
@@ -101,38 +106,19 @@ func ModDelComment(slug string, index int) {
 	checkErr(err)
 }
 
-func isAdmin(addr std.Address) bool {
-	return addr == adminAddr
-}
-
-func isModerator(addr std.Address) bool {
-	_, found := moderatorList.Get(addr.String())
-	return found
-}
-
-func isCommenter(addr std.Address) bool {
-	_, found := commenterList.Get(addr.String())
-	return found
-}
-
 func assertIsAdmin() {
-	caller := std.GetOrigCaller()
-	if !isAdmin(caller) {
-		panic("access restricted.")
-	}
+	admins.AssertCurrentHasAccess()
 }
 
 func assertIsModerator() {
-	caller := std.GetOrigCaller()
-	if isAdmin(caller) || isModerator(caller) {
+	if admins.CurrentHasAccess() || moderators.CurrentHasAccess() {
 		return
 	}
 	panic("access restricted")
 }
 
 func assertIsCommenter() {
-	caller := std.GetOrigCaller()
-	if isAdmin(caller) || isModerator(caller) || isCommenter(caller) {
+	if admins.CurrentHasAccess() || moderators.CurrentHasAccess() || commenters.CurrentHasAccess() {
 		return
 	}
 	panic("access restricted")
