@@ -253,17 +253,64 @@ func createAndSignTx(
 }
 
 func TestInitChainer_MetadataTxs(t *testing.T) {
-	t.Parallel()
-
 	var (
-		db = memdb.NewMemDB()
+		currentTimestamp = time.Now()
+		laterTimestamp   = currentTimestamp.Add(10 * 24 * time.Hour) // 10 days
 
-		key       = getDummyKey(t)                      // user account, and genesis deployer
-		timestamp = time.Now().Add(10 * 24 * time.Hour) // 10 days
-		chainID   = "test"
+		getMetadataState = func(tx std.Tx, balances []Balance) GnoGenesis {
+			return MetadataGenesisState{
+				// Set the package deployment as the genesis tx
+				Txs: []MetadataTx{
+					{
+						GenesisTx: tx,
+						TxMetadata: GenesisTxMetadata{
+							Timestamp: laterTimestamp.Unix(),
+						},
+					},
+				},
+				// Make sure the deployer account has a balance
+				Balances: balances,
+			}
+		}
 
-		path = "gno.land/r/demo/metadatatx"
-		body = `package metadatatx
+		getNonMetadataState = func(tx std.Tx, balances []Balance) GnoGenesis {
+			return GnoGenesisState{
+				Txs:      []std.Tx{tx},
+				Balances: balances,
+			}
+		}
+	)
+
+	testTable := []struct {
+		name         string
+		genesisTime  time.Time
+		expectedTime time.Time
+		stateFn      func(std.Tx, []Balance) GnoGenesis
+	}{
+		{
+			"non-metadata transaction",
+			currentTimestamp,
+			currentTimestamp,
+			getNonMetadataState,
+		},
+		{
+			"metadata transaction",
+			currentTimestamp,
+			laterTimestamp,
+			getMetadataState,
+		},
+	}
+
+	for _, testCase := range testTable {
+		t.Run(testCase.name, func(t *testing.T) {
+			var (
+				db = memdb.NewMemDB()
+
+				key     = getDummyKey(t) // user account, and genesis deployer
+				chainID = "test"
+
+				path = "gno.land/r/demo/metadatatx"
+				body = `package metadatatx
 
 	import "time"
 
@@ -273,89 +320,82 @@ func TestInitChainer_MetadataTxs(t *testing.T) {
 	// GetT returns the time that was saved from genesis
 	func GetT() int64 { return t.Unix() }
 `
-	)
+			)
 
-	// Create a fresh app instance
-	app, err := NewAppWithOptions(TestAppOptions(db))
-	require.NoError(t, err)
+			// Create a fresh app instance
+			app, err := NewAppWithOptions(TestAppOptions(db))
+			require.NoError(t, err)
 
-	// Prepare the deploy transaction
-	msg := vm.MsgAddPackage{
-		Creator: key.PubKey().Address(),
-		Package: &std.MemPackage{
-			Name: "metadatatx",
-			Path: path,
-			Files: []*std.MemFile{
-				{
-					Name: "file.gno",
-					Body: body,
-				},
-			},
-		},
-		Deposit: nil,
-	}
-
-	// Create the initial genesis tx
-	tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
-
-	// Run the top-level init chain process
-	app.InitChain(abci.RequestInitChain{
-		ChainID: chainID,
-		Time:    time.Now(),
-		ConsensusParams: &abci.ConsensusParams{
-			Block: defaultBlockParams(),
-			Validator: &abci.ValidatorParams{
-				PubKeyTypeURLs: []string{},
-			},
-		},
-		AppState: MetadataGenesisState{
-			// Set the package deployment as the genesis tx
-			Txs: []MetadataTx{
-				{
-					GenesisTx: tx,
-					TxMetadata: GenesisTxMetadata{
-						Timestamp: timestamp.Unix(),
+			// Prepare the deploy transaction
+			msg := vm.MsgAddPackage{
+				Creator: key.PubKey().Address(),
+				Package: &std.MemPackage{
+					Name: "metadatatx",
+					Path: path,
+					Files: []*std.MemFile{
+						{
+							Name: "file.gno",
+							Body: body,
+						},
 					},
 				},
-			},
-			// Make sure the deployer account has a balance
-			Balances: []Balance{
-				{
-					Address: key.PubKey().Address(),
-					Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+				Deposit: nil,
+			}
+
+			// Create the initial genesis tx
+			tx := createAndSignTx(t, []std.Msg{msg}, chainID, key)
+
+			// Run the top-level init chain process
+			app.InitChain(abci.RequestInitChain{
+				ChainID: chainID,
+				Time:    testCase.genesisTime,
+				ConsensusParams: &abci.ConsensusParams{
+					Block: defaultBlockParams(),
+					Validator: &abci.ValidatorParams{
+						PubKeyTypeURLs: []string{},
+					},
 				},
-			},
-		},
-	})
+				// Set the package deployment as the genesis tx,
+				// and make sure the deployer account has a balance
+				AppState: testCase.stateFn(tx, []Balance{
+					{
+						// Make sure the deployer account has a balance
+						Address: key.PubKey().Address(),
+						Amount:  std.NewCoins(std.NewCoin("ugnot", 20_000_000)),
+					},
+				}),
+			})
 
-	// Prepare the call transaction
-	callMsg := vm.MsgCall{
-		Caller:  key.PubKey().Address(),
-		PkgPath: path,
-		Func:    "GetT",
+			// Prepare the call transaction
+			callMsg := vm.MsgCall{
+				Caller:  key.PubKey().Address(),
+				PkgPath: path,
+				Func:    "GetT",
+			}
+
+			tx = createAndSignTx(t, []std.Msg{callMsg}, chainID, key)
+
+			// Marshal the transaction to Amino binary
+			marshalledTx, err := amino.Marshal(tx)
+			require.NoError(t, err)
+
+			// Execute the call to the "GetT" method
+			// on the deployed Realm
+			resp := app.DeliverTx(abci.RequestDeliverTx{
+				Tx: marshalledTx,
+			})
+
+			require.True(t, resp.IsOK())
+
+			// Make sure the initialized Realm state is
+			// the injected context timestamp from the tx metadata
+			assert.Contains(
+				t,
+				string(resp.Data),
+				fmt.Sprintf("(%d int64)", testCase.expectedTime.Unix()),
+			)
+		})
 	}
-
-	tx = createAndSignTx(t, []std.Msg{callMsg}, chainID, key)
-
-	// Marshal the transaction to Amino binary
-	marshalledTx, err := amino.Marshal(tx)
-	require.NoError(t, err)
-
-	// Execute the call to the "GetT" method
-	// on the deployed Realm
-	resp := app.DeliverTx(abci.RequestDeliverTx{
-		Tx: marshalledTx,
-	})
-
-	require.True(t, resp.IsOK())
-
-	// Make sure the initialized Realm state is
-	// the injected context timestamp from the tx metadata
-	assert.Contains(
-		t,
-		string(resp.Data),
-		fmt.Sprintf("(%d int64)", timestamp.Unix()),
-	)
 }
 
 func TestEndBlocker(t *testing.T) {
