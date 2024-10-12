@@ -283,13 +283,13 @@ func (cfg InitChainerConfig) loadStdlibs(ctx sdk.Context) {
 }
 
 func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci.ResponseDeliverTx, error) {
-	state, ok := appState.(GnoGenesisState)
+	state, ok := appState.(GnoGenesis)
 	if !ok {
 		return nil, fmt.Errorf("invalid AppState of type %T", appState)
 	}
 
 	// Parse and set genesis state balances
-	for _, bal := range state.Balances {
+	for _, bal := range state.GenesisBalances() {
 		acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
 		cfg.acctKpr.SetAccount(ctx, acc)
 		err := cfg.bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
@@ -298,21 +298,35 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 		}
 	}
 
-	txResponses := make([]abci.ResponseDeliverTx, 0, len(state.Txs))
-	// Run genesis txs
-	for _, tx := range state.Txs {
-		// Create a custom context modifier
-		ctxFn := func(ctx sdk.Context) sdk.Context {
-			// Create a copy of the header, in
-			// which only the timestamp information is modified
-			header := ctx.BlockHeader().(*bft.Header).Copy()
-			header.Time = time.Now().Add(time.Hour * 72) // TODO modify based on tx metadata
+	var (
+		stateTxs    = state.GenesisTxs()
+		txResponses = make([]abci.ResponseDeliverTx, 0, len(stateTxs))
+	)
 
-			// Save the modified header
-			return ctx.WithBlockHeader(header)
+	// Run genesis txs
+	for _, tx := range state.GenesisTxs() {
+		var (
+			stdTx    = tx.Tx()
+			metadata = tx.Metadata()
+
+			ctxFns []sdk.ContextFn
+		)
+
+		// Check if there is metadata associated with the tx
+		if metadata != nil {
+			// Create a custom context modifier
+			ctxFns = append(ctxFns, func(ctx sdk.Context) sdk.Context {
+				// Create a copy of the header, in
+				// which only the timestamp information is modified
+				header := ctx.BlockHeader().(*bft.Header).Copy()
+				header.Time = time.Unix(metadata.Timestamp, 0)
+
+				// Save the modified header
+				return ctx.WithBlockHeader(header)
+			})
 		}
 
-		res := cfg.baseApp.Deliver(tx, ctxFn)
+		res := cfg.baseApp.Deliver(stdTx, ctxFns...)
 		if res.IsErr() {
 			ctx.Logger().Error(
 				"Unable to deliver genesis tx",
@@ -328,7 +342,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 			GasUsed:      res.GasUsed,
 		})
 
-		cfg.GenesisTxResultHandler(ctx, tx, res)
+		cfg.GenesisTxResultHandler(ctx, stdTx, res)
 	}
 	return txResponses, nil
 }

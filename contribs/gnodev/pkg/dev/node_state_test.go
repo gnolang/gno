@@ -130,9 +130,9 @@ func TestExportState(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, doc.AppState)
 
-		state, ok := doc.AppState.(gnoland.GnoGenesisState)
+		state, ok := doc.AppState.(gnoland.GnoGenesis)
 		require.True(t, ok)
-		assert.Equal(t, 3, len(state.Txs))
+		assert.Equal(t, 3, len(state.GenesisTxs()))
 	})
 }
 
