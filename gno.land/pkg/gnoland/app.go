@@ -309,13 +309,13 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 			stdTx    = tx.Tx()
 			metadata = tx.Metadata()
 
-			ctxFns []sdk.ContextFn
+			ctxFn sdk.ContextFn
 		)
 
 		// Check if there is metadata associated with the tx
 		if metadata != nil {
 			// Create a custom context modifier
-			ctxFns = append(ctxFns, func(ctx sdk.Context) sdk.Context {
+			ctxFn = func(ctx sdk.Context) sdk.Context {
 				// Create a copy of the header, in
 				// which only the timestamp information is modified
 				header := ctx.BlockHeader().(*bft.Header).Copy()
@@ -323,10 +323,10 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 
 				// Save the modified header
 				return ctx.WithBlockHeader(header)
-			})
+			}
 		}
 
-		res := cfg.baseApp.Deliver(stdTx, ctxFns...)
+		res := cfg.baseApp.Deliver(stdTx, ctxFn)
 		if res.IsErr() {
 			ctx.Logger().Error(
 				"Unable to deliver genesis tx",

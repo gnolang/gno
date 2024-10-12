@@ -25,6 +25,10 @@ func (app *BaseApp) Deliver(tx Tx, ctxFns ...ContextFn) (result Result) {
 	ctx := app.getContextForTx(RunTxModeDeliver, nil)
 
 	for _, ctxFn := range ctxFns {
+		if ctxFn == nil {
+			continue
+		}
+
 		ctx = ctxFn(ctx)
 	}
 
