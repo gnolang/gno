@@ -818,24 +818,26 @@ func file_proto_compat_proto_rawDescGZIP() []byte {
 	return file_proto_compat_proto_rawDescData
 }
 
-var file_proto_compat_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
-var file_proto_compat_proto_goTypes = []interface{}{
-	(*TestInt32Varint)(nil),       // 0: proto3tests.TestInt32Varint
-	(*TestInt32Fixed)(nil),        // 1: proto3tests.TestInt32Fixed
-	(*Test32)(nil),                // 2: proto3tests.Test32
-	(*TestFixedInt64)(nil),        // 3: proto3tests.TestFixedInt64
-	(*TestSFixedSInt64)(nil),      // 4: proto3tests.TestSFixedSInt64
-	(*EmbeddedStruct)(nil),        // 5: proto3tests.EmbeddedStruct
-	(*SomeStruct)(nil),            // 6: proto3tests.SomeStruct
-	(*ProtoGotTime)(nil),          // 7: proto3tests.ProtoGotTime
-	(*TestInt32)(nil),             // 8: proto3tests.TestInt32
-	(*TestInts)(nil),              // 9: proto3tests.TestInts
-	(*IntDef)(nil),                // 10: proto3tests.IntDef
-	(*IntArr)(nil),                // 11: proto3tests.IntArr
-	(*PrimitivesStruct)(nil),      // 12: proto3tests.PrimitivesStruct
-	(*PrimitivesStructSl)(nil),    // 13: proto3tests.PrimitivesStructSl
-	(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
-}
+var (
+	file_proto_compat_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+	file_proto_compat_proto_goTypes  = []interface{}{
+		(*TestInt32Varint)(nil),       // 0: proto3tests.TestInt32Varint
+		(*TestInt32Fixed)(nil),        // 1: proto3tests.TestInt32Fixed
+		(*Test32)(nil),                // 2: proto3tests.Test32
+		(*TestFixedInt64)(nil),        // 3: proto3tests.TestFixedInt64
+		(*TestSFixedSInt64)(nil),      // 4: proto3tests.TestSFixedSInt64
+		(*EmbeddedStruct)(nil),        // 5: proto3tests.EmbeddedStruct
+		(*SomeStruct)(nil),            // 6: proto3tests.SomeStruct
+		(*ProtoGotTime)(nil),          // 7: proto3tests.ProtoGotTime
+		(*TestInt32)(nil),             // 8: proto3tests.TestInt32
+		(*TestInts)(nil),              // 9: proto3tests.TestInts
+		(*IntDef)(nil),                // 10: proto3tests.IntDef
+		(*IntArr)(nil),                // 11: proto3tests.IntArr
+		(*PrimitivesStruct)(nil),      // 12: proto3tests.PrimitivesStruct
+		(*PrimitivesStructSl)(nil),    // 13: proto3tests.PrimitivesStructSl
+		(*timestamppb.Timestamp)(nil), // 14: google.protobuf.Timestamp
+	}
+)
 var file_proto_compat_proto_depIdxs = []int32{
 	5,  // 0: proto3tests.SomeStruct.emb:type_name -> proto3tests.EmbeddedStruct
 	14, // 1: proto3tests.ProtoGotTime.T:type_name -> google.protobuf.Timestamp
