@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/emitter"
@@ -35,7 +36,7 @@ type NodeConfig struct {
 	BalancesList          []gnoland.Balance
 	PackagesPathList      []PackagePath
 	Emitter               emitter.Emitter
-	InitialTxs            []std.Tx
+	InitialTxs            []gnoland.GenesisTx
 	TMConfig              *tmcfg.Config
 	SkipFailingGenesisTxs bool
 	NoReplay              bool
@@ -83,8 +84,11 @@ type Node struct {
 	// keep track of number of loaded package to be able to skip them on restore
 	loadedPackages int
 
+	// track starting time for genesis
+	startTime time.Time
+
 	// state
-	initialState, state []std.Tx
+	initialState, state []gnoland.GenesisTx
 	currentStateIndex   int
 }
 
@@ -96,7 +100,8 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 		return nil, fmt.Errorf("unable map pkgs list: %w", err)
 	}
 
-	pkgsTxs, err := mpkgs.Load(DefaultFee)
+	startTime := time.Now()
+	pkgsTxs, err := mpkgs.Load(DefaultFee, startTime)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load genesis packages: %w", err)
 	}
@@ -109,18 +114,19 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 		pkgs:              mpkgs,
 		logger:            cfg.Logger,
 		loadedPackages:    len(pkgsTxs),
+		startTime:         startTime,
 		state:             cfg.InitialTxs,
 		initialState:      cfg.InitialTxs,
 		currentStateIndex: len(cfg.InitialTxs),
 	}
 
 	// generate genesis state
-	genesis := gnoland.GnoGenesisState{
+	genesis := NodeGenesisState{
 		Balances: cfg.BalancesList,
 		Txs:      append(pkgsTxs, cfg.InitialTxs...),
 	}
 
-	if err := devnode.rebuildNode(ctx, genesis); err != nil {
+	if err := devnode.rebuildNode(ctx, &genesis); err != nil {
 		return nil, fmt.Errorf("unable to initialize the node: %w", err)
 	}
 
@@ -154,7 +160,7 @@ func (n *Node) GetRemoteAddress() string {
 
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any
-func (n *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
+func (n *Node) GetBlockTransactions(blockNum uint64) ([]gnoland.GenesisTx, error) {
 	n.muNode.RLock()
 	defer n.muNode.RUnlock()
 
@@ -163,21 +169,27 @@ func (n *Node) GetBlockTransactions(blockNum uint64) ([]std.Tx, error) {
 
 // GetBlockTransactions returns the transactions contained
 // within the specified block, if any
-func (n *Node) getBlockTransactions(blockNum uint64) ([]std.Tx, error) {
+func (n *Node) getBlockTransactions(blockNum uint64) ([]gnoland.GenesisTx, error) {
 	int64BlockNum := int64(blockNum)
 	b, err := n.client.Block(&int64BlockNum)
 	if err != nil {
-		return []std.Tx{}, fmt.Errorf("unable to load block at height %d: %w", blockNum, err) // nothing to see here
+		return nil, fmt.Errorf("unable to load block at height %d: %w", blockNum, err) // nothing to see here
 	}
 
-	txs := make([]std.Tx, len(b.Block.Data.Txs))
+	txs := make([]gnoland.GenesisTx, len(b.Block.Data.Txs))
 	for i, encodedTx := range b.Block.Data.Txs {
+		// fallback on std tx
 		var tx std.Tx
 		if unmarshalErr := amino.Unmarshal(encodedTx, &tx); unmarshalErr != nil {
-			return nil, fmt.Errorf("unable to unmarshal amino tx, %w", unmarshalErr)
+			return nil, fmt.Errorf("unable to unmarshal tx: %w", err)
 		}
 
-		txs[i] = tx
+		txs[i] = &gnoland.MetadataTx{
+			GenesisTx: tx,
+			TxMetadata: gnoland.GenesisTxMetadata{
+				Timestamp: b.Block.Time.Unix(),
+			},
+		}
 	}
 
 	return txs, nil
@@ -263,26 +275,28 @@ func (n *Node) Reset(ctx context.Context) error {
 	}
 
 	// Generate a new genesis state based on the current packages
-	pkgsTxs, err := n.pkgs.Load(DefaultFee)
+	startTime := time.Now()
+	pkgsTxs, err := n.pkgs.Load(DefaultFee, startTime)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
 
 	// Append initialTxs
 	txs := append(pkgsTxs, n.initialState...)
-	genesis := gnoland.GnoGenesisState{
+	genesis := NodeGenesisState{
 		Balances: n.config.BalancesList,
 		Txs:      txs,
 	}
 
 	// Reset the node with the new genesis state.
-	err = n.rebuildNode(ctx, genesis)
+	err = n.rebuildNode(ctx, &genesis)
 	if err != nil {
 		return fmt.Errorf("unable to initialize a new node: %w", err)
 	}
 
 	n.loadedPackages = len(pkgsTxs)
 	n.currentStateIndex = len(n.initialState)
+	n.startTime = startTime
 	n.emitter.Emit(&events.Reset{})
 	return nil
 }
@@ -347,15 +361,15 @@ func (n *Node) SendTransaction(tx *std.Tx) error {
 	return nil
 }
 
-func (n *Node) getBlockStoreState(ctx context.Context) ([]std.Tx, error) {
+func (n *Node) getBlockStoreState(ctx context.Context) ([]gnoland.GenesisTx, error) {
 	// get current genesis state
 	genesis := n.GenesisDoc().AppState.(gnoland.GnoGenesis)
 
 	initialTxs := genesis.GenesisTxs()[n.loadedPackages:] // ignore previously loaded packages
 
-	state := make([]std.Tx, 0, len(initialTxs))
+	state := make([]gnoland.GenesisTx, 0, len(initialTxs))
 	for _, tx := range initialTxs {
-		state = append(state, tx.Tx())
+		state = append(state, tx)
 	}
 
 	lastBlock := n.getLatestBlockNumber()
@@ -394,12 +408,12 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 		// If NoReplay is true, simply reset the node to its initial state
 		n.logger.Warn("replay disabled")
 
-		txs, err := n.pkgs.Load(DefaultFee)
+		txs, err := n.pkgs.Load(DefaultFee, n.startTime)
 		if err != nil {
 			return fmt.Errorf("unable to load pkgs: %w", err)
 		}
 
-		return n.rebuildNode(ctx, gnoland.GnoGenesisState{
+		return n.rebuildNode(ctx, &NodeGenesisState{
 			Balances: n.config.BalancesList, Txs: txs,
 		})
 	}
@@ -410,19 +424,19 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	}
 
 	// Load genesis packages
-	pkgsTxs, err := n.pkgs.Load(DefaultFee)
+	pkgsTxs, err := n.pkgs.Load(DefaultFee, n.startTime)
 	if err != nil {
 		return fmt.Errorf("unable to load pkgs: %w", err)
 	}
 
 	// Create genesis with loaded pkgs + previous state
-	genesis := gnoland.GnoGenesisState{
+	genesis := NodeGenesisState{
 		Balances: n.config.BalancesList,
 		Txs:      append(pkgsTxs, state...),
 	}
 
 	// Reset the node with the new genesis state.
-	err = n.rebuildNode(ctx, genesis)
+	err = n.rebuildNode(ctx, &genesis)
 	n.logger.Info("reload done", "pkgs", len(pkgsTxs), "state applied", len(state))
 
 	// Update node infos
@@ -465,7 +479,7 @@ func (n *Node) handleEventTX(evt tm2events.Event) {
 	}
 }
 
-func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesis) (err error) {
+func (n *Node) rebuildNode(ctx context.Context, genesis *NodeGenesisState) (err error) {
 	noopLogger := log.NewNoopLogger()
 
 	// Stop the node if it's currently running.
@@ -553,11 +567,11 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	return
 }
 
-func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesis) *gnoland.InMemoryNodeConfig {
+func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate *NodeGenesisState) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
 	genesis := gnoland.NewDefaultGenesisConfig(chainid)
-	genesis.AppState = appstate
+	genesis.AppState = appstate.MetadataGenesisState()
 
 	// Add self as validator
 	self := pv.GetPubKey()
