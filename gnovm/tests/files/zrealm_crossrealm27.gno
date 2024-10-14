@@ -16,14 +16,8 @@ var f fooer
 // XXX, this should work when reference to not attached local object
 // associated to external realm *NOT* attached object.
 func main() {
-	f = fooer{}
-	crossrealm.SetContainer(&f)
+	f = fooer{}                  // this is not attached
+	crossrealm.SetContainer(&f)  // XXX, here should work to associate *NOT* attached object to external container
+	crossrealm.AttachContainer() // XXX, here should panic, to attach external *NOT* attached object
 	print(".")
 }
-
-// Output:
-// .
-
-// Error:
-
-// Realm:

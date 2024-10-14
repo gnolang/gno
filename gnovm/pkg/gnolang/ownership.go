@@ -351,14 +351,17 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 			fmt.Println("---v: ", v)
 			rc := v.GetRefCount()
 			fmt.Println("---rc: ", rc)
+			fmt.Println("---v Owner: ", v.GetOwnerID())
+			fmt.Println("---v.GetObjectID(): ", v.GetObjectID())
 		}
-		return cv.GetBase(store)
+		return cv.GetBase(store) // TODO: this is not enough for pointers
 	case *ArrayValue:
 		return cv
 	case *SliceValue:
 		return cv.GetBase(store)
 	case *StructValue:
 		println("---struct value")
+		fmt.Println("---cv.GetObjectID(): ", cv.GetObjectID())
 		return cv
 	case *FuncValue:
 		return cv.GetClosure(store)

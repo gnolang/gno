@@ -527,7 +527,7 @@ func (sv *StructValue) Copy(alloc *Allocator) *StructValue {
 	}
 
 	nsv := alloc.NewStruct(fields)
-	nsv.ObjectInfo = sv.ObjectInfo.Copy()
+	//nsv.ObjectInfo = sv.ObjectInfo.Copy()
 	return nsv
 	//return alloc.NewStruct(fields)
 }

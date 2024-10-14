@@ -11,11 +11,11 @@ type fooer struct{ name string }
 
 func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
-var f fooer // this already attached
+var f fooer // this is NOT attached
 
 func main() {
 	crossrealm.AttachContainer()   // this attaches container first
-	f = fooer{name: "local_fooer"} // update to an already attached object
+	f = fooer{name: "local_fooer"} // XXX, still not attached, panic
 	crossrealm.SetContainer(&f)
 	print(".")
 }

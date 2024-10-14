@@ -14,7 +14,7 @@ func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 var f fooer
 
 func init() {
-	f = fooer{name: "local_fooer"}
+	f = fooer{name: "local_fooer"} // NOTE, from now on f is attached
 }
 
 func main() {

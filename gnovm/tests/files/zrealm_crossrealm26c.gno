@@ -14,6 +14,6 @@ func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 func main() {
 	crossrealm.AttachContainer()             // this attaches container first
 	var f fooer = fooer{name: "local_fooer"} // this is not attached, should panic, even not escape
-	crossrealm.SetContainer(f)
+	crossrealm.SetContainer(&f)
 	print(".")
 }

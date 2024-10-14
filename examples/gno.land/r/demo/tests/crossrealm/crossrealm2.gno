@@ -18,11 +18,12 @@ type Container struct {
 	f    Fooer
 }
 
-var container Container // TODO, check does this attach or not
+var container Container // XXX, not attached here
 
 func AttachContainer() {
-	container = Container{name: "external_container"}
+	container = Container{name: "external_container"} // attach after call
 }
+
 func SetContainer(f Fooer) {
 	container.f = f
 }

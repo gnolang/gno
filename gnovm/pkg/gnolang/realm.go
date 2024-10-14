@@ -133,6 +133,7 @@ func (rlm *Realm) String() string {
 // if rlm or po is nil, do nothing.
 // xo or co is nil if the element value is undefined or has no
 // associated object.
+// TODO: func (rlm *Realm) DidUpdate(po, xo, co Object, attached bool) {
 func (rlm *Realm) DidUpdate(po, xo, co Object) {
 	fmt.Println("---DidUpdate---")
 	fmt.Printf("---xo: %v, type of xo: %v\n", xo, reflect.TypeOf(xo))
@@ -154,34 +155,42 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 		fmt.Printf("co: %p\n", co)
 	}
 
-	// XXX, these can be improved by attach type info with co.
-	// the following does not work
-	if sv, ok := po.(*StructValue); ok {
-		fmt.Println("---sv: ", sv)
-		fmt.Println("---sv.ID: ", sv.ObjectInfo.ID)
-		fmt.Println("---sv.Fields: ", sv.Fields)
-		fmt.Println("---sv.OwnerID: ", sv.ObjectInfo.OwnerID)
-	} else if bv, ok := po.(*Block); ok {
-		for _, tv := range bv.Values {
-			fmt.Println("----tv.T: ", tv.T)
-			fmt.Println("----tv.V: ", tv.V)
-			if csv, ok := co.(*StructValue); ok {
-				if csv == tv.V {
-					fmt.Println("---eql, csv: ", csv)
-					fmt.Println("---eql, T: ", tv.T, reflect.TypeOf(tv.T))
-					if dt, ok := tv.T.(*DeclaredType); ok {
-						fmt.Println("---dt: ", dt, dt.PkgPath)
-						if IsRealmPath(dt.PkgPath) && dt.PkgPath != rlm.Path {
-							fmt.Println("---set co to be cross realm object, co: ", co)
-							fmt.Printf("---%p\n", co)
-							co.SetIsCrossRealm(true)
-							//panic("!!!")
-						}
-					}
-				}
-			}
-		}
-	}
+	//// XXX, these can be improved by attach type info with co.
+	//// the following does not work
+	//if sv, ok := po.(*StructValue); ok {
+	//	fmt.Println("---sv: ", sv)
+	//	fmt.Println("---sv.ID: ", sv.ObjectInfo.ID)
+	//	fmt.Println("---sv.Fields: ", sv.Fields)
+	//	fmt.Println("---sv.OwnerID: ", sv.ObjectInfo.OwnerID)
+	//} else if bv, ok := po.(*Block); ok {
+	//	for _, tv := range bv.Values {
+	//		fmt.Println("----tv.T: ", tv.T)
+	//		fmt.Println("----tv.V: ", tv.V)
+	//		if csv, ok := co.(*StructValue); ok {
+	//			if csv == tv.V {
+	//				fmt.Println("---eql, csv: ", csv)
+	//				fmt.Println("---eql, T: ", tv.T, reflect.TypeOf(tv.T))
+	//				if dt, ok := tv.T.(*DeclaredType); ok {
+	//					fmt.Println("---dt: ", dt, dt.PkgPath)
+	//					if IsRealmPath(dt.PkgPath) && dt.PkgPath != rlm.Path {
+	//						fmt.Println("---set co to be cross realm object, co: ", co)
+	//						fmt.Printf("---%p\n", co)
+	//						co.SetIsCrossRealm(true)
+	//						//panic("!!!")
+	//					}
+	//				}
+	//			}
+	//		}
+	//	}
+	//}
+
+	// XXX, association happens here
+	// if is co is attached to external realm
+	//     if xo is attached to realm, directly/indirectly;
+	//        if associated with reference, ok
+	//				else, panic("should not associate with value cross realm
+	//     else if xo is not attached to realm, associate is ok too, check when finalize.
+	// else, panic when finalizing current realm.
 
 	fmt.Println("---realm: ", rlm)
 	if rlm == nil {
@@ -246,7 +255,7 @@ func (rlm *Realm) DidUpdate(po, xo, co Object) {
 
 	if xo != nil {
 		xo.DecRefCount()
-		fmt.Println("---xo refCount after dec: ", xo.GetRefCount())
+		fmt.Printf("---xo: %v refCount after dec: %v\n", xo, xo.GetRefCount())
 		if xo.GetRefCount() == 0 {
 			if xo.GetIsReal() {
 				rlm.MarkNewDeleted(xo)
@@ -399,6 +408,8 @@ func (rlm *Realm) MarkNewEscaped(oo Object) {
 //----------------------------------------
 // transactions
 
+// TODO: check cross realm, that might be objects not attached
+// to a realm gets attached here, which should panic.
 // OpReturn calls this when exiting a realm transaction.
 func (rlm *Realm) FinalizeRealmTransaction(readonly bool, store Store) {
 	fmt.Println("---FinalizeRealmTransaction---")
