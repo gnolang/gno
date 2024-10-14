@@ -17,7 +17,6 @@ import (
 	"github.com/rs/cors"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
 	bc "github.com/gnolang/gno/tm2/pkg/bft/blockchain"
 	cfg "github.com/gnolang/gno/tm2/pkg/bft/config"
 	cs "github.com/gnolang/gno/tm2/pkg/bft/consensus"
@@ -323,28 +322,6 @@ func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.Nod
 
 	if !config.P2P.AllowDuplicateIP {
 		connFilters = append(connFilters, p2p.ConnDuplicateIPFilter())
-	}
-
-	// Filter peers by addr or pubkey with an ABCI query.
-	// If the query return code is OK, add peer.
-	if config.FilterPeers {
-		connFilters = append(
-			connFilters,
-			// ABCI query for address filtering.
-			func(_ p2p.ConnSet, c net.Conn, _ []net.IP) error {
-				res, err := proxyApp.Query().QuerySync(abci.RequestQuery{
-					Path: fmt.Sprintf("/p2p/filter/addr/%s", c.RemoteAddr().String()),
-				})
-				if err != nil {
-					return err
-				}
-				if res.IsErr() {
-					return fmt.Errorf("error querying abci app: %v", res)
-				}
-
-				return nil
-			},
-		)
 	}
 
 	p2p.MultiplexTransportConnFilters(connFilters...)(transport)

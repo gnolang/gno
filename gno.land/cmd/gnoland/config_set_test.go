@@ -244,19 +244,6 @@ func TestConfig_Set_Base(t *testing.T) {
 				assert.Equal(t, value, loadedCfg.ProfListenAddress)
 			},
 		},
-		{
-			"filter peers flag updated",
-			[]string{
-				"filter_peers",
-				"true",
-			},
-			func(loadedCfg *config.Config, value string) {
-				boolVal, err := strconv.ParseBool(value)
-				require.NoError(t, err)
-
-				assert.Equal(t, boolVal, loadedCfg.FilterPeers)
-			},
-		},
 	}
 
 	verifySetTestTableCommon(t, testTable)

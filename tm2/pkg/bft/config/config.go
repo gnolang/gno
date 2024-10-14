@@ -318,10 +318,6 @@ type BaseConfig struct {
 
 	// TCP or UNIX socket address for the profiling server to listen on
 	ProfListenAddress string `toml:"prof_laddr" comment:"TCP or UNIX socket address for the profiling server to listen on"`
-
-	// If true, query the ABCI app on connecting to a new peer
-	// so the app can decide if we should keep the connection or not
-	FilterPeers bool `toml:"filter_peers" comment:"If true, query the ABCI app on connecting to a new peer\n so the app can decide if we should keep the connection or not"` // false
 }
 
 // DefaultBaseConfig returns a default base configuration for a Tendermint node
@@ -335,7 +331,6 @@ func DefaultBaseConfig() BaseConfig {
 		ABCI:               SocketABCI,
 		ProfListenAddress:  "",
 		FastSyncMode:       true,
-		FilterPeers:        false,
 		DBBackend:          db.GoLevelDBBackend.String(),
 		DBPath:             DefaultDBDir,
 	}
