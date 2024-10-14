@@ -955,7 +955,6 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						return cx, TRANS_CONTINUE
 					}
 					if last.GetIsConst(store, n.Name) {
-						//fmt.Println("---trans_leave, nameExpr, ", n.Name)
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					}
@@ -2237,31 +2236,57 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					}
-					// evaluate types and convert consts.
-					if n.Type != nil {
+
+					if n.Const {
+						fmt.Println("---isConst, n: ", n)
+						if n.Values != nil {
+							if n.Type != nil {
+								fmt.Println("---from n.Type")
+								nt := evalStaticType(store, last, n.Type)
+								for i := 0; i < numNames; i++ {
+									sts[i] = nt
+								}
+								// convert if const to nt.
+								for i := range n.Values {
+									checkOrConvertType(store, last, &n.Values[i], nt, false)
+								}
+							} else {
+								fmt.Println("---derive from values")
+								// derive static type from values.
+								for i, vx := range n.Values {
+									fmt.Println("---vx: ", vx)
+									vt := evalStaticTypeOf(store, last, vx)
+									fmt.Println("---vt: ", vt)
+									sts[i] = vt
+								}
+							}
+						} else if n.Type != nil { // special case
+							nt := evalStaticType(store, last, n.Type)
+							if dt, ok := nt.(*DeclaredType); ok {
+								fmt.Println("---dt: ", dt)
+								for i := 0; i < numNames; i++ {
+									sts[i] = nt
+								}
+								// convert if const to nt.
+								for i := range n.Values {
+									checkOrConvertType(store, last, &n.Values[i], nt, false)
+								}
+							} else {
+								panic("should not happen")
+							}
+						}
+					} else if n.Type != nil { // non-const
+						fmt.Println("---not const, value decl")
 						// only a single type can be specified.
-						//fmt.Println("---n.Type: ", n.Type)
 						nt := evalStaticType(store, last, n.Type)
 						for i := 0; i < numNames; i++ {
 							sts[i] = nt
 						}
-						//fmt.Println("---n.Values: ", n.Values)
 						// convert if const to nt.
 						for i := range n.Values {
-							//fmt.Printf("---n.Values[%d] %v \n", i, n.Values[i])
-							//fmt.Println("---nt: ", nt)
-							//if cx, ok := n.Values[i].(*ConstExpr); ok {
-							//fmt.Println("---cx: ", cx)
-							//}
 							checkOrConvertType(store, last, &n.Values[i], nt, false)
 						}
-					} else if n.Const {
-						// derive static type from values.
-						for i, vx := range n.Values {
-							vt := evalStaticTypeOf(store, last, vx)
-							sts[i] = vt
-						}
-					} else {
+					} else { // not const, type is nil
 						// convert n.Value to default type.
 						for i, vx := range n.Values {
 							convertIfConst(store, last, vx)
@@ -2640,7 +2665,6 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// is constant?  From the machine?
 	m := NewMachine(".dontcare", store)
 	cv := m.EvalStatic(last, x)
-	//fmt.Println("---evalConst, cv: ", cv)
 	m.Release()
 	cx := &ConstExpr{
 		Source:     x,

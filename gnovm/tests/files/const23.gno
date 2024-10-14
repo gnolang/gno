@@ -19,18 +19,18 @@ func main() {
 	println(s)
 	println(c)
 	println(s2)
-	println(d)
-	println(e)
+	println(d, e)
 	println(m, n)
 	println(b)
 	println(u)
 }
 
+// Output:
 // 1
 // world
 // 4
 // hey
-// 1
-// hello
+// 1 hello
+// 1 hello
 // 2
 // 1

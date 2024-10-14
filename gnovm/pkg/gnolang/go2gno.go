@@ -768,26 +768,33 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				IsAlias:  alias,
 			})
 		case *ast.ValueSpec:
-			//fmt.Println("---ValueSpec, spec: ", s)
 			if gd.Tok == token.CONST {
+				fmt.Println("---spec: ", s)
 				var names []NameExpr
 				var tipe Expr
 				var values Exprs
 				for _, id := range s.Names {
 					names = append(names, *Nx(toName(id)))
 				}
-				//fmt.Println("---names: ", names)
-				//fmt.Println("---lastType: ", lastType)
-				//fmt.Println("---lastValues: ", lastValues)
-				if s.Type != nil {
-					tipe = toExpr(fs, s.Type)
-					lastType = tipe
+				if s.Type == nil && s.Values == nil {
+					tipe = lastType
+				} else {
+					lastType = toExpr(fs, s.Type)
+				}
+
+				fmt.Println("---lastType: ", lastType, reflect.TypeOf(lastType))
+				if nx, ok := lastType.(*NameExpr); ok { // not nil
+					fmt.Println("nx.Name: ", nx)
+					if !isPrimitiveType(string(nx.Name)) { // inherit declared type, or nil, do deduct from values
+						fmt.Println("---NOT PRIMITIVE: ", nx.Name)
+						tipe = lastType
+					}
 				}
 
 				if s.Values == nil {
-					// inherit type from last value
-					tipe = lastType
+					// inherit type from last values
 					values = copyExprs(lastValues)
+					// if lastType is declaredType, inherit it
 				} else {
 					values = toExprs(fs, s.Values)
 					lastValues = values
@@ -798,12 +805,14 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Values:    values,
 					Const:     true,
 				}
+				//if s.Values == nil {
+				//	cd.Type = tipe
+				//}
 
-				//println("set attr iota")
+				fmt.Println("---cd.names:", cd.NameExprs)
+				fmt.Println("---cd.values:", cd.Values)
+				fmt.Println("---cd.Type:", cd.Type)
 				cd.SetAttribute(ATTR_IOTA, si)
-				//fmt.Println("---cd: ", cd)
-				//fmt.Println("---cd.Type: ", cd.Type)
-				//fmt.Println("---si: ", si)
 				setLoc(fs, s.Pos(), cd)
 				ds = append(ds, cd)
 			} else {
@@ -936,4 +945,20 @@ func toSwitchClauseStmt(fs *token.FileSet, cc *ast.CaseClause) SwitchClauseStmt 
 		Cases: toExprs(fs, cc.List),
 		Body:  toStmts(fs, cc.Body),
 	}
+}
+func isPrimitiveType(typeStr string) bool {
+	// List of primitive type prefixes
+	primitiveTypes := []string{
+		"int", "int8", "int16", "int32", "int64",
+		"uint", "uint8", "uint16", "uint32", "uint64",
+		"float32", "float64", "string", "bool",
+	}
+
+	for _, t := range primitiveTypes {
+		if strings.HasPrefix(typeStr, t) {
+			return true
+		}
+	}
+
+	return false
 }

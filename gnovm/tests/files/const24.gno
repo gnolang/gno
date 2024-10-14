@@ -10,4 +10,5 @@ func main() {
 	println(c)
 }
 
+// Output:
 // 4
