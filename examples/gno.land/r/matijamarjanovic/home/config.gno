@@ -54,7 +54,7 @@ func SetBackup(newAddress std.Address) error {
 }
 
 func checkAuthorized() error {
-        caller := std.PrevRealm().Addr()
+        caller := std.GetOrigCaller()
         if caller != mainAddr && caller != backupAddr {
                 return errors.New(errorUnauthorized)
         }
@@ -63,7 +63,8 @@ func checkAuthorized() error {
 }
 
 func AssertAuthorized() {
-        if checkAuthorized() != nil {
+        caller := std.PrevRealm().Addr()
+        if caller != mainAddr && caller != backupAddr {
                 panic(errorUnauthorized)
         }
 }
