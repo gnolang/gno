@@ -3,6 +3,7 @@ package home
 import (
 	"sort"
 	"std"
+	"strings"
 
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
@@ -20,73 +21,98 @@ type Sponsor struct {
 	Amount  std.Coins
 }
 
-var (
-	pfp              string
+type DonationStats struct {
+	TotalDonated   std.Coins
+	TotalDonations int
+}
+
+type Profile struct {
+	pfp     string
+	aboutMe []string
+}
+
+type Travel struct {
 	cities           []City
 	currentCityIndex int
-	aboutMe          [2]string
 	jarLink          string
-	maxSponsors      int
-	sponsors         []Sponsor
-	totalDonated     std.Coins
-	totalDonations   int
-	owner            *ownable.Ownable
+}
+
+type Sponsorship struct {
+	maxSponsors   int
+	sponsors      map[std.Address]std.Coins
+	donationStats DonationStats
+}
+
+var (
+	profile     Profile
+	travel      Travel
+	sponsorship Sponsorship
+	owner       *ownable.Ownable
 )
 
 func init() {
 	owner = ownable.NewWithAddress(registry.MainAddr())
-	pfp = "https://i.ibb.co/Bc5YNCx/DSC-0095a.jpg"
-	cities = []City{
-		{Name: "Venice", URL: "https://i.ibb.co/1mcZ7b1/venice.jpg"},
-		{Name: "Tokyo", URL: "https://i.ibb.co/wNDJv3H/tokyo.jpg"},
-		{Name: "São Paulo", URL: "https://i.ibb.co/yWMq2Sn/sao-paulo.jpg"},
-		{Name: "Toronto", URL: "https://i.ibb.co/pb95HJB/toronto.jpg"},
-		{Name: "Bangkok", URL: "https://i.ibb.co/pQy3w2g/bangkok.jpg"},
-		{Name: "New York", URL: "https://i.ibb.co/6JWLm0h/new-york.jpg"},
-		{Name: "Paris", URL: "https://i.ibb.co/q9vf6Hs/paris.jpg"},
-		{Name: "Kandersteg", URL: "https://i.ibb.co/60DzywD/kandersteg.jpg"},
-		{Name: "Rothenburg", URL: "https://i.ibb.co/cr8d2rQ/rothenburg.jpg"},
-		{Name: "Capetown", URL: "https://i.ibb.co/bPGn0v3/capetown.jpg"},
-		{Name: "Sydney", URL: "https://i.ibb.co/TBNzqfy/sydney.jpg"},
-		{Name: "Oeschinen Lake", URL: "https://i.ibb.co/QJQwp2y/oeschinen-lake.jpg"},
-		{Name: "Barra Grande", URL: "https://i.ibb.co/z4RXKc1/barra-grande.jpg"},
-		{Name: "London", URL: "https://i.ibb.co/CPGtvgr/london.jpg"},
-	}
-	currentCityIndex = 0
-	jarLink = "https://TODO" // This value should be injected through UpdateJarLink after deployment.
-	maxSponsors = 5
-	aboutMe = [2]string{
-		`<h3 style="font-size: 1.4em;">About Me</h3>
-        <p style="font-size: 1.1em;">Hey there! I’m Stefan, a student of Computer Science. I’m all about exploring and adventure — whether it’s diving into the latest tech or discovering a new city, I’m always up for the challenge!</p>`,
-		`<h3 style="font-size: 1.4em;">Contributions</h3>
-        <p style="font-size: 1.1em;">I'm just getting started, but you can follow my journey through Gno.land right here <a href="https://github.com/gnolang/hackerspace/issues/94" target="_blank">🔗</a></p>`,
-	}
-}
 
-func UpdateMaxSponsors(newMax int) {
-	owner.AssertCallerIsOwner()
-	maxSponsors = newMax
+	profile = Profile{
+		pfp: "https://i.ibb.co/Bc5YNCx/DSC-0095a.jpg",
+		aboutMe: []string{
+			`### About Me`,
+			`Hey there! I’m Stefan, a student of Computer Science. I’m all about exploring and adventure — whether it’s diving into the latest tech or discovering a new city, I’m always up for the challenge!`,
+
+			`### Contributions`,
+			`I'm just getting started, but you can follow my journey through Gno.land right [here](https://github.com/gnolang/hackerspace/issues/94) 🔗`,
+		},
+	}
+
+	travel = Travel{
+		cities: []City{
+			{Name: "Venice", URL: "https://i.ibb.co/1mcZ7b1/venice.jpg"},
+			{Name: "Tokyo", URL: "https://i.ibb.co/wNDJv3H/tokyo.jpg"},
+			{Name: "São Paulo", URL: "https://i.ibb.co/yWMq2Sn/sao-paulo.jpg"},
+			{Name: "Toronto", URL: "https://i.ibb.co/pb95HJB/toronto.jpg"},
+			{Name: "Bangkok", URL: "https://i.ibb.co/pQy3w2g/bangkok.jpg"},
+			{Name: "New York", URL: "https://i.ibb.co/6JWLm0h/new-york.jpg"},
+			{Name: "Paris", URL: "https://i.ibb.co/q9vf6Hs/paris.jpg"},
+			{Name: "Kandersteg", URL: "https://i.ibb.co/60DzywD/kandersteg.jpg"},
+			{Name: "Rothenburg", URL: "https://i.ibb.co/cr8d2rQ/rothenburg.jpg"},
+			{Name: "Capetown", URL: "https://i.ibb.co/bPGn0v3/capetown.jpg"},
+			{Name: "Sydney", URL: "https://i.ibb.co/TBNzqfy/sydney.jpg"},
+			{Name: "Oeschinen Lake", URL: "https://i.ibb.co/QJQwp2y/oeschinen-lake.jpg"},
+			{Name: "Barra Grande", URL: "https://i.ibb.co/z4RXKc1/barra-grande.jpg"},
+			{Name: "London", URL: "https://i.ibb.co/CPGtvgr/london.jpg"},
+		},
+		currentCityIndex: 0,
+		jarLink:          "https://TODO", // This value should be injected through UpdateJarLink after deployment.
+	}
+
+	sponsorship = Sponsorship{
+		maxSponsors: 5,
+		sponsors:    make(map[std.Address]std.Coins),
+		donationStats: DonationStats{
+			TotalDonated:   std.NewCoins(),
+			TotalDonations: 0,
+		},
+	}
 }
 
 func UpdateCities(newCities []City) {
 	owner.AssertCallerIsOwner()
-	cities = newCities
+	travel.cities = newCities
 }
 
 func UpdateJarLink(newLink string) {
 	owner.AssertCallerIsOwner()
-	jarLink = newLink
+	travel.jarLink = newLink
 }
 
 func UpdatePFP(url string) {
 	owner.AssertCallerIsOwner()
-	pfp = url
+	profile.pfp = url
 }
 
-func UpdateAboutMe(col1, col2 string) {
+func UpdateAboutMe(aboutMeStr string) {
 	owner.AssertCallerIsOwner()
-	aboutMe[0] = col1
-	aboutMe[1] = col2
+	profile.aboutMe = strings.Split(aboutMeStr, "|")
 }
 
 func Donate() {
@@ -97,32 +123,21 @@ func Donate() {
 		panic("Donation must include GNOT")
 	}
 
-	found := false
-
-	for i, sponsor := range sponsors {
-		if sponsor.Address == address {
-			sponsors[i].Amount = sponsors[i].Amount.Add(amount)
-			found = true
-			break
-		}
+	if existingAmount, exists := sponsorship.sponsors[address]; exists {
+		sponsorship.sponsors[address] = existingAmount.Add(amount)
+	} else {
+		sponsorship.sponsors[address] = amount
 	}
 
-	if !found {
-		sponsors = append(sponsors, Sponsor{Address: address, Amount: amount})
-	}
+	sponsorship.donationStats.TotalDonated.Add(amount)
+	sponsorship.donationStats.TotalDonations++
 
-	totalDonated.Add(amount)
+	travel.currentCityIndex++
 
-	totalDonations++
+	banker := std.GetBanker(std.BankerTypeRealmSend)
 
-	sortSponsorsByAmount()
-
-	if len(cities) > 0 {
-		currentCityIndex++
-		if currentCityIndex >= len(cities) {
-			currentCityIndex = 0
-		}
-	}
+	ownerAddr := registry.MainAddr()
+	banker.SendCoins(std.CurrentRealm().Addr(), ownerAddr, banker.GetCoins(std.CurrentRealm().Addr()))
 }
 
 type SponsorSlice []Sponsor
@@ -139,33 +154,28 @@ func (s SponsorSlice) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
-func sortSponsorsByAmount() {
-	sort.Sort(SponsorSlice(sponsors))
-}
-
 func GetTopSponsors() []Sponsor {
-	return sponsors
-}
+	var sponsorSlice SponsorSlice
 
-func CollectDonations() {
-	owner.AssertCallerIsOwner()
+	for addr, amount := range sponsorship.sponsors {
+		sponsorSlice = append(sponsorSlice, Sponsor{Address: addr, Amount: amount})
+	}
 
-	banker := std.GetBanker(std.BankerTypeRealmSend)
+	sort.Sort(sponsorSlice)
 
-	ownerAddr := registry.MainAddr()
-	banker.SendCoins(std.CurrentRealm().Addr(), ownerAddr, banker.GetCoins(std.CurrentRealm().Addr()))
+	return sponsorSlice
 }
 
 func GetTotalDonations() std.Coins {
-	return totalDonated
+	return sponsorship.donationStats.TotalDonated
 }
 
 func GetDonationCount() int {
-	return totalDonations
+	return sponsorship.donationStats.TotalDonations
 }
 
 func Render(path string) string {
-	out := ufmt.Sprintf("# Exploring %s!\n\n", cities[currentCityIndex].Name)
+	out := ufmt.Sprintf("# Exploring %s!\n\n", travel.cities[travel.currentCityIndex].Name)
 
 	out += renderAboutMe()
 	out += "\n\n"
@@ -179,19 +189,17 @@ func renderAboutMe() string {
 
 	out += "<div style='position: relative; text-align: center;'>\n\n"
 
-	out += ufmt.Sprintf("<div style='background-image: url(%s); background-size: cover; background-position: center; width: 100%%; height: 600px; position: relative; border-radius: 15px; overflow: hidden;'>\n\n", cities[currentCityIndex].URL)
+	out += ufmt.Sprintf("<div style='background-image: url(%s); background-size: cover; background-position: center; width: 100%%; height: 600px; position: relative; border-radius: 15px; overflow: hidden;'>\n\n", travel.cities[travel.currentCityIndex%len(travel.cities)].URL)
 
-	out += ufmt.Sprintf("<img src='%s' alt='my profile pic' style='width: 250px; height: auto; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%%; border: 3px solid #1e1e1e; position: absolute; top: 75%%; left: 50%%; transform: translate(-50%%, -50%%);'>\n\n", pfp)
+	out += ufmt.Sprintf("<img src='%s' alt='my profile pic' style='width: 250px; height: auto; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 50%%; border: 3px solid #1e1e1e; position: absolute; top: 75%%; left: 50%%; transform: translate(-50%%, -50%%);'>\n\n", profile.pfp)
 
 	out += "</div>\n\n"
 
-	out += "<div>\n\n"
-	out += aboutMe[0] + "\n\n"
-	out += "</div>\n\n"
-
-	out += "<div>\n\n"
-	out += aboutMe[1] + "\n\n"
-	out += "</div>\n\n"
+	for _, rows := range profile.aboutMe {
+		out += "<div>\n\n"
+		out += rows + "\n\n"
+		out += "</div>\n\n"
+	}
 
 	out += "</div><!-- /rows-3 -->\n\n"
 
@@ -207,7 +215,7 @@ func renderTips() string {
 
 	out += renderTipsJar() + "\n"
 
-	out += ufmt.Sprintf(`<strong style="font-size: 1.2em;">I am currently in %s, <br> tip the jar to send me somewhere else!</strong>`, cities[currentCityIndex].Name)
+	out += ufmt.Sprintf(`<strong style="font-size: 1.2em;">I am currently in %s, <br> tip the jar to send me somewhere else!</strong>`, travel.cities[travel.currentCityIndex].Name)
 
 	out += `<br><span style="font-size: 1.2em; font-style: italic; margin-top: 10px; display: inline-block;">Click the jar, tip in GNOT coins, and watch my background change as I head to a new adventure!</span></p>` + "\n\n"
 
@@ -230,18 +238,19 @@ func formatAddress(address string) string {
 func renderSponsors() string {
 	out := `<h3 style="margin-top: 5px; margin-bottom: 20px">Sponsor Leaderboard</h3>` + "\n"
 
-	if len(sponsors) == 0 {
+	if len(sponsorship.sponsors) == 0 {
 		out += `<p style="text-align: center;">No sponsors yet. Be the first to tip the jar!</p>` + "\n"
 	} else {
-		numSponsors := len(sponsors)
-		if numSponsors > maxSponsors {
-			numSponsors = maxSponsors
+		topSponsors := GetTopSponsors()
+		numSponsors := len(topSponsors)
+		if numSponsors > sponsorship.maxSponsors {
+			numSponsors = sponsorship.maxSponsors
 		}
 
 		out += `<ul style="list-style-type: none; padding: 0; border: 1px solid #ddd; border-radius: 8px; width: 100%; max-width: 300px; margin: 0 auto;">` + "\n"
 
 		for i := 0; i < numSponsors; i++ {
-			sponsor := sponsors[i]
+			sponsor := topSponsors[i]
 			isLastItem := (i == numSponsors-1)
 
 			padding := "10px 5px"
@@ -267,7 +276,7 @@ func renderSponsors() string {
 }
 
 func renderTipsJar() string {
-	out := ufmt.Sprintf(`<a href="%s" target="_blank" style="display: block; text-decoration: none;">`, jarLink) + "\n"
+	out := ufmt.Sprintf(`<a href="%s" target="_blank" style="display: block; text-decoration: none;">`, travel.jarLink) + "\n"
 
 	out += `<img src="https://i.ibb.co/4TH9zbw/tips-jar.png" alt="Tips Jar" style="width: 300px; height: auto; display: block; margin: 0 auto;">` + "\n"
 
