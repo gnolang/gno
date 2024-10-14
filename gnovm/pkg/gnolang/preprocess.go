@@ -955,6 +955,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						return cx, TRANS_CONTINUE
 					}
 					if last.GetIsConst(store, n.Name) {
+						//fmt.Println("---trans_leave, nameExpr, ", n.Name)
 						cx := evalConst(store, last, n)
 						return cx, TRANS_CONTINUE
 					}
@@ -2239,12 +2240,19 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 					// evaluate types and convert consts.
 					if n.Type != nil {
 						// only a single type can be specified.
+						//fmt.Println("---n.Type: ", n.Type)
 						nt := evalStaticType(store, last, n.Type)
 						for i := 0; i < numNames; i++ {
 							sts[i] = nt
 						}
+						//fmt.Println("---n.Values: ", n.Values)
 						// convert if const to nt.
 						for i := range n.Values {
+							//fmt.Printf("---n.Values[%d] %v \n", i, n.Values[i])
+							//fmt.Println("---nt: ", nt)
+							//if cx, ok := n.Values[i].(*ConstExpr); ok {
+							//fmt.Println("---cx: ", cx)
+							//}
 							checkOrConvertType(store, last, &n.Values[i], nt, false)
 						}
 					} else if n.Const {
@@ -2632,6 +2640,7 @@ func evalConst(store Store, last BlockNode, x Expr) *ConstExpr {
 	// is constant?  From the machine?
 	m := NewMachine(".dontcare", store)
 	cv := m.EvalStatic(last, x)
+	//fmt.Println("---evalConst, cv: ", cv)
 	m.Release()
 	cx := &ConstExpr{
 		Source:     x,

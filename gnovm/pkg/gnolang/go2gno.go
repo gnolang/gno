@@ -106,6 +106,7 @@ func MustParseExpr(expr string) Expr {
 // resulting AST -- the resulting FileNode is returned, together with any other
 // error (including panics, which are recovered) from [Go2Gno].
 func ParseFile(filename string, body string) (fn *FileNode, err error) {
+	//fmt.Println("---ParseFile, body: ", body)
 	// Use go parser to parse the body.
 	fs := token.NewFileSet()
 	// TODO(morgan): would be nice to add parser.SkipObjectResolution as we don't
@@ -132,6 +133,7 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 	}()
 	// parse with Go2Gno.
 	fn = Go2Gno(fs, f).(*FileNode)
+	//fmt.Println("---fn after transpile: ", fn)
 	fn.Name = Name(filename)
 	return fn, nil
 }
@@ -307,6 +309,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Fields: toFieldsFromList(fs, gon.Fields),
 		}
 	case *ast.AssignStmt:
+		//fmt.Println("---assignStmt, gon: ", gon)
 		return &AssignStmt{
 			Lhs: toExprs(fs, gon.Lhs),
 			Op:  toWord(gon.Tok),
@@ -322,6 +325,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Label: toName(gon.Label),
 		}
 	case *ast.DeclStmt:
+		//fmt.Println("---DeclStmt, gon: ", gon)
 		return &DeclStmt{
 			Body: toSimpleDeclStmts(fs, gon.Decl.(*ast.GenDecl)),
 		}
@@ -331,6 +335,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Call: *cx,
 		}
 	case *ast.ExprStmt:
+		//fmt.Println("---ExprStmt, gon: ", gon)
 		if cx, ok := gon.X.(*ast.CallExpr); ok {
 			if ix, ok := cx.Fun.(*ast.Ident); ok && ix.Name == "panic" {
 				if len(cx.Args) != 1 {
@@ -408,6 +413,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				VarName:      toName(as.Lhs[0].(*ast.Ident)),
 			}
 		case *ast.ExprStmt:
+			println("---ExprStmt")
 			return &SwitchStmt{
 				Init:         toStmt(fs, gon.Init),
 				X:            toExpr(fs, as.X.(*ast.TypeAssertExpr).X),
@@ -457,6 +463,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.GenDecl:
 		panic("unexpected *ast.GenDecl; use toDecls(fs,) instead")
 	case *ast.File:
+		//println("---ast.File")
 		pkgName := Name(gon.Name.Name)
 		decls := make([]Decl, 0, len(gon.Decls))
 		for _, d := range gon.Decls {
@@ -738,6 +745,7 @@ func toDecl(fs *token.FileSet, god ast.Decl) Decl {
 }
 
 func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
+	//fmt.Println("---toDecls: ", gd.Tok.String())
 	ds = make([]Decl, 0, len(gd.Specs))
 	/*
 		Within a parenthesized const declaration list the
@@ -760,6 +768,7 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				IsAlias:  alias,
 			})
 		case *ast.ValueSpec:
+			//fmt.Println("---ValueSpec, spec: ", s)
 			if gd.Tok == token.CONST {
 				var names []NameExpr
 				var tipe Expr
@@ -767,13 +776,17 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				for _, id := range s.Names {
 					names = append(names, *Nx(toName(id)))
 				}
-				if s.Type == nil {
-					tipe = lastType
-				} else {
+				//fmt.Println("---names: ", names)
+				//fmt.Println("---lastType: ", lastType)
+				//fmt.Println("---lastValues: ", lastValues)
+				if s.Type != nil {
 					tipe = toExpr(fs, s.Type)
 					lastType = tipe
 				}
+
 				if s.Values == nil {
+					// inherit type from last value
+					tipe = lastType
 					values = copyExprs(lastValues)
 				} else {
 					values = toExprs(fs, s.Values)
@@ -785,7 +798,12 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Values:    values,
 					Const:     true,
 				}
+
+				//println("set attr iota")
 				cd.SetAttribute(ATTR_IOTA, si)
+				//fmt.Println("---cd: ", cd)
+				//fmt.Println("---cd.Type: ", cd.Type)
+				//fmt.Println("---si: ", si)
 				setLoc(fs, s.Pos(), cd)
 				ds = append(ds, cd)
 			} else {

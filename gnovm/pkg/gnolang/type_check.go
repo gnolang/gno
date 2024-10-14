@@ -599,6 +599,7 @@ func (x *BinaryExpr) checkShiftLhs(dt Type) {
 // Overall,it efficiently filters out incompatible expressions, stopping before the next
 // checkOrConvertType() operation to optimize performance.
 func (x *BinaryExpr) AssertCompatible(lt, rt Type) {
+	//fmt.Println("---assert compatible, lt, rt: ", lt, rt)
 	// native type will be converted to gno in latter logic,
 	// this check logic will be conduct again from trans_leave *BinaryExpr.
 	lnt, lin := lt.(*NativeType)
