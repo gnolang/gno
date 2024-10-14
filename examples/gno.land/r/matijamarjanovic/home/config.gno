@@ -1,70 +1,70 @@
 package home
 
 import (
-	"errors"
-	"std"
+        "errors"
+        "std"
 )
 
 var (
-	mainAddr   std.Address // tony's main address
-	backupAddr std.Address // backup address
+        mainAddr   std.Address // tony's main address
+        backupAddr std.Address // backup address
 
-	errorInvalidAddr string
-	errorUnauthorized string
+        errorInvalidAddr  string
+        errorUnauthorized string
 )
 
 func init() {
-	mainAddr = "g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"
-	errorInvalidAddr = "config: invalid address"
-	errorUnauthorized = "config: unauthorized"
+        mainAddr = "g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"
+        errorInvalidAddr = "config: invalid address"
+        errorUnauthorized = "config: unauthorized"
 }
 
 func Address() std.Address {
-	return mainAddr
+        return mainAddr
 }
 
 func Backup() std.Address {
-	return backupAddr
+        return backupAddr
 }
 
 func SetAddress(newAddress std.Address) error {
-	if !newAddress.IsValid() {
-		return errors.New(errorInvalidAddr)
-	}
+        if !newAddress.IsValid() {
+                return errors.New(errorInvalidAddr)
+        }
 
-	if err := checkAuthorized(); err != nil {
-		return err
-	}
+        if err := checkAuthorized(); err != nil {
+                return err
+        }
 
-	mainAddr = newAddress
-	return nil
+        mainAddr = newAddress
+        return nil
 }
 
 func SetBackup(newAddress std.Address) error {
-	if !newAddress.IsValid() {
-		return errors.New(errorInvalidAddr)
-	}
+        if !newAddress.IsValid() {
+                return errors.New(errorInvalidAddr)
+        }
 
-	if err := checkAuthorized(); err != nil {
-		return err
-	}
+        if err := checkAuthorized(); err != nil {
+                return err
+        }
 
-	backupAddr = newAddress
-	return nil
+        backupAddr = newAddress
+        return nil
 }
 
 func checkAuthorized() error {
-	caller := std.PrevRealm().Addr()
-	if caller != mainAddr && caller != backupAddr{
-		return errors.New(errorUnauthorized)
-	}
+        caller := std.PrevRealm().Addr()
+        if caller != mainAddr && caller != backupAddr {
+                return errors.New(errorUnauthorized)
+        }
 
-	return nil
+        return nil
 }
 
 func AssertAuthorized() {
-	caller := std.PrevRealm().Addr()
-	if caller != mainAddr && caller != backupAddr{
-		panic(errorUnauthorized)
-	}
+        caller := std.PrevRealm().Addr()
+        if caller != mainAddr && caller != backupAddr {
+                panic(errorUnauthorized)
+        }
 }
