@@ -132,6 +132,7 @@ func ParseFile(filename string, body string) (fn *FileNode, err error) {
 	}()
 	// parse with Go2Gno.
 	fn = Go2Gno(fs, f).(*FileNode)
+	//fmt.Println("---fn after transpile: ", fn)
 	fn.Name = Name(filename)
 	return fn, nil
 }
@@ -408,6 +409,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 				VarName:      toName(as.Lhs[0].(*ast.Ident)),
 			}
 		case *ast.ExprStmt:
+			println("---ExprStmt")
 			return &SwitchStmt{
 				Init:         toStmt(fs, gon.Init),
 				X:            toExpr(fs, as.X.(*ast.TypeAssertExpr).X),
@@ -457,6 +459,7 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 	case *ast.GenDecl:
 		panic("unexpected *ast.GenDecl; use toDecls(fs,) instead")
 	case *ast.File:
+		//println("---ast.File")
 		pkgName := Name(gon.Name.Name)
 		decls := make([]Decl, 0, len(gon.Decls))
 		for _, d := range gon.Decls {
@@ -767,14 +770,22 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 				for _, id := range s.Names {
 					names = append(names, *Nx(toName(id)))
 				}
-				if s.Type == nil {
+				if s.Type == nil && s.Values == nil { // inherit declared type
 					tipe = lastType
 				} else {
-					tipe = toExpr(fs, s.Type)
-					lastType = tipe
+					lastType = toExpr(fs, s.Type)
 				}
+
+				if nx, ok := lastType.(*NameExpr); ok {
+					if !isPrimitiveType(string(nx.Name)) {
+						tipe = lastType
+					}
+				}
+
 				if s.Values == nil {
+					// inherit type from last values
 					values = copyExprs(lastValues)
+					// if lastType is declaredType, inherit it
 				} else {
 					values = toExprs(fs, s.Values)
 					lastValues = values
@@ -918,4 +929,20 @@ func toSwitchClauseStmt(fs *token.FileSet, cc *ast.CaseClause) SwitchClauseStmt 
 		Cases: toExprs(fs, cc.List),
 		Body:  toStmts(fs, cc.Body),
 	}
+}
+func isPrimitiveType(typeStr string) bool {
+	// List of primitive type prefixes
+	primitiveTypes := []string{
+		"int", "int8", "int16", "int32", "int64",
+		"uint", "uint8", "uint16", "uint32", "uint64",
+		"float32", "float64", "string", "bool",
+	}
+
+	for _, t := range primitiveTypes {
+		if strings.HasPrefix(typeStr, t) {
+			return true
+		}
+	}
+
+	return false
 }

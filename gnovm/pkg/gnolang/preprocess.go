@@ -2264,7 +2264,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							}
 						}
 					}
-					// evaluate types and convert consts.
+
 					if n.Type != nil {
 						// only a single type can be specified.
 						nt := evalStaticType(store, last, n.Type)
@@ -2276,12 +2276,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 							checkOrConvertType(store, last, &n.Values[i], nt, false)
 						}
 					} else if n.Const {
-						// derive static type from values.
-						for i, vx := range n.Values {
-							vt := evalStaticTypeOf(store, last, vx)
-							sts[i] = vt
+						if n.Values != nil {
+							// derive static type from values.
+							for i, vx := range n.Values {
+								vt := evalStaticTypeOf(store, last, vx)
+								sts[i] = vt
+							}
 						}
-					} else {
+					} else { // not const, type is nil
 						// convert n.Value to default type.
 						for i, vx := range n.Values {
 							convertIfConst(store, last, vx)
