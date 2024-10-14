@@ -314,12 +314,11 @@ func createConsensusReactor(config *cfg.Config,
 	return consensusReactor, consensusState
 }
 
-func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey, proxyApp appconn.AppConns) (*p2p.MultiplexTransport, []p2p.PeerFilterFunc) {
+func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey, proxyApp appconn.AppConns) *p2p.MultiplexTransport {
 	var (
 		mConnConfig = p2p.MultiplexConfigFromP2P(config.P2P)
 		transport   = p2p.NewMultiplexTransport(nodeInfo, *nodeKey, mConnConfig)
 		connFilters = []p2p.ConnFilterFunc{}
-		peerFilters = []p2p.PeerFilterFunc{}
 	)
 
 	if !config.P2P.AllowDuplicateIP {
@@ -346,28 +345,10 @@ func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.Nod
 				return nil
 			},
 		)
-
-		peerFilters = append(
-			peerFilters,
-			// ABCI query for ID filtering.
-			func(_ p2p.PeerSet, p p2p.Peer) error {
-				res, err := proxyApp.Query().QuerySync(abci.RequestQuery{
-					Path: fmt.Sprintf("/p2p/filter/id/%s", p.ID()),
-				})
-				if err != nil {
-					return err
-				}
-				if res.IsErr() {
-					return fmt.Errorf("error querying abci app: %v", res)
-				}
-
-				return nil
-			},
-		)
 	}
 
 	p2p.MultiplexTransportConnFilters(connFilters...)(transport)
-	return transport, peerFilters
+	return transport
 }
 
 // NewNode returns a new, ready to go, Tendermint Node.
@@ -487,7 +468,7 @@ func NewNode(config *cfg.Config,
 	}
 
 	// Setup Transport.
-	transport, peerFilters := createTransport(config, nodeInfo, nodeKey, proxyApp)
+	transport := createTransport(config, nodeInfo, nodeKey, proxyApp)
 
 	// Setup Switch.
 	p2pLogger := logger.With("module", "p2p")
@@ -500,7 +481,6 @@ func NewNode(config *cfg.Config,
 	sw := p2p.NewSwitch(
 		config.P2P,
 		transport,
-		p2p.WithPeerFilters(peerFilters...),
 		p2p.WithReactor("MEMPOOL", mempoolReactor),
 		p2p.WithReactor("BLOCKCHAIN", bcReactor),
 		p2p.WithReactor("CONSENSUS", consensusReactor),

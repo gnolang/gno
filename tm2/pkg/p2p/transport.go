@@ -15,7 +15,6 @@ import (
 
 const (
 	defaultDialTimeout      = time.Second
-	defaultFilterTimeout    = 5 * time.Second
 	defaultHandshakeTimeout = 3 * time.Second
 )
 
@@ -157,7 +156,6 @@ func NewMultiplexTransport(
 		acceptc:          make(chan accept),
 		closec:           make(chan struct{}),
 		dialTimeout:      defaultDialTimeout,
-		filterTimeout:    defaultFilterTimeout,
 		handshakeTimeout: defaultHandshakeTimeout,
 		mConfig:          mConfig,
 		nodeInfo:         nodeInfo,

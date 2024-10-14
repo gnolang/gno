@@ -5,13 +5,6 @@ import "fmt"
 // SwitchOption is a callback used for configuring the p2p Switch
 type SwitchOption func(*Switch)
 
-// WithPeerFilters sets the filters for rejection of new peers.
-func WithPeerFilters(filters ...PeerFilterFunc) SwitchOption {
-	return func(sw *Switch) {
-		sw.peerFilters = filters
-	}
-}
-
 // WithReactor sets the p2p switch reactors
 func WithReactor(name string, reactor Reactor) SwitchOption {
 	return func(sw *Switch) {

@@ -13,7 +13,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/service"
 	"github.com/gnolang/gno/tm2/pkg/telemetry"
 	"github.com/gnolang/gno/tm2/pkg/telemetry/metrics"
-	"golang.org/x/sync/errgroup"
 )
 
 // MultiplexConfigFromP2P returns a multiplex connection configuration
@@ -26,10 +25,6 @@ func MultiplexConfigFromP2P(cfg *config.P2PConfig) conn.MConnConfig {
 	mConfig.MaxPacketMsgPayloadSize = cfg.MaxPacketMsgPayloadSize
 	return mConfig
 }
-
-// PeerFilterFunc to be implemented by filter hooks after a new Peer has been
-// fully setup.
-type PeerFilterFunc func(PeerSet, Peer) error
 
 // Switch handles peer connections and exposes an API to receive incoming messages
 // on `Reactors`.  Each `Reactor` is responsible for handling incoming messages of one
@@ -48,9 +43,6 @@ type Switch struct {
 	persistentPeers sync.Map // ID -> *NetAddress; peers whose connections are constant
 	transport       Transport
 
-	filterTimeout time.Duration
-	peerFilters   []PeerFilterFunc
-
 	dialQueue *dial.Queue
 	events    *events.Events
 }
@@ -62,15 +54,14 @@ func NewSwitch(
 	options ...SwitchOption,
 ) *Switch {
 	sw := &Switch{
-		config:        cfg,
-		reactors:      make(map[string]Reactor),
-		chDescs:       make([]*conn.ChannelDescriptor, 0),
-		reactorsByCh:  make(map[byte]Reactor),
-		peers:         NewSet(),
-		transport:     transport,
-		filterTimeout: defaultFilterTimeout,
-		dialQueue:     dial.NewQueue(),
-		events:        events.New(),
+		config:       cfg,
+		reactors:     make(map[string]Reactor),
+		chDescs:      make([]*conn.ChannelDescriptor, 0),
+		reactorsByCh: make(map[byte]Reactor),
+		peers:        NewSet(),
+		transport:    transport,
+		dialQueue:    dial.NewQueue(),
+		events:       events.New(),
 	}
 
 	sw.BaseService = *service.NewBaseService(nil, "P2P Switch", sw)
@@ -425,41 +416,9 @@ func (sw *Switch) runAcceptLoop(ctx context.Context) {
 	}
 }
 
-// TODO remove this entirely
-func (sw *Switch) filterPeer(p Peer) error {
-	// Avoid duplicate
-	if sw.peers.Has(p.ID()) {
-		return RejectedError{
-			id:          p.ID(),
-			isDuplicate: true,
-		}
-	}
-
-	ctx, cancelFn := context.WithTimeout(context.Background(), sw.filterTimeout)
-	defer cancelFn()
-
-	g, _ := errgroup.WithContext(ctx)
-
-	for _, filterFn := range sw.peerFilters {
-		g.Go(func() error {
-			return filterFn(sw.peers, p)
-		})
-	}
-
-	if err := g.Wait(); err != nil {
-		return RejectedError{id: p.ID(), err: err, isFiltered: true}
-	}
-
-	return nil
-}
-
 // addPeer starts up the Peer and adds it to the Switch. Error is returned if
 // the peer is filtered out or failed to start or can't be added.
 func (sw *Switch) addPeer(p Peer) error {
-	if err := sw.filterPeer(p); err != nil {
-		return err
-	}
-
 	p.SetLogger(sw.Logger.With("peer", p.SocketAddr()))
 
 	// Handle the shut down case where the switch has stopped, but we're
