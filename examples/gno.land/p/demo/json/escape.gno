@@ -1,7 +1,6 @@
 package json
 
 import (
-	"bytes"
 	"unicode/utf8"
 )
 

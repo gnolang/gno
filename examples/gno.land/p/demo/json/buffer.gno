@@ -2,10 +2,9 @@ package json
 
 import (
 	"errors"
+	"fmt"
 	"io"
-	"strings"
-
-	"gno.land/p/demo/ufmt"
+	"unicode"
 )
 
 type buffer struct {
@@ -33,7 +32,7 @@ func (b *buffer) first() (byte, error) {
 	for ; b.index < b.length; b.index++ {
 		c := b.data[b.index]
 
-		if !(c == whiteSpace || c == carriageReturn || c == newLine || c == tab) {
+		if !unicode.IsSpace(rune(c)) {
 			return c, nil
 		}
 	}
@@ -112,28 +111,6 @@ func (b *buffer) skip(bs byte) error {
 	return io.EOF
 }
 
-// skipAny moves the index until it encounters one of the given set of bytes.
-func (b *buffer) skipAny(endTokens map[byte]bool) error {
-	for b.index < b.length {
-		if _, exists := endTokens[b.data[b.index]]; exists {
-			return nil
-		}
-
-		b.index++
-	}
-
-	// build error message
-	var tokens []string
-	for token := range endTokens {
-		tokens = append(tokens, string(token))
-	}
-
-	return ufmt.Errorf(
-		"EOF reached before encountering one of the expected tokens: %s",
-		strings.Join(tokens, ", "),
-	)
-}
-
 // skipAndReturnIndex moves the buffer index forward by one and returns the new index.
 func (b *buffer) skipAndReturnIndex() (int, error) {
 	err := b.step()
@@ -199,18 +176,28 @@ func (b *buffer) skipToNextSignificantToken() {
 // This is used to check if the current character is escaped. However, unlike the "unescape" function,
 // "backslash" only serves to check the number of backslashes.
 func (b *buffer) backslash() bool {
+	if b.index == 0 {
+		return false
+	}
+
 	count := 0
-	for i := b.index - 1; i >= 0; i-- {
+	for i := b.index - 1; ; i-- {
 		if b.data[i] != backSlash {
 			break
 		}
+
 		count++
+
+		if i == 0 {
+			break
+		}
 	}
+
 	return count%2 != 0
 }
 
 // numIndex holds a map of valid numeric characters
-var numIndex = map[byte]bool{
+var numIndex = [256]bool{
 	'0': true,
 	'1': true,
 	'2': true,
@@ -245,11 +232,11 @@ func (b *buffer) pathToken() error {
 			}
 
 			if err := b.skip(c); err != nil {
-				return errors.New("unmatched quote in path")
+				return errUnmatchedQuotePath
 			}
 
 			if b.index >= b.length {
-				return errors.New("unmatched quote in path")
+				return errUnmatchedQuotePath
 			}
 
 		case c == bracketOpen || c == parenOpen:
@@ -259,7 +246,7 @@ func (b *buffer) pathToken() error {
 		case c == bracketClose || c == parenClose:
 			inToken = true
 			if len(stack) == 0 || (c == bracketClose && stack[len(stack)-1] != bracketOpen) || (c == parenClose && stack[len(stack)-1] != parenOpen) {
-				return errors.New("mismatched bracket or parenthesis")
+				return errUnmatchedParenthesis
 			}
 
 			stack = stack[:len(stack)-1]
@@ -274,7 +261,7 @@ func (b *buffer) pathToken() error {
 				inToken = true
 				inNumber = true
 			} else if !inToken {
-				return errors.New("unexpected operator at start of token")
+				return errInvalidToken
 			}
 
 		default:
@@ -290,7 +277,7 @@ func (b *buffer) pathToken() error {
 
 end:
 	if len(stack) != 0 {
-		return errors.New("unclosed bracket or parenthesis at end of path")
+		return errUnmatchedParenthesis
 	}
 
 	if first == b.index {
@@ -332,7 +319,7 @@ func (b *buffer) numeric(token bool) error {
 	for ; b.index < b.length; b.index++ {
 		b.class = b.getClasses(doubleQuote)
 		if b.class == __ {
-			return errors.New("invalid token found while parsing path")
+			return errInvalidToken
 		}
 
 		b.state = StateTransitionTable[b.last][b.class]
@@ -341,7 +328,7 @@ func (b *buffer) numeric(token bool) error {
 				break
 			}
 
-			return errors.New("invalid token found while parsing path")
+			return errInvalidToken
 		}
 
 		if b.state < __ {
@@ -356,7 +343,7 @@ func (b *buffer) numeric(token bool) error {
 	}
 
 	if b.last != ZE && b.last != IN && b.last != FR && b.last != E3 {
-		return errors.New("invalid token found while parsing path")
+		return errInvalidToken
 	}
 
 	return nil
@@ -397,12 +384,12 @@ func (b *buffer) string(search byte, token bool) error {
 		b.class = b.getClasses(search)
 
 		if b.class == __ {
-			return errors.New("invalid token found while parsing path")
+			return errInvalidToken
 		}
 
 		b.state = StateTransitionTable[b.last][b.class]
 		if b.state == __ {
-			return errors.New("invalid token found while parsing path")
+			return errInvalidToken
 		}
 
 		if b.state < __ {
@@ -421,11 +408,11 @@ func (b *buffer) word(bs []byte) error {
 	max := len(bs)
 	index := 0
 
-	for ; b.index < b.length; b.index++ {
+	for ; b.index < b.length && index < max; b.index++ {
 		c = b.data[b.index]
 
 		if c != bs[index] {
-			return errors.New("invalid token found while parsing path")
+			return errInvalidToken
 		}
 
 		index++
@@ -435,7 +422,7 @@ func (b *buffer) word(bs []byte) error {
 	}
 
 	if index != max {
-		return errors.New("invalid token found while parsing path")
+		return errInvalidToken
 	}
 
 	return nil
@@ -468,7 +455,7 @@ func numberKind2f64(value interface{}) (result float64, err error) {
 	case uint64:
 		result = float64(typed)
 	default:
-		err = ufmt.Errorf("invalid number type: %T", value)
+		err = fmt.Errorf("invalid number type: %T", value)
 	}
 
 	return

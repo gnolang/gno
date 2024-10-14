@@ -18,10 +18,6 @@ func (b *NodeBuilder) WriteNumber(key string, value float64) *NodeBuilder {
 	return b
 }
 
-func (b *NodeBuilder) WriteInt(key string, value int) *NodeBuilder {
-	return b.WriteNumber(key, float64(value))
-}
-
 func (b *NodeBuilder) WriteBool(key string, value bool) *NodeBuilder {
 	b.node.AppendObject(key, BoolNode("", value))
 	return b

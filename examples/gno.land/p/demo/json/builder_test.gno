@@ -61,11 +61,11 @@ func TestNodeBuilder(t *testing.T) {
 					WriteArray("users", func(ab *ArrayBuilder) {
 						ab.WriteObject(func(b *NodeBuilder) {
 							b.WriteString("name", "Bob").
-								WriteInt("age", 25)
+								WriteNumber("age", 25)
 						}).
 							WriteObject(func(b *NodeBuilder) {
 								b.WriteString("name", "Carol").
-									WriteInt("age", 27)
+									WriteNumber("age", 27)
 							})
 					}).
 					Node()
