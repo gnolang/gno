@@ -21,11 +21,6 @@ type Sponsor struct {
 	Amount  std.Coins
 }
 
-type DonationStats struct {
-	TotalDonated   std.Coins
-	TotalDonations int
-}
-
 type Profile struct {
 	pfp     string
 	aboutMe []string
@@ -38,9 +33,9 @@ type Travel struct {
 }
 
 type Sponsorship struct {
-	maxSponsors   int
-	sponsors      map[std.Address]std.Coins
-	donationStats DonationStats
+	maxSponsors    int
+	sponsors       map[std.Address]std.Coins
+	DonationsCount int
 }
 
 var (
@@ -86,12 +81,9 @@ func init() {
 	}
 
 	sponsorship = Sponsorship{
-		maxSponsors: 5,
-		sponsors:    make(map[std.Address]std.Coins),
-		donationStats: DonationStats{
-			TotalDonated:   std.NewCoins(),
-			TotalDonations: 0,
-		},
+		maxSponsors:    5,
+		sponsors:       make(map[std.Address]std.Coins),
+		DonationsCount: 0,
 	}
 }
 
@@ -115,6 +107,14 @@ func UpdateAboutMe(aboutMeStr string) {
 	profile.aboutMe = strings.Split(aboutMeStr, "|")
 }
 
+func UpdateMaxSponsors(newMax int) {
+	owner.AssertCallerIsOwner()
+	if newMax <= 0 {
+		panic("maxSponsors must be greater than zero")
+	}
+	sponsorship.maxSponsors = newMax
+}
+
 func Donate() {
 	address := std.GetOrigCaller()
 	amount := std.GetOrigSend()
@@ -129,10 +129,8 @@ func Donate() {
 		sponsorship.sponsors[address] = amount
 	}
 
-	sponsorship.donationStats.TotalDonated.Add(amount)
-	sponsorship.donationStats.TotalDonations++
-
 	travel.currentCityIndex++
+	sponsorship.DonationsCount++
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
 
@@ -166,12 +164,12 @@ func GetTopSponsors() []Sponsor {
 	return sponsorSlice
 }
 
-func GetTotalDonations() std.Coins {
-	return sponsorship.donationStats.TotalDonated
-}
-
-func GetDonationCount() int {
-	return sponsorship.donationStats.TotalDonations
+func GetTotalDonations() int {
+	total := 0
+	for _, amount := range sponsorship.sponsors {
+		total += int(amount.AmountOf("ugnot"))
+	}
+	return total
 }
 
 func Render(path string) string {
