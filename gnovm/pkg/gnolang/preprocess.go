@@ -2237,46 +2237,7 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						}
 					}
 
-					if n.Const {
-						fmt.Println("---isConst, n: ", n)
-						if n.Values != nil {
-							if n.Type != nil {
-								fmt.Println("---from n.Type")
-								nt := evalStaticType(store, last, n.Type)
-								for i := 0; i < numNames; i++ {
-									sts[i] = nt
-								}
-								// convert if const to nt.
-								for i := range n.Values {
-									checkOrConvertType(store, last, &n.Values[i], nt, false)
-								}
-							} else {
-								fmt.Println("---derive from values")
-								// derive static type from values.
-								for i, vx := range n.Values {
-									fmt.Println("---vx: ", vx)
-									vt := evalStaticTypeOf(store, last, vx)
-									fmt.Println("---vt: ", vt)
-									sts[i] = vt
-								}
-							}
-						} else if n.Type != nil { // special case
-							nt := evalStaticType(store, last, n.Type)
-							if dt, ok := nt.(*DeclaredType); ok {
-								fmt.Println("---dt: ", dt)
-								for i := 0; i < numNames; i++ {
-									sts[i] = nt
-								}
-								// convert if const to nt.
-								for i := range n.Values {
-									checkOrConvertType(store, last, &n.Values[i], nt, false)
-								}
-							} else {
-								panic("should not happen")
-							}
-						}
-					} else if n.Type != nil { // non-const
-						fmt.Println("---not const, value decl")
+					if n.Type != nil {
 						// only a single type can be specified.
 						nt := evalStaticType(store, last, n.Type)
 						for i := 0; i < numNames; i++ {
@@ -2285,6 +2246,14 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 						// convert if const to nt.
 						for i := range n.Values {
 							checkOrConvertType(store, last, &n.Values[i], nt, false)
+						}
+					} else if n.Const {
+						if n.Values != nil {
+							// derive static type from values.
+							for i, vx := range n.Values {
+								vt := evalStaticTypeOf(store, last, vx)
+								sts[i] = vt
+							}
 						}
 					} else { // not const, type is nil
 						// convert n.Value to default type.

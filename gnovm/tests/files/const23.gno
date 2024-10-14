@@ -1,6 +1,10 @@
 package main
 
+type Integer int
+
 const (
+	i0 Integer = 0
+
 	i int32 = 1
 	s       = "world"
 	c       = 1 << iota
@@ -10,8 +14,9 @@ const (
 
 	m, n
 
-	b = 1 + 1
-	u = +1
+	b    = 1 + 1
+	u    = +1
+	x, y = i0, "hello"
 )
 
 func main() {
@@ -23,14 +28,16 @@ func main() {
 	println(m, n)
 	println(b)
 	println(u)
+	println(x, y)
 }
 
 // Output:
 // 1
 // world
-// 4
+// 8
 // hey
 // 1 hello
 // 1 hello
 // 2
 // 1
+// (0 main.Integer) hello

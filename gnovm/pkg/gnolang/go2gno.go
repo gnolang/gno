@@ -745,7 +745,6 @@ func toDecl(fs *token.FileSet, god ast.Decl) Decl {
 }
 
 func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
-	//fmt.Println("---toDecls: ", gd.Tok.String())
 	ds = make([]Decl, 0, len(gd.Specs))
 	/*
 		Within a parenthesized const declaration list the
@@ -769,24 +768,20 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 			})
 		case *ast.ValueSpec:
 			if gd.Tok == token.CONST {
-				fmt.Println("---spec: ", s)
 				var names []NameExpr
 				var tipe Expr
 				var values Exprs
 				for _, id := range s.Names {
 					names = append(names, *Nx(toName(id)))
 				}
-				if s.Type == nil && s.Values == nil {
+				if s.Type == nil && s.Values == nil { // inherit declared type
 					tipe = lastType
 				} else {
 					lastType = toExpr(fs, s.Type)
 				}
 
-				fmt.Println("---lastType: ", lastType, reflect.TypeOf(lastType))
-				if nx, ok := lastType.(*NameExpr); ok { // not nil
-					fmt.Println("nx.Name: ", nx)
-					if !isPrimitiveType(string(nx.Name)) { // inherit declared type, or nil, do deduct from values
-						fmt.Println("---NOT PRIMITIVE: ", nx.Name)
+				if nx, ok := lastType.(*NameExpr); ok {
+					if !isPrimitiveType(string(nx.Name)) {
 						tipe = lastType
 					}
 				}
@@ -805,13 +800,6 @@ func toDecls(fs *token.FileSet, gd *ast.GenDecl) (ds Decls) {
 					Values:    values,
 					Const:     true,
 				}
-				//if s.Values == nil {
-				//	cd.Type = tipe
-				//}
-
-				fmt.Println("---cd.names:", cd.NameExprs)
-				fmt.Println("---cd.values:", cd.Values)
-				fmt.Println("---cd.Type:", cd.Type)
 				cd.SetAttribute(ATTR_IOTA, si)
 				setLoc(fs, s.Pos(), cd)
 				ds = append(ds, cd)

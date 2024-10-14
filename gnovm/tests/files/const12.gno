@@ -6,9 +6,7 @@ const (
 	None Kind = 0
 	Left Kind = 1 << iota
 	Right
-	Both Kind  = Left | Right
-	XX   int64 = 0
-	ZZ
+	Both Kind = Left | Right
 )
 
 func main() {
