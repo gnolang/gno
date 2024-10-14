@@ -36,7 +36,7 @@ func SetAddress(newAddress std.Address) error {
 		return err
 	}
 
-	mainAddr= newAddress
+	mainAddr = newAddress
 	return nil
 }
 
@@ -49,13 +49,13 @@ func SetBackup(newAddress std.Address) error {
 		return err
 	}
 
-	backupAddr= newAddress
+	backupAddr = newAddress
 	return nil
 }
 
 func checkAuthorized() error {
 	caller := std.PrevRealm().Addr()
-	if caller != mainAddr|| caller != backupAddr{
+	if caller != mainAddr && caller != backupAddr{
 		return errors.New(errorUnauthorized)
 	}
 

@@ -118,7 +118,7 @@ func CollectBalance() {
 func Render(path string) string {
 
 	out := ufmt.Sprintf("<div style='font-family: \"Trebuchet MS\", sans-serif;font-size: 5rem; color: %s;'>\n\n", currentColor)
-	out += ufmt.Sprintf("# Matija's Homepage \n\n%s", "")
+	out += "# Matija's Homepage \n\n"
 	out += "</div>\n\n"
 	out += "<div style='font-family: \"Trebuchet MS\", sans-serif; text-align: justify;'>\n\n"
 	out += renderAboutMe()
