@@ -2,8 +2,6 @@ package home
 
 import (
         "std"
-        "strconv"
-
         "gno.land/p/demo/ufmt"
 )
 
@@ -86,7 +84,7 @@ func VoteRed() {
 
         redVotes = redVotes + ugnotAmount/750
         red, green, blue := calculateRGB(redVotes, greenVotes, blueVotes)
-        currentColor = ufmt.Sprintf(`rgb(%s, %s, %s)`, strconv.Itoa(red), strconv.Itoa(green), strconv.Itoa(blue))
+        currentColor = ufmt.Sprintf(`rgb(%v, %v, %v)`, red, green, blue)
 }
 
 func VoteGreen() {
@@ -94,7 +92,7 @@ func VoteGreen() {
 
         greenVotes = greenVotes + ugnotAmount/750
         red, green, blue := calculateRGB(redVotes, greenVotes, blueVotes)
-        currentColor = ufmt.Sprintf(`rgb(%s, %s, %s)`, strconv.Itoa(red), strconv.Itoa(green), strconv.Itoa(blue))
+        currentColor = ufmt.Sprintf(`rgb(%v, %v, %v)`, red, green, blue)
 }
 
 func VoteBlue() {
@@ -102,7 +100,7 @@ func VoteBlue() {
 
         blueVotes = blueVotes + ugnotAmount/750
         red, green, blue := calculateRGB(redVotes, greenVotes, blueVotes)
-        currentColor = ufmt.Sprintf(`rgb(%s, %s, %s)`, strconv.Itoa(red), strconv.Itoa(green), strconv.Itoa(blue))
+        currentColor = ufmt.Sprintf(`rgb(%v, %v, %v)`, red, green, blue)
 
 }
 
