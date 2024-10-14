@@ -2,9 +2,10 @@ package json
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"unicode"
+
+	"gno.land/p/demo/ufmt"
 )
 
 type buffer struct {
@@ -455,7 +456,7 @@ func numberKind2f64(value interface{}) (result float64, err error) {
 	case uint64:
 		result = float64(typed)
 	default:
-		err = fmt.Errorf("invalid number type: %T", value)
+		err = ufmt.Errorf("invalid number type: %T", value)
 	}
 
 	return
