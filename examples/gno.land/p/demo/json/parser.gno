@@ -9,14 +9,13 @@ import (
 )
 
 const (
-	absMinInt64 = 1 << 63
-	maxInt64    = absMinInt64 - 1
-	maxUint64   = 1<<64 - 1
+	unescapeStackBufSize = 64
+	absMinInt64          = 1 << 63
+	maxInt64             = absMinInt64 - 1
+	maxUint64            = 1<<64 - 1
 )
 
-const unescapeStackBufSize = 64
-
-const (
+var (
 	errInvalidStringInput    = errors.New("invalid string input")
 	errMalformedBooleanValue = errors.New("malformed boolean value")
 	errEmptyByteSlice        = errors.New("empty byte slice")
