@@ -59,7 +59,6 @@ func NewCampaign(ct int, title string, description string, goal uint64, begin ti
 		contributors: make([]*Contributor, 0),
 	}
 
-	// owner.campaigns = append(owner.campaigns, campaign)
 	return campaign
 }
 
@@ -78,8 +77,8 @@ func (c *Campaign) AddContributor(user *pusers.User, date time.Time, amount uint
 // CampaignsToJSONString converts a slice of Campaigns structs into a JSON string
 func CampaignsToJSONString(campaigns []*Campaign) string {
 	var sb strings.Builder
-	sb.WriteString("[")
 
+	sb.WriteString("[")
 	for i, campaign := range campaigns {
 		if i > 0 {
 			sb.WriteString(",")
