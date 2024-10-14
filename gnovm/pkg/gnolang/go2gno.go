@@ -106,7 +106,6 @@ func MustParseExpr(expr string) Expr {
 // resulting AST -- the resulting FileNode is returned, together with any other
 // error (including panics, which are recovered) from [Go2Gno].
 func ParseFile(filename string, body string) (fn *FileNode, err error) {
-	//fmt.Println("---ParseFile, body: ", body)
 	// Use go parser to parse the body.
 	fs := token.NewFileSet()
 	// TODO(morgan): would be nice to add parser.SkipObjectResolution as we don't
@@ -309,7 +308,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Fields: toFieldsFromList(fs, gon.Fields),
 		}
 	case *ast.AssignStmt:
-		//fmt.Println("---assignStmt, gon: ", gon)
 		return &AssignStmt{
 			Lhs: toExprs(fs, gon.Lhs),
 			Op:  toWord(gon.Tok),
@@ -325,7 +323,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Label: toName(gon.Label),
 		}
 	case *ast.DeclStmt:
-		//fmt.Println("---DeclStmt, gon: ", gon)
 		return &DeclStmt{
 			Body: toSimpleDeclStmts(fs, gon.Decl.(*ast.GenDecl)),
 		}
@@ -335,7 +332,6 @@ func Go2Gno(fs *token.FileSet, gon ast.Node) (n Node) {
 			Call: *cx,
 		}
 	case *ast.ExprStmt:
-		//fmt.Println("---ExprStmt, gon: ", gon)
 		if cx, ok := gon.X.(*ast.CallExpr); ok {
 			if ix, ok := cx.Fun.(*ast.Ident); ok && ix.Name == "panic" {
 				if len(cx.Args) != 1 {
