@@ -349,9 +349,15 @@ func (n *Node) SendTransaction(tx *std.Tx) error {
 
 func (n *Node) getBlockStoreState(ctx context.Context) ([]std.Tx, error) {
 	// get current genesis state
-	genesis := n.GenesisDoc().AppState.(gnoland.GnoGenesisState)
+	genesis := n.GenesisDoc().AppState.(gnoland.GnoGenesis)
 
-	state := genesis.Txs[n.loadedPackages:] // ignore previously loaded packages
+	initialTxs := genesis.GenesisTxs()[n.loadedPackages:] // ignore previously loaded packages
+
+	state := make([]std.Tx, 0, len(initialTxs))
+	for _, tx := range initialTxs {
+		state = append(state, tx.Tx())
+	}
+
 	lastBlock := n.getLatestBlockNumber()
 	var blocnum uint64 = 1
 	for ; blocnum <= lastBlock; blocnum++ {
@@ -459,7 +465,7 @@ func (n *Node) handleEventTX(evt tm2events.Event) {
 	}
 }
 
-func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesisState) (err error) {
+func (n *Node) rebuildNode(ctx context.Context, genesis gnoland.GnoGenesis) (err error) {
 	noopLogger := log.NewNoopLogger()
 
 	// Stop the node if it's currently running.
@@ -547,7 +553,7 @@ func (n *Node) genesisTxResultHandler(ctx sdk.Context, tx std.Tx, res sdk.Result
 	return
 }
 
-func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesisState) *gnoland.InMemoryNodeConfig {
+func newNodeConfig(tmc *tmcfg.Config, chainid string, appstate gnoland.GnoGenesis) *gnoland.InMemoryNodeConfig {
 	// Create Mocked Identity
 	pv := gnoland.NewMockedPrivValidator()
 	genesis := gnoland.NewDefaultGenesisConfig(chainid)

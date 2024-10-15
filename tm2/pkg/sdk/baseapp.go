@@ -336,6 +336,7 @@ func (app *BaseApp) InitChain(req abci.RequestInitChain) (res abci.ResponseInitC
 	app.deliverState.ctx = app.deliverState.ctx.
 		WithBlockGasMeter(store.NewInfiniteGasMeter())
 
+	// Run the set chain initializer
 	res = app.initChainer(app.deliverState.ctx, req)
 
 	// sanity check
@@ -561,7 +562,9 @@ func (app *BaseApp) CheckTx(req abci.RequestCheckTx) (res abci.ResponseCheckTx) 
 		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
 	} else {
-		result := app.runTx(RunTxModeCheck, req.Tx, tx)
+		ctx := app.getContextForTx(RunTxModeCheck, req.Tx)
+
+		result := app.runTx(ctx, tx)
 		res.ResponseBase = result.ResponseBase
 		res.GasWanted = result.GasWanted
 		res.GasUsed = result.GasUsed
@@ -577,7 +580,9 @@ func (app *BaseApp) DeliverTx(req abci.RequestDeliverTx) (res abci.ResponseDeliv
 		res.Error = ABCIError(std.ErrTxDecode(err.Error()))
 		return
 	} else {
-		result := app.runTx(RunTxModeDeliver, req.Tx, tx)
+		ctx := app.getContextForTx(RunTxModeDeliver, req.Tx)
+
+		result := app.runTx(ctx, tx)
 		res.ResponseBase = result.ResponseBase
 		res.GasWanted = result.GasWanted
 		res.GasUsed = result.GasUsed
@@ -705,15 +710,14 @@ func (app *BaseApp) cacheTxContext(ctx Context) (Context, store.MultiStore) {
 // anteHandler. The provided txBytes may be nil in some cases, eg. in tests. For
 // further details on transaction execution, reference the BaseApp SDK
 // documentation.
-func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result) {
+func (app *BaseApp) runTx(ctx Context, tx Tx) (result Result) {
 	// NOTE: GasWanted should be returned by the AnteHandler. GasUsed is
 	// determined by the GasMeter. We need access to the context to get the gas
 	// meter so we initialize upfront.
 	var gasWanted int64
 
-	ctx := app.getContextForTx(mode, txBytes)
 	ms := ctx.MultiStore()
-	if mode == RunTxModeDeliver {
+	if ctx.Mode() == RunTxModeDeliver {
 		gasleft := ctx.BlockGasMeter().Remaining()
 		ctx = ctx.WithGasMeter(store.NewPassthroughGasMeter(
 			ctx.GasMeter(),
@@ -722,13 +726,13 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 	}
 
 	// only run the tx if there is block gas remaining
-	if mode == RunTxModeDeliver && ctx.BlockGasMeter().IsOutOfGas() {
+	if ctx.Mode() == RunTxModeDeliver && ctx.BlockGasMeter().IsOutOfGas() {
 		result.Error = ABCIError(std.ErrOutOfGas("no block gas left to run tx"))
 		return
 	}
 
 	var startingGas int64
-	if mode == RunTxModeDeliver {
+	if ctx.Mode() == RunTxModeDeliver {
 		startingGas = ctx.BlockGasMeter().GasConsumed()
 	}
 
@@ -767,7 +771,7 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 	// NOTE: This must exist in a separate defer function for the above recovery
 	// to recover from this one.
 	defer func() {
-		if mode == RunTxModeDeliver {
+		if ctx.Mode() == RunTxModeDeliver {
 			ctx.BlockGasMeter().ConsumeGas(
 				ctx.GasMeter().GasConsumedToLimit(),
 				"block gas meter",
@@ -805,7 +809,7 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 		// to use something like passthroughGasMeter to
 		// account for ante handler gas usage, despite
 		// OutOfGasExceptions.
-		newCtx, result, abort := app.anteHandler(anteCtx, tx, mode == RunTxModeSimulate)
+		newCtx, result, abort := app.anteHandler(anteCtx, tx, ctx.Mode() == RunTxModeSimulate)
 		if newCtx.IsZero() {
 			panic("newCtx must not be zero")
 		}
@@ -833,11 +837,11 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 		runMsgCtx = app.beginTxHook(runMsgCtx)
 	}
 
-	result = app.runMsgs(runMsgCtx, msgs, mode)
+	result = app.runMsgs(runMsgCtx, msgs, ctx.Mode())
 	result.GasWanted = gasWanted
 
 	// Safety check: don't write the cache state unless we're in DeliverTx.
-	if mode != RunTxModeDeliver {
+	if ctx.Mode() != RunTxModeDeliver {
 		return result
 	}
 
