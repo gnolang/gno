@@ -251,6 +251,7 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("Itoa", strconv.Itoa)
 				pkg.DefineGoNativeValue("Atoi", strconv.Atoi)
 				pkg.DefineGoNativeValue("ParseInt", strconv.ParseInt)
+				pkg.DefineGoNativeValue("Quote", strconv.Quote)
 				pkg.DefineGoNativeValue("FormatUint", strconv.FormatUint)
 				pkg.DefineGoNativeType(reflect.TypeOf(strconv.NumError{}))
 				return pkg, pkg.NewPackage()

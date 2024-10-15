@@ -602,12 +602,14 @@ func TestNumError(t *testing.T) {
 	}
 }
 
+/* XXX: add when we support reflection / error un/wrapping.
 func TestNumErrorUnwrap(t *testing.T) {
 	err := &NumError{Err: ErrSyntax}
 	if !errEqual(err, ErrSyntax) {
 		t.Error("errors.Is failed, wanted success")
 	}
 }
+*/
 
 func BenchmarkParseInt(b *testing.B) {
 	b.Run("Pos", func(b *testing.B) {
