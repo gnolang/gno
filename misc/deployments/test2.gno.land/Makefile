@@ -25,9 +25,9 @@ build:
 
 gnotxport:
 	#docker build -t gno ../..
-	docker run -v "$(PWD):$(PWD)" -w "$(PWD)" gno gnotxport export --remote test2.gno.land:36657
+	docker run -v "$(PWD):$(PWD)" -w "$(PWD)" gno gnotxport export --remote test2.gno.land:26657
 	tail -n 1 txexport.log
 	wc -l txexport.log
 
 gnotximport:
-	docker run -v "$(PWD):$(PWD)" -w "$(PWD)" gno gnotxport import --remote test2.gno.land:36657
+	docker run -v "$(PWD):$(PWD)" -w "$(PWD)" gno gnotxport import --remote test2.gno.land:26657

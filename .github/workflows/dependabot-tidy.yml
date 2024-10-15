@@ -11,31 +11,31 @@ jobs:
   tidy_go_mods:
     runs-on: ubuntu-latest
     if: ${{ github.actor == 'dependabot[bot]' }}
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.21.x
+          go-version: 1.22.x
 
       - name: Tidy all Go mods
+        env:
+          VERIFY_MOD_SUMS: false
         run: |
-          set -e
-          # Find all go.mod files
-          gomods=$(find . -type f -name go.mod)
-          
-          # Tidy each go.mod file
-          for modfile in $gomods; do
-            dir=$(dirname "$modfile")
-          
-            # Run go mod tidy in the directory
-            (cd "$dir" && go mod tidy -v) || exit 1
-          done
+          # Ensure Make is installed
+          make --version
+
+          # Run the tidy target
+          make tidy
 
       - name: Commit changes, if any
         uses: stefanzweifel/git-auto-commit-action@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           skip_dirty_check: false # Enable dirty check, and skip unnecessary committing
           commit_message: "Run 'go mod tidy' via GitHub Actions"

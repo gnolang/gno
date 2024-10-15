@@ -1,6 +1,0 @@
-# Run gno precompile without args
-
-! gno precompile
-
-! stdout .+ 
-stderr 'USAGE'

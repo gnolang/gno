@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino/tests"
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateProtoBindings(t *testing.T) {

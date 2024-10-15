@@ -7,10 +7,11 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/jaekwon/testify/require"
+	"github.com/stretchr/testify/require"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/db"
+	_ "github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/random"
 )
 

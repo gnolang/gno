@@ -3,7 +3,7 @@ package genproto
 import (
 	"testing"
 
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPrintP3Types(t *testing.T) {
@@ -41,7 +41,7 @@ func TestPrintP3Types(t *testing.T) {
 	}
 
 	proto3Schema := doc.Print()
-	assert.Equal(t, proto3Schema, `syntax = "proto3";
+	assert.Equal(t, `syntax = "proto3";
 
 // doc comment
 
@@ -56,5 +56,5 @@ message message_name {
 
 // message comment 2
 message message_name_2 {
-}`)
+}`, proto3Schema)
 }

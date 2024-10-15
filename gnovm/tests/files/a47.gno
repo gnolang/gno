@@ -20,7 +20,9 @@ func main() {
 	println(newArr[0].i, newArr[1].i)
 
 	// The struct should have been copied, not referenced.
-	println(&sArr[2] != &newArr[1])
+	println(&sArr[2] == &newArr[1])
+	// share same underlying array, and same index
+	println(&sArr[1] == &newArr[1])
 }
 
 // Output:
@@ -29,4 +31,5 @@ func main() {
 // 2 3 3
 // true
 // 2 3
+// false
 // true

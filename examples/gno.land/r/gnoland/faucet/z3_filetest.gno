@@ -7,6 +7,12 @@ import (
 	"gno.land/r/gnoland/faucet"
 )
 
+// mints coints to current realm
+func init() {
+	facuetaddr := std.DerivePkgAddr("gno.land/r/gnoland/faucet")
+	std.TestIssueCoins(facuetaddr, std.Coins{{"ugnot", 200000000}})
+}
+
 // assert render with 2 controllers and 2 transfers
 func main() {
 	var (
@@ -45,7 +51,7 @@ func main() {
 // Balance: 197000000ugnot.
 // Total transfers: 3000000ugnot (in 2 times).
 //
-// Package address: g17rgsdnfxzza0sdfsdma37sdwxagsz378833ca4
+// Package address: g1ttrq7mp4zy6dssnmgyyktnn4hcj3ys8xhju0n7
 //
 // Admin: g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5
 //

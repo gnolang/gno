@@ -11,6 +11,9 @@ import (
 	// required to generate String method
 	_ "golang.org/x/tools/cmd/stringer"
 
+	// required for import formatting
+	_ "golang.org/x/tools/cmd/goimports"
+
 	// required for formatting, linting, pls.
 	_ "golang.org/x/tools/gopls"
 	_ "mvdan.cc/gofumpt"
@@ -23,4 +26,7 @@ import (
 
 	// linter
 	_ "github.com/golangci/golangci-lint/cmd/golangci-lint"
+
+	// embedmd
+	_ "github.com/campoy/embedmd/embedmd"
 )

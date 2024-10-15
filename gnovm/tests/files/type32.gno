@@ -12,4 +12,4 @@ func main() {
 }
 
 // Error:
-// main/files/type32.gno:9#1: incompatible types in binary expression: a<VPBlock(2,0)> + (const (":" string)) ADD b<VPBlock(2,1)>
+// main/files/type32.gno:9:11: invalid operation: mismatched types string and main.S

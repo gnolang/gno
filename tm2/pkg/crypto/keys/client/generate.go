@@ -25,7 +25,7 @@ func NewGenerateCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "generate",
 			ShortUsage: "generate [flags]",
-			ShortHelp:  "Generates a bip39 mnemonic",
+			ShortHelp:  "generates a bip39 mnemonic",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {

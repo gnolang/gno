@@ -5,7 +5,7 @@ mkdir $WORK/gnovm
 symlink $WORK/gnovm/stdlibs -> $GNOROOT/gnovm/stdlibs
 env GNOROOT=$WORK
 
-gno test -verbose ./examples/gno.land/p/demo/hello
+gno test -v ./examples/gno.land/p/demo/hello
 
 stderr '=== RUN   TestHello'
 stderr '--- PASS: TestHello.*'

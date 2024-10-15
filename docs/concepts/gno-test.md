@@ -13,7 +13,7 @@ While the first method is recommended for its accuracy and similarity to the act
 
 This section will teach you how to use the second method.
 
-Writing test cases in Gnolang is similar to that of Golang, with general rules as the following:
+Writing test cases in Gno is similar to that of Go, with general rules as the following:
 
 * Test file naming conventions must be adhered to (ex: `xxx_test.gno`).
 * Test functions must start with `Test`.
@@ -88,4 +88,4 @@ Internally, a GnoVM instance is initialized to run the test, and, at that moment
 a blockchain-related context is injected into the GnoVM. Utilizing this context, the transaction sender, 
 coins, block height, etc. can be mocked.
 
-For detailed information on these functions, refer to their [reference page](../reference/standard-library/std/testing.md).
+For detailed information on these functions, refer to their [reference page](../reference/stdlibs/std/testing.md).

@@ -44,6 +44,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
+			// both NativeType, use reflect to assert.
 			// convert go-native to gno type (shallow).
 			*tv = go2GnoValue2(alloc, store, tv.V.(*NativeValue).Value, false)
 			ConvertTo(alloc, store, tv, t)
@@ -882,6 +883,11 @@ GNO_CASE:
 // TODO: method on TypedValue?
 func ConvertUntypedTo(tv *TypedValue, t Type) {
 	if debug {
+		defer func() {
+			debug.Printf("ConvertUntypedTo done, tv: %v \n", tv)
+		}()
+	}
+	if debug {
 		if !isUntyped(tv.T) {
 			panic(fmt.Sprintf(
 				"ConvertUntypedTo expects untyped const source but got %s",
@@ -939,17 +945,17 @@ func ConvertUntypedTo(tv *TypedValue, t Type) {
 	case UntypedRuneType:
 		ConvertUntypedRuneTo(tv, t)
 	case UntypedBigintType:
-		if preprocessing == 0 {
+		if preprocessing.Load() == 0 {
 			panic("untyped Bigint conversion should not happen during interpretation")
 		}
 		ConvertUntypedBigintTo(tv, tv.V.(BigintValue), t)
 	case UntypedBigdecType:
-		if preprocessing == 0 {
+		if preprocessing.Load() == 0 {
 			panic("untyped Bigdec conversion should not happen during interpretation")
 		}
 		ConvertUntypedBigdecTo(tv, tv.V.(BigdecValue), t)
 	case UntypedStringType:
-		if preprocessing == 0 {
+		if preprocessing.Load() == 0 {
 			panic("untyped String conversion should not happen during interpretation")
 		}
 		if t.Kind() == StringKind {

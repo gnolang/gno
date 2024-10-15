@@ -14,7 +14,6 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto/merkle"
 	"github.com/gnolang/gno/tm2/pkg/crypto/tmhash"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/maths"
 )
 
 // Block defines the atomic unit of a Tendermint blockchain.
@@ -718,7 +717,7 @@ func (data *Data) StringIndented(indent string) string {
 	if data == nil {
 		return "nil-Data"
 	}
-	txStrings := make([]string, maths.MinInt(len(data.Txs), 21))
+	txStrings := make([]string, min(len(data.Txs), 21))
 	for i, tx := range data.Txs {
 		if i == 20 {
 			txStrings[i] = fmt.Sprintf("... (%v total)", len(data.Txs))

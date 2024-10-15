@@ -433,7 +433,7 @@ func TestHelpUsage(t *testing.T) {
 			command: &Command{
 				name:       "TestHelpUsage",
 				shortUsage: "TestHelpUsage [flags] <args>",
-				shortHelp:  "Some short help",
+				shortHelp:  "some short help",
 				longHelp:   "Some long help.",
 			},
 			expectedOutput: strings.TrimSpace(`
@@ -456,13 +456,13 @@ FLAGS
 			command: &Command{
 				name:       "TestHelpUsage",
 				shortUsage: "TestHelpUsage [flags] <args>",
-				shortHelp:  "Some short help",
+				shortHelp:  "some short help",
 			},
 			expectedOutput: strings.TrimSpace(`
 USAGE
   TestHelpUsage [flags] <args>
 
-Some short help.
+some short help.
 
 FLAGS
   -b=false  bool

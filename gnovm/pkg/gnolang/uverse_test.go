@@ -4,14 +4,14 @@ import (
 	"testing"
 )
 
-type printlnTestCases struct {
+type uverseTestCases struct {
 	name     string
 	code     string
 	expected string
 }
 
 func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
-	test := []printlnTestCases{
+	test := []uverseTestCases{
 		{
 			name: "print empty slice",
 			code: `package test
@@ -39,7 +39,7 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 				var a []string
 				println(a)
 			}`,
-			expected: "nil []string\n",
+			expected: "(nil []string)\n",
 		},
 		{
 			name: "print non-empty slice",
@@ -57,7 +57,7 @@ func TestIssue1337PrintNilSliceAsUndefined(t *testing.T) {
 				var a map[string]string
 				println(a)
 			}`,
-			expected: "nil map[string]string\n",
+			expected: "(nil map[string]string)\n",
 		},
 		{
 			name: "print non-empty map",

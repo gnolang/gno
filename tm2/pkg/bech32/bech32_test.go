@@ -8,7 +8,7 @@ import (
 
 	"github.com/gnolang/gno/tm2/pkg/bech32"
 	"github.com/gnolang/gno/tm2/pkg/crypto"
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEncodeAndDecode(t *testing.T) {
@@ -49,7 +49,7 @@ func TestEncode(t *testing.T) {
 
 	p, err := bech32.Encode(pubkeyPrefix, bz)
 
-	assert.Equal(t, p, pubkeyBech32)
+	assert.Equal(t, pubkeyBech32, p)
 }
 
 func TestDecode(t *testing.T) {
@@ -58,7 +58,7 @@ func TestDecode(t *testing.T) {
 	hrp, b1, err := bech32.Decode(pubkeyBech32)
 
 	assert.NoError(t, err)
-	assert.Equal(t, hrp, pubkeyPrefix)
+	assert.Equal(t, pubkeyPrefix, hrp)
 
 	b2, err := hex.DecodeString(pubkeyBytes)
 

@@ -1,3 +1,5 @@
+// foo20 is a GRC20 token contract where all the GRC20 methods are proxified
+// with top-level functions. see also gno.land/r/demo/bar20.
 package foo20
 
 import (
@@ -5,106 +7,73 @@ import (
 	"strings"
 
 	"gno.land/p/demo/grc/grc20"
+	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
+	pusers "gno.land/p/demo/users"
 	"gno.land/r/demo/users"
 )
 
 var (
-	foo   *grc20.AdminToken
-	admin std.Address = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj" // TODO: helper to change admin
+	banker *grc20.Banker
+	admin  *ownable.Ownable
+	token  grc20.Token
 )
 
 func init() {
-	foo = grc20.NewAdminToken("Foo", "FOO", 4)
-	foo.Mint(admin, 1000000*10000)                                    // @administrator (1M)
-	foo.Mint("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq", 10000*10000) // @manfred (10k)
+	admin = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
+	banker = grc20.NewBanker("Foo", "FOO", 4)
+	banker.Mint(admin.Owner(), 1000000*10000) // @administrator (1M)
+	token = banker.Token()
 }
 
-// method proxies as public functions.
-//
+func TotalSupply() uint64 { return token.TotalSupply() }
 
-// getters.
-
-func TotalSupply() uint64 {
-	return foo.TotalSupply()
+func BalanceOf(owner pusers.AddressOrName) uint64 {
+	ownerAddr := users.Resolve(owner)
+	return token.BalanceOf(ownerAddr)
 }
 
-func BalanceOf(owner users.AddressOrName) uint64 {
-	balance, err := foo.BalanceOf(owner.Resolve())
-	if err != nil {
-		panic(err)
-	}
-	return balance
+func Allowance(owner, spender pusers.AddressOrName) uint64 {
+	ownerAddr := users.Resolve(owner)
+	spenderAddr := users.Resolve(spender)
+	return token.Allowance(ownerAddr, spenderAddr)
 }
 
-func Allowance(owner, spender users.AddressOrName) uint64 {
-	allowance, err := foo.Allowance(owner.Resolve(), spender.Resolve())
-	if err != nil {
-		panic(err)
-	}
-	return allowance
+func Transfer(to pusers.AddressOrName, amount uint64) {
+	toAddr := users.Resolve(to)
+	checkErr(token.Transfer(toAddr, amount))
 }
 
-// setters.
-
-func Transfer(to users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	err := foo.Transfer(caller, to.Resolve(), amount)
-	if err != nil {
-		panic(err)
-	}
+func Approve(spender pusers.AddressOrName, amount uint64) {
+	spenderAddr := users.Resolve(spender)
+	checkErr(token.Approve(spenderAddr, amount))
 }
 
-func Approve(spender users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	err := foo.Approve(caller, spender.Resolve(), amount)
-	if err != nil {
-		panic(err)
-	}
+func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
+	fromAddr := users.Resolve(from)
+	toAddr := users.Resolve(to)
+	checkErr(token.TransferFrom(fromAddr, toAddr, amount))
 }
 
-func TransferFrom(from, to users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	err := foo.TransferFrom(caller, from.Resolve(), to.Resolve(), amount)
-	if err != nil {
-		panic(err)
-	}
-}
-
-// faucet.
-
+// Faucet is distributing foo20 tokens without restriction (unsafe).
+// For a real token faucet, you should take care of setting limits are asking payment.
 func Faucet() {
-	// FIXME: add limits?
-	// FIXME: add payment in gnot?
 	caller := std.PrevRealm().Addr()
-	err := foo.Mint(caller, 1000*10000) // 1k
-	if err != nil {
-		panic(err)
-	}
+	amount := uint64(1_000 * 10_000) // 1k
+	checkErr(banker.Mint(caller, amount))
 }
 
-// administration.
-
-func Mint(address users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller)
-	err := foo.Mint(address.Resolve(), amount)
-	if err != nil {
-		panic(err)
-	}
+func Mint(to pusers.AddressOrName, amount uint64) {
+	admin.AssertCallerIsOwner()
+	toAddr := users.Resolve(to)
+	checkErr(banker.Mint(toAddr, amount))
 }
 
-func Burn(address users.AddressOrName, amount uint64) {
-	caller := std.PrevRealm().Addr()
-	assertIsAdmin(caller)
-	err := foo.Burn(address.Resolve(), amount)
-	if err != nil {
-		panic(err)
-	}
+func Burn(from pusers.AddressOrName, amount uint64) {
+	admin.AssertCallerIsOwner()
+	fromAddr := users.Resolve(from)
+	checkErr(banker.Burn(fromAddr, amount))
 }
-
-// render.
-//
 
 func Render(path string) string {
 	parts := strings.Split(path, "/")
@@ -112,18 +81,19 @@ func Render(path string) string {
 
 	switch {
 	case path == "":
-		return foo.RenderHome()
+		return banker.RenderHome()
 	case c == 2 && parts[0] == "balance":
-		owner := users.AddressOrName(parts[1])
-		balance, _ := foo.BalanceOf(owner.Resolve())
+		owner := pusers.AddressOrName(parts[1])
+		ownerAddr := users.Resolve(owner)
+		balance := banker.BalanceOf(ownerAddr)
 		return ufmt.Sprintf("%d\n", balance)
 	default:
 		return "404\n"
 	}
 }
 
-func assertIsAdmin(address std.Address) {
-	if address != admin {
-		panic("restricted access")
+func checkErr(err error) {
+	if err != nil {
+		panic(err)
 	}
 }

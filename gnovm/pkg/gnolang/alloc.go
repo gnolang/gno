@@ -62,6 +62,7 @@ const (
 	// allocPackge = 1
 	allocAmino     = _allocBase + _allocPointer + _allocAny
 	allocAminoByte = 10 // XXX
+	allocHeapItem  = _allocBase + _allocPointer + _allocTypedValue
 )
 
 func NewAllocator(maxBytes int64) *Allocator {
@@ -100,6 +101,7 @@ func (alloc *Allocator) Allocate(size int64) {
 		// this can happen for map items just prior to assignment.
 		return
 	}
+
 	alloc.bytes += size
 	if alloc.bytes > alloc.maxBytes {
 		panic("allocation limit exceeded")
@@ -179,6 +181,10 @@ func (alloc *Allocator) AllocateAmino(l int64) {
 	alloc.Allocate(allocAmino + allocAminoByte*l)
 }
 
+func (alloc *Allocator) AllocateHeapItem() {
+	alloc.Allocate(allocHeapItem)
+}
+
 //----------------------------------------
 // constructor utilities.
 
@@ -217,7 +223,12 @@ func (alloc *Allocator) NewSlice(base Value, offset, length, maxcap int) *SliceV
 	}
 }
 
-// NOTE: also allocates the underlying array from list.
+// NewSliceFromList allocates a new slice with the underlying array value
+// populated from `list`. This should not be called from areas in the codebase
+// that are doing allocations with potentially large user provided values, e.g.
+// `make()` and `append()`. Using `Alloc.NewListArray` can be used is most cases
+// to allocate the space for the `TypedValue` list before doing the allocation
+// in the go runtime -- see the `make()` code in uverse.go.
 func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateListArray(int64(cap(list)))
@@ -232,7 +243,9 @@ func (alloc *Allocator) NewSliceFromList(list []TypedValue) *SliceValue {
 	}
 }
 
-// NOTE: also allocates the underlying array from data.
+// NewSliceFromData allocates a new slice with the underlying data array
+// value populated from `data`. See the doc for `NewSliceFromList` for
+// correct usage notes.
 func (alloc *Allocator) NewSliceFromData(data []byte) *SliceValue {
 	alloc.AllocateSlice()
 	alloc.AllocateDataArray(int64(cap(data)))
@@ -289,4 +302,9 @@ func (alloc *Allocator) NewNative(rv reflect.Value) *NativeValue {
 func (alloc *Allocator) NewType(t Type) Type {
 	alloc.AllocateType()
 	return t
+}
+
+func (alloc *Allocator) NewHeapItem(tv TypedValue) *HeapItemValue {
+	alloc.AllocateHeapItem()
+	return &HeapItemValue{Value: tv}
 }

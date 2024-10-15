@@ -5,7 +5,7 @@ id: realms
 # Realms
 
 A realm refers to a specific instance of a smart contract that can be written
-in [Gnolang](./gno-language.md). The potentials of realms are endless - you can create virtually any
+in [Gno](./gno-language.md). The potentials of realms are endless - you can create virtually any
 application in your mind with built-in composability,
 transparency, and censorship resistance. Here are some ideas of what you can build with realms:
 
@@ -27,7 +27,7 @@ transparency, and censorship resistance. Here are some ideas of what you can bui
 
 #### [**Realms**](https://github.com/gnolang/gno/tree/master/examples/gno.land/r)
 
-* Smart contracts in Gnolang.
+* Smart contracts in Gno.
 * Realms are stateful.
 * Realms can own assets (tokens).
 * The default import path is `gno.land/r/~~~`.

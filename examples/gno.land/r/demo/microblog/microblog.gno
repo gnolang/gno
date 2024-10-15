@@ -7,8 +7,10 @@ package microblog
 
 import (
 	"std"
+	"strings"
 
 	"gno.land/p/demo/microblog"
+	"gno.land/p/demo/ufmt"
 	"gno.land/r/demo/users"
 )
 
@@ -22,9 +24,61 @@ func init() {
 	m = microblog.NewMicroblog(title, prefix)
 }
 
-// Render calls the microblog renderer
+func renderHome() string {
+	output := ufmt.Sprintf("# %s\n\n", m.Title)
+	output += "# pages\n\n"
+
+	for _, page := range m.GetPages() {
+		if u := users.GetUserByAddress(page.Author); u != nil {
+			output += ufmt.Sprintf("- [%s (%s)](%s%s)\n", u.Name, page.Author.String(), m.Prefix, page.Author.String())
+		} else {
+			output += ufmt.Sprintf("- [%s](%s%s)\n", page.Author.String(), m.Prefix, page.Author.String())
+		}
+	}
+
+	return output
+}
+
+func renderUser(user string) string {
+	silo, found := m.Pages.Get(user)
+	if !found {
+		return "404" // StatusNotFound
+	}
+
+	return PageToString((silo.(*microblog.Page)))
+}
+
 func Render(path string) string {
-	return m.Render(path)
+	parts := strings.Split(path, "/")
+
+	isHome := path == ""
+	isUser := len(parts) == 1
+
+	switch {
+	case isHome:
+		return renderHome()
+
+	case isUser:
+		return renderUser(parts[0])
+	}
+
+	return "404" // StatusNotFound
+}
+
+func PageToString(p *microblog.Page) string {
+	o := ""
+	if u := users.GetUserByAddress(p.Author); u != nil {
+		o += ufmt.Sprintf("# [%s](/r/demo/users:%s)\n\n", u, u)
+		o += ufmt.Sprintf("%s\n\n", u.Profile)
+	}
+	o += ufmt.Sprintf("## [%s](/r/demo/microblog:%s)\n\n", p.Author, p.Author)
+
+	o += ufmt.Sprintf("joined %s, last updated %s\n\n", p.CreatedAt.Format("2006-02-01"), p.LastPosted.Format("2006-02-01"))
+	o += "## feed\n\n"
+	for _, u := range p.GetPosts() {
+		o += u.String() + "\n\n"
+	}
+	return o
 }
 
 // NewPost takes a single argument (post markdown) and

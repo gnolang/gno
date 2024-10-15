@@ -2,7 +2,7 @@
 
 ## CacheKV
 
-`cachekv.Store` is a wrapper `KVStore` which provides buffered writing / cached reading functionalities over the underlying `KVStore`. 
+`cachekv.Store` is a wrapper `KVStore` which provides buffered writing / cached reading functionalities over the underlying `KVStore`.
 
 ```go
 type Store struct {
@@ -50,7 +50,7 @@ type Store struct {
 
 ## IAVL
 
-`iavl.Store` is a base-layer self-balancing merkle tree. It is guaranteed that 
+`iavl.Store` is a base-layer self-balancing merkle tree. It is guaranteed that
 
 1. Get & set operations are `O(log n)`, where `n` is the number of elements in the tree
 2. Iteration efficiently returns the sorted elements within the range
@@ -112,7 +112,7 @@ type traceOperation struct {
     Key string
     Value string
     Metadata map[string]interface{}
-} 
+}
 ```
 
 `traceOperation.Metadata` is filled with `Store.context` when it is not nil. `TraceContext` is a `map[string]interface{}`.
@@ -127,4 +127,4 @@ type Store struct {
 }
 ```
 
-`Store.Store` is a `dbadapter.Store` with a `dbm.NewMemDB()`. All `KVStore` methods are reused. When `Store.Commit()` is called, new `dbadapter.Store` is assigned, discarding previous reference and making it garbage collected.
+`Store.Store` is a `dbadapter.Store` with a `memdb.NewMemDB()`. All `KVStore` methods are reused. When `Store.Commit()` is called, new `dbadapter.Store` is assigned, discarding previous reference and making it garbage collected.

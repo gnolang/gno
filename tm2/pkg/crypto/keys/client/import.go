@@ -28,7 +28,7 @@ func NewImportCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "import",
 			ShortUsage: "import [flags]",
-			ShortHelp:  "Imports encrypted private key armor",
+			ShortHelp:  "imports encrypted private key armor",
 		},
 		cfg,
 		func(_ context.Context, _ []string) error {
@@ -42,21 +42,21 @@ func (c *ImportCfg) RegisterFlags(fs *flag.FlagSet) {
 		&c.KeyName,
 		"name",
 		"",
-		"The name of the private key",
+		"name of the private key",
 	)
 
 	fs.StringVar(
 		&c.ArmorPath,
 		"armor-path",
 		"",
-		"The path to the encrypted armor file",
+		"path to the encrypted armor file",
 	)
 
 	fs.BoolVar(
 		&c.Unsafe,
 		"unsafe",
 		false,
-		"Import the private key armor as unencrypted",
+		"import the private key armor as unencrypted",
 	)
 }
 

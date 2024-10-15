@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
-	"github.com/jaekwon/testify/assert"
+	"github.com/stretchr/testify/assert"
 )
 
 // message comment
@@ -39,7 +39,7 @@ func TestComments(t *testing.T) {
 	p3c.ValidateBasic()
 	p3doc := p3c.GenerateProto3SchemaForTypes(pkg, pkg.ReflectTypes()...)
 	proto3Schema := p3doc.Print()
-	assert.Equal(t, proto3Schema, `syntax = "proto3";
+	assert.Equal(t, `syntax = "proto3";
 package amino_test;
 
 option go_package = "github.com/gnolang/gno/tm2/pkg/amino/genproto/pb";
@@ -57,5 +57,5 @@ message TestMessageName {
 message TestMessageName2 {
 	// another field comment
 	string field_name = 1 [json_name = "FieldName"];
-}`)
+}`, proto3Schema)
 }

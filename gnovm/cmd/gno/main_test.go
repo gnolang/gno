@@ -90,7 +90,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 				if r := recover(); r != nil {
 					output := fmt.Sprintf("%v", r)
 					t.Log("recover", output)
-					require.False(t, recoverShouldBeEmpty, "should panic")
+					require.False(t, recoverShouldBeEmpty, "should not panic")
 					require.True(t, errShouldBeEmpty, "should not return an error")
 					if test.recoverShouldContain != "" {
 						require.Regexpf(t, test.recoverShouldContain, output, "recover should contain")
@@ -100,7 +100,7 @@ func testMainCaseRun(t *testing.T, tc []testMainCase) {
 					}
 					checkOutputs(t)
 				} else {
-					require.True(t, recoverShouldBeEmpty, "should not panic")
+					require.True(t, recoverShouldBeEmpty, "should panic")
 				}
 			}()
 

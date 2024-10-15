@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
 	"github.com/gnolang/gno/tm2/pkg/bitarray"
 )
@@ -54,4 +55,29 @@ func (prs PeerRoundState) StringIndented(indent string) string {
 		indent, prs.LastCommit, prs.LastCommitRound,
 		indent, prs.CatchupCommit, prs.CatchupCommitRound,
 		indent)
+}
+
+//-----------------------------------------------------------------------------
+
+// PeerStateExposed represents the exposed information about a peer.
+// NOTE: This gets dumped with rpc/core/consensus.go. Be mindful of what you expose.
+type PeerStateExposed struct {
+	PRS   PeerRoundState  `json:"round_state"` // Exposed.
+	Stats *PeerStateStats `json:"stats"`       // Exposed.
+}
+
+// ToJSON returns a json of PeerState, marshalled using go-amino.
+func (ps PeerStateExposed) ToJSON() ([]byte, error) {
+	return amino.MarshalJSON(ps)
+}
+
+// PeerStateStats holds internal statistics for a peer.
+type PeerStateStats struct {
+	Votes      int `json:"votes"`
+	BlockParts int `json:"block_parts"`
+}
+
+func (pss PeerStateStats) String() string {
+	return fmt.Sprintf("PeerStateStats{votes: %d, blockParts: %d}",
+		pss.Votes, pss.BlockParts)
 }

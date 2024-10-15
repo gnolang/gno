@@ -1,16 +1,8 @@
 # Test with a failing _filetest.gno file
 
-! gno test -verbose .
+! gno test -v .
 
 stdout 'Machine.RunMain\(\) panic: beep boop'
-stderr '=== RUN   file/failing_filetest.gno'
-stderr 'panic: fail on failing_filetest.gno: got unexpected error: beep boop'
-
-! gno test -verbose --precompile .
-
-stdout 'Machine.RunMain\(\) panic: beep boop'
-stderr '=== PREC  \.'
-stderr '=== BUILD \.'
 stderr '=== RUN   file/failing_filetest.gno'
 stderr 'panic: fail on failing_filetest.gno: got unexpected error: beep boop'
 

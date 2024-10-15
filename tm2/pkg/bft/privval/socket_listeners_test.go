@@ -104,8 +104,6 @@ func TestListenerTimeoutAccept(t *testing.T) {
 }
 
 func TestListenerTimeoutReadWrite(t *testing.T) {
-	t.Parallel()
-
 	const (
 		// This needs to be long enough s.t. the Accept will definitely succeed:
 		timeoutAccept = time.Second

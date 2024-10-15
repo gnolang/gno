@@ -21,7 +21,7 @@ func TestUnsafeDialSeeds(t *testing.T) {
 	require.NoError(t, err)
 	defer sw.Stop()
 
-	logger = log.TestingLogger()
+	logger = log.NewNoopLogger()
 	p2pPeers = sw
 
 	testCases := []struct {
@@ -53,7 +53,7 @@ func TestUnsafeDialPeers(t *testing.T) {
 	require.NoError(t, err)
 	defer sw.Stop()
 
-	logger = log.TestingLogger()
+	logger = log.NewNoopLogger()
 	p2pPeers = sw
 
 	testCases := []struct {

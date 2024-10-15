@@ -12,6 +12,11 @@ import (
 	"github.com/cockroachdb/apd/v3"
 )
 
+var (
+	reFloat    = regexp.MustCompile(`^[0-9\.]+([eE][\-\+]?[0-9]+)?$`)
+	reHexFloat = regexp.MustCompile(`^0[xX][0-9a-fA-F\.]+([pP][\-\+]?[0-9a-fA-F]+)?$`)
+)
+
 func (m *Machine) doOpEval() {
 	x := m.PeekExpr(1)
 	if debug {
@@ -42,7 +47,7 @@ func (m *Machine) doOpEval() {
 		m.PopExpr()
 		switch x.Kind {
 		case INT:
-			x.Value = strings.ReplaceAll(x.Value, "_", "")
+			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
 			// temporary optimization
 			bi := big.NewInt(0)
 			// TODO optimize.
@@ -79,9 +84,9 @@ func (m *Machine) doOpEval() {
 				V: BigintValue{V: bi},
 			})
 		case FLOAT:
-			x.Value = strings.ReplaceAll(x.Value, "_", "")
+			x.Value = strings.ReplaceAll(x.Value, blankIdentifier, "")
 
-			if matched, _ := regexp.MatchString(`^[0-9\.]+([eE][\-\+]?[0-9]+)?$`, x.Value); matched {
+			if reFloat.MatchString(x.Value) {
 				value := x.Value
 				bd, c, err := apd.NewFromString(value)
 				if err != nil {
@@ -99,7 +104,7 @@ func (m *Machine) doOpEval() {
 					V: BigdecValue{V: bd},
 				})
 				return
-			} else if matched, _ := regexp.MatchString(`^0[xX][0-9a-fA-F\.]+([pP][\-\+]?[0-9a-fA-F]+)?$`, x.Value); matched {
+			} else if reHexFloat.MatchString(x.Value) {
 				originalInput := x.Value
 				value := x.Value[2:]
 				var hexString string

@@ -1,6 +1,7 @@
 ---
 name: Bug Report Template
 about: Create a bug report
+# NOTE: keep in sync with gnovm/cmd/gno/bug.go
 ---
 
 ## [Subject of the issue]
@@ -11,9 +12,9 @@ Describe your issue in as much detail as possible here
 
 ### Your environment
 
-* OS and version
-* version of gno
-* branch that causes this issue (with the commit hash)
+* Go version (example: go1.22.4)
+* OS and CPU architecture (example: linux/amd64)
+* Gno commit hash causing the issue (example: f24690e7ebf325bffcfaf9e328c3df8e6b21e50c)
 
 ### Steps to reproduce
 

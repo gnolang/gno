@@ -1,44 +1,22 @@
-# The startup delay (waits until the node is "ready")
-DELAY ?= 10 # seconds
-# The temporary backup file for transactions
-BACKUP_FILE ?= $(abspath ./txs_backup.log)
-# The entire txs history across all iterations
-HISTORY_OUTPUT := $(abspath ./txs_history.log)
+all: docker.start
 
-# The gnoland binary
-gnoland_bin := go run github.com/gnolang/gno/gno.land/cmd/gnoland
-# The tx archive binary
-tx_bin := go run github.com/gnolang/tx-archive/cmd
+docker.start: # Start the portal loop
+	docker compose up -d
 
-# The relative gno.land directory
-gnoland_dir := $(abspath ../../gno.land)
+docker.stop: # Stop the portal loop
+	docker compose down
+	docker rm -f $(docker ps -aq --filter "label=the-portal-loop")
 
-all: loop
+docker.build: # (re)Build snapshotter image
+	docker compose build
 
-start.gnoland:
-	cd $(gnoland_dir) && $(gnoland_bin) start -skip-failing-genesis-txs -genesis-txs-file $(HISTORY_OUTPUT)
-clean.gnoland:
-	make -C $(gnoland_dir) fclean
-.PHONY: start.gnoland clean.gnoland
+docker.pull: # Pull new images to update versions
+	docker compose pull
 
-# Starts the backup service
-# and backs up transactions into a file
-# that is wiped on every loop
-tx.backup:
-	sleep $(DELAY)
-	$(tx_bin) backup -legacy -watch -overwrite -output-path "$(BACKUP_FILE)"
-.PHONY: tx.backup
+portalloopd.bash: # Get a bash command inside of the portalloopd container
+	docker compose exec portalloopd bash
 
-# Saves the history from previous iterations into
-# a temporary transactions log
-save.history:
-	@test -e $(BACKUP_FILE) || (echo "No existing backup file not found: '$(BACKUP_FILE)'"; exit 1)
-	cat $(BACKUP_FILE) >> $(HISTORY_OUTPUT)
-.PHONY: save.history
+switch: portalloopd.switch
 
-loop: clean.gnoland
-	# backup history, if needed
-	$(MAKE) save.history || true
-	# run our dev loop
-	./run_loop.sh
-.PHONY: loop
+portalloopd.switch: # Force switch the portal loop with latest image
+	docker compose exec portalloopd switch

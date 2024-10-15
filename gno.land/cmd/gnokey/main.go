@@ -11,10 +11,8 @@ import (
 )
 
 func main() {
-	baseCfg := client.BaseOptions{
-		Home:   gnoenv.HomeDir(),
-		Remote: "127.0.0.1:26657",
-	}
+	baseCfg := client.DefaultBaseOptions
+	baseCfg.Home = gnoenv.HomeDir()
 
 	cmd := keyscli.NewRootCmd(commands.NewDefaultIO(), baseCfg)
 	cmd.Execute(context.Background(), os.Args[1:])

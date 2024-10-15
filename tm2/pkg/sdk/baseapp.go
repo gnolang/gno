@@ -2,6 +2,7 @@ package sdk
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime/debug"
 	"sort"
@@ -13,7 +14,6 @@ import (
 	bft "github.com/gnolang/gno/tm2/pkg/bft/types"
 	dbm "github.com/gnolang/gno/tm2/pkg/db"
 	"github.com/gnolang/gno/tm2/pkg/errors"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 )
@@ -27,7 +27,7 @@ var (
 // BaseApp reflects the ABCI application implementation.
 type BaseApp struct {
 	// initialized on creation
-	logger log.Logger
+	logger *slog.Logger
 	name   string                 // application name from abci.Info
 	db     dbm.DB                 // common DB backend
 	cms    store.CommitMultiStore // Main (uncached) state
@@ -41,6 +41,9 @@ type BaseApp struct {
 	initChainer  InitChainer  // initialize state with validators and state blob
 	beginBlocker BeginBlocker // logic to run before any txs
 	endBlocker   EndBlocker   // logic to run after all txs, and to determine valset changes
+
+	beginTxHook BeginTxHook // BaseApp-specific hook run before running transaction messages.
+	endTxHook   EndTxHook   // BaseApp-specific hook run after running transaction messages.
 
 	// --------------------
 	// Volatile state
@@ -80,7 +83,12 @@ var _ abci.Application = (*BaseApp)(nil)
 //
 // NOTE: The db is used to store the version number for now.
 func NewBaseApp(
-	name string, logger log.Logger, db dbm.DB, baseKey store.StoreKey, mainKey store.StoreKey, options ...func(*BaseApp),
+	name string,
+	logger *slog.Logger,
+	db dbm.DB,
+	baseKey store.StoreKey,
+	mainKey store.StoreKey,
+	options ...func(*BaseApp),
 ) *BaseApp {
 	app := &BaseApp{
 		logger:  logger,
@@ -109,7 +117,7 @@ func (app *BaseApp) AppVersion() string {
 }
 
 // Logger returns the logger of the BaseApp.
-func (app *BaseApp) Logger() log.Logger {
+func (app *BaseApp) Logger() *slog.Logger {
 	return app.logger
 }
 
@@ -202,14 +210,6 @@ func (app *BaseApp) initFromMainStore() error {
 
 func (app *BaseApp) setMinGasPrices(gasPrices []GasPrice) {
 	app.minGasPrices = gasPrices
-}
-
-func (app *BaseApp) setHaltHeight(haltHeight uint64) {
-	app.haltHeight = haltHeight
-}
-
-func (app *BaseApp) setHaltTime(haltTime uint64) {
-	app.haltTime = haltTime
 }
 
 // Returns a read-only (cache) MultiStore.
@@ -610,6 +610,9 @@ func (app *BaseApp) getContextForTx(mode RunTxMode, txBytes []byte) (ctx Context
 		WithVoteInfos(app.voteInfos).
 		WithConsensusParams(app.consensusParams)
 
+	// NOTE: This is especially required to simulate transactions because
+	// otherwise baseapp writes the antehandler mods (sequence and balance)
+	// to the underlying store for deliver and checktx.
 	if mode == RunTxModeSimulate {
 		ctx, _ = ctx.CacheContext()
 	}
@@ -619,11 +622,15 @@ func (app *BaseApp) getContextForTx(mode RunTxMode, txBytes []byte) (ctx Context
 
 // / runMsgs iterates through all the messages and executes them.
 func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Result) {
-	msgLogs := make([]string, 0, len(msgs))
+	ctx = ctx.WithEventLogger(NewEventLogger())
 
+	msgLogs := make([]string, 0, len(msgs))
 	data := make([]byte, 0, len(msgs))
-	err := error(nil)
-	events := []Event{}
+
+	var (
+		err    error
+		events = []Event{}
+	)
 
 	// NOTE: GasWanted is determined by ante handler and GasUsed by the GasMeter.
 	for i, msg := range msgs {
@@ -636,19 +643,17 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 		}
 
 		var msgResult Result
-		ctx = ctx.WithEventLogger(NewEventLogger())
 
 		// run the message!
 		// skip actual execution for CheckTx mode
 		if mode != RunTxModeCheck {
-			msgResult = handler.Process(ctx, msg)
+			msgResult = handler.Process(ctx, msg) // ctx event logger being updated in handler
 		}
 
 		// Each message result's Data must be length prefixed in order to separate
 		// each result.
 		data = append(data, msgResult.Data...)
 		events = append(events, msgResult.Events...)
-		// TODO append msgevent from ctx. XXX XXX
 
 		// stop execution and return on first failed message
 		if !msgResult.IsOK() {
@@ -656,6 +661,7 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 				fmt.Sprintf("msg:%d,success:%v,log:%s,events:%v",
 					i, false, msgResult.Log, events))
 			err = msgResult.Error
+			events = nil
 			break
 		}
 
@@ -664,11 +670,15 @@ func (app *BaseApp) runMsgs(ctx Context, msgs []Msg, mode RunTxMode) (result Res
 				i, true, msgResult.Log, events))
 	}
 
+	if err == nil {
+		events = append(events, ctx.EventLogger().Events()...)
+	}
+
 	result.Error = ABCIError(err)
 	result.Data = data
+	result.Events = events
 	result.Log = strings.Join(msgLogs, "\n")
 	result.GasUsed = ctx.GasMeter().GasConsumed()
-	result.Events = events
 	return result
 }
 
@@ -684,9 +694,7 @@ func (app *BaseApp) getState(mode RunTxMode) *state {
 
 // cacheTxContext returns a new context based off of the provided context with
 // a cache wrapped multi-store.
-func (app *BaseApp) cacheTxContext(ctx Context, txBytes []byte) (
-	Context, store.MultiStore,
-) {
+func (app *BaseApp) cacheTxContext(ctx Context) (Context, store.MultiStore) {
 	ms := ctx.MultiStore()
 	// TODO: https://github.com/tendermint/classic/sdk/issues/2824
 	msCache := ms.MultiCacheWrap()
@@ -791,7 +799,7 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 		// aborted/failed.  This may have some performance
 		// benefits, but it'll be more difficult to get
 		// right.
-		anteCtx, msCache = app.cacheTxContext(ctx, txBytes)
+		anteCtx, msCache = app.cacheTxContext(ctx)
 		// Call AnteHandler.
 		// NOTE: It is the responsibility of the anteHandler
 		// to use something like passthroughGasMeter to
@@ -819,13 +827,22 @@ func (app *BaseApp) runTx(mode RunTxMode, txBytes []byte, tx Tx) (result Result)
 
 	// Create a new context based off of the existing context with a cache wrapped
 	// multi-store in case message processing fails.
-	runMsgCtx, msCache := app.cacheTxContext(ctx, txBytes)
+	runMsgCtx, msCache := app.cacheTxContext(ctx)
+
+	if app.beginTxHook != nil {
+		runMsgCtx = app.beginTxHook(runMsgCtx)
+	}
+
 	result = app.runMsgs(runMsgCtx, msgs, mode)
 	result.GasWanted = gasWanted
 
 	// Safety check: don't write the cache state unless we're in DeliverTx.
 	if mode != RunTxModeDeliver {
 		return result
+	}
+
+	if app.endTxHook != nil {
+		app.endTxHook(runMsgCtx, result)
 	}
 
 	// only update state if all messages pass

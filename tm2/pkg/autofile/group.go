@@ -347,6 +347,8 @@ func (g *Group) ReadGroupInfo() GroupInfo {
 	return g.readGroupInfo()
 }
 
+var indexedFilePattern = regexp.MustCompile(`^.+\.([0-9]{3,})$`)
+
 // Index includes the head.
 // CONTRACT: caller should have called g.mtx.Lock
 func (g *Group) readGroupInfo() GroupInfo {
@@ -375,7 +377,6 @@ func (g *Group) readGroupInfo() GroupInfo {
 		} else if strings.HasPrefix(fileInfo.Name(), headBase) {
 			fileSize := fileInfo.Size()
 			totalSize += fileSize
-			indexedFilePattern := regexp.MustCompile(`^.+\.([0-9]{3,})$`)
 			submatch := indexedFilePattern.FindSubmatch([]byte(fileInfo.Name()))
 			if len(submatch) != 0 {
 				// Matches

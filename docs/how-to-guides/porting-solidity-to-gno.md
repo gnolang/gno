@@ -2,12 +2,12 @@
 id: port-solidity-to-gno
 ---
 
-# Port a Solidity Contract to a Gnolang Realm
+# Port a Solidity Contract to a Gno Realm
 
 
 ## Overview
 
-This guide shows you how to port a Solidity contract `Simple Auction` to a Gnolang Realm `auction.gno` with test cases (Test Driven Development (TDD) approach).
+This guide shows you how to port a Solidity contract `Simple Auction` to a Gno Realm `auction.gno` with test cases (Test Driven Development (TDD) approach).
 
 You can check the Solidity contract in this [link](https://docs.soliditylang.org/en/latest/solidity-by-example.html#simple-open-auction), and here's the code for porting.
 
@@ -166,7 +166,7 @@ The contract consists of:
 * Initialization by a constructor
 * Three functions
 
-Let's dive into the details of the role of each function, and learn how to port each function into Gnolang with test cases.
+Let's dive into the details of the role of each function, and learn how to port each function into Gno with test cases.
 
 When writing a test case, the following conditions are often used to determine whether the function has been properly executed:
 
@@ -176,7 +176,7 @@ When writing a test case, the following conditions are often used to determine w
 
 Below is a test case helper that will help implement each condition.
 
-### Gnolang - Testcase Helper
+### Gno - Testcase Helper
 
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-1.gno go)
 ```go
@@ -281,7 +281,7 @@ constructor(
 * `mapping(address => uint) pendingReturns;` : Bidder's address and amount to be returned (in case of the highest bid changes).
 * `bool ended;` : Whether the auction is closed.
 
-### Variable init - Gnolang
+### Variable init - Gno
 
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-3.gno go)
 ```go
@@ -344,7 +344,7 @@ function bid() external payable {
 * Prepare data to return the bid amount to the existing highest bidder in case of the highest bid is increased.
 * Update variables with the top bidder & top bid amount.
 
-### bid() - Gnolang
+### bid() - Gno
 
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-5.gno go)
 ```go
@@ -380,7 +380,7 @@ func Bid() {
 }
 ```
 
-### bid() - Gnolang Testcase
+### bid() - Gno Testcase
 
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-6.gno go)
 ```go
@@ -460,7 +460,7 @@ function withdraw() external returns (bool) {
 * When called, determine if there's a bid amount to be returned to the address.
 * (If there's an amount to be returned) Before returning, set the previously recorded amount to `0` and return the actual amount.
 
-### withdraw() - Gnolang
+### withdraw() - Gno
 
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-8.gno go)
 ```go
@@ -483,7 +483,7 @@ func Withdraw() {
 
 ###
 
-### withdraw() - Gnolang Testcase
+### withdraw() - Gno Testcase
 
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-9.gno go)
 ```go
@@ -548,7 +548,7 @@ function auctionEnd() external {
   * (If not ended) End the auction.
   * (If not ended) Send the highest bid amount to the recipient.
 
-### auctionEnd() - Gnolang
+### auctionEnd() - Gno
 
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-11.gno go)
 ```go
@@ -571,7 +571,7 @@ func AuctionEnd() {
 }
 ```
 
-### auctionEnd() - Gnolang Testcase
+### auctionEnd() - Gno Testcase
 
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-12.gno go)
 ```go
@@ -598,7 +598,7 @@ func TestAuctionEnd(t *testing.T) {
 ## Precautions for Running Test Cases
 
 * Each test function should be executed separately one by one, to return all passes without any errors.
-* Same as Golang, Gnolang doesn't support `setup()` & `teardown()` functions. So running two or more test functions simultaneously can result in tainted data.
+* Same as Go, Gno doesn't support `setup()` & `teardown()` functions. So running two or more test functions simultaneously can result in tainted data.
 * If you want to do the whole test at once, make it into a single function as below:
 
 [embedmd]:# (../assets/how-to-guides/porting-solidity-to-gno/porting-13.gno go)

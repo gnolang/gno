@@ -13,10 +13,7 @@ import (
 type QueryCfg struct {
 	RootCfg *BaseCfg
 
-	Data   string
-	Height int64
-	Prove  bool
-
+	Data string
 	Path string
 }
 
@@ -29,7 +26,7 @@ func NewQueryCmd(rootCfg *BaseCfg, io commands.IO) *commands.Command {
 		commands.Metadata{
 			Name:       "query",
 			ShortUsage: "query [flags] <path>",
-			ShortHelp:  "Makes an ABCI query",
+			ShortHelp:  "makes an ABCI query",
 		},
 		cfg,
 		func(_ context.Context, args []string) error {
@@ -44,20 +41,6 @@ func (c *QueryCfg) RegisterFlags(fs *flag.FlagSet) {
 		"data",
 		"",
 		"query data bytes",
-	)
-
-	fs.Int64Var(
-		&c.Height,
-		"height",
-		0,
-		"query height (not yet supported)",
-	)
-
-	fs.BoolVar(
-		&c.Prove,
-		"prove",
-		false,
-		"prove query result (not yet supported)",
 	)
 }
 
@@ -91,7 +74,7 @@ func execQuery(cfg *QueryCfg, args []string, io commands.IO) error {
 
 func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 	remote := cfg.RootCfg.Remote
-	if remote == "" || remote == "y" {
+	if remote == "" {
 		return nil, errors.New("missing remote url")
 	}
 
@@ -100,7 +83,11 @@ func QueryHandler(cfg *QueryCfg) (*ctypes.ResultABCIQuery, error) {
 		// Height: height, XXX
 		// Prove: false, XXX
 	}
-	cli := client.NewHTTP(remote, "/websocket")
+	cli, err := client.NewHTTPClient(remote)
+	if err != nil {
+		return nil, errors.Wrap(err, "new http client")
+	}
+
 	qres, err := cli.ABCIQueryWithOptions(
 		cfg.Path, data, opts2)
 	if err != nil {

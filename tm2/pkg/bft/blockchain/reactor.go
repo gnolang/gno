@@ -3,6 +3,7 @@ package blockchain
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	sm "github.com/gnolang/gno/tm2/pkg/bft/state"
 	"github.com/gnolang/gno/tm2/pkg/bft/store"
 	"github.com/gnolang/gno/tm2/pkg/bft/types"
-	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/p2p"
 )
 
@@ -102,7 +102,7 @@ func NewBlockchainReactor(state sm.State, blockExec *sm.BlockExecutor, store *st
 }
 
 // SetLogger implements cmn.Service by setting the logger on reactor and pool.
-func (bcR *BlockchainReactor) SetLogger(l log.Logger) {
+func (bcR *BlockchainReactor) SetLogger(l *slog.Logger) {
 	bcR.BaseService.Logger = l
 	bcR.pool.Logger = l
 }

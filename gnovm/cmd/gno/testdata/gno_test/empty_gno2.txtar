@@ -5,10 +5,5 @@
 ! stdout .+
 stderr 'expected ''package'', found ''EOF'''
 
-! gno test --precompile .
-
-! stdout .+
-stderr 'expected ''package'', found ''EOF'''
-
 -- empty.gno --
 -- empty_test.gno --

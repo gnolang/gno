@@ -19,7 +19,7 @@ gno {SUB_COMMAND}
 | Name         | Description                                |
 | ------------ | ------------------------------------------ |
 | `test`       | Tests a gno package.                       |
-| `precompile` | Precompiles a `.gno` file to a `.go` file. |
+| `transpile`  | Transpiles a `.gno` file to a `.go` file. |
 | `repl`       | Starts a GnoVM REPL.                       |
 
 ### `test`
@@ -28,19 +28,19 @@ gno {SUB_COMMAND}
 
 | Name         | Type          | Description                                                        |
 | ------------ | ------------- | ------------------------------------------------------------------ |
-| `verbose`    | Boolean       | Displays extended information.                                     |
+| `v`          | Boolean       | Displays verbose output.                                     |
 | `root-dir`   | String        | Clones location of github.com/gnolang/gno (gno tries to guess it). |
 | `run`        | String        | Test name filtering pattern.                                       |
 | `timeout`    | time.Duration | The maximum execution time in ns.                                  |
-| `precompile` | Boolean       | Precompiles a `.gno` file to a `.go` file before testing.          |
+| `transpile`  | Boolean       | Transpiles a `.gno` file to a `.go` file before testing.          |
 
-### `precompile`
+### `transpile`
 
 #### **Options**
 
 | Name        | Type    | Description                                                     |
 | ----------- | ------- | --------------------------------------------------------------- |
-| `verbose`   | Boolean | Displays extended information.                                  |
+| `v`         | Boolean | Displays verbose output.                                  |
 | `skip-fmt`  | Boolean | Skips the syntax checking of generated `.go` files.             |
 | `gobuild`   | Boolean | Run `go build` on generated `.go` files, ignoring test files.   |
 | `go-binary` | String  | The go binary to use for building (default: `go`).              |
@@ -53,5 +53,4 @@ gno {SUB_COMMAND}
 
 | Name       | Type    | Description                                                        |
 | ---------- | ------- | ------------------------------------------------------------------ |
-| `verbose`  | Boolean | Displays extended information.                                     |
 | `root-dir` | String  | Clones location of github.com/gnolang/gno (gno tries to guess it). |

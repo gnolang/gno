@@ -41,6 +41,7 @@ func (*PackageValue) assertValue()     {}
 func (*NativeValue) assertValue()      {}
 func (*Block) assertValue()            {}
 func (RefValue) assertValue()          {}
+func (*HeapItemValue) assertValue()    {}
 
 const (
 	nilStr       = "nil"
@@ -64,6 +65,7 @@ var (
 	_ Value = &NativeValue{}
 	_ Value = &Block{}
 	_ Value = RefValue{}
+	_ Value = &HeapItemValue{}
 )
 
 // ----------------------------------------
@@ -166,14 +168,20 @@ func (dbv DataByteValue) SetByte(b byte) {
 // Index is -1 for the shared "_" block var,
 // and -2 for (gno and native) map items.
 //
+// A pointer constructed via a &x{} composite lit expression or constructed via
+// new() or make() will have a virtual HeapItemValue as base.
+//
 // Allocation for PointerValue is not immediate,
 // as usually PointerValues are temporary for assignment
 // or binary operations. When a pointer is to be
 // allocated, *Allocator.AllocatePointer() is called separately,
 // as in OpRef.
+//
+// Since PointerValue is used internally for assignment etc,
+// it MUST stay minimal for computational efficiency.
 type PointerValue struct {
 	TV    *TypedValue // escape val if pointer to var.
-	Base  Value       // array/struct/block.
+	Base  Value       // array/struct/block, or heapitem.
 	Index int         // list/fields/values index, or -1 or -2 (see below).
 	Key   *TypedValue `json:",omitempty"` // for maps.
 }
@@ -184,7 +192,6 @@ const (
 	PointerIndexNative     = -3 // Base is *NativeValue.
 )
 
-/*
 func (pv *PointerValue) GetBase(store Store) Object {
 	switch cbase := pv.Base.(type) {
 	case nil:
@@ -196,10 +203,9 @@ func (pv *PointerValue) GetBase(store Store) Object {
 	case Object:
 		return cbase
 	default:
-		panic("should not happen")
+		panic(fmt.Sprintf("unexpected pointer base type %T", cbase))
 	}
 }
-*/
 
 // cu: convert untyped; pass false for const definitions
 // TODO: document as something that enables into-native assignment.
@@ -361,7 +367,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			Index: ii,
 		}
 	}
-	bv := &TypedValue{ // heap alloc
+	bv := &TypedValue{ // heap alloc, so need to compare value rather than pointer
 		T: DataByteType,
 		V: DataByteValue{
 			Base:     av,
@@ -369,6 +375,7 @@ func (av *ArrayValue) GetPointerAtIndexInt2(store Store, ii int, et Type) Pointe
 			ElemType: et,
 		},
 	}
+
 	return PointerValue{
 		TV:    bv,
 		Base:  av,
@@ -594,6 +601,15 @@ func (fv *FuncValue) GetBodyFromSource(store Store) []Stmt {
 	return fv.body
 }
 
+func (fv *FuncValue) UpdateBodyFromSource() {
+	if fv.Source == nil {
+		panic(fmt.Sprintf(
+			"Source is missing for FuncValue %q",
+			fv.Name))
+	}
+	fv.body = fv.Source.GetBody()
+}
+
 func (fv *FuncValue) GetSource(store Store) BlockNode {
 	if rn, ok := fv.Source.(RefNode); ok {
 		source := store.GetBlockNode(rn.GetLocation())
@@ -816,6 +832,7 @@ type PackageValue struct {
 	fBlocksMap map[Name]*Block
 }
 
+// IsRealm returns true if pv represents a realm.
 func (pv *PackageValue) IsRealm() bool {
 	return IsRealmPath(pv.PkgPath)
 }
@@ -1492,6 +1509,33 @@ func (tv *TypedValue) GetBigDec() *apd.Decimal {
 	return tv.V.(BigdecValue).V
 }
 
+func (tv *TypedValue) Sign() int {
+	if tv.T == nil {
+		panic("type should not be nil")
+	}
+
+	switch tv.T.Kind() {
+	case UintKind, Uint8Kind, Uint16Kind, Uint32Kind, Uint64Kind:
+		return signOfUnsignedBytes(tv.N)
+	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind, Float32Kind, Float64Kind:
+		return signOfSignedBytes(tv.N)
+	case BigintKind:
+		v := tv.GetBigInt()
+		return v.Sign()
+	case BigdecKind:
+		v := tv.GetBigDec()
+		return v.Sign()
+	default:
+		panic("type should be numeric")
+	}
+}
+
+func (tv *TypedValue) AssertNonNegative(msg string) {
+	if tv.Sign() < 0 {
+		panic(fmt.Sprintf("%s: %v", msg, tv))
+	}
+}
+
 func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 	// Special case when nil: has no separator.
 	if tv.T == nil {
@@ -1542,8 +1586,7 @@ func (tv *TypedValue) ComputeMapKey(store Store, omitType bool) MapKey {
 		bz = append(bz, '{')
 		for i := 0; i < sl; i++ {
 			fv := fillValueTV(store, &sv.Fields[i])
-			ft := bt.Fields[i]
-			omitTypes := ft.Elem().Kind() != InterfaceKind
+			omitTypes := bt.Fields[i].Type.Kind() != InterfaceKind
 			bz = append(bz, fv.ComputeMapKey(store, omitTypes)...)
 			if i != sl-1 {
 				bz = append(bz, ',')
@@ -2001,9 +2044,10 @@ func (tv *TypedValue) GetPointerAtIndex(alloc *Allocator, store Store, iv *Typed
 		}
 	default:
 		panic(fmt.Sprintf(
-			"unexpected index base type %s (%v)",
+			"unexpected index base type %s (%v base %v)",
 			tv.T.String(),
-			reflect.TypeOf(tv.T)))
+			reflect.TypeOf(tv.T),
+			reflect.TypeOf(baseOf(tv.T))))
 	}
 }
 
@@ -2026,13 +2070,18 @@ func (tv *TypedValue) GetLength() int {
 		switch bt := baseOf(tv.T).(type) {
 		case PrimitiveType:
 			if bt != StringType {
-				panic("should not happen")
+				panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 			}
 			return 0
 		case *ArrayType:
 			return bt.Len
 		case *SliceType:
 			return 0
+		case *PointerType:
+			if at, ok := bt.Elt.(*ArrayType); ok {
+				return at.Len
+			}
+			panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 		default:
 			panic(fmt.Sprintf(
 				"unexpected type for len(): %s",
@@ -2050,6 +2099,11 @@ func (tv *TypedValue) GetLength() int {
 		return cv.GetLength()
 	case *NativeValue:
 		return cv.Value.Len()
+	case PointerValue:
+		if av, ok := cv.TV.V.(*ArrayValue); ok {
+			return av.GetLength()
+		}
+		panic(fmt.Sprintf("unexpected type for len(): %s", tv.T.String()))
 	default:
 		panic(fmt.Sprintf("unexpected type for len(): %s",
 			tv.T.String()))
@@ -2058,27 +2112,34 @@ func (tv *TypedValue) GetLength() int {
 
 func (tv *TypedValue) GetCapacity() int {
 	if tv.V == nil {
-		if debug {
-			// assert acceptable type.
-			switch baseOf(tv.T).(type) {
-			// strings have no capacity.
-			case *ArrayType:
-			case *SliceType:
-			default:
-				panic("should not happen")
+		// assert acceptable type.
+		switch bt := baseOf(tv.T).(type) {
+		// strings have no capacity.
+		case *ArrayType:
+			return bt.Len
+		case *SliceType:
+			return 0
+		case *PointerType:
+			if at, ok := bt.Elt.(*ArrayType); ok {
+				return at.Len
 			}
+			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
+		default:
+			panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
 		}
-		return 0
 	}
 	switch cv := tv.V.(type) {
-	case StringValue:
-		return len(string(cv))
 	case *ArrayValue:
 		return cv.GetCapacity()
 	case *SliceValue:
 		return cv.GetCapacity()
 	case *NativeValue:
 		return cv.Value.Cap()
+	case PointerValue:
+		if av, ok := cv.TV.V.(*ArrayValue); ok {
+			return av.GetCapacity()
+		}
+		panic(fmt.Sprintf("unexpected type for cap(): %s", tv.T.String()))
 	default:
 		panic(fmt.Sprintf("unexpected type for cap(): %s",
 			tv.T.String()))
@@ -2101,13 +2162,13 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			"invalid slice index %d > %d",
 			low, high))
 	}
-	if tv.GetCapacity() < high {
-		panic(fmt.Sprintf(
-			"slice bounds out of range [%d:%d] with capacity %d",
-			low, high, tv.GetCapacity()))
-	}
 	switch t := baseOf(tv.T).(type) {
 	case PrimitiveType:
+		if tv.GetLength() < high {
+			panic(fmt.Sprintf(
+				"slice bounds out of range [%d:%d] with string length %d",
+				low, high, tv.GetLength()))
+		}
 		if t == StringType || t == UntypedStringType {
 			return TypedValue{
 				T: tv.T,
@@ -2116,6 +2177,11 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 		}
 		panic("non-string primitive type cannot be sliced")
 	case *ArrayType:
+		if tv.GetLength() < high {
+			panic(fmt.Sprintf(
+				"slice bounds out of range [%d:%d] with array length %d",
+				low, high, tv.GetLength()))
+		}
 		av := tv.V.(*ArrayValue)
 		st := alloc.NewType(&SliceType{
 			Elt: t.Elt,
@@ -2131,6 +2197,11 @@ func (tv *TypedValue) GetSlice(alloc *Allocator, low, high int) TypedValue {
 			),
 		}
 	case *SliceType:
+		if tv.GetCapacity() < high {
+			panic(fmt.Sprintf(
+				"slice bounds out of range [%d:%d] with capacity %d",
+				low, high, tv.GetCapacity()))
+		}
 		if tv.V == nil {
 			if low != 0 || high != 0 {
 				panic("nil slice index out of range")
@@ -2253,12 +2324,12 @@ func (tv *TypedValue) GetSlice2(alloc *Allocator, low, high, max int) TypedValue
 
 // TODO rename to BlockValue.
 type Block struct {
-	ObjectInfo // for closures
-	Source     BlockNode
-	Values     []TypedValue
-	Parent     Value
-	Blank      TypedValue // captures "_" // XXX remove and replace with global instance.
-	bodyStmt   bodyStmt   // XXX expose for persistence, not needed for MVP.
+	ObjectInfo
+	Source   BlockNode
+	Values   []TypedValue
+	Parent   Value
+	Blank    TypedValue // captures "_" // XXX remove and replace with global instance.
+	bodyStmt bodyStmt   // XXX expose for persistence, not needed for MVP.
 }
 
 // NOTE: for allocation, use *Allocator.NewBlock.
@@ -2283,7 +2354,7 @@ func (b *Block) StringIndented(indent string) string {
 	if len(source) > 32 {
 		source = source[:32] + "..."
 	}
-	lines := []string{}
+	lines := make([]string, 0, 3)
 	lines = append(lines,
 		fmt.Sprintf("Block(ID:%v,Addr:%p,Source:%s,Parent:%p)",
 			b.ObjectInfo.ID, b, source, b.Parent)) // XXX Parent may be RefValue{}.
@@ -2343,7 +2414,7 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
 	if path.IsBlockBlankPath() {
 		if debug {
-			if path.Name != "_" {
+			if path.Name != blankIdentifier {
 				panic(fmt.Sprintf(
 					"zero value path is reserved for \"_\", but got %s",
 					path.Name))
@@ -2416,6 +2487,15 @@ type RefValue struct {
 	Escaped  bool      `json:",omitempty"`
 	PkgPath  string    `json:",omitempty"`
 	Hash     ValueHash `json:",omitempty"`
+}
+
+// Base for a detached singleton (e.g. new(int) or &struct{})
+// Conceptually like a Block that holds one value.
+// NOTE: could be renamed to HeapItemBaseValue.
+// See also note in realm.go about auto-unwrapping.
+type HeapItemValue struct {
+	ObjectInfo
+	Value TypedValue
 }
 
 // ----------------------------------------
@@ -2533,7 +2613,7 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			cv.Base = base
 			switch cb := base.(type) {
 			case *ArrayValue:
-				et := baseOf(tv.T).(*ArrayType).Elt
+				et := baseOf(tv.T).(*PointerType).Elt
 				epv := cb.GetPointerAtIndexInt2(store, cv.Index, et)
 				cv.TV = epv.TV // TODO optimize? (epv.* ignored)
 			case *StructValue:
@@ -2546,6 +2626,8 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 			case *Block:
 				vpv := cb.GetPointerToInt(store, cv.Index)
 				cv.TV = vpv.TV // TODO optimize?
+			case *HeapItemValue:
+				cv.TV = &cb.Value
 			default:
 				panic("should not happen")
 			}
@@ -2555,4 +2637,25 @@ func fillValueTV(store Store, tv *TypedValue) *TypedValue {
 		// do nothing
 	}
 	return tv
+}
+
+// ----------------------------------------
+// Utility
+func signOfSignedBytes(n [8]byte) int {
+	si := *(*int64)(unsafe.Pointer(&n[0]))
+	switch {
+	case si == 0:
+		return 0
+	case si < 0:
+		return -1
+	default:
+		return 1
+	}
+}
+
+func signOfUnsignedBytes(n [8]byte) int {
+	if *(*uint64)(unsafe.Pointer(&n[0])) == 0 {
+		return 0
+	}
+	return 1
 }

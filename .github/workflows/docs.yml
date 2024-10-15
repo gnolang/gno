@@ -1,0 +1,34 @@
+name: "docs / lint"
+
+on:
+  push:
+    paths:
+      - master
+  pull_request:
+    paths:
+      - "docs/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Build docs
+        run: make -C docs/ build
+
+      - name: Check diff
+        run: git diff --exit-code || (echo "Some docs files are not formatted, please run 'make build'." && exit 1)
+
+      - name: Run linter
+        run: make -C docs/ lint

@@ -4,32 +4,56 @@ func init() {
 	var (
 		path  = "ecosystem"
 		title = "Discover Gno.land Ecosystem Projects & Initiatives"
-		// XXX: description = "Dive further into the Gno.land ecosystem and discover the core infrastructure, projects, smart contracts, and tooling we’re building."
-		body = `# Gno Ecosystem
+		// XXX: description = "Dive further into the gno.land ecosystem and discover the core infrastructure, projects, smart contracts, and tooling we’re building."
+		body = `
+### [Gno Playground](https://play.gno.land)
 
-## Gno.land Space
+Gno Playground is a simple web interface that lets you write, test, and experiment with your Gno code to improve your 
+understanding of the Gno language. You can share your code, run unit tests, deploy your realms and packages, and execute
+functions in your code using the repo. 
 
-For the best onboarding experience, head over to [Gno.land Space](https://www.gnoland.space/) open ecosystem. Here you can set up your Gno wallet, explore existing community-written Gno smart contracts (realms), and become part of our vibrant community by joining [Gno.land Discord](https://discord.com/invite/x76qK4ttHC).
+Visit the playground at [play.gno.land](https://play.gno.land)!
 
-## Gno Studio (IDE)
+### [Gno Studio Connect](https://gno.studio/connect)
 
-Gno IDE is a web-based application helping builders quickly spin up Gno realms and packages right on their browsers. Offering a smooth and intuitive UX for building on Gno, you’ll find multiple modes for customizability with all the features you’d expect from an IDE, such as auto compilation in the editor, debugging, and extensive testing capability.
+Gno Studio Connect provides seamless access to realms, making it simple to explore, interact, and engage 
+with gno.land’s smart contracts through function calls. Connect focuses on function calls, enabling users to interact 
+with any realm’s exposed function(s) on gno.land. 
 
-## Gnoscan
+See your realm interactions in [Gno Studio Connect](https://gno.studio/connect)
 
-Developed by the Onbloc team, Gnoscan is Gno.land’s blockchain explorer. Anyone can use Gnoscan to easily find information that resides on the Gno.land blockchain, such as wallet addresses, TX hashes, blocks, and contracts. Gnoscan makes our on-chain data easy to read and intuitive to discover. [Go to Gnoscan.](https://gnoscan.io/)
+### [Gnoscan](https://gnoscan.io)
 
-## Adena
+Developed by the Onbloc team, Gnoscan is gno.land’s blockchain explorer. Anyone can use Gnoscan to easily find
+information that resides on the gno.land blockchain, such as wallet addresses, TX hashes, blocks, and contracts. 
+Gnoscan makes our on-chain data easy to read and intuitive to discover.
 
-Adena is a user-friendly non-custodial wallet for Gno.land. Open-source and developed by Onbloc, Adena currently powers all transactions on Gno.land, allowing gnomes to interact easily with the chain. With an emphasis on UX, Adena is built to handle millions of realms and tokens with a high-quality interface, support for NFTs and custom tokens, and seamless integration. [Get started here.](https://adena.app/)
+Explore the gno.land blockchain at [gnoscan.io](https://gnoscan.io)!
 
-## Gnoswap
+### Adena
 
-Gnoswap is currently under development and led by the Onbloc team. Gnoswap will be the first DEX on Gno.land and is an automated market maker (AMM) protocol written in Gnolang that allows for permissionless token exchanges on the platform.
+Adena is a user-friendly non-custodial wallet for gno.land. Open-source and developed by Onbloc, Adena allows gnomes to 
+interact easily with the chain. With an emphasis on UX, Adena is built to handle millions of realms and tokens with a
+high-quality interface, support for NFTs and custom tokens, and seamless integration. Install Adena via the [official website](https://www.adena.app/)
 
-## Gno.land Developer Portal
+### Gnoswap
 
-Through the Gno.land Developer Portal, new developers can explore the exciting world of Gnolang (Gno), a novel programming language that powers the Gno.land blockchain. If you want to interact with Gno.land, start writing a realm, build a dApp, or even port a Solidity contract to a Gnolang realm, you’ll find the resources to [get started here](https://docs.onbloc.xyz/).`
+Gnoswap is currently under development and led by the Onbloc team. Gnoswap will be the first DEX on gno.land and is an 
+automated market maker (AMM) protocol written in Gno that allows for permissionless token exchanges on the platform.
+
+### Flippando
+
+Flippando is a simple on-chain memory game, ported from Solidity to Gno, which starts with an empty matrix to flip tiles
+on to see what’s underneath. If the tiles match, they remain uncovered; if not, they are briefly shown, and the player 
+must memorize their colors until the entire matrix is uncovered. The end result can be minted as an NFT, which can later
+be assembled into bigger, more complex NFTs, creating a digital “painting” with the uncovered tiles.  Play the game at [Flippando](https://gno.flippando.xyz/flip)
+
+### Gno Native Kit
+
+[Gno Native Kit](https://github.com/gnolang/gnonative) is a framework that allows developers to build and port gno.land (d)apps written in the (d)app's native language.
+
+
+`
 	)
-	_ = b.NewPost("", path, title, body, nil)
+	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:23Z", nil, nil)
 }
