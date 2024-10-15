@@ -408,8 +408,14 @@ func (m *Machine) doOpDefer() {
 func (m *Machine) doOpPanic1() {
 	// Pop exception
 	var ex TypedValue = m.PopValue().Copy(m.Alloc)
-	// Panic
-	m.Panic(typedString(ex.Sprint(m)))
+    
+    if ex.T.GetPkgPath() == "errors" {
+        // then it's a normal error 
+        m.Panic(typedString(ex.Sprint(m)))
+    } else {
+        // skipErr 
+        m.Panic(ex)
+    }
 }
 
 func (m *Machine) doOpPanic2() {
