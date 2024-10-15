@@ -49,7 +49,7 @@ func init() {
 // Should be called from within code
 func Register() {
 	if exhibition.IsPaused() {
-		panic(ErrPaused.Error())
+		return
 	}
 
 	submission := std.PrevRealm()
@@ -57,11 +57,11 @@ func Register() {
 
 	// Must not yet exist and must be called from code
 	if submission.IsUser() {
-		panic(ErrNonCodeCall.Error())
+		return
 	}
 
 	if exhibition.items.Has(pkgpath) {
-		panic(ErrAlreadyExists.Error())
+		return
 	}
 
 	id := exhibition.itemCounter.Next()
