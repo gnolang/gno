@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"context"
 	"net"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
@@ -54,4 +55,19 @@ type PeerSet interface {
 
 	NumInbound() uint64  // returns the number of connected inbound nodes
 	NumOutbound() uint64 // returns the number of connected outbound nodes
+}
+
+// Transport handles peer dialing and connection acceptance. Additionally,
+// it is also responsible for any custom connection mechanisms (like handshaking).
+// Peers returned by the transport are considered to be verified and sound
+type Transport interface {
+	// Accept returns a newly connected inbound peer
+	Accept(context.Context) (Peer, error)
+
+	// Dial dials a peer, and returns it
+	Dial(context.Context, NetAddress) (Peer, error)
+
+	// Remove drops any resources associated
+	// with the Peer in the transport
+	Remove(Peer)
 }

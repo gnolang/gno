@@ -73,13 +73,6 @@ func NewSwitch(
 	return sw
 }
 
-// NetAddress returns the address the switch is listening on.
-func (sw *Switch) NetAddress() *NetAddress {
-	addr := sw.transport.NetAddress()
-
-	return &addr
-}
-
 // Subscribe registers to live events happening on the p2p Switch.
 // Returns the notification channel, along with an unsubscribe method
 func (sw *Switch) Subscribe(filterFn events.EventFilter) (<-chan events.Event, func()) {
@@ -240,6 +233,9 @@ func (sw *Switch) runDialLoop(ctx context.Context) {
 				// Nothing to dial
 				continue
 			}
+
+			// Pop the item from the dial queue
+			item = sw.dialQueue.Pop()
 
 			// Dial the peer
 			sw.Logger.Info(

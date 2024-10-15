@@ -5,11 +5,11 @@
 package p2p
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -223,9 +223,11 @@ func (na *NetAddress) DialString() string {
 	)
 }
 
-// DialTimeout calls net.DialTimeout on the address.
-func (na *NetAddress) DialTimeout(timeout time.Duration) (net.Conn, error) {
-	conn, err := net.DialTimeout("tcp", na.DialString(), timeout)
+// DialContext dials the given NetAddress with a context
+func (na *NetAddress) DialContext(ctx context.Context) (net.Conn, error) {
+	var d net.Dialer
+
+	conn, err := d.DialContext(ctx, "tcp", na.DialString())
 	if err != nil {
 		return nil, fmt.Errorf("unable to dial address, %w", err)
 	}

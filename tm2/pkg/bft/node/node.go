@@ -313,7 +313,7 @@ func createConsensusReactor(config *cfg.Config,
 	return consensusReactor, consensusState
 }
 
-func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey, proxyApp appconn.AppConns) *p2p.MultiplexTransport {
+func createTransport(config *cfg.Config, nodeInfo p2p.NodeInfo, nodeKey *p2p.NodeKey) *p2p.MultiplexTransport {
 	var (
 		mConnConfig = p2p.MultiplexConfigFromP2P(config.P2P)
 		transport   = p2p.NewMultiplexTransport(nodeInfo, *nodeKey, mConnConfig)
@@ -445,7 +445,7 @@ func NewNode(config *cfg.Config,
 	}
 
 	// Setup Transport.
-	transport := createTransport(config, nodeInfo, nodeKey, proxyApp)
+	transport := createTransport(config, nodeInfo, nodeKey)
 
 	// Setup Switch.
 	p2pLogger := logger.With("module", "p2p")

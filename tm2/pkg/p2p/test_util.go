@@ -4,16 +4,16 @@ package p2p
 //
 // // ------------------------------------------------
 //
-// func CreateRoutableAddr() (addr string, netAddr *NetAddress) {
+// func CreateRoutableAddr() (addr string, addr *NetAddress) {
 // 	for {
 // 		id := ed25519.GenPrivKey().PubKey().Address().ID()
 // 		var err error
 // 		addr = fmt.Sprintf("%s@%v.%v.%v.%v:26656", id, random.RandInt()%256, random.RandInt()%256, random.RandInt()%256, random.RandInt()%256)
-// 		netAddr, err = NewNetAddressFromString(addr)
+// 		addr, err = NewNetAddressFromString(addr)
 // 		if err != nil {
 // 			panic(err)
 // 		}
-// 		if netAddr.Routable() {
+// 		if addr.Routable() {
 // 			break
 // 		}
 // 	}
