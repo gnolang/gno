@@ -62,7 +62,7 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 	}
 
 	// Extract the actual language from the lang field
-	lang := strings.Split(c.lang, ",")[0]
+	lang := extractLanguage(c.lang)
 
 	if lang != goLang && lang != gnoLang {
 		return fmt.Sprintf("SKIPPED (Unsupported language: %s)", lang), nil
@@ -76,39 +76,10 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 
 	// get the result from the cache if it exists
 	if result, found := cache.get(hashKey); found {
-		res := strings.TrimSpace(result)
-
-		if c.expectedOutput == "" && c.expectedError == "" {
-			return fmt.Sprintf("%s (cached)", res), nil
-		}
-
-		res, err := compareResults(res, c.expectedOutput, c.expectedError)
-		if err != nil {
-			return "", err
-		}
-
-		return fmt.Sprintf("%s (cached)", res), nil
+		return handleCachedResult(result, c)
 	}
 
-	baseKey := store.NewStoreKey("baseKey")
-	iavlKey := store.NewStoreKey("iavlKey")
-
-	db := memdb.NewMemDB()
-
-	ms := store.NewCommitMultiStore(db)
-	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
-	ms.MountStoreWithDB(iavlKey, iavl.StoreConstructor, db)
-	ms.LoadLatestVersion()
-
-	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
-	acck := authm.NewAccountKeeper(iavlKey, std.ProtoBaseAccount)
-	bank := bankm.NewBankKeeper(acck)
-	stdlibsDir := GetStdlibsDir()
-	vmk := vm.NewVMKeeper(baseKey, iavlKey, acck, bank, stdlibsDir, 100_000_000)
-
-	mcw := ms.MultiCacheWrap()
-	vmk.Initialize(log.NewNoopLogger(), mcw, true)
-	mcw.MultiWrite()
+	ctx, acck, _, vmk, stdlibCtx := setupEnvironment()
 
 	files := []*std.MemFile{
 		{Name: fmt.Sprintf("%d.%s", c.index, lang), Body: c.content},
@@ -120,15 +91,9 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 
 	msg2 := vm.NewMsgRun(addr, std.Coins{}, files)
 
-	res, err := vmk.Run(ctx, msg2)
+	res, err := vmk.Run(stdlibCtx, msg2)
 	if c.options.PanicMessage != "" {
-		if err == nil {
-			return "", fmt.Errorf("expected panic with message: %s, but executed successfully", c.options.PanicMessage)
-		}
-		if !strings.Contains(err.Error(), c.options.PanicMessage) {
-			return "", fmt.Errorf("expected panic with message: %s, but got: %s", c.options.PanicMessage, err.Error())
-		}
-		return fmt.Sprintf("panicked as expected: %v", err), nil
+		return handlePanicMessage(err, c.options.PanicMessage)
 	}
 
 	if err != nil {
@@ -145,6 +110,65 @@ func ExecuteCodeBlock(c codeBlock, stdlibDir string) (string, error) {
 
 	// Otherwise, compare the actual output with the expected output or error.
 	return compareResults(res, c.expectedOutput, c.expectedError)
+}
+
+func extractLanguage(lang string) string {
+	return strings.Split(lang, ",")[0]
+}
+
+func handleCachedResult(result string, c codeBlock) (string, error) {
+	res := strings.TrimSpace(result)
+
+	if c.expectedOutput == "" && c.expectedError == "" {
+		return fmt.Sprintf("%s (cached)", res), nil
+	}
+
+	res, err := compareResults(res, c.expectedOutput, c.expectedError)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s (cached)", res), nil
+}
+
+func setupEnvironment() (sdk.Context, authm.AccountKeeper, bankm.BankKeeper, *vm.VMKeeper, sdk.Context) {
+	baseKey := store.NewStoreKey("baseKey")
+	iavlKey := store.NewStoreKey("iavlKey")
+
+	db := memdb.NewMemDB()
+
+	ms := store.NewCommitMultiStore(db)
+	ms.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, db)
+	ms.MountStoreWithDB(iavlKey, iavl.StoreConstructor, db)
+	ms.LoadLatestVersion()
+
+	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{ChainID: "test-chain-id"}, log.NewNoopLogger())
+	acck := authm.NewAccountKeeper(iavlKey, std.ProtoBaseAccount)
+	bank := bankm.NewBankKeeper(acck)
+	stdlibsDir := GetStdlibsDir()
+	vmk := vm.NewVMKeeper(baseKey, iavlKey, acck, bank, 100_000_000)
+
+	mcw := ms.MultiCacheWrap()
+
+	vmk.Initialize(log.NewNoopLogger(), mcw)
+
+	stdlibCtx := vmk.MakeGnoTransactionStore(ctx.WithMultiStore(mcw))
+	vmk.LoadStdlib(stdlibCtx, stdlibsDir)
+	vmk.CommitGnoTransactionStore(stdlibCtx)
+
+	mcw.MultiWrite()
+
+	return ctx, acck, bank, vmk, stdlibCtx
+}
+
+func handlePanicMessage(err error, panicMessage string) (string, error) {
+	if err == nil {
+		return "", fmt.Errorf("expected panic with message: %s, but executed successfully", panicMessage)
+	}
+	if !strings.Contains(err.Error(), panicMessage) {
+		return "", fmt.Errorf("expected panic with message: %s, but got: %s", panicMessage, err.Error())
+	}
+	return fmt.Sprintf("panicked as expected: %v", err), nil
 }
 
 // compareResults compares the actual output of code execution with the expected output or error.

@@ -15,6 +15,11 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
+var (
+	outputRegex = regexp.MustCompile(`(?m)^// Output:$([\s\S]*?)(?:^(?://\s*$|// Error:|$))`)
+	errorRegex  = regexp.MustCompile(`(?m)^// Error:$([\s\S]*?)(?:^(?://\s*$|// Output:|$))`)
+)
+
 // codeBlock represents a block of code extracted from the input text.
 type codeBlock struct {
 	content        string // The content of the code block.
@@ -39,7 +44,10 @@ func GetCodeBlocks(body string) []codeBlock {
 	mast.Walk(doc, func(n mast.Node, entering bool) (mast.WalkStatus, error) {
 		if entering {
 			if cb, ok := n.(*mast.FencedCodeBlock); ok {
-				codeBlock := createCodeBlock(cb, body, len(codeBlocks))
+				codeBlock, err := createCodeBlock(cb, body, len(codeBlocks))
+				if err != nil {
+					return mast.WalkStop, err
+				}
 				codeBlock.name = generateCodeBlockName(codeBlock.content, codeBlock.expectedOutput)
 				codeBlocks = append(codeBlocks, codeBlock)
 			}
@@ -51,7 +59,7 @@ func GetCodeBlocks(body string) []codeBlock {
 }
 
 // createCodeBlock creates a CodeBlock from a code block node.
-func createCodeBlock(node *mast.FencedCodeBlock, body string, index int) codeBlock {
+func createCodeBlock(node *mast.FencedCodeBlock, body string, index int) (codeBlock, error) {
 	var buf bytes.Buffer
 	lines := node.Lines()
 	for i := 0; i < lines.Len(); i++ {
@@ -73,7 +81,7 @@ func createCodeBlock(node *mast.FencedCodeBlock, body string, index int) codeBlo
 
 	expectedOutput, expectedError, err := parseExpectedResults(content)
 	if err != nil {
-		panic(err)
+		return codeBlock{}, err
 	}
 
 	return codeBlock{
@@ -85,15 +93,12 @@ func createCodeBlock(node *mast.FencedCodeBlock, body string, index int) codeBlo
 		expectedOutput: expectedOutput,
 		expectedError:  expectedError,
 		options:        options,
-	}
+	}, nil
 }
 
 // parseExpectedResults scans the code block content for expecting outputs and errors,
 // which are typically indicated by special comments in the code.
 func parseExpectedResults(content string) (string, string, error) {
-	outputRegex := regexp.MustCompile(`(?m)^// Output:$([\s\S]*?)(?:^(?://\s*$|// Error:|$))`)
-	errorRegex := regexp.MustCompile(`(?m)^// Error:$([\s\S]*?)(?:^(?://\s*$|// Output:|$))`)
-
 	var outputs, errors []string
 
 	outputMatches := outputRegex.FindAllStringSubmatch(content, -1)
@@ -362,7 +367,8 @@ func parseExecutionOptions(language string, firstLine []byte) ExecutionOptions {
 				if match[2] != nil {
 					options.PanicMessage = string(match[2])
 				}
-				// TODO: add more options
+			case "ignore":
+				options.Ignore = true
 			}
 		}
 	}
