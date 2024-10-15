@@ -6,10 +6,10 @@ import (
 )
 
 var (
-        mainAddr = std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y") // matija's main address
-        backupAddr std.Address // backup address
+        mainAddr   = std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y") // matija's main address
+        backupAddr std.Address                                               // backup address
 
-        errorInvalidAddr   = errors.New("config: invalid address")
+        errorInvalidAddr  = errors.New("config: invalid address")
         errorUnauthorized = errors.New("config: unauthorized")
 )
 
