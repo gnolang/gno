@@ -1057,7 +1057,7 @@ func isValidCaptureName(name string) bool {
 		return false
 	}
 	for _, c := range name {
-		if c != '_' && !isAlnum(c) {
+		if c != '_' && !isalnum(c) {
 			return false
 		}
 	}
@@ -1252,7 +1252,7 @@ func (p *parser) parseEscape(s string) (r rune, rest string, err error) {
 Switch:
 	switch c {
 	default:
-		if c < utf8.RuneSelf && !isAlnum(c) {
+		if c < utf8.RuneSelf && !isalnum(c) {
 			// Escaped non-word characters are always themselves.
 			// PCRE is not quite so rigorous: it accepts things like
 			// \q, but we don't. We once rejected \_, but too many
@@ -1905,7 +1905,7 @@ func nextRune(s string) (c rune, t string, err error) {
 	return c, s[size:], nil
 }
 
-func isAlnum(c rune) bool {
+func isalnum(c rune) bool {
 	return '0' <= c && c <= '9' || 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
 }
 
