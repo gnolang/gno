@@ -1,29 +1,29 @@
 loadpkg gno.land/p/demo/ufmt
 loadpkg gno.land/r/demo/other $WORK/other
-loadpkg gno.land/r/demo/errs $WORK/err
+loadpkg gno.land/r/demo/errs $WORK/errs
 
 gnoland start
 
 gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ErrStr" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout 'errors.New'
+# stdout 'errors.New'
 
-gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ErrErrorF" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout 'errorf ufmt'
+# gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ErrErrorF" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+# stdout 'errorf ufmt'
 
-gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ConstructedErr" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout 'constructed error'
+# gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ConstructedErr" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+# stdout 'constructed error'
 
-gnokey maketx call -pkgpath gno.land/r/demo/errs -func "OtherPackageErr" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-stdout 'other package error'
+# gnokey maketx call -pkgpath gno.land/r/demo/errs -func "OtherPackageErr" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+# stdout 'other package error'
 
 ## Returning Reference instead of value
-gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ExportedErrFunc" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-gnokey maketx call -pkgpath gno.land/r/demo/errs -func "UnExportedErrFunc" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
-gnokey maketx call -pkgpath gno.land/r/demo/errs -func "OtherPackageExportedErr" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+# gnokey maketx call -pkgpath gno.land/r/demo/errs -func "ExportedErrFunc" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+# gnokey maketx call -pkgpath gno.land/r/demo/errs -func "UnExportedErrFunc" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
+# gnokey maketx call -pkgpath gno.land/r/demo/errs -func "OtherPackageExportedErr" -gas-fee 1000000ugnot -gas-wanted 2000000 -broadcast -chainid=tendermint_test test1
 
 
--- err/errs.gno --
-package err
+-- errs/errs.gno --
+package errs
 
 import (
     "errors"

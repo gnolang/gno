@@ -531,9 +531,8 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			ptv := rtv.V.(gno.PointerValue)
 			tv := ptv.Deref()
 
-			errObj := gnostore.GetObject(tv.V.(gno.RefValue).ObjectID).String()
-			errMsg := strings.Split(errObj, "\"")[1]
-			res = res + fmt.Sprintf("(\"%s\" error)", errMsg)
+			errObjStr := gnostore.GetObject(tv.V.(gno.RefValue).ObjectID).String()
+			res = res + errObjStr
 		} else {
 			res = res + rtv.String()
 		}
