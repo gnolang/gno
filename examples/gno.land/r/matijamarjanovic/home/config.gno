@@ -6,16 +6,12 @@ import (
 )
 
 var (
-        mainAddr   std.Address // tony's main address
+        mainAddr = std.Address("g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y") // matija's main address
         backupAddr std.Address // backup address
 
         errorInvalidAddr   = errors.New("config: invalid address")
         errorUnauthorized = errors.New("config: unauthorized")
 )
-
-func init() {
-        mainAddr = "g1ej0qca5ptsw9kfr64ey8jvfy9eacga6mpj2z0y"
-}
 
 func Address() std.Address {
         return mainAddr
