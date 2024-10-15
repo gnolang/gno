@@ -6,10 +6,11 @@ import (
 )
 
 var (
-	main            std.Address // leon's main address
-	backup          std.Address // backup address
-	ErrInvalidAddr  = errors.New("config: invalid address")
-	ErrUnauthorized = errors.New("config: unauthorized")
+	main   std.Address // leon's main address
+	backup std.Address // backup address
+
+	ErrInvalidAddr  = errors.New("leon's config: invalid address")
+	ErrUnauthorized = errors.New("leon's config: unauthorized")
 )
 
 func init() {
@@ -59,10 +60,4 @@ func checkAuthorized() error {
 	}
 
 	return nil
-}
-
-func AssertAuthorized() {
-	if err := checkAuthorized(); err != nil {
-		panic(err)
-	}
 }
