@@ -2104,15 +2104,28 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *BranchStmt:
 				switch n.Op {
 				case BREAK:
-					// XXX Remove n.Label != "" and fix issue properly.
-					if n.Label != "" && !isSwitchLabel(ns, n.Label) {
-						findBranchLabel(last, n.Label)
+					if n.Label == "" {
+						if !findBreakableNode(ns) {
+							panic("cannot break with no parent loop or switch")
+						}
+					} else {
+						// Make sure that the label exists, either for a switch or a
+						// BranchStmt.
+						if !isSwitchLabel(ns, n.Label) {
+							findBranchLabel(last, n.Label)
+						}
 					}
 				case CONTINUE:
-					if isSwitchLabel(ns, n.Label) {
-						panic(fmt.Sprintf("invalid continue label %q\n", n.Label))
+					if n.Label == "" {
+						if !findContinuableNode(ns) {
+							panic("cannot continue with no parent loop")
+						}
+					} else {
+						if isSwitchLabel(ns, n.Label) {
+							panic(fmt.Sprintf("invalid continue label %q\n", n.Label))
+						}
+						findBranchLabel(last, n.Label)
 					}
-					findBranchLabel(last, n.Label)
 				case GOTO:
 					_, depth, index := findGotoLabel(last, n.Label)
 					n.Depth = depth
@@ -2774,6 +2787,26 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 		}
 		last = last.GetParentNode(nil)
 	}
+}
+
+func findBreakableNode(ns []Node) bool {
+	for _, n := range ns {
+		switch n.(type) {
+		case *ForStmt, *RangeStmt, *SwitchClauseStmt, *SwitchStmt:
+			return true
+		}
+	}
+	return false
+}
+
+func findContinuableNode(ns []Node) bool {
+	for _, n := range ns {
+		switch n.(type) {
+		case *ForStmt, *RangeStmt:
+			return true
+		}
+	}
+	return false
 }
 
 func findBranchLabel(last BlockNode, label Name) (
