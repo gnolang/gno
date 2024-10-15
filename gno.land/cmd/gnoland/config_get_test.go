@@ -289,14 +289,6 @@ func TestConfig_Get_Base(t *testing.T) {
 			},
 			true,
 		},
-		{
-			"filter peers flag fetched",
-			"filter_peers",
-			func(loadedCfg *config.Config, value []byte) {
-				assert.Equal(t, loadedCfg.FilterPeers, unmarshalJSONCommon[bool](t, value))
-			},
-			false,
-		},
 	}
 
 	verifyGetTestTableCommon(t, testTable)

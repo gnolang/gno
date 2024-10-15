@@ -25,7 +25,7 @@ func NewPeer(ip net.IP) *Peer {
 	if ip == nil {
 		_, netAddr = p2p.CreateRoutableAddr()
 	} else {
-		netAddr = p2p.NewNetAddressFromIPPort("", ip, 26656)
+		netAddr = p2p.NewNetAddressFromIPPort(ip, 26656)
 	}
 	nodeKey := p2p.NodeKey{PrivKey: ed25519.GenPrivKey()}
 	netAddr.ID = nodeKey.ID()

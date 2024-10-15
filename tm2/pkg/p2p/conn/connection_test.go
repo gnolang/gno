@@ -32,7 +32,7 @@ func createMConnectionWithCallbacks(
 	t *testing.T,
 	conn net.Conn,
 	onReceive func(chID byte, msgBytes []byte),
-	onError func(r interface{}),
+	onError func(r error),
 ) *MConnection {
 	t.Helper()
 

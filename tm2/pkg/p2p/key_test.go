@@ -1,53 +1,158 @@
 package p2p
 
 import (
-	"bytes"
+	"encoding/json"
+	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 
-	"github.com/gnolang/gno/tm2/pkg/random"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestLoadOrGenNodeKey(t *testing.T) {
-	t.Parallel()
+// generateKeys generates random node p2p keys
+func generateKeys(t *testing.T, count int) []*NodeKey {
+	t.Helper()
 
-	filePath := filepath.Join(os.TempDir(), random.RandStr(12)+"_peer_id.json")
+	keys := make([]*NodeKey, count)
 
-	nodeKey, err := LoadOrGenNodeKey(filePath)
-	assert.Nil(t, err)
-
-	nodeKey2, err := LoadOrGenNodeKey(filePath)
-	assert.Nil(t, err)
-
-	assert.Equal(t, nodeKey, nodeKey2)
-}
-
-// ----------------------------------------------------------
-
-func padBytes(bz []byte, targetBytes int) []byte {
-	return append(bz, bytes.Repeat([]byte{0xFF}, targetBytes-len(bz))...)
-}
-
-func TestPoWTarget(t *testing.T) {
-	t.Parallel()
-
-	targetBytes := 20
-	cases := []struct {
-		difficulty uint
-		target     []byte
-	}{
-		{0, padBytes([]byte{}, targetBytes)},
-		{1, padBytes([]byte{127}, targetBytes)},
-		{8, padBytes([]byte{0}, targetBytes)},
-		{9, padBytes([]byte{0, 127}, targetBytes)},
-		{10, padBytes([]byte{0, 63}, targetBytes)},
-		{16, padBytes([]byte{0, 0}, targetBytes)},
-		{17, padBytes([]byte{0, 0, 127}, targetBytes)},
+	for i := 0; i < count; i++ {
+		keys[i] = GenerateNodeKey()
 	}
 
-	for _, c := range cases {
-		assert.Equal(t, MakePoWTarget(c.difficulty, 20*8), c.target)
+	return keys
+}
+
+func TestNodeKey_Generate(t *testing.T) {
+	t.Parallel()
+
+	keys := generateKeys(t, 10)
+
+	for _, key := range keys {
+		require.NotNil(t, key)
+		assert.NotNil(t, key.PrivKey)
+
+		// Make sure all keys are unique
+		for _, keyInner := range keys {
+			if key.ID() == keyInner.ID() {
+				continue
+			}
+
+			assert.False(t, key.Equals(keyInner))
+		}
 	}
+}
+
+func TestNodeKey_Load(t *testing.T) {
+	t.Parallel()
+
+	t.Run("non-existing key", func(t *testing.T) {
+		t.Parallel()
+
+		key, err := LoadNodeKey("definitely valid path")
+
+		require.Nil(t, key)
+		assert.ErrorIs(t, err, os.ErrNotExist)
+	})
+
+	t.Run("invalid key format", func(t *testing.T) {
+		t.Parallel()
+
+		// Generate a random path
+		path := fmt.Sprintf("%s/key.json", t.TempDir())
+
+		type random struct {
+			field string
+		}
+
+		data, err := json.Marshal(&random{
+			field: "random data",
+		})
+		require.NoError(t, err)
+
+		// Save the invalid data format
+		require.NoError(t, os.WriteFile(path, data, 0o644))
+
+		// Load the key, that's invalid
+		key, err := LoadNodeKey(path)
+
+		require.NoError(t, err)
+		assert.Nil(t, key.PrivKey)
+	})
+
+	t.Run("valid key loaded", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			path = fmt.Sprintf("%s/key.json", t.TempDir())
+			key  = GenerateNodeKey()
+		)
+
+		// Save the key
+		require.NoError(t, saveNodeKey(path, key))
+
+		// Load the key, that's valid
+		loadedKey, err := LoadNodeKey(path)
+		require.NoError(t, err)
+
+		assert.True(t, key.PrivKey.Equals(loadedKey.PrivKey))
+		assert.Equal(t, key.ID(), loadedKey.ID())
+	})
+}
+
+func TestNodeKey_ID(t *testing.T) {
+	t.Parallel()
+
+	keys := generateKeys(t, 10)
+
+	for _, key := range keys {
+		// Make sure the ID is valid
+		id := key.ID()
+		require.NotNil(t, id)
+
+		assert.NoError(t, id.Validate())
+	}
+}
+
+func TestNodeKey_LoadOrGenNodeKey(t *testing.T) {
+	t.Parallel()
+
+	t.Run("existing key loaded", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			path = fmt.Sprintf("%s/key.json", t.TempDir())
+			key  = GenerateNodeKey()
+		)
+
+		// Save the key
+		require.NoError(t, saveNodeKey(path, key))
+
+		loadedKey, err := LoadOrGenNodeKey(path)
+		require.NoError(t, err)
+
+		// Make sure the key was not generated
+		assert.True(t, key.PrivKey.Equals(loadedKey.PrivKey))
+	})
+
+	t.Run("fresh key generated", func(t *testing.T) {
+		t.Parallel()
+
+		path := fmt.Sprintf("%s/key.json", t.TempDir())
+
+		// Make sure there is no key at the path
+		_, err := os.Stat(path)
+		require.ErrorIs(t, err, os.ErrNotExist)
+
+		// Generate the fresh key
+		key, err := LoadOrGenNodeKey(path)
+		require.NoError(t, err)
+
+		// Load the saved key
+		loadedKey, err := LoadOrGenNodeKey(path)
+		require.NoError(t, err)
+
+		// Make sure the keys are the same
+		assert.True(t, key.PrivKey.Equals(loadedKey.PrivKey))
+	})
 }
