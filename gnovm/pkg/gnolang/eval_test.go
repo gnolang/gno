@@ -12,7 +12,8 @@ import (
 
 func TestEvalFiles(t *testing.T) {
 	dir := "../../tests/files"
-	err := fs.WalkDir(os.DirFS(dir), ".", func(path string, de fs.DirEntry, err error) error {
+	fsys := os.DirFS(dir)
+	err := fs.WalkDir(fsys, ".", func(path string, de fs.DirEntry, err error) error {
 		switch {
 		case err != nil:
 			return err
@@ -79,14 +80,21 @@ type directive struct {
 	index int
 }
 
-// (?m) makes ^ and $ match start/end of string
+// (?m) makes ^ and $ match start/end of string.
+// Used to substitute from a comment all the //.
+// Using a regex allows us to parse lines only containing "//" as an empty line.
 var reCommentPrefix = regexp.MustCompile("(?m)^//(?: |$)")
 
 // commentFrom returns the comments from s that are between the delimiters.
+// delims is a list of delimiters like "// Output:", which should be on a
+// single line to mark the beginning of a directive.
+// The return value is the content of each directive, matching the indexes
+// of delims, ie. len(result) == len(delims).
 func commentFrom(s string, delims []string) []string {
 	directives := make([]directive, len(delims))
 	directivesFound := make([]*directive, 0, len(delims))
 
+	// Find directives
 	for i, delim := range delims {
 		// must find delim isolated on one line
 		delim = "\n" + delim + "\n"
@@ -106,9 +114,12 @@ func commentFrom(s string, delims []string) []string {
 			next = directivesFound[i+1].index
 		}
 
-		parsed := reCommentPrefix.ReplaceAllLiteralString(
-			s[directivesFound[i].index+len(directivesFound[i].delim):next],
-			"")
+		// Mark beginning of directive content from the line after the directive.
+		contentStart := directivesFound[i].index + len(directivesFound[i].delim)
+		content := s[contentStart:next]
+
+		// Remove comment prefixes.
+		parsed := reCommentPrefix.ReplaceAllLiteralString(content, "")
 		directivesFound[i].res = strings.TrimSuffix(parsed, "\n")
 	}
 
