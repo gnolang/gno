@@ -4,39 +4,52 @@ import (
 	"std"
 	"testing"
 
+	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/urequire"
 )
 
-const rlm1Path = "gno.land/r/leon/home"
+const rlmPath = "gno.land/r/gnoland/home"
 
-var admin = std.Address("g125em6arxsnj49vx35f0n0z34putv5ty3376fg5")
+var (
+	admin      = owner.Owner()
+	adminRealm = std.NewUserRealm(admin)
+	alice      = testutils.TestAddress("alice")
+)
 
 func TestRegister(t *testing.T) {
-	userRealm := std.NewUserRealm(admin)
-	std.TestSetRealm(userRealm)
-	uassert.PanicsWithMessage(t, ErrNonCodeCall.Error(), Register)
 
-	rlm1 := std.NewCodeRealm(rlm1Path)
-	std.TestSetRealm(rlm1)
-	urequire.NotPanics(t, Register)
-	uassert.PanicsWithMessage(t, ErrAlreadyExists.Error(), Register)
+	// Test user realm register
+	aliceRealm := std.NewUserRealm(alice)
+	std.TestSetRealm(aliceRealm)
+
+	Register()
+	uassert.False(t, itemExists(t, rlmPath))
+
+	// Test register while paused
+	std.TestSetRealm(adminRealm)
+	Pause()
+
+	// Set legitimate caller
+	std.TestSetRealm(std.NewCodeRealm(rlmPath))
+
+	Register()
+	uassert.False(t, itemExists(t, rlmPath))
+
+	// Unpause
+	std.TestSetRealm(adminRealm)
+	Unpause()
+
+	// Set legitimate caller
+	std.TestSetRealm(std.NewCodeRealm(rlmPath))
+	Register()
 
 	// Find registered items
-	i, ok := exhibition.items.Get(rlm1Path)
-	uassert.True(t, ok)
-
-	_, ok = exhibition.itemsSorted.Get(i.(*Item).id.String())
-	uassert.True(t, ok)
-
-	// Check paused
-	std.TestSetRealm(userRealm)
-	urequire.NotPanics(t, func() { exhibition.Pause() })
-	uassert.PanicsWithMessage(t, ErrPaused.Error(), Register)
+	uassert.True(t, itemExists(t, rlmPath))
 }
 
 func TestUpvote(t *testing.T) {
-	raw, _ := exhibition.items.Get(rlm1Path)
+	raw, _ := exhibition.items.Get(rlmPath)
 	item := raw.(*Item)
 
 	rawSorted, _ := exhibition.itemsSorted.Get(item.id.String())
@@ -45,11 +58,10 @@ func TestUpvote(t *testing.T) {
 	// 0 upvotes by default
 	urequire.Equal(t, item.upvote.Size(), 0)
 
-	userRealm := std.NewUserRealm(admin)
-	std.TestSetRealm(userRealm)
+	std.TestSetRealm(adminRealm)
 
 	urequire.NotPanics(t, func() {
-		Upvote(rlm1Path)
+		Upvote(rlmPath)
 	})
 
 	// Check both trees for 1 upvote
@@ -58,12 +70,12 @@ func TestUpvote(t *testing.T) {
 
 	// Check double upvote
 	uassert.PanicsWithMessage(t, ErrDoubleUpvote.Error(), func() {
-		Upvote(rlm1Path)
+		Upvote(rlmPath)
 	})
 }
 
 func TestDownvote(t *testing.T) {
-	raw, _ := exhibition.items.Get(rlm1Path)
+	raw, _ := exhibition.items.Get(rlmPath)
 	item := raw.(*Item)
 
 	rawSorted, _ := exhibition.itemsSorted.Get(item.id.String())
@@ -72,11 +84,11 @@ func TestDownvote(t *testing.T) {
 	// 0 upvotes by default
 	urequire.Equal(t, item.downvote.Size(), 0)
 
-	userRealm := std.NewUserRealm(admin)
+	userRealm := std.NewUserRealm(alice)
 	std.TestSetRealm(userRealm)
 
 	urequire.NotPanics(t, func() {
-		Downvote(rlm1Path)
+		Downvote(rlmPath)
 	})
 
 	// Check both trees for 1 upvote
@@ -85,7 +97,7 @@ func TestDownvote(t *testing.T) {
 
 	// Check double upvote
 	uassert.PanicsWithMessage(t, ErrDoubleDownvote.Error(), func() {
-		Downvote(rlm1Path)
+		Downvote(rlmPath)
 	})
 }
 
@@ -98,13 +110,26 @@ func TestDelete(t *testing.T) {
 		Delete("nonexistentpkgpath")
 	})
 
-	i, ok := exhibition.items.Get(rlm1Path)
+	i, _ := exhibition.items.Get(rlmPath)
 	id := i.(*Item).id
 
 	uassert.NotPanics(t, func() {
-		Delete(rlm1Path)
+		Delete(rlmPath)
 	})
 
-	uassert.False(t, exhibition.items.Has(rlm1Path))
+	uassert.False(t, exhibition.items.Has(rlmPath))
 	uassert.False(t, exhibition.itemsSorted.Has(id.String()))
+}
+
+func itemExists(t *testing.T, rlmPath string) bool {
+	t.Helper()
+
+	i, ok1 := exhibition.items.Get(rlmPath)
+	ok2 := false
+
+	if ok1 {
+		_, ok2 = exhibition.itemsSorted.Get(i.(*Item).id.String())
+	}
+
+	return ok1 && ok2
 }
