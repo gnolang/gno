@@ -2,10 +2,11 @@ package doctest
 
 import (
 	"context"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHashCodeBlock(t *testing.T) {
@@ -42,15 +43,9 @@ func main() {
 	hashKey2 := hashCodeBlock(codeBlock2)
 	hashKey3 := hashCodeBlock(codeBlock3)
 
-	if hashKey1 == hashKey2 {
-		t.Errorf("hash key for code block 1 and 2 are the same: %v", hashKey1)
-	}
-	if hashKey2 == hashKey3 {
-		t.Errorf("hash key for code block 2 and 3 are the same: %v", hashKey2)
-	}
-	if hashKey1 == hashKey3 {
-		t.Errorf("hash key for code block 1 and 3 are the same: %v", hashKey1)
-	}
+	assert.NotEqual(t, hashKey1, hashKey2)
+	assert.NotEqual(t, hashKey2, hashKey3)
+	assert.NotEqual(t, hashKey1, hashKey3)
 }
 
 func TestExecuteCodeBlock(t *testing.T) {
@@ -61,7 +56,7 @@ func TestExecuteCodeBlock(t *testing.T) {
 		expectError    bool
 	}{
 		{
-			name: "Simple print without expected output",
+			name: "simple print without expected output",
 			codeBlock: codeBlock{
 				content: `
 package main
@@ -74,7 +69,7 @@ func main() {
 			expectedResult: "Hello, World!\n",
 		},
 		{
-			name: "Print with expected output",
+			name: "print with expected output",
 			codeBlock: codeBlock{
 				content: `
 package main
@@ -90,7 +85,7 @@ func main() {
 			expectedResult: "Hello, Gno!\n",
 		},
 		{
-			name: "Print with incorrect expected output",
+			name: "print with incorrect expected output",
 			codeBlock: codeBlock{
 				content: `
 package main
@@ -106,7 +101,7 @@ func main() {
 			expectError: true,
 		},
 		{
-			name: "Code with expected error",
+			name: "code with expected error",
 			codeBlock: codeBlock{
 				content: `
 package main
@@ -122,7 +117,7 @@ func main() {
 			expectError: true,
 		},
 		{
-			name: "Code with unexpected error",
+			name: "code with unexpected error",
 			codeBlock: codeBlock{
 				content: `
 package main
@@ -153,15 +148,7 @@ func main() {
 			expectedResult: "Line 1\nLine 2\n",
 		},
 		{
-			name: "Unsupported language",
-			codeBlock: codeBlock{
-				content: `print("Hello")`,
-				lang:    "python",
-			},
-			expectedResult: "SKIPPED (Unsupported language: python)",
-		},
-		{
-			name: "Ignored code block",
+			name: "ignored code block",
 			codeBlock: codeBlock{
 				content: `
 package main
@@ -177,7 +164,7 @@ func main() {
 			expectedResult: "IGNORED",
 		},
 		{
-			name: "Should panic code block",
+			name: "should panic code block",
 			codeBlock: codeBlock{
 				content: `
 package main
@@ -193,7 +180,7 @@ func main() {
 			expectedResult: "panicked as expected: Expected panic",
 		},
 		{
-			name: "Should panic but doesn't",
+			name: "should panic but doesn't",
 			codeBlock: codeBlock{
 				content: `
 package main
@@ -209,7 +196,7 @@ func main() {
 			expectError: true,
 		},
 		{
-			name: "Should panic with specific message",
+			name: "should panic with specific message",
 			codeBlock: codeBlock{
 				content: `
 package main
@@ -224,6 +211,27 @@ func main() {
 			},
 			expectedResult: "panicked as expected: Specific error message",
 		},
+		{
+			name: "unsupported language 1",
+			codeBlock: codeBlock{
+				content: `
+package main
+
+func main() {
+	println("Hello, World!")
+}`,
+				lang: "go",
+			},
+			expectedResult: "SKIPPED (Unsupported language: go)",
+		},
+		{
+			name: "unsupported language 2",
+			codeBlock: codeBlock{
+				content: `print("Hello")`,
+				lang:    "python",
+			},
+			expectedResult: "SKIPPED (Unsupported language: python)",
+		},
 	}
 
 	for _, tt := range tests {
@@ -231,18 +239,12 @@ func main() {
 			result, err := ExecuteCodeBlock(tt.codeBlock, GetStdlibsDir())
 
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("Expected an error, but got none")
-				}
+				assert.NotNil(t, err)
 			} else {
-				if err != nil {
-					t.Errorf("Unexpected error: %v", err)
-				}
+				assert.Nil(t, err)
 			}
 
-			if strings.TrimSpace(result) != strings.TrimSpace(tt.expectedResult) {
-				t.Errorf("Expected result %q, but got %q", tt.expectedResult, result)
-			}
+			assert.Equal(t, strings.TrimSpace(result), strings.TrimSpace(tt.expectedResult))
 		})
 	}
 }
@@ -256,49 +258,49 @@ func TestCompareResults(t *testing.T) {
 		wantErr        bool
 	}{
 		{
-			name:           "Exact match",
+			name:           "exact match",
 			actual:         "Hello, World!",
 			expectedOutput: "Hello, World!",
 		},
 		{
-			name:           "Mismatch",
+			name:           "mismatch",
 			actual:         "Hello, World!",
 			expectedOutput: "Hello, Gno!",
 			wantErr:        true,
 		},
 		{
-			name:           "Regex match",
+			name:           "regex match",
 			actual:         "Hello, World!",
 			expectedOutput: "regex:Hello, \\w+!",
 		},
 		{
-			name:           "Numbers Regex match",
+			name:           "numbers regex match",
 			actual:         "1234567890",
 			expectedOutput: "regex:\\d+",
 		},
 		{
-			name:           "Complex Regex match (e-mail format)",
+			name:           "complex regex match (e-mail format)",
 			actual:         "foobar12456@somemail.com",
 			expectedOutput: "regex:[a-zA-Z0-9]+@[a-zA-Z0-9]+\\.[a-zA-Z0-9]+",
 		},
 		{
-			name:          "Error match",
+			name:          "error match",
 			actual:        "Error: division by zero",
 			expectedError: "Error: division by zero",
 		},
 		{
-			name:          "Error mismatch",
+			name:          "error mismatch",
 			actual:        "Error: division by zero",
 			expectedError: "Error: null pointer",
 			wantErr:       true,
 		},
 		{
-			name:          "Error regex match",
+			name:          "error regex match",
 			actual:        "Error: division by zero",
 			expectedError: "regex:Error: .+",
 		},
 		{
-			name:           "Empty expected",
+			name:           "empty expected",
 			actual:         "Hello, World!",
 			expectedOutput: "",
 			wantErr:        true,
@@ -308,16 +310,13 @@ func TestCompareResults(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := compareResults(tt.actual, tt.expectedOutput, tt.expectedError)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("compareResults() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
+			assert.Equal(t, tt.wantErr, err != nil)
 			if err != nil && tt.wantErr {
-				if tt.expectedOutput != "" && !strings.Contains(err.Error(), tt.expectedOutput) {
-					t.Errorf("compareResults() error = %v, should contain %v", err, tt.expectedOutput)
+				if tt.expectedOutput != "" {
+					assert.Contains(t, err.Error(), tt.expectedOutput)
 				}
-				if tt.expectedError != "" && !strings.Contains(err.Error(), tt.expectedError) {
-					t.Errorf("compareResults() error = %v, should contain %v", err, tt.expectedError)
+				if tt.expectedError != "" {
+					assert.Contains(t, err.Error(), tt.expectedError)
 				}
 			}
 		})
@@ -325,7 +324,7 @@ func TestCompareResults(t *testing.T) {
 }
 
 func TestExecuteMatchingCodeBlock(t *testing.T) {
-	testCases := []struct {
+	tests := []struct {
 		name           string
 		content        string
 		pattern        string
@@ -333,10 +332,10 @@ func TestExecuteMatchingCodeBlock(t *testing.T) {
 		expectError    bool
 	}{
 		{
-			name: "Single matching block",
+			name: "single matching block",
 			content: `
 Some text here
-` + "```go" + `
+` + "```gno" + `
 // @test: test1
 package main
 
@@ -351,9 +350,9 @@ More text
 			expectError:    false,
 		},
 		{
-			name: "Multiple matching blocks",
+			name: "multiple matching blocks",
 			content: `
-` + "```go" + `
+` + "```gno" + `
 // @test: test1
 package main
 
@@ -361,7 +360,7 @@ func main() {
     println("First")
 }
 ` + "```" + `
-` + "```go" + `
+` + "```gno" + `
 // @test: test2
 package main
 
@@ -375,9 +374,9 @@ func main() {
 			expectError:    false,
 		},
 		{
-			name: "No matching blocks",
+			name: "no matching blocks",
 			content: `
-` + "```go" + `
+` + "```gno" + `
 // @test: test1
 func main() {
     println("Hello")
@@ -389,9 +388,9 @@ func main() {
 			expectError:    false,
 		},
 		{
-			name: "Error in code block",
+			name: "error in code block",
 			content: `
-` + "```go" + `
+` + "```gno" + `
 // @test: error_test
 package main
 
@@ -406,7 +405,7 @@ func main() {
 		{
 			name: "expected output is nothing but actual output is something",
 			content: `
-` + "```go" + `
+` + "```gno" + `
 // @test: foo
 package main
 
@@ -422,30 +421,21 @@ func main() {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
-			results, err := ExecuteMatchingCodeBlock(ctx, tc.content, tc.pattern)
+			results, err := ExecuteMatchingCodeBlock(ctx, tt.content, tt.pattern)
 
-			if tc.expectError {
-				if err == nil {
-					t.Errorf("Expected an error, but got none")
-				}
+			if tt.expectError {
+				assert.NotNil(t, err)
 			} else {
-				if err != nil {
-					t.Errorf("Unexpected error: %v", err)
-				}
-
-				if len(results) == 0 && len(tc.expectedResult) == 0 {
-					// do nothing
-				} else if !reflect.DeepEqual(results, tc.expectedResult) {
-					t.Errorf("Expected results %v, but got %v", tc.expectedResult, results)
-				}
+				assert.Nil(t, err)
+				assert.Equal(t, tt.expectedResult, results)
 			}
 
-			for _, expected := range tc.expectedResult {
+			for _, expected := range tt.expectedResult {
 				found := false
 				for _, result := range results {
 					if strings.Contains(result, strings.TrimSpace(expected)) {
@@ -453,10 +443,32 @@ func main() {
 						break
 					}
 				}
-				if !found {
-					t.Errorf("Expected result not found: %s", expected)
-				}
+				assert.True(t, found)
 			}
 		})
 	}
+}
+
+func TestShowingPropoerType(t *testing.T) {
+	src := `
+package main
+
+type ints []int
+
+func main() {
+	a := ints{1, 2, 3}
+	println(a)
+}
+`
+
+	expected := "(slice[(1 int),(2 int),(3 int)] main.ints)\n"
+
+	codeBlock := codeBlock{
+		content: src,
+		lang:    "gno",
+	}
+
+	result, err := ExecuteCodeBlock(codeBlock, GetStdlibsDir())
+	assert.Nil(t, err)
+	assert.Equal(t, expected, result)
 }

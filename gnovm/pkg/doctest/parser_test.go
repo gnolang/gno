@@ -1,9 +1,10 @@
 package doctest
 
 import (
-	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetCodeBlocks(t *testing.T) {
@@ -96,31 +97,20 @@ func TestGetCodeBlocks(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result := GetCodeBlocks(tt.input)
+			result, err := GetCodeBlocks(tt.input)
+			if err != nil {
+				t.Errorf("failed %s: unexpected error %v", tt.name, err)
+			}
 			if len(result) != len(tt.expected) {
-				t.Errorf("Failed %s: expected %d code blocks, got %d", tt.name, len(tt.expected), len(result))
+				t.Errorf("failed %s: expected %d code blocks, got %d", tt.name, len(tt.expected), len(result))
 			}
 
 			for i, res := range result {
-				if normalize(res.content) != normalize(tt.expected[i].content) {
-					t.Errorf("Failed %s: expected content %s, got %s", tt.name, tt.expected[i].content, res.content)
-				}
-
-				if res.start != tt.expected[i].start {
-					t.Errorf("Failed %s: expected start %d, got %d", tt.name, tt.expected[i].start, res.start)
-				}
-
-				if res.end != tt.expected[i].end {
-					t.Errorf("Failed %s: expected end %d, got %d", tt.name, tt.expected[i].end, res.end)
-				}
-
-				if res.lang != tt.expected[i].lang {
-					t.Errorf("Failed %s: expected type %s, got %s", tt.name, tt.expected[i].lang, res.lang)
-				}
-
-				if res.index != tt.expected[i].index {
-					t.Errorf("Failed %s: expected index %d, got %d", tt.name, tt.expected[i].index, res.index)
-				}
+				assert.Equal(t, normalize(tt.expected[i].content), normalize(res.content))
+				assert.Equal(t, tt.expected[i].start, res.start)
+				assert.Equal(t, tt.expected[i].end, res.end)
+				assert.Equal(t, tt.expected[i].lang, res.lang)
+				assert.Equal(t, tt.expected[i].index, res.index)
 			}
 		})
 	}
@@ -235,12 +225,8 @@ func main() {
 				t.Errorf("parseExpectedResults() error = %v, wantParseError %v", err, tt.wantParseError)
 				return
 			}
-			if gotOutput != tt.wantOutput {
-				t.Errorf("parseExpectedResults() gotOutput = %v, want %v", gotOutput, tt.wantOutput)
-			}
-			if gotError != tt.wantError {
-				t.Errorf("parseExpectedResults() gotError = %v, want %v", gotError, tt.wantError)
-			}
+			assert.Equal(t, tt.wantOutput, gotOutput)
+			assert.Equal(t, tt.wantError, gotError)
 		})
 	}
 }
@@ -349,9 +335,7 @@ var x = 5
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := generateCodeBlockName(tt.content, tt.output)
-			if result != tt.expectedGenerateName {
-				t.Errorf("generateCodeBlockName() = %v, want %v", result, tt.expectedGenerateName)
-			}
+			assert.Equal(t, tt.expectedGenerateName, result)
 		})
 	}
 }
@@ -398,9 +382,7 @@ func TestParseExecutionOptions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := parseExecutionOptions(tt.language, []byte(tt.firstLine))
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseExecutionOptions() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -434,26 +416,16 @@ func main() {
 ` + "```" + `
 `
 
-	blocks := GetCodeBlocks(input)
-
-	if len(blocks) != 3 {
-		t.Fatalf("Expected 3 code blocks, got %d", len(blocks))
+	blocks, err := GetCodeBlocks(input)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	// Check the first block (ignore)
-	if !blocks[0].options.Ignore {
-		t.Errorf("Expected first block to be ignored")
-	}
-
-	// Check the second block (should_panic)
-	if blocks[1].options.PanicMessage != "runtime error: index out of range" {
-		t.Errorf("Expected second block to have ShouldPanic option set to 'runtime error: index out of range', got '%s'", blocks[1].options.PanicMessage)
-	}
-
-	// Check the third block (normal execution)
-	if blocks[2].options.Ignore || blocks[2].options.PanicMessage != "" {
-		t.Errorf("Expected third block to have no special options")
-	}
+	assert.Len(t, blocks, 3)
+	assert.True(t, blocks[0].options.Ignore)
+	assert.Equal(t, "runtime error: index out of range", blocks[1].options.PanicMessage)
+	assert.Equal(t, ExecutionOptions{}, blocks[2].options)
+	assert.Equal(t, ExecutionOptions{}, blocks[2].options)
 }
 
 // ignore whitespace in the source code

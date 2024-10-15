@@ -15,6 +15,8 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
+const testPrefix = "// @test:"
+
 var (
 	outputRegex = regexp.MustCompile(`(?m)^// Output:$([\s\S]*?)(?:^(?://\s*$|// Error:|$))`)
 	errorRegex  = regexp.MustCompile(`(?m)^// Error:$([\s\S]*?)(?:^(?://\s*$|// Output:|$))`)
@@ -35,13 +37,13 @@ type codeBlock struct {
 
 // GetCodeBlocks parses the provided markdown text to extract all embedded code blocks.
 // It returns a slice of codeBlock structs, each representing a distinct block of code found in the markdown.
-func GetCodeBlocks(body string) []codeBlock {
+func GetCodeBlocks(body string) ([]codeBlock, error) {
 	md := goldmark.New()
 	reader := text.NewReader([]byte(body))
 	doc := md.Parser().Parse(reader)
 
 	var codeBlocks []codeBlock
-	mast.Walk(doc, func(n mast.Node, entering bool) (mast.WalkStatus, error) {
+	if err := mast.Walk(doc, func(n mast.Node, entering bool) (mast.WalkStatus, error) {
 		if entering {
 			if cb, ok := n.(*mast.FencedCodeBlock); ok {
 				codeBlock, err := createCodeBlock(cb, body, len(codeBlocks))
@@ -53,9 +55,11 @@ func GetCodeBlocks(body string) []codeBlock {
 			}
 		}
 		return mast.WalkContinue, nil
-	})
+	}); err != nil {
+		return nil, err
+	}
 
-	return codeBlocks
+	return codeBlocks, nil
 }
 
 // createCodeBlock creates a CodeBlock from a code block node.
@@ -139,7 +143,7 @@ func cleanSection(section string) (string, error) {
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(strings.TrimPrefix(scanner.Text(), "//"))
-		line = strings.TrimPrefix(line, " ")
+		line = strings.TrimSpace(line)
 		if line != "" {
 			cleanedLines = append(cleanedLines, line)
 		}
@@ -163,8 +167,8 @@ func generateCodeBlockName(content string, expectedOutput string) string {
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(strings.TrimSpace(line), "// @test:") {
-			return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "// @test:"))
+		if strings.HasPrefix(strings.TrimSpace(line), testPrefix) {
+			return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), testPrefix))
 		}
 	}
 
@@ -208,7 +212,7 @@ func determinePrefix(f *ast.File) string {
 // containsPrintStmt checks if the given function declaration contains
 // any print or println statements.
 func containsPrintStmt(fn *ast.FuncDecl) bool {
-	var hasPrintStmt bool
+	hasPrintStmt := false
 	ast.Inspect(fn, func(n ast.Node) bool {
 		if call, ok := n.(*ast.CallExpr); ok {
 			if ident, ok := call.Fun.(*ast.Ident); ok {
@@ -242,7 +246,7 @@ func containsCalculation(fn *ast.FuncDecl) bool {
 // of a Go file. It returns a slice of strings representing the imported
 // package names or the last part of the import path if no alias is used.
 func extractImports(f *ast.File) []string {
-	imports := make([]string, 0)
+	imports := make([]string, 0, len(f.Imports))
 	for _, imp := range f.Imports {
 		if imp.Name != nil {
 			imports = append(imports, imp.Name.Name)
