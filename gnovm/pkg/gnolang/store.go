@@ -119,7 +119,6 @@ func NewStore(alloc *Allocator, baseStore, iavlStore store.Store) *defaultStore 
 		// store configuration
 		pkgGetter:        nil,
 		cacheNativeTypes: make(map[reflect.Type]Type),
-		pkgInjector:      nil,
 		nativeStore:      nil,
 		go2gnoStrict:     true,
 	}
@@ -149,7 +148,6 @@ func (ds *defaultStore) BeginTransaction(baseStore, iavlStore store.Store) Trans
 		// store configuration
 		pkgGetter:        ds.pkgGetter,
 		cacheNativeTypes: ds.cacheNativeTypes,
-		pkgInjector:      ds.pkgInjector,
 		nativeStore:      ds.nativeStore,
 		go2gnoStrict:     ds.go2gnoStrict,
 
@@ -254,26 +252,6 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 				rlm := ds.GetPackageRealm(pkgPath)
 				pv.Realm = rlm
 			}
-			// get package node.
-			pl := PackageNodeLocation(pkgPath)
-			pn, ok := ds.GetBlockNodeSafe(pl).(*PackageNode)
-			if !ok {
-				// Do not inject packages from packageGetter
-				// that don't have corresponding *PackageNodes.
-			} else {
-				// Inject natives after load.
-				if ds.pkgInjector != nil {
-					if pn.HasAttribute(ATTR_INJECTED) {
-						// e.g. in checktx or simulate or query.
-						pn.PrepareNewValues(pv)
-					} else {
-						// pv.GetBlock(ds) // preload pv.Block
-						ds.pkgInjector(ds, pn)
-						pn.SetAttribute(ATTR_INJECTED, true)
-						pn.PrepareNewValues(pv)
-					}
-				}
-			}
 			// Rederive pv.fBlocksMap.
 			pv.deriveFBlocksMap(ds)
 			return pv
@@ -294,18 +272,6 @@ func (ds *defaultStore) GetPackage(pkgPath string, isImport bool) *PackageValue 
 			// will get written elsewhere
 			// later.
 			ds.cacheObjects[oid] = pv
-			// inject natives after init.
-			if ds.pkgInjector != nil {
-				if pn.HasAttribute(ATTR_INJECTED) {
-					// not sure why this would happen.
-					panic("should not happen")
-					// pn.PrepareNewValues(pv)
-				} else {
-					ds.pkgInjector(ds, pn)
-					pn.SetAttribute(ATTR_INJECTED, true)
-					pn.PrepareNewValues(pv)
-				}
-			}
 			// cache all types. usually preprocess() sets types,
 			// but packages gotten from the pkgGetter may skip this step,
 			// so fill in store.CacheTypes here.
