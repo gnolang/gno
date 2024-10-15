@@ -234,7 +234,7 @@ func TestFtoaRandom(t *testing.T) {
 			t.Errorf("%b printed as %s, want %s", x, shortFast, shortSlow)
 		}
 
-		prec := rand.Intn(12) + 5
+		prec := rand.IntN(12) + 5
 		shortFast = FormatFloat(x, 'e', prec, 64)
 		SetOptimize(false)
 		shortSlow = FormatFloat(x, 'e', prec, 64)

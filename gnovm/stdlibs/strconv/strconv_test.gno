@@ -106,6 +106,9 @@ func TestAllocationsFromBytes(t *testing.T) {
 	t.Run("ParseFloat", checkNoAllocs(func() {
 		Sink.Float64, Sink.Error = ParseFloat(string(bytes.Number), 64)
 	}))
+	t.Run("ParseComplex", checkNoAllocs(func() {
+		Sink.Complex128, Sink.Error = ParseComplex(string(bytes.Number), 128)
+	}))
 	t.Run("CanBackquote", checkNoAllocs(func() {
 		Sink.Bool = CanBackquote(string(bytes.String))
 	}))
@@ -149,4 +152,5 @@ func TestErrorPrefixes(t *testing.T) {
 			t.Errorf("mismatching Func: got %s, want %s", got, v.want)
 		}
 	}
+
 }

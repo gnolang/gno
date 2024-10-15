@@ -19,10 +19,8 @@ type floatInfo struct {
 	bias     int
 }
 
-var (
-	float32info = floatInfo{23, 8, -127}
-	float64info = floatInfo{52, 11, -1023}
-)
+var float32info = floatInfo{23, 8, -127}
+var float64info = floatInfo{52, 11, -1023}
 
 // FormatFloat converts the floating-point number f to a string,
 // according to the format fmt and precision prec. It rounds the
@@ -75,7 +73,7 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
 	mant := bits & (uint64(1)<<flt.mantbits - 1)
 
 	switch exp {
-	case int(1)<<flt.expbits - 1:
+	case 1<<flt.expbits - 1:
 		// Inf, NaN
 		var s string
 		switch {
@@ -230,7 +228,7 @@ func formatDigits(dst []byte, shortest bool, neg bool, digs decimalSlice, prec i
 	}
 
 	// unknown format
-	return append(dst, byte('%'), fmt)
+	return append(dst, '%', fmt)
 }
 
 // roundShortest rounds d (= mant * 2^exp) to the shortest number of digits
@@ -277,7 +275,7 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
 	// Our lower bound is halfway between, mantlo*2+1 << explo-mantbits-1.
 	var mantlo uint64
 	var explo int
-	if mant > uint64(1)<<flt.mantbits || exp == minexp {
+	if mant > 1<<flt.mantbits || exp == minexp {
 		mantlo = mant - 1
 		explo = exp
 	} else {
@@ -422,7 +420,7 @@ func fmtE(dst []byte, neg bool, d decimalSlice, prec int, fmt byte) []byte {
 	// dd or ddd
 	switch {
 	case exp < 10:
-		dst = append(dst, byte('0'), byte(exp)+'0')
+		dst = append(dst, '0', byte(exp)+'0')
 	case exp < 100:
 		dst = append(dst, byte(exp/10)+'0', byte(exp%10)+'0')
 	default:
@@ -496,7 +494,7 @@ func fmtX(dst []byte, prec int, fmt byte, neg bool, mant uint64, exp int, flt *f
 
 	// Shift digits so leading 1 (if any) is at bit 1<<60.
 	mant <<= 60 - flt.mantbits
-	for mant != 0 && mant&(uint64(1)<<60) == 0 {
+	for mant != 0 && mant&(1<<60) == 0 {
 		mant <<= 1
 		exp--
 	}
@@ -506,11 +504,11 @@ func fmtX(dst []byte, prec int, fmt byte, neg bool, mant uint64, exp int, flt *f
 		shift := uint(prec * 4)
 		extra := (mant << shift) & (1<<60 - 1)
 		mant >>= 60 - shift
-		if extra|(mant&1) > uint64(1)<<59 {
+		if extra|(mant&1) > 1<<59 {
 			mant++
 		}
 		mant <<= 60 - shift
-		if mant&(uint64(1)<<61) != 0 {
+		if mant&(1<<61) != 0 {
 			// Wrapped around.
 			mant >>= 1
 			exp++
@@ -526,7 +524,7 @@ func fmtX(dst []byte, prec int, fmt byte, neg bool, mant uint64, exp int, flt *f
 	if neg {
 		dst = append(dst, '-')
 	}
-	dst = append(dst, byte('0'), fmt, '0'+byte((mant>>60)&1))
+	dst = append(dst, '0', fmt, '0'+byte((mant>>60)&1))
 
 	// .fraction
 	mant <<= 4 // remove leading 0 or 1

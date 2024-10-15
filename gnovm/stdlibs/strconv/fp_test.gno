@@ -7,7 +7,6 @@ package strconv_test
 import (
 	"bufio"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"testing"

@@ -103,10 +103,8 @@ func (a *decimal) Assign(v uint64) {
 
 // Maximum shift that we can do in one pass without overflow.
 // A uint has 32 or 64 bits, and we have to be able to accommodate 9<<k.
-const (
-	uintSize = 32 << (^uint(0) >> 63)
-	maxShift = uintSize - 4
-)
+const uintSize = 32 << (^uint(0) >> 63)
+const maxShift = uintSize - 4
 
 // Binary shift right (/ 2) by k bits.  k <= maxShift to avoid overflow.
 func rightShift(a *decimal, k uint) {

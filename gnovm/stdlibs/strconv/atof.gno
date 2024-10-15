@@ -370,7 +370,7 @@ func (d *decimal) floatBits(flt *floatInfo) (b uint64, overflow bool) {
 		exp += n
 	}
 
-	if exp-flt.bias >= int(1)<<flt.expbits-1 {
+	if exp-flt.bias >= 1<<flt.expbits-1 {
 		goto overflow
 	}
 
@@ -379,16 +379,16 @@ func (d *decimal) floatBits(flt *floatInfo) (b uint64, overflow bool) {
 	mant = d.RoundedInteger()
 
 	// Rounding might have added a bit; shift down.
-	if mant == uint64(2)<<flt.mantbits {
+	if mant == 2<<flt.mantbits {
 		mant >>= 1
 		exp++
-		if exp-flt.bias >= int(1)<<flt.expbits-1 {
+		if exp-flt.bias >= 1<<flt.expbits-1 {
 			goto overflow
 		}
 	}
 
 	// Denormalized?
-	if mant&(uint64(1)<<flt.mantbits) == 0 {
+	if mant&(1<<flt.mantbits) == 0 {
 		exp = flt.bias
 	}
 	goto out
@@ -396,15 +396,15 @@ func (d *decimal) floatBits(flt *floatInfo) (b uint64, overflow bool) {
 overflow:
 	// ±Inf
 	mant = 0
-	exp = int(1)<<flt.expbits - 1 + flt.bias
+	exp = 1<<flt.expbits - 1 + flt.bias
 	overflow = true
 
 out:
 	// Assemble bits.
 	bits := mant & (uint64(1)<<flt.mantbits - 1)
-	bits |= uint64((exp-flt.bias)&(int(1)<<flt.expbits-1)) << flt.mantbits
+	bits |= uint64((exp-flt.bias)&(1<<flt.expbits-1)) << flt.mantbits
 	if d.neg {
-		bits |= uint64(1) << flt.mantbits << flt.expbits
+		bits |= 1 << flt.mantbits << flt.expbits
 	}
 	return bits, overflow
 }
@@ -497,7 +497,7 @@ func atof32exact(mantissa uint64, exp int, neg bool) (f float32, ok bool) {
 // The string s has already been parsed into a mantissa, exponent, and sign (neg==true for negative).
 // If trunc is true, trailing non-zero bits have been omitted from the mantissa.
 func atofHex(s string, flt *floatInfo, mantissa uint64, exp int, neg, trunc bool) (float64, error) {
-	maxExp := int(1)<<flt.expbits + flt.bias - 2
+	maxExp := 1<<flt.expbits + flt.bias - 2
 	minExp := flt.bias + 1
 	exp += int(flt.mantbits) // mantissa now implicitly divided by 2^mantbits.
 
@@ -534,7 +534,7 @@ func atofHex(s string, flt *floatInfo, mantissa uint64, exp int, neg, trunc bool
 	exp += 2
 	if round == 3 {
 		mantissa++
-		if mantissa == uint64(1)<<(1+flt.mantbits) {
+		if mantissa == 1<<(1+flt.mantbits) {
 			mantissa >>= 1
 			exp++
 		}
@@ -545,15 +545,15 @@ func atofHex(s string, flt *floatInfo, mantissa uint64, exp int, neg, trunc bool
 	}
 	var err error
 	if exp > maxExp { // infinity and range error
-		mantissa = uint64(1) << flt.mantbits
+		mantissa = 1 << flt.mantbits
 		exp = maxExp + 1
 		err = rangeError(fnParseFloat, s)
 	}
 
-	bits := mantissa & (uint64(1)<<flt.mantbits - 1)
-	bits |= uint64((exp-flt.bias)&(int(1)<<flt.expbits-1)) << flt.mantbits
+	bits := mantissa & (1<<flt.mantbits - 1)
+	bits |= uint64((exp-flt.bias)&(1<<flt.expbits-1)) << flt.mantbits
 	if neg {
-		bits |= uint64(1) << flt.mantbits << flt.expbits
+		bits |= 1 << flt.mantbits << flt.expbits
 	}
 	if flt == &float32info {
 		return float64(math.Float32frombits(uint32(bits))), err

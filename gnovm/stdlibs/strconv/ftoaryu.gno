@@ -62,8 +62,7 @@ func ryuFtoaFixed32(d *decimalSlice, mant uint32, exp int, prec int) {
 	}
 	// Remove extra lower bits and keep rounding info.
 	extra := uint(-dexp2)
-	// XXX: https://github.com/gnolang/gno/issues/1462
-	extraMask := uint32(uint32(1)<<extra - 1)
+	extraMask := uint32(1<<extra - 1)
 
 	di, dfrac := di>>extra, di&extraMask
 	roundUp := false
@@ -133,17 +132,16 @@ func ryuFtoaFixed64(d *decimalSlice, mant uint64, exp int, prec int) {
 	}
 	// Remove extra lower bits and keep rounding info.
 	extra := uint(-dexp2)
-	// XXX: https://github.com/gnolang/gno/issues/1462
-	extraMask := uint64(uint64(1)<<extra - 1)
+	extraMask := uint64(1<<extra - 1)
 
 	di, dfrac := di>>extra, di&extraMask
 	roundUp := false
 	if exact {
 		// If we computed an exact product, d + 1/2
 		// should round to d+1 if 'd' is odd.
-		roundUp = dfrac > uint64(1)<<(extra-1) ||
-			(dfrac == uint64(1)<<(extra-1) && !d0) ||
-			(dfrac == uint64(1)<<(extra-1) && d0 && di&1 == 1)
+		roundUp = dfrac > 1<<(extra-1) ||
+			(dfrac == 1<<(extra-1) && !d0) ||
+			(dfrac == 1<<(extra-1) && d0 && di&1 == 1)
 	} else {
 		// otherwise, d+1/2 always rounds up because
 		// we truncated below.
@@ -285,7 +283,7 @@ func ryuFtoaShortest(d *decimalSlice, mant uint64, exp int, flt *floatInfo) {
 	// Express the results (dl, dc, du)*2^e2 as integers.
 	// Extra bits must be removed and rounding hints computed.
 	extra := uint(-e2)
-	extraMask := uint64(1)<<extra - 1
+	extraMask := uint64(1<<extra - 1)
 	// Now compute the floored, integral base 10 mantissas.
 	dl, fracl := dl>>extra, dl&extraMask
 	dc, fracc := dc>>extra, dc&extraMask
@@ -366,8 +364,7 @@ func computeBounds(mant uint64, exp int, flt *floatInfo) (lower, central, upper 
 }
 
 func ryuDigits(d *decimalSlice, lower, central, upper uint64,
-	c0, cup bool,
-) {
+	c0, cup bool) {
 	lhi, llo := divmod1e9(lower)
 	chi, clo := divmod1e9(central)
 	uhi, ulo := divmod1e9(upper)
@@ -413,8 +410,7 @@ func ryuDigits(d *decimalSlice, lower, central, upper uint64,
 
 // ryuDigits32 emits decimal digits for a number less than 1e9.
 func ryuDigits32(d *decimalSlice, lower, central, upper uint32,
-	c0, cup bool, endindex int,
-) {
+	c0, cup bool, endindex int) {
 	if upper == 0 {
 		d.dp = endindex + 1
 		return

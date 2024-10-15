@@ -18,8 +18,7 @@ var shifttests = []shiftTest{
 	{0, -100, "0"},
 	{0, 100, "0"},
 	{1, 100, "1267650600228229401496703205376"},
-	{
-		1, -100,
+	{1, -100,
 		"0.00000000000000000000000000000078886090522101180541" +
 			"17285652827862296732064351090230047702789306640625",
 	},
@@ -118,10 +117,10 @@ func TestDecimalRoundedInteger(t *testing.T) {
 		test := roundinttests[i]
 		d := NewDecimal(test.i)
 		d.Shift(test.shift)
-		int := d.RoundedInteger()
-		if int != test.int {
+		num := d.RoundedInteger()
+		if num != test.int {
 			t.Errorf("Decimal %v >> %v RoundedInteger = %v, want %v",
-				test.i, test.shift, int, test.int)
+				test.i, test.shift, num, test.int)
 		}
 	}
 }

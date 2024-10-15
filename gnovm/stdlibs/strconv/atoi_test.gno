@@ -50,7 +50,7 @@ var parseUint64BaseTests = []parseUint64BaseTest{
 	{"0X", 0, 0, ErrSyntax},
 	{"1", 0, 1, nil},
 	{"12345", 0, 12345, nil},
-	{"012345", 0, 0o12345, nil},
+	{"012345", 0, 012345, nil},
 	{"0x12345", 0, 0x12345, nil},
 	{"0X12345", 0, 0x12345, nil},
 	{"12345x", 0, 0, ErrSyntax},
@@ -99,13 +99,13 @@ var parseUint64BaseTests = []parseUint64BaseTest{
 	{"1234__5", 16, 0, ErrSyntax},
 	{"12345_", 16, 0, ErrSyntax},
 
-	{"0_1_2_3_4_5", 0, 0o12345, nil}, // base 0 => 8 (0377)
+	{"0_1_2_3_4_5", 0, 012345, nil}, // base 0 => 8 (0377)
 	{"_012345", 0, 0, ErrSyntax},
 	{"0__12345", 0, 0, ErrSyntax},
 	{"01234__5", 0, 0, ErrSyntax},
 	{"012345_", 0, 0, ErrSyntax},
 
-	{"0o_1_2_3_4_5", 0, 0o12345, nil}, // base 0 => 8 (0o377)
+	{"0o_1_2_3_4_5", 0, 012345, nil}, // base 0 => 8 (0o377)
 	{"_0o12345", 0, 0, ErrSyntax},
 	{"0o__12345", 0, 0, ErrSyntax},
 	{"0o1234__5", 0, 0, ErrSyntax},
@@ -180,8 +180,8 @@ var parseInt64BaseTests = []parseInt64BaseTest{
 	{"-1", 0, -1, nil},
 	{"12345", 0, 12345, nil},
 	{"-12345", 0, -12345, nil},
-	{"012345", 0, 0o12345, nil},
-	{"-012345", 0, -0o12345, nil},
+	{"012345", 0, 012345, nil},
+	{"-012345", 0, -012345, nil},
 	{"0x12345", 0, 0x12345, nil},
 	{"-0X12345", 0, -0x12345, nil},
 	{"12345x", 0, 0, ErrSyntax},
@@ -213,7 +213,7 @@ var parseInt64BaseTests = []parseInt64BaseTest{
 
 	// base 8
 	{"-10", 8, -8, nil},
-	{"57635436545", 8, 0o57635436545, nil},
+	{"57635436545", 8, 057635436545, nil},
 	{"100000000", 8, 1 << 24, nil},
 
 	// base 16
@@ -232,8 +232,8 @@ var parseInt64BaseTests = []parseInt64BaseTest{
 	{"0x1234__5", 0, 0, ErrSyntax},
 	{"0x12345_", 0, 0, ErrSyntax},
 
-	{"-0_1_2_3_4_5", 0, -0o12345, nil}, // octal
-	{"0_1_2_3_4_5", 0, 0o12345, nil},   // octal
+	{"-0_1_2_3_4_5", 0, -012345, nil}, // octal
+	{"0_1_2_3_4_5", 0, 012345, nil},   // octal
 	{"-_012345", 0, 0, ErrSyntax},
 	{"_-012345", 0, 0, ErrSyntax},
 	{"_012345", 0, 0, ErrSyntax},

@@ -2104,7 +2104,8 @@ func Preprocess(store Store, ctx BlockNode, n Node) Node {
 			case *BranchStmt:
 				switch n.Op {
 				case BREAK:
-					if !isSwitchLabel(ns, n.Label) {
+					// XXX Remove n.Label != "" and fix issue properly.
+					if n.Label != "" && !isSwitchLabel(ns, n.Label) {
 						findBranchLabel(last, n.Label)
 					}
 				case CONTINUE:

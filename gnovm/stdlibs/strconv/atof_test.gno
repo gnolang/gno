@@ -483,11 +483,10 @@ func initAtofOnce() {
 		benchmarksRandomBits[i] = FormatFloat(x, 'g', -1, 64)
 	}
 
-	// XXX: math/rand does not support NormFloat64 currently
-	// for i := range benchmarksRandomNormal {
-	// 	x := rand.NormFloat64()
-	// 	benchmarksRandomNormal[i] = FormatFloat(x, 'g', -1, 64)
-	// }
+	for i := range benchmarksRandomNormal {
+		x := rand.NormFloat64()
+		benchmarksRandomNormal[i] = FormatFloat(x, 'g', -1, 64)
+	}
 }
 
 func TestParseFloatPrefix(t *testing.T) {
