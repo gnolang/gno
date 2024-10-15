@@ -505,14 +505,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(inbound_peers_hist_sum[$__rate_interval])/rate(inbound_peers_hist_count[$__rate_interval])",
+          "expr": "avg_over_time(inbound_peers_gauge{node=~\"${node}\"}[$__rate_interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average Inbound Peer Count",
+      "title": "Average Inbound Peer Count - Node: ${node}",
       "type": "stat"
     },
     {
@@ -572,14 +572,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(outbound_peers_hist_sum[$__rate_interval])/rate(outbound_peers_hist_count[$__rate_interval])",
+          "expr": "avg_over_time(outbound_peers_gauge{node=~\"${node}\"}[$__rate_interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average Outbound Peer Count",
+      "title": "Average Outbound Peer Count - Node: ${node}",
       "type": "stat"
     },
     {
@@ -639,14 +639,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(dialing_peers_hist_sum[$__rate_interval])/rate(dialing_peers_hist_count[$__rate_interval])",
+          "expr": "avg_over_time(dialing_peers_gauge{node=~\"${node}\"}[$__rate_interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average Dialing Peer Count",
+      "title": "Average Dialing Peer Count - Node: ${node}",
       "type": "stat"
     },
     {
@@ -1369,6 +1369,10 @@
           "text": "m_addpkg",
           "value": "m_addpkg"
         },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
         "definition": "label_values(vm_gas_used_hist_sum,operation)",
         "hide": 0,
         "includeAll": false,
@@ -1385,6 +1389,33 @@
         "skipUrlSync": false,
         "sort": 0,
         "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(exported_instance)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "node",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(exported_instance)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
       }
     ]
   },
@@ -1394,7 +1425,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Gno Node Metrics",
+  "title": "Gno Node Open Telemetry Metrics",
   "uid": "bdl7d5yogxjb4b",
   "version": 1,
   "weekStart": ""

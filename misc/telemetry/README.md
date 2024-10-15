@@ -35,10 +35,10 @@ Default login details:
 - password: admin
 
 After you've logged in (you can skip setting a new password), on the left hand side, click on
-`Dashboards -> Gno -> Gno Node Metrics`:
+`Dashboards -> Gno -> Gno Node Open Telemetry Metrics`:
 ![Grafana](assets/grafana-1.jpeg)
 
-This will open up the predefined Gno Metrics dashboards (added for ease of use) :
+This will open up the predefined Gno Metrics dashboards (added for ease of use):
 ![Metrics Dashboard](assets/grafana-2.jpeg)
 
 Periodically, these metrics will be updated as the `supernova` process is simulating network traffic.
