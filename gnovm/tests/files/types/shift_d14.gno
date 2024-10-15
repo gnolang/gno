@@ -4,7 +4,7 @@ import "fmt"
 
 // it's like assign
 func foo(a uint64, b int64) {
-	fmt.Printf("%T \n", a)
+	fmt.Printf("%T\n", a)
 	println(a)
 }
 

@@ -3,8 +3,8 @@ package main
 import "fmt"
 
 func foo(a uint64, b int64) {
-	fmt.Printf("%T \n", a)
-	fmt.Printf("%T \n", b)
+	fmt.Printf("%T\n", a)
+	fmt.Printf("%T\n", b)
 	println(a)
 	println(b)
 }
