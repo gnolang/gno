@@ -87,7 +87,8 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
-	bankKpr := bank.NewBankKeeper(acctKpr)
+	tckpr := bank.NewTotalCoinKeeper(mainKey)
+	bankKpr := bank.NewBankKeeper(acctKpr, tckpr)
 	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, cfg.MaxCycles)
 
 	// Set InitChainer
@@ -291,7 +292,7 @@ func (cfg InitChainerConfig) loadAppState(ctx sdk.Context, appState any) ([]abci
 	for _, bal := range state.Balances {
 		acc := cfg.acctKpr.NewAccountWithAddress(ctx, bal.Address)
 		cfg.acctKpr.SetAccount(ctx, acc)
-		err := cfg.bankKpr.SetCoins(ctx, bal.Address, bal.Amount)
+		_, err := cfg.bankKpr.AddCoins(ctx, bal.Address, bal.Amount)
 		if err != nil {
 			panic(err)
 		}
