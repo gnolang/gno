@@ -298,6 +298,69 @@ func Echo(msg string) string {
 	assert.Error(t, err)
 }
 
+// Sending total send amount succeeds.
+func TestVMKeeperDerefErrorStrings(t *testing.T) {
+	env := setupTestEnv()
+	ctx := env.vmk.MakeGnoTransactionStore(env.ctx)
+
+	// Give "addr1" some gnots.
+	addr := crypto.AddressFromPreimage([]byte("addr1"))
+	acc := env.acck.NewAccountWithAddress(ctx, addr)
+	env.acck.SetAccount(ctx, acc)
+	// add funds to the account
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+	assert.True(t, env.bank.GetCoins(ctx, addr).IsEqual(std.MustParseCoins(coinsString)))
+
+	// Create test package.
+	files := []*std.MemFile{
+		{"main.gno", `
+package main
+
+import "errors"
+
+var MyError = errors.New("my error")
+
+type EmbeddedErrorStruct struct { 
+	embErr error
+}
+
+func (e EmbeddedErrorStruct) Error() error {
+	return e.embErr
+}
+
+func GetEmbeddedError() error {
+	s := EmbeddedErrorStruct{
+		embErr: MyError,
+	}
+	
+	return s.Error()
+}
+
+func GetError() (error, string) {
+ return MyError, "random string"
+}
+`},
+	}
+	pkgPath := "gno.land/r/test"
+	msg1 := NewMsgAddPackage(addr, pkgPath, files)
+	err := env.vmk.AddPackage(ctx, msg1)
+	assert.NoError(t, err)
+
+	//Run Echo function.
+	coins := std.MustParseCoins(coinsString)
+	msg2 := NewMsgCall(addr, coins, pkgPath, "GetError", []string{})
+	res, err := env.vmk.Call(ctx, msg2)
+	assert.NoError(t, err)
+	assert.Contains(t, res, `("my error" error)`)
+
+	env.bank.SetCoins(ctx, addr, std.MustParseCoins(coinsString))
+
+	msg3 := NewMsgCall(addr, coins, pkgPath, "GetEmbeddedError", []string{})
+	res, err = env.vmk.Call(ctx, msg3)
+	assert.NoError(t, err)
+	assert.Contains(t, res, `("my error" error)`)
+}
+
 // Assign admin as OrigCaller on deploying the package.
 func TestVMKeeperOrigCallerInit(t *testing.T) {
 	env := setupTestEnv()

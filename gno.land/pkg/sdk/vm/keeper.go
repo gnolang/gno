@@ -494,9 +494,50 @@ func (vm *VMKeeper) Call(ctx sdk.Context, msg MsgCall) (res string, err error) {
 			}
 		}
 	}()
+
+	// Check if the function called returns an error, mark results as such
+	var resultIsErr []bool
+	if callExpr, ok := xn.(*gno.CallExpr); ok {
+		if selectorExpr, ok := callExpr.Func.(*gno.SelectorExpr); ok {
+			// Find the function in the package.
+			var functionType *gno.FuncType
+			for _, typedValue := range pv.Block.(*gno.Block).Values {
+				funcValue, ok := typedValue.V.(*gno.FuncValue)
+				if !ok || funcValue.Name != selectorExpr.Sel {
+					continue
+				}
+
+				// This is the function we are looking for.
+				functionType = funcValue.Type.(*gno.FuncType)
+				resultIsErr = make([]bool, len(functionType.Results))
+				break
+			}
+
+			if functionType != nil {
+				// Mark the error result types as such so we know which result values need
+				// to potentially be resolved after calling the function.
+				for i, result := range functionType.Results {
+					if result.TypeID() == (".uverse.error") {
+						resultIsErr[i] = true
+					}
+				}
+			}
+		}
+	}
+
 	rtvs := m.Eval(xn)
 	for i, rtv := range rtvs {
-		res = res + rtv.String()
+		if resultIsErr[i] {
+			ptv := rtv.V.(gno.PointerValue)
+			tv := ptv.Deref()
+
+			errObj := gnostore.GetObject(tv.V.(gno.RefValue).ObjectID).String()
+			errMsg := strings.Split(errObj, "\"")[1]
+			res = res + fmt.Sprintf("(\"%s\" error)", errMsg)
+		} else {
+			res = res + rtv.String()
+		}
+
 		if i < len(rtvs)-1 {
 			res += "\n"
 		}
