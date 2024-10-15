@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -340,11 +341,8 @@ func (r redeclarationErrors) Error() string {
 }
 
 func (r redeclarationErrors) add(newI Name) redeclarationErrors {
-	// TODO: after go.mod switches to go1.21, convert this to slices.Contains
-	for _, s := range r {
-		if s == newI {
-			return r
-		}
+	if slices.Contains(r, newI) {
+		return r
 	}
 	return append(r, newI)
 }
