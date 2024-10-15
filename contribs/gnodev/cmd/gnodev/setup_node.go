@@ -23,7 +23,7 @@ func setupDevNode(
 
 	if devCfg.txsFile != "" { // Load txs files
 		var err error
-		nodeConfig.InitialTxs, err = parseTxs(devCfg.txsFile)
+		nodeConfig.InitialTxs, err = parseTxs(ctx, logger, devCfg.txsFile)
 		if err != nil {
 			return nil, fmt.Errorf("unable to load transactions: %w", err)
 		}
@@ -34,10 +34,16 @@ func setupDevNode(
 		}
 
 		// Override balances and txs
-		nodeConfig.BalancesList = state.Balances
-		nodeConfig.InitialTxs = state.Txs
+		nodeConfig.BalancesList = state.GenesisBalances()
 
-		logger.Info("genesis file loaded", "path", devCfg.genesisFile, "txs", len(nodeConfig.InitialTxs))
+		stateTxs := state.GenesisTxs()
+		nodeConfig.InitialTxs = make([]gnoland.GenesisTx, len(stateTxs))
+
+		for index, nodeTx := range stateTxs {
+			nodeConfig.InitialTxs[index] = nodeTx
+		}
+
+		logger.Info("genesis file loaded", "path", devCfg.genesisFile, "txs", len(stateTxs))
 	}
 
 	return gnodev.NewDevNode(ctx, nodeConfig)
@@ -69,18 +75,18 @@ func setupDevNodeConfig(
 	return config
 }
 
-func extractAppStateFromGenesisFile(path string) (*gnoland.GnoGenesisState, error) {
+func extractAppStateFromGenesisFile(path string) (gnoland.GnoGenesis, error) {
 	doc, err := types.GenesisDocFromFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("unable to parse doc file: %w", err)
 	}
 
-	state, ok := doc.AppState.(gnoland.GnoGenesisState)
+	state, ok := doc.AppState.(gnoland.GnoGenesis)
 	if !ok {
 		return nil, fmt.Errorf("invalid `GnoGenesisState` app state")
 	}
 
-	return &state, nil
+	return state, nil
 }
 
 func resolveUnixOrTCPAddr(in string) (out string) {

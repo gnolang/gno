@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"net/url"
 	"path/filepath"
+	"time"
 
 	"github.com/gnolang/gno/contribs/gnodev/pkg/address"
+	"github.com/gnolang/gno/gno.land/pkg/gnoland"
 	vmm "github.com/gnolang/gno/gno.land/pkg/sdk/vm"
 	gno "github.com/gnolang/gno/gnovm/pkg/gnolang"
 	"github.com/gnolang/gno/gnovm/pkg/gnomod"
@@ -118,7 +120,7 @@ func (pm PackagesMap) toList() gnomod.PkgList {
 	return list
 }
 
-func (pm PackagesMap) Load(fee std.Fee) ([]std.Tx, error) {
+func (pm PackagesMap) Load(fee std.Fee, start time.Time) ([]gnoland.GenesisTx, error) {
 	pkgs := pm.toList()
 
 	sorted, err := pkgs.Sort()
@@ -127,7 +129,7 @@ func (pm PackagesMap) Load(fee std.Fee) ([]std.Tx, error) {
 	}
 
 	nonDraft := sorted.GetNonDraftPkgs()
-	txs := []std.Tx{}
+	metatxs := []gnoland.GenesisTx{}
 	for _, modPkg := range nonDraft {
 		pkg := pm[modPkg.Dir]
 		if pkg.Creator.IsZero() {
@@ -151,10 +153,17 @@ func (pm PackagesMap) Load(fee std.Fee) ([]std.Tx, error) {
 				},
 			},
 		}
-
 		tx.Signatures = make([]std.Signature, len(tx.GetSigners()))
-		txs = append(txs, tx)
+
+		metatx := gnoland.MetadataTx{
+			GenesisTx: tx,
+			TxMetadata: gnoland.GenesisTxMetadata{
+				Timestamp: start.Unix(),
+			},
+		}
+
+		metatxs = append(metatxs, metatx)
 	}
 
-	return txs, nil
+	return metatxs, nil
 }
