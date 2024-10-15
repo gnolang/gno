@@ -1,4 +1,4 @@
-package varmeta_md
+package md
 
 import (
 	"regexp"

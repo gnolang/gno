@@ -1,4 +1,4 @@
-package varmeta_md
+package md
 
 import (
 	"bytes"
@@ -581,7 +581,7 @@ gatherLines:
 	return
 }
 
-func ispunct(c byte) bool {
+func isPunct(c byte) bool {
 	for _, r := range []byte("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~") {
 		if c == r {
 			return true
@@ -590,24 +590,24 @@ func ispunct(c byte) bool {
 	return false
 }
 
-func isspace(c byte) bool {
-	return ishorizontalspace(c) || isverticalspace(c)
+func isSpace(c byte) bool {
+	return isHorizontalSpace(c) || isVerticalSpace(c)
 }
 
-func ishorizontalspace(c byte) bool {
+func isHorizontalSpace(c byte) bool {
 	return c == ' ' || c == '\t'
 }
 
-func isverticalspace(c byte) bool {
+func isVerticalSpace(c byte) bool {
 	return c == '\n' || c == '\r' || c == '\f' || c == '\v'
 }
 
-func isletter(c byte) bool {
+func isLetter(c byte) bool {
 	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 }
 
-func isalnum(c byte) bool {
-	return (c >= '0' && c <= '9') || isletter(c)
+func isAlnum(c byte) bool {
+	return (c >= '0' && c <= '9') || isLetter(c)
 }
 
 func expandTabs(out *bytes.Buffer, line []byte, tabSize int) {
@@ -688,7 +688,7 @@ func slugify(in []byte) []byte {
 	sym := false
 
 	for _, ch := range in {
-		if isalnum(ch) {
+		if isAlnum(ch) {
 			sym = false
 			out = append(out, ch)
 		} else if sym {

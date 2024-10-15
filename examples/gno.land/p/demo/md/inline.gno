@@ -1,4 +1,4 @@
-package varmeta_md
+package md
 
 import (
 	"bytes"
@@ -44,11 +44,14 @@ func (p *parser) inline(out *bytes.Buffer, data []byte) {
 
 func emphasis(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	data = data[offset:]
+	if len(data) == 0 {
+		return 0
+	}
 	c := data[0]
 	ret := 0
 
 	if len(data) > 2 && data[1] != c {
-		if c == '~' || isspace(data[1]) {
+		if c == '~' || isSpace(data[1]) {
 			return 0
 		}
 		if ret = helperEmphasis(p, out, data[1:], c); ret == 0 {
@@ -59,7 +62,7 @@ func emphasis(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	}
 
 	if len(data) > 3 && data[1] == c && data[2] != c {
-		if isspace(data[2]) {
+		if isSpace(data[2]) {
 			return 0
 		}
 		if ret = helperDoubleEmphasis(p, out, data[2:], c); ret == 0 {
@@ -70,7 +73,7 @@ func emphasis(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	}
 
 	if len(data) > 4 && data[1] == c && data[2] == c && data[3] != c {
-		if c == '~' || isspace(data[3]) {
+		if c == '~' || isSpace(data[3]) {
 			return 0
 		}
 		if ret = helperTripleEmphasis(p, out, data, 3, c); ret == 0 {
@@ -228,7 +231,7 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	txtE := i
 	i++
 
-	for i < len(data) && isspace(data[i]) {
+	for i < len(data) && isSpace(data[i]) {
 		i++
 	}
 
@@ -236,7 +239,7 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	case i < len(data) && data[i] == '(':
 		i++
 
-		for i < len(data) && isspace(data[i]) {
+		for i < len(data) && isSpace(data[i]) {
 			i++
 		}
 
@@ -296,7 +299,7 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 			}
 
 			titleE = i - 1
-			for titleE > titleB && isspace(data[titleE]) {
+			for titleE > titleB && isSpace(data[titleE]) {
 				titleE--
 			}
 
@@ -306,7 +309,7 @@ func link(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 			}
 		}
 
-		for linkE > linkB && isspace(data[linkE-1]) {
+		for linkE > linkB && isSpace(data[linkE-1]) {
 			linkE--
 		}
 
@@ -592,7 +595,7 @@ func entity(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 		end++
 	}
 
-	for end < len(data) && isalnum(data[end]) {
+	for end < len(data) && isAlnum(data[end]) {
 		end++
 	}
 
@@ -631,7 +634,7 @@ func autoLink(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 	}
 
 	rewind := 0
-	for offset-rewind > 0 && rewind <= 7 && isletter(data[offset-rewind-1]) {
+	for offset-rewind > 0 && rewind <= 7 && isLetter(data[offset-rewind-1]) {
 		rewind++
 	}
 	if rewind > 6 {
@@ -711,7 +714,7 @@ func autoLink(p *parser, out *bytes.Buffer, data []byte, offset int) int {
 }
 
 func isEndOfLink(char byte) bool {
-	return isspace(char) || char == '<'
+	return isSpace(char) || char == '<'
 }
 
 var (
@@ -724,14 +727,14 @@ func isSafeLink(link []byte) bool {
 		if len(link) >= len(path) && bytes.Equal(link[:len(path)], path) {
 			if len(link) == len(path) {
 				return true
-			} else if isalnum(link[len(path)]) {
+			} else if isAlnum(link[len(path)]) {
 				return true
 			}
 		}
 	}
 
 	for _, prefix := range validUris {
-		if len(link) > len(prefix) && bytes.Equal(bytes.ToLower(link[:len(prefix)]), prefix) && isalnum(link[len(prefix)]) {
+		if len(link) > len(prefix) && bytes.Equal(bytes.ToLower(link[:len(prefix)]), prefix) && isAlnum(link[len(prefix)]) {
 			return true
 		}
 	}
@@ -755,13 +758,13 @@ func tagLength(data []byte, autolink *int) int {
 		i = 1
 	}
 
-	if !isalnum(data[i]) {
+	if !isAlnum(data[i]) {
 		return 0
 	}
 
 	*autolink = LINK_TYPE_NOT_AUTOLINK
 
-	for i < len(data) && (isalnum(data[i]) || data[i] == '.' || data[i] == '+' || data[i] == '-') {
+	for i < len(data) && (isAlnum(data[i]) || data[i] == '.' || data[i] == '+' || data[i] == '-') {
 		i++
 	}
 
@@ -786,7 +789,7 @@ func tagLength(data []byte, autolink *int) int {
 		for i < len(data) {
 			if data[i] == '\\' {
 				i += 2
-			} else if data[i] == '>' || data[i] == '\'' || data[i] == '"' || isspace(data[i]) {
+			} else if data[i] == '>' || data[i] == '\'' || data[i] == '"' || isSpace(data[i]) {
 				break
 			} else {
 				i++
@@ -816,7 +819,7 @@ func isMailtoAutoLink(data []byte) int {
 	nb := 0
 
 	for i := 0; i < len(data); i++ {
-		if isalnum(data[i]) {
+		if isAlnum(data[i]) {
 			continue
 		}
 
@@ -933,10 +936,10 @@ func helperEmphasis(p *parser, out *bytes.Buffer, data []byte, c byte) int {
 			continue
 		}
 
-		if data[i] == c && !isspace(data[i-1]) {
+		if data[i] == c && !isSpace(data[i-1]) {
 
 			if p.flags&EXTENSION_NO_INTRA_EMPHASIS != 0 {
-				if !(i+1 == len(data) || isspace(data[i+1]) || ispunct(data[i+1])) {
+				if !(i+1 == len(data) || isSpace(data[i+1]) || isPunct(data[i+1])) {
 					continue
 				}
 			}
@@ -961,7 +964,7 @@ func helperDoubleEmphasis(p *parser, out *bytes.Buffer, data []byte, c byte) int
 		}
 		i += length
 
-		if i+1 < len(data) && data[i] == c && data[i+1] == c && i > 0 && !isspace(data[i-1]) {
+		if i+1 < len(data) && data[i] == c && data[i+1] == c && i > 0 && !isSpace(data[i-1]) {
 			var work bytes.Buffer
 			p.inline(&work, data[:i])
 
@@ -991,7 +994,7 @@ func helperTripleEmphasis(p *parser, out *bytes.Buffer, data []byte, offset int,
 		}
 		i += length
 
-		if data[i] != c || isspace(data[i-1]) {
+		if data[i] != c || isSpace(data[i-1]) {
 			continue
 		}
 

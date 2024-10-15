@@ -1,4 +1,4 @@
-package varmeta_md
+package md
 
 import (
 	"bytes"
@@ -771,7 +771,7 @@ func skipUntilChar(text []byte, start int, char byte) int {
 }
 
 func skipSpace(tag []byte, i int) int {
-	for i < len(tag) && isspace(tag[i]) {
+	for i < len(tag) && isSpace(tag[i]) {
 		i++
 	}
 	return i

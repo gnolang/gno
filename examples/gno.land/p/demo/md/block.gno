@@ -1,4 +1,4 @@
-package varmeta_md
+package md
 
 import (
 	"bytes"
@@ -100,7 +100,7 @@ func (p *parser) block(out *bytes.Buffer, data []byte) {
 }
 
 func (p *parser) isPrefixHeader(data []byte) bool {
-	if data[0] != '#' {
+	if len(data) == 0 || data[0] != '#' {
 		return false
 	}
 
@@ -330,8 +330,11 @@ func (p *parser) htmlHr(out *bytes.Buffer, data []byte, doRender bool) int {
 
 func (p *parser) htmlFindTag(data []byte) (string, bool) {
 	i := 0
-	for isalnum(data[i]) {
+	for isAlnum(data[i]) {
 		i++
+	}
+	if i == 0 {
+		return "", false
 	}
 	key := string(data[:i])
 	if _, ok := blockTags[key]; ok {
@@ -395,7 +398,7 @@ func (*parser) isHRule(data []byte) bool {
 	c := data[i]
 
 	n := 0
-	for data[i] != '\n' {
+	for i < len(data) && data[i] != '\n' {
 		switch {
 		case data[i] == c:
 			n++
@@ -464,18 +467,18 @@ func isFenceLine(data []byte, info *string, oldmarker string, newlineOptional bo
 				return 0, ""
 			}
 
-			for infoLength > 0 && isspace(data[infoStart]) {
+			for infoLength > 0 && isSpace(data[infoStart]) {
 				infoStart++
 				infoLength--
 			}
 
-			for infoLength > 0 && isspace(data[infoStart+infoLength-1]) {
+			for infoLength > 0 && isSpace(data[infoStart+infoLength-1]) {
 				infoLength--
 			}
 
 			i++
 		} else {
-			for i < len(data) && !isverticalspace(data[i]) {
+			for i < len(data) && !isVerticalSpace(data[i]) {
 				infoLength++
 				i++
 			}
