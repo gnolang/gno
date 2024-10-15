@@ -13,10 +13,6 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	// Account
 	&BaseAccount{}, "BaseAccount",
 
-	// MemFile/MemPackage
-	MemFile{}, "MemFile",
-	MemPackage{}, "MemPackage",
-
 	// Errors
 	InternalError{}, "InternalError",
 	TxDecodeError{}, "TxDecodeError",

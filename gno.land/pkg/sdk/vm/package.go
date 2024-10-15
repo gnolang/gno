@@ -1,6 +1,7 @@
 package vm
 
 import (
+	gnostd "github.com/gnolang/gno/gnovm/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
@@ -11,6 +12,7 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 	amino.GetCallersDirname(),
 ).WithDependencies(
 	std.Package,
+	gnostd.Package,
 ).WithTypes(
 	MsgCall{}, "m_call",
 	MsgRun{}, "m_run",
