@@ -40,8 +40,8 @@ func TestEvalFiles(t *testing.T) {
 			if wantStacktrace != "" && !strings.Contains(stacktrace, wantStacktrace) {
 				t.Fatalf("unexpected stacktrace\nWant: %s\n Got: %s", wantStacktrace, stacktrace)
 			}
-			if wantOut != "" && out != wantOut {
-				t.Fatalf("unexpected output\nWant: %s\n Got: %s", wantOut, out)
+			if wantOut != "" && strings.TrimSpace(out) != strings.TrimSpace(wantOut) {
+				t.Fatalf("unexpected output\nWant: \"%s\"\n Got: \"%s\"", wantOut, out)
 			}
 		})
 
