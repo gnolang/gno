@@ -49,6 +49,7 @@ func TestAppOptions(db dbm.DB) *AppOptions {
 			GenesisTxResultHandler: PanicOnFailingTxResultHandler,
 			StdlibDir:              filepath.Join(gnoenv.RootDir(), "gnovm", "stdlibs"),
 			CacheStdlibLoad:        true,
+			ChainDomain:            "gno.land",
 		},
 	}
 }
@@ -88,7 +89,7 @@ func NewAppWithOptions(cfg *AppOptions) (abci.Application, error) {
 	// Construct keepers.
 	acctKpr := auth.NewAccountKeeper(mainKey, ProtoGnoAccount)
 	bankKpr := bank.NewBankKeeper(acctKpr)
-	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, cfg.MaxCycles)
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, cfg.ChainDomain, cfg.MaxCycles)
 
 	// Set InitChainer
 	icc := cfg.InitChainerConfig
@@ -222,6 +223,9 @@ type InitChainerConfig struct {
 	// This should be used for integration testing, where InitChainer will be
 	// called several times.
 	CacheStdlibLoad bool
+
+	// ChainDomain is the primary domain name for the chain and its packages.
+	ChainDomain string
 
 	// These fields are passed directly by NewAppWithOptions, and should not be
 	// configurable by end-users.
