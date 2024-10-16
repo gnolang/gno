@@ -42,7 +42,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "mappings": [],
           "thresholds": {
@@ -107,7 +107,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "mappings": [],
           "thresholds": {
@@ -173,7 +173,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "mappings": [],
           "thresholds": {
@@ -208,7 +208,7 @@
           "fields": "",
           "values": false
         },
-        "showPercentChange": false,
+        "showPercentChange": true,
         "textMode": "auto",
         "wideLayout": true
       },
@@ -220,14 +220,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(vm_gas_used_hist_sum{operation=~\"${operation}\"}[$__rate_interval])/rate(vm_gas_used_hist_count{operation=~\"${operation}\"}[$__rate_interval])",
+          "expr": "rate(vm_gas_used_hist_sum{exported_instance=~\"${node}\"}$__rate_interval])/rate{exported_instance=~\"${node}\"}(vm_gas_used_hist_count[$__rate_interval])",
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "{{operation}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average Gas Used by VM execution - operation: ${operation}",
+      "title": "Average Gas Used by VM execution - Node: ${node}",
       "type": "stat"
     },
     {
@@ -238,7 +238,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "mappings": [],
           "thresholds": {
@@ -273,7 +273,7 @@
           "fields": "",
           "values": false
         },
-        "showPercentChange": false,
+        "showPercentChange": true,
         "textMode": "auto",
         "wideLayout": true
       },
@@ -285,14 +285,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(vm_cpu_cycles_hist_sum{operation=~\"${operation}\"}[$__rate_interval])/rate(vm_cpu_cycles_hist_count{operation=~\"${operation}\"}[$__rate_interval])",
+          "expr": "rate(vm_cpu_cycles_hist_sum{exported_instance=~\"${node}\"}[$__rate_interval])/rate(vm_cpu_cycles_hist_count{exported_instance=~\"${node}\"}[$__rate_interval])",
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "{{operation}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Average CPU Cycles in VM execution - operation: ${operation}",
+      "title": "Average CPU Cycles in VM execution - Node: ${node}",
       "type": "stat"
     },
     {
@@ -304,7 +304,7 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "palette-classic"
           },
           "mappings": [],
           "thresholds": {
@@ -339,7 +339,7 @@
           "fields": "",
           "values": false
         },
-        "showPercentChange": false,
+        "showPercentChange": true,
         "textMode": "auto",
         "wideLayout": true
       },
@@ -351,14 +351,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vm_exec_msg_counter_total{exported_instance=~\"${node}\", operation=~\"${operation}\"}",
+          "expr": "vm_exec_msg_counter_total{exported_instance=~\"${node}\"}",
           "instant": false,
-          "legendFormat": "__auto",
+          "legendFormat": "{{operation}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Total Number of VM Exec Msg - operation: ${operation}",
+      "title": "Total Number of VM Exec Msg - Node: ${node}",
       "type": "stat"
     },
     {
@@ -427,7 +427,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(num_mempool_txs_hist_sum[$__rate_interval])/rate(num_mempool_txs_hist_count[$__rate_interval])",
+          "expr": "sum(rate(num_mempool_txs_hist_sum[$__rate_interval]))/sum(rate(num_mempool_txs_hist_count[$__rate_interval]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -492,7 +492,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(num_cached_txs_hist_sum[$__rate_interval])/rate(num_cached_txs_hist_count[$__rate_interval])",
+          "expr": "sum(rate(num_cached_txs_hist_sum[$__rate_interval]))/sum(rate(num_cached_txs_hist_count[$__rate_interval]))",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -548,7 +548,7 @@
       "id": 12,
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -615,7 +615,7 @@
       "id": 13,
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -682,7 +682,7 @@
       "id": 14,
       "options": {
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -782,7 +782,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(validator_count_hist_sum[$__rate_interval])/rate(validator_count_hist_count[$__rate_interval])",
+          "expr": "rate(validator_count_hist_sum{exported_instance=~\"${node}\"}[$__rate_interval])/rate(validator_count_hist_count{exported_instance=~\"${node}\"}[$__rate_interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -848,7 +848,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(validator_vp_hist_sum[$__rate_interval])/rate(validator_vp_hist_count[$__rate_interval])",
+          "expr": "rate(validator_vp_hist_sum{exported_instance=~\"${node}\"}[$__rate_interval])/rate(validator_vp_hist_count{exported_instance=~\"${node}\"}[$__rate_interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -996,7 +996,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(block_interval_hist_seconds_sum[$__rate_interval])/rate(block_interval_hist_seconds_count[$__rate_interval])",
+          "expr": "sum(rate(block_interval_hist_seconds_sum[$__rate_interval]))/sum(rate(block_interval_hist_seconds_count[$__rate_interval]))",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -1149,7 +1149,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(block_size_hist_B_sum[$__rate_interval])/rate(block_size_hist_B_count[$__rate_interval])",
+          "expr": "sum(rate(block_size_hist_B_sum[$__rate_interval]))/sum(rate(block_size_hist_B_count[$__rate_interval])",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,

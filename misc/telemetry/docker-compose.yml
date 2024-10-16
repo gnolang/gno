@@ -9,6 +9,7 @@ services:
       - ./collector/collector.yaml:/etc/otelcol-contrib/config.yaml
     networks:
       - gnoland-net
+  
   prometheus:
     image: prom/prometheus:latest
     command:
@@ -21,6 +22,7 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     networks:
       - gnoland-net
+  
   grafana:
     image: grafana/grafana
     environment:
@@ -33,33 +35,82 @@ services:
       - "3000:3000"
     networks:
       - gnoland-net
-  gnoland:
+  
+  gnoland-val:
     image: ghcr.io/gnolang/gno/gnoland:master
     # image: forked-gno/gnoland-slim
     networks:
       - gnoland-net
     volumes:
-      - ./gnoland:/gnoroot/gnoland-data
+      # Shared Volume
+      - gnoland-shared:/gnoroot/shared-data
     entrypoint:
       - sh
       - -c
       - |
+        gnoland secrets init
+        gnoland genesis generate
+        gnoland genesis validator add -name val000 -address $(gnoland secrets get validator_key.address -raw) -pub-key $(gnoland secrets get validator_key.pub_key -raw)
+        gnoland genesis balances add -balance-sheet /gnoroot/gno.land/genesis/genesis_balances.txt
+        gnoland genesis txs add packages /gnoroot/examples/gno.land
         gnoland config init
         gnoland config set consensus.timeout_commit 1s
+        gnoland config set moniker val000
+        gnoland config set telemetry.enabled true
+        gnoland config set telemetry.exporter_endpoint collector:4317
+        gnoland config set telemetry.service_instance_id val0
+        gnoland secrets get node_id.id -raw > /gnoroot/shared-data/node_p2p.id
+        cp /gnoroot/genesis.json /gnoroot/shared-data/genesis.json
+        gnoland start
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /gnoroot/shared-data/node_p2p.id || exit 1"]
+      interval: 10s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
+
+  gnoland-rpc:
+    image: ghcr.io/gnolang/gno/gnoland:master
+    # image: forked-gno/gnoland-slim
+    networks:
+      - gnoland-net
+    volumes:
+      # Shared Volume
+      - gnoland-shared:/gnoroot/shared-data
+    entrypoint:
+      - sh
+      - -c
+      - |
+        gnoland secrets init
+        gnoland config init
+        gnoland config set consensus.timeout_commit 1s
+        gnoland config set moniker rpc0
         gnoland config set rpc.laddr tcp://0.0.0.0:26657
         gnoland config set telemetry.enabled true
         gnoland config set telemetry.service_instance_id rpc000
         gnoland config set telemetry.exporter_endpoint collector:4317
-        gnoland config set persistent_peers "g18vg9lgndagym626q8jsgv2peyjatscykde3xju@devx-sen-1.test4.gnodevx.network:26656,g1fnwswr6p5nqfvusglv7g2vy0tzwt5npwe7stvv@devx-sen-2.test4.gnodevx.network:26656,g1xa78fprcqcejfpk8xeycd4hzxtg56w9qe29xky@103.219.168.237:26656,g1h8dsnzlv7r4skfuud38runjuk4dnxenpr79meg@103.106.59.205:26656,g1ppdm4s90txrxu027j5et4crmxmmr3qr3g4wgrp@186.233.184.76:26656,g1hta5u3vmt4k2gklu5ashsl9q0my8ykzqu60vme@103.14.26.13:26656"
-        gnoland start --lazy
-    ports:
-      - "26657:26657"
-  # supernova:
+        gnoland config set p2p.persistent_peers "$(cat /gnoroot/shared-data/node_p2p.id)@gnoland-val:26656"
+        gnoland start -genesis /gnoroot/shared-data/genesis.json
+    depends_on:
+      gnoland-val:
+        condition: service_healthy
+        restart: true
+
+  supernova:
+    image: ghcr.io/gnolang/supernova:1.3.1
+    command: >
+      -sub-accounts 10 -transactions 100 -url http://gnoland-rpc:26657
+      -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
+      -mode PACKAGE_DEPLOYMENT
+    restart: unless-stopped
+    networks:
+      - gnoland-net
+
+  # supernova2:
   #   image: ghcr.io/gnolang/supernova:1.3.1
   #   command: >
-  #     -sub-accounts 10 -transactions 100 -url http://gnoland:26657
+  #     -sub-accounts 10 -transactions 500 -url http://gnoland-rpc:26657
   #     -mnemonic "source bonus chronic canvas draft south burst lottery vacant surface solve popular case indicate oppose farm nothing bullet exhibit title speed wink action roast"
-  #     -mode REALM_CALL
   #   restart: unless-stopped
   #   networks:
   #     - gnoland-net
@@ -73,5 +124,5 @@ volumes:
     driver: local
   grafana_data:
     driver: local
-  gnoland:
+  gnoland-shared:
     driver: local
