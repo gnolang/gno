@@ -170,13 +170,13 @@ func (bdb *BoltDB) NewBatch() db.Batch {
 // It is safe to modify the contents of the argument after Set returns but not
 // before.
 func (bdb *boltDBBatch) Set(key, value []byte) {
-	bdb.ops = append(bdb.ops, internal.Operation{internal.OpTypeSet, key, value})
+	bdb.ops = append(bdb.ops, internal.Operation{OpType: internal.OpTypeSet, Key: key, Value: value})
 }
 
 // It is safe to modify the contents of the argument after Delete returns but
 // not before.
 func (bdb *boltDBBatch) Delete(key []byte) {
-	bdb.ops = append(bdb.ops, internal.Operation{internal.OpTypeDelete, key, nil})
+	bdb.ops = append(bdb.ops, internal.Operation{OpType: internal.OpTypeDelete, Key: key})
 }
 
 // NOTE: the operation is synchronous (see BoltDB for reasons)
