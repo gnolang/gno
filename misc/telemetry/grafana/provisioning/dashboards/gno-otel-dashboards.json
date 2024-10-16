@@ -60,10 +60,10 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 0,
+        "x": 12,
         "y": 1
       },
-      "id": 24,
+      "id": 28,
       "options": {
         "colorMode": "value",
         "graphMode": "area",
@@ -89,14 +89,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vm_query_errors_counter",
+          "expr": "vm_query_errors_counter_total{exported_instance=~\"${node}\", path=~\"${path}\"}",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Total Number of VM Query Errors",
+      "title": "Total Number of VM Query Errors - Node: ${node}",
       "type": "stat"
     },
     {
@@ -125,7 +125,7 @@
       "gridPos": {
         "h": 8,
         "w": 12,
-        "x": 12,
+        "x": 0,
         "y": 1
       },
       "id": 25,
@@ -154,14 +154,14 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "vm_query_calls_counter",
+          "expr": "vm_query_calls_counter_total{exported_instance=~\"${node}\", path=~\"${path}\"}",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Total Number of VM Query Calls",
+      "title": "Total Number of VM Query Calls - Node: ${node}",
       "type": "stat"
     },
     {
@@ -296,11 +296,77 @@
       "type": "stat"
     },
     {
+      "datasource": {
+        "default": true,
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 6,
+        "y": 17
+      },
+      "id": 24,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.2.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "vm_exec_msg_counter_total{exported_instance=~\"${node}\", operation=~\"${operation}\"}",
+          "instant": false,
+          "legendFormat": "__auto",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Total Number of VM Exec Msg - operation: ${operation}",
+      "type": "stat"
+    },
+    {
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 17
+        "y": 25
       },
       "id": 15,
       "title": "Mempool",
@@ -333,7 +399,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 18
+        "y": 26
       },
       "id": 16,
       "options": {
@@ -361,7 +427,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(num_mempool_txs_hist_sum[$__rate_interval])/rate(num_mempool_txs_count[$__rate_interval])",
+          "expr": "rate(num_mempool_txs_hist_sum[$__rate_interval])/rate(num_mempool_txs_hist_count[$__rate_interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -398,7 +464,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 18
+        "y": 26
       },
       "id": 17,
       "options": {
@@ -426,7 +492,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(num_cached_txs_hist_sum[$__rate_interval])/rate(num_cached_txs_count[$__rate_interval])",
+          "expr": "rate(num_cached_txs_hist_sum[$__rate_interval])/rate(num_cached_txs_hist_count[$__rate_interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -442,7 +508,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 26
+        "y": 34
       },
       "id": 11,
       "panels": [],
@@ -477,7 +543,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 27
+        "y": 35
       },
       "id": 12,
       "options": {
@@ -505,7 +571,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "avg_over_time(inbound_peers_gauge{node=~\"${node}\"}[$__rate_interval])",
+          "expr": "avg_over_time(inbound_peers_gauge{exported_instance=~\"${node}\"}[$__rate_interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -544,7 +610,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 27
+        "y": 35
       },
       "id": 13,
       "options": {
@@ -572,7 +638,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "avg_over_time(outbound_peers_gauge{node=~\"${node}\"}[$__rate_interval])",
+          "expr": "avg_over_time(outbound_peers_gauge{exported_instance=~\"${node}\"}[$__rate_interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -611,7 +677,7 @@
         "h": 8,
         "w": 12,
         "x": 6,
-        "y": 35
+        "y": 43
       },
       "id": 14,
       "options": {
@@ -639,7 +705,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "avg_over_time(dialing_peers_gauge{node=~\"${node}\"}[$__rate_interval])",
+          "expr": "avg_over_time(dialing_peers_gauge{exported_instance=~\"${node}\"}[$__rate_interval])",
           "instant": false,
           "legendFormat": "__auto",
           "range": true,
@@ -654,7 +720,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 43
+        "y": 51
       },
       "id": 9,
       "title": "Consensus",
@@ -688,7 +754,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 44
+        "y": 52
       },
       "id": 18,
       "options": {
@@ -754,7 +820,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 44
+        "y": 52
       },
       "id": 19,
       "options": {
@@ -828,7 +894,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 52
+        "y": 60
       },
       "id": 3,
       "options": {
@@ -901,7 +967,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 52
+        "y": 60
       },
       "id": 4,
       "options": {
@@ -967,7 +1033,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 60
+        "y": 68
       },
       "id": 20,
       "options": {
@@ -1054,7 +1120,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 60
+        "y": 68
       },
       "id": 21,
       "options": {
@@ -1102,7 +1168,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 68
+        "y": 76
       },
       "id": 8,
       "panels": [],
@@ -1142,7 +1208,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 69
+        "y": 77
       },
       "id": 2,
       "options": {
@@ -1190,7 +1256,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 77
+        "y": 85
       },
       "id": 7,
       "panels": [],
@@ -1234,7 +1300,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 78
+        "y": 86
       },
       "id": 5,
       "options": {
@@ -1314,7 +1380,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 78
+        "y": 86
       },
       "id": 6,
       "options": {
@@ -1409,6 +1475,34 @@
         "query": {
           "qryType": 1,
           "query": "label_values(exported_instance)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "None",
+          "value": ""
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(path)",
+        "description": "Path of VM queries",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "path",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(path)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,

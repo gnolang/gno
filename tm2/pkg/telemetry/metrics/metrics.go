@@ -28,9 +28,9 @@ const (
 
 	vmQueryCallsKey  = "vm_query_calls_counter"
 	vmQueryErrorsKey = "vm_query_errors_counter"
+	vmExecMsgKey     = "vm_exec_msg_counter"
 	vmGasUsedKey     = "vm_gas_used_hist"
 	vmCPUCyclesKey   = "vm_cpu_cycles_hist"
-	vmExecMsgKey     = "vm_exec_msg_hist"
 
 	validatorCountKey       = "validator_count_hist"
 	validatorVotingPowerKey = "validator_vp_hist"
@@ -75,14 +75,14 @@ var (
 	// VMQueryErrors measures the frequency of VM query errors
 	VMQueryErrors metric.Int64Counter
 
+	// VMExecMsgFrequency measures the frequency of VM operations
+	VMExecMsgFrequency metric.Int64Counter
+
 	// VMGasUsed measures the VM gas usage
 	VMGasUsed metric.Int64Histogram
 
 	// VMCPUCycles measures the VM CPU cycles
 	VMCPUCycles metric.Int64Histogram
-
-	// VMExecMsgFrequency measures the frequency of VM operations
-	VMExecMsgFrequency metric.Int64Counter
 
 	// Consensus //
 
@@ -183,6 +183,8 @@ func Init(config config.Config) error {
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}
+	// Initialize InboundPeers Gauge
+	InboundPeers.Record(ctx, 0)
 
 	if OutboundPeers, err = meter.Int64Gauge(
 		outboundPeersKey,
@@ -190,6 +192,8 @@ func Init(config config.Config) error {
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}
+	// Initialize OutboundPeers Gauge
+	OutboundPeers.Record(ctx, 0)
 
 	if DialingPeers, err = meter.Int64Gauge(
 		dialingPeersKey,
@@ -197,6 +201,8 @@ func Init(config config.Config) error {
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
 	}
+	// Initialize DialingPeers Gauge
+	DialingPeers.Record(ctx, 0)
 
 	// Mempool //
 	if NumMempoolTxs, err = meter.Int64Histogram(
@@ -228,6 +234,13 @@ func Init(config config.Config) error {
 		return fmt.Errorf("unable to create counter, %w", err)
 	}
 
+	if VMExecMsgFrequency, err = meter.Int64Counter(
+		vmExecMsgKey,
+		metric.WithDescription("vm msg operation call frequency"),
+	); err != nil {
+		return fmt.Errorf("unable to create counter, %w", err)
+	}
+
 	if VMGasUsed, err = meter.Int64Histogram(
 		vmGasUsedKey,
 		metric.WithDescription("VM gas used"),
@@ -240,13 +253,6 @@ func Init(config config.Config) error {
 		metric.WithDescription("VM CPU cycles"),
 	); err != nil {
 		return fmt.Errorf("unable to create histogram, %w", err)
-	}
-
-	if VMExecMsgFrequency, err = meter.Int64Counter(
-		vmExecMsgKey,
-		metric.WithDescription("vm msg operation call frequency"),
-	); err != nil {
-		return fmt.Errorf("unable to create counter, %w", err)
 	}
 
 	// Consensus //
