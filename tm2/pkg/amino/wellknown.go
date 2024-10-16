@@ -210,7 +210,6 @@ func isJSONWellKnownType(rt reflect.Type) (wellKnown bool) {
 	default:
 		return false
 	}
-	return false
 }
 
 // Returns ok=false if nothing was done because the default behavior is fine (or if err).
