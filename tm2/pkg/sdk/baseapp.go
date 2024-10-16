@@ -392,10 +392,6 @@ func (app *BaseApp) Query(req abci.RequestQuery) (res abci.ResponseQuery) {
 	default:
 		return handleQueryCustom(app, path, req)
 	}
-
-	msg := "unknown query path " + req.Path
-	res.Error = ABCIError(std.ErrUnknownRequest(msg))
-	return
 }
 
 func handleQueryApp(app *BaseApp, path []string, req abci.RequestQuery) (res abci.ResponseQuery) {
