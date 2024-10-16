@@ -237,7 +237,7 @@ func renderSponsors() string {
 	out := `<h3 style="margin-top: 5px; margin-bottom: 20px">Sponsor Leaderboard</h3>` + "\n"
 
 	if len(sponsorship.sponsors) == 0 {
-		out += `<p style="text-align: center;">No sponsors yet. Be the first to tip the jar!</p>` + "\n"
+		 return out + `<p style="text-align: center;">No sponsors yet. Be the first to tip the jar!</p>` + "\n"
 	} else {
 		topSponsors := GetTopSponsors()
 		numSponsors := len(topSponsors)
