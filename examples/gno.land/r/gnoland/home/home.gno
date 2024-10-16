@@ -6,6 +6,7 @@ import (
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
 	"gno.land/p/demo/ui"
+	"gno.land/r/demo/hof"
 	blog "gno.land/r/gnoland/blog"
 	events "gno.land/r/gnoland/events"
 )
@@ -37,7 +38,7 @@ func Render(_ string) string {
 		ui.Columns{3, []ui.Element{
 			lastBlogposts(4),
 			upcomingEvents(),
-			lastContributions(4),
+			latestHOFItems(5),
 		}},
 	)
 
@@ -87,6 +88,15 @@ func upcomingEvents() ui.Element {
 	return ui.Element{
 		ui.H3("[Latest Events](/r/gnoland/events)"),
 		ui.Text(out),
+	}
+}
+
+func latestHOFItems(num int) ui.Element {
+	submissions := hof.RenderExhibWidget(num)
+
+	return ui.Element{
+		ui.H3("[Hall of Fame](/r/demo/hof)"),
+		ui.Text(submissions),
 	}
 }
 
