@@ -1077,6 +1077,7 @@ var initOrder = [...]string{
 	"encoding/hex",
 	"hash",
 	"hash/adler32",
+	"html",
 	"math/overflow",
 	"math/rand",
 	"path",
