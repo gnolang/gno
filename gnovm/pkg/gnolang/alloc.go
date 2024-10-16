@@ -188,10 +188,10 @@ func (alloc *Allocator) Deallocate(size int64) {
 		return
 	}
 
-	alloc.bytes -= size
-	if alloc.bytes < 0 {
-		panic("Deallocate called with negative size")
-	}
+        if alloc.bytes < size{
+                panic("should not happen, not enough memory to deallocate")
+        }
+        alloc.bytes -= size
 }
 
 func (alloc *Allocator) DeallocateString(size int64) {
