@@ -220,7 +220,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "rate(vm_gas_used_hist_sum{exported_instance=~\"${node}\"}$__rate_interval])/rate{exported_instance=~\"${node}\"}(vm_gas_used_hist_count[$__rate_interval])",
+          "expr": "rate(vm_gas_used_hist_sum{exported_instance=~\"${node}\"}[$__rate_interval])/rate(vm_gas_used_hist_count{exported_instance=~\"${node}\"}[$__rate_interval])",
           "instant": false,
           "legendFormat": "{{operation}}",
           "range": true,
@@ -1149,7 +1149,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "sum(rate(block_size_hist_B_sum[$__rate_interval]))/sum(rate(block_size_hist_B_count[$__rate_interval])",
+          "expr": "sum(rate(block_size_hist_B_sum[$__rate_interval]))/sum(rate(block_size_hist_B_count[$__rate_interval]))",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -1237,7 +1237,7 @@
           },
           "disableTextWrap": false,
           "editorMode": "code",
-          "expr": "rate(broadcast_tx_hist_milliseconds_sum[$__rate_interval])/rate(broadcast_tx_hist_milliseconds_count[$__rate_interval])",
+          "expr": "sum(rate(broadcast_tx_hist_milliseconds_sum[$__rate_interval]))/sum(rate(broadcast_tx_hist_milliseconds_count[$__rate_interval]))",
           "fullMetaSearch": false,
           "includeNullMetadata": true,
           "instant": false,
@@ -1431,33 +1431,6 @@
     "list": [
       {
         "current": {
-          "selected": true,
-          "text": "m_addpkg",
-          "value": "m_addpkg"
-        },
-        "datasource": {
-          "type": "prometheus",
-          "uid": "prometheus"
-        },
-        "definition": "label_values(vm_gas_used_hist_sum,operation)",
-        "hide": 0,
-        "includeAll": false,
-        "multi": false,
-        "name": "operation",
-        "options": [],
-        "query": {
-          "qryType": 1,
-          "query": "label_values(vm_gas_used_hist_sum,operation)",
-          "refId": "PrometheusVariableQueryEditor-VariableQuery"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
-      },
-      {
-        "current": {
           "selected": false,
           "text": "None",
           "value": ""
@@ -1475,6 +1448,33 @@
         "query": {
           "qryType": 1,
           "query": "label_values(exported_instance)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "type": "query"
+      },
+      {
+        "current": {
+          "selected": true,
+          "text": "m_addpkg",
+          "value": "m_addpkg"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(vm_gas_used_hist_sum,operation)",
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "name": "operation",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(vm_gas_used_hist_sum,operation)",
           "refId": "PrometheusVariableQueryEditor-VariableQuery"
         },
         "refresh": 1,
