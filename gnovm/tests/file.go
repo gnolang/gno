@@ -597,12 +597,12 @@ func (tb *testBanker) TotalCoin(denom string) int64 {
 
 func (tb *testBanker) IssueCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins, _ := tb.coinTable[addr]
-	sum := coins.Add(std.Coins{{denom, amt}})
+	sum := coins.Add(std.Coins{{Denom: denom, Amount: amt}})
 	tb.coinTable[addr] = sum
 }
 
 func (tb *testBanker) RemoveCoin(addr crypto.Bech32Address, denom string, amt int64) {
 	coins, _ := tb.coinTable[addr]
-	rest := coins.Sub(std.Coins{{denom, amt}})
+	rest := coins.Sub(std.Coins{{Denom: denom, Amount: amt}})
 	tb.coinTable[addr] = rest
 }
