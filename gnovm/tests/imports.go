@@ -123,6 +123,8 @@ func TestStore(rootDir, filesPath string, stdin io.Reader, stdout, stderr io.Wri
 				pkg.DefineGoNativeValue("Stdin", stdin)
 				pkg.DefineGoNativeValue("Stdout", stdout)
 				pkg.DefineGoNativeValue("Stderr", stderr)
+				// ignore "gno" and the command e.g. "run" "test"
+				pkg.DefineGoNativeValue("Args", os.Args[2:])
 				return pkg, pkg.NewPackage()
 			case "fmt":
 				pkg := gno.NewPackageNode("fmt", pkgPath, nil)
