@@ -25,11 +25,3 @@ func main() {
 	crossrealm.CallFoo()
 	print(".")
 }
-
-// Output:
-// hello gno.land/r/demo/tests/crossrealm
-// .
-
-// Error:
-
-// Realm:

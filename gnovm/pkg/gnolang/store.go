@@ -328,7 +328,7 @@ func (ds *defaultStore) SetObject(oo Object) {
 	oid := oo.GetObjectID()
 	// replace children/fields with Ref.
 	o2 := copyValueWithRefs(oo)
-	fmt.Println("---o2: ", o2)
+	fmt.Println("---SetObject, o2: ", o2)
 	// marshal to binary.
 	bz := amino.MustMarshalAny(o2)
 	// set hash.
@@ -363,10 +363,10 @@ func (ds *defaultStore) SetObject(oo Object) {
 	if ds.opslog != nil {
 		var op StoreOpType
 		if oo.GetIsNewReal() {
-			fmt.Println("---oo is new real, oo: ", oo)
+			fmt.Println("---SetObject, oo is new real, oo: ", oo)
 			op = StoreOpNew
 		} else {
-			fmt.Println("---oo is mod, oo: ", oo)
+			fmt.Println("---SetObject, oo is mod, oo: ", oo)
 			op = StoreOpMod
 		}
 		ds.opslog = append(ds.opslog,

@@ -30,7 +30,7 @@ func init() {
 }
 
 func main() {
-	crossrealm.AttachContainer()   // this attaches container first
+	crossrealm.AttachContainer()
 	crossrealm.SetContainer(lc.ff) // this should not panic, lc.ff is not same with f(gloabl)
 	print(".")
 }

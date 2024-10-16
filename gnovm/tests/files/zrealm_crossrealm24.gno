@@ -16,7 +16,7 @@ func main() {
 }
 
 // XXX, should work to attach by reference to
-// type defined in another realm.
+// type defined in another realm???
 
 // Output:
 // .

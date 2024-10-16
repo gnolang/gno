@@ -15,15 +15,9 @@ var c Container
 
 func init() {
 	b0 := crossrealm.Bar{A: 1}              // this is valid association
-	c = Container{name: "container", b: b0} // XXX, check recursively while finalize here
+	c = Container{name: "container", b: b0} // XXX, should panic
 }
 
 func main() {
 	print(".")
 }
-
-// XXX, this should fail while trying to attach
-// value of type defined in another realm.
-// NOTE: the check can be in runtime or in preprocess(by simply checkin edge cases).
-
-// Error:

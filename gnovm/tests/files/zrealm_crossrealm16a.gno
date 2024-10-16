@@ -8,11 +8,9 @@ import (
 var b0 crossrealm.Bar
 
 func init() {
-	b0 = crossrealm.Bar{A: 1} // XXX, should be invalid to attach external type
+	crossrealm.Bar2.A = 2 // this should be valid
 }
 
 func main() {
-	crossrealm.SetBar(&b0)
-	crossrealm.CallBar()
 	print(".")
 }

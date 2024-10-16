@@ -16,10 +16,7 @@ type fooer struct{}
 var f *fooer
 
 func main() {
-	// not finalize yet, so this reference can not be attached to external realm,
-	// can only be associated to un-attached objects, only until the un-attached
-	// objects has not been attached to the external realm yet.
-	f = &fooer{}
+	f = &fooer{} //  not attached
 	c := &container{f}
 	crossrealm.SetFooer(c)
 	crossrealm.CallFoo()

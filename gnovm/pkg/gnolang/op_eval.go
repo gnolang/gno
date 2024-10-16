@@ -37,7 +37,7 @@ func (m *Machine) doOpEval() {
 			lb := m.LastBlock()
 			// Push value, done.
 			ptr := lb.GetPointerTo(m.Store, nx.Path)
-			fmt.Println("---ptr: ", ptr)
+			//fmt.Println("---ptr: ", ptr)
 			m.PushValue(ptr.Deref())
 			return
 		}

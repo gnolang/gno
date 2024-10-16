@@ -1,8 +1,6 @@
 // PKGPATH: gno.land/r/crossrealm_test
 package crossrealm_test
 
-// pass pointer to an embedded object to external realm?
-
 import (
 	"std"
 
@@ -31,3 +29,5 @@ func main() {
 	crossrealm.SetContainer(&lc.f)
 	print(".")
 }
+
+// XXX?

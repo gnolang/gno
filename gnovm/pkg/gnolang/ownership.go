@@ -353,8 +353,9 @@ func (tv *TypedValue) GetFirstObject(store Store) Object {
 			fmt.Println("---rc: ", rc)
 			fmt.Println("---v Owner: ", v.GetOwnerID())
 			fmt.Println("---v.GetObjectID(): ", v.GetObjectID())
+			fmt.Println("---is Attached?", v.GetIsReal())
 		}
-		return cv.GetBase(store) // TODO: this is not enough for pointers
+		return cv.GetBase(store)
 	case *ArrayValue:
 		return cv
 	case *SliceValue:

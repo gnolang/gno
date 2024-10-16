@@ -13,12 +13,6 @@ func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
 
 var f fooer
 
-// When an association occurs by reference to an object already
-// attached to an external realm, no attachment occurs. For example,
-// pointers to external realm attached objects may be associated
-// with a realm object (whether attached or not), such as assigned
-// to the field of a struct, but this does not attach the external
-// realm object to the container, in this case the struct.
 func init() {
 	f = fooer{}
 }

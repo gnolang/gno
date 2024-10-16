@@ -5,6 +5,7 @@ type Bar struct {
 }
 
 var bar *Bar
+var Bar2 *Bar // exported
 
 func SetBar(b *Bar) *Bar {
 	bar = b

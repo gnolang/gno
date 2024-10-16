@@ -294,6 +294,7 @@ func (pv PointerValue) Assign2(alloc *Allocator, store Store, rlm *Realm, tv2 Ty
 		pv.TV.Assign(alloc, tv2, cu)
 		oo2 := pv.TV.GetFirstObject(store)
 		fmt.Println("---oo2: ", oo2)
+		// TODO: assert attached here?
 		rlm.DidUpdate(pv.Base.(Object), oo1, oo2)
 	} else {
 		pv.TV.Assign(alloc, tv2, cu)
@@ -2451,9 +2452,9 @@ func (b *Block) GetParent(store Store) *Block {
 }
 
 func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
-	fmt.Println("---GetPointerToInt")
+	//fmt.Println("---GetPointerToInt")
 	vv := fillValueTV(store, &b.Values[index])
-	fmt.Println("---vv: ", vv)
+	//fmt.Println("---vv: ", vv)
 	return PointerValue{
 		TV:    vv,
 		Base:  b,
@@ -2462,9 +2463,9 @@ func (b *Block) GetPointerToInt(store Store, index int) PointerValue {
 }
 
 func (b *Block) GetPointerTo(store Store, path ValuePath) PointerValue {
-	fmt.Println("---GetPointerTo, path: ", path)
+	//fmt.Println("---GetPointerTo, path: ", path)
 	if path.IsBlockBlankPath() {
-		println("---isBlockBlankPath")
+		//println("---isBlockBlankPath")
 		if debug {
 			if path.Name != blankIdentifier {
 				panic(fmt.Sprintf(
@@ -2645,17 +2646,17 @@ func typedString(s string) TypedValue {
 }
 
 func fillValueTV(store Store, tv *TypedValue) *TypedValue {
-	fmt.Println("---fillValueTV, tv: ", tv)
+	//fmt.Println("---fillValueTV, tv: ", tv)
 	switch cv := tv.V.(type) {
 	case RefValue:
-		println("---tv.V RefValue")
-		fmt.Println("---cv: ", cv)
+		//println("---tv.V RefValue")
+		//fmt.Println("---cv: ", cv)
 		if cv.PkgPath != "" { // load package
 			tv.V = store.GetPackage(cv.PkgPath, false)
 		} else { // load object
 			// XXX XXX allocate object.
 			tv.V = store.GetObject(cv.ObjectID)
-			fmt.Println("---tv.V: ", tv.V)
+			//fmt.Println("---tv.V: ", tv.V)
 		}
 	case PointerValue:
 		// As a special case, cv.Base is filled

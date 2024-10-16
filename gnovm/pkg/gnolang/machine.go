@@ -730,7 +730,7 @@ func (m *Machine) runFileDecls(fns ...*FileNode) []TypedValue {
 func (m *Machine) runInitFromUpdates(pv *PackageValue, updates []TypedValue) {
 	fmt.Println("---runInitFromUpdates")
 	for _, tv := range updates {
-		fmt.Println("---tv: ", tv)
+		fmt.Println("---runInitFromUpdates, tv: ", tv)
 		if tv.IsDefined() && tv.T.Kind() == FuncKind && tv.V != nil {
 			fv, ok := tv.V.(*FuncValue)
 			if !ok {

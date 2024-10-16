@@ -241,6 +241,7 @@ func (m *Machine) doOpReturnFromBlock() {
 			finalize = true
 		}
 		if finalize {
+			fmt.Println("---going to finalize")
 			// Finalize realm updates!
 			// NOTE: This is a resource intensive undertaking.
 			crlm.FinalizeRealmTransaction(m.ReadOnly, m.Store)
