@@ -109,7 +109,7 @@ func (sw *Switch) OnStart() error {
 // OnStop implements BaseService. It stops all peers and reactors.
 func (sw *Switch) OnStop() {
 	// Stop transport
-	if err := sw.transport.Close(); err != nil {
+	if err := sw.transport.Close(); err != nil { // TODO move to node
 		sw.Logger.Error("unable to gracefully close transport", "err", err)
 	}
 
@@ -186,7 +186,16 @@ func (sw *Switch) StopPeerForError(peer Peer, err error) {
 
 func (sw *Switch) stopAndRemovePeer(peer Peer, err error) {
 	// Remove the peer from the transport
-	sw.transport.Cleanup(peer)
+	sw.transport.Remove(peer)
+
+	// Close the (original) peer connection
+	if closeErr := peer.CloseConn(); closeErr != nil {
+		sw.Logger.Error(
+			"unable to gracefully close peer connection",
+			"peer", peer,
+			"err", err,
+		)
+	}
 
 	// Stop the peer connection multiplexing
 	if stopErr := peer.Stop(); stopErr != nil {
@@ -272,7 +281,7 @@ func (sw *Switch) runDialLoop(ctx context.Context) {
 					"err", err,
 				)
 
-				sw.transport.Cleanup(p)
+				sw.transport.Remove(p)
 
 				if !p.IsRunning() {
 					// TODO check if this check is even required
@@ -335,6 +344,13 @@ func (sw *Switch) runRedialLoop(ctx context.Context) {
 // To monitor dial progress, subscribe to adequate p2p Switch events
 func (sw *Switch) DialPeers(peerAddrs ...*NetAddress) {
 	for _, peerAddr := range peerAddrs {
+		// Check if this is our address
+		if peerAddr.Same(sw.transport.NetAddress()) {
+			sw.Logger.Warn("ignoring request for self-dial")
+
+			continue
+		}
+
 		item := dial.Item{
 			Time:    time.Now(),
 			Address: peerAddr,
@@ -389,14 +405,14 @@ func (sw *Switch) runAcceptLoop(ctx context.Context) {
 					"max", sw.config.MaxNumInboundPeers,
 				)
 
-				sw.transport.Cleanup(p)
+				sw.transport.Remove(p)
 
 				continue
 			}
 
 			// There are open peer slots, add peers
 			if err := sw.addPeer(p); err != nil {
-				sw.transport.Cleanup(p)
+				sw.transport.Remove(p)
 
 				if p.IsRunning() {
 					_ = p.Stop()

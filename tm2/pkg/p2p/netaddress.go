@@ -160,12 +160,12 @@ func NewNetAddressFromIPPort(ip net.IP, port uint16) *NetAddress {
 
 // Equals reports whether na and other are the same addresses,
 // including their ID, IP, and Port.
-func (na *NetAddress) Equals(other *NetAddress) bool {
+func (na *NetAddress) Equals(other NetAddress) bool {
 	return na.String() == other.String()
 }
 
 // Same returns true is na has the same non-empty ID or DialString as other.
-func (na *NetAddress) Same(other *NetAddress) bool {
+func (na *NetAddress) Same(other NetAddress) bool {
 	var (
 		dialsSame = na.DialString() == other.DialString()
 		IDsSame   = na.ID != "" && na.ID == other.ID

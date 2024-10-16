@@ -242,7 +242,7 @@ package p2p
 // 			errc <- fmt.Errorf("Fast peer timed out")
 // 		}
 //
-// 		sc, err := upgradeSecretConn(c, 100*time.Millisecond, ed25519.GenPrivKey())
+// 		sc, err := upgradeToSecretConn(c, 100*time.Millisecond, ed25519.GenPrivKey())
 // 		if err != nil {
 // 			errc <- err
 // 			return

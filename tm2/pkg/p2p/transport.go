@@ -3,7 +3,9 @@ package p2p
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
@@ -13,33 +15,17 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// TODO make options
 const (
 	defaultDialTimeout      = time.Second
 	defaultHandshakeTimeout = 3 * time.Second
 )
 
-// inboundPeer is a wrapper for incoming peer information
-type inboundPeer struct {
+// peerInfo is a wrapper for an unverified peer connection
+type peerInfo struct {
 	addr     *NetAddress // the dial address of the peer
 	conn     net.Conn    // the connection associated with the peer
 	nodeInfo NodeInfo    // the relevant peer node info
-}
-
-// peerConfig is used to bundle data we need to fully setup a Peer with an
-// MConn, provided by the caller of Accept and Dial (currently the Switch). This
-// a temporary measure until reactor setup is less dynamic and we introduce the
-// concept of PeerBehaviour to communicate about significant Peer lifecycle
-// events.
-// TODO(xla): Refactor out with more static Reactor setup and PeerBehaviour.
-type peerConfig struct {
-	chDescs     []*conn.ChannelDescriptor
-	onPeerError func(Peer, error)
-	outbound    bool
-	// isPersistent allows you to set a function, which, given socket address
-	// (for outbound peers) OR self-reported address (for inbound peers), tells
-	// if the peer is persistent or not.
-	isPersistent func(*NetAddress) bool
-	reactorsByCh map[byte]Reactor
 }
 
 // MultiplexTransport accepts and dials tcp connections and upgrades them to
@@ -48,14 +34,15 @@ type MultiplexTransport struct {
 	ctx      context.Context
 	cancelFn context.CancelFunc
 
+	logger *slog.Logger
+
 	netAddr  NetAddress // the node's P2P dial address, used for handshaking
 	nodeInfo NodeInfo   // the node's P2P info, used for handshaking
 	nodeKey  NodeKey    // the node's private P2P key, used for handshaking
 
-	listener net.Listener     // listener for inbound peer connections
-	peerCh   chan inboundPeer // pipe for inbound peer connections
-
-	conns ConnSet // lookup
+	listener    net.Listener  // listener for inbound peer connections
+	peerCh      chan peerInfo // pipe for inbound peer connections
+	activeConns sync.Map      // active peer connections (remote address -> nothing)
 
 	handshakeTimeout time.Duration
 
@@ -75,41 +62,39 @@ func NewMultiplexTransport(
 	mConfig conn.MConnConfig,
 ) *MultiplexTransport {
 	return &MultiplexTransport{
-		peerCh:           make(chan inboundPeer, 1),
+		peerCh:           make(chan peerInfo, 1),
 		handshakeTimeout: defaultHandshakeTimeout,
 		mConfig:          mConfig,
 		nodeInfo:         nodeInfo,
 		nodeKey:          nodeKey,
-		conns:            NewConnSet(),
 	}
 }
 
-// NetAddress implements Transport.
+// NetAddress returns the transport's listen address (for p2p connections)
 func (mt *MultiplexTransport) NetAddress() NetAddress {
 	return mt.netAddr
 }
 
 // Accept waits for a verified inbound Peer to connect, and returns it [BLOCKING]
-func (mt *MultiplexTransport) Accept(ctx context.Context, cfg peerConfig) (Peer, error) {
+func (mt *MultiplexTransport) Accept(ctx context.Context, behavior PeerBehavior) (Peer, error) {
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case info, ok := <-mt.peerCh:
 		if !ok {
-			return nil, errors.New("transport closed") // TODO make standard
+			return nil, errors.New("transport closed") // TODO make constant
 		}
 
-		// cfg.outbound = false TODO integrate
-
-		return mt.wrapPeer(info, cfg)
+		return mt.newMultiplexPeer(info, behavior, false)
 	}
 }
 
-// Dial creates an outbound verified Peer connection [BLOCKING]
+// Dial creates an outbound Peer connection, and
+// verifies it (performs handshaking) [BLOCKING]
 func (mt *MultiplexTransport) Dial(
 	ctx context.Context,
 	addr NetAddress,
-	cfg peerConfig,
+	behavior PeerBehavior,
 ) (Peer, error) {
 	// Set a dial timeout for the connection
 	c, err := addr.DialContext(ctx)
@@ -117,32 +102,19 @@ func (mt *MultiplexTransport) Dial(
 		return nil, err
 	}
 
-	// Check if the connection is a duplicate one
-	if mt.conns.Has(c) {
-		// Close the connection
+	// Process the connection with expected ID
+	info, err := mt.processConn(c, addr.ID)
+	if err != nil {
+		// Close the net peer connection
 		_ = c.Close()
 
-		return nil, errors.New("duplicate peer connection")
-	}
-
-	// Handshake with the peer
-	secretConn, nodeInfo, err := mt.upgrade(c, &addr)
-	if err != nil {
 		return nil, err
 	}
 
-	cfg.outbound = true
-
-	info := inboundPeer{
-		addr:     &addr,
-		conn:     secretConn,
-		nodeInfo: nodeInfo,
-	}
-
-	return mt.wrapPeer(info, cfg)
+	return mt.newMultiplexPeer(info, behavior, true)
 }
 
-// Close implements TransportLifecycle.
+// Close stops the multiplex transport
 func (mt *MultiplexTransport) Close() error {
 	mt.cancelFn()
 
@@ -153,8 +125,9 @@ func (mt *MultiplexTransport) Close() error {
 	return mt.listener.Close()
 }
 
-// Listen implements TransportLifecycle.
+// Listen starts an active process of listening for incoming connections [NON-BLOCKING]
 func (mt *MultiplexTransport) Listen(addr NetAddress) error {
+	// Reserve a port, and start listening
 	ln, err := net.Listen("tcp", addr.DialString())
 	if err != nil {
 		return fmt.Errorf("unable to listen on address, %w", err)
@@ -174,6 +147,8 @@ func (mt *MultiplexTransport) Listen(addr NetAddress) error {
 	mt.netAddr = addr
 	mt.listener = ln
 
+	// Run the routine for accepting
+	// incoming peer connections
 	go mt.runAcceptLoop()
 
 	return nil
@@ -194,48 +169,31 @@ func (mt *MultiplexTransport) runAcceptLoop() {
 			// Accept an incoming peer connection
 			c, err := mt.listener.Accept()
 			if err != nil {
-				// TODO log accept error
-				continue
-			}
-
-			// Check if the connection is a duplicate one
-			if mt.conns.Has(c) {
-				// TODO add warn log
-				continue
-			}
-
-			// Connection upgrade and filtering should be asynchronous to avoid
-			// Head-of-line blocking[0].
-			// Reference:  https://github.com/tendermint/classic/issues/2047
-			//
-			// [0] https://en.wikipedia.org/wiki/Head-of-line_blocking
-			go func(c net.Conn) {
-				// TODO extract common logic with Dial()
-				var (
-					nodeInfo   NodeInfo
-					secretConn *conn.SecretConnection
+				mt.logger.Error(
+					"unable to accept p2p connection",
+					"err", err,
 				)
 
-				secretConn, nodeInfo, err = mt.upgrade(c, nil)
+				continue
+			}
+
+			// Process the new connection asynchronously
+			go func(c net.Conn) {
+				info, err := mt.processConn(c, "")
 				if err != nil {
-					// TODO add error log
+					mt.logger.Error(
+						"unable to process p2p connection",
+						"err", err,
+					)
+
+					// Close the connection
+					_ = c.Close()
+
 					return
 				}
 
-				var (
-					addr       = c.RemoteAddr()
-					id         = secretConn.RemotePubKey().Address().ID()
-					netAddr, _ = NewNetAddress(id, addr)
-				)
-
-				p := inboundPeer{
-					addr:     netAddr,
-					conn:     c,
-					nodeInfo: nodeInfo,
-				}
-
 				select {
-				case mt.peerCh <- p:
+				case mt.peerCh <- info:
 				case <-mt.ctx.Done():
 					// Give up if the transport was closed.
 					_ = c.Close()
@@ -245,129 +203,99 @@ func (mt *MultiplexTransport) runAcceptLoop() {
 	}
 }
 
-// Remove removes the given address from the connections set and
-// closes the connection.
+// processConn handles the raw connection by upgrading it and verifying it
+func (mt *MultiplexTransport) processConn(c net.Conn, expectedID ID) (peerInfo, error) {
+	dialAddr := c.RemoteAddr().String()
+
+	// Check if the connection is a duplicate one
+	if _, exists := mt.activeConns.LoadOrStore(dialAddr, struct{}{}); exists {
+		return peerInfo{}, errors.New("duplicate peer connection") // TODO make constant
+	}
+
+	// Handshake with the peer, through STS
+	secretConn, nodeInfo, err := mt.upgradeAndVerifyConn(c)
+	if err != nil {
+		mt.activeConns.Delete(dialAddr)
+
+		return peerInfo{}, fmt.Errorf("unable to upgrade connection: %w", err)
+	}
+
+	// Verify the connection ID
+	id := secretConn.RemotePubKey().Address().ID()
+
+	if !expectedID.IsZero() && id.String() != expectedID.String() {
+		mt.activeConns.Delete(dialAddr)
+
+		return peerInfo{}, fmt.Errorf(
+			"connection ID does not match dialed ID (expected %q got %q)",
+			expectedID,
+			id,
+		)
+	}
+
+	netAddr, _ := NewNetAddress(id, c.RemoteAddr())
+
+	return peerInfo{
+		addr:     netAddr,
+		conn:     secretConn,
+		nodeInfo: nodeInfo,
+	}, nil
+}
+
+// Remove removes the peer resources from the transport
 func (mt *MultiplexTransport) Remove(p Peer) {
-	mt.conns.RemoveAddr(p.RemoteAddr())
-	_ = p.CloseConn()
+	mt.activeConns.Delete(p.RemoteAddr().String())
 }
 
-func (mt *MultiplexTransport) cleanup(c net.Conn) error {
-	mt.conns.Remove(c)
-
-	return c.Close()
-}
-
-func (mt *MultiplexTransport) upgrade(
-	c net.Conn,
-	dialedAddr *NetAddress,
-) (secretConn *conn.SecretConnection, nodeInfo NodeInfo, err error) {
-	defer func() {
-		if err != nil {
-			_ = mt.cleanup(c)
-		}
-	}()
-
-	secretConn, err = upgradeSecretConn(c, mt.handshakeTimeout, mt.nodeKey.PrivKey)
+// upgradeAndVerifyConn upgrades the connections (performs the handshaking process)
+// and verifies that the connecting peer is valid
+func (mt *MultiplexTransport) upgradeAndVerifyConn(c net.Conn) (*conn.SecretConnection, NodeInfo, error) {
+	// Upgrade to a secret connection
+	secretConn, err := upgradeToSecretConn(
+		c,
+		mt.handshakeTimeout,
+		mt.nodeKey.PrivKey,
+	)
 	if err != nil {
-		return nil, NodeInfo{}, RejectedError{
-			conn:          c,
-			err:           fmt.Errorf("secret conn failed: %w", err),
-			isAuthFailure: true,
-		}
+		return nil, NodeInfo{}, fmt.Errorf("unable to upgrade p2p connection, %w", err)
 	}
 
-	// For outgoing conns, ensure connection key matches dialed key.
+	// Exchange node information
+	nodeInfo, err := exchangeNodeInfo(secretConn, mt.handshakeTimeout, mt.nodeInfo)
+	if err != nil {
+		return nil, NodeInfo{}, fmt.Errorf("unable to exchange node information, %w", err)
+	}
+
+	// Ensure the connection ID matches the node's reported ID
 	connID := secretConn.RemotePubKey().Address().ID()
-	if dialedAddr != nil {
-		if dialedID := dialedAddr.ID; connID.String() != dialedID.String() {
-			return nil, NodeInfo{}, RejectedError{
-				conn: c,
-				id:   connID,
-				err: fmt.Errorf(
-					"conn.ID (%v) dialed ID (%v) mismatch",
-					connID,
-					dialedID,
-				),
-				isAuthFailure: true,
-			}
-		}
-	}
 
-	nodeInfo, err = handshake(secretConn, mt.handshakeTimeout, mt.nodeInfo)
-	if err != nil {
-		return nil, NodeInfo{}, RejectedError{
-			conn:          c,
-			err:           fmt.Errorf("handshake failed: %w", err),
-			isAuthFailure: true,
-		}
-	}
-
-	if err := nodeInfo.Validate(); err != nil {
-		return nil, NodeInfo{}, RejectedError{
-			conn:              c,
-			err:               err,
-			isNodeInfoInvalid: true,
-		}
-	}
-
-	// Ensure connection key matches self reported key.
 	if connID != nodeInfo.ID() {
-		return nil, NodeInfo{}, RejectedError{
-			conn: c,
-			id:   connID,
-			err: fmt.Errorf(
-				"conn.ID (%v) NodeInfo.ID (%v) mismatch",
-				connID,
-				nodeInfo.ID(),
-			),
-			isAuthFailure: true,
-		}
+		return nil, NodeInfo{}, fmt.Errorf(
+			"connection ID does not match node info ID (expected %q got %q)",
+			connID.String(),
+			nodeInfo.ID().String(),
+		)
 	}
 
-	// Reject self.
-	if mt.nodeInfo.ID() == nodeInfo.ID() {
-		addr, err := NewNetAddress(nodeInfo.ID(), c.RemoteAddr())
-		if err != nil {
-			return nil, NodeInfo{}, NetAddressInvalidError{
-				Addr: c.RemoteAddr().String(),
-				Err:  err,
-			}
-		}
-
-		return nil, NodeInfo{}, RejectedError{
-			addr:   *addr,
-			conn:   c,
-			id:     nodeInfo.ID(),
-			isSelf: true,
-		}
-	}
-
-	if err := mt.nodeInfo.CompatibleWith(nodeInfo); err != nil {
-		return nil, NodeInfo{}, RejectedError{
-			conn:           c,
-			err:            err,
-			id:             nodeInfo.ID(),
-			isIncompatible: true,
-		}
+	// Check compatibility with the node
+	if err = mt.nodeInfo.CompatibleWith(nodeInfo); err != nil {
+		return nil, NodeInfo{}, fmt.Errorf("incompatible node info, %w", err)
 	}
 
 	return secretConn, nodeInfo, nil
 }
 
-func (mt *MultiplexTransport) wrapPeer(
-	info inboundPeer,
-	cfg peerConfig,
+// newMultiplexPeer creates a new multiplex Peer, using
+// the provided Peer behavior and info
+func (mt *MultiplexTransport) newMultiplexPeer(
+	info peerInfo,
+	behavior PeerBehavior,
+	isOutbound bool,
 ) (Peer, error) {
-	persistent := false
-	if cfg.isPersistent != nil {
-		if cfg.outbound {
-			persistent = cfg.isPersistent(info.addr)
-		} else {
-			selfReportedAddr := info.nodeInfo.NetAddress
-			persistent = cfg.isPersistent(selfReportedAddr)
-		}
-	}
+	// Check for peer persistence using the dial address,
+	// as well as the self-reported address
+	persistent := behavior.IsPersistentPeer(info.addr) ||
+		behavior.IsPersistentPeer(info.nodeInfo.NetAddress)
 
 	// Extract the host
 	host, _, err := net.SplitHostPort(info.conn.RemoteAddr().String())
@@ -375,30 +303,35 @@ func (mt *MultiplexTransport) wrapPeer(
 		return nil, fmt.Errorf("unable to extract peer host, %w", err)
 	}
 
+	// Look up the IPs
 	ips, err := net.LookupIP(host)
 	if err != nil {
 		return nil, fmt.Errorf("unable to lookup peer IPs, %w", err)
 	}
 
+	// Wrap the info related to the connection
 	peerConn := &ConnInfo{
-		Outbound:   cfg.outbound,
+		Outbound:   isOutbound,
 		Persistent: persistent,
 		Conn:       info.conn,
-		RemoteIP:   ips[0],
+		RemoteIP:   ips[0], // IPv4
 		SocketAddr: info.addr,
 	}
 
+	// Create the info related to the multiplex connection
 	mConfig := &MultiplexConnConfig{
 		MConfig:      mt.mConfig,
-		ReactorsByCh: cfg.reactorsByCh,
-		ChDescs:      cfg.chDescs,
-		OnPeerError:  cfg.onPeerError,
+		ReactorsByCh: behavior.Reactors(),
+		ChDescs:      behavior.ReactorChDescriptors(),
+		OnPeerError:  behavior.HandlePeerError,
 	}
 
 	return NewPeer(peerConn, info.nodeInfo, mConfig), nil
 }
 
-func handshake(
+// exchangeNodeInfo performs a "handshake", where node
+// info is exchanged between the current node and a peer
+func exchangeNodeInfo(
 	c net.Conn,
 	timeout time.Duration,
 	nodeInfo NodeInfo,
@@ -434,10 +367,18 @@ func handshake(
 		return NodeInfo{}, err
 	}
 
-	return peerNodeInfo, c.SetDeadline(time.Time{})
+	// Validate the received node information
+	if err := nodeInfo.Validate(); err != nil {
+		return NodeInfo{}, fmt.Errorf("unable to validate node info, %w", err)
+	}
+
+	return peerNodeInfo, nil
 }
 
-func upgradeSecretConn(
+// upgradeToSecretConn takes an active TCP connection,
+// and upgrades it to a verified, handshaked connection through
+// the STS protocol
+func upgradeToSecretConn(
 	c net.Conn,
 	timeout time.Duration,
 	privKey crypto.PrivKey,
@@ -446,6 +387,7 @@ func upgradeSecretConn(
 		return nil, err
 	}
 
+	// Handshake (STS)
 	sc, err := conn.MakeSecretConnection(c, privKey)
 	if err != nil {
 		return nil, err

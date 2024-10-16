@@ -175,7 +175,7 @@ package p2p
 // 	conn := rawConn
 //
 // 	// Encrypt connection
-// 	conn, err = upgradeSecretConn(conn, cfg.HandshakeTimeout, ourNodePrivKey)
+// 	conn, err = upgradeToSecretConn(conn, cfg.HandshakeTimeout, ourNodePrivKey)
 // 	if err != nil {
 // 		return pc, errors.Wrap(err, "Error creating peer")
 // 	}

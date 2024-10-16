@@ -61,13 +61,36 @@ type PeerSet interface {
 // it is also responsible for any custom connection mechanisms (like handshaking).
 // Peers returned by the transport are considered to be verified and sound
 type Transport interface {
+	// NetAddress returns the Transport's dial address
+	NetAddress() NetAddress
+
 	// Accept returns a newly connected inbound peer
-	Accept(context.Context) (Peer, error)
+	Accept(context.Context, PeerBehavior) (Peer, error)
 
 	// Dial dials a peer, and returns it
-	Dial(context.Context, NetAddress) (Peer, error)
+	Dial(context.Context, NetAddress, PeerBehavior) (Peer, error)
 
 	// Remove drops any resources associated
 	// with the Peer in the transport
 	Remove(Peer)
+}
+
+// PeerBehavior wraps the Reactor and Switch information a Transport would need when
+// dialing or accepting new Peer connections.
+// It is worth noting that the only reason why this information is required in the first place,
+// is because Peers expose an API through which different TM modules can interact with them.
+// In the future™, modules should not directly "Send" anything to Peers, but instead communicate through
+// other mediums, such as the P2P module
+type PeerBehavior interface {
+	// ReactorChDescriptors returns the Reactor channel descriptors
+	ReactorChDescriptors() []*conn.ChannelDescriptor
+
+	// Reactors returns the node's active p2p Reactors (modules)
+	Reactors() map[byte]Reactor
+
+	// HandlePeerError propagates a peer connection error for further processing
+	HandlePeerError(Peer, error)
+
+	// IsPersistentPeer returns a flag indicating if the given peer is persistent
+	IsPersistentPeer(*NetAddress) bool
 }
