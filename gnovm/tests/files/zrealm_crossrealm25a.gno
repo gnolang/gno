@@ -1,0 +1,28 @@
+// PKGPATH: gno.land/r/crossrealm_test
+package crossrealm_test
+
+import (
+	"std"
+
+	crossrealm "gno.land/r/demo/tests/crossrealm"
+)
+
+type fooer struct{}
+
+func (fooer) Foo() { println("hello " + std.CurrentRealm().PkgPath()) }
+
+var f fooer
+
+func init() {
+	f = fooer{}
+}
+
+func main() {
+
+	crossrealm.SetContainer(&f)
+	print(".")
+}
+
+// this should work.
+// XXX, this associate a pointer to a floating object(not attached)
+// to external realm, no attachment happens to the external realm.

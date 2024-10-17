@@ -17,7 +17,7 @@ func (ls *LocalStruct) String() string {
 var local *LocalStruct
 
 func init() {
-	local = &LocalStruct{A: 123}
+	local = &LocalStruct{A: 123} // this is attached first
 }
 
 // Make1 returns a local object wrapped by a p struct
