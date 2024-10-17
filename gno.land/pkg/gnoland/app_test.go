@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -26,6 +27,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func testRequestInitChain(genState GnoGenesisState) abci.RequestInitChain {
+	return abci.RequestInitChain{
+		Time:    time.Now(),
+		ChainID: "dev",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: defaultBlockParams(),
+		},
+		Validators: []abci.ValidatorUpdate{},
+		AppState:   genState,
+	}
+}
+
 // Tests that NewAppWithOptions works even when only providing a simple DB.
 func TestNewAppWithOptions(t *testing.T) {
 	t.Parallel()
@@ -37,34 +50,26 @@ func TestNewAppWithOptions(t *testing.T) {
 	assert.Equal(t, "gnoland", bapp.Name())
 
 	addr := crypto.AddressFromPreimage([]byte("test1"))
-	resp := bapp.InitChain(abci.RequestInitChain{
-		Time:    time.Now(),
-		ChainID: "dev",
-		ConsensusParams: &abci.ConsensusParams{
-			Block: defaultBlockParams(),
-		},
-		Validators: []abci.ValidatorUpdate{},
-		AppState: GnoGenesisState{
-			Balances: []Balance{
-				{
-					Address: addr,
-					Amount:  []std.Coin{{Amount: 1e15, Denom: "ugnot"}},
-				},
-			},
-			Txs: []std.Tx{
-				{
-					Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
-						{
-							Name: "demo.gno",
-							Body: "package demo; func Hello() string { return `hello`; }",
-						},
-					})},
-					Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
-					Signatures: []std.Signature{{}}, // one empty signature
-				},
+	resp := bapp.InitChain(testRequestInitChain(GnoGenesisState{
+		Balances: []Balance{
+			{
+				Address: addr,
+				Amount:  []std.Coin{{Amount: 1e15, Denom: "ugnot"}},
 			},
 		},
-	})
+		Txs: []std.Tx{
+			{
+				Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
+					{
+						Name: "demo.gno",
+						Body: "package demo; func Hello() string { return `hello`; }",
+					},
+				})},
+				Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+				Signatures: []std.Signature{{}}, // one empty signature
+			},
+		},
+	}))
 	require.True(t, resp.IsOK(), "InitChain response: %v", resp)
 
 	tx := amino.MustMarshal(std.Tx{
@@ -114,6 +119,115 @@ func TestNewApp(t *testing.T) {
 		AppState:   GnoGenesisState{},
 	})
 	assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
+}
+
+func TestNewAppWithOptions_WithTxContexts(t *testing.T) {
+	t.Parallel()
+
+	appOpts := TestAppOptions(memdb.NewMemDB())
+	called := 0
+	appOpts.GenesisTxResultHandler = func(ctx sdk.Context, _ std.Tx, res sdk.Result) {
+		if !res.IsOK() {
+			t.Fatal(res)
+		}
+		called++
+		switch called {
+		case 1:
+			assert.Equal(t, string(res.Data), "time.Now() 7331\nstd.GetHeight() -1337\n")
+		case 2:
+			assert.Equal(t, string(res.Data), "time.Now() "+strconv.FormatInt(ctx.BlockTime().Unix(), 10)+"\nstd.GetHeight() 13377331\n")
+		}
+	}
+	app, err := NewAppWithOptions(appOpts)
+	require.NoError(t, err)
+	bapp := app.(*sdk.BaseApp)
+
+	const pkgFile = `package main
+
+import (
+	"std"
+	"time"
+)
+
+func main() {
+	println("time.Now()", time.Now().Unix())
+	println("std.GetHeight()", std.GetHeight())
+}
+`
+
+	addr := crypto.AddressFromPreimage([]byte("test1"))
+	resp := bapp.InitChain(testRequestInitChain(GnoGenesisState{
+		Balances: []Balance{
+			{
+				Address: addr,
+				Amount:  []std.Coin{{Amount: 1e15, Denom: "ugnot"}},
+			},
+		},
+		Txs: []std.Tx{
+			{
+				Msgs: []std.Msg{vm.NewMsgRun(addr, std.Coins{}, []*std.MemFile{
+					{
+						Name: "demo.gno",
+						Body: pkgFile,
+					},
+				})},
+				Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+				Signatures: []std.Signature{{}}, // one empty signature
+			},
+			{
+				// same as previous, but will have different TxContext.
+				Msgs: []std.Msg{vm.NewMsgRun(addr, std.Coins{}, []*std.MemFile{
+					{
+						Name: "demo.gno",
+						Body: pkgFile,
+					},
+				})},
+				Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+				Signatures: []std.Signature{{}}, // one empty signature
+			},
+		},
+		TxContexts: []vm.ExecContextCustom{
+			{
+				Height:    -1337,
+				Timestamp: 7331,
+			},
+			{
+				// different height; timestamp=0 will mean that InitChain will auto-set it
+				// to the block time.
+				Height:    13377331,
+				Timestamp: 0,
+			},
+		},
+	}))
+	require.True(t, resp.IsOK(), "InitChain response: %v", resp)
+}
+
+func TestNewAppWithOptions_InvalidTxContexts(t *testing.T) {
+	t.Parallel()
+
+	app, err := NewAppWithOptions(testAppOptions())
+	require.NoError(t, err)
+	bapp := app.(*sdk.BaseApp)
+
+	addr := crypto.AddressFromPreimage([]byte("test1"))
+	resp := bapp.InitChain(testRequestInitChain(GnoGenesisState{
+		Balances: []Balance{
+			{
+				Address: addr,
+				Amount:  []std.Coin{{Amount: 1e15, Denom: "ugnot"}},
+			},
+		},
+		Txs: []std.Tx{
+			// one tx
+			{},
+		},
+		TxContexts: []vm.ExecContextCustom{
+			// two contexts
+			{}, {},
+		},
+	}))
+	assert.True(t, resp.IsErr())
+	assert.ErrorContains(t, resp.Error, "genesis state tx_contexts, if given, should be of same length as txs")
 }
 
 // Test whether InitChainer calls to load the stdlibs correctly.
