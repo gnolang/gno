@@ -2792,7 +2792,7 @@ func funcOf(last BlockNode) (BlockNode, *FuncTypeExpr) {
 func findBreakableNode(ns []Node) bool {
 	for _, n := range ns {
 		switch n.(type) {
-		case *ForStmt, *RangeStmt, *SwitchClauseStmt, *SwitchStmt:
+		case *ForStmt, *RangeStmt, *SwitchClauseStmt:
 			return true
 		}
 	}
