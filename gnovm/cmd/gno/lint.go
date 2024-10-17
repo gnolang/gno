@@ -17,6 +17,7 @@ import (
 	"github.com/gnolang/gno/gnovm/tests"
 	"github.com/gnolang/gno/tm2/pkg/commands"
 	osm "github.com/gnolang/gno/tm2/pkg/os"
+	"go.uber.org/multierr"
 )
 
 type lintCfg struct {
@@ -179,7 +180,15 @@ func catchRuntimeError(pkgPath string, stderr io.WriteCloser, action func()) (ha
 				fmt.Fprint(stderr, issueFromError(pkgPath, err).String()+"\n")
 			}
 		case error:
-			fmt.Fprint(stderr, issueFromError(pkgPath, verr).String()+"\n")
+			errors := multierr.Errors(verr)
+			for _, err := range errors {
+				errList, ok := err.(scanner.ErrorList)
+				if ok {
+					for _, errorInList := range errList {
+						fmt.Fprint(stderr, issueFromError(pkgPath, errorInList).String()+"\n")
+					}
+				}
+			}
 		case string:
 			fmt.Fprint(stderr, issueFromError(pkgPath, errors.New(verr)).String()+"\n")
 		default:
