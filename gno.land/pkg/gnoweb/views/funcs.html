@@ -172,7 +172,7 @@
       const extension = window.location.pathname.split(".").pop();
       const isCode = key === "package_render" && extension !== "md";
 
-      const parsed = parseContent(document.getElementById("source").innerHTML, isCode);
+      const parsed = parseContent(document.getElementById("source").innerText, isCode);
       el.innerHTML = DOMPurify.sanitize(parsed, { USE_PROFILES: { html: true } });
     }
   }
