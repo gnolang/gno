@@ -16,6 +16,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"regexp"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -45,6 +46,7 @@ type Config struct {
 	HelpChainID   string
 	HelpRemote    string
 	WithAnalytics bool
+	ExpNoHTML     bool
 }
 
 func NewDefaultConfig() Config {
@@ -56,6 +58,7 @@ func NewDefaultConfig() Config {
 		HelpChainID:   "dev",
 		HelpRemote:    "127.0.0.1:26657",
 		WithAnalytics: false,
+		ExpNoHTML:     true,
 	}
 }
 
@@ -109,6 +112,35 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 	return app
 }
 
+var (
+    inlineCodePattern = regexp.MustCompile("`[^`]*`")
+    htmlTagPattern    = regexp.MustCompile(`<\/?\w+[^>]*?>`)
+)
+func checkHTMLInMarkdown(cfg *Config, content string) string {
+	if !cfg.ExpNoHTML {
+        return content
+    }
+
+    placeholders := map[string]string{}
+    contentWithPlaceholders := inlineCodePattern.ReplaceAllStringFunc(content, func(match string) string {
+        placeholder := fmt.Sprintf("__GNOMDCODE_%d__", len(placeholders))
+        placeholders[placeholder] = match
+        return placeholder
+    })
+
+    contentWithNoHTML := htmlTagPattern.ReplaceAllString(contentWithPlaceholders, "")
+
+	if len(placeholders) > 0 {
+		for placeholder, code := range placeholders {
+			contentWithNoHTML = strings.ReplaceAll(contentWithNoHTML, placeholder, code)
+		}
+	}
+
+	return contentWithNoHTML
+}
+
+
+
 // handlerRealmAlias is used to render official pages from realms.
 // url is intended to be shorter.
 // UX is intended to be more minimalistic.
@@ -151,7 +183,7 @@ func handlerRealmAlias(logger *slog.Logger, app gotuna.App, cfg *Config, rlmpath
 		tmpl.Set("RealmPath", rlmpath)
 		tmpl.Set("Query", querystr)
 		tmpl.Set("PathLinks", pathLinks)
-		tmpl.Set("Contents", string(res.Data))
+		tmpl.Set("Contents", checkHTMLInMarkdown(cfg, string(res.Data)))
 		tmpl.Set("Config", cfg)
 		tmpl.Set("IsAlias", true)
 		tmpl.Render(w, r, "realm_render.html", "funcs.html")
@@ -290,6 +322,7 @@ func handlerRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config) http.H
 	})
 }
 
+
 func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	rlmname := vars["rlmname"]
@@ -313,6 +346,7 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 			return
 		}
 	}
+ 
 
 	dirdata := []byte(rlmpath)
 	dirres, err := makeRequest(logger, cfg, qFileStr, dirdata)
@@ -339,7 +373,7 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 	tmpl.Set("RealmPath", rlmpath)
 	tmpl.Set("Query", querystr)
 	tmpl.Set("PathLinks", pathLinks)
-	tmpl.Set("Contents", string(res.Data))
+	tmpl.Set("Contents", checkHTMLInMarkdown(cfg, string(res.Data)))
 	tmpl.Set("Config", cfg)
 	tmpl.Set("HasReadme", hasReadme)
 	tmpl.Render(w, r, "realm_render.html", "funcs.html")
