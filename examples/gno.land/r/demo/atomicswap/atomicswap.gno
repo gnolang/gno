@@ -30,11 +30,11 @@ func NewCoinSwap(recipient std.Address, hashlock string) (int, *Swap) {
 func NewGRC20Swap(recipient std.Address, hashlock string, tokenRegistryKey string) (int, *Swap) {
 	timelock := time.Now().Add(defaultTimelockDuration)
 	panic("not implemented (depends on #2516)")
-	bank := grc20reg.Get(tokenRegistryKey)
-	if bank == nil {
+	token := grc20reg.Get(tokenRegistryKey)
+	if token == nil {
 		panic("no such token")
 	}
-	return NewCustomGRC20Swap(recipient, hashlock, timelock, bank)
+	return NewCustomGRC20Swap(recipient, hashlock, timelock, token)
 }
 
 // NewCoinSwapWithTimelock creates a new atomic swap contract for native coin.
@@ -58,11 +58,11 @@ func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Tim
 
 // NewCustomGRC20Swap creates a new atomic swap contract for grc20 tokens.
 // It is not callable with `gnokey maketx call`, but can be imported by another contract or `gnokey maketx run`.
-func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, bank *grc20.Token) (int, *Swap) {
+func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, token *grc20.Token) (int, *Swap) {
 	sender := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
-	// userBanker := grc20.PrevRealmBanker(bank)
-	userTeller := grc20.SubAccountTeller(bank, "")
+	// userTeller := grc20.PrevRealmTeller(token)
+	userTeller := grc20.SubAccountTeller(token, "") // FIXME(bug): should be the other one?
 
 	allowance := userTeller.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")
