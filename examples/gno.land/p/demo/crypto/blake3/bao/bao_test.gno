@@ -8,7 +8,6 @@ import (
 
 	"gno.land/p/demo/crypto/blake3"
 	"gno.land/p/demo/crypto/blake3/bao"
-	"gno.land/p/demo/ufmt"
 )
 
 func toHex(data []byte) string { return hex.EncodeToString(data) }
