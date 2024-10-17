@@ -22,6 +22,8 @@ func Println(args ...interface{}) {
 			strs = append(strs, v.String())
 		case error:
 			strs = append(strs, v.Error())
+		case float64:
+			strs = append(strs, Sprintf("%f", v))
 		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 			strs = append(strs, Sprintf("%d", v))
 		case bool:
@@ -56,6 +58,12 @@ func Println(args ...interface{}) {
 //	%c: formats the character represented by Unicode code point
 //	%d: formats an integer value using package "strconv".
 //	    Currently supports only uint, uint64, int, int64.
+//	%f: formats a float value, with a default precision of 6.
+//	%e: formats a float with scientific notation; 1.23456e+78
+//	%E: formats a float with scientific notation; 1.23456E+78
+//	%F: The same as %f
+//	%g: formats a float value with %e for large exponents, and %f with full precision for smaller numbers
+//	%G: formats a float value with %G for large exponents, and %F with full precision for smaller numbers
 //	%t: formats a boolean value to "true" or "false".
 //	%x: formats an integer value as a hexadecimal string.
 //	    Currently supports only uint8, []uint8, [32]uint8.
@@ -153,6 +161,24 @@ func Sprintf(format string, args ...interface{}) string {
 			default:
 				buf += fallback(verb, v)
 			}
+		case "e", "E", "f", "F", "g", "G":
+			switch v := arg.(type) {
+			case float64:
+				switch verb {
+				case "e":
+					buf += strconv.FormatFloat(v, byte('e'), -1, 64)
+				case "E":
+					buf += strconv.FormatFloat(v, byte('E'), -1, 64)
+				case "f", "F":
+					buf += strconv.FormatFloat(v, byte('f'), 6, 64)
+				case "g":
+					buf += strconv.FormatFloat(v, byte('g'), -1, 64)
+				case "G":
+					buf += strconv.FormatFloat(v, byte('G'), -1, 64)
+				}
+			default:
+				buf += fallback(verb, v)
+			}
 		case "t":
 			switch v := arg.(type) {
 			case bool:
@@ -244,6 +270,8 @@ func fallback(verb string, arg interface{}) string {
 	case error:
 		// note: also "string=" in Go fmt
 		s = "string=" + v.Error()
+	case float64:
+		s = "float64=" + Sprintf("%f", v)
 	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		// note: rune, byte would be dups, being aliases
 		if typename, e := typeToString(v); e != nil {
