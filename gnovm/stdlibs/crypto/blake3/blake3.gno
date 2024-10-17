@@ -1,8 +1,6 @@
 package blake3
 
-const Size = 32
-
-// Sum returns the SHA-256 checksum of the data.
-func Sum256(data []byte) [Size]byte { return sum256(data) }
-
-func sum256(data []byte) [32]byte // injected
+// Sum256 returns the BLAKE3 checksum of the data.
+func Sum256(data []byte) [32]byte // injected
+// Sum512 returns the BLAKE3 checksum of the data.
+func Sum512(data []byte) [64]byte // injected

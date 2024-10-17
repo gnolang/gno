@@ -1,14 +1,22 @@
 package blake3
 
 import (
-	"crypto/blake3"
 	"encoding/hex"
 	"testing"
 )
 
-func TestSha256Sum(t *testing.T) {
-	got := blake3.Sum256([]byte("sha256 this string"))[:]
-	expected := "8bf6a3079eba11e7d5479e01531d9a08f2791bdd94e3e1d12d483e5bb6d6f570"
+func TestSum256(t *testing.T) {
+	got := Sum256([]byte("do not spoil what you have by desiring what you have not"))[:]
+	expected := "5bad40bf47e20b26d1b4955464b717545321b1381dc354dcd41a065a8f4f513b"
+
+	if hex.EncodeToString(got) != expected {
+		t.Errorf("got %v(%T), expected %v(%T)", hex.EncodeToString(got), got, expected, expected)
+	}
+}
+
+func TestSum512(t *testing.T) {
+	got := Sum512([]byte("do not spoil what you have by desiring what you have not"))[:]
+	expected := "5bad40bf47e20b26d1b4955464b717545321b1381dc354dcd41a065a8f4f513be4e747b996ec9100febc5c19ace1eba197aacf2250b466213de14a04d82c5132"
 
 	if hex.EncodeToString(got) != expected {
 		t.Errorf("got %v(%T), expected %v(%T)", hex.EncodeToString(got), got, expected, expected)

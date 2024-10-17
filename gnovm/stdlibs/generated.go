@@ -38,7 +38,7 @@ func (n *NativeFunc) HasMachineParam() bool {
 var nativeFuncs = [...]NativeFunc{
 	{
 		"crypto/blake3",
-		"sum256",
+		"Sum256",
 		[]gno.FieldTypeExpr{
 			{Name: gno.N("p0"), Type: gno.X("[]byte")},
 		},
@@ -55,7 +55,35 @@ var nativeFuncs = [...]NativeFunc{
 
 			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
 
-			r0 := libs_crypto_blake3.X_sum256(p0)
+			r0 := libs_crypto_blake3.Sum256(p0)
+
+			m.PushValue(gno.Go2GnoValue(
+				m.Alloc,
+				m.Store,
+				reflect.ValueOf(&r0).Elem(),
+			))
+		},
+	},
+	{
+		"crypto/blake3",
+		"Sum512",
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("p0"), Type: gno.X("[]byte")},
+		},
+		[]gno.FieldTypeExpr{
+			{Name: gno.N("r0"), Type: gno.X("[64]byte")},
+		},
+		false,
+		func(m *gno.Machine) {
+			b := m.LastBlock()
+			var (
+				p0  []byte
+				rp0 = reflect.ValueOf(&p0).Elem()
+			)
+
+			gno.Gno2GoValue(b.GetPointerTo(nil, gno.NewValuePathBlock(1, 0, "")).TV, rp0)
+
+			r0 := libs_crypto_blake3.Sum512(p0)
 
 			m.PushValue(gno.Go2GnoValue(
 				m.Alloc,
