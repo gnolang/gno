@@ -80,6 +80,7 @@ type AdminLedger struct {
 	totalSupply uint64
 	balances    avl.Tree // std.Address -> uint64
 	allowances  avl.Tree // owner.(std.Address)+":"+spender.(std.Address)) -> uint64
+	token       *Token
 }
 
 type fnTeller struct {
@@ -88,8 +89,3 @@ type fnTeller struct {
 }
 
 var _ GRC20 = (*fnTeller)(nil)
-
-// ledger is a struct that holds administrative functions for the token.
-type ledger struct {
-	token *Token
-}

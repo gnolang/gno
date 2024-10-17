@@ -57,32 +57,38 @@ func Bank(symbol string) *grc20.Token {
 
 func TotalSupply(symbol string) uint64 {
 	inst := mustGetInstance(symbol)
-	return inst.token.CallerTeller().TotalSupply()
+	return inst.token.ReadonlyTeller().TotalSupply()
 }
 
 func BalanceOf(symbol string, owner std.Address) uint64 {
 	inst := mustGetInstance(symbol)
-	return inst.token.CallerTeller().BalanceOf(owner)
+	return inst.token.ReadonlyTeller().BalanceOf(owner)
 }
 
 func Allowance(symbol string, owner, spender std.Address) uint64 {
 	inst := mustGetInstance(symbol)
-	return inst.token.CallerTeller().Allowance(owner, spender)
+	return inst.token.ReadonlyTeller().Allowance(owner, spender)
 }
 
 func Transfer(symbol string, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	checkErr(inst.token.CallerTeller().Transfer(to, amount))
+	caller := std.PrevRealm().Addr()
+	teller := inst.ledger.MasqueradingTeller(caller)
+	checkErr(teller.Transfer(to, amount))
 }
 
 func Approve(symbol string, spender std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	checkErr(inst.token.CallerTeller().Approve(spender, amount))
+	caller := std.PrevRealm().Addr()
+	teller := inst.ledger.MasqueradingTeller(caller)
+	checkErr(teller.Approve(spender, amount))
 }
 
 func TransferFrom(symbol string, from, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	checkErr(inst.token.CallerTeller().TransferFrom(from, to, amount))
+	caller := std.PrevRealm().Addr()
+	teller := inst.ledger.MasqueradingTeller(caller)
+	checkErr(teller.TransferFrom(from, to, amount))
 }
 
 // faucet.

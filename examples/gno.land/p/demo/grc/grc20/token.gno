@@ -26,6 +26,7 @@ func NewToken(name, symbol string, decimals uint) (*Token, *AdminLedger) {
 		decimals: decimals,
 		ledger:   ledger,
 	}
+	ledger.token = token
 	return token, ledger
 }
 
