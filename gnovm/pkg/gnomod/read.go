@@ -249,7 +249,7 @@ func (in *input) readToken() {
 
 			// Otherwise, save comment for later attachment to syntax tree.
 			in.endToken(_EOLCOMMENT)
-			in.comments = append(in.comments, modfile.Comment{in.token.pos, in.token.text, suffix})
+			in.comments = append(in.comments, modfile.Comment{Start: in.token.pos, Token: in.token.text, Suffix: suffix})
 			return
 		}
 
