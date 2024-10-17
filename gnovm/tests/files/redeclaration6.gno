@@ -7,4 +7,4 @@ func main() {
 }
 
 // Error:
-// running package "github.com/gnolang/gno/_test/redeclaration1": invalid redeclarations for identifiers: "a"
+// running package "github.com/gnolang/gno/_test/redeclaration1": redeclarations for identifiers: "a"

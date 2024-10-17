@@ -6,7 +6,5 @@ func main() {
 	println("should not happen")
 }
 
-// XXX show what was redeclared.
-
 // Error:
-// running package "github.com/gnolang/gno/_test/redeclaration2": invalid redeclarations for identifiers: "a"
+// running package "github.com/gnolang/gno/_test/redeclaration2": redeclarations for identifiers: "a"
