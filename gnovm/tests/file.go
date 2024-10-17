@@ -54,7 +54,7 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 	pkgAddr := gno.DerivePkgAddr(pkgPath) // the addr of the pkgPath called.
 	caller := gno.DerivePkgAddr("user1.gno")
 
-	pkgCoins := std.MustParseCoins(ugnot.ValueString(200000000)).Add(send) // >= send.
+	pkgCoins := std.MustParseCoins(ugnot.ValueString(200_000_000)).Add(send) // >= send.
 	banker := newTestBanker(pkgAddr.Bech32(), pkgCoins)
 	ctx := stdlibs.ExecContext{
 		ChainID:       "dev",
@@ -72,6 +72,19 @@ func TestContext(pkgPath string, send std.Coins) *teststd.TestExecContext {
 		ExecContext: ctx,
 		RealmFrames: make(map[*gno.Frame]teststd.RealmOverride),
 	}
+}
+
+// CleanupMachine can be called during two tests while reusing the same Machine instance.
+func CleanupMachine(m *gno.Machine) {
+	prevCtx := m.Context.(*teststd.TestExecContext)
+	prevSend := prevCtx.OrigSend
+
+	newCtx := TestContext("", prevCtx.OrigSend)
+	pkgCoins := std.MustParseCoins(ugnot.ValueString(200_000_000)).Add(prevSend) // >= send.
+	banker := newTestBanker(prevCtx.OrigPkgAddr, pkgCoins)
+	newCtx.OrigPkgAddr = prevCtx.OrigPkgAddr
+	newCtx.Banker = banker
+	m.Context = newCtx
 }
 
 type runFileTestOptions struct {
