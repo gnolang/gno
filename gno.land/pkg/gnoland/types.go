@@ -3,6 +3,7 @@ package gnoland
 import (
 	"errors"
 
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
@@ -20,6 +21,7 @@ func ProtoGnoAccount() std.Account {
 }
 
 type GnoGenesisState struct {
-	Balances []Balance `json:"balances"`
-	Txs      []std.Tx  `json:"txs"`
+	Balances []Balance         `json:"balances"`
+	Txs      []std.Tx          `json:"txs"`
+	Auth     auth.GenesisState `json:"auth"`
 }

@@ -1,6 +1,8 @@
 package std
 
 import (
+	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/gnolang/gno/tm2/pkg/errors"
@@ -28,6 +30,9 @@ func ParseGasPrice(gasprice string) (GasPrice, error) {
 	if gas.Denom != "gas" {
 		return GasPrice{}, errors.New("invalid gas price: %s (invalid gas denom)", gasprice)
 	}
+	if gas.Amount == 0 {
+		return GasPrice{}, errors.New("invalid gas price: %s (gas can not be zero)", gasprice)
+	}
 	return GasPrice{
 		Gas:   gas.Amount,
 		Price: price,
@@ -47,4 +52,29 @@ func ParseGasPrices(gasprices string) (res []GasPrice, err error) {
 		}
 	}
 	return res, nil
+}
+
+// IsGTE compares the GasPrice with another gas price B. If coin denom matches AND fee per gas is
+// greater or equal to the gas price B return true, other wise return false,
+func (gp GasPrice) IsGTE(gpB GasPrice) bool {
+	if gp.Price.Denom != gpB.Price.Denom {
+		panic(fmt.Sprintf("gas price denominations should be equal; %s, %s", gp.Price.Denom, gpB.Price.Denom))
+	}
+	if gp.Gas == 0 || gpB.Gas == 0 {
+		panic(fmt.Sprintf("GasPrice.Gas cannot be zero; %+v, %+v", gp, gpB))
+	}
+
+	gpg := big.NewInt(gp.Gas)
+	gpa := big.NewInt(gp.Price.Amount)
+
+	gpBg := big.NewInt(gpB.Gas)
+	gpBa := big.NewInt(gpB.Price.Amount)
+
+	prod1 := big.NewInt(0).Mul(gpa, gpBg) // gp's price amount * gpB's gas
+	prod2 := big.NewInt(0).Mul(gpg, gpBa) // gpB's gas * pg's price amount
+	// This is equivalent to checking
+	// That the Fee / GasWanted ratio is greater than or equal to the minimum GasPrice per gas.
+	// This approach helps us avoid dealing with configurations where the value of
+	// the minimum gas price is set to 0.00001ugnot/gas.
+	return prod1.Cmp(prod2) >= 0
 }

@@ -18,6 +18,10 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/events"
 	"github.com/gnolang/gno/tm2/pkg/log"
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/auth"
+	"github.com/gnolang/gno/tm2/pkg/sdk/bank"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
+	"github.com/gnolang/gno/tm2/pkg/sdk/testutils"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/dbadapter"
@@ -37,6 +41,27 @@ func TestNewAppWithOptions(t *testing.T) {
 	assert.Equal(t, "gnoland", bapp.Name())
 
 	addr := crypto.AddressFromPreimage([]byte("test1"))
+
+	appState := DefaultGenState()
+	appState.Balances = []Balance{
+		{
+			Address: addr,
+			Amount:  []std.Coin{{Amount: 1e15, Denom: "ugnot"}},
+		},
+	}
+	appState.Txs = []std.Tx{
+		{
+			Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
+				{
+					Name: "demo.gno",
+					Body: "package demo; func Hello() string { return `hello`; }",
+				},
+			})},
+			Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
+			Signatures: []std.Signature{{}}, // one empty signature
+		},
+	}
+
 	resp := bapp.InitChain(abci.RequestInitChain{
 		Time:    time.Now(),
 		ChainID: "dev",
@@ -44,26 +69,7 @@ func TestNewAppWithOptions(t *testing.T) {
 			Block: defaultBlockParams(),
 		},
 		Validators: []abci.ValidatorUpdate{},
-		AppState: GnoGenesisState{
-			Balances: []Balance{
-				{
-					Address: addr,
-					Amount:  []std.Coin{{Amount: 1e15, Denom: "ugnot"}},
-				},
-			},
-			Txs: []std.Tx{
-				{
-					Msgs: []std.Msg{vm.NewMsgAddPackage(addr, "gno.land/r/demo", []*std.MemFile{
-						{
-							Name: "demo.gno",
-							Body: "package demo; func Hello() string { return `hello`; }",
-						},
-					})},
-					Fee:        std.Fee{GasWanted: 1e6, GasFee: std.Coin{Amount: 1e6, Denom: "ugnot"}},
-					Signatures: []std.Signature{{}}, // one empty signature
-				},
-			},
-		},
+		AppState:   appState,
 	})
 	require.True(t, resp.IsOK(), "InitChain response: %v", resp)
 
@@ -111,7 +117,7 @@ func TestNewApp(t *testing.T) {
 			},
 		},
 		Validators: []abci.ValidatorUpdate{},
-		AppState:   GnoGenesisState{},
+		AppState:   DefaultGenState(),
 	})
 	assert.True(t, resp.IsOK(), "resp is not OK: %v", resp)
 }
@@ -181,8 +187,12 @@ func testInitChainerLoadStdlib(t *testing.T, cached bool) { //nolint:thelper
 		vmKpr:           mock,
 		CacheStdlibLoad: cached,
 	}
+	// Construct keepers.
+	paramsKpr := params.NewKeeper(iavlCapKey, nil)
+	cfg.acctKpr = auth.NewAccountKeeper(iavlCapKey, paramsKpr, ProtoGnoAccount)
+	cfg.gpKpr = auth.NewGasPriceKeeper(iavlCapKey)
 	cfg.InitChainer(testCtx, abci.RequestInitChain{
-		AppState: GnoGenesisState{},
+		AppState: DefaultGenState(),
 	})
 
 	// assert number of calls
@@ -271,7 +281,7 @@ func TestEndBlocker(t *testing.T) {
 		c := newCollector[validatorUpdate](&mockEventSwitch{}, noFilter)
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, nil, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, nil, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}, abci.RequestEndBlock{})
@@ -311,7 +321,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}, abci.RequestEndBlock{})
@@ -354,7 +364,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(gnostd.GnoEvent{})
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}, abci.RequestEndBlock{})
@@ -422,7 +432,7 @@ func TestEndBlocker(t *testing.T) {
 		mockEventSwitch.FireEvent(txEvent)
 
 		// Create the EndBlocker
-		eb := EndBlocker(c, mockVMKeeper, &mockEndBlockerApp{})
+		eb := EndBlocker(c, nil, nil, mockVMKeeper, &mockEndBlockerApp{})
 
 		// Run the EndBlocker
 		res := eb(sdk.Context{}, abci.RequestEndBlock{})
@@ -436,4 +446,336 @@ func TestEndBlocker(t *testing.T) {
 			assert.Equal(t, changes[index].Power, update.Power)
 		}
 	})
+}
+
+func TestGasPriceUpdate(t *testing.T) {
+	app, err := newGasPriceTestApp()
+	require.NoError(t, err)
+	// with default initial gas price 0.1 ugnot per gas
+	gnoGen, err := gnoGenesisState()
+	require.NoError(t, err)
+
+	// abci inintChain
+	app.InitChain(abci.RequestInitChain{
+		AppState: gnoGen,
+		ChainID:  "test-chain",
+		ConsensusParams: &abci.ConsensusParams{
+			Block: &abci.BlockParams{
+				MaxGas: 10000,
+			},
+		},
+	})
+	baseApp := app.(*sdk.BaseApp)
+	require.Equal(t, int64(0), baseApp.LastBlockHeight())
+	// Case 1
+	// CheckTx failed because the GasFee is less than the initial gas price.
+
+	tx := newCounterTx(100)
+	tx.Fee = std.Fee{
+		GasWanted: 100,
+		GasFee: sdk.Coin{
+			Amount: 9,
+			Denom:  "ugnot",
+		},
+	}
+	txBytes, err := amino.Marshal(tx)
+	require.NoError(t, err)
+	r := app.CheckTx(abci.RequestCheckTx{Tx: txBytes})
+	assert.False(t, r.IsOK(), fmt.Sprintf("%v", r))
+
+	// Case 2:
+	// A previously successful CheckTx failed after the block gas price increased.
+	// Check Tx Ok
+	tx2 := newCounterTx(100)
+	tx2.Fee = std.Fee{
+		GasWanted: 1000,
+		GasFee: sdk.Coin{
+			Amount: 100,
+			Denom:  "ugnot",
+		},
+	}
+	txBytes2, err := amino.Marshal(tx2)
+	require.NoError(t, err)
+	r = app.CheckTx(abci.RequestCheckTx{Tx: txBytes2})
+	assert.True(t, r.IsOK(), fmt.Sprintf("%v", r))
+
+	// After replaying a block, the gas price increased.
+	header := &bft.Header{ChainID: "test-chain", Height: 1}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+	// Delvier Tx consumes more than that target block gas 6000.
+
+	tx6001 := newCounterTx(6001)
+	tx6001.Fee = std.Fee{
+		GasWanted: 20000,
+		GasFee: sdk.Coin{
+			Amount: 200,
+			Denom:  "ugnot",
+		},
+	}
+	txBytes6001, err := amino.Marshal(tx6001)
+	require.NoError(t, err)
+	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes6001})
+	require.True(t, res.IsOK(), fmt.Sprintf("%v", res))
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	// CheckTx failed because gas price increased
+	r = app.CheckTx(abci.RequestCheckTx{Tx: txBytes2})
+	assert.False(t, r.IsOK(), fmt.Sprintf("%v", r))
+
+	// Case 3:
+	// A previously failed CheckTx successed after block gas price reduced.
+
+	// CheckTx Failed
+	r = app.CheckTx(abci.RequestCheckTx{Tx: txBytes2})
+	assert.False(t, r.IsOK(), fmt.Sprintf("%v", r))
+	// Replayed a Block, the gas price decrease
+	header = &bft.Header{ChainID: "test-chain", Height: 2}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+	// Delvier Tx consumes less than that target block gas 6000.
+
+	tx200 := newCounterTx(200)
+	tx200.Fee = std.Fee{
+		GasWanted: 20000,
+		GasFee: sdk.Coin{
+			Amount: 200,
+			Denom:  "ugnot",
+		},
+	}
+	txBytes200, err := amino.Marshal(tx200)
+	require.NoError(t, err)
+
+	res = app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes200})
+	require.True(t, res.IsOK(), fmt.Sprintf("%v", res))
+
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+
+	// CheckTx earlier failed tx, now is OK
+	r = app.CheckTx(abci.RequestCheckTx{Tx: txBytes2})
+	assert.True(t, r.IsOK(), fmt.Sprintf("%v", r))
+
+	// Case 4
+	// require matching expected GasPrice after three blocks ( increase case)
+	replayBlock(t, baseApp, 8000, 3)
+	replayBlock(t, baseApp, 8000, 4)
+	replayBlock(t, baseApp, 6000, 5)
+
+	key := []byte("gasPrice")
+	query := abci.RequestQuery{
+		Path: ".store/main/key",
+		Data: key,
+	}
+	qr := app.Query(query)
+	var gp std.GasPrice
+	err = amino.Unmarshal(qr.Value, &gp)
+	require.NoError(t, err)
+	require.Equal(t, "108ugnot", gp.Price.String())
+
+	// Case 5,
+	// require matching expected GasPrice after low gas blocks ( decrease below initial gas price case)
+
+	replayBlock(t, baseApp, 5000, 6)
+	replayBlock(t, baseApp, 5000, 7)
+	replayBlock(t, baseApp, 5000, 8)
+
+	qr = app.Query(query)
+	err = amino.Unmarshal(qr.Value, &gp)
+	require.NoError(t, err)
+	require.Equal(t, "102ugnot", gp.Price.String())
+
+	replayBlock(t, baseApp, 5000, 9)
+
+	qr = app.Query(query)
+	err = amino.Unmarshal(qr.Value, &gp)
+	require.NoError(t, err)
+	require.Equal(t, "100ugnot", gp.Price.String())
+}
+
+func newGasPriceTestApp() (abci.Application, error) {
+	cfg := TestAppOptions(memdb.NewMemDB())
+	cfg.EventSwitch = events.NewEventSwitch()
+
+	// Capabilities keys.
+	mainKey := store.NewStoreKey("main")
+	baseKey := store.NewStoreKey("base")
+
+	baseApp := sdk.NewBaseApp("gnoland", cfg.Logger, cfg.DB, baseKey, mainKey)
+	baseApp.SetAppVersion("test")
+
+	// Set mounts for BaseApp's MultiStore.
+	baseApp.MountStoreWithDB(mainKey, iavl.StoreConstructor, cfg.DB)
+	baseApp.MountStoreWithDB(baseKey, dbadapter.StoreConstructor, cfg.DB)
+
+	// Construct keepers.
+	paramsKpr := params.NewKeeper(mainKey, nil)
+	acctKpr := auth.NewAccountKeeper(mainKey, paramsKpr, ProtoGnoAccount)
+	gpKpr := auth.NewGasPriceKeeper(mainKey)
+	bankKpr := bank.NewBankKeeper(acctKpr)
+	vmk := vm.NewVMKeeper(baseKey, mainKey, acctKpr, bankKpr, cfg.MaxCycles)
+
+	// Set InitChainer
+	icc := cfg.InitChainerConfig
+	icc.baseApp = baseApp
+	icc.acctKpr, icc.bankKpr, icc.vmKpr, icc.gpKpr = acctKpr, bankKpr, vmk, gpKpr
+	baseApp.SetInitChainer(icc.InitChainer)
+
+	// Set AnteHandler
+	baseApp.SetAnteHandler(
+		// Override default AnteHandler with custom logic.
+		func(ctx sdk.Context, tx std.Tx, simulate bool) (
+			newCtx sdk.Context, res sdk.Result, abort bool,
+		) {
+			// Add last gas price in the context
+			ctx = ctx.WithValue(auth.GasPriceContextKey{}, gpKpr.LastGasPrice(ctx))
+
+			// Override auth params.
+			ctx = ctx.WithValue(auth.AuthParamsContextKey{}, acctKpr.GetParams(ctx))
+			// Continue on with default auth ante handler.
+			if ctx.IsCheckTx() {
+				res := auth.EnsureSufficientMempoolFees(ctx, tx.Fee)
+				if !res.IsOK() {
+					return ctx, res, true
+				}
+			}
+
+			newCtx = auth.SetGasMeter(false, ctx, tx.Fee.GasWanted)
+
+			count := getTotalCount(tx)
+
+			newCtx.GasMeter().ConsumeGas(count, "counter-ante")
+			res = sdk.Result{
+				GasWanted: getTotalCount(tx),
+			}
+			return
+		},
+	)
+
+	// Set up the event collector
+	c := newCollector[validatorUpdate](
+		cfg.EventSwitch,      // global event switch filled by the node
+		validatorEventFilter, // filter fn that keeps the collector valid
+	)
+
+	// Set EndBlocker
+	baseApp.SetEndBlocker(
+		EndBlocker(
+			c,
+			acctKpr,
+			gpKpr,
+			nil,
+			baseApp,
+		),
+	)
+
+	// Set a handler Route.
+	baseApp.Router().AddRoute("auth", auth.NewHandler(acctKpr))
+	baseApp.Router().AddRoute("bank", bank.NewHandler(bankKpr))
+	baseApp.Router().AddRoute(
+		testutils.RouteMsgCounter,
+		newTestHandler(
+			func(ctx sdk.Context, msg sdk.Msg) sdk.Result { return sdk.Result{} },
+		),
+	)
+
+	baseApp.Router().AddRoute("vm", vm.NewHandler(vmk))
+
+	// Load latest version.
+	if err := baseApp.LoadLatestVersion(); err != nil {
+		return nil, err
+	}
+
+	// Initialize the VMKeeper.
+	ms := baseApp.GetCacheMultiStore()
+	vmk.Initialize(cfg.Logger, ms)
+	ms.MultiWrite() // XXX why was't this needed?
+
+	return baseApp, nil
+}
+
+// newTx constructs a tx with multiple counter messages.
+// we can use the counter as the gas used for the message.
+
+func newCounterTx(counters ...int64) sdk.Tx {
+	msgs := make([]sdk.Msg, len(counters))
+
+	for i, c := range counters {
+		msgs[i] = testutils.MsgCounter{Counter: c}
+	}
+	tx := sdk.Tx{Msgs: msgs}
+	return tx
+}
+
+func getTotalCount(tx sdk.Tx) int64 {
+	var c int64
+	for _, m := range tx.Msgs {
+		c = +m.(testutils.MsgCounter).Counter
+	}
+	return c
+}
+
+func gnoGenesisState() (GnoGenesisState, error) {
+	gen := GnoGenesisState{}
+	genBytes := []byte(`{
+    "@type": "/gno.GenesisState",
+    "auth": {
+      "params": {
+        "gas_price_change_compressor": "8",
+        "initial_gasprice": {
+          "gas": "1000",
+          "price": "100ugnot"
+        },
+        "max_memo_bytes": "65536",
+        "sig_verify_cost_ed25519": "590",
+        "sig_verify_cost_secp256k1": "1000",
+        "target_gas_ratio": "60",
+        "tx_sig_limit": "7",
+        "tx_size_cost_per_byte": "10"
+      }
+    }
+  }`)
+	err := amino.UnmarshalJSON(genBytes, &gen)
+
+	return gen, err
+}
+
+func replayBlock(t *testing.T, app *sdk.BaseApp, gas int64, hight int64) {
+	t.Helper()
+	tx := newCounterTx(gas)
+	tx.Fee = std.Fee{
+		GasWanted: 20000,
+		GasFee: sdk.Coin{
+			Amount: 1000,
+			Denom:  "ugnot",
+		},
+	}
+	txBytes, err := amino.Marshal(tx)
+	require.NoError(t, err)
+
+	header := &bft.Header{ChainID: "test-chain", Height: hight}
+	app.BeginBlock(abci.RequestBeginBlock{Header: header})
+	// consume gas in the block
+	res := app.DeliverTx(abci.RequestDeliverTx{Tx: txBytes})
+	require.True(t, res.IsOK(), fmt.Sprintf("%v", res))
+	app.EndBlock(abci.RequestEndBlock{})
+	app.Commit()
+}
+
+type testHandler struct {
+	process func(sdk.Context, sdk.Msg) sdk.Result
+	query   func(sdk.Context, abci.RequestQuery) abci.ResponseQuery
+}
+
+func (th testHandler) Process(ctx sdk.Context, msg sdk.Msg) sdk.Result {
+	return th.process(ctx, msg)
+}
+
+func (th testHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
+	return th.query(ctx, req)
+}
+
+func newTestHandler(proc func(sdk.Context, sdk.Msg) sdk.Result) sdk.Handler {
+	return testHandler{
+		process: proc,
+	}
 }

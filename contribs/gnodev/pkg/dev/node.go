@@ -113,12 +113,9 @@ func NewDevNode(ctx context.Context, cfg *NodeConfig) (*Node, error) {
 		initialState:      cfg.InitialTxs,
 		currentStateIndex: len(cfg.InitialTxs),
 	}
-
-	// generate genesis state
-	genesis := gnoland.GnoGenesisState{
-		Balances: cfg.BalancesList,
-		Txs:      append(pkgsTxs, cfg.InitialTxs...),
-	}
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = cfg.BalancesList
+	genesis.Txs = append(pkgsTxs, cfg.InitialTxs...)
 
 	if err := devnode.rebuildNode(ctx, genesis); err != nil {
 		return nil, fmt.Errorf("unable to initialize the node: %w", err)
@@ -270,10 +267,9 @@ func (n *Node) Reset(ctx context.Context) error {
 
 	// Append initialTxs
 	txs := append(pkgsTxs, n.initialState...)
-	genesis := gnoland.GnoGenesisState{
-		Balances: n.config.BalancesList,
-		Txs:      txs,
-	}
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = n.config.BalancesList
+	genesis.Txs = txs
 
 	// Reset the node with the new genesis state.
 	err = n.rebuildNode(ctx, genesis)
@@ -410,10 +406,9 @@ func (n *Node) rebuildNodeFromState(ctx context.Context) error {
 	}
 
 	// Create genesis with loaded pkgs + previous state
-	genesis := gnoland.GnoGenesisState{
-		Balances: n.config.BalancesList,
-		Txs:      append(pkgsTxs, state...),
-	}
+	genesis := gnoland.DefaultGenState()
+	genesis.Balances = n.config.BalancesList
+	genesis.Txs = append(pkgsTxs, state...)
 
 	// Reset the node with the new genesis state.
 	err = n.rebuildNode(ctx, genesis)

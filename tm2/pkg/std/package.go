@@ -12,6 +12,10 @@ var Package = amino.RegisterPackage(amino.NewPackage(
 
 	// Account
 	&BaseAccount{}, "BaseAccount",
+	// Coin
+	&Coin{}, "Coin",
+	// GasPrice
+	&GasPrice{}, "GasPrice",
 
 	// MemFile/MemPackage
 	MemFile{}, "MemFile",

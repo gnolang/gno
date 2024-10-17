@@ -6,8 +6,8 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/crypto"
 	"github.com/gnolang/gno/tm2/pkg/db/memdb"
 	"github.com/gnolang/gno/tm2/pkg/log"
-
 	"github.com/gnolang/gno/tm2/pkg/sdk"
+	"github.com/gnolang/gno/tm2/pkg/sdk/params"
 	"github.com/gnolang/gno/tm2/pkg/std"
 	"github.com/gnolang/gno/tm2/pkg/store"
 	"github.com/gnolang/gno/tm2/pkg/store/iavl"
@@ -17,6 +17,7 @@ type testEnv struct {
 	ctx  sdk.Context
 	acck AccountKeeper
 	bank BankKeeperI
+	gk   GasPriceKeeper
 }
 
 func setupTestEnv() testEnv {
@@ -28,8 +29,10 @@ func setupTestEnv() testEnv {
 	ms.MountStoreWithDB(authCapKey, iavl.StoreConstructor, db)
 	ms.LoadLatestVersion()
 
-	acck := NewAccountKeeper(authCapKey, std.ProtoBaseAccount)
+	paramk := params.NewKeeper(authCapKey, nil)
+	acck := NewAccountKeeper(authCapKey, paramk, std.ProtoBaseAccount)
 	bank := NewDummyBankKeeper(acck)
+	gk := NewGasPriceKeeper(authCapKey)
 
 	ctx := sdk.NewContext(sdk.RunTxModeDeliver, ms, &bft.Header{Height: 1, ChainID: "test-chain-id"}, log.NewNoopLogger())
 	ctx = ctx.WithValue(AuthParamsContextKey{}, DefaultParams())
@@ -46,7 +49,7 @@ func setupTestEnv() testEnv {
 		},
 	})
 
-	return testEnv{ctx: ctx, acck: acck, bank: bank}
+	return testEnv{ctx: ctx, acck: acck, bank: bank, gk: gk}
 }
 
 // DummyBankKeeper defines a supply keeper used only for testing to avoid
