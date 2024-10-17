@@ -13,10 +13,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"time"
-	"regexp"
 
 	"github.com/gnolang/gno/tm2/pkg/amino"
 	abci "github.com/gnolang/gno/tm2/pkg/bft/abci/types"
@@ -113,22 +113,23 @@ func MakeApp(logger *slog.Logger, cfg Config) gotuna.App {
 }
 
 var (
-    inlineCodePattern = regexp.MustCompile("`[^`]*`")
-    htmlTagPattern    = regexp.MustCompile(`<\/?\w+[^>]*?>`)
+	inlineCodePattern = regexp.MustCompile("`[^`]*`")
+	htmlTagPattern    = regexp.MustCompile(`<\/?\w+[^>]*?>`)
 )
+
 func checkHTMLInMarkdown(cfg *Config, content string) string {
 	if !cfg.ExpNoHTML {
-        return content
-    }
+		return content
+	}
 
-    placeholders := map[string]string{}
-    contentWithPlaceholders := inlineCodePattern.ReplaceAllStringFunc(content, func(match string) string {
-        placeholder := fmt.Sprintf("__GNOMDCODE_%d__", len(placeholders))
-        placeholders[placeholder] = match
-        return placeholder
-    })
+	placeholders := map[string]string{}
+	contentWithPlaceholders := inlineCodePattern.ReplaceAllStringFunc(content, func(match string) string {
+		placeholder := fmt.Sprintf("__GNOMDCODE_%d__", len(placeholders))
+		placeholders[placeholder] = match
+		return placeholder
+	})
 
-    contentWithNoHTML := htmlTagPattern.ReplaceAllString(contentWithPlaceholders, "")
+	contentWithNoHTML := htmlTagPattern.ReplaceAllString(contentWithPlaceholders, "")
 
 	if len(placeholders) > 0 {
 		for placeholder, code := range placeholders {
@@ -138,8 +139,6 @@ func checkHTMLInMarkdown(cfg *Config, content string) string {
 
 	return contentWithNoHTML
 }
-
-
 
 // handlerRealmAlias is used to render official pages from realms.
 // url is intended to be shorter.
@@ -322,7 +321,6 @@ func handlerRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config) http.H
 	})
 }
 
-
 func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	rlmname := vars["rlmname"]
@@ -346,7 +344,6 @@ func handleRealmRender(logger *slog.Logger, app gotuna.App, cfg *Config, w http.
 			return
 		}
 	}
- 
 
 	dirdata := []byte(rlmpath)
 	dirres, err := makeRequest(logger, cfg, qFileStr, dirdata)
