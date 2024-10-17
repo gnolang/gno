@@ -7,6 +7,7 @@ import (
 
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
+	"gno.land/p/demo/avl"
 
 	"gno.land/r/stefann/registry"
 )
@@ -34,8 +35,9 @@ type Travel struct {
 
 type Sponsorship struct {
 	maxSponsors    int
-	sponsors       map[std.Address]std.Coins
+	sponsors *avl.Tree
 	DonationsCount int
+	sponsorsCount int
 }
 
 var (
@@ -82,8 +84,9 @@ func init() {
 
 	sponsorship = Sponsorship{
 		maxSponsors:    5,
-		sponsors:       make(map[std.Address]std.Coins),
+		sponsors:       avl.NewTree(),
 		DonationsCount: 0,
+		sponsorsCount: 0,
 	}
 }
 
@@ -123,17 +126,19 @@ func Donate() {
 		panic("Donation must include GNOT")
 	}
 
-	if existingAmount, exists := sponsorship.sponsors[address]; exists {
-		sponsorship.sponsors[address] = existingAmount.Add(amount)
-	} else {
-		sponsorship.sponsors[address] = amount
-	}
+    existingAmount, exists := sponsorship.sponsors.Get(address.String())
+    if exists {
+        updatedAmount := existingAmount.(std.Coins).Add(amount)
+        sponsorship.sponsors.Set(address.String(), updatedAmount)
+    } else {
+        sponsorship.sponsors.Set(address.String(), amount)
+		sponsorship.sponsorsCount++
+    }
 
 	travel.currentCityIndex++
 	sponsorship.DonationsCount++
 
 	banker := std.GetBanker(std.BankerTypeRealmSend)
-
 	ownerAddr := registry.MainAddr()
 	banker.SendCoins(std.CurrentRealm().Addr(), ownerAddr, banker.GetCoins(std.CurrentRealm().Addr()))
 }
@@ -153,23 +158,26 @@ func (s SponsorSlice) Swap(i, j int) {
 }
 
 func GetTopSponsors() []Sponsor {
-	var sponsorSlice SponsorSlice
+    var sponsorSlice SponsorSlice
 
-	for addr, amount := range sponsorship.sponsors {
-		sponsorSlice = append(sponsorSlice, Sponsor{Address: addr, Amount: amount})
-	}
+    sponsorship.sponsors.Iterate("", "", func(key string, value interface{}) bool {
+        addr := std.Address(key)
+        amount := value.(std.Coins)
+        sponsorSlice = append(sponsorSlice, Sponsor{Address: addr, Amount: amount})
+        return false
+    })
 
-	sort.Sort(sponsorSlice)
-
-	return sponsorSlice
+    sort.Sort(sponsorSlice)
+    return sponsorSlice
 }
 
 func GetTotalDonations() int {
-	total := 0
-	for _, amount := range sponsorship.sponsors {
-		total += int(amount.AmountOf("ugnot"))
-	}
-	return total
+    total := 0
+    sponsorship.sponsors.Iterate("", "", func(key string, value interface{}) bool {
+        total += int(value.(std.Coins).AmountOf("ugnot"))
+        return false
+    })
+    return total
 }
 
 func Render(path string) string {
@@ -236,7 +244,7 @@ func formatAddress(address string) string {
 func renderSponsors() string {
 	out := `<h3 style="margin-top: 5px; margin-bottom: 20px">Sponsor Leaderboard</h3>` + "\n"
 
-	if len(sponsorship.sponsors) == 0 {
+	if sponsorship.sponsorsCount == 0 {
 		 return out + `<p style="text-align: center;">No sponsors yet. Be the first to tip the jar!</p>` + "\n"
 	} else {
 		topSponsors := GetTopSponsors()
