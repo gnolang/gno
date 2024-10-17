@@ -59,7 +59,6 @@ func TestTransactionStore_blockedMethods(t *testing.T) {
 	// only be changed in the root store.
 	assert.Panics(t, func() { transactionStore{}.SetPackageGetter(nil) })
 	assert.Panics(t, func() { transactionStore{}.ClearCache() })
-	assert.Panics(t, func() { transactionStore{}.SetPackageInjector(nil) })
 	assert.Panics(t, func() { transactionStore{}.SetNativeStore(nil) })
 	assert.Panics(t, func() { transactionStore{}.SetStrictGo2GnoMapping(false) })
 }
