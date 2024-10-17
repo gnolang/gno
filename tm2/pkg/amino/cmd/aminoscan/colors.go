@@ -28,7 +28,7 @@ func treat(s string, color string) string {
 }
 
 func treatAll(color string, args ...interface{}) string {
-	parts := make([]string, len(args))
+	parts := make([]string, 0, len(args))
 	for _, arg := range args {
 		parts = append(parts, treat(fmt.Sprintf("%v", arg), color))
 	}
