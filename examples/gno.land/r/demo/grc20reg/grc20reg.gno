@@ -9,9 +9,9 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-var registry = avl.NewTree() // rlmPath[.slug] -> *grc20.Bank
+var registry = avl.NewTree() // rlmPath[.slug] -> *grc20.Token
 
-func Register(bank *grc20.Bank, slug string) {
+func Register(bank *grc20.Token, slug string) {
 	rlmPath := std.PrevRealm().PkgPath()
 	key := fqname.Construct(rlmPath, slug)
 	registry.Set(key, bank)
@@ -22,15 +22,15 @@ func Register(bank *grc20.Bank, slug string) {
 	)
 }
 
-func Get(key string) *grc20.Bank {
+func Get(key string) *grc20.Token {
 	bank, ok := registry.Get(key)
 	if !ok {
 		return nil
 	}
-	return bank.(*grc20.Bank)
+	return bank.(*grc20.Token)
 }
 
-func MustGet(key string) *grc20.Bank {
+func MustGet(key string) *grc20.Token {
 	bank := Get(key)
 	if bank == nil {
 		panic("unknown bank: " + key)
@@ -46,7 +46,7 @@ func Render(path string) string {
 		count := 0
 		registry.Iterate("", "", func(key string, bankI interface{}) bool {
 			count++
-			bank := bankI.(*grc20.Bank)
+			bank := bankI.(*grc20.Token)
 			rlmPath, slug := fqname.Parse(key)
 			rlmLink := fqname.RenderLink(rlmPath, slug)
 			infoLink := "/r/demo/grc20reg:" + key

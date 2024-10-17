@@ -14,7 +14,7 @@ var (
 	ErrInvalidAddress        = errors.New("invalid address")
 	ErrCannotTransferToSelf  = errors.New("cannot send transfer to self")
 	ErrReadonly              = errors.New("banker is readonly")
-	ErrRestrictedBankOwner   = errors.New("restricted to bank owner")
+	ErrRestrictedTokenOwner  = errors.New("restricted to bank owner")
 )
 
 const (
@@ -24,17 +24,17 @@ const (
 	ApprovalEvent = "Approval"
 )
 
-// Bank represents a token's bank, including its name, symbol,
+// Token represents a token's bank, including its name, symbol,
 // decimals, and administrative functions.
-type Bank struct {
+type Token struct {
 	name     string
 	symbol   string
 	decimals uint
-	adm      *AdminBanker
+	ledger   *AdminLedger
 }
 
-// AdminBanker is a struct that holds administrative functions for the token.
-type AdminBanker struct {
+// AdminLedger is a struct that holds administrative functions for the token.
+type AdminLedger struct {
 	totalSupply uint64
 	balances    avl.Tree // std.Address -> uint64
 	allowances  avl.Tree // owner.(std.Address)+":"+spender.(std.Address)) -> uint64
@@ -82,24 +82,14 @@ type GRC20 interface {
 	TransferFrom(from, to std.Address, amount uint64) error
 }
 
-type fnBanker struct {
+type fnTeller struct {
 	accountFn func() std.Address
-	*Bank
+	*Token
 }
 
-var _ GRC20 = (*fnBanker)(nil)
+var _ GRC20 = (*fnTeller)(nil)
 
-// adminBanker is a struct that holds administrative functions for the token.
-type adminBanker struct {
-	bank *Bank
-}
-
-// accountSlugAddr returns the address derived from the specified address and slug.
-func accountSlugAddr(addr std.Address, slug string) std.Address {
-	// XXX: use a new `std.XXX` call for this.
-	if slug == "" {
-		return addr
-	}
-	key := addr.String() + "/" + slug
-	return std.DerivePkgAddr(key) // temporarily using this helper
+// ledger is a struct that holds administrative functions for the token.
+type ledger struct {
+	token *Token
 }

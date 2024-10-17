@@ -7,10 +7,10 @@ import (
 	"gno.land/p/demo/ufmt"
 )
 
-// NewBank creates a new Bank.
-// It returns a pointer to the Bank and a pointer to the AdminBanker.
-// Expected usage: Bank, admin := NewBank("Dummy", "DUMMY", 4)
-func NewBank(name, symbol string, decimals uint) (*Bank, *AdminBanker) {
+// NewToken creates a new Token.
+// It returns a pointer to the Token and a pointer to the Ledger.
+// Expected usage: Token, admin := NewToken("Dummy", "DUMMY", 4)
+func NewToken(name, symbol string, decimals uint) (*Token, *AdminLedger) {
 	if name == "" {
 		panic("name should not be empty")
 	}
@@ -19,52 +19,52 @@ func NewBank(name, symbol string, decimals uint) (*Bank, *AdminBanker) {
 	}
 	// XXX additional checks (length, characters, limits, etc)
 
-	bank := &Bank{
+	ledger := &AdminLedger{}
+	token := &Token{
 		name:     name,
 		symbol:   symbol,
 		decimals: decimals,
+		ledger:   ledger,
 	}
-	adm := &AdminBanker{}
-	bank.adm = adm
-	return bank, adm
+	return token, ledger
 }
 
 // GetName returns the name of the token.
-func (b Bank) GetName() string { return b.name }
+func (tok Token) GetName() string { return tok.name }
 
 // GetSymbol returns the symbol of the token.
-func (b Bank) GetSymbol() string { return b.symbol }
+func (tok Token) GetSymbol() string { return tok.symbol }
 
 // GetDecimals returns the number of decimals used to get the token's precision.
-func (b Bank) GetDecimals() uint { return b.decimals }
+func (tok Token) GetDecimals() uint { return tok.decimals }
 
 // TotalSupply returns the total supply of the token.
-func (b Bank) TotalSupply() uint64 { return b.adm.totalSupply }
+func (tok Token) TotalSupply() uint64 { return tok.ledger.totalSupply }
 
 // KnownAccounts returns the number of known accounts in the bank.
-func (b Bank) KnownAccounts() int { return b.adm.balances.Size() }
+func (tok Token) KnownAccounts() int { return tok.ledger.balances.Size() }
 
 // BalanceOf returns the balance of the specified address.
-func (b Bank) BalanceOf(address std.Address) uint64 {
-	return b.adm.balanceOf(address)
+func (tok Token) BalanceOf(address std.Address) uint64 {
+	return tok.ledger.balanceOf(address)
 }
 
 // Allowance returns the allowance of the specified owner and spender.
-func (b Bank) Allowance(owner, spender std.Address) uint64 {
-	return b.adm.allowance(owner, spender)
+func (tok Token) Allowance(owner, spender std.Address) uint64 {
+	return tok.ledger.allowance(owner, spender)
 }
 
-func (b *Bank) RenderHome() string {
+func (tok *Token) RenderHome() string {
 	str := ""
-	str += ufmt.Sprintf("# %s ($%s)\n\n", b.name, b.symbol)
-	str += ufmt.Sprintf("* **Decimals**: %d\n", b.decimals)
-	str += ufmt.Sprintf("* **Total supply**: %d\n", b.adm.totalSupply)
-	str += ufmt.Sprintf("* **Known accounts**: %d\n", b.KnownAccounts())
+	str += ufmt.Sprintf("# %s ($%s)\n\n", tok.name, tok.symbol)
+	str += ufmt.Sprintf("* **Decimals**: %d\n", tok.decimals)
+	str += ufmt.Sprintf("* **Total supply**: %d\n", tok.ledger.totalSupply)
+	str += ufmt.Sprintf("* **Known accounts**: %d\n", tok.KnownAccounts())
 	return str
 }
 
 // SpendAllowance decreases the allowance of the specified owner and spender.
-func (b *AdminBanker) SpendAllowance(owner, spender std.Address, amount uint64) error {
+func (led *AdminLedger) SpendAllowance(owner, spender std.Address, amount uint64) error {
 	if !owner.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -72,7 +72,7 @@ func (b *AdminBanker) SpendAllowance(owner, spender std.Address, amount uint64) 
 		return ErrInvalidAddress
 	}
 
-	currentAllowance := b.allowance(owner, spender)
+	currentAllowance := led.allowance(owner, spender)
 	if currentAllowance < amount {
 		return ErrInsufficientAllowance
 	}
@@ -81,16 +81,16 @@ func (b *AdminBanker) SpendAllowance(owner, spender std.Address, amount uint64) 
 	newAllowance := currentAllowance - amount
 
 	if newAllowance == 0 {
-		b.allowances.Remove(key)
+		led.allowances.Remove(key)
 	} else {
-		b.allowances.Set(key, newAllowance)
+		led.allowances.Set(key, newAllowance)
 	}
 
 	return nil
 }
 
 // Transfer transfers tokens from the specified from address to the specified to address.
-func (b *AdminBanker) Transfer(from, to std.Address, amount uint64) error {
+func (led *AdminLedger) Transfer(from, to std.Address, amount uint64) error {
 	if !from.IsValid() {
 		return ErrInvalidAddress
 	}
@@ -101,18 +101,22 @@ func (b *AdminBanker) Transfer(from, to std.Address, amount uint64) error {
 		return ErrCannotTransferToSelf
 	}
 
-	toBalance := b.balanceOf(to)
-	fromBalance := b.balanceOf(from)
+	var (
+		toBalance   = led.balanceOf(to)
+		fromBalance = led.balanceOf(from)
+	)
 
 	if fromBalance < amount {
 		return ErrInsufficientBalance
 	}
 
-	newToBalance := toBalance + amount
-	newFromBalance := fromBalance - amount
+	var (
+		newToBalance   = toBalance + amount
+		newFromBalance = fromBalance - amount
+	)
 
-	b.balances.Set(string(to), newToBalance)
-	b.balances.Set(string(from), newFromBalance)
+	led.balances.Set(string(to), newToBalance)
+	led.balances.Set(string(from), newFromBalance)
 
 	std.Emit(
 		TransferEvent,
@@ -126,27 +130,24 @@ func (b *AdminBanker) Transfer(from, to std.Address, amount uint64) error {
 
 // TransferFrom transfers tokens from the specified owner to the specified to address.
 // It first checks if the owner has sufficient balance and then decreases the allowance.
-func (b *AdminBanker) TransferFrom(owner, spender, to std.Address, amount uint64) error {
-	if b.balanceOf(owner) < amount {
+func (led *AdminLedger) TransferFrom(owner, spender, to std.Address, amount uint64) error {
+	if led.balanceOf(owner) < amount {
 		return ErrInsufficientBalance
 	}
-	if err := b.SpendAllowance(owner, spender, amount); err != nil {
+	if err := led.SpendAllowance(owner, spender, amount); err != nil {
 		return err
 	}
 	// XXX: since we don't "panic", we should take care of rollbacking spendAllowance if transfer fails.
-	return b.Transfer(owner, to, amount)
+	return led.Transfer(owner, to, amount)
 }
 
 // Approve sets the allowance of the specified owner and spender.
-func (b *AdminBanker) Approve(owner, spender std.Address, amount uint64) error {
-	if !owner.IsValid() {
-		return ErrInvalidAddress
-	}
-	if !spender.IsValid() {
+func (led *AdminLedger) Approve(owner, spender std.Address, amount uint64) error {
+	if !owner.IsValid() || !spender.IsValid() {
 		return ErrInvalidAddress
 	}
 
-	b.allowances.Set(allowanceKey(owner, spender), amount)
+	led.allowances.Set(allowanceKey(owner, spender), amount)
 
 	std.Emit(
 		ApprovalEvent,
@@ -159,18 +160,18 @@ func (b *AdminBanker) Approve(owner, spender std.Address, amount uint64) error {
 }
 
 // Mint increases the total supply of the token and adds the specified amount to the specified address.
-func (a *AdminBanker) Mint(address std.Address, amount uint64) error {
+func (led *AdminLedger) Mint(address std.Address, amount uint64) error {
 	if !address.IsValid() {
 		return ErrInvalidAddress
 	}
 
 	// XXX check for overflow
 
-	a.totalSupply += amount
-	currentBalance := a.balanceOf(address)
+	led.totalSupply += amount
+	currentBalance := led.balanceOf(address)
 	newBalance := currentBalance + amount
 
-	a.balances.Set(string(address), newBalance)
+	led.balances.Set(string(address), newBalance)
 
 	std.Emit(
 		TransferEvent,
@@ -183,21 +184,21 @@ func (a *AdminBanker) Mint(address std.Address, amount uint64) error {
 }
 
 // Burn decreases the total supply of the token and subtracts the specified amount from the specified address.
-func (a *AdminBanker) Burn(address std.Address, amount uint64) error {
+func (led *AdminLedger) Burn(address std.Address, amount uint64) error {
 	if !address.IsValid() {
 		return ErrInvalidAddress
 	}
 	// XXX check for overflow
 
-	currentBalance := a.balanceOf(address)
+	currentBalance := led.balanceOf(address)
 	if currentBalance < amount {
 		return ErrInsufficientBalance
 	}
 
-	a.totalSupply -= amount
+	led.totalSupply -= amount
 	newBalance := currentBalance - amount
 
-	a.balances.Set(string(address), newBalance)
+	led.balances.Set(string(address), newBalance)
 
 	std.Emit(
 		TransferEvent,
@@ -210,8 +211,8 @@ func (a *AdminBanker) Burn(address std.Address, amount uint64) error {
 }
 
 // balanceOf returns the balance of the specified address.
-func (b AdminBanker) balanceOf(address std.Address) uint64 {
-	balance, found := b.balances.Get(address.String())
+func (led AdminLedger) balanceOf(address std.Address) uint64 {
+	balance, found := led.balances.Get(address.String())
 	if !found {
 		return 0
 	}
@@ -219,8 +220,8 @@ func (b AdminBanker) balanceOf(address std.Address) uint64 {
 }
 
 // allowance returns the allowance of the specified owner and spender.
-func (b AdminBanker) allowance(owner, spender std.Address) uint64 {
-	allowance, found := b.allowances.Get(allowanceKey(owner, spender))
+func (led AdminLedger) allowance(owner, spender std.Address) uint64 {
+	allowance, found := led.allowances.Get(allowanceKey(owner, spender))
 	if !found {
 		return 0
 	}

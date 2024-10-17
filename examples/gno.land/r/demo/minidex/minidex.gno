@@ -13,8 +13,8 @@ import (
 // Order represents an order in the DEX.
 type Order struct {
 	trader    std.Address
-	tokenFrom *grc20.Bank
-	tokenTo   *grc20.Bank
+	tokenFrom *grc20.Token
+	tokenTo   *grc20.Token
 	amount    uint64
 	isBuy     bool
 }
@@ -34,7 +34,7 @@ func NewDEX() *DEX {
 
 // PlaceOrder places a new order and matches orders.
 // Returns the amount of matched orders, if any.
-func (dex *DEX) PlaceOrder(tokenFrom, tokenTo *grc20.Bank, amount uint64, isBuy bool) int {
+func (dex *DEX) PlaceOrder(tokenFrom, tokenTo *grc20.Token, amount uint64, isBuy bool) int {
 	trader := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
 	userBanker := grc20.AccountBanker(tokenFrom, "")
@@ -73,7 +73,7 @@ func (dex *DEX) PlaceOrder(tokenFrom, tokenTo *grc20.Bank, amount uint64, isBuy 
 }
 
 // matchPairOrders matches orders for a given pair.
-func (dex *DEX) matchPairOrders(tokenFrom, tokenTo *grc20.Bank) int {
+func (dex *DEX) matchPairOrders(tokenFrom, tokenTo *grc20.Token) int {
 	pair := createPairString(tokenFrom, tokenTo)
 	ordersTree, ok := dex.pairs.Get(pair)
 	if !ok {
@@ -184,7 +184,7 @@ func (o Order) String() string {
 }
 
 // createPairString creates a pair string based on two tokens, sorting by the token names to ensure consistency.
-func createPairString(token1, token2 *grc20.Bank) string {
+func createPairString(token1, token2 *grc20.Token) string {
 	tokens := []string{token1.GetName(), token2.GetName()}
 	sort.Strings(tokens)
 	return tokens[0] + "/" + tokens[1]
