@@ -4,7 +4,7 @@ func init() {
 	var (
 		path  = "ecosystem"
 		title = "Discover Gno.land Ecosystem Projects & Initiatives"
-		// XXX: description = "Dive further into the Gno.land ecosystem and discover the core infrastructure, projects, smart contracts, and tooling we’re building."
+		// XXX: description = "Dive further into the gno.land ecosystem and discover the core infrastructure, projects, smart contracts, and tooling we’re building."
 		body = `
 ### [Gno Playground](https://play.gno.land)
 
@@ -14,23 +14,31 @@ functions in your code using the repo.
 
 Visit the playground at [play.gno.land](https://play.gno.land)!
 
+### [Gno Studio Connect](https://gno.studio/connect)
+
+Gno Studio Connect provides seamless access to realms, making it simple to explore, interact, and engage 
+with gno.land’s smart contracts through function calls. Connect focuses on function calls, enabling users to interact 
+with any realm’s exposed function(s) on gno.land. 
+
+See your realm interactions in [Gno Studio Connect](https://gno.studio/connect)
+
 ### [Gnoscan](https://gnoscan.io)
 
-Developed by the Onbloc team, Gnoscan is Gno.land’s blockchain explorer. Anyone can use Gnoscan to easily find
-information that resides on the Gno.land blockchain, such as wallet addresses, TX hashes, blocks, and contracts. 
+Developed by the Onbloc team, Gnoscan is gno.land’s blockchain explorer. Anyone can use Gnoscan to easily find
+information that resides on the gno.land blockchain, such as wallet addresses, TX hashes, blocks, and contracts. 
 Gnoscan makes our on-chain data easy to read and intuitive to discover.
 
-Explore the Gno.land blockchain at [gnoscan.io](https://gnoscan.io)!
+Explore the gno.land blockchain at [gnoscan.io](https://gnoscan.io)!
 
 ### Adena
 
-Adena is a user-friendly non-custodial wallet for Gno.land. Open-source and developed by Onbloc, Adena allows gnomes to 
+Adena is a user-friendly non-custodial wallet for gno.land. Open-source and developed by Onbloc, Adena allows gnomes to 
 interact easily with the chain. With an emphasis on UX, Adena is built to handle millions of realms and tokens with a
-high-quality interface, support for NFTs and custom tokens, and seamless integration.
+high-quality interface, support for NFTs and custom tokens, and seamless integration. Install Adena via the [official website](https://www.adena.app/)
 
 ### Gnoswap
 
-Gnoswap is currently under development and led by the Onbloc team. Gnoswap will be the first DEX on Gno.land and is an 
+Gnoswap is currently under development and led by the Onbloc team. Gnoswap will be the first DEX on gno.land and is an 
 automated market maker (AMM) protocol written in Gno that allows for permissionless token exchanges on the platform.
 
 ### Flippando
@@ -38,7 +46,13 @@ automated market maker (AMM) protocol written in Gno that allows for permissionl
 Flippando is a simple on-chain memory game, ported from Solidity to Gno, which starts with an empty matrix to flip tiles
 on to see what’s underneath. If the tiles match, they remain uncovered; if not, they are briefly shown, and the player 
 must memorize their colors until the entire matrix is uncovered. The end result can be minted as an NFT, which can later
-be assembled into bigger, more complex NFTs, creating a digital “painting” with the uncovered tiles.
+be assembled into bigger, more complex NFTs, creating a digital “painting” with the uncovered tiles.  Play the game at [Flippando](https://gno.flippando.xyz/flip)
+
+### Gno Native Kit
+
+[Gno Native Kit](https://github.com/gnolang/gnonative) is a framework that allows developers to build and port gno.land (d)apps written in the (d)app's native language.
+
+
 `
 	)
 	_ = b.NewPost("", path, title, body, "2022-05-20T13:17:23Z", nil, nil)

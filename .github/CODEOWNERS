@@ -26,17 +26,18 @@
 /examples/gno.land/p/demo/avl/        @jaekwon
 /examples/gno.land/p/demo/bf/         @moul
 /examples/gno.land/p/demo/blog/       @gnolang/devrels
+/examples/gno.land/p/demo/boardsv2/   @ilgooz @jeronimoalbi @moul
 /examples/gno.land/p/demo/cford32/    @thehowl
 /examples/gno.land/p/demo/memeland/   @leohhhn
 /examples/gno.land/p/demo/seqid/      @thehowl
 /examples/gno.land/p/demo/ownable/    @leohhhn
 /examples/gno.land/p/demo/pausable/   @leohhhn
-/examples/gno.land/p/demo/stack/      @harry-hov
 /examples/gno.land/p/demo/svg/        @moul
 /examples/gno.land/p/demo/tamagotchi/ @moul
 /examples/gno.land/p/demo/ui/         @moul
 /examples/gno.land/r/demo/            @gnolang/tech-staff @gnolang/devrels
 /examples/gno.land/r/demo/art/        @moul
+/examples/gno.land/r/demo/boardsv2/   @ilgooz @jeronimoalbi @moul
 /examples/gno.land/r/demo/memeland/   @leohhhn
 /examples/gno.land/r/demo/tamagotchi/ @moul
 /examples/gno.land/r/demo/userbook/   @leohhhn
@@ -63,12 +64,12 @@
 # GnoVM/Gnolang.
 /gnovm/                       @jaekwon @moul @piux2 @thehowl
 /gnovm/stdlibs/               @thehowl
-/gnovm/tests/                 @jaekwon @deelawn @thehowl @mvertes
-/gnovm/cmd/gno/               @moul @thehowl @harry-hov
-/gnovm/pkg/gnolang/           @jaekwon @moul @piux2 @deelawn
+/gnovm/tests/                 @jaekwon @thehowl @mvertes
+/gnovm/cmd/gno/               @moul @thehowl
+/gnovm/pkg/gnolang/           @jaekwon @moul @piux2
 /gnovm/pkg/doc/               @thehowl
 /gnovm/pkg/repl/              @mvertes @ajnavarro
-/gnovm/pkg/gnomod/            @harry-hov
+/gnovm/pkg/gnomod/            @thehowl
 /gnovm/pkg/gnoenv/            @gfanton
 /gnovm/pkg/transpiler/        @thehowl
 /gnovm/pkg/integration/       @gfanton
@@ -91,5 +92,6 @@
 /CONTRIBUTING.md              @jaekwon @moul @gnolang/tech-staff
 /LICENSE.md                   @jaekwon
 /.github/                     @moul @gnolang/tech-staff
+/.github/workflows            @ajnavarro @moul
 /.github/CODEOWNERS           @jaekwon @moul
 /go.mod                       @gnolang/tech-staff # no unnecessary dependencies

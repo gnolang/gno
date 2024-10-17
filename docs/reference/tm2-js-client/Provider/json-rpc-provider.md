@@ -17,6 +17,6 @@ Creates a new instance of the JSON-RPC Provider
 #### Usage
 
 ```ts
-new JSONRPCProvider('http://staging.gno.land:26657');
+new JSONRPCProvider('http://staging.gno.land:36657');
 // provider is created
 ```

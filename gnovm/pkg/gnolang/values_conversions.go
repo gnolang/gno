@@ -44,6 +44,7 @@ func ConvertTo(alloc *Allocator, store Store, tv *TypedValue, t Type) {
 			tv.T = t
 			return
 		} else {
+			// both NativeType, use reflect to assert.
 			// convert go-native to gno type (shallow).
 			*tv = go2GnoValue2(alloc, store, tv.V.(*NativeValue).Value, false)
 			ConvertTo(alloc, store, tv, t)
@@ -881,6 +882,11 @@ GNO_CASE:
 // Panics if conversion is illegal.
 // TODO: method on TypedValue?
 func ConvertUntypedTo(tv *TypedValue, t Type) {
+	if debug {
+		defer func() {
+			debug.Printf("ConvertUntypedTo done, tv: %v \n", tv)
+		}()
+	}
 	if debug {
 		if !isUntyped(tv.T) {
 			panic(fmt.Sprintf(

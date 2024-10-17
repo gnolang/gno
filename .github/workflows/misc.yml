@@ -7,10 +7,7 @@ on:
     branches:
       - master
   workflow_dispatch:
-  pull_request: 
-    paths:
-      - "misc/**"
-      - ".github/**"
+  pull_request:
 
 jobs:
   main:

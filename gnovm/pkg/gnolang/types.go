@@ -1009,13 +1009,13 @@ func (it *InterfaceType) FindEmbeddedFieldType(callerPath string, n Name, m map[
 
 // For run-time type assertion.
 // TODO: optimize somehow.
-func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
+func (it *InterfaceType) VerifyImplementedBy(ot Type) error {
 	for _, im := range it.Methods {
 		if im.Type.Kind() == InterfaceKind {
 			// field is embedded interface...
 			im2 := baseOf(im.Type).(*InterfaceType)
-			if !im2.IsImplementedBy(ot) {
-				return false
+			if err := im2.VerifyImplementedBy(ot); err != nil {
+				return err
 			} else {
 				continue
 			}
@@ -1023,7 +1023,7 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 		// find method in field.
 		tr, hp, rt, ft, _ := findEmbeddedFieldType(it.PkgPath, ot, im.Name, nil)
 		if tr == nil { // not found.
-			return false
+			return fmt.Errorf("missing method %s", im.Name)
 		}
 		if nft, ok := ft.(*NativeType); ok {
 			// Treat native function types as autoNative calls.
@@ -1033,22 +1033,26 @@ func (it *InterfaceType) IsImplementedBy(ot Type) (result bool) {
 			// ie, if each of ft's arg types can match
 			// against the desired arg types in im.Types.
 			if !gno2GoTypeMatches(im.Type, nft.Type) {
-				return false
+				return fmt.Errorf("wrong type for method %s", im.Name)
 			}
 		} else if mt, ok := ft.(*FuncType); ok {
 			// if method is pointer receiver, check addressability:
 			if _, ptrRcvr := rt.(*PointerType); ptrRcvr && !hp {
-				return false // not addressable.
+				return fmt.Errorf("method %s has pointer receiver", im.Name) // not addressable.
 			}
 			// check for func type equality.
 			dmtid := mt.TypeID()
 			imtid := im.Type.TypeID()
 			if dmtid != imtid {
-				return false
+				return fmt.Errorf("wrong type for method %s", im.Name)
 			}
 		}
 	}
-	return true
+	return nil
+}
+
+func (it *InterfaceType) IsImplementedBy(ot Type) bool {
+	return it.VerifyImplementedBy(ot) == nil
 }
 
 func (it *InterfaceType) GetPathForName(n Name) ValuePath {
@@ -2203,11 +2207,11 @@ func KindOf(t Type) Kind {
 // ----------------------------------------
 // main type-assertion functions.
 
-// TODO: document what class of problems its for.
+// Only for runtime debugging.
 // One of them can be nil, and this lets uninitialized primitives
 // and others serve as empty values.  See doOpAdd()
-// usage: if debug { assertSameTypes() }
-func assertSameTypes(lt, rt Type) {
+// usage: if debug { debugAssertSameTypes() }
+func debugAssertSameTypes(lt, rt Type) {
 	if lt == nil && rt == nil {
 		// both are nil.
 	} else if lt == nil || rt == nil {
@@ -2232,8 +2236,10 @@ func assertSameTypes(lt, rt Type) {
 	}
 }
 
-// Like assertSameTypes(), but more relaxed, for == and !=.
-func assertEqualityTypes(lt, rt Type) {
+// Only for runtime debugging.
+// Like debugAssertSameTypes(), but more relaxed, for == and !=.
+// usage: if debug { debugAssertEqualityTypes() }
+func debugAssertEqualityTypes(lt, rt Type) {
 	if lt == nil && rt == nil {
 		// both are nil.
 	} else if lt == nil || rt == nil {
@@ -2362,6 +2368,7 @@ func fillEmbeddedName(ft *FieldType) {
 	ft.Embedded = true
 }
 
+// TODO: empty interface? refer to assertAssignableTo
 func IsImplementedBy(it Type, ot Type) bool {
 	switch cbt := baseOf(it).(type) {
 	case *InterfaceType:
@@ -2496,7 +2503,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 				generic := ct.Generic[:len(ct.Generic)-len(".Elem()")]
 				match, ok := lookup[generic]
 				if ok {
-					checkType(spec, match.Elem(), false)
+					assertAssignableTo(spec, match.Elem(), false)
 					return // ok
 				} else {
 					// Panic here, because we don't know whether T
@@ -2510,7 +2517,7 @@ func specifyType(store Store, lookup map[Name]Type, tmpl Type, spec Type, specTy
 			} else {
 				match, ok := lookup[ct.Generic]
 				if ok {
-					checkType(spec, match, false)
+					assertAssignableTo(spec, match, false)
 					return // ok
 				} else {
 					if isUntyped(spec) {

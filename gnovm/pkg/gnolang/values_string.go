@@ -170,6 +170,9 @@ func (fv *FuncValue) String() string {
 	if fv.Type == nil {
 		return fmt.Sprintf("incomplete-func ?%s(?)?", name)
 	}
+	if name == "" {
+		return fmt.Sprintf("%s{...}", fv.Type.String())
+	}
 	return name
 }
 
@@ -256,6 +259,11 @@ func (v RefValue) String() string {
 	}
 	return fmt.Sprintf("ref(%s)",
 		v.PkgPath)
+}
+
+func (v *HeapItemValue) String() string {
+	return fmt.Sprintf("heapitem(%v)",
+		v.Value)
 }
 
 // ----------------------------------------

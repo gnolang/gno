@@ -957,7 +957,7 @@ func (m *Machine) doOpSwitchClauseCase() {
 
 	// eval whether cv == tv.
 	if debug {
-		assertEqualityTypes(cv.T, tv.T)
+		debugAssertEqualityTypes(cv.T, tv.T)
 	}
 	match := isEql(m.Store, cv, tv)
 	if match {

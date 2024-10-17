@@ -1,8 +1,6 @@
 package json
 
-import (
-	"testing"
-)
+import "testing"
 
 func TestMarshal_Primitive(t *testing.T) {
 	tests := []struct {

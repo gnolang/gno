@@ -237,6 +237,9 @@ type FmtError struct {
 }
 
 func (fe FmtError) Error() string {
+	if len(fe.args) == 0 {
+		return fe.format
+	}
 	return fmt.Sprintf(fe.format, fe.args...)
 }
 
