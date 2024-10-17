@@ -608,8 +608,8 @@ func parseMemPackageTests(memPkg *std.MemPackage) (tset, itset *gno.FileSet) {
 				memPkg.Name, memPkg.Name, n.PkgName, mfile))
 		}
 	}
-	if errorList := multierr.Errors(errs); len(errorList) > 0 {
-		panic(errorList)
+	if errs != nil {
+		panic(errs)
 	}
 	return tset, itset
 }

@@ -1209,8 +1209,8 @@ func ParseMemPackage(memPkg *std.MemPackage) (fset *FileSet) {
 		// add package file.
 		fset.AddFiles(n)
 	}
-	if errorList := multierr.Errors(errs); len(errorList) > 0 {
-		panic(errorList)
+	if errs != nil {
+		panic(errs)
 	}
 	return fset
 }
