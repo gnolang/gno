@@ -8,38 +8,6 @@ import (
 	"gno.land/p/demo/grc/exts"
 )
 
-var (
-	ErrInsufficientBalance   = errors.New("insufficient balance")
-	ErrInsufficientAllowance = errors.New("insufficient allowance")
-	ErrInvalidAddress        = errors.New("invalid address")
-	ErrCannotTransferToSelf  = errors.New("cannot send transfer to self")
-	ErrReadonly              = errors.New("banker is readonly")
-	ErrRestrictedTokenOwner  = errors.New("restricted to bank owner")
-)
-
-const (
-	MintEvent     = "Mint"
-	BurnEvent     = "Burn"
-	TransferEvent = "Transfer"
-	ApprovalEvent = "Approval"
-)
-
-// Token represents a token's bank, including its name, symbol,
-// decimals, and administrative functions.
-type Token struct {
-	name     string
-	symbol   string
-	decimals uint
-	ledger   *AdminLedger
-}
-
-// AdminLedger is a struct that holds administrative functions for the token.
-type AdminLedger struct {
-	totalSupply uint64
-	balances    avl.Tree // std.Address -> uint64
-	allowances  avl.Tree // owner.(std.Address)+":"+spender.(std.Address)) -> uint64
-}
-
 // GRC20 interface defines the methods that a GRC20 token must implement.
 type GRC20 interface {
 	exts.TokenMetadata
@@ -80,6 +48,38 @@ type GRC20 interface {
 	//
 	// Returns an error if the operation failed.
 	TransferFrom(from, to std.Address, amount uint64) error
+}
+
+var (
+	ErrInsufficientBalance   = errors.New("insufficient balance")
+	ErrInsufficientAllowance = errors.New("insufficient allowance")
+	ErrInvalidAddress        = errors.New("invalid address")
+	ErrCannotTransferToSelf  = errors.New("cannot send transfer to self")
+	ErrReadonly              = errors.New("banker is readonly")
+	ErrRestrictedTokenOwner  = errors.New("restricted to bank owner")
+)
+
+const (
+	MintEvent     = "Mint"
+	BurnEvent     = "Burn"
+	TransferEvent = "Transfer"
+	ApprovalEvent = "Approval"
+)
+
+type Token struct {
+	name     string
+	symbol   string
+	decimals uint
+	ledger   *AdminLedger
+}
+
+// AdminLedger is a struct that holds the balances and allowances and exposes
+// administrative functions.
+// It is unsafe to expose it publicly.
+type AdminLedger struct {
+	totalSupply uint64
+	balances    avl.Tree // std.Address -> uint64
+	allowances  avl.Tree // owner.(std.Address)+":"+spender.(std.Address)) -> uint64
 }
 
 type fnTeller struct {

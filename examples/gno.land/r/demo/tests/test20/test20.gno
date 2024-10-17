@@ -14,9 +14,9 @@ import (
 
 var (
 	Token, AdminLedger = grc20.NewToken("Test20", "TST", 4)
-	PrevRealmTeller    = grc20.PrevRealmTeller(Token)
-	AccountTeller      = grc20.SubAccountTeller(Token, "")
-	AccountTellerFoo   = grc20.SubAccountTeller(Token, "foo")
+	CallerTeller       = Token.CallerTeller()
+	RealmTeller        = Token.RealmTeller()
+	RealmTellerFoo     = Token.RealmSubTeller("foo")
 )
 
 // XXX func init() { grc20reg.Register(Pub, "") } // circular dep (testing)

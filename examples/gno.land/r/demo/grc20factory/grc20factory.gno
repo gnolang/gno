@@ -46,8 +46,8 @@ func NewWithAdmin(name, symbol string, decimals uint, initialMint, faucet uint64
 	grc20reg.Register(token, symbol)
 }
 
-func (inst instance) PrevRealmTeller() grc20.GRC20 {
-	return grc20.PrevRealmTeller(inst.token)
+func (inst instance) CallerTeller() grc20.GRC20 {
+	return inst.token.CallerTeller()
 }
 
 func Bank(symbol string) *grc20.Token {
@@ -57,32 +57,32 @@ func Bank(symbol string) *grc20.Token {
 
 func TotalSupply(symbol string) uint64 {
 	inst := mustGetInstance(symbol)
-	return grc20.PrevRealmTeller(inst.token).TotalSupply()
+	return inst.token.CallerTeller().TotalSupply()
 }
 
 func BalanceOf(symbol string, owner std.Address) uint64 {
 	inst := mustGetInstance(symbol)
-	return grc20.PrevRealmTeller(inst.token).BalanceOf(owner)
+	return inst.token.CallerTeller().BalanceOf(owner)
 }
 
 func Allowance(symbol string, owner, spender std.Address) uint64 {
 	inst := mustGetInstance(symbol)
-	return grc20.PrevRealmTeller(inst.token).Allowance(owner, spender)
+	return inst.token.CallerTeller().Allowance(owner, spender)
 }
 
 func Transfer(symbol string, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	checkErr(grc20.PrevRealmTeller(inst.token).Transfer(to, amount))
+	checkErr(inst.token.CallerTeller().Transfer(to, amount))
 }
 
 func Approve(symbol string, spender std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	checkErr(grc20.PrevRealmTeller(inst.token).Approve(spender, amount))
+	checkErr(inst.token.CallerTeller().Approve(spender, amount))
 }
 
 func TransferFrom(symbol string, from, to std.Address, amount uint64) {
 	inst := mustGetInstance(symbol)
-	checkErr(grc20.PrevRealmTeller(inst.token).TransferFrom(from, to, amount))
+	checkErr(inst.token.CallerTeller().TransferFrom(from, to, amount))
 }
 
 // faucet.
@@ -124,7 +124,7 @@ func Render(path string) string {
 		symbol := parts[0]
 		inst := mustGetInstance(symbol)
 		owner := std.Address(parts[2])
-		balance := grc20.PrevRealmTeller(inst.token).BalanceOf(owner)
+		balance := inst.token.CallerTeller().BalanceOf(owner)
 		return ufmt.Sprintf("%d", balance)
 	default:
 		return "404\n"

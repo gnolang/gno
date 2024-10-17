@@ -78,20 +78,20 @@ func Allowance(owner, spender pusers.AddressOrName) uint64 {
 
 func Transfer(to pusers.AddressOrName, amount uint64) {
 	toAddr := users.Resolve(to)
-	userTeller := grc20.PrevRealmTeller(Token)
+	userTeller := Token.CallerTeller()
 	checkErr(userTeller.Transfer(toAddr, amount))
 }
 
 func Approve(spender pusers.AddressOrName, amount uint64) {
 	spenderAddr := users.Resolve(spender)
-	userTeller := grc20.PrevRealmTeller(Token)
+	userTeller := Token.CallerTeller()
 	checkErr(userTeller.Approve(spenderAddr, amount))
 }
 
 func TransferFrom(from, to pusers.AddressOrName, amount uint64) {
 	fromAddr := users.Resolve(from)
 	toAddr := users.Resolve(to)
-	userTeller := grc20.PrevRealmTeller(Token)
+	userTeller := Token.CallerTeller()
 	checkErr(userTeller.TransferFrom(fromAddr, toAddr, amount))
 }
 

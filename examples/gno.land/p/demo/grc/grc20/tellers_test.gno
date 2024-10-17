@@ -10,10 +10,10 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-func TestPrevRealmTellerImpl(t *testing.T) {
-	token, _ := NewToken("Dummy", "DUMMY", 4)
-	teller := PrevRealmTeller(token)
-	urequire.False(t, token == nil)
+func TestCallerTellerImpl(t *testing.T) {
+	tok, _ := NewToken("Dummy", "DUMMY", 4)
+	teller := tok.CallerTeller()
+	urequire.False(t, tok == nil)
 	var _ GRC20 = teller
 }
 
@@ -81,13 +81,13 @@ func TestTeller(t *testing.T) {
 	checkAllowances(200, 0, 0, 0, 0, 0)
 }
 
-func TestPrevRealmTeller(t *testing.T) {
+func TestCallerTeller(t *testing.T) {
 	alice := testutils.TestAddress("alice")
 	bob := testutils.TestAddress("bob")
 	carl := testutils.TestAddress("carl")
 
 	token, ledger := NewToken("Dummy", "DUMMY", 6)
-	teller := PrevRealmTeller(token)
+	teller := token.CallerTeller()
 
 	checkBalances := func(aliceEB, bobEB, carlEB uint64) {
 		t.Helper()

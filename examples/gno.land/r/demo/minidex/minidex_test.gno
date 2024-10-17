@@ -4,7 +4,6 @@ import (
 	"std"
 	"testing"
 
-	"gno.land/p/demo/grc/grc20"
 	"gno.land/p/demo/testutils"
 	"gno.land/p/demo/uassert"
 	"gno.land/p/demo/ufmt"
@@ -70,7 +69,7 @@ func TestPackage(t *testing.T) {
 	checkBalances(1000, 0, 0, 0, 0, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-	grc20.PrevRealmTeller(test20.Token).Approve(dexAddr, 100)
+	test20.Token.CallerTeller().Approve(dexAddr, 100)
 	checkBalances(1000, 0, 0, 0, 0, 0)
 	checkAllowances(0, 100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 	uassert.Equal(t, dex.Size(), 0, "A")
@@ -89,7 +88,7 @@ Sell: Test20 -> Foo 100
 	checkBalances(900, 0, 100, 0, 10000000, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
-	grc20.PrevRealmTeller(foo20.Token).Approve(dexAddr, 2000)
+	foo20.Token.CallerTeller().Approve(dexAddr, 2000)
 	checkBalances(900, 0, 100, 0, 10000000, 0)
 	checkAllowances(0, 0, 0, 0, 0, 0, 0, 0, 0, 2000, 0, 0)
 	uassert.Equal(t, dex.Size(), 1, "D")

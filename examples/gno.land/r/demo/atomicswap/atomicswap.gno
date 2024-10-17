@@ -61,8 +61,8 @@ func NewCustomCoinSwap(recipient std.Address, hashlock string, timelock time.Tim
 func NewCustomGRC20Swap(recipient std.Address, hashlock string, timelock time.Time, token *grc20.Token) (int, *Swap) {
 	sender := std.PrevRealm().Addr()
 	curAddr := std.CurrentRealm().Addr()
-	// userTeller := grc20.PrevRealmTeller(token)
-	userTeller := grc20.SubAccountTeller(token, "") // FIXME(bug): should be the other one?
+	// userTeller := token.CallerTeller()
+	userTeller := token.RealmTeller() // FIXME(bug): should be the other one?
 
 	allowance := userTeller.Allowance(sender, curAddr)
 	require(allowance > 0, "no allowance")

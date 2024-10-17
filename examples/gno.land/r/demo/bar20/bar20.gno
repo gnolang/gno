@@ -14,7 +14,7 @@ import (
 
 var (
 	Token, adm = grc20.NewToken("Bar", "BAR", 4)
-	UserTeller = grc20.PrevRealmTeller(Token)
+	UserTeller = Token.CallerTeller()
 )
 
 func init() {

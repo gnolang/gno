@@ -16,7 +16,7 @@ import (
 
 var (
 	Token, adminLedger = grc20.NewToken("Foo", "FOO", 4)
-	UserTeller         = grc20.PrevRealmTeller(Token)
+	UserTeller         = Token.CallerTeller()
 	owner              = ownable.NewWithAddress("g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq") // @manfred
 )
 
