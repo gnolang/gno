@@ -65,6 +65,7 @@ func (b BankerType) String() string {
 // GetBanker returns a new Banker, with its capabilities matching the given
 // [BankerType].
 func GetBanker(bt BankerType) Banker {
+	assertCallerIsRealm()
 	if bt >= maxBanker {
 		panic("invalid banker type")
 	}

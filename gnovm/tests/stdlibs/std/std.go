@@ -173,6 +173,10 @@ func X_getRealm(m *gno.Machine, height int) (address string, pkgPath string) {
 	return string(ctx.OrigCaller), ""
 }
 
+func X_isRealm(m *gno.Machine, pkgPath string) bool {
+	return gno.IsRealmPath(pkgPath)
+}
+
 func X_testSetOrigSend(m *gno.Machine,
 	sentDenom []string, sentAmt []int64,
 	spentDenom []string, spentAmt []int64,
