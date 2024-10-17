@@ -12,6 +12,10 @@ import (
 	"gno.land/r/demo/foo20"
 )
 
+func reset() {
+	foo20airdrop = nil
+}
+
 func getLeaves(size int) []merkle.Hashable {
 	leaves := make([]merkle.Hashable, size)
 
@@ -21,20 +25,28 @@ func getLeaves(size int) []merkle.Hashable {
 			10000,
 		)
 	}
+	leaves = append(leaves, airdrop.NewData(
+		"g1sw5xklxjjuv0yvuxy5f5s3l3mnj0nqq626a9wr",
+		1000,
+	))
 
 	return leaves
 }
 
 func TestRegisterMerkle(t *testing.T) {
+	defer reset()
 	leaves := getLeaves(5)
 
 	tree := merkle.NewTree(leaves)
 	root := tree.Root()
 
+	println(root)
+
 	RegisterMerkleRoot(root)
 }
 
 func TestClaimAirdrop(t *testing.T) {
+	defer reset()
 	leaves := getLeaves(5)
 
 	contractAddr := std.DerivePkgAddr("gno.land/r/demo/foo20-airdrop")
