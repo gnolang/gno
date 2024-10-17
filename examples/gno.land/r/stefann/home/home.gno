@@ -5,9 +5,9 @@ import (
 	"std"
 	"strings"
 
+	"gno.land/p/demo/avl"
 	"gno.land/p/demo/ownable"
 	"gno.land/p/demo/ufmt"
-	"gno.land/p/demo/avl"
 
 	"gno.land/r/stefann/registry"
 )
@@ -35,9 +35,9 @@ type Travel struct {
 
 type Sponsorship struct {
 	maxSponsors    int
-	sponsors *avl.Tree
+	sponsors       *avl.Tree
 	DonationsCount int
-	sponsorsCount int
+	sponsorsCount  int
 }
 
 var (
@@ -86,13 +86,19 @@ func init() {
 		maxSponsors:    5,
 		sponsors:       avl.NewTree(),
 		DonationsCount: 0,
-		sponsorsCount: 0,
+		sponsorsCount:  0,
 	}
 }
 
 func UpdateCities(newCities []City) {
 	owner.AssertCallerIsOwner()
 	travel.cities = newCities
+}
+
+func AddCities(newCities ...City) {
+	owner.AssertCallerIsOwner()
+
+	travel.cities = append(travel.cities, newCities...)
 }
 
 func UpdateJarLink(newLink string) {
@@ -108,6 +114,12 @@ func UpdatePFP(url string) {
 func UpdateAboutMe(aboutMeStr string) {
 	owner.AssertCallerIsOwner()
 	profile.aboutMe = strings.Split(aboutMeStr, "|")
+}
+
+func AddAboutMeRows(newRows ...string) {
+	owner.AssertCallerIsOwner()
+
+	profile.aboutMe = append(profile.aboutMe, newRows...)
 }
 
 func UpdateMaxSponsors(newMax int) {
@@ -126,14 +138,14 @@ func Donate() {
 		panic("Donation must include GNOT")
 	}
 
-    existingAmount, exists := sponsorship.sponsors.Get(address.String())
-    if exists {
-        updatedAmount := existingAmount.(std.Coins).Add(amount)
-        sponsorship.sponsors.Set(address.String(), updatedAmount)
-    } else {
-        sponsorship.sponsors.Set(address.String(), amount)
+	existingAmount, exists := sponsorship.sponsors.Get(address.String())
+	if exists {
+		updatedAmount := existingAmount.(std.Coins).Add(amount)
+		sponsorship.sponsors.Set(address.String(), updatedAmount)
+	} else {
+		sponsorship.sponsors.Set(address.String(), amount)
 		sponsorship.sponsorsCount++
-    }
+	}
 
 	travel.currentCityIndex++
 	sponsorship.DonationsCount++
@@ -158,26 +170,26 @@ func (s SponsorSlice) Swap(i, j int) {
 }
 
 func GetTopSponsors() []Sponsor {
-    var sponsorSlice SponsorSlice
+	var sponsorSlice SponsorSlice
 
-    sponsorship.sponsors.Iterate("", "", func(key string, value interface{}) bool {
-        addr := std.Address(key)
-        amount := value.(std.Coins)
-        sponsorSlice = append(sponsorSlice, Sponsor{Address: addr, Amount: amount})
-        return false
-    })
+	sponsorship.sponsors.Iterate("", "", func(key string, value interface{}) bool {
+		addr := std.Address(key)
+		amount := value.(std.Coins)
+		sponsorSlice = append(sponsorSlice, Sponsor{Address: addr, Amount: amount})
+		return false
+	})
 
-    sort.Sort(sponsorSlice)
-    return sponsorSlice
+	sort.Sort(sponsorSlice)
+	return sponsorSlice
 }
 
 func GetTotalDonations() int {
-    total := 0
-    sponsorship.sponsors.Iterate("", "", func(key string, value interface{}) bool {
-        total += int(value.(std.Coins).AmountOf("ugnot"))
-        return false
-    })
-    return total
+	total := 0
+	sponsorship.sponsors.Iterate("", "", func(key string, value interface{}) bool {
+		total += int(value.(std.Coins).AmountOf("ugnot"))
+		return false
+	})
+	return total
 }
 
 func Render(path string) string {
@@ -245,7 +257,7 @@ func renderSponsors() string {
 	out := `<h3 style="margin-top: 5px; margin-bottom: 20px">Sponsor Leaderboard</h3>` + "\n"
 
 	if sponsorship.sponsorsCount == 0 {
-		 return out + `<p style="text-align: center;">No sponsors yet. Be the first to tip the jar!</p>` + "\n"
+		return out + `<p style="text-align: center;">No sponsors yet. Be the first to tip the jar!</p>` + "\n"
 	} else {
 		topSponsors := GetTopSponsors()
 		numSponsors := len(topSponsors)
