@@ -13,10 +13,10 @@ import (
 )
 
 var (
-	Bank, Adm        = grc20.NewBank("Test20", "TST", 4)
-	PrevRealmBanker  = grc20.PrevRealmBanker(Bank)
-	AccountBanker    = grc20.AccountBanker(Bank, "")
-	AccountBankerFoo = grc20.AccountBanker(Bank, "foo")
+	Token, Ledger    = grc20.NewToken("Test20", "TST", 4)
+	PrevRealmBanker  = grc20.PrevRealmBanker(Token)
+	AccountBanker    = grc20.AccountBanker(Token, "")
+	AccountBankerFoo = grc20.AccountBanker(Token, "foo")
 )
 
 // XXX func init() { grc20reg.Register(Pub, "") } // circular dep (testing)

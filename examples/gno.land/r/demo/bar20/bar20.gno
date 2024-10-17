@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	Bank, adm  = grc20.NewBank("Bar", "BAR", 4)
-	UserBanker = grc20.PrevRealmBanker(Bank)
+	Token, ledger = grc20.NewToken("Bar", "BAR", 4)
+	UserBanker    = grc20.PrevRealmBanker(Bank)
 )
 
 func init() {

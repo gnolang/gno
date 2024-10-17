@@ -11,12 +11,12 @@ import (
 )
 
 func TestBankImpl(t *testing.T) {
-	bank, _ := NewBank("Dummy", "DUMMY", 4)
+	bank, _ := NewToken("Dummy", "DUMMY", 4)
 	urequire.False(t, bank == nil, "dummy should not be nil")
 }
 
 func TestPrevRealmBankerImpl(t *testing.T) {
-	bank, _ := NewBank("Dummy", "DUMMY", 4)
+	bank, _ := NewToken("Dummy", "DUMMY", 4)
 	banker := PrevRealmBanker(bank)
 	urequire.False(t, banker == nil)
 	var _ GRC20 = banker
@@ -29,7 +29,7 @@ func TestBank(t *testing.T) {
 		carl  = testutils.TestAddress("carl")
 	)
 
-	bank, adm := NewBank("Dummy", "DUMMY", 6)
+	bank, adm := NewToken("Dummy", "DUMMY", 6)
 
 	checkBalances := func(aliceEB, bobEB, carlEB uint64) {
 		t.Helper()
@@ -91,7 +91,7 @@ func TestPrevRealmBanker(t *testing.T) {
 	bob := testutils.TestAddress("bob")
 	carl := testutils.TestAddress("carl")
 
-	bank, adm := NewBank("Dummy", "DUMMY", 6)
+	bank, adm := NewToken("Dummy", "DUMMY", 6)
 	banker := PrevRealmBanker(bank)
 
 	checkBalances := func(aliceEB, bobEB, carlEB uint64) {
