@@ -1,0 +1,23 @@
+# Test panic with error output in a test
+
+! gno test .
+
+! stdout .+
+stderr '--- FAIL: TestPanicWithError'
+stderr 'panic: hello world'
+stderr 'FAIL'
+
+-- panic_error.gno --
+package panicerror 
+
+-- panic_error_test.gno --
+package panicerror
+
+import (
+	"errors"
+	"testing"
+)
+
+func TestPanicWithError(t *testing.T) {
+	panic(errors.New("hello world"))
+}
