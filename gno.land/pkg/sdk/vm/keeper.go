@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -663,6 +664,16 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	)
 
 	return res, nil
+}
+
+// QueryNamespacePaths returns public facing function signatures.
+func (vm *VMKeeper) QueryNamespacePaths(ctx sdk.Context, namespace string) []string {
+	domain := vm.getChainDomainParam(ctx)
+	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed) // XXX: is that really needed ?
+	rpath, ppath := path.Join(domain, "r", namespace)+"/", path.Join(domain, "p", namespace)+"/"
+
+	paths := store.FindPathsByPrefix(rpath)
+	return append(paths, store.FindPathsByPrefix(ppath)...)
 }
 
 // QueryFuncs returns public facing function signatures.

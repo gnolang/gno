@@ -2,6 +2,7 @@ package vm
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/gnolang/gno/gnovm/pkg/version"
@@ -74,6 +75,7 @@ const (
 	QueryEval   = "qeval"
 	QueryFile   = "qfile"
 	QueryDoc    = "qdoc"
+	QueryPaths  = "qpaths"
 )
 
 func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQuery {
@@ -93,6 +95,8 @@ func (vh vmHandler) Query(ctx sdk.Context, req abci.RequestQuery) abci.ResponseQ
 		res = vh.queryFile(ctx, req)
 	case QueryDoc:
 		res = vh.queryDoc(ctx, req)
+	case QueryPaths:
+		res = vh.queryPaths(ctx, req)
 	default:
 		return sdk.ABCIResponseQueryFromError(
 			std.ErrUnknownRequest(fmt.Sprintf(
@@ -131,10 +135,25 @@ func (vh vmHandler) queryFuncs(ctx sdk.Context, req abci.RequestQuery) (res abci
 	pkgPath := string(req.Data)
 	fsigs, err := vh.vm.QueryFuncs(ctx, pkgPath)
 	if err != nil {
-		res = sdk.ABCIResponseQueryFromError(err)
-		return
+		return sdk.ABCIResponseQueryFromError(err)
+
 	}
 	res.Data = []byte(fsigs.JSON())
+	return
+}
+
+var reUser = regexp.MustCompile(`[\.~_a-zA-Z0-9]+`)
+
+// queryPaths retrieves paginated package paths based on request data.
+func (vh vmHandler) queryPaths(ctx sdk.Context, req abci.RequestQuery) (res abci.ResponseQuery) {
+	if !reUser.Match(req.Data) {
+		return sdk.ABCIResponseQueryFromError(
+			fmt.Errorf("invalid user namespace"),
+		)
+	}
+
+	paths := vh.vm.QueryNamespacePaths(ctx, string(req.Data))
+	res.Data = []byte(strings.Join(paths, "\n"))
 	return
 }
 

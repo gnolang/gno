@@ -49,3 +49,8 @@ func (fsigs FunctionSignatures) JSON() string {
 	bz := amino.MustMarshalJSON(fsigs)
 	return string(bz)
 }
+
+type QueryPathsResult struct {
+	Paths     []string
+	NextToken string
+}

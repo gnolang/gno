@@ -63,6 +63,7 @@ type Store interface {
 	AddMemPackage(memPkg *gnovm.MemPackage)
 	GetMemPackage(path string) *gnovm.MemPackage
 	GetMemFile(path string, name string) *gnovm.MemFile
+	FindPathsByPrefix(prefix string) []string
 	IterMemPackage() <-chan *gnovm.MemPackage
 	ClearObjectCache()                                    // run before processing a message
 	SetNativeResolver(NativeResolver)                     // for native functions
@@ -865,6 +866,63 @@ func (ds *defaultStore) GetMemFile(path string, name string) *gnovm.MemFile {
 	return memFile
 }
 
+// ListMemPackagePath retrieves a paginated list of package paths.
+func (p *defaultStore) FindPathsByPrefix(prefix string) []string {
+	startKey := []byte(backendPackagePathKey(prefix))
+	endKey := incrementLastByte(startKey)
+
+	var paths []string
+	iter := p.iavlStore.Iterator(startKey, endKey)
+	defer iter.Close()
+
+	for ; iter.Valid(); iter.Next() {
+		path := decodeBackendPackagePathKey(string(iter.Key()))
+		paths = append(paths, path)
+	}
+
+	return paths
+}
+
+func incrementLastByte(b []byte) []byte {
+	if len(b) == 0 {
+		return nil
+	}
+	newKey := make([]byte, len(b))
+	copy(newKey, b)
+	newKey[len(newKey)-1]++
+	return newKey
+}
+
+// ListMemPackagePath retrieves a paginated list of package paths.
+func (ds *defaultStore) ListMemPackagePath(offset, limit uint64) []string {
+	ctrkey := []byte(backendPackageIndexCtrKey())
+	ctrbz := ds.baseStore.Get(ctrkey)
+	if ctrbz == nil {
+		return nil
+	}
+
+	ctr, err := strconv.Atoi(string(ctrbz))
+	if err != nil {
+		panic(fmt.Errorf("failed to convert counter to integer: %w", err))
+	}
+
+	paths := make([]string, 0, limit)
+	to := min(uint64(ctr), offset+limit)
+
+	// Fetching and filtering data
+	for from := offset + 1; from <= to; from++ {
+		idxkey := []byte(backendPackageIndexKey(from))
+		path := ds.baseStore.Get(idxkey)
+		if path == nil {
+			panic(fmt.Errorf("missing package index %d", from))
+		}
+
+		paths = append(paths, string(path))
+	}
+
+	return paths
+}
+
 func (ds *defaultStore) IterMemPackage() <-chan *gnovm.MemPackage {
 	ctrkey := []byte(backendPackageIndexCtrKey())
 	ctrbz := ds.baseStore.Get(ctrkey)
@@ -991,6 +1049,10 @@ func backendPackageIndexKey(index uint64) string {
 
 func backendPackagePathKey(path string) string {
 	return "pkg:" + path
+}
+
+func decodeBackendPackagePathKey(key string) string {
+	return strings.TrimPrefix(key, "pkg:")
 }
 
 // ----------------------------------------

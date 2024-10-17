@@ -1,0 +1,40 @@
+loadpkg gno.land/r/aaa/bbb/ccc $WORK
+loadpkg gno.land/r/aaa/ccc/ddd $WORK
+loadpkg gno.land/r/aaa $WORK
+loadpkg gno.land/r/bbb/ccc $WORK
+loadpkg gno.land/p/bbb/ccc $WORK
+loadpkg gno.land/r/bbb/aaa $WORK
+loadpkg gno.land/p/bbb0 $WORK # should not match `bbb`
+
+gnoland start
+
+# query path for namespace
+gnokey query vm/qpaths --data "aaa"
+cmp stdout aaa-qpaths.stdout.golden
+cmp stderr aaa-qpaths.stderr.golden
+
+gnokey query vm/qpaths --data "bbb"
+cmp stdout bbb-qpaths.stdout.golden
+cmp stderr bbb-qpaths.stderr.golden
+
+gnokey query vm/qpaths --data "ccc"
+
+
+-- main.gno --
+package main; func main() { println("A") }
+
+-- aaa-qpaths.stdout.golden --
+height: 0
+data: gno.land/r/aaa/bbb/ccc
+gno.land/r/aaa/ccc/ddd
+-- aaa-qpaths.stderr.golden --
+-- bbb-qpaths.stdout.golden --
+height: 0
+data: gno.land/r/bbb/aaa
+gno.land/r/bbb/ccc
+gno.land/p/bbb/ccc
+-- bbb-qpaths.stderr.golden --
+-- ccc-qpaths.stdout.golden --
+height: 0
+data: gno.land/r/aaa/bbb/ccc
+-- ccc-qpaths.stderr.golden --
