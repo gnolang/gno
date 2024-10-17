@@ -634,6 +634,24 @@ func (vm *VMKeeper) Run(ctx sdk.Context, msg MsgRun) (res string, err error) {
 	return res, nil
 }
 
+const MaxPackagesLimit = 100
+
+// QueryPackagesPath returns public facing function signatures.
+func (vm *VMKeeper) QueryPackagesPath(ctx sdk.Context, page, pageSize int) (paths []string, err error) {
+	if page < 0 {
+		return nil, fmt.Errorf("invalid page, cannot be negative")
+	}
+
+	if pageSize > MaxPackagesLimit || pageSize < 0 {
+		return nil, fmt.Errorf("invalid page size, cannot be negative or above %d ", MaxPackagesLimit)
+	}
+
+	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed) // XXX: is that really needed ?
+	offset := page * pageSize
+	paths = store.ListMemPackagePath(uint64(offset), uint64(pageSize))
+	return paths, nil
+}
+
 // QueryFuncs returns public facing function signatures.
 func (vm *VMKeeper) QueryFuncs(ctx sdk.Context, pkgPath string) (fsigs FunctionSignatures, err error) {
 	store := vm.newGnoTransactionStore(ctx) // throwaway (never committed)
