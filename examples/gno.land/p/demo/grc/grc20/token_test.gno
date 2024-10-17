@@ -9,12 +9,12 @@ import (
 	"gno.land/p/demo/urequire"
 )
 
-func TestBankImpl(t *testing.T) {
+func TestTestImpl(t *testing.T) {
 	bank, _ := NewToken("Dummy", "DUMMY", 4)
 	urequire.False(t, bank == nil, "dummy should not be nil")
 }
 
-func TestBank(t *testing.T) {
+func TestToken(t *testing.T) {
 	var (
 		alice = testutils.TestAddress("alice")
 		bob   = testutils.TestAddress("bob")
