@@ -193,6 +193,10 @@ func (m *Machine) doOpRef() {
 			rv2.Set(rv)
 			nv.Value = rv2
 		}
+	} else if _, ok := xv.TV.V.(PointerValue); ok && m.Alloc != nil {
+		gcObj := NewObject(*xv.TV)
+		gcObj.marked = true
+		m.Alloc.heap.AddObject(gcObj)
 	}
 	// when obtaining a pointer of the databyte type, use the ElemType of databyte
 	elt := xv.TV.T
@@ -575,10 +579,26 @@ func (m *Machine) doOpSliceLit() {
 		m.PopValue()
 	}
 	sv := m.Alloc.NewSliceFromList(es)
-	m.PushValue(TypedValue{
+	tv := TypedValue{
 		T: st,
 		V: sv,
-	})
+	}
+
+	if m.Alloc != nil {
+		obj := NewObject(Unwrap(tv))
+		m.Alloc.heap.AddObject(obj)
+
+		for _, e := range es {
+			el := MakeHeapObj(Unwrap(e))
+			if el != nil {
+				m.Alloc.heap.AddObject(el)
+				visited := make(map[*GcObj]bool)
+				m.Alloc.heap.AddRef(obj, el, visited)
+			}
+		}
+	}
+
+	m.PushValue(tv)
 }
 
 func (m *Machine) doOpSliceLit2() {
