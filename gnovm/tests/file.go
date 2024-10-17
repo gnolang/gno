@@ -2,6 +2,7 @@ package tests
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -123,7 +124,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 		opt(&f)
 	}
 
-	directives, pkgPath, resWanted, errWanted, rops, stacktraceWanted, maxAlloc, send := wantedFromComment(path)
+	directives, pkgPath, resWanted, errWanted, rops, eventsWanted, stacktraceWanted, maxAlloc, send := wantedFromComment(path)
 	if pkgPath == "" {
 		pkgPath = "main"
 	}
@@ -360,6 +361,45 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 						}
 					}
 				}
+			case "Events":
+				// panic if got unexpected error
+
+				if pnc != nil {
+					if tv, ok := pnc.(*gno.TypedValue); ok {
+						panic(fmt.Sprintf("fail on %s: got unexpected error: %s", path, tv.Sprint(m)))
+					} else { // happens on 'unknown import path ...'
+						panic(fmt.Sprintf("fail on %s: got unexpected error: %v", path, pnc))
+					}
+				}
+				// check result
+				events := m.Context.(*teststd.TestExecContext).EventLogger.Events()
+				evtjson, err := json.Marshal(events)
+				if err != nil {
+					panic(err)
+				}
+				evtstr := trimTrailingSpaces(string(evtjson))
+				if evtstr != eventsWanted {
+					if f.syncWanted {
+						// write output to file.
+						replaceWantedInPlace(path, "Events", evtstr)
+					} else {
+						// panic so tests immediately fail (for now).
+						if eventsWanted == "" {
+							panic(fmt.Sprintf("fail on %s: got unexpected events: %s", path, evtstr))
+						} else {
+							diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+								A:        difflib.SplitLines(eventsWanted),
+								B:        difflib.SplitLines(evtstr),
+								FromFile: "Expected",
+								FromDate: "",
+								ToFile:   "Actual",
+								ToDate:   "",
+								Context:  1,
+							})
+							panic(fmt.Sprintf("fail on %s: diff:\n%s\n", path, diff))
+						}
+					}
+				}
 			case "Realm":
 				// panic if got unexpected error
 				if pnc != nil {
@@ -434,7 +474,7 @@ func RunFileTest(rootDir string, path string, opts ...RunFileTestOption) error {
 	return nil
 }
 
-func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops, stacktrace string, maxAlloc int64, send std.Coins) {
+func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops, events, stacktrace string, maxAlloc int64, send std.Coins) {
 	fset := token.NewFileSet()
 	f, err2 := parser.ParseFile(fset, p, nil, parser.ParseComments)
 	if err2 != nil {
@@ -476,6 +516,10 @@ func wantedFromComment(p string) (directives []string, pkgPath, res, err, rops, 
 			rops = strings.TrimPrefix(text, "Realm:\n")
 			rops = strings.TrimSpace(rops)
 			directives = append(directives, "Realm")
+		} else if strings.HasPrefix(text, "Events:\n") {
+			events = strings.TrimPrefix(text, "Events:\n")
+			events = strings.TrimSpace(events)
+			directives = append(directives, "Events")
 		} else if strings.HasPrefix(text, "Stacktrace:\n") {
 			stacktrace = strings.TrimPrefix(text, "Stacktrace:\n")
 			stacktrace = strings.TrimSpace(stacktrace)
