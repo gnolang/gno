@@ -8,8 +8,8 @@ import (
 type testNode struct {
 	name  string
 	input []byte
-	_type ValueType
 	value []byte
+	_type ValueType
 }
 
 func simpleValid(test *testNode, t *testing.T) {
