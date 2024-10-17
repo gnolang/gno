@@ -11,6 +11,15 @@ import (
 	"github.com/gnolang/gno/tm2/pkg/std"
 )
 
+type Format string
+
+const (
+	FormatMachine = "machine" // Default machine representation
+	FormatJSON    = "json"
+
+	FormatDefault = FormatMachine
+)
+
 //----------------------------------------
 // MsgAddPackage
 
@@ -88,12 +97,16 @@ type MsgCall struct {
 	PkgPath string         `json:"pkg_path" yaml:"pkg_path"`
 	Func    string         `json:"func" yaml:"func"`
 	Args    []string       `json:"args" yaml:"args"`
+
+	// XXX: This field is experimental, use with care as output is likely to change
+	Format Format `json:"format" yaml:"format"`
 }
 
 var _ std.Msg = MsgCall{}
 
 func NewMsgCall(caller crypto.Address, send sdk.Coins, pkgPath, fnc string, args []string) MsgCall {
 	return MsgCall{
+		Format:  FormatDefault,
 		Caller:  caller,
 		Send:    send,
 		PkgPath: pkgPath,
